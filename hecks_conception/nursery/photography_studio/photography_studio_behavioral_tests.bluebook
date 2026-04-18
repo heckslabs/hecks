@@ -1,0 +1,93 @@
+Hecks.behaviors "PhotographyStudio" do
+  vision "Behavioral tests for the PhotographyStudio domain — exercises every command and query in memory"
+
+  # ── Shoot aggregate ──────────────────────────────────────────
+
+  test "ScheduleShoot sets title + location + shoot_type" do
+    tests "ScheduleShoot", on: "Shoot"
+    setup  "RegisterClient", name: "sample", email: "sample", phone: "sample"
+    input  client: 1, title: "sample", location: "sample", shoot_type: "sample"
+    expect ok: "true"
+  end
+
+  test "StartShoot runs" do
+    tests "StartShoot", on: "Shoot"
+    input  shoot: 1
+    expect status: "in_progress"
+  end
+
+  test "WrapShoot sets final_frame_count" do
+    tests "WrapShoot", on: "Shoot"
+    input  shoot: 1, final_frame_count: 1
+    expect status: "wrapped", frame_count: 1
+  end
+
+
+  # ── Client aggregate ──────────────────────────────────────────
+
+  test "RegisterClient sets name + email + phone" do
+    tests "RegisterClient", on: "Client"
+    input  name: "sample", email: "sample", phone: "sample"
+    expect name: "sample", email: "sample", phone: "sample"
+  end
+
+  test "UpgradeTier sets new_tier" do
+    tests "UpgradeTier", on: "Client"
+    setup  "RegisterClient", name: "sample", email: "sample", phone: "sample"
+    input  client: 1, new_tier: "sample"
+    expect tier: "sample"
+  end
+
+
+  # ── EditSession aggregate ──────────────────────────────────────────
+
+  test "CullSelects sets selects_count" do
+    tests "CullSelects", on: "EditSession"
+    input  shoot: 1, selects_count: 1
+    expect selects_count: 1, status: "culling"
+  end
+
+  test "RetouchSelects sets preset_name" do
+    tests "RetouchSelects", on: "EditSession"
+    input  edit_session: 1, preset_name: "sample"
+    expect status: "retouched"
+  end
+
+  test "DeliverFinals sets finals_count" do
+    tests "DeliverFinals", on: "EditSession"
+    input  edit_session: 1, finals_count: 1
+    expect finals_count: 1, status: "delivered"
+  end
+
+
+  # ── Gallery aggregate ──────────────────────────────────────────
+
+  test "PublishGallery sets title + access_code + image_count" do
+    tests "PublishGallery", on: "Gallery"
+    input  gallery: 1, title: "sample", access_code: "sample", image_count: 1
+    expect status: "published"
+  end
+
+  test "ExpireGallery runs" do
+    tests "ExpireGallery", on: "Gallery"
+    input  gallery: 1
+    expect status: "expired"
+  end
+
+
+  # ── PrintOrder aggregate ──────────────────────────────────────────
+
+  test "PlacePrintOrder sets paper_stock + finish + quantity" do
+    tests "PlacePrintOrder", on: "PrintOrder"
+    input  gallery: 1, paper_stock: "sample", finish: "sample", quantity: 1
+    expect paper_stock: "sample", finish: "sample", quantity: 1
+  end
+
+  test "FulfillPrintOrder runs" do
+    tests "FulfillPrintOrder", on: "PrintOrder"
+    setup  "PlacePrintOrder", paper_stock: "sample", finish: "sample", quantity: 1
+    input  print_order: 1
+    expect status: "fulfilled"
+  end
+
+end

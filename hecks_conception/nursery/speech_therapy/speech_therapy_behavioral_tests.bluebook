@@ -1,0 +1,89 @@
+Hecks.behaviors "SpeechTherapy" do
+  vision "Behavioral tests for the SpeechTherapy domain — exercises every command and query in memory"
+
+  # ── Client aggregate ──────────────────────────────────────────
+
+  test "EnrollClient sets name + date_of_birth + referral_source + primary_disorder" do
+    tests "EnrollClient", on: "Client"
+    input  name: "sample", date_of_birth: "sample", referral_source: "sample", primary_disorder: "sample"
+    expect name: "sample", date_of_birth: "sample", referral_source: "sample", primary_disorder: "sample", status: "active"
+  end
+
+  test "DischargeClient runs" do
+    tests "DischargeClient", on: "Client"
+    setup  "EnrollClient", name: "sample", date_of_birth: "sample", referral_source: "sample", primary_disorder: "sample"
+    input  client: 1
+    expect status: "discharged"
+  end
+
+
+  # ── TherapyGoal aggregate ──────────────────────────────────────────
+
+  test "SetGoal sets client_name + goal_area + description + target_criterion + baseline_score" do
+    tests "SetGoal", on: "TherapyGoal"
+    setup  "EnrollClient", name: "sample", date_of_birth: "sample", referral_source: "sample", primary_disorder: "sample"
+    input  client: 1, client_name: "sample", goal_area: "sample", description: "sample", target_criterion: "sample", baseline_score: 1
+    expect client_name: "sample", goal_area: "sample", description: "sample", target_criterion: "sample", baseline_score: 1, current_score: 1, status: "in_progress"
+  end
+
+  test "UpdateProgress sets current_score" do
+    tests "UpdateProgress", on: "TherapyGoal"
+    input  therapy_goal: 1, current_score: 1
+    expect current_score: 1
+  end
+
+  test "AchieveGoal runs" do
+    tests "AchieveGoal", on: "TherapyGoal"
+    input  therapy_goal: 1
+    expect status: "achieved"
+  end
+
+
+  # ── TherapySession aggregate ──────────────────────────────────────────
+
+  test "ScheduleSession sets client_name + pathologist_name + session_date + session_type" do
+    tests "ScheduleSession", on: "TherapySession"
+    setup  "EnrollClient", name: "sample", date_of_birth: "sample", referral_source: "sample", primary_disorder: "sample"
+    input  client: 1, client_name: "sample", pathologist_name: "sample", session_date: "sample", session_type: "sample"
+    expect client_name: "sample", pathologist_name: "sample", session_date: "sample", session_type: "sample", status: "scheduled"
+  end
+
+  test "CompleteSession sets notes" do
+    tests "CompleteSession", on: "TherapySession"
+    input  therapy_session: 1, notes: "sample"
+    expect notes: "sample", status: "completed"
+  end
+
+
+  # ── Exercise aggregate ──────────────────────────────────────────
+
+  test "CreateExercise sets name + target_skill + difficulty + instructions + modality" do
+    tests "CreateExercise", on: "Exercise"
+    input  name: "sample", target_skill: "sample", difficulty: "sample", instructions: "sample", modality: "sample"
+    expect name: "sample", target_skill: "sample", difficulty: "sample", instructions: "sample", modality: "sample"
+  end
+
+  test "ModifyExercise sets difficulty + instructions" do
+    tests "ModifyExercise", on: "Exercise"
+    setup  "CreateExercise", name: "sample", target_skill: "sample", difficulty: "sample", instructions: "sample", modality: "sample"
+    input  exercise: 1, difficulty: "sample", instructions: "sample"
+    expect difficulty: "sample", instructions: "sample"
+  end
+
+
+  # ── SpeechAssessment aggregate ──────────────────────────────────────────
+
+  test "AdministerAssessment sets client_name + assessment_tool + assessment_date" do
+    tests "AdministerAssessment", on: "SpeechAssessment"
+    setup  "EnrollClient", name: "sample", date_of_birth: "sample", referral_source: "sample", primary_disorder: "sample"
+    input  client: 1, client_name: "sample", assessment_tool: "sample", assessment_date: "sample"
+    expect client_name: "sample", assessment_tool: "sample", assessment_date: "sample"
+  end
+
+  test "ScoreAssessment sets composite_score + severity_rating" do
+    tests "ScoreAssessment", on: "SpeechAssessment"
+    input  speech_assessment: 1, composite_score: 1, severity_rating: "sample"
+    expect composite_score: 1, severity_rating: "sample"
+  end
+
+end

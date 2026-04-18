@@ -1,0 +1,115 @@
+Hecks.behaviors "ArtisanMetalworks" do
+  vision "Behavioral tests for the ArtisanMetalworks domain — exercises every command and query in memory"
+
+  # ── Alloy aggregate ──────────────────────────────────────────
+
+  test "FormulatAlloy sets name + carbon_content + target_hardness" do
+    tests "FormulatAlloy", on: "Alloy"
+    input  name: "sample", carbon_content: 1.0, target_hardness: 1.0
+    expect ok: "true"
+  end
+
+  test "AddElement sets element + percentage" do
+    tests "AddElement", on: "Alloy"
+    setup  "AddElement", element: "sample", percentage: 1.0
+    input  alloy: 1, element: "sample", percentage: 1.0
+    expect compositions_size: 1
+  end
+
+  test "ByHardness returns matching records" do
+    tests "ByHardness", on: "Alloy", kind: :query
+    setup  "AddElement", element: "sample", percentage: 1.0
+    expect count: 1
+  end
+
+
+  # ── SmeltBatch aggregate ──────────────────────────────────────────
+
+  test "ChargeFurnace sets volume_kg" do
+    tests "ChargeFurnace", on: "SmeltBatch"
+    setup  "AddElement", element: "sample", percentage: 1.0
+    input  alloy: 1, volume_kg: 1.0
+    expect ok: "true"
+  end
+
+  test "TapSmelt runs" do
+    tests "TapSmelt", on: "SmeltBatch"
+    input  smelt_batch: 1
+    expect ok: "true"
+  end
+
+  test "GradeBatch sets quality_grade" do
+    tests "GradeBatch", on: "SmeltBatch"
+    input  smelt_batch: 1, quality_grade: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── JewelryDesign aggregate ──────────────────────────────────────────
+
+  test "SketchDesign sets title + style" do
+    tests "SketchDesign", on: "JewelryDesign"
+    setup  "AddElement", element: "sample", percentage: 1.0
+    input  alloy: 1, title: "sample", style: "sample"
+    expect ok: "true"
+  end
+
+  test "SetGem sets gem_type + carat + setting_style" do
+    tests "SetGem", on: "JewelryDesign"
+    input  jewelry_design: 1, gem_type: "sample", carat: 1.0, setting_style: "sample"
+    expect gemstones_size: 1
+  end
+
+  test "ApproveDesign runs" do
+    tests "ApproveDesign", on: "JewelryDesign"
+    input  jewelry_design: 1
+    expect ok: "true"
+  end
+
+
+  # ── CastingOrder aggregate ──────────────────────────────────────────
+
+  test "CreateCastingOrder sets quantity" do
+    tests "CreateCastingOrder", on: "CastingOrder"
+    input  smelt_batch: 1, jewelry_design: 1, quantity: 1
+    expect quantity: 1
+  end
+
+  test "CompleteCasting runs" do
+    tests "CompleteCasting", on: "CastingOrder"
+    setup  "CreateCastingOrder", quantity: 1
+    input  casting_order: 1
+    expect ok: "true"
+  end
+
+  test "ReportDefect sets defect_type + severity" do
+    tests "ReportDefect", on: "CastingOrder"
+    setup  "CreateCastingOrder", quantity: 1
+    input  casting_order: 1, defect_type: "sample", severity: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Showcase aggregate ──────────────────────────────────────────
+
+  test "PlanShowcase sets name + venue" do
+    tests "PlanShowcase", on: "Showcase"
+    input  name: "sample", venue: "sample"
+    expect ok: "true"
+  end
+
+  test "AddPiece sets piece_title + price_cents" do
+    tests "AddPiece", on: "Showcase"
+    setup  "AddPiece", piece_title: "sample", price_cents: 1
+    input  showcase: 1, piece_title: "sample", price_cents: 1
+    expect pieces_size: 1
+  end
+
+  test "SellPiece sets piece_title" do
+    tests "SellPiece", on: "Showcase"
+    setup  "AddPiece", piece_title: "sample", price_cents: 1
+    input  showcase: 1, piece_title: "sample"
+    expect ok: "true"
+  end
+
+end

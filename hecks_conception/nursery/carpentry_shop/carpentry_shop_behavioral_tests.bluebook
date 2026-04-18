@@ -1,0 +1,96 @@
+Hecks.behaviors "CarpentryShop" do
+  vision "Behavioral tests for the CarpentryShop domain — exercises every command and query in memory"
+
+  # ── Project aggregate ──────────────────────────────────────────
+
+  test "AcceptProject sets client_name + project_type + description + quoted_price" do
+    tests "AcceptProject", on: "Project"
+    input  client_name: "sample", project_type: "sample", description: "sample", quoted_price: 1.0
+    expect ok: "true"
+  end
+
+  test "BeginFabrication runs" do
+    tests "BeginFabrication", on: "Project"
+    setup  "AcceptProject", client_name: "sample", project_type: "sample", description: "sample", quoted_price: 1.0
+    input  project: 1
+    expect ok: "true"
+  end
+
+  test "DeliverProject runs" do
+    tests "DeliverProject", on: "Project"
+    setup  "AcceptProject", client_name: "sample", project_type: "sample", description: "sample", quoted_price: 1.0
+    input  project: 1
+    expect ok: "true"
+  end
+
+
+  # ── LumberOrder aggregate ──────────────────────────────────────────
+
+  test "OrderLumber sets species + grade + board_feet + supplier" do
+    tests "OrderLumber", on: "LumberOrder"
+    setup  "AcceptProject", client_name: "sample", project_type: "sample", description: "sample", quoted_price: 1.0
+    input  project: 1, species: "sample", grade: "sample", board_feet: 1.0, supplier: "sample"
+    expect ok: "true"
+  end
+
+  test "ReceiveLumber sets moisture_pct" do
+    tests "ReceiveLumber", on: "LumberOrder"
+    input  lumber_order: 1, moisture_pct: 1.0
+    expect ok: "true"
+  end
+
+  test "RejectLumber sets rejection_reason" do
+    tests "RejectLumber", on: "LumberOrder"
+    input  lumber_order: 1, rejection_reason: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── JointAssembly aggregate ──────────────────────────────────────────
+
+  test "CutJoint sets joint_type + location_in_piece + wood_species" do
+    tests "CutJoint", on: "JointAssembly"
+    setup  "AcceptProject", client_name: "sample", project_type: "sample", description: "sample", quoted_price: 1.0
+    input  project: 1, joint_type: "sample", location_in_piece: "sample", wood_species: "sample"
+    expect ok: "true"
+  end
+
+  test "GlueUp sets adhesive + clamp_hours" do
+    tests "GlueUp", on: "JointAssembly"
+    input  joint_assembly: 1, adhesive: "sample", clamp_hours: 1
+    expect ok: "true"
+  end
+
+
+  # ── Finish aggregate ──────────────────────────────────────────
+
+  test "ApplyFinish sets finish_type + color + coats_applied + dry_hours_per_coat" do
+    tests "ApplyFinish", on: "Finish"
+    setup  "AcceptProject", client_name: "sample", project_type: "sample", description: "sample", quoted_price: 1.0
+    input  project: 1, finish_type: "sample", color: "sample", coats_applied: 1, dry_hours_per_coat: 1
+    expect ok: "true"
+  end
+
+  test "SandBetweenCoats sets grit" do
+    tests "SandBetweenCoats", on: "Finish"
+    input  finish: 1, grit: 1
+    expect ok: "true"
+  end
+
+
+  # ── ClientApproval aggregate ──────────────────────────────────────────
+
+  test "RequestApproval sets milestone" do
+    tests "RequestApproval", on: "ClientApproval"
+    setup  "AcceptProject", client_name: "sample", project_type: "sample", description: "sample", quoted_price: 1.0
+    input  project: 1, milestone: "sample"
+    expect ok: "true"
+  end
+
+  test "RecordApproval sets client_feedback + approval_status" do
+    tests "RecordApproval", on: "ClientApproval"
+    input  client_approval: 1, client_feedback: "sample", approval_status: "sample"
+    expect ok: "true"
+  end
+
+end

@@ -1,0 +1,60 @@
+Hecks.behaviors "ReliefWorkers" do
+  vision "Behavioral tests for the ReliefWorkers domain — exercises every command and query in memory"
+
+  # ── Incident aggregate ──────────────────────────────────────────
+
+  test "DeclareIncident sets incident_id + disaster_type + location_name + severity + workers_needed" do
+    tests "DeclareIncident", on: "Incident"
+    input  incident_id: "sample", disaster_type: "sample", location_name: "sample", severity: "sample", workers_needed: 1
+    expect incident_id: "sample", disaster_type: "sample", location_name: "sample", severity: "sample", workers_needed: 1, status: "active"
+  end
+
+  test "CloseIncident runs" do
+    tests "CloseIncident", on: "Incident"
+    setup  "DeclareIncident", incident_id: "sample", disaster_type: "sample", location_name: "sample", severity: "sample", workers_needed: 1
+    input  incident: 1
+    expect status: "closed"
+  end
+
+
+  # ── Volunteer aggregate ──────────────────────────────────────────
+
+  test "RegisterVolunteer sets volunteer_id + name + availability" do
+    tests "RegisterVolunteer", on: "Volunteer"
+    input  volunteer_id: "sample", name: "sample", availability: "sample"
+    expect volunteer_id: "sample", name: "sample", availability: "sample", status: "available"
+  end
+
+  test "MatchVolunteer runs" do
+    tests "MatchVolunteer", on: "Volunteer"
+    setup  "RegisterVolunteer", volunteer_id: "sample", name: "sample", availability: "sample"
+    input  volunteer: 1
+    expect status: "matched"
+  end
+
+
+  # ── Deployment aggregate ──────────────────────────────────────────
+
+  test "DeployVolunteer sets deployment_id + volunteer_id + incident_id + role_assigned + start_date" do
+    tests "DeployVolunteer", on: "Deployment"
+    input  deployment_id: "sample", volunteer_id: "sample", incident_id: "sample", role_assigned: "sample", start_date: "sample"
+    expect deployment_id: "sample", volunteer_id: "sample", incident_id: "sample", role_assigned: "sample", start_date: "sample", status: "deployed"
+  end
+
+  test "RecallVolunteer runs" do
+    tests "RecallVolunteer", on: "Deployment"
+    setup  "DeployVolunteer", deployment_id: "sample", volunteer_id: "sample", incident_id: "sample", role_assigned: "sample", start_date: "sample"
+    input  deployment: 1
+    expect status: "recalled"
+  end
+
+
+  # ── FieldReport aggregate ──────────────────────────────────────────
+
+  test "SubmitReport sets report_id + deployment_id + conditions + people_assisted + needs_summary" do
+    tests "SubmitReport", on: "FieldReport"
+    input  report_id: "sample", deployment_id: "sample", conditions: "sample", people_assisted: 1, needs_summary: "sample"
+    expect report_id: "sample", deployment_id: "sample", conditions: "sample", people_assisted: 1, needs_summary: "sample"
+  end
+
+end

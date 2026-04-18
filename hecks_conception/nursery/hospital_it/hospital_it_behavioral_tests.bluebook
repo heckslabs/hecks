@@ -1,0 +1,81 @@
+Hecks.behaviors "HospitalIT" do
+  vision "Behavioral tests for the HospitalIT domain — exercises every command and query in memory"
+
+  # ── PatientRecord aggregate ──────────────────────────────────────────
+
+  test "CreateRecord sets medical_record_number + patient_name + department" do
+    tests "CreateRecord", on: "PatientRecord"
+    input  medical_record_number: "sample", patient_name: "sample", department: "sample"
+    expect medical_record_number: "sample", patient_name: "sample", department: "sample", record_status: "active"
+  end
+
+  test "AddEntry sets entry_type + content + author" do
+    tests "AddEntry", on: "PatientRecord"
+    setup  "CreateRecord", medical_record_number: "sample", patient_name: "sample", department: "sample"
+    input  patient_record: 1, entry_type: "sample", content: "sample", author: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Server aggregate ──────────────────────────────────────────
+
+  test "DeployServer sets hostname + role" do
+    tests "DeployServer", on: "Server"
+    input  hostname: "sample", role: "sample"
+    expect hostname: "sample", role: "sample", status: "running"
+  end
+
+  test "CheckHealth sets cpu_pct + memory_pct" do
+    tests "CheckHealth", on: "Server"
+    setup  "DeployServer", hostname: "sample", role: "sample"
+    input  server: 1, cpu_pct: 1.0, memory_pct: 1.0
+    expect cpu_pct: 1.0, memory_pct: 1.0
+  end
+
+  test "TakeOffline runs" do
+    tests "TakeOffline", on: "Server"
+    setup  "DeployServer", hostname: "sample", role: "sample"
+    input  server: 1
+    expect status: "offline"
+  end
+
+
+  # ── Backup aggregate ──────────────────────────────────────────
+
+  test "StartBackup sets backup_id + source_server + backup_type" do
+    tests "StartBackup", on: "Backup"
+    input  backup_id: "sample", source_server: "sample", backup_type: "sample"
+    expect backup_id: "sample", source_server: "sample", backup_type: "sample", status: "in_progress"
+  end
+
+  test "FinishBackup sets storage_path + size_gb" do
+    tests "FinishBackup", on: "Backup"
+    setup  "StartBackup", backup_id: "sample", source_server: "sample", backup_type: "sample"
+    input  backup: 1, storage_path: "sample", size_gb: 1.0
+    expect storage_path: "sample", size_gb: 1.0, status: "completed"
+  end
+
+  test "RestoreBackup runs" do
+    tests "RestoreBackup", on: "Backup"
+    setup  "StartBackup", backup_id: "sample", source_server: "sample", backup_type: "sample"
+    input  backup: 1
+    expect status: "restored"
+  end
+
+
+  # ── RecoveryPlan aggregate ──────────────────────────────────────────
+
+  test "DefinePlan sets plan_name + tier + rto_hours + rpo_hours" do
+    tests "DefinePlan", on: "RecoveryPlan"
+    input  plan_name: "sample", tier: "sample", rto_hours: 1.0, rpo_hours: 1.0
+    expect plan_name: "sample", tier: "sample", rto_hours: 1.0, rpo_hours: 1.0, status: "draft"
+  end
+
+  test "ActivatePlan runs" do
+    tests "ActivatePlan", on: "RecoveryPlan"
+    setup  "DefinePlan", plan_name: "sample", tier: "sample", rto_hours: 1.0, rpo_hours: 1.0
+    input  recovery_plan: 1
+    expect status: "active"
+  end
+
+end

@@ -1,0 +1,81 @@
+Hecks.behaviors "Summer" do
+  vision "Behavioral tests for the Summer domain — exercises every command and query in memory"
+
+  # ── Model aggregate ──────────────────────────────────────────
+
+  test "TrainModel sets base_model + data_path + iterations" do
+    tests "TrainModel", on: "Model"
+    input  base_model: "sample", data_path: "sample", iterations: 1
+    expect ok: "true"
+  end
+
+  test "EvaluateModel runs" do
+    tests "EvaluateModel", on: "Model"
+    setup  "TrainModel", base_model: "sample", data_path: "sample", iterations: 1
+    input  model: 1
+    expect ok: "true"
+  end
+
+
+  # ── Draft aggregate ──────────────────────────────────────────
+
+  test "GenerateDraft sets vision" do
+    tests "GenerateDraft", on: "Draft"
+    input  vision: "sample"
+    expect ok: "true"
+  end
+
+  test "ValidateDraft runs" do
+    tests "ValidateDraft", on: "Draft"
+    setup  "GenerateDraft", vision: "sample"
+    input  draft: 1
+    expect ok: "true"
+  end
+
+  test "ReviewDraft runs" do
+    tests "ReviewDraft", on: "Draft"
+    setup  "GenerateDraft", vision: "sample"
+    input  draft: 1
+    expect ok: "true"
+  end
+
+  test "AcceptDraft runs" do
+    tests "AcceptDraft", on: "Draft"
+    setup  "GenerateDraft", vision: "sample"
+    input  draft: 1
+    expect ok: "true"
+  end
+
+
+  # ── Critique aggregate ──────────────────────────────────────────
+
+  test "CritiqueDomain sets domain_name" do
+    tests "CritiqueDomain", on: "Critique"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+  test "ApplySuggestions runs" do
+    tests "ApplySuggestions", on: "Critique"
+    setup  "CritiqueDomain", domain_name: "sample"
+    input  critique: 1
+    expect ok: "true"
+  end
+
+
+  # ── Daemon aggregate ──────────────────────────────────────────
+
+  test "StartDaemon sets port" do
+    tests "StartDaemon", on: "Daemon"
+    input  port: 1
+    expect ok: "true"
+  end
+
+  test "StopDaemon runs" do
+    tests "StopDaemon", on: "Daemon"
+    setup  "StartDaemon", port: 1
+    input  daemon: 1
+    expect ok: "true"
+  end
+
+end

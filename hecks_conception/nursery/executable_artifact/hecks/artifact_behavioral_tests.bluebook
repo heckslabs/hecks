@@ -1,0 +1,79 @@
+Hecks.behaviors "Artifact" do
+  vision "Behavioral tests for the Artifact domain — exercises every command and query in memory"
+
+  # ── Artifact aggregate ──────────────────────────────────────────
+
+  test "Seal sets domain_name + shape_hash + aggregate_count + command_count + fixture_count + port_count" do
+    tests "Seal", on: "Artifact"
+    input  domain_name: "sample", shape_hash: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, port_count: 1
+    expect domain_name: "sample", shape_hash: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, port_count: 1, status: "sealed"
+  end
+
+  test "TestSelf runs" do
+    tests "TestSelf", on: "Artifact"
+    setup  "Seal", domain_name: "sample", shape_hash: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, port_count: 1
+    input  artifact: 1
+    expect status: "verified"
+  end
+
+  test "FailSelfTest sets failed_command + failure_reason" do
+    tests "FailSelfTest", on: "Artifact"
+    setup  "Seal", domain_name: "sample", shape_hash: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, port_count: 1
+    input  artifact: 1, failed_command: "sample", failure_reason: "sample"
+    expect status: "broken"
+  end
+
+  test "Evolve sets shape_hash + aggregate_count + command_count + fixture_count + port_count" do
+    tests "Evolve", on: "Artifact"
+    setup  "Seal", domain_name: "sample", shape_hash: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, port_count: 1
+    input  artifact: 1, shape_hash: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, port_count: 1
+    expect shape_hash: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, port_count: 1, status: "sealed"
+  end
+
+
+  # ── FixtureSet aggregate ──────────────────────────────────────────
+
+  test "Embed sets domain_name + shape_hash_at_creation + fixture_count" do
+    tests "Embed", on: "FixtureSet"
+    input  domain_name: "sample", shape_hash_at_creation: "sample", fixture_count: 1
+    expect domain_name: "sample", shape_hash_at_creation: "sample", fixture_count: 1, pass_count: 0, fail_count: 0, verdict: "untested"
+  end
+
+  test "RecordVerdict sets pass_count + fail_count" do
+    tests "RecordVerdict", on: "FixtureSet"
+    setup  "Embed", domain_name: "sample", shape_hash_at_creation: "sample", fixture_count: 1
+    input  fixture_set: 1, pass_count: 1, fail_count: 1
+    expect pass_count: 1, fail_count: 1, verdict: "tested"
+  end
+
+  test "MarkClean runs" do
+    tests "MarkClean", on: "FixtureSet"
+    setup  "Embed", domain_name: "sample", shape_hash_at_creation: "sample", fixture_count: 1
+    input  fixture_set: 1
+    expect verdict: "clean"
+  end
+
+  test "MarkDrift runs" do
+    tests "MarkDrift", on: "FixtureSet"
+    setup  "Embed", domain_name: "sample", shape_hash_at_creation: "sample", fixture_count: 1
+    input  fixture_set: 1
+    expect verdict: "drift"
+  end
+
+
+  # ── AccessGate aggregate ──────────────────────────────────────────
+
+  test "DefineGate sets domain_name + actor_name + port_name" do
+    tests "DefineGate", on: "AccessGate"
+    input  domain_name: "sample", actor_name: "sample", port_name: "sample"
+    expect domain_name: "sample", actor_name: "sample", port_name: "sample"
+  end
+
+  test "GrantCommand sets command_name" do
+    tests "GrantCommand", on: "AccessGate"
+    setup  "DefineGate", domain_name: "sample", actor_name: "sample", port_name: "sample"
+    input  access_gate: 1, command_name: "sample"
+    expect allowed_commands_size: 1
+  end
+
+end

@@ -1,0 +1,73 @@
+Hecks.behaviors "Boot" do
+  vision "Behavioral tests for the Boot domain — exercises every command and query in memory"
+
+  # ── Identity aggregate ──────────────────────────────────────────
+
+  test "Identify sets name" do
+    tests "Identify", on: "Identity"
+    input  name: "sample"
+    expect name: "sample"
+  end
+
+
+  # ── Hydration aggregate ──────────────────────────────────────────
+
+  test "HydrateStores runs" do
+    tests "HydrateStores", on: "Hydration"
+    expect ok: "true"
+  end
+
+
+  # ── OrganDiscovery aggregate ──────────────────────────────────────────
+
+  test "DiscoverOrgans runs" do
+    tests "DiscoverOrgans", on: "OrganDiscovery"
+    expect ok: "true"
+  end
+
+  test "WriteCensus runs" do
+    tests "WriteCensus", on: "OrganDiscovery"
+    expect ok: "true"
+  end
+
+
+  # ── CapabilityIndex aggregate ──────────────────────────────────────────
+
+  test "IndexCapabilities runs" do
+    tests "IndexCapabilities", on: "CapabilityIndex"
+    expect ok: "true"
+  end
+
+
+  # ── StoreClassification aggregate ──────────────────────────────────────────
+
+  test "ClassifyStores runs" do
+    tests "ClassifyStores", on: "StoreClassification"
+    expect ok: "true"
+  end
+
+
+  # ── PromptGeneration aggregate ──────────────────────────────────────────
+
+  test "GeneratePrompt runs" do
+    tests "GeneratePrompt", on: "PromptGeneration"
+    expect generated: "yes"
+  end
+
+
+  # ── VitalSummary aggregate ──────────────────────────────────────────
+
+  test "PrintVitals runs" do
+    tests "PrintVitals", on: "VitalSummary"
+    expect printed: "yes"
+  end
+
+
+  # ── MindstreamDaemon aggregate ──────────────────────────────────────────
+
+  test "StartMindstream runs" do
+    tests "StartMindstream", on: "MindstreamDaemon"
+    expect running: "yes"
+  end
+
+end

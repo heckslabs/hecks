@@ -1,0 +1,103 @@
+Hecks.behaviors "PestControl" do
+  vision "Behavioral tests for the PestControl domain — exercises every command and query in memory"
+
+  # ── ServiceAccount aggregate ──────────────────────────────────────────
+
+  test "OpenAccount sets customer_name + phone + email + service_address + property_type" do
+    tests "OpenAccount", on: "ServiceAccount"
+    input  customer_name: "sample", phone: "sample", email: "sample", service_address: "sample", property_type: "sample"
+    expect customer_name: "sample", phone: "sample", email: "sample", service_address: "sample", property_type: "sample", status: "active"
+  end
+
+  test "SuspendAccount runs" do
+    tests "SuspendAccount", on: "ServiceAccount"
+    setup  "OpenAccount", customer_name: "sample", phone: "sample", email: "sample", service_address: "sample", property_type: "sample"
+    input  service_account: 1
+    expect status: "suspended"
+  end
+
+  test "CloseAccount runs" do
+    tests "CloseAccount", on: "ServiceAccount"
+    setup  "OpenAccount", customer_name: "sample", phone: "sample", email: "sample", service_address: "sample", property_type: "sample"
+    input  service_account: 1
+    expect status: "closed"
+  end
+
+
+  # ── InspectionReport aggregate ──────────────────────────────────────────
+
+  test "ConductInspection sets inspection_date + pest_type + severity + entry_points + recommendations" do
+    tests "ConductInspection", on: "InspectionReport"
+    setup  "OpenAccount", customer_name: "sample", phone: "sample", email: "sample", service_address: "sample", property_type: "sample"
+    input  service_account: 1, inspection_date: "sample", pest_type: "sample", severity: "sample", entry_points: "sample", recommendations: "sample"
+    expect inspection_date: "sample", pest_type: "sample", severity: "sample", entry_points: "sample", recommendations: "sample", status: "completed"
+  end
+
+  test "FlagReinfestation runs" do
+    tests "FlagReinfestation", on: "InspectionReport"
+    input  inspection_report: 1
+    expect status: "reinfestation"
+  end
+
+
+  # ── TreatmentApplication aggregate ──────────────────────────────────────────
+
+  test "ApplyTreatment sets treatment_type + target_pest + application_method + areas_treated" do
+    tests "ApplyTreatment", on: "TreatmentApplication"
+    setup  "OpenAccount", customer_name: "sample", phone: "sample", email: "sample", service_address: "sample", property_type: "sample"
+    input  service_account: 1, inspection_report: 1, treatment_type: "sample", target_pest: "sample", application_method: "sample", areas_treated: "sample"
+    expect treatment_type: "sample", target_pest: "sample", application_method: "sample", areas_treated: "sample", status: "applied"
+  end
+
+  test "RecordReentryTime sets reentry_hours" do
+    tests "RecordReentryTime", on: "TreatmentApplication"
+    input  treatment_application: 1, reentry_hours: "sample"
+    expect ok: "true"
+  end
+
+  test "VerifyEffectiveness runs" do
+    tests "VerifyEffectiveness", on: "TreatmentApplication"
+    input  treatment_application: 1
+    expect status: "effective"
+  end
+
+
+  # ── ChemicalInventory aggregate ──────────────────────────────────────────
+
+  test "StockChemical sets product_name + epa_registration + active_ingredient + quantity_on_hand + unit + expiration_date" do
+    tests "StockChemical", on: "ChemicalInventory"
+    input  product_name: "sample", epa_registration: "sample", active_ingredient: "sample", quantity_on_hand: 1.0, unit: "sample", expiration_date: "sample"
+    expect product_name: "sample", epa_registration: "sample", active_ingredient: "sample", quantity_on_hand: 1.0, unit: "sample", expiration_date: "sample"
+  end
+
+  test "UseChemical sets amount_used" do
+    tests "UseChemical", on: "ChemicalInventory"
+    setup  "StockChemical", product_name: "sample", epa_registration: "sample", active_ingredient: "sample", quantity_on_hand: 1.0, unit: "sample", expiration_date: "sample"
+    input  chemical_inventory: 1, amount_used: 1.0
+    expect ok: "true"
+  end
+
+  test "DisposeExpired runs" do
+    tests "DisposeExpired", on: "ChemicalInventory"
+    setup  "StockChemical", product_name: "sample", epa_registration: "sample", active_ingredient: "sample", quantity_on_hand: 1.0, unit: "sample", expiration_date: "sample"
+    input  chemical_inventory: 1
+    expect ok: "true"
+  end
+
+
+  # ── FollowUpVisit aggregate ──────────────────────────────────────────
+
+  test "ScheduleFollowUp sets visit_date + purpose" do
+    tests "ScheduleFollowUp", on: "FollowUpVisit"
+    setup  "OpenAccount", customer_name: "sample", phone: "sample", email: "sample", service_address: "sample", property_type: "sample"
+    input  service_account: 1, treatment_application: 1, visit_date: "sample", purpose: "sample"
+    expect visit_date: "sample", purpose: "sample", status: "scheduled"
+  end
+
+  test "CompleteFollowUp sets findings" do
+    tests "CompleteFollowUp", on: "FollowUpVisit"
+    input  follow_up_visit: 1, findings: "sample"
+    expect findings: "sample", status: "completed"
+  end
+
+end

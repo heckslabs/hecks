@@ -1,0 +1,111 @@
+Hecks.behaviors "WarehouseManagement" do
+  vision "Behavioral tests for the WarehouseManagement domain — exercises every command and query in memory"
+
+  # ── Location aggregate ──────────────────────────────────────────
+
+  test "CreateLocation sets aisle + rack + shelf + zone + capacity" do
+    tests "CreateLocation", on: "Location"
+    input  aisle: "sample", rack: "sample", shelf: "sample", zone: "sample", capacity: 1
+    expect aisle: "sample", rack: "sample", shelf: "sample", zone: "sample", capacity: 1, status: "empty", current_fill: 0
+  end
+
+  test "ReserveLocation runs" do
+    tests "ReserveLocation", on: "Location"
+    setup  "CreateLocation", aisle: "sample", rack: "sample", shelf: "sample", zone: "sample", capacity: 1
+    input  location: 1
+    expect status: "reserved"
+  end
+
+  test "CloseLocation sets reason" do
+    tests "CloseLocation", on: "Location"
+    setup  "CreateLocation", aisle: "sample", rack: "sample", shelf: "sample", zone: "sample", capacity: 1
+    input  location: 1, reason: "sample"
+    expect status: "closed"
+  end
+
+  test "ReopenLocation runs" do
+    tests "ReopenLocation", on: "Location"
+    setup  "CreateLocation", aisle: "sample", rack: "sample", shelf: "sample", zone: "sample", capacity: 1
+    input  location: 1
+    expect status: "empty"
+  end
+
+
+  # ── Pallet aggregate ──────────────────────────────────────────
+
+  test "ReceivePallet sets pallet_id + sku + quantity" do
+    tests "ReceivePallet", on: "Pallet"
+    input  pallet_id: "sample", sku: "sample", quantity: 1
+    expect status: "received"
+  end
+
+  test "InspectPallet runs" do
+    tests "InspectPallet", on: "Pallet"
+    setup  "ReceivePallet", pallet_id: "sample", sku: "sample", quantity: 1
+    input  pallet: 1
+    expect status: "inspected"
+  end
+
+  test "StowPallet runs" do
+    tests "StowPallet", on: "Pallet"
+    setup  "ReceivePallet", pallet_id: "sample", sku: "sample", quantity: 1
+    setup  "CreateLocation", aisle: "sample", rack: "sample", shelf: "sample", zone: "sample", capacity: 1
+    input  pallet: 1, location: 1
+    expect status: "stowed"
+  end
+
+  test "PickPallet runs" do
+    tests "PickPallet", on: "Pallet"
+    setup  "ReceivePallet", pallet_id: "sample", sku: "sample", quantity: 1
+    input  pallet: 1
+    expect status: "picked"
+  end
+
+  test "StagePallet runs" do
+    tests "StagePallet", on: "Pallet"
+    setup  "ReceivePallet", pallet_id: "sample", sku: "sample", quantity: 1
+    input  pallet: 1
+    expect status: "staged"
+  end
+
+
+  # ── PickList aggregate ──────────────────────────────────────────
+
+  test "GeneratePickList sets priority + line_count" do
+    tests "GeneratePickList", on: "PickList"
+    input  priority: "sample", line_count: 1
+    expect status: "pending"
+  end
+
+  test "CompletePickList runs" do
+    tests "CompletePickList", on: "PickList"
+    setup  "GeneratePickList", priority: "sample", line_count: 1
+    input  pick_list: 1
+    expect status: "completed"
+  end
+
+
+  # ── Shipment aggregate ──────────────────────────────────────────
+
+  test "CreateShipment sets carrier + destination" do
+    tests "CreateShipment", on: "Shipment"
+    setup  "GeneratePickList", priority: "sample", line_count: 1
+    input  pick_list: 1, carrier: "sample", destination: "sample"
+    expect carrier: "sample", destination: "sample", status: "packing"
+  end
+
+  test "LoadShipment runs" do
+    tests "LoadShipment", on: "Shipment"
+    setup  "CreateShipment", carrier: "sample", destination: "sample"
+    input  shipment: 1
+    expect status: "loaded"
+  end
+
+  test "DispatchShipment runs" do
+    tests "DispatchShipment", on: "Shipment"
+    setup  "CreateShipment", carrier: "sample", destination: "sample"
+    input  shipment: 1
+    expect status: "dispatched"
+  end
+
+end

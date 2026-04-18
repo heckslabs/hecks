@@ -1,0 +1,67 @@
+Hecks.behaviors "RefugeeIdentity" do
+  vision "Behavioral tests for the RefugeeIdentity domain — exercises every command and query in memory"
+
+  # ── ResettlementCase aggregate ──────────────────────────────────────────
+
+  test "OpenCase sets case_id + family_name + country_of_origin + family_size + caseworker" do
+    tests "OpenCase", on: "ResettlementCase"
+    input  case_id: "sample", family_name: "sample", country_of_origin: "sample", family_size: 1, caseworker: "sample"
+    expect case_id: "sample", family_name: "sample", country_of_origin: "sample", family_size: 1, caseworker: "sample", status: "open"
+  end
+
+  test "CloseCase runs" do
+    tests "CloseCase", on: "ResettlementCase"
+    setup  "OpenCase", case_id: "sample", family_name: "sample", country_of_origin: "sample", family_size: 1, caseworker: "sample"
+    input  resettlement_case: 1
+    expect status: "closed"
+  end
+
+
+  # ── DigitalID aggregate ──────────────────────────────────────────
+
+  test "IssueDigitalID sets identity_id + case_id + full_name + date_of_birth + biometric_hash" do
+    tests "IssueDigitalID", on: "DigitalID"
+    input  identity_id: "sample", case_id: "sample", full_name: "sample", date_of_birth: "sample", biometric_hash: "sample"
+    expect identity_id: "sample", case_id: "sample", full_name: "sample", date_of_birth: "sample", biometric_hash: "sample", status: "active"
+  end
+
+  test "SuspendID runs" do
+    tests "SuspendID", on: "DigitalID"
+    setup  "IssueDigitalID", identity_id: "sample", case_id: "sample", full_name: "sample", date_of_birth: "sample", biometric_hash: "sample"
+    input  digital_i_d: 1
+    expect status: "suspended"
+  end
+
+
+  # ── DocumentRecord aggregate ──────────────────────────────────────────
+
+  test "VerifyDocument sets document_id + identity_id + document_type + issuing_country + expiry_date" do
+    tests "VerifyDocument", on: "DocumentRecord"
+    input  document_id: "sample", identity_id: "sample", document_type: "sample", issuing_country: "sample", expiry_date: "sample"
+    expect document_id: "sample", identity_id: "sample", document_type: "sample", issuing_country: "sample", expiry_date: "sample", verified_status: "verified"
+  end
+
+  test "FlagDocument runs" do
+    tests "FlagDocument", on: "DocumentRecord"
+    setup  "VerifyDocument", document_id: "sample", identity_id: "sample", document_type: "sample", issuing_country: "sample", expiry_date: "sample"
+    input  document_record: 1
+    expect verified_status: "flagged"
+  end
+
+
+  # ── ServiceReferral aggregate ──────────────────────────────────────────
+
+  test "MakeReferral sets referral_id + case_id + service_type + provider_name" do
+    tests "MakeReferral", on: "ServiceReferral"
+    input  referral_id: "sample", case_id: "sample", service_type: "sample", provider_name: "sample"
+    expect referral_id: "sample", case_id: "sample", service_type: "sample", provider_name: "sample", status: "pending"
+  end
+
+  test "FulfillReferral runs" do
+    tests "FulfillReferral", on: "ServiceReferral"
+    setup  "MakeReferral", referral_id: "sample", case_id: "sample", service_type: "sample", provider_name: "sample"
+    input  service_referral: 1
+    expect status: "fulfilled"
+  end
+
+end

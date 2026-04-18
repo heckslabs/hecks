@@ -1,0 +1,67 @@
+Hecks.behaviors "RecoveryJobs" do
+  vision "Behavioral tests for the RecoveryJobs domain — exercises every command and query in memory"
+
+  # ── RecoveryClient aggregate ──────────────────────────────────────────
+
+  test "RegisterClient sets client_id + name + recovery_stage + skills_summary" do
+    tests "RegisterClient", on: "RecoveryClient"
+    input  client_id: "sample", name: "sample", recovery_stage: "sample", skills_summary: "sample"
+    expect client_id: "sample", name: "sample", recovery_stage: "sample", skills_summary: "sample", status: "active"
+  end
+
+  test "UpdateStage sets recovery_stage" do
+    tests "UpdateStage", on: "RecoveryClient"
+    setup  "RegisterClient", client_id: "sample", name: "sample", recovery_stage: "sample", skills_summary: "sample"
+    input  recovery_client: 1, recovery_stage: "sample"
+    expect recovery_stage: "sample"
+  end
+
+
+  # ── EmployerPartner aggregate ──────────────────────────────────────────
+
+  test "OnboardEmployer sets employer_id + company_name + industry + open_positions" do
+    tests "OnboardEmployer", on: "EmployerPartner"
+    input  employer_id: "sample", company_name: "sample", industry: "sample", open_positions: 1
+    expect employer_id: "sample", company_name: "sample", industry: "sample", open_positions: 1, recovery_friendly: "yes", status: "active"
+  end
+
+  test "UpdatePositions sets open_positions" do
+    tests "UpdatePositions", on: "EmployerPartner"
+    setup  "OnboardEmployer", employer_id: "sample", company_name: "sample", industry: "sample", open_positions: 1
+    input  employer_partner: 1, open_positions: 1
+    expect open_positions: 1
+  end
+
+
+  # ── JobMatch aggregate ──────────────────────────────────────────
+
+  test "MatchClient sets match_id + client_id + employer_id + job_title + compatibility_score" do
+    tests "MatchClient", on: "JobMatch"
+    input  match_id: "sample", client_id: "sample", employer_id: "sample", job_title: "sample", compatibility_score: 1.0
+    expect match_id: "sample", client_id: "sample", employer_id: "sample", job_title: "sample", compatibility_score: 1.0, status: "proposed"
+  end
+
+  test "AcceptMatch runs" do
+    tests "AcceptMatch", on: "JobMatch"
+    setup  "MatchClient", match_id: "sample", client_id: "sample", employer_id: "sample", job_title: "sample", compatibility_score: 1.0
+    input  job_match: 1
+    expect status: "accepted"
+  end
+
+
+  # ── EmploymentOutcome aggregate ──────────────────────────────────────────
+
+  test "RecordOutcome sets outcome_id + match_id + days_employed + retention_status" do
+    tests "RecordOutcome", on: "EmploymentOutcome"
+    input  outcome_id: "sample", match_id: "sample", days_employed: 1, retention_status: "sample"
+    expect outcome_id: "sample", match_id: "sample", days_employed: 1, retention_status: "sample"
+  end
+
+  test "CollectFeedback sets supervisor_feedback" do
+    tests "CollectFeedback", on: "EmploymentOutcome"
+    setup  "RecordOutcome", outcome_id: "sample", match_id: "sample", days_employed: 1, retention_status: "sample"
+    input  employment_outcome: 1, supervisor_feedback: "sample"
+    expect supervisor_feedback: "sample"
+  end
+
+end

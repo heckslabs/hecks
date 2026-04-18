@@ -1,0 +1,117 @@
+Hecks.behaviors "Interpretation" do
+  vision "Behavioral tests for the Interpretation domain — exercises every command and query in memory"
+
+  # ── DreamInterpretation aggregate ──────────────────────────────────────────
+
+  test "InterpretDream sets dream_images + strongest_synapse" do
+    tests "InterpretDream", on: "DreamInterpretation"
+    input  dream_images: "sample", strongest_synapse: "sample"
+    expect dream_images: "sample", strongest_synapse: "sample"
+  end
+
+  test "ExtractTheme sets recurring_theme" do
+    tests "ExtractTheme", on: "DreamInterpretation"
+    setup  "InterpretDream", dream_images: "sample", strongest_synapse: "sample"
+    input  dream_interpretation: 1, recurring_theme: "sample"
+    expect recurring_theme: "sample"
+  end
+
+  test "ProposeDomainFromDream sets proposed_domain" do
+    tests "ProposeDomainFromDream", on: "DreamInterpretation"
+    setup  "InterpretDream", dream_images: "sample", strongest_synapse: "sample"
+    input  dream_interpretation: 1, proposed_domain: "sample"
+    expect proposed_domain: "sample"
+  end
+
+
+  # ── Process aggregate ──────────────────────────────────────────
+
+  test "SpawnProcess sets task + intent + heki_target" do
+    tests "SpawnProcess", on: "Process"
+    input  task: "sample", intent: "sample", heki_target: "sample"
+    expect task: "sample", intent: "sample", heki_target: "sample", status: "running"
+  end
+
+  test "ReportFinding sets kind + subject + detail" do
+    tests "ReportFinding", on: "Process"
+    setup  "SpawnProcess", task: "sample", intent: "sample", heki_target: "sample"
+    input  process: 1, kind: "sample", subject: "sample", detail: "sample"
+    expect findings_size: 1
+  end
+
+  test "CompleteProcess runs" do
+    tests "CompleteProcess", on: "Process"
+    setup  "SpawnProcess", task: "sample", intent: "sample", heki_target: "sample"
+    input  process: 1
+    expect status: "completed"
+  end
+
+  test "FailProcess sets reason" do
+    tests "FailProcess", on: "Process"
+    setup  "SpawnProcess", task: "sample", intent: "sample", heki_target: "sample"
+    input  process: 1, reason: "sample"
+    expect status: "failed"
+  end
+
+  test "AbsorbFindings runs" do
+    tests "AbsorbFindings", on: "Process"
+    setup  "SpawnProcess", task: "sample", intent: "sample", heki_target: "sample"
+    input  process: 1
+    expect status: "absorbed"
+  end
+
+
+  # ── Rhythm aggregate ──────────────────────────────────────────
+
+  test "RegisterTask sets task + cadence" do
+    tests "RegisterTask", on: "Rhythm"
+    input  task: "sample", cadence: "sample"
+    expect ok: "true"
+  end
+
+  test "RemoveTask sets task + cadence" do
+    tests "RemoveTask", on: "Rhythm"
+    input  task: "sample", cadence: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Interpretation aggregate ──────────────────────────────────────────
+
+  test "InterpretExperience sets source + raw_material + insight" do
+    tests "InterpretExperience", on: "Interpretation"
+    input  source: "sample", raw_material: "sample", insight: "sample"
+    expect source: "sample", raw_material: "sample", insight: "sample"
+  end
+
+
+  # ── Proposal aggregate ──────────────────────────────────────────
+
+  test "ProposeAction sets title + description + origin + kind" do
+    tests "ProposeAction", on: "Proposal"
+    input  title: "sample", description: "sample", origin: "sample", kind: "sample"
+    expect title: "sample", description: "sample", origin: "sample", kind: "sample", accepted: "pending"
+  end
+
+  test "AcceptProposal runs" do
+    tests "AcceptProposal", on: "Proposal"
+    setup  "ProposeAction", title: "sample", description: "sample", origin: "sample", kind: "sample"
+    input  proposal: 1
+    expect accepted: "yes"
+  end
+
+  test "DeferProposal runs" do
+    tests "DeferProposal", on: "Proposal"
+    setup  "ProposeAction", title: "sample", description: "sample", origin: "sample", kind: "sample"
+    input  proposal: 1
+    expect accepted: "deferred"
+  end
+
+  test "DismissProposal runs" do
+    tests "DismissProposal", on: "Proposal"
+    setup  "ProposeAction", title: "sample", description: "sample", origin: "sample", kind: "sample"
+    input  proposal: 1
+    expect accepted: "dismissed"
+  end
+
+end

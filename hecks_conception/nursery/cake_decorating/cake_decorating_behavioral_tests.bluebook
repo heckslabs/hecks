@@ -1,0 +1,104 @@
+Hecks.behaviors "CakeDecorating" do
+  vision "Behavioral tests for the CakeDecorating domain — exercises every command and query in memory"
+
+  # ── CakeOrder aggregate ──────────────────────────────────────────
+
+  test "PlaceOrder sets client_name + occasion + tier_count + servings + delivery_date" do
+    tests "PlaceOrder", on: "CakeOrder"
+    input  client_name: "sample", occasion: "sample", tier_count: 1, servings: 1, delivery_date: "sample"
+    expect client_name: "sample", occasion: "sample", tier_count: 1, servings: 1, delivery_date: "sample"
+  end
+
+  test "ConfirmOrder runs" do
+    tests "ConfirmOrder", on: "CakeOrder"
+    setup  "PlaceOrder", client_name: "sample", occasion: "sample", tier_count: 1, servings: 1, delivery_date: "sample"
+    input  cake_order: 1
+    expect status: "confirmed"
+  end
+
+  test "StartBaking runs" do
+    tests "StartBaking", on: "CakeOrder"
+    setup  "PlaceOrder", client_name: "sample", occasion: "sample", tier_count: 1, servings: 1, delivery_date: "sample"
+    input  cake_order: 1
+    expect status: "baking"
+  end
+
+  test "CompleteOrder runs" do
+    tests "CompleteOrder", on: "CakeOrder"
+    setup  "PlaceOrder", client_name: "sample", occasion: "sample", tier_count: 1, servings: 1, delivery_date: "sample"
+    input  cake_order: 1
+    expect status: "completed"
+  end
+
+
+  # ── FlavorProfile aggregate ──────────────────────────────────────────
+
+  test "ProposeFlav sets cake_flavor + filling + frosting" do
+    tests "ProposeFlav", on: "FlavorProfile"
+    setup  "PlaceOrder", client_name: "sample", occasion: "sample", tier_count: 1, servings: 1, delivery_date: "sample"
+    input  cake_order: 1, cake_flavor: "sample", filling: "sample", frosting: "sample"
+    expect ok: "true"
+  end
+
+  test "ApproveFlavor runs" do
+    tests "ApproveFlavor", on: "FlavorProfile"
+    input  flavor_profile: 1
+    expect status: "approved"
+  end
+
+
+  # ── Tasting aggregate ──────────────────────────────────────────
+
+  test "ScheduleTasting sets date + client_name + sample_count" do
+    tests "ScheduleTasting", on: "Tasting"
+    setup  "PlaceOrder", client_name: "sample", occasion: "sample", tier_count: 1, servings: 1, delivery_date: "sample"
+    input  cake_order: 1, date: "sample", client_name: "sample", sample_count: 1
+    expect ok: "true"
+  end
+
+  test "ConductTasting sets preferred_flavor" do
+    tests "ConductTasting", on: "Tasting"
+    input  tasting: 1, preferred_flavor: "sample"
+    expect status: "completed"
+  end
+
+
+  # ── IngredientStock aggregate ──────────────────────────────────────────
+
+  test "StockIngredient sets ingredient_name + category + quantity + unit" do
+    tests "StockIngredient", on: "IngredientStock"
+    input  ingredient_name: "sample", category: "sample", quantity: 1.0, unit: "sample"
+    expect ok: "true"
+  end
+
+  test "ConsumeIngredient sets quantity_used" do
+    tests "ConsumeIngredient", on: "IngredientStock"
+    setup  "StockIngredient", ingredient_name: "sample", category: "sample", quantity: 1.0, unit: "sample"
+    input  ingredient_stock: 1, quantity_used: 1.0
+    expect ok: "true"
+  end
+
+  test "FlagLowStock runs" do
+    tests "FlagLowStock", on: "IngredientStock"
+    setup  "StockIngredient", ingredient_name: "sample", category: "sample", quantity: 1.0, unit: "sample"
+    input  ingredient_stock: 1
+    expect ok: "true"
+  end
+
+
+  # ── CakeDelivery aggregate ──────────────────────────────────────────
+
+  test "ScheduleCakeDelivery sets address + delivery_date + time_window + handler_name" do
+    tests "ScheduleCakeDelivery", on: "CakeDelivery"
+    setup  "PlaceOrder", client_name: "sample", occasion: "sample", tier_count: 1, servings: 1, delivery_date: "sample"
+    input  cake_order: 1, address: "sample", delivery_date: "sample", time_window: "sample", handler_name: "sample"
+    expect ok: "true"
+  end
+
+  test "CompleteCakeDelivery runs" do
+    tests "CompleteCakeDelivery", on: "CakeDelivery"
+    input  cake_delivery: 1
+    expect status: "delivered"
+  end
+
+end

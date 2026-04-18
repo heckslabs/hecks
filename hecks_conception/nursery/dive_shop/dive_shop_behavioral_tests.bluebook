@@ -1,0 +1,111 @@
+Hecks.behaviors "DiveShop" do
+  vision "Behavioral tests for the DiveShop domain — exercises every command and query in memory"
+
+  # ── DiveEquipment aggregate ──────────────────────────────────────────
+
+  test "StockEquipment sets equipment_id + name + equipment_type + brand + price + quantity" do
+    tests "StockEquipment", on: "DiveEquipment"
+    input  equipment_id: "sample", name: "sample", equipment_type: "sample", brand: "sample", price: 1.0, quantity: 1
+    expect equipment_id: "sample", name: "sample", equipment_type: "sample", brand: "sample", price: 1.0, quantity: 1, status: "available"
+  end
+
+  test "SellEquipment runs" do
+    tests "SellEquipment", on: "DiveEquipment"
+    setup  "StockEquipment", equipment_id: "sample", name: "sample", equipment_type: "sample", brand: "sample", price: 1.0, quantity: 1
+    input  dive_equipment: 1
+    expect ok: "true"
+  end
+
+  test "RetireEquipment runs" do
+    tests "RetireEquipment", on: "DiveEquipment"
+    setup  "StockEquipment", equipment_id: "sample", name: "sample", equipment_type: "sample", brand: "sample", price: 1.0, quantity: 1
+    input  dive_equipment: 1
+    expect status: "retired"
+  end
+
+
+  # ── DiverCertification aggregate ──────────────────────────────────────────
+
+  test "EnrollStudent sets cert_id + student_name + course_level + instructor_name + pool_sessions + open_water_dives" do
+    tests "EnrollStudent", on: "DiverCertification"
+    input  cert_id: "sample", student_name: "sample", course_level: "sample", instructor_name: "sample", pool_sessions: 1, open_water_dives: 1
+    expect cert_id: "sample", student_name: "sample", course_level: "sample", instructor_name: "sample", pool_sessions: 1, open_water_dives: 1, status: "enrolled"
+  end
+
+  test "CompleteCourse runs" do
+    tests "CompleteCourse", on: "DiverCertification"
+    setup  "EnrollStudent", cert_id: "sample", student_name: "sample", course_level: "sample", instructor_name: "sample", pool_sessions: 1, open_water_dives: 1
+    input  diver_certification: 1
+    expect status: "certified"
+  end
+
+  test "FailStudent runs" do
+    tests "FailStudent", on: "DiverCertification"
+    setup  "EnrollStudent", cert_id: "sample", student_name: "sample", course_level: "sample", instructor_name: "sample", pool_sessions: 1, open_water_dives: 1
+    input  diver_certification: 1
+    expect status: "failed"
+  end
+
+
+  # ── DiveTrip aggregate ──────────────────────────────────────────
+
+  test "OrganizeTrip sets trip_id + destination + date + divemaster_name + max_divers + price_per_diver" do
+    tests "OrganizeTrip", on: "DiveTrip"
+    input  trip_id: "sample", destination: "sample", date: "sample", divemaster_name: "sample", max_divers: 1, price_per_diver: 1.0
+    expect trip_id: "sample", destination: "sample", date: "sample", divemaster_name: "sample", max_divers: 1, price_per_diver: 1.0, status: "open"
+  end
+
+  test "LaunchTrip runs" do
+    tests "LaunchTrip", on: "DiveTrip"
+    setup  "OrganizeTrip", trip_id: "sample", destination: "sample", date: "sample", divemaster_name: "sample", max_divers: 1, price_per_diver: 1.0
+    input  dive_trip: 1
+    expect status: "in_progress"
+  end
+
+  test "CompleteTrip runs" do
+    tests "CompleteTrip", on: "DiveTrip"
+    setup  "OrganizeTrip", trip_id: "sample", destination: "sample", date: "sample", divemaster_name: "sample", max_divers: 1, price_per_diver: 1.0
+    input  dive_trip: 1
+    expect status: "completed"
+  end
+
+
+  # ── Tank aggregate ──────────────────────────────────────────
+
+  test "RegisterTank sets tank_id + material + volume_liters + last_hydro_date + next_hydro_date" do
+    tests "RegisterTank", on: "Tank"
+    input  tank_id: "sample", material: "sample", volume_liters: 1.0, last_hydro_date: "sample", next_hydro_date: "sample"
+    expect tank_id: "sample", material: "sample", volume_liters: 1.0, last_hydro_date: "sample", next_hydro_date: "sample", status: "ready"
+  end
+
+  test "FillTank runs" do
+    tests "FillTank", on: "Tank"
+    setup  "RegisterTank", tank_id: "sample", material: "sample", volume_liters: 1.0, last_hydro_date: "sample", next_hydro_date: "sample"
+    input  tank: 1
+    expect ok: "true"
+  end
+
+  test "HydroTestTank sets new_hydro_date" do
+    tests "HydroTestTank", on: "Tank"
+    setup  "RegisterTank", tank_id: "sample", material: "sample", volume_liters: 1.0, last_hydro_date: "sample", next_hydro_date: "sample"
+    input  tank: 1, new_hydro_date: "sample"
+    expect last_hydro_date: "sample"
+  end
+
+
+  # ── EquipmentMaintenance aggregate ──────────────────────────────────────────
+
+  test "OpenMaintenanceTicket sets maintenance_id + equipment_id + issue_description + technician_name + cost" do
+    tests "OpenMaintenanceTicket", on: "EquipmentMaintenance"
+    input  maintenance_id: "sample", equipment_id: "sample", issue_description: "sample", technician_name: "sample", cost: 1.0
+    expect maintenance_id: "sample", equipment_id: "sample", issue_description: "sample", technician_name: "sample", cost: 1.0, status: "open"
+  end
+
+  test "CompleteMaintenance runs" do
+    tests "CompleteMaintenance", on: "EquipmentMaintenance"
+    setup  "OpenMaintenanceTicket", maintenance_id: "sample", equipment_id: "sample", issue_description: "sample", technician_name: "sample", cost: 1.0
+    input  equipment_maintenance: 1
+    expect status: "completed"
+  end
+
+end

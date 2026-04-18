@@ -1,0 +1,89 @@
+Hecks.behaviors "Nutrition" do
+  vision "Behavioral tests for the Nutrition domain — exercises every command and query in memory"
+
+  # ── FoodItem aggregate ──────────────────────────────────────────
+
+  test "CatalogFood sets name + food_group + serving_size_g + calories_kcal" do
+    tests "CatalogFood", on: "FoodItem"
+    input  name: "sample", food_group: "sample", serving_size_g: 1.0, calories_kcal: 1.0
+    expect ok: "true"
+  end
+
+  test "UpdateComposition sets calories_kcal" do
+    tests "UpdateComposition", on: "FoodItem"
+    setup  "CatalogFood", name: "sample", food_group: "sample", serving_size_g: 1.0, calories_kcal: 1.0
+    input  food_item: 1, calories_kcal: 1.0
+    expect ok: "true"
+  end
+
+  test "RetireFood runs" do
+    tests "RetireFood", on: "FoodItem"
+    setup  "CatalogFood", name: "sample", food_group: "sample", serving_size_g: 1.0, calories_kcal: 1.0
+    input  food_item: 1
+    expect ok: "true"
+  end
+
+
+  # ── MealPlan aggregate ──────────────────────────────────────────
+
+  test "CreatePlan sets plan_name + duration_days + target_calories" do
+    tests "CreatePlan", on: "MealPlan"
+    input  plan_name: "sample", duration_days: 1, target_calories: 1.0
+    expect plan_name: "sample", duration_days: 1, target_calories: 1.0
+  end
+
+  test "AddMeal sets meal_type + servings" do
+    tests "AddMeal", on: "MealPlan"
+    setup  "CreatePlan", plan_name: "sample", duration_days: 1, target_calories: 1.0
+    setup  "CatalogFood", name: "sample", food_group: "sample", serving_size_g: 1.0, calories_kcal: 1.0
+    input  meal_plan: 1, food_item: 1, meal_type: "sample", servings: 1.0
+    expect ok: "true"
+  end
+
+  test "FinalizePlan runs" do
+    tests "FinalizePlan", on: "MealPlan"
+    setup  "CreatePlan", plan_name: "sample", duration_days: 1, target_calories: 1.0
+    input  meal_plan: 1
+    expect ok: "true"
+  end
+
+
+  # ── DietaryGoal aggregate ──────────────────────────────────────────
+
+  test "SetGoal sets goal_type + nutrient + target_value" do
+    tests "SetGoal", on: "DietaryGoal"
+    input  goal_type: "sample", nutrient: "sample", target_value: 1.0
+    expect ok: "true"
+  end
+
+  test "EvaluateProgress runs" do
+    tests "EvaluateProgress", on: "DietaryGoal"
+    setup  "SetGoal", goal_type: "sample", nutrient: "sample", target_value: 1.0
+    input  dietary_goal: 1
+    expect ok: "true"
+  end
+
+  test "AdjustTarget sets new_target" do
+    tests "AdjustTarget", on: "DietaryGoal"
+    setup  "SetGoal", goal_type: "sample", nutrient: "sample", target_value: 1.0
+    input  dietary_goal: 1, new_target: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── Deficiency aggregate ──────────────────────────────────────────
+
+  test "DetectDeficiency sets nutrient + severity" do
+    tests "DetectDeficiency", on: "Deficiency"
+    setup  "SetGoal", goal_type: "sample", nutrient: "sample", target_value: 1.0
+    input  dietary_goal: 1, nutrient: "sample", severity: "sample"
+    expect ok: "true"
+  end
+
+  test "ResolveDeficiency runs" do
+    tests "ResolveDeficiency", on: "Deficiency"
+    input  deficiency: 1
+    expect ok: "true"
+  end
+
+end

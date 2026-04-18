@@ -1,0 +1,74 @@
+Hecks.behaviors "TherapeuticHorticulture" do
+  vision "Behavioral tests for the TherapeuticHorticulture domain — exercises every command and query in memory"
+
+  # ── TherapyClient aggregate ──────────────────────────────────────────
+
+  test "EnrollClient sets client_id + name + diagnosis + therapist_name" do
+    tests "EnrollClient", on: "TherapyClient"
+    input  client_id: "sample", name: "sample", diagnosis: "sample", therapist_name: "sample"
+    expect client_id: "sample", name: "sample", diagnosis: "sample", therapist_name: "sample", status: "enrolled"
+  end
+
+  test "GraduateClient runs" do
+    tests "GraduateClient", on: "TherapyClient"
+    setup  "EnrollClient", client_id: "sample", name: "sample", diagnosis: "sample", therapist_name: "sample"
+    input  therapy_client: 1
+    expect status: "graduated"
+  end
+
+
+  # ── GardenPlot aggregate ──────────────────────────────────────────
+
+  test "AssignPlot sets plot_id + client_id + plant_type + season" do
+    tests "AssignPlot", on: "GardenPlot"
+    input  plot_id: "sample", client_id: "sample", plant_type: "sample", season: "sample"
+    expect plot_id: "sample", client_id: "sample", plant_type: "sample", season: "sample", status: "active"
+  end
+
+  test "TendPlot runs" do
+    tests "TendPlot", on: "GardenPlot"
+    setup  "AssignPlot", plot_id: "sample", client_id: "sample", plant_type: "sample", season: "sample"
+    input  garden_plot: 1
+    expect ok: "true"
+  end
+
+  test "HarvestPlot runs" do
+    tests "HarvestPlot", on: "GardenPlot"
+    setup  "AssignPlot", plot_id: "sample", client_id: "sample", plant_type: "sample", season: "sample"
+    input  garden_plot: 1
+    expect ok: "true"
+  end
+
+
+  # ── MoodEntry aggregate ──────────────────────────────────────────
+
+  test "RecordMood sets entry_id + client_id + date + mood_before" do
+    tests "RecordMood", on: "MoodEntry"
+    input  entry_id: "sample", client_id: "sample", date: "sample", mood_before: 1
+    expect entry_id: "sample", client_id: "sample", date: "sample", mood_before: 1
+  end
+
+  test "RecordPostMood sets mood_after + notes" do
+    tests "RecordPostMood", on: "MoodEntry"
+    setup  "RecordMood", entry_id: "sample", client_id: "sample", date: "sample", mood_before: 1
+    input  mood_entry: 1, mood_after: 1, notes: "sample"
+    expect mood_after: 1, notes: "sample"
+  end
+
+
+  # ── TherapyReport aggregate ──────────────────────────────────────────
+
+  test "GenerateTherapyReport sets report_id + client_id + avg_mood_change + sessions_attended" do
+    tests "GenerateTherapyReport", on: "TherapyReport"
+    input  report_id: "sample", client_id: "sample", avg_mood_change: 1.0, sessions_attended: 1
+    expect report_id: "sample", client_id: "sample", avg_mood_change: 1.0, sessions_attended: 1, status: "draft"
+  end
+
+  test "FinalizeReport sets therapist_summary" do
+    tests "FinalizeReport", on: "TherapyReport"
+    setup  "GenerateTherapyReport", report_id: "sample", client_id: "sample", avg_mood_change: 1.0, sessions_attended: 1
+    input  therapy_report: 1, therapist_summary: "sample"
+    expect therapist_summary: "sample", status: "finalized"
+  end
+
+end

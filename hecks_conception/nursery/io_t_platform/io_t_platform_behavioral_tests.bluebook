@@ -1,0 +1,114 @@
+Hecks.behaviors "IoTPlatform" do
+  vision "Behavioral tests for the IoTPlatform domain — exercises every command and query in memory"
+
+  # ── Device aggregate ──────────────────────────────────────────
+
+  test "RegisterDevice sets device_id + device_type + firmware_version + location" do
+    tests "RegisterDevice", on: "Device"
+    input  device_id: "sample", device_type: "sample", firmware_version: "sample", location: "sample"
+    expect device_id: "sample", device_type: "sample", firmware_version: "sample", location: "sample"
+  end
+
+  test "SuspendDevice runs" do
+    tests "SuspendDevice", on: "Device"
+    setup  "RegisterDevice", device_id: "sample", device_type: "sample", firmware_version: "sample", location: "sample"
+    input  device: 1
+    expect ok: "true"
+  end
+
+  test "DeregisterDevice runs" do
+    tests "DeregisterDevice", on: "Device"
+    setup  "RegisterDevice", device_id: "sample", device_type: "sample", firmware_version: "sample", location: "sample"
+    input  device: 1
+    expect ok: "true"
+  end
+
+
+  # ── Sensor aggregate ──────────────────────────────────────────
+
+  test "AttachSensor sets sensor_id + sensor_type + unit + min_range + max_range" do
+    tests "AttachSensor", on: "Sensor"
+    setup  "RegisterDevice", device_id: "sample", device_type: "sample", firmware_version: "sample", location: "sample"
+    input  device: 1, sensor_id: "sample", sensor_type: "sample", unit: "sample", min_range: 1.0, max_range: 1.0
+    expect ok: "true"
+  end
+
+  test "CalibrateSensor sets offset + scale_factor" do
+    tests "CalibrateSensor", on: "Sensor"
+    input  sensor: 1, offset: 1.0, scale_factor: 1.0
+    expect ok: "true"
+  end
+
+  test "DetachSensor runs" do
+    tests "DetachSensor", on: "Sensor"
+    input  sensor: 1
+    expect ok: "true"
+  end
+
+
+  # ── Reading aggregate ──────────────────────────────────────────
+
+  test "IngestReading sets reading_id + value + timestamp" do
+    tests "IngestReading", on: "Reading"
+    input  sensor: 1, reading_id: "sample", value: 1.0, timestamp: "sample"
+    expect ok: "true"
+  end
+
+  test "ValidateReading runs" do
+    tests "ValidateReading", on: "Reading"
+    input  reading: 1
+    expect ok: "true"
+  end
+
+  test "FlagAnomaly runs" do
+    tests "FlagAnomaly", on: "Reading"
+    input  reading: 1
+    expect ok: "true"
+  end
+
+
+  # ── Alert aggregate ──────────────────────────────────────────
+
+  test "RaiseAlert sets alert_id + severity + condition + message" do
+    tests "RaiseAlert", on: "Alert"
+    setup  "RegisterDevice", device_id: "sample", device_type: "sample", firmware_version: "sample", location: "sample"
+    input  device: 1, alert_id: "sample", severity: "sample", condition: "sample", message: "sample"
+    expect ok: "true"
+  end
+
+  test "AcknowledgeAlert runs" do
+    tests "AcknowledgeAlert", on: "Alert"
+    input  alert: 1
+    expect ok: "true"
+  end
+
+  test "ResolveAlert runs" do
+    tests "ResolveAlert", on: "Alert"
+    input  alert: 1
+    expect ok: "true"
+  end
+
+
+  # ── FirmwareUpdate aggregate ──────────────────────────────────────────
+
+  test "PublishUpdate sets update_id + version + target_device_type + package_size_kb + release_notes" do
+    tests "PublishUpdate", on: "FirmwareUpdate"
+    input  update_id: "sample", version: "sample", target_device_type: "sample", package_size_kb: 1, release_notes: "sample"
+    expect ok: "true"
+  end
+
+  test "ApplyUpdate sets device_id" do
+    tests "ApplyUpdate", on: "FirmwareUpdate"
+    setup  "PublishUpdate", update_id: "sample", version: "sample", target_device_type: "sample", package_size_kb: 1, release_notes: "sample"
+    input  firmware_update: 1, device_id: "sample"
+    expect ok: "true"
+  end
+
+  test "RollbackUpdate runs" do
+    tests "RollbackUpdate", on: "FirmwareUpdate"
+    setup  "PublishUpdate", update_id: "sample", version: "sample", target_device_type: "sample", package_size_kb: 1, release_notes: "sample"
+    input  firmware_update: 1
+    expect ok: "true"
+  end
+
+end

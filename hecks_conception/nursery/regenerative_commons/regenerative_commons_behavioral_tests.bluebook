@@ -1,0 +1,110 @@
+Hecks.behaviors "RegenerativeCommons" do
+  vision "Behavioral tests for the RegenerativeCommons domain — exercises every command and query in memory"
+
+  # ── CommonLand aggregate ──────────────────────────────────────────
+
+  test "EstablishCommons sets parcel_id + name + total_acres + governance_model" do
+    tests "EstablishCommons", on: "CommonLand"
+    input  parcel_id: "sample", name: "sample", total_acres: 1, governance_model: "sample"
+    expect parcel_id: "sample", name: "sample", total_acres: 1, governance_model: "sample", status: "active"
+  end
+
+  test "RezoneParcel runs" do
+    tests "RezoneParcel", on: "CommonLand"
+    setup  "EstablishCommons", parcel_id: "sample", name: "sample", total_acres: 1, governance_model: "sample"
+    input  common_land: 1
+    expect ok: "true"
+  end
+
+
+  # ── FarmPlot aggregate ──────────────────────────────────────────
+
+  test "AssignPlot sets plot_id + steward_name + current_crop" do
+    tests "AssignPlot", on: "FarmPlot"
+    setup  "EstablishCommons", parcel_id: "sample", name: "sample", total_acres: 1, governance_model: "sample"
+    input  common_land: 1, plot_id: "sample", steward_name: "sample", current_crop: "sample"
+    expect plot_id: "sample", commons: :commons, steward_name: "sample", current_crop: "sample", status: "active"
+  end
+
+  test "ReportHarvest runs" do
+    tests "ReportHarvest", on: "FarmPlot"
+    input  farm_plot: 1
+    expect ok: "true"
+  end
+
+  test "RecordSoilHealth sets soil_health_score" do
+    tests "RecordSoilHealth", on: "FarmPlot"
+    input  farm_plot: 1, soil_health_score: "sample"
+    expect soil_health_score: "sample"
+  end
+
+
+  # ── ConservationZone aggregate ──────────────────────────────────────────
+
+  test "DesignateZone sets zone_id + ecosystem_type + acres" do
+    tests "DesignateZone", on: "ConservationZone"
+    setup  "EstablishCommons", parcel_id: "sample", name: "sample", total_acres: 1, governance_model: "sample"
+    input  common_land: 1, zone_id: "sample", ecosystem_type: "sample", acres: 1
+    expect zone_id: "sample", commons: :commons, ecosystem_type: "sample", acres: 1, restoration_status: "planned", status: "active"
+  end
+
+  test "BeginRestoration runs" do
+    tests "BeginRestoration", on: "ConservationZone"
+    input  conservation_zone: 1
+    expect restoration_status: "in_progress"
+  end
+
+  test "CompleteRestoration runs" do
+    tests "CompleteRestoration", on: "ConservationZone"
+    input  conservation_zone: 1
+    expect restoration_status: "completed"
+  end
+
+
+  # ── HarvestAllocation aggregate ──────────────────────────────────────────
+
+  test "AllocateHarvest sets allocation_id + season + total_yield_lbs" do
+    tests "AllocateHarvest", on: "HarvestAllocation"
+    input  farm_plot: 1, allocation_id: "sample", season: "sample", total_yield_lbs: 1
+    expect allocation_id: "sample", source_plot: :source_plot, season: "sample", total_yield_lbs: 1, status: "allocated"
+  end
+
+  test "DistributeToFoodBank runs" do
+    tests "DistributeToFoodBank", on: "HarvestAllocation"
+    input  harvest_allocation: 1
+    expect status: "distributed"
+  end
+
+
+  # ── BiodiversitySurvey aggregate ──────────────────────────────────────────
+
+  test "ConductSurvey sets survey_id + survey_date" do
+    tests "ConductSurvey", on: "BiodiversitySurvey"
+    input  conservation_zone: 1, farm_plot: 1, survey_id: "sample", survey_date: "sample"
+    expect survey_id: "sample", zone: :zone, adjacent_plot: :adjacent_plot, survey_date: "sample", overall_health: "pending"
+  end
+
+  test "AssessHealth sets overall_health" do
+    tests "AssessHealth", on: "BiodiversitySurvey"
+    input  biodiversity_survey: 1, overall_health: "sample"
+    expect overall_health: "sample"
+  end
+
+
+  # ── CommunityMember aggregate ──────────────────────────────────────────
+
+  test "RegisterMember sets member_id + name + role_type" do
+    tests "RegisterMember", on: "CommunityMember"
+    setup  "EstablishCommons", parcel_id: "sample", name: "sample", total_acres: 1, governance_model: "sample"
+    input  common_land: 1, member_id: "sample", name: "sample", role_type: "sample"
+    expect member_id: "sample", name: "sample", role_type: "sample", commons: :commons, status: "active"
+  end
+
+  test "LogContribution runs" do
+    tests "LogContribution", on: "CommunityMember"
+    setup  "RegisterMember", member_id: "sample", name: "sample", role_type: "sample"
+    input  community_member: 1
+    expect ok: "true"
+  end
+
+end

@@ -1,0 +1,89 @@
+Hecks.behaviors "Podiatry" do
+  vision "Behavioral tests for the Podiatry domain — exercises every command and query in memory"
+
+  # ── Patient aggregate ──────────────────────────────────────────
+
+  test "RegisterPatient sets name + date_of_birth + diabetic_status + insurance_id" do
+    tests "RegisterPatient", on: "Patient"
+    input  name: "sample", date_of_birth: "sample", diabetic_status: "sample", insurance_id: "sample"
+    expect name: "sample", date_of_birth: "sample", diabetic_status: "sample", insurance_id: "sample", status: "active"
+  end
+
+  test "FlagHighRisk runs" do
+    tests "FlagHighRisk", on: "Patient"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diabetic_status: "sample", insurance_id: "sample"
+    input  patient: 1
+    expect status: "high_risk"
+  end
+
+
+  # ── FootCondition aggregate ──────────────────────────────────────────
+
+  test "DiagnoseCondition sets patient_name + condition_name + affected_foot + severity + onset_date" do
+    tests "DiagnoseCondition", on: "FootCondition"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diabetic_status: "sample", insurance_id: "sample"
+    input  patient: 1, patient_name: "sample", condition_name: "sample", affected_foot: "sample", severity: "sample", onset_date: "sample"
+    expect patient_name: "sample", condition_name: "sample", affected_foot: "sample", severity: "sample", onset_date: "sample", status: "active"
+  end
+
+  test "ResolveCondition runs" do
+    tests "ResolveCondition", on: "FootCondition"
+    input  foot_condition: 1
+    expect status: "resolved"
+  end
+
+
+  # ── Orthotic aggregate ──────────────────────────────────────────
+
+  test "OrderOrthotic sets patient_name + orthotic_type + material + corrections + order_date" do
+    tests "OrderOrthotic", on: "Orthotic"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diabetic_status: "sample", insurance_id: "sample"
+    input  patient: 1, foot_condition: 1, patient_name: "sample", orthotic_type: "sample", material: "sample", corrections: "sample", order_date: "sample"
+    expect patient_name: "sample", orthotic_type: "sample", material: "sample", corrections: "sample", order_date: "sample", status: "ordered"
+  end
+
+  test "FitOrthotic runs" do
+    tests "FitOrthotic", on: "Orthotic"
+    input  orthotic: 1
+    expect status: "fitted"
+  end
+
+  test "AdjustOrthotic sets corrections" do
+    tests "AdjustOrthotic", on: "Orthotic"
+    input  orthotic: 1, corrections: "sample"
+    expect corrections: "sample"
+  end
+
+
+  # ── FootProcedure aggregate ──────────────────────────────────────────
+
+  test "ScheduleProcedure sets patient_name + procedure_name + procedure_date + anesthesia_type" do
+    tests "ScheduleProcedure", on: "FootProcedure"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diabetic_status: "sample", insurance_id: "sample"
+    input  patient: 1, foot_condition: 1, patient_name: "sample", procedure_name: "sample", procedure_date: "sample", anesthesia_type: "sample"
+    expect patient_name: "sample", procedure_name: "sample", procedure_date: "sample", anesthesia_type: "sample", status: "scheduled"
+  end
+
+  test "CompleteProcedure sets notes" do
+    tests "CompleteProcedure", on: "FootProcedure"
+    input  foot_procedure: 1, notes: "sample"
+    expect notes: "sample", status: "completed"
+  end
+
+
+  # ── PodiatryFollowUp aggregate ──────────────────────────────────────────
+
+  test "ScheduleFollowUp sets patient_name + reason + scheduled_date" do
+    tests "ScheduleFollowUp", on: "PodiatryFollowUp"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diabetic_status: "sample", insurance_id: "sample"
+    input  patient: 1, patient_name: "sample", reason: "sample", scheduled_date: "sample"
+    expect patient_name: "sample", reason: "sample", scheduled_date: "sample", status: "scheduled"
+  end
+
+  test "CompleteFollowUp sets wound_status + notes" do
+    tests "CompleteFollowUp", on: "PodiatryFollowUp"
+    input  podiatry_follow_up: 1, wound_status: "sample", notes: "sample"
+    expect wound_status: "sample", notes: "sample", status: "completed"
+  end
+
+end

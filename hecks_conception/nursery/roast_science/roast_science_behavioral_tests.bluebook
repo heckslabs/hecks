@@ -1,0 +1,88 @@
+Hecks.behaviors "RoastScience" do
+  vision "Behavioral tests for the RoastScience domain — exercises every command and query in memory"
+
+  # ── GreenBean aggregate ──────────────────────────────────────────
+
+  test "SourceBeans sets origin + variety + altitude_m" do
+    tests "SourceBeans", on: "GreenBean"
+    input  origin: "sample", variety: "sample", altitude_m: 1.0
+    expect ok: "true"
+  end
+
+  test "AnalyzeCompound sets compound_name + concentration_ppm + flavor_impact" do
+    tests "AnalyzeCompound", on: "GreenBean"
+    setup  "SourceBeans", origin: "sample", variety: "sample", altitude_m: 1.0
+    input  green_bean: 1, compound_name: "sample", concentration_ppm: 1.0, flavor_impact: "sample"
+    expect compounds_size: 1
+  end
+
+
+  # ── RoastProfile aggregate ──────────────────────────────────────────
+
+  test "DesignProfile sets profile_name + roast_level" do
+    tests "DesignProfile", on: "RoastProfile"
+    setup  "SourceBeans", origin: "sample", variety: "sample", altitude_m: 1.0
+    input  green_bean: 1, profile_name: "sample", roast_level: "sample"
+    expect ok: "true"
+  end
+
+  test "AddCurvePoint sets time_seconds + temp_c + phase" do
+    tests "AddCurvePoint", on: "RoastProfile"
+    setup  "AddCurvePoint", time_seconds: 1, temp_c: 1.0, phase: "sample"
+    input  roast_profile: 1, time_seconds: 1, temp_c: 1.0, phase: "sample"
+    expect curve_points_size: 1
+  end
+
+  test "ApproveProfile runs" do
+    tests "ApproveProfile", on: "RoastProfile"
+    setup  "AddCurvePoint", time_seconds: 1, temp_c: 1.0, phase: "sample"
+    input  roast_profile: 1
+    expect ok: "true"
+  end
+
+
+  # ── RoastBatch aggregate ──────────────────────────────────────────
+
+  test "StartBatch sets batch_number + weight_kg" do
+    tests "StartBatch", on: "RoastBatch"
+    setup  "AddCurvePoint", time_seconds: 1, temp_c: 1.0, phase: "sample"
+    input  roast_profile: 1, batch_number: "sample", weight_kg: 1.0
+    expect ok: "true"
+  end
+
+  test "RecordReaction sets reaction_type + onset_temp_c + intensity" do
+    tests "RecordReaction", on: "RoastBatch"
+    input  roast_batch: 1, reaction_type: "sample", onset_temp_c: 1.0, intensity: 1.0
+    expect reactions_size: 1
+  end
+
+  test "CompleteBatch runs" do
+    tests "CompleteBatch", on: "RoastBatch"
+    input  roast_batch: 1
+    expect ok: "true"
+  end
+
+
+  # ── BrewRecipe aggregate ──────────────────────────────────────────
+
+  test "CreateRecipe sets recipe_name + brew_method" do
+    tests "CreateRecipe", on: "BrewRecipe"
+    input  roast_batch: 1, recipe_name: "sample", brew_method: "sample"
+    expect recipe_name: "sample", brew_method: "sample"
+  end
+
+  test "SetParameter sets param_name + value + unit" do
+    tests "SetParameter", on: "BrewRecipe"
+    setup  "CreateRecipe", recipe_name: "sample", brew_method: "sample"
+    input  brew_recipe: 1, param_name: "sample", value: 1.0, unit: "sample"
+    expect parameters_size: 1
+  end
+
+  test "PublishRecipe runs" do
+    tests "PublishRecipe", on: "BrewRecipe"
+    setup  "CreateRecipe", recipe_name: "sample", brew_method: "sample"
+    input  brew_recipe: 1
+    expect ok: "true"
+  end
+
+end

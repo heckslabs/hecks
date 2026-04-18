@@ -1,0 +1,57 @@
+Hecks.behaviors "ChrisWorkflow" do
+  vision "Behavioral tests for the ChrisWorkflow domain — exercises every command and query in memory"
+
+  # ── ModelTier aggregate ──────────────────────────────────────────
+
+  test "AssignTier sets task_type + model + why" do
+    tests "AssignTier", on: "ModelTier"
+    input  task_type: "sample", model: "sample", why: "sample"
+    expect task_type: "sample", model: "sample", why: "sample"
+  end
+
+
+  # ── AgentRule aggregate ──────────────────────────────────────────
+
+  test "AddAgentRule sets name + rule + why" do
+    tests "AddAgentRule", on: "AgentRule"
+    input  name: "sample", rule: "sample", why: "sample"
+    expect name: "sample", rule: "sample", why: "sample"
+  end
+
+
+  # ── GitWorkflow aggregate ──────────────────────────────────────────
+
+  test "AddGitRule sets name + rule + why" do
+    tests "AddGitRule", on: "GitWorkflow"
+    input  name: "sample", rule: "sample", why: "sample"
+    expect rules_size: 1
+  end
+
+
+  # ── ToolPreference aggregate ──────────────────────────────────────────
+
+  test "SetToolPreference sets tool_name + use_or_avoid + rule + why" do
+    tests "SetToolPreference", on: "ToolPreference"
+    input  tool_name: "sample", use_or_avoid: "sample", rule: "sample", why: "sample"
+    expect tool_name: "sample", use_or_avoid: "sample", rule: "sample", why: "sample"
+  end
+
+
+  # ── CommunicationStyle aggregate ──────────────────────────────────────────
+
+  test "AddStyleRule sets name + rule + why" do
+    tests "AddStyleRule", on: "CommunicationStyle"
+    input  name: "sample", rule: "sample", why: "sample"
+    expect rules_size: 1
+  end
+
+
+  # ── LinearConvention aggregate ──────────────────────────────────────────
+
+  test "AddLinearRule sets name + rule" do
+    tests "AddLinearRule", on: "LinearConvention"
+    input  name: "sample", rule: "sample"
+    expect rules_size: 1
+  end
+
+end

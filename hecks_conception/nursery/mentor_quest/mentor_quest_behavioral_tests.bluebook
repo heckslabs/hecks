@@ -1,0 +1,88 @@
+Hecks.behaviors "MentorQuest" do
+  vision "Behavioral tests for the MentorQuest domain — exercises every command and query in memory"
+
+  # ── Mentor aggregate ──────────────────────────────────────────
+
+  test "RegisterMentor sets name + mentees_max" do
+    tests "RegisterMentor", on: "Mentor"
+    input  name: "sample", mentees_max: 1
+    expect name: "sample", mentees_max: 1
+  end
+
+  test "AddSpecialty sets skill_area + experience_years" do
+    tests "AddSpecialty", on: "Mentor"
+    setup  "RegisterMentor", name: "sample", mentees_max: 1
+    input  mentor: 1, skill_area: "sample", experience_years: 1
+    expect specialties_size: 1
+  end
+
+
+  # ── Youth aggregate ──────────────────────────────────────────
+
+  test "EnrollYouth sets name + age" do
+    tests "EnrollYouth", on: "Youth"
+    input  name: "sample", age: 1
+    expect ok: "true"
+  end
+
+  test "AddInterest sets topic + enthusiasm_level" do
+    tests "AddInterest", on: "Youth"
+    setup  "AddInterest", topic: "sample", enthusiasm_level: 1
+    input  youth: 1, topic: "sample", enthusiasm_level: 1
+    expect interests_size: 1
+  end
+
+  test "AwardXP sets xp_points" do
+    tests "AwardXP", on: "Youth"
+    setup  "AddInterest", topic: "sample", enthusiasm_level: 1
+    input  youth: 1, xp_points: 1
+    expect ok: "true"
+  end
+
+
+  # ── QuestLine aggregate ──────────────────────────────────────────
+
+  test "DesignQuest sets quest_name + theme" do
+    tests "DesignQuest", on: "QuestLine"
+    input  quest_name: "sample", theme: "sample"
+    expect ok: "true"
+  end
+
+  test "AddMission sets mission_name + description + xp_reward + difficulty" do
+    tests "AddMission", on: "QuestLine"
+    setup  "AddMission", mission_name: "sample", description: "sample", xp_reward: 1, difficulty: "sample"
+    input  quest_line: 1, mission_name: "sample", description: "sample", xp_reward: 1, difficulty: "sample"
+    expect missions_size: 1
+  end
+
+  test "PublishQuest runs" do
+    tests "PublishQuest", on: "QuestLine"
+    setup  "AddMission", mission_name: "sample", description: "sample", xp_reward: 1, difficulty: "sample"
+    input  quest_line: 1
+    expect ok: "true"
+  end
+
+
+  # ── MentorshipSession aggregate ──────────────────────────────────────────
+
+  test "ScheduleSession sets session_date" do
+    tests "ScheduleSession", on: "MentorshipSession"
+    setup  "RegisterMentor", name: "sample", mentees_max: 1
+    setup  "AddInterest", topic: "sample", enthusiasm_level: 1
+    input  mentor: 1, youth: 1, session_date: "sample"
+    expect ok: "true"
+  end
+
+  test "RecordAchievement sets mission_name + xp_earned" do
+    tests "RecordAchievement", on: "MentorshipSession"
+    input  mentorship_session: 1, mission_name: "sample", xp_earned: 1
+    expect achievements_size: 1
+  end
+
+  test "CompleteSession runs" do
+    tests "CompleteSession", on: "MentorshipSession"
+    input  mentorship_session: 1
+    expect ok: "true"
+  end
+
+end

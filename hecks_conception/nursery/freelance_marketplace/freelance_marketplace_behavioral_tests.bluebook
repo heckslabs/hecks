@@ -1,0 +1,119 @@
+Hecks.behaviors "FreelanceMarketplace" do
+  vision "Behavioral tests for the FreelanceMarketplace domain — exercises every command and query in memory"
+
+  # ── Gig aggregate ──────────────────────────────────────────
+
+  test "PostGig sets gig_title + description + category + budget + deadline" do
+    tests "PostGig", on: "Gig"
+    input  gig_title: "sample", description: "sample", category: "sample", budget: 1.0, deadline: "sample"
+    expect ok: "true"
+  end
+
+  test "CloseGig runs" do
+    tests "CloseGig", on: "Gig"
+    setup  "PostGig", gig_title: "sample", description: "sample", category: "sample", budget: 1.0, deadline: "sample"
+    input  gig: 1
+    expect ok: "true"
+  end
+
+  test "CancelGig runs" do
+    tests "CancelGig", on: "Gig"
+    setup  "PostGig", gig_title: "sample", description: "sample", category: "sample", budget: 1.0, deadline: "sample"
+    input  gig: 1
+    expect ok: "true"
+  end
+
+
+  # ── Freelancer aggregate ──────────────────────────────────────────
+
+  test "RegisterFreelancer sets freelancer_id + name + email + headline + hourly_rate" do
+    tests "RegisterFreelancer", on: "Freelancer"
+    input  freelancer_id: "sample", name: "sample", email: "sample", headline: "sample", hourly_rate: 1.0
+    expect freelancer_id: "sample", name: "sample", email: "sample", headline: "sample", hourly_rate: 1.0
+  end
+
+  test "UpdateProfile sets headline + hourly_rate" do
+    tests "UpdateProfile", on: "Freelancer"
+    setup  "RegisterFreelancer", freelancer_id: "sample", name: "sample", email: "sample", headline: "sample", hourly_rate: 1.0
+    input  freelancer: 1, headline: "sample", hourly_rate: 1.0
+    expect ok: "true"
+  end
+
+  test "SuspendFreelancer runs" do
+    tests "SuspendFreelancer", on: "Freelancer"
+    setup  "RegisterFreelancer", freelancer_id: "sample", name: "sample", email: "sample", headline: "sample", hourly_rate: 1.0
+    input  freelancer: 1
+    expect ok: "true"
+  end
+
+
+  # ── Proposal aggregate ──────────────────────────────────────────
+
+  test "SubmitProposal sets proposal_id + cover_letter + proposed_rate + estimated_days" do
+    tests "SubmitProposal", on: "Proposal"
+    setup  "PostGig", gig_title: "sample", description: "sample", category: "sample", budget: 1.0, deadline: "sample"
+    setup  "RegisterFreelancer", freelancer_id: "sample", name: "sample", email: "sample", headline: "sample", hourly_rate: 1.0
+    input  gig: 1, freelancer: 1, proposal_id: "sample", cover_letter: "sample", proposed_rate: 1.0, estimated_days: 1
+    expect ok: "true"
+  end
+
+  test "AcceptProposal runs" do
+    tests "AcceptProposal", on: "Proposal"
+    input  proposal: 1
+    expect ok: "true"
+  end
+
+  test "RejectProposal sets rejection_reason" do
+    tests "RejectProposal", on: "Proposal"
+    input  proposal: 1, rejection_reason: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Contract aggregate ──────────────────────────────────────────
+
+  test "CreateContract sets contract_id + total_amount + start_date + end_date" do
+    tests "CreateContract", on: "Contract"
+    setup  "PostGig", gig_title: "sample", description: "sample", category: "sample", budget: 1.0, deadline: "sample"
+    setup  "RegisterFreelancer", freelancer_id: "sample", name: "sample", email: "sample", headline: "sample", hourly_rate: 1.0
+    input  gig: 1, freelancer: 1, contract_id: "sample", total_amount: 1.0, start_date: "sample", end_date: "sample"
+    expect contract_id: "sample", total_amount: 1.0, start_date: "sample", end_date: "sample"
+  end
+
+  test "CompleteMilestone sets milestone_title" do
+    tests "CompleteMilestone", on: "Contract"
+    setup  "CreateContract", contract_id: "sample", total_amount: 1.0, start_date: "sample", end_date: "sample"
+    input  contract: 1, milestone_title: "sample"
+    expect ok: "true"
+  end
+
+  test "TerminateContract runs" do
+    tests "TerminateContract", on: "Contract"
+    setup  "CreateContract", contract_id: "sample", total_amount: 1.0, start_date: "sample", end_date: "sample"
+    input  contract: 1
+    expect ok: "true"
+  end
+
+
+  # ── Payment aggregate ──────────────────────────────────────────
+
+  test "ReleasePayment sets payment_id + amount + payment_method" do
+    tests "ReleasePayment", on: "Payment"
+    setup  "CreateContract", contract_id: "sample", total_amount: 1.0, start_date: "sample", end_date: "sample"
+    input  contract: 1, payment_id: "sample", amount: 1.0, payment_method: "sample"
+    expect ok: "true"
+  end
+
+  test "HoldPayment runs" do
+    tests "HoldPayment", on: "Payment"
+    input  payment: 1
+    expect ok: "true"
+  end
+
+  test "RefundPayment runs" do
+    tests "RefundPayment", on: "Payment"
+    input  payment: 1
+    expect ok: "true"
+  end
+
+end

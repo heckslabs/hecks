@@ -1,0 +1,72 @@
+Hecks.behaviors "Compliance" do
+  vision "Behavioral tests for the Compliance domain — exercises every command and query in memory"
+
+  # ── SafetyDataSheet aggregate ──────────────────────────────────────────
+
+  test "CreateSafetyDataSheet sets formula_name + sds_number + ghs_classification + hmis_rating + nfpa_rating + cas_numbers" do
+    tests "CreateSafetyDataSheet", on: "SafetyDataSheet"
+    input  formula_name: "sample", sds_number: "sample", ghs_classification: "sample", hmis_rating: "sample", nfpa_rating: "sample", cas_numbers: "sample"
+    expect formula_name: "sample", sds_number: "sample", ghs_classification: "sample", hmis_rating: "sample", nfpa_rating: "sample", cas_numbers: "sample", revision: 1, status: "active"
+  end
+
+  test "ReviseSafetyDataSheet sets ghs_classification + revision_date" do
+    tests "ReviseSafetyDataSheet", on: "SafetyDataSheet"
+    setup  "CreateSafetyDataSheet", formula_name: "sample", sds_number: "sample", ghs_classification: "sample", hmis_rating: "sample", nfpa_rating: "sample", cas_numbers: "sample"
+    input  safety_data_sheet: 1, ghs_classification: "sample", revision_date: "sample"
+    expect ghs_classification: "sample", revision_date: "sample", revision: 1
+  end
+
+
+  # ── ChemicalRegistration aggregate ──────────────────────────────────────────
+
+  test "RegisterChemical sets formula_name + registration_type + jurisdiction + registration_number + voc_content_grams_per_liter + prop_65_listed + tsca_compliant" do
+    tests "RegisterChemical", on: "ChemicalRegistration"
+    input  formula_name: "sample", registration_type: "sample", jurisdiction: "sample", registration_number: "sample", voc_content_grams_per_liter: 1.0, prop_65_listed: "sample", tsca_compliant: "sample"
+    expect formula_name: "sample", registration_type: "sample", jurisdiction: "sample", registration_number: "sample", voc_content_grams_per_liter: 1.0, prop_65_listed: "sample", tsca_compliant: "sample", status: "active"
+  end
+
+  test "RenewRegistration sets expiration_date" do
+    tests "RenewRegistration", on: "ChemicalRegistration"
+    setup  "RegisterChemical", formula_name: "sample", registration_type: "sample", jurisdiction: "sample", registration_number: "sample", voc_content_grams_per_liter: 1.0, prop_65_listed: "sample", tsca_compliant: "sample"
+    input  chemical_registration: 1, expiration_date: "sample"
+    expect expiration_date: "sample"
+  end
+
+  test "RevokeRegistration runs" do
+    tests "RevokeRegistration", on: "ChemicalRegistration"
+    setup  "RegisterChemical", formula_name: "sample", registration_type: "sample", jurisdiction: "sample", registration_number: "sample", voc_content_grams_per_liter: 1.0, prop_65_listed: "sample", tsca_compliant: "sample"
+    input  chemical_registration: 1
+    expect status: "revoked"
+  end
+
+
+  # ── RegulatoryAudit aggregate ──────────────────────────────────────────
+
+  test "ScheduleAudit sets audit_type + auditor + scheduled_date" do
+    tests "ScheduleAudit", on: "RegulatoryAudit"
+    input  audit_type: "sample", auditor: "sample", scheduled_date: "sample"
+    expect audit_type: "sample", auditor: "sample", scheduled_date: "sample", documentation_complete: "false", status: "scheduled"
+  end
+
+  test "PrepareDocumentation runs" do
+    tests "PrepareDocumentation", on: "RegulatoryAudit"
+    setup  "ScheduleAudit", audit_type: "sample", auditor: "sample", scheduled_date: "sample"
+    input  regulatory_audit: 1
+    expect documentation_complete: "true"
+  end
+
+  test "RecordFindings sets findings" do
+    tests "RecordFindings", on: "RegulatoryAudit"
+    setup  "ScheduleAudit", audit_type: "sample", auditor: "sample", scheduled_date: "sample"
+    input  regulatory_audit: 1, findings: "sample"
+    expect findings: "sample", status: "completed"
+  end
+
+  test "CloseAudit runs" do
+    tests "CloseAudit", on: "RegulatoryAudit"
+    setup  "ScheduleAudit", audit_type: "sample", auditor: "sample", scheduled_date: "sample"
+    input  regulatory_audit: 1
+    expect status: "closed"
+  end
+
+end

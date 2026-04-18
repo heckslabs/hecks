@@ -1,0 +1,92 @@
+Hecks.behaviors "SolarInstaller" do
+  vision "Behavioral tests for the SolarInstaller domain — exercises every command and query in memory"
+
+  # ── SiteSurvey aggregate ──────────────────────────────────────────
+
+  test "SurveySite sets customer_name + address + roof_sqft + roof_orientation + annual_kwh_usage" do
+    tests "SurveySite", on: "SiteSurvey"
+    input  customer_name: "sample", address: "sample", roof_sqft: 1.0, roof_orientation: "sample", annual_kwh_usage: 1.0
+    expect ok: "true"
+  end
+
+  test "AnalyzeShading sets shading_analysis" do
+    tests "AnalyzeShading", on: "SiteSurvey"
+    setup  "SurveySite", customer_name: "sample", address: "sample", roof_sqft: 1.0, roof_orientation: "sample", annual_kwh_usage: 1.0
+    input  site_survey: 1, shading_analysis: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── PanelLayout aggregate ──────────────────────────────────────────
+
+  test "DesignLayout sets panel_count + module_model + system_kw + tilt_degrees" do
+    tests "DesignLayout", on: "PanelLayout"
+    setup  "SurveySite", customer_name: "sample", address: "sample", roof_sqft: 1.0, roof_orientation: "sample", annual_kwh_usage: 1.0
+    input  site_survey: 1, panel_count: 1, module_model: "sample", system_kw: 1.0, tilt_degrees: 1.0
+    expect ok: "true"
+  end
+
+  test "CalculateProduction runs" do
+    tests "CalculateProduction", on: "PanelLayout"
+    input  panel_layout: 1
+    expect ok: "true"
+  end
+
+  test "ReviseLayout sets revision_reason" do
+    tests "ReviseLayout", on: "PanelLayout"
+    input  panel_layout: 1, revision_reason: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SolarPermit aggregate ──────────────────────────────────────────
+
+  test "SubmitPermit sets jurisdiction + plan_set_version" do
+    tests "SubmitPermit", on: "SolarPermit"
+    input  panel_layout: 1, jurisdiction: "sample", plan_set_version: "sample"
+    expect ok: "true"
+  end
+
+  test "ReceiveApproval sets permit_number" do
+    tests "ReceiveApproval", on: "SolarPermit"
+    input  solar_permit: 1, permit_number: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SolarInstallation aggregate ──────────────────────────────────────────
+
+  test "ScheduleInstallation sets crew_lead + install_date" do
+    tests "ScheduleInstallation", on: "SolarInstallation"
+    input  panel_layout: 1, crew_lead: "sample", install_date: "sample"
+    expect ok: "true"
+  end
+
+  test "CompleteInstallation sets inverter_model" do
+    tests "CompleteInstallation", on: "SolarInstallation"
+    input  solar_installation: 1, inverter_model: "sample"
+    expect ok: "true"
+  end
+
+  test "VerifySystem runs" do
+    tests "VerifySystem", on: "SolarInstallation"
+    input  solar_installation: 1
+    expect ok: "true"
+  end
+
+
+  # ── FinalInspection aggregate ──────────────────────────────────────────
+
+  test "ScheduleInspection sets inspection_type" do
+    tests "ScheduleInspection", on: "FinalInspection"
+    input  solar_installation: 1, inspection_type: "sample"
+    expect ok: "true"
+  end
+
+  test "RecordResult sets result + notes" do
+    tests "RecordResult", on: "FinalInspection"
+    input  final_inspection: 1, result: "sample", notes: "sample"
+    expect ok: "true"
+  end
+
+end

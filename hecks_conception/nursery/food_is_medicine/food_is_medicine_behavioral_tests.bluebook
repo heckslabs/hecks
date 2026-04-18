@@ -1,0 +1,110 @@
+Hecks.behaviors "FoodIsMedicine" do
+  vision "Behavioral tests for the FoodIsMedicine domain — exercises every command and query in memory"
+
+  # ── FoodPrescription aggregate ──────────────────────────────────────────
+
+  test "IssuePrescription sets prescription_id + patient_name + diagnosis + prescribing_clinician" do
+    tests "IssuePrescription", on: "FoodPrescription"
+    input  prescription_id: "sample", patient_name: "sample", diagnosis: "sample", prescribing_clinician: "sample"
+    expect prescription_id: "sample", patient_name: "sample", diagnosis: "sample", prescribing_clinician: "sample", status: "active"
+  end
+
+  test "AdjustPrescription sets diagnosis" do
+    tests "AdjustPrescription", on: "FoodPrescription"
+    setup  "IssuePrescription", prescription_id: "sample", patient_name: "sample", diagnosis: "sample", prescribing_clinician: "sample"
+    input  food_prescription: 1, diagnosis: "sample"
+    expect diagnosis: "sample"
+  end
+
+  test "CompletePrescription runs" do
+    tests "CompletePrescription", on: "FoodPrescription"
+    setup  "IssuePrescription", prescription_id: "sample", patient_name: "sample", diagnosis: "sample", prescribing_clinician: "sample"
+    input  food_prescription: 1
+    expect status: "completed"
+  end
+
+
+  # ── FarmAllocation aggregate ──────────────────────────────────────────
+
+  test "CommitFarm sets farm_name + region + season + acres_committed" do
+    tests "CommitFarm", on: "FarmAllocation"
+    input  farm_name: "sample", region: "sample", season: "sample", acres_committed: 1
+    expect farm_name: "sample", region: "sample", season: "sample", acres_committed: 1, status: "committed"
+  end
+
+  test "ReportHarvest runs" do
+    tests "ReportHarvest", on: "FarmAllocation"
+    setup  "CommitFarm", farm_name: "sample", region: "sample", season: "sample", acres_committed: 1
+    input  farm_allocation: 1
+    expect status: "harvested"
+  end
+
+  test "LinkToTarget runs" do
+    tests "LinkToTarget", on: "FarmAllocation"
+    setup  "CommitFarm", farm_name: "sample", region: "sample", season: "sample", acres_committed: 1
+    setup  "ComputeDemand", region: "sample", period: "sample"
+    input  farm_allocation: 1, nutrient_target: 1
+    expect target: :target
+  end
+
+
+  # ── NutrientTarget aggregate ──────────────────────────────────────────
+
+  test "ComputeDemand sets region + period" do
+    tests "ComputeDemand", on: "NutrientTarget"
+    input  region: "sample", period: "sample"
+    expect region: "sample", period: "sample", status: "computed"
+  end
+
+  test "MatchSupply runs" do
+    tests "MatchSupply", on: "NutrientTarget"
+    setup  "ComputeDemand", region: "sample", period: "sample"
+    input  nutrient_target: 1
+    expect status: "matched"
+  end
+
+
+  # ── DistributionRoute aggregate ──────────────────────────────────────────
+
+  test "PlanRoute sets route_id + food_bank_name + delivery_date" do
+    tests "PlanRoute", on: "DistributionRoute"
+    setup  "CommitFarm", farm_name: "sample", region: "sample", season: "sample", acres_committed: 1
+    input  farm_allocation: 1, route_id: "sample", food_bank_name: "sample", delivery_date: "sample"
+    expect route_id: "sample", source_farm: :source_farm, food_bank_name: "sample", delivery_date: "sample", status: "planned"
+  end
+
+  test "DispatchDelivery runs" do
+    tests "DispatchDelivery", on: "DistributionRoute"
+    input  distribution_route: 1
+    expect status: "in_transit"
+  end
+
+  test "ConfirmDelivery runs" do
+    tests "ConfirmDelivery", on: "DistributionRoute"
+    input  distribution_route: 1
+    expect status: "delivered"
+  end
+
+
+  # ── PatientOutcome aggregate ──────────────────────────────────────────
+
+  test "RecordBaseline sets patient_name + baseline_status" do
+    tests "RecordBaseline", on: "PatientOutcome"
+    setup  "IssuePrescription", prescription_id: "sample", patient_name: "sample", diagnosis: "sample", prescribing_clinician: "sample"
+    input  food_prescription: 1, patient_name: "sample", baseline_status: "sample"
+    expect patient_name: "sample", prescription: :prescription, baseline_status: "sample", current_status: "sample", trend: "stable"
+  end
+
+  test "RecordCheckpoint sets current_status + trend" do
+    tests "RecordCheckpoint", on: "PatientOutcome"
+    input  patient_outcome: 1, current_status: "sample", trend: "sample"
+    expect current_status: "sample", trend: "sample"
+  end
+
+  test "FlagImprovement runs" do
+    tests "FlagImprovement", on: "PatientOutcome"
+    input  patient_outcome: 1
+    expect ok: "true"
+  end
+
+end

@@ -1,0 +1,102 @@
+Hecks.behaviors "CulturalResourceMgmt" do
+  vision "Behavioral tests for the CulturalResourceMgmt domain — exercises every command and query in memory"
+
+  # ── ArchaeologicalSite aggregate ──────────────────────────────────────────
+
+  test "DiscoverSite sets site_id + location + era_period + significance_level" do
+    tests "DiscoverSite", on: "ArchaeologicalSite"
+    input  site_id: "sample", location: "sample", era_period: "sample", significance_level: "sample"
+    expect site_id: "sample", location: "sample", era_period: "sample", significance_level: "sample", artifact_count: 0, status: "discovered"
+  end
+
+  test "AssessSite runs" do
+    tests "AssessSite", on: "ArchaeologicalSite"
+    setup  "DiscoverSite", site_id: "sample", location: "sample", era_period: "sample", significance_level: "sample"
+    input  archaeological_site: 1
+    expect status: "assessed"
+  end
+
+  test "ExcavateSite runs" do
+    tests "ExcavateSite", on: "ArchaeologicalSite"
+    setup  "DiscoverSite", site_id: "sample", location: "sample", era_period: "sample", significance_level: "sample"
+    input  archaeological_site: 1
+    expect status: "excavating"
+  end
+
+  test "ClearSite runs" do
+    tests "ClearSite", on: "ArchaeologicalSite"
+    setup  "DiscoverSite", site_id: "sample", location: "sample", era_period: "sample", significance_level: "sample"
+    input  archaeological_site: 1
+    expect status: "cleared"
+  end
+
+
+  # ── Artifact aggregate ──────────────────────────────────────────
+
+  test "CatalogArtifact sets catalog_number + artifact_type + site_id + depth_found_m + condition" do
+    tests "CatalogArtifact", on: "Artifact"
+    input  catalog_number: "sample", artifact_type: "sample", site_id: "sample", depth_found_m: 1.0, condition: "sample"
+    expect catalog_number: "sample", artifact_type: "sample", site_id: "sample", depth_found_m: 1.0, condition: "sample", status: "cataloged"
+  end
+
+  test "PreserveArtifact sets preservation_method" do
+    tests "PreserveArtifact", on: "Artifact"
+    setup  "CatalogArtifact", catalog_number: "sample", artifact_type: "sample", site_id: "sample", depth_found_m: 1.0, condition: "sample"
+    input  artifact: 1, preservation_method: "sample"
+    expect preservation_method: "sample", status: "preserved"
+  end
+
+
+  # ── ConstructionPhase aggregate ──────────────────────────────────────────
+
+  test "PlanPhase sets phase_name + project_name + area + start_date + end_date" do
+    tests "PlanPhase", on: "ConstructionPhase"
+    input  phase_name: "sample", project_name: "sample", area: "sample", start_date: "sample", end_date: "sample"
+    expect phase_name: "sample", project_name: "sample", area: "sample", start_date: "sample", end_date: "sample", status: "planned"
+  end
+
+  test "HaltForArchaeology runs" do
+    tests "HaltForArchaeology", on: "ConstructionPhase"
+    setup  "PlanPhase", phase_name: "sample", project_name: "sample", area: "sample", start_date: "sample", end_date: "sample"
+    input  construction_phase: 1
+    expect status: "halted"
+  end
+
+  test "ResumePhase runs" do
+    tests "ResumePhase", on: "ConstructionPhase"
+    setup  "PlanPhase", phase_name: "sample", project_name: "sample", area: "sample", start_date: "sample", end_date: "sample"
+    input  construction_phase: 1
+    expect status: "active"
+  end
+
+  test "CompletePhase runs" do
+    tests "CompletePhase", on: "ConstructionPhase"
+    setup  "PlanPhase", phase_name: "sample", project_name: "sample", area: "sample", start_date: "sample", end_date: "sample"
+    input  construction_phase: 1
+    expect status: "completed"
+  end
+
+
+  # ── PreservationPermit aggregate ──────────────────────────────────────────
+
+  test "ApplyForPreservationPermit sets permit_number + site_id + applicant + permit_type" do
+    tests "ApplyForPreservationPermit", on: "PreservationPermit"
+    input  permit_number: "sample", site_id: "sample", applicant: "sample", permit_type: "sample"
+    expect permit_number: "sample", site_id: "sample", applicant: "sample", permit_type: "sample", status: "applied"
+  end
+
+  test "ReviewPreservationPermit sets conditions" do
+    tests "ReviewPreservationPermit", on: "PreservationPermit"
+    setup  "ApplyForPreservationPermit", permit_number: "sample", site_id: "sample", applicant: "sample", permit_type: "sample"
+    input  preservation_permit: 1, conditions: "sample"
+    expect conditions: "sample", status: "reviewed"
+  end
+
+  test "GrantPermit runs" do
+    tests "GrantPermit", on: "PreservationPermit"
+    setup  "ApplyForPreservationPermit", permit_number: "sample", site_id: "sample", applicant: "sample", permit_type: "sample"
+    input  preservation_permit: 1
+    expect status: "granted"
+  end
+
+end

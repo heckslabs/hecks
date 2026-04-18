@@ -1,0 +1,95 @@
+Hecks.behaviors "WildlifeForensics" do
+  vision "Behavioral tests for the WildlifeForensics domain — exercises every command and query in memory"
+
+  # ── Evidence aggregate ──────────────────────────────────────────
+
+  test "CollectEvidence sets evidence_id + evidence_type + location_found + collected_by + timestamp" do
+    tests "CollectEvidence", on: "Evidence"
+    input  evidence_id: "sample", evidence_type: "sample", location_found: "sample", collected_by: "sample", timestamp: "sample"
+    expect evidence_id: "sample", evidence_type: "sample", location_found: "sample", collected_by: "sample", timestamp: "sample", status: "collected"
+  end
+
+  test "TransferEvidence runs" do
+    tests "TransferEvidence", on: "Evidence"
+    setup  "CollectEvidence", evidence_id: "sample", evidence_type: "sample", location_found: "sample", collected_by: "sample", timestamp: "sample"
+    input  evidence: 1
+    expect status: "in_lab"
+  end
+
+  test "AnalyzeEvidence runs" do
+    tests "AnalyzeEvidence", on: "Evidence"
+    setup  "CollectEvidence", evidence_id: "sample", evidence_type: "sample", location_found: "sample", collected_by: "sample", timestamp: "sample"
+    input  evidence: 1
+    expect status: "analyzed"
+  end
+
+
+  # ── SpeciesIdentification aggregate ──────────────────────────────────────────
+
+  test "IdentifySpecies sets sample_id + identified_species + common_name + conservation_status + confidence_pct" do
+    tests "IdentifySpecies", on: "SpeciesIdentification"
+    input  sample_id: "sample", identified_species: "sample", common_name: "sample", conservation_status: "sample", confidence_pct: 1.0
+    expect sample_id: "sample", identified_species: "sample", common_name: "sample", conservation_status: "sample", confidence_pct: 1.0, status: "identified"
+  end
+
+  test "ConfirmWithDNA runs" do
+    tests "ConfirmWithDNA", on: "SpeciesIdentification"
+    setup  "IdentifySpecies", sample_id: "sample", identified_species: "sample", common_name: "sample", conservation_status: "sample", confidence_pct: 1.0
+    input  species_identification: 1
+    expect status: "confirmed"
+  end
+
+
+  # ── PoachingCase aggregate ──────────────────────────────────────────
+
+  test "OpenCase sets case_number + location + species_involved + method_used + lead_investigator" do
+    tests "OpenCase", on: "PoachingCase"
+    input  case_number: "sample", location: "sample", species_involved: "sample", method_used: "sample", lead_investigator: "sample"
+    expect case_number: "sample", location: "sample", species_involved: "sample", method_used: "sample", lead_investigator: "sample", status: "open"
+  end
+
+  test "LinkEvidence runs" do
+    tests "LinkEvidence", on: "PoachingCase"
+    setup  "OpenCase", case_number: "sample", location: "sample", species_involved: "sample", method_used: "sample", lead_investigator: "sample"
+    input  poaching_case: 1
+    expect ok: "true"
+  end
+
+  test "ReferForProsecution runs" do
+    tests "ReferForProsecution", on: "PoachingCase"
+    setup  "OpenCase", case_number: "sample", location: "sample", species_involved: "sample", method_used: "sample", lead_investigator: "sample"
+    input  poaching_case: 1
+    expect status: "referred"
+  end
+
+  test "CloseCase runs" do
+    tests "CloseCase", on: "PoachingCase"
+    setup  "OpenCase", case_number: "sample", location: "sample", species_involved: "sample", method_used: "sample", lead_investigator: "sample"
+    input  poaching_case: 1
+    expect status: "closed"
+  end
+
+
+  # ── DNAAnalysis aggregate ──────────────────────────────────────────
+
+  test "ExtractDNA sets analysis_id + evidence_id + extraction_method" do
+    tests "ExtractDNA", on: "DNAAnalysis"
+    input  analysis_id: "sample", evidence_id: "sample", extraction_method: "sample"
+    expect analysis_id: "sample", evidence_id: "sample", extraction_method: "sample", status: "extracted"
+  end
+
+  test "SequenceDNA sets sequence_region" do
+    tests "SequenceDNA", on: "DNAAnalysis"
+    setup  "ExtractDNA", analysis_id: "sample", evidence_id: "sample", extraction_method: "sample"
+    input  d_n_a_analysis: 1, sequence_region: "sample"
+    expect sequence_region: "sample", status: "sequenced"
+  end
+
+  test "MatchDatabase sets match_confidence_pct" do
+    tests "MatchDatabase", on: "DNAAnalysis"
+    setup  "ExtractDNA", analysis_id: "sample", evidence_id: "sample", extraction_method: "sample"
+    input  d_n_a_analysis: 1, match_confidence_pct: 1.0
+    expect match_confidence_pct: 1.0, status: "matched"
+  end
+
+end

@@ -1,0 +1,636 @@
+Hecks.behaviors "Mathematics" do
+  vision "Behavioral tests for the Mathematics domain — exercises every command and query in memory"
+
+  # ── Number aggregate ──────────────────────────────────────────
+
+  test "DefineNumber sets value + number_type" do
+    tests "DefineNumber", on: "Number"
+    input  value: "sample", number_type: "sample"
+    expect value: "sample", number_type: "sample"
+  end
+
+  test "AddNumbers sets addend" do
+    tests "AddNumbers", on: "Number"
+    setup  "AddNumbers", addend: "sample"
+    input  number: 1, addend: "sample"
+    expect ok: "true"
+  end
+
+  test "MultiplyNumbers sets multiplier" do
+    tests "MultiplyNumbers", on: "Number"
+    setup  "AddNumbers", addend: "sample"
+    input  number: 1, multiplier: "sample"
+    expect ok: "true"
+  end
+
+  test "ComputeGCD sets other" do
+    tests "ComputeGCD", on: "Number"
+    setup  "AddNumbers", addend: "sample"
+    input  number: 1, other: "sample"
+    expect ok: "true"
+  end
+
+  test "FindPrime runs" do
+    tests "FindPrime", on: "Number"
+    setup  "AddNumbers", addend: "sample"
+    input  number: 1
+    expect prime: "true"
+  end
+
+  test "ClassifyNumber sets parity" do
+    tests "ClassifyNumber", on: "Number"
+    setup  "AddNumbers", addend: "sample"
+    input  number: 1, parity: "sample"
+    expect parity: "sample"
+  end
+
+
+  # ── MathSet aggregate ──────────────────────────────────────────
+
+  test "DefineSet sets name + elements + set_type" do
+    tests "DefineSet", on: "MathSet"
+    input  name: "sample", elements: "sample", set_type: "sample"
+    expect name: "sample", elements: "sample", set_type: "sample"
+  end
+
+  test "UniteSet sets other_set" do
+    tests "UniteSet", on: "MathSet"
+    setup  "DefineSet", name: "sample", elements: "sample", set_type: "sample"
+    input  math_set: 1, other_set: "sample"
+    expect ok: "true"
+  end
+
+  test "IntersectSet sets other_set" do
+    tests "IntersectSet", on: "MathSet"
+    setup  "DefineSet", name: "sample", elements: "sample", set_type: "sample"
+    input  math_set: 1, other_set: "sample"
+    expect ok: "true"
+  end
+
+  test "ComputeComplement sets universal_set" do
+    tests "ComputeComplement", on: "MathSet"
+    setup  "DefineSet", name: "sample", elements: "sample", set_type: "sample"
+    input  math_set: 1, universal_set: "sample"
+    expect ok: "true"
+  end
+
+  test "CheckMembership sets element" do
+    tests "CheckMembership", on: "MathSet"
+    setup  "DefineSet", name: "sample", elements: "sample", set_type: "sample"
+    input  math_set: 1, element: "sample"
+    expect ok: "true"
+  end
+
+  test "MapElements sets function_name" do
+    tests "MapElements", on: "MathSet"
+    setup  "DefineSet", name: "sample", elements: "sample", set_type: "sample"
+    input  math_set: 1, function_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── MathFunction aggregate ──────────────────────────────────────────
+
+  test "DefineFunction sets name + domain_set + codomain_set + rule" do
+    tests "DefineFunction", on: "MathFunction"
+    input  name: "sample", domain_set: "sample", codomain_set: "sample", rule: "sample"
+    expect name: "sample", domain_set: "sample", codomain_set: "sample", rule: "sample"
+  end
+
+  test "ComposeFunction sets inner_function" do
+    tests "ComposeFunction", on: "MathFunction"
+    setup  "DefineFunction", name: "sample", domain_set: "sample", codomain_set: "sample", rule: "sample"
+    input  math_function: 1, inner_function: "sample"
+    expect ok: "true"
+  end
+
+  test "FindInverse runs" do
+    tests "FindInverse", on: "MathFunction"
+    setup  "DefineFunction", name: "sample", domain_set: "sample", codomain_set: "sample", rule: "sample"
+    input  math_function: 1
+    expect ok: "true"
+  end
+
+  test "EvaluateAt sets input" do
+    tests "EvaluateAt", on: "MathFunction"
+    setup  "DefineFunction", name: "sample", domain_set: "sample", codomain_set: "sample", rule: "sample"
+    input  math_function: 1, input: "sample"
+    expect ok: "true"
+  end
+
+  test "DetermineContinuity sets point" do
+    tests "DetermineContinuity", on: "MathFunction"
+    setup  "DefineFunction", name: "sample", domain_set: "sample", codomain_set: "sample", rule: "sample"
+    input  math_function: 1, point: "sample"
+    expect continuous: "true"
+  end
+
+  test "ClassifyFunction runs" do
+    tests "ClassifyFunction", on: "MathFunction"
+    setup  "DefineFunction", name: "sample", domain_set: "sample", codomain_set: "sample", rule: "sample"
+    input  math_function: 1
+    expect ok: "true"
+  end
+
+
+  # ── Expression aggregate ──────────────────────────────────────────
+
+  test "DefineExpression sets notation + expression_type" do
+    tests "DefineExpression", on: "Expression"
+    input  notation: "sample", expression_type: "sample"
+    expect notation: "sample", expression_type: "sample", simplified: "false"
+  end
+
+  test "SimplifyExpression runs" do
+    tests "SimplifyExpression", on: "Expression"
+    setup  "DefineExpression", notation: "sample", expression_type: "sample"
+    input  expression: 1
+    expect simplified: "true"
+  end
+
+  test "FactorPolynomial runs" do
+    tests "FactorPolynomial", on: "Expression"
+    setup  "DefineExpression", notation: "sample", expression_type: "sample"
+    input  expression: 1
+    expect ok: "true"
+  end
+
+  test "FindRoots runs" do
+    tests "FindRoots", on: "Expression"
+    setup  "DefineExpression", notation: "sample", expression_type: "sample"
+    input  expression: 1
+    expect ok: "true"
+  end
+
+  test "ExpandExpression runs" do
+    tests "ExpandExpression", on: "Expression"
+    setup  "DefineExpression", notation: "sample", expression_type: "sample"
+    input  expression: 1
+    expect ok: "true"
+  end
+
+
+  # ── Equation aggregate ──────────────────────────────────────────
+
+  test "DefineEquation sets left_side + right_side + equation_type" do
+    tests "DefineEquation", on: "Equation"
+    input  left_side: "sample", right_side: "sample", equation_type: "sample"
+    expect left_side: "sample", right_side: "sample", equation_type: "sample", status: "unsolved"
+  end
+
+  test "SolveEquation runs" do
+    tests "SolveEquation", on: "Equation"
+    setup  "DefineEquation", left_side: "sample", right_side: "sample", equation_type: "sample"
+    input  equation: 1
+    expect status: "solved"
+  end
+
+  test "VerifyEquation runs" do
+    tests "VerifyEquation", on: "Equation"
+    setup  "DefineEquation", left_side: "sample", right_side: "sample", equation_type: "sample"
+    input  equation: 1
+    expect status: "verified"
+  end
+
+
+  # ── AlgebraicStructure aggregate ──────────────────────────────────────────
+
+  test "DefineGroup sets name + underlying_set + operations + identity_element" do
+    tests "DefineGroup", on: "AlgebraicStructure"
+    input  name: "sample", underlying_set: "sample", operations: "sample", identity_element: "sample"
+    expect name: "sample", structure_type: "group", underlying_set: "sample", operations: "sample", identity_element: "sample"
+  end
+
+  test "VerifyAxioms runs" do
+    tests "VerifyAxioms", on: "AlgebraicStructure"
+    setup  "DefineGroup", name: "sample", underlying_set: "sample", operations: "sample", identity_element: "sample"
+    input  algebraic_structure: 1
+    expect axioms_satisfied: "true"
+  end
+
+  test "DetermineCommutativity runs" do
+    tests "DetermineCommutativity", on: "AlgebraicStructure"
+    setup  "DefineGroup", name: "sample", underlying_set: "sample", operations: "sample", identity_element: "sample"
+    input  algebraic_structure: 1
+    expect ok: "true"
+  end
+
+
+  # ── Shape aggregate ──────────────────────────────────────────
+
+  test "ConstructShape sets name + shape_type + dimension" do
+    tests "ConstructShape", on: "Shape"
+    input  name: "sample", shape_type: "sample", dimension: 1
+    expect name: "sample", shape_type: "sample", dimension: 1
+  end
+
+  test "MeasureAngle sets vertex + edge_a + edge_b" do
+    tests "MeasureAngle", on: "Shape"
+    setup  "ConstructShape", name: "sample", shape_type: "sample", dimension: 1
+    input  shape: 1, vertex: "sample", edge_a: "sample", edge_b: "sample"
+    expect ok: "true"
+  end
+
+  test "CalculateArea runs" do
+    tests "CalculateArea", on: "Shape"
+    setup  "ConstructShape", name: "sample", shape_type: "sample", dimension: 1
+    input  shape: 1
+    expect ok: "true"
+  end
+
+  test "CalculatePerimeter runs" do
+    tests "CalculatePerimeter", on: "Shape"
+    setup  "ConstructShape", name: "sample", shape_type: "sample", dimension: 1
+    input  shape: 1
+    expect ok: "true"
+  end
+
+  test "TransformShape sets transformation_type + parameters" do
+    tests "TransformShape", on: "Shape"
+    setup  "ConstructShape", name: "sample", shape_type: "sample", dimension: 1
+    input  shape: 1, transformation_type: "sample", parameters: "sample"
+    expect ok: "true"
+  end
+
+  test "ProveCongruence sets other_shape + method" do
+    tests "ProveCongruence", on: "Shape"
+    setup  "ConstructShape", name: "sample", shape_type: "sample", dimension: 1
+    input  shape: 1, other_shape: "sample", method: "sample"
+    expect congruent_to: "sample"
+  end
+
+
+  # ── Transformation aggregate ──────────────────────────────────────────
+
+  test "DefineTransformation sets name + transformation_type + matrix_representation" do
+    tests "DefineTransformation", on: "Transformation"
+    input  name: "sample", transformation_type: "sample", matrix_representation: "sample"
+    expect name: "sample", transformation_type: "sample", matrix_representation: "sample"
+  end
+
+  test "ComposeTransformation sets other_transformation" do
+    tests "ComposeTransformation", on: "Transformation"
+    setup  "DefineTransformation", name: "sample", transformation_type: "sample", matrix_representation: "sample"
+    input  transformation: 1, other_transformation: "sample"
+    expect ok: "true"
+  end
+
+  test "FindFixedPoints runs" do
+    tests "FindFixedPoints", on: "Transformation"
+    setup  "DefineTransformation", name: "sample", transformation_type: "sample", matrix_representation: "sample"
+    input  transformation: 1
+    expect ok: "true"
+  end
+
+
+  # ── Limit aggregate ──────────────────────────────────────────
+
+  test "ComputeLimit sets function_name + point + direction" do
+    tests "ComputeLimit", on: "Limit"
+    input  function_name: "sample", point: "sample", direction: "sample"
+    expect function_name: "sample", point: "sample", direction: "sample"
+  end
+
+  test "CheckLimitExistence runs" do
+    tests "CheckLimitExistence", on: "Limit"
+    setup  "ComputeLimit", function_name: "sample", point: "sample", direction: "sample"
+    input  limit: 1
+    expect exists: "true"
+  end
+
+
+  # ── Derivative aggregate ──────────────────────────────────────────
+
+  test "Differentiate sets function_name + variable + order" do
+    tests "Differentiate", on: "Derivative"
+    input  function_name: "sample", variable: "sample", order: 1
+    expect function_name: "sample", variable: "sample", order: 1
+  end
+
+  test "ApplyChainRule runs" do
+    tests "ApplyChainRule", on: "Derivative"
+    setup  "Differentiate", function_name: "sample", variable: "sample", order: 1
+    input  derivative: 1
+    expect method: "chain_rule"
+  end
+
+  test "FindExtremum runs" do
+    tests "FindExtremum", on: "Derivative"
+    setup  "Differentiate", function_name: "sample", variable: "sample", order: 1
+    input  derivative: 1
+    expect ok: "true"
+  end
+
+  test "ComputePartialDerivative sets hold_constant" do
+    tests "ComputePartialDerivative", on: "Derivative"
+    setup  "Differentiate", function_name: "sample", variable: "sample", order: 1
+    input  derivative: 1, hold_constant: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Integral aggregate ──────────────────────────────────────────
+
+  test "Integrate sets function_name + variable + integral_type" do
+    tests "Integrate", on: "Integral"
+    input  function_name: "sample", variable: "sample", integral_type: "sample"
+    expect function_name: "sample", variable: "sample", integral_type: "sample"
+  end
+
+  test "ApplySubstitution sets substitution" do
+    tests "ApplySubstitution", on: "Integral"
+    setup  "Integrate", function_name: "sample", variable: "sample", integral_type: "sample"
+    input  integral: 1, substitution: "sample"
+    expect method: "substitution"
+  end
+
+  test "EvaluateDefiniteIntegral runs" do
+    tests "EvaluateDefiniteIntegral", on: "Integral"
+    setup  "Integrate", function_name: "sample", variable: "sample", integral_type: "sample"
+    input  integral: 1
+    expect ok: "true"
+  end
+
+
+  # ── Series aggregate ──────────────────────────────────────────
+
+  test "ExpandSeries sets name + general_term + series_type" do
+    tests "ExpandSeries", on: "Series"
+    input  name: "sample", general_term: "sample", series_type: "sample"
+    expect name: "sample", general_term: "sample", series_type: "sample"
+  end
+
+  test "TestConvergence sets test_method" do
+    tests "TestConvergence", on: "Series"
+    setup  "ExpandSeries", name: "sample", general_term: "sample", series_type: "sample"
+    input  series: 1, test_method: "sample"
+    expect ok: "true"
+  end
+
+  test "ComputeSum runs" do
+    tests "ComputeSum", on: "Series"
+    setup  "ExpandSeries", name: "sample", general_term: "sample", series_type: "sample"
+    input  series: 1
+    expect ok: "true"
+  end
+
+
+  # ── Matrix aggregate ──────────────────────────────────────────
+
+  test "DefineMatrix sets name + rows + columns + entries" do
+    tests "DefineMatrix", on: "Matrix"
+    input  name: "sample", rows: 1, columns: 1, entries: "sample"
+    expect name: "sample", rows: 1, columns: 1, entries: "sample"
+  end
+
+  test "MultiplyMatrices sets other_matrix" do
+    tests "MultiplyMatrices", on: "Matrix"
+    setup  "DefineMatrix", name: "sample", rows: 1, columns: 1, entries: "sample"
+    input  matrix: 1, other_matrix: "sample"
+    expect ok: "true"
+  end
+
+  test "FindDeterminant runs" do
+    tests "FindDeterminant", on: "Matrix"
+    setup  "DefineMatrix", name: "sample", rows: 1, columns: 1, entries: "sample"
+    input  matrix: 1
+    expect ok: "true"
+  end
+
+  test "SolveSystem sets constants" do
+    tests "SolveSystem", on: "Matrix"
+    setup  "DefineMatrix", name: "sample", rows: 1, columns: 1, entries: "sample"
+    input  matrix: 1, constants: "sample"
+    expect ok: "true"
+  end
+
+  test "ComputeEigenvalues runs" do
+    tests "ComputeEigenvalues", on: "Matrix"
+    setup  "DefineMatrix", name: "sample", rows: 1, columns: 1, entries: "sample"
+    input  matrix: 1
+    expect ok: "true"
+  end
+
+  test "TransposeMatrix runs" do
+    tests "TransposeMatrix", on: "Matrix"
+    setup  "DefineMatrix", name: "sample", rows: 1, columns: 1, entries: "sample"
+    input  matrix: 1
+    expect ok: "true"
+  end
+
+  test "InvertMatrix runs" do
+    tests "InvertMatrix", on: "Matrix"
+    setup  "DefineMatrix", name: "sample", rows: 1, columns: 1, entries: "sample"
+    input  matrix: 1
+    expect ok: "true"
+  end
+
+  test "ReduceMatrix runs" do
+    tests "ReduceMatrix", on: "Matrix"
+    setup  "DefineMatrix", name: "sample", rows: 1, columns: 1, entries: "sample"
+    input  matrix: 1
+    expect ok: "true"
+  end
+
+
+  # ── Vector aggregate ──────────────────────────────────────────
+
+  test "DefineVector sets name + components + dimension" do
+    tests "DefineVector", on: "Vector"
+    input  name: "sample", components: "sample", dimension: 1
+    expect name: "sample", components: "sample", dimension: 1
+  end
+
+  test "AddVectors sets other_vector" do
+    tests "AddVectors", on: "Vector"
+    setup  "AddVectors", other_vector: "sample"
+    input  vector: 1, other_vector: "sample"
+    expect ok: "true"
+  end
+
+  test "ComputeDotProduct sets other_vector" do
+    tests "ComputeDotProduct", on: "Vector"
+    setup  "AddVectors", other_vector: "sample"
+    input  vector: 1, other_vector: "sample"
+    expect ok: "true"
+  end
+
+  test "ComputeCrossProduct sets other_vector" do
+    tests "ComputeCrossProduct", on: "Vector"
+    setup  "AddVectors", other_vector: "sample"
+    input  vector: 1, other_vector: "sample"
+    expect ok: "true"
+  end
+
+  test "NormalizeVector runs" do
+    tests "NormalizeVector", on: "Vector"
+    setup  "AddVectors", other_vector: "sample"
+    input  vector: 1
+    expect normalized: "true"
+  end
+
+
+  # ── ProbabilityEvent aggregate ──────────────────────────────────────────
+
+  test "DefineEvent sets name + sample_space + outcomes" do
+    tests "DefineEvent", on: "ProbabilityEvent"
+    input  name: "sample", sample_space: "sample", outcomes: "sample"
+    expect name: "sample", sample_space: "sample", outcomes: "sample"
+  end
+
+  test "CalculateProbability runs" do
+    tests "CalculateProbability", on: "ProbabilityEvent"
+    setup  "DefineEvent", name: "sample", sample_space: "sample", outcomes: "sample"
+    input  probability_event: 1
+    expect ok: "true"
+  end
+
+  test "ApplyBayesTheorem sets prior + likelihood + evidence" do
+    tests "ApplyBayesTheorem", on: "ProbabilityEvent"
+    setup  "DefineEvent", name: "sample", sample_space: "sample", outcomes: "sample"
+    input  probability_event: 1, prior: 1.0, likelihood: 1.0, evidence: 1.0
+    expect ok: "true"
+  end
+
+  test "ComputeConditionalProbability sets given_event" do
+    tests "ComputeConditionalProbability", on: "ProbabilityEvent"
+    setup  "DefineEvent", name: "sample", sample_space: "sample", outcomes: "sample"
+    input  probability_event: 1, given_event: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Distribution aggregate ──────────────────────────────────────────
+
+  test "DefineDistribution sets name + distribution_type + parameters" do
+    tests "DefineDistribution", on: "Distribution"
+    input  name: "sample", distribution_type: "sample", parameters: "sample"
+    expect name: "sample", distribution_type: "sample", parameters: "sample"
+  end
+
+  test "ComputeExpectedValue runs" do
+    tests "ComputeExpectedValue", on: "Distribution"
+    setup  "DefineDistribution", name: "sample", distribution_type: "sample", parameters: "sample"
+    input  distribution: 1
+    expect ok: "true"
+  end
+
+  test "SampleDistribution sets count" do
+    tests "SampleDistribution", on: "Distribution"
+    setup  "DefineDistribution", name: "sample", distribution_type: "sample", parameters: "sample"
+    input  distribution: 1, count: 1
+    expect ok: "true"
+  end
+
+  test "ComputeVariance runs" do
+    tests "ComputeVariance", on: "Distribution"
+    setup  "DefineDistribution", name: "sample", distribution_type: "sample", parameters: "sample"
+    input  distribution: 1
+    expect ok: "true"
+  end
+
+
+  # ── Proposition aggregate ──────────────────────────────────────────
+
+  test "DefineProposition sets statement + proposition_type" do
+    tests "DefineProposition", on: "Proposition"
+    input  statement: "sample", proposition_type: "sample"
+    expect statement: "sample", proposition_type: "sample"
+  end
+
+  test "NegateProposition runs" do
+    tests "NegateProposition", on: "Proposition"
+    setup  "DefineProposition", statement: "sample", proposition_type: "sample"
+    input  proposition: 1
+    expect ok: "true"
+  end
+
+  test "CheckValidity runs" do
+    tests "CheckValidity", on: "Proposition"
+    setup  "DefineProposition", statement: "sample", proposition_type: "sample"
+    input  proposition: 1
+    expect ok: "true"
+  end
+
+  test "ApplyInference sets rule + premises" do
+    tests "ApplyInference", on: "Proposition"
+    setup  "DefineProposition", statement: "sample", proposition_type: "sample"
+    input  proposition: 1, rule: "sample", premises: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Proof aggregate ──────────────────────────────────────────
+
+  test "ConstructProof sets theorem + proof_method" do
+    tests "ConstructProof", on: "Proof"
+    input  theorem: "sample", proof_method: "sample"
+    expect theorem: "sample", proof_method: "sample", status: "in_progress"
+  end
+
+  test "AddProofStep sets statement + justification" do
+    tests "AddProofStep", on: "Proof"
+    setup  "AddProofStep", statement: "sample", justification: "sample"
+    input  proof: 1, statement: "sample", justification: "sample"
+    expect status: "in_progress"
+  end
+
+  test "CompleteProof runs" do
+    tests "CompleteProof", on: "Proof"
+    setup  "AddProofStep", statement: "sample", justification: "sample"
+    input  proof: 1
+    expect status: "complete"
+  end
+
+  test "VerifyProof runs" do
+    tests "VerifyProof", on: "Proof"
+    setup  "AddProofStep", statement: "sample", justification: "sample"
+    input  proof: 1
+    expect status: "verified"
+  end
+
+
+  # ── TopologicalSpace aggregate ──────────────────────────────────────────
+
+  test "DefineSpace sets name + point_set + topology" do
+    tests "DefineSpace", on: "TopologicalSpace"
+    input  name: "sample", point_set: "sample", topology: "sample"
+    expect name: "sample", point_set: "sample", topology: "sample"
+  end
+
+  test "CheckTopologicalContinuity sets map_name" do
+    tests "CheckTopologicalContinuity", on: "TopologicalSpace"
+    setup  "DefineSpace", name: "sample", point_set: "sample", topology: "sample"
+    input  topological_space: 1, map_name: "sample"
+    expect ok: "true"
+  end
+
+  test "ClassifySurface sets genus" do
+    tests "ClassifySurface", on: "TopologicalSpace"
+    setup  "DefineSpace", name: "sample", point_set: "sample", topology: "sample"
+    input  topological_space: 1, genus: 1
+    expect ok: "true"
+  end
+
+  test "FindHomeomorphism sets target_space" do
+    tests "FindHomeomorphism", on: "TopologicalSpace"
+    setup  "DefineSpace", name: "sample", point_set: "sample", topology: "sample"
+    input  topological_space: 1, target_space: "sample"
+    expect ok: "true"
+  end
+
+  test "ComputeEulerCharacteristic runs" do
+    tests "ComputeEulerCharacteristic", on: "TopologicalSpace"
+    setup  "DefineSpace", name: "sample", point_set: "sample", topology: "sample"
+    input  topological_space: 1
+    expect ok: "true"
+  end
+
+  test "DetermineCompactness runs" do
+    tests "DetermineCompactness", on: "TopologicalSpace"
+    setup  "DefineSpace", name: "sample", point_set: "sample", topology: "sample"
+    input  topological_space: 1
+    expect ok: "true"
+  end
+
+end

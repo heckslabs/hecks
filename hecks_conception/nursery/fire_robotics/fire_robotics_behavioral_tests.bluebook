@@ -1,0 +1,97 @@
+Hecks.behaviors "FireRobotics" do
+  vision "Behavioral tests for the FireRobotics domain — exercises every command and query in memory"
+
+  # ── FireIncident aggregate ──────────────────────────────────────────
+
+  test "ReportFire sets incident_id + location + fire_type + severity" do
+    tests "ReportFire", on: "FireIncident"
+    input  incident_id: "sample", location: "sample", fire_type: "sample", severity: "sample"
+    expect ok: "true"
+  end
+
+  test "AddFieldReport sets reporter + observation + timestamp" do
+    tests "AddFieldReport", on: "FireIncident"
+    setup  "AddFieldReport", reporter: "sample", observation: "sample", timestamp: "sample"
+    input  fire_incident: 1, reporter: "sample", observation: "sample", timestamp: "sample"
+    expect reports_size: 1
+  end
+
+  test "ContainFire runs" do
+    tests "ContainFire", on: "FireIncident"
+    setup  "AddFieldReport", reporter: "sample", observation: "sample", timestamp: "sample"
+    input  fire_incident: 1
+    expect ok: "true"
+  end
+
+
+  # ── FireRobot aggregate ──────────────────────────────────────────
+
+  test "DeployRobot sets robot_id + robot_type" do
+    tests "DeployRobot", on: "FireRobot"
+    input  robot_id: "sample", robot_type: "sample"
+    expect ok: "true"
+  end
+
+  test "AddCapability sets capability_name + range_meters" do
+    tests "AddCapability", on: "FireRobot"
+    setup  "AddCapability", capability_name: "sample", range_meters: 1.0
+    input  fire_robot: 1, capability_name: "sample", range_meters: 1.0
+    expect capabilities_size: 1
+  end
+
+  test "RecallRobot runs" do
+    tests "RecallRobot", on: "FireRobot"
+    setup  "AddCapability", capability_name: "sample", range_meters: 1.0
+    input  fire_robot: 1
+    expect ok: "true"
+  end
+
+
+  # ── Mission aggregate ──────────────────────────────────────────
+
+  test "PlanMission sets mission_type" do
+    tests "PlanMission", on: "Mission"
+    setup  "AddFieldReport", reporter: "sample", observation: "sample", timestamp: "sample"
+    setup  "AddCapability", capability_name: "sample", range_meters: 1.0
+    input  fire_incident: 1, fire_robot: 1, mission_type: "sample"
+    expect ok: "true"
+  end
+
+  test "AddWaypoint sets lat + lng + action" do
+    tests "AddWaypoint", on: "Mission"
+    setup  "AddWaypoint", lat: 1.0, lng: 1.0, action: "sample"
+    input  mission: 1, lat: 1.0, lng: 1.0, action: "sample"
+    expect waypoints_size: 1
+  end
+
+  test "ExecuteMission runs" do
+    tests "ExecuteMission", on: "Mission"
+    setup  "AddWaypoint", lat: 1.0, lng: 1.0, action: "sample"
+    input  mission: 1
+    expect ok: "true"
+  end
+
+
+  # ── RescueOperation aggregate ──────────────────────────────────────────
+
+  test "InitiateRescue runs" do
+    tests "InitiateRescue", on: "RescueOperation"
+    setup  "AddFieldReport", reporter: "sample", observation: "sample", timestamp: "sample"
+    setup  "AddCapability", capability_name: "sample", range_meters: 1.0
+    input  fire_incident: 1, fire_robot: 1
+    expect ok: "true"
+  end
+
+  test "RecordExtraction sets victim_id + condition + extracted_at" do
+    tests "RecordExtraction", on: "RescueOperation"
+    input  rescue_operation: 1, victim_id: "sample", condition: "sample", extracted_at: "sample"
+    expect extractions_size: 1
+  end
+
+  test "CompleteRescue runs" do
+    tests "CompleteRescue", on: "RescueOperation"
+    input  rescue_operation: 1
+    expect ok: "true"
+  end
+
+end

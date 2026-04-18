@@ -1,0 +1,110 @@
+Hecks.behaviors "HomeHealthCare" do
+  vision "Behavioral tests for the HomeHealthCare domain — exercises every command and query in memory"
+
+  # ── Patient aggregate ──────────────────────────────────────────
+
+  test "EnrollPatient sets name + address + primary_diagnosis + physician_name" do
+    tests "EnrollPatient", on: "Patient"
+    input  name: "sample", address: "sample", primary_diagnosis: "sample", physician_name: "sample"
+    expect name: "sample", address: "sample", primary_diagnosis: "sample", physician_name: "sample", status: "enrolled"
+  end
+
+  test "ActivatePatient runs" do
+    tests "ActivatePatient", on: "Patient"
+    setup  "EnrollPatient", name: "sample", address: "sample", primary_diagnosis: "sample", physician_name: "sample"
+    input  patient: 1
+    expect status: "active"
+  end
+
+  test "RecordAllergy sets substance + reaction + severity" do
+    tests "RecordAllergy", on: "Patient"
+    setup  "EnrollPatient", name: "sample", address: "sample", primary_diagnosis: "sample", physician_name: "sample"
+    input  patient: 1, substance: "sample", reaction: "sample", severity: "sample"
+    expect ok: "true"
+  end
+
+  test "UnenrollPatient runs" do
+    tests "UnenrollPatient", on: "Patient"
+    setup  "EnrollPatient", name: "sample", address: "sample", primary_diagnosis: "sample", physician_name: "sample"
+    input  patient: 1
+    expect status: "unenrolled"
+  end
+
+
+  # ── Caregiver aggregate ──────────────────────────────────────────
+
+  test "RegisterCaregiver sets name + credential + phone + availability + max_visits_per_day" do
+    tests "RegisterCaregiver", on: "Caregiver"
+    input  name: "sample", credential: "sample", phone: "sample", availability: "sample", max_visits_per_day: 1
+    expect name: "sample", credential: "sample", phone: "sample", availability: "sample", max_visits_per_day: 1
+  end
+
+  test "UpdateAvailability sets availability" do
+    tests "UpdateAvailability", on: "Caregiver"
+    setup  "RegisterCaregiver", name: "sample", credential: "sample", phone: "sample", availability: "sample", max_visits_per_day: 1
+    input  caregiver: 1, availability: "sample"
+    expect availability: "sample"
+  end
+
+
+  # ── Visit aggregate ──────────────────────────────────────────
+
+  test "ScheduleVisit sets patient_name + caregiver_name + visit_date + visit_type" do
+    tests "ScheduleVisit", on: "Visit"
+    setup  "EnrollPatient", name: "sample", address: "sample", primary_diagnosis: "sample", physician_name: "sample"
+    setup  "RegisterCaregiver", name: "sample", credential: "sample", phone: "sample", availability: "sample", max_visits_per_day: 1
+    input  patient: 1, caregiver: 1, patient_name: "sample", caregiver_name: "sample", visit_date: "sample", visit_type: "sample"
+    expect patient_name: "sample", caregiver_name: "sample", visit_date: "sample", visit_type: "sample", status: "scheduled"
+  end
+
+  test "CompleteVisit sets notes" do
+    tests "CompleteVisit", on: "Visit"
+    input  visit: 1, notes: "sample"
+    expect notes: "sample", status: "completed"
+  end
+
+  test "CancelVisit runs" do
+    tests "CancelVisit", on: "Visit"
+    input  visit: 1
+    expect status: "cancelled"
+  end
+
+
+  # ── Medication aggregate ──────────────────────────────────────────
+
+  test "PrescribeMedication sets patient_name + drug_name + dosage + frequency + route + prescriber" do
+    tests "PrescribeMedication", on: "Medication"
+    setup  "EnrollPatient", name: "sample", address: "sample", primary_diagnosis: "sample", physician_name: "sample"
+    input  patient: 1, patient_name: "sample", drug_name: "sample", dosage: "sample", frequency: "sample", route: "sample", prescriber: "sample"
+    expect patient_name: "sample", drug_name: "sample", dosage: "sample", frequency: "sample", route: "sample", prescriber: "sample", status: "active"
+  end
+
+  test "AdministerMedication runs" do
+    tests "AdministerMedication", on: "Medication"
+    input  medication: 1
+    expect ok: "true"
+  end
+
+  test "DiscontinueMedication runs" do
+    tests "DiscontinueMedication", on: "Medication"
+    input  medication: 1
+    expect status: "discontinued"
+  end
+
+
+  # ── VitalSign aggregate ──────────────────────────────────────────
+
+  test "RecordVitals sets patient_name + measurement_date + systolic + diastolic + heart_rate + temperature + oxygen_saturation" do
+    tests "RecordVitals", on: "VitalSign"
+    setup  "EnrollPatient", name: "sample", address: "sample", primary_diagnosis: "sample", physician_name: "sample"
+    input  patient: 1, patient_name: "sample", measurement_date: "sample", systolic: 1, diastolic: 1, heart_rate: 1, temperature: 1.0, oxygen_saturation: 1
+    expect patient_name: "sample", measurement_date: "sample", systolic: 1, diastolic: 1, heart_rate: 1, temperature: 1.0, oxygen_saturation: 1, alert_status: "normal"
+  end
+
+  test "FlagAbnormalVitals runs" do
+    tests "FlagAbnormalVitals", on: "VitalSign"
+    input  vital_sign: 1
+    expect alert_status: "abnormal"
+  end
+
+end

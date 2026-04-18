@@ -1,0 +1,95 @@
+Hecks.behaviors "SecurePayments" do
+  vision "Behavioral tests for the SecurePayments domain — exercises every command and query in memory"
+
+  # ── KeyPair aggregate ──────────────────────────────────────────
+
+  test "GenerateKeyPair sets key_id + algorithm + key_length_bits + expiry_date" do
+    tests "GenerateKeyPair", on: "KeyPair"
+    input  key_id: "sample", algorithm: "sample", key_length_bits: 1, expiry_date: "sample"
+    expect key_id: "sample", algorithm: "sample", key_length_bits: 1, expiry_date: "sample", status: "active"
+  end
+
+  test "RotateKey runs" do
+    tests "RotateKey", on: "KeyPair"
+    setup  "GenerateKeyPair", key_id: "sample", algorithm: "sample", key_length_bits: 1, expiry_date: "sample"
+    input  key_pair: 1
+    expect status: "rotated"
+  end
+
+  test "RevokeKey runs" do
+    tests "RevokeKey", on: "KeyPair"
+    setup  "GenerateKeyPair", key_id: "sample", algorithm: "sample", key_length_bits: 1, expiry_date: "sample"
+    input  key_pair: 1
+    expect status: "revoked"
+  end
+
+
+  # ── Transaction aggregate ──────────────────────────────────────────
+
+  test "InitiateTransaction sets transaction_id + amount + currency + payer + payee" do
+    tests "InitiateTransaction", on: "Transaction"
+    input  transaction_id: "sample", amount: 1.0, currency: "sample", payer: "sample", payee: "sample"
+    expect transaction_id: "sample", amount: 1.0, currency: "sample", payer: "sample", payee: "sample", status: "initiated"
+  end
+
+  test "SignTransaction sets signature_hash" do
+    tests "SignTransaction", on: "Transaction"
+    setup  "InitiateTransaction", transaction_id: "sample", amount: 1.0, currency: "sample", payer: "sample", payee: "sample"
+    input  transaction: 1, signature_hash: "sample"
+    expect signature_hash: "sample", status: "signed"
+  end
+
+  test "VerifySignature runs" do
+    tests "VerifySignature", on: "Transaction"
+    setup  "InitiateTransaction", transaction_id: "sample", amount: 1.0, currency: "sample", payer: "sample", payee: "sample"
+    input  transaction: 1
+    expect status: "verified"
+  end
+
+  test "SettleTransaction runs" do
+    tests "SettleTransaction", on: "Transaction"
+    setup  "InitiateTransaction", transaction_id: "sample", amount: 1.0, currency: "sample", payer: "sample", payee: "sample"
+    input  transaction: 1
+    expect status: "settled"
+  end
+
+
+  # ── FraudAlert aggregate ──────────────────────────────────────────
+
+  test "RaiseFraudAlert sets transaction_id + risk_score + alert_type + pattern_matched" do
+    tests "RaiseFraudAlert", on: "FraudAlert"
+    input  transaction_id: "sample", risk_score: 1.0, alert_type: "sample", pattern_matched: "sample"
+    expect transaction_id: "sample", risk_score: 1.0, alert_type: "sample", pattern_matched: "sample", status: "open"
+  end
+
+  test "InvestigateAlert runs" do
+    tests "InvestigateAlert", on: "FraudAlert"
+    setup  "RaiseFraudAlert", transaction_id: "sample", risk_score: 1.0, alert_type: "sample", pattern_matched: "sample"
+    input  fraud_alert: 1
+    expect status: "investigated"
+  end
+
+  test "ResolveAlert sets resolution" do
+    tests "ResolveAlert", on: "FraudAlert"
+    setup  "RaiseFraudAlert", transaction_id: "sample", risk_score: 1.0, alert_type: "sample", pattern_matched: "sample"
+    input  fraud_alert: 1, resolution: "sample"
+    expect resolution: "sample", status: "resolved"
+  end
+
+
+  # ── AuditLog aggregate ──────────────────────────────────────────
+
+  test "RecordAuditEntry sets entry_id + action + actor + timestamp" do
+    tests "RecordAuditEntry", on: "AuditLog"
+    input  entry_id: "sample", action: "sample", actor: "sample", timestamp: "sample"
+    expect entry_id: "sample", action: "sample", actor: "sample", timestamp: "sample", status: "recorded"
+  end
+
+  test "VerifyChain runs" do
+    tests "VerifyChain", on: "AuditLog"
+    setup  "RecordAuditEntry", entry_id: "sample", action: "sample", actor: "sample", timestamp: "sample"
+    input  audit_log: 1
+    expect status: "verified"
+  end
+
+end

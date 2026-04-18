@@ -1,0 +1,93 @@
+Hecks.behaviors "BorderSecurity" do
+  vision "Behavioral tests for the BorderSecurity domain — exercises every command and query in memory"
+
+  # ── ForensicSample aggregate ──────────────────────────────────────────
+
+  test "CollectSample sets sample_id + sample_type + collector" do
+    tests "CollectSample", on: "ForensicSample"
+    input  sample_id: "sample", sample_type: "sample", collector: "sample"
+    expect ok: "true"
+  end
+
+  test "RunAnalysis sets test_type + result + confidence" do
+    tests "RunAnalysis", on: "ForensicSample"
+    setup  "CollectSample", sample_id: "sample", sample_type: "sample", collector: "sample"
+    input  forensic_sample: 1, test_type: "sample", result: "sample", confidence: 1.0
+    expect analyses_size: 1
+  end
+
+  test "FinalizeReport runs" do
+    tests "FinalizeReport", on: "ForensicSample"
+    setup  "CollectSample", sample_id: "sample", sample_type: "sample", collector: "sample"
+    input  forensic_sample: 1
+    expect ok: "true"
+  end
+
+
+  # ── Shipment aggregate ──────────────────────────────────────────
+
+  test "DeclareShipment sets tracking_number + origin_country + destination_country" do
+    tests "DeclareShipment", on: "Shipment"
+    input  tracking_number: "sample", origin_country: "sample", destination_country: "sample"
+    expect ok: "true"
+  end
+
+  test "AddCargoItem sets description + quantity + declared_value_cents" do
+    tests "AddCargoItem", on: "Shipment"
+    setup  "AddCargoItem", description: "sample", quantity: 1, declared_value_cents: 1
+    input  shipment: 1, description: "sample", quantity: 1, declared_value_cents: 1
+    expect items_size: 1
+  end
+
+  test "ClearShipment runs" do
+    tests "ClearShipment", on: "Shipment"
+    setup  "AddCargoItem", description: "sample", quantity: 1, declared_value_cents: 1
+    input  shipment: 1
+    expect ok: "true"
+  end
+
+
+  # ── RiskAlert aggregate ──────────────────────────────────────────
+
+  test "RaiseAlert sets alert_level + reason" do
+    tests "RaiseAlert", on: "RiskAlert"
+    setup  "AddCargoItem", description: "sample", quantity: 1, declared_value_cents: 1
+    input  shipment: 1, alert_level: "sample", reason: "sample"
+    expect ok: "true"
+  end
+
+  test "AssignAction sets action_type + assigned_to" do
+    tests "AssignAction", on: "RiskAlert"
+    input  risk_alert: 1, action_type: "sample", assigned_to: "sample"
+    expect actions_size: 1
+  end
+
+  test "ResolveAlert runs" do
+    tests "ResolveAlert", on: "RiskAlert"
+    input  risk_alert: 1
+    expect ok: "true"
+  end
+
+
+  # ── Inspection aggregate ──────────────────────────────────────────
+
+  test "ScheduleInspection sets inspector" do
+    tests "ScheduleInspection", on: "Inspection"
+    setup  "AddCargoItem", description: "sample", quantity: 1, declared_value_cents: 1
+    input  shipment: 1, inspector: "sample"
+    expect ok: "true"
+  end
+
+  test "RecordFinding sets finding_type + severity + description" do
+    tests "RecordFinding", on: "Inspection"
+    input  inspection: 1, finding_type: "sample", severity: "sample", description: "sample"
+    expect findings_size: 1
+  end
+
+  test "CompleteInspection runs" do
+    tests "CompleteInspection", on: "Inspection"
+    input  inspection: 1
+    expect ok: "true"
+  end
+
+end

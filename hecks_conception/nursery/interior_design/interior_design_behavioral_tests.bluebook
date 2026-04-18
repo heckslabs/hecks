@@ -1,0 +1,95 @@
+Hecks.behaviors "InteriorDesign" do
+  vision "Behavioral tests for the InteriorDesign domain — exercises every command and query in memory"
+
+  # ── DesignProject aggregate ──────────────────────────────────────────
+
+  test "ScopeProject sets name + space_type + style_direction + budget" do
+    tests "ScopeProject", on: "DesignProject"
+    input  name: "sample", space_type: "sample", style_direction: "sample", budget: 1.0
+    expect ok: "true"
+  end
+
+  test "PresentConcept runs" do
+    tests "PresentConcept", on: "DesignProject"
+    setup  "ScopeProject", name: "sample", space_type: "sample", style_direction: "sample", budget: 1.0
+    input  design_project: 1
+    expect status: "concept_review"
+  end
+
+  test "ApproveConcept runs" do
+    tests "ApproveConcept", on: "DesignProject"
+    setup  "ScopeProject", name: "sample", space_type: "sample", style_direction: "sample", budget: 1.0
+    input  design_project: 1
+    expect status: "approved"
+  end
+
+
+  # ── RoomDesign aggregate ──────────────────────────────────────────
+
+  test "PlanRoom sets room_name + function + square_footage + color_palette" do
+    tests "PlanRoom", on: "RoomDesign"
+    setup  "ScopeProject", name: "sample", space_type: "sample", style_direction: "sample", budget: 1.0
+    input  design_project: 1, room_name: "sample", function: "sample", square_footage: 1.0, color_palette: "sample"
+    expect ok: "true"
+  end
+
+  test "SpecifyFixtures sets fixture_list" do
+    tests "SpecifyFixtures", on: "RoomDesign"
+    input  room_design: 1, fixture_list: "sample"
+    expect status: "specified"
+  end
+
+
+  # ── MaterialSelection aggregate ──────────────────────────────────────────
+
+  test "SpecifyMaterial sets material_name + category + supplier + unit_cost + lead_time_days" do
+    tests "SpecifyMaterial", on: "MaterialSelection"
+    input  room_design: 1, material_name: "sample", category: "sample", supplier: "sample", unit_cost: 1.0, lead_time_days: 1
+    expect ok: "true"
+  end
+
+  test "OrderMaterial sets quantity" do
+    tests "OrderMaterial", on: "MaterialSelection"
+    input  material_selection: 1, quantity: 1
+    expect ok: "true"
+  end
+
+
+  # ── Vendor aggregate ──────────────────────────────────────────
+
+  test "RegisterVendor sets company_name + specialty + contact_name + phone" do
+    tests "RegisterVendor", on: "Vendor"
+    input  company_name: "sample", specialty: "sample", contact_name: "sample", phone: "sample"
+    expect company_name: "sample", specialty: "sample", contact_name: "sample", phone: "sample"
+  end
+
+  test "NegotiateTerms sets discount_percentage" do
+    tests "NegotiateTerms", on: "Vendor"
+    setup  "RegisterVendor", company_name: "sample", specialty: "sample", contact_name: "sample", phone: "sample"
+    input  vendor: 1, discount_percentage: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── Installation aggregate ──────────────────────────────────────────
+
+  test "ScheduleInstallation sets date + crew_lead" do
+    tests "ScheduleInstallation", on: "Installation"
+    setup  "ScopeProject", name: "sample", space_type: "sample", style_direction: "sample", budget: 1.0
+    input  design_project: 1, date: "sample", crew_lead: "sample"
+    expect ok: "true"
+  end
+
+  test "CompleteInstallation runs" do
+    tests "CompleteInstallation", on: "Installation"
+    input  installation: 1
+    expect status: "completed"
+  end
+
+  test "ResolvePunchList sets punch_list" do
+    tests "ResolvePunchList", on: "Installation"
+    input  installation: 1, punch_list: "sample"
+    expect status: "resolved"
+  end
+
+end

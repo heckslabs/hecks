@@ -1,0 +1,72 @@
+Hecks.behaviors "Court" do
+  vision "Behavioral tests for the Court domain — exercises every command and query in memory"
+
+  # ── Case aggregate ──────────────────────────────────────────
+
+  test "File sets action_type + actor + target + detail + occurred_at" do
+    tests "File", on: "Case"
+    input  action_type: "sample", actor: "sample", target: "sample", detail: "sample", occurred_at: "sample"
+    expect action_type: "sample", actor: "sample", target: "sample", detail: "sample", occurred_at: "sample", laws_applicable: 0, laws_passed: 0, laws_violated: 0, status: "filed"
+  end
+
+  test "Hear sets laws_applicable" do
+    tests "Hear", on: "Case"
+    setup  "File", action_type: "sample", actor: "sample", target: "sample", detail: "sample", occurred_at: "sample"
+    input  case: 1, laws_applicable: 1
+    expect laws_applicable: 1, status: "hearing"
+  end
+
+  test "CheckLaw runs" do
+    tests "CheckLaw", on: "Case"
+    setup  "File", action_type: "sample", actor: "sample", target: "sample", detail: "sample", occurred_at: "sample"
+    input  case: 1, passed: "sample_trueclass"
+    expect ok: "true"
+  end
+
+  test "RuleInnocent runs" do
+    tests "RuleInnocent", on: "Case"
+    setup  "File", action_type: "sample", actor: "sample", target: "sample", detail: "sample", occurred_at: "sample"
+    input  case: 1
+    expect ruling: "innocent", status: "closed"
+  end
+
+  test "RuleGuilty runs" do
+    tests "RuleGuilty", on: "Case"
+    setup  "File", action_type: "sample", actor: "sample", target: "sample", detail: "sample", occurred_at: "sample"
+    input  case: 1
+    expect ruling: "guilty", status: "closed"
+  end
+
+  test "Appeal runs" do
+    tests "Appeal", on: "Case"
+    setup  "File", action_type: "sample", actor: "sample", target: "sample", detail: "sample", occurred_at: "sample"
+    input  case: 1
+    expect status: "appealed"
+  end
+
+
+  # ── Finding aggregate ──────────────────────────────────────────
+
+  test "RecordFinding sets case_id + law_name + check_expression + evidence + explanation" do
+    tests "RecordFinding", on: "Finding"
+    input  case_id: "sample", law_name: "sample", check_expression: "sample", evidence: "sample", passed: "sample_trueclass", explanation: "sample"
+    expect case_id: "sample", law_name: "sample", check_expression: "sample", evidence: "sample", passed: "sample_trueclass", explanation: "sample"
+  end
+
+
+  # ── Precedent aggregate ──────────────────────────────────────────
+
+  test "Establish sets law_name + action_type + ruling + reasoning + established_at" do
+    tests "Establish", on: "Precedent"
+    input  law_name: "sample", action_type: "sample", ruling: "sample", reasoning: "sample", established_at: "sample"
+    expect law_name: "sample", action_type: "sample", ruling: "sample", reasoning: "sample", established_at: "sample"
+  end
+
+  test "Overturn sets reasoning" do
+    tests "Overturn", on: "Precedent"
+    setup  "Establish", law_name: "sample", action_type: "sample", ruling: "sample", reasoning: "sample", established_at: "sample"
+    input  precedent: 1, reasoning: "sample"
+    expect ruling: "overturned", reasoning: "sample"
+  end
+
+end

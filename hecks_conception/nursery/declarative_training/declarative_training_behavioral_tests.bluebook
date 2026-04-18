@@ -1,0 +1,31 @@
+Hecks.behaviors "DeclarativeTraining" do
+  vision "Behavioral tests for the DeclarativeTraining domain — exercises every command and query in memory"
+
+  # ── Corpus aggregate ──────────────────────────────────────────
+
+  test "HarvestCorpus sets root_path" do
+    tests "HarvestCorpus", on: "Corpus"
+    input  root_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── TrainingPair aggregate ──────────────────────────────────────────
+
+  test "ExtractPair sets domain_name" do
+    tests "ExtractPair", on: "TrainingPair"
+    setup  "HarvestCorpus", root_path: "sample"
+    input  corpus: 1, domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── TrainingSet aggregate ──────────────────────────────────────────
+
+  test "EmitTrainingSet sets output_path" do
+    tests "EmitTrainingSet", on: "TrainingSet"
+    input  training_set: 1, output_path: "sample"
+    expect ok: "true"
+  end
+
+end

@@ -1,0 +1,162 @@
+Hecks.behaviors "EcoProtectedZone" do
+  vision "Behavioral tests for the EcoProtectedZone domain — exercises every command and query in memory"
+
+  # ── ProtectedArea aggregate ──────────────────────────────────────────
+
+  test "DesignateArea sets name + protection_level + area_sq_km" do
+    tests "DesignateArea", on: "ProtectedArea"
+    input  name: "sample", protection_level: "sample", area_sq_km: 1.0
+    expect name: "sample", protection_level: "sample", area_sq_km: 1.0, status: "active"
+  end
+
+  test "CloseZone runs" do
+    tests "CloseZone", on: "ProtectedArea"
+    setup  "DesignateArea", name: "sample", protection_level: "sample", area_sq_km: 1.0
+    input  protected_area: 1
+    expect status: "closed"
+  end
+
+  test "ReopenZone runs" do
+    tests "ReopenZone", on: "ProtectedArea"
+    setup  "DesignateArea", name: "sample", protection_level: "sample", area_sq_km: 1.0
+    input  protected_area: 1
+    expect status: "active"
+  end
+
+
+  # ── Visitor aggregate ──────────────────────────────────────────
+
+  test "RegisterVisitor sets name + nationality" do
+    tests "RegisterVisitor", on: "Visitor"
+    input  name: "sample", nationality: "sample"
+    expect name: "sample", nationality: "sample", status: "registered"
+  end
+
+  test "TrackVisitor sets latitude + longitude" do
+    tests "TrackVisitor", on: "Visitor"
+    setup  "RegisterVisitor", name: "sample", nationality: "sample"
+    input  visitor: 1, latitude: 1.0, longitude: 1.0
+    expect ok: "true"
+  end
+
+  test "EvacuateVisitors runs" do
+    tests "EvacuateVisitors", on: "Visitor"
+    setup  "RegisterVisitor", name: "sample", nationality: "sample"
+    input  visitor: 1
+    expect status: "evacuated"
+  end
+
+  test "CheckOutVisitor runs" do
+    tests "CheckOutVisitor", on: "Visitor"
+    setup  "RegisterVisitor", name: "sample", nationality: "sample"
+    input  visitor: 1
+    expect status: "checked_out"
+  end
+
+
+  # ── WildlifeSpecies aggregate ──────────────────────────────────────────
+
+  test "CatalogSpecies sets common_name + scientific_name + conservation_status + estimated_population + primary_habitat" do
+    tests "CatalogSpecies", on: "WildlifeSpecies"
+    input  common_name: "sample", scientific_name: "sample", conservation_status: "sample", estimated_population: 1, primary_habitat: "sample"
+    expect common_name: "sample", scientific_name: "sample", conservation_status: "sample", estimated_population: 1, primary_habitat: "sample"
+  end
+
+  test "RecordSighting sets latitude + longitude + count" do
+    tests "RecordSighting", on: "WildlifeSpecies"
+    setup  "CatalogSpecies", common_name: "sample", scientific_name: "sample", conservation_status: "sample", estimated_population: 1, primary_habitat: "sample"
+    input  wildlife_species: 1, latitude: 1.0, longitude: 1.0, count: 1
+    expect ok: "true"
+  end
+
+  test "UpdateConservationStatus sets conservation_status" do
+    tests "UpdateConservationStatus", on: "WildlifeSpecies"
+    setup  "CatalogSpecies", common_name: "sample", scientific_name: "sample", conservation_status: "sample", estimated_population: 1, primary_habitat: "sample"
+    input  wildlife_species: 1, conservation_status: "sample"
+    expect conservation_status: "sample"
+  end
+
+
+  # ── ForensicCase aggregate ──────────────────────────────────────────
+
+  test "OpenForensicCase sets case_number + evidence_type + dna_sample_id" do
+    tests "OpenForensicCase", on: "ForensicCase"
+    setup  "CatalogSpecies", common_name: "sample", scientific_name: "sample", conservation_status: "sample", estimated_population: 1, primary_habitat: "sample"
+    setup  "DesignateArea", name: "sample", protection_level: "sample", area_sq_km: 1.0
+    input  wildlife_species: 1, protected_area: 1, case_number: "sample", evidence_type: "sample", dna_sample_id: "sample"
+    expect case_number: "sample", evidence_type: "sample", dna_sample_id: "sample", species: :species, area: :area, status: "open"
+  end
+
+  test "MatchDNA runs" do
+    tests "MatchDNA", on: "ForensicCase"
+    setup  "OpenForensicCase", case_number: "sample", evidence_type: "sample", dna_sample_id: "sample"
+    input  forensic_case: 1
+    expect ok: "true"
+  end
+
+  test "IdentifySuspect sets suspect_description" do
+    tests "IdentifySuspect", on: "ForensicCase"
+    setup  "OpenForensicCase", case_number: "sample", evidence_type: "sample", dna_sample_id: "sample"
+    input  forensic_case: 1, suspect_description: "sample"
+    expect suspect_description: "sample"
+  end
+
+  test "CloseCase runs" do
+    tests "CloseCase", on: "ForensicCase"
+    setup  "OpenForensicCase", case_number: "sample", evidence_type: "sample", dna_sample_id: "sample"
+    input  forensic_case: 1
+    expect status: "closed"
+  end
+
+
+  # ── HazardZone aggregate ──────────────────────────────────────────
+
+  test "DefineHazardZone sets zone_name + hazard_type" do
+    tests "DefineHazardZone", on: "HazardZone"
+    setup  "DesignateArea", name: "sample", protection_level: "sample", area_sq_km: 1.0
+    input  protected_area: 1, zone_name: "sample", hazard_type: "sample"
+    expect zone_name: "sample", hazard_type: "sample", area: :area, alert_level: "normal", status: "monitored"
+  end
+
+  test "RaiseAlert sets alert_level" do
+    tests "RaiseAlert", on: "HazardZone"
+    input  hazard_zone: 1, alert_level: "sample"
+    expect alert_level: "sample", status: "alert"
+  end
+
+  test "LowerAlert runs" do
+    tests "LowerAlert", on: "HazardZone"
+    input  hazard_zone: 1
+    expect alert_level: "normal", status: "monitored"
+  end
+
+  test "RecordSeismicActivity sets magnitude + depth_km" do
+    tests "RecordSeismicActivity", on: "HazardZone"
+    input  hazard_zone: 1, magnitude: 1.0, depth_km: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── Permit aggregate ──────────────────────────────────────────
+
+  test "IssuePermit sets permit_type + valid_from + valid_until" do
+    tests "IssuePermit", on: "Permit"
+    setup  "RegisterVisitor", name: "sample", nationality: "sample"
+    setup  "DesignateArea", name: "sample", protection_level: "sample", area_sq_km: 1.0
+    input  visitor: 1, protected_area: 1, permit_type: "sample", valid_from: "sample", valid_until: "sample"
+    expect visitor: :visitor, area: :area, permit_type: "sample", valid_from: "sample", valid_until: "sample", status: "active"
+  end
+
+  test "RevokePermit runs" do
+    tests "RevokePermit", on: "Permit"
+    input  permit: 1
+    expect status: "revoked"
+  end
+
+  test "ExpirePermit runs" do
+    tests "ExpirePermit", on: "Permit"
+    input  permit: 1
+    expect status: "expired"
+  end
+
+end

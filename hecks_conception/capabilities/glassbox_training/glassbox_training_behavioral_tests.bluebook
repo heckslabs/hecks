@@ -1,0 +1,66 @@
+Hecks.behaviors "GlassboxTraining" do
+  vision "Behavioral tests for the GlassboxTraining domain — exercises every command and query in memory"
+
+  # ── TrainingCorpus aggregate ──────────────────────────────────────────
+
+  test "ExportCorpus runs" do
+    tests "ExportCorpus", on: "TrainingCorpus"
+    expect ok: "true"
+  end
+
+  test "FormatAsTrainingPair sets input + output" do
+    tests "FormatAsTrainingPair", on: "TrainingCorpus"
+    input  input: "sample", output: "sample"
+    expect ok: "true"
+  end
+
+  test "FilterByCategory sets category" do
+    tests "FilterByCategory", on: "TrainingCorpus"
+    input  category: "sample"
+    expect ok: "true"
+  end
+
+  test "CalculateTokenCount runs" do
+    tests "CalculateTokenCount", on: "TrainingCorpus"
+    expect total_tokens: :total_tokens
+  end
+
+
+  # ── TrainingExample aggregate ──────────────────────────────────────────
+
+  test "CreateExample sets input + output + category" do
+    tests "CreateExample", on: "TrainingExample"
+    input  input: "sample", output: "sample", category: "sample"
+    expect input: "sample", output: "sample", category: "sample"
+  end
+
+  test "ValidateExample runs" do
+    tests "ValidateExample", on: "TrainingExample"
+    setup  "CreateExample", input: "sample", output: "sample", category: "sample"
+    input  training_example: 1
+    expect ok: "true"
+  end
+
+  test "ScoreQuality sets quality_score" do
+    tests "ScoreQuality", on: "TrainingExample"
+    setup  "CreateExample", input: "sample", output: "sample", category: "sample"
+    input  training_example: 1, quality_score: 1.0
+    expect quality_score: 1.0
+  end
+
+
+  # ── ModelSpec aggregate ──────────────────────────────────────────
+
+  test "DefineSpec sets context_window + vocab_size + architecture" do
+    tests "DefineSpec", on: "ModelSpec"
+    input  context_window: 1, vocab_size: 1, architecture: "sample"
+    expect context_window: 1, vocab_size: 1, architecture: "sample"
+  end
+
+  test "SetHyperparameters runs" do
+    tests "SetHyperparameters", on: "ModelSpec"
+    input  hyperparameters: "sample_hash"
+    expect hyperparameters: "sample_hash"
+  end
+
+end

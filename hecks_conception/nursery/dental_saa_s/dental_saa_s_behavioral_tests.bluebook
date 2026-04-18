@@ -1,0 +1,60 @@
+Hecks.behaviors "DentalSaaS" do
+  vision "Behavioral tests for the DentalSaaS domain — exercises every command and query in memory"
+
+  # ── Tenant aggregate ──────────────────────────────────────────
+
+  test "RegisterTenant sets tenant_id + practice_name + plan_tier" do
+    tests "RegisterTenant", on: "Tenant"
+    input  tenant_id: "sample", practice_name: "sample", plan_tier: "sample"
+    expect tenant_id: "sample", practice_name: "sample", plan_tier: "sample", status: "active"
+  end
+
+  test "SuspendTenant runs" do
+    tests "SuspendTenant", on: "Tenant"
+    setup  "RegisterTenant", tenant_id: "sample", practice_name: "sample", plan_tier: "sample"
+    input  tenant: 1
+    expect status: "suspended"
+  end
+
+
+  # ── Appointment aggregate ──────────────────────────────────────────
+
+  test "BookAppointment sets appointment_id + patient_name + dentist_name + procedure_type + date_time" do
+    tests "BookAppointment", on: "Appointment"
+    input  appointment_id: "sample", patient_name: "sample", dentist_name: "sample", procedure_type: "sample", date_time: "sample"
+    expect appointment_id: "sample", patient_name: "sample", dentist_name: "sample", procedure_type: "sample", date_time: "sample", status: "scheduled"
+  end
+
+  test "CancelAppointment runs" do
+    tests "CancelAppointment", on: "Appointment"
+    setup  "BookAppointment", appointment_id: "sample", patient_name: "sample", dentist_name: "sample", procedure_type: "sample", date_time: "sample"
+    input  appointment: 1
+    expect status: "cancelled"
+  end
+
+
+  # ── Subscription aggregate ──────────────────────────────────────────
+
+  test "StartSubscription sets tenant_id + plan_name + monthly_rate" do
+    tests "StartSubscription", on: "Subscription"
+    input  tenant_id: "sample", plan_name: "sample", monthly_rate: 1.0
+    expect tenant_id: "sample", plan_name: "sample", monthly_rate: 1.0, status: "active"
+  end
+
+  test "CancelSubscription runs" do
+    tests "CancelSubscription", on: "Subscription"
+    setup  "StartSubscription", tenant_id: "sample", plan_name: "sample", monthly_rate: 1.0
+    input  subscription: 1
+    expect status: "cancelled"
+  end
+
+
+  # ── ClinicalNote aggregate ──────────────────────────────────────────
+
+  test "WriteNote sets note_id + appointment_id + findings + treatment_plan + author" do
+    tests "WriteNote", on: "ClinicalNote"
+    input  note_id: "sample", appointment_id: "sample", findings: "sample", treatment_plan: "sample", author: "sample"
+    expect note_id: "sample", appointment_id: "sample", findings: "sample", treatment_plan: "sample", author: "sample"
+  end
+
+end

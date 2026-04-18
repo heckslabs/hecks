@@ -1,0 +1,117 @@
+Hecks.behaviors "CyberSecurity" do
+  vision "Behavioral tests for the CyberSecurity domain — exercises every command and query in memory"
+
+  # ── Threat aggregate ──────────────────────────────────────────
+
+  test "IdentifyThreat sets threat_id + name + category + severity + source_feed" do
+    tests "IdentifyThreat", on: "Threat"
+    input  threat_id: "sample", name: "sample", category: "sample", severity: "sample", source_feed: "sample"
+    expect ok: "true"
+  end
+
+  test "EscalateThreat sets severity" do
+    tests "EscalateThreat", on: "Threat"
+    setup  "IdentifyThreat", threat_id: "sample", name: "sample", category: "sample", severity: "sample", source_feed: "sample"
+    input  threat: 1, severity: "sample"
+    expect ok: "true"
+  end
+
+  test "NeutralizeThreat runs" do
+    tests "NeutralizeThreat", on: "Threat"
+    setup  "IdentifyThreat", threat_id: "sample", name: "sample", category: "sample", severity: "sample", source_feed: "sample"
+    input  threat: 1
+    expect ok: "true"
+  end
+
+
+  # ── SecurityIncident aggregate ──────────────────────────────────────────
+
+  test "DeclareIncident sets incident_id + title + severity + attack_vector" do
+    tests "DeclareIncident", on: "SecurityIncident"
+    setup  "IdentifyThreat", threat_id: "sample", name: "sample", category: "sample", severity: "sample", source_feed: "sample"
+    input  threat: 1, incident_id: "sample", title: "sample", severity: "sample", attack_vector: "sample"
+    expect ok: "true"
+  end
+
+  test "AssignResponseTeam sets assigned_team" do
+    tests "AssignResponseTeam", on: "SecurityIncident"
+    input  security_incident: 1, assigned_team: "sample"
+    expect ok: "true"
+  end
+
+  test "CloseIncident sets root_cause" do
+    tests "CloseIncident", on: "SecurityIncident"
+    input  security_incident: 1, root_cause: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Patch aggregate ──────────────────────────────────────────
+
+  test "ReleasePatch sets patch_id + cve_id + target_system + urgency" do
+    tests "ReleasePatch", on: "Patch"
+    input  patch_id: "sample", cve_id: "sample", target_system: "sample", urgency: "sample"
+    expect ok: "true"
+  end
+
+  test "DeployPatch sets host" do
+    tests "DeployPatch", on: "Patch"
+    setup  "ReleasePatch", patch_id: "sample", cve_id: "sample", target_system: "sample", urgency: "sample"
+    input  patch: 1, host: "sample"
+    expect ok: "true"
+  end
+
+  test "RollbackPatch runs" do
+    tests "RollbackPatch", on: "Patch"
+    setup  "ReleasePatch", patch_id: "sample", cve_id: "sample", target_system: "sample", urgency: "sample"
+    input  patch: 1
+    expect ok: "true"
+  end
+
+
+  # ── SecurityAudit aggregate ──────────────────────────────────────────
+
+  test "InitiateAudit sets audit_id + scope + framework + auditor" do
+    tests "InitiateAudit", on: "SecurityAudit"
+    input  audit_id: "sample", scope: "sample", framework: "sample", auditor: "sample"
+    expect ok: "true"
+  end
+
+  test "RecordFinding sets control_id + description + severity" do
+    tests "RecordFinding", on: "SecurityAudit"
+    setup  "InitiateAudit", audit_id: "sample", scope: "sample", framework: "sample", auditor: "sample"
+    input  security_audit: 1, control_id: "sample", description: "sample", severity: "sample"
+    expect ok: "true"
+  end
+
+  test "CompleteAudit runs" do
+    tests "CompleteAudit", on: "SecurityAudit"
+    setup  "InitiateAudit", audit_id: "sample", scope: "sample", framework: "sample", auditor: "sample"
+    input  security_audit: 1
+    expect ok: "true"
+  end
+
+
+  # ── AccessPolicy aggregate ──────────────────────────────────────────
+
+  test "CreateAccessPolicy sets policy_name + resource_scope + permission_level" do
+    tests "CreateAccessPolicy", on: "AccessPolicy"
+    input  policy_name: "sample", resource_scope: "sample", permission_level: "sample"
+    expect policy_name: "sample", resource_scope: "sample", permission_level: "sample"
+  end
+
+  test "GrantAccess sets principal + role" do
+    tests "GrantAccess", on: "AccessPolicy"
+    setup  "CreateAccessPolicy", policy_name: "sample", resource_scope: "sample", permission_level: "sample"
+    input  access_policy: 1, principal: "sample", role: "sample"
+    expect ok: "true"
+  end
+
+  test "RevokeAccess sets principal" do
+    tests "RevokeAccess", on: "AccessPolicy"
+    setup  "CreateAccessPolicy", policy_name: "sample", resource_scope: "sample", permission_level: "sample"
+    input  access_policy: 1, principal: "sample"
+    expect ok: "true"
+  end
+
+end

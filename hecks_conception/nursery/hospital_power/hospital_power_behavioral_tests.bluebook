@@ -1,0 +1,81 @@
+Hecks.behaviors "HospitalPower" do
+  vision "Behavioral tests for the HospitalPower domain — exercises every command and query in memory"
+
+  # ── PatientArea aggregate ──────────────────────────────────────────
+
+  test "DefineArea sets area_id + area_name + floor + criticality + power_load_kw" do
+    tests "DefineArea", on: "PatientArea"
+    input  area_id: "sample", area_name: "sample", floor: "sample", criticality: "sample", power_load_kw: 1.0
+    expect area_id: "sample", area_name: "sample", floor: "sample", criticality: "sample", power_load_kw: 1.0, status: "active"
+  end
+
+  test "UpdateLoad sets power_load_kw" do
+    tests "UpdateLoad", on: "PatientArea"
+    setup  "DefineArea", area_id: "sample", area_name: "sample", floor: "sample", criticality: "sample", power_load_kw: 1.0
+    input  patient_area: 1, power_load_kw: 1.0
+    expect power_load_kw: 1.0
+  end
+
+
+  # ── BackupGenerator aggregate ──────────────────────────────────────────
+
+  test "InstallGenerator sets generator_id + fuel_type + capacity_kw" do
+    tests "InstallGenerator", on: "BackupGenerator"
+    input  generator_id: "sample", fuel_type: "sample", capacity_kw: 1.0
+    expect generator_id: "sample", fuel_type: "sample", capacity_kw: 1.0, fuel_level_pct: 100.0, status: "standby"
+  end
+
+  test "StartGenerator runs" do
+    tests "StartGenerator", on: "BackupGenerator"
+    setup  "InstallGenerator", generator_id: "sample", fuel_type: "sample", capacity_kw: 1.0
+    input  backup_generator: 1
+    expect status: "running"
+  end
+
+  test "StopGenerator runs" do
+    tests "StopGenerator", on: "BackupGenerator"
+    setup  "InstallGenerator", generator_id: "sample", fuel_type: "sample", capacity_kw: 1.0
+    input  backup_generator: 1
+    expect status: "standby"
+  end
+
+
+  # ── TransferSwitch aggregate ──────────────────────────────────────────
+
+  test "ConfigureSwitch sets switch_id + area_id + generator_id" do
+    tests "ConfigureSwitch", on: "TransferSwitch"
+    input  switch_id: "sample", area_id: "sample", generator_id: "sample"
+    expect switch_id: "sample", area_id: "sample", generator_id: "sample", current_source: "main", status: "active"
+  end
+
+  test "SwitchToBackup runs" do
+    tests "SwitchToBackup", on: "TransferSwitch"
+    setup  "ConfigureSwitch", switch_id: "sample", area_id: "sample", generator_id: "sample"
+    input  transfer_switch: 1
+    expect current_source: "backup"
+  end
+
+  test "SwitchToMain runs" do
+    tests "SwitchToMain", on: "TransferSwitch"
+    setup  "ConfigureSwitch", switch_id: "sample", area_id: "sample", generator_id: "sample"
+    input  transfer_switch: 1
+    expect current_source: "main"
+  end
+
+
+  # ── LoadShedPlan aggregate ──────────────────────────────────────────
+
+  test "DefineShedPlan sets plan_id" do
+    tests "DefineShedPlan", on: "LoadShedPlan"
+    input  plan_id: "sample"
+    expect plan_id: "sample", status: "ready"
+  end
+
+  test "ActivateShedding runs" do
+    tests "ActivateShedding", on: "LoadShedPlan"
+    setup  "DefineShedPlan", plan_id: "sample"
+    input  load_shed_plan: 1
+    expect status: "active"
+  end
+
+end

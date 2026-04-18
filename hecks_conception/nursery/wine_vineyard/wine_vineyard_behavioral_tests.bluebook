@@ -1,0 +1,105 @@
+Hecks.behaviors "WineVineyard" do
+  vision "Behavioral tests for the WineVineyard domain — exercises every command and query in memory"
+
+  # ── Vineyard aggregate ──────────────────────────────────────────
+
+  test "EstablishVineyard sets block_name + grape_variety + rootstock + acreage + vine_count + planted_year" do
+    tests "EstablishVineyard", on: "Vineyard"
+    input  block_name: "sample", grape_variety: "sample", rootstock: "sample", acreage: 1.0, vine_count: 1, planted_year: 1
+    expect block_name: "sample", grape_variety: "sample", rootstock: "sample", acreage: 1.0, vine_count: 1, status: "growing"
+  end
+
+  test "PruneVines sets pruning_style" do
+    tests "PruneVines", on: "Vineyard"
+    setup  "EstablishVineyard", block_name: "sample", grape_variety: "sample", rootstock: "sample", acreage: 1.0, vine_count: 1, planted_year: 1
+    input  vineyard: 1, pruning_style: "sample"
+    expect ok: "true"
+  end
+
+  test "ReportDiseaseOutbreak sets disease_name + severity" do
+    tests "ReportDiseaseOutbreak", on: "Vineyard"
+    setup  "EstablishVineyard", block_name: "sample", grape_variety: "sample", rootstock: "sample", acreage: 1.0, vine_count: 1, planted_year: 1
+    input  vineyard: 1, disease_name: "sample", severity: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Vintage aggregate ──────────────────────────────────────────
+
+  test "HarvestGrapes sets year + grape_variety + tons_harvested + brix_at_harvest + ph_at_harvest" do
+    tests "HarvestGrapes", on: "Vintage"
+    setup  "EstablishVineyard", block_name: "sample", grape_variety: "sample", rootstock: "sample", acreage: 1.0, vine_count: 1, planted_year: 1
+    input  vineyard: 1, year: 1, grape_variety: "sample", tons_harvested: 1.0, brix_at_harvest: 1.0, ph_at_harvest: 1.0
+    expect year: 1, grape_variety: "sample", tons_harvested: 1.0, brix_at_harvest: 1.0, ph_at_harvest: 1.0, status: "harvested"
+  end
+
+  test "CrushGrapes runs" do
+    tests "CrushGrapes", on: "Vintage"
+    input  vintage: 1
+    expect status: "crushed"
+  end
+
+  test "DeclassifyVintage runs" do
+    tests "DeclassifyVintage", on: "Vintage"
+    input  vintage: 1
+    expect status: "declassified"
+  end
+
+
+  # ── Fermentation aggregate ──────────────────────────────────────────
+
+  test "StartFermentation sets vessel_type + vessel_id + volume_liters + yeast_strain + temperature_celsius" do
+    tests "StartFermentation", on: "Fermentation"
+    input  vintage: 1, vessel_type: "sample", vessel_id: "sample", volume_liters: 1.0, yeast_strain: "sample", temperature_celsius: 1.0
+    expect vessel_type: "sample", vessel_id: "sample", volume_liters: 1.0, yeast_strain: "sample", temperature_celsius: 1.0, status: "fermenting"
+  end
+
+  test "PunchDownCap runs" do
+    tests "PunchDownCap", on: "Fermentation"
+    input  fermentation: 1
+    expect ok: "true"
+  end
+
+  test "RackWine runs" do
+    tests "RackWine", on: "Fermentation"
+    input  fermentation: 1
+    expect status: "aging"
+  end
+
+
+  # ── BottlingRun aggregate ──────────────────────────────────────────
+
+  test "BottleWine sets bottle_count + bottle_date + alcohol_percent + closure_type" do
+    tests "BottleWine", on: "BottlingRun"
+    input  fermentation: 1, bottle_count: 1, bottle_date: "sample", alcohol_percent: 1.0, closure_type: "sample"
+    expect bottle_count: 1, bottle_date: "sample", alcohol_percent: 1.0, closure_type: "sample", status: "bottled"
+  end
+
+  test "LabelBottles sets label_name" do
+    tests "LabelBottles", on: "BottlingRun"
+    input  bottling_run: 1, label_name: "sample"
+    expect label_name: "sample", status: "labeled"
+  end
+
+  test "ReleaseForSale runs" do
+    tests "ReleaseForSale", on: "BottlingRun"
+    input  bottling_run: 1
+    expect status: "released"
+  end
+
+
+  # ── TastingNote aggregate ──────────────────────────────────────────
+
+  test "RecordTasting sets taster_name + score + appearance + nose + palate + finish" do
+    tests "RecordTasting", on: "TastingNote"
+    input  bottling_run: 1, taster_name: "sample", score: 1, appearance: "sample", nose: "sample", palate: "sample", finish: "sample"
+    expect taster_name: "sample", score: 1, appearance: "sample", nose: "sample", palate: "sample", finish: "sample"
+  end
+
+  test "PublishReview runs" do
+    tests "PublishReview", on: "TastingNote"
+    input  tasting_note: 1
+    expect ok: "true"
+  end
+
+end

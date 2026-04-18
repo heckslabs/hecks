@@ -1,0 +1,182 @@
+Hecks.behaviors "Conception" do
+  vision "Behavioral tests for the Conception domain — exercises every command and query in memory"
+
+  # ── Conception aggregate ──────────────────────────────────────────
+
+  test "ConceiveDomain sets name + vision + requested_by + source + category + bounded_contexts" do
+    tests "ConceiveDomain", on: "Conception"
+    input  name: "sample", vision: "sample", requested_by: "sample", source: "sample", category: "sample", bounded_contexts: "sample"
+    expect name: "sample", vision: "sample", requested_by: "sample", source: "sample", category: "sample", bounded_contexts: "sample", status: "conceived"
+  end
+
+
+  # ── Gestation aggregate ──────────────────────────────────────────
+
+  test "StartGestation sets project_name + nursery_path + bounded_contexts" do
+    tests "StartGestation", on: "Gestation"
+    input  project_name: "sample", nursery_path: "sample", bounded_contexts: "sample"
+    expect project_name: "sample", nursery_path: "sample", bounded_contexts: "sample", contractions: 0
+  end
+
+  test "FormAggregate sets aggregate_name" do
+    tests "FormAggregate", on: "Gestation"
+    setup  "StartGestation", project_name: "sample", nursery_path: "sample", bounded_contexts: "sample"
+    input  gestation: 1, aggregate_name: "sample"
+    expect aggregates_size: 1
+  end
+
+  test "FormCommand sets command_name" do
+    tests "FormCommand", on: "Gestation"
+    setup  "StartGestation", project_name: "sample", nursery_path: "sample", bounded_contexts: "sample"
+    input  gestation: 1, command_name: "sample"
+    expect commands_size: 1
+  end
+
+  test "FormPolicy sets policy_name" do
+    tests "FormPolicy", on: "Gestation"
+    setup  "StartGestation", project_name: "sample", nursery_path: "sample", bounded_contexts: "sample"
+    input  gestation: 1, policy_name: "sample"
+    expect policies_size: 1
+  end
+
+  test "Contract runs" do
+    tests "Contract", on: "Gestation"
+    setup  "StartGestation", project_name: "sample", nursery_path: "sample", bounded_contexts: "sample"
+    input  gestation: 1
+    expect contractions: 1
+  end
+
+
+  # ── Labor aggregate ──────────────────────────────────────────
+
+  test "ValidateBluebook sets domain_name + bluebook_source" do
+    tests "ValidateBluebook", on: "Labor"
+    input  domain_name: "sample", bluebook_source: "sample"
+    expect domain_name: "sample", bluebook_source: "sample", valid: "checking"
+  end
+
+  test "CheckParity sets parity" do
+    tests "CheckParity", on: "Labor"
+    setup  "ValidateBluebook", domain_name: "sample", bluebook_source: "sample"
+    input  labor: 1, parity: "sample"
+    expect parity: "sample"
+  end
+
+  test "PassLabor runs" do
+    tests "PassLabor", on: "Labor"
+    setup  "ValidateBluebook", domain_name: "sample", bluebook_source: "sample"
+    input  labor: 1
+    expect valid: "yes"
+  end
+
+  test "FailLabor sets errors" do
+    tests "FailLabor", on: "Labor"
+    setup  "ValidateBluebook", domain_name: "sample", bluebook_source: "sample"
+    input  labor: 1, errors: "sample"
+    expect errors: "sample", valid: "no"
+  end
+
+
+  # ── Delivery aggregate ──────────────────────────────────────────
+
+  test "DeliverDomain sets domain_name + path + aggregate_count + command_count + fixture_count" do
+    tests "DeliverDomain", on: "Delivery"
+    input  domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
+    expect domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
+  end
+
+  test "RegisterBirth runs" do
+    tests "RegisterBirth", on: "Delivery"
+    setup  "RegisterBirth"
+    input  delivery: 1
+    expect ok: "true"
+  end
+
+  test "IndexInNursery runs" do
+    tests "IndexInNursery", on: "Delivery"
+    setup  "RegisterBirth"
+    input  delivery: 1
+    expect indexed: "yes"
+  end
+
+
+  # ── Postpartum aggregate ──────────────────────────────────────────
+
+  test "CheckHealth sets domain_name" do
+    tests "CheckHealth", on: "Postpartum"
+    input  domain_name: "sample"
+    expect domain_name: "sample"
+  end
+
+  test "DeclareHealthy runs" do
+    tests "DeclareHealthy", on: "Postpartum"
+    setup  "CheckHealth", domain_name: "sample"
+    input  postpartum: 1
+    expect healthy: "yes"
+  end
+
+  test "FlagConcern sets concern" do
+    tests "FlagConcern", on: "Postpartum"
+    setup  "CheckHealth", domain_name: "sample"
+    input  postpartum: 1, concern: "sample"
+    expect healthy: "concern"
+  end
+
+
+  # ── Development aggregate ──────────────────────────────────────────
+
+  test "ComputeVector sets domain_name" do
+    tests "ComputeVector", on: "Development"
+    input  domain_name: "sample"
+    expect domain_name: "sample", status: "vectorized"
+  end
+
+  test "FindArchetype runs" do
+    tests "FindArchetype", on: "Development"
+    setup  "ComputeVector", domain_name: "sample"
+    input  development: 1
+    expect status: "matched"
+  end
+
+  test "PlanDevelopment sets target_vector" do
+    tests "PlanDevelopment", on: "Development"
+    setup  "ComputeVector", domain_name: "sample"
+    input  development: 1, target_vector: 1.0
+    expect target_vector: 1.0, status: "planned"
+  end
+
+  test "DevelopDomain runs" do
+    tests "DevelopDomain", on: "Development"
+    setup  "ComputeVector", domain_name: "sample"
+    input  development: 1
+    expect status: "developed"
+  end
+
+  test "RejectDevelopment runs" do
+    tests "RejectDevelopment", on: "Development"
+    setup  "ComputeVector", domain_name: "sample"
+    input  development: 1
+    expect status: "rejected"
+  end
+
+
+  # ── Corpus aggregate ──────────────────────────────────────────
+
+  test "IndexDomain sets domain_name + vector" do
+    tests "IndexDomain", on: "Corpus"
+    input  domain_name: "sample", vector: 1.0
+    expect domain_count: 1, total_vectors: 1
+  end
+
+  test "QueryNearest sets target_vector + k" do
+    tests "QueryNearest", on: "Corpus"
+    input  target_vector: 1.0, k: 1
+    expect ok: "true"
+  end
+
+  test "RebuildCorpus runs" do
+    tests "RebuildCorpus", on: "Corpus"
+    expect ok: "true"
+  end
+
+end

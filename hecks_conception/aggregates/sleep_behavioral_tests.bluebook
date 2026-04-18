@@ -1,0 +1,265 @@
+Hecks.behaviors "Sleep" do
+  vision "Behavioral tests for the Sleep domain — exercises every command and query in memory"
+
+  # ── Fatigue aggregate ──────────────────────────────────────────
+
+  test "AccumulateFatigue runs" do
+    tests "AccumulateFatigue", on: "Fatigue"
+    setup  "DissipateFatigue"
+    input  fatigue: 1
+    expect pulses_since_sleep: 1, state: "focused"
+  end
+
+  test "DissipateFatigue runs" do
+    tests "DissipateFatigue", on: "Fatigue"
+    expect level: 0, pulses_since_sleep: 0, state: "alert"
+  end
+
+
+  # ── Consciousness aggregate ──────────────────────────────────────────
+
+  test "DetectIdle sets idle_seconds" do
+    tests "DetectIdle", on: "Consciousness"
+    input  idle_seconds: 1
+    expect idle_seconds: 1
+  end
+
+  test "EnterDaydream runs" do
+    tests "EnterDaydream", on: "Consciousness"
+    expect state: "daydreaming"
+  end
+
+  test "EnterSleep runs" do
+    tests "EnterSleep", on: "Consciousness"
+    expect sleep_stage: "light", sleep_cycle: 1, sleep_total: 8, phase_ticks: 0, dream_pulses: 0, dream_pulses_needed: 5, is_lucid: "no", sleep_summary: "settling into light sleep", state: "sleeping"
+  end
+
+  test "TakeNap runs" do
+    tests "TakeNap", on: "Consciousness"
+    expect state: "napping"
+  end
+
+  test "TakeStabilityNap runs" do
+    tests "TakeStabilityNap", on: "Consciousness"
+    expect state: "napping"
+  end
+
+  test "WakeUp runs" do
+    tests "WakeUp", on: "Consciousness"
+    expect state: "waking"
+  end
+
+  test "BecomeAttentive runs" do
+    tests "BecomeAttentive", on: "Consciousness"
+    expect state: "attentive"
+  end
+
+  test "ElapsePhase runs" do
+    tests "ElapsePhase", on: "Consciousness"
+    expect phase_ticks: 1
+  end
+
+  test "AdvanceLightToRem runs" do
+    tests "AdvanceLightToRem", on: "Consciousness"
+    expect sleep_stage: "rem", phase_ticks: 0, dream_pulses: 0, sleep_summary: "entering REM — dreams beginning"
+  end
+
+  test "AdvanceLightToLucidRem runs" do
+    tests "AdvanceLightToLucidRem", on: "Consciousness"
+    expect sleep_stage: "rem", phase_ticks: 0, dream_pulses: 0, dream_pulses_needed: 8, is_lucid: "yes", sleep_summary: "entering lucid REM — aware that she's dreaming"
+  end
+
+  test "AdvanceRemToDeep runs" do
+    tests "AdvanceRemToDeep", on: "Consciousness"
+    expect sleep_stage: "deep", phase_ticks: 0, is_lucid: "no", sleep_summary: "sinking into deep sleep — dream complete"
+  end
+
+  test "AdvanceRemToDeepCap runs" do
+    tests "AdvanceRemToDeepCap", on: "Consciousness"
+    expect sleep_stage: "deep", phase_ticks: 0, is_lucid: "no", sleep_summary: "REM capped — dream cut short"
+  end
+
+  test "AdvanceDeepToLight runs" do
+    tests "AdvanceDeepToLight", on: "Consciousness"
+    expect sleep_stage: "light", sleep_cycle: 1, phase_ticks: 0, sleep_summary: "light sleep — next cycle"
+  end
+
+  test "AdvanceDeepToFinalLight runs" do
+    tests "AdvanceDeepToFinalLight", on: "Consciousness"
+    expect sleep_stage: "final_light", phase_ticks: 0, sleep_summary: "rising into final light — waking soon"
+  end
+
+  test "CompleteFinalLight sets now" do
+    tests "CompleteFinalLight", on: "Consciousness"
+    input  now: "sample"
+    expect last_wake_at: "sample", sleep_summary: "waking refreshed", state: "waking"
+  end
+
+  test "DreamPulse sets impression" do
+    tests "DreamPulse", on: "Consciousness"
+    input  impression: "sample"
+    expect dream_pulses: 1, sleep_summary: "sample"
+  end
+
+
+  # ── Daydream aggregate ──────────────────────────────────────────
+
+  test "RecordDaydream sets impressions + duration_seconds + connections_found" do
+    tests "RecordDaydream", on: "Daydream"
+    input  impressions: "sample", duration_seconds: 1, connections_found: 1
+    expect impressions: "sample", duration_seconds: 1, connections_found: 1
+  end
+
+
+  # ── SleepCycle aggregate ──────────────────────────────────────────
+
+  test "StartCycle sets cycle_number + total_cycles" do
+    tests "StartCycle", on: "SleepCycle"
+    input  cycle_number: 1, total_cycles: 1
+    expect cycle_number: 1, total_cycles: 1, stage: "light"
+  end
+
+  test "AdvanceStage sets stage + rem_intensity" do
+    tests "AdvanceStage", on: "SleepCycle"
+    setup  "StartCycle", cycle_number: 1, total_cycles: 1
+    input  sleep_cycle: 1, stage: "sample", rem_intensity: 1
+    expect rem_intensity: 1, stage: "rem"
+  end
+
+  test "CompleteCycle runs" do
+    tests "CompleteCycle", on: "SleepCycle"
+    setup  "StartCycle", cycle_number: 1, total_cycles: 1
+    input  sleep_cycle: 1
+    expect stage: "light"
+  end
+
+
+  # ── Night aggregate ──────────────────────────────────────────
+
+  test "StartNight runs" do
+    tests "StartNight", on: "Night"
+    expect cycles_completed: 0, phase: "starting"
+  end
+
+  test "DreamCycle1 runs" do
+    tests "DreamCycle1", on: "Night"
+    expect cycles_completed: 1, phase: "dreaming"
+  end
+
+  test "ConsolidateCycle1 runs" do
+    tests "ConsolidateCycle1", on: "Night"
+    expect phase: "consolidating"
+  end
+
+  test "DreamCycle2 runs" do
+    tests "DreamCycle2", on: "Night"
+    expect cycles_completed: 2, phase: "dreaming"
+  end
+
+  test "ConsolidateCycle2 runs" do
+    tests "ConsolidateCycle2", on: "Night"
+    expect phase: "consolidating"
+  end
+
+  test "DreamCycle3 runs" do
+    tests "DreamCycle3", on: "Night"
+    expect cycles_completed: 3, phase: "dreaming"
+  end
+
+  test "ConsolidateCycle3 runs" do
+    tests "ConsolidateCycle3", on: "Night"
+    expect phase: "consolidating"
+  end
+
+  test "DreamCycle4 runs" do
+    tests "DreamCycle4", on: "Night"
+    expect cycles_completed: 4, phase: "dreaming"
+  end
+
+  test "ConsolidateCycle4 runs" do
+    tests "ConsolidateCycle4", on: "Night"
+    expect phase: "consolidating"
+  end
+
+  test "DreamCycle5 runs" do
+    tests "DreamCycle5", on: "Night"
+    expect cycles_completed: 5, phase: "dreaming"
+  end
+
+  test "ConsolidateCycle5 runs" do
+    tests "ConsolidateCycle5", on: "Night"
+    expect phase: "consolidating"
+  end
+
+  test "DreamCycle6 runs" do
+    tests "DreamCycle6", on: "Night"
+    expect cycles_completed: 6, phase: "dreaming"
+  end
+
+  test "ConsolidateCycle6 runs" do
+    tests "ConsolidateCycle6", on: "Night"
+    expect phase: "consolidating"
+  end
+
+  test "DreamCycle7 runs" do
+    tests "DreamCycle7", on: "Night"
+    expect cycles_completed: 7, phase: "dreaming"
+  end
+
+  test "ConsolidateCycle7 runs" do
+    tests "ConsolidateCycle7", on: "Night"
+    expect phase: "consolidating"
+  end
+
+  test "DreamCycle8 runs" do
+    tests "DreamCycle8", on: "Night"
+    expect cycles_completed: 8, phase: "lucid"
+  end
+
+  test "EndNight runs" do
+    tests "EndNight", on: "Night"
+    expect phase: "ended"
+  end
+
+
+  # ── WakeMood aggregate ──────────────────────────────────────────
+
+  test "SetWakeMood sets mood + reason" do
+    tests "SetWakeMood", on: "WakeMood"
+    input  mood: "sample", reason: "sample"
+    expect mood: "sample", reason: "sample"
+  end
+
+
+  # ── Monitor aggregate ──────────────────────────────────────────
+
+  test "StartMonitoring sets interval_seconds" do
+    tests "StartMonitoring", on: "Monitor"
+    input  interval_seconds: 1
+    expect interval_seconds: 1, reporting: "active"
+  end
+
+  test "StopMonitoring runs" do
+    tests "StopMonitoring", on: "Monitor"
+    setup  "StartMonitoring", interval_seconds: 1
+    input  monitor: 1
+    expect reporting: "stopped"
+  end
+
+  test "UpdateDepth sets z_depth" do
+    tests "UpdateDepth", on: "Monitor"
+    setup  "StartMonitoring", interval_seconds: 1
+    input  monitor: 1, z_depth: 1
+    expect z_depth: 1
+  end
+
+
+  # ── DreamSeed aggregate ──────────────────────────────────────────
+
+  test "SeedFromPreviousDreams sets images + recombinations + strongest_synapses" do
+    tests "SeedFromPreviousDreams", on: "DreamSeed"
+    input  images: "sample", recombinations: "sample", strongest_synapses: "sample"
+    expect images: "sample", recombinations: "sample", strongest_synapses: "sample"
+  end
+
+end

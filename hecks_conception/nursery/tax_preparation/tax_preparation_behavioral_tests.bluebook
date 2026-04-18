@@ -1,0 +1,113 @@
+Hecks.behaviors "TaxPreparation" do
+  vision "Behavioral tests for the TaxPreparation domain — exercises every command and query in memory"
+
+  # ── TaxClient aggregate ──────────────────────────────────────────
+
+  test "OnboardClient sets first_name + last_name + ssn_last_four + filing_status + phone + email" do
+    tests "OnboardClient", on: "TaxClient"
+    input  first_name: "sample", last_name: "sample", ssn_last_four: "sample", filing_status: "sample", phone: "sample", email: "sample"
+    expect first_name: "sample", last_name: "sample", ssn_last_four: "sample", filing_status: "sample", phone: "sample", status: "active"
+  end
+
+  test "UpdateFilingStatus sets filing_status" do
+    tests "UpdateFilingStatus", on: "TaxClient"
+    setup  "OnboardClient", first_name: "sample", last_name: "sample", ssn_last_four: "sample", filing_status: "sample", phone: "sample", email: "sample"
+    input  tax_client: 1, filing_status: "sample"
+    expect filing_status: "sample"
+  end
+
+  test "ArchiveClient runs" do
+    tests "ArchiveClient", on: "TaxClient"
+    setup  "OnboardClient", first_name: "sample", last_name: "sample", ssn_last_four: "sample", filing_status: "sample", phone: "sample", email: "sample"
+    input  tax_client: 1
+    expect status: "archived"
+  end
+
+
+  # ── TaxReturn aggregate ──────────────────────────────────────────
+
+  test "StartReturn sets tax_year + return_type" do
+    tests "StartReturn", on: "TaxReturn"
+    setup  "OnboardClient", first_name: "sample", last_name: "sample", ssn_last_four: "sample", filing_status: "sample", phone: "sample", email: "sample"
+    input  tax_client: 1, tax_year: "sample", return_type: "sample"
+    expect tax_year: "sample", return_type: "sample", status: "in_progress"
+  end
+
+  test "CalculateTax sets gross_income + adjusted_gross_income + taxable_income + tax_owed + refund_amount" do
+    tests "CalculateTax", on: "TaxReturn"
+    input  tax_return: 1, gross_income: 1.0, adjusted_gross_income: 1.0, taxable_income: 1.0, tax_owed: 1.0, refund_amount: 1.0
+    expect gross_income: 1.0, adjusted_gross_income: 1.0, taxable_income: 1.0, tax_owed: 1.0, refund_amount: 1.0
+  end
+
+  test "FinalizeReturn runs" do
+    tests "FinalizeReturn", on: "TaxReturn"
+    input  tax_return: 1
+    expect status: "finalized"
+  end
+
+
+  # ── TaxDocument aggregate ──────────────────────────────────────────
+
+  test "CollectDocument sets document_type + issuer + tax_year" do
+    tests "CollectDocument", on: "TaxDocument"
+    setup  "OnboardClient", first_name: "sample", last_name: "sample", ssn_last_four: "sample", filing_status: "sample", phone: "sample", email: "sample"
+    input  tax_client: 1, document_type: "sample", issuer: "sample", tax_year: "sample"
+    expect document_type: "sample", issuer: "sample", tax_year: "sample", status: "received"
+  end
+
+  test "VerifyDocument runs" do
+    tests "VerifyDocument", on: "TaxDocument"
+    input  tax_document: 1
+    expect status: "verified"
+  end
+
+  test "RequestMissingDocument sets document_type + issuer" do
+    tests "RequestMissingDocument", on: "TaxDocument"
+    setup  "OnboardClient", first_name: "sample", last_name: "sample", ssn_last_four: "sample", filing_status: "sample", phone: "sample", email: "sample"
+    input  tax_client: 1, document_type: "sample", issuer: "sample"
+    expect status: "requested"
+  end
+
+
+  # ── Deduction aggregate ──────────────────────────────────────────
+
+  test "ClaimDeduction sets deduction_type + category + amount" do
+    tests "ClaimDeduction", on: "Deduction"
+    input  tax_return: 1, deduction_type: "sample", category: "sample", amount: 1.0
+    expect deduction_type: "sample", category: "sample", amount: 1.0, documentation_status: "pending"
+  end
+
+  test "SubstantiateDeduction runs" do
+    tests "SubstantiateDeduction", on: "Deduction"
+    input  deduction: 1
+    expect documentation_status: "substantiated"
+  end
+
+  test "DisallowDeduction runs" do
+    tests "DisallowDeduction", on: "Deduction"
+    input  deduction: 1
+    expect documentation_status: "disallowed"
+  end
+
+
+  # ── ElectronicFiling aggregate ──────────────────────────────────────────
+
+  test "FileElectronically sets filed_date" do
+    tests "FileElectronically", on: "ElectronicFiling"
+    input  tax_return: 1, filed_date: "sample"
+    expect filed_date: "sample", status: "transmitted"
+  end
+
+  test "ReceiveAcceptance sets confirmation_number + accepted_date" do
+    tests "ReceiveAcceptance", on: "ElectronicFiling"
+    input  electronic_filing: 1, confirmation_number: "sample", accepted_date: "sample"
+    expect confirmation_number: "sample", accepted_date: "sample", status: "accepted"
+  end
+
+  test "HandleRejection sets rejection_reason" do
+    tests "HandleRejection", on: "ElectronicFiling"
+    input  electronic_filing: 1, rejection_reason: "sample"
+    expect status: "rejected"
+  end
+
+end

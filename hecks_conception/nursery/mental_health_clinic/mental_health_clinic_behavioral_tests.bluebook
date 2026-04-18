@@ -1,0 +1,99 @@
+Hecks.behaviors "MentalHealthClinic" do
+  vision "Behavioral tests for the MentalHealthClinic domain — exercises every command and query in memory"
+
+  # ── Client aggregate ──────────────────────────────────────────
+
+  test "IntakeClient sets name + date_of_birth + referral_source + emergency_contact" do
+    tests "IntakeClient", on: "Client"
+    input  name: "sample", date_of_birth: "sample", referral_source: "sample", emergency_contact: "sample"
+    expect name: "sample", date_of_birth: "sample", referral_source: "sample", emergency_contact: "sample", status: "active"
+  end
+
+  test "DocumentConcern sets description + onset_date + severity" do
+    tests "DocumentConcern", on: "Client"
+    setup  "IntakeClient", name: "sample", date_of_birth: "sample", referral_source: "sample", emergency_contact: "sample"
+    input  client: 1, description: "sample", onset_date: "sample", severity: 1
+    expect ok: "true"
+  end
+
+  test "DischargeClient runs" do
+    tests "DischargeClient", on: "Client"
+    setup  "IntakeClient", name: "sample", date_of_birth: "sample", referral_source: "sample", emergency_contact: "sample"
+    input  client: 1
+    expect status: "discharged"
+  end
+
+
+  # ── Therapist aggregate ──────────────────────────────────────────
+
+  test "RegisterTherapist sets name + license_type + license_number + specialty + caseload_limit" do
+    tests "RegisterTherapist", on: "Therapist"
+    input  name: "sample", license_type: "sample", license_number: "sample", specialty: "sample", caseload_limit: 1
+    expect name: "sample", license_type: "sample", license_number: "sample", specialty: "sample", caseload_limit: 1, active_clients: 0
+  end
+
+  test "AssignClient runs" do
+    tests "AssignClient", on: "Therapist"
+    setup  "RegisterTherapist", name: "sample", license_type: "sample", license_number: "sample", specialty: "sample", caseload_limit: 1
+    input  therapist: 1
+    expect ok: "true"
+  end
+
+
+  # ── Assessment aggregate ──────────────────────────────────────────
+
+  test "AdministerAssessment sets client_name + instrument_name + administered_date + total_score + notes" do
+    tests "AdministerAssessment", on: "Assessment"
+    setup  "IntakeClient", name: "sample", date_of_birth: "sample", referral_source: "sample", emergency_contact: "sample"
+    input  client: 1, client_name: "sample", instrument_name: "sample", administered_date: "sample", total_score: 1, notes: "sample"
+    expect client_name: "sample", instrument_name: "sample", administered_date: "sample", total_score: 1, notes: "sample"
+  end
+
+  test "ClassifyRisk sets risk_level" do
+    tests "ClassifyRisk", on: "Assessment"
+    input  assessment: 1, risk_level: "sample"
+    expect risk_level: "sample"
+  end
+
+
+  # ── TreatmentPlan aggregate ──────────────────────────────────────────
+
+  test "CreateTreatmentPlan sets client_name + diagnosis + start_date" do
+    tests "CreateTreatmentPlan", on: "TreatmentPlan"
+    setup  "IntakeClient", name: "sample", date_of_birth: "sample", referral_source: "sample", emergency_contact: "sample"
+    input  client: 1, client_name: "sample", diagnosis: "sample", start_date: "sample"
+    expect client_name: "sample", diagnosis: "sample", start_date: "sample", status: "active"
+  end
+
+  test "UpdateGoal sets description + target_date + intervention" do
+    tests "UpdateGoal", on: "TreatmentPlan"
+    setup  "CreateTreatmentPlan", client_name: "sample", diagnosis: "sample", start_date: "sample"
+    input  treatment_plan: 1, description: "sample", target_date: "sample", intervention: "sample"
+    expect ok: "true"
+  end
+
+  test "CloseTreatmentPlan runs" do
+    tests "CloseTreatmentPlan", on: "TreatmentPlan"
+    setup  "CreateTreatmentPlan", client_name: "sample", diagnosis: "sample", start_date: "sample"
+    input  treatment_plan: 1
+    expect status: "closed"
+  end
+
+
+  # ── TherapySession aggregate ──────────────────────────────────────────
+
+  test "ScheduleTherapySession sets client_name + therapist_name + session_date + session_type" do
+    tests "ScheduleTherapySession", on: "TherapySession"
+    setup  "IntakeClient", name: "sample", date_of_birth: "sample", referral_source: "sample", emergency_contact: "sample"
+    setup  "RegisterTherapist", name: "sample", license_type: "sample", license_number: "sample", specialty: "sample", caseload_limit: 1
+    input  client: 1, therapist: 1, client_name: "sample", therapist_name: "sample", session_date: "sample", session_type: "sample"
+    expect client_name: "sample", therapist_name: "sample", session_date: "sample", session_type: "sample", status: "scheduled"
+  end
+
+  test "CompleteTherapySession sets notes" do
+    tests "CompleteTherapySession", on: "TherapySession"
+    input  therapy_session: 1, notes: "sample"
+    expect notes: "sample", status: "completed"
+  end
+
+end

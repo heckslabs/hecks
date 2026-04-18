@@ -1,0 +1,102 @@
+Hecks.behaviors "CinemaAudio" do
+  vision "Behavioral tests for the CinemaAudio domain — exercises every command and query in memory"
+
+  # ── Auditorium aggregate ──────────────────────────────────────────
+
+  test "MeasureRoom sets name + length_m + width_m + height_m + wall_material" do
+    tests "MeasureRoom", on: "Auditorium"
+    input  name: "sample", length_m: 1.0, width_m: 1.0, height_m: 1.0, wall_material: "sample"
+    expect name: "sample", length_m: 1.0, width_m: 1.0, height_m: 1.0, wall_material: "sample", status: "measured"
+  end
+
+  test "CalculateReverberation sets reverberation_time_sec" do
+    tests "CalculateReverberation", on: "Auditorium"
+    setup  "MeasureRoom", name: "sample", length_m: 1.0, width_m: 1.0, height_m: 1.0, wall_material: "sample"
+    input  auditorium: 1, reverberation_time_sec: 1.0
+    expect reverberation_time_sec: 1.0
+  end
+
+  test "TreatRoom runs" do
+    tests "TreatRoom", on: "Auditorium"
+    setup  "MeasureRoom", name: "sample", length_m: 1.0, width_m: 1.0, height_m: 1.0, wall_material: "sample"
+    input  auditorium: 1
+    expect status: "treated"
+  end
+
+
+  # ── Speaker aggregate ──────────────────────────────────────────
+
+  test "PlaceSpeaker sets name + speaker_type + x_position + y_position + z_position + power_watts" do
+    tests "PlaceSpeaker", on: "Speaker"
+    input  name: "sample", speaker_type: "sample", x_position: 1.0, y_position: 1.0, z_position: 1.0, power_watts: 1.0
+    expect name: "sample", speaker_type: "sample", x_position: 1.0, y_position: 1.0, z_position: 1.0, power_watts: 1.0, status: "placed"
+  end
+
+  test "AimSpeaker sets tilt_degrees + rotation_degrees" do
+    tests "AimSpeaker", on: "Speaker"
+    setup  "PlaceSpeaker", name: "sample", speaker_type: "sample", x_position: 1.0, y_position: 1.0, z_position: 1.0, power_watts: 1.0
+    input  speaker: 1, tilt_degrees: 1.0, rotation_degrees: 1.0
+    expect ok: "true"
+  end
+
+  test "ActivateSpeaker runs" do
+    tests "ActivateSpeaker", on: "Speaker"
+    setup  "PlaceSpeaker", name: "sample", speaker_type: "sample", x_position: 1.0, y_position: 1.0, z_position: 1.0, power_watts: 1.0
+    input  speaker: 1
+    expect status: "active"
+  end
+
+
+  # ── Calibration aggregate ──────────────────────────────────────────
+
+  test "RunCalibration sets auditorium_name + calibration_type + target_spl_db" do
+    tests "RunCalibration", on: "Calibration"
+    input  auditorium_name: "sample", calibration_type: "sample", target_spl_db: 1.0
+    expect auditorium_name: "sample", calibration_type: "sample", target_spl_db: 1.0, status: "running"
+  end
+
+  test "RecordMeasurement sets measured_spl_db" do
+    tests "RecordMeasurement", on: "Calibration"
+    setup  "RunCalibration", auditorium_name: "sample", calibration_type: "sample", target_spl_db: 1.0
+    input  calibration: 1, measured_spl_db: 1.0
+    expect measured_spl_db: 1.0
+  end
+
+  test "ApplyCorrection sets correction_db" do
+    tests "ApplyCorrection", on: "Calibration"
+    setup  "RunCalibration", auditorium_name: "sample", calibration_type: "sample", target_spl_db: 1.0
+    input  calibration: 1, correction_db: 1.0
+    expect correction_db: 1.0, status: "calibrated"
+  end
+
+  test "VerifyCalibration runs" do
+    tests "VerifyCalibration", on: "Calibration"
+    setup  "RunCalibration", auditorium_name: "sample", calibration_type: "sample", target_spl_db: 1.0
+    input  calibration: 1
+    expect status: "verified"
+  end
+
+
+  # ── Soundtrack aggregate ──────────────────────────────────────────
+
+  test "LoadSoundtrack sets title + format + channel_count + dynamic_range_db" do
+    tests "LoadSoundtrack", on: "Soundtrack"
+    input  title: "sample", format: "sample", channel_count: 1, dynamic_range_db: 1.0
+    expect title: "sample", format: "sample", channel_count: 1, dynamic_range_db: 1.0, status: "loaded"
+  end
+
+  test "MapChannels runs" do
+    tests "MapChannels", on: "Soundtrack"
+    setup  "LoadSoundtrack", title: "sample", format: "sample", channel_count: 1, dynamic_range_db: 1.0
+    input  soundtrack: 1
+    expect status: "mapped"
+  end
+
+  test "PlaySoundtrack runs" do
+    tests "PlaySoundtrack", on: "Soundtrack"
+    setup  "LoadSoundtrack", title: "sample", format: "sample", channel_count: 1, dynamic_range_db: 1.0
+    input  soundtrack: 1
+    expect status: "playing"
+  end
+
+end

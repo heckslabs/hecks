@@ -1,0 +1,123 @@
+Hecks.behaviors "RecyclingCenter" do
+  vision "Behavioral tests for the RecyclingCenter domain — exercises every command and query in memory"
+
+  # ── Material aggregate ──────────────────────────────────────────
+
+  test "RegisterMaterial sets material_code + name + category + market_price_per_ton" do
+    tests "RegisterMaterial", on: "Material"
+    input  material_code: "sample", name: "sample", category: "sample", market_price_per_ton: 1.0
+    expect material_code: "sample", name: "sample", category: "sample", market_price_per_ton: 1.0, status: "active", inventory_tons: 0.0
+  end
+
+  test "ReceiveInbound sets weight_tons" do
+    tests "ReceiveInbound", on: "Material"
+    setup  "RegisterMaterial", material_code: "sample", name: "sample", category: "sample", market_price_per_ton: 1.0
+    input  material: 1, weight_tons: 1.0
+    expect ok: "true"
+  end
+
+  test "WeighInbound sets gross_weight_tons + tare_weight_tons" do
+    tests "WeighInbound", on: "Material"
+    setup  "RegisterMaterial", material_code: "sample", name: "sample", category: "sample", market_price_per_ton: 1.0
+    input  material: 1, gross_weight_tons: 1.0, tare_weight_tons: 1.0
+    expect ok: "true"
+  end
+
+  test "UpdatePrice sets new_price_per_ton" do
+    tests "UpdatePrice", on: "Material"
+    setup  "RegisterMaterial", material_code: "sample", name: "sample", category: "sample", market_price_per_ton: 1.0
+    input  material: 1, new_price_per_ton: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── SortingLine aggregate ──────────────────────────────────────────
+
+  test "StartLine sets line_id + line_type + throughput_tons_per_hour" do
+    tests "StartLine", on: "SortingLine"
+    input  line_id: "sample", line_type: "sample", throughput_tons_per_hour: 1.0
+    expect status: "running"
+  end
+
+  test "CompleteSortRun runs" do
+    tests "CompleteSortRun", on: "SortingLine"
+    setup  "StartLine", line_id: "sample", line_type: "sample", throughput_tons_per_hour: 1.0
+    input  sorting_line: 1
+    expect status: "idle"
+  end
+
+  test "HaltLine sets reason" do
+    tests "HaltLine", on: "SortingLine"
+    setup  "StartLine", line_id: "sample", line_type: "sample", throughput_tons_per_hour: 1.0
+    input  sorting_line: 1, reason: "sample"
+    expect status: "halted"
+  end
+
+  test "RestartLine runs" do
+    tests "RestartLine", on: "SortingLine"
+    setup  "StartLine", line_id: "sample", line_type: "sample", throughput_tons_per_hour: 1.0
+    input  sorting_line: 1
+    expect status: "running"
+  end
+
+
+  # ── Bale aggregate ──────────────────────────────────────────
+
+  test "PressBale sets weight_tons" do
+    tests "PressBale", on: "Bale"
+    setup  "RegisterMaterial", material_code: "sample", name: "sample", category: "sample", market_price_per_ton: 1.0
+    input  material: 1, weight_tons: 1.0
+    expect status: "pressed"
+  end
+
+  test "InspectBale runs" do
+    tests "InspectBale", on: "Bale"
+    input  bale: 1
+    expect status: "inspected"
+  end
+
+  test "StageBale runs" do
+    tests "StageBale", on: "Bale"
+    input  bale: 1
+    expect status: "staged"
+  end
+
+  test "ShipBale runs" do
+    tests "ShipBale", on: "Bale"
+    input  bale: 1
+    expect status: "shipped"
+  end
+
+
+  # ── ContaminationReport aggregate ──────────────────────────────────────────
+
+  test "FileContamination sets contaminant_type + contamination_percent" do
+    tests "FileContamination", on: "ContaminationReport"
+    setup  "RegisterMaterial", material_code: "sample", name: "sample", category: "sample", market_price_per_ton: 1.0
+    input  material: 1, contaminant_type: "sample", contamination_percent: 1.0
+    expect status: "open"
+  end
+
+  test "ResolveContamination runs" do
+    tests "ResolveContamination", on: "ContaminationReport"
+    input  contamination_report: 1
+    expect status: "resolved"
+  end
+
+
+  # ── Buyer aggregate ──────────────────────────────────────────
+
+  test "RegisterBuyer sets buyer_id + company_name + material_interest + contracted_price_per_ton" do
+    tests "RegisterBuyer", on: "Buyer"
+    input  buyer_id: "sample", company_name: "sample", material_interest: "sample", contracted_price_per_ton: 1.0
+    expect buyer_id: "sample", company_name: "sample", material_interest: "sample", contracted_price_per_ton: 1.0, status: "active"
+  end
+
+  test "PlaceOrder sets tons_requested" do
+    tests "PlaceOrder", on: "Buyer"
+    setup  "PlaceOrder", tons_requested: 1.0
+    input  buyer: 1, tons_requested: 1.0
+    expect ok: "true"
+  end
+
+end

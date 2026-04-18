@@ -1,0 +1,93 @@
+Hecks.behaviors "Conception" do
+  vision "Behavioral tests for the Conception domain — exercises every command and query in memory"
+
+  # ── Blueprint aggregate ──────────────────────────────────────────
+
+  test "StartConception sets domain_name + vision + category" do
+    tests "StartConception", on: "Blueprint"
+    input  domain_name: "sample", vision: "sample", category: "sample"
+    expect domain_name: "sample", vision: "sample", category: "sample", aggregate_count: 0, command_count: 0, fixture_count: 0, port_count: 0, actor_count: 0, policy_count: 0, completeness: "embryo"
+  end
+
+  test "AddAggregates sets count" do
+    tests "AddAggregates", on: "Blueprint"
+    setup  "AddAggregates", count: 1
+    input  blueprint: 1, count: 1
+    expect aggregate_count: 1, completeness: "shaped"
+  end
+
+  test "AddCommands sets count" do
+    tests "AddCommands", on: "Blueprint"
+    setup  "AddAggregates", count: 1
+    input  blueprint: 1, count: 1
+    expect command_count: 1, completeness: "verbal"
+  end
+
+  test "AddFixtures sets count" do
+    tests "AddFixtures", on: "Blueprint"
+    setup  "AddAggregates", count: 1
+    input  blueprint: 1, count: 1
+    expect completeness: "embryo", fixture_count: 1
+  end
+
+  test "AddAccessGates sets port_count + actor_count" do
+    tests "AddAccessGates", on: "Blueprint"
+    setup  "AddAggregates", count: 1
+    input  blueprint: 1, port_count: 1, actor_count: 1
+    expect port_count: 1, actor_count: 1, completeness: "embryo"
+  end
+
+  test "AddPolicies sets count" do
+    tests "AddPolicies", on: "Blueprint"
+    setup  "AddAggregates", count: 1
+    input  blueprint: 1, count: 1
+    expect completeness: "embryo", policy_count: 1
+  end
+
+  test "AssessCompleteness sets gaps" do
+    tests "AssessCompleteness", on: "Blueprint"
+    setup  "AddAggregates", count: 1
+    input  blueprint: 1, gaps: "sample"
+    expect gaps: "sample", completeness: "assessed"
+  end
+
+  test "Seal runs" do
+    tests "Seal", on: "Blueprint"
+    setup  "AddAggregates", count: 1
+    input  blueprint: 1
+    expect completeness: "sealed"
+  end
+
+
+  # ── ConceptionRule aggregate ──────────────────────────────────────────
+
+  test "DefineRule sets rule_name + description + check_type + severity" do
+    tests "DefineRule", on: "ConceptionRule"
+    input  rule_name: "sample", description: "sample", check_type: "sample", severity: "sample"
+    expect rule_name: "sample", description: "sample", check_type: "sample", severity: "sample"
+  end
+
+
+  # ── ConceptionLog aggregate ──────────────────────────────────────────
+
+  test "RecordConception sets domain_name + conceived_by + conceived_at + fixture_count + gap_count" do
+    tests "RecordConception", on: "ConceptionLog"
+    input  domain_name: "sample", conceived_by: "sample", conceived_at: "sample", fixture_count: 1, gap_count: 1
+    expect domain_name: "sample", conceived_by: "sample", conceived_at: "sample", fixture_count: 1, gap_count: 1, verdict: "recorded"
+  end
+
+  test "MarkViable runs" do
+    tests "MarkViable", on: "ConceptionLog"
+    setup  "RecordConception", domain_name: "sample", conceived_by: "sample", conceived_at: "sample", fixture_count: 1, gap_count: 1
+    input  conception_log: 1
+    expect verdict: "viable"
+  end
+
+  test "MarkIncomplete runs" do
+    tests "MarkIncomplete", on: "ConceptionLog"
+    setup  "RecordConception", domain_name: "sample", conceived_by: "sample", conceived_at: "sample", fixture_count: 1, gap_count: 1
+    input  conception_log: 1
+    expect verdict: "incomplete"
+  end
+
+end

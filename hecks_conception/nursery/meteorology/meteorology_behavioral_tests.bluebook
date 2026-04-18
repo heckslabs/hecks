@@ -1,0 +1,97 @@
+Hecks.behaviors "Meteorology" do
+  vision "Behavioral tests for the Meteorology domain — exercises every command and query in memory"
+
+  # ── WeatherStation aggregate ──────────────────────────────────────────
+
+  test "InstallStation sets station_id + name + latitude + longitude" do
+    tests "InstallStation", on: "WeatherStation"
+    input  station_id: "sample", name: "sample", latitude: 1.0, longitude: 1.0
+    expect ok: "true"
+  end
+
+  test "CalibrateInstruments runs" do
+    tests "CalibrateInstruments", on: "WeatherStation"
+    setup  "InstallStation", station_id: "sample", name: "sample", latitude: 1.0, longitude: 1.0
+    input  weather_station: 1
+    expect ok: "true"
+  end
+
+  test "DeactivateStation runs" do
+    tests "DeactivateStation", on: "WeatherStation"
+    setup  "InstallStation", station_id: "sample", name: "sample", latitude: 1.0, longitude: 1.0
+    input  weather_station: 1
+    expect ok: "true"
+  end
+
+
+  # ── SurfaceObservation aggregate ──────────────────────────────────────────
+
+  test "RecordObservation sets timestamp + temperature_c + pressure_hpa" do
+    tests "RecordObservation", on: "SurfaceObservation"
+    setup  "InstallStation", station_id: "sample", name: "sample", latitude: 1.0, longitude: 1.0
+    input  weather_station: 1, timestamp: "sample", temperature_c: 1.0, pressure_hpa: 1.0
+    expect ok: "true"
+  end
+
+  test "ValidateObservation runs" do
+    tests "ValidateObservation", on: "SurfaceObservation"
+    input  surface_observation: 1
+    expect ok: "true"
+  end
+
+
+  # ── Forecast aggregate ──────────────────────────────────────────
+
+  test "IssueForecast sets region + synopsis + valid_from + valid_to" do
+    tests "IssueForecast", on: "Forecast"
+    input  region: "sample", synopsis: "sample", valid_from: "sample", valid_to: "sample"
+    expect ok: "true"
+  end
+
+  test "AmendForecast sets amendment" do
+    tests "AmendForecast", on: "Forecast"
+    setup  "IssueForecast", region: "sample", synopsis: "sample", valid_from: "sample", valid_to: "sample"
+    input  forecast: 1, amendment: "sample"
+    expect ok: "true"
+  end
+
+  test "VerifyForecast runs" do
+    tests "VerifyForecast", on: "Forecast"
+    setup  "IssueForecast", region: "sample", synopsis: "sample", valid_from: "sample", valid_to: "sample"
+    input  forecast: 1
+    expect ok: "true"
+  end
+
+
+  # ── PressureSystem aggregate ──────────────────────────────────────────
+
+  test "TrackSystem sets system_type + central_pressure_hpa" do
+    tests "TrackSystem", on: "PressureSystem"
+    input  system_type: "sample", central_pressure_hpa: 1.0
+    expect ok: "true"
+  end
+
+  test "UpdatePosition sets latitude + longitude" do
+    tests "UpdatePosition", on: "PressureSystem"
+    setup  "TrackSystem", system_type: "sample", central_pressure_hpa: 1.0
+    input  pressure_system: 1, latitude: 1.0, longitude: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── WeatherAlert aggregate ──────────────────────────────────────────
+
+  test "IssueAlert sets alert_type + severity + region" do
+    tests "IssueAlert", on: "WeatherAlert"
+    input  alert_type: "sample", severity: "sample", region: "sample"
+    expect ok: "true"
+  end
+
+  test "CancelAlert runs" do
+    tests "CancelAlert", on: "WeatherAlert"
+    setup  "IssueAlert", alert_type: "sample", severity: "sample", region: "sample"
+    input  weather_alert: 1
+    expect ok: "true"
+  end
+
+end

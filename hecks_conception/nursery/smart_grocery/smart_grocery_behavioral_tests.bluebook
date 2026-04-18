@@ -1,0 +1,90 @@
+Hecks.behaviors "SmartGrocery" do
+  vision "Behavioral tests for the SmartGrocery domain — exercises every command and query in memory"
+
+  # ── Product aggregate ──────────────────────────────────────────
+
+  test "StockProduct sets name + category + price_cents" do
+    tests "StockProduct", on: "Product"
+    input  name: "sample", category: "sample", price_cents: 1
+    expect ok: "true"
+  end
+
+  test "AddNutrient sets nutrient_name + amount + unit + daily_value_pct" do
+    tests "AddNutrient", on: "Product"
+    setup  "AddNutrient", nutrient_name: "sample", amount: 1.0, unit: "sample", daily_value_pct: 1.0
+    input  product: 1, nutrient_name: "sample", amount: 1.0, unit: "sample", daily_value_pct: 1.0
+    expect nutrients_size: 1
+  end
+
+
+  # ── DietaryProfile aggregate ──────────────────────────────────────────
+
+  test "CreateProfile sets customer_name + calorie_target" do
+    tests "CreateProfile", on: "DietaryProfile"
+    input  customer_name: "sample", calorie_target: 1
+    expect customer_name: "sample", calorie_target: 1
+  end
+
+  test "AddRestriction sets restriction_type + severity" do
+    tests "AddRestriction", on: "DietaryProfile"
+    setup  "CreateProfile", customer_name: "sample", calorie_target: 1
+    input  dietary_profile: 1, restriction_type: "sample", severity: "sample"
+    expect restrictions_size: 1
+  end
+
+  test "SetGoal sets nutrient_name + target_amount + unit" do
+    tests "SetGoal", on: "DietaryProfile"
+    setup  "CreateProfile", customer_name: "sample", calorie_target: 1
+    input  dietary_profile: 1, nutrient_name: "sample", target_amount: 1.0, unit: "sample"
+    expect goals_size: 1
+  end
+
+
+  # ── MealPlan aggregate ──────────────────────────────────────────
+
+  test "GeneratePlan sets week_start" do
+    tests "GeneratePlan", on: "MealPlan"
+    setup  "CreateProfile", customer_name: "sample", calorie_target: 1
+    input  dietary_profile: 1, week_start: "sample"
+    expect ok: "true"
+  end
+
+  test "AddMeal sets day + meal_type + recipe_name + calories" do
+    tests "AddMeal", on: "MealPlan"
+    setup  "AddMeal", day: "sample", meal_type: "sample", recipe_name: "sample", calories: 1
+    input  meal_plan: 1, day: "sample", meal_type: "sample", recipe_name: "sample", calories: 1
+    expect meals_size: 1
+  end
+
+  test "ApprovePlan runs" do
+    tests "ApprovePlan", on: "MealPlan"
+    setup  "AddMeal", day: "sample", meal_type: "sample", recipe_name: "sample", calories: 1
+    input  meal_plan: 1
+    expect ok: "true"
+  end
+
+
+  # ── ShoppingList aggregate ──────────────────────────────────────────
+
+  test "GenerateList runs" do
+    tests "GenerateList", on: "ShoppingList"
+    setup  "AddMeal", day: "sample", meal_type: "sample", recipe_name: "sample", calories: 1
+    input  meal_plan: 1
+    expect ok: "true"
+  end
+
+  test "AddItem sets product_name + quantity + aisle" do
+    tests "AddItem", on: "ShoppingList"
+    setup  "AddItem", product_name: "sample", quantity: 1, aisle: "sample"
+    input  shopping_list: 1, product_name: "sample", quantity: 1, aisle: "sample"
+    expect items_size: 1
+  end
+
+  test "Checkout runs" do
+    tests "Checkout", on: "ShoppingList"
+    setup  "AddItem", product_name: "sample", quantity: 1, aisle: "sample"
+    input  shopping_list: 1
+    expect ok: "true"
+  end
+
+end

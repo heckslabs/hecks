@@ -1,0 +1,67 @@
+Hecks.behaviors "TherapyMusic" do
+  vision "Behavioral tests for the TherapyMusic domain — exercises every command and query in memory"
+
+  # ── RehabExercise aggregate ──────────────────────────────────────────
+
+  test "PrescribeExercise sets exercise_id + patient_name + exercise_name + target_bpm + duration_seconds" do
+    tests "PrescribeExercise", on: "RehabExercise"
+    input  exercise_id: "sample", patient_name: "sample", exercise_name: "sample", target_bpm: 1, duration_seconds: 1
+    expect exercise_id: "sample", patient_name: "sample", exercise_name: "sample", target_bpm: 1, duration_seconds: 1, status: "prescribed"
+  end
+
+  test "CompleteExercise runs" do
+    tests "CompleteExercise", on: "RehabExercise"
+    setup  "PrescribeExercise", exercise_id: "sample", patient_name: "sample", exercise_name: "sample", target_bpm: 1, duration_seconds: 1
+    input  rehab_exercise: 1
+    expect status: "completed"
+  end
+
+
+  # ── Playlist aggregate ──────────────────────────────────────────
+
+  test "CuratePlaylist sets playlist_id + name + target_bpm + genre" do
+    tests "CuratePlaylist", on: "Playlist"
+    input  playlist_id: "sample", name: "sample", target_bpm: 1, genre: "sample"
+    expect playlist_id: "sample", name: "sample", target_bpm: 1, genre: "sample", status: "active"
+  end
+
+  test "AddTrack sets title + artist + bpm" do
+    tests "AddTrack", on: "Playlist"
+    setup  "AddTrack", title: "sample", artist: "sample", bpm: 1
+    input  playlist: 1, title: "sample", artist: "sample", bpm: 1
+    expect ok: "true"
+  end
+
+
+  # ── TempoMatch aggregate ──────────────────────────────────────────
+
+  test "MatchTempo sets match_id + exercise_id + playlist_id + bpm_deviation" do
+    tests "MatchTempo", on: "TempoMatch"
+    input  match_id: "sample", exercise_id: "sample", playlist_id: "sample", bpm_deviation: 1.0
+    expect match_id: "sample", exercise_id: "sample", playlist_id: "sample", bpm_deviation: 1.0, status: "matched"
+  end
+
+  test "RateMatch sets rating" do
+    tests "RateMatch", on: "TempoMatch"
+    setup  "MatchTempo", match_id: "sample", exercise_id: "sample", playlist_id: "sample", bpm_deviation: 1.0
+    input  tempo_match: 1, rating: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── SessionLog aggregate ──────────────────────────────────────────
+
+  test "LogSession sets log_id + patient_name + exercise_id + playlist_id + adherence_pct" do
+    tests "LogSession", on: "SessionLog"
+    input  log_id: "sample", patient_name: "sample", exercise_id: "sample", playlist_id: "sample", adherence_pct: 1.0
+    expect log_id: "sample", patient_name: "sample", exercise_id: "sample", playlist_id: "sample", adherence_pct: 1.0
+  end
+
+  test "RecordMood sets mood_after" do
+    tests "RecordMood", on: "SessionLog"
+    setup  "LogSession", log_id: "sample", patient_name: "sample", exercise_id: "sample", playlist_id: "sample", adherence_pct: 1.0
+    input  session_log: 1, mood_after: "sample"
+    expect mood_after: "sample"
+  end
+
+end

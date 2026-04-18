@@ -1,0 +1,94 @@
+Hecks.behaviors "FashionDesign" do
+  vision "Behavioral tests for the FashionDesign domain — exercises every command and query in memory"
+
+  # ── Collection aggregate ──────────────────────────────────────────
+
+  test "LaunchCollection sets name + season + theme" do
+    tests "LaunchCollection", on: "Collection"
+    input  name: "sample", season: "sample", theme: "sample"
+    expect ok: "true"
+  end
+
+  test "FinalizeCollection sets piece_count" do
+    tests "FinalizeCollection", on: "Collection"
+    setup  "LaunchCollection", name: "sample", season: "sample", theme: "sample"
+    input  collection: 1, piece_count: 1
+    expect status: "finalized", piece_count: 1
+  end
+
+  test "ShowCollection runs" do
+    tests "ShowCollection", on: "Collection"
+    setup  "LaunchCollection", name: "sample", season: "sample", theme: "sample"
+    input  collection: 1
+    expect status: "shown"
+  end
+
+
+  # ── Garment aggregate ──────────────────────────────────────────
+
+  test "DraftGarment sets name + garment_type + fabric" do
+    tests "DraftGarment", on: "Garment"
+    setup  "LaunchCollection", name: "sample", season: "sample", theme: "sample"
+    input  collection: 1, name: "sample", garment_type: "sample", fabric: "sample"
+    expect ok: "true"
+  end
+
+  test "SewMuslin runs" do
+    tests "SewMuslin", on: "Garment"
+    input  garment: 1
+    expect status: "muslin"
+  end
+
+  test "ProduceGarment runs" do
+    tests "ProduceGarment", on: "Garment"
+    input  garment: 1
+    expect status: "produced"
+  end
+
+
+  # ── Pattern aggregate ──────────────────────────────────────────
+
+  test "DraftPattern sets name + piece_count" do
+    tests "DraftPattern", on: "Pattern"
+    input  garment: 1, name: "sample", piece_count: 1
+    expect ok: "true"
+  end
+
+  test "GradePattern runs" do
+    tests "GradePattern", on: "Pattern"
+    input  pattern: 1
+    expect status: "graded"
+  end
+
+
+  # ── Fitting aggregate ──────────────────────────────────────────
+
+  test "ScheduleFitting sets model_name + date" do
+    tests "ScheduleFitting", on: "Fitting"
+    input  garment: 1, model_name: "sample", date: "sample"
+    expect ok: "true"
+  end
+
+  test "RecordAdjustments sets notes" do
+    tests "RecordAdjustments", on: "Fitting"
+    input  fitting: 1, notes: "sample"
+    expect status: "adjusted", notes: "sample"
+  end
+
+
+  # ── RunwayShow aggregate ──────────────────────────────────────────
+
+  test "PlanShow sets venue + date" do
+    tests "PlanShow", on: "RunwayShow"
+    setup  "LaunchCollection", name: "sample", season: "sample", theme: "sample"
+    input  collection: 1, venue: "sample", date: "sample"
+    expect ok: "true"
+  end
+
+  test "RehearsShow runs" do
+    tests "RehearsShow", on: "RunwayShow"
+    input  runway_show: 1
+    expect status: "rehearsed"
+  end
+
+end

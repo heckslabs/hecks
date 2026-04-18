@@ -1,0 +1,87 @@
+Hecks.behaviors "CloudTraining" do
+  vision "Behavioral tests for the CloudTraining domain — exercises every command and query in memory"
+
+  # ── TrainingJob aggregate ──────────────────────────────────────────
+
+  test "SubmitJob sets provider + gpu_type + base_model + iterations + learning_rate" do
+    tests "SubmitJob", on: "TrainingJob"
+    input  provider: "sample", gpu_type: "sample", base_model: "sample", iterations: 1, learning_rate: 1.0
+    expect ok: "true"
+  end
+
+  test "MonitorJob runs" do
+    tests "MonitorJob", on: "TrainingJob"
+    setup  "SubmitJob", provider: "sample", gpu_type: "sample", base_model: "sample", iterations: 1, learning_rate: 1.0
+    input  training_job: 1
+    expect ok: "true"
+  end
+
+  test "CompleteJob runs" do
+    tests "CompleteJob", on: "TrainingJob"
+    setup  "SubmitJob", provider: "sample", gpu_type: "sample", base_model: "sample", iterations: 1, learning_rate: 1.0
+    input  training_job: 1
+    expect ok: "true"
+  end
+
+  test "CancelJob runs" do
+    tests "CancelJob", on: "TrainingJob"
+    setup  "SubmitJob", provider: "sample", gpu_type: "sample", base_model: "sample", iterations: 1, learning_rate: 1.0
+    input  training_job: 1
+    expect ok: "true"
+  end
+
+
+  # ── DataUpload aggregate ──────────────────────────────────────────
+
+  test "StageData sets local_path" do
+    tests "StageData", on: "DataUpload"
+    input  local_path: "sample"
+    expect ok: "true"
+  end
+
+  test "UploadData sets remote_path" do
+    tests "UploadData", on: "DataUpload"
+    setup  "StageData", local_path: "sample"
+    input  data_upload: 1, remote_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── AdapterDownload aggregate ──────────────────────────────────────────
+
+  test "DownloadAdapter sets remote_path + local_path" do
+    tests "DownloadAdapter", on: "AdapterDownload"
+    input  remote_path: "sample", local_path: "sample"
+    expect ok: "true"
+  end
+
+  test "ConvertToOllama sets ollama_model_name" do
+    tests "ConvertToOllama", on: "AdapterDownload"
+    setup  "DownloadAdapter", remote_path: "sample", local_path: "sample"
+    input  adapter_download: 1, ollama_model_name: "sample"
+    expect ok: "true"
+  end
+
+  test "DeploySummer runs" do
+    tests "DeploySummer", on: "AdapterDownload"
+    setup  "DownloadAdapter", remote_path: "sample", local_path: "sample"
+    input  adapter_download: 1
+    expect ok: "true"
+  end
+
+
+  # ── CostTracker aggregate ──────────────────────────────────────────
+
+  test "RecordCost runs" do
+    tests "RecordCost", on: "CostTracker"
+    setup  "SubmitJob", provider: "sample", gpu_type: "sample", base_model: "sample", iterations: 1, learning_rate: 1.0
+    input  training_job: 1
+    expect ok: "true"
+  end
+
+  test "CheckBudget runs" do
+    tests "CheckBudget", on: "CostTracker"
+    expect ok: "true"
+  end
+
+end

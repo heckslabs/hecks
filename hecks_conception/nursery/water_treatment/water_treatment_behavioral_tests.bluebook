@@ -1,0 +1,132 @@
+Hecks.behaviors "WaterTreatment" do
+  vision "Behavioral tests for the WaterTreatment domain — exercises every command and query in memory"
+
+  # ── Plant aggregate ──────────────────────────────────────────
+
+  test "ActivatePlant sets plant_id + name + capacity_mgd" do
+    tests "ActivatePlant", on: "Plant"
+    input  plant_id: "sample", name: "sample", capacity_mgd: 1.0
+    expect status: "operational", current_flow_mgd: 0.0
+  end
+
+  test "AdjustFlow sets target_flow_mgd" do
+    tests "AdjustFlow", on: "Plant"
+    setup  "ActivatePlant", plant_id: "sample", name: "sample", capacity_mgd: 1.0
+    input  plant: 1, target_flow_mgd: 1.0
+    expect ok: "true"
+  end
+
+  test "ShutdownPlant sets reason" do
+    tests "ShutdownPlant", on: "Plant"
+    setup  "ActivatePlant", plant_id: "sample", name: "sample", capacity_mgd: 1.0
+    input  plant: 1, reason: "sample"
+    expect status: "offline"
+  end
+
+  test "RestartPlant runs" do
+    tests "RestartPlant", on: "Plant"
+    setup  "ActivatePlant", plant_id: "sample", name: "sample", capacity_mgd: 1.0
+    input  plant: 1
+    expect status: "operational"
+  end
+
+
+  # ── TreatmentProcess aggregate ──────────────────────────────────────────
+
+  test "ConfigureProcess sets stage_name + technology" do
+    tests "ConfigureProcess", on: "TreatmentProcess"
+    setup  "ActivatePlant", plant_id: "sample", name: "sample", capacity_mgd: 1.0
+    input  plant: 1, stage_name: "sample", technology: "sample"
+    expect status: "configured"
+  end
+
+  test "ActivateProcess runs" do
+    tests "ActivateProcess", on: "TreatmentProcess"
+    input  treatment_process: 1
+    expect status: "active"
+  end
+
+  test "MonitorProcess sets efficiency_percent" do
+    tests "MonitorProcess", on: "TreatmentProcess"
+    input  treatment_process: 1, efficiency_percent: 1.0
+    expect ok: "true"
+  end
+
+  test "BypassProcess sets reason" do
+    tests "BypassProcess", on: "TreatmentProcess"
+    input  treatment_process: 1, reason: "sample"
+    expect status: "bypassed"
+  end
+
+  test "RestoreProcess runs" do
+    tests "RestoreProcess", on: "TreatmentProcess"
+    input  treatment_process: 1
+    expect status: "active"
+  end
+
+
+  # ── WaterSample aggregate ──────────────────────────────────────────
+
+  test "CollectSample sets sample_point" do
+    tests "CollectSample", on: "WaterSample"
+    setup  "ActivatePlant", plant_id: "sample", name: "sample", capacity_mgd: 1.0
+    input  plant: 1, sample_point: "sample"
+    expect status: "collected"
+  end
+
+  test "AnalyzeSample runs" do
+    tests "AnalyzeSample", on: "WaterSample"
+    input  water_sample: 1
+    expect status: "analyzed"
+  end
+
+  test "ApproveSample runs" do
+    tests "ApproveSample", on: "WaterSample"
+    input  water_sample: 1
+    expect status: "approved"
+  end
+
+  test "RejectSample runs" do
+    tests "RejectSample", on: "WaterSample"
+    input  water_sample: 1
+    expect status: "rejected"
+  end
+
+
+  # ── ChemicalFeed aggregate ──────────────────────────────────────────
+
+  test "StartDosing sets chemical_name + dose_rate_ppm + inventory_gallons" do
+    tests "StartDosing", on: "ChemicalFeed"
+    input  treatment_process: 1, chemical_name: "sample", dose_rate_ppm: 1.0, inventory_gallons: 1.0
+    expect status: "dosing"
+  end
+
+  test "AdjustDose sets new_dose_rate_ppm" do
+    tests "AdjustDose", on: "ChemicalFeed"
+    input  chemical_feed: 1, new_dose_rate_ppm: 1.0
+    expect ok: "true"
+  end
+
+  test "StopDosing runs" do
+    tests "StopDosing", on: "ChemicalFeed"
+    input  chemical_feed: 1
+    expect status: "stopped"
+  end
+
+
+  # ── ComplianceReport aggregate ──────────────────────────────────────────
+
+  test "FileReport sets reporting_period + regulatory_body" do
+    tests "FileReport", on: "ComplianceReport"
+    setup  "ActivatePlant", plant_id: "sample", name: "sample", capacity_mgd: 1.0
+    input  plant: 1, reporting_period: "sample", regulatory_body: "sample"
+    expect status: "submitted"
+  end
+
+  test "FlagViolation sets parameter + measured_value" do
+    tests "FlagViolation", on: "ComplianceReport"
+    input  compliance_report: 1, parameter: "sample", measured_value: 1.0
+    expect ok: "true"
+  end
+
+end

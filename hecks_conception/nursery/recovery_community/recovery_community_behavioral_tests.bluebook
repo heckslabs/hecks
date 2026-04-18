@@ -1,0 +1,81 @@
+Hecks.behaviors "RecoveryCommunity" do
+  vision "Behavioral tests for the RecoveryCommunity domain — exercises every command and query in memory"
+
+  # ── RecoveryJourney aggregate ──────────────────────────────────────────
+
+  test "StartJourney sets member_id + name + program_type" do
+    tests "StartJourney", on: "RecoveryJourney"
+    input  member_id: "sample", name: "sample", program_type: "sample"
+    expect member_id: "sample", name: "sample", program_type: "sample", days_sober: 0, status: "active"
+  end
+
+  test "LogDay runs" do
+    tests "LogDay", on: "RecoveryJourney"
+    setup  "StartJourney", member_id: "sample", name: "sample", program_type: "sample"
+    input  recovery_journey: 1
+    expect ok: "true"
+  end
+
+  test "AwardMilestone runs" do
+    tests "AwardMilestone", on: "RecoveryJourney"
+    setup  "StartJourney", member_id: "sample", name: "sample", program_type: "sample"
+    input  recovery_journey: 1
+    expect ok: "true"
+  end
+
+
+  # ── PeerGroup aggregate ──────────────────────────────────────────
+
+  test "CreateGroup sets group_id + group_name + facilitator + max_members + meeting_schedule" do
+    tests "CreateGroup", on: "PeerGroup"
+    input  group_id: "sample", group_name: "sample", facilitator: "sample", max_members: 1, meeting_schedule: "sample"
+    expect group_id: "sample", group_name: "sample", facilitator: "sample", max_members: 1, meeting_schedule: "sample", status: "active"
+  end
+
+  test "JoinGroup runs" do
+    tests "JoinGroup", on: "PeerGroup"
+    setup  "CreateGroup", group_id: "sample", group_name: "sample", facilitator: "sample", max_members: 1, meeting_schedule: "sample"
+    input  peer_group: 1
+    expect ok: "true"
+  end
+
+
+  # ── CommunityPost aggregate ──────────────────────────────────────────
+
+  test "CreatePost sets post_id + author_id + content + topic" do
+    tests "CreatePost", on: "CommunityPost"
+    input  post_id: "sample", author_id: "sample", content: "sample", topic: "sample"
+    expect post_id: "sample", author_id: "sample", content: "sample", topic: "sample", status: "pending_review"
+  end
+
+  test "ApprovePost runs" do
+    tests "ApprovePost", on: "CommunityPost"
+    setup  "CreatePost", post_id: "sample", author_id: "sample", content: "sample", topic: "sample"
+    input  community_post: 1
+    expect status: "published"
+  end
+
+  test "RemovePost runs" do
+    tests "RemovePost", on: "CommunityPost"
+    setup  "CreatePost", post_id: "sample", author_id: "sample", content: "sample", topic: "sample"
+    input  community_post: 1
+    expect status: "removed"
+  end
+
+
+  # ── SafetyFlag aggregate ──────────────────────────────────────────
+
+  test "RaiseFlag sets flag_id + post_id + reason + severity" do
+    tests "RaiseFlag", on: "SafetyFlag"
+    input  flag_id: "sample", post_id: "sample", reason: "sample", severity: "sample"
+    expect flag_id: "sample", post_id: "sample", reason: "sample", severity: "sample", status: "open"
+  end
+
+  test "ReviewFlag runs" do
+    tests "ReviewFlag", on: "SafetyFlag"
+    setup  "RaiseFlag", flag_id: "sample", post_id: "sample", reason: "sample", severity: "sample"
+    input  safety_flag: 1
+    expect status: "reviewed"
+  end
+
+end

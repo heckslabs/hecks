@@ -1,0 +1,141 @@
+Hecks.behaviors "SecondChanceAcademy" do
+  vision "Behavioral tests for the SecondChanceAcademy domain — exercises every command and query in memory"
+
+  # ── Learner aggregate ──────────────────────────────────────────
+
+  test "EnrollLearner sets name + facility + sentence_end_date" do
+    tests "EnrollLearner", on: "Learner"
+    input  name: "sample", facility: "sample", sentence_end_date: "sample"
+    expect name: "sample", facility: "sample", sentence_end_date: "sample", total_credits: 0, status: "enrolled"
+  end
+
+  test "UpdateSkills runs" do
+    tests "UpdateSkills", on: "Learner"
+    setup  "EnrollLearner", name: "sample", facility: "sample", sentence_end_date: "sample"
+    input  learner: 1
+    expect ok: "true"
+  end
+
+  test "GraduateAcademy runs" do
+    tests "GraduateAcademy", on: "Learner"
+    setup  "EnrollLearner", name: "sample", facility: "sample", sentence_end_date: "sample"
+    input  learner: 1
+    expect status: "graduated"
+  end
+
+
+  # ── Course aggregate ──────────────────────────────────────────
+
+  test "CreateCourse sets title + subject + difficulty + credit_value" do
+    tests "CreateCourse", on: "Course"
+    input  title: "sample", subject: "sample", difficulty: "sample", credit_value: 1
+    expect title: "sample", subject: "sample", difficulty: "sample", credit_value: 1, status: "active"
+  end
+
+  test "CompleteCourse runs" do
+    tests "CompleteCourse", on: "Course"
+    setup  "CreateCourse", title: "sample", subject: "sample", difficulty: "sample", credit_value: 1
+    setup  "EnrollLearner", name: "sample", facility: "sample", sentence_end_date: "sample"
+    input  course: 1, learner: 1
+    expect ok: "true"
+  end
+
+  test "RetireCourse runs" do
+    tests "RetireCourse", on: "Course"
+    setup  "CreateCourse", title: "sample", subject: "sample", difficulty: "sample", credit_value: 1
+    input  course: 1
+    expect status: "retired"
+  end
+
+
+  # ── Quest aggregate ──────────────────────────────────────────
+
+  test "CreateQuest sets title + description + xp_reward + difficulty" do
+    tests "CreateQuest", on: "Quest"
+    setup  "CreateCourse", title: "sample", subject: "sample", difficulty: "sample", credit_value: 1
+    input  course: 1, title: "sample", description: "sample", xp_reward: 1, difficulty: "sample"
+    expect title: "sample", description: "sample", xp_reward: 1, difficulty: "sample", related_course: :related_course, status: "available"
+  end
+
+  test "AcceptQuest runs" do
+    tests "AcceptQuest", on: "Quest"
+    setup  "CreateQuest", title: "sample", description: "sample", xp_reward: 1, difficulty: "sample"
+    setup  "EnrollLearner", name: "sample", facility: "sample", sentence_end_date: "sample"
+    input  quest: 1, learner: 1
+    expect status: "in_progress"
+  end
+
+  test "CompleteQuest runs" do
+    tests "CompleteQuest", on: "Quest"
+    setup  "CreateQuest", title: "sample", description: "sample", xp_reward: 1, difficulty: "sample"
+    input  quest: 1
+    expect status: "completed"
+  end
+
+
+  # ── Badge aggregate ──────────────────────────────────────────
+
+  test "IssueBadge sets name + description + issuer" do
+    tests "IssueBadge", on: "Badge"
+    setup  "EnrollLearner", name: "sample", facility: "sample", sentence_end_date: "sample"
+    input  learner: 1, name: "sample", description: "sample", issuer: "sample"
+    expect name: "sample", description: "sample", issuer: "sample", holder: :holder, status: "issued"
+  end
+
+  test "VerifyBadge runs" do
+    tests "VerifyBadge", on: "Badge"
+    input  badge: 1
+    expect status: "verified"
+  end
+
+  test "RevokeBadge runs" do
+    tests "RevokeBadge", on: "Badge"
+    input  badge: 1
+    expect status: "revoked"
+  end
+
+
+  # ── ParoleCredit aggregate ──────────────────────────────────────────
+
+  test "AwardParoleCredit sets credits_awarded" do
+    tests "AwardParoleCredit", on: "ParoleCredit"
+    setup  "EnrollLearner", name: "sample", facility: "sample", sentence_end_date: "sample"
+    input  learner: 1, badge: 1, credits_awarded: 1
+    expect learner: :learner, badge: :badge, credits_awarded: 1, status: "pending_review"
+  end
+
+  test "ApproveCredit sets approved_by" do
+    tests "ApproveCredit", on: "ParoleCredit"
+    input  parole_credit: 1, approved_by: "sample"
+    expect approved_by: "sample", status: "approved"
+  end
+
+  test "DenyCredit runs" do
+    tests "DenyCredit", on: "ParoleCredit"
+    input  parole_credit: 1
+    expect status: "denied"
+  end
+
+
+  # ── EmployerMatch aggregate ──────────────────────────────────────────
+
+  test "MatchEmployer sets employer_name + position" do
+    tests "MatchEmployer", on: "EmployerMatch"
+    setup  "EnrollLearner", name: "sample", facility: "sample", sentence_end_date: "sample"
+    input  learner: 1, employer_name: "sample", position: "sample"
+    expect learner: :learner, employer_name: "sample", position: "sample", status: "matched"
+  end
+
+  test "ScheduleInterview runs" do
+    tests "ScheduleInterview", on: "EmployerMatch"
+    input  employer_match: 1
+    expect status: "interviewing"
+  end
+
+  test "ExtendOffer runs" do
+    tests "ExtendOffer", on: "EmployerMatch"
+    input  employer_match: 1
+    expect status: "offered"
+  end
+
+end

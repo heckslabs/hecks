@@ -1,0 +1,94 @@
+Hecks.behaviors "Acoustics" do
+  vision "Behavioral tests for the Acoustics domain — exercises every command and query in memory"
+
+  # ── Room aggregate ──────────────────────────────────────────
+
+  test "DefineRoom sets room_id + name + length_m + width_m + height_m" do
+    tests "DefineRoom", on: "Room"
+    input  room_id: "sample", name: "sample", length_m: 1.0, width_m: 1.0, height_m: 1.0
+    expect ok: "true"
+  end
+
+  test "CalculateReverberation runs" do
+    tests "CalculateReverberation", on: "Room"
+    setup  "DefineRoom", room_id: "sample", name: "sample", length_m: 1.0, width_m: 1.0, height_m: 1.0
+    input  room: 1
+    expect ok: "true"
+  end
+
+  test "ArchiveRoom runs" do
+    tests "ArchiveRoom", on: "Room"
+    setup  "DefineRoom", room_id: "sample", name: "sample", length_m: 1.0, width_m: 1.0, height_m: 1.0
+    input  room: 1
+    expect ok: "true"
+  end
+
+
+  # ── AcousticMeasurement aggregate ──────────────────────────────────────────
+
+  test "TakeMeasurement sets measurement_type + spl_db" do
+    tests "TakeMeasurement", on: "AcousticMeasurement"
+    setup  "DefineRoom", room_id: "sample", name: "sample", length_m: 1.0, width_m: 1.0, height_m: 1.0
+    input  room: 1, measurement_type: "sample", spl_db: 1.0
+    expect ok: "true"
+  end
+
+  test "AnalyzeSpectrum runs" do
+    tests "AnalyzeSpectrum", on: "AcousticMeasurement"
+    input  acoustic_measurement: 1
+    expect ok: "true"
+  end
+
+  test "CompareMeasurements runs" do
+    tests "CompareMeasurements", on: "AcousticMeasurement"
+    input  acoustic_measurement: 1
+    expect ok: "true"
+  end
+
+
+  # ── AcousticMaterial aggregate ──────────────────────────────────────────
+
+  test "CatalogMaterial sets name + material_type + nrc_rating" do
+    tests "CatalogMaterial", on: "AcousticMaterial"
+    input  name: "sample", material_type: "sample", nrc_rating: 1.0
+    expect ok: "true"
+  end
+
+  test "TestAbsorption runs" do
+    tests "TestAbsorption", on: "AcousticMaterial"
+    setup  "CatalogMaterial", name: "sample", material_type: "sample", nrc_rating: 1.0
+    input  acoustic_material: 1
+    expect ok: "true"
+  end
+
+  test "DeprecateMaterial runs" do
+    tests "DeprecateMaterial", on: "AcousticMaterial"
+    setup  "CatalogMaterial", name: "sample", material_type: "sample", nrc_rating: 1.0
+    input  acoustic_material: 1
+    expect ok: "true"
+  end
+
+
+  # ── TreatmentPlan aggregate ──────────────────────────────────────────
+
+  test "DesignTreatment sets plan_name + objective" do
+    tests "DesignTreatment", on: "TreatmentPlan"
+    setup  "DefineRoom", room_id: "sample", name: "sample", length_m: 1.0, width_m: 1.0, height_m: 1.0
+    input  room: 1, plan_name: "sample", objective: "sample"
+    expect ok: "true"
+  end
+
+  test "ApplyMaterial sets coverage_m2" do
+    tests "ApplyMaterial", on: "TreatmentPlan"
+    setup  "CatalogMaterial", name: "sample", material_type: "sample", nrc_rating: 1.0
+    input  treatment_plan: 1, acoustic_material: 1, coverage_m2: 1.0
+    expect ok: "true"
+  end
+
+  test "EvaluateTreatment runs" do
+    tests "EvaluateTreatment", on: "TreatmentPlan"
+    input  treatment_plan: 1
+    expect ok: "true"
+  end
+
+end

@@ -1,0 +1,74 @@
+Hecks.behaviors "BedAndBreakfast" do
+  vision "Behavioral tests for the BedAndBreakfast domain — exercises every command and query in memory"
+
+  # ── GuestRoom aggregate ──────────────────────────────────────────
+
+  test "PrepareRoom sets room_id + name + room_type + max_guests + nightly_rate" do
+    tests "PrepareRoom", on: "GuestRoom"
+    input  room_id: "sample", name: "sample", room_type: "sample", max_guests: 1, nightly_rate: 1.0
+    expect room_id: "sample", name: "sample", room_type: "sample", max_guests: 1, nightly_rate: 1.0, status: "available"
+  end
+
+  test "OccupyRoom runs" do
+    tests "OccupyRoom", on: "GuestRoom"
+    setup  "PrepareRoom", room_id: "sample", name: "sample", room_type: "sample", max_guests: 1, nightly_rate: 1.0
+    input  guest_room: 1
+    expect status: "occupied"
+  end
+
+  test "VacateRoom runs" do
+    tests "VacateRoom", on: "GuestRoom"
+    setup  "PrepareRoom", room_id: "sample", name: "sample", room_type: "sample", max_guests: 1, nightly_rate: 1.0
+    input  guest_room: 1
+    expect status: "needs_cleaning"
+  end
+
+
+  # ── GuestBooking aggregate ──────────────────────────────────────────
+
+  test "MakeBooking sets booking_id + guest_name + guest_email + room_id + check_in_date + check_out_date + guests + total_charge" do
+    tests "MakeBooking", on: "GuestBooking"
+    input  booking_id: "sample", guest_name: "sample", guest_email: "sample", room_id: "sample", check_in_date: "sample", check_out_date: "sample", guests: 1, total_charge: 1.0
+    expect booking_id: "sample", guest_name: "sample", guest_email: "sample", room_id: "sample", check_in_date: "sample", check_out_date: "sample", guests: 1, total_charge: 1.0, status: "confirmed"
+  end
+
+  test "CancelBooking runs" do
+    tests "CancelBooking", on: "GuestBooking"
+    setup  "MakeBooking", booking_id: "sample", guest_name: "sample", guest_email: "sample", room_id: "sample", check_in_date: "sample", check_out_date: "sample", guests: 1, total_charge: 1.0
+    input  guest_booking: 1
+    expect status: "canceled"
+  end
+
+
+  # ── BreakfastMenu aggregate ──────────────────────────────────────────
+
+  test "PlanBreakfast sets menu_id + date" do
+    tests "PlanBreakfast", on: "BreakfastMenu"
+    input  menu_id: "sample", date: "sample"
+    expect menu_id: "sample", date: "sample", status: "planned"
+  end
+
+  test "ServeBreakfast runs" do
+    tests "ServeBreakfast", on: "BreakfastMenu"
+    setup  "PlanBreakfast", menu_id: "sample", date: "sample"
+    input  breakfast_menu: 1
+    expect status: "served"
+  end
+
+
+  # ── GuestReview aggregate ──────────────────────────────────────────
+
+  test "SubmitReview sets review_id + guest_name + booking_id + rating + comment + review_date" do
+    tests "SubmitReview", on: "GuestReview"
+    input  review_id: "sample", guest_name: "sample", booking_id: "sample", rating: 1, comment: "sample", review_date: "sample"
+    expect review_id: "sample", guest_name: "sample", booking_id: "sample", rating: 1, comment: "sample", review_date: "sample"
+  end
+
+  test "RespondToReview runs" do
+    tests "RespondToReview", on: "GuestReview"
+    setup  "SubmitReview", review_id: "sample", guest_name: "sample", booking_id: "sample", rating: 1, comment: "sample", review_date: "sample"
+    input  guest_review: 1
+    expect ok: "true"
+  end
+
+end

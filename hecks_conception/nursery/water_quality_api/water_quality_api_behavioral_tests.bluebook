@@ -1,0 +1,89 @@
+Hecks.behaviors "WaterQualityAPI" do
+  vision "Behavioral tests for the WaterQualityAPI domain — exercises every command and query in memory"
+
+  # ── TreatmentPlant aggregate ──────────────────────────────────────────
+
+  test "RegisterPlant sets plant_name + capacity_gallons" do
+    tests "RegisterPlant", on: "TreatmentPlant"
+    input  plant_name: "sample", capacity_gallons: 1.0
+    expect plant_name: "sample", capacity_gallons: 1.0
+  end
+
+  test "AddStage sets stage_name + chemical + dosage_ppm" do
+    tests "AddStage", on: "TreatmentPlant"
+    setup  "RegisterPlant", plant_name: "sample", capacity_gallons: 1.0
+    input  treatment_plant: 1, stage_name: "sample", chemical: "sample", dosage_ppm: 1.0
+    expect stages_size: 1
+  end
+
+
+  # ── WaterSample aggregate ──────────────────────────────────────────
+
+  test "CollectSample sets sample_point + collected_at" do
+    tests "CollectSample", on: "WaterSample"
+    setup  "RegisterPlant", plant_name: "sample", capacity_gallons: 1.0
+    input  treatment_plant: 1, sample_point: "sample", collected_at: "sample"
+    expect ok: "true"
+  end
+
+  test "RecordResult sets parameter + value + unit" do
+    tests "RecordResult", on: "WaterSample"
+    input  water_sample: 1, parameter: "sample", value: 1.0, unit: "sample"
+    expect results_size: 1
+  end
+
+  test "CertifySample runs" do
+    tests "CertifySample", on: "WaterSample"
+    input  water_sample: 1
+    expect ok: "true"
+  end
+
+
+  # ── APIEndpoint aggregate ──────────────────────────────────────────
+
+  test "CreateEndpoint sets endpoint_path + description + rate_limit" do
+    tests "CreateEndpoint", on: "APIEndpoint"
+    input  endpoint_path: "sample", description: "sample", rate_limit: 1
+    expect endpoint_path: "sample", description: "sample", rate_limit: 1
+  end
+
+  test "RegisterConsumer sets consumer_name + api_key + tier" do
+    tests "RegisterConsumer", on: "APIEndpoint"
+    setup  "CreateEndpoint", endpoint_path: "sample", description: "sample", rate_limit: 1
+    input  a_p_i_endpoint: 1, consumer_name: "sample", api_key: "sample", tier: "sample"
+    expect consumers_size: 1
+  end
+
+  test "PublishEndpoint runs" do
+    tests "PublishEndpoint", on: "APIEndpoint"
+    setup  "CreateEndpoint", endpoint_path: "sample", description: "sample", rate_limit: 1
+    input  a_p_i_endpoint: 1
+    expect ok: "true"
+  end
+
+
+  # ── DataFeed aggregate ──────────────────────────────────────────
+
+  test "ConfigureFeed sets feed_name + frequency_seconds" do
+    tests "ConfigureFeed", on: "DataFeed"
+    setup  "RegisterPlant", plant_name: "sample", capacity_gallons: 1.0
+    setup  "CreateEndpoint", endpoint_path: "sample", description: "sample", rate_limit: 1
+    input  treatment_plant: 1, a_p_i_endpoint: 1, feed_name: "sample", frequency_seconds: 1
+    expect ok: "true"
+  end
+
+  test "AddTransform sets source_field + target_field + transform_type" do
+    tests "AddTransform", on: "DataFeed"
+    setup  "AddTransform", source_field: "sample", target_field: "sample", transform_type: "sample"
+    input  data_feed: 1, source_field: "sample", target_field: "sample", transform_type: "sample"
+    expect transformations_size: 1
+  end
+
+  test "ActivateFeed runs" do
+    tests "ActivateFeed", on: "DataFeed"
+    setup  "AddTransform", source_field: "sample", target_field: "sample", transform_type: "sample"
+    input  data_feed: 1
+    expect ok: "true"
+  end
+
+end

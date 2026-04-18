@@ -1,0 +1,103 @@
+Hecks.behaviors "MusicFestival" do
+  vision "Behavioral tests for the MusicFestival domain — exercises every command and query in memory"
+
+  # ── Stage aggregate ──────────────────────────────────────────
+
+  test "SetupStage sets stage_name + capacity + sound_system + location_on_grounds" do
+    tests "SetupStage", on: "Stage"
+    input  stage_name: "sample", capacity: 1, sound_system: "sample", location_on_grounds: "sample"
+    expect stage_name: "sample", capacity: 1, sound_system: "sample", location_on_grounds: "sample", status: "ready"
+  end
+
+  test "CloseStage runs" do
+    tests "CloseStage", on: "Stage"
+    setup  "SetupStage", stage_name: "sample", capacity: 1, sound_system: "sample", location_on_grounds: "sample"
+    input  stage: 1
+    expect status: "closed"
+  end
+
+
+  # ── ArtistBooking aggregate ──────────────────────────────────────────
+
+  test "BookArtist sets artist_name + genre + booking_fee + set_duration_minutes" do
+    tests "BookArtist", on: "ArtistBooking"
+    setup  "SetupStage", stage_name: "sample", capacity: 1, sound_system: "sample", location_on_grounds: "sample"
+    input  stage: 1, artist_name: "sample", genre: "sample", booking_fee: 1.0, set_duration_minutes: 1
+    expect artist_name: "sample", genre: "sample", booking_fee: 1.0, set_duration_minutes: 1, status: "confirmed"
+  end
+
+  test "CancelBooking runs" do
+    tests "CancelBooking", on: "ArtistBooking"
+    input  artist_booking: 1
+    expect status: "cancelled"
+  end
+
+  test "CompletePerformance runs" do
+    tests "CompletePerformance", on: "ArtistBooking"
+    input  artist_booking: 1
+    expect status: "performed"
+  end
+
+
+  # ── PerformanceSchedule aggregate ──────────────────────────────────────────
+
+  test "SchedulePerformance sets performance_date + start_time + end_time" do
+    tests "SchedulePerformance", on: "PerformanceSchedule"
+    setup  "SetupStage", stage_name: "sample", capacity: 1, sound_system: "sample", location_on_grounds: "sample"
+    input  artist_booking: 1, stage: 1, performance_date: "sample", start_time: "sample", end_time: "sample"
+    expect performance_date: "sample", start_time: "sample", end_time: "sample", status: "scheduled"
+  end
+
+  test "ReschedulePerformance sets new_start_time + new_end_time" do
+    tests "ReschedulePerformance", on: "PerformanceSchedule"
+    input  performance_schedule: 1, new_start_time: "sample", new_end_time: "sample"
+    expect start_time: "sample", end_time: "sample"
+  end
+
+
+  # ── TicketBatch aggregate ──────────────────────────────────────────
+
+  test "CreateTicketBatch sets tier_name + valid_date + price + total_quantity" do
+    tests "CreateTicketBatch", on: "TicketBatch"
+    input  tier_name: "sample", valid_date: "sample", price: 1.0, total_quantity: 1
+    expect tier_name: "sample", valid_date: "sample", price: 1.0, total_quantity: 1, sold_count: 0, status: "on_sale"
+  end
+
+  test "SellTickets sets quantity" do
+    tests "SellTickets", on: "TicketBatch"
+    setup  "CreateTicketBatch", tier_name: "sample", valid_date: "sample", price: 1.0, total_quantity: 1
+    input  ticket_batch: 1, quantity: 1
+    expect ok: "true"
+  end
+
+  test "CloseTicketSales runs" do
+    tests "CloseTicketSales", on: "TicketBatch"
+    setup  "CreateTicketBatch", tier_name: "sample", valid_date: "sample", price: 1.0, total_quantity: 1
+    input  ticket_batch: 1
+    expect status: "closed"
+  end
+
+
+  # ── FestivalVendor aggregate ──────────────────────────────────────────
+
+  test "RegisterVendor sets vendor_name + vendor_type + booth_location + booth_fee" do
+    tests "RegisterVendor", on: "FestivalVendor"
+    input  vendor_name: "sample", vendor_type: "sample", booth_location: "sample", booth_fee: 1.0
+    expect vendor_name: "sample", vendor_type: "sample", booth_location: "sample", booth_fee: 1.0, status: "registered"
+  end
+
+  test "ApproveVendor runs" do
+    tests "ApproveVendor", on: "FestivalVendor"
+    setup  "RegisterVendor", vendor_name: "sample", vendor_type: "sample", booth_location: "sample", booth_fee: 1.0
+    input  festival_vendor: 1
+    expect status: "approved"
+  end
+
+  test "EjectVendor sets reason" do
+    tests "EjectVendor", on: "FestivalVendor"
+    setup  "RegisterVendor", vendor_name: "sample", vendor_type: "sample", booth_location: "sample", booth_fee: 1.0
+    input  festival_vendor: 1, reason: "sample"
+    expect status: "ejected"
+  end
+
+end

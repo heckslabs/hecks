@@ -1,0 +1,67 @@
+Hecks.behaviors "DermatologyUX" do
+  vision "Behavioral tests for the DermatologyUX domain — exercises every command and query in memory"
+
+  # ── SkinCondition aggregate ──────────────────────────────────────────
+
+  test "DiagnoseCondition sets condition_id + patient_name + diagnosis + severity + body_area" do
+    tests "DiagnoseCondition", on: "SkinCondition"
+    input  condition_id: "sample", patient_name: "sample", diagnosis: "sample", severity: "sample", body_area: "sample"
+    expect condition_id: "sample", patient_name: "sample", diagnosis: "sample", severity: "sample", body_area: "sample", status: "diagnosed"
+  end
+
+  test "PrescribeTreatment runs" do
+    tests "PrescribeTreatment", on: "SkinCondition"
+    setup  "DiagnoseCondition", condition_id: "sample", patient_name: "sample", diagnosis: "sample", severity: "sample", body_area: "sample"
+    input  skin_condition: 1
+    expect status: "treating"
+  end
+
+
+  # ── PatientSurvey aggregate ──────────────────────────────────────────
+
+  test "SendSurvey sets survey_id + patient_name + condition_id" do
+    tests "SendSurvey", on: "PatientSurvey"
+    input  survey_id: "sample", patient_name: "sample", condition_id: "sample"
+    expect survey_id: "sample", patient_name: "sample", condition_id: "sample", status: "sent"
+  end
+
+  test "CollectResponse runs" do
+    tests "CollectResponse", on: "PatientSurvey"
+    setup  "SendSurvey", survey_id: "sample", patient_name: "sample", condition_id: "sample"
+    input  patient_survey: 1
+    expect status: "collected"
+  end
+
+
+  # ── TreatmentFeedback aggregate ──────────────────────────────────────────
+
+  test "AggregateFeedback sets feedback_id + condition_id + treatment_type + satisfaction_score + effectiveness_score" do
+    tests "AggregateFeedback", on: "TreatmentFeedback"
+    input  feedback_id: "sample", condition_id: "sample", treatment_type: "sample", satisfaction_score: 1.0, effectiveness_score: 1.0
+    expect feedback_id: "sample", condition_id: "sample", treatment_type: "sample", satisfaction_score: 1.0, effectiveness_score: 1.0
+  end
+
+  test "PublishInsight sets summary" do
+    tests "PublishInsight", on: "TreatmentFeedback"
+    setup  "AggregateFeedback", feedback_id: "sample", condition_id: "sample", treatment_type: "sample", satisfaction_score: 1.0, effectiveness_score: 1.0
+    input  treatment_feedback: 1, summary: "sample"
+    expect summary: "sample"
+  end
+
+
+  # ── UsabilityTest aggregate ──────────────────────────────────────────
+
+  test "RunUsabilityTest sets test_id + feature_name + participant_id" do
+    tests "RunUsabilityTest", on: "UsabilityTest"
+    input  test_id: "sample", feature_name: "sample", participant_id: "sample"
+    expect test_id: "sample", feature_name: "sample", participant_id: "sample", status: "running"
+  end
+
+  test "RecordResults sets task_time_seconds + error_count" do
+    tests "RecordResults", on: "UsabilityTest"
+    setup  "RunUsabilityTest", test_id: "sample", feature_name: "sample", participant_id: "sample"
+    input  usability_test: 1, task_time_seconds: 1.0, error_count: 1.0
+    expect task_time_seconds: 1.0, error_count: 1.0, status: "completed"
+  end
+
+end

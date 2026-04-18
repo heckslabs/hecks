@@ -1,0 +1,67 @@
+Hecks.behaviors "SafeHaven" do
+  vision "Behavioral tests for the SafeHaven domain — exercises every command and query in memory"
+
+  # ── SafetyPlan aggregate ──────────────────────────────────────────
+
+  test "CreateSafetyPlan sets plan_id + client_code + advocate_name" do
+    tests "CreateSafetyPlan", on: "SafetyPlan"
+    input  plan_id: "sample", client_code: "sample", advocate_name: "sample"
+    expect plan_id: "sample", client_code: "sample", advocate_name: "sample", status: "active"
+  end
+
+  test "ActivatePlan runs" do
+    tests "ActivatePlan", on: "SafetyPlan"
+    setup  "CreateSafetyPlan", plan_id: "sample", client_code: "sample", advocate_name: "sample"
+    input  safety_plan: 1
+    expect status: "activated"
+  end
+
+
+  # ── DigitalSecurity aggregate ──────────────────────────────────────────
+
+  test "AssessThreat sets profile_id + client_code + threat_level" do
+    tests "AssessThreat", on: "DigitalSecurity"
+    input  profile_id: "sample", client_code: "sample", threat_level: "sample"
+    expect profile_id: "sample", client_code: "sample", threat_level: "sample", status: "assessed"
+  end
+
+  test "LockAccounts runs" do
+    tests "LockAccounts", on: "DigitalSecurity"
+    setup  "AssessThreat", profile_id: "sample", client_code: "sample", threat_level: "sample"
+    input  digital_security: 1
+    expect status: "secured"
+  end
+
+
+  # ── LocationPrivacy aggregate ──────────────────────────────────────────
+
+  test "SetupPrivacy sets privacy_id + client_code + safe_address" do
+    tests "SetupPrivacy", on: "LocationPrivacy"
+    input  privacy_id: "sample", client_code: "sample", safe_address: "sample"
+    expect privacy_id: "sample", client_code: "sample", safe_address: "sample", status: "active"
+  end
+
+  test "ActivateVPN runs" do
+    tests "ActivateVPN", on: "LocationPrivacy"
+    setup  "SetupPrivacy", privacy_id: "sample", client_code: "sample", safe_address: "sample"
+    input  location_privacy: 1
+    expect vpn_status: "active"
+  end
+
+
+  # ── IncidentLog aggregate ──────────────────────────────────────────
+
+  test "LogIncident sets log_id + client_code + incident_type + description_text + date" do
+    tests "LogIncident", on: "IncidentLog"
+    input  log_id: "sample", client_code: "sample", incident_type: "sample", description_text: "sample", date: "sample"
+    expect log_id: "sample", client_code: "sample", incident_type: "sample", description_text: "sample", date: "sample"
+  end
+
+  test "EscalateIncident sets reported_to" do
+    tests "EscalateIncident", on: "IncidentLog"
+    setup  "LogIncident", log_id: "sample", client_code: "sample", incident_type: "sample", description_text: "sample", date: "sample"
+    input  incident_log: 1, reported_to: "sample"
+    expect reported_to: "sample"
+  end
+
+end

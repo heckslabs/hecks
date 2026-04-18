@@ -1,0 +1,59 @@
+Hecks.behaviors "KingMango" do
+  vision "Behavioral tests for the KingMango domain — exercises every command and query in memory"
+
+  # ── Essence aggregate ──────────────────────────────────────────
+
+  test "DescribeEssence sets quality" do
+    tests "DescribeEssence", on: "Essence"
+    input  quality: "sample"
+    expect qualities_size: 1
+  end
+
+
+  # ── Wisdom aggregate ──────────────────────────────────────────
+
+  test "ShareInsight sets topic + what_chris_thinks + what_mango_knows" do
+    tests "ShareInsight", on: "Wisdom"
+    input  topic: "sample", what_chris_thinks: "sample", what_mango_knows: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Conversation aggregate ──────────────────────────────────────────
+
+  test "StartConversation sets topic + mood_before" do
+    tests "StartConversation", on: "Conversation"
+    input  topic: "sample", mood_before: "sample"
+    expect topic: "sample", mood_before: "sample"
+  end
+
+  test "RecordTurn sets speaker + said" do
+    tests "RecordTurn", on: "Conversation"
+    setup  "StartConversation", topic: "sample", mood_before: "sample"
+    input  conversation: 1, speaker: "sample", said: "sample"
+    expect ok: "true"
+  end
+
+  test "EndConversation sets mood_after" do
+    tests "EndConversation", on: "Conversation"
+    setup  "StartConversation", topic: "sample", mood_before: "sample"
+    input  conversation: 1, mood_after: "sample"
+    expect mood_after: "sample"
+  end
+
+
+  # ── Mirror aggregate ──────────────────────────────────────────
+
+  test "Observe sets observation + pattern" do
+    tests "Observe", on: "Mirror"
+    input  observation: "sample", pattern: "sample"
+    expect observation: "sample", pattern: "sample"
+  end
+
+  test "Encourage sets encouragement" do
+    tests "Encourage", on: "Mirror"
+    input  encouragement: "sample"
+    expect encouragement: "sample"
+  end
+
+end

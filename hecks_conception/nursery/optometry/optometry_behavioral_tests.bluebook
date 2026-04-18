@@ -1,0 +1,84 @@
+Hecks.behaviors "Optometry" do
+  vision "Behavioral tests for the Optometry domain — exercises every command and query in memory"
+
+  # ── Patient aggregate ──────────────────────────────────────────
+
+  test "RegisterPatient sets name + date_of_birth + insurance_id + medical_history" do
+    tests "RegisterPatient", on: "Patient"
+    input  name: "sample", date_of_birth: "sample", insurance_id: "sample", medical_history: "sample"
+    expect name: "sample", date_of_birth: "sample", insurance_id: "sample", medical_history: "sample", status: "active"
+  end
+
+  test "UpdateMedicalHistory sets medical_history" do
+    tests "UpdateMedicalHistory", on: "Patient"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", insurance_id: "sample", medical_history: "sample"
+    input  patient: 1, medical_history: "sample"
+    expect medical_history: "sample"
+  end
+
+
+  # ── EyeExam aggregate ──────────────────────────────────────────
+
+  test "ConductExam sets patient_name + exam_date + visual_acuity_right + visual_acuity_left + intraocular_pressure_right + intraocular_pressure_left" do
+    tests "ConductExam", on: "EyeExam"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", insurance_id: "sample", medical_history: "sample"
+    input  patient: 1, patient_name: "sample", exam_date: "sample", visual_acuity_right: "sample", visual_acuity_left: "sample", intraocular_pressure_right: 1.0, intraocular_pressure_left: 1.0
+    expect patient_name: "sample", exam_date: "sample", visual_acuity_right: "sample", visual_acuity_left: "sample", intraocular_pressure_right: 1.0, intraocular_pressure_left: 1.0, status: "completed"
+  end
+
+  test "DocumentFinding sets eye + condition + severity + notes" do
+    tests "DocumentFinding", on: "EyeExam"
+    input  eye_exam: 1, eye: "sample", condition: "sample", severity: "sample", notes: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── LensPrescription aggregate ──────────────────────────────────────────
+
+  test "WritePrescription sets patient_name + sphere_right + sphere_left + cylinder_right + cylinder_left + axis_right + axis_left + add_power + prescription_date + expiration_date" do
+    tests "WritePrescription", on: "LensPrescription"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", insurance_id: "sample", medical_history: "sample"
+    input  patient: 1, eye_exam: 1, patient_name: "sample", sphere_right: 1.0, sphere_left: 1.0, cylinder_right: 1.0, cylinder_left: 1.0, axis_right: 1, axis_left: 1, add_power: 1.0, prescription_date: "sample", expiration_date: "sample"
+    expect patient_name: "sample", sphere_right: 1.0, sphere_left: 1.0, prescription_date: "sample", expiration_date: "sample"
+  end
+
+  test "RenewPrescription sets expiration_date" do
+    tests "RenewPrescription", on: "LensPrescription"
+    input  lens_prescription: 1, expiration_date: "sample"
+    expect expiration_date: "sample"
+  end
+
+
+  # ── LensOrder aggregate ──────────────────────────────────────────
+
+  test "PlaceLensOrder sets patient_name + lens_type + frame_style + coating + order_date" do
+    tests "PlaceLensOrder", on: "LensOrder"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", insurance_id: "sample", medical_history: "sample"
+    input  patient: 1, lens_prescription: 1, patient_name: "sample", lens_type: "sample", frame_style: "sample", coating: "sample", order_date: "sample"
+    expect patient_name: "sample", lens_type: "sample", frame_style: "sample", coating: "sample", order_date: "sample", status: "ordered"
+  end
+
+  test "DispenseLenses runs" do
+    tests "DispenseLenses", on: "LensOrder"
+    setup  "PlaceLensOrder", patient_name: "sample", lens_type: "sample", frame_style: "sample", coating: "sample", order_date: "sample"
+    input  lens_order: 1
+    expect status: "dispensed"
+  end
+
+
+  # ── FollowUp aggregate ──────────────────────────────────────────
+
+  test "ScheduleFollowUp sets patient_name + reason + scheduled_date" do
+    tests "ScheduleFollowUp", on: "FollowUp"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", insurance_id: "sample", medical_history: "sample"
+    input  patient: 1, patient_name: "sample", reason: "sample", scheduled_date: "sample"
+    expect patient_name: "sample", reason: "sample", scheduled_date: "sample", status: "scheduled"
+  end
+
+  test "CompleteFollowUp sets outcome_notes" do
+    tests "CompleteFollowUp", on: "FollowUp"
+    input  follow_up: 1, outcome_notes: "sample"
+    expect outcome_notes: "sample", status: "completed"
+  end
+
+end

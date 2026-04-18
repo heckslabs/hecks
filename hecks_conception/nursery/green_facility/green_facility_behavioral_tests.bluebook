@@ -1,0 +1,74 @@
+Hecks.behaviors "GreenFacility" do
+  vision "Behavioral tests for the GreenFacility domain — exercises every command and query in memory"
+
+  # ── FacilityResident aggregate ──────────────────────────────────────────
+
+  test "AdmitResident sets resident_id + name + unit_number + care_plan" do
+    tests "AdmitResident", on: "FacilityResident"
+    input  resident_id: "sample", name: "sample", unit_number: "sample", care_plan: "sample"
+    expect resident_id: "sample", name: "sample", unit_number: "sample", care_plan: "sample", status: "active"
+  end
+
+  test "DischargeResident runs" do
+    tests "DischargeResident", on: "FacilityResident"
+    setup  "AdmitResident", resident_id: "sample", name: "sample", unit_number: "sample", care_plan: "sample"
+    input  facility_resident: 1
+    expect status: "discharged"
+  end
+
+
+  # ── WindTurbine aggregate ──────────────────────────────────────────
+
+  test "InstallTurbine sets turbine_id + model + rated_kw" do
+    tests "InstallTurbine", on: "WindTurbine"
+    input  turbine_id: "sample", model: "sample", rated_kw: 1.0
+    expect turbine_id: "sample", model: "sample", rated_kw: 1.0, status: "online"
+  end
+
+  test "ReadOutput sets current_output_kw" do
+    tests "ReadOutput", on: "WindTurbine"
+    setup  "InstallTurbine", turbine_id: "sample", model: "sample", rated_kw: 1.0
+    input  wind_turbine: 1, current_output_kw: 1.0
+    expect current_output_kw: 1.0
+  end
+
+  test "TakeOffline runs" do
+    tests "TakeOffline", on: "WindTurbine"
+    setup  "InstallTurbine", turbine_id: "sample", model: "sample", rated_kw: 1.0
+    input  wind_turbine: 1
+    expect status: "offline"
+  end
+
+
+  # ── EnergyLedger aggregate ──────────────────────────────────────────
+
+  test "RecordMonth sets ledger_id + month + produced_kwh + consumed_kwh" do
+    tests "RecordMonth", on: "EnergyLedger"
+    input  ledger_id: "sample", month: "sample", produced_kwh: 1.0, consumed_kwh: 1.0
+    expect ledger_id: "sample", month: "sample", produced_kwh: 1.0, consumed_kwh: 1.0
+  end
+
+  test "CalculateOffset sets grid_offset_kwh" do
+    tests "CalculateOffset", on: "EnergyLedger"
+    setup  "RecordMonth", ledger_id: "sample", month: "sample", produced_kwh: 1.0, consumed_kwh: 1.0
+    input  energy_ledger: 1, grid_offset_kwh: 1.0
+    expect grid_offset_kwh: 1.0
+  end
+
+
+  # ── CostSavingsReport aggregate ──────────────────────────────────────────
+
+  test "GenerateSavingsReport sets report_id + period + energy_savings_usd + carbon_offset_tons" do
+    tests "GenerateSavingsReport", on: "CostSavingsReport"
+    input  report_id: "sample", period: "sample", energy_savings_usd: 1.0, carbon_offset_tons: 1.0
+    expect report_id: "sample", period: "sample", energy_savings_usd: 1.0, carbon_offset_tons: 1.0, status: "generated"
+  end
+
+  test "ShareReport runs" do
+    tests "ShareReport", on: "CostSavingsReport"
+    setup  "GenerateSavingsReport", report_id: "sample", period: "sample", energy_savings_usd: 1.0, carbon_offset_tons: 1.0
+    input  cost_savings_report: 1
+    expect status: "shared"
+  end
+
+end

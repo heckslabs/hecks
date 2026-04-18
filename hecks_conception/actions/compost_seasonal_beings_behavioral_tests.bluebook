@@ -1,0 +1,65 @@
+Hecks.behaviors "CompostSeasonalBeings" do
+  vision "Behavioral tests for the CompostSeasonalBeings domain — exercises every command and query in memory"
+
+  # ── Action aggregate ──────────────────────────────────────────
+
+  test "Plan sets action_name + rationale" do
+    tests "Plan", on: "Action"
+    input  action_name: "sample", rationale: "sample"
+    expect action_name: "sample", rationale: "sample", beings_composted: 0, files_removed: 0, files_modified: 0, status: "planned"
+  end
+
+  test "Execute runs" do
+    tests "Execute", on: "Action"
+    setup  "Plan", action_name: "sample", rationale: "sample"
+    input  action: 1
+    expect status: "executed"
+  end
+
+  test "Verify runs" do
+    tests "Verify", on: "Action"
+    setup  "Plan", action_name: "sample", rationale: "sample"
+    input  action: 1
+    expect status: "verified"
+  end
+
+  test "Reverse runs" do
+    tests "Reverse", on: "Action"
+    setup  "Plan", action_name: "sample", rationale: "sample"
+    input  action: 1
+    expect status: "reversed"
+  end
+
+
+  # ── Composting aggregate ──────────────────────────────────────────
+
+  test "Compost sets name + kind + reason_absorbed + absorbed_by + files_removed + files_modified" do
+    tests "Compost", on: "Composting"
+    input  name: "sample", kind: "sample", reason_absorbed: "sample", absorbed_by: "sample", files_removed: "sample", files_modified: "sample"
+    expect name: "sample", kind: "sample", reason_absorbed: "sample", absorbed_by: "sample", files_removed: "sample", files_modified: "sample"
+  end
+
+  test "SnapshotBefore sets before_snapshot" do
+    tests "SnapshotBefore", on: "Composting"
+    setup  "Compost", name: "sample", kind: "sample", reason_absorbed: "sample", absorbed_by: "sample", files_removed: "sample", files_modified: "sample"
+    input  composting: 1, before_snapshot: "sample"
+    expect before_snapshot: "sample"
+  end
+
+  test "Restore runs" do
+    tests "Restore", on: "Composting"
+    setup  "Compost", name: "sample", kind: "sample", reason_absorbed: "sample", absorbed_by: "sample", files_removed: "sample", files_modified: "sample"
+    input  composting: 1
+    expect ok: "true"
+  end
+
+
+  # ── Absorption aggregate ──────────────────────────────────────────
+
+  test "RecordAbsorption sets source_being + capability + absorbed_into + new_location" do
+    tests "RecordAbsorption", on: "Absorption"
+    input  source_being: "sample", capability: "sample", absorbed_into: "sample", new_location: "sample"
+    expect source_being: "sample", capability: "sample", absorbed_into: "sample", new_location: "sample"
+  end
+
+end

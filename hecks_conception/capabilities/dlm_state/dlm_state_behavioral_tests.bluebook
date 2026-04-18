@@ -1,0 +1,136 @@
+Hecks.behaviors "DLMState" do
+  vision "Behavioral tests for the DLMState domain — exercises every command and query in memory"
+
+  # ── SessionState aggregate ──────────────────────────────────────────
+
+  test "StartSession sets session_id + heartbeat_at_start" do
+    tests "StartSession", on: "SessionState"
+    input  session_id: "sample", heartbeat_at_start: 1
+    expect session_id: "sample", started_at: :now, heartbeat_at_start: 1, pulse_count: 0, domains_conceived: 0, domains_developed: 0, conversations_held: 0, speaker_switches: 0, dreams_had: 0, memories_consolidated: 0
+  end
+
+  test "EndSession sets heartbeat_at_end" do
+    tests "EndSession", on: "SessionState"
+    setup  "StartSession", session_id: "sample", heartbeat_at_start: 1
+    input  session_state: 1, heartbeat_at_end: 1
+    expect ended_at: :now, heartbeat_at_end: 1
+  end
+
+  test "SnapshotSession runs" do
+    tests "SnapshotSession", on: "SessionState"
+    setup  "StartSession", session_id: "sample", heartbeat_at_start: 1
+    input  session_state: 1
+    expect ok: "true"
+  end
+
+
+  # ── GrowthTracker aggregate ──────────────────────────────────────────
+
+  test "RecordGrowth sets domains_this_session + aggregates_this_session + commands_this_session + corpus_size_now" do
+    tests "RecordGrowth", on: "GrowthTracker"
+    input  domains_this_session: 1, aggregates_this_session: 1, commands_this_session: 1, corpus_size_now: 1
+    expect total_sessions: 1, corpus_size_now: 1
+  end
+
+  test "CalculateAcceleration runs" do
+    tests "CalculateAcceleration", on: "GrowthTracker"
+    setup  "RecordGrowth", domains_this_session: 1, aggregates_this_session: 1, commands_this_session: 1, corpus_size_now: 1
+    input  growth_tracker: 1
+    expect ok: "true"
+  end
+
+  test "CompareToBaseline runs" do
+    tests "CompareToBaseline", on: "GrowthTracker"
+    setup  "RecordGrowth", domains_this_session: 1, aggregates_this_session: 1, commands_this_session: 1, corpus_size_now: 1
+    input  growth_tracker: 1
+    expect ok: "true"
+  end
+
+
+  # ── HonestyTracker aggregate ──────────────────────────────────────────
+
+  test "RecordCorpusOperation runs" do
+    tests "RecordCorpusOperation", on: "HonestyTracker"
+    input  honesty_tracker: 1
+    expect total_operations: 1, corpus_backed: 1
+  end
+
+  test "RecordRefusal runs" do
+    tests "RecordRefusal", on: "HonestyTracker"
+    input  honesty_tracker: 1
+    expect total_operations: 1, refusals: 1
+  end
+
+  test "CalculateHonestyRate runs" do
+    tests "CalculateHonestyRate", on: "HonestyTracker"
+    input  honesty_tracker: 1
+    expect ok: "true"
+  end
+
+
+  # ── DreamLog aggregate ──────────────────────────────────────────
+
+  test "LogDream sets dream_id + session_id + images + strongest_synapse + proposed_domains" do
+    tests "LogDream", on: "DreamLog"
+    input  dream_id: "sample", session_id: "sample", images: "sample", strongest_synapse: "sample", proposed_domains: "sample"
+    expect dream_id: "sample", session_id: "sample", images: "sample", strongest_synapse: "sample", proposed_domains: "sample", dreamed_at: :now
+  end
+
+  test "ExtractProposals runs" do
+    tests "ExtractProposals", on: "DreamLog"
+    setup  "LogDream", dream_id: "sample", session_id: "sample", images: "sample", strongest_synapse: "sample", proposed_domains: "sample"
+    input  dream_log: 1
+    expect ok: "true"
+  end
+
+  test "ReviewDreamHistory runs" do
+    tests "ReviewDreamHistory", on: "DreamLog"
+    expect ok: "true"
+  end
+
+
+  # ── PerformanceMetric aggregate ──────────────────────────────────────────
+
+  test "RecordMetric sets metric_name + value + unit" do
+    tests "RecordMetric", on: "PerformanceMetric"
+    input  metric_name: "sample", value: 1.0, unit: "sample"
+    expect metric_name: "sample", value: 1.0, unit: "sample", measured_at: :now
+  end
+
+  test "CompareToTarget sets target_value" do
+    tests "CompareToTarget", on: "PerformanceMetric"
+    setup  "RecordMetric", metric_name: "sample", value: 1.0, unit: "sample"
+    input  performance_metric: 1, target_value: 1.0
+    expect ok: "true"
+  end
+
+  test "IdentifyRegression sets metric_name" do
+    tests "IdentifyRegression", on: "PerformanceMetric"
+    input  metric_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SynapseHistory aggregate ──────────────────────────────────────────
+
+  test "SnapshotSynapses sets total_formed + total_potentiated + total_pruned + strongest_topic + weakest_topic" do
+    tests "SnapshotSynapses", on: "SynapseHistory"
+    input  total_formed: 1, total_potentiated: 1, total_pruned: 1, strongest_topic: "sample", weakest_topic: "sample"
+    expect total_formed: 1, total_potentiated: 1, total_pruned: 1, strongest_topic: "sample", weakest_topic: "sample"
+  end
+
+  test "TrackPotentiation runs" do
+    tests "TrackPotentiation", on: "SynapseHistory"
+    setup  "SnapshotSynapses", total_formed: 1, total_potentiated: 1, total_pruned: 1, strongest_topic: "sample", weakest_topic: "sample"
+    input  synapse_history: 1
+    expect total_potentiated: 1
+  end
+
+  test "TrackPruning runs" do
+    tests "TrackPruning", on: "SynapseHistory"
+    setup  "SnapshotSynapses", total_formed: 1, total_potentiated: 1, total_pruned: 1, strongest_topic: "sample", weakest_topic: "sample"
+    input  synapse_history: 1
+    expect total_pruned: 1
+  end
+
+end

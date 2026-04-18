@@ -1,0 +1,88 @@
+Hecks.behaviors "RestaurantReservations" do
+  vision "Behavioral tests for the RestaurantReservations domain — exercises every command and query in memory"
+
+  # ── DiningTable aggregate ──────────────────────────────────────────
+
+  test "SetupTable sets table_number + seat_capacity + section" do
+    tests "SetupTable", on: "DiningTable"
+    input  table_number: "sample", seat_capacity: 1, section: "sample"
+    expect table_number: "sample", seat_capacity: 1, section: "sample", status: "available"
+  end
+
+  test "MarkOccupied runs" do
+    tests "MarkOccupied", on: "DiningTable"
+    setup  "SetupTable", table_number: "sample", seat_capacity: 1, section: "sample"
+    input  dining_table: 1
+    expect status: "occupied"
+  end
+
+  test "ClearTable runs" do
+    tests "ClearTable", on: "DiningTable"
+    setup  "SetupTable", table_number: "sample", seat_capacity: 1, section: "sample"
+    input  dining_table: 1
+    expect status: "available"
+  end
+
+
+  # ── Reservation aggregate ──────────────────────────────────────────
+
+  test "BookReservation sets guest_name + phone_number + reservation_date + time_slot + party_size + special_requests" do
+    tests "BookReservation", on: "Reservation"
+    input  guest_name: "sample", phone_number: "sample", reservation_date: "sample", time_slot: "sample", party_size: 1, special_requests: "sample"
+    expect guest_name: "sample", phone_number: "sample", reservation_date: "sample", time_slot: "sample", party_size: 1, status: "confirmed"
+  end
+
+  test "CancelReservation runs" do
+    tests "CancelReservation", on: "Reservation"
+    setup  "BookReservation", guest_name: "sample", phone_number: "sample", reservation_date: "sample", time_slot: "sample", party_size: 1, special_requests: "sample"
+    input  reservation: 1
+    expect status: "cancelled"
+  end
+
+  test "MarkNoShow runs" do
+    tests "MarkNoShow", on: "Reservation"
+    setup  "BookReservation", guest_name: "sample", phone_number: "sample", reservation_date: "sample", time_slot: "sample", party_size: 1, special_requests: "sample"
+    input  reservation: 1
+    expect status: "no_show"
+  end
+
+
+  # ── Waitlist aggregate ──────────────────────────────────────────
+
+  test "AddToWaitlist sets party_name + party_size + quoted_wait_time" do
+    tests "AddToWaitlist", on: "Waitlist"
+    input  party_name: "sample", party_size: 1, quoted_wait_time: "sample"
+    expect party_name: "sample", party_size: 1, quoted_wait_time: "sample", status: "waiting"
+  end
+
+  test "NotifyParty runs" do
+    tests "NotifyParty", on: "Waitlist"
+    setup  "AddToWaitlist", party_name: "sample", party_size: 1, quoted_wait_time: "sample"
+    input  waitlist: 1
+    expect status: "notified"
+  end
+
+  test "RemoveFromWaitlist runs" do
+    tests "RemoveFromWaitlist", on: "Waitlist"
+    setup  "AddToWaitlist", party_name: "sample", party_size: 1, quoted_wait_time: "sample"
+    input  waitlist: 1
+    expect status: "removed"
+  end
+
+
+  # ── Seating aggregate ──────────────────────────────────────────
+
+  test "SeatParty sets server_name + covers" do
+    tests "SeatParty", on: "Seating"
+    setup  "SetupTable", table_number: "sample", seat_capacity: 1, section: "sample"
+    input  dining_table: 1, server_name: "sample", covers: 1
+    expect server_name: "sample", covers: 1, status: "seated"
+  end
+
+  test "CloseSeating runs" do
+    tests "CloseSeating", on: "Seating"
+    input  seating: 1
+    expect status: "closed"
+  end
+
+end

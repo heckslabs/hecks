@@ -1,0 +1,176 @@
+Hecks.behaviors "TagManagement" do
+  vision "Behavioral tests for the TagManagement domain — exercises every command and query in memory"
+
+  # ── Container aggregate ──────────────────────────────────────────
+
+  test "CreateContainer sets name + domain + container_id" do
+    tests "CreateContainer", on: "Container"
+    input  name: "sample", domain: "sample", container_id: "sample"
+    expect name: "sample", domain: "sample", container_id: "sample", status: "active"
+  end
+
+  test "UpdateContainerName sets name" do
+    tests "UpdateContainerName", on: "Container"
+    setup  "CreateContainer", name: "sample", domain: "sample", container_id: "sample"
+    input  container: 1, name: "sample"
+    expect name: "sample"
+  end
+
+  test "ArchiveContainer runs" do
+    tests "ArchiveContainer", on: "Container"
+    setup  "CreateContainer", name: "sample", domain: "sample", container_id: "sample"
+    input  container: 1
+    expect status: "archived"
+  end
+
+
+  # ── Tag aggregate ──────────────────────────────────────────
+
+  test "CreateTag sets name + tag_type + container_id + template" do
+    tests "CreateTag", on: "Tag"
+    input  name: "sample", tag_type: "sample", container_id: "sample", template: "sample"
+    expect name: "sample", tag_type: "sample", container_id: "sample", template: "sample", status: "draft"
+  end
+
+  test "ConfigureTag sets key + value" do
+    tests "ConfigureTag", on: "Tag"
+    setup  "CreateTag", name: "sample", tag_type: "sample", container_id: "sample", template: "sample"
+    input  tag: 1, key: "sample", value: "sample"
+    expect ok: "true"
+  end
+
+  test "SetCustomHtml sets custom_html" do
+    tests "SetCustomHtml", on: "Tag"
+    setup  "CreateTag", name: "sample", tag_type: "sample", container_id: "sample", template: "sample"
+    input  tag: 1, custom_html: "sample"
+    expect custom_html: "sample"
+  end
+
+  test "AssignTrigger sets trigger_name" do
+    tests "AssignTrigger", on: "Tag"
+    setup  "CreateTag", name: "sample", tag_type: "sample", container_id: "sample", template: "sample"
+    input  tag: 1, trigger_name: "sample"
+    expect trigger_name: "sample"
+  end
+
+  test "SetFiringOrder sets firing_order" do
+    tests "SetFiringOrder", on: "Tag"
+    setup  "CreateTag", name: "sample", tag_type: "sample", container_id: "sample", template: "sample"
+    input  tag: 1, firing_order: 1
+    expect firing_order: 1
+  end
+
+  test "RequireConsent sets consent_required" do
+    tests "RequireConsent", on: "Tag"
+    setup  "CreateTag", name: "sample", tag_type: "sample", container_id: "sample", template: "sample"
+    input  tag: 1, consent_required: "sample"
+    expect consent_required: "sample"
+  end
+
+  test "PauseTag runs" do
+    tests "PauseTag", on: "Tag"
+    setup  "CreateTag", name: "sample", tag_type: "sample", container_id: "sample", template: "sample"
+    input  tag: 1
+    expect status: "paused"
+  end
+
+  test "ResumeTag runs" do
+    tests "ResumeTag", on: "Tag"
+    setup  "CreateTag", name: "sample", tag_type: "sample", container_id: "sample", template: "sample"
+    input  tag: 1
+    expect status: "draft"
+  end
+
+
+  # ── Trigger aggregate ──────────────────────────────────────────
+
+  test "CreateTrigger sets name + trigger_type + container_id + description" do
+    tests "CreateTrigger", on: "Trigger"
+    input  name: "sample", trigger_type: "sample", container_id: "sample", description: "sample"
+    expect name: "sample", trigger_type: "sample", container_id: "sample", description: "sample"
+  end
+
+  test "AddCondition sets variable_name + operator + value" do
+    tests "AddCondition", on: "Trigger"
+    setup  "CreateTrigger", name: "sample", trigger_type: "sample", container_id: "sample", description: "sample"
+    input  trigger: 1, variable_name: "sample", operator: "sample", value: "sample"
+    expect ok: "true"
+  end
+
+  test "RemoveCondition sets variable_name" do
+    tests "RemoveCondition", on: "Trigger"
+    setup  "CreateTrigger", name: "sample", trigger_type: "sample", container_id: "sample", description: "sample"
+    input  trigger: 1, variable_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Variable aggregate ──────────────────────────────────────────
+
+  test "CreateVariable sets name + variable_type + container_id + selector + default_value" do
+    tests "CreateVariable", on: "Variable"
+    input  name: "sample", variable_type: "sample", container_id: "sample", selector: "sample", default_value: "sample"
+    expect name: "sample", variable_type: "sample", container_id: "sample", selector: "sample", default_value: "sample"
+  end
+
+  test "UpdateSelector sets selector" do
+    tests "UpdateSelector", on: "Variable"
+    setup  "CreateVariable", name: "sample", variable_type: "sample", container_id: "sample", selector: "sample", default_value: "sample"
+    input  variable: 1, selector: "sample"
+    expect selector: "sample"
+  end
+
+  test "SetFormat sets format" do
+    tests "SetFormat", on: "Variable"
+    setup  "CreateVariable", name: "sample", variable_type: "sample", container_id: "sample", selector: "sample", default_value: "sample"
+    input  variable: 1, format: "sample"
+    expect format: "sample"
+  end
+
+
+  # ── Version aggregate ──────────────────────────────────────────
+
+  test "CreateVersion sets container_id + version_number + tag_count + trigger_count + variable_count + description + created_by" do
+    tests "CreateVersion", on: "Version"
+    input  container_id: "sample", version_number: 1, tag_count: 1, trigger_count: 1, variable_count: 1, description: "sample", created_by: "sample"
+    expect container_id: "sample", version_number: 1, tag_count: 1, trigger_count: 1, variable_count: 1, description: "sample", created_by: "sample", status: "draft"
+  end
+
+  test "SubmitVersion runs" do
+    tests "SubmitVersion", on: "Version"
+    setup  "CreateVersion", container_id: "sample", version_number: 1, tag_count: 1, trigger_count: 1, variable_count: 1, description: "sample", created_by: "sample"
+    input  version: 1
+    expect status: "submitted"
+  end
+
+  test "ApproveVersion runs" do
+    tests "ApproveVersion", on: "Version"
+    setup  "CreateVersion", container_id: "sample", version_number: 1, tag_count: 1, trigger_count: 1, variable_count: 1, description: "sample", created_by: "sample"
+    input  version: 1
+    expect status: "approved"
+  end
+
+  test "PublishVersion runs" do
+    tests "PublishVersion", on: "Version"
+    setup  "CreateVersion", container_id: "sample", version_number: 1, tag_count: 1, trigger_count: 1, variable_count: 1, description: "sample", created_by: "sample"
+    input  version: 1
+    expect status: "published"
+  end
+
+  test "RestoreVersion runs" do
+    tests "RestoreVersion", on: "Version"
+    setup  "CreateVersion", container_id: "sample", version_number: 1, tag_count: 1, trigger_count: 1, variable_count: 1, description: "sample", created_by: "sample"
+    input  version: 1
+    expect status: "published"
+  end
+
+
+  # ── AuditEntry aggregate ──────────────────────────────────────────
+
+  test "RecordChange sets container_id + actor + action + target_type + target_name + detail" do
+    tests "RecordChange", on: "AuditEntry"
+    input  container_id: "sample", actor: "sample", action: "sample", target_type: "sample", target_name: "sample", detail: "sample"
+    expect container_id: "sample", actor: "sample", action: "sample", target_type: "sample", target_name: "sample", detail: "sample"
+  end
+
+end

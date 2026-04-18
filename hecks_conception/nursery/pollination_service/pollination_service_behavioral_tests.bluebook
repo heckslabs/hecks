@@ -1,0 +1,95 @@
+Hecks.behaviors "PollinationService" do
+  vision "Behavioral tests for the PollinationService domain — exercises every command and query in memory"
+
+  # ── Hive aggregate ──────────────────────────────────────────
+
+  test "RegisterHive sets hive_id + population_estimate + queen_status + honey_stores_kg" do
+    tests "RegisterHive", on: "Hive"
+    input  hive_id: "sample", population_estimate: 1, queen_status: "sample", honey_stores_kg: 1.0
+    expect hive_id: "sample", population_estimate: 1, queen_status: "sample", honey_stores_kg: 1.0, health_rating: "good", status: "active"
+  end
+
+  test "InspectHive sets health_rating" do
+    tests "InspectHive", on: "Hive"
+    setup  "RegisterHive", hive_id: "sample", population_estimate: 1, queen_status: "sample", honey_stores_kg: 1.0
+    input  hive: 1, health_rating: "sample"
+    expect health_rating: "sample"
+  end
+
+  test "DeployForPollination runs" do
+    tests "DeployForPollination", on: "Hive"
+    setup  "RegisterHive", hive_id: "sample", population_estimate: 1, queen_status: "sample", honey_stores_kg: 1.0
+    input  hive: 1
+    expect status: "deployed"
+  end
+
+  test "ReturnFromField runs" do
+    tests "ReturnFromField", on: "Hive"
+    setup  "RegisterHive", hive_id: "sample", population_estimate: 1, queen_status: "sample", honey_stores_kg: 1.0
+    input  hive: 1
+    expect status: "active"
+  end
+
+
+  # ── CropField aggregate ──────────────────────────────────────────
+
+  test "RegisterField sets name + crop_type + area_hectares + bloom_start + bloom_end + hives_needed" do
+    tests "RegisterField", on: "CropField"
+    input  name: "sample", crop_type: "sample", area_hectares: 1.0, bloom_start: "sample", bloom_end: "sample", hives_needed: 1
+    expect name: "sample", crop_type: "sample", area_hectares: 1.0, bloom_start: "sample", bloom_end: "sample", hives_needed: 1, status: "registered"
+  end
+
+  test "RequestPollination runs" do
+    tests "RequestPollination", on: "CropField"
+    setup  "RegisterField", name: "sample", crop_type: "sample", area_hectares: 1.0, bloom_start: "sample", bloom_end: "sample", hives_needed: 1
+    input  crop_field: 1
+    expect status: "requested"
+  end
+
+  test "ConfirmPollination runs" do
+    tests "ConfirmPollination", on: "CropField"
+    setup  "RegisterField", name: "sample", crop_type: "sample", area_hectares: 1.0, bloom_start: "sample", bloom_end: "sample", hives_needed: 1
+    input  crop_field: 1
+    expect status: "pollinating"
+  end
+
+
+  # ── PollinationSchedule aggregate ──────────────────────────────────────────
+
+  test "CreateSchedule sets schedule_name + field_name + hive_id + start_date + end_date + hive_count" do
+    tests "CreateSchedule", on: "PollinationSchedule"
+    input  schedule_name: "sample", field_name: "sample", hive_id: "sample", start_date: "sample", end_date: "sample", hive_count: 1
+    expect schedule_name: "sample", field_name: "sample", hive_id: "sample", start_date: "sample", end_date: "sample", hive_count: 1, status: "planned"
+  end
+
+  test "ActivateSchedule runs" do
+    tests "ActivateSchedule", on: "PollinationSchedule"
+    setup  "CreateSchedule", schedule_name: "sample", field_name: "sample", hive_id: "sample", start_date: "sample", end_date: "sample", hive_count: 1
+    input  pollination_schedule: 1
+    expect status: "active"
+  end
+
+  test "CompleteSchedule runs" do
+    tests "CompleteSchedule", on: "PollinationSchedule"
+    setup  "CreateSchedule", schedule_name: "sample", field_name: "sample", hive_id: "sample", start_date: "sample", end_date: "sample", hive_count: 1
+    input  pollination_schedule: 1
+    expect status: "completed"
+  end
+
+
+  # ── YieldReport aggregate ──────────────────────────────────────────
+
+  test "RecordYield sets field_name + crop_type + yield_tons + yield_per_hectare" do
+    tests "RecordYield", on: "YieldReport"
+    input  field_name: "sample", crop_type: "sample", yield_tons: 1.0, yield_per_hectare: 1.0
+    expect field_name: "sample", crop_type: "sample", yield_tons: 1.0, yield_per_hectare: 1.0, status: "recorded"
+  end
+
+  test "AnalyzeEffectiveness sets pollination_effectiveness" do
+    tests "AnalyzeEffectiveness", on: "YieldReport"
+    setup  "RecordYield", field_name: "sample", crop_type: "sample", yield_tons: 1.0, yield_per_hectare: 1.0
+    input  yield_report: 1, pollination_effectiveness: 1.0
+    expect pollination_effectiveness: 1.0, status: "analyzed"
+  end
+
+end

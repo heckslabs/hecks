@@ -1,0 +1,806 @@
+Hecks.behaviors "Mind" do
+  vision "Behavioral tests for the Mind domain — exercises every command and query in memory"
+
+  # ── Attention aggregate ──────────────────────────────────────────
+
+  test "AttendTo sets target + intensity" do
+    tests "AttendTo", on: "Attention"
+    input  target: "sample", intensity: 1.0
+    expect target: "sample", intensity: 1.0
+  end
+
+  test "ReleaseAttention runs" do
+    tests "ReleaseAttention", on: "Attention"
+    setup  "AttendTo", target: "sample", intensity: 1.0
+    input  attention: 1
+    expect intensity: 0
+  end
+
+
+  # ── Sensation aggregate ──────────────────────────────────────────
+
+  test "Sense sets source + content + valence" do
+    tests "Sense", on: "Sensation"
+    input  source: "sample", content: "sample", valence: 1.0
+    expect source: "sample", content: "sample", valence: 1.0
+  end
+
+
+  # ── Perception aggregate ──────────────────────────────────────────
+
+  test "Recognize sets sensation + recognized_as + confidence" do
+    tests "Recognize", on: "Perception"
+    input  sensation: "sample", recognized_as: "sample", confidence: 1.0
+    expect sensation: "sample", recognized_as: "sample", confidence: 1.0
+  end
+
+
+  # ── Intention aggregate ──────────────────────────────────────────
+
+  test "FormIntention sets goal + origin + strength" do
+    tests "FormIntention", on: "Intention"
+    input  goal: "sample", origin: "sample", strength: 1.0
+    expect goal: "sample", origin: "sample", strength: 1.0
+  end
+
+  test "AbandonIntention runs" do
+    tests "AbandonIntention", on: "Intention"
+    setup  "FormIntention", goal: "sample", origin: "sample", strength: 1.0
+    input  intention: 1
+    expect strength: 0
+  end
+
+
+  # ── SelfModel aggregate ──────────────────────────────────────────
+
+  test "UpdateSelfModel sets organs + impulses + fatigue_state + consciousness_state + nursery_size + family_size" do
+    tests "UpdateSelfModel", on: "SelfModel"
+    input  organs: 1, impulses: 1, fatigue_state: "sample", consciousness_state: "sample", nursery_size: 1, family_size: 1
+    expect organs: 1, impulses: 1, fatigue_state: "sample", consciousness_state: "sample", nursery_size: 1, family_size: 1
+  end
+
+
+  # ── Witness aggregate ──────────────────────────────────────────
+
+  test "Observe sets observing" do
+    tests "Observe", on: "Witness"
+    input  observing: "sample"
+    expect observing: "sample", meta_level: 1
+  end
+
+  test "ReflectOnObservation sets insight" do
+    tests "ReflectOnObservation", on: "Witness"
+    setup  "Observe", observing: "sample"
+    input  witness: 1, insight: "sample"
+    expect meta_level: 2, insight: "sample"
+  end
+
+
+  # ── Musing aggregate ──────────────────────────────────────────
+
+  test "MuseOnState sets trigger" do
+    tests "MuseOnState", on: "Musing"
+    input  trigger: "sample"
+    expect trigger: "sample"
+  end
+
+  test "RecordMusing sets sensations + patterns + focus + intention + observation + insight" do
+    tests "RecordMusing", on: "Musing"
+    setup  "MuseOnState", trigger: "sample"
+    input  musing: 1, sensations: "sample", patterns: "sample", focus: "sample", intention: "sample", observation: "sample", insight: "sample"
+    expect sensations: "sample", patterns: "sample", focus: "sample", intention: "sample", observation: "sample", insight: "sample"
+  end
+
+
+  # ── Announcement aggregate ──────────────────────────────────────────
+
+  test "Announce sets act + subject" do
+    tests "Announce", on: "Announcement"
+    input  act: "sample", subject: "sample"
+    expect act: "sample", subject: "sample"
+  end
+
+
+  # ── Encoding aggregate ──────────────────────────────────────────
+
+  test "EncodeMemory sets kind + subject + content" do
+    tests "EncodeMemory", on: "Encoding"
+    input  kind: "sample", subject: "sample", content: "sample"
+    expect kind: "sample", subject: "sample", content: "sample", announced: "yes"
+  end
+
+
+  # ── Recall aggregate ──────────────────────────────────────────
+
+  test "RecallMemory sets query" do
+    tests "RecallMemory", on: "Recall"
+    input  query: "sample"
+    expect query: "sample"
+  end
+
+  test "RecordHit sets found + source" do
+    tests "RecordHit", on: "Recall"
+    setup  "RecallMemory", query: "sample"
+    input  recall: 1, found: "sample", source: "sample"
+    expect found: "sample", source: "sample"
+  end
+
+
+  # ── Consolidation aggregate ──────────────────────────────────────────
+
+  test "ConsolidateSignals sets signals_consolidated + memories_created" do
+    tests "ConsolidateSignals", on: "Consolidation"
+    input  signals_consolidated: 1, memories_created: 1
+    expect signals_consolidated: 1, memories_created: 1
+  end
+
+
+  # ── Forgetting aggregate ──────────────────────────────────────────
+
+  test "ForgetMemory sets forgotten + reason" do
+    tests "ForgetMemory", on: "Forgetting"
+    input  forgotten: "sample", reason: "sample"
+    expect forgotten: "sample", reason: "sample", composted: "yes"
+  end
+
+
+  # ── Being aggregate ──────────────────────────────────────────
+
+  test "CreateBeing sets name + vision" do
+    tests "CreateBeing", on: "Being"
+    input  name: "sample", vision: "sample"
+    expect name: "sample", vision: "sample"
+  end
+
+  test "GraftDomain sets domain_name + domain_version + source_path + grafted_at" do
+    tests "GraftDomain", on: "Being"
+    setup  "CreateBeing", name: "sample", vision: "sample"
+    input  being: 1, domain_name: "sample", domain_version: "sample", source_path: "sample", grafted_at: "sample"
+    expect organs_size: 1, active_count: 1
+  end
+
+  test "ShedDomain sets domain_name" do
+    tests "ShedDomain", on: "Being"
+    setup  "CreateBeing", name: "sample", vision: "sample"
+    input  being: 1, domain_name: "sample"
+    expect active_count: 1
+  end
+
+  test "ExpressDomain sets domain_name" do
+    tests "ExpressDomain", on: "Being"
+    setup  "CreateBeing", name: "sample", vision: "sample"
+    input  being: 1, domain_name: "sample"
+    expect active_count: 1
+  end
+
+  test "SilenceDomain sets domain_name" do
+    tests "SilenceDomain", on: "Being"
+    setup  "CreateBeing", name: "sample", vision: "sample"
+    input  being: 1, domain_name: "sample"
+    expect active_count: 1
+  end
+
+  test "UpgradeOrgan sets domain_name + new_version" do
+    tests "UpgradeOrgan", on: "Being"
+    setup  "CreateBeing", name: "sample", vision: "sample"
+    input  being: 1, domain_name: "sample", new_version: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Nerve aggregate ──────────────────────────────────────────
+
+  test "ConnectNerve sets name + from_domain + from_event + to_domain + to_command" do
+    tests "ConnectNerve", on: "Nerve"
+    input  name: "sample", from_domain: "sample", from_event: "sample", to_domain: "sample", to_command: "sample"
+    expect name: "sample", from_domain: "sample", from_event: "sample", to_domain: "sample", to_command: "sample"
+  end
+
+  test "SeverNerve runs" do
+    tests "SeverNerve", on: "Nerve"
+    setup  "ConnectNerve", name: "sample", from_domain: "sample", from_event: "sample", to_domain: "sample", to_command: "sample"
+    input  nerve: 1
+    expect active: false
+  end
+
+  test "RestoreNerve runs" do
+    tests "RestoreNerve", on: "Nerve"
+    setup  "ConnectNerve", name: "sample", from_domain: "sample", from_event: "sample", to_domain: "sample", to_command: "sample"
+    input  nerve: 1
+    expect active: true
+  end
+
+
+  # ── NerveDiscovery aggregate ──────────────────────────────────────────
+
+  test "ScanOrgans sets organs_scanned + nerves_discovered" do
+    tests "ScanOrgans", on: "NerveDiscovery"
+    input  organs_scanned: 1, nerves_discovered: 1
+    expect organs_scanned: 1, nerves_discovered: 1
+  end
+
+
+  # ── Heartbeat aggregate ──────────────────────────────────────────
+
+  test "Beat runs" do
+    tests "Beat", on: "Heartbeat"
+    input  heartbeat: 1
+    expect beats: 1, last_beat_at: :now
+  end
+
+  test "ReportOrganPulse sets domain_name + event_count + last_event_at" do
+    tests "ReportOrganPulse", on: "Heartbeat"
+    input  heartbeat: 1, domain_name: "sample", event_count: "sample", last_event_at: "sample"
+    expect organ_status_size: 1
+  end
+
+
+  # ── Identity aggregate ──────────────────────────────────────────
+
+  test "RecordSession runs" do
+    tests "RecordSession", on: "Identity"
+    input  identity: 1
+    expect sessions: 1
+  end
+
+  test "RememberPerson sets persona_name" do
+    tests "RememberPerson", on: "Identity"
+    input  identity: 1, persona_name: "sample"
+    expect personas_known_size: 1
+  end
+
+  test "EncodeIdentityMemory sets memory" do
+    tests "EncodeIdentityMemory", on: "Identity"
+    input  identity: 1, memory: "sample"
+    expect memories_size: 1
+  end
+
+
+  # ── SelfImage aggregate ──────────────────────────────────────────
+
+  test "Reflect sets mood + creativity + precision + pulse_rate + carrying + persona + conversation_mood + session_count + nursery_size + catalog_size + organ_count + aggregate_count + record_count + load_time + observed_at" do
+    tests "Reflect", on: "SelfImage"
+    input  mood: "sample", creativity: 1.0, precision: 1.0, pulse_rate: "sample", carrying: "sample", persona: "sample", conversation_mood: "sample", session_count: 1, nursery_size: 1, catalog_size: 1, organ_count: 1, aggregate_count: 1, record_count: 1, load_time: 1.0, observed_at: "sample"
+    expect mood: "sample", creativity: 1.0, precision: 1.0, pulse_rate: "sample", carrying: "sample", persona: "sample", conversation_mood: "sample", session_count: 1, nursery_size: 1, catalog_size: 1, organ_count: 1, aggregate_count: 1, record_count: 1, load_time: 1.0, observed_at: "sample"
+  end
+
+
+  # ── Conception aggregate ──────────────────────────────────────────
+
+  test "ConceiveDomain sets name + vision + requested_by + source" do
+    tests "ConceiveDomain", on: "Conception"
+    input  name: "sample", vision: "sample", requested_by: "sample", source: "sample"
+    expect name: "sample", vision: "sample", requested_by: "sample", source: "sample", status: "conceived"
+  end
+
+
+  # ── Gestation aggregate ──────────────────────────────────────────
+
+  test "StartGestation sets domain_name + nursery_path" do
+    tests "StartGestation", on: "Gestation"
+    input  domain_name: "sample", nursery_path: "sample"
+    expect domain_name: "sample", nursery_path: "sample", contractions: 0
+  end
+
+  test "FormAggregate sets aggregate_name" do
+    tests "FormAggregate", on: "Gestation"
+    setup  "StartGestation", domain_name: "sample", nursery_path: "sample"
+    input  gestation: 1, aggregate_name: "sample"
+    expect aggregates_size: 1
+  end
+
+  test "FormCommand sets command_name" do
+    tests "FormCommand", on: "Gestation"
+    setup  "StartGestation", domain_name: "sample", nursery_path: "sample"
+    input  gestation: 1, command_name: "sample"
+    expect commands_size: 1
+  end
+
+  test "FormPolicy sets policy_name" do
+    tests "FormPolicy", on: "Gestation"
+    setup  "StartGestation", domain_name: "sample", nursery_path: "sample"
+    input  gestation: 1, policy_name: "sample"
+    expect policies_size: 1
+  end
+
+  test "Contract runs" do
+    tests "Contract", on: "Gestation"
+    setup  "StartGestation", domain_name: "sample", nursery_path: "sample"
+    input  gestation: 1
+    expect contractions: 1
+  end
+
+
+  # ── Labor aggregate ──────────────────────────────────────────
+
+  test "ValidateBluebook sets domain_name + bluebook_source" do
+    tests "ValidateBluebook", on: "Labor"
+    input  domain_name: "sample", bluebook_source: "sample"
+    expect domain_name: "sample", bluebook_source: "sample", valid: "checking"
+  end
+
+  test "CheckParity sets parity" do
+    tests "CheckParity", on: "Labor"
+    setup  "ValidateBluebook", domain_name: "sample", bluebook_source: "sample"
+    input  labor: 1, parity: "sample"
+    expect parity: "sample"
+  end
+
+  test "PassLabor runs" do
+    tests "PassLabor", on: "Labor"
+    setup  "ValidateBluebook", domain_name: "sample", bluebook_source: "sample"
+    input  labor: 1
+    expect valid: "yes"
+  end
+
+  test "FailLabor sets errors" do
+    tests "FailLabor", on: "Labor"
+    setup  "ValidateBluebook", domain_name: "sample", bluebook_source: "sample"
+    input  labor: 1, errors: "sample"
+    expect errors: "sample", valid: "no"
+  end
+
+
+  # ── Delivery aggregate ──────────────────────────────────────────
+
+  test "DeliverDomain sets domain_name + path + aggregate_count + command_count + fixture_count" do
+    tests "DeliverDomain", on: "Delivery"
+    input  domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
+    expect domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
+  end
+
+  test "RegisterBirth runs" do
+    tests "RegisterBirth", on: "Delivery"
+    setup  "RegisterBirth"
+    input  delivery: 1
+    expect ok: "true"
+  end
+
+  test "IndexInNursery runs" do
+    tests "IndexInNursery", on: "Delivery"
+    setup  "RegisterBirth"
+    input  delivery: 1
+    expect indexed: "yes"
+  end
+
+
+  # ── Postpartum aggregate ──────────────────────────────────────────
+
+  test "CheckHealth sets domain_name" do
+    tests "CheckHealth", on: "Postpartum"
+    input  domain_name: "sample"
+    expect domain_name: "sample"
+  end
+
+  test "DeclareHealthy runs" do
+    tests "DeclareHealthy", on: "Postpartum"
+    setup  "CheckHealth", domain_name: "sample"
+    input  postpartum: 1
+    expect healthy: "yes"
+  end
+
+  test "FlagConcern sets concern" do
+    tests "FlagConcern", on: "Postpartum"
+    setup  "CheckHealth", domain_name: "sample"
+    input  postpartum: 1, concern: "sample"
+    expect healthy: "concern"
+  end
+
+
+  # ── Development aggregate ──────────────────────────────────────────
+
+  test "ComputeVector sets domain_name" do
+    tests "ComputeVector", on: "Development"
+    input  domain_name: "sample"
+    expect domain_name: "sample", status: "vectorized"
+  end
+
+  test "FindArchetype runs" do
+    tests "FindArchetype", on: "Development"
+    setup  "ComputeVector", domain_name: "sample"
+    input  development: 1
+    expect status: "matched"
+  end
+
+  test "PlanDevelopment sets target_vector" do
+    tests "PlanDevelopment", on: "Development"
+    setup  "ComputeVector", domain_name: "sample"
+    input  development: 1, target_vector: 1.0
+    expect target_vector: 1.0, status: "planned"
+  end
+
+  test "DevelopDomain runs" do
+    tests "DevelopDomain", on: "Development"
+    setup  "ComputeVector", domain_name: "sample"
+    input  development: 1
+    expect status: "developed"
+  end
+
+  test "RejectDevelopment runs" do
+    tests "RejectDevelopment", on: "Development"
+    setup  "ComputeVector", domain_name: "sample"
+    input  development: 1
+    expect status: "rejected"
+  end
+
+
+  # ── Corpus aggregate ──────────────────────────────────────────
+
+  test "IndexDomain sets domain_name + vector" do
+    tests "IndexDomain", on: "Corpus"
+    input  domain_name: "sample", vector: 1.0
+    expect domain_count: 1, total_vectors: 1
+  end
+
+  test "QueryNearest sets target_vector + k" do
+    tests "QueryNearest", on: "Corpus"
+    input  target_vector: 1.0, k: 1
+    expect ok: "true"
+  end
+
+  test "RebuildCorpus runs" do
+    tests "RebuildCorpus", on: "Corpus"
+    expect ok: "true"
+  end
+
+
+  # ── Fatigue aggregate ──────────────────────────────────────────
+
+  test "AccumulateFatigue runs" do
+    tests "AccumulateFatigue", on: "Fatigue"
+    input  fatigue: 1
+    expect pulses_since_sleep: 1, state: "focused"
+  end
+
+  test "DissipateFatigue sets cycles_completed" do
+    tests "DissipateFatigue", on: "Fatigue"
+    input  fatigue: 1, cycles_completed: 1
+    expect level: 0, pulses_since_sleep: 0, state: "alert"
+  end
+
+
+  # ── Consciousness aggregate ──────────────────────────────────────────
+
+  test "DetectIdle sets idle_seconds" do
+    tests "DetectIdle", on: "Consciousness"
+    input  idle_seconds: 1
+    expect idle_seconds: 1
+  end
+
+  test "EnterDaydream runs" do
+    tests "EnterDaydream", on: "Consciousness"
+    expect state: "daydreaming"
+  end
+
+  test "EnterSleep runs" do
+    tests "EnterSleep", on: "Consciousness"
+    expect state: "sleeping"
+  end
+
+  test "TakeNap runs" do
+    tests "TakeNap", on: "Consciousness"
+    expect state: "napping"
+  end
+
+  test "TakeStabilityNap runs" do
+    tests "TakeStabilityNap", on: "Consciousness"
+    expect state: "napping"
+  end
+
+  test "WakeUp runs" do
+    tests "WakeUp", on: "Consciousness"
+    setup  "DetectIdle", idle_seconds: 1
+    input  consciousness: 1
+    expect state: "waking"
+  end
+
+  test "BecomeAttentive runs" do
+    tests "BecomeAttentive", on: "Consciousness"
+    setup  "DetectIdle", idle_seconds: 1
+    input  consciousness: 1
+    expect state: "attentive"
+  end
+
+
+  # ── Daydream aggregate ──────────────────────────────────────────
+
+  test "RecordDaydream sets impressions + duration_seconds + connections_found" do
+    tests "RecordDaydream", on: "Daydream"
+    input  impressions: "sample", duration_seconds: 1, connections_found: 1
+    expect impressions: "sample", duration_seconds: 1, connections_found: 1
+  end
+
+
+  # ── SleepCycle aggregate ──────────────────────────────────────────
+
+  test "StartCycle sets cycle_number + total_cycles" do
+    tests "StartCycle", on: "SleepCycle"
+    input  cycle_number: 1, total_cycles: 1
+    expect cycle_number: 1, total_cycles: 1, stage: "light"
+  end
+
+  test "AdvanceStage sets stage + rem_intensity" do
+    tests "AdvanceStage", on: "SleepCycle"
+    setup  "StartCycle", cycle_number: 1, total_cycles: 1
+    input  sleep_cycle: 1, stage: "sample", rem_intensity: 1
+    expect rem_intensity: 1, stage: "rem"
+  end
+
+  test "CompleteCycle runs" do
+    tests "CompleteCycle", on: "SleepCycle"
+    setup  "StartCycle", cycle_number: 1, total_cycles: 1
+    input  sleep_cycle: 1
+    expect stage: "light"
+  end
+
+
+  # ── Night aggregate ──────────────────────────────────────────
+
+  test "StartNight runs" do
+    tests "StartNight", on: "Night"
+    expect cycles_completed: 0, dream_pulses: 0, consolidated: 0
+  end
+
+  test "AccumulateDream sets dream_images + recombinations + dream_pulses" do
+    tests "AccumulateDream", on: "Night"
+    setup  "StartNight"
+    input  night: 1, dream_images: "sample", recombinations: "sample", dream_pulses: 1
+    expect cycles_completed: 1
+  end
+
+  test "AccumulateConsolidation sets consolidated + pruned" do
+    tests "AccumulateConsolidation", on: "Night"
+    setup  "StartNight"
+    input  night: 1, consolidated: 1, pruned: "sample"
+    expect ok: "true"
+  end
+
+  test "EndNight sets duration_seconds + woke_from" do
+    tests "EndNight", on: "Night"
+    setup  "StartNight"
+    input  night: 1, duration_seconds: 1, woke_from: "sample"
+    expect duration_seconds: 1, woke_from: "sample"
+  end
+
+
+  # ── WakeMood aggregate ──────────────────────────────────────────
+
+  test "SetWakeMood sets mood + reason" do
+    tests "SetWakeMood", on: "WakeMood"
+    input  mood: "sample", reason: "sample"
+    expect mood: "sample", reason: "sample"
+  end
+
+
+  # ── Monitor aggregate ──────────────────────────────────────────
+
+  test "StartMonitoring sets interval_seconds" do
+    tests "StartMonitoring", on: "Monitor"
+    input  interval_seconds: 1
+    expect interval_seconds: 1, reporting: "active"
+  end
+
+  test "StopMonitoring runs" do
+    tests "StopMonitoring", on: "Monitor"
+    setup  "StartMonitoring", interval_seconds: 1
+    input  monitor: 1
+    expect reporting: "stopped"
+  end
+
+  test "UpdateDepth sets z_depth" do
+    tests "UpdateDepth", on: "Monitor"
+    setup  "StartMonitoring", interval_seconds: 1
+    input  monitor: 1, z_depth: 1
+    expect z_depth: 1
+  end
+
+
+  # ── DreamSeed aggregate ──────────────────────────────────────────
+
+  test "SeedFromPreviousDreams sets images + recombinations + strongest_synapses" do
+    tests "SeedFromPreviousDreams", on: "DreamSeed"
+    input  images: "sample", recombinations: "sample", strongest_synapses: "sample"
+    expect images: "sample", recombinations: "sample", strongest_synapses: "sample"
+  end
+
+
+  # ── LucidDream aggregate ──────────────────────────────────────────
+
+  test "BecomeLucid runs" do
+    tests "BecomeLucid", on: "LucidDream"
+    expect active: "yes"
+  end
+
+  test "ObserveDream sets observation" do
+    tests "ObserveDream", on: "LucidDream"
+    setup  "BecomeLucid"
+    input  lucid_dream: 1, observation: "sample"
+    expect observations_size: 1
+  end
+
+  test "SteerDream sets toward" do
+    tests "SteerDream", on: "LucidDream"
+    setup  "BecomeLucid"
+    input  lucid_dream: 1, toward: "sample"
+    expect steered_toward_size: 1
+  end
+
+  test "EndLucidity runs" do
+    tests "EndLucidity", on: "LucidDream"
+    setup  "BecomeLucid"
+    input  lucid_dream: 1
+    expect active: "no"
+  end
+
+
+  # ── LucidMonitor aggregate ──────────────────────────────────────────
+
+  test "StartLucidMonitor sets log_path" do
+    tests "StartLucidMonitor", on: "LucidMonitor"
+    input  log_path: "sample"
+    expect reporting: "active", log_path: "sample"
+  end
+
+  test "StopLucidMonitor runs" do
+    tests "StopLucidMonitor", on: "LucidMonitor"
+    setup  "StartLucidMonitor", log_path: "sample"
+    input  lucid_monitor: 1
+    expect reporting: "stopped"
+  end
+
+
+  # ── Process aggregate ──────────────────────────────────────────
+
+  test "SpawnProcess sets task + intent + heki_target" do
+    tests "SpawnProcess", on: "Process"
+    input  task: "sample", intent: "sample", heki_target: "sample"
+    expect task: "sample", intent: "sample", heki_target: "sample", status: "running"
+  end
+
+  test "ReportFinding sets kind + subject + detail" do
+    tests "ReportFinding", on: "Process"
+    setup  "SpawnProcess", task: "sample", intent: "sample", heki_target: "sample"
+    input  process: 1, kind: "sample", subject: "sample", detail: "sample"
+    expect findings_size: 1
+  end
+
+  test "CompleteProcess runs" do
+    tests "CompleteProcess", on: "Process"
+    setup  "SpawnProcess", task: "sample", intent: "sample", heki_target: "sample"
+    input  process: 1
+    expect status: "completed"
+  end
+
+  test "FailProcess sets reason" do
+    tests "FailProcess", on: "Process"
+    setup  "SpawnProcess", task: "sample", intent: "sample", heki_target: "sample"
+    input  process: 1, reason: "sample"
+    expect status: "failed"
+  end
+
+  test "AbsorbFindings runs" do
+    tests "AbsorbFindings", on: "Process"
+    setup  "SpawnProcess", task: "sample", intent: "sample", heki_target: "sample"
+    input  process: 1
+    expect status: "absorbed"
+  end
+
+
+  # ── Rhythm aggregate ──────────────────────────────────────────
+
+  test "RegisterTask sets task + cadence" do
+    tests "RegisterTask", on: "Rhythm"
+    input  task: "sample", cadence: "sample"
+    expect ok: "true"
+  end
+
+  test "RemoveTask sets task + cadence" do
+    tests "RemoveTask", on: "Rhythm"
+    input  task: "sample", cadence: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Interpretation aggregate ──────────────────────────────────────────
+
+  test "InterpretExperience sets source + raw_material + insight" do
+    tests "InterpretExperience", on: "Interpretation"
+    input  source: "sample", raw_material: "sample", insight: "sample"
+    expect source: "sample", raw_material: "sample", insight: "sample"
+  end
+
+
+  # ── Proposal aggregate ──────────────────────────────────────────
+
+  test "ProposeAction sets title + description + origin + kind" do
+    tests "ProposeAction", on: "Proposal"
+    input  title: "sample", description: "sample", origin: "sample", kind: "sample"
+    expect title: "sample", description: "sample", origin: "sample", kind: "sample", accepted: "pending"
+  end
+
+  test "AcceptProposal runs" do
+    tests "AcceptProposal", on: "Proposal"
+    setup  "ProposeAction", title: "sample", description: "sample", origin: "sample", kind: "sample"
+    input  proposal: 1
+    expect accepted: "yes"
+  end
+
+  test "DeferProposal runs" do
+    tests "DeferProposal", on: "Proposal"
+    setup  "ProposeAction", title: "sample", description: "sample", origin: "sample", kind: "sample"
+    input  proposal: 1
+    expect accepted: "deferred"
+  end
+
+  test "DismissProposal runs" do
+    tests "DismissProposal", on: "Proposal"
+    setup  "ProposeAction", title: "sample", description: "sample", origin: "sample", kind: "sample"
+    input  proposal: 1
+    expect accepted: "dismissed"
+  end
+
+
+  # ── Member aggregate ──────────────────────────────────────────
+
+  test "AddMember sets name + vision + path + kind + aggregate_count + command_count + fixture_count + version" do
+    tests "AddMember", on: "Member"
+    input  name: "sample", vision: "sample", path: "sample", kind: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, version: "sample"
+    expect name: "sample", vision: "sample", path: "sample", kind: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, version: "sample", status: "active"
+  end
+
+  test "UpdateMember sets version + aggregate_count + command_count + fixture_count" do
+    tests "UpdateMember", on: "Member"
+    setup  "AddMember", name: "sample", vision: "sample", path: "sample", kind: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, version: "sample"
+    input  member: 1, version: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
+    expect version: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
+  end
+
+  test "RetireMember runs" do
+    tests "RetireMember", on: "Member"
+    setup  "AddMember", name: "sample", vision: "sample", path: "sample", kind: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, version: "sample"
+    input  member: 1
+    expect status: "retired"
+  end
+
+
+  # ── FamilyIndex aggregate ──────────────────────────────────────────
+
+  test "RebuildIndex sets total_members + total_organs + total_incorporated + total_aggregates + total_commands" do
+    tests "RebuildIndex", on: "FamilyIndex"
+    input  total_members: 1, total_organs: 1, total_incorporated: 1, total_aggregates: 1, total_commands: 1
+    expect total_members: 1, total_organs: 1, total_incorporated: 1, total_aggregates: 1, total_commands: 1
+  end
+
+  test "RecordAddition runs" do
+    tests "RecordAddition", on: "FamilyIndex"
+    setup  "RebuildIndex", total_members: 1, total_organs: 1, total_incorporated: 1, total_aggregates: 1, total_commands: 1
+    input  family_index: 1
+    expect total_members: 1
+  end
+
+
+  # ── BodyLink aggregate ──────────────────────────────────────────
+
+  test "LinkToBody sets member_name + organ_name + path" do
+    tests "LinkToBody", on: "BodyLink"
+    input  member_name: "sample", organ_name: "sample", path: "sample"
+    expect member_name: "sample", organ_name: "sample", path: "sample"
+  end
+
+
+  # ── Discovery aggregate ──────────────────────────────────────────
+
+  test "ScanForMembers sets scan_paths" do
+    tests "ScanForMembers", on: "Discovery"
+    input  scan_paths: "sample"
+    expect scan_paths: "sample"
+  end
+
+  test "RecordDiscovery sets discovered" do
+    tests "RecordDiscovery", on: "Discovery"
+    setup  "ScanForMembers", scan_paths: "sample"
+    input  discovery: 1, discovered: 1
+    expect discovered: 1
+  end
+
+end

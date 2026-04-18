@@ -1,0 +1,96 @@
+Hecks.behaviors "FuneralHome" do
+  vision "Behavioral tests for the FuneralHome domain — exercises every command and query in memory"
+
+  # ── Decedent aggregate ──────────────────────────────────────────
+
+  test "RegisterDecedent sets first_name + last_name + date_of_birth + date_of_death + place_of_death + next_of_kin" do
+    tests "RegisterDecedent", on: "Decedent"
+    input  first_name: "sample", last_name: "sample", date_of_birth: "sample", date_of_death: "sample", place_of_death: "sample", next_of_kin: "sample"
+    expect first_name: "sample", last_name: "sample", date_of_birth: "sample", date_of_death: "sample", place_of_death: "sample", next_of_kin: "sample", status: "received"
+  end
+
+  test "PrepareRemains sets preparation_type" do
+    tests "PrepareRemains", on: "Decedent"
+    setup  "RegisterDecedent", first_name: "sample", last_name: "sample", date_of_birth: "sample", date_of_death: "sample", place_of_death: "sample", next_of_kin: "sample"
+    input  decedent: 1, preparation_type: "sample"
+    expect status: "prepared"
+  end
+
+  test "ReleaseRemains runs" do
+    tests "ReleaseRemains", on: "Decedent"
+    setup  "RegisterDecedent", first_name: "sample", last_name: "sample", date_of_birth: "sample", date_of_death: "sample", place_of_death: "sample", next_of_kin: "sample"
+    input  decedent: 1
+    expect status: "released"
+  end
+
+
+  # ── ServiceArrangement aggregate ──────────────────────────────────────────
+
+  test "ArrangeService sets service_type + service_date + service_time + venue + officiant + expected_attendees" do
+    tests "ArrangeService", on: "ServiceArrangement"
+    setup  "RegisterDecedent", first_name: "sample", last_name: "sample", date_of_birth: "sample", date_of_death: "sample", place_of_death: "sample", next_of_kin: "sample"
+    input  decedent: 1, service_type: "sample", service_date: "sample", service_time: "sample", venue: "sample", officiant: "sample", expected_attendees: 1
+    expect service_type: "sample", service_date: "sample", service_time: "sample", venue: "sample", officiant: "sample", status: "planned"
+  end
+
+  test "ConductService runs" do
+    tests "ConductService", on: "ServiceArrangement"
+    input  service_arrangement: 1
+    expect status: "completed"
+  end
+
+  test "PostponeService sets new_date" do
+    tests "PostponeService", on: "ServiceArrangement"
+    input  service_arrangement: 1, new_date: "sample"
+    expect service_date: "sample"
+  end
+
+
+  # ── Obituary aggregate ──────────────────────────────────────────
+
+  test "DraftObituary sets headline + body_text" do
+    tests "DraftObituary", on: "Obituary"
+    setup  "RegisterDecedent", first_name: "sample", last_name: "sample", date_of_birth: "sample", date_of_death: "sample", place_of_death: "sample", next_of_kin: "sample"
+    input  decedent: 1, headline: "sample", body_text: "sample"
+    expect headline: "sample", body_text: "sample", status: "draft"
+  end
+
+  test "PublishObituary sets publication_name + publish_date" do
+    tests "PublishObituary", on: "Obituary"
+    input  obituary: 1, publication_name: "sample", publish_date: "sample"
+    expect publication_name: "sample", publish_date: "sample", status: "published"
+  end
+
+
+  # ── TransportRequest aggregate ──────────────────────────────────────────
+
+  test "ScheduleTransport sets pickup_location + delivery_location + transport_date + vehicle_type" do
+    tests "ScheduleTransport", on: "TransportRequest"
+    setup  "RegisterDecedent", first_name: "sample", last_name: "sample", date_of_birth: "sample", date_of_death: "sample", place_of_death: "sample", next_of_kin: "sample"
+    input  decedent: 1, pickup_location: "sample", delivery_location: "sample", transport_date: "sample", vehicle_type: "sample"
+    expect pickup_location: "sample", delivery_location: "sample", transport_date: "sample", vehicle_type: "sample", status: "scheduled"
+  end
+
+  test "CompleteTransport runs" do
+    tests "CompleteTransport", on: "TransportRequest"
+    input  transport_request: 1
+    expect status: "completed"
+  end
+
+
+  # ── FuneralInvoice aggregate ──────────────────────────────────────────
+
+  test "GenerateInvoice sets services_total + merchandise_total + cash_advances" do
+    tests "GenerateInvoice", on: "FuneralInvoice"
+    setup  "RegisterDecedent", first_name: "sample", last_name: "sample", date_of_birth: "sample", date_of_death: "sample", place_of_death: "sample", next_of_kin: "sample"
+    input  decedent: 1, services_total: 1.0, merchandise_total: 1.0, cash_advances: 1.0
+    expect services_total: 1.0, merchandise_total: 1.0, cash_advances: 1.0, status: "pending"
+  end
+
+  test "CollectPayment sets amount_paid" do
+    tests "CollectPayment", on: "FuneralInvoice"
+    input  funeral_invoice: 1, amount_paid: 1.0
+    expect status: "paid"
+  end
+
+end

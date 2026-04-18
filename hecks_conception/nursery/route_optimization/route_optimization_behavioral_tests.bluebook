@@ -1,0 +1,88 @@
+Hecks.behaviors "RouteOptimization" do
+  vision "Behavioral tests for the RouteOptimization domain — exercises every command and query in memory"
+
+  # ── MapRegion aggregate ──────────────────────────────────────────
+
+  test "DefineRegion sets name + area_sq_km + road_count" do
+    tests "DefineRegion", on: "MapRegion"
+    input  name: "sample", area_sq_km: 1.0, road_count: 1
+    expect name: "sample", area_sq_km: 1.0, road_count: 1, status: "defined"
+  end
+
+  test "UpdateRoadNetwork sets road_count" do
+    tests "UpdateRoadNetwork", on: "MapRegion"
+    setup  "DefineRegion", name: "sample", area_sq_km: 1.0, road_count: 1
+    input  map_region: 1, road_count: 1
+    expect road_count: 1
+  end
+
+
+  # ── Parcel aggregate ──────────────────────────────────────────
+
+  test "RegisterParcel sets tracking_id + weight_kg + destination_address + priority + delivery_window" do
+    tests "RegisterParcel", on: "Parcel"
+    input  tracking_id: "sample", weight_kg: 1.0, destination_address: "sample", priority: "sample", delivery_window: "sample"
+    expect tracking_id: "sample", weight_kg: 1.0, destination_address: "sample", priority: "sample", delivery_window: "sample", status: "registered"
+  end
+
+  test "AssignToRoute runs" do
+    tests "AssignToRoute", on: "Parcel"
+    setup  "RegisterParcel", tracking_id: "sample", weight_kg: 1.0, destination_address: "sample", priority: "sample", delivery_window: "sample"
+    input  parcel: 1
+    expect status: "assigned"
+  end
+
+  test "DeliverParcel runs" do
+    tests "DeliverParcel", on: "Parcel"
+    setup  "RegisterParcel", tracking_id: "sample", weight_kg: 1.0, destination_address: "sample", priority: "sample", delivery_window: "sample"
+    input  parcel: 1
+    expect status: "delivered"
+  end
+
+
+  # ── TrafficCondition aggregate ──────────────────────────────────────────
+
+  test "ReportTraffic sets road_segment + avg_speed_kmh + congestion_level + timestamp" do
+    tests "ReportTraffic", on: "TrafficCondition"
+    input  road_segment: "sample", avg_speed_kmh: 1.0, congestion_level: 1.0, timestamp: "sample"
+    expect road_segment: "sample", avg_speed_kmh: 1.0, congestion_level: 1.0, timestamp: "sample", status: "current"
+  end
+
+  test "DetectCongestion runs" do
+    tests "DetectCongestion", on: "TrafficCondition"
+    setup  "ReportTraffic", road_segment: "sample", avg_speed_kmh: 1.0, congestion_level: 1.0, timestamp: "sample"
+    input  traffic_condition: 1
+    expect status: "congested"
+  end
+
+
+  # ── DeliveryRoute aggregate ──────────────────────────────────────────
+
+  test "OptimizeRoute sets name + courier_name + stop_count + total_distance_km + estimated_hours" do
+    tests "OptimizeRoute", on: "DeliveryRoute"
+    input  name: "sample", courier_name: "sample", stop_count: 1, total_distance_km: 1.0, estimated_hours: 1.0
+    expect name: "sample", courier_name: "sample", stop_count: 1, total_distance_km: 1.0, estimated_hours: 1.0, status: "optimized"
+  end
+
+  test "AdjustForTraffic runs" do
+    tests "AdjustForTraffic", on: "DeliveryRoute"
+    setup  "OptimizeRoute", name: "sample", courier_name: "sample", stop_count: 1, total_distance_km: 1.0, estimated_hours: 1.0
+    input  delivery_route: 1
+    expect ok: "true"
+  end
+
+  test "DispatchRoute runs" do
+    tests "DispatchRoute", on: "DeliveryRoute"
+    setup  "OptimizeRoute", name: "sample", courier_name: "sample", stop_count: 1, total_distance_km: 1.0, estimated_hours: 1.0
+    input  delivery_route: 1
+    expect status: "dispatched"
+  end
+
+  test "CompleteRoute runs" do
+    tests "CompleteRoute", on: "DeliveryRoute"
+    setup  "OptimizeRoute", name: "sample", courier_name: "sample", stop_count: 1, total_distance_km: 1.0, estimated_hours: 1.0
+    input  delivery_route: 1
+    expect status: "completed"
+  end
+
+end

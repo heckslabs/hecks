@@ -1,0 +1,96 @@
+Hecks.behaviors "StainedGlass" do
+  vision "Behavioral tests for the StainedGlass domain — exercises every command and query in memory"
+
+  # ── Panel aggregate ──────────────────────────────────────────
+
+  test "CartoonPanel sets title + width_inches + height_inches + piece_count" do
+    tests "CartoonPanel", on: "Panel"
+    input  title: "sample", width_inches: 1.0, height_inches: 1.0, piece_count: 1
+    expect ok: "true"
+  end
+
+  test "CutPanel runs" do
+    tests "CutPanel", on: "Panel"
+    setup  "CartoonPanel", title: "sample", width_inches: 1.0, height_inches: 1.0, piece_count: 1
+    input  panel: 1
+    expect status: "cut"
+  end
+
+  test "LeadPanel runs" do
+    tests "LeadPanel", on: "Panel"
+    setup  "CartoonPanel", title: "sample", width_inches: 1.0, height_inches: 1.0, piece_count: 1
+    input  panel: 1
+    expect status: "leaded"
+  end
+
+
+  # ── GlassDesign aggregate ──────────────────────────────────────────
+
+  test "SketchDesign sets title + style + client_name" do
+    tests "SketchDesign", on: "GlassDesign"
+    input  title: "sample", style: "sample", client_name: "sample"
+    expect ok: "true"
+  end
+
+  test "ApproveDesign runs" do
+    tests "ApproveDesign", on: "GlassDesign"
+    setup  "SketchDesign", title: "sample", style: "sample", client_name: "sample"
+    input  glass_design: 1
+    expect status: "approved"
+  end
+
+
+  # ── GlassInventory aggregate ──────────────────────────────────────────
+
+  test "ReceiveGlass sets color + texture + manufacturer + square_feet + category" do
+    tests "ReceiveGlass", on: "GlassInventory"
+    input  color: "sample", texture: "sample", manufacturer: "sample", square_feet: 1.0, category: "sample"
+    expect ok: "true"
+  end
+
+  test "ConsumeGlass sets square_feet_used" do
+    tests "ConsumeGlass", on: "GlassInventory"
+    setup  "ReceiveGlass", color: "sample", texture: "sample", manufacturer: "sample", square_feet: 1.0, category: "sample"
+    input  glass_inventory: 1, square_feet_used: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── Leadwork aggregate ──────────────────────────────────────────
+
+  test "PrepareCame sets came_profile + came_width_mm" do
+    tests "PrepareCame", on: "Leadwork"
+    setup  "CartoonPanel", title: "sample", width_inches: 1.0, height_inches: 1.0, piece_count: 1
+    input  panel: 1, came_profile: "sample", came_width_mm: 1.0
+    expect ok: "true"
+  end
+
+  test "SolderJoints sets solder_type" do
+    tests "SolderJoints", on: "Leadwork"
+    input  leadwork: 1, solder_type: "sample"
+    expect status: "soldered"
+  end
+
+  test "ApplyPatina sets patina_type" do
+    tests "ApplyPatina", on: "Leadwork"
+    input  leadwork: 1, patina_type: "sample"
+    expect status: "finished"
+  end
+
+
+  # ── GlassInstallation aggregate ──────────────────────────────────────────
+
+  test "ScheduleInstallation sets location + date + installer_name" do
+    tests "ScheduleInstallation", on: "GlassInstallation"
+    setup  "CartoonPanel", title: "sample", width_inches: 1.0, height_inches: 1.0, piece_count: 1
+    input  panel: 1, location: "sample", date: "sample", installer_name: "sample"
+    expect ok: "true"
+  end
+
+  test "CompleteInstallation runs" do
+    tests "CompleteInstallation", on: "GlassInstallation"
+    input  glass_installation: 1
+    expect status: "installed"
+  end
+
+end

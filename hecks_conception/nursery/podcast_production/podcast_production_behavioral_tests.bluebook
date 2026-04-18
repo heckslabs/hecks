@@ -1,0 +1,99 @@
+Hecks.behaviors "PodcastProduction" do
+  vision "Behavioral tests for the PodcastProduction domain — exercises every command and query in memory"
+
+  # ── Show aggregate ──────────────────────────────────────────
+
+  test "LaunchShow sets title + category + format" do
+    tests "LaunchShow", on: "Show"
+    input  title: "sample", category: "sample", format: "sample"
+    expect ok: "true"
+  end
+
+  test "PublishShow runs" do
+    tests "PublishShow", on: "Show"
+    setup  "LaunchShow", title: "sample", category: "sample", format: "sample"
+    input  show: 1
+    expect status: "published"
+  end
+
+  test "HiatusShow runs" do
+    tests "HiatusShow", on: "Show"
+    setup  "LaunchShow", title: "sample", category: "sample", format: "sample"
+    input  show: 1
+    expect status: "hiatus"
+  end
+
+
+  # ── Episode aggregate ──────────────────────────────────────────
+
+  test "OutlineEpisode sets title + episode_number" do
+    tests "OutlineEpisode", on: "Episode"
+    setup  "LaunchShow", title: "sample", category: "sample", format: "sample"
+    input  show: 1, title: "sample", episode_number: 1
+    expect ok: "true"
+  end
+
+  test "RecordEpisode sets duration_seconds" do
+    tests "RecordEpisode", on: "Episode"
+    input  episode: 1, duration_seconds: 1
+    expect status: "recorded", duration_seconds: 1
+  end
+
+  test "MarkEdited runs" do
+    tests "MarkEdited", on: "Episode"
+    input  episode: 1
+    expect status: "edited"
+  end
+
+  test "ReleaseEpisode runs" do
+    tests "ReleaseEpisode", on: "Episode"
+    input  episode: 1
+    expect status: "released"
+  end
+
+
+  # ── Guest aggregate ──────────────────────────────────────────
+
+  test "InviteGuest sets name + expertise + bio" do
+    tests "InviteGuest", on: "Guest"
+    input  episode: 1, name: "sample", expertise: "sample", bio: "sample"
+    expect ok: "true"
+  end
+
+  test "ConfirmGuest runs" do
+    tests "ConfirmGuest", on: "Guest"
+    input  guest: 1
+    expect status: "confirmed"
+  end
+
+
+  # ── EditingSession aggregate ──────────────────────────────────────────
+
+  test "StartEditing sets editor_name" do
+    tests "StartEditing", on: "EditingSession"
+    input  episode: 1, editor_name: "sample"
+    expect ok: "true"
+  end
+
+  test "FinalizeEdit sets cuts_made" do
+    tests "FinalizeEdit", on: "EditingSession"
+    input  editing_session: 1, cuts_made: 1
+    expect status: "finalized", cuts_made: 1
+  end
+
+
+  # ── DownloadMetric aggregate ──────────────────────────────────────────
+
+  test "RecordDownloads sets download_count + unique_listeners + completion_rate + period" do
+    tests "RecordDownloads", on: "DownloadMetric"
+    input  episode: 1, download_count: 1, unique_listeners: 1, completion_rate: 1.0, period: "sample"
+    expect ok: "true"
+  end
+
+  test "GenerateReport runs" do
+    tests "GenerateReport", on: "DownloadMetric"
+    input  download_metric: 1
+    expect ok: "true"
+  end
+
+end

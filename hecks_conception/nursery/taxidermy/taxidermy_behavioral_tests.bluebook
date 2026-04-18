@@ -1,0 +1,95 @@
+Hecks.behaviors "Taxidermy" do
+  vision "Behavioral tests for the Taxidermy domain — exercises every command and query in memory"
+
+  # ── Specimen aggregate ──────────────────────────────────────────
+
+  test "ReceiveSpecimen sets species + common_name + weight_lbs + source_type" do
+    tests "ReceiveSpecimen", on: "Specimen"
+    input  species: "sample", common_name: "sample", weight_lbs: 1.0, source_type: "sample"
+    expect ok: "true"
+  end
+
+  test "SkinSpecimen runs" do
+    tests "SkinSpecimen", on: "Specimen"
+    setup  "ReceiveSpecimen", species: "sample", common_name: "sample", weight_lbs: 1.0, source_type: "sample"
+    input  specimen: 1
+    expect status: "skinned"
+  end
+
+  test "TanHide sets tanning_method" do
+    tests "TanHide", on: "Specimen"
+    setup  "ReceiveSpecimen", species: "sample", common_name: "sample", weight_lbs: 1.0, source_type: "sample"
+    input  specimen: 1, tanning_method: "sample"
+    expect status: "tanned"
+  end
+
+
+  # ── Pose aggregate ──────────────────────────────────────────
+
+  test "SelectPose sets pose_name + position + expression" do
+    tests "SelectPose", on: "Pose"
+    setup  "ReceiveSpecimen", species: "sample", common_name: "sample", weight_lbs: 1.0, source_type: "sample"
+    input  specimen: 1, pose_name: "sample", position: "sample", expression: "sample"
+    expect ok: "true"
+  end
+
+  test "SculptAlteration sets alteration_details" do
+    tests "SculptAlteration", on: "Pose"
+    input  pose: 1, alteration_details: "sample"
+    expect status: "altered"
+  end
+
+
+  # ── TaxidermyMaterial aggregate ──────────────────────────────────────────
+
+  test "StockMaterial sets material_name + category + quantity + supplier + unit_cost" do
+    tests "StockMaterial", on: "TaxidermyMaterial"
+    input  material_name: "sample", category: "sample", quantity: 1, supplier: "sample", unit_cost: 1.0
+    expect ok: "true"
+  end
+
+  test "ConsumeMaterial sets quantity_used" do
+    tests "ConsumeMaterial", on: "TaxidermyMaterial"
+    setup  "StockMaterial", material_name: "sample", category: "sample", quantity: 1, supplier: "sample", unit_cost: 1.0
+    input  taxidermy_material: 1, quantity_used: 1
+    expect ok: "true"
+  end
+
+
+  # ── Preservation aggregate ──────────────────────────────────────────
+
+  test "MountSpecimen sets adhesive_type" do
+    tests "MountSpecimen", on: "Preservation"
+    setup  "ReceiveSpecimen", species: "sample", common_name: "sample", weight_lbs: 1.0, source_type: "sample"
+    input  specimen: 1, pose: 1, adhesive_type: "sample"
+    expect ok: "true"
+  end
+
+  test "FinishMount runs" do
+    tests "FinishMount", on: "Preservation"
+    input  preservation: 1
+    expect status: "finished"
+  end
+
+  test "CureMount sets drying_days" do
+    tests "CureMount", on: "Preservation"
+    input  preservation: 1, drying_days: 1
+    expect drying_days: 1
+  end
+
+
+  # ── Display aggregate ──────────────────────────────────────────
+
+  test "StageDisplay sets location + display_type + plaque_text" do
+    tests "StageDisplay", on: "Display"
+    input  preservation: 1, location: "sample", display_type: "sample", plaque_text: "sample"
+    expect ok: "true"
+  end
+
+  test "RotateDisplay sets new_location" do
+    tests "RotateDisplay", on: "Display"
+    input  display: 1, new_location: "sample"
+    expect location: "sample"
+  end
+
+end

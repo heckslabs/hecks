@@ -1,0 +1,324 @@
+Hecks.behaviors "WebComponents" do
+  vision "Behavioral tests for the WebComponents domain — exercises every command and query in memory"
+
+  # ── Shell aggregate ──────────────────────────────────────────
+
+  test "CreateShell sets domain_name" do
+    tests "CreateShell", on: "Shell"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Sidebar aggregate ──────────────────────────────────────────
+
+  test "GenerateSidebar runs" do
+    tests "GenerateSidebar", on: "Sidebar"
+    expect ok: "true"
+  end
+
+
+  # ── Navbar aggregate ──────────────────────────────────────────
+
+  test "CreateNavbar runs" do
+    tests "CreateNavbar", on: "Navbar"
+    expect ok: "true"
+  end
+
+
+  # ── Page aggregate ──────────────────────────────────────────
+
+  test "CreatePage sets aggregate + layout" do
+    tests "CreatePage", on: "Page"
+    input  aggregate: "sample", layout: "sample"
+    expect aggregate: "sample", layout: "sample"
+  end
+
+
+  # ── Tabs aggregate ──────────────────────────────────────────
+
+  test "CreateTabs sets aggregate" do
+    tests "CreateTabs", on: "Tabs"
+    input  aggregate: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Breadcrumbs aggregate ──────────────────────────────────────────
+
+  test "CreateBreadcrumbs runs" do
+    tests "CreateBreadcrumbs", on: "Breadcrumbs"
+    expect ok: "true"
+  end
+
+
+  # ── Steps aggregate ──────────────────────────────────────────
+
+  test "CreateSteps sets workflow" do
+    tests "CreateSteps", on: "Steps"
+    input  workflow: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── AggregateCard aggregate ──────────────────────────────────────────
+
+  test "CreateCard sets aggregate + variant" do
+    tests "CreateCard", on: "AggregateCard"
+    input  aggregate: "sample", variant: "sample"
+    expect aggregate: "sample", variant: "sample"
+  end
+
+
+  # ── DataTable aggregate ──────────────────────────────────────────
+
+  test "CreateTable sets aggregate" do
+    tests "CreateTable", on: "DataTable"
+    input  aggregate: "sample"
+    expect aggregate: "sample"
+  end
+
+
+  # ── StatCard aggregate ──────────────────────────────────────────
+
+  test "CreateStat sets label + value_source" do
+    tests "CreateStat", on: "StatCard"
+    input  label: "sample", value_source: "sample"
+    expect label: "sample", value_source: "sample"
+  end
+
+
+  # ── ListItem aggregate ──────────────────────────────────────────
+
+  test "CreateList sets aggregate" do
+    tests "CreateList", on: "ListItem"
+    input  aggregate: "sample"
+    expect aggregate: "sample"
+  end
+
+
+  # ── Badge aggregate ──────────────────────────────────────────
+
+  test "CreateBadge sets source" do
+    tests "CreateBadge", on: "Badge"
+    input  source: "sample"
+    expect source: "sample"
+  end
+
+
+  # ── Avatar aggregate ──────────────────────────────────────────
+
+  test "CreateAvatar runs" do
+    tests "CreateAvatar", on: "Avatar"
+    expect ok: "true"
+  end
+
+
+  # ── Timeline aggregate ──────────────────────────────────────────
+
+  test "CreateTimeline sets aggregate" do
+    tests "CreateTimeline", on: "Timeline"
+    input  aggregate: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Accordion aggregate ──────────────────────────────────────────
+
+  test "CreateAccordion sets aggregate" do
+    tests "CreateAccordion", on: "Accordion"
+    input  aggregate: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Board aggregate ──────────────────────────────────────────
+
+  test "CreateBoard sets aggregate + lifecycle_field" do
+    tests "CreateBoard", on: "Board"
+    input  aggregate: "sample", lifecycle_field: "sample"
+    expect aggregate: "sample", lifecycle_field: "sample"
+  end
+
+
+  # ── CommandForm aggregate ──────────────────────────────────────────
+
+  test "CreateForm sets command + variant" do
+    tests "CreateForm", on: "CommandForm"
+    input  command: "sample", variant: "sample"
+    expect command: "sample", variant: "sample"
+  end
+
+
+  # ── QuickAdd aggregate ──────────────────────────────────────────
+
+  test "CreateQuickAdd sets command" do
+    tests "CreateQuickAdd", on: "QuickAdd"
+    input  command: "sample"
+    expect command: "sample"
+  end
+
+
+  # ── FilterBar aggregate ──────────────────────────────────────────
+
+  test "CreateFilterBar sets aggregate" do
+    tests "CreateFilterBar", on: "FilterBar"
+    input  aggregate: "sample"
+    expect aggregate: "sample"
+  end
+
+
+  # ── SearchBox aggregate ──────────────────────────────────────────
+
+  test "CreateSearchBox sets aggregates" do
+    tests "CreateSearchBox", on: "SearchBox"
+    input  aggregates: "sample"
+    expect aggregates: "sample"
+  end
+
+
+  # ── Rating aggregate ──────────────────────────────────────────
+
+  test "CreateRating runs" do
+    tests "CreateRating", on: "Rating"
+    expect ok: "true"
+  end
+
+
+  # ── ActionButton aggregate ──────────────────────────────────────────
+
+  test "CreateButton sets command + variant" do
+    tests "CreateButton", on: "ActionButton"
+    input  command: "sample", variant: "sample"
+    expect command: "sample", variant: "sample"
+  end
+
+
+  # ── Dropdown aggregate ──────────────────────────────────────────
+
+  test "CreateDropdown sets aggregate" do
+    tests "CreateDropdown", on: "Dropdown"
+    input  aggregate: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Modal aggregate ──────────────────────────────────────────
+
+  test "CreateModal sets command" do
+    tests "CreateModal", on: "Modal"
+    input  command: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── LifecycleBar aggregate ──────────────────────────────────────────
+
+  test "CreateLifecycleBar sets aggregate + lifecycle_field" do
+    tests "CreateLifecycleBar", on: "LifecycleBar"
+    input  aggregate: "sample", lifecycle_field: "sample"
+    expect aggregate: "sample", lifecycle_field: "sample"
+  end
+
+
+  # ── Fab aggregate ──────────────────────────────────────────
+
+  test "CreateFab sets aggregate" do
+    tests "CreateFab", on: "Fab"
+    input  aggregate: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Swap aggregate ──────────────────────────────────────────
+
+  test "CreateSwap runs" do
+    tests "CreateSwap", on: "Swap"
+    expect ok: "true"
+  end
+
+
+  # ── Toast aggregate ──────────────────────────────────────────
+
+  test "CreateToast runs" do
+    tests "CreateToast", on: "Toast"
+    expect ok: "true"
+  end
+
+
+  # ── Alert aggregate ──────────────────────────────────────────
+
+  test "CreateAlert runs" do
+    tests "CreateAlert", on: "Alert"
+    expect ok: "true"
+  end
+
+
+  # ── Loading aggregate ──────────────────────────────────────────
+
+  test "CreateLoading runs" do
+    tests "CreateLoading", on: "Loading"
+    expect ok: "true"
+  end
+
+
+  # ── Progress aggregate ──────────────────────────────────────────
+
+  test "CreateProgress sets value_source + max_source" do
+    tests "CreateProgress", on: "Progress"
+    input  value_source: "sample", max_source: "sample"
+    expect value_source: "sample", max_source: "sample"
+  end
+
+
+  # ── Skeleton aggregate ──────────────────────────────────────────
+
+  test "CreateSkeleton runs" do
+    tests "CreateSkeleton", on: "Skeleton"
+    expect ok: "true"
+  end
+
+
+  # ── Tooltip aggregate ──────────────────────────────────────────
+
+  test "CreateTooltip runs" do
+    tests "CreateTooltip", on: "Tooltip"
+    expect ok: "true"
+  end
+
+
+  # ── EmptyState aggregate ──────────────────────────────────────────
+
+  test "CreateEmptyState sets aggregate" do
+    tests "CreateEmptyState", on: "EmptyState"
+    input  aggregate: "sample"
+    expect aggregate: "sample"
+  end
+
+
+  # ── EventStream aggregate ──────────────────────────────────────────
+
+  test "CreateEventStream sets position" do
+    tests "CreateEventStream", on: "EventStream"
+    input  position: "sample"
+    expect position: "sample"
+  end
+
+
+  # ── Theme aggregate ──────────────────────────────────────────
+
+  test "CreateTheme sets daisy_theme" do
+    tests "CreateTheme", on: "Theme"
+    input  daisy_theme: "sample"
+    expect daisy_theme: "sample"
+  end
+
+
+  # ── ThemeToggle aggregate ──────────────────────────────────────────
+
+  test "CreateThemeToggle runs" do
+    tests "CreateThemeToggle", on: "ThemeToggle"
+    expect ok: "true"
+  end
+
+end

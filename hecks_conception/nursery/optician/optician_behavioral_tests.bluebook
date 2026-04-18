@@ -1,0 +1,83 @@
+Hecks.behaviors "Optician" do
+  vision "Behavioral tests for the Optician domain — exercises every command and query in memory"
+
+  # ── Frame aggregate ──────────────────────────────────────────
+
+  test "StockFrame sets frame_id + brand + model + material + color + price + quantity" do
+    tests "StockFrame", on: "Frame"
+    input  frame_id: "sample", brand: "sample", model: "sample", material: "sample", color: "sample", price: 1.0, quantity: 1
+    expect frame_id: "sample", brand: "sample", model: "sample", material: "sample", color: "sample", price: 1.0, quantity: 1
+  end
+
+  test "DiscontinueFrame runs" do
+    tests "DiscontinueFrame", on: "Frame"
+    setup  "StockFrame", frame_id: "sample", brand: "sample", model: "sample", material: "sample", color: "sample", price: 1.0, quantity: 1
+    input  frame: 1
+    expect ok: "true"
+  end
+
+
+  # ── Lens aggregate ──────────────────────────────────────────
+
+  test "GrindLens sets lens_id + lens_type + material + coating + sphere + cylinder + axis + price" do
+    tests "GrindLens", on: "Lens"
+    input  lens_id: "sample", lens_type: "sample", material: "sample", coating: "sample", sphere: 1.0, cylinder: 1.0, axis: 1, price: 1.0
+    expect lens_id: "sample", lens_type: "sample", material: "sample", coating: "sample", sphere: 1.0, cylinder: 1.0, axis: 1, price: 1.0
+  end
+
+  test "ApplyCoating sets coating" do
+    tests "ApplyCoating", on: "Lens"
+    setup  "GrindLens", lens_id: "sample", lens_type: "sample", material: "sample", coating: "sample", sphere: 1.0, cylinder: 1.0, axis: 1, price: 1.0
+    input  lens: 1, coating: "sample"
+    expect coating: "sample"
+  end
+
+
+  # ── Prescription aggregate ──────────────────────────────────────────
+
+  test "RecordPrescription sets prescription_id + patient_name + doctor_name + issue_date + expiration_date + right_sphere + left_sphere" do
+    tests "RecordPrescription", on: "Prescription"
+    input  prescription_id: "sample", patient_name: "sample", doctor_name: "sample", issue_date: "sample", expiration_date: "sample", right_sphere: 1.0, left_sphere: 1.0
+    expect prescription_id: "sample", patient_name: "sample", doctor_name: "sample", issue_date: "sample", expiration_date: "sample", right_sphere: 1.0, left_sphere: 1.0, status: "active"
+  end
+
+  test "ExpirePrescription runs" do
+    tests "ExpirePrescription", on: "Prescription"
+    setup  "RecordPrescription", prescription_id: "sample", patient_name: "sample", doctor_name: "sample", issue_date: "sample", expiration_date: "sample", right_sphere: 1.0, left_sphere: 1.0
+    input  prescription: 1
+    expect status: "expired"
+  end
+
+
+  # ── Fitting aggregate ──────────────────────────────────────────
+
+  test "PerformFitting sets fitting_id + patient_name + frame_id" do
+    tests "PerformFitting", on: "Fitting"
+    input  fitting_id: "sample", patient_name: "sample", frame_id: "sample"
+    expect fitting_id: "sample", patient_name: "sample", frame_id: "sample"
+  end
+
+  test "RecordSatisfaction sets satisfaction" do
+    tests "RecordSatisfaction", on: "Fitting"
+    setup  "PerformFitting", fitting_id: "sample", patient_name: "sample", frame_id: "sample"
+    input  fitting: 1, satisfaction: "sample"
+    expect satisfaction: "sample"
+  end
+
+
+  # ── InsuranceClaim aggregate ──────────────────────────────────────────
+
+  test "SubmitClaim sets claim_id + patient_name + insurance_provider + amount_claimed" do
+    tests "SubmitClaim", on: "InsuranceClaim"
+    input  claim_id: "sample", patient_name: "sample", insurance_provider: "sample", amount_claimed: 1.0
+    expect claim_id: "sample", patient_name: "sample", insurance_provider: "sample", amount_claimed: 1.0, status: "submitted"
+  end
+
+  test "ResolveClaim sets resolution" do
+    tests "ResolveClaim", on: "InsuranceClaim"
+    setup  "SubmitClaim", claim_id: "sample", patient_name: "sample", insurance_provider: "sample", amount_claimed: 1.0
+    input  insurance_claim: 1, resolution: "sample"
+    expect status: "sample"
+  end
+
+end

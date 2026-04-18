@@ -1,0 +1,1176 @@
+Hecks.behaviors "Runtime" do
+  vision "Behavioral tests for the Runtime domain — exercises every command and query in memory"
+
+  # ── ViewBinding aggregate ──────────────────────────────────────────
+
+  test "BindView sets view_name" do
+    tests "BindView", on: "ViewBinding"
+    input  view_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Projection aggregate ──────────────────────────────────────────
+
+  test "Apply sets event_name" do
+    tests "Apply", on: "Projection"
+    input  event_name: "sample"
+    expect ok: "true"
+  end
+
+  test "Query sets query_name" do
+    tests "Query", on: "Projection"
+    input  query_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ProjectionSetup aggregate ──────────────────────────────────────────
+
+  test "SetupProjections sets domain_id" do
+    tests "SetupProjections", on: "ProjectionSetup"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ModelMixinInternal aggregate ──────────────────────────────────────────
+
+  test "Initialize sets attributes" do
+    tests "Initialize", on: "ModelMixinInternal"
+    input  attributes: "sample"
+    expect ok: "true"
+  end
+
+  test "Serialize sets format" do
+    tests "Serialize", on: "ModelMixinInternal"
+    input  format: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DispatchMixin aggregate ──────────────────────────────────────────
+
+  test "Dispatch sets command_name + payload" do
+    tests "Dispatch", on: "DispatchMixin"
+    input  command_name: "sample", payload: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ReferenceValidation aggregate ──────────────────────────────────────────
+
+  test "Validate sets reference_name + id" do
+    tests "Validate", on: "ReferenceValidation"
+    input  reference_name: "sample", id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── LifecycleSteps aggregate ──────────────────────────────────────────
+
+  test "Transition sets from_state + to_state" do
+    tests "Transition", on: "LifecycleSteps"
+    input  from_state: "sample", to_state: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── AndSpecification aggregate ──────────────────────────────────────────
+
+  test "Satisfied sets candidate" do
+    tests "Satisfied", on: "AndSpecification"
+    input  candidate: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── OrSpecification aggregate ──────────────────────────────────────────
+
+  test "Satisfied sets candidate" do
+    tests "Satisfied", on: "OrSpecification"
+    input  candidate: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── NotSpecification aggregate ──────────────────────────────────────────
+
+  test "Satisfied sets candidate" do
+    tests "Satisfied", on: "NotSpecification"
+    input  candidate: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── BreakingBumper aggregate ──────────────────────────────────────────
+
+  test "Bump sets domain_name" do
+    tests "Bump", on: "BreakingBumper"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── BreakingClassifier aggregate ──────────────────────────────────────────
+
+  test "Classify sets diff" do
+    tests "Classify", on: "BreakingClassifier"
+    input  diff: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Command aggregate ──────────────────────────────────────────
+
+  test "Emits sets event_names" do
+    tests "Emits", on: "Command"
+    input  event_names: "sample"
+    expect ok: "true"
+  end
+
+  test "Call sets attrs" do
+    tests "Call", on: "Command"
+    input  attrs: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Model aggregate ──────────────────────────────────────────
+
+  test "Attribute sets name + default" do
+    tests "Attribute", on: "Model"
+    input  name: "sample", default: "sample"
+    expect ok: "true"
+  end
+
+  test "RebuildInitializer runs" do
+    tests "RebuildInitializer", on: "Model"
+    expect ok: "true"
+  end
+
+
+  # ── Query aggregate ──────────────────────────────────────────
+
+  test "Call sets params" do
+    tests "Call", on: "Query"
+    input  params: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Specification aggregate ──────────────────────────────────────────
+
+  test "SatisfiedBy sets candidate" do
+    tests "SatisfiedBy", on: "Specification"
+    input  candidate: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Dispatch aggregate ──────────────────────────────────────────
+
+  test "EmitEvent runs" do
+    tests "EmitEvent", on: "Dispatch"
+    expect ok: "true"
+  end
+
+  test "PersistAggregate runs" do
+    tests "PersistAggregate", on: "Dispatch"
+    expect ok: "true"
+  end
+
+
+  # ── Validation aggregate ──────────────────────────────────────────
+
+  test "Precondition sets message" do
+    tests "Precondition", on: "Validation"
+    input  message: "sample"
+    expect ok: "true"
+  end
+
+  test "Postcondition sets message" do
+    tests "Postcondition", on: "Validation"
+    input  message: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── RuntimeAttributeDefinition aggregate ──────────────────────────────────────────
+
+  test "Define sets name + default" do
+    tests "Define", on: "RuntimeAttributeDefinition"
+    input  name: "sample", default: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── WorkflowStepCompat aggregate ──────────────────────────────────────────
+
+  test "Register sets target_class" do
+    tests "Register", on: "WorkflowStepCompat"
+    input  target_class: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ConnectionConfigCompat aggregate ──────────────────────────────────────────
+
+  test "Register sets target_class" do
+    tests "Register", on: "ConnectionConfigCompat"
+    input  target_class: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Runtime aggregate ──────────────────────────────────────────
+
+  test "Boot sets domain_path" do
+    tests "Boot", on: "Runtime"
+    input  domain_path: "sample"
+    expect ok: "true"
+  end
+
+  test "Load sets domain_ir" do
+    tests "Load", on: "Runtime"
+    input  domain_ir: "sample"
+    expect ok: "true"
+  end
+
+  test "Configure sets config_block" do
+    tests "Configure", on: "Runtime"
+    input  config_block: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Configuration aggregate ──────────────────────────────────────────
+
+  test "SetAdapter sets adapter_name" do
+    tests "SetAdapter", on: "Configuration"
+    input  adapter_name: "sample"
+    expect ok: "true"
+  end
+
+  test "AddExtension sets extension_name" do
+    tests "AddExtension", on: "Configuration"
+    input  extension_name: "sample"
+    expect ok: "true"
+  end
+
+  test "LoadDomain sets domain_name" do
+    tests "LoadDomain", on: "Configuration"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GateEnforcer aggregate ──────────────────────────────────────────
+
+  test "EnforceGate sets gate_name + aggregate_name" do
+    tests "EnforceGate", on: "GateEnforcer"
+    input  gate_name: "sample", aggregate_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DryRunResult aggregate ──────────────────────────────────────────
+
+  test "DryRun sets command_name" do
+    tests "DryRun", on: "DryRunResult"
+    input  command_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Introspection aggregate ──────────────────────────────────────────
+
+  test "Inspect sets aggregate_name" do
+    tests "Inspect", on: "Introspection"
+    input  aggregate_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DomainVersioning aggregate ──────────────────────────────────────────
+
+  test "TagVersion sets version" do
+    tests "TagVersion", on: "DomainVersioning"
+    input  version: "sample"
+    expect ok: "true"
+  end
+
+  test "LoadVersion sets version" do
+    tests "LoadVersion", on: "DomainVersioning"
+    input  version: "sample"
+    expect ok: "true"
+  end
+
+  test "DiffVersions sets from_version + to_version" do
+    tests "DiffVersions", on: "DomainVersioning"
+    input  from_version: "sample", to_version: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Validations aggregate ──────────────────────────────────────────
+
+  test "Validate sets aggregate" do
+    tests "Validate", on: "Validations"
+    input  aggregate: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── BootBluebook aggregate ──────────────────────────────────────────
+
+  test "Boot sets bluebook_path" do
+    tests "Boot", on: "BootBluebook"
+    input  bluebook_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── BootPhase aggregate ──────────────────────────────────────────
+
+  test "Execute sets phase_name" do
+    tests "Execute", on: "BootPhase"
+    input  phase_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ConfigurationDSL aggregate ──────────────────────────────────────────
+
+  test "Evaluate sets config_block" do
+    tests "Evaluate", on: "ConfigurationDSL"
+    input  config_block: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ConnectionSetup aggregate ──────────────────────────────────────────
+
+  test "Connect sets adapter_name + url" do
+    tests "Connect", on: "ConnectionSetup"
+    input  adapter_name: "sample", url: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ConstantHoisting aggregate ──────────────────────────────────────────
+
+  test "Hoist sets module_name" do
+    tests "Hoist", on: "ConstantHoisting"
+    input  module_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DomainConfigBuilder aggregate ──────────────────────────────────────────
+
+  test "Build sets config_block" do
+    tests "Build", on: "DomainConfigBuilder"
+    input  config_block: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DomainLoader aggregate ──────────────────────────────────────────
+
+  test "LoadFromFile sets file_path" do
+    tests "LoadFromFile", on: "DomainLoader"
+    input  file_path: "sample"
+    expect ok: "true"
+  end
+
+  test "LoadFromGem sets gem_name" do
+    tests "LoadFromGem", on: "DomainLoader"
+    input  gem_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ExtensionDispatch aggregate ──────────────────────────────────────────
+
+  test "Dispatch sets hook_name" do
+    tests "Dispatch", on: "ExtensionDispatch"
+    input  hook_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── LoadExtensions aggregate ──────────────────────────────────────────
+
+  test "Load sets extension_name" do
+    tests "Load", on: "LoadExtensions"
+    input  extension_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── PolicySetup aggregate ──────────────────────────────────────────
+
+  test "Wire sets policy_name" do
+    tests "Wire", on: "PolicySetup"
+    input  policy_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── PortSetup aggregate ──────────────────────────────────────────
+
+  test "Create sets aggregate_name" do
+    tests "Create", on: "PortSetup"
+    input  aggregate_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ReadModelSetup aggregate ──────────────────────────────────────────
+
+  test "Wire sets projection_name" do
+    tests "Wire", on: "ReadModelSetup"
+    input  projection_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── RepositorySetup aggregate ──────────────────────────────────────────
+
+  test "Create sets adapter_name + aggregate_name" do
+    tests "Create", on: "RepositorySetup"
+    input  adapter_name: "sample", aggregate_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SagaSetup aggregate ──────────────────────────────────────────
+
+  test "Register sets saga_name" do
+    tests "Register", on: "SagaSetup"
+    input  saga_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ServiceSetup aggregate ──────────────────────────────────────────
+
+  test "Wire sets service_name" do
+    tests "Wire", on: "ServiceSetup"
+    input  service_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ServiceContext aggregate ──────────────────────────────────────────
+
+  test "Build sets service_name" do
+    tests "Build", on: "ServiceContext"
+    input  service_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SubscriberSetup aggregate ──────────────────────────────────────────
+
+  test "Register sets event_name + handler" do
+    tests "Register", on: "SubscriberSetup"
+    input  event_name: "sample", handler: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ViewSetup aggregate ──────────────────────────────────────────
+
+  test "Wire sets view_name" do
+    tests "Wire", on: "ViewSetup"
+    input  view_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── WorkflowSetup aggregate ──────────────────────────────────────────
+
+  test "Register sets workflow_name" do
+    tests "Register", on: "WorkflowSetup"
+    input  workflow_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── CommandDispatch aggregate ──────────────────────────────────────────
+
+  test "Dispatch sets command_name + payload" do
+    tests "Dispatch", on: "CommandDispatch"
+    input  command_name: "sample", payload: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── AuthCoverageCheck aggregate ──────────────────────────────────────────
+
+  test "Check sets domain_name" do
+    tests "Check", on: "AuthCoverageCheck"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ReferenceCoverageCheck aggregate ──────────────────────────────────────────
+
+  test "Check sets domain_name" do
+    tests "Check", on: "ReferenceCoverageCheck"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Versioning aggregate ──────────────────────────────────────────
+
+  test "CurrentVersion sets domain_name" do
+    tests "CurrentVersion", on: "Versioning"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── CommandLoader aggregate ──────────────────────────────────────────
+
+  test "Load sets aggregate_name" do
+    tests "Load", on: "CommandLoader"
+    input  aggregate_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── QueryContext aggregate ──────────────────────────────────────────
+
+  test "Execute sets query_name" do
+    tests "Execute", on: "QueryContext"
+    input  query_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── AdapterWiring aggregate ──────────────────────────────────────────
+
+  test "Adapt sets aggregate_name + adapter_module" do
+    tests "Adapt", on: "AdapterWiring"
+    input  aggregate_name: "sample", adapter_module: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ReferenceAuthorizerCheck aggregate ──────────────────────────────────────────
+
+  test "Check sets domain_name" do
+    tests "Check", on: "ReferenceAuthorizerCheck"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── CommandMethods aggregate ──────────────────────────────────────────
+
+  test "Execute sets command" do
+    tests "Execute", on: "CommandMethods"
+    input  command: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── CommandResolver aggregate ──────────────────────────────────────────
+
+  test "Resolve sets name" do
+    tests "Resolve", on: "CommandResolver"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── CollectionItem aggregate ──────────────────────────────────────────
+
+  test "Wrap sets id" do
+    tests "Wrap", on: "CollectionItem"
+    input  id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── CollectionMethods aggregate ──────────────────────────────────────────
+
+  test "Each sets block" do
+    tests "Each", on: "CollectionMethods"
+    input  block: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── CollectionProxy aggregate ──────────────────────────────────────────
+
+  test "Chain sets scope" do
+    tests "Chain", on: "CollectionProxy"
+    input  scope: "sample"
+    expect ok: "true"
+  end
+
+  test "Load sets scope" do
+    tests "Load", on: "CollectionProxy"
+    input  scope: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── EventRecorder aggregate ──────────────────────────────────────────
+
+  test "Record sets event_name + payload" do
+    tests "Record", on: "EventRecorder"
+    input  event_name: "sample", payload: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ReferenceMethods aggregate ──────────────────────────────────────────
+
+  test "Resolve sets reference_name + id" do
+    tests "Resolve", on: "ReferenceMethods"
+    input  reference_name: "sample", id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── RepositoryMethods aggregate ──────────────────────────────────────────
+
+  test "Create sets attributes" do
+    tests "Create", on: "RepositoryMethods"
+    input  attributes: "sample"
+    expect ok: "true"
+  end
+
+  test "Read sets id" do
+    tests "Read", on: "RepositoryMethods"
+    input  id: "sample"
+    expect ok: "true"
+  end
+
+  test "Update sets id + attributes" do
+    tests "Update", on: "RepositoryMethods"
+    input  id: "sample", attributes: "sample"
+    expect ok: "true"
+  end
+
+  test "Delete sets id" do
+    tests "Delete", on: "RepositoryMethods"
+    input  id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── MemoryOutbox aggregate ──────────────────────────────────────────
+
+  test "Enqueue sets message" do
+    tests "Enqueue", on: "MemoryOutbox"
+    input  message: "sample"
+    expect ok: "true"
+  end
+
+  test "Flush sets batch_size" do
+    tests "Flush", on: "MemoryOutbox"
+    input  batch_size: 1
+    expect ok: "true"
+  end
+
+
+  # ── MemoryQueue aggregate ──────────────────────────────────────────
+
+  test "Push sets message" do
+    tests "Push", on: "MemoryQueue"
+    input  message: "sample"
+    expect ok: "true"
+  end
+
+  test "Pop sets count" do
+    tests "Pop", on: "MemoryQueue"
+    input  count: 1
+    expect ok: "true"
+  end
+
+
+  # ── AdHocQueries aggregate ──────────────────────────────────────────
+
+  test "Build sets expression" do
+    tests "Build", on: "AdHocQueries"
+    input  expression: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ConditionNode aggregate ──────────────────────────────────────────
+
+  test "Evaluate sets record" do
+    tests "Evaluate", on: "ConditionNode"
+    input  record: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── InMemoryExecutor aggregate ──────────────────────────────────────────
+
+  test "Execute sets query + collection" do
+    tests "Execute", on: "InMemoryExecutor"
+    input  query: "sample", collection: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ScopeMethods aggregate ──────────────────────────────────────────
+
+  test "Compose sets scope_a + scope_b" do
+    tests "Compose", on: "ScopeMethods"
+    input  scope_a: "sample", scope_b: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Operators aggregate ──────────────────────────────────────────
+
+  test "Register sets name + operator" do
+    tests "Register", on: "Operators"
+    input  name: "sample", operator: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Operator aggregate ──────────────────────────────────────────
+
+  test "Compare sets field + value" do
+    tests "Compare", on: "Operator"
+    input  field: "sample", value: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Gt aggregate ──────────────────────────────────────────
+
+  test "Compare sets field + value" do
+    tests "Compare", on: "Gt"
+    input  field: "sample", value: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Gte aggregate ──────────────────────────────────────────
+
+  test "Compare sets field + value" do
+    tests "Compare", on: "Gte"
+    input  field: "sample", value: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Lt aggregate ──────────────────────────────────────────
+
+  test "Compare sets field + value" do
+    tests "Compare", on: "Lt"
+    input  field: "sample", value: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Lte aggregate ──────────────────────────────────────────
+
+  test "Compare sets field + value" do
+    tests "Compare", on: "Lte"
+    input  field: "sample", value: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── InOp aggregate ──────────────────────────────────────────
+
+  test "Compare sets field + values" do
+    tests "Compare", on: "InOp"
+    input  field: "sample", values: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── NotEq aggregate ──────────────────────────────────────────
+
+  test "Compare sets field + value" do
+    tests "Compare", on: "NotEq"
+    input  field: "sample", value: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── CommandHandle aggregate ──────────────────────────────────────────
+
+  test "Wait sets timeout" do
+    tests "Wait", on: "CommandHandle"
+    input  timeout: 1
+    expect ok: "true"
+  end
+
+
+  # ── SagaRunner aggregate ──────────────────────────────────────────
+
+  test "StartSaga sets saga_name" do
+    tests "StartSaga", on: "SagaRunner"
+    input  saga_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SagaStore aggregate ──────────────────────────────────────────
+
+  test "SaveState sets saga_id + state" do
+    tests "SaveState", on: "SagaStore"
+    input  saga_id: "sample", state: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── WorkflowExecutor aggregate ──────────────────────────────────────────
+
+  test "ExecuteWorkflow sets workflow_name" do
+    tests "ExecuteWorkflow", on: "WorkflowExecutor"
+    input  workflow_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── EventStore aggregate ──────────────────────────────────────────
+
+  test "Append sets stream_id + event" do
+    tests "Append", on: "EventStore"
+    input  stream_id: "sample", event: "sample"
+    expect ok: "true"
+  end
+
+  test "ReadStream sets stream_id" do
+    tests "ReadStream", on: "EventStore"
+    input  stream_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SnapshotStore aggregate ──────────────────────────────────────────
+
+  test "Save sets stream_id + snapshot" do
+    tests "Save", on: "SnapshotStore"
+    input  stream_id: "sample", snapshot: "sample"
+    expect ok: "true"
+  end
+
+  test "Load sets stream_id" do
+    tests "Load", on: "SnapshotStore"
+    input  stream_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── UpcasterRegistry aggregate ──────────────────────────────────────────
+
+  test "Register sets event_type + version" do
+    tests "Register", on: "UpcasterRegistry"
+    input  event_type: "sample", version: 1
+    expect ok: "true"
+  end
+
+
+  # ── UpcasterEngine aggregate ──────────────────────────────────────────
+
+  test "Upcast sets event" do
+    tests "Upcast", on: "UpcasterEngine"
+    input  event: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ProjectionRebuilder aggregate ──────────────────────────────────────────
+
+  test "Rebuild sets projection_name" do
+    tests "Rebuild", on: "ProjectionRebuilder"
+    input  projection_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Reconstitution aggregate ──────────────────────────────────────────
+
+  test "Reconstitute sets stream_id" do
+    tests "Reconstitute", on: "Reconstitution"
+    input  stream_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── TimeTravel aggregate ──────────────────────────────────────────
+
+  test "At sets stream_id + timestamp" do
+    tests "At", on: "TimeTravel"
+    input  stream_id: "sample", timestamp: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ProcessManager aggregate ──────────────────────────────────────────
+
+  test "Handle sets event" do
+    tests "Handle", on: "ProcessManager"
+    input  event: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── OutboxES aggregate ──────────────────────────────────────────
+
+  test "Enqueue sets event" do
+    tests "Enqueue", on: "OutboxES"
+    input  event: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── OutboxPoller aggregate ──────────────────────────────────────────
+
+  test "Poll sets batch_size" do
+    tests "Poll", on: "OutboxPoller"
+    input  batch_size: 1
+    expect ok: "true"
+  end
+
+
+  # ── Concurrency aggregate ──────────────────────────────────────────
+
+  test "Stamp sets aggregate + version" do
+    tests "Stamp", on: "Concurrency"
+    input  aggregate: "sample", version: 1
+    expect ok: "true"
+  end
+
+
+  # ── EventSourcing aggregate ──────────────────────────────────────────
+
+  test "Autoload sets const_name + path" do
+    tests "Autoload", on: "EventSourcing"
+    input  const_name: "sample", path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── EventBus aggregate ──────────────────────────────────────────
+
+  test "Publish sets event_name" do
+    tests "Publish", on: "EventBus"
+    input  event_name: "sample"
+    expect ok: "true"
+  end
+
+  test "Subscribe sets event_name" do
+    tests "Subscribe", on: "EventBus"
+    input  event_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── CommandBus aggregate ──────────────────────────────────────────
+
+  test "Dispatch sets command_name" do
+    tests "Dispatch", on: "CommandBus"
+    input  command_name: "sample"
+    expect ok: "true"
+  end
+
+  test "AddMiddleware sets middleware_name" do
+    tests "AddMiddleware", on: "CommandBus"
+    input  middleware_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── CommandRunner aggregate ──────────────────────────────────────────
+
+  test "Run sets command_name" do
+    tests "Run", on: "CommandRunner"
+    input  command_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Repository aggregate ──────────────────────────────────────────
+
+  test "Create sets aggregate_name" do
+    tests "Create", on: "Repository"
+    input  aggregate_name: "sample"
+    expect ok: "true"
+  end
+
+  test "Find sets id" do
+    tests "Find", on: "Repository"
+    input  id: "sample"
+    expect ok: "true"
+  end
+
+  test "Delete sets id" do
+    tests "Delete", on: "Repository"
+    input  id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── QueryBuilder aggregate ──────────────────────────────────────────
+
+  test "Where sets field + value" do
+    tests "Where", on: "QueryBuilder"
+    input  field: "sample", value: "sample"
+    expect ok: "true"
+  end
+
+  test "OrderBy sets field" do
+    tests "OrderBy", on: "QueryBuilder"
+    input  field: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── QueuePort aggregate ──────────────────────────────────────────
+
+  test "Enqueue sets command_name" do
+    tests "Enqueue", on: "QueuePort"
+    input  command_name: "sample"
+    expect ok: "true"
+  end
+
+  test "Process sets batch_size" do
+    tests "Process", on: "QueuePort"
+    input  batch_size: 1
+    expect ok: "true"
+  end
+
+
+  # ── CommandMixin aggregate ──────────────────────────────────────────
+
+  test "Execute sets attributes" do
+    tests "Execute", on: "CommandMixin"
+    input  attributes: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ModelMixin aggregate ──────────────────────────────────────────
+
+  test "Initialize sets attributes" do
+    tests "Initialize", on: "ModelMixin"
+    input  attributes: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── QueryMixin aggregate ──────────────────────────────────────────
+
+  test "Call sets params" do
+    tests "Call", on: "QueryMixin"
+    input  params: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SpecificationMixin aggregate ──────────────────────────────────────────
+
+  test "Satisfied sets candidate" do
+    tests "Satisfied", on: "SpecificationMixin"
+    input  candidate: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── AttachmentMethods aggregate ──────────────────────────────────────────
+
+  test "Attach sets field + file" do
+    tests "Attach", on: "AttachmentMethods"
+    input  field: "sample", file: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Commands aggregate ──────────────────────────────────────────
+
+  test "Bind sets klass + aggregate" do
+    tests "Bind", on: "Commands"
+    input  klass: "sample", aggregate: "sample"
+    expect ok: "true"
+  end
+
+  test "BindShortcuts sets klass + aggregate" do
+    tests "BindShortcuts", on: "Commands"
+    input  klass: "sample", aggregate: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Querying aggregate ──────────────────────────────────────────
+
+  test "Bind sets klass + aggregate" do
+    tests "Bind", on: "Querying"
+    input  klass: "sample", aggregate: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Persistence aggregate ──────────────────────────────────────────
+
+  test "Bind sets klass + aggregate + repo" do
+    tests "Bind", on: "Persistence"
+    input  klass: "sample", aggregate: "sample", repo: "sample"
+    expect ok: "true"
+  end
+
+  test "BindEventRecorder sets klass + recorder" do
+    tests "BindEventRecorder", on: "Persistence"
+    input  klass: "sample", recorder: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Outbox aggregate ──────────────────────────────────────────
+
+  test "Enable sets enabled" do
+    tests "Enable", on: "Outbox"
+    input  enabled: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Queue aggregate ──────────────────────────────────────────
+
+  test "Enable sets adapter" do
+    tests "Enable", on: "Queue"
+    input  adapter: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SmokeTest aggregate ──────────────────────────────────────────
+
+  test "RunSmoke sets base_url" do
+    tests "RunSmoke", on: "SmokeTest"
+    input  base_url: "sample"
+    expect ok: "true"
+  end
+
+  test "CheckEvents sets event_log" do
+    tests "CheckEvents", on: "SmokeTest"
+    input  event_log: "sample"
+    expect ok: "true"
+  end
+
+  test "TestBehaviors sets domain_name" do
+    tests "TestBehaviors", on: "SmokeTest"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+end

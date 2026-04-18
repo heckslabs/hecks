@@ -1,0 +1,111 @@
+Hecks.behaviors "GolfCourse" do
+  vision "Behavioral tests for the GolfCourse domain — exercises every command and query in memory"
+
+  # ── TeeTime aggregate ──────────────────────────────────────────
+
+  test "BookTeeTime sets booking_id + player_name + date + time + group_size + green_fee" do
+    tests "BookTeeTime", on: "TeeTime"
+    input  booking_id: "sample", player_name: "sample", date: "sample", time: "sample", group_size: 1, green_fee: 1.0
+    expect booking_id: "sample", player_name: "sample", date: "sample", time: "sample", group_size: 1, green_fee: 1.0, status: "booked"
+  end
+
+  test "CheckInGroup runs" do
+    tests "CheckInGroup", on: "TeeTime"
+    setup  "BookTeeTime", booking_id: "sample", player_name: "sample", date: "sample", time: "sample", group_size: 1, green_fee: 1.0
+    input  tee_time: 1
+    expect status: "checked_in"
+  end
+
+  test "CancelTeeTime runs" do
+    tests "CancelTeeTime", on: "TeeTime"
+    setup  "BookTeeTime", booking_id: "sample", player_name: "sample", date: "sample", time: "sample", group_size: 1, green_fee: 1.0
+    input  tee_time: 1
+    expect status: "canceled"
+  end
+
+
+  # ── GolfCart aggregate ──────────────────────────────────────────
+
+  test "RegisterCart sets cart_id + cart_type + seating_capacity + rental_fee" do
+    tests "RegisterCart", on: "GolfCart"
+    input  cart_id: "sample", cart_type: "sample", seating_capacity: 1, rental_fee: 1.0
+    expect cart_id: "sample", cart_type: "sample", seating_capacity: 1, rental_fee: 1.0, status: "available"
+  end
+
+  test "RentCart runs" do
+    tests "RentCart", on: "GolfCart"
+    setup  "RegisterCart", cart_id: "sample", cart_type: "sample", seating_capacity: 1, rental_fee: 1.0
+    input  golf_cart: 1
+    expect status: "rented"
+  end
+
+  test "ReturnCart runs" do
+    tests "ReturnCart", on: "GolfCart"
+    setup  "RegisterCart", cart_id: "sample", cart_type: "sample", seating_capacity: 1, rental_fee: 1.0
+    input  golf_cart: 1
+    expect status: "available"
+  end
+
+  test "ServiceCart runs" do
+    tests "ServiceCart", on: "GolfCart"
+    setup  "RegisterCart", cart_id: "sample", cart_type: "sample", seating_capacity: 1, rental_fee: 1.0
+    input  golf_cart: 1
+    expect ok: "true"
+  end
+
+
+  # ── CourseHole aggregate ──────────────────────────────────────────
+
+  test "DefineHole sets hole_id + hole_number + par + yardage + hazard_notes" do
+    tests "DefineHole", on: "CourseHole"
+    input  hole_id: "sample", hole_number: 1, par: 1, yardage: 1, hazard_notes: "sample"
+    expect hole_id: "sample", hole_number: 1, par: 1, yardage: 1, hazard_notes: "sample", condition: "good"
+  end
+
+  test "ReportCondition sets condition" do
+    tests "ReportCondition", on: "CourseHole"
+    setup  "DefineHole", hole_id: "sample", hole_number: 1, par: 1, yardage: 1, hazard_notes: "sample"
+    input  course_hole: 1, condition: "sample"
+    expect condition: "sample"
+  end
+
+
+  # ── GreenskeepingTask aggregate ──────────────────────────────────────────
+
+  test "ScheduleTask sets task_id + task_type + area + assigned_to + scheduled_date" do
+    tests "ScheduleTask", on: "GreenskeepingTask"
+    input  task_id: "sample", task_type: "sample", area: "sample", assigned_to: "sample", scheduled_date: "sample"
+    expect task_id: "sample", task_type: "sample", area: "sample", assigned_to: "sample", scheduled_date: "sample", status: "scheduled"
+  end
+
+  test "CompleteTask runs" do
+    tests "CompleteTask", on: "GreenskeepingTask"
+    setup  "ScheduleTask", task_id: "sample", task_type: "sample", area: "sample", assigned_to: "sample", scheduled_date: "sample"
+    input  greenskeeping_task: 1
+    expect status: "completed"
+  end
+
+
+  # ── GolfTournament aggregate ──────────────────────────────────────────
+
+  test "CreateTournament sets tournament_id + name + format + date + max_players + entry_fee" do
+    tests "CreateTournament", on: "GolfTournament"
+    input  tournament_id: "sample", name: "sample", format: "sample", date: "sample", max_players: 1, entry_fee: 1.0
+    expect tournament_id: "sample", name: "sample", format: "sample", date: "sample", max_players: 1, entry_fee: 1.0, status: "open"
+  end
+
+  test "StartTournament runs" do
+    tests "StartTournament", on: "GolfTournament"
+    setup  "CreateTournament", tournament_id: "sample", name: "sample", format: "sample", date: "sample", max_players: 1, entry_fee: 1.0
+    input  golf_tournament: 1
+    expect status: "in_progress"
+  end
+
+  test "AwardPrizes runs" do
+    tests "AwardPrizes", on: "GolfTournament"
+    setup  "CreateTournament", tournament_id: "sample", name: "sample", format: "sample", date: "sample", max_players: 1, entry_fee: 1.0
+    input  golf_tournament: 1
+    expect status: "concluded"
+  end
+
+end

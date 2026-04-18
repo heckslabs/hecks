@@ -1,0 +1,97 @@
+Hecks.behaviors "DomainHygiene" do
+  vision "Behavioral tests for the DomainHygiene domain — exercises every command and query in memory"
+
+  # ── HealthCheck aggregate ──────────────────────────────────────────
+
+  test "ScanCorpus sets root_path" do
+    tests "ScanCorpus", on: "HealthCheck"
+    input  root_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── QualityReport aggregate ──────────────────────────────────────────
+
+  test "AssessQuality sets jsonl_path" do
+    tests "AssessQuality", on: "QualityReport"
+    input  jsonl_path: "sample"
+    expect ok: "true"
+  end
+
+  test "IdentifyGaps runs" do
+    tests "IdentifyGaps", on: "QualityReport"
+    setup  "AssessQuality", jsonl_path: "sample"
+    input  quality_report: 1
+    expect ok: "true"
+  end
+
+
+  # ── Enrichment aggregate ──────────────────────────────────────────
+
+  test "EnrichDomain sets domain_name + enrichment_type" do
+    tests "EnrichDomain", on: "Enrichment"
+    input  domain_name: "sample", enrichment_type: "sample"
+    expect ok: "true"
+  end
+
+  test "Revalidate runs" do
+    tests "Revalidate", on: "Enrichment"
+    setup  "EnrichDomain", domain_name: "sample", enrichment_type: "sample"
+    input  enrichment: 1
+    expect ok: "true"
+  end
+
+
+  # ── TrainingHarvest aggregate ──────────────────────────────────────────
+
+  test "HarvestTrainingData sets root_path + output_path" do
+    tests "HarvestTrainingData", on: "TrainingHarvest"
+    input  root_path: "sample", output_path: "sample"
+    expect ok: "true"
+  end
+
+  test "CompareVersions sets previous_path" do
+    tests "CompareVersions", on: "TrainingHarvest"
+    setup  "HarvestTrainingData", root_path: "sample", output_path: "sample"
+    input  training_harvest: 1, previous_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── CorpusGrowth aggregate ──────────────────────────────────────────
+
+  test "GrowCorpus sets target_count" do
+    tests "GrowCorpus", on: "CorpusGrowth"
+    input  target_count: 1
+    expect ok: "true"
+  end
+
+  test "ConceiveBatch sets batch_size + topics" do
+    tests "ConceiveBatch", on: "CorpusGrowth"
+    setup  "GrowCorpus", target_count: 1
+    input  corpus_growth: 1, batch_size: 1, topics: "sample"
+    expect ok: "true"
+  end
+
+  test "RepairFailures runs" do
+    tests "RepairFailures", on: "CorpusGrowth"
+    setup  "GrowCorpus", target_count: 1
+    input  corpus_growth: 1
+    expect ok: "true"
+  end
+
+  test "EnrichShallow runs" do
+    tests "EnrichShallow", on: "CorpusGrowth"
+    setup  "GrowCorpus", target_count: 1
+    input  corpus_growth: 1
+    expect ok: "true"
+  end
+
+  test "ReportGrowth runs" do
+    tests "ReportGrowth", on: "CorpusGrowth"
+    setup  "GrowCorpus", target_count: 1
+    input  corpus_growth: 1
+    expect ok: "true"
+  end
+
+end

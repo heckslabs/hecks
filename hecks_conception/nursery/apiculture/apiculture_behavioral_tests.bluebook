@@ -1,0 +1,102 @@
+Hecks.behaviors "Apiculture" do
+  vision "Behavioral tests for the Apiculture domain — exercises every command and query in memory"
+
+  # ── Hive aggregate ──────────────────────────────────────────
+
+  test "EstablishHive sets hive_id + hive_type + location" do
+    tests "EstablishHive", on: "Hive"
+    input  hive_id: "sample", hive_type: "sample", location: "sample"
+    expect ok: "true"
+  end
+
+  test "SplitHive runs" do
+    tests "SplitHive", on: "Hive"
+    setup  "EstablishHive", hive_id: "sample", hive_type: "sample", location: "sample"
+    input  hive: 1
+    expect ok: "true"
+  end
+
+  test "RetireHive runs" do
+    tests "RetireHive", on: "Hive"
+    setup  "EstablishHive", hive_id: "sample", hive_type: "sample", location: "sample"
+    input  hive: 1
+    expect ok: "true"
+  end
+
+
+  # ── Inspection aggregate ──────────────────────────────────────────
+
+  test "PerformInspection sets inspection_date + inspector" do
+    tests "PerformInspection", on: "Inspection"
+    setup  "EstablishHive", hive_id: "sample", hive_type: "sample", location: "sample"
+    input  hive: 1, inspection_date: "sample", inspector: "sample"
+    expect ok: "true"
+  end
+
+  test "FlagConcern sets concern_type + details" do
+    tests "FlagConcern", on: "Inspection"
+    input  inspection: 1, concern_type: "sample", details: "sample"
+    expect ok: "true"
+  end
+
+  test "RecordTemperament sets temperament" do
+    tests "RecordTemperament", on: "Inspection"
+    input  inspection: 1, temperament: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Harvest aggregate ──────────────────────────────────────────
+
+  test "ExtractHoney sets harvest_date + weight_kg" do
+    tests "ExtractHoney", on: "Harvest"
+    setup  "EstablishHive", hive_id: "sample", hive_type: "sample", location: "sample"
+    input  hive: 1, harvest_date: "sample", weight_kg: 1.0
+    expect ok: "true"
+  end
+
+  test "JarHoney sets jar_count" do
+    tests "JarHoney", on: "Harvest"
+    input  harvest: 1, jar_count: 1
+    expect ok: "true"
+  end
+
+
+  # ── Queen aggregate ──────────────────────────────────────────
+
+  test "IntroduceQueen sets queen_id + lineage" do
+    tests "IntroduceQueen", on: "Queen"
+    setup  "EstablishHive", hive_id: "sample", hive_type: "sample", location: "sample"
+    input  hive: 1, queen_id: "sample", lineage: "sample"
+    expect ok: "true"
+  end
+
+  test "MarkQueen sets marked_color" do
+    tests "MarkQueen", on: "Queen"
+    input  queen: 1, marked_color: "sample"
+    expect ok: "true"
+  end
+
+  test "SupersedeQueen runs" do
+    tests "SupersedeQueen", on: "Queen"
+    input  queen: 1
+    expect ok: "true"
+  end
+
+
+  # ── DiseaseTreatment aggregate ──────────────────────────────────────────
+
+  test "ApplyTreatment sets treatment_type + active_ingredient" do
+    tests "ApplyTreatment", on: "DiseaseTreatment"
+    setup  "EstablishHive", hive_id: "sample", hive_type: "sample", location: "sample"
+    input  hive: 1, treatment_type: "sample", active_ingredient: "sample"
+    expect ok: "true"
+  end
+
+  test "EvaluateEfficacy runs" do
+    tests "EvaluateEfficacy", on: "DiseaseTreatment"
+    input  disease_treatment: 1
+    expect ok: "true"
+  end
+
+end

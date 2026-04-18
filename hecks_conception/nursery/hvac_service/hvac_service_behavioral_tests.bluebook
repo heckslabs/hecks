@@ -1,0 +1,88 @@
+Hecks.behaviors "HVACService" do
+  vision "Behavioral tests for the HVACService domain — exercises every command and query in memory"
+
+  # ── Unit aggregate ──────────────────────────────────────────
+
+  test "RegisterUnit sets unit_type + brand + model + tonnage + seer_rating + location" do
+    tests "RegisterUnit", on: "Unit"
+    input  unit_type: "sample", brand: "sample", model: "sample", tonnage: 1.0, seer_rating: 1.0, location: "sample"
+    expect unit_type: "sample", brand: "sample", model: "sample", tonnage: 1.0, seer_rating: 1.0, location: "sample"
+  end
+
+  test "RetireUnit sets disposal_method" do
+    tests "RetireUnit", on: "Unit"
+    setup  "RegisterUnit", unit_type: "sample", brand: "sample", model: "sample", tonnage: 1.0, seer_rating: 1.0, location: "sample"
+    input  unit: 1, disposal_method: "sample"
+    expect ok: "true"
+  end
+
+  test "RecordAge sets manufacture_date + expected_lifespan_years" do
+    tests "RecordAge", on: "Unit"
+    setup  "RegisterUnit", unit_type: "sample", brand: "sample", model: "sample", tonnage: 1.0, seer_rating: 1.0, location: "sample"
+    input  unit: 1, manufacture_date: "sample", expected_lifespan_years: 1
+    expect ok: "true"
+  end
+
+
+  # ── ServiceTicket aggregate ──────────────────────────────────────────
+
+  test "OpenTicket sets customer_name + address + complaint" do
+    tests "OpenTicket", on: "ServiceTicket"
+    input  customer_name: "sample", address: "sample", complaint: "sample"
+    expect customer_name: "sample", address: "sample", complaint: "sample"
+  end
+
+  test "DiagnoseSystem sets diagnosis" do
+    tests "DiagnoseSystem", on: "ServiceTicket"
+    setup  "OpenTicket", customer_name: "sample", address: "sample", complaint: "sample"
+    input  service_ticket: 1, diagnosis: "sample"
+    expect ok: "true"
+  end
+
+  test "ResolveTicket sets resolution" do
+    tests "ResolveTicket", on: "ServiceTicket"
+    setup  "OpenTicket", customer_name: "sample", address: "sample", complaint: "sample"
+    input  service_ticket: 1, resolution: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── RefrigerantLog aggregate ──────────────────────────────────────────
+
+  test "LogRefrigerantCharge sets refrigerant_type + pounds_added + technician_epa_cert" do
+    tests "LogRefrigerantCharge", on: "RefrigerantLog"
+    setup  "RegisterUnit", unit_type: "sample", brand: "sample", model: "sample", tonnage: 1.0, seer_rating: 1.0, location: "sample"
+    input  unit: 1, refrigerant_type: "sample", pounds_added: 1.0, technician_epa_cert: "sample"
+    expect ok: "true"
+  end
+
+  test "LogRecovery sets pounds_recovered + refrigerant_type" do
+    tests "LogRecovery", on: "RefrigerantLog"
+    setup  "RegisterUnit", unit_type: "sample", brand: "sample", model: "sample", tonnage: 1.0, seer_rating: 1.0, location: "sample"
+    input  unit: 1, pounds_recovered: 1.0, refrigerant_type: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── MaintenancePlan aggregate ──────────────────────────────────────────
+
+  test "EnrollPlan sets plan_name + customer_name + visits_per_year + annual_price" do
+    tests "EnrollPlan", on: "MaintenancePlan"
+    setup  "RegisterUnit", unit_type: "sample", brand: "sample", model: "sample", tonnage: 1.0, seer_rating: 1.0, location: "sample"
+    input  unit: 1, plan_name: "sample", customer_name: "sample", visits_per_year: 1, annual_price: 1.0
+    expect ok: "true"
+  end
+
+  test "ScheduleTuneUp sets scheduled_date" do
+    tests "ScheduleTuneUp", on: "MaintenancePlan"
+    input  maintenance_plan: 1, scheduled_date: "sample"
+    expect ok: "true"
+  end
+
+  test "RenewPlan sets new_annual_price" do
+    tests "RenewPlan", on: "MaintenancePlan"
+    input  maintenance_plan: 1, new_annual_price: 1.0
+    expect ok: "true"
+  end
+
+end

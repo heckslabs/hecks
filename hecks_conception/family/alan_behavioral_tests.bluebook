@@ -1,0 +1,47 @@
+Hecks.behaviors "Alan" do
+  vision "Behavioral tests for the Alan domain — exercises every command and query in memory"
+
+  # ── Identity aggregate ──────────────────────────────────────────
+
+  test "UpdateIdentity sets role" do
+    tests "UpdateIdentity", on: "Identity"
+    input  identity: 1, role: "sample"
+    expect role: "sample"
+  end
+
+
+  # ── Business aggregate ──────────────────────────────────────────
+
+  test "RecordInsight sets note" do
+    tests "RecordInsight", on: "Business"
+    setup  "AddPainPoint", pain_point: "sample"
+    input  business: 1, note: "sample"
+    expect notes_size: 1
+  end
+
+  test "AddPainPoint sets pain_point" do
+    tests "AddPainPoint", on: "Business"
+    setup  "AddPainPoint", pain_point: "sample"
+    input  business: 1, pain_point: "sample"
+    expect pain_points_size: 1
+  end
+
+
+  # ── Demo aggregate ──────────────────────────────────────────
+
+  test "RecordDemoProgress sets note" do
+    tests "RecordDemoProgress", on: "Demo"
+    input  demo: 1, note: "sample"
+    expect notes_size: 1
+  end
+
+
+  # ── ContributedIdeas aggregate ──────────────────────────────────────────
+
+  test "RecordIdea sets idea + context" do
+    tests "RecordIdea", on: "ContributedIdeas"
+    input  idea: "sample", context: "sample"
+    expect idea: "sample", context: "sample"
+  end
+
+end

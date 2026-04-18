@@ -1,0 +1,95 @@
+Hecks.behaviors "StormwaterManagement" do
+  vision "Behavioral tests for the StormwaterManagement domain — exercises every command and query in memory"
+
+  # ── Watershed aggregate ──────────────────────────────────────────
+
+  test "DelineateWatershed sets name + area_sq_km + soil_type + impervious_pct" do
+    tests "DelineateWatershed", on: "Watershed"
+    input  name: "sample", area_sq_km: 1.0, soil_type: "sample", impervious_pct: 1.0
+    expect name: "sample", area_sq_km: 1.0, soil_type: "sample", impervious_pct: 1.0, status: "delineated"
+  end
+
+  test "CalculateRunoffCoefficient sets runoff_coefficient" do
+    tests "CalculateRunoffCoefficient", on: "Watershed"
+    setup  "DelineateWatershed", name: "sample", area_sq_km: 1.0, soil_type: "sample", impervious_pct: 1.0
+    input  watershed: 1, runoff_coefficient: 1.0
+    expect runoff_coefficient: 1.0
+  end
+
+  test "UpdateImperviousness sets impervious_pct" do
+    tests "UpdateImperviousness", on: "Watershed"
+    setup  "DelineateWatershed", name: "sample", area_sq_km: 1.0, soil_type: "sample", impervious_pct: 1.0
+    input  watershed: 1, impervious_pct: 1.0
+    expect impervious_pct: 1.0
+  end
+
+
+  # ── DrainNetwork aggregate ──────────────────────────────────────────
+
+  test "MapDrainNetwork sets name + watershed_name + total_capacity_cms + inlet_count + outlet_count" do
+    tests "MapDrainNetwork", on: "DrainNetwork"
+    input  name: "sample", watershed_name: "sample", total_capacity_cms: 1.0, inlet_count: 1, outlet_count: 1
+    expect name: "sample", watershed_name: "sample", total_capacity_cms: 1.0, inlet_count: 1, outlet_count: 1, status: "mapped"
+  end
+
+  test "AssessCapacity runs" do
+    tests "AssessCapacity", on: "DrainNetwork"
+    setup  "MapDrainNetwork", name: "sample", watershed_name: "sample", total_capacity_cms: 1.0, inlet_count: 1, outlet_count: 1
+    input  drain_network: 1
+    expect ok: "true"
+  end
+
+  test "FlagOverflow runs" do
+    tests "FlagOverflow", on: "DrainNetwork"
+    setup  "MapDrainNetwork", name: "sample", watershed_name: "sample", total_capacity_cms: 1.0, inlet_count: 1, outlet_count: 1
+    input  drain_network: 1
+    expect status: "at_risk"
+  end
+
+
+  # ── StormEvent aggregate ──────────────────────────────────────────
+
+  test "RecordStormEvent sets name + intensity_mm_hr + duration_hours + return_period_years" do
+    tests "RecordStormEvent", on: "StormEvent"
+    input  name: "sample", intensity_mm_hr: 1.0, duration_hours: 1.0, return_period_years: 1
+    expect name: "sample", intensity_mm_hr: 1.0, duration_hours: 1.0, return_period_years: 1, status: "recorded"
+  end
+
+  test "ModelRunoff sets runoff_volume_m3" do
+    tests "ModelRunoff", on: "StormEvent"
+    setup  "RecordStormEvent", name: "sample", intensity_mm_hr: 1.0, duration_hours: 1.0, return_period_years: 1
+    input  storm_event: 1, runoff_volume_m3: 1.0
+    expect runoff_volume_m3: 1.0
+  end
+
+  test "GenerateHydrograph runs" do
+    tests "GenerateHydrograph", on: "StormEvent"
+    setup  "RecordStormEvent", name: "sample", intensity_mm_hr: 1.0, duration_hours: 1.0, return_period_years: 1
+    input  storm_event: 1
+    expect status: "analyzed"
+  end
+
+
+  # ── ComplianceReport aggregate ──────────────────────────────────────────
+
+  test "FileComplianceReport sets watershed_name + permit_number + max_discharge_cms + actual_discharge_cms + report_date" do
+    tests "FileComplianceReport", on: "ComplianceReport"
+    input  watershed_name: "sample", permit_number: "sample", max_discharge_cms: 1.0, actual_discharge_cms: 1.0, report_date: "sample"
+    expect watershed_name: "sample", permit_number: "sample", max_discharge_cms: 1.0, actual_discharge_cms: 1.0, report_date: "sample", status: "filed"
+  end
+
+  test "EvaluateCompliance sets compliance_status" do
+    tests "EvaluateCompliance", on: "ComplianceReport"
+    setup  "FileComplianceReport", watershed_name: "sample", permit_number: "sample", max_discharge_cms: 1.0, actual_discharge_cms: 1.0, report_date: "sample"
+    input  compliance_report: 1, compliance_status: "sample"
+    expect compliance_status: "sample", status: "evaluated"
+  end
+
+  test "IssueViolation runs" do
+    tests "IssueViolation", on: "ComplianceReport"
+    setup  "FileComplianceReport", watershed_name: "sample", permit_number: "sample", max_discharge_cms: 1.0, actual_discharge_cms: 1.0, report_date: "sample"
+    input  compliance_report: 1
+    expect status: "violation"
+  end
+
+end

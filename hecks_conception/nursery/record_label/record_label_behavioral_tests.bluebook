@@ -1,0 +1,100 @@
+Hecks.behaviors "RecordLabel" do
+  vision "Behavioral tests for the RecordLabel domain — exercises every command and query in memory"
+
+  # ── RecordingArtist aggregate ──────────────────────────────────────────
+
+  test "SignArtist sets name + genre" do
+    tests "SignArtist", on: "RecordingArtist"
+    input  name: "sample", genre: "sample"
+    expect contract_status: "active"
+  end
+
+  test "RenewContract sets term_years" do
+    tests "RenewContract", on: "RecordingArtist"
+    setup  "SignArtist", name: "sample", genre: "sample"
+    input  recording_artist: 1, term_years: 1
+    expect ok: "true"
+  end
+
+  test "DropArtist runs" do
+    tests "DropArtist", on: "RecordingArtist"
+    setup  "SignArtist", name: "sample", genre: "sample"
+    input  recording_artist: 1
+    expect contract_status: "dropped"
+  end
+
+
+  # ── Album aggregate ──────────────────────────────────────────
+
+  test "GreenLightAlbum sets title + producer" do
+    tests "GreenLightAlbum", on: "Album"
+    setup  "SignArtist", name: "sample", genre: "sample"
+    input  recording_artist: 1, title: "sample", producer: "sample"
+    expect status: "recording"
+  end
+
+  test "MasterAlbum sets mastering_engineer" do
+    tests "MasterAlbum", on: "Album"
+    input  album: 1, mastering_engineer: "sample"
+    expect status: "mastered"
+  end
+
+  test "ReleaseAlbum sets release_date" do
+    tests "ReleaseAlbum", on: "Album"
+    input  album: 1, release_date: "sample"
+    expect status: "released", release_date: "sample"
+  end
+
+
+  # ── Track aggregate ──────────────────────────────────────────
+
+  test "RecordTrack sets title + track_number" do
+    tests "RecordTrack", on: "Track"
+    input  album: 1, title: "sample", track_number: 1
+    expect status: "recorded"
+  end
+
+  test "MixTrack runs" do
+    tests "MixTrack", on: "Track"
+    input  track: 1
+    expect status: "mixed"
+  end
+
+
+  # ── RoyaltyStatement aggregate ──────────────────────────────────────────
+
+  test "CalculateRoyalties sets period + gross_revenue + split_percentage" do
+    tests "CalculateRoyalties", on: "RoyaltyStatement"
+    setup  "SignArtist", name: "sample", genre: "sample"
+    input  recording_artist: 1, period: "sample", gross_revenue: 1.0, split_percentage: 1.0
+    expect ok: "true"
+  end
+
+  test "ApproveStatement runs" do
+    tests "ApproveStatement", on: "RoyaltyStatement"
+    input  royalty_statement: 1
+    expect status: "approved"
+  end
+
+  test "DisbursePayment runs" do
+    tests "DisbursePayment", on: "RoyaltyStatement"
+    input  royalty_statement: 1
+    expect status: "paid"
+  end
+
+
+  # ── Distribution aggregate ──────────────────────────────────────────
+
+  test "SubmitForDistribution sets channel + format + territory" do
+    tests "SubmitForDistribution", on: "Distribution"
+    input  album: 1, channel: "sample", format: "sample", territory: "sample"
+    expect ok: "true"
+  end
+
+  test "ConfirmDistribution runs" do
+    tests "ConfirmDistribution", on: "Distribution"
+    input  distribution: 1
+    expect status: "live"
+  end
+
+end

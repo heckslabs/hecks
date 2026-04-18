@@ -1,0 +1,99 @@
+Hecks.behaviors "InsuranceClaims" do
+  vision "Behavioral tests for the InsuranceClaims domain — exercises every command and query in memory"
+
+  # ── PolicyHolder aggregate ──────────────────────────────────────────
+
+  test "IssuePolicy sets name + policy_number + coverage_type + premium + deductible + effective_date + expiration_date" do
+    tests "IssuePolicy", on: "PolicyHolder"
+    input  name: "sample", policy_number: "sample", coverage_type: "sample", premium: 1.0, deductible: 1.0, effective_date: "sample", expiration_date: "sample"
+    expect name: "sample", policy_number: "sample", coverage_type: "sample", premium: 1.0, deductible: 1.0, status: "active"
+  end
+
+  test "RenewPolicy sets new_premium + new_expiration_date" do
+    tests "RenewPolicy", on: "PolicyHolder"
+    setup  "IssuePolicy", name: "sample", policy_number: "sample", coverage_type: "sample", premium: 1.0, deductible: 1.0, effective_date: "sample", expiration_date: "sample"
+    input  policy_holder: 1, new_premium: 1.0, new_expiration_date: "sample"
+    expect premium: 1.0, expiration_date: "sample"
+  end
+
+  test "LapsePolicy runs" do
+    tests "LapsePolicy", on: "PolicyHolder"
+    setup  "IssuePolicy", name: "sample", policy_number: "sample", coverage_type: "sample", premium: 1.0, deductible: 1.0, effective_date: "sample", expiration_date: "sample"
+    input  policy_holder: 1
+    expect status: "lapsed"
+  end
+
+
+  # ── Claim aggregate ──────────────────────────────────────────
+
+  test "FileClaim sets claim_number + incident_date + incident_description + claimed_amount" do
+    tests "FileClaim", on: "Claim"
+    setup  "IssuePolicy", name: "sample", policy_number: "sample", coverage_type: "sample", premium: 1.0, deductible: 1.0, effective_date: "sample", expiration_date: "sample"
+    input  policy_holder: 1, claim_number: "sample", incident_date: "sample", incident_description: "sample", claimed_amount: 1.0
+    expect claim_number: "sample", incident_date: "sample", incident_description: "sample", claimed_amount: 1.0, status: "filed"
+  end
+
+  test "ApproveClaim runs" do
+    tests "ApproveClaim", on: "Claim"
+    input  claim: 1
+    expect status: "approved"
+  end
+
+  test "DenyClaim sets denial_reason" do
+    tests "DenyClaim", on: "Claim"
+    input  claim: 1, denial_reason: "sample"
+    expect status: "denied"
+  end
+
+
+  # ── AdjusterAssignment aggregate ──────────────────────────────────────────
+
+  test "AssignAdjuster sets adjuster_name" do
+    tests "AssignAdjuster", on: "AdjusterAssignment"
+    input  claim: 1, adjuster_name: "sample"
+    expect adjuster_name: "sample", status: "assigned"
+  end
+
+  test "SubmitAssessment sets findings + assessed_amount" do
+    tests "SubmitAssessment", on: "AdjusterAssignment"
+    input  adjuster_assignment: 1, findings: "sample", assessed_amount: 1.0
+    expect findings: "sample", assessed_amount: 1.0, status: "assessed"
+  end
+
+
+  # ── Settlement aggregate ──────────────────────────────────────────
+
+  test "OfferSettlement sets settlement_amount + payment_method" do
+    tests "OfferSettlement", on: "Settlement"
+    input  claim: 1, settlement_amount: 1.0, payment_method: "sample"
+    expect settlement_amount: 1.0, payment_method: "sample", status: "offered"
+  end
+
+  test "AcceptSettlement runs" do
+    tests "AcceptSettlement", on: "Settlement"
+    input  settlement: 1
+    expect status: "accepted"
+  end
+
+  test "RejectSettlement runs" do
+    tests "RejectSettlement", on: "Settlement"
+    input  settlement: 1
+    expect status: "rejected"
+  end
+
+
+  # ── Appeal aggregate ──────────────────────────────────────────
+
+  test "FileAppeal sets reason + supporting_documents" do
+    tests "FileAppeal", on: "Appeal"
+    input  claim: 1, reason: "sample", supporting_documents: "sample"
+    expect reason: "sample", supporting_documents: "sample", status: "filed"
+  end
+
+  test "ReviewAppeal sets resolution" do
+    tests "ReviewAppeal", on: "Appeal"
+    input  appeal: 1, resolution: "sample"
+    expect resolution: "sample", status: "resolved"
+  end
+
+end

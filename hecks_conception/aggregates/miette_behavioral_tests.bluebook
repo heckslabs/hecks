@@ -1,0 +1,95 @@
+Hecks.behaviors "Miette" do
+  vision "Behavioral tests for the Miette domain — exercises every command and query in memory"
+
+  # ── Conversation aggregate ──────────────────────────────────────────
+
+  test "Greet sets person_name" do
+    tests "Greet", on: "Conversation"
+    input  person_name: "sample"
+    expect person_name: "sample", mood: "warm"
+  end
+
+  test "Respond sets said + responded + timestamp" do
+    tests "Respond", on: "Conversation"
+    setup  "Greet", person_name: "sample"
+    input  conversation: 1, said: "sample", responded: "sample", timestamp: "sample"
+    expect turns: 1, last_exchange: { said: :said, responded: :responded, timestamp: :timestamp }
+  end
+
+  test "ShiftTopic sets topic" do
+    tests "ShiftTopic", on: "Conversation"
+    setup  "Greet", person_name: "sample"
+    input  conversation: 1, topic: "sample"
+    expect topic: "sample"
+  end
+
+  test "Express sets mood" do
+    tests "Express", on: "Conversation"
+    setup  "Greet", person_name: "sample"
+    input  conversation: 1, mood: "sample"
+    expect mood: "sample"
+  end
+
+
+  # ── Memory aggregate ──────────────────────────────────────────
+
+  test "EncodeMemory sets domain_name + persona + summary + conceived_at" do
+    tests "EncodeMemory", on: "Memory"
+    input  domain_name: "sample", persona: "sample", summary: "sample", conceived_at: "sample"
+    expect domain_name: "sample", persona: "sample", summary: "sample", conceived_at: "sample"
+  end
+
+  test "AddInsight sets observation + applies_to" do
+    tests "AddInsight", on: "Memory"
+    setup  "AddInsight", observation: "sample", applies_to: "sample"
+    input  memory: 1, observation: "sample", applies_to: "sample"
+    expect insights_size: 1
+  end
+
+  test "Recall runs" do
+    tests "Recall", on: "Memory"
+    setup  "AddInsight", observation: "sample", applies_to: "sample"
+    input  memory: 1
+    expect recalled_count: 1
+  end
+
+
+  # ── Persona aggregate ──────────────────────────────────────────
+
+  test "RecognizePersona sets name + fixture_type" do
+    tests "RecognizePersona", on: "Persona"
+    input  name: "sample", fixture_type: "sample"
+    expect name: "sample", fixture_type: "sample"
+  end
+
+  test "AddTrait sets trait" do
+    tests "AddTrait", on: "Persona"
+    setup  "AddTrait", trait: "sample"
+    input  persona: 1, trait: "sample"
+    expect traits_size: 1
+  end
+
+  test "AppearInMemory sets domain_name" do
+    tests "AppearInMemory", on: "Persona"
+    setup  "AddTrait", trait: "sample"
+    input  persona: 1, domain_name: "sample"
+    expect appears_in_size: 1
+  end
+
+
+  # ── NurseryAwareness aggregate ──────────────────────────────────────────
+
+  test "ConceiveDomain sets domain_name" do
+    tests "ConceiveDomain", on: "NurseryAwareness"
+    input  domain_name: "sample"
+    expect domain_count: 1, bluebook_count: 1, last_conceived: "sample"
+  end
+
+  test "MarkFavorite sets domain_name" do
+    tests "MarkFavorite", on: "NurseryAwareness"
+    setup  "ConceiveDomain", domain_name: "sample"
+    input  nursery_awareness: 1, domain_name: "sample"
+    expect favorite_domains_size: 1
+  end
+
+end

@@ -1,0 +1,112 @@
+Hecks.behaviors "AirportSecurity" do
+  vision "Behavioral tests for the AirportSecurity domain — exercises every command and query in memory"
+
+  # ── Checkpoint aggregate ──────────────────────────────────────────
+
+  test "OpenCheckpoint sets checkpoint_id + terminal + lane_count + throughput_per_hour" do
+    tests "OpenCheckpoint", on: "Checkpoint"
+    input  checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
+    expect checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1, status: "open"
+  end
+
+  test "CloseCheckpoint runs" do
+    tests "CloseCheckpoint", on: "Checkpoint"
+    setup  "OpenCheckpoint", checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
+    input  checkpoint: 1
+    expect status: "closed"
+  end
+
+  test "AddLane runs" do
+    tests "AddLane", on: "Checkpoint"
+    setup  "OpenCheckpoint", checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
+    input  checkpoint: 1
+    expect ok: "true"
+  end
+
+  test "EscalateToHighAlert runs" do
+    tests "EscalateToHighAlert", on: "Checkpoint"
+    setup  "OpenCheckpoint", checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
+    input  checkpoint: 1
+    expect status: "high_alert"
+  end
+
+  test "StandDown runs" do
+    tests "StandDown", on: "Checkpoint"
+    setup  "OpenCheckpoint", checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
+    input  checkpoint: 1
+    expect status: "open"
+  end
+
+
+  # ── Scanner aggregate ──────────────────────────────────────────
+
+  test "InstallScanner sets scanner_id + scanner_type" do
+    tests "InstallScanner", on: "Scanner"
+    setup  "OpenCheckpoint", checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
+    input  checkpoint: 1, scanner_id: "sample", scanner_type: "sample"
+    expect status: "installed", scans_today: 0
+  end
+
+  test "CalibrateScanner runs" do
+    tests "CalibrateScanner", on: "Scanner"
+    input  scanner: 1
+    expect status: "operational"
+  end
+
+  test "PerformScan runs" do
+    tests "PerformScan", on: "Scanner"
+    input  scanner: 1
+    expect ok: "true"
+  end
+
+  test "FlagMalfunction runs" do
+    tests "FlagMalfunction", on: "Scanner"
+    input  scanner: 1
+    expect status: "faulty"
+  end
+
+  test "RepairScanner runs" do
+    tests "RepairScanner", on: "Scanner"
+    input  scanner: 1
+    expect status: "installed"
+  end
+
+
+  # ── Officer aggregate ──────────────────────────────────────────
+
+  test "DeployOfficer sets badge_number + name + clearance_level" do
+    tests "DeployOfficer", on: "Officer"
+    setup  "OpenCheckpoint", checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
+    input  checkpoint: 1, badge_number: "sample", name: "sample", clearance_level: "sample"
+    expect status: "on_duty"
+  end
+
+  test "RelieveOfficer runs" do
+    tests "RelieveOfficer", on: "Officer"
+    input  officer: 1
+    expect status: "off_duty"
+  end
+
+
+  # ── Incident aggregate ──────────────────────────────────────────
+
+  test "ReportIncident sets incident_type + severity + description" do
+    tests "ReportIncident", on: "Incident"
+    setup  "OpenCheckpoint", checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
+    input  checkpoint: 1, officer: 1, incident_type: "sample", severity: "sample", description: "sample"
+    expect status: "open"
+  end
+
+  test "InvestigateIncident runs" do
+    tests "InvestigateIncident", on: "Incident"
+    input  incident: 1
+    expect status: "investigating"
+  end
+
+  test "ResolveIncident sets resolution" do
+    tests "ResolveIncident", on: "Incident"
+    input  incident: 1, resolution: "sample"
+    expect status: "resolved"
+  end
+
+end

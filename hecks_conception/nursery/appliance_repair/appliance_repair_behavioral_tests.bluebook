@@ -1,0 +1,96 @@
+Hecks.behaviors "ApplianceRepair" do
+  vision "Behavioral tests for the ApplianceRepair domain — exercises every command and query in memory"
+
+  # ── RepairTicket aggregate ──────────────────────────────────────────
+
+  test "ScheduleRepair sets customer_name + address + appliance_type + symptom + scheduled_date" do
+    tests "ScheduleRepair", on: "RepairTicket"
+    input  customer_name: "sample", address: "sample", appliance_type: "sample", symptom: "sample", scheduled_date: "sample"
+    expect ok: "true"
+  end
+
+  test "RescheduleRepair sets new_date" do
+    tests "RescheduleRepair", on: "RepairTicket"
+    setup  "ScheduleRepair", customer_name: "sample", address: "sample", appliance_type: "sample", symptom: "sample", scheduled_date: "sample"
+    input  repair_ticket: 1, new_date: "sample"
+    expect ok: "true"
+  end
+
+  test "CloseTicket runs" do
+    tests "CloseTicket", on: "RepairTicket"
+    setup  "ScheduleRepair", customer_name: "sample", address: "sample", appliance_type: "sample", symptom: "sample", scheduled_date: "sample"
+    input  repair_ticket: 1
+    expect ok: "true"
+  end
+
+
+  # ── Appliance aggregate ──────────────────────────────────────────
+
+  test "RegisterAppliance sets brand + model + serial_number + age_years + appliance_type" do
+    tests "RegisterAppliance", on: "Appliance"
+    setup  "ScheduleRepair", customer_name: "sample", address: "sample", appliance_type: "sample", symptom: "sample", scheduled_date: "sample"
+    input  repair_ticket: 1, brand: "sample", model: "sample", serial_number: "sample", age_years: 1, appliance_type: "sample"
+    expect brand: "sample", model: "sample", serial_number: "sample", age_years: 1, appliance_type: "sample"
+  end
+
+  test "RecommendReplacement sets estimated_repair_cost + replacement_cost" do
+    tests "RecommendReplacement", on: "Appliance"
+    setup  "RegisterAppliance", brand: "sample", model: "sample", serial_number: "sample", age_years: 1, appliance_type: "sample"
+    input  appliance: 1, estimated_repair_cost: 1.0, replacement_cost: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── Diagnostic aggregate ──────────────────────────────────────────
+
+  test "RunDiagnostic sets test_performed" do
+    tests "RunDiagnostic", on: "Diagnostic"
+    setup  "RegisterAppliance", brand: "sample", model: "sample", serial_number: "sample", age_years: 1, appliance_type: "sample"
+    input  appliance: 1, test_performed: "sample"
+    expect ok: "true"
+  end
+
+  test "RecordFaultCode sets fault_code + root_cause" do
+    tests "RecordFaultCode", on: "Diagnostic"
+    input  diagnostic: 1, fault_code: "sample", root_cause: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── PartsOrder aggregate ──────────────────────────────────────────
+
+  test "OrderPart sets part_number + part_name + vendor + cost" do
+    tests "OrderPart", on: "PartsOrder"
+    input  diagnostic: 1, part_number: "sample", part_name: "sample", vendor: "sample", cost: 1.0
+    expect ok: "true"
+  end
+
+  test "ReceivePart runs" do
+    tests "ReceivePart", on: "PartsOrder"
+    input  parts_order: 1
+    expect ok: "true"
+  end
+
+  test "InstallPart runs" do
+    tests "InstallPart", on: "PartsOrder"
+    input  parts_order: 1
+    expect ok: "true"
+  end
+
+
+  # ── RepairWarranty aggregate ──────────────────────────────────────────
+
+  test "IssueWarranty sets duration_days + coverage_type" do
+    tests "IssueWarranty", on: "RepairWarranty"
+    setup  "ScheduleRepair", customer_name: "sample", address: "sample", appliance_type: "sample", symptom: "sample", scheduled_date: "sample"
+    input  repair_ticket: 1, duration_days: 1, coverage_type: "sample"
+    expect ok: "true"
+  end
+
+  test "FileWarrantyClaim sets recurrence_description" do
+    tests "FileWarrantyClaim", on: "RepairWarranty"
+    input  repair_warranty: 1, recurrence_description: "sample"
+    expect ok: "true"
+  end
+
+end

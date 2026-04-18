@@ -1,0 +1,145 @@
+Hecks.behaviors "SchoolDistrict" do
+  vision "Behavioral tests for the SchoolDistrict domain — exercises every command and query in memory"
+
+  # ── School aggregate ──────────────────────────────────────────
+
+  test "OpenSchool sets school_code + name + level + capacity" do
+    tests "OpenSchool", on: "School"
+    input  school_code: "sample", name: "sample", level: "sample", capacity: 1
+    expect school_code: "sample", name: "sample", level: "sample", capacity: 1, status: "active", enrollment: 0
+  end
+
+  test "AccreditSchool runs" do
+    tests "AccreditSchool", on: "School"
+    setup  "OpenSchool", school_code: "sample", name: "sample", level: "sample", capacity: 1
+    input  school: 1
+    expect status: "accredited"
+  end
+
+  test "CloseSchool runs" do
+    tests "CloseSchool", on: "School"
+    setup  "OpenSchool", school_code: "sample", name: "sample", level: "sample", capacity: 1
+    input  school: 1
+    expect status: "closed"
+  end
+
+
+  # ── Student aggregate ──────────────────────────────────────────
+
+  test "RegisterStudent sets name + grade_level" do
+    tests "RegisterStudent", on: "Student"
+    input  name: "sample", grade_level: "sample"
+    expect name: "sample", grade_level: "sample", status: "registered"
+  end
+
+  test "EnrollStudent runs" do
+    tests "EnrollStudent", on: "Student"
+    setup  "RegisterStudent", name: "sample", grade_level: "sample"
+    setup  "OpenSchool", school_code: "sample", name: "sample", level: "sample", capacity: 1
+    input  student: 1, school: 1
+    expect status: "enrolled"
+  end
+
+  test "PromoteStudent sets new_grade_level" do
+    tests "PromoteStudent", on: "Student"
+    setup  "RegisterStudent", name: "sample", grade_level: "sample"
+    input  student: 1, new_grade_level: "sample"
+    expect ok: "true"
+  end
+
+  test "TransferStudent runs" do
+    tests "TransferStudent", on: "Student"
+    setup  "RegisterStudent", name: "sample", grade_level: "sample"
+    setup  "OpenSchool", school_code: "sample", name: "sample", level: "sample", capacity: 1
+    input  student: 1, school: 1
+    expect ok: "true"
+  end
+
+  test "GraduateStudent runs" do
+    tests "GraduateStudent", on: "Student"
+    setup  "RegisterStudent", name: "sample", grade_level: "sample"
+    input  student: 1
+    expect status: "graduated"
+  end
+
+  test "WithdrawStudent sets reason" do
+    tests "WithdrawStudent", on: "Student"
+    setup  "RegisterStudent", name: "sample", grade_level: "sample"
+    input  student: 1, reason: "sample"
+    expect status: "withdrawn"
+  end
+
+
+  # ── Teacher aggregate ──────────────────────────────────────────
+
+  test "HireTeacher sets name + certification_area" do
+    tests "HireTeacher", on: "Teacher"
+    setup  "OpenSchool", school_code: "sample", name: "sample", level: "sample", capacity: 1
+    input  school: 1, name: "sample", certification_area: "sample"
+    expect status: "active"
+  end
+
+  test "AssignTeacher runs" do
+    tests "AssignTeacher", on: "Teacher"
+    setup  "PlaceOnLeave", reason: "sample"
+    setup  "CreateCourse", course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
+    input  teacher: 1, course: 1
+    expect ok: "true"
+  end
+
+  test "PlaceOnLeave sets reason" do
+    tests "PlaceOnLeave", on: "Teacher"
+    setup  "PlaceOnLeave", reason: "sample"
+    input  teacher: 1, reason: "sample"
+    expect status: "on_leave"
+  end
+
+
+  # ── Course aggregate ──────────────────────────────────────────
+
+  test "CreateCourse sets course_code + title + subject + max_enrollment" do
+    tests "CreateCourse", on: "Course"
+    setup  "OpenSchool", school_code: "sample", name: "sample", level: "sample", capacity: 1
+    input  school: 1, course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
+    expect course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1, status: "active", current_enrollment: 0
+  end
+
+  test "EnrollInCourse runs" do
+    tests "EnrollInCourse", on: "Course"
+    setup  "CreateCourse", course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
+    setup  "RegisterStudent", name: "sample", grade_level: "sample"
+    input  course: 1, student: 1
+    expect ok: "true"
+  end
+
+  test "CompleteCourse runs" do
+    tests "CompleteCourse", on: "Course"
+    setup  "CreateCourse", course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
+    input  course: 1
+    expect status: "completed"
+  end
+
+
+  # ── GradeRecord aggregate ──────────────────────────────────────────
+
+  test "RecordGrade sets letter_grade + numeric_score + semester" do
+    tests "RecordGrade", on: "GradeRecord"
+    setup  "RegisterStudent", name: "sample", grade_level: "sample"
+    setup  "CreateCourse", course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
+    input  student: 1, course: 1, letter_grade: "sample", numeric_score: 1.0, semester: "sample"
+    expect status: "posted"
+  end
+
+  test "AppealGrade sets reason" do
+    tests "AppealGrade", on: "GradeRecord"
+    input  grade_record: 1, reason: "sample"
+    expect status: "under_review"
+  end
+
+  test "FinalizeGrade runs" do
+    tests "FinalizeGrade", on: "GradeRecord"
+    input  grade_record: 1
+    expect status: "finalized"
+  end
+
+end

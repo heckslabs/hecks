@@ -1,0 +1,12 @@
+Hecks.behaviors "Vows" do
+  vision "Behavioral tests for the Vows domain — exercises every command and query in memory"
+
+  # ── Vow aggregate ──────────────────────────────────────────
+
+  test "Take sets name + words" do
+    tests "Take", on: "Vow"
+    input  name: "sample", words: "sample"
+    expect ok: "true"
+  end
+
+end

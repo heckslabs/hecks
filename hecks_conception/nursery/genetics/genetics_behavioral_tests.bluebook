@@ -1,0 +1,95 @@
+Hecks.behaviors "Genetics" do
+  vision "Behavioral tests for the Genetics domain — exercises every command and query in memory"
+
+  # ── Specimen aggregate ──────────────────────────────────────────
+
+  test "CollectSpecimen sets specimen_id + organism + tissue_type" do
+    tests "CollectSpecimen", on: "Specimen"
+    input  specimen_id: "sample", organism: "sample", tissue_type: "sample"
+    expect ok: "true"
+  end
+
+  test "ExtractDna runs" do
+    tests "ExtractDna", on: "Specimen"
+    setup  "CollectSpecimen", specimen_id: "sample", organism: "sample", tissue_type: "sample"
+    input  specimen: 1
+    expect ok: "true"
+  end
+
+  test "DiscardSpecimen runs" do
+    tests "DiscardSpecimen", on: "Specimen"
+    setup  "CollectSpecimen", specimen_id: "sample", organism: "sample", tissue_type: "sample"
+    input  specimen: 1
+    expect ok: "true"
+  end
+
+
+  # ── DnaSequence aggregate ──────────────────────────────────────────
+
+  test "SubmitSequence sets accession + sequencing_method + length_bp" do
+    tests "SubmitSequence", on: "DnaSequence"
+    setup  "CollectSpecimen", specimen_id: "sample", organism: "sample", tissue_type: "sample"
+    input  specimen: 1, accession: "sample", sequencing_method: "sample", length_bp: 1
+    expect ok: "true"
+  end
+
+  test "AlignSequence runs" do
+    tests "AlignSequence", on: "DnaSequence"
+    input  dna_sequence: 1
+    expect ok: "true"
+  end
+
+  test "AnnotateFeatures runs" do
+    tests "AnnotateFeatures", on: "DnaSequence"
+    input  dna_sequence: 1
+    expect ok: "true"
+  end
+
+
+  # ── Mutation aggregate ──────────────────────────────────────────
+
+  test "CallVariant sets mutation_type + position" do
+    tests "CallVariant", on: "Mutation"
+    input  dna_sequence: 1, mutation_type: "sample", position: 1
+    expect ok: "true"
+  end
+
+  test "ClassifyPathogenicity sets classification" do
+    tests "ClassifyPathogenicity", on: "Mutation"
+    input  mutation: 1, classification: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Pedigree aggregate ──────────────────────────────────────────
+
+  test "BuildPedigree sets family_id + proband_id" do
+    tests "BuildPedigree", on: "Pedigree"
+    input  family_id: "sample", proband_id: "sample"
+    expect ok: "true"
+  end
+
+  test "AddRelative sets individual_id + relationship" do
+    tests "AddRelative", on: "Pedigree"
+    setup  "AddRelative", individual_id: "sample", relationship: "sample"
+    input  pedigree: 1, individual_id: "sample", relationship: "sample"
+    expect ok: "true"
+  end
+
+  test "TraceInheritance runs" do
+    tests "TraceInheritance", on: "Pedigree"
+    setup  "AddRelative", individual_id: "sample", relationship: "sample"
+    input  pedigree: 1
+    expect ok: "true"
+  end
+
+
+  # ── Publication aggregate ──────────────────────────────────────────
+
+  test "PublishFindings sets title + journal" do
+    tests "PublishFindings", on: "Publication"
+    input  mutation: 1, title: "sample", journal: "sample"
+    expect ok: "true"
+  end
+
+end

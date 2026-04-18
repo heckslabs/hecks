@@ -1,0 +1,129 @@
+Hecks.behaviors "BattlefieldMedicine" do
+  vision "Behavioral tests for the BattlefieldMedicine domain — exercises every command and query in memory"
+
+  # ── CasualtyReport aggregate ──────────────────────────────────────────
+
+  test "FileCasualtyReport sets report_id + casualty_name + location_grid + injury_type + urgency + blood_type" do
+    tests "FileCasualtyReport", on: "CasualtyReport"
+    input  report_id: "sample", casualty_name: "sample", location_grid: "sample", injury_type: "sample", urgency: "sample", blood_type: "sample"
+    expect report_id: "sample", casualty_name: "sample", location_grid: "sample", injury_type: "sample", urgency: "sample", blood_type: "sample", status: "reported"
+  end
+
+  test "EscalateCasualty sets urgency" do
+    tests "EscalateCasualty", on: "CasualtyReport"
+    setup  "FileCasualtyReport", report_id: "sample", casualty_name: "sample", location_grid: "sample", injury_type: "sample", urgency: "sample", blood_type: "sample"
+    input  casualty_report: 1, urgency: "sample"
+    expect urgency: "sample"
+  end
+
+  test "MarkEvacuated runs" do
+    tests "MarkEvacuated", on: "CasualtyReport"
+    setup  "FileCasualtyReport", report_id: "sample", casualty_name: "sample", location_grid: "sample", injury_type: "sample", urgency: "sample", blood_type: "sample"
+    input  casualty_report: 1
+    expect status: "evacuated"
+  end
+
+
+  # ── MedDrone aggregate ──────────────────────────────────────────
+
+  test "LaunchDrone sets drone_id + mission_type + current_location" do
+    tests "LaunchDrone", on: "MedDrone"
+    input  drone_id: "sample", mission_type: "sample", current_location: "sample"
+    expect drone_id: "sample", mission_type: "sample", current_location: "sample", battery_pct: 100, status: "airborne"
+  end
+
+  test "AssignToCasualty runs" do
+    tests "AssignToCasualty", on: "MedDrone"
+    setup  "LaunchDrone", drone_id: "sample", mission_type: "sample", current_location: "sample"
+    setup  "FileCasualtyReport", report_id: "sample", casualty_name: "sample", location_grid: "sample", injury_type: "sample", urgency: "sample", blood_type: "sample"
+    input  med_drone: 1, casualty_report: 1
+    expect assigned_casualty: :assigned_casualty, status: "en_route"
+  end
+
+  test "CompleteMission runs" do
+    tests "CompleteMission", on: "MedDrone"
+    setup  "LaunchDrone", drone_id: "sample", mission_type: "sample", current_location: "sample"
+    input  med_drone: 1
+    expect status: "returning"
+  end
+
+
+  # ── BloodDrop aggregate ──────────────────────────────────────────
+
+  test "PrepareBloodDrop sets drop_id + blood_type + units" do
+    tests "PrepareBloodDrop", on: "BloodDrop"
+    setup  "FileCasualtyReport", report_id: "sample", casualty_name: "sample", location_grid: "sample", injury_type: "sample", urgency: "sample", blood_type: "sample"
+    input  casualty_report: 1, drop_id: "sample", blood_type: "sample", units: 1
+    expect drop_id: "sample", target_casualty: :target_casualty, blood_type: "sample", units: 1, cold_chain_status: "sealed", status: "prepared"
+  end
+
+  test "LoadOnDrone runs" do
+    tests "LoadOnDrone", on: "BloodDrop"
+    setup  "LaunchDrone", drone_id: "sample", mission_type: "sample", current_location: "sample"
+    input  blood_drop: 1, med_drone: 1
+    expect carrier_drone: :carrier_drone, status: "in_transit"
+  end
+
+  test "ConfirmDelivery runs" do
+    tests "ConfirmDelivery", on: "BloodDrop"
+    input  blood_drop: 1
+    expect status: "delivered"
+  end
+
+
+  # ── EvacRoute aggregate ──────────────────────────────────────────
+
+  test "ComputeRoute sets route_id + threat_level + distance_km + eta_minutes" do
+    tests "ComputeRoute", on: "EvacRoute"
+    setup  "FileCasualtyReport", report_id: "sample", casualty_name: "sample", location_grid: "sample", injury_type: "sample", urgency: "sample", blood_type: "sample"
+    setup  "EstablishHospital", hospital_id: "sample", location_grid: "sample", surgical_bays: 1
+    input  casualty_report: 1, field_hospital: 1, route_id: "sample", threat_level: "sample", distance_km: 1, eta_minutes: 1
+    expect route_id: "sample", casualty: :casualty, destination: :destination, threat_level: "sample", distance_km: 1, eta_minutes: 1, status: "active"
+  end
+
+  test "RerouteOnThreat sets threat_level" do
+    tests "RerouteOnThreat", on: "EvacRoute"
+    input  evac_route: 1, threat_level: "sample"
+    expect threat_level: "sample"
+  end
+
+
+  # ── FieldHospital aggregate ──────────────────────────────────────────
+
+  test "EstablishHospital sets hospital_id + location_grid + surgical_bays" do
+    tests "EstablishHospital", on: "FieldHospital"
+    input  hospital_id: "sample", location_grid: "sample", surgical_bays: 1
+    expect hospital_id: "sample", location_grid: "sample", surgical_bays: 1, available_bays: 1, status: "operational"
+  end
+
+  test "PrepareBay runs" do
+    tests "PrepareBay", on: "FieldHospital"
+    setup  "EstablishHospital", hospital_id: "sample", location_grid: "sample", surgical_bays: 1
+    input  field_hospital: 1
+    expect ok: "true"
+  end
+
+  test "AdmitCasualty runs" do
+    tests "AdmitCasualty", on: "FieldHospital"
+    setup  "EstablishHospital", hospital_id: "sample", location_grid: "sample", surgical_bays: 1
+    input  field_hospital: 1
+    expect ok: "true"
+  end
+
+
+  # ── StatusBoard aggregate ──────────────────────────────────────────
+
+  test "InitializeBoard sets board_id + operation_name" do
+    tests "InitializeBoard", on: "StatusBoard"
+    input  board_id: "sample", operation_name: "sample"
+    expect board_id: "sample", operation_name: "sample", total_casualties: 0, evacuated_count: 0, drones_active: 0, status: "active"
+  end
+
+  test "UpdateEntry runs" do
+    tests "UpdateEntry", on: "StatusBoard"
+    setup  "InitializeBoard", board_id: "sample", operation_name: "sample"
+    input  status_board: 1
+    expect ok: "true"
+  end
+
+end

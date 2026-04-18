@@ -1,0 +1,144 @@
+Hecks.behaviors "AquariumOperations" do
+  vision "Behavioral tests for the AquariumOperations domain — exercises every command and query in memory"
+
+  # ── Tank aggregate ──────────────────────────────────────────
+
+  test "SetupTank sets tank_id + name + water_type + volume_gallons + max_species" do
+    tests "SetupTank", on: "Tank"
+    input  tank_id: "sample", name: "sample", water_type: "sample", volume_gallons: 1.0, max_species: 1
+    expect status: "cycling", current_species_count: 0
+  end
+
+  test "TestWaterCycle runs" do
+    tests "TestWaterCycle", on: "Tank"
+    setup  "SetupTank", tank_id: "sample", name: "sample", water_type: "sample", volume_gallons: 1.0, max_species: 1
+    input  tank: 1
+    expect status: "tested"
+  end
+
+  test "ActivateTank runs" do
+    tests "ActivateTank", on: "Tank"
+    setup  "SetupTank", tank_id: "sample", name: "sample", water_type: "sample", volume_gallons: 1.0, max_species: 1
+    input  tank: 1
+    expect status: "active"
+  end
+
+  test "QuarantineTank runs" do
+    tests "QuarantineTank", on: "Tank"
+    setup  "SetupTank", tank_id: "sample", name: "sample", water_type: "sample", volume_gallons: 1.0, max_species: 1
+    input  tank: 1
+    expect status: "quarantined"
+  end
+
+  test "ClearTankQuarantine runs" do
+    tests "ClearTankQuarantine", on: "Tank"
+    setup  "SetupTank", tank_id: "sample", name: "sample", water_type: "sample", volume_gallons: 1.0, max_species: 1
+    input  tank: 1
+    expect status: "active"
+  end
+
+  test "DrainTank sets reason" do
+    tests "DrainTank", on: "Tank"
+    setup  "SetupTank", tank_id: "sample", name: "sample", water_type: "sample", volume_gallons: 1.0, max_species: 1
+    input  tank: 1, reason: "sample"
+    expect status: "drained"
+  end
+
+
+  # ── Species aggregate ──────────────────────────────────────────
+
+  test "IntroduceSpecies sets common_name + scientific_name + water_type_requirement + min_temperature_f + max_temperature_f + population_count" do
+    tests "IntroduceSpecies", on: "Species"
+    setup  "SetupTank", tank_id: "sample", name: "sample", water_type: "sample", volume_gallons: 1.0, max_species: 1
+    input  tank: 1, common_name: "sample", scientific_name: "sample", water_type_requirement: "sample", min_temperature_f: 1.0, max_temperature_f: 1.0, population_count: 1
+    expect ok: "true"
+  end
+
+  test "AcclimateSpecies runs" do
+    tests "AcclimateSpecies", on: "Species"
+    input  species: 1
+    expect ok: "true"
+  end
+
+  test "ReleaseIntoTank runs" do
+    tests "ReleaseIntoTank", on: "Species"
+    setup  "SetupTank", tank_id: "sample", name: "sample", water_type: "sample", volume_gallons: 1.0, max_species: 1
+    input  species: 1, tank: 1
+    expect ok: "true"
+  end
+
+  test "AdjustPopulation sets new_count" do
+    tests "AdjustPopulation", on: "Species"
+    input  species: 1, new_count: 1
+    expect ok: "true"
+  end
+
+  test "RelocateSpecies runs" do
+    tests "RelocateSpecies", on: "Species"
+    setup  "SetupTank", tank_id: "sample", name: "sample", water_type: "sample", volume_gallons: 1.0, max_species: 1
+    input  species: 1, tank: 1
+    expect ok: "true"
+  end
+
+
+  # ── WaterQualityReading aggregate ──────────────────────────────────────────
+
+  test "RecordReading sets temperature_f + ph + ammonia_ppm + nitrate_ppm + salinity_ppt" do
+    tests "RecordReading", on: "WaterQualityReading"
+    setup  "SetupTank", tank_id: "sample", name: "sample", water_type: "sample", volume_gallons: 1.0, max_species: 1
+    input  tank: 1, temperature_f: 1.0, ph: 1.0, ammonia_ppm: 1.0, nitrate_ppm: 1.0, salinity_ppt: 1.0
+    expect status: "recorded"
+  end
+
+  test "ApproveReading runs" do
+    tests "ApproveReading", on: "WaterQualityReading"
+    input  water_quality_reading: 1
+    expect status: "approved"
+  end
+
+  test "FlagAnomaly sets parameter" do
+    tests "FlagAnomaly", on: "WaterQualityReading"
+    input  water_quality_reading: 1, parameter: "sample"
+    expect status: "flagged"
+  end
+
+
+  # ── FeedingLog aggregate ──────────────────────────────────────────
+
+  test "LogFeeding sets food_type + quantity_grams + fed_by" do
+    tests "LogFeeding", on: "FeedingLog"
+    input  species: 1, food_type: "sample", quantity_grams: 1.0, fed_by: "sample"
+    expect ok: "true"
+  end
+
+  test "SkipFeeding sets reason" do
+    tests "SkipFeeding", on: "FeedingLog"
+    input  species: 1, reason: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Exhibit aggregate ──────────────────────────────────────────
+
+  test "OpenExhibit sets name + theme + tank_count" do
+    tests "OpenExhibit", on: "Exhibit"
+    setup  "SetupTank", tank_id: "sample", name: "sample", water_type: "sample", volume_gallons: 1.0, max_species: 1
+    input  tank: 1, name: "sample", theme: "sample", tank_count: 1
+    expect name: "sample", theme: "sample", tank_count: 1, status: "open"
+  end
+
+  test "CloseExhibit sets reason" do
+    tests "CloseExhibit", on: "Exhibit"
+    setup  "OpenExhibit", name: "sample", theme: "sample", tank_count: 1
+    input  exhibit: 1, reason: "sample"
+    expect status: "closed"
+  end
+
+  test "ReopenExhibit runs" do
+    tests "ReopenExhibit", on: "Exhibit"
+    setup  "OpenExhibit", name: "sample", theme: "sample", tank_count: 1
+    input  exhibit: 1
+    expect status: "open"
+  end
+
+end

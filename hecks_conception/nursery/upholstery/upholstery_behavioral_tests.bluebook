@@ -1,0 +1,109 @@
+Hecks.behaviors "Upholstery" do
+  vision "Behavioral tests for the Upholstery domain — exercises every command and query in memory"
+
+  # ── UpholsteryProject aggregate ──────────────────────────────────────────
+
+  test "AssessProject sets piece_description + furniture_type + client_name" do
+    tests "AssessProject", on: "UpholsteryProject"
+    input  piece_description: "sample", furniture_type: "sample", client_name: "sample"
+    expect ok: "true"
+  end
+
+  test "ApproveEstimate sets quoted_price" do
+    tests "ApproveEstimate", on: "UpholsteryProject"
+    setup  "AssessProject", piece_description: "sample", furniture_type: "sample", client_name: "sample"
+    input  upholstery_project: 1, quoted_price: 1.0
+    expect status: "approved", quoted_price: 1.0
+  end
+
+  test "BeginWork runs" do
+    tests "BeginWork", on: "UpholsteryProject"
+    setup  "AssessProject", piece_description: "sample", furniture_type: "sample", client_name: "sample"
+    input  upholstery_project: 1
+    expect status: "in_progress"
+  end
+
+  test "CompleteProject runs" do
+    tests "CompleteProject", on: "UpholsteryProject"
+    setup  "AssessProject", piece_description: "sample", furniture_type: "sample", client_name: "sample"
+    input  upholstery_project: 1
+    expect status: "completed"
+  end
+
+
+  # ── FabricSelection aggregate ──────────────────────────────────────────
+
+  test "SelectFabric sets fabric_name + material + color + yards_needed + price_per_yard" do
+    tests "SelectFabric", on: "FabricSelection"
+    setup  "AssessProject", piece_description: "sample", furniture_type: "sample", client_name: "sample"
+    input  upholstery_project: 1, fabric_name: "sample", material: "sample", color: "sample", yards_needed: 1.0, price_per_yard: 1.0
+    expect ok: "true"
+  end
+
+  test "OrderFabric runs" do
+    tests "OrderFabric", on: "FabricSelection"
+    input  fabric_selection: 1
+    expect status: "ordered"
+  end
+
+  test "ReceiveFabric runs" do
+    tests "ReceiveFabric", on: "FabricSelection"
+    input  fabric_selection: 1
+    expect status: "received"
+  end
+
+
+  # ── FrameWork aggregate ──────────────────────────────────────────
+
+  test "InspectFrame sets frame_material + condition" do
+    tests "InspectFrame", on: "FrameWork"
+    setup  "AssessProject", piece_description: "sample", furniture_type: "sample", client_name: "sample"
+    input  upholstery_project: 1, frame_material: "sample", condition: "sample"
+    expect ok: "true"
+  end
+
+  test "RepairFrame sets repair_notes" do
+    tests "RepairFrame", on: "FrameWork"
+    input  frame_work: 1, repair_notes: "sample"
+    expect status: "repaired", repair_notes: "sample"
+  end
+
+  test "RefinishFrame sets finish_type" do
+    tests "RefinishFrame", on: "FrameWork"
+    input  frame_work: 1, finish_type: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Estimate aggregate ──────────────────────────────────────────
+
+  test "DraftEstimate sets labor_cost + material_cost" do
+    tests "DraftEstimate", on: "Estimate"
+    setup  "AssessProject", piece_description: "sample", furniture_type: "sample", client_name: "sample"
+    input  upholstery_project: 1, labor_cost: 1.0, material_cost: 1.0
+    expect ok: "true"
+  end
+
+  test "SendEstimate runs" do
+    tests "SendEstimate", on: "Estimate"
+    input  estimate: 1
+    expect status: "sent"
+  end
+
+
+  # ── UpholsteryDelivery aggregate ──────────────────────────────────────────
+
+  test "ScheduleDelivery sets delivery_type + address + date" do
+    tests "ScheduleDelivery", on: "UpholsteryDelivery"
+    setup  "AssessProject", piece_description: "sample", furniture_type: "sample", client_name: "sample"
+    input  upholstery_project: 1, delivery_type: "sample", address: "sample", date: "sample"
+    expect ok: "true"
+  end
+
+  test "CompleteDelivery runs" do
+    tests "CompleteDelivery", on: "UpholsteryDelivery"
+    input  upholstery_delivery: 1
+    expect status: "delivered"
+  end
+
+end

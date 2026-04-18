@@ -1,0 +1,97 @@
+Hecks.behaviors "FinancialFreedom" do
+  vision "Behavioral tests for the FinancialFreedom domain — exercises every command and query in memory"
+
+  # ── SurvivorCase aggregate ──────────────────────────────────────────
+
+  test "OpenCase sets case_id + intake_date + safety_plan" do
+    tests "OpenCase", on: "SurvivorCase"
+    input  case_id: "sample", intake_date: "sample", safety_plan: "sample"
+    expect case_id: "sample", intake_date: "sample", safety_plan: "sample"
+  end
+
+  test "AddDependent sets name + age + relationship" do
+    tests "AddDependent", on: "SurvivorCase"
+    setup  "OpenCase", case_id: "sample", intake_date: "sample", safety_plan: "sample"
+    input  survivor_case: 1, name: "sample", age: 1, relationship: "sample"
+    expect dependents_size: 1
+  end
+
+  test "TransitionCase runs" do
+    tests "TransitionCase", on: "SurvivorCase"
+    setup  "OpenCase", case_id: "sample", intake_date: "sample", safety_plan: "sample"
+    input  survivor_case: 1
+    expect ok: "true"
+  end
+
+
+  # ── FinancialProfile aggregate ──────────────────────────────────────────
+
+  test "CreateProfile runs" do
+    tests "CreateProfile", on: "FinancialProfile"
+    setup  "OpenCase", case_id: "sample", intake_date: "sample", safety_plan: "sample"
+    input  survivor_case: 1
+    expect ok: "true"
+  end
+
+  test "AddIncomeSource sets source_type + amount + frequency" do
+    tests "AddIncomeSource", on: "FinancialProfile"
+    setup  "CreateProfile"
+    input  financial_profile: 1, source_type: "sample", amount: 1.0, frequency: "sample"
+    expect income_sources_size: 1
+  end
+
+  test "RecordDebt sets creditor + amount_owed + interest_rate" do
+    tests "RecordDebt", on: "FinancialProfile"
+    setup  "CreateProfile"
+    input  financial_profile: 1, creditor: "sample", amount_owed: 1.0, interest_rate: 1.0
+    expect debts_size: 1
+  end
+
+
+  # ── TaxReturn aggregate ──────────────────────────────────────────
+
+  test "PrepareTaxReturn sets tax_year + filing_status" do
+    tests "PrepareTaxReturn", on: "TaxReturn"
+    setup  "OpenCase", case_id: "sample", intake_date: "sample", safety_plan: "sample"
+    setup  "CreateProfile"
+    input  survivor_case: 1, financial_profile: 1, tax_year: "sample", filing_status: "sample"
+    expect ok: "true"
+  end
+
+  test "AddDeduction sets deduction_type + amount + documentation" do
+    tests "AddDeduction", on: "TaxReturn"
+    setup  "AddDeduction", deduction_type: "sample", amount: 1.0, documentation: "sample"
+    input  tax_return: 1, deduction_type: "sample", amount: 1.0, documentation: "sample"
+    expect deductions_size: 1
+  end
+
+  test "FileReturn runs" do
+    tests "FileReturn", on: "TaxReturn"
+    setup  "AddDeduction", deduction_type: "sample", amount: 1.0, documentation: "sample"
+    input  tax_return: 1
+    expect ok: "true"
+  end
+
+
+  # ── BenefitApplication aggregate ──────────────────────────────────────────
+
+  test "StartApplication sets benefit_type" do
+    tests "StartApplication", on: "BenefitApplication"
+    setup  "OpenCase", case_id: "sample", intake_date: "sample", safety_plan: "sample"
+    input  survivor_case: 1, benefit_type: "sample"
+    expect ok: "true"
+  end
+
+  test "AttachDocument sets doc_type + description" do
+    tests "AttachDocument", on: "BenefitApplication"
+    input  benefit_application: 1, doc_type: "sample", description: "sample"
+    expect documents_size: 1
+  end
+
+  test "SubmitApplication runs" do
+    tests "SubmitApplication", on: "BenefitApplication"
+    input  benefit_application: 1
+    expect ok: "true"
+  end
+
+end

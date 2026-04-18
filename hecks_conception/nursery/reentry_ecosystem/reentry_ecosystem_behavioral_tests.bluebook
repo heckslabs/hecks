@@ -1,0 +1,127 @@
+Hecks.behaviors "ReentryEcosystem" do
+  vision "Behavioral tests for the ReentryEcosystem domain — exercises every command and query in memory"
+
+  # ── ReentryCase aggregate ──────────────────────────────────────────
+
+  test "OpenCase sets case_id + participant_name + reentry_date + background_type + risk_level" do
+    tests "OpenCase", on: "ReentryCase"
+    input  case_id: "sample", participant_name: "sample", reentry_date: "sample", background_type: "sample", risk_level: "sample"
+    expect case_id: "sample", participant_name: "sample", reentry_date: "sample", background_type: "sample", risk_level: "sample", status: "active"
+  end
+
+  test "EscalateCase sets risk_level" do
+    tests "EscalateCase", on: "ReentryCase"
+    setup  "OpenCase", case_id: "sample", participant_name: "sample", reentry_date: "sample", background_type: "sample", risk_level: "sample"
+    input  reentry_case: 1, risk_level: "sample"
+    expect risk_level: "sample"
+  end
+
+  test "CloseCase runs" do
+    tests "CloseCase", on: "ReentryCase"
+    setup  "OpenCase", case_id: "sample", participant_name: "sample", reentry_date: "sample", background_type: "sample", risk_level: "sample"
+    input  reentry_case: 1
+    expect status: "closed"
+  end
+
+
+  # ── EducationTrack aggregate ──────────────────────────────────────────
+
+  test "EnrollInTrack sets track_id + track_type + institution" do
+    tests "EnrollInTrack", on: "EducationTrack"
+    setup  "OpenCase", case_id: "sample", participant_name: "sample", reentry_date: "sample", background_type: "sample", risk_level: "sample"
+    input  reentry_case: 1, track_id: "sample", track_type: "sample", institution: "sample"
+    expect track_id: "sample", case: :case, track_type: "sample", institution: "sample", status: "enrolled"
+  end
+
+  test "CompleteModule runs" do
+    tests "CompleteModule", on: "EducationTrack"
+    input  education_track: 1
+    expect ok: "true"
+  end
+
+  test "GraduateTrack runs" do
+    tests "GraduateTrack", on: "EducationTrack"
+    input  education_track: 1
+    expect status: "graduated"
+  end
+
+
+  # ── HousingMatch aggregate ──────────────────────────────────────────
+
+  test "PlaceInHousing sets match_id + housing_type + address + landlord_name" do
+    tests "PlaceInHousing", on: "HousingMatch"
+    setup  "OpenCase", case_id: "sample", participant_name: "sample", reentry_date: "sample", background_type: "sample", risk_level: "sample"
+    input  reentry_case: 1, match_id: "sample", housing_type: "sample", address: "sample", landlord_name: "sample"
+    expect match_id: "sample", housing_type: "sample", address: "sample", landlord_name: "sample", case: :case, status: "placed"
+  end
+
+  test "RecordStabilityCheck runs" do
+    tests "RecordStabilityCheck", on: "HousingMatch"
+    setup  "PlaceInHousing", match_id: "sample", housing_type: "sample", address: "sample", landlord_name: "sample"
+    input  housing_match: 1
+    expect ok: "true"
+  end
+
+  test "UpgradeHousing sets housing_type + address" do
+    tests "UpgradeHousing", on: "HousingMatch"
+    setup  "PlaceInHousing", match_id: "sample", housing_type: "sample", address: "sample", landlord_name: "sample"
+    input  housing_match: 1, housing_type: "sample", address: "sample"
+    expect housing_type: "sample", address: "sample"
+  end
+
+
+  # ── EmploymentBridge aggregate ──────────────────────────────────────────
+
+  test "PlaceInJob sets bridge_id + employer_name + job_title + start_date" do
+    tests "PlaceInJob", on: "EmploymentBridge"
+    setup  "OpenCase", case_id: "sample", participant_name: "sample", reentry_date: "sample", background_type: "sample", risk_level: "sample"
+    input  reentry_case: 1, bridge_id: "sample", employer_name: "sample", job_title: "sample", start_date: "sample"
+    expect bridge_id: "sample", employer_name: "sample", job_title: "sample", start_date: "sample", case: :case, status: "employed"
+  end
+
+  test "RecordRetention runs" do
+    tests "RecordRetention", on: "EmploymentBridge"
+    setup  "PlaceInJob", bridge_id: "sample", employer_name: "sample", job_title: "sample", start_date: "sample"
+    input  employment_bridge: 1
+    expect ok: "true"
+  end
+
+
+  # ── LegalSupport aggregate ──────────────────────────────────────────
+
+  test "AssignAttorney sets support_id + legal_need + attorney_name" do
+    tests "AssignAttorney", on: "LegalSupport"
+    setup  "OpenCase", case_id: "sample", participant_name: "sample", reentry_date: "sample", background_type: "sample", risk_level: "sample"
+    input  reentry_case: 1, support_id: "sample", legal_need: "sample", attorney_name: "sample"
+    expect support_id: "sample", case: :case, legal_need: "sample", attorney_name: "sample", status: "active"
+  end
+
+  test "FileExpungement runs" do
+    tests "FileExpungement", on: "LegalSupport"
+    input  legal_support: 1
+    expect ok: "true"
+  end
+
+  test "ResolveLegalMatter runs" do
+    tests "ResolveLegalMatter", on: "LegalSupport"
+    input  legal_support: 1
+    expect status: "resolved"
+  end
+
+
+  # ── MilestoneTracker aggregate ──────────────────────────────────────────
+
+  test "InitializeTracker runs" do
+    tests "InitializeTracker", on: "MilestoneTracker"
+    setup  "OpenCase", case_id: "sample", participant_name: "sample", reentry_date: "sample", background_type: "sample", risk_level: "sample"
+    input  reentry_case: 1
+    expect case: :case, overall_progress: "beginning"
+  end
+
+  test "RecordMilestone sets overall_progress" do
+    tests "RecordMilestone", on: "MilestoneTracker"
+    input  milestone_tracker: 1, overall_progress: "sample"
+    expect overall_progress: "sample"
+  end
+
+end

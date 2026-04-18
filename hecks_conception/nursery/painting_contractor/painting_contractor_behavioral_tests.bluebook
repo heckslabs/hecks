@@ -1,0 +1,89 @@
+Hecks.behaviors "PaintingContractor" do
+  vision "Behavioral tests for the PaintingContractor domain — exercises every command and query in memory"
+
+  # ── PaintEstimate aggregate ──────────────────────────────────────────
+
+  test "EstimateJob sets customer_name + address + total_sqft + surface_type + coats" do
+    tests "EstimateJob", on: "PaintEstimate"
+    input  customer_name: "sample", address: "sample", total_sqft: 1.0, surface_type: "sample", coats: 1
+    expect ok: "true"
+  end
+
+  test "AcceptEstimate runs" do
+    tests "AcceptEstimate", on: "PaintEstimate"
+    setup  "EstimateJob", customer_name: "sample", address: "sample", total_sqft: 1.0, surface_type: "sample", coats: 1
+    input  paint_estimate: 1
+    expect ok: "true"
+  end
+
+  test "AdjustScope sets revised_sqft + revised_price" do
+    tests "AdjustScope", on: "PaintEstimate"
+    setup  "EstimateJob", customer_name: "sample", address: "sample", total_sqft: 1.0, surface_type: "sample", coats: 1
+    input  paint_estimate: 1, revised_sqft: 1.0, revised_price: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── SurfacePrep aggregate ──────────────────────────────────────────
+
+  test "PrepSurface sets prep_type + surface" do
+    tests "PrepSurface", on: "SurfacePrep"
+    setup  "EstimateJob", customer_name: "sample", address: "sample", total_sqft: 1.0, surface_type: "sample", coats: 1
+    input  paint_estimate: 1, prep_type: "sample", surface: "sample"
+    expect ok: "true"
+  end
+
+  test "ApplyPrimer sets primer_type" do
+    tests "ApplyPrimer", on: "SurfacePrep"
+    input  surface_prep: 1, primer_type: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ColorSelection aggregate ──────────────────────────────────────────
+
+  test "SelectColor sets color_name + brand + sheen + surface_application" do
+    tests "SelectColor", on: "ColorSelection"
+    setup  "EstimateJob", customer_name: "sample", address: "sample", total_sqft: 1.0, surface_type: "sample", coats: 1
+    input  paint_estimate: 1, color_name: "sample", brand: "sample", sheen: "sample", surface_application: "sample"
+    expect ok: "true"
+  end
+
+  test "OrderPaint sets gallons_needed" do
+    tests "OrderPaint", on: "ColorSelection"
+    input  color_selection: 1, gallons_needed: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── CoatApplication aggregate ──────────────────────────────────────────
+
+  test "ApplyCoat sets coat_number + application_method" do
+    tests "ApplyCoat", on: "CoatApplication"
+    input  color_selection: 1, coat_number: 1, application_method: "sample"
+    expect ok: "true"
+  end
+
+  test "InspectCoat sets inspection_notes" do
+    tests "InspectCoat", on: "CoatApplication"
+    input  coat_application: 1, inspection_notes: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── FinalWalkthrough aggregate ──────────────────────────────────────────
+
+  test "ConductWalkthrough runs" do
+    tests "ConductWalkthrough", on: "FinalWalkthrough"
+    setup  "EstimateJob", customer_name: "sample", address: "sample", total_sqft: 1.0, surface_type: "sample", coats: 1
+    input  paint_estimate: 1
+    expect ok: "true"
+  end
+
+  test "RecordPunchList sets punch_list_items" do
+    tests "RecordPunchList", on: "FinalWalkthrough"
+    input  final_walkthrough: 1, punch_list_items: "sample"
+    expect ok: "true"
+  end
+
+end

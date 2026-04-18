@@ -1,0 +1,97 @@
+Hecks.behaviors "BloodBank" do
+  vision "Behavioral tests for the BloodBank domain — exercises every command and query in memory"
+
+  # ── Donor aggregate ──────────────────────────────────────────
+
+  test "RegisterDonor sets name + blood_type + rh_factor" do
+    tests "RegisterDonor", on: "Donor"
+    input  name: "sample", blood_type: "sample", rh_factor: "sample"
+    expect name: "sample", blood_type: "sample", rh_factor: "sample", eligibility_status: "eligible"
+  end
+
+  test "ScreenDonor runs" do
+    tests "ScreenDonor", on: "Donor"
+    setup  "RegisterDonor", name: "sample", blood_type: "sample", rh_factor: "sample"
+    input  donor: 1
+    expect eligibility_status: "screened"
+  end
+
+  test "DeferDonor sets reason + deferral_until" do
+    tests "DeferDonor", on: "Donor"
+    setup  "RegisterDonor", name: "sample", blood_type: "sample", rh_factor: "sample"
+    input  donor: 1, reason: "sample", deferral_until: "sample"
+    expect eligibility_status: "deferred"
+  end
+
+  test "ReinstateDonor runs" do
+    tests "ReinstateDonor", on: "Donor"
+    setup  "RegisterDonor", name: "sample", blood_type: "sample", rh_factor: "sample"
+    input  donor: 1
+    expect eligibility_status: "eligible"
+  end
+
+
+  # ── Donation aggregate ──────────────────────────────────────────
+
+  test "CollectDonation sets volume_ml" do
+    tests "CollectDonation", on: "Donation"
+    setup  "RegisterDonor", name: "sample", blood_type: "sample", rh_factor: "sample"
+    input  donor: 1, volume_ml: 1.0
+    expect status: "collected"
+  end
+
+  test "ProcessDonation runs" do
+    tests "ProcessDonation", on: "Donation"
+    input  donation: 1
+    expect status: "processed"
+  end
+
+
+  # ── BloodUnit aggregate ──────────────────────────────────────────
+
+  test "LabelUnit sets blood_type + component + expiry_date" do
+    tests "LabelUnit", on: "BloodUnit"
+    input  donation: 1, blood_type: "sample", component: "sample", expiry_date: "sample"
+    expect status: "quarantined"
+  end
+
+  test "ReleaseUnit runs" do
+    tests "ReleaseUnit", on: "BloodUnit"
+    input  blood_unit: 1
+    expect status: "available"
+  end
+
+  test "CrossmatchUnit sets patient_id" do
+    tests "CrossmatchUnit", on: "BloodUnit"
+    input  blood_unit: 1, patient_id: "sample"
+    expect status: "crossmatched"
+  end
+
+  test "IssueUnit sets hospital_name" do
+    tests "IssueUnit", on: "BloodUnit"
+    input  blood_unit: 1, hospital_name: "sample"
+    expect status: "issued"
+  end
+
+  test "DiscardUnit sets reason" do
+    tests "DiscardUnit", on: "BloodUnit"
+    input  blood_unit: 1, reason: "sample"
+    expect status: "discarded"
+  end
+
+
+  # ── TestResult aggregate ──────────────────────────────────────────
+
+  test "PerformTest sets test_type" do
+    tests "PerformTest", on: "TestResult"
+    input  donation: 1, test_type: "sample"
+    expect status: "pending"
+  end
+
+  test "RecordResult sets result" do
+    tests "RecordResult", on: "TestResult"
+    input  test_result: 1, result: "sample"
+    expect status: "completed"
+  end
+
+end

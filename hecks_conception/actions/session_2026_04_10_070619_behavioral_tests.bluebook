@@ -1,0 +1,11 @@
+Hecks.behaviors "session_2026_04_10_070619" do
+  vision "Behavioral tests for the session_2026_04_10_070619 domain — exercises every command and query in memory"
+
+  # ── Session aggregate ──────────────────────────────────────────
+
+  test "Start runs" do
+    tests "Start", on: "Session"
+    expect session_id: "session_2026_04_10_070619", engine: "claude", status: "active"
+  end
+
+end

@@ -1,0 +1,115 @@
+Hecks.behaviors "SaaSPlatform" do
+  vision "Behavioral tests for the SaaSPlatform domain — exercises every command and query in memory"
+
+  # ── Tenant aggregate ──────────────────────────────────────────
+
+  test "OnboardTenant sets tenant_name + slug + admin_email + plan" do
+    tests "OnboardTenant", on: "Tenant"
+    input  tenant_name: "sample", slug: "sample", admin_email: "sample", plan: "sample"
+    expect ok: "true"
+  end
+
+  test "SuspendTenant runs" do
+    tests "SuspendTenant", on: "Tenant"
+    setup  "OnboardTenant", tenant_name: "sample", slug: "sample", admin_email: "sample", plan: "sample"
+    input  tenant: 1
+    expect ok: "true"
+  end
+
+  test "ReactivateTenant runs" do
+    tests "ReactivateTenant", on: "Tenant"
+    setup  "OnboardTenant", tenant_name: "sample", slug: "sample", admin_email: "sample", plan: "sample"
+    input  tenant: 1
+    expect ok: "true"
+  end
+
+
+  # ── Subscription aggregate ──────────────────────────────────────────
+
+  test "StartSubscription sets subscription_id + plan_name + monthly_rate + billing_cycle" do
+    tests "StartSubscription", on: "Subscription"
+    setup  "OnboardTenant", tenant_name: "sample", slug: "sample", admin_email: "sample", plan: "sample"
+    input  tenant: 1, subscription_id: "sample", plan_name: "sample", monthly_rate: 1.0, billing_cycle: "sample"
+    expect ok: "true"
+  end
+
+  test "UpgradePlan sets plan_name + monthly_rate" do
+    tests "UpgradePlan", on: "Subscription"
+    input  subscription: 1, plan_name: "sample", monthly_rate: 1.0
+    expect ok: "true"
+  end
+
+  test "CancelSubscription runs" do
+    tests "CancelSubscription", on: "Subscription"
+    input  subscription: 1
+    expect ok: "true"
+  end
+
+
+  # ── FeatureFlag aggregate ──────────────────────────────────────────
+
+  test "CreateFeatureFlag sets flag_name + description + rollout_strategy + rollout_percentage" do
+    tests "CreateFeatureFlag", on: "FeatureFlag"
+    input  flag_name: "sample", description: "sample", rollout_strategy: "sample", rollout_percentage: 1
+    expect flag_name: "sample", description: "sample", rollout_strategy: "sample", rollout_percentage: 1
+  end
+
+  test "ToggleForTenant sets tenant_slug + enabled" do
+    tests "ToggleForTenant", on: "FeatureFlag"
+    setup  "CreateFeatureFlag", flag_name: "sample", description: "sample", rollout_strategy: "sample", rollout_percentage: 1
+    input  feature_flag: 1, tenant_slug: "sample", enabled: "sample"
+    expect ok: "true"
+  end
+
+  test "RetireFlag runs" do
+    tests "RetireFlag", on: "FeatureFlag"
+    setup  "CreateFeatureFlag", flag_name: "sample", description: "sample", rollout_strategy: "sample", rollout_percentage: 1
+    input  feature_flag: 1
+    expect ok: "true"
+  end
+
+
+  # ── UsageMeter aggregate ──────────────────────────────────────────
+
+  test "InitializeMeter sets meter_name + unit + quota + period" do
+    tests "InitializeMeter", on: "UsageMeter"
+    setup  "OnboardTenant", tenant_name: "sample", slug: "sample", admin_email: "sample", plan: "sample"
+    input  tenant: 1, meter_name: "sample", unit: "sample", quota: 1, period: "sample"
+    expect ok: "true"
+  end
+
+  test "RecordUsage sets delta" do
+    tests "RecordUsage", on: "UsageMeter"
+    input  usage_meter: 1, delta: 1
+    expect ok: "true"
+  end
+
+  test "ResetMeter runs" do
+    tests "ResetMeter", on: "UsageMeter"
+    input  usage_meter: 1
+    expect ok: "true"
+  end
+
+
+  # ── BillingEvent aggregate ──────────────────────────────────────────
+
+  test "PostCharge sets event_id + amount + description" do
+    tests "PostCharge", on: "BillingEvent"
+    setup  "OnboardTenant", tenant_name: "sample", slug: "sample", admin_email: "sample", plan: "sample"
+    input  tenant: 1, event_id: "sample", amount: 1.0, description: "sample"
+    expect ok: "true"
+  end
+
+  test "IssueCredit sets amount + reason" do
+    tests "IssueCredit", on: "BillingEvent"
+    input  billing_event: 1, amount: 1.0, reason: "sample"
+    expect ok: "true"
+  end
+
+  test "SettleBalance runs" do
+    tests "SettleBalance", on: "BillingEvent"
+    input  billing_event: 1
+    expect ok: "true"
+  end
+
+end

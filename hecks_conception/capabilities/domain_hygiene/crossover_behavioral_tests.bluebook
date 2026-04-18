@@ -1,0 +1,50 @@
+Hecks.behaviors "DomainCrossover" do
+  vision "Behavioral tests for the DomainCrossover domain — exercises every command and query in memory"
+
+  # ── ParentPair aggregate ──────────────────────────────────────────
+
+  test "SelectPair sets min_similarity + max_similarity" do
+    tests "SelectPair", on: "ParentPair"
+    input  min_similarity: 1.0, max_similarity: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── Offspring aggregate ──────────────────────────────────────────
+
+  test "BreedDomain sets name + vision + aggregates_from_each" do
+    tests "BreedDomain", on: "Offspring"
+    setup  "SelectPair", min_similarity: 1.0, max_similarity: 1.0
+    input  parent_pair: 1, name: "sample", vision: "sample", aggregates_from_each: 1
+    expect ok: "true"
+  end
+
+  test "ValidateOffspring runs" do
+    tests "ValidateOffspring", on: "Offspring"
+    input  offspring: 1
+    expect ok: "true"
+  end
+
+  test "EnrichOffspring runs" do
+    tests "EnrichOffspring", on: "Offspring"
+    input  offspring: 1
+    expect ok: "true"
+  end
+
+
+  # ── Generation aggregate ──────────────────────────────────────────
+
+  test "RunGeneration sets pair_count" do
+    tests "RunGeneration", on: "Generation"
+    input  pair_count: 1
+    expect ok: "true"
+  end
+
+  test "AssessGeneration runs" do
+    tests "AssessGeneration", on: "Generation"
+    setup  "RunGeneration", pair_count: 1
+    input  generation: 1
+    expect ok: "true"
+  end
+
+end

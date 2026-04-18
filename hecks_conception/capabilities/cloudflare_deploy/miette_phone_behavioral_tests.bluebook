@@ -1,0 +1,84 @@
+Hecks.behaviors "MiettePhone" do
+  vision "Behavioral tests for the MiettePhone domain — exercises every command and query in memory"
+
+  # ── Gate aggregate ──────────────────────────────────────────
+
+  test "Authenticate sets pin" do
+    tests "Authenticate", on: "Gate"
+    input  pin: "sample"
+    expect locked: "false"
+  end
+
+  test "RevokeSession runs" do
+    tests "RevokeSession", on: "Gate"
+    setup  "Authenticate", pin: "sample"
+    input  gate: 1
+    expect locked: "true"
+  end
+
+
+  # ── Conversation aggregate ──────────────────────────────────────────
+
+  test "StartConversation runs" do
+    tests "StartConversation", on: "Conversation"
+    expect ok: "true"
+  end
+
+  test "SendMessage sets content" do
+    tests "SendMessage", on: "Conversation"
+    setup  "StartConversation"
+    input  conversation: 1, content: "sample"
+    expect ok: "true"
+  end
+
+  test "ReceiveReply sets content + latency_ms" do
+    tests "ReceiveReply", on: "Conversation"
+    setup  "StartConversation"
+    input  conversation: 1, content: "sample", latency_ms: 1
+    expect ok: "true"
+  end
+
+
+  # ── InferenceProxy aggregate ──────────────────────────────────────────
+
+  test "ConfigureProxy sets summer_origin + timeout_ms" do
+    tests "ConfigureProxy", on: "InferenceProxy"
+    input  summer_origin: "sample", timeout_ms: 1
+    expect summer_origin: "sample", timeout_ms: 1
+  end
+
+  test "RelayMessage sets content" do
+    tests "RelayMessage", on: "InferenceProxy"
+    setup  "StartConversation"
+    input  conversation: 1, content: "sample"
+    expect ok: "true"
+  end
+
+  test "CheckHealth runs" do
+    tests "CheckHealth", on: "InferenceProxy"
+    expect ok: "true"
+  end
+
+
+  # ── ChatScreen aggregate ──────────────────────────────────────────
+
+  test "RenderChat runs" do
+    tests "RenderChat", on: "ChatScreen"
+    setup  "StartConversation"
+    input  conversation: 1
+    expect ok: "true"
+  end
+
+  test "StreamResponse runs" do
+    tests "StreamResponse", on: "ChatScreen"
+    setup  "StartConversation"
+    input  conversation: 1
+    expect ok: "true"
+  end
+
+  test "ToggleTheme runs" do
+    tests "ToggleTheme", on: "ChatScreen"
+    expect ok: "true"
+  end
+
+end

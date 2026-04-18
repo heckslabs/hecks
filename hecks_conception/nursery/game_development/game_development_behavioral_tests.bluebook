@@ -1,0 +1,100 @@
+Hecks.behaviors "GameDevelopment" do
+  vision "Behavioral tests for the GameDevelopment domain — exercises every command and query in memory"
+
+  # ── GameProject aggregate ──────────────────────────────────────────
+
+  test "KickOffProject sets title + engine + genre + target_platform" do
+    tests "KickOffProject", on: "GameProject"
+    input  title: "sample", engine: "sample", genre: "sample", target_platform: "sample"
+    expect ok: "true"
+  end
+
+  test "EnterProduction runs" do
+    tests "EnterProduction", on: "GameProject"
+    setup  "KickOffProject", title: "sample", engine: "sample", genre: "sample", target_platform: "sample"
+    input  game_project: 1
+    expect status: "production"
+  end
+
+  test "ShipGold runs" do
+    tests "ShipGold", on: "GameProject"
+    setup  "KickOffProject", title: "sample", engine: "sample", genre: "sample", target_platform: "sample"
+    input  game_project: 1
+    expect status: "gold"
+  end
+
+
+  # ── Sprint aggregate ──────────────────────────────────────────
+
+  test "PlanSprint sets name + duration_days + story_points" do
+    tests "PlanSprint", on: "Sprint"
+    setup  "KickOffProject", title: "sample", engine: "sample", genre: "sample", target_platform: "sample"
+    input  game_project: 1, name: "sample", duration_days: 1, story_points: 1
+    expect ok: "true"
+  end
+
+  test "StartSprint runs" do
+    tests "StartSprint", on: "Sprint"
+    input  sprint: 1
+    expect status: "active"
+  end
+
+  test "CloseSprint sets completed_points" do
+    tests "CloseSprint", on: "Sprint"
+    input  sprint: 1, completed_points: 1
+    expect status: "closed"
+  end
+
+
+  # ── Build aggregate ──────────────────────────────────────────
+
+  test "TriggerBuild sets version + platform + build_config" do
+    tests "TriggerBuild", on: "Build"
+    setup  "KickOffProject", title: "sample", engine: "sample", genre: "sample", target_platform: "sample"
+    input  game_project: 1, version: "sample", platform: "sample", build_config: "sample"
+    expect ok: "true"
+  end
+
+  test "CertifyBuild runs" do
+    tests "CertifyBuild", on: "Build"
+    input  build: 1
+    expect status: "certified"
+  end
+
+
+  # ── Playtest aggregate ──────────────────────────────────────────
+
+  test "SchedulePlaytest sets session_name + tester_count" do
+    tests "SchedulePlaytest", on: "Playtest"
+    input  build: 1, session_name: "sample", tester_count: 1
+    expect ok: "true"
+  end
+
+  test "ConductPlaytest runs" do
+    tests "ConductPlaytest", on: "Playtest"
+    input  playtest: 1
+    expect status: "completed"
+  end
+
+  test "AnalyzeResults runs" do
+    tests "AnalyzeResults", on: "Playtest"
+    input  playtest: 1
+    expect ok: "true"
+  end
+
+
+  # ── BugReport aggregate ──────────────────────────────────────────
+
+  test "FileBug sets title + severity + repro_steps" do
+    tests "FileBug", on: "BugReport"
+    input  build: 1, title: "sample", severity: "sample", repro_steps: "sample"
+    expect ok: "true"
+  end
+
+  test "ResolveBug sets resolution" do
+    tests "ResolveBug", on: "BugReport"
+    input  bug_report: 1, resolution: "sample"
+    expect status: "resolved"
+  end
+
+end

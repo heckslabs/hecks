@@ -1,0 +1,78 @@
+Hecks.behaviors "TrainingPipeline" do
+  vision "Behavioral tests for the TrainingPipeline domain — exercises every command and query in memory"
+
+  # ── BaseModel aggregate ──────────────────────────────────────────
+
+  test "SelectBaseModel sets name + parameters + source" do
+    tests "SelectBaseModel", on: "BaseModel"
+    input  name: "sample", parameters: "sample", source: "sample"
+    expect name: "sample", parameters: "sample", source: "sample"
+  end
+
+
+  # ── DataPrep aggregate ──────────────────────────────────────────
+
+  test "PrepareData sets format" do
+    tests "PrepareData", on: "DataPrep"
+    input  format: "sample"
+    expect format: "sample", status: "prepared"
+  end
+
+  test "SplitDataset runs" do
+    tests "SplitDataset", on: "DataPrep"
+    setup  "PrepareData", format: "sample"
+    input  data_prep: 1
+    expect ok: "true"
+  end
+
+
+  # ── InstructionPair aggregate ──────────────────────────────────────────
+
+  test "CreateInstructionPair sets instruction + response + category" do
+    tests "CreateInstructionPair", on: "InstructionPair"
+    input  instruction: "sample", response: "sample", category: "sample"
+    expect instruction: "sample", response: "sample", category: "sample"
+  end
+
+
+  # ── FineTune aggregate ──────────────────────────────────────────
+
+  test "StartFineTune sets base_model + dataset_size + epochs + learning_rate" do
+    tests "StartFineTune", on: "FineTune"
+    input  base_model: "sample", dataset_size: 1, epochs: 1, learning_rate: 1.0
+    expect base_model: "sample", dataset_size: 1, epochs: 1, learning_rate: 1.0, status: "training"
+  end
+
+  test "RecordEpoch sets loss" do
+    tests "RecordEpoch", on: "FineTune"
+    setup  "StartFineTune", base_model: "sample", dataset_size: 1, epochs: 1, learning_rate: 1.0
+    input  fine_tune: 1, loss: 1.0
+    expect loss: 1.0
+  end
+
+  test "CompleteFineTune runs" do
+    tests "CompleteFineTune", on: "FineTune"
+    setup  "StartFineTune", base_model: "sample", dataset_size: 1, epochs: 1, learning_rate: 1.0
+    input  fine_tune: 1
+    expect status: "complete"
+  end
+
+
+  # ── Evaluation aggregate ──────────────────────────────────────────
+
+  test "EvaluateModel sets bluebook_accuracy + conversation_quality + behavior_adherence" do
+    tests "EvaluateModel", on: "Evaluation"
+    input  bluebook_accuracy: 1.0, conversation_quality: 1.0, behavior_adherence: 1.0
+    expect bluebook_accuracy: 1.0, conversation_quality: 1.0, behavior_adherence: 1.0
+  end
+
+
+  # ── Deployment aggregate ──────────────────────────────────────────
+
+  test "DeployModel sets model_path + serving_method" do
+    tests "DeployModel", on: "Deployment"
+    input  model_path: "sample", serving_method: "sample"
+    expect model_path: "sample", serving_method: "sample", status: "live"
+  end
+
+end

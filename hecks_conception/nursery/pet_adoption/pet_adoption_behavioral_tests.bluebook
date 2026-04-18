@@ -1,0 +1,67 @@
+Hecks.behaviors "PetAdoption" do
+  vision "Behavioral tests for the PetAdoption domain — exercises every command and query in memory"
+
+  # ── Animal aggregate ──────────────────────────────────────────
+
+  test "IntakeAnimal sets animal_id + name + species + breed + age_months + temperament" do
+    tests "IntakeAnimal", on: "Animal"
+    input  animal_id: "sample", name: "sample", species: "sample", breed: "sample", age_months: 1, temperament: "sample"
+    expect animal_id: "sample", name: "sample", species: "sample", breed: "sample", age_months: 1, temperament: "sample", status: "available"
+  end
+
+  test "AdoptAnimal runs" do
+    tests "AdoptAnimal", on: "Animal"
+    setup  "IntakeAnimal", animal_id: "sample", name: "sample", species: "sample", breed: "sample", age_months: 1, temperament: "sample"
+    input  animal: 1
+    expect status: "adopted"
+  end
+
+
+  # ── AdoptionCampaign aggregate ──────────────────────────────────────────
+
+  test "LaunchCampaign sets campaign_id + target_audience + platform + budget" do
+    tests "LaunchCampaign", on: "AdoptionCampaign"
+    input  campaign_id: "sample", target_audience: "sample", platform: "sample", budget: 1.0
+    expect campaign_id: "sample", target_audience: "sample", platform: "sample", budget: 1.0, status: "active"
+  end
+
+  test "TrackImpressions sets impressions" do
+    tests "TrackImpressions", on: "AdoptionCampaign"
+    setup  "LaunchCampaign", campaign_id: "sample", target_audience: "sample", platform: "sample", budget: 1.0
+    input  adoption_campaign: 1, impressions: 1
+    expect impressions: 1
+  end
+
+
+  # ── AdopterProfile aggregate ──────────────────────────────────────────
+
+  test "CreateAdopterProfile sets adopter_id + name + preferred_species + housing_type" do
+    tests "CreateAdopterProfile", on: "AdopterProfile"
+    input  adopter_id: "sample", name: "sample", preferred_species: "sample", housing_type: "sample"
+    expect adopter_id: "sample", name: "sample", preferred_species: "sample", housing_type: "sample", status: "active"
+  end
+
+  test "MatchAdopter runs" do
+    tests "MatchAdopter", on: "AdopterProfile"
+    setup  "CreateAdopterProfile", adopter_id: "sample", name: "sample", preferred_species: "sample", housing_type: "sample"
+    input  adopter_profile: 1
+    expect ok: "true"
+  end
+
+
+  # ── FollowUp aggregate ──────────────────────────────────────────
+
+  test "ScheduleFollowUp sets followup_id + animal_id + adopter_id + scheduled_date" do
+    tests "ScheduleFollowUp", on: "FollowUp"
+    input  followup_id: "sample", animal_id: "sample", adopter_id: "sample", scheduled_date: "sample"
+    expect followup_id: "sample", animal_id: "sample", adopter_id: "sample", scheduled_date: "sample", status: "scheduled"
+  end
+
+  test "RecordOutcome sets outcome" do
+    tests "RecordOutcome", on: "FollowUp"
+    setup  "ScheduleFollowUp", followup_id: "sample", animal_id: "sample", adopter_id: "sample", scheduled_date: "sample"
+    input  follow_up: 1, outcome: "sample"
+    expect outcome: "sample", status: "completed"
+  end
+
+end

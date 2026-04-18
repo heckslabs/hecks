@@ -1,0 +1,16 @@
+Hecks.behaviors "Corpus" do
+  vision "Behavioral tests for the Corpus domain — exercises every command and query in memory"
+
+  # ── Search aggregate ──────────────────────────────────────────
+
+  test "MatchInput returns matching records" do
+    tests "MatchInput", on: "Search", kind: :query
+    expect count: 1
+  end
+
+  test "ListAll returns matching records" do
+    tests "ListAll", on: "Search", kind: :query
+    expect count: 1
+  end
+
+end

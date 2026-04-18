@@ -1,0 +1,115 @@
+Hecks.behaviors "TicketingPlatform" do
+  vision "Behavioral tests for the TicketingPlatform domain — exercises every command and query in memory"
+
+  # ── Event aggregate ──────────────────────────────────────────
+
+  test "CreateEvent sets event_name + event_type + date + organizer + capacity" do
+    tests "CreateEvent", on: "Event"
+    setup  "RegisterVenue", venue_name: "sample", address: "sample", total_capacity: 1, venue_type: "sample"
+    input  venue: 1, event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
+    expect event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
+  end
+
+  test "PublishEvent runs" do
+    tests "PublishEvent", on: "Event"
+    setup  "CreateEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
+    input  event: 1
+    expect ok: "true"
+  end
+
+  test "CancelEvent runs" do
+    tests "CancelEvent", on: "Event"
+    setup  "CreateEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
+    input  event: 1
+    expect ok: "true"
+  end
+
+
+  # ── Venue aggregate ──────────────────────────────────────────
+
+  test "RegisterVenue sets venue_name + address + total_capacity + venue_type" do
+    tests "RegisterVenue", on: "Venue"
+    input  venue_name: "sample", address: "sample", total_capacity: 1, venue_type: "sample"
+    expect venue_name: "sample", address: "sample", total_capacity: 1, venue_type: "sample"
+  end
+
+  test "UpdateCapacity sets total_capacity" do
+    tests "UpdateCapacity", on: "Venue"
+    setup  "RegisterVenue", venue_name: "sample", address: "sample", total_capacity: 1, venue_type: "sample"
+    input  venue: 1, total_capacity: 1
+    expect ok: "true"
+  end
+
+  test "CloseVenue runs" do
+    tests "CloseVenue", on: "Venue"
+    setup  "RegisterVenue", venue_name: "sample", address: "sample", total_capacity: 1, venue_type: "sample"
+    input  venue: 1
+    expect ok: "true"
+  end
+
+
+  # ── Ticket aggregate ──────────────────────────────────────────
+
+  test "PurchaseTicket sets ticket_id + tier_name + holder_name + holder_email + price_paid" do
+    tests "PurchaseTicket", on: "Ticket"
+    setup  "CreateEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
+    input  event: 1, ticket_id: "sample", tier_name: "sample", holder_name: "sample", holder_email: "sample", price_paid: 1.0
+    expect ok: "true"
+  end
+
+  test "TransferTicket sets new_holder_name + new_holder_email" do
+    tests "TransferTicket", on: "Ticket"
+    input  ticket: 1, new_holder_name: "sample", new_holder_email: "sample"
+    expect ok: "true"
+  end
+
+  test "CheckInTicket runs" do
+    tests "CheckInTicket", on: "Ticket"
+    input  ticket: 1
+    expect ok: "true"
+  end
+
+
+  # ── SalesReport aggregate ──────────────────────────────────────────
+
+  test "GenerateSalesReport sets report_id + period" do
+    tests "GenerateSalesReport", on: "SalesReport"
+    setup  "CreateEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
+    input  event: 1, report_id: "sample", period: "sample"
+    expect ok: "true"
+  end
+
+  test "PublishReport runs" do
+    tests "PublishReport", on: "SalesReport"
+    input  sales_report: 1
+    expect ok: "true"
+  end
+
+  test "ArchiveReport runs" do
+    tests "ArchiveReport", on: "SalesReport"
+    input  sales_report: 1
+    expect ok: "true"
+  end
+
+
+  # ── Refund aggregate ──────────────────────────────────────────
+
+  test "RequestRefund sets refund_id + refund_amount + reason + refund_method" do
+    tests "RequestRefund", on: "Refund"
+    input  ticket: 1, refund_id: "sample", refund_amount: 1.0, reason: "sample", refund_method: "sample"
+    expect ok: "true"
+  end
+
+  test "ApproveRefund runs" do
+    tests "ApproveRefund", on: "Refund"
+    input  refund: 1
+    expect ok: "true"
+  end
+
+  test "DenyRefund sets denial_reason" do
+    tests "DenyRefund", on: "Refund"
+    input  refund: 1, denial_reason: "sample"
+    expect ok: "true"
+  end
+
+end

@@ -1,0 +1,135 @@
+Hecks.behaviors "ZooManagement" do
+  vision "Behavioral tests for the ZooManagement domain — exercises every command and query in memory"
+
+  # ── Animal aggregate ──────────────────────────────────────────
+
+  test "RegisterAnimal sets common_name + species + sex + date_of_birth" do
+    tests "RegisterAnimal", on: "Animal"
+    input  common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample"
+    expect common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample", status: "quarantine"
+  end
+
+  test "ClearQuarantine runs" do
+    tests "ClearQuarantine", on: "Animal"
+    setup  "PlaceOnExhibit"
+    input  animal: 1
+    expect status: "cleared"
+  end
+
+  test "PlaceOnExhibit runs" do
+    tests "PlaceOnExhibit", on: "Animal"
+    setup  "PlaceOnExhibit"
+    setup  "BuildHabitat", name: "sample", biome_type: "sample", area_sqft: 1.0, max_capacity: 1
+    input  animal: 1, habitat: 1
+    expect status: "on_exhibit"
+  end
+
+  test "MoveOffExhibit sets reason" do
+    tests "MoveOffExhibit", on: "Animal"
+    setup  "PlaceOnExhibit"
+    input  animal: 1, reason: "sample"
+    expect status: "off_exhibit"
+  end
+
+  test "TransferAnimal sets destination_zoo" do
+    tests "TransferAnimal", on: "Animal"
+    setup  "PlaceOnExhibit"
+    input  animal: 1, destination_zoo: "sample"
+    expect status: "transferred"
+  end
+
+
+  # ── Habitat aggregate ──────────────────────────────────────────
+
+  test "BuildHabitat sets name + biome_type + area_sqft + max_capacity" do
+    tests "BuildHabitat", on: "Habitat"
+    input  name: "sample", biome_type: "sample", area_sqft: 1.0, max_capacity: 1
+    expect status: "built", current_occupancy: 0
+  end
+
+  test "InspectHabitat runs" do
+    tests "InspectHabitat", on: "Habitat"
+    setup  "BuildHabitat", name: "sample", biome_type: "sample", area_sqft: 1.0, max_capacity: 1
+    input  habitat: 1
+    expect status: "active"
+  end
+
+  test "CloseHabitat sets reason" do
+    tests "CloseHabitat", on: "Habitat"
+    setup  "BuildHabitat", name: "sample", biome_type: "sample", area_sqft: 1.0, max_capacity: 1
+    input  habitat: 1, reason: "sample"
+    expect status: "closed"
+  end
+
+  test "ReopenHabitat runs" do
+    tests "ReopenHabitat", on: "Habitat"
+    setup  "BuildHabitat", name: "sample", biome_type: "sample", area_sqft: 1.0, max_capacity: 1
+    input  habitat: 1
+    expect status: "active"
+  end
+
+  test "AssignAnimalToHabitat runs" do
+    tests "AssignAnimalToHabitat", on: "Habitat"
+    setup  "BuildHabitat", name: "sample", biome_type: "sample", area_sqft: 1.0, max_capacity: 1
+    setup  "PlaceOnExhibit"
+    input  habitat: 1, animal: 1
+    expect ok: "true"
+  end
+
+
+  # ── FeedingSchedule aggregate ──────────────────────────────────────────
+
+  test "CreateFeedingSchedule sets diet_type + feeding_time + portion_kg" do
+    tests "CreateFeedingSchedule", on: "FeedingSchedule"
+    setup  "PlaceOnExhibit"
+    input  animal: 1, diet_type: "sample", feeding_time: "sample", portion_kg: 1.0
+    expect diet_type: "sample", feeding_time: "sample", portion_kg: 1.0, status: "active"
+  end
+
+  test "RecordFeeding sets fed_by" do
+    tests "RecordFeeding", on: "FeedingSchedule"
+    setup  "CreateFeedingSchedule", diet_type: "sample", feeding_time: "sample", portion_kg: 1.0
+    input  feeding_schedule: 1, fed_by: "sample"
+    expect ok: "true"
+  end
+
+  test "AdjustDiet sets new_diet_type + new_portion_kg" do
+    tests "AdjustDiet", on: "FeedingSchedule"
+    setup  "CreateFeedingSchedule", diet_type: "sample", feeding_time: "sample", portion_kg: 1.0
+    input  feeding_schedule: 1, new_diet_type: "sample", new_portion_kg: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── VeterinaryExam aggregate ──────────────────────────────────────────
+
+  test "ScheduleExam sets exam_type + veterinarian" do
+    tests "ScheduleExam", on: "VeterinaryExam"
+    setup  "PlaceOnExhibit"
+    input  animal: 1, exam_type: "sample", veterinarian: "sample"
+    expect status: "scheduled"
+  end
+
+  test "PerformExam sets findings" do
+    tests "PerformExam", on: "VeterinaryExam"
+    input  veterinary_exam: 1, findings: "sample"
+    expect status: "completed"
+  end
+
+
+  # ── BreedingProgram aggregate ──────────────────────────────────────────
+
+  test "InitiateBreeding sets species + target_offspring" do
+    tests "InitiateBreeding", on: "BreedingProgram"
+    setup  "PlaceOnExhibit"
+    input  animal: 1, species: "sample", target_offspring: 1
+    expect status: "active"
+  end
+
+  test "RecordBirth sets offspring_name" do
+    tests "RecordBirth", on: "BreedingProgram"
+    input  breeding_program: 1, offspring_name: "sample"
+    expect ok: "true"
+  end
+
+end

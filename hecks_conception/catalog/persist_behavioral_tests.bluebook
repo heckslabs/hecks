@@ -1,0 +1,106 @@
+Hecks.behaviors "Persist" do
+  vision "Behavioral tests for the Persist domain — exercises every command and query in memory"
+
+  # ── DatabaseConnection aggregate ──────────────────────────────────────────
+
+  test "Connect sets url" do
+    tests "Connect", on: "DatabaseConnection"
+    input  url: "sample"
+    expect ok: "true"
+  end
+
+  test "ConnectByType sets database + host" do
+    tests "ConnectByType", on: "DatabaseConnection"
+    input  database: "sample", host: "sample"
+    expect ok: "true"
+  end
+
+  test "ConnectFromRails runs" do
+    tests "ConnectFromRails", on: "DatabaseConnection"
+    expect ok: "true"
+  end
+
+
+  # ── SqlAdapterGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate sets aggregate_name + domain_module" do
+    tests "Generate", on: "SqlAdapterGenerator"
+    input  aggregate_name: "sample", domain_module: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SqlBuilder aggregate ──────────────────────────────────────────
+
+  test "InsertLines runs" do
+    tests "InsertLines", on: "SqlBuilder"
+    expect ok: "true"
+  end
+
+  test "UpdateLines runs" do
+    tests "UpdateLines", on: "SqlBuilder"
+    expect ok: "true"
+  end
+
+  test "BuildLines runs" do
+    tests "BuildLines", on: "SqlBuilder"
+    expect ok: "true"
+  end
+
+  test "DeleteLines runs" do
+    tests "DeleteLines", on: "SqlBuilder"
+    expect ok: "true"
+  end
+
+
+  # ── SqlMigrationGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate sets domain_name" do
+    tests "Generate", on: "SqlMigrationGenerator"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SqlStrategy aggregate ──────────────────────────────────────────
+
+  test "Generate sets changes" do
+    tests "Generate", on: "SqlStrategy"
+    input  changes: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SqlHelpers aggregate ──────────────────────────────────────────
+
+  test "SqlType sets attribute_type" do
+    tests "SqlType", on: "SqlHelpers"
+    input  attribute_type: "sample"
+    expect ok: "true"
+  end
+
+  test "TableName sets aggregate_name" do
+    tests "TableName", on: "SqlHelpers"
+    input  aggregate_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SqlBoot aggregate ──────────────────────────────────────────
+
+  test "Boot sets domain_name" do
+    tests "Boot", on: "SqlBoot"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SqlSetup aggregate ──────────────────────────────────────────
+
+  test "Setup sets domain_name" do
+    tests "Setup", on: "SqlSetup"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+end

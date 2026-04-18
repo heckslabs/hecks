@@ -1,0 +1,70 @@
+Hecks.behaviors "Actions" do
+  vision "Behavioral tests for the Actions domain — exercises every command and query in memory"
+
+  # ── ActionPlan aggregate ──────────────────────────────────────────
+
+  test "Conceive sets name + description + rationale + action_bluebook_path + steps_total" do
+    tests "Conceive", on: "ActionPlan"
+    input  name: "sample", description: "sample", rationale: "sample", action_bluebook_path: "sample", steps_total: 1
+    expect name: "sample", description: "sample", rationale: "sample", action_bluebook_path: "sample", steps_total: 1, steps_completed: 0, status: "conceived"
+  end
+
+  test "ReviewWithCourt runs" do
+    tests "ReviewWithCourt", on: "ActionPlan"
+    setup  "Conceive", name: "sample", description: "sample", rationale: "sample", action_bluebook_path: "sample", steps_total: 1
+    input  action_plan: 1
+    expect status: "reviewed"
+  end
+
+  test "Execute runs" do
+    tests "Execute", on: "ActionPlan"
+    setup  "Conceive", name: "sample", description: "sample", rationale: "sample", action_bluebook_path: "sample", steps_total: 1
+    input  action_plan: 1
+    expect status: "executed"
+  end
+
+  test "CompleteStep runs" do
+    tests "CompleteStep", on: "ActionPlan"
+    setup  "Conceive", name: "sample", description: "sample", rationale: "sample", action_bluebook_path: "sample", steps_total: 1
+    input  action_plan: 1
+    expect steps_completed: 1
+  end
+
+  test "TestReverse runs" do
+    tests "TestReverse", on: "ActionPlan"
+    setup  "Conceive", name: "sample", description: "sample", rationale: "sample", action_bluebook_path: "sample", steps_total: 1
+    input  action_plan: 1
+    expect status: "reverse_tested"
+  end
+
+  test "ReExecute runs" do
+    tests "ReExecute", on: "ActionPlan"
+    setup  "Conceive", name: "sample", description: "sample", rationale: "sample", action_bluebook_path: "sample", steps_total: 1
+    input  action_plan: 1
+    expect status: "confirmed"
+  end
+
+  test "Verify runs" do
+    tests "Verify", on: "ActionPlan"
+    setup  "Conceive", name: "sample", description: "sample", rationale: "sample", action_bluebook_path: "sample", steps_total: 1
+    input  action_plan: 1
+    expect status: "verified"
+  end
+
+  test "Reverse runs" do
+    tests "Reverse", on: "ActionPlan"
+    setup  "Conceive", name: "sample", description: "sample", rationale: "sample", action_bluebook_path: "sample", steps_total: 1
+    input  action_plan: 1
+    expect steps_completed: 0, status: "reversed"
+  end
+
+
+  # ── ActionLog aggregate ──────────────────────────────────────────
+
+  test "Log sets action_name + executed_at + engine_used + ruling + files_changed + outcome" do
+    tests "Log", on: "ActionLog"
+    input  action_name: "sample", executed_at: "sample", engine_used: "sample", ruling: "sample", files_changed: 1, outcome: "sample"
+    expect action_name: "sample", executed_at: "sample", engine_used: "sample", ruling: "sample", files_changed: 1, outcome: "sample"
+  end
+
+end

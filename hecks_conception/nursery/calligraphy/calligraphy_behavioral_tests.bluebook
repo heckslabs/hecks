@@ -1,0 +1,97 @@
+Hecks.behaviors "Calligraphy" do
+  vision "Behavioral tests for the Calligraphy domain — exercises every command and query in memory"
+
+  # ── CalligraphyCommission aggregate ──────────────────────────────────────────
+
+  test "QuoteCommission sets client_name + text_content + purpose + deadline" do
+    tests "QuoteCommission", on: "CalligraphyCommission"
+    input  client_name: "sample", text_content: "sample", purpose: "sample", deadline: "sample"
+    expect ok: "true"
+  end
+
+  test "AcceptCommission runs" do
+    tests "AcceptCommission", on: "CalligraphyCommission"
+    setup  "QuoteCommission", client_name: "sample", text_content: "sample", purpose: "sample", deadline: "sample"
+    input  calligraphy_commission: 1
+    expect status: "accepted"
+  end
+
+  test "LetterCommission runs" do
+    tests "LetterCommission", on: "CalligraphyCommission"
+    setup  "QuoteCommission", client_name: "sample", text_content: "sample", purpose: "sample", deadline: "sample"
+    input  calligraphy_commission: 1
+    expect status: "lettered"
+  end
+
+  test "DeliverCommission runs" do
+    tests "DeliverCommission", on: "CalligraphyCommission"
+    setup  "QuoteCommission", client_name: "sample", text_content: "sample", purpose: "sample", deadline: "sample"
+    input  calligraphy_commission: 1
+    expect status: "delivered"
+  end
+
+
+  # ── Script aggregate ──────────────────────────────────────────
+
+  test "DefineScript sets name + historical_period + tool_type + x_height_mm + nib_angle_degrees" do
+    tests "DefineScript", on: "Script"
+    input  name: "sample", historical_period: "sample", tool_type: "sample", x_height_mm: 1.0, nib_angle_degrees: 1.0
+    expect ok: "true"
+  end
+
+  test "PracticeScript sets duration_minutes + focus_area" do
+    tests "PracticeScript", on: "Script"
+    setup  "DefineScript", name: "sample", historical_period: "sample", tool_type: "sample", x_height_mm: 1.0, nib_angle_degrees: 1.0
+    input  script: 1, duration_minutes: 1, focus_area: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── InkFormulation aggregate ──────────────────────────────────────────
+
+  test "FormulateInk sets name + color + base_type + viscosity" do
+    tests "FormulateInk", on: "InkFormulation"
+    input  name: "sample", color: "sample", base_type: "sample", viscosity: 1.0
+    expect ok: "true"
+  end
+
+  test "TestInk sets paper_type" do
+    tests "TestInk", on: "InkFormulation"
+    setup  "FormulateInk", name: "sample", color: "sample", base_type: "sample", viscosity: 1.0
+    input  ink_formulation: 1, paper_type: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── PaperSelection aggregate ──────────────────────────────────────────
+
+  test "SelectPaper sets name + finish + gsm + fiber_content" do
+    tests "SelectPaper", on: "PaperSelection"
+    setup  "QuoteCommission", client_name: "sample", text_content: "sample", purpose: "sample", deadline: "sample"
+    input  calligraphy_commission: 1, name: "sample", finish: "sample", gsm: 1, fiber_content: "sample"
+    expect ok: "true"
+  end
+
+  test "CutPaper sets width_inches + height_inches" do
+    tests "CutPaper", on: "PaperSelection"
+    input  paper_selection: 1, width_inches: 1.0, height_inches: 1.0
+    expect status: "cut"
+  end
+
+
+  # ── Portfolio aggregate ──────────────────────────────────────────
+
+  test "CuratePortfolio sets title + theme + piece_count" do
+    tests "CuratePortfolio", on: "Portfolio"
+    input  title: "sample", theme: "sample", piece_count: 1
+    expect ok: "true"
+  end
+
+  test "PublishPortfolio runs" do
+    tests "PublishPortfolio", on: "Portfolio"
+    setup  "CuratePortfolio", title: "sample", theme: "sample", piece_count: 1
+    input  portfolio: 1
+    expect status: "published"
+  end
+
+end

@@ -1,0 +1,88 @@
+Hecks.behaviors "FermentationScience" do
+  vision "Behavioral tests for the FermentationScience domain — exercises every command and query in memory"
+
+  # ── YeastStrain aggregate ──────────────────────────────────────────
+
+  test "CatalogStrain sets strain_name + species" do
+    tests "CatalogStrain", on: "YeastStrain"
+    input  strain_name: "sample", species: "sample"
+    expect ok: "true"
+  end
+
+  test "MapGene sets gene_name + function + expression_level" do
+    tests "MapGene", on: "YeastStrain"
+    setup  "CatalogStrain", strain_name: "sample", species: "sample"
+    input  yeast_strain: 1, gene_name: "sample", function: "sample", expression_level: 1.0
+    expect genes_size: 1
+  end
+
+  test "ApproveStrain runs" do
+    tests "ApproveStrain", on: "YeastStrain"
+    setup  "CatalogStrain", strain_name: "sample", species: "sample"
+    input  yeast_strain: 1
+    expect ok: "true"
+  end
+
+
+  # ── BeerRecipe aggregate ──────────────────────────────────────────
+
+  test "FormulateRecipe sets recipe_name + style + target_abv" do
+    tests "FormulateRecipe", on: "BeerRecipe"
+    setup  "CatalogStrain", strain_name: "sample", species: "sample"
+    input  yeast_strain: 1, recipe_name: "sample", style: "sample", target_abv: 1.0
+    expect ok: "true"
+  end
+
+  test "AddIngredient sets ingredient_name + quantity_kg + ingredient_type" do
+    tests "AddIngredient", on: "BeerRecipe"
+    setup  "AddIngredient", ingredient_name: "sample", quantity_kg: 1.0, ingredient_type: "sample"
+    input  beer_recipe: 1, ingredient_name: "sample", quantity_kg: 1.0, ingredient_type: "sample"
+    expect ingredients_size: 1
+  end
+
+
+  # ── FermentationTrial aggregate ──────────────────────────────────────────
+
+  test "StartTrial sets trial_number" do
+    tests "StartTrial", on: "FermentationTrial"
+    setup  "AddIngredient", ingredient_name: "sample", quantity_kg: 1.0, ingredient_type: "sample"
+    setup  "CatalogStrain", strain_name: "sample", species: "sample"
+    input  beer_recipe: 1, yeast_strain: 1, trial_number: "sample"
+    expect ok: "true"
+  end
+
+  test "TakeSample sets hour + gravity + ph + cell_count" do
+    tests "TakeSample", on: "FermentationTrial"
+    input  fermentation_trial: 1, hour: 1, gravity: 1.0, ph: 1.0, cell_count: 1
+    expect samples_size: 1
+  end
+
+  test "CompleteTrial runs" do
+    tests "CompleteTrial", on: "FermentationTrial"
+    input  fermentation_trial: 1
+    expect ok: "true"
+  end
+
+
+  # ── GeneEdit aggregate ──────────────────────────────────────────
+
+  test "DesignEdit sets target_gene + edit_type" do
+    tests "DesignEdit", on: "GeneEdit"
+    setup  "CatalogStrain", strain_name: "sample", species: "sample"
+    input  yeast_strain: 1, target_gene: "sample", edit_type: "sample"
+    expect ok: "true"
+  end
+
+  test "RecordOutcome sets metric + before_value + after_value" do
+    tests "RecordOutcome", on: "GeneEdit"
+    input  gene_edit: 1, metric: "sample", before_value: 1.0, after_value: 1.0
+    expect outcomes_size: 1
+  end
+
+  test "ApplyEdit runs" do
+    tests "ApplyEdit", on: "GeneEdit"
+    input  gene_edit: 1
+    expect ok: "true"
+  end
+
+end

@@ -1,0 +1,117 @@
+Hecks.behaviors "Dialysis" do
+  vision "Behavioral tests for the Dialysis domain — exercises every command and query in memory"
+
+  # ── Patient aggregate ──────────────────────────────────────────
+
+  test "EnrollPatient sets name + date_of_birth + blood_type + access_type + nephrologist" do
+    tests "EnrollPatient", on: "Patient"
+    input  name: "sample", date_of_birth: "sample", blood_type: "sample", access_type: "sample", nephrologist: "sample"
+    expect name: "sample", date_of_birth: "sample", blood_type: "sample", access_type: "sample", nephrologist: "sample", status: "enrolled"
+  end
+
+  test "ActivatePatient runs" do
+    tests "ActivatePatient", on: "Patient"
+    setup  "EnrollPatient", name: "sample", date_of_birth: "sample", blood_type: "sample", access_type: "sample", nephrologist: "sample"
+    input  patient: 1
+    expect status: "active"
+  end
+
+  test "UpdateAccessType sets access_type" do
+    tests "UpdateAccessType", on: "Patient"
+    setup  "EnrollPatient", name: "sample", date_of_birth: "sample", blood_type: "sample", access_type: "sample", nephrologist: "sample"
+    input  patient: 1, access_type: "sample"
+    expect access_type: "sample"
+  end
+
+  test "TransferPatient runs" do
+    tests "TransferPatient", on: "Patient"
+    setup  "EnrollPatient", name: "sample", date_of_birth: "sample", blood_type: "sample", access_type: "sample", nephrologist: "sample"
+    input  patient: 1
+    expect status: "transferred"
+  end
+
+
+  # ── DialysisSession aggregate ──────────────────────────────────────────
+
+  test "StartSession sets patient_name + session_date + pre_weight + nurse_name" do
+    tests "StartSession", on: "DialysisSession"
+    setup  "EnrollPatient", name: "sample", date_of_birth: "sample", blood_type: "sample", access_type: "sample", nephrologist: "sample"
+    input  patient: 1, patient_name: "sample", session_date: "sample", pre_weight: 1.0, nurse_name: "sample"
+    expect patient_name: "sample", session_date: "sample", pre_weight: 1.0, nurse_name: "sample", status: "in_progress"
+  end
+
+  test "RecordIntraVitals runs" do
+    tests "RecordIntraVitals", on: "DialysisSession"
+    input  dialysis_session: 1
+    expect ok: "true"
+  end
+
+  test "EndSession sets post_weight + fluid_removed + duration_minutes" do
+    tests "EndSession", on: "DialysisSession"
+    input  dialysis_session: 1, post_weight: 1.0, fluid_removed: 1.0, duration_minutes: 1
+    expect post_weight: 1.0, fluid_removed: 1.0, duration_minutes: 1, status: "completed"
+  end
+
+
+  # ── DialysisMachine aggregate ──────────────────────────────────────────
+
+  test "RegisterMachine sets machine_id + model + location + last_disinfection_date" do
+    tests "RegisterMachine", on: "DialysisMachine"
+    input  machine_id: "sample", model: "sample", location: "sample", last_disinfection_date: "sample"
+    expect machine_id: "sample", model: "sample", location: "sample", last_disinfection_date: "sample", status: "available"
+  end
+
+  test "DisinfectMachine sets last_disinfection_date" do
+    tests "DisinfectMachine", on: "DialysisMachine"
+    setup  "RegisterMachine", machine_id: "sample", model: "sample", location: "sample", last_disinfection_date: "sample"
+    input  dialysis_machine: 1, last_disinfection_date: "sample"
+    expect last_disinfection_date: "sample", status: "available"
+  end
+
+  test "FlagMalfunction runs" do
+    tests "FlagMalfunction", on: "DialysisMachine"
+    setup  "RegisterMachine", machine_id: "sample", model: "sample", location: "sample", last_disinfection_date: "sample"
+    input  dialysis_machine: 1
+    expect status: "out_of_service"
+  end
+
+
+  # ── DialysisSupply aggregate ──────────────────────────────────────────
+
+  test "StockSupply sets supply_name + category + quantity_on_hand + reorder_level + supplier" do
+    tests "StockSupply", on: "DialysisSupply"
+    input  supply_name: "sample", category: "sample", quantity_on_hand: 1, reorder_level: 1, supplier: "sample"
+    expect supply_name: "sample", category: "sample", quantity_on_hand: 1, reorder_level: 1, supplier: "sample", status: "in_stock"
+  end
+
+  test "ConsumeSupply sets quantity_used" do
+    tests "ConsumeSupply", on: "DialysisSupply"
+    setup  "StockSupply", supply_name: "sample", category: "sample", quantity_on_hand: 1, reorder_level: 1, supplier: "sample"
+    input  dialysis_supply: 1, quantity_used: 1
+    expect ok: "true"
+  end
+
+  test "ReorderSupply runs" do
+    tests "ReorderSupply", on: "DialysisSupply"
+    setup  "StockSupply", supply_name: "sample", category: "sample", quantity_on_hand: 1, reorder_level: 1, supplier: "sample"
+    input  dialysis_supply: 1
+    expect status: "reordering"
+  end
+
+
+  # ── LabResult aggregate ──────────────────────────────────────────
+
+  test "RecordLabResult sets patient_name + test_name + result_value + reference_range + result_date" do
+    tests "RecordLabResult", on: "LabResult"
+    setup  "EnrollPatient", name: "sample", date_of_birth: "sample", blood_type: "sample", access_type: "sample", nephrologist: "sample"
+    input  patient: 1, patient_name: "sample", test_name: "sample", result_value: "sample", reference_range: "sample", result_date: "sample"
+    expect patient_name: "sample", test_name: "sample", result_value: "sample", reference_range: "sample", result_date: "sample", status: "pending_review"
+  end
+
+  test "ReviewLabResult runs" do
+    tests "ReviewLabResult", on: "LabResult"
+    input  lab_result: 1
+    expect status: "reviewed"
+  end
+
+end

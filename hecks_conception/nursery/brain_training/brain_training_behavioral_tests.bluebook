@@ -1,0 +1,67 @@
+Hecks.behaviors "BrainTraining" do
+  vision "Behavioral tests for the BrainTraining domain — exercises every command and query in memory"
+
+  # ── CognitiveExperiment aggregate ──────────────────────────────────────────
+
+  test "DesignExperiment sets experiment_id + researcher + cognitive_domain + protocol" do
+    tests "DesignExperiment", on: "CognitiveExperiment"
+    input  experiment_id: "sample", researcher: "sample", cognitive_domain: "sample", protocol: "sample"
+    expect experiment_id: "sample", researcher: "sample", cognitive_domain: "sample", protocol: "sample", status: "designed"
+  end
+
+  test "LaunchExperiment runs" do
+    tests "LaunchExperiment", on: "CognitiveExperiment"
+    setup  "DesignExperiment", experiment_id: "sample", researcher: "sample", cognitive_domain: "sample", protocol: "sample"
+    input  cognitive_experiment: 1
+    expect status: "active"
+  end
+
+
+  # ── BrainGame aggregate ──────────────────────────────────────────
+
+  test "CreateGame sets game_id + name + cognitive_target + difficulty + levels" do
+    tests "CreateGame", on: "BrainGame"
+    input  game_id: "sample", name: "sample", cognitive_target: "sample", difficulty: "sample", levels: 1
+    expect game_id: "sample", name: "sample", cognitive_target: "sample", difficulty: "sample", levels: 1, status: "active"
+  end
+
+  test "PlayGame runs" do
+    tests "PlayGame", on: "BrainGame"
+    setup  "CreateGame", game_id: "sample", name: "sample", cognitive_target: "sample", difficulty: "sample", levels: 1
+    input  brain_game: 1
+    expect ok: "true"
+  end
+
+
+  # ── CognitiveScore aggregate ──────────────────────────────────────────
+
+  test "RecordScore sets score_id + participant_id + game_id + accuracy + reaction_time_ms" do
+    tests "RecordScore", on: "CognitiveScore"
+    input  score_id: "sample", participant_id: "sample", game_id: "sample", accuracy: 1.0, reaction_time_ms: 1.0
+    expect score_id: "sample", participant_id: "sample", game_id: "sample", accuracy: 1.0, reaction_time_ms: 1.0
+  end
+
+  test "CalculateComposite sets composite_score" do
+    tests "CalculateComposite", on: "CognitiveScore"
+    setup  "RecordScore", score_id: "sample", participant_id: "sample", game_id: "sample", accuracy: 1.0, reaction_time_ms: 1.0
+    input  cognitive_score: 1, composite_score: 1.0
+    expect composite_score: 1.0
+  end
+
+
+  # ── TrainingPlan aggregate ──────────────────────────────────────────
+
+  test "CreateTrainingPlan sets plan_id + participant_id" do
+    tests "CreateTrainingPlan", on: "TrainingPlan"
+    input  plan_id: "sample", participant_id: "sample"
+    expect plan_id: "sample", participant_id: "sample", status: "active"
+  end
+
+  test "AdjustPlan runs" do
+    tests "AdjustPlan", on: "TrainingPlan"
+    setup  "CreateTrainingPlan", plan_id: "sample", participant_id: "sample"
+    input  training_plan: 1
+    expect ok: "true"
+  end
+
+end

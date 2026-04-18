@@ -1,0 +1,44 @@
+Hecks.behaviors "LucidDream" do
+  vision "Behavioral tests for the LucidDream domain — exercises every command and query in memory"
+
+  # ── LucidDream aggregate ──────────────────────────────────────────
+
+  test "BecomeLucid runs" do
+    tests "BecomeLucid", on: "LucidDream"
+    expect active: "yes", latest_narrative: "becoming lucid — recognizing the dream"
+  end
+
+  test "ObserveDream sets observation" do
+    tests "ObserveDream", on: "LucidDream"
+    input  observation: "sample"
+    expect observations_size: 1, latest_narrative: "sample"
+  end
+
+  test "SteerDream sets toward" do
+    tests "SteerDream", on: "LucidDream"
+    input  toward: "sample"
+    expect steered_toward_size: 1, latest_narrative: "sample"
+  end
+
+  test "EndLucidity runs" do
+    tests "EndLucidity", on: "LucidDream"
+    expect active: "no", latest_narrative: "lucidity fading"
+  end
+
+
+  # ── LucidMonitor aggregate ──────────────────────────────────────────
+
+  test "StartLucidMonitor sets log_path" do
+    tests "StartLucidMonitor", on: "LucidMonitor"
+    input  log_path: "sample"
+    expect reporting: "active", log_path: "sample"
+  end
+
+  test "StopLucidMonitor runs" do
+    tests "StopLucidMonitor", on: "LucidMonitor"
+    setup  "StartLucidMonitor", log_path: "sample"
+    input  lucid_monitor: 1
+    expect reporting: "stopped"
+  end
+
+end

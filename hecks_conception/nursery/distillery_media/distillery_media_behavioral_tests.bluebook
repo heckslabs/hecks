@@ -1,0 +1,103 @@
+Hecks.behaviors "DistilleryMedia" do
+  vision "Behavioral tests for the DistilleryMedia domain — exercises every command and query in memory"
+
+  # ── Spirit aggregate ──────────────────────────────────────────
+
+  test "CreateSpirit sets name + spirit_type" do
+    tests "CreateSpirit", on: "Spirit"
+    input  name: "sample", spirit_type: "sample"
+    expect name: "sample", spirit_type: "sample"
+  end
+
+  test "AddIngredient sets name + quantity_kg" do
+    tests "AddIngredient", on: "Spirit"
+    setup  "CreateSpirit", name: "sample", spirit_type: "sample"
+    input  spirit: 1, name: "sample", quantity_kg: 1.0
+    expect name: "sample", ingredients_size: 1
+  end
+
+  test "ApproveDistillation runs" do
+    tests "ApproveDistillation", on: "Spirit"
+    setup  "CreateSpirit", name: "sample", spirit_type: "sample"
+    input  spirit: 1
+    expect ok: "true"
+  end
+
+
+  # ── BarrelAging aggregate ──────────────────────────────────────────
+
+  test "FillBarrel sets barrel_type" do
+    tests "FillBarrel", on: "BarrelAging"
+    setup  "CreateSpirit", name: "sample", spirit_type: "sample"
+    input  spirit: 1, barrel_type: "sample"
+    expect ok: "true"
+  end
+
+  test "SampleBarrel sets flavor_profile + score" do
+    tests "SampleBarrel", on: "BarrelAging"
+    input  barrel_aging: 1, flavor_profile: "sample", score: 1
+    expect ok: "true"
+  end
+
+
+  # ── Episode aggregate ──────────────────────────────────────────
+
+  test "PlanEpisode sets title + topic" do
+    tests "PlanEpisode", on: "Episode"
+    input  title: "sample", topic: "sample"
+    expect ok: "true"
+  end
+
+  test "AddSegment sets segment_title + duration_minutes + segment_type" do
+    tests "AddSegment", on: "Episode"
+    setup  "AddSegment", segment_title: "sample", duration_minutes: 1, segment_type: "sample"
+    input  episode: 1, segment_title: "sample", duration_minutes: 1, segment_type: "sample"
+    expect segments_size: 1
+  end
+
+  test "PublishEpisode runs" do
+    tests "PublishEpisode", on: "Episode"
+    setup  "AddSegment", segment_title: "sample", duration_minutes: 1, segment_type: "sample"
+    input  episode: 1
+    expect ok: "true"
+  end
+
+
+  # ── TastingSession aggregate ──────────────────────────────────────────
+
+  test "ScheduleTasting sets host" do
+    tests "ScheduleTasting", on: "TastingSession"
+    setup  "CreateSpirit", name: "sample", spirit_type: "sample"
+    input  spirit: 1, host: "sample"
+    expect ok: "true"
+  end
+
+  test "InviteGuest sets name + expertise" do
+    tests "InviteGuest", on: "TastingSession"
+    input  tasting_session: 1, name: "sample", expertise: "sample"
+    expect guests_size: 1
+  end
+
+  test "RecordSession runs" do
+    tests "RecordSession", on: "TastingSession"
+    input  tasting_session: 1
+    expect ok: "true"
+  end
+
+
+  # ── Sponsorship aggregate ──────────────────────────────────────────
+
+  test "ProposeDeal sets sponsor_name + deal_value_cents" do
+    tests "ProposeDeal", on: "Sponsorship"
+    setup  "CreateSpirit", name: "sample", spirit_type: "sample"
+    input  spirit: 1, sponsor_name: "sample", deal_value_cents: 1
+    expect ok: "true"
+  end
+
+  test "ApproveDeal runs" do
+    tests "ApproveDeal", on: "Sponsorship"
+    input  sponsorship: 1
+    expect ok: "true"
+  end
+
+end

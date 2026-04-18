@@ -1,0 +1,57 @@
+Hecks.behaviors "branching_patterns" do
+  vision "Behavioral tests for the branching_patterns domain — exercises every command and query in memory"
+
+  # ── Aggregate1 aggregate ──────────────────────────────────────────
+
+  test "DoThing1 runs" do
+    tests "DoThing1", on: "Aggregate1"
+    expect ok: "true"
+  end
+
+  test "DoThing2 runs" do
+    tests "DoThing2", on: "Aggregate1"
+    expect ok: "true"
+  end
+
+  test "DoThing3 runs" do
+    tests "DoThing3", on: "Aggregate1"
+    expect ok: "true"
+  end
+
+
+  # ── Aggregate2 aggregate ──────────────────────────────────────────
+
+  test "DoThing1 runs" do
+    tests "DoThing1", on: "Aggregate2"
+    expect ok: "true"
+  end
+
+  test "DoThing2 runs" do
+    tests "DoThing2", on: "Aggregate2"
+    expect ok: "true"
+  end
+
+  test "DoThing3 runs" do
+    tests "DoThing3", on: "Aggregate2"
+    expect ok: "true"
+  end
+
+
+  # ── Aggregate3 aggregate ──────────────────────────────────────────
+
+  test "DoThing1 runs" do
+    tests "DoThing1", on: "Aggregate3"
+    expect ok: "true"
+  end
+
+  test "DoThing2 runs" do
+    tests "DoThing2", on: "Aggregate3"
+    expect ok: "true"
+  end
+
+  test "DoThing3 runs" do
+    tests "DoThing3", on: "Aggregate3"
+    expect ok: "true"
+  end
+
+end

@@ -1,0 +1,111 @@
+Hecks.behaviors "AmbulanceDispatch" do
+  vision "Behavioral tests for the AmbulanceDispatch domain — exercises every command and query in memory"
+
+  # ── AmbulanceUnit aggregate ──────────────────────────────────────────
+
+  test "ActivateUnit sets unit_number + station + equipment_level + mileage" do
+    tests "ActivateUnit", on: "AmbulanceUnit"
+    input  unit_number: "sample", station: "sample", equipment_level: "sample", mileage: 1
+    expect unit_number: "sample", station: "sample", equipment_level: "sample", mileage: 1, status: "available"
+  end
+
+  test "MarkOutOfService runs" do
+    tests "MarkOutOfService", on: "AmbulanceUnit"
+    setup  "ActivateUnit", unit_number: "sample", station: "sample", equipment_level: "sample", mileage: 1
+    input  ambulance_unit: 1
+    expect status: "out_of_service"
+  end
+
+  test "ReturnToService runs" do
+    tests "ReturnToService", on: "AmbulanceUnit"
+    setup  "ActivateUnit", unit_number: "sample", station: "sample", equipment_level: "sample", mileage: 1
+    input  ambulance_unit: 1
+    expect status: "available"
+  end
+
+
+  # ── EmergencyCall aggregate ──────────────────────────────────────────
+
+  test "ReceiveCall sets caller_name + caller_phone + location + nature_of_emergency + received_at" do
+    tests "ReceiveCall", on: "EmergencyCall"
+    input  caller_name: "sample", caller_phone: "sample", location: "sample", nature_of_emergency: "sample", received_at: "sample"
+    expect caller_name: "sample", caller_phone: "sample", location: "sample", nature_of_emergency: "sample", received_at: "sample", status: "received"
+  end
+
+  test "TriageCall sets triage_priority" do
+    tests "TriageCall", on: "EmergencyCall"
+    setup  "ReceiveCall", caller_name: "sample", caller_phone: "sample", location: "sample", nature_of_emergency: "sample", received_at: "sample"
+    input  emergency_call: 1, triage_priority: "sample"
+    expect triage_priority: "sample", status: "triaged"
+  end
+
+  test "CancelCall runs" do
+    tests "CancelCall", on: "EmergencyCall"
+    setup  "ReceiveCall", caller_name: "sample", caller_phone: "sample", location: "sample", nature_of_emergency: "sample", received_at: "sample"
+    input  emergency_call: 1
+    expect status: "cancelled"
+  end
+
+
+  # ── CrewAssignment aggregate ──────────────────────────────────────────
+
+  test "AssignCrew sets paramedic_lead + emt_partner + shift_start + shift_end" do
+    tests "AssignCrew", on: "CrewAssignment"
+    setup  "ActivateUnit", unit_number: "sample", station: "sample", equipment_level: "sample", mileage: 1
+    input  ambulance_unit: 1, paramedic_lead: "sample", emt_partner: "sample", shift_start: "sample", shift_end: "sample"
+    expect paramedic_lead: "sample", emt_partner: "sample", shift_start: "sample", shift_end: "sample", status: "on_duty"
+  end
+
+  test "EndShift runs" do
+    tests "EndShift", on: "CrewAssignment"
+    input  crew_assignment: 1
+    expect status: "off_duty"
+  end
+
+
+  # ── DispatchRecord aggregate ──────────────────────────────────────────
+
+  test "DispatchUnit sets dispatched_at" do
+    tests "DispatchUnit", on: "DispatchRecord"
+    setup  "ReceiveCall", caller_name: "sample", caller_phone: "sample", location: "sample", nature_of_emergency: "sample", received_at: "sample"
+    setup  "ActivateUnit", unit_number: "sample", station: "sample", equipment_level: "sample", mileage: 1
+    input  emergency_call: 1, ambulance_unit: 1, dispatched_at: "sample"
+    expect dispatched_at: "sample", status: "dispatched"
+  end
+
+  test "ArriveOnScene sets on_scene_at" do
+    tests "ArriveOnScene", on: "DispatchRecord"
+    input  dispatch_record: 1, on_scene_at: "sample"
+    expect on_scene_at: "sample", status: "on_scene"
+  end
+
+  test "TransportPatient sets transport_started_at" do
+    tests "TransportPatient", on: "DispatchRecord"
+    input  dispatch_record: 1, transport_started_at: "sample"
+    expect transport_started_at: "sample", status: "transporting"
+  end
+
+
+  # ── HospitalDestination aggregate ──────────────────────────────────────────
+
+  test "RegisterHospital sets hospital_name + address + ed_beds_available + trauma_level" do
+    tests "RegisterHospital", on: "HospitalDestination"
+    input  hospital_name: "sample", address: "sample", ed_beds_available: 1, trauma_level: "sample"
+    expect hospital_name: "sample", address: "sample", ed_beds_available: 1, trauma_level: "sample", diversion_status: "open"
+  end
+
+  test "DeclareDiversion runs" do
+    tests "DeclareDiversion", on: "HospitalDestination"
+    setup  "RegisterHospital", hospital_name: "sample", address: "sample", ed_beds_available: 1, trauma_level: "sample"
+    input  hospital_destination: 1
+    expect diversion_status: "on_diversion"
+  end
+
+  test "LiftDiversion runs" do
+    tests "LiftDiversion", on: "HospitalDestination"
+    setup  "RegisterHospital", hospital_name: "sample", address: "sample", ed_beds_available: 1, trauma_level: "sample"
+    input  hospital_destination: 1
+    expect diversion_status: "open"
+  end
+
+end

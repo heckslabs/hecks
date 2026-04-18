@@ -314,12 +314,17 @@ module Hecks
         (args || {}).sort_by { |k, _| k.to_s }.map { |k, v| [k.to_s, test_arg_value(v)] }
       end
 
-      # Render an arg value as the source-text token Rust emits: strings
-      # come back unwrapped, numbers/symbols stay as their source bytes.
+      # Render an arg value as the source-text token Rust emits.
+      # Strings unwrap; symbols become :sym; arrays/hashes serialize
+      # with the same ` { k: v, ... } ` spacing the Rust parser
+      # captures from the source. Mirrors fixture_value_inner — the
+      # canonical contract for non-trivial value tokens.
       def test_arg_value(v)
         case v
         when String  then v
         when Symbol  then ":#{v}"
+        when Array   then "[#{v.map { |e| fixture_value_inner(e) }.join(', ')}]"
+        when Hash    then "{ #{v.map { |k, val| "#{k}: #{fixture_value_inner(val)}" }.join(', ')} }"
         when nil     then ""
         else v.to_s
         end

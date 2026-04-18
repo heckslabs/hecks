@@ -1,0 +1,88 @@
+Hecks.behaviors "SchoolLunch" do
+  vision "Behavioral tests for the SchoolLunch domain — exercises every command and query in memory"
+
+  # ── NutrientProfile aggregate ──────────────────────────────────────────
+
+  test "DefineNutrientProfile sets age_group + calories_min + calories_max + protein_g + fat_max_g + sodium_max_mg" do
+    tests "DefineNutrientProfile", on: "NutrientProfile"
+    input  age_group: "sample", calories_min: 1.0, calories_max: 1.0, protein_g: 1.0, fat_max_g: 1.0, sodium_max_mg: 1.0
+    expect age_group: "sample", calories_min: 1.0, calories_max: 1.0, protein_g: 1.0, fat_max_g: 1.0, sodium_max_mg: 1.0, status: "active"
+  end
+
+  test "UpdateRequirements sets calories_min + calories_max" do
+    tests "UpdateRequirements", on: "NutrientProfile"
+    setup  "DefineNutrientProfile", age_group: "sample", calories_min: 1.0, calories_max: 1.0, protein_g: 1.0, fat_max_g: 1.0, sodium_max_mg: 1.0
+    input  nutrient_profile: 1, calories_min: 1.0, calories_max: 1.0
+    expect calories_min: 1.0, calories_max: 1.0
+  end
+
+
+  # ── MenuItem aggregate ──────────────────────────────────────────
+
+  test "CreateMenuItem sets name + category + calories + protein_g + cost_per_serving + allergens" do
+    tests "CreateMenuItem", on: "MenuItem"
+    input  name: "sample", category: "sample", calories: 1.0, protein_g: 1.0, cost_per_serving: 1.0, allergens: "sample"
+    expect name: "sample", category: "sample", calories: 1.0, protein_g: 1.0, cost_per_serving: 1.0, allergens: "sample", status: "active"
+  end
+
+  test "FlagAllergen runs" do
+    tests "FlagAllergen", on: "MenuItem"
+    setup  "CreateMenuItem", name: "sample", category: "sample", calories: 1.0, protein_g: 1.0, cost_per_serving: 1.0, allergens: "sample"
+    input  menu_item: 1
+    expect ok: "true"
+  end
+
+  test "RetireMenuItem runs" do
+    tests "RetireMenuItem", on: "MenuItem"
+    setup  "CreateMenuItem", name: "sample", category: "sample", calories: 1.0, protein_g: 1.0, cost_per_serving: 1.0, allergens: "sample"
+    input  menu_item: 1
+    expect status: "retired"
+  end
+
+
+  # ── WeeklyMenu aggregate ──────────────────────────────────────────
+
+  test "PlanWeeklyMenu sets week_of + school_name + meal_count + total_budget" do
+    tests "PlanWeeklyMenu", on: "WeeklyMenu"
+    input  week_of: "sample", school_name: "sample", meal_count: 1, total_budget: 1.0
+    expect week_of: "sample", school_name: "sample", meal_count: 1, total_budget: 1.0, status: "planned"
+  end
+
+  test "ValidateNutrition sets avg_calories" do
+    tests "ValidateNutrition", on: "WeeklyMenu"
+    setup  "PlanWeeklyMenu", week_of: "sample", school_name: "sample", meal_count: 1, total_budget: 1.0
+    input  weekly_menu: 1, avg_calories: 1.0
+    expect avg_calories: 1.0, status: "validated"
+  end
+
+  test "ApproveMenu runs" do
+    tests "ApproveMenu", on: "WeeklyMenu"
+    setup  "PlanWeeklyMenu", week_of: "sample", school_name: "sample", meal_count: 1, total_budget: 1.0
+    input  weekly_menu: 1
+    expect status: "approved"
+  end
+
+
+  # ── ComplianceAudit aggregate ──────────────────────────────────────────
+
+  test "ConductAudit sets school_name + audit_period" do
+    tests "ConductAudit", on: "ComplianceAudit"
+    input  school_name: "sample", audit_period: "sample"
+    expect school_name: "sample", audit_period: "sample", status: "conducted"
+  end
+
+  test "ScoreCompliance sets compliance_score + findings" do
+    tests "ScoreCompliance", on: "ComplianceAudit"
+    setup  "ConductAudit", school_name: "sample", audit_period: "sample"
+    input  compliance_audit: 1, compliance_score: 1.0, findings: "sample"
+    expect compliance_score: 1.0, findings: "sample", status: "scored"
+  end
+
+  test "IssueCorrectiveAction runs" do
+    tests "IssueCorrectiveAction", on: "ComplianceAudit"
+    setup  "ConductAudit", school_name: "sample", audit_period: "sample"
+    input  compliance_audit: 1
+    expect status: "corrective"
+  end
+
+end

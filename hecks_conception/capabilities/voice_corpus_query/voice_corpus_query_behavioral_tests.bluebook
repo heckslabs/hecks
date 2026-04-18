@@ -1,0 +1,116 @@
+Hecks.behaviors "VoiceCorpusQuery" do
+  vision "Behavioral tests for the VoiceCorpusQuery domain — exercises every command and query in memory"
+
+  # ── VoiceQuery aggregate ──────────────────────────────────────────
+
+  test "ReceiveQuery sets transcript" do
+    tests "ReceiveQuery", on: "VoiceQuery"
+    input  transcript: "sample"
+    expect transcript: "sample", status: "received"
+  end
+
+  test "ParseIntent sets intent" do
+    tests "ParseIntent", on: "VoiceQuery"
+    setup  "ReceiveQuery", transcript: "sample"
+    input  voice_query: 1, intent: "sample"
+    expect intent: "sample", status: "parsed"
+  end
+
+  test "SearchCorpus runs" do
+    tests "SearchCorpus", on: "VoiceQuery"
+    setup  "ReceiveQuery", transcript: "sample"
+    input  voice_query: 1, matched_domains: "sample_domainmatch"
+    expect matched_domains: "sample_domainmatch", status: "searched"
+  end
+
+  test "FormulateAnswer sets answer" do
+    tests "FormulateAnswer", on: "VoiceQuery"
+    setup  "ReceiveQuery", transcript: "sample"
+    input  voice_query: 1, answer: "sample"
+    expect answer: "sample", status: "answered"
+  end
+
+  test "SpeakAnswer sets spoken_at" do
+    tests "SpeakAnswer", on: "VoiceQuery"
+    setup  "ReceiveQuery", transcript: "sample"
+    input  voice_query: 1, spoken_at: "sample"
+    expect spoken_at: "sample", status: "spoken"
+  end
+
+
+  # ── QueryIntent aggregate ──────────────────────────────────────────
+
+  test "ClassifyIntent sets raw_query + intent_type + target + confidence" do
+    tests "ClassifyIntent", on: "QueryIntent"
+    input  raw_query: "sample", intent_type: "sample", target: "sample", confidence: 1.0
+    expect raw_query: "sample", intent_type: "sample", target: "sample", confidence: 1.0, status: "classified"
+  end
+
+  test "RefineIntent sets intent_type + target + confidence" do
+    tests "RefineIntent", on: "QueryIntent"
+    setup  "ClassifyIntent", raw_query: "sample", intent_type: "sample", target: "sample", confidence: 1.0
+    input  query_intent: 1, intent_type: "sample", target: "sample", confidence: 1.0
+    expect intent_type: "sample", target: "sample", confidence: 1.0, status: "refined"
+  end
+
+  test "RejectAmbiguous runs" do
+    tests "RejectAmbiguous", on: "QueryIntent"
+    setup  "ClassifyIntent", raw_query: "sample", intent_type: "sample", target: "sample", confidence: 1.0
+    input  query_intent: 1
+    expect status: "rejected"
+  end
+
+
+  # ── CorpusAnswer aggregate ──────────────────────────────────────────
+
+  test "ComposeAnswer sets query_id + answer_text + sources + confidence" do
+    tests "ComposeAnswer", on: "CorpusAnswer"
+    input  query_id: "sample", answer_text: "sample", sources: "sample", confidence: 1.0
+    expect query_id: "sample", answer_text: "sample", sources: "sample", confidence: 1.0, status: "composed"
+  end
+
+  test "AddSource sets source" do
+    tests "AddSource", on: "CorpusAnswer"
+    setup  "AddSource", source: "sample"
+    input  corpus_answer: 1, source: "sample"
+    expect status: "pending", sources_size: 1
+  end
+
+  test "SimplifyForSpeech sets answer_text" do
+    tests "SimplifyForSpeech", on: "CorpusAnswer"
+    setup  "AddSource", source: "sample"
+    input  corpus_answer: 1, answer_text: "sample"
+    expect answer_text: "sample", status: "simplified"
+  end
+
+  test "DeliverAnswer runs" do
+    tests "DeliverAnswer", on: "CorpusAnswer"
+    setup  "AddSource", source: "sample"
+    input  corpus_answer: 1
+    expect spoken: "yes", status: "delivered"
+  end
+
+
+  # ── QueryHistory aggregate ──────────────────────────────────────────
+
+  test "RecordQuery sets query + intent_type + matched_domain + answered_at" do
+    tests "RecordQuery", on: "QueryHistory"
+    input  query: "sample", intent_type: "sample", matched_domain: "sample", answered_at: "sample"
+    expect total_queries: 1
+  end
+
+  test "AnalyzePatterns sets most_queried_domain" do
+    tests "AnalyzePatterns", on: "QueryHistory"
+    setup  "RecordQuery", query: "sample", intent_type: "sample", matched_domain: "sample", answered_at: "sample"
+    input  query_history: 1, most_queried_domain: "sample"
+    expect most_queried_domain: "sample"
+  end
+
+  test "IdentifyGaps runs" do
+    tests "IdentifyGaps", on: "QueryHistory"
+    setup  "RecordQuery", query: "sample", intent_type: "sample", matched_domain: "sample", answered_at: "sample"
+    input  query_history: 1
+    expect ok: "true"
+  end
+
+end

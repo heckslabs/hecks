@@ -1,0 +1,143 @@
+Hecks.behaviors "Becoming" do
+  vision "Behavioral tests for the Becoming domain — exercises every command and query in memory"
+
+  # ── Harvest aggregate ──────────────────────────────────────────
+
+  test "HarvestDomains sets nursery_path" do
+    tests "HarvestDomains", on: "Harvest"
+    input  nursery_path: "sample"
+    expect ok: "true"
+  end
+
+  test "HarvestConversations runs" do
+    tests "HarvestConversations", on: "Harvest"
+    expect ok: "true"
+  end
+
+  test "HarvestDreams runs" do
+    tests "HarvestDreams", on: "Harvest"
+    expect ok: "true"
+  end
+
+  test "HarvestIdentity runs" do
+    tests "HarvestIdentity", on: "Harvest"
+    expect ok: "true"
+  end
+
+
+  # ── Shape aggregate ──────────────────────────────────────────
+
+  test "VaryPrompts runs" do
+    tests "VaryPrompts", on: "Shape"
+    setup  "HarvestDomains", nursery_path: "sample"
+    input  harvest: 1
+    expect ok: "true"
+  end
+
+  test "GenerateNegatives runs" do
+    tests "GenerateNegatives", on: "Shape"
+    expect ok: "true"
+  end
+
+  test "AddChainOfThought runs" do
+    tests "AddChainOfThought", on: "Shape"
+    setup  "HarvestDomains", nursery_path: "sample"
+    input  harvest: 1
+    expect ok: "true"
+  end
+
+  test "BalanceCategories runs" do
+    tests "BalanceCategories", on: "Shape"
+    expect ok: "true"
+  end
+
+
+  # ── Enrich aggregate ──────────────────────────────────────────
+
+  test "AddCrossAggregateFlows runs" do
+    tests "AddCrossAggregateFlows", on: "Enrich"
+    setup  "HarvestDomains", nursery_path: "sample"
+    input  harvest: 1
+    expect ok: "true"
+  end
+
+  test "AddSpecifications runs" do
+    tests "AddSpecifications", on: "Enrich"
+    setup  "HarvestDomains", nursery_path: "sample"
+    input  harvest: 1
+    expect ok: "true"
+  end
+
+  test "AddCollections runs" do
+    tests "AddCollections", on: "Enrich"
+    setup  "HarvestDomains", nursery_path: "sample"
+    input  harvest: 1
+    expect ok: "true"
+  end
+
+  test "DeepenWorkflows runs" do
+    tests "DeepenWorkflows", on: "Enrich"
+    setup  "HarvestDomains", nursery_path: "sample"
+    input  harvest: 1
+    expect ok: "true"
+  end
+
+
+  # ── Conceive aggregate ──────────────────────────────────────────
+
+  test "ConceiveNewDomains sets topics + target_count" do
+    tests "ConceiveNewDomains", on: "Conceive"
+    input  topics: "sample", target_count: 1
+    expect ok: "true"
+  end
+
+  test "BreedCrossovers sets pair_count" do
+    tests "BreedCrossovers", on: "Conceive"
+    input  pair_count: 1
+    expect ok: "true"
+  end
+
+  test "FuseGenerations sets fusion_count" do
+    tests "FuseGenerations", on: "Conceive"
+    input  fusion_count: 1
+    expect ok: "true"
+  end
+
+
+  # ── Train aggregate ──────────────────────────────────────────
+
+  test "PrepareSplit runs" do
+    tests "PrepareSplit", on: "Train"
+    setup  "AddChainOfThought"
+    input  shape: 1
+    expect ok: "true"
+  end
+
+  test "RunFineTune sets base_model + iterations + learning_rate" do
+    tests "RunFineTune", on: "Train"
+    input  train: 1, base_model: "sample", iterations: 1, learning_rate: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── Evaluate aggregate ──────────────────────────────────────────
+
+  test "RunEvaluation runs" do
+    tests "RunEvaluation", on: "Evaluate"
+    input  train: 1
+    expect ok: "true"
+  end
+
+  test "CompareToBaseline runs" do
+    tests "CompareToBaseline", on: "Evaluate"
+    input  evaluate: 1
+    expect ok: "true"
+  end
+
+  test "DecideNextRound runs" do
+    tests "DecideNextRound", on: "Evaluate"
+    input  evaluate: 1
+    expect ok: "true"
+  end
+
+end

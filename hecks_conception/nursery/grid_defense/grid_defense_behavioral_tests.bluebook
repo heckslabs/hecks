@@ -1,0 +1,86 @@
+Hecks.behaviors "GridDefense" do
+  vision "Behavioral tests for the GridDefense domain — exercises every command and query in memory"
+
+  # ── GridAsset aggregate ──────────────────────────────────────────
+
+  test "RegisterAsset sets asset_id + asset_type + location + capacity_mw" do
+    tests "RegisterAsset", on: "GridAsset"
+    input  asset_id: "sample", asset_type: "sample", location: "sample", capacity_mw: 1.0
+    expect asset_id: "sample", asset_type: "sample", location: "sample", capacity_mw: 1.0
+  end
+
+  test "ReportVulnerability sets cve_id + severity + discovered_at" do
+    tests "ReportVulnerability", on: "GridAsset"
+    setup  "RegisterAsset", asset_id: "sample", asset_type: "sample", location: "sample", capacity_mw: 1.0
+    input  grid_asset: 1, cve_id: "sample", severity: "sample", discovered_at: "sample"
+    expect vulnerabilities_size: 1
+  end
+
+  test "IsolateAsset runs" do
+    tests "IsolateAsset", on: "GridAsset"
+    setup  "RegisterAsset", asset_id: "sample", asset_type: "sample", location: "sample", capacity_mw: 1.0
+    input  grid_asset: 1
+    expect ok: "true"
+  end
+
+
+  # ── ThreatIntel aggregate ──────────────────────────────────────────
+
+  test "IngestFeed sets source" do
+    tests "IngestFeed", on: "ThreatIntel"
+    input  source: "sample"
+    expect ok: "true"
+  end
+
+  test "AddIndicator sets indicator_type + value + confidence" do
+    tests "AddIndicator", on: "ThreatIntel"
+    setup  "AddIndicator", indicator_type: "sample", value: "sample", confidence: 1.0
+    input  threat_intel: 1, indicator_type: "sample", value: "sample", confidence: 1.0
+    expect indicators_size: 1
+  end
+
+
+  # ── Incident aggregate ──────────────────────────────────────────
+
+  test "DetectIncident sets incident_type + severity" do
+    tests "DetectIncident", on: "Incident"
+    setup  "RegisterAsset", asset_id: "sample", asset_type: "sample", location: "sample", capacity_mw: 1.0
+    input  grid_asset: 1, incident_type: "sample", severity: "sample"
+    expect ok: "true"
+  end
+
+  test "AssignResponder sets name + role + assigned_at" do
+    tests "AssignResponder", on: "Incident"
+    input  incident: 1, name: "sample", role: "sample", assigned_at: "sample"
+    expect responders_size: 1
+  end
+
+  test "ContainIncident runs" do
+    tests "ContainIncident", on: "Incident"
+    input  incident: 1
+    expect ok: "true"
+  end
+
+  test "ResolveIncident runs" do
+    tests "ResolveIncident", on: "Incident"
+    input  incident: 1
+    expect ok: "true"
+  end
+
+
+  # ── LoadBalancer aggregate ──────────────────────────────────────────
+
+  test "InitiateRebalance sets region" do
+    tests "InitiateRebalance", on: "LoadBalancer"
+    input  region: "sample"
+    expect ok: "true"
+  end
+
+  test "Redistribute sets from_asset + to_asset + amount_mw" do
+    tests "Redistribute", on: "LoadBalancer"
+    setup  "InitiateRebalance", region: "sample"
+    input  load_balancer: 1, from_asset: "sample", to_asset: "sample", amount_mw: 1.0
+    expect redistributions_size: 1
+  end
+
+end

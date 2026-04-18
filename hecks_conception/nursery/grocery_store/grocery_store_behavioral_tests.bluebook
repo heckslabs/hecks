@@ -1,0 +1,90 @@
+Hecks.behaviors "GroceryStore" do
+  vision "Behavioral tests for the GroceryStore domain — exercises every command and query in memory"
+
+  # ── Product aggregate ──────────────────────────────────────────
+
+  test "StockProduct sets sku + name + category + price + quantity + expiration_date" do
+    tests "StockProduct", on: "Product"
+    input  sku: "sample", name: "sample", category: "sample", price: 1.0, quantity: 1, expiration_date: "sample"
+    expect sku: "sample", name: "sample", category: "sample", price: 1.0, quantity: 1, expiration_date: "sample", status: "available"
+  end
+
+  test "MarkdownProduct sets new_price" do
+    tests "MarkdownProduct", on: "Product"
+    setup  "StockProduct", sku: "sample", name: "sample", category: "sample", price: 1.0, quantity: 1, expiration_date: "sample"
+    input  product: 1, new_price: 1.0
+    expect price: 1.0
+  end
+
+  test "PullFromShelf runs" do
+    tests "PullFromShelf", on: "Product"
+    setup  "StockProduct", sku: "sample", name: "sample", category: "sample", price: 1.0, quantity: 1, expiration_date: "sample"
+    input  product: 1
+    expect status: "pulled"
+  end
+
+
+  # ── Aisle aggregate ──────────────────────────────────────────
+
+  test "DesignateAisle sets aisle_number + category + shelf_count" do
+    tests "DesignateAisle", on: "Aisle"
+    input  aisle_number: "sample", category: "sample", shelf_count: 1
+    expect aisle_number: "sample", category: "sample", shelf_count: 1
+  end
+
+  test "UpdatePlanogram runs" do
+    tests "UpdatePlanogram", on: "Aisle"
+    setup  "DesignateAisle", aisle_number: "sample", category: "sample", shelf_count: 1
+    input  aisle: 1
+    expect ok: "true"
+  end
+
+
+  # ── Supplier aggregate ──────────────────────────────────────────
+
+  test "RegisterSupplier sets name + contact_email + delivery_schedule" do
+    tests "RegisterSupplier", on: "Supplier"
+    input  name: "sample", contact_email: "sample", delivery_schedule: "sample"
+    expect name: "sample", contact_email: "sample", delivery_schedule: "sample"
+  end
+
+  test "PlaceReorder sets sku + quantity" do
+    tests "PlaceReorder", on: "Supplier"
+    setup  "PlaceReorder", sku: "sample", quantity: 1
+    input  supplier: 1, sku: "sample", quantity: 1
+    expect ok: "true"
+  end
+
+
+  # ── Promotion aggregate ──────────────────────────────────────────
+
+  test "LaunchPromotion sets promo_code + description + start_date + end_date + discount_percent" do
+    tests "LaunchPromotion", on: "Promotion"
+    input  promo_code: "sample", description: "sample", start_date: "sample", end_date: "sample", discount_percent: 1.0
+    expect promo_code: "sample", description: "sample", start_date: "sample", end_date: "sample", discount_percent: 1.0, status: "active"
+  end
+
+  test "EndPromotion runs" do
+    tests "EndPromotion", on: "Promotion"
+    setup  "LaunchPromotion", promo_code: "sample", description: "sample", start_date: "sample", end_date: "sample", discount_percent: 1.0
+    input  promotion: 1
+    expect status: "ended"
+  end
+
+
+  # ── ShrinkageReport aggregate ──────────────────────────────────────────
+
+  test "RecordShrinkage sets report_id + sku + units_lost + cause + reported_date + estimated_loss" do
+    tests "RecordShrinkage", on: "ShrinkageReport"
+    input  report_id: "sample", sku: "sample", units_lost: 1, cause: "sample", reported_date: "sample", estimated_loss: 1.0
+    expect report_id: "sample", sku: "sample", units_lost: 1, cause: "sample", reported_date: "sample", estimated_loss: 1.0
+  end
+
+  test "InvestigateShrinkage runs" do
+    tests "InvestigateShrinkage", on: "ShrinkageReport"
+    setup  "RecordShrinkage", report_id: "sample", sku: "sample", units_lost: 1, cause: "sample", reported_date: "sample", estimated_loss: 1.0
+    input  shrinkage_report: 1
+    expect ok: "true"
+  end
+
+end

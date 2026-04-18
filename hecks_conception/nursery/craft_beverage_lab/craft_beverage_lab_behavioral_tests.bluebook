@@ -1,0 +1,147 @@
+Hecks.behaviors "CraftBeverageLab" do
+  vision "Behavioral tests for the CraftBeverageLab domain — exercises every command and query in memory"
+
+  # ── Experiment aggregate ──────────────────────────────────────────
+
+  test "DesignExperiment sets title + experiment_type + hypothesis" do
+    tests "DesignExperiment", on: "Experiment"
+    input  title: "sample", experiment_type: "sample", hypothesis: "sample"
+    expect title: "sample", experiment_type: "sample", hypothesis: "sample", status: "designed"
+  end
+
+  test "StartExperiment runs" do
+    tests "StartExperiment", on: "Experiment"
+    setup  "DesignExperiment", title: "sample", experiment_type: "sample", hypothesis: "sample"
+    input  experiment: 1
+    expect status: "running"
+  end
+
+  test "ConcludeExperiment sets conclusion" do
+    tests "ConcludeExperiment", on: "Experiment"
+    setup  "DesignExperiment", title: "sample", experiment_type: "sample", hypothesis: "sample"
+    input  experiment: 1, conclusion: "sample"
+    expect conclusion: "sample", status: "concluded"
+  end
+
+
+  # ── YeastCulture aggregate ──────────────────────────────────────────
+
+  test "CultivateYeast sets strain_name + species + optimal_temperature" do
+    tests "CultivateYeast", on: "YeastCulture"
+    input  strain_name: "sample", species: "sample", optimal_temperature: 1.0
+    expect strain_name: "sample", species: "sample", optimal_temperature: 1.0, viability_percent: 100.0, status: "active"
+  end
+
+  test "PitchYeast runs" do
+    tests "PitchYeast", on: "YeastCulture"
+    setup  "CultivateYeast", strain_name: "sample", species: "sample", optimal_temperature: 1.0
+    input  yeast_culture: 1
+    expect status: "fermenting"
+  end
+
+  test "RecordFermentation sets gravity + temperature + ph" do
+    tests "RecordFermentation", on: "YeastCulture"
+    setup  "CultivateYeast", strain_name: "sample", species: "sample", optimal_temperature: 1.0
+    input  yeast_culture: 1, gravity: 1.0, temperature: 1.0, ph: 1.0
+    expect ok: "true"
+  end
+
+  test "CompleteFermentation runs" do
+    tests "CompleteFermentation", on: "YeastCulture"
+    setup  "CultivateYeast", strain_name: "sample", species: "sample", optimal_temperature: 1.0
+    input  yeast_culture: 1
+    expect status: "complete"
+  end
+
+
+  # ── RoastProfile aggregate ──────────────────────────────────────────
+
+  test "CreateProfile sets bean_origin + roast_level + charge_temperature" do
+    tests "CreateProfile", on: "RoastProfile"
+    input  bean_origin: "sample", roast_level: "sample", charge_temperature: 1.0
+    expect bean_origin: "sample", roast_level: "sample", charge_temperature: 1.0, status: "created"
+  end
+
+  test "ExecuteRoast runs" do
+    tests "ExecuteRoast", on: "RoastProfile"
+    setup  "CreateProfile", bean_origin: "sample", roast_level: "sample", charge_temperature: 1.0
+    input  roast_profile: 1
+    expect status: "roasting"
+  end
+
+  test "CompleteRoast sets drop_temperature + total_time_seconds" do
+    tests "CompleteRoast", on: "RoastProfile"
+    setup  "CreateProfile", bean_origin: "sample", roast_level: "sample", charge_temperature: 1.0
+    input  roast_profile: 1, drop_temperature: 1.0, total_time_seconds: 1
+    expect drop_temperature: 1.0, total_time_seconds: 1, status: "profiled"
+  end
+
+
+  # ── FlavorCompound aggregate ──────────────────────────────────────────
+
+  test "AnalyzeFlavorCompounds sets compound_name + chemical_family + concentration_ppm + source + aroma_descriptor" do
+    tests "AnalyzeFlavorCompounds", on: "FlavorCompound"
+    setup  "DesignExperiment", title: "sample", experiment_type: "sample", hypothesis: "sample"
+    input  experiment: 1, compound_name: "sample", chemical_family: "sample", concentration_ppm: 1.0, source: "sample", aroma_descriptor: "sample"
+    expect experiment: :experiment, compound_name: "sample", chemical_family: "sample", concentration_ppm: 1.0, source: "sample", aroma_descriptor: "sample"
+  end
+
+  test "CompareCompounds runs" do
+    tests "CompareCompounds", on: "FlavorCompound"
+    input  flavor_compound: 1
+    expect ok: "true"
+  end
+
+
+  # ── SensoryPanel aggregate ──────────────────────────────────────────
+
+  test "ConveneSensoryPanel sets panel_name + panelist_count" do
+    tests "ConveneSensoryPanel", on: "SensoryPanel"
+    setup  "DesignExperiment", title: "sample", experiment_type: "sample", hypothesis: "sample"
+    input  experiment: 1, panel_name: "sample", panelist_count: 1
+    expect panel_name: "sample", panelist_count: 1, experiment: :experiment, status: "convened"
+  end
+
+  test "CompareSensoryPanel runs" do
+    tests "CompareSensoryPanel", on: "SensoryPanel"
+    input  sensory_panel: 1
+    expect status: "compared"
+  end
+
+  test "PublishResults runs" do
+    tests "PublishResults", on: "SensoryPanel"
+    input  sensory_panel: 1
+    expect status: "published"
+  end
+
+
+  # ── LabEquipment aggregate ──────────────────────────────────────────
+
+  test "RegisterEquipment sets name + equipment_type" do
+    tests "RegisterEquipment", on: "LabEquipment"
+    input  name: "sample", equipment_type: "sample"
+    expect name: "sample", equipment_type: "sample", status: "available"
+  end
+
+  test "ReserveEquipment runs" do
+    tests "ReserveEquipment", on: "LabEquipment"
+    setup  "RegisterEquipment", name: "sample", equipment_type: "sample"
+    input  lab_equipment: 1
+    expect status: "reserved"
+  end
+
+  test "ReleaseEquipment runs" do
+    tests "ReleaseEquipment", on: "LabEquipment"
+    setup  "RegisterEquipment", name: "sample", equipment_type: "sample"
+    input  lab_equipment: 1
+    expect status: "available"
+  end
+
+  test "CalibrateEquipment sets last_calibration" do
+    tests "CalibrateEquipment", on: "LabEquipment"
+    setup  "RegisterEquipment", name: "sample", equipment_type: "sample"
+    input  lab_equipment: 1, last_calibration: "sample"
+    expect last_calibration: "sample"
+  end
+
+end

@@ -1,0 +1,87 @@
+Hecks.behaviors "Rails" do
+  vision "Behavioral tests for the Rails domain — exercises every command and query in memory"
+
+  # ── ActiveHecks aggregate ──────────────────────────────────────────
+
+  test "Activate sets domain_module" do
+    tests "Activate", on: "ActiveHecks"
+    input  domain_module: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── BluebookModelCompat aggregate ──────────────────────────────────────────
+
+  test "Include runs" do
+    tests "Include", on: "BluebookModelCompat"
+    expect ok: "true"
+  end
+
+
+  # ── AggregateCompat aggregate ──────────────────────────────────────────
+
+  test "Include runs" do
+    tests "Include", on: "AggregateCompat"
+    expect ok: "true"
+  end
+
+
+  # ── ValueObjectCompat aggregate ──────────────────────────────────────────
+
+  test "Include runs" do
+    tests "Include", on: "ValueObjectCompat"
+    expect ok: "true"
+  end
+
+
+  # ── ValidationWiring aggregate ──────────────────────────────────────────
+
+  test "Bind sets klass" do
+    tests "Bind", on: "ValidationWiring"
+    input  klass: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── PersistenceWrapper aggregate ──────────────────────────────────────────
+
+  test "Bind sets klass" do
+    tests "Bind", on: "PersistenceWrapper"
+    input  klass: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Railtie aggregate ──────────────────────────────────────────
+
+  test "Boot runs" do
+    tests "Boot", on: "Railtie"
+    expect ok: "true"
+  end
+
+
+  # ── InitGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate runs" do
+    tests "Generate", on: "InitGenerator"
+    expect ok: "true"
+  end
+
+
+  # ── MigrationGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate runs" do
+    tests "Generate", on: "MigrationGenerator"
+    expect ok: "true"
+  end
+
+
+  # ── RailsGenerator aggregate ──────────────────────────────────────────
+
+  test "GenerateRails sets domain_id + output_dir" do
+    tests "GenerateRails", on: "RailsGenerator"
+    input  domain_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+end

@@ -1,0 +1,2190 @@
+Hecks.behaviors "Bluebook" do
+  vision "Behavioral tests for the Bluebook domain — exercises every command and query in memory"
+
+  # ── Domain aggregate ──────────────────────────────────────────
+
+  test "DefineDomain sets name + version" do
+    tests "DefineDomain", on: "Domain"
+    input  name: "sample", version: "sample"
+    expect ok: "true"
+  end
+
+  test "ValidateDomain sets domain_id" do
+    tests "ValidateDomain", on: "Domain"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+  test "GenerateCode sets domain_id + target" do
+    tests "GenerateCode", on: "Domain"
+    input  domain_id: "sample", target: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Aggregate aggregate ──────────────────────────────────────────
+
+  test "AddAggregate sets name + domain_name" do
+    tests "AddAggregate", on: "Aggregate"
+    input  name: "sample", domain_name: "sample"
+    expect name: "sample", domain_name: "sample"
+  end
+
+  test "AddAttribute sets aggregate_id + name + type" do
+    tests "AddAttribute", on: "Aggregate"
+    input  aggregate_id: "sample", name: "sample", type: "sample"
+    expect name: "sample"
+  end
+
+  test "AddCommand sets aggregate_id + name" do
+    tests "AddCommand", on: "Aggregate"
+    input  aggregate_id: "sample", name: "sample"
+    expect name: "sample"
+  end
+
+  test "AddPolicy sets aggregate_id + name + event_name + trigger_command" do
+    tests "AddPolicy", on: "Aggregate"
+    input  aggregate_id: "sample", name: "sample", event_name: "sample", trigger_command: "sample"
+    expect name: "sample"
+  end
+
+
+  # ── Grammar aggregate ──────────────────────────────────────────
+
+  test "RegisterGrammar sets name" do
+    tests "RegisterGrammar", on: "Grammar"
+    input  name: "sample"
+    expect name: "sample"
+  end
+
+  test "ParseInput sets grammar_id + input" do
+    tests "ParseInput", on: "Grammar"
+    input  grammar_id: "sample", input: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Compiler aggregate ──────────────────────────────────────────
+
+  test "BuildDomain sets domain_id + output_dir" do
+    tests "BuildDomain", on: "Compiler"
+    input  domain_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Validator aggregate ──────────────────────────────────────────
+
+  test "RunValidation sets domain_id" do
+    tests "RunValidation", on: "Validator"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Visualizer aggregate ──────────────────────────────────────────
+
+  test "GenerateDiagram sets domain_id" do
+    tests "GenerateDiagram", on: "Visualizer"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Glossary aggregate ──────────────────────────────────────────
+
+  test "GenerateGlossary sets domain_id" do
+    tests "GenerateGlossary", on: "Glossary"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DslSerializer aggregate ──────────────────────────────────────────
+
+  test "SerializeDomain sets domain_id" do
+    tests "SerializeDomain", on: "DslSerializer"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── AstExtractor aggregate ──────────────────────────────────────────
+
+  test "ExtractDomain sets source" do
+    tests "ExtractDomain", on: "AstExtractor"
+    input  source: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── FlowGenerator aggregate ──────────────────────────────────────────
+
+  test "TraceFlows sets domain_id" do
+    tests "TraceFlows", on: "FlowGenerator"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── LlmsGenerator aggregate ──────────────────────────────────────────
+
+  test "GenerateLlmsTxt sets domain_id" do
+    tests "GenerateLlmsTxt", on: "LlmsGenerator"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ReadmeGenerator aggregate ──────────────────────────────────────────
+
+  test "GenerateReadme sets root" do
+    tests "GenerateReadme", on: "ReadmeGenerator"
+    input  root: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── EventStorm aggregate ──────────────────────────────────────────
+
+  test "ParseEventStorm sets source" do
+    tests "ParseEventStorm", on: "EventStorm"
+    input  source: "sample"
+    expect ok: "true"
+  end
+
+  test "ImportEventStorm sets source + name" do
+    tests "ImportEventStorm", on: "EventStorm"
+    input  source: "sample", name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Migration aggregate ──────────────────────────────────────────
+
+  test "DiffDomains sets domain_id" do
+    tests "DiffDomains", on: "Migration"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+  test "RunMigration sets domain_id" do
+    tests "RunMigration", on: "Migration"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ContextMap aggregate ──────────────────────────────────────────
+
+  test "GenerateContextMap sets domains" do
+    tests "GenerateContextMap", on: "ContextMap"
+    input  domains: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ValidationRule aggregate ──────────────────────────────────────────
+
+  test "CheckRule sets domain_id + rule_name" do
+    tests "CheckRule", on: "ValidationRule"
+    input  domain_id: "sample", rule_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Versioner aggregate ──────────────────────────────────────────
+
+  test "ComputeVersion sets path" do
+    tests "ComputeVersion", on: "Versioner"
+    input  path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── NodeReaders aggregate ──────────────────────────────────────────
+
+  test "ReadNode sets node_type" do
+    tests "ReadNode", on: "NodeReaders"
+    input  node_type: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── AggregateVisitor aggregate ──────────────────────────────────────────
+
+  test "VisitAggregate sets source" do
+    tests "VisitAggregate", on: "AggregateVisitor"
+    input  source: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DomainVisitor aggregate ──────────────────────────────────────────
+
+  test "VisitDomain sets source" do
+    tests "VisitDomain", on: "DomainVisitor"
+    input  source: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── EventStormImporter aggregate ──────────────────────────────────────────
+
+  test "ImportEventStorm sets source + name" do
+    tests "ImportEventStorm", on: "EventStormImporter"
+    input  source: "sample", name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DslGenerator aggregate ──────────────────────────────────────────
+
+  test "GenerateDsl sets result_id" do
+    tests "GenerateDsl", on: "DslGenerator"
+    input  result_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── YamlParser aggregate ──────────────────────────────────────────
+
+  test "ParseYaml sets source" do
+    tests "ParseYaml", on: "YamlParser"
+    input  source: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Result aggregate ──────────────────────────────────────────
+
+  test "CreateResult sets source" do
+    tests "CreateResult", on: "Result"
+    input  source: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── PatternMatching aggregate ──────────────────────────────────────────
+
+  test "MatchPattern sets text" do
+    tests "MatchPattern", on: "PatternMatching"
+    input  text: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ContextGrouping aggregate ──────────────────────────────────────────
+
+  test "GroupByContext sets items" do
+    tests "GroupByContext", on: "ContextGrouping"
+    input  items: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── EventNameValidation aggregate ──────────────────────────────────────────
+
+  test "ValidateEventNames sets source" do
+    tests "ValidateEventNames", on: "EventNameValidation"
+    input  source: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Command aggregate ──────────────────────────────────────────
+
+  test "DefineCommand sets name + aggregate_id" do
+    tests "DefineCommand", on: "Command"
+    input  name: "sample", aggregate_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── BluebookEvent aggregate ──────────────────────────────────────────
+
+  test "DefineEvent sets name + aggregate_id" do
+    tests "DefineEvent", on: "BluebookEvent"
+    input  name: "sample", aggregate_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Query aggregate ──────────────────────────────────────────
+
+  test "DefineQuery sets name + return_type" do
+    tests "DefineQuery", on: "Query"
+    input  name: "sample", return_type: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Policy aggregate ──────────────────────────────────────────
+
+  test "DefinePolicy sets name + event_name + trigger_command" do
+    tests "DefinePolicy", on: "Policy"
+    input  name: "sample", event_name: "sample", trigger_command: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Service aggregate ──────────────────────────────────────────
+
+  test "DefineService sets name + operation" do
+    tests "DefineService", on: "Service"
+    input  name: "sample", operation: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Condition aggregate ──────────────────────────────────────────
+
+  test "DefineCondition sets name + expression" do
+    tests "DefineCondition", on: "Condition"
+    input  name: "sample", expression: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── EventSubscriber aggregate ──────────────────────────────────────────
+
+  test "DefineSubscriber sets name + event_name" do
+    tests "DefineSubscriber", on: "EventSubscriber"
+    input  name: "sample", event_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Specification aggregate ──────────────────────────────────────────
+
+  test "DefineSpecification sets name + predicate" do
+    tests "DefineSpecification", on: "Specification"
+    input  name: "sample", predicate: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Saga aggregate ──────────────────────────────────────────
+
+  test "DefineSaga sets name + aggregate_id" do
+    tests "DefineSaga", on: "Saga"
+    input  name: "sample", aggregate_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SagaStep aggregate ──────────────────────────────────────────
+
+  test "DefineSagaStep sets saga_id + action + compensate" do
+    tests "DefineSagaStep", on: "SagaStep"
+    input  saga_id: "sample", action: "sample", compensate: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Workflow aggregate ──────────────────────────────────────────
+
+  test "DefineWorkflow sets name + aggregate_id" do
+    tests "DefineWorkflow", on: "Workflow"
+    input  name: "sample", aggregate_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── WorkflowStep aggregate ──────────────────────────────────────────
+
+  test "DefineWorkflowStep sets workflow_id + command_name" do
+    tests "DefineWorkflowStep", on: "WorkflowStep"
+    input  workflow_id: "sample", command_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Behavior aggregate ──────────────────────────────────────────
+
+  test "Define sets name" do
+    tests "Define", on: "Behavior"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── BidirectionalReferences aggregate ──────────────────────────────────────────
+
+  test "DetectBidirectional sets domain_id" do
+    tests "DetectBidirectional", on: "BidirectionalReferences"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── BaseName aggregate ──────────────────────────────────────────
+
+  test "CreateName sets raw" do
+    tests "CreateName", on: "BaseName"
+    input  raw: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── AggregateName aggregate ──────────────────────────────────────────
+
+  test "CreateAggregateName sets raw" do
+    tests "CreateAggregateName", on: "AggregateName"
+    input  raw: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── CommandName aggregate ──────────────────────────────────────────
+
+  test "CreateCommandName sets raw" do
+    tests "CreateCommandName", on: "CommandName"
+    input  raw: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── EventName aggregate ──────────────────────────────────────────
+
+  test "CreateEventName sets raw" do
+    tests "CreateEventName", on: "EventName"
+    input  raw: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── StateName aggregate ──────────────────────────────────────────
+
+  test "CreateStateName sets raw" do
+    tests "CreateStateName", on: "StateName"
+    input  raw: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── AggregateSerializer aggregate ──────────────────────────────────────────
+
+  test "SerializeAggregate sets aggregate_id" do
+    tests "SerializeAggregate", on: "AggregateSerializer"
+    input  aggregate_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── BehaviorSerializer aggregate ──────────────────────────────────────────
+
+  test "SerializeBehavior sets aggregate_id" do
+    tests "SerializeBehavior", on: "BehaviorSerializer"
+    input  aggregate_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── RuleSerializer aggregate ──────────────────────────────────────────
+
+  test "SerializeRules sets aggregate_id" do
+    tests "SerializeRules", on: "RuleSerializer"
+    input  aggregate_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── TypeHelpers aggregate ──────────────────────────────────────────
+
+  test "FormatType sets type_name" do
+    tests "FormatType", on: "TypeHelpers"
+    input  type_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── AggregateSpec aggregate ──────────────────────────────────────────
+
+  test "GenerateAggregateSpec sets aggregate_id + output_dir" do
+    tests "GenerateAggregateSpec", on: "AggregateSpec"
+    input  aggregate_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── CommandSpec aggregate ──────────────────────────────────────────
+
+  test "GenerateCommandSpec sets command_id + output_dir" do
+    tests "GenerateCommandSpec", on: "CommandSpec"
+    input  command_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── EntitySpec aggregate ──────────────────────────────────────────
+
+  test "GenerateEntitySpec sets entity_id + output_dir" do
+    tests "GenerateEntitySpec", on: "EntitySpec"
+    input  entity_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── EventSpec aggregate ──────────────────────────────────────────
+
+  test "GenerateEventSpec sets event_id + output_dir" do
+    tests "GenerateEventSpec", on: "EventSpec"
+    input  event_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── LifecycleSpec aggregate ──────────────────────────────────────────
+
+  test "GenerateLifecycleSpec sets aggregate_id + output_dir" do
+    tests "GenerateLifecycleSpec", on: "LifecycleSpec"
+    input  aggregate_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── PolicySpec aggregate ──────────────────────────────────────────
+
+  test "GeneratePolicySpec sets policy_id + output_dir" do
+    tests "GeneratePolicySpec", on: "PolicySpec"
+    input  policy_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── PortSpec aggregate ──────────────────────────────────────────
+
+  test "GeneratePortSpec sets aggregate_id + output_dir" do
+    tests "GeneratePortSpec", on: "PortSpec"
+    input  aggregate_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── QuerySpec aggregate ──────────────────────────────────────────
+
+  test "GenerateQuerySpec sets query_id + output_dir" do
+    tests "GenerateQuerySpec", on: "QuerySpec"
+    input  query_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ScopeSpec aggregate ──────────────────────────────────────────
+
+  test "GenerateScopeSpec sets scope_id + output_dir" do
+    tests "GenerateScopeSpec", on: "ScopeSpec"
+    input  scope_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ServiceSpec aggregate ──────────────────────────────────────────
+
+  test "GenerateServiceSpec sets service_id + output_dir" do
+    tests "GenerateServiceSpec", on: "ServiceSpec"
+    input  service_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SpecificationSpec aggregate ──────────────────────────────────────────
+
+  test "GenerateSpecificationSpec sets spec_id + output_dir" do
+    tests "GenerateSpecificationSpec", on: "SpecificationSpec"
+    input  spec_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ValueObjectSpec aggregate ──────────────────────────────────────────
+
+  test "GenerateValueObjectSpec sets vo_id + output_dir" do
+    tests "GenerateValueObjectSpec", on: "ValueObjectSpec"
+    input  vo_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ViewSpec aggregate ──────────────────────────────────────────
+
+  test "GenerateViewSpec sets view_id + output_dir" do
+    tests "GenerateViewSpec", on: "ViewSpec"
+    input  view_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── WorkflowSpec aggregate ──────────────────────────────────────────
+
+  test "GenerateWorkflowSpec sets workflow_id + output_dir" do
+    tests "GenerateWorkflowSpec", on: "WorkflowSpec"
+    input  workflow_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── BluebookBuilder aggregate ──────────────────────────────────────────
+
+  test "BuildDomain sets name + version" do
+    tests "BuildDomain", on: "BluebookBuilder"
+    input  name: "sample", version: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── AggregateBuilder aggregate ──────────────────────────────────────────
+
+  test "BuildAggregate sets name" do
+    tests "BuildAggregate", on: "AggregateBuilder"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── CommandBuilder aggregate ──────────────────────────────────────────
+
+  test "BuildCommand sets name + aggregate_id" do
+    tests "BuildCommand", on: "CommandBuilder"
+    input  name: "sample", aggregate_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── EntityBuilder aggregate ──────────────────────────────────────────
+
+  test "BuildEntity sets name + aggregate_id" do
+    tests "BuildEntity", on: "EntityBuilder"
+    input  name: "sample", aggregate_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── EventBuilder aggregate ──────────────────────────────────────────
+
+  test "BuildEvent sets name" do
+    tests "BuildEvent", on: "EventBuilder"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ValueObjectBuilder aggregate ──────────────────────────────────────────
+
+  test "BuildValueObject sets name" do
+    tests "BuildValueObject", on: "ValueObjectBuilder"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── PolicyBuilder aggregate ──────────────────────────────────────────
+
+  test "BuildPolicy sets name + event_name" do
+    tests "BuildPolicy", on: "PolicyBuilder"
+    input  name: "sample", event_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ServiceBuilder aggregate ──────────────────────────────────────────
+
+  test "BuildService sets name" do
+    tests "BuildService", on: "ServiceBuilder"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── WorkflowBuilder aggregate ──────────────────────────────────────────
+
+  test "BuildWorkflow sets name" do
+    tests "BuildWorkflow", on: "WorkflowBuilder"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── LifecycleBuilder aggregate ──────────────────────────────────────────
+
+  test "BuildLifecycle sets aggregate_id + initial_state" do
+    tests "BuildLifecycle", on: "LifecycleBuilder"
+    input  aggregate_id: "sample", initial_state: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ReadModelBuilder aggregate ──────────────────────────────────────────
+
+  test "BuildReadModel sets name" do
+    tests "BuildReadModel", on: "ReadModelBuilder"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SagaBuilder aggregate ──────────────────────────────────────────
+
+  test "BuildSaga sets name" do
+    tests "BuildSaga", on: "SagaBuilder"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SagaStepBuilder aggregate ──────────────────────────────────────────
+
+  test "BuildSagaStep sets saga_id + action" do
+    tests "BuildSagaStep", on: "SagaStepBuilder"
+    input  saga_id: "sample", action: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GlossaryBuilder aggregate ──────────────────────────────────────────
+
+  test "BuildGlossary sets domain_id" do
+    tests "BuildGlossary", on: "GlossaryBuilder"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ModuleBuilder aggregate ──────────────────────────────────────────
+
+  test "BuildModule sets name" do
+    tests "BuildModule", on: "ModuleBuilder"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── AclBuilder aggregate ──────────────────────────────────────────
+
+  test "BuildAcl sets name + external_system" do
+    tests "BuildAcl", on: "AclBuilder"
+    input  name: "sample", external_system: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── BranchBuilder aggregate ──────────────────────────────────────────
+
+  test "BuildBranch sets condition" do
+    tests "BuildBranch", on: "BranchBuilder"
+    input  condition: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ScheduledStepBuilder aggregate ──────────────────────────────────────────
+
+  test "BuildScheduledStep sets interval" do
+    tests "BuildScheduledStep", on: "ScheduledStepBuilder"
+    input  interval: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── BluebookStructure aggregate ──────────────────────────────────────────
+
+  test "BuildStructure sets domain_id" do
+    tests "BuildStructure", on: "BluebookStructure"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Actor aggregate ──────────────────────────────────────────
+
+  test "DefineActor sets name + role" do
+    tests "DefineActor", on: "Actor"
+    input  name: "sample", role: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Attribute aggregate ──────────────────────────────────────────
+
+  test "DefineAttribute sets name + type" do
+    tests "DefineAttribute", on: "Attribute"
+    input  name: "sample", type: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ComputedAttribute aggregate ──────────────────────────────────────────
+
+  test "DefineComputedAttribute sets name + expression" do
+    tests "DefineComputedAttribute", on: "ComputedAttribute"
+    input  name: "sample", expression: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Entity aggregate ──────────────────────────────────────────
+
+  test "DefineEntity sets name + aggregate_id" do
+    tests "DefineEntity", on: "Entity"
+    input  name: "sample", aggregate_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ExternalSystem aggregate ──────────────────────────────────────────
+
+  test "DefineExternalSystem sets name + adapter" do
+    tests "DefineExternalSystem", on: "ExternalSystem"
+    input  name: "sample", adapter: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Invariant aggregate ──────────────────────────────────────────
+
+  test "DefineInvariant sets name + expression" do
+    tests "DefineInvariant", on: "Invariant"
+    input  name: "sample", expression: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Lifecycle aggregate ──────────────────────────────────────────
+
+  test "DefineLifecycle sets aggregate_id + initial_state" do
+    tests "DefineLifecycle", on: "Lifecycle"
+    input  aggregate_id: "sample", initial_state: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ReadModel aggregate ──────────────────────────────────────────
+
+  test "DefineReadModel sets name + source_aggregate" do
+    tests "DefineReadModel", on: "ReadModel"
+    input  name: "sample", source_aggregate: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Reference aggregate ──────────────────────────────────────────
+
+  test "DefineReference sets from + to + kind" do
+    tests "DefineReference", on: "Reference"
+    input  from: "sample", to: "sample", kind: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Scope aggregate ──────────────────────────────────────────
+
+  test "DefineScope sets name + filter" do
+    tests "DefineScope", on: "Scope"
+    input  name: "sample", filter: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── StateTransition aggregate ──────────────────────────────────────────
+
+  test "DefineStateTransition sets from_state + to_state + event" do
+    tests "DefineStateTransition", on: "StateTransition"
+    input  from_state: "sample", to_state: "sample", event: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ValidationNode aggregate ──────────────────────────────────────────
+
+  test "DefineValidation sets name + rule" do
+    tests "DefineValidation", on: "ValidationNode"
+    input  name: "sample", rule: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ValueObject aggregate ──────────────────────────────────────────
+
+  test "DefineValueObject sets name + aggregate_id" do
+    tests "DefineValueObject", on: "ValueObject"
+    input  name: "sample", aggregate_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Paragraph aggregate ──────────────────────────────────────────
+
+  test "DefineParagraph sets name" do
+    tests "DefineParagraph", on: "Paragraph"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Validation aggregate ──────────────────────────────────────────
+
+  test "DefineValidationRule sets attribute_name + rule" do
+    tests "DefineValidationRule", on: "Validation"
+    input  attribute_name: "sample", rule: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── CommandStep aggregate ──────────────────────────────────────────
+
+  test "DefineCommandStep sets command + mapping" do
+    tests "DefineCommandStep", on: "CommandStep"
+    input  command: "sample", mapping: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── BranchStep aggregate ──────────────────────────────────────────
+
+  test "DefineBranchStep sets spec" do
+    tests "DefineBranchStep", on: "BranchStep"
+    input  spec: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ScheduledStep aggregate ──────────────────────────────────────────
+
+  test "DefineScheduledStep sets name + trigger" do
+    tests "DefineScheduledStep", on: "ScheduledStep"
+    input  name: "sample", trigger: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── JsonAttribute aggregate ──────────────────────────────────────────
+
+  test "DefineJsonAttribute sets name + aggregate_id" do
+    tests "DefineJsonAttribute", on: "JsonAttribute"
+    input  name: "sample", aggregate_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DateTypes aggregate ──────────────────────────────────────────
+
+  test "DefineDateType sets name + type" do
+    tests "DefineDateType", on: "DateTypes"
+    input  name: "sample", type: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── AggregateRebuilder aggregate ──────────────────────────────────────────
+
+  test "RebuildAggregate sets aggregate_id" do
+    tests "RebuildAggregate", on: "AggregateRebuilder"
+    input  aggregate_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── AttributeCollector aggregate ──────────────────────────────────────────
+
+  test "CollectAttribute sets name + type" do
+    tests "CollectAttribute", on: "AttributeCollector"
+    input  name: "sample", type: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── BehaviorMethods aggregate ──────────────────────────────────────────
+
+  test "DefineBehaviorMethod sets name + kind" do
+    tests "DefineBehaviorMethod", on: "BehaviorMethods"
+    input  name: "sample", kind: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ConstraintMethods aggregate ──────────────────────────────────────────
+
+  test "DefineConstraintMethod sets name + rule" do
+    tests "DefineConstraintMethod", on: "ConstraintMethods"
+    input  name: "sample", rule: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ImplicitSyntax aggregate ──────────────────────────────────────────
+
+  test "ApplyImplicitSyntax sets aggregate_id" do
+    tests "ApplyImplicitSyntax", on: "ImplicitSyntax"
+    input  aggregate_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── QueryMethods aggregate ──────────────────────────────────────────
+
+  test "DefineQueryMethod sets name + return_type" do
+    tests "DefineQueryMethod", on: "QueryMethods"
+    input  name: "sample", return_type: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── StepCollector aggregate ──────────────────────────────────────────
+
+  test "CollectStep sets name + action" do
+    tests "CollectStep", on: "StepCollector"
+    input  name: "sample", action: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Describable aggregate ──────────────────────────────────────────
+
+  test "SetDescription sets text" do
+    tests "SetDescription", on: "Describable"
+    input  text: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── BluebookBuilderMethods aggregate ──────────────────────────────────────────
+
+  test "DefineDomainEntry sets name" do
+    tests "DefineDomainEntry", on: "BluebookBuilderMethods"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── LeakySliceDetection aggregate ──────────────────────────────────────────
+
+  test "DetectLeaks sets domain_id" do
+    tests "DetectLeaks", on: "LeakySliceDetection"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ConnectionConfig aggregate ──────────────────────────────────────────
+
+  test "ConfigureConnection sets from_domain + to_domain" do
+    tests "ConfigureConnection", on: "ConnectionConfig"
+    input  from_domain: "sample", to_domain: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SliceStep aggregate ──────────────────────────────────────────
+
+  test "DefineStep sets command_name + event_name" do
+    tests "DefineStep", on: "SliceStep"
+    input  command_name: "sample", event_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DomainMixin aggregate ──────────────────────────────────────────
+
+  test "ExtractSlices sets domain_id" do
+    tests "ExtractSlices", on: "DomainMixin"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── VerticalSlice aggregate ──────────────────────────────────────────
+
+  test "Trace sets entry_command" do
+    tests "Trace", on: "VerticalSlice"
+    input  entry_command: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SliceExtractor aggregate ──────────────────────────────────────────
+
+  test "Extract sets domain_id" do
+    tests "Extract", on: "SliceExtractor"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SliceDiagram aggregate ──────────────────────────────────────────
+
+  test "Generate sets domain_id" do
+    tests "Generate", on: "SliceDiagram"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── BluebookCompiler aggregate ──────────────────────────────────────────
+
+  test "Compile sets domain_id + output_dir" do
+    tests "Compile", on: "BluebookCompiler"
+    input  domain_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+  test "LoadDomain sets domain_id" do
+    tests "LoadDomain", on: "BluebookCompiler"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+  test "BuildStatic sets domain_id + output_dir" do
+    tests "BuildStatic", on: "BluebookCompiler"
+    input  domain_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+  test "BuildGo sets domain_id + output_dir" do
+    tests "BuildGo", on: "BluebookCompiler"
+    input  domain_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+  test "BuildNode sets domain_id + output_dir" do
+    tests "BuildNode", on: "BluebookCompiler"
+    input  domain_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+  test "BuildRails sets domain_id + output_dir" do
+    tests "BuildRails", on: "BluebookCompiler"
+    input  domain_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+  test "BuildBinary sets domain_id + output_dir" do
+    tests "BuildBinary", on: "BluebookCompiler"
+    input  domain_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── InMemoryLoader aggregate ──────────────────────────────────────────
+
+  test "LoadInMemory sets domain_id" do
+    tests "LoadInMemory", on: "InMemoryLoader"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DomainInspector aggregate ──────────────────────────────────────────
+
+  test "InspectDomain sets domain_id" do
+    tests "InspectDomain", on: "DomainInspector"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DomainIntrospector aggregate ──────────────────────────────────────────
+
+  test "Introspect sets domain_name" do
+    tests "Introspect", on: "DomainIntrospector"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GemBuilder aggregate ──────────────────────────────────────────
+
+  test "BuildGem sets domain_name" do
+    tests "BuildGem", on: "GemBuilder"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── StatementBuilders aggregate ──────────────────────────────────────────
+
+  test "BuildStatement sets ir_object" do
+    tests "BuildStatement", on: "StatementBuilders"
+    input  ir_object: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── TextHelpers aggregate ──────────────────────────────────────────
+
+  test "Humanize sets text" do
+    tests "Humanize", on: "TextHelpers"
+    input  text: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── BluebookConnections aggregate ──────────────────────────────────────────
+
+  test "Apply sets extension_name" do
+    tests "Apply", on: "BluebookConnections"
+    input  extension_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Tokenizer aggregate ──────────────────────────────────────────
+
+  test "Tokenize sets input" do
+    tests "Tokenize", on: "Tokenizer"
+    input  input: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ExtensionDocs aggregate ──────────────────────────────────────────
+
+  test "ListExtensions sets category" do
+    tests "ListExtensions", on: "ExtensionDocs"
+    input  category: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ReadmeWriter aggregate ──────────────────────────────────────────
+
+  test "GenerateReadmes sets root" do
+    tests "GenerateReadmes", on: "ReadmeWriter"
+    input  root: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SourceCollector aggregate ──────────────────────────────────────────
+
+  test "Collect sets lib_root" do
+    tests "Collect", on: "SourceCollector"
+    input  lib_root: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ForwardDeclarations aggregate ──────────────────────────────────────────
+
+  test "Write sets io" do
+    tests "Write", on: "ForwardDeclarations"
+    input  io: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── BundleWriter aggregate ──────────────────────────────────────────
+
+  test "Write sets files + output" do
+    tests "Write", on: "BundleWriter"
+    input  files: "sample", output: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── BinaryCompiler aggregate ──────────────────────────────────────────
+
+  test "Compile sets output" do
+    tests "Compile", on: "BinaryCompiler"
+    input  output: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SourceAnalyzer aggregate ──────────────────────────────────────────
+
+  test "Analyze sets lib_root" do
+    tests "Analyze", on: "SourceAnalyzer"
+    input  lib_root: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ConstantResolver aggregate ──────────────────────────────────────────
+
+  test "Resolve sets ref" do
+    tests "Resolve", on: "ConstantResolver"
+    input  ref: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DependencyGraph aggregate ──────────────────────────────────────────
+
+  test "Sort sets lib_root" do
+    tests "Sort", on: "DependencyGraph"
+    input  lib_root: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── CycleSorter aggregate ──────────────────────────────────────────
+
+  test "SortCycle sets files" do
+    tests "SortCycle", on: "CycleSorter"
+    input  files: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SourceTransformer aggregate ──────────────────────────────────────────
+
+  test "Transform sets source" do
+    tests "Transform", on: "SourceTransformer"
+    input  source: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ReferenceExtractor aggregate ──────────────────────────────────────────
+
+  test "Extract sets source" do
+    tests "Extract", on: "ReferenceExtractor"
+    input  source: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DefinitionExtractor aggregate ──────────────────────────────────────────
+
+  test "Extract sets source" do
+    tests "Extract", on: "DefinitionExtractor"
+    input  source: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── RuntimeGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate sets domain_module" do
+    tests "Generate", on: "RuntimeGenerator"
+    input  domain_module: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Generator aggregate ──────────────────────────────────────────
+
+  test "Generate sets construct_id + output_dir" do
+    tests "Generate", on: "Generator"
+    input  construct_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── FileWriter aggregate ──────────────────────────────────────────
+
+  test "WriteFile sets path + content" do
+    tests "WriteFile", on: "FileWriter"
+    input  path: "sample", content: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SpecWriter aggregate ──────────────────────────────────────────
+
+  test "WriteSpec sets construct_id + output_dir" do
+    tests "WriteSpec", on: "SpecWriter"
+    input  construct_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── LlmsTxtWriter aggregate ──────────────────────────────────────────
+
+  test "WriteLlmsTxt sets domain_id + output_dir" do
+    tests "WriteLlmsTxt", on: "LlmsTxtWriter"
+    input  domain_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SpecHelpers aggregate ──────────────────────────────────────────
+
+  test "GenerateHelper sets construct_type" do
+    tests "GenerateHelper", on: "SpecHelpers"
+    input  construct_type: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── InjectionHelpers aggregate ──────────────────────────────────────────
+
+  test "InjectDependency sets command_id + dependency" do
+    tests "InjectDependency", on: "InjectionHelpers"
+    input  command_id: "sample", dependency: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── FileLocator aggregate ──────────────────────────────────────────
+
+  test "LocateFile sets aggregate_name + root" do
+    tests "LocateFile", on: "FileLocator"
+    input  aggregate_name: "sample", root: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SkeletonGenerator aggregate ──────────────────────────────────────────
+
+  test "GenerateSkeleton sets domain_id + output_dir" do
+    tests "GenerateSkeleton", on: "SkeletonGenerator"
+    input  domain_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SelfHostDiff aggregate ──────────────────────────────────────────
+
+  test "DiffSelfHost sets domain_id" do
+    tests "DiffSelfHost", on: "SelfHostDiff"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── FrameworkGemGenerator aggregate ──────────────────────────────────────────
+
+  test "GenerateFrameworkGem sets name + output_dir" do
+    tests "GenerateFrameworkGem", on: "FrameworkGemGenerator"
+    input  name: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Registry aggregate ──────────────────────────────────────────
+
+  test "RegisterGenerator sets name" do
+    tests "RegisterGenerator", on: "Registry"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Infrastructure aggregate ──────────────────────────────────────────
+
+  test "Generate sets domain_id" do
+    tests "Generate", on: "Infrastructure"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── BuiltIn aggregate ──────────────────────────────────────────
+
+  test "RegisterAll sets domain_id" do
+    tests "RegisterAll", on: "BuiltIn"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── BaseRule aggregate ──────────────────────────────────────────
+
+  test "RunRule sets domain_id" do
+    tests "RunRule", on: "BaseRule"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ValidationMessage aggregate ──────────────────────────────────────────
+
+  test "CreateMessage sets message + severity" do
+    tests "CreateMessage", on: "ValidationMessage"
+    input  message: "sample", severity: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── CommandNaming aggregate ──────────────────────────────────────────
+
+  test "CheckCommandNaming sets domain_id" do
+    tests "CheckCommandNaming", on: "CommandNaming"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── UniqueAggregateNames aggregate ──────────────────────────────────────────
+
+  test "CheckUniqueNames sets domain_id" do
+    tests "CheckUniqueNames", on: "UniqueAggregateNames"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SafeIdentifierNames aggregate ──────────────────────────────────────────
+
+  test "CheckIdentifiers sets domain_id" do
+    tests "CheckIdentifiers", on: "SafeIdentifierNames"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ReservedNames aggregate ──────────────────────────────────────────
+
+  test "CheckReservedNames sets domain_id" do
+    tests "CheckReservedNames", on: "ReservedNames"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── NameCollisions aggregate ──────────────────────────────────────────
+
+  test "CheckNameCollisions sets domain_id" do
+    tests "CheckNameCollisions", on: "NameCollisions"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ComputedNameCollisions aggregate ──────────────────────────────────────────
+
+  test "CheckComputedCollisions sets domain_id" do
+    tests "CheckComputedCollisions", on: "ComputedNameCollisions"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GlossaryTermViolations aggregate ──────────────────────────────────────────
+
+  test "CheckGlossaryTerms sets domain_id" do
+    tests "CheckGlossaryTerms", on: "GlossaryTermViolations"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── AggregatesHaveCommands aggregate ──────────────────────────────────────────
+
+  test "CheckAggregateCommands sets domain_id" do
+    tests "CheckAggregateCommands", on: "AggregatesHaveCommands"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── CommandsHaveAttributes aggregate ──────────────────────────────────────────
+
+  test "CheckCommandAttributes sets domain_id" do
+    tests "CheckCommandAttributes", on: "CommandsHaveAttributes"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SingleAttributeAggregate aggregate ──────────────────────────────────────────
+
+  test "CheckSingleAttribute sets domain_id" do
+    tests "CheckSingleAttribute", on: "SingleAttributeAggregate"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── TooManyCommands aggregate ──────────────────────────────────────────
+
+  test "CheckCommandCount sets domain_id" do
+    tests "CheckCommandCount", on: "TooManyCommands"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ValidPolicyEvents aggregate ──────────────────────────────────────────
+
+  test "CheckPolicyEvents sets domain_id" do
+    tests "CheckPolicyEvents", on: "ValidPolicyEvents"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ValidPolicyTriggers aggregate ──────────────────────────────────────────
+
+  test "CheckPolicyTriggers sets domain_id" do
+    tests "CheckPolicyTriggers", on: "ValidPolicyTriggers"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── NoPiiInIdentity aggregate ──────────────────────────────────────────
+
+  test "CheckPiiIdentity sets domain_id" do
+    tests "CheckPiiIdentity", on: "NoPiiInIdentity"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ValidReferences aggregate ──────────────────────────────────────────
+
+  test "CheckReferences sets domain_id" do
+    tests "CheckReferences", on: "ValidReferences"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── NoSelfReferences aggregate ──────────────────────────────────────────
+
+  test "CheckSelfReferences sets domain_id" do
+    tests "CheckSelfReferences", on: "NoSelfReferences"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── NoBidirectionalReferences aggregate ──────────────────────────────────────────
+
+  test "CheckBidirectional sets domain_id" do
+    tests "CheckBidirectional", on: "NoBidirectionalReferences"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── NoForeignKeyAttributes aggregate ──────────────────────────────────────────
+
+  test "CheckForeignKeys sets domain_id" do
+    tests "CheckForeignKeys", on: "NoForeignKeyAttributes"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Transparency aggregate ──────────────────────────────────────────
+
+  test "CheckTransparency sets domain_id" do
+    tests "CheckTransparency", on: "Transparency"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Consent aggregate ──────────────────────────────────────────
+
+  test "CheckConsent sets domain_id" do
+    tests "CheckConsent", on: "Consent"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Privacy aggregate ──────────────────────────────────────────
+
+  test "CheckPrivacy sets domain_id" do
+    tests "CheckPrivacy", on: "Privacy"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Security aggregate ──────────────────────────────────────────
+
+  test "CheckSecurity sets domain_id" do
+    tests "CheckSecurity", on: "Security"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── BoundaryAdvisor aggregate ──────────────────────────────────────────
+
+  test "Advise sets domain_id" do
+    tests "Advise", on: "BoundaryAdvisor"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── WorldConcerns aggregate ──────────────────────────────────────────
+
+  test "CheckConcerns sets domain_id" do
+    tests "CheckConcerns", on: "WorldConcerns"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── AggregateGenerator aggregate ──────────────────────────────────────────
+
+  test "GenerateAggregate sets aggregate_id + output_dir" do
+    tests "GenerateAggregate", on: "AggregateGenerator"
+    input  aggregate_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── CommandGenerator aggregate ──────────────────────────────────────────
+
+  test "GenerateCommand sets command_id + output_dir" do
+    tests "GenerateCommand", on: "CommandGenerator"
+    input  command_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── EntityGenerator aggregate ──────────────────────────────────────────
+
+  test "GenerateEntity sets entity_id + output_dir" do
+    tests "GenerateEntity", on: "EntityGenerator"
+    input  entity_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── EventGenerator aggregate ──────────────────────────────────────────
+
+  test "GenerateEvent sets event_id + output_dir" do
+    tests "GenerateEvent", on: "EventGenerator"
+    input  event_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ValueObjectGenerator aggregate ──────────────────────────────────────────
+
+  test "GenerateValueObject sets value_object_id + output_dir" do
+    tests "GenerateValueObject", on: "ValueObjectGenerator"
+    input  value_object_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── PolicyGenerator aggregate ──────────────────────────────────────────
+
+  test "GeneratePolicy sets policy_id + output_dir" do
+    tests "GeneratePolicy", on: "PolicyGenerator"
+    input  policy_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ServiceGenerator aggregate ──────────────────────────────────────────
+
+  test "GenerateService sets service_id + output_dir" do
+    tests "GenerateService", on: "ServiceGenerator"
+    input  service_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── QueryGenerator aggregate ──────────────────────────────────────────
+
+  test "GenerateQuery sets query_id + output_dir" do
+    tests "GenerateQuery", on: "QueryGenerator"
+    input  query_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── QueryObjectGenerator aggregate ──────────────────────────────────────────
+
+  test "GenerateQueryObject sets query_id + output_dir" do
+    tests "GenerateQueryObject", on: "QueryObjectGenerator"
+    input  query_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── WorkflowGenerator aggregate ──────────────────────────────────────────
+
+  test "GenerateWorkflow sets workflow_id + output_dir" do
+    tests "GenerateWorkflow", on: "WorkflowGenerator"
+    input  workflow_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── LifecycleGenerator aggregate ──────────────────────────────────────────
+
+  test "GenerateLifecycle sets aggregate_id + output_dir" do
+    tests "GenerateLifecycle", on: "LifecycleGenerator"
+    input  aggregate_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SubscriberGenerator aggregate ──────────────────────────────────────────
+
+  test "GenerateSubscriber sets subscriber_id + output_dir" do
+    tests "GenerateSubscriber", on: "SubscriberGenerator"
+    input  subscriber_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SpecificationGenerator aggregate ──────────────────────────────────────────
+
+  test "GenerateSpecification sets spec_id + output_dir" do
+    tests "GenerateSpecification", on: "SpecificationGenerator"
+    input  spec_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ViewGenerator aggregate ──────────────────────────────────────────
+
+  test "GenerateView sets view_id + output_dir" do
+    tests "GenerateView", on: "ViewGenerator"
+    input  view_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DomainGemGenerator aggregate ──────────────────────────────────────────
+
+  test "GenerateDomainGem sets domain_id + output_dir" do
+    tests "GenerateDomainGem", on: "DomainGemGenerator"
+    input  domain_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SpecGenerator aggregate ──────────────────────────────────────────
+
+  test "GenerateSpec sets construct_id + output_dir" do
+    tests "GenerateSpec", on: "SpecGenerator"
+    input  construct_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── PortGenerator aggregate ──────────────────────────────────────────
+
+  test "GeneratePort sets aggregate_id + output_dir" do
+    tests "GeneratePort", on: "PortGenerator"
+    input  aggregate_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── MemoryAdapterGenerator aggregate ──────────────────────────────────────────
+
+  test "GenerateMemoryAdapter sets aggregate_id + output_dir" do
+    tests "GenerateMemoryAdapter", on: "MemoryAdapterGenerator"
+    input  aggregate_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── AutoloadGenerator aggregate ──────────────────────────────────────────
+
+  test "GenerateAutoload sets domain_id + output_dir" do
+    tests "GenerateAutoload", on: "AutoloadGenerator"
+    input  domain_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SinatraGenerator aggregate ──────────────────────────────────────────
+
+  test "GenerateSinatra sets domain_id + output_dir" do
+    tests "GenerateSinatra", on: "SinatraGenerator"
+    input  domain_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ConfigGenerator aggregate ──────────────────────────────────────────
+
+  test "GenerateConfig sets domain_id + output_dir" do
+    tests "GenerateConfig", on: "ConfigGenerator"
+    input  domain_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── LlmAggregateDescriber aggregate ──────────────────────────────────────────
+
+  test "Describe sets aggregate_id" do
+    tests "Describe", on: "LlmAggregateDescriber"
+    input  aggregate_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── LlmPolicyDescriber aggregate ──────────────────────────────────────────
+
+  test "Describe sets domain_id" do
+    tests "Describe", on: "LlmPolicyDescriber"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── LlmValidationDescriber aggregate ──────────────────────────────────────────
+
+  test "Describe sets aggregate_id" do
+    tests "Describe", on: "LlmValidationDescriber"
+    input  aggregate_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ConstructorGeneration aggregate ──────────────────────────────────────────
+
+  test "GenerateConstructor sets aggregate_id" do
+    tests "GenerateConstructor", on: "ConstructorGeneration"
+    input  aggregate_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── InvariantGeneration aggregate ──────────────────────────────────────────
+
+  test "GenerateInvariants sets aggregate_id" do
+    tests "GenerateInvariants", on: "InvariantGeneration"
+    input  aggregate_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ValidationGeneration aggregate ──────────────────────────────────────────
+
+  test "GenerateValidations sets aggregate_id" do
+    tests "GenerateValidations", on: "ValidationGeneration"
+    input  aggregate_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── OpenApiPathBuilder aggregate ──────────────────────────────────────────
+
+  test "BuildPaths sets aggregate_id" do
+    tests "BuildPaths", on: "OpenApiPathBuilder"
+    input  aggregate_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── OpenApiResponseHelpers aggregate ──────────────────────────────────────────
+
+  test "BuildResponse sets response_type" do
+    tests "BuildResponse", on: "OpenApiResponseHelpers"
+    input  response_type: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── OpenApiSchemaBuilder aggregate ──────────────────────────────────────────
+
+  test "BuildSchema sets aggregate_id" do
+    tests "BuildSchema", on: "OpenApiSchemaBuilder"
+    input  aggregate_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SqlAdapterGenerator aggregate ──────────────────────────────────────────
+
+  test "GenerateSqlAdapter sets aggregate_id + output_dir" do
+    tests "GenerateSqlAdapter", on: "SqlAdapterGenerator"
+    input  aggregate_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SqlMigrationGenerator aggregate ──────────────────────────────────────────
+
+  test "GenerateSqlMigration sets domain_id + output_dir" do
+    tests "GenerateSqlMigration", on: "SqlMigrationGenerator"
+    input  domain_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── RailsGenerator aggregate ──────────────────────────────────────────
+
+  test "GenerateRailsApp sets domain_id + output_dir" do
+    tests "GenerateRailsApp", on: "RailsGenerator"
+    input  domain_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── JsonSchemaGenerator aggregate ──────────────────────────────────────────
+
+  test "GenerateJsonSchema sets aggregate_id + output_dir" do
+    tests "GenerateJsonSchema", on: "JsonSchemaGenerator"
+    input  aggregate_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── OpenApiGenerator aggregate ──────────────────────────────────────────
+
+  test "GenerateOpenApi sets domain_id + output_dir" do
+    tests "GenerateOpenApi", on: "OpenApiGenerator"
+    input  domain_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── TypescriptGenerator aggregate ──────────────────────────────────────────
+
+  test "GenerateTypeScript sets domain_id + output_dir" do
+    tests "GenerateTypeScript", on: "TypescriptGenerator"
+    input  domain_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── RouteBuilder aggregate ──────────────────────────────────────────
+
+  test "BuildRoutes sets domain_id" do
+    tests "BuildRoutes", on: "RouteBuilder"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── RpcDiscovery aggregate ──────────────────────────────────────────
+
+  test "GenerateRpcManifest sets domain_id" do
+    tests "GenerateRpcManifest", on: "RpcDiscovery"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── CallPreservation aggregate ──────────────────────────────────────────
+
+  test "PreserveCalls sets source + generated" do
+    tests "PreserveCalls", on: "CallPreservation"
+    input  source: "sample", generated: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── PathTraversal aggregate ──────────────────────────────────────────
+
+  test "ValidatePath sets path" do
+    tests "ValidatePath", on: "PathTraversal"
+    input  path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ExampleAppWriter aggregate ──────────────────────────────────────────
+
+  test "WriteApp sets domain_id + output_dir" do
+    tests "WriteApp", on: "ExampleAppWriter"
+    input  domain_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ExampleBluebookWriter aggregate ──────────────────────────────────────────
+
+  test "WriteBluebook sets domain_id + output_dir" do
+    tests "WriteBluebook", on: "ExampleBluebookWriter"
+    input  domain_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DomainVisualizer aggregate ──────────────────────────────────────────
+
+  test "VisualizeDomain sets domain_id" do
+    tests "VisualizeDomain", on: "DomainVisualizer"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DomainVisualizerMethods aggregate ──────────────────────────────────────────
+
+  test "RegisterVisualizer sets domain_id" do
+    tests "RegisterVisualizer", on: "DomainVisualizerMethods"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── BehaviorDiagram aggregate ──────────────────────────────────────────
+
+  test "GenerateBehaviorDiagram sets domain_id" do
+    tests "GenerateBehaviorDiagram", on: "BehaviorDiagram"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── PortDiagram aggregate ──────────────────────────────────────────
+
+  test "GeneratePortDiagram sets domain_id" do
+    tests "GeneratePortDiagram", on: "PortDiagram"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── StructureDiagram aggregate ──────────────────────────────────────────
+
+  test "GenerateStructureDiagram sets domain_id" do
+    tests "GenerateStructureDiagram", on: "StructureDiagram"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DomainDiff aggregate ──────────────────────────────────────────
+
+  test "DiffDomains sets old_domain_id + new_domain_id" do
+    tests "DiffDomains", on: "DomainDiff"
+    input  old_domain_id: "sample", new_domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── BehaviorDiff aggregate ──────────────────────────────────────────
+
+  test "DiffBehaviors sets old_domain_id + new_domain_id" do
+    tests "DiffBehaviors", on: "BehaviorDiff"
+    input  old_domain_id: "sample", new_domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DomainSnapshot aggregate ──────────────────────────────────────────
+
+  test "SaveSnapshot sets domain_id + path" do
+    tests "SaveSnapshot", on: "DomainSnapshot"
+    input  domain_id: "sample", path: "sample"
+    expect ok: "true"
+  end
+
+  test "LoadSnapshot sets path" do
+    tests "LoadSnapshot", on: "DomainSnapshot"
+    input  path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── MigrationRunner aggregate ──────────────────────────────────────────
+
+  test "RunMigrations sets domain_id + path" do
+    tests "RunMigrations", on: "MigrationRunner"
+    input  domain_id: "sample", path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── MigrationStrategy aggregate ──────────────────────────────────────────
+
+  test "ApplyStrategy sets migration_id + target" do
+    tests "ApplyStrategy", on: "MigrationStrategy"
+    input  migration_id: "sample", target: "sample"
+    expect ok: "true"
+  end
+
+end

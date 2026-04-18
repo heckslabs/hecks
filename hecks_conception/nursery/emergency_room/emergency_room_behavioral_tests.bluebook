@@ -1,0 +1,103 @@
+Hecks.behaviors "EmergencyRoom" do
+  vision "Behavioral tests for the EmergencyRoom domain — exercises every command and query in memory"
+
+  # ── Patient aggregate ──────────────────────────────────────────
+
+  test "RegisterPatient sets name + date_of_birth + chief_complaint" do
+    tests "RegisterPatient", on: "Patient"
+    input  name: "sample", date_of_birth: "sample", chief_complaint: "sample"
+    expect name: "sample", date_of_birth: "sample", chief_complaint: "sample", status: "waiting"
+  end
+
+  test "AdmitPatient runs" do
+    tests "AdmitPatient", on: "Patient"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
+    setup  "PrepareBed", bed_id: "sample", zone: "sample", equipment_level: "sample"
+    input  patient: 1, bed: 1
+    expect status: "admitted"
+  end
+
+  test "BeginTreatment runs" do
+    tests "BeginTreatment", on: "Patient"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
+    input  patient: 1
+    expect status: "treating"
+  end
+
+  test "StabilizePatient runs" do
+    tests "StabilizePatient", on: "Patient"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
+    input  patient: 1
+    expect status: "stabilized"
+  end
+
+  test "DischargePatient sets discharge_instructions" do
+    tests "DischargePatient", on: "Patient"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
+    input  patient: 1, discharge_instructions: "sample"
+    expect status: "discharged"
+  end
+
+  test "TransferToInpatient sets ward" do
+    tests "TransferToInpatient", on: "Patient"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
+    input  patient: 1, ward: "sample"
+    expect status: "transferred"
+  end
+
+
+  # ── Bed aggregate ──────────────────────────────────────────
+
+  test "PrepareBed sets bed_id + zone + equipment_level" do
+    tests "PrepareBed", on: "Bed"
+    input  bed_id: "sample", zone: "sample", equipment_level: "sample"
+    expect status: "available"
+  end
+
+  test "OccupyBed runs" do
+    tests "OccupyBed", on: "Bed"
+    setup  "PrepareBed", bed_id: "sample", zone: "sample", equipment_level: "sample"
+    input  bed: 1
+    expect status: "occupied"
+  end
+
+  test "CleanBed runs" do
+    tests "CleanBed", on: "Bed"
+    setup  "PrepareBed", bed_id: "sample", zone: "sample", equipment_level: "sample"
+    input  bed: 1
+    expect status: "available"
+  end
+
+
+  # ── TriageAssessment aggregate ──────────────────────────────────────────
+
+  test "PerformTriage sets acuity_level + vital_signs_summary" do
+    tests "PerformTriage", on: "TriageAssessment"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
+    input  patient: 1, acuity_level: 1, vital_signs_summary: "sample"
+    expect status: "completed"
+  end
+
+  test "EscalateTriage sets new_acuity_level" do
+    tests "EscalateTriage", on: "TriageAssessment"
+    input  triage_assessment: 1, new_acuity_level: 1
+    expect ok: "true"
+  end
+
+
+  # ── Procedure aggregate ──────────────────────────────────────────
+
+  test "OrderProcedure sets procedure_name + physician" do
+    tests "OrderProcedure", on: "Procedure"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
+    input  patient: 1, procedure_name: "sample", physician: "sample"
+    expect status: "ordered"
+  end
+
+  test "PerformProcedure sets notes" do
+    tests "PerformProcedure", on: "Procedure"
+    input  procedure: 1, notes: "sample"
+    expect status: "completed"
+  end
+
+end

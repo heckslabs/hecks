@@ -1,0 +1,116 @@
+Hecks.behaviors "NetworkOperations" do
+  vision "Behavioral tests for the NetworkOperations domain — exercises every command and query in memory"
+
+  # ── NetworkDevice aggregate ──────────────────────────────────────────
+
+  test "RegisterDevice sets device_id + hostname + device_type + ip_address + location + firmware_version" do
+    tests "RegisterDevice", on: "NetworkDevice"
+    input  device_id: "sample", hostname: "sample", device_type: "sample", ip_address: "sample", location: "sample", firmware_version: "sample"
+    expect device_id: "sample", hostname: "sample", device_type: "sample", ip_address: "sample", location: "sample", firmware_version: "sample"
+  end
+
+  test "SuspendDevice runs" do
+    tests "SuspendDevice", on: "NetworkDevice"
+    setup  "RegisterDevice", device_id: "sample", hostname: "sample", device_type: "sample", ip_address: "sample", location: "sample", firmware_version: "sample"
+    input  network_device: 1
+    expect ok: "true"
+  end
+
+  test "RestoreDevice runs" do
+    tests "RestoreDevice", on: "NetworkDevice"
+    setup  "RegisterDevice", device_id: "sample", hostname: "sample", device_type: "sample", ip_address: "sample", location: "sample", firmware_version: "sample"
+    input  network_device: 1
+    expect ok: "true"
+  end
+
+
+  # ── Link aggregate ──────────────────────────────────────────
+
+  test "EstablishLink sets link_id + link_type + bandwidth_mbps" do
+    tests "EstablishLink", on: "Link"
+    setup  "RegisterDevice", device_id: "sample", hostname: "sample", device_type: "sample", ip_address: "sample", location: "sample", firmware_version: "sample"
+    input  network_device: 1, link_id: "sample", link_type: "sample", bandwidth_mbps: 1
+    expect ok: "true"
+  end
+
+  test "MeasureLatency sets latency_ms" do
+    tests "MeasureLatency", on: "Link"
+    input  link: 1, latency_ms: 1.0
+    expect ok: "true"
+  end
+
+  test "SeverLink runs" do
+    tests "SeverLink", on: "Link"
+    input  link: 1
+    expect ok: "true"
+  end
+
+
+  # ── TrafficFlow aggregate ──────────────────────────────────────────
+
+  test "CaptureFlow sets flow_id + source_ip + destination_ip + protocol + bytes_transferred" do
+    tests "CaptureFlow", on: "TrafficFlow"
+    input  flow_id: "sample", source_ip: "sample", destination_ip: "sample", protocol: "sample", bytes_transferred: 1
+    expect ok: "true"
+  end
+
+  test "ClassifyFlow sets classification" do
+    tests "ClassifyFlow", on: "TrafficFlow"
+    setup  "CaptureFlow", flow_id: "sample", source_ip: "sample", destination_ip: "sample", protocol: "sample", bytes_transferred: 1
+    input  traffic_flow: 1, classification: "sample"
+    expect ok: "true"
+  end
+
+  test "FlagAnomalousFlow runs" do
+    tests "FlagAnomalousFlow", on: "TrafficFlow"
+    setup  "CaptureFlow", flow_id: "sample", source_ip: "sample", destination_ip: "sample", protocol: "sample", bytes_transferred: 1
+    input  traffic_flow: 1
+    expect ok: "true"
+  end
+
+
+  # ── Outage aggregate ──────────────────────────────────────────
+
+  test "DeclareOutage sets outage_id + affected_segment + severity" do
+    tests "DeclareOutage", on: "Outage"
+    setup  "RegisterDevice", device_id: "sample", hostname: "sample", device_type: "sample", ip_address: "sample", location: "sample", firmware_version: "sample"
+    input  network_device: 1, outage_id: "sample", affected_segment: "sample", severity: "sample"
+    expect ok: "true"
+  end
+
+  test "PostOutageUpdate sets note + author" do
+    tests "PostOutageUpdate", on: "Outage"
+    input  outage: 1, note: "sample", author: "sample"
+    expect ok: "true"
+  end
+
+  test "ResolveOutage sets root_cause" do
+    tests "ResolveOutage", on: "Outage"
+    input  outage: 1, root_cause: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── FirmwareRelease aggregate ──────────────────────────────────────────
+
+  test "PublishFirmware sets release_id + version + device_type + changelog" do
+    tests "PublishFirmware", on: "FirmwareRelease"
+    input  release_id: "sample", version: "sample", device_type: "sample", changelog: "sample"
+    expect ok: "true"
+  end
+
+  test "UpgradeDevice sets device_id" do
+    tests "UpgradeDevice", on: "FirmwareRelease"
+    setup  "PublishFirmware", release_id: "sample", version: "sample", device_type: "sample", changelog: "sample"
+    input  firmware_release: 1, device_id: "sample"
+    expect ok: "true"
+  end
+
+  test "RecallFirmware runs" do
+    tests "RecallFirmware", on: "FirmwareRelease"
+    setup  "PublishFirmware", release_id: "sample", version: "sample", device_type: "sample", changelog: "sample"
+    input  firmware_release: 1
+    expect ok: "true"
+  end
+
+end

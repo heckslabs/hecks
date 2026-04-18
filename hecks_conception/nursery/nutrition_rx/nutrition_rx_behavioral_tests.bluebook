@@ -1,0 +1,114 @@
+Hecks.behaviors "NutritionRx" do
+  vision "Behavioral tests for the NutritionRx domain — exercises every command and query in memory"
+
+  # ── Patient aggregate ──────────────────────────────────────────
+
+  test "RegisterPatient sets name + date_of_birth + dietary_restriction" do
+    tests "RegisterPatient", on: "Patient"
+    input  name: "sample", date_of_birth: "sample", dietary_restriction: "sample"
+    expect name: "sample", date_of_birth: "sample", dietary_restriction: "sample", status: "active"
+  end
+
+  test "AddCondition sets condition_name + severity" do
+    tests "AddCondition", on: "Patient"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", dietary_restriction: "sample"
+    input  patient: 1, condition_name: "sample", severity: "sample"
+    expect ok: "true"
+  end
+
+  test "FlagDeficiency sets nutrient + severity" do
+    tests "FlagDeficiency", on: "Patient"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", dietary_restriction: "sample"
+    input  patient: 1, nutrient: "sample", severity: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Prescription aggregate ──────────────────────────────────────────
+
+  test "WritePrescription sets medication + dosage + frequency" do
+    tests "WritePrescription", on: "Prescription"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", dietary_restriction: "sample"
+    input  patient: 1, medication: "sample", dosage: "sample", frequency: "sample"
+    expect patient: :patient, medication: "sample", dosage: "sample", frequency: "sample", status: "written"
+  end
+
+  test "FillPrescription runs" do
+    tests "FillPrescription", on: "Prescription"
+    input  prescription: 1
+    expect status: "filled"
+  end
+
+  test "FlagInteraction sets food_item + interaction_type" do
+    tests "FlagInteraction", on: "Prescription"
+    input  prescription: 1, food_item: "sample", interaction_type: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── MealPlan aggregate ──────────────────────────────────────────
+
+  test "GenerateMealPlan sets goal + daily_calories" do
+    tests "GenerateMealPlan", on: "MealPlan"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", dietary_restriction: "sample"
+    input  patient: 1, goal: "sample", daily_calories: 1
+    expect patient: :patient, goal: "sample", daily_calories: 1, status: "draft"
+  end
+
+  test "ApproveMealPlan runs" do
+    tests "ApproveMealPlan", on: "MealPlan"
+    input  meal_plan: 1
+    expect status: "approved"
+  end
+
+  test "AdjustForInteraction sets food_item + replacement" do
+    tests "AdjustForInteraction", on: "MealPlan"
+    input  meal_plan: 1, food_item: "sample", replacement: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GroceryList aggregate ──────────────────────────────────────────
+
+  test "GenerateGroceryList runs" do
+    tests "GenerateGroceryList", on: "GroceryList"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", dietary_restriction: "sample"
+    input  patient: 1, meal_plan: 1
+    expect patient: :patient, meal_plan: :meal_plan, status: "generated"
+  end
+
+  test "UpdateGroceryList runs" do
+    tests "UpdateGroceryList", on: "GroceryList"
+    input  grocery_list: 1
+    expect status: "updated"
+  end
+
+  test "FulfillGroceryList runs" do
+    tests "FulfillGroceryList", on: "GroceryList"
+    input  grocery_list: 1
+    expect status: "fulfilled"
+  end
+
+
+  # ── NutrientTarget aggregate ──────────────────────────────────────────
+
+  test "SetTarget sets nutrient + target_amount + unit" do
+    tests "SetTarget", on: "NutrientTarget"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", dietary_restriction: "sample"
+    input  patient: 1, nutrient: "sample", target_amount: 1.0, unit: "sample"
+    expect patient: :patient, nutrient: "sample", target_amount: 1.0, unit: "sample", status: "tracking"
+  end
+
+  test "RecordIntake sets amount" do
+    tests "RecordIntake", on: "NutrientTarget"
+    input  nutrient_target: 1, amount: 1.0
+    expect current_intake: 1.0
+  end
+
+  test "AchieveTarget runs" do
+    tests "AchieveTarget", on: "NutrientTarget"
+    input  nutrient_target: 1
+    expect status: "achieved"
+  end
+
+end

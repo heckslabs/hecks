@@ -1,0 +1,115 @@
+Hecks.behaviors "DataCenter" do
+  vision "Behavioral tests for the DataCenter domain — exercises every command and query in memory"
+
+  # ── Rack aggregate ──────────────────────────────────────────
+
+  test "InstallRack sets rack_id + location_aisle + unit_capacity + power_zone" do
+    tests "InstallRack", on: "Rack"
+    input  rack_id: "sample", location_aisle: "sample", unit_capacity: 1, power_zone: "sample"
+    expect ok: "true"
+  end
+
+  test "MountDevice sets device_id + start_unit + unit_span" do
+    tests "MountDevice", on: "Rack"
+    setup  "InstallRack", rack_id: "sample", location_aisle: "sample", unit_capacity: 1, power_zone: "sample"
+    input  rack: 1, device_id: "sample", start_unit: 1, unit_span: 1
+    expect ok: "true"
+  end
+
+  test "RemoveRack runs" do
+    tests "RemoveRack", on: "Rack"
+    setup  "InstallRack", rack_id: "sample", location_aisle: "sample", unit_capacity: 1, power_zone: "sample"
+    input  rack: 1
+    expect ok: "true"
+  end
+
+
+  # ── Server aggregate ──────────────────────────────────────────
+
+  test "SetupServer sets hostname + ip_address + cpu_cores + ram_gb + os_version" do
+    tests "SetupServer", on: "Server"
+    setup  "InstallRack", rack_id: "sample", location_aisle: "sample", unit_capacity: 1, power_zone: "sample"
+    input  rack: 1, hostname: "sample", ip_address: "sample", cpu_cores: 1, ram_gb: 1, os_version: "sample"
+    expect ok: "true"
+  end
+
+  test "RebootServer runs" do
+    tests "RebootServer", on: "Server"
+    input  server: 1
+    expect ok: "true"
+  end
+
+  test "RetireServer runs" do
+    tests "RetireServer", on: "Server"
+    input  server: 1
+    expect ok: "true"
+  end
+
+
+  # ── CoolingUnit aggregate ──────────────────────────────────────────
+
+  test "InstallCoolingUnit sets unit_id + zone + target_temp_c + coolant_type" do
+    tests "InstallCoolingUnit", on: "CoolingUnit"
+    input  unit_id: "sample", zone: "sample", target_temp_c: 1.0, coolant_type: "sample"
+    expect ok: "true"
+  end
+
+  test "AdjustTargetTemperature sets target_temp_c" do
+    tests "AdjustTargetTemperature", on: "CoolingUnit"
+    setup  "InstallCoolingUnit", unit_id: "sample", zone: "sample", target_temp_c: 1.0, coolant_type: "sample"
+    input  cooling_unit: 1, target_temp_c: 1.0
+    expect ok: "true"
+  end
+
+  test "ShutdownCoolingUnit runs" do
+    tests "ShutdownCoolingUnit", on: "CoolingUnit"
+    setup  "InstallCoolingUnit", unit_id: "sample", zone: "sample", target_temp_c: 1.0, coolant_type: "sample"
+    input  cooling_unit: 1
+    expect ok: "true"
+  end
+
+
+  # ── PowerCircuit aggregate ──────────────────────────────────────────
+
+  test "ActivateCircuit sets circuit_id + capacity_kw + redundancy_level" do
+    tests "ActivateCircuit", on: "PowerCircuit"
+    input  circuit_id: "sample", capacity_kw: 1.0, redundancy_level: "sample"
+    expect ok: "true"
+  end
+
+  test "RecordLoad sets load_kw" do
+    tests "RecordLoad", on: "PowerCircuit"
+    setup  "ActivateCircuit", circuit_id: "sample", capacity_kw: 1.0, redundancy_level: "sample"
+    input  power_circuit: 1, load_kw: 1.0
+    expect ok: "true"
+  end
+
+  test "TripCircuit runs" do
+    tests "TripCircuit", on: "PowerCircuit"
+    setup  "ActivateCircuit", circuit_id: "sample", capacity_kw: 1.0, redundancy_level: "sample"
+    input  power_circuit: 1
+    expect ok: "true"
+  end
+
+
+  # ── Incident aggregate ──────────────────────────────────────────
+
+  test "ReportIncident sets incident_number + severity + summary + affected_zone" do
+    tests "ReportIncident", on: "Incident"
+    input  server: 1, incident_number: "sample", severity: "sample", summary: "sample", affected_zone: "sample"
+    expect ok: "true"
+  end
+
+  test "EscalateIncident sets severity + assigned_to" do
+    tests "EscalateIncident", on: "Incident"
+    input  incident: 1, severity: "sample", assigned_to: "sample"
+    expect ok: "true"
+  end
+
+  test "ResolveIncident sets resolution_note" do
+    tests "ResolveIncident", on: "Incident"
+    input  incident: 1, resolution_note: "sample"
+    expect ok: "true"
+  end
+
+end

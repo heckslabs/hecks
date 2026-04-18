@@ -1,0 +1,88 @@
+Hecks.behaviors "Planetarium" do
+  vision "Behavioral tests for the Planetarium domain — exercises every command and query in memory"
+
+  # ── CelestialBody aggregate ──────────────────────────────────────────
+
+  test "CatalogBody sets name + body_type + right_ascension_hr + declination_deg + apparent_magnitude + constellation" do
+    tests "CatalogBody", on: "CelestialBody"
+    input  name: "sample", body_type: "sample", right_ascension_hr: 1.0, declination_deg: 1.0, apparent_magnitude: 1.0, constellation: "sample"
+    expect name: "sample", body_type: "sample", right_ascension_hr: 1.0, declination_deg: 1.0, apparent_magnitude: 1.0, constellation: "sample", status: "cataloged"
+  end
+
+  test "UpdatePosition sets right_ascension_hr + declination_deg" do
+    tests "UpdatePosition", on: "CelestialBody"
+    setup  "CatalogBody", name: "sample", body_type: "sample", right_ascension_hr: 1.0, declination_deg: 1.0, apparent_magnitude: 1.0, constellation: "sample"
+    input  celestial_body: 1, right_ascension_hr: 1.0, declination_deg: 1.0
+    expect right_ascension_hr: 1.0, declination_deg: 1.0
+  end
+
+
+  # ── Projector aggregate ──────────────────────────────────────────
+
+  test "InstallProjector sets projector_id + projector_type + resolution_pixels + dome_coverage_pct + brightness_lumens" do
+    tests "InstallProjector", on: "Projector"
+    input  projector_id: "sample", projector_type: "sample", resolution_pixels: 1, dome_coverage_pct: 1.0, brightness_lumens: 1.0
+    expect projector_id: "sample", projector_type: "sample", resolution_pixels: 1, dome_coverage_pct: 1.0, brightness_lumens: 1.0, status: "installed"
+  end
+
+  test "CalibrateProjector runs" do
+    tests "CalibrateProjector", on: "Projector"
+    setup  "InstallProjector", projector_id: "sample", projector_type: "sample", resolution_pixels: 1, dome_coverage_pct: 1.0, brightness_lumens: 1.0
+    input  projector: 1
+    expect status: "calibrated"
+  end
+
+  test "ActivateProjector runs" do
+    tests "ActivateProjector", on: "Projector"
+    setup  "InstallProjector", projector_id: "sample", projector_type: "sample", resolution_pixels: 1, dome_coverage_pct: 1.0, brightness_lumens: 1.0
+    input  projector: 1
+    expect status: "active"
+  end
+
+
+  # ── Show aggregate ──────────────────────────────────────────
+
+  test "CreateShow sets title + theme + duration_minutes + target_audience + narration_type" do
+    tests "CreateShow", on: "Show"
+    input  title: "sample", theme: "sample", duration_minutes: 1, target_audience: "sample", narration_type: "sample"
+    expect title: "sample", theme: "sample", duration_minutes: 1, target_audience: "sample", narration_type: "sample", status: "created"
+  end
+
+  test "RehearsalShow runs" do
+    tests "RehearsalShow", on: "Show"
+    setup  "CreateShow", title: "sample", theme: "sample", duration_minutes: 1, target_audience: "sample", narration_type: "sample"
+    input  show: 1
+    expect status: "rehearsed"
+  end
+
+  test "PublishShow runs" do
+    tests "PublishShow", on: "Show"
+    setup  "CreateShow", title: "sample", theme: "sample", duration_minutes: 1, target_audience: "sample", narration_type: "sample"
+    input  show: 1
+    expect status: "published"
+  end
+
+
+  # ── ShowSchedule aggregate ──────────────────────────────────────────
+
+  test "ScheduleShow sets show_title + show_date + show_time + capacity" do
+    tests "ScheduleShow", on: "ShowSchedule"
+    input  show_title: "sample", show_date: "sample", show_time: "sample", capacity: 1
+    expect show_title: "sample", show_date: "sample", show_time: "sample", capacity: 1, tickets_sold: 0, status: "scheduled"
+  end
+
+  test "SellTicket runs" do
+    tests "SellTicket", on: "ShowSchedule"
+    setup  "ScheduleShow", show_title: "sample", show_date: "sample", show_time: "sample", capacity: 1
+    input  show_schedule: 1
+    expect ok: "true"
+  end
+
+  test "CancelShow runs" do
+    tests "CancelShow", on: "ShowSchedule"
+    setup  "ScheduleShow", show_title: "sample", show_date: "sample", show_time: "sample", capacity: 1
+    input  show_schedule: 1
+    expect status: "cancelled"
+  end
+
+end

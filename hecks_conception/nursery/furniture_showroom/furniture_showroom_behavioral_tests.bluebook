@@ -1,0 +1,88 @@
+Hecks.behaviors "FurnitureShowroom" do
+  vision "Behavioral tests for the FurnitureShowroom domain — exercises every command and query in memory"
+
+  # ── FurniturePiece aggregate ──────────────────────────────────────────
+
+  test "AddPiece sets sku + name + collection + material + price" do
+    tests "AddPiece", on: "FurniturePiece"
+    input  sku: "sample", name: "sample", collection: "sample", material: "sample", price: 1.0
+    expect sku: "sample", name: "sample", collection: "sample", material: "sample", price: 1.0, status: "on_display"
+  end
+
+  test "SellPiece runs" do
+    tests "SellPiece", on: "FurniturePiece"
+    setup  "AddPiece", sku: "sample", name: "sample", collection: "sample", material: "sample", price: 1.0
+    input  furniture_piece: 1
+    expect status: "sold"
+  end
+
+  test "DiscontinuePiece runs" do
+    tests "DiscontinuePiece", on: "FurniturePiece"
+    setup  "AddPiece", sku: "sample", name: "sample", collection: "sample", material: "sample", price: 1.0
+    input  furniture_piece: 1
+    expect status: "discontinued"
+  end
+
+
+  # ── ShowroomRoom aggregate ──────────────────────────────────────────
+
+  test "StageRoom sets room_name + style" do
+    tests "StageRoom", on: "ShowroomRoom"
+    input  room_name: "sample", style: "sample"
+    expect room_name: "sample", style: "sample", status: "active"
+  end
+
+  test "RestageRoom sets style" do
+    tests "RestageRoom", on: "ShowroomRoom"
+    setup  "StageRoom", room_name: "sample", style: "sample"
+    input  showroom_room: 1, style: "sample"
+    expect style: "sample"
+  end
+
+
+  # ── Delivery aggregate ──────────────────────────────────────────
+
+  test "ScheduleDelivery sets delivery_id + sku + customer_name + address + scheduled_date" do
+    tests "ScheduleDelivery", on: "Delivery"
+    input  delivery_id: "sample", sku: "sample", customer_name: "sample", address: "sample", scheduled_date: "sample"
+    expect delivery_id: "sample", sku: "sample", customer_name: "sample", address: "sample", scheduled_date: "sample", status: "scheduled"
+  end
+
+  test "CompleteDelivery runs" do
+    tests "CompleteDelivery", on: "Delivery"
+    setup  "ScheduleDelivery", delivery_id: "sample", sku: "sample", customer_name: "sample", address: "sample", scheduled_date: "sample"
+    input  delivery: 1
+    expect status: "delivered"
+  end
+
+  test "ReportDeliveryDamage sets damage_description" do
+    tests "ReportDeliveryDamage", on: "Delivery"
+    setup  "ScheduleDelivery", delivery_id: "sample", sku: "sample", customer_name: "sample", address: "sample", scheduled_date: "sample"
+    input  delivery: 1, damage_description: "sample"
+    expect status: "damaged"
+  end
+
+
+  # ── Warranty aggregate ──────────────────────────────────────────
+
+  test "ActivateWarranty sets warranty_id + sku + customer_name + coverage_type + expiration_date" do
+    tests "ActivateWarranty", on: "Warranty"
+    input  warranty_id: "sample", sku: "sample", customer_name: "sample", coverage_type: "sample", expiration_date: "sample"
+    expect warranty_id: "sample", sku: "sample", customer_name: "sample", coverage_type: "sample", expiration_date: "sample", status: "active"
+  end
+
+  test "FileWarrantyClaim sets issue_description" do
+    tests "FileWarrantyClaim", on: "Warranty"
+    setup  "ActivateWarranty", warranty_id: "sample", sku: "sample", customer_name: "sample", coverage_type: "sample", expiration_date: "sample"
+    input  warranty: 1, issue_description: "sample"
+    expect status: "claim_pending"
+  end
+
+  test "ResolveWarrantyClaim sets resolution" do
+    tests "ResolveWarrantyClaim", on: "Warranty"
+    setup  "ActivateWarranty", warranty_id: "sample", sku: "sample", customer_name: "sample", coverage_type: "sample", expiration_date: "sample"
+    input  warranty: 1, resolution: "sample"
+    expect status: "resolved"
+  end
+
+end

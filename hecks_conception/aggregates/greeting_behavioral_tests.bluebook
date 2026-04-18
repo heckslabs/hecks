@@ -1,0 +1,34 @@
+Hecks.behaviors "Greeting" do
+  vision "Behavioral tests for the Greeting domain — exercises every command and query in memory"
+
+  # ── Greeting aggregate ──────────────────────────────────────────
+
+  test "GenerateGreeting sets being + text + mood + generated_at" do
+    tests "GenerateGreeting", on: "Greeting"
+    input  being: "sample", text: "sample", mood: "sample", generated_at: "sample"
+    expect being: "sample", text: "sample", mood: "sample", generated_at: "sample", served: "false"
+  end
+
+  test "ServeGreeting runs" do
+    tests "ServeGreeting", on: "Greeting"
+    setup  "GenerateGreeting", being: "sample", text: "sample", mood: "sample", generated_at: "sample"
+    input  greeting: 1
+    expect served: "true"
+  end
+
+
+  # ── GreetingQueue aggregate ──────────────────────────────────────────
+
+  test "RefillQueue runs" do
+    tests "RefillQueue", on: "GreetingQueue"
+    input  greeting_queue: 1
+    expect last_churned: "now"
+  end
+
+  test "SetTarget sets target_count" do
+    tests "SetTarget", on: "GreetingQueue"
+    input  greeting_queue: 1, target_count: 1
+    expect target_count: 1
+  end
+
+end

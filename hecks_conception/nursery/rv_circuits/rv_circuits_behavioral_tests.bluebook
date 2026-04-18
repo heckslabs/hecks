@@ -1,0 +1,26 @@
+Hecks.behaviors "RVCircuits" do
+  vision "Behavioral tests for the RVCircuits domain — exercises every command and query in memory"
+
+  # ── Circuit aggregate ──────────────────────────────────────────
+
+  test "AddCircuit sets name + load_name + watts + voltage + power_type + run_length_feet" do
+    tests "AddCircuit", on: "Circuit"
+    input  name: "sample", load_name: "sample", watts: 1.0, voltage: 1.0, power_type: "sample", run_length_feet: 1.0
+    expect name: "sample", load_name: "sample", watts: 1.0, voltage: 1.0, power_type: "sample", run_length_feet: 1.0
+  end
+
+  test "CalculateCircuit runs" do
+    tests "CalculateCircuit", on: "Circuit"
+    setup  "AddCircuit", name: "sample", load_name: "sample", watts: 1.0, voltage: 1.0, power_type: "sample", run_length_feet: 1.0
+    input  circuit: 1
+    expect ok: "true"
+  end
+
+  test "FlagOverload sets actual_amps + rated_amps" do
+    tests "FlagOverload", on: "Circuit"
+    setup  "AddCircuit", name: "sample", load_name: "sample", watts: 1.0, voltage: 1.0, power_type: "sample", run_length_feet: 1.0
+    input  circuit: 1, actual_amps: 1.0, rated_amps: 1.0
+    expect ok: "true"
+  end
+
+end

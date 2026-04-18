@@ -1,0 +1,58 @@
+Hecks.behaviors "Demand" do
+  vision "Behavioral tests for the Demand domain — exercises every command and query in memory"
+
+  # ── DemandSignal aggregate ──────────────────────────────────────────
+
+  test "CaptureDemandSignal sets sku + channel + period + units_sold + sell_through_rate + weeks_of_supply" do
+    tests "CaptureDemandSignal", on: "DemandSignal"
+    input  sku: "sample", channel: "sample", period: "sample", units_sold: 1, sell_through_rate: 1.0, weeks_of_supply: 1.0
+    expect sku: "sample", channel: "sample", period: "sample", units_sold: 1, sell_through_rate: 1.0, weeks_of_supply: 1.0
+  end
+
+  test "AdjustSeasonalIndex sets seasonal_index" do
+    tests "AdjustSeasonalIndex", on: "DemandSignal"
+    setup  "CaptureDemandSignal", sku: "sample", channel: "sample", period: "sample", units_sold: 1, sell_through_rate: 1.0, weeks_of_supply: 1.0
+    input  demand_signal: 1, seasonal_index: 1.0
+    expect seasonal_index: 1.0
+  end
+
+
+  # ── Forecast aggregate ──────────────────────────────────────────
+
+  test "GenerateForecast sets sku + channel + forecast_period + forecasted_units + confidence_interval_low + confidence_interval_high + model_type + safety_stock_units" do
+    tests "GenerateForecast", on: "Forecast"
+    input  sku: "sample", channel: "sample", forecast_period: "sample", forecasted_units: 1, confidence_interval_low: 1, confidence_interval_high: 1, model_type: "sample", safety_stock_units: 1
+    expect sku: "sample", channel: "sample", forecast_period: "sample", forecasted_units: 1, confidence_interval_low: 1, confidence_interval_high: 1, model_type: "sample", safety_stock_units: 1, status: "active"
+  end
+
+  test "OverrideForecast sets forecasted_units + safety_stock_units" do
+    tests "OverrideForecast", on: "Forecast"
+    setup  "GenerateForecast", sku: "sample", channel: "sample", forecast_period: "sample", forecasted_units: 1, confidence_interval_low: 1, confidence_interval_high: 1, model_type: "sample", safety_stock_units: 1
+    input  forecast: 1, forecasted_units: 1, safety_stock_units: 1
+    expect forecasted_units: 1, safety_stock_units: 1
+  end
+
+
+  # ── ReorderRecommendation aggregate ──────────────────────────────────────────
+
+  test "GenerateReorderRecommendation sets sku + recommended_quantity + economic_order_quantity + lead_time_days + safety_stock_units + reorder_date" do
+    tests "GenerateReorderRecommendation", on: "ReorderRecommendation"
+    input  sku: "sample", recommended_quantity: 1, economic_order_quantity: 1, lead_time_days: 1, safety_stock_units: 1, reorder_date: "sample"
+    expect sku: "sample", recommended_quantity: 1, economic_order_quantity: 1, lead_time_days: 1, safety_stock_units: 1, reorder_date: "sample", status: "pending"
+  end
+
+  test "ApproveReorderRecommendation runs" do
+    tests "ApproveReorderRecommendation", on: "ReorderRecommendation"
+    setup  "GenerateReorderRecommendation", sku: "sample", recommended_quantity: 1, economic_order_quantity: 1, lead_time_days: 1, safety_stock_units: 1, reorder_date: "sample"
+    input  reorder_recommendation: 1
+    expect status: "approved"
+  end
+
+  test "RejectReorderRecommendation runs" do
+    tests "RejectReorderRecommendation", on: "ReorderRecommendation"
+    setup  "GenerateReorderRecommendation", sku: "sample", recommended_quantity: 1, economic_order_quantity: 1, lead_time_days: 1, safety_stock_units: 1, reorder_date: "sample"
+    input  reorder_recommendation: 1
+    expect status: "rejected"
+  end
+
+end

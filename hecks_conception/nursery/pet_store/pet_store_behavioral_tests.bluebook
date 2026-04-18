@@ -1,0 +1,81 @@
+Hecks.behaviors "PetStore" do
+  vision "Behavioral tests for the PetStore domain — exercises every command and query in memory"
+
+  # ── Animal aggregate ──────────────────────────────────────────
+
+  test "IntakeAnimal sets animal_id + species + breed + name + age_months + price" do
+    tests "IntakeAnimal", on: "Animal"
+    input  animal_id: "sample", species: "sample", breed: "sample", name: "sample", age_months: 1, price: 1.0
+    expect animal_id: "sample", species: "sample", breed: "sample", name: "sample", age_months: 1, price: 1.0, status: "available"
+  end
+
+  test "VaccinateAnimal sets vaccine_name" do
+    tests "VaccinateAnimal", on: "Animal"
+    setup  "IntakeAnimal", animal_id: "sample", species: "sample", breed: "sample", name: "sample", age_months: 1, price: 1.0
+    input  animal: 1, vaccine_name: "sample"
+    expect ok: "true"
+  end
+
+  test "QuarantineAnimal runs" do
+    tests "QuarantineAnimal", on: "Animal"
+    setup  "IntakeAnimal", animal_id: "sample", species: "sample", breed: "sample", name: "sample", age_months: 1, price: 1.0
+    input  animal: 1
+    expect status: "quarantined"
+  end
+
+
+  # ── Supply aggregate ──────────────────────────────────────────
+
+  test "StockSupply sets sku + name + category + price + quantity + pet_type" do
+    tests "StockSupply", on: "Supply"
+    input  sku: "sample", name: "sample", category: "sample", price: 1.0, quantity: 1, pet_type: "sample"
+    expect sku: "sample", name: "sample", category: "sample", price: 1.0, quantity: 1, pet_type: "sample"
+  end
+
+  test "ReorderSupply sets reorder_quantity" do
+    tests "ReorderSupply", on: "Supply"
+    setup  "StockSupply", sku: "sample", name: "sample", category: "sample", price: 1.0, quantity: 1, pet_type: "sample"
+    input  supply: 1, reorder_quantity: 1
+    expect ok: "true"
+  end
+
+
+  # ── Adoption aggregate ──────────────────────────────────────────
+
+  test "SubmitAdoptionApplication sets adoption_id + animal_id + adopter_name + adopter_phone + adoption_fee" do
+    tests "SubmitAdoptionApplication", on: "Adoption"
+    input  adoption_id: "sample", animal_id: "sample", adopter_name: "sample", adopter_phone: "sample", adoption_fee: 1.0
+    expect adoption_id: "sample", animal_id: "sample", adopter_name: "sample", adopter_phone: "sample", adoption_fee: 1.0, status: "pending"
+  end
+
+  test "ApproveAdoption runs" do
+    tests "ApproveAdoption", on: "Adoption"
+    setup  "SubmitAdoptionApplication", adoption_id: "sample", animal_id: "sample", adopter_name: "sample", adopter_phone: "sample", adoption_fee: 1.0
+    input  adoption: 1
+    expect status: "approved"
+  end
+
+  test "FinalizeAdoption runs" do
+    tests "FinalizeAdoption", on: "Adoption"
+    setup  "SubmitAdoptionApplication", adoption_id: "sample", animal_id: "sample", adopter_name: "sample", adopter_phone: "sample", adoption_fee: 1.0
+    input  adoption: 1
+    expect status: "finalized"
+  end
+
+
+  # ── GroomingAppointment aggregate ──────────────────────────────────────────
+
+  test "BookGrooming sets appointment_id + pet_name + owner_name + service_type + scheduled_time + price" do
+    tests "BookGrooming", on: "GroomingAppointment"
+    input  appointment_id: "sample", pet_name: "sample", owner_name: "sample", service_type: "sample", scheduled_time: "sample", price: 1.0
+    expect appointment_id: "sample", pet_name: "sample", owner_name: "sample", service_type: "sample", scheduled_time: "sample", price: 1.0, status: "booked"
+  end
+
+  test "CompleteGrooming runs" do
+    tests "CompleteGrooming", on: "GroomingAppointment"
+    setup  "BookGrooming", appointment_id: "sample", pet_name: "sample", owner_name: "sample", service_type: "sample", scheduled_time: "sample", price: 1.0
+    input  grooming_appointment: 1
+    expect status: "completed"
+  end
+
+end

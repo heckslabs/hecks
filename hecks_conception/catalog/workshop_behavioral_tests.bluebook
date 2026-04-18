@@ -1,0 +1,495 @@
+Hecks.behaviors "Workshop" do
+  vision "Behavioral tests for the Workshop domain — exercises every command and query in memory"
+
+  # ── ConstantHoister aggregate ──────────────────────────────────────────
+
+  test "HoistAggregate sets const_name" do
+    tests "HoistAggregate", on: "ConstantHoister"
+    input  const_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── WorkshopRunner aggregate ──────────────────────────────────────────
+
+  test "Run runs" do
+    tests "Run", on: "WorkshopRunner"
+    expect ok: "true"
+  end
+
+
+  # ── WebRunner aggregate ──────────────────────────────────────────
+
+  test "Run runs" do
+    tests "Run", on: "WebRunner"
+    expect ok: "true"
+  end
+
+
+  # ── WorkshopSession aggregate ──────────────────────────────────────────
+
+  test "Execute sets input" do
+    tests "Execute", on: "WorkshopSession"
+    input  input: "sample"
+    expect ok: "true"
+  end
+
+  test "GetCompletions runs" do
+    tests "GetCompletions", on: "WorkshopSession"
+    expect ok: "true"
+  end
+
+
+  # ── Playground aggregate ──────────────────────────────────────────
+
+  test "Execute sets command_name" do
+    tests "Execute", on: "Playground"
+    input  command_name: "sample"
+    expect ok: "true"
+  end
+
+  test "Reset runs" do
+    tests "Reset", on: "Playground"
+    expect ok: "true"
+  end
+
+
+  # ── Tour aggregate ──────────────────────────────────────────
+
+  test "Start runs" do
+    tests "Start", on: "Tour"
+    expect ok: "true"
+  end
+
+
+  # ── GemBootstrap aggregate ──────────────────────────────────────────
+
+  test "Compile runs" do
+    tests "Compile", on: "GemBootstrap"
+    expect ok: "true"
+  end
+
+
+  # ── RuntimeResolver aggregate ──────────────────────────────────────────
+
+  test "ResolveCommand sets name" do
+    tests "ResolveCommand", on: "RuntimeResolver"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SketchSteps aggregate ──────────────────────────────────────────
+
+  test "CreateAggregateStep runs" do
+    tests "CreateAggregateStep", on: "SketchSteps"
+    expect ok: "true"
+  end
+
+  test "AddAttributeStep runs" do
+    tests "AddAttributeStep", on: "SketchSteps"
+    expect ok: "true"
+  end
+
+  test "AddLifecycleStep runs" do
+    tests "AddLifecycleStep", on: "SketchSteps"
+    expect ok: "true"
+  end
+
+  test "BrowseStep runs" do
+    tests "BrowseStep", on: "SketchSteps"
+    expect ok: "true"
+  end
+
+  test "ValidateStep runs" do
+    tests "ValidateStep", on: "SketchSteps"
+    expect ok: "true"
+  end
+
+
+  # ── PlaySteps aggregate ──────────────────────────────────────────
+
+  test "EnterPlayStep runs" do
+    tests "EnterPlayStep", on: "PlaySteps"
+    expect ok: "true"
+  end
+
+  test "CreateInstanceStep runs" do
+    tests "CreateInstanceStep", on: "PlaySteps"
+    expect ok: "true"
+  end
+
+  test "QueryAllStep runs" do
+    tests "QueryAllStep", on: "PlaySteps"
+    expect ok: "true"
+  end
+
+  test "CheckEventsStep runs" do
+    tests "CheckEventsStep", on: "PlaySteps"
+    expect ok: "true"
+  end
+
+  test "BuildStep runs" do
+    tests "BuildStep", on: "PlaySteps"
+    expect ok: "true"
+  end
+
+
+  # ── AggregateSerializer aggregate ──────────────────────────────────────────
+
+  test "Serialize runs" do
+    tests "Serialize", on: "AggregateSerializer"
+    expect ok: "true"
+  end
+
+
+  # ── EventSerializer aggregate ──────────────────────────────────────────
+
+  test "Serialize runs" do
+    tests "Serialize", on: "EventSerializer"
+    expect ok: "true"
+  end
+
+
+  # ── MermaidBuilder aggregate ──────────────────────────────────────────
+
+  test "Build sets aggregates" do
+    tests "Build", on: "MermaidBuilder"
+    input  aggregates: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── PolicyFlowBuilder aggregate ──────────────────────────────────────────
+
+  test "Build sets aggregates" do
+    tests "Build", on: "PolicyFlowBuilder"
+    input  aggregates: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ServiceSerializer aggregate ──────────────────────────────────────────
+
+  test "Serialize runs" do
+    tests "Serialize", on: "ServiceSerializer"
+    expect ok: "true"
+  end
+
+
+  # ── Evaluator aggregate ──────────────────────────────────────────
+
+  test "Evaluate sets input" do
+    tests "Evaluate", on: "Evaluator"
+    input  input: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── CommandParser aggregate ──────────────────────────────────────────
+
+  test "Execute sets input" do
+    tests "Execute", on: "CommandParser"
+    input  input: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── StateSerializer aggregate ──────────────────────────────────────────
+
+  test "Serialize runs" do
+    tests "Serialize", on: "StateSerializer"
+    expect ok: "true"
+  end
+
+
+  # ── Workshop aggregate ──────────────────────────────────────────
+
+  test "CreateSession sets name" do
+    tests "CreateSession", on: "Workshop"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+  test "AddAggregate sets name" do
+    tests "AddAggregate", on: "Workshop"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+  test "RemoveAggregate sets aggregate_name" do
+    tests "RemoveAggregate", on: "Workshop"
+    input  aggregate_name: "sample"
+    expect ok: "true"
+  end
+
+  test "AddVerb sets word" do
+    tests "AddVerb", on: "Workshop"
+    input  word: "sample"
+    expect ok: "true"
+  end
+
+  test "Promote sets aggregate_name" do
+    tests "Promote", on: "Workshop"
+    input  aggregate_name: "sample"
+    expect ok: "true"
+  end
+
+  test "ActivateActiveHecks runs" do
+    tests "ActivateActiveHecks", on: "Workshop"
+    expect ok: "true"
+  end
+
+
+  # ── AggregateHandle aggregate ──────────────────────────────────────────
+
+  test "AddAttribute sets name + type" do
+    tests "AddAttribute", on: "AggregateHandle"
+    input  name: "sample", type: "sample"
+    expect ok: "true"
+  end
+
+  test "AddCommand sets name" do
+    tests "AddCommand", on: "AggregateHandle"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+  test "AddPolicy sets name" do
+    tests "AddPolicy", on: "AggregateHandle"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+  test "AddLifecycle sets field" do
+    tests "AddLifecycle", on: "AggregateHandle"
+    input  field: "sample"
+    expect ok: "true"
+  end
+
+  test "AddTransition sets from + to" do
+    tests "AddTransition", on: "AggregateHandle"
+    input  from: "sample", to: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── CommandHandle aggregate ──────────────────────────────────────────
+
+  test "AddAttribute sets name + type" do
+    tests "AddAttribute", on: "CommandHandle"
+    input  name: "sample", type: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── BuildActions aggregate ──────────────────────────────────────────
+
+  test "Validate runs" do
+    tests "Validate", on: "BuildActions"
+    expect ok: "true"
+  end
+
+  test "Preview runs" do
+    tests "Preview", on: "BuildActions"
+    expect ok: "true"
+  end
+
+  test "Build runs" do
+    tests "Build", on: "BuildActions"
+    expect ok: "true"
+  end
+
+  test "Save runs" do
+    tests "Save", on: "BuildActions"
+    expect ok: "true"
+  end
+
+  test "ToDsl runs" do
+    tests "ToDsl", on: "BuildActions"
+    expect ok: "true"
+  end
+
+
+  # ── SessionImage aggregate ──────────────────────────────────────────
+
+  test "Capture runs" do
+    tests "Capture", on: "SessionImage"
+    expect ok: "true"
+  end
+
+  test "Restore runs" do
+    tests "Restore", on: "SessionImage"
+    expect ok: "true"
+  end
+
+
+  # ── PersistentImage aggregate ──────────────────────────────────────────
+
+  test "SaveImage sets name" do
+    tests "SaveImage", on: "PersistentImage"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+  test "RestoreImage sets name" do
+    tests "RestoreImage", on: "PersistentImage"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+  test "ListImages runs" do
+    tests "ListImages", on: "PersistentImage"
+    expect ok: "true"
+  end
+
+
+  # ── Presenter aggregate ──────────────────────────────────────────
+
+  test "Describe runs" do
+    tests "Describe", on: "Presenter"
+    expect ok: "true"
+  end
+
+  test "ShowStatus runs" do
+    tests "ShowStatus", on: "Presenter"
+    expect ok: "true"
+  end
+
+
+  # ── BehaviorMethods aggregate ──────────────────────────────────────────
+
+  test "AddCommand sets name" do
+    tests "AddCommand", on: "BehaviorMethods"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ConstraintMethods aggregate ──────────────────────────────────────────
+
+  test "AddValidation sets name" do
+    tests "AddValidation", on: "ConstraintMethods"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── QueryMethods aggregate ──────────────────────────────────────────
+
+  test "AddQuery sets name" do
+    tests "AddQuery", on: "QueryMethods"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ImplicitSyntax aggregate ──────────────────────────────────────────
+
+  test "HandleMissing sets method_name" do
+    tests "HandleMissing", on: "ImplicitSyntax"
+    input  method_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── MessageNotUnderstood aggregate ──────────────────────────────────────────
+
+  test "HandleMissing sets method_name" do
+    tests "HandleMissing", on: "MessageNotUnderstood"
+    input  method_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── BluebookMode aggregate ──────────────────────────────────────────
+
+  test "AddChapter sets name" do
+    tests "AddChapter", on: "BluebookMode"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+  test "ListChapters runs" do
+    tests "ListChapters", on: "BluebookMode"
+    expect ok: "true"
+  end
+
+  test "ToBluebook runs" do
+    tests "ToBluebook", on: "BluebookMode"
+    expect ok: "true"
+  end
+
+
+  # ── PlayMode aggregate ──────────────────────────────────────────
+
+  test "EnterPlay runs" do
+    tests "EnterPlay", on: "PlayMode"
+    expect ok: "true"
+  end
+
+  test "ExitPlay runs" do
+    tests "ExitPlay", on: "PlayMode"
+    expect ok: "true"
+  end
+
+  test "ResetPlayground runs" do
+    tests "ResetPlayground", on: "PlayMode"
+    expect ok: "true"
+  end
+
+
+  # ── VisualizeMode aggregate ──────────────────────────────────────────
+
+  test "Visualize sets format" do
+    tests "Visualize", on: "VisualizeMode"
+    input  format: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SystemBrowser aggregate ──────────────────────────────────────────
+
+  test "Browse sets aggregate_name" do
+    tests "Browse", on: "SystemBrowser"
+    input  aggregate_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DeepInspect aggregate ──────────────────────────────────────────
+
+  test "Inspect sets aggregate_name" do
+    tests "Inspect", on: "DeepInspect"
+    input  aggregate_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Navigator aggregate ──────────────────────────────────────────
+
+  test "Walk sets aggregate_name" do
+    tests "Walk", on: "Navigator"
+    input  aggregate_name: "sample"
+    expect ok: "true"
+  end
+
+  test "WalkAll runs" do
+    tests "WalkAll", on: "Navigator"
+    expect ok: "true"
+  end
+
+
+  # ── Renderer aggregate ──────────────────────────────────────────
+
+  test "RenderAttribute runs" do
+    tests "RenderAttribute", on: "Renderer"
+    expect ok: "true"
+  end
+
+  test "RenderCommand runs" do
+    tests "RenderCommand", on: "Renderer"
+    expect ok: "true"
+  end
+
+end

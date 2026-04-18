@@ -1,0 +1,80 @@
+Hecks.behaviors "Vocabulary" do
+  vision "Behavioral tests for the Vocabulary domain — exercises every command and query in memory"
+
+  # ── Sentence aggregate ──────────────────────────────────────────
+
+  test "Define sets phrase + domain + command + aggregate + actor + parameters" do
+    tests "Define", on: "Sentence"
+    input  phrase: "sample", domain: "sample", command: "sample", aggregate: "sample", actor: "sample", parameters: "sample"
+    expect phrase: "sample", domain: "sample", command: "sample", aggregate: "sample", actor: "sample", parameters: "sample"
+  end
+
+  test "Translate sets natural_phrase" do
+    tests "Translate", on: "Sentence"
+    setup  "Define", phrase: "sample", domain: "sample", command: "sample", aggregate: "sample", actor: "sample", parameters: "sample"
+    input  sentence: 1, natural_phrase: "sample"
+    expect translations_size: 1
+  end
+
+
+  # ── Composition aggregate ──────────────────────────────────────────
+
+  test "Compose sets phrase + from_domain + from_command + to_domain + to_command + bridge_type + connector" do
+    tests "Compose", on: "Composition"
+    input  phrase: "sample", from_domain: "sample", from_command: "sample", to_domain: "sample", to_command: "sample", bridge_type: "sample", connector: "sample"
+    expect phrase: "sample", from_domain: "sample", from_command: "sample", to_domain: "sample", to_command: "sample", bridge_type: "sample", connector: "sample"
+  end
+
+  test "TranslateComposition sets natural_phrase" do
+    tests "TranslateComposition", on: "Composition"
+    setup  "Compose", phrase: "sample", from_domain: "sample", from_command: "sample", to_domain: "sample", to_command: "sample", bridge_type: "sample", connector: "sample"
+    input  composition: 1, natural_phrase: "sample"
+    expect translations_size: 1
+  end
+
+  test "MarkInvalid runs" do
+    tests "MarkInvalid", on: "Composition"
+    setup  "Compose", phrase: "sample", from_domain: "sample", from_command: "sample", to_domain: "sample", to_command: "sample", bridge_type: "sample", connector: "sample"
+    input  composition: 1
+    expect valid: "false"
+  end
+
+
+  # ── Acl aggregate ──────────────────────────────────────────
+
+  test "Grant sets actor + canonical_phrase + command_path" do
+    tests "Grant", on: "Acl"
+    input  actor: "sample", canonical_phrase: "sample", command_path: "sample"
+    expect actor: "sample", canonical_phrase: "sample", command_path: "sample"
+  end
+
+  test "AddPhrase sets phrase" do
+    tests "AddPhrase", on: "Acl"
+    setup  "AddPhrase", phrase: "sample"
+    input  acl: 1, phrase: "sample"
+    expect natural_phrases_size: 1
+  end
+
+  test "BindParam sets word + maps_to + in_command" do
+    tests "BindParam", on: "Acl"
+    setup  "AddPhrase", phrase: "sample"
+    input  acl: 1, word: "sample", maps_to: "sample", in_command: "sample"
+    expect parameter_map_size: 1
+  end
+
+
+  # ── Lexicon aggregate ──────────────────────────────────────────
+
+  test "Compile runs" do
+    tests "Compile", on: "Lexicon"
+    expect last_compiled: "now"
+  end
+
+  test "Match sets input" do
+    tests "Match", on: "Lexicon"
+    setup  "Compile"
+    input  lexicon: 1, input: "sample"
+    expect ok: "true"
+  end
+
+end

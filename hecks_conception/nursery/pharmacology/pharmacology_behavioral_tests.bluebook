@@ -1,0 +1,79 @@
+Hecks.behaviors "Pharmacology" do
+  vision "Behavioral tests for the Pharmacology domain — exercises every command and query in memory"
+
+  # ── Compound aggregate ──────────────────────────────────────────
+
+  test "RegisterCompound sets compound_id + name + molecular_formula" do
+    tests "RegisterCompound", on: "Compound"
+    input  compound_id: "sample", name: "sample", molecular_formula: "sample"
+    expect compound_id: "sample", name: "sample", molecular_formula: "sample"
+  end
+
+  test "ScreenCompound runs" do
+    tests "ScreenCompound", on: "Compound"
+    setup  "RegisterCompound", compound_id: "sample", name: "sample", molecular_formula: "sample"
+    input  compound: 1
+    expect ok: "true"
+  end
+
+  test "ShelveCompound runs" do
+    tests "ShelveCompound", on: "Compound"
+    setup  "RegisterCompound", compound_id: "sample", name: "sample", molecular_formula: "sample"
+    input  compound: 1
+    expect ok: "true"
+  end
+
+
+  # ── ClinicalTrial aggregate ──────────────────────────────────────────
+
+  test "InitiateTrial sets trial_id + phase + enrollment_target" do
+    tests "InitiateTrial", on: "ClinicalTrial"
+    setup  "RegisterCompound", compound_id: "sample", name: "sample", molecular_formula: "sample"
+    input  compound: 1, trial_id: "sample", phase: "sample", enrollment_target: 1
+    expect ok: "true"
+  end
+
+  test "EnrollSubject sets subject_id" do
+    tests "EnrollSubject", on: "ClinicalTrial"
+    input  clinical_trial: 1, subject_id: "sample"
+    expect ok: "true"
+  end
+
+  test "ConcludeTrial runs" do
+    tests "ConcludeTrial", on: "ClinicalTrial"
+    input  clinical_trial: 1
+    expect ok: "true"
+  end
+
+
+  # ── AdverseEvent aggregate ──────────────────────────────────────────
+
+  test "ReportEvent sets description + severity" do
+    tests "ReportEvent", on: "AdverseEvent"
+    input  clinical_trial: 1, description: "sample", severity: "sample"
+    expect ok: "true"
+  end
+
+  test "AssessCausality sets assessment" do
+    tests "AssessCausality", on: "AdverseEvent"
+    input  adverse_event: 1, assessment: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── RegulatorySubmission aggregate ──────────────────────────────────────────
+
+  test "FileSubmission sets agency + submission_type" do
+    tests "FileSubmission", on: "RegulatorySubmission"
+    setup  "RegisterCompound", compound_id: "sample", name: "sample", molecular_formula: "sample"
+    input  compound: 1, agency: "sample", submission_type: "sample"
+    expect ok: "true"
+  end
+
+  test "GrantApproval runs" do
+    tests "GrantApproval", on: "RegulatorySubmission"
+    input  regulatory_submission: 1
+    expect ok: "true"
+  end
+
+end

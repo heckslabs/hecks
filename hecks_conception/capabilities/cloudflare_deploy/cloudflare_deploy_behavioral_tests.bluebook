@@ -1,0 +1,83 @@
+Hecks.behaviors "CloudflareDeploy" do
+  vision "Behavioral tests for the CloudflareDeploy domain — exercises every command and query in memory"
+
+  # ── Compilation aggregate ──────────────────────────────────────────
+
+  test "Compile sets source_path" do
+    tests "Compile", on: "Compilation"
+    input  source_path: "sample"
+    expect source_path: "sample"
+  end
+
+
+  # ── WorkerScript aggregate ──────────────────────────────────────────
+
+  test "GenerateWorker runs" do
+    tests "GenerateWorker", on: "WorkerScript"
+    expect ok: "true"
+  end
+
+
+  # ── PagesSite aggregate ──────────────────────────────────────────
+
+  test "GenerateSite runs" do
+    tests "GenerateSite", on: "PagesSite"
+    expect ok: "true"
+  end
+
+  test "WireApiCalls sets api_base_url" do
+    tests "WireApiCalls", on: "PagesSite"
+    setup  "GenerateSite"
+    input  pages_site: 1, api_base_url: "sample"
+    expect api_base_url: "sample"
+  end
+
+
+  # ── Migration aggregate ──────────────────────────────────────────
+
+  test "GenerateMigrations runs" do
+    tests "GenerateMigrations", on: "Migration"
+    expect ok: "true"
+  end
+
+
+  # ── WranglerConfig aggregate ──────────────────────────────────────────
+
+  test "GenerateConfig sets project_name" do
+    tests "GenerateConfig", on: "WranglerConfig"
+    input  project_name: "sample"
+    expect project_name: "sample"
+  end
+
+
+  # ── Deployment aggregate ──────────────────────────────────────────
+
+  test "ProvisionD1 sets database_name" do
+    tests "ProvisionD1", on: "Deployment"
+    input  database_name: "sample"
+    expect status: "provisioned"
+  end
+
+  test "ApplyMigrations runs" do
+    tests "ApplyMigrations", on: "Deployment"
+    expect status: "migrated"
+  end
+
+  test "DeployWorker runs" do
+    tests "DeployWorker", on: "Deployment"
+    expect status: "api_live"
+  end
+
+  test "DeployPages runs" do
+    tests "DeployPages", on: "Deployment"
+    expect status: "ui_live"
+  end
+
+  test "MarkLive sets worker_url + pages_url" do
+    tests "MarkLive", on: "Deployment"
+    setup  "ProvisionD1", database_name: "sample"
+    input  deployment: 1, worker_url: "sample", pages_url: "sample"
+    expect worker_url: "sample", pages_url: "sample", status: "live"
+  end
+
+end

@@ -1,0 +1,97 @@
+Hecks.behaviors "ThriftStore" do
+  vision "Behavioral tests for the ThriftStore domain — exercises every command and query in memory"
+
+  # ── Donation aggregate ──────────────────────────────────────────
+
+  test "ReceiveDonation sets donation_id + donor_name + received_date + item_count" do
+    tests "ReceiveDonation", on: "Donation"
+    input  donation_id: "sample", donor_name: "sample", received_date: "sample", item_count: 1
+    expect donation_id: "sample", donor_name: "sample", received_date: "sample", item_count: 1, status: "received"
+  end
+
+  test "SortDonation runs" do
+    tests "SortDonation", on: "Donation"
+    setup  "ReceiveDonation", donation_id: "sample", donor_name: "sample", received_date: "sample", item_count: 1
+    input  donation: 1
+    expect status: "sorted"
+  end
+
+  test "IssueTaxReceipt runs" do
+    tests "IssueTaxReceipt", on: "Donation"
+    setup  "ReceiveDonation", donation_id: "sample", donor_name: "sample", received_date: "sample", item_count: 1
+    input  donation: 1
+    expect ok: "true"
+  end
+
+
+  # ── PricedItem aggregate ──────────────────────────────────────────
+
+  test "PriceItem sets item_id + description + category + condition + price" do
+    tests "PriceItem", on: "PricedItem"
+    input  item_id: "sample", description: "sample", category: "sample", condition: "sample", price: 1.0
+    expect item_id: "sample", description: "sample", category: "sample", condition: "sample", price: 1.0, status: "priced"
+  end
+
+  test "MarkdownItem sets new_price" do
+    tests "MarkdownItem", on: "PricedItem"
+    setup  "PriceItem", item_id: "sample", description: "sample", category: "sample", condition: "sample", price: 1.0
+    input  priced_item: 1, new_price: 1.0
+    expect price: 1.0
+  end
+
+  test "SellItem runs" do
+    tests "SellItem", on: "PricedItem"
+    setup  "PriceItem", item_id: "sample", description: "sample", category: "sample", condition: "sample", price: 1.0
+    input  priced_item: 1
+    expect status: "sold"
+  end
+
+
+  # ── StoreDisplay aggregate ──────────────────────────────────────────
+
+  test "ArrangeDisplay sets display_id + theme + location" do
+    tests "ArrangeDisplay", on: "StoreDisplay"
+    input  display_id: "sample", theme: "sample", location: "sample"
+    expect display_id: "sample", theme: "sample", location: "sample", status: "active"
+  end
+
+  test "RotateDisplay runs" do
+    tests "RotateDisplay", on: "StoreDisplay"
+    setup  "ArrangeDisplay", display_id: "sample", theme: "sample", location: "sample"
+    input  store_display: 1
+    expect ok: "true"
+  end
+
+
+  # ── Volunteer aggregate ──────────────────────────────────────────
+
+  test "EnrollVolunteer sets volunteer_id + name + phone + availability" do
+    tests "EnrollVolunteer", on: "Volunteer"
+    input  volunteer_id: "sample", name: "sample", phone: "sample", availability: "sample"
+    expect volunteer_id: "sample", name: "sample", phone: "sample", availability: "sample"
+  end
+
+  test "LogShift sets date + hours" do
+    tests "LogShift", on: "Volunteer"
+    setup  "EnrollVolunteer", volunteer_id: "sample", name: "sample", phone: "sample", availability: "sample"
+    input  volunteer: 1, date: "sample", hours: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── SaleEvent aggregate ──────────────────────────────────────────
+
+  test "LaunchSale sets sale_id + name + discount_type + discount_amount + start_date + end_date" do
+    tests "LaunchSale", on: "SaleEvent"
+    input  sale_id: "sample", name: "sample", discount_type: "sample", discount_amount: 1.0, start_date: "sample", end_date: "sample"
+    expect sale_id: "sample", name: "sample", discount_type: "sample", discount_amount: 1.0, start_date: "sample", end_date: "sample", status: "active"
+  end
+
+  test "EndSale runs" do
+    tests "EndSale", on: "SaleEvent"
+    setup  "LaunchSale", sale_id: "sample", name: "sample", discount_type: "sample", discount_amount: 1.0, start_date: "sample", end_date: "sample"
+    input  sale_event: 1
+    expect status: "ended"
+  end
+
+end

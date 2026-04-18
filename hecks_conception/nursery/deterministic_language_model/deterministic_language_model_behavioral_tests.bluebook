@@ -1,0 +1,64 @@
+Hecks.behaviors "DeterministicLanguageModel" do
+  vision "Behavioral tests for the DeterministicLanguageModel domain — exercises every command and query in memory"
+
+  # ── Vocabulary aggregate ──────────────────────────────────────────
+
+  test "Compile runs" do
+    tests "Compile", on: "Vocabulary"
+    expect total_phrases: 0
+  end
+
+  test "Match sets input + matched_phrase + confidence" do
+    tests "Match", on: "Vocabulary"
+    input  input: "sample", matched_phrase: "sample", confidence: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── Context aggregate ──────────────────────────────────────────
+
+  test "Focus sets domain + aggregate" do
+    tests "Focus", on: "Context"
+    input  domain: "sample", aggregate: "sample"
+    expect active_domain: "sample", active_aggregate: "sample"
+  end
+
+  test "Shift sets domain" do
+    tests "Shift", on: "Context"
+    input  domain: "sample"
+    expect active_domain: "sample"
+  end
+
+
+  # ── Dispatch aggregate ──────────────────────────────────────────
+
+  test "Resolve sets input" do
+    tests "Resolve", on: "Dispatch"
+    input  input: "sample"
+    expect input: "sample", status: "resolved"
+  end
+
+  test "Execute runs" do
+    tests "Execute", on: "Dispatch"
+    setup  "Resolve", input: "sample"
+    input  dispatch: 1
+    expect status: "executed"
+  end
+
+  test "Fail runs" do
+    tests "Fail", on: "Dispatch"
+    setup  "Resolve", input: "sample"
+    input  dispatch: 1
+    expect status: "failed"
+  end
+
+
+  # ── Reasoning aggregate ──────────────────────────────────────────
+
+  test "Reason sets input" do
+    tests "Reason", on: "Reasoning"
+    input  input: "sample"
+    expect ok: "true"
+  end
+
+end

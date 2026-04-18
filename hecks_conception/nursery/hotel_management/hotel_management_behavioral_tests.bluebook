@@ -1,0 +1,93 @@
+Hecks.behaviors "HotelManagement" do
+  vision "Behavioral tests for the HotelManagement domain — exercises every command and query in memory"
+
+  # ── Room aggregate ──────────────────────────────────────────
+
+  test "AddRoom sets room_number + room_type + floor + nightly_rate + max_occupancy" do
+    tests "AddRoom", on: "Room"
+    input  room_number: "sample", room_type: "sample", floor: 1, nightly_rate: 1.0, max_occupancy: 1
+    expect room_number: "sample", room_type: "sample", floor: 1, nightly_rate: 1.0, max_occupancy: 1, status: "available"
+  end
+
+  test "BlockRoom runs" do
+    tests "BlockRoom", on: "Room"
+    setup  "AddRoom", room_number: "sample", room_type: "sample", floor: 1, nightly_rate: 1.0, max_occupancy: 1
+    input  room: 1
+    expect status: "blocked"
+  end
+
+  test "ReleaseRoom runs" do
+    tests "ReleaseRoom", on: "Room"
+    setup  "AddRoom", room_number: "sample", room_type: "sample", floor: 1, nightly_rate: 1.0, max_occupancy: 1
+    input  room: 1
+    expect status: "available"
+  end
+
+
+  # ── GuestStay aggregate ──────────────────────────────────────────
+
+  test "CheckInGuest sets guest_name + email + check_in_date + check_out_date + nights" do
+    tests "CheckInGuest", on: "GuestStay"
+    setup  "AddRoom", room_number: "sample", room_type: "sample", floor: 1, nightly_rate: 1.0, max_occupancy: 1
+    input  room: 1, guest_name: "sample", email: "sample", check_in_date: "sample", check_out_date: "sample", nights: 1
+    expect guest_name: "sample", email: "sample", check_in_date: "sample", check_out_date: "sample", nights: 1, status: "checked_in"
+  end
+
+  test "ExtendStay sets additional_nights" do
+    tests "ExtendStay", on: "GuestStay"
+    input  guest_stay: 1, additional_nights: 1
+    expect ok: "true"
+  end
+
+  test "CheckOutGuest runs" do
+    tests "CheckOutGuest", on: "GuestStay"
+    input  guest_stay: 1
+    expect status: "checked_out"
+  end
+
+
+  # ── HousekeepingTask aggregate ──────────────────────────────────────────
+
+  test "AssignHousekeeping sets task_type + priority + assigned_to" do
+    tests "AssignHousekeeping", on: "HousekeepingTask"
+    setup  "AddRoom", room_number: "sample", room_type: "sample", floor: 1, nightly_rate: 1.0, max_occupancy: 1
+    input  room: 1, task_type: "sample", priority: "sample", assigned_to: "sample"
+    expect task_type: "sample", priority: "sample", assigned_to: "sample", status: "assigned"
+  end
+
+  test "CompleteHousekeeping runs" do
+    tests "CompleteHousekeeping", on: "HousekeepingTask"
+    input  housekeeping_task: 1
+    expect status: "completed"
+  end
+
+  test "InspectRoom runs" do
+    tests "InspectRoom", on: "HousekeepingTask"
+    input  housekeeping_task: 1
+    expect status: "inspected"
+  end
+
+
+  # ── Folio aggregate ──────────────────────────────────────────
+
+  test "OpenFolio runs" do
+    tests "OpenFolio", on: "Folio"
+    input  guest_stay: 1
+    expect running_total: 0.0, status: "open"
+  end
+
+  test "PostCharge sets description + amount + category" do
+    tests "PostCharge", on: "Folio"
+    setup  "OpenFolio"
+    input  folio: 1, description: "sample", amount: 1.0, category: "sample"
+    expect ok: "true"
+  end
+
+  test "SettleFolio runs" do
+    tests "SettleFolio", on: "Folio"
+    setup  "OpenFolio"
+    input  folio: 1
+    expect status: "settled"
+  end
+
+end

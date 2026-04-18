@@ -1,0 +1,114 @@
+Hecks.behaviors "MobileAppStore" do
+  vision "Behavioral tests for the MobileAppStore domain — exercises every command and query in memory"
+
+  # ── App aggregate ──────────────────────────────────────────
+
+  test "SubmitApp sets bundle_id + title + developer_name + category + price" do
+    tests "SubmitApp", on: "App"
+    input  bundle_id: "sample", title: "sample", developer_name: "sample", category: "sample", price: 1.0
+    expect ok: "true"
+  end
+
+  test "ApproveApp runs" do
+    tests "ApproveApp", on: "App"
+    setup  "SubmitApp", bundle_id: "sample", title: "sample", developer_name: "sample", category: "sample", price: 1.0
+    input  app: 1
+    expect ok: "true"
+  end
+
+  test "SuspendApp runs" do
+    tests "SuspendApp", on: "App"
+    setup  "SubmitApp", bundle_id: "sample", title: "sample", developer_name: "sample", category: "sample", price: 1.0
+    input  app: 1
+    expect ok: "true"
+  end
+
+
+  # ── Review aggregate ──────────────────────────────────────────
+
+  test "PostReview sets review_id + author_name + rating + comment" do
+    tests "PostReview", on: "Review"
+    setup  "SubmitApp", bundle_id: "sample", title: "sample", developer_name: "sample", category: "sample", price: 1.0
+    input  app: 1, review_id: "sample", author_name: "sample", rating: 1, comment: "sample"
+    expect ok: "true"
+  end
+
+  test "FlagReview sets reason" do
+    tests "FlagReview", on: "Review"
+    input  review: 1, reason: "sample"
+    expect ok: "true"
+  end
+
+  test "RemoveReview runs" do
+    tests "RemoveReview", on: "Review"
+    input  review: 1
+    expect ok: "true"
+  end
+
+
+  # ── Download aggregate ──────────────────────────────────────────
+
+  test "RecordDownload sets download_id + user_id + device_type + os_version" do
+    tests "RecordDownload", on: "Download"
+    setup  "SubmitApp", bundle_id: "sample", title: "sample", developer_name: "sample", category: "sample", price: 1.0
+    input  app: 1, download_id: "sample", user_id: "sample", device_type: "sample", os_version: "sample"
+    expect ok: "true"
+  end
+
+  test "RecordUninstall runs" do
+    tests "RecordUninstall", on: "Download"
+    input  download: 1
+    expect ok: "true"
+  end
+
+  test "RefundPurchase runs" do
+    tests "RefundPurchase", on: "Download"
+    input  download: 1
+    expect ok: "true"
+  end
+
+
+  # ── AppUpdate aggregate ──────────────────────────────────────────
+
+  test "SubmitUpdate sets update_id + version_number + release_notes + size_mb" do
+    tests "SubmitUpdate", on: "AppUpdate"
+    setup  "SubmitApp", bundle_id: "sample", title: "sample", developer_name: "sample", category: "sample", price: 1.0
+    input  app: 1, update_id: "sample", version_number: "sample", release_notes: "sample", size_mb: 1
+    expect ok: "true"
+  end
+
+  test "ApproveUpdate runs" do
+    tests "ApproveUpdate", on: "AppUpdate"
+    input  app_update: 1
+    expect ok: "true"
+  end
+
+  test "RejectUpdate sets rejection_reason" do
+    tests "RejectUpdate", on: "AppUpdate"
+    input  app_update: 1, rejection_reason: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── RevenueSplit aggregate ──────────────────────────────────────────
+
+  test "CalculateSplit sets split_id + gross_amount + period" do
+    tests "CalculateSplit", on: "RevenueSplit"
+    setup  "SubmitApp", bundle_id: "sample", title: "sample", developer_name: "sample", category: "sample", price: 1.0
+    input  app: 1, split_id: "sample", gross_amount: 1.0, period: "sample"
+    expect ok: "true"
+  end
+
+  test "DisburseDeveloperShare runs" do
+    tests "DisburseDeveloperShare", on: "RevenueSplit"
+    input  revenue_split: 1
+    expect ok: "true"
+  end
+
+  test "DisputeSplit sets dispute_reason" do
+    tests "DisputeSplit", on: "RevenueSplit"
+    input  revenue_split: 1, dispute_reason: "sample"
+    expect ok: "true"
+  end
+
+end

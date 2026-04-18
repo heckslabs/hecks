@@ -1,0 +1,80 @@
+Hecks.behaviors "Oceanography" do
+  vision "Behavioral tests for the Oceanography domain — exercises every command and query in memory"
+
+  # ── SamplingStation aggregate ──────────────────────────────────────────
+
+  test "EstablishStation sets station_id + latitude + longitude" do
+    tests "EstablishStation", on: "SamplingStation"
+    input  station_id: "sample", latitude: 1.0, longitude: 1.0
+    expect ok: "true"
+  end
+
+  test "CloseStation runs" do
+    tests "CloseStation", on: "SamplingStation"
+    setup  "EstablishStation", station_id: "sample", latitude: 1.0, longitude: 1.0
+    input  sampling_station: 1
+    expect ok: "true"
+  end
+
+  test "RelocateStation sets new_latitude + new_longitude" do
+    tests "RelocateStation", on: "SamplingStation"
+    setup  "EstablishStation", station_id: "sample", latitude: 1.0, longitude: 1.0
+    input  sampling_station: 1, new_latitude: 1.0, new_longitude: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── CtdCast aggregate ──────────────────────────────────────────
+
+  test "DeployCast sets timestamp" do
+    tests "DeployCast", on: "CtdCast"
+    setup  "EstablishStation", station_id: "sample", latitude: 1.0, longitude: 1.0
+    input  sampling_station: 1, timestamp: "sample"
+    expect ok: "true"
+  end
+
+  test "ProcessCastData runs" do
+    tests "ProcessCastData", on: "CtdCast"
+    input  ctd_cast: 1
+    expect ok: "true"
+  end
+
+  test "FlagAnomalous sets reason" do
+    tests "FlagAnomalous", on: "CtdCast"
+    input  ctd_cast: 1, reason: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── CurrentMeter aggregate ──────────────────────────────────────────
+
+  test "DeployMeter sets instrument_id + deployment_depth_m" do
+    tests "DeployMeter", on: "CurrentMeter"
+    setup  "EstablishStation", station_id: "sample", latitude: 1.0, longitude: 1.0
+    input  sampling_station: 1, instrument_id: "sample", deployment_depth_m: 1.0
+    expect ok: "true"
+  end
+
+  test "RecoverMeter runs" do
+    tests "RecoverMeter", on: "CurrentMeter"
+    input  current_meter: 1
+    expect ok: "true"
+  end
+
+
+  # ── SpeciesCount aggregate ──────────────────────────────────────────
+
+  test "RecordCount sets species_name + count" do
+    tests "RecordCount", on: "SpeciesCount"
+    setup  "EstablishStation", station_id: "sample", latitude: 1.0, longitude: 1.0
+    input  sampling_station: 1, species_name: "sample", count: 1
+    expect ok: "true"
+  end
+
+  test "VerifyTaxonomy runs" do
+    tests "VerifyTaxonomy", on: "SpeciesCount"
+    input  species_count: 1
+    expect ok: "true"
+  end
+
+end

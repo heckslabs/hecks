@@ -1,0 +1,48 @@
+Hecks.behaviors "ChrisConventions" do
+  vision "Behavioral tests for the ChrisConventions domain — exercises every command and query in memory"
+
+  # ── CodeQuality aggregate ──────────────────────────────────────────
+
+  test "AddQualityRule sets name + rule + why + how_to_apply" do
+    tests "AddQualityRule", on: "CodeQuality"
+    input  name: "sample", rule: "sample", why: "sample", how_to_apply: "sample"
+    expect rules_size: 1
+  end
+
+
+  # ── TestingConvention aggregate ──────────────────────────────────────────
+
+  test "AddTestRule sets name + rule + why" do
+    tests "AddTestRule", on: "TestingConvention"
+    input  name: "sample", rule: "sample", why: "sample"
+    expect rules_size: 1
+  end
+
+
+  # ── DocConvention aggregate ──────────────────────────────────────────
+
+  test "AddDocRule sets name + rule + why" do
+    tests "AddDocRule", on: "DocConvention"
+    input  name: "sample", rule: "sample", why: "sample"
+    expect rules_size: 1
+  end
+
+
+  # ── GeneratorConvention aggregate ──────────────────────────────────────────
+
+  test "AddGenRule sets name + rule + why" do
+    tests "AddGenRule", on: "GeneratorConvention"
+    input  name: "sample", rule: "sample", why: "sample"
+    expect rules_size: 1
+  end
+
+
+  # ── CapabilityConvention aggregate ──────────────────────────────────────────
+
+  test "AddCapRule sets name + rule + why" do
+    tests "AddCapRule", on: "CapabilityConvention"
+    input  name: "sample", rule: "sample", why: "sample"
+    expect rules_size: 1
+  end
+
+end

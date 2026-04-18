@@ -1,0 +1,40 @@
+Hecks.behaviors "Manufacturing" do
+  vision "Behavioral tests for the Manufacturing domain — exercises every command and query in memory"
+
+  # ── ManufacturingOrder aggregate ──────────────────────────────────────────
+
+  test "PlaceManufacturingOrder sets order_number + manufacturer + formula_name + quantity + unit + requested_delivery" do
+    tests "PlaceManufacturingOrder", on: "ManufacturingOrder"
+    input  order_number: "sample", manufacturer: "sample", formula_name: "sample", quantity: 1, unit: "sample", requested_delivery: "sample"
+    expect order_number: "sample", manufacturer: "sample", formula_name: "sample", quantity: 1, unit: "sample", requested_delivery: "sample", status: "placed"
+  end
+
+  test "ConfirmProduction runs" do
+    tests "ConfirmProduction", on: "ManufacturingOrder"
+    setup  "PlaceManufacturingOrder", order_number: "sample", manufacturer: "sample", formula_name: "sample", quantity: 1, unit: "sample", requested_delivery: "sample"
+    input  manufacturing_order: 1
+    expect status: "in_production"
+  end
+
+  test "ShipOrder runs" do
+    tests "ShipOrder", on: "ManufacturingOrder"
+    setup  "PlaceManufacturingOrder", order_number: "sample", manufacturer: "sample", formula_name: "sample", quantity: 1, unit: "sample", requested_delivery: "sample"
+    input  manufacturing_order: 1
+    expect status: "shipped"
+  end
+
+  test "ReceiveOrder sets actual_delivery + lot_number + certificate_of_analysis" do
+    tests "ReceiveOrder", on: "ManufacturingOrder"
+    setup  "PlaceManufacturingOrder", order_number: "sample", manufacturer: "sample", formula_name: "sample", quantity: 1, unit: "sample", requested_delivery: "sample"
+    input  manufacturing_order: 1, actual_delivery: "sample", lot_number: "sample", certificate_of_analysis: "sample"
+    expect actual_delivery: "sample", lot_number: "sample", certificate_of_analysis: "sample", status: "received"
+  end
+
+  test "RejectOrder sets reason" do
+    tests "RejectOrder", on: "ManufacturingOrder"
+    setup  "PlaceManufacturingOrder", order_number: "sample", manufacturer: "sample", formula_name: "sample", quantity: 1, unit: "sample", requested_delivery: "sample"
+    input  manufacturing_order: 1, reason: "sample"
+    expect status: "rejected"
+  end
+
+end

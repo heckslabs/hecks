@@ -1,0 +1,102 @@
+Hecks.behaviors "Volcanology" do
+  vision "Behavioral tests for the Volcanology domain — exercises every command and query in memory"
+
+  # ── Volcano aggregate ──────────────────────────────────────────
+
+  test "RegisterVolcano sets name + volcano_type + summit_elevation_m" do
+    tests "RegisterVolcano", on: "Volcano"
+    input  name: "sample", volcano_type: "sample", summit_elevation_m: 1.0
+    expect name: "sample", volcano_type: "sample", summit_elevation_m: 1.0
+  end
+
+  test "RaiseAlertLevel sets new_level" do
+    tests "RaiseAlertLevel", on: "Volcano"
+    setup  "RegisterVolcano", name: "sample", volcano_type: "sample", summit_elevation_m: 1.0
+    input  volcano: 1, new_level: "sample"
+    expect ok: "true"
+  end
+
+  test "LowerAlertLevel sets new_level" do
+    tests "LowerAlertLevel", on: "Volcano"
+    setup  "RegisterVolcano", name: "sample", volcano_type: "sample", summit_elevation_m: 1.0
+    input  volcano: 1, new_level: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Eruption aggregate ──────────────────────────────────────────
+
+  test "DeclareEruption sets eruption_id + eruption_type" do
+    tests "DeclareEruption", on: "Eruption"
+    setup  "RegisterVolcano", name: "sample", volcano_type: "sample", summit_elevation_m: 1.0
+    input  volcano: 1, eruption_id: "sample", eruption_type: "sample"
+    expect ok: "true"
+  end
+
+  test "UpdateMetrics sets plume_height_km" do
+    tests "UpdateMetrics", on: "Eruption"
+    input  eruption: 1, plume_height_km: 1.0
+    expect ok: "true"
+  end
+
+  test "ConcludeEruption runs" do
+    tests "ConcludeEruption", on: "Eruption"
+    input  eruption: 1
+    expect ok: "true"
+  end
+
+
+  # ── SeismicReading aggregate ──────────────────────────────────────────
+
+  test "RecordSeismicEvent sets station_id + magnitude + depth_km" do
+    tests "RecordSeismicEvent", on: "SeismicReading"
+    setup  "RegisterVolcano", name: "sample", volcano_type: "sample", summit_elevation_m: 1.0
+    input  volcano: 1, station_id: "sample", magnitude: 1.0, depth_km: 1.0
+    expect ok: "true"
+  end
+
+  test "LocateHypocenter runs" do
+    tests "LocateHypocenter", on: "SeismicReading"
+    input  seismic_reading: 1
+    expect ok: "true"
+  end
+
+  test "ClassifyEvent sets event_type" do
+    tests "ClassifyEvent", on: "SeismicReading"
+    input  seismic_reading: 1, event_type: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GasEmission aggregate ──────────────────────────────────────────
+
+  test "MeasureEmission sets gas_type + flux_tons_per_day" do
+    tests "MeasureEmission", on: "GasEmission"
+    setup  "RegisterVolcano", name: "sample", volcano_type: "sample", summit_elevation_m: 1.0
+    input  volcano: 1, gas_type: "sample", flux_tons_per_day: 1.0
+    expect ok: "true"
+  end
+
+  test "DetectAnomaly runs" do
+    tests "DetectAnomaly", on: "GasEmission"
+    input  gas_emission: 1
+    expect ok: "true"
+  end
+
+
+  # ── HazardZone aggregate ──────────────────────────────────────────
+
+  test "DelineateZone sets zone_name + hazard_type" do
+    tests "DelineateZone", on: "HazardZone"
+    setup  "RegisterVolcano", name: "sample", volcano_type: "sample", summit_elevation_m: 1.0
+    input  volcano: 1, zone_name: "sample", hazard_type: "sample"
+    expect ok: "true"
+  end
+
+  test "EvacuateZone runs" do
+    tests "EvacuateZone", on: "HazardZone"
+    input  hazard_zone: 1
+    expect ok: "true"
+  end
+
+end

@@ -1,0 +1,33 @@
+Hecks.behaviors "Tongue" do
+  vision "Behavioral tests for the Tongue domain — exercises every command and query in memory"
+
+  # ── Speech aggregate ──────────────────────────────────────────
+
+  test "Speak sets input" do
+    tests "Speak", on: "Speech"
+    input  input: "sample"
+    expect input: "sample"
+  end
+
+  test "HearResponse returns matching records" do
+    tests "HearResponse", on: "Speech", kind: :query
+    setup  "Speak", input: "sample"
+    expect count: 1
+  end
+
+
+  # ── Voice aggregate ──────────────────────────────────────────
+
+  test "SetVoice sets personality + max_sentences + model" do
+    tests "SetVoice", on: "Voice"
+    input  personality: "sample", max_sentences: 1, model: "sample"
+    expect personality: "sample", max_sentences: 1, model: "sample"
+  end
+
+  test "ReadVoice returns matching records" do
+    tests "ReadVoice", on: "Voice", kind: :query
+    setup  "SetVoice", personality: "sample", max_sentences: 1, model: "sample"
+    expect count: 1
+  end
+
+end

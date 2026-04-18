@@ -1,0 +1,110 @@
+Hecks.behaviors "GameTheory" do
+  vision "Behavioral tests for the GameTheory domain — exercises every command and query in memory"
+
+  # ── StrategicGame aggregate ──────────────────────────────────────────
+
+  test "DefineGame sets game_id + name + game_type + player_count" do
+    tests "DefineGame", on: "StrategicGame"
+    input  game_id: "sample", name: "sample", game_type: "sample", player_count: 1
+    expect ok: "true"
+  end
+
+  test "ValidateGame runs" do
+    tests "ValidateGame", on: "StrategicGame"
+    setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
+    input  strategic_game: 1
+    expect ok: "true"
+  end
+
+  test "ArchiveGame runs" do
+    tests "ArchiveGame", on: "StrategicGame"
+    setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
+    input  strategic_game: 1
+    expect ok: "true"
+  end
+
+
+  # ── Strategy aggregate ──────────────────────────────────────────
+
+  test "RegisterStrategy sets player_id + strategy_type" do
+    tests "RegisterStrategy", on: "Strategy"
+    setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
+    input  strategic_game: 1, player_id: "sample", strategy_type: "sample"
+    expect player_id: "sample", strategy_type: "sample"
+  end
+
+  test "ComputeBestResponse runs" do
+    tests "ComputeBestResponse", on: "Strategy"
+    setup  "RegisterStrategy", player_id: "sample", strategy_type: "sample"
+    input  strategy: 1
+    expect ok: "true"
+  end
+
+  test "EliminateDominated runs" do
+    tests "EliminateDominated", on: "Strategy"
+    setup  "RegisterStrategy", player_id: "sample", strategy_type: "sample"
+    input  strategy: 1
+    expect ok: "true"
+  end
+
+
+  # ── PayoffMatrix aggregate ──────────────────────────────────────────
+
+  test "ConstructMatrix sets rows + columns" do
+    tests "ConstructMatrix", on: "PayoffMatrix"
+    setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
+    input  strategic_game: 1, rows: 1, columns: 1
+    expect ok: "true"
+  end
+
+  test "ModifyPayoff sets row + column + new_payoff" do
+    tests "ModifyPayoff", on: "PayoffMatrix"
+    input  payoff_matrix: 1, row: 1, column: 1, new_payoff: "sample"
+    expect ok: "true"
+  end
+
+  test "VerifySymmetry runs" do
+    tests "VerifySymmetry", on: "PayoffMatrix"
+    input  payoff_matrix: 1
+    expect ok: "true"
+  end
+
+
+  # ── Equilibrium aggregate ──────────────────────────────────────────
+
+  test "SolveNash runs" do
+    tests "SolveNash", on: "Equilibrium"
+    setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
+    input  strategic_game: 1
+    expect ok: "true"
+  end
+
+  test "RefineEquilibrium sets refinement_type" do
+    tests "RefineEquilibrium", on: "Equilibrium"
+    input  equilibrium: 1, refinement_type: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Simulation aggregate ──────────────────────────────────────────
+
+  test "ConfigureSimulation sets simulation_id + iteration_count + learning_rule" do
+    tests "ConfigureSimulation", on: "Simulation"
+    setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
+    input  strategic_game: 1, simulation_id: "sample", iteration_count: 1, learning_rule: "sample"
+    expect ok: "true"
+  end
+
+  test "RunSimulation runs" do
+    tests "RunSimulation", on: "Simulation"
+    input  simulation: 1
+    expect ok: "true"
+  end
+
+  test "ExportResults runs" do
+    tests "ExportResults", on: "Simulation"
+    input  simulation: 1
+    expect ok: "true"
+  end
+
+end

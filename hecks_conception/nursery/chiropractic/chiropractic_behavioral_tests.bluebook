@@ -1,0 +1,106 @@
+Hecks.behaviors "Chiropractic" do
+  vision "Behavioral tests for the Chiropractic domain — exercises every command and query in memory"
+
+  # ── Patient aggregate ──────────────────────────────────────────
+
+  test "RegisterPatient sets name + date_of_birth + chief_complaint + insurance_id" do
+    tests "RegisterPatient", on: "Patient"
+    input  name: "sample", date_of_birth: "sample", chief_complaint: "sample", insurance_id: "sample"
+    expect name: "sample", date_of_birth: "sample", chief_complaint: "sample", insurance_id: "sample", status: "intake"
+  end
+
+  test "ActivatePatient runs" do
+    tests "ActivatePatient", on: "Patient"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample", insurance_id: "sample"
+    input  patient: 1
+    expect status: "active"
+  end
+
+  test "DeactivatePatient runs" do
+    tests "DeactivatePatient", on: "Patient"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample", insurance_id: "sample"
+    input  patient: 1
+    expect status: "inactive"
+  end
+
+
+  # ── Adjustment aggregate ──────────────────────────────────────────
+
+  test "PerformAdjustment sets patient_name + adjustment_date + technique + pain_before" do
+    tests "PerformAdjustment", on: "Adjustment"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample", insurance_id: "sample"
+    input  patient: 1, patient_name: "sample", adjustment_date: "sample", technique: "sample", pain_before: 1
+    expect patient_name: "sample", adjustment_date: "sample", technique: "sample", pain_before: 1
+  end
+
+  test "RecordPostAdjustment sets pain_after + notes" do
+    tests "RecordPostAdjustment", on: "Adjustment"
+    input  adjustment: 1, pain_after: 1, notes: "sample"
+    expect pain_after: 1, notes: "sample"
+  end
+
+
+  # ── ImagingStudy aggregate ──────────────────────────────────────────
+
+  test "OrderImaging sets patient_name + imaging_type + body_region + order_date" do
+    tests "OrderImaging", on: "ImagingStudy"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample", insurance_id: "sample"
+    input  patient: 1, patient_name: "sample", imaging_type: "sample", body_region: "sample", order_date: "sample"
+    expect patient_name: "sample", imaging_type: "sample", body_region: "sample", order_date: "sample", status: "ordered"
+  end
+
+  test "InterpretImaging sets findings" do
+    tests "InterpretImaging", on: "ImagingStudy"
+    input  imaging_study: 1, findings: "sample"
+    expect findings: "sample", status: "interpreted"
+  end
+
+
+  # ── TreatmentPlan aggregate ──────────────────────────────────────────
+
+  test "CreateTreatmentPlan sets patient_name + diagnosis + planned_visits + frequency" do
+    tests "CreateTreatmentPlan", on: "TreatmentPlan"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample", insurance_id: "sample"
+    input  patient: 1, patient_name: "sample", diagnosis: "sample", planned_visits: 1, frequency: "sample"
+    expect patient_name: "sample", diagnosis: "sample", planned_visits: 1, frequency: "sample", completed_visits: 0, status: "active"
+  end
+
+  test "RecordCompletedVisit runs" do
+    tests "RecordCompletedVisit", on: "TreatmentPlan"
+    setup  "CreateTreatmentPlan", patient_name: "sample", diagnosis: "sample", planned_visits: 1, frequency: "sample"
+    input  treatment_plan: 1
+    expect ok: "true"
+  end
+
+  test "CloseTreatmentPlan runs" do
+    tests "CloseTreatmentPlan", on: "TreatmentPlan"
+    setup  "CreateTreatmentPlan", patient_name: "sample", diagnosis: "sample", planned_visits: 1, frequency: "sample"
+    input  treatment_plan: 1
+    expect status: "closed"
+  end
+
+
+  # ── Invoice aggregate ──────────────────────────────────────────
+
+  test "CreateInvoice sets patient_name + service_date + total_amount" do
+    tests "CreateInvoice", on: "Invoice"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample", insurance_id: "sample"
+    input  patient: 1, patient_name: "sample", service_date: "sample", total_amount: 1.0
+    expect patient_name: "sample", service_date: "sample", total_amount: 1.0, payment_status: "unpaid", insurance_claim_status: "pending"
+  end
+
+  test "SubmitInsuranceClaim runs" do
+    tests "SubmitInsuranceClaim", on: "Invoice"
+    setup  "CreateInvoice", patient_name: "sample", service_date: "sample", total_amount: 1.0
+    input  invoice: 1
+    expect insurance_claim_status: "submitted"
+  end
+
+  test "RecordPayment runs" do
+    tests "RecordPayment", on: "Invoice"
+    setup  "CreateInvoice", patient_name: "sample", service_date: "sample", total_amount: 1.0
+    input  invoice: 1
+    expect payment_status: "paid"
+  end
+
+end

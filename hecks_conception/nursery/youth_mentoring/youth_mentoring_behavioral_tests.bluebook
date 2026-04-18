@@ -1,0 +1,98 @@
+Hecks.behaviors "YouthMentoring" do
+  vision "Behavioral tests for the YouthMentoring domain — exercises every command and query in memory"
+
+  # ── Mentor aggregate ──────────────────────────────────────────
+
+  test "RegisterMentor sets name + occupation + skills + availability" do
+    tests "RegisterMentor", on: "Mentor"
+    input  name: "sample", occupation: "sample", skills: "sample", availability: "sample"
+    expect name: "sample", occupation: "sample", skills: "sample", availability: "sample", background_check_status: "pending", status: "pending"
+  end
+
+  test "ClearBackgroundCheck runs" do
+    tests "ClearBackgroundCheck", on: "Mentor"
+    setup  "RegisterMentor", name: "sample", occupation: "sample", skills: "sample", availability: "sample"
+    input  mentor: 1
+    expect background_check_status: "cleared", status: "active"
+  end
+
+  test "DeactivateMentor runs" do
+    tests "DeactivateMentor", on: "Mentor"
+    setup  "RegisterMentor", name: "sample", occupation: "sample", skills: "sample", availability: "sample"
+    input  mentor: 1
+    expect status: "inactive"
+  end
+
+
+  # ── Mentee aggregate ──────────────────────────────────────────
+
+  test "EnrollMentee sets name + age + school + interests + guardian_name" do
+    tests "EnrollMentee", on: "Mentee"
+    input  name: "sample", age: "sample", school: "sample", interests: "sample", guardian_name: "sample"
+    expect name: "sample", age: "sample", school: "sample", interests: "sample", guardian_name: "sample", status: "active"
+  end
+
+  test "GraduateMentee runs" do
+    tests "GraduateMentee", on: "Mentee"
+    setup  "EnrollMentee", name: "sample", age: "sample", school: "sample", interests: "sample", guardian_name: "sample"
+    input  mentee: 1
+    expect status: "graduated"
+  end
+
+
+  # ── MentorMatch aggregate ──────────────────────────────────────────
+
+  test "CreateMatch sets mentor_name + mentee_name + match_date + match_rationale" do
+    tests "CreateMatch", on: "MentorMatch"
+    setup  "RegisterMentor", name: "sample", occupation: "sample", skills: "sample", availability: "sample"
+    setup  "EnrollMentee", name: "sample", age: "sample", school: "sample", interests: "sample", guardian_name: "sample"
+    input  mentor: 1, mentee: 1, mentor_name: "sample", mentee_name: "sample", match_date: "sample", match_rationale: "sample"
+    expect mentor_name: "sample", mentee_name: "sample", match_date: "sample", match_rationale: "sample", status: "active"
+  end
+
+  test "CloseMatch runs" do
+    tests "CloseMatch", on: "MentorMatch"
+    setup  "CreateMatch", mentor_name: "sample", mentee_name: "sample", match_date: "sample", match_rationale: "sample"
+    input  mentor_match: 1
+    expect status: "closed"
+  end
+
+
+  # ── MentoringMeeting aggregate ──────────────────────────────────────────
+
+  test "ScheduleMeeting sets mentor_name + mentee_name + meeting_date + location + activity" do
+    tests "ScheduleMeeting", on: "MentoringMeeting"
+    setup  "CreateMatch", mentor_name: "sample", mentee_name: "sample", match_date: "sample", match_rationale: "sample"
+    input  mentor_match: 1, mentor_name: "sample", mentee_name: "sample", meeting_date: "sample", location: "sample", activity: "sample"
+    expect mentor_name: "sample", mentee_name: "sample", meeting_date: "sample", location: "sample", activity: "sample", status: "scheduled"
+  end
+
+  test "LogMeeting sets notes" do
+    tests "LogMeeting", on: "MentoringMeeting"
+    input  mentoring_meeting: 1, notes: "sample"
+    expect notes: "sample", status: "completed"
+  end
+
+
+  # ── DevelopmentGoal aggregate ──────────────────────────────────────────
+
+  test "SetDevelopmentGoal sets mentee_name + goal_area + description + target_date" do
+    tests "SetDevelopmentGoal", on: "DevelopmentGoal"
+    setup  "EnrollMentee", name: "sample", age: "sample", school: "sample", interests: "sample", guardian_name: "sample"
+    input  mentee: 1, mentee_name: "sample", goal_area: "sample", description: "sample", target_date: "sample"
+    expect mentee_name: "sample", goal_area: "sample", description: "sample", target_date: "sample", status: "active"
+  end
+
+  test "RecordMilestone sets description + achieved_date" do
+    tests "RecordMilestone", on: "DevelopmentGoal"
+    input  development_goal: 1, description: "sample", achieved_date: "sample"
+    expect ok: "true"
+  end
+
+  test "CompleteGoal runs" do
+    tests "CompleteGoal", on: "DevelopmentGoal"
+    input  development_goal: 1
+    expect status: "completed"
+  end
+
+end

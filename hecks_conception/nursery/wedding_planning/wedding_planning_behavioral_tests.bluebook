@@ -1,0 +1,92 @@
+Hecks.behaviors "WeddingPlanning" do
+  vision "Behavioral tests for the WeddingPlanning domain — exercises every command and query in memory"
+
+  # ── Wedding aggregate ──────────────────────────────────────────
+
+  test "PlanWedding sets couple_names + wedding_date + venue_name + total_budget + expected_guests" do
+    tests "PlanWedding", on: "Wedding"
+    input  couple_names: "sample", wedding_date: "sample", venue_name: "sample", total_budget: 1.0, expected_guests: 1
+    expect couple_names: "sample", wedding_date: "sample", venue_name: "sample", total_budget: 1.0, status: "planning"
+  end
+
+  test "FinalizeDetails runs" do
+    tests "FinalizeDetails", on: "Wedding"
+    setup  "PlanWedding", couple_names: "sample", wedding_date: "sample", venue_name: "sample", total_budget: 1.0, expected_guests: 1
+    input  wedding: 1
+    expect status: "finalized"
+  end
+
+  test "CancelWedding runs" do
+    tests "CancelWedding", on: "Wedding"
+    setup  "PlanWedding", couple_names: "sample", wedding_date: "sample", venue_name: "sample", total_budget: 1.0, expected_guests: 1
+    input  wedding: 1
+    expect status: "cancelled"
+  end
+
+
+  # ── VendorContract aggregate ──────────────────────────────────────────
+
+  test "BookVendor sets vendor_name + service_type + contract_amount + deposit_paid" do
+    tests "BookVendor", on: "VendorContract"
+    setup  "PlanWedding", couple_names: "sample", wedding_date: "sample", venue_name: "sample", total_budget: 1.0, expected_guests: 1
+    input  wedding: 1, vendor_name: "sample", service_type: "sample", contract_amount: 1.0, deposit_paid: 1.0
+    expect vendor_name: "sample", service_type: "sample", contract_amount: 1.0, deposit_paid: 1.0, status: "booked"
+  end
+
+  test "PayVendor sets amount" do
+    tests "PayVendor", on: "VendorContract"
+    input  vendor_contract: 1, amount: 1.0
+    expect ok: "true"
+  end
+
+  test "CancelVendor runs" do
+    tests "CancelVendor", on: "VendorContract"
+    input  vendor_contract: 1
+    expect status: "cancelled"
+  end
+
+
+  # ── BudgetLineItem aggregate ──────────────────────────────────────────
+
+  test "AllocateBudget sets category + allocated_amount" do
+    tests "AllocateBudget", on: "BudgetLineItem"
+    setup  "PlanWedding", couple_names: "sample", wedding_date: "sample", venue_name: "sample", total_budget: 1.0, expected_guests: 1
+    input  wedding: 1, category: "sample", allocated_amount: 1.0
+    expect category: "sample", allocated_amount: 1.0, spent_amount: 0.0
+  end
+
+  test "RecordExpense sets amount + notes" do
+    tests "RecordExpense", on: "BudgetLineItem"
+    input  budget_line_item: 1, amount: 1.0, notes: "sample"
+    expect ok: "true"
+  end
+
+  test "AdjustBudget sets new_amount" do
+    tests "AdjustBudget", on: "BudgetLineItem"
+    input  budget_line_item: 1, new_amount: 1.0
+    expect allocated_amount: 1.0
+  end
+
+
+  # ── GuestListEntry aggregate ──────────────────────────────────────────
+
+  test "InviteGuest sets guest_name + email + party_size" do
+    tests "InviteGuest", on: "GuestListEntry"
+    setup  "PlanWedding", couple_names: "sample", wedding_date: "sample", venue_name: "sample", total_budget: 1.0, expected_guests: 1
+    input  wedding: 1, guest_name: "sample", email: "sample", party_size: 1
+    expect guest_name: "sample", email: "sample", party_size: 1, rsvp_status: "pending"
+  end
+
+  test "RecordRSVP sets rsvp_status + meal_preference" do
+    tests "RecordRSVP", on: "GuestListEntry"
+    input  guest_list_entry: 1, rsvp_status: "sample", meal_preference: "sample"
+    expect rsvp_status: "sample", meal_preference: "sample"
+  end
+
+  test "AssignTable sets table_assignment" do
+    tests "AssignTable", on: "GuestListEntry"
+    input  guest_list_entry: 1, table_assignment: "sample"
+    expect table_assignment: "sample"
+  end
+
+end

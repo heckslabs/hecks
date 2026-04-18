@@ -1,0 +1,155 @@
+Hecks.behaviors "PrisonManagement" do
+  vision "Behavioral tests for the PrisonManagement domain — exercises every command and query in memory"
+
+  # ── Inmate aggregate ──────────────────────────────────────────
+
+  test "AdmitInmate sets name + classification + admission_date" do
+    tests "AdmitInmate", on: "Inmate"
+    input  name: "sample", classification: "sample", admission_date: "sample"
+    expect status: "intake"
+  end
+
+  test "ClassifyInmate sets classification" do
+    tests "ClassifyInmate", on: "Inmate"
+    setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
+    input  inmate: 1, classification: "sample"
+    expect status: "classified"
+  end
+
+  test "HouseInmate runs" do
+    tests "HouseInmate", on: "Inmate"
+    setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
+    setup  "OpenCell", cell_id: "sample", block: "sample", max_occupancy: 1, security_level: "sample"
+    input  inmate: 1, cell: 1
+    expect status: "housed"
+  end
+
+  test "ReclassifyInmate sets new_classification" do
+    tests "ReclassifyInmate", on: "Inmate"
+    setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
+    input  inmate: 1, new_classification: "sample"
+    expect ok: "true"
+  end
+
+  test "PrepareForRelease runs" do
+    tests "PrepareForRelease", on: "Inmate"
+    setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
+    input  inmate: 1
+    expect status: "preparing_release"
+  end
+
+  test "ReleaseInmate runs" do
+    tests "ReleaseInmate", on: "Inmate"
+    setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
+    input  inmate: 1
+    expect status: "released"
+  end
+
+
+  # ── Cell aggregate ──────────────────────────────────────────
+
+  test "OpenCell sets cell_id + block + max_occupancy + security_level" do
+    tests "OpenCell", on: "Cell"
+    input  cell_id: "sample", block: "sample", max_occupancy: 1, security_level: "sample"
+    expect cell_id: "sample", block: "sample", max_occupancy: 1, security_level: "sample", status: "available", current_occupancy: 0
+  end
+
+  test "AssignInmateToCell runs" do
+    tests "AssignInmateToCell", on: "Cell"
+    setup  "OpenCell", cell_id: "sample", block: "sample", max_occupancy: 1, security_level: "sample"
+    setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
+    input  cell: 1, inmate: 1
+    expect ok: "true"
+  end
+
+  test "InspectCell runs" do
+    tests "InspectCell", on: "Cell"
+    setup  "OpenCell", cell_id: "sample", block: "sample", max_occupancy: 1, security_level: "sample"
+    input  cell: 1
+    expect ok: "true"
+  end
+
+  test "LockdownCell runs" do
+    tests "LockdownCell", on: "Cell"
+    setup  "OpenCell", cell_id: "sample", block: "sample", max_occupancy: 1, security_level: "sample"
+    input  cell: 1
+    expect status: "lockdown"
+  end
+
+  test "LiftLockdown runs" do
+    tests "LiftLockdown", on: "Cell"
+    setup  "OpenCell", cell_id: "sample", block: "sample", max_occupancy: 1, security_level: "sample"
+    input  cell: 1
+    expect status: "available"
+  end
+
+
+  # ── Program aggregate ──────────────────────────────────────────
+
+  test "CreateProgram sets program_name + program_type + capacity" do
+    tests "CreateProgram", on: "Program"
+    input  program_name: "sample", program_type: "sample", capacity: 1
+    expect program_name: "sample", program_type: "sample", capacity: 1, status: "active", enrolled_count: 0
+  end
+
+  test "EnrollInmate runs" do
+    tests "EnrollInmate", on: "Program"
+    setup  "CreateProgram", program_name: "sample", program_type: "sample", capacity: 1
+    setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
+    input  program: 1, inmate: 1
+    expect ok: "true"
+  end
+
+  test "GraduateInmate runs" do
+    tests "GraduateInmate", on: "Program"
+    setup  "CreateProgram", program_name: "sample", program_type: "sample", capacity: 1
+    setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
+    input  program: 1, inmate: 1
+    expect ok: "true"
+  end
+
+
+  # ── Incident aggregate ──────────────────────────────────────────
+
+  test "FileIncident sets incident_type + severity + description" do
+    tests "FileIncident", on: "Incident"
+    setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
+    input  inmate: 1, incident_type: "sample", severity: "sample", description: "sample"
+    expect status: "open"
+  end
+
+  test "InvestigateIncident runs" do
+    tests "InvestigateIncident", on: "Incident"
+    input  incident: 1
+    expect status: "investigating"
+  end
+
+  test "ResolveIncident sets resolution" do
+    tests "ResolveIncident", on: "Incident"
+    input  incident: 1, resolution: "sample"
+    expect status: "resolved"
+  end
+
+
+  # ── Visit aggregate ──────────────────────────────────────────
+
+  test "ScheduleVisit sets visitor_name + visit_type + scheduled_date" do
+    tests "ScheduleVisit", on: "Visit"
+    setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
+    input  inmate: 1, visitor_name: "sample", visit_type: "sample", scheduled_date: "sample"
+    expect status: "scheduled"
+  end
+
+  test "ConductVisit runs" do
+    tests "ConductVisit", on: "Visit"
+    input  visit: 1
+    expect status: "completed"
+  end
+
+  test "CancelVisit runs" do
+    tests "CancelVisit", on: "Visit"
+    input  visit: 1
+    expect status: "cancelled"
+  end
+
+end

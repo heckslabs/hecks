@@ -1,0 +1,103 @@
+Hecks.behaviors "FreightLogistics" do
+  vision "Behavioral tests for the FreightLogistics domain — exercises every command and query in memory"
+
+  # ── Shipment aggregate ──────────────────────────────────────────
+
+  test "BookShipment sets tracking_number + origin + destination + weight_kg + pallet_count + commodity_type" do
+    tests "BookShipment", on: "Shipment"
+    input  tracking_number: "sample", origin: "sample", destination: "sample", weight_kg: 1.0, pallet_count: 1, commodity_type: "sample"
+    expect tracking_number: "sample", origin: "sample", destination: "sample", weight_kg: 1.0, pallet_count: 1, commodity_type: "sample", status: "booked"
+  end
+
+  test "DispatchShipment runs" do
+    tests "DispatchShipment", on: "Shipment"
+    setup  "BookShipment", tracking_number: "sample", origin: "sample", destination: "sample", weight_kg: 1.0, pallet_count: 1, commodity_type: "sample"
+    input  shipment: 1
+    expect status: "in_transit"
+  end
+
+  test "DeliverShipment runs" do
+    tests "DeliverShipment", on: "Shipment"
+    setup  "BookShipment", tracking_number: "sample", origin: "sample", destination: "sample", weight_kg: 1.0, pallet_count: 1, commodity_type: "sample"
+    input  shipment: 1
+    expect status: "delivered"
+  end
+
+
+  # ── Carrier aggregate ──────────────────────────────────────────
+
+  test "OnboardCarrier sets company_name + mc_number + dot_number + fleet_size + rate_per_mile" do
+    tests "OnboardCarrier", on: "Carrier"
+    input  company_name: "sample", mc_number: "sample", dot_number: "sample", fleet_size: 1, rate_per_mile: 1.0
+    expect company_name: "sample", mc_number: "sample", dot_number: "sample", fleet_size: 1, rate_per_mile: 1.0, status: "active"
+  end
+
+  test "SuspendCarrier runs" do
+    tests "SuspendCarrier", on: "Carrier"
+    setup  "OnboardCarrier", company_name: "sample", mc_number: "sample", dot_number: "sample", fleet_size: 1, rate_per_mile: 1.0
+    input  carrier: 1
+    expect status: "suspended"
+  end
+
+  test "ReinstatCarrier runs" do
+    tests "ReinstatCarrier", on: "Carrier"
+    setup  "OnboardCarrier", company_name: "sample", mc_number: "sample", dot_number: "sample", fleet_size: 1, rate_per_mile: 1.0
+    input  carrier: 1
+    expect status: "active"
+  end
+
+
+  # ── Route aggregate ──────────────────────────────────────────
+
+  test "PlanRoute sets origin + destination + distance_miles + estimated_hours" do
+    tests "PlanRoute", on: "Route"
+    setup  "BookShipment", tracking_number: "sample", origin: "sample", destination: "sample", weight_kg: 1.0, pallet_count: 1, commodity_type: "sample"
+    input  shipment: 1, origin: "sample", destination: "sample", distance_miles: 1.0, estimated_hours: 1
+    expect origin: "sample", destination: "sample", distance_miles: 1.0, estimated_hours: 1, status: "planned"
+  end
+
+  test "RerouteShipment sets new_destination + new_distance_miles" do
+    tests "RerouteShipment", on: "Route"
+    input  route: 1, new_destination: "sample", new_distance_miles: 1.0
+    expect destination: "sample", distance_miles: 1.0
+  end
+
+
+  # ── CustomsClearance aggregate ──────────────────────────────────────────
+
+  test "FileClearance sets declaration_number + country_of_origin + tariff_code + declared_value" do
+    tests "FileClearance", on: "CustomsClearance"
+    setup  "BookShipment", tracking_number: "sample", origin: "sample", destination: "sample", weight_kg: 1.0, pallet_count: 1, commodity_type: "sample"
+    input  shipment: 1, declaration_number: "sample", country_of_origin: "sample", tariff_code: "sample", declared_value: 1.0
+    expect declaration_number: "sample", country_of_origin: "sample", tariff_code: "sample", declared_value: 1.0, status: "filed"
+  end
+
+  test "ApproveClearance sets duty_amount" do
+    tests "ApproveClearance", on: "CustomsClearance"
+    input  customs_clearance: 1, duty_amount: 1.0
+    expect duty_amount: 1.0, status: "cleared"
+  end
+
+  test "HoldForInspection runs" do
+    tests "HoldForInspection", on: "CustomsClearance"
+    input  customs_clearance: 1
+    expect status: "held"
+  end
+
+
+  # ── TrackingEvent aggregate ──────────────────────────────────────────
+
+  test "RecordTrackingEvent sets location + event_type + timestamp" do
+    tests "RecordTrackingEvent", on: "TrackingEvent"
+    setup  "BookShipment", tracking_number: "sample", origin: "sample", destination: "sample", weight_kg: 1.0, pallet_count: 1, commodity_type: "sample"
+    input  shipment: 1, location: "sample", event_type: "sample", timestamp: "sample"
+    expect location: "sample", event_type: "sample", timestamp: "sample"
+  end
+
+  test "FlagDelay sets notes" do
+    tests "FlagDelay", on: "TrackingEvent"
+    input  tracking_event: 1, notes: "sample"
+    expect notes: "sample"
+  end
+
+end

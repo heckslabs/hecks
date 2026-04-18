@@ -1,0 +1,112 @@
+Hecks.behaviors "WebAccessibility" do
+  vision "Behavioral tests for the WebAccessibility domain — exercises every command and query in memory"
+
+  # ── AccessibilityAudit aggregate ──────────────────────────────────────────
+
+  test "LaunchAudit sets audit_id + site_url + wcag_level + auditor" do
+    tests "LaunchAudit", on: "AccessibilityAudit"
+    input  audit_id: "sample", site_url: "sample", wcag_level: "sample", auditor: "sample"
+    expect ok: "true"
+  end
+
+  test "CompleteAudit sets pages_scanned" do
+    tests "CompleteAudit", on: "AccessibilityAudit"
+    setup  "LaunchAudit", audit_id: "sample", site_url: "sample", wcag_level: "sample", auditor: "sample"
+    input  accessibility_audit: 1, pages_scanned: 1
+    expect ok: "true"
+  end
+
+  test "ReopenAudit runs" do
+    tests "ReopenAudit", on: "AccessibilityAudit"
+    setup  "LaunchAudit", audit_id: "sample", site_url: "sample", wcag_level: "sample", auditor: "sample"
+    input  accessibility_audit: 1
+    expect ok: "true"
+  end
+
+
+  # ── Page aggregate ──────────────────────────────────────────
+
+  test "CrawlPage sets page_url + title + content_type + dom_elements" do
+    tests "CrawlPage", on: "Page"
+    setup  "LaunchAudit", audit_id: "sample", site_url: "sample", wcag_level: "sample", auditor: "sample"
+    input  accessibility_audit: 1, page_url: "sample", title: "sample", content_type: "sample", dom_elements: 1
+    expect ok: "true"
+  end
+
+  test "MarkReviewed runs" do
+    tests "MarkReviewed", on: "Page"
+    input  page: 1
+    expect ok: "true"
+  end
+
+  test "ExcludePage runs" do
+    tests "ExcludePage", on: "Page"
+    input  page: 1
+    expect ok: "true"
+  end
+
+
+  # ── Violation aggregate ──────────────────────────────────────────
+
+  test "ReportViolation sets violation_id + rule_id + severity + element_selector + description" do
+    tests "ReportViolation", on: "Violation"
+    input  page: 1, violation_id: "sample", rule_id: "sample", severity: "sample", element_selector: "sample", description: "sample"
+    expect ok: "true"
+  end
+
+  test "ConfirmViolation runs" do
+    tests "ConfirmViolation", on: "Violation"
+    input  violation: 1
+    expect ok: "true"
+  end
+
+  test "DismissViolation sets dismissal_reason" do
+    tests "DismissViolation", on: "Violation"
+    input  violation: 1, dismissal_reason: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Remediation aggregate ──────────────────────────────────────────
+
+  test "AssignRemediation sets remediation_id + fix_description + assigned_to + priority" do
+    tests "AssignRemediation", on: "Remediation"
+    input  violation: 1, remediation_id: "sample", fix_description: "sample", assigned_to: "sample", priority: "sample"
+    expect ok: "true"
+  end
+
+  test "CompleteRemediation runs" do
+    tests "CompleteRemediation", on: "Remediation"
+    input  remediation: 1
+    expect ok: "true"
+  end
+
+  test "RejectRemediation sets rejection_reason" do
+    tests "RejectRemediation", on: "Remediation"
+    input  remediation: 1, rejection_reason: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ComplianceCertificate aggregate ──────────────────────────────────────────
+
+  test "IssueCertificate sets certificate_id + wcag_level + issued_by + valid_until" do
+    tests "IssueCertificate", on: "ComplianceCertificate"
+    setup  "LaunchAudit", audit_id: "sample", site_url: "sample", wcag_level: "sample", auditor: "sample"
+    input  accessibility_audit: 1, certificate_id: "sample", wcag_level: "sample", issued_by: "sample", valid_until: "sample"
+    expect ok: "true"
+  end
+
+  test "RevokeCertificate runs" do
+    tests "RevokeCertificate", on: "ComplianceCertificate"
+    input  compliance_certificate: 1
+    expect ok: "true"
+  end
+
+  test "RenewCertificate sets valid_until" do
+    tests "RenewCertificate", on: "ComplianceCertificate"
+    input  compliance_certificate: 1, valid_until: "sample"
+    expect ok: "true"
+  end
+
+end

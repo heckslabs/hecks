@@ -1,0 +1,107 @@
+Hecks.behaviors "HealingThroughLearning" do
+  vision "Behavioral tests for the HealingThroughLearning domain — exercises every command and query in memory"
+
+  # ── Learner aggregate ──────────────────────────────────────────
+
+  test "EnrollLearner sets learner_id + name + recovery_stage + enrollment_date" do
+    tests "EnrollLearner", on: "Learner"
+    input  learner_id: "sample", name: "sample", recovery_stage: "sample", enrollment_date: "sample"
+    expect learner_id: "sample", name: "sample", recovery_stage: "sample", enrollment_date: "sample", status: "enrolled"
+  end
+
+  test "AdvanceStage sets recovery_stage" do
+    tests "AdvanceStage", on: "Learner"
+    setup  "EnrollLearner", learner_id: "sample", name: "sample", recovery_stage: "sample", enrollment_date: "sample"
+    input  learner: 1, recovery_stage: "sample"
+    expect recovery_stage: "sample"
+  end
+
+  test "GraduateLearner runs" do
+    tests "GraduateLearner", on: "Learner"
+    setup  "EnrollLearner", learner_id: "sample", name: "sample", recovery_stage: "sample", enrollment_date: "sample"
+    input  learner: 1
+    expect status: "graduated"
+  end
+
+
+  # ── NutritionCurriculum aggregate ──────────────────────────────────────────
+
+  test "DesignCurriculum sets curriculum_id + title + difficulty_level" do
+    tests "DesignCurriculum", on: "NutritionCurriculum"
+    input  curriculum_id: "sample", title: "sample", difficulty_level: "sample"
+    expect curriculum_id: "sample", title: "sample", difficulty_level: "sample", status: "draft"
+  end
+
+  test "PublishCurriculum runs" do
+    tests "PublishCurriculum", on: "NutritionCurriculum"
+    setup  "DesignCurriculum", curriculum_id: "sample", title: "sample", difficulty_level: "sample"
+    input  nutrition_curriculum: 1
+    expect status: "published"
+  end
+
+
+  # ── CookingLab aggregate ──────────────────────────────────────────
+
+  test "ScheduleLab sets session_id + recipe_name + nutrition_focus" do
+    tests "ScheduleLab", on: "CookingLab"
+    setup  "EnrollLearner", learner_id: "sample", name: "sample", recovery_stage: "sample", enrollment_date: "sample"
+    setup  "DesignCurriculum", curriculum_id: "sample", title: "sample", difficulty_level: "sample"
+    input  learner: 1, nutrition_curriculum: 1, session_id: "sample", recipe_name: "sample", nutrition_focus: "sample"
+    expect session_id: "sample", learner: :learner, curriculum: :curriculum, recipe_name: "sample", nutrition_focus: "sample", status: "scheduled"
+  end
+
+  test "CompleteLab runs" do
+    tests "CompleteLab", on: "CookingLab"
+    input  cooking_lab: 1
+    expect status: "completed"
+  end
+
+
+  # ── HealthMetric aggregate ──────────────────────────────────────────
+
+  test "RecordBaseline sets metric_id + metric_type + baseline_value" do
+    tests "RecordBaseline", on: "HealthMetric"
+    setup  "EnrollLearner", learner_id: "sample", name: "sample", recovery_stage: "sample", enrollment_date: "sample"
+    input  learner: 1, metric_id: "sample", metric_type: "sample", baseline_value: 1.0
+    expect metric_id: "sample", learner: :learner, metric_type: "sample", baseline_value: 1.0, current_value: 1.0, trend: "stable"
+  end
+
+  test "RecordReading sets current_value + trend" do
+    tests "RecordReading", on: "HealthMetric"
+    input  health_metric: 1, current_value: 1.0, trend: "sample"
+    expect current_value: 1.0, trend: "sample"
+  end
+
+  test "FlagImprovement runs" do
+    tests "FlagImprovement", on: "HealthMetric"
+    input  health_metric: 1
+    expect ok: "true"
+  end
+
+
+  # ── Credential aggregate ──────────────────────────────────────────
+
+  test "InitiateCredential sets credential_id + credential_type + issuing_body" do
+    tests "InitiateCredential", on: "Credential"
+    setup  "EnrollLearner", learner_id: "sample", name: "sample", recovery_stage: "sample", enrollment_date: "sample"
+    input  learner: 1, credential_id: "sample", credential_type: "sample", issuing_body: "sample"
+    expect credential_id: "sample", learner: :learner, credential_type: "sample", issuing_body: "sample", status: "in_progress"
+  end
+
+  test "AwardCredential runs" do
+    tests "AwardCredential", on: "Credential"
+    input  credential: 1
+    expect status: "awarded"
+  end
+
+
+  # ── RecoveryMilestone aggregate ──────────────────────────────────────────
+
+  test "RecordMilestone sets milestone_id + milestone_type + description + achieved_date" do
+    tests "RecordMilestone", on: "RecoveryMilestone"
+    setup  "EnrollLearner", learner_id: "sample", name: "sample", recovery_stage: "sample", enrollment_date: "sample"
+    input  learner: 1, milestone_id: "sample", milestone_type: "sample", description: "sample", achieved_date: "sample"
+    expect milestone_id: "sample", learner: :learner, milestone_type: "sample", description: "sample", achieved_date: "sample"
+  end
+
+end

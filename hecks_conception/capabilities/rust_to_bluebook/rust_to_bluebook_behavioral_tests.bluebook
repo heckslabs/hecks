@@ -1,0 +1,76 @@
+Hecks.behaviors "RustToBluebook" do
+  vision "Behavioral tests for the RustToBluebook domain — exercises every command and query in memory"
+
+  # ── RustFile aggregate ──────────────────────────────────────────
+
+  test "Analyze sets path" do
+    tests "Analyze", on: "RustFile"
+    input  path: "sample"
+    expect path: "sample", status: "analyzed"
+  end
+
+  test "MapToBluebook runs" do
+    tests "MapToBluebook", on: "RustFile"
+    setup  "Analyze", path: "sample"
+    input  rust_file: 1
+    expect status: "mapped"
+  end
+
+  test "GenerateBluebook runs" do
+    tests "GenerateBluebook", on: "RustFile"
+    setup  "Analyze", path: "sample"
+    input  rust_file: 1
+    expect status: "generated"
+  end
+
+  test "Verify runs" do
+    tests "Verify", on: "RustFile"
+    setup  "Analyze", path: "sample"
+    input  rust_file: 1
+    expect status: "verified"
+  end
+
+  test "DeleteRust runs" do
+    tests "DeleteRust", on: "RustFile"
+    setup  "Analyze", path: "sample"
+    input  rust_file: 1
+    expect status: "deleted"
+  end
+
+
+  # ── Mapping aggregate ──────────────────────────────────────────
+
+  test "MapFunction sets rust_construct + bluebook_concept" do
+    tests "MapFunction", on: "Mapping"
+    input  rust_construct: "sample", bluebook_concept: "sample"
+    expect rust_construct: "sample", rust_type: "function", bluebook_concept: "sample", bluebook_type: "command"
+  end
+
+  test "MapSideEffect sets rust_construct + bluebook_concept" do
+    tests "MapSideEffect", on: "Mapping"
+    input  rust_construct: "sample", bluebook_concept: "sample"
+    expect rust_construct: "sample", rust_type: "side_effect", bluebook_concept: "sample"
+  end
+
+  test "MapControlFlow sets rust_construct + bluebook_concept" do
+    tests "MapControlFlow", on: "Mapping"
+    input  rust_construct: "sample", bluebook_concept: "sample"
+    expect rust_construct: "sample", rust_type: "control_flow", bluebook_concept: "sample"
+  end
+
+
+  # ── Conversion aggregate ──────────────────────────────────────────
+
+  test "StartConversion runs" do
+    tests "StartConversion", on: "Conversion"
+    expect files_converted: 0, lines_deleted: 0
+  end
+
+  test "RecordConversion sets lines_deleted" do
+    tests "RecordConversion", on: "Conversion"
+    setup  "StartConversion"
+    input  conversion: 1, lines_deleted: 1
+    expect ok: "true"
+  end
+
+end

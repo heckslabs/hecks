@@ -1,0 +1,112 @@
+Hecks.behaviors "ContentModeration" do
+  vision "Behavioral tests for the ContentModeration domain — exercises every command and query in memory"
+
+  # ── Post aggregate ──────────────────────────────────────────
+
+  test "IngestPost sets post_id + author_id + content_type + body + language" do
+    tests "IngestPost", on: "Post"
+    input  post_id: "sample", author_id: "sample", content_type: "sample", body: "sample", language: "sample"
+    expect ok: "true"
+  end
+
+  test "AutoFlagPost sets flag_reason" do
+    tests "AutoFlagPost", on: "Post"
+    setup  "IngestPost", post_id: "sample", author_id: "sample", content_type: "sample", body: "sample", language: "sample"
+    input  post: 1, flag_reason: "sample"
+    expect ok: "true"
+  end
+
+  test "PublishPost runs" do
+    tests "PublishPost", on: "Post"
+    setup  "IngestPost", post_id: "sample", author_id: "sample", content_type: "sample", body: "sample", language: "sample"
+    input  post: 1
+    expect ok: "true"
+  end
+
+
+  # ── Report aggregate ──────────────────────────────────────────
+
+  test "SubmitReport sets report_id + reporter_id + reason_category + description" do
+    tests "SubmitReport", on: "Report"
+    setup  "IngestPost", post_id: "sample", author_id: "sample", content_type: "sample", body: "sample", language: "sample"
+    input  post: 1, report_id: "sample", reporter_id: "sample", reason_category: "sample", description: "sample"
+    expect ok: "true"
+  end
+
+  test "PrioritizeReport sets priority" do
+    tests "PrioritizeReport", on: "Report"
+    input  report: 1, priority: "sample"
+    expect ok: "true"
+  end
+
+  test "DismissReport runs" do
+    tests "DismissReport", on: "Report"
+    input  report: 1
+    expect ok: "true"
+  end
+
+
+  # ── ModerationReview aggregate ──────────────────────────────────────────
+
+  test "AssignReview sets review_id + reviewer_id + queue_name" do
+    tests "AssignReview", on: "ModerationReview"
+    setup  "IngestPost", post_id: "sample", author_id: "sample", content_type: "sample", body: "sample", language: "sample"
+    input  post: 1, review_id: "sample", reviewer_id: "sample", queue_name: "sample"
+    expect ok: "true"
+  end
+
+  test "RenderVerdict sets verdict" do
+    tests "RenderVerdict", on: "ModerationReview"
+    input  moderation_review: 1, verdict: "sample"
+    expect ok: "true"
+  end
+
+  test "EscalateReview sets escalation_reason" do
+    tests "EscalateReview", on: "ModerationReview"
+    input  moderation_review: 1, escalation_reason: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── EnforcementAction aggregate ──────────────────────────────────────────
+
+  test "EnforceAction sets action_id + action_type + target_id + reason + duration_days" do
+    tests "EnforceAction", on: "EnforcementAction"
+    input  moderation_review: 1, action_id: "sample", action_type: "sample", target_id: "sample", reason: "sample", duration_days: 1
+    expect ok: "true"
+  end
+
+  test "LiftAction runs" do
+    tests "LiftAction", on: "EnforcementAction"
+    input  enforcement_action: 1
+    expect ok: "true"
+  end
+
+  test "ExtendAction sets additional_days" do
+    tests "ExtendAction", on: "EnforcementAction"
+    input  enforcement_action: 1, additional_days: 1
+    expect ok: "true"
+  end
+
+
+  # ── Appeal aggregate ──────────────────────────────────────────
+
+  test "FileAppeal sets appeal_id + appellant_id + grounds" do
+    tests "FileAppeal", on: "Appeal"
+    input  enforcement_action: 1, appeal_id: "sample", appellant_id: "sample", grounds: "sample"
+    expect ok: "true"
+  end
+
+  test "GrantAppeal runs" do
+    tests "GrantAppeal", on: "Appeal"
+    input  appeal: 1
+    expect ok: "true"
+  end
+
+  test "DenyAppeal sets denial_reason" do
+    tests "DenyAppeal", on: "Appeal"
+    input  appeal: 1, denial_reason: "sample"
+    expect ok: "true"
+  end
+
+end

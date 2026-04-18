@@ -1,0 +1,89 @@
+Hecks.behaviors "TreeService" do
+  vision "Behavioral tests for the TreeService domain — exercises every command and query in memory"
+
+  # ── TreeAssessment aggregate ──────────────────────────────────────────
+
+  test "AssessTree sets species + dbh_inches + height_feet + address" do
+    tests "AssessTree", on: "TreeAssessment"
+    input  species: "sample", dbh_inches: 1.0, height_feet: 1.0, address: "sample"
+    expect ok: "true"
+  end
+
+  test "RecommendAction sets recommendation" do
+    tests "RecommendAction", on: "TreeAssessment"
+    setup  "AssessTree", species: "sample", dbh_inches: 1.0, height_feet: 1.0, address: "sample"
+    input  tree_assessment: 1, recommendation: "sample"
+    expect ok: "true"
+  end
+
+  test "FlagHazard runs" do
+    tests "FlagHazard", on: "TreeAssessment"
+    setup  "AssessTree", species: "sample", dbh_inches: 1.0, height_feet: 1.0, address: "sample"
+    input  tree_assessment: 1
+    expect ok: "true"
+  end
+
+
+  # ── RemovalJob aggregate ──────────────────────────────────────────
+
+  test "ScheduleRemoval sets rigging_method + crew_size" do
+    tests "ScheduleRemoval", on: "RemovalJob"
+    setup  "AssessTree", species: "sample", dbh_inches: 1.0, height_feet: 1.0, address: "sample"
+    input  tree_assessment: 1, rigging_method: "sample", crew_size: 1
+    expect ok: "true"
+  end
+
+  test "ExecuteRemoval sets disposal_method" do
+    tests "ExecuteRemoval", on: "RemovalJob"
+    input  removal_job: 1, disposal_method: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── PruningJob aggregate ──────────────────────────────────────────
+
+  test "SchedulePruning sets prune_type + canopy_reduction_pct" do
+    tests "SchedulePruning", on: "PruningJob"
+    setup  "AssessTree", species: "sample", dbh_inches: 1.0, height_feet: 1.0, address: "sample"
+    input  tree_assessment: 1, prune_type: "sample", canopy_reduction_pct: 1.0
+    expect ok: "true"
+  end
+
+  test "CompletePruning runs" do
+    tests "CompletePruning", on: "PruningJob"
+    input  pruning_job: 1
+    expect ok: "true"
+  end
+
+
+  # ── StumpGrinding aggregate ──────────────────────────────────────────
+
+  test "ScheduleGrinding sets stump_diameter_inches + grind_depth_inches" do
+    tests "ScheduleGrinding", on: "StumpGrinding"
+    input  removal_job: 1, stump_diameter_inches: 1.0, grind_depth_inches: 1.0
+    expect ok: "true"
+  end
+
+  test "CompleteGrinding sets backfill_type" do
+    tests "CompleteGrinding", on: "StumpGrinding"
+    input  stump_grinding: 1, backfill_type: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── TreePermit aggregate ──────────────────────────────────────────
+
+  test "ApplyForPermit sets municipality + tree_species" do
+    tests "ApplyForPermit", on: "TreePermit"
+    setup  "AssessTree", species: "sample", dbh_inches: 1.0, height_feet: 1.0, address: "sample"
+    input  tree_assessment: 1, municipality: "sample", tree_species: "sample"
+    expect ok: "true"
+  end
+
+  test "ReceivePermit sets permit_number" do
+    tests "ReceivePermit", on: "TreePermit"
+    input  tree_permit: 1, permit_number: "sample"
+    expect ok: "true"
+  end
+
+end

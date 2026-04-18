@@ -1,0 +1,88 @@
+Hecks.behaviors "GameStore" do
+  vision "Behavioral tests for the GameStore domain — exercises every command and query in memory"
+
+  # ── Game aggregate ──────────────────────────────────────────
+
+  test "StockGame sets sku + title + platform + genre + price + quantity + age_rating" do
+    tests "StockGame", on: "Game"
+    input  sku: "sample", title: "sample", platform: "sample", genre: "sample", price: 1.0, quantity: 1, age_rating: "sample"
+    expect sku: "sample", title: "sample", platform: "sample", genre: "sample", price: 1.0, quantity: 1, age_rating: "sample"
+  end
+
+  test "SellGame runs" do
+    tests "SellGame", on: "Game"
+    setup  "StockGame", sku: "sample", title: "sample", platform: "sample", genre: "sample", price: 1.0, quantity: 1, age_rating: "sample"
+    input  game: 1
+    expect ok: "true"
+  end
+
+  test "ClearanceGame sets clearance_price" do
+    tests "ClearanceGame", on: "Game"
+    setup  "StockGame", sku: "sample", title: "sample", platform: "sample", genre: "sample", price: 1.0, quantity: 1, age_rating: "sample"
+    input  game: 1, clearance_price: 1.0
+    expect price: 1.0
+  end
+
+
+  # ── Tournament aggregate ──────────────────────────────────────────
+
+  test "CreateTournament sets tournament_id + game_title + format + max_players + entry_fee + date" do
+    tests "CreateTournament", on: "Tournament"
+    input  tournament_id: "sample", game_title: "sample", format: "sample", max_players: 1, entry_fee: 1.0, date: "sample"
+    expect tournament_id: "sample", game_title: "sample", format: "sample", max_players: 1, entry_fee: 1.0, date: "sample", status: "open"
+  end
+
+  test "LaunchTournament runs" do
+    tests "LaunchTournament", on: "Tournament"
+    setup  "CreateTournament", tournament_id: "sample", game_title: "sample", format: "sample", max_players: 1, entry_fee: 1.0, date: "sample"
+    input  tournament: 1
+    expect status: "in_progress"
+  end
+
+  test "ConcludeTournament runs" do
+    tests "ConcludeTournament", on: "Tournament"
+    setup  "CreateTournament", tournament_id: "sample", game_title: "sample", format: "sample", max_players: 1, entry_fee: 1.0, date: "sample"
+    input  tournament: 1
+    expect status: "concluded"
+  end
+
+
+  # ── TradeIn aggregate ──────────────────────────────────────────
+
+  test "AcceptTradeIn sets trade_id + customer_name + game_title + condition + credit_offered" do
+    tests "AcceptTradeIn", on: "TradeIn"
+    input  trade_id: "sample", customer_name: "sample", game_title: "sample", condition: "sample", credit_offered: 1.0
+    expect trade_id: "sample", customer_name: "sample", game_title: "sample", condition: "sample", credit_offered: 1.0, status: "accepted"
+  end
+
+  test "RejectTradeIn runs" do
+    tests "RejectTradeIn", on: "TradeIn"
+    setup  "AcceptTradeIn", trade_id: "sample", customer_name: "sample", game_title: "sample", condition: "sample", credit_offered: 1.0
+    input  trade_in: 1
+    expect status: "rejected"
+  end
+
+
+  # ── Preorder aggregate ──────────────────────────────────────────
+
+  test "PlacePreorder sets preorder_id + customer_name + game_title + release_date + deposit" do
+    tests "PlacePreorder", on: "Preorder"
+    input  preorder_id: "sample", customer_name: "sample", game_title: "sample", release_date: "sample", deposit: 1.0
+    expect preorder_id: "sample", customer_name: "sample", game_title: "sample", release_date: "sample", deposit: 1.0, status: "reserved"
+  end
+
+  test "FulfillPreorder runs" do
+    tests "FulfillPreorder", on: "Preorder"
+    setup  "PlacePreorder", preorder_id: "sample", customer_name: "sample", game_title: "sample", release_date: "sample", deposit: 1.0
+    input  preorder: 1
+    expect status: "fulfilled"
+  end
+
+  test "CancelPreorder runs" do
+    tests "CancelPreorder", on: "Preorder"
+    setup  "PlacePreorder", preorder_id: "sample", customer_name: "sample", game_title: "sample", release_date: "sample", deposit: 1.0
+    input  preorder: 1
+    expect status: "canceled"
+  end
+
+end

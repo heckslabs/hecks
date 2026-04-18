@@ -1,0 +1,129 @@
+Hecks.behaviors "DLM" do
+  vision "Behavioral tests for the DLM domain — exercises every command and query in memory"
+
+  # ── Model aggregate ──────────────────────────────────────────
+
+  test "BootModel sets name" do
+    tests "BootModel", on: "Model"
+    input  name: "sample"
+    expect name: "sample", mode: "operating"
+  end
+
+  test "ReportState runs" do
+    tests "ReportState", on: "Model"
+    setup  "BootModel", name: "sample"
+    input  model: 1
+    expect ok: "true"
+  end
+
+
+  # ── Operation aggregate ──────────────────────────────────────────
+
+  test "ExecuteOperation sets name + input" do
+    tests "ExecuteOperation", on: "Operation"
+    input  name: "sample", input: "sample"
+    expect name: "sample", input: "sample", deterministic: "true"
+  end
+
+  test "RejectOperation sets name + reason" do
+    tests "RejectOperation", on: "Operation"
+    input  name: "sample", reason: "sample"
+    expect deterministic: "true"
+  end
+
+
+  # ── Corpus aggregate ──────────────────────────────────────────
+
+  test "IndexCorpus runs" do
+    tests "IndexCorpus", on: "Corpus"
+    expect ok: "true"
+  end
+
+  test "QueryCorpus sets category + seed_vector" do
+    tests "QueryCorpus", on: "Corpus"
+    input  category: "sample", seed_vector: 1.0
+    expect ok: "true"
+  end
+
+  test "GrowCorpus runs" do
+    tests "GrowCorpus", on: "Corpus"
+    expect domain_count: 1
+  end
+
+
+  # ── GlassBox aggregate ──────────────────────────────────────────
+
+  test "AnnounceState sets state_name + state_value" do
+    tests "AnnounceState", on: "GlassBox"
+    input  state_name: "sample", state_value: "sample"
+    expect ok: "true"
+  end
+
+  test "RenderDashboard runs" do
+    tests "RenderDashboard", on: "GlassBox"
+    expect ok: "true"
+  end
+
+
+  # ── Honesty aggregate ──────────────────────────────────────────
+
+  test "RecordHonestOperation runs" do
+    tests "RecordHonestOperation", on: "Honesty"
+    expect total_operations: 1
+  end
+
+  test "RecordRefusal runs" do
+    tests "RecordRefusal", on: "Honesty"
+    expect total_refusals: 1
+  end
+
+  test "CalculateHonestyRate runs" do
+    tests "CalculateHonestyRate", on: "Honesty"
+    setup  "RecordHonestOperation"
+    input  honesty: 1
+    expect ok: "true"
+  end
+
+
+  # ── Physiology aggregate ──────────────────────────────────────────
+
+  test "RecordHeartbeat runs" do
+    tests "RecordHeartbeat", on: "Physiology"
+    input  physiology: 1
+    expect heartbeat: 1
+  end
+
+  test "RecordPulse runs" do
+    tests "RecordPulse", on: "Physiology"
+    input  physiology: 1
+    expect pulse: 1
+  end
+
+  test "EnterSleep runs" do
+    tests "EnterSleep", on: "Physiology"
+    input  physiology: 1
+    expect pulse: 0
+  end
+
+  test "GenerateDream sets dream_images" do
+    tests "GenerateDream", on: "Physiology"
+    input  physiology: 1, dream_images: "sample"
+    expect dreams_total: 1
+  end
+
+
+  # ── Growth aggregate ──────────────────────────────────────────
+
+  test "RecordGrowth runs" do
+    tests "RecordGrowth", on: "Growth"
+    expect sessions_lived: 1
+  end
+
+  test "MeasureAcceleration runs" do
+    tests "MeasureAcceleration", on: "Growth"
+    setup  "RecordGrowth"
+    input  growth: 1
+    expect ok: "true"
+  end
+
+end

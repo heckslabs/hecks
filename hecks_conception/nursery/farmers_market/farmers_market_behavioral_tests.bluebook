@@ -1,0 +1,90 @@
+Hecks.behaviors "FarmersMarket" do
+  vision "Behavioral tests for the FarmersMarket domain — exercises every command and query in memory"
+
+  # ── Vendor aggregate ──────────────────────────────────────────
+
+  test "RegisterVendor sets vendor_id + farm_name + contact_name + contact_phone + product_type" do
+    tests "RegisterVendor", on: "Vendor"
+    input  vendor_id: "sample", farm_name: "sample", contact_name: "sample", contact_phone: "sample", product_type: "sample"
+    expect vendor_id: "sample", farm_name: "sample", contact_name: "sample", contact_phone: "sample", product_type: "sample", status: "active"
+  end
+
+  test "SuspendVendor runs" do
+    tests "SuspendVendor", on: "Vendor"
+    setup  "RegisterVendor", vendor_id: "sample", farm_name: "sample", contact_name: "sample", contact_phone: "sample", product_type: "sample"
+    input  vendor: 1
+    expect status: "suspended"
+  end
+
+  test "ReinstatVendor runs" do
+    tests "ReinstatVendor", on: "Vendor"
+    setup  "RegisterVendor", vendor_id: "sample", farm_name: "sample", contact_name: "sample", contact_phone: "sample", product_type: "sample"
+    input  vendor: 1
+    expect status: "active"
+  end
+
+
+  # ── Stall aggregate ──────────────────────────────────────────
+
+  test "AssignStall sets stall_id + location + size + weekly_fee + assigned_vendor_id" do
+    tests "AssignStall", on: "Stall"
+    input  stall_id: "sample", location: "sample", size: "sample", weekly_fee: 1.0, assigned_vendor_id: "sample"
+    expect stall_id: "sample", location: "sample", size: "sample", weekly_fee: 1.0, assigned_vendor_id: "sample", status: "occupied"
+  end
+
+  test "VacateStall runs" do
+    tests "VacateStall", on: "Stall"
+    setup  "AssignStall", stall_id: "sample", location: "sample", size: "sample", weekly_fee: 1.0, assigned_vendor_id: "sample"
+    input  stall: 1
+    expect status: "vacant"
+  end
+
+
+  # ── MarketPermit aggregate ──────────────────────────────────────────
+
+  test "IssuePermit sets permit_id + vendor_id + permit_type + issue_date + expiration_date" do
+    tests "IssuePermit", on: "MarketPermit"
+    input  permit_id: "sample", vendor_id: "sample", permit_type: "sample", issue_date: "sample", expiration_date: "sample"
+    expect permit_id: "sample", vendor_id: "sample", permit_type: "sample", issue_date: "sample", expiration_date: "sample", status: "valid"
+  end
+
+  test "RevokePermit runs" do
+    tests "RevokePermit", on: "MarketPermit"
+    setup  "IssuePermit", permit_id: "sample", vendor_id: "sample", permit_type: "sample", issue_date: "sample", expiration_date: "sample"
+    input  market_permit: 1
+    expect status: "revoked"
+  end
+
+
+  # ── Inspection aggregate ──────────────────────────────────────────
+
+  test "ConductInspection sets inspection_id + vendor_id + inspector_name + inspection_date" do
+    tests "ConductInspection", on: "Inspection"
+    input  inspection_id: "sample", vendor_id: "sample", inspector_name: "sample", inspection_date: "sample"
+    expect inspection_id: "sample", vendor_id: "sample", inspector_name: "sample", inspection_date: "sample", result: "pending"
+  end
+
+  test "RecordResult sets result" do
+    tests "RecordResult", on: "Inspection"
+    setup  "ConductInspection", inspection_id: "sample", vendor_id: "sample", inspector_name: "sample", inspection_date: "sample"
+    input  inspection: 1, result: "sample"
+    expect result: "sample"
+  end
+
+
+  # ── MarketSeason aggregate ──────────────────────────────────────────
+
+  test "OpenSeason sets season_id + name + start_date + end_date" do
+    tests "OpenSeason", on: "MarketSeason"
+    input  season_id: "sample", name: "sample", start_date: "sample", end_date: "sample"
+    expect season_id: "sample", name: "sample", start_date: "sample", end_date: "sample", status: "open"
+  end
+
+  test "CloseSeason runs" do
+    tests "CloseSeason", on: "MarketSeason"
+    setup  "OpenSeason", season_id: "sample", name: "sample", start_date: "sample", end_date: "sample"
+    input  market_season: 1
+    expect status: "closed"
+  end
+
+end

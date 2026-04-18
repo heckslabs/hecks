@@ -1,0 +1,83 @@
+Hecks.behaviors "IceCreamParlor" do
+  vision "Behavioral tests for the IceCreamParlor domain — exercises every command and query in memory"
+
+  # ── Flavor aggregate ──────────────────────────────────────────
+
+  test "CreateFlavor sets flavor_id + name + base + description + dairy_free" do
+    tests "CreateFlavor", on: "Flavor"
+    input  flavor_id: "sample", name: "sample", base: "sample", description: "sample", dairy_free: "sample"
+    expect flavor_id: "sample", name: "sample", base: "sample", description: "sample", dairy_free: "sample", available: "true"
+  end
+
+  test "RetireFlavor runs" do
+    tests "RetireFlavor", on: "Flavor"
+    setup  "CreateFlavor", flavor_id: "sample", name: "sample", base: "sample", description: "sample", dairy_free: "sample"
+    input  flavor: 1
+    expect available: "false"
+  end
+
+
+  # ── Batch aggregate ──────────────────────────────────────────
+
+  test "ChurnBatch sets batch_id + flavor_id + volume_liters + churned_date + expiration_date" do
+    tests "ChurnBatch", on: "Batch"
+    input  batch_id: "sample", flavor_id: "sample", volume_liters: 1.0, churned_date: "sample", expiration_date: "sample"
+    expect batch_id: "sample", flavor_id: "sample", volume_liters: 1.0, churned_date: "sample", expiration_date: "sample", status: "fresh"
+  end
+
+  test "DepleteBatch runs" do
+    tests "DepleteBatch", on: "Batch"
+    setup  "ChurnBatch", batch_id: "sample", flavor_id: "sample", volume_liters: 1.0, churned_date: "sample", expiration_date: "sample"
+    input  batch: 1
+    expect status: "depleted"
+  end
+
+  test "DiscardBatch runs" do
+    tests "DiscardBatch", on: "Batch"
+    setup  "ChurnBatch", batch_id: "sample", flavor_id: "sample", volume_liters: 1.0, churned_date: "sample", expiration_date: "sample"
+    input  batch: 1
+    expect status: "discarded"
+  end
+
+
+  # ── Topping aggregate ──────────────────────────────────────────
+
+  test "StockTopping sets topping_id + name + category + price_per_serving + quantity_on_hand" do
+    tests "StockTopping", on: "Topping"
+    input  topping_id: "sample", name: "sample", category: "sample", price_per_serving: 1.0, quantity_on_hand: 1
+    expect topping_id: "sample", name: "sample", category: "sample", price_per_serving: 1.0, quantity_on_hand: 1
+  end
+
+  test "ReorderTopping sets reorder_amount" do
+    tests "ReorderTopping", on: "Topping"
+    setup  "StockTopping", topping_id: "sample", name: "sample", category: "sample", price_per_serving: 1.0, quantity_on_hand: 1
+    input  topping: 1, reorder_amount: 1
+    expect ok: "true"
+  end
+
+
+  # ── Serving aggregate ──────────────────────────────────────────
+
+  test "PrepareServing sets serving_id + cone_type + scoops" do
+    tests "PrepareServing", on: "Serving"
+    input  serving_id: "sample", cone_type: "sample", scoops: 1
+    expect serving_id: "sample", cone_type: "sample", scoops: 1, status: "prepared"
+  end
+
+  test "HandOffServing runs" do
+    tests "HandOffServing", on: "Serving"
+    setup  "PrepareServing", serving_id: "sample", cone_type: "sample", scoops: 1
+    input  serving: 1
+    expect status: "served"
+  end
+
+
+  # ── DailySpecial aggregate ──────────────────────────────────────────
+
+  test "AnnounceDailySpecial sets special_id + flavor_id + promotion_text + discount_percent + date" do
+    tests "AnnounceDailySpecial", on: "DailySpecial"
+    input  special_id: "sample", flavor_id: "sample", promotion_text: "sample", discount_percent: 1.0, date: "sample"
+    expect special_id: "sample", flavor_id: "sample", promotion_text: "sample", discount_percent: 1.0, date: "sample"
+  end
+
+end

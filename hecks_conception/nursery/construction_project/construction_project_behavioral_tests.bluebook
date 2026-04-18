@@ -1,0 +1,108 @@
+Hecks.behaviors "ConstructionProject" do
+  vision "Behavioral tests for the ConstructionProject domain — exercises every command and query in memory"
+
+  # ── Site aggregate ──────────────────────────────────────────
+
+  test "OpenSite sets site_name + address + project_type + lot_size_sqft" do
+    tests "OpenSite", on: "Site"
+    input  site_name: "sample", address: "sample", project_type: "sample", lot_size_sqft: 1.0
+    expect site_name: "sample", address: "sample", project_type: "sample", lot_size_sqft: 1.0, phase: "planning", status: "active"
+  end
+
+  test "AdvancePhase sets phase" do
+    tests "AdvancePhase", on: "Site"
+    setup  "OpenSite", site_name: "sample", address: "sample", project_type: "sample", lot_size_sqft: 1.0
+    input  site: 1, phase: "sample"
+    expect phase: "sample"
+  end
+
+  test "CloseSite runs" do
+    tests "CloseSite", on: "Site"
+    setup  "OpenSite", site_name: "sample", address: "sample", project_type: "sample", lot_size_sqft: 1.0
+    input  site: 1
+    expect status: "closed"
+  end
+
+
+  # ── BuildingPermit aggregate ──────────────────────────────────────────
+
+  test "ApplyForPermit sets permit_type" do
+    tests "ApplyForPermit", on: "BuildingPermit"
+    setup  "OpenSite", site_name: "sample", address: "sample", project_type: "sample", lot_size_sqft: 1.0
+    input  site: 1, permit_type: "sample"
+    expect permit_type: "sample", status: "applied"
+  end
+
+  test "IssuePermit sets permit_number + issued_date + expiration_date" do
+    tests "IssuePermit", on: "BuildingPermit"
+    input  building_permit: 1, permit_number: "sample", issued_date: "sample", expiration_date: "sample"
+    expect permit_number: "sample", issued_date: "sample", expiration_date: "sample", status: "issued"
+  end
+
+  test "RevokePermit runs" do
+    tests "RevokePermit", on: "BuildingPermit"
+    input  building_permit: 1
+    expect status: "revoked"
+  end
+
+
+  # ── SubcontractorAgreement aggregate ──────────────────────────────────────────
+
+  test "HireSubcontractor sets company_name + trade + contract_value + start_date + end_date" do
+    tests "HireSubcontractor", on: "SubcontractorAgreement"
+    setup  "OpenSite", site_name: "sample", address: "sample", project_type: "sample", lot_size_sqft: 1.0
+    input  site: 1, company_name: "sample", trade: "sample", contract_value: 1.0, start_date: "sample", end_date: "sample"
+    expect company_name: "sample", trade: "sample", contract_value: 1.0, start_date: "sample", end_date: "sample", status: "active"
+  end
+
+  test "IssueChangeOrder sets adjustment_amount + change_description" do
+    tests "IssueChangeOrder", on: "SubcontractorAgreement"
+    input  subcontractor_agreement: 1, adjustment_amount: 1.0, change_description: "sample"
+    expect ok: "true"
+  end
+
+  test "TerminateSubcontractor runs" do
+    tests "TerminateSubcontractor", on: "SubcontractorAgreement"
+    input  subcontractor_agreement: 1
+    expect status: "terminated"
+  end
+
+
+  # ── MaterialOrder aggregate ──────────────────────────────────────────
+
+  test "OrderMaterials sets supplier + material_type + quantity + unit + total_cost" do
+    tests "OrderMaterials", on: "MaterialOrder"
+    setup  "OpenSite", site_name: "sample", address: "sample", project_type: "sample", lot_size_sqft: 1.0
+    input  site: 1, supplier: "sample", material_type: "sample", quantity: 1, unit: "sample", total_cost: 1.0
+    expect supplier: "sample", material_type: "sample", quantity: 1, total_cost: 1.0, status: "ordered"
+  end
+
+  test "ReceiveMaterials runs" do
+    tests "ReceiveMaterials", on: "MaterialOrder"
+    input  material_order: 1
+    expect status: "received"
+  end
+
+  test "RejectDelivery runs" do
+    tests "RejectDelivery", on: "MaterialOrder"
+    input  material_order: 1
+    expect status: "rejected"
+  end
+
+
+  # ── SiteInspection aggregate ──────────────────────────────────────────
+
+  test "ScheduleInspection sets inspection_type + inspection_date" do
+    tests "ScheduleInspection", on: "SiteInspection"
+    setup  "OpenSite", site_name: "sample", address: "sample", project_type: "sample", lot_size_sqft: 1.0
+    input  site: 1, building_permit: 1, inspection_type: "sample", inspection_date: "sample"
+    expect inspection_type: "sample", inspection_date: "sample", status: "scheduled"
+  end
+
+  test "RecordResult sets inspector_name + result + deficiencies" do
+    tests "RecordResult", on: "SiteInspection"
+    input  site_inspection: 1, inspector_name: "sample", result: "sample", deficiencies: "sample"
+    expect inspector_name: "sample", result: "sample", deficiencies: "sample", status: "completed"
+  end
+
+end

@@ -1,0 +1,90 @@
+Hecks.behaviors "GeologicalMining" do
+  vision "Behavioral tests for the GeologicalMining domain — exercises every command and query in memory"
+
+  # ── GeologicalFormation aggregate ──────────────────────────────────────────
+
+  test "MapFormation sets name + rock_type + geological_age + depth_m + thickness_m + mineralization" do
+    tests "MapFormation", on: "GeologicalFormation"
+    input  name: "sample", rock_type: "sample", geological_age: "sample", depth_m: 1.0, thickness_m: 1.0, mineralization: "sample"
+    expect name: "sample", rock_type: "sample", geological_age: "sample", depth_m: 1.0, thickness_m: 1.0, mineralization: "sample", status: "mapped"
+  end
+
+  test "ClassifyFormation runs" do
+    tests "ClassifyFormation", on: "GeologicalFormation"
+    setup  "MapFormation", name: "sample", rock_type: "sample", geological_age: "sample", depth_m: 1.0, thickness_m: 1.0, mineralization: "sample"
+    input  geological_formation: 1
+    expect status: "classified"
+  end
+
+
+  # ── OreBody aggregate ──────────────────────────────────────────
+
+  test "DelineateOreBody sets name + mineral + grade_pct + estimated_tonnage + depth_m" do
+    tests "DelineateOreBody", on: "OreBody"
+    input  name: "sample", mineral: "sample", grade_pct: 1.0, estimated_tonnage: 1.0, depth_m: 1.0
+    expect name: "sample", mineral: "sample", grade_pct: 1.0, estimated_tonnage: 1.0, depth_m: 1.0, status: "delineated"
+  end
+
+  test "UpgradeResource sets grade_pct + estimated_tonnage" do
+    tests "UpgradeResource", on: "OreBody"
+    setup  "DelineateOreBody", name: "sample", mineral: "sample", grade_pct: 1.0, estimated_tonnage: 1.0, depth_m: 1.0
+    input  ore_body: 1, grade_pct: 1.0, estimated_tonnage: 1.0
+    expect grade_pct: 1.0, estimated_tonnage: 1.0, status: "measured"
+  end
+
+
+  # ── DrillCore aggregate ──────────────────────────────────────────
+
+  test "LogDrillCore sets hole_id + from_m + to_m + lithology + recovery_pct" do
+    tests "LogDrillCore", on: "DrillCore"
+    input  hole_id: "sample", from_m: 1.0, to_m: 1.0, lithology: "sample", recovery_pct: 1.0
+    expect hole_id: "sample", from_m: 1.0, to_m: 1.0, lithology: "sample", recovery_pct: 1.0, status: "logged"
+  end
+
+  test "SubmitForAssay runs" do
+    tests "SubmitForAssay", on: "DrillCore"
+    setup  "LogDrillCore", hole_id: "sample", from_m: 1.0, to_m: 1.0, lithology: "sample", recovery_pct: 1.0
+    input  drill_core: 1
+    expect status: "submitted"
+  end
+
+
+  # ── AssayResult aggregate ──────────────────────────────────────────
+
+  test "RecordAssayResult sets sample_id + hole_id + element + concentration_ppm + grade_pct + lab_name" do
+    tests "RecordAssayResult", on: "AssayResult"
+    input  sample_id: "sample", hole_id: "sample", element: "sample", concentration_ppm: 1.0, grade_pct: 1.0, lab_name: "sample"
+    expect sample_id: "sample", hole_id: "sample", element: "sample", concentration_ppm: 1.0, grade_pct: 1.0, lab_name: "sample", status: "recorded"
+  end
+
+  test "ValidateQC runs" do
+    tests "ValidateQC", on: "AssayResult"
+    setup  "RecordAssayResult", sample_id: "sample", hole_id: "sample", element: "sample", concentration_ppm: 1.0, grade_pct: 1.0, lab_name: "sample"
+    input  assay_result: 1
+    expect status: "validated"
+  end
+
+
+  # ── ExtractionPlan aggregate ──────────────────────────────────────────
+
+  test "DesignExtractionPlan sets name + ore_body_name + extraction_method + planned_tonnage + strip_ratio + cost_per_ton" do
+    tests "DesignExtractionPlan", on: "ExtractionPlan"
+    input  name: "sample", ore_body_name: "sample", extraction_method: "sample", planned_tonnage: 1.0, strip_ratio: 1.0, cost_per_ton: 1.0
+    expect name: "sample", ore_body_name: "sample", extraction_method: "sample", planned_tonnage: 1.0, strip_ratio: 1.0, cost_per_ton: 1.0, status: "designed"
+  end
+
+  test "ApproveExtraction runs" do
+    tests "ApproveExtraction", on: "ExtractionPlan"
+    setup  "DesignExtractionPlan", name: "sample", ore_body_name: "sample", extraction_method: "sample", planned_tonnage: 1.0, strip_ratio: 1.0, cost_per_ton: 1.0
+    input  extraction_plan: 1
+    expect status: "approved"
+  end
+
+  test "BeginExtraction runs" do
+    tests "BeginExtraction", on: "ExtractionPlan"
+    setup  "DesignExtractionPlan", name: "sample", ore_body_name: "sample", extraction_method: "sample", planned_tonnage: 1.0, strip_ratio: 1.0, cost_per_ton: 1.0
+    input  extraction_plan: 1
+    expect status: "extracting"
+  end
+
+end

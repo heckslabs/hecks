@@ -1,0 +1,90 @@
+Hecks.behaviors "CustomWoodcraft" do
+  vision "Behavioral tests for the CustomWoodcraft domain — exercises every command and query in memory"
+
+  # ── Lumber aggregate ──────────────────────────────────────────
+
+  test "MillLog sets species + board_feet" do
+    tests "MillLog", on: "Lumber"
+    input  species: "sample", board_feet: 1.0
+    expect ok: "true"
+  end
+
+  test "DryLumber runs" do
+    tests "DryLumber", on: "Lumber"
+    setup  "MillLog", species: "sample", board_feet: 1.0
+    input  lumber: 1
+    expect ok: "true"
+  end
+
+  test "GradeLumber sets grade" do
+    tests "GradeLumber", on: "Lumber"
+    setup  "MillLog", species: "sample", board_feet: 1.0
+    input  lumber: 1, grade: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── FurnitureDesign aggregate ──────────────────────────────────────────
+
+  test "DesignPiece sets name + style" do
+    tests "DesignPiece", on: "FurnitureDesign"
+    input  name: "sample", style: "sample"
+    expect ok: "true"
+  end
+
+  test "SpecifyMaterial sets species + board_feet_needed + min_grade" do
+    tests "SpecifyMaterial", on: "FurnitureDesign"
+    setup  "DesignPiece", name: "sample", style: "sample"
+    input  furniture_design: 1, species: "sample", board_feet_needed: 1.0, min_grade: "sample"
+    expect materials_size: 1
+  end
+
+  test "FinalizeDesign runs" do
+    tests "FinalizeDesign", on: "FurnitureDesign"
+    setup  "DesignPiece", name: "sample", style: "sample"
+    input  furniture_design: 1
+    expect ok: "true"
+  end
+
+
+  # ── WorkOrder aggregate ──────────────────────────────────────────
+
+  test "CreateWorkOrder sets craftsman" do
+    tests "CreateWorkOrder", on: "WorkOrder"
+    setup  "MillLog", species: "sample", board_feet: 1.0
+    setup  "DesignPiece", name: "sample", style: "sample"
+    input  lumber: 1, furniture_design: 1, craftsman: "sample"
+    expect craftsman: "sample"
+  end
+
+  test "CompleteStep sets step_name" do
+    tests "CompleteStep", on: "WorkOrder"
+    setup  "CreateWorkOrder", craftsman: "sample"
+    input  work_order: 1, step_name: "sample"
+    expect ok: "true"
+  end
+
+  test "FinishPiece runs" do
+    tests "FinishPiece", on: "WorkOrder"
+    setup  "CreateWorkOrder", craftsman: "sample"
+    input  work_order: 1
+    expect ok: "true"
+  end
+
+
+  # ── ShowroomDisplay aggregate ──────────────────────────────────────────
+
+  test "DisplayPiece sets price_cents + location" do
+    tests "DisplayPiece", on: "ShowroomDisplay"
+    setup  "DesignPiece", name: "sample", style: "sample"
+    input  furniture_design: 1, price_cents: 1, location: "sample"
+    expect ok: "true"
+  end
+
+  test "SellPiece runs" do
+    tests "SellPiece", on: "ShowroomDisplay"
+    input  showroom_display: 1
+    expect ok: "true"
+  end
+
+end

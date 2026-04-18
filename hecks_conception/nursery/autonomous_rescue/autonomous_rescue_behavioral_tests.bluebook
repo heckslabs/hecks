@@ -1,0 +1,151 @@
+Hecks.behaviors "AutonomousRescue" do
+  vision "Behavioral tests for the AutonomousRescue domain — exercises every command and query in memory"
+
+  # ── RescueMission aggregate ──────────────────────────────────────────
+
+  test "LaunchMission sets incident_name + incident_type + location" do
+    tests "LaunchMission", on: "RescueMission"
+    input  incident_name: "sample", incident_type: "sample", location: "sample"
+    expect incident_name: "sample", incident_type: "sample", location: "sample", survivors_found: 0, status: "active"
+  end
+
+  test "EscalateMission runs" do
+    tests "EscalateMission", on: "RescueMission"
+    setup  "LaunchMission", incident_name: "sample", incident_type: "sample", location: "sample"
+    input  rescue_mission: 1
+    expect ok: "true"
+  end
+
+  test "ConcludeMission runs" do
+    tests "ConcludeMission", on: "RescueMission"
+    setup  "LaunchMission", incident_name: "sample", incident_type: "sample", location: "sample"
+    input  rescue_mission: 1
+    expect status: "concluded"
+  end
+
+
+  # ── SearchDrone aggregate ──────────────────────────────────────────
+
+  test "DeployDrone sets drone_id" do
+    tests "DeployDrone", on: "SearchDrone"
+    setup  "LaunchMission", incident_name: "sample", incident_type: "sample", location: "sample"
+    input  rescue_mission: 1, drone_id: "sample"
+    expect drone_id: "sample", mission: :mission, battery_percent: 100.0, status: "searching"
+  end
+
+  test "DetectSurvivor sets latitude + longitude + confidence" do
+    tests "DetectSurvivor", on: "SearchDrone"
+    input  search_drone: 1, latitude: 1.0, longitude: 1.0, confidence: "sample"
+    expect ok: "true"
+  end
+
+  test "ReportBatteryLow runs" do
+    tests "ReportBatteryLow", on: "SearchDrone"
+    input  search_drone: 1
+    expect status: "returning"
+  end
+
+  test "RecallDrone runs" do
+    tests "RecallDrone", on: "SearchDrone"
+    input  search_drone: 1
+    expect status: "returning"
+  end
+
+
+  # ── SupplyBot aggregate ──────────────────────────────────────────
+
+  test "DeploySupplyBot sets bot_id + payload_type" do
+    tests "DeploySupplyBot", on: "SupplyBot"
+    setup  "CreateBeacon", latitude: 1.0, longitude: 1.0, detection_method: "sample", rescue_priority: "sample"
+    input  survivor_beacon: 1, bot_id: "sample", payload_type: "sample"
+    expect bot_id: "sample", payload_type: "sample", target_beacon: :target_beacon, battery_percent: 100.0, status: "en_route"
+  end
+
+  test "DeliverSupplies runs" do
+    tests "DeliverSupplies", on: "SupplyBot"
+    input  supply_bot: 1
+    expect status: "delivered"
+  end
+
+  test "ReportBotBatteryLow runs" do
+    tests "ReportBotBatteryLow", on: "SupplyBot"
+    input  supply_bot: 1
+    expect status: "returning"
+  end
+
+  test "ReturnToBase runs" do
+    tests "ReturnToBase", on: "SupplyBot"
+    input  supply_bot: 1
+    expect status: "at_base"
+  end
+
+
+  # ── SurvivorBeacon aggregate ──────────────────────────────────────────
+
+  test "CreateBeacon sets latitude + longitude + detection_method + rescue_priority" do
+    tests "CreateBeacon", on: "SurvivorBeacon"
+    setup  "LaunchMission", incident_name: "sample", incident_type: "sample", location: "sample"
+    input  rescue_mission: 1, latitude: 1.0, longitude: 1.0, detection_method: "sample", rescue_priority: "sample"
+    expect latitude: 1.0, longitude: 1.0, detection_method: "sample", rescue_priority: "sample", mission: :mission, status: "active"
+  end
+
+  test "ConfirmSurvivor runs" do
+    tests "ConfirmSurvivor", on: "SurvivorBeacon"
+    setup  "CreateBeacon", latitude: 1.0, longitude: 1.0, detection_method: "sample", rescue_priority: "sample"
+    input  survivor_beacon: 1
+    expect status: "confirmed"
+  end
+
+  test "ExtractSurvivor runs" do
+    tests "ExtractSurvivor", on: "SurvivorBeacon"
+    setup  "CreateBeacon", latitude: 1.0, longitude: 1.0, detection_method: "sample", rescue_priority: "sample"
+    input  survivor_beacon: 1
+    expect status: "extracted"
+  end
+
+
+  # ── ChargingStation aggregate ──────────────────────────────────────────
+
+  test "DeployStation sets station_id + location + charging_slots" do
+    tests "DeployStation", on: "ChargingStation"
+    input  station_id: "sample", location: "sample", charging_slots: 1
+    expect station_id: "sample", location: "sample", charging_slots: 1, slots_available: 1, status: "operational"
+  end
+
+  test "RouteToCharger runs" do
+    tests "RouteToCharger", on: "ChargingStation"
+    setup  "DeployStation", station_id: "sample", location: "sample", charging_slots: 1
+    input  charging_station: 1
+    expect status: "charging"
+  end
+
+  test "CompleteCharge runs" do
+    tests "CompleteCharge", on: "ChargingStation"
+    setup  "DeployStation", station_id: "sample", location: "sample", charging_slots: 1
+    input  charging_station: 1
+    expect status: "operational"
+  end
+
+
+  # ── DebrisMap aggregate ──────────────────────────────────────────
+
+  test "InitializeMap runs" do
+    tests "InitializeMap", on: "DebrisMap"
+    setup  "LaunchMission", incident_name: "sample", incident_type: "sample", location: "sample"
+    input  rescue_mission: 1
+    expect mission: :mission, map_version: "1", sectors_mapped: 0, status: "active"
+  end
+
+  test "UpdateMap sets sectors_mapped" do
+    tests "UpdateMap", on: "DebrisMap"
+    input  debris_map: 1, sectors_mapped: 1
+    expect sectors_mapped: 1
+  end
+
+  test "FlagUnstableSector sets sector_id" do
+    tests "FlagUnstableSector", on: "DebrisMap"
+    input  debris_map: 1, sector_id: "sample"
+    expect ok: "true"
+  end
+
+end

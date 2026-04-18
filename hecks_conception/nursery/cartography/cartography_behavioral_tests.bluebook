@@ -1,0 +1,96 @@
+Hecks.behaviors "Cartography" do
+  vision "Behavioral tests for the Cartography domain — exercises every command and query in memory"
+
+  # ── MapSheet aggregate ──────────────────────────────────────────
+
+  test "CreateSheet sets sheet_id + title + scale" do
+    tests "CreateSheet", on: "MapSheet"
+    input  sheet_id: "sample", title: "sample", scale: "sample"
+    expect sheet_id: "sample", title: "sample", scale: "sample"
+  end
+
+  test "PublishSheet runs" do
+    tests "PublishSheet", on: "MapSheet"
+    setup  "CreateSheet", sheet_id: "sample", title: "sample", scale: "sample"
+    input  map_sheet: 1
+    expect ok: "true"
+  end
+
+  test "RetireSheet runs" do
+    tests "RetireSheet", on: "MapSheet"
+    setup  "CreateSheet", sheet_id: "sample", title: "sample", scale: "sample"
+    input  map_sheet: 1
+    expect ok: "true"
+  end
+
+
+  # ── Projection aggregate ──────────────────────────────────────────
+
+  test "DefineProjection sets name + projection_type + central_meridian" do
+    tests "DefineProjection", on: "Projection"
+    input  name: "sample", projection_type: "sample", central_meridian: 1.0
+    expect ok: "true"
+  end
+
+  test "ComputeDistortion sets latitude + longitude" do
+    tests "ComputeDistortion", on: "Projection"
+    setup  "DefineProjection", name: "sample", projection_type: "sample", central_meridian: 1.0
+    input  projection: 1, latitude: 1.0, longitude: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── GeographicFeature aggregate ──────────────────────────────────────────
+
+  test "DigitizeFeature sets feature_type + name + geometry_wkt" do
+    tests "DigitizeFeature", on: "GeographicFeature"
+    setup  "CreateSheet", sheet_id: "sample", title: "sample", scale: "sample"
+    input  map_sheet: 1, feature_type: "sample", name: "sample", geometry_wkt: "sample"
+    expect ok: "true"
+  end
+
+  test "AttributeFeature sets attribute_name + attribute_value" do
+    tests "AttributeFeature", on: "GeographicFeature"
+    input  geographic_feature: 1, attribute_name: "sample", attribute_value: "sample"
+    expect ok: "true"
+  end
+
+  test "DeleteFeature runs" do
+    tests "DeleteFeature", on: "GeographicFeature"
+    input  geographic_feature: 1
+    expect ok: "true"
+  end
+
+
+  # ── Datum aggregate ──────────────────────────────────────────
+
+  test "RegisterDatum sets name + ellipsoid + semi_major_axis_m" do
+    tests "RegisterDatum", on: "Datum"
+    input  name: "sample", ellipsoid: "sample", semi_major_axis_m: 1.0
+    expect name: "sample", ellipsoid: "sample", semi_major_axis_m: 1.0
+  end
+
+  test "TransformCoordinates sets source_lat + source_lon" do
+    tests "TransformCoordinates", on: "Datum"
+    setup  "RegisterDatum", name: "sample", ellipsoid: "sample", semi_major_axis_m: 1.0
+    input  datum: 1, source_lat: 1.0, source_lon: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── MapRevision aggregate ──────────────────────────────────────────
+
+  test "SubmitRevision sets change_description" do
+    tests "SubmitRevision", on: "MapRevision"
+    setup  "CreateSheet", sheet_id: "sample", title: "sample", scale: "sample"
+    input  map_sheet: 1, change_description: "sample"
+    expect ok: "true"
+  end
+
+  test "ApproveRevision sets reviewer" do
+    tests "ApproveRevision", on: "MapRevision"
+    input  map_revision: 1, reviewer: "sample"
+    expect ok: "true"
+  end
+
+end

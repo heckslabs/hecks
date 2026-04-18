@@ -1,0 +1,88 @@
+Hecks.behaviors "ClothingBoutique" do
+  vision "Behavioral tests for the ClothingBoutique domain — exercises every command and query in memory"
+
+  # ── Garment aggregate ──────────────────────────────────────────
+
+  test "ReceiveGarment sets style_number + name + designer + fabric + retail_price + season" do
+    tests "ReceiveGarment", on: "Garment"
+    input  style_number: "sample", name: "sample", designer: "sample", fabric: "sample", retail_price: 1.0, season: "sample"
+    expect style_number: "sample", name: "sample", designer: "sample", fabric: "sample", retail_price: 1.0, season: "sample", status: "in_stock"
+  end
+
+  test "MarkdownGarment sets sale_price" do
+    tests "MarkdownGarment", on: "Garment"
+    setup  "ReceiveGarment", style_number: "sample", name: "sample", designer: "sample", fabric: "sample", retail_price: 1.0, season: "sample"
+    input  garment: 1, sale_price: 1.0
+    expect retail_price: 1.0
+  end
+
+  test "RetireGarment runs" do
+    tests "RetireGarment", on: "Garment"
+    setup  "ReceiveGarment", style_number: "sample", name: "sample", designer: "sample", fabric: "sample", retail_price: 1.0, season: "sample"
+    input  garment: 1
+    expect status: "retired"
+  end
+
+
+  # ── Display aggregate ──────────────────────────────────────────
+
+  test "CreateDisplay sets display_name + theme + location" do
+    tests "CreateDisplay", on: "Display"
+    input  display_name: "sample", theme: "sample", location: "sample"
+    expect display_name: "sample", theme: "sample", location: "sample", status: "active"
+  end
+
+  test "RefreshDisplay runs" do
+    tests "RefreshDisplay", on: "Display"
+    setup  "CreateDisplay", display_name: "sample", theme: "sample", location: "sample"
+    input  display: 1
+    expect ok: "true"
+  end
+
+  test "DismantleDisplay runs" do
+    tests "DismantleDisplay", on: "Display"
+    setup  "CreateDisplay", display_name: "sample", theme: "sample", location: "sample"
+    input  display: 1
+    expect status: "dismantled"
+  end
+
+
+  # ── Alteration aggregate ──────────────────────────────────────────
+
+  test "RequestAlteration sets ticket_number + style_number + customer_name + alteration_type + due_date + charge" do
+    tests "RequestAlteration", on: "Alteration"
+    input  ticket_number: "sample", style_number: "sample", customer_name: "sample", alteration_type: "sample", due_date: "sample", charge: 1.0
+    expect ticket_number: "sample", style_number: "sample", customer_name: "sample", alteration_type: "sample", due_date: "sample", charge: 1.0, status: "pending"
+  end
+
+  test "CompleteAlteration runs" do
+    tests "CompleteAlteration", on: "Alteration"
+    setup  "RequestAlteration", ticket_number: "sample", style_number: "sample", customer_name: "sample", alteration_type: "sample", due_date: "sample", charge: 1.0
+    input  alteration: 1
+    expect status: "completed"
+  end
+
+
+  # ── SeasonalCollection aggregate ──────────────────────────────────────────
+
+  test "PlanCollection sets season_name + year + theme" do
+    tests "PlanCollection", on: "SeasonalCollection"
+    input  season_name: "sample", year: "sample", theme: "sample"
+    expect season_name: "sample", year: "sample", theme: "sample", status: "planned"
+  end
+
+  test "LaunchCollection runs" do
+    tests "LaunchCollection", on: "SeasonalCollection"
+    setup  "PlanCollection", season_name: "sample", year: "sample", theme: "sample"
+    input  seasonal_collection: 1
+    expect status: "active"
+  end
+
+  test "CloseOutCollection runs" do
+    tests "CloseOutCollection", on: "SeasonalCollection"
+    setup  "PlanCollection", season_name: "sample", year: "sample", theme: "sample"
+    input  seasonal_collection: 1
+    expect status: "closed"
+  end
+
+end

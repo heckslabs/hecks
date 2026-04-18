@@ -1,0 +1,133 @@
+Hecks.behaviors "PublicLibrary" do
+  vision "Behavioral tests for the PublicLibrary domain — exercises every command and query in memory"
+
+  # ── Book aggregate ──────────────────────────────────────────
+
+  test "AcquireBook sets isbn + title + author + genre + copies_available" do
+    tests "AcquireBook", on: "Book"
+    input  isbn: "sample", title: "sample", author: "sample", genre: "sample", copies_available: 1
+    expect status: "acquired"
+  end
+
+  test "CatalogBook sets dewey_decimal" do
+    tests "CatalogBook", on: "Book"
+    setup  "AcquireBook", isbn: "sample", title: "sample", author: "sample", genre: "sample", copies_available: 1
+    input  book: 1, dewey_decimal: "sample"
+    expect status: "cataloged"
+  end
+
+  test "ShelveBook runs" do
+    tests "ShelveBook", on: "Book"
+    setup  "AcquireBook", isbn: "sample", title: "sample", author: "sample", genre: "sample", copies_available: 1
+    input  book: 1
+    expect status: "available"
+  end
+
+  test "WithdrawBook sets reason" do
+    tests "WithdrawBook", on: "Book"
+    setup  "AcquireBook", isbn: "sample", title: "sample", author: "sample", genre: "sample", copies_available: 1
+    input  book: 1, reason: "sample"
+    expect status: "withdrawn"
+  end
+
+
+  # ── Patron aggregate ──────────────────────────────────────────
+
+  test "RegisterPatron sets name + email + membership_type" do
+    tests "RegisterPatron", on: "Patron"
+    input  name: "sample", email: "sample", membership_type: "sample"
+    expect name: "sample", email: "sample", membership_type: "sample", status: "active", items_checked_out: 0
+  end
+
+  test "SuspendPatron runs" do
+    tests "SuspendPatron", on: "Patron"
+    setup  "RegisterPatron", name: "sample", email: "sample", membership_type: "sample"
+    input  patron: 1
+    expect status: "suspended"
+  end
+
+  test "ReinstatePatron runs" do
+    tests "ReinstatePatron", on: "Patron"
+    setup  "RegisterPatron", name: "sample", email: "sample", membership_type: "sample"
+    input  patron: 1
+    expect status: "active"
+  end
+
+
+  # ── Loan aggregate ──────────────────────────────────────────
+
+  test "CheckOutBook sets due_date" do
+    tests "CheckOutBook", on: "Loan"
+    setup  "AcquireBook", isbn: "sample", title: "sample", author: "sample", genre: "sample", copies_available: 1
+    setup  "RegisterPatron", name: "sample", email: "sample", membership_type: "sample"
+    input  book: 1, patron: 1, due_date: "sample"
+    expect status: "active"
+  end
+
+  test "ReturnBook runs" do
+    tests "ReturnBook", on: "Loan"
+    input  loan: 1
+    expect status: "returned"
+  end
+
+  test "RenewLoan sets new_due_date" do
+    tests "RenewLoan", on: "Loan"
+    input  loan: 1, new_due_date: "sample"
+    expect ok: "true"
+  end
+
+  test "MarkOverdue runs" do
+    tests "MarkOverdue", on: "Loan"
+    input  loan: 1
+    expect status: "overdue"
+  end
+
+
+  # ── Hold aggregate ──────────────────────────────────────────
+
+  test "PlaceHold runs" do
+    tests "PlaceHold", on: "Hold"
+    setup  "AcquireBook", isbn: "sample", title: "sample", author: "sample", genre: "sample", copies_available: 1
+    setup  "RegisterPatron", name: "sample", email: "sample", membership_type: "sample"
+    input  book: 1, patron: 1
+    expect status: "pending"
+  end
+
+  test "FulfillHold runs" do
+    tests "FulfillHold", on: "Hold"
+    setup  "PlaceHold"
+    input  hold: 1
+    expect status: "ready"
+  end
+
+  test "CheckOutHeld runs" do
+    tests "CheckOutHeld", on: "Hold"
+    setup  "PlaceHold"
+    input  hold: 1
+    expect status: "completed"
+  end
+
+  test "CancelHold runs" do
+    tests "CancelHold", on: "Hold"
+    setup  "PlaceHold"
+    input  hold: 1
+    expect status: "cancelled"
+  end
+
+
+  # ── Fine aggregate ──────────────────────────────────────────
+
+  test "AssessFine sets amount_cents + reason" do
+    tests "AssessFine", on: "Fine"
+    setup  "RegisterPatron", name: "sample", email: "sample", membership_type: "sample"
+    input  patron: 1, loan: 1, amount_cents: 1, reason: "sample"
+    expect status: "outstanding"
+  end
+
+  test "PayFine sets paid_cents" do
+    tests "PayFine", on: "Fine"
+    input  fine: 1, paid_cents: 1
+    expect status: "paid"
+  end
+
+end

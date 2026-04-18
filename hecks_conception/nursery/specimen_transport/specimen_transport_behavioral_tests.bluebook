@@ -1,0 +1,81 @@
+Hecks.behaviors "SpecimenTransport" do
+  vision "Behavioral tests for the SpecimenTransport domain — exercises every command and query in memory"
+
+  # ── LabSpecimen aggregate ──────────────────────────────────────────
+
+  test "PrepareSpecimen sets specimen_id + patient_id + specimen_type + required_temp_c + priority" do
+    tests "PrepareSpecimen", on: "LabSpecimen"
+    input  specimen_id: "sample", patient_id: "sample", specimen_type: "sample", required_temp_c: 1.0, priority: "sample"
+    expect specimen_id: "sample", patient_id: "sample", specimen_type: "sample", required_temp_c: 1.0, priority: "sample", status: "prepared"
+  end
+
+  test "ReleaseSpecimen runs" do
+    tests "ReleaseSpecimen", on: "LabSpecimen"
+    setup  "PrepareSpecimen", specimen_id: "sample", patient_id: "sample", specimen_type: "sample", required_temp_c: 1.0, priority: "sample"
+    input  lab_specimen: 1
+    expect status: "released"
+  end
+
+
+  # ── ColdShipment aggregate ──────────────────────────────────────────
+
+  test "CreateShipment sets shipment_id + carrier + origin_lab + dest_lab + target_temp_c" do
+    tests "CreateShipment", on: "ColdShipment"
+    input  shipment_id: "sample", carrier: "sample", origin_lab: "sample", dest_lab: "sample", target_temp_c: 1.0
+    expect shipment_id: "sample", carrier: "sample", origin_lab: "sample", dest_lab: "sample", target_temp_c: 1.0, status: "created"
+  end
+
+  test "PickUpShipment runs" do
+    tests "PickUpShipment", on: "ColdShipment"
+    setup  "CreateShipment", shipment_id: "sample", carrier: "sample", origin_lab: "sample", dest_lab: "sample", target_temp_c: 1.0
+    input  cold_shipment: 1
+    expect status: "in_transit"
+  end
+
+  test "DeliverShipment runs" do
+    tests "DeliverShipment", on: "ColdShipment"
+    setup  "CreateShipment", shipment_id: "sample", carrier: "sample", origin_lab: "sample", dest_lab: "sample", target_temp_c: 1.0
+    input  cold_shipment: 1
+    expect status: "delivered"
+  end
+
+
+  # ── CustodyRecord aggregate ──────────────────────────────────────────
+
+  test "StartCustody sets record_id + specimen_id" do
+    tests "StartCustody", on: "CustodyRecord"
+    input  record_id: "sample", specimen_id: "sample"
+    expect record_id: "sample", specimen_id: "sample", status: "active"
+  end
+
+  test "TransferCustody runs" do
+    tests "TransferCustody", on: "CustodyRecord"
+    setup  "StartCustody", record_id: "sample", specimen_id: "sample"
+    input  custody_record: 1
+    expect ok: "true"
+  end
+
+  test "CloseCustody runs" do
+    tests "CloseCustody", on: "CustodyRecord"
+    setup  "StartCustody", record_id: "sample", specimen_id: "sample"
+    input  custody_record: 1
+    expect status: "closed"
+  end
+
+
+  # ── QualityAudit aggregate ──────────────────────────────────────────
+
+  test "RunAudit sets audit_id + shipment_id + auditor" do
+    tests "RunAudit", on: "QualityAudit"
+    input  audit_id: "sample", shipment_id: "sample", auditor: "sample"
+    expect audit_id: "sample", shipment_id: "sample", auditor: "sample", status: "in_progress"
+  end
+
+  test "FinalizeAudit sets compliance_score + findings" do
+    tests "FinalizeAudit", on: "QualityAudit"
+    setup  "RunAudit", audit_id: "sample", shipment_id: "sample", auditor: "sample"
+    input  quality_audit: 1, compliance_score: 1.0, findings: "sample"
+    expect compliance_score: 1.0, findings: "sample", status: "finalized"
+  end
+
+end

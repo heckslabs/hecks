@@ -1,0 +1,97 @@
+Hecks.behaviors "FoodHall" do
+  vision "Behavioral tests for the FoodHall domain — exercises every command and query in memory"
+
+  # ── FoodVendor aggregate ──────────────────────────────────────────
+
+  test "OnboardVendor sets vendor_id + business_name + cuisine_type + contact_name" do
+    tests "OnboardVendor", on: "FoodVendor"
+    input  vendor_id: "sample", business_name: "sample", cuisine_type: "sample", contact_name: "sample"
+    expect vendor_id: "sample", business_name: "sample", cuisine_type: "sample", contact_name: "sample", status: "active"
+  end
+
+  test "OffboardVendor runs" do
+    tests "OffboardVendor", on: "FoodVendor"
+    setup  "OnboardVendor", vendor_id: "sample", business_name: "sample", cuisine_type: "sample", contact_name: "sample"
+    input  food_vendor: 1
+    expect status: "offboarded"
+  end
+
+
+  # ── FoodStall aggregate ──────────────────────────────────────────
+
+  test "LeaseStall sets stall_id + location + monthly_rent + vendor_id" do
+    tests "LeaseStall", on: "FoodStall"
+    input  stall_id: "sample", location: "sample", monthly_rent: 1.0, vendor_id: "sample"
+    expect stall_id: "sample", location: "sample", monthly_rent: 1.0, vendor_id: "sample", status: "leased"
+  end
+
+  test "TerminateLease runs" do
+    tests "TerminateLease", on: "FoodStall"
+    setup  "LeaseStall", stall_id: "sample", location: "sample", monthly_rent: 1.0, vendor_id: "sample"
+    input  food_stall: 1
+    expect status: "vacant"
+  end
+
+
+  # ── HallMenu aggregate ──────────────────────────────────────────
+
+  test "PublishMenu sets menu_id + vendor_id" do
+    tests "PublishMenu", on: "HallMenu"
+    input  menu_id: "sample", vendor_id: "sample"
+    expect menu_id: "sample", vendor_id: "sample", status: "published"
+  end
+
+  test "UpdateMenu runs" do
+    tests "UpdateMenu", on: "HallMenu"
+    setup  "PublishMenu", menu_id: "sample", vendor_id: "sample"
+    input  hall_menu: 1
+    expect ok: "true"
+  end
+
+
+  # ── SeatingArea aggregate ──────────────────────────────────────────
+
+  test "OpenSeating sets area_id + name + total_seats" do
+    tests "OpenSeating", on: "SeatingArea"
+    input  area_id: "sample", name: "sample", total_seats: 1
+    expect area_id: "sample", name: "sample", total_seats: 1, available_seats: 1, status: "open"
+  end
+
+  test "ReserveSeats sets seats_needed" do
+    tests "ReserveSeats", on: "SeatingArea"
+    setup  "OpenSeating", area_id: "sample", name: "sample", total_seats: 1
+    input  seating_area: 1, seats_needed: 1
+    expect ok: "true"
+  end
+
+  test "CloseSeating runs" do
+    tests "CloseSeating", on: "SeatingArea"
+    setup  "OpenSeating", area_id: "sample", name: "sample", total_seats: 1
+    input  seating_area: 1
+    expect status: "closed"
+  end
+
+
+  # ── CulinaryEvent aggregate ──────────────────────────────────────────
+
+  test "ScheduleEvent sets event_id + name + event_type + date + capacity + ticket_price" do
+    tests "ScheduleEvent", on: "CulinaryEvent"
+    input  event_id: "sample", name: "sample", event_type: "sample", date: "sample", capacity: 1, ticket_price: 1.0
+    expect event_id: "sample", name: "sample", event_type: "sample", date: "sample", capacity: 1, ticket_price: 1.0, status: "scheduled"
+  end
+
+  test "HostEvent runs" do
+    tests "HostEvent", on: "CulinaryEvent"
+    setup  "ScheduleEvent", event_id: "sample", name: "sample", event_type: "sample", date: "sample", capacity: 1, ticket_price: 1.0
+    input  culinary_event: 1
+    expect status: "completed"
+  end
+
+  test "CancelEvent runs" do
+    tests "CancelEvent", on: "CulinaryEvent"
+    setup  "ScheduleEvent", event_id: "sample", name: "sample", event_type: "sample", date: "sample", capacity: 1, ticket_price: 1.0
+    input  culinary_event: 1
+    expect status: "canceled"
+  end
+
+end

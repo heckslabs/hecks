@@ -1,0 +1,67 @@
+Hecks.behaviors "SeniorEntertainment" do
+  vision "Behavioral tests for the SeniorEntertainment domain — exercises every command and query in memory"
+
+  # ── SeniorResident aggregate ──────────────────────────────────────────
+
+  test "RegisterResident sets resident_id + name + room_number + mobility_level" do
+    tests "RegisterResident", on: "SeniorResident"
+    input  resident_id: "sample", name: "sample", room_number: "sample", mobility_level: "sample"
+    expect resident_id: "sample", name: "sample", room_number: "sample", mobility_level: "sample", status: "active"
+  end
+
+  test "UpdateNeeds sets vision_level + hearing_level" do
+    tests "UpdateNeeds", on: "SeniorResident"
+    setup  "RegisterResident", resident_id: "sample", name: "sample", room_number: "sample", mobility_level: "sample"
+    input  senior_resident: 1, vision_level: "sample", hearing_level: "sample"
+    expect vision_level: "sample", hearing_level: "sample"
+  end
+
+
+  # ── MovieScreening aggregate ──────────────────────────────────────────
+
+  test "ScheduleScreening sets screening_id + movie_title + genre + date + venue + seats_available" do
+    tests "ScheduleScreening", on: "MovieScreening"
+    input  screening_id: "sample", movie_title: "sample", genre: "sample", date: "sample", venue: "sample", seats_available: 1
+    expect screening_id: "sample", movie_title: "sample", genre: "sample", date: "sample", venue: "sample", seats_available: 1, status: "scheduled"
+  end
+
+  test "CancelScreening runs" do
+    tests "CancelScreening", on: "MovieScreening"
+    setup  "ScheduleScreening", screening_id: "sample", movie_title: "sample", genre: "sample", date: "sample", venue: "sample", seats_available: 1
+    input  movie_screening: 1
+    expect status: "cancelled"
+  end
+
+
+  # ── RSVP aggregate ──────────────────────────────────────────
+
+  test "SubmitRSVP sets rsvp_id + resident_id + screening_id + accessibility_needs" do
+    tests "SubmitRSVP", on: "RSVP"
+    input  rsvp_id: "sample", resident_id: "sample", screening_id: "sample", accessibility_needs: "sample"
+    expect rsvp_id: "sample", resident_id: "sample", screening_id: "sample", accessibility_needs: "sample", status: "confirmed"
+  end
+
+  test "CancelRSVP runs" do
+    tests "CancelRSVP", on: "RSVP"
+    setup  "SubmitRSVP", rsvp_id: "sample", resident_id: "sample", screening_id: "sample", accessibility_needs: "sample"
+    input  r_s_v_p: 1
+    expect status: "cancelled"
+  end
+
+
+  # ── SocialEvent aggregate ──────────────────────────────────────────
+
+  test "PlanSocialEvent sets event_id + screening_id + theme + refreshments" do
+    tests "PlanSocialEvent", on: "SocialEvent"
+    input  event_id: "sample", screening_id: "sample", theme: "sample", refreshments: "sample"
+    expect event_id: "sample", screening_id: "sample", theme: "sample", refreshments: "sample", status: "planned"
+  end
+
+  test "RecordAttendance sets attendees" do
+    tests "RecordAttendance", on: "SocialEvent"
+    setup  "PlanSocialEvent", event_id: "sample", screening_id: "sample", theme: "sample", refreshments: "sample"
+    input  social_event: 1, attendees: 1
+    expect attendees: 1, status: "completed"
+  end
+
+end

@@ -1,0 +1,73 @@
+Hecks.behaviors "HospitalAdmissions" do
+  vision "Behavioral tests for the HospitalAdmissions domain — exercises every command and query in memory"
+
+  # ── Patient aggregate ──────────────────────────────────────────
+
+  test "RegisterPatient sets name + date_of_birth + insurance_id + emergency_contact + chief_complaint" do
+    tests "RegisterPatient", on: "Patient"
+    input  name: "sample", date_of_birth: "sample", insurance_id: "sample", emergency_contact: "sample", chief_complaint: "sample"
+    expect name: "sample", date_of_birth: "sample", insurance_id: "sample", emergency_contact: "sample", chief_complaint: "sample"
+  end
+
+  test "TriagePatient sets triage_level" do
+    tests "TriagePatient", on: "Patient"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", insurance_id: "sample", emergency_contact: "sample", chief_complaint: "sample"
+    input  patient: 1, triage_level: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Bed aggregate ──────────────────────────────────────────
+
+  test "AssignBed sets patient_name" do
+    tests "AssignBed", on: "Bed"
+    input  bed: 1, patient_name: "sample"
+    expect ok: "true"
+  end
+
+  test "ReleaseBed runs" do
+    tests "ReleaseBed", on: "Bed"
+    input  bed: 1
+    expect ok: "true"
+  end
+
+
+  # ── Diagnosis aggregate ──────────────────────────────────────────
+
+  test "RecordDiagnosis sets patient_name + icd_code + description + diagnosing_physician" do
+    tests "RecordDiagnosis", on: "Diagnosis"
+    input  patient_name: "sample", icd_code: "sample", description: "sample", diagnosing_physician: "sample"
+    expect ok: "true"
+  end
+
+  test "AttachLabResult sets test_name + result_value + reference_range" do
+    tests "AttachLabResult", on: "Diagnosis"
+    setup  "RecordDiagnosis", patient_name: "sample", icd_code: "sample", description: "sample", diagnosing_physician: "sample"
+    input  diagnosis: 1, test_name: "sample", result_value: "sample", reference_range: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DischargeePlan aggregate ──────────────────────────────────────────
+
+  test "CreateDischargePlan sets patient_name + discharge_date" do
+    tests "CreateDischargePlan", on: "DischargeePlan"
+    input  patient_name: "sample", discharge_date: "sample"
+    expect patient_name: "sample", discharge_date: "sample"
+  end
+
+  test "ApproveDischargePlan runs" do
+    tests "ApproveDischargePlan", on: "DischargeePlan"
+    setup  "CreateDischargePlan", patient_name: "sample", discharge_date: "sample"
+    input  dischargee_plan: 1
+    expect ok: "true"
+  end
+
+  test "DischargePatient runs" do
+    tests "DischargePatient", on: "DischargeePlan"
+    setup  "CreateDischargePlan", patient_name: "sample", discharge_date: "sample"
+    input  dischargee_plan: 1
+    expect ok: "true"
+  end
+
+end

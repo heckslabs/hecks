@@ -1,0 +1,96 @@
+Hecks.behaviors "Verbs" do
+  vision "Behavioral tests for the Verbs domain — exercises every command and query in memory"
+
+  # ── Lexicon aggregate ──────────────────────────────────────────
+
+  test "RegisterVerb sets verb" do
+    tests "RegisterVerb", on: "Lexicon"
+    input  verb: "sample"
+    expect known_verbs_size: 1, total: 1
+  end
+
+  test "ImportFromFile sets verbs" do
+    tests "ImportFromFile", on: "Lexicon"
+    input  verbs: "sample"
+    expect known_verbs: "sample", total: :count
+  end
+
+  test "LearnVerb sets verb + source_domain" do
+    tests "LearnVerb", on: "Lexicon"
+    input  verb: "sample", source_domain: "sample"
+    expect known_verbs_size: 1, total: 1
+  end
+
+
+  # ── Morphology aggregate ──────────────────────────────────────────
+
+  test "RegisterPrefix sets name + meaning + examples" do
+    tests "RegisterPrefix", on: "Morphology"
+    input  name: "sample", meaning: "sample", examples: "sample"
+    expect productive_prefixes_size: 1
+  end
+
+  test "RegisterSuffix sets name + derives_from + examples" do
+    tests "RegisterSuffix", on: "Morphology"
+    input  name: "sample", derives_from: "sample", examples: "sample"
+    expect productive_suffixes_size: 1
+  end
+
+  test "DeriveVerb sets root + affix" do
+    tests "DeriveVerb", on: "Morphology"
+    input  root: "sample", affix: "sample"
+    expect ok: "true"
+  end
+
+  test "ValidateByMorphology sets word" do
+    tests "ValidateByMorphology", on: "Morphology"
+    input  word: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── NonVerbSuffix aggregate ──────────────────────────────────────────
+
+  test "RegisterSuffix sets suffix + part_of_speech" do
+    tests "RegisterSuffix", on: "NonVerbSuffix"
+    input  suffix: "sample", part_of_speech: "sample"
+    expect suffix: "sample", part_of_speech: "sample"
+  end
+
+
+  # ── DualWord aggregate ──────────────────────────────────────────
+
+  test "RegisterDualWord sets word" do
+    tests "RegisterDualWord", on: "DualWord"
+    input  word: "sample"
+    expect word: "sample"
+  end
+
+
+  # ── Validation aggregate ──────────────────────────────────────────
+
+  test "ValidateCommandVerb sets word" do
+    tests "ValidateCommandVerb", on: "Validation"
+    input  word: "sample"
+    expect last_checked: "sample", verdict: "checking"
+  end
+
+  test "AcceptVerb sets word + reason" do
+    tests "AcceptVerb", on: "Validation"
+    input  word: "sample", reason: "sample"
+    expect verdict: "accepted"
+  end
+
+  test "RejectVerb sets word + reason" do
+    tests "RejectVerb", on: "Validation"
+    input  word: "sample", reason: "sample"
+    expect verdict: "rejected"
+  end
+
+  test "RequestHumanReview sets word + reason" do
+    tests "RequestHumanReview", on: "Validation"
+    input  word: "sample", reason: "sample"
+    expect verdict: "pending_review"
+  end
+
+end

@@ -1,0 +1,90 @@
+Hecks.behaviors "GeriatricPharmacy" do
+  vision "Behavioral tests for the GeriatricPharmacy domain — exercises every command and query in memory"
+
+  # ── Medication aggregate ──────────────────────────────────────────
+
+  test "RegisterMedication sets name + drug_class + mechanism_of_action + half_life_hours + metabolism_pathway" do
+    tests "RegisterMedication", on: "Medication"
+    input  name: "sample", drug_class: "sample", mechanism_of_action: "sample", half_life_hours: 1.0, metabolism_pathway: "sample"
+    expect name: "sample", drug_class: "sample", mechanism_of_action: "sample", half_life_hours: 1.0, metabolism_pathway: "sample", status: "active"
+  end
+
+  test "WithdrawMedication runs" do
+    tests "WithdrawMedication", on: "Medication"
+    setup  "RegisterMedication", name: "sample", drug_class: "sample", mechanism_of_action: "sample", half_life_hours: 1.0, metabolism_pathway: "sample"
+    input  medication: 1
+    expect status: "withdrawn"
+  end
+
+
+  # ── Resident aggregate ──────────────────────────────────────────
+
+  test "AdmitResident sets name + age + weight_kg + creatinine_clearance_ml_min + hepatic_function" do
+    tests "AdmitResident", on: "Resident"
+    input  name: "sample", age: 1, weight_kg: 1.0, creatinine_clearance_ml_min: 1.0, hepatic_function: "sample"
+    expect name: "sample", age: 1, weight_kg: 1.0, creatinine_clearance_ml_min: 1.0, hepatic_function: "sample", status: "active"
+  end
+
+  test "UpdateRenalFunction sets creatinine_clearance_ml_min" do
+    tests "UpdateRenalFunction", on: "Resident"
+    setup  "AdmitResident", name: "sample", age: 1, weight_kg: 1.0, creatinine_clearance_ml_min: 1.0, hepatic_function: "sample"
+    input  resident: 1, creatinine_clearance_ml_min: 1.0
+    expect creatinine_clearance_ml_min: 1.0
+  end
+
+
+  # ── InteractionCheck aggregate ──────────────────────────────────────────
+
+  test "ScreenInteraction sets medication_a + medication_b + interaction_type + severity + mechanism" do
+    tests "ScreenInteraction", on: "InteractionCheck"
+    input  medication_a: "sample", medication_b: "sample", interaction_type: "sample", severity: "sample", mechanism: "sample"
+    expect medication_a: "sample", medication_b: "sample", interaction_type: "sample", severity: "sample", mechanism: "sample", status: "screened"
+  end
+
+  test "RecommendAction sets recommendation" do
+    tests "RecommendAction", on: "InteractionCheck"
+    setup  "ScreenInteraction", medication_a: "sample", medication_b: "sample", interaction_type: "sample", severity: "sample", mechanism: "sample"
+    input  interaction_check: 1, recommendation: "sample"
+    expect recommendation: "sample", status: "recommended"
+  end
+
+
+  # ── DosingRegimen aggregate ──────────────────────────────────────────
+
+  test "CalculateDose sets resident_name + medication_name + standard_dose_mg + adjusted_dose_mg + frequency + adjustment_reason" do
+    tests "CalculateDose", on: "DosingRegimen"
+    input  resident_name: "sample", medication_name: "sample", standard_dose_mg: 1.0, adjusted_dose_mg: 1.0, frequency: "sample", adjustment_reason: "sample"
+    expect resident_name: "sample", medication_name: "sample", standard_dose_mg: 1.0, adjusted_dose_mg: 1.0, frequency: "sample", adjustment_reason: "sample", status: "calculated"
+  end
+
+  test "ApproveDose runs" do
+    tests "ApproveDose", on: "DosingRegimen"
+    setup  "CalculateDose", resident_name: "sample", medication_name: "sample", standard_dose_mg: 1.0, adjusted_dose_mg: 1.0, frequency: "sample", adjustment_reason: "sample"
+    input  dosing_regimen: 1
+    expect status: "approved"
+  end
+
+
+  # ── MonitoringPlan aggregate ──────────────────────────────────────────
+
+  test "CreateMonitoringPlan sets resident_name + medication_name + target_trough_ng_ml + target_peak_ng_ml + toxicity_threshold_ng_ml + monitoring_frequency" do
+    tests "CreateMonitoringPlan", on: "MonitoringPlan"
+    input  resident_name: "sample", medication_name: "sample", target_trough_ng_ml: 1.0, target_peak_ng_ml: 1.0, toxicity_threshold_ng_ml: 1.0, monitoring_frequency: "sample"
+    expect resident_name: "sample", medication_name: "sample", target_trough_ng_ml: 1.0, target_peak_ng_ml: 1.0, toxicity_threshold_ng_ml: 1.0, monitoring_frequency: "sample", status: "active"
+  end
+
+  test "RecordLevel runs" do
+    tests "RecordLevel", on: "MonitoringPlan"
+    setup  "CreateMonitoringPlan", resident_name: "sample", medication_name: "sample", target_trough_ng_ml: 1.0, target_peak_ng_ml: 1.0, toxicity_threshold_ng_ml: 1.0, monitoring_frequency: "sample"
+    input  monitoring_plan: 1
+    expect ok: "true"
+  end
+
+  test "FlagToxicity runs" do
+    tests "FlagToxicity", on: "MonitoringPlan"
+    setup  "CreateMonitoringPlan", resident_name: "sample", medication_name: "sample", target_trough_ng_ml: 1.0, target_peak_ng_ml: 1.0, toxicity_threshold_ng_ml: 1.0, monitoring_frequency: "sample"
+    input  monitoring_plan: 1
+    expect status: "alert"
+  end
+
+end

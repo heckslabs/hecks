@@ -1,0 +1,97 @@
+Hecks.behaviors "CoffeeShop" do
+  vision "Behavioral tests for the CoffeeShop domain — exercises every command and query in memory"
+
+  # ── MenuItem aggregate ──────────────────────────────────────────
+
+  test "AddMenuItem sets item_id + name + category + price" do
+    tests "AddMenuItem", on: "MenuItem"
+    input  item_id: "sample", name: "sample", category: "sample", price: 1.0
+    expect item_id: "sample", name: "sample", category: "sample", price: 1.0, available: "true"
+  end
+
+  test "RemoveMenuItem runs" do
+    tests "RemoveMenuItem", on: "MenuItem"
+    setup  "AddMenuItem", item_id: "sample", name: "sample", category: "sample", price: 1.0
+    input  menu_item: 1
+    expect available: "false"
+  end
+
+
+  # ── Barista aggregate ──────────────────────────────────────────
+
+  test "HireBarista sets employee_id + name + skill_level" do
+    tests "HireBarista", on: "Barista"
+    input  employee_id: "sample", name: "sample", skill_level: "sample"
+    expect employee_id: "sample", name: "sample", skill_level: "sample"
+  end
+
+  test "CertifyBarista sets skill_name" do
+    tests "CertifyBarista", on: "Barista"
+    setup  "HireBarista", employee_id: "sample", name: "sample", skill_level: "sample"
+    input  barista: 1, skill_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DrinkOrder aggregate ──────────────────────────────────────────
+
+  test "PlaceOrder sets order_id + customer_name" do
+    tests "PlaceOrder", on: "DrinkOrder"
+    input  order_id: "sample", customer_name: "sample"
+    expect order_id: "sample", customer_name: "sample", status: "placed"
+  end
+
+  test "PrepareDrink runs" do
+    tests "PrepareDrink", on: "DrinkOrder"
+    setup  "PlaceOrder", order_id: "sample", customer_name: "sample"
+    input  drink_order: 1
+    expect status: "ready"
+  end
+
+  test "ServeDrink runs" do
+    tests "ServeDrink", on: "DrinkOrder"
+    setup  "PlaceOrder", order_id: "sample", customer_name: "sample"
+    input  drink_order: 1
+    expect status: "served"
+  end
+
+
+  # ── BeanSupply aggregate ──────────────────────────────────────────
+
+  test "ReceiveBeans sets batch_id + origin + roast_level + roaster + weight_kg + roast_date" do
+    tests "ReceiveBeans", on: "BeanSupply"
+    input  batch_id: "sample", origin: "sample", roast_level: "sample", roaster: "sample", weight_kg: 1.0, roast_date: "sample"
+    expect batch_id: "sample", origin: "sample", roast_level: "sample", roaster: "sample", weight_kg: 1.0, roast_date: "sample"
+  end
+
+  test "DepleteBeans sets amount_used" do
+    tests "DepleteBeans", on: "BeanSupply"
+    setup  "ReceiveBeans", batch_id: "sample", origin: "sample", roast_level: "sample", roaster: "sample", weight_kg: 1.0, roast_date: "sample"
+    input  bean_supply: 1, amount_used: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── Equipment aggregate ──────────────────────────────────────────
+
+  test "InstallEquipment sets equipment_id + name + make + model" do
+    tests "InstallEquipment", on: "Equipment"
+    input  equipment_id: "sample", name: "sample", make: "sample", model: "sample"
+    expect equipment_id: "sample", name: "sample", make: "sample", model: "sample", status: "operational"
+  end
+
+  test "ServiceEquipment runs" do
+    tests "ServiceEquipment", on: "Equipment"
+    setup  "InstallEquipment", equipment_id: "sample", name: "sample", make: "sample", model: "sample"
+    input  equipment: 1
+    expect ok: "true"
+  end
+
+  test "ReportMalfunction runs" do
+    tests "ReportMalfunction", on: "Equipment"
+    setup  "InstallEquipment", equipment_id: "sample", name: "sample", make: "sample", model: "sample"
+    input  equipment: 1
+    expect status: "out_of_service"
+  end
+
+end

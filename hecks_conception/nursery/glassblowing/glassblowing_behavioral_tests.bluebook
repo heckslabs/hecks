@@ -1,0 +1,110 @@
+Hecks.behaviors "Glassblowing" do
+  vision "Behavioral tests for the Glassblowing domain — exercises every command and query in memory"
+
+  # ── GlassPiece aggregate ──────────────────────────────────────────
+
+  test "GatherGlass sets name + form + technique" do
+    tests "GatherGlass", on: "GlassPiece"
+    input  name: "sample", form: "sample", technique: "sample"
+    expect ok: "true"
+  end
+
+  test "BlowPiece runs" do
+    tests "BlowPiece", on: "GlassPiece"
+    setup  "GatherGlass", name: "sample", form: "sample", technique: "sample"
+    input  glass_piece: 1
+    expect status: "blown"
+  end
+
+  test "TransferToAnnealer runs" do
+    tests "TransferToAnnealer", on: "GlassPiece"
+    setup  "GatherGlass", name: "sample", form: "sample", technique: "sample"
+    input  glass_piece: 1
+    expect status: "annealing"
+  end
+
+
+  # ── Furnace aggregate ──────────────────────────────────────────
+
+  test "LightFurnace sets name + fuel_type + capacity_lbs + target_temperature" do
+    tests "LightFurnace", on: "Furnace"
+    input  name: "sample", fuel_type: "sample", capacity_lbs: 1, target_temperature: 1
+    expect status: "heating"
+  end
+
+  test "ReachWorkingTemp runs" do
+    tests "ReachWorkingTemp", on: "Furnace"
+    setup  "LightFurnace", name: "sample", fuel_type: "sample", capacity_lbs: 1, target_temperature: 1
+    input  furnace: 1
+    expect status: "ready"
+  end
+
+  test "ShutDownFurnace runs" do
+    tests "ShutDownFurnace", on: "Furnace"
+    setup  "LightFurnace", name: "sample", fuel_type: "sample", capacity_lbs: 1, target_temperature: 1
+    input  furnace: 1
+    expect status: "cooling"
+  end
+
+
+  # ── ColorBar aggregate ──────────────────────────────────────────
+
+  test "StockColor sets color_name + color_type + manufacturer + quantity_lbs + working_temp_f" do
+    tests "StockColor", on: "ColorBar"
+    input  color_name: "sample", color_type: "sample", manufacturer: "sample", quantity_lbs: 1.0, working_temp_f: 1
+    expect ok: "true"
+  end
+
+  test "ConsumeColor sets amount_used" do
+    tests "ConsumeColor", on: "ColorBar"
+    setup  "StockColor", color_name: "sample", color_type: "sample", manufacturer: "sample", quantity_lbs: 1.0, working_temp_f: 1
+    input  color_bar: 1, amount_used: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── AnnealingCycle aggregate ──────────────────────────────────────────
+
+  test "LoadAnnealer sets hold_temp_f + ramp_rate_per_hour + total_hours" do
+    tests "LoadAnnealer", on: "AnnealingCycle"
+    setup  "GatherGlass", name: "sample", form: "sample", technique: "sample"
+    input  glass_piece: 1, hold_temp_f: 1, ramp_rate_per_hour: 1, total_hours: 1
+    expect ok: "true"
+  end
+
+  test "StartCycle runs" do
+    tests "StartCycle", on: "AnnealingCycle"
+    input  annealing_cycle: 1
+    expect status: "annealing"
+  end
+
+  test "CompleteCycle runs" do
+    tests "CompleteCycle", on: "AnnealingCycle"
+    input  annealing_cycle: 1
+    expect status: "completed"
+  end
+
+
+  # ── GlassExhibition aggregate ──────────────────────────────────────────
+
+  test "CurateExhibition sets title + venue + opening_date + piece_count" do
+    tests "CurateExhibition", on: "GlassExhibition"
+    input  title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
+    expect ok: "true"
+  end
+
+  test "OpenExhibition runs" do
+    tests "OpenExhibition", on: "GlassExhibition"
+    setup  "OpenExhibition"
+    input  glass_exhibition: 1
+    expect status: "open"
+  end
+
+  test "CloseExhibition runs" do
+    tests "CloseExhibition", on: "GlassExhibition"
+    setup  "OpenExhibition"
+    input  glass_exhibition: 1
+    expect status: "closed"
+  end
+
+end

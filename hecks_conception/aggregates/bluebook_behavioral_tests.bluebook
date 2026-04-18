@@ -1,0 +1,42 @@
+Hecks.behaviors "Bluebook" do
+  vision "Behavioral tests for the Bluebook domain — exercises every command and query in memory"
+
+  # ── Domain aggregate ──────────────────────────────────────────
+
+
+  # ── Aggregate aggregate ──────────────────────────────────────────
+
+
+  # ── Attribute aggregate ──────────────────────────────────────────
+
+
+  # ── ValueObject aggregate ──────────────────────────────────────────
+
+
+  # ── Reference aggregate ──────────────────────────────────────────
+
+
+  # ── Command aggregate ──────────────────────────────────────────
+
+
+  # ── Query aggregate ──────────────────────────────────────────
+
+
+  # ── Given aggregate ──────────────────────────────────────────
+
+
+  # ── Mutation aggregate ──────────────────────────────────────────
+
+
+  # ── Lifecycle aggregate ──────────────────────────────────────────
+
+
+  # ── Transition aggregate ──────────────────────────────────────────
+
+
+  # ── Policy aggregate ──────────────────────────────────────────
+
+
+  # ── Fixture aggregate ──────────────────────────────────────────
+
+end

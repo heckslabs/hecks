@@ -1,0 +1,129 @@
+Hecks.behaviors "PowerGrid" do
+  vision "Behavioral tests for the PowerGrid domain — exercises every command and query in memory"
+
+  # ── Substation aggregate ──────────────────────────────────────────
+
+  test "EnergizeSubstation sets substation_id + name + voltage_class + capacity_mva" do
+    tests "EnergizeSubstation", on: "Substation"
+    input  substation_id: "sample", name: "sample", voltage_class: "sample", capacity_mva: 1.0
+    expect status: "energized"
+  end
+
+  test "DeenergizeSubstation sets reason" do
+    tests "DeenergizeSubstation", on: "Substation"
+    setup  "EnergizeSubstation", substation_id: "sample", name: "sample", voltage_class: "sample", capacity_mva: 1.0
+    input  substation: 1, reason: "sample"
+    expect status: "deenergized"
+  end
+
+  test "ReenergizeSubstation runs" do
+    tests "ReenergizeSubstation", on: "Substation"
+    setup  "EnergizeSubstation", substation_id: "sample", name: "sample", voltage_class: "sample", capacity_mva: 1.0
+    input  substation: 1
+    expect status: "energized"
+  end
+
+
+  # ── TransmissionLine aggregate ──────────────────────────────────────────
+
+  test "EnergizeLine sets line_id + conductor_type + length_miles + rating_mw" do
+    tests "EnergizeLine", on: "TransmissionLine"
+    setup  "EnergizeSubstation", substation_id: "sample", name: "sample", voltage_class: "sample", capacity_mva: 1.0
+    input  substation: 1, line_id: "sample", conductor_type: "sample", length_miles: 1.0, rating_mw: 1.0
+    expect status: "energized"
+  end
+
+  test "TripLine sets fault_type" do
+    tests "TripLine", on: "TransmissionLine"
+    input  transmission_line: 1, fault_type: "sample"
+    expect status: "tripped"
+  end
+
+  test "InspectLine runs" do
+    tests "InspectLine", on: "TransmissionLine"
+    input  transmission_line: 1
+    expect status: "inspected"
+  end
+
+  test "RestoreLine runs" do
+    tests "RestoreLine", on: "TransmissionLine"
+    input  transmission_line: 1
+    expect status: "energized"
+  end
+
+
+  # ── LoadZone aggregate ──────────────────────────────────────────
+
+  test "DefineZone sets zone_id + region + peak_demand_mw" do
+    tests "DefineZone", on: "LoadZone"
+    input  zone_id: "sample", region: "sample", peak_demand_mw: 1.0
+    expect status: "monitored", current_load_mw: 0.0
+  end
+
+  test "UpdateLoad sets current_load_mw" do
+    tests "UpdateLoad", on: "LoadZone"
+    setup  "DefineZone", zone_id: "sample", region: "sample", peak_demand_mw: 1.0
+    input  load_zone: 1, current_load_mw: 1.0
+    expect ok: "true"
+  end
+
+  test "InitiateLoadShed runs" do
+    tests "InitiateLoadShed", on: "LoadZone"
+    setup  "DefineZone", zone_id: "sample", region: "sample", peak_demand_mw: 1.0
+    input  load_zone: 1
+    expect status: "shedding"
+  end
+
+  test "RestoreLoad runs" do
+    tests "RestoreLoad", on: "LoadZone"
+    setup  "DefineZone", zone_id: "sample", region: "sample", peak_demand_mw: 1.0
+    input  load_zone: 1
+    expect status: "monitored"
+  end
+
+
+  # ── Outage aggregate ──────────────────────────────────────────
+
+  test "ReportOutage sets cause + affected_customers" do
+    tests "ReportOutage", on: "Outage"
+    input  transmission_line: 1, cause: "sample", affected_customers: 1
+    expect status: "active"
+  end
+
+  test "DispatchCrew runs" do
+    tests "DispatchCrew", on: "Outage"
+    input  outage: 1
+    expect status: "crew_en_route"
+  end
+
+  test "RestorePower runs" do
+    tests "RestorePower", on: "Outage"
+    input  outage: 1
+    expect status: "restored"
+  end
+
+
+  # ── MaintenanceOrder aggregate ──────────────────────────────────────────
+
+  test "CreateOrder sets work_type + priority" do
+    tests "CreateOrder", on: "MaintenanceOrder"
+    setup  "EnergizeSubstation", substation_id: "sample", name: "sample", voltage_class: "sample", capacity_mva: 1.0
+    input  substation: 1, work_type: "sample", priority: "sample"
+    expect work_type: "sample", priority: "sample", status: "scheduled"
+  end
+
+  test "BeginWork runs" do
+    tests "BeginWork", on: "MaintenanceOrder"
+    setup  "CreateOrder", work_type: "sample", priority: "sample"
+    input  maintenance_order: 1
+    expect status: "in_progress"
+  end
+
+  test "CompleteOrder runs" do
+    tests "CompleteOrder", on: "MaintenanceOrder"
+    setup  "CreateOrder", work_type: "sample", priority: "sample"
+    input  maintenance_order: 1
+    expect status: "completed"
+  end
+
+end

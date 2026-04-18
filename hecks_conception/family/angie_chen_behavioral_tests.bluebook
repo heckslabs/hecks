@@ -1,0 +1,39 @@
+Hecks.behaviors "AngieChen" do
+  vision "Behavioral tests for the AngieChen domain — exercises every command and query in memory"
+
+  # ── Identity aggregate ──────────────────────────────────────────
+
+  test "UpdateIdentity sets occupation" do
+    tests "UpdateIdentity", on: "Identity"
+    input  identity: 1, occupation: "sample"
+    expect occupation: "sample"
+  end
+
+
+  # ── Practice aggregate ──────────────────────────────────────────
+
+  test "RecordPractice sets progression" do
+    tests "RecordPractice", on: "Practice"
+    input  practice: 1, progression: "sample"
+    expect progression: "sample"
+  end
+
+
+  # ── Art aggregate ──────────────────────────────────────────
+
+  test "RecordWork sets work" do
+    tests "RecordWork", on: "Art"
+    input  art: 1, work: "sample"
+    expect works_size: 1
+  end
+
+
+  # ── Support aggregate ──────────────────────────────────────────
+
+  test "RecordSupport sets note" do
+    tests "RecordSupport", on: "Support"
+    input  support: 1, note: "sample"
+    expect notes_size: 1
+  end
+
+end

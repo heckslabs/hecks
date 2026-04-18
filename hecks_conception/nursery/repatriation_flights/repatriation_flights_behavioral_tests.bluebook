@@ -1,0 +1,89 @@
+Hecks.behaviors "RepatriationFlights" do
+  vision "Behavioral tests for the RepatriationFlights domain — exercises every command and query in memory"
+
+  # ── ResettlementCase aggregate ──────────────────────────────────────────
+
+  test "RegisterCase sets case_number + origin_country + destination_country" do
+    tests "RegisterCase", on: "ResettlementCase"
+    input  case_number: "sample", origin_country: "sample", destination_country: "sample"
+    expect case_number: "sample", origin_country: "sample", destination_country: "sample"
+  end
+
+  test "AddFamilyMember sets name + age + relationship + medical_needs" do
+    tests "AddFamilyMember", on: "ResettlementCase"
+    setup  "RegisterCase", case_number: "sample", origin_country: "sample", destination_country: "sample"
+    input  resettlement_case: 1, name: "sample", age: 1, relationship: "sample", medical_needs: "sample"
+    expect family_members_size: 1
+  end
+
+  test "ApproveCase runs" do
+    tests "ApproveCase", on: "ResettlementCase"
+    setup  "RegisterCase", case_number: "sample", origin_country: "sample", destination_country: "sample"
+    input  resettlement_case: 1
+    expect ok: "true"
+  end
+
+
+  # ── CargoManifest aggregate ──────────────────────────────────────────
+
+  test "CreateManifest sets manifest_number + aircraft_id" do
+    tests "CreateManifest", on: "CargoManifest"
+    input  manifest_number: "sample", aircraft_id: "sample"
+    expect manifest_number: "sample", aircraft_id: "sample"
+  end
+
+  test "LoadItem sets description + weight_kg + fragile" do
+    tests "LoadItem", on: "CargoManifest"
+    setup  "CreateManifest", manifest_number: "sample", aircraft_id: "sample"
+    input  cargo_manifest: 1, description: "sample", weight_kg: 1.0, fragile: "sample"
+    expect items_size: 1
+  end
+
+  test "SealManifest runs" do
+    tests "SealManifest", on: "CargoManifest"
+    setup  "CreateManifest", manifest_number: "sample", aircraft_id: "sample"
+    input  cargo_manifest: 1
+    expect ok: "true"
+  end
+
+
+  # ── FlightPlan aggregate ──────────────────────────────────────────
+
+  test "PlanFlight sets flight_number + departure_date" do
+    tests "PlanFlight", on: "FlightPlan"
+    setup  "RegisterCase", case_number: "sample", origin_country: "sample", destination_country: "sample"
+    input  resettlement_case: 1, flight_number: "sample", departure_date: "sample"
+    expect ok: "true"
+  end
+
+  test "AddLeg sets origin + destination + duration_hours" do
+    tests "AddLeg", on: "FlightPlan"
+    setup  "AddLeg", origin: "sample", destination: "sample", duration_hours: 1.0
+    input  flight_plan: 1, origin: "sample", destination: "sample", duration_hours: 1.0
+    expect legs_size: 1
+  end
+
+  test "ConfirmFlight runs" do
+    tests "ConfirmFlight", on: "FlightPlan"
+    setup  "AddLeg", origin: "sample", destination: "sample", duration_hours: 1.0
+    input  flight_plan: 1
+    expect ok: "true"
+  end
+
+
+  # ── ReceptionCenter aggregate ──────────────────────────────────────────
+
+  test "SetupCenter sets center_name + location + capacity" do
+    tests "SetupCenter", on: "ReceptionCenter"
+    input  center_name: "sample", location: "sample", capacity: 1
+    expect ok: "true"
+  end
+
+  test "AddService sets service_type + provider" do
+    tests "AddService", on: "ReceptionCenter"
+    setup  "AddService", service_type: "sample", provider: "sample"
+    input  reception_center: 1, service_type: "sample", provider: "sample"
+    expect services_size: 1
+  end
+
+end

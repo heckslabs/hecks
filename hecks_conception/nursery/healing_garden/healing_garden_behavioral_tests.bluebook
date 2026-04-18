@@ -1,0 +1,67 @@
+Hecks.behaviors "HealingGarden" do
+  vision "Behavioral tests for the HealingGarden domain — exercises every command and query in memory"
+
+  # ── ComfortPlan aggregate ──────────────────────────────────────────
+
+  test "CreateComfortPlan sets plan_id + patient_name + primary_nurse" do
+    tests "CreateComfortPlan", on: "ComfortPlan"
+    input  plan_id: "sample", patient_name: "sample", primary_nurse: "sample"
+    expect plan_id: "sample", patient_name: "sample", primary_nurse: "sample", status: "active"
+  end
+
+  test "UpdatePlan runs" do
+    tests "UpdatePlan", on: "ComfortPlan"
+    setup  "CreateComfortPlan", plan_id: "sample", patient_name: "sample", primary_nurse: "sample"
+    input  comfort_plan: 1
+    expect ok: "true"
+  end
+
+
+  # ── GardenPlot aggregate ──────────────────────────────────────────
+
+  test "PlantPlot sets plot_id + garden_name + plant_type + therapeutic_purpose + season" do
+    tests "PlantPlot", on: "GardenPlot"
+    input  plot_id: "sample", garden_name: "sample", plant_type: "sample", therapeutic_purpose: "sample", season: "sample"
+    expect plot_id: "sample", garden_name: "sample", plant_type: "sample", therapeutic_purpose: "sample", season: "sample", status: "growing"
+  end
+
+  test "HarvestPlot runs" do
+    tests "HarvestPlot", on: "GardenPlot"
+    setup  "PlantPlot", plot_id: "sample", garden_name: "sample", plant_type: "sample", therapeutic_purpose: "sample", season: "sample"
+    input  garden_plot: 1
+    expect status: "harvested"
+  end
+
+
+  # ── GardenVisit aggregate ──────────────────────────────────────────
+
+  test "LogGardenVisit sets visit_id + patient_name + plot_id + activity + duration_minutes + mood_before" do
+    tests "LogGardenVisit", on: "GardenVisit"
+    input  visit_id: "sample", patient_name: "sample", plot_id: "sample", activity: "sample", duration_minutes: 1.0, mood_before: "sample"
+    expect visit_id: "sample", patient_name: "sample", plot_id: "sample", activity: "sample", duration_minutes: 1.0, mood_before: "sample"
+  end
+
+  test "RecordMoodAfter sets mood_after" do
+    tests "RecordMoodAfter", on: "GardenVisit"
+    setup  "LogGardenVisit", visit_id: "sample", patient_name: "sample", plot_id: "sample", activity: "sample", duration_minutes: 1.0, mood_before: "sample"
+    input  garden_visit: 1, mood_after: "sample"
+    expect mood_after: "sample"
+  end
+
+
+  # ── VolunteerShift aggregate ──────────────────────────────────────────
+
+  test "ScheduleShift sets shift_id + volunteer_name + garden_name + date + hours" do
+    tests "ScheduleShift", on: "VolunteerShift"
+    input  shift_id: "sample", volunteer_name: "sample", garden_name: "sample", date: "sample", hours: 1.0
+    expect shift_id: "sample", volunteer_name: "sample", garden_name: "sample", date: "sample", hours: 1.0, status: "scheduled"
+  end
+
+  test "CompleteShift runs" do
+    tests "CompleteShift", on: "VolunteerShift"
+    setup  "ScheduleShift", shift_id: "sample", volunteer_name: "sample", garden_name: "sample", date: "sample", hours: 1.0
+    input  volunteer_shift: 1
+    expect status: "completed"
+  end
+
+end

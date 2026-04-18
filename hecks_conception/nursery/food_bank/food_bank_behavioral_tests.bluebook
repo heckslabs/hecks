@@ -1,0 +1,111 @@
+Hecks.behaviors "FoodBank" do
+  vision "Behavioral tests for the FoodBank domain — exercises every command and query in memory"
+
+  # ── Donation aggregate ──────────────────────────────────────────
+
+  test "AcceptDonation sets donor_name + donation_date + food_category + weight_pounds + expiration_date" do
+    tests "AcceptDonation", on: "Donation"
+    input  donor_name: "sample", donation_date: "sample", food_category: "sample", weight_pounds: 1.0, expiration_date: "sample"
+    expect donor_name: "sample", donation_date: "sample", food_category: "sample", weight_pounds: 1.0, expiration_date: "sample", status: "received"
+  end
+
+  test "SortDonation runs" do
+    tests "SortDonation", on: "Donation"
+    setup  "AcceptDonation", donor_name: "sample", donation_date: "sample", food_category: "sample", weight_pounds: 1.0, expiration_date: "sample"
+    input  donation: 1
+    expect status: "sorted"
+  end
+
+  test "DiscardExpired runs" do
+    tests "DiscardExpired", on: "Donation"
+    setup  "AcceptDonation", donor_name: "sample", donation_date: "sample", food_category: "sample", weight_pounds: 1.0, expiration_date: "sample"
+    input  donation: 1
+    expect status: "discarded"
+  end
+
+
+  # ── Inventory aggregate ──────────────────────────────────────────
+
+  test "StockItem sets item_name + category + quantity + storage_location + expiration_date" do
+    tests "StockItem", on: "Inventory"
+    input  item_name: "sample", category: "sample", quantity: 1, storage_location: "sample", expiration_date: "sample"
+    expect item_name: "sample", category: "sample", quantity: 1, storage_location: "sample", expiration_date: "sample", status: "available"
+  end
+
+  test "AllocateItem sets quantity" do
+    tests "AllocateItem", on: "Inventory"
+    setup  "StockItem", item_name: "sample", category: "sample", quantity: 1, storage_location: "sample", expiration_date: "sample"
+    input  inventory: 1, quantity: 1
+    expect status: "allocated"
+  end
+
+  test "DepletItem sets quantity" do
+    tests "DepletItem", on: "Inventory"
+    setup  "StockItem", item_name: "sample", category: "sample", quantity: 1, storage_location: "sample", expiration_date: "sample"
+    input  inventory: 1, quantity: 1
+    expect status: "depleted"
+  end
+
+  test "FlagLowStock runs" do
+    tests "FlagLowStock", on: "Inventory"
+    setup  "StockItem", item_name: "sample", category: "sample", quantity: 1, storage_location: "sample", expiration_date: "sample"
+    input  inventory: 1
+    expect status: "low"
+  end
+
+
+  # ── Distribution aggregate ──────────────────────────────────────────
+
+  test "ScheduleDistribution sets event_date + location" do
+    tests "ScheduleDistribution", on: "Distribution"
+    input  event_date: "sample", location: "sample"
+    expect event_date: "sample", location: "sample", status: "scheduled"
+  end
+
+  test "ConductDistribution sets households_served + total_weight_distributed" do
+    tests "ConductDistribution", on: "Distribution"
+    setup  "ScheduleDistribution", event_date: "sample", location: "sample"
+    input  distribution: 1, households_served: 1, total_weight_distributed: 1.0
+    expect households_served: 1, total_weight_distributed: 1.0, status: "completed"
+  end
+
+  test "ReportDistribution runs" do
+    tests "ReportDistribution", on: "Distribution"
+    setup  "ScheduleDistribution", event_date: "sample", location: "sample"
+    input  distribution: 1
+    expect status: "reported"
+  end
+
+
+  # ── FoodBankVolunteer aggregate ──────────────────────────────────────────
+
+  test "RegisterVolunteer sets name + phone + availability" do
+    tests "RegisterVolunteer", on: "FoodBankVolunteer"
+    input  name: "sample", phone: "sample", availability: "sample"
+    expect name: "sample", phone: "sample", availability: "sample", hours_served: 0, status: "active"
+  end
+
+  test "LogVolunteerHours sets hours_served" do
+    tests "LogVolunteerHours", on: "FoodBankVolunteer"
+    setup  "RegisterVolunteer", name: "sample", phone: "sample", availability: "sample"
+    input  food_bank_volunteer: 1, hours_served: 1
+    expect hours_served: 1
+  end
+
+
+  # ── FoodBankRecipient aggregate ──────────────────────────────────────────
+
+  test "EnrollRecipient sets household_name + household_size + address + dietary_restrictions + enrollment_date" do
+    tests "EnrollRecipient", on: "FoodBankRecipient"
+    input  household_name: "sample", household_size: 1, address: "sample", dietary_restrictions: "sample", enrollment_date: "sample"
+    expect household_name: "sample", household_size: 1, address: "sample", dietary_restrictions: "sample", enrollment_date: "sample", status: "active"
+  end
+
+  test "RecordPickup runs" do
+    tests "RecordPickup", on: "FoodBankRecipient"
+    setup  "EnrollRecipient", household_name: "sample", household_size: 1, address: "sample", dietary_restrictions: "sample", enrollment_date: "sample"
+    input  food_bank_recipient: 1
+    expect ok: "true"
+  end
+
+end

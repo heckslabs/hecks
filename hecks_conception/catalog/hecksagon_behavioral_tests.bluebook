@@ -1,0 +1,355 @@
+Hecks.behaviors "Hecksagon" do
+  vision "Behavioral tests for the Hecksagon domain — exercises every command and query in memory"
+
+  # ── SerializationLines aggregate ──────────────────────────────────────────
+
+  test "SerializeLines runs" do
+    tests "SerializeLines", on: "SerializationLines"
+    expect ok: "true"
+  end
+
+  test "DeserializeLines runs" do
+    tests "DeserializeLines", on: "SerializationLines"
+    expect ok: "true"
+  end
+
+
+  # ── SqlAdapterGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate runs" do
+    tests "Generate", on: "SqlAdapterGenerator"
+    expect ok: "true"
+  end
+
+
+  # ── SqlBuilder aggregate ──────────────────────────────────────────
+
+  test "BuildInsert runs" do
+    tests "BuildInsert", on: "SqlBuilder"
+    expect ok: "true"
+  end
+
+  test "BuildUpdate runs" do
+    tests "BuildUpdate", on: "SqlBuilder"
+    expect ok: "true"
+  end
+
+
+  # ── SqlMigrationGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate runs" do
+    tests "Generate", on: "SqlMigrationGenerator"
+    expect ok: "true"
+  end
+
+
+  # ── SqlStrategy aggregate ──────────────────────────────────────────
+
+  test "GenerateMigration runs" do
+    tests "GenerateMigration", on: "SqlStrategy"
+    expect ok: "true"
+  end
+
+
+  # ── SqlHelpers aggregate ──────────────────────────────────────────
+
+  test "MapType sets ruby_type" do
+    tests "MapType", on: "SqlHelpers"
+    input  ruby_type: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SqlSetup aggregate ──────────────────────────────────────────
+
+  test "Setup runs" do
+    tests "Setup", on: "SqlSetup"
+    expect ok: "true"
+  end
+
+
+  # ── SqlBoot aggregate ──────────────────────────────────────────
+
+  test "Setup runs" do
+    tests "Setup", on: "SqlBoot"
+    expect ok: "true"
+  end
+
+
+  # ── AggregateCapabilityBuilder aggregate ──────────────────────────────────────────
+
+  test "AddCapability sets aggregate_name" do
+    tests "AddCapability", on: "AggregateCapabilityBuilder"
+    input  aggregate_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── AttributeSelector aggregate ──────────────────────────────────────────
+
+  test "SelectAttribute sets attr_name" do
+    tests "SelectAttribute", on: "AttributeSelector"
+    input  attr_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── TagApplier aggregate ──────────────────────────────────────────
+
+  test "ApplyTag sets tag_name" do
+    tests "ApplyTag", on: "TagApplier"
+    input  tag_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── HecksagonModule aggregate ──────────────────────────────────────────
+
+  test "Autoload sets const_name + path" do
+    tests "Autoload", on: "HecksagonModule"
+    input  const_name: "sample", path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── HecksagonBuilder aggregate ──────────────────────────────────────────
+
+  test "AddGate sets aggregate + role" do
+    tests "AddGate", on: "HecksagonBuilder"
+    input  aggregate: "sample", role: "sample"
+    expect ok: "true"
+  end
+
+  test "SetAdapter sets type" do
+    tests "SetAdapter", on: "HecksagonBuilder"
+    input  type: "sample"
+    expect ok: "true"
+  end
+
+  test "Build runs" do
+    tests "Build", on: "HecksagonBuilder"
+    expect ok: "true"
+  end
+
+
+  # ── GateBuilder aggregate ──────────────────────────────────────────
+
+  test "Allow sets methods" do
+    tests "Allow", on: "GateBuilder"
+    input  methods: "sample"
+    expect ok: "true"
+  end
+
+  test "Build runs" do
+    tests "Build", on: "GateBuilder"
+    expect ok: "true"
+  end
+
+
+  # ── GateDefinition aggregate ──────────────────────────────────────────
+
+  test "Create sets aggregate + role" do
+    tests "Create", on: "GateDefinition"
+    input  aggregate: "sample", role: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── AclDefinition aggregate ──────────────────────────────────────────
+
+  test "Translate sets entity" do
+    tests "Translate", on: "AclDefinition"
+    input  entity: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DrivenPortRegistry aggregate ──────────────────────────────────────────
+
+  test "RegisterAdapter sets name + port" do
+    tests "RegisterAdapter", on: "DrivenPortRegistry"
+    input  name: "sample", port: "sample"
+    expect ok: "true"
+  end
+
+  test "LookupAdapter sets name" do
+    tests "LookupAdapter", on: "DrivenPortRegistry"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ContractValidator aggregate ──────────────────────────────────────────
+
+  test "Validate runs" do
+    tests "Validate", on: "ContractValidator"
+    expect ok: "true"
+  end
+
+
+  # ── StrategicDSL aggregate ──────────────────────────────────────────
+
+  test "SharedKernel runs" do
+    tests "SharedKernel", on: "StrategicDSL"
+    expect ok: "true"
+  end
+
+  test "UseKernel sets name" do
+    tests "UseKernel", on: "StrategicDSL"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+  test "AntiCorruptionLayer sets name" do
+    tests "AntiCorruptionLayer", on: "StrategicDSL"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ExtensionsDSL aggregate ──────────────────────────────────────────
+
+  test "DrivingPort sets name" do
+    tests "DrivingPort", on: "ExtensionsDSL"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+  test "DrivenPort sets name" do
+    tests "DrivenPort", on: "ExtensionsDSL"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DomainMixin aggregate ──────────────────────────────────────────
+
+  test "Apply runs" do
+    tests "Apply", on: "DomainMixin"
+    expect ok: "true"
+  end
+
+
+  # ── DatabaseConnection aggregate ──────────────────────────────────────────
+
+  test "Connect sets url" do
+    tests "Connect", on: "DatabaseConnection"
+    input  url: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── MongoAdapterGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate runs" do
+    tests "Generate", on: "MongoAdapterGenerator"
+    expect ok: "true"
+  end
+
+
+  # ── MongoBoot aggregate ──────────────────────────────────────────
+
+  test "Setup runs" do
+    tests "Setup", on: "MongoBoot"
+    expect ok: "true"
+  end
+
+
+  # ── HecksMysql aggregate ──────────────────────────────────────────
+
+  test "Boot runs" do
+    tests "Boot", on: "HecksMysql"
+    expect ok: "true"
+  end
+
+
+  # ── HecksPostgres aggregate ──────────────────────────────────────────
+
+  test "Boot runs" do
+    tests "Boot", on: "HecksPostgres"
+    expect ok: "true"
+  end
+
+
+  # ── HecksSqlite aggregate ──────────────────────────────────────────
+
+  test "Boot runs" do
+    tests "Boot", on: "HecksSqlite"
+    expect ok: "true"
+  end
+
+
+  # ── HecksCqrs aggregate ──────────────────────────────────────────
+
+  test "Enable runs" do
+    tests "Enable", on: "HecksCqrs"
+    expect ok: "true"
+  end
+
+
+  # ── HecksTransactions aggregate ──────────────────────────────────────────
+
+  test "Wrap runs" do
+    tests "Wrap", on: "HecksTransactions"
+    expect ok: "true"
+  end
+
+
+  # ── Migrations aggregate ──────────────────────────────────────────
+
+  test "GenerateMigrations runs" do
+    tests "GenerateMigrations", on: "Migrations"
+    expect ok: "true"
+  end
+
+
+  # ── DomainDeclaration aggregate ──────────────────────────────────────────
+
+  test "DeclareDomain sets name" do
+    tests "DeclareDomain", on: "DomainDeclaration"
+    input  name: "sample"
+    expect name: "sample", expressed: "true"
+  end
+
+  test "WireDependency sets target_domain" do
+    tests "WireDependency", on: "DomainDeclaration"
+    setup  "DeclareDomain", name: "sample"
+    input  domain_declaration: 1, target_domain: "sample"
+    expect listens_to_size: 1
+  end
+
+  test "SilenceDomain runs" do
+    tests "SilenceDomain", on: "DomainDeclaration"
+    setup  "DeclareDomain", name: "sample"
+    input  domain_declaration: 1
+    expect expressed: "false"
+  end
+
+
+  # ── CapabilityDeclaration aggregate ──────────────────────────────────────────
+
+  test "DeclareCapability sets name + category" do
+    tests "DeclareCapability", on: "CapabilityDeclaration"
+    input  name: "sample", category: "sample"
+    expect name: "sample", category: "sample"
+  end
+
+
+  # ── WorldConfig aggregate ──────────────────────────────────────────
+
+  test "SetConfig sets config_key + config_value + environment" do
+    tests "SetConfig", on: "WorldConfig"
+    input  config_key: "sample", config_value: "sample", environment: "sample"
+    expect config_key: "sample", config_value: "sample", environment: "sample"
+  end
+
+
+  # ── AppOverride aggregate ──────────────────────────────────────────
+
+  test "RegisterApp sets app_name + app_type" do
+    tests "RegisterApp", on: "AppOverride"
+    input  app_name: "sample", app_type: "sample"
+    expect app_name: "sample", app_type: "sample"
+  end
+
+end

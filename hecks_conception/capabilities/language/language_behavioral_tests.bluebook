@@ -1,0 +1,39 @@
+Hecks.behaviors "Language" do
+  vision "Behavioral tests for the Language domain — exercises every command and query in memory"
+
+  # ── WordClassifier aggregate ──────────────────────────────────────────
+
+  test "ClassifyWord sets word" do
+    tests "ClassifyWord", on: "WordClassifier"
+    input  word: "sample"
+    expect word: "sample"
+  end
+
+
+  # ── VerbPattern aggregate ──────────────────────────────────────────
+
+  test "RegisterPattern sets pattern_type + pattern + confidence" do
+    tests "RegisterPattern", on: "VerbPattern"
+    input  pattern_type: "sample", pattern: "sample", confidence: 1.0
+    expect pattern_type: "sample", pattern: "sample", confidence: 1.0
+  end
+
+
+  # ── NonVerbPattern aggregate ──────────────────────────────────────────
+
+  test "RegisterNonVerb sets pattern_type + pattern + indicates" do
+    tests "RegisterNonVerb", on: "NonVerbPattern"
+    input  pattern_type: "sample", pattern: "sample", indicates: "sample"
+    expect pattern_type: "sample", pattern: "sample", indicates: "sample"
+  end
+
+
+  # ── CommandValidator aggregate ──────────────────────────────────────────
+
+  test "ValidateCommandName sets command_name" do
+    tests "ValidateCommandName", on: "CommandValidator"
+    input  command_name: "sample"
+    expect command_name: "sample"
+  end
+
+end

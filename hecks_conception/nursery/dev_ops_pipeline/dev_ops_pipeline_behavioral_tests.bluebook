@@ -1,0 +1,112 @@
+Hecks.behaviors "DevOpsPipeline" do
+  vision "Behavioral tests for the DevOpsPipeline domain — exercises every command and query in memory"
+
+  # ── Repository aggregate ──────────────────────────────────────────
+
+  test "RegisterRepository sets repo_name + clone_url + default_branch + language" do
+    tests "RegisterRepository", on: "Repository"
+    input  repo_name: "sample", clone_url: "sample", default_branch: "sample", language: "sample"
+    expect repo_name: "sample", clone_url: "sample", default_branch: "sample", language: "sample"
+  end
+
+  test "UpdateBranch sets default_branch" do
+    tests "UpdateBranch", on: "Repository"
+    setup  "RegisterRepository", repo_name: "sample", clone_url: "sample", default_branch: "sample", language: "sample"
+    input  repository: 1, default_branch: "sample"
+    expect ok: "true"
+  end
+
+  test "DisconnectRepository runs" do
+    tests "DisconnectRepository", on: "Repository"
+    setup  "RegisterRepository", repo_name: "sample", clone_url: "sample", default_branch: "sample", language: "sample"
+    input  repository: 1
+    expect ok: "true"
+  end
+
+
+  # ── Build aggregate ──────────────────────────────────────────
+
+  test "TriggerBuild sets build_number + commit_sha" do
+    tests "TriggerBuild", on: "Build"
+    setup  "RegisterRepository", repo_name: "sample", clone_url: "sample", default_branch: "sample", language: "sample"
+    input  repository: 1, build_number: "sample", commit_sha: "sample"
+    expect ok: "true"
+  end
+
+  test "CompleteBuild sets artifact_url + duration_seconds" do
+    tests "CompleteBuild", on: "Build"
+    input  build: 1, artifact_url: "sample", duration_seconds: 1
+    expect ok: "true"
+  end
+
+  test "FailBuild sets error_message" do
+    tests "FailBuild", on: "Build"
+    input  build: 1, error_message: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Deployment aggregate ──────────────────────────────────────────
+
+  test "DeployArtifact sets deploy_id + environment + strategy + deployed_by" do
+    tests "DeployArtifact", on: "Deployment"
+    input  build: 1, deploy_id: "sample", environment: "sample", strategy: "sample", deployed_by: "sample"
+    expect ok: "true"
+  end
+
+  test "PromoteDeployment runs" do
+    tests "PromoteDeployment", on: "Deployment"
+    input  deployment: 1
+    expect ok: "true"
+  end
+
+  test "AbortDeployment runs" do
+    tests "AbortDeployment", on: "Deployment"
+    input  deployment: 1
+    expect ok: "true"
+  end
+
+
+  # ── Rollback aggregate ──────────────────────────────────────────
+
+  test "InitiateRollback sets rollback_id + reason + target_version + initiated_by" do
+    tests "InitiateRollback", on: "Rollback"
+    input  deployment: 1, rollback_id: "sample", reason: "sample", target_version: "sample", initiated_by: "sample"
+    expect ok: "true"
+  end
+
+  test "CompleteRollback runs" do
+    tests "CompleteRollback", on: "Rollback"
+    input  rollback: 1
+    expect ok: "true"
+  end
+
+  test "AbandonRollback runs" do
+    tests "AbandonRollback", on: "Rollback"
+    input  rollback: 1
+    expect ok: "true"
+  end
+
+
+  # ── PipelineMetric aggregate ──────────────────────────────────────────
+
+  test "RecordMetric sets metric_name + value + unit + period" do
+    tests "RecordMetric", on: "PipelineMetric"
+    setup  "RegisterRepository", repo_name: "sample", clone_url: "sample", default_branch: "sample", language: "sample"
+    input  repository: 1, metric_name: "sample", value: 1.0, unit: "sample", period: "sample"
+    expect ok: "true"
+  end
+
+  test "SetThreshold sets warning_level + critical_level" do
+    tests "SetThreshold", on: "PipelineMetric"
+    input  pipeline_metric: 1, warning_level: 1.0, critical_level: 1.0
+    expect ok: "true"
+  end
+
+  test "AlertOnBreach runs" do
+    tests "AlertOnBreach", on: "PipelineMetric"
+    input  pipeline_metric: 1
+    expect ok: "true"
+  end
+
+end

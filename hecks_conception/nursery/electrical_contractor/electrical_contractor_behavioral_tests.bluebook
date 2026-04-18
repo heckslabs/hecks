@@ -1,0 +1,89 @@
+Hecks.behaviors "ElectricalContractor" do
+  vision "Behavioral tests for the ElectricalContractor domain — exercises every command and query in memory"
+
+  # ── Job aggregate ──────────────────────────────────────────
+
+  test "BookJob sets property_address + scope_of_work + bid_amount" do
+    tests "BookJob", on: "Job"
+    input  property_address: "sample", scope_of_work: "sample", bid_amount: 1.0
+    expect ok: "true"
+  end
+
+  test "AssignElectrician sets electrician_name" do
+    tests "AssignElectrician", on: "Job"
+    setup  "BookJob", property_address: "sample", scope_of_work: "sample", bid_amount: 1.0
+    input  job: 1, electrician_name: "sample"
+    expect ok: "true"
+  end
+
+  test "CloseOutJob runs" do
+    tests "CloseOutJob", on: "Job"
+    setup  "BookJob", property_address: "sample", scope_of_work: "sample", bid_amount: 1.0
+    input  job: 1
+    expect ok: "true"
+  end
+
+
+  # ── Panel aggregate ──────────────────────────────────────────
+
+  test "InstallPanel sets label + rated_amps + total_slots + location" do
+    tests "InstallPanel", on: "Panel"
+    setup  "BookJob", property_address: "sample", scope_of_work: "sample", bid_amount: 1.0
+    input  job: 1, label: "sample", rated_amps: 1, total_slots: 1, location: "sample"
+    expect ok: "true"
+  end
+
+  test "UpgradePanel sets new_rated_amps" do
+    tests "UpgradePanel", on: "Panel"
+    input  panel: 1, new_rated_amps: 1
+    expect ok: "true"
+  end
+
+
+  # ── Circuit aggregate ──────────────────────────────────────────
+
+  test "PullCircuit sets label + amperage + wire_gauge + circuit_type" do
+    tests "PullCircuit", on: "Circuit"
+    input  panel: 1, label: "sample", amperage: 1, wire_gauge: "sample", circuit_type: "sample"
+    expect ok: "true"
+  end
+
+  test "LabelCircuit sets description" do
+    tests "LabelCircuit", on: "Circuit"
+    input  circuit: 1, description: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Permit aggregate ──────────────────────────────────────────
+
+  test "PullPermit sets jurisdiction + work_description" do
+    tests "PullPermit", on: "Permit"
+    input  jurisdiction: "sample", work_description: "sample"
+    expect ok: "true"
+  end
+
+  test "ReceiveApproval sets permit_number" do
+    tests "ReceiveApproval", on: "Permit"
+    setup  "PullPermit", jurisdiction: "sample", work_description: "sample"
+    input  permit: 1, permit_number: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Inspection aggregate ──────────────────────────────────────────
+
+  test "ScheduleInspection sets inspection_type" do
+    tests "ScheduleInspection", on: "Inspection"
+    setup  "BookJob", property_address: "sample", scope_of_work: "sample", bid_amount: 1.0
+    input  job: 1, inspection_type: "sample"
+    expect ok: "true"
+  end
+
+  test "RecordResult sets result + notes" do
+    tests "RecordResult", on: "Inspection"
+    input  inspection: 1, result: "sample", notes: "sample"
+    expect ok: "true"
+  end
+
+end

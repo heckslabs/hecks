@@ -1,0 +1,112 @@
+Hecks.behaviors "CommunityGarden" do
+  vision "Behavioral tests for the CommunityGarden domain — exercises every command and query in memory"
+
+  # ── Plot aggregate ──────────────────────────────────────────
+
+  test "CreatePlot sets plot_number + size + soil_type + sun_exposure" do
+    tests "CreatePlot", on: "Plot"
+    input  plot_number: "sample", size: "sample", soil_type: "sample", sun_exposure: "sample"
+    expect plot_number: "sample", size: "sample", soil_type: "sample", sun_exposure: "sample", status: "available"
+  end
+
+  test "AssignPlot sets assigned_gardener" do
+    tests "AssignPlot", on: "Plot"
+    setup  "CreatePlot", plot_number: "sample", size: "sample", soil_type: "sample", sun_exposure: "sample"
+    input  plot: 1, assigned_gardener: "sample"
+    expect assigned_gardener: "sample", status: "assigned"
+  end
+
+  test "ReleasePlot runs" do
+    tests "ReleasePlot", on: "Plot"
+    setup  "CreatePlot", plot_number: "sample", size: "sample", soil_type: "sample", sun_exposure: "sample"
+    input  plot: 1
+    expect assigned_gardener: "", status: "available"
+  end
+
+
+  # ── Gardener aggregate ──────────────────────────────────────────
+
+  test "RegisterGardener sets name + email + phone + experience_level + membership_date" do
+    tests "RegisterGardener", on: "Gardener"
+    input  name: "sample", email: "sample", phone: "sample", experience_level: "sample", membership_date: "sample"
+    expect name: "sample", email: "sample", phone: "sample", experience_level: "sample", membership_date: "sample", status: "active"
+  end
+
+  test "RenewMembership sets membership_date" do
+    tests "RenewMembership", on: "Gardener"
+    setup  "RegisterGardener", name: "sample", email: "sample", phone: "sample", experience_level: "sample", membership_date: "sample"
+    input  gardener: 1, membership_date: "sample"
+    expect membership_date: "sample"
+  end
+
+  test "SuspendGardener runs" do
+    tests "SuspendGardener", on: "Gardener"
+    setup  "RegisterGardener", name: "sample", email: "sample", phone: "sample", experience_level: "sample", membership_date: "sample"
+    input  gardener: 1
+    expect status: "suspended"
+  end
+
+
+  # ── ToolInventory aggregate ──────────────────────────────────────────
+
+  test "AddTool sets tool_name + condition + quantity + storage_location" do
+    tests "AddTool", on: "ToolInventory"
+    input  tool_name: "sample", condition: "sample", quantity: 1, storage_location: "sample"
+    expect tool_name: "sample", condition: "sample", quantity: 1, storage_location: "sample", status: "available"
+  end
+
+  test "CheckoutTool sets borrower_name" do
+    tests "CheckoutTool", on: "ToolInventory"
+    setup  "AddTool", tool_name: "sample", condition: "sample", quantity: 1, storage_location: "sample"
+    input  tool_inventory: 1, borrower_name: "sample"
+    expect ok: "true"
+  end
+
+  test "ReturnTool sets condition_on_return" do
+    tests "ReturnTool", on: "ToolInventory"
+    setup  "AddTool", tool_name: "sample", condition: "sample", quantity: 1, storage_location: "sample"
+    input  tool_inventory: 1, condition_on_return: "sample"
+    expect condition: "sample", status: "available"
+  end
+
+
+  # ── Harvest aggregate ──────────────────────────────────────────
+
+  test "LogHarvest sets gardener_name + plot_number + crop_name + weight_pounds + harvest_date + destination" do
+    tests "LogHarvest", on: "Harvest"
+    setup  "CreatePlot", plot_number: "sample", size: "sample", soil_type: "sample", sun_exposure: "sample"
+    setup  "RegisterGardener", name: "sample", email: "sample", phone: "sample", experience_level: "sample", membership_date: "sample"
+    input  plot: 1, gardener: 1, gardener_name: "sample", plot_number: "sample", crop_name: "sample", weight_pounds: 1.0, harvest_date: "sample", destination: "sample"
+    expect gardener_name: "sample", plot_number: "sample", crop_name: "sample", weight_pounds: 1.0, harvest_date: "sample", destination: "sample"
+  end
+
+  test "DonateHarvest runs" do
+    tests "DonateHarvest", on: "Harvest"
+    input  harvest: 1
+    expect destination: "food_bank"
+  end
+
+
+  # ── GardenEvent aggregate ──────────────────────────────────────────
+
+  test "PlanEvent sets event_name + event_date + event_type + organizer + expected_attendees" do
+    tests "PlanEvent", on: "GardenEvent"
+    input  event_name: "sample", event_date: "sample", event_type: "sample", organizer: "sample", expected_attendees: 1
+    expect event_name: "sample", event_date: "sample", event_type: "sample", organizer: "sample", expected_attendees: 1, status: "planned"
+  end
+
+  test "HoldEvent runs" do
+    tests "HoldEvent", on: "GardenEvent"
+    setup  "PlanEvent", event_name: "sample", event_date: "sample", event_type: "sample", organizer: "sample", expected_attendees: 1
+    input  garden_event: 1
+    expect status: "completed"
+  end
+
+  test "CancelEvent runs" do
+    tests "CancelEvent", on: "GardenEvent"
+    setup  "PlanEvent", event_name: "sample", event_date: "sample", event_type: "sample", organizer: "sample", expected_attendees: 1
+    input  garden_event: 1
+    expect status: "cancelled"
+  end
+
+end

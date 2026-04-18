@@ -1,0 +1,130 @@
+Hecks.behaviors "Templating" do
+  vision "Behavioral tests for the Templating domain — exercises every command and query in memory"
+
+  # ── NamingHelpers aggregate ──────────────────────────────────────────
+
+  test "ResolveDomainModuleName sets name" do
+    tests "ResolveDomainModuleName", on: "NamingHelpers"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+  test "DomainGemName sets name" do
+    tests "DomainGemName", on: "NamingHelpers"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+  test "DomainAggregateSlug sets name" do
+    tests "DomainAggregateSlug", on: "NamingHelpers"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+  test "DomainCommandMethod sets command_name + aggregate_name" do
+    tests "DomainCommandMethod", on: "NamingHelpers"
+    input  command_name: "sample", aggregate_name: "sample"
+    expect ok: "true"
+  end
+
+  test "DomainRoutePath sets domain_name + aggregate_name" do
+    tests "DomainRoutePath", on: "NamingHelpers"
+    input  domain_name: "sample", aggregate_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SmokeTest aggregate ──────────────────────────────────────────
+
+  test "Run sets base_url + domain_name" do
+    tests "Run", on: "SmokeTest"
+    input  base_url: "sample", domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── EventChecks aggregate ──────────────────────────────────────────
+
+  test "CheckEventsContain sets expected_events" do
+    tests "CheckEventsContain", on: "EventChecks"
+    input  expected_events: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── BehaviorTests aggregate ──────────────────────────────────────────
+
+  test "TestQueries runs" do
+    tests "TestQueries", on: "BehaviorTests"
+    expect ok: "true"
+  end
+
+  test "TestPolicies runs" do
+    tests "TestPolicies", on: "BehaviorTests"
+    expect ok: "true"
+  end
+
+  test "TestLifecycles runs" do
+    tests "TestLifecycles", on: "BehaviorTests"
+    expect ok: "true"
+  end
+
+
+  # ── FormSubmission aggregate ──────────────────────────────────────────
+
+  test "SubmitForm sets form_path" do
+    tests "SubmitForm", on: "FormSubmission"
+    input  form_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── QueryTests aggregate ──────────────────────────────────────────
+
+  test "TestQueries runs" do
+    tests "TestQueries", on: "QueryTests"
+    expect ok: "true"
+  end
+
+
+  # ── PolicyTests aggregate ──────────────────────────────────────────
+
+  test "TestPolicies runs" do
+    tests "TestPolicies", on: "PolicyTests"
+    expect ok: "true"
+  end
+
+
+  # ── LifecycleTests aggregate ──────────────────────────────────────────
+
+  test "TestLifecycles runs" do
+    tests "TestLifecycles", on: "LifecycleTests"
+    expect ok: "true"
+  end
+
+
+  # ── NegativeTests aggregate ──────────────────────────────────────────
+
+  test "TestNegativeCases runs" do
+    tests "TestNegativeCases", on: "NegativeTests"
+    expect ok: "true"
+  end
+
+
+  # ── EndpointTests aggregate ──────────────────────────────────────────
+
+  test "TestEndpoints runs" do
+    tests "TestEndpoints", on: "EndpointTests"
+    expect ok: "true"
+  end
+
+
+  # ── DomainLookups aggregate ──────────────────────────────────────────
+
+  test "LookupAggregate sets name" do
+    tests "LookupAggregate", on: "DomainLookups"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+end

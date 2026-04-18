@@ -1,0 +1,26 @@
+Hecks.behaviors "Validator" do
+  vision "Behavioral tests for the Validator domain — exercises every command and query in memory"
+
+  # ── Rule aggregate ──────────────────────────────────────────
+
+  test "ListRules returns matching records" do
+    tests "ListRules", on: "Rule", kind: :query
+    expect count: 1
+  end
+
+
+  # ── Violation aggregate ──────────────────────────────────────────
+
+  test "DetectViolation sets rule_name + message" do
+    tests "DetectViolation", on: "Violation"
+    input  rule_name: "sample", message: "sample"
+    expect rule_name: "sample", message: "sample"
+  end
+
+  test "ListViolations returns matching records" do
+    tests "ListViolations", on: "Violation", kind: :query
+    setup  "DetectViolation", rule_name: "sample", message: "sample"
+    expect count: 1
+  end
+
+end

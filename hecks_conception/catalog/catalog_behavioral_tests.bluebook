@@ -1,0 +1,64 @@
+Hecks.behaviors "Catalog" do
+  vision "Behavioral tests for the Catalog domain — exercises every command and query in memory"
+
+  # ── Entry aggregate ──────────────────────────────────────────
+
+  test "RegisterDomain sets name + version + path + aggregate_count + command_count + policy_count + lines" do
+    tests "RegisterDomain", on: "Entry"
+    input  name: "sample", version: "sample", path: "sample", aggregate_count: 1, command_count: 1, policy_count: 1, lines: 1
+    expect name: "sample", version: "sample", path: "sample", aggregate_count: 1, command_count: 1, policy_count: 1, lines: 1, status: "active"
+  end
+
+  test "DevelopDomain sets version + aggregate_count + command_count + policy_count + lines" do
+    tests "DevelopDomain", on: "Entry"
+    setup  "RegisterDomain", name: "sample", version: "sample", path: "sample", aggregate_count: 1, command_count: 1, policy_count: 1, lines: 1
+    input  entry: 1, version: "sample", aggregate_count: 1, command_count: 1, policy_count: 1, lines: 1
+    expect version: "sample", aggregate_count: 1, command_count: 1, policy_count: 1, lines: 1
+  end
+
+  test "RetireDomain runs" do
+    tests "RetireDomain", on: "Entry"
+    setup  "RegisterDomain", name: "sample", version: "sample", path: "sample", aggregate_count: 1, command_count: 1, policy_count: 1, lines: 1
+    input  entry: 1
+    expect status: "retired"
+  end
+
+
+  # ── Version aggregate ──────────────────────────────────────────
+
+  test "SnapshotVersion sets domain_name + version + snapshot + developed_from + aggregate_count + command_count + vector" do
+    tests "SnapshotVersion", on: "Version"
+    input  domain_name: "sample", version: "sample", snapshot: "sample", developed_from: "sample", aggregate_count: 1, command_count: 1, vector: 1.0
+    expect domain_name: "sample", version: "sample", snapshot: "sample", developed_from: "sample", aggregate_count: 1, command_count: 1, vector: 1.0
+  end
+
+  test "CompareVersions sets domain_name + from_version + to_version" do
+    tests "CompareVersions", on: "Version"
+    input  domain_name: "sample", from_version: "sample", to_version: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Mirror aggregate ──────────────────────────────────────────
+
+  test "SyncFromCannon sets cannon_path" do
+    tests "SyncFromCannon", on: "Mirror"
+    input  cannon_path: "sample"
+    expect cannon_path: "sample"
+  end
+
+  test "DetectDrift runs" do
+    tests "DetectDrift", on: "Mirror"
+    expect ok: "true"
+  end
+
+
+  # ── Index aggregate ──────────────────────────────────────────
+
+  test "RebuildIndex sets catalog_count + nursery_count + total_aggregates + total_commands" do
+    tests "RebuildIndex", on: "Index"
+    input  catalog_count: 1, nursery_count: 1, total_aggregates: 1, total_commands: 1
+    expect catalog_count: 1, nursery_count: 1, total_aggregates: 1, total_commands: 1
+  end
+
+end

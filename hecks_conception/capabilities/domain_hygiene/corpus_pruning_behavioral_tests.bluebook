@@ -1,0 +1,72 @@
+Hecks.behaviors "CorpusPruning" do
+  vision "Behavioral tests for the CorpusPruning domain — exercises every command and query in memory"
+
+  # ── MonsterSplit aggregate ──────────────────────────────────────────
+
+  test "SplitMonster sets source_domain + max_aggregates_per_chunk" do
+    tests "SplitMonster", on: "MonsterSplit"
+    input  source_domain: "sample", max_aggregates_per_chunk: 1
+    expect ok: "true"
+  end
+
+
+  # ── FeatureEnrichment aggregate ──────────────────────────────────────────
+
+  test "AddReferences sets domain_name" do
+    tests "AddReferences", on: "FeatureEnrichment"
+    input  domain_name: "sample"
+    expect domain_name: "sample"
+  end
+
+  test "AddCollections sets domain_name" do
+    tests "AddCollections", on: "FeatureEnrichment"
+    input  domain_name: "sample"
+    expect domain_name: "sample"
+  end
+
+  test "AddGivens sets domain_name" do
+    tests "AddGivens", on: "FeatureEnrichment"
+    input  domain_name: "sample"
+    expect domain_name: "sample"
+  end
+
+  test "Revalidate runs" do
+    tests "Revalidate", on: "FeatureEnrichment"
+    setup  "AddReferences", domain_name: "sample"
+    input  feature_enrichment: 1
+    expect ok: "true"
+  end
+
+
+  # ── Deduplicator aggregate ──────────────────────────────────────────
+
+  test "FindDuplicates sets jsonl_path + similarity_threshold" do
+    tests "FindDuplicates", on: "Deduplicator"
+    input  jsonl_path: "sample", similarity_threshold: 1.0
+    expect ok: "true"
+  end
+
+  test "MergeDuplicates runs" do
+    tests "MergeDuplicates", on: "Deduplicator"
+    setup  "FindDuplicates", jsonl_path: "sample", similarity_threshold: 1.0
+    input  deduplicator: 1
+    expect ok: "true"
+  end
+
+
+  # ── CategoryBalancer aggregate ──────────────────────────────────────────
+
+  test "AssessBalance sets jsonl_path" do
+    tests "AssessBalance", on: "CategoryBalancer"
+    input  jsonl_path: "sample"
+    expect ok: "true"
+  end
+
+  test "CapCategory sets category + max_count" do
+    tests "CapCategory", on: "CategoryBalancer"
+    setup  "AssessBalance", jsonl_path: "sample"
+    input  category_balancer: 1, category: "sample", max_count: 1
+    expect ok: "true"
+  end
+
+end

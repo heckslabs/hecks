@@ -1,0 +1,49 @@
+Hecks.behaviors "Security" do
+  vision "Behavioral tests for the Security domain — exercises every command and query in memory"
+
+  # ── HashedSecret aggregate ──────────────────────────────────────────
+
+  test "StoreSecret sets name + plaintext + owner" do
+    tests "StoreSecret", on: "HashedSecret"
+    input  name: "sample", plaintext: "sample", owner: "sample"
+    expect name: "sample", owner: "sample", algorithm: "sha256"
+  end
+
+  test "VerifySecret sets candidate" do
+    tests "VerifySecret", on: "HashedSecret"
+    setup  "StoreSecret", name: "sample", plaintext: "sample", owner: "sample"
+    input  hashed_secret: 1, candidate: "sample"
+    expect ok: "true"
+  end
+
+  test "RejectSecret runs" do
+    tests "RejectSecret", on: "HashedSecret"
+    setup  "StoreSecret", name: "sample", plaintext: "sample", owner: "sample"
+    input  hashed_secret: 1
+    expect ok: "true"
+  end
+
+
+  # ── AccessGate aggregate ──────────────────────────────────────────
+
+  test "RequestAccess sets protected_context" do
+    tests "RequestAccess", on: "AccessGate"
+    input  protected_context: "sample"
+    expect protected_context: "sample", status: "challenging"
+  end
+
+  test "GrantAccess runs" do
+    tests "GrantAccess", on: "AccessGate"
+    setup  "RequestAccess", protected_context: "sample"
+    input  access_gate: 1
+    expect status: "granted"
+  end
+
+  test "DenyAccess runs" do
+    tests "DenyAccess", on: "AccessGate"
+    setup  "RequestAccess", protected_context: "sample"
+    input  access_gate: 1
+    expect status: "denied"
+  end
+
+end

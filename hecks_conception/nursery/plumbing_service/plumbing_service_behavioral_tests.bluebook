@@ -1,0 +1,86 @@
+Hecks.behaviors "PlumbingService" do
+  vision "Behavioral tests for the PlumbingService domain — exercises every command and query in memory"
+
+  # ── ServiceCall aggregate ──────────────────────────────────────────
+
+  test "DispatchCall sets customer_name + address + problem_description" do
+    tests "DispatchCall", on: "ServiceCall"
+    setup  "HireTechnician", name: "sample", license_number: "sample", specialties: "sample"
+    input  technician: 1, customer_name: "sample", address: "sample", problem_description: "sample"
+    expect ok: "true"
+  end
+
+  test "DiagnoseIssue sets diagnosis" do
+    tests "DiagnoseIssue", on: "ServiceCall"
+    input  service_call: 1, diagnosis: "sample"
+    expect ok: "true"
+  end
+
+  test "CompleteCall runs" do
+    tests "CompleteCall", on: "ServiceCall"
+    input  service_call: 1
+    expect ok: "true"
+  end
+
+
+  # ── Technician aggregate ──────────────────────────────────────────
+
+  test "HireTechnician sets name + license_number + specialties" do
+    tests "HireTechnician", on: "Technician"
+    input  name: "sample", license_number: "sample", specialties: "sample"
+    expect ok: "true"
+  end
+
+  test "AssignTerritory sets territory" do
+    tests "AssignTerritory", on: "Technician"
+    setup  "HireTechnician", name: "sample", license_number: "sample", specialties: "sample"
+    input  technician: 1, territory: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Fixture aggregate ──────────────────────────────────────────
+
+  test "InstallFixture sets type + brand + model + location" do
+    tests "InstallFixture", on: "Fixture"
+    input  service_call: 1, type: "sample", brand: "sample", model: "sample", location: "sample"
+    expect ok: "true"
+  end
+
+  test "ReplaceFixture sets new_model" do
+    tests "ReplaceFixture", on: "Fixture"
+    input  fixture: 1, new_model: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Estimate aggregate ──────────────────────────────────────────
+
+  test "PrepareEstimate sets labor_cost + parts_cost" do
+    tests "PrepareEstimate", on: "Estimate"
+    input  service_call: 1, labor_cost: 1.0, parts_cost: 1.0
+    expect ok: "true"
+  end
+
+  test "ApproveEstimate runs" do
+    tests "ApproveEstimate", on: "Estimate"
+    input  estimate: 1
+    expect ok: "true"
+  end
+
+
+  # ── Warranty aggregate ──────────────────────────────────────────
+
+  test "IssueWarranty sets coverage_type + duration_months + terms" do
+    tests "IssueWarranty", on: "Warranty"
+    input  fixture: 1, coverage_type: "sample", duration_months: 1, terms: "sample"
+    expect ok: "true"
+  end
+
+  test "FileWarrantyClaim sets defect_description" do
+    tests "FileWarrantyClaim", on: "Warranty"
+    input  warranty: 1, defect_description: "sample"
+    expect ok: "true"
+  end
+
+end

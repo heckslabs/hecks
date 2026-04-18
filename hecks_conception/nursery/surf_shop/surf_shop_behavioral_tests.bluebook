@@ -1,0 +1,83 @@
+Hecks.behaviors "SurfShop" do
+  vision "Behavioral tests for the SurfShop domain — exercises every command and query in memory"
+
+  # ── Surfboard aggregate ──────────────────────────────────────────
+
+  test "StockBoard sets board_id + shaper + model + board_type + length_ft + volume_liters + price" do
+    tests "StockBoard", on: "Surfboard"
+    input  board_id: "sample", shaper: "sample", model: "sample", board_type: "sample", length_ft: 1.0, volume_liters: 1.0, price: 1.0
+    expect board_id: "sample", shaper: "sample", model: "sample", board_type: "sample", length_ft: 1.0, volume_liters: 1.0, price: 1.0, status: "available"
+  end
+
+  test "SellBoard runs" do
+    tests "SellBoard", on: "Surfboard"
+    setup  "StockBoard", board_id: "sample", shaper: "sample", model: "sample", board_type: "sample", length_ft: 1.0, volume_liters: 1.0, price: 1.0
+    input  surfboard: 1
+    expect status: "sold"
+  end
+
+
+  # ── Wetsuit aggregate ──────────────────────────────────────────
+
+  test "StockWetsuit sets wetsuit_id + brand + thickness_mm + size + price + quantity" do
+    tests "StockWetsuit", on: "Wetsuit"
+    input  wetsuit_id: "sample", brand: "sample", thickness_mm: "sample", size: "sample", price: 1.0, quantity: 1
+    expect wetsuit_id: "sample", brand: "sample", thickness_mm: "sample", size: "sample", price: 1.0, quantity: 1
+  end
+
+  test "SellWetsuit runs" do
+    tests "SellWetsuit", on: "Wetsuit"
+    setup  "StockWetsuit", wetsuit_id: "sample", brand: "sample", thickness_mm: "sample", size: "sample", price: 1.0, quantity: 1
+    input  wetsuit: 1
+    expect ok: "true"
+  end
+
+
+  # ── GearRental aggregate ──────────────────────────────────────────
+
+  test "RentGear sets rental_id + item_type + item_id + renter_name + start_time + end_time + rate" do
+    tests "RentGear", on: "GearRental"
+    input  rental_id: "sample", item_type: "sample", item_id: "sample", renter_name: "sample", start_time: "sample", end_time: "sample", rate: 1.0
+    expect rental_id: "sample", item_type: "sample", item_id: "sample", renter_name: "sample", start_time: "sample", end_time: "sample", rate: 1.0, status: "rented"
+  end
+
+  test "ReturnGear runs" do
+    tests "ReturnGear", on: "GearRental"
+    setup  "RentGear", rental_id: "sample", item_type: "sample", item_id: "sample", renter_name: "sample", start_time: "sample", end_time: "sample", rate: 1.0
+    input  gear_rental: 1
+    expect status: "returned"
+  end
+
+
+  # ── SurfLesson aggregate ──────────────────────────────────────────
+
+  test "ScheduleLesson sets lesson_id + instructor_name + skill_level + max_students + scheduled_date" do
+    tests "ScheduleLesson", on: "SurfLesson"
+    input  lesson_id: "sample", instructor_name: "sample", skill_level: "sample", max_students: 1, scheduled_date: "sample"
+    expect lesson_id: "sample", instructor_name: "sample", skill_level: "sample", max_students: 1, scheduled_date: "sample", status: "scheduled"
+  end
+
+  test "ConductLesson runs" do
+    tests "ConductLesson", on: "SurfLesson"
+    setup  "ScheduleLesson", lesson_id: "sample", instructor_name: "sample", skill_level: "sample", max_students: 1, scheduled_date: "sample"
+    input  surf_lesson: 1
+    expect status: "completed"
+  end
+
+
+  # ── DingRepair aggregate ──────────────────────────────────────────
+
+  test "AcceptRepair sets repair_id + board_id + damage_type + estimated_cost" do
+    tests "AcceptRepair", on: "DingRepair"
+    input  repair_id: "sample", board_id: "sample", damage_type: "sample", estimated_cost: 1.0
+    expect repair_id: "sample", board_id: "sample", damage_type: "sample", estimated_cost: 1.0, status: "in_progress"
+  end
+
+  test "CompleteRepair runs" do
+    tests "CompleteRepair", on: "DingRepair"
+    setup  "AcceptRepair", repair_id: "sample", board_id: "sample", damage_type: "sample", estimated_cost: 1.0
+    input  ding_repair: 1
+    expect status: "completed"
+  end
+
+end

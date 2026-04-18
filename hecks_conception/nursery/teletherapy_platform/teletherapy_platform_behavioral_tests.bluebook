@@ -1,0 +1,81 @@
+Hecks.behaviors "TeletherapyPlatform" do
+  vision "Behavioral tests for the TeletherapyPlatform domain — exercises every command and query in memory"
+
+  # ── TherapySession aggregate ──────────────────────────────────────────
+
+  test "ScheduleSession sets session_id + client_name + therapist_name + session_type + scheduled_time" do
+    tests "ScheduleSession", on: "TherapySession"
+    input  session_id: "sample", client_name: "sample", therapist_name: "sample", session_type: "sample", scheduled_time: "sample"
+    expect session_id: "sample", client_name: "sample", therapist_name: "sample", session_type: "sample", scheduled_time: "sample", status: "scheduled"
+  end
+
+  test "StartSession runs" do
+    tests "StartSession", on: "TherapySession"
+    setup  "ScheduleSession", session_id: "sample", client_name: "sample", therapist_name: "sample", session_type: "sample", scheduled_time: "sample"
+    input  therapy_session: 1
+    expect status: "in_progress"
+  end
+
+  test "EndSession runs" do
+    tests "EndSession", on: "TherapySession"
+    setup  "ScheduleSession", session_id: "sample", client_name: "sample", therapist_name: "sample", session_type: "sample", scheduled_time: "sample"
+    input  therapy_session: 1
+    expect status: "completed"
+  end
+
+
+  # ── VideoRoom aggregate ──────────────────────────────────────────
+
+  test "CreateRoom sets room_id + session_id + stream_url" do
+    tests "CreateRoom", on: "VideoRoom"
+    input  room_id: "sample", session_id: "sample", stream_url: "sample"
+    expect room_id: "sample", session_id: "sample", stream_url: "sample", status: "ready", recording_status: "off"
+  end
+
+  test "StartRecording runs" do
+    tests "StartRecording", on: "VideoRoom"
+    setup  "CreateRoom", room_id: "sample", session_id: "sample", stream_url: "sample"
+    input  video_room: 1
+    expect recording_status: "recording"
+  end
+
+  test "CloseRoom runs" do
+    tests "CloseRoom", on: "VideoRoom"
+    setup  "CreateRoom", room_id: "sample", session_id: "sample", stream_url: "sample"
+    input  video_room: 1
+    expect status: "closed"
+  end
+
+
+  # ── ClientAccount aggregate ──────────────────────────────────────────
+
+  test "RegisterClient sets client_id + name + insurance_provider" do
+    tests "RegisterClient", on: "ClientAccount"
+    input  client_id: "sample", name: "sample", insurance_provider: "sample"
+    expect client_id: "sample", name: "sample", insurance_provider: "sample", status: "active"
+  end
+
+  test "DeactivateClient runs" do
+    tests "DeactivateClient", on: "ClientAccount"
+    setup  "RegisterClient", client_id: "sample", name: "sample", insurance_provider: "sample"
+    input  client_account: 1
+    expect status: "inactive"
+  end
+
+
+  # ── BillingRecord aggregate ──────────────────────────────────────────
+
+  test "CreateInvoice sets invoice_id + session_id + client_id + amount" do
+    tests "CreateInvoice", on: "BillingRecord"
+    input  invoice_id: "sample", session_id: "sample", client_id: "sample", amount: 1.0
+    expect invoice_id: "sample", session_id: "sample", client_id: "sample", amount: 1.0, status: "pending"
+  end
+
+  test "MarkPaid runs" do
+    tests "MarkPaid", on: "BillingRecord"
+    setup  "CreateInvoice", invoice_id: "sample", session_id: "sample", client_id: "sample", amount: 1.0
+    input  billing_record: 1
+    expect status: "paid"
+  end
+
+end

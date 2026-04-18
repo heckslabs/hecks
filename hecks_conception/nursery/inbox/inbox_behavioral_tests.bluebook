@@ -1,0 +1,48 @@
+Hecks.behaviors "Inbox" do
+  vision "Behavioral tests for the Inbox domain — exercises every command and query in memory"
+
+  # ── Message aggregate ──────────────────────────────────────────
+
+  test "PostMessage sets body + priority" do
+    tests "PostMessage", on: "Message"
+    input  body: "sample", priority: "sample"
+    expect body: "sample", priority: "sample", status: "queued"
+  end
+
+  test "AcknowledgeMessage runs" do
+    tests "AcknowledgeMessage", on: "Message"
+    setup  "PostMessage", body: "sample", priority: "sample"
+    input  message: 1
+    expect status: "acknowledged"
+  end
+
+  test "ActOnMessage runs" do
+    tests "ActOnMessage", on: "Message"
+    setup  "PostMessage", body: "sample", priority: "sample"
+    input  message: 1
+    expect status: "done"
+  end
+
+  test "DeferMessage runs" do
+    tests "DeferMessage", on: "Message"
+    setup  "PostMessage", body: "sample", priority: "sample"
+    input  message: 1
+    expect status: "deferred"
+  end
+
+
+  # ── Inbox aggregate ──────────────────────────────────────────
+
+  test "DrainInbox runs" do
+    tests "DrainInbox", on: "Inbox"
+    input  inbox: 1
+    expect ok: "true"
+  end
+
+  test "UpdateCounts sets queued_count + oldest_priority" do
+    tests "UpdateCounts", on: "Inbox"
+    input  inbox: 1, queued_count: 1, oldest_priority: "sample"
+    expect queued_count: 1, oldest_priority: "sample"
+  end
+
+end

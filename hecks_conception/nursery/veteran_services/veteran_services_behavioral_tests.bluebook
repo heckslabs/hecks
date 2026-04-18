@@ -1,0 +1,114 @@
+Hecks.behaviors "VeteranServices" do
+  vision "Behavioral tests for the VeteranServices domain — exercises every command and query in memory"
+
+  # ── Veteran aggregate ──────────────────────────────────────────
+
+  test "RegisterVeteran sets name + service_branch + discharge_status + service_dates + disability_rating" do
+    tests "RegisterVeteran", on: "Veteran"
+    input  name: "sample", service_branch: "sample", discharge_status: "sample", service_dates: "sample", disability_rating: "sample"
+    expect name: "sample", service_branch: "sample", discharge_status: "sample", service_dates: "sample", disability_rating: "sample", status: "active"
+  end
+
+  test "UpdateDisabilityRating sets disability_rating" do
+    tests "UpdateDisabilityRating", on: "Veteran"
+    setup  "RegisterVeteran", name: "sample", service_branch: "sample", discharge_status: "sample", service_dates: "sample", disability_rating: "sample"
+    input  veteran: 1, disability_rating: "sample"
+    expect disability_rating: "sample"
+  end
+
+
+  # ── BenefitClaim aggregate ──────────────────────────────────────────
+
+  test "FileClaim sets veteran_name + benefit_type + filing_date + description" do
+    tests "FileClaim", on: "BenefitClaim"
+    setup  "RegisterVeteran", name: "sample", service_branch: "sample", discharge_status: "sample", service_dates: "sample", disability_rating: "sample"
+    input  veteran: 1, veteran_name: "sample", benefit_type: "sample", filing_date: "sample", description: "sample"
+    expect veteran_name: "sample", benefit_type: "sample", filing_date: "sample", description: "sample", status: "filed"
+  end
+
+  test "SubmitEvidence sets document_name + document_type" do
+    tests "SubmitEvidence", on: "BenefitClaim"
+    input  benefit_claim: 1, document_name: "sample", document_type: "sample"
+    expect ok: "true"
+  end
+
+  test "ApproveClaim runs" do
+    tests "ApproveClaim", on: "BenefitClaim"
+    input  benefit_claim: 1
+    expect status: "approved"
+  end
+
+  test "DenyClaim runs" do
+    tests "DenyClaim", on: "BenefitClaim"
+    input  benefit_claim: 1
+    expect status: "denied"
+  end
+
+  test "AppealClaim runs" do
+    tests "AppealClaim", on: "BenefitClaim"
+    input  benefit_claim: 1
+    expect status: "appealed"
+  end
+
+
+  # ── VeteranCounselor aggregate ──────────────────────────────────────────
+
+  test "HireCounselor sets name + specialty + license_number" do
+    tests "HireCounselor", on: "VeteranCounselor"
+    input  name: "sample", specialty: "sample", license_number: "sample"
+    expect name: "sample", specialty: "sample", license_number: "sample", caseload: 0, status: "active"
+  end
+
+  test "AssignVeteran runs" do
+    tests "AssignVeteran", on: "VeteranCounselor"
+    setup  "HireCounselor", name: "sample", specialty: "sample", license_number: "sample"
+    input  veteran_counselor: 1
+    expect ok: "true"
+  end
+
+
+  # ── ServiceProgram aggregate ──────────────────────────────────────────
+
+  test "LaunchProgram sets program_name + program_type + eligibility_criteria + capacity" do
+    tests "LaunchProgram", on: "ServiceProgram"
+    input  program_name: "sample", program_type: "sample", eligibility_criteria: "sample", capacity: 1
+    expect program_name: "sample", program_type: "sample", eligibility_criteria: "sample", capacity: 1, enrolled_count: 0, status: "active"
+  end
+
+  test "EnrollVeteran runs" do
+    tests "EnrollVeteran", on: "ServiceProgram"
+    setup  "LaunchProgram", program_name: "sample", program_type: "sample", eligibility_criteria: "sample", capacity: 1
+    input  service_program: 1
+    expect ok: "true"
+  end
+
+  test "ConductSession sets topic + facilitator + attendees" do
+    tests "ConductSession", on: "ServiceProgram"
+    setup  "LaunchProgram", program_name: "sample", program_type: "sample", eligibility_criteria: "sample", capacity: 1
+    input  service_program: 1, topic: "sample", facilitator: "sample", attendees: 1
+    expect ok: "true"
+  end
+
+
+  # ── CrisisIntervention aggregate ──────────────────────────────────────────
+
+  test "ReportCrisis sets veteran_name + crisis_type + reported_date" do
+    tests "ReportCrisis", on: "CrisisIntervention"
+    setup  "RegisterVeteran", name: "sample", service_branch: "sample", discharge_status: "sample", service_dates: "sample", disability_rating: "sample"
+    input  veteran: 1, veteran_name: "sample", crisis_type: "sample", reported_date: "sample"
+    expect veteran_name: "sample", crisis_type: "sample", reported_date: "sample", status: "reported"
+  end
+
+  test "RespondToCrisis sets responder_name" do
+    tests "RespondToCrisis", on: "CrisisIntervention"
+    input  crisis_intervention: 1, responder_name: "sample"
+    expect responder_name: "sample", status: "responding"
+  end
+
+  test "ResolveCrisis sets resolution" do
+    tests "ResolveCrisis", on: "CrisisIntervention"
+    input  crisis_intervention: 1, resolution: "sample"
+    expect resolution: "sample", status: "resolved"
+  end
+
+end

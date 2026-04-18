@@ -1,0 +1,146 @@
+Hecks.behaviors "AirlineOperations" do
+  vision "Behavioral tests for the AirlineOperations domain — exercises every command and query in memory"
+
+  # ── Flight aggregate ──────────────────────────────────────────
+
+  test "ScheduleFlight sets flight_number + origin + destination + scheduled_departure" do
+    tests "ScheduleFlight", on: "Flight"
+    input  flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    expect status: "scheduled"
+  end
+
+  test "AssignAircraft runs" do
+    tests "AssignAircraft", on: "Flight"
+    setup  "OpenBoarding"
+    setup  "RegisterAircraft", tail_number: "sample", model: "sample", seat_count: 1
+    input  flight: 1, aircraft: 1
+    expect ok: "true"
+  end
+
+  test "AssignCrew runs" do
+    tests "AssignCrew", on: "Flight"
+    setup  "OpenBoarding"
+    setup  "AssembleCrew", captain_name: "sample", member_count: 1
+    input  flight: 1, crew: 1
+    expect ok: "true"
+  end
+
+  test "OpenBoarding runs" do
+    tests "OpenBoarding", on: "Flight"
+    setup  "OpenBoarding"
+    input  flight: 1
+    expect status: "boarding"
+  end
+
+  test "CloseBoarding runs" do
+    tests "CloseBoarding", on: "Flight"
+    setup  "OpenBoarding"
+    input  flight: 1
+    expect status: "boarded"
+  end
+
+  test "ClearForDeparture runs" do
+    tests "ClearForDeparture", on: "Flight"
+    setup  "OpenBoarding"
+    input  flight: 1
+    expect status: "departed"
+  end
+
+  test "MarkAirborne runs" do
+    tests "MarkAirborne", on: "Flight"
+    setup  "OpenBoarding"
+    input  flight: 1
+    expect status: "in_flight"
+  end
+
+  test "RecordLanding runs" do
+    tests "RecordLanding", on: "Flight"
+    setup  "OpenBoarding"
+    input  flight: 1
+    expect status: "landed"
+  end
+
+  test "ArriveAtGate runs" do
+    tests "ArriveAtGate", on: "Flight"
+    setup  "OpenBoarding"
+    input  flight: 1
+    expect status: "at_gate"
+  end
+
+  test "DelayFlight sets reason + new_departure" do
+    tests "DelayFlight", on: "Flight"
+    setup  "OpenBoarding"
+    input  flight: 1, reason: "sample", new_departure: "sample"
+    expect status: "delayed"
+  end
+
+
+  # ── Gate aggregate ──────────────────────────────────────────
+
+  test "AssignGate runs" do
+    tests "AssignGate", on: "Gate"
+    setup  "OpenBoarding"
+    input  gate: 1, flight: 1
+    expect status: "occupied"
+  end
+
+  test "ReleaseGate runs" do
+    tests "ReleaseGate", on: "Gate"
+    input  gate: 1
+    expect status: "available"
+  end
+
+
+  # ── Crew aggregate ──────────────────────────────────────────
+
+  test "AssembleCrew sets captain_name + member_count" do
+    tests "AssembleCrew", on: "Crew"
+    input  captain_name: "sample", member_count: 1
+    expect status: "available", duty_hours: 0.0
+  end
+
+  test "LogDutyHours sets hours" do
+    tests "LogDutyHours", on: "Crew"
+    setup  "AssembleCrew", captain_name: "sample", member_count: 1
+    input  crew: 1, hours: 1.0
+    expect ok: "true"
+  end
+
+  test "ReleaseCrew runs" do
+    tests "ReleaseCrew", on: "Crew"
+    setup  "AssembleCrew", captain_name: "sample", member_count: 1
+    input  crew: 1
+    expect status: "off_duty"
+  end
+
+
+  # ── Aircraft aggregate ──────────────────────────────────────────
+
+  test "RegisterAircraft sets tail_number + model + seat_count" do
+    tests "RegisterAircraft", on: "Aircraft"
+    input  tail_number: "sample", model: "sample", seat_count: 1
+    expect tail_number: "sample", model: "sample", seat_count: 1, maintenance_status: "serviceable"
+  end
+
+  test "PrepareAircraft runs" do
+    tests "PrepareAircraft", on: "Aircraft"
+    setup  "RegisterAircraft", tail_number: "sample", model: "sample", seat_count: 1
+    input  aircraft: 1
+    expect maintenance_status: "flight_ready"
+  end
+
+  test "GroundAircraft sets reason" do
+    tests "GroundAircraft", on: "Aircraft"
+    setup  "RegisterAircraft", tail_number: "sample", model: "sample", seat_count: 1
+    input  aircraft: 1, reason: "sample"
+    expect maintenance_status: "grounded"
+  end
+
+  test "RefuelAircraft sets gallons" do
+    tests "RefuelAircraft", on: "Aircraft"
+    setup  "RegisterAircraft", tail_number: "sample", model: "sample", seat_count: 1
+    input  aircraft: 1, gallons: 1.0
+    expect ok: "true"
+  end
+
+end

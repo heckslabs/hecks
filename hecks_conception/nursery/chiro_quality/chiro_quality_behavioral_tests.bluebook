@@ -1,0 +1,67 @@
+Hecks.behaviors "ChiroQuality" do
+  vision "Behavioral tests for the ChiroQuality domain — exercises every command and query in memory"
+
+  # ── ChiroVisit aggregate ──────────────────────────────────────────
+
+  test "RecordVisit sets visit_id + patient_name + chiropractor + chief_complaint + visit_date" do
+    tests "RecordVisit", on: "ChiroVisit"
+    input  visit_id: "sample", patient_name: "sample", chiropractor: "sample", chief_complaint: "sample", visit_date: "sample"
+    expect visit_id: "sample", patient_name: "sample", chiropractor: "sample", chief_complaint: "sample", visit_date: "sample", status: "recorded"
+  end
+
+  test "CloseVisit runs" do
+    tests "CloseVisit", on: "ChiroVisit"
+    setup  "RecordVisit", visit_id: "sample", patient_name: "sample", chiropractor: "sample", chief_complaint: "sample", visit_date: "sample"
+    input  chiro_visit: 1
+    expect status: "closed"
+  end
+
+
+  # ── OutcomeMeasure aggregate ──────────────────────────────────────────
+
+  test "MeasureOutcome sets measure_id + patient_name + instrument + score + assessment_date" do
+    tests "MeasureOutcome", on: "OutcomeMeasure"
+    input  measure_id: "sample", patient_name: "sample", instrument: "sample", score: 1.0, assessment_date: "sample"
+    expect measure_id: "sample", patient_name: "sample", instrument: "sample", score: 1.0, assessment_date: "sample"
+  end
+
+  test "CompareBaseline runs" do
+    tests "CompareBaseline", on: "OutcomeMeasure"
+    setup  "MeasureOutcome", measure_id: "sample", patient_name: "sample", instrument: "sample", score: 1.0, assessment_date: "sample"
+    input  outcome_measure: 1
+    expect ok: "true"
+  end
+
+
+  # ── EvidenceRecord aggregate ──────────────────────────────────────────
+
+  test "RecordEvidence sets record_id + treatment_type + condition + sample_size + effect_size + evidence_level" do
+    tests "RecordEvidence", on: "EvidenceRecord"
+    input  record_id: "sample", treatment_type: "sample", condition: "sample", sample_size: 1, effect_size: 1.0, evidence_level: "sample"
+    expect record_id: "sample", treatment_type: "sample", condition: "sample", sample_size: 1, effect_size: 1.0, evidence_level: "sample"
+  end
+
+  test "UpdateEvidence sets effect_size + sample_size" do
+    tests "UpdateEvidence", on: "EvidenceRecord"
+    setup  "RecordEvidence", record_id: "sample", treatment_type: "sample", condition: "sample", sample_size: 1, effect_size: 1.0, evidence_level: "sample"
+    input  evidence_record: 1, effect_size: 1.0, sample_size: 1
+    expect effect_size: 1.0, sample_size: 1
+  end
+
+
+  # ── QualityReport aggregate ──────────────────────────────────────────
+
+  test "GenerateQualityReport sets report_id + period + avg_outcome_score + total_visits" do
+    tests "GenerateQualityReport", on: "QualityReport"
+    input  report_id: "sample", period: "sample", avg_outcome_score: 1.0, total_visits: 1
+    expect report_id: "sample", period: "sample", avg_outcome_score: 1.0, total_visits: 1, status: "generated"
+  end
+
+  test "ApproveReport runs" do
+    tests "ApproveReport", on: "QualityReport"
+    setup  "GenerateQualityReport", report_id: "sample", period: "sample", avg_outcome_score: 1.0, total_visits: 1
+    input  quality_report: 1
+    expect status: "approved"
+  end
+
+end

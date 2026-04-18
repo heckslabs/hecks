@@ -1,0 +1,116 @@
+Hecks.behaviors "Heki" do
+  vision "Behavioral tests for the Heki domain — exercises every command and query in memory"
+
+  # ── Store aggregate ──────────────────────────────────────────
+
+  test "CreateStore sets name + path" do
+    tests "CreateStore", on: "Store"
+    input  name: "sample", path: "sample"
+    expect name: "sample", path: "sample", record_count: 0, version: 2, status: "empty"
+  end
+
+  test "AppendRecord sets attrs" do
+    tests "AppendRecord", on: "Store"
+    setup  "CreateStore", name: "sample", path: "sample"
+    input  store: 1, attrs: "sample"
+    expect record_count: 1, status: "active"
+  end
+
+  test "UpsertSingleton sets attrs" do
+    tests "UpsertSingleton", on: "Store"
+    setup  "CreateStore", name: "sample", path: "sample"
+    input  store: 1, attrs: "sample"
+    expect status: "active"
+  end
+
+
+  # ── Record aggregate ──────────────────────────────────────────
+
+  test "WriteRecord sets store_name + payload" do
+    tests "WriteRecord", on: "Record"
+    input  store_name: "sample", payload: "sample"
+    expect store_name: "sample", payload: "sample"
+  end
+
+  test "ReadRecord sets store_name" do
+    tests "ReadRecord", on: "Record"
+    setup  "WriteRecord", store_name: "sample", payload: "sample"
+    input  record: 1, store_name: "sample"
+    expect ok: "true"
+  end
+
+  test "DeleteRecord runs" do
+    tests "DeleteRecord", on: "Record"
+    setup  "WriteRecord", store_name: "sample", payload: "sample"
+    input  record: 1
+    expect ok: "true"
+  end
+
+
+  # ── Schema aggregate ──────────────────────────────────────────
+
+  test "DefineSchema sets store_name + required_fields" do
+    tests "DefineSchema", on: "Schema"
+    input  store_name: "sample", fields: "sample_fielddef", required_fields: "sample"
+    expect store_name: "sample", fields: "sample_fielddef", required_fields: "sample"
+  end
+
+  test "ValidateRecord sets record" do
+    tests "ValidateRecord", on: "Schema"
+    setup  "DefineSchema", store_name: "sample", fields: "sample_fielddef", required_fields: "sample"
+    input  schema: 1, record: "sample"
+    expect ok: "true"
+  end
+
+  test "RejectRecord sets reason" do
+    tests "RejectRecord", on: "Schema"
+    setup  "DefineSchema", store_name: "sample", fields: "sample_fielddef", required_fields: "sample"
+    input  schema: 1, reason: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Integrity aggregate ──────────────────────────────────────────
+
+  test "ComputeChecksum sets store_name + payload" do
+    tests "ComputeChecksum", on: "Integrity"
+    input  store_name: "sample", payload: "sample"
+    expect store_name: "sample", algorithm: "crc32"
+  end
+
+  test "VerifyChecksum runs" do
+    tests "VerifyChecksum", on: "Integrity"
+    setup  "ComputeChecksum", store_name: "sample", payload: "sample"
+    input  integrity: 1
+    expect verified: "true"
+  end
+
+  test "ReportCorruption runs" do
+    tests "ReportCorruption", on: "Integrity"
+    setup  "ComputeChecksum", store_name: "sample", payload: "sample"
+    input  integrity: 1
+    expect verified: "false"
+  end
+
+
+  # ── Codec aggregate ──────────────────────────────────────────
+
+  test "Compress sets records" do
+    tests "Compress", on: "Codec"
+    input  records: "sample"
+    expect format: "json+zlib+crc32"
+  end
+
+  test "Decompress sets data" do
+    tests "Decompress", on: "Codec"
+    input  data: "sample"
+    expect ok: "true"
+  end
+
+  test "WriteAtomically sets path + data" do
+    tests "WriteAtomically", on: "Codec"
+    input  path: "sample", data: "sample"
+    expect ok: "true"
+  end
+
+end

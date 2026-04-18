@@ -1,0 +1,135 @@
+Hecks.behaviors "CrisisAviation" do
+  vision "Behavioral tests for the CrisisAviation domain — exercises every command and query in memory"
+
+  # ── CrisisEvent aggregate ──────────────────────────────────────────
+
+  test "DeclareCrisis sets event_id + crisis_type + affected_region + severity" do
+    tests "DeclareCrisis", on: "CrisisEvent"
+    input  event_id: "sample", crisis_type: "sample", affected_region: "sample", severity: "sample"
+    expect event_id: "sample", crisis_type: "sample", affected_region: "sample", severity: "sample", status: "active"
+  end
+
+  test "EscalateCrisis sets severity" do
+    tests "EscalateCrisis", on: "CrisisEvent"
+    setup  "DeclareCrisis", event_id: "sample", crisis_type: "sample", affected_region: "sample", severity: "sample"
+    input  crisis_event: 1, severity: "sample"
+    expect severity: "sample"
+  end
+
+  test "ResolveCrisis runs" do
+    tests "ResolveCrisis", on: "CrisisEvent"
+    setup  "DeclareCrisis", event_id: "sample", crisis_type: "sample", affected_region: "sample", severity: "sample"
+    input  crisis_event: 1
+    expect status: "resolved"
+  end
+
+
+  # ── FlightAsset aggregate ──────────────────────────────────────────
+
+  test "ActivateAsset sets callsign + aircraft_type + base_location + patient_capacity + range_nm" do
+    tests "ActivateAsset", on: "FlightAsset"
+    setup  "DeclareCrisis", event_id: "sample", crisis_type: "sample", affected_region: "sample", severity: "sample"
+    input  crisis_event: 1, callsign: "sample", aircraft_type: "sample", base_location: "sample", patient_capacity: 1, range_nm: 1
+    expect callsign: "sample", aircraft_type: "sample", base_location: "sample", patient_capacity: 1, range_nm: 1, assigned_crisis: :assigned_crisis, status: "ready"
+  end
+
+  test "DispatchMission runs" do
+    tests "DispatchMission", on: "FlightAsset"
+    input  flight_asset: 1
+    expect status: "airborne"
+  end
+
+  test "CompleteMission runs" do
+    tests "CompleteMission", on: "FlightAsset"
+    input  flight_asset: 1
+    expect status: "ready"
+  end
+
+
+  # ── HospitalStatus aggregate ──────────────────────────────────────────
+
+  test "ReportStatus sets hospital_name + region + total_beds + available_beds + power_status + accessibility" do
+    tests "ReportStatus", on: "HospitalStatus"
+    input  hospital_name: "sample", region: "sample", total_beds: 1, available_beds: 1, power_status: "sample", accessibility: "sample"
+    expect hospital_name: "sample", region: "sample", total_beds: 1, available_beds: 1, power_status: "sample", accessibility: "sample", status: "reported"
+  end
+
+  test "UpdatePowerStatus sets power_status" do
+    tests "UpdatePowerStatus", on: "HospitalStatus"
+    setup  "ReportStatus", hospital_name: "sample", region: "sample", total_beds: 1, available_beds: 1, power_status: "sample", accessibility: "sample"
+    input  hospital_status: 1, power_status: "sample"
+    expect power_status: "sample"
+  end
+
+  test "MarkInaccessible runs" do
+    tests "MarkInaccessible", on: "HospitalStatus"
+    setup  "ReportStatus", hospital_name: "sample", region: "sample", total_beds: 1, available_beds: 1, power_status: "sample", accessibility: "sample"
+    input  hospital_status: 1
+    expect accessibility: "air_only"
+  end
+
+
+  # ── PowerStatus aggregate ──────────────────────────────────────────
+
+  test "ReportGridStatus sets sector_id + region + substations_online + substations_total" do
+    tests "ReportGridStatus", on: "PowerStatus"
+    input  sector_id: "sample", region: "sample", substations_online: 1, substations_total: 1
+    expect sector_id: "sample", region: "sample", substations_online: 1, substations_total: 1, grid_status: "degraded"
+  end
+
+  test "DeployGenerator runs" do
+    tests "DeployGenerator", on: "PowerStatus"
+    setup  "ReportGridStatus", sector_id: "sample", region: "sample", substations_online: 1, substations_total: 1
+    input  power_status: 1
+    expect ok: "true"
+  end
+
+  test "RestoreSector runs" do
+    tests "RestoreSector", on: "PowerStatus"
+    setup  "ReportGridStatus", sector_id: "sample", region: "sample", substations_online: 1, substations_total: 1
+    input  power_status: 1
+    expect grid_status: "restored"
+  end
+
+
+  # ── AirspaceDecision aggregate ──────────────────────────────────────────
+
+  test "ComputeDecision sets decision_id + rationale" do
+    tests "ComputeDecision", on: "AirspaceDecision"
+    setup  "DeclareCrisis", event_id: "sample", crisis_type: "sample", affected_region: "sample", severity: "sample"
+    setup  "ReportStatus", hospital_name: "sample", region: "sample", total_beds: 1, available_beds: 1, power_status: "sample", accessibility: "sample"
+    input  crisis_event: 1, flight_asset: 1, hospital_status: 1, decision_id: "sample", rationale: "sample"
+    expect decision_id: "sample", crisis: :crisis, aircraft: :aircraft, target_hospital: :target_hospital, rationale: "sample", status: "computed"
+  end
+
+  test "ApproveDecision runs" do
+    tests "ApproveDecision", on: "AirspaceDecision"
+    input  airspace_decision: 1
+    expect status: "approved"
+  end
+
+
+  # ── PatientPriority aggregate ──────────────────────────────────────────
+
+  test "OpenQueue sets queue_id" do
+    tests "OpenQueue", on: "PatientPriority"
+    setup  "DeclareCrisis", event_id: "sample", crisis_type: "sample", affected_region: "sample", severity: "sample"
+    input  crisis_event: 1, queue_id: "sample"
+    expect queue_id: "sample", crisis: :crisis, status: "active"
+  end
+
+  test "AddPatient runs" do
+    tests "AddPatient", on: "PatientPriority"
+    setup  "OpenQueue", queue_id: "sample"
+    input  patient_priority: 1
+    expect ok: "true"
+  end
+
+  test "DispatchTransport runs" do
+    tests "DispatchTransport", on: "PatientPriority"
+    setup  "OpenQueue", queue_id: "sample"
+    input  patient_priority: 1
+    expect ok: "true"
+  end
+
+end

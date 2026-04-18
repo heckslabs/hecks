@@ -1,0 +1,114 @@
+Hecks.behaviors "CloudHosting" do
+  vision "Behavioral tests for the CloudHosting domain — exercises every command and query in memory"
+
+  # ── Instance aggregate ──────────────────────────────────────────
+
+  test "LaunchInstance sets instance_id + region + machine_type + vcpus + memory_gb + image_id" do
+    tests "LaunchInstance", on: "Instance"
+    setup  "RegisterTenant", tenant_name: "sample", billing_email: "sample", plan_tier: "sample"
+    input  tenant: 1, instance_id: "sample", region: "sample", machine_type: "sample", vcpus: 1, memory_gb: 1, image_id: "sample"
+    expect ok: "true"
+  end
+
+  test "TerminateInstance runs" do
+    tests "TerminateInstance", on: "Instance"
+    input  instance: 1
+    expect ok: "true"
+  end
+
+  test "ResizeInstance sets machine_type + vcpus + memory_gb" do
+    tests "ResizeInstance", on: "Instance"
+    input  instance: 1, machine_type: "sample", vcpus: 1, memory_gb: 1
+    expect ok: "true"
+  end
+
+
+  # ── Deployment aggregate ──────────────────────────────────────────
+
+  test "CreateDeployment sets deploy_id + artifact_url + version_tag + strategy" do
+    tests "CreateDeployment", on: "Deployment"
+    input  instance: 1, deploy_id: "sample", artifact_url: "sample", version_tag: "sample", strategy: "sample"
+    expect deploy_id: "sample", artifact_url: "sample", version_tag: "sample", strategy: "sample"
+  end
+
+  test "RollbackDeployment runs" do
+    tests "RollbackDeployment", on: "Deployment"
+    setup  "CreateDeployment", deploy_id: "sample", artifact_url: "sample", version_tag: "sample", strategy: "sample"
+    input  deployment: 1
+    expect ok: "true"
+  end
+
+  test "FinalizeDeployment runs" do
+    tests "FinalizeDeployment", on: "Deployment"
+    setup  "CreateDeployment", deploy_id: "sample", artifact_url: "sample", version_tag: "sample", strategy: "sample"
+    input  deployment: 1
+    expect ok: "true"
+  end
+
+
+  # ── ScalingRule aggregate ──────────────────────────────────────────
+
+  test "DefineScalingRule sets rule_name + metric_name + threshold + min_instances + max_instances + cooldown_seconds" do
+    tests "DefineScalingRule", on: "ScalingRule"
+    setup  "RegisterTenant", tenant_name: "sample", billing_email: "sample", plan_tier: "sample"
+    input  tenant: 1, rule_name: "sample", metric_name: "sample", threshold: 1.0, min_instances: 1, max_instances: 1, cooldown_seconds: 1
+    expect ok: "true"
+  end
+
+  test "TriggerScaleOut sets additional_count" do
+    tests "TriggerScaleOut", on: "ScalingRule"
+    input  scaling_rule: 1, additional_count: 1
+    expect ok: "true"
+  end
+
+  test "SuspendScalingRule runs" do
+    tests "SuspendScalingRule", on: "ScalingRule"
+    input  scaling_rule: 1
+    expect ok: "true"
+  end
+
+
+  # ── Tenant aggregate ──────────────────────────────────────────
+
+  test "RegisterTenant sets tenant_name + billing_email + plan_tier" do
+    tests "RegisterTenant", on: "Tenant"
+    input  tenant_name: "sample", billing_email: "sample", plan_tier: "sample"
+    expect tenant_name: "sample", billing_email: "sample", plan_tier: "sample"
+  end
+
+  test "IssueBill sets amount + period" do
+    tests "IssueBill", on: "Tenant"
+    setup  "RegisterTenant", tenant_name: "sample", billing_email: "sample", plan_tier: "sample"
+    input  tenant: 1, amount: 1.0, period: "sample"
+    expect ok: "true"
+  end
+
+  test "SuspendTenant runs" do
+    tests "SuspendTenant", on: "Tenant"
+    setup  "RegisterTenant", tenant_name: "sample", billing_email: "sample", plan_tier: "sample"
+    input  tenant: 1
+    expect ok: "true"
+  end
+
+
+  # ── Alert aggregate ──────────────────────────────────────────
+
+  test "RaiseAlert sets alert_id + severity + message + source_metric" do
+    tests "RaiseAlert", on: "Alert"
+    input  instance: 1, alert_id: "sample", severity: "sample", message: "sample", source_metric: "sample"
+    expect ok: "true"
+  end
+
+  test "AcknowledgeAlert runs" do
+    tests "AcknowledgeAlert", on: "Alert"
+    input  alert: 1
+    expect ok: "true"
+  end
+
+  test "ResolveAlert runs" do
+    tests "ResolveAlert", on: "Alert"
+    input  alert: 1
+    expect ok: "true"
+  end
+
+end

@@ -1,0 +1,90 @@
+Hecks.behaviors "SkiResort" do
+  vision "Behavioral tests for the SkiResort domain — exercises every command and query in memory"
+
+  # ── Lift aggregate ──────────────────────────────────────────
+
+  test "ActivateLift sets lift_id + name + lift_type + capacity_per_chair + vertical_rise_ft" do
+    tests "ActivateLift", on: "Lift"
+    input  lift_id: "sample", name: "sample", lift_type: "sample", capacity_per_chair: 1, vertical_rise_ft: 1
+    expect lift_id: "sample", name: "sample", lift_type: "sample", capacity_per_chair: 1, vertical_rise_ft: 1, status: "running"
+  end
+
+  test "HaltLift runs" do
+    tests "HaltLift", on: "Lift"
+    setup  "ActivateLift", lift_id: "sample", name: "sample", lift_type: "sample", capacity_per_chair: 1, vertical_rise_ft: 1
+    input  lift: 1
+    expect status: "halted"
+  end
+
+  test "ResumeLift runs" do
+    tests "ResumeLift", on: "Lift"
+    setup  "ActivateLift", lift_id: "sample", name: "sample", lift_type: "sample", capacity_per_chair: 1, vertical_rise_ft: 1
+    input  lift: 1
+    expect status: "running"
+  end
+
+
+  # ── SkiRun aggregate ──────────────────────────────────────────
+
+  test "OpenRun sets run_id + name + difficulty + length_km" do
+    tests "OpenRun", on: "SkiRun"
+    input  run_id: "sample", name: "sample", difficulty: "sample", length_km: 1.0
+    expect run_id: "sample", name: "sample", difficulty: "sample", length_km: 1.0, groomed: "false", status: "open"
+  end
+
+  test "GroomRun runs" do
+    tests "GroomRun", on: "SkiRun"
+    setup  "OpenRun", run_id: "sample", name: "sample", difficulty: "sample", length_km: 1.0
+    input  ski_run: 1
+    expect groomed: "true"
+  end
+
+  test "CloseRun runs" do
+    tests "CloseRun", on: "SkiRun"
+    setup  "OpenRun", run_id: "sample", name: "sample", difficulty: "sample", length_km: 1.0
+    input  ski_run: 1
+    expect status: "closed"
+  end
+
+
+  # ── LiftPass aggregate ──────────────────────────────────────────
+
+  test "SellPass sets pass_id + holder_name + pass_type + valid_from + valid_to + price" do
+    tests "SellPass", on: "LiftPass"
+    input  pass_id: "sample", holder_name: "sample", pass_type: "sample", valid_from: "sample", valid_to: "sample", price: 1.0
+    expect pass_id: "sample", holder_name: "sample", pass_type: "sample", valid_from: "sample", valid_to: "sample", price: 1.0, status: "active"
+  end
+
+  test "SuspendPass runs" do
+    tests "SuspendPass", on: "LiftPass"
+    setup  "SellPass", pass_id: "sample", holder_name: "sample", pass_type: "sample", valid_from: "sample", valid_to: "sample", price: 1.0
+    input  lift_pass: 1
+    expect status: "suspended"
+  end
+
+
+  # ── SkiRental aggregate ──────────────────────────────────────────
+
+  test "RentEquipment sets rental_id + guest_name + equipment_package + boot_size + start_date + end_date + daily_rate" do
+    tests "RentEquipment", on: "SkiRental"
+    input  rental_id: "sample", guest_name: "sample", equipment_package: "sample", boot_size: "sample", start_date: "sample", end_date: "sample", daily_rate: 1.0
+    expect rental_id: "sample", guest_name: "sample", equipment_package: "sample", boot_size: "sample", start_date: "sample", end_date: "sample", daily_rate: 1.0, status: "rented"
+  end
+
+  test "ReturnEquipment runs" do
+    tests "ReturnEquipment", on: "SkiRental"
+    setup  "RentEquipment", rental_id: "sample", guest_name: "sample", equipment_package: "sample", boot_size: "sample", start_date: "sample", end_date: "sample", daily_rate: 1.0
+    input  ski_rental: 1
+    expect status: "returned"
+  end
+
+
+  # ── SnowCondition aggregate ──────────────────────────────────────────
+
+  test "PublishConditions sets report_id + date + base_depth_cm + new_snow_cm + snow_quality + wind_speed + temperature" do
+    tests "PublishConditions", on: "SnowCondition"
+    input  report_id: "sample", date: "sample", base_depth_cm: 1, new_snow_cm: 1, snow_quality: "sample", wind_speed: "sample", temperature: "sample"
+    expect report_id: "sample", date: "sample", base_depth_cm: 1, new_snow_cm: 1, snow_quality: "sample", wind_speed: "sample", temperature: "sample"
+  end
+
+end

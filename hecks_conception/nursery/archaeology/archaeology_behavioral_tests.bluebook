@@ -1,0 +1,104 @@
+Hecks.behaviors "Archaeology" do
+  vision "Behavioral tests for the Archaeology domain — exercises every command and query in memory"
+
+  # ── ExcavationSite aggregate ──────────────────────────────────────────
+
+  test "OpenSite sets site_code + name + latitude + longitude" do
+    tests "OpenSite", on: "ExcavationSite"
+    input  site_code: "sample", name: "sample", latitude: 1.0, longitude: 1.0
+    expect site_code: "sample", name: "sample", latitude: 1.0, longitude: 1.0
+  end
+
+  test "CloseSite runs" do
+    tests "CloseSite", on: "ExcavationSite"
+    setup  "OpenSite", site_code: "sample", name: "sample", latitude: 1.0, longitude: 1.0
+    input  excavation_site: 1
+    expect ok: "true"
+  end
+
+  test "AssignDirector sets director_name" do
+    tests "AssignDirector", on: "ExcavationSite"
+    setup  "OpenSite", site_code: "sample", name: "sample", latitude: 1.0, longitude: 1.0
+    input  excavation_site: 1, director_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── StratigraphicUnit aggregate ──────────────────────────────────────────
+
+  test "RecordContext sets context_number + soil_description" do
+    tests "RecordContext", on: "StratigraphicUnit"
+    setup  "OpenSite", site_code: "sample", name: "sample", latitude: 1.0, longitude: 1.0
+    input  excavation_site: 1, context_number: "sample", soil_description: "sample"
+    expect ok: "true"
+  end
+
+  test "LinkStratigraphy sets related_context" do
+    tests "LinkStratigraphy", on: "StratigraphicUnit"
+    input  stratigraphic_unit: 1, related_context: "sample"
+    expect ok: "true"
+  end
+
+  test "SampleContext runs" do
+    tests "SampleContext", on: "StratigraphicUnit"
+    input  stratigraphic_unit: 1
+    expect ok: "true"
+  end
+
+
+  # ── Artifact aggregate ──────────────────────────────────────────
+
+  test "RegisterFind sets find_number + material + object_type" do
+    tests "RegisterFind", on: "Artifact"
+    input  stratigraphic_unit: 1, find_number: "sample", material: "sample", object_type: "sample"
+    expect find_number: "sample", material: "sample", object_type: "sample"
+  end
+
+  test "PhotographArtifact runs" do
+    tests "PhotographArtifact", on: "Artifact"
+    setup  "RegisterFind", find_number: "sample", material: "sample", object_type: "sample"
+    input  artifact: 1
+    expect ok: "true"
+  end
+
+  test "SendForDating runs" do
+    tests "SendForDating", on: "Artifact"
+    setup  "RegisterFind", find_number: "sample", material: "sample", object_type: "sample"
+    input  artifact: 1
+    expect ok: "true"
+  end
+
+
+  # ── DatingResult aggregate ──────────────────────────────────────────
+
+  test "SubmitResult sets method + date_bp + error_margin" do
+    tests "SubmitResult", on: "DatingResult"
+    setup  "RegisterFind", find_number: "sample", material: "sample", object_type: "sample"
+    input  artifact: 1, method: "sample", date_bp: 1, error_margin: 1
+    expect ok: "true"
+  end
+
+  test "CalibrateDate runs" do
+    tests "CalibrateDate", on: "DatingResult"
+    input  dating_result: 1
+    expect ok: "true"
+  end
+
+
+  # ── ConservationRecord aggregate ──────────────────────────────────────────
+
+  test "ConserveArtifact sets treatment_type + conservator" do
+    tests "ConserveArtifact", on: "ConservationRecord"
+    setup  "RegisterFind", find_number: "sample", material: "sample", object_type: "sample"
+    input  artifact: 1, treatment_type: "sample", conservator: "sample"
+    expect ok: "true"
+  end
+
+  test "PublishSiteReport sets report_title" do
+    tests "PublishSiteReport", on: "ConservationRecord"
+    setup  "OpenSite", site_code: "sample", name: "sample", latitude: 1.0, longitude: 1.0
+    input  excavation_site: 1, report_title: "sample"
+    expect ok: "true"
+  end
+
+end

@@ -1,0 +1,89 @@
+Hecks.behaviors "FencingContractor" do
+  vision "Behavioral tests for the FencingContractor domain — exercises every command and query in memory"
+
+  # ── FenceEstimate aggregate ──────────────────────────────────────────
+
+  test "MeasureProperty sets customer_name + address + linear_feet + fence_style + height_feet + gate_count" do
+    tests "MeasureProperty", on: "FenceEstimate"
+    input  customer_name: "sample", address: "sample", linear_feet: 1.0, fence_style: "sample", height_feet: 1.0, gate_count: 1
+    expect ok: "true"
+  end
+
+  test "QuoteFence sets total_price" do
+    tests "QuoteFence", on: "FenceEstimate"
+    setup  "MeasureProperty", customer_name: "sample", address: "sample", linear_feet: 1.0, fence_style: "sample", height_feet: 1.0, gate_count: 1
+    input  fence_estimate: 1, total_price: 1.0
+    expect ok: "true"
+  end
+
+  test "AcceptQuote runs" do
+    tests "AcceptQuote", on: "FenceEstimate"
+    setup  "MeasureProperty", customer_name: "sample", address: "sample", linear_feet: 1.0, fence_style: "sample", height_feet: 1.0, gate_count: 1
+    input  fence_estimate: 1
+    expect ok: "true"
+  end
+
+
+  # ── MaterialOrder aggregate ──────────────────────────────────────────
+
+  test "OrderMaterials sets supplier + post_count + panel_count" do
+    tests "OrderMaterials", on: "MaterialOrder"
+    setup  "MeasureProperty", customer_name: "sample", address: "sample", linear_feet: 1.0, fence_style: "sample", height_feet: 1.0, gate_count: 1
+    input  fence_estimate: 1, supplier: "sample", post_count: 1, panel_count: 1
+    expect ok: "true"
+  end
+
+  test "ReceiveDelivery runs" do
+    tests "ReceiveDelivery", on: "MaterialOrder"
+    input  material_order: 1
+    expect ok: "true"
+  end
+
+
+  # ── PostSetting aggregate ──────────────────────────────────────────
+
+  test "DigHoles sets hole_depth_inches + hole_count" do
+    tests "DigHoles", on: "PostSetting"
+    setup  "MeasureProperty", customer_name: "sample", address: "sample", linear_feet: 1.0, fence_style: "sample", height_feet: 1.0, gate_count: 1
+    input  fence_estimate: 1, hole_depth_inches: 1.0, hole_count: 1
+    expect ok: "true"
+  end
+
+  test "SetPosts sets concrete_type" do
+    tests "SetPosts", on: "PostSetting"
+    input  post_setting: 1, concrete_type: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── PanelInstallation aggregate ──────────────────────────────────────────
+
+  test "HangPanels sets panels_installed" do
+    tests "HangPanels", on: "PanelInstallation"
+    input  post_setting: 1, panels_installed: 1
+    expect ok: "true"
+  end
+
+  test "InstallGates sets gate_count" do
+    tests "InstallGates", on: "PanelInstallation"
+    input  panel_installation: 1, gate_count: 1
+    expect ok: "true"
+  end
+
+
+  # ── PropertyLine aggregate ──────────────────────────────────────────
+
+  test "VerifyPropertyLine sets survey_source + setback_inches" do
+    tests "VerifyPropertyLine", on: "PropertyLine"
+    setup  "MeasureProperty", customer_name: "sample", address: "sample", linear_feet: 1.0, fence_style: "sample", height_feet: 1.0, gate_count: 1
+    input  fence_estimate: 1, survey_source: "sample", setback_inches: 1.0
+    expect ok: "true"
+  end
+
+  test "NotifyNeighbor sets neighbor_notification" do
+    tests "NotifyNeighbor", on: "PropertyLine"
+    input  property_line: 1, neighbor_notification: "sample"
+    expect ok: "true"
+  end
+
+end

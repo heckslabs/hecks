@@ -1,0 +1,127 @@
+Hecks.behaviors "AeromedicalEvac" do
+  vision "Behavioral tests for the AeromedicalEvac domain — exercises every command and query in memory"
+
+  # ── Patient aggregate ──────────────────────────────────────────
+
+  test "RegisterPatient sets name + blood_type + injury_classification + triage_level" do
+    tests "RegisterPatient", on: "Patient"
+    input  name: "sample", blood_type: "sample", injury_classification: "sample", triage_level: "sample"
+    expect name: "sample", blood_type: "sample", injury_classification: "sample", triage_level: "sample", status: "registered"
+  end
+
+  test "AssignToFlight runs" do
+    tests "AssignToFlight", on: "Patient"
+    setup  "RegisterPatient", name: "sample", blood_type: "sample", injury_classification: "sample", triage_level: "sample"
+    setup  "DispatchFlight", callsign: "sample", origin: "sample", destination: "sample"
+    input  patient: 1, flight: 1
+    expect assigned_flight: :flight, status: "in_transit"
+  end
+
+  test "EscalateCondition sets triage_level" do
+    tests "EscalateCondition", on: "Patient"
+    setup  "RegisterPatient", name: "sample", blood_type: "sample", injury_classification: "sample", triage_level: "sample"
+    input  patient: 1, triage_level: "sample"
+    expect triage_level: "sample"
+  end
+
+  test "TransferToGround runs" do
+    tests "TransferToGround", on: "Patient"
+    setup  "RegisterPatient", name: "sample", blood_type: "sample", injury_classification: "sample", triage_level: "sample"
+    input  patient: 1
+    expect status: "handed_off"
+  end
+
+
+  # ── Flight aggregate ──────────────────────────────────────────
+
+  test "DispatchFlight sets callsign + origin + destination" do
+    tests "DispatchFlight", on: "Flight"
+    input  callsign: "sample", origin: "sample", destination: "sample"
+    expect callsign: "sample", origin: "sample", destination: "sample", status: "airborne"
+  end
+
+  test "DivertFlight sets destination" do
+    tests "DivertFlight", on: "Flight"
+    setup  "DispatchFlight", callsign: "sample", origin: "sample", destination: "sample"
+    input  flight: 1, destination: "sample"
+    expect destination: "sample"
+  end
+
+  test "LandFlight runs" do
+    tests "LandFlight", on: "Flight"
+    setup  "DispatchFlight", callsign: "sample", origin: "sample", destination: "sample"
+    input  flight: 1
+    expect status: "landed"
+  end
+
+
+  # ── VitalStream aggregate ──────────────────────────────────────────
+
+  test "StartMonitoring runs" do
+    tests "StartMonitoring", on: "VitalStream"
+    setup  "RegisterPatient", name: "sample", blood_type: "sample", injury_classification: "sample", triage_level: "sample"
+    input  patient: 1
+    expect patient: :patient, alarm_status: "normal"
+  end
+
+  test "RecordVitals sets heart_rate + spo2" do
+    tests "RecordVitals", on: "VitalStream"
+    input  vital_stream: 1, heart_rate: 1, spo2: 1
+    expect heart_rate: 1, spo2: 1
+  end
+
+  test "TriggerAlarm sets alarm_status" do
+    tests "TriggerAlarm", on: "VitalStream"
+    input  vital_stream: 1, alarm_status: "sample"
+    expect alarm_status: "sample"
+  end
+
+
+  # ── GroundReceiver aggregate ──────────────────────────────────────────
+
+  test "AssignTraumaBed runs" do
+    tests "AssignTraumaBed", on: "GroundReceiver"
+    setup  "RegisterHospital", hospital_name: "sample", trauma_level: "sample", available_beds: 1
+    setup  "RegisterPatient", name: "sample", blood_type: "sample", injury_classification: "sample", triage_level: "sample"
+    input  ground_receiver: 1, patient: 1
+    expect expected_patient: :expected_patient, status: "prepared"
+  end
+
+  test "RegisterHospital sets hospital_name + trauma_level + available_beds" do
+    tests "RegisterHospital", on: "GroundReceiver"
+    input  hospital_name: "sample", trauma_level: "sample", available_beds: 1
+    expect hospital_name: "sample", trauma_level: "sample", available_beds: 1, status: "ready"
+  end
+
+  test "ActivateTraumaTeam runs" do
+    tests "ActivateTraumaTeam", on: "GroundReceiver"
+    setup  "RegisterHospital", hospital_name: "sample", trauma_level: "sample", available_beds: 1
+    input  ground_receiver: 1
+    expect status: "team_activated"
+  end
+
+
+  # ── Handoff aggregate ──────────────────────────────────────────
+
+  test "InitiateHandoff runs" do
+    tests "InitiateHandoff", on: "Handoff"
+    setup  "RegisterPatient", name: "sample", blood_type: "sample", injury_classification: "sample", triage_level: "sample"
+    setup  "DispatchFlight", callsign: "sample", origin: "sample", destination: "sample"
+    setup  "RegisterHospital", hospital_name: "sample", trauma_level: "sample", available_beds: 1
+    input  patient: 1, flight: 1, ground_receiver: 1
+    expect patient: :patient, flight: :flight, receiver: :receiver, status: "in_progress"
+  end
+
+  test "VerifyTransfer sets handoff_notes" do
+    tests "VerifyTransfer", on: "Handoff"
+    input  handoff: 1, handoff_notes: "sample"
+    expect handoff_notes: "sample", status: "verified"
+  end
+
+  test "CompleteHandoff runs" do
+    tests "CompleteHandoff", on: "Handoff"
+    input  handoff: 1
+    expect status: "complete"
+  end
+
+end

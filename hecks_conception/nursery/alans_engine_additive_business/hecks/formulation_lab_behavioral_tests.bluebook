@@ -1,0 +1,276 @@
+Hecks.behaviors "FormulationLab" do
+  vision "Behavioral tests for the FormulationLab domain — exercises every command and query in memory"
+
+  # ── ExperimentalFormula aggregate ──────────────────────────────────────────
+
+  test "ProposeFormula sets codename + hypothesis + base_oil_type + additive_package + treat_rate_pct + target_viscosity_grade + target_pour_point + target_flash_point" do
+    tests "ProposeFormula", on: "ExperimentalFormula"
+    input  codename: "sample", hypothesis: "sample", base_oil_type: "sample", additive_package: "sample", treat_rate_pct: 1.0, target_viscosity_grade: "sample", target_pour_point: "sample", target_flash_point: "sample"
+    expect codename: "sample", hypothesis: "sample", base_oil_type: "sample", additive_package: "sample", treat_rate_pct: 1.0, target_viscosity_grade: "sample", target_pour_point: "sample", target_flash_point: "sample", status: "proposed"
+  end
+
+  test "AddComponent sets chemical_name + cas_number + function + percentage + supplier + cost_per_lb" do
+    tests "AddComponent", on: "ExperimentalFormula"
+    setup  "AddComponent", chemical_name: "sample", cas_number: "sample", function: "sample", percentage: 1.0, supplier: "sample", cost_per_lb: 1.0
+    input  experimental_formula: 1, chemical_name: "sample", cas_number: "sample", function: "sample", percentage: 1.0, supplier: "sample", cost_per_lb: 1.0
+    expect status: "proposed"
+  end
+
+  test "EstimateCost sets projected_cost_per_unit" do
+    tests "EstimateCost", on: "ExperimentalFormula"
+    setup  "AddComponent", chemical_name: "sample", cas_number: "sample", function: "sample", percentage: 1.0, supplier: "sample", cost_per_lb: 1.0
+    input  experimental_formula: 1, projected_cost_per_unit: 1.0
+    expect projected_cost_per_unit: 1.0
+  end
+
+  test "SendToLabTest runs" do
+    tests "SendToLabTest", on: "ExperimentalFormula"
+    setup  "AddComponent", chemical_name: "sample", cas_number: "sample", function: "sample", percentage: 1.0, supplier: "sample", cost_per_lb: 1.0
+    input  experimental_formula: 1
+    expect status: "in_lab"
+  end
+
+  test "ReviewLabResults runs" do
+    tests "ReviewLabResults", on: "ExperimentalFormula"
+    setup  "AddComponent", chemical_name: "sample", cas_number: "sample", function: "sample", percentage: 1.0, supplier: "sample", cost_per_lb: 1.0
+    input  experimental_formula: 1
+    expect status: "tested"
+  end
+
+  test "PromoteToProduction runs" do
+    tests "PromoteToProduction", on: "ExperimentalFormula"
+    setup  "AddComponent", chemical_name: "sample", cas_number: "sample", function: "sample", percentage: 1.0, supplier: "sample", cost_per_lb: 1.0
+    input  experimental_formula: 1
+    expect status: "promoted"
+  end
+
+  test "ShelveFormula runs" do
+    tests "ShelveFormula", on: "ExperimentalFormula"
+    setup  "AddComponent", chemical_name: "sample", cas_number: "sample", function: "sample", percentage: 1.0, supplier: "sample", cost_per_lb: 1.0
+    input  experimental_formula: 1
+    expect status: "shelved"
+  end
+
+
+  # ── LabTest aggregate ──────────────────────────────────────────
+
+  test "OrderLabTest sets formula_codename + test_method + specification" do
+    tests "OrderLabTest", on: "LabTest"
+    input  formula_codename: "sample", test_method: "sample", specification: "sample"
+    expect formula_codename: "sample", test_method: "sample", specification: "sample"
+  end
+
+  test "RecordLabResult sets actual_result + pass_fail + tested_by + tested_at" do
+    tests "RecordLabResult", on: "LabTest"
+    setup  "OrderLabTest", formula_codename: "sample", test_method: "sample", specification: "sample"
+    input  lab_test: 1, actual_result: "sample", pass_fail: "sample", tested_by: "sample", tested_at: "sample"
+    expect actual_result: "sample", pass_fail: "sample", tested_by: "sample", tested_at: "sample"
+  end
+
+  test "CompareToSpec runs" do
+    tests "CompareToSpec", on: "LabTest"
+    setup  "OrderLabTest", formula_codename: "sample", test_method: "sample", specification: "sample"
+    input  lab_test: 1
+    expect ok: "true"
+  end
+
+  test "RequestRetest runs" do
+    tests "RequestRetest", on: "LabTest"
+    setup  "OrderLabTest", formula_codename: "sample", test_method: "sample", specification: "sample"
+    input  lab_test: 1
+    expect actual_result: "", pass_fail: ""
+  end
+
+
+  # ── MarketThesis aggregate ──────────────────────────────────────────
+
+  test "WriteThesis sets formula_codename + problem_statement + target_segment + competitive_gap + value_proposition" do
+    tests "WriteThesis", on: "MarketThesis"
+    input  formula_codename: "sample", problem_statement: "sample", target_segment: "sample", competitive_gap: "sample", value_proposition: "sample"
+    expect formula_codename: "sample", problem_statement: "sample", target_segment: "sample", competitive_gap: "sample", value_proposition: "sample", status: "draft"
+  end
+
+  test "IdentifyGap sets competitive_gap" do
+    tests "IdentifyGap", on: "MarketThesis"
+    setup  "WriteThesis", formula_codename: "sample", problem_statement: "sample", target_segment: "sample", competitive_gap: "sample", value_proposition: "sample"
+    input  market_thesis: 1, competitive_gap: "sample"
+    expect competitive_gap: "sample"
+  end
+
+  test "EstimateMarket sets price_point_estimate + annual_volume_estimate + revenue_projection" do
+    tests "EstimateMarket", on: "MarketThesis"
+    setup  "WriteThesis", formula_codename: "sample", problem_statement: "sample", target_segment: "sample", competitive_gap: "sample", value_proposition: "sample"
+    input  market_thesis: 1, price_point_estimate: 1.0, annual_volume_estimate: 1, revenue_projection: 1.0
+    expect price_point_estimate: 1.0, annual_volume_estimate: 1, revenue_projection: 1.0
+  end
+
+  test "ScoreConfidence sets confidence_level" do
+    tests "ScoreConfidence", on: "MarketThesis"
+    setup  "WriteThesis", formula_codename: "sample", problem_statement: "sample", target_segment: "sample", competitive_gap: "sample", value_proposition: "sample"
+    input  market_thesis: 1, confidence_level: "sample"
+    expect confidence_level: "sample", status: "high_confidence"
+  end
+
+  test "RefineThesis runs" do
+    tests "RefineThesis", on: "MarketThesis"
+    setup  "WriteThesis", formula_codename: "sample", problem_statement: "sample", target_segment: "sample", competitive_gap: "sample", value_proposition: "sample"
+    input  market_thesis: 1
+    expect ok: "true"
+  end
+
+  test "ValidateThesis runs" do
+    tests "ValidateThesis", on: "MarketThesis"
+    setup  "WriteThesis", formula_codename: "sample", problem_statement: "sample", target_segment: "sample", competitive_gap: "sample", value_proposition: "sample"
+    input  market_thesis: 1
+    expect status: "validated"
+  end
+
+
+  # ── MarketingPreview aggregate ──────────────────────────────────────────
+
+  test "GeneratePreview sets formula_codename + proposed_product_name + headline + key_message" do
+    tests "GeneratePreview", on: "MarketingPreview"
+    input  formula_codename: "sample", proposed_product_name: "sample", headline: "sample", key_message: "sample"
+    expect formula_codename: "sample", proposed_product_name: "sample", headline: "sample", key_message: "sample", status: "concept"
+  end
+
+  test "AssignBrand sets brand_assignment" do
+    tests "AssignBrand", on: "MarketingPreview"
+    setup  "GeneratePreview", formula_codename: "sample", proposed_product_name: "sample", headline: "sample", key_message: "sample"
+    input  marketing_preview: 1, brand_assignment: "sample"
+    expect brand_assignment: "sample"
+  end
+
+  test "CraftPositioning sets proof_points + channel_strategy + shelf_position" do
+    tests "CraftPositioning", on: "MarketingPreview"
+    setup  "GeneratePreview", formula_codename: "sample", proposed_product_name: "sample", headline: "sample", key_message: "sample"
+    input  marketing_preview: 1, proof_points: "sample", channel_strategy: "sample", shelf_position: "sample"
+    expect proof_points: "sample", channel_strategy: "sample", shelf_position: "sample"
+  end
+
+  test "DesignPackagingConcept sets packaging_concept" do
+    tests "DesignPackagingConcept", on: "MarketingPreview"
+    setup  "GeneratePreview", formula_codename: "sample", proposed_product_name: "sample", headline: "sample", key_message: "sample"
+    input  marketing_preview: 1, packaging_concept: "sample"
+    expect packaging_concept: "sample"
+  end
+
+  test "PresentToStakeholder runs" do
+    tests "PresentToStakeholder", on: "MarketingPreview"
+    setup  "GeneratePreview", formula_codename: "sample", proposed_product_name: "sample", headline: "sample", key_message: "sample"
+    input  marketing_preview: 1
+    expect status: "presented"
+  end
+
+  test "ApproveForDevelopment runs" do
+    tests "ApproveForDevelopment", on: "MarketingPreview"
+    setup  "GeneratePreview", formula_codename: "sample", proposed_product_name: "sample", headline: "sample", key_message: "sample"
+    input  marketing_preview: 1
+    expect status: "approved"
+  end
+
+  test "RejectPreview runs" do
+    tests "RejectPreview", on: "MarketingPreview"
+    setup  "GeneratePreview", formula_codename: "sample", proposed_product_name: "sample", headline: "sample", key_message: "sample"
+    input  marketing_preview: 1
+    expect status: "rejected"
+  end
+
+
+  # ── IndustryImpact aggregate ──────────────────────────────────────────
+
+  test "AnalyzeImpact sets formula_codename + innovation_type + affected_competitors + affected_segments" do
+    tests "AnalyzeImpact", on: "IndustryImpact"
+    input  formula_codename: "sample", innovation_type: "sample", affected_competitors: "sample", affected_segments: "sample"
+    expect formula_codename: "sample", innovation_type: "sample", affected_competitors: "sample", affected_segments: "sample"
+  end
+
+  test "AssessDisruption sets disruption_level" do
+    tests "AssessDisruption", on: "IndustryImpact"
+    setup  "AnalyzeImpact", formula_codename: "sample", innovation_type: "sample", affected_competitors: "sample", affected_segments: "sample"
+    input  industry_impact: 1, disruption_level: "sample"
+    expect disruption_level: "sample"
+  end
+
+  test "EvaluatePatentPotential sets patent_potential + first_mover_advantage" do
+    tests "EvaluatePatentPotential", on: "IndustryImpact"
+    setup  "AnalyzeImpact", formula_codename: "sample", innovation_type: "sample", affected_competitors: "sample", affected_segments: "sample"
+    input  industry_impact: 1, patent_potential: "sample", first_mover_advantage: "sample"
+    expect patent_potential: "sample", first_mover_advantage: "sample"
+  end
+
+  test "WriteSynopsis sets synopsis" do
+    tests "WriteSynopsis", on: "IndustryImpact"
+    setup  "AnalyzeImpact", formula_codename: "sample", innovation_type: "sample", affected_competitors: "sample", affected_segments: "sample"
+    input  industry_impact: 1, synopsis: "sample"
+    expect synopsis: "sample"
+  end
+
+  test "PresentImpact runs" do
+    tests "PresentImpact", on: "IndustryImpact"
+    setup  "AnalyzeImpact", formula_codename: "sample", innovation_type: "sample", affected_competitors: "sample", affected_segments: "sample"
+    input  industry_impact: 1
+    expect ok: "true"
+  end
+
+
+  # ── ProductPipeline aggregate ──────────────────────────────────────────
+
+  test "UpdatePipeline sets total_proposed + total_in_lab + total_promoted + total_shelved" do
+    tests "UpdatePipeline", on: "ProductPipeline"
+    input  total_proposed: 1, total_in_lab: 1, total_promoted: 1, total_shelved: 1
+    expect total_proposed: 1, total_in_lab: 1, total_promoted: 1, total_shelved: 1
+  end
+
+  test "PrioritizeFormula runs" do
+    tests "PrioritizeFormula", on: "ProductPipeline"
+    setup  "UpdatePipeline", total_proposed: 1, total_in_lab: 1, total_promoted: 1, total_shelved: 1
+    input  product_pipeline: 1
+    expect ok: "true"
+  end
+
+  test "CalculatePipelineValue sets pipeline_value" do
+    tests "CalculatePipelineValue", on: "ProductPipeline"
+    setup  "UpdatePipeline", total_proposed: 1, total_in_lab: 1, total_promoted: 1, total_shelved: 1
+    input  product_pipeline: 1, pipeline_value: 1.0
+    expect pipeline_value: 1.0
+  end
+
+  test "GenerateRoadmap runs" do
+    tests "GenerateRoadmap", on: "ProductPipeline"
+    setup  "UpdatePipeline", total_proposed: 1, total_in_lab: 1, total_promoted: 1, total_shelved: 1
+    input  product_pipeline: 1
+    expect ok: "true"
+  end
+
+
+  # ── CompetitiveIntelligence aggregate ──────────────────────────────────────────
+
+  test "TrackCompetitor sets competitor + product_name + claimed_technology + price_point + distribution_channels" do
+    tests "TrackCompetitor", on: "CompetitiveIntelligence"
+    input  competitor: "sample", product_name: "sample", claimed_technology: "sample", price_point: "sample", distribution_channels: "sample"
+    expect competitor: "sample", product_name: "sample", claimed_technology: "sample", price_point: "sample", distribution_channels: "sample"
+  end
+
+  test "AnalyzeProduct sets strengths + weaknesses" do
+    tests "AnalyzeProduct", on: "CompetitiveIntelligence"
+    setup  "TrackCompetitor", competitor: "sample", product_name: "sample", claimed_technology: "sample", price_point: "sample", distribution_channels: "sample"
+    input  competitive_intelligence: 1, strengths: "sample", weaknesses: "sample"
+    expect strengths: "sample", weaknesses: "sample"
+  end
+
+  test "IdentifyVulnerability runs" do
+    tests "IdentifyVulnerability", on: "CompetitiveIntelligence"
+    setup  "TrackCompetitor", competitor: "sample", product_name: "sample", claimed_technology: "sample", price_point: "sample", distribution_channels: "sample"
+    input  competitive_intelligence: 1
+    expect ok: "true"
+  end
+
+  test "MapCompetitiveLandscape runs" do
+    tests "MapCompetitiveLandscape", on: "CompetitiveIntelligence"
+    setup  "TrackCompetitor", competitor: "sample", product_name: "sample", claimed_technology: "sample", price_point: "sample", distribution_channels: "sample"
+    input  competitive_intelligence: 1
+    expect ok: "true"
+  end
+
+end

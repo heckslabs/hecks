@@ -1,0 +1,67 @@
+Hecks.behaviors "RadiologyClouds" do
+  vision "Behavioral tests for the RadiologyClouds domain — exercises every command and query in memory"
+
+  # ── Scan aggregate ──────────────────────────────────────────
+
+  test "AcquireScan sets scan_id + patient_name + modality + body_part + acquired_date" do
+    tests "AcquireScan", on: "Scan"
+    input  scan_id: "sample", patient_name: "sample", modality: "sample", body_part: "sample", acquired_date: "sample"
+    expect scan_id: "sample", patient_name: "sample", modality: "sample", body_part: "sample", acquired_date: "sample", status: "acquired"
+  end
+
+  test "ReadScan runs" do
+    tests "ReadScan", on: "Scan"
+    setup  "AcquireScan", scan_id: "sample", patient_name: "sample", modality: "sample", body_part: "sample", acquired_date: "sample"
+    input  scan: 1
+    expect status: "read"
+  end
+
+
+  # ── CloudStore aggregate ──────────────────────────────────────────
+
+  test "CreateBucket sets bucket_id + region + quota_gb" do
+    tests "CreateBucket", on: "CloudStore"
+    input  bucket_id: "sample", region: "sample", quota_gb: 1.0
+    expect bucket_id: "sample", region: "sample", quota_gb: 1.0, used_gb: 0.0, status: "active"
+  end
+
+  test "UploadImage sets size_gb" do
+    tests "UploadImage", on: "CloudStore"
+    setup  "CreateBucket", bucket_id: "sample", region: "sample", quota_gb: 1.0
+    input  cloud_store: 1, size_gb: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── AIAnalysis aggregate ──────────────────────────────────────────
+
+  test "RunAnalysis sets analysis_id + scan_id + model_name" do
+    tests "RunAnalysis", on: "AIAnalysis"
+    input  analysis_id: "sample", scan_id: "sample", model_name: "sample"
+    expect analysis_id: "sample", scan_id: "sample", model_name: "sample", status: "running"
+  end
+
+  test "CompleteAnalysis sets confidence + finding" do
+    tests "CompleteAnalysis", on: "AIAnalysis"
+    setup  "RunAnalysis", analysis_id: "sample", scan_id: "sample", model_name: "sample"
+    input  a_i_analysis: 1, confidence: 1.0, finding: "sample"
+    expect confidence: 1.0, finding: "sample", status: "completed"
+  end
+
+
+  # ── ShareLink aggregate ──────────────────────────────────────────
+
+  test "CreateShareLink sets link_id + scan_id + recipient_email + expires_at" do
+    tests "CreateShareLink", on: "ShareLink"
+    input  link_id: "sample", scan_id: "sample", recipient_email: "sample", expires_at: "sample"
+    expect link_id: "sample", scan_id: "sample", recipient_email: "sample", expires_at: "sample", status: "active"
+  end
+
+  test "RevokeLink runs" do
+    tests "RevokeLink", on: "ShareLink"
+    setup  "CreateShareLink", link_id: "sample", scan_id: "sample", recipient_email: "sample", expires_at: "sample"
+    input  share_link: 1
+    expect status: "revoked"
+  end
+
+end

@@ -1,0 +1,147 @@
+Hecks.behaviors "PostOffice" do
+  vision "Behavioral tests for the PostOffice domain — exercises every command and query in memory"
+
+  # ── MailPiece aggregate ──────────────────────────────────────────
+
+  test "AcceptMail sets mail_class + sender_address + recipient_address" do
+    tests "AcceptMail", on: "MailPiece"
+    input  mail_class: "sample", sender_address: "sample", recipient_address: "sample"
+    expect status: "accepted"
+  end
+
+  test "CancelMail runs" do
+    tests "CancelMail", on: "MailPiece"
+    setup  "AcceptMail", mail_class: "sample", sender_address: "sample", recipient_address: "sample"
+    input  mail_piece: 1
+    expect status: "cancelled_stamp"
+  end
+
+  test "SortMail runs" do
+    tests "SortMail", on: "MailPiece"
+    setup  "AcceptMail", mail_class: "sample", sender_address: "sample", recipient_address: "sample"
+    setup  "DefineRoute", route_code: "sample", zip_code: "sample", stop_count: 1, route_type: "sample"
+    input  mail_piece: 1, carrier_route: 1
+    expect status: "sorted"
+  end
+
+  test "SequenceMail runs" do
+    tests "SequenceMail", on: "MailPiece"
+    setup  "AcceptMail", mail_class: "sample", sender_address: "sample", recipient_address: "sample"
+    input  mail_piece: 1
+    expect status: "sequenced"
+  end
+
+  test "DeliverMail runs" do
+    tests "DeliverMail", on: "MailPiece"
+    setup  "AcceptMail", mail_class: "sample", sender_address: "sample", recipient_address: "sample"
+    input  mail_piece: 1
+    expect status: "delivered"
+  end
+
+  test "ReturnUndeliverable sets reason" do
+    tests "ReturnUndeliverable", on: "MailPiece"
+    setup  "AcceptMail", mail_class: "sample", sender_address: "sample", recipient_address: "sample"
+    input  mail_piece: 1, reason: "sample"
+    expect status: "returned"
+  end
+
+
+  # ── CarrierRoute aggregate ──────────────────────────────────────────
+
+  test "DefineRoute sets route_code + zip_code + stop_count + route_type" do
+    tests "DefineRoute", on: "CarrierRoute"
+    input  route_code: "sample", zip_code: "sample", stop_count: 1, route_type: "sample"
+    expect status: "active"
+  end
+
+  test "SuspendRoute sets reason" do
+    tests "SuspendRoute", on: "CarrierRoute"
+    setup  "DefineRoute", route_code: "sample", zip_code: "sample", stop_count: 1, route_type: "sample"
+    input  carrier_route: 1, reason: "sample"
+    expect status: "suspended"
+  end
+
+  test "ResumeRoute runs" do
+    tests "ResumeRoute", on: "CarrierRoute"
+    setup  "DefineRoute", route_code: "sample", zip_code: "sample", stop_count: 1, route_type: "sample"
+    input  carrier_route: 1
+    expect status: "active"
+  end
+
+
+  # ── Carrier aggregate ──────────────────────────────────────────
+
+  test "HireCarrier sets employee_id + name + carrier_type" do
+    tests "HireCarrier", on: "Carrier"
+    input  employee_id: "sample", name: "sample", carrier_type: "sample"
+    expect status: "available", hours_worked: 0.0
+  end
+
+  test "DispatchCarrier runs" do
+    tests "DispatchCarrier", on: "Carrier"
+    setup  "HireCarrier", employee_id: "sample", name: "sample", carrier_type: "sample"
+    input  carrier: 1
+    expect status: "delivering"
+  end
+
+  test "ReturnCarrier runs" do
+    tests "ReturnCarrier", on: "Carrier"
+    setup  "HireCarrier", employee_id: "sample", name: "sample", carrier_type: "sample"
+    input  carrier: 1
+    expect status: "available"
+  end
+
+
+  # ── Package aggregate ──────────────────────────────────────────
+
+  test "AcceptPackage sets weight_lbs + service_level + destination" do
+    tests "AcceptPackage", on: "Package"
+    input  weight_lbs: 1.0, service_level: "sample", destination: "sample"
+    expect status: "accepted"
+  end
+
+  test "ScanPackage sets facility_code" do
+    tests "ScanPackage", on: "Package"
+    setup  "AcceptPackage", weight_lbs: 1.0, service_level: "sample", destination: "sample"
+    input  package: 1, facility_code: "sample"
+    expect status: "in_transit"
+  end
+
+  test "OutForDelivery runs" do
+    tests "OutForDelivery", on: "Package"
+    setup  "AcceptPackage", weight_lbs: 1.0, service_level: "sample", destination: "sample"
+    input  package: 1
+    expect status: "out_for_delivery"
+  end
+
+  test "DeliverPackage runs" do
+    tests "DeliverPackage", on: "Package"
+    setup  "AcceptPackage", weight_lbs: 1.0, service_level: "sample", destination: "sample"
+    input  package: 1
+    expect status: "delivered"
+  end
+
+  test "HoldForPickup runs" do
+    tests "HoldForPickup", on: "Package"
+    setup  "AcceptPackage", weight_lbs: 1.0, service_level: "sample", destination: "sample"
+    input  package: 1
+    expect status: "held"
+  end
+
+
+  # ── ForwardingOrder aggregate ──────────────────────────────────────────
+
+  test "CreateForwarding sets old_address + new_address + start_date + end_date" do
+    tests "CreateForwarding", on: "ForwardingOrder"
+    input  old_address: "sample", new_address: "sample", start_date: "sample", end_date: "sample"
+    expect old_address: "sample", new_address: "sample", start_date: "sample", end_date: "sample", status: "active"
+  end
+
+  test "CancelForwarding runs" do
+    tests "CancelForwarding", on: "ForwardingOrder"
+    setup  "CreateForwarding", old_address: "sample", new_address: "sample", start_date: "sample", end_date: "sample"
+    input  forwarding_order: 1
+    expect status: "cancelled"
+  end
+
+end

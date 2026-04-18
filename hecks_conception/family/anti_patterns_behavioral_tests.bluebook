@@ -1,0 +1,66 @@
+Hecks.behaviors "ChrisAntiPatterns" do
+  vision "Behavioral tests for the ChrisAntiPatterns domain — exercises every command and query in memory"
+
+  # ── SedBulkRename aggregate ──────────────────────────────────────────
+
+  test "RecordIncident sets details" do
+    tests "RecordIncident", on: "SedBulkRename"
+    input  sed_bulk_rename: 1, details: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── IterativeRenaming aggregate ──────────────────────────────────────────
+
+  test "RecordIncident sets details" do
+    tests "RecordIncident", on: "IterativeRenaming"
+    input  iterative_renaming: 1, details: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── RegexPatching aggregate ──────────────────────────────────────────
+
+  test "RecordIncident sets details" do
+    tests "RecordIncident", on: "RegexPatching"
+    input  regex_patching: 1, details: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DirectJsonPost aggregate ──────────────────────────────────────────
+
+  test "RecordIncident sets details" do
+    tests "RecordIncident", on: "DirectJsonPost"
+    input  direct_json_post: 1, details: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── PrivateMethodAccess aggregate ──────────────────────────────────────────
+
+  test "RecordIncident sets details" do
+    tests "RecordIncident", on: "PrivateMethodAccess"
+    input  private_method_access: 1, details: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── McpAttributesBug aggregate ──────────────────────────────────────────
+
+  test "RecordIncident sets details" do
+    tests "RecordIncident", on: "McpAttributesBug"
+    input  mcp_attributes_bug: 1, details: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── PackagingBlindly aggregate ──────────────────────────────────────────
+
+  test "RecordIncident sets details" do
+    tests "RecordIncident", on: "PackagingBlindly"
+    input  packaging_blindly: 1, details: "sample"
+    expect ok: "true"
+  end
+
+end

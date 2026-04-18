@@ -1,0 +1,95 @@
+Hecks.behaviors "CognitiveSupport" do
+  vision "Behavioral tests for the CognitiveSupport domain — exercises every command and query in memory"
+
+  # ── Agent aggregate ──────────────────────────────────────────
+
+  test "RegisterAgent sets name + skill_level + shift_start" do
+    tests "RegisterAgent", on: "Agent"
+    input  name: "sample", skill_level: "sample", shift_start: "sample"
+    expect name: "sample", skill_level: "sample", shift_start: "sample", cognitive_load_pct: 0.0, fatigue_score: 0.0, calls_handled: 0, status: "available"
+  end
+
+  test "AssignCall runs" do
+    tests "AssignCall", on: "Agent"
+    setup  "RegisterAgent", name: "sample", skill_level: "sample", shift_start: "sample"
+    input  agent: 1
+    expect status: "on_call"
+  end
+
+  test "CompleteCall sets fatigue_score + cognitive_load_pct" do
+    tests "CompleteCall", on: "Agent"
+    setup  "RegisterAgent", name: "sample", skill_level: "sample", shift_start: "sample"
+    input  agent: 1, fatigue_score: 1.0, cognitive_load_pct: 1.0
+    expect fatigue_score: 1.0, cognitive_load_pct: 1.0, status: "available"
+  end
+
+  test "SendOnBreak runs" do
+    tests "SendOnBreak", on: "Agent"
+    setup  "RegisterAgent", name: "sample", skill_level: "sample", shift_start: "sample"
+    input  agent: 1
+    expect status: "on_break"
+  end
+
+  test "ReturnFromBreak runs" do
+    tests "ReturnFromBreak", on: "Agent"
+    setup  "RegisterAgent", name: "sample", skill_level: "sample", shift_start: "sample"
+    input  agent: 1
+    expect fatigue_score: 0.0, cognitive_load_pct: 0.0, status: "available"
+  end
+
+
+  # ── WorkloadMetric aggregate ──────────────────────────────────────────
+
+  test "RecordWorkload sets metric_name + queue_depth + avg_handle_time_sec + avg_wait_time_sec + service_level_pct + timestamp" do
+    tests "RecordWorkload", on: "WorkloadMetric"
+    input  metric_name: "sample", queue_depth: 1, avg_handle_time_sec: 1.0, avg_wait_time_sec: 1.0, service_level_pct: 1.0, timestamp: "sample"
+    expect metric_name: "sample", queue_depth: 1, avg_handle_time_sec: 1.0, avg_wait_time_sec: 1.0, service_level_pct: 1.0, timestamp: "sample", status: "recorded"
+  end
+
+  test "DetectOverload runs" do
+    tests "DetectOverload", on: "WorkloadMetric"
+    setup  "RecordWorkload", metric_name: "sample", queue_depth: 1, avg_handle_time_sec: 1.0, avg_wait_time_sec: 1.0, service_level_pct: 1.0, timestamp: "sample"
+    input  workload_metric: 1
+    expect status: "overloaded"
+  end
+
+
+  # ── FatigueAssessment aggregate ──────────────────────────────────────────
+
+  test "AssessFatigue sets agent_name + reaction_time_ms + error_rate_pct + alertness_score + assessment_time" do
+    tests "AssessFatigue", on: "FatigueAssessment"
+    input  agent_name: "sample", reaction_time_ms: 1.0, error_rate_pct: 1.0, alertness_score: 1.0, assessment_time: "sample"
+    expect agent_name: "sample", reaction_time_ms: 1.0, error_rate_pct: 1.0, alertness_score: 1.0, assessment_time: "sample", status: "assessed"
+  end
+
+  test "RecommendBreak sets recommendation" do
+    tests "RecommendBreak", on: "FatigueAssessment"
+    setup  "AssessFatigue", agent_name: "sample", reaction_time_ms: 1.0, error_rate_pct: 1.0, alertness_score: 1.0, assessment_time: "sample"
+    input  fatigue_assessment: 1, recommendation: "sample"
+    expect recommendation: "sample", status: "recommended"
+  end
+
+
+  # ── BreakSchedule aggregate ──────────────────────────────────────────
+
+  test "ScheduleBreak sets agent_name + break_type + duration_minutes + scheduled_time" do
+    tests "ScheduleBreak", on: "BreakSchedule"
+    input  agent_name: "sample", break_type: "sample", duration_minutes: 1, scheduled_time: "sample"
+    expect agent_name: "sample", break_type: "sample", duration_minutes: 1, scheduled_time: "sample", status: "scheduled"
+  end
+
+  test "StartBreak runs" do
+    tests "StartBreak", on: "BreakSchedule"
+    setup  "ScheduleBreak", agent_name: "sample", break_type: "sample", duration_minutes: 1, scheduled_time: "sample"
+    input  break_schedule: 1
+    expect status: "in_progress"
+  end
+
+  test "EndBreak runs" do
+    tests "EndBreak", on: "BreakSchedule"
+    setup  "ScheduleBreak", agent_name: "sample", break_type: "sample", duration_minutes: 1, scheduled_time: "sample"
+    input  break_schedule: 1
+    expect status: "completed"
+  end
+
+end

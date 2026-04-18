@@ -1,0 +1,74 @@
+Hecks.behaviors "ReliefLogistics" do
+  vision "Behavioral tests for the ReliefLogistics domain — exercises every command and query in memory"
+
+  # ── SupplyRequest aggregate ──────────────────────────────────────────
+
+  test "SubmitRequest sets request_id + disaster_type + location_name + urgency" do
+    tests "SubmitRequest", on: "SupplyRequest"
+    input  request_id: "sample", disaster_type: "sample", location_name: "sample", urgency: "sample"
+    expect request_id: "sample", disaster_type: "sample", location_name: "sample", urgency: "sample", status: "submitted"
+  end
+
+  test "ApproveRequest runs" do
+    tests "ApproveRequest", on: "SupplyRequest"
+    setup  "SubmitRequest", request_id: "sample", disaster_type: "sample", location_name: "sample", urgency: "sample"
+    input  supply_request: 1
+    expect status: "approved"
+  end
+
+
+  # ── ShippingContainer aggregate ──────────────────────────────────────────
+
+  test "LoadContainer sets container_id + request_id + origin_port + dest_port + weight_tons" do
+    tests "LoadContainer", on: "ShippingContainer"
+    input  container_id: "sample", request_id: "sample", origin_port: "sample", dest_port: "sample", weight_tons: 1.0
+    expect container_id: "sample", request_id: "sample", origin_port: "sample", dest_port: "sample", weight_tons: 1.0, status: "loaded"
+  end
+
+  test "ShipContainer runs" do
+    tests "ShipContainer", on: "ShippingContainer"
+    setup  "LoadContainer", container_id: "sample", request_id: "sample", origin_port: "sample", dest_port: "sample", weight_tons: 1.0
+    input  shipping_container: 1
+    expect status: "in_transit"
+  end
+
+  test "ReceiveContainer runs" do
+    tests "ReceiveContainer", on: "ShippingContainer"
+    setup  "LoadContainer", container_id: "sample", request_id: "sample", origin_port: "sample", dest_port: "sample", weight_tons: 1.0
+    input  shipping_container: 1
+    expect status: "received"
+  end
+
+
+  # ── CustomsClearance aggregate ──────────────────────────────────────────
+
+  test "FileClearance sets clearance_id + container_id + country" do
+    tests "FileClearance", on: "CustomsClearance"
+    input  clearance_id: "sample", container_id: "sample", country: "sample"
+    expect clearance_id: "sample", container_id: "sample", country: "sample", status: "filed"
+  end
+
+  test "GrantClearance runs" do
+    tests "GrantClearance", on: "CustomsClearance"
+    setup  "FileClearance", clearance_id: "sample", container_id: "sample", country: "sample"
+    input  customs_clearance: 1
+    expect status: "cleared"
+  end
+
+
+  # ── FieldDistribution aggregate ──────────────────────────────────────────
+
+  test "PlanDistribution sets distribution_id + container_id + site_name" do
+    tests "PlanDistribution", on: "FieldDistribution"
+    input  distribution_id: "sample", container_id: "sample", site_name: "sample"
+    expect distribution_id: "sample", container_id: "sample", site_name: "sample", status: "planned"
+  end
+
+  test "ExecuteDistribution sets beneficiaries" do
+    tests "ExecuteDistribution", on: "FieldDistribution"
+    setup  "PlanDistribution", distribution_id: "sample", container_id: "sample", site_name: "sample"
+    input  field_distribution: 1, beneficiaries: 1
+    expect beneficiaries: 1, status: "executed"
+  end
+
+end

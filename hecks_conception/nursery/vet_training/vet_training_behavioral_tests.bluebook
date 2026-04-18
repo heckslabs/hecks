@@ -1,0 +1,74 @@
+Hecks.behaviors "VetTraining" do
+  vision "Behavioral tests for the VetTraining domain — exercises every command and query in memory"
+
+  # ── VeteranProfile aggregate ──────────────────────────────────────────
+
+  test "EnrollVeteran sets veteran_id + name + branch + discharge_status" do
+    tests "EnrollVeteran", on: "VeteranProfile"
+    input  veteran_id: "sample", name: "sample", branch: "sample", discharge_status: "sample"
+    expect veteran_id: "sample", name: "sample", branch: "sample", discharge_status: "sample", status: "enrolled"
+  end
+
+  test "GraduateVeteran runs" do
+    tests "GraduateVeteran", on: "VeteranProfile"
+    setup  "EnrollVeteran", veteran_id: "sample", name: "sample", branch: "sample", discharge_status: "sample"
+    input  veteran_profile: 1
+    expect status: "graduated"
+  end
+
+
+  # ── Course aggregate ──────────────────────────────────────────
+
+  test "CreateCourse sets course_id + title + skill_area + duration_hours + difficulty" do
+    tests "CreateCourse", on: "Course"
+    input  course_id: "sample", title: "sample", skill_area: "sample", duration_hours: 1, difficulty: "sample"
+    expect course_id: "sample", title: "sample", skill_area: "sample", duration_hours: 1, difficulty: "sample", status: "active"
+  end
+
+  test "RetireCourse runs" do
+    tests "RetireCourse", on: "Course"
+    setup  "CreateCourse", course_id: "sample", title: "sample", skill_area: "sample", duration_hours: 1, difficulty: "sample"
+    input  course: 1
+    expect status: "retired"
+  end
+
+
+  # ── Enrollment aggregate ──────────────────────────────────────────
+
+  test "EnrollInCourse sets enrollment_id + veteran_id + course_id" do
+    tests "EnrollInCourse", on: "Enrollment"
+    input  enrollment_id: "sample", veteran_id: "sample", course_id: "sample"
+    expect enrollment_id: "sample", veteran_id: "sample", course_id: "sample", progress_pct: 0.0, status: "in_progress"
+  end
+
+  test "UpdateProgress sets progress_pct" do
+    tests "UpdateProgress", on: "Enrollment"
+    setup  "EnrollInCourse", enrollment_id: "sample", veteran_id: "sample", course_id: "sample"
+    input  enrollment: 1, progress_pct: 1.0
+    expect progress_pct: 1.0
+  end
+
+  test "CompleteCourse runs" do
+    tests "CompleteCourse", on: "Enrollment"
+    setup  "EnrollInCourse", enrollment_id: "sample", veteran_id: "sample", course_id: "sample"
+    input  enrollment: 1
+    expect status: "completed"
+  end
+
+
+  # ── JobPlacement aggregate ──────────────────────────────────────────
+
+  test "PlaceVeteran sets placement_id + veteran_id + employer_name + job_title" do
+    tests "PlaceVeteran", on: "JobPlacement"
+    input  placement_id: "sample", veteran_id: "sample", employer_name: "sample", job_title: "sample"
+    expect placement_id: "sample", veteran_id: "sample", employer_name: "sample", job_title: "sample", status: "placed"
+  end
+
+  test "ConfirmHire runs" do
+    tests "ConfirmHire", on: "JobPlacement"
+    setup  "PlaceVeteran", placement_id: "sample", veteran_id: "sample", employer_name: "sample", job_title: "sample"
+    input  job_placement: 1
+    expect status: "hired"
+  end
+
+end

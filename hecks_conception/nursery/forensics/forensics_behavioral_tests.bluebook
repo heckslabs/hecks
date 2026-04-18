@@ -1,0 +1,93 @@
+Hecks.behaviors "Forensics" do
+  vision "Behavioral tests for the Forensics domain — exercises every command and query in memory"
+
+  # ── CriminalCase aggregate ──────────────────────────────────────────
+
+  test "OpenCase sets case_number + case_type + lead_investigator" do
+    tests "OpenCase", on: "CriminalCase"
+    input  case_number: "sample", case_type: "sample", lead_investigator: "sample"
+    expect case_number: "sample", case_type: "sample", lead_investigator: "sample"
+  end
+
+  test "CloseCase runs" do
+    tests "CloseCase", on: "CriminalCase"
+    setup  "OpenCase", case_number: "sample", case_type: "sample", lead_investigator: "sample"
+    input  criminal_case: 1
+    expect ok: "true"
+  end
+
+  test "ReassignInvestigator sets new_investigator" do
+    tests "ReassignInvestigator", on: "CriminalCase"
+    setup  "OpenCase", case_number: "sample", case_type: "sample", lead_investigator: "sample"
+    input  criminal_case: 1, new_investigator: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── EvidenceItem aggregate ──────────────────────────────────────────
+
+  test "CollectEvidence sets item_number + description + evidence_type" do
+    tests "CollectEvidence", on: "EvidenceItem"
+    setup  "OpenCase", case_number: "sample", case_type: "sample", lead_investigator: "sample"
+    input  criminal_case: 1, item_number: "sample", description: "sample", evidence_type: "sample"
+    expect ok: "true"
+  end
+
+  test "TransferCustody sets receiving_custodian" do
+    tests "TransferCustody", on: "EvidenceItem"
+    input  evidence_item: 1, receiving_custodian: "sample"
+    expect ok: "true"
+  end
+
+  test "SealEvidence runs" do
+    tests "SealEvidence", on: "EvidenceItem"
+    input  evidence_item: 1
+    expect ok: "true"
+  end
+
+
+  # ── LabAnalysis aggregate ──────────────────────────────────────────
+
+  test "SubmitForAnalysis sets analysis_type + method" do
+    tests "SubmitForAnalysis", on: "LabAnalysis"
+    input  evidence_item: 1, analysis_type: "sample", method: "sample"
+    expect ok: "true"
+  end
+
+  test "RecordFindings sets findings" do
+    tests "RecordFindings", on: "LabAnalysis"
+    input  lab_analysis: 1, findings: "sample"
+    expect ok: "true"
+  end
+
+  test "PeerReviewAnalysis runs" do
+    tests "PeerReviewAnalysis", on: "LabAnalysis"
+    input  lab_analysis: 1
+    expect ok: "true"
+  end
+
+
+  # ── ExpertReport aggregate ──────────────────────────────────────────
+
+  test "DraftReport sets expert_name" do
+    tests "DraftReport", on: "ExpertReport"
+    input  lab_analysis: 1, expert_name: "sample"
+    expect ok: "true"
+  end
+
+  test "FinalizeReport runs" do
+    tests "FinalizeReport", on: "ExpertReport"
+    input  expert_report: 1
+    expect ok: "true"
+  end
+
+
+  # ── CourtTestimony aggregate ──────────────────────────────────────────
+
+  test "ScheduleTestimony sets court_name + hearing_date" do
+    tests "ScheduleTestimony", on: "CourtTestimony"
+    input  expert_report: 1, court_name: "sample", hearing_date: "sample"
+    expect ok: "true"
+  end
+
+end

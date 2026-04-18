@@ -1,0 +1,74 @@
+Hecks.behaviors "PetPortraits" do
+  vision "Behavioral tests for the PetPortraits domain — exercises every command and query in memory"
+
+  # ── ShelterAnimal aggregate ──────────────────────────────────────────
+
+  test "IntakeAnimal sets animal_id + name + species + breed + personality" do
+    tests "IntakeAnimal", on: "ShelterAnimal"
+    input  animal_id: "sample", name: "sample", species: "sample", breed: "sample", personality: "sample"
+    expect animal_id: "sample", name: "sample", species: "sample", breed: "sample", personality: "sample", status: "available"
+  end
+
+  test "MarkAdopted runs" do
+    tests "MarkAdopted", on: "ShelterAnimal"
+    setup  "IntakeAnimal", animal_id: "sample", name: "sample", species: "sample", breed: "sample", personality: "sample"
+    input  shelter_animal: 1
+    expect status: "adopted"
+  end
+
+
+  # ── PhotoSession aggregate ──────────────────────────────────────────
+
+  test "BookSession sets session_id + animal_id + photographer + date + backdrop" do
+    tests "BookSession", on: "PhotoSession"
+    input  session_id: "sample", animal_id: "sample", photographer: "sample", date: "sample", backdrop: "sample"
+    expect session_id: "sample", animal_id: "sample", photographer: "sample", date: "sample", backdrop: "sample", status: "booked"
+  end
+
+  test "CompleteSession runs" do
+    tests "CompleteSession", on: "PhotoSession"
+    setup  "BookSession", session_id: "sample", animal_id: "sample", photographer: "sample", date: "sample", backdrop: "sample"
+    input  photo_session: 1
+    expect status: "completed"
+  end
+
+  test "SelectBestPhotos runs" do
+    tests "SelectBestPhotos", on: "PhotoSession"
+    setup  "BookSession", session_id: "sample", animal_id: "sample", photographer: "sample", date: "sample", backdrop: "sample"
+    input  photo_session: 1
+    expect status: "selected"
+  end
+
+
+  # ── AdoptionProfile aggregate ──────────────────────────────────────────
+
+  test "CreateProfile sets profile_id + animal_id + headline + story" do
+    tests "CreateProfile", on: "AdoptionProfile"
+    input  profile_id: "sample", animal_id: "sample", headline: "sample", story: "sample"
+    expect profile_id: "sample", animal_id: "sample", headline: "sample", story: "sample", status: "draft"
+  end
+
+  test "PublishProfile runs" do
+    tests "PublishProfile", on: "AdoptionProfile"
+    setup  "CreateProfile", profile_id: "sample", animal_id: "sample", headline: "sample", story: "sample"
+    input  adoption_profile: 1
+    expect status: "published"
+  end
+
+
+  # ── AdoptionInquiry aggregate ──────────────────────────────────────────
+
+  test "SubmitInquiry sets inquiry_id + profile_id + adopter_name + message" do
+    tests "SubmitInquiry", on: "AdoptionInquiry"
+    input  inquiry_id: "sample", profile_id: "sample", adopter_name: "sample", message: "sample"
+    expect inquiry_id: "sample", profile_id: "sample", adopter_name: "sample", message: "sample", status: "pending"
+  end
+
+  test "RespondToInquiry runs" do
+    tests "RespondToInquiry", on: "AdoptionInquiry"
+    setup  "SubmitInquiry", inquiry_id: "sample", profile_id: "sample", adopter_name: "sample", message: "sample"
+    input  adoption_inquiry: 1
+    expect status: "responded"
+  end
+
+end

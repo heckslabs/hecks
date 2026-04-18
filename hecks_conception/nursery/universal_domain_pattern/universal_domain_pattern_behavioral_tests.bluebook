@@ -1,0 +1,162 @@
+Hecks.behaviors "UniversalDomainPattern" do
+  vision "Behavioral tests for the UniversalDomainPattern domain — exercises every command and query in memory"
+
+  # ── DomainShape aggregate ──────────────────────────────────────────
+
+  test "DefineShape sets name + description" do
+    tests "DefineShape", on: "DomainShape"
+    input  name: "sample", description: "sample"
+    expect name: "sample", description: "sample"
+  end
+
+  test "ValidateShape sets domain_name" do
+    tests "ValidateShape", on: "DomainShape"
+    setup  "DefineShape", name: "sample", description: "sample"
+    input  domain_shape: 1, domain_name: "sample"
+    expect ok: "true"
+  end
+
+  test "CompareToCorpus runs" do
+    tests "CompareToCorpus", on: "DomainShape"
+    setup  "DefineShape", name: "sample", description: "sample"
+    input  domain_shape: 1
+    expect ok: "true"
+  end
+
+
+  # ── Archetype aggregate ──────────────────────────────────────────
+
+  test "IdentifyArchetype sets name + description" do
+    tests "IdentifyArchetype", on: "Archetype"
+    input  name: "sample", description: "sample"
+    expect name: "sample", description: "sample", frequency: 1
+  end
+
+  test "ExtractSignature runs" do
+    tests "ExtractSignature", on: "Archetype"
+    setup  "IdentifyArchetype", name: "sample", description: "sample"
+    input  archetype: 1
+    expect ok: "true"
+  end
+
+  test "MatchArchetype sets domain_name + similarity" do
+    tests "MatchArchetype", on: "Archetype"
+    setup  "IdentifyArchetype", name: "sample", description: "sample"
+    input  archetype: 1, domain_name: "sample", similarity: 1.0
+    expect ok: "true"
+  end
+
+  test "NameArchetype sets name" do
+    tests "NameArchetype", on: "Archetype"
+    setup  "IdentifyArchetype", name: "sample", description: "sample"
+    input  archetype: 1, name: "sample"
+    expect name: "sample"
+  end
+
+
+  # ── PatternRule aggregate ──────────────────────────────────────────
+
+  test "DefineRule sets name + rule + applies_to + severity" do
+    tests "DefineRule", on: "PatternRule"
+    input  name: "sample", rule: "sample", applies_to: "sample", severity: "sample"
+    expect name: "sample", rule: "sample", applies_to: "sample", severity: "sample"
+  end
+
+  test "ValidateAgainstRule sets domain_name" do
+    tests "ValidateAgainstRule", on: "PatternRule"
+    setup  "DefineRule", name: "sample", rule: "sample", applies_to: "sample", severity: "sample"
+    input  pattern_rule: 1, domain_name: "sample"
+    expect ok: "true"
+  end
+
+  test "WaiveRule sets domain_name + reason" do
+    tests "WaiveRule", on: "PatternRule"
+    setup  "DefineRule", name: "sample", rule: "sample", applies_to: "sample", severity: "sample"
+    input  pattern_rule: 1, domain_name: "sample", reason: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DomainDNA aggregate ──────────────────────────────────────────
+
+  test "ExtractDNA sets domain_name + category + born_at" do
+    tests "ExtractDNA", on: "DomainDNA"
+    input  domain_name: "sample", category: "sample", born_at: "sample"
+    expect domain_name: "sample", category: "sample", born_at: "sample"
+  end
+
+  test "CompareDNA sets other_domain_name" do
+    tests "CompareDNA", on: "DomainDNA"
+    setup  "ExtractDNA", domain_name: "sample", category: "sample", born_at: "sample"
+    input  domain_d_n_a: 1, other_domain_name: "sample"
+    expect ok: "true"
+  end
+
+  test "FindRelatives sets threshold" do
+    tests "FindRelatives", on: "DomainDNA"
+    setup  "ExtractDNA", domain_name: "sample", category: "sample", born_at: "sample"
+    input  domain_d_n_a: 1, threshold: 1.0
+    expect ok: "true"
+  end
+
+  test "MapEvolution runs" do
+    tests "MapEvolution", on: "DomainDNA"
+    setup  "ExtractDNA", domain_name: "sample", category: "sample", born_at: "sample"
+    input  domain_d_n_a: 1
+    expect ok: "true"
+  end
+
+
+  # ── Isomorphism aggregate ──────────────────────────────────────────
+
+  test "DetectIsomorphism sets domain_a + domain_b" do
+    tests "DetectIsomorphism", on: "Isomorphism"
+    input  domain_a: "sample", domain_b: "sample"
+    expect domain_a: "sample", domain_b: "sample"
+  end
+
+  test "ProveEquivalence sets structural_similarity + vocabulary_overlap" do
+    tests "ProveEquivalence", on: "Isomorphism"
+    setup  "DetectIsomorphism", domain_a: "sample", domain_b: "sample"
+    input  isomorphism: 1, structural_similarity: 1.0, vocabulary_overlap: 1.0
+    expect structural_similarity: 1.0, vocabulary_overlap: 1.0
+  end
+
+  test "MapCorrespondence runs" do
+    tests "MapCorrespondence", on: "Isomorphism"
+    setup  "DetectIsomorphism", domain_a: "sample", domain_b: "sample"
+    input  isomorphism: 1
+    expect ok: "true"
+  end
+
+
+  # ── MetaEvolution aggregate ──────────────────────────────────────────
+
+  test "SnapshotMetaState sets corpus_snapshot_date" do
+    tests "SnapshotMetaState", on: "MetaEvolution"
+    input  corpus_snapshot_date: "sample"
+    expect corpus_snapshot_date: "sample"
+  end
+
+  test "DetectEmergingPattern sets pattern_name" do
+    tests "DetectEmergingPattern", on: "MetaEvolution"
+    setup  "SnapshotMetaState", corpus_snapshot_date: "sample"
+    input  meta_evolution: 1, pattern_name: "sample"
+    expect ok: "true"
+  end
+
+  test "DeprecatePattern sets pattern_name" do
+    tests "DeprecatePattern", on: "MetaEvolution"
+    setup  "SnapshotMetaState", corpus_snapshot_date: "sample"
+    input  meta_evolution: 1, pattern_name: "sample"
+    expect ok: "true"
+  end
+
+  test "PublishEvolution runs" do
+    tests "PublishEvolution", on: "MetaEvolution"
+    setup  "SnapshotMetaState", corpus_snapshot_date: "sample"
+    input  meta_evolution: 1
+    expect ok: "true"
+  end
+
+end

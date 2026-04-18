@@ -1,0 +1,102 @@
+Hecks.behaviors "ElevatorMaintenance" do
+  vision "Behavioral tests for the ElevatorMaintenance domain — exercises every command and query in memory"
+
+  # ── ElevatorUnit aggregate ──────────────────────────────────────────
+
+  test "RegisterUnit sets building_name + unit_number + elevator_type + floors_served + capacity_lbs + install_year" do
+    tests "RegisterUnit", on: "ElevatorUnit"
+    input  building_name: "sample", unit_number: "sample", elevator_type: "sample", floors_served: 1, capacity_lbs: 1, install_year: 1
+    expect building_name: "sample", unit_number: "sample", elevator_type: "sample", floors_served: 1, capacity_lbs: 1, install_year: 1
+  end
+
+  test "ShutDownUnit sets reason" do
+    tests "ShutDownUnit", on: "ElevatorUnit"
+    setup  "RegisterUnit", building_name: "sample", unit_number: "sample", elevator_type: "sample", floors_served: 1, capacity_lbs: 1, install_year: 1
+    input  elevator_unit: 1, reason: "sample"
+    expect ok: "true"
+  end
+
+  test "ReturnToService runs" do
+    tests "ReturnToService", on: "ElevatorUnit"
+    setup  "RegisterUnit", building_name: "sample", unit_number: "sample", elevator_type: "sample", floors_served: 1, capacity_lbs: 1, install_year: 1
+    input  elevator_unit: 1
+    expect ok: "true"
+  end
+
+
+  # ── MaintenanceVisit aggregate ──────────────────────────────────────────
+
+  test "PerformMaintenance sets mechanic_name + visit_date" do
+    tests "PerformMaintenance", on: "MaintenanceVisit"
+    setup  "RegisterUnit", building_name: "sample", unit_number: "sample", elevator_type: "sample", floors_served: 1, capacity_lbs: 1, install_year: 1
+    input  elevator_unit: 1, mechanic_name: "sample", visit_date: "sample"
+    expect ok: "true"
+  end
+
+  test "ReportFinding sets findings" do
+    tests "ReportFinding", on: "MaintenanceVisit"
+    input  maintenance_visit: 1, findings: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── PartReplacement aggregate ──────────────────────────────────────────
+
+  test "OrderPart sets part_name + part_number + vendor + cost" do
+    tests "OrderPart", on: "PartReplacement"
+    setup  "RegisterUnit", building_name: "sample", unit_number: "sample", elevator_type: "sample", floors_served: 1, capacity_lbs: 1, install_year: 1
+    input  elevator_unit: 1, part_name: "sample", part_number: "sample", vendor: "sample", cost: 1.0
+    expect ok: "true"
+  end
+
+  test "InstallPart runs" do
+    tests "InstallPart", on: "PartReplacement"
+    input  part_replacement: 1
+    expect ok: "true"
+  end
+
+  test "TestAfterInstall runs" do
+    tests "TestAfterInstall", on: "PartReplacement"
+    input  part_replacement: 1
+    expect ok: "true"
+  end
+
+
+  # ── ElevatorInspection aggregate ──────────────────────────────────────────
+
+  test "ScheduleInspection sets inspection_type + inspection_date" do
+    tests "ScheduleInspection", on: "ElevatorInspection"
+    setup  "RegisterUnit", building_name: "sample", unit_number: "sample", elevator_type: "sample", floors_served: 1, capacity_lbs: 1, install_year: 1
+    input  elevator_unit: 1, inspection_type: "sample", inspection_date: "sample"
+    expect ok: "true"
+  end
+
+  test "RecordInspectionResult sets result + violations" do
+    tests "RecordInspectionResult", on: "ElevatorInspection"
+    input  elevator_inspection: 1, result: "sample", violations: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── EmergencyCall aggregate ──────────────────────────────────────────
+
+  test "DispatchMechanic sets building_name + unit_number + call_type" do
+    tests "DispatchMechanic", on: "EmergencyCall"
+    setup  "RegisterUnit", building_name: "sample", unit_number: "sample", elevator_type: "sample", floors_served: 1, capacity_lbs: 1, install_year: 1
+    input  elevator_unit: 1, building_name: "sample", unit_number: "sample", call_type: "sample"
+    expect ok: "true"
+  end
+
+  test "ResolveEmergency sets resolution" do
+    tests "ResolveEmergency", on: "EmergencyCall"
+    input  emergency_call: 1, resolution: "sample"
+    expect ok: "true"
+  end
+
+  test "FileIncidentReport sets incident_details" do
+    tests "FileIncidentReport", on: "EmergencyCall"
+    input  emergency_call: 1, incident_details: "sample"
+    expect ok: "true"
+  end
+
+end
