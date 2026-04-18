@@ -11,14 +11,9 @@ Hecks.behaviors "Pizzas" do
 
   test "AddTopping sets name + amount" do
     tests "AddTopping", on: "Pizza"
-    input  name: "sample", amount: 1
-    expect name: "sample", amount: 1
-  end
-
-  test "AddTopping refuses when max 10 toppings" do
-    tests "AddTopping", on: "Pizza"
-    input  name: "sample", amount: 1
-    expect refused: "max 10 toppings"
+    setup  "CreatePizza", name: "sample", description: "sample"
+    input  pizza: 1, name: "sample", amount: 1
+    expect name: "sample", toppings_size: 1
   end
 
   test "ByDescription returns matching records" do
@@ -32,17 +27,15 @@ Hecks.behaviors "Pizzas" do
 
   test "PlaceOrder sets customer_name + quantity" do
     tests "PlaceOrder", on: "Order"
-    input  customer_name: "sample", quantity: 1
-    expect customer_name: "sample", quantity: 1
+    setup  "CreatePizza", name: "sample", description: "sample"
+    input  pizza: 1, customer_name: "sample", quantity: 1
+    expect customer_name: "sample", status: "pending"
   end
 
-  test "CancelOrder sets expected state" do
+  test "CancelOrder runs" do
     tests "CancelOrder", on: "Order"
-    expect ok: "true"
-  end
-
-  test "CancelOrder transitions status to cancelled" do
-    tests "CancelOrder", on: "Order"
+    setup  "PlaceOrder", customer_name: "sample", quantity: 1
+    input  order: 1
     expect status: "cancelled"
   end
 

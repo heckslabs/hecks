@@ -120,6 +120,10 @@ fn run_one(source_text: &str, test: &Test) -> TestRun {
 
     for (key, expected) in &test.expect {
         if key == "refused" { continue; } // handled above
+        // `ok: "true"` is the generator's "dispatch succeeded, no
+        // meaningful state assertion to make" sentinel. We're already
+        // in the Ok arm, so it passes by virtue of being here.
+        if key == "ok" && (expected == "true" || expected == "\"true\"") { continue; }
         if let Some(prefix) = key.strip_suffix("_size") {
             // List length assertion: `toppings_size: 1` → state.toppings.len() == 1
             let actual = match state.get(prefix) {
