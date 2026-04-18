@@ -31,25 +31,27 @@ module Hecks
         #   (e.g., "draft", "pending", "new")
         attr_reader :default
 
-        # @return [Hash{String => String, Hash}] a mapping of command names to their target states.
-        #   Values are either a simple String (the target state) or a Hash with +:target+ and
-        #   optional +:from+ keys. The +:from+ key constrains which source state(s) the command
-        #   is valid from.
+        # @return [Array<[String, StateTransition]>] ordered list of (command, transition)
+        #   pairs. Multiple entries with the same command are allowed and preserved —
+        #   each may have its own +:from+, enabling a command to advance through
+        #   progressive states (e.g. AccumulateFatigue: alert → focused → normal → tired).
+        #   Iterates exactly like a Hash: `transitions.each do |cmd, t| ... end` works.
         attr_reader :transitions
 
         # Creates a new Lifecycle state machine definition.
         #
         # @param field [Symbol, String] the attribute name tracking state. Converted to Symbol.
         # @param default [String, Symbol] the initial state value. Converted to String.
-        # @param transitions [Hash{String => String, Hash}] command-to-state mappings.
-        #   Keys are command names (e.g., "ApproveModel"). Values are either a target state
-        #   string or a Hash like +{ target: "approved", from: "draft" }+.
+        # @param transitions [Array<[String, StateTransition]>, Hash{String => StateTransition}]
+        #   command-to-transition pairs. Hash input is converted to Array for backward
+        #   compatibility; Array input is preferred because it preserves order and
+        #   allows repeated commands.
         #
         # @return [Lifecycle] a new Lifecycle instance
-        def initialize(field:, default:, transitions: {}, description: nil)
+        def initialize(field:, default:, transitions: [], description: nil)
           @field = field.to_sym
           @default = default.to_s
-          @transitions = transitions
+          @transitions = transitions.is_a?(Hash) ? transitions.to_a : transitions
           @description = description
         end
 
@@ -57,36 +59,60 @@ module Hecks
         attr_reader :description
 
         # Returns all unique states reachable in this lifecycle, including the default.
-        # Useful for generating enum validations or state-related documentation.
         #
         # @return [Array<String>] unique state values (e.g., ["draft", "approved", "archived"])
         def states
-          ([default] + transitions.values.map { |v| v.respond_to?(:target) ? v.target : v.to_s }).uniq
+          all = [default]
+          transitions.each do |_cmd, t|
+            target = t.respond_to?(:target) ? t.target : t.to_s
+            all << target
+          end
+          all.uniq
         end
 
-        # Returns the target state for a given command name.
-        # Extracts the target from either a simple string value or a Hash with +:target+.
+        # Returns the target state for a given command. When multiple transitions exist
+        # for the same command (each with a different +from+), pass +current_state+ to
+        # pick the matching one; without it, the first-declared transition wins.
         #
-        # @param command_name [String] the command name to look up (e.g., "ApproveModel")
-        #
-        # @return [String, nil] the target state, or nil if no transition is defined for this command
-        def target_for(command_name)
-          entry = transitions[command_name]
-          return nil unless entry
-          entry.respond_to?(:target) ? entry.target : entry.to_s
+        # @param command_name [String] the command name to look up
+        # @param current_state [String, nil] the aggregate's current state
+        # @return [String, nil]
+        def target_for(command_name, current_state = nil)
+          match = match_transition(command_name, current_state)
+          match ? (match.respond_to?(:target) ? match.target : match.to_s) : nil
         end
 
-        # Returns the required source state for a given command name, if constrained.
-        # Only returns a value when the transition uses the Hash form with a +:from+ key.
+        # Returns the required source state(s) for a given command.
+        # When multiple transitions share the command name, +current_state+ disambiguates.
         #
-        # @param command_name [String] the command name to look up (e.g., "ApproveModel")
+        # @param command_name [String]
+        # @param current_state [String, nil]
+        # @return [String, Array<String>, nil]
+        def from_for(command_name, current_state = nil)
+          match = match_transition(command_name, current_state)
+          match && match.respond_to?(:from) ? match.from : nil
+        end
+
+        # All transitions declared for a command (possibly several with distinct +from+).
         #
-        # @return [String, nil] the required source state, or nil if unconstrained or no
-        #   transition exists for this command
-        def from_for(command_name)
-          entry = transitions[command_name]
-          return nil unless entry
-          entry.respond_to?(:from) ? entry.from : nil
+        # @param command_name [String]
+        # @return [Array<StateTransition>]
+        def transitions_for(command_name)
+          transitions.select { |cmd, _| cmd == command_name.to_s }.map { |_, t| t }
+        end
+
+        private
+
+        def match_transition(command_name, current_state)
+          matches = transitions_for(command_name)
+          return nil if matches.empty?
+          return matches.first unless current_state
+          matches.find { |t| applies_from?(t, current_state) } || matches.first
+        end
+
+        def applies_from?(t, current)
+          return true unless t.respond_to?(:from) && t.from
+          Array(t.from).map(&:to_s).include?(current.to_s)
         end
       end
     end
