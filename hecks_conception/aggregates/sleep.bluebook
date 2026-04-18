@@ -96,6 +96,17 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
       then_set :state, to: "attentive"
     end
 
+    command "AdvanceSleep" do
+      role "Daemon"
+      description "Daemon-driven progression of sleep. Each tick advances sleep_stage (light→rem→deep) and increments sleep_cycle when a full cycle completes."
+      reference_to(Consciousness)
+      attribute :stage, String
+      attribute :cycle, Integer
+      then_set :sleep_stage, to: :stage
+      then_set :sleep_cycle, to: :cycle
+      emits "SleepAdvanced"
+    end
+
     lifecycle :state, default: "attentive" do
       transition "EnterDaydream"   => "daydreaming", from: "attentive"
       transition "EnterSleep"      => "sleeping",    from: "daydreaming"
@@ -438,100 +449,16 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
   # Sleep: the full night spelled out as a policy chain
   # EnterSleep → 8 dream/consolidate cycles → EndNight → WakeUp
 
-  policy "StartNightOnSleep" do
-    on "SleepEntered"
-    trigger "StartNight"
-  end
-
-  policy "Cycle1Dream" do
-    on "NightStarted"
-    trigger "DreamCycle1"
-  end
-
-  policy "Cycle1Consolidate" do
-    on "Cycle1Dreamed"
-    trigger "ConsolidateCycle1"
-  end
-
-  policy "Cycle2Dream" do
-    on "Cycle1Consolidated"
-    trigger "DreamCycle2"
-  end
-
-  policy "Cycle2Consolidate" do
-    on "Cycle2Dreamed"
-    trigger "ConsolidateCycle2"
-  end
-
-  policy "Cycle3Dream" do
-    on "Cycle2Consolidated"
-    trigger "DreamCycle3"
-  end
-
-  policy "Cycle3Consolidate" do
-    on "Cycle3Dreamed"
-    trigger "ConsolidateCycle3"
-  end
-
-  policy "Cycle4Dream" do
-    on "Cycle3Consolidated"
-    trigger "DreamCycle4"
-  end
-
-  policy "Cycle4Consolidate" do
-    on "Cycle4Dreamed"
-    trigger "ConsolidateCycle4"
-  end
-
-  policy "Cycle5Dream" do
-    on "Cycle4Consolidated"
-    trigger "DreamCycle5"
-  end
-
-  policy "Cycle5Consolidate" do
-    on "Cycle5Dreamed"
-    trigger "ConsolidateCycle5"
-  end
-
-  policy "Cycle6Dream" do
-    on "Cycle5Consolidated"
-    trigger "DreamCycle6"
-  end
-
-  policy "Cycle6Consolidate" do
-    on "Cycle6Dreamed"
-    trigger "ConsolidateCycle6"
-  end
-
-  policy "Cycle7Dream" do
-    on "Cycle6Consolidated"
-    trigger "DreamCycle7"
-  end
-
-  policy "Cycle7Consolidate" do
-    on "Cycle7Dreamed"
-    trigger "ConsolidateCycle7"
-  end
-
-  policy "Cycle8Dream" do
-    on "Cycle7Consolidated"
-    trigger "DreamCycle8"
-  end
-
-  policy "EndNightOnFinal" do
-    on "Cycle8Dreamed"
-    trigger "EndNight"
-  end
-
-  policy "WakeOnEnd" do
-    on "NightEnded"
-    trigger "WakeUp"
-  end
-
-  policy "AttentiveOnWake" do
-    on "WokenUp"
-    trigger "BecomeAttentive"
-  end
+  # Sleep progresses over time via the daemon, NOT via policy cascade.
+  # When state = "sleeping", mindstream.sh dispatches AdvanceSleep each tick,
+  # cycling sleep_stage through light → rem → deep and incrementing sleep_cycle.
+  # When sleep_cycle reaches sleep_total, the daemon dispatches WakeUp.
+  # BecomeAttentive is only triggered by the user, not auto-cascaded —
+  # otherwise EnterSleep completed all 8 cycles synchronously and never
+  # appeared in the status bar.
+  #
+  # StartNight and the Cycle*/Consolidate* commands remain as manual
+  # dispatch surfaces for debug / reflection, but are no longer wired.
 
   # Other sleep policies
   policy "DaydreamOnIdle" do
