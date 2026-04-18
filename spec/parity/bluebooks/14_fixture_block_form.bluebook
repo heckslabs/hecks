@@ -1,0 +1,23 @@
+Hecks.bluebook "BlockFormFixture", version: "2026.04.18.1" do
+  vision "Block-form fixtures — first arg is the fixture name, the aggregate line declares the type, every other line is an attribute"
+
+  aggregate "TrainingExample", "A single input/output training pair" do
+    attribute :input, String
+    attribute :output, String
+    attribute :category, String
+  end
+
+  fixture "ScienceExample" do
+    aggregate "TrainingExample"
+    input "A domain for tracking chemical reactions"
+    output "Hecks.bluebook 'Chemistry' do ... end"
+    category "science"
+  end
+
+  fixture "BusinessExample" do
+    aggregate "TrainingExample"
+    input "A domain for managing customer subscriptions"
+    output "Hecks.bluebook 'Billing' do ... end"
+    category "business"
+  end
+end

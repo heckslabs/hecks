@@ -64,30 +64,19 @@ pub fn parse(source: &str) -> Domain {
             //      matching `end` so inner `aggregate` lines aren't picked
             //      up as top-level aggregates.
             if ends_with_do_block(line) {
-                // Block form: `fixture "X" do ... end`. Ruby's canonical_ir
-                // captures only the first string as `aggregate_name` (the
-                // inner `aggregate "..."` / `input "..."` / etc. lines are
-                // not absorbed into fixture attributes), so we mirror that
-                // and emit a Fixture with empty attributes — then skip
-                // past the block's closing `end` so inner `aggregate ...`
-                // lines aren't picked up as top-level aggregates.
-                let aggregate_name = extract_string(line).unwrap_or_default();
+                // Block form: `fixture "X" do ... end`. The first positional
+                // string is the fixture's logical NAME (an identifier);
+                // `aggregate "Y"` inside the block declares the aggregate
+                // type; every other `key "value"` line becomes an attribute.
+                let name = extract_string(line);
+                let (aggregate_name, attributes, consumed) =
+                    parse_fixture_block_body(&lines[i + 1..]);
                 domain.fixtures.push(crate::ir::Fixture {
+                    name,
                     aggregate_name,
-                    attributes: vec![],
+                    attributes,
                 });
-                let mut depth = 1usize;
-                i += 1;
-                while i < lines.len() && depth > 0 {
-                    let l = lines[i].trim();
-                    if l == "end" {
-                        depth -= 1;
-                        if depth == 0 { break; }
-                    } else if ends_with_do_block(l) {
-                        depth += 1;
-                    }
-                    i += 1;
-                }
+                i += consumed;
             } else {
                 let mut full = line.to_string();
                 while needs_continuation(&full) && i + 1 < lines.len() {

@@ -113,6 +113,9 @@ pub struct Transition {
 
 #[derive(Debug)]
 pub struct Fixture {
+    /// Optional logical identifier (set by the block form's first positional
+    /// arg). None for inline-form fixtures.
+    pub name: Option<String>,
     pub aggregate_name: String,
     pub attributes: Vec<(String, String)>,
 }

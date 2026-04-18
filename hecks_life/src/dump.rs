@@ -172,6 +172,7 @@ fn dump_fixture(f: &Fixture) -> Value {
         .map(|(k, v)| json!([k, normalize_value(v)]))
         .collect();
     json!({
+        "name": f.name,
         "aggregate_name": f.aggregate_name,
         "attributes": pairs,
     })

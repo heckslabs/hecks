@@ -180,7 +180,11 @@ module Hecks
 
       def dump_fixture(f)
         pairs = (f.attributes || {}).map { |k, v| [k.to_s, normalize_value(fixture_value(v))] }
-        { "aggregate_name" => f.aggregate_name, "attributes" => pairs }
+        {
+          "name"           => (f.respond_to?(:name) ? f.name : nil),
+          "aggregate_name" => f.aggregate_name,
+          "attributes"     => pairs,
+        }
       end
 
       # Render a Ruby fixture value as the source-text token Rust would emit:

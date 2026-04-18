@@ -331,8 +331,26 @@ module Hecks
       # @param aggregate_name [String] which aggregate this is an instance of
       # @param attributes [Hash] the attribute values for this instance
       # @return [void]
-      def fixture(aggregate_name, **attributes)
-        @fixtures << Structure::Fixture.new(aggregate_name: aggregate_name, attributes: attributes)
+      def fixture(first_arg, **attributes, &block)
+        if block
+          # Block form: first positional arg is the fixture's logical NAME
+          # (an identifier for this instance), and `aggregate "X"` inside the
+          # block declares the aggregate type. Other lines collect as attrs.
+          require "hecks/dsl/fixture_builder"
+          builder = FixtureBuilder.new
+          builder.instance_eval(&block)
+          @fixtures << Structure::Fixture.new(
+            name: first_arg.to_s,
+            aggregate_name: builder.aggregate_name.to_s,
+            attributes: builder.attributes.merge(attributes),
+          )
+        else
+          # Inline form: first positional arg IS the aggregate name; kwargs
+          # are attributes. No `name` field — the fixture is anonymous.
+          @fixtures << Structure::Fixture.new(
+            aggregate_name: first_arg, attributes: attributes,
+          )
+        end
       end
 
       # Define a read model (view) projected from domain events.
