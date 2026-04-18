@@ -1,0 +1,39 @@
+#!/bin/sh
+# Miette Governance — pre-commit enforcement
+#
+# Tracked hook source. Install with: bin/install-hooks
+#
+# Gates in order:
+#   1. Parity suite (Ruby/Rust IR agreement) — hard block on unexpected drift
+#   2. Miette enforce (hecks-life governance) — advisory
+#
+# Exit 0 = commit allowed. Exit 1 = commit blocked.
+# Set PARITY_SKIP=1 to bypass parity (the bypass is an antibody failure).
+
+REPO="$(cd "$(dirname "$0")/../.." && pwd)"
+HECKS_LIFE="$REPO/hecks_life/target/release/hecks-life"
+CONCEPTION_DIR="$REPO/hecks_conception"
+PARITY_TEST="$REPO/spec/parity/parity_test.rb"
+
+# 1. Parity — Ruby DSL parser and Rust hecks-life parser must agree on
+#    every fixture not listed in spec/parity/known_drift.txt.
+if [ -z "$PARITY_SKIP" ] && [ -f "$PARITY_TEST" ]; then
+    if ! (cd "$REPO" && ruby -Ilib "$PARITY_TEST" >/tmp/parity.out 2>&1); then
+        echo "COMMIT BLOCKED: parity suite failed (unexpected drift)."
+        echo ""
+        tail -40 /tmp/parity.out
+        echo ""
+        echo "Either fix the drift, or — if it is a real semantic gap —"
+        echo "add the fixture path to spec/parity/known_drift.txt."
+        echo ""
+        echo "Re-run: ruby -Ilib spec/parity/parity_test.rb"
+        exit 1
+    fi
+fi
+
+# 2. Miette enforce — governance advisory (does not block yet).
+if [ -x "$HECKS_LIFE" ] && "$HECKS_LIFE" enforce "$CONCEPTION_DIR" 2>/dev/null; then
+    exit 0
+fi
+
+exit 0

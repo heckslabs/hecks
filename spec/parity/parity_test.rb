@@ -1,13 +1,17 @@
 # Hecks::Parity::ParityTest
 #
-# Runs every fixture in spec/parity/bluebooks/ through both the Ruby DSL
-# parser and the Rust hecks-life parser, normalizes both outputs to the
-# canonical JSON shape, and diffs. Any structural disagreement is drift.
+# Runs every fixture in spec/parity/bluebooks/ and every real bluebook in
+# hecks_conception/aggregates/ through both the Ruby DSL parser and the
+# Rust hecks-life parser, normalizes both outputs to the canonical JSON
+# shape (see canonical_ir.rb and dump.rs), and diffs.
+#
+# Status legend:
+#   ✓  parity
+#   ✗  unexpected drift — exit 1 (the pre-commit hook blocks)
+#   ⚠  expected drift (listed in known_drift.txt) — does not block
+#   ⚑  fixture in known_drift.txt that now PASSES — celebrate, then remove
 #
 # Run: ruby -Ilib spec/parity/parity_test.rb
-#
-# Exit 0 if every fixture matches, exit 1 with a per-fixture diff otherwise.
-# Add new fixtures by dropping a .bluebook into spec/parity/bluebooks/.
 #
 require "json"
 require "open3"
@@ -17,9 +21,23 @@ require_relative "canonical_ir"
 HECKS_LIFE = File.expand_path("../../hecks_life/target/release/hecks-life", __dir__)
 SYNTHETIC  = Dir[File.expand_path("bluebooks/*.bluebook", __dir__)].sort
 REAL       = Dir[File.expand_path("../../hecks_conception/aggregates/*.bluebook", __dir__)].sort
+KNOWN_DRIFT_FILE = File.expand_path("known_drift.txt", __dir__)
+REPO_ROOT  = File.expand_path("../..", __dir__)
 
 abort "hecks-life not built — run: (cd hecks_life && cargo build --release)" unless File.executable?(HECKS_LIFE)
 abort "no fixtures in spec/parity/bluebooks/" if SYNTHETIC.empty?
+
+def load_known_drift
+  return {} unless File.exist?(KNOWN_DRIFT_FILE)
+  File.readlines(KNOWN_DRIFT_FILE).each_with_object({}) do |line, acc|
+    line = line.strip
+    next if line.empty? || line.start_with?("#")
+    path, comment = line.split("#", 2).map(&:strip)
+    acc[path] = comment.to_s
+  end
+end
+
+KNOWN_DRIFT = load_known_drift
 
 def ruby_dump(path)
   Hecks::DSL::AggregateBuilder::VoTypeResolution.with_vo_constants do
@@ -76,27 +94,55 @@ def run_one(path, max_diff_lines: 40)
 end
 
 def section(title, paths, max_diff_lines:)
-  return [0, 0] if paths.empty?
+  return [0, 0, 0, []] if paths.empty?
   puts "\n=== #{title} (#{paths.size}) ==="
-  failed = 0
+  blocking = 0
+  expected = 0
+  unexpected_passes = []
   paths.each do |p|
-    name = p.sub(File.expand_path("../..", __dir__) + "/", "")
+    rel = p.sub(REPO_ROOT + "/", "")
+    known = KNOWN_DRIFT.key?(rel)
     status, body = run_one(p, max_diff_lines: max_diff_lines)
     case status
-    when :pass  then puts "✓ #{name}"
-    when :fail  then puts "✗ #{name}"; puts body; failed += 1
-    when :error then puts "✗ #{name} — #{body}"; failed += 1
+    when :pass
+      if known
+        puts "⚑ #{rel} — listed in known_drift.txt but PASSES; remove that line"
+        unexpected_passes << rel
+      else
+        puts "✓ #{rel}"
+      end
+    when :fail, :error
+      label = (status == :error ? body : "drift")
+      if known
+        puts "⚠ #{rel}  (known: #{KNOWN_DRIFT[rel]})"
+        expected += 1
+      else
+        puts "✗ #{rel} — #{label}"
+        puts body if status == :fail
+        blocking += 1
+      end
     end
   end
-  [paths.size, failed]
+  [paths.size, blocking, expected, unexpected_passes]
 end
 
-s_total, s_failed = section("Synthetic fixtures", SYNTHETIC, max_diff_lines: 40)
-r_total, r_failed = section("Real bluebooks (aggregates/)", REAL, max_diff_lines: 8)
+s_total, s_block, s_expected, s_unx = section("Synthetic fixtures", SYNTHETIC, max_diff_lines: 40)
+r_total, r_block, r_expected, r_unx = section("Real bluebooks (aggregates/)", REAL, max_diff_lines: 8)
 
-total  = s_total + r_total
-failed = s_failed + r_failed
-passed = total - failed
+total       = s_total + r_total
+blocking    = s_block + r_block
+expected    = s_expected + r_expected
+unx_passes  = s_unx + r_unx
+passed      = total - blocking - expected - unx_passes.size
 
-puts "\n#{passed}/#{total} match  (synthetic #{s_total - s_failed}/#{s_total}, real #{r_total - r_failed}/#{r_total})"
-exit(failed == 0 ? 0 : 1)
+puts ""
+puts "#{passed}/#{total} match (synthetic #{s_total - s_block - s_expected}/#{s_total}, real #{r_total - r_block - r_expected}/#{r_total})"
+puts "#{expected} known-drift (allowed)" if expected > 0
+unless unx_passes.empty?
+  puts ""
+  puts "⚑ #{unx_passes.size} fixture(s) in known_drift.txt now pass — please remove:"
+  unx_passes.each { |f| puts "    #{f}" }
+end
+
+# Exit 1 only on UNEXPECTED drift. Known drift and unexpected-passes don't block.
+exit(blocking == 0 ? 0 : 1)
