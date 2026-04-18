@@ -1,0 +1,14 @@
+Hecks.bluebook "FixtureArray", version: "2026.04.18.1" do
+  vision "Fixtures with array, string-with-commas, and multi-line values"
+
+  aggregate "Topping", "Pizza toppings" do
+    attribute :name, String
+    attribute :tags, list_of(String)
+    attribute :description, String
+  end
+
+  fixture "Topping", name: "Pepperoni", tags: ["meat", "spicy", "classic"]
+  fixture "Topping", name: "Mushroom",
+    tags: ["vegetarian", "earthy"],
+    description: "Cremini, shiitake, and portobello — earthy, rich, umami."
+end

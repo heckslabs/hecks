@@ -1,0 +1,38 @@
+name: Parity
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main, "**"]
+
+jobs:
+  parity:
+    name: Ruby DSL ↔ Rust hecks-life
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            hecks_life/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('hecks_life/Cargo.lock', 'hecks_life/Cargo.toml') }}
+
+      - name: Build hecks-life (release)
+        working-directory: hecks_life
+        run: cargo build --release --quiet
+
+      - name: Run parity suite
+        run: ruby -Ilib spec/parity/parity_test.rb
