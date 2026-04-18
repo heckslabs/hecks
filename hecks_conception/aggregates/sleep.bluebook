@@ -132,10 +132,11 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
 
     command "AdvanceLightToRem" do
       role "Daemon"
-      description "After 2 minutes of light sleep, enter REM. If this is the final cycle, REM is lucid."
+      description "After 2 minutes of light sleep, enter REM. Non-final cycles only — cycle == sleep_total takes the lucid path."
       given("state must be sleeping") { state == "sleeping" }
       given("stage must be light") { sleep_stage == "light" }
       given("must have elapsed minimum phase duration") { phase_ticks > 11 }
+      given("not the final cycle") { sleep_cycle < sleep_total }
       then_set :sleep_stage, to: "rem"
       then_set :phase_ticks, to: 0
       then_set :dream_pulses, to: 0
