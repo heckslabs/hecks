@@ -24,10 +24,8 @@ Hecks.bluebook "RVDC" do
       emits "DomainsRegistered"
     end
 
-    fixture "RVDC" do
-      name "RVDC"
-      status "viable"
-      domains ["Electrical", "RVPower", "RVCircuits", "RVWiringSheet"]
-    end
   end
+
+  fixture "App", name: "RVDC", status: "viable",
+    domains: ["Electrical", "RVPower", "RVCircuits", "RVWiringSheet"]
 end

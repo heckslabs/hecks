@@ -49,10 +49,38 @@ pub fn extract_after(line: &str, keyword: &str) -> Option<String> {
     Some(rest.trim_end_matches(|c: char| c == ',' || c == ' ').to_string())
 }
 
-/// Check if line ends with ` do` as a whole word (not "domain", "document", etc.)
+/// Extract a state token from `text`: either a quoted "string" or a bare
+/// token like `true`, `false`, or `:symbol`. Used by lifecycle parsing
+/// where Ruby happily stringifies `true`/`false`/symbols into the IR.
+pub fn extract_state_token(text: &str) -> Option<String> {
+    let t = text.trim_start();
+    if t.starts_with('"') {
+        return extract_string(t);
+    }
+    // Bare token — strip a leading `:` (symbol form) and read alphanumerics.
+    let body = t.strip_prefix(':').unwrap_or(t);
+    let end = body
+        .find(|c: char| !c.is_alphanumeric() && c != '_')
+        .unwrap_or(body.len());
+    let tok = body[..end].trim().to_string();
+    if tok.is_empty() { None } else { Some(tok) }
+}
+
+/// Check if line ends with ` do` (with optional block-arg list `|arg, ...|`).
+/// Matches `... do`, `do`, and `... do |x|`, `... do |x, y|`.
 pub fn ends_with_do_block(line: &str) -> bool {
     let trimmed = line.trim();
-    trimmed.ends_with(" do") || trimmed == "do"
+    if trimmed.ends_with(" do") || trimmed == "do" {
+        return true;
+    }
+    // `... do |args|` — strip a trailing |...| if present
+    if trimmed.ends_with('|') {
+        if let Some(open) = trimmed[..trimmed.len() - 1].rfind('|') {
+            let head = trimmed[..open].trim_end();
+            return head.ends_with(" do") || head == "do";
+        }
+    }
+    false
 }
 
 pub fn to_snake_case(s: &str) -> String {
@@ -112,15 +140,28 @@ pub fn parse_shorthand_attribute(line: &str) -> Option<crate::ir::Attribute> {
     Some(crate::ir::Attribute { name, attr_type, default: None, list })
 }
 
-/// Parse `reference_to(Order)` or `reference_to(Order).as(:recent_purchase)`.
+/// Parse `reference_to(Order)`, `reference_to(Order).as(:recent_purchase)`,
+/// or `reference_to(Order, role: :recent_purchase)`. The Ruby DSL uses the
+/// `role:` kwarg form; the Rust shorthand uses `.as()`. Both should yield
+/// the same Reference IR.
 pub fn parse_shorthand_reference(line: &str) -> Option<crate::ir::Reference> {
     let open = line.find('(')? + 1;
     let close = line.find(')')?;
-    let target = line[open..close].trim().to_string();
+    let inside = &line[open..close];
+    // Target is the first identifier inside the parens (before any comma).
+    let target = inside.split(',').next()?.trim().to_string();
 
+    // Role can be set via:
+    //   .as(:name) — Rust shorthand suffix
+    //   role: :name — Ruby kwarg inside the parens
+    // Falls back to snake-cased target.
     let name = if line.contains(".as(") {
         let as_pos = line.find(".as(")?;
         extract_symbol(&line[as_pos..]).unwrap_or_else(|| to_snake_case(&target))
+    } else if let Some(role_pos) = inside.find("role:") {
+        // Skip past the `role:` kwarg colon, then extract the :symbol
+        let after_kwarg = &inside[role_pos + "role:".len()..];
+        extract_symbol(after_kwarg).unwrap_or_else(|| to_snake_case(&target))
     } else {
         to_snake_case(&target)
     };

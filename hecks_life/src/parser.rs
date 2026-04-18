@@ -57,16 +57,46 @@ pub fn parse(source: &str) -> Domain {
         }
 
         if line.starts_with("fixture") {
-            // Gather continuation lines: a fixture may span multiple physical
-            // lines either via a trailing comma or via unclosed brackets/parens
-            // (e.g. a list value spread across lines).
-            let mut full = line.to_string();
-            while needs_continuation(&full) && i + 1 < lines.len() {
+            // Two forms:
+            //   1. inline: `fixture "X", a: 1, b: 2` (may span lines via
+            //      trailing comma or unclosed brackets);
+            //   2. block:  `fixture "X" do ... end` — must consume to the
+            //      matching `end` so inner `aggregate` lines aren't picked
+            //      up as top-level aggregates.
+            if ends_with_do_block(line) {
+                // Block form: `fixture "X" do ... end`. Ruby's canonical_ir
+                // captures only the first string as `aggregate_name` (the
+                // inner `aggregate "..."` / `input "..."` / etc. lines are
+                // not absorbed into fixture attributes), so we mirror that
+                // and emit a Fixture with empty attributes — then skip
+                // past the block's closing `end` so inner `aggregate ...`
+                // lines aren't picked up as top-level aggregates.
+                let aggregate_name = extract_string(line).unwrap_or_default();
+                domain.fixtures.push(crate::ir::Fixture {
+                    aggregate_name,
+                    attributes: vec![],
+                });
+                let mut depth = 1usize;
                 i += 1;
-                full.push(' ');
-                full.push_str(lines[i].trim());
+                while i < lines.len() && depth > 0 {
+                    let l = lines[i].trim();
+                    if l == "end" {
+                        depth -= 1;
+                        if depth == 0 { break; }
+                    } else if ends_with_do_block(l) {
+                        depth += 1;
+                    }
+                    i += 1;
+                }
+            } else {
+                let mut full = line.to_string();
+                while needs_continuation(&full) && i + 1 < lines.len() {
+                    i += 1;
+                    full.push(' ');
+                    full.push_str(lines[i].trim());
+                }
+                domain.fixtures.push(parse_fixture(&full));
             }
-            domain.fixtures.push(parse_fixture(&full));
         }
 
         i += 1;
@@ -139,7 +169,14 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
             } else if line.starts_with("description") {
                 agg.description = extract_string(line);
             } else if line.starts_with("reference_to") {
-                if let Some(target) = extract_word_after(line, "reference_to") {
+                // Two forms: `reference_to Pizza` (spaced) and `reference_to(Pizza)` /
+                // `reference_to(Pizza, role: :foo)` (paren). Delegate the paren form
+                // to parse_shorthand_reference so we honor `role:` and `.as()`.
+                if line.starts_with("reference_to(") {
+                    if let Some(r) = parse_shorthand_reference(line) {
+                        agg.references.push(r);
+                    }
+                } else if let Some(target) = extract_word_after(line, "reference_to") {
                     let snake = to_snake_case(&target);
                     agg.references.push(Reference { name: snake, target, domain: None });
                 }

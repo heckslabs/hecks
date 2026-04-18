@@ -134,7 +134,8 @@ Hecks.bluebook "Spec", version: "2026.04.11.1" do
     attribute :items, list_of(OrderItem)
     reference_to(Pizza)
 
-    attribute :status, String do
+    attribute :status, String
+    lifecycle :status, default: "pending" do
       transition "CancelOrder" => "cancelled"
     end
 

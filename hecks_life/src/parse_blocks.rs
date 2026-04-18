@@ -172,13 +172,11 @@ pub fn parse_policy(lines: &[&str]) -> (Policy, usize) {
 pub fn parse_lifecycle(lines: &[&str]) -> (Lifecycle, usize) {
     let first = lines[0].trim();
     let field = extract_symbol(first).unwrap_or_default();
+    // `default:` accepts a quoted string OR a bare token (`true`, `false`,
+    // `:symbol`) — match the Ruby DSL which stringifies any of these.
     let default = if first.contains("default:") {
         let after = extract_after(first, "default:").unwrap_or_default();
-        if after.contains('"') {
-            extract_string(&after).unwrap_or_default()
-        } else {
-            after.split_whitespace().next().unwrap_or("").to_string()
-        }
+        extract_state_token(&after).unwrap_or_default()
     } else { String::new() };
 
     let mut transitions = vec![];
@@ -188,31 +186,28 @@ pub fn parse_lifecycle(lines: &[&str]) -> (Lifecycle, usize) {
         if line == "end" { break; }
         if line.starts_with("transition") {
             if let Some(cmd) = extract_string(line) {
-                let to_state = line.find("=>").and_then(|arrow| extract_string(&line[arrow + 2..]));
+                // to_state: token after `=>` — quoted, bare, or `:symbol`.
+                let to_state = line
+                    .find("=>")
+                    .and_then(|arrow| extract_state_token(&line[arrow + 2..]));
                 // Collect ALL from states. `from: "a"` → [Some("a")];
                 // `from: ["a", "b"]` → [Some("a"), Some("b")]; absent → [None].
+                // Bare tokens (`true`/`false`/`:sym`) also accepted.
                 let from_states: Vec<Option<String>> = if line.contains("from:") {
                     let after = extract_after(line, "from:").unwrap_or_default();
-                    if after.trim_start().starts_with('[') {
-                        // Array form — extract every quoted string within the brackets.
-                        let close = after.find(']').unwrap_or(after.len());
-                        let mut found: Vec<Option<String>> = Vec::new();
-                        let bytes = after[..close].as_bytes();
-                        let mut i = 0;
-                        while i < bytes.len() {
-                            if bytes[i] == b'"' {
-                                let start = i + 1;
-                                let mut j = start;
-                                while j < bytes.len() && bytes[j] != b'"' { j += 1; }
-                                if j > start {
-                                    found.push(Some(String::from_utf8_lossy(&bytes[start..j]).to_string()));
-                                }
-                                i = j + 1;
-                            } else { i += 1; }
-                        }
+                    let trimmed = after.trim_start();
+                    if trimmed.starts_with('[') {
+                        // Array form — split on commas inside the brackets and
+                        // extract a state token from each element.
+                        let close = trimmed.find(']').unwrap_or(trimmed.len());
+                        let inner = &trimmed[1..close];
+                        let found: Vec<Option<String>> = inner
+                            .split(',')
+                            .filter_map(|part| extract_state_token(part).map(Some))
+                            .collect();
                         if found.is_empty() { vec![None] } else { found }
                     } else {
-                        vec![extract_string(&after)]
+                        vec![extract_state_token(&after)]
                     }
                 } else { vec![None] };
                 if let Some(to) = to_state {
