@@ -56,8 +56,18 @@ else
   beats="$beats_raw"
 fi
 
-# Musing count
-ideas=$($hecks heki read $info/musing.heki 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(sum(1 for v in d.values() if not v.get('conceived',False)))" 2>/dev/null)
+# Musing count — total minted (lifetime count from MusingMint.total_minted).
+# This is the thought bubble: how many curated musings have ever landed.
+ideas=$($hecks heki read $info/musing_mint.heki 2>/dev/null | python3 -c "
+import json, sys
+try:
+    d = json.load(sys.stdin)
+    r = next(iter(d.values()), {})
+    print(int(r.get('total_minted', 0)))
+except Exception:
+    print(0)
+" 2>/dev/null)
+[ -z "$ideas" ] && ideas=0
 
 # Invention count
 inventions=$($hecks heki read $info/invention.heki 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(sum(1 for v in d.values() if v.get('status','')=='proposed'))" 2>/dev/null)
