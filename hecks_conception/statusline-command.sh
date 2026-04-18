@@ -161,10 +161,22 @@ else
     bulb="💡"
   fi
 
+  # Mint provider indicator + how to switch.
+  #   🤖 = Claude (default)
+  #   🦙 = local ollama
+  #   🚫 = off
+  provider=$($hecks heki read $info/claude_assist.heki 2>/dev/null | grep '"provider"' | head -1 | sed 's/.*: "//' | sed 's/".*//')
+  case "$provider" in
+    local)  provider_badge="🦙" ;;
+    off)    provider_badge="🚫" ;;
+    *)      provider_badge="🤖" ;;  # claude is the default when unset
+  esac
+
   status_str="☀️ Miette ${heart} ${beats} ${mood_icon} ${mood}"
   [ -n "$fatigue_icon" ] && status_str="$status_str ${fatigue_icon} ${fatigue}"
   status_str="$status_str 💭 ${ideas:-0}"
   [ -n "$inventions" ] && [ "$inventions" != "0" ] && status_str="$status_str 🔬 ${inventions}"
+  status_str="$status_str ${provider_badge}"
   [ -n "$sleep_summary" ] && [ "$sleep_summary" != "present" ] && status_str="$status_str ${bulb} ${sleep_summary}"
 fi
 

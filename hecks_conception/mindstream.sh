@@ -22,7 +22,9 @@ PIDFILE="$INFO/.mindstream.pid"
 echo $$ > "$PIDFILE"
 trap "rm -f $PIDFILE" EXIT
 
+loop_count=0
 while true; do
+  loop_count=$((loop_count + 1))
   # Heartbeat: one tick. The bluebook handles everything downstream.
   $HECKS "$AGG" Tick.MindstreamTick 2>/dev/null
 
@@ -129,12 +131,13 @@ except Exception:
 " 2>/dev/null)
     if [ -n "$thought" ]; then
       $HECKS heki upsert "$INFO/consciousness.heki" sleep_summary="$thought" 2>/dev/null
-      # Mark this musing conceived so it doesn't surface again.
-      "$DIR/mark_musing_shown.py" "$thought" 2>/dev/null
+      # Mark conceived only every 3rd tick (~30s on screen) so each
+      # musing has time to be read before the pool advances. Without
+      # this, 12 musings drain in 2 minutes and the bar goes empty.
+      if [ "$((loop_count % 3))" = "0" ]; then
+        "$DIR/mark_musing_shown.py" "$thought" 2>/dev/null
+      fi
     else
-      # Pool is empty — clear sleep_summary so the status bar doesn't keep
-      # showing the last musing (which would look stuck). The bulb keeps
-      # animating while mint_musing.sh is running, signaling "thinking".
       $HECKS heki upsert "$INFO/consciousness.heki" sleep_summary="" 2>/dev/null
     fi
 
