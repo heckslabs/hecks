@@ -6,7 +6,7 @@ Hecks.behaviors "FreelanceMarketplace" do
   test "PostGig sets gig_title + description + category + budget + deadline" do
     tests "PostGig", on: "Gig"
     input  gig_title: "sample", description: "sample", category: "sample", budget: 1.0, deadline: "sample"
-    expect ok: "true"
+    expect status: "open"
   end
 
   test "CloseGig runs" do
@@ -27,7 +27,7 @@ Hecks.behaviors "FreelanceMarketplace" do
   test "RegisterFreelancer sets freelancer_id + name + email + headline + hourly_rate" do
     tests "RegisterFreelancer", on: "Freelancer"
     input  freelancer_id: "sample", name: "sample", email: "sample", headline: "sample", hourly_rate: 1.0
-    expect freelancer_id: "sample", name: "sample", email: "sample", headline: "sample", hourly_rate: 1.0
+    expect freelancer_id: "sample", name: "sample", email: "sample", headline: "sample", hourly_rate: 1.0, status: "active"
   end
 
   test "ReviseProfile sets headline + hourly_rate" do
@@ -51,7 +51,7 @@ Hecks.behaviors "FreelanceMarketplace" do
     setup  "RegisterFreelancer", freelancer_id: "sample", name: "sample", email: "sample", headline: "sample", hourly_rate: 1.0
     setup  "PostGig", gig_title: "sample", description: "sample", category: "sample", budget: 1.0, deadline: "sample"
     input  proposal_id: "sample", cover_letter: "sample", proposed_rate: 1.0, estimated_days: 1
-    expect ok: "true"
+    expect status: "pending"
   end
 
   test "AcceptProposal runs" do
@@ -75,7 +75,7 @@ Hecks.behaviors "FreelanceMarketplace" do
     setup  "RegisterFreelancer", freelancer_id: "sample", name: "sample", email: "sample", headline: "sample", hourly_rate: 1.0
     setup  "PostGig", gig_title: "sample", description: "sample", category: "sample", budget: 1.0, deadline: "sample"
     input  contract_id: "sample", total_amount: 1.0, start_date: "sample", end_date: "sample"
-    expect ok: "true"
+    expect status: "active"
   end
 
   test "CompleteMilestone sets milestone_title" do
@@ -104,12 +104,13 @@ Hecks.behaviors "FreelanceMarketplace" do
   test "HoldPayment runs" do
     tests "HoldPayment", on: "Payment"
     setup  "ReleasePayment", payment_id: "sample", amount: 1.0, payment_method: "sample"
-    expect ok: "true"
+    expect status: "held"
   end
 
   test "RefundPayment runs" do
     tests "RefundPayment", on: "Payment"
     setup  "ReleasePayment", payment_id: "sample", amount: 1.0, payment_method: "sample"
+    setup  "HoldPayment"
     expect ok: "true"
   end
 

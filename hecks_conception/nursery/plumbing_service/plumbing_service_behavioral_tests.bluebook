@@ -7,7 +7,7 @@ Hecks.behaviors "PlumbingService" do
     tests "DispatchCall", on: "ServiceCall"
     setup  "HireTechnician", name: "sample", license_number: "sample", specialties: "sample"
     input  customer_name: "sample", address: "sample", problem_description: "sample"
-    expect ok: "true"
+    expect status: "dispatched"
   end
 
   test "DiagnoseIssue sets diagnosis" do
@@ -63,7 +63,7 @@ Hecks.behaviors "PlumbingService" do
     tests "PrepareEstimate", on: "Estimate"
     setup  "DispatchCall", customer_name: "sample", address: "sample", problem_description: "sample"
     input  labor_cost: 1.0, parts_cost: 1.0
-    expect ok: "true"
+    expect status: "pending"
   end
 
   test "ApproveEstimate runs" do

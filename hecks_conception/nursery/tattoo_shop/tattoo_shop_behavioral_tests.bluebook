@@ -24,7 +24,7 @@ Hecks.behaviors "TattooShop" do
     setup  "SketchDesign", title: "sample", style: "sample", placement: "sample", size_inches: 1.0
     setup  "HireArtist", name: "sample", specialty_style: "sample", station_number: "sample", years_experience: 1
     input  date: "sample", time_slot: "sample", duration_hours: 1, deposit_amount: 1.0
-    expect ok: "true"
+    expect status: "booked"
   end
 
   test "StartSession runs" do
@@ -46,7 +46,7 @@ Hecks.behaviors "TattooShop" do
   test "SketchDesign sets title + style + placement + size_inches" do
     tests "SketchDesign", on: "Design"
     input  title: "sample", style: "sample", placement: "sample", size_inches: 1.0
-    expect ok: "true"
+    expect status: "draft"
   end
 
   test "ApproveDesign runs" do

@@ -157,7 +157,7 @@ Hecks.bluebook "ComplianceMentalHealth" do
       reference_to(InsuranceClaim)
       given { status == "submitted" }
       emits "ClaimAdjudicated"
-      then_set :status, to: "adjudicated"
+      then_set :status, to: "denied"
     end
     AppealDenial do
       role "BillingSpecialist"

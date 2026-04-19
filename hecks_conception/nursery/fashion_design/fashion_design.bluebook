@@ -12,6 +12,7 @@ Hecks.bluebook "FashionDesign" do
       String :season
       String :theme
       emits "CollectionLaunched"
+      then_set :status, to: "concept"
     end
 
     FinalizeCollection do
@@ -55,6 +56,7 @@ Hecks.bluebook "FashionDesign" do
       String :garment_type
       String :fabric
       emits "GarmentDrafted"
+      then_set :status, to: "drafted"
     end
 
     SewMuslin do
@@ -93,6 +95,7 @@ Hecks.bluebook "FashionDesign" do
       String :name
       Integer :piece_count
       emits "PatternDrafted"
+      then_set :status, to: "draft"
     end
 
     GradePattern do
@@ -117,6 +120,7 @@ Hecks.bluebook "FashionDesign" do
       String :model_name
       String :date
       emits "FittingScheduled"
+      then_set :status, to: "scheduled"
     end
 
     RecordAdjustments do
@@ -143,6 +147,7 @@ Hecks.bluebook "FashionDesign" do
       String :venue
       String :date
       emits "ShowPlanned"
+      then_set :status, to: "planning"
     end
 
     RehearsShow do

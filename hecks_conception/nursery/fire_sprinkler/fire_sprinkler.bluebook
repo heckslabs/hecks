@@ -27,6 +27,7 @@ Hecks.bluebook "FireSprinkler" do
       String :pipe_material
       Float :design_density_gpm
       emits "SystemDesigned"
+      then_set :status, to: "tested"
     end
 
     ActivateSystem do
@@ -138,6 +139,7 @@ Hecks.bluebook "FireSprinkler" do
       String :inspection_date
       reference_to(SprinklerSystem)
       emits "InspectionPerformed"
+      then_set :result, to: "pass"
     end
 
     RecordDeficiency do

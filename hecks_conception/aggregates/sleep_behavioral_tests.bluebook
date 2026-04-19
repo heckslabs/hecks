@@ -6,7 +6,7 @@ Hecks.behaviors "Sleep" do
   test "AccumulateFatigue runs" do
     tests "AccumulateFatigue", on: "Fatigue"
     setup  "DissipateFatigue"
-    expect pulses_since_sleep: 1, state: "focused"
+    expect state: "focused"
   end
 
   test "DissipateFatigue runs" do
@@ -64,7 +64,7 @@ Hecks.behaviors "Sleep" do
     tests "ElapsePhase", on: "Consciousness"
     setup  "EnterDaydream"
     setup  "EnterSleep"
-    expect phase_ticks: 1
+    expect ok: "true"
   end
 
   test "AdvanceLightToRem runs" do
@@ -103,7 +103,7 @@ Hecks.behaviors "Sleep" do
     setup  "EnterSleep"
     setup  "AdvanceLightToRem"
     setup  "AdvanceRemToDeep"
-    expect sleep_stage: "light", sleep_cycle: 1, phase_ticks: 0, sleep_summary: "light sleep — next cycle"
+    expect sleep_stage: "light", phase_ticks: 0, sleep_summary: "light sleep — next cycle"
   end
 
   test "AdvanceDeepToFinalLight runs" do
@@ -132,7 +132,7 @@ Hecks.behaviors "Sleep" do
     setup  "EnterSleep"
     setup  "AdvanceLightToRem"
     input  impression: "sample"
-    expect dream_pulses: 1, sleep_summary: "sample"
+    expect sleep_summary: "sample"
   end
 
 

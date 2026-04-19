@@ -13,7 +13,7 @@ Hecks.behaviors "Regression" do
     tests "EnrollBlueprint", on: "RegressionSuite"
     setup  "EnrollSuite", suite_name: "sample"
     input  domain_name: "sample"
-    expect blueprint_count: 1
+    expect ok: "true"
   end
 
   test "RunRegression runs" do

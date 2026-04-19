@@ -6,7 +6,7 @@ Hecks.behaviors "EmergencyRoom" do
   test "RegisterPatient sets name + date_of_birth + chief_complaint" do
     tests "RegisterPatient", on: "Patient"
     input  name: "sample", date_of_birth: "sample", chief_complaint: "sample"
-    expect name: "sample", date_of_birth: "sample", chief_complaint: "sample", status: "waiting"
+    expect name: "sample", date_of_birth: "sample", chief_complaint: "sample", status: "triaged"
   end
 
   test "AdmitPatient runs" do

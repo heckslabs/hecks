@@ -6,7 +6,7 @@ Hecks.behaviors "WebAccessibility" do
   test "LaunchAudit sets audit_id + site_url + wcag_level + auditor" do
     tests "LaunchAudit", on: "AccessibilityAudit"
     input  audit_id: "sample", site_url: "sample", wcag_level: "sample", auditor: "sample"
-    expect ok: "true"
+    expect status: "running"
   end
 
   test "CompleteAudit sets pages_scanned" do
@@ -29,7 +29,7 @@ Hecks.behaviors "WebAccessibility" do
     tests "CrawlPage", on: "Page"
     setup  "LaunchAudit", audit_id: "sample", site_url: "sample", wcag_level: "sample", auditor: "sample"
     input  page_url: "sample", title: "sample", content_type: "sample", dom_elements: 1
-    expect ok: "true"
+    expect status: "pending"
   end
 
   test "MarkReviewed runs" do
@@ -51,7 +51,7 @@ Hecks.behaviors "WebAccessibility" do
     tests "ReportViolation", on: "Violation"
     setup  "CrawlPage", page_url: "sample", title: "sample", content_type: "sample", dom_elements: 1
     input  violation_id: "sample", rule_id: "sample", severity: "sample", element_selector: "sample", description: "sample"
-    expect ok: "true"
+    expect status: "reported"
   end
 
   test "ConfirmViolation runs" do
@@ -74,7 +74,7 @@ Hecks.behaviors "WebAccessibility" do
     tests "AssignRemediation", on: "Remediation"
     setup  "ReportViolation", violation_id: "sample", rule_id: "sample", severity: "sample", element_selector: "sample", description: "sample"
     input  remediation_id: "sample", fix_description: "sample", assigned_to: "sample", priority: "sample"
-    expect ok: "true"
+    expect status: "in_progress"
   end
 
   test "CompleteRemediation runs" do
@@ -97,7 +97,7 @@ Hecks.behaviors "WebAccessibility" do
     tests "IssueCertificate", on: "ComplianceCertificate"
     setup  "LaunchAudit", audit_id: "sample", site_url: "sample", wcag_level: "sample", auditor: "sample"
     input  certificate_id: "sample", wcag_level: "sample", issued_by: "sample", valid_until: "sample"
-    expect ok: "true"
+    expect status: "valid"
   end
 
   test "RevokeCertificate runs" do

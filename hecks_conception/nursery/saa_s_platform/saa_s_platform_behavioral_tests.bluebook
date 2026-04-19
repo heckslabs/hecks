@@ -6,7 +6,7 @@ Hecks.behaviors "SaaSPlatform" do
   test "OnboardTenant sets tenant_name + slug + admin_email + plan" do
     tests "OnboardTenant", on: "Tenant"
     input  tenant_name: "sample", slug: "sample", admin_email: "sample", plan: "sample"
-    expect ok: "true"
+    expect status: "active"
   end
 
   test "SuspendTenant runs" do
@@ -28,7 +28,7 @@ Hecks.behaviors "SaaSPlatform" do
     tests "StartSubscription", on: "Subscription"
     setup  "OnboardTenant", tenant_name: "sample", slug: "sample", admin_email: "sample", plan: "sample"
     input  subscription_id: "sample", plan_name: "sample", monthly_rate: 1.0, billing_cycle: "sample"
-    expect ok: "true"
+    expect status: "active"
   end
 
   test "UpgradePlan sets plan_name + monthly_rate" do

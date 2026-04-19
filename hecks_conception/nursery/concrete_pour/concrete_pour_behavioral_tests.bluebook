@@ -6,7 +6,7 @@ Hecks.behaviors "ConcretePour" do
   test "SchedulePour sets project_name + pour_location + cubic_yards + pour_date + crew_size" do
     tests "SchedulePour", on: "PourSchedule"
     input  project_name: "sample", pour_location: "sample", cubic_yards: 1.0, pour_date: "sample", crew_size: 1
-    expect ok: "true"
+    expect status: "in_progress"
   end
 
   test "PostponePour sets reason" do

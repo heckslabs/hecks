@@ -79,7 +79,7 @@ Hecks.behaviors "TreeService" do
     tests "ApplyForPermit", on: "TreePermit"
     setup  "AssessTree", species: "sample", dbh_inches: 1.0, height_feet: 1.0, address: "sample"
     input  municipality: "sample", tree_species: "sample"
-    expect ok: "true"
+    expect status: "pending"
   end
 
   test "ReceivePermit sets permit_number" do

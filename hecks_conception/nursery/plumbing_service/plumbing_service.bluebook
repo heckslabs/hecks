@@ -28,6 +28,7 @@ Hecks.bluebook "PlumbingService" do
       String :problem_description
       reference_to(Technician)
       emits "CallDispatched"
+      then_set :status, to: "dispatched"
     end
 
     DiagnoseIssue do
@@ -129,6 +130,7 @@ Hecks.bluebook "PlumbingService" do
       Float :labor_cost
       Float :parts_cost
       emits "EstimatePrepared"
+      then_set :status, to: "pending"
     end
 
     ApproveEstimate do

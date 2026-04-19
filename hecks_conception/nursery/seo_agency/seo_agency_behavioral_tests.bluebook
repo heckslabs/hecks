@@ -6,7 +6,7 @@ Hecks.behaviors "SEOAgency" do
   test "SignClient sets client_name + website_url + industry + contact_email + plan_tier" do
     tests "SignClient", on: "Client"
     input  client_name: "sample", website_url: "sample", industry: "sample", contact_email: "sample", plan_tier: "sample"
-    expect ok: "true"
+    expect status: "active"
   end
 
   test "PauseEngagement runs" do
@@ -51,7 +51,7 @@ Hecks.behaviors "SEOAgency" do
     tests "RunAudit", on: "SiteAudit"
     setup  "SignClient", client_name: "sample", website_url: "sample", industry: "sample", contact_email: "sample", plan_tier: "sample"
     input  audit_id: "sample", audit_type: "sample", pages_crawled: 1
-    expect ok: "true"
+    expect status: "in_progress"
   end
 
   test "LogIssue sets page_url + issue_type + severity" do
@@ -74,7 +74,7 @@ Hecks.behaviors "SEOAgency" do
     tests "AcquireBacklink", on: "Backlink"
     setup  "SignClient", client_name: "sample", website_url: "sample", industry: "sample", contact_email: "sample", plan_tier: "sample"
     input  backlink_id: "sample", source_url: "sample", target_url: "sample", domain_authority: 1.0, anchor_text: "sample"
-    expect ok: "true"
+    expect status: "active"
   end
 
   test "VerifyBacklink runs" do
@@ -96,7 +96,7 @@ Hecks.behaviors "SEOAgency" do
     tests "GenerateReport", on: "RankingReport"
     setup  "SignClient", client_name: "sample", website_url: "sample", industry: "sample", contact_email: "sample", plan_tier: "sample"
     input  report_id: "sample", period: "sample"
-    expect ok: "true"
+    expect status: "ready"
   end
 
   test "DeliverReport runs" do

@@ -19,6 +19,7 @@ Hecks.bluebook "PodcastProduction" do
       String :category
       String :format
       emits "ShowLaunched"
+      then_set :status, to: "planning"
     end
 
     PublishShow do
@@ -58,6 +59,7 @@ Hecks.bluebook "PodcastProduction" do
       String :title
       Integer :episode_number
       emits "EpisodeOutlined"
+      then_set :status, to: "outlined"
     end
 
     RecordEpisode do
@@ -101,6 +103,7 @@ Hecks.bluebook "PodcastProduction" do
       String :expertise
       String :bio
       emits "GuestInvited"
+      then_set :status, to: "invited"
     end
 
     ConfirmGuest do
@@ -123,6 +126,7 @@ Hecks.bluebook "PodcastProduction" do
       reference_to(Episode)
       String :editor_name
       emits "EditingStarted"
+      then_set :status, to: "pending"
     end
 
     FinalizeEdit do

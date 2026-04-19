@@ -19,6 +19,7 @@ Hecks.bluebook "PotteryStudio" do
       String :clay_body
       Float :weight_kg
       emits "PieceThrown"
+      then_set :status, to: "thrown"
     end
 
     TrimPiece do
@@ -71,6 +72,7 @@ Hecks.bluebook "PotteryStudio" do
       String :atmosphere
       Integer :piece_count
       emits "KilnLoaded"
+      then_set :status, to: "loading"
     end
 
     StartFiring do
@@ -159,6 +161,7 @@ Hecks.bluebook "PotteryStudio" do
       String :opening_date
       Integer :piece_count
       emits "ExhibitionCurated"
+      then_set :status, to: "planning"
     end
 
     OpenExhibition do

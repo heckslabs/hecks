@@ -24,6 +24,7 @@ Hecks.bluebook "QATestLab", version: "2026.04.13.1" do
       String :team_lead
       String :priority
       emits "TestProjectRegistered"
+      then_set :status, to: "active"
     end
 
     AssignTeamLead do
@@ -63,6 +64,7 @@ Hecks.bluebook "QATestLab", version: "2026.04.13.1" do
       String :test_type
       reference_to(TestProject)
       emits "TestSuiteDefined"
+      then_set :status, to: "active"
     end
 
     ExecuteTestSuite do
@@ -112,6 +114,7 @@ Hecks.bluebook "QATestLab", version: "2026.04.13.1" do
       reference_to(Bug)
       String :assigned_to
       emits "BugAssigned"
+      then_set :status, to: "in_progress"
     end
 
     CloseBug do
@@ -144,6 +147,7 @@ Hecks.bluebook "QATestLab", version: "2026.04.13.1" do
       String :browser_version
       String :os_version
       emits "EnvironmentSetUp"
+      then_set :status, to: "idle"
     end
 
     TeardownEnvironment do

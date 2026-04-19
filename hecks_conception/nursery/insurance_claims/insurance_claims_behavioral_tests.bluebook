@@ -32,15 +32,23 @@ Hecks.behaviors "InsuranceClaims" do
     expect claim_number: "sample", incident_date: "sample", incident_description: "sample", claimed_amount: 1.0, status: "filed"
   end
 
+  test "ReviewClaim runs" do
+    tests "ReviewClaim", on: "Claim"
+    setup  "FileClaim", claim_number: "sample", incident_date: "sample", incident_description: "sample", claimed_amount: 1.0
+    expect status: "under_review"
+  end
+
   test "ApproveClaim runs" do
     tests "ApproveClaim", on: "Claim"
     setup  "FileClaim", claim_number: "sample", incident_date: "sample", incident_description: "sample", claimed_amount: 1.0
+    setup  "ReviewClaim"
     expect status: "approved"
   end
 
   test "DenyClaim sets denial_reason" do
     tests "DenyClaim", on: "Claim"
     setup  "FileClaim", claim_number: "sample", incident_date: "sample", incident_description: "sample", claimed_amount: 1.0
+    setup  "ReviewClaim"
     input  denial_reason: "sample"
     expect status: "denied"
   end

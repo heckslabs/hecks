@@ -28,7 +28,7 @@ Hecks.behaviors "DynamicProjection" do
     tests "DetectChange", on: "BluebookWatch"
     setup  "WatchBluebook", path: "sample"
     input  path: "sample", change_type: "sample"
-    expect changes_detected: 1
+    expect ok: "true"
   end
 
 

@@ -13,12 +13,13 @@ Hecks.behaviors "FencingContractor" do
     tests "QuoteFence", on: "FenceEstimate"
     setup  "MeasureProperty", customer_name: "sample", address: "sample", linear_feet: 1.0, fence_style: "sample", height_feet: 1.0, gate_count: 1
     input  total_price: 1.0
-    expect ok: "true"
+    expect status: "quoted"
   end
 
   test "AcceptQuote runs" do
     tests "AcceptQuote", on: "FenceEstimate"
     setup  "MeasureProperty", customer_name: "sample", address: "sample", linear_feet: 1.0, fence_style: "sample", height_feet: 1.0, gate_count: 1
+    setup  "QuoteFence", total_price: 1.0
     expect ok: "true"
   end
 
@@ -45,7 +46,7 @@ Hecks.behaviors "FencingContractor" do
     tests "DigHoles", on: "PostSetting"
     setup  "MeasureProperty", customer_name: "sample", address: "sample", linear_feet: 1.0, fence_style: "sample", height_feet: 1.0, gate_count: 1
     input  hole_depth_inches: 1.0, hole_count: 1
-    expect ok: "true"
+    expect status: "holes_dug"
   end
 
   test "SetPosts sets concrete_type" do

@@ -160,6 +160,7 @@ Hecks.bluebook "PoolMaintenance" do
       String :problem_description
       reference_to(Pool)
       emits "RepairTicketOpened"
+      then_set :status, to: "diagnosed"
     end
 
     CompleteRepair do

@@ -31,6 +31,7 @@ Hecks.bluebook "IoTPlatform", version: "2026.04.13.1" do
       description "Take a device offline for maintenance"
       reference_to(Device)
       emits "DeviceSuspended"
+      then_set :status, to: "suspended"
     end
 
     DeregisterDevice do
@@ -66,6 +67,7 @@ Hecks.bluebook "IoTPlatform", version: "2026.04.13.1" do
       Float :max_range
       reference_to(Device)
       emits "SensorAttached"
+      then_set :status, to: "active"
     end
 
     CalibrateSensor do
@@ -112,6 +114,7 @@ Hecks.bluebook "IoTPlatform", version: "2026.04.13.1" do
       description "Check a reading against expected sensor ranges"
       reference_to(Reading)
       emits "ReadingValidated"
+      then_set :status, to: "validated"
     end
 
     FlagAnomaly do
@@ -151,6 +154,7 @@ Hecks.bluebook "IoTPlatform", version: "2026.04.13.1" do
       description "Mark an alert as seen by an operator"
       reference_to(Alert)
       emits "AlertAcknowledged"
+      then_set :status, to: "acknowledged"
     end
 
     ResolveAlert do
@@ -192,6 +196,7 @@ Hecks.bluebook "IoTPlatform", version: "2026.04.13.1" do
       reference_to(FirmwareUpdate)
       String :device_id
       emits "UpdateApplied"
+      then_set :status, to: "applied"
     end
 
     RollbackUpdate do

@@ -27,7 +27,7 @@ Hecks.behaviors "CrowdfundingPlatform" do
   test "RegisterBacker sets backer_id + name + email + payment_method" do
     tests "RegisterBacker", on: "Backer"
     input  backer_id: "sample", name: "sample", email: "sample", payment_method: "sample"
-    expect backer_id: "sample", name: "sample", email: "sample", payment_method: "sample"
+    expect backer_id: "sample", name: "sample", email: "sample", payment_method: "sample", status: "active"
   end
 
   test "ChangePaymentMethod sets payment_method" do
@@ -51,7 +51,7 @@ Hecks.behaviors "CrowdfundingPlatform" do
     setup  "RegisterBacker", backer_id: "sample", name: "sample", email: "sample", payment_method: "sample"
     setup  "LaunchCampaign", campaign_title: "sample", creator_name: "sample", description: "sample", funding_goal: 1.0, deadline: "sample"
     input  pledge_id: "sample", amount: 1.0, reward_tier: "sample"
-    expect ok: "true"
+    expect status: "active"
   end
 
   test "IncreasePledge sets additional_amount" do
@@ -81,12 +81,13 @@ Hecks.behaviors "CrowdfundingPlatform" do
     tests "MarkShipped", on: "Reward"
     setup  "FulfillReward", reward_id: "sample", tier_name: "sample", description: "sample", shipping_address: "sample"
     input  carrier: "sample", tracking_number: "sample"
-    expect ok: "true"
+    expect fulfillment_status: "shipped"
   end
 
   test "ReportDamaged runs" do
     tests "ReportDamaged", on: "Reward"
     setup  "FulfillReward", reward_id: "sample", tier_name: "sample", description: "sample", shipping_address: "sample"
+    setup  "MarkShipped", carrier: "sample", tracking_number: "sample"
     expect ok: "true"
   end
 
@@ -97,7 +98,7 @@ Hecks.behaviors "CrowdfundingPlatform" do
     tests "SetMilestone", on: "Milestone"
     setup  "LaunchCampaign", campaign_title: "sample", creator_name: "sample", description: "sample", funding_goal: 1.0, deadline: "sample"
     input  milestone_id: "sample", title: "sample", description: "sample", target_date: "sample"
-    expect ok: "true"
+    expect status: "pending"
   end
 
   test "CompleteMilestone runs" do

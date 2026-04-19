@@ -29,7 +29,7 @@ Hecks.behaviors "ArchitectureFirm" do
     tests "ProduceDrawing", on: "Drawing"
     setup  "AcceptProject", name: "sample", building_type: "sample", square_footage: 1.0, budget: 1.0
     input  title: "sample", drawing_type: "sample", scale: "sample"
-    expect ok: "true"
+    expect status: "draft"
   end
 
   test "ReviseDrawing sets revision_notes" do
@@ -52,7 +52,7 @@ Hecks.behaviors "ArchitectureFirm" do
     tests "RequestRevision", on: "Revision"
     setup  "ProduceDrawing", title: "sample", drawing_type: "sample", scale: "sample"
     input  reviewer_name: "sample", comments: "sample"
-    expect ok: "true"
+    expect status: "pending"
   end
 
   test "ApproveRevision runs" do
@@ -85,7 +85,7 @@ Hecks.behaviors "ArchitectureFirm" do
     tests "ScheduleVisit", on: "SiteVisit"
     setup  "AcceptProject", name: "sample", building_type: "sample", square_footage: 1.0, budget: 1.0
     input  date: "sample", inspector_name: "sample"
-    expect ok: "true"
+    expect status: "scheduled"
   end
 
   test "RecordObservations sets notes + weather_conditions" do

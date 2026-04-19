@@ -20,6 +20,7 @@ Hecks.bluebook "PhotographyStudio" do
       String :shoot_type
       reference_to(Client)
       emits "ShootScheduled"
+      then_set :status, to: "scheduled"
     end
 
     StartShoot do
@@ -152,6 +153,7 @@ Hecks.bluebook "PhotographyStudio" do
       String :finish
       Integer :quantity
       emits "PrintOrderPlaced"
+      then_set :status, to: "pending"
     end
 
     FulfillPrintOrder do

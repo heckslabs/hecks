@@ -12,12 +12,13 @@ Hecks.behaviors "NetworkOperations" do
   test "SuspendDevice runs" do
     tests "SuspendDevice", on: "NetworkDevice"
     setup  "RegisterDevice", device_id: "sample", hostname: "sample", device_type: "sample", ip_address: "sample", location: "sample", firmware_version: "sample"
-    expect ok: "true"
+    expect status: "suspended"
   end
 
   test "RestoreDevice runs" do
     tests "RestoreDevice", on: "NetworkDevice"
     setup  "RegisterDevice", device_id: "sample", hostname: "sample", device_type: "sample", ip_address: "sample", location: "sample", firmware_version: "sample"
+    setup  "SuspendDevice"
     expect ok: "true"
   end
 
@@ -50,7 +51,7 @@ Hecks.behaviors "NetworkOperations" do
   test "CaptureFlow sets flow_id + source_ip + destination_ip + protocol + bytes_transferred" do
     tests "CaptureFlow", on: "TrafficFlow"
     input  flow_id: "sample", source_ip: "sample", destination_ip: "sample", protocol: "sample", bytes_transferred: 1
-    expect ok: "true"
+    expect status: "active"
   end
 
   test "ClassifyFlow sets classification" do
@@ -73,7 +74,7 @@ Hecks.behaviors "NetworkOperations" do
     tests "DeclareOutage", on: "Outage"
     setup  "RegisterDevice", device_id: "sample", hostname: "sample", device_type: "sample", ip_address: "sample", location: "sample", firmware_version: "sample"
     input  outage_id: "sample", affected_segment: "sample", severity: "sample"
-    expect ok: "true"
+    expect status: "ongoing"
   end
 
   test "PostOutageUpdate sets note + author" do
@@ -96,7 +97,7 @@ Hecks.behaviors "NetworkOperations" do
   test "PublishFirmware sets release_id + version + device_type + changelog" do
     tests "PublishFirmware", on: "FirmwareRelease"
     input  release_id: "sample", version: "sample", device_type: "sample", changelog: "sample"
-    expect ok: "true"
+    expect status: "published"
   end
 
   test "UpgradeDevice sets device_id" do

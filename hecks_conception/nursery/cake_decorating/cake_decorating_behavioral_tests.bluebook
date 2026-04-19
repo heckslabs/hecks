@@ -6,7 +6,7 @@ Hecks.behaviors "CakeDecorating" do
   test "PlaceOrder sets client_name + occasion + tier_count + servings + delivery_date" do
     tests "PlaceOrder", on: "CakeOrder"
     input  client_name: "sample", occasion: "sample", tier_count: 1, servings: 1, delivery_date: "sample"
-    expect client_name: "sample", occasion: "sample", tier_count: 1, servings: 1, delivery_date: "sample"
+    expect client_name: "sample", occasion: "sample", tier_count: 1, servings: 1, delivery_date: "sample", status: "inquiry"
   end
 
   test "ConfirmOrder runs" do
@@ -37,7 +37,7 @@ Hecks.behaviors "CakeDecorating" do
     tests "ProposeFlav", on: "FlavorProfile"
     setup  "PlaceOrder", client_name: "sample", occasion: "sample", tier_count: 1, servings: 1, delivery_date: "sample"
     input  cake_flavor: "sample", filling: "sample", frosting: "sample"
-    expect ok: "true"
+    expect status: "proposed"
   end
 
   test "ApproveFlavor runs" do
@@ -53,7 +53,7 @@ Hecks.behaviors "CakeDecorating" do
     tests "ScheduleTasting", on: "Tasting"
     setup  "PlaceOrder", client_name: "sample", occasion: "sample", tier_count: 1, servings: 1, delivery_date: "sample"
     input  date: "sample", client_name: "sample", sample_count: 1
-    expect ok: "true"
+    expect status: "scheduled"
   end
 
   test "ConductTasting sets preferred_flavor" do
@@ -92,7 +92,7 @@ Hecks.behaviors "CakeDecorating" do
     tests "ScheduleCakeDelivery", on: "CakeDelivery"
     setup  "PlaceOrder", client_name: "sample", occasion: "sample", tier_count: 1, servings: 1, delivery_date: "sample"
     input  address: "sample", delivery_date: "sample", time_window: "sample", handler_name: "sample"
-    expect ok: "true"
+    expect status: "scheduled"
   end
 
   test "CompleteCakeDelivery runs" do

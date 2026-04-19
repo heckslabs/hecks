@@ -25,6 +25,7 @@ Hecks.bluebook "GlassInstaller" do
       String :application
       Integer :quantity
       emits "OrderPlaced"
+      then_set :status, to: "measured"
     end
 
     ConfirmOrder do

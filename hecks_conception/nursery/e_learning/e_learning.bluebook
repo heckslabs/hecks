@@ -25,6 +25,7 @@ Hecks.bluebook "ELearning", version: "2026.04.13.1" do
       String :subject_area
       String :difficulty_level
       Integer :estimated_hours
+      then_set :status, to: "draft"
       emits "CourseAuthored"
     end
 
@@ -62,6 +63,7 @@ Hecks.bluebook "ELearning", version: "2026.04.13.1" do
       String :enrollment_id
       String :student_email
       reference_to(Course)
+      then_set :status, to: "active"
       emits "StudentEnrolled"
     end
 
@@ -104,6 +106,7 @@ Hecks.bluebook "ELearning", version: "2026.04.13.1" do
       Integer :duration_minutes
       Integer :sequence_order
       reference_to(Course)
+      then_set :status, to: "published"
       emits "LessonAuthored"
     end
 
@@ -145,6 +148,7 @@ Hecks.bluebook "ELearning", version: "2026.04.13.1" do
       Integer :time_limit_minutes
       Integer :max_attempts
       reference_to(Lesson)
+      then_set :status, to: "active"
       emits "QuizAuthored"
     end
 
@@ -187,6 +191,7 @@ Hecks.bluebook "ELearning", version: "2026.04.13.1" do
       String :course_title
       String :verification_code
       reference_to(Enrollment)
+      then_set :status, to: "valid"
       emits "CertificateIssued"
     end
 

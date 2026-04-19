@@ -26,6 +26,7 @@ Hecks.bluebook "ConcretePour" do
       Float :cubic_yards
       String :pour_date
       Integer :crew_size
+      then_set :status, to: "in_progress"
       emits "PourScheduled"
     end
 

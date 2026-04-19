@@ -19,6 +19,7 @@ Hecks.bluebook "JewelryWorkshop" do
       String :piece_type
       String :metal
       emits "PieceDesigned"
+      then_set :status, to: "designed"
     end
 
     CastPiece do
@@ -28,6 +29,14 @@ Hecks.bluebook "JewelryWorkshop" do
       given { status == "designed" }
       emits "PieceCast"
       then_set :status, to: "cast"
+    end
+
+    SetStones do
+      description "Mount the gemstones into the cast piece"
+      reference_to(JewelryPiece)
+      given { status == "cast" }
+      emits "StonesSetOnPiece"
+      then_set :status, to: "set"
     end
 
     PolishPiece do
@@ -86,6 +95,7 @@ Hecks.bluebook "JewelryWorkshop" do
       String :setting_type
       String :metal
       emits "SettingPrepared"
+      then_set :status, to: "prepared"
     end
 
     SetStone do
@@ -138,6 +148,7 @@ Hecks.bluebook "JewelryWorkshop" do
       Float :quoted_price
       String :deadline
       emits "CommissionQuoted"
+      then_set :status, to: "quoted"
     end
 
     AcceptCommission do

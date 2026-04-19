@@ -63,7 +63,7 @@ Hecks.behaviors "ApplianceRepair" do
     tests "OrderPart", on: "PartsOrder"
     setup  "RunDiagnostic", test_performed: "sample"
     input  part_number: "sample", part_name: "sample", vendor: "sample", cost: 1.0
-    expect ok: "true"
+    expect status: "ordered"
   end
 
   test "ReceivePart runs" do

@@ -24,7 +24,7 @@ Hecks.behaviors "ChrisProjectKnowledge" do
   test "AddCapability sets name + purpose" do
     tests "AddCapability", on: "CapabilitySystem"
     input  name: "sample", purpose: "sample"
-    expect capabilities_size: 1, capability_count: 1
+    expect capabilities_size: 1
   end
 
 

@@ -24,6 +24,7 @@ Hecks.bluebook "CarpentryShop" do
       String :project_type
       String :description
       Float :quoted_price
+      then_set :status, to: "materials_ready"
       emits "ProjectCommissioned"
     end
 
@@ -72,6 +73,7 @@ Hecks.bluebook "CarpentryShop" do
       description "Verify board feet, grade, and moisture content"
       reference_to(LumberOrder)
       Float :moisture_pct
+      then_set :status, to: "received"
       emits "LumberReceived"
     end
 

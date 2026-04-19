@@ -7,7 +7,7 @@ Hecks.behaviors "TicketingPlatform" do
     tests "AnnounceEvent", on: "Event"
     setup  "RegisterVenue", venue_name: "sample", address: "sample", total_capacity: 1, venue_type: "sample"
     input  event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
-    expect ok: "true"
+    expect status: "draft"
   end
 
   test "PublishEvent runs" do
@@ -28,7 +28,7 @@ Hecks.behaviors "TicketingPlatform" do
   test "RegisterVenue sets venue_name + address + total_capacity + venue_type" do
     tests "RegisterVenue", on: "Venue"
     input  venue_name: "sample", address: "sample", total_capacity: 1, venue_type: "sample"
-    expect venue_name: "sample", address: "sample", total_capacity: 1, venue_type: "sample"
+    expect venue_name: "sample", address: "sample", total_capacity: 1, venue_type: "sample", status: "active"
   end
 
   test "AdjustCapacity sets total_capacity" do
@@ -51,7 +51,7 @@ Hecks.behaviors "TicketingPlatform" do
     tests "PurchaseTicket", on: "Ticket"
     setup  "AnnounceEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
     input  ticket_id: "sample", tier_name: "sample", holder_name: "sample", holder_email: "sample", price_paid: 1.0
-    expect ok: "true"
+    expect status: "valid"
   end
 
   test "TransferTicket sets new_holder_name + new_holder_email" do
@@ -74,7 +74,7 @@ Hecks.behaviors "TicketingPlatform" do
     tests "GenerateSalesReport", on: "SalesReport"
     setup  "AnnounceEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
     input  report_id: "sample", period: "sample"
-    expect ok: "true"
+    expect status: "generated"
   end
 
   test "PublishReport runs" do
@@ -96,7 +96,7 @@ Hecks.behaviors "TicketingPlatform" do
     tests "RequestRefund", on: "Refund"
     setup  "PurchaseTicket", ticket_id: "sample", tier_name: "sample", holder_name: "sample", holder_email: "sample", price_paid: 1.0
     input  refund_id: "sample", refund_amount: 1.0, reason: "sample", refund_method: "sample"
-    expect ok: "true"
+    expect status: "pending"
   end
 
   test "ApproveRefund runs" do

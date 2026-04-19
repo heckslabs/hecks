@@ -32,7 +32,7 @@ Hecks.behaviors "Law" do
   test "RecordViolation runs" do
     tests "RecordViolation", on: "Law"
     setup  "Enact", name: "sample", description: "sample", domain_scope: "sample", check_expression: "sample", severity: "sample"
-    expect violation_count: 1
+    expect ok: "true"
   end
 
 

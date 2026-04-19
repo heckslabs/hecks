@@ -31,6 +31,7 @@ Hecks.bluebook "DigitalSignage", version: "2026.04.13.1" do
     RebootDisplay do
       description "Remotely restart a display to apply updates"
       reference_to(Display)
+      then_set :status, to: "offline"
       emits "DisplayRebooted"
     end
 
@@ -62,6 +63,7 @@ Hecks.bluebook "DigitalSignage", version: "2026.04.13.1" do
       String :playlist_name
       String :description
       String :loop_mode
+      then_set :status, to: "active"
       emits "PlaylistCreated"
     end
 
@@ -102,6 +104,7 @@ Hecks.bluebook "DigitalSignage", version: "2026.04.13.1" do
       String :title
       String :media_type
       Integer :file_size_kb
+      then_set :status, to: "pending_review"
       emits "AssetUploaded"
     end
 
@@ -143,6 +146,7 @@ Hecks.bluebook "DigitalSignage", version: "2026.04.13.1" do
       String :recurrence
       reference_to(Display)
       reference_to(Playlist)
+      then_set :status, to: "active"
       emits "ScheduleCreated"
     end
 
@@ -181,6 +185,7 @@ Hecks.bluebook "DigitalSignage", version: "2026.04.13.1" do
       String :address
       String :location_type
       String :contact_name
+      then_set :status, to: "active"
       emits "LocationRegistered"
     end
 

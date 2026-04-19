@@ -83,8 +83,45 @@ pub fn check(domain: &Domain) -> Report {
             check_aggregate(agg, lc, &mut findings);
         }
         check_given_coverage(agg, &mut findings);
+        check_mutation_references(agg, &mut findings);
     }
     Report { findings }
+}
+
+/// `then_set :field, to: :symbol` references the command's `:symbol`
+/// attribute or reference at runtime. If neither exists, the mutation
+/// is broken — at runtime the field stays null because there's nothing
+/// to copy from. Flag it.
+fn check_mutation_references(agg: &Aggregate, out: &mut Vec<Finding>) {
+    for cmd in &agg.commands {
+        for m in &cmd.mutations {
+            // Only Set mutations have a value to resolve. Append /
+            // Increment / Decrement / Toggle work differently.
+            if !matches!(m.operation, MutationOp::Set) { continue; }
+            let raw = m.value.trim();
+            let Some(sym) = raw.strip_prefix(':') else { continue };
+            // Allow further wrapping (e.g. trailing whitespace before
+            // a brace). Only flag bare-identifier symbols.
+            let name: String = sym.chars()
+                .take_while(|c| c.is_alphanumeric() || *c == '_')
+                .collect();
+            if name.is_empty() { continue; }
+
+            let in_attrs = cmd.attributes.iter().any(|a| a.name == name);
+            let in_refs  = cmd.references.iter().any(|r| r.name == name);
+            if !in_attrs && !in_refs {
+                out.push(Finding::err(
+                    format!("{}.{}", agg.name, cmd.name),
+                    format!(
+                        "then_set :{} references :{} but the command has \
+                         neither an attribute nor a reference named {:?} — \
+                         the field will stay null at runtime",
+                        m.field, name, name,
+                    ),
+                ));
+            }
+        }
+    }
 }
 
 /// Givens of the form `<field> == "<value>"` need a producer in the
@@ -119,6 +156,17 @@ fn check_given_coverage(agg: &Aggregate, out: &mut Vec<Finding>) {
 
 fn collect_producible_states(agg: &Aggregate) -> BTreeSet<(String, String)> {
     let mut produced: BTreeSet<(String, String)> = BTreeSet::new();
+    // From every aggregate attribute's `default:` value. The runtime
+    // initializes the field to that default on every fresh aggregate,
+    // so the state is reachable without any command needing to produce it.
+    for attr in &agg.attributes {
+        if let Some(d) = &attr.default {
+            let val = d.trim_matches('"').to_string();
+            if !val.is_empty() {
+                produced.insert((attr.name.clone(), val));
+            }
+        }
+    }
     // From every command's then_set Set mutations.
     for cmd in &agg.commands {
         for m in &cmd.mutations {

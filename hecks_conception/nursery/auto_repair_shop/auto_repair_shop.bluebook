@@ -80,7 +80,7 @@ Hecks.bluebook "AutoRepairShop" do
       given { status == "open" }
       emits "IssueDiagnosed"
       then_set :diagnosis, to: :diagnosis
-      then_set :status, to: "diagnosed"
+      then_set :status, to: "in_progress"
     end
 
     CompleteRepair do

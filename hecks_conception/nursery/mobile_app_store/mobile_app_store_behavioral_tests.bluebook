@@ -6,7 +6,7 @@ Hecks.behaviors "MobileAppStore" do
   test "SubmitApp sets bundle_id + title + developer_name + category + price" do
     tests "SubmitApp", on: "App"
     input  bundle_id: "sample", title: "sample", developer_name: "sample", category: "sample", price: 1.0
-    expect ok: "true"
+    expect status: "pending_review"
   end
 
   test "ApproveApp runs" do
@@ -35,12 +35,13 @@ Hecks.behaviors "MobileAppStore" do
     tests "FlagReview", on: "Review"
     setup  "PostReview", review_id: "sample", author_name: "sample", rating: 1, comment: "sample"
     input  reason: "sample"
-    expect ok: "true"
+    expect status: "flagged"
   end
 
   test "RemoveReview runs" do
     tests "RemoveReview", on: "Review"
     setup  "PostReview", review_id: "sample", author_name: "sample", rating: 1, comment: "sample"
+    setup  "FlagReview", reason: "sample"
     expect ok: "true"
   end
 
@@ -51,7 +52,7 @@ Hecks.behaviors "MobileAppStore" do
     tests "RecordDownload", on: "Download"
     setup  "SubmitApp", bundle_id: "sample", title: "sample", developer_name: "sample", category: "sample", price: 1.0
     input  download_id: "sample", user_id: "sample", device_type: "sample", os_version: "sample"
-    expect ok: "true"
+    expect status: "active"
   end
 
   test "RecordUninstall runs" do
@@ -73,7 +74,7 @@ Hecks.behaviors "MobileAppStore" do
     tests "SubmitUpdate", on: "AppUpdate"
     setup  "SubmitApp", bundle_id: "sample", title: "sample", developer_name: "sample", category: "sample", price: 1.0
     input  update_id: "sample", version_number: "sample", release_notes: "sample", size_mb: 1
-    expect ok: "true"
+    expect status: "pending"
   end
 
   test "ApproveUpdate runs" do
@@ -96,7 +97,7 @@ Hecks.behaviors "MobileAppStore" do
     tests "CalculateSplit", on: "RevenueSplit"
     setup  "SubmitApp", bundle_id: "sample", title: "sample", developer_name: "sample", category: "sample", price: 1.0
     input  split_id: "sample", gross_amount: 1.0, period: "sample"
-    expect ok: "true"
+    expect status: "calculated"
   end
 
   test "DisburseDeveloperShare runs" do

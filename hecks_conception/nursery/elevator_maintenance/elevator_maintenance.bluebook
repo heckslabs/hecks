@@ -37,6 +37,7 @@ Hecks.bluebook "ElevatorMaintenance" do
       description "Lock out the unit and post out-of-service notice"
       reference_to(ElevatorUnit)
       String :reason
+      then_set :status, to: "out_of_service"
       emits "UnitTakenOutOfService"
     end
 
@@ -96,6 +97,7 @@ Hecks.bluebook "ElevatorMaintenance" do
       String :vendor
       Float :cost
       reference_to(ElevatorUnit)
+      then_set :status, to: "received"
       emits "PartOrdered"
     end
 
@@ -179,6 +181,7 @@ Hecks.bluebook "ElevatorMaintenance" do
       description "Release passengers safely and diagnose the cause"
       reference_to(EmergencyCall)
       String :resolution
+      then_set :status, to: "resolved"
       emits "EmergencyResolved"
     end
 

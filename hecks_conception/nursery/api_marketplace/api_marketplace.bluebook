@@ -32,6 +32,7 @@ Hecks.bluebook "APIMarketplace", version: "2026.04.13.1" do
       description "Mark an API version as deprecated with a sunset date"
       reference_to(APIProduct)
       String :sunset_date
+      then_set :status, to: "deprecated"
       emits "APIDeprecated"
     end
 
@@ -64,6 +65,7 @@ Hecks.bluebook "APIMarketplace", version: "2026.04.13.1" do
       String :email
       String :organization
       String :plan
+      then_set :status, to: "active"
       emits "ConsumerRegistered"
     end
 
@@ -106,6 +108,7 @@ Hecks.bluebook "APIMarketplace", version: "2026.04.13.1" do
       String :scope
       String :expires_at
       reference_to(Consumer)
+      then_set :status, to: "active"
       emits "KeyIssued"
     end
 
@@ -187,6 +190,7 @@ Hecks.bluebook "APIMarketplace", version: "2026.04.13.1" do
       Integer :total_calls
       String :billing_period
       reference_to(Consumer)
+      then_set :status, to: "unpaid"
       emits "BillGenerated"
     end
 

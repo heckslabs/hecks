@@ -22,7 +22,7 @@ Hecks.bluebook "EmergencyRoom" do
       String :date_of_birth
       String :chief_complaint
       emits "PatientRegistered"
-      then_set :status, to: "waiting"
+      then_set :status, to: "triaged"
     end
 
     AdmitPatient do

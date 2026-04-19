@@ -27,6 +27,7 @@ Hecks.bluebook "AdTechPlatform", version: "2026.04.13.1" do
       String :target_audience
       Float :daily_budget
       Float :total_budget
+      then_set :status, to: "running"
       emits "CampaignLaunched"
     end
 
@@ -145,6 +146,7 @@ Hecks.bluebook "AdTechPlatform", version: "2026.04.13.1" do
       Float :value
       String :attribution_model
       reference_to(Click)
+      then_set :status, to: "confirmed"
       emits "ConversionTracked"
     end
 

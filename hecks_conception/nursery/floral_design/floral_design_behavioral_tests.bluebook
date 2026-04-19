@@ -6,7 +6,7 @@ Hecks.behaviors "FloralDesign" do
   test "DesignArrangement sets name + style + vessel_type + stem_count" do
     tests "DesignArrangement", on: "Arrangement"
     input  name: "sample", style: "sample", vessel_type: "sample", stem_count: 1
-    expect ok: "true"
+    expect status: "designed"
   end
 
   test "AssembleArrangement runs" do
@@ -28,7 +28,7 @@ Hecks.behaviors "FloralDesign" do
   test "ReceiveShipment sets variety + color + stem_quantity + vase_life_days" do
     tests "ReceiveShipment", on: "FlowerStock"
     input  variety: "sample", color: "sample", stem_quantity: 1, vase_life_days: 1
-    expect ok: "true"
+    expect freshness: "fresh"
   end
 
   test "MarkWilted runs" do
@@ -43,7 +43,7 @@ Hecks.behaviors "FloralDesign" do
   test "BookEvent sets event_name + venue + date + arrangement_count" do
     tests "BookEvent", on: "FloralEvent"
     input  event_name: "sample", venue: "sample", date: "sample", arrangement_count: 1
-    expect ok: "true"
+    expect status: "consulted"
   end
 
   test "FinalizeProposal runs" do
@@ -59,7 +59,7 @@ Hecks.behaviors "FloralDesign" do
     tests "ScheduleDelivery", on: "Delivery"
     setup  "DesignArrangement", name: "sample", style: "sample", vessel_type: "sample", stem_count: 1
     input  address: "sample", delivery_date: "sample", time_window: "sample", driver_name: "sample"
-    expect ok: "true"
+    expect status: "scheduled"
   end
 
   test "ConfirmDelivery runs" do
@@ -75,7 +75,7 @@ Hecks.behaviors "FloralDesign" do
     tests "PlanInstallation", on: "FloralInstallation"
     setup  "BookEvent", event_name: "sample", venue: "sample", date: "sample", arrangement_count: 1
     input  location: "sample", design_theme: "sample", crew_size: 1
-    expect ok: "true"
+    expect status: "planned"
   end
 
   test "ExecuteInstallation runs" do

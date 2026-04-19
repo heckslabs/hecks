@@ -37,6 +37,14 @@ Hecks.bluebook "PrintShop" do
       then_set :status, to: "submitted"
     end
 
+    MarkProofApproved do
+      role "PrePressOperator"
+      description "Record that the customer has approved the proof for this print job"
+      reference_to(PrintJob)
+      emits "PrintJobProofApproved"
+      then_set :status, to: "proof_approved"
+    end
+
     ApprovePrintJob do
       role "ProductionManager"
       description "Review specs and approve the job for production"
@@ -44,6 +52,14 @@ Hecks.bluebook "PrintShop" do
       given { status == "proof_approved" }
       emits "PrintJobApproved"
       then_set :status, to: "approved"
+    end
+
+    StartProduction do
+      role "PressOperator"
+      description "Move the approved job onto the press for production"
+      reference_to(PrintJob)
+      emits "PrintJobProductionStarted"
+      then_set :status, to: "in_production"
     end
 
     CompletePrintJob do

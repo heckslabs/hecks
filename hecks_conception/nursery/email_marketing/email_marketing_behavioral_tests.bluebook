@@ -6,7 +6,7 @@ Hecks.behaviors "EmailMarketing" do
   test "ComposeList sets list_name + description + opt_in_method" do
     tests "ComposeList", on: "SubscriberList"
     input  list_name: "sample", description: "sample", opt_in_method: "sample"
-    expect ok: "true"
+    expect status: "active"
   end
 
   test "AddSubscriber sets email + first_name" do
@@ -29,7 +29,7 @@ Hecks.behaviors "EmailMarketing" do
     tests "DesignCampaign", on: "EmailCampaign"
     setup  "ComposeList", list_name: "sample", description: "sample", opt_in_method: "sample"
     input  campaign_name: "sample", subject_line: "sample", from_address: "sample", template_id: "sample"
-    expect ok: "true"
+    expect status: "draft"
   end
 
   test "ScheduleCampaign sets send_at" do
@@ -104,12 +104,13 @@ Hecks.behaviors "EmailMarketing" do
     tests "ClassifyBounce", on: "Bounce"
     setup  "RecordBounce", bounce_id: "sample", recipient_email: "sample", bounce_type: "sample", smtp_code: "sample"
     input  bounce_type: "sample"
-    expect ok: "true"
+    expect bounce_type: "hard"
   end
 
   test "SuppressAddress runs" do
     tests "SuppressAddress", on: "Bounce"
     setup  "RecordBounce", bounce_id: "sample", recipient_email: "sample", bounce_type: "sample", smtp_code: "sample"
+    setup  "ClassifyBounce", bounce_type: "sample"
     expect ok: "true"
   end
 

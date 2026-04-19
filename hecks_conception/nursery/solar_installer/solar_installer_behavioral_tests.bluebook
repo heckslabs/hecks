@@ -46,7 +46,7 @@ Hecks.behaviors "SolarInstaller" do
     tests "SubmitPermit", on: "SolarPermit"
     setup  "DesignLayout", panel_count: 1, module_model: "sample", system_kw: 1.0, tilt_degrees: 1.0
     input  jurisdiction: "sample", plan_set_version: "sample"
-    expect ok: "true"
+    expect status: "submitted"
   end
 
   test "ReceiveApproval sets permit_number" do

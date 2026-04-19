@@ -203,12 +203,12 @@ Hecks.behaviors "SupplyChain" do
 
   test "RecordReceipt runs" do
     tests "RecordReceipt", on: "SupplierQuality"
-    expect total_lots_received: 1
+    expect ok: "true"
   end
 
   test "RecordRejection runs" do
     tests "RecordRejection", on: "SupplierQuality"
-    expect lots_rejected: 1
+    expect ok: "true"
   end
 
   test "CalculateMetrics runs" do

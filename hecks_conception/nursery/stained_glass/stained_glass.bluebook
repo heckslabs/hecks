@@ -21,6 +21,7 @@ Hecks.bluebook "StainedGlass" do
       Float :height_inches
       Integer :piece_count
       emits "PanelCartooned"
+      then_set :status, to: "cartooned"
     end
 
     CutPanel do
@@ -59,6 +60,7 @@ Hecks.bluebook "StainedGlass" do
       String :style
       String :client_name
       emits "DesignSketched"
+      then_set :status, to: "sketched"
     end
 
     ApproveDesign do
@@ -108,6 +110,7 @@ Hecks.bluebook "StainedGlass" do
       String :came_profile
       Float :came_width_mm
       emits "CamePrepared"
+      then_set :status, to: "prepared"
     end
 
     SolderJoints do
@@ -143,6 +146,7 @@ Hecks.bluebook "StainedGlass" do
       String :date
       String :installer_name
       emits "InstallationScheduled"
+      then_set :status, to: "scheduled"
     end
 
     CompleteInstallation do

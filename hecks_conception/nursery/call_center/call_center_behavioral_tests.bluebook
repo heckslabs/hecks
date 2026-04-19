@@ -6,7 +6,7 @@ Hecks.behaviors "CallCenter" do
   test "OpenTicket sets subject + description + priority + channel" do
     tests "OpenTicket", on: "Ticket"
     input  subject: "sample", description: "sample", priority: "sample", channel: "sample"
-    expect subject: "sample", description: "sample", priority: "sample", channel: "sample", status: "open"
+    expect subject: "sample", description: "sample", priority: "sample", channel: "sample", status: "queued"
   end
 
   test "AssignToAgent runs" do

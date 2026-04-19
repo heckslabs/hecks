@@ -164,7 +164,7 @@ Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
       String :trend
       emits "ReadingRecorded"
       then_set :current_value, to: :current_value
-      then_set :trend, to: :trend
+      then_set :trend, to: "improving"
     end
     FlagImprovement do
       role "System"

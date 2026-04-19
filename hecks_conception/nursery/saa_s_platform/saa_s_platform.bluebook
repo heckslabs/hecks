@@ -24,6 +24,7 @@ Hecks.bluebook "SaaSPlatform", version: "2026.04.13.1" do
       String :admin_email
       String :plan
       emits "TenantOnboarded"
+      then_set :status, to: "active"
     end
 
     SuspendTenant do
@@ -63,6 +64,7 @@ Hecks.bluebook "SaaSPlatform", version: "2026.04.13.1" do
       String :billing_cycle
       reference_to(Tenant)
       emits "SubscriptionStarted"
+      then_set :status, to: "active"
     end
 
     UpgradePlan do

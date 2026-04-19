@@ -6,7 +6,7 @@ Hecks.behaviors "StainedGlass" do
   test "CartoonPanel sets title + width_inches + height_inches + piece_count" do
     tests "CartoonPanel", on: "Panel"
     input  title: "sample", width_inches: 1.0, height_inches: 1.0, piece_count: 1
-    expect ok: "true"
+    expect status: "cartooned"
   end
 
   test "CutPanel runs" do
@@ -28,7 +28,7 @@ Hecks.behaviors "StainedGlass" do
   test "SketchDesign sets title + style + client_name" do
     tests "SketchDesign", on: "GlassDesign"
     input  title: "sample", style: "sample", client_name: "sample"
-    expect ok: "true"
+    expect status: "sketched"
   end
 
   test "ApproveDesign runs" do
@@ -60,7 +60,7 @@ Hecks.behaviors "StainedGlass" do
     tests "PrepareCame", on: "Leadwork"
     setup  "CartoonPanel", title: "sample", width_inches: 1.0, height_inches: 1.0, piece_count: 1
     input  came_profile: "sample", came_width_mm: 1.0
-    expect ok: "true"
+    expect status: "prepared"
   end
 
   test "SolderJoints sets solder_type" do
@@ -85,7 +85,7 @@ Hecks.behaviors "StainedGlass" do
     tests "ScheduleInstallation", on: "GlassInstallation"
     setup  "CartoonPanel", title: "sample", width_inches: 1.0, height_inches: 1.0, piece_count: 1
     input  location: "sample", date: "sample", installer_name: "sample"
-    expect ok: "true"
+    expect status: "scheduled"
   end
 
   test "CompleteInstallation runs" do

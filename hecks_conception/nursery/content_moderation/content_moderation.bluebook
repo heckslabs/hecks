@@ -25,6 +25,7 @@ Hecks.bluebook "ContentModeration", version: "2026.04.13.1" do
       String :content_type
       String :body
       String :language
+      then_set :status, to: "pending"
       emits "PostIngested"
     end
 
@@ -65,6 +66,7 @@ Hecks.bluebook "ContentModeration", version: "2026.04.13.1" do
       String :reason_category
       String :description
       reference_to(Post)
+      then_set :status, to: "open"
       emits "ReportSubmitted"
     end
 
@@ -105,6 +107,7 @@ Hecks.bluebook "ContentModeration", version: "2026.04.13.1" do
       String :reviewer_id
       String :queue_name
       reference_to(Post)
+      then_set :status, to: "in_progress"
       emits "ReviewAssigned"
     end
 
@@ -148,6 +151,7 @@ Hecks.bluebook "ContentModeration", version: "2026.04.13.1" do
       String :reason
       Integer :duration_days
       reference_to(ModerationReview)
+      then_set :status, to: "active"
       emits "ActionEnforced"
     end
 
@@ -186,6 +190,7 @@ Hecks.bluebook "ContentModeration", version: "2026.04.13.1" do
       String :appellant_id
       String :grounds
       reference_to(EnforcementAction)
+      then_set :status, to: "under_review"
       emits "AppealFiled"
     end
 

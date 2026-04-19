@@ -72,6 +72,7 @@ Hecks.bluebook "HVACService" do
       String :address
       String :complaint
       emits "TicketOpened"
+      then_set :status, to: "open"
     end
 
     DiagnoseSystem do
@@ -149,6 +150,7 @@ Hecks.bluebook "HVACService" do
       Float :annual_price
       reference_to(Unit)
       emits "PlanEnrolled"
+      then_set :status, to: "active"
     end
 
     ScheduleTuneUp do

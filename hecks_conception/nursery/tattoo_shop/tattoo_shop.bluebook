@@ -47,6 +47,7 @@ Hecks.bluebook "TattooShop" do
       Integer :duration_hours
       Float :deposit_amount
       emits "AppointmentBooked"
+      then_set :status, to: "booked"
     end
 
     StartSession do
@@ -86,6 +87,7 @@ Hecks.bluebook "TattooShop" do
       String :placement
       Float :size_inches
       emits "DesignSketched"
+      then_set :status, to: "draft"
     end
 
     ApproveDesign do

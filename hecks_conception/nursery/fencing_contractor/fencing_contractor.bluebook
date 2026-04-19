@@ -39,6 +39,7 @@ Hecks.bluebook "FencingContractor" do
       description "Price out posts, panels, gates, concrete, and labor"
       reference_to(FenceEstimate)
       Float :total_price
+      then_set :status, to: "quoted"
       emits "FenceQuoted"
     end
 
@@ -96,6 +97,7 @@ Hecks.bluebook "FencingContractor" do
       reference_to(FenceEstimate)
       Float :hole_depth_inches
       Integer :hole_count
+      then_set :status, to: "holes_dug"
       emits "HolesDug"
     end
 

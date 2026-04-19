@@ -12,6 +12,7 @@ Hecks.bluebook "Upholstery" do
       String :furniture_type
       String :client_name
       emits "ProjectAssessed"
+      then_set :status, to: "assessed"
     end
 
     ApproveEstimate do
@@ -69,6 +70,7 @@ Hecks.bluebook "Upholstery" do
       Float :yards_needed
       Float :price_per_yard
       emits "FabricSelected"
+      then_set :status, to: "selected"
     end
 
     OrderFabric do
@@ -104,6 +106,7 @@ Hecks.bluebook "Upholstery" do
       String :frame_material
       String :condition
       emits "FrameInspected"
+      then_set :status, to: "inspected"
     end
 
     RepairFrame do
@@ -147,6 +150,7 @@ Hecks.bluebook "Upholstery" do
       Float :labor_cost
       Float :material_cost
       emits "EstimateDrafted"
+      then_set :status, to: "draft"
     end
 
     SendEstimate do
@@ -175,6 +179,7 @@ Hecks.bluebook "Upholstery" do
       String :address
       String :date
       emits "DeliveryScheduled"
+      then_set :status, to: "scheduled"
     end
 
     CompleteDelivery do

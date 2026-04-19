@@ -112,6 +112,7 @@ Hecks.bluebook "RecordLabel" do
       Float :gross_revenue
       Float :split_percentage
       emits "RoyaltiesCalculated"
+      then_set :status, to: "draft"
     end
 
     ApproveStatement do
@@ -145,6 +146,7 @@ Hecks.bluebook "RecordLabel" do
       String :format
       String :territory
       emits "DistributionSubmitted"
+      then_set :status, to: "pending"
     end
 
     ConfirmDistribution do

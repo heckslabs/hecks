@@ -101,6 +101,7 @@ Hecks.bluebook "SolarInstaller" do
       String :plan_set_version
       reference_to(PanelLayout)
       emits "PermitSubmitted"
+      then_set :status, to: "submitted"
     end
 
     ReceiveApproval do

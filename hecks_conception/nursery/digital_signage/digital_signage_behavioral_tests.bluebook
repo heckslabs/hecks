@@ -13,12 +13,13 @@ Hecks.behaviors "DigitalSignage" do
   test "RebootDisplay runs" do
     tests "RebootDisplay", on: "Display"
     setup  "InstallDisplay", display_id: "sample", model: "sample", resolution: "sample", orientation: "sample"
-    expect ok: "true"
+    expect status: "offline"
   end
 
   test "RemoveDisplay runs" do
     tests "RemoveDisplay", on: "Display"
     setup  "InstallDisplay", display_id: "sample", model: "sample", resolution: "sample", orientation: "sample"
+    setup  "RebootDisplay"
     expect ok: "true"
   end
 
@@ -28,7 +29,7 @@ Hecks.behaviors "DigitalSignage" do
   test "ComposePlaylist sets playlist_name + description + loop_mode" do
     tests "ComposePlaylist", on: "Playlist"
     input  playlist_name: "sample", description: "sample", loop_mode: "sample"
-    expect ok: "true"
+    expect status: "active"
   end
 
   test "AddEntry sets content_id + duration_seconds" do
@@ -50,7 +51,7 @@ Hecks.behaviors "DigitalSignage" do
   test "UploadAsset sets asset_id + title + media_type + file_size_kb" do
     tests "UploadAsset", on: "ContentAsset"
     input  asset_id: "sample", title: "sample", media_type: "sample", file_size_kb: 1
-    expect ok: "true"
+    expect status: "pending_review"
   end
 
   test "ApproveAsset runs" do
@@ -73,7 +74,7 @@ Hecks.behaviors "DigitalSignage" do
     setup  "ComposePlaylist", playlist_name: "sample", description: "sample", loop_mode: "sample"
     setup  "InstallDisplay", display_id: "sample", model: "sample", resolution: "sample", orientation: "sample"
     input  schedule_id: "sample", start_time: "sample", end_time: "sample", recurrence: "sample"
-    expect ok: "true"
+    expect status: "active"
   end
 
   test "PauseSchedule runs" do
@@ -94,7 +95,7 @@ Hecks.behaviors "DigitalSignage" do
   test "RegisterLocation sets location_name + address + location_type + contact_name" do
     tests "RegisterLocation", on: "Location"
     input  location_name: "sample", address: "sample", location_type: "sample", contact_name: "sample"
-    expect location_name: "sample", address: "sample", location_type: "sample", contact_name: "sample"
+    expect location_name: "sample", address: "sample", location_type: "sample", contact_name: "sample", status: "active"
   end
 
   test "ReassignContact sets contact_name" do

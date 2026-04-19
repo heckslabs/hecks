@@ -12,7 +12,7 @@ Hecks.behaviors "Terminal" do
   test "ReceiveInput sets input" do
     tests "ReceiveInput", on: "Session"
     input  input: "sample"
-    expect turns: 1
+    expect ok: "true"
   end
 
   test "EndSession runs" do

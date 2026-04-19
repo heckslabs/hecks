@@ -52,6 +52,9 @@ Hecks.bluebook "PropertyManagement" do
       emits "UnitRemovedFromMarket"
       then_set :status, to: "off_market"
     end
+
+    lifecycle :status, default: "occupied" do
+    end
   end
 
   aggregate "Tenant", "A renter with contact info, background check status, and payment history" do

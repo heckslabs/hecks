@@ -127,6 +127,11 @@ fn main() {
         return;
     }
 
+    if command == "check-all" {
+        run_check_all(&args);
+        return;
+    }
+
     // Batch mode: read file paths from stdin, process each
     if path == "--batch" {
         run_batch(command);
@@ -465,6 +470,73 @@ fn run_check_lifecycle(args: &[String]) {
         println!("FAIL — {} {}", path,
                  if report.errors() > 0 { "has unreachable transitions" }
                  else { "has stuck-default warnings (--strict)" });
+        std::process::exit(1);
+    }
+}
+
+/// `hecks-life check-all <bluebook> [--strict]`
+///
+/// Run every validator in one go: lifecycle (unreachable transitions
+/// + givens + mutation refs) and IO (declarative IO smells + pure-
+/// memory dispatch smoke). Exits 0 only if both pass.
+fn run_check_all(args: &[String]) {
+    let path = args.get(2).unwrap_or_else(|| {
+        eprintln!("Usage: hecks-life check-all <bluebook> [--strict]");
+        std::process::exit(1);
+    });
+    let strict = args.iter().any(|a| a == "--strict");
+
+    let source = std::fs::read_to_string(path).unwrap_or_else(|e| {
+        eprintln!("Cannot read {}: {}", path, e); std::process::exit(1);
+    });
+    let domain = hecks_life::parser::parse(&source);
+    if domain.aggregates.is_empty() {
+        eprintln!("{} has no aggregates — nothing to check", path);
+        std::process::exit(1);
+    }
+
+    println!("Checking {} ({})", domain.name, path);
+    let mut overall_ok = true;
+
+    // Lifecycle (borrows the domain — runs first).
+    let lc = hecks_life::lifecycle_validator::check(&domain);
+    if !lc.findings.is_empty() {
+        println!("\nLifecycle:");
+        for f in &lc.findings {
+            println!("  {} {} — {}", f.icon(), f.location, f.message);
+        }
+    } else {
+        println!("\nLifecycle: clean");
+    }
+    if !lc.passes(strict) { overall_ok = false; }
+
+    // IO (consumes the domain — runs second).
+    let io = hecks_life::io_validator::check(domain);
+    if !io.static_findings.is_empty() {
+        println!("\nIO static scan:");
+        for f in &io.static_findings {
+            println!("  {} {} — {}", f.icon(), f.location, f.message);
+        }
+    } else {
+        println!("\nIO static scan: clean");
+    }
+    if !io.runtime_findings.is_empty() {
+        println!("\nIO runtime smoke:");
+        for f in &io.runtime_findings {
+            println!("  {} {} — {}", f.icon(), f.location, f.message);
+        }
+    } else {
+        println!("\nIO runtime smoke: clean");
+    }
+    if !io.passes(strict) { overall_ok = false; }
+
+    let total_errs = lc.errors() + io.errors();
+    let total_warns = lc.warnings() + io.warnings();
+    println!("\n{} error(s), {} warning(s)", total_errs, total_warns);
+    if overall_ok {
+        println!("PASS — {} is healthy{}", path, if strict { " (strict)" } else { "" });
+    } else {
+        println!("FAIL — {} has issues", path);
         std::process::exit(1);
     }
 }

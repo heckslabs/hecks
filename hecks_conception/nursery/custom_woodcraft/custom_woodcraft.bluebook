@@ -25,6 +25,7 @@ Hecks.bluebook "CustomWoodcraft" do
       goal "Process a raw log into lumber"
       attribute :species
       attribute :board_feet, Float
+      then_set :status, to: "green"
     end
 
     command "DryLumber" do

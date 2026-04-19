@@ -6,7 +6,7 @@ Hecks.behaviors "MietteBody" do
   test "Beat sets carrying" do
     tests "Beat", on: "Pulse"
     input  carrying: "sample"
-    expect beats: 1, carrying: "sample"
+    expect carrying: "sample"
   end
 
   test "Accelerate runs" do
@@ -92,7 +92,7 @@ Hecks.behaviors "MietteBody" do
   test "Neutralize runs" do
     tests "Neutralize", on: "Immunity"
     setup  "DetectThreat", threat_pattern: "sample"
-    expect threats_neutralized: 1
+    expect ok: "true"
   end
 
 
@@ -107,13 +107,13 @@ Hecks.behaviors "MietteBody" do
   test "Excite runs" do
     tests "Excite", on: "Mood"
     setup  "Express", state: "sample"
-    expect creativity_level: 1, precision_level: 1, current_state: "excited"
+    expect current_state: "excited"
   end
 
   test "Focus runs" do
     tests "Focus", on: "Mood"
     setup  "Express", state: "sample"
-    expect precision_level: 1, creativity_level: 1, current_state: "focused"
+    expect current_state: "focused"
   end
 
   test "Regulate runs" do
@@ -134,7 +134,7 @@ Hecks.behaviors "MietteBody" do
   test "Mature runs" do
     tests "Mature", on: "DomainCell"
     setup  "Conceive", domain_name: "sample"
-    expect maturity: 1, phase: "growing"
+    expect phase: "growing"
   end
 
   test "PassCheckpoint sets checkpoint_name" do

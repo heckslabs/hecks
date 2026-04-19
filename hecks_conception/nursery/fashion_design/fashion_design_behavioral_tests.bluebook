@@ -6,7 +6,7 @@ Hecks.behaviors "FashionDesign" do
   test "LaunchCollection sets name + season + theme" do
     tests "LaunchCollection", on: "Collection"
     input  name: "sample", season: "sample", theme: "sample"
-    expect ok: "true"
+    expect status: "concept"
   end
 
   test "FinalizeCollection sets piece_count" do
@@ -30,7 +30,7 @@ Hecks.behaviors "FashionDesign" do
     tests "DraftGarment", on: "Garment"
     setup  "LaunchCollection", name: "sample", season: "sample", theme: "sample"
     input  name: "sample", garment_type: "sample", fabric: "sample"
-    expect ok: "true"
+    expect status: "drafted"
   end
 
   test "SewMuslin runs" do
@@ -53,7 +53,7 @@ Hecks.behaviors "FashionDesign" do
     tests "DraftPattern", on: "Pattern"
     setup  "DraftGarment", name: "sample", garment_type: "sample", fabric: "sample"
     input  name: "sample", piece_count: 1
-    expect ok: "true"
+    expect status: "draft"
   end
 
   test "GradePattern runs" do
@@ -69,7 +69,7 @@ Hecks.behaviors "FashionDesign" do
     tests "ScheduleFitting", on: "Fitting"
     setup  "DraftGarment", name: "sample", garment_type: "sample", fabric: "sample"
     input  model_name: "sample", date: "sample"
-    expect ok: "true"
+    expect status: "scheduled"
   end
 
   test "RecordAdjustments sets notes" do
@@ -86,7 +86,7 @@ Hecks.behaviors "FashionDesign" do
     tests "PlanShow", on: "RunwayShow"
     setup  "LaunchCollection", name: "sample", season: "sample", theme: "sample"
     input  venue: "sample", date: "sample"
-    expect ok: "true"
+    expect status: "planning"
   end
 
   test "RehearsShow runs" do

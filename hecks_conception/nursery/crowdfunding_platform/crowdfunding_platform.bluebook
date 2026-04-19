@@ -70,6 +70,7 @@ Hecks.bluebook "CrowdfundingPlatform", version: "2026.04.13.1" do
       String :name
       String :email
       String :payment_method
+      then_set :status, to: "active"
       emits "BackerRegistered"
     end
 
@@ -110,6 +111,7 @@ Hecks.bluebook "CrowdfundingPlatform", version: "2026.04.13.1" do
       String :reward_tier
       reference_to(Campaign)
       reference_to(Backer)
+      then_set :status, to: "active"
       emits "PledgeMade"
     end
 
@@ -159,6 +161,7 @@ Hecks.bluebook "CrowdfundingPlatform", version: "2026.04.13.1" do
       reference_to(Reward)
       String :carrier
       String :tracking_number
+      then_set :fulfillment_status, to: "shipped"
       emits "RewardShipped"
     end
 
@@ -192,6 +195,7 @@ Hecks.bluebook "CrowdfundingPlatform", version: "2026.04.13.1" do
       String :description
       String :target_date
       reference_to(Campaign)
+      then_set :status, to: "pending"
       emits "MilestoneSet"
     end
 

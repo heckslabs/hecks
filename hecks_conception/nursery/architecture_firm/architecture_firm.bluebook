@@ -37,6 +37,10 @@ Hecks.bluebook "ArchitectureFirm" do
       emits "ProjectClosedOut"
       then_set :phase, to: "closed"
     end
+
+    lifecycle :phase, default: "schematic_design" do
+      transition "PhaseAdvanced" => "construction_admin", from: "schematic_design"
+    end
   end
 
   aggregate "Drawing", "An architectural drawing set — plans, sections, elevations, details" do
@@ -53,6 +57,7 @@ Hecks.bluebook "ArchitectureFirm" do
       String :title
       String :drawing_type
       String :scale
+      then_set :status, to: "draft"
       emits "DrawingProduced"
     end
 
@@ -84,6 +89,7 @@ Hecks.bluebook "ArchitectureFirm" do
       reference_to(Drawing)
       String :reviewer_name
       String :comments
+      then_set :status, to: "pending"
       emits "RevisionRequested"
     end
 
@@ -142,6 +148,7 @@ Hecks.bluebook "ArchitectureFirm" do
       reference_to(ArchProject)
       String :date
       String :inspector_name
+      then_set :status, to: "scheduled"
       emits "VisitScheduled"
     end
 

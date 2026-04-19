@@ -45,6 +45,15 @@ Hecks.bluebook "MarinaManagement" do
       then_set :status, to: "reserved"
     end
 
+    OccupySlip do
+      role "HarborMaster"
+      description "Mark a reserved slip as occupied once the vessel docks"
+      reference_to(Slip)
+      given { status == "reserved" }
+      emits "SlipOccupied"
+      then_set :status, to: "occupied"
+    end
+
     VacateSlip do
       role "HarborMaster"
       description "Mark a slip as empty after a vessel departs"

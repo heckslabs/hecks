@@ -6,7 +6,7 @@ Hecks.behaviors "Upholstery" do
   test "AssessProject sets piece_description + furniture_type + client_name" do
     tests "AssessProject", on: "UpholsteryProject"
     input  piece_description: "sample", furniture_type: "sample", client_name: "sample"
-    expect ok: "true"
+    expect status: "assessed"
   end
 
   test "ApproveEstimate sets quoted_price" do
@@ -38,7 +38,7 @@ Hecks.behaviors "Upholstery" do
     tests "SelectFabric", on: "FabricSelection"
     setup  "AssessProject", piece_description: "sample", furniture_type: "sample", client_name: "sample"
     input  fabric_name: "sample", material: "sample", color: "sample", yards_needed: 1.0, price_per_yard: 1.0
-    expect ok: "true"
+    expect status: "selected"
   end
 
   test "OrderFabric runs" do
@@ -61,7 +61,7 @@ Hecks.behaviors "Upholstery" do
     tests "InspectFrame", on: "FrameWork"
     setup  "AssessProject", piece_description: "sample", furniture_type: "sample", client_name: "sample"
     input  frame_material: "sample", condition: "sample"
-    expect ok: "true"
+    expect status: "inspected"
   end
 
   test "RepairFrame sets repair_notes" do
@@ -85,7 +85,7 @@ Hecks.behaviors "Upholstery" do
     tests "DraftEstimate", on: "Estimate"
     setup  "AssessProject", piece_description: "sample", furniture_type: "sample", client_name: "sample"
     input  labor_cost: 1.0, material_cost: 1.0
-    expect ok: "true"
+    expect status: "draft"
   end
 
   test "SendEstimate runs" do
@@ -101,7 +101,7 @@ Hecks.behaviors "Upholstery" do
     tests "ScheduleDelivery", on: "UpholsteryDelivery"
     setup  "AssessProject", piece_description: "sample", furniture_type: "sample", client_name: "sample"
     input  delivery_type: "sample", address: "sample", date: "sample"
-    expect ok: "true"
+    expect status: "scheduled"
   end
 
   test "CompleteDelivery runs" do

@@ -29,7 +29,7 @@ Hecks.behaviors "HVACService" do
   test "OpenTicket sets customer_name + address + complaint" do
     tests "OpenTicket", on: "ServiceTicket"
     input  customer_name: "sample", address: "sample", complaint: "sample"
-    expect customer_name: "sample", address: "sample", complaint: "sample"
+    expect customer_name: "sample", address: "sample", complaint: "sample", status: "open"
   end
 
   test "DiagnoseSystem sets diagnosis" do
@@ -70,7 +70,7 @@ Hecks.behaviors "HVACService" do
     tests "EnrollPlan", on: "MaintenancePlan"
     setup  "RegisterUnit", unit_type: "sample", brand: "sample", model: "sample", tonnage: 1.0, seer_rating: 1.0, location: "sample"
     input  plan_name: "sample", customer_name: "sample", visits_per_year: 1, annual_price: 1.0
-    expect ok: "true"
+    expect status: "active"
   end
 
   test "ScheduleTuneUp sets scheduled_date" do

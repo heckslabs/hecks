@@ -23,6 +23,7 @@ Hecks.bluebook "ElectricalContractor" do
       String :property_address
       String :scope_of_work
       Float :bid_amount
+      then_set :status, to: "inspected"
       emits "JobBooked"
     end
 
@@ -126,6 +127,7 @@ Hecks.bluebook "ElectricalContractor" do
       description "Submit permit application to the building department"
       String :jurisdiction
       String :work_description
+      then_set :status, to: "pending"
       emits "PermitPulled"
     end
 

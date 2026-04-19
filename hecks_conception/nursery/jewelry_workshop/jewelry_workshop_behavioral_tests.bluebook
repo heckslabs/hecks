@@ -6,7 +6,7 @@ Hecks.behaviors "JewelryWorkshop" do
   test "DesignPiece sets name + piece_type + metal" do
     tests "DesignPiece", on: "JewelryPiece"
     input  name: "sample", piece_type: "sample", metal: "sample"
-    expect ok: "true"
+    expect status: "designed"
   end
 
   test "CastPiece sets casting_method" do
@@ -16,9 +16,18 @@ Hecks.behaviors "JewelryWorkshop" do
     expect status: "cast"
   end
 
+  test "SetStones runs" do
+    tests "SetStones", on: "JewelryPiece"
+    setup  "DesignPiece", name: "sample", piece_type: "sample", metal: "sample"
+    setup  "CastPiece", casting_method: "sample"
+    expect status: "set"
+  end
+
   test "PolishPiece runs" do
     tests "PolishPiece", on: "JewelryPiece"
     setup  "DesignPiece", name: "sample", piece_type: "sample", metal: "sample"
+    setup  "CastPiece", casting_method: "sample"
+    setup  "SetStones"
     expect status: "finished"
   end
 
@@ -45,7 +54,7 @@ Hecks.behaviors "JewelryWorkshop" do
     tests "PrepareSetting", on: "Setting"
     setup  "DesignPiece", name: "sample", piece_type: "sample", metal: "sample"
     input  setting_type: "sample", metal: "sample"
-    expect ok: "true"
+    expect status: "prepared"
   end
 
   test "SetStone runs" do
@@ -78,7 +87,7 @@ Hecks.behaviors "JewelryWorkshop" do
   test "QuoteCommission sets client_name + description + quoted_price + deadline" do
     tests "QuoteCommission", on: "Commission"
     input  client_name: "sample", description: "sample", quoted_price: 1.0, deadline: "sample"
-    expect ok: "true"
+    expect status: "quoted"
   end
 
   test "AcceptCommission runs" do

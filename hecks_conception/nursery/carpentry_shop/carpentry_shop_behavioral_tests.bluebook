@@ -6,7 +6,7 @@ Hecks.behaviors "CarpentryShop" do
   test "AcceptProject sets client_name + project_type + description + quoted_price" do
     tests "AcceptProject", on: "Project"
     input  client_name: "sample", project_type: "sample", description: "sample", quoted_price: 1.0
-    expect ok: "true"
+    expect status: "materials_ready"
   end
 
   test "BeginFabrication runs" do
@@ -35,12 +35,13 @@ Hecks.behaviors "CarpentryShop" do
     tests "ReceiveLumber", on: "LumberOrder"
     setup  "OrderLumber", species: "sample", grade: "sample", board_feet: 1.0, supplier: "sample"
     input  moisture_pct: 1.0
-    expect ok: "true"
+    expect status: "received"
   end
 
   test "RejectLumber sets rejection_reason" do
     tests "RejectLumber", on: "LumberOrder"
     setup  "OrderLumber", species: "sample", grade: "sample", board_feet: 1.0, supplier: "sample"
+    setup  "ReceiveLumber", moisture_pct: 1.0
     input  rejection_reason: "sample"
     expect ok: "true"
   end

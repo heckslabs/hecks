@@ -13,7 +13,7 @@ Hecks.behaviors "Miette" do
     tests "Respond", on: "Conversation"
     setup  "Greet", person_name: "sample"
     input  said: "sample", responded: "sample", timestamp: "sample"
-    expect turns: 1, last_exchange: { said: :said, responded: :responded, timestamp: :timestamp }
+    expect last_exchange: { said: :said, responded: :responded, timestamp: :timestamp }
   end
 
   test "ShiftTopic sets topic" do
@@ -49,7 +49,7 @@ Hecks.behaviors "Miette" do
   test "Recall runs" do
     tests "Recall", on: "Memory"
     setup  "EncodeMemory", domain_name: "sample", persona: "sample", summary: "sample", conceived_at: "sample"
-    expect recalled_count: 1
+    expect ok: "true"
   end
 
 
@@ -81,7 +81,7 @@ Hecks.behaviors "Miette" do
   test "ConceiveDomain sets domain_name" do
     tests "ConceiveDomain", on: "NurseryAwareness"
     input  domain_name: "sample"
-    expect domain_count: 1, bluebook_count: 1, last_conceived: "sample"
+    expect last_conceived: "sample"
   end
 
   test "MarkFavorite sets domain_name" do

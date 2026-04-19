@@ -6,7 +6,7 @@ Hecks.behaviors "BookPublishing" do
   test "SubmitManuscript sets title + genre + author_name + word_count" do
     tests "SubmitManuscript", on: "Manuscript"
     input  title: "sample", genre: "sample", author_name: "sample", word_count: 1
-    expect ok: "true"
+    expect status: "submitted"
   end
 
   test "AcceptManuscript runs" do
@@ -29,7 +29,7 @@ Hecks.behaviors "BookPublishing" do
     tests "AssignEditor", on: "EditorialPass"
     setup  "SubmitManuscript", title: "sample", genre: "sample", author_name: "sample", word_count: 1
     input  pass_type: "sample", editor_name: "sample"
-    expect ok: "true"
+    expect status: "assigned"
   end
 
   test "CompletePass sets change_count" do
@@ -53,7 +53,7 @@ Hecks.behaviors "BookPublishing" do
     tests "BriefDesigner", on: "CoverDesign"
     setup  "SubmitManuscript", title: "sample", genre: "sample", author_name: "sample", word_count: 1
     input  designer_name: "sample", art_style: "sample"
-    expect ok: "true"
+    expect status: "briefed"
   end
 
   test "ApproveCover runs" do
@@ -69,7 +69,7 @@ Hecks.behaviors "BookPublishing" do
     tests "OrderPrintRun", on: "PrintRun"
     setup  "SubmitManuscript", title: "sample", genre: "sample", author_name: "sample", word_count: 1
     input  quantity: 1, binding_type: "sample", paper_stock: "sample"
-    expect ok: "true"
+    expect status: "ordered"
   end
 
   test "ReceiveShipment sets received_quantity" do

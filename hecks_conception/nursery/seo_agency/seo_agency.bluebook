@@ -26,6 +26,7 @@ Hecks.bluebook "SEOAgency", version: "2026.04.13.1" do
       String :contact_email
       String :plan_tier
       emits "ClientSigned"
+      then_set :status, to: "active"
     end
 
     PauseEngagement do
@@ -107,6 +108,7 @@ Hecks.bluebook "SEOAgency", version: "2026.04.13.1" do
       Integer :pages_crawled
       reference_to(Client)
       emits "AuditRun"
+      then_set :status, to: "in_progress"
     end
 
     LogIssue do
@@ -151,6 +153,7 @@ Hecks.bluebook "SEOAgency", version: "2026.04.13.1" do
       String :anchor_text
       reference_to(Client)
       emits "BacklinkAcquired"
+      then_set :status, to: "active"
     end
 
     VerifyBacklink do
@@ -189,6 +192,7 @@ Hecks.bluebook "SEOAgency", version: "2026.04.13.1" do
       String :period
       reference_to(Client)
       emits "ReportGenerated"
+      then_set :status, to: "ready"
     end
 
     DeliverReport do

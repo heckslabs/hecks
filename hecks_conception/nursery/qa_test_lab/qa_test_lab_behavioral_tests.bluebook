@@ -6,7 +6,7 @@ Hecks.behaviors "QATestLab" do
   test "RegisterTestProject sets project_name + repository_url + team_lead + priority" do
     tests "RegisterTestProject", on: "TestProject"
     input  project_name: "sample", repository_url: "sample", team_lead: "sample", priority: "sample"
-    expect project_name: "sample", repository_url: "sample", team_lead: "sample", priority: "sample"
+    expect project_name: "sample", repository_url: "sample", team_lead: "sample", priority: "sample", status: "active"
   end
 
   test "AssignTeamLead sets team_lead" do
@@ -29,7 +29,7 @@ Hecks.behaviors "QATestLab" do
     tests "DefineTestSuite", on: "TestSuite"
     setup  "RegisterTestProject", project_name: "sample", repository_url: "sample", team_lead: "sample", priority: "sample"
     input  suite_name: "sample", test_type: "sample"
-    expect ok: "true"
+    expect status: "active"
   end
 
   test "ExecuteTestSuite sets build_id" do
@@ -59,12 +59,13 @@ Hecks.behaviors "QATestLab" do
     tests "AssignBug", on: "Bug"
     setup  "FileBug", bug_id: "sample", title: "sample", description: "sample", severity: "sample"
     input  assigned_to: "sample"
-    expect ok: "true"
+    expect status: "in_progress"
   end
 
   test "CloseBug runs" do
     tests "CloseBug", on: "Bug"
     setup  "FileBug", bug_id: "sample", title: "sample", description: "sample", severity: "sample"
+    setup  "AssignBug", assigned_to: "sample"
     expect ok: "true"
   end
 
@@ -74,7 +75,7 @@ Hecks.behaviors "QATestLab" do
   test "SetupEnvironment sets env_name + platform + browser_version + os_version" do
     tests "SetupEnvironment", on: "TestEnvironment"
     input  env_name: "sample", platform: "sample", browser_version: "sample", os_version: "sample"
-    expect ok: "true"
+    expect status: "idle"
   end
 
   test "TeardownEnvironment runs" do

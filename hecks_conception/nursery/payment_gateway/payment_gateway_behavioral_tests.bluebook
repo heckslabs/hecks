@@ -7,7 +7,7 @@ Hecks.behaviors "PaymentGateway" do
     tests "AuthorizeTransaction", on: "Transaction"
     setup  "OnboardMerchant", merchant_id: "sample", business_name: "sample", mcc_code: "sample", contact_email: "sample", processing_rate: 1.0
     input  transaction_id: "sample", amount: 1.0, currency: "sample", card_last_four: "sample"
-    expect ok: "true"
+    expect status: "authorized"
   end
 
   test "CaptureTransaction runs" do
@@ -34,12 +34,13 @@ Hecks.behaviors "PaymentGateway" do
   test "SuspendMerchant runs" do
     tests "SuspendMerchant", on: "Merchant"
     setup  "OnboardMerchant", merchant_id: "sample", business_name: "sample", mcc_code: "sample", contact_email: "sample", processing_rate: 1.0
-    expect ok: "true"
+    expect status: "suspended"
   end
 
   test "ReinstateMerchant runs" do
     tests "ReinstateMerchant", on: "Merchant"
     setup  "OnboardMerchant", merchant_id: "sample", business_name: "sample", mcc_code: "sample", contact_email: "sample", processing_rate: 1.0
+    setup  "SuspendMerchant"
     expect ok: "true"
   end
 
@@ -50,7 +51,7 @@ Hecks.behaviors "PaymentGateway" do
     tests "BatchSettlement", on: "Settlement"
     setup  "OnboardMerchant", merchant_id: "sample", business_name: "sample", mcc_code: "sample", contact_email: "sample", processing_rate: 1.0
     input  settlement_id: "sample", gross_amount: 1.0, fees: 1.0, period: "sample"
-    expect ok: "true"
+    expect status: "pending"
   end
 
   test "DisburseSettlement runs" do
@@ -73,7 +74,7 @@ Hecks.behaviors "PaymentGateway" do
     tests "FileChargeback", on: "Chargeback"
     setup  "AuthorizeTransaction", transaction_id: "sample", amount: 1.0, currency: "sample", card_last_four: "sample"
     input  chargeback_id: "sample", reason_code: "sample", amount: 1.0, evidence_due_date: "sample"
-    expect ok: "true"
+    expect status: "open"
   end
 
   test "SubmitEvidence sets document_type + document_url" do
@@ -97,7 +98,7 @@ Hecks.behaviors "PaymentGateway" do
     tests "RunComplianceCheck", on: "ComplianceCheck"
     setup  "OnboardMerchant", merchant_id: "sample", business_name: "sample", mcc_code: "sample", contact_email: "sample", processing_rate: 1.0
     input  check_id: "sample", check_type: "sample", scope: "sample"
-    expect ok: "true"
+    expect status: "pending"
   end
 
   test "PassCheck runs" do

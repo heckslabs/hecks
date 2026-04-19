@@ -13,12 +13,13 @@ Hecks.behaviors "ElevatorMaintenance" do
     tests "ShutDownUnit", on: "ElevatorUnit"
     setup  "RegisterUnit", building_name: "sample", unit_number: "sample", elevator_type: "sample", floors_served: 1, capacity_lbs: 1, install_year: 1
     input  reason: "sample"
-    expect ok: "true"
+    expect status: "out_of_service"
   end
 
   test "ReturnToService runs" do
     tests "ReturnToService", on: "ElevatorUnit"
     setup  "RegisterUnit", building_name: "sample", unit_number: "sample", elevator_type: "sample", floors_served: 1, capacity_lbs: 1, install_year: 1
+    setup  "ShutDownUnit", reason: "sample"
     expect ok: "true"
   end
 
@@ -46,7 +47,7 @@ Hecks.behaviors "ElevatorMaintenance" do
     tests "OrderPart", on: "PartReplacement"
     setup  "RegisterUnit", building_name: "sample", unit_number: "sample", elevator_type: "sample", floors_served: 1, capacity_lbs: 1, install_year: 1
     input  part_name: "sample", part_number: "sample", vendor: "sample", cost: 1.0
-    expect ok: "true"
+    expect status: "received"
   end
 
   test "InstallPart runs" do
@@ -92,12 +93,13 @@ Hecks.behaviors "ElevatorMaintenance" do
     tests "ResolveEmergency", on: "EmergencyCall"
     setup  "DispatchMechanic", building_name: "sample", unit_number: "sample", call_type: "sample"
     input  resolution: "sample"
-    expect ok: "true"
+    expect status: "resolved"
   end
 
   test "FileIncidentReport sets incident_details" do
     tests "FileIncidentReport", on: "EmergencyCall"
     setup  "DispatchMechanic", building_name: "sample", unit_number: "sample", call_type: "sample"
+    setup  "ResolveEmergency", resolution: "sample"
     input  incident_details: "sample"
     expect ok: "true"
   end

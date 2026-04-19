@@ -6,7 +6,7 @@ Hecks.behaviors "PotteryStudio" do
   test "ThrowPiece sets name + form + clay_body + weight_kg" do
     tests "ThrowPiece", on: "Piece"
     input  name: "sample", form: "sample", clay_body: "sample", weight_kg: 1.0
-    expect ok: "true"
+    expect status: "thrown"
   end
 
   test "TrimPiece runs" do
@@ -47,7 +47,7 @@ Hecks.behaviors "PotteryStudio" do
     tests "LoadKiln", on: "Firing"
     setup  "SetUpKiln", name: "sample", fuel_type: "sample", cubic_feet: 1.0
     input  firing_type: "sample", target_cone: 1, atmosphere: "sample", piece_count: 1
-    expect ok: "true"
+    expect status: "loading"
   end
 
   test "StartFiring runs" do
@@ -101,7 +101,7 @@ Hecks.behaviors "PotteryStudio" do
   test "CurateExhibition sets title + venue + opening_date + piece_count" do
     tests "CurateExhibition", on: "Exhibition"
     input  title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
-    expect ok: "true"
+    expect status: "planning"
   end
 
   test "OpenExhibition runs" do

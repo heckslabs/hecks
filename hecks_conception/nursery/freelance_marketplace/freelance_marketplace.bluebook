@@ -26,6 +26,7 @@ Hecks.bluebook "FreelanceMarketplace", version: "2026.04.13.1" do
       Float :budget
       String :deadline
       emits "GigPosted"
+      then_set :status, to: "open"
     end
 
     CloseGig do
@@ -66,6 +67,7 @@ Hecks.bluebook "FreelanceMarketplace", version: "2026.04.13.1" do
       String :headline
       Float :hourly_rate
       emits "FreelancerRegistered"
+      then_set :status, to: "active"
     end
 
     ReviseProfile do
@@ -109,6 +111,7 @@ Hecks.bluebook "FreelanceMarketplace", version: "2026.04.13.1" do
       reference_to(Gig)
       reference_to(Freelancer)
       emits "ProposalSubmitted"
+      then_set :status, to: "pending"
     end
 
     AcceptProposal do
@@ -153,6 +156,7 @@ Hecks.bluebook "FreelanceMarketplace", version: "2026.04.13.1" do
       reference_to(Gig)
       reference_to(Freelancer)
       emits "ContractSigned"
+      then_set :status, to: "active"
     end
 
     CompleteMilestone do
@@ -198,6 +202,7 @@ Hecks.bluebook "FreelanceMarketplace", version: "2026.04.13.1" do
       description "Escrow a payment pending milestone review"
       reference_to(Payment)
       emits "PaymentHeld"
+      then_set :status, to: "held"
     end
 
     RefundPayment do

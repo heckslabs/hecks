@@ -78,7 +78,7 @@ Hecks.behaviors "PoolMaintenance" do
     tests "OpenRepairTicket", on: "RepairTicket"
     setup  "RegisterPool", owner_name: "sample", address: "sample", pool_type: "sample", gallons: 1.0, surface_type: "sample", sanitizer_type: "sample"
     input  problem_description: "sample"
-    expect problem_description: "sample"
+    expect problem_description: "sample", status: "diagnosed"
   end
 
   test "CompleteRepair sets diagnosis + repair_cost" do

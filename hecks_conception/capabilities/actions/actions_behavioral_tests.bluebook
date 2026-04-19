@@ -25,7 +25,7 @@ Hecks.behaviors "Actions" do
   test "CompleteStep runs" do
     tests "CompleteStep", on: "ActionPlan"
     setup  "Conceive", name: "sample", description: "sample", rationale: "sample", action_bluebook_path: "sample", steps_total: 1
-    expect steps_completed: 1
+    expect ok: "true"
   end
 
   test "TestReverse runs" do

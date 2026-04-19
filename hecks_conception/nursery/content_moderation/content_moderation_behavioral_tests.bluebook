@@ -6,7 +6,7 @@ Hecks.behaviors "ContentModeration" do
   test "IngestPost sets post_id + author_id + content_type + body + language" do
     tests "IngestPost", on: "Post"
     input  post_id: "sample", author_id: "sample", content_type: "sample", body: "sample", language: "sample"
-    expect ok: "true"
+    expect status: "pending"
   end
 
   test "AutoFlagPost sets flag_reason" do
@@ -29,7 +29,7 @@ Hecks.behaviors "ContentModeration" do
     tests "SubmitReport", on: "Report"
     setup  "IngestPost", post_id: "sample", author_id: "sample", content_type: "sample", body: "sample", language: "sample"
     input  report_id: "sample", reporter_id: "sample", reason_category: "sample", description: "sample"
-    expect ok: "true"
+    expect status: "open"
   end
 
   test "PrioritizeReport sets priority" do
@@ -52,7 +52,7 @@ Hecks.behaviors "ContentModeration" do
     tests "AssignReview", on: "ModerationReview"
     setup  "IngestPost", post_id: "sample", author_id: "sample", content_type: "sample", body: "sample", language: "sample"
     input  review_id: "sample", reviewer_id: "sample", queue_name: "sample"
-    expect ok: "true"
+    expect status: "in_progress"
   end
 
   test "RenderVerdict sets verdict" do
@@ -76,7 +76,7 @@ Hecks.behaviors "ContentModeration" do
     tests "EnforceAction", on: "EnforcementAction"
     setup  "AssignReview", review_id: "sample", reviewer_id: "sample", queue_name: "sample"
     input  action_id: "sample", action_type: "sample", target_id: "sample", reason: "sample", duration_days: 1
-    expect ok: "true"
+    expect status: "active"
   end
 
   test "LiftAction runs" do
@@ -99,7 +99,7 @@ Hecks.behaviors "ContentModeration" do
     tests "FileAppeal", on: "Appeal"
     setup  "EnforceAction", action_id: "sample", action_type: "sample", target_id: "sample", reason: "sample", duration_days: 1
     input  appeal_id: "sample", appellant_id: "sample", grounds: "sample"
-    expect ok: "true"
+    expect status: "under_review"
   end
 
   test "GrantAppeal runs" do

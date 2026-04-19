@@ -6,7 +6,7 @@ Hecks.behaviors "CustomWoodcraft" do
   test "MillLog sets species + board_feet" do
     tests "MillLog", on: "Lumber"
     input  species: "sample", board_feet: 1.0
-    expect ok: "true"
+    expect status: "green"
   end
 
   test "DryLumber runs" do

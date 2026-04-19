@@ -24,6 +24,7 @@ Hecks.bluebook "LocksmithService" do
       String :service_type
       String :urgency
       emits "LocksmithDispatched"
+      then_set :status, to: "dispatched"
     end
 
     ArriveOnSite do
@@ -107,6 +108,18 @@ Hecks.bluebook "LocksmithService" do
       String :blank_code
       reference_to(Lock)
       emits "KeysCut"
+      then_set :key_type, to: :key_type
+    end
+
+    CutTransponderBlank do
+      role "Locksmith"
+      goal "Cut a transponder key blank ready for programming"
+      description "Prepare a transponder-grade blank for downstream programming"
+      Integer :quantity
+      String :blank_code
+      reference_to(Lock)
+      emits "TransponderBlankCut"
+      then_set :key_type, to: "transponder"
     end
 
     ProgramTransponder do

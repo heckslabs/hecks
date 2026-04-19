@@ -6,7 +6,7 @@ Hecks.behaviors "LocksmithService" do
   test "DispatchLocksmith sets customer_name + address + service_type + urgency" do
     tests "DispatchLocksmith", on: "ServiceCall"
     input  customer_name: "sample", address: "sample", service_type: "sample", urgency: "sample"
-    expect ok: "true"
+    expect status: "dispatched"
   end
 
   test "ArriveOnSite runs" do
@@ -52,12 +52,19 @@ Hecks.behaviors "LocksmithService" do
     tests "CutKeys", on: "KeyOrder"
     setup  "InstallLock", lock_type: "sample", brand: "sample", grade: "sample", location: "sample"
     input  key_type: "sample", quantity: 1, blank_code: "sample"
-    expect ok: "true"
+    expect key_type: "sample"
+  end
+
+  test "CutTransponderBlank sets quantity + blank_code" do
+    tests "CutTransponderBlank", on: "KeyOrder"
+    setup  "InstallLock", lock_type: "sample", brand: "sample", grade: "sample", location: "sample"
+    input  quantity: 1, blank_code: "sample"
+    expect key_type: "transponder"
   end
 
   test "ProgramTransponder sets vehicle_make + vehicle_year" do
     tests "ProgramTransponder", on: "KeyOrder"
-    setup  "CutKeys", key_type: "sample", quantity: 1, blank_code: "sample"
+    setup  "CutTransponderBlank", quantity: 1, blank_code: "sample"
     input  vehicle_make: "sample", vehicle_year: "sample"
     expect ok: "true"
   end

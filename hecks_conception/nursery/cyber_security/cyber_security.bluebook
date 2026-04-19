@@ -29,6 +29,7 @@ Hecks.bluebook "CyberSecurity", version: "2026.04.13.1" do
       String :category
       String :severity
       String :source_feed
+      then_set :status, to: "active"
       emits "ThreatIdentified"
     end
 
@@ -79,6 +80,7 @@ Hecks.bluebook "CyberSecurity", version: "2026.04.13.1" do
       description "Route the incident to a specialized response team"
       reference_to(SecurityIncident)
       String :assigned_team
+      then_set :status, to: "in_progress"
       emits "ResponseTeamAssigned"
     end
 
@@ -119,6 +121,7 @@ Hecks.bluebook "CyberSecurity", version: "2026.04.13.1" do
       description "Push a patch to a specific host or host group"
       reference_to(Patch)
       String :host
+      then_set :status, to: "deployed"
       emits "PatchDeployed"
     end
 
@@ -152,6 +155,7 @@ Hecks.bluebook "CyberSecurity", version: "2026.04.13.1" do
       String :scope
       String :framework
       String :auditor
+      then_set :status, to: "in_progress"
       emits "AuditInitiated"
     end
 

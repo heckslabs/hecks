@@ -35,6 +35,7 @@ Hecks.bluebook "OnlineAuction", version: "2026.04.13.1" do
       Float :reserve_price
       String :auction_end
       emits "LotListed"
+      then_set :status, to: "active"
     end
 
     CloseLot do
@@ -122,6 +123,7 @@ Hecks.bluebook "OnlineAuction", version: "2026.04.13.1" do
       description "Confirm a seller's identity and payment details"
       reference_to(Seller)
       emits "SellerVerified"
+      then_set :status, to: "active"
     end
 
     SuspendSeller do
@@ -156,6 +158,7 @@ Hecks.bluebook "OnlineAuction", version: "2026.04.13.1" do
       Float :seller_commission
       reference_to(Lot)
       emits "LotSettled"
+      then_set :status, to: "pending"
     end
 
     DisburseToSeller do
@@ -196,6 +199,7 @@ Hecks.bluebook "OnlineAuction", version: "2026.04.13.1" do
       String :description
       reference_to(AuctionSettlement)
       emits "DisputeOpened"
+      then_set :status, to: "open"
     end
 
     ResolveDispute do

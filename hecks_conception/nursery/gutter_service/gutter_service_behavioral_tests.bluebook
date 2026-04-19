@@ -39,7 +39,7 @@ Hecks.behaviors "GutterService" do
     tests "OrderMaterial", on: "GutterMaterial"
     setup  "TakeMeasurements", run_length_feet: 1.0, drop_per_foot: 1.0, miter_count: 1, gutter_profile: "sample"
     input  material_type: "sample", gauge: "sample", color: "sample", coil_footage: 1.0
-    expect ok: "true"
+    expect status: "delivered"
   end
 
   test "FabricateGutter runs" do

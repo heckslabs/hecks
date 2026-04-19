@@ -41,13 +41,13 @@ Hecks.behaviors "Compilation" do
   test "RecordCompilation runs" do
     tests "RecordCompilation", on: "CompressionRun"
     setup  "StartRun", run_id: "sample", domain_count: 1
-    expect compiled_count: 1
+    expect ok: "true"
   end
 
   test "RecordFailure runs" do
     tests "RecordFailure", on: "CompressionRun"
     setup  "StartRun", run_id: "sample", domain_count: 1
-    expect failed_count: 1
+    expect ok: "true"
   end
 
   test "CompleteRun runs" do

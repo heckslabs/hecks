@@ -75,6 +75,7 @@ Hecks.bluebook "DataCenter", version: "2026.04.13.1" do
       Integer :ram_gb
       String :os_version
       reference_to(Rack)
+      then_set :status, to: "powered_off"
       emits "ServerSetUp"
     end
 
@@ -191,6 +192,7 @@ Hecks.bluebook "DataCenter", version: "2026.04.13.1" do
       String :summary
       String :affected_zone
       reference_to(Server)
+      then_set :status, to: "open"
       emits "IncidentReported"
     end
 

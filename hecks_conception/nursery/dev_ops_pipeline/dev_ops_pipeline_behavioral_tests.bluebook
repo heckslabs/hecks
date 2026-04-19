@@ -6,7 +6,7 @@ Hecks.behaviors "DevOpsPipeline" do
   test "RegisterRepository sets repo_name + clone_url + default_branch + language" do
     tests "RegisterRepository", on: "Repository"
     input  repo_name: "sample", clone_url: "sample", default_branch: "sample", language: "sample"
-    expect repo_name: "sample", clone_url: "sample", default_branch: "sample", language: "sample"
+    expect repo_name: "sample", clone_url: "sample", default_branch: "sample", language: "sample", status: "idle"
   end
 
   test "RetargetBranch sets default_branch" do
@@ -53,7 +53,7 @@ Hecks.behaviors "DevOpsPipeline" do
     tests "DeployArtifact", on: "Deployment"
     setup  "TriggerBuild", build_number: "sample", commit_sha: "sample"
     input  deploy_id: "sample", environment: "sample", strategy: "sample", deployed_by: "sample"
-    expect ok: "true"
+    expect status: "healthy"
   end
 
   test "PromoteDeployment runs" do
@@ -75,7 +75,7 @@ Hecks.behaviors "DevOpsPipeline" do
     tests "InitiateRollback", on: "Rollback"
     setup  "DeployArtifact", deploy_id: "sample", environment: "sample", strategy: "sample", deployed_by: "sample"
     input  rollback_id: "sample", reason: "sample", target_version: "sample", initiated_by: "sample"
-    expect ok: "true"
+    expect status: "in_progress"
   end
 
   test "CompleteRollback runs" do

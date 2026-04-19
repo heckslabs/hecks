@@ -21,6 +21,7 @@ Hecks.bluebook "CakeDecorating" do
       Integer :tier_count
       Integer :servings
       String :delivery_date
+      then_set :status, to: "inquiry"
       emits "OrderPlaced"
     end
 
@@ -68,6 +69,7 @@ Hecks.bluebook "CakeDecorating" do
       String :cake_flavor
       String :filling
       String :frosting
+      then_set :status, to: "proposed"
       emits "FlavorProposed"
     end
 
@@ -93,6 +95,7 @@ Hecks.bluebook "CakeDecorating" do
       String :date
       String :client_name
       Integer :sample_count
+      then_set :status, to: "scheduled"
       emits "TastingScheduled"
     end
 
@@ -151,6 +154,7 @@ Hecks.bluebook "CakeDecorating" do
       String :delivery_date
       String :time_window
       String :handler_name
+      then_set :status, to: "scheduled"
       emits "CakeDeliveryScheduled"
     end
 

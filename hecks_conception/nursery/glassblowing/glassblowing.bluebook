@@ -19,6 +19,7 @@ Hecks.bluebook "Glassblowing" do
       String :form
       String :technique
       emits "GlassGathered"
+      then_set :status, to: "gathered"
     end
 
     BlowPiece do
@@ -117,6 +118,7 @@ Hecks.bluebook "Glassblowing" do
       Integer :ramp_rate_per_hour
       Integer :total_hours
       emits "AnnealerLoaded"
+      then_set :status, to: "loading"
     end
 
     StartCycle do
@@ -150,6 +152,7 @@ Hecks.bluebook "Glassblowing" do
       String :opening_date
       Integer :piece_count
       emits "ExhibitionCurated"
+      then_set :status, to: "planning"
     end
 
     OpenExhibition do

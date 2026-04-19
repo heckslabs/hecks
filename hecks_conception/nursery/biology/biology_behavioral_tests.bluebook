@@ -6,7 +6,7 @@ Hecks.behaviors "Biology" do
   test "CultureCell sets cell_type + name + organism_type" do
     tests "CultureCell", on: "Cell"
     input  cell_type: "sample", name: "sample", organism_type: "sample"
-    expect cell_type: "sample", name: "sample", organism_type: "sample", membrane_integrity: 1.0, energy_level: 100.0, phase: "interphase"
+    expect cell_type: "stem", name: "sample", organism_type: "sample", membrane_integrity: 1.0, energy_level: 100.0, phase: "interphase"
   end
 
   test "Divide sets division_type" do
@@ -107,7 +107,7 @@ Hecks.behaviors "Biology" do
   test "Synthesize sets name + sequence + function" do
     tests "Synthesize", on: "Protein"
     input  name: "sample", sequence: "sample", function: "sample"
-    expect name: "sample", sequence: "sample", function: "sample", active: "false", folding_state: "unfolded"
+    expect name: "sample", sequence: "sample", function: "enzyme", active: "false", folding_state: "unfolded"
   end
 
   test "Fold sets secondary_structure + tertiary_structure" do
@@ -392,12 +392,13 @@ Hecks.behaviors "Biology" do
     tests "MountResponse", on: "ImmuneResponse"
     setup  "DetectPathogen", pathogen_name: "sample", pathogen_type: "sample", severity: "sample"
     input  response_type: "sample"
-    expect response_type: "sample", status: "active"
+    expect response_type: "adaptive", status: "active"
   end
 
   test "GenerateAntibody sets antibody_name + isotype" do
     tests "GenerateAntibody", on: "ImmuneResponse"
     setup  "DetectPathogen", pathogen_name: "sample", pathogen_type: "sample", severity: "sample"
+    setup  "MountResponse", response_type: "sample"
     input  antibody_name: "sample", isotype: "sample"
     expect antibody_generated: "sample"
   end

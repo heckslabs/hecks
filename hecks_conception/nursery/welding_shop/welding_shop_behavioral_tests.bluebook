@@ -13,12 +13,13 @@ Hecks.behaviors "WeldingShop" do
     tests "AssignWelder", on: "FabricationJob"
     setup  "CertifyWelder", welder_name: "sample", cert_number: "sample", process: "sample", position: "sample", expiration_date: "sample"
     setup  "AcceptJob", client_name: "sample", job_description: "sample", weld_process: "sample", base_metal: "sample"
-    expect ok: "true"
+    expect status: "inspected"
   end
 
   test "ShipJob runs" do
     tests "ShipJob", on: "FabricationJob"
     setup  "AcceptJob", client_name: "sample", job_description: "sample", weld_process: "sample", base_metal: "sample"
+    setup  "AssignWelder"
     expect ok: "true"
   end
 

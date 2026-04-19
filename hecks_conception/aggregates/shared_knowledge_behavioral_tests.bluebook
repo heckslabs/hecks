@@ -13,7 +13,7 @@ Hecks.behaviors "SharedKnowledge" do
     tests "WriteToStore", on: "KnowledgeStore"
     setup  "RegisterStore", store_name: "sample"
     input  being_name: "sample"
-    expect last_written_by: "sample", record_count: 1
+    expect last_written_by: "sample"
   end
 
 

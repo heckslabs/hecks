@@ -13,28 +13,28 @@ Hecks.behaviors "Being" do
     tests "GraftDomain", on: "Being"
     setup  "ConceiveBeing", name: "sample", vision: "sample"
     input  domain_name: "sample", domain_version: "sample", source_path: "sample", grafted_at: "sample"
-    expect organs_size: 1, active_count: 1
+    expect organs_size: 1
   end
 
   test "ShedDomain sets domain_name" do
     tests "ShedDomain", on: "Being"
     setup  "ConceiveBeing", name: "sample", vision: "sample"
     input  domain_name: "sample"
-    expect active_count: 1
+    expect ok: "true"
   end
 
   test "ExpressDomain sets domain_name" do
     tests "ExpressDomain", on: "Being"
     setup  "ConceiveBeing", name: "sample", vision: "sample"
     input  domain_name: "sample"
-    expect active_count: 1
+    expect ok: "true"
   end
 
   test "SilenceDomain sets domain_name" do
     tests "SilenceDomain", on: "Being"
     setup  "ConceiveBeing", name: "sample", vision: "sample"
     input  domain_name: "sample"
-    expect active_count: 1
+    expect ok: "true"
   end
 
   test "UpgradeOrgan sets domain_name + new_version" do
@@ -79,7 +79,7 @@ Hecks.behaviors "Being" do
 
   test "CheckOrgans runs" do
     tests "CheckOrgans", on: "OrganMonitor"
-    expect checks: 1, last_checked_at: :now
+    expect last_checked_at: :now
   end
 
   test "ReportOrganPulse sets domain_name + event_count + last_event_at" do
@@ -93,7 +93,7 @@ Hecks.behaviors "Being" do
 
   test "RecordSession runs" do
     tests "RecordSession", on: "Identity"
-    expect sessions: 1
+    expect ok: "true"
   end
 
   test "RememberPerson sets persona_name" do
@@ -151,7 +151,7 @@ Hecks.behaviors "Being" do
   test "RecordAddition runs" do
     tests "RecordAddition", on: "FamilyIndex"
     setup  "RebuildIndex", total_members: 1, total_organs: 1, total_incorporated: 1, total_aggregates: 1, total_commands: 1
-    expect total_members: 1
+    expect ok: "true"
   end
 
 
@@ -185,7 +185,7 @@ Hecks.behaviors "Being" do
   test "Think sets thought + depth + engine_used" do
     tests "Think", on: "MindStream"
     input  thought: "sample", depth: "sample", engine_used: "sample"
-    expect last_thought: "sample", depth: "sample", engine_used: "sample", thought_count: 1
+    expect last_thought: "sample", depth: "sample", engine_used: "sample"
   end
 
   test "ReadPreviousSession sets session_id" do

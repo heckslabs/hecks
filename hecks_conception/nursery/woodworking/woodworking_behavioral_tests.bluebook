@@ -6,7 +6,7 @@ Hecks.behaviors "Woodworking" do
   test "PlanProject sets name + project_type + wood_species + estimated_hours" do
     tests "PlanProject", on: "WoodProject"
     input  name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
-    expect ok: "true"
+    expect status: "designed"
   end
 
   test "StartMilling runs" do
@@ -54,7 +54,7 @@ Hecks.behaviors "Woodworking" do
     tests "LayOutJoint", on: "Joinery"
     setup  "PlanProject", name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
     input  joint_type: "sample", part_a: "sample", part_b: "sample"
-    expect ok: "true"
+    expect status: "laid_out"
   end
 
   test "CutJoint runs" do
@@ -92,7 +92,7 @@ Hecks.behaviors "Woodworking" do
   test "QuoteCommission sets client_name + description + quoted_price + deadline" do
     tests "QuoteCommission", on: "WoodCommission"
     input  client_name: "sample", description: "sample", quoted_price: 1.0, deadline: "sample"
-    expect ok: "true"
+    expect status: "quoted"
   end
 
   test "AcceptCommission runs" do

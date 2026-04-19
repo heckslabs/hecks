@@ -40,7 +40,7 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       String :name
       String :organism_type
       emits "CellCreated"
-      then_set :cell_type, to: :cell_type
+      then_set :cell_type, to: "stem"
       then_set :name, to: :name
       then_set :organism_type, to: :organism_type
       then_set :phase, to: "interphase"
@@ -70,6 +70,7 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       then_set :differentiation_state, to: :target_type
       then_set :cell_type, to: :target_type
     end
+
 
     Metabolize do
       role "System"
@@ -261,7 +262,7 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       emits "ProteinSynthesized"
       then_set :name, to: :name
       then_set :sequence, to: :sequence
-      then_set :function, to: :function
+      then_set :function, to: "enzyme"
       then_set :folding_state, to: "unfolded"
       then_set :active, to: "false"
     end
@@ -326,6 +327,7 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       transition "Denature" => "denatured", from: "folded"
       transition "Fold" => "folded", from: "denatured"
     end
+
   end
 
   # === Organism ===
@@ -870,7 +872,7 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       String :response_type
       given { status == "detected" }
       emits "ResponseMounted"
-      then_set :response_type, to: :response_type
+      then_set :response_type, to: "adaptive"
       then_set :status, to: "active"
     end
 
@@ -918,6 +920,7 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       transition "ResolveInfection" => "resolved", from: "active"
       transition "RememberPathogen" => "immune", from: "resolved"
     end
+
   end
 
   # === Metabolism ===

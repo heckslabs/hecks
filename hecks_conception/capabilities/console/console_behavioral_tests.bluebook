@@ -13,7 +13,7 @@ Hecks.behaviors "Console" do
     tests "RecordMessage", on: "Session"
     setup  "StartSession", continuing: "sample"
     input  message: "sample"
-    expect history_size: 1, message_count: 1
+    expect history_size: 1
   end
 
 

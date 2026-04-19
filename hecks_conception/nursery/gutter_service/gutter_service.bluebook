@@ -92,6 +92,7 @@ Hecks.bluebook "GutterService" do
       Float :coil_footage
       reference_to(GutterMeasurement)
       emits "MaterialOrdered"
+      then_set :status, to: "delivered"
     end
 
     FabricateGutter do

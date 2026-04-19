@@ -13,7 +13,7 @@ Hecks.behaviors "Heki" do
     tests "AppendRecord", on: "Store"
     setup  "OpenStore", name: "sample", path: "sample"
     input  attrs: "sample"
-    expect record_count: 1, status: "active"
+    expect status: "active"
   end
 
   test "UpsertSingleton sets attrs" do

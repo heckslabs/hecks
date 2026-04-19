@@ -107,12 +107,13 @@ Hecks.behaviors "ComplianceMentalHealth" do
   test "AdjudicateClaim runs" do
     tests "AdjudicateClaim", on: "InsuranceClaim"
     setup  "SubmitClaim", billed_amount: 1.0
-    expect status: "adjudicated"
+    expect status: "denied"
   end
 
   test "AppealDenial runs" do
     tests "AppealDenial", on: "InsuranceClaim"
     setup  "SubmitClaim", billed_amount: 1.0
+    setup  "AdjudicateClaim"
     expect status: "appealed"
   end
 

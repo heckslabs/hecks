@@ -223,6 +223,7 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
       description "Determine injectivity, surjectivity, bijectivity"
       reference_to(MathFunction)
       emits "FunctionClassified"
+      then_set :invertible, to: "true"
     end
   end
 
@@ -588,6 +589,21 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
       then_set :integral_type, to: :integral_type
     end
 
+    IntegrateDefinite do
+      role "Mathematician"
+      description "Set up a definite integral with explicit bounds"
+      String :function_name
+      String :variable
+      String :lower_bound
+      String :upper_bound
+      emits "DefiniteIntegralPrepared"
+      then_set :function_name, to: :function_name
+      then_set :variable, to: :variable
+      then_set :lower_bound, to: :lower_bound
+      then_set :upper_bound, to: :upper_bound
+      then_set :integral_type, to: "definite"
+    end
+
     ApplySubstitution do
       role "Mathematician"
       description "Change variables to simplify the integral — u-substitution"
@@ -632,6 +648,7 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
       reference_to(Series)
       String :test_method
       emits "ConvergenceTested"
+      then_set :converges, to: "true"
     end
 
     ComputeSum do
@@ -688,6 +705,7 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
       description "Compute the determinant — expansion by cofactors or row reduction"
       reference_to(Matrix)
       emits "DeterminantFound"
+      then_set :invertible, to: "true"
     end
 
     SolveSystem do

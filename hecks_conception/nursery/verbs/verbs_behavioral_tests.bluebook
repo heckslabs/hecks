@@ -6,7 +6,7 @@ Hecks.behaviors "Verbs" do
   test "RegisterVerb sets verb" do
     tests "RegisterVerb", on: "Lexicon"
     input  verb: "sample"
-    expect known_verbs_size: 1, total: 1
+    expect known_verbs_size: 1
   end
 
   test "ImportFromFile sets verbs" do
@@ -18,7 +18,7 @@ Hecks.behaviors "Verbs" do
   test "LearnVerb sets verb + source_domain" do
     tests "LearnVerb", on: "Lexicon"
     input  verb: "sample", source_domain: "sample"
-    expect known_verbs_size: 1, total: 1
+    expect known_verbs_size: 1
   end
 
 

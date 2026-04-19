@@ -27,6 +27,7 @@ Hecks.bluebook "PavingCompany" do
       Float :area_sqft
       Float :thickness_inches
       emits "JobSiteSurveyed"
+      then_set :status, to: "estimated"
     end
 
     AwardContract do

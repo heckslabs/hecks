@@ -6,7 +6,7 @@ Hecks.behaviors "InteriorDesign" do
   test "ScopeProject sets name + space_type + style_direction + budget" do
     tests "ScopeProject", on: "DesignProject"
     input  name: "sample", space_type: "sample", style_direction: "sample", budget: 1.0
-    expect ok: "true"
+    expect status: "consultation"
   end
 
   test "PresentConcept runs" do
@@ -29,7 +29,7 @@ Hecks.behaviors "InteriorDesign" do
     tests "PlanRoom", on: "RoomDesign"
     setup  "ScopeProject", name: "sample", space_type: "sample", style_direction: "sample", budget: 1.0
     input  room_name: "sample", function: "sample", square_footage: 1.0, color_palette: "sample"
-    expect ok: "true"
+    expect status: "planning"
   end
 
   test "SpecifyFixtures sets fixture_list" do
@@ -79,7 +79,7 @@ Hecks.behaviors "InteriorDesign" do
     tests "ScheduleInstallation", on: "Installation"
     setup  "ScopeProject", name: "sample", space_type: "sample", style_direction: "sample", budget: 1.0
     input  date: "sample", crew_lead: "sample"
-    expect ok: "true"
+    expect status: "scheduled"
   end
 
   test "CompleteInstallation runs" do

@@ -6,7 +6,7 @@ Hecks.behaviors "StreamingPlatform" do
   test "IngestContent sets content_id + title + genre + duration_seconds + content_rating" do
     tests "IngestContent", on: "Content"
     input  content_id: "sample", title: "sample", genre: "sample", duration_seconds: 1, content_rating: "sample"
-    expect ok: "true"
+    expect status: "processed"
   end
 
   test "PublishContent runs" do
@@ -27,7 +27,7 @@ Hecks.behaviors "StreamingPlatform" do
   test "CurateChannel sets channel_name + description + curator + category" do
     tests "CurateChannel", on: "Channel"
     input  channel_name: "sample", description: "sample", curator: "sample", category: "sample"
-    expect ok: "true"
+    expect status: "active"
   end
 
   test "AddToChannel sets content_id + position" do
@@ -49,7 +49,7 @@ Hecks.behaviors "StreamingPlatform" do
   test "EnrollSubscriber sets subscriber_id + email + plan + payment_method" do
     tests "EnrollSubscriber", on: "Subscriber"
     input  subscriber_id: "sample", email: "sample", plan: "sample", payment_method: "sample"
-    expect ok: "true"
+    expect status: "active"
   end
 
   test "UpgradePlan sets plan" do
@@ -73,7 +73,7 @@ Hecks.behaviors "StreamingPlatform" do
     setup  "IngestContent", content_id: "sample", title: "sample", genre: "sample", duration_seconds: 1, content_rating: "sample"
     setup  "EnrollSubscriber", subscriber_id: "sample", email: "sample", plan: "sample", payment_method: "sample"
     input  recommendation_id: "sample", algorithm: "sample", relevance_score: 1.0, reason: "sample"
-    expect ok: "true"
+    expect status: "pending"
   end
 
   test "DismissRecommendation runs" do
@@ -94,7 +94,7 @@ Hecks.behaviors "StreamingPlatform" do
   test "CaptureSnapshot sets snapshot_id + period + total_streams + unique_viewers + avg_watch_minutes" do
     tests "CaptureSnapshot", on: "AnalyticsSnapshot"
     input  snapshot_id: "sample", period: "sample", total_streams: 1, unique_viewers: 1, avg_watch_minutes: 1.0
-    expect ok: "true"
+    expect status: "captured"
   end
 
   test "PublishReport runs" do

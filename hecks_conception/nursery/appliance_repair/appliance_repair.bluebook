@@ -46,6 +46,10 @@ Hecks.bluebook "ApplianceRepair" do
       given("must be repaired") { status == "repaired" }
       emits "TicketClosed"
     end
+
+    lifecycle :status, default: "scheduled" do
+      transition "PartInstalled" => "repaired", from: "scheduled"
+    end
   end
 
   aggregate "Appliance" do
@@ -133,6 +137,7 @@ Hecks.bluebook "ApplianceRepair" do
       String :vendor
       Float :cost
       reference_to(Diagnostic)
+      then_set :status, to: "ordered"
       emits "PartOrdered"
     end
 

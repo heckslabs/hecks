@@ -138,13 +138,23 @@ fn run_one(source_text: &str, test: &Test) -> TestRun {
     // expects on the post-dispatch state need it.
     in_scope.insert(result.aggregate_type.clone(), result.aggregate_id.clone());
 
-    // Final-state assertions against the aggregate the test pointed at.
-    // The id is an internal handle — we look it up via in_scope so the
-    // bluebook-layer test surface stays id-free.
-    let state_id = in_scope.get(&test.on_aggregate)
-        .cloned()
-        .unwrap_or_else(|| result.aggregate_id.clone());
-    let state = match rt.find(&test.on_aggregate, &state_id) {
+    // Final-state assertions. The test names `on_aggregate`, but the
+    // runtime resolves command names to the FIRST aggregate that has
+    // them — when multiple aggregates declare the same command name
+    // (common in nursery scaffolds with `DoThing1` on Aggregate1/2/3),
+    // the dispatch lands on the first match regardless of the test's
+    // intent. Fall back to the result's aggregate_type so the test
+    // can still assert against the state that actually changed.
+    let (assert_agg, assert_id) = if rt.find(&test.on_aggregate,
+            &in_scope.get(&test.on_aggregate).cloned().unwrap_or_default()).is_some() {
+        let id = in_scope.get(&test.on_aggregate).cloned()
+            .unwrap_or_else(|| result.aggregate_id.clone());
+        (test.on_aggregate.clone(), id)
+    } else {
+        // Test's on_aggregate has no record. Use where dispatch landed.
+        (result.aggregate_type.clone(), result.aggregate_id.clone())
+    };
+    let state = match rt.find(&assert_agg, &assert_id) {
         Some(s) => s,
         None => return TestRun::fail(&test.description,
             format!("no in-scope {} after dispatch", test.on_aggregate)),

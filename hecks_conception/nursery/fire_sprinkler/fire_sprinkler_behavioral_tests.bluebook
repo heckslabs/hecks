@@ -6,7 +6,7 @@ Hecks.behaviors "FireSprinkler" do
   test "DesignSystem sets building_name + address + system_type + pipe_material + design_density_gpm" do
     tests "DesignSystem", on: "SprinklerSystem"
     input  building_name: "sample", address: "sample", system_type: "sample", pipe_material: "sample", design_density_gpm: 1.0
-    expect ok: "true"
+    expect status: "tested"
   end
 
   test "ActivateSystem runs" do
@@ -63,7 +63,7 @@ Hecks.behaviors "FireSprinkler" do
     tests "PerformInspection", on: "SprinklerInspection"
     setup  "DesignSystem", building_name: "sample", address: "sample", system_type: "sample", pipe_material: "sample", design_density_gpm: 1.0
     input  inspection_type: "sample", inspector_name: "sample", inspection_date: "sample"
-    expect ok: "true"
+    expect result: "pass"
   end
 
   test "RecordDeficiency sets deficiencies" do

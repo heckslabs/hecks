@@ -20,6 +20,7 @@ Hecks.bluebook "FloralDesign" do
       String :vessel_type
       Integer :stem_count
       emits "ArrangementDesigned"
+      then_set :status, to: "designed"
     end
 
     AssembleArrangement do
@@ -60,6 +61,7 @@ Hecks.bluebook "FloralDesign" do
       Integer :stem_quantity
       Integer :vase_life_days
       emits "ShipmentReceived"
+      then_set :freshness, to: "fresh"
     end
 
     MarkWilted do
@@ -86,6 +88,7 @@ Hecks.bluebook "FloralDesign" do
       String :date
       Integer :arrangement_count
       emits "EventBooked"
+      then_set :status, to: "consulted"
     end
 
     FinalizeProposal do
@@ -113,6 +116,7 @@ Hecks.bluebook "FloralDesign" do
       String :time_window
       String :driver_name
       emits "DeliveryScheduled"
+      then_set :status, to: "scheduled"
     end
 
     ConfirmDelivery do
@@ -138,6 +142,7 @@ Hecks.bluebook "FloralDesign" do
       String :design_theme
       Integer :crew_size
       emits "InstallationPlanned"
+      then_set :status, to: "planned"
     end
 
     ExecuteInstallation do

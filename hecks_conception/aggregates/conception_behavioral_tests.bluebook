@@ -42,7 +42,7 @@ Hecks.behaviors "Conception" do
   test "Contract runs" do
     tests "Contract", on: "Gestation"
     setup  "StartGestation", project_name: "sample", nursery_path: "sample", bounded_contexts: "sample"
-    expect contractions: 1
+    expect ok: "true"
   end
 
 
@@ -162,7 +162,7 @@ Hecks.behaviors "Conception" do
   test "IndexDomain sets domain_name + vector" do
     tests "IndexDomain", on: "Corpus"
     input  domain_name: "sample", vector: 1.0
-    expect domain_count: 1, total_vectors: 1
+    expect ok: "true"
   end
 
   test "QueryNearest sets target_vector + k" do

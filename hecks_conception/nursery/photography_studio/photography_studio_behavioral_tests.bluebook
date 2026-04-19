@@ -7,7 +7,7 @@ Hecks.behaviors "PhotographyStudio" do
     tests "ScheduleShoot", on: "Shoot"
     setup  "RegisterClient", name: "sample", email: "sample", phone: "sample"
     input  title: "sample", location: "sample", shoot_type: "sample"
-    expect ok: "true"
+    expect status: "scheduled"
   end
 
   test "StartShoot runs" do
@@ -86,7 +86,7 @@ Hecks.behaviors "PhotographyStudio" do
   test "PlacePrintOrder sets paper_stock + finish + quantity" do
     tests "PlacePrintOrder", on: "PrintOrder"
     input  paper_stock: "sample", finish: "sample", quantity: 1
-    expect paper_stock: "sample", finish: "sample", quantity: 1
+    expect paper_stock: "sample", finish: "sample", quantity: 1, status: "pending"
   end
 
   test "FulfillPrintOrder runs" do

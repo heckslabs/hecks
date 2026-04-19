@@ -9,15 +9,29 @@ Hecks.behaviors "PrintShop" do
     expect job_name: "sample", customer_name: "sample", quantity: 1, print_method: "sample", color_profile: "sample", due_date: "sample", status: "submitted"
   end
 
+  test "MarkProofApproved runs" do
+    tests "MarkProofApproved", on: "PrintJob"
+    setup  "SubmitPrintJob", job_name: "sample", customer_name: "sample", quantity: 1, print_method: "sample", color_profile: "sample", due_date: "sample"
+    expect status: "proof_approved"
+  end
+
   test "ApprovePrintJob runs" do
     tests "ApprovePrintJob", on: "PrintJob"
     setup  "SubmitPrintJob", job_name: "sample", customer_name: "sample", quantity: 1, print_method: "sample", color_profile: "sample", due_date: "sample"
+    setup  "MarkProofApproved"
     expect status: "approved"
+  end
+
+  test "StartProduction runs" do
+    tests "StartProduction", on: "PrintJob"
+    setup  "SubmitPrintJob", job_name: "sample", customer_name: "sample", quantity: 1, print_method: "sample", color_profile: "sample", due_date: "sample"
+    expect status: "in_production"
   end
 
   test "CompletePrintJob runs" do
     tests "CompletePrintJob", on: "PrintJob"
     setup  "SubmitPrintJob", job_name: "sample", customer_name: "sample", quantity: 1, print_method: "sample", color_profile: "sample", due_date: "sample"
+    setup  "StartProduction"
     expect status: "completed"
   end
 

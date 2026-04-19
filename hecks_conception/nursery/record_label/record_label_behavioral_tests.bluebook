@@ -70,7 +70,7 @@ Hecks.behaviors "RecordLabel" do
     tests "CalculateRoyalties", on: "RoyaltyStatement"
     setup  "SignArtist", name: "sample", genre: "sample"
     input  period: "sample", gross_revenue: 1.0, split_percentage: 1.0
-    expect ok: "true"
+    expect status: "draft"
   end
 
   test "ApproveStatement runs" do
@@ -93,7 +93,7 @@ Hecks.behaviors "RecordLabel" do
     tests "SubmitForDistribution", on: "Distribution"
     setup  "GreenLightAlbum", title: "sample", producer: "sample"
     input  channel: "sample", format: "sample", territory: "sample"
-    expect ok: "true"
+    expect status: "pending"
   end
 
   test "ConfirmDistribution runs" do

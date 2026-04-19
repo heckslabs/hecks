@@ -6,7 +6,7 @@ Hecks.behaviors "Taxidermy" do
   test "ReceiveSpecimen sets species + common_name + weight_lbs + source_type" do
     tests "ReceiveSpecimen", on: "Specimen"
     input  species: "sample", common_name: "sample", weight_lbs: 1.0, source_type: "sample"
-    expect ok: "true"
+    expect status: "received"
   end
 
   test "SkinSpecimen runs" do
@@ -30,7 +30,7 @@ Hecks.behaviors "Taxidermy" do
     tests "SelectPose", on: "Pose"
     setup  "ReceiveSpecimen", species: "sample", common_name: "sample", weight_lbs: 1.0, source_type: "sample"
     input  pose_name: "sample", position: "sample", expression: "sample"
-    expect ok: "true"
+    expect status: "selected"
   end
 
   test "SculptAlteration sets alteration_details" do
@@ -64,7 +64,7 @@ Hecks.behaviors "Taxidermy" do
     setup  "SelectPose", pose_name: "sample", position: "sample", expression: "sample"
     setup  "ReceiveSpecimen", species: "sample", common_name: "sample", weight_lbs: 1.0, source_type: "sample"
     input  adhesive_type: "sample"
-    expect ok: "true"
+    expect status: "in_progress"
   end
 
   test "FinishMount runs" do

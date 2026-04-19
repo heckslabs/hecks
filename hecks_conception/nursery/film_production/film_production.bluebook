@@ -19,6 +19,7 @@ Hecks.bluebook "FilmProduction" do
       String :genre
       Float :total_budget
       emits "ProductionGreenLit"
+      then_set :status, to: "development"
     end
 
     StartPrincipalPhotography do
@@ -55,6 +56,7 @@ Hecks.bluebook "FilmProduction" do
       String :location
       String :time_of_day
       emits "SceneSlated"
+      then_set :status, to: "scheduled"
     end
 
     PrintScene do

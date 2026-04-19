@@ -24,6 +24,7 @@ Hecks.bluebook "Woodworking" do
       String :wood_species
       Float :estimated_hours
       emits "ProjectPlanned"
+      then_set :status, to: "designed"
     end
 
     StartMilling do
@@ -103,6 +104,7 @@ Hecks.bluebook "Woodworking" do
       String :part_a
       String :part_b
       emits "JointLaidOut"
+      then_set :status, to: "laid_out"
     end
 
     CutJoint do
@@ -173,6 +175,7 @@ Hecks.bluebook "Woodworking" do
       Float :quoted_price
       String :deadline
       emits "CommissionQuoted"
+      then_set :status, to: "quoted"
     end
 
     AcceptCommission do

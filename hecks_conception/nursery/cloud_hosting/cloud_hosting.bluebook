@@ -35,6 +35,7 @@ Hecks.bluebook "CloudHosting", version: "2026.04.13.1" do
     TerminateInstance do
       description "Shut down and destroy a running instance"
       reference_to(Instance)
+      then_set :status, to: "stopped"
       emits "InstanceTerminated"
     end
 
@@ -72,6 +73,7 @@ Hecks.bluebook "CloudHosting", version: "2026.04.13.1" do
       String :version_tag
       String :strategy
       reference_to(Instance)
+      then_set :status, to: "active"
       emits "DeploymentCreated"
     end
 
@@ -201,6 +203,7 @@ Hecks.bluebook "CloudHosting", version: "2026.04.13.1" do
     AcknowledgeAlert do
       description "Mark an alert as seen by an on-call engineer"
       reference_to(Alert)
+      then_set :status, to: "acknowledged"
       emits "AlertAcknowledged"
     end
 

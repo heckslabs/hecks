@@ -12,12 +12,13 @@ Hecks.behaviors "IoTPlatform" do
   test "SuspendDevice runs" do
     tests "SuspendDevice", on: "Device"
     setup  "RegisterDevice", device_id: "sample", device_type: "sample", firmware_version: "sample", location: "sample"
-    expect ok: "true"
+    expect status: "suspended"
   end
 
   test "DeregisterDevice runs" do
     tests "DeregisterDevice", on: "Device"
     setup  "RegisterDevice", device_id: "sample", device_type: "sample", firmware_version: "sample", location: "sample"
+    setup  "SuspendDevice"
     expect ok: "true"
   end
 
@@ -28,7 +29,7 @@ Hecks.behaviors "IoTPlatform" do
     tests "AttachSensor", on: "Sensor"
     setup  "RegisterDevice", device_id: "sample", device_type: "sample", firmware_version: "sample", location: "sample"
     input  sensor_id: "sample", sensor_type: "sample", unit: "sample", min_range: 1.0, max_range: 1.0
-    expect ok: "true"
+    expect status: "active"
   end
 
   test "CalibrateSensor sets offset + scale_factor" do
@@ -57,12 +58,13 @@ Hecks.behaviors "IoTPlatform" do
   test "ValidateReading runs" do
     tests "ValidateReading", on: "Reading"
     setup  "IngestReading", reading_id: "sample", value: 1.0, timestamp: "sample"
-    expect ok: "true"
+    expect status: "validated"
   end
 
   test "FlagAnomaly runs" do
     tests "FlagAnomaly", on: "Reading"
     setup  "IngestReading", reading_id: "sample", value: 1.0, timestamp: "sample"
+    setup  "ValidateReading"
     expect ok: "true"
   end
 
@@ -79,12 +81,13 @@ Hecks.behaviors "IoTPlatform" do
   test "AcknowledgeAlert runs" do
     tests "AcknowledgeAlert", on: "Alert"
     setup  "RaiseAlert", alert_id: "sample", severity: "sample", condition: "sample", message: "sample"
-    expect ok: "true"
+    expect status: "acknowledged"
   end
 
   test "ResolveAlert runs" do
     tests "ResolveAlert", on: "Alert"
     setup  "RaiseAlert", alert_id: "sample", severity: "sample", condition: "sample", message: "sample"
+    setup  "AcknowledgeAlert"
     expect ok: "true"
   end
 
@@ -101,12 +104,13 @@ Hecks.behaviors "IoTPlatform" do
     tests "ApplyUpdate", on: "FirmwareUpdate"
     setup  "PublishUpdate", update_id: "sample", version: "sample", target_device_type: "sample", package_size_kb: 1, release_notes: "sample"
     input  device_id: "sample"
-    expect ok: "true"
+    expect status: "applied"
   end
 
   test "RollbackUpdate runs" do
     tests "RollbackUpdate", on: "FirmwareUpdate"
     setup  "PublishUpdate", update_id: "sample", version: "sample", target_device_type: "sample", package_size_kb: 1, release_notes: "sample"
+    setup  "ApplyUpdate", device_id: "sample"
     expect ok: "true"
   end
 

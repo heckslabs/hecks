@@ -106,6 +106,7 @@ Hecks.behaviors "Mathematics" do
   test "FindInverse runs" do
     tests "FindInverse", on: "MathFunction"
     setup  "DefineFunction", name: "sample", domain_set: "sample", codomain_set: "sample", rule: "sample"
+    setup  "ClassifyFunction"
     expect ok: "true"
   end
 
@@ -126,7 +127,7 @@ Hecks.behaviors "Mathematics" do
   test "ClassifyFunction runs" do
     tests "ClassifyFunction", on: "MathFunction"
     setup  "DefineFunction", name: "sample", domain_set: "sample", codomain_set: "sample", rule: "sample"
-    expect ok: "true"
+    expect invertible: "true"
   end
 
 
@@ -321,6 +322,12 @@ Hecks.behaviors "Mathematics" do
     expect function_name: "sample", variable: "sample", integral_type: "sample"
   end
 
+  test "IntegrateDefinite sets function_name + variable + lower_bound + upper_bound" do
+    tests "IntegrateDefinite", on: "Integral"
+    input  function_name: "sample", variable: "sample", lower_bound: "sample", upper_bound: "sample"
+    expect function_name: "sample", variable: "sample", lower_bound: "sample", upper_bound: "sample", integral_type: "definite"
+  end
+
   test "ApplySubstitution sets substitution" do
     tests "ApplySubstitution", on: "Integral"
     setup  "Integrate", function_name: "sample", variable: "sample", integral_type: "sample"
@@ -330,7 +337,7 @@ Hecks.behaviors "Mathematics" do
 
   test "EvaluateDefiniteIntegral runs" do
     tests "EvaluateDefiniteIntegral", on: "Integral"
-    setup  "Integrate", function_name: "sample", variable: "sample", integral_type: "sample"
+    setup  "IntegrateDefinite", function_name: "sample", variable: "sample", lower_bound: "sample", upper_bound: "sample"
     expect ok: "true"
   end
 
@@ -347,12 +354,13 @@ Hecks.behaviors "Mathematics" do
     tests "TestConvergence", on: "Series"
     setup  "ExpandSeries", name: "sample", general_term: "sample", series_type: "sample"
     input  test_method: "sample"
-    expect ok: "true"
+    expect converges: "true"
   end
 
   test "ComputeSum runs" do
     tests "ComputeSum", on: "Series"
     setup  "ExpandSeries", name: "sample", general_term: "sample", series_type: "sample"
+    setup  "TestConvergence", test_method: "sample"
     expect ok: "true"
   end
 
@@ -375,7 +383,7 @@ Hecks.behaviors "Mathematics" do
   test "FindDeterminant runs" do
     tests "FindDeterminant", on: "Matrix"
     setup  "DefineMatrix", name: "sample", rows: 1, columns: 1, entries: "sample"
-    expect ok: "true"
+    expect invertible: "true"
   end
 
   test "SolveSystem sets constants" do
@@ -400,6 +408,7 @@ Hecks.behaviors "Mathematics" do
   test "InvertMatrix runs" do
     tests "InvertMatrix", on: "Matrix"
     setup  "DefineMatrix", name: "sample", rows: 1, columns: 1, entries: "sample"
+    setup  "FindDeterminant"
     expect ok: "true"
   end
 

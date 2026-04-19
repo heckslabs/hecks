@@ -24,6 +24,7 @@ Hecks.bluebook "DomainRegistrar", version: "2026.04.13.1" do
       String :tld
       String :registrant_email
       Integer :registration_years
+      then_set :status, to: "active"
       emits "DomainRegistered"
     end
 
@@ -62,6 +63,7 @@ Hecks.bluebook "DomainRegistrar", version: "2026.04.13.1" do
       Integer :years
       Float :price
       reference_to(DomainName)
+      then_set :status, to: "pending"
       emits "DomainRenewed"
     end
 
@@ -100,6 +102,7 @@ Hecks.bluebook "DomainRegistrar", version: "2026.04.13.1" do
       String :auth_code
       String :gaining_registrar
       reference_to(DomainName)
+      then_set :status, to: "pending_approval"
       emits "TransferInitiated"
     end
 
@@ -142,6 +145,7 @@ Hecks.bluebook "DomainRegistrar", version: "2026.04.13.1" do
       String :value
       Integer :ttl
       reference_to(DomainName)
+      then_set :status, to: "active"
       emits "DNSRecordPublished"
     end
 
@@ -182,6 +186,7 @@ Hecks.bluebook "DomainRegistrar", version: "2026.04.13.1" do
       String :proxy_email
       String :proxy_name
       reference_to(DomainName)
+      then_set :status, to: "active"
       emits "PrivacyActivated"
     end
 

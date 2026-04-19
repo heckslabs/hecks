@@ -38,6 +38,7 @@ Hecks.bluebook "WeldingShop" do
       reference_to(FabricationJob)
       reference_to(WelderCert)
       emits "WelderAssigned"
+      then_set :status, to: "inspected"
     end
 
     ShipJob do

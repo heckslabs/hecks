@@ -13,7 +13,7 @@ Hecks.behaviors "Compliance" do
     tests "ReviseSafetyDataSheet", on: "SafetyDataSheet"
     setup  "AuthorSafetyDataSheet", formula_name: "sample", sds_number: "sample", ghs_classification: "sample", hmis_rating: "sample", nfpa_rating: "sample", cas_numbers: "sample"
     input  ghs_classification: "sample", revision_date: "sample"
-    expect ghs_classification: "sample", revision_date: "sample", revision: 1
+    expect ghs_classification: "sample", revision_date: "sample"
   end
 
 

@@ -13,12 +13,13 @@ Hecks.behaviors "CloudHosting" do
   test "TerminateInstance runs" do
     tests "TerminateInstance", on: "Instance"
     setup  "LaunchInstance", instance_id: "sample", region: "sample", machine_type: "sample", vcpus: 1, memory_gb: 1, image_id: "sample"
-    expect ok: "true"
+    expect status: "stopped"
   end
 
   test "ResizeInstance sets machine_type + vcpus + memory_gb" do
     tests "ResizeInstance", on: "Instance"
     setup  "LaunchInstance", instance_id: "sample", region: "sample", machine_type: "sample", vcpus: 1, memory_gb: 1, image_id: "sample"
+    setup  "TerminateInstance"
     input  machine_type: "sample", vcpus: 1, memory_gb: 1
     expect ok: "true"
   end
@@ -30,7 +31,7 @@ Hecks.behaviors "CloudHosting" do
     tests "ShipRelease", on: "Deployment"
     setup  "LaunchInstance", instance_id: "sample", region: "sample", machine_type: "sample", vcpus: 1, memory_gb: 1, image_id: "sample"
     input  deploy_id: "sample", artifact_url: "sample", version_tag: "sample", strategy: "sample"
-    expect ok: "true"
+    expect status: "active"
   end
 
   test "RollbackDeployment runs" do
@@ -103,12 +104,13 @@ Hecks.behaviors "CloudHosting" do
   test "AcknowledgeAlert runs" do
     tests "AcknowledgeAlert", on: "Alert"
     setup  "RaiseAlert", alert_id: "sample", severity: "sample", message: "sample", source_metric: "sample"
-    expect ok: "true"
+    expect status: "acknowledged"
   end
 
   test "ResolveAlert runs" do
     tests "ResolveAlert", on: "Alert"
     setup  "RaiseAlert", alert_id: "sample", severity: "sample", message: "sample", source_metric: "sample"
+    setup  "AcknowledgeAlert"
     expect ok: "true"
   end
 

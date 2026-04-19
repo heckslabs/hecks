@@ -6,7 +6,7 @@ Hecks.behaviors "PavingCompany" do
   test "SurveyJobSite sets client_name + location + project_type + area_sqft + thickness_inches" do
     tests "SurveyJobSite", on: "PavingProject"
     input  client_name: "sample", location: "sample", project_type: "sample", area_sqft: 1.0, thickness_inches: 1.0
-    expect ok: "true"
+    expect status: "estimated"
   end
 
   test "AwardContract runs" do

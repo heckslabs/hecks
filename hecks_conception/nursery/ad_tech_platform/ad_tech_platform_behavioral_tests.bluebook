@@ -6,7 +6,7 @@ Hecks.behaviors "AdTechPlatform" do
   test "LaunchCampaign sets campaign_id + advertiser_name + objective + target_audience + daily_budget + total_budget" do
     tests "LaunchCampaign", on: "Campaign"
     input  campaign_id: "sample", advertiser_name: "sample", objective: "sample", target_audience: "sample", daily_budget: 1.0, total_budget: 1.0
-    expect ok: "true"
+    expect status: "running"
   end
 
   test "PauseCampaign runs" do
@@ -73,7 +73,7 @@ Hecks.behaviors "AdTechPlatform" do
     tests "TrackConversion", on: "Conversion"
     setup  "RecordClick", click_id: "sample", landing_url: "sample", referrer: "sample", cost: 1.0
     input  conversion_id: "sample", conversion_type: "sample", value: 1.0, attribution_model: "sample"
-    expect ok: "true"
+    expect status: "confirmed"
   end
 
   test "AdjustAttribution sets attribution_model" do

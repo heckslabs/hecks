@@ -19,6 +19,7 @@ Hecks.bluebook "BookPublishing" do
       String :genre
       String :author_name
       Integer :word_count
+      then_set :status, to: "submitted"
       emits "ManuscriptSubmitted"
     end
 
@@ -52,6 +53,7 @@ Hecks.bluebook "BookPublishing" do
       reference_to(Manuscript)
       String :pass_type
       String :editor_name
+      then_set :status, to: "assigned"
       emits "EditorAssigned"
     end
 
@@ -92,6 +94,7 @@ Hecks.bluebook "BookPublishing" do
       reference_to(Manuscript)
       String :designer_name
       String :art_style
+      then_set :status, to: "briefed"
       emits "DesignerBriefed"
     end
 
@@ -117,6 +120,7 @@ Hecks.bluebook "BookPublishing" do
       Integer :quantity
       String :binding_type
       String :paper_stock
+      then_set :status, to: "ordered"
       emits "PrintRunOrdered"
     end
 

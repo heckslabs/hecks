@@ -27,6 +27,7 @@ Hecks.bluebook "StreamingPlatform", version: "2026.04.13.1" do
       Integer :duration_seconds
       String :content_rating
       emits "ContentIngested"
+      then_set :status, to: "processed"
     end
 
     PublishContent do
@@ -66,6 +67,7 @@ Hecks.bluebook "StreamingPlatform", version: "2026.04.13.1" do
       String :curator
       String :category
       emits "ChannelCurated"
+      then_set :status, to: "active"
     end
 
     AddToChannel do
@@ -106,6 +108,7 @@ Hecks.bluebook "StreamingPlatform", version: "2026.04.13.1" do
       String :plan
       String :payment_method
       emits "SubscriberEnrolled"
+      then_set :status, to: "active"
     end
 
     UpgradePlan do
@@ -148,6 +151,7 @@ Hecks.bluebook "StreamingPlatform", version: "2026.04.13.1" do
       reference_to(Subscriber)
       reference_to(Content)
       emits "RecommendationGenerated"
+      then_set :status, to: "pending"
     end
 
     DismissRecommendation do
@@ -187,6 +191,7 @@ Hecks.bluebook "StreamingPlatform", version: "2026.04.13.1" do
       Integer :unique_viewers
       Float :avg_watch_minutes
       emits "SnapshotCaptured"
+      then_set :status, to: "captured"
     end
 
     PublishReport do

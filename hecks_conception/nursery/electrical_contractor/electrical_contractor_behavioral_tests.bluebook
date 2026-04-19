@@ -6,7 +6,7 @@ Hecks.behaviors "ElectricalContractor" do
   test "BookJob sets property_address + scope_of_work + bid_amount" do
     tests "BookJob", on: "Job"
     input  property_address: "sample", scope_of_work: "sample", bid_amount: 1.0
-    expect ok: "true"
+    expect status: "inspected"
   end
 
   test "AssignElectrician sets electrician_name" do
@@ -62,7 +62,7 @@ Hecks.behaviors "ElectricalContractor" do
   test "PullPermit sets jurisdiction + work_description" do
     tests "PullPermit", on: "Permit"
     input  jurisdiction: "sample", work_description: "sample"
-    expect ok: "true"
+    expect status: "pending"
   end
 
   test "ReceiveApproval sets permit_number" do

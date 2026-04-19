@@ -6,7 +6,7 @@ Hecks.behaviors "DomainRegistrar" do
   test "RegisterDomain sets domain + tld + registrant_email + registration_years" do
     tests "RegisterDomain", on: "DomainName"
     input  domain: "sample", tld: "sample", registrant_email: "sample", registration_years: 1
-    expect domain: "sample", tld: "sample", registrant_email: "sample"
+    expect domain: "sample", tld: "sample", registrant_email: "sample", status: "active"
   end
 
   test "LockDomain runs" do
@@ -28,7 +28,7 @@ Hecks.behaviors "DomainRegistrar" do
     tests "RenewDomain", on: "Renewal"
     setup  "RegisterDomain", domain: "sample", tld: "sample", registrant_email: "sample", registration_years: 1
     input  renewal_id: "sample", years: 1, price: 1.0
-    expect ok: "true"
+    expect status: "pending"
   end
 
   test "AutoRenew runs" do
@@ -50,7 +50,7 @@ Hecks.behaviors "DomainRegistrar" do
     tests "InitiateTransfer", on: "Transfer"
     setup  "RegisterDomain", domain: "sample", tld: "sample", registrant_email: "sample", registration_years: 1
     input  transfer_id: "sample", auth_code: "sample", gaining_registrar: "sample"
-    expect ok: "true"
+    expect status: "pending_approval"
   end
 
   test "ApproveTransfer runs" do
@@ -73,7 +73,7 @@ Hecks.behaviors "DomainRegistrar" do
     tests "PublishDNSRecord", on: "DNSRecord"
     setup  "RegisterDomain", domain: "sample", tld: "sample", registrant_email: "sample", registration_years: 1
     input  record_id: "sample", record_type: "sample", hostname: "sample", value: "sample", ttl: 1
-    expect ok: "true"
+    expect status: "active"
   end
 
   test "ReviseDNSRecord sets value + ttl" do
@@ -96,7 +96,7 @@ Hecks.behaviors "DomainRegistrar" do
     tests "ActivatePrivacy", on: "WHOISPrivacy"
     setup  "RegisterDomain", domain: "sample", tld: "sample", registrant_email: "sample", registration_years: 1
     input  privacy_id: "sample", proxy_email: "sample", proxy_name: "sample"
-    expect ok: "true"
+    expect status: "active"
   end
 
   test "DeactivatePrivacy runs" do

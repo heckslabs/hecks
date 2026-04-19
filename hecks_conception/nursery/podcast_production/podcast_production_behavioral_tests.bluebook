@@ -6,7 +6,7 @@ Hecks.behaviors "PodcastProduction" do
   test "LaunchShow sets title + category + format" do
     tests "LaunchShow", on: "Show"
     input  title: "sample", category: "sample", format: "sample"
-    expect ok: "true"
+    expect status: "planning"
   end
 
   test "PublishShow runs" do
@@ -29,7 +29,7 @@ Hecks.behaviors "PodcastProduction" do
     tests "OutlineEpisode", on: "Episode"
     setup  "LaunchShow", title: "sample", category: "sample", format: "sample"
     input  title: "sample", episode_number: 1
-    expect ok: "true"
+    expect status: "outlined"
   end
 
   test "RecordEpisode sets duration_seconds" do
@@ -61,7 +61,7 @@ Hecks.behaviors "PodcastProduction" do
     tests "InviteGuest", on: "Guest"
     setup  "OutlineEpisode", title: "sample", episode_number: 1
     input  name: "sample", expertise: "sample", bio: "sample"
-    expect ok: "true"
+    expect status: "invited"
   end
 
   test "ConfirmGuest runs" do
@@ -77,7 +77,7 @@ Hecks.behaviors "PodcastProduction" do
     tests "StartEditing", on: "EditingSession"
     setup  "OutlineEpisode", title: "sample", episode_number: 1
     input  editor_name: "sample"
-    expect ok: "true"
+    expect status: "pending"
   end
 
   test "FinalizeEdit sets cuts_made" do

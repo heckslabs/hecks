@@ -20,6 +20,7 @@ Hecks.bluebook "Taxidermy" do
       Float :weight_lbs
       String :source_type
       emits "SpecimenReceived"
+      then_set :status, to: "received"
     end
 
     SkinSpecimen do
@@ -61,6 +62,7 @@ Hecks.bluebook "Taxidermy" do
       String :position
       String :expression
       emits "PoseSelected"
+      then_set :status, to: "selected"
     end
 
     SculptAlteration do
@@ -112,6 +114,7 @@ Hecks.bluebook "Taxidermy" do
       reference_to(Pose)
       String :adhesive_type
       emits "SpecimenMounted"
+      then_set :status, to: "in_progress"
     end
 
     FinishMount do

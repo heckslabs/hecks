@@ -15,9 +15,18 @@ Hecks.behaviors "MarinaManagement" do
     expect status: "reserved"
   end
 
+  test "OccupySlip runs" do
+    tests "OccupySlip", on: "Slip"
+    setup  "OpenSlip", slip_number: "sample", length_feet: 1.0, beam_feet: 1.0, dock_section: "sample", power_hookup: "sample", monthly_rate: 1.0
+    setup  "ReserveSlip"
+    expect status: "occupied"
+  end
+
   test "VacateSlip runs" do
     tests "VacateSlip", on: "Slip"
     setup  "OpenSlip", slip_number: "sample", length_feet: 1.0, beam_feet: 1.0, dock_section: "sample", power_hookup: "sample", monthly_rate: 1.0
+    setup  "ReserveSlip"
+    setup  "OccupySlip"
     expect status: "available"
   end
 

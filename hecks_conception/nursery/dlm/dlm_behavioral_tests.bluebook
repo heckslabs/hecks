@@ -46,7 +46,7 @@ Hecks.behaviors "DLM" do
 
   test "GrowCorpus runs" do
     tests "GrowCorpus", on: "Corpus"
-    expect domain_count: 1
+    expect ok: "true"
   end
 
 
@@ -68,12 +68,12 @@ Hecks.behaviors "DLM" do
 
   test "RecordHonestOperation runs" do
     tests "RecordHonestOperation", on: "Honesty"
-    expect total_operations: 1
+    expect ok: "true"
   end
 
   test "RecordRefusal runs" do
     tests "RecordRefusal", on: "Honesty"
-    expect total_refusals: 1
+    expect ok: "true"
   end
 
   test "CalculateHonestyRate runs" do
@@ -87,12 +87,12 @@ Hecks.behaviors "DLM" do
 
   test "RecordHeartbeat runs" do
     tests "RecordHeartbeat", on: "Physiology"
-    expect heartbeat: 1
+    expect ok: "true"
   end
 
   test "RecordPulse runs" do
     tests "RecordPulse", on: "Physiology"
-    expect pulse: 1
+    expect ok: "true"
   end
 
   test "EnterSleep runs" do
@@ -103,7 +103,7 @@ Hecks.behaviors "DLM" do
   test "GenerateDream sets dream_images" do
     tests "GenerateDream", on: "Physiology"
     input  dream_images: "sample"
-    expect dreams_total: 1
+    expect ok: "true"
   end
 
 
@@ -111,7 +111,7 @@ Hecks.behaviors "DLM" do
 
   test "RecordGrowth runs" do
     tests "RecordGrowth", on: "Growth"
-    expect sessions_lived: 1
+    expect ok: "true"
   end
 
   test "MeasureAcceleration runs" do

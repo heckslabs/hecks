@@ -6,7 +6,7 @@ Hecks.behaviors "Glassblowing" do
   test "GatherGlass sets name + form + technique" do
     tests "GatherGlass", on: "GlassPiece"
     input  name: "sample", form: "sample", technique: "sample"
-    expect ok: "true"
+    expect status: "gathered"
   end
 
   test "BlowPiece runs" do
@@ -66,7 +66,7 @@ Hecks.behaviors "Glassblowing" do
     tests "LoadAnnealer", on: "AnnealingCycle"
     setup  "GatherGlass", name: "sample", form: "sample", technique: "sample"
     input  hold_temp_f: 1, ramp_rate_per_hour: 1, total_hours: 1
-    expect ok: "true"
+    expect status: "loading"
   end
 
   test "StartCycle runs" do
@@ -88,7 +88,7 @@ Hecks.behaviors "Glassblowing" do
   test "CurateExhibition sets title + venue + opening_date + piece_count" do
     tests "CurateExhibition", on: "GlassExhibition"
     input  title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
-    expect ok: "true"
+    expect status: "planning"
   end
 
   test "OpenExhibition runs" do

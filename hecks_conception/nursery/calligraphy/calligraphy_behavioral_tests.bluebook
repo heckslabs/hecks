@@ -6,7 +6,7 @@ Hecks.behaviors "Calligraphy" do
   test "QuoteCommission sets client_name + text_content + purpose + deadline" do
     tests "QuoteCommission", on: "CalligraphyCommission"
     input  client_name: "sample", text_content: "sample", purpose: "sample", deadline: "sample"
-    expect ok: "true"
+    expect status: "quoted"
   end
 
   test "AcceptCommission runs" do
@@ -69,7 +69,7 @@ Hecks.behaviors "Calligraphy" do
     tests "SelectPaper", on: "PaperSelection"
     setup  "QuoteCommission", client_name: "sample", text_content: "sample", purpose: "sample", deadline: "sample"
     input  name: "sample", finish: "sample", gsm: 1, fiber_content: "sample"
-    expect ok: "true"
+    expect status: "stocked"
   end
 
   test "CutPaper sets width_inches + height_inches" do
@@ -85,7 +85,7 @@ Hecks.behaviors "Calligraphy" do
   test "CuratePortfolio sets title + theme + piece_count" do
     tests "CuratePortfolio", on: "Portfolio"
     input  title: "sample", theme: "sample", piece_count: 1
-    expect ok: "true"
+    expect status: "curating"
   end
 
   test "PublishPortfolio runs" do

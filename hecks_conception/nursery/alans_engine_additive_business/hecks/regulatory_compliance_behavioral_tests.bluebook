@@ -82,7 +82,7 @@ Hecks.behaviors "RegulatoryCompliance" do
   test "CompleteSection runs" do
     tests "CompleteSection", on: "SafetyDataSheet"
     setup  "DraftSDS", formula_name: "sample", ghs_classification: "sample"
-    expect sections_complete: 1
+    expect ok: "true"
   end
 
   test "ReviewSDS sets reviewer" do
@@ -114,7 +114,7 @@ Hecks.behaviors "RegulatoryCompliance" do
     setup  "ReviewSDS", reviewer: "sample"
     setup  "ApproveSDS", approved_date: "sample"
     setup  "PublishSDS"
-    expect sds_version: 1, sections_complete: 0, status: "drafting"
+    expect sections_complete: 0, status: "drafting"
   end
 
 
@@ -238,7 +238,7 @@ Hecks.behaviors "RegulatoryCompliance" do
   test "CloseAuditFinding runs" do
     tests "CloseAuditFinding", on: "AuditReadiness"
     setup  "AssessReadiness", last_audit_date: "sample", next_expected: "sample", findings_open: 1, documents_current: 1, documents_expired: 1, readiness_score: 1.0
-    expect findings_open: 1
+    expect ok: "true"
   end
 
 

@@ -68,12 +68,13 @@ Hecks.behaviors "HealingThroughLearning" do
     tests "RecordReading", on: "HealthMetric"
     setup  "RecordBaseline", metric_id: "sample", metric_type: "sample", baseline_value: 1.0
     input  current_value: 1.0, trend: "sample"
-    expect current_value: 1.0, trend: "sample"
+    expect current_value: 1.0, trend: "improving"
   end
 
   test "FlagImprovement runs" do
     tests "FlagImprovement", on: "HealthMetric"
     setup  "RecordBaseline", metric_id: "sample", metric_type: "sample", baseline_value: 1.0
+    setup  "RecordReading", current_value: 1.0, trend: "sample"
     expect ok: "true"
   end
 

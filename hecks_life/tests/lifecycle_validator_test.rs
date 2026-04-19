@@ -210,6 +210,70 @@ end
 }
 
 #[test]
+fn flags_then_set_referencing_undefined_symbol() {
+    // The bluebook author wrote `then_set :event, to: :event` but
+    // the command has no `:event` attribute or reference — at runtime
+    // the field stays null. Validator catches this.
+    let source = r#"Hecks.bluebook "Buggy" do
+  aggregate "Fleet" do
+    attribute :event, String
+    command "Deploy" do
+      attribute :fleet_id, String
+      reference_to(DisasterEvent)
+      emits "Deployed"
+      then_set :event, to: :event
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let report = check(&domain);
+    let mutation_err = report.findings.iter()
+        .find(|f| f.message.contains("then_set :event references :event"));
+    assert!(mutation_err.is_some(),
+        "expected mutation-reference error: {:?}",
+        report.findings.iter().map(|f| &f.message).collect::<Vec<_>>());
+}
+
+#[test]
+fn then_set_referencing_attribute_passes() {
+    let source = r#"Hecks.bluebook "OK" do
+  aggregate "Order" do
+    attribute :status, String
+    command "Process" do
+      attribute :status, String
+      emits "Processed"
+      then_set :status, to: :status
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let report = check(&domain);
+    assert!(!report.findings.iter().any(|f| f.message.contains("then_set")),
+        "no mutation-reference errors expected");
+}
+
+#[test]
+fn then_set_referencing_reference_passes() {
+    let source = r#"Hecks.bluebook "OK" do
+  aggregate "Order" do
+    attribute :pizza_id, String
+    command "PlaceOrder" do
+      reference_to(Pizza)
+      emits "OrderPlaced"
+      then_set :pizza_id, to: :pizza
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let report = check(&domain);
+    assert!(!report.findings.iter().any(|f| f.message.contains("then_set")),
+        ":pizza is the reference name; should resolve cleanly");
+}
+
+#[test]
 fn unconstrained_transition_satisfies_default() {
     // A transition with no from: clause fires from any state, including
     // default. So it counts for the stuck-default check.

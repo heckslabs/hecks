@@ -28,6 +28,7 @@ Hecks.bluebook "PaintingContractor" do
       String :surface_type
       Integer :coats
       emits "JobEstimated"
+      then_set :status, to: "presented"
     end
 
     AcceptEstimate do

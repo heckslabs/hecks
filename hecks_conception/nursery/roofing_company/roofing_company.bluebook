@@ -36,6 +36,7 @@ Hecks.bluebook "RoofingCompany" do
       Float :material_cost_per_square
       Float :labor_cost_per_square
       emits "JobQuoted"
+      then_set :status, to: "quoted"
     end
 
     AcceptQuote do

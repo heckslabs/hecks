@@ -30,12 +30,13 @@ Hecks.behaviors "AutoRepairShop" do
     tests "DiagnoseIssue", on: "WorkOrder"
     setup  "OpenWorkOrder", complaint: "sample"
     input  diagnosis: "sample"
-    expect diagnosis: "sample", status: "diagnosed"
+    expect diagnosis: "sample", status: "in_progress"
   end
 
   test "CompleteRepair sets labor_hours" do
     tests "CompleteRepair", on: "WorkOrder"
     setup  "OpenWorkOrder", complaint: "sample"
+    setup  "DiagnoseIssue", diagnosis: "sample"
     input  labor_hours: 1.0
     expect labor_hours: 1.0, status: "completed"
   end
@@ -43,6 +44,7 @@ Hecks.behaviors "AutoRepairShop" do
   test "CloseWorkOrder runs" do
     tests "CloseWorkOrder", on: "WorkOrder"
     setup  "OpenWorkOrder", complaint: "sample"
+    setup  "DiagnoseIssue", diagnosis: "sample"
     setup  "CompleteRepair", labor_hours: 1.0
     expect status: "closed"
   end

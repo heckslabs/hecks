@@ -32,6 +32,7 @@ Hecks.bluebook "PaymentGateway", version: "2026.04.13.1" do
       String :card_last_four
       reference_to(Merchant)
       emits "TransactionAuthorized"
+      then_set :status, to: "authorized"
     end
 
     CaptureTransaction do
@@ -79,6 +80,7 @@ Hecks.bluebook "PaymentGateway", version: "2026.04.13.1" do
       description "Freeze a merchant account due to risk concerns"
       reference_to(Merchant)
       emits "MerchantSuspended"
+      then_set :status, to: "suspended"
     end
 
     ReinstateMerchant do
@@ -114,6 +116,7 @@ Hecks.bluebook "PaymentGateway", version: "2026.04.13.1" do
       String :period
       reference_to(Merchant)
       emits "SettlementBatched"
+      then_set :status, to: "pending"
     end
 
     DisburseSettlement do
@@ -154,6 +157,7 @@ Hecks.bluebook "PaymentGateway", version: "2026.04.13.1" do
       String :evidence_due_date
       reference_to(Transaction)
       emits "ChargebackFiled"
+      then_set :status, to: "open"
     end
 
     SubmitEvidence do
@@ -195,6 +199,7 @@ Hecks.bluebook "PaymentGateway", version: "2026.04.13.1" do
       String :scope
       reference_to(Merchant)
       emits "ComplianceCheckRun"
+      then_set :status, to: "pending"
     end
 
     PassCheck do

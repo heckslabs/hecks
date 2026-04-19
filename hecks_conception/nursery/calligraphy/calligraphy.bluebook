@@ -13,6 +13,7 @@ Hecks.bluebook "Calligraphy" do
       String :text_content
       String :purpose
       String :deadline
+      then_set :status, to: "quoted"
       emits "CommissionQuoted"
     end
 
@@ -119,6 +120,7 @@ Hecks.bluebook "Calligraphy" do
       String :finish
       Integer :gsm
       String :fiber_content
+      then_set :status, to: "stocked"
       emits "PaperSelected"
     end
 
@@ -144,6 +146,7 @@ Hecks.bluebook "Calligraphy" do
       String :title
       String :theme
       Integer :piece_count
+      then_set :status, to: "curating"
       emits "PortfolioCurated"
     end
 

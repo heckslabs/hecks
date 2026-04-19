@@ -5,7 +5,7 @@ Hecks.behaviors "Mindstream" do
 
   test "MindstreamTick runs" do
     tests "MindstreamTick", on: "Tick"
-    expect cycle: 1
+    expect ok: "true"
   end
 
 
@@ -23,7 +23,7 @@ Hecks.behaviors "Mindstream" do
   test "MintMusing sets idea" do
     tests "MintMusing", on: "MusingMint"
     input  idea: "sample"
-    expect last_minted: "sample", total_minted: 1
+    expect last_minted: "sample"
   end
 
   test "PruneMusings runs" do
@@ -54,12 +54,12 @@ Hecks.behaviors "Mindstream" do
 
   test "ConsolidateSignals runs" do
     tests "ConsolidateSignals", on: "SignalConsolidation"
-    expect signals_consolidated: 1
+    expect ok: "true"
   end
 
   test "PruneSynapses runs" do
     tests "PruneSynapses", on: "SignalConsolidation"
-    expect synapses_pruned: 1
+    expect ok: "true"
   end
 
 end

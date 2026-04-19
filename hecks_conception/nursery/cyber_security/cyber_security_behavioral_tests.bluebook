@@ -6,7 +6,7 @@ Hecks.behaviors "CyberSecurity" do
   test "IdentifyThreat sets threat_id + name + category + severity + source_feed" do
     tests "IdentifyThreat", on: "Threat"
     input  threat_id: "sample", name: "sample", category: "sample", severity: "sample", source_feed: "sample"
-    expect ok: "true"
+    expect status: "active"
   end
 
   test "EscalateThreat sets severity" do
@@ -36,12 +36,13 @@ Hecks.behaviors "CyberSecurity" do
     tests "AssignResponseTeam", on: "SecurityIncident"
     setup  "DeclareIncident", incident_id: "sample", title: "sample", severity: "sample", attack_vector: "sample"
     input  assigned_team: "sample"
-    expect ok: "true"
+    expect status: "in_progress"
   end
 
   test "CloseIncident sets root_cause" do
     tests "CloseIncident", on: "SecurityIncident"
     setup  "DeclareIncident", incident_id: "sample", title: "sample", severity: "sample", attack_vector: "sample"
+    setup  "AssignResponseTeam", assigned_team: "sample"
     input  root_cause: "sample"
     expect ok: "true"
   end
@@ -59,12 +60,13 @@ Hecks.behaviors "CyberSecurity" do
     tests "DeployPatch", on: "Patch"
     setup  "ReleasePatch", patch_id: "sample", cve_id: "sample", target_system: "sample", urgency: "sample"
     input  host: "sample"
-    expect ok: "true"
+    expect status: "deployed"
   end
 
   test "RollbackPatch runs" do
     tests "RollbackPatch", on: "Patch"
     setup  "ReleasePatch", patch_id: "sample", cve_id: "sample", target_system: "sample", urgency: "sample"
+    setup  "DeployPatch", host: "sample"
     expect ok: "true"
   end
 
@@ -74,7 +76,7 @@ Hecks.behaviors "CyberSecurity" do
   test "InitiateAudit sets audit_id + scope + framework + auditor" do
     tests "InitiateAudit", on: "SecurityAudit"
     input  audit_id: "sample", scope: "sample", framework: "sample", auditor: "sample"
-    expect ok: "true"
+    expect status: "in_progress"
   end
 
   test "RecordFinding sets control_id + description + severity" do

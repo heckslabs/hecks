@@ -23,6 +23,7 @@ Hecks.bluebook "DevOpsPipeline", version: "2026.04.13.1" do
       String :clone_url
       String :default_branch
       String :language
+      then_set :status, to: "idle"
       emits "RepositoryRegistered"
     end
 
@@ -104,6 +105,7 @@ Hecks.bluebook "DevOpsPipeline", version: "2026.04.13.1" do
       String :strategy
       String :deployed_by
       reference_to(Build)
+      then_set :status, to: "healthy"
       emits "ArtifactDeployed"
     end
 
@@ -143,6 +145,7 @@ Hecks.bluebook "DevOpsPipeline", version: "2026.04.13.1" do
       String :target_version
       String :initiated_by
       reference_to(Deployment)
+      then_set :status, to: "in_progress"
       emits "RollbackInitiated"
     end
 

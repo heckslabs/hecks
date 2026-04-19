@@ -13,12 +13,13 @@ Hecks.behaviors "APIMarketplace" do
     tests "DeprecateAPI", on: "APIProduct"
     setup  "PublishAPI", api_name: "sample", version: "sample", description: "sample", base_url: "sample", auth_method: "sample"
     input  sunset_date: "sample"
-    expect ok: "true"
+    expect status: "deprecated"
   end
 
   test "RetireAPI runs" do
     tests "RetireAPI", on: "APIProduct"
     setup  "PublishAPI", api_name: "sample", version: "sample", description: "sample", base_url: "sample", auth_method: "sample"
+    setup  "DeprecateAPI", sunset_date: "sample"
     expect ok: "true"
   end
 
@@ -28,7 +29,7 @@ Hecks.behaviors "APIMarketplace" do
   test "RegisterConsumer sets consumer_name + email + organization + plan" do
     tests "RegisterConsumer", on: "Consumer"
     input  consumer_name: "sample", email: "sample", organization: "sample", plan: "sample"
-    expect consumer_name: "sample", email: "sample", organization: "sample", plan: "sample"
+    expect consumer_name: "sample", email: "sample", organization: "sample", plan: "sample", status: "active"
   end
 
   test "SubscribeToAPI sets api_name + tier" do
@@ -51,7 +52,7 @@ Hecks.behaviors "APIMarketplace" do
     tests "IssueKey", on: "APIKey"
     setup  "RegisterConsumer", consumer_name: "sample", email: "sample", organization: "sample", plan: "sample"
     input  key_id: "sample", label: "sample", scope: "sample", expires_at: "sample"
-    expect ok: "true"
+    expect status: "active"
   end
 
   test "RevokeKey runs" do
@@ -97,7 +98,7 @@ Hecks.behaviors "APIMarketplace" do
     tests "GenerateBill", on: "UsageBill"
     setup  "RegisterConsumer", consumer_name: "sample", email: "sample", organization: "sample", plan: "sample"
     input  bill_id: "sample", amount: 1.0, total_calls: 1, billing_period: "sample"
-    expect ok: "true"
+    expect status: "unpaid"
   end
 
   test "CollectPayment runs" do

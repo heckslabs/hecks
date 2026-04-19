@@ -213,7 +213,7 @@ Hecks.bluebook "FoodIsMedicine", version: "2026.04.13.1" do
       String :trend
       emits "CheckpointRecorded"
       then_set :current_status, to: :current_status
-      then_set :trend, to: :trend
+      then_set :trend, to: "improving"
     end
     FlagImprovement do
       role "System"

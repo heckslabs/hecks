@@ -20,6 +20,7 @@ Hecks.bluebook "GameDevelopment" do
       String :genre
       String :target_platform
       emits "ProjectKickedOff"
+      then_set :status, to: "pre_production"
     end
 
     EnterProduction do
@@ -53,6 +54,7 @@ Hecks.bluebook "GameDevelopment" do
       Integer :duration_days
       Integer :story_points
       emits "SprintPlanned"
+      then_set :status, to: "planning"
     end
 
     StartSprint do
@@ -87,6 +89,7 @@ Hecks.bluebook "GameDevelopment" do
       String :platform
       String :build_config
       emits "BuildTriggered"
+      then_set :status, to: "building"
     end
 
     CertifyBuild do
@@ -118,6 +121,7 @@ Hecks.bluebook "GameDevelopment" do
       String :session_name
       Integer :tester_count
       emits "PlaytestScheduled"
+      then_set :status, to: "scheduled"
     end
 
     ConductPlaytest do
@@ -150,6 +154,7 @@ Hecks.bluebook "GameDevelopment" do
       String :severity
       String :repro_steps
       emits "BugFiled"
+      then_set :status, to: "open"
     end
 
     ResolveBug do

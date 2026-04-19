@@ -13,12 +13,13 @@ Hecks.behaviors "RoofingCompany" do
     tests "QuoteJob", on: "RoofEstimate"
     setup  "MeasureRoof", customer_name: "sample", address: "sample", square_footage: 1.0, pitch: 1.0
     input  material_cost_per_square: 1.0, labor_cost_per_square: 1.0
-    expect ok: "true"
+    expect status: "quoted"
   end
 
   test "AcceptQuote runs" do
     tests "AcceptQuote", on: "RoofEstimate"
     setup  "MeasureRoof", customer_name: "sample", address: "sample", square_footage: 1.0, pitch: 1.0
+    setup  "QuoteJob", material_cost_per_square: 1.0, labor_cost_per_square: 1.0
     expect ok: "true"
   end
 

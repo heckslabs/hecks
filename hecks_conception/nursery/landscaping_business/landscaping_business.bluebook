@@ -56,6 +56,7 @@ Hecks.bluebook "LandscapingBusiness" do
       Float :budget
       reference_to(Property)
       emits "DesignDrafted"
+      then_set :status, to: "in_review"
     end
 
     ApproveDesign do

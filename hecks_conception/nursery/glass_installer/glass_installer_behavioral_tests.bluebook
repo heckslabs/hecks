@@ -6,7 +6,7 @@ Hecks.behaviors "GlassInstaller" do
   test "PlaceOrder sets customer_name + glass_type + application + quantity" do
     tests "PlaceOrder", on: "GlassOrder"
     input  customer_name: "sample", glass_type: "sample", application: "sample", quantity: 1
-    expect customer_name: "sample", glass_type: "sample", application: "sample", quantity: 1
+    expect customer_name: "sample", glass_type: "sample", application: "sample", quantity: 1, status: "measured"
   end
 
   test "ConfirmOrder runs" do

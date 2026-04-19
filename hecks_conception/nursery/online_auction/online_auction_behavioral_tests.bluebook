@@ -6,7 +6,7 @@ Hecks.behaviors "OnlineAuction" do
   test "ListLot sets lot_number + title + description + category + starting_price + reserve_price + auction_end" do
     tests "ListLot", on: "Lot"
     input  lot_number: "sample", title: "sample", description: "sample", category: "sample", starting_price: 1.0, reserve_price: 1.0, auction_end: "sample"
-    expect ok: "true"
+    expect status: "active"
   end
 
   test "CloseLot runs" do
@@ -56,12 +56,13 @@ Hecks.behaviors "OnlineAuction" do
   test "VerifySeller runs" do
     tests "VerifySeller", on: "Seller"
     setup  "RegisterSeller", seller_id: "sample", name: "sample", email: "sample"
-    expect ok: "true"
+    expect status: "active"
   end
 
   test "SuspendSeller runs" do
     tests "SuspendSeller", on: "Seller"
     setup  "RegisterSeller", seller_id: "sample", name: "sample", email: "sample"
+    setup  "VerifySeller"
     expect ok: "true"
   end
 
@@ -72,7 +73,7 @@ Hecks.behaviors "OnlineAuction" do
     tests "SettleLot", on: "AuctionSettlement"
     setup  "ListLot", lot_number: "sample", title: "sample", description: "sample", category: "sample", starting_price: 1.0, reserve_price: 1.0, auction_end: "sample"
     input  settlement_id: "sample", hammer_price: 1.0, buyer_premium: 1.0, seller_commission: 1.0
-    expect ok: "true"
+    expect status: "pending"
   end
 
   test "DisburseToSeller runs" do
@@ -95,7 +96,7 @@ Hecks.behaviors "OnlineAuction" do
     tests "OpenDispute", on: "Dispute"
     setup  "SettleLot", settlement_id: "sample", hammer_price: 1.0, buyer_premium: 1.0, seller_commission: 1.0
     input  dispute_id: "sample", complainant: "sample", reason: "sample", description: "sample"
-    expect dispute_id: "sample", complainant: "sample", reason: "sample", description: "sample"
+    expect dispute_id: "sample", complainant: "sample", reason: "sample", description: "sample", status: "open"
   end
 
   test "ResolveDispute sets resolution" do

@@ -55,7 +55,7 @@ Hecks.behaviors "Voice" do
   test "RecordTurn runs" do
     tests "RecordTurn", on: "Conversation"
     setup  "StartConversation"
-    expect turn_count: 1
+    expect ok: "true"
   end
 
   test "EndConversation runs" do

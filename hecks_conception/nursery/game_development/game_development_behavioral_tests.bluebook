@@ -6,7 +6,7 @@ Hecks.behaviors "GameDevelopment" do
   test "KickOffProject sets title + engine + genre + target_platform" do
     tests "KickOffProject", on: "GameProject"
     input  title: "sample", engine: "sample", genre: "sample", target_platform: "sample"
-    expect ok: "true"
+    expect status: "pre_production"
   end
 
   test "EnterProduction runs" do
@@ -29,7 +29,7 @@ Hecks.behaviors "GameDevelopment" do
     tests "PlanSprint", on: "Sprint"
     setup  "KickOffProject", title: "sample", engine: "sample", genre: "sample", target_platform: "sample"
     input  name: "sample", duration_days: 1, story_points: 1
-    expect ok: "true"
+    expect status: "planning"
   end
 
   test "StartSprint runs" do
@@ -53,7 +53,7 @@ Hecks.behaviors "GameDevelopment" do
     tests "TriggerBuild", on: "Build"
     setup  "KickOffProject", title: "sample", engine: "sample", genre: "sample", target_platform: "sample"
     input  version: "sample", platform: "sample", build_config: "sample"
-    expect ok: "true"
+    expect status: "building"
   end
 
   test "CertifyBuild runs" do
@@ -69,7 +69,7 @@ Hecks.behaviors "GameDevelopment" do
     tests "SchedulePlaytest", on: "Playtest"
     setup  "TriggerBuild", version: "sample", platform: "sample", build_config: "sample"
     input  session_name: "sample", tester_count: 1
-    expect ok: "true"
+    expect status: "scheduled"
   end
 
   test "ConductPlaytest runs" do
@@ -92,7 +92,7 @@ Hecks.behaviors "GameDevelopment" do
     tests "FileBug", on: "BugReport"
     setup  "TriggerBuild", version: "sample", platform: "sample", build_config: "sample"
     input  title: "sample", severity: "sample", repro_steps: "sample"
-    expect ok: "true"
+    expect status: "open"
   end
 
   test "ResolveBug sets resolution" do

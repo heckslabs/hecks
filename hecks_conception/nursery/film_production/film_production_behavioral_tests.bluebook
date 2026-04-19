@@ -6,7 +6,7 @@ Hecks.behaviors "FilmProduction" do
   test "GreenLightProduction sets title + genre + total_budget" do
     tests "GreenLightProduction", on: "Production"
     input  title: "sample", genre: "sample", total_budget: 1.0
-    expect ok: "true"
+    expect status: "development"
   end
 
   test "StartPrincipalPhotography sets start_date" do
@@ -30,7 +30,7 @@ Hecks.behaviors "FilmProduction" do
     tests "SlateScene", on: "Scene"
     setup  "GreenLightProduction", title: "sample", genre: "sample", total_budget: 1.0
     input  scene_number: 1, location: "sample", time_of_day: "sample"
-    expect ok: "true"
+    expect status: "scheduled"
   end
 
   test "PrintScene sets take_number" do

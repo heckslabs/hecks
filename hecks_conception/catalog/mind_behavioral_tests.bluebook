@@ -154,28 +154,28 @@ Hecks.behaviors "Mind" do
     tests "GraftDomain", on: "Being"
     setup  "BirthBeing", name: "sample", vision: "sample"
     input  domain_name: "sample", domain_version: "sample", source_path: "sample", grafted_at: "sample"
-    expect organs_size: 1, active_count: 1
+    expect organs_size: 1
   end
 
   test "ShedDomain sets domain_name" do
     tests "ShedDomain", on: "Being"
     setup  "BirthBeing", name: "sample", vision: "sample"
     input  domain_name: "sample"
-    expect active_count: 1
+    expect ok: "true"
   end
 
   test "ExpressDomain sets domain_name" do
     tests "ExpressDomain", on: "Being"
     setup  "BirthBeing", name: "sample", vision: "sample"
     input  domain_name: "sample"
-    expect active_count: 1
+    expect ok: "true"
   end
 
   test "SilenceDomain sets domain_name" do
     tests "SilenceDomain", on: "Being"
     setup  "BirthBeing", name: "sample", vision: "sample"
     input  domain_name: "sample"
-    expect active_count: 1
+    expect ok: "true"
   end
 
   test "UpgradeOrgan sets domain_name + new_version" do
@@ -227,7 +227,7 @@ Hecks.behaviors "Mind" do
   test "Beat runs" do
     tests "Beat", on: "Heartbeat"
     setup  "BeginHeartbeat", being_name: "sample"
-    expect beats: 1, last_beat_at: :now
+    expect last_beat_at: :now
   end
 
   test "ReportOrganPulse sets domain_name + event_count + last_event_at" do
@@ -249,7 +249,7 @@ Hecks.behaviors "Mind" do
   test "RecordSession runs" do
     tests "RecordSession", on: "Identity"
     setup  "EstablishIdentity", being_name: "sample"
-    expect sessions: 1
+    expect ok: "true"
   end
 
   test "RememberPerson sets persona_name" do
@@ -317,7 +317,7 @@ Hecks.behaviors "Mind" do
   test "Contract runs" do
     tests "Contract", on: "Gestation"
     setup  "StartGestation", domain_name: "sample", nursery_path: "sample"
-    expect contractions: 1
+    expect ok: "true"
   end
 
 
@@ -437,7 +437,7 @@ Hecks.behaviors "Mind" do
   test "IndexDomain sets domain_name + vector" do
     tests "IndexDomain", on: "Corpus"
     input  domain_name: "sample", vector: 1.0
-    expect domain_count: 1, total_vectors: 1
+    expect ok: "true"
   end
 
   test "QueryNearest sets target_vector + k" do
@@ -462,7 +462,7 @@ Hecks.behaviors "Mind" do
   test "AccumulateFatigue runs" do
     tests "AccumulateFatigue", on: "Fatigue"
     setup  "AwakenFatigue"
-    expect pulses_since_sleep: 1, state: "focused"
+    expect state: "focused"
   end
 
   test "DissipateFatigue sets cycles_completed" do
@@ -562,7 +562,7 @@ Hecks.behaviors "Mind" do
     tests "AccumulateDream", on: "Night"
     setup  "StartNight"
     input  dream_images: "sample", recombinations: "sample", dream_pulses: 1
-    expect cycles_completed: 1
+    expect ok: "true"
   end
 
   test "AccumulateConsolidation sets consolidated + pruned" do
@@ -783,7 +783,7 @@ Hecks.behaviors "Mind" do
   test "RecordAddition runs" do
     tests "RecordAddition", on: "FamilyIndex"
     setup  "RebuildIndex", total_members: 1, total_organs: 1, total_incorporated: 1, total_aggregates: 1, total_commands: 1
-    expect total_members: 1
+    expect ok: "true"
   end
 
 

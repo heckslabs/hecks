@@ -96,12 +96,13 @@ Hecks.behaviors "FoodIsMedicine" do
     tests "RecordCheckpoint", on: "PatientOutcome"
     setup  "RecordBaseline", patient_name: "sample", baseline_status: "sample"
     input  current_status: "sample", trend: "sample"
-    expect current_status: "sample", trend: "sample"
+    expect current_status: "sample", trend: "improving"
   end
 
   test "FlagImprovement runs" do
     tests "FlagImprovement", on: "PatientOutcome"
     setup  "RecordBaseline", patient_name: "sample", baseline_status: "sample"
+    setup  "RecordCheckpoint", current_status: "sample", trend: "sample"
     expect ok: "true"
   end
 

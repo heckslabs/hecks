@@ -23,7 +23,7 @@ Hecks.bluebook "CallCenter" do
       String :priority
       String :channel
       emits "TicketOpened"
-      then_set :status, to: "open"
+      then_set :status, to: "queued"
     end
 
     AssignToAgent do

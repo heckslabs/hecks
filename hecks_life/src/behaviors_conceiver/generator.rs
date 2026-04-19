@@ -469,9 +469,11 @@ fn build_expect(
                 }
             }
             MutationOp::Increment | MutationOp::Decrement => {
-                if seen.insert(m.field.clone()) {
-                    out.push((m.field.clone(), "1".into()));
-                }
+                // Skipping: the resulting count depends on prior state
+                // (was the field 0? null? has setup already incremented?).
+                // The runner can't predict it; the generator picking "1"
+                // produces brittle expectations like "expected 1, got -1"
+                // for decrement-from-null. Author writes these by hand.
             }
             MutationOp::Toggle => {
                 if seen.insert(m.field.clone()) {

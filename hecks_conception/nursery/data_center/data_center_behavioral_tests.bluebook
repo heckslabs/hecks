@@ -29,7 +29,7 @@ Hecks.behaviors "DataCenter" do
     tests "SetupServer", on: "Server"
     setup  "InstallRack", rack_id: "sample", location_aisle: "sample", unit_capacity: 1, power_zone: "sample"
     input  hostname: "sample", ip_address: "sample", cpu_cores: 1, ram_gb: 1, os_version: "sample"
-    expect ok: "true"
+    expect status: "powered_off"
   end
 
   test "RebootServer runs" do
@@ -95,7 +95,7 @@ Hecks.behaviors "DataCenter" do
     tests "ReportIncident", on: "Incident"
     setup  "SetupServer", hostname: "sample", ip_address: "sample", cpu_cores: 1, ram_gb: 1, os_version: "sample"
     input  incident_number: "sample", severity: "sample", summary: "sample", affected_zone: "sample"
-    expect ok: "true"
+    expect status: "open"
   end
 
   test "EscalateIncident sets severity + assigned_to" do

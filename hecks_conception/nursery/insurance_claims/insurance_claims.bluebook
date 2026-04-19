@@ -94,6 +94,15 @@ Hecks.bluebook "InsuranceClaims" do
       then_set :status, to: "filed"
     end
 
+    ReviewClaim do
+      role "ClaimsManager"
+      description "Begin review of the filed claim"
+      reference_to(Claim)
+      given { status == "filed" }
+      emits "ClaimUnderReview"
+      then_set :status, to: "under_review"
+    end
+
     ApproveClaim do
       role "ClaimsManager"
       description "Approve the claim for settlement processing"

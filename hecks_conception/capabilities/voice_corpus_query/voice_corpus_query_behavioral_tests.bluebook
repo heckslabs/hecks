@@ -101,7 +101,7 @@ Hecks.behaviors "VoiceCorpusQuery" do
   test "RecordQuery sets query + intent_type + matched_domain + answered_at" do
     tests "RecordQuery", on: "QueryHistory"
     input  query: "sample", intent_type: "sample", matched_domain: "sample", answered_at: "sample"
-    expect total_queries: 1
+    expect ok: "true"
   end
 
   test "AnalyzePatterns sets most_queried_domain" do

@@ -29,6 +29,7 @@ Hecks.bluebook "WebAccessibility", version: "2026.04.13.1" do
       String :wcag_level
       String :auditor
       emits "AuditLaunched"
+      then_set :status, to: "running"
     end
 
     CompleteAudit do
@@ -72,6 +73,7 @@ Hecks.bluebook "WebAccessibility", version: "2026.04.13.1" do
       Integer :dom_elements
       reference_to(AccessibilityAudit)
       emits "PageCrawled"
+      then_set :status, to: "pending"
     end
 
     MarkReviewed do
@@ -116,6 +118,7 @@ Hecks.bluebook "WebAccessibility", version: "2026.04.13.1" do
       String :description
       reference_to(Page)
       emits "ViolationReported"
+      then_set :status, to: "reported"
     end
 
     ConfirmViolation do
@@ -159,6 +162,7 @@ Hecks.bluebook "WebAccessibility", version: "2026.04.13.1" do
       String :priority
       reference_to(Violation)
       emits "RemediationAssigned"
+      then_set :status, to: "in_progress"
     end
 
     CompleteRemediation do
@@ -202,6 +206,7 @@ Hecks.bluebook "WebAccessibility", version: "2026.04.13.1" do
       String :valid_until
       reference_to(AccessibilityAudit)
       emits "CertificateIssued"
+      then_set :status, to: "valid"
     end
 
     RevokeCertificate do
