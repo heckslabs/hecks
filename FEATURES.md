@@ -409,6 +409,28 @@
 - **Fat bluebook warning** — if a domain has more than 7 aggregates, `hecks-life validate` emits a soft WARNING suggesting bounded context splitting (domain still passes as VALID)
 - **Mixed concerns warning** — if a domain with 5+ aggregates has disconnected aggregate clusters (no references or policies connecting them), `hecks-life validate` warns they may belong in separate bounded contexts
 
+### Lifecycle Validator (`hecks-life check-lifecycle`)
+- **Unreachable from_state** — flags transitions whose `from:` value is neither the lifecycle default nor any other transition's to_state (dead transition)
+- **Stuck default** — warns when no transition can fire from the default state (aggregate stuck forever)
+- **Unreachable given** — flags `given { field == "X" }` predicates where no command sets `field` to `X` (the gate can never open)
+- **Mutation reference check** — flags `then_set :event, to: :event` where `:event` matches no command attribute or reference (field stays null at runtime)
+- `--strict` promotes warnings to errors; pre-commit hook blocks on errors
+
+### IO Validator (`hecks-life check-io`)
+- Asserts the bluebook is pure-memory by default — no IO leaks above the hecksagon adapter layer
+- **Static IR scan**: flags IO-suggestive command names (`Deploy`, `Send`, `Push`, `Publish`, `Fetch`, `Sync`), past-tense external event names (`Deployed`, `Sent`), and pure-side-effect commands (emits but no state change, not Create or lifecycle)
+- **Runtime smoke**: boots `Runtime::boot(domain)` (pure-memory, no `data_dir`, no hecksagon) and dispatches every dispatchable command — anything that panics or attempts IO is a hard error
+- `hecks-life check-all` runs lifecycle + IO together
+
+### Behavioral Tests (`hecks-life conceive-behaviors` + `behaviors`)
+- New first-class DSL: `Hecks.behaviors "Pizzas" do ... end` — sibling to `Hecks.bluebook`, separate IR, separate parser, separate parity contract
+- Test surface: `tests`, `setup`, `input`, `expect` — no IDs in the test bluebook (runner translates references↔ids internally)
+- `conceive-behaviors` auto-generates `_behavioral_tests.bluebook` from any source bluebook by walking IR (every command, query, lifecycle transition, given clause)
+- `behaviors` runner uses `Runtime::boot(domain)` — pure-memory, no hecksagon, no adapters
+- Cascade-aware test generation: detects policy chains (emit→trigger), asserts on cascaded final state, skips redundant mid-chain tests
+- Skips tests for non-equality givens that the chain planner can't auto-satisfy
+- Conceiver parity test (`tests/conceiver_parity_test.rs`) keeps the bluebook conceiver and behaviors conceiver from drifting (shared `Conceiver` trait + shared `conceiver_common.rs` infrastructure)
+
 ## Domain Interface Versioning
 - `hecks version_tag <version>` — snapshot current domain DSL to `db/hecks_versions/<version>.rb` with metadata header
 - `hecks version_log` — list all tagged versions newest-first with date and one-line change summary

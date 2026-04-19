@@ -355,10 +355,14 @@ When `given`/`then_set` are present, the runtime uses `HecksalInterpreter` inste
 Aggregates reference each other by identity, not containment.
 
 ```ruby
-reference_to "Pizza"                           # role defaults to :pizza
-reference_to "Team", role: "home_team"         # explicit role
+reference_to "Pizza"                           # name defaults to :pizza
+reference_to "Team", as: :home_team            # explicit alias (canonical)
 reference_to "Billing::Invoice"                # cross-domain
 ```
+
+The `as:` kwarg is the canonical alias form. Legacy `role: :name` and
+the trailing-symbol shorthand `reference_to(X) :name` are also accepted
+by both parsers, but `as:` is preferred for new bluebooks.
 
 See [Cross-Domain References](cross_domain_references.md).
 
