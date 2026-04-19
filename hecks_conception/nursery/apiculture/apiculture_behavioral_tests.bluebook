@@ -9,12 +9,6 @@ Hecks.behaviors "Apiculture" do
     expect ok: "true"
   end
 
-  test "SplitHive runs" do
-    tests "SplitHive", on: "Hive"
-    setup  "EstablishHive", hive_id: "sample", hive_type: "sample", location: "sample"
-    expect ok: "true"
-  end
-
   test "RetireHive runs" do
     tests "RetireHive", on: "Hive"
     setup  "EstablishHive", hive_id: "sample", hive_type: "sample", location: "sample"
@@ -48,13 +42,6 @@ Hecks.behaviors "Apiculture" do
 
   # ── Harvest aggregate ──────────────────────────────────────────
 
-  test "ExtractHoney sets harvest_date + weight_kg" do
-    tests "ExtractHoney", on: "Harvest"
-    setup  "EstablishHive", hive_id: "sample", hive_type: "sample", location: "sample"
-    input  harvest_date: "sample", weight_kg: 1.0
-    expect ok: "true"
-  end
-
   test "JarHoney sets jar_count" do
     tests "JarHoney", on: "Harvest"
     setup  "ExtractHoney", harvest_date: "sample", weight_kg: 1.0
@@ -79,12 +66,6 @@ Hecks.behaviors "Apiculture" do
     expect ok: "true"
   end
 
-  test "SupersedeQueen runs" do
-    tests "SupersedeQueen", on: "Queen"
-    setup  "IntroduceQueen", queen_id: "sample", lineage: "sample"
-    expect ok: "true"
-  end
-
 
   # ── DiseaseTreatment aggregate ──────────────────────────────────────────
 
@@ -92,12 +73,6 @@ Hecks.behaviors "Apiculture" do
     tests "ApplyTreatment", on: "DiseaseTreatment"
     setup  "EstablishHive", hive_id: "sample", hive_type: "sample", location: "sample"
     input  treatment_type: "sample", active_ingredient: "sample"
-    expect ok: "true"
-  end
-
-  test "EvaluateEfficacy runs" do
-    tests "EvaluateEfficacy", on: "DiseaseTreatment"
-    setup  "ApplyTreatment", treatment_type: "sample", active_ingredient: "sample"
     expect ok: "true"
   end
 

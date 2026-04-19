@@ -48,12 +48,6 @@ Hecks.behaviors "Nutrition" do
     expect ok: "true"
   end
 
-  test "EvaluateProgress runs" do
-    tests "EvaluateProgress", on: "DietaryGoal"
-    setup  "SetGoal", goal_type: "sample", nutrient: "sample", target_value: 1.0
-    expect ok: "true"
-  end
-
   test "AdjustTarget sets new_target" do
     tests "AdjustTarget", on: "DietaryGoal"
     setup  "SetGoal", goal_type: "sample", nutrient: "sample", target_value: 1.0
@@ -68,12 +62,6 @@ Hecks.behaviors "Nutrition" do
     tests "DetectDeficiency", on: "Deficiency"
     setup  "SetGoal", goal_type: "sample", nutrient: "sample", target_value: 1.0
     input  nutrient: "sample", severity: "sample"
-    expect ok: "true"
-  end
-
-  test "ResolveDeficiency runs" do
-    tests "ResolveDeficiency", on: "Deficiency"
-    setup  "DetectDeficiency", nutrient: "sample", severity: "sample"
     expect ok: "true"
   end
 

@@ -49,12 +49,6 @@ Hecks.behaviors "BedAndBreakfast" do
 
   # ── GuestReview aggregate ──────────────────────────────────────────
 
-  test "SubmitReview sets review_id + guest_name + booking_id + rating + comment + review_date" do
-    tests "SubmitReview", on: "GuestReview"
-    input  review_id: "sample", guest_name: "sample", booking_id: "sample", rating: 1, comment: "sample", review_date: "sample"
-    expect review_id: "sample", guest_name: "sample", booking_id: "sample", rating: 1, comment: "sample", review_date: "sample"
-  end
-
   test "RespondToReview runs" do
     tests "RespondToReview", on: "GuestReview"
     setup  "SubmitReview", review_id: "sample", guest_name: "sample", booking_id: "sample", rating: 1, comment: "sample", review_date: "sample"

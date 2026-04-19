@@ -25,13 +25,6 @@ Hecks.behaviors "PrisonManagement" do
     expect cell_id: "sample", block: "sample", max_occupancy: 1, security_level: "sample", status: "available", current_occupancy: 0
   end
 
-  test "AssignInmateToCell runs" do
-    tests "AssignInmateToCell", on: "Cell"
-    setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
-    setup  "OpenCell", cell_id: "sample", block: "sample", max_occupancy: 1, security_level: "sample"
-    expect ok: "true"
-  end
-
   test "InspectCell runs" do
     tests "InspectCell", on: "Cell"
     setup  "OpenCell", cell_id: "sample", block: "sample", max_occupancy: 1, security_level: "sample"
@@ -58,13 +51,6 @@ Hecks.behaviors "PrisonManagement" do
     tests "LaunchProgram", on: "Program"
     input  program_name: "sample", program_type: "sample", capacity: 1
     expect status: "active", enrolled_count: 0
-  end
-
-  test "EnrollInmate runs" do
-    tests "EnrollInmate", on: "Program"
-    setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
-    setup  "LaunchProgram", program_name: "sample", program_type: "sample", capacity: 1
-    expect ok: "true"
   end
 
   test "GraduateInmate runs" do

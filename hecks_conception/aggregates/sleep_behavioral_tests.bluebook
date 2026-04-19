@@ -29,11 +29,6 @@ Hecks.behaviors "Sleep" do
     expect state: "napping"
   end
 
-  test "TakeStabilityNap runs" do
-    tests "TakeStabilityNap", on: "Consciousness"
-    expect state: "napping"
-  end
-
   test "WakeUp runs" do
     tests "WakeUp", on: "Consciousness"
     setup  "EnterDaydream"
@@ -46,65 +41,6 @@ Hecks.behaviors "Sleep" do
     setup  "EnterDaydream"
     setup  "EnterSleep"
     expect ok: "true"
-  end
-
-  test "AdvanceLightToRem runs" do
-    tests "AdvanceLightToRem", on: "Consciousness"
-    setup  "EnterDaydream"
-    setup  "EnterSleep"
-    expect sleep_stage: "rem", phase_ticks: 0, dream_pulses: 0, sleep_summary: "entering REM — dreams beginning"
-  end
-
-  test "AdvanceLightToLucidRem runs" do
-    tests "AdvanceLightToLucidRem", on: "Consciousness"
-    setup  "EnterDaydream"
-    setup  "EnterSleep"
-    expect sleep_stage: "rem", phase_ticks: 0, dream_pulses: 0, dream_pulses_needed: 8, is_lucid: "yes", sleep_summary: "entering lucid REM — aware that she's dreaming"
-  end
-
-  test "AdvanceRemToDeep runs" do
-    tests "AdvanceRemToDeep", on: "Consciousness"
-    setup  "EnterDaydream"
-    setup  "EnterSleep"
-    setup  "AdvanceLightToRem"
-    expect sleep_stage: "deep", phase_ticks: 0, is_lucid: "no", sleep_summary: "sinking into deep sleep — dream complete"
-  end
-
-  test "AdvanceRemToDeepCap runs" do
-    tests "AdvanceRemToDeepCap", on: "Consciousness"
-    setup  "EnterDaydream"
-    setup  "EnterSleep"
-    setup  "AdvanceLightToRem"
-    expect sleep_stage: "deep", phase_ticks: 0, is_lucid: "no", sleep_summary: "REM capped — dream cut short"
-  end
-
-  test "AdvanceDeepToLight runs" do
-    tests "AdvanceDeepToLight", on: "Consciousness"
-    setup  "EnterDaydream"
-    setup  "EnterSleep"
-    setup  "AdvanceLightToRem"
-    setup  "AdvanceRemToDeep"
-    expect sleep_stage: "light", phase_ticks: 0, sleep_summary: "light sleep — next cycle"
-  end
-
-  test "AdvanceDeepToFinalLight runs" do
-    tests "AdvanceDeepToFinalLight", on: "Consciousness"
-    setup  "EnterDaydream"
-    setup  "EnterSleep"
-    setup  "AdvanceLightToRem"
-    setup  "AdvanceRemToDeep"
-    expect sleep_stage: "final_light", phase_ticks: 0, sleep_summary: "rising into final light — waking soon"
-  end
-
-  test "CompleteFinalLight sets now" do
-    tests "CompleteFinalLight", on: "Consciousness"
-    setup  "EnterDaydream"
-    setup  "EnterSleep"
-    setup  "AdvanceLightToRem"
-    setup  "AdvanceRemToDeep"
-    setup  "AdvanceDeepToFinalLight"
-    input  now: "sample"
-    expect last_wake_at: "sample", sleep_summary: "waking refreshed", state: "attentive"
   end
 
   test "DreamPulse sets impression" do

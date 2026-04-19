@@ -9,19 +9,6 @@ Hecks.behaviors "Terroir" do
     expect ok: "true"
   end
 
-  test "RecordStratum sets rock_type + depth_m + mineral_content" do
-    tests "RecordStratum", on: "GeologicalSurvey"
-    setup  "StartSurvey", survey_id: "sample", location: "sample"
-    input  rock_type: "sample", depth_m: 1.0, mineral_content: "sample"
-    expect strata_size: 1
-  end
-
-  test "CompleteSurvey runs" do
-    tests "CompleteSurvey", on: "GeologicalSurvey"
-    setup  "StartSurvey", survey_id: "sample", location: "sample"
-    expect ok: "true"
-  end
-
 
   # ── Vineyard aggregate ──────────────────────────────────────────
 
@@ -30,13 +17,6 @@ Hecks.behaviors "Terroir" do
     setup  "StartSurvey", survey_id: "sample", location: "sample"
     input  block_name: "sample", grape_variety: "sample", acres: 1.0
     expect ok: "true"
-  end
-
-  test "AddVineRow sets row_number + vine_count + rootstock" do
-    tests "AddVineRow", on: "Vineyard"
-    setup  "PlantVineyard", block_name: "sample", grape_variety: "sample", acres: 1.0
-    input  row_number: 1, vine_count: 1, rootstock: "sample"
-    expect vines_size: 1
   end
 
 
@@ -49,13 +29,6 @@ Hecks.behaviors "Terroir" do
     expect ok: "true"
   end
 
-  test "AddLot sets lot_number + weight_kg + quality_grade" do
-    tests "AddLot", on: "Harvest"
-    setup  "StartHarvest", harvest_date: "sample", brix: 1.0
-    input  lot_number: "sample", weight_kg: 1.0, quality_grade: "sample"
-    expect lots_size: 1
-  end
-
 
   # ── Fermentation aggregate ──────────────────────────────────────────
 
@@ -64,13 +37,6 @@ Hecks.behaviors "Terroir" do
     setup  "StartHarvest", harvest_date: "sample", brix: 1.0
     input  vessel_type: "sample", yeast_strain: "sample"
     expect ok: "true"
-  end
-
-  test "RecordReading sets day + temperature_c + sugar_pct" do
-    tests "RecordReading", on: "Fermentation"
-    setup  "StartFermentation", vessel_type: "sample", yeast_strain: "sample"
-    input  day: 1, temperature_c: 1.0, sugar_pct: 1.0
-    expect readings_size: 1
   end
 
   test "CompleteFermentation runs" do

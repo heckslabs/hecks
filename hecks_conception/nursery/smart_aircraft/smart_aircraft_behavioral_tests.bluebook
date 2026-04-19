@@ -9,13 +9,6 @@ Hecks.behaviors "SmartAircraft" do
     expect tail_number: "sample", model: "sample"
   end
 
-  test "InstallSensor sets sensor_id + sensor_type + location" do
-    tests "InstallSensor", on: "Aircraft"
-    setup  "RegisterAircraft", tail_number: "sample", model: "sample"
-    input  sensor_id: "sample", sensor_type: "sample", location: "sample"
-    expect sensors_size: 1
-  end
-
   test "GroundAircraft runs" do
     tests "GroundAircraft", on: "Aircraft"
     setup  "RegisterAircraft", tail_number: "sample", model: "sample"
@@ -54,13 +47,6 @@ Hecks.behaviors "SmartAircraft" do
     expect ok: "true"
   end
 
-  test "IngestData sets sensor_id + metric + value + timestamp" do
-    tests "IngestData", on: "SensorStream"
-    setup  "StartStream", stream_id: "sample"
-    input  sensor_id: "sample", metric: "sample", value: 1.0, timestamp: "sample"
-    expect data_points_size: 1
-  end
-
 
   # ── MaintenanceAlert aggregate ──────────────────────────────────────────
 
@@ -70,13 +56,6 @@ Hecks.behaviors "SmartAircraft" do
     setup  "RegisterAircraft", tail_number: "sample", model: "sample"
     input  alert_type: "sample", severity: "sample"
     expect ok: "true"
-  end
-
-  test "AssignTask sets task_name + estimated_hours" do
-    tests "AssignTask", on: "MaintenanceAlert"
-    setup  "RaiseAlert", alert_type: "sample", severity: "sample"
-    input  task_name: "sample", estimated_hours: 1.0
-    expect tasks_size: 1
   end
 
   test "ResolveAlert runs" do

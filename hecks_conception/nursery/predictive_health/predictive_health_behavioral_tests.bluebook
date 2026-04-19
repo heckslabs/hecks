@@ -9,19 +9,6 @@ Hecks.behaviors "PredictiveHealth" do
     expect ok: "true"
   end
 
-  test "RecordMarker sets gene_name + variant + risk_factor" do
-    tests "RecordMarker", on: "GeneticProfile"
-    setup  "SubmitSample", patient_id: "sample", ethnicity: "sample"
-    input  gene_name: "sample", variant: "sample", risk_factor: 1.0
-    expect markers_size: 1
-  end
-
-  test "CompleteProfile runs" do
-    tests "CompleteProfile", on: "GeneticProfile"
-    setup  "SubmitSample", patient_id: "sample", ethnicity: "sample"
-    expect ok: "true"
-  end
-
 
   # ── RiskModel aggregate ──────────────────────────────────────────
 
@@ -29,13 +16,6 @@ Hecks.behaviors "PredictiveHealth" do
     tests "Train", on: "RiskModel"
     input  model_name: "sample"
     expect ok: "true"
-  end
-
-  test "AddCondition sets condition_name + weight + threshold" do
-    tests "AddCondition", on: "RiskModel"
-    setup  "Train", model_name: "sample"
-    input  condition_name: "sample", weight: 1.0, threshold: 1.0
-    expect conditions_size: 1
   end
 
   test "ValidateModel sets accuracy" do
@@ -55,13 +35,6 @@ Hecks.behaviors "PredictiveHealth" do
     expect ok: "true"
   end
 
-  test "AttachDocument sets doc_type + reference_number" do
-    tests "AttachDocument", on: "InsuranceClaim"
-    setup  "FileClaim", claimant_name: "sample", diagnosis: "sample", amount_cents: 1
-    input  doc_type: "sample", reference_number: "sample"
-    expect documents_size: 1
-  end
-
   test "AdjudicateClaim runs" do
     tests "AdjudicateClaim", on: "InsuranceClaim"
     setup  "FileClaim", claimant_name: "sample", diagnosis: "sample", amount_cents: 1
@@ -76,13 +49,6 @@ Hecks.behaviors "PredictiveHealth" do
     setup  "Train", model_name: "sample"
     setup  "SubmitSample", patient_id: "sample", ethnicity: "sample"
     expect ok: "true"
-  end
-
-  test "ApplyAdjustment sets reason + multiplier" do
-    tests "ApplyAdjustment", on: "PolicyPricing"
-    setup  "CalculatePremium"
-    input  reason: "sample", multiplier: 1.0
-    expect adjustments_size: 1
   end
 
   test "ApprovePricing runs" do

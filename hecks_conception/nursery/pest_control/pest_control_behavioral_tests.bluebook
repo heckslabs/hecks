@@ -63,13 +63,6 @@ Hecks.behaviors "PestControl" do
     expect product_name: "sample", epa_registration: "sample", active_ingredient: "sample", quantity_on_hand: 1.0, unit: "sample", expiration_date: "sample"
   end
 
-  test "UseChemical sets amount_used" do
-    tests "UseChemical", on: "ChemicalInventory"
-    setup  "StockChemical", product_name: "sample", epa_registration: "sample", active_ingredient: "sample", quantity_on_hand: 1.0, unit: "sample", expiration_date: "sample"
-    input  amount_used: 1.0
-    expect ok: "true"
-  end
-
   test "DisposeExpired runs" do
     tests "DisposeExpired", on: "ChemicalInventory"
     setup  "StockChemical", product_name: "sample", epa_registration: "sample", active_ingredient: "sample", quantity_on_hand: 1.0, unit: "sample", expiration_date: "sample"

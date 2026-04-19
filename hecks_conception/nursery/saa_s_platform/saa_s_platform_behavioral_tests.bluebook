@@ -60,12 +60,6 @@ Hecks.behaviors "SaaSPlatform" do
     expect ok: "true"
   end
 
-  test "RetireFlag runs" do
-    tests "RetireFlag", on: "FeatureFlag"
-    setup  "ProvisionFeatureFlag", flag_name: "sample", description: "sample", rollout_strategy: "sample", rollout_percentage: 1
-    expect ok: "true"
-  end
-
 
   # ── UsageMeter aggregate ──────────────────────────────────────────
 
@@ -73,13 +67,6 @@ Hecks.behaviors "SaaSPlatform" do
     tests "InitializeMeter", on: "UsageMeter"
     setup  "OnboardTenant", tenant_name: "sample", slug: "sample", admin_email: "sample", plan: "sample"
     input  meter_name: "sample", unit: "sample", quota: 1, period: "sample"
-    expect ok: "true"
-  end
-
-  test "RecordUsage sets delta" do
-    tests "RecordUsage", on: "UsageMeter"
-    setup  "InitializeMeter", meter_name: "sample", unit: "sample", quota: 1, period: "sample"
-    input  delta: 1
     expect ok: "true"
   end
 

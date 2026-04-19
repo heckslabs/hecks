@@ -3,12 +3,6 @@ Hecks.behaviors "MiettePhone" do
 
   # ── Gate aggregate ──────────────────────────────────────────
 
-  test "Authenticate sets pin" do
-    tests "Authenticate", on: "Gate"
-    input  pin: "sample"
-    expect locked: "false"
-  end
-
   test "RevokeSession runs" do
     tests "RevokeSession", on: "Gate"
     setup  "Authenticate", pin: "sample"
@@ -17,18 +11,6 @@ Hecks.behaviors "MiettePhone" do
 
 
   # ── Conversation aggregate ──────────────────────────────────────────
-
-  test "StartConversation runs" do
-    tests "StartConversation", on: "Conversation"
-    expect ok: "true"
-  end
-
-  test "SendMessage sets content" do
-    tests "SendMessage", on: "Conversation"
-    setup  "StartConversation"
-    input  content: "sample"
-    expect ok: "true"
-  end
 
   test "ReceiveReply sets content + latency_ms" do
     tests "ReceiveReply", on: "Conversation"

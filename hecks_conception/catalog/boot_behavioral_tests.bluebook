@@ -42,18 +42,6 @@ Hecks.behaviors "Boot" do
     expect ok: "true"
   end
 
-  test "RecommendClaude runs" do
-    tests "RecommendClaude", on: "BrainProbe"
-    setup  "Probe"
-    expect recommended_engine: "claude"
-  end
-
-  test "RecommendSummer runs" do
-    tests "RecommendSummer", on: "BrainProbe"
-    setup  "Probe"
-    expect recommended_engine: "summer"
-  end
-
   test "RecommendNothing runs" do
     tests "RecommendNothing", on: "BrainProbe"
     setup  "Probe"

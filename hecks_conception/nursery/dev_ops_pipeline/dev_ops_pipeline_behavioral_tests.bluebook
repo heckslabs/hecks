@@ -100,10 +100,4 @@ Hecks.behaviors "DevOpsPipeline" do
     expect ok: "true"
   end
 
-  test "AlertOnBreach runs" do
-    tests "AlertOnBreach", on: "PipelineMetric"
-    setup  "RecordMetric", metric_name: "sample", value: 1.0, unit: "sample", period: "sample"
-    expect ok: "true"
-  end
-
 end

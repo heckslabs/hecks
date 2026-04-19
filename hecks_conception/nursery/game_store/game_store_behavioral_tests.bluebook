@@ -9,19 +9,6 @@ Hecks.behaviors "GameStore" do
     expect sku: "sample", title: "sample", platform: "sample", genre: "sample", price: 1.0, quantity: 1, age_rating: "sample"
   end
 
-  test "SellGame runs" do
-    tests "SellGame", on: "Game"
-    setup  "StockGame", sku: "sample", title: "sample", platform: "sample", genre: "sample", price: 1.0, quantity: 1, age_rating: "sample"
-    expect ok: "true"
-  end
-
-  test "ClearanceGame sets clearance_price" do
-    tests "ClearanceGame", on: "Game"
-    setup  "StockGame", sku: "sample", title: "sample", platform: "sample", genre: "sample", price: 1.0, quantity: 1, age_rating: "sample"
-    input  clearance_price: 1.0
-    expect price: 1.0
-  end
-
 
   # ── Tournament aggregate ──────────────────────────────────────────
 

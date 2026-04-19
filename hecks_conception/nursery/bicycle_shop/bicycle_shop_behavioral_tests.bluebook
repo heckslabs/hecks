@@ -33,13 +33,6 @@ Hecks.behaviors "BicycleShop" do
 
   # ── BikePart aggregate ──────────────────────────────────────────
 
-  test "ConsumePart sets quantity_used" do
-    tests "ConsumePart", on: "BikePart"
-    setup  "StockPart", part_number: "sample", name: "sample", category: "sample", price: 1.0, quantity: 1
-    input  quantity_used: 1
-    expect part_number: "sample", name: "sample", category: "sample", price: 1.0, quantity: 1
-  end
-
 
   # ── BikeFitting aggregate ──────────────────────────────────────────
 

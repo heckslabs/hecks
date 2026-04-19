@@ -183,11 +183,4 @@ Hecks.behaviors "MietteBody" do
     expect balance: "sample", schema_hash: "sample", awareness: "aware"
   end
 
-  test "DetectDrift runs" do
-    tests "DetectDrift", on: "Proprioception"
-    setup  "SenseOrgans", organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1
-    setup  "AssessBalance", balance: "sample", schema_hash: "sample"
-    expect organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1, awareness: "sensing"
-  end
-
 end

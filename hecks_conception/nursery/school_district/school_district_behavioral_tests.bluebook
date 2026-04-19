@@ -103,13 +103,6 @@ Hecks.behaviors "SchoolDistrict" do
     expect status: "active", current_enrollment: 0
   end
 
-  test "EnrollInCourse runs" do
-    tests "EnrollInCourse", on: "Course"
-    setup  "RegisterStudent", name: "sample", grade_level: "sample"
-    setup  "OfferCourse", course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
-    expect ok: "true"
-  end
-
   test "CompleteCourse runs" do
     tests "CompleteCourse", on: "Course"
     setup  "OfferCourse", course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1

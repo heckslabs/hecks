@@ -9,12 +9,6 @@ Hecks.behaviors "Forensics" do
     expect case_number: "sample", case_type: "sample", lead_investigator: "sample"
   end
 
-  test "CloseCase runs" do
-    tests "CloseCase", on: "CriminalCase"
-    setup  "OpenCase", case_number: "sample", case_type: "sample", lead_investigator: "sample"
-    expect ok: "true"
-  end
-
   test "ReassignInvestigator sets new_investigator" do
     tests "ReassignInvestigator", on: "CriminalCase"
     setup  "OpenCase", case_number: "sample", case_type: "sample", lead_investigator: "sample"
@@ -62,12 +56,6 @@ Hecks.behaviors "Forensics" do
     tests "DraftReport", on: "ExpertReport"
     setup  "SubmitForAnalysis", analysis_type: "sample", method: "sample"
     input  expert_name: "sample"
-    expect ok: "true"
-  end
-
-  test "FinalizeReport runs" do
-    tests "FinalizeReport", on: "ExpertReport"
-    setup  "DraftReport", expert_name: "sample"
     expect ok: "true"
   end
 

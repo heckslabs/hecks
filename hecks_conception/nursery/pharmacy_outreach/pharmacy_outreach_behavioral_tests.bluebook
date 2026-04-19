@@ -9,12 +9,6 @@ Hecks.behaviors "PharmacyOutreach" do
     expect rx_number: "sample", patient_name: "sample", drug_name: "sample", refills_remaining: 1, status: "active"
   end
 
-  test "RefillPrescription runs" do
-    tests "RefillPrescription", on: "Prescription"
-    setup  "FillPrescription", rx_number: "sample", patient_name: "sample", drug_name: "sample", refills_remaining: 1
-    expect status: "refilled"
-  end
-
 
   # ── Reminder aggregate ──────────────────────────────────────────
 

@@ -39,13 +39,6 @@ Hecks.behaviors "IceCreamParlor" do
     expect topping_id: "sample", name: "sample", category: "sample", price_per_serving: 1.0, quantity_on_hand: 1
   end
 
-  test "ReorderTopping sets reorder_amount" do
-    tests "ReorderTopping", on: "Topping"
-    setup  "StockTopping", topping_id: "sample", name: "sample", category: "sample", price_per_serving: 1.0, quantity_on_hand: 1
-    input  reorder_amount: 1
-    expect ok: "true"
-  end
-
 
   # ── Serving aggregate ──────────────────────────────────────────
 

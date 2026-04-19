@@ -9,13 +9,6 @@ Hecks.behaviors "LiquorStore" do
     expect sku: "sample", name: "sample", category: "sample", producer: "sample", region: "sample", abv: 1.0, price: 1.0, quantity: 1
   end
 
-  test "MarkdownSpirit sets sale_price" do
-    tests "MarkdownSpirit", on: "Spirit"
-    setup  "StockSpirit", sku: "sample", name: "sample", category: "sample", producer: "sample", region: "sample", abv: 1.0, price: 1.0, quantity: 1
-    input  sale_price: 1.0
-    expect price: 1.0
-  end
-
 
   # ── Vintage aggregate ──────────────────────────────────────────
 
@@ -39,12 +32,6 @@ Hecks.behaviors "LiquorStore" do
     tests "ScheduleTasting", on: "Tasting"
     input  tasting_id: "sample", theme: "sample", date: "sample", max_attendees: 1
     expect tasting_id: "sample", theme: "sample", date: "sample", max_attendees: 1, current_attendees: 0, status: "scheduled"
-  end
-
-  test "RegisterAttendee runs" do
-    tests "RegisterAttendee", on: "Tasting"
-    setup  "ScheduleTasting", tasting_id: "sample", theme: "sample", date: "sample", max_attendees: 1
-    expect ok: "true"
   end
 
   test "CancelTasting runs" do

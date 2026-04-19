@@ -55,10 +55,4 @@ Hecks.behaviors "BloodSupplyChain" do
     expect facility_name: "sample", blood_type: "sample", units_available: 1, oldest_expiry: "sample"
   end
 
-  test "FlagShortage runs" do
-    tests "FlagShortage", on: "Inventory"
-    setup  "AdjustInventory", facility_name: "sample", blood_type: "sample", units_available: 1, oldest_expiry: "sample"
-    expect ok: "true"
-  end
-
 end

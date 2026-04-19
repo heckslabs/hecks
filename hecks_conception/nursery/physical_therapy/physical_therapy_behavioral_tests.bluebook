@@ -73,12 +73,6 @@ Hecks.behaviors "PhysicalTherapy" do
     expect physician_name: "sample", patient_name: "sample", diagnosis: "sample", authorized_visits: 1, visits_used: 0, status: "active"
   end
 
-  test "RecordVisit runs" do
-    tests "RecordVisit", on: "Prescription"
-    setup  "PrescribeTherapy", physician_name: "sample", patient_name: "sample", diagnosis: "sample", authorized_visits: 1
-    expect ok: "true"
-  end
-
   test "ExpirePrescription runs" do
     tests "ExpirePrescription", on: "Prescription"
     setup  "PrescribeTherapy", physician_name: "sample", patient_name: "sample", diagnosis: "sample", authorized_visits: 1

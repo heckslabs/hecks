@@ -65,12 +65,6 @@ Hecks.behaviors "PavingCompany" do
     expect ok: "true"
   end
 
-  test "PostponeForWeather runs" do
-    tests "PostponeForWeather", on: "WeatherWindow"
-    setup  "EvaluateWeather", forecast_date: "sample", high_temp_f: 1.0, low_temp_f: 1.0, precipitation_chance: 1.0
-    expect ok: "true"
-  end
-
 
   # ── CuringRecord aggregate ──────────────────────────────────────────
 

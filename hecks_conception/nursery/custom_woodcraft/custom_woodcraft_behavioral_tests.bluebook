@@ -31,19 +31,6 @@ Hecks.behaviors "CustomWoodcraft" do
     expect ok: "true"
   end
 
-  test "SpecifyMaterial sets species + board_feet_needed + min_grade" do
-    tests "SpecifyMaterial", on: "FurnitureDesign"
-    setup  "DesignPiece", name: "sample", style: "sample"
-    input  species: "sample", board_feet_needed: 1.0, min_grade: "sample"
-    expect materials_size: 1
-  end
-
-  test "FinalizeDesign runs" do
-    tests "FinalizeDesign", on: "FurnitureDesign"
-    setup  "DesignPiece", name: "sample", style: "sample"
-    expect ok: "true"
-  end
-
 
   # ── WorkOrder aggregate ──────────────────────────────────────────
 
@@ -59,12 +46,6 @@ Hecks.behaviors "CustomWoodcraft" do
     tests "CompleteStep", on: "WorkOrder"
     setup  "Commission", craftsman: "sample"
     input  step_name: "sample"
-    expect ok: "true"
-  end
-
-  test "FinishPiece runs" do
-    tests "FinishPiece", on: "WorkOrder"
-    setup  "Commission", craftsman: "sample"
     expect ok: "true"
   end
 

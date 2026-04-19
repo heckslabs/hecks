@@ -16,13 +16,6 @@ Hecks.behaviors "Dendrology" do
     expect ok: "true"
   end
 
-  test "FellTree sets reason" do
-    tests "FellTree", on: "TreeSpecimen"
-    setup  "TagTree", specimen_id: "sample", species: "sample", dbh_cm: 1.0
-    input  reason: "sample"
-    expect ok: "true"
-  end
-
 
   # ── GrowthRingAnalysis aggregate ──────────────────────────────────────────
 
@@ -33,12 +26,6 @@ Hecks.behaviors "Dendrology" do
     expect ok: "true"
   end
 
-  test "CountRings runs" do
-    tests "CountRings", on: "GrowthRingAnalysis"
-    setup  "ExtractCore", core_id: "sample"
-    expect ok: "true"
-  end
-
 
   # ── HealthAssessment aggregate ──────────────────────────────────────────
 
@@ -46,13 +33,6 @@ Hecks.behaviors "Dendrology" do
     tests "AssessHealth", on: "HealthAssessment"
     setup  "TagTree", specimen_id: "sample", species: "sample", dbh_cm: 1.0
     input  assessment_date: "sample", assessor: "sample"
-    expect ok: "true"
-  end
-
-  test "PrescribeTreatment sets treatment_type" do
-    tests "PrescribeTreatment", on: "HealthAssessment"
-    setup  "AssessHealth", assessment_date: "sample", assessor: "sample"
-    input  treatment_type: "sample"
     expect ok: "true"
   end
 
@@ -67,12 +47,6 @@ Hecks.behaviors "Dendrology" do
 
   test "TallySpecies runs" do
     tests "TallySpecies", on: "ForestInventory"
-    setup  "InitiateInventory", plot_id: "sample", area_hectares: 1.0, forest_type: "sample"
-    expect ok: "true"
-  end
-
-  test "CloseInventory runs" do
-    tests "CloseInventory", on: "ForestInventory"
     setup  "InitiateInventory", plot_id: "sample", area_hectares: 1.0, forest_type: "sample"
     expect ok: "true"
   end

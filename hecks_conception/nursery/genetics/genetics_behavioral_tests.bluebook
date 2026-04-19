@@ -9,12 +9,6 @@ Hecks.behaviors "Genetics" do
     expect ok: "true"
   end
 
-  test "ExtractDna runs" do
-    tests "ExtractDna", on: "Specimen"
-    setup  "CollectSpecimen", specimen_id: "sample", organism: "sample", tissue_type: "sample"
-    expect ok: "true"
-  end
-
   test "DiscardSpecimen runs" do
     tests "DiscardSpecimen", on: "Specimen"
     setup  "CollectSpecimen", specimen_id: "sample", organism: "sample", tissue_type: "sample"
@@ -31,12 +25,6 @@ Hecks.behaviors "Genetics" do
     expect ok: "true"
   end
 
-  test "AlignSequence runs" do
-    tests "AlignSequence", on: "DnaSequence"
-    setup  "SubmitSequence", accession: "sample", sequencing_method: "sample", length_bp: 1
-    expect ok: "true"
-  end
-
 
   # ── Mutation aggregate ──────────────────────────────────────────
 
@@ -44,13 +32,6 @@ Hecks.behaviors "Genetics" do
     tests "CallVariant", on: "Mutation"
     setup  "SubmitSequence", accession: "sample", sequencing_method: "sample", length_bp: 1
     input  mutation_type: "sample", position: 1
-    expect ok: "true"
-  end
-
-  test "ClassifyPathogenicity sets classification" do
-    tests "ClassifyPathogenicity", on: "Mutation"
-    setup  "CallVariant", mutation_type: "sample", position: 1
-    input  classification: "sample"
     expect ok: "true"
   end
 
@@ -67,12 +48,6 @@ Hecks.behaviors "Genetics" do
     tests "AddRelative", on: "Pedigree"
     setup  "BuildPedigree", family_id: "sample", proband_id: "sample"
     input  individual_id: "sample", relationship: "sample"
-    expect ok: "true"
-  end
-
-  test "TraceInheritance runs" do
-    tests "TraceInheritance", on: "Pedigree"
-    setup  "BuildPedigree", family_id: "sample", proband_id: "sample"
     expect ok: "true"
   end
 

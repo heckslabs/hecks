@@ -9,13 +9,6 @@ Hecks.behaviors "GridDefense" do
     expect asset_id: "sample", asset_type: "sample", location: "sample", capacity_mw: 1.0
   end
 
-  test "ReportVulnerability sets cve_id + severity + discovered_at" do
-    tests "ReportVulnerability", on: "GridAsset"
-    setup  "RegisterAsset", asset_id: "sample", asset_type: "sample", location: "sample", capacity_mw: 1.0
-    input  cve_id: "sample", severity: "sample", discovered_at: "sample"
-    expect vulnerabilities_size: 1
-  end
-
   test "IsolateAsset runs" do
     tests "IsolateAsset", on: "GridAsset"
     setup  "RegisterAsset", asset_id: "sample", asset_type: "sample", location: "sample", capacity_mw: 1.0
@@ -31,13 +24,6 @@ Hecks.behaviors "GridDefense" do
     expect ok: "true"
   end
 
-  test "AddIndicator sets indicator_type + value + confidence" do
-    tests "AddIndicator", on: "ThreatIntel"
-    setup  "IngestFeed", source: "sample"
-    input  indicator_type: "sample", value: "sample", confidence: 1.0
-    expect indicators_size: 1
-  end
-
 
   # ── Incident aggregate ──────────────────────────────────────────
 
@@ -46,13 +32,6 @@ Hecks.behaviors "GridDefense" do
     setup  "RegisterAsset", asset_id: "sample", asset_type: "sample", location: "sample", capacity_mw: 1.0
     input  incident_type: "sample", severity: "sample"
     expect ok: "true"
-  end
-
-  test "AssignResponder sets name + role + assigned_at" do
-    tests "AssignResponder", on: "Incident"
-    setup  "DetectIncident", incident_type: "sample", severity: "sample"
-    input  name: "sample", role: "sample", assigned_at: "sample"
-    expect responders_size: 1
   end
 
   test "ContainIncident runs" do
@@ -74,13 +53,6 @@ Hecks.behaviors "GridDefense" do
     tests "InitiateRebalance", on: "LoadBalancer"
     input  region: "sample"
     expect ok: "true"
-  end
-
-  test "Redistribute sets from_asset + to_asset + amount_mw" do
-    tests "Redistribute", on: "LoadBalancer"
-    setup  "InitiateRebalance", region: "sample"
-    input  from_asset: "sample", to_asset: "sample", amount_mw: 1.0
-    expect redistributions_size: 1
   end
 
 end

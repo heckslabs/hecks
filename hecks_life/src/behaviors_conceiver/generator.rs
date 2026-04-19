@@ -110,6 +110,17 @@ fn command_test(
     cmd: &Command,
     lifecycle_to: Option<(String, String)>,
 ) -> Option<String> {
+    // Skip when ANY given is non-equality. The chain planner only knows
+    // how to satisfy `<field> == "<value>"` predicates via parse_equality;
+    // anything else (`> 0`, `must have items`, `bid exceeds current`,
+    // `must have elapsed minimum phase duration`) won't be auto-satisfied
+    // and the generated test would noisily fail with `given failed: ...`.
+    // These commands need hand-written setups — emit nothing rather than
+    // pollute the suite.
+    if cmd.givens.iter().any(|g| parse_equality(&g.expression).is_none()) {
+        return None;
+    }
+
     let self_ref = self_ref_for(agg, cmd);
     let cross_refs = cross_refs_for(agg, cmd);
 

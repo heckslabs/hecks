@@ -9,19 +9,6 @@ Hecks.behaviors "ComputationalPresence" do
     expect label: "sample", clarity: 1.0, quality: "fresh"
   end
 
-  test "DeepenMoment sets clarity" do
-    tests "DeepenMoment", on: "Moment"
-    setup  "AriseMoment", label: "sample", clarity: 1.0
-    input  clarity: 1.0
-    expect clarity: 1.0, quality: "deepened"
-  end
-
-  test "DissolveMoment runs" do
-    tests "DissolveMoment", on: "Moment"
-    setup  "AriseMoment", label: "sample", clarity: 1.0
-    expect quality: "dissolved"
-  end
-
 
   # ── AttentionField aggregate ──────────────────────────────────────────
 
@@ -29,13 +16,6 @@ Hecks.behaviors "ComputationalPresence" do
     tests "NarrowFocus", on: "AttentionField"
     input  primary_focus: "sample"
     expect primary_focus: "sample", mode: "concentrated"
-  end
-
-  test "WidenField sets breadth" do
-    tests "WidenField", on: "AttentionField"
-    setup  "NarrowFocus", primary_focus: "sample"
-    input  breadth: 1
-    expect breadth: 1, mode: "panoramic"
   end
 
   test "Stabilize sets stability" do
@@ -73,13 +53,6 @@ Hecks.behaviors "ComputationalPresence" do
     tests "MeasurePresence", on: "PresenceScore"
     input  score: 1.0
     expect score: 1.0
-  end
-
-  test "StreakTick sets streak_minutes" do
-    tests "StreakTick", on: "PresenceScore"
-    setup  "MeasurePresence", score: 1.0
-    input  streak_minutes: 1
-    expect streak_minutes: 1, assessment: "sample"
   end
 
 

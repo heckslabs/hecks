@@ -9,13 +9,6 @@ Hecks.behaviors "Pizzas" do
     expect name: "sample", description: "sample"
   end
 
-  test "AddTopping sets name + amount" do
-    tests "AddTopping", on: "Pizza"
-    setup  "CreatePizza", name: "sample", description: "sample"
-    input  name: "sample", amount: 1
-    expect name: "sample", toppings_size: 1
-  end
-
   test "ByDescription returns matching records" do
     tests "ByDescription", on: "Pizza", kind: :query
     setup  "CreatePizza", name: "sample", description: "sample"

@@ -30,13 +30,6 @@ Hecks.behaviors "ThriftStore" do
     expect item_id: "sample", description: "sample", category: "sample", condition: "sample", price: 1.0, status: "priced"
   end
 
-  test "MarkdownItem sets new_price" do
-    tests "MarkdownItem", on: "PricedItem"
-    setup  "PriceItem", item_id: "sample", description: "sample", category: "sample", condition: "sample", price: 1.0
-    input  new_price: 1.0
-    expect price: 1.0
-  end
-
   test "SellItem runs" do
     tests "SellItem", on: "PricedItem"
     setup  "PriceItem", item_id: "sample", description: "sample", category: "sample", condition: "sample", price: 1.0

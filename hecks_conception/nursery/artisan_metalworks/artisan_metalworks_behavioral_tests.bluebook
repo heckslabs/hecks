@@ -9,13 +9,6 @@ Hecks.behaviors "ArtisanMetalworks" do
     expect ok: "true"
   end
 
-  test "AddElement sets element + percentage" do
-    tests "AddElement", on: "Alloy"
-    setup  "FormulatAlloy", name: "sample", carbon_content: 1.0, target_hardness: 1.0
-    input  element: "sample", percentage: 1.0
-    expect compositions_size: 1
-  end
-
   test "ByHardness returns matching records" do
     tests "ByHardness", on: "Alloy", kind: :query
     setup  "FormulatAlloy", name: "sample", carbon_content: 1.0, target_hardness: 1.0
@@ -29,12 +22,6 @@ Hecks.behaviors "ArtisanMetalworks" do
     tests "ChargeFurnace", on: "SmeltBatch"
     setup  "FormulatAlloy", name: "sample", carbon_content: 1.0, target_hardness: 1.0
     input  volume_kg: 1.0
-    expect ok: "true"
-  end
-
-  test "TapSmelt runs" do
-    tests "TapSmelt", on: "SmeltBatch"
-    setup  "ChargeFurnace", volume_kg: 1.0
     expect ok: "true"
   end
 
@@ -52,19 +39,6 @@ Hecks.behaviors "ArtisanMetalworks" do
     tests "SketchDesign", on: "JewelryDesign"
     setup  "FormulatAlloy", name: "sample", carbon_content: 1.0, target_hardness: 1.0
     input  title: "sample", style: "sample"
-    expect ok: "true"
-  end
-
-  test "SetGem sets gem_type + carat + setting_style" do
-    tests "SetGem", on: "JewelryDesign"
-    setup  "SketchDesign", title: "sample", style: "sample"
-    input  gem_type: "sample", carat: 1.0, setting_style: "sample"
-    expect gemstones_size: 1
-  end
-
-  test "ApproveDesign runs" do
-    tests "ApproveDesign", on: "JewelryDesign"
-    setup  "SketchDesign", title: "sample", style: "sample"
     expect ok: "true"
   end
 
@@ -99,13 +73,6 @@ Hecks.behaviors "ArtisanMetalworks" do
     tests "PlanShowcase", on: "Showcase"
     input  name: "sample", venue: "sample"
     expect ok: "true"
-  end
-
-  test "AddPiece sets piece_title + price_cents" do
-    tests "AddPiece", on: "Showcase"
-    setup  "PlanShowcase", name: "sample", venue: "sample"
-    input  piece_title: "sample", price_cents: 1
-    expect pieces_size: 1
   end
 
   test "SellPiece sets piece_title" do

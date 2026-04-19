@@ -16,12 +16,6 @@ Hecks.behaviors "TreeService" do
     expect ok: "true"
   end
 
-  test "FlagHazard runs" do
-    tests "FlagHazard", on: "TreeAssessment"
-    setup  "AssessTree", species: "sample", dbh_inches: 1.0, height_feet: 1.0, address: "sample"
-    expect ok: "true"
-  end
-
 
   # ── RemovalJob aggregate ──────────────────────────────────────────
 

@@ -9,19 +9,6 @@ Hecks.behaviors "ArchitecturalGlass" do
     expect ok: "true"
   end
 
-  test "AddComponent sets material + percentage" do
-    tests "AddComponent", on: "GlassFormula"
-    setup  "Forge", name: "sample", transparency: 1.0
-    input  material: "sample", percentage: 1.0
-    expect components_size: 1
-  end
-
-  test "CertifyFormula runs" do
-    tests "CertifyFormula", on: "GlassFormula"
-    setup  "Forge", name: "sample", transparency: 1.0
-    expect ok: "true"
-  end
-
 
   # ── BuildingProject aggregate ──────────────────────────────────────────
 
@@ -29,13 +16,6 @@ Hecks.behaviors "ArchitecturalGlass" do
     tests "StartProject", on: "BuildingProject"
     input  project_name: "sample", client: "sample", floors: 1
     expect ok: "true"
-  end
-
-  test "SpecifyInstallation sets location + area_sqm + glass_type" do
-    tests "SpecifyInstallation", on: "BuildingProject"
-    setup  "StartProject", project_name: "sample", client: "sample", floors: 1
-    input  location: "sample", area_sqm: 1.0, glass_type: "sample"
-    expect installations_size: 1
   end
 
 
@@ -46,13 +26,6 @@ Hecks.behaviors "ArchitecturalGlass" do
     setup  "Forge", name: "sample", transparency: 1.0
     input  artisan: "sample", furnace_temp: 1.0
     expect ok: "true"
-  end
-
-  test "BlowPanel sets panel_id + width_cm + height_cm" do
-    tests "BlowPanel", on: "BlowingSession"
-    setup  "StartSession", artisan: "sample", furnace_temp: 1.0
-    input  panel_id: "sample", width_cm: 1.0, height_cm: 1.0
-    expect panels_size: 1
   end
 
 

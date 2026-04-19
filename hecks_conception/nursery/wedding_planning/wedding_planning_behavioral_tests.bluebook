@@ -15,12 +15,6 @@ Hecks.behaviors "WeddingPlanning" do
     expect status: "finalized"
   end
 
-  test "CancelWedding runs" do
-    tests "CancelWedding", on: "Wedding"
-    setup  "PlanWedding", couple_names: "sample", wedding_date: "sample", venue_name: "sample", total_budget: 1.0, expected_guests: 1
-    expect status: "cancelled"
-  end
-
 
   # ── VendorContract aggregate ──────────────────────────────────────────
 

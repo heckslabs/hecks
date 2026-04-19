@@ -3,22 +3,10 @@ Hecks.behaviors "Verbs" do
 
   # ── Lexicon aggregate ──────────────────────────────────────────
 
-  test "RegisterVerb sets verb" do
-    tests "RegisterVerb", on: "Lexicon"
-    input  verb: "sample"
-    expect known_verbs_size: 1
-  end
-
   test "ImportFromFile sets verbs" do
     tests "ImportFromFile", on: "Lexicon"
     input  verbs: "sample"
     expect known_verbs: "sample"
-  end
-
-  test "LearnVerb sets verb + source_domain" do
-    tests "LearnVerb", on: "Lexicon"
-    input  verb: "sample", source_domain: "sample"
-    expect known_verbs_size: 1
   end
 
 

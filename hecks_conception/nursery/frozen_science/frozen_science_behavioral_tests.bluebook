@@ -9,32 +9,12 @@ Hecks.behaviors "FrozenScience" do
     expect ok: "true"
   end
 
-  test "MeasureProperty sets property_name + value + unit" do
-    tests "MeasureProperty", on: "BaseIngredient"
-    setup  "CatalogIngredient", name: "sample", category: "sample"
-    input  property_name: "sample", value: 1.0, unit: "sample"
-    expect properties_size: 1
-  end
-
 
   # ── FlavorFormula aggregate ──────────────────────────────────────────
 
   test "Formulate sets flavor_name + target_temp_c" do
     tests "Formulate", on: "FlavorFormula"
     input  flavor_name: "sample", target_temp_c: 1.0
-    expect ok: "true"
-  end
-
-  test "AddComponent sets ingredient_name + ratio_pct + phase" do
-    tests "AddComponent", on: "FlavorFormula"
-    setup  "Formulate", flavor_name: "sample", target_temp_c: 1.0
-    input  ingredient_name: "sample", ratio_pct: 1.0, phase: "sample"
-    expect components_size: 1
-  end
-
-  test "ApproveFormula runs" do
-    tests "ApproveFormula", on: "FlavorFormula"
-    setup  "Formulate", flavor_name: "sample", target_temp_c: 1.0
     expect ok: "true"
   end
 
@@ -46,13 +26,6 @@ Hecks.behaviors "FrozenScience" do
     setup  "Formulate", flavor_name: "sample", target_temp_c: 1.0
     input  batch_id: "sample"
     expect ok: "true"
-  end
-
-  test "RecordMeasurement sets time_seconds + temperature_c + viscosity + overrun_pct" do
-    tests "RecordMeasurement", on: "FreezingCycle"
-    setup  "StartCycle", batch_id: "sample"
-    input  time_seconds: 1, temperature_c: 1.0, viscosity: 1.0, overrun_pct: 1.0
-    expect measurements_size: 1
   end
 
   test "CompleteCycle runs" do
@@ -67,19 +40,6 @@ Hecks.behaviors "FrozenScience" do
   test "Compose sets menu_name + season" do
     tests "Compose", on: "ParlorMenu"
     input  menu_name: "sample", season: "sample"
-    expect ok: "true"
-  end
-
-  test "AddOffering sets flavor_name + price_cents + serving_temp_c" do
-    tests "AddOffering", on: "ParlorMenu"
-    setup  "Compose", menu_name: "sample", season: "sample"
-    input  flavor_name: "sample", price_cents: 1, serving_temp_c: 1.0
-    expect offerings_size: 1
-  end
-
-  test "LaunchMenu runs" do
-    tests "LaunchMenu", on: "ParlorMenu"
-    setup  "Compose", menu_name: "sample", season: "sample"
     expect ok: "true"
   end
 

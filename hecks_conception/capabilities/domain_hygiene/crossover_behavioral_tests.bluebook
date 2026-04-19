@@ -3,12 +3,6 @@ Hecks.behaviors "DomainCrossover" do
 
   # ── ParentPair aggregate ──────────────────────────────────────────
 
-  test "SelectPair sets min_similarity + max_similarity" do
-    tests "SelectPair", on: "ParentPair"
-    input  min_similarity: 1.0, max_similarity: 1.0
-    expect ok: "true"
-  end
-
 
   # ── Offspring aggregate ──────────────────────────────────────────
 

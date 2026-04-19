@@ -9,12 +9,6 @@ Hecks.behaviors "WarehouseManagement" do
     expect aisle: "sample", rack: "sample", shelf: "sample", zone: "sample", capacity: 1, status: "empty", current_fill: 0
   end
 
-  test "ReserveLocation runs" do
-    tests "ReserveLocation", on: "Location"
-    setup  "RegisterLocation", aisle: "sample", rack: "sample", shelf: "sample", zone: "sample", capacity: 1
-    expect status: "reserved"
-  end
-
   test "CloseLocation sets reason" do
     tests "CloseLocation", on: "Location"
     setup  "RegisterLocation", aisle: "sample", rack: "sample", shelf: "sample", zone: "sample", capacity: 1

@@ -9,19 +9,6 @@ Hecks.behaviors "FabricToRunway" do
     expect ok: "true"
   end
 
-  test "DyeFabric sets color + batch_number + yards" do
-    tests "DyeFabric", on: "Fabric"
-    setup  "WeaveFabric", name: "sample", fiber_type: "sample", weight_gsm: 1.0
-    input  color: "sample", batch_number: "sample", yards: 1.0
-    expect dye_lots_size: 1
-  end
-
-  test "ApproveFabric runs" do
-    tests "ApproveFabric", on: "Fabric"
-    setup  "WeaveFabric", name: "sample", fiber_type: "sample", weight_gsm: 1.0
-    expect ok: "true"
-  end
-
 
   # ── Collection aggregate ──────────────────────────────────────────
 
@@ -29,13 +16,6 @@ Hecks.behaviors "FabricToRunway" do
     tests "Curate", on: "Collection"
     input  name: "sample", season: "sample"
     expect ok: "true"
-  end
-
-  test "AddGarment sets garment_name + garment_type + fabric_requirement" do
-    tests "AddGarment", on: "Collection"
-    setup  "Curate", name: "sample", season: "sample"
-    input  garment_name: "sample", garment_type: "sample", fabric_requirement: "sample"
-    expect garments_size: 1
   end
 
 
@@ -46,13 +26,6 @@ Hecks.behaviors "FabricToRunway" do
     setup  "WeaveFabric", name: "sample", fiber_type: "sample", weight_gsm: 1.0
     input  garment_name: "sample", size_range: "sample"
     expect ok: "true"
-  end
-
-  test "AddPatternPiece sets piece_name + fabric_yards" do
-    tests "AddPatternPiece", on: "Pattern"
-    setup  "DraftPattern", garment_name: "sample", size_range: "sample"
-    input  piece_name: "sample", fabric_yards: 1.0
-    expect pieces_size: 1
   end
 
   test "FinalizePattern runs" do
@@ -68,19 +41,6 @@ Hecks.behaviors "FabricToRunway" do
     tests "PlanShow", on: "RunwayShow"
     setup  "Curate", name: "sample", season: "sample"
     input  venue: "sample", show_date: "sample"
-    expect ok: "true"
-  end
-
-  test "AddLook sets look_number + garment_name + model_name" do
-    tests "AddLook", on: "RunwayShow"
-    setup  "PlanShow", venue: "sample", show_date: "sample"
-    input  look_number: 1, garment_name: "sample", model_name: "sample"
-    expect looks_size: 1
-  end
-
-  test "ExecuteShow runs" do
-    tests "ExecuteShow", on: "RunwayShow"
-    setup  "PlanShow", venue: "sample", show_date: "sample"
     expect ok: "true"
   end
 

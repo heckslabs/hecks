@@ -45,12 +45,6 @@ Hecks.behaviors "CompostSeasonalBeings" do
     expect before_snapshot: "sample"
   end
 
-  test "Restore runs" do
-    tests "Restore", on: "Composting"
-    setup  "Compost", name: "sample", kind: "sample", reason_absorbed: "sample", absorbed_by: "sample", files_removed: "sample", files_modified: "sample"
-    expect ok: "true"
-  end
-
 
   # ── Absorption aggregate ──────────────────────────────────────────
 

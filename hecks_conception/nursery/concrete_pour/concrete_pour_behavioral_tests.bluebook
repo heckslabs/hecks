@@ -32,13 +32,6 @@ Hecks.behaviors "ConcretePour" do
     expect ok: "true"
   end
 
-  test "AdjustSlump sets new_slump_inches" do
-    tests "AdjustSlump", on: "MixDesign"
-    setup  "SpecifyMix", mix_number: "sample", target_psi: 1.0, water_cement_ratio: 1.0, aggregate_size: "sample", slump_inches: 1.0
-    input  new_slump_inches: 1.0
-    expect ok: "true"
-  end
-
 
   # ── Reinforcement aggregate ──────────────────────────────────────────
 

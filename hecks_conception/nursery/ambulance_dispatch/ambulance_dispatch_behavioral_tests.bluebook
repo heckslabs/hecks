@@ -38,12 +38,6 @@ Hecks.behaviors "AmbulanceDispatch" do
     expect triage_priority: "sample", status: "triaged"
   end
 
-  test "CancelCall runs" do
-    tests "CancelCall", on: "EmergencyCall"
-    setup  "ReceiveCall", caller_name: "sample", caller_phone: "sample", location: "sample", nature_of_emergency: "sample", received_at: "sample"
-    expect status: "cancelled"
-  end
-
 
   # ── CrewAssignment aggregate ──────────────────────────────────────────
 

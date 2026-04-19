@@ -44,13 +44,6 @@ Hecks.behaviors "PrintShop" do
     expect material_name: "sample", material_type: "sample", weight_gsm: 1.0, width_inches: 1.0, sheets_on_hand: 1, reorder_level: 1, status: "in_stock"
   end
 
-  test "ConsumeSubstrate sets sheets_used" do
-    tests "ConsumeSubstrate", on: "Substrate"
-    setup  "StockSubstrate", material_name: "sample", material_type: "sample", weight_gsm: 1.0, width_inches: 1.0, sheets_on_hand: 1, reorder_level: 1
-    input  sheets_used: 1
-    expect ok: "true"
-  end
-
 
   # ── PressSchedule aggregate ──────────────────────────────────────────
 

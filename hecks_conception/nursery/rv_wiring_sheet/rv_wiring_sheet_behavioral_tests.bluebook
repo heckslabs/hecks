@@ -9,13 +9,6 @@ Hecks.behaviors "RVWiringSheet" do
     expect ok: "true"
   end
 
-  test "AddEntry sets circuit_name + load_name + watts + voltage + amps + power_type + wire_gauge + run_length_feet + fuse_amps + voltage_drop_pct" do
-    tests "AddEntry", on: "WiringSheet"
-    setup  "GenerateSheet", name: "sample"
-    input  circuit_name: "sample", load_name: "sample", watts: 1.0, voltage: 1.0, amps: 1.0, power_type: "sample", wire_gauge: "sample", run_length_feet: 1.0, fuse_amps: 1.0, voltage_drop_pct: 1.0
-    expect entries_size: 1
-  end
-
   test "PrintSheet runs" do
     tests "PrintSheet", on: "WiringSheet"
     setup  "GenerateSheet", name: "sample"

@@ -36,13 +36,6 @@ Hecks.behaviors "AirlineOperations" do
     expect status: "departed"
   end
 
-  test "DelayFlight sets reason + new_departure" do
-    tests "DelayFlight", on: "Flight"
-    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
-    input  reason: "sample", new_departure: "sample"
-    expect status: "delayed"
-  end
-
 
   # ── Gate aggregate ──────────────────────────────────────────
 
@@ -65,13 +58,6 @@ Hecks.behaviors "AirlineOperations" do
     tests "AssembleCrew", on: "Crew"
     input  captain_name: "sample", member_count: 1
     expect status: "available", duty_hours: 0.0
-  end
-
-  test "LogDutyHours sets hours" do
-    tests "LogDutyHours", on: "Crew"
-    setup  "AssembleCrew", captain_name: "sample", member_count: 1
-    input  hours: 1.0
-    expect ok: "true"
   end
 
   test "ReleaseCrew runs" do

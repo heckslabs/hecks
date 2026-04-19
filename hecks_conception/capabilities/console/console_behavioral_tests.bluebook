@@ -81,14 +81,6 @@ Hecks.behaviors "Console" do
     expect status: "authenticating"
   end
 
-  test "AuthenticateCreator sets passcode" do
-    tests "AuthenticateCreator", on: "Speaker"
-    setup  "TalkWith", name: "sample"
-    setup  "RequestCreatorAccess"
-    input  passcode: "sample"
-    expect name: "", context: "", status: "dismissed"
-  end
-
   test "RejectAccess runs" do
     tests "RejectAccess", on: "Speaker"
     setup  "TalkWith", name: "sample"

@@ -9,19 +9,6 @@ Hecks.behaviors "DataCenter" do
     expect ok: "true"
   end
 
-  test "MountDevice sets device_id + start_unit + unit_span" do
-    tests "MountDevice", on: "Rack"
-    setup  "InstallRack", rack_id: "sample", location_aisle: "sample", unit_capacity: 1, power_zone: "sample"
-    input  device_id: "sample", start_unit: 1, unit_span: 1
-    expect ok: "true"
-  end
-
-  test "RemoveRack runs" do
-    tests "RemoveRack", on: "Rack"
-    setup  "InstallRack", rack_id: "sample", location_aisle: "sample", unit_capacity: 1, power_zone: "sample"
-    expect ok: "true"
-  end
-
 
   # ── Server aggregate ──────────────────────────────────────────
 
@@ -72,13 +59,6 @@ Hecks.behaviors "DataCenter" do
   test "ActivateCircuit sets circuit_id + capacity_kw + redundancy_level" do
     tests "ActivateCircuit", on: "PowerCircuit"
     input  circuit_id: "sample", capacity_kw: 1.0, redundancy_level: "sample"
-    expect ok: "true"
-  end
-
-  test "RecordLoad sets load_kw" do
-    tests "RecordLoad", on: "PowerCircuit"
-    setup  "ActivateCircuit", circuit_id: "sample", capacity_kw: 1.0, redundancy_level: "sample"
-    input  load_kw: 1.0
     expect ok: "true"
   end
 

@@ -9,13 +9,6 @@ Hecks.behaviors "ClothingBoutique" do
     expect style_number: "sample", name: "sample", designer: "sample", fabric: "sample", retail_price: 1.0, season: "sample", status: "in_stock"
   end
 
-  test "MarkdownGarment sets sale_price" do
-    tests "MarkdownGarment", on: "Garment"
-    setup  "ReceiveGarment", style_number: "sample", name: "sample", designer: "sample", fabric: "sample", retail_price: 1.0, season: "sample"
-    input  sale_price: 1.0
-    expect retail_price: 1.0
-  end
-
   test "RetireGarment runs" do
     tests "RetireGarment", on: "Garment"
     setup  "ReceiveGarment", style_number: "sample", name: "sample", designer: "sample", fabric: "sample", retail_price: 1.0, season: "sample"

@@ -9,13 +9,6 @@ Hecks.behaviors "BookstoreInventory" do
     expect isbn: "sample", title: "sample", author_name: "sample", genre: "sample", price: 1.0, quantity_on_hand: 1, status: "in_stock"
   end
 
-  test "ReplenishStock sets additional_copies" do
-    tests "ReplenishStock", on: "Book"
-    setup  "CatalogBook", isbn: "sample", title: "sample", author_name: "sample", genre: "sample", price: 1.0, quantity_on_hand: 1
-    input  additional_copies: 1
-    expect ok: "true"
-  end
-
   test "MarkOutOfPrint runs" do
     tests "MarkOutOfPrint", on: "Book"
     setup  "CatalogBook", isbn: "sample", title: "sample", author_name: "sample", genre: "sample", price: 1.0, quantity_on_hand: 1
@@ -45,13 +38,6 @@ Hecks.behaviors "BookstoreInventory" do
     tests "AssignShelf", on: "Shelf"
     input  section: "sample", label: "sample", capacity: 1
     expect section: "sample", label: "sample", capacity: 1, current_count: 0
-  end
-
-  test "ShelveBook sets isbn + copies" do
-    tests "ShelveBook", on: "Shelf"
-    setup  "AssignShelf", section: "sample", label: "sample", capacity: 1
-    input  isbn: "sample", copies: 1
-    expect ok: "true"
   end
 
   test "ClearShelf runs" do

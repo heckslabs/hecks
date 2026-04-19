@@ -58,13 +58,6 @@ Hecks.behaviors "AutoRepairShop" do
     expect part_number: "sample", name: "sample", quantity_on_hand: 1, unit_cost: 1.0, reorder_point: 1
   end
 
-  test "IssuePart sets quantity" do
-    tests "IssuePart", on: "Part"
-    setup  "StockPart", part_number: "sample", name: "sample", manufacturer: "sample", quantity_on_hand: 1, unit_cost: 1.0, reorder_point: 1
-    input  quantity: 1
-    expect ok: "true"
-  end
-
 
   # ── Estimate aggregate ──────────────────────────────────────────
 

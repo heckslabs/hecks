@@ -99,13 +99,6 @@ Hecks.behaviors "AdTechPlatform" do
     expect ok: "true"
   end
 
-  test "DeductSpend sets amount" do
-    tests "DeductSpend", on: "Budget"
-    setup  "AllocateBudget", budget_id: "sample", allocated_amount: 1.0, period: "sample"
-    input  amount: 1.0
-    expect ok: "true"
-  end
-
   test "ExhaustBudget runs" do
     tests "ExhaustBudget", on: "Budget"
     setup  "AllocateBudget", budget_id: "sample", allocated_amount: 1.0, period: "sample"

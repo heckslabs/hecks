@@ -9,19 +9,6 @@ Hecks.behaviors "DistilleryMedia" do
     expect ok: "true"
   end
 
-  test "AddIngredient sets name + quantity_kg" do
-    tests "AddIngredient", on: "Spirit"
-    setup  "Distill", name: "sample", spirit_type: "sample"
-    input  name: "sample", quantity_kg: 1.0
-    expect name: "sample", ingredients_size: 1
-  end
-
-  test "ApproveDistillation runs" do
-    tests "ApproveDistillation", on: "Spirit"
-    setup  "Distill", name: "sample", spirit_type: "sample"
-    expect ok: "true"
-  end
-
 
   # ── BarrelAging aggregate ──────────────────────────────────────────
 
@@ -48,19 +35,6 @@ Hecks.behaviors "DistilleryMedia" do
     expect ok: "true"
   end
 
-  test "AddSegment sets segment_title + duration_minutes + segment_type" do
-    tests "AddSegment", on: "Episode"
-    setup  "PlanEpisode", title: "sample", topic: "sample"
-    input  segment_title: "sample", duration_minutes: 1, segment_type: "sample"
-    expect segments_size: 1
-  end
-
-  test "PublishEpisode runs" do
-    tests "PublishEpisode", on: "Episode"
-    setup  "PlanEpisode", title: "sample", topic: "sample"
-    expect ok: "true"
-  end
-
 
   # ── TastingSession aggregate ──────────────────────────────────────────
 
@@ -69,13 +43,6 @@ Hecks.behaviors "DistilleryMedia" do
     setup  "Distill", name: "sample", spirit_type: "sample"
     input  host: "sample"
     expect ok: "true"
-  end
-
-  test "InviteGuest sets name + expertise" do
-    tests "InviteGuest", on: "TastingSession"
-    setup  "ScheduleTasting", host: "sample"
-    input  name: "sample", expertise: "sample"
-    expect guests_size: 1
   end
 
   test "RecordSession runs" do

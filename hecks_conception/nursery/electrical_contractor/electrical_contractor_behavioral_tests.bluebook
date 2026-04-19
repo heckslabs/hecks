@@ -42,13 +42,6 @@ Hecks.behaviors "ElectricalContractor" do
 
   # ── Circuit aggregate ──────────────────────────────────────────
 
-  test "PullCircuit sets label + amperage + wire_gauge + circuit_type" do
-    tests "PullCircuit", on: "Circuit"
-    setup  "InstallPanel", label: "sample", rated_amps: 1, total_slots: 1, location: "sample"
-    input  label: "sample", amperage: 1, wire_gauge: "sample", circuit_type: "sample"
-    expect ok: "true"
-  end
-
   test "LabelCircuit sets description" do
     tests "LabelCircuit", on: "Circuit"
     setup  "PullCircuit", label: "sample", amperage: 1, wire_gauge: "sample", circuit_type: "sample"

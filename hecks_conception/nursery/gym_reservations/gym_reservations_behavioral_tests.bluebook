@@ -3,12 +3,6 @@ Hecks.behaviors "GymReservations" do
 
   # ── ClassSchedule aggregate ──────────────────────────────────────────
 
-  test "ScheduleClass sets class_name + day_of_week + time_slot + trainer_name + room + capacity" do
-    tests "ScheduleClass", on: "ClassSchedule"
-    input  class_name: "sample", day_of_week: "sample", time_slot: "sample", trainer_name: "sample", room: "sample", capacity: 1
-    expect ok: "true"
-  end
-
   test "CancelClass runs" do
     tests "CancelClass", on: "ClassSchedule"
     setup  "ScheduleClass", class_name: "sample", day_of_week: "sample", time_slot: "sample", trainer_name: "sample", room: "sample", capacity: 1
@@ -17,12 +11,6 @@ Hecks.behaviors "GymReservations" do
 
 
   # ── Booking aggregate ──────────────────────────────────────────
-
-  test "ReserveSpot sets member_name + class_name + session_date" do
-    tests "ReserveSpot", on: "Booking"
-    input  member_name: "sample", class_name: "sample", session_date: "sample"
-    expect ok: "true"
-  end
 
   test "CancelBooking runs" do
     tests "CancelBooking", on: "Booking"

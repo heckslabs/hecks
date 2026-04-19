@@ -24,13 +24,6 @@ Hecks.behaviors "Conception" do
     expect command_count: 1, completeness: "verbal"
   end
 
-  test "AddFixtures sets count" do
-    tests "AddFixtures", on: "Blueprint"
-    setup  "StartConception", domain_name: "sample", vision: "sample", category: "sample"
-    input  count: 1
-    expect fixture_count: 1, gaps: "sample", completeness: "assessed"
-  end
-
   test "AddAccessGates sets port_count + actor_count" do
     tests "AddAccessGates", on: "Blueprint"
     setup  "StartConception", domain_name: "sample", vision: "sample", category: "sample"
@@ -43,13 +36,6 @@ Hecks.behaviors "Conception" do
     setup  "StartConception", domain_name: "sample", vision: "sample", category: "sample"
     input  count: 1
     expect completeness: "embryo", policy_count: 1
-  end
-
-  test "Seal runs" do
-    tests "Seal", on: "Blueprint"
-    setup  "StartConception", domain_name: "sample", vision: "sample", category: "sample"
-    setup  "AssessCompleteness", gaps: "sample"
-    expect completeness: "sealed"
   end
 
 
@@ -68,12 +54,6 @@ Hecks.behaviors "Conception" do
     tests "RecordConception", on: "ConceptionLog"
     input  domain_name: "sample", conceived_by: "sample", conceived_at: "sample", fixture_count: 1, gap_count: 1
     expect domain_name: "sample", conceived_by: "sample", conceived_at: "sample", fixture_count: 1, gap_count: 1, verdict: "recorded"
-  end
-
-  test "MarkViable runs" do
-    tests "MarkViable", on: "ConceptionLog"
-    setup  "RecordConception", domain_name: "sample", conceived_by: "sample", conceived_at: "sample", fixture_count: 1, gap_count: 1
-    expect verdict: "viable"
   end
 
   test "MarkIncomplete runs" do

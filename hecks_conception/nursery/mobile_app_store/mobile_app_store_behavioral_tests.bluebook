@@ -24,13 +24,6 @@ Hecks.behaviors "MobileAppStore" do
 
   # ── Review aggregate ──────────────────────────────────────────
 
-  test "PostReview sets review_id + author_name + rating + comment" do
-    tests "PostReview", on: "Review"
-    setup  "SubmitApp", bundle_id: "sample", title: "sample", developer_name: "sample", category: "sample", price: 1.0
-    input  review_id: "sample", author_name: "sample", rating: 1, comment: "sample"
-    expect ok: "true"
-  end
-
   test "FlagReview sets reason" do
     tests "FlagReview", on: "Review"
     setup  "PostReview", review_id: "sample", author_name: "sample", rating: 1, comment: "sample"

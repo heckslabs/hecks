@@ -9,12 +9,6 @@ Hecks.behaviors "CampingOutfitter" do
     expect sku: "sample", name: "sample", category: "sample", brand: "sample", weight_kg: 1.0, price: 1.0, quantity: 1
   end
 
-  test "SellGear runs" do
-    tests "SellGear", on: "CampingGear"
-    setup  "StockGear", sku: "sample", name: "sample", category: "sample", brand: "sample", weight_kg: 1.0, price: 1.0, quantity: 1
-    expect ok: "true"
-  end
-
 
   # ── GearRental aggregate ──────────────────────────────────────────
 
@@ -37,12 +31,6 @@ Hecks.behaviors "CampingOutfitter" do
     tests "StockMap", on: "TrailMap"
     input  map_id: "sample", trail_name: "sample", region: "sample", difficulty: "sample", distance_km: 1.0, copies_on_hand: 1
     expect map_id: "sample", trail_name: "sample", region: "sample", difficulty: "sample", distance_km: 1.0, copies_on_hand: 1
-  end
-
-  test "DistributeMap runs" do
-    tests "DistributeMap", on: "TrailMap"
-    setup  "StockMap", map_id: "sample", trail_name: "sample", region: "sample", difficulty: "sample", distance_km: 1.0, copies_on_hand: 1
-    expect ok: "true"
   end
 
 

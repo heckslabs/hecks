@@ -9,13 +9,6 @@ Hecks.behaviors "ClinicalTrialRecruiting" do
     expect compound_name: "sample", indication: "sample", phase: "sample"
   end
 
-  test "AddContraindication sets condition + severity" do
-    tests "AddContraindication", on: "DrugCandidate"
-    setup  "RegisterCompound", compound_name: "sample", indication: "sample", phase: "sample"
-    input  condition: "sample", severity: "sample"
-    expect contraindications_size: 1
-  end
-
   test "AdvancePhase runs" do
     tests "AdvancePhase", on: "DrugCandidate"
     setup  "RegisterCompound", compound_name: "sample", indication: "sample", phase: "sample"
@@ -32,19 +25,6 @@ Hecks.behaviors "ClinicalTrialRecruiting" do
     expect ok: "true"
   end
 
-  test "AddCriterion sets criterion_type + description" do
-    tests "AddCriterion", on: "TrialProtocol"
-    setup  "DraftProtocol", protocol_name: "sample", target_enrollment: 1
-    input  criterion_type: "sample", description: "sample"
-    expect criteria_size: 1
-  end
-
-  test "ApproveProtocol runs" do
-    tests "ApproveProtocol", on: "TrialProtocol"
-    setup  "DraftProtocol", protocol_name: "sample", target_enrollment: 1
-    expect ok: "true"
-  end
-
 
   # ── FreelanceParticipant aggregate ──────────────────────────────────────────
 
@@ -52,13 +32,6 @@ Hecks.behaviors "ClinicalTrialRecruiting" do
     tests "RegisterParticipant", on: "FreelanceParticipant"
     input  participant_name: "sample", age: 1, availability: "sample"
     expect participant_name: "sample", age: 1, availability: "sample"
-  end
-
-  test "AddMedicalHistory sets condition_name + diagnosed_year" do
-    tests "AddMedicalHistory", on: "FreelanceParticipant"
-    setup  "RegisterParticipant", participant_name: "sample", age: 1, availability: "sample"
-    input  condition_name: "sample", diagnosed_year: 1
-    expect medical_history_size: 1
   end
 
 
@@ -69,19 +42,6 @@ Hecks.behaviors "ClinicalTrialRecruiting" do
     setup  "DraftProtocol", protocol_name: "sample", target_enrollment: 1
     setup  "RegisterParticipant", participant_name: "sample", age: 1, availability: "sample"
     input  match_score: 1.0
-    expect ok: "true"
-  end
-
-  test "ScreenParticipant sets criterion_type + passed + notes" do
-    tests "ScreenParticipant", on: "MatchResult"
-    setup  "MatchParticipant", match_score: 1.0
-    input  criterion_type: "sample", passed: "sample", notes: "sample"
-    expect screening_results_size: 1
-  end
-
-  test "EnrollParticipant runs" do
-    tests "EnrollParticipant", on: "MatchResult"
-    setup  "MatchParticipant", match_score: 1.0
     expect ok: "true"
   end
 

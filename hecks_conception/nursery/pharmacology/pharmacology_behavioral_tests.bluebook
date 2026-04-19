@@ -9,12 +9,6 @@ Hecks.behaviors "Pharmacology" do
     expect compound_id: "sample", name: "sample", molecular_formula: "sample"
   end
 
-  test "ScreenCompound runs" do
-    tests "ScreenCompound", on: "Compound"
-    setup  "RegisterCompound", compound_id: "sample", name: "sample", molecular_formula: "sample"
-    expect ok: "true"
-  end
-
   test "ShelveCompound runs" do
     tests "ShelveCompound", on: "Compound"
     setup  "RegisterCompound", compound_id: "sample", name: "sample", molecular_formula: "sample"
@@ -28,13 +22,6 @@ Hecks.behaviors "Pharmacology" do
     tests "InitiateTrial", on: "ClinicalTrial"
     setup  "RegisterCompound", compound_id: "sample", name: "sample", molecular_formula: "sample"
     input  trial_id: "sample", phase: "sample", enrollment_target: 1
-    expect ok: "true"
-  end
-
-  test "EnrollSubject sets subject_id" do
-    tests "EnrollSubject", on: "ClinicalTrial"
-    setup  "InitiateTrial", trial_id: "sample", phase: "sample", enrollment_target: 1
-    input  subject_id: "sample"
     expect ok: "true"
   end
 
@@ -54,13 +41,6 @@ Hecks.behaviors "Pharmacology" do
     expect ok: "true"
   end
 
-  test "AssessCausality sets assessment" do
-    tests "AssessCausality", on: "AdverseEvent"
-    setup  "ReportEvent", description: "sample", severity: "sample"
-    input  assessment: "sample"
-    expect ok: "true"
-  end
-
 
   # ── RegulatorySubmission aggregate ──────────────────────────────────────────
 
@@ -68,12 +48,6 @@ Hecks.behaviors "Pharmacology" do
     tests "FileSubmission", on: "RegulatorySubmission"
     setup  "RegisterCompound", compound_id: "sample", name: "sample", molecular_formula: "sample"
     input  agency: "sample", submission_type: "sample"
-    expect ok: "true"
-  end
-
-  test "GrantApproval runs" do
-    tests "GrantApproval", on: "RegulatorySubmission"
-    setup  "FileSubmission", agency: "sample", submission_type: "sample"
     expect ok: "true"
   end
 

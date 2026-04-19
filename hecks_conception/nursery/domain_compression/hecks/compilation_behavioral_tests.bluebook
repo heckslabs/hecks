@@ -16,12 +16,6 @@ Hecks.behaviors "Compilation" do
     expect fixture_count: 1
   end
 
-  test "ValidateFixtures runs" do
-    tests "ValidateFixtures", on: "ExecutableBlueprint"
-    setup  "CompileBlueprint", domain_name: "sample", source_bluebook_path: "sample"
-    expect compilation_status: "validated"
-  end
-
   test "MarkFailed sets failure_reason" do
     tests "MarkFailed", on: "ExecutableBlueprint"
     setup  "CompileBlueprint", domain_name: "sample", source_bluebook_path: "sample"

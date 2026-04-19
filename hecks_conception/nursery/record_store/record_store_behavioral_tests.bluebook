@@ -16,12 +16,6 @@ Hecks.behaviors "RecordStore" do
     expect condition: "sample"
   end
 
-  test "SellRecord runs" do
-    tests "SellRecord", on: "VinylRecord"
-    setup  "StockRecord", catalog_number: "sample", title: "sample", artist_name: "sample", genre: "sample", format: "sample", condition: "sample", price: 1.0, quantity: 1
-    expect ok: "true"
-  end
-
 
   # ── Artist aggregate ──────────────────────────────────────────
 
@@ -44,13 +38,6 @@ Hecks.behaviors "RecordStore" do
     tests "SetupCrate", on: "Crate"
     input  crate_id: "sample", label: "sample", location: "sample", capacity: 1
     expect crate_id: "sample", label: "sample", location: "sample", capacity: 1, current_count: 0
-  end
-
-  test "FileRecord sets catalog_number" do
-    tests "FileRecord", on: "Crate"
-    setup  "SetupCrate", crate_id: "sample", label: "sample", location: "sample", capacity: 1
-    input  catalog_number: "sample"
-    expect ok: "true"
   end
 
 

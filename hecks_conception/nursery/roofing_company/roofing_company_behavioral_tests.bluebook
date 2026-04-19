@@ -65,12 +65,6 @@ Hecks.behaviors "RoofingCompany" do
     expect reason: "sample"
   end
 
-  test "LiftHold runs" do
-    tests "LiftHold", on: "WeatherHold"
-    setup  "PlaceHold", reason: "sample"
-    expect ok: "true"
-  end
-
 
   # ── RoofWarranty aggregate ──────────────────────────────────────────
 

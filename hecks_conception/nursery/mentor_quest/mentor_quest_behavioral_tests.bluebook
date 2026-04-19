@@ -9,13 +9,6 @@ Hecks.behaviors "MentorQuest" do
     expect name: "sample", mentees_max: 1
   end
 
-  test "AddSpecialty sets skill_area + experience_years" do
-    tests "AddSpecialty", on: "Mentor"
-    setup  "RegisterMentor", name: "sample", mentees_max: 1
-    input  skill_area: "sample", experience_years: 1
-    expect specialties_size: 1
-  end
-
 
   # ── Youth aggregate ──────────────────────────────────────────
 
@@ -23,13 +16,6 @@ Hecks.behaviors "MentorQuest" do
     tests "EnrollYouth", on: "Youth"
     input  name: "sample", age: 1
     expect ok: "true"
-  end
-
-  test "AddInterest sets topic + enthusiasm_level" do
-    tests "AddInterest", on: "Youth"
-    setup  "EnrollYouth", name: "sample", age: 1
-    input  topic: "sample", enthusiasm_level: 1
-    expect interests_size: 1
   end
 
   test "AwardXP sets xp_points" do
@@ -48,19 +34,6 @@ Hecks.behaviors "MentorQuest" do
     expect ok: "true"
   end
 
-  test "AddMission sets mission_name + description + xp_reward + difficulty" do
-    tests "AddMission", on: "QuestLine"
-    setup  "DesignQuest", quest_name: "sample", theme: "sample"
-    input  mission_name: "sample", description: "sample", xp_reward: 1, difficulty: "sample"
-    expect missions_size: 1
-  end
-
-  test "PublishQuest runs" do
-    tests "PublishQuest", on: "QuestLine"
-    setup  "DesignQuest", quest_name: "sample", theme: "sample"
-    expect ok: "true"
-  end
-
 
   # ── MentorshipSession aggregate ──────────────────────────────────────────
 
@@ -70,13 +43,6 @@ Hecks.behaviors "MentorQuest" do
     setup  "RegisterMentor", name: "sample", mentees_max: 1
     input  session_date: "sample"
     expect ok: "true"
-  end
-
-  test "RecordAchievement sets mission_name + xp_earned" do
-    tests "RecordAchievement", on: "MentorshipSession"
-    setup  "ScheduleSession", session_date: "sample"
-    input  mission_name: "sample", xp_earned: 1
-    expect achievements_size: 1
   end
 
   test "CompleteSession runs" do

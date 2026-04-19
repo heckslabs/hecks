@@ -9,21 +9,8 @@ Hecks.behaviors "HospitalAdmissions" do
     expect name: "sample", date_of_birth: "sample", insurance_id: "sample", emergency_contact: "sample", chief_complaint: "sample"
   end
 
-  test "TriagePatient sets triage_level" do
-    tests "TriagePatient", on: "Patient"
-    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", insurance_id: "sample", emergency_contact: "sample", chief_complaint: "sample"
-    input  triage_level: "sample"
-    expect ok: "true"
-  end
-
 
   # ── Bed aggregate ──────────────────────────────────────────
-
-  test "AssignBed sets patient_name" do
-    tests "AssignBed", on: "Bed"
-    input  patient_name: "sample"
-    expect ok: "true"
-  end
 
   test "ReleaseBed runs" do
     tests "ReleaseBed", on: "Bed"
@@ -52,12 +39,6 @@ Hecks.behaviors "HospitalAdmissions" do
   test "DraftDischargePlan sets patient_name + discharge_date" do
     tests "DraftDischargePlan", on: "DischargeePlan"
     input  patient_name: "sample", discharge_date: "sample"
-    expect ok: "true"
-  end
-
-  test "ApproveDischargePlan runs" do
-    tests "ApproveDischargePlan", on: "DischargeePlan"
-    setup  "DraftDischargePlan", patient_name: "sample", discharge_date: "sample"
     expect ok: "true"
   end
 

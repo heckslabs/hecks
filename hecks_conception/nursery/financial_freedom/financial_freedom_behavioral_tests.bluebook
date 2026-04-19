@@ -9,13 +9,6 @@ Hecks.behaviors "FinancialFreedom" do
     expect case_id: "sample", intake_date: "sample", safety_plan: "sample"
   end
 
-  test "AddDependent sets name + age + relationship" do
-    tests "AddDependent", on: "SurvivorCase"
-    setup  "OpenCase", case_id: "sample", intake_date: "sample", safety_plan: "sample"
-    input  name: "sample", age: 1, relationship: "sample"
-    expect dependents_size: 1
-  end
-
   test "TransitionCase runs" do
     tests "TransitionCase", on: "SurvivorCase"
     setup  "OpenCase", case_id: "sample", intake_date: "sample", safety_plan: "sample"
@@ -31,20 +24,6 @@ Hecks.behaviors "FinancialFreedom" do
     expect ok: "true"
   end
 
-  test "AddIncomeSource sets source_type + amount + frequency" do
-    tests "AddIncomeSource", on: "FinancialProfile"
-    setup  "Assess"
-    input  source_type: "sample", amount: 1.0, frequency: "sample"
-    expect income_sources_size: 1
-  end
-
-  test "RecordDebt sets creditor + amount_owed + interest_rate" do
-    tests "RecordDebt", on: "FinancialProfile"
-    setup  "Assess"
-    input  creditor: "sample", amount_owed: 1.0, interest_rate: 1.0
-    expect debts_size: 1
-  end
-
 
   # ── TaxReturn aggregate ──────────────────────────────────────────
 
@@ -56,19 +35,6 @@ Hecks.behaviors "FinancialFreedom" do
     expect ok: "true"
   end
 
-  test "AddDeduction sets deduction_type + amount + documentation" do
-    tests "AddDeduction", on: "TaxReturn"
-    setup  "PrepareTaxReturn", tax_year: "sample", filing_status: "sample"
-    input  deduction_type: "sample", amount: 1.0, documentation: "sample"
-    expect deductions_size: 1
-  end
-
-  test "FileReturn runs" do
-    tests "FileReturn", on: "TaxReturn"
-    setup  "PrepareTaxReturn", tax_year: "sample", filing_status: "sample"
-    expect ok: "true"
-  end
-
 
   # ── BenefitApplication aggregate ──────────────────────────────────────────
 
@@ -76,19 +42,6 @@ Hecks.behaviors "FinancialFreedom" do
     tests "StartApplication", on: "BenefitApplication"
     setup  "OpenCase", case_id: "sample", intake_date: "sample", safety_plan: "sample"
     input  benefit_type: "sample"
-    expect ok: "true"
-  end
-
-  test "AttachDocument sets doc_type + description" do
-    tests "AttachDocument", on: "BenefitApplication"
-    setup  "StartApplication", benefit_type: "sample"
-    input  doc_type: "sample", description: "sample"
-    expect documents_size: 1
-  end
-
-  test "SubmitApplication runs" do
-    tests "SubmitApplication", on: "BenefitApplication"
-    setup  "StartApplication", benefit_type: "sample"
     expect ok: "true"
   end
 

@@ -9,13 +9,6 @@ Hecks.behaviors "WaterQualityAPI" do
     expect plant_name: "sample", capacity_gallons: 1.0
   end
 
-  test "AddStage sets stage_name + chemical + dosage_ppm" do
-    tests "AddStage", on: "TreatmentPlant"
-    setup  "RegisterPlant", plant_name: "sample", capacity_gallons: 1.0
-    input  stage_name: "sample", chemical: "sample", dosage_ppm: 1.0
-    expect stages_size: 1
-  end
-
 
   # ── WaterSample aggregate ──────────────────────────────────────────
 
@@ -26,19 +19,6 @@ Hecks.behaviors "WaterQualityAPI" do
     expect ok: "true"
   end
 
-  test "RecordResult sets parameter + value + unit" do
-    tests "RecordResult", on: "WaterSample"
-    setup  "CollectSample", sample_point: "sample", collected_at: "sample"
-    input  parameter: "sample", value: 1.0, unit: "sample"
-    expect results_size: 1
-  end
-
-  test "CertifySample runs" do
-    tests "CertifySample", on: "WaterSample"
-    setup  "CollectSample", sample_point: "sample", collected_at: "sample"
-    expect ok: "true"
-  end
-
 
   # ── APIEndpoint aggregate ──────────────────────────────────────────
 
@@ -46,13 +26,6 @@ Hecks.behaviors "WaterQualityAPI" do
     tests "Draft", on: "APIEndpoint"
     input  endpoint_path: "sample", description: "sample", rate_limit: 1
     expect ok: "true"
-  end
-
-  test "RegisterConsumer sets consumer_name + api_key + tier" do
-    tests "RegisterConsumer", on: "APIEndpoint"
-    setup  "Draft", endpoint_path: "sample", description: "sample", rate_limit: 1
-    input  consumer_name: "sample", api_key: "sample", tier: "sample"
-    expect consumers_size: 1
   end
 
   test "PublishEndpoint runs" do
@@ -69,19 +42,6 @@ Hecks.behaviors "WaterQualityAPI" do
     setup  "Draft", endpoint_path: "sample", description: "sample", rate_limit: 1
     setup  "RegisterPlant", plant_name: "sample", capacity_gallons: 1.0
     input  feed_name: "sample", frequency_seconds: 1
-    expect ok: "true"
-  end
-
-  test "AddTransform sets source_field + target_field + transform_type" do
-    tests "AddTransform", on: "DataFeed"
-    setup  "ConfigureFeed", feed_name: "sample", frequency_seconds: 1
-    input  source_field: "sample", target_field: "sample", transform_type: "sample"
-    expect transformations_size: 1
-  end
-
-  test "ActivateFeed runs" do
-    tests "ActivateFeed", on: "DataFeed"
-    setup  "ConfigureFeed", feed_name: "sample", frequency_seconds: 1
     expect ok: "true"
   end
 

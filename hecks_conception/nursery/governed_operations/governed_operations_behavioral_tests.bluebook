@@ -108,13 +108,6 @@ Hecks.behaviors "GovernedOperations" do
     expect produced_at: "sample", status: "in_production"
   end
 
-  test "SubmitForRelease runs" do
-    tests "SubmitForRelease", on: "Batch"
-    setup  "RegisterBatch", batch_number: "sample", product: "sample", quantity: 1
-    setup  "RecordProduction", produced_at: "sample"
-    expect status: "pending_release"
-  end
-
   test "ApproveBatch runs" do
     tests "ApproveBatch", on: "Batch"
     setup  "RegisterBatch", batch_number: "sample", product: "sample", quantity: 1
@@ -517,12 +510,6 @@ Hecks.behaviors "GovernedOperations" do
     tests "AllocateTokens", on: "Token"
     input  account: "sample", amount: 1
     expect account: "sample"
-  end
-
-  test "ConsumeToken runs" do
-    tests "ConsumeToken", on: "Token"
-    setup  "AllocateTokens", account: "sample", amount: 1
-    expect ok: "true"
   end
 
   test "RefundToken runs" do

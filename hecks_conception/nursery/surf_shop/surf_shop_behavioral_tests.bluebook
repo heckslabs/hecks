@@ -24,12 +24,6 @@ Hecks.behaviors "SurfShop" do
     expect wetsuit_id: "sample", brand: "sample", thickness_mm: "sample", size: "sample", price: 1.0, quantity: 1
   end
 
-  test "SellWetsuit runs" do
-    tests "SellWetsuit", on: "Wetsuit"
-    setup  "StockWetsuit", wetsuit_id: "sample", brand: "sample", thickness_mm: "sample", size: "sample", price: 1.0, quantity: 1
-    expect ok: "true"
-  end
-
 
   # ── GearRental aggregate ──────────────────────────────────────────
 

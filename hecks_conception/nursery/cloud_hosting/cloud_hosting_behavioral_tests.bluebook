@@ -56,13 +56,6 @@ Hecks.behaviors "CloudHosting" do
     expect ok: "true"
   end
 
-  test "TriggerScaleOut sets additional_count" do
-    tests "TriggerScaleOut", on: "ScalingRule"
-    setup  "DefineScalingRule", rule_name: "sample", metric_name: "sample", threshold: 1.0, min_instances: 1, max_instances: 1, cooldown_seconds: 1
-    input  additional_count: 1
-    expect ok: "true"
-  end
-
   test "SuspendScalingRule runs" do
     tests "SuspendScalingRule", on: "ScalingRule"
     setup  "DefineScalingRule", rule_name: "sample", metric_name: "sample", threshold: 1.0, min_instances: 1, max_instances: 1, cooldown_seconds: 1

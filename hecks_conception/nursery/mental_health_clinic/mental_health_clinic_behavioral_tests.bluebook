@@ -31,12 +31,6 @@ Hecks.behaviors "MentalHealthClinic" do
     expect name: "sample", license_type: "sample", license_number: "sample", specialty: "sample", caseload_limit: 1, active_clients: 0
   end
 
-  test "AssignClient runs" do
-    tests "AssignClient", on: "Therapist"
-    setup  "RegisterTherapist", name: "sample", license_type: "sample", license_number: "sample", specialty: "sample", caseload_limit: 1
-    expect ok: "true"
-  end
-
 
   # ── Assessment aggregate ──────────────────────────────────────────
 

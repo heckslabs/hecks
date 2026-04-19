@@ -31,13 +31,6 @@ Hecks.behaviors "PetStore" do
     expect sku: "sample", name: "sample", category: "sample", price: 1.0, quantity: 1, pet_type: "sample"
   end
 
-  test "ReorderSupply sets reorder_quantity" do
-    tests "ReorderSupply", on: "Supply"
-    setup  "StockSupply", sku: "sample", name: "sample", category: "sample", price: 1.0, quantity: 1, pet_type: "sample"
-    input  reorder_quantity: 1
-    expect ok: "true"
-  end
-
 
   # ── Adoption aggregate ──────────────────────────────────────────
 

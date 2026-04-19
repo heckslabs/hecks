@@ -9,12 +9,6 @@ Hecks.behaviors "DiveShop" do
     expect equipment_id: "sample", name: "sample", equipment_type: "sample", brand: "sample", price: 1.0, quantity: 1, status: "available"
   end
 
-  test "SellEquipment runs" do
-    tests "SellEquipment", on: "DiveEquipment"
-    setup  "StockEquipment", equipment_id: "sample", name: "sample", equipment_type: "sample", brand: "sample", price: 1.0, quantity: 1
-    expect ok: "true"
-  end
-
   test "RetireEquipment runs" do
     tests "RetireEquipment", on: "DiveEquipment"
     setup  "StockEquipment", equipment_id: "sample", name: "sample", equipment_type: "sample", brand: "sample", price: 1.0, quantity: 1

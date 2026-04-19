@@ -26,12 +26,6 @@ Hecks.behaviors "Heki" do
 
   # ── Record aggregate ──────────────────────────────────────────
 
-  test "WriteRecord sets store_name + payload" do
-    tests "WriteRecord", on: "Record"
-    input  store_name: "sample", payload: "sample"
-    expect store_name: "sample", payload: "sample"
-  end
-
   test "ReadRecord sets store_name" do
     tests "ReadRecord", on: "Record"
     setup  "WriteRecord", store_name: "sample", payload: "sample"

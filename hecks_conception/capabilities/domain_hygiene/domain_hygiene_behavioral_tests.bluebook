@@ -27,12 +27,6 @@ Hecks.behaviors "DomainHygiene" do
 
   # ── Enrichment aggregate ──────────────────────────────────────────
 
-  test "EnrichDomain sets domain_name + enrichment_type" do
-    tests "EnrichDomain", on: "Enrichment"
-    input  domain_name: "sample", enrichment_type: "sample"
-    expect ok: "true"
-  end
-
   test "Revalidate runs" do
     tests "Revalidate", on: "Enrichment"
     setup  "EnrichDomain", domain_name: "sample", enrichment_type: "sample"
@@ -57,12 +51,6 @@ Hecks.behaviors "DomainHygiene" do
 
 
   # ── CorpusGrowth aggregate ──────────────────────────────────────────
-
-  test "GrowCorpus sets target_count" do
-    tests "GrowCorpus", on: "CorpusGrowth"
-    input  target_count: 1
-    expect ok: "true"
-  end
 
   test "ConceiveBatch sets batch_size + topics" do
     tests "ConceiveBatch", on: "CorpusGrowth"

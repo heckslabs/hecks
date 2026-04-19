@@ -9,13 +9,6 @@ Hecks.behaviors "CompostLoop" do
     expect ok: "true"
   end
 
-  test "PlantCrop sets crop_name + planted_date + nutrient_needs" do
-    tests "PlantCrop", on: "GardenPlot"
-    setup  "AssignPlot", plot_id: "sample", gardener: "sample"
-    input  crop_name: "sample", planted_date: "sample", nutrient_needs: "sample"
-    expect crops_size: 1
-  end
-
   test "HarvestCrop sets crop_name" do
     tests "HarvestCrop", on: "GardenPlot"
     setup  "AssignPlot", plot_id: "sample", gardener: "sample"
@@ -32,13 +25,6 @@ Hecks.behaviors "CompostLoop" do
     expect source: "sample", waste_type: "sample"
   end
 
-  test "RecordCollection sets date + weight_kg + contamination_pct" do
-    tests "RecordCollection", on: "WasteStream"
-    setup  "RegisterStream", source: "sample", waste_type: "sample"
-    input  date: "sample", weight_kg: 1.0, contamination_pct: 1.0
-    expect collections_size: 1
-  end
-
 
   # ── CompostBatch aggregate ──────────────────────────────────────────
 
@@ -46,19 +32,6 @@ Hecks.behaviors "CompostLoop" do
     tests "StartBatch", on: "CompostBatch"
     setup  "RegisterStream", source: "sample", waste_type: "sample"
     input  batch_id: "sample"
-    expect ok: "true"
-  end
-
-  test "RecordReading sets day + temperature_c + moisture_pct + carbon_nitrogen_ratio" do
-    tests "RecordReading", on: "CompostBatch"
-    setup  "StartBatch", batch_id: "sample"
-    input  day: 1, temperature_c: 1.0, moisture_pct: 1.0, carbon_nitrogen_ratio: 1.0
-    expect readings_size: 1
-  end
-
-  test "CureBatch runs" do
-    tests "CureBatch", on: "CompostBatch"
-    setup  "StartBatch", batch_id: "sample"
     expect ok: "true"
   end
 
@@ -71,13 +44,6 @@ Hecks.behaviors "CompostLoop" do
     setup  "StartBatch", batch_id: "sample"
     input  application_date: "sample", volume_liters: 1.0
     expect ok: "true"
-  end
-
-  test "MeasureNutrient sets nutrient + concentration_ppm" do
-    tests "MeasureNutrient", on: "SoilAmendment"
-    setup  "ApplyAmendment", application_date: "sample", volume_liters: 1.0
-    input  nutrient: "sample", concentration_ppm: 1.0
-    expect nutrients_size: 1
   end
 
 end

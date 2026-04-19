@@ -9,13 +9,6 @@ Hecks.behaviors "Volcanology" do
     expect name: "sample", volcano_type: "sample", summit_elevation_m: 1.0
   end
 
-  test "RaiseAlertLevel sets new_level" do
-    tests "RaiseAlertLevel", on: "Volcano"
-    setup  "RegisterVolcano", name: "sample", volcano_type: "sample", summit_elevation_m: 1.0
-    input  new_level: "sample"
-    expect ok: "true"
-  end
-
   test "LowerAlertLevel sets new_level" do
     tests "LowerAlertLevel", on: "Volcano"
     setup  "RegisterVolcano", name: "sample", volcano_type: "sample", summit_elevation_m: 1.0
@@ -40,12 +33,6 @@ Hecks.behaviors "Volcanology" do
     expect ok: "true"
   end
 
-  test "ConcludeEruption runs" do
-    tests "ConcludeEruption", on: "Eruption"
-    setup  "DeclareEruption", eruption_id: "sample", eruption_type: "sample"
-    expect ok: "true"
-  end
-
 
   # ── SeismicReading aggregate ──────────────────────────────────────────
 
@@ -53,12 +40,6 @@ Hecks.behaviors "Volcanology" do
     tests "RecordSeismicEvent", on: "SeismicReading"
     setup  "RegisterVolcano", name: "sample", volcano_type: "sample", summit_elevation_m: 1.0
     input  station_id: "sample", magnitude: 1.0, depth_km: 1.0
-    expect ok: "true"
-  end
-
-  test "LocateHypocenter runs" do
-    tests "LocateHypocenter", on: "SeismicReading"
-    setup  "RecordSeismicEvent", station_id: "sample", magnitude: 1.0, depth_km: 1.0
     expect ok: "true"
   end
 
@@ -79,12 +60,6 @@ Hecks.behaviors "Volcanology" do
     expect ok: "true"
   end
 
-  test "DetectAnomaly runs" do
-    tests "DetectAnomaly", on: "GasEmission"
-    setup  "MeasureEmission", gas_type: "sample", flux_tons_per_day: 1.0
-    expect ok: "true"
-  end
-
 
   # ── HazardZone aggregate ──────────────────────────────────────────
 
@@ -92,12 +67,6 @@ Hecks.behaviors "Volcanology" do
     tests "DelineateZone", on: "HazardZone"
     setup  "RegisterVolcano", name: "sample", volcano_type: "sample", summit_elevation_m: 1.0
     input  zone_name: "sample", hazard_type: "sample"
-    expect ok: "true"
-  end
-
-  test "EvacuateZone runs" do
-    tests "EvacuateZone", on: "HazardZone"
-    setup  "DelineateZone", zone_name: "sample", hazard_type: "sample"
     expect ok: "true"
   end
 

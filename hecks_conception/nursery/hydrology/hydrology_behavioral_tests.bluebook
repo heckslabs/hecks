@@ -16,12 +16,6 @@ Hecks.behaviors "Hydrology" do
     expect ok: "true"
   end
 
-  test "UpdateBoundary runs" do
-    tests "UpdateBoundary", on: "Watershed"
-    setup  "DelineateWatershed", watershed_id: "sample", name: "sample", area_km2: 1.0
-    expect ok: "true"
-  end
-
 
   # ── StreamGauge aggregate ──────────────────────────────────────────
 
@@ -29,12 +23,6 @@ Hecks.behaviors "Hydrology" do
     tests "InstallGauge", on: "StreamGauge"
     setup  "DelineateWatershed", watershed_id: "sample", name: "sample", area_km2: 1.0
     input  gauge_id: "sample", stream_name: "sample"
-    expect ok: "true"
-  end
-
-  test "CalibrateGauge runs" do
-    tests "CalibrateGauge", on: "StreamGauge"
-    setup  "InstallGauge", gauge_id: "sample", stream_name: "sample"
     expect ok: "true"
   end
 
@@ -54,12 +42,6 @@ Hecks.behaviors "Hydrology" do
     expect ok: "true"
   end
 
-  test "ValidateMeasurement runs" do
-    tests "ValidateMeasurement", on: "FlowMeasurement"
-    setup  "RecordDischarge", measurement_date: "sample", stage_m: 1.0, discharge_cms: 1.0
-    expect ok: "true"
-  end
-
 
   # ── FloodModel aggregate ──────────────────────────────────────────
 
@@ -67,13 +49,6 @@ Hecks.behaviors "Hydrology" do
     tests "BuildModel", on: "FloodModel"
     setup  "DelineateWatershed", watershed_id: "sample", name: "sample", area_km2: 1.0
     input  model_id: "sample", scenario_name: "sample"
-    expect ok: "true"
-  end
-
-  test "RunSimulation sets return_period_years" do
-    tests "RunSimulation", on: "FloodModel"
-    setup  "BuildModel", model_id: "sample", scenario_name: "sample"
-    input  return_period_years: 1
     expect ok: "true"
   end
 
@@ -91,12 +66,6 @@ Hecks.behaviors "Hydrology" do
     tests "MeasureWaterLevel", on: "MonitoringWell"
     setup  "DrillWell", well_id: "sample", depth_m: 1.0
     input  depth_to_water_m: 1.0
-    expect ok: "true"
-  end
-
-  test "SampleGroundwater runs" do
-    tests "SampleGroundwater", on: "MonitoringWell"
-    setup  "DrillWell", well_id: "sample", depth_m: 1.0
     expect ok: "true"
   end
 

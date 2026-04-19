@@ -214,6 +214,43 @@ end
         "TurnOff test missing — cycle handling broke generation:\n{}", out);
 }
 
+#[test]
+fn skips_command_with_non_equality_given() {
+    // Commands whose preconditions are non-equality predicates (>, <,
+    // "must have", etc.) can't be satisfied by the chain planner — it
+    // only handles `field == "value"`. Generating a test for such a
+    // command produces a noisy `given failed: ...` failure. Skip it.
+    let source = r#"Hecks.bluebook "Inventory" do
+  aggregate "Stock" do
+    attribute :quantity, Integer
+    command "AddStock" do
+      attribute :quantity, Integer
+      emits "StockAdded"
+      then_set :quantity, to: :quantity
+    end
+    command "ConsumeStock" do
+      reference_to(Stock)
+      attribute :quantity_used, Integer
+      given("must have stock") { quantity_used > 0 }
+      emits "StockConsumed"
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let out = generate_behaviors(&domain, None);
+
+    // The bootstrap command (no givens) still gets a test.
+    assert!(out.contains("test \"AddStock"),
+        "AddStock test (no givens) should still emit:\n{}", out);
+    // The non-equality-given command must NOT have an isolated test.
+    assert!(!out.contains("test \"ConsumeStock"),
+        "ConsumeStock has a non-equality given — must be skipped, got:\n{}",
+        out);
+    assert!(!out.contains("tests \"ConsumeStock\""),
+        "ConsumeStock tests-line must be skipped, got:\n{}", out);
+}
+
 // ─── helpers ────────────────────────────────────────────────────────
 
 /// Slice the substring spanning a single `test "<cmd_name> ..."` block,

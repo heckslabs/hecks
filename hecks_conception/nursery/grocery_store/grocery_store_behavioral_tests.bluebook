@@ -9,13 +9,6 @@ Hecks.behaviors "GroceryStore" do
     expect sku: "sample", name: "sample", category: "sample", price: 1.0, quantity: 1, expiration_date: "sample", status: "available"
   end
 
-  test "MarkdownProduct sets new_price" do
-    tests "MarkdownProduct", on: "Product"
-    setup  "StockProduct", sku: "sample", name: "sample", category: "sample", price: 1.0, quantity: 1, expiration_date: "sample"
-    input  new_price: 1.0
-    expect price: 1.0
-  end
-
   test "PullFromShelf runs" do
     tests "PullFromShelf", on: "Product"
     setup  "StockProduct", sku: "sample", name: "sample", category: "sample", price: 1.0, quantity: 1, expiration_date: "sample"
@@ -44,13 +37,6 @@ Hecks.behaviors "GroceryStore" do
     tests "RegisterSupplier", on: "Supplier"
     input  name: "sample", contact_email: "sample", delivery_schedule: "sample"
     expect name: "sample", contact_email: "sample", delivery_schedule: "sample"
-  end
-
-  test "PlaceReorder sets sku + quantity" do
-    tests "PlaceReorder", on: "Supplier"
-    setup  "RegisterSupplier", name: "sample", contact_email: "sample", delivery_schedule: "sample"
-    input  sku: "sample", quantity: 1
-    expect ok: "true"
   end
 
 

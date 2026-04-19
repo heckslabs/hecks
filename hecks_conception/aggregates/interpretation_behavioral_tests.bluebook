@@ -48,12 +48,6 @@ Hecks.behaviors "Interpretation" do
 
   # ── Rhythm aggregate ──────────────────────────────────────────
 
-  test "RegisterTask sets task + cadence" do
-    tests "RegisterTask", on: "Rhythm"
-    input  task: "sample", cadence: "sample"
-    expect ok: "true"
-  end
-
   test "RemoveTask sets task + cadence" do
     tests "RemoveTask", on: "Rhythm"
     input  task: "sample", cadence: "sample"

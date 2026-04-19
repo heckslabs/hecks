@@ -88,12 +88,6 @@ Hecks.behaviors "VeterinaryClinic" do
     expect medication_name: "sample", dosage: "sample", frequency: "sample", refills_remaining: 1, status: "active"
   end
 
-  test "RefillPrescription runs" do
-    tests "RefillPrescription", on: "Prescription"
-    setup  "PrescribeMedication", medication_name: "sample", dosage: "sample", frequency: "sample", refills_remaining: 1
-    expect ok: "true"
-  end
-
   test "DiscontinueMedication runs" do
     tests "DiscontinueMedication", on: "Prescription"
     setup  "PrescribeMedication", medication_name: "sample", dosage: "sample", frequency: "sample", refills_remaining: 1

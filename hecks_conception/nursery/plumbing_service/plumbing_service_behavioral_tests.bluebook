@@ -17,12 +17,6 @@ Hecks.behaviors "PlumbingService" do
     expect ok: "true"
   end
 
-  test "CompleteCall runs" do
-    tests "CompleteCall", on: "ServiceCall"
-    setup  "DispatchCall", customer_name: "sample", address: "sample", problem_description: "sample"
-    expect ok: "true"
-  end
-
 
   # ── Technician aggregate ──────────────────────────────────────────
 

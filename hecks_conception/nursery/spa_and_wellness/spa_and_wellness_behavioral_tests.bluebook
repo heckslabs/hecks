@@ -55,13 +55,6 @@ Hecks.behaviors "SpaAndWellness" do
     expect product_id: "sample", name: "sample", brand: "sample", price: 1.0, quantity: 1
   end
 
-  test "SellProduct sets quantity_sold" do
-    tests "SellProduct", on: "RetailProduct"
-    setup  "StockProduct", product_id: "sample", name: "sample", brand: "sample", price: 1.0, quantity: 1
-    input  quantity_sold: 1
-    expect ok: "true"
-  end
-
 
   # ── WellnessPackage aggregate ──────────────────────────────────────────
 

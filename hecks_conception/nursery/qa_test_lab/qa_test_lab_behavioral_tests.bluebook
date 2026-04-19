@@ -100,12 +100,6 @@ Hecks.behaviors "QATestLab" do
     expect ok: "true"
   end
 
-  test "ApproveRelease runs" do
-    tests "ApproveRelease", on: "Release"
-    setup  "CandidateRelease", release_version: "sample", branch_name: "sample", build_id: "sample"
-    expect ok: "true"
-  end
-
   test "BlockRelease sets block_reason" do
     tests "BlockRelease", on: "Release"
     setup  "CandidateRelease", release_version: "sample", branch_name: "sample", build_id: "sample"

@@ -9,32 +9,12 @@ Hecks.behaviors "InmateEducation" do
     expect ok: "true"
   end
 
-  test "AwardCertification sets cert_name + issued_date + issuing_body" do
-    tests "AwardCertification", on: "Inmate"
-    setup  "EnrollInmate", inmate_id: "sample", name: "sample", facility: "sample", education_level: "sample"
-    input  cert_name: "sample", issued_date: "sample", issuing_body: "sample"
-    expect certifications_size: 1
-  end
-
 
   # ── Course aggregate ──────────────────────────────────────────
 
   test "Author sets course_name + subject" do
     tests "Author", on: "Course"
     input  course_name: "sample", subject: "sample"
-    expect ok: "true"
-  end
-
-  test "AddModule sets module_name + content_type + duration_minutes" do
-    tests "AddModule", on: "Course"
-    setup  "Author", course_name: "sample", subject: "sample"
-    input  module_name: "sample", content_type: "sample", duration_minutes: 1
-    expect modules_size: 1
-  end
-
-  test "PublishCourse runs" do
-    tests "PublishCourse", on: "Course"
-    setup  "Author", course_name: "sample", subject: "sample"
     expect ok: "true"
   end
 
@@ -48,19 +28,6 @@ Hecks.behaviors "InmateEducation" do
     expect ok: "true"
   end
 
-  test "SubmitAssignment sets assignment_name + score" do
-    tests "SubmitAssignment", on: "Enrollment"
-    setup  "RegisterEnrollment"
-    input  assignment_name: "sample", score: 1.0
-    expect assignments_size: 1
-  end
-
-  test "CompleteEnrollment runs" do
-    tests "CompleteEnrollment", on: "Enrollment"
-    setup  "RegisterEnrollment"
-    expect ok: "true"
-  end
-
 
   # ── BehaviorRecord aggregate ──────────────────────────────────────────
 
@@ -68,20 +35,6 @@ Hecks.behaviors "InmateEducation" do
     tests "OpenRecord", on: "BehaviorRecord"
     setup  "EnrollInmate", inmate_id: "sample", name: "sample", facility: "sample", education_level: "sample"
     expect ok: "true"
-  end
-
-  test "RecordInfraction sets infraction_type + severity + date" do
-    tests "RecordInfraction", on: "BehaviorRecord"
-    setup  "OpenRecord"
-    input  infraction_type: "sample", severity: "sample", date: "sample"
-    expect infractions_size: 1
-  end
-
-  test "AwardMerit sets merit_type + description + date" do
-    tests "AwardMerit", on: "BehaviorRecord"
-    setup  "OpenRecord"
-    input  merit_type: "sample", description: "sample", date: "sample"
-    expect merits_size: 1
   end
 
 end

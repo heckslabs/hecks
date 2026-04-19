@@ -9,12 +9,6 @@ Hecks.behaviors "Cartography" do
     expect ok: "true"
   end
 
-  test "PublishSheet runs" do
-    tests "PublishSheet", on: "MapSheet"
-    setup  "Plate", sheet_id: "sample", title: "sample", scale: "sample"
-    expect ok: "true"
-  end
-
   test "RetireSheet runs" do
     tests "RetireSheet", on: "MapSheet"
     setup  "Plate", sheet_id: "sample", title: "sample", scale: "sample"
@@ -54,12 +48,6 @@ Hecks.behaviors "Cartography" do
     expect ok: "true"
   end
 
-  test "Erase runs" do
-    tests "Erase", on: "GeographicFeature"
-    setup  "DigitizeFeature", feature_type: "sample", name: "sample", geometry_wkt: "sample"
-    expect ok: "true"
-  end
-
 
   # ── Datum aggregate ──────────────────────────────────────────
 
@@ -69,13 +57,6 @@ Hecks.behaviors "Cartography" do
     expect name: "sample", ellipsoid: "sample", semi_major_axis_m: 1.0
   end
 
-  test "TransformCoordinates sets source_lat + source_lon" do
-    tests "TransformCoordinates", on: "Datum"
-    setup  "RegisterDatum", name: "sample", ellipsoid: "sample", semi_major_axis_m: 1.0
-    input  source_lat: 1.0, source_lon: 1.0
-    expect ok: "true"
-  end
-
 
   # ── MapRevision aggregate ──────────────────────────────────────────
 
@@ -83,13 +64,6 @@ Hecks.behaviors "Cartography" do
     tests "SubmitRevision", on: "MapRevision"
     setup  "Plate", sheet_id: "sample", title: "sample", scale: "sample"
     input  change_description: "sample"
-    expect ok: "true"
-  end
-
-  test "ApproveRevision sets reviewer" do
-    tests "ApproveRevision", on: "MapRevision"
-    setup  "SubmitRevision", change_description: "sample"
-    input  reviewer: "sample"
     expect ok: "true"
   end
 

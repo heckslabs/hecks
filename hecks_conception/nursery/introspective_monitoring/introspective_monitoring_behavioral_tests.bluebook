@@ -31,12 +31,6 @@ Hecks.behaviors "IntrospectiveMonitoring" do
     expect bpm: 1, rhythm: "sample", variability: 1
   end
 
-  test "FlagAnomaly runs" do
-    tests "FlagAnomaly", on: "HeartbeatSnapshot"
-    setup  "RecordHeartbeat", bpm: 1, rhythm: "sample", variability: 1
-    expect ok: "true"
-  end
-
   test "ArchiveSnapshot runs" do
     tests "ArchiveSnapshot", on: "HeartbeatSnapshot"
     setup  "RecordHeartbeat", bpm: 1, rhythm: "sample", variability: 1

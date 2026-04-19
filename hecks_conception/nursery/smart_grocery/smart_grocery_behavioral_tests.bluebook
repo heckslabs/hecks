@@ -9,13 +9,6 @@ Hecks.behaviors "SmartGrocery" do
     expect ok: "true"
   end
 
-  test "AddNutrient sets nutrient_name + amount + unit + daily_value_pct" do
-    tests "AddNutrient", on: "Product"
-    setup  "StockProduct", name: "sample", category: "sample", price_cents: 1
-    input  nutrient_name: "sample", amount: 1.0, unit: "sample", daily_value_pct: 1.0
-    expect nutrients_size: 1
-  end
-
 
   # ── DietaryProfile aggregate ──────────────────────────────────────────
 
@@ -23,20 +16,6 @@ Hecks.behaviors "SmartGrocery" do
     tests "Enroll", on: "DietaryProfile"
     input  customer_name: "sample", calorie_target: 1
     expect ok: "true"
-  end
-
-  test "AddRestriction sets restriction_type + severity" do
-    tests "AddRestriction", on: "DietaryProfile"
-    setup  "Enroll", customer_name: "sample", calorie_target: 1
-    input  restriction_type: "sample", severity: "sample"
-    expect restrictions_size: 1
-  end
-
-  test "SetGoal sets nutrient_name + target_amount + unit" do
-    tests "SetGoal", on: "DietaryProfile"
-    setup  "Enroll", customer_name: "sample", calorie_target: 1
-    input  nutrient_name: "sample", target_amount: 1.0, unit: "sample"
-    expect goals_size: 1
   end
 
 
@@ -49,38 +28,12 @@ Hecks.behaviors "SmartGrocery" do
     expect ok: "true"
   end
 
-  test "AddMeal sets day + meal_type + recipe_name + calories" do
-    tests "AddMeal", on: "MealPlan"
-    setup  "GeneratePlan", week_start: "sample"
-    input  day: "sample", meal_type: "sample", recipe_name: "sample", calories: 1
-    expect meals_size: 1
-  end
-
-  test "ApprovePlan runs" do
-    tests "ApprovePlan", on: "MealPlan"
-    setup  "GeneratePlan", week_start: "sample"
-    expect ok: "true"
-  end
-
 
   # ── ShoppingList aggregate ──────────────────────────────────────────
 
   test "Compile runs" do
     tests "Compile", on: "ShoppingList"
     setup  "GeneratePlan", week_start: "sample"
-    expect ok: "true"
-  end
-
-  test "AddItem sets product_name + quantity + aisle" do
-    tests "AddItem", on: "ShoppingList"
-    setup  "Compile"
-    input  product_name: "sample", quantity: 1, aisle: "sample"
-    expect items_size: 1
-  end
-
-  test "Checkout runs" do
-    tests "Checkout", on: "ShoppingList"
-    setup  "Compile"
     expect ok: "true"
   end
 

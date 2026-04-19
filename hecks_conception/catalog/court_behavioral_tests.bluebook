@@ -23,13 +23,6 @@ Hecks.behaviors "Court" do
     expect ok: "true"
   end
 
-  test "RuleInnocent runs" do
-    tests "RuleInnocent", on: "Case"
-    setup  "File", action_type: "sample", actor: "sample", target: "sample", detail: "sample", occurred_at: "sample"
-    setup  "Hear", laws_applicable: 1
-    expect ruling: "innocent", status: "closed"
-  end
-
   test "RuleGuilty runs" do
     tests "RuleGuilty", on: "Case"
     setup  "File", action_type: "sample", actor: "sample", target: "sample", detail: "sample", occurred_at: "sample"

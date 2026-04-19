@@ -16,21 +16,8 @@ Hecks.behaviors "Neuroscience" do
     expect ok: "true"
   end
 
-  test "ScreenSubject runs" do
-    tests "ScreenSubject", on: "Subject"
-    setup  "EnrollSubject", subject_id: "sample", age: 1, handedness: "sample"
-    expect ok: "true"
-  end
-
 
   # ── ImagingSession aggregate ──────────────────────────────────────────
-
-  test "StartSession sets modality" do
-    tests "StartSession", on: "ImagingSession"
-    setup  "EnrollSubject", subject_id: "sample", age: 1, handedness: "sample"
-    input  modality: "sample"
-    expect ok: "true"
-  end
 
   test "CompleteSession runs" do
     tests "CompleteSession", on: "ImagingSession"
@@ -55,12 +42,6 @@ Hecks.behaviors "Neuroscience" do
     expect ok: "true"
   end
 
-  test "FilterNoise runs" do
-    tests "FilterNoise", on: "NeuralSignal"
-    setup  "ExtractSignal", signal_type: "sample", brain_region: "sample"
-    expect ok: "true"
-  end
-
 
   # ── StimulusProtocol aggregate ──────────────────────────────────────────
 
@@ -72,12 +53,6 @@ Hecks.behaviors "Neuroscience" do
 
   test "RandomizeTrials runs" do
     tests "RandomizeTrials", on: "StimulusProtocol"
-    setup  "DesignProtocol", protocol_name: "sample", stimulus_type: "sample", trial_count: 1
-    expect ok: "true"
-  end
-
-  test "ValidateTimings runs" do
-    tests "ValidateTimings", on: "StimulusProtocol"
     setup  "DesignProtocol", protocol_name: "sample", stimulus_type: "sample", trial_count: 1
     expect ok: "true"
   end

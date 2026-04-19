@@ -193,12 +193,6 @@ Hecks.behaviors "Mind" do
     expect active: false
   end
 
-  test "RestoreNerve runs" do
-    tests "RestoreNerve", on: "Nerve"
-    setup  "ConnectNerve", name: "sample", from_domain: "sample", from_event: "sample", to_domain: "sample", to_command: "sample"
-    expect active: true
-  end
-
 
   # ── NerveDiscovery aggregate ──────────────────────────────────────────
 
@@ -465,11 +459,6 @@ Hecks.behaviors "Mind" do
     expect state: "napping"
   end
 
-  test "TakeStabilityNap runs" do
-    tests "TakeStabilityNap", on: "Consciousness"
-    expect state: "napping"
-  end
-
   test "WakeUp runs" do
     tests "WakeUp", on: "Consciousness"
     setup  "EnterDaydream"
@@ -653,12 +642,6 @@ Hecks.behaviors "Mind" do
 
 
   # ── Rhythm aggregate ──────────────────────────────────────────
-
-  test "RegisterTask sets task + cadence" do
-    tests "RegisterTask", on: "Rhythm"
-    input  task: "sample", cadence: "sample"
-    expect ok: "true"
-  end
 
   test "RemoveTask sets task + cadence" do
     tests "RemoveTask", on: "Rhythm"

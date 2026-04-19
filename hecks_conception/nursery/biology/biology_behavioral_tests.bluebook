@@ -9,13 +9,6 @@ Hecks.behaviors "Biology" do
     expect cell_type: "stem", name: "sample", organism_type: "sample", membrane_integrity: 1.0, energy_level: 100.0, phase: "interphase"
   end
 
-  test "Divide sets division_type" do
-    tests "Divide", on: "Cell"
-    setup  "CultureCell", cell_type: "sample", name: "sample", organism_type: "sample"
-    input  division_type: "sample"
-    expect phase: "dividing"
-  end
-
   test "Differentiate sets target_type + signals" do
     tests "Differentiate", on: "Cell"
     setup  "CultureCell", cell_type: "sample", name: "sample", organism_type: "sample"
@@ -50,13 +43,6 @@ Hecks.behaviors "Biology" do
     tests "SequenceDNA", on: "DNA"
     input  sequence: "sample", organism: "sample", strand_type: "sample"
     expect sequence: "sample", organism: "sample", strand_type: "sample", integrity: 1.0
-  end
-
-  test "Replicate sets origin_of_replication" do
-    tests "Replicate", on: "DNA"
-    setup  "SequenceDNA", sequence: "sample", organism: "sample", strand_type: "sample"
-    input  origin_of_replication: "sample"
-    expect ok: "true"
   end
 
   test "Transcribe sets gene_name + promoter" do

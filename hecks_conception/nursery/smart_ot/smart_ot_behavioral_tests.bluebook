@@ -16,12 +16,6 @@ Hecks.behaviors "SmartOT" do
     expect progress_pct: 1.0
   end
 
-  test "AchieveGoal runs" do
-    tests "AchieveGoal", on: "TherapyGoal"
-    setup  "SetGoal", goal_id: "sample", client_name: "sample", goal_area: "sample", target_outcome: "sample"
-    expect status: "achieved"
-  end
-
 
   # ── SmartDevice aggregate ──────────────────────────────────────────
 

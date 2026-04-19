@@ -9,38 +9,12 @@ Hecks.behaviors "RepatriationFlights" do
     expect case_number: "sample", origin_country: "sample", destination_country: "sample"
   end
 
-  test "AddFamilyMember sets name + age + relationship + medical_needs" do
-    tests "AddFamilyMember", on: "ResettlementCase"
-    setup  "RegisterCase", case_number: "sample", origin_country: "sample", destination_country: "sample"
-    input  name: "sample", age: 1, relationship: "sample", medical_needs: "sample"
-    expect family_members_size: 1
-  end
-
-  test "ApproveCase runs" do
-    tests "ApproveCase", on: "ResettlementCase"
-    setup  "RegisterCase", case_number: "sample", origin_country: "sample", destination_country: "sample"
-    expect ok: "true"
-  end
-
 
   # ── CargoManifest aggregate ──────────────────────────────────────────
 
   test "Manifest sets manifest_number + aircraft_id" do
     tests "Manifest", on: "CargoManifest"
     input  manifest_number: "sample", aircraft_id: "sample"
-    expect ok: "true"
-  end
-
-  test "LoadItem sets description + weight_kg + fragile" do
-    tests "LoadItem", on: "CargoManifest"
-    setup  "Manifest", manifest_number: "sample", aircraft_id: "sample"
-    input  description: "sample", weight_kg: 1.0, fragile: "sample"
-    expect items_size: 1
-  end
-
-  test "SealManifest runs" do
-    tests "SealManifest", on: "CargoManifest"
-    setup  "Manifest", manifest_number: "sample", aircraft_id: "sample"
     expect ok: "true"
   end
 
@@ -54,19 +28,6 @@ Hecks.behaviors "RepatriationFlights" do
     expect ok: "true"
   end
 
-  test "AddLeg sets origin + destination + duration_hours" do
-    tests "AddLeg", on: "FlightPlan"
-    setup  "PlanFlight", flight_number: "sample", departure_date: "sample"
-    input  origin: "sample", destination: "sample", duration_hours: 1.0
-    expect legs_size: 1
-  end
-
-  test "ConfirmFlight runs" do
-    tests "ConfirmFlight", on: "FlightPlan"
-    setup  "PlanFlight", flight_number: "sample", departure_date: "sample"
-    expect ok: "true"
-  end
-
 
   # ── ReceptionCenter aggregate ──────────────────────────────────────────
 
@@ -74,13 +35,6 @@ Hecks.behaviors "RepatriationFlights" do
     tests "SetupCenter", on: "ReceptionCenter"
     input  center_name: "sample", location: "sample", capacity: 1
     expect ok: "true"
-  end
-
-  test "AddService sets service_type + provider" do
-    tests "AddService", on: "ReceptionCenter"
-    setup  "SetupCenter", center_name: "sample", location: "sample", capacity: 1
-    input  service_type: "sample", provider: "sample"
-    expect services_size: 1
   end
 
 end

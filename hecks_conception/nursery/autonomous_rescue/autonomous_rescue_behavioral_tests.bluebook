@@ -108,12 +108,6 @@ Hecks.behaviors "AutonomousRescue" do
     expect station_id: "sample", location: "sample", charging_slots: 1, slots_available: 1, status: "operational"
   end
 
-  test "RouteToCharger runs" do
-    tests "RouteToCharger", on: "ChargingStation"
-    setup  "DeployStation", station_id: "sample", location: "sample", charging_slots: 1
-    expect status: "charging"
-  end
-
   test "CompleteCharge runs" do
     tests "CompleteCharge", on: "ChargingStation"
     setup  "DeployStation", station_id: "sample", location: "sample", charging_slots: 1

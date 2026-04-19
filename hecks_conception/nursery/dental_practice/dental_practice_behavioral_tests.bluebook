@@ -89,10 +89,4 @@ Hecks.behaviors "DentalPractice" do
     expect status: "confirmed"
   end
 
-  test "CancelVisit runs" do
-    tests "CancelVisit", on: "DentalAppointment"
-    setup  "ScheduleVisit", appointment_date: "sample", time_slot: "sample", visit_type: "sample"
-    expect status: "cancelled"
-  end
-
 end

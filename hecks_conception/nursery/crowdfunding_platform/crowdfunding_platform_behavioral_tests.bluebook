@@ -9,12 +9,6 @@ Hecks.behaviors "CrowdfundingPlatform" do
     expect ok: "true"
   end
 
-  test "FundCampaign runs" do
-    tests "FundCampaign", on: "Campaign"
-    setup  "LaunchCampaign", campaign_title: "sample", creator_name: "sample", description: "sample", funding_goal: 1.0, deadline: "sample"
-    expect ok: "true"
-  end
-
   test "CancelCampaign runs" do
     tests "CancelCampaign", on: "Campaign"
     setup  "LaunchCampaign", campaign_title: "sample", creator_name: "sample", description: "sample", funding_goal: 1.0, deadline: "sample"

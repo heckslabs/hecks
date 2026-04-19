@@ -9,19 +9,6 @@ Hecks.behaviors "BorderSecurity" do
     expect ok: "true"
   end
 
-  test "RunAnalysis sets test_type + result + confidence" do
-    tests "RunAnalysis", on: "ForensicSample"
-    setup  "CollectSample", sample_id: "sample", sample_type: "sample", collector: "sample"
-    input  test_type: "sample", result: "sample", confidence: 1.0
-    expect analyses_size: 1
-  end
-
-  test "FinalizeReport runs" do
-    tests "FinalizeReport", on: "ForensicSample"
-    setup  "CollectSample", sample_id: "sample", sample_type: "sample", collector: "sample"
-    expect ok: "true"
-  end
-
 
   # ── Shipment aggregate ──────────────────────────────────────────
 
@@ -29,13 +16,6 @@ Hecks.behaviors "BorderSecurity" do
     tests "DeclareShipment", on: "Shipment"
     input  tracking_number: "sample", origin_country: "sample", destination_country: "sample"
     expect ok: "true"
-  end
-
-  test "AddCargoItem sets description + quantity + declared_value_cents" do
-    tests "AddCargoItem", on: "Shipment"
-    setup  "DeclareShipment", tracking_number: "sample", origin_country: "sample", destination_country: "sample"
-    input  description: "sample", quantity: 1, declared_value_cents: 1
-    expect items_size: 1
   end
 
   test "ClearShipment runs" do
@@ -54,13 +34,6 @@ Hecks.behaviors "BorderSecurity" do
     expect ok: "true"
   end
 
-  test "AssignAction sets action_type + assigned_to" do
-    tests "AssignAction", on: "RiskAlert"
-    setup  "RaiseAlert", alert_level: "sample", reason: "sample"
-    input  action_type: "sample", assigned_to: "sample"
-    expect actions_size: 1
-  end
-
   test "ResolveAlert runs" do
     tests "ResolveAlert", on: "RiskAlert"
     setup  "RaiseAlert", alert_level: "sample", reason: "sample"
@@ -75,13 +48,6 @@ Hecks.behaviors "BorderSecurity" do
     setup  "DeclareShipment", tracking_number: "sample", origin_country: "sample", destination_country: "sample"
     input  inspector: "sample"
     expect ok: "true"
-  end
-
-  test "RecordFinding sets finding_type + severity + description" do
-    tests "RecordFinding", on: "Inspection"
-    setup  "ScheduleInspection", inspector: "sample"
-    input  finding_type: "sample", severity: "sample", description: "sample"
-    expect findings_size: 1
   end
 
   test "CompleteInspection runs" do

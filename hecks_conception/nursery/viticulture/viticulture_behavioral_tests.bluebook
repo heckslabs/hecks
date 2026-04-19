@@ -9,12 +9,6 @@ Hecks.behaviors "Viticulture" do
     expect name: "sample", appellation: "sample", total_hectares: 1.0
   end
 
-  test "CertifyOrganic runs" do
-    tests "CertifyOrganic", on: "Vineyard"
-    setup  "RegisterVineyard", name: "sample", appellation: "sample", total_hectares: 1.0
-    expect ok: "true"
-  end
-
   test "Reclassify sets new_appellation" do
     tests "Reclassify", on: "Vineyard"
     setup  "RegisterVineyard", name: "sample", appellation: "sample", total_hectares: 1.0
@@ -32,13 +26,6 @@ Hecks.behaviors "Viticulture" do
     expect ok: "true"
   end
 
-  test "GraftVariety sets new_variety" do
-    tests "GraftVariety", on: "VineBlock"
-    setup  "PlantBlock", block_id: "sample", grape_variety: "sample", rootstock: "sample"
-    input  new_variety: "sample"
-    expect ok: "true"
-  end
-
   test "RemoveBlock runs" do
     tests "RemoveBlock", on: "VineBlock"
     setup  "PlantBlock", block_id: "sample", grape_variety: "sample", rootstock: "sample"
@@ -52,13 +39,6 @@ Hecks.behaviors "Viticulture" do
     tests "SampleSoil", on: "SoilProfile"
     setup  "PlantBlock", block_id: "sample", grape_variety: "sample", rootstock: "sample"
     input  horizon: "sample", depth_cm: 1.0
-    expect ok: "true"
-  end
-
-  test "AmendSoil sets amendment_type + rate_kg_per_hectare" do
-    tests "AmendSoil", on: "SoilProfile"
-    setup  "SampleSoil", horizon: "sample", depth_cm: 1.0
-    input  amendment_type: "sample", rate_kg_per_hectare: 1.0
     expect ok: "true"
   end
 
@@ -79,13 +59,6 @@ Hecks.behaviors "Viticulture" do
     tests "RecordPick", on: "HarvestRecord"
     setup  "PlantBlock", block_id: "sample", grape_variety: "sample", rootstock: "sample"
     input  vintage_year: "sample", tons_picked: 1.0, brix_at_harvest: 1.0
-    expect ok: "true"
-  end
-
-  test "GradeQuality sets quality_tier" do
-    tests "GradeQuality", on: "HarvestRecord"
-    setup  "RecordPick", vintage_year: "sample", tons_picked: 1.0, brix_at_harvest: 1.0
-    input  quality_tier: "sample"
     expect ok: "true"
   end
 

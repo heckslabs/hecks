@@ -69,12 +69,6 @@ Hecks.behaviors "VeteranServices" do
     expect program_name: "sample", program_type: "sample", eligibility_criteria: "sample", capacity: 1, enrolled_count: 0, status: "active"
   end
 
-  test "EnrollVeteran runs" do
-    tests "EnrollVeteran", on: "ServiceProgram"
-    setup  "LaunchProgram", program_name: "sample", program_type: "sample", eligibility_criteria: "sample", capacity: 1
-    expect ok: "true"
-  end
-
 
   # ── CrisisIntervention aggregate ──────────────────────────────────────────
 

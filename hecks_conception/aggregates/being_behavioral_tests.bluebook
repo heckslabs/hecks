@@ -52,12 +52,6 @@ Hecks.behaviors "Being" do
     expect active: false
   end
 
-  test "RestoreNerve runs" do
-    tests "RestoreNerve", on: "Nerve"
-    setup  "ConnectNerve", name: "sample", from_domain: "sample", from_event: "sample", to_domain: "sample", to_command: "sample"
-    expect active: true
-  end
-
 
   # ── NerveDiscovery aggregate ──────────────────────────────────────────
 
