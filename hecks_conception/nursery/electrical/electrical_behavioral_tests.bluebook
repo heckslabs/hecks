@@ -99,6 +99,8 @@ Hecks.behaviors "Electrical" do
 
   test "DefineLoad cascades through policy chain" do
     tests "DefineLoad", on: "Load", kind: :cascade
+    setup  "SizeFuse", load_amps: 1.0, voltage: 1.0
+    setup  "SelectGauge", amps: 1.0, length_feet: 1.0, voltage: 1.0, max_drop_pct: 1.0
     input  name: "sample", watts: 1.0, voltage: 1.0, power_type: "sample", duty_cycle: 1.0
     expect emits: ["LoadDefined", "FuseSized", "GaugeSelected"]
   end

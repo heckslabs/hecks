@@ -11,6 +11,7 @@ Hecks.behaviors "CallCenter" do
 
   test "OpenTicket cascades through policy chain" do
     tests "OpenTicket", on: "Ticket", kind: :cascade
+    setup  "OpenQueue", queue_name: "sample", skill_group: "sample", max_wait_seconds: 1
     input  subject: "sample", description: "sample", priority: "sample", channel: "sample"
     expect emits: ["TicketOpened", "TicketEnqueued"]
   end
@@ -76,8 +77,6 @@ Hecks.behaviors "CallCenter" do
   test "EscalateTicket sets reason" do
     tests "EscalateTicket", on: "Ticket"
     setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
-    setup  "AssignToAgent"
-    setup  "BeginWork"
     input  reason: "sample"
     expect priority: "urgent"
   end
@@ -113,6 +112,8 @@ Hecks.behaviors "CallCenter" do
 
   test "ReturnFromBreak cascades through policy chain" do
     tests "ReturnFromBreak", on: "Agent", kind: :cascade
+    setup  "OpenQueue", queue_name: "sample", skill_group: "sample", max_wait_seconds: 1
+    setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
     setup  "HireAgent", name: "sample", skill_level: "sample"
     setup  "SetAgentBreak"
     expect emits: ["AgentReturned", "TicketDequeued", "TicketAssigned"]
@@ -131,7 +132,21 @@ Hecks.behaviors "CallCenter" do
     tests "EnqueueTicket", on: "Queue"
     setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
     setup  "OpenQueue", queue_name: "sample", skill_group: "sample", max_wait_seconds: 1
+    expect depth: 1
+  end
+
+  test "DequeueTicket runs" do
+    tests "DequeueTicket", on: "Queue"
+    setup  "OpenQueue", queue_name: "sample", skill_group: "sample", max_wait_seconds: 1
     expect ok: "true"
+  end
+
+  test "DequeueTicket cascades through policy chain" do
+    tests "DequeueTicket", on: "Queue", kind: :cascade
+    setup  "OpenQueue", queue_name: "sample", skill_group: "sample", max_wait_seconds: 1
+    setup  "HireAgent", name: "sample", skill_level: "sample"
+    setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
+    expect emits: ["TicketDequeued", "TicketAssigned"]
   end
 
 
@@ -153,6 +168,7 @@ Hecks.behaviors "CallCenter" do
   test "BreachSla cascades through policy chain" do
     tests "BreachSla", on: "SlaPolicy", kind: :cascade
     setup  "DefineSla", policy_name: "sample", priority: "sample", response_minutes: 1, resolution_minutes: 1
+    setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
     input  ticket_id: "sample", breach_type: "sample"
     expect emits: ["SlaBreached", "TicketEscalated"]
   end

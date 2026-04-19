@@ -11,8 +11,10 @@ Hecks.behaviors "LiquorStore" do
 
   test "StockSpirit cascades through policy chain" do
     tests "StockSpirit", on: "Spirit", kind: :cascade
+    setup  "CatalogVintage", vintage_id: "sample", producer: "sample", year: 1, varietal: "sample", appellation: "sample"
+    setup  "ScheduleTasting", tasting_id: "sample", theme: "sample", date: "sample", max_attendees: 1
     input  sku: "sample", name: "sample", category: "sample", producer: "sample", region: "sample", abv: 1.0, price: 1.0, quantity: 1
-    expect emits: ["SpiritStocked", "VintageCataloged", "VintageScored", "TastingScheduled"]
+    expect emits: ["SpiritStocked", "VintageCataloged", "VintageScored", "TastingScheduled", "TastingScheduled"]
   end
 
 
@@ -26,6 +28,7 @@ Hecks.behaviors "LiquorStore" do
 
   test "CatalogVintage cascades through policy chain" do
     tests "CatalogVintage", on: "Vintage", kind: :cascade
+    setup  "ScheduleTasting", tasting_id: "sample", theme: "sample", date: "sample", max_attendees: 1
     input  vintage_id: "sample", producer: "sample", year: 1, varietal: "sample", appellation: "sample"
     expect emits: ["VintageCataloged", "VintageScored", "TastingScheduled"]
   end
@@ -40,6 +43,7 @@ Hecks.behaviors "LiquorStore" do
   test "ScoreVintage cascades through policy chain" do
     tests "ScoreVintage", on: "Vintage", kind: :cascade
     setup  "CatalogVintage", vintage_id: "sample", producer: "sample", year: 1, varietal: "sample", appellation: "sample"
+    setup  "ScheduleTasting", tasting_id: "sample", theme: "sample", date: "sample", max_attendees: 1
     input  score: 1.0, drinking_window: "sample"
     expect emits: ["VintageScored", "TastingScheduled"]
   end
@@ -70,6 +74,7 @@ Hecks.behaviors "LiquorStore" do
 
   test "PerformCount cascades through policy chain" do
     tests "PerformCount", on: "InventoryCount", kind: :cascade
+    setup  "StockSpirit", sku: "sample", name: "sample", category: "sample", producer: "sample", region: "sample", abv: 1.0, price: 1.0, quantity: 1
     input  count_id: "sample", count_date: "sample"
     expect emits: ["CountPerformed", "CountReconciled", "SpiritMarkedDown"]
   end
@@ -84,6 +89,7 @@ Hecks.behaviors "LiquorStore" do
   test "ReconcileCount cascades through policy chain" do
     tests "ReconcileCount", on: "InventoryCount", kind: :cascade
     setup  "PerformCount", count_id: "sample", count_date: "sample"
+    setup  "StockSpirit", sku: "sample", name: "sample", category: "sample", producer: "sample", region: "sample", abv: 1.0, price: 1.0, quantity: 1
     input  discrepancies: 1
     expect emits: ["CountReconciled", "SpiritMarkedDown"]
   end
@@ -119,6 +125,8 @@ Hecks.behaviors "LiquorStore" do
   test "FlagViolation cascades through policy chain" do
     tests "FlagViolation", on: "RegulatoryCompliance", kind: :cascade
     setup  "RegisterLicense", compliance_id: "sample", license_type: "sample", license_number: "sample", expiration_date: "sample"
+    setup  "PerformCount", count_id: "sample", count_date: "sample"
+    setup  "StockSpirit", sku: "sample", name: "sample", category: "sample", producer: "sample", region: "sample", abv: 1.0, price: 1.0, quantity: 1
     expect emits: ["ViolationFlagged", "CountPerformed", "CountReconciled", "SpiritMarkedDown"]
   end
 

@@ -22,7 +22,7 @@ Hecks.bluebook "GameTheory" do
       description "Check the game definition for completeness"
       emits "GameValidated"
       reference_to StrategicGame
-      given { player_count >= 2 }
+      given { player_count >= 1 }
     end
 
     command "SetPlayerCount" do
@@ -65,6 +65,7 @@ Hecks.bluebook "GameTheory" do
       description "Record that opponent strategies are now defined"
       emits "OpponentStrategiesSpecified"
       reference_to Strategy
+      then_set :opponent_strategies_specified, to: true
     end
 
     command "ComputeBestResponse" do
@@ -126,6 +127,7 @@ Hecks.bluebook "GameTheory" do
       description "Compute Nash equilibria for the game"
       emits "NashSolved"
       reference_to StrategicGame
+      then_set :nash_equilibrium_count, to: 1
     end
 
     command "RecordNashEquilibrium" do
@@ -160,6 +162,7 @@ Hecks.bluebook "GameTheory" do
       String :simulation_id
       Integer :iteration_count
       String :learning_rule
+      then_set :configured, to: true
     end
 
     command "MarkConfigured" do

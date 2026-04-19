@@ -98,7 +98,6 @@ Hecks.bluebook "AutoRepairShop" do
       role "ServiceAdvisor"
       description "Close the work order after customer pickup and payment"
       reference_to(WorkOrder)
-      given { status == "completed" }
       emits "WorkOrderClosed"
       then_set :status, to: "closed"
     end

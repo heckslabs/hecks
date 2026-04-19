@@ -17,6 +17,7 @@ Hecks.behaviors "SpeechMedia" do
 
   test "CompleteExercise cascades through policy chain" do
     tests "CompleteExercise", on: "TherapyExercise", kind: :cascade
+    setup  "CaptureProgressClip", clip_id: "sample", client_name: "sample", milestone: "sample", before_path: "sample", after_path: "sample"
     setup  "PrescribeExercise", exercise_id: "sample", client_name: "sample", exercise_type: "sample", target_sound: "sample", repetitions: 1
     expect emits: ["ExerciseCompleted", "ProgressClipCaptured"]
   end

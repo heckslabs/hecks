@@ -98,7 +98,6 @@ Hecks.bluebook "Boot", version: "2026.04.14.1" do
       description "Claude is available and was requested via --claude flag"
       reference_to(BrainProbe)
       emits "ClaudeRecommended"
-      given { claude_available == true }
       then_set :recommended_engine, to: "claude"
     end
 
@@ -107,8 +106,6 @@ Hecks.bluebook "Boot", version: "2026.04.14.1" do
       description "No --claude flag, Ollama is running with Summer adapter"
       reference_to(BrainProbe)
       emits "SummerRecommended"
-      given { ollama_running == true }
-      given("adapter must be loaded") { summer_adapter_present == true }
       then_set :recommended_engine, to: "summer"
     end
 

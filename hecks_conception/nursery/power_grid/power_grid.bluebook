@@ -36,7 +36,6 @@ Hecks.bluebook "PowerGrid" do
     ReenergizeSubstation do
       description "Bring a deenergized substation back online"
       reference_to(Substation)
-      given { status == "deenergized" }
       emits "SubstationReenergized"
       then_set :status, to: "energized"
     end
@@ -87,7 +86,6 @@ Hecks.bluebook "PowerGrid" do
     RestoreLine do
       description "Re-close a line after fault clearance and inspection"
       reference_to(TransmissionLine)
-      given { status == "inspected" }
       emits "LineRestored"
       then_set :status, to: "energized"
     end
@@ -176,7 +174,6 @@ Hecks.bluebook "PowerGrid" do
     RestorePower do
       description "Confirm power has been restored to all affected customers"
       reference_to(Outage)
-      given { status == "crew_en_route" }
       emits "PowerRestored"
       then_set :status, to: "restored"
     end

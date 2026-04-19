@@ -34,7 +34,6 @@ Hecks.bluebook "GameDevelopment" do
     ShipGold do
       description "Declare the game gold master — ready for manufacturing"
       reference_to(GameProject)
-      given { status == "production" }
       emits "GoneGold"
       then_set :status, to: "gold"
     end
@@ -180,11 +179,6 @@ Hecks.bluebook "GameDevelopment" do
   policy "BuildOnSprintClose" do
     on "SprintClosed"
     trigger "TriggerBuild"
-  end
-
-  policy "PlaytestAfterBuild" do
-    on "BuildCertified"
-    trigger "SchedulePlaytest"
   end
 
   policy "AnalyzeAfterPlaytest" do

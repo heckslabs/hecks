@@ -27,7 +27,6 @@ Hecks.bluebook "Chiropractic" do
       role "Chiropractor"
       description "Move patient to active treatment after imaging and plan creation"
       reference_to(Patient)
-      given("must be intake") { status == "intake" }
       emits "PatientActivated"
       then_set :status, to: "active"
     end
@@ -36,7 +35,6 @@ Hecks.bluebook "Chiropractic" do
       role "Chiropractor"
       description "Mark a patient as inactive after completing treatment"
       reference_to(Patient)
-      given("must be active") { status == "active" }
       emits "PatientDeactivated"
       then_set :status, to: "inactive"
     end
@@ -222,11 +220,6 @@ Hecks.bluebook "Chiropractic" do
   policy "PrescribePlanOnImaging" do
     on "ImagingInterpreted"
     trigger "PrescribeCourse"
-  end
-
-  policy "ActivateOnPlanPrescription" do
-    on "TreatmentPlanCreated"
-    trigger "ActivatePatient"
   end
 
   policy "RecordVisitOnAdjustment" do

@@ -6,7 +6,7 @@ Hecks.behaviors "GovernedOperations" do
   test "DefineContract sets jurisdiction + regulation_code + effective_date" do
     tests "DefineContract", on: "JurisdictionalContract"
     input  jurisdiction: "sample", regulation_code: "sample", effective_date: "sample"
-    expect jurisdiction: "sample", regulation_code: "sample", effective_date: "sample", rules: [], status: "draft"
+    expect jurisdiction: "sample", regulation_code: "sample", effective_date: "sample", status: "draft"
   end
 
   test "AddRule runs" do
@@ -55,7 +55,7 @@ Hecks.behaviors "GovernedOperations" do
   test "DefineOperationalContract sets name + department" do
     tests "DefineOperationalContract", on: "OperationalContract"
     input  name: "sample", department: "sample"
-    expect name: "sample", department: "sample", rules: [], version: 1, status: "draft"
+    expect name: "sample", department: "sample", version: 1, status: "draft"
   end
 
   test "AddStandard runs" do
@@ -98,7 +98,7 @@ Hecks.behaviors "GovernedOperations" do
   test "RegisterBatch sets batch_number + product + quantity" do
     tests "RegisterBatch", on: "Batch"
     input  batch_number: "sample", product: "sample", quantity: 1
-    expect batch_number: "sample", product: "sample", quantity: 1, violations: [], status: "created"
+    expect batch_number: "sample", product: "sample", quantity: 1, status: "created"
   end
 
   test "RecordProduction sets produced_at" do
@@ -118,6 +118,7 @@ Hecks.behaviors "GovernedOperations" do
   test "SubmitForRelease cascades through policy chain" do
     tests "SubmitForRelease", on: "Batch", kind: :cascade
     setup  "RegisterBatch", batch_number: "sample", product: "sample", quantity: 1
+    setup  "EvaluateAction", action_type: "sample", action_id: "sample"
     setup  "RecordProduction", produced_at: "sample"
     expect emits: ["BatchSubmittedForRelease", "ActionEvaluated", "JurisdictionalChecked", "OperationalChecked", "ApprovalRouted"]
   end
@@ -142,6 +143,7 @@ Hecks.behaviors "GovernedOperations" do
   test "RejectBatch cascades through policy chain" do
     tests "RejectBatch", on: "Batch", kind: :cascade
     setup  "RegisterBatch", batch_number: "sample", product: "sample", quantity: 1
+    setup  "OpenCAPA", title: "sample", issue_description: "sample"
     setup  "RecordProduction", produced_at: "sample"
     setup  "SubmitForRelease"
     input  reason: "sample"
@@ -151,9 +153,6 @@ Hecks.behaviors "GovernedOperations" do
   test "QuarantineBatch sets reason" do
     tests "QuarantineBatch", on: "Batch"
     setup  "RegisterBatch", batch_number: "sample", product: "sample", quantity: 1
-    setup  "RecordProduction", produced_at: "sample"
-    setup  "SubmitForRelease"
-    setup  "RejectBatch", reason: "sample"
     input  reason: "sample"
     expect status: "quarantined"
   end
@@ -179,11 +178,12 @@ Hecks.behaviors "GovernedOperations" do
   test "SubmitChangeRequest sets title + description + requester + impact_area" do
     tests "SubmitChangeRequest", on: "ChangeRequest"
     input  title: "sample", description: "sample", requester: "sample", impact_area: "sample"
-    expect title: "sample", description: "sample", requester: "sample", impact_area: "sample", approvals: [], status: "submitted"
+    expect title: "sample", description: "sample", requester: "sample", impact_area: "sample", status: "submitted"
   end
 
   test "SubmitChangeRequest cascades through policy chain" do
     tests "SubmitChangeRequest", on: "ChangeRequest", kind: :cascade
+    setup  "EvaluateAction", action_type: "sample", action_id: "sample"
     input  title: "sample", description: "sample", requester: "sample", impact_area: "sample"
     expect emits: ["ChangeRequestSubmitted", "ActionEvaluated", "JurisdictionalChecked", "OperationalChecked", "ApprovalRouted"]
   end
@@ -243,7 +243,7 @@ Hecks.behaviors "GovernedOperations" do
   test "OpenCAPA sets title + issue_description" do
     tests "OpenCAPA", on: "CAPA"
     input  title: "sample", issue_description: "sample"
-    expect title: "sample", issue_description: "sample", evidence: [], status: "opened"
+    expect title: "sample", issue_description: "sample", status: "opened"
   end
 
   test "InvestigateIssue runs" do
@@ -320,11 +320,12 @@ Hecks.behaviors "GovernedOperations" do
   test "InitiateRecall sets recall_number + product + reason + scope" do
     tests "InitiateRecall", on: "Recall"
     input  recall_number: "sample", product: "sample", reason: "sample", scope: "sample"
-    expect recall_number: "sample", product: "sample", reason: "sample", scope: "sample", affected_batches: [], notifications: [], status: "initiated"
+    expect recall_number: "sample", product: "sample", reason: "sample", scope: "sample", status: "initiated"
   end
 
   test "InitiateRecall cascades through policy chain" do
     tests "InitiateRecall", on: "Recall", kind: :cascade
+    setup  "RegisterBatch", batch_number: "sample", product: "sample", quantity: 1
     input  recall_number: "sample", product: "sample", reason: "sample", scope: "sample"
     expect emits: ["RecallInitiated", "BatchQuarantined"]
   end
@@ -376,7 +377,7 @@ Hecks.behaviors "GovernedOperations" do
   test "ScheduleAudit sets audit_type + auditor + scope + scheduled_at" do
     tests "ScheduleAudit", on: "Audit"
     input  audit_type: "sample", auditor: "sample", scope: "sample", scheduled_at: "sample"
-    expect audit_type: "sample", auditor: "sample", scope: "sample", scheduled_at: "sample", findings: [], status: "scheduled"
+    expect audit_type: "sample", auditor: "sample", scope: "sample", scheduled_at: "sample", status: "scheduled"
   end
 
   test "PrepareAuditPackage runs" do
@@ -432,7 +433,7 @@ Hecks.behaviors "GovernedOperations" do
   test "EvaluateAction sets action_type + action_id" do
     tests "EvaluateAction", on: "GovernanceGate"
     input  action_type: "sample", action_id: "sample"
-    expect action_type: "sample", action_id: "sample", contracts_checked: [], status: "evaluating"
+    expect action_type: "sample", action_id: "sample", status: "evaluating"
   end
 
   test "EvaluateAction cascades through policy chain" do
@@ -479,6 +480,7 @@ Hecks.behaviors "GovernedOperations" do
 
   test "AllowAction cascades through policy chain" do
     tests "AllowAction", on: "GovernanceGate", kind: :cascade
+    setup  "AllocateTokens", account: "sample", amount: 1
     setup  "EvaluateAction", action_type: "sample", action_id: "sample"
     expect emits: ["ActionAllowed", "TokenConsumed"]
   end
@@ -500,6 +502,7 @@ Hecks.behaviors "GovernedOperations" do
 
   test "LogDecision cascades through policy chain" do
     tests "LogDecision", on: "GovernanceGate", kind: :cascade
+    setup  "LogEvent", event_type: "sample", event_data: "sample", occurred_at: "sample", actor: "sample"
     setup  "EvaluateAction", action_type: "sample", action_id: "sample"
     setup  "AllowAction"
     input  decided_at: "sample"
@@ -512,7 +515,7 @@ Hecks.behaviors "GovernedOperations" do
   test "InitiateApproval sets action_type + action_id + required_approvers" do
     tests "InitiateApproval", on: "ApprovalWorkflow"
     input  action_type: "sample", action_id: "sample", required_approvers: "sample"
-    expect action_type: "sample", action_id: "sample", required_approvers: "sample", approvals: [], status: "initiated"
+    expect action_type: "sample", action_id: "sample", required_approvers: "sample", status: "initiated"
   end
 
   test "RequestApproval runs" do

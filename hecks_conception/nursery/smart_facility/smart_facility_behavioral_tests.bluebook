@@ -11,6 +11,7 @@ Hecks.behaviors "SmartFacility" do
 
   test "AdmitResident cascades through policy chain" do
     tests "AdmitResident", on: "Resident", kind: :cascade
+    setup  "ProvisionSchedule", schedule_id: "sample", resident_id: "sample"
     input  resident_id: "sample", name: "sample", room_number: "sample", care_level: "sample"
     expect emits: ["ResidentAdmitted", "ScheduleProvisioned"]
   end
@@ -64,6 +65,7 @@ Hecks.behaviors "SmartFacility" do
 
   test "PublishBoard cascades through policy chain" do
     tests "PublishBoard", on: "ActivityBoard", kind: :cascade
+    setup  "InstallDisplay", display_id: "sample", location_name: "sample", content_type: "sample"
     input  board_id: "sample", date: "sample"
     expect emits: ["BoardPublished", "ContentRefreshed"]
   end

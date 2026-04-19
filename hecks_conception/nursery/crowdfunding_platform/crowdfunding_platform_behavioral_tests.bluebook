@@ -11,13 +11,23 @@ Hecks.behaviors "CrowdfundingPlatform" do
 
   test "LaunchCampaign cascades through policy chain" do
     tests "LaunchCampaign", on: "Campaign", kind: :cascade
+    setup  "SetMilestone", milestone_id: "sample", title: "sample", description: "sample", target_date: "sample"
     input  campaign_title: "sample", creator_name: "sample", description: "sample", funding_goal: 1.0, deadline: "sample"
     expect emits: ["CampaignLaunched", "MilestoneSet"]
+  end
+
+  test "FundCampaign runs" do
+    tests "FundCampaign", on: "Campaign"
+    setup  "LaunchCampaign", campaign_title: "sample", creator_name: "sample", description: "sample", funding_goal: 1.0, deadline: "sample"
+    expect ok: "true"
   end
 
   test "FundCampaign cascades through policy chain" do
     tests "FundCampaign", on: "Campaign", kind: :cascade
     setup  "LaunchCampaign", campaign_title: "sample", creator_name: "sample", description: "sample", funding_goal: 1.0, deadline: "sample"
+    setup  "FulfillReward", reward_id: "sample", tier_name: "sample", description: "sample", shipping_address: "sample"
+    setup  "MakePledge", pledge_id: "sample", amount: 1.0, reward_tier: "sample"
+    setup  "SetMilestone", milestone_id: "sample", title: "sample", description: "sample", target_date: "sample"
     expect emits: ["CampaignFunded", "RewardFulfilled", "RewardShipped", "MilestoneCompleted"]
   end
 
@@ -30,6 +40,7 @@ Hecks.behaviors "CrowdfundingPlatform" do
   test "CancelCampaign cascades through policy chain" do
     tests "CancelCampaign", on: "Campaign", kind: :cascade
     setup  "LaunchCampaign", campaign_title: "sample", creator_name: "sample", description: "sample", funding_goal: 1.0, deadline: "sample"
+    setup  "MakePledge", pledge_id: "sample", amount: 1.0, reward_tier: "sample"
     expect emits: ["CampaignCanceled", "PledgeWithdrawn"]
   end
 
@@ -68,8 +79,10 @@ Hecks.behaviors "CrowdfundingPlatform" do
 
   test "MakePledge cascades through policy chain" do
     tests "MakePledge", on: "Pledge", kind: :cascade
-    setup  "RegisterBacker", backer_id: "sample", name: "sample", email: "sample", payment_method: "sample"
     setup  "LaunchCampaign", campaign_title: "sample", creator_name: "sample", description: "sample", funding_goal: 1.0, deadline: "sample"
+    setup  "RegisterBacker", backer_id: "sample", name: "sample", email: "sample", payment_method: "sample"
+    setup  "FulfillReward", reward_id: "sample", tier_name: "sample", description: "sample", shipping_address: "sample"
+    setup  "SetMilestone", milestone_id: "sample", title: "sample", description: "sample", target_date: "sample"
     input  pledge_id: "sample", amount: 1.0, reward_tier: "sample"
     expect emits: ["PledgeMade", "CampaignFunded", "RewardFulfilled", "RewardShipped", "MilestoneCompleted"]
   end
@@ -100,6 +113,7 @@ Hecks.behaviors "CrowdfundingPlatform" do
   test "FulfillReward cascades through policy chain" do
     tests "FulfillReward", on: "Reward", kind: :cascade
     setup  "MakePledge", pledge_id: "sample", amount: 1.0, reward_tier: "sample"
+    setup  "SetMilestone", milestone_id: "sample", title: "sample", description: "sample", target_date: "sample"
     input  reward_id: "sample", tier_name: "sample", description: "sample", shipping_address: "sample"
     expect emits: ["RewardFulfilled", "RewardShipped", "MilestoneCompleted"]
   end
@@ -114,6 +128,7 @@ Hecks.behaviors "CrowdfundingPlatform" do
   test "MarkShipped cascades through policy chain" do
     tests "MarkShipped", on: "Reward", kind: :cascade
     setup  "FulfillReward", reward_id: "sample", tier_name: "sample", description: "sample", shipping_address: "sample"
+    setup  "SetMilestone", milestone_id: "sample", title: "sample", description: "sample", target_date: "sample"
     input  carrier: "sample", tracking_number: "sample"
     expect emits: ["RewardShipped", "MilestoneCompleted"]
   end
@@ -128,6 +143,7 @@ Hecks.behaviors "CrowdfundingPlatform" do
   test "ReportDamaged cascades through policy chain" do
     tests "ReportDamaged", on: "Reward", kind: :cascade
     setup  "FulfillReward", reward_id: "sample", tier_name: "sample", description: "sample", shipping_address: "sample"
+    setup  "SetMilestone", milestone_id: "sample", title: "sample", description: "sample", target_date: "sample"
     setup  "MarkShipped", carrier: "sample", tracking_number: "sample"
     expect emits: ["RewardDamaged", "MilestoneDelayed"]
   end

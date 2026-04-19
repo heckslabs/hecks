@@ -13,6 +13,7 @@ Hecks.behaviors "PaymentGateway" do
   test "AuthorizeTransaction cascades through policy chain" do
     tests "AuthorizeTransaction", on: "Transaction", kind: :cascade
     setup  "OnboardMerchant", merchant_id: "sample", business_name: "sample", mcc_code: "sample", contact_email: "sample", processing_rate: 1.0
+    setup  "RunComplianceCheck", check_id: "sample", check_type: "sample", scope: "sample"
     input  transaction_id: "sample", amount: 1.0, currency: "sample", card_last_four: "sample"
     expect emits: ["TransactionAuthorized", "TransactionCaptured", "ComplianceCheckRun"]
   end
@@ -25,6 +26,8 @@ Hecks.behaviors "PaymentGateway" do
 
   test "CaptureTransaction cascades through policy chain" do
     tests "CaptureTransaction", on: "Transaction", kind: :cascade
+    setup  "RunComplianceCheck", check_id: "sample", check_type: "sample", scope: "sample"
+    setup  "OnboardMerchant", merchant_id: "sample", business_name: "sample", mcc_code: "sample", contact_email: "sample", processing_rate: 1.0
     setup  "AuthorizeTransaction", transaction_id: "sample", amount: 1.0, currency: "sample", card_last_four: "sample"
     expect emits: ["TransactionCaptured", "ComplianceCheckRun"]
   end
@@ -46,6 +49,7 @@ Hecks.behaviors "PaymentGateway" do
 
   test "OnboardMerchant cascades through policy chain" do
     tests "OnboardMerchant", on: "Merchant", kind: :cascade
+    setup  "RunComplianceCheck", check_id: "sample", check_type: "sample", scope: "sample"
     input  merchant_id: "sample", business_name: "sample", mcc_code: "sample", contact_email: "sample", processing_rate: 1.0
     expect emits: ["MerchantOnboarded", "ComplianceCheckRun"]
   end
@@ -106,6 +110,7 @@ Hecks.behaviors "PaymentGateway" do
   test "FileChargeback cascades through policy chain" do
     tests "FileChargeback", on: "Chargeback", kind: :cascade
     setup  "AuthorizeTransaction", transaction_id: "sample", amount: 1.0, currency: "sample", card_last_four: "sample"
+    setup  "BatchSettlement", settlement_id: "sample", gross_amount: 1.0, fees: 1.0, period: "sample"
     input  chargeback_id: "sample", reason_code: "sample", amount: 1.0, evidence_due_date: "sample"
     expect emits: ["ChargebackFiled", "SettlementHeld", "EvidenceSubmitted"]
   end
@@ -143,6 +148,8 @@ Hecks.behaviors "PaymentGateway" do
   test "PassCheck cascades through policy chain" do
     tests "PassCheck", on: "ComplianceCheck", kind: :cascade
     setup  "RunComplianceCheck", check_id: "sample", check_type: "sample", scope: "sample"
+    setup  "BatchSettlement", settlement_id: "sample", gross_amount: 1.0, fees: 1.0, period: "sample"
+    setup  "OnboardMerchant", merchant_id: "sample", business_name: "sample", mcc_code: "sample", contact_email: "sample", processing_rate: 1.0
     expect emits: ["CheckPassed", "SettlementBatched", "SettlementDisbursed"]
   end
 
@@ -155,6 +162,7 @@ Hecks.behaviors "PaymentGateway" do
 
   test "FailCheck cascades through policy chain" do
     tests "FailCheck", on: "ComplianceCheck", kind: :cascade
+    setup  "OnboardMerchant", merchant_id: "sample", business_name: "sample", mcc_code: "sample", contact_email: "sample", processing_rate: 1.0
     setup  "RunComplianceCheck", check_id: "sample", check_type: "sample", scope: "sample"
     input  failure_reason: "sample"
     expect emits: ["CheckFailed", "MerchantSuspended"]

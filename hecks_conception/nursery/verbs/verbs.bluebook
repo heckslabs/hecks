@@ -128,7 +128,7 @@ Hecks.bluebook "Verbs", version: "2026.04.11.1" do
     String :suffix
     String :part_of_speech
 
-    RegisterSuffix do
+    RegisterNonVerbSuffix do
       role "Linguist"
       description "Add a suffix pattern that identifies non-verbs"
       String :suffix

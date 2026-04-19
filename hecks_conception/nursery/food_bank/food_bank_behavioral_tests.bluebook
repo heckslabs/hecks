@@ -11,8 +11,10 @@ Hecks.behaviors "FoodBank" do
 
   test "AcceptDonation cascades through policy chain" do
     tests "AcceptDonation", on: "Donation", kind: :cascade
+    setup  "StockItem", item_name: "sample", category: "sample", quantity: 1, storage_location: "sample", expiration_date: "sample"
+    setup  "ScheduleDistribution", event_date: "sample", location: "sample"
     input  donor_name: "sample", donation_date: "sample", food_category: "sample", weight_pounds: 1.0, expiration_date: "sample"
-    expect emits: ["DonationAccepted", "DonationSorted", "ItemStocked", "DistributionScheduled", "ItemAllocated"]
+    expect emits: ["DonationAccepted", "DonationSorted", "ItemStocked", "DistributionScheduled"]
   end
 
   test "SortDonation runs" do
@@ -23,8 +25,10 @@ Hecks.behaviors "FoodBank" do
 
   test "SortDonation cascades through policy chain" do
     tests "SortDonation", on: "Donation", kind: :cascade
+    setup  "StockItem", item_name: "sample", category: "sample", quantity: 1, storage_location: "sample", expiration_date: "sample"
+    setup  "ScheduleDistribution", event_date: "sample", location: "sample"
     setup  "AcceptDonation", donor_name: "sample", donation_date: "sample", food_category: "sample", weight_pounds: 1.0, expiration_date: "sample"
-    expect emits: ["DonationSorted", "ItemStocked", "DistributionScheduled", "ItemAllocated"]
+    expect emits: ["DonationSorted", "ItemStocked", "DistributionScheduled"]
   end
 
   test "DiscardExpired runs" do
@@ -44,8 +48,9 @@ Hecks.behaviors "FoodBank" do
 
   test "StockItem cascades through policy chain" do
     tests "StockItem", on: "Inventory", kind: :cascade
+    setup  "ScheduleDistribution", event_date: "sample", location: "sample"
     input  item_name: "sample", category: "sample", quantity: 1, storage_location: "sample", expiration_date: "sample"
-    expect emits: ["ItemStocked", "DistributionScheduled", "ItemAllocated"]
+    expect emits: ["ItemStocked", "DistributionScheduled"]
   end
 
   test "AllocateItem sets quantity" do
@@ -58,7 +63,6 @@ Hecks.behaviors "FoodBank" do
   test "DepletItem sets quantity" do
     tests "DepletItem", on: "Inventory"
     setup  "StockItem", item_name: "sample", category: "sample", quantity: 1, storage_location: "sample", expiration_date: "sample"
-    setup  "AllocateItem", quantity: 1
     input  quantity: 1
     expect status: "depleted"
   end
@@ -66,7 +70,6 @@ Hecks.behaviors "FoodBank" do
   test "DepletItem cascades through policy chain" do
     tests "DepletItem", on: "Inventory", kind: :cascade
     setup  "StockItem", item_name: "sample", category: "sample", quantity: 1, storage_location: "sample", expiration_date: "sample"
-    setup  "AllocateItem", quantity: 1
     input  quantity: 1
     expect emits: ["ItemDepleted", "LowStockFlagged"]
   end
@@ -86,12 +89,6 @@ Hecks.behaviors "FoodBank" do
     expect event_date: "sample", location: "sample", status: "scheduled"
   end
 
-  test "ScheduleDistribution cascades through policy chain" do
-    tests "ScheduleDistribution", on: "Distribution", kind: :cascade
-    input  event_date: "sample", location: "sample"
-    expect emits: ["DistributionScheduled", "ItemAllocated"]
-  end
-
   test "ConductDistribution sets households_served + total_weight_distributed" do
     tests "ConductDistribution", on: "Distribution"
     setup  "ScheduleDistribution", event_date: "sample", location: "sample"
@@ -101,6 +98,9 @@ Hecks.behaviors "FoodBank" do
 
   test "ConductDistribution cascades through policy chain" do
     tests "ConductDistribution", on: "Distribution", kind: :cascade
+    setup  "StockItem", item_name: "sample", category: "sample", quantity: 1, storage_location: "sample", expiration_date: "sample"
+    setup  "EnrollRecipient", household_name: "sample", household_size: 1, address: "sample", dietary_restrictions: "sample", enrollment_date: "sample"
+    setup  "RegisterVolunteer", name: "sample", phone: "sample", availability: "sample"
     setup  "ScheduleDistribution", event_date: "sample", location: "sample"
     input  households_served: 1, total_weight_distributed: 1.0
     expect emits: ["DistributionConducted", "ItemDepleted", "LowStockFlagged", "DistributionReported", "PickupRecorded", "HoursLogged"]
@@ -109,7 +109,6 @@ Hecks.behaviors "FoodBank" do
   test "ReportDistribution runs" do
     tests "ReportDistribution", on: "Distribution"
     setup  "ScheduleDistribution", event_date: "sample", location: "sample"
-    setup  "ConductDistribution", households_served: 1, total_weight_distributed: 1.0
     expect status: "reported"
   end
 

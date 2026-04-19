@@ -85,7 +85,7 @@ Hecks.bluebook "MaterialsScience", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "amorphous" do
-      transition "GrowCrystal" => "nucleating", from: "amorphous"
+      transition "GrowCrystal" => "nucleating", from: ["amorphous", "nucleating", "growing", "crystallized", "annealed"]
       transition "DefineUnitCell" => "growing", from: "nucleating"
       transition "ClassifySymmetry" => "crystallized", from: "growing"
       transition "AnnealCrystal" => "annealed", from: "crystallized"
@@ -226,10 +226,7 @@ Hecks.bluebook "MaterialsScience", version: "2026.04.11.1" do
     lifecycle :status, default: "pending" do
       transition "HeatMaterial" => "solid", from: "pending"
       transition "TriggerTransition" => "melting", from: "solid"
-      transition "TriggerTransition" => "liquid", from: "melting"
-      transition "TriggerTransition" => "boiling", from: "liquid"
       transition "Quench" => "solid", from: "melting"
-      transition "Quench" => "solid", from: "liquid"
     end
   end
 

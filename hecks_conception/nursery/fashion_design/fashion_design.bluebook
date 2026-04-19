@@ -28,7 +28,6 @@ Hecks.bluebook "FashionDesign" do
     ShowCollection do
       description "Present the collection on the runway"
       reference_to(Collection)
-      given { status == "finalized" }
       emits "CollectionShown"
       then_set :status, to: "shown"
     end
@@ -70,7 +69,6 @@ Hecks.bluebook "FashionDesign" do
     ProduceGarment do
       description "Cut and sew the final garment in production fabric"
       reference_to(Garment)
-      given { status == "muslin" }
       emits "GarmentProduced"
       then_set :status, to: "produced"
     end

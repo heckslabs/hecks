@@ -11,6 +11,8 @@ Hecks.behaviors "NetworkOperations" do
 
   test "RegisterDevice cascades through policy chain" do
     tests "RegisterDevice", on: "NetworkDevice", kind: :cascade
+    setup  "EstablishLink", link_id: "sample", link_type: "sample", bandwidth_mbps: 1
+    setup  "CaptureFlow", flow_id: "sample", source_ip: "sample", destination_ip: "sample", protocol: "sample", bytes_transferred: 1
     input  device_id: "sample", hostname: "sample", device_type: "sample", ip_address: "sample", location: "sample", firmware_version: "sample"
     expect emits: ["DeviceRegistered", "LinkEstablished", "FlowCaptured", "FlowClassified", "LatencyMeasured"]
   end
@@ -41,6 +43,7 @@ Hecks.behaviors "NetworkOperations" do
   test "EstablishLink cascades through policy chain" do
     tests "EstablishLink", on: "Link", kind: :cascade
     setup  "RegisterDevice", device_id: "sample", hostname: "sample", device_type: "sample", ip_address: "sample", location: "sample", firmware_version: "sample"
+    setup  "CaptureFlow", flow_id: "sample", source_ip: "sample", destination_ip: "sample", protocol: "sample", bytes_transferred: 1
     input  link_id: "sample", link_type: "sample", bandwidth_mbps: 1
     expect emits: ["LinkEstablished", "FlowCaptured", "FlowClassified", "LatencyMeasured"]
   end
@@ -88,6 +91,8 @@ Hecks.behaviors "NetworkOperations" do
 
   test "FlagAnomalousFlow cascades through policy chain" do
     tests "FlagAnomalousFlow", on: "TrafficFlow", kind: :cascade
+    setup  "DeclareOutage", outage_id: "sample", affected_segment: "sample", severity: "sample"
+    setup  "RegisterDevice", device_id: "sample", hostname: "sample", device_type: "sample", ip_address: "sample", location: "sample", firmware_version: "sample"
     setup  "CaptureFlow", flow_id: "sample", source_ip: "sample", destination_ip: "sample", protocol: "sample", bytes_transferred: 1
     expect emits: ["FlowFlagged", "OutageDeclared", "DeviceSuspended"]
   end
@@ -125,6 +130,8 @@ Hecks.behaviors "NetworkOperations" do
 
   test "ResolveOutage cascades through policy chain" do
     tests "ResolveOutage", on: "Outage", kind: :cascade
+    setup  "RegisterDevice", device_id: "sample", hostname: "sample", device_type: "sample", ip_address: "sample", location: "sample", firmware_version: "sample"
+    setup  "SuspendDevice"
     setup  "DeclareOutage", outage_id: "sample", affected_segment: "sample", severity: "sample"
     input  root_cause: "sample"
     expect emits: ["OutageResolved", "DeviceRestored"]

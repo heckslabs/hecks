@@ -11,6 +11,7 @@ Hecks.behaviors "BedAndBreakfast" do
 
   test "PrepareRoom cascades through policy chain" do
     tests "PrepareRoom", on: "GuestRoom", kind: :cascade
+    setup  "PlanBreakfast", menu_id: "sample", date: "sample"
     input  room_id: "sample", name: "sample", room_type: "sample", max_guests: 1, nightly_rate: 1.0
     expect emits: ["RoomPrepared", "RoomOccupied", "BreakfastPlanned", "BreakfastServed"]
   end
@@ -23,6 +24,7 @@ Hecks.behaviors "BedAndBreakfast" do
 
   test "OccupyRoom cascades through policy chain" do
     tests "OccupyRoom", on: "GuestRoom", kind: :cascade
+    setup  "PlanBreakfast", menu_id: "sample", date: "sample"
     setup  "PrepareRoom", room_id: "sample", name: "sample", room_type: "sample", max_guests: 1, nightly_rate: 1.0
     expect emits: ["RoomOccupied", "BreakfastPlanned", "BreakfastServed"]
   end
@@ -36,6 +38,8 @@ Hecks.behaviors "BedAndBreakfast" do
 
   test "VacateRoom cascades through policy chain" do
     tests "VacateRoom", on: "GuestRoom", kind: :cascade
+    setup  "PlanBreakfast", menu_id: "sample", date: "sample"
+    setup  "SubmitReview", review_id: "sample", guest_name: "sample", booking_id: "sample", rating: 1, comment: "sample", review_date: "sample"
     setup  "PrepareRoom", room_id: "sample", name: "sample", room_type: "sample", max_guests: 1, nightly_rate: 1.0
     setup  "OccupyRoom"
     expect emits: ["RoomVacated", "RoomPrepared", "RoomOccupied", "BreakfastPlanned", "BreakfastServed", "ReviewSubmitted", "ReviewResponsePosted"]
@@ -52,6 +56,8 @@ Hecks.behaviors "BedAndBreakfast" do
 
   test "MakeBooking cascades through policy chain" do
     tests "MakeBooking", on: "GuestBooking", kind: :cascade
+    setup  "PrepareRoom", room_id: "sample", name: "sample", room_type: "sample", max_guests: 1, nightly_rate: 1.0
+    setup  "PlanBreakfast", menu_id: "sample", date: "sample"
     input  booking_id: "sample", guest_name: "sample", guest_email: "sample", room_id: "sample", check_in_date: "sample", check_out_date: "sample", guests: 1, total_charge: 1.0
     expect emits: ["BookingMade", "RoomPrepared", "RoomOccupied", "BreakfastPlanned", "BreakfastServed"]
   end

@@ -256,11 +256,6 @@ Hecks.bluebook "NutritionRx", version: "2026.04.13.1" do
 
   # === Cross-wire policies ===
 
-  policy "MealPlanOnDeficiency" do
-    on "DeficiencyDetected"
-    trigger "GenerateMealPlan"
-  end
-
   policy "GroceryListOnPrescription" do
     on "PrescriptionFilled"
     trigger "ReviseGroceryList"
@@ -269,11 +264,6 @@ Hecks.bluebook "NutritionRx", version: "2026.04.13.1" do
   policy "AdjustMealOnInteraction" do
     on "FoodInteractionFlagged"
     trigger "AdjustForInteraction"
-  end
-
-  policy "GroceryListOnMealPlan" do
-    on "MealPlanApproved"
-    trigger "GenerateGroceryList"
   end
 
   policy "SetTargetOnDeficiency" do

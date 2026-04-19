@@ -11,6 +11,8 @@ Hecks.behaviors "DaycareCenter" do
 
   test "EnrollChild cascades through policy chain" do
     tests "EnrollChild", on: "Child", kind: :cascade
+    setup  "PlanMeals", meal_date: "sample", classroom: "sample", breakfast: "sample", lunch: "sample", snack: "sample"
+    setup  "CheckInChild", attendance_date: "sample", check_in_time: "sample", checked_in_by: "sample"
     input  first_name: "sample", last_name: "sample", date_of_birth: "sample", allergies: "sample", classroom: "sample"
     expect emits: ["ChildEnrolled", "MealsPlanned", "MealSubstituted", "ChildCheckedIn", "ChildCheckedOut"]
   end

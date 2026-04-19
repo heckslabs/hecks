@@ -262,11 +262,6 @@ Hecks.bluebook "WineVineyard" do
     trigger "RackWine"
   end
 
-  policy "BottleOnRack" do
-    on "WineRacked"
-    trigger "BottleWine"
-  end
-
   policy "LabelOnBottle" do
     on "WineBottled"
     trigger "LabelBottles"

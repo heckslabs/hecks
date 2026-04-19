@@ -174,7 +174,7 @@ Hecks.bluebook "ThermalComfort", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "pending" do
-      transition "AssessComfort" => "assessed", from: "pending"
+      transition "AssessComfort" => "assessed", from: ["pending", "assessed"]
       transition "CalculatePMV" => "calculated", from: "assessed"
       transition "FlagDiscomfort" => "flagged", from: "calculated"
     end
@@ -248,10 +248,6 @@ Hecks.bluebook "ThermalComfort", version: "2026.04.13.1" do
     trigger "CalculateHeatLoss"
   end
 
-  policy "AssessComfortOnMeasure" do
-    on "TemperatureMeasured"
-    trigger "AssessComfort"
-  end
 
   policy "CalculatePMVOnAssess" do
     on "ComfortAssessed"

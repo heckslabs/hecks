@@ -11,6 +11,8 @@ Hecks.behaviors "PhysicalTherapy" do
 
   test "RegisterPatient cascades through policy chain" do
     tests "RegisterPatient", on: "Patient", kind: :cascade
+    setup  "PrescribeTherapy", physician_name: "sample", patient_name: "sample", diagnosis: "sample", authorized_visits: 1
+    setup  "ScheduleSession", patient_name: "sample", therapist_name: "sample", scheduled_date: "sample"
     input  name: "sample", date_of_birth: "sample", diagnosis: "sample", insurance_id: "sample"
     expect emits: ["PatientRegistered", "LimitationAssessed", "PrescriptionCreated", "PatientActivated", "SessionScheduled"]
   end
@@ -25,6 +27,8 @@ Hecks.behaviors "PhysicalTherapy" do
   test "AssessLimitation cascades through policy chain" do
     tests "AssessLimitation", on: "Patient", kind: :cascade
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diagnosis: "sample", insurance_id: "sample"
+    setup  "PrescribeTherapy", physician_name: "sample", patient_name: "sample", diagnosis: "sample", authorized_visits: 1
+    setup  "ScheduleSession", patient_name: "sample", therapist_name: "sample", scheduled_date: "sample"
     input  body_region: "sample", description: "sample", severity_score: 1
     expect emits: ["LimitationAssessed", "PrescriptionCreated", "PatientActivated", "SessionScheduled"]
   end
@@ -32,22 +36,19 @@ Hecks.behaviors "PhysicalTherapy" do
   test "ActivatePatient runs" do
     tests "ActivatePatient", on: "Patient"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diagnosis: "sample", insurance_id: "sample"
-    setup  "AssessLimitation", body_region: "sample", description: "sample", severity_score: 1
     expect status: "active"
   end
 
   test "ActivatePatient cascades through policy chain" do
     tests "ActivatePatient", on: "Patient", kind: :cascade
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diagnosis: "sample", insurance_id: "sample"
-    setup  "AssessLimitation", body_region: "sample", description: "sample", severity_score: 1
+    setup  "ScheduleSession", patient_name: "sample", therapist_name: "sample", scheduled_date: "sample"
     expect emits: ["PatientActivated", "SessionScheduled"]
   end
 
   test "DischargePatient runs" do
     tests "DischargePatient", on: "Patient"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diagnosis: "sample", insurance_id: "sample"
-    setup  "AssessLimitation", body_region: "sample", description: "sample", severity_score: 1
-    setup  "ActivatePatient"
     expect status: "discharged"
   end
 
@@ -86,6 +87,10 @@ Hecks.behaviors "PhysicalTherapy" do
 
   test "CompleteSession cascades through policy chain" do
     tests "CompleteSession", on: "Session", kind: :cascade
+    setup  "PrescribeTherapy", physician_name: "sample", patient_name: "sample", diagnosis: "sample", authorized_visits: 1
+    setup  "RecordProgress", patient_name: "sample", assessment_date: "sample", pain_score: 1, range_of_motion: 1, strength_score: 1, therapist_notes: "sample"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diagnosis: "sample", insurance_id: "sample"
+    setup  "DefineExercise", name: "sample", target_muscle_group: "sample", difficulty: "sample", instructions: "sample", repetitions: 1, sets: 1
     setup  "ScheduleSession", patient_name: "sample", therapist_name: "sample", scheduled_date: "sample"
     input  notes: "sample"
     expect emits: ["SessionCompleted", "VisitRecorded", "ProgressRecorded", "RegressionFlagged", "DifficultyAdjusted", "SessionScheduled"]
@@ -110,6 +115,7 @@ Hecks.behaviors "PhysicalTherapy" do
   test "PrescribeTherapy cascades through policy chain" do
     tests "PrescribeTherapy", on: "Prescription", kind: :cascade
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diagnosis: "sample", insurance_id: "sample"
+    setup  "ScheduleSession", patient_name: "sample", therapist_name: "sample", scheduled_date: "sample"
     input  physician_name: "sample", patient_name: "sample", diagnosis: "sample", authorized_visits: 1
     expect emits: ["PrescriptionCreated", "PatientActivated", "SessionScheduled"]
   end
@@ -117,6 +123,9 @@ Hecks.behaviors "PhysicalTherapy" do
   test "RecordVisit cascades through policy chain" do
     tests "RecordVisit", on: "Prescription", kind: :cascade
     setup  "PrescribeTherapy", physician_name: "sample", patient_name: "sample", diagnosis: "sample", authorized_visits: 1
+    setup  "RecordProgress", patient_name: "sample", assessment_date: "sample", pain_score: 1, range_of_motion: 1, strength_score: 1, therapist_notes: "sample"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diagnosis: "sample", insurance_id: "sample"
+    setup  "DefineExercise", name: "sample", target_muscle_group: "sample", difficulty: "sample", instructions: "sample", repetitions: 1, sets: 1
     expect emits: ["VisitRecorded", "ProgressRecorded", "RegressionFlagged", "DifficultyAdjusted"]
   end
 
@@ -129,6 +138,7 @@ Hecks.behaviors "PhysicalTherapy" do
   test "ExpirePrescription cascades through policy chain" do
     tests "ExpirePrescription", on: "Prescription", kind: :cascade
     setup  "PrescribeTherapy", physician_name: "sample", patient_name: "sample", diagnosis: "sample", authorized_visits: 1
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diagnosis: "sample", insurance_id: "sample"
     expect emits: ["PrescriptionExpired", "PatientDischarged"]
   end
 
@@ -145,6 +155,7 @@ Hecks.behaviors "PhysicalTherapy" do
   test "RecordProgress cascades through policy chain" do
     tests "RecordProgress", on: "ProgressReport", kind: :cascade
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diagnosis: "sample", insurance_id: "sample"
+    setup  "DefineExercise", name: "sample", target_muscle_group: "sample", difficulty: "sample", instructions: "sample", repetitions: 1, sets: 1
     input  patient_name: "sample", assessment_date: "sample", pain_score: 1, range_of_motion: 1, strength_score: 1, therapist_notes: "sample"
     expect emits: ["ProgressRecorded", "RegressionFlagged", "DifficultyAdjusted"]
   end

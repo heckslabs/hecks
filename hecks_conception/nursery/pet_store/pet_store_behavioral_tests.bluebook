@@ -11,6 +11,7 @@ Hecks.behaviors "PetStore" do
 
   test "IntakeAnimal cascades through policy chain" do
     tests "IntakeAnimal", on: "Animal", kind: :cascade
+    setup  "StockSupply", sku: "sample", name: "sample", category: "sample", price: 1.0, quantity: 1, pet_type: "sample"
     input  animal_id: "sample", species: "sample", breed: "sample", name: "sample", age_months: 1, price: 1.0
     expect emits: ["AnimalIntaken", "AnimalVaccinated", "SupplyStocked"]
   end
@@ -55,6 +56,7 @@ Hecks.behaviors "PetStore" do
 
   test "SubmitAdoptionApplication cascades through policy chain" do
     tests "SubmitAdoptionApplication", on: "Adoption", kind: :cascade
+    setup  "BookGrooming", appointment_id: "sample", pet_name: "sample", owner_name: "sample", service_type: "sample", scheduled_time: "sample", price: 1.0
     input  adoption_id: "sample", animal_id: "sample", adopter_name: "sample", adopter_phone: "sample", adoption_fee: 1.0
     expect emits: ["AdoptionApplicationSubmitted", "AdoptionApproved", "GroomingBooked"]
   end
@@ -67,6 +69,7 @@ Hecks.behaviors "PetStore" do
 
   test "ApproveAdoption cascades through policy chain" do
     tests "ApproveAdoption", on: "Adoption", kind: :cascade
+    setup  "BookGrooming", appointment_id: "sample", pet_name: "sample", owner_name: "sample", service_type: "sample", scheduled_time: "sample", price: 1.0
     setup  "SubmitAdoptionApplication", adoption_id: "sample", animal_id: "sample", adopter_name: "sample", adopter_phone: "sample", adoption_fee: 1.0
     expect emits: ["AdoptionApproved", "GroomingBooked"]
   end
@@ -74,14 +77,13 @@ Hecks.behaviors "PetStore" do
   test "FinalizeAdoption runs" do
     tests "FinalizeAdoption", on: "Adoption"
     setup  "SubmitAdoptionApplication", adoption_id: "sample", animal_id: "sample", adopter_name: "sample", adopter_phone: "sample", adoption_fee: 1.0
-    setup  "ApproveAdoption"
     expect status: "finalized"
   end
 
   test "FinalizeAdoption cascades through policy chain" do
     tests "FinalizeAdoption", on: "Adoption", kind: :cascade
     setup  "SubmitAdoptionApplication", adoption_id: "sample", animal_id: "sample", adopter_name: "sample", adopter_phone: "sample", adoption_fee: 1.0
-    setup  "ApproveAdoption"
+    setup  "StockSupply", sku: "sample", name: "sample", category: "sample", price: 1.0, quantity: 1, pet_type: "sample"
     expect emits: ["AdoptionFinalized", "SupplyReordered"]
   end
 
@@ -102,6 +104,9 @@ Hecks.behaviors "PetStore" do
 
   test "CompleteGrooming cascades through policy chain" do
     tests "CompleteGrooming", on: "GroomingAppointment", kind: :cascade
+    setup  "SubmitAdoptionApplication", adoption_id: "sample", animal_id: "sample", adopter_name: "sample", adopter_phone: "sample", adoption_fee: 1.0
+    setup  "StockSupply", sku: "sample", name: "sample", category: "sample", price: 1.0, quantity: 1, pet_type: "sample"
+    setup  "IntakeAnimal", animal_id: "sample", species: "sample", breed: "sample", name: "sample", age_months: 1, price: 1.0
     setup  "BookGrooming", appointment_id: "sample", pet_name: "sample", owner_name: "sample", service_type: "sample", scheduled_time: "sample", price: 1.0
     expect emits: ["GroomingCompleted", "AdoptionFinalized", "SupplyReordered", "AnimalVaccinated"]
   end

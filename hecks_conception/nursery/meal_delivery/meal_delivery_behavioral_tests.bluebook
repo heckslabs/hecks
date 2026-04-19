@@ -27,6 +27,7 @@ Hecks.behaviors "MealDelivery" do
 
   test "AssembleMeal cascades through policy chain" do
     tests "AssembleMeal", on: "MealPackage", kind: :cascade
+    setup  "PlanRun", run_id: "sample", courier_name: "sample", date: "sample", total_miles: 1.0
     input  package_id: "sample", recipient_id: "sample", dietary_type: "sample"
     expect emits: ["MealAssembled", "RunPlanned"]
   end
@@ -70,6 +71,8 @@ Hecks.behaviors "MealDelivery" do
 
   test "RegisterRecipient cascades through policy chain" do
     tests "RegisterRecipient", on: "Recipient", kind: :cascade
+    setup  "AssembleMeal", package_id: "sample", recipient_id: "sample", dietary_type: "sample"
+    setup  "PlanRun", run_id: "sample", courier_name: "sample", date: "sample", total_miles: 1.0
     input  recipient_id: "sample", name: "sample", address: "sample", dietary_restriction: "sample", household_size: 1
     expect emits: ["RecipientRegistered", "MealAssembled", "RunPlanned"]
   end

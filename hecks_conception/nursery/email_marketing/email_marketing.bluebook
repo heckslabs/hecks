@@ -197,7 +197,6 @@ Hecks.bluebook "EmailMarketing", version: "2026.04.13.1" do
     SuppressAddress do
       description "Add a hard-bounced address to the suppression list"
       reference_to(Bounce)
-      given("bounce is hard") { bounce_type == "hard" }
       emits "AddressSuppressed"
     end
   end

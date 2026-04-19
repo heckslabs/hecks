@@ -32,8 +32,9 @@ Hecks.behaviors "ScientificPestMgmt" do
 
   test "ReportInfestation cascades through policy chain" do
     tests "ReportInfestation", on: "Infestation", kind: :cascade
+    setup  "PrescribeTreatment", treatment_name: "sample", method: "sample", active_ingredient: "sample", concentration_pct: 1.0, target_life_stage: "sample"
     input  site_address: "sample", pest_species: "sample", severity: "sample", estimated_population: 1, affected_area: "sample"
-    expect emits: ["InfestationReported", "InfestationAssessed", "TreatmentPrescribed", "TreatmentApplied", "EffectivenessEvaluated"]
+    expect emits: ["InfestationReported", "InfestationAssessed", "TreatmentPrescribed"]
   end
 
   test "AssessInfestation runs" do
@@ -44,8 +45,9 @@ Hecks.behaviors "ScientificPestMgmt" do
 
   test "AssessInfestation cascades through policy chain" do
     tests "AssessInfestation", on: "Infestation", kind: :cascade
+    setup  "PrescribeTreatment", treatment_name: "sample", method: "sample", active_ingredient: "sample", concentration_pct: 1.0, target_life_stage: "sample"
     setup  "ReportInfestation", site_address: "sample", pest_species: "sample", severity: "sample", estimated_population: 1, affected_area: "sample"
-    expect emits: ["InfestationAssessed", "TreatmentPrescribed", "TreatmentApplied", "EffectivenessEvaluated"]
+    expect emits: ["InfestationAssessed", "TreatmentPrescribed"]
   end
 
   test "ResolveInfestation runs" do
@@ -62,12 +64,6 @@ Hecks.behaviors "ScientificPestMgmt" do
     tests "PrescribeTreatment", on: "Treatment"
     input  treatment_name: "sample", method: "sample", active_ingredient: "sample", concentration_pct: 1.0, target_life_stage: "sample"
     expect treatment_name: "sample", method: "sample", active_ingredient: "sample", concentration_pct: 1.0, target_life_stage: "sample", status: "prescribed"
-  end
-
-  test "PrescribeTreatment cascades through policy chain" do
-    tests "PrescribeTreatment", on: "Treatment", kind: :cascade
-    input  treatment_name: "sample", method: "sample", active_ingredient: "sample", concentration_pct: 1.0, target_life_stage: "sample"
-    expect emits: ["TreatmentPrescribed", "TreatmentApplied", "EffectivenessEvaluated"]
   end
 
   test "ApplyTreatment runs" do

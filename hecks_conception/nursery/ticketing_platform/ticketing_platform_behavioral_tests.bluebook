@@ -18,6 +18,7 @@ Hecks.behaviors "TicketingPlatform" do
 
   test "PublishEvent cascades through policy chain" do
     tests "PublishEvent", on: "Event", kind: :cascade
+    setup  "GenerateSalesReport", report_id: "sample", period: "sample"
     setup  "AnnounceEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
     expect emits: ["EventPublished", "SalesReportGenerated", "ReportPublished"]
   end
@@ -31,6 +32,8 @@ Hecks.behaviors "TicketingPlatform" do
   test "CancelEvent cascades through policy chain" do
     tests "CancelEvent", on: "Event", kind: :cascade
     setup  "AnnounceEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
+    setup  "RequestRefund", refund_id: "sample", refund_amount: 1.0, reason: "sample", refund_method: "sample"
+    setup  "PurchaseTicket", ticket_id: "sample", tier_name: "sample", holder_name: "sample", holder_email: "sample", price_paid: 1.0
     expect emits: ["EventCanceled", "RefundRequested", "RefundApproved"]
   end
 
@@ -69,6 +72,7 @@ Hecks.behaviors "TicketingPlatform" do
   test "PurchaseTicket cascades through policy chain" do
     tests "PurchaseTicket", on: "Ticket", kind: :cascade
     setup  "AnnounceEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
+    setup  "GenerateSalesReport", report_id: "sample", period: "sample"
     input  ticket_id: "sample", tier_name: "sample", holder_name: "sample", holder_email: "sample", price_paid: 1.0
     expect emits: ["TicketPurchased", "SalesReportGenerated", "ReportPublished"]
   end
@@ -88,6 +92,8 @@ Hecks.behaviors "TicketingPlatform" do
 
   test "CheckInTicket cascades through policy chain" do
     tests "CheckInTicket", on: "Ticket", kind: :cascade
+    setup  "GenerateSalesReport", report_id: "sample", period: "sample"
+    setup  "AnnounceEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
     setup  "PurchaseTicket", ticket_id: "sample", tier_name: "sample", holder_name: "sample", holder_email: "sample", price_paid: 1.0
     expect emits: ["TicketCheckedIn", "SalesReportGenerated", "ReportPublished"]
   end

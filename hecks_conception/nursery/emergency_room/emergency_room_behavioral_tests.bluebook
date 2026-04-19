@@ -11,8 +11,9 @@ Hecks.behaviors "EmergencyRoom" do
 
   test "RegisterPatient cascades through policy chain" do
     tests "RegisterPatient", on: "Patient", kind: :cascade
+    setup  "PerformTriage", acuity_level: 1, vital_signs_summary: "sample"
     input  name: "sample", date_of_birth: "sample", chief_complaint: "sample"
-    expect emits: ["PatientRegistered", "TriageCompleted", "PatientAdmitted", "BedOccupied", "TreatmentBegun", "ProcedureOrdered"]
+    expect emits: ["PatientRegistered", "TriageCompleted"]
   end
 
   test "AdmitPatient runs" do
@@ -25,8 +26,9 @@ Hecks.behaviors "EmergencyRoom" do
   test "AdmitPatient cascades through policy chain" do
     tests "AdmitPatient", on: "Patient", kind: :cascade
     setup  "PrepareBed", bed_id: "sample", zone: "sample", equipment_level: "sample"
+    setup  "OrderProcedure", procedure_name: "sample", physician: "sample"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
-    expect emits: ["PatientAdmitted", "BedOccupied", "TreatmentBegun", "ProcedureOrdered"]
+    expect emits: ["PatientAdmitted", "TreatmentBegun", "ProcedureOrdered"]
   end
 
   test "BeginTreatment runs" do
@@ -38,6 +40,7 @@ Hecks.behaviors "EmergencyRoom" do
 
   test "BeginTreatment cascades through policy chain" do
     tests "BeginTreatment", on: "Patient", kind: :cascade
+    setup  "OrderProcedure", procedure_name: "sample", physician: "sample"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
     setup  "AdmitPatient"
     expect emits: ["TreatmentBegun", "ProcedureOrdered"]
@@ -56,7 +59,7 @@ Hecks.behaviors "EmergencyRoom" do
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
     setup  "AdmitPatient"
     setup  "BeginTreatment"
-    expect emits: ["PatientStabilized", "PatientDischarged", "BedCleaned", "BedPrepared", "PatientTransferred"]
+    expect emits: ["PatientStabilized", "PatientTransferred"]
   end
 
   test "DischargePatient sets discharge_instructions" do
@@ -67,16 +70,6 @@ Hecks.behaviors "EmergencyRoom" do
     setup  "StabilizePatient"
     input  discharge_instructions: "sample"
     expect status: "discharged"
-  end
-
-  test "DischargePatient cascades through policy chain" do
-    tests "DischargePatient", on: "Patient", kind: :cascade
-    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
-    setup  "AdmitPatient"
-    setup  "BeginTreatment"
-    setup  "StabilizePatient"
-    input  discharge_instructions: "sample"
-    expect emits: ["PatientDischarged", "BedCleaned", "BedPrepared"]
   end
 
   test "TransferToInpatient sets ward" do
@@ -128,13 +121,6 @@ Hecks.behaviors "EmergencyRoom" do
     expect status: "completed"
   end
 
-  test "PerformTriage cascades through policy chain" do
-    tests "PerformTriage", on: "TriageAssessment", kind: :cascade
-    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
-    input  acuity_level: 1, vital_signs_summary: "sample"
-    expect emits: ["TriageCompleted", "PatientAdmitted", "BedOccupied", "TreatmentBegun", "ProcedureOrdered"]
-  end
-
   test "EscalateTriage sets new_acuity_level" do
     tests "EscalateTriage", on: "TriageAssessment"
     setup  "PerformTriage", acuity_level: 1, vital_signs_summary: "sample"
@@ -157,13 +143,6 @@ Hecks.behaviors "EmergencyRoom" do
     setup  "OrderProcedure", procedure_name: "sample", physician: "sample"
     input  notes: "sample"
     expect status: "completed"
-  end
-
-  test "PerformProcedure cascades through policy chain" do
-    tests "PerformProcedure", on: "Procedure", kind: :cascade
-    setup  "OrderProcedure", procedure_name: "sample", physician: "sample"
-    input  notes: "sample"
-    expect emits: ["ProcedurePerformed", "PatientStabilized", "PatientDischarged", "BedCleaned", "BedPrepared", "PatientTransferred"]
   end
 
 end

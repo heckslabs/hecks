@@ -118,7 +118,6 @@ Hecks.bluebook "RecyclingCenter" do
     InspectBale do
       description "Check bale quality and contamination level"
       reference_to(Bale)
-      given { status == "pressed" }
       emits "BaleInspected"
       then_set :status, to: "inspected"
     end
@@ -126,7 +125,6 @@ Hecks.bluebook "RecyclingCenter" do
     StageBale do
       description "Move inspected bale to the shipping yard"
       reference_to(Bale)
-      given { status == "inspected" }
       emits "BaleStaged"
       then_set :status, to: "staged"
     end
@@ -134,7 +132,6 @@ Hecks.bluebook "RecyclingCenter" do
     ShipBale do
       description "Load a bale onto a truck for the buyer"
       reference_to(Bale)
-      given { status == "staged" }
       emits "BaleShipped"
       then_set :status, to: "shipped"
     end
@@ -214,16 +211,6 @@ Hecks.bluebook "RecyclingCenter" do
   policy "PressOnSortComplete" do
     on "SortRunCompleted"
     trigger "PressBale"
-  end
-
-  policy "InspectOnPress" do
-    on "BalePressed"
-    trigger "InspectBale"
-  end
-
-  policy "StageOnInspect" do
-    on "BaleInspected"
-    trigger "StageBale"
   end
 
   policy "ShipOnOrder" do

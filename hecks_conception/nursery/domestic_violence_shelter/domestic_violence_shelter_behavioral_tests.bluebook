@@ -11,6 +11,10 @@ Hecks.behaviors "DomesticViolenceShelter" do
 
   test "AdmitResident cascades through policy chain" do
     tests "AdmitResident", on: "Resident", kind: :cascade
+    setup  "OnboardAdvocate", name: "sample", role_type: "sample", certification: "sample"
+    setup  "DraftSafetyPlan", resident_alias: "sample", created_date: "sample", emergency_contacts: "sample", escape_route: "sample"
+    setup  "RegisterService", service_name: "sample", service_type: "sample", provider_name: "sample", availability: "sample"
+    setup  "DraftExitPlan", resident_alias: "sample", target_exit_date: "sample", housing_arrangement: "sample", employment_status: "sample"
     input  alias_name: "sample", intake_date: "sample", dependents_count: 1, risk_level: "sample"
     expect emits: ["ResidentAdmitted", "ResidentAssigned", "SafetyPlanDrafted", "ResidentReferred", "SafetyPlanReviewed", "RiskReassessed", "ExitPlanDrafted", "ExitTaskCompleted", "AdvocateOnboarded"]
   end
@@ -25,6 +29,7 @@ Hecks.behaviors "DomesticViolenceShelter" do
   test "ReassessRisk cascades through policy chain" do
     tests "ReassessRisk", on: "Resident", kind: :cascade
     setup  "AdmitResident", alias_name: "sample", intake_date: "sample", dependents_count: 1, risk_level: "sample"
+    setup  "DraftExitPlan", resident_alias: "sample", target_exit_date: "sample", housing_arrangement: "sample", employment_status: "sample"
     input  risk_level: "sample"
     expect emits: ["RiskReassessed", "ExitPlanDrafted", "ExitTaskCompleted"]
   end
@@ -48,6 +53,8 @@ Hecks.behaviors "DomesticViolenceShelter" do
   test "DraftSafetyPlan cascades through policy chain" do
     tests "DraftSafetyPlan", on: "SafetyPlan", kind: :cascade
     setup  "AdmitResident", alias_name: "sample", intake_date: "sample", dependents_count: 1, risk_level: "sample"
+    setup  "RegisterService", service_name: "sample", service_type: "sample", provider_name: "sample", availability: "sample"
+    setup  "DraftExitPlan", resident_alias: "sample", target_exit_date: "sample", housing_arrangement: "sample", employment_status: "sample"
     input  resident_alias: "sample", created_date: "sample", emergency_contacts: "sample", escape_route: "sample"
     expect emits: ["SafetyPlanDrafted", "ResidentReferred", "SafetyPlanReviewed", "RiskReassessed", "ExitPlanDrafted", "ExitTaskCompleted"]
   end
@@ -68,6 +75,8 @@ Hecks.behaviors "DomesticViolenceShelter" do
   test "ReviewSafetyPlan cascades through policy chain" do
     tests "ReviewSafetyPlan", on: "SafetyPlan", kind: :cascade
     setup  "DraftSafetyPlan", resident_alias: "sample", created_date: "sample", emergency_contacts: "sample", escape_route: "sample"
+    setup  "AdmitResident", alias_name: "sample", intake_date: "sample", dependents_count: 1, risk_level: "sample"
+    setup  "DraftExitPlan", resident_alias: "sample", target_exit_date: "sample", housing_arrangement: "sample", employment_status: "sample"
     expect emits: ["SafetyPlanReviewed", "RiskReassessed", "ExitPlanDrafted", "ExitTaskCompleted"]
   end
 
@@ -89,6 +98,9 @@ Hecks.behaviors "DomesticViolenceShelter" do
   test "ReferToService cascades through policy chain" do
     tests "ReferToService", on: "SupportService", kind: :cascade
     setup  "RegisterService", service_name: "sample", service_type: "sample", provider_name: "sample", availability: "sample"
+    setup  "DraftSafetyPlan", resident_alias: "sample", created_date: "sample", emergency_contacts: "sample", escape_route: "sample"
+    setup  "AdmitResident", alias_name: "sample", intake_date: "sample", dependents_count: 1, risk_level: "sample"
+    setup  "DraftExitPlan", resident_alias: "sample", target_exit_date: "sample", housing_arrangement: "sample", employment_status: "sample"
     expect emits: ["ResidentReferred", "SafetyPlanReviewed", "RiskReassessed", "ExitPlanDrafted", "ExitTaskCompleted"]
   end
 
@@ -145,6 +157,7 @@ Hecks.behaviors "DomesticViolenceShelter" do
 
   test "FinalizeExit cascades through policy chain" do
     tests "FinalizeExit", on: "ExitPlan", kind: :cascade
+    setup  "AdmitResident", alias_name: "sample", intake_date: "sample", dependents_count: 1, risk_level: "sample"
     setup  "DraftExitPlan", resident_alias: "sample", target_exit_date: "sample", housing_arrangement: "sample", employment_status: "sample"
     expect emits: ["ExitFinalized", "ResidentTransitioned"]
   end

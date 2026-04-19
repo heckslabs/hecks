@@ -11,6 +11,10 @@ Hecks.behaviors "SurfShop" do
 
   test "StockBoard cascades through policy chain" do
     tests "StockBoard", on: "Surfboard", kind: :cascade
+    setup  "ScheduleLesson", lesson_id: "sample", instructor_name: "sample", skill_level: "sample", max_students: 1, scheduled_date: "sample"
+    setup  "RentGear", rental_id: "sample", item_type: "sample", item_id: "sample", renter_name: "sample", start_time: "sample", end_time: "sample", rate: 1.0
+    setup  "AcceptRepair", repair_id: "sample", board_id: "sample", damage_type: "sample", estimated_cost: 1.0
+    setup  "StockWetsuit", wetsuit_id: "sample", brand: "sample", thickness_mm: "sample", size: "sample", price: 1.0, quantity: 1
     input  board_id: "sample", shaper: "sample", model: "sample", board_type: "sample", length_ft: 1.0, volume_liters: 1.0, price: 1.0
     expect emits: ["BoardStocked", "LessonScheduled", "GearRented", "LessonConducted", "GearReturned", "RepairAccepted", "WetsuitStocked", "BoardSold"]
   end
@@ -41,6 +45,10 @@ Hecks.behaviors "SurfShop" do
 
   test "RentGear cascades through policy chain" do
     tests "RentGear", on: "GearRental", kind: :cascade
+    setup  "ScheduleLesson", lesson_id: "sample", instructor_name: "sample", skill_level: "sample", max_students: 1, scheduled_date: "sample"
+    setup  "AcceptRepair", repair_id: "sample", board_id: "sample", damage_type: "sample", estimated_cost: 1.0
+    setup  "StockWetsuit", wetsuit_id: "sample", brand: "sample", thickness_mm: "sample", size: "sample", price: 1.0, quantity: 1
+    setup  "StockBoard", board_id: "sample", shaper: "sample", model: "sample", board_type: "sample", length_ft: 1.0, volume_liters: 1.0, price: 1.0
     input  rental_id: "sample", item_type: "sample", item_id: "sample", renter_name: "sample", start_time: "sample", end_time: "sample", rate: 1.0
     expect emits: ["GearRented", "LessonConducted", "GearReturned", "RepairAccepted", "WetsuitStocked", "BoardSold"]
   end
@@ -53,6 +61,8 @@ Hecks.behaviors "SurfShop" do
 
   test "ReturnGear cascades through policy chain" do
     tests "ReturnGear", on: "GearRental", kind: :cascade
+    setup  "AcceptRepair", repair_id: "sample", board_id: "sample", damage_type: "sample", estimated_cost: 1.0
+    setup  "StockWetsuit", wetsuit_id: "sample", brand: "sample", thickness_mm: "sample", size: "sample", price: 1.0, quantity: 1
     setup  "RentGear", rental_id: "sample", item_type: "sample", item_id: "sample", renter_name: "sample", start_time: "sample", end_time: "sample", rate: 1.0
     expect emits: ["GearReturned", "RepairAccepted", "WetsuitStocked"]
   end
@@ -68,6 +78,10 @@ Hecks.behaviors "SurfShop" do
 
   test "ScheduleLesson cascades through policy chain" do
     tests "ScheduleLesson", on: "SurfLesson", kind: :cascade
+    setup  "RentGear", rental_id: "sample", item_type: "sample", item_id: "sample", renter_name: "sample", start_time: "sample", end_time: "sample", rate: 1.0
+    setup  "AcceptRepair", repair_id: "sample", board_id: "sample", damage_type: "sample", estimated_cost: 1.0
+    setup  "StockWetsuit", wetsuit_id: "sample", brand: "sample", thickness_mm: "sample", size: "sample", price: 1.0, quantity: 1
+    setup  "StockBoard", board_id: "sample", shaper: "sample", model: "sample", board_type: "sample", length_ft: 1.0, volume_liters: 1.0, price: 1.0
     input  lesson_id: "sample", instructor_name: "sample", skill_level: "sample", max_students: 1, scheduled_date: "sample"
     expect emits: ["LessonScheduled", "GearRented", "LessonConducted", "GearReturned", "RepairAccepted", "WetsuitStocked", "BoardSold"]
   end
@@ -80,6 +94,10 @@ Hecks.behaviors "SurfShop" do
 
   test "ConductLesson cascades through policy chain" do
     tests "ConductLesson", on: "SurfLesson", kind: :cascade
+    setup  "RentGear", rental_id: "sample", item_type: "sample", item_id: "sample", renter_name: "sample", start_time: "sample", end_time: "sample", rate: 1.0
+    setup  "AcceptRepair", repair_id: "sample", board_id: "sample", damage_type: "sample", estimated_cost: 1.0
+    setup  "StockWetsuit", wetsuit_id: "sample", brand: "sample", thickness_mm: "sample", size: "sample", price: 1.0, quantity: 1
+    setup  "StockBoard", board_id: "sample", shaper: "sample", model: "sample", board_type: "sample", length_ft: 1.0, volume_liters: 1.0, price: 1.0
     setup  "ScheduleLesson", lesson_id: "sample", instructor_name: "sample", skill_level: "sample", max_students: 1, scheduled_date: "sample"
     expect emits: ["LessonConducted", "GearReturned", "RepairAccepted", "WetsuitStocked", "BoardSold"]
   end
@@ -101,6 +119,10 @@ Hecks.behaviors "SurfShop" do
 
   test "CompleteRepair cascades through policy chain" do
     tests "CompleteRepair", on: "DingRepair", kind: :cascade
+    setup  "StockBoard", board_id: "sample", shaper: "sample", model: "sample", board_type: "sample", length_ft: 1.0, volume_liters: 1.0, price: 1.0
+    setup  "ScheduleLesson", lesson_id: "sample", instructor_name: "sample", skill_level: "sample", max_students: 1, scheduled_date: "sample"
+    setup  "RentGear", rental_id: "sample", item_type: "sample", item_id: "sample", renter_name: "sample", start_time: "sample", end_time: "sample", rate: 1.0
+    setup  "StockWetsuit", wetsuit_id: "sample", brand: "sample", thickness_mm: "sample", size: "sample", price: 1.0, quantity: 1
     setup  "AcceptRepair", repair_id: "sample", board_id: "sample", damage_type: "sample", estimated_cost: 1.0
     expect emits: ["RepairCompleted", "BoardStocked", "LessonScheduled", "GearRented", "LessonConducted", "GearReturned", "RepairAccepted", "WetsuitStocked", "BoardSold"]
   end

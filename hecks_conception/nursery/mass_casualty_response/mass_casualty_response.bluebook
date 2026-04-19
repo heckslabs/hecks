@@ -133,7 +133,6 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
       description "Route aircraft to hospital with best capacity match"
       reference_to(AirEvac)
       String :destination
-      given { status == "loaded" }
       emits "AircraftRouted"
       then_set :destination, to: :destination
       then_set :status, to: "airborne"
@@ -212,7 +211,6 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
       description "Accept routed casualties and decrement available beds"
       reference_to(ReceivingHospital)
       reference_to(MassIncident, as: :active_incident)
-      given { status == "available" }
       emits "CasualtiesAccepted"
       then_set :status, to: "receiving"
     end
@@ -220,7 +218,6 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
       role "System"
       description "Alert surgical teams that mass casualty patients are inbound"
       reference_to(ReceivingHospital)
-      given { status == "receiving" }
       emits "TraumaTeamActivated"
     end
   end

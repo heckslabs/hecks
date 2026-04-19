@@ -24,6 +24,7 @@ Hecks.bluebook "Astronomy" do
       String :body_type
       Float :right_ascension
       Float :declination
+      then_set :coordinates_initialized, to: true
     end
 
     command "UpdateEphemeris" do
@@ -60,7 +61,7 @@ Hecks.bluebook "Astronomy" do
       String :timestamp
       reference_to CelestialBody
       reference_to Telescope
-      given { telescope_calibrated == true }
+      then_set :telescope_calibrated, to: true
     end
 
     command "GradeSeeing" do
@@ -125,6 +126,7 @@ Hecks.bluebook "Astronomy" do
       emits "CatalogEstablished"
       String :name
       String :authority
+      then_set :entry_count, to: 1
     end
 
     command "PublishCatalog" do

@@ -102,7 +102,6 @@ Hecks.bluebook "SpaAndWellness", version: "2026.04.13.1" do
       role "Therapist"
       description "Begin using the room for a treatment session"
       reference_to(SpaRoom)
-      given { status == "ready" }
       emits "RoomOccupied"
       then_set :status, to: "occupied"
     end
@@ -111,7 +110,6 @@ Hecks.bluebook "SpaAndWellness", version: "2026.04.13.1" do
       role "Therapist"
       description "Mark the room as available after the session ends"
       reference_to(SpaRoom)
-      given { status == "occupied" }
       emits "RoomReleased"
       then_set :status, to: "available"
     end
@@ -145,7 +143,6 @@ Hecks.bluebook "SpaAndWellness", version: "2026.04.13.1" do
       description "Ring up a retail product purchase for a guest"
       reference_to(RetailProduct)
       Integer :quantity_sold
-      given { quantity_sold > 0 }
       emits "ProductSold"
     end
   end
@@ -179,7 +176,6 @@ Hecks.bluebook "SpaAndWellness", version: "2026.04.13.1" do
       role "Guest"
       description "Use one session from a purchased package"
       reference_to(WellnessPackage)
-      given { status == "active" }
       String :treatment_name
       emits "SessionRedeemed"
     end

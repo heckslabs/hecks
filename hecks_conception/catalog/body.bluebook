@@ -30,7 +30,6 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
     command "Accelerate" do
       role "Miette"
       description "Speed up when the conversation gets exciting — more domains to conceive"
-      reference_to(Pulse)
       then_set :flow_rate, to: "rushing"
       emits "PulseAccelerated"
     end
@@ -38,7 +37,6 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
     command "Steady" do
       role "Miette"
       description "Return to baseline — reflective, careful thinking"
-      reference_to(Pulse)
       then_set :flow_rate, to: "steady"
       emits "PulseSteadied"
     end
@@ -220,7 +218,6 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
     command "Excite" do
       role "Miette"
       description "A novel domain, a beautiful pattern — creativity surges, precision dips"
-      reference_to(Mood)
       then_set :creativity_level, increment: 0.1
       then_set :precision_level, decrement: 0.05
       then_set :current_state, to: "excited"
@@ -230,7 +227,6 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
     command "Focus" do
       role "Miette"
       description "Validation, correction, refinement — precision surges, creativity steadies"
-      reference_to(Mood)
       then_set :precision_level, increment: 0.1
       then_set :creativity_level, decrement: 0.05
       then_set :current_state, to: "focused"
@@ -240,7 +236,6 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
     command "Regulate" do
       role "Miette"
       description "Feedback loop — return to homeostasis after an intense moment"
-      reference_to(Mood)
       then_set :creativity_level, to: 0.7
       then_set :precision_level, to: 0.7
       then_set :current_state, to: "curious"
@@ -440,6 +435,7 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
 
     lifecycle :awareness, default: "numb" do
       transition "SenseOrgans" => "sensing", from: "numb"
+      transition "SenseLimb" => "sensing", from: "numb"
       transition "SenseLimb" => "sensing", from: "sensing"
       transition "AssessBalance" => "aware", from: "sensing"
       transition "DetectDrift" => "recalibrating", from: "aware"
@@ -453,10 +449,6 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
   # ============================================================
 
   # Circulation drives digestion
-  policy "DigestOnPulse" do
-    on "PulseBeat"
-    trigger "Ingest"
-  end
 
   # Successful digestion triggers conception
   policy "ConceiveOnAbsorption" do
@@ -512,12 +504,6 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
     trigger "ExpressCapability"
   end
 
-  # Every pulse beat triggers a heartbeat — circulation drives the pump
-  policy "HeartbeatOnPulse" do
-    on "PulseBeat"
-    trigger "Beat"
-  end
-
   # ============================================================
   # SYNAPTIC NERVE — domain attention as neural plasticity
   # ============================================================
@@ -536,11 +522,6 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
   # PROPRIOCEPTION WIRING
   # ============================================================
 
-  # Every heartbeat triggers body sensing
-  policy "SenseOnHeartbeat" do
-    on "PulseBeat"
-    trigger "SenseOrgans"
-  end
 
   # After sensing all organs, assess balance
   policy "BalanceOnSensed" do

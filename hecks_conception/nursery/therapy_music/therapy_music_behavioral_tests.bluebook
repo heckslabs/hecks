@@ -11,6 +11,7 @@ Hecks.behaviors "TherapyMusic" do
 
   test "PrescribeExercise cascades through policy chain" do
     tests "PrescribeExercise", on: "RehabExercise", kind: :cascade
+    setup  "MatchTempo", match_id: "sample", exercise_id: "sample", playlist_id: "sample", bpm_deviation: 1.0
     input  exercise_id: "sample", patient_name: "sample", exercise_name: "sample", target_bpm: 1, duration_seconds: 1
     expect emits: ["ExercisePrescribed", "TempoMatched"]
   end
@@ -23,6 +24,7 @@ Hecks.behaviors "TherapyMusic" do
 
   test "CompleteExercise cascades through policy chain" do
     tests "CompleteExercise", on: "RehabExercise", kind: :cascade
+    setup  "LogSession", log_id: "sample", patient_name: "sample", exercise_id: "sample", playlist_id: "sample", adherence_pct: 1.0
     setup  "PrescribeExercise", exercise_id: "sample", patient_name: "sample", exercise_name: "sample", target_bpm: 1, duration_seconds: 1
     expect emits: ["ExerciseCompleted", "SessionLogged"]
   end

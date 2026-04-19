@@ -28,7 +28,6 @@ Hecks.bluebook "Calligraphy" do
     LetterCommission do
       description "Execute the calligraphy lettering on prepared paper"
       reference_to(CalligraphyCommission)
-      given { status == "accepted" }
       emits "CommissionLettered"
       then_set :status, to: "lettered"
     end
@@ -36,7 +35,6 @@ Hecks.bluebook "Calligraphy" do
     DeliverCommission do
       description "Ship or hand off the finished calligraphy piece"
       reference_to(CalligraphyCommission)
-      given { status == "lettered" }
       emits "CommissionDelivered"
       then_set :status, to: "delivered"
     end

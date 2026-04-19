@@ -32,6 +32,7 @@ Hecks.behaviors "EmergencyResponse" do
 
   test "DispatchUnit cascades through policy chain" do
     tests "DispatchUnit", on: "Ambulance", kind: :cascade
+    setup  "CalculateRoute", route_id: "sample", unit_id: "sample", origin_address: "sample", scene_address: "sample", hospital_name: "sample"
     setup  "RegisterUnit", unit_id: "sample", crew_lead: "sample", location_name: "sample"
     expect emits: ["UnitDispatched", "RouteCalculated"]
   end
@@ -76,6 +77,7 @@ Hecks.behaviors "EmergencyResponse" do
 
   test "CompleteHandoff cascades through policy chain" do
     tests "CompleteHandoff", on: "Handoff", kind: :cascade
+    setup  "TriagePatient", case_id: "sample", patient_name: "sample", chief_complaint: "sample", acuity_level: 1
     setup  "InitiateHandoff", handoff_id: "sample", case_id: "sample", unit_id: "sample", receiving_nurse: "sample"
     expect emits: ["HandoffCompleted", "PatientTriaged"]
   end

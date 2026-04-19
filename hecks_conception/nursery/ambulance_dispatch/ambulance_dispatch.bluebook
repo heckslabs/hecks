@@ -44,7 +44,6 @@ Hecks.bluebook "AmbulanceDispatch" do
       role "FleetManager"
       description "Restore a unit to available status after maintenance"
       reference_to(AmbulanceUnit)
-      given { status == "out_of_service" }
       emits "UnitReturnedToService"
       then_set :status, to: "available"
     end
@@ -255,20 +254,6 @@ Hecks.bluebook "AmbulanceDispatch" do
     trigger "MarkOutOfService"
   end
 
-  policy "ArriveAfterDispatch" do
-    on "UnitDispatched"
-    trigger "ArriveOnScene"
-  end
-
-  policy "TransportOnScene" do
-    on "ArrivedOnScene"
-    trigger "TransportPatient"
-  end
-
-  policy "ReturnAfterTransport" do
-    on "PatientTransportStarted"
-    trigger "ReturnToService"
-  end
 
   fixture "AmbulanceUnit", unit_number: "A-101", station: "Downtown Station", equipment_level: "Advanced Life Support", status: "available", mileage: 45230
   fixture "AmbulanceUnit", unit_number: "A-205", station: "Midtown Station", equipment_level: "Basic Life Support", status: "out_of_service", mileage: 82450

@@ -68,7 +68,6 @@ Hecks.bluebook "MovieTheater" do
       reference_to(Showing)
       String :patron_name
       String :seat_number
-      given { available_seats > 0 }
       emits "TicketSold"
     end
 
@@ -188,15 +187,6 @@ Hecks.bluebook "MovieTheater" do
     trigger "CalibrateProjector"
   end
 
-  policy "OpenDoorsOnCalibration" do
-    on "ProjectorCalibrated"
-    trigger "OpenDoors"
-  end
-
-  policy "StartProjectionOnSeating" do
-    on "DoorsOpened"
-    trigger "StartProjection"
-  end
 
   policy "ClearAfterShowing" do
     on "ShowingEnded"

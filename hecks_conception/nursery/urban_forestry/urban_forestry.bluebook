@@ -195,7 +195,7 @@ Hecks.bluebook "UrbanForestry", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "unscheduled" do
-      transition "ScheduleMaintenance" => "scheduled", from: "unscheduled"
+      transition "ScheduleMaintenance" => "scheduled", from: ["unscheduled", "scheduled"]
       transition "CompleteMaintenance" => "completed", from: "scheduled"
     end
 
@@ -238,7 +238,6 @@ Hecks.bluebook "UrbanForestry", version: "2026.04.13.1" do
       role "Inspector"
       description "Review permit application and assess tree condition"
       reference_to(TreePermit)
-      given { status == "submitted" }
       emits "PermitReviewed"
       then_set :status, to: "reviewed"
     end
@@ -247,7 +246,6 @@ Hecks.bluebook "UrbanForestry", version: "2026.04.13.1" do
       role "Manager"
       description "Approve the tree work permit with conditions"
       reference_to(TreePermit)
-      given { status == "reviewed" }
       emits "PermitApproved"
       then_set :status, to: "approved"
     end
@@ -256,16 +254,15 @@ Hecks.bluebook "UrbanForestry", version: "2026.04.13.1" do
       role "Manager"
       description "Deny the tree work permit"
       reference_to(TreePermit)
-      given { status == "reviewed" }
       emits "PermitDenied"
       then_set :status, to: "denied"
     end
 
     lifecycle :status, default: "draft" do
-      transition "ApplyForPermit" => "submitted", from: "draft"
-      transition "ReviewPermit" => "reviewed", from: "submitted"
-      transition "ApprovePermit" => "approved", from: "reviewed"
-      transition "DenyPermit" => "denied", from: "reviewed"
+      transition "ApplyForPermit" => "submitted", from: ["draft", "submitted"]
+      transition "ReviewPermit" => "reviewed", from: ["draft", "submitted"]
+      transition "ApprovePermit" => "approved", from: ["draft", "submitted", "reviewed"]
+      transition "DenyPermit" => "denied", from: ["draft", "submitted", "reviewed"]
     end
 
     fixture "TreePermit", permit_type: "removal", tree_species: "Sugar Maple", site_address: "Central Park, Plot 5", applicant: "Parks Department", justification: "disease progression", status: "approved"

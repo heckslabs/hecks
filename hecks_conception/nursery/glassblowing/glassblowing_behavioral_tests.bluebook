@@ -11,6 +11,9 @@ Hecks.behaviors "Glassblowing" do
 
   test "GatherGlass cascades through policy chain" do
     tests "GatherGlass", on: "GlassPiece", kind: :cascade
+    setup  "LoadAnnealer", hold_temp_f: 1, ramp_rate_per_hour: 1, total_hours: 1
+    setup  "CurateExhibition", title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
+    setup  "StartCycle"
     input  name: "sample", form: "sample", technique: "sample"
     expect emits: ["GlassGathered", "PieceBlown", "TransferredToAnnealer", "AnnealerLoaded", "CycleStarted", "CycleCompleted", "ExhibitionCurated", "ExhibitionOpened"]
   end
@@ -24,6 +27,9 @@ Hecks.behaviors "Glassblowing" do
   test "BlowPiece cascades through policy chain" do
     tests "BlowPiece", on: "GlassPiece", kind: :cascade
     setup  "GatherGlass", name: "sample", form: "sample", technique: "sample"
+    setup  "LoadAnnealer", hold_temp_f: 1, ramp_rate_per_hour: 1, total_hours: 1
+    setup  "CurateExhibition", title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
+    setup  "StartCycle"
     expect emits: ["PieceBlown", "TransferredToAnnealer", "AnnealerLoaded", "CycleStarted", "CycleCompleted", "ExhibitionCurated", "ExhibitionOpened"]
   end
 
@@ -37,6 +43,9 @@ Hecks.behaviors "Glassblowing" do
   test "TransferToAnnealer cascades through policy chain" do
     tests "TransferToAnnealer", on: "GlassPiece", kind: :cascade
     setup  "GatherGlass", name: "sample", form: "sample", technique: "sample"
+    setup  "LoadAnnealer", hold_temp_f: 1, ramp_rate_per_hour: 1, total_hours: 1
+    setup  "CurateExhibition", title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
+    setup  "StartCycle"
     setup  "BlowPiece"
     expect emits: ["TransferredToAnnealer", "AnnealerLoaded", "CycleStarted", "CycleCompleted", "ExhibitionCurated", "ExhibitionOpened"]
   end
@@ -58,6 +67,11 @@ Hecks.behaviors "Glassblowing" do
 
   test "ReachWorkingTemp cascades through policy chain" do
     tests "ReachWorkingTemp", on: "Furnace", kind: :cascade
+    setup  "GatherGlass", name: "sample", form: "sample", technique: "sample"
+    setup  "LoadAnnealer", hold_temp_f: 1, ramp_rate_per_hour: 1, total_hours: 1
+    setup  "CurateExhibition", title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
+    setup  "BlowPiece"
+    setup  "StartCycle"
     setup  "LightFurnace", name: "sample", fuel_type: "sample", capacity_lbs: 1, target_temperature: 1
     expect emits: ["WorkingTempReached", "GlassGathered", "PieceBlown", "TransferredToAnnealer", "AnnealerLoaded", "CycleStarted", "CycleCompleted", "ExhibitionCurated", "ExhibitionOpened"]
   end
@@ -97,6 +111,7 @@ Hecks.behaviors "Glassblowing" do
   test "LoadAnnealer cascades through policy chain" do
     tests "LoadAnnealer", on: "AnnealingCycle", kind: :cascade
     setup  "GatherGlass", name: "sample", form: "sample", technique: "sample"
+    setup  "CurateExhibition", title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
     input  hold_temp_f: 1, ramp_rate_per_hour: 1, total_hours: 1
     expect emits: ["AnnealerLoaded", "CycleStarted", "CycleCompleted", "ExhibitionCurated", "ExhibitionOpened"]
   end
@@ -110,6 +125,7 @@ Hecks.behaviors "Glassblowing" do
   test "StartCycle cascades through policy chain" do
     tests "StartCycle", on: "AnnealingCycle", kind: :cascade
     setup  "LoadAnnealer", hold_temp_f: 1, ramp_rate_per_hour: 1, total_hours: 1
+    setup  "CurateExhibition", title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
     expect emits: ["CycleStarted", "CycleCompleted", "ExhibitionCurated", "ExhibitionOpened"]
   end
 
@@ -123,6 +139,7 @@ Hecks.behaviors "Glassblowing" do
   test "CompleteCycle cascades through policy chain" do
     tests "CompleteCycle", on: "AnnealingCycle", kind: :cascade
     setup  "LoadAnnealer", hold_temp_f: 1, ramp_rate_per_hour: 1, total_hours: 1
+    setup  "CurateExhibition", title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
     setup  "StartCycle"
     expect emits: ["CycleCompleted", "ExhibitionCurated", "ExhibitionOpened"]
   end

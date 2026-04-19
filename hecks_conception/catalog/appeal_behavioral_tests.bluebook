@@ -63,6 +63,8 @@ Hecks.behaviors "Appeal" do
   test "OpenFile cascades through policy chain" do
     tests "OpenFile", on: "Explorer", kind: :cascade
     setup  "OpenProject", path: "sample"
+    setup  "OpenPanel", panel_name: "sample"
+    setup  "GenerateDiagram", view_type: "sample", path: "sample", domain: "sample"
     input  path: "sample", domain: "sample"
     expect emits: ["FileOpened", "TabSelected", "DiagramGenerated"]
   end
@@ -763,6 +765,7 @@ Hecks.behaviors "Appeal" do
 
   test "SelectTab cascades through policy chain" do
     tests "SelectTab", on: "Layout", kind: :cascade
+    setup  "GenerateDiagram", view_type: "sample", path: "sample", domain: "sample"
     input  tab_name: "sample"
     expect emits: ["TabSelected", "DiagramGenerated"]
   end

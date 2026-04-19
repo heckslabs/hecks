@@ -128,7 +128,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
       transition "RegisterSegment" => "online", from: "offline"
       transition "RerouteGrid" => "rerouted", from: "online"
       transition "FailSegment" => "failed", from: "online"
-      transition "RestoreSegment" => "online", from: "rerouted"
+      transition "RestoreSegment" => "online", from: "online"
     end
   end
 
@@ -249,7 +249,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "standby" do
-      transition "ActivateEmergencyProtocol" => "active", from: "standby"
+      transition "ActivateEmergencyProtocol" => "active", from: ["standby", "active", "completed"]
       transition "CompleteProtocol" => "completed", from: "active"
     end
   end
@@ -302,7 +302,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "dormant" do
-      transition "StartCascade" => "cascading", from: "dormant"
+      transition "StartCascade" => "cascading", from: ["dormant", "cascading", "contained"]
       transition "ContainCascade" => "contained", from: "cascading"
     end
   end
@@ -356,7 +356,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "pending" do
-      transition "DraftRecoveryPlan" => "created", from: "pending"
+      transition "DraftRecoveryPlan" => "created", from: ["pending", "created", "executing", "completed"]
       transition "ExecuteRecovery" => "executing", from: "created"
       transition "CompleteRecovery" => "completed", from: "executing"
     end

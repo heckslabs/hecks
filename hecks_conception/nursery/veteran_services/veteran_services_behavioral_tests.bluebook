@@ -11,6 +11,8 @@ Hecks.behaviors "VeteranServices" do
 
   test "RegisterVeteran cascades through policy chain" do
     tests "RegisterVeteran", on: "Veteran", kind: :cascade
+    setup  "HireCounselor", name: "sample", specialty: "sample", license_number: "sample"
+    setup  "FileClaim", veteran_name: "sample", benefit_type: "sample", filing_date: "sample", description: "sample"
     input  name: "sample", service_branch: "sample", discharge_status: "sample", service_dates: "sample", disability_rating: "sample"
     expect emits: ["VeteranRegistered", "VeteranAssigned", "ClaimFiled", "EvidenceSubmitted"]
   end
@@ -54,6 +56,8 @@ Hecks.behaviors "VeteranServices" do
 
   test "ApproveClaim cascades through policy chain" do
     tests "ApproveClaim", on: "BenefitClaim", kind: :cascade
+    setup  "LaunchProgram", program_name: "sample", program_type: "sample", eligibility_criteria: "sample", capacity: 1
+    setup  "RegisterVeteran", name: "sample", service_branch: "sample", discharge_status: "sample", service_dates: "sample", disability_rating: "sample"
     setup  "FileClaim", veteran_name: "sample", benefit_type: "sample", filing_date: "sample", description: "sample"
     expect emits: ["ClaimApproved", "VeteranEnrolled", "SessionConducted", "DisabilityRatingRecorded"]
   end
@@ -147,6 +151,7 @@ Hecks.behaviors "VeteranServices" do
   test "ResolveCrisis cascades through policy chain" do
     tests "ResolveCrisis", on: "CrisisIntervention", kind: :cascade
     setup  "ReportCrisis", veteran_name: "sample", crisis_type: "sample", reported_date: "sample"
+    setup  "HireCounselor", name: "sample", specialty: "sample", license_number: "sample"
     input  resolution: "sample"
     expect emits: ["CrisisResolved", "VeteranAssigned"]
   end

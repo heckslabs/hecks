@@ -178,7 +178,7 @@ Hecks.bluebook "AutonomousRescue", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "standby" do
-      transition "DeploySupplyBot" => "en_route", from: "standby"
+      transition "DeploySupplyBot" => "en_route", from: ["standby", "en_route"]
       transition "DeliverSupplies" => "delivered", from: "en_route"
       transition "ReportBotBatteryLow" => "returning", from: "en_route"
       transition "ReturnToBase" => "at_base", from: "returning"
@@ -231,7 +231,7 @@ Hecks.bluebook "AutonomousRescue", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "pending" do
-      transition "MarkBeacon" => "active", from: "pending"
+      transition "MarkBeacon" => "active", from: ["pending", "active"]
       transition "ConfirmSurvivor" => "confirmed", from: "active"
       transition "ExtractSurvivor" => "extracted", from: "confirmed"
     end

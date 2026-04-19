@@ -26,6 +26,8 @@ Hecks.behaviors "Optician" do
 
   test "GrindLens cascades through policy chain" do
     tests "GrindLens", on: "Lens", kind: :cascade
+    setup  "PerformFitting", fitting_id: "sample", patient_name: "sample", frame_id: "sample"
+    setup  "SubmitClaim", claim_id: "sample", patient_name: "sample", insurance_provider: "sample", amount_claimed: 1.0
     input  lens_id: "sample", lens_type: "sample", material: "sample", coating: "sample", sphere: 1.0, cylinder: 1.0, axis: 1, price: 1.0
     expect emits: ["LensGround", "CoatingApplied", "FittingPerformed", "SatisfactionRecorded", "ClaimSubmitted", "ClaimResolved"]
   end
@@ -40,6 +42,8 @@ Hecks.behaviors "Optician" do
   test "ApplyCoating cascades through policy chain" do
     tests "ApplyCoating", on: "Lens", kind: :cascade
     setup  "GrindLens", lens_id: "sample", lens_type: "sample", material: "sample", coating: "sample", sphere: 1.0, cylinder: 1.0, axis: 1, price: 1.0
+    setup  "PerformFitting", fitting_id: "sample", patient_name: "sample", frame_id: "sample"
+    setup  "SubmitClaim", claim_id: "sample", patient_name: "sample", insurance_provider: "sample", amount_claimed: 1.0
     input  coating: "sample"
     expect emits: ["CoatingApplied", "FittingPerformed", "SatisfactionRecorded", "ClaimSubmitted", "ClaimResolved"]
   end
@@ -55,6 +59,9 @@ Hecks.behaviors "Optician" do
 
   test "RecordPrescription cascades through policy chain" do
     tests "RecordPrescription", on: "Prescription", kind: :cascade
+    setup  "GrindLens", lens_id: "sample", lens_type: "sample", material: "sample", coating: "sample", sphere: 1.0, cylinder: 1.0, axis: 1, price: 1.0
+    setup  "PerformFitting", fitting_id: "sample", patient_name: "sample", frame_id: "sample"
+    setup  "SubmitClaim", claim_id: "sample", patient_name: "sample", insurance_provider: "sample", amount_claimed: 1.0
     input  prescription_id: "sample", patient_name: "sample", doctor_name: "sample", issue_date: "sample", expiration_date: "sample", right_sphere: 1.0, left_sphere: 1.0
     expect emits: ["PrescriptionRecorded", "LensGround", "CoatingApplied", "FittingPerformed", "SatisfactionRecorded", "ClaimSubmitted", "ClaimResolved"]
   end
@@ -76,6 +83,7 @@ Hecks.behaviors "Optician" do
 
   test "PerformFitting cascades through policy chain" do
     tests "PerformFitting", on: "Fitting", kind: :cascade
+    setup  "SubmitClaim", claim_id: "sample", patient_name: "sample", insurance_provider: "sample", amount_claimed: 1.0
     input  fitting_id: "sample", patient_name: "sample", frame_id: "sample"
     expect emits: ["FittingPerformed", "SatisfactionRecorded", "ClaimSubmitted", "ClaimResolved"]
   end
@@ -90,6 +98,7 @@ Hecks.behaviors "Optician" do
   test "RecordSatisfaction cascades through policy chain" do
     tests "RecordSatisfaction", on: "Fitting", kind: :cascade
     setup  "PerformFitting", fitting_id: "sample", patient_name: "sample", frame_id: "sample"
+    setup  "SubmitClaim", claim_id: "sample", patient_name: "sample", insurance_provider: "sample", amount_claimed: 1.0
     input  satisfaction: "sample"
     expect emits: ["SatisfactionRecorded", "ClaimSubmitted", "ClaimResolved"]
   end

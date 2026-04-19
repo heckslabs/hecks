@@ -243,11 +243,6 @@ Hecks.bluebook "DentalPractice" do
     trigger "ScheduleVisit"
   end
 
-  policy "PerformProcedureOnTreatmentPlanned" do
-    on "TreatmentPlanned"
-    trigger "PerformProcedure"
-  end
-
   policy "ProcessPaymentOnClaimSubmitted" do
     on "ClaimSubmitted"
     trigger "ProcessPayment"

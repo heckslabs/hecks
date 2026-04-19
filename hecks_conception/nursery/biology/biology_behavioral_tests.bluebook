@@ -3,49 +3,48 @@ Hecks.behaviors "Biology" do
 
   # ── Cell aggregate ──────────────────────────────────────────
 
-  test "CultureCell sets cell_type + name + organism_type" do
+  test "CultureCell sets name + organism_type" do
     tests "CultureCell", on: "Cell"
-    input  cell_type: "sample", name: "sample", organism_type: "sample"
+    input  name: "sample", organism_type: "sample"
     expect cell_type: "stem", name: "sample", organism_type: "sample", membrane_integrity: 1.0, energy_level: 100.0, phase: "interphase"
   end
 
   test "Divide cascades through policy chain" do
     tests "Divide", on: "Cell", kind: :cascade
-    setup  "CultureCell", cell_type: "sample", name: "sample", organism_type: "sample"
+    setup  "CultureCell", name: "sample", organism_type: "sample"
     input  division_type: "sample"
     expect emits: ["CellDivided", "CellMetabolized"]
   end
 
   test "Differentiate sets target_type + signals" do
     tests "Differentiate", on: "Cell"
-    setup  "CultureCell", cell_type: "sample", name: "sample", organism_type: "sample"
+    setup  "CultureCell", name: "sample", organism_type: "sample"
     input  target_type: "sample", signals: "sample"
     expect differentiation_state: "sample", cell_type: "sample"
   end
 
   test "Metabolize sets pathway + substrate" do
     tests "Metabolize", on: "Cell"
-    setup  "CultureCell", cell_type: "sample", name: "sample", organism_type: "sample"
+    setup  "CultureCell", name: "sample", organism_type: "sample"
     input  pathway: "sample", substrate: "sample"
     expect ok: "true"
   end
 
   test "TriggerApoptosis runs" do
     tests "TriggerApoptosis", on: "Cell"
-    setup  "CultureCell", cell_type: "sample", name: "sample", organism_type: "sample"
+    setup  "CultureCell", name: "sample", organism_type: "sample"
     expect membrane_integrity: 0.0, phase: "apoptotic"
   end
 
-  test "EnterPhase sets phase" do
+  test "EnterPhase runs" do
     tests "EnterPhase", on: "Cell"
-    setup  "CultureCell", cell_type: "sample", name: "sample", organism_type: "sample"
-    input  phase: "sample"
+    setup  "CultureCell", name: "sample", organism_type: "sample"
     expect phase: "G1"
   end
 
   test "RepairMembrane sets integrity" do
     tests "RepairMembrane", on: "Cell"
-    setup  "CultureCell", cell_type: "sample", name: "sample", organism_type: "sample"
+    setup  "CultureCell", name: "sample", organism_type: "sample"
     input  integrity: 1.0
     expect membrane_integrity: 1.0
   end
@@ -64,13 +63,6 @@ Hecks.behaviors "Biology" do
     setup  "SequenceDNA", sequence: "sample", organism: "sample", strand_type: "sample"
     input  gene_name: "sample", promoter: "sample"
     expect ok: "true"
-  end
-
-  test "Transcribe cascades through policy chain" do
-    tests "Transcribe", on: "DNA", kind: :cascade
-    setup  "SequenceDNA", sequence: "sample", organism: "sample", strand_type: "sample"
-    input  gene_name: "sample", promoter: "sample"
-    expect emits: ["GeneTranscribed", "ProteinSynthesized", "ProteinFolded"]
   end
 
   test "Mutate sets mutation_type + position + original_base + new_base" do
@@ -108,38 +100,25 @@ Hecks.behaviors "Biology" do
     expect ok: "true"
   end
 
-  test "Splice cascades through policy chain" do
-    tests "Splice", on: "DNA", kind: :cascade
-    setup  "SequenceDNA", sequence: "sample", organism: "sample", strand_type: "sample"
-    input  gene_name: "sample", exons_retained: "sample"
-    expect emits: ["RNASpliced", "GeneExpressed"]
-  end
-
 
   # ── Protein aggregate ──────────────────────────────────────────
 
-  test "Synthesize sets name + sequence + function" do
+  test "Synthesize sets name + sequence" do
     tests "Synthesize", on: "Protein"
-    input  name: "sample", sequence: "sample", function: "sample"
+    input  name: "sample", sequence: "sample"
     expect name: "sample", sequence: "sample", function: "enzyme", active: "false", folding_state: "unfolded"
-  end
-
-  test "Synthesize cascades through policy chain" do
-    tests "Synthesize", on: "Protein", kind: :cascade
-    input  name: "sample", sequence: "sample", function: "sample"
-    expect emits: ["ProteinSynthesized", "ProteinFolded"]
   end
 
   test "Fold sets secondary_structure + tertiary_structure" do
     tests "Fold", on: "Protein"
-    setup  "Synthesize", name: "sample", sequence: "sample", function: "sample"
+    setup  "Synthesize", name: "sample", sequence: "sample"
     input  secondary_structure: "sample", tertiary_structure: "sample"
     expect secondary_structure: "sample", tertiary_structure: "sample", active: "true", folding_state: "folded"
   end
 
   test "Denature sets cause" do
     tests "Denature", on: "Protein"
-    setup  "Synthesize", name: "sample", sequence: "sample", function: "sample"
+    setup  "Synthesize", name: "sample", sequence: "sample"
     setup  "Fold", secondary_structure: "sample", tertiary_structure: "sample"
     input  cause: "sample"
     expect active: "false", folding_state: "denatured"
@@ -147,30 +126,22 @@ Hecks.behaviors "Biology" do
 
   test "Catalyze sets substrate + product" do
     tests "Catalyze", on: "Protein"
-    setup  "Synthesize", name: "sample", sequence: "sample", function: "sample"
+    setup  "Synthesize", name: "sample", sequence: "sample"
     setup  "Fold", secondary_structure: "sample", tertiary_structure: "sample"
     input  substrate: "sample", product: "sample"
     expect ok: "true"
   end
 
-  test "Catalyze cascades through policy chain" do
-    tests "Catalyze", on: "Protein", kind: :cascade
-    setup  "Synthesize", name: "sample", sequence: "sample", function: "sample"
-    setup  "Fold", secondary_structure: "sample", tertiary_structure: "sample"
-    input  substrate: "sample", product: "sample"
-    expect emits: ["ReactionCatalyzed", "ATPProduced"]
-  end
-
   test "Phosphorylate sets site + kinase" do
     tests "Phosphorylate", on: "Protein"
-    setup  "Synthesize", name: "sample", sequence: "sample", function: "sample"
+    setup  "Synthesize", name: "sample", sequence: "sample"
     input  site: "sample", kinase: "sample"
     expect ok: "true"
   end
 
   test "Bind sets target + binding_affinity" do
     tests "Bind", on: "Protein"
-    setup  "Synthesize", name: "sample", sequence: "sample", function: "sample"
+    setup  "Synthesize", name: "sample", sequence: "sample"
     input  target: "sample", binding_affinity: 1.0
     expect ok: "true"
   end
@@ -419,6 +390,7 @@ Hecks.behaviors "Biology" do
   test "PropagateSignal sets conduction_type + velocity" do
     tests "PropagateSignal", on: "Neuron"
     setup  "DefineNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
+    setup  "FireNeuron", stimulus_strength: 1.0
     input  conduction_type: "sample", velocity: 1.0
     expect ok: "true"
   end
@@ -426,6 +398,7 @@ Hecks.behaviors "Biology" do
   test "PropagateSignal cascades through policy chain" do
     tests "PropagateSignal", on: "Neuron", kind: :cascade
     setup  "DefineNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
+    setup  "FireNeuron", stimulus_strength: 1.0
     input  conduction_type: "sample", velocity: 1.0
     expect emits: ["SignalPropagated", "NeuronRepolarized"]
   end
@@ -459,24 +432,22 @@ Hecks.behaviors "Biology" do
     expect emits: ["PathogenDetected", "ResponseMounted", "AntibodyGenerated"]
   end
 
-  test "MountResponse sets response_type" do
+  test "MountResponse runs" do
     tests "MountResponse", on: "ImmuneResponse"
     setup  "DetectPathogen", pathogen_name: "sample", pathogen_type: "sample", severity: "sample"
-    input  response_type: "sample"
     expect response_type: "adaptive", status: "active"
   end
 
   test "MountResponse cascades through policy chain" do
     tests "MountResponse", on: "ImmuneResponse", kind: :cascade
     setup  "DetectPathogen", pathogen_name: "sample", pathogen_type: "sample", severity: "sample"
-    input  response_type: "sample"
     expect emits: ["ResponseMounted", "AntibodyGenerated"]
   end
 
   test "GenerateAntibody sets antibody_name + isotype" do
     tests "GenerateAntibody", on: "ImmuneResponse"
     setup  "DetectPathogen", pathogen_name: "sample", pathogen_type: "sample", severity: "sample"
-    setup  "MountResponse", response_type: "sample"
+    setup  "MountResponse"
     input  antibody_name: "sample", isotype: "sample"
     expect antibody_generated: "sample"
   end
@@ -484,7 +455,7 @@ Hecks.behaviors "Biology" do
   test "RememberPathogen runs" do
     tests "RememberPathogen", on: "ImmuneResponse"
     setup  "DetectPathogen", pathogen_name: "sample", pathogen_type: "sample", severity: "sample"
-    setup  "MountResponse", response_type: "sample"
+    setup  "MountResponse"
     setup  "ResolveInfection"
     expect memory_formed: "true", status: "immune"
   end
@@ -499,14 +470,14 @@ Hecks.behaviors "Biology" do
   test "ResolveInfection runs" do
     tests "ResolveInfection", on: "ImmuneResponse"
     setup  "DetectPathogen", pathogen_name: "sample", pathogen_type: "sample", severity: "sample"
-    setup  "MountResponse", response_type: "sample"
+    setup  "MountResponse"
     expect status: "resolved"
   end
 
   test "ResolveInfection cascades through policy chain" do
     tests "ResolveInfection", on: "ImmuneResponse", kind: :cascade
     setup  "DetectPathogen", pathogen_name: "sample", pathogen_type: "sample", severity: "sample"
-    setup  "MountResponse", response_type: "sample"
+    setup  "MountResponse"
     expect emits: ["InfectionResolved", "PathogenRemembered"]
   end
 

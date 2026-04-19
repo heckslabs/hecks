@@ -47,7 +47,6 @@ Hecks.bluebook "AquariumOperations" do
     QuarantineTank do
       description "Isolate a tank due to disease or water quality emergency"
       reference_to(Tank)
-      given { status == "active" }
       emits "TankQuarantined"
       then_set :status, to: "quarantined"
     end

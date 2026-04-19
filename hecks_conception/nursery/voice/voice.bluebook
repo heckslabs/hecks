@@ -32,7 +32,7 @@ Hecks.bluebook "Voice", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "silent" do
-      transition "StartListening" => "listening", from: "silent"
+      transition "StartListening" => "listening", from: ["silent", "listening"]
       transition "StopListening" => "silent", from: "listening"
     end
   end

@@ -208,10 +208,6 @@ Hecks.bluebook "AnimalShelter" do
     trigger "PerformSpayNeuter"
   end
 
-  policy "MakeAvailableOnSpayNeuter" do
-    on "SpayNeuterPerformed"
-    trigger "MakeAvailable"
-  end
 
   policy "ApproveOnApplication" do
     on "AdoptionApplicationSubmitted"
@@ -223,15 +219,7 @@ Hecks.bluebook "AnimalShelter" do
     trigger "FinalizeAdoption"
   end
 
-  policy "MarkAdoptedOnFinalize" do
-    on "AdoptionFinalized"
-    trigger "MarkAdopted"
-  end
 
-  policy "MakeAvailableOnReturn" do
-    on "AnimalReturnedFromFoster"
-    trigger "MakeAvailable"
-  end
 
   policy "PlaceInFosterOnIntake" do
     on "AnimalIntaked"

@@ -17,6 +17,7 @@ pub struct Repository {
     next_id: u64,
     aggregate_type: String,
     data_dir: Option<String>,
+    singleton_id: Option<String>,
 }
 
 impl Repository {
@@ -26,6 +27,7 @@ impl Repository {
             next_id: 1,
             aggregate_type: aggregate_type.to_string(),
             data_dir,
+            singleton_id: None,
         };
         repo.load_persisted();
         repo
@@ -48,6 +50,10 @@ impl Repository {
                 if key != "id" && key != "created_at" && key != "updated_at" {
                     state.set(key, from_json(val));
                 }
+            }
+            // Heki stores are singletons — remember the existing ID
+            if self.singleton_id.is_none() {
+                self.singleton_id = Some(id.clone());
             }
             self.store.insert(id, state);
         }

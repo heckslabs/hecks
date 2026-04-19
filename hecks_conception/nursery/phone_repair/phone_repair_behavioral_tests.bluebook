@@ -11,8 +11,10 @@ Hecks.behaviors "PhoneRepair" do
 
   test "RegisterDevice cascades through policy chain" do
     tests "RegisterDevice", on: "Device", kind: :cascade
+    setup  "OpenTicket", ticket_id: "sample", device_id: "sample", issue_description: "sample", estimated_cost: 1.0, priority: "sample"
+    setup  "OrderPart", part_number: "sample", name: "sample", compatible_models: "sample", cost: 1.0, quantity_in_stock: 1
     input  device_id: "sample", make: "sample", model: "sample", serial_number: "sample", owner_name: "sample"
-    expect emits: ["DeviceRegistered", "DeviceDiagnosed", "TicketOpened", "PartOrdered", "RepairStarted", "TicketClosed", "WarrantyIssued", "PartUsed"]
+    expect emits: ["DeviceRegistered", "DeviceDiagnosed", "TicketOpened", "PartOrdered"]
   end
 
   test "DiagnoseDevice runs" do
@@ -24,7 +26,9 @@ Hecks.behaviors "PhoneRepair" do
   test "DiagnoseDevice cascades through policy chain" do
     tests "DiagnoseDevice", on: "Device", kind: :cascade
     setup  "RegisterDevice", device_id: "sample", make: "sample", model: "sample", serial_number: "sample", owner_name: "sample"
-    expect emits: ["DeviceDiagnosed", "TicketOpened", "PartOrdered", "RepairStarted", "TicketClosed", "WarrantyIssued", "PartUsed"]
+    setup  "OpenTicket", ticket_id: "sample", device_id: "sample", issue_description: "sample", estimated_cost: 1.0, priority: "sample"
+    setup  "OrderPart", part_number: "sample", name: "sample", compatible_models: "sample", cost: 1.0, quantity_in_stock: 1
+    expect emits: ["DeviceDiagnosed", "TicketOpened", "PartOrdered"]
   end
 
 
@@ -38,8 +42,9 @@ Hecks.behaviors "PhoneRepair" do
 
   test "OpenTicket cascades through policy chain" do
     tests "OpenTicket", on: "RepairTicket", kind: :cascade
+    setup  "OrderPart", part_number: "sample", name: "sample", compatible_models: "sample", cost: 1.0, quantity_in_stock: 1
     input  ticket_id: "sample", device_id: "sample", issue_description: "sample", estimated_cost: 1.0, priority: "sample"
-    expect emits: ["TicketOpened", "PartOrdered", "RepairStarted", "TicketClosed", "WarrantyIssued", "PartUsed"]
+    expect emits: ["TicketOpened", "PartOrdered"]
   end
 
   test "BeginRepair runs" do
@@ -50,8 +55,9 @@ Hecks.behaviors "PhoneRepair" do
 
   test "BeginRepair cascades through policy chain" do
     tests "BeginRepair", on: "RepairTicket", kind: :cascade
+    setup  "IssueWarranty", warranty_id: "sample", ticket_id: "sample", duration_days: 1, expiration_date: "sample"
     setup  "OpenTicket", ticket_id: "sample", device_id: "sample", issue_description: "sample", estimated_cost: 1.0, priority: "sample"
-    expect emits: ["RepairStarted", "TicketClosed", "WarrantyIssued", "PartUsed"]
+    expect emits: ["RepairStarted", "TicketClosed", "WarrantyIssued"]
   end
 
   test "CloseTicket runs" do
@@ -63,6 +69,7 @@ Hecks.behaviors "PhoneRepair" do
 
   test "CloseTicket cascades through policy chain" do
     tests "CloseTicket", on: "RepairTicket", kind: :cascade
+    setup  "IssueWarranty", warranty_id: "sample", ticket_id: "sample", duration_days: 1, expiration_date: "sample"
     setup  "OpenTicket", ticket_id: "sample", device_id: "sample", issue_description: "sample", estimated_cost: 1.0, priority: "sample"
     setup  "BeginRepair"
     expect emits: ["TicketClosed", "WarrantyIssued"]
@@ -75,12 +82,6 @@ Hecks.behaviors "PhoneRepair" do
     tests "OrderPart", on: "Part"
     input  part_number: "sample", name: "sample", compatible_models: "sample", cost: 1.0, quantity_in_stock: 1
     expect part_number: "sample", name: "sample", compatible_models: "sample", cost: 1.0, quantity_in_stock: 1
-  end
-
-  test "OrderPart cascades through policy chain" do
-    tests "OrderPart", on: "Part", kind: :cascade
-    input  part_number: "sample", name: "sample", compatible_models: "sample", cost: 1.0, quantity_in_stock: 1
-    expect emits: ["PartOrdered", "RepairStarted", "TicketClosed", "WarrantyIssued", "PartUsed"]
   end
 
   test "UsePart sets quantity_used" do
@@ -107,8 +108,10 @@ Hecks.behaviors "PhoneRepair" do
 
   test "ClaimWarranty cascades through policy chain" do
     tests "ClaimWarranty", on: "RepairWarranty", kind: :cascade
+    setup  "OpenTicket", ticket_id: "sample", device_id: "sample", issue_description: "sample", estimated_cost: 1.0, priority: "sample"
+    setup  "OrderPart", part_number: "sample", name: "sample", compatible_models: "sample", cost: 1.0, quantity_in_stock: 1
     setup  "IssueWarranty", warranty_id: "sample", ticket_id: "sample", duration_days: 1, expiration_date: "sample"
-    expect emits: ["WarrantyClaimed", "TicketOpened", "PartOrdered", "RepairStarted", "TicketClosed", "WarrantyIssued", "PartUsed"]
+    expect emits: ["WarrantyClaimed", "TicketOpened", "PartOrdered"]
   end
 
 end

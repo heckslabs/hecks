@@ -79,6 +79,7 @@ Hecks.behaviors "SupplyChain" do
   test "AcceptMaterial cascades through policy chain" do
     tests "AcceptMaterial", on: "RawMaterial", kind: :cascade
     setup  "SourceMaterial", chemical_name: "sample", cas_number: "sample", supplier: "sample", grade: "sample", unit_cost: 1.0, unit: "sample"
+    setup  "TrackInboundLot", lot_number: "sample", material_name: "sample", supplier: "sample", received_date: "sample"
     setup  "ReceiveMaterial", lot_number: "sample"
     setup  "InspectMaterial"
     input  coa_on_file: "sample"

@@ -17,6 +17,7 @@ Hecks.behaviors "ReliefLogistics" do
 
   test "ApproveRequest cascades through policy chain" do
     tests "ApproveRequest", on: "SupplyRequest", kind: :cascade
+    setup  "LoadContainer", container_id: "sample", request_id: "sample", origin_port: "sample", dest_port: "sample", weight_tons: 1.0
     setup  "SubmitRequest", request_id: "sample", disaster_type: "sample", location_name: "sample", urgency: "sample"
     expect emits: ["RequestApproved", "ContainerLoaded"]
   end
@@ -45,6 +46,7 @@ Hecks.behaviors "ReliefLogistics" do
 
   test "ReceiveContainer cascades through policy chain" do
     tests "ReceiveContainer", on: "ShippingContainer", kind: :cascade
+    setup  "FileClearance", clearance_id: "sample", container_id: "sample", country: "sample"
     setup  "LoadContainer", container_id: "sample", request_id: "sample", origin_port: "sample", dest_port: "sample", weight_tons: 1.0
     setup  "ShipContainer"
     expect emits: ["ContainerReceived", "ClearanceFiled"]
@@ -67,6 +69,7 @@ Hecks.behaviors "ReliefLogistics" do
 
   test "GrantClearance cascades through policy chain" do
     tests "GrantClearance", on: "CustomsClearance", kind: :cascade
+    setup  "PlanDistribution", distribution_id: "sample", container_id: "sample", site_name: "sample"
     setup  "FileClearance", clearance_id: "sample", container_id: "sample", country: "sample"
     expect emits: ["ClearanceGranted", "DistributionPlanned"]
   end

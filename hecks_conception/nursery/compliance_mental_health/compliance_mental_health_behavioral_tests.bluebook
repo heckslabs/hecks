@@ -24,6 +24,7 @@ Hecks.behaviors "ComplianceMentalHealth" do
 
   test "DischargePatient cascades through policy chain" do
     tests "DischargePatient", on: "Patient", kind: :cascade
+    setup  "DraftTreatmentPlan", diagnosis_code: "sample", primary_goal: "sample"
     setup  "RegisterPatient", mrn: "sample", full_name: "sample"
     expect emits: ["PatientDischarged", "TreatmentPlanReviewed"]
   end
@@ -54,7 +55,6 @@ Hecks.behaviors "ComplianceMentalHealth" do
   test "ReviewTreatmentPlan sets updated_goal" do
     tests "ReviewTreatmentPlan", on: "TreatmentPlan"
     setup  "DraftTreatmentPlan", diagnosis_code: "sample", primary_goal: "sample"
-    setup  "ApproveTreatmentPlan"
     input  updated_goal: "sample"
     expect primary_goal: "sample"
   end
@@ -72,6 +72,7 @@ Hecks.behaviors "ComplianceMentalHealth" do
   test "RecordSessionNote cascades through policy chain" do
     tests "RecordSessionNote", on: "SessionNote", kind: :cascade
     setup  "RegisterPatient", mrn: "sample", full_name: "sample"
+    setup  "SubmitClaim", billed_amount: 1.0
     input  content_summary: "sample", clinician_name: "sample"
     expect emits: ["SessionNoteRecorded", "SessionNoteCosigned", "ClaimSubmitted"]
   end
@@ -85,6 +86,8 @@ Hecks.behaviors "ComplianceMentalHealth" do
 
   test "CosignSessionNote cascades through policy chain" do
     tests "CosignSessionNote", on: "SessionNote", kind: :cascade
+    setup  "SubmitClaim", billed_amount: 1.0
+    setup  "RegisterPatient", mrn: "sample", full_name: "sample"
     setup  "RecordSessionNote", content_summary: "sample", clinician_name: "sample"
     input  cosigner_name: "sample"
     expect emits: ["SessionNoteCosigned", "ClaimSubmitted"]
@@ -100,6 +103,7 @@ Hecks.behaviors "ComplianceMentalHealth" do
 
   test "AmendSessionNote cascades through policy chain" do
     tests "AmendSessionNote", on: "SessionNote", kind: :cascade
+    setup  "RegisterPatient", mrn: "sample", full_name: "sample"
     setup  "RecordSessionNote", content_summary: "sample", clinician_name: "sample"
     setup  "CosignSessionNote", cosigner_name: "sample"
     input  amendment_text: "sample"

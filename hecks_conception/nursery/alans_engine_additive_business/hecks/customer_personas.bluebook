@@ -113,10 +113,8 @@ Hecks.bluebook "CustomerPersonas", version: "2026.04.11.1" do
       role "Owner"
       description "Map the buying journey for a persona"
       String :persona_name
-      String :stage
       emits "JourneyMapped"
       then_set :persona_name, to: :persona_name
-      then_set :stage, to: :stage
     end
 
     AddTouchpoint do
@@ -154,11 +152,6 @@ Hecks.bluebook "CustomerPersonas", version: "2026.04.11.1" do
     end
 
     lifecycle :stage, default: "unaware" do
-      transition "MapJourney" => "aware", from: "unaware"
-      transition "MapJourney" => "considering", from: "aware"
-      transition "MapJourney" => "purchasing", from: "considering"
-      transition "MapJourney" => "using", from: "purchasing"
-      transition "MapJourney" => "advocating", from: "using"
     end
   end
 

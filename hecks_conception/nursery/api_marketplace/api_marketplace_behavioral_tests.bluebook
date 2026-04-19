@@ -34,6 +34,9 @@ Hecks.behaviors "APIMarketplace" do
 
   test "RegisterConsumer cascades through policy chain" do
     tests "RegisterConsumer", on: "Consumer", kind: :cascade
+    setup  "IssueKey", key_id: "sample", label: "sample", scope: "sample", expires_at: "sample"
+    setup  "DefineRateLimit", policy_name: "sample", requests_per_minute: 1, requests_per_day: 1, burst_limit: 1
+    setup  "PublishAPI", api_name: "sample", version: "sample", description: "sample", base_url: "sample", auth_method: "sample"
     input  consumer_name: "sample", email: "sample", organization: "sample", plan: "sample"
     expect emits: ["ConsumerRegistered", "KeyIssued", "ConsumerSubscribed", "RateLimitDefined", "KeyRotated"]
   end
@@ -48,6 +51,9 @@ Hecks.behaviors "APIMarketplace" do
   test "SubscribeToAPI cascades through policy chain" do
     tests "SubscribeToAPI", on: "Consumer", kind: :cascade
     setup  "RegisterConsumer", consumer_name: "sample", email: "sample", organization: "sample", plan: "sample"
+    setup  "DefineRateLimit", policy_name: "sample", requests_per_minute: 1, requests_per_day: 1, burst_limit: 1
+    setup  "PublishAPI", api_name: "sample", version: "sample", description: "sample", base_url: "sample", auth_method: "sample"
+    setup  "IssueKey", key_id: "sample", label: "sample", scope: "sample", expires_at: "sample"
     input  api_name: "sample", tier: "sample"
     expect emits: ["ConsumerSubscribed", "RateLimitDefined", "KeyRotated"]
   end
@@ -60,6 +66,7 @@ Hecks.behaviors "APIMarketplace" do
 
   test "SuspendConsumer cascades through policy chain" do
     tests "SuspendConsumer", on: "Consumer", kind: :cascade
+    setup  "IssueKey", key_id: "sample", label: "sample", scope: "sample", expires_at: "sample"
     setup  "RegisterConsumer", consumer_name: "sample", email: "sample", organization: "sample", plan: "sample"
     expect emits: ["ConsumerSuspended", "KeyRevoked"]
   end
@@ -113,6 +120,9 @@ Hecks.behaviors "APIMarketplace" do
   test "EnforceThrottle cascades through policy chain" do
     tests "EnforceThrottle", on: "RateLimitPolicy", kind: :cascade
     setup  "DefineRateLimit", policy_name: "sample", requests_per_minute: 1, requests_per_day: 1, burst_limit: 1
+    setup  "GenerateBill", bill_id: "sample", amount: 1.0, total_calls: 1, billing_period: "sample"
+    setup  "RegisterConsumer", consumer_name: "sample", email: "sample", organization: "sample", plan: "sample"
+    setup  "IssueKey", key_id: "sample", label: "sample", scope: "sample", expires_at: "sample"
     input  consumer_id: "sample"
     expect emits: ["ConsumerThrottled", "BillGenerated", "PaymentCollected", "ConsumerSuspended", "KeyRevoked"]
   end
@@ -130,6 +140,7 @@ Hecks.behaviors "APIMarketplace" do
   test "GenerateBill cascades through policy chain" do
     tests "GenerateBill", on: "UsageBill", kind: :cascade
     setup  "RegisterConsumer", consumer_name: "sample", email: "sample", organization: "sample", plan: "sample"
+    setup  "IssueKey", key_id: "sample", label: "sample", scope: "sample", expires_at: "sample"
     input  bill_id: "sample", amount: 1.0, total_calls: 1, billing_period: "sample"
     expect emits: ["BillGenerated", "PaymentCollected", "ConsumerSuspended", "KeyRevoked"]
   end

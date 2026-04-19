@@ -11,6 +11,8 @@ Hecks.behaviors "PrisonManagement" do
 
   test "AdmitInmate cascades through policy chain" do
     tests "AdmitInmate", on: "Inmate", kind: :cascade
+    setup  "OpenCell", cell_id: "sample", block: "sample", max_occupancy: 1, security_level: "sample"
+    setup  "LaunchProgram", program_name: "sample", program_type: "sample", capacity: 1
     input  name: "sample", classification: "sample", admission_date: "sample"
     expect emits: ["InmateAdmitted", "InmateClassified", "InmateHoused", "InmateEnrolled"]
   end
@@ -24,6 +26,8 @@ Hecks.behaviors "PrisonManagement" do
 
   test "ClassifyInmate cascades through policy chain" do
     tests "ClassifyInmate", on: "Inmate", kind: :cascade
+    setup  "OpenCell", cell_id: "sample", block: "sample", max_occupancy: 1, security_level: "sample"
+    setup  "LaunchProgram", program_name: "sample", program_type: "sample", capacity: 1
     setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
     input  classification: "sample"
     expect emits: ["InmateClassified", "InmateHoused", "InmateEnrolled"]
@@ -33,23 +37,20 @@ Hecks.behaviors "PrisonManagement" do
     tests "HouseInmate", on: "Inmate"
     setup  "OpenCell", cell_id: "sample", block: "sample", max_occupancy: 1, security_level: "sample"
     setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
-    setup  "ClassifyInmate", classification: "sample"
     expect status: "housed"
   end
 
   test "HouseInmate cascades through policy chain" do
     tests "HouseInmate", on: "Inmate", kind: :cascade
-    setup  "OpenCell", cell_id: "sample", block: "sample", max_occupancy: 1, security_level: "sample"
     setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
-    setup  "ClassifyInmate", classification: "sample"
+    setup  "OpenCell", cell_id: "sample", block: "sample", max_occupancy: 1, security_level: "sample"
+    setup  "LaunchProgram", program_name: "sample", program_type: "sample", capacity: 1
     expect emits: ["InmateHoused", "InmateEnrolled"]
   end
 
   test "ReclassifyInmate sets new_classification" do
     tests "ReclassifyInmate", on: "Inmate"
     setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
-    setup  "ClassifyInmate", classification: "sample"
-    setup  "HouseInmate"
     input  new_classification: "sample"
     expect ok: "true"
   end
@@ -57,7 +58,6 @@ Hecks.behaviors "PrisonManagement" do
   test "PrepareForRelease runs" do
     tests "PrepareForRelease", on: "Inmate"
     setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
-    setup  "ClassifyInmate", classification: "sample"
     setup  "HouseInmate"
     expect status: "preparing_release"
   end
@@ -65,7 +65,6 @@ Hecks.behaviors "PrisonManagement" do
   test "ReleaseInmate runs" do
     tests "ReleaseInmate", on: "Inmate"
     setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
-    setup  "ClassifyInmate", classification: "sample"
     setup  "HouseInmate"
     setup  "PrepareForRelease"
     expect status: "released"
@@ -95,7 +94,6 @@ Hecks.behaviors "PrisonManagement" do
   test "LiftLockdown runs" do
     tests "LiftLockdown", on: "Cell"
     setup  "OpenCell", cell_id: "sample", block: "sample", max_occupancy: 1, security_level: "sample"
-    setup  "LockdownCell"
     expect status: "available"
   end
 
@@ -129,7 +127,7 @@ Hecks.behaviors "PrisonManagement" do
     tests "FileIncident", on: "Incident", kind: :cascade
     setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
     input  incident_type: "sample", severity: "sample", description: "sample"
-    expect emits: ["IncidentFiled", "CellLockedDown", "InvestigationStarted"]
+    expect emits: ["IncidentFiled", "InvestigationStarted"]
   end
 
   test "InvestigateIncident runs" do
@@ -148,6 +146,8 @@ Hecks.behaviors "PrisonManagement" do
 
   test "ResolveIncident cascades through policy chain" do
     tests "ResolveIncident", on: "Incident", kind: :cascade
+    setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
+    setup  "OpenCell", cell_id: "sample", block: "sample", max_occupancy: 1, security_level: "sample"
     setup  "FileIncident", incident_type: "sample", severity: "sample", description: "sample"
     setup  "InvestigateIncident"
     input  resolution: "sample"

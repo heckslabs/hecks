@@ -627,6 +627,7 @@ Hecks.bluebook "Physics", version: "2026.04.11.1" do
       transition "EntangleParticles" => "entangled", from: "superposed"
       transition "CollapseWavefunction" => "collapsed", from: "superposed"
       transition "CollapseWavefunction" => "collapsed", from: "entangled"
+      transition "CollapseWavefunction" => "collapsed", from: "prepared"
     end
   end
 

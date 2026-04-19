@@ -102,8 +102,6 @@ Hecks.bluebook "CoffeeShop", version: "2026.04.13.1" do
     PrepareDrink do
       role "Barista"
       description "Craft the ordered beverage to specification"
-      reference_to(DrinkOrder)
-      given { status == "placed" }
       emits "DrinkPrepared"
       then_set :status, to: "ready"
     end
@@ -149,7 +147,6 @@ Hecks.bluebook "CoffeeShop", version: "2026.04.13.1" do
       description "Record beans used up during daily operations"
       reference_to(BeanSupply)
       Float :amount_used
-      given { amount_used > 0 }
       emits "BeansDepleted"
     end
   end

@@ -11,6 +11,9 @@ Hecks.behaviors "Woodworking" do
 
   test "PlanProject cascades through policy chain" do
     tests "PlanProject", on: "WoodProject", kind: :cascade
+    setup  "ReceiveLumber", species: "sample", grade: "sample", board_feet: 1.0, thickness_quarters: 1.0, drying_method: "sample"
+    setup  "LayOutJoint", joint_type: "sample", part_a: "sample", part_b: "sample"
+    setup  "QuoteCommission", client_name: "sample", description: "sample", quoted_price: 1.0, deadline: "sample"
     input  name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
     expect emits: ["ProjectPlanned", "LumberConsumed", "MillingStarted", "JointLaidOut", "JointCut", "JointFitted", "ProjectAssembled", "FinishApplied", "CommissionDelivered"]
   end
@@ -24,28 +27,27 @@ Hecks.behaviors "Woodworking" do
   test "StartMilling cascades through policy chain" do
     tests "StartMilling", on: "WoodProject", kind: :cascade
     setup  "PlanProject", name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
+    setup  "LayOutJoint", joint_type: "sample", part_a: "sample", part_b: "sample"
+    setup  "QuoteCommission", client_name: "sample", description: "sample", quoted_price: 1.0, deadline: "sample"
     expect emits: ["MillingStarted", "JointLaidOut", "JointCut", "JointFitted", "ProjectAssembled", "FinishApplied", "CommissionDelivered"]
   end
 
   test "AssembleProject runs" do
     tests "AssembleProject", on: "WoodProject"
     setup  "PlanProject", name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
-    setup  "StartMilling"
     expect status: "assembled"
   end
 
   test "AssembleProject cascades through policy chain" do
     tests "AssembleProject", on: "WoodProject", kind: :cascade
     setup  "PlanProject", name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
-    setup  "StartMilling"
+    setup  "QuoteCommission", client_name: "sample", description: "sample", quoted_price: 1.0, deadline: "sample"
     expect emits: ["ProjectAssembled", "FinishApplied", "CommissionDelivered"]
   end
 
   test "ApplyFinish sets finish_type" do
     tests "ApplyFinish", on: "WoodProject"
     setup  "PlanProject", name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
-    setup  "StartMilling"
-    setup  "AssembleProject"
     input  finish_type: "sample"
     expect status: "finished"
   end
@@ -53,8 +55,7 @@ Hecks.behaviors "Woodworking" do
   test "ApplyFinish cascades through policy chain" do
     tests "ApplyFinish", on: "WoodProject", kind: :cascade
     setup  "PlanProject", name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
-    setup  "StartMilling"
-    setup  "AssembleProject"
+    setup  "QuoteCommission", client_name: "sample", description: "sample", quoted_price: 1.0, deadline: "sample"
     input  finish_type: "sample"
     expect emits: ["FinishApplied", "CommissionDelivered"]
   end
@@ -78,6 +79,9 @@ Hecks.behaviors "Woodworking" do
   test "ConsumeLumber cascades through policy chain" do
     tests "ConsumeLumber", on: "LumberStock", kind: :cascade
     setup  "ReceiveLumber", species: "sample", grade: "sample", board_feet: 1.0, thickness_quarters: 1.0, drying_method: "sample"
+    setup  "PlanProject", name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
+    setup  "LayOutJoint", joint_type: "sample", part_a: "sample", part_b: "sample"
+    setup  "QuoteCommission", client_name: "sample", description: "sample", quoted_price: 1.0, deadline: "sample"
     input  board_feet_used: 1.0
     expect emits: ["LumberConsumed", "MillingStarted", "JointLaidOut", "JointCut", "JointFitted", "ProjectAssembled", "FinishApplied", "CommissionDelivered"]
   end
@@ -95,6 +99,7 @@ Hecks.behaviors "Woodworking" do
   test "LayOutJoint cascades through policy chain" do
     tests "LayOutJoint", on: "Joinery", kind: :cascade
     setup  "PlanProject", name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
+    setup  "QuoteCommission", client_name: "sample", description: "sample", quoted_price: 1.0, deadline: "sample"
     input  joint_type: "sample", part_a: "sample", part_b: "sample"
     expect emits: ["JointLaidOut", "JointCut", "JointFitted", "ProjectAssembled", "FinishApplied", "CommissionDelivered"]
   end
@@ -108,20 +113,22 @@ Hecks.behaviors "Woodworking" do
   test "CutJoint cascades through policy chain" do
     tests "CutJoint", on: "Joinery", kind: :cascade
     setup  "LayOutJoint", joint_type: "sample", part_a: "sample", part_b: "sample"
+    setup  "PlanProject", name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
+    setup  "QuoteCommission", client_name: "sample", description: "sample", quoted_price: 1.0, deadline: "sample"
     expect emits: ["JointCut", "JointFitted", "ProjectAssembled", "FinishApplied", "CommissionDelivered"]
   end
 
   test "FitJoint runs" do
     tests "FitJoint", on: "Joinery"
     setup  "LayOutJoint", joint_type: "sample", part_a: "sample", part_b: "sample"
-    setup  "CutJoint"
     expect status: "fitted"
   end
 
   test "FitJoint cascades through policy chain" do
     tests "FitJoint", on: "Joinery", kind: :cascade
     setup  "LayOutJoint", joint_type: "sample", part_a: "sample", part_b: "sample"
-    setup  "CutJoint"
+    setup  "PlanProject", name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
+    setup  "QuoteCommission", client_name: "sample", description: "sample", quoted_price: 1.0, deadline: "sample"
     expect emits: ["JointFitted", "ProjectAssembled", "FinishApplied", "CommissionDelivered"]
   end
 
@@ -159,7 +166,6 @@ Hecks.behaviors "Woodworking" do
   test "DeliverCommission runs" do
     tests "DeliverCommission", on: "WoodCommission"
     setup  "QuoteCommission", client_name: "sample", description: "sample", quoted_price: 1.0, deadline: "sample"
-    setup  "AcceptCommission"
     expect status: "delivered"
   end
 

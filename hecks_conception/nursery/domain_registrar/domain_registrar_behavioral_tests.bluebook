@@ -11,6 +11,9 @@ Hecks.behaviors "DomainRegistrar" do
 
   test "RegisterDomain cascades through policy chain" do
     tests "RegisterDomain", on: "DomainName", kind: :cascade
+    setup  "RenewDomain", renewal_id: "sample", years: 1, price: 1.0
+    setup  "ActivatePrivacy", privacy_id: "sample", proxy_email: "sample", proxy_name: "sample"
+    setup  "PublishDNSRecord", record_id: "sample", record_type: "sample", hostname: "sample", value: "sample", ttl: 1
     input  domain: "sample", tld: "sample", registrant_email: "sample", registration_years: 1
     expect emits: ["DomainRegistered", "DomainLocked", "DomainAutoRenewed", "PrivacyActivated", "DNSRecordPublished"]
   end
@@ -24,6 +27,7 @@ Hecks.behaviors "DomainRegistrar" do
   test "LockDomain cascades through policy chain" do
     tests "LockDomain", on: "DomainName", kind: :cascade
     setup  "RegisterDomain", domain: "sample", tld: "sample", registrant_email: "sample", registration_years: 1
+    setup  "RenewDomain", renewal_id: "sample", years: 1, price: 1.0
     expect emits: ["DomainLocked", "DomainAutoRenewed"]
   end
 
@@ -57,6 +61,7 @@ Hecks.behaviors "DomainRegistrar" do
 
   test "CancelRenewal cascades through policy chain" do
     tests "CancelRenewal", on: "Renewal", kind: :cascade
+    setup  "RegisterDomain", domain: "sample", tld: "sample", registrant_email: "sample", registration_years: 1
     setup  "RenewDomain", renewal_id: "sample", years: 1, price: 1.0
     expect emits: ["RenewalCanceled", "DomainSuspended"]
   end
@@ -79,6 +84,7 @@ Hecks.behaviors "DomainRegistrar" do
 
   test "ApproveTransfer cascades through policy chain" do
     tests "ApproveTransfer", on: "Transfer", kind: :cascade
+    setup  "ActivatePrivacy", privacy_id: "sample", proxy_email: "sample", proxy_name: "sample"
     setup  "InitiateTransfer", transfer_id: "sample", auth_code: "sample", gaining_registrar: "sample"
     expect emits: ["TransferApproved", "ProxyRefreshed"]
   end

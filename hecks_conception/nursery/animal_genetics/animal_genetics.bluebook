@@ -61,12 +61,6 @@ Hecks.bluebook "AnimalGenetics", version: "2026.04.13.1" do
       then_set :status, to: "adopted"
     end
 
-    lifecycle :status, default: "unknown" do
-      transition "IntakeAnimal" => "intake", from: "unknown"
-      transition "OrderDNATest" => "testing", from: "intake"
-      transition "MakeAvailable" => "available", from: "testing"
-      transition "AdoptAnimal" => "adopted", from: "available"
-    end
   end
 
   aggregate "DNAProfile", "A genetic profile — markers, breed composition, health genes" do
@@ -116,10 +110,6 @@ Hecks.bluebook "AnimalGenetics", version: "2026.04.13.1" do
       then_set :status, to: "identified"
     end
 
-    lifecycle :status, default: "pending" do
-      transition "ProcessDNASample" => "processed", from: "pending"
-      transition "IdentifyBreeds" => "identified", from: "processed"
-    end
   end
 
   aggregate "HealthPredisposition", "Genetic health risks — conditions, probabilities, preventive care" do
@@ -163,10 +153,6 @@ Hecks.bluebook "AnimalGenetics", version: "2026.04.13.1" do
       then_set :status, to: "recommended"
     end
 
-    lifecycle :status, default: "unscreened" do
-      transition "ScreenForConditions" => "screened", from: "unscreened"
-      transition "RecommendPrevention" => "recommended", from: "screened"
-    end
   end
 
   aggregate "AdoptionMatch", "A compatibility match between animal genetics and adopter preferences" do
@@ -206,10 +192,6 @@ Hecks.bluebook "AnimalGenetics", version: "2026.04.13.1" do
       then_set :status, to: "approved"
     end
 
-    lifecycle :status, default: "pending" do
-      transition "GenerateMatch" => "generated", from: "pending"
-      transition "ApproveMatch" => "approved", from: "generated"
-    end
   end
 
   policy "ProcessOnDNAOrder" do
@@ -232,15 +214,6 @@ Hecks.bluebook "AnimalGenetics", version: "2026.04.13.1" do
     trigger "RecommendPrevention"
   end
 
-  policy "MatchOnAvailable" do
-    on "AnimalAvailable"
-    trigger "GenerateMatch"
-  end
-
-  policy "MakeAvailableOnRecommend" do
-    on "PreventionRecommended"
-    trigger "MakeAvailable"
-  end
 
   fixture "AnimalProfile", name: "Buddy", species: "Canis familiaris", primary_breed: "Golden Retriever", age_years: 3.5, temperament: "friendly, energetic", status: "available"
   fixture "AnimalProfile", name: "Whiskers", species: "Felis catus", primary_breed: "Bengal Mix", age_years: 2.1, temperament: "playful, social", status: "adopted"

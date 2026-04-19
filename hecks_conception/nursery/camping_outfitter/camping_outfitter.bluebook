@@ -89,7 +89,6 @@ Hecks.bluebook "CampingOutfitter", version: "2026.04.13.1" do
       description "Apply a surcharge for overdue rental returns"
       reference_to(GearRental)
       Float :fee_amount
-      given { fee_amount > 0 }
       emits "LateFeeCharged"
     end
   end

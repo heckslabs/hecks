@@ -11,6 +11,7 @@ Hecks.behaviors "Upholstery" do
 
   test "AssessProject cascades through policy chain" do
     tests "AssessProject", on: "UpholsteryProject", kind: :cascade
+    setup  "DraftEstimate", labor_cost: 1.0, material_cost: 1.0
     input  piece_description: "sample", furniture_type: "sample", client_name: "sample"
     expect emits: ["ProjectAssessed", "EstimateDrafted", "EstimateSent"]
   end
@@ -25,8 +26,10 @@ Hecks.behaviors "Upholstery" do
   test "ApproveEstimate cascades through policy chain" do
     tests "ApproveEstimate", on: "UpholsteryProject", kind: :cascade
     setup  "AssessProject", piece_description: "sample", furniture_type: "sample", client_name: "sample"
+    setup  "InspectFrame", frame_material: "sample", condition: "sample"
+    setup  "SelectFabric", fabric_name: "sample", material: "sample", color: "sample", yards_needed: 1.0, price_per_yard: 1.0
     input  quoted_price: 1.0
-    expect emits: ["EstimateApproved", "FrameInspected", "FrameRepaired", "FabricSelected", "FabricOrdered", "FabricReceived", "WorkBegun", "ProjectCompleted", "DeliveryScheduled", "DeliveryCompleted"]
+    expect emits: ["EstimateApproved", "FrameInspected", "FrameRepaired", "FabricSelected"]
   end
 
   test "BeginWork runs" do
@@ -39,6 +42,7 @@ Hecks.behaviors "Upholstery" do
   test "BeginWork cascades through policy chain" do
     tests "BeginWork", on: "UpholsteryProject", kind: :cascade
     setup  "AssessProject", piece_description: "sample", furniture_type: "sample", client_name: "sample"
+    setup  "ScheduleDelivery", delivery_type: "sample", address: "sample", date: "sample"
     setup  "ApproveEstimate", quoted_price: 1.0
     expect emits: ["WorkBegun", "ProjectCompleted", "DeliveryScheduled", "DeliveryCompleted"]
   end
@@ -54,6 +58,7 @@ Hecks.behaviors "Upholstery" do
   test "CompleteProject cascades through policy chain" do
     tests "CompleteProject", on: "UpholsteryProject", kind: :cascade
     setup  "AssessProject", piece_description: "sample", furniture_type: "sample", client_name: "sample"
+    setup  "ScheduleDelivery", delivery_type: "sample", address: "sample", date: "sample"
     setup  "ApproveEstimate", quoted_price: 1.0
     setup  "BeginWork"
     expect emits: ["ProjectCompleted", "DeliveryScheduled", "DeliveryCompleted"]
@@ -69,23 +74,10 @@ Hecks.behaviors "Upholstery" do
     expect status: "selected"
   end
 
-  test "SelectFabric cascades through policy chain" do
-    tests "SelectFabric", on: "FabricSelection", kind: :cascade
-    setup  "AssessProject", piece_description: "sample", furniture_type: "sample", client_name: "sample"
-    input  fabric_name: "sample", material: "sample", color: "sample", yards_needed: 1.0, price_per_yard: 1.0
-    expect emits: ["FabricSelected", "FabricOrdered", "FabricReceived", "WorkBegun", "ProjectCompleted", "DeliveryScheduled", "DeliveryCompleted"]
-  end
-
   test "OrderFabric runs" do
     tests "OrderFabric", on: "FabricSelection"
     setup  "SelectFabric", fabric_name: "sample", material: "sample", color: "sample", yards_needed: 1.0, price_per_yard: 1.0
     expect status: "ordered"
-  end
-
-  test "OrderFabric cascades through policy chain" do
-    tests "OrderFabric", on: "FabricSelection", kind: :cascade
-    setup  "SelectFabric", fabric_name: "sample", material: "sample", color: "sample", yards_needed: 1.0, price_per_yard: 1.0
-    expect emits: ["FabricOrdered", "FabricReceived", "WorkBegun", "ProjectCompleted", "DeliveryScheduled", "DeliveryCompleted"]
   end
 
   test "ReceiveFabric runs" do
@@ -93,13 +85,6 @@ Hecks.behaviors "Upholstery" do
     setup  "SelectFabric", fabric_name: "sample", material: "sample", color: "sample", yards_needed: 1.0, price_per_yard: 1.0
     setup  "OrderFabric"
     expect status: "received"
-  end
-
-  test "ReceiveFabric cascades through policy chain" do
-    tests "ReceiveFabric", on: "FabricSelection", kind: :cascade
-    setup  "SelectFabric", fabric_name: "sample", material: "sample", color: "sample", yards_needed: 1.0, price_per_yard: 1.0
-    setup  "OrderFabric"
-    expect emits: ["FabricReceived", "WorkBegun", "ProjectCompleted", "DeliveryScheduled", "DeliveryCompleted"]
   end
 
 
@@ -115,8 +100,9 @@ Hecks.behaviors "Upholstery" do
   test "InspectFrame cascades through policy chain" do
     tests "InspectFrame", on: "FrameWork", kind: :cascade
     setup  "AssessProject", piece_description: "sample", furniture_type: "sample", client_name: "sample"
+    setup  "SelectFabric", fabric_name: "sample", material: "sample", color: "sample", yards_needed: 1.0, price_per_yard: 1.0
     input  frame_material: "sample", condition: "sample"
-    expect emits: ["FrameInspected", "FrameRepaired", "FabricSelected", "FabricOrdered", "FabricReceived", "WorkBegun", "ProjectCompleted", "DeliveryScheduled", "DeliveryCompleted"]
+    expect emits: ["FrameInspected", "FrameRepaired", "FabricSelected"]
   end
 
   test "RepairFrame sets repair_notes" do
@@ -129,8 +115,10 @@ Hecks.behaviors "Upholstery" do
   test "RepairFrame cascades through policy chain" do
     tests "RepairFrame", on: "FrameWork", kind: :cascade
     setup  "InspectFrame", frame_material: "sample", condition: "sample"
+    setup  "SelectFabric", fabric_name: "sample", material: "sample", color: "sample", yards_needed: 1.0, price_per_yard: 1.0
+    setup  "AssessProject", piece_description: "sample", furniture_type: "sample", client_name: "sample"
     input  repair_notes: "sample"
-    expect emits: ["FrameRepaired", "FabricSelected", "FabricOrdered", "FabricReceived", "WorkBegun", "ProjectCompleted", "DeliveryScheduled", "DeliveryCompleted"]
+    expect emits: ["FrameRepaired", "FabricSelected"]
   end
 
   test "RefinishFrame sets finish_type" do

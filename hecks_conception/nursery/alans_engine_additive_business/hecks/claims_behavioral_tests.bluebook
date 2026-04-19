@@ -11,6 +11,7 @@ Hecks.behaviors "Claims" do
 
   test "FileWarrantyClaim cascades through policy chain" do
     tests "FileWarrantyClaim", on: "WarrantyClaim", kind: :cascade
+    setup  "LogComplaint", complaint_number: "sample", customer: "sample", sku: "sample", lot_number: "sample", description: "sample"
     input  claim_number: "sample", sku: "sample", lot_number: "sample", customer: "sample", complaint_description: "sample"
     expect emits: ["WarrantyClaimFiled", "ComplaintLogged"]
   end

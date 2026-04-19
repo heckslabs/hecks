@@ -11,6 +11,8 @@ Hecks.behaviors "RegenerativeCommons" do
 
   test "EstablishCommons cascades through policy chain" do
     tests "EstablishCommons", on: "CommonLand", kind: :cascade
+    setup  "AssignPlot", plot_id: "sample", steward_name: "sample", current_crop: "sample"
+    setup  "DesignateZone", zone_id: "sample", ecosystem_type: "sample", acres: 1
     input  parcel_id: "sample", name: "sample", total_acres: 1, governance_model: "sample"
     expect emits: ["CommonsEstablished", "PlotAssigned", "ZoneDesignated"]
   end
@@ -39,6 +41,7 @@ Hecks.behaviors "RegenerativeCommons" do
 
   test "ReportHarvest cascades through policy chain" do
     tests "ReportHarvest", on: "FarmPlot", kind: :cascade
+    setup  "AllocateHarvest", allocation_id: "sample", season: "sample", total_yield_lbs: 1
     setup  "AssignPlot", plot_id: "sample", steward_name: "sample", current_crop: "sample"
     expect emits: ["HarvestReported", "HarvestAllocated", "FoodBankDistributed"]
   end
@@ -75,6 +78,8 @@ Hecks.behaviors "RegenerativeCommons" do
 
   test "CompleteRestoration cascades through policy chain" do
     tests "CompleteRestoration", on: "ConservationZone", kind: :cascade
+    setup  "ConductSurvey", survey_id: "sample", survey_date: "sample"
+    setup  "AssignPlot", plot_id: "sample", steward_name: "sample", current_crop: "sample"
     setup  "DesignateZone", zone_id: "sample", ecosystem_type: "sample", acres: 1
     setup  "BeginRestoration"
     expect emits: ["RestorationCompleted", "SurveyConducted"]
@@ -124,6 +129,8 @@ Hecks.behaviors "RegenerativeCommons" do
   test "AssessHealth cascades through policy chain" do
     tests "AssessHealth", on: "BiodiversitySurvey", kind: :cascade
     setup  "ConductSurvey", survey_id: "sample", survey_date: "sample"
+    setup  "AssignPlot", plot_id: "sample", steward_name: "sample", current_crop: "sample"
+    setup  "DesignateZone", zone_id: "sample", ecosystem_type: "sample", acres: 1
     input  overall_health: "sample"
     expect emits: ["HealthAssessed", "SoilHealthRecorded", "RestorationStarted"]
   end

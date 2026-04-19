@@ -11,6 +11,7 @@ Hecks.behaviors "ContentModeration" do
 
   test "IngestPost cascades through policy chain" do
     tests "IngestPost", on: "Post", kind: :cascade
+    setup  "AssignReview", review_id: "sample", reviewer_id: "sample", queue_name: "sample"
     input  post_id: "sample", author_id: "sample", content_type: "sample", body: "sample", language: "sample"
     expect emits: ["PostIngested", "PostAutoFlagged", "ReviewAssigned"]
   end
@@ -25,6 +26,7 @@ Hecks.behaviors "ContentModeration" do
   test "AutoFlagPost cascades through policy chain" do
     tests "AutoFlagPost", on: "Post", kind: :cascade
     setup  "IngestPost", post_id: "sample", author_id: "sample", content_type: "sample", body: "sample", language: "sample"
+    setup  "AssignReview", review_id: "sample", reviewer_id: "sample", queue_name: "sample"
     input  flag_reason: "sample"
     expect emits: ["PostAutoFlagged", "ReviewAssigned"]
   end
@@ -48,6 +50,7 @@ Hecks.behaviors "ContentModeration" do
   test "SubmitReport cascades through policy chain" do
     tests "SubmitReport", on: "Report", kind: :cascade
     setup  "IngestPost", post_id: "sample", author_id: "sample", content_type: "sample", body: "sample", language: "sample"
+    setup  "AssignReview", review_id: "sample", reviewer_id: "sample", queue_name: "sample"
     input  report_id: "sample", reporter_id: "sample", reason_category: "sample", description: "sample"
     expect emits: ["ReportSubmitted", "ReportPrioritized", "ReviewAssigned"]
   end
@@ -62,6 +65,8 @@ Hecks.behaviors "ContentModeration" do
   test "PrioritizeReport cascades through policy chain" do
     tests "PrioritizeReport", on: "Report", kind: :cascade
     setup  "SubmitReport", report_id: "sample", reporter_id: "sample", reason_category: "sample", description: "sample"
+    setup  "AssignReview", review_id: "sample", reviewer_id: "sample", queue_name: "sample"
+    setup  "IngestPost", post_id: "sample", author_id: "sample", content_type: "sample", body: "sample", language: "sample"
     input  priority: "sample"
     expect emits: ["ReportPrioritized", "ReviewAssigned"]
   end
@@ -74,6 +79,7 @@ Hecks.behaviors "ContentModeration" do
 
   test "DismissReport cascades through policy chain" do
     tests "DismissReport", on: "Report", kind: :cascade
+    setup  "IngestPost", post_id: "sample", author_id: "sample", content_type: "sample", body: "sample", language: "sample"
     setup  "SubmitReport", report_id: "sample", reporter_id: "sample", reason_category: "sample", description: "sample"
     expect emits: ["ReportDismissed", "PostPublished"]
   end
@@ -97,6 +103,8 @@ Hecks.behaviors "ContentModeration" do
 
   test "RenderVerdict cascades through policy chain" do
     tests "RenderVerdict", on: "ModerationReview", kind: :cascade
+    setup  "EnforceAction", action_id: "sample", action_type: "sample", target_id: "sample", reason: "sample", duration_days: 1
+    setup  "FileAppeal", appeal_id: "sample", appellant_id: "sample", grounds: "sample"
     setup  "AssignReview", review_id: "sample", reviewer_id: "sample", queue_name: "sample"
     input  verdict: "sample"
     expect emits: ["VerdictRendered", "ActionEnforced", "AppealFiled"]
@@ -122,6 +130,7 @@ Hecks.behaviors "ContentModeration" do
   test "EnforceAction cascades through policy chain" do
     tests "EnforceAction", on: "EnforcementAction", kind: :cascade
     setup  "AssignReview", review_id: "sample", reviewer_id: "sample", queue_name: "sample"
+    setup  "FileAppeal", appeal_id: "sample", appellant_id: "sample", grounds: "sample"
     input  action_id: "sample", action_type: "sample", target_id: "sample", reason: "sample", duration_days: 1
     expect emits: ["ActionEnforced", "AppealFiled"]
   end
@@ -157,6 +166,7 @@ Hecks.behaviors "ContentModeration" do
 
   test "GrantAppeal cascades through policy chain" do
     tests "GrantAppeal", on: "Appeal", kind: :cascade
+    setup  "EnforceAction", action_id: "sample", action_type: "sample", target_id: "sample", reason: "sample", duration_days: 1
     setup  "FileAppeal", appeal_id: "sample", appellant_id: "sample", grounds: "sample"
     expect emits: ["AppealGranted", "ActionLifted"]
   end

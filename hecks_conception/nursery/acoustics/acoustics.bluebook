@@ -26,7 +26,6 @@ Hecks.bluebook "Acoustics" do
       description "Compute the RT60 reverberation time using Sabine equation"
       emits "ReverberationCalculated"
       reference_to Room
-      given { surface_material_count > 0 }
     end
 
     command "ArchiveRoom" do
@@ -58,6 +57,7 @@ Hecks.bluebook "Acoustics" do
       reference_to Room
       String :measurement_type
       Float :spl_db
+      then_set :raw_audio_captured, to: true
     end
 
     command "AnalyzeSpectrum" do
@@ -141,7 +141,6 @@ Hecks.bluebook "Acoustics" do
       description "Compare post-treatment measurements against targets"
       emits "TreatmentEvaluated"
       reference_to TreatmentPlan
-      given { post_treatment_measurement_count > 0 }
     end
   end
 

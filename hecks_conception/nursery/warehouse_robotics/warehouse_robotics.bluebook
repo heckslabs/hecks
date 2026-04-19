@@ -238,11 +238,6 @@ Hecks.bluebook "WarehouseRobotics", version: "2026.04.13.1" do
     trigger "AssignToRobot"
   end
 
-  policy "ComputePathOnAssign" do
-    on "TaskAssigned"
-    trigger "ComputePath"
-  end
-
   policy "ExecutePathOnCompute" do
     on "PathComputed"
     trigger "ExecutePath"

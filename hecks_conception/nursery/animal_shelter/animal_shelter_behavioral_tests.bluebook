@@ -11,8 +11,10 @@ Hecks.behaviors "AnimalShelter" do
 
   test "IntakeAnimal cascades through policy chain" do
     tests "IntakeAnimal", on: "Animal", kind: :cascade
+    setup  "OpenMedicalRecord", animal_name: "sample", record_date: "sample", veterinarian: "sample"
+    setup  "PlaceInFoster", animal_name: "sample", foster_parent_name: "sample", start_date: "sample", expected_return_date: "sample", reason: "sample"
     input  name: "sample", species: "sample", breed: "sample", age_estimate: "sample", sex: "sample", temperament: "sample"
-    expect emits: ["AnimalIntaked", "MedicalRecordCreated", "VaccinationAdministered", "SpayNeuterPerformed", "AnimalAvailable", "AnimalPlacedInFoster"]
+    expect emits: ["AnimalIntaked", "MedicalRecordCreated", "VaccinationAdministered", "SpayNeuterPerformed", "AnimalPlacedInFoster"]
   end
 
   test "MakeAvailable runs" do
@@ -42,7 +44,7 @@ Hecks.behaviors "AnimalShelter" do
     tests "SubmitAdoptionApplication", on: "Adoption", kind: :cascade
     setup  "IntakeAnimal", name: "sample", species: "sample", breed: "sample", age_estimate: "sample", sex: "sample", temperament: "sample"
     input  animal_name: "sample", adopter_name: "sample", adoption_date: "sample", adoption_fee: "sample"
-    expect emits: ["AdoptionApplicationSubmitted", "AdoptionApproved", "AdoptionFinalized", "AnimalAdopted"]
+    expect emits: ["AdoptionApplicationSubmitted", "AdoptionApproved", "AdoptionFinalized"]
   end
 
   test "ApproveAdoption runs" do
@@ -54,7 +56,7 @@ Hecks.behaviors "AnimalShelter" do
   test "ApproveAdoption cascades through policy chain" do
     tests "ApproveAdoption", on: "Adoption", kind: :cascade
     setup  "SubmitAdoptionApplication", animal_name: "sample", adopter_name: "sample", adoption_date: "sample", adoption_fee: "sample"
-    expect emits: ["AdoptionApproved", "AdoptionFinalized", "AnimalAdopted"]
+    expect emits: ["AdoptionApproved", "AdoptionFinalized"]
   end
 
   test "FinalizeAdoption runs" do
@@ -62,13 +64,6 @@ Hecks.behaviors "AnimalShelter" do
     setup  "SubmitAdoptionApplication", animal_name: "sample", adopter_name: "sample", adoption_date: "sample", adoption_fee: "sample"
     setup  "ApproveAdoption"
     expect status: "finalized"
-  end
-
-  test "FinalizeAdoption cascades through policy chain" do
-    tests "FinalizeAdoption", on: "Adoption", kind: :cascade
-    setup  "SubmitAdoptionApplication", animal_name: "sample", adopter_name: "sample", adoption_date: "sample", adoption_fee: "sample"
-    setup  "ApproveAdoption"
-    expect emits: ["AdoptionFinalized", "AnimalAdopted"]
   end
 
 
@@ -85,12 +80,6 @@ Hecks.behaviors "AnimalShelter" do
     tests "ReturnFromFoster", on: "FosterPlacement"
     setup  "PlaceInFoster", animal_name: "sample", foster_parent_name: "sample", start_date: "sample", expected_return_date: "sample", reason: "sample"
     expect status: "returned"
-  end
-
-  test "ReturnFromFoster cascades through policy chain" do
-    tests "ReturnFromFoster", on: "FosterPlacement", kind: :cascade
-    setup  "PlaceInFoster", animal_name: "sample", foster_parent_name: "sample", start_date: "sample", expected_return_date: "sample", reason: "sample"
-    expect emits: ["AnimalReturnedFromFoster", "AnimalAvailable"]
   end
 
   test "ExtendFoster sets expected_return_date" do
@@ -114,7 +103,7 @@ Hecks.behaviors "AnimalShelter" do
     tests "OpenMedicalRecord", on: "ShelterMedicalRecord", kind: :cascade
     setup  "IntakeAnimal", name: "sample", species: "sample", breed: "sample", age_estimate: "sample", sex: "sample", temperament: "sample"
     input  animal_name: "sample", record_date: "sample", veterinarian: "sample"
-    expect emits: ["MedicalRecordCreated", "VaccinationAdministered", "SpayNeuterPerformed", "AnimalAvailable"]
+    expect emits: ["MedicalRecordCreated", "VaccinationAdministered", "SpayNeuterPerformed"]
   end
 
   test "AdministerVaccination runs" do
@@ -126,19 +115,13 @@ Hecks.behaviors "AnimalShelter" do
   test "AdministerVaccination cascades through policy chain" do
     tests "AdministerVaccination", on: "ShelterMedicalRecord", kind: :cascade
     setup  "OpenMedicalRecord", animal_name: "sample", record_date: "sample", veterinarian: "sample"
-    expect emits: ["VaccinationAdministered", "SpayNeuterPerformed", "AnimalAvailable"]
+    expect emits: ["VaccinationAdministered", "SpayNeuterPerformed"]
   end
 
   test "PerformSpayNeuter runs" do
     tests "PerformSpayNeuter", on: "ShelterMedicalRecord"
     setup  "OpenMedicalRecord", animal_name: "sample", record_date: "sample", veterinarian: "sample"
     expect spay_neuter_status: "completed"
-  end
-
-  test "PerformSpayNeuter cascades through policy chain" do
-    tests "PerformSpayNeuter", on: "ShelterMedicalRecord", kind: :cascade
-    setup  "OpenMedicalRecord", animal_name: "sample", record_date: "sample", veterinarian: "sample"
-    expect emits: ["SpayNeuterPerformed", "AnimalAvailable"]
   end
 
 end

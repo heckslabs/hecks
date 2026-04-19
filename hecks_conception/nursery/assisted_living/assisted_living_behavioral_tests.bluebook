@@ -11,6 +11,10 @@ Hecks.behaviors "AssistedLiving" do
 
   test "AdmitResident cascades through policy chain" do
     tests "AdmitResident", on: "Resident", kind: :cascade
+    setup  "AssignRoom", room_number: "sample", floor: "sample", room_type: "sample", occupant_name: "sample"
+    setup  "ScheduleActivity", name: "sample", activity_type: "sample", scheduled_time: "sample", location: "sample", capacity: 1
+    setup  "DraftCarePlan", resident_name: "sample", created_date: "sample", dietary_needs: "sample"
+    setup  "PrescribeMedication", resident_name: "sample"
     input  name: "sample", date_of_birth: "sample", emergency_contact: "sample", medical_conditions: "sample", mobility_level: "sample"
     expect emits: ["ResidentAdmitted", "RoomAssigned", "ResidentActivated", "ActivityScheduled", "CarePlanCreated", "MedicationScheduleCreated", "DoseScheduled"]
   end
@@ -23,6 +27,7 @@ Hecks.behaviors "AssistedLiving" do
 
   test "ActivateResident cascades through policy chain" do
     tests "ActivateResident", on: "Resident", kind: :cascade
+    setup  "ScheduleActivity", name: "sample", activity_type: "sample", scheduled_time: "sample", location: "sample", capacity: 1
     setup  "AdmitResident", name: "sample", date_of_birth: "sample", emergency_contact: "sample", medical_conditions: "sample", mobility_level: "sample"
     expect emits: ["ResidentActivated", "ActivityScheduled"]
   end
@@ -42,6 +47,7 @@ Hecks.behaviors "AssistedLiving" do
 
   test "DischargeResident cascades through policy chain" do
     tests "DischargeResident", on: "Resident", kind: :cascade
+    setup  "AssignRoom", room_number: "sample", floor: "sample", room_type: "sample", occupant_name: "sample"
     setup  "AdmitResident", name: "sample", date_of_birth: "sample", emergency_contact: "sample", medical_conditions: "sample", mobility_level: "sample"
     setup  "ActivateResident"
     expect emits: ["ResidentDischarged", "RoomVacated"]
@@ -60,6 +66,7 @@ Hecks.behaviors "AssistedLiving" do
   test "AssignRoom cascades through policy chain" do
     tests "AssignRoom", on: "Room", kind: :cascade
     setup  "AdmitResident", name: "sample", date_of_birth: "sample", emergency_contact: "sample", medical_conditions: "sample", mobility_level: "sample"
+    setup  "ScheduleActivity", name: "sample", activity_type: "sample", scheduled_time: "sample", location: "sample", capacity: 1
     input  room_number: "sample", floor: "sample", room_type: "sample", occupant_name: "sample"
     expect emits: ["RoomAssigned", "ResidentActivated", "ActivityScheduled"]
   end
@@ -83,6 +90,7 @@ Hecks.behaviors "AssistedLiving" do
   test "DraftCarePlan cascades through policy chain" do
     tests "DraftCarePlan", on: "CarePlan", kind: :cascade
     setup  "AdmitResident", name: "sample", date_of_birth: "sample", emergency_contact: "sample", medical_conditions: "sample", mobility_level: "sample"
+    setup  "PrescribeMedication", resident_name: "sample"
     input  resident_name: "sample", created_date: "sample", dietary_needs: "sample"
     expect emits: ["CarePlanCreated", "MedicationScheduleCreated", "DoseScheduled"]
   end
@@ -97,6 +105,7 @@ Hecks.behaviors "AssistedLiving" do
   test "AddCareTask cascades through policy chain" do
     tests "AddCareTask", on: "CarePlan", kind: :cascade
     setup  "DraftCarePlan", resident_name: "sample", created_date: "sample", dietary_needs: "sample"
+    setup  "ScheduleActivity", name: "sample", activity_type: "sample", scheduled_time: "sample", location: "sample", capacity: 1
     input  description: "sample", frequency: "sample", assigned_to: "sample", time_of_day: "sample"
     expect emits: ["CareTaskAdded", "ResidentEnrolled"]
   end
@@ -149,6 +158,7 @@ Hecks.behaviors "AssistedLiving" do
   test "ConfirmAdministration cascades through policy chain" do
     tests "ConfirmAdministration", on: "MedicationSchedule", kind: :cascade
     setup  "PrescribeMedication", resident_name: "sample"
+    setup  "DraftCarePlan", resident_name: "sample", created_date: "sample", dietary_needs: "sample"
     expect emits: ["AdministrationConfirmed", "CarePlanReviewed"]
   end
 

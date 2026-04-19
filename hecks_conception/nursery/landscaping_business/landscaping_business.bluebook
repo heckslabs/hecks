@@ -202,11 +202,6 @@ Hecks.bluebook "LandscapingBusiness" do
     trigger "RecordIrrigation"
   end
 
-  policy "DesignOnSurvey" do
-    on "PropertySurveyed"
-    trigger "DraftDesign"
-  end
-
   policy "PerformServiceOnServiceEnrolled" do
     on "ServiceEnrolled"
     trigger "PerformService"

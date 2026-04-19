@@ -11,6 +11,9 @@ Hecks.behaviors "Dialysis" do
 
   test "EnrollPatient cascades through policy chain" do
     tests "EnrollPatient", on: "Patient", kind: :cascade
+    setup  "RecordLabResult", patient_name: "sample", test_name: "sample", result_value: "sample", reference_range: "sample", result_date: "sample"
+    setup  "StartSession", patient_name: "sample", session_date: "sample", pre_weight: 1.0, nurse_name: "sample"
+    setup  "StockSupply", supply_name: "sample", category: "sample", quantity_on_hand: 1, reorder_level: 1, supplier: "sample"
     input  name: "sample", date_of_birth: "sample", blood_type: "sample", access_type: "sample", nephrologist: "sample"
     expect emits: ["PatientEnrolled", "LabResultRecorded", "LabResultReviewed", "PatientActivated", "SessionStarted", "IntraVitalsRecorded", "SupplyConsumed", "SupplyReordered"]
   end
@@ -23,6 +26,8 @@ Hecks.behaviors "Dialysis" do
 
   test "ActivatePatient cascades through policy chain" do
     tests "ActivatePatient", on: "Patient", kind: :cascade
+    setup  "StartSession", patient_name: "sample", session_date: "sample", pre_weight: 1.0, nurse_name: "sample"
+    setup  "StockSupply", supply_name: "sample", category: "sample", quantity_on_hand: 1, reorder_level: 1, supplier: "sample"
     setup  "EnrollPatient", name: "sample", date_of_birth: "sample", blood_type: "sample", access_type: "sample", nephrologist: "sample"
     expect emits: ["PatientActivated", "SessionStarted", "IntraVitalsRecorded", "SupplyConsumed", "SupplyReordered"]
   end
@@ -53,6 +58,7 @@ Hecks.behaviors "Dialysis" do
   test "StartSession cascades through policy chain" do
     tests "StartSession", on: "DialysisSession", kind: :cascade
     setup  "EnrollPatient", name: "sample", date_of_birth: "sample", blood_type: "sample", access_type: "sample", nephrologist: "sample"
+    setup  "StockSupply", supply_name: "sample", category: "sample", quantity_on_hand: 1, reorder_level: 1, supplier: "sample"
     input  patient_name: "sample", session_date: "sample", pre_weight: 1.0, nurse_name: "sample"
     expect emits: ["SessionStarted", "IntraVitalsRecorded", "SupplyConsumed", "SupplyReordered"]
   end
@@ -72,6 +78,10 @@ Hecks.behaviors "Dialysis" do
 
   test "EndSession cascades through policy chain" do
     tests "EndSession", on: "DialysisSession", kind: :cascade
+    setup  "RegisterMachine", machine_id: "sample", model: "sample", location: "sample", last_disinfection_date: "sample"
+    setup  "RecordLabResult", patient_name: "sample", test_name: "sample", result_value: "sample", reference_range: "sample", result_date: "sample"
+    setup  "EnrollPatient", name: "sample", date_of_birth: "sample", blood_type: "sample", access_type: "sample", nephrologist: "sample"
+    setup  "StockSupply", supply_name: "sample", category: "sample", quantity_on_hand: 1, reorder_level: 1, supplier: "sample"
     setup  "StartSession", patient_name: "sample", session_date: "sample", pre_weight: 1.0, nurse_name: "sample"
     input  post_weight: 1.0, fluid_removed: 1.0, duration_minutes: 1
     expect emits: ["SessionEnded", "MachineDisinfected", "LabResultRecorded", "LabResultReviewed", "PatientActivated", "SessionStarted", "IntraVitalsRecorded", "SupplyConsumed", "SupplyReordered"]
@@ -141,6 +151,8 @@ Hecks.behaviors "Dialysis" do
   test "RecordLabResult cascades through policy chain" do
     tests "RecordLabResult", on: "LabResult", kind: :cascade
     setup  "EnrollPatient", name: "sample", date_of_birth: "sample", blood_type: "sample", access_type: "sample", nephrologist: "sample"
+    setup  "StartSession", patient_name: "sample", session_date: "sample", pre_weight: 1.0, nurse_name: "sample"
+    setup  "StockSupply", supply_name: "sample", category: "sample", quantity_on_hand: 1, reorder_level: 1, supplier: "sample"
     input  patient_name: "sample", test_name: "sample", result_value: "sample", reference_range: "sample", result_date: "sample"
     expect emits: ["LabResultRecorded", "LabResultReviewed", "PatientActivated", "SessionStarted", "IntraVitalsRecorded", "SupplyConsumed", "SupplyReordered"]
   end
@@ -153,6 +165,9 @@ Hecks.behaviors "Dialysis" do
 
   test "ReviewLabResult cascades through policy chain" do
     tests "ReviewLabResult", on: "LabResult", kind: :cascade
+    setup  "EnrollPatient", name: "sample", date_of_birth: "sample", blood_type: "sample", access_type: "sample", nephrologist: "sample"
+    setup  "StartSession", patient_name: "sample", session_date: "sample", pre_weight: 1.0, nurse_name: "sample"
+    setup  "StockSupply", supply_name: "sample", category: "sample", quantity_on_hand: 1, reorder_level: 1, supplier: "sample"
     setup  "RecordLabResult", patient_name: "sample", test_name: "sample", result_value: "sample", reference_range: "sample", result_date: "sample"
     expect emits: ["LabResultReviewed", "PatientActivated", "SessionStarted", "IntraVitalsRecorded", "SupplyConsumed", "SupplyReordered"]
   end

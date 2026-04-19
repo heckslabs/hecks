@@ -431,6 +431,14 @@
 - Cascade-aware test generation: detects policy chains (emit→trigger), asserts on cascaded final state, skips redundant mid-chain tests
 - Skips tests for non-equality givens that the chain planner can't auto-satisfy
 - Conceiver parity test (`tests/conceiver_parity_test.rs`) keeps the bluebook conceiver and behaviors conceiver from drifting (shared `Conceiver` trait + shared `conceiver_common.rs` infrastructure)
+- **VCR-style cascade lockdown** — for every command whose emit fires a policy chain, the conceiver emits a `kind: :cascade` test asserting the exact ordered list of events the runtime will publish (`expect emits: [E1, E2, ...]`). Drift in the policy graph (added or removed policy, retargeted trigger) breaks the test immediately.
+- **Static cascade walker** (`hecks_life/src/cascade.rs`) — extracts the predicted event list from emit→policy→trigger graph; mirrors runtime `PolicyEngine` cycle detection (a policy is blocked while on the recursion stack, allowing diamond fan-in)
+- **Cross-aggregate cascade setups** — generator walks `aggregates_touched_by_cascade` and emits a `Create` setup for every aggregate the cascade hops through, so triggered cross-aggregate commands find their target records
+- **Two dispatch modes in the runner** — `dispatch` cascades policies (used by `kind: :cascade` tests), `dispatch_isolated` skips policy drain (used by setups so they don't overshoot the precondition state being tested)
+- **`as:` reference alias kwarg** — canonical: `reference_to(Order, as: :recent_purchase)`. Five forms accepted: bare, `as:`, `role:` (legacy), `.as(:foo)` suffix, trailing-symbol shorthand
+- **Clock anti-pattern check** — `lifecycle_validator` flags `:now` and `seconds_since(:field)` in mutations and givens. Time is infrastructure; the caller (test, hecksagon adapter, app) provides timestamps as command attributes.
+- **Compound boolean givens** — interpreter supports `||` and `&&` (top-level split, `&&` binds tighter), plus `==`, `!=`, `>=`, `<=`, `>`, `<`, `field.any?`, `field.empty?`
+- **List literal mutations** — `then_set :items, to: []` resolves to `Value::List(vec![])` (not `Str("[]")`); `then_set :items, to: [a, b]` resolves each element through the same value resolver
 
 ## Domain Interface Versioning
 - `hecks version_tag <version>` — snapshot current domain DSL to `db/hecks_versions/<version>.rb` with metadata header

@@ -267,7 +267,6 @@ Hecks.bluebook "MarineNavigation", version: "2026.04.13.1" do
       description "Modify route to avoid storm or severe weather"
       reference_to(Route)
       String :reason
-      given { status == "approved" }
       emits "RouteRerouted"
       then_set :status, to: "rerouted"
     end
@@ -275,7 +274,7 @@ Hecks.bluebook "MarineNavigation", version: "2026.04.13.1" do
     lifecycle :status, default: "draft" do
       transition "PlanRoute" => "planned", from: "draft"
       transition "ApproveRoute" => "approved", from: "planned"
-      transition "RerouteForWeather" => "rerouted", from: "approved"
+      transition "RerouteForWeather" => "rerouted", from: ["approved", "draft", "planned"]
     end
   end
 
@@ -340,16 +339,6 @@ Hecks.bluebook "MarineNavigation", version: "2026.04.13.1" do
   policy "EstimateFuelOnAdjustment" do
     on "RouteAdjustedForCurrents"
     trigger "CalculateFuelEstimate"
-  end
-
-  policy "CheckWeatherOnApproval" do
-    on "RouteApproved"
-    trigger "EscalateStormWarning"
-  end
-
-  policy "RerouteOnStormEscalation" do
-    on "StormWarningEscalated"
-    trigger "RerouteForWeather"
   end
 
   policy "CalculateEfficiencyOnBurn" do

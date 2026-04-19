@@ -11,6 +11,9 @@ Hecks.behaviors "HomeHealthCare" do
 
   test "EnrollPatient cascades through policy chain" do
     tests "EnrollPatient", on: "Patient", kind: :cascade
+    setup  "PrescribeMedication", patient_name: "sample", drug_name: "sample", dosage: "sample", frequency: "sample", route: "sample", prescriber: "sample"
+    setup  "ScheduleVisit", patient_name: "sample", caregiver_name: "sample", visit_date: "sample", visit_type: "sample"
+    setup  "RegisterCaregiver", name: "sample", credential: "sample", phone: "sample", availability: "sample", max_visits_per_day: 1
     input  name: "sample", address: "sample", primary_diagnosis: "sample", physician_name: "sample"
     expect emits: ["PatientEnrolled", "AllergyRecorded", "MedicationPrescribed", "VisitScheduled", "PatientActivated"]
   end
@@ -63,8 +66,8 @@ Hecks.behaviors "HomeHealthCare" do
 
   test "ScheduleVisit cascades through policy chain" do
     tests "ScheduleVisit", on: "Visit", kind: :cascade
-    setup  "RegisterCaregiver", name: "sample", credential: "sample", phone: "sample", availability: "sample", max_visits_per_day: 1
     setup  "EnrollPatient", name: "sample", address: "sample", primary_diagnosis: "sample", physician_name: "sample"
+    setup  "RegisterCaregiver", name: "sample", credential: "sample", phone: "sample", availability: "sample", max_visits_per_day: 1
     input  patient_name: "sample", caregiver_name: "sample", visit_date: "sample", visit_type: "sample"
     expect emits: ["VisitScheduled", "PatientActivated"]
   end
@@ -78,6 +81,10 @@ Hecks.behaviors "HomeHealthCare" do
 
   test "CompleteVisit cascades through policy chain" do
     tests "CompleteVisit", on: "Visit", kind: :cascade
+    setup  "RecordVitals", patient_name: "sample", measurement_date: "sample", systolic: 1, diastolic: 1, heart_rate: 1, temperature: 1.0, oxygen_saturation: 1
+    setup  "EnrollPatient", name: "sample", address: "sample", primary_diagnosis: "sample", physician_name: "sample"
+    setup  "RegisterCaregiver", name: "sample", credential: "sample", phone: "sample", availability: "sample", max_visits_per_day: 1
+    setup  "PrescribeMedication", patient_name: "sample", drug_name: "sample", dosage: "sample", frequency: "sample", route: "sample", prescriber: "sample"
     setup  "ScheduleVisit", patient_name: "sample", caregiver_name: "sample", visit_date: "sample", visit_type: "sample"
     input  notes: "sample"
     expect emits: ["VisitCompleted", "VitalsRecorded", "AbnormalVitalsFlagged", "VisitScheduled", "PatientActivated", "MedicationAdministered"]
@@ -102,6 +109,8 @@ Hecks.behaviors "HomeHealthCare" do
   test "PrescribeMedication cascades through policy chain" do
     tests "PrescribeMedication", on: "Medication", kind: :cascade
     setup  "EnrollPatient", name: "sample", address: "sample", primary_diagnosis: "sample", physician_name: "sample"
+    setup  "ScheduleVisit", patient_name: "sample", caregiver_name: "sample", visit_date: "sample", visit_type: "sample"
+    setup  "RegisterCaregiver", name: "sample", credential: "sample", phone: "sample", availability: "sample", max_visits_per_day: 1
     input  patient_name: "sample", drug_name: "sample", dosage: "sample", frequency: "sample", route: "sample", prescriber: "sample"
     expect emits: ["MedicationPrescribed", "VisitScheduled", "PatientActivated"]
   end
@@ -131,6 +140,8 @@ Hecks.behaviors "HomeHealthCare" do
   test "RecordVitals cascades through policy chain" do
     tests "RecordVitals", on: "VitalSign", kind: :cascade
     setup  "EnrollPatient", name: "sample", address: "sample", primary_diagnosis: "sample", physician_name: "sample"
+    setup  "ScheduleVisit", patient_name: "sample", caregiver_name: "sample", visit_date: "sample", visit_type: "sample"
+    setup  "RegisterCaregiver", name: "sample", credential: "sample", phone: "sample", availability: "sample", max_visits_per_day: 1
     input  patient_name: "sample", measurement_date: "sample", systolic: 1, diastolic: 1, heart_rate: 1, temperature: 1.0, oxygen_saturation: 1
     expect emits: ["VitalsRecorded", "AbnormalVitalsFlagged", "VisitScheduled", "PatientActivated"]
   end
@@ -144,6 +155,9 @@ Hecks.behaviors "HomeHealthCare" do
   test "FlagAbnormalVitals cascades through policy chain" do
     tests "FlagAbnormalVitals", on: "VitalSign", kind: :cascade
     setup  "RecordVitals", patient_name: "sample", measurement_date: "sample", systolic: 1, diastolic: 1, heart_rate: 1, temperature: 1.0, oxygen_saturation: 1
+    setup  "ScheduleVisit", patient_name: "sample", caregiver_name: "sample", visit_date: "sample", visit_type: "sample"
+    setup  "EnrollPatient", name: "sample", address: "sample", primary_diagnosis: "sample", physician_name: "sample"
+    setup  "RegisterCaregiver", name: "sample", credential: "sample", phone: "sample", availability: "sample", max_visits_per_day: 1
     expect emits: ["AbnormalVitalsFlagged", "VisitScheduled", "PatientActivated"]
   end
 

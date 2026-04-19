@@ -18,6 +18,7 @@ Hecks.behaviors "DonorRecruitment" do
   test "FlagShortage cascades through policy chain" do
     tests "FlagShortage", on: "BloodInventory", kind: :cascade
     setup  "RecordStock", center_id: "sample", blood_type: "sample", units_available: 1, min_threshold: 1
+    setup  "LaunchCampaign", campaign_id: "sample", target_blood_type: "sample", platform: "sample", budget: 1.0, target_donors: 1
     expect emits: ["ShortageFlagged", "CampaignLaunched"]
   end
 

@@ -276,11 +276,6 @@ Hecks.bluebook "ElderCare" do
     trigger "AdministerMedication"
   end
 
-  policy "ReassessOnRisks" do
-    on "RisksFlagged"
-    trigger "ConductAssessment"
-  end
-
   policy "SuspendOnRisks" do
     on "RisksFlagged"
     trigger "SuspendServices"

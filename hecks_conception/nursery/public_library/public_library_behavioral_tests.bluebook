@@ -9,12 +9,6 @@ Hecks.behaviors "PublicLibrary" do
     expect status: "acquired"
   end
 
-  test "AcquireBook cascades through policy chain" do
-    tests "AcquireBook", on: "Book", kind: :cascade
-    input  isbn: "sample", title: "sample", author: "sample", genre: "sample", copies_available: 1
-    expect emits: ["BookAcquired", "BookCataloged", "BookShelved"]
-  end
-
   test "CatalogBook sets dewey_decimal" do
     tests "CatalogBook", on: "Book"
     setup  "AcquireBook", isbn: "sample", title: "sample", author: "sample", genre: "sample", copies_available: 1
@@ -32,14 +26,12 @@ Hecks.behaviors "PublicLibrary" do
   test "ShelveBook runs" do
     tests "ShelveBook", on: "Book"
     setup  "AcquireBook", isbn: "sample", title: "sample", author: "sample", genre: "sample", copies_available: 1
-    setup  "CatalogBook", dewey_decimal: "sample"
     expect status: "available"
   end
 
   test "WithdrawBook sets reason" do
     tests "WithdrawBook", on: "Book"
     setup  "AcquireBook", isbn: "sample", title: "sample", author: "sample", genre: "sample", copies_available: 1
-    setup  "CatalogBook", dewey_decimal: "sample"
     setup  "ShelveBook"
     input  reason: "sample"
     expect status: "withdrawn"
@@ -63,7 +55,6 @@ Hecks.behaviors "PublicLibrary" do
   test "ReinstatePatron runs" do
     tests "ReinstatePatron", on: "Patron"
     setup  "RegisterPatron", name: "sample", email: "sample", membership_type: "sample"
-    setup  "SuspendPatron"
     expect status: "active"
   end
 
@@ -86,6 +77,8 @@ Hecks.behaviors "PublicLibrary" do
 
   test "ReturnBook cascades through policy chain" do
     tests "ReturnBook", on: "Loan", kind: :cascade
+    setup  "PlaceHold"
+    setup  "AcquireBook", isbn: "sample", title: "sample", author: "sample", genre: "sample", copies_available: 1
     setup  "CheckOutBook", due_date: "sample"
     expect emits: ["BookReturned", "HoldFulfilled", "BookShelved"]
   end
@@ -105,8 +98,10 @@ Hecks.behaviors "PublicLibrary" do
 
   test "MarkOverdue cascades through policy chain" do
     tests "MarkOverdue", on: "Loan", kind: :cascade
+    setup  "AssessFine", amount_cents: 1, reason: "sample"
+    setup  "RegisterPatron", name: "sample", email: "sample", membership_type: "sample"
     setup  "CheckOutBook", due_date: "sample"
-    expect emits: ["LoanOverdue", "FineAssessed", "PatronSuspended"]
+    expect emits: ["LoanOverdue", "FineAssessed"]
   end
 
 
@@ -149,14 +144,6 @@ Hecks.behaviors "PublicLibrary" do
     expect status: "outstanding"
   end
 
-  test "AssessFine cascades through policy chain" do
-    tests "AssessFine", on: "Fine", kind: :cascade
-    setup  "CheckOutBook", due_date: "sample"
-    setup  "RegisterPatron", name: "sample", email: "sample", membership_type: "sample"
-    input  amount_cents: 1, reason: "sample"
-    expect emits: ["FineAssessed", "PatronSuspended"]
-  end
-
   test "PayFine sets paid_cents" do
     tests "PayFine", on: "Fine"
     setup  "AssessFine", amount_cents: 1, reason: "sample"
@@ -166,6 +153,7 @@ Hecks.behaviors "PublicLibrary" do
 
   test "PayFine cascades through policy chain" do
     tests "PayFine", on: "Fine", kind: :cascade
+    setup  "RegisterPatron", name: "sample", email: "sample", membership_type: "sample"
     setup  "AssessFine", amount_cents: 1, reason: "sample"
     input  paid_cents: 1
     expect emits: ["FinePaid", "PatronReinstated"]

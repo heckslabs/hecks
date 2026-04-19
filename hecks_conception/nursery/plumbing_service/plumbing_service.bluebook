@@ -46,7 +46,6 @@ Hecks.bluebook "PlumbingService" do
       goal "Mark the service call as resolved"
       description "Close out the job after repair is verified"
       reference_to(ServiceCall)
-      given("must be diagnosed first") { diagnosis != nil }
       emits "CallCompleted"
     end
   end

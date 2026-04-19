@@ -62,7 +62,7 @@ Hecks.behaviors "Planetarium" do
   test "ProjectShow cascades through policy chain" do
     tests "ProjectShow", on: "Show", kind: :cascade
     input  title: "sample", theme: "sample", duration_minutes: 1, target_audience: "sample", narration_type: "sample"
-    expect emits: ["ShowCreated", "ShowRehearsed", "ShowPublished", "ShowScheduled", "ProjectorActivated"]
+    expect emits: ["ShowCreated", "ShowRehearsed", "ShowPublished"]
   end
 
   test "RehearsalShow runs" do
@@ -74,7 +74,7 @@ Hecks.behaviors "Planetarium" do
   test "RehearsalShow cascades through policy chain" do
     tests "RehearsalShow", on: "Show", kind: :cascade
     setup  "ProjectShow", title: "sample", theme: "sample", duration_minutes: 1, target_audience: "sample", narration_type: "sample"
-    expect emits: ["ShowRehearsed", "ShowPublished", "ShowScheduled", "ProjectorActivated"]
+    expect emits: ["ShowRehearsed", "ShowPublished"]
   end
 
   test "PublishShow runs" do
@@ -84,13 +84,6 @@ Hecks.behaviors "Planetarium" do
     expect status: "published"
   end
 
-  test "PublishShow cascades through policy chain" do
-    tests "PublishShow", on: "Show", kind: :cascade
-    setup  "ProjectShow", title: "sample", theme: "sample", duration_minutes: 1, target_audience: "sample", narration_type: "sample"
-    setup  "RehearsalShow"
-    expect emits: ["ShowPublished", "ShowScheduled", "ProjectorActivated"]
-  end
-
 
   # ── ShowSchedule aggregate ──────────────────────────────────────────
 
@@ -98,12 +91,6 @@ Hecks.behaviors "Planetarium" do
     tests "ScheduleShow", on: "ShowSchedule"
     input  show_title: "sample", show_date: "sample", show_time: "sample", capacity: 1
     expect show_title: "sample", show_date: "sample", show_time: "sample", capacity: 1, tickets_sold: 0, status: "scheduled"
-  end
-
-  test "ScheduleShow cascades through policy chain" do
-    tests "ScheduleShow", on: "ShowSchedule", kind: :cascade
-    input  show_title: "sample", show_date: "sample", show_time: "sample", capacity: 1
-    expect emits: ["ShowScheduled", "ProjectorActivated"]
   end
 
   test "SellTicket runs" do

@@ -155,7 +155,7 @@ Hecks.bluebook "InteriorDesign" do
       description "Fix remaining punch list items after walkthrough"
       reference_to(Installation)
       String :punch_list
-      given { status == "completed" }
+      given { status == "completed" || status == "scheduled" }
       emits "PunchListResolved"
       then_set :status, to: "resolved"
     end

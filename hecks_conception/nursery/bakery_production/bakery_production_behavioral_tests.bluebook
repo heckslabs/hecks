@@ -20,6 +20,7 @@ Hecks.behaviors "BakeryProduction" do
 
   test "StartBatch cascades through policy chain" do
     tests "StartBatch", on: "Batch", kind: :cascade
+    setup  "ReceiveDelivery", ingredient_name: "sample", quantity: 1.0, supplier: "sample"
     input  recipe_name: "sample", production_date: "sample", quantity: 1, baker: "sample"
     expect emits: ["BatchStarted", "StockDeducted", "LowStockFlagged"]
   end
@@ -33,6 +34,7 @@ Hecks.behaviors "BakeryProduction" do
   test "CompleteBatch cascades through policy chain" do
     tests "CompleteBatch", on: "Batch", kind: :cascade
     setup  "StartBatch", recipe_name: "sample", production_date: "sample", quantity: 1, baker: "sample"
+    setup  "PlaceOrder", customer_name: "sample", pickup_date: "sample"
     expect emits: ["BatchCompleted", "OrderFulfilled"]
   end
 
@@ -52,11 +54,24 @@ Hecks.behaviors "BakeryProduction" do
     expect ok: "true"
   end
 
+  test "DeductForBatch sets quantity" do
+    tests "DeductForBatch", on: "IngredientStock"
+    setup  "ReceiveDelivery", ingredient_name: "sample", quantity: 1.0, supplier: "sample"
+    input  quantity: 1.0
+    expect ok: "true"
+  end
+
   test "DeductForBatch cascades through policy chain" do
     tests "DeductForBatch", on: "IngredientStock", kind: :cascade
     setup  "ReceiveDelivery", ingredient_name: "sample", quantity: 1.0, supplier: "sample"
     input  quantity: 1.0
     expect emits: ["StockDeducted", "LowStockFlagged"]
+  end
+
+  test "FlagLowStock runs" do
+    tests "FlagLowStock", on: "IngredientStock"
+    setup  "ReceiveDelivery", ingredient_name: "sample", quantity: 1.0, supplier: "sample"
+    expect ok: "true"
   end
 
 

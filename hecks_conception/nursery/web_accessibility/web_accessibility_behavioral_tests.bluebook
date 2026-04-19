@@ -11,6 +11,9 @@ Hecks.behaviors "WebAccessibility" do
 
   test "LaunchAudit cascades through policy chain" do
     tests "LaunchAudit", on: "AccessibilityAudit", kind: :cascade
+    setup  "CrawlPage", page_url: "sample", title: "sample", content_type: "sample", dom_elements: 1
+    setup  "ReportViolation", violation_id: "sample", rule_id: "sample", severity: "sample", element_selector: "sample", description: "sample"
+    setup  "AssignRemediation", remediation_id: "sample", fix_description: "sample", assigned_to: "sample", priority: "sample"
     input  audit_id: "sample", site_url: "sample", wcag_level: "sample", auditor: "sample"
     expect emits: ["AuditLaunched", "PageCrawled", "ViolationReported", "ViolationConfirmed", "RemediationAssigned"]
   end
@@ -24,6 +27,7 @@ Hecks.behaviors "WebAccessibility" do
 
   test "CompleteAudit cascades through policy chain" do
     tests "CompleteAudit", on: "AccessibilityAudit", kind: :cascade
+    setup  "IssueCertificate", certificate_id: "sample", wcag_level: "sample", issued_by: "sample", valid_until: "sample"
     setup  "LaunchAudit", audit_id: "sample", site_url: "sample", wcag_level: "sample", auditor: "sample"
     input  pages_scanned: 1
     expect emits: ["AuditCompleted", "CertificateIssued"]
@@ -48,6 +52,8 @@ Hecks.behaviors "WebAccessibility" do
   test "CrawlPage cascades through policy chain" do
     tests "CrawlPage", on: "Page", kind: :cascade
     setup  "LaunchAudit", audit_id: "sample", site_url: "sample", wcag_level: "sample", auditor: "sample"
+    setup  "ReportViolation", violation_id: "sample", rule_id: "sample", severity: "sample", element_selector: "sample", description: "sample"
+    setup  "AssignRemediation", remediation_id: "sample", fix_description: "sample", assigned_to: "sample", priority: "sample"
     input  page_url: "sample", title: "sample", content_type: "sample", dom_elements: 1
     expect emits: ["PageCrawled", "ViolationReported", "ViolationConfirmed", "RemediationAssigned"]
   end
@@ -77,6 +83,7 @@ Hecks.behaviors "WebAccessibility" do
   test "ReportViolation cascades through policy chain" do
     tests "ReportViolation", on: "Violation", kind: :cascade
     setup  "CrawlPage", page_url: "sample", title: "sample", content_type: "sample", dom_elements: 1
+    setup  "AssignRemediation", remediation_id: "sample", fix_description: "sample", assigned_to: "sample", priority: "sample"
     input  violation_id: "sample", rule_id: "sample", severity: "sample", element_selector: "sample", description: "sample"
     expect emits: ["ViolationReported", "ViolationConfirmed", "RemediationAssigned"]
   end
@@ -90,6 +97,7 @@ Hecks.behaviors "WebAccessibility" do
   test "ConfirmViolation cascades through policy chain" do
     tests "ConfirmViolation", on: "Violation", kind: :cascade
     setup  "ReportViolation", violation_id: "sample", rule_id: "sample", severity: "sample", element_selector: "sample", description: "sample"
+    setup  "AssignRemediation", remediation_id: "sample", fix_description: "sample", assigned_to: "sample", priority: "sample"
     expect emits: ["ViolationConfirmed", "RemediationAssigned"]
   end
 
@@ -118,6 +126,9 @@ Hecks.behaviors "WebAccessibility" do
 
   test "CompleteRemediation cascades through policy chain" do
     tests "CompleteRemediation", on: "Remediation", kind: :cascade
+    setup  "LaunchAudit", audit_id: "sample", site_url: "sample", wcag_level: "sample", auditor: "sample"
+    setup  "IssueCertificate", certificate_id: "sample", wcag_level: "sample", issued_by: "sample", valid_until: "sample"
+    setup  "CrawlPage", page_url: "sample", title: "sample", content_type: "sample", dom_elements: 1
     setup  "AssignRemediation", remediation_id: "sample", fix_description: "sample", assigned_to: "sample", priority: "sample"
     expect emits: ["RemediationCompleted", "AuditCompleted", "CertificateIssued", "PageReviewed"]
   end
@@ -132,6 +143,7 @@ Hecks.behaviors "WebAccessibility" do
   test "RejectRemediation cascades through policy chain" do
     tests "RejectRemediation", on: "Remediation", kind: :cascade
     setup  "AssignRemediation", remediation_id: "sample", fix_description: "sample", assigned_to: "sample", priority: "sample"
+    setup  "LaunchAudit", audit_id: "sample", site_url: "sample", wcag_level: "sample", auditor: "sample"
     input  rejection_reason: "sample"
     expect emits: ["RemediationRejected", "AuditReopened"]
   end

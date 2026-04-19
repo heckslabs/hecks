@@ -11,6 +11,8 @@ Hecks.behaviors "ReliefWorkers" do
 
   test "DeclareIncident cascades through policy chain" do
     tests "DeclareIncident", on: "Incident", kind: :cascade
+    setup  "RegisterVolunteer", volunteer_id: "sample", name: "sample", availability: "sample"
+    setup  "DeployVolunteer", deployment_id: "sample", volunteer_id: "sample", incident_id: "sample", role_assigned: "sample", start_date: "sample"
     input  incident_id: "sample", disaster_type: "sample", location_name: "sample", severity: "sample", workers_needed: 1
     expect emits: ["IncidentDeclared", "VolunteerMatched", "VolunteerDeployed"]
   end
@@ -38,6 +40,7 @@ Hecks.behaviors "ReliefWorkers" do
 
   test "MatchVolunteer cascades through policy chain" do
     tests "MatchVolunteer", on: "Volunteer", kind: :cascade
+    setup  "DeployVolunteer", deployment_id: "sample", volunteer_id: "sample", incident_id: "sample", role_assigned: "sample", start_date: "sample"
     setup  "RegisterVolunteer", volunteer_id: "sample", name: "sample", availability: "sample"
     expect emits: ["VolunteerMatched", "VolunteerDeployed"]
   end

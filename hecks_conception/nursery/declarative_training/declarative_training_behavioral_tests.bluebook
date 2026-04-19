@@ -11,6 +11,7 @@ Hecks.behaviors "DeclarativeTraining" do
 
   test "HarvestCorpus cascades through policy chain" do
     tests "HarvestCorpus", on: "Corpus", kind: :cascade
+    setup  "ExtractPair", domain_name: "sample"
     input  root_path: "sample"
     expect emits: ["CorpusHarvested", "PairExtracted", "TrainingSetEmitted"]
   end

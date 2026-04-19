@@ -47,11 +47,6 @@ Hecks.bluebook "PoolChemistry", version: "2026.04.13.1" do
       emits "ChemistryAnalyzed"
       then_set :status, to: "analyzed"
     end
-
-    lifecycle :status, default: "pending" do
-      transition "RecordWaterTest" => "recorded", from: "pending"
-      transition "AnalyzeChemistry" => "analyzed", from: "recorded"
-    end
   end
 
   aggregate "ChemicalReaction", "A chemical reaction in pool water — reagents, products, equilibrium" do
@@ -159,12 +154,6 @@ Hecks.bluebook "PoolChemistry", version: "2026.04.13.1" do
       emits "DosingVerified"
       then_set :status, to: "verified"
     end
-
-    lifecycle :status, default: "pending" do
-      transition "PrescribeDose" => "created", from: "pending"
-      transition "ExecuteDosing" => "executed", from: "created"
-      transition "VerifyDosing" => "verified", from: "executed"
-    end
   end
 
   aggregate "AlgaeIncident", "An algae bloom incident — type, severity, treatment, prevention" do
@@ -226,11 +215,6 @@ Hecks.bluebook "PoolChemistry", version: "2026.04.13.1" do
   policy "AnalyzeOnTest" do
     on "WaterTestRecorded"
     trigger "AnalyzeChemistry"
-  end
-
-  policy "DoseOnAnalysis" do
-    on "ChemistryAnalyzed"
-    trigger "PrescribeDose"
   end
 
   policy "ExecuteOnDosePlan" do

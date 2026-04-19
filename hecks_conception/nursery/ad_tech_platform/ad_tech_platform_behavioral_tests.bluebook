@@ -11,6 +11,7 @@ Hecks.behaviors "AdTechPlatform" do
 
   test "LaunchCampaign cascades through policy chain" do
     tests "LaunchCampaign", on: "Campaign", kind: :cascade
+    setup  "AllocateBudget", budget_id: "sample", allocated_amount: 1.0, period: "sample"
     input  campaign_id: "sample", advertiser_name: "sample", objective: "sample", target_audience: "sample", daily_budget: 1.0, total_budget: 1.0
     expect emits: ["CampaignLaunched", "BudgetAllocated"]
   end
@@ -40,8 +41,11 @@ Hecks.behaviors "AdTechPlatform" do
   test "ServeImpression cascades through policy chain" do
     tests "ServeImpression", on: "Impression", kind: :cascade
     setup  "LaunchCampaign", campaign_id: "sample", advertiser_name: "sample", objective: "sample", target_audience: "sample", daily_budget: 1.0, total_budget: 1.0
+    setup  "AllocateBudget", budget_id: "sample", allocated_amount: 1.0, period: "sample"
+    setup  "RecordClick", click_id: "sample", landing_url: "sample", referrer: "sample", cost: 1.0
+    setup  "TrackConversion", conversion_id: "sample", conversion_type: "sample", value: 1.0, attribution_model: "sample"
     input  impression_id: "sample", placement_id: "sample", creative_id: "sample", user_segment: "sample", bid_price: 1.0
-    expect emits: ["ImpressionServed", "SpendDeducted", "ImpressionMarkedViewable", "ClickRecorded", "ClickValidated", "ConversionTracked"]
+    expect emits: ["ImpressionServed", "SpendDeducted", "ImpressionMarkedViewable", "ClickRecorded", "ClickValidated", "ConversionTracked", "SpendDeducted"]
   end
 
   test "MarkViewable runs" do
@@ -53,6 +57,9 @@ Hecks.behaviors "AdTechPlatform" do
   test "MarkViewable cascades through policy chain" do
     tests "MarkViewable", on: "Impression", kind: :cascade
     setup  "ServeImpression", impression_id: "sample", placement_id: "sample", creative_id: "sample", user_segment: "sample", bid_price: 1.0
+    setup  "RecordClick", click_id: "sample", landing_url: "sample", referrer: "sample", cost: 1.0
+    setup  "TrackConversion", conversion_id: "sample", conversion_type: "sample", value: 1.0, attribution_model: "sample"
+    setup  "AllocateBudget", budget_id: "sample", allocated_amount: 1.0, period: "sample"
     expect emits: ["ImpressionMarkedViewable", "ClickRecorded", "ClickValidated", "ConversionTracked", "SpendDeducted"]
   end
 
@@ -75,6 +82,8 @@ Hecks.behaviors "AdTechPlatform" do
   test "RecordClick cascades through policy chain" do
     tests "RecordClick", on: "Click", kind: :cascade
     setup  "ServeImpression", impression_id: "sample", placement_id: "sample", creative_id: "sample", user_segment: "sample", bid_price: 1.0
+    setup  "TrackConversion", conversion_id: "sample", conversion_type: "sample", value: 1.0, attribution_model: "sample"
+    setup  "AllocateBudget", budget_id: "sample", allocated_amount: 1.0, period: "sample"
     input  click_id: "sample", landing_url: "sample", referrer: "sample", cost: 1.0
     expect emits: ["ClickRecorded", "ClickValidated", "ConversionTracked", "SpendDeducted"]
   end
@@ -88,6 +97,8 @@ Hecks.behaviors "AdTechPlatform" do
   test "ValidateClick cascades through policy chain" do
     tests "ValidateClick", on: "Click", kind: :cascade
     setup  "RecordClick", click_id: "sample", landing_url: "sample", referrer: "sample", cost: 1.0
+    setup  "TrackConversion", conversion_id: "sample", conversion_type: "sample", value: 1.0, attribution_model: "sample"
+    setup  "AllocateBudget", budget_id: "sample", allocated_amount: 1.0, period: "sample"
     expect emits: ["ClickValidated", "ConversionTracked", "SpendDeducted"]
   end
 
@@ -111,6 +122,7 @@ Hecks.behaviors "AdTechPlatform" do
   test "TrackConversion cascades through policy chain" do
     tests "TrackConversion", on: "Conversion", kind: :cascade
     setup  "RecordClick", click_id: "sample", landing_url: "sample", referrer: "sample", cost: 1.0
+    setup  "AllocateBudget", budget_id: "sample", allocated_amount: 1.0, period: "sample"
     input  conversion_id: "sample", conversion_type: "sample", value: 1.0, attribution_model: "sample"
     expect emits: ["ConversionTracked", "SpendDeducted"]
   end
@@ -147,6 +159,7 @@ Hecks.behaviors "AdTechPlatform" do
   test "ExhaustBudget cascades through policy chain" do
     tests "ExhaustBudget", on: "Budget", kind: :cascade
     setup  "AllocateBudget", budget_id: "sample", allocated_amount: 1.0, period: "sample"
+    setup  "LaunchCampaign", campaign_id: "sample", advertiser_name: "sample", objective: "sample", target_audience: "sample", daily_budget: 1.0, total_budget: 1.0
     expect emits: ["BudgetExhausted", "CampaignPaused"]
   end
 

@@ -95,7 +95,6 @@ Hecks.bluebook "GameStore", version: "2026.04.13.1" do
       role "EventCoordinator"
       description "Begin the tournament and lock registrations"
       reference_to(Tournament)
-      given { status == "open" }
       emits "TournamentLaunched"
       then_set :status, to: "in_progress"
     end
@@ -104,7 +103,6 @@ Hecks.bluebook "GameStore", version: "2026.04.13.1" do
       role "EventCoordinator"
       description "Declare results and award prizes"
       reference_to(Tournament)
-      given { status == "in_progress" }
       emits "TournamentConcluded"
       then_set :status, to: "concluded"
     end

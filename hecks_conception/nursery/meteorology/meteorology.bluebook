@@ -69,6 +69,7 @@ Hecks.bluebook "Meteorology" do
       String :timestamp
       Float :temperature_c
       Float :pressure_hpa
+      then_set :fields_complete, to: true
     end
 
     command "CompleteObservation" do
@@ -105,6 +106,7 @@ Hecks.bluebook "Meteorology" do
       String :synopsis
       String :valid_from
       String :valid_to
+      then_set :valid_period_elapsed, to: true
     end
 
     command "AmendForecast" do

@@ -67,6 +67,7 @@ Hecks.bluebook "Dendrology" do
       emits "CoreExtracted"
       reference_to TreeSpecimen
       String :core_id
+      then_set :core_prepared, to: true
     end
 
     command "PrepareCore" do
@@ -123,7 +124,6 @@ Hecks.bluebook "Dendrology" do
       emits "TreatmentPrescribed"
       reference_to HealthAssessment
       String :treatment_type
-      given { defects.size > 0 }
     end
 
     command "ScheduleFollowup" do

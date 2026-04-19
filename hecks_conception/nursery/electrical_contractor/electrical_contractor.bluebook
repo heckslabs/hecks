@@ -100,7 +100,6 @@ Hecks.bluebook "ElectricalContractor" do
       String :wire_gauge
       String :circuit_type
       reference_to(Panel)
-      given("panel must have open slots") { used_slots < total_slots }
       emits "CircuitPulled"
     end
 

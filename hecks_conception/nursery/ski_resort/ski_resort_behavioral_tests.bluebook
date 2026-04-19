@@ -11,6 +11,8 @@ Hecks.behaviors "SkiResort" do
 
   test "ActivateLift cascades through policy chain" do
     tests "ActivateLift", on: "Lift", kind: :cascade
+    setup  "SellPass", pass_id: "sample", holder_name: "sample", pass_type: "sample", valid_from: "sample", valid_to: "sample", price: 1.0
+    setup  "RentEquipment", rental_id: "sample", guest_name: "sample", equipment_package: "sample", boot_size: "sample", start_date: "sample", end_date: "sample", daily_rate: 1.0
     input  lift_id: "sample", name: "sample", lift_type: "sample", capacity_per_chair: 1, vertical_rise_ft: 1
     expect emits: ["LiftActivated", "PassSold", "EquipmentRented"]
   end
@@ -23,6 +25,9 @@ Hecks.behaviors "SkiResort" do
 
   test "HaltLift cascades through policy chain" do
     tests "HaltLift", on: "Lift", kind: :cascade
+    setup  "OpenRun", run_id: "sample", name: "sample", difficulty: "sample", length_km: 1.0
+    setup  "RentEquipment", rental_id: "sample", guest_name: "sample", equipment_package: "sample", boot_size: "sample", start_date: "sample", end_date: "sample", daily_rate: 1.0
+    setup  "SellPass", pass_id: "sample", holder_name: "sample", pass_type: "sample", valid_from: "sample", valid_to: "sample", price: 1.0
     setup  "ActivateLift", lift_id: "sample", name: "sample", lift_type: "sample", capacity_per_chair: 1, vertical_rise_ft: 1
     expect emits: ["LiftHalted", "RunClosed", "EquipmentReturned", "PassSuspended"]
   end
@@ -45,6 +50,10 @@ Hecks.behaviors "SkiResort" do
 
   test "OpenRun cascades through policy chain" do
     tests "OpenRun", on: "SkiRun", kind: :cascade
+    setup  "ActivateLift", lift_id: "sample", name: "sample", lift_type: "sample", capacity_per_chair: 1, vertical_rise_ft: 1
+    setup  "SellPass", pass_id: "sample", holder_name: "sample", pass_type: "sample", valid_from: "sample", valid_to: "sample", price: 1.0
+    setup  "RentEquipment", rental_id: "sample", guest_name: "sample", equipment_package: "sample", boot_size: "sample", start_date: "sample", end_date: "sample", daily_rate: 1.0
+    setup  "PublishConditions", report_id: "sample", date: "sample", base_depth_cm: 1, new_snow_cm: 1, snow_quality: "sample", wind_speed: "sample", temperature: "sample"
     input  run_id: "sample", name: "sample", difficulty: "sample", length_km: 1.0
     expect emits: ["RunOpened", "RunGroomed", "LiftActivated", "PassSold", "EquipmentRented", "ConditionsPublished", "LiftHalted", "RunClosed", "EquipmentReturned", "PassSuspended"]
   end
@@ -57,6 +66,10 @@ Hecks.behaviors "SkiResort" do
 
   test "GroomRun cascades through policy chain" do
     tests "GroomRun", on: "SkiRun", kind: :cascade
+    setup  "ActivateLift", lift_id: "sample", name: "sample", lift_type: "sample", capacity_per_chair: 1, vertical_rise_ft: 1
+    setup  "SellPass", pass_id: "sample", holder_name: "sample", pass_type: "sample", valid_from: "sample", valid_to: "sample", price: 1.0
+    setup  "RentEquipment", rental_id: "sample", guest_name: "sample", equipment_package: "sample", boot_size: "sample", start_date: "sample", end_date: "sample", daily_rate: 1.0
+    setup  "PublishConditions", report_id: "sample", date: "sample", base_depth_cm: 1, new_snow_cm: 1, snow_quality: "sample", wind_speed: "sample", temperature: "sample"
     setup  "OpenRun", run_id: "sample", name: "sample", difficulty: "sample", length_km: 1.0
     expect emits: ["RunGroomed", "LiftActivated", "PassSold", "EquipmentRented", "ConditionsPublished", "LiftHalted", "RunClosed", "EquipmentReturned", "PassSuspended"]
   end
@@ -70,6 +83,8 @@ Hecks.behaviors "SkiResort" do
   test "CloseRun cascades through policy chain" do
     tests "CloseRun", on: "SkiRun", kind: :cascade
     setup  "OpenRun", run_id: "sample", name: "sample", difficulty: "sample", length_km: 1.0
+    setup  "RentEquipment", rental_id: "sample", guest_name: "sample", equipment_package: "sample", boot_size: "sample", start_date: "sample", end_date: "sample", daily_rate: 1.0
+    setup  "SellPass", pass_id: "sample", holder_name: "sample", pass_type: "sample", valid_from: "sample", valid_to: "sample", price: 1.0
     expect emits: ["RunClosed", "EquipmentReturned", "PassSuspended"]
   end
 
@@ -84,6 +99,7 @@ Hecks.behaviors "SkiResort" do
 
   test "SellPass cascades through policy chain" do
     tests "SellPass", on: "LiftPass", kind: :cascade
+    setup  "RentEquipment", rental_id: "sample", guest_name: "sample", equipment_package: "sample", boot_size: "sample", start_date: "sample", end_date: "sample", daily_rate: 1.0
     input  pass_id: "sample", holder_name: "sample", pass_type: "sample", valid_from: "sample", valid_to: "sample", price: 1.0
     expect emits: ["PassSold", "EquipmentRented"]
   end
@@ -120,6 +136,10 @@ Hecks.behaviors "SkiResort" do
 
   test "PublishConditions cascades through policy chain" do
     tests "PublishConditions", on: "SnowCondition", kind: :cascade
+    setup  "ActivateLift", lift_id: "sample", name: "sample", lift_type: "sample", capacity_per_chair: 1, vertical_rise_ft: 1
+    setup  "OpenRun", run_id: "sample", name: "sample", difficulty: "sample", length_km: 1.0
+    setup  "RentEquipment", rental_id: "sample", guest_name: "sample", equipment_package: "sample", boot_size: "sample", start_date: "sample", end_date: "sample", daily_rate: 1.0
+    setup  "SellPass", pass_id: "sample", holder_name: "sample", pass_type: "sample", valid_from: "sample", valid_to: "sample", price: 1.0
     input  report_id: "sample", date: "sample", base_depth_cm: 1, new_snow_cm: 1, snow_quality: "sample", wind_speed: "sample", temperature: "sample"
     expect emits: ["ConditionsPublished", "LiftHalted", "RunClosed", "EquipmentReturned", "PassSuspended"]
   end

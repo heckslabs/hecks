@@ -11,6 +11,9 @@ Hecks.behaviors "SaaSPlatform" do
 
   test "OnboardTenant cascades through policy chain" do
     tests "OnboardTenant", on: "Tenant", kind: :cascade
+    setup  "StartSubscription", subscription_id: "sample", plan_name: "sample", monthly_rate: 1.0, billing_cycle: "sample"
+    setup  "InitializeMeter", meter_name: "sample", unit: "sample", quota: 1, period: "sample"
+    setup  "ProvisionFeatureFlag", flag_name: "sample", description: "sample", rollout_strategy: "sample", rollout_percentage: 1
     input  tenant_name: "sample", slug: "sample", admin_email: "sample", plan: "sample"
     expect emits: ["TenantOnboarded", "SubscriptionStarted", "MeterInitialized", "FeatureFlagProvisioned"]
   end
@@ -40,6 +43,8 @@ Hecks.behaviors "SaaSPlatform" do
   test "StartSubscription cascades through policy chain" do
     tests "StartSubscription", on: "Subscription", kind: :cascade
     setup  "OnboardTenant", tenant_name: "sample", slug: "sample", admin_email: "sample", plan: "sample"
+    setup  "InitializeMeter", meter_name: "sample", unit: "sample", quota: 1, period: "sample"
+    setup  "ProvisionFeatureFlag", flag_name: "sample", description: "sample", rollout_strategy: "sample", rollout_percentage: 1
     input  subscription_id: "sample", plan_name: "sample", monthly_rate: 1.0, billing_cycle: "sample"
     expect emits: ["SubscriptionStarted", "MeterInitialized", "FeatureFlagProvisioned"]
   end
@@ -54,6 +59,7 @@ Hecks.behaviors "SaaSPlatform" do
   test "UpgradePlan cascades through policy chain" do
     tests "UpgradePlan", on: "Subscription", kind: :cascade
     setup  "StartSubscription", subscription_id: "sample", plan_name: "sample", monthly_rate: 1.0, billing_cycle: "sample"
+    setup  "ProvisionFeatureFlag", flag_name: "sample", description: "sample", rollout_strategy: "sample", rollout_percentage: 1
     input  plan_name: "sample", monthly_rate: 1.0
     expect emits: ["PlanUpgraded", "FlagToggledForTenant"]
   end
@@ -66,6 +72,7 @@ Hecks.behaviors "SaaSPlatform" do
 
   test "CancelSubscription cascades through policy chain" do
     tests "CancelSubscription", on: "Subscription", kind: :cascade
+    setup  "OnboardTenant", tenant_name: "sample", slug: "sample", admin_email: "sample", plan: "sample"
     setup  "StartSubscription", subscription_id: "sample", plan_name: "sample", monthly_rate: 1.0, billing_cycle: "sample"
     expect emits: ["SubscriptionCanceled", "TenantSuspended"]
   end
@@ -105,6 +112,7 @@ Hecks.behaviors "SaaSPlatform" do
   test "InitializeMeter cascades through policy chain" do
     tests "InitializeMeter", on: "UsageMeter", kind: :cascade
     setup  "OnboardTenant", tenant_name: "sample", slug: "sample", admin_email: "sample", plan: "sample"
+    setup  "ProvisionFeatureFlag", flag_name: "sample", description: "sample", rollout_strategy: "sample", rollout_percentage: 1
     input  meter_name: "sample", unit: "sample", quota: 1, period: "sample"
     expect emits: ["MeterInitialized", "FeatureFlagProvisioned"]
   end
@@ -112,6 +120,8 @@ Hecks.behaviors "SaaSPlatform" do
   test "RecordUsage cascades through policy chain" do
     tests "RecordUsage", on: "UsageMeter", kind: :cascade
     setup  "InitializeMeter", meter_name: "sample", unit: "sample", quota: 1, period: "sample"
+    setup  "PostCharge", event_id: "sample", amount: 1.0, description: "sample"
+    setup  "OnboardTenant", tenant_name: "sample", slug: "sample", admin_email: "sample", plan: "sample"
     input  delta: 1
     expect emits: ["UsageRecorded", "ChargePosted", "BalanceSettled", "MeterReset"]
   end
@@ -135,6 +145,7 @@ Hecks.behaviors "SaaSPlatform" do
   test "PostCharge cascades through policy chain" do
     tests "PostCharge", on: "BillingEvent", kind: :cascade
     setup  "OnboardTenant", tenant_name: "sample", slug: "sample", admin_email: "sample", plan: "sample"
+    setup  "InitializeMeter", meter_name: "sample", unit: "sample", quota: 1, period: "sample"
     input  event_id: "sample", amount: 1.0, description: "sample"
     expect emits: ["ChargePosted", "BalanceSettled", "MeterReset"]
   end
@@ -155,6 +166,7 @@ Hecks.behaviors "SaaSPlatform" do
   test "SettleBalance cascades through policy chain" do
     tests "SettleBalance", on: "BillingEvent", kind: :cascade
     setup  "PostCharge", event_id: "sample", amount: 1.0, description: "sample"
+    setup  "InitializeMeter", meter_name: "sample", unit: "sample", quota: 1, period: "sample"
     expect emits: ["BalanceSettled", "MeterReset"]
   end
 

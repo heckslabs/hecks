@@ -18,7 +18,6 @@ Hecks.behaviors "HotelManagement" do
   test "ReleaseRoom runs" do
     tests "ReleaseRoom", on: "Room"
     setup  "AddRoom", room_number: "sample", room_type: "sample", floor: 1, nightly_rate: 1.0, max_occupancy: 1
-    setup  "BlockRoom"
     expect status: "available"
   end
 
@@ -35,6 +34,8 @@ Hecks.behaviors "HotelManagement" do
   test "CheckInGuest cascades through policy chain" do
     tests "CheckInGuest", on: "GuestStay", kind: :cascade
     setup  "AddRoom", room_number: "sample", room_type: "sample", floor: 1, nightly_rate: 1.0, max_occupancy: 1
+    setup  "OpenFolio"
+    setup  "AssignHousekeeping", task_type: "sample", priority: "sample", assigned_to: "sample"
     input  guest_name: "sample", email: "sample", check_in_date: "sample", check_out_date: "sample", nights: 1
     expect emits: ["GuestCheckedIn", "FolioOpened", "HousekeepingAssigned"]
   end
@@ -48,6 +49,7 @@ Hecks.behaviors "HotelManagement" do
 
   test "ExtendStay cascades through policy chain" do
     tests "ExtendStay", on: "GuestStay", kind: :cascade
+    setup  "OpenFolio"
     setup  "CheckInGuest", guest_name: "sample", email: "sample", check_in_date: "sample", check_out_date: "sample", nights: 1
     input  additional_nights: 1
     expect emits: ["StayExtended", "ChargePosted"]
@@ -61,6 +63,9 @@ Hecks.behaviors "HotelManagement" do
 
   test "CheckOutGuest cascades through policy chain" do
     tests "CheckOutGuest", on: "GuestStay", kind: :cascade
+    setup  "OpenFolio"
+    setup  "AssignHousekeeping", task_type: "sample", priority: "sample", assigned_to: "sample"
+    setup  "AddRoom", room_number: "sample", room_type: "sample", floor: 1, nightly_rate: 1.0, max_occupancy: 1
     setup  "CheckInGuest", guest_name: "sample", email: "sample", check_in_date: "sample", check_out_date: "sample", nights: 1
     expect emits: ["GuestCheckedOut", "FolioSettled", "HousekeepingAssigned"]
   end
@@ -83,6 +88,7 @@ Hecks.behaviors "HotelManagement" do
 
   test "CompleteHousekeeping cascades through policy chain" do
     tests "CompleteHousekeeping", on: "HousekeepingTask", kind: :cascade
+    setup  "AddRoom", room_number: "sample", room_type: "sample", floor: 1, nightly_rate: 1.0, max_occupancy: 1
     setup  "AssignHousekeeping", task_type: "sample", priority: "sample", assigned_to: "sample"
     expect emits: ["HousekeepingCompleted", "RoomInspected", "RoomReleased"]
   end
@@ -96,6 +102,7 @@ Hecks.behaviors "HotelManagement" do
 
   test "InspectRoom cascades through policy chain" do
     tests "InspectRoom", on: "HousekeepingTask", kind: :cascade
+    setup  "AddRoom", room_number: "sample", room_type: "sample", floor: 1, nightly_rate: 1.0, max_occupancy: 1
     setup  "AssignHousekeeping", task_type: "sample", priority: "sample", assigned_to: "sample"
     setup  "CompleteHousekeeping"
     expect emits: ["RoomInspected", "RoomReleased"]

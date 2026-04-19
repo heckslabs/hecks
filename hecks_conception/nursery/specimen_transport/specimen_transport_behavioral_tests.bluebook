@@ -17,6 +17,8 @@ Hecks.behaviors "SpecimenTransport" do
 
   test "ReleaseSpecimen cascades through policy chain" do
     tests "ReleaseSpecimen", on: "LabSpecimen", kind: :cascade
+    setup  "DispatchShipment", shipment_id: "sample", carrier: "sample", origin_lab: "sample", dest_lab: "sample", target_temp_c: 1.0
+    setup  "StartCustody", record_id: "sample", specimen_id: "sample"
     setup  "PrepareSpecimen", specimen_id: "sample", patient_id: "sample", specimen_type: "sample", required_temp_c: 1.0, priority: "sample"
     expect emits: ["SpecimenReleased", "ShipmentDispatched", "CustodyStarted"]
   end

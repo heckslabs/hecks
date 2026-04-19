@@ -58,7 +58,6 @@ Hecks.bluebook "CausalCombinatorics", version: "2026.04.13.1" do
       description "Fire an event and follow every policy edge to see how far the cascade reaches"
       reference_to(PolicyGraph)
       String :trigger_event
-      given { trigger_event_in_graph == true }
       emits "CascadeTraced"
     end
 
@@ -101,7 +100,6 @@ Hecks.bluebook "CausalCombinatorics", version: "2026.04.13.1" do
     RankCombinations do
       description "Score all possible domain pairs by their emergence ratio — which crosses produce the most novelty"
       reference_to(EmergenceMetric)
-      given { ranked_domain_count >= 10 }
       emits "CombinationsRanked"
     end
   end
@@ -157,7 +155,6 @@ Hecks.bluebook "CausalCombinatorics", version: "2026.04.13.1" do
     TestLaw do
       description "Validate a proposed law against observed emergence data"
       reference_to(CombinatorialLaw)
-      given { observations >= 20 }
       emits "LawTested"
     end
 

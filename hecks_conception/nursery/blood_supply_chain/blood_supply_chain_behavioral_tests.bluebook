@@ -17,6 +17,7 @@ Hecks.behaviors "BloodSupplyChain" do
 
   test "TestDonation cascades through policy chain" do
     tests "TestDonation", on: "Donation", kind: :cascade
+    setup  "AdjustInventory", facility_name: "sample", blood_type: "sample", units_available: 1, oldest_expiry: "sample"
     setup  "CollectDonation", donation_id: "sample", donor_name: "sample", blood_type: "sample", volume_ml: 1.0, collection_date: "sample"
     expect emits: ["DonationTested", "InventoryAdjusted"]
   end
@@ -67,6 +68,7 @@ Hecks.behaviors "BloodSupplyChain" do
 
   test "ConfirmDelivery cascades through policy chain" do
     tests "ConfirmDelivery", on: "Transport", kind: :cascade
+    setup  "AdjustInventory", facility_name: "sample", blood_type: "sample", units_available: 1, oldest_expiry: "sample"
     setup  "DispatchShipment", shipment_id: "sample", origin: "sample", target: "sample", blood_type: "sample", quantity_units: 1.0
     expect emits: ["DeliveryConfirmed", "InventoryAdjusted"]
   end

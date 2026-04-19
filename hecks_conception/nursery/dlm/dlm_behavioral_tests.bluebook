@@ -26,6 +26,9 @@ Hecks.behaviors "DLM" do
 
   test "ExecuteOperation cascades through policy chain" do
     tests "ExecuteOperation", on: "Operation", kind: :cascade
+    setup  "IndexCorpus"
+    setup  "AnnounceState", state_name: "sample", state_value: "sample"
+    setup  "RecordHonestOperation"
     input  name: "sample", input: "sample"
     expect emits: ["OperationExecuted", "CorpusGrown", "StateAnnounced", "HonestOperationRecorded"]
   end
@@ -38,6 +41,7 @@ Hecks.behaviors "DLM" do
 
   test "RejectOperation cascades through policy chain" do
     tests "RejectOperation", on: "Operation", kind: :cascade
+    setup  "RecordHonestOperation"
     input  name: "sample", reason: "sample"
     expect emits: ["OperationRejected", "RefusalRecorded"]
   end

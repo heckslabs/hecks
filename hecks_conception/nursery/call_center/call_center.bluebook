@@ -73,7 +73,6 @@ Hecks.bluebook "CallCenter" do
       description "Push a ticket to a higher-tier agent or supervisor"
       reference_to(Ticket)
       String :reason
-      given { status == "in_progress" }
       emits "TicketEscalated"
       then_set :priority, to: "urgent"
     end
@@ -153,12 +152,12 @@ Hecks.bluebook "CallCenter" do
       reference_to(Queue)
       reference_to(Ticket)
       emits "TicketEnqueued"
+      then_set :depth, to: 1
     end
 
     DequeueTicket do
       description "Pull the next ticket from the queue for assignment"
       reference_to(Queue)
-      given { depth > 0 }
       emits "TicketDequeued"
     end
   end

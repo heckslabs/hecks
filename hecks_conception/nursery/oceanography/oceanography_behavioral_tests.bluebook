@@ -6,11 +6,13 @@ Hecks.behaviors "Oceanography" do
   test "EstablishStation sets station_id + latitude + longitude" do
     tests "EstablishStation", on: "SamplingStation"
     input  station_id: "sample", latitude: 1.0, longitude: 1.0
-    expect ok: "true"
+    expect active: true
   end
 
   test "EstablishStation cascades through policy chain" do
     tests "EstablishStation", on: "SamplingStation", kind: :cascade
+    setup  "DeployCast", timestamp: "sample"
+    setup  "DeployMeter", instrument_id: "sample", deployment_depth_m: 1.0
     input  station_id: "sample", latitude: 1.0, longitude: 1.0
     expect emits: ["StationEstablished", "CastDeployed", "CastDataProcessed", "MeterDeployed", "CastFlagged"]
   end
@@ -18,7 +20,7 @@ Hecks.behaviors "Oceanography" do
   test "CloseStation runs" do
     tests "CloseStation", on: "SamplingStation"
     setup  "EstablishStation", station_id: "sample", latitude: 1.0, longitude: 1.0
-    expect ok: "true"
+    expect active: false
   end
 
   test "RelocateStation sets new_latitude + new_longitude" do
@@ -41,6 +43,7 @@ Hecks.behaviors "Oceanography" do
   test "DeployCast cascades through policy chain" do
     tests "DeployCast", on: "CtdCast", kind: :cascade
     setup  "EstablishStation", station_id: "sample", latitude: 1.0, longitude: 1.0
+    setup  "DeployMeter", instrument_id: "sample", deployment_depth_m: 1.0
     input  timestamp: "sample"
     expect emits: ["CastDeployed", "CastDataProcessed", "MeterDeployed", "CastFlagged"]
   end
@@ -54,6 +57,8 @@ Hecks.behaviors "Oceanography" do
   test "ProcessCastData cascades through policy chain" do
     tests "ProcessCastData", on: "CtdCast", kind: :cascade
     setup  "DeployCast", timestamp: "sample"
+    setup  "DeployMeter", instrument_id: "sample", deployment_depth_m: 1.0
+    setup  "EstablishStation", station_id: "sample", latitude: 1.0, longitude: 1.0
     expect emits: ["CastDataProcessed", "MeterDeployed", "CastFlagged"]
   end
 
@@ -71,17 +76,19 @@ Hecks.behaviors "Oceanography" do
     tests "DeployMeter", on: "CurrentMeter"
     setup  "EstablishStation", station_id: "sample", latitude: 1.0, longitude: 1.0
     input  instrument_id: "sample", deployment_depth_m: 1.0
-    expect ok: "true"
+    expect deployed: true
   end
 
   test "RecoverMeter runs" do
     tests "RecoverMeter", on: "CurrentMeter"
     setup  "DeployMeter", instrument_id: "sample", deployment_depth_m: 1.0
-    expect ok: "true"
+    expect deployed: false
   end
 
   test "RecoverMeter cascades through policy chain" do
     tests "RecoverMeter", on: "CurrentMeter", kind: :cascade
+    setup  "RecordCount", species_name: "sample", count: 1
+    setup  "EstablishStation", station_id: "sample", latitude: 1.0, longitude: 1.0
     setup  "DeployMeter", instrument_id: "sample", deployment_depth_m: 1.0
     expect emits: ["MeterRecovered", "CountRecorded", "TaxonomyVerified"]
   end

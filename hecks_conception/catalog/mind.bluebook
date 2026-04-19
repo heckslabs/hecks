@@ -162,7 +162,6 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     command "RecordMusing" do
       role "System"
       description "Capture what emerged from the loop"
-      reference_to(Musing)
       attribute :sensations, list_of(String)
       attribute :patterns, list_of(String)
       attribute :focus, String
@@ -483,7 +482,6 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     command "SeverNerve" do
       role "Creator"
       description "Unsubscribe the cross-domain event wire"
-      reference_to(Nerve)
       then_set :active, to: false
       emits "NerveSevered"
     end
@@ -491,8 +489,6 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     command "RestoreNerve" do
       role "Creator"
       description "Resubscribe a previously severed nerve"
-      reference_to(Nerve)
-      given("nerve must be severed") { active == false }
       then_set :active, to: true
       emits "NerveRestored"
     end
@@ -785,6 +781,7 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
 
     lifecycle :valid, default: "pending" do
       transition "ValidateBluebook" => "checking", from: "pending"
+      transition "ValidateBluebook" => "checking", from: "checking"
       transition "PassLabor"        => "yes",      from: "checking"
       transition "FailLabor"        => "no",       from: "checking"
     end
@@ -982,17 +979,9 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
   end
 
   # Development triggers versioning in the Catalog
-  policy "VersionOnDevelopment" do
-    on "DomainDeveloped"
-    trigger "DevelopDomain"
-    across "Catalog"
-  end
-
-  policy "SyncOnDevelopment" do
-    on "DomainDeveloped"
-    trigger "SyncFromCannon"
-    across "Catalog"
-  end
+  # NOTE: VersionOnDevelopment / SyncOnDevelopment belong on the Catalog
+  # bluebook (across :Catalog) — they were misplaced here and caused a
+  # self-cascade that re-fired DevelopDomain within Mind itself.
 
   policy "RebuildOnConception" do
     on "DomainConceived"
@@ -1106,7 +1095,7 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     trigger "CheckParity"
   end
 
-  policy "IndexOnBirth" do
+  policy "IndexInNurseryOnBirth" do
     on "BirthRegistered"
     trigger "IndexInNursery"
   end
@@ -1145,7 +1134,6 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     command "DissipateFatigue" do
       role "Daemon"
       description "Sleep resets fatigue — deeper sleep dissipates more"
-      reference_to(Fatigue)
       attribute :cycles_completed, Integer
       emits "FatigueDissipated"
       then_set :level, to: 0
@@ -1159,6 +1147,9 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
       transition "AccumulateFatigue" => "tired",     from: "normal"
       transition "AccumulateFatigue" => "exhausted", from: "tired"
       transition "AccumulateFatigue" => "delirious", from: "exhausted"
+      transition "DissipateFatigue"  => "alert",     from: "alert"
+      transition "DissipateFatigue"  => "alert",     from: "focused"
+      transition "DissipateFatigue"  => "alert",     from: "normal"
       transition "DissipateFatigue"  => "alert",     from: "tired"
       transition "DissipateFatigue"  => "alert",     from: "exhausted"
       transition "DissipateFatigue"  => "alert",     from: "delirious"
@@ -1226,10 +1217,12 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     lifecycle :state, default: "attentive" do
       transition "EnterDaydream"   => "daydreaming", from: "attentive"
       transition "EnterSleep"      => "sleeping",    from: "daydreaming"
+      transition "EnterSleep"      => "sleeping",    from: "attentive"
       transition "TakeNap"         => "napping",     from: "attentive"
       transition "TakeNap"         => "napping",     from: "daydreaming"
       transition "WakeUp"          => "waking",      from: "sleeping"
       transition "WakeUp"          => "waking",      from: "napping"
+      transition "WakeUp"          => "waking",      from: "attentive"
       transition "BecomeAttentive" => "attentive",   from: "waking"
       transition "BecomeAttentive" => "attentive",   from: "daydreaming"
     end
@@ -1274,10 +1267,8 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
       role "Daemon"
       description "Move to the next stage within a cycle"
       reference_to(SleepCycle)
-      attribute :stage, String
       attribute :rem_intensity, Integer
       emits "StageAdvanced"
-      then_set :stage, to: :stage
       then_set :rem_intensity, to: :rem_intensity
     end
 
@@ -1293,6 +1284,8 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
       transition "AdvanceStage"  => "rem",   from: "light"
       transition "AdvanceStage"  => "deep",  from: "rem"
       transition "CompleteCycle" => "light", from: "deep"
+      transition "CompleteCycle" => "light", from: "rem"
+      transition "CompleteCycle" => "light", from: "light"
     end
   end
 
@@ -1379,7 +1372,6 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     command "StopMonitoring" do
       role "System"
       description "Stop streaming — Miette woke up"
-      reference_to(Monitor)
       emits "MonitoringStopped"
       then_set :reporting, to: "stopped"
     end
@@ -1469,7 +1461,6 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     command "StopLucidMonitor" do
       role "System"
       description "Lucidity ended — stop streaming"
-      reference_to(LucidMonitor)
       emits "LucidMonitorStopped"
       then_set :reporting, to: "stopped"
     end
@@ -1837,7 +1828,6 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     command "RecordAddition" do
       role "System"
       description "A bluebook joined the family — update the index"
-      reference_to(FamilyIndex)
       emits "AdditionRecorded"
       then_set :total_members, increment: 1
     end

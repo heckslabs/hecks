@@ -11,6 +11,7 @@ Hecks.behaviors "OnlineAuction" do
 
   test "ListLot cascades through policy chain" do
     tests "ListLot", on: "Lot", kind: :cascade
+    setup  "RegisterSeller", seller_id: "sample", name: "sample", email: "sample"
     input  lot_number: "sample", title: "sample", description: "sample", category: "sample", starting_price: 1.0, reserve_price: 1.0, auction_end: "sample"
     expect emits: ["LotListed", "SellerVerified"]
   end
@@ -23,6 +24,7 @@ Hecks.behaviors "OnlineAuction" do
 
   test "CloseLot cascades through policy chain" do
     tests "CloseLot", on: "Lot", kind: :cascade
+    setup  "SettleLot", settlement_id: "sample", hammer_price: 1.0, buyer_premium: 1.0, seller_commission: 1.0
     setup  "ListLot", lot_number: "sample", title: "sample", description: "sample", category: "sample", starting_price: 1.0, reserve_price: 1.0, auction_end: "sample"
     expect emits: ["LotClosed", "LotSettled", "SellerDisbursed"]
   end
@@ -46,6 +48,8 @@ Hecks.behaviors "OnlineAuction" do
   test "FlagSuspiciousBid cascades through policy chain" do
     tests "FlagSuspiciousBid", on: "Bid", kind: :cascade
     setup  "PlaceBid", bid_id: "sample", amount: 1.0, bidder_name: "sample", bidder_email: "sample"
+    setup  "OpenDispute", dispute_id: "sample", complainant: "sample", reason: "sample", description: "sample"
+    setup  "RegisterSeller", seller_id: "sample", name: "sample", email: "sample"
     expect emits: ["BidFlagged", "DisputeEscalated", "SellerSuspended"]
   end
 
@@ -67,8 +71,7 @@ Hecks.behaviors "OnlineAuction" do
   test "SuspendSeller runs" do
     tests "SuspendSeller", on: "Seller"
     setup  "RegisterSeller", seller_id: "sample", name: "sample", email: "sample"
-    setup  "VerifySeller"
-    expect ok: "true"
+    expect status: "suspended"
   end
 
 
@@ -127,6 +130,7 @@ Hecks.behaviors "OnlineAuction" do
 
   test "ResolveDispute cascades through policy chain" do
     tests "ResolveDispute", on: "Dispute", kind: :cascade
+    setup  "SettleLot", settlement_id: "sample", hammer_price: 1.0, buyer_premium: 1.0, seller_commission: 1.0
     setup  "OpenDispute", dispute_id: "sample", complainant: "sample", reason: "sample", description: "sample"
     input  resolution: "sample"
     expect emits: ["DisputeResolved", "SellerDisbursed"]
@@ -141,6 +145,7 @@ Hecks.behaviors "OnlineAuction" do
   test "EscalateDispute cascades through policy chain" do
     tests "EscalateDispute", on: "Dispute", kind: :cascade
     setup  "OpenDispute", dispute_id: "sample", complainant: "sample", reason: "sample", description: "sample"
+    setup  "RegisterSeller", seller_id: "sample", name: "sample", email: "sample"
     expect emits: ["DisputeEscalated", "SellerSuspended"]
   end
 

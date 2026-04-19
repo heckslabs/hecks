@@ -47,6 +47,7 @@ Hecks.behaviors "Physics" do
 
   test "ApplyForce cascades through policy chain" do
     tests "ApplyForce", on: "Force", kind: :cascade
+    setup  "InitiateMotion", body_name: "sample", velocity_x: 1.0, velocity_y: 1.0, velocity_z: 1.0
     input  name: "sample", force_type: "sample", magnitude: 1.0, direction_x: 1.0, direction_y: 1.0, direction_z: 1.0, source: "sample", target: "sample"
     expect emits: ["ForceApplied", "MagnitudeCalculated", "ComponentsResolved", "NewtonLawApplied"]
   end

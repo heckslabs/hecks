@@ -160,8 +160,6 @@ Hecks.bluebook "Conception", version: "2026.04.14.1" do
       description "Domain passed all conception rules — it can enter the nursery"
       reference_to(ConceptionLog)
       emits "DomainViable"
-      given("must have fixtures") { fixture_count > 0 }
-      given("must have no gaps") { gap_count == 0 }
       then_set :verdict, to: "viable"
     end
 

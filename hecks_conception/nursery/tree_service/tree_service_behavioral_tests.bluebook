@@ -25,6 +25,7 @@ Hecks.behaviors "TreeService" do
   test "FlagHazard cascades through policy chain" do
     tests "FlagHazard", on: "TreeAssessment", kind: :cascade
     setup  "AssessTree", species: "sample", dbh_inches: 1.0, height_feet: 1.0, address: "sample"
+    setup  "ApplyForPermit", municipality: "sample", tree_species: "sample"
     expect emits: ["HazardFlagged", "PermitApplied"]
   end
 
@@ -41,6 +42,7 @@ Hecks.behaviors "TreeService" do
   test "ScheduleRemoval cascades through policy chain" do
     tests "ScheduleRemoval", on: "RemovalJob", kind: :cascade
     setup  "AssessTree", species: "sample", dbh_inches: 1.0, height_feet: 1.0, address: "sample"
+    setup  "ScheduleGrinding", stump_diameter_inches: 1.0, grind_depth_inches: 1.0
     input  rigging_method: "sample", crew_size: 1
     expect emits: ["RemovalScheduled", "RemovalExecuted", "GrindingScheduled", "GrindingCompleted"]
   end
@@ -55,6 +57,7 @@ Hecks.behaviors "TreeService" do
   test "ExecuteRemoval cascades through policy chain" do
     tests "ExecuteRemoval", on: "RemovalJob", kind: :cascade
     setup  "ScheduleRemoval", rigging_method: "sample", crew_size: 1
+    setup  "ScheduleGrinding", stump_diameter_inches: 1.0, grind_depth_inches: 1.0
     input  disposal_method: "sample"
     expect emits: ["RemovalExecuted", "GrindingScheduled", "GrindingCompleted"]
   end
@@ -118,6 +121,9 @@ Hecks.behaviors "TreeService" do
 
   test "ReceivePermit cascades through policy chain" do
     tests "ReceivePermit", on: "TreePermit", kind: :cascade
+    setup  "ScheduleRemoval", rigging_method: "sample", crew_size: 1
+    setup  "AssessTree", species: "sample", dbh_inches: 1.0, height_feet: 1.0, address: "sample"
+    setup  "ScheduleGrinding", stump_diameter_inches: 1.0, grind_depth_inches: 1.0
     setup  "ApplyForPermit", municipality: "sample", tree_species: "sample"
     input  permit_number: "sample"
     expect emits: ["PermitReceived", "RemovalScheduled", "RemovalExecuted", "GrindingScheduled", "GrindingCompleted"]

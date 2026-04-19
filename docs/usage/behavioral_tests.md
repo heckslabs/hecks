@@ -89,6 +89,72 @@ Asserts the bluebook is pure-memory:
   every dispatchable command. Lifecycle violations and missing attrs
   are expected (not IO); anything else is a hard error.
 
+## Cascade lockdown (VCR-style)
+
+For every command whose emit fires a policy chain, the conceiver emits
+a second test that asserts the **exact ordered list of events** the
+runtime will publish:
+
+```ruby
+test "PlaceOrder cascades through policy chain" do
+  tests "PlaceOrder", on: "CakeOrder", kind: :cascade
+  setup "ScheduleTasting", date: "sample", client_name: "sample", sample_count: 1
+  setup "ProposeFlav", cake_flavor: "sample", filling: "sample", frosting: "sample"
+  setup "StockIngredient", ingredient_name: "sample", category: "sample", quantity: 1.0, unit: "sample"
+  setup "ScheduleCakeDelivery", address: "sample", delivery_date: "sample", time_window: "sample", handler_name: "sample"
+  input client_name: "sample", occasion: "sample", tier_count: 1, servings: 1, delivery_date: "sample"
+  expect emits: ["OrderPlaced", "TastingScheduled", "FlavorProposed",
+                 "TastingConducted", "FlavorApproved", "OrderConfirmed",
+                 "BakingStarted", "IngredientConsumed", "OrderCompleted",
+                 "CakeDeliveryScheduled", "CakeDeliveryCompleted"]
+end
+```
+
+The expected list is computed by the **static cascade walker**
+(`hecks_life/src/cascade.rs`), which mirrors the runtime's policy
+engine: a policy is blocked while on the recursion stack (allowing
+diamond fan-in but blocking self-recursion).
+
+Add or remove a policy, retarget a trigger, change an emit name —
+the predicted list changes and the test breaks immediately.
+
+### Cross-aggregate cascade setups
+
+The generator walks `aggregates_touched_by_cascade` and emits a
+`Create` setup for every aggregate the cascade will hop through. Without
+this, a cross-aggregate triggered command can't find its target
+record and the cascade halts.
+
+### Two dispatch modes
+
+- `dispatch` — cascades policies. Used by `kind: :cascade` tests.
+- `dispatch_isolated` — skips policy drain. Used by **setups** so
+  they don't overshoot the precondition state being tested.
+
+## Operators in givens
+
+| Operator             | Example                                     |
+|----------------------|---------------------------------------------|
+| `==` `!=`            | `status == "approved"`                      |
+| `>=` `<=` `>` `<`    | `priority >= 1`                             |
+| `.any?` `.empty?`    | `tags.any?`, `errors.empty?`                |
+| `&&` `\|\|`          | `status == "open" \|\| status == "review"` |
+
+`&&` binds tighter than `\|\|`. Splits skip operators inside quoted
+strings. No parentheses or short-circuit nuances beyond left-to-right
+recursion — keep givens linear.
+
+## Mutation values
+
+`then_set :field, to: <value>` accepts:
+
+- Symbols (`:attr_name`) — pulls from command attrs, then state
+- Numbers (`42`, `3.14`) — parsed as Int / Str
+- Strings (`"literal"`) — quoted
+- Booleans (`true`, `false`) — bare keywords
+- Lists (`[]`, `[a, b]`) — empty list or list of resolved items
+- Hashes (`{ k: v, ... }`) — map of resolved items
+
 ## Pre-commit gates
 
 The pre-commit hook (`bin/git-hooks/pre-commit`) blocks commits that:

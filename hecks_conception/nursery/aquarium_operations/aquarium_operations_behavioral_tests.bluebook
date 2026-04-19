@@ -37,16 +37,12 @@ Hecks.behaviors "AquariumOperations" do
   test "QuarantineTank runs" do
     tests "QuarantineTank", on: "Tank"
     setup  "SetupTank", tank_id: "sample", name: "sample", water_type: "sample", volume_gallons: 1.0, max_species: 1
-    setup  "TestWaterCycle"
-    setup  "ActivateTank"
     expect status: "quarantined"
   end
 
   test "ClearTankQuarantine runs" do
     tests "ClearTankQuarantine", on: "Tank"
     setup  "SetupTank", tank_id: "sample", name: "sample", water_type: "sample", volume_gallons: 1.0, max_species: 1
-    setup  "TestWaterCycle"
-    setup  "ActivateTank"
     setup  "QuarantineTank"
     expect status: "active"
   end
@@ -61,6 +57,7 @@ Hecks.behaviors "AquariumOperations" do
   test "DrainTank cascades through policy chain" do
     tests "DrainTank", on: "Tank", kind: :cascade
     setup  "SetupTank", tank_id: "sample", name: "sample", water_type: "sample", volume_gallons: 1.0, max_species: 1
+    setup  "OpenExhibit", name: "sample", theme: "sample", tank_count: 1
     input  reason: "sample"
     expect emits: ["TankDrained", "ExhibitClosed"]
   end
@@ -91,6 +88,7 @@ Hecks.behaviors "AquariumOperations" do
   test "AcclimateSpecies cascades through policy chain" do
     tests "AcclimateSpecies", on: "Species", kind: :cascade
     setup  "IntroduceSpecies", common_name: "sample", scientific_name: "sample", water_type_requirement: "sample", min_temperature_f: 1.0, max_temperature_f: 1.0, population_count: 1
+    setup  "SetupTank", tank_id: "sample", name: "sample", water_type: "sample", volume_gallons: 1.0, max_species: 1
     expect emits: ["SpeciesAcclimating", "SpeciesReleased"]
   end
 
@@ -140,6 +138,8 @@ Hecks.behaviors "AquariumOperations" do
 
   test "FlagAnomaly cascades through policy chain" do
     tests "FlagAnomaly", on: "WaterQualityReading", kind: :cascade
+    setup  "SetupTank", tank_id: "sample", name: "sample", water_type: "sample", volume_gallons: 1.0, max_species: 1
+    setup  "IntroduceSpecies", common_name: "sample", scientific_name: "sample", water_type_requirement: "sample", min_temperature_f: 1.0, max_temperature_f: 1.0, population_count: 1
     setup  "RecordReading", temperature_f: 1.0, ph: 1.0, ammonia_ppm: 1.0, nitrate_ppm: 1.0, salinity_ppt: 1.0
     input  parameter: "sample"
     expect emits: ["AnomalyFlagged", "TankQuarantined", "SpeciesRelocated"]

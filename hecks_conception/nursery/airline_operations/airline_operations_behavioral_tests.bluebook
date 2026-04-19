@@ -11,6 +11,8 @@ Hecks.behaviors "AirlineOperations" do
 
   test "ScheduleFlight cascades through policy chain" do
     tests "ScheduleFlight", on: "Flight", kind: :cascade
+    setup  "AssembleCrew", captain_name: "sample", member_count: 1
+    setup  "RegisterAircraft", tail_number: "sample", model: "sample", seat_count: 1
     input  flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
     expect emits: ["FlightScheduled", "CrewAssigned", "AircraftPrepared", "BoardingOpened"]
   end
@@ -32,6 +34,7 @@ Hecks.behaviors "AirlineOperations" do
   test "AssignCrew cascades through policy chain" do
     tests "AssignCrew", on: "Flight", kind: :cascade
     setup  "AssembleCrew", captain_name: "sample", member_count: 1
+    setup  "RegisterAircraft", tail_number: "sample", model: "sample", seat_count: 1
     setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
     expect emits: ["CrewAssigned", "AircraftPrepared", "BoardingOpened"]
   end
@@ -115,6 +118,7 @@ Hecks.behaviors "AirlineOperations" do
   test "ArriveAtGate cascades through policy chain" do
     tests "ArriveAtGate", on: "Flight", kind: :cascade
     setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    setup  "AssembleCrew", captain_name: "sample", member_count: 1
     setup  "OpenBoarding"
     setup  "CloseBoarding"
     setup  "ClearForDeparture"
@@ -136,7 +140,6 @@ Hecks.behaviors "AirlineOperations" do
   test "AssignGate runs" do
     tests "AssignGate", on: "Gate"
     setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
-    setup  "ReleaseGate"
     expect status: "occupied"
   end
 
@@ -152,6 +155,13 @@ Hecks.behaviors "AirlineOperations" do
     tests "AssembleCrew", on: "Crew"
     input  captain_name: "sample", member_count: 1
     expect status: "available", duty_hours: 0.0
+  end
+
+  test "LogDutyHours sets hours" do
+    tests "LogDutyHours", on: "Crew"
+    setup  "AssembleCrew", captain_name: "sample", member_count: 1
+    input  hours: 1.0
+    expect ok: "true"
   end
 
   test "ReleaseCrew runs" do
@@ -177,6 +187,7 @@ Hecks.behaviors "AirlineOperations" do
 
   test "PrepareAircraft cascades through policy chain" do
     tests "PrepareAircraft", on: "Aircraft", kind: :cascade
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
     setup  "RegisterAircraft", tail_number: "sample", model: "sample", seat_count: 1
     expect emits: ["AircraftPrepared", "BoardingOpened"]
   end

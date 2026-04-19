@@ -107,7 +107,6 @@ Hecks.bluebook "InsuranceClaims" do
       role "ClaimsManager"
       description "Approve the claim for settlement processing"
       reference_to(Claim)
-      given { status == "under_review" }
       emits "ClaimApproved"
       then_set :status, to: "approved"
     end
@@ -251,11 +250,6 @@ Hecks.bluebook "InsuranceClaims" do
   policy "AppealOnRejectedSettlement" do
     on "SettlementRejected"
     trigger "FileAppeal"
-  end
-
-  policy "AssignAdjusterOnClaimFiled" do
-    on "ClaimFiled"
-    trigger "AssignAdjuster"
   end
 
   policy "SubmitAssessmentOnAdjusterAssigned" do

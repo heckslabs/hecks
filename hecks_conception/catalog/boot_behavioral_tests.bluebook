@@ -10,6 +10,7 @@ Hecks.behaviors "Boot" do
 
   test "BootWithClaude cascades through policy chain" do
     tests "BootWithClaude", on: "Session", kind: :cascade
+    setup  "Probe"
     expect emits: ["SessionStartedWithClaude", "BrainProbed"]
   end
 
@@ -21,6 +22,7 @@ Hecks.behaviors "Boot" do
 
   test "BootWithSummer cascades through policy chain" do
     tests "BootWithSummer", on: "Session", kind: :cascade
+    setup  "Probe"
     input  ollama_model: "sample", ollama_port: 1
     expect emits: ["SessionStartedWithSummer", "BrainProbed"]
   end
@@ -76,6 +78,7 @@ Hecks.behaviors "Boot" do
   test "RecommendClaude cascades through policy chain" do
     tests "RecommendClaude", on: "BrainProbe", kind: :cascade
     setup  "Probe"
+    setup  "BootWithClaude"
     expect emits: ["ClaudeRecommended", "OrgansWired", "SessionLive"]
   end
 
@@ -88,6 +91,7 @@ Hecks.behaviors "Boot" do
   test "RecommendSummer cascades through policy chain" do
     tests "RecommendSummer", on: "BrainProbe", kind: :cascade
     setup  "Probe"
+    setup  "BootWithClaude"
     expect emits: ["SummerRecommended", "OrgansWired", "SessionLive"]
   end
 
@@ -100,6 +104,7 @@ Hecks.behaviors "Boot" do
   test "RecommendNothing cascades through policy chain" do
     tests "RecommendNothing", on: "BrainProbe", kind: :cascade
     setup  "Probe"
+    setup  "BootWithClaude"
     expect emits: ["NoBrainAvailable", "BootFailed"]
   end
 

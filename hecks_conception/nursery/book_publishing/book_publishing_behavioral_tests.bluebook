@@ -11,6 +11,10 @@ Hecks.behaviors "BookPublishing" do
 
   test "SubmitManuscript cascades through policy chain" do
     tests "SubmitManuscript", on: "Manuscript", kind: :cascade
+    setup  "AssignEditor", pass_type: "sample", editor_name: "sample"
+    setup  "BriefDesigner", designer_name: "sample", art_style: "sample"
+    setup  "OrderPrintRun", quantity: 1, binding_type: "sample", paper_stock: "sample"
+    setup  "SetUpRoyalty", advance_paid: 1.0, royalty_rate: 1.0
     input  title: "sample", genre: "sample", author_name: "sample", word_count: 1
     expect emits: ["ManuscriptSubmitted", "ManuscriptAccepted", "EditorAssigned", "PassCompleted", "DesignerBriefed", "CoverApproved", "PrintRunOrdered", "ShipmentReceived", "SalesRecorded", "RoyaltySetUp"]
   end
@@ -24,6 +28,10 @@ Hecks.behaviors "BookPublishing" do
   test "AcceptManuscript cascades through policy chain" do
     tests "AcceptManuscript", on: "Manuscript", kind: :cascade
     setup  "SubmitManuscript", title: "sample", genre: "sample", author_name: "sample", word_count: 1
+    setup  "AssignEditor", pass_type: "sample", editor_name: "sample"
+    setup  "BriefDesigner", designer_name: "sample", art_style: "sample"
+    setup  "OrderPrintRun", quantity: 1, binding_type: "sample", paper_stock: "sample"
+    setup  "SetUpRoyalty", advance_paid: 1.0, royalty_rate: 1.0
     expect emits: ["ManuscriptAccepted", "EditorAssigned", "PassCompleted", "DesignerBriefed", "CoverApproved", "PrintRunOrdered", "ShipmentReceived", "SalesRecorded", "RoyaltySetUp"]
   end
 
@@ -47,6 +55,9 @@ Hecks.behaviors "BookPublishing" do
   test "AssignEditor cascades through policy chain" do
     tests "AssignEditor", on: "EditorialPass", kind: :cascade
     setup  "SubmitManuscript", title: "sample", genre: "sample", author_name: "sample", word_count: 1
+    setup  "BriefDesigner", designer_name: "sample", art_style: "sample"
+    setup  "OrderPrintRun", quantity: 1, binding_type: "sample", paper_stock: "sample"
+    setup  "SetUpRoyalty", advance_paid: 1.0, royalty_rate: 1.0
     input  pass_type: "sample", editor_name: "sample"
     expect emits: ["EditorAssigned", "PassCompleted", "DesignerBriefed", "CoverApproved", "PrintRunOrdered", "ShipmentReceived", "SalesRecorded"]
   end
@@ -61,6 +72,10 @@ Hecks.behaviors "BookPublishing" do
   test "CompletePass cascades through policy chain" do
     tests "CompletePass", on: "EditorialPass", kind: :cascade
     setup  "AssignEditor", pass_type: "sample", editor_name: "sample"
+    setup  "BriefDesigner", designer_name: "sample", art_style: "sample"
+    setup  "SubmitManuscript", title: "sample", genre: "sample", author_name: "sample", word_count: 1
+    setup  "OrderPrintRun", quantity: 1, binding_type: "sample", paper_stock: "sample"
+    setup  "SetUpRoyalty", advance_paid: 1.0, royalty_rate: 1.0
     input  change_count: 1
     expect emits: ["PassCompleted", "DesignerBriefed", "CoverApproved", "PrintRunOrdered", "ShipmentReceived", "SalesRecorded"]
   end
@@ -85,6 +100,8 @@ Hecks.behaviors "BookPublishing" do
   test "BriefDesigner cascades through policy chain" do
     tests "BriefDesigner", on: "CoverDesign", kind: :cascade
     setup  "SubmitManuscript", title: "sample", genre: "sample", author_name: "sample", word_count: 1
+    setup  "OrderPrintRun", quantity: 1, binding_type: "sample", paper_stock: "sample"
+    setup  "SetUpRoyalty", advance_paid: 1.0, royalty_rate: 1.0
     input  designer_name: "sample", art_style: "sample"
     expect emits: ["DesignerBriefed", "CoverApproved", "PrintRunOrdered", "ShipmentReceived", "SalesRecorded"]
   end
@@ -98,6 +115,9 @@ Hecks.behaviors "BookPublishing" do
   test "ApproveCover cascades through policy chain" do
     tests "ApproveCover", on: "CoverDesign", kind: :cascade
     setup  "BriefDesigner", designer_name: "sample", art_style: "sample"
+    setup  "OrderPrintRun", quantity: 1, binding_type: "sample", paper_stock: "sample"
+    setup  "SubmitManuscript", title: "sample", genre: "sample", author_name: "sample", word_count: 1
+    setup  "SetUpRoyalty", advance_paid: 1.0, royalty_rate: 1.0
     expect emits: ["CoverApproved", "PrintRunOrdered", "ShipmentReceived", "SalesRecorded"]
   end
 
@@ -114,6 +134,7 @@ Hecks.behaviors "BookPublishing" do
   test "OrderPrintRun cascades through policy chain" do
     tests "OrderPrintRun", on: "PrintRun", kind: :cascade
     setup  "SubmitManuscript", title: "sample", genre: "sample", author_name: "sample", word_count: 1
+    setup  "SetUpRoyalty", advance_paid: 1.0, royalty_rate: 1.0
     input  quantity: 1, binding_type: "sample", paper_stock: "sample"
     expect emits: ["PrintRunOrdered", "ShipmentReceived", "SalesRecorded"]
   end
@@ -128,6 +149,7 @@ Hecks.behaviors "BookPublishing" do
   test "ReceiveShipment cascades through policy chain" do
     tests "ReceiveShipment", on: "PrintRun", kind: :cascade
     setup  "OrderPrintRun", quantity: 1, binding_type: "sample", paper_stock: "sample"
+    setup  "SetUpRoyalty", advance_paid: 1.0, royalty_rate: 1.0
     input  received_quantity: 1
     expect emits: ["ShipmentReceived", "SalesRecorded"]
   end

@@ -22,7 +22,6 @@ Hecks.bluebook "Apiculture" do
       description "Divide a strong colony to prevent swarming"
       emits "HiveSplit"
       reference_to Hive
-      given { brood_frame_count >= 8 }
     end
 
     command "RetireHive" do
@@ -86,7 +85,6 @@ Hecks.bluebook "Apiculture" do
       reference_to Hive
       String :harvest_date
       Float :weight_kg
-      given { moisture_percent < 20.0 }
     end
 
     command "JarHoney" do
@@ -131,7 +129,6 @@ Hecks.bluebook "Apiculture" do
       description "Replace an underperforming queen"
       emits "QueenSuperseded"
       reference_to Queen
-      given { age_years >= 1 }
     end
   end
 
@@ -156,7 +153,6 @@ Hecks.bluebook "Apiculture" do
       description "Assess whether the treatment resolved the condition"
       emits "EfficacyEvaluated"
       reference_to DiseaseTreatment
-      given { duration_elapsed == true }
     end
   end
 

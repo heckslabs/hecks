@@ -11,6 +11,8 @@ Hecks.behaviors "GameStore" do
 
   test "StockGame cascades through policy chain" do
     tests "StockGame", on: "Game", kind: :cascade
+    setup  "PlacePreorder", preorder_id: "sample", customer_name: "sample", game_title: "sample", release_date: "sample", deposit: 1.0
+    setup  "ScheduleTournament", tournament_id: "sample", game_title: "sample", format: "sample", max_players: 1, entry_fee: 1.0, date: "sample"
     input  sku: "sample", title: "sample", platform: "sample", genre: "sample", price: 1.0, quantity: 1, age_rating: "sample"
     expect emits: ["GameStocked", "PreorderFulfilled", "TournamentScheduled", "TournamentLaunched", "TournamentConcluded", "GameClearanced"]
   end
@@ -26,6 +28,7 @@ Hecks.behaviors "GameStore" do
 
   test "ScheduleTournament cascades through policy chain" do
     tests "ScheduleTournament", on: "Tournament", kind: :cascade
+    setup  "StockGame", sku: "sample", title: "sample", platform: "sample", genre: "sample", price: 1.0, quantity: 1, age_rating: "sample"
     input  tournament_id: "sample", game_title: "sample", format: "sample", max_players: 1, entry_fee: 1.0, date: "sample"
     expect emits: ["TournamentScheduled", "TournamentLaunched", "TournamentConcluded", "GameClearanced"]
   end
@@ -39,20 +42,20 @@ Hecks.behaviors "GameStore" do
   test "LaunchTournament cascades through policy chain" do
     tests "LaunchTournament", on: "Tournament", kind: :cascade
     setup  "ScheduleTournament", tournament_id: "sample", game_title: "sample", format: "sample", max_players: 1, entry_fee: 1.0, date: "sample"
+    setup  "StockGame", sku: "sample", title: "sample", platform: "sample", genre: "sample", price: 1.0, quantity: 1, age_rating: "sample"
     expect emits: ["TournamentLaunched", "TournamentConcluded", "GameClearanced"]
   end
 
   test "ConcludeTournament runs" do
     tests "ConcludeTournament", on: "Tournament"
     setup  "ScheduleTournament", tournament_id: "sample", game_title: "sample", format: "sample", max_players: 1, entry_fee: 1.0, date: "sample"
-    setup  "LaunchTournament"
     expect status: "concluded"
   end
 
   test "ConcludeTournament cascades through policy chain" do
     tests "ConcludeTournament", on: "Tournament", kind: :cascade
     setup  "ScheduleTournament", tournament_id: "sample", game_title: "sample", format: "sample", max_players: 1, entry_fee: 1.0, date: "sample"
-    setup  "LaunchTournament"
+    setup  "StockGame", sku: "sample", title: "sample", platform: "sample", genre: "sample", price: 1.0, quantity: 1, age_rating: "sample"
     expect emits: ["TournamentConcluded", "GameClearanced"]
   end
 
@@ -67,6 +70,9 @@ Hecks.behaviors "GameStore" do
 
   test "AcceptTradeIn cascades through policy chain" do
     tests "AcceptTradeIn", on: "TradeIn", kind: :cascade
+    setup  "StockGame", sku: "sample", title: "sample", platform: "sample", genre: "sample", price: 1.0, quantity: 1, age_rating: "sample"
+    setup  "PlacePreorder", preorder_id: "sample", customer_name: "sample", game_title: "sample", release_date: "sample", deposit: 1.0
+    setup  "ScheduleTournament", tournament_id: "sample", game_title: "sample", format: "sample", max_players: 1, entry_fee: 1.0, date: "sample"
     input  trade_id: "sample", customer_name: "sample", game_title: "sample", condition: "sample", credit_offered: 1.0
     expect emits: ["TradeInAccepted", "GameStocked", "PreorderFulfilled", "TournamentScheduled", "TournamentLaunched", "TournamentConcluded", "GameClearanced"]
   end

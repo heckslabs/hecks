@@ -69,7 +69,6 @@ Hecks.bluebook "Nutrition" do
       description "Lock the meal plan for adherence tracking"
       emits "PlanFinalized"
       reference_to MealPlan
-      given { meals_per_day >= 3 }
     end
   end
 
@@ -104,7 +103,6 @@ Hecks.bluebook "Nutrition" do
       description "Check current intake against the goal"
       emits "ProgressEvaluated"
       reference_to DietaryGoal
-      given { intake_data_tracked == true }
     end
 
     command "AdjustTarget" do
@@ -143,7 +141,6 @@ Hecks.bluebook "Nutrition" do
       description "Mark a deficiency as corrected through dietary changes"
       emits "DeficiencyResolved"
       reference_to Deficiency
-      given { current_intake >= recommended_intake }
     end
   end
 

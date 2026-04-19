@@ -22,6 +22,7 @@ Hecks.bluebook "Forensics" do
       description "Confirm every evidence item for the case has lab results"
       emits "AllEvidenceAnalyzed"
       reference_to CriminalCase
+      then_set :all_evidence_analyzed, to: true
     end
 
     command "CloseCase" do
@@ -108,12 +109,15 @@ Hecks.bluebook "Forensics" do
       emits "FindingsRecorded"
       reference_to LabAnalysis
       String :findings
+      then_set :findings, to: :findings
+      then_set :findings_documented, to: true
     end
 
     command "MarkFindingsDocumented" do
       description "Flag the analysis findings as documented and ready for review"
       emits "FindingsDocumented"
       reference_to LabAnalysis
+      then_set :findings_documented, to: true
     end
 
     command "PeerReviewAnalysis" do
@@ -144,6 +148,7 @@ Hecks.bluebook "Forensics" do
       description "Record that the report has been peer-reviewed by another expert"
       emits "ReportPeerReviewed"
       reference_to ExpertReport
+      then_set :peer_reviewed, to: true
     end
 
     command "FinalizeReport" do

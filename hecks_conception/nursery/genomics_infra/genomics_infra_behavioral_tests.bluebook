@@ -17,6 +17,7 @@ Hecks.behaviors "GenomicsInfra" do
 
   test "SequenceSample cascades through policy chain" do
     tests "SequenceSample", on: "GenomeSample", kind: :cascade
+    setup  "LaunchPipeline", pipeline_id: "sample", sample_id: "sample", pipeline_type: "sample"
     setup  "SubmitSample", sample_id: "sample", patient_id: "sample", sample_type: "sample", collection_date: "sample"
     expect emits: ["SampleSequenced", "PipelineLaunched"]
   end
@@ -69,6 +70,7 @@ Hecks.behaviors "GenomicsInfra" do
 
   test "CompletePipeline cascades through policy chain" do
     tests "CompletePipeline", on: "AnalysisPipeline", kind: :cascade
+    setup  "ProvisionStore", store_id: "sample", cluster_id: "sample", quota_tb: 1.0
     setup  "LaunchPipeline", pipeline_id: "sample", sample_id: "sample", pipeline_type: "sample"
     expect emits: ["PipelineCompleted", "DataArchived"]
   end

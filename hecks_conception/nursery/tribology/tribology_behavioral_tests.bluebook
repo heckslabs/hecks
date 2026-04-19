@@ -41,6 +41,7 @@ Hecks.behaviors "Tribology" do
 
   test "MeasureFriction cascades through policy chain" do
     tests "MeasureFriction", on: "Friction", kind: :cascade
+    setup  "CalculateFlashTemperature", name: "sample", friction_coefficient: 1.0, load: 1.0, sliding_speed: 1.0, thermal_conductivity: 1.0
     input  name: "sample", surface_a: "sample", surface_b: "sample", normal_load: 1.0, sliding_speed: 1.0
     expect emits: ["FrictionMeasured", "FlashTemperatureCalculated", "ThermalBreakdownPredicted", "CoefficientCalculated"]
   end
@@ -120,6 +121,8 @@ Hecks.behaviors "Tribology" do
 
   test "FormulateLubricant cascades through policy chain" do
     tests "FormulateLubricant", on: "Lubricant", kind: :cascade
+    setup  "MeasureFilmThickness", name: "sample", method: "sample", thickness_nm: 1.0
+    setup  "RunTest", name: "sample", test_standard: "sample", apparatus: "sample"
     input  name: "sample", base_oil_type: "sample", sae_grade: "sample"
     expect emits: ["LubricantFormulated", "MinimumFilmCalculated", "TestRun"]
   end
@@ -134,6 +137,8 @@ Hecks.behaviors "Tribology" do
   test "MeasureViscosity cascades through policy chain" do
     tests "MeasureViscosity", on: "Lubricant", kind: :cascade
     setup  "FormulateLubricant", name: "sample", base_oil_type: "sample", sae_grade: "sample"
+    setup  "IdentifyRegime", name: "sample", lambda_ratio: 1.0
+    setup  "MeasureWear", name: "sample", test_method: "sample"
     input  kinematic_40c: 1.0, kinematic_100c: 1.0
     expect emits: ["ViscosityMeasured", "RegimeIdentified", "WearRatePredicted"]
   end
@@ -177,6 +182,7 @@ Hecks.behaviors "Tribology" do
 
   test "IdentifyRegime cascades through policy chain" do
     tests "IdentifyRegime", on: "LubricationRegime", kind: :cascade
+    setup  "MeasureWear", name: "sample", test_method: "sample"
     input  name: "sample", lambda_ratio: 1.0
     expect emits: ["RegimeIdentified", "WearRatePredicted"]
   end
@@ -197,6 +203,7 @@ Hecks.behaviors "Tribology" do
 
   test "TransitionRegime cascades through policy chain" do
     tests "TransitionRegime", on: "LubricationRegime", kind: :cascade
+    setup  "MeasureFilmThickness", name: "sample", method: "sample", thickness_nm: 1.0
     setup  "IdentifyRegime", name: "sample", lambda_ratio: 1.0
     input  from_regime: "sample", to_regime: "sample", cause: "sample"
     expect emits: ["RegimeTransitioned", "FilmThicknessMeasured"]

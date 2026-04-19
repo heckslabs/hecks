@@ -252,7 +252,7 @@ Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "pending" do
-      transition "AwardParoleCredit" => "pending_review", from: "pending"
+      transition "AwardParoleCredit" => "pending_review", from: ["pending", "pending_review"]
       transition "ApproveCredit" => "approved", from: "pending_review"
       transition "DenyCredit" => "denied", from: "pending_review"
     end
@@ -304,7 +304,7 @@ Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "pending" do
-      transition "MatchEmployer" => "matched", from: "pending"
+      transition "MatchEmployer" => "matched", from: ["pending", "matched"]
       transition "ScheduleInterview" => "interviewing", from: "matched"
       transition "ExtendOffer" => "offered", from: "interviewing"
     end

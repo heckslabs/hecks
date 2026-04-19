@@ -62,6 +62,7 @@ Hecks.behaviors "Court" do
 
   test "RecordFinding cascades through policy chain" do
     tests "RecordFinding", on: "Finding", kind: :cascade
+    setup  "File", action_type: "sample", actor: "sample", target: "sample", detail: "sample", occurred_at: "sample"
     input  case_id: "sample", law_name: "sample", check_expression: "sample", evidence: "sample", passed: "sample_trueclass", explanation: "sample"
     expect emits: ["FindingRecorded", "LawCheckedInCase"]
   end

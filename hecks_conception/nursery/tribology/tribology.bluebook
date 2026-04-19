@@ -378,10 +378,9 @@ Hecks.bluebook "Tribology", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "unknown" do
-      transition "IdentifyRegime" => "identified", from: "unknown"
-      transition "TransitionRegime" => "transitioned", from: "identified"
-      transition "OptimizeRegime" => "optimized", from: "identified"
-      transition "OptimizeRegime" => "optimized", from: "transitioned"
+      transition "IdentifyRegime" => "identified", from: ["unknown", "identified", "transitioned", "optimized"]
+      transition "TransitionRegime" => "transitioned", from: ["identified", "transitioned"]
+      transition "OptimizeRegime" => "optimized", from: ["identified", "transitioned"]
     end
   end
 
@@ -583,7 +582,7 @@ Hecks.bluebook "Tribology", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "pending" do
-      transition "RunTest" => "running", from: "pending"
+      transition "RunTest" => "running", from: ["pending", "running", "completed", "reported", "standard"]
       transition "RecordResult" => "completed", from: "running"
       transition "GenerateReport" => "reported", from: "completed"
     end
@@ -655,12 +654,10 @@ Hecks.bluebook "Tribology", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "unknown" do
-      transition "MeasureFilmThickness" => "measured", from: "unknown"
-      transition "CalculateMinimumFilm" => "calculated", from: "measured"
-      transition "PredictFilmFailure" => "at_risk", from: "measured"
-      transition "PredictFilmFailure" => "at_risk", from: "calculated"
-      transition "OptimizeFilm" => "optimized", from: "measured"
-      transition "OptimizeFilm" => "optimized", from: "at_risk"
+      transition "MeasureFilmThickness" => "measured", from: ["unknown", "measured", "calculated", "at_risk", "optimized"]
+      transition "CalculateMinimumFilm" => "calculated", from: ["measured", "calculated"]
+      transition "PredictFilmFailure" => "at_risk", from: ["measured", "calculated"]
+      transition "OptimizeFilm" => "optimized", from: ["measured", "at_risk"]
     end
   end
 

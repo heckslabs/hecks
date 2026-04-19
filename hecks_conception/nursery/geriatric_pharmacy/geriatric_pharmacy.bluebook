@@ -259,34 +259,14 @@ Hecks.bluebook "GeriatricPharmacy", version: "2026.04.13.1" do
     end
   end
 
-  policy "ScreenOnAdmit" do
-    on "ResidentAdmitted"
-    trigger "ScreenInteraction"
-  end
-
   policy "RecommendOnScreen" do
     on "InteractionScreened"
     trigger "RecommendAction"
   end
 
-  policy "CalculateDoseOnAdmit" do
-    on "ResidentAdmitted"
-    trigger "CalculateDose"
-  end
-
-  policy "MonitorOnApprove" do
-    on "DoseApproved"
-    trigger "EstablishMonitoringPlan"
-  end
-
   policy "FlagToxicityOnLevel" do
     on "LevelRecorded"
     trigger "FlagToxicity"
-  end
-
-  policy "RecalcOnRenalUpdate" do
-    on "RenalFunctionReconciled"
-    trigger "CalculateDose"
   end
 
   fixture "Medication", name: "Lisinopril", drug_class: "ACE inhibitor", mechanism_of_action: "angiotensin II inhibition", half_life_hours: 12.0, metabolism_pathway: "hepatic", status: "active"

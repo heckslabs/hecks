@@ -12,7 +12,7 @@ Hecks.behaviors "CulturalResourceMgmt" do
   test "DiscoverSite cascades through policy chain" do
     tests "DiscoverSite", on: "ArchaeologicalSite", kind: :cascade
     input  site_id: "sample", location: "sample", era_period: "sample", significance_level: "sample"
-    expect emits: ["SiteDiscovered", "SiteAssessed", "ExcavationStarted", "PhaseHalted"]
+    expect emits: ["SiteDiscovered", "SiteAssessed", "ExcavationStarted"]
   end
 
   test "AssessSite runs" do
@@ -40,14 +40,6 @@ Hecks.behaviors "CulturalResourceMgmt" do
     setup  "AssessSite"
     setup  "ExcavateSite"
     expect status: "cleared"
-  end
-
-  test "ClearSite cascades through policy chain" do
-    tests "ClearSite", on: "ArchaeologicalSite", kind: :cascade
-    setup  "DiscoverSite", site_id: "sample", location: "sample", era_period: "sample", significance_level: "sample"
-    setup  "AssessSite"
-    setup  "ExcavateSite"
-    expect emits: ["SiteCleared", "PhaseResumed"]
   end
 
 

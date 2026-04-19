@@ -125,7 +125,8 @@ pub fn is_shorthand_command(line: &str) -> bool {
         && !KEYWORDS.iter().any(|k| first_word == *k)
 }
 
-/// Parse `String :name`, `Integer :count`, `list_of(Order) :tags`.
+/// Parse `String :name`, `Integer :count`, `list_of(Order) :tags`,
+/// and the `default:` kwarg form `Integer :count, default: 0`.
 pub fn parse_shorthand_attribute(line: &str) -> Option<crate::ir::Attribute> {
     let list = line.starts_with("list_of(");
     let attr_type = if list {
@@ -137,7 +138,21 @@ pub fn parse_shorthand_attribute(line: &str) -> Option<crate::ir::Attribute> {
         line[..end].to_string()
     };
     let name = extract_symbol(line)?;
-    Some(crate::ir::Attribute { name, attr_type, default: None, list })
+    let default = if line.contains("default:") {
+        let pos = line.find("default:")?;
+        let after = line[pos + "default:".len()..].trim();
+        if after.starts_with('"') {
+            // Quoted string default — strip quotes.
+            let end = after[1..].find('"').map(|i| i + 1)?;
+            Some(after[1..end].to_string())
+        } else {
+            // Bare token default (number, true, false, identifier).
+            let token = after.split(|c: char| c == ',' || c.is_whitespace())
+                .next().unwrap_or("").to_string();
+            if token.is_empty() { None } else { Some(token) }
+        }
+    } else { None };
+    Some(crate::ir::Attribute { name, attr_type, default, list })
 }
 
 /// Parse a reference declaration in any of these forms:

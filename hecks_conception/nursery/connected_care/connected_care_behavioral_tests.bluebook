@@ -34,6 +34,8 @@ Hecks.behaviors "ConnectedCare" do
   test "ReadSensor cascades through policy chain" do
     tests "ReadSensor", on: "HomeSensor", kind: :cascade
     setup  "DeploySensor", sensor_id: "sample", patient_id: "sample", sensor_type: "sample", location_room: "sample"
+    setup  "TriggerAlert", alert_id: "sample", patient_id: "sample", sensor_id: "sample", alert_type: "sample", severity: "sample"
+    setup  "DispatchCaregiver", dispatch_id: "sample", alert_id: "sample", caregiver_name: "sample", eta: "sample"
     input  battery_pct: 1.0
     expect emits: ["SensorDataRead", "AlertTriggered", "CaregiverDispatched"]
   end
@@ -49,6 +51,7 @@ Hecks.behaviors "ConnectedCare" do
 
   test "TriggerAlert cascades through policy chain" do
     tests "TriggerAlert", on: "CareAlert", kind: :cascade
+    setup  "DispatchCaregiver", dispatch_id: "sample", alert_id: "sample", caregiver_name: "sample", eta: "sample"
     input  alert_id: "sample", patient_id: "sample", sensor_id: "sample", alert_type: "sample", severity: "sample"
     expect emits: ["AlertTriggered", "CaregiverDispatched"]
   end

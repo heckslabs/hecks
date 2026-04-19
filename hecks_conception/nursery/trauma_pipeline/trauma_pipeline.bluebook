@@ -196,7 +196,7 @@ Hecks.bluebook "TraumaPipeline", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "pending" do
-      transition "DeployBloodCourier" => "in_transit", from: "pending"
+      transition "DeployBloodCourier" => "in_transit", from: ["pending", "in_transit", "delivered", "breached"]
       transition "FlagTempBreach" => "breached", from: "in_transit"
       transition "DeliverBlood" => "delivered", from: "in_transit"
     end
@@ -245,7 +245,7 @@ Hecks.bluebook "TraumaPipeline", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "available" do
-      transition "PrepareBay" => "prepared", from: "available"
+      transition "PrepareBay" => "prepared", from: ["available", "prepared", "assigned"]
       transition "AssignCall" => "assigned", from: "prepared"
       transition "ReleaseBay" => "available", from: "assigned"
     end
@@ -300,7 +300,7 @@ Hecks.bluebook "TraumaPipeline", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "pending" do
-      transition "MatchBloodType" => "tested", from: "pending"
+      transition "MatchBloodType" => "tested", from: ["pending", "tested", "approved", "rejected"]
       transition "ApproveMatch" => "approved", from: "tested"
       transition "RejectMatch" => "rejected", from: "tested"
     end

@@ -181,16 +181,6 @@ Hecks.bluebook "EmergencyRoom" do
     trigger "PerformTriage"
   end
 
-  policy "AdmitOnTriage" do
-    on "TriageCompleted"
-    trigger "AdmitPatient"
-  end
-
-  policy "OccupyBedOnAdmit" do
-    on "PatientAdmitted"
-    trigger "OccupyBed"
-  end
-
   policy "BeginTreatmentOnAdmit" do
     on "PatientAdmitted"
     trigger "BeginTreatment"
@@ -201,20 +191,7 @@ Hecks.bluebook "EmergencyRoom" do
     trigger "OrderProcedure"
   end
 
-  policy "StabilizeOnProcedure" do
-    on "ProcedurePerformed"
-    trigger "StabilizePatient"
-  end
 
-  policy "CleanBedOnDischarge" do
-    on "PatientDischarged"
-    trigger "CleanBed"
-  end
-
-  policy "DischargeOnStabilized" do
-    on "PatientStabilized"
-    trigger "DischargePatient"
-  end
 
   policy "TransferOnStabilized" do
     on "PatientStabilized"

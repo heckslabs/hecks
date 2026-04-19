@@ -46,7 +46,6 @@ Hecks.bluebook "ElevatorMaintenance" do
       goal "Restore an elevator to operational status after repair"
       description "Verify all safety devices and return to automatic operation"
       reference_to(ElevatorUnit)
-      given("must be out of service") { status == "out_of_service" }
       emits "UnitReturnedToService"
     end
   end

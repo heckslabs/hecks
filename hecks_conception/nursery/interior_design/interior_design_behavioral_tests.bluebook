@@ -25,6 +25,10 @@ Hecks.behaviors "InteriorDesign" do
   test "ApproveConcept cascades through policy chain" do
     tests "ApproveConcept", on: "DesignProject", kind: :cascade
     setup  "ScopeProject", name: "sample", space_type: "sample", style_direction: "sample", budget: 1.0
+    setup  "PlanRoom", room_name: "sample", function: "sample", square_footage: 1.0, color_palette: "sample"
+    setup  "SpecifyMaterial", material_name: "sample", category: "sample", supplier: "sample", unit_cost: 1.0, lead_time_days: 1
+    setup  "ScheduleInstallation", date: "sample", crew_lead: "sample"
+    setup  "CompleteInstallation"
     setup  "PresentConcept"
     expect emits: ["ConceptApproved", "RoomPlanned", "FixturesSpecified", "MaterialSpecified", "MaterialOrdered", "InstallationScheduled", "InstallationCompleted", "PunchListResolved"]
   end
@@ -42,6 +46,9 @@ Hecks.behaviors "InteriorDesign" do
   test "PlanRoom cascades through policy chain" do
     tests "PlanRoom", on: "RoomDesign", kind: :cascade
     setup  "ScopeProject", name: "sample", space_type: "sample", style_direction: "sample", budget: 1.0
+    setup  "SpecifyMaterial", material_name: "sample", category: "sample", supplier: "sample", unit_cost: 1.0, lead_time_days: 1
+    setup  "ScheduleInstallation", date: "sample", crew_lead: "sample"
+    setup  "CompleteInstallation"
     input  room_name: "sample", function: "sample", square_footage: 1.0, color_palette: "sample"
     expect emits: ["RoomPlanned", "FixturesSpecified", "MaterialSpecified", "MaterialOrdered", "InstallationScheduled", "InstallationCompleted", "PunchListResolved"]
   end
@@ -56,6 +63,10 @@ Hecks.behaviors "InteriorDesign" do
   test "SpecifyFixtures cascades through policy chain" do
     tests "SpecifyFixtures", on: "RoomDesign", kind: :cascade
     setup  "PlanRoom", room_name: "sample", function: "sample", square_footage: 1.0, color_palette: "sample"
+    setup  "SpecifyMaterial", material_name: "sample", category: "sample", supplier: "sample", unit_cost: 1.0, lead_time_days: 1
+    setup  "ScheduleInstallation", date: "sample", crew_lead: "sample"
+    setup  "ScopeProject", name: "sample", space_type: "sample", style_direction: "sample", budget: 1.0
+    setup  "CompleteInstallation"
     input  fixture_list: "sample"
     expect emits: ["FixturesSpecified", "MaterialSpecified", "MaterialOrdered", "InstallationScheduled", "InstallationCompleted", "PunchListResolved"]
   end
@@ -73,6 +84,9 @@ Hecks.behaviors "InteriorDesign" do
   test "SpecifyMaterial cascades through policy chain" do
     tests "SpecifyMaterial", on: "MaterialSelection", kind: :cascade
     setup  "PlanRoom", room_name: "sample", function: "sample", square_footage: 1.0, color_palette: "sample"
+    setup  "ScheduleInstallation", date: "sample", crew_lead: "sample"
+    setup  "ScopeProject", name: "sample", space_type: "sample", style_direction: "sample", budget: 1.0
+    setup  "CompleteInstallation"
     input  material_name: "sample", category: "sample", supplier: "sample", unit_cost: 1.0, lead_time_days: 1
     expect emits: ["MaterialSpecified", "MaterialOrdered", "InstallationScheduled", "InstallationCompleted", "PunchListResolved"]
   end
@@ -87,6 +101,9 @@ Hecks.behaviors "InteriorDesign" do
   test "OrderMaterial cascades through policy chain" do
     tests "OrderMaterial", on: "MaterialSelection", kind: :cascade
     setup  "SpecifyMaterial", material_name: "sample", category: "sample", supplier: "sample", unit_cost: 1.0, lead_time_days: 1
+    setup  "ScheduleInstallation", date: "sample", crew_lead: "sample"
+    setup  "ScopeProject", name: "sample", space_type: "sample", style_direction: "sample", budget: 1.0
+    setup  "CompleteInstallation"
     input  quantity: 1
     expect emits: ["MaterialOrdered", "InstallationScheduled", "InstallationCompleted", "PunchListResolved"]
   end

@@ -32,6 +32,7 @@ Hecks.behaviors "BrainTraining" do
 
   test "PlayGame cascades through policy chain" do
     tests "PlayGame", on: "BrainGame", kind: :cascade
+    setup  "RecordScore", score_id: "sample", participant_id: "sample", game_id: "sample", accuracy: 1.0, reaction_time_ms: 1.0
     setup  "DesignGame", game_id: "sample", name: "sample", cognitive_target: "sample", difficulty: "sample", levels: 1
     expect emits: ["GamePlayed", "ScoreRecorded"]
   end
@@ -55,6 +56,7 @@ Hecks.behaviors "BrainTraining" do
   test "CalculateComposite cascades through policy chain" do
     tests "CalculateComposite", on: "CognitiveScore", kind: :cascade
     setup  "RecordScore", score_id: "sample", participant_id: "sample", game_id: "sample", accuracy: 1.0, reaction_time_ms: 1.0
+    setup  "PrescribeTrainingPlan", plan_id: "sample", participant_id: "sample"
     input  composite_score: 1.0
     expect emits: ["CompositeCalculated", "PlanAdjusted"]
   end

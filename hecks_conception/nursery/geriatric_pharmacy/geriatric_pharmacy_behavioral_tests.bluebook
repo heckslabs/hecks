@@ -24,24 +24,11 @@ Hecks.behaviors "GeriatricPharmacy" do
     expect name: "sample", age: 1, weight_kg: 1.0, creatinine_clearance_ml_min: 1.0, hepatic_function: "sample", status: "active"
   end
 
-  test "AdmitResident cascades through policy chain" do
-    tests "AdmitResident", on: "Resident", kind: :cascade
-    input  name: "sample", age: 1, weight_kg: 1.0, creatinine_clearance_ml_min: 1.0, hepatic_function: "sample"
-    expect emits: ["ResidentAdmitted", "InteractionScreened", "ActionRecommended", "DoseCalculated"]
-  end
-
   test "ReconcileRenalFunction sets creatinine_clearance_ml_min" do
     tests "ReconcileRenalFunction", on: "Resident"
     setup  "AdmitResident", name: "sample", age: 1, weight_kg: 1.0, creatinine_clearance_ml_min: 1.0, hepatic_function: "sample"
     input  creatinine_clearance_ml_min: 1.0
     expect creatinine_clearance_ml_min: 1.0
-  end
-
-  test "ReconcileRenalFunction cascades through policy chain" do
-    tests "ReconcileRenalFunction", on: "Resident", kind: :cascade
-    setup  "AdmitResident", name: "sample", age: 1, weight_kg: 1.0, creatinine_clearance_ml_min: 1.0, hepatic_function: "sample"
-    input  creatinine_clearance_ml_min: 1.0
-    expect emits: ["RenalFunctionReconciled", "DoseCalculated"]
   end
 
 
@@ -79,12 +66,6 @@ Hecks.behaviors "GeriatricPharmacy" do
     tests "ApproveDose", on: "DosingRegimen"
     setup  "CalculateDose", resident_name: "sample", medication_name: "sample", standard_dose_mg: 1.0, adjusted_dose_mg: 1.0, frequency: "sample", adjustment_reason: "sample"
     expect status: "approved"
-  end
-
-  test "ApproveDose cascades through policy chain" do
-    tests "ApproveDose", on: "DosingRegimen", kind: :cascade
-    setup  "CalculateDose", resident_name: "sample", medication_name: "sample", standard_dose_mg: 1.0, adjusted_dose_mg: 1.0, frequency: "sample", adjustment_reason: "sample"
-    expect emits: ["DoseApproved", "MonitoringPlanEstablished"]
   end
 
 

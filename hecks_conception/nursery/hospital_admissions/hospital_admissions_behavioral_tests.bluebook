@@ -11,6 +11,9 @@ Hecks.behaviors "HospitalAdmissions" do
 
   test "RegisterPatient cascades through policy chain" do
     tests "RegisterPatient", on: "Patient", kind: :cascade
+    setup  "RecordDiagnosis", patient_name: "sample", icd_code: "sample", description: "sample", diagnosing_physician: "sample"
+    setup  "DraftDischargePlan", patient_name: "sample", discharge_date: "sample"
+    setup  "PrepareBed"
     input  name: "sample", date_of_birth: "sample", insurance_id: "sample", emergency_contact: "sample", chief_complaint: "sample"
     expect emits: ["PatientRegistered", "PatientTriaged", "BedAssigned", "DiagnosisRecorded", "DischargePlanDrafted", "DischargePlanApproved", "PatientDischarged", "BedReleased"]
   end
@@ -24,7 +27,6 @@ Hecks.behaviors "HospitalAdmissions" do
   test "TriagePatient sets triage_level" do
     tests "TriagePatient", on: "Patient"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", insurance_id: "sample", emergency_contact: "sample", chief_complaint: "sample"
-    setup  "ValidateIntake"
     input  triage_level: "sample"
     expect ok: "true"
   end
@@ -32,7 +34,9 @@ Hecks.behaviors "HospitalAdmissions" do
   test "TriagePatient cascades through policy chain" do
     tests "TriagePatient", on: "Patient", kind: :cascade
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", insurance_id: "sample", emergency_contact: "sample", chief_complaint: "sample"
-    setup  "ValidateIntake"
+    setup  "RecordDiagnosis", patient_name: "sample", icd_code: "sample", description: "sample", diagnosing_physician: "sample"
+    setup  "DraftDischargePlan", patient_name: "sample", discharge_date: "sample"
+    setup  "PrepareBed"
     input  triage_level: "sample"
     expect emits: ["PatientTriaged", "BedAssigned", "DiagnosisRecorded", "DischargePlanDrafted", "DischargePlanApproved", "PatientDischarged", "BedReleased"]
   end
@@ -54,6 +58,8 @@ Hecks.behaviors "HospitalAdmissions" do
 
   test "AssignBed cascades through policy chain" do
     tests "AssignBed", on: "Bed", kind: :cascade
+    setup  "RecordDiagnosis", patient_name: "sample", icd_code: "sample", description: "sample", diagnosing_physician: "sample"
+    setup  "DraftDischargePlan", patient_name: "sample", discharge_date: "sample"
     setup  "PrepareBed"
     input  patient_name: "sample"
     expect emits: ["BedAssigned", "DiagnosisRecorded", "DischargePlanDrafted", "DischargePlanApproved", "PatientDischarged", "BedReleased"]
@@ -75,6 +81,7 @@ Hecks.behaviors "HospitalAdmissions" do
 
   test "RecordDiagnosis cascades through policy chain" do
     tests "RecordDiagnosis", on: "Diagnosis", kind: :cascade
+    setup  "DraftDischargePlan", patient_name: "sample", discharge_date: "sample"
     input  patient_name: "sample", icd_code: "sample", description: "sample", diagnosing_physician: "sample"
     expect emits: ["DiagnosisRecorded", "DischargePlanDrafted", "DischargePlanApproved", "PatientDischarged", "BedReleased"]
   end
@@ -103,21 +110,18 @@ Hecks.behaviors "HospitalAdmissions" do
 
   test "ScheduleFollowUps runs" do
     tests "ScheduleFollowUps", on: "DischargeePlan"
-    setup  "DraftDischargePlan", patient_name: "sample", discharge_date: "sample"
     expect follow_ups_scheduled: true
   end
 
   test "ApproveDischargePlan runs" do
     tests "ApproveDischargePlan", on: "DischargeePlan"
     setup  "DraftDischargePlan", patient_name: "sample", discharge_date: "sample"
-    setup  "ScheduleFollowUps"
     expect ok: "true"
   end
 
   test "ApproveDischargePlan cascades through policy chain" do
     tests "ApproveDischargePlan", on: "DischargeePlan", kind: :cascade
     setup  "DraftDischargePlan", patient_name: "sample", discharge_date: "sample"
-    setup  "ScheduleFollowUps"
     expect emits: ["DischargePlanApproved", "PatientDischarged", "BedReleased"]
   end
 

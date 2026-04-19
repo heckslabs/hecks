@@ -17,6 +17,7 @@ Hecks.behaviors "TherapeuticHorticulture" do
 
   test "GraduateClient cascades through policy chain" do
     tests "GraduateClient", on: "TherapyClient", kind: :cascade
+    setup  "GenerateTherapyReport", report_id: "sample", client_id: "sample", avg_mood_change: 1.0, sessions_attended: 1
     setup  "EnrollClient", client_id: "sample", name: "sample", diagnosis: "sample", therapist_name: "sample"
     expect emits: ["ClientGraduated", "TherapyReportGenerated"]
   end
@@ -38,6 +39,7 @@ Hecks.behaviors "TherapeuticHorticulture" do
 
   test "TendPlot cascades through policy chain" do
     tests "TendPlot", on: "GardenPlot", kind: :cascade
+    setup  "RecordMood", entry_id: "sample", client_id: "sample", date: "sample", mood_before: 1
     setup  "AssignPlot", plot_id: "sample", client_id: "sample", plant_type: "sample", season: "sample"
     expect emits: ["PlotTended", "MoodRecorded"]
   end

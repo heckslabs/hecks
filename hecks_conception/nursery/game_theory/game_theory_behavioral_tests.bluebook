@@ -11,6 +11,10 @@ Hecks.behaviors "GameTheory" do
 
   test "DefineGame cascades through policy chain" do
     tests "DefineGame", on: "StrategicGame", kind: :cascade
+    setup  "RegisterStrategy", player_id: "sample", strategy_type: "sample"
+    setup  "ConstructMatrix", rows: 1, columns: 1
+    setup  "SolveNash"
+    setup  "ConfigureSimulation", simulation_id: "sample", iteration_count: 1, learning_rule: "sample"
     input  game_id: "sample", name: "sample", game_type: "sample", player_count: 1
     expect emits: ["GameDefined", "StrategyRegistered", "MatrixConstructed", "NashSolved", "EquilibriumRefined", "SimulationConfigured", "SimulationRun", "ResultsExported"]
   end
@@ -47,6 +51,9 @@ Hecks.behaviors "GameTheory" do
   test "RegisterStrategy cascades through policy chain" do
     tests "RegisterStrategy", on: "Strategy", kind: :cascade
     setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
+    setup  "ConstructMatrix", rows: 1, columns: 1
+    setup  "SolveNash"
+    setup  "ConfigureSimulation", simulation_id: "sample", iteration_count: 1, learning_rule: "sample"
     input  player_id: "sample", strategy_type: "sample"
     expect emits: ["StrategyRegistered", "MatrixConstructed", "NashSolved", "EquilibriumRefined", "SimulationConfigured", "SimulationRun", "ResultsExported"]
   end
@@ -54,12 +61,13 @@ Hecks.behaviors "GameTheory" do
   test "SpecifyOpponentStrategies runs" do
     tests "SpecifyOpponentStrategies", on: "Strategy"
     setup  "RegisterStrategy", player_id: "sample", strategy_type: "sample"
-    expect ok: "true"
+    expect opponent_strategies_specified: true
   end
 
   test "ComputeBestResponse runs" do
     tests "ComputeBestResponse", on: "Strategy"
     setup  "RegisterStrategy", player_id: "sample", strategy_type: "sample"
+    setup  "SpecifyOpponentStrategies"
     expect ok: "true"
   end
 
@@ -82,6 +90,8 @@ Hecks.behaviors "GameTheory" do
   test "ConstructMatrix cascades through policy chain" do
     tests "ConstructMatrix", on: "PayoffMatrix", kind: :cascade
     setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
+    setup  "SolveNash"
+    setup  "ConfigureSimulation", simulation_id: "sample", iteration_count: 1, learning_rule: "sample"
     input  rows: 1, columns: 1
     expect emits: ["MatrixConstructed", "NashSolved", "EquilibriumRefined", "SimulationConfigured", "SimulationRun", "ResultsExported"]
   end
@@ -99,12 +109,13 @@ Hecks.behaviors "GameTheory" do
   test "SolveNash runs" do
     tests "SolveNash", on: "Equilibrium"
     setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
-    expect ok: "true"
+    expect nash_equilibrium_count: 1
   end
 
   test "SolveNash cascades through policy chain" do
     tests "SolveNash", on: "Equilibrium", kind: :cascade
     setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
+    setup  "ConfigureSimulation", simulation_id: "sample", iteration_count: 1, learning_rule: "sample"
     expect emits: ["NashSolved", "EquilibriumRefined", "SimulationConfigured", "SimulationRun", "ResultsExported"]
   end
 
@@ -124,6 +135,8 @@ Hecks.behaviors "GameTheory" do
 
   test "RefineEquilibrium cascades through policy chain" do
     tests "RefineEquilibrium", on: "Equilibrium", kind: :cascade
+    setup  "ConfigureSimulation", simulation_id: "sample", iteration_count: 1, learning_rule: "sample"
+    setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
     setup  "SolveNash"
     input  refinement_type: "sample"
     expect emits: ["EquilibriumRefined", "SimulationConfigured", "SimulationRun", "ResultsExported"]
@@ -136,7 +149,7 @@ Hecks.behaviors "GameTheory" do
     tests "ConfigureSimulation", on: "Simulation"
     setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
     input  simulation_id: "sample", iteration_count: 1, learning_rule: "sample"
-    expect ok: "true"
+    expect configured: true
   end
 
   test "ConfigureSimulation cascades through policy chain" do

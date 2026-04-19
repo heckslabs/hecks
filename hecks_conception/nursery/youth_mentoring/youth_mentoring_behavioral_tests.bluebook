@@ -38,6 +38,10 @@ Hecks.behaviors "YouthMentoring" do
 
   test "EnrollMentee cascades through policy chain" do
     tests "EnrollMentee", on: "Mentee", kind: :cascade
+    setup  "MakeMatch", mentor_name: "sample", mentee_name: "sample", match_date: "sample", match_rationale: "sample"
+    setup  "RegisterMentor", name: "sample", occupation: "sample", skills: "sample", availability: "sample"
+    setup  "SetDevelopmentGoal", mentee_name: "sample", goal_area: "sample", description: "sample", target_date: "sample"
+    setup  "ScheduleMeeting", mentor_name: "sample", mentee_name: "sample", meeting_date: "sample", location: "sample", activity: "sample"
     input  name: "sample", age: "sample", school: "sample", interests: "sample", guardian_name: "sample"
     expect emits: ["MenteeEnrolled", "MatchMade", "GoalSet", "MeetingScheduled"]
   end
@@ -50,6 +54,7 @@ Hecks.behaviors "YouthMentoring" do
 
   test "GraduateMentee cascades through policy chain" do
     tests "GraduateMentee", on: "Mentee", kind: :cascade
+    setup  "MakeMatch", mentor_name: "sample", mentee_name: "sample", match_date: "sample", match_rationale: "sample"
     setup  "EnrollMentee", name: "sample", age: "sample", school: "sample", interests: "sample", guardian_name: "sample"
     expect emits: ["MenteeGraduated", "MatchClosed"]
   end
@@ -67,8 +72,10 @@ Hecks.behaviors "YouthMentoring" do
 
   test "MakeMatch cascades through policy chain" do
     tests "MakeMatch", on: "MentorMatch", kind: :cascade
-    setup  "EnrollMentee", name: "sample", age: "sample", school: "sample", interests: "sample", guardian_name: "sample"
     setup  "RegisterMentor", name: "sample", occupation: "sample", skills: "sample", availability: "sample"
+    setup  "EnrollMentee", name: "sample", age: "sample", school: "sample", interests: "sample", guardian_name: "sample"
+    setup  "SetDevelopmentGoal", mentee_name: "sample", goal_area: "sample", description: "sample", target_date: "sample"
+    setup  "ScheduleMeeting", mentor_name: "sample", mentee_name: "sample", meeting_date: "sample", location: "sample", activity: "sample"
     input  mentor_name: "sample", mentee_name: "sample", match_date: "sample", match_rationale: "sample"
     expect emits: ["MatchMade", "GoalSet", "MeetingScheduled"]
   end
@@ -98,6 +105,9 @@ Hecks.behaviors "YouthMentoring" do
 
   test "LogMeeting cascades through policy chain" do
     tests "LogMeeting", on: "MentoringMeeting", kind: :cascade
+    setup  "SetDevelopmentGoal", mentee_name: "sample", goal_area: "sample", description: "sample", target_date: "sample"
+    setup  "EnrollMentee", name: "sample", age: "sample", school: "sample", interests: "sample", guardian_name: "sample"
+    setup  "MakeMatch", mentor_name: "sample", mentee_name: "sample", match_date: "sample", match_rationale: "sample"
     setup  "ScheduleMeeting", mentor_name: "sample", mentee_name: "sample", meeting_date: "sample", location: "sample", activity: "sample"
     input  notes: "sample"
     expect emits: ["MeetingLogged", "MilestoneRecorded", "GoalCompleted", "MenteeGraduated", "MatchClosed"]
@@ -116,6 +126,8 @@ Hecks.behaviors "YouthMentoring" do
   test "SetDevelopmentGoal cascades through policy chain" do
     tests "SetDevelopmentGoal", on: "DevelopmentGoal", kind: :cascade
     setup  "EnrollMentee", name: "sample", age: "sample", school: "sample", interests: "sample", guardian_name: "sample"
+    setup  "ScheduleMeeting", mentor_name: "sample", mentee_name: "sample", meeting_date: "sample", location: "sample", activity: "sample"
+    setup  "MakeMatch", mentor_name: "sample", mentee_name: "sample", match_date: "sample", match_rationale: "sample"
     input  mentee_name: "sample", goal_area: "sample", description: "sample", target_date: "sample"
     expect emits: ["GoalSet", "MeetingScheduled"]
   end
@@ -130,6 +142,8 @@ Hecks.behaviors "YouthMentoring" do
   test "RecordMilestone cascades through policy chain" do
     tests "RecordMilestone", on: "DevelopmentGoal", kind: :cascade
     setup  "SetDevelopmentGoal", mentee_name: "sample", goal_area: "sample", description: "sample", target_date: "sample"
+    setup  "EnrollMentee", name: "sample", age: "sample", school: "sample", interests: "sample", guardian_name: "sample"
+    setup  "MakeMatch", mentor_name: "sample", mentee_name: "sample", match_date: "sample", match_rationale: "sample"
     input  description: "sample", achieved_date: "sample"
     expect emits: ["MilestoneRecorded", "GoalCompleted", "MenteeGraduated", "MatchClosed"]
   end
@@ -142,6 +156,8 @@ Hecks.behaviors "YouthMentoring" do
 
   test "CompleteGoal cascades through policy chain" do
     tests "CompleteGoal", on: "DevelopmentGoal", kind: :cascade
+    setup  "EnrollMentee", name: "sample", age: "sample", school: "sample", interests: "sample", guardian_name: "sample"
+    setup  "MakeMatch", mentor_name: "sample", mentee_name: "sample", match_date: "sample", match_rationale: "sample"
     setup  "SetDevelopmentGoal", mentee_name: "sample", goal_area: "sample", description: "sample", target_date: "sample"
     expect emits: ["GoalCompleted", "MenteeGraduated", "MatchClosed"]
   end

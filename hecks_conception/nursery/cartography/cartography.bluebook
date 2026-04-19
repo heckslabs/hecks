@@ -17,6 +17,7 @@ Hecks.bluebook "Cartography" do
       String :sheet_id
       String :title
       String :scale
+      then_set :feature_layer_count, to: 1
     end
 
     command "AddFeatureLayer" do
@@ -117,6 +118,7 @@ Hecks.bluebook "Cartography" do
       String :name
       String :ellipsoid
       Float :semi_major_axis_m
+      then_set :target_datum_registered, to: true
     end
 
     command "RegisterTargetDatum" do
@@ -149,6 +151,7 @@ Hecks.bluebook "Cartography" do
       emits "RevisionSubmitted"
       reference_to MapSheet
       String :change_description
+      then_set :field_verified, to: true
     end
 
     command "FieldVerifyRevision" do

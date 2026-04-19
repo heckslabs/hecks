@@ -34,8 +34,9 @@ Hecks.behaviors "ELearning" do
   test "EnrollStudent cascades through policy chain" do
     tests "EnrollStudent", on: "Enrollment", kind: :cascade
     setup  "AuthorCourse", course_title: "sample", instructor: "sample", subject_area: "sample", difficulty_level: "sample", estimated_hours: 1
+    setup  "AuthorQuiz", quiz_title: "sample", passing_score: 1, time_limit_minutes: 1, max_attempts: 1
     input  enrollment_id: "sample", student_email: "sample"
-    expect emits: ["StudentEnrolled", "ProgressRecorded", "AttemptSubmitted", "CertificateIssued", "CertificateVerified"]
+    expect emits: ["StudentEnrolled", "ProgressRecorded", "AttemptSubmitted", "ProgressRecorded"]
   end
 
   test "RecordProgress sets progress_pct" do
@@ -48,8 +49,9 @@ Hecks.behaviors "ELearning" do
   test "RecordProgress cascades through policy chain" do
     tests "RecordProgress", on: "Enrollment", kind: :cascade
     setup  "EnrollStudent", enrollment_id: "sample", student_email: "sample"
+    setup  "AuthorQuiz", quiz_title: "sample", passing_score: 1, time_limit_minutes: 1, max_attempts: 1
     input  progress_pct: 1.0
-    expect emits: ["ProgressRecorded", "AttemptSubmitted", "CertificateIssued", "CertificateVerified"]
+    expect emits: ["ProgressRecorded", "AttemptSubmitted", "ProgressRecorded"]
   end
 
   test "WithdrawEnrollment runs" do
@@ -71,6 +73,7 @@ Hecks.behaviors "ELearning" do
   test "AuthorLesson cascades through policy chain" do
     tests "AuthorLesson", on: "Lesson", kind: :cascade
     setup  "AuthorCourse", course_title: "sample", instructor: "sample", subject_area: "sample", difficulty_level: "sample", estimated_hours: 1
+    setup  "AuthorQuiz", quiz_title: "sample", passing_score: 1, time_limit_minutes: 1, max_attempts: 1
     input  lesson_title: "sample", content_type: "sample", body: "sample", duration_minutes: 1, sequence_order: 1
     expect emits: ["LessonAuthored", "QuizAuthored", "CoursePublished"]
   end
@@ -108,8 +111,9 @@ Hecks.behaviors "ELearning" do
   test "SubmitAttempt cascades through policy chain" do
     tests "SubmitAttempt", on: "Quiz", kind: :cascade
     setup  "AuthorQuiz", quiz_title: "sample", passing_score: 1, time_limit_minutes: 1, max_attempts: 1
+    setup  "EnrollStudent", enrollment_id: "sample", student_email: "sample"
     input  student_email: "sample", score: 1
-    expect emits: ["AttemptSubmitted", "ProgressRecorded", "CertificateIssued", "CertificateVerified"]
+    expect emits: ["AttemptSubmitted", "ProgressRecorded", "AttemptSubmitted"]
   end
 
   test "SuspendQuiz runs" do

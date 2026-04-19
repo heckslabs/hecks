@@ -36,7 +36,6 @@ Hecks.bluebook "OccupationalTherapy" do
       role "Therapist"
       description "Complete the client's occupational therapy program"
       reference_to(Client)
-      given("must be active") { status == "active" }
       emits "ClientDischarged"
       then_set :status, to: "discharged"
     end

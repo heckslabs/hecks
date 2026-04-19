@@ -26,6 +26,7 @@ Hecks.behaviors "HealingGarden" do
 
   test "PlantPlot cascades through policy chain" do
     tests "PlantPlot", on: "GardenPlot", kind: :cascade
+    setup  "ScheduleShift", shift_id: "sample", volunteer_name: "sample", garden_name: "sample", date: "sample", hours: 1.0
     input  plot_id: "sample", garden_name: "sample", plant_type: "sample", therapeutic_purpose: "sample", season: "sample"
     expect emits: ["PlotPlanted", "ShiftScheduled"]
   end
@@ -55,6 +56,7 @@ Hecks.behaviors "HealingGarden" do
   test "RecordMoodAfter cascades through policy chain" do
     tests "RecordMoodAfter", on: "GardenVisit", kind: :cascade
     setup  "LogGardenVisit", visit_id: "sample", patient_name: "sample", plot_id: "sample", activity: "sample", duration_minutes: 1.0, mood_before: "sample"
+    setup  "DraftComfortPlan", plan_id: "sample", patient_name: "sample", primary_nurse: "sample"
     input  mood_after: "sample"
     expect emits: ["MoodRecorded", "PlanTended"]
   end

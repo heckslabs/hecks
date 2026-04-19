@@ -196,11 +196,6 @@ Hecks.bluebook "FireDepartment" do
     end
   end
 
-  policy "DispatchOnCallReceived" do
-    on "CallReceived"
-    trigger "DispatchApparatus"
-  end
-
   policy "ArriveOnDispatch" do
     on "ApparatusDispatched"
     trigger "ArriveOnScene"
@@ -221,11 +216,6 @@ Hecks.bluebook "FireDepartment" do
     trigger "ClearScene"
   end
 
-  policy "FileReportOnClear" do
-    on "SceneCleared"
-    trigger "FileReport"
-  end
-
   policy "ReturnOnReport" do
     on "ReportFiled"
     trigger "ReturnToStation"
@@ -234,11 +224,6 @@ Hecks.bluebook "FireDepartment" do
   policy "AssignCallOnReceived" do
     on "CallReceived"
     trigger "AssignCall"
-  end
-
-  policy "DispatchOnCallAssigned" do
-    on "CallAssigned"
-    trigger "DispatchApparatus"
   end
 
   policy "CloseCallOnApparatusReturned" do

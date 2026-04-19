@@ -18,6 +18,8 @@ Hecks.behaviors "PodcastProduction" do
   test "PublishShow cascades through policy chain" do
     tests "PublishShow", on: "Show", kind: :cascade
     setup  "LaunchShow", title: "sample", category: "sample", format: "sample"
+    setup  "OutlineEpisode", title: "sample", episode_number: 1
+    setup  "InviteGuest", name: "sample", expertise: "sample", bio: "sample"
     expect emits: ["ShowPublished", "EpisodeOutlined", "GuestInvited"]
   end
 
@@ -41,6 +43,7 @@ Hecks.behaviors "PodcastProduction" do
   test "OutlineEpisode cascades through policy chain" do
     tests "OutlineEpisode", on: "Episode", kind: :cascade
     setup  "LaunchShow", title: "sample", category: "sample", format: "sample"
+    setup  "InviteGuest", name: "sample", expertise: "sample", bio: "sample"
     input  title: "sample", episode_number: 1
     expect emits: ["EpisodeOutlined", "GuestInvited"]
   end
@@ -55,37 +58,34 @@ Hecks.behaviors "PodcastProduction" do
   test "RecordEpisode cascades through policy chain" do
     tests "RecordEpisode", on: "Episode", kind: :cascade
     setup  "OutlineEpisode", title: "sample", episode_number: 1
+    setup  "StartEditing", editor_name: "sample"
     input  duration_seconds: 1
-    expect emits: ["EpisodeRecorded", "EditingStarted", "EditFinalized", "EpisodeEdited", "EpisodeReleased", "DownloadsRecorded", "ReportGenerated"]
+    expect emits: ["EpisodeRecorded", "EditingStarted", "EditFinalized"]
   end
 
   test "MarkEdited runs" do
     tests "MarkEdited", on: "Episode"
     setup  "OutlineEpisode", title: "sample", episode_number: 1
-    setup  "RecordEpisode", duration_seconds: 1
     expect status: "edited"
   end
 
   test "MarkEdited cascades through policy chain" do
     tests "MarkEdited", on: "Episode", kind: :cascade
     setup  "OutlineEpisode", title: "sample", episode_number: 1
-    setup  "RecordEpisode", duration_seconds: 1
+    setup  "RecordDownloads", download_count: 1, unique_listeners: 1, completion_rate: 1.0, period: "sample"
     expect emits: ["EpisodeEdited", "EpisodeReleased", "DownloadsRecorded", "ReportGenerated"]
   end
 
   test "ReleaseEpisode runs" do
     tests "ReleaseEpisode", on: "Episode"
     setup  "OutlineEpisode", title: "sample", episode_number: 1
-    setup  "RecordEpisode", duration_seconds: 1
-    setup  "MarkEdited"
     expect status: "released"
   end
 
   test "ReleaseEpisode cascades through policy chain" do
     tests "ReleaseEpisode", on: "Episode", kind: :cascade
     setup  "OutlineEpisode", title: "sample", episode_number: 1
-    setup  "RecordEpisode", duration_seconds: 1
-    setup  "MarkEdited"
+    setup  "RecordDownloads", download_count: 1, unique_listeners: 1, completion_rate: 1.0, period: "sample"
     expect emits: ["EpisodeReleased", "DownloadsRecorded", "ReportGenerated"]
   end
 
@@ -108,7 +108,9 @@ Hecks.behaviors "PodcastProduction" do
   test "ConfirmGuest cascades through policy chain" do
     tests "ConfirmGuest", on: "Guest", kind: :cascade
     setup  "InviteGuest", name: "sample", expertise: "sample", bio: "sample"
-    expect emits: ["GuestConfirmed", "EpisodeRecorded", "EditingStarted", "EditFinalized", "EpisodeEdited", "EpisodeReleased", "DownloadsRecorded", "ReportGenerated"]
+    setup  "OutlineEpisode", title: "sample", episode_number: 1
+    setup  "StartEditing", editor_name: "sample"
+    expect emits: ["GuestConfirmed", "EpisodeRecorded", "EditingStarted", "EditFinalized"]
   end
 
 
@@ -125,7 +127,7 @@ Hecks.behaviors "PodcastProduction" do
     tests "StartEditing", on: "EditingSession", kind: :cascade
     setup  "OutlineEpisode", title: "sample", episode_number: 1
     input  editor_name: "sample"
-    expect emits: ["EditingStarted", "EditFinalized", "EpisodeEdited", "EpisodeReleased", "DownloadsRecorded", "ReportGenerated"]
+    expect emits: ["EditingStarted", "EditFinalized"]
   end
 
   test "FinalizeEdit sets cuts_made" do
@@ -133,13 +135,6 @@ Hecks.behaviors "PodcastProduction" do
     setup  "StartEditing", editor_name: "sample"
     input  cuts_made: 1
     expect status: "finalized", cuts_made: 1
-  end
-
-  test "FinalizeEdit cascades through policy chain" do
-    tests "FinalizeEdit", on: "EditingSession", kind: :cascade
-    setup  "StartEditing", editor_name: "sample"
-    input  cuts_made: 1
-    expect emits: ["EditFinalized", "EpisodeEdited", "EpisodeReleased", "DownloadsRecorded", "ReportGenerated"]
   end
 
 

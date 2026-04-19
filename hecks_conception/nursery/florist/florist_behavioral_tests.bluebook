@@ -11,6 +11,7 @@ Hecks.behaviors "Florist" do
 
   test "DesignArrangement cascades through policy chain" do
     tests "DesignArrangement", on: "Arrangement", kind: :cascade
+    setup  "ScheduleDelivery", delivery_id: "sample", order_id: "sample", address: "sample", delivery_date: "sample", time_window: "sample"
     input  arrangement_id: "sample", name: "sample", style: "sample", price: 1.0, occasion: "sample"
     expect emits: ["ArrangementDesigned", "ArrangementAssembled", "DeliveryScheduled", "DeliveryCompleted"]
   end
@@ -23,6 +24,7 @@ Hecks.behaviors "Florist" do
 
   test "AssembleArrangement cascades through policy chain" do
     tests "AssembleArrangement", on: "Arrangement", kind: :cascade
+    setup  "ScheduleDelivery", delivery_id: "sample", order_id: "sample", address: "sample", delivery_date: "sample", time_window: "sample"
     setup  "DesignArrangement", arrangement_id: "sample", name: "sample", style: "sample", price: 1.0, occasion: "sample"
     expect emits: ["ArrangementAssembled", "DeliveryScheduled", "DeliveryCompleted"]
   end
@@ -60,6 +62,9 @@ Hecks.behaviors "Florist" do
 
   test "PlaceEventOrder cascades through policy chain" do
     tests "PlaceEventOrder", on: "EventOrder", kind: :cascade
+    setup  "DesignArrangement", arrangement_id: "sample", name: "sample", style: "sample", price: 1.0, occasion: "sample"
+    setup  "ScheduleDelivery", delivery_id: "sample", order_id: "sample", address: "sample", delivery_date: "sample", time_window: "sample"
+    setup  "ReceiveFlowers", flower_id: "sample", common_name: "sample", botanical_name: "sample", color: "sample", season: "sample", vase_life_days: 1, quantity_on_hand: 1
     input  order_id: "sample", customer_name: "sample", event_type: "sample", event_date: "sample", budget: 1.0
     expect emits: ["EventOrderPlaced", "EventOrderConfirmed", "ArrangementDesigned", "ArrangementAssembled", "DeliveryScheduled", "DeliveryCompleted", "FlowersReceived", "WiltedFlowersDiscarded"]
   end
@@ -72,6 +77,9 @@ Hecks.behaviors "Florist" do
 
   test "ConfirmEventOrder cascades through policy chain" do
     tests "ConfirmEventOrder", on: "EventOrder", kind: :cascade
+    setup  "DesignArrangement", arrangement_id: "sample", name: "sample", style: "sample", price: 1.0, occasion: "sample"
+    setup  "ScheduleDelivery", delivery_id: "sample", order_id: "sample", address: "sample", delivery_date: "sample", time_window: "sample"
+    setup  "ReceiveFlowers", flower_id: "sample", common_name: "sample", botanical_name: "sample", color: "sample", season: "sample", vase_life_days: 1, quantity_on_hand: 1
     setup  "PlaceEventOrder", order_id: "sample", customer_name: "sample", event_type: "sample", event_date: "sample", budget: 1.0
     expect emits: ["EventOrderConfirmed", "ArrangementDesigned", "ArrangementAssembled", "DeliveryScheduled", "DeliveryCompleted", "FlowersReceived", "WiltedFlowersDiscarded"]
   end
@@ -108,6 +116,8 @@ Hecks.behaviors "Florist" do
 
   test "StartSubscription cascades through policy chain" do
     tests "StartSubscription", on: "Subscription", kind: :cascade
+    setup  "DesignArrangement", arrangement_id: "sample", name: "sample", style: "sample", price: 1.0, occasion: "sample"
+    setup  "ScheduleDelivery", delivery_id: "sample", order_id: "sample", address: "sample", delivery_date: "sample", time_window: "sample"
     input  subscription_id: "sample", customer_name: "sample", frequency: "sample", arrangement_style: "sample", price_per_delivery: 1.0
     expect emits: ["SubscriptionStarted", "ArrangementDesigned", "ArrangementAssembled", "DeliveryScheduled", "DeliveryCompleted"]
   end

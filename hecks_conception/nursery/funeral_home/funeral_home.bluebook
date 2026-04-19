@@ -39,9 +39,7 @@ Hecks.bluebook "FuneralHome" do
     PrepareRemains do
       role "Embalmer"
       description "Embalm or prepare the remains for viewing or cremation"
-      reference_to(Decedent)
       String :preparation_type
-      given { status == "received" }
       emits "RemainsPrepared"
       then_set :status, to: "prepared"
     end
@@ -50,7 +48,6 @@ Hecks.bluebook "FuneralHome" do
       role "FuneralDirector"
       description "Release the remains to the family or crematory"
       reference_to(Decedent)
-      given { status == "prepared" }
       emits "RemainsReleased"
       then_set :status, to: "released"
     end

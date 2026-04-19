@@ -36,7 +36,6 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
     CultureCell do
       role "Biologist"
       description "Instantiate a new cell with its type and organism origin"
-      String :cell_type
       String :name
       String :organism_type
       emits "CellCreated"
@@ -94,9 +93,7 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       role "System"
       description "Advance the cell cycle — G1, S, G2, M"
       reference_to(Cell)
-      String :phase
       emits "PhaseEntered"
-      then_set :phase, to: :phase
     end
 
     RepairMembrane do
@@ -258,7 +255,6 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       description "Build a protein on the ribosome — translate mRNA to amino acid chain"
       String :name
       String :sequence
-      String :function
       emits "ProteinSynthesized"
       then_set :name, to: :name
       then_set :sequence, to: :sequence
@@ -300,7 +296,7 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       String :product
       given { active == "true" }
       given { function == "enzyme" }
-      emits "ReactionCatalyzed"
+      emits "EnzymeCatalyzed"
     end
 
     Phosphorylate do
@@ -787,6 +783,7 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       reference_to(Neuron)
       String :conduction_type
       Float :velocity
+      given { state == "firing" }
       emits "SignalPropagated"
     end
 
@@ -869,7 +866,6 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       role "System"
       description "Activate immune cascade — innate first, adaptive if needed"
       reference_to(ImmuneResponse)
-      String :response_type
       given { status == "detected" }
       emits "ResponseMounted"
       then_set :response_type, to: "adaptive"
@@ -1039,16 +1035,6 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
 
   # === Policies ===
 
-  policy "SynthesizeProteinOnTranscription" do
-    on "GeneTranscribed"
-    trigger "Synthesize"
-  end
-
-  policy "FoldOnSynthesis" do
-    on "ProteinSynthesized"
-    trigger "Fold"
-  end
-
   policy "MountResponseOnDetection" do
     on "PathogenDetected"
     trigger "MountResponse"
@@ -1067,11 +1053,6 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
   policy "RepairOnMutation" do
     on "DNAMutated"
     trigger "RepairDNA"
-  end
-
-  policy "ExpressGeneOnSplice" do
-    on "RNASpliced"
-    trigger "ExpressGene"
   end
 
   policy "ModelFoodWebOnSpeciesAdded" do

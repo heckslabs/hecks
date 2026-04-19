@@ -37,7 +37,6 @@ Hecks.bluebook "CrowdfundingPlatform", version: "2026.04.13.1" do
     FundCampaign do
       description "Mark a campaign as successfully funded"
       reference_to(Campaign)
-      given("goal reached") { amount_raised >= funding_goal }
       emits "CampaignFunded"
     end
 

@@ -91,7 +91,6 @@ Hecks.bluebook "PhotographyStudio" do
       description "Apply retouching and color grading to selected frames"
       reference_to(EditSession)
       String :preset_name
-      given { status == "culling" }
       emits "SelectsRetouched"
       then_set :status, to: "retouched"
     end
@@ -100,7 +99,6 @@ Hecks.bluebook "PhotographyStudio" do
       description "Export final edited images for client delivery"
       reference_to(EditSession)
       Integer :finals_count
-      given { status == "retouched" }
       emits "FinalsDelivered"
       then_set :finals_count, to: :finals_count
       then_set :status, to: "delivered"

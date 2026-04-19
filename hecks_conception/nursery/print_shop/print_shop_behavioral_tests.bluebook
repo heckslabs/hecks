@@ -11,6 +11,7 @@ Hecks.behaviors "PrintShop" do
 
   test "SubmitPrintJob cascades through policy chain" do
     tests "SubmitPrintJob", on: "PrintJob", kind: :cascade
+    setup  "SendProof", proof_file: "sample", revision_number: 1
     input  job_name: "sample", customer_name: "sample", quantity: 1, print_method: "sample", color_profile: "sample", due_date: "sample"
     expect emits: ["PrintJobSubmitted", "ProofSent"]
   end
@@ -24,14 +25,13 @@ Hecks.behaviors "PrintShop" do
   test "ApprovePrintJob runs" do
     tests "ApprovePrintJob", on: "PrintJob"
     setup  "SubmitPrintJob", job_name: "sample", customer_name: "sample", quantity: 1, print_method: "sample", color_profile: "sample", due_date: "sample"
-    setup  "MarkProofApproved"
     expect status: "approved"
   end
 
   test "ApprovePrintJob cascades through policy chain" do
     tests "ApprovePrintJob", on: "PrintJob", kind: :cascade
     setup  "SubmitPrintJob", job_name: "sample", customer_name: "sample", quantity: 1, print_method: "sample", color_profile: "sample", due_date: "sample"
-    setup  "MarkProofApproved"
+    setup  "SchedulePress", press_name: "sample", scheduled_date: "sample", start_time: "sample", end_time: "sample"
     expect emits: ["PrintJobApproved", "PressScheduled"]
   end
 
@@ -51,6 +51,7 @@ Hecks.behaviors "PrintShop" do
   test "CompletePrintJob cascades through policy chain" do
     tests "CompletePrintJob", on: "PrintJob", kind: :cascade
     setup  "SubmitPrintJob", job_name: "sample", customer_name: "sample", quantity: 1, print_method: "sample", color_profile: "sample", due_date: "sample"
+    setup  "ScheduleDelivery", delivery_address: "sample", delivery_date: "sample", box_count: 1, carrier: "sample"
     setup  "StartProduction"
     expect emits: ["PrintJobCompleted", "DeliveryScheduled"]
   end
@@ -89,6 +90,7 @@ Hecks.behaviors "PrintShop" do
 
   test "StartPressRun cascades through policy chain" do
     tests "StartPressRun", on: "PressSchedule", kind: :cascade
+    setup  "StockSubstrate", material_name: "sample", material_type: "sample", weight_gsm: 1.0, width_inches: 1.0, sheets_on_hand: 1, reorder_level: 1
     setup  "SchedulePress", press_name: "sample", scheduled_date: "sample", start_time: "sample", end_time: "sample"
     expect emits: ["PressRunStarted", "SubstrateConsumed", "SubstrateReordered"]
   end
@@ -119,6 +121,8 @@ Hecks.behaviors "PrintShop" do
 
   test "ApproveProof cascades through policy chain" do
     tests "ApproveProof", on: "ProofCycle", kind: :cascade
+    setup  "SubmitPrintJob", job_name: "sample", customer_name: "sample", quantity: 1, print_method: "sample", color_profile: "sample", due_date: "sample"
+    setup  "SchedulePress", press_name: "sample", scheduled_date: "sample", start_time: "sample", end_time: "sample"
     setup  "SendProof", proof_file: "sample", revision_number: 1
     expect emits: ["ProofApproved", "PrintJobApproved", "PressScheduled"]
   end
@@ -132,6 +136,7 @@ Hecks.behaviors "PrintShop" do
 
   test "RequestRevision cascades through policy chain" do
     tests "RequestRevision", on: "ProofCycle", kind: :cascade
+    setup  "SubmitPrintJob", job_name: "sample", customer_name: "sample", quantity: 1, print_method: "sample", color_profile: "sample", due_date: "sample"
     setup  "SendProof", proof_file: "sample", revision_number: 1
     input  customer_feedback: "sample"
     expect emits: ["RevisionRequested", "ProofSent"]

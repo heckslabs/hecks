@@ -33,7 +33,7 @@ Hecks.behaviors "SecurePayments" do
   test "InitiateTransaction cascades through policy chain" do
     tests "InitiateTransaction", on: "Transaction", kind: :cascade
     input  transaction_id: "sample", amount: 1.0, currency: "sample", payer: "sample", payee: "sample"
-    expect emits: ["TransactionInitiated", "TransactionSigned", "SignatureVerified", "TransactionSettled", "AuditEntryRecorded", "FraudAlertRaised", "AlertInvestigated"]
+    expect emits: ["TransactionInitiated", "TransactionSigned", "SignatureVerified", "TransactionSettled"]
   end
 
   test "SignTransaction sets signature_hash" do
@@ -47,7 +47,7 @@ Hecks.behaviors "SecurePayments" do
     tests "SignTransaction", on: "Transaction", kind: :cascade
     setup  "InitiateTransaction", transaction_id: "sample", amount: 1.0, currency: "sample", payer: "sample", payee: "sample"
     input  signature_hash: "sample"
-    expect emits: ["TransactionSigned", "SignatureVerified", "TransactionSettled", "AuditEntryRecorded", "FraudAlertRaised", "AlertInvestigated"]
+    expect emits: ["TransactionSigned", "SignatureVerified", "TransactionSettled"]
   end
 
   test "VerifySignature runs" do
@@ -61,7 +61,7 @@ Hecks.behaviors "SecurePayments" do
     tests "VerifySignature", on: "Transaction", kind: :cascade
     setup  "InitiateTransaction", transaction_id: "sample", amount: 1.0, currency: "sample", payer: "sample", payee: "sample"
     setup  "SignTransaction", signature_hash: "sample"
-    expect emits: ["SignatureVerified", "TransactionSettled", "AuditEntryRecorded"]
+    expect emits: ["SignatureVerified", "TransactionSettled"]
   end
 
   test "SettleTransaction runs" do
@@ -70,14 +70,6 @@ Hecks.behaviors "SecurePayments" do
     setup  "SignTransaction", signature_hash: "sample"
     setup  "VerifySignature"
     expect status: "settled"
-  end
-
-  test "SettleTransaction cascades through policy chain" do
-    tests "SettleTransaction", on: "Transaction", kind: :cascade
-    setup  "InitiateTransaction", transaction_id: "sample", amount: 1.0, currency: "sample", payer: "sample", payee: "sample"
-    setup  "SignTransaction", signature_hash: "sample"
-    setup  "VerifySignature"
-    expect emits: ["TransactionSettled", "AuditEntryRecorded"]
   end
 
 

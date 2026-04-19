@@ -53,6 +53,7 @@ Hecks.behaviors "RecoveryCommunity" do
 
   test "SubmitPost cascades through policy chain" do
     tests "SubmitPost", on: "CommunityPost", kind: :cascade
+    setup  "RaiseFlag", flag_id: "sample", post_id: "sample", reason: "sample", severity: "sample"
     input  post_id: "sample", author_id: "sample", content: "sample", topic: "sample"
     expect emits: ["PostSubmitted", "FlagRaised"]
   end

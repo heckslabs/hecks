@@ -17,6 +17,7 @@ Hecks.behaviors "DermatologyUX" do
 
   test "PrescribeTreatment cascades through policy chain" do
     tests "PrescribeTreatment", on: "SkinCondition", kind: :cascade
+    setup  "SendSurvey", survey_id: "sample", patient_name: "sample", condition_id: "sample"
     setup  "DiagnoseCondition", condition_id: "sample", patient_name: "sample", diagnosis: "sample", severity: "sample", body_area: "sample"
     expect emits: ["TreatmentPrescribed", "SurveySent"]
   end
@@ -38,6 +39,7 @@ Hecks.behaviors "DermatologyUX" do
 
   test "CollectResponse cascades through policy chain" do
     tests "CollectResponse", on: "PatientSurvey", kind: :cascade
+    setup  "AggregateFeedback", feedback_id: "sample", condition_id: "sample", treatment_type: "sample", satisfaction_score: 1.0, effectiveness_score: 1.0
     setup  "SendSurvey", survey_id: "sample", patient_name: "sample", condition_id: "sample"
     expect emits: ["ResponseCollected", "FeedbackAggregated"]
   end

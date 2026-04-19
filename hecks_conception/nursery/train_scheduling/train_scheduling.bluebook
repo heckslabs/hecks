@@ -35,7 +35,6 @@ Hecks.bluebook "TrainScheduling" do
     DispatchTrain do
       description "Send a train out from the depot on its route"
       reference_to(Train)
-      given { status == "prepared" }
       emits "TrainDispatched"
       then_set :status, to: "running"
     end

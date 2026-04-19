@@ -11,6 +11,7 @@ Hecks.behaviors "Apiculture" do
 
   test "EstablishHive cascades through policy chain" do
     tests "EstablishHive", on: "Hive", kind: :cascade
+    setup  "PerformInspection", inspection_date: "sample", inspector: "sample"
     input  hive_id: "sample", hive_type: "sample", location: "sample"
     expect emits: ["HiveEstablished", "InspectionCompleted"]
   end
@@ -47,6 +48,8 @@ Hecks.behaviors "Apiculture" do
   test "FlagConcern cascades through policy chain" do
     tests "FlagConcern", on: "Inspection", kind: :cascade
     setup  "PerformInspection", inspection_date: "sample", inspector: "sample"
+    setup  "ApplyTreatment", treatment_type: "sample", active_ingredient: "sample"
+    setup  "EstablishHive", hive_id: "sample", hive_type: "sample", location: "sample"
     input  concern_type: "sample", details: "sample"
     expect emits: ["ConcernFlagged", "TreatmentApplied", "EfficacyEvaluated", "InspectionCompleted"]
   end
@@ -60,6 +63,13 @@ Hecks.behaviors "Apiculture" do
 
 
   # ── Harvest aggregate ──────────────────────────────────────────
+
+  test "ExtractHoney sets harvest_date + weight_kg" do
+    tests "ExtractHoney", on: "Harvest"
+    setup  "EstablishHive", hive_id: "sample", hive_type: "sample", location: "sample"
+    input  harvest_date: "sample", weight_kg: 1.0
+    expect ok: "true"
+  end
 
   test "ExtractHoney cascades through policy chain" do
     tests "ExtractHoney", on: "Harvest", kind: :cascade
@@ -95,6 +105,8 @@ Hecks.behaviors "Apiculture" do
   test "MarkQueen cascades through policy chain" do
     tests "MarkQueen", on: "Queen", kind: :cascade
     setup  "IntroduceQueen", queen_id: "sample", lineage: "sample"
+    setup  "ExtractHoney", harvest_date: "sample", weight_kg: 1.0
+    setup  "EstablishHive", hive_id: "sample", hive_type: "sample", location: "sample"
     input  marked_color: "sample"
     expect emits: ["QueenMarked", "HoneyExtracted", "HoneyJarred"]
   end
@@ -118,6 +130,7 @@ Hecks.behaviors "Apiculture" do
   test "ApplyTreatment cascades through policy chain" do
     tests "ApplyTreatment", on: "DiseaseTreatment", kind: :cascade
     setup  "EstablishHive", hive_id: "sample", hive_type: "sample", location: "sample"
+    setup  "PerformInspection", inspection_date: "sample", inspector: "sample"
     input  treatment_type: "sample", active_ingredient: "sample"
     expect emits: ["TreatmentApplied", "EfficacyEvaluated", "InspectionCompleted"]
   end
@@ -131,6 +144,8 @@ Hecks.behaviors "Apiculture" do
   test "EvaluateEfficacy cascades through policy chain" do
     tests "EvaluateEfficacy", on: "DiseaseTreatment", kind: :cascade
     setup  "ApplyTreatment", treatment_type: "sample", active_ingredient: "sample"
+    setup  "PerformInspection", inspection_date: "sample", inspector: "sample"
+    setup  "EstablishHive", hive_id: "sample", hive_type: "sample", location: "sample"
     expect emits: ["EfficacyEvaluated", "InspectionCompleted"]
   end
 

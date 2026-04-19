@@ -124,7 +124,6 @@ Hecks.bluebook "CloudHosting", version: "2026.04.13.1" do
       description "Add instances when the metric exceeds the threshold"
       reference_to(ScalingRule)
       Integer :additional_count
-      given("below max instances") { additional_count > 0 }
       emits "ScaledOut"
     end
 
@@ -170,7 +169,6 @@ Hecks.bluebook "CloudHosting", version: "2026.04.13.1" do
     SuspendTenant do
       description "Freeze a tenant account due to non-payment"
       reference_to(Tenant)
-      given("balance is overdue") { balance < 0 }
       emits "TenantSuspended"
     end
   end

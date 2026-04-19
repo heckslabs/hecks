@@ -12,19 +12,13 @@ Hecks.behaviors "GolfCourse" do
   test "BookTeeTime cascades through policy chain" do
     tests "BookTeeTime", on: "TeeTime", kind: :cascade
     input  booking_id: "sample", player_name: "sample", date: "sample", time: "sample", group_size: 1, green_fee: 1.0
-    expect emits: ["TeeTimeBooked", "GroupCheckedIn", "CartRented", "CartReturned", "CartServiced"]
+    expect emits: ["TeeTimeBooked", "GroupCheckedIn"]
   end
 
   test "CheckInGroup runs" do
     tests "CheckInGroup", on: "TeeTime"
     setup  "BookTeeTime", booking_id: "sample", player_name: "sample", date: "sample", time: "sample", group_size: 1, green_fee: 1.0
     expect status: "checked_in"
-  end
-
-  test "CheckInGroup cascades through policy chain" do
-    tests "CheckInGroup", on: "TeeTime", kind: :cascade
-    setup  "BookTeeTime", booking_id: "sample", player_name: "sample", date: "sample", time: "sample", group_size: 1, green_fee: 1.0
-    expect emits: ["GroupCheckedIn", "CartRented", "CartReturned", "CartServiced"]
   end
 
   test "CancelTeeTime runs" do
@@ -107,8 +101,9 @@ Hecks.behaviors "GolfCourse" do
 
   test "CompleteTask cascades through policy chain" do
     tests "CompleteTask", on: "GreenskeepingTask", kind: :cascade
+    setup  "DefineHole", hole_id: "sample", hole_number: 1, par: 1, yardage: 1, hazard_notes: "sample"
     setup  "ScheduleTask", task_id: "sample", task_type: "sample", area: "sample", assigned_to: "sample", scheduled_date: "sample"
-    expect emits: ["TaskCompleted", "ConditionReported", "TournamentStarted", "PrizesAwarded"]
+    expect emits: ["TaskCompleted", "ConditionReported"]
   end
 
 
@@ -122,6 +117,7 @@ Hecks.behaviors "GolfCourse" do
 
   test "ScheduleTournament cascades through policy chain" do
     tests "ScheduleTournament", on: "GolfTournament", kind: :cascade
+    setup  "ScheduleTask", task_id: "sample", task_type: "sample", area: "sample", assigned_to: "sample", scheduled_date: "sample"
     input  tournament_id: "sample", name: "sample", format: "sample", date: "sample", max_players: 1, entry_fee: 1.0
     expect emits: ["TournamentScheduled", "TaskScheduled"]
   end

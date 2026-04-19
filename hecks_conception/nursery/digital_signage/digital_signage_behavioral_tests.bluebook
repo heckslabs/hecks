@@ -13,6 +13,8 @@ Hecks.behaviors "DigitalSignage" do
   test "InstallDisplay cascades through policy chain" do
     tests "InstallDisplay", on: "Display", kind: :cascade
     setup  "RegisterLocation", location_name: "sample", address: "sample", location_type: "sample", contact_name: "sample"
+    setup  "ProgramSchedule", schedule_id: "sample", start_time: "sample", end_time: "sample", recurrence: "sample"
+    setup  "ComposePlaylist", playlist_name: "sample", description: "sample", loop_mode: "sample"
     input  display_id: "sample", model: "sample", resolution: "sample", orientation: "sample"
     expect emits: ["DisplayInstalled", "ScheduleCreated"]
   end
@@ -26,6 +28,8 @@ Hecks.behaviors "DigitalSignage" do
   test "RebootDisplay cascades through policy chain" do
     tests "RebootDisplay", on: "Display", kind: :cascade
     setup  "InstallDisplay", display_id: "sample", model: "sample", resolution: "sample", orientation: "sample"
+    setup  "ProgramSchedule", schedule_id: "sample", start_time: "sample", end_time: "sample", recurrence: "sample"
+    setup  "ComposePlaylist", playlist_name: "sample", description: "sample", loop_mode: "sample"
     expect emits: ["DisplayRebooted", "ScheduleCreated"]
   end
 
@@ -47,6 +51,8 @@ Hecks.behaviors "DigitalSignage" do
 
   test "ComposePlaylist cascades through policy chain" do
     tests "ComposePlaylist", on: "Playlist", kind: :cascade
+    setup  "ProgramSchedule", schedule_id: "sample", start_time: "sample", end_time: "sample", recurrence: "sample"
+    setup  "InstallDisplay", display_id: "sample", model: "sample", resolution: "sample", orientation: "sample"
     input  playlist_name: "sample", description: "sample", loop_mode: "sample"
     expect emits: ["PlaylistCreated", "ScheduleCreated"]
   end
@@ -75,6 +81,7 @@ Hecks.behaviors "DigitalSignage" do
 
   test "UploadAsset cascades through policy chain" do
     tests "UploadAsset", on: "ContentAsset", kind: :cascade
+    setup  "ComposePlaylist", playlist_name: "sample", description: "sample", loop_mode: "sample"
     input  asset_id: "sample", title: "sample", media_type: "sample", file_size_kb: 1
     expect emits: ["AssetUploaded", "AssetApproved", "EntryAdded"]
   end
@@ -87,6 +94,7 @@ Hecks.behaviors "DigitalSignage" do
 
   test "ApproveAsset cascades through policy chain" do
     tests "ApproveAsset", on: "ContentAsset", kind: :cascade
+    setup  "ComposePlaylist", playlist_name: "sample", description: "sample", loop_mode: "sample"
     setup  "UploadAsset", asset_id: "sample", title: "sample", media_type: "sample", file_size_kb: 1
     expect emits: ["AssetApproved", "EntryAdded"]
   end
@@ -144,6 +152,7 @@ Hecks.behaviors "DigitalSignage" do
 
   test "DeactivateLocation cascades through policy chain" do
     tests "DeactivateLocation", on: "Location", kind: :cascade
+    setup  "ProgramSchedule", schedule_id: "sample", start_time: "sample", end_time: "sample", recurrence: "sample"
     setup  "RegisterLocation", location_name: "sample", address: "sample", location_type: "sample", contact_name: "sample"
     expect emits: ["LocationDeactivated", "SchedulePaused"]
   end

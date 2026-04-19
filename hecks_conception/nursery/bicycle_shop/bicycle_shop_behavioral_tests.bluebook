@@ -11,6 +11,7 @@ Hecks.behaviors "BicycleShop" do
 
   test "StockBicycle cascades through policy chain" do
     tests "StockBicycle", on: "Bicycle", kind: :cascade
+    setup  "PerformFitting", fitting_id: "sample", customer_name: "sample", ride_style: "sample"
     input  bike_id: "sample", brand: "sample", model: "sample", type: "sample", frame_size: "sample", price: 1.0
     expect emits: ["BicycleStocked", "FittingPerformed", "RecommendationRecorded", "BicycleSold"]
   end
@@ -32,6 +33,7 @@ Hecks.behaviors "BicycleShop" do
 
   test "OpenRepairOrder cascades through policy chain" do
     tests "OpenRepairOrder", on: "RepairOrder", kind: :cascade
+    setup  "StockPart", part_number: "sample", name: "sample", category: "sample", price: 1.0, quantity: 1
     input  order_id: "sample", customer_name: "sample", bike_description: "sample", issue: "sample", estimate: 1.0
     expect emits: ["RepairOrderCreated", "PartConsumed", "PartStocked", "RepairCompleted"]
   end
@@ -61,6 +63,7 @@ Hecks.behaviors "BicycleShop" do
   test "ConsumePart cascades through policy chain" do
     tests "ConsumePart", on: "BikePart", kind: :cascade
     setup  "StockPart", part_number: "sample", name: "sample", category: "sample", price: 1.0, quantity: 1
+    setup  "OpenRepairOrder", order_id: "sample", customer_name: "sample", bike_description: "sample", issue: "sample", estimate: 1.0
     input  quantity_used: 1
     expect emits: ["PartConsumed", "PartStocked", "RepairCompleted"]
   end
@@ -76,6 +79,7 @@ Hecks.behaviors "BicycleShop" do
 
   test "PerformFitting cascades through policy chain" do
     tests "PerformFitting", on: "BikeFitting", kind: :cascade
+    setup  "StockBicycle", bike_id: "sample", brand: "sample", model: "sample", type: "sample", frame_size: "sample", price: 1.0
     input  fitting_id: "sample", customer_name: "sample", ride_style: "sample"
     expect emits: ["FittingPerformed", "RecommendationRecorded", "BicycleSold"]
   end
@@ -90,6 +94,7 @@ Hecks.behaviors "BicycleShop" do
   test "RecordRecommendation cascades through policy chain" do
     tests "RecordRecommendation", on: "BikeFitting", kind: :cascade
     setup  "PerformFitting", fitting_id: "sample", customer_name: "sample", ride_style: "sample"
+    setup  "StockBicycle", bike_id: "sample", brand: "sample", model: "sample", type: "sample", frame_size: "sample", price: 1.0
     input  recommended_size: "sample", notes: "sample"
     expect emits: ["RecommendationRecorded", "BicycleSold"]
   end
@@ -111,6 +116,8 @@ Hecks.behaviors "BicycleShop" do
 
   test "ReturnRental cascades through policy chain" do
     tests "ReturnRental", on: "Rental", kind: :cascade
+    setup  "OpenRepairOrder", order_id: "sample", customer_name: "sample", bike_description: "sample", issue: "sample", estimate: 1.0
+    setup  "StockPart", part_number: "sample", name: "sample", category: "sample", price: 1.0, quantity: 1
     setup  "RentBike", rental_id: "sample", bike_id: "sample", renter_name: "sample", start_date: "sample", end_date: "sample", daily_rate: 1.0
     expect emits: ["RentalReturned", "RepairOrderCreated", "PartConsumed", "PartStocked", "RepairCompleted"]
   end

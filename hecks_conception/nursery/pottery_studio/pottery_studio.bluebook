@@ -183,11 +183,6 @@ Hecks.bluebook "PotteryStudio" do
     trigger "BisqueFire"
   end
 
-  policy "LoadKilnOnBisque" do
-    on "BisqueFired"
-    trigger "LoadKiln"
-  end
-
   policy "FireAfterLoading" do
     on "KilnLoaded"
     trigger "StartFiring"

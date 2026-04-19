@@ -99,6 +99,22 @@ module Hecks
         { list: type }
       end
 
+      # Shorthand: `Float :flow_rate_gph` → `attribute :flow_rate_gph, Float`.
+      # Overrides Kernel#Float / #Integer / #String / #Array / #Hash so the
+      # implicit DSL works inside any builder that includes this module
+      # (aggregate, value_object, entity, command, etc.). When called with a
+      # non-Symbol argument we fall back to the original Kernel coercion so
+      # we don't surprise anything that legitimately wants `Float("1.5")`.
+      { Float: Float, Integer: Integer, String: String, Array: Array, Hash: Hash }.each do |kernel_name, klass|
+        define_method(kernel_name) do |arg = nil, **opts, &block|
+          if arg.is_a?(Symbol)
+            attribute(arg, klass, **opts, &block)
+          else
+            Kernel.send(kernel_name, arg, **opts)
+          end
+        end
+      end
+
       private
 
       # Resolve a type argument to its canonical form.

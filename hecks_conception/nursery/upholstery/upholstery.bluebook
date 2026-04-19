@@ -219,21 +219,6 @@ Hecks.bluebook "Upholstery" do
     trigger "SelectFabric"
   end
 
-  policy "OrderFabricOnSelection" do
-    on "FabricSelected"
-    trigger "OrderFabric"
-  end
-
-  policy "ReceiveFabricOnOrder" do
-    on "FabricOrdered"
-    trigger "ReceiveFabric"
-  end
-
-  policy "BeginWorkOnFabricReceive" do
-    on "FabricReceived"
-    trigger "BeginWork"
-  end
-
   policy "CompleteOnWork" do
     on "WorkBegun"
     trigger "CompleteProject"

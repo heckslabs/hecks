@@ -11,6 +11,7 @@ Hecks.behaviors "SEOAgency" do
 
   test "SignClient cascades through policy chain" do
     tests "SignClient", on: "Client", kind: :cascade
+    setup  "RunAudit", audit_id: "sample", audit_type: "sample", pages_crawled: 1
     input  client_name: "sample", website_url: "sample", industry: "sample", contact_email: "sample", plan_tier: "sample"
     expect emits: ["ClientSigned", "AuditRun"]
   end
@@ -40,6 +41,8 @@ Hecks.behaviors "SEOAgency" do
   test "TargetKeyword cascades through policy chain" do
     tests "TargetKeyword", on: "Keyword", kind: :cascade
     setup  "SignClient", client_name: "sample", website_url: "sample", industry: "sample", contact_email: "sample", plan_tier: "sample"
+    setup  "AcquireBacklink", backlink_id: "sample", source_url: "sample", target_url: "sample", domain_authority: 1.0, anchor_text: "sample"
+    setup  "GenerateReport", report_id: "sample", period: "sample"
     input  phrase: "sample", search_volume: 1, difficulty_score: 1.0, intent_type: "sample"
     expect emits: ["KeywordTargeted", "BacklinkAcquired", "RankingRecorded", "ReportGenerated", "ReportDelivered"]
   end
@@ -54,6 +57,8 @@ Hecks.behaviors "SEOAgency" do
   test "RecordRanking cascades through policy chain" do
     tests "RecordRanking", on: "Keyword", kind: :cascade
     setup  "TargetKeyword", phrase: "sample", search_volume: 1, difficulty_score: 1.0, intent_type: "sample"
+    setup  "GenerateReport", report_id: "sample", period: "sample"
+    setup  "SignClient", client_name: "sample", website_url: "sample", industry: "sample", contact_email: "sample", plan_tier: "sample"
     input  position: 1, search_engine: "sample"
     expect emits: ["RankingRecorded", "ReportGenerated", "ReportDelivered"]
   end
@@ -89,6 +94,10 @@ Hecks.behaviors "SEOAgency" do
 
   test "FinalizeAudit cascades through policy chain" do
     tests "FinalizeAudit", on: "SiteAudit", kind: :cascade
+    setup  "TargetKeyword", phrase: "sample", search_volume: 1, difficulty_score: 1.0, intent_type: "sample"
+    setup  "SignClient", client_name: "sample", website_url: "sample", industry: "sample", contact_email: "sample", plan_tier: "sample"
+    setup  "AcquireBacklink", backlink_id: "sample", source_url: "sample", target_url: "sample", domain_authority: 1.0, anchor_text: "sample"
+    setup  "GenerateReport", report_id: "sample", period: "sample"
     setup  "RunAudit", audit_id: "sample", audit_type: "sample", pages_crawled: 1
     expect emits: ["AuditFinalized", "KeywordTargeted", "BacklinkAcquired", "RankingRecorded", "ReportGenerated", "ReportDelivered"]
   end
@@ -106,6 +115,8 @@ Hecks.behaviors "SEOAgency" do
   test "AcquireBacklink cascades through policy chain" do
     tests "AcquireBacklink", on: "Backlink", kind: :cascade
     setup  "SignClient", client_name: "sample", website_url: "sample", industry: "sample", contact_email: "sample", plan_tier: "sample"
+    setup  "TargetKeyword", phrase: "sample", search_volume: 1, difficulty_score: 1.0, intent_type: "sample"
+    setup  "GenerateReport", report_id: "sample", period: "sample"
     input  backlink_id: "sample", source_url: "sample", target_url: "sample", domain_authority: 1.0, anchor_text: "sample"
     expect emits: ["BacklinkAcquired", "RankingRecorded", "ReportGenerated", "ReportDelivered"]
   end

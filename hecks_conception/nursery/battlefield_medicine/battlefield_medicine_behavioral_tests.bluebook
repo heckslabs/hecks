@@ -11,6 +11,11 @@ Hecks.behaviors "BattlefieldMedicine" do
 
   test "FileCasualtyReport cascades through policy chain" do
     tests "FileCasualtyReport", on: "CasualtyReport", kind: :cascade
+    setup  "LaunchDrone", drone_id: "sample", mission_type: "sample", current_location: "sample"
+    setup  "PrepareBloodDrop", drop_id: "sample", target_casualty: "sample", blood_type: "sample", units: 1
+    setup  "ComputeRoute", route_id: "sample", casualty: "sample", destination: "sample", threat_level: "sample", distance_km: 1, eta_minutes: 1
+    setup  "EstablishHospital", hospital_id: "sample", location_grid: "sample", surgical_bays: 1
+    setup  "InitializeBoard", board_id: "sample", operation_name: "sample"
     input  report_id: "sample", casualty_name: "sample", location_grid: "sample", injury_type: "sample", urgency: "sample", blood_type: "sample"
     expect emits: ["CasualtyReported", "DroneLaunched", "DroneAssigned", "BloodLoaded", "BloodDropPrepared", "RouteComputed", "BayPrepared", "EntryAmended"]
   end
@@ -30,6 +35,7 @@ Hecks.behaviors "BattlefieldMedicine" do
 
   test "MarkEvacuated cascades through policy chain" do
     tests "MarkEvacuated", on: "CasualtyReport", kind: :cascade
+    setup  "EstablishHospital", hospital_id: "sample", location_grid: "sample", surgical_bays: 1
     setup  "FileCasualtyReport", report_id: "sample", casualty_name: "sample", location_grid: "sample", injury_type: "sample", urgency: "sample", blood_type: "sample"
     expect emits: ["CasualtyEvacuated", "CasualtyAdmitted"]
   end
@@ -45,6 +51,7 @@ Hecks.behaviors "BattlefieldMedicine" do
 
   test "LaunchDrone cascades through policy chain" do
     tests "LaunchDrone", on: "MedDrone", kind: :cascade
+    setup  "PrepareBloodDrop", drop_id: "sample", target_casualty: "sample", blood_type: "sample", units: 1
     input  drone_id: "sample", mission_type: "sample", current_location: "sample"
     expect emits: ["DroneLaunched", "DroneAssigned", "BloodLoaded"]
   end
@@ -58,6 +65,7 @@ Hecks.behaviors "BattlefieldMedicine" do
 
   test "AssignToCasualty cascades through policy chain" do
     tests "AssignToCasualty", on: "MedDrone", kind: :cascade
+    setup  "PrepareBloodDrop", drop_id: "sample", target_casualty: "sample", blood_type: "sample", units: 1
     setup  "LaunchDrone", drone_id: "sample", mission_type: "sample", current_location: "sample"
     input  assigned_casualty: "sample"
     expect emits: ["DroneAssigned", "BloodLoaded"]
@@ -104,6 +112,7 @@ Hecks.behaviors "BattlefieldMedicine" do
 
   test "ComputeRoute cascades through policy chain" do
     tests "ComputeRoute", on: "EvacRoute", kind: :cascade
+    setup  "EstablishHospital", hospital_id: "sample", location_grid: "sample", surgical_bays: 1
     input  route_id: "sample", casualty: "sample", destination: "sample", threat_level: "sample", distance_km: 1, eta_minutes: 1
     expect emits: ["RouteComputed", "BayPrepared"]
   end

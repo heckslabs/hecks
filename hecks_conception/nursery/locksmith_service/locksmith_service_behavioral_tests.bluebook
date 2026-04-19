@@ -11,6 +11,9 @@ Hecks.behaviors "LocksmithService" do
 
   test "DispatchLocksmith cascades through policy chain" do
     tests "DispatchLocksmith", on: "ServiceCall", kind: :cascade
+    setup  "InstallLock", lock_type: "sample", brand: "sample", grade: "sample", location: "sample"
+    setup  "CutKeys", key_type: "sample", quantity: 1, blank_code: "sample"
+    setup  "ProgramCode", code_name: "sample", code_value: "sample", access_level: "sample"
     input  customer_name: "sample", address: "sample", service_type: "sample", urgency: "sample"
     expect emits: ["LocksmithDispatched", "ArrivedOnSite", "LockInstalled", "KeysCut", "ServiceCompleted", "LockRekeyed", "CodeProgrammed"]
   end
@@ -23,6 +26,9 @@ Hecks.behaviors "LocksmithService" do
 
   test "ArriveOnSite cascades through policy chain" do
     tests "ArriveOnSite", on: "ServiceCall", kind: :cascade
+    setup  "InstallLock", lock_type: "sample", brand: "sample", grade: "sample", location: "sample"
+    setup  "CutKeys", key_type: "sample", quantity: 1, blank_code: "sample"
+    setup  "ProgramCode", code_name: "sample", code_value: "sample", access_level: "sample"
     setup  "DispatchLocksmith", customer_name: "sample", address: "sample", service_type: "sample", urgency: "sample"
     expect emits: ["ArrivedOnSite", "LockInstalled", "KeysCut", "ServiceCompleted", "LockRekeyed", "CodeProgrammed"]
   end
@@ -37,6 +43,7 @@ Hecks.behaviors "LocksmithService" do
   test "CompleteService cascades through policy chain" do
     tests "CompleteService", on: "ServiceCall", kind: :cascade
     setup  "DispatchLocksmith", customer_name: "sample", address: "sample", service_type: "sample", urgency: "sample"
+    setup  "InstallLock", lock_type: "sample", brand: "sample", grade: "sample", location: "sample"
     input  total_charge: 1.0
     expect emits: ["ServiceCompleted", "LockRekeyed"]
   end
@@ -54,6 +61,8 @@ Hecks.behaviors "LocksmithService" do
   test "InstallLock cascades through policy chain" do
     tests "InstallLock", on: "Lock", kind: :cascade
     setup  "DispatchLocksmith", customer_name: "sample", address: "sample", service_type: "sample", urgency: "sample"
+    setup  "CutKeys", key_type: "sample", quantity: 1, blank_code: "sample"
+    setup  "ProgramCode", code_name: "sample", code_value: "sample", access_level: "sample"
     input  lock_type: "sample", brand: "sample", grade: "sample", location: "sample"
     expect emits: ["LockInstalled", "KeysCut", "ServiceCompleted", "LockRekeyed", "CodeProgrammed"]
   end
@@ -84,6 +93,7 @@ Hecks.behaviors "LocksmithService" do
   test "CutKeys cascades through policy chain" do
     tests "CutKeys", on: "KeyOrder", kind: :cascade
     setup  "InstallLock", lock_type: "sample", brand: "sample", grade: "sample", location: "sample"
+    setup  "DispatchLocksmith", customer_name: "sample", address: "sample", service_type: "sample", urgency: "sample"
     input  key_type: "sample", quantity: 1, blank_code: "sample"
     expect emits: ["KeysCut", "ServiceCompleted", "LockRekeyed"]
   end

@@ -610,7 +610,6 @@ Hecks.bluebook "Cosmology", version: "2026.04.11.1" do
       role "Cosmologist"
       description "Trace a filament of galaxies connecting clusters across megaparsecs"
       String :name
-      String :structure_type
       Float :scale
       emits "FilamentMapped"
       then_set :name, to: :name

@@ -41,7 +41,6 @@ Hecks.bluebook "RestaurantReservations" do
       role "Busser"
       description "Clear and reset a table after guests depart"
       reference_to(DiningTable)
-      given { status == "occupied" }
       emits "TableCleared"
       then_set :status, to: "available"
     end

@@ -11,6 +11,10 @@ Hecks.behaviors "ReentryEcosystem" do
 
   test "OpenCase cascades through policy chain" do
     tests "OpenCase", on: "ReentryCase", kind: :cascade
+    setup  "InitializeTracker"
+    setup  "EnrollInTrack", track_id: "sample", track_type: "sample", institution: "sample"
+    setup  "PlaceInHousing", match_id: "sample", housing_type: "sample", address: "sample", landlord_name: "sample"
+    setup  "AssignAttorney", support_id: "sample", legal_need: "sample", attorney_name: "sample"
     input  case_id: "sample", participant_name: "sample", reentry_date: "sample", background_type: "sample", risk_level: "sample"
     expect emits: ["CaseOpened", "TrackerInitialized", "TrackEnrolled", "HousingPlaced", "AttorneyAssigned"]
   end
@@ -52,6 +56,9 @@ Hecks.behaviors "ReentryEcosystem" do
 
   test "GraduateTrack cascades through policy chain" do
     tests "GraduateTrack", on: "EducationTrack", kind: :cascade
+    setup  "PlaceInJob", bridge_id: "sample", employer_name: "sample", job_title: "sample", start_date: "sample"
+    setup  "OpenCase", case_id: "sample", participant_name: "sample", reentry_date: "sample", background_type: "sample", risk_level: "sample"
+    setup  "InitializeTracker"
     setup  "EnrollInTrack", track_id: "sample", track_type: "sample", institution: "sample"
     expect emits: ["TrackGraduated", "JobPlaced", "MilestoneRecorded"]
   end
@@ -81,6 +88,7 @@ Hecks.behaviors "ReentryEcosystem" do
 
   test "UpgradeHousing cascades through policy chain" do
     tests "UpgradeHousing", on: "HousingMatch", kind: :cascade
+    setup  "InitializeTracker"
     setup  "PlaceInHousing", match_id: "sample", housing_type: "sample", address: "sample", landlord_name: "sample"
     input  housing_type: "sample", address: "sample"
     expect emits: ["HousingUpgraded", "MilestoneRecorded"]
@@ -126,6 +134,7 @@ Hecks.behaviors "ReentryEcosystem" do
 
   test "ResolveLegalMatter cascades through policy chain" do
     tests "ResolveLegalMatter", on: "LegalSupport", kind: :cascade
+    setup  "InitializeTracker"
     setup  "AssignAttorney", support_id: "sample", legal_need: "sample", attorney_name: "sample"
     expect emits: ["LegalMatterResolved", "MilestoneRecorded"]
   end

@@ -40,7 +40,6 @@ Hecks.bluebook "ScientificPestMgmt", version: "2026.04.13.1" do
       role "Entomologist"
       description "Document the complete life cycle and vulnerable stages"
       reference_to(PestSpecies)
-      given { status == "identified" }
       emits "LifeCycleDocumented"
       then_set :status, to: "documented"
     end
@@ -92,7 +91,6 @@ Hecks.bluebook "ScientificPestMgmt", version: "2026.04.13.1" do
       role "Entomologist"
       description "Assess infestation scope and determine treatment approach"
       reference_to(Infestation)
-      given { status == "reported" }
       emits "InfestationAssessed"
       then_set :status, to: "assessed"
     end
@@ -149,7 +147,6 @@ Hecks.bluebook "ScientificPestMgmt", version: "2026.04.13.1" do
       role "Technician"
       description "Apply the prescribed treatment at the site"
       reference_to(Treatment)
-      given { status == "prescribed" }
       emits "TreatmentApplied"
       then_set :status, to: "applied"
     end
@@ -159,16 +156,15 @@ Hecks.bluebook "ScientificPestMgmt", version: "2026.04.13.1" do
       description "Evaluate treatment effectiveness after application period"
       reference_to(Treatment)
       Float :effectiveness_pct
-      given { status == "applied" }
       emits "EffectivenessEvaluated"
       then_set :effectiveness_pct, to: :effectiveness_pct
       then_set :status, to: "evaluated"
     end
 
     lifecycle :status, default: "pending" do
-      transition "PrescribeTreatment" => "prescribed", from: "pending"
-      transition "ApplyTreatment" => "applied", from: "prescribed"
-      transition "EvaluateEffectiveness" => "evaluated", from: "applied"
+      transition "PrescribeTreatment" => "prescribed", from: ["pending", "prescribed"]
+      transition "ApplyTreatment" => "applied", from: ["prescribed", "applied"]
+      transition "EvaluateEffectiveness" => "evaluated", from: ["applied", "evaluated"]
     end
   end
 
@@ -207,7 +203,6 @@ Hecks.bluebook "ScientificPestMgmt", version: "2026.04.13.1" do
       role "Entomologist"
       description "Recommend treatment rotation to prevent resistance buildup"
       reference_to(ResistanceProfile)
-      given { status == "recorded" }
       emits "RotationRecommended"
       then_set :status, to: "rotation_advised"
     end
@@ -290,11 +285,6 @@ Hecks.bluebook "ScientificPestMgmt", version: "2026.04.13.1" do
   policy "PrescribeOnAssess" do
     on "InfestationAssessed"
     trigger "PrescribeTreatment"
-  end
-
-  policy "ApplyOnPrescribe" do
-    on "TreatmentPrescribed"
-    trigger "ApplyTreatment"
   end
 
   policy "EvaluateOnApply" do

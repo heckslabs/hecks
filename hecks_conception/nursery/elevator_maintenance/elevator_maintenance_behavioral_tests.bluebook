@@ -11,6 +11,8 @@ Hecks.behaviors "ElevatorMaintenance" do
 
   test "RegisterUnit cascades through policy chain" do
     tests "RegisterUnit", on: "ElevatorUnit", kind: :cascade
+    setup  "ScheduleInspection", inspection_type: "sample", inspection_date: "sample"
+    setup  "PerformMaintenance", mechanic_name: "sample", visit_date: "sample"
     input  building_name: "sample", unit_number: "sample", elevator_type: "sample", floors_served: 1, capacity_lbs: 1, install_year: 1
     expect emits: ["UnitRegistered", "InspectionScheduled", "MaintenancePerformed"]
   end
@@ -25,7 +27,6 @@ Hecks.behaviors "ElevatorMaintenance" do
   test "ReturnToService runs" do
     tests "ReturnToService", on: "ElevatorUnit"
     setup  "RegisterUnit", building_name: "sample", unit_number: "sample", elevator_type: "sample", floors_served: 1, capacity_lbs: 1, install_year: 1
-    setup  "ShutDownUnit", reason: "sample"
     expect ok: "true"
   end
 
@@ -49,6 +50,8 @@ Hecks.behaviors "ElevatorMaintenance" do
   test "ReportFinding cascades through policy chain" do
     tests "ReportFinding", on: "MaintenanceVisit", kind: :cascade
     setup  "PerformMaintenance", mechanic_name: "sample", visit_date: "sample"
+    setup  "OrderPart", part_name: "sample", part_number: "sample", vendor: "sample", cost: 1.0
+    setup  "RegisterUnit", building_name: "sample", unit_number: "sample", elevator_type: "sample", floors_served: 1, capacity_lbs: 1, install_year: 1
     input  findings: "sample"
     expect emits: ["FindingReported", "PartOrdered", "PartInstalled", "PostInstallTestComplete", "UnitReturnedToService"]
   end
@@ -78,6 +81,7 @@ Hecks.behaviors "ElevatorMaintenance" do
 
   test "InstallPart cascades through policy chain" do
     tests "InstallPart", on: "PartReplacement", kind: :cascade
+    setup  "RegisterUnit", building_name: "sample", unit_number: "sample", elevator_type: "sample", floors_served: 1, capacity_lbs: 1, install_year: 1
     setup  "OrderPart", part_name: "sample", part_number: "sample", vendor: "sample", cost: 1.0
     expect emits: ["PartInstalled", "PostInstallTestComplete", "UnitReturnedToService"]
   end
@@ -91,6 +95,7 @@ Hecks.behaviors "ElevatorMaintenance" do
   test "TestAfterInstall cascades through policy chain" do
     tests "TestAfterInstall", on: "PartReplacement", kind: :cascade
     setup  "OrderPart", part_name: "sample", part_number: "sample", vendor: "sample", cost: 1.0
+    setup  "RegisterUnit", building_name: "sample", unit_number: "sample", elevator_type: "sample", floors_served: 1, capacity_lbs: 1, install_year: 1
     expect emits: ["PostInstallTestComplete", "UnitReturnedToService"]
   end
 

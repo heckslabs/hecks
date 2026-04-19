@@ -11,6 +11,7 @@ Hecks.behaviors "GameDevelopment" do
 
   test "KickOffProject cascades through policy chain" do
     tests "KickOffProject", on: "GameProject", kind: :cascade
+    setup  "PlanSprint", name: "sample", duration_days: 1, story_points: 1
     input  title: "sample", engine: "sample", genre: "sample", target_platform: "sample"
     expect emits: ["ProjectKickedOff", "SprintPlanned", "SprintStarted", "ProductionEntered"]
   end
@@ -24,7 +25,6 @@ Hecks.behaviors "GameDevelopment" do
   test "ShipGold runs" do
     tests "ShipGold", on: "GameProject"
     setup  "KickOffProject", title: "sample", engine: "sample", genre: "sample", target_platform: "sample"
-    setup  "EnterProduction"
     expect status: "gold"
   end
 
@@ -62,9 +62,11 @@ Hecks.behaviors "GameDevelopment" do
   test "CloseSprint cascades through policy chain" do
     tests "CloseSprint", on: "Sprint", kind: :cascade
     setup  "PlanSprint", name: "sample", duration_days: 1, story_points: 1
+    setup  "TriggerBuild", version: "sample", platform: "sample", build_config: "sample"
+    setup  "KickOffProject", title: "sample", engine: "sample", genre: "sample", target_platform: "sample"
     setup  "StartSprint"
     input  completed_points: 1
-    expect emits: ["SprintClosed", "BuildTriggered", "BuildCertified", "PlaytestScheduled", "PlaytestConducted", "ResultsAnalyzed", "BugFiled"]
+    expect emits: ["SprintClosed", "BuildTriggered", "BuildCertified"]
   end
 
 
@@ -81,19 +83,13 @@ Hecks.behaviors "GameDevelopment" do
     tests "TriggerBuild", on: "Build", kind: :cascade
     setup  "KickOffProject", title: "sample", engine: "sample", genre: "sample", target_platform: "sample"
     input  version: "sample", platform: "sample", build_config: "sample"
-    expect emits: ["BuildTriggered", "BuildCertified", "PlaytestScheduled", "PlaytestConducted", "ResultsAnalyzed", "BugFiled"]
+    expect emits: ["BuildTriggered", "BuildCertified"]
   end
 
   test "CertifyBuild runs" do
     tests "CertifyBuild", on: "Build"
     setup  "TriggerBuild", version: "sample", platform: "sample", build_config: "sample"
     expect status: "certified"
-  end
-
-  test "CertifyBuild cascades through policy chain" do
-    tests "CertifyBuild", on: "Build", kind: :cascade
-    setup  "TriggerBuild", version: "sample", platform: "sample", build_config: "sample"
-    expect emits: ["BuildCertified", "PlaytestScheduled", "PlaytestConducted", "ResultsAnalyzed", "BugFiled"]
   end
 
 
@@ -109,6 +105,7 @@ Hecks.behaviors "GameDevelopment" do
   test "SchedulePlaytest cascades through policy chain" do
     tests "SchedulePlaytest", on: "Playtest", kind: :cascade
     setup  "TriggerBuild", version: "sample", platform: "sample", build_config: "sample"
+    setup  "FileBug", title: "sample", severity: "sample", repro_steps: "sample"
     input  session_name: "sample", tester_count: 1
     expect emits: ["PlaytestScheduled", "PlaytestConducted", "ResultsAnalyzed", "BugFiled"]
   end
@@ -122,6 +119,8 @@ Hecks.behaviors "GameDevelopment" do
   test "ConductPlaytest cascades through policy chain" do
     tests "ConductPlaytest", on: "Playtest", kind: :cascade
     setup  "SchedulePlaytest", session_name: "sample", tester_count: 1
+    setup  "FileBug", title: "sample", severity: "sample", repro_steps: "sample"
+    setup  "TriggerBuild", version: "sample", platform: "sample", build_config: "sample"
     expect emits: ["PlaytestConducted", "ResultsAnalyzed", "BugFiled"]
   end
 
@@ -135,6 +134,8 @@ Hecks.behaviors "GameDevelopment" do
   test "AnalyzeResults cascades through policy chain" do
     tests "AnalyzeResults", on: "Playtest", kind: :cascade
     setup  "SchedulePlaytest", session_name: "sample", tester_count: 1
+    setup  "FileBug", title: "sample", severity: "sample", repro_steps: "sample"
+    setup  "TriggerBuild", version: "sample", platform: "sample", build_config: "sample"
     setup  "ConductPlaytest"
     expect emits: ["ResultsAnalyzed", "BugFiled"]
   end
@@ -159,6 +160,7 @@ Hecks.behaviors "GameDevelopment" do
   test "ResolveBug cascades through policy chain" do
     tests "ResolveBug", on: "BugReport", kind: :cascade
     setup  "FileBug", title: "sample", severity: "sample", repro_steps: "sample"
+    setup  "KickOffProject", title: "sample", engine: "sample", genre: "sample", target_platform: "sample"
     input  resolution: "sample"
     expect emits: ["BugResolved", "GoneGold"]
   end

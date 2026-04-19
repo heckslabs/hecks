@@ -11,6 +11,10 @@ Hecks.behaviors "OrganDonation" do
 
   test "RegisterDonor cascades through policy chain" do
     tests "RegisterDonor", on: "Donor", kind: :cascade
+    setup  "PerformMatch", donor_name: "sample", recipient_name: "sample", organ_name: "sample", compatibility_score: "sample"
+    setup  "ListRecipient", name: "sample", blood_type: "sample", tissue_type: "sample", organ_needed: "sample", urgency_level: "sample", listing_date: "sample"
+    setup  "DispatchOrgan", organ_name: "sample", origin_hospital: "sample", destination_hospital: "sample", transport_method: "sample", departure_time: "sample", estimated_arrival: "sample"
+    setup  "RecordCrossmatch", crossmatch_result: "sample"
     input  name: "sample", blood_type: "sample", tissue_type: "sample", hospital: "sample", cause_of_death: "sample", consent_status: "sample"
     expect emits: ["DonorRegistered", "ConsentConfirmed", "ViabilityAssessed", "MatchPerformed", "CrossmatchRecorded", "MatchAccepted", "OrganDispatched"]
   end
@@ -24,6 +28,10 @@ Hecks.behaviors "OrganDonation" do
   test "ConfirmConsent cascades through policy chain" do
     tests "ConfirmConsent", on: "Donor", kind: :cascade
     setup  "RegisterDonor", name: "sample", blood_type: "sample", tissue_type: "sample", hospital: "sample", cause_of_death: "sample", consent_status: "sample"
+    setup  "PerformMatch", donor_name: "sample", recipient_name: "sample", organ_name: "sample", compatibility_score: "sample"
+    setup  "ListRecipient", name: "sample", blood_type: "sample", tissue_type: "sample", organ_needed: "sample", urgency_level: "sample", listing_date: "sample"
+    setup  "DispatchOrgan", organ_name: "sample", origin_hospital: "sample", destination_hospital: "sample", transport_method: "sample", departure_time: "sample", estimated_arrival: "sample"
+    setup  "RecordCrossmatch", crossmatch_result: "sample"
     expect emits: ["ConsentConfirmed", "ViabilityAssessed", "MatchPerformed", "CrossmatchRecorded", "MatchAccepted", "OrganDispatched"]
   end
 
@@ -36,6 +44,10 @@ Hecks.behaviors "OrganDonation" do
   test "AssessOrganViability cascades through policy chain" do
     tests "AssessOrganViability", on: "Donor", kind: :cascade
     setup  "RegisterDonor", name: "sample", blood_type: "sample", tissue_type: "sample", hospital: "sample", cause_of_death: "sample", consent_status: "sample"
+    setup  "PerformMatch", donor_name: "sample", recipient_name: "sample", organ_name: "sample", compatibility_score: "sample"
+    setup  "ListRecipient", name: "sample", blood_type: "sample", tissue_type: "sample", organ_needed: "sample", urgency_level: "sample", listing_date: "sample"
+    setup  "DispatchOrgan", organ_name: "sample", origin_hospital: "sample", destination_hospital: "sample", transport_method: "sample", departure_time: "sample", estimated_arrival: "sample"
+    setup  "RecordCrossmatch", crossmatch_result: "sample"
     expect emits: ["ViabilityAssessed", "MatchPerformed", "CrossmatchRecorded", "MatchAccepted", "OrganDispatched"]
   end
 
@@ -74,8 +86,9 @@ Hecks.behaviors "OrganDonation" do
 
   test "PerformMatch cascades through policy chain" do
     tests "PerformMatch", on: "OrganMatch", kind: :cascade
-    setup  "ListRecipient", name: "sample", blood_type: "sample", tissue_type: "sample", organ_needed: "sample", urgency_level: "sample", listing_date: "sample"
     setup  "RegisterDonor", name: "sample", blood_type: "sample", tissue_type: "sample", hospital: "sample", cause_of_death: "sample", consent_status: "sample"
+    setup  "ListRecipient", name: "sample", blood_type: "sample", tissue_type: "sample", organ_needed: "sample", urgency_level: "sample", listing_date: "sample"
+    setup  "DispatchOrgan", organ_name: "sample", origin_hospital: "sample", destination_hospital: "sample", transport_method: "sample", departure_time: "sample", estimated_arrival: "sample"
     input  donor_name: "sample", recipient_name: "sample", organ_name: "sample", compatibility_score: "sample"
     expect emits: ["MatchPerformed", "CrossmatchRecorded", "MatchAccepted", "OrganDispatched"]
   end
@@ -89,6 +102,7 @@ Hecks.behaviors "OrganDonation" do
 
   test "RecordCrossmatch cascades through policy chain" do
     tests "RecordCrossmatch", on: "OrganMatch", kind: :cascade
+    setup  "DispatchOrgan", organ_name: "sample", origin_hospital: "sample", destination_hospital: "sample", transport_method: "sample", departure_time: "sample", estimated_arrival: "sample"
     setup  "PerformMatch", donor_name: "sample", recipient_name: "sample", organ_name: "sample", compatibility_score: "sample"
     input  crossmatch_result: "sample"
     expect emits: ["CrossmatchRecorded", "MatchAccepted", "OrganDispatched"]
@@ -103,6 +117,7 @@ Hecks.behaviors "OrganDonation" do
 
   test "AcceptMatch cascades through policy chain" do
     tests "AcceptMatch", on: "OrganMatch", kind: :cascade
+    setup  "DispatchOrgan", organ_name: "sample", origin_hospital: "sample", destination_hospital: "sample", transport_method: "sample", departure_time: "sample", estimated_arrival: "sample"
     setup  "PerformMatch", donor_name: "sample", recipient_name: "sample", organ_name: "sample", compatibility_score: "sample"
     setup  "RecordCrossmatch", crossmatch_result: "sample"
     expect emits: ["MatchAccepted", "OrganDispatched"]
@@ -126,6 +141,8 @@ Hecks.behaviors "OrganDonation" do
 
   test "ConfirmDelivery cascades through policy chain" do
     tests "ConfirmDelivery", on: "OrganTransport", kind: :cascade
+    setup  "RecordOutcome", recipient_name: "sample", organ_name: "sample", surgery_date: "sample", surgeon_name: "sample", graft_function: "sample", complications: "sample"
+    setup  "ListRecipient", name: "sample", blood_type: "sample", tissue_type: "sample", organ_needed: "sample", urgency_level: "sample", listing_date: "sample"
     setup  "DispatchOrgan", organ_name: "sample", origin_hospital: "sample", destination_hospital: "sample", transport_method: "sample", departure_time: "sample", estimated_arrival: "sample"
     expect emits: ["OrganDelivered", "OutcomeRecorded", "RecipientRemoved", "GraftMonitored"]
   end

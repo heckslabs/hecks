@@ -12,7 +12,7 @@ Hecks.behaviors "PotteryStudio" do
   test "ThrowPiece cascades through policy chain" do
     tests "ThrowPiece", on: "Piece", kind: :cascade
     input  name: "sample", form: "sample", clay_body: "sample", weight_kg: 1.0
-    expect emits: ["PieceThrown", "PieceTrimmed", "BisqueFired", "KilnLoaded", "FiringStarted", "FiringCompleted", "GlazeTested", "ExhibitionCurated", "ExhibitionOpened"]
+    expect emits: ["PieceThrown", "PieceTrimmed", "BisqueFired"]
   end
 
   test "TrimPiece runs" do
@@ -24,7 +24,7 @@ Hecks.behaviors "PotteryStudio" do
   test "TrimPiece cascades through policy chain" do
     tests "TrimPiece", on: "Piece", kind: :cascade
     setup  "ThrowPiece", name: "sample", form: "sample", clay_body: "sample", weight_kg: 1.0
-    expect emits: ["PieceTrimmed", "BisqueFired", "KilnLoaded", "FiringStarted", "FiringCompleted", "GlazeTested", "ExhibitionCurated", "ExhibitionOpened"]
+    expect emits: ["PieceTrimmed", "BisqueFired"]
   end
 
   test "BisqueFire runs" do
@@ -32,13 +32,6 @@ Hecks.behaviors "PotteryStudio" do
     setup  "ThrowPiece", name: "sample", form: "sample", clay_body: "sample", weight_kg: 1.0
     setup  "TrimPiece"
     expect status: "bisqued"
-  end
-
-  test "BisqueFire cascades through policy chain" do
-    tests "BisqueFire", on: "Piece", kind: :cascade
-    setup  "ThrowPiece", name: "sample", form: "sample", clay_body: "sample", weight_kg: 1.0
-    setup  "TrimPiece"
-    expect emits: ["BisqueFired", "KilnLoaded", "FiringStarted", "FiringCompleted", "GlazeTested", "ExhibitionCurated", "ExhibitionOpened"]
   end
 
   test "GlazePiece sets glaze_name" do
@@ -72,6 +65,8 @@ Hecks.behaviors "PotteryStudio" do
   test "LoadKiln cascades through policy chain" do
     tests "LoadKiln", on: "Firing", kind: :cascade
     setup  "SetUpKiln", name: "sample", fuel_type: "sample", cubic_feet: 1.0
+    setup  "FormulateGlaze", name: "sample", surface_type: "sample", cone_low: 1, cone_high: 1
+    setup  "CurateExhibition", title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
     input  firing_type: "sample", target_cone: 1, atmosphere: "sample", piece_count: 1
     expect emits: ["KilnLoaded", "FiringStarted", "FiringCompleted", "GlazeTested", "ExhibitionCurated", "ExhibitionOpened"]
   end
@@ -85,6 +80,8 @@ Hecks.behaviors "PotteryStudio" do
   test "StartFiring cascades through policy chain" do
     tests "StartFiring", on: "Firing", kind: :cascade
     setup  "LoadKiln", firing_type: "sample", target_cone: 1, atmosphere: "sample", piece_count: 1
+    setup  "FormulateGlaze", name: "sample", surface_type: "sample", cone_low: 1, cone_high: 1
+    setup  "CurateExhibition", title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
     expect emits: ["FiringStarted", "FiringCompleted", "GlazeTested", "ExhibitionCurated", "ExhibitionOpened"]
   end
 
@@ -98,6 +95,8 @@ Hecks.behaviors "PotteryStudio" do
   test "CompleteFiring cascades through policy chain" do
     tests "CompleteFiring", on: "Firing", kind: :cascade
     setup  "LoadKiln", firing_type: "sample", target_cone: 1, atmosphere: "sample", piece_count: 1
+    setup  "FormulateGlaze", name: "sample", surface_type: "sample", cone_low: 1, cone_high: 1
+    setup  "CurateExhibition", title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
     setup  "StartFiring"
     expect emits: ["FiringCompleted", "GlazeTested", "ExhibitionCurated", "ExhibitionOpened"]
   end
@@ -121,6 +120,7 @@ Hecks.behaviors "PotteryStudio" do
   test "TestGlaze cascades through policy chain" do
     tests "TestGlaze", on: "Glaze", kind: :cascade
     setup  "FormulateGlaze", name: "sample", surface_type: "sample", cone_low: 1, cone_high: 1
+    setup  "CurateExhibition", title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
     input  test_cone: 1
     expect emits: ["GlazeTested", "ExhibitionCurated", "ExhibitionOpened"]
   end

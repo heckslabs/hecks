@@ -172,11 +172,13 @@ impl Runtime {
                 let cmd = trigger.command_name.clone();
                 let mut data = trigger.event_data.clone();
 
-                if let Some(self_ref) = self.find_self_ref_for(&cmd, &event.aggregate_type) {
-                    if !data.contains_key(&self_ref) {
-                        data.insert(self_ref, Value::Str(event.aggregate_id.clone()));
-                    }
-                }
+                // Inject every reference the triggered command needs:
+                //   1. self-ref or upstream-ref → use upstream event's aggregate_id
+                //   2. other refs → use any record currently in that repo (singleton)
+                // This makes static cascade prediction work across aggregate
+                // boundaries: a policy chain can hop A→B→C even when neither
+                // B nor C's input attrs were in the original test command.
+                self.inject_refs(&cmd, &event.aggregate_type, &event.aggregate_id, &mut data);
 
                 if let Ok(inner_result) = command_dispatch::dispatch(self, &cmd, data) {
                     self.drain_policies(&inner_result);
@@ -186,27 +188,41 @@ impl Runtime {
         }
     }
 
-    /// If `cmd_name` is on the aggregate type `upstream_type` and has
-    /// a reference whose target matches that aggregate's own name
-    /// (self-ref), return the reference's name (honoring `as:` aliases).
-    /// Mirrors `command_dispatch::find_self_ref` but is callable from
-    /// outside dispatch — drain_policies needs to know the kwarg name
-    /// to inject the upstream id under.
-    fn find_self_ref_for(&self, cmd_name: &str, upstream_type: &str) -> Option<String> {
+    /// For each reference on the triggered command, inject an id under its
+    /// kwarg name if not already present:
+    ///   - target matches upstream event's aggregate type → use event's id
+    ///   - target is the command's own aggregate (self-ref) and a record
+    ///     exists in that repo → use the existing record's id
+    ///   - target is any other aggregate with an existing record (singleton
+    ///     pattern) → use that record's id
+    /// The bluebook stays reference-only; the runtime resolves to ids.
+    fn inject_refs(
+        &self,
+        cmd_name: &str,
+        upstream_type: &str,
+        upstream_id: &str,
+        data: &mut HashMap<String, Value>,
+    ) {
         for agg in &self.domain.aggregates {
-            if agg.name != upstream_type { continue; }
             for cmd in &agg.commands {
                 if cmd.name != cmd_name { continue; }
-                let agg_snake = to_snake(&agg.name);
                 for r in &cmd.references {
-                    let ref_snake = to_snake(&r.target);
-                    if ref_snake == agg_snake || agg_snake.ends_with(&ref_snake) {
-                        return Some(r.name.clone());
+                    if data.contains_key(&r.name) { continue; }
+                    if r.target == upstream_type {
+                        data.insert(r.name.clone(), Value::Str(upstream_id.to_string()));
+                        continue;
+                    }
+                    // Singleton fallback: pick any existing record of the
+                    // ref's target type.
+                    if let Some(repo) = self.repositories.get(&r.target) {
+                        if let Some(existing) = repo.all().first() {
+                            data.insert(r.name.clone(), Value::Str(existing.id.clone()));
+                        }
                     }
                 }
+                return; // first matching command wins
             }
         }
-        None
     }
 
     pub fn add_projection(&mut self, projection: Projection) {
@@ -382,15 +398,6 @@ macro_rules! attrs {
         $(map.insert($key.to_string(), $val);)*
         map
     }};
-}
-
-fn to_snake(s: &str) -> String {
-    let mut out = String::new();
-    for (i, c) in s.chars().enumerate() {
-        if c.is_uppercase() && i > 0 { out.push('_'); }
-        out.push(c.to_lowercase().next().unwrap_or(c));
-    }
-    out
 }
 
 fn pascal_to_phrase(name: &str) -> String {

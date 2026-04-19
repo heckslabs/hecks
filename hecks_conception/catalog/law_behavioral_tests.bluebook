@@ -38,6 +38,7 @@ Hecks.behaviors "Law" do
   test "RecordViolation cascades through policy chain" do
     tests "RecordViolation", on: "Law", kind: :cascade
     setup  "Enact", name: "sample", description: "sample", domain_scope: "sample", check_expression: "sample", severity: "sample"
+    setup  "Report", law_name: "sample", violator: "sample", location: "sample", detail: "sample", detected_at: "sample"
     expect emits: ["ViolationRecorded", "ViolationReported"]
   end
 
@@ -50,10 +51,9 @@ Hecks.behaviors "Law" do
     expect law_name: "sample", violator: "sample", location: "sample", detail: "sample", detected_at: "sample", resolution: "open"
   end
 
-  test "Resolve sets resolution" do
+  test "Resolve runs" do
     tests "Resolve", on: "Violation"
     setup  "Report", law_name: "sample", violator: "sample", location: "sample", detail: "sample", detected_at: "sample"
-    input  resolution: "sample"
     expect resolution: "resolved"
   end
 

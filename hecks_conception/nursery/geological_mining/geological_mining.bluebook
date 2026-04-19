@@ -280,21 +280,6 @@ Hecks.bluebook "GeologicalMining", version: "2026.04.13.1" do
     trigger "ValidateQC"
   end
 
-  policy "DelineateOnValidate" do
-    on "QCValidated"
-    trigger "DelineateOreBody"
-  end
-
-  policy "DesignOnUpgrade" do
-    on "ResourceUpgraded"
-    trigger "DesignExtractionPlan"
-  end
-
-  policy "ApproveOnDesign" do
-    on "ExtractionPlanDesigned"
-    trigger "ApproveExtraction"
-  end
-
   fixture "GeologicalFormation", name: "Sierra Madre Granite", rock_type: "granite", geological_age: "Cretaceous", depth_m: 500.0, thickness_m: 300.0, mineralization: "gold-bearing quartz", status: "classified"
   fixture "GeologicalFormation", name: "Salton Trough Sediment", rock_type: "sandstone", geological_age: "Pliocene", depth_m: 1200.0, thickness_m: 800.0, mineralization: "copper-porphyry", status: "mapped"
 

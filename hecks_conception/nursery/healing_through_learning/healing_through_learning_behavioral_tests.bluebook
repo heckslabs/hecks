@@ -11,6 +11,10 @@ Hecks.behaviors "HealingThroughLearning" do
 
   test "EnrollLearner cascades through policy chain" do
     tests "EnrollLearner", on: "Learner", kind: :cascade
+    setup  "RecordBaseline", metric_id: "sample", metric_type: "sample", baseline_value: 1.0
+    setup  "ScheduleLab", session_id: "sample", recipe_name: "sample", nutrition_focus: "sample"
+    setup  "DesignCurriculum", curriculum_id: "sample", title: "sample", difficulty_level: "sample"
+    setup  "InitiateCredential", credential_id: "sample", credential_type: "sample", issuing_body: "sample"
     input  learner_id: "sample", name: "sample", recovery_stage: "sample", enrollment_date: "sample"
     expect emits: ["LearnerEnrolled", "BaselineRecorded", "LabScheduled", "CredentialInitiated"]
   end
@@ -30,6 +34,8 @@ Hecks.behaviors "HealingThroughLearning" do
 
   test "GraduateLearner cascades through policy chain" do
     tests "GraduateLearner", on: "Learner", kind: :cascade
+    setup  "InitiateCredential", credential_id: "sample", credential_type: "sample", issuing_body: "sample"
+    setup  "RecordMilestone", milestone_id: "sample", milestone_type: "sample", description: "sample", achieved_date: "sample"
     setup  "EnrollLearner", learner_id: "sample", name: "sample", recovery_stage: "sample", enrollment_date: "sample"
     expect emits: ["LearnerGraduated", "CredentialAwarded", "MilestoneRecorded"]
   end
@@ -68,6 +74,8 @@ Hecks.behaviors "HealingThroughLearning" do
 
   test "CompleteLab cascades through policy chain" do
     tests "CompleteLab", on: "CookingLab", kind: :cascade
+    setup  "RecordMilestone", milestone_id: "sample", milestone_type: "sample", description: "sample", achieved_date: "sample"
+    setup  "EnrollLearner", learner_id: "sample", name: "sample", recovery_stage: "sample", enrollment_date: "sample"
     setup  "ScheduleLab", session_id: "sample", recipe_name: "sample", nutrition_focus: "sample"
     expect emits: ["LabCompleted", "MilestoneRecorded"]
   end
@@ -99,6 +107,7 @@ Hecks.behaviors "HealingThroughLearning" do
   test "FlagImprovement cascades through policy chain" do
     tests "FlagImprovement", on: "HealthMetric", kind: :cascade
     setup  "RecordBaseline", metric_id: "sample", metric_type: "sample", baseline_value: 1.0
+    setup  "EnrollLearner", learner_id: "sample", name: "sample", recovery_stage: "sample", enrollment_date: "sample"
     setup  "RecordReading", current_value: 1.0, trend: "sample"
     expect emits: ["ImprovementFlagged", "StageAdvanced"]
   end
@@ -121,6 +130,8 @@ Hecks.behaviors "HealingThroughLearning" do
 
   test "AwardCredential cascades through policy chain" do
     tests "AwardCredential", on: "Credential", kind: :cascade
+    setup  "RecordMilestone", milestone_id: "sample", milestone_type: "sample", description: "sample", achieved_date: "sample"
+    setup  "EnrollLearner", learner_id: "sample", name: "sample", recovery_stage: "sample", enrollment_date: "sample"
     setup  "InitiateCredential", credential_id: "sample", credential_type: "sample", issuing_body: "sample"
     expect emits: ["CredentialAwarded", "MilestoneRecorded"]
   end

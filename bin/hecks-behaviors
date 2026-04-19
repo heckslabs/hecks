@@ -1,0 +1,67 @@
+#!/usr/bin/env ruby
+# Hecks behaviors runner — Ruby
+#
+# Mirrors `hecks-life behaviors`: load a _behavioral_tests.bluebook,
+# infer its source bluebook, run each test in pure memory against a
+# fresh BehaviorRuntime, print pass/fail/error counts.
+#
+# Usage:
+#   bin/hecks-behaviors path/to/X_behavioral_tests.bluebook
+
+hecks_home = File.dirname(File.dirname(File.realpath(__FILE__)))
+$LOAD_PATH.unshift(File.join(hecks_home, "lib"))
+ENV["BUNDLE_GEMFILE"] ||= File.join(hecks_home, "Gemfile")
+require "bundler/setup" if File.exist?(ENV["BUNDLE_GEMFILE"])
+
+require "hecks"
+require "hecks/behaviors/runner"
+
+test_file = ARGV[0]
+unless test_file && File.file?(test_file)
+  warn "Usage: hecks-behaviors path/to/X_behavioral_tests.bluebook"
+  exit 1
+end
+
+source_file = test_file.sub(/_behavioral_tests\.bluebook\z/, ".bluebook")
+unless File.file?(source_file)
+  warn "Source bluebook not found: #{source_file}"
+  exit 1
+end
+
+# Load the test suite via Hecks.behaviors DSL.
+Kernel.load(test_file)
+suite = Hecks.last_test_suite
+unless suite
+  warn "No Hecks.behaviors block in #{test_file}"
+  exit 1
+end
+
+# Source loader: re-parse per test for state isolation. Same shape
+# as Rust runner's `parser::parse(source_text)` per test.
+source_loader = lambda do
+  Hecks.instance_variable_set(:@last_domain, nil)
+  Kernel.load(source_file)
+  Hecks.last_domain
+end
+
+# Smoke: ensure we can load it once.
+begin
+  source_loader.call
+rescue => e
+  warn "Failed to load source #{source_file}: #{e.message}"
+  exit 1
+end
+
+puts "Running #{suite.tests.size} test(s) from #{test_file}"
+puts "  source: #{source_file}\n\n"
+
+result = Hecks::Behaviors::Runner.run(source_loader, suite)
+result.runs.each do |r|
+  case r.status
+  when :pass  then puts "✓ #{r.description}"
+  when :fail  then puts "✗ #{r.description}\n    #{r.message}"
+  when :error then puts "⚠ #{r.description}\n    #{r.message}"
+  end
+end
+puts "\n#{result.passed} passed, #{result.failed} failed, #{result.errored} errored"
+exit(result.all_passed? ? 0 : 1)

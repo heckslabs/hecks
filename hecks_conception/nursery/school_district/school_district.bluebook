@@ -78,7 +78,6 @@ Hecks.bluebook "SchoolDistrict" do
       description "Advance a student to the next grade level"
       reference_to(Student)
       String :new_grade_level
-      given { status == "enrolled" }
       emits "StudentPromoted"
     end
 
@@ -86,7 +85,6 @@ Hecks.bluebook "SchoolDistrict" do
       description "Move a student from one school to another"
       reference_to(Student)
       reference_to(School)
-      given { status == "enrolled" }
       emits "StudentTransferred"
     end
 
@@ -261,11 +259,6 @@ Hecks.bluebook "SchoolDistrict" do
   policy "TransferOnSchoolClosed" do
     on "SchoolClosed"
     trigger "TransferStudent"
-  end
-
-  policy "EnrollOnStudentRegistered" do
-    on "StudentRegistered"
-    trigger "EnrollStudent"
   end
 
   policy "PromoteOnGradeFinalized" do

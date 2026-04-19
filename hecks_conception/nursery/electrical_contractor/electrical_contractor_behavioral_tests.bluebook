@@ -11,6 +11,7 @@ Hecks.behaviors "ElectricalContractor" do
 
   test "BookJob cascades through policy chain" do
     tests "BookJob", on: "Job", kind: :cascade
+    setup  "PullPermit", jurisdiction: "sample", work_description: "sample"
     input  property_address: "sample", scope_of_work: "sample", bid_amount: 1.0
     expect emits: ["JobBooked", "PermitPulled"]
   end
@@ -25,6 +26,9 @@ Hecks.behaviors "ElectricalContractor" do
   test "AssignElectrician cascades through policy chain" do
     tests "AssignElectrician", on: "Job", kind: :cascade
     setup  "BookJob", property_address: "sample", scope_of_work: "sample", bid_amount: 1.0
+    setup  "InstallPanel", label: "sample", rated_amps: 1, total_slots: 1, location: "sample"
+    setup  "PullCircuit", label: "sample", amperage: 1, wire_gauge: "sample", circuit_type: "sample"
+    setup  "ScheduleInspection", inspection_type: "sample"
     input  electrician_name: "sample"
     expect emits: ["ElectricianAssigned", "PanelInstalled", "CircuitPulled", "InspectionScheduled"]
   end
@@ -48,6 +52,8 @@ Hecks.behaviors "ElectricalContractor" do
   test "InstallPanel cascades through policy chain" do
     tests "InstallPanel", on: "Panel", kind: :cascade
     setup  "BookJob", property_address: "sample", scope_of_work: "sample", bid_amount: 1.0
+    setup  "PullCircuit", label: "sample", amperage: 1, wire_gauge: "sample", circuit_type: "sample"
+    setup  "ScheduleInspection", inspection_type: "sample"
     input  label: "sample", rated_amps: 1, total_slots: 1, location: "sample"
     expect emits: ["PanelInstalled", "CircuitPulled", "InspectionScheduled"]
   end
@@ -62,9 +68,18 @@ Hecks.behaviors "ElectricalContractor" do
 
   # ── Circuit aggregate ──────────────────────────────────────────
 
+  test "PullCircuit sets label + amperage + wire_gauge + circuit_type" do
+    tests "PullCircuit", on: "Circuit"
+    setup  "InstallPanel", label: "sample", rated_amps: 1, total_slots: 1, location: "sample"
+    input  label: "sample", amperage: 1, wire_gauge: "sample", circuit_type: "sample"
+    expect ok: "true"
+  end
+
   test "PullCircuit cascades through policy chain" do
     tests "PullCircuit", on: "Circuit", kind: :cascade
     setup  "InstallPanel", label: "sample", rated_amps: 1, total_slots: 1, location: "sample"
+    setup  "ScheduleInspection", inspection_type: "sample"
+    setup  "BookJob", property_address: "sample", scope_of_work: "sample", bid_amount: 1.0
     input  label: "sample", amperage: 1, wire_gauge: "sample", circuit_type: "sample"
     expect emits: ["CircuitPulled", "InspectionScheduled"]
   end
@@ -94,6 +109,10 @@ Hecks.behaviors "ElectricalContractor" do
 
   test "ReceiveApproval cascades through policy chain" do
     tests "ReceiveApproval", on: "Permit", kind: :cascade
+    setup  "BookJob", property_address: "sample", scope_of_work: "sample", bid_amount: 1.0
+    setup  "InstallPanel", label: "sample", rated_amps: 1, total_slots: 1, location: "sample"
+    setup  "PullCircuit", label: "sample", amperage: 1, wire_gauge: "sample", circuit_type: "sample"
+    setup  "ScheduleInspection", inspection_type: "sample"
     setup  "PullPermit", jurisdiction: "sample", work_description: "sample"
     input  permit_number: "sample"
     expect emits: ["PermitApproved", "ElectricianAssigned", "PanelInstalled", "CircuitPulled", "InspectionScheduled"]
@@ -119,6 +138,7 @@ Hecks.behaviors "ElectricalContractor" do
   test "RecordResult cascades through policy chain" do
     tests "RecordResult", on: "Inspection", kind: :cascade
     setup  "ScheduleInspection", inspection_type: "sample"
+    setup  "BookJob", property_address: "sample", scope_of_work: "sample", bid_amount: 1.0
     input  result: "sample", notes: "sample"
     expect emits: ["InspectionResultRecorded", "JobClosedOut"]
   end

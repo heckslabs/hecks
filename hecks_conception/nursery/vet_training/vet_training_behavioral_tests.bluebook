@@ -17,6 +17,7 @@ Hecks.behaviors "VetTraining" do
 
   test "GraduateVeteran cascades through policy chain" do
     tests "GraduateVeteran", on: "VeteranProfile", kind: :cascade
+    setup  "PlaceVeteran", placement_id: "sample", veteran_id: "sample", employer_name: "sample", job_title: "sample"
     setup  "EnrollVeteran", veteran_id: "sample", name: "sample", branch: "sample", discharge_status: "sample"
     expect emits: ["VeteranGraduated", "VeteranPlaced"]
   end

@@ -218,10 +218,8 @@ Hecks.bluebook "ElevatorPhysics", version: "2026.04.13.1" do
     DetermineMotorRequirements do
       role "System"
       description "Compute motor torque and power needed for the load"
-      reference_to(LoadCalculation)
       Float :motor_torque_nm
       Float :power_required_kw
-      given { status == "calculated" }
       emits "MotorRequirementsDetermined"
       then_set :motor_torque_nm, to: :motor_torque_nm
       then_set :power_required_kw, to: :power_required_kw
@@ -238,9 +236,9 @@ Hecks.bluebook "ElevatorPhysics", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "pending" do
-      transition "CalculateForces" => "calculated", from: "pending"
-      transition "DetermineMotorRequirements" => "motor_sized", from: "calculated"
-      transition "ValidateSafety" => "validated", from: "motor_sized"
+      transition "CalculateForces" => "calculated", from: ["pending", "calculated", "motor_sized"]
+      transition "DetermineMotorRequirements" => "motor_sized", from: ["pending", "calculated", "motor_sized"]
+      transition "ValidateSafety" => "validated", from: ["pending", "calculated", "motor_sized"]
     end
   end
 

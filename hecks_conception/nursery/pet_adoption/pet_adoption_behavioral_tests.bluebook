@@ -17,6 +17,7 @@ Hecks.behaviors "PetAdoption" do
 
   test "AdoptAnimal cascades through policy chain" do
     tests "AdoptAnimal", on: "Animal", kind: :cascade
+    setup  "ScheduleFollowUp", followup_id: "sample", animal_id: "sample", adopter_id: "sample", scheduled_date: "sample"
     setup  "IntakeAnimal", animal_id: "sample", name: "sample", species: "sample", breed: "sample", age_months: 1, temperament: "sample"
     expect emits: ["AnimalAdopted", "FollowUpScheduled"]
   end

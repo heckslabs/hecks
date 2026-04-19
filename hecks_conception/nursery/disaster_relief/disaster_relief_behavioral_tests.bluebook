@@ -11,6 +11,10 @@ Hecks.behaviors "DisasterRelief" do
 
   test "DeclareIncident cascades through policy chain" do
     tests "DeclareIncident", on: "Incident", kind: :cascade
+    setup  "OrderEvacuation", evacuation_zone: "sample", order_date: "sample", transport_method: "sample", destination: "sample"
+    setup  "OpenShelter", shelter_name: "sample", address: "sample", capacity: 1
+    setup  "RegisterVolunteer", name: "sample", skills: "sample", phone: "sample"
+    setup  "ReceiveSupply", supply_name: "sample", category: "sample", quantity: 1, warehouse_location: "sample"
     input  incident_name: "sample", incident_type: "sample", declared_date: "sample", affected_area: "sample", severity_level: "sample"
     expect emits: ["IncidentDeclared", "EvacuationOrdered", "ShelterOpened", "VolunteerDeployed", "SupplyDispatched", "SupplyReceived", "VolunteerRegistered"]
   end
@@ -30,6 +34,8 @@ Hecks.behaviors "DisasterRelief" do
 
   test "CloseIncident cascades through policy chain" do
     tests "CloseIncident", on: "Incident", kind: :cascade
+    setup  "OpenShelter", shelter_name: "sample", address: "sample", capacity: 1
+    setup  "RegisterVolunteer", name: "sample", skills: "sample", phone: "sample"
     setup  "DeclareIncident", incident_name: "sample", incident_type: "sample", declared_date: "sample", affected_area: "sample", severity_level: "sample"
     expect emits: ["IncidentClosed", "ShelterClosed", "VolunteerReleased"]
   end
@@ -47,6 +53,8 @@ Hecks.behaviors "DisasterRelief" do
   test "OpenShelter cascades through policy chain" do
     tests "OpenShelter", on: "Shelter", kind: :cascade
     setup  "DeclareIncident", incident_name: "sample", incident_type: "sample", declared_date: "sample", affected_area: "sample", severity_level: "sample"
+    setup  "RegisterVolunteer", name: "sample", skills: "sample", phone: "sample"
+    setup  "ReceiveSupply", supply_name: "sample", category: "sample", quantity: 1, warehouse_location: "sample"
     input  shelter_name: "sample", address: "sample", capacity: 1
     expect emits: ["ShelterOpened", "VolunteerDeployed", "SupplyDispatched"]
   end
@@ -66,6 +74,7 @@ Hecks.behaviors "DisasterRelief" do
   test "CloseShelter cascades through policy chain" do
     tests "CloseShelter", on: "Shelter", kind: :cascade
     setup  "OpenShelter", shelter_name: "sample", address: "sample", capacity: 1
+    setup  "RegisterVolunteer", name: "sample", skills: "sample", phone: "sample"
     expect emits: ["ShelterClosed", "VolunteerReleased"]
   end
 
@@ -138,6 +147,7 @@ Hecks.behaviors "DisasterRelief" do
 
   test "ExecuteEvacuation cascades through policy chain" do
     tests "ExecuteEvacuation", on: "Evacuation", kind: :cascade
+    setup  "OpenShelter", shelter_name: "sample", address: "sample", capacity: 1
     setup  "OrderEvacuation", evacuation_zone: "sample", order_date: "sample", transport_method: "sample", destination: "sample"
     input  people_evacuated: 1
     expect emits: ["EvacuationExecuted", "EvacueeRegistered"]

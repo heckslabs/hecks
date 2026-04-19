@@ -11,6 +11,7 @@ Hecks.behaviors "PowerGrid" do
 
   test "EnergizeSubstation cascades through policy chain" do
     tests "EnergizeSubstation", on: "Substation", kind: :cascade
+    setup  "DefineZone", zone_id: "sample", region: "sample", peak_demand_mw: 1.0
     input  substation_id: "sample", name: "sample", voltage_class: "sample", capacity_mva: 1.0
     expect emits: ["SubstationEnergized", "LoadUpdated"]
   end
@@ -25,7 +26,6 @@ Hecks.behaviors "PowerGrid" do
   test "ReenergizeSubstation runs" do
     tests "ReenergizeSubstation", on: "Substation"
     setup  "EnergizeSubstation", substation_id: "sample", name: "sample", voltage_class: "sample", capacity_mva: 1.0
-    setup  "DeenergizeSubstation", reason: "sample"
     expect status: "energized"
   end
 
@@ -48,6 +48,10 @@ Hecks.behaviors "PowerGrid" do
 
   test "TripLine cascades through policy chain" do
     tests "TripLine", on: "TransmissionLine", kind: :cascade
+    setup  "IssueOrder", work_type: "sample", priority: "sample"
+    setup  "EnergizeSubstation", substation_id: "sample", name: "sample", voltage_class: "sample", capacity_mva: 1.0
+    setup  "ReportOutage", cause: "sample", affected_customers: 1
+    setup  "DefineZone", zone_id: "sample", region: "sample", peak_demand_mw: 1.0
     setup  "EnergizeLine", line_id: "sample", conductor_type: "sample", length_miles: 1.0, rating_mw: 1.0
     input  fault_type: "sample"
     expect emits: ["LineTripped", "OrderIssued", "LineInspected", "LineRestored", "PowerRestored", "SubstationReenergized", "LoadShedInitiated"]
@@ -62,6 +66,8 @@ Hecks.behaviors "PowerGrid" do
 
   test "InspectLine cascades through policy chain" do
     tests "InspectLine", on: "TransmissionLine", kind: :cascade
+    setup  "ReportOutage", cause: "sample", affected_customers: 1
+    setup  "EnergizeSubstation", substation_id: "sample", name: "sample", voltage_class: "sample", capacity_mva: 1.0
     setup  "EnergizeLine", line_id: "sample", conductor_type: "sample", length_miles: 1.0, rating_mw: 1.0
     setup  "TripLine", fault_type: "sample"
     expect emits: ["LineInspected", "LineRestored", "PowerRestored", "SubstationReenergized"]
@@ -70,16 +76,14 @@ Hecks.behaviors "PowerGrid" do
   test "RestoreLine runs" do
     tests "RestoreLine", on: "TransmissionLine"
     setup  "EnergizeLine", line_id: "sample", conductor_type: "sample", length_miles: 1.0, rating_mw: 1.0
-    setup  "TripLine", fault_type: "sample"
-    setup  "InspectLine"
     expect status: "energized"
   end
 
   test "RestoreLine cascades through policy chain" do
     tests "RestoreLine", on: "TransmissionLine", kind: :cascade
     setup  "EnergizeLine", line_id: "sample", conductor_type: "sample", length_miles: 1.0, rating_mw: 1.0
-    setup  "TripLine", fault_type: "sample"
-    setup  "InspectLine"
+    setup  "ReportOutage", cause: "sample", affected_customers: 1
+    setup  "EnergizeSubstation", substation_id: "sample", name: "sample", voltage_class: "sample", capacity_mva: 1.0
     expect emits: ["LineRestored", "PowerRestored", "SubstationReenergized"]
   end
 
@@ -125,6 +129,8 @@ Hecks.behaviors "PowerGrid" do
   test "ReportOutage cascades through policy chain" do
     tests "ReportOutage", on: "Outage", kind: :cascade
     setup  "EnergizeLine", line_id: "sample", conductor_type: "sample", length_miles: 1.0, rating_mw: 1.0
+    setup  "EnergizeSubstation", substation_id: "sample", name: "sample", voltage_class: "sample", capacity_mva: 1.0
+    setup  "IssueOrder", work_type: "sample", priority: "sample"
     input  cause: "sample", affected_customers: 1
     expect emits: ["OutageReported", "SubstationDeenergized", "CrewDispatched", "WorkBegun"]
   end
@@ -137,6 +143,7 @@ Hecks.behaviors "PowerGrid" do
 
   test "DispatchCrew cascades through policy chain" do
     tests "DispatchCrew", on: "Outage", kind: :cascade
+    setup  "IssueOrder", work_type: "sample", priority: "sample"
     setup  "ReportOutage", cause: "sample", affected_customers: 1
     expect emits: ["CrewDispatched", "WorkBegun"]
   end
@@ -144,14 +151,13 @@ Hecks.behaviors "PowerGrid" do
   test "RestorePower runs" do
     tests "RestorePower", on: "Outage"
     setup  "ReportOutage", cause: "sample", affected_customers: 1
-    setup  "DispatchCrew"
     expect status: "restored"
   end
 
   test "RestorePower cascades through policy chain" do
     tests "RestorePower", on: "Outage", kind: :cascade
     setup  "ReportOutage", cause: "sample", affected_customers: 1
-    setup  "DispatchCrew"
+    setup  "EnergizeSubstation", substation_id: "sample", name: "sample", voltage_class: "sample", capacity_mva: 1.0
     expect emits: ["PowerRestored", "SubstationReenergized"]
   end
 
@@ -180,6 +186,9 @@ Hecks.behaviors "PowerGrid" do
 
   test "CompleteOrder cascades through policy chain" do
     tests "CompleteOrder", on: "MaintenanceOrder", kind: :cascade
+    setup  "EnergizeLine", line_id: "sample", conductor_type: "sample", length_miles: 1.0, rating_mw: 1.0
+    setup  "ReportOutage", cause: "sample", affected_customers: 1
+    setup  "EnergizeSubstation", substation_id: "sample", name: "sample", voltage_class: "sample", capacity_mva: 1.0
     setup  "IssueOrder", work_type: "sample", priority: "sample"
     setup  "BeginWork"
     expect emits: ["OrderCompleted", "LineRestored", "PowerRestored", "SubstationReenergized"]

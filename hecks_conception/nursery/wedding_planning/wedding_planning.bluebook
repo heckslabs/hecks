@@ -189,7 +189,6 @@ Hecks.bluebook "WeddingPlanning" do
       reference_to(GuestListEntry)
       String :rsvp_status
       String :meal_preference
-      given { rsvp_status == "pending" }
       emits "RSVPRecorded"
       then_set :rsvp_status, to: :rsvp_status
       then_set :meal_preference, to: :meal_preference

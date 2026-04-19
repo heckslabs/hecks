@@ -100,9 +100,7 @@ Hecks.bluebook "Law", version: "2026.04.14.1" do
       role "Architect"
       description "Mark a violation as resolved — the offending code or domain was fixed"
       reference_to(Violation)
-      attribute :resolution, String
       emits "ViolationResolved"
-      then_set :resolution, to: :resolution
     end
 
     lifecycle :resolution, default: "open" do

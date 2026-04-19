@@ -105,7 +105,6 @@ Hecks.bluebook "Pricing", version: "2026.04.11.1" do
       emits "PricingPolicyCreated"
       then_set :name, to: :name
       then_set :map_enforcement_level, to: :map_enforcement_level
-      then_set :status, to: "active"
     end
 
     AddPromotionalWindow do
@@ -129,8 +128,8 @@ Hecks.bluebook "Pricing", version: "2026.04.11.1" do
       emits "VolumeTierAdded"
     end
 
-    lifecycle :status, default: "draft" do
-      transition "EstablishPricingPolicy" => "active", from: "draft"
+    lifecycle :status, default: "active" do
+      transition "EstablishPricingPolicy" => "active", from: "active"
     end
   end
 

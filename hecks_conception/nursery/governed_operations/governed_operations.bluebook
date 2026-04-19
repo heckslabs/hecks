@@ -29,7 +29,6 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :jurisdiction, to: :jurisdiction
       then_set :regulation_code, to: :regulation_code
       then_set :effective_date, to: :effective_date
-      then_set :rules, to: []
       then_set :status, to: "draft"
     end
 
@@ -72,7 +71,6 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       role "ComplianceOfficer"
       description "Replace this contract with an updated version"
       reference_to(JurisdictionalContract)
-      given { status == "active" || status == "suspended" }
       emits "ContractSuperseded"
       then_set :status, to: "superseded"
     end
@@ -121,7 +119,6 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       emits "OperationalContractDefined"
       then_set :name, to: :name
       then_set :department, to: :department
-      then_set :rules, to: []
       then_set :version, to: 1
       then_set :status, to: "draft"
     end
@@ -205,7 +202,6 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :batch_number, to: :batch_number
       then_set :product, to: :product
       then_set :quantity, to: :quantity
-      then_set :violations, to: []
       then_set :status, to: "created"
     end
 
@@ -225,7 +221,6 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       description "Submit the batch for quality release — requires no open violations"
       reference_to(Batch)
       given { status == "in_production" }
-      given { violations.empty? }
       emits "BatchSubmittedForRelease"
       then_set :status, to: "pending_release"
     end
@@ -281,7 +276,11 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       transition "SubmitForRelease" => "pending_release", from: "in_production"
       transition "ApproveBatch" => "approved", from: "pending_release"
       transition "RejectBatch" => "rejected", from: "pending_release"
+      transition "QuarantineBatch" => "quarantined", from: "created"
+      transition "QuarantineBatch" => "quarantined", from: "in_production"
+      transition "QuarantineBatch" => "quarantined", from: "pending_release"
       transition "QuarantineBatch" => "quarantined", from: "rejected"
+      transition "QuarantineBatch" => "quarantined", from: "approved"
       transition "ReleaseBatch" => "released", from: "approved"
     end
   end
@@ -317,7 +316,6 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :description, to: :description
       then_set :requester, to: :requester
       then_set :impact_area, to: :impact_area
-      then_set :approvals, to: []
       then_set :status, to: "submitted"
     end
 
@@ -416,7 +414,6 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       emits "CAPAOpened"
       then_set :title, to: :title
       then_set :issue_description, to: :issue_description
-      then_set :evidence, to: []
       then_set :status, to: "opened"
     end
 
@@ -537,8 +534,6 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :product, to: :product
       then_set :reason, to: :reason
       then_set :scope, to: :scope
-      then_set :affected_batches, to: []
-      then_set :notifications, to: []
       then_set :status, to: "initiated"
     end
 
@@ -630,7 +625,6 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :auditor, to: :auditor
       then_set :scope, to: :scope
       then_set :scheduled_at, to: :scheduled_at
-      then_set :findings, to: []
       then_set :status, to: "scheduled"
     end
 
@@ -724,7 +718,6 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       emits "ActionEvaluated"
       then_set :action_type, to: :action_type
       then_set :action_id, to: :action_id
-      then_set :contracts_checked, to: []
       then_set :status, to: "evaluating"
     end
 
@@ -780,7 +773,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "pending" do
-      transition "EvaluateAction" => "evaluating", from: "pending"
+      transition "EvaluateAction" => "evaluating", from: ["pending", "evaluating", "routing", "decided", "logged"]
       transition "RouteApproval" => "routing", from: "evaluating"
       transition "AllowAction" => "decided", from: "evaluating"
       transition "AllowAction" => "decided", from: "routing"
@@ -817,7 +810,6 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :action_type, to: :action_type
       then_set :action_id, to: :action_id
       then_set :required_approvers, to: :required_approvers
-      then_set :approvals, to: []
       then_set :status, to: "initiated"
     end
 

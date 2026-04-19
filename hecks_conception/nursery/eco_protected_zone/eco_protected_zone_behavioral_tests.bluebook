@@ -17,6 +17,7 @@ Hecks.behaviors "EcoProtectedZone" do
 
   test "CloseZone cascades through policy chain" do
     tests "CloseZone", on: "ProtectedArea", kind: :cascade
+    setup  "IssuePermit", permit_type: "sample", valid_from: "sample", valid_until: "sample"
     setup  "DesignateArea", name: "sample", protection_level: "sample", area_sq_km: 1.0
     expect emits: ["ZoneClosed", "PermitRevoked"]
   end
@@ -92,8 +93,9 @@ Hecks.behaviors "EcoProtectedZone" do
 
   test "OpenForensicCase cascades through policy chain" do
     tests "OpenForensicCase", on: "ForensicCase", kind: :cascade
-    setup  "DesignateArea", name: "sample", protection_level: "sample", area_sq_km: 1.0
     setup  "CatalogSpecies", common_name: "sample", scientific_name: "sample", conservation_status: "sample", estimated_population: 1, primary_habitat: "sample"
+    setup  "DesignateArea", name: "sample", protection_level: "sample", area_sq_km: 1.0
+    setup  "IssuePermit", permit_type: "sample", valid_from: "sample", valid_until: "sample"
     input  case_number: "sample", evidence_type: "sample", dna_sample_id: "sample"
     expect emits: ["PoachingDetected", "ZoneClosed", "PermitRevoked", "DNAMatched"]
   end
@@ -136,6 +138,9 @@ Hecks.behaviors "EcoProtectedZone" do
 
   test "RaiseAlert cascades through policy chain" do
     tests "RaiseAlert", on: "HazardZone", kind: :cascade
+    setup  "RegisterVisitor", name: "sample", nationality: "sample"
+    setup  "DesignateArea", name: "sample", protection_level: "sample", area_sq_km: 1.0
+    setup  "IssuePermit", permit_type: "sample", valid_from: "sample", valid_until: "sample"
     setup  "DefineHazardZone", zone_name: "sample", hazard_type: "sample"
     input  alert_level: "sample"
     expect emits: ["EruptionAlert", "VisitorEvacuated", "ZoneClosed", "PermitRevoked"]
@@ -158,6 +163,9 @@ Hecks.behaviors "EcoProtectedZone" do
   test "RecordSeismicActivity cascades through policy chain" do
     tests "RecordSeismicActivity", on: "HazardZone", kind: :cascade
     setup  "DefineHazardZone", zone_name: "sample", hazard_type: "sample"
+    setup  "RegisterVisitor", name: "sample", nationality: "sample"
+    setup  "DesignateArea", name: "sample", protection_level: "sample", area_sq_km: 1.0
+    setup  "IssuePermit", permit_type: "sample", valid_from: "sample", valid_until: "sample"
     input  magnitude: 1.0, depth_km: 1.0
     expect emits: ["SeismicActivityRecorded", "EruptionAlert", "VisitorEvacuated", "ZoneClosed", "PermitRevoked"]
   end

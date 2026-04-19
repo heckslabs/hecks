@@ -19,6 +19,7 @@ Hecks.behaviors "FashionDesign" do
   test "FinalizeCollection cascades through policy chain" do
     tests "FinalizeCollection", on: "Collection", kind: :cascade
     setup  "LaunchCollection", name: "sample", season: "sample", theme: "sample"
+    setup  "PlanShow", venue: "sample", date: "sample"
     input  piece_count: 1
     expect emits: ["CollectionFinalized", "ShowPlanned", "ShowRehearsed", "CollectionShown"]
   end
@@ -26,7 +27,6 @@ Hecks.behaviors "FashionDesign" do
   test "ShowCollection runs" do
     tests "ShowCollection", on: "Collection"
     setup  "LaunchCollection", name: "sample", season: "sample", theme: "sample"
-    setup  "FinalizeCollection", piece_count: 1
     expect status: "shown"
   end
 
@@ -43,6 +43,8 @@ Hecks.behaviors "FashionDesign" do
   test "DraftGarment cascades through policy chain" do
     tests "DraftGarment", on: "Garment", kind: :cascade
     setup  "LaunchCollection", name: "sample", season: "sample", theme: "sample"
+    setup  "DraftPattern", name: "sample", piece_count: 1
+    setup  "ScheduleFitting", model_name: "sample", date: "sample"
     input  name: "sample", garment_type: "sample", fabric: "sample"
     expect emits: ["GarmentDrafted", "PatternDrafted", "PatternGraded", "MuslinSewn", "FittingScheduled"]
   end
@@ -56,20 +58,21 @@ Hecks.behaviors "FashionDesign" do
   test "SewMuslin cascades through policy chain" do
     tests "SewMuslin", on: "Garment", kind: :cascade
     setup  "DraftGarment", name: "sample", garment_type: "sample", fabric: "sample"
+    setup  "ScheduleFitting", model_name: "sample", date: "sample"
     expect emits: ["MuslinSewn", "FittingScheduled"]
   end
 
   test "ProduceGarment runs" do
     tests "ProduceGarment", on: "Garment"
     setup  "DraftGarment", name: "sample", garment_type: "sample", fabric: "sample"
-    setup  "SewMuslin"
     expect status: "produced"
   end
 
   test "ProduceGarment cascades through policy chain" do
     tests "ProduceGarment", on: "Garment", kind: :cascade
     setup  "DraftGarment", name: "sample", garment_type: "sample", fabric: "sample"
-    setup  "SewMuslin"
+    setup  "LaunchCollection", name: "sample", season: "sample", theme: "sample"
+    setup  "PlanShow", venue: "sample", date: "sample"
     expect emits: ["GarmentProduced", "CollectionFinalized", "ShowPlanned", "ShowRehearsed", "CollectionShown"]
   end
 
@@ -86,6 +89,7 @@ Hecks.behaviors "FashionDesign" do
   test "DraftPattern cascades through policy chain" do
     tests "DraftPattern", on: "Pattern", kind: :cascade
     setup  "DraftGarment", name: "sample", garment_type: "sample", fabric: "sample"
+    setup  "ScheduleFitting", model_name: "sample", date: "sample"
     input  name: "sample", piece_count: 1
     expect emits: ["PatternDrafted", "PatternGraded", "MuslinSewn", "FittingScheduled"]
   end
@@ -99,6 +103,8 @@ Hecks.behaviors "FashionDesign" do
   test "GradePattern cascades through policy chain" do
     tests "GradePattern", on: "Pattern", kind: :cascade
     setup  "DraftPattern", name: "sample", piece_count: 1
+    setup  "DraftGarment", name: "sample", garment_type: "sample", fabric: "sample"
+    setup  "ScheduleFitting", model_name: "sample", date: "sample"
     expect emits: ["PatternGraded", "MuslinSewn", "FittingScheduled"]
   end
 
@@ -122,6 +128,9 @@ Hecks.behaviors "FashionDesign" do
   test "RecordAdjustments cascades through policy chain" do
     tests "RecordAdjustments", on: "Fitting", kind: :cascade
     setup  "ScheduleFitting", model_name: "sample", date: "sample"
+    setup  "DraftGarment", name: "sample", garment_type: "sample", fabric: "sample"
+    setup  "LaunchCollection", name: "sample", season: "sample", theme: "sample"
+    setup  "PlanShow", venue: "sample", date: "sample"
     input  notes: "sample"
     expect emits: ["AdjustmentsRecorded", "GarmentProduced", "CollectionFinalized", "ShowPlanned", "ShowRehearsed", "CollectionShown"]
   end
@@ -152,6 +161,7 @@ Hecks.behaviors "FashionDesign" do
   test "RehearsShow cascades through policy chain" do
     tests "RehearsShow", on: "RunwayShow", kind: :cascade
     setup  "PlanShow", venue: "sample", date: "sample"
+    setup  "LaunchCollection", name: "sample", season: "sample", theme: "sample"
     expect emits: ["ShowRehearsed", "CollectionShown"]
   end
 

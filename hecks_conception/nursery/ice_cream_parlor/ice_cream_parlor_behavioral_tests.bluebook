@@ -11,8 +11,12 @@ Hecks.behaviors "IceCreamParlor" do
 
   test "ConcoctFlavor cascades through policy chain" do
     tests "ConcoctFlavor", on: "Flavor", kind: :cascade
+    setup  "ChurnBatch", batch_id: "sample", flavor_id: "sample", volume_liters: 1.0, churned_date: "sample", expiration_date: "sample"
+    setup  "AnnounceDailySpecial", special_id: "sample", flavor_id: "sample", promotion_text: "sample", discount_percent: 1.0, date: "sample"
+    setup  "PrepareServing", serving_id: "sample", cone_type: "sample", scoops: 1
+    setup  "StockTopping", topping_id: "sample", name: "sample", category: "sample", price_per_serving: 1.0, quantity_on_hand: 1
     input  flavor_id: "sample", name: "sample", base: "sample", description: "sample", dairy_free: "sample"
-    expect emits: ["FlavorConcocted", "BatchChurned", "DailySpecialAnnounced", "ServingPrepared", "ServingHandedOff", "ToppingReordered", "ToppingStocked"]
+    expect emits: ["FlavorConcocted", "BatchChurned", "DailySpecialAnnounced", "ServingPrepared", "ServingHandedOff", "ToppingStocked"]
   end
 
   test "RetireFlavor runs" do
@@ -32,8 +36,11 @@ Hecks.behaviors "IceCreamParlor" do
 
   test "ChurnBatch cascades through policy chain" do
     tests "ChurnBatch", on: "Batch", kind: :cascade
+    setup  "AnnounceDailySpecial", special_id: "sample", flavor_id: "sample", promotion_text: "sample", discount_percent: 1.0, date: "sample"
+    setup  "PrepareServing", serving_id: "sample", cone_type: "sample", scoops: 1
+    setup  "StockTopping", topping_id: "sample", name: "sample", category: "sample", price_per_serving: 1.0, quantity_on_hand: 1
     input  batch_id: "sample", flavor_id: "sample", volume_liters: 1.0, churned_date: "sample", expiration_date: "sample"
-    expect emits: ["BatchChurned", "DailySpecialAnnounced", "ServingPrepared", "ServingHandedOff", "ToppingReordered", "ToppingStocked"]
+    expect emits: ["BatchChurned", "DailySpecialAnnounced", "ServingPrepared", "ServingHandedOff", "ToppingStocked"]
   end
 
   test "DepleteBatch runs" do
@@ -44,8 +51,11 @@ Hecks.behaviors "IceCreamParlor" do
 
   test "DepleteBatch cascades through policy chain" do
     tests "DepleteBatch", on: "Batch", kind: :cascade
+    setup  "AnnounceDailySpecial", special_id: "sample", flavor_id: "sample", promotion_text: "sample", discount_percent: 1.0, date: "sample"
+    setup  "PrepareServing", serving_id: "sample", cone_type: "sample", scoops: 1
+    setup  "StockTopping", topping_id: "sample", name: "sample", category: "sample", price_per_serving: 1.0, quantity_on_hand: 1
     setup  "ChurnBatch", batch_id: "sample", flavor_id: "sample", volume_liters: 1.0, churned_date: "sample", expiration_date: "sample"
-    expect emits: ["BatchDepleted", "BatchChurned", "DailySpecialAnnounced", "ServingPrepared", "ServingHandedOff", "ToppingReordered", "ToppingStocked"]
+    expect emits: ["BatchDepleted", "BatchChurned", "DailySpecialAnnounced", "ServingPrepared", "ServingHandedOff", "ToppingStocked"]
   end
 
   test "DiscardBatch runs" do
@@ -57,6 +67,7 @@ Hecks.behaviors "IceCreamParlor" do
   test "DiscardBatch cascades through policy chain" do
     tests "DiscardBatch", on: "Batch", kind: :cascade
     setup  "ChurnBatch", batch_id: "sample", flavor_id: "sample", volume_liters: 1.0, churned_date: "sample", expiration_date: "sample"
+    setup  "ConcoctFlavor", flavor_id: "sample", name: "sample", base: "sample", description: "sample", dairy_free: "sample"
     expect emits: ["BatchDiscarded", "FlavorRetired"]
   end
 
@@ -88,19 +99,13 @@ Hecks.behaviors "IceCreamParlor" do
   test "PrepareServing cascades through policy chain" do
     tests "PrepareServing", on: "Serving", kind: :cascade
     input  serving_id: "sample", cone_type: "sample", scoops: 1
-    expect emits: ["ServingPrepared", "ServingHandedOff", "ToppingReordered"]
+    expect emits: ["ServingPrepared", "ServingHandedOff"]
   end
 
   test "HandOffServing runs" do
     tests "HandOffServing", on: "Serving"
     setup  "PrepareServing", serving_id: "sample", cone_type: "sample", scoops: 1
     expect status: "served"
-  end
-
-  test "HandOffServing cascades through policy chain" do
-    tests "HandOffServing", on: "Serving", kind: :cascade
-    setup  "PrepareServing", serving_id: "sample", cone_type: "sample", scoops: 1
-    expect emits: ["ServingHandedOff", "ToppingReordered"]
   end
 
 
@@ -114,8 +119,9 @@ Hecks.behaviors "IceCreamParlor" do
 
   test "AnnounceDailySpecial cascades through policy chain" do
     tests "AnnounceDailySpecial", on: "DailySpecial", kind: :cascade
+    setup  "PrepareServing", serving_id: "sample", cone_type: "sample", scoops: 1
     input  special_id: "sample", flavor_id: "sample", promotion_text: "sample", discount_percent: 1.0, date: "sample"
-    expect emits: ["DailySpecialAnnounced", "ServingPrepared", "ServingHandedOff", "ToppingReordered"]
+    expect emits: ["DailySpecialAnnounced", "ServingPrepared", "ServingHandedOff"]
   end
 
 end

@@ -246,19 +246,9 @@ Hecks.bluebook "SecurePayments", version: "2026.04.13.1" do
     trigger "SettleTransaction"
   end
 
-  policy "FraudCheckOnSign" do
-    on "TransactionSigned"
-    trigger "RaiseFraudAlert"
-  end
-
   policy "InvestigateOnAlert" do
     on "FraudAlertRaised"
     trigger "InvestigateAlert"
-  end
-
-  policy "AuditOnSettle" do
-    on "TransactionSettled"
-    trigger "RecordAuditEntry"
   end
 
   # === Fixtures ===

@@ -11,6 +11,7 @@ Hecks.behaviors "PoolMaintenance" do
 
   test "RegisterPool cascades through policy chain" do
     tests "RegisterPool", on: "Pool", kind: :cascade
+    setup  "BuildRoute", tech_name: "sample", route_day: "sample", pool_count: 1
     input  owner_name: "sample", address: "sample", pool_type: "sample", gallons: 1.0, surface_type: "sample", sanitizer_type: "sample"
     expect emits: ["PoolRegistered", "PoolAddedToRoute"]
   end
@@ -30,6 +31,9 @@ Hecks.behaviors "PoolMaintenance" do
   test "OpenPool cascades through policy chain" do
     tests "OpenPool", on: "Pool", kind: :cascade
     setup  "RegisterPool", owner_name: "sample", address: "sample", pool_type: "sample", gallons: 1.0, surface_type: "sample", sanitizer_type: "sample"
+    setup  "TakeReading", ph: 1.0, free_chlorine: 1.0, total_alkalinity: 1.0, calcium_hardness: 1.0, cya: 1.0
+    setup  "InstallEquipment", equipment_type: "sample", brand: "sample", model: "sample"
+    setup  "OpenRepairTicket", problem_description: "sample"
     expect emits: ["PoolOpened", "ReadingTaken", "ChemicalsDosed", "EquipmentServiced", "RepairTicketOpened"]
   end
 
@@ -46,6 +50,8 @@ Hecks.behaviors "PoolMaintenance" do
   test "TakeReading cascades through policy chain" do
     tests "TakeReading", on: "ChemicalReading", kind: :cascade
     setup  "RegisterPool", owner_name: "sample", address: "sample", pool_type: "sample", gallons: 1.0, surface_type: "sample", sanitizer_type: "sample"
+    setup  "InstallEquipment", equipment_type: "sample", brand: "sample", model: "sample"
+    setup  "OpenRepairTicket", problem_description: "sample"
     input  ph: 1.0, free_chlorine: 1.0, total_alkalinity: 1.0, calcium_hardness: 1.0, cya: 1.0
     expect emits: ["ReadingTaken", "ChemicalsDosed", "EquipmentServiced", "RepairTicketOpened"]
   end
@@ -77,6 +83,8 @@ Hecks.behaviors "PoolMaintenance" do
   test "ServiceEquipment cascades through policy chain" do
     tests "ServiceEquipment", on: "PoolEquipment", kind: :cascade
     setup  "InstallEquipment", equipment_type: "sample", brand: "sample", model: "sample"
+    setup  "OpenRepairTicket", problem_description: "sample"
+    setup  "RegisterPool", owner_name: "sample", address: "sample", pool_type: "sample", gallons: 1.0, surface_type: "sample", sanitizer_type: "sample"
     input  service_performed: "sample"
     expect emits: ["EquipmentServiced", "RepairTicketOpened"]
   end
@@ -116,6 +124,7 @@ Hecks.behaviors "PoolMaintenance" do
 
   test "CompleteRepair cascades through policy chain" do
     tests "CompleteRepair", on: "RepairTicket", kind: :cascade
+    setup  "RegisterPool", owner_name: "sample", address: "sample", pool_type: "sample", gallons: 1.0, surface_type: "sample", sanitizer_type: "sample"
     setup  "OpenRepairTicket", problem_description: "sample"
     input  diagnosis: "sample", repair_cost: 1.0
     expect emits: ["RepairCompleted", "PoolMietteized"]

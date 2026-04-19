@@ -5,14 +5,19 @@ Hecks.behaviors "Cryptography" do
 
   test "GenerateKeyPair sets algorithm + key_length_bits + owner" do
     tests "GenerateKeyPair", on: "KeyPair"
+    setup  "RegisterCipher", cipher_name: "sample", cipher_type: "sample", block_size_bits: 1
     input  algorithm: "sample", key_length_bits: 1, owner: "sample"
     expect ok: "true"
   end
 
   test "GenerateKeyPair cascades through policy chain" do
     tests "GenerateKeyPair", on: "KeyPair", kind: :cascade
+    setup  "RegisterCipher", cipher_name: "sample", cipher_type: "sample", block_size_bits: 1
+    setup  "IssueCertificate", subject: "sample", valid_from: "sample", valid_to: "sample"
+    setup  "EncryptMessage", plaintext: "sample"
+    setup  "SignMessage", message_hash: "sample", hash_algorithm: "sample"
     input  algorithm: "sample", key_length_bits: 1, owner: "sample"
-    expect emits: ["KeyPairGenerated", "CertificateIssued", "CipherBenchmarked", "MessageEncrypted", "MessageSigned", "SignatureVerified"]
+    expect emits: ["KeyPairGenerated", "CertificateIssued", "CipherBenchmarked", "MessageEncrypted", "MessageSigned"]
   end
 
   test "RevokeKey sets revocation_reason" do
@@ -52,18 +57,22 @@ Hecks.behaviors "Cryptography" do
   test "BenchmarkCipher cascades through policy chain" do
     tests "BenchmarkCipher", on: "Cipher", kind: :cascade
     setup  "RegisterCipher", cipher_name: "sample", cipher_type: "sample", block_size_bits: 1
-    expect emits: ["CipherBenchmarked", "MessageEncrypted", "MessageSigned", "SignatureVerified"]
+    setup  "EncryptMessage", plaintext: "sample"
+    setup  "GenerateKeyPair", algorithm: "sample", key_length_bits: 1, owner: "sample"
+    setup  "SignMessage", message_hash: "sample", hash_algorithm: "sample"
+    expect emits: ["CipherBenchmarked", "MessageEncrypted", "MessageSigned"]
   end
 
   test "DesignateReplacement runs" do
     tests "DesignateReplacement", on: "Cipher"
     setup  "RegisterCipher", cipher_name: "sample", cipher_type: "sample", block_size_bits: 1
-    expect ok: "true"
+    expect replacement_available: true
   end
 
   test "DeprecateCipher runs" do
     tests "DeprecateCipher", on: "Cipher"
     setup  "RegisterCipher", cipher_name: "sample", cipher_type: "sample", block_size_bits: 1
+    setup  "DesignateReplacement"
     expect ok: "true"
   end
 
@@ -80,21 +89,23 @@ Hecks.behaviors "Cryptography" do
 
   test "EncryptMessage cascades through policy chain" do
     tests "EncryptMessage", on: "EncryptedMessage", kind: :cascade
-    setup  "RegisterCipher", cipher_name: "sample", cipher_type: "sample", block_size_bits: 1
     setup  "GenerateKeyPair", algorithm: "sample", key_length_bits: 1, owner: "sample"
+    setup  "RegisterCipher", cipher_name: "sample", cipher_type: "sample", block_size_bits: 1
+    setup  "SignMessage", message_hash: "sample", hash_algorithm: "sample"
     input  plaintext: "sample"
-    expect emits: ["MessageEncrypted", "MessageSigned", "SignatureVerified"]
+    expect emits: ["MessageEncrypted", "MessageSigned"]
   end
 
   test "MatchDecryptionKey runs" do
     tests "MatchDecryptionKey", on: "EncryptedMessage"
     setup  "EncryptMessage", plaintext: "sample"
-    expect ok: "true"
+    expect decryption_key_matched: true
   end
 
   test "DecryptMessage runs" do
     tests "DecryptMessage", on: "EncryptedMessage"
     setup  "EncryptMessage", plaintext: "sample"
+    setup  "MatchDecryptionKey"
     expect ok: "true"
   end
 
@@ -108,22 +119,16 @@ Hecks.behaviors "Cryptography" do
     expect ok: "true"
   end
 
-  test "SignMessage cascades through policy chain" do
-    tests "SignMessage", on: "DigitalSignature", kind: :cascade
-    setup  "GenerateKeyPair", algorithm: "sample", key_length_bits: 1, owner: "sample"
-    input  message_hash: "sample", hash_algorithm: "sample"
-    expect emits: ["MessageSigned", "SignatureVerified"]
-  end
-
   test "ValidateSigningKey runs" do
     tests "ValidateSigningKey", on: "DigitalSignature"
     setup  "SignMessage", message_hash: "sample", hash_algorithm: "sample"
-    expect ok: "true"
+    expect signing_key_valid: true
   end
 
   test "VerifySignature runs" do
     tests "VerifySignature", on: "DigitalSignature"
     setup  "SignMessage", message_hash: "sample", hash_algorithm: "sample"
+    setup  "ValidateSigningKey"
     expect ok: "true"
   end
 
@@ -132,6 +137,7 @@ Hecks.behaviors "Cryptography" do
 
   test "IssueCertificate sets subject + valid_from + valid_to" do
     tests "IssueCertificate", on: "Certificate"
+    setup  "RegisterCipher", cipher_name: "sample", cipher_type: "sample", block_size_bits: 1
     setup  "GenerateKeyPair", algorithm: "sample", key_length_bits: 1, owner: "sample"
     input  subject: "sample", valid_from: "sample", valid_to: "sample"
     expect ok: "true"
@@ -140,8 +146,11 @@ Hecks.behaviors "Cryptography" do
   test "IssueCertificate cascades through policy chain" do
     tests "IssueCertificate", on: "Certificate", kind: :cascade
     setup  "GenerateKeyPair", algorithm: "sample", key_length_bits: 1, owner: "sample"
+    setup  "RegisterCipher", cipher_name: "sample", cipher_type: "sample", block_size_bits: 1
+    setup  "EncryptMessage", plaintext: "sample"
+    setup  "SignMessage", message_hash: "sample", hash_algorithm: "sample"
     input  subject: "sample", valid_from: "sample", valid_to: "sample"
-    expect emits: ["CertificateIssued", "CipherBenchmarked", "MessageEncrypted", "MessageSigned", "SignatureVerified"]
+    expect emits: ["CertificateIssued", "CipherBenchmarked", "MessageEncrypted", "MessageSigned"]
   end
 
   test "RenewCertificate runs" do
@@ -152,6 +161,7 @@ Hecks.behaviors "Cryptography" do
 
   test "RevokeCertificate sets reason" do
     tests "RevokeCertificate", on: "Certificate"
+    setup  "GenerateKeyPair", algorithm: "sample", key_length_bits: 1, owner: "sample"
     setup  "IssueCertificate", subject: "sample", valid_from: "sample", valid_to: "sample"
     input  reason: "sample"
     expect ok: "true"
@@ -160,6 +170,7 @@ Hecks.behaviors "Cryptography" do
   test "RevokeCertificate cascades through policy chain" do
     tests "RevokeCertificate", on: "Certificate", kind: :cascade
     setup  "IssueCertificate", subject: "sample", valid_from: "sample", valid_to: "sample"
+    setup  "GenerateKeyPair", algorithm: "sample", key_length_bits: 1, owner: "sample"
     input  reason: "sample"
     expect emits: ["CertificateRevoked", "KeyRevoked"]
   end

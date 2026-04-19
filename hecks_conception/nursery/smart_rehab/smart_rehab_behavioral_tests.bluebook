@@ -50,6 +50,8 @@ Hecks.behaviors "SmartRehab" do
   test "ReadSensor cascades through policy chain" do
     tests "ReadSensor", on: "WearableSensor", kind: :cascade
     setup  "PairSensor", device_id: "sample", patient_id: "sample", sensor_type: "sample"
+    setup  "GenerateReport", report_id: "sample", patient_id: "sample", range_of_motion: 1.0, pain_score: 1.0, sensor_summary: "sample"
+    setup  "PrescribeProgram", program_id: "sample", patient_id: "sample", frequency: "sample"
     input  battery_level: 1.0
     expect emits: ["SensorRead", "ReportGenerated", "ProgramAdjusted"]
   end
@@ -65,6 +67,7 @@ Hecks.behaviors "SmartRehab" do
 
   test "GenerateReport cascades through policy chain" do
     tests "GenerateReport", on: "ProgressReport", kind: :cascade
+    setup  "PrescribeProgram", program_id: "sample", patient_id: "sample", frequency: "sample"
     input  report_id: "sample", patient_id: "sample", range_of_motion: 1.0, pain_score: 1.0, sensor_summary: "sample"
     expect emits: ["ReportGenerated", "ProgramAdjusted"]
   end

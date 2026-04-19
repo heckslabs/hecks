@@ -43,12 +43,11 @@ Hecks.bluebook "ApplianceRepair" do
       goal "Mark the repair as complete and collect payment"
       description "Close the ticket after successful repair and testing"
       reference_to(RepairTicket)
-      given("must be repaired") { status == "repaired" }
       emits "TicketClosed"
     end
 
     lifecycle :status, default: "scheduled" do
-      transition "PartInstalled" => "repaired", from: "scheduled"
+      transition "CloseTicket" => "closed", from: "scheduled"
     end
   end
 

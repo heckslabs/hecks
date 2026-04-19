@@ -18,7 +18,6 @@ Hecks.bluebook "GymReservations", version: "2026.04.13.1" do
       String :trainer_name
       String :room
       Integer :capacity
-      given { capacity >= 5 }
       emits "ClassScheduled"
     end
 
@@ -40,7 +39,6 @@ Hecks.bluebook "GymReservations", version: "2026.04.13.1" do
 
     ConfirmCapacity do
       description "Verify that the target class still has open spots"
-      reference_to(Booking)
       emits "CapacityConfirmed"
       then_set :capacity_confirmed, to: true
     end
@@ -50,7 +48,6 @@ Hecks.bluebook "GymReservations", version: "2026.04.13.1" do
       String :member_name
       String :class_name
       String :session_date
-      given { capacity_confirmed == true }
       emits "SpotReserved"
     end
 

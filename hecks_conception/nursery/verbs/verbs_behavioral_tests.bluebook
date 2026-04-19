@@ -39,8 +39,8 @@ Hecks.behaviors "Verbs" do
 
   # ── NonVerbSuffix aggregate ──────────────────────────────────────────
 
-  test "RegisterSuffix sets suffix + part_of_speech" do
-    tests "RegisterSuffix", on: "NonVerbSuffix"
+  test "RegisterNonVerbSuffix sets suffix + part_of_speech" do
+    tests "RegisterNonVerbSuffix", on: "NonVerbSuffix"
     input  suffix: "sample", part_of_speech: "sample"
     expect suffix: "sample", part_of_speech: "sample"
   end
@@ -72,6 +72,7 @@ Hecks.behaviors "Verbs" do
 
   test "AcceptVerb cascades through policy chain" do
     tests "AcceptVerb", on: "Validation", kind: :cascade
+    setup  "RegisterVerb", verb: "sample"
     setup  "ValidateCommandVerb", word: "sample"
     input  word: "sample", reason: "sample"
     expect emits: ["VerbAccepted", "VerbLearned"]

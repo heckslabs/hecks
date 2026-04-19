@@ -11,6 +11,8 @@ Hecks.behaviors "SolarInstaller" do
 
   test "SurveySite cascades through policy chain" do
     tests "SurveySite", on: "SiteSurvey", kind: :cascade
+    setup  "DesignLayout", panel_count: 1, module_model: "sample", system_kw: 1.0, tilt_degrees: 1.0
+    setup  "SubmitPermit", jurisdiction: "sample", plan_set_version: "sample"
     input  customer_name: "sample", address: "sample", roof_sqft: 1.0, roof_orientation: "sample", annual_kwh_usage: 1.0
     expect emits: ["SiteSurveyed", "ShadingAnalyzed", "LayoutDesigned", "ProductionCalculated", "PermitSubmitted"]
   end
@@ -25,6 +27,8 @@ Hecks.behaviors "SolarInstaller" do
   test "AnalyzeShading cascades through policy chain" do
     tests "AnalyzeShading", on: "SiteSurvey", kind: :cascade
     setup  "SurveySite", customer_name: "sample", address: "sample", roof_sqft: 1.0, roof_orientation: "sample", annual_kwh_usage: 1.0
+    setup  "DesignLayout", panel_count: 1, module_model: "sample", system_kw: 1.0, tilt_degrees: 1.0
+    setup  "SubmitPermit", jurisdiction: "sample", plan_set_version: "sample"
     input  shading_analysis: "sample"
     expect emits: ["ShadingAnalyzed", "LayoutDesigned", "ProductionCalculated", "PermitSubmitted"]
   end
@@ -42,6 +46,7 @@ Hecks.behaviors "SolarInstaller" do
   test "DesignLayout cascades through policy chain" do
     tests "DesignLayout", on: "PanelLayout", kind: :cascade
     setup  "SurveySite", customer_name: "sample", address: "sample", roof_sqft: 1.0, roof_orientation: "sample", annual_kwh_usage: 1.0
+    setup  "SubmitPermit", jurisdiction: "sample", plan_set_version: "sample"
     input  panel_count: 1, module_model: "sample", system_kw: 1.0, tilt_degrees: 1.0
     expect emits: ["LayoutDesigned", "ProductionCalculated", "PermitSubmitted"]
   end
@@ -78,6 +83,9 @@ Hecks.behaviors "SolarInstaller" do
 
   test "ReceiveApproval cascades through policy chain" do
     tests "ReceiveApproval", on: "SolarPermit", kind: :cascade
+    setup  "ScheduleInstallation", crew_lead: "sample", install_date: "sample"
+    setup  "DesignLayout", panel_count: 1, module_model: "sample", system_kw: 1.0, tilt_degrees: 1.0
+    setup  "ScheduleInspection", inspection_type: "sample"
     setup  "SubmitPermit", jurisdiction: "sample", plan_set_version: "sample"
     input  permit_number: "sample"
     expect emits: ["PermitApproved", "InstallationScheduled", "InstallationCompleted", "InspectionScheduled"]
@@ -96,6 +104,7 @@ Hecks.behaviors "SolarInstaller" do
   test "ScheduleInstallation cascades through policy chain" do
     tests "ScheduleInstallation", on: "SolarInstallation", kind: :cascade
     setup  "DesignLayout", panel_count: 1, module_model: "sample", system_kw: 1.0, tilt_degrees: 1.0
+    setup  "ScheduleInspection", inspection_type: "sample"
     input  crew_lead: "sample", install_date: "sample"
     expect emits: ["InstallationScheduled", "InstallationCompleted", "InspectionScheduled"]
   end
@@ -110,6 +119,7 @@ Hecks.behaviors "SolarInstaller" do
   test "CompleteInstallation cascades through policy chain" do
     tests "CompleteInstallation", on: "SolarInstallation", kind: :cascade
     setup  "ScheduleInstallation", crew_lead: "sample", install_date: "sample"
+    setup  "ScheduleInspection", inspection_type: "sample"
     input  inverter_model: "sample"
     expect emits: ["InstallationCompleted", "InspectionScheduled"]
   end

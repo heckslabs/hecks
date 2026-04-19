@@ -337,35 +337,35 @@ Hecks.behaviors "Cosmology" do
 
   # ── CosmicStructure aggregate ──────────────────────────────────────────
 
-  test "MapFilament sets name + structure_type + scale" do
+  test "MapFilament sets name + scale" do
     tests "MapFilament", on: "CosmicStructure"
-    input  name: "sample", structure_type: "sample", scale: 1.0
+    input  name: "sample", scale: 1.0
     expect name: "sample", structure_type: "filament", scale: 1.0
   end
 
   test "IdentifyVoid sets density_contrast" do
     tests "IdentifyVoid", on: "CosmicStructure"
-    setup  "MapFilament", name: "sample", structure_type: "sample", scale: 1.0
+    setup  "MapFilament", name: "sample", scale: 1.0
     input  density_contrast: 1.0
     expect density_contrast: 1.0
   end
 
   test "DetectCluster sets mass" do
     tests "DetectCluster", on: "CosmicStructure"
-    setup  "MapFilament", name: "sample", structure_type: "sample", scale: 1.0
+    setup  "MapFilament", name: "sample", scale: 1.0
     input  mass: 1.0
     expect mass: 1.0
   end
 
   test "SimulateStructureFormation runs" do
     tests "SimulateStructureFormation", on: "CosmicStructure"
-    setup  "MapFilament", name: "sample", structure_type: "sample", scale: 1.0
+    setup  "MapFilament", name: "sample", scale: 1.0
     expect ok: "true"
   end
 
   test "MeasureCorrelation sets correlation_length" do
     tests "MeasureCorrelation", on: "CosmicStructure"
-    setup  "MapFilament", name: "sample", structure_type: "sample", scale: 1.0
+    setup  "MapFilament", name: "sample", scale: 1.0
     input  correlation_length: 1.0
     expect correlation_length: 1.0
   end

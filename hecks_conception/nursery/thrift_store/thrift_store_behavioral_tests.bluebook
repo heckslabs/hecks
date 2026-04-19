@@ -11,6 +11,10 @@ Hecks.behaviors "ThriftStore" do
 
   test "ReceiveDonation cascades through policy chain" do
     tests "ReceiveDonation", on: "Donation", kind: :cascade
+    setup  "PriceItem", item_id: "sample", description: "sample", category: "sample", condition: "sample", price: 1.0
+    setup  "ArrangeDisplay", display_id: "sample", theme: "sample", location: "sample"
+    setup  "LaunchSale", sale_id: "sample", name: "sample", discount_type: "sample", discount_amount: 1.0, start_date: "sample", end_date: "sample"
+    setup  "EnrollVolunteer", volunteer_id: "sample", name: "sample", phone: "sample", availability: "sample"
     input  donation_id: "sample", donor_name: "sample", received_date: "sample", item_count: 1
     expect emits: ["DonationReceived", "TaxReceiptIssued", "DonationSorted", "ItemPriced", "DisplayArranged", "ItemSold", "DisplayRotated", "SaleLaunched", "ShiftLogged"]
   end
@@ -23,6 +27,10 @@ Hecks.behaviors "ThriftStore" do
 
   test "SortDonation cascades through policy chain" do
     tests "SortDonation", on: "Donation", kind: :cascade
+    setup  "PriceItem", item_id: "sample", description: "sample", category: "sample", condition: "sample", price: 1.0
+    setup  "ArrangeDisplay", display_id: "sample", theme: "sample", location: "sample"
+    setup  "LaunchSale", sale_id: "sample", name: "sample", discount_type: "sample", discount_amount: 1.0, start_date: "sample", end_date: "sample"
+    setup  "EnrollVolunteer", volunteer_id: "sample", name: "sample", phone: "sample", availability: "sample"
     setup  "ReceiveDonation", donation_id: "sample", donor_name: "sample", received_date: "sample", item_count: 1
     expect emits: ["DonationSorted", "ItemPriced", "DisplayArranged", "ItemSold", "DisplayRotated", "SaleLaunched", "ShiftLogged"]
   end
@@ -44,6 +52,8 @@ Hecks.behaviors "ThriftStore" do
 
   test "PriceItem cascades through policy chain" do
     tests "PriceItem", on: "PricedItem", kind: :cascade
+    setup  "ArrangeDisplay", display_id: "sample", theme: "sample", location: "sample"
+    setup  "LaunchSale", sale_id: "sample", name: "sample", discount_type: "sample", discount_amount: 1.0, start_date: "sample", end_date: "sample"
     input  item_id: "sample", description: "sample", category: "sample", condition: "sample", price: 1.0
     expect emits: ["ItemPriced", "DisplayArranged", "ItemSold", "DisplayRotated", "SaleLaunched"]
   end
@@ -56,6 +66,7 @@ Hecks.behaviors "ThriftStore" do
 
   test "SellItem cascades through policy chain" do
     tests "SellItem", on: "PricedItem", kind: :cascade
+    setup  "ArrangeDisplay", display_id: "sample", theme: "sample", location: "sample"
     setup  "PriceItem", item_id: "sample", description: "sample", category: "sample", condition: "sample", price: 1.0
     expect emits: ["ItemSold", "DisplayRotated"]
   end
@@ -71,6 +82,8 @@ Hecks.behaviors "ThriftStore" do
 
   test "ArrangeDisplay cascades through policy chain" do
     tests "ArrangeDisplay", on: "StoreDisplay", kind: :cascade
+    setup  "PriceItem", item_id: "sample", description: "sample", category: "sample", condition: "sample", price: 1.0
+    setup  "LaunchSale", sale_id: "sample", name: "sample", discount_type: "sample", discount_amount: 1.0, start_date: "sample", end_date: "sample"
     input  display_id: "sample", theme: "sample", location: "sample"
     expect emits: ["DisplayArranged", "ItemSold", "DisplayRotated", "SaleLaunched"]
   end
@@ -114,6 +127,7 @@ Hecks.behaviors "ThriftStore" do
 
   test "EndSale cascades through policy chain" do
     tests "EndSale", on: "SaleEvent", kind: :cascade
+    setup  "PriceItem", item_id: "sample", description: "sample", category: "sample", condition: "sample", price: 1.0
     setup  "LaunchSale", sale_id: "sample", name: "sample", discount_type: "sample", discount_amount: 1.0, start_date: "sample", end_date: "sample"
     expect emits: ["SaleEnded", "ItemMarkedDown"]
   end

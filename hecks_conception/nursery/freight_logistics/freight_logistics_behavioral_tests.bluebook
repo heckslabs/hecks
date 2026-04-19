@@ -11,6 +11,9 @@ Hecks.behaviors "FreightLogistics" do
 
   test "BookShipment cascades through policy chain" do
     tests "BookShipment", on: "Shipment", kind: :cascade
+    setup  "PlanRoute", origin: "sample", destination: "sample", distance_miles: 1.0, estimated_hours: 1
+    setup  "FileClearance", declaration_number: "sample", country_of_origin: "sample", tariff_code: "sample", declared_value: 1.0
+    setup  "RecordTrackingEvent", location: "sample", event_type: "sample", timestamp: "sample"
     input  tracking_number: "sample", origin: "sample", destination: "sample", weight_kg: 1.0, pallet_count: 1, commodity_type: "sample"
     expect emits: ["ShipmentBooked", "RoutePlanned", "ShipmentDispatched", "ClearanceFiled", "TrackingEventRecorded"]
   end
@@ -23,6 +26,8 @@ Hecks.behaviors "FreightLogistics" do
 
   test "DispatchShipment cascades through policy chain" do
     tests "DispatchShipment", on: "Shipment", kind: :cascade
+    setup  "FileClearance", declaration_number: "sample", country_of_origin: "sample", tariff_code: "sample", declared_value: 1.0
+    setup  "RecordTrackingEvent", location: "sample", event_type: "sample", timestamp: "sample"
     setup  "BookShipment", tracking_number: "sample", origin: "sample", destination: "sample", weight_kg: 1.0, pallet_count: 1, commodity_type: "sample"
     expect emits: ["ShipmentDispatched", "ClearanceFiled", "TrackingEventRecorded"]
   end
@@ -69,6 +74,8 @@ Hecks.behaviors "FreightLogistics" do
   test "PlanRoute cascades through policy chain" do
     tests "PlanRoute", on: "Route", kind: :cascade
     setup  "BookShipment", tracking_number: "sample", origin: "sample", destination: "sample", weight_kg: 1.0, pallet_count: 1, commodity_type: "sample"
+    setup  "FileClearance", declaration_number: "sample", country_of_origin: "sample", tariff_code: "sample", declared_value: 1.0
+    setup  "RecordTrackingEvent", location: "sample", event_type: "sample", timestamp: "sample"
     input  origin: "sample", destination: "sample", distance_miles: 1.0, estimated_hours: 1
     expect emits: ["RoutePlanned", "ShipmentDispatched", "ClearanceFiled", "TrackingEventRecorded"]
   end
@@ -99,6 +106,9 @@ Hecks.behaviors "FreightLogistics" do
 
   test "ApproveClearance cascades through policy chain" do
     tests "ApproveClearance", on: "CustomsClearance", kind: :cascade
+    setup  "RecordTrackingEvent", location: "sample", event_type: "sample", timestamp: "sample"
+    setup  "BookShipment", tracking_number: "sample", origin: "sample", destination: "sample", weight_kg: 1.0, pallet_count: 1, commodity_type: "sample"
+    setup  "DispatchShipment"
     setup  "FileClearance", declaration_number: "sample", country_of_origin: "sample", tariff_code: "sample", declared_value: 1.0
     input  duty_amount: 1.0
     expect emits: ["ClearanceApproved", "TrackingEventRecorded", "ShipmentDelivered"]
@@ -112,6 +122,7 @@ Hecks.behaviors "FreightLogistics" do
 
   test "HoldForInspection cascades through policy chain" do
     tests "HoldForInspection", on: "CustomsClearance", kind: :cascade
+    setup  "RecordTrackingEvent", location: "sample", event_type: "sample", timestamp: "sample"
     setup  "FileClearance", declaration_number: "sample", country_of_origin: "sample", tariff_code: "sample", declared_value: 1.0
     expect emits: ["ShipmentHeld", "DelayFlagged"]
   end

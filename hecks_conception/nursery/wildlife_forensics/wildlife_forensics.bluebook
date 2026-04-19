@@ -253,11 +253,6 @@ Hecks.bluebook "WildlifeForensics", version: "2026.04.13.1" do
     trigger "AnalyzeEvidence"
   end
 
-  policy "ExtractDNAOnAnalyze" do
-    on "EvidenceAnalyzed"
-    trigger "ExtractDNA"
-  end
-
   policy "SequenceOnExtract" do
     on "DNAExtracted"
     trigger "SequenceDNA"
@@ -268,13 +263,4 @@ Hecks.bluebook "WildlifeForensics", version: "2026.04.13.1" do
     trigger "MatchDatabase"
   end
 
-  policy "IdentifyOnMatch" do
-    on "DatabaseMatched"
-    trigger "IdentifySpecies"
-  end
-
-  policy "LinkEvidenceOnIdentify" do
-    on "SpeciesIdentified"
-    trigger "LinkEvidence"
-  end
 end

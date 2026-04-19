@@ -160,13 +160,4 @@ Hecks.bluebook "Demand", version: "2026.04.11.1" do
   fixture "ReorderRecommendation", sku: "MK-HL-16OZ", recommended_quantity: 3000, economic_order_quantity: 2500, lead_time_days: 21, safety_stock_units: 400, reorder_date: "2026-04-25", status: "approved"
   fixture "ReorderRecommendation", sku: "S50-RE-32OZ", recommended_quantity: 1000, economic_order_quantity: 1500, lead_time_days: 28, safety_stock_units: 300, reorder_date: "2026-05-01", status: "rejected"
 
-  policy "ForecastOnSignal" do
-    on "DemandSignalCaptured"
-    trigger "GenerateForecast"
-  end
-
-  policy "ReorderOnForecast" do
-    on "ForecastGenerated"
-    trigger "GenerateReorderRecommendation"
-  end
 end

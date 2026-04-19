@@ -201,11 +201,6 @@ Hecks.bluebook "IceCreamParlor", version: "2026.04.13.1" do
     trigger "HandOffServing"
   end
 
-  policy "ReorderOnLowToppings" do
-    on "ServingHandedOff"
-    trigger "ReorderTopping"
-  end
-
   policy "ChurnOnDepletion" do
     on "BatchDepleted"
     trigger "ChurnBatch"

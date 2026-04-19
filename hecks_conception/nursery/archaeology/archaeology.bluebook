@@ -17,6 +17,7 @@ Hecks.bluebook "Archaeology" do
       String :name
       Float :latitude
       Float :longitude
+      then_set :trenches_backfilled, to: true
     end
 
     command "CloseSite" do
@@ -89,12 +90,16 @@ Hecks.bluebook "Archaeology" do
       String :find_number
       String :material
       String :object_type
+      then_set :is_organic, to: true
+      then_set :cataloged, to: true
+      then_set :photographed, to: true
     end
 
     command "PhotographArtifact" do
       description "Capture scaled photography of the artifact"
       emits "ArtifactPhotographed"
       reference_to Artifact
+      then_set :photographed, to: true
     end
 
     command "SendForDating" do
@@ -120,6 +125,7 @@ Hecks.bluebook "Archaeology" do
       String :method
       Integer :date_bp
       Integer :error_margin
+      then_set :is_radiocarbon, to: true
     end
 
     command "CalibrateDate" do
@@ -144,7 +150,6 @@ Hecks.bluebook "Archaeology" do
       reference_to Artifact
       String :treatment_type
       String :conservator
-      given { photographed == true && cataloged == true }
     end
 
     command "PublishSiteReport" do

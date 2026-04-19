@@ -11,6 +11,7 @@ Hecks.behaviors "PropertyManagement" do
 
   test "ListUnit cascades through policy chain" do
     tests "ListUnit", on: "RentalUnit", kind: :cascade
+    setup  "ScreenTenant", first_name: "sample", last_name: "sample", phone: "sample", email: "sample", monthly_income: 1.0
     input  unit_number: "sample", address: "sample", unit_type: "sample", bedrooms: 1, monthly_rent: 1.0
     expect emits: ["UnitListed", "TenantScreened"]
   end
@@ -24,6 +25,7 @@ Hecks.behaviors "PropertyManagement" do
   test "MarkVacant cascades through policy chain" do
     tests "MarkVacant", on: "RentalUnit", kind: :cascade
     setup  "ListUnit", unit_number: "sample", address: "sample", unit_type: "sample", bedrooms: 1, monthly_rent: 1.0
+    setup  "ScreenTenant", first_name: "sample", last_name: "sample", phone: "sample", email: "sample", monthly_income: 1.0
     expect emits: ["UnitVacated", "UnitListed", "TenantScreened"]
   end
 
@@ -50,6 +52,8 @@ Hecks.behaviors "PropertyManagement" do
 
   test "ApproveTenant cascades through policy chain" do
     tests "ApproveTenant", on: "Tenant", kind: :cascade
+    setup  "SignLease", start_date: "sample", end_date: "sample", monthly_rent: 1.0, security_deposit: 1.0
+    setup  "ListUnit", unit_number: "sample", address: "sample", unit_type: "sample", bedrooms: 1, monthly_rent: 1.0
     setup  "ScreenTenant", first_name: "sample", last_name: "sample", phone: "sample", email: "sample", monthly_income: 1.0
     expect emits: ["TenantApproved", "LeaseSigned", "LeaseRenewed"]
   end
@@ -73,8 +77,8 @@ Hecks.behaviors "PropertyManagement" do
 
   test "SignLease cascades through policy chain" do
     tests "SignLease", on: "Lease", kind: :cascade
-    setup  "ScreenTenant", first_name: "sample", last_name: "sample", phone: "sample", email: "sample", monthly_income: 1.0
     setup  "ListUnit", unit_number: "sample", address: "sample", unit_type: "sample", bedrooms: 1, monthly_rent: 1.0
+    setup  "ScreenTenant", first_name: "sample", last_name: "sample", phone: "sample", email: "sample", monthly_income: 1.0
     input  start_date: "sample", end_date: "sample", monthly_rent: 1.0, security_deposit: 1.0
     expect emits: ["LeaseSigned", "LeaseRenewed"]
   end
@@ -94,6 +98,9 @@ Hecks.behaviors "PropertyManagement" do
 
   test "TerminateLease cascades through policy chain" do
     tests "TerminateLease", on: "Lease", kind: :cascade
+    setup  "ScheduleInspection", inspection_date: "sample", inspection_type: "sample"
+    setup  "ListUnit", unit_number: "sample", address: "sample", unit_type: "sample", bedrooms: 1, monthly_rent: 1.0
+    setup  "ScreenTenant", first_name: "sample", last_name: "sample", phone: "sample", email: "sample", monthly_income: 1.0
     setup  "SignLease", start_date: "sample", end_date: "sample", monthly_rent: 1.0, security_deposit: 1.0
     expect emits: ["LeaseTerminated", "InspectionScheduled", "FindingsRecorded", "UnitVacated", "UnitListed", "TenantScreened"]
   end
@@ -111,8 +118,8 @@ Hecks.behaviors "PropertyManagement" do
 
   test "SubmitRequest cascades through policy chain" do
     tests "SubmitRequest", on: "MaintenanceRequest", kind: :cascade
-    setup  "ScreenTenant", first_name: "sample", last_name: "sample", phone: "sample", email: "sample", monthly_income: 1.0
     setup  "ListUnit", unit_number: "sample", address: "sample", unit_type: "sample", bedrooms: 1, monthly_rent: 1.0
+    setup  "ScreenTenant", first_name: "sample", last_name: "sample", phone: "sample", email: "sample", monthly_income: 1.0
     input  description: "sample", category: "sample", priority: "sample"
     expect emits: ["RequestSubmitted", "TechnicianAssigned"]
   end
@@ -134,6 +141,8 @@ Hecks.behaviors "PropertyManagement" do
 
   test "ResolveRequest cascades through policy chain" do
     tests "ResolveRequest", on: "MaintenanceRequest", kind: :cascade
+    setup  "ScheduleInspection", inspection_date: "sample", inspection_type: "sample"
+    setup  "ListUnit", unit_number: "sample", address: "sample", unit_type: "sample", bedrooms: 1, monthly_rent: 1.0
     setup  "SubmitRequest", description: "sample", category: "sample", priority: "sample"
     setup  "AssignTechnician", assigned_to: "sample"
     input  resolution_notes: "sample"

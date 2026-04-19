@@ -129,8 +129,8 @@ Hecks.bluebook "OnlineAuction", version: "2026.04.13.1" do
     SuspendSeller do
       description "Freeze a seller account for policy violations"
       reference_to(Seller)
-      given("seller is active") { status == "active" }
       emits "SellerSuspended"
+      then_set :status, to: "suspended"
     end
   end
 

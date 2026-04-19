@@ -17,6 +17,7 @@ Hecks.behaviors "LabAutomation" do
 
   test "AcceptSpecimen cascades through policy chain" do
     tests "AcceptSpecimen", on: "Specimen", kind: :cascade
+    setup  "TriggerPipeline", pipeline_id: "sample", specimen_id: "sample", test_type: "sample"
     setup  "CollectSpecimen", specimen_id: "sample", patient_name: "sample", specimen_type: "sample", collection_date: "sample"
     expect emits: ["SpecimenAccepted", "PipelineTriggered"]
   end
@@ -44,6 +45,7 @@ Hecks.behaviors "LabAutomation" do
 
   test "FinishPipeline cascades through policy chain" do
     tests "FinishPipeline", on: "TestPipeline", kind: :cascade
+    setup  "PublishResult", result_id: "sample", specimen_id: "sample", test_type: "sample", value: "sample", reference_range: "sample", interpretation: "sample"
     setup  "TriggerPipeline", pipeline_id: "sample", specimen_id: "sample", test_type: "sample"
     expect emits: ["PipelineFinished", "ResultPublished"]
   end

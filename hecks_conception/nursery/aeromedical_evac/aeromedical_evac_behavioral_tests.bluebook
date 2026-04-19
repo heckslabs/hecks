@@ -54,6 +54,9 @@ Hecks.behaviors "AeromedicalEvac" do
 
   test "LandFlight cascades through policy chain" do
     tests "LandFlight", on: "Flight", kind: :cascade
+    setup  "RegisterHospital", hospital_name: "sample", trauma_level: "sample", available_beds: 1
+    setup  "InitiateHandoff", receiver: "sample"
+    setup  "RegisterPatient", name: "sample", blood_type: "sample", injury_classification: "sample", triage_level: "sample"
     setup  "DispatchFlight", callsign: "sample", origin: "sample", destination: "sample"
     expect emits: ["FlightLanded", "TraumaBedAssigned", "TraumaTeamActivated", "HandoffInitiated"]
   end
@@ -90,6 +93,8 @@ Hecks.behaviors "AeromedicalEvac" do
   test "TriggerAlarm cascades through policy chain" do
     tests "TriggerAlarm", on: "VitalStream", kind: :cascade
     setup  "StartMonitoring"
+    setup  "DispatchFlight", callsign: "sample", origin: "sample", destination: "sample"
+    setup  "RegisterPatient", name: "sample", blood_type: "sample", injury_classification: "sample", triage_level: "sample"
     input  alarm_status: "sample"
     expect emits: ["VitalsAlarming", "FlightDiverted", "ConditionEscalated"]
   end

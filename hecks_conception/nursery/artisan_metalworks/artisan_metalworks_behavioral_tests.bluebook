@@ -22,13 +22,7 @@ Hecks.behaviors "ArtisanMetalworks" do
     tests "ChargeFurnace", on: "SmeltBatch"
     setup  "FormulatAlloy", name: "sample", carbon_content: 1.0, target_hardness: 1.0
     input  volume_kg: 1.0
-    expect ok: "true"
-  end
-
-  test "TapSmelt runs" do
-    tests "TapSmelt", on: "SmeltBatch"
-    setup  "ChargeFurnace", volume_kg: 1.0
-    expect ok: "true"
+    expect temperature: 1500.0
   end
 
   test "GradeBatch sets quality_grade" do

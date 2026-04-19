@@ -42,7 +42,6 @@ Hecks.bluebook "PrisonManagement" do
       description "Place a classified inmate into general population housing"
       reference_to(Inmate)
       reference_to(Cell)
-      given { status == "classified" }
       emits "InmateHoused"
       then_set :status, to: "housed"
     end
@@ -51,7 +50,6 @@ Hecks.bluebook "PrisonManagement" do
       description "Change an inmate's security classification based on behavior"
       reference_to(Inmate)
       String :new_classification
-      given { status == "housed" }
       emits "InmateReclassified"
     end
 
@@ -126,7 +124,6 @@ Hecks.bluebook "PrisonManagement" do
     LiftLockdown do
       description "Return a locked-down cell to normal status"
       reference_to(Cell)
-      given { status == "lockdown" }
       emits "LockdownLifted"
       then_set :status, to: "available"
     end
@@ -266,11 +263,6 @@ Hecks.bluebook "PrisonManagement" do
   policy "EnrollOnHousing" do
     on "InmateHoused"
     trigger "EnrollInmate"
-  end
-
-  policy "LockdownOnIncident" do
-    on "IncidentFiled"
-    trigger "LockdownCell"
   end
 
   policy "InvestigateOnIncident" do

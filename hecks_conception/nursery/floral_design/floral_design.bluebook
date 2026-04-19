@@ -148,7 +148,6 @@ Hecks.bluebook "FloralDesign" do
     ExecuteInstallation do
       description "Build the installation on-site at the venue"
       reference_to(FloralInstallation)
-      given { status == "planned" }
       emits "InstallationExecuted"
       then_set :status, to: "installed"
     end
@@ -172,16 +171,6 @@ Hecks.bluebook "FloralDesign" do
     trigger "DesignArrangement"
   end
 
-  policy "AssembleOnDesign" do
-    on "ArrangementDesigned"
-    trigger "AssembleArrangement"
-  end
-
-  policy "ConditionOnAssembly" do
-    on "ArrangementAssembled"
-    trigger "ConditionArrangement"
-  end
-
   policy "DeliverOnCondition" do
     on "ArrangementConditioned"
     trigger "ScheduleDelivery"
@@ -197,15 +186,6 @@ Hecks.bluebook "FloralDesign" do
     trigger "PlanInstallation"
   end
 
-  policy "ExecuteOnPlan" do
-    on "InstallationPlanned"
-    trigger "ExecuteInstallation"
-  end
-
-  policy "StrikeAfterEvent" do
-    on "InstallationExecuted"
-    trigger "StrikeInstallation"
-  end
 
   fixture "Arrangement", name: "Romantic Sunset", style: "garden", vessel_type: "glass_vase", status: "designed", stem_count: 24
   fixture "Arrangement", name: "Tropical Paradise", style: "modern", vessel_type: "ceramic_urn", status: "designed", stem_count: 35

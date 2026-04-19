@@ -63,7 +63,6 @@ Hecks.bluebook "ComplianceMentalHealth" do
       description "Periodic review and goal update"
       reference_to(TreatmentPlan)
       String :updated_goal
-      given { status == "active" }
       emits "TreatmentPlanReviewed"
       then_set :primary_goal, to: :updated_goal
     end

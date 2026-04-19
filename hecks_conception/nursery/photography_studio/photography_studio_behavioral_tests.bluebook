@@ -27,6 +27,9 @@ Hecks.behaviors "PhotographyStudio" do
   test "WrapShoot cascades through policy chain" do
     tests "WrapShoot", on: "Shoot", kind: :cascade
     setup  "ScheduleShoot", title: "sample", location: "sample", shoot_type: "sample"
+    setup  "CullSelects", selects_count: 1
+    setup  "PlacePrintOrder", paper_stock: "sample", finish: "sample", quantity: 1
+    setup  "RegisterClient", name: "sample", email: "sample", phone: "sample"
     setup  "StartShoot"
     input  final_frame_count: 1
     expect emits: ["ShootWrapped", "SelectsCulled", "SelectsRetouched", "FinalsDelivered", "GalleryPublished", "PrintOrderPlaced", "PrintOrderFulfilled", "ClientTierUpgraded"]
@@ -61,6 +64,8 @@ Hecks.behaviors "PhotographyStudio" do
   test "CullSelects cascades through policy chain" do
     tests "CullSelects", on: "EditSession", kind: :cascade
     setup  "ScheduleShoot", title: "sample", location: "sample", shoot_type: "sample"
+    setup  "PlacePrintOrder", paper_stock: "sample", finish: "sample", quantity: 1
+    setup  "RegisterClient", name: "sample", email: "sample", phone: "sample"
     input  selects_count: 1
     expect emits: ["SelectsCulled", "SelectsRetouched", "FinalsDelivered", "GalleryPublished", "PrintOrderPlaced", "PrintOrderFulfilled", "ClientTierUpgraded"]
   end
@@ -75,6 +80,8 @@ Hecks.behaviors "PhotographyStudio" do
   test "RetouchSelects cascades through policy chain" do
     tests "RetouchSelects", on: "EditSession", kind: :cascade
     setup  "CullSelects", selects_count: 1
+    setup  "PlacePrintOrder", paper_stock: "sample", finish: "sample", quantity: 1
+    setup  "RegisterClient", name: "sample", email: "sample", phone: "sample"
     input  preset_name: "sample"
     expect emits: ["SelectsRetouched", "FinalsDelivered", "GalleryPublished", "PrintOrderPlaced", "PrintOrderFulfilled", "ClientTierUpgraded"]
   end
@@ -82,7 +89,6 @@ Hecks.behaviors "PhotographyStudio" do
   test "DeliverFinals sets finals_count" do
     tests "DeliverFinals", on: "EditSession"
     setup  "CullSelects", selects_count: 1
-    setup  "RetouchSelects", preset_name: "sample"
     input  finals_count: 1
     expect finals_count: 1, status: "delivered"
   end
@@ -90,7 +96,8 @@ Hecks.behaviors "PhotographyStudio" do
   test "DeliverFinals cascades through policy chain" do
     tests "DeliverFinals", on: "EditSession", kind: :cascade
     setup  "CullSelects", selects_count: 1
-    setup  "RetouchSelects", preset_name: "sample"
+    setup  "PlacePrintOrder", paper_stock: "sample", finish: "sample", quantity: 1
+    setup  "RegisterClient", name: "sample", email: "sample", phone: "sample"
     input  finals_count: 1
     expect emits: ["FinalsDelivered", "GalleryPublished", "PrintOrderPlaced", "PrintOrderFulfilled", "ClientTierUpgraded"]
   end
@@ -106,6 +113,8 @@ Hecks.behaviors "PhotographyStudio" do
 
   test "PublishGallery cascades through policy chain" do
     tests "PublishGallery", on: "Gallery", kind: :cascade
+    setup  "PlacePrintOrder", paper_stock: "sample", finish: "sample", quantity: 1
+    setup  "RegisterClient", name: "sample", email: "sample", phone: "sample"
     input  title: "sample", access_code: "sample", image_count: 1
     expect emits: ["GalleryPublished", "PrintOrderPlaced", "PrintOrderFulfilled", "ClientTierUpgraded"]
   end
@@ -127,6 +136,7 @@ Hecks.behaviors "PhotographyStudio" do
 
   test "PlacePrintOrder cascades through policy chain" do
     tests "PlacePrintOrder", on: "PrintOrder", kind: :cascade
+    setup  "RegisterClient", name: "sample", email: "sample", phone: "sample"
     input  paper_stock: "sample", finish: "sample", quantity: 1
     expect emits: ["PrintOrderPlaced", "PrintOrderFulfilled", "ClientTierUpgraded"]
   end
@@ -140,6 +150,7 @@ Hecks.behaviors "PhotographyStudio" do
   test "FulfillPrintOrder cascades through policy chain" do
     tests "FulfillPrintOrder", on: "PrintOrder", kind: :cascade
     setup  "PlacePrintOrder", paper_stock: "sample", finish: "sample", quantity: 1
+    setup  "RegisterClient", name: "sample", email: "sample", phone: "sample"
     expect emits: ["PrintOrderFulfilled", "ClientTierUpgraded"]
   end
 

@@ -208,7 +208,6 @@ Hecks.bluebook "FreelanceMarketplace", version: "2026.04.13.1" do
     RefundPayment do
       description "Return funds to the client after a dispute resolution"
       reference_to(Payment)
-      given("payment is held") { status == "held" }
       emits "PaymentRefunded"
     end
   end

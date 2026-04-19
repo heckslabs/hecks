@@ -170,11 +170,6 @@ Hecks.bluebook "PhoneRepair", version: "2026.04.13.1" do
     trigger "OrderPart"
   end
 
-  policy "BeginOnPartOrder" do
-    on "PartOrdered"
-    trigger "BeginRepair"
-  end
-
   policy "CloseOnRepairStart" do
     on "RepairStarted"
     trigger "CloseTicket"
@@ -183,11 +178,6 @@ Hecks.bluebook "PhoneRepair", version: "2026.04.13.1" do
   policy "WarrantyOnClose" do
     on "TicketClosed"
     trigger "IssueWarranty"
-  end
-
-  policy "UsePartOnRepairStart" do
-    on "RepairStarted"
-    trigger "UsePart"
   end
 
   policy "ReopenTicketOnClaim" do

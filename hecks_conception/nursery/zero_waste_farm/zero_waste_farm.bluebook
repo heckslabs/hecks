@@ -298,24 +298,9 @@ Hecks.bluebook "ZeroWasteFarm", version: "2026.04.13.1" do
 
   # === Cross-wire policies ===
 
-  policy "AllocateOnPriceDrop" do
-    on "PriceBelowThreshold"
-    trigger "AllocateToFoodBank"
-  end
-
-  policy "ColdPickupOnHarvest" do
-    on "HarvestReady"
-    trigger "ScheduleColdPickup"
-  end
-
   policy "RouteToFoodBankOnAllocation" do
     on "FoodBankAllocated"
     trigger "RouteToFoodBank"
-  end
-
-  policy "RecordHarvestOnFieldHarvested" do
-    on "FieldHarvested"
-    trigger "RecordHarvest"
   end
 
   policy "DetectDropOnPriceUpdate" do

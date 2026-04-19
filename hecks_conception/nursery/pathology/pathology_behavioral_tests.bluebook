@@ -11,6 +11,8 @@ Hecks.behaviors "Pathology" do
 
   test "ReceiveSpecimen cascades through policy chain" do
     tests "ReceiveSpecimen", on: "Specimen", kind: :cascade
+    setup  "OrderTest", test_name: "sample", test_code: "sample", methodology: "sample", specimen_accession: "sample", ordered_by: "sample"
+    setup  "RunQualityControl", instrument_name: "sample", control_material: "sample", expected_value: "sample", observed_value: "sample", run_date: "sample"
     input  accession_number: "sample", patient_name: "sample", specimen_type: "sample", collection_date: "sample", collected_by: "sample"
     expect emits: ["SpecimenAccessioned", "SpecimenProcessed", "TestOrdered", "QualityControlRun"]
   end
@@ -23,6 +25,8 @@ Hecks.behaviors "Pathology" do
 
   test "ProcessSpecimen cascades through policy chain" do
     tests "ProcessSpecimen", on: "Specimen", kind: :cascade
+    setup  "OrderTest", test_name: "sample", test_code: "sample", methodology: "sample", specimen_accession: "sample", ordered_by: "sample"
+    setup  "RunQualityControl", instrument_name: "sample", control_material: "sample", expected_value: "sample", observed_value: "sample", run_date: "sample"
     setup  "ReceiveSpecimen", accession_number: "sample", patient_name: "sample", specimen_type: "sample", collection_date: "sample", collected_by: "sample"
     expect emits: ["SpecimenProcessed", "TestOrdered", "QualityControlRun"]
   end
@@ -46,6 +50,7 @@ Hecks.behaviors "Pathology" do
   test "OrderTest cascades through policy chain" do
     tests "OrderTest", on: "LabTest", kind: :cascade
     setup  "ReceiveSpecimen", accession_number: "sample", patient_name: "sample", specimen_type: "sample", collection_date: "sample", collected_by: "sample"
+    setup  "RunQualityControl", instrument_name: "sample", control_material: "sample", expected_value: "sample", observed_value: "sample", run_date: "sample"
     input  test_name: "sample", test_code: "sample", methodology: "sample", specimen_accession: "sample", ordered_by: "sample"
     expect emits: ["TestOrdered", "QualityControlRun"]
   end
@@ -58,6 +63,9 @@ Hecks.behaviors "Pathology" do
 
   test "RunTest cascades through policy chain" do
     tests "RunTest", on: "LabTest", kind: :cascade
+    setup  "RecordResult", test_name: "sample", result_value: "sample", unit: "sample", reference_range: "sample", interpretation: "sample", resulted_by: "sample", result_date: "sample"
+    setup  "DraftPathologyReport", patient_name: "sample", specimen_accession: "sample", gross_description: "sample", microscopic_findings: "sample", diagnosis: "sample", pathologist_name: "sample", report_date: "sample"
+    setup  "ReceiveSpecimen", accession_number: "sample", patient_name: "sample", specimen_type: "sample", collection_date: "sample", collected_by: "sample"
     setup  "OrderTest", test_name: "sample", test_code: "sample", methodology: "sample", specimen_accession: "sample", ordered_by: "sample"
     expect emits: ["TestRun", "ResultRecorded", "ResultVerified", "PathologyReportDrafted", "PathologyReportSignedOut"]
   end
@@ -81,6 +89,8 @@ Hecks.behaviors "Pathology" do
   test "RecordResult cascades through policy chain" do
     tests "RecordResult", on: "TestResult", kind: :cascade
     setup  "OrderTest", test_name: "sample", test_code: "sample", methodology: "sample", specimen_accession: "sample", ordered_by: "sample"
+    setup  "DraftPathologyReport", patient_name: "sample", specimen_accession: "sample", gross_description: "sample", microscopic_findings: "sample", diagnosis: "sample", pathologist_name: "sample", report_date: "sample"
+    setup  "ReceiveSpecimen", accession_number: "sample", patient_name: "sample", specimen_type: "sample", collection_date: "sample", collected_by: "sample"
     input  test_name: "sample", result_value: "sample", unit: "sample", reference_range: "sample", interpretation: "sample", resulted_by: "sample", result_date: "sample"
     expect emits: ["ResultRecorded", "ResultVerified", "PathologyReportDrafted", "PathologyReportSignedOut"]
   end
@@ -93,6 +103,8 @@ Hecks.behaviors "Pathology" do
 
   test "VerifyResult cascades through policy chain" do
     tests "VerifyResult", on: "TestResult", kind: :cascade
+    setup  "DraftPathologyReport", patient_name: "sample", specimen_accession: "sample", gross_description: "sample", microscopic_findings: "sample", diagnosis: "sample", pathologist_name: "sample", report_date: "sample"
+    setup  "ReceiveSpecimen", accession_number: "sample", patient_name: "sample", specimen_type: "sample", collection_date: "sample", collected_by: "sample"
     setup  "RecordResult", test_name: "sample", result_value: "sample", unit: "sample", reference_range: "sample", interpretation: "sample", resulted_by: "sample", result_date: "sample"
     expect emits: ["ResultVerified", "PathologyReportDrafted", "PathologyReportSignedOut"]
   end
@@ -121,6 +133,10 @@ Hecks.behaviors "Pathology" do
 
   test "ApproveQualityControl cascades through policy chain" do
     tests "ApproveQualityControl", on: "QualityControl", kind: :cascade
+    setup  "OrderTest", test_name: "sample", test_code: "sample", methodology: "sample", specimen_accession: "sample", ordered_by: "sample"
+    setup  "RecordResult", test_name: "sample", result_value: "sample", unit: "sample", reference_range: "sample", interpretation: "sample", resulted_by: "sample", result_date: "sample"
+    setup  "DraftPathologyReport", patient_name: "sample", specimen_accession: "sample", gross_description: "sample", microscopic_findings: "sample", diagnosis: "sample", pathologist_name: "sample", report_date: "sample"
+    setup  "ReceiveSpecimen", accession_number: "sample", patient_name: "sample", specimen_type: "sample", collection_date: "sample", collected_by: "sample"
     setup  "RunQualityControl", instrument_name: "sample", control_material: "sample", expected_value: "sample", observed_value: "sample", run_date: "sample"
     expect emits: ["QualityControlApproved", "TestRun", "ResultRecorded", "ResultVerified", "PathologyReportDrafted", "PathologyReportSignedOut"]
   end
@@ -134,6 +150,7 @@ Hecks.behaviors "Pathology" do
   test "FailQualityControl cascades through policy chain" do
     tests "FailQualityControl", on: "QualityControl", kind: :cascade
     setup  "RunQualityControl", instrument_name: "sample", control_material: "sample", expected_value: "sample", observed_value: "sample", run_date: "sample"
+    setup  "OrderTest", test_name: "sample", test_code: "sample", methodology: "sample", specimen_accession: "sample", ordered_by: "sample"
     expect emits: ["QualityControlFailed", "TestRepeated"]
   end
 

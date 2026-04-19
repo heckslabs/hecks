@@ -82,7 +82,6 @@ Hecks.bluebook "FoodBank" do
       description "Reserve inventory items for a scheduled distribution event"
       reference_to(Inventory)
       Integer :quantity
-      given("must be available") { status == "available" }
       emits "ItemAllocated"
       then_set :status, to: "allocated"
     end
@@ -92,7 +91,6 @@ Hecks.bluebook "FoodBank" do
       description "Reduce inventory when items are distributed"
       reference_to(Inventory)
       Integer :quantity
-      given("must be allocated") { status == "allocated" }
       emits "ItemDepleted"
       then_set :status, to: "depleted"
     end
@@ -148,7 +146,6 @@ Hecks.bluebook "FoodBank" do
       role "Coordinator"
       description "Generate a summary report of the distribution for funders"
       reference_to(Distribution)
-      given("must be completed") { status == "completed" }
       emits "DistributionReported"
       then_set :status, to: "reported"
     end
@@ -235,11 +232,6 @@ Hecks.bluebook "FoodBank" do
   policy "StockOnSort" do
     on "DonationSorted"
     trigger "StockItem"
-  end
-
-  policy "AllocateOnSchedule" do
-    on "DistributionScheduled"
-    trigger "AllocateItem"
   end
 
   policy "DepleteOnDistribution" do

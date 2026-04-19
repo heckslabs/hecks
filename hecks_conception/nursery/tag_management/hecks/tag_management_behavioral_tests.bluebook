@@ -33,6 +33,7 @@ Hecks.behaviors "TagManagement" do
 
   test "DefineTag cascades through policy chain" do
     tests "DefineTag", on: "Tag", kind: :cascade
+    setup  "RecordChange", container_id: "sample", actor: "sample", action: "sample", target_type: "sample", target_name: "sample", detail: "sample"
     input  name: "sample", tag_type: "sample", container_id: "sample", template: "sample"
     expect emits: ["TagDefined", "ChangeRecorded"]
   end
@@ -96,6 +97,7 @@ Hecks.behaviors "TagManagement" do
 
   test "DefineTrigger cascades through policy chain" do
     tests "DefineTrigger", on: "Trigger", kind: :cascade
+    setup  "RecordChange", container_id: "sample", actor: "sample", action: "sample", target_type: "sample", target_name: "sample", detail: "sample"
     input  name: "sample", trigger_type: "sample", container_id: "sample", description: "sample"
     expect emits: ["TriggerDefined", "ChangeRecorded"]
   end
@@ -170,6 +172,7 @@ Hecks.behaviors "TagManagement" do
   test "PublishVersion cascades through policy chain" do
     tests "PublishVersion", on: "Version", kind: :cascade
     setup  "SnapshotVersion", container_id: "sample", version_number: 1, tag_count: 1, trigger_count: 1, variable_count: 1, description: "sample", created_by: "sample"
+    setup  "RecordChange", container_id: "sample", actor: "sample", action: "sample", target_type: "sample", target_name: "sample", detail: "sample"
     setup  "SubmitVersion"
     setup  "ApproveVersion"
     expect emits: ["VersionPublished", "ChangeRecorded"]

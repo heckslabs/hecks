@@ -11,6 +11,10 @@ Hecks.behaviors "JewelryWorkshop" do
 
   test "DesignPiece cascades through policy chain" do
     tests "DesignPiece", on: "JewelryPiece", kind: :cascade
+    setup  "PrepareSetting", setting_type: "sample", metal: "sample"
+    setup  "AcquireStone", stone_type: "sample", carat_weight: 1.0, cut: "sample", clarity: "sample", color_grade: "sample"
+    setup  "AppraisePiece", appraiser_name: "sample", purpose: "sample", appraised_value: 1.0
+    setup  "QuoteCommission", client_name: "sample", description: "sample", quoted_price: 1.0, deadline: "sample"
     input  name: "sample", piece_type: "sample", metal: "sample"
     expect emits: ["PieceDesigned", "PieceCast", "SettingPrepared", "StoneSet", "PiecePolished", "PieceAppraised", "CommissionDelivered"]
   end
@@ -25,6 +29,10 @@ Hecks.behaviors "JewelryWorkshop" do
   test "CastPiece cascades through policy chain" do
     tests "CastPiece", on: "JewelryPiece", kind: :cascade
     setup  "DesignPiece", name: "sample", piece_type: "sample", metal: "sample"
+    setup  "PrepareSetting", setting_type: "sample", metal: "sample"
+    setup  "AcquireStone", stone_type: "sample", carat_weight: 1.0, cut: "sample", clarity: "sample", color_grade: "sample"
+    setup  "AppraisePiece", appraiser_name: "sample", purpose: "sample", appraised_value: 1.0
+    setup  "QuoteCommission", client_name: "sample", description: "sample", quoted_price: 1.0, deadline: "sample"
     input  casting_method: "sample"
     expect emits: ["PieceCast", "SettingPrepared", "StoneSet", "PiecePolished", "PieceAppraised", "CommissionDelivered"]
   end
@@ -32,23 +40,20 @@ Hecks.behaviors "JewelryWorkshop" do
   test "SetStones runs" do
     tests "SetStones", on: "JewelryPiece"
     setup  "DesignPiece", name: "sample", piece_type: "sample", metal: "sample"
-    setup  "CastPiece", casting_method: "sample"
     expect status: "set"
   end
 
   test "PolishPiece runs" do
     tests "PolishPiece", on: "JewelryPiece"
     setup  "DesignPiece", name: "sample", piece_type: "sample", metal: "sample"
-    setup  "CastPiece", casting_method: "sample"
-    setup  "SetStones"
     expect status: "finished"
   end
 
   test "PolishPiece cascades through policy chain" do
     tests "PolishPiece", on: "JewelryPiece", kind: :cascade
     setup  "DesignPiece", name: "sample", piece_type: "sample", metal: "sample"
-    setup  "CastPiece", casting_method: "sample"
-    setup  "SetStones"
+    setup  "AppraisePiece", appraiser_name: "sample", purpose: "sample", appraised_value: 1.0
+    setup  "QuoteCommission", client_name: "sample", description: "sample", quoted_price: 1.0, deadline: "sample"
     expect emits: ["PiecePolished", "PieceAppraised", "CommissionDelivered"]
   end
 
@@ -81,6 +86,9 @@ Hecks.behaviors "JewelryWorkshop" do
   test "PrepareSetting cascades through policy chain" do
     tests "PrepareSetting", on: "Setting", kind: :cascade
     setup  "DesignPiece", name: "sample", piece_type: "sample", metal: "sample"
+    setup  "AcquireStone", stone_type: "sample", carat_weight: 1.0, cut: "sample", clarity: "sample", color_grade: "sample"
+    setup  "AppraisePiece", appraiser_name: "sample", purpose: "sample", appraised_value: 1.0
+    setup  "QuoteCommission", client_name: "sample", description: "sample", quoted_price: 1.0, deadline: "sample"
     input  setting_type: "sample", metal: "sample"
     expect emits: ["SettingPrepared", "StoneSet", "PiecePolished", "PieceAppraised", "CommissionDelivered"]
   end
@@ -94,8 +102,11 @@ Hecks.behaviors "JewelryWorkshop" do
 
   test "SetStone cascades through policy chain" do
     tests "SetStone", on: "Setting", kind: :cascade
-    setup  "AcquireStone", stone_type: "sample", carat_weight: 1.0, cut: "sample", clarity: "sample", color_grade: "sample"
     setup  "PrepareSetting", setting_type: "sample", metal: "sample"
+    setup  "AcquireStone", stone_type: "sample", carat_weight: 1.0, cut: "sample", clarity: "sample", color_grade: "sample"
+    setup  "DesignPiece", name: "sample", piece_type: "sample", metal: "sample"
+    setup  "AppraisePiece", appraiser_name: "sample", purpose: "sample", appraised_value: 1.0
+    setup  "QuoteCommission", client_name: "sample", description: "sample", quoted_price: 1.0, deadline: "sample"
     expect emits: ["StoneSet", "PiecePolished", "PieceAppraised", "CommissionDelivered"]
   end
 
@@ -112,6 +123,7 @@ Hecks.behaviors "JewelryWorkshop" do
   test "AppraisePiece cascades through policy chain" do
     tests "AppraisePiece", on: "Appraisal", kind: :cascade
     setup  "DesignPiece", name: "sample", piece_type: "sample", metal: "sample"
+    setup  "QuoteCommission", client_name: "sample", description: "sample", quoted_price: 1.0, deadline: "sample"
     input  appraiser_name: "sample", purpose: "sample", appraised_value: 1.0
     expect emits: ["PieceAppraised", "CommissionDelivered"]
   end
@@ -141,13 +153,16 @@ Hecks.behaviors "JewelryWorkshop" do
   test "AcceptCommission cascades through policy chain" do
     tests "AcceptCommission", on: "Commission", kind: :cascade
     setup  "QuoteCommission", client_name: "sample", description: "sample", quoted_price: 1.0, deadline: "sample"
+    setup  "DesignPiece", name: "sample", piece_type: "sample", metal: "sample"
+    setup  "PrepareSetting", setting_type: "sample", metal: "sample"
+    setup  "AcquireStone", stone_type: "sample", carat_weight: 1.0, cut: "sample", clarity: "sample", color_grade: "sample"
+    setup  "AppraisePiece", appraiser_name: "sample", purpose: "sample", appraised_value: 1.0
     expect emits: ["CommissionAccepted", "PieceDesigned", "PieceCast", "SettingPrepared", "StoneSet", "PiecePolished", "PieceAppraised", "CommissionDelivered"]
   end
 
   test "DeliverCommission runs" do
     tests "DeliverCommission", on: "Commission"
     setup  "QuoteCommission", client_name: "sample", description: "sample", quoted_price: 1.0, deadline: "sample"
-    setup  "AcceptCommission"
     expect status: "delivered"
   end
 

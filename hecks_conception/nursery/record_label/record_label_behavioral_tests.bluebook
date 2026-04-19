@@ -11,6 +11,9 @@ Hecks.behaviors "RecordLabel" do
 
   test "SignArtist cascades through policy chain" do
     tests "SignArtist", on: "RecordingArtist", kind: :cascade
+    setup  "GreenLightAlbum", title: "sample", producer: "sample"
+    setup  "RecordTrack", title: "sample", track_number: 1
+    setup  "SubmitForDistribution", channel: "sample", format: "sample", territory: "sample"
     input  name: "sample", genre: "sample"
     expect emits: ["ArtistSigned", "AlbumCommissioned", "TrackRecorded", "TrackMixed", "AlbumMastered", "AlbumReleased", "DistributionSubmitted"]
   end
@@ -41,6 +44,8 @@ Hecks.behaviors "RecordLabel" do
   test "GreenLightAlbum cascades through policy chain" do
     tests "GreenLightAlbum", on: "Album", kind: :cascade
     setup  "SignArtist", name: "sample", genre: "sample"
+    setup  "RecordTrack", title: "sample", track_number: 1
+    setup  "SubmitForDistribution", channel: "sample", format: "sample", territory: "sample"
     input  title: "sample", producer: "sample"
     expect emits: ["AlbumCommissioned", "TrackRecorded", "TrackMixed", "AlbumMastered", "AlbumReleased", "DistributionSubmitted"]
   end
@@ -54,6 +59,7 @@ Hecks.behaviors "RecordLabel" do
 
   test "MasterAlbum cascades through policy chain" do
     tests "MasterAlbum", on: "Album", kind: :cascade
+    setup  "SubmitForDistribution", channel: "sample", format: "sample", territory: "sample"
     setup  "GreenLightAlbum", title: "sample", producer: "sample"
     input  mastering_engineer: "sample"
     expect emits: ["AlbumMastered", "AlbumReleased", "DistributionSubmitted"]
@@ -62,7 +68,6 @@ Hecks.behaviors "RecordLabel" do
   test "ReleaseAlbum sets release_date" do
     tests "ReleaseAlbum", on: "Album"
     setup  "GreenLightAlbum", title: "sample", producer: "sample"
-    setup  "MasterAlbum", mastering_engineer: "sample"
     input  release_date: "sample"
     expect status: "released", release_date: "sample"
   end
@@ -70,7 +75,7 @@ Hecks.behaviors "RecordLabel" do
   test "ReleaseAlbum cascades through policy chain" do
     tests "ReleaseAlbum", on: "Album", kind: :cascade
     setup  "GreenLightAlbum", title: "sample", producer: "sample"
-    setup  "MasterAlbum", mastering_engineer: "sample"
+    setup  "SubmitForDistribution", channel: "sample", format: "sample", territory: "sample"
     input  release_date: "sample"
     expect emits: ["AlbumReleased", "DistributionSubmitted"]
   end
@@ -88,6 +93,7 @@ Hecks.behaviors "RecordLabel" do
   test "RecordTrack cascades through policy chain" do
     tests "RecordTrack", on: "Track", kind: :cascade
     setup  "GreenLightAlbum", title: "sample", producer: "sample"
+    setup  "SubmitForDistribution", channel: "sample", format: "sample", territory: "sample"
     input  title: "sample", track_number: 1
     expect emits: ["TrackRecorded", "TrackMixed", "AlbumMastered", "AlbumReleased", "DistributionSubmitted"]
   end
@@ -100,6 +106,8 @@ Hecks.behaviors "RecordLabel" do
 
   test "MixTrack cascades through policy chain" do
     tests "MixTrack", on: "Track", kind: :cascade
+    setup  "GreenLightAlbum", title: "sample", producer: "sample"
+    setup  "SubmitForDistribution", channel: "sample", format: "sample", territory: "sample"
     setup  "RecordTrack", title: "sample", track_number: 1
     expect emits: ["TrackMixed", "AlbumMastered", "AlbumReleased", "DistributionSubmitted"]
   end
@@ -136,7 +144,6 @@ Hecks.behaviors "RecordLabel" do
   test "DisbursePayment runs" do
     tests "DisbursePayment", on: "RoyaltyStatement"
     setup  "CalculateRoyalties", period: "sample", gross_revenue: 1.0, split_percentage: 1.0
-    setup  "ApproveStatement"
     expect status: "paid"
   end
 
@@ -159,6 +166,8 @@ Hecks.behaviors "RecordLabel" do
   test "ConfirmDistribution cascades through policy chain" do
     tests "ConfirmDistribution", on: "Distribution", kind: :cascade
     setup  "SubmitForDistribution", channel: "sample", format: "sample", territory: "sample"
+    setup  "CalculateRoyalties", period: "sample", gross_revenue: 1.0, split_percentage: 1.0
+    setup  "SignArtist", name: "sample", genre: "sample"
     expect emits: ["DistributionConfirmed", "RoyaltiesCalculated", "StatementApproved", "PaymentDisbursed"]
   end
 

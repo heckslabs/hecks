@@ -75,7 +75,6 @@ Hecks.bluebook "PodcastProduction" do
     MarkEdited do
       description "Mark episode as edited after post-production is complete"
       reference_to(Episode)
-      given { status == "recorded" }
       emits "EpisodeEdited"
       then_set :status, to: "edited"
     end
@@ -83,7 +82,6 @@ Hecks.bluebook "PodcastProduction" do
     ReleaseEpisode do
       description "Publish the finished episode to the RSS feed"
       reference_to(Episode)
-      given { status == "edited" }
       emits "EpisodeReleased"
       then_set :status, to: "released"
     end
@@ -187,11 +185,6 @@ Hecks.bluebook "PodcastProduction" do
   policy "FinalizeOnEditStart" do
     on "EditingStarted"
     trigger "FinalizeEdit"
-  end
-
-  policy "MarkEditedOnFinalize" do
-    on "EditFinalized"
-    trigger "MarkEdited"
   end
 
   policy "ReleaseOnEdited" do

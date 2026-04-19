@@ -26,7 +26,6 @@ Hecks.bluebook "JewelryWorkshop" do
       description "Cast the piece using lost wax or direct casting"
       reference_to(JewelryPiece)
       String :casting_method
-      given { status == "designed" }
       emits "PieceCast"
       then_set :status, to: "cast"
     end
@@ -34,7 +33,6 @@ Hecks.bluebook "JewelryWorkshop" do
     SetStones do
       description "Mount the gemstones into the cast piece"
       reference_to(JewelryPiece)
-      given { status == "cast" }
       emits "StonesSetOnPiece"
       then_set :status, to: "set"
     end
@@ -42,7 +40,6 @@ Hecks.bluebook "JewelryWorkshop" do
     PolishPiece do
       description "Polish and finish the piece to final luster"
       reference_to(JewelryPiece)
-      given { status == "set" }
       emits "PiecePolished"
       then_set :status, to: "finished"
     end
@@ -102,7 +99,6 @@ Hecks.bluebook "JewelryWorkshop" do
       description "Secure the gemstone into its setting"
       reference_to(Setting)
       reference_to(Gemstone)
-      given { status == "prepared" }
       emits "StoneSet"
       then_set :status, to: "set"
     end
@@ -154,7 +150,6 @@ Hecks.bluebook "JewelryWorkshop" do
     AcceptCommission do
       description "Client accepts the quote and work begins"
       reference_to(Commission)
-      given { status == "quoted" }
       emits "CommissionAccepted"
       then_set :status, to: "in_progress"
     end
@@ -162,7 +157,6 @@ Hecks.bluebook "JewelryWorkshop" do
     DeliverCommission do
       description "Hand over the finished custom piece to the client"
       reference_to(Commission)
-      given { status == "in_progress" }
       emits "CommissionDelivered"
       then_set :status, to: "delivered"
     end

@@ -24,7 +24,6 @@ Hecks.behaviors "BloodBank" do
   test "DeferDonor sets reason + deferral_until" do
     tests "DeferDonor", on: "Donor"
     setup  "RegisterDonor", name: "sample", blood_type: "sample", rh_factor: "sample"
-    setup  "ScreenDonor"
     input  reason: "sample", deferral_until: "sample"
     expect eligibility_status: "deferred"
   end
@@ -32,7 +31,6 @@ Hecks.behaviors "BloodBank" do
   test "ReinstateDonor runs" do
     tests "ReinstateDonor", on: "Donor"
     setup  "RegisterDonor", name: "sample", blood_type: "sample", rh_factor: "sample"
-    setup  "ScreenDonor"
     setup  "DeferDonor", reason: "sample", deferral_until: "sample"
     expect eligibility_status: "eligible"
   end
@@ -50,6 +48,8 @@ Hecks.behaviors "BloodBank" do
   test "CollectDonation cascades through policy chain" do
     tests "CollectDonation", on: "Donation", kind: :cascade
     setup  "RegisterDonor", name: "sample", blood_type: "sample", rh_factor: "sample"
+    setup  "LabelUnit", blood_type: "sample", component: "sample", expiry_date: "sample"
+    setup  "PerformTest", test_type: "sample"
     input  volume_ml: 1.0
     expect emits: ["DonationCollected", "DonationProcessed", "UnitLabeled", "TestPerformed"]
   end
@@ -62,6 +62,7 @@ Hecks.behaviors "BloodBank" do
 
   test "ProcessDonation cascades through policy chain" do
     tests "ProcessDonation", on: "Donation", kind: :cascade
+    setup  "LabelUnit", blood_type: "sample", component: "sample", expiry_date: "sample"
     setup  "CollectDonation", volume_ml: 1.0
     expect emits: ["DonationProcessed", "UnitLabeled"]
   end
@@ -91,7 +92,6 @@ Hecks.behaviors "BloodBank" do
   test "CrossmatchUnit sets patient_id" do
     tests "CrossmatchUnit", on: "BloodUnit"
     setup  "LabelUnit", blood_type: "sample", component: "sample", expiry_date: "sample"
-    setup  "ReleaseUnit"
     input  patient_id: "sample"
     expect status: "crossmatched"
   end
@@ -99,7 +99,6 @@ Hecks.behaviors "BloodBank" do
   test "CrossmatchUnit cascades through policy chain" do
     tests "CrossmatchUnit", on: "BloodUnit", kind: :cascade
     setup  "LabelUnit", blood_type: "sample", component: "sample", expiry_date: "sample"
-    setup  "ReleaseUnit"
     input  patient_id: "sample"
     expect emits: ["UnitCrossmatched", "UnitIssued"]
   end
@@ -107,8 +106,6 @@ Hecks.behaviors "BloodBank" do
   test "IssueUnit sets hospital_name" do
     tests "IssueUnit", on: "BloodUnit"
     setup  "LabelUnit", blood_type: "sample", component: "sample", expiry_date: "sample"
-    setup  "ReleaseUnit"
-    setup  "CrossmatchUnit", patient_id: "sample"
     input  hospital_name: "sample"
     expect status: "issued"
   end
@@ -139,6 +136,8 @@ Hecks.behaviors "BloodBank" do
 
   test "RecordResult cascades through policy chain" do
     tests "RecordResult", on: "TestResult", kind: :cascade
+    setup  "LabelUnit", blood_type: "sample", component: "sample", expiry_date: "sample"
+    setup  "RegisterDonor", name: "sample", blood_type: "sample", rh_factor: "sample"
     setup  "PerformTest", test_type: "sample"
     input  result: "sample"
     expect emits: ["ResultRecorded", "UnitReleased", "UnitCrossmatched", "UnitIssued", "DonorDeferred"]

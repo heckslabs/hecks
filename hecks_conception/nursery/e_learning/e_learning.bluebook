@@ -245,11 +245,6 @@ Hecks.bluebook "ELearning", version: "2026.04.13.1" do
     trigger "RecordProgress"
   end
 
-  policy "CourseCompletedIssueCertificate" do
-    on "ProgressRecorded"
-    trigger "IssueCertificate"
-  end
-
   policy "CertificateIssuedVerify" do
     on "CertificateIssued"
     trigger "VerifyCertificate"

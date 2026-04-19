@@ -18,6 +18,7 @@ Hecks.behaviors "Voice" do
   test "HearSpeech cascades through policy chain" do
     tests "HearSpeech", on: "Listener", kind: :cascade
     setup  "StartListening"
+    setup  "StartConversation"
     input  transcript: "sample"
     expect emits: ["SpeechHeard", "TurnRecorded"]
   end
@@ -61,6 +62,7 @@ Hecks.behaviors "Voice" do
 
   test "StartConversation cascades through policy chain" do
     tests "StartConversation", on: "Conversation", kind: :cascade
+    setup  "StartListening"
     expect emits: ["ConversationStarted", "ListeningStarted"]
   end
 
@@ -78,6 +80,7 @@ Hecks.behaviors "Voice" do
 
   test "EndConversation cascades through policy chain" do
     tests "EndConversation", on: "Conversation", kind: :cascade
+    setup  "StartListening"
     setup  "StartConversation"
     expect emits: ["ConversationEnded", "ListeningStopped"]
   end

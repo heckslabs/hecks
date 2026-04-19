@@ -36,7 +36,6 @@ Hecks.bluebook "CakeDecorating" do
     StartBaking do
       description "Begin baking the cake layers and components"
       reference_to(CakeOrder)
-      given { status == "confirmed" }
       emits "BakingStarted"
       then_set :status, to: "baking"
     end
@@ -44,7 +43,6 @@ Hecks.bluebook "CakeDecorating" do
     CompleteOrder do
       description "Mark the cake as finished and ready for pickup or delivery"
       reference_to(CakeOrder)
-      given { status == "baking" }
       emits "OrderCompleted"
       then_set :status, to: "completed"
     end

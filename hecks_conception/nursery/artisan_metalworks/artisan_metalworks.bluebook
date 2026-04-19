@@ -62,6 +62,7 @@ Hecks.bluebook "ArtisanMetalworks" do
       goal "Load raw materials into the furnace"
       reference_to Alloy
       attribute :volume_kg, Float
+      then_set :temperature, to: 1500.0
     end
 
     command "TapSmelt" do

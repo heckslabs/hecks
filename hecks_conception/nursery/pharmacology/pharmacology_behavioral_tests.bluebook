@@ -6,11 +6,12 @@ Hecks.behaviors "Pharmacology" do
   test "RegisterCompound sets compound_id + name + molecular_formula" do
     tests "RegisterCompound", on: "Compound"
     input  compound_id: "sample", name: "sample", molecular_formula: "sample"
-    expect compound_id: "sample", name: "sample", molecular_formula: "sample"
+    expect compound_id: "sample", name: "sample", molecular_formula: "sample", structure_data_loaded: true
   end
 
   test "RegisterCompound cascades through policy chain" do
     tests "RegisterCompound", on: "Compound", kind: :cascade
+    setup  "InitiateTrial", trial_id: "sample", phase: "sample", enrollment_target: 1
     input  compound_id: "sample", name: "sample", molecular_formula: "sample"
     expect emits: ["CompoundRegistered", "CompoundScreened", "TrialInitiated", "SubjectEnrolled"]
   end
@@ -23,6 +24,7 @@ Hecks.behaviors "Pharmacology" do
 
   test "ScreenCompound cascades through policy chain" do
     tests "ScreenCompound", on: "Compound", kind: :cascade
+    setup  "InitiateTrial", trial_id: "sample", phase: "sample", enrollment_target: 1
     setup  "RegisterCompound", compound_id: "sample", name: "sample", molecular_formula: "sample"
     expect emits: ["CompoundScreened", "TrialInitiated", "SubjectEnrolled"]
   end
@@ -59,6 +61,8 @@ Hecks.behaviors "Pharmacology" do
   test "ConcludeTrial cascades through policy chain" do
     tests "ConcludeTrial", on: "ClinicalTrial", kind: :cascade
     setup  "InitiateTrial", trial_id: "sample", phase: "sample", enrollment_target: 1
+    setup  "FileSubmission", agency: "sample", submission_type: "sample"
+    setup  "RegisterCompound", compound_id: "sample", name: "sample", molecular_formula: "sample"
     expect emits: ["TrialConcluded", "SubmissionFiled", "ApprovalGranted"]
   end
 
@@ -69,7 +73,7 @@ Hecks.behaviors "Pharmacology" do
     tests "ReportEvent", on: "AdverseEvent"
     setup  "InitiateTrial", trial_id: "sample", phase: "sample", enrollment_target: 1
     input  description: "sample", severity: "sample"
-    expect ok: "true"
+    expect medically_reviewed: true
   end
 
   test "ReportEvent cascades through policy chain" do
@@ -93,7 +97,7 @@ Hecks.behaviors "Pharmacology" do
     tests "FileSubmission", on: "RegulatorySubmission"
     setup  "RegisterCompound", compound_id: "sample", name: "sample", molecular_formula: "sample"
     input  agency: "sample", submission_type: "sample"
-    expect ok: "true"
+    expect trial_results_included: true
   end
 
   test "FileSubmission cascades through policy chain" do

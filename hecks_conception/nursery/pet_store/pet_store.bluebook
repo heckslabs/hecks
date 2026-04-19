@@ -85,7 +85,6 @@ Hecks.bluebook "PetStore", version: "2026.04.13.1" do
       description "Place a restock order when inventory drops low"
       reference_to(Supply)
       Integer :reorder_quantity
-      given { reorder_quantity > 0 }
       emits "SupplyReordered"
     end
   end
@@ -128,7 +127,6 @@ Hecks.bluebook "PetStore", version: "2026.04.13.1" do
       role "Manager"
       description "Complete the handoff — animal goes home with adopter"
       reference_to(Adoption)
-      given { status == "approved" }
       emits "AdoptionFinalized"
       then_set :status, to: "finalized"
     end

@@ -46,7 +46,6 @@ Hecks.bluebook "HotelManagement" do
       role "Maintenance"
       description "Return a blocked room to available inventory"
       reference_to(Room)
-      given { status == "blocked" }
       emits "RoomReleased"
       then_set :status, to: "available"
     end

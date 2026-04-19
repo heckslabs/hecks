@@ -19,6 +19,7 @@ Hecks.behaviors "HVACService" do
   test "RetireUnit cascades through policy chain" do
     tests "RetireUnit", on: "Unit", kind: :cascade
     setup  "RegisterUnit", unit_type: "sample", brand: "sample", model: "sample", tonnage: 1.0, seer_rating: 1.0, location: "sample"
+    setup  "LogRefrigerantCharge", refrigerant_type: "sample", pounds_added: 1.0, technician_epa_cert: "sample"
     input  disposal_method: "sample"
     expect emits: ["UnitDecommissioned", "RefrigerantRecovered"]
   end
@@ -41,6 +42,8 @@ Hecks.behaviors "HVACService" do
 
   test "OpenTicket cascades through policy chain" do
     tests "OpenTicket", on: "ServiceTicket", kind: :cascade
+    setup  "LogRefrigerantCharge", refrigerant_type: "sample", pounds_added: 1.0, technician_epa_cert: "sample"
+    setup  "RegisterUnit", unit_type: "sample", brand: "sample", model: "sample", tonnage: 1.0, seer_rating: 1.0, location: "sample"
     input  customer_name: "sample", address: "sample", complaint: "sample"
     expect emits: ["TicketOpened", "SystemDiagnosed", "RefrigerantCharged", "TicketResolved", "UnitRegistered"]
   end
@@ -54,6 +57,8 @@ Hecks.behaviors "HVACService" do
 
   test "DiagnoseSystem cascades through policy chain" do
     tests "DiagnoseSystem", on: "ServiceTicket", kind: :cascade
+    setup  "LogRefrigerantCharge", refrigerant_type: "sample", pounds_added: 1.0, technician_epa_cert: "sample"
+    setup  "RegisterUnit", unit_type: "sample", brand: "sample", model: "sample", tonnage: 1.0, seer_rating: 1.0, location: "sample"
     setup  "OpenTicket", customer_name: "sample", address: "sample", complaint: "sample"
     input  diagnosis: "sample"
     expect emits: ["SystemDiagnosed", "RefrigerantCharged", "TicketResolved", "UnitRegistered"]
@@ -69,6 +74,7 @@ Hecks.behaviors "HVACService" do
   test "ResolveTicket cascades through policy chain" do
     tests "ResolveTicket", on: "ServiceTicket", kind: :cascade
     setup  "OpenTicket", customer_name: "sample", address: "sample", complaint: "sample"
+    setup  "RegisterUnit", unit_type: "sample", brand: "sample", model: "sample", tonnage: 1.0, seer_rating: 1.0, location: "sample"
     input  resolution: "sample"
     expect emits: ["TicketResolved", "UnitRegistered"]
   end

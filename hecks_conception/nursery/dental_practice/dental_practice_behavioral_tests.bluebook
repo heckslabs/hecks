@@ -35,6 +35,7 @@ Hecks.behaviors "DentalPractice" do
   test "PerformProcedure cascades through policy chain" do
     tests "PerformProcedure", on: "DentalProcedure", kind: :cascade
     setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
+    setup  "SubmitClaim", billed_amount: 1.0
     input  cdt_code: "sample", procedure_name: "sample", tooth_number: "sample", surface: "sample", notes: "sample"
     expect emits: ["ProcedurePerformed", "ClaimSubmitted", "PaymentProcessed"]
   end
@@ -49,8 +50,10 @@ Hecks.behaviors "DentalPractice" do
   test "PlanTreatment cascades through policy chain" do
     tests "PlanTreatment", on: "DentalProcedure", kind: :cascade
     setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
+    setup  "ScheduleVisit", appointment_date: "sample", time_slot: "sample", visit_type: "sample"
+    setup  "TakeRadiograph", image_type: "sample", tooth_region: "sample"
     input  cdt_code: "sample", procedure_name: "sample", tooth_number: "sample"
-    expect emits: ["TreatmentPlanned", "VisitScheduled", "VisitConfirmed", "RadiographTaken", "RadiographInterpreted", "ProcedurePerformed", "ClaimSubmitted", "PaymentProcessed"]
+    expect emits: ["TreatmentPlanned", "VisitScheduled", "VisitConfirmed", "RadiographTaken", "RadiographInterpreted", "TreatmentPlanned"]
   end
 
 
@@ -66,8 +69,10 @@ Hecks.behaviors "DentalPractice" do
   test "TakeRadiograph cascades through policy chain" do
     tests "TakeRadiograph", on: "Radiograph", kind: :cascade
     setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
+    setup  "PlanTreatment", cdt_code: "sample", procedure_name: "sample", tooth_number: "sample"
+    setup  "ScheduleVisit", appointment_date: "sample", time_slot: "sample", visit_type: "sample"
     input  image_type: "sample", tooth_region: "sample"
-    expect emits: ["RadiographTaken", "RadiographInterpreted", "TreatmentPlanned", "VisitScheduled", "VisitConfirmed", "ProcedurePerformed", "ClaimSubmitted", "PaymentProcessed"]
+    expect emits: ["RadiographTaken", "RadiographInterpreted", "TreatmentPlanned", "VisitScheduled", "VisitConfirmed", "RadiographTaken"]
   end
 
   test "InterpretRadiograph sets findings" do
@@ -80,8 +85,11 @@ Hecks.behaviors "DentalPractice" do
   test "InterpretRadiograph cascades through policy chain" do
     tests "InterpretRadiograph", on: "Radiograph", kind: :cascade
     setup  "TakeRadiograph", image_type: "sample", tooth_region: "sample"
+    setup  "PlanTreatment", cdt_code: "sample", procedure_name: "sample", tooth_number: "sample"
+    setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
+    setup  "ScheduleVisit", appointment_date: "sample", time_slot: "sample", visit_type: "sample"
     input  findings: "sample"
-    expect emits: ["RadiographInterpreted", "TreatmentPlanned", "VisitScheduled", "VisitConfirmed", "RadiographTaken", "ProcedurePerformed", "ClaimSubmitted", "PaymentProcessed"]
+    expect emits: ["RadiographInterpreted", "TreatmentPlanned", "VisitScheduled", "VisitConfirmed", "RadiographTaken", "RadiographInterpreted"]
   end
 
 
@@ -97,8 +105,8 @@ Hecks.behaviors "DentalPractice" do
 
   test "SubmitClaim cascades through policy chain" do
     tests "SubmitClaim", on: "InsuranceClaim", kind: :cascade
-    setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
     setup  "PlanTreatment", cdt_code: "sample", procedure_name: "sample", tooth_number: "sample"
+    setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
     input  billed_amount: 1.0
     expect emits: ["ClaimSubmitted", "PaymentProcessed"]
   end
@@ -129,8 +137,10 @@ Hecks.behaviors "DentalPractice" do
   test "ScheduleVisit cascades through policy chain" do
     tests "ScheduleVisit", on: "DentalAppointment", kind: :cascade
     setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
+    setup  "TakeRadiograph", image_type: "sample", tooth_region: "sample"
+    setup  "PlanTreatment", cdt_code: "sample", procedure_name: "sample", tooth_number: "sample"
     input  appointment_date: "sample", time_slot: "sample", visit_type: "sample"
-    expect emits: ["VisitScheduled", "VisitConfirmed", "RadiographTaken", "RadiographInterpreted", "TreatmentPlanned", "ProcedurePerformed", "ClaimSubmitted", "PaymentProcessed"]
+    expect emits: ["VisitScheduled", "VisitConfirmed", "RadiographTaken", "RadiographInterpreted", "TreatmentPlanned", "VisitScheduled"]
   end
 
   test "ConfirmVisit runs" do
@@ -141,8 +151,11 @@ Hecks.behaviors "DentalPractice" do
 
   test "ConfirmVisit cascades through policy chain" do
     tests "ConfirmVisit", on: "DentalAppointment", kind: :cascade
+    setup  "TakeRadiograph", image_type: "sample", tooth_region: "sample"
+    setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
+    setup  "PlanTreatment", cdt_code: "sample", procedure_name: "sample", tooth_number: "sample"
     setup  "ScheduleVisit", appointment_date: "sample", time_slot: "sample", visit_type: "sample"
-    expect emits: ["VisitConfirmed", "RadiographTaken", "RadiographInterpreted", "TreatmentPlanned", "VisitScheduled", "ProcedurePerformed", "ClaimSubmitted", "PaymentProcessed"]
+    expect emits: ["VisitConfirmed", "RadiographTaken", "RadiographInterpreted", "TreatmentPlanned", "VisitScheduled", "VisitConfirmed"]
   end
 
 end

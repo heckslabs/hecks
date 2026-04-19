@@ -11,6 +11,8 @@ Hecks.behaviors "TerroirConservancy" do
 
   test "DesignateTerroir cascades through policy chain" do
     tests "DesignateTerroir", on: "ProtectedTerroir", kind: :cascade
+    setup  "CharacterizeSoil", profile_id: "sample", soil_type: "sample", ph_level: 1.0, mineral_composition: "sample"
+    setup  "ConductSurvey", survey_id: "sample", survey_date: "sample", season: "sample"
     input  terroir_id: "sample", name: "sample", region: "sample", designation_type: "sample", total_hectares: 1
     expect emits: ["TerroirDesignated", "SoilCharacterized", "SurveyConducted"]
   end
@@ -41,6 +43,10 @@ Hecks.behaviors "TerroirConservancy" do
   test "AssessMicrobiome cascades through policy chain" do
     tests "AssessMicrobiome", on: "SoilProfile", kind: :cascade
     setup  "CharacterizeSoil", profile_id: "sample", soil_type: "sample", ph_level: 1.0, mineral_composition: "sample"
+    setup  "RegisterProducer", producer_id: "sample", name: "sample", craft_type: "sample"
+    setup  "ComposeProfile", profile_id: "sample", vintage_season: "sample"
+    setup  "DesignateTerroir", terroir_id: "sample", name: "sample", region: "sample", designation_type: "sample", total_hectares: 1
+    setup  "DesignExperience", experience_id: "sample", experience_type: "sample", capacity: 1
     input  microbiome_diversity: "sample"
     expect emits: ["MicrobiomeAssessed", "ProducerCertified", "ProfileComposed", "ExperienceDesigned"]
   end
@@ -63,6 +69,10 @@ Hecks.behaviors "TerroirConservancy" do
 
   test "CertifyProducer cascades through policy chain" do
     tests "CertifyProducer", on: "CraftProducer", kind: :cascade
+    setup  "ComposeProfile", profile_id: "sample", vintage_season: "sample"
+    setup  "DesignateTerroir", terroir_id: "sample", name: "sample", region: "sample", designation_type: "sample", total_hectares: 1
+    setup  "CharacterizeSoil", profile_id: "sample", soil_type: "sample", ph_level: 1.0, mineral_composition: "sample"
+    setup  "DesignExperience", experience_id: "sample", experience_type: "sample", capacity: 1
     setup  "RegisterProducer", producer_id: "sample", name: "sample", craft_type: "sample"
     expect emits: ["ProducerCertified", "ProfileComposed", "ExperienceDesigned"]
   end
@@ -93,6 +103,8 @@ Hecks.behaviors "TerroirConservancy" do
   test "AssessDiversity cascades through policy chain" do
     tests "AssessDiversity", on: "SpeciesSurvey", kind: :cascade
     setup  "ConductSurvey", survey_id: "sample", survey_date: "sample", season: "sample"
+    setup  "ComposeProfile", profile_id: "sample", vintage_season: "sample"
+    setup  "DesignateTerroir", terroir_id: "sample", name: "sample", region: "sample", designation_type: "sample", total_hectares: 1
     input  overall_diversity: "sample"
     expect emits: ["DiversityAssessed", "CharacterAssessed", "ProtectionAmended"]
   end

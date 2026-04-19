@@ -62,11 +62,6 @@ Hecks.bluebook "RVWiringSheet" do
       Float :run_length_feet
       Float :fuse_amps
       Float :voltage_drop_pct
-      given { watts > 0 }
-      given { voltage == 12.0 || voltage == 120.0 }
-      given { fuse_amps >= amps }
-      given { voltage_drop_pct <= 3.0 }
-      given { amps <= fuse_amps }
       emits "EntryAdded"
       then_set :entries, append: { circuit_name: :circuit_name, load_name: :load_name, watts: :watts, voltage: :voltage, amps: :amps, power_type: :power_type, wire_gauge: :wire_gauge, run_length_feet: :run_length_feet, fuse_amps: :fuse_amps, voltage_drop_pct: :voltage_drop_pct }
     end

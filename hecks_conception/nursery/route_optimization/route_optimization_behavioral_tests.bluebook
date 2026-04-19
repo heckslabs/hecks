@@ -61,6 +61,7 @@ Hecks.behaviors "RouteOptimization" do
 
   test "ReportTraffic cascades through policy chain" do
     tests "ReportTraffic", on: "TrafficCondition", kind: :cascade
+    setup  "OptimizeRoute", name: "sample", courier_name: "sample", stop_count: 1, total_distance_km: 1.0, estimated_hours: 1.0
     input  road_segment: "sample", avg_speed_kmh: 1.0, congestion_level: 1.0, timestamp: "sample"
     expect emits: ["TrafficReported", "CongestionDetected", "RouteAdjustedForTraffic"]
   end
@@ -73,6 +74,7 @@ Hecks.behaviors "RouteOptimization" do
 
   test "DetectCongestion cascades through policy chain" do
     tests "DetectCongestion", on: "TrafficCondition", kind: :cascade
+    setup  "OptimizeRoute", name: "sample", courier_name: "sample", stop_count: 1, total_distance_km: 1.0, estimated_hours: 1.0
     setup  "ReportTraffic", road_segment: "sample", avg_speed_kmh: 1.0, congestion_level: 1.0, timestamp: "sample"
     expect emits: ["CongestionDetected", "RouteAdjustedForTraffic"]
   end

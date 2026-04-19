@@ -121,7 +121,6 @@ Hecks.bluebook "GroceryStore", version: "2026.04.13.1" do
       reference_to(Supplier)
       String :sku
       Integer :quantity
-      given { quantity > 0 }
       emits "ReorderPlaced"
     end
   end

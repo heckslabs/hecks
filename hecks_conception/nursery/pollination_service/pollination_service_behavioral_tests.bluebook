@@ -24,6 +24,8 @@ Hecks.behaviors "PollinationService" do
 
   test "DeployForPollination cascades through policy chain" do
     tests "DeployForPollination", on: "Hive", kind: :cascade
+    setup  "RegisterField", name: "sample", crop_type: "sample", area_hectares: 1.0, bloom_start: "sample", bloom_end: "sample", hives_needed: 1
+    setup  "RequestPollination"
     setup  "RegisterHive", hive_id: "sample", population_estimate: 1, queen_status: "sample", honey_stores_kg: 1.0
     expect emits: ["HiveDeployed", "PollinationConfirmed"]
   end
@@ -46,6 +48,7 @@ Hecks.behaviors "PollinationService" do
 
   test "RegisterField cascades through policy chain" do
     tests "RegisterField", on: "CropField", kind: :cascade
+    setup  "PollinatePlan", schedule_name: "sample", field_name: "sample", hive_id: "sample", start_date: "sample", end_date: "sample", hive_count: 1
     input  name: "sample", crop_type: "sample", area_hectares: 1.0, bloom_start: "sample", bloom_end: "sample", hives_needed: 1
     expect emits: ["FieldRegistered", "ScheduleCreated"]
   end
@@ -58,6 +61,7 @@ Hecks.behaviors "PollinationService" do
 
   test "RequestPollination cascades through policy chain" do
     tests "RequestPollination", on: "CropField", kind: :cascade
+    setup  "RegisterHive", hive_id: "sample", population_estimate: 1, queen_status: "sample", honey_stores_kg: 1.0
     setup  "RegisterField", name: "sample", crop_type: "sample", area_hectares: 1.0, bloom_start: "sample", bloom_end: "sample", hives_needed: 1
     expect emits: ["PollinationRequested", "HiveInspected"]
   end
@@ -86,6 +90,9 @@ Hecks.behaviors "PollinationService" do
 
   test "ActivateSchedule cascades through policy chain" do
     tests "ActivateSchedule", on: "PollinationSchedule", kind: :cascade
+    setup  "RegisterHive", hive_id: "sample", population_estimate: 1, queen_status: "sample", honey_stores_kg: 1.0
+    setup  "RegisterField", name: "sample", crop_type: "sample", area_hectares: 1.0, bloom_start: "sample", bloom_end: "sample", hives_needed: 1
+    setup  "RequestPollination"
     setup  "PollinatePlan", schedule_name: "sample", field_name: "sample", hive_id: "sample", start_date: "sample", end_date: "sample", hive_count: 1
     expect emits: ["ScheduleActivated", "HiveDeployed", "PollinationConfirmed"]
   end
@@ -99,6 +106,8 @@ Hecks.behaviors "PollinationService" do
 
   test "CompleteSchedule cascades through policy chain" do
     tests "CompleteSchedule", on: "PollinationSchedule", kind: :cascade
+    setup  "RegisterHive", hive_id: "sample", population_estimate: 1, queen_status: "sample", honey_stores_kg: 1.0
+    setup  "DeployForPollination"
     setup  "PollinatePlan", schedule_name: "sample", field_name: "sample", hive_id: "sample", start_date: "sample", end_date: "sample", hive_count: 1
     setup  "ActivateSchedule"
     expect emits: ["ScheduleCompleted", "HiveReturned"]

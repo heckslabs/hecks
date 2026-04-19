@@ -11,6 +11,7 @@ Hecks.behaviors "PetPortraits" do
 
   test "IntakeAnimal cascades through policy chain" do
     tests "IntakeAnimal", on: "ShelterAnimal", kind: :cascade
+    setup  "BookSession", session_id: "sample", animal_id: "sample", photographer: "sample", date: "sample", backdrop: "sample"
     input  animal_id: "sample", name: "sample", species: "sample", breed: "sample", personality: "sample"
     expect emits: ["AnimalIntaked", "SessionBooked"]
   end
@@ -45,6 +46,7 @@ Hecks.behaviors "PetPortraits" do
 
   test "SelectBestPhotos cascades through policy chain" do
     tests "SelectBestPhotos", on: "PhotoSession", kind: :cascade
+    setup  "CommissionProfile", profile_id: "sample", animal_id: "sample", headline: "sample", story: "sample"
     setup  "BookSession", session_id: "sample", animal_id: "sample", photographer: "sample", date: "sample", backdrop: "sample"
     setup  "CompleteSession"
     expect emits: ["PhotosSelected", "ProfileCreated"]

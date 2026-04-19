@@ -236,24 +236,9 @@ Hecks.bluebook "FlightWeather", version: "2026.04.13.1" do
     trigger "AdjustFuelForWeather"
   end
 
-  policy "PredictDelayOnReport" do
-    on "WeatherReported"
-    trigger "PredictDelay"
-  end
-
   policy "EscalateOnPredict" do
     on "DelayPredicted"
     trigger "EscalateDelay"
-  end
-
-  policy "DivertOnEscalation" do
-    on "DelayEscalated"
-    trigger "DivertFlight"
-  end
-
-  policy "CalculateFuelOnFile" do
-    on "FlightPlanFiled"
-    trigger "CalculateFuelPlan"
   end
 
   fixture "WeatherStation", station_id: "KSFO", airport_code: "SFO", latitude: 37.6213, longitude: -122.3790, elevation_ft: 13.0, status: "active"

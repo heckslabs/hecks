@@ -26,8 +26,9 @@ Hecks.behaviors "NutritionRx" do
   test "FlagDeficiency cascades through policy chain" do
     tests "FlagDeficiency", on: "Patient", kind: :cascade
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", dietary_restriction: "sample"
+    setup  "SetTarget", nutrient: "sample", target_amount: 1.0, unit: "sample"
     input  nutrient: "sample", severity: "sample"
-    expect emits: ["DeficiencyDetected", "MealPlanGenerated", "NutrientTargetSet"]
+    expect emits: ["DeficiencyDetected", "NutrientTargetSet"]
   end
 
 
@@ -48,6 +49,7 @@ Hecks.behaviors "NutritionRx" do
 
   test "FillPrescription cascades through policy chain" do
     tests "FillPrescription", on: "Prescription", kind: :cascade
+    setup  "GenerateGroceryList"
     setup  "WritePrescription", medication: "sample", dosage: "sample", frequency: "sample"
     expect emits: ["PrescriptionFilled", "GroceryListRevised"]
   end
@@ -62,6 +64,7 @@ Hecks.behaviors "NutritionRx" do
   test "FlagInteraction cascades through policy chain" do
     tests "FlagInteraction", on: "Prescription", kind: :cascade
     setup  "WritePrescription", medication: "sample", dosage: "sample", frequency: "sample"
+    setup  "GenerateMealPlan", goal: "sample", daily_calories: 1
     input  food_item: "sample", interaction_type: "sample"
     expect emits: ["FoodInteractionFlagged", "MealPlanAdjusted"]
   end
@@ -80,12 +83,6 @@ Hecks.behaviors "NutritionRx" do
     tests "ApproveMealPlan", on: "MealPlan"
     setup  "GenerateMealPlan", goal: "sample", daily_calories: 1
     expect status: "approved"
-  end
-
-  test "ApproveMealPlan cascades through policy chain" do
-    tests "ApproveMealPlan", on: "MealPlan", kind: :cascade
-    setup  "GenerateMealPlan", goal: "sample", daily_calories: 1
-    expect emits: ["MealPlanApproved", "GroceryListGenerated"]
   end
 
   test "AdjustForInteraction sets food_item + replacement" do

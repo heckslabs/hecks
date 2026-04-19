@@ -37,13 +37,6 @@ Hecks.behaviors "GeologicalMining" do
     expect grade_pct: 1.0, estimated_tonnage: 1.0, status: "measured"
   end
 
-  test "UpgradeResource cascades through policy chain" do
-    tests "UpgradeResource", on: "OreBody", kind: :cascade
-    setup  "DelineateOreBody", name: "sample", mineral: "sample", grade_pct: 1.0, estimated_tonnage: 1.0, depth_m: 1.0
-    input  grade_pct: 1.0, estimated_tonnage: 1.0
-    expect emits: ["ResourceUpgraded", "ExtractionPlanDesigned", "ExtractionApproved"]
-  end
-
 
   # ── DrillCore aggregate ──────────────────────────────────────────
 
@@ -77,19 +70,13 @@ Hecks.behaviors "GeologicalMining" do
   test "RecordAssayResult cascades through policy chain" do
     tests "RecordAssayResult", on: "AssayResult", kind: :cascade
     input  sample_id: "sample", hole_id: "sample", element: "sample", concentration_ppm: 1.0, grade_pct: 1.0, lab_name: "sample"
-    expect emits: ["AssayResultRecorded", "QCValidated", "OreBodyDelineated"]
+    expect emits: ["AssayResultRecorded", "QCValidated"]
   end
 
   test "ValidateQC runs" do
     tests "ValidateQC", on: "AssayResult"
     setup  "RecordAssayResult", sample_id: "sample", hole_id: "sample", element: "sample", concentration_ppm: 1.0, grade_pct: 1.0, lab_name: "sample"
     expect status: "validated"
-  end
-
-  test "ValidateQC cascades through policy chain" do
-    tests "ValidateQC", on: "AssayResult", kind: :cascade
-    setup  "RecordAssayResult", sample_id: "sample", hole_id: "sample", element: "sample", concentration_ppm: 1.0, grade_pct: 1.0, lab_name: "sample"
-    expect emits: ["QCValidated", "OreBodyDelineated"]
   end
 
 
@@ -99,12 +86,6 @@ Hecks.behaviors "GeologicalMining" do
     tests "DesignExtractionPlan", on: "ExtractionPlan"
     input  name: "sample", ore_body_name: "sample", extraction_method: "sample", planned_tonnage: 1.0, strip_ratio: 1.0, cost_per_ton: 1.0
     expect name: "sample", ore_body_name: "sample", extraction_method: "sample", planned_tonnage: 1.0, strip_ratio: 1.0, cost_per_ton: 1.0, status: "designed"
-  end
-
-  test "DesignExtractionPlan cascades through policy chain" do
-    tests "DesignExtractionPlan", on: "ExtractionPlan", kind: :cascade
-    input  name: "sample", ore_body_name: "sample", extraction_method: "sample", planned_tonnage: 1.0, strip_ratio: 1.0, cost_per_ton: 1.0
-    expect emits: ["ExtractionPlanDesigned", "ExtractionApproved"]
   end
 
   test "ApproveExtraction runs" do

@@ -26,6 +26,7 @@ Hecks.behaviors "UrbanFarm" do
 
   test "PlantCrop cascades through policy chain" do
     tests "PlantCrop", on: "CropCycle", kind: :cascade
+    setup  "ConfigureIrrigation", system_id: "sample", zone_name: "sample", irrigation_type: "sample", flow_rate_gpm: 1.0, schedule: "sample"
     input  cycle_id: "sample", plot_id: "sample", crop_name: "sample", planted_date: "sample", expected_harvest: "sample"
     expect emits: ["CropPlanted", "IrrigationRun"]
   end
@@ -39,6 +40,7 @@ Hecks.behaviors "UrbanFarm" do
 
   test "HarvestCrop cascades through policy chain" do
     tests "HarvestCrop", on: "CropCycle", kind: :cascade
+    setup  "DistributeHarvest", distribution_id: "sample", cycle_id: "sample", distributed_lbs: 1.0, recipient: "sample", date: "sample"
     setup  "PlantCrop", cycle_id: "sample", plot_id: "sample", crop_name: "sample", planted_date: "sample", expected_harvest: "sample"
     input  yield_lbs: 1.0
     expect emits: ["CropHarvested", "HarvestDistributed"]

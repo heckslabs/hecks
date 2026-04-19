@@ -785,7 +785,6 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
       role "Mathematician"
       description "Compute the cross product — perpendicular vector in three dimensions"
       reference_to(Vector)
-      given { dimension == 3 }
       String :other_vector
       emits "CrossProductComputed"
     end
@@ -964,14 +963,12 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
       emits "ProofConstructed"
       then_set :theorem, to: :theorem
       then_set :proof_method, to: :proof_method
-      then_set :status, to: "in_progress"
     end
 
     AddProofStep do
       role "Mathematician"
       description "Add a step to the proof — statement with justification"
       reference_to(Proof)
-      given { status == "in_progress" }
       String :statement
       String :justification
       emits "ProofStepAdded"
@@ -981,7 +978,6 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
       role "Mathematician"
       description "Mark the proof as complete — QED"
       reference_to(Proof)
-      given { status == "in_progress" }
       emits "ProofCompleted"
       then_set :status, to: "complete"
     end
@@ -996,8 +992,7 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "pending" do
-      transition "ConstructProof" => "in_progress", from: "pending"
-      transition "CompleteProof" => "complete", from: "in_progress"
+      transition "CompleteProof" => "complete", from: ["pending", "in_progress"]
       transition "VerifyProof" => "verified", from: "complete"
     end
   end

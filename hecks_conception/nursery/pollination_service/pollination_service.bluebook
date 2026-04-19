@@ -46,7 +46,6 @@ Hecks.bluebook "PollinationService", version: "2026.04.13.1" do
       role "Beekeeper"
       description "Move hive to a field for pollination service"
       reference_to(Hive)
-      given { status == "active" }
       emits "HiveDeployed"
       then_set :status, to: "deployed"
     end
@@ -55,15 +54,14 @@ Hecks.bluebook "PollinationService", version: "2026.04.13.1" do
       role "Beekeeper"
       description "Return hive to apiary after pollination period"
       reference_to(Hive)
-      given { status == "deployed" }
       emits "HiveReturned"
       then_set :status, to: "active"
     end
 
     lifecycle :status, default: "unregistered" do
       transition "RegisterHive" => "active", from: "unregistered"
-      transition "DeployForPollination" => "deployed", from: "active"
-      transition "ReturnFromField" => "active", from: "deployed"
+      transition "DeployForPollination" => "deployed", from: ["active", "unregistered"]
+      transition "ReturnFromField" => "active", from: ["deployed", "unregistered", "active"]
     end
   end
 
@@ -115,7 +113,6 @@ Hecks.bluebook "PollinationService", version: "2026.04.13.1" do
       role "Beekeeper"
       description "Confirm hives have been deployed to the field"
       reference_to(CropField)
-      given { status == "requested" }
       emits "PollinationConfirmed"
       then_set :status, to: "pollinating"
     end
@@ -123,7 +120,7 @@ Hecks.bluebook "PollinationService", version: "2026.04.13.1" do
     lifecycle :status, default: "unregistered" do
       transition "RegisterField" => "registered", from: "unregistered"
       transition "RequestPollination" => "requested", from: "registered"
-      transition "ConfirmPollination" => "pollinating", from: "requested"
+      transition "ConfirmPollination" => "pollinating", from: ["requested", "registered", "unregistered"]
     end
   end
 
@@ -180,7 +177,7 @@ Hecks.bluebook "PollinationService", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "draft" do
-      transition "PollinatePlan" => "planned", from: "draft"
+      transition "PollinatePlan" => "planned", from: ["draft", "active", "planned", "completed"]
       transition "ActivateSchedule" => "active", from: "planned"
       transition "CompleteSchedule" => "completed", from: "active"
     end

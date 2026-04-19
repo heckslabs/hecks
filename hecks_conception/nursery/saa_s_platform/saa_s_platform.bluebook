@@ -118,7 +118,6 @@ Hecks.bluebook "SaaSPlatform", version: "2026.04.13.1" do
     RetireFlag do
       description "Remove a feature flag after full rollout"
       reference_to(FeatureFlag)
-      given("flag is fully rolled out") { rollout_percentage == 100 }
       emits "FlagRetired"
     end
   end

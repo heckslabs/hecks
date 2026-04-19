@@ -11,6 +11,9 @@ Hecks.behaviors "ApplianceRepair" do
 
   test "ScheduleRepair cascades through policy chain" do
     tests "ScheduleRepair", on: "RepairTicket", kind: :cascade
+    setup  "RegisterAppliance", brand: "sample", model: "sample", serial_number: "sample", age_years: 1, appliance_type: "sample"
+    setup  "RunDiagnostic", test_performed: "sample"
+    setup  "OrderPart", part_number: "sample", part_name: "sample", vendor: "sample", cost: 1.0
     input  customer_name: "sample", address: "sample", appliance_type: "sample", symptom: "sample", scheduled_date: "sample"
     expect emits: ["RepairScheduled", "ApplianceRegistered", "DiagnosticRun", "FaultCodeRecorded", "PartOrdered"]
   end
@@ -20,6 +23,19 @@ Hecks.behaviors "ApplianceRepair" do
     setup  "ScheduleRepair", customer_name: "sample", address: "sample", appliance_type: "sample", symptom: "sample", scheduled_date: "sample"
     input  new_date: "sample"
     expect ok: "true"
+  end
+
+  test "CloseTicket runs" do
+    tests "CloseTicket", on: "RepairTicket"
+    setup  "ScheduleRepair", customer_name: "sample", address: "sample", appliance_type: "sample", symptom: "sample", scheduled_date: "sample"
+    expect status: "closed"
+  end
+
+  test "CloseTicket cascades through policy chain" do
+    tests "CloseTicket", on: "RepairTicket", kind: :cascade
+    setup  "ScheduleRepair", customer_name: "sample", address: "sample", appliance_type: "sample", symptom: "sample", scheduled_date: "sample"
+    setup  "IssueWarranty", duration_days: 1, coverage_type: "sample"
+    expect emits: ["TicketClosed", "WarrantyIssued"]
   end
 
 
@@ -35,6 +51,8 @@ Hecks.behaviors "ApplianceRepair" do
   test "RegisterAppliance cascades through policy chain" do
     tests "RegisterAppliance", on: "Appliance", kind: :cascade
     setup  "ScheduleRepair", customer_name: "sample", address: "sample", appliance_type: "sample", symptom: "sample", scheduled_date: "sample"
+    setup  "RunDiagnostic", test_performed: "sample"
+    setup  "OrderPart", part_number: "sample", part_name: "sample", vendor: "sample", cost: 1.0
     input  brand: "sample", model: "sample", serial_number: "sample", age_years: 1, appliance_type: "sample"
     expect emits: ["ApplianceRegistered", "DiagnosticRun", "FaultCodeRecorded", "PartOrdered"]
   end
@@ -59,6 +77,7 @@ Hecks.behaviors "ApplianceRepair" do
   test "RunDiagnostic cascades through policy chain" do
     tests "RunDiagnostic", on: "Diagnostic", kind: :cascade
     setup  "RegisterAppliance", brand: "sample", model: "sample", serial_number: "sample", age_years: 1, appliance_type: "sample"
+    setup  "OrderPart", part_number: "sample", part_name: "sample", vendor: "sample", cost: 1.0
     input  test_performed: "sample"
     expect emits: ["DiagnosticRun", "FaultCodeRecorded", "PartOrdered"]
   end
@@ -73,6 +92,7 @@ Hecks.behaviors "ApplianceRepair" do
   test "RecordFaultCode cascades through policy chain" do
     tests "RecordFaultCode", on: "Diagnostic", kind: :cascade
     setup  "RunDiagnostic", test_performed: "sample"
+    setup  "OrderPart", part_number: "sample", part_name: "sample", vendor: "sample", cost: 1.0
     input  fault_code: "sample", root_cause: "sample"
     expect emits: ["FaultCodeRecorded", "PartOrdered"]
   end
@@ -95,6 +115,8 @@ Hecks.behaviors "ApplianceRepair" do
 
   test "ReceivePart cascades through policy chain" do
     tests "ReceivePart", on: "PartsOrder", kind: :cascade
+    setup  "ScheduleRepair", customer_name: "sample", address: "sample", appliance_type: "sample", symptom: "sample", scheduled_date: "sample"
+    setup  "IssueWarranty", duration_days: 1, coverage_type: "sample"
     setup  "OrderPart", part_number: "sample", part_name: "sample", vendor: "sample", cost: 1.0
     expect emits: ["PartReceived", "PartInstalled", "TicketClosed", "WarrantyIssued"]
   end
@@ -108,6 +130,8 @@ Hecks.behaviors "ApplianceRepair" do
   test "InstallPart cascades through policy chain" do
     tests "InstallPart", on: "PartsOrder", kind: :cascade
     setup  "OrderPart", part_number: "sample", part_name: "sample", vendor: "sample", cost: 1.0
+    setup  "ScheduleRepair", customer_name: "sample", address: "sample", appliance_type: "sample", symptom: "sample", scheduled_date: "sample"
+    setup  "IssueWarranty", duration_days: 1, coverage_type: "sample"
     expect emits: ["PartInstalled", "TicketClosed", "WarrantyIssued"]
   end
 

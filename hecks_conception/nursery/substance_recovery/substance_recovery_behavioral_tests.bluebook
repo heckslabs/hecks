@@ -11,6 +11,10 @@ Hecks.behaviors "SubstanceRecovery" do
 
   test "IntakeClient cascades through policy chain" do
     tests "IntakeClient", on: "Client", kind: :cascade
+    setup  "HireCounselor", name: "sample", license_type: "sample", license_number: "sample", specialty: "sample"
+    setup  "EstablishProgram", program_name: "sample", treatment_level: "sample", duration_days: 1, modality: "sample", capacity: 1
+    setup  "ConveneSupportGroup", group_name: "sample", meeting_day: "sample", meeting_time: "sample", facilitator_name: "sample", max_members: 1
+    setup  "RecordMilestone", client_name: "sample", milestone_type: "sample", description: "sample", achieved_date: "sample", days_sober: 1, verified_by: "sample"
     input  name: "sample", date_of_birth: "sample", primary_substance: "sample", intake_date: "sample", insurance_id: "sample"
     expect emits: ["ClientIntaked", "CaseAssigned", "ClientEnrolledInProgram", "GroupMemberAdded", "AttendanceRecorded", "MilestoneRecorded", "MilestoneCelebrated", "ClientTransitionedToAftercare", "ClientDischarged"]
   end
@@ -44,6 +48,8 @@ Hecks.behaviors "SubstanceRecovery" do
 
   test "EstablishProgram cascades through policy chain" do
     tests "EstablishProgram", on: "TreatmentProgram", kind: :cascade
+    setup  "ConveneSupportGroup", group_name: "sample", meeting_day: "sample", meeting_time: "sample", facilitator_name: "sample", max_members: 1
+    setup  "HireCounselor", name: "sample", license_type: "sample", license_number: "sample", specialty: "sample"
     input  program_name: "sample", treatment_level: "sample", duration_days: 1, modality: "sample", capacity: 1
     expect emits: ["ProgramEstablished", "SupportGroupConvened"]
   end
@@ -51,6 +57,9 @@ Hecks.behaviors "SubstanceRecovery" do
   test "EnrollInProgram cascades through policy chain" do
     tests "EnrollInProgram", on: "TreatmentProgram", kind: :cascade
     setup  "EstablishProgram", program_name: "sample", treatment_level: "sample", duration_days: 1, modality: "sample", capacity: 1
+    setup  "ConveneSupportGroup", group_name: "sample", meeting_day: "sample", meeting_time: "sample", facilitator_name: "sample", max_members: 1
+    setup  "RecordMilestone", client_name: "sample", milestone_type: "sample", description: "sample", achieved_date: "sample", days_sober: 1, verified_by: "sample"
+    setup  "IntakeClient", name: "sample", date_of_birth: "sample", primary_substance: "sample", intake_date: "sample", insurance_id: "sample"
     expect emits: ["ClientEnrolledInProgram", "GroupMemberAdded", "AttendanceRecorded", "MilestoneRecorded", "MilestoneCelebrated", "ClientTransitionedToAftercare", "ClientDischarged"]
   end
 
@@ -87,6 +96,7 @@ Hecks.behaviors "SubstanceRecovery" do
   test "CelebrateMilestone cascades through policy chain" do
     tests "CelebrateMilestone", on: "RecoveryMilestone", kind: :cascade
     setup  "RecordMilestone", client_name: "sample", milestone_type: "sample", description: "sample", achieved_date: "sample", days_sober: 1, verified_by: "sample"
+    setup  "IntakeClient", name: "sample", date_of_birth: "sample", primary_substance: "sample", intake_date: "sample", insurance_id: "sample"
     expect emits: ["MilestoneCelebrated", "ClientTransitionedToAftercare", "ClientDischarged"]
   end
 
@@ -125,6 +135,8 @@ Hecks.behaviors "SubstanceRecovery" do
   test "AddGroupMember cascades through policy chain" do
     tests "AddGroupMember", on: "SupportGroup", kind: :cascade
     setup  "ConveneSupportGroup", group_name: "sample", meeting_day: "sample", meeting_time: "sample", facilitator_name: "sample", max_members: 1
+    setup  "RecordMilestone", client_name: "sample", milestone_type: "sample", description: "sample", achieved_date: "sample", days_sober: 1, verified_by: "sample"
+    setup  "IntakeClient", name: "sample", date_of_birth: "sample", primary_substance: "sample", intake_date: "sample", insurance_id: "sample"
     input  client_name: "sample", joined_date: "sample"
     expect emits: ["GroupMemberAdded", "AttendanceRecorded", "MilestoneRecorded", "MilestoneCelebrated", "ClientTransitionedToAftercare", "ClientDischarged"]
   end
@@ -138,6 +150,8 @@ Hecks.behaviors "SubstanceRecovery" do
   test "RecordAttendance cascades through policy chain" do
     tests "RecordAttendance", on: "SupportGroup", kind: :cascade
     setup  "ConveneSupportGroup", group_name: "sample", meeting_day: "sample", meeting_time: "sample", facilitator_name: "sample", max_members: 1
+    setup  "RecordMilestone", client_name: "sample", milestone_type: "sample", description: "sample", achieved_date: "sample", days_sober: 1, verified_by: "sample"
+    setup  "IntakeClient", name: "sample", date_of_birth: "sample", primary_substance: "sample", intake_date: "sample", insurance_id: "sample"
     expect emits: ["AttendanceRecorded", "MilestoneRecorded", "MilestoneCelebrated", "ClientTransitionedToAftercare", "ClientDischarged"]
   end
 

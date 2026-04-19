@@ -41,7 +41,6 @@ Hecks.bluebook "AuctionStrategy", version: "2026.04.13.1" do
       role "System"
       description "Close the auction when time expires"
       reference_to(Auction)
-      given { status == "open" }
       emits "AuctionClosed"
       then_set :status, to: "closed"
     end
@@ -50,15 +49,14 @@ Hecks.bluebook "AuctionStrategy", version: "2026.04.13.1" do
       role "System"
       description "Award auction to highest bidder if reserve met"
       reference_to(Auction)
-      given { status == "closed" }
       emits "AuctionAwarded"
       then_set :status, to: "awarded"
     end
 
     lifecycle :status, default: "draft" do
-      transition "ListAuction" => "open", from: "draft"
-      transition "CloseAuction" => "closed", from: "open"
-      transition "AwardAuction" => "awarded", from: "closed"
+      transition "ListAuction" => "open", from: ["draft", "open"]
+      transition "CloseAuction" => "closed", from: ["draft", "open"]
+      transition "AwardAuction" => "awarded", from: ["draft", "open", "closed"]
     end
   end
 

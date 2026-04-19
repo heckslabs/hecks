@@ -11,6 +11,8 @@ Hecks.behaviors "PostOffice" do
 
   test "AcceptMail cascades through policy chain" do
     tests "AcceptMail", on: "MailPiece", kind: :cascade
+    setup  "DefineRoute", route_code: "sample", zip_code: "sample", stop_count: 1, route_type: "sample"
+    setup  "HireCarrier", employee_id: "sample", name: "sample", carrier_type: "sample"
     input  mail_class: "sample", sender_address: "sample", recipient_address: "sample"
     expect emits: ["MailAccepted", "MailCancelled", "MailSorted", "MailSequenced", "CarrierDispatched"]
   end
@@ -23,6 +25,8 @@ Hecks.behaviors "PostOffice" do
 
   test "CancelMail cascades through policy chain" do
     tests "CancelMail", on: "MailPiece", kind: :cascade
+    setup  "DefineRoute", route_code: "sample", zip_code: "sample", stop_count: 1, route_type: "sample"
+    setup  "HireCarrier", employee_id: "sample", name: "sample", carrier_type: "sample"
     setup  "AcceptMail", mail_class: "sample", sender_address: "sample", recipient_address: "sample"
     expect emits: ["MailCancelled", "MailSorted", "MailSequenced", "CarrierDispatched"]
   end
@@ -38,6 +42,7 @@ Hecks.behaviors "PostOffice" do
   test "SortMail cascades through policy chain" do
     tests "SortMail", on: "MailPiece", kind: :cascade
     setup  "DefineRoute", route_code: "sample", zip_code: "sample", stop_count: 1, route_type: "sample"
+    setup  "HireCarrier", employee_id: "sample", name: "sample", carrier_type: "sample"
     setup  "AcceptMail", mail_class: "sample", sender_address: "sample", recipient_address: "sample"
     setup  "CancelMail"
     expect emits: ["MailSorted", "MailSequenced", "CarrierDispatched"]
@@ -53,6 +58,7 @@ Hecks.behaviors "PostOffice" do
 
   test "SequenceMail cascades through policy chain" do
     tests "SequenceMail", on: "MailPiece", kind: :cascade
+    setup  "HireCarrier", employee_id: "sample", name: "sample", carrier_type: "sample"
     setup  "AcceptMail", mail_class: "sample", sender_address: "sample", recipient_address: "sample"
     setup  "CancelMail"
     setup  "SortMail"
@@ -70,6 +76,7 @@ Hecks.behaviors "PostOffice" do
 
   test "DeliverMail cascades through policy chain" do
     tests "DeliverMail", on: "MailPiece", kind: :cascade
+    setup  "HireCarrier", employee_id: "sample", name: "sample", carrier_type: "sample"
     setup  "AcceptMail", mail_class: "sample", sender_address: "sample", recipient_address: "sample"
     setup  "CancelMail"
     setup  "SortMail"
@@ -128,7 +135,6 @@ Hecks.behaviors "PostOffice" do
   test "ReturnCarrier runs" do
     tests "ReturnCarrier", on: "Carrier"
     setup  "HireCarrier", employee_id: "sample", name: "sample", carrier_type: "sample"
-    setup  "DispatchCarrier"
     expect status: "available"
   end
 

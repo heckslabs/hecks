@@ -65,7 +65,6 @@ Hecks.bluebook "RecordLabel" do
       description "Publish the album to streaming platforms and stores"
       reference_to(Album)
       String :release_date
-      given { status == "mastered" }
       emits "AlbumReleased"
       then_set :status, to: "released"
       then_set :release_date, to: :release_date
@@ -126,7 +125,6 @@ Hecks.bluebook "RecordLabel" do
     DisbursePayment do
       description "Send royalty payment to the artist"
       reference_to(RoyaltyStatement)
-      given { status == "approved" }
       emits "PaymentDisbursed"
       then_set :status, to: "paid"
     end

@@ -17,6 +17,7 @@ Hecks.behaviors "OrthoticsFund" do
 
   test "PrescribeDevice cascades through policy chain" do
     tests "PrescribeDevice", on: "PodiatryPatient", kind: :cascade
+    setup  "LaunchCampaign", campaign_id: "sample", patient_id: "sample", goal_amount: 1.0
     setup  "AssessPatient", patient_id: "sample", name: "sample", diagnosis: "sample", foot_type: "sample"
     expect emits: ["DevicePrescribed", "CampaignLaunched"]
   end
@@ -60,6 +61,7 @@ Hecks.behaviors "OrthoticsFund" do
 
   test "CloseCampaign cascades through policy chain" do
     tests "CloseCampaign", on: "FundingCampaign", kind: :cascade
+    setup  "ReleaseFunds", disbursement_id: "sample", campaign_id: "sample", device_id: "sample", amount: 1.0
     setup  "LaunchCampaign", campaign_id: "sample", patient_id: "sample", goal_amount: 1.0
     expect emits: ["CampaignClosed", "FundsReleased"]
   end

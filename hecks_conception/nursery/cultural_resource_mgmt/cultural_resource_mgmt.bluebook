@@ -245,10 +245,6 @@ Hecks.bluebook "CulturalResourceMgmt", version: "2026.04.13.1" do
     trigger "AssessSite"
   end
 
-  policy "HaltOnDiscovery" do
-    on "SiteDiscovered"
-    trigger "HaltForArchaeology"
-  end
 
   policy "ExcavateOnAssessment" do
     on "SiteAssessed"
@@ -260,10 +256,6 @@ Hecks.bluebook "CulturalResourceMgmt", version: "2026.04.13.1" do
     trigger "PreserveArtifact"
   end
 
-  policy "ResumeOnClear" do
-    on "SiteCleared"
-    trigger "ResumePhase"
-  end
 
   policy "ReviewPermitOnApply" do
     on "PreservationPermitApplied"

@@ -11,6 +11,8 @@ Hecks.behaviors "Dendrology" do
 
   test "TagTree cascades through policy chain" do
     tests "TagTree", on: "TreeSpecimen", kind: :cascade
+    setup  "ExtractCore", core_id: "sample"
+    setup  "AssessHealth", assessment_date: "sample", assessor: "sample"
     input  specimen_id: "sample", species: "sample", dbh_cm: 1.0
     expect emits: ["TreeTagged", "CoreExtracted", "RingsCounted", "RingsCrossdated", "HealthAssessed", "TreatmentPrescribed", "FollowupScheduled"]
   end
@@ -43,12 +45,13 @@ Hecks.behaviors "Dendrology" do
     tests "ExtractCore", on: "GrowthRingAnalysis"
     setup  "TagTree", specimen_id: "sample", species: "sample", dbh_cm: 1.0
     input  core_id: "sample"
-    expect ok: "true"
+    expect core_prepared: true
   end
 
   test "ExtractCore cascades through policy chain" do
     tests "ExtractCore", on: "GrowthRingAnalysis", kind: :cascade
     setup  "TagTree", specimen_id: "sample", species: "sample", dbh_cm: 1.0
+    setup  "AssessHealth", assessment_date: "sample", assessor: "sample"
     input  core_id: "sample"
     expect emits: ["CoreExtracted", "RingsCounted", "RingsCrossdated", "HealthAssessed", "TreatmentPrescribed", "FollowupScheduled"]
   end
@@ -62,14 +65,14 @@ Hecks.behaviors "Dendrology" do
   test "CountRings runs" do
     tests "CountRings", on: "GrowthRingAnalysis"
     setup  "ExtractCore", core_id: "sample"
-    setup  "PrepareCore"
     expect ok: "true"
   end
 
   test "CountRings cascades through policy chain" do
     tests "CountRings", on: "GrowthRingAnalysis", kind: :cascade
+    setup  "AssessHealth", assessment_date: "sample", assessor: "sample"
+    setup  "TagTree", specimen_id: "sample", species: "sample", dbh_cm: 1.0
     setup  "ExtractCore", core_id: "sample"
-    setup  "PrepareCore"
     expect emits: ["RingsCounted", "RingsCrossdated", "HealthAssessed", "TreatmentPrescribed", "FollowupScheduled"]
   end
 
@@ -82,6 +85,8 @@ Hecks.behaviors "Dendrology" do
   test "CrossdateRings cascades through policy chain" do
     tests "CrossdateRings", on: "GrowthRingAnalysis", kind: :cascade
     setup  "ExtractCore", core_id: "sample"
+    setup  "AssessHealth", assessment_date: "sample", assessor: "sample"
+    setup  "TagTree", specimen_id: "sample", species: "sample", dbh_cm: 1.0
     expect emits: ["RingsCrossdated", "HealthAssessed", "TreatmentPrescribed", "FollowupScheduled"]
   end
 
@@ -112,7 +117,6 @@ Hecks.behaviors "Dendrology" do
   test "PrescribeTreatment sets treatment_type" do
     tests "PrescribeTreatment", on: "HealthAssessment"
     setup  "AssessHealth", assessment_date: "sample", assessor: "sample"
-    setup  "RecordDefect", defect: "sample"
     input  treatment_type: "sample"
     expect ok: "true"
   end
@@ -120,7 +124,6 @@ Hecks.behaviors "Dendrology" do
   test "PrescribeTreatment cascades through policy chain" do
     tests "PrescribeTreatment", on: "HealthAssessment", kind: :cascade
     setup  "AssessHealth", assessment_date: "sample", assessor: "sample"
-    setup  "RecordDefect", defect: "sample"
     input  treatment_type: "sample"
     expect emits: ["TreatmentPrescribed", "FollowupScheduled"]
   end

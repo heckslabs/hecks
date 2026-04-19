@@ -23,6 +23,7 @@ Hecks.bluebook "Inventory", version: "2026.04.11.1" do
       then_set :sku, to: :sku
       then_set :warehouse, to: :warehouse
       then_set :quantity_on_hand, increment: :quantity
+      then_set :quantity_available, increment: :quantity
     end
 
     ReserveStock do
@@ -43,6 +44,7 @@ Hecks.bluebook "Inventory", version: "2026.04.11.1" do
       emits "StockShipped"
       then_set :quantity_on_hand, decrement: :quantity
       then_set :quantity_reserved, decrement: :quantity
+      then_set :quantity_available, decrement: :quantity
     end
 
     AdjustInventory do

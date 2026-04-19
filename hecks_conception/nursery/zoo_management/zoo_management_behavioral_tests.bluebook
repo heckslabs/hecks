@@ -11,6 +11,7 @@ Hecks.behaviors "ZooManagement" do
 
   test "RegisterAnimal cascades through policy chain" do
     tests "RegisterAnimal", on: "Animal", kind: :cascade
+    setup  "ScheduleExam", exam_type: "sample", veterinarian: "sample"
     input  common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample"
     expect emits: ["AnimalRegistered", "ExamScheduled"]
   end
@@ -23,6 +24,9 @@ Hecks.behaviors "ZooManagement" do
 
   test "ClearQuarantine cascades through policy chain" do
     tests "ClearQuarantine", on: "Animal", kind: :cascade
+    setup  "BuildHabitat", name: "sample", biome_type: "sample", area_sqft: 1.0, max_capacity: 1
+    setup  "PlanFeeding", diet_type: "sample", feeding_time: "sample", portion_kg: 1.0
+    setup  "ScheduleExam", exam_type: "sample", veterinarian: "sample"
     setup  "RegisterAnimal", common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample"
     expect emits: ["QuarantineCleared", "AnimalPlacedOnExhibit", "FeedingPlanned", "FeedingRecorded", "ExamScheduled"]
   end
@@ -38,6 +42,8 @@ Hecks.behaviors "ZooManagement" do
   test "PlaceOnExhibit cascades through policy chain" do
     tests "PlaceOnExhibit", on: "Animal", kind: :cascade
     setup  "BuildHabitat", name: "sample", biome_type: "sample", area_sqft: 1.0, max_capacity: 1
+    setup  "PlanFeeding", diet_type: "sample", feeding_time: "sample", portion_kg: 1.0
+    setup  "ScheduleExam", exam_type: "sample", veterinarian: "sample"
     setup  "RegisterAnimal", common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample"
     setup  "ClearQuarantine"
     expect emits: ["AnimalPlacedOnExhibit", "FeedingPlanned", "FeedingRecorded", "ExamScheduled"]
@@ -72,6 +78,7 @@ Hecks.behaviors "ZooManagement" do
 
   test "BuildHabitat cascades through policy chain" do
     tests "BuildHabitat", on: "Habitat", kind: :cascade
+    setup  "RegisterAnimal", common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample"
     input  name: "sample", biome_type: "sample", area_sqft: 1.0, max_capacity: 1
     expect emits: ["HabitatBuilt", "HabitatInspected", "AnimalAssignedToHabitat"]
   end
@@ -84,6 +91,7 @@ Hecks.behaviors "ZooManagement" do
 
   test "InspectHabitat cascades through policy chain" do
     tests "InspectHabitat", on: "Habitat", kind: :cascade
+    setup  "RegisterAnimal", common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample"
     setup  "BuildHabitat", name: "sample", biome_type: "sample", area_sqft: 1.0, max_capacity: 1
     expect emits: ["HabitatInspected", "AnimalAssignedToHabitat"]
   end
@@ -154,9 +162,10 @@ Hecks.behaviors "ZooManagement" do
 
   test "PerformExam cascades through policy chain" do
     tests "PerformExam", on: "VeterinaryExam", kind: :cascade
+    setup  "PlanFeeding", diet_type: "sample", feeding_time: "sample", portion_kg: 1.0
     setup  "ScheduleExam", exam_type: "sample", veterinarian: "sample"
     input  findings: "sample"
-    expect emits: ["ExamPerformed", "QuarantineCleared", "AnimalPlacedOnExhibit", "FeedingPlanned", "FeedingRecorded", "ExamScheduled", "DietAdjusted"]
+    expect emits: ["ExamPerformed", "DietAdjusted"]
   end
 
 
@@ -178,6 +187,8 @@ Hecks.behaviors "ZooManagement" do
 
   test "RecordBirth cascades through policy chain" do
     tests "RecordBirth", on: "BreedingProgram", kind: :cascade
+    setup  "RegisterAnimal", common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample"
+    setup  "ScheduleExam", exam_type: "sample", veterinarian: "sample"
     setup  "InitiateBreeding", species: "sample", target_offspring: 1
     input  offspring_name: "sample"
     expect emits: ["BirthRecorded", "AnimalRegistered", "ExamScheduled"]

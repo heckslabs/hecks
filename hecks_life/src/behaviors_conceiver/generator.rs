@@ -280,7 +280,12 @@ fn emit_cascade_test(
     let self_ref = self_ref_for(agg, cmd);
     let cross_refs = cross_refs_for(agg, cmd);
 
-    let mut setups: Vec<String> = chain.iter().map(|c| emit_setup(agg, c)).collect();
+    // Setups must preserve dependency order: prerequisites BEFORE the
+    // commands that consume them. We accumulate prerequisites into a
+    // separate `prerequisites` vec and concatenate `prerequisites + chain`
+    // at the end. Each helper that adds a prerequisite uses `push` (not
+    // `insert(0, ...)`), so chain order is preserved within each phase.
+    let mut prerequisites: Vec<String> = Vec::new();
     let chain_creates_entity = chain.iter().any(|c| self_ref_for(agg, c).is_none());
     if self_ref.is_some() && !chain_creates_entity {
         if let Some(create) = pick_create_command(agg) {
@@ -288,17 +293,69 @@ fn emit_cascade_test(
                 SetupPlan::Chain(c) => c,
                 SetupPlan::Unsatisfiable => return None,
             };
-            for cc in create_chain { setups.insert(0, emit_setup(agg, cc)); }
-            setups.insert(0, emit_setup(agg, create));
+            // Create command first, then its dependency chain, then the
+            // existing setups. plan_setup_chain returns prerequisites of
+            // the create — those run BEFORE the create itself does not
+            // make sense; the chain of a Create command is empty in
+            // practice, so the order here only matters for completeness.
+            prerequisites.push(emit_setup(agg, create));
+            for cc in create_chain { prerequisites.push(emit_setup(agg, cc)); }
+        }
+    }
+    // Cascade tests need EVERY aggregate the cascade will hop through to
+    // exist before dispatch — direct cross-refs aren't enough. Walk the
+    // static cascade and gather every aggregate any triggered command
+    // references; emit a create for each (deduped, in dependency order).
+    let cascade_aggs = aggregates_touched_by_cascade(domain, cmd, agg);
+    for target_agg_name in &cascade_aggs {
+        // Skip the test's own aggregate — its create is already handled.
+        if target_agg_name == &agg.name { continue; }
+        if let Some(target_agg) = domain.aggregates.iter().find(|a| &a.name == target_agg_name) {
+            if let Some(create) = pick_create_command(target_agg) {
+                prerequisites.push(emit_setup(target_agg, create));
+            }
+        }
+    }
+
+    // Walk the cascade once more, this time chaining through each
+    // cross-aggregate's lifecycle so triggered commands find their
+    // target in the right state. The Create above proves the record
+    // exists; this loop satisfies any `given { status == "X" }` gate
+    // the cascade will hit when it hops over. Chain order is preserved
+    // (prerequisites first, transition commands last) because we push
+    // sequentially rather than insert(0, ...).
+    let triggered_per_agg = cross_aggregate_triggered(domain, cmd, agg);
+    for (target_agg_name, triggered_cmds) in &triggered_per_agg {
+        let Some(target_agg) = domain.aggregates.iter().find(|a| &a.name == target_agg_name) else { continue };
+        for triggered in triggered_cmds {
+            let chain = match plan_setup_chain(domain, target_agg, triggered, 5, &mut Vec::new()) {
+                SetupPlan::Chain(c) => c,
+                SetupPlan::Unsatisfiable => continue,
+            };
+            for step in chain {
+                let setup_line = emit_setup(target_agg, step);
+                let key = format!("setup  {:?}", step.name);
+                if !prerequisites.iter().any(|s| s.contains(&key)) {
+                    prerequisites.push(setup_line);
+                }
+            }
         }
     }
     for cref in &cross_refs {
         if let Some(target_agg) = domain.aggregates.iter().find(|a| a.name == cref.target) {
             if let Some(create) = pick_create_command(target_agg) {
-                setups.insert(0, emit_setup(target_agg, create));
+                let setup_for = format!("    setup  {:?}", create.name);
+                if !prerequisites.iter().any(|s| s.starts_with(&setup_for)) {
+                    prerequisites.push(emit_setup(target_agg, create));
+                }
             }
         }
     }
+
+    // Concatenate: prerequisites first (in push order — Creates before
+    // dependent transitions), then the test command's own setup chain.
+    let mut setups: Vec<String> = prerequisites;
+    for c in &chain { setups.push(emit_setup(agg, c)); }
 
     let input_pairs = build_input(cmd, &self_ref, &cross_refs);
     let quoted: Vec<String> = events.iter().map(|e| format!("\"{}\"", e)).collect();
@@ -1117,6 +1174,119 @@ fn test_name(cmd: &Command, _agg: &Aggregate) -> String {
             format!("{} sets {}", cmd.name, attrs.join(" + "))
         }
     }
+}
+
+/// Walk the static cascade from `cmd` and gather every aggregate type
+/// that any triggered command lives on or references. Returns the
+/// aggregates in cascade-traversal order (parents first), deduped.
+/// Used by emit_cascade_test to ensure every aggregate the cascade
+/// will hop through is bootstrapped before dispatch.
+/// Collect every triggered command in the cascade, grouped by the
+/// aggregate that owns it — but only for aggregates other than the
+/// command's own. Used by `emit_cascade_test` to chain through
+/// cross-aggregate lifecycles before dispatch, so a cascade hop into
+/// `DeliverCommission given { status == "in_progress" }` finds the
+/// commission already in `in_progress` instead of `quoted`.
+fn cross_aggregate_triggered<'a>(
+    domain: &'a Domain,
+    cmd: &'a Command,
+    cmd_agg: &'a Aggregate,
+) -> Vec<(String, Vec<&'a Command>)> {
+    let mut out: Vec<(String, Vec<&'a Command>)> = Vec::new();
+    let mut visited_cmds: BTreeSet<String> = BTreeSet::new();
+
+    fn walk<'b>(
+        domain: &'b Domain,
+        cmd_name: &str,
+        own_agg: &str,
+        out: &mut Vec<(String, Vec<&'b Command>)>,
+        visited_cmds: &mut BTreeSet<String>,
+    ) {
+        if !visited_cmds.insert(cmd_name.to_string()) { return; }
+        let Some((agg, c)) = find_cmd_with_agg(domain, cmd_name) else { return };
+        if agg.name != own_agg {
+            // Add this triggered cross-aggregate command, deduped per agg.
+            let entry = out.iter_mut().find(|(a, _)| a == &agg.name);
+            match entry {
+                Some((_, cmds)) => {
+                    if !cmds.iter().any(|x| x.name == c.name) { cmds.push(c); }
+                }
+                None => { out.push((agg.name.clone(), vec![c])); }
+            }
+        }
+        if let Some(ev) = &c.emits {
+            for p in &domain.policies {
+                if &p.on_event == ev {
+                    walk(domain, &p.trigger_command, own_agg, out, visited_cmds);
+                }
+            }
+        }
+    }
+
+    visited_cmds.insert(cmd.name.clone());
+    if let Some(ev) = &cmd.emits {
+        for p in &domain.policies {
+            if &p.on_event == ev {
+                walk(domain, &p.trigger_command, &cmd_agg.name, &mut out, &mut visited_cmds);
+            }
+        }
+    }
+    out
+}
+
+fn aggregates_touched_by_cascade(
+    domain: &Domain,
+    cmd: &Command,
+    cmd_agg: &Aggregate,
+) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    let mut seen: BTreeSet<String> = BTreeSet::new();
+    let mut visited_cmds: BTreeSet<String> = BTreeSet::new();
+
+    fn walk(
+        domain: &Domain,
+        cmd_name: &str,
+        out: &mut Vec<String>,
+        seen: &mut BTreeSet<String>,
+        visited_cmds: &mut BTreeSet<String>,
+    ) {
+        if !visited_cmds.insert(cmd_name.to_string()) { return; }
+        let Some((agg, c)) = find_cmd_with_agg(domain, cmd_name) else { return };
+        if seen.insert(agg.name.clone()) { out.push(agg.name.clone()); }
+        for r in &c.references {
+            if seen.insert(r.target.clone()) { out.push(r.target.clone()); }
+        }
+        if let Some(ev) = &c.emits {
+            for p in &domain.policies {
+                if &p.on_event == ev {
+                    walk(domain, &p.trigger_command, out, seen, visited_cmds);
+                }
+            }
+        }
+    }
+
+    seen.insert(cmd_agg.name.clone());
+    out.push(cmd_agg.name.clone());
+    for r in &cmd.references {
+        if seen.insert(r.target.clone()) { out.push(r.target.clone()); }
+    }
+    if let Some(ev) = &cmd.emits {
+        for p in &domain.policies {
+            if &p.on_event == ev {
+                walk(domain, &p.trigger_command, &mut out, &mut seen, &mut visited_cmds);
+            }
+        }
+    }
+    out
+}
+
+fn find_cmd_with_agg<'a>(domain: &'a Domain, cmd_name: &str) -> Option<(&'a Aggregate, &'a Command)> {
+    for a in &domain.aggregates {
+        if let Some(c) = a.commands.iter().find(|c| c.name == cmd_name) {
+            return Some((a, c));
+        }
+    }
+    None
 }
 
 fn to_snake_case(s: &str) -> String {

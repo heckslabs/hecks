@@ -158,39 +158,14 @@ Hecks.bluebook "StainedGlass" do
     end
   end
 
-  policy "CutOnApproval" do
-    on "DesignApproved"
-    trigger "CartoonPanel"
-  end
-
   policy "CutPanelOnCartoon" do
     on "PanelCartooned"
     trigger "CutPanel"
   end
 
-  policy "PrepareCameOnCut" do
-    on "PanelCut"
-    trigger "PrepareCame"
-  end
-
-  policy "LeadPanelOnCame" do
-    on "CamePrepared"
-    trigger "LeadPanel"
-  end
-
-  policy "SolderOnLead" do
-    on "PanelLeaded"
-    trigger "SolderJoints"
-  end
-
   policy "PatinaOnSolder" do
     on "JointsSoldered"
     trigger "ApplyPatina"
-  end
-
-  policy "ScheduleInstallOnPatina" do
-    on "PatinaApplied"
-    trigger "ScheduleInstallation"
   end
 
   policy "CompleteInstallOnSchedule" do

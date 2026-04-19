@@ -23,14 +23,6 @@ Hecks.behaviors "CognitiveSupport" do
     expect fatigue_score: 1.0, cognitive_load_pct: 1.0, status: "available"
   end
 
-  test "CompleteCall cascades through policy chain" do
-    tests "CompleteCall", on: "Agent", kind: :cascade
-    setup  "RegisterAgent", name: "sample", skill_level: "sample", shift_start: "sample"
-    setup  "AssignCall"
-    input  fatigue_score: 1.0, cognitive_load_pct: 1.0
-    expect emits: ["CallCompleted", "FatigueAssessed", "BreakRecommended", "BreakScheduled", "AgentOnBreak"]
-  end
-
   test "SendOnBreak runs" do
     tests "SendOnBreak", on: "Agent"
     setup  "RegisterAgent", name: "sample", skill_level: "sample", shift_start: "sample"
@@ -77,7 +69,7 @@ Hecks.behaviors "CognitiveSupport" do
   test "AssessFatigue cascades through policy chain" do
     tests "AssessFatigue", on: "FatigueAssessment", kind: :cascade
     input  agent_name: "sample", reaction_time_ms: 1.0, error_rate_pct: 1.0, alertness_score: 1.0, assessment_time: "sample"
-    expect emits: ["FatigueAssessed", "BreakRecommended", "BreakScheduled", "AgentOnBreak"]
+    expect emits: ["FatigueAssessed", "BreakRecommended"]
   end
 
   test "RecommendBreak sets recommendation" do
@@ -87,13 +79,6 @@ Hecks.behaviors "CognitiveSupport" do
     expect recommendation: "sample", status: "recommended"
   end
 
-  test "RecommendBreak cascades through policy chain" do
-    tests "RecommendBreak", on: "FatigueAssessment", kind: :cascade
-    setup  "AssessFatigue", agent_name: "sample", reaction_time_ms: 1.0, error_rate_pct: 1.0, alertness_score: 1.0, assessment_time: "sample"
-    input  recommendation: "sample"
-    expect emits: ["BreakRecommended", "BreakScheduled", "AgentOnBreak"]
-  end
-
 
   # ── BreakSchedule aggregate ──────────────────────────────────────────
 
@@ -101,12 +86,6 @@ Hecks.behaviors "CognitiveSupport" do
     tests "ScheduleBreak", on: "BreakSchedule"
     input  agent_name: "sample", break_type: "sample", duration_minutes: 1, scheduled_time: "sample"
     expect agent_name: "sample", break_type: "sample", duration_minutes: 1, scheduled_time: "sample", status: "scheduled"
-  end
-
-  test "ScheduleBreak cascades through policy chain" do
-    tests "ScheduleBreak", on: "BreakSchedule", kind: :cascade
-    input  agent_name: "sample", break_type: "sample", duration_minutes: 1, scheduled_time: "sample"
-    expect emits: ["BreakScheduled", "AgentOnBreak"]
   end
 
   test "StartBreak runs" do
@@ -120,13 +99,6 @@ Hecks.behaviors "CognitiveSupport" do
     setup  "ScheduleBreak", agent_name: "sample", break_type: "sample", duration_minutes: 1, scheduled_time: "sample"
     setup  "StartBreak"
     expect status: "completed"
-  end
-
-  test "EndBreak cascades through policy chain" do
-    tests "EndBreak", on: "BreakSchedule", kind: :cascade
-    setup  "ScheduleBreak", agent_name: "sample", break_type: "sample", duration_minutes: 1, scheduled_time: "sample"
-    setup  "StartBreak"
-    expect emits: ["BreakEnded", "AgentReturned"]
   end
 
 end

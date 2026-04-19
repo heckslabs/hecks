@@ -40,15 +40,10 @@ Hecks.bluebook "WaterMicrobiology", version: "2026.04.13.1" do
       role "Microbiologist"
       description "Perform microbiological analysis on the water sample"
       reference_to(WaterSample)
-      given { status == "collected" }
       emits "SampleAnalyzed"
       then_set :status, to: "analyzed"
     end
 
-    lifecycle :status, default: "pending" do
-      transition "CollectSample" => "collected", from: "pending"
-      transition "AnalyzeSample" => "analyzed", from: "collected"
-    end
   end
 
   aggregate "MicrobialCulture", "A microbial culture result — organism, colony count, pathogenicity" do
@@ -91,16 +86,11 @@ Hecks.bluebook "WaterMicrobiology", version: "2026.04.13.1" do
       description "Identify organism species from culture results"
       reference_to(MicrobialCulture)
       String :pathogenicity
-      given { status == "cultured" }
       emits "OrganismIdentified"
       then_set :pathogenicity, to: :pathogenicity
       then_set :status, to: "identified"
     end
 
-    lifecycle :status, default: "pending" do
-      transition "CultureSample" => "cultured", from: "pending"
-      transition "IdentifyOrganism" => "identified", from: "cultured"
-    end
   end
 
   aggregate "ContaminationEvent", "A detected contamination — type, severity, source, response" do
@@ -139,7 +129,6 @@ Hecks.bluebook "WaterMicrobiology", version: "2026.04.13.1" do
       role "Microbiologist"
       description "Trace contamination to its source"
       reference_to(ContaminationEvent)
-      given { status == "declared" }
       emits "SourceInvestigated"
       then_set :status, to: "investigated"
     end
@@ -148,16 +137,10 @@ Hecks.bluebook "WaterMicrobiology", version: "2026.04.13.1" do
       role "Operator"
       description "Resolve contamination event after treatment success"
       reference_to(ContaminationEvent)
-      given { status == "investigated" }
       emits "ContaminationResolved"
       then_set :status, to: "resolved"
     end
 
-    lifecycle :status, default: "clear" do
-      transition "DeclareContamination" => "declared", from: "clear"
-      transition "InvestigateSource" => "investigated", from: "declared"
-      transition "ResolveContamination" => "resolved", from: "investigated"
-    end
   end
 
   aggregate "TreatmentProtocol", "A water treatment protocol — disinfection method, dosing, contact time" do
@@ -196,7 +179,6 @@ Hecks.bluebook "WaterMicrobiology", version: "2026.04.13.1" do
       role "Operator"
       description "Activate treatment protocol in response to contamination"
       reference_to(TreatmentProtocol)
-      given { status == "designed" }
       emits "ProtocolActivated"
       then_set :status, to: "active"
     end
@@ -205,16 +187,10 @@ Hecks.bluebook "WaterMicrobiology", version: "2026.04.13.1" do
       role "Microbiologist"
       description "Verify treatment achieved target log reduction"
       reference_to(TreatmentProtocol)
-      given { status == "active" }
       emits "TreatmentVerified"
       then_set :status, to: "verified"
     end
 
-    lifecycle :status, default: "draft" do
-      transition "DesignProtocol" => "designed", from: "draft"
-      transition "ActivateProtocol" => "active", from: "designed"
-      transition "VerifyTreatment" => "verified", from: "active"
-    end
   end
 
   policy "AnalyzeOnCollect" do

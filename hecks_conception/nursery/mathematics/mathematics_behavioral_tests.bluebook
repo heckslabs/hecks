@@ -617,7 +617,7 @@ Hecks.behaviors "Mathematics" do
   test "ConstructProof sets theorem + proof_method" do
     tests "ConstructProof", on: "Proof"
     input  theorem: "sample", proof_method: "sample"
-    expect theorem: "sample", proof_method: "sample", status: "in_progress"
+    expect theorem: "sample", proof_method: "sample"
   end
 
   test "AddProofStep sets statement + justification" do

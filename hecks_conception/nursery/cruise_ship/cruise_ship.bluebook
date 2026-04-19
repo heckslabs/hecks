@@ -215,11 +215,6 @@ Hecks.bluebook "CruiseShip" do
     trigger "OfferExcursion"
   end
 
-  policy "ShoreLeaveOnArrival" do
-    on "ArrivedAtPort"
-    trigger "ClearForShoreLeave"
-  end
-
   policy "CleanCabinOnDisembark" do
     on "PassengerDisembarked"
     trigger "CleanCabin"
@@ -230,15 +225,6 @@ Hecks.bluebook "CruiseShip" do
     trigger "InspectCabin"
   end
 
-  policy "BookExcursionOnExcursionOffered" do
-    on "ExcursionCreated"
-    trigger "BookExcursion"
-  end
-
-  policy "DepartPortOnPassengerReturned" do
-    on "PassengerReturned"
-    trigger "DepartPort"
-  end
 
   fixture "Cabin", cabin_number: "A-1245", deck: "Promenade", category: "Oceanview Balcony", max_occupancy: 2, current_occupancy: 0, status: "available"
   fixture "Cabin", cabin_number: "B-2089", deck: "Main", category: "Inside", max_occupancy: 2, current_occupancy: 2, status: "inspected"

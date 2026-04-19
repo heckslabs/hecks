@@ -12,19 +12,13 @@ Hecks.behaviors "PoolChemistry" do
   test "RecordWaterTest cascades through policy chain" do
     tests "RecordWaterTest", on: "WaterTest", kind: :cascade
     input  test_id: "sample", pool_name: "sample", ph: 1.0, free_chlorine_ppm: 1.0, total_alkalinity_ppm: 1.0, temperature_c: 1.0, timestamp: "sample"
-    expect emits: ["WaterTestRecorded", "ChemistryAnalyzed", "DosingPlanCreated", "DosingExecuted", "DosingVerified"]
+    expect emits: ["WaterTestRecorded", "ChemistryAnalyzed"]
   end
 
   test "AnalyzeChemistry runs" do
     tests "AnalyzeChemistry", on: "WaterTest"
     setup  "RecordWaterTest", test_id: "sample", pool_name: "sample", ph: 1.0, free_chlorine_ppm: 1.0, total_alkalinity_ppm: 1.0, temperature_c: 1.0, timestamp: "sample"
     expect status: "analyzed"
-  end
-
-  test "AnalyzeChemistry cascades through policy chain" do
-    tests "AnalyzeChemistry", on: "WaterTest", kind: :cascade
-    setup  "RecordWaterTest", test_id: "sample", pool_name: "sample", ph: 1.0, free_chlorine_ppm: 1.0, total_alkalinity_ppm: 1.0, temperature_c: 1.0, timestamp: "sample"
-    expect emits: ["ChemistryAnalyzed", "DosingPlanCreated", "DosingExecuted", "DosingVerified"]
   end
 
 

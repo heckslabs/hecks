@@ -40,6 +40,9 @@ Hecks.behaviors "SecondChanceAcademy" do
   test "CompleteCourse cascades through policy chain" do
     tests "CompleteCourse", on: "Course", kind: :cascade
     setup  "EnrollLearner", name: "sample", facility: "sample", sentence_end_date: "sample"
+    setup  "MatchEmployer", employer_name: "sample", position: "sample"
+    setup  "IssueBadge", name: "sample", description: "sample", issuer: "sample"
+    setup  "AwardParoleCredit", credits_awarded: 1
     setup  "OfferCourse", title: "sample", subject: "sample", difficulty: "sample", credit_value: 1
     expect emits: ["CourseCompleted", "EmployerMatched", "SkillsRefreshed", "BadgeIssued", "ParoleCreditAwarded"]
   end
@@ -76,6 +79,9 @@ Hecks.behaviors "SecondChanceAcademy" do
 
   test "CompleteQuest cascades through policy chain" do
     tests "CompleteQuest", on: "Quest", kind: :cascade
+    setup  "IssueBadge", name: "sample", description: "sample", issuer: "sample"
+    setup  "EnrollLearner", name: "sample", facility: "sample", sentence_end_date: "sample"
+    setup  "AwardParoleCredit", credits_awarded: 1
     setup  "DesignQuest", title: "sample", description: "sample", xp_reward: 1, difficulty: "sample"
     setup  "AcceptQuest"
     expect emits: ["QuestCompleted", "BadgeIssued", "ParoleCreditAwarded", "SkillsRefreshed"]
@@ -94,6 +100,7 @@ Hecks.behaviors "SecondChanceAcademy" do
   test "IssueBadge cascades through policy chain" do
     tests "IssueBadge", on: "Badge", kind: :cascade
     setup  "EnrollLearner", name: "sample", facility: "sample", sentence_end_date: "sample"
+    setup  "AwardParoleCredit", credits_awarded: 1
     input  name: "sample", description: "sample", issuer: "sample"
     expect emits: ["BadgeIssued", "ParoleCreditAwarded"]
   end

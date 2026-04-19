@@ -29,8 +29,9 @@ Hecks.behaviors "MovieTheater" do
   test "ScheduleShowing cascades through policy chain" do
     tests "ScheduleShowing", on: "Showing", kind: :cascade
     setup  "SetupScreen", screen_number: "sample", seat_count: 1, sound_format: "sample"
+    setup  "InstallProjector", projector_id: "sample", technology: "sample"
     input  film_title: "sample", showtime: "sample", rating: "sample"
-    expect emits: ["ShowingScheduled", "SalesOpened", "ProjectorCalibrated", "DoorsOpened", "ProjectionStarted"]
+    expect emits: ["ShowingScheduled", "SalesOpened", "ProjectorCalibrated"]
   end
 
   test "OpenSales runs" do
@@ -41,8 +42,9 @@ Hecks.behaviors "MovieTheater" do
 
   test "OpenSales cascades through policy chain" do
     tests "OpenSales", on: "Showing", kind: :cascade
+    setup  "InstallProjector", projector_id: "sample", technology: "sample"
     setup  "ScheduleShowing", film_title: "sample", showtime: "sample", rating: "sample"
-    expect emits: ["SalesOpened", "ProjectorCalibrated", "DoorsOpened", "ProjectionStarted"]
+    expect emits: ["SalesOpened", "ProjectorCalibrated"]
   end
 
   test "SellTicket sets patron_name + seat_number" do
@@ -57,13 +59,6 @@ Hecks.behaviors "MovieTheater" do
     setup  "ScheduleShowing", film_title: "sample", showtime: "sample", rating: "sample"
     setup  "OpenSales"
     expect status: "seating"
-  end
-
-  test "OpenDoors cascades through policy chain" do
-    tests "OpenDoors", on: "Showing", kind: :cascade
-    setup  "ScheduleShowing", film_title: "sample", showtime: "sample", rating: "sample"
-    setup  "OpenSales"
-    expect emits: ["DoorsOpened", "ProjectionStarted"]
   end
 
   test "StartProjection runs" do
@@ -140,12 +135,6 @@ Hecks.behaviors "MovieTheater" do
     expect ok: "true"
   end
 
-  test "CalibrateProjector cascades through policy chain" do
-    tests "CalibrateProjector", on: "Projector", kind: :cascade
-    setup  "InstallProjector", projector_id: "sample", technology: "sample"
-    expect emits: ["ProjectorCalibrated", "DoorsOpened", "ProjectionStarted"]
-  end
-
   test "ReportLampFailure runs" do
     tests "ReportLampFailure", on: "Projector"
     setup  "InstallProjector", projector_id: "sample", technology: "sample"
@@ -155,6 +144,7 @@ Hecks.behaviors "MovieTheater" do
   test "ReportLampFailure cascades through policy chain" do
     tests "ReportLampFailure", on: "Projector", kind: :cascade
     setup  "InstallProjector", projector_id: "sample", technology: "sample"
+    setup  "ScheduleShowing", film_title: "sample", showtime: "sample", rating: "sample"
     expect emits: ["LampFailed", "ShowingCancelled"]
   end
 

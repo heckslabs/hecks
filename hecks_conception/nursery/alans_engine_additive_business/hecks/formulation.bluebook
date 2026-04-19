@@ -77,7 +77,7 @@ Hecks.bluebook "Formulation", version: "2026.04.11.1" do
     lifecycle :status, default: "draft" do
       transition "DraftFormula" => "draft"
       transition "FinalizeFormula" => "finalized", from: "draft"
-      transition "ReviseFormula" => "draft", from: "finalized"
+      transition "ReviseFormula" => "draft", from: ["draft", "finalized"]
       transition "RetireFormula" => "retired", from: "finalized"
     end
 

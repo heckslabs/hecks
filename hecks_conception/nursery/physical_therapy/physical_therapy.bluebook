@@ -45,7 +45,6 @@ Hecks.bluebook "PhysicalTherapy" do
       role "Therapist"
       description "Move patient to active treatment after assessment and plan creation"
       reference_to(Patient)
-      given("patient must be assessed") { status == "assessed" }
       emits "PatientActivated"
       then_set :status, to: "active"
     end
@@ -54,7 +53,6 @@ Hecks.bluebook "PhysicalTherapy" do
       role "Therapist"
       description "Complete the patient's course of therapy"
       reference_to(Patient)
-      given("patient must be active") { status == "active" }
       emits "PatientDischarged"
       then_set :status, to: "discharged"
     end

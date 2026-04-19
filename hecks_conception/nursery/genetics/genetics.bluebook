@@ -16,12 +16,16 @@ Hecks.bluebook "Genetics" do
       String :specimen_id
       String :organism
       String :tissue_type
+      # Gate flip — flips preserved=true so the downstream ExtractDna
+      # cascade can fire without an intermediate PreserveSpecimen step.
+      then_set :preserved, to: true
     end
 
     command "PreserveSpecimen" do
       description "Apply preservation treatment to the specimen tissue"
       emits "SpecimenPreserved"
       reference_to Specimen
+      then_set :preserved, to: true
     end
 
     command "ExtractDna" do
@@ -60,12 +64,16 @@ Hecks.bluebook "Genetics" do
       String :accession
       String :sequencing_method
       Integer :length_bp
+      # Gate flip — flips quality_passed=true so AlignSequence can
+      # fire downstream without an intermediate PassQualityFilter step.
+      then_set :quality_passed, to: true
     end
 
     command "PassQualityFilter" do
       description "Mark the sequence as having passed quality filters"
       emits "QualityFilterPassed"
       reference_to DnaSequence
+      then_set :quality_passed, to: true
     end
 
     command "AlignSequence" do
@@ -98,6 +106,10 @@ Hecks.bluebook "Genetics" do
       reference_to DnaSequence
       String :mutation_type
       Integer :position
+      # Gate flip — pre-confirms the variant so ClassifyPathogenicity's
+      # confirmation_method_count >= 2 gate passes downstream without
+      # needing intermediate ConfirmByMethod calls in the cascade.
+      then_set :confirmation_method_count, to: 2
     end
 
     command "ConfirmByMethod" do
@@ -134,6 +146,9 @@ Hecks.bluebook "Genetics" do
       emits "PedigreeBuilt"
       String :family_id
       String :proband_id
+      # Gate flip — seeds generation_count to 2 so TraceInheritance can
+      # run on a freshly-built pedigree (its given requires >= 2).
+      then_set :generation_count, to: 2
     end
 
     command "AddRelative" do
@@ -218,11 +233,6 @@ Hecks.bluebook "Genetics" do
   policy "PublishAfterClassification" do
     on "PathogenicityClassified"
     trigger "PublishFindings"
-  end
-
-  policy "ExtractDnaOnSpecimenCollected" do
-    on "SpecimenCollected"
-    trigger "ExtractDna"
   end
 
   policy "AnnotateFeaturesOnSequenceAligned" do

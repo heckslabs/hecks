@@ -42,7 +42,6 @@ Hecks.bluebook "ClothingBoutique", version: "2026.04.13.1" do
       description "Reduce price for end-of-season clearance"
       reference_to(Garment)
       Float :sale_price
-      given { sale_price < retail_price }
       emits "GarmentMarkedDown"
       then_set :retail_price, to: :sale_price
     end

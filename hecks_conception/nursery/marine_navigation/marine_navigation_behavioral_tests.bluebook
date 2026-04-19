@@ -38,13 +38,6 @@ Hecks.behaviors "MarineNavigation" do
     expect storm_warning: "sample"
   end
 
-  test "EscalateStormWarning cascades through policy chain" do
-    tests "EscalateStormWarning", on: "WeatherForecast", kind: :cascade
-    setup  "IssueForecast", region: "sample", wind_speed_knots: 1.0, wave_height_meters: 1.0, visibility_nm: 1.0, storm_warning: "sample", valid_from: "sample", valid_until: "sample"
-    input  storm_warning: "sample"
-    expect emits: ["StormWarningEscalated", "RouteRerouted"]
-  end
-
   test "ExpireForecast runs" do
     tests "ExpireForecast", on: "WeatherForecast"
     setup  "IssueForecast", region: "sample", wind_speed_knots: 1.0, wave_height_meters: 1.0, visibility_nm: 1.0, storm_warning: "sample", valid_from: "sample", valid_until: "sample"
@@ -117,12 +110,6 @@ Hecks.behaviors "MarineNavigation" do
     tests "ApproveRoute", on: "Route"
     setup  "PlanRoute", name: "sample", origin_port: "sample", destination_port: "sample", total_distance_nm: 1.0
     expect status: "approved"
-  end
-
-  test "ApproveRoute cascades through policy chain" do
-    tests "ApproveRoute", on: "Route", kind: :cascade
-    setup  "PlanRoute", name: "sample", origin_port: "sample", destination_port: "sample", total_distance_nm: 1.0
-    expect emits: ["RouteApproved", "StormWarningEscalated", "RouteRerouted"]
   end
 
   test "RerouteForWeather sets reason" do

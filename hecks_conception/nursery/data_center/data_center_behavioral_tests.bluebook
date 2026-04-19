@@ -11,6 +11,9 @@ Hecks.behaviors "DataCenter" do
 
   test "InstallRack cascades through policy chain" do
     tests "InstallRack", on: "Rack", kind: :cascade
+    setup  "SetupServer", hostname: "sample", ip_address: "sample", cpu_cores: 1, ram_gb: 1, os_version: "sample"
+    setup  "ActivateCircuit", circuit_id: "sample", capacity_kw: 1.0, redundancy_level: "sample"
+    setup  "InstallCoolingUnit", unit_id: "sample", zone: "sample", target_temp_c: 1.0, coolant_type: "sample"
     input  rack_id: "sample", location_aisle: "sample", unit_capacity: 1, power_zone: "sample"
     expect emits: ["RackInstalled", "DeviceMounted", "ServerSetUp", "CircuitActivated", "CoolingUnitInstalled", "LoadRecorded"]
   end
@@ -18,6 +21,9 @@ Hecks.behaviors "DataCenter" do
   test "MountDevice cascades through policy chain" do
     tests "MountDevice", on: "Rack", kind: :cascade
     setup  "InstallRack", rack_id: "sample", location_aisle: "sample", unit_capacity: 1, power_zone: "sample"
+    setup  "SetupServer", hostname: "sample", ip_address: "sample", cpu_cores: 1, ram_gb: 1, os_version: "sample"
+    setup  "ActivateCircuit", circuit_id: "sample", capacity_kw: 1.0, redundancy_level: "sample"
+    setup  "InstallCoolingUnit", unit_id: "sample", zone: "sample", target_temp_c: 1.0, coolant_type: "sample"
     input  device_id: "sample", start_unit: 1, unit_span: 1
     expect emits: ["DeviceMounted", "ServerSetUp", "CircuitActivated", "CoolingUnitInstalled", "LoadRecorded"]
   end
@@ -41,6 +47,8 @@ Hecks.behaviors "DataCenter" do
   test "SetupServer cascades through policy chain" do
     tests "SetupServer", on: "Server", kind: :cascade
     setup  "InstallRack", rack_id: "sample", location_aisle: "sample", unit_capacity: 1, power_zone: "sample"
+    setup  "ActivateCircuit", circuit_id: "sample", capacity_kw: 1.0, redundancy_level: "sample"
+    setup  "InstallCoolingUnit", unit_id: "sample", zone: "sample", target_temp_c: 1.0, coolant_type: "sample"
     input  hostname: "sample", ip_address: "sample", cpu_cores: 1, ram_gb: 1, os_version: "sample"
     expect emits: ["ServerSetUp", "CircuitActivated", "CoolingUnitInstalled", "LoadRecorded"]
   end
@@ -76,6 +84,8 @@ Hecks.behaviors "DataCenter" do
   test "AdjustTargetTemperature cascades through policy chain" do
     tests "AdjustTargetTemperature", on: "CoolingUnit", kind: :cascade
     setup  "InstallCoolingUnit", unit_id: "sample", zone: "sample", target_temp_c: 1.0, coolant_type: "sample"
+    setup  "ReportIncident", incident_number: "sample", severity: "sample", summary: "sample", affected_zone: "sample"
+    setup  "SetupServer", hostname: "sample", ip_address: "sample", cpu_cores: 1, ram_gb: 1, os_version: "sample"
     input  target_temp_c: 1.0
     expect emits: ["TargetTemperatureAdjusted", "IncidentReported", "ServerRebooted"]
   end
@@ -97,6 +107,7 @@ Hecks.behaviors "DataCenter" do
 
   test "ActivateCircuit cascades through policy chain" do
     tests "ActivateCircuit", on: "PowerCircuit", kind: :cascade
+    setup  "InstallCoolingUnit", unit_id: "sample", zone: "sample", target_temp_c: 1.0, coolant_type: "sample"
     input  circuit_id: "sample", capacity_kw: 1.0, redundancy_level: "sample"
     expect emits: ["CircuitActivated", "CoolingUnitInstalled"]
   end
@@ -110,6 +121,7 @@ Hecks.behaviors "DataCenter" do
   test "TripCircuit cascades through policy chain" do
     tests "TripCircuit", on: "PowerCircuit", kind: :cascade
     setup  "ActivateCircuit", circuit_id: "sample", capacity_kw: 1.0, redundancy_level: "sample"
+    setup  "InstallCoolingUnit", unit_id: "sample", zone: "sample", target_temp_c: 1.0, coolant_type: "sample"
     expect emits: ["CircuitTripped", "CoolingUnitShutdown"]
   end
 
@@ -139,6 +151,7 @@ Hecks.behaviors "DataCenter" do
 
   test "EscalateIncident cascades through policy chain" do
     tests "EscalateIncident", on: "Incident", kind: :cascade
+    setup  "SetupServer", hostname: "sample", ip_address: "sample", cpu_cores: 1, ram_gb: 1, os_version: "sample"
     setup  "ReportIncident", incident_number: "sample", severity: "sample", summary: "sample", affected_zone: "sample"
     input  severity: "sample", assigned_to: "sample"
     expect emits: ["IncidentEscalated", "ServerRebooted"]

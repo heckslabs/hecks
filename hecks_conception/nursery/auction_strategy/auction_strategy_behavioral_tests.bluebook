@@ -24,7 +24,6 @@ Hecks.behaviors "AuctionStrategy" do
   test "AwardAuction runs" do
     tests "AwardAuction", on: "Auction"
     setup  "ListAuction", name: "sample", item_description: "sample", auction_type: "sample", reserve_price: 1.0, start_time: "sample", end_time: "sample"
-    setup  "CloseAuction"
     expect status: "awarded"
   end
 
@@ -83,6 +82,8 @@ Hecks.behaviors "AuctionStrategy" do
 
   test "PlaceBid cascades through policy chain" do
     tests "PlaceBid", on: "Bid", kind: :cascade
+    setup  "RegisterBidder", name: "sample", max_valuation: 1.0, budget: 1.0, risk_profile: "sample"
+    setup  "ListAuction", name: "sample", item_description: "sample", auction_type: "sample", reserve_price: 1.0, start_time: "sample", end_time: "sample"
     input  bidder_name: "sample", auction_name: "sample", amount: 1.0, strategy_used: "sample", timestamp: "sample"
     expect emits: ["BidPlaced", "BidEvaluated", "ValuationReassessed", "AuctionClosed", "AuctionAwarded"]
   end
@@ -96,6 +97,7 @@ Hecks.behaviors "AuctionStrategy" do
 
   test "EvaluateBid cascades through policy chain" do
     tests "EvaluateBid", on: "Bid", kind: :cascade
+    setup  "RegisterBidder", name: "sample", max_valuation: 1.0, budget: 1.0, risk_profile: "sample"
     setup  "PlaceBid", bidder_name: "sample", auction_name: "sample", amount: 1.0, strategy_used: "sample", timestamp: "sample"
     input  outcome: "sample"
     expect emits: ["BidEvaluated", "ValuationReassessed"]

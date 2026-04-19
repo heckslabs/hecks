@@ -78,7 +78,6 @@ Hecks.bluebook "Hydrology" do
       description "Develop or update the stage-discharge rating curve"
       emits "GaugeCalibrated"
       reference_to StreamGauge
-      given { discharge_measurement_count >= 5 }
     end
 
     command "RemoveGauge" do
@@ -119,7 +118,6 @@ Hecks.bluebook "Hydrology" do
       description "Quality check the measurement against the rating curve"
       emits "MeasurementValidated"
       reference_to FlowMeasurement
-      given { rating_curve_current == true }
     end
   end
 
@@ -154,7 +152,6 @@ Hecks.bluebook "Hydrology" do
       emits "SimulationRun"
       reference_to FloodModel
       Integer :return_period_years
-      given { model_calibrated == true }
     end
 
     command "PublishFloodMap" do

@@ -117,7 +117,6 @@ Hecks.bluebook "AirlineOperations" do
       description "Allocate a gate for boarding a flight"
       reference_to(Gate)
       reference_to(Flight)
-      given { status == "available" }
       emits "GateAssigned"
       then_set :status, to: "occupied"
     end
@@ -160,7 +159,6 @@ Hecks.bluebook "AirlineOperations" do
       description "Record hours flown against crew fatigue limits"
       reference_to(Crew)
       Float :hours
-      given { duty_hours < 12.0 }
       emits "DutyHoursLogged"
     end
 

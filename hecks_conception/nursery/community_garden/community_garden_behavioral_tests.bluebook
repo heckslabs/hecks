@@ -18,6 +18,7 @@ Hecks.behaviors "CommunityGarden" do
 
   test "AssignPlot cascades through policy chain" do
     tests "AssignPlot", on: "Plot", kind: :cascade
+    setup  "AddTool", tool_name: "sample", condition: "sample", quantity: 1, storage_location: "sample"
     setup  "EstablishPlot", plot_number: "sample", size: "sample", soil_type: "sample", sun_exposure: "sample"
     input  assigned_gardener: "sample"
     expect emits: ["PlotAssigned", "ToolCheckedOut"]
@@ -40,6 +41,8 @@ Hecks.behaviors "CommunityGarden" do
 
   test "RegisterGardener cascades through policy chain" do
     tests "RegisterGardener", on: "Gardener", kind: :cascade
+    setup  "EstablishPlot", plot_number: "sample", size: "sample", soil_type: "sample", sun_exposure: "sample"
+    setup  "AddTool", tool_name: "sample", condition: "sample", quantity: 1, storage_location: "sample"
     input  name: "sample", email: "sample", phone: "sample", experience_level: "sample", membership_date: "sample"
     expect emits: ["GardenerRegistered", "PlotAssigned", "ToolCheckedOut"]
   end
@@ -59,6 +62,7 @@ Hecks.behaviors "CommunityGarden" do
 
   test "SuspendGardener cascades through policy chain" do
     tests "SuspendGardener", on: "Gardener", kind: :cascade
+    setup  "EstablishPlot", plot_number: "sample", size: "sample", soil_type: "sample", sun_exposure: "sample"
     setup  "RegisterGardener", name: "sample", email: "sample", phone: "sample", experience_level: "sample", membership_date: "sample"
     expect emits: ["GardenerSuspended", "PlotReleased"]
   end
@@ -99,8 +103,10 @@ Hecks.behaviors "CommunityGarden" do
 
   test "LogHarvest cascades through policy chain" do
     tests "LogHarvest", on: "Harvest", kind: :cascade
-    setup  "RegisterGardener", name: "sample", email: "sample", phone: "sample", experience_level: "sample", membership_date: "sample"
     setup  "EstablishPlot", plot_number: "sample", size: "sample", soil_type: "sample", sun_exposure: "sample"
+    setup  "RegisterGardener", name: "sample", email: "sample", phone: "sample", experience_level: "sample", membership_date: "sample"
+    setup  "PlanEvent", event_name: "sample", event_date: "sample", event_type: "sample", organizer: "sample", expected_attendees: 1
+    setup  "AddTool", tool_name: "sample", condition: "sample", quantity: 1, storage_location: "sample"
     input  gardener_name: "sample", plot_number: "sample", crop_name: "sample", weight_pounds: 1.0, harvest_date: "sample", destination: "sample"
     expect emits: ["HarvestLogged", "HarvestDonated", "EventPlanned", "ToolReturned"]
   end
@@ -114,6 +120,7 @@ Hecks.behaviors "CommunityGarden" do
   test "DonateHarvest cascades through policy chain" do
     tests "DonateHarvest", on: "Harvest", kind: :cascade
     setup  "LogHarvest", gardener_name: "sample", plot_number: "sample", crop_name: "sample", weight_pounds: 1.0, harvest_date: "sample", destination: "sample"
+    setup  "PlanEvent", event_name: "sample", event_date: "sample", event_type: "sample", organizer: "sample", expected_attendees: 1
     expect emits: ["HarvestDonated", "EventPlanned"]
   end
 
@@ -134,6 +141,7 @@ Hecks.behaviors "CommunityGarden" do
 
   test "HoldEvent cascades through policy chain" do
     tests "HoldEvent", on: "GardenEvent", kind: :cascade
+    setup  "RegisterGardener", name: "sample", email: "sample", phone: "sample", experience_level: "sample", membership_date: "sample"
     setup  "PlanEvent", event_name: "sample", event_date: "sample", event_type: "sample", organizer: "sample", expected_attendees: 1
     expect emits: ["EventHeld", "MembershipRenewed"]
   end

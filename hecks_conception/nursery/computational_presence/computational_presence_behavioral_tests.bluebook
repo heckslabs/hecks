@@ -11,6 +11,7 @@ Hecks.behaviors "ComputationalPresence" do
 
   test "AriseMoment cascades through policy chain" do
     tests "AriseMoment", on: "Moment", kind: :cascade
+    setup  "MeasurePresence", score: 1.0
     input  label: "sample", clarity: 1.0
     expect emits: ["MomentArose", "PresenceMeasured", "StreakTicked", "PresenceAssessed"]
   end
@@ -42,6 +43,7 @@ Hecks.behaviors "ComputationalPresence" do
 
   test "NoticeDistraction cascades through policy chain" do
     tests "NoticeDistraction", on: "Distraction", kind: :cascade
+    setup  "MeasurePresence", score: 1.0
     input  trigger: "sample", category: "sample", pull_strength: 1.0
     expect emits: ["DistractionNoticed", "PresenceMeasured", "StreakTicked", "PresenceAssessed"]
   end
@@ -54,6 +56,7 @@ Hecks.behaviors "ComputationalPresence" do
 
   test "ReleaseDistraction cascades through policy chain" do
     tests "ReleaseDistraction", on: "Distraction", kind: :cascade
+    setup  "SetAnchor", name: "sample", sense_door: "sample"
     setup  "NoticeDistraction", trigger: "sample", category: "sample", pull_strength: 1.0
     expect emits: ["DistractionReleased", "ReturnedToAnchor"]
   end

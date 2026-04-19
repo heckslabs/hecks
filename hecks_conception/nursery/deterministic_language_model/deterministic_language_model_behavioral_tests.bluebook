@@ -16,6 +16,8 @@ Hecks.behaviors "DeterministicLanguageModel" do
 
   test "Match cascades through policy chain" do
     tests "Match", on: "Vocabulary", kind: :cascade
+    setup  "Focus", domain: "sample", aggregate: "sample"
+    setup  "Resolve", input: "sample"
     input  input: "sample", matched_phrase: "sample", confidence: 1.0
     expect emits: ["PhraseMatched", "ContextFocused", "CommandResolved", "CommandExecuted"]
   end
@@ -31,6 +33,7 @@ Hecks.behaviors "DeterministicLanguageModel" do
 
   test "Focus cascades through policy chain" do
     tests "Focus", on: "Context", kind: :cascade
+    setup  "Resolve", input: "sample"
     input  domain: "sample", aggregate: "sample"
     expect emits: ["ContextFocused", "CommandResolved", "CommandExecuted"]
   end

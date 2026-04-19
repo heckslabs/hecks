@@ -11,6 +11,10 @@ Hecks.behaviors "DisasterAutonomy" do
 
   test "DeclareDisaster cascades through policy chain" do
     tests "DeclareDisaster", on: "DisasterEvent", kind: :cascade
+    setup  "DeployFleet", fleet_id: "sample", drone_count: 1, deployment_zone: "sample"
+    setup  "ActivateGridResponse", response_id: "sample", grid_sector: "sample", affected_substations: 1
+    setup  "DeclareRestriction", control_id: "sample", restricted_zone: "sample"
+    setup  "OpenRegistry", registry_id: "sample"
     input  event_id: "sample", disaster_type: "sample", affected_region: "sample", severity: "sample", estimated_affected: 1
     expect emits: ["DisasterDeclared", "FleetDeployed", "GridResponseActivated", "PowerRerouted", "AirspaceRestricted", "FleetAuthorized", "RegistryOpened"]
   end
@@ -40,6 +44,9 @@ Hecks.behaviors "DisasterAutonomy" do
 
   test "ReportSurvivorFound cascades through policy chain" do
     tests "ReportSurvivorFound", on: "SearchFleet", kind: :cascade
+    setup  "OpenRegistry", registry_id: "sample"
+    setup  "PlanDrop", drop_id: "sample", supply_type: "sample", target_location: "sample", delivery_method: "sample"
+    setup  "DeclareDisaster", event_id: "sample", disaster_type: "sample", affected_region: "sample", severity: "sample", estimated_affected: 1
     setup  "DeployFleet", fleet_id: "sample", drone_count: 1, deployment_zone: "sample"
     expect emits: ["SurvivorDetected", "SurvivorRegistered", "DropPlanned"]
   end

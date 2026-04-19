@@ -334,24 +334,9 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
 
   # === Cross-wire policies ===
 
-  policy "MatchHousingOnBenefits" do
-    on "BenefitsApproved"
-    trigger "MatchHousing"
-  end
-
   policy "FinancialPlanOnLease" do
     on "LeasesSigned"
     trigger "StartFinancialPlan"
-  end
-
-  policy "FileClaimOnAssessment" do
-    on "NeedsAssessed"
-    trigger "FileClaim"
-  end
-
-  policy "OpenLegalOnAssessment" do
-    on "NeedsAssessed"
-    trigger "OpenCase"
   end
 
   policy "MilestoneOnLease" do

@@ -11,6 +11,7 @@ Hecks.behaviors "CarpentryShop" do
 
   test "AcceptProject cascades through policy chain" do
     tests "AcceptProject", on: "Project", kind: :cascade
+    setup  "OrderLumber", species: "sample", grade: "sample", board_feet: 1.0, supplier: "sample"
     input  client_name: "sample", project_type: "sample", description: "sample", quoted_price: 1.0
     expect emits: ["ProjectCommissioned", "LumberOrdered"]
   end
@@ -23,6 +24,9 @@ Hecks.behaviors "CarpentryShop" do
 
   test "BeginFabrication cascades through policy chain" do
     tests "BeginFabrication", on: "Project", kind: :cascade
+    setup  "CutJoint", joint_type: "sample", location_in_piece: "sample", wood_species: "sample"
+    setup  "ApplyFinish", finish_type: "sample", color: "sample", coats_applied: 1, dry_hours_per_coat: 1
+    setup  "RequestApproval", milestone: "sample"
     setup  "AcceptProject", client_name: "sample", project_type: "sample", description: "sample", quoted_price: 1.0
     expect emits: ["FabricationBegun", "JointCut", "GlueUpCompleted", "FinishApplied", "ApprovalRequested"]
   end
@@ -53,6 +57,10 @@ Hecks.behaviors "CarpentryShop" do
   test "ReceiveLumber cascades through policy chain" do
     tests "ReceiveLumber", on: "LumberOrder", kind: :cascade
     setup  "OrderLumber", species: "sample", grade: "sample", board_feet: 1.0, supplier: "sample"
+    setup  "AcceptProject", client_name: "sample", project_type: "sample", description: "sample", quoted_price: 1.0
+    setup  "CutJoint", joint_type: "sample", location_in_piece: "sample", wood_species: "sample"
+    setup  "ApplyFinish", finish_type: "sample", color: "sample", coats_applied: 1, dry_hours_per_coat: 1
+    setup  "RequestApproval", milestone: "sample"
     input  moisture_pct: 1.0
     expect emits: ["LumberReceived", "FabricationBegun", "JointCut", "GlueUpCompleted", "FinishApplied", "ApprovalRequested"]
   end
@@ -78,6 +86,8 @@ Hecks.behaviors "CarpentryShop" do
   test "CutJoint cascades through policy chain" do
     tests "CutJoint", on: "JointAssembly", kind: :cascade
     setup  "AcceptProject", client_name: "sample", project_type: "sample", description: "sample", quoted_price: 1.0
+    setup  "ApplyFinish", finish_type: "sample", color: "sample", coats_applied: 1, dry_hours_per_coat: 1
+    setup  "RequestApproval", milestone: "sample"
     input  joint_type: "sample", location_in_piece: "sample", wood_species: "sample"
     expect emits: ["JointCut", "GlueUpCompleted", "FinishApplied", "ApprovalRequested"]
   end
@@ -92,6 +102,9 @@ Hecks.behaviors "CarpentryShop" do
   test "GlueUp cascades through policy chain" do
     tests "GlueUp", on: "JointAssembly", kind: :cascade
     setup  "CutJoint", joint_type: "sample", location_in_piece: "sample", wood_species: "sample"
+    setup  "ApplyFinish", finish_type: "sample", color: "sample", coats_applied: 1, dry_hours_per_coat: 1
+    setup  "AcceptProject", client_name: "sample", project_type: "sample", description: "sample", quoted_price: 1.0
+    setup  "RequestApproval", milestone: "sample"
     input  adhesive: "sample", clamp_hours: 1
     expect emits: ["GlueUpCompleted", "FinishApplied", "ApprovalRequested"]
   end
@@ -109,6 +122,7 @@ Hecks.behaviors "CarpentryShop" do
   test "ApplyFinish cascades through policy chain" do
     tests "ApplyFinish", on: "Finish", kind: :cascade
     setup  "AcceptProject", client_name: "sample", project_type: "sample", description: "sample", quoted_price: 1.0
+    setup  "RequestApproval", milestone: "sample"
     input  finish_type: "sample", color: "sample", coats_applied: 1, dry_hours_per_coat: 1
     expect emits: ["FinishApplied", "ApprovalRequested"]
   end
@@ -140,6 +154,7 @@ Hecks.behaviors "CarpentryShop" do
   test "RecordApproval cascades through policy chain" do
     tests "RecordApproval", on: "ClientApproval", kind: :cascade
     setup  "RequestApproval", milestone: "sample"
+    setup  "AcceptProject", client_name: "sample", project_type: "sample", description: "sample", quoted_price: 1.0
     input  client_feedback: "sample", approval_status: "sample"
     expect emits: ["ApprovalRecorded", "ProjectDelivered"]
   end

@@ -47,6 +47,7 @@ Hecks.behaviors "UniversalDomainPattern" do
   test "MatchArchetype cascades through policy chain" do
     tests "MatchArchetype", on: "Archetype", kind: :cascade
     setup  "IdentifyArchetype", name: "sample", description: "sample"
+    setup  "DetectIsomorphism", domain_a: "sample", domain_b: "sample"
     input  domain_name: "sample", similarity: 1.0
     expect emits: ["ArchetypeMatched", "IsomorphismDetected"]
   end
@@ -92,6 +93,8 @@ Hecks.behaviors "UniversalDomainPattern" do
 
   test "ExtractDNA cascades through policy chain" do
     tests "ExtractDNA", on: "DomainDNA", kind: :cascade
+    setup  "IdentifyArchetype", name: "sample", description: "sample"
+    setup  "DetectIsomorphism", domain_a: "sample", domain_b: "sample"
     input  domain_name: "sample", category: "sample", born_at: "sample"
     expect emits: ["DNAExtracted", "ArchetypeMatched", "IsomorphismDetected"]
   end

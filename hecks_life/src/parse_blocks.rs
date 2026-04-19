@@ -374,6 +374,24 @@ pub fn parse_mutation(line: &str) -> Option<Mutation> {
         (MutationOp::Decrement, extract_after(line, "decrement:")?)
     } else if line.contains("to:") {
         (MutationOp::Set, extract_after(line, "to:")?)
-    } else { return None; };
+    } else {
+        // Positional form: `then_set :field, <value>` — value is the
+        // token after the field's symbol, separated by a comma.
+        let sym_start = line.find(':')? + 1;
+        let after_field = &line[sym_start + field.len()..];
+        let comma = after_field.find(',')?;
+        let raw = after_field[comma + 1..].trim();
+        let value = if raw.starts_with('"') {
+            // Quoted string — strip surrounding quotes.
+            let end = raw[1..].find('"').map(|i| i + 1)?;
+            raw[1..end].to_string()
+        } else {
+            // Bare token — number, true, false, or :symbol.
+            raw.split(|c: char| c == ',' || c.is_whitespace())
+                .next().unwrap_or("").to_string()
+        };
+        if value.is_empty() { return None; }
+        (MutationOp::Set, value)
+    };
     Some(Mutation { field, operation: op, value })
 }

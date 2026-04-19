@@ -49,7 +49,6 @@ Hecks.bluebook "PrintShop" do
       role "ProductionManager"
       description "Review specs and approve the job for production"
       reference_to(PrintJob)
-      given { status == "proof_approved" }
       emits "PrintJobApproved"
       then_set :status, to: "approved"
     end

@@ -34,6 +34,9 @@ Hecks.behaviors "Dermatology" do
   test "DiagnoseCondition cascades through policy chain" do
     tests "DiagnoseCondition", on: "SkinCondition", kind: :cascade
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", skin_type: "sample", insurance_id: "sample"
+    setup  "PrescribeTreatment", patient_name: "sample", treatment_type: "sample", description: "sample", sessions_planned: 1
+    setup  "WritePrescription", patient_name: "sample", medication_name: "sample", formulation: "sample", dosage: "sample", frequency: "sample", duration: "sample"
+    setup  "PerformBiopsy", patient_name: "sample", biopsy_type: "sample", body_site: "sample", biopsy_date: "sample"
     input  patient_name: "sample", condition_name: "sample", body_location: "sample", morphology: "sample", severity: "sample"
     expect emits: ["ConditionDiagnosed", "TreatmentPrescribed", "PrescriptionWritten", "BiopsyPerformed"]
   end
@@ -70,6 +73,8 @@ Hecks.behaviors "Dermatology" do
 
   test "PerformTreatmentSession cascades through policy chain" do
     tests "PerformTreatmentSession", on: "DermatologyTreatment", kind: :cascade
+    setup  "DiagnoseCondition", patient_name: "sample", condition_name: "sample", body_location: "sample", morphology: "sample", severity: "sample"
+    setup  "WritePrescription", patient_name: "sample", medication_name: "sample", formulation: "sample", dosage: "sample", frequency: "sample", duration: "sample"
     setup  "PrescribeTreatment", patient_name: "sample", treatment_type: "sample", description: "sample", sessions_planned: 1
     expect emits: ["TreatmentSessionPerformed", "ConditionTracked", "PrescriptionRefilled"]
   end
@@ -83,6 +88,7 @@ Hecks.behaviors "Dermatology" do
   test "CompleteTreatment cascades through policy chain" do
     tests "CompleteTreatment", on: "DermatologyTreatment", kind: :cascade
     setup  "PrescribeTreatment", patient_name: "sample", treatment_type: "sample", description: "sample", sessions_planned: 1
+    setup  "DiagnoseCondition", patient_name: "sample", condition_name: "sample", body_location: "sample", morphology: "sample", severity: "sample"
     expect emits: ["TreatmentCompleted", "ConditionResolved"]
   end
 
@@ -106,6 +112,7 @@ Hecks.behaviors "Dermatology" do
 
   test "ReceivePathologyResult cascades through policy chain" do
     tests "ReceivePathologyResult", on: "Biopsy", kind: :cascade
+    setup  "DiagnoseCondition", patient_name: "sample", condition_name: "sample", body_location: "sample", morphology: "sample", severity: "sample"
     setup  "PerformBiopsy", patient_name: "sample", biopsy_type: "sample", body_site: "sample", biopsy_date: "sample"
     input  pathology_result: "sample"
     expect emits: ["PathologyResultReceived", "ConditionTracked"]

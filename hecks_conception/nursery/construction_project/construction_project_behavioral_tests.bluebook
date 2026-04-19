@@ -11,6 +11,7 @@ Hecks.behaviors "ConstructionProject" do
 
   test "OpenSite cascades through policy chain" do
     tests "OpenSite", on: "Site", kind: :cascade
+    setup  "ApplyForPermit", permit_type: "sample"
     input  site_name: "sample", address: "sample", project_type: "sample", lot_size_sqft: 1.0
     expect emits: ["SiteOpened", "PermitApplied"]
   end
@@ -24,6 +25,8 @@ Hecks.behaviors "ConstructionProject" do
 
   test "AdvancePhase cascades through policy chain" do
     tests "AdvancePhase", on: "Site", kind: :cascade
+    setup  "ScheduleInspection", inspection_type: "sample", inspection_date: "sample"
+    setup  "ApplyForPermit", permit_type: "sample"
     setup  "OpenSite", site_name: "sample", address: "sample", project_type: "sample", lot_size_sqft: 1.0
     input  phase: "sample"
     expect emits: ["PhaseAdvanced", "InspectionScheduled", "ResultRecorded", "SiteClosed"]
@@ -54,6 +57,10 @@ Hecks.behaviors "ConstructionProject" do
 
   test "IssuePermit cascades through policy chain" do
     tests "IssuePermit", on: "BuildingPermit", kind: :cascade
+    setup  "HireSubcontractor", company_name: "sample", trade: "sample", contract_value: 1.0, start_date: "sample", end_date: "sample"
+    setup  "OpenSite", site_name: "sample", address: "sample", project_type: "sample", lot_size_sqft: 1.0
+    setup  "OrderMaterials", supplier: "sample", material_type: "sample", quantity: 1, unit: "sample", total_cost: 1.0
+    setup  "ScheduleInspection", inspection_type: "sample", inspection_date: "sample"
     setup  "ApplyForPermit", permit_type: "sample"
     input  permit_number: "sample", issued_date: "sample", expiration_date: "sample"
     expect emits: ["PermitIssued", "SubcontractorHired", "MaterialsOrdered", "MaterialsReceived", "PhaseAdvanced", "InspectionScheduled", "ResultRecorded", "SiteClosed"]
@@ -102,6 +109,8 @@ Hecks.behaviors "ConstructionProject" do
   test "OrderMaterials cascades through policy chain" do
     tests "OrderMaterials", on: "MaterialOrder", kind: :cascade
     setup  "OpenSite", site_name: "sample", address: "sample", project_type: "sample", lot_size_sqft: 1.0
+    setup  "ScheduleInspection", inspection_type: "sample", inspection_date: "sample"
+    setup  "ApplyForPermit", permit_type: "sample"
     input  supplier: "sample", material_type: "sample", quantity: 1, unit: "sample", total_cost: 1.0
     expect emits: ["MaterialsOrdered", "MaterialsReceived", "PhaseAdvanced", "InspectionScheduled", "ResultRecorded", "SiteClosed"]
   end
@@ -114,6 +123,9 @@ Hecks.behaviors "ConstructionProject" do
 
   test "ReceiveMaterials cascades through policy chain" do
     tests "ReceiveMaterials", on: "MaterialOrder", kind: :cascade
+    setup  "OpenSite", site_name: "sample", address: "sample", project_type: "sample", lot_size_sqft: 1.0
+    setup  "ScheduleInspection", inspection_type: "sample", inspection_date: "sample"
+    setup  "ApplyForPermit", permit_type: "sample"
     setup  "OrderMaterials", supplier: "sample", material_type: "sample", quantity: 1, unit: "sample", total_cost: 1.0
     expect emits: ["MaterialsReceived", "PhaseAdvanced", "InspectionScheduled", "ResultRecorded", "SiteClosed"]
   end
@@ -137,8 +149,8 @@ Hecks.behaviors "ConstructionProject" do
 
   test "ScheduleInspection cascades through policy chain" do
     tests "ScheduleInspection", on: "SiteInspection", kind: :cascade
-    setup  "ApplyForPermit", permit_type: "sample"
     setup  "OpenSite", site_name: "sample", address: "sample", project_type: "sample", lot_size_sqft: 1.0
+    setup  "ApplyForPermit", permit_type: "sample"
     input  inspection_type: "sample", inspection_date: "sample"
     expect emits: ["InspectionScheduled", "ResultRecorded", "SiteClosed"]
   end
@@ -152,6 +164,7 @@ Hecks.behaviors "ConstructionProject" do
 
   test "RecordResult cascades through policy chain" do
     tests "RecordResult", on: "SiteInspection", kind: :cascade
+    setup  "OpenSite", site_name: "sample", address: "sample", project_type: "sample", lot_size_sqft: 1.0
     setup  "ScheduleInspection", inspection_type: "sample", inspection_date: "sample"
     input  inspector_name: "sample", result: "sample", deficiencies: "sample"
     expect emits: ["ResultRecorded", "SiteClosed"]

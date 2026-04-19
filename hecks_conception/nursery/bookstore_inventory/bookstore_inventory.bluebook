@@ -47,7 +47,6 @@ Hecks.bluebook "BookstoreInventory", version: "2026.04.13.1" do
       description "Increase on-hand quantity when a shipment arrives"
       reference_to(Book)
       Integer :additional_copies
-      given { additional_copies > 0 }
       emits "StockReplenished"
     end
 

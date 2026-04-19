@@ -40,7 +40,6 @@ Hecks.bluebook "PropertyManagement" do
       role "PropertyManager"
       description "Update unit status when a tenant moves out"
       reference_to(RentalUnit)
-      given { status == "occupied" }
       emits "UnitVacated"
       then_set :status, to: "vacant"
     end

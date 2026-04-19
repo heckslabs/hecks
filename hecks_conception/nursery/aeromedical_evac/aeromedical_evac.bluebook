@@ -267,7 +267,7 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "pending" do
-      transition "InitiateHandoff" => "in_progress", from: "pending"
+      transition "InitiateHandoff" => "in_progress", from: ["pending", "in_progress"]
       transition "VerifyTransfer" => "verified", from: "in_progress"
       transition "CompleteHandoff" => "complete", from: "verified"
     end

@@ -11,6 +11,8 @@ Hecks.behaviors "AutoRepairShop" do
 
   test "IntakeVehicle cascades through policy chain" do
     tests "IntakeVehicle", on: "Vehicle", kind: :cascade
+    setup  "OpenWorkOrder", complaint: "sample"
+    setup  "PrepareEstimate", parts_total: 1.0, labor_total: 1.0, tax: 1.0
     input  vin: "sample", make: "sample", model: "sample", year: 1, mileage: 1, owner_name: "sample", owner_phone: "sample"
     expect emits: ["VehicleIntaked", "WorkOrderOpened", "IssueDiagnosed", "EstimatePrepared"]
   end
@@ -25,6 +27,7 @@ Hecks.behaviors "AutoRepairShop" do
   test "LogMileage cascades through policy chain" do
     tests "LogMileage", on: "Vehicle", kind: :cascade
     setup  "IntakeVehicle", vin: "sample", make: "sample", model: "sample", year: 1, mileage: 1, owner_name: "sample", owner_phone: "sample"
+    setup  "OpenWorkOrder", complaint: "sample"
     input  mileage: 1
     expect emits: ["MileageLogged", "WorkOrderClosed"]
   end
@@ -42,6 +45,7 @@ Hecks.behaviors "AutoRepairShop" do
   test "OpenWorkOrder cascades through policy chain" do
     tests "OpenWorkOrder", on: "WorkOrder", kind: :cascade
     setup  "IntakeVehicle", vin: "sample", make: "sample", model: "sample", year: 1, mileage: 1, owner_name: "sample", owner_phone: "sample"
+    setup  "PrepareEstimate", parts_total: 1.0, labor_total: 1.0, tax: 1.0
     input  complaint: "sample"
     expect emits: ["WorkOrderOpened", "IssueDiagnosed", "EstimatePrepared"]
   end
@@ -55,6 +59,7 @@ Hecks.behaviors "AutoRepairShop" do
 
   test "DiagnoseIssue cascades through policy chain" do
     tests "DiagnoseIssue", on: "WorkOrder", kind: :cascade
+    setup  "PrepareEstimate", parts_total: 1.0, labor_total: 1.0, tax: 1.0
     setup  "OpenWorkOrder", complaint: "sample"
     input  diagnosis: "sample"
     expect emits: ["IssueDiagnosed", "EstimatePrepared"]
@@ -70,6 +75,7 @@ Hecks.behaviors "AutoRepairShop" do
 
   test "CompleteRepair cascades through policy chain" do
     tests "CompleteRepair", on: "WorkOrder", kind: :cascade
+    setup  "IntakeVehicle", vin: "sample", make: "sample", model: "sample", year: 1, mileage: 1, owner_name: "sample", owner_phone: "sample"
     setup  "OpenWorkOrder", complaint: "sample"
     setup  "DiagnoseIssue", diagnosis: "sample"
     input  labor_hours: 1.0
@@ -79,8 +85,6 @@ Hecks.behaviors "AutoRepairShop" do
   test "CloseWorkOrder runs" do
     tests "CloseWorkOrder", on: "WorkOrder"
     setup  "OpenWorkOrder", complaint: "sample"
-    setup  "DiagnoseIssue", diagnosis: "sample"
-    setup  "CompleteRepair", labor_hours: 1.0
     expect status: "closed"
   end
 
@@ -118,6 +122,8 @@ Hecks.behaviors "AutoRepairShop" do
 
   test "ApproveEstimate cascades through policy chain" do
     tests "ApproveEstimate", on: "Estimate", kind: :cascade
+    setup  "StockPart", part_number: "sample", name: "sample", manufacturer: "sample", quantity_on_hand: 1, unit_cost: 1.0, reorder_point: 1
+    setup  "OpenWorkOrder", complaint: "sample"
     setup  "PrepareEstimate", parts_total: 1.0, labor_total: 1.0, tax: 1.0
     expect emits: ["EstimateApproved", "PartIssued", "IssueDiagnosed", "EstimatePrepared", "PartReordered"]
   end

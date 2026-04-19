@@ -11,13 +11,15 @@ Hecks.behaviors "FuneralHome" do
 
   test "RegisterDecedent cascades through policy chain" do
     tests "RegisterDecedent", on: "Decedent", kind: :cascade
+    setup  "ArrangeService", service_type: "sample", service_date: "sample", service_time: "sample", venue: "sample", officiant: "sample", expected_attendees: 1
+    setup  "ScheduleTransport", pickup_location: "sample", delivery_location: "sample", transport_date: "sample", vehicle_type: "sample"
+    setup  "DraftObituary", headline: "sample", body_text: "sample"
     input  first_name: "sample", last_name: "sample", date_of_birth: "sample", date_of_death: "sample", place_of_death: "sample", next_of_kin: "sample"
     expect emits: ["DecedentRegistered", "ServiceArranged", "TransportScheduled", "ObituaryPublished", "ObituaryDrafted", "RemainsPrepared"]
   end
 
   test "PrepareRemains sets preparation_type" do
     tests "PrepareRemains", on: "Decedent"
-    setup  "RegisterDecedent", first_name: "sample", last_name: "sample", date_of_birth: "sample", date_of_death: "sample", place_of_death: "sample", next_of_kin: "sample"
     input  preparation_type: "sample"
     expect status: "prepared"
   end
@@ -25,7 +27,6 @@ Hecks.behaviors "FuneralHome" do
   test "ReleaseRemains runs" do
     tests "ReleaseRemains", on: "Decedent"
     setup  "RegisterDecedent", first_name: "sample", last_name: "sample", date_of_birth: "sample", date_of_death: "sample", place_of_death: "sample", next_of_kin: "sample"
-    setup  "PrepareRemains", preparation_type: "sample"
     expect status: "released"
   end
 
@@ -42,6 +43,8 @@ Hecks.behaviors "FuneralHome" do
   test "ArrangeService cascades through policy chain" do
     tests "ArrangeService", on: "ServiceArrangement", kind: :cascade
     setup  "RegisterDecedent", first_name: "sample", last_name: "sample", date_of_birth: "sample", date_of_death: "sample", place_of_death: "sample", next_of_kin: "sample"
+    setup  "ScheduleTransport", pickup_location: "sample", delivery_location: "sample", transport_date: "sample", vehicle_type: "sample"
+    setup  "DraftObituary", headline: "sample", body_text: "sample"
     input  service_type: "sample", service_date: "sample", service_time: "sample", venue: "sample", officiant: "sample", expected_attendees: 1
     expect emits: ["ServiceArranged", "TransportScheduled", "ObituaryPublished"]
   end
@@ -54,6 +57,8 @@ Hecks.behaviors "FuneralHome" do
 
   test "ConductService cascades through policy chain" do
     tests "ConductService", on: "ServiceArrangement", kind: :cascade
+    setup  "GenerateInvoice", services_total: 1.0, merchandise_total: 1.0, cash_advances: 1.0
+    setup  "RegisterDecedent", first_name: "sample", last_name: "sample", date_of_birth: "sample", date_of_death: "sample", place_of_death: "sample", next_of_kin: "sample"
     setup  "ArrangeService", service_type: "sample", service_date: "sample", service_time: "sample", venue: "sample", officiant: "sample", expected_attendees: 1
     expect emits: ["ServiceConducted", "InvoiceGenerated", "RemainsReleased"]
   end

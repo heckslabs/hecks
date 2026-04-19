@@ -11,6 +11,10 @@ Hecks.behaviors "FoodHall" do
 
   test "OnboardVendor cascades through policy chain" do
     tests "OnboardVendor", on: "FoodVendor", kind: :cascade
+    setup  "LeaseStall", stall_id: "sample", location: "sample", monthly_rent: 1.0, vendor_id: "sample"
+    setup  "PublishMenu", menu_id: "sample", vendor_id: "sample"
+    setup  "OpenSeating", area_id: "sample", name: "sample", total_seats: 1
+    setup  "ScheduleEvent", event_id: "sample", name: "sample", event_type: "sample", date: "sample", capacity: 1, ticket_price: 1.0
     input  vendor_id: "sample", business_name: "sample", cuisine_type: "sample", contact_name: "sample"
     expect emits: ["VendorOnboarded", "StallLeased", "MenuPublished", "SeatingOpened", "EventScheduled", "EventHosted", "MenuRevised", "SeatingClosed"]
   end
@@ -23,6 +27,7 @@ Hecks.behaviors "FoodHall" do
 
   test "OffboardVendor cascades through policy chain" do
     tests "OffboardVendor", on: "FoodVendor", kind: :cascade
+    setup  "LeaseStall", stall_id: "sample", location: "sample", monthly_rent: 1.0, vendor_id: "sample"
     setup  "OnboardVendor", vendor_id: "sample", business_name: "sample", cuisine_type: "sample", contact_name: "sample"
     expect emits: ["VendorOffboarded", "LeaseTerminated"]
   end
@@ -38,6 +43,9 @@ Hecks.behaviors "FoodHall" do
 
   test "LeaseStall cascades through policy chain" do
     tests "LeaseStall", on: "FoodStall", kind: :cascade
+    setup  "PublishMenu", menu_id: "sample", vendor_id: "sample"
+    setup  "OpenSeating", area_id: "sample", name: "sample", total_seats: 1
+    setup  "ScheduleEvent", event_id: "sample", name: "sample", event_type: "sample", date: "sample", capacity: 1, ticket_price: 1.0
     input  stall_id: "sample", location: "sample", monthly_rent: 1.0, vendor_id: "sample"
     expect emits: ["StallLeased", "MenuPublished", "SeatingOpened", "EventScheduled", "EventHosted", "MenuRevised", "SeatingClosed"]
   end
@@ -59,6 +67,8 @@ Hecks.behaviors "FoodHall" do
 
   test "PublishMenu cascades through policy chain" do
     tests "PublishMenu", on: "HallMenu", kind: :cascade
+    setup  "OpenSeating", area_id: "sample", name: "sample", total_seats: 1
+    setup  "ScheduleEvent", event_id: "sample", name: "sample", event_type: "sample", date: "sample", capacity: 1, ticket_price: 1.0
     input  menu_id: "sample", vendor_id: "sample"
     expect emits: ["MenuPublished", "SeatingOpened", "EventScheduled", "EventHosted", "MenuRevised", "SeatingClosed"]
   end
@@ -102,6 +112,8 @@ Hecks.behaviors "FoodHall" do
 
   test "ScheduleEvent cascades through policy chain" do
     tests "ScheduleEvent", on: "CulinaryEvent", kind: :cascade
+    setup  "PublishMenu", menu_id: "sample", vendor_id: "sample"
+    setup  "OpenSeating", area_id: "sample", name: "sample", total_seats: 1
     input  event_id: "sample", name: "sample", event_type: "sample", date: "sample", capacity: 1, ticket_price: 1.0
     expect emits: ["EventScheduled", "EventHosted", "MenuRevised", "SeatingClosed"]
   end
@@ -114,6 +126,7 @@ Hecks.behaviors "FoodHall" do
 
   test "HostEvent cascades through policy chain" do
     tests "HostEvent", on: "CulinaryEvent", kind: :cascade
+    setup  "PublishMenu", menu_id: "sample", vendor_id: "sample"
     setup  "ScheduleEvent", event_id: "sample", name: "sample", event_type: "sample", date: "sample", capacity: 1, ticket_price: 1.0
     expect emits: ["EventHosted", "MenuRevised"]
   end

@@ -32,6 +32,7 @@ Hecks.behaviors "Neuroscience" do
   test "ScreenSubject cascades through policy chain" do
     tests "ScreenSubject", on: "Subject", kind: :cascade
     setup  "EnrollSubject", subject_id: "sample", age: 1, handedness: "sample"
+    setup  "StartSession", modality: "sample"
     setup  "SignConsent"
     expect emits: ["SubjectScreened", "SessionStarted"]
   end
@@ -48,14 +49,12 @@ Hecks.behaviors "Neuroscience" do
   test "StartSession sets modality" do
     tests "StartSession", on: "ImagingSession"
     setup  "EnrollSubject", subject_id: "sample", age: 1, handedness: "sample"
-    setup  "ConfirmScreeningPassed"
     input  modality: "sample"
     expect ok: "true"
   end
 
   test "CompleteSession runs" do
     tests "CompleteSession", on: "ImagingSession"
-    setup  "ConfirmScreeningPassed"
     setup  "StartSession", modality: "sample"
     expect ok: "true"
   end
@@ -63,13 +62,13 @@ Hecks.behaviors "Neuroscience" do
   test "CompleteSession cascades through policy chain" do
     tests "CompleteSession", on: "ImagingSession", kind: :cascade
     setup  "StartSession", modality: "sample"
-    setup  "ConfirmScreeningPassed"
+    setup  "ExtractSignal", signal_type: "sample", brain_region: "sample"
+    setup  "DraftPaper", title: "sample", target_journal: "sample"
     expect emits: ["SessionCompleted", "SignalExtracted", "NoiseFiltered", "ConnectivityComputed", "PaperDrafted"]
   end
 
   test "RejectSession sets rejection_reason" do
     tests "RejectSession", on: "ImagingSession"
-    setup  "ConfirmScreeningPassed"
     setup  "StartSession", modality: "sample"
     input  rejection_reason: "sample"
     expect ok: "true"
@@ -80,15 +79,15 @@ Hecks.behaviors "Neuroscience" do
 
   test "ExtractSignal sets signal_type + brain_region" do
     tests "ExtractSignal", on: "NeuralSignal"
-    setup  "ConfirmScreeningPassed"
     setup  "StartSession", modality: "sample"
     input  signal_type: "sample", brain_region: "sample"
-    expect ok: "true"
+    expect raw_data_loaded: true
   end
 
   test "ExtractSignal cascades through policy chain" do
     tests "ExtractSignal", on: "NeuralSignal", kind: :cascade
     setup  "StartSession", modality: "sample"
+    setup  "DraftPaper", title: "sample", target_journal: "sample"
     input  signal_type: "sample", brain_region: "sample"
     expect emits: ["SignalExtracted", "NoiseFiltered", "ConnectivityComputed", "PaperDrafted"]
   end
@@ -102,14 +101,13 @@ Hecks.behaviors "Neuroscience" do
   test "FilterNoise runs" do
     tests "FilterNoise", on: "NeuralSignal"
     setup  "ExtractSignal", signal_type: "sample", brain_region: "sample"
-    setup  "LoadRawData"
     expect ok: "true"
   end
 
   test "FilterNoise cascades through policy chain" do
     tests "FilterNoise", on: "NeuralSignal", kind: :cascade
+    setup  "DraftPaper", title: "sample", target_journal: "sample"
     setup  "ExtractSignal", signal_type: "sample", brain_region: "sample"
-    setup  "LoadRawData"
     expect emits: ["NoiseFiltered", "ConnectivityComputed", "PaperDrafted"]
   end
 
@@ -122,6 +120,7 @@ Hecks.behaviors "Neuroscience" do
   test "ComputeConnectivity cascades through policy chain" do
     tests "ComputeConnectivity", on: "NeuralSignal", kind: :cascade
     setup  "ExtractSignal", signal_type: "sample", brain_region: "sample"
+    setup  "DraftPaper", title: "sample", target_journal: "sample"
     expect emits: ["ConnectivityComputed", "PaperDrafted"]
   end
 
@@ -136,6 +135,7 @@ Hecks.behaviors "Neuroscience" do
 
   test "DesignProtocol cascades through policy chain" do
     tests "DesignProtocol", on: "StimulusProtocol", kind: :cascade
+    setup  "EnrollSubject", subject_id: "sample", age: 1, handedness: "sample"
     input  protocol_name: "sample", stimulus_type: "sample", trial_count: 1
     expect emits: ["ProtocolDesigned", "SubjectEnrolled", "TrialsRandomized"]
   end

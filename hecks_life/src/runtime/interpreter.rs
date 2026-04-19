@@ -71,6 +71,18 @@ fn evaluate_given(
 ) -> bool {
     let expr = expr.trim();
 
+    // Boolean operators — split lowest precedence first.
+    // `||` binds looser than `&&`, so split on `||` before `&&`.
+    // We don't honor parentheses or short-circuit semantics beyond what
+    // recursion gives us; `a || b || c` parses left-to-right via the
+    // first `||` split, which matches common usage in givens.
+    if let Some((lhs, rhs)) = split_top_level(expr, "||") {
+        return evaluate_given(lhs, state, attrs) || evaluate_given(rhs, state, attrs);
+    }
+    if let Some((lhs, rhs)) = split_top_level(expr, "&&") {
+        return evaluate_given(lhs, state, attrs) && evaluate_given(rhs, state, attrs);
+    }
+
     // `field.any?` → field.size > 0; `field.empty?` → field.size == 0.
     // Ruby idioms used in handwritten bluebooks; rewrite to runtime
     // primitives so the comparison evaluator below handles them.
@@ -152,6 +164,28 @@ fn resolve_expr(expr: &str, state: &AggregateState, attrs: &HashMap<String, Valu
         return v.clone();
     }
     state.get(expr).clone()
+}
+
+/// Split on the first occurrence of `op` that isn't inside a quoted
+/// string. Returns (lhs, rhs) trimmed slices, or None if not found.
+/// Used for boolean operators `||` and `&&` where quoted comparison
+/// values may legitimately contain pipe/ampersand characters.
+fn split_top_level<'a>(expr: &'a str, op: &str) -> Option<(&'a str, &'a str)> {
+    let bytes = expr.as_bytes();
+    let op_bytes = op.as_bytes();
+    let mut in_str = false;
+    let mut i = 0;
+    while i + op_bytes.len() <= bytes.len() {
+        let b = bytes[i];
+        if b == b'"' { in_str = !in_str; }
+        if !in_str && &bytes[i..i + op_bytes.len()] == op_bytes {
+            let lhs = expr[..i].trim();
+            let rhs = expr[i + op_bytes.len()..].trim();
+            return Some((lhs, rhs));
+        }
+        i += 1;
+    }
+    None
 }
 
 fn split_comparison<'a>(expr: &'a str, op: &str) -> Option<(&'a str, &'a str)> {
@@ -264,6 +298,24 @@ pub fn resolve_mutation_value(
     if value_expr.starts_with('"') && value_expr.ends_with('"') {
         return Value::Str(value_expr[1..value_expr.len() - 1].to_string());
     }
+
+    // List literal: `[]` → empty list, `[1, 2]` → list of resolved items.
+    // Without this, `then_set :foo, to: []` previously stored the string
+    // "[]", which broke `given { foo.empty? }` (length 2, not 0).
+    if value_expr.starts_with('[') && value_expr.ends_with(']') {
+        let inner = value_expr[1..value_expr.len() - 1].trim();
+        if inner.is_empty() {
+            return Value::List(vec![]);
+        }
+        let items: Vec<Value> = inner
+            .split(',')
+            .map(|item| resolve_mutation_value(item.trim(), attrs, state))
+            .collect();
+        return Value::List(items);
+    }
+
+    if value_expr == "true" { return Value::Bool(true); }
+    if value_expr == "false" { return Value::Bool(false); }
 
     attrs
         .get(value_expr)

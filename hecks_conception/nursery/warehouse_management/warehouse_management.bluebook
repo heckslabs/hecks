@@ -90,7 +90,6 @@ Hecks.bluebook "WarehouseManagement" do
       description "Place a pallet into its assigned storage location"
       reference_to(Pallet)
       reference_to(Location)
-      given { status == "inspected" }
       emits "PalletStowed"
       then_set :status, to: "stowed"
     end
@@ -98,7 +97,6 @@ Hecks.bluebook "WarehouseManagement" do
     PickPallet do
       description "Pull a pallet from storage for an outbound order"
       reference_to(Pallet)
-      given { status == "stowed" }
       emits "PalletPicked"
       then_set :status, to: "picked"
     end
@@ -190,24 +188,9 @@ Hecks.bluebook "WarehouseManagement" do
     trigger "ReserveLocation"
   end
 
-  policy "PickOnListGenerated" do
-    on "PickListGenerated"
-    trigger "PickPallet"
-  end
-
-  policy "StageOnPick" do
-    on "PalletPicked"
-    trigger "StagePallet"
-  end
-
   policy "ShipOnPickComplete" do
     on "PickListCompleted"
     trigger "PrepareShipment"
-  end
-
-  policy "LoadOnShipmentPrepared" do
-    on "ShipmentPrepared"
-    trigger "LoadShipment"
   end
 
   policy "DispatchOnLoad" do

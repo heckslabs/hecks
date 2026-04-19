@@ -18,6 +18,8 @@ Hecks.behaviors "FarmManagement" do
 
   test "PlantField cascades through policy chain" do
     tests "PlantField", on: "Field", kind: :cascade
+    setup  "SetIrrigation", method: "sample", frequency: "sample", volume_gallons: 1.0
+    setup  "StartCropCycle", crop_variety: "sample", planting_date: "sample", days_to_maturity: 1
     setup  "RegisterField", name: "sample", acreage: 1.0, soil_type: "sample", gps_coordinates: "sample"
     input  current_crop: "sample"
     expect emits: ["FieldPlanted", "IrrigationSet", "CropCycleStarted"]
@@ -32,6 +34,7 @@ Hecks.behaviors "FarmManagement" do
   test "FallowField cascades through policy chain" do
     tests "FallowField", on: "Field", kind: :cascade
     setup  "RegisterField", name: "sample", acreage: 1.0, soil_type: "sample", gps_coordinates: "sample"
+    setup  "CollectSample", test_date: "sample"
     expect emits: ["FieldFallowed", "SampleCollected", "ResultsRecorded", "RecommendationsIssued"]
   end
 
@@ -54,6 +57,10 @@ Hecks.behaviors "FarmManagement" do
 
   test "AdvanceGrowthStage cascades through policy chain" do
     tests "AdvanceGrowthStage", on: "CropCycle", kind: :cascade
+    setup  "SetIrrigation", method: "sample", frequency: "sample", volume_gallons: 1.0
+    setup  "RecordHarvest", harvest_date: "sample", yield_bushels: 1.0, moisture_percent: 1.0, quality_grade: "sample"
+    setup  "RegisterField", name: "sample", acreage: 1.0, soil_type: "sample", gps_coordinates: "sample"
+    setup  "CollectSample", test_date: "sample"
     setup  "StartCropCycle", crop_variety: "sample", planting_date: "sample", days_to_maturity: 1
     input  growth_stage: "sample"
     expect emits: ["GrowthStageAdvanced", "VolumeAdjusted", "HarvestRecorded", "HarvestStored", "FieldFallowed", "SampleCollected", "ResultsRecorded", "RecommendationsIssued"]
@@ -102,8 +109,9 @@ Hecks.behaviors "FarmManagement" do
 
   test "RecordHarvest cascades through policy chain" do
     tests "RecordHarvest", on: "Harvest", kind: :cascade
-    setup  "RegisterField", name: "sample", acreage: 1.0, soil_type: "sample", gps_coordinates: "sample"
     setup  "StartCropCycle", crop_variety: "sample", planting_date: "sample", days_to_maturity: 1
+    setup  "RegisterField", name: "sample", acreage: 1.0, soil_type: "sample", gps_coordinates: "sample"
+    setup  "CollectSample", test_date: "sample"
     input  harvest_date: "sample", yield_bushels: 1.0, moisture_percent: 1.0, quality_grade: "sample"
     expect emits: ["HarvestRecorded", "HarvestStored", "FieldFallowed", "SampleCollected", "ResultsRecorded", "RecommendationsIssued"]
   end

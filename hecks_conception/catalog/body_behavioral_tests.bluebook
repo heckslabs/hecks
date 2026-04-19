@@ -9,27 +9,19 @@ Hecks.behaviors "MietteBody" do
     expect carrying: "sample"
   end
 
-  test "Beat cascades through policy chain" do
-    tests "Beat", on: "Pulse", kind: :cascade
-    input  carrying: "sample"
-    expect emits: ["PulseBeat", "InputIngested", "OrgansSensed", "BalanceAssessed", "Regulated"]
-  end
-
   test "Accelerate runs" do
     tests "Accelerate", on: "Pulse"
-    setup  "Beat", carrying: "sample"
     expect flow_rate: "rushing"
   end
 
   test "Steady runs" do
     tests "Steady", on: "Pulse"
-    setup  "Beat", carrying: "sample"
     expect flow_rate: "steady"
   end
 
   test "Steady cascades through policy chain" do
     tests "Steady", on: "Pulse", kind: :cascade
-    setup  "Beat", carrying: "sample"
+    setup  "Express", state: "sample"
     expect emits: ["PulseSteadied", "Regulated"]
   end
 
@@ -74,6 +66,11 @@ Hecks.behaviors "MietteBody" do
 
   test "Absorb cascades through policy chain" do
     tests "Absorb", on: "Gut", kind: :cascade
+    setup  "Conceive", domain_name: "sample"
+    setup  "Express", state: "sample"
+    setup  "Beat", carrying: "sample"
+    setup  "ExpressCapability", capability: "sample", level: 1.0
+    setup  "SenseOrgans", organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1
     setup  "Ingest", raw_input: "sample"
     setup  "ExtractAggregate", aggregate_name: "sample"
     expect emits: ["DomainAbsorbed", "DomainConceived", "Excited", "PulseAccelerated", "CapabilityExpressed", "LimbSensed"]
@@ -90,6 +87,7 @@ Hecks.behaviors "MietteBody" do
 
   test "DetectThreat cascades through policy chain" do
     tests "DetectThreat", on: "Immunity", kind: :cascade
+    setup  "Express", state: "sample"
     input  threat_pattern: "sample"
     expect emits: ["ThreatDetected", "Focused"]
   end
@@ -137,25 +135,22 @@ Hecks.behaviors "MietteBody" do
 
   test "Excite runs" do
     tests "Excite", on: "Mood"
-    setup  "Express", state: "sample"
     expect current_state: "excited"
   end
 
   test "Excite cascades through policy chain" do
     tests "Excite", on: "Mood", kind: :cascade
-    setup  "Express", state: "sample"
+    setup  "Beat", carrying: "sample"
     expect emits: ["Excited", "PulseAccelerated"]
   end
 
   test "Focus runs" do
     tests "Focus", on: "Mood"
-    setup  "Express", state: "sample"
     expect current_state: "focused"
   end
 
   test "Regulate runs" do
     tests "Regulate", on: "Mood"
-    setup  "Express", state: "sample"
     expect creativity_level: 0.7, precision_level: 0.7, current_state: "curious"
   end
 
@@ -170,6 +165,10 @@ Hecks.behaviors "MietteBody" do
 
   test "Conceive cascades through policy chain" do
     tests "Conceive", on: "DomainCell", kind: :cascade
+    setup  "Express", state: "sample"
+    setup  "Beat", carrying: "sample"
+    setup  "ExpressCapability", capability: "sample", level: 1.0
+    setup  "SenseOrgans", organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1
     input  domain_name: "sample"
     expect emits: ["DomainConceived", "Excited", "PulseAccelerated", "CapabilityExpressed", "LimbSensed"]
   end
@@ -203,7 +202,8 @@ Hecks.behaviors "MietteBody" do
   test "TriggerApoptosis cascades through policy chain" do
     tests "TriggerApoptosis", on: "DomainCell", kind: :cascade
     setup  "Conceive", domain_name: "sample"
-    expect emits: ["DomainDied", "PulseBeat", "InputIngested", "OrgansSensed", "BalanceAssessed", "Regulated"]
+    setup  "Beat", carrying: "sample"
+    expect emits: ["DomainDied", "PulseBeat"]
   end
 
 
@@ -246,13 +246,13 @@ Hecks.behaviors "MietteBody" do
 
   test "SenseOrgans cascades through policy chain" do
     tests "SenseOrgans", on: "Proprioception", kind: :cascade
+    setup  "Express", state: "sample"
     input  organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1
     expect emits: ["OrgansSensed", "BalanceAssessed", "Regulated"]
   end
 
   test "SenseLimb sets organ_name + expressed + record_count + load" do
     tests "SenseLimb", on: "Proprioception"
-    setup  "SenseOrgans", organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1
     input  organ_name: "sample", expressed: "sample", record_count: 1, load: "sample"
     expect limbs_size: 1, awareness: "sensing"
   end
@@ -266,6 +266,7 @@ Hecks.behaviors "MietteBody" do
 
   test "AssessBalance cascades through policy chain" do
     tests "AssessBalance", on: "Proprioception", kind: :cascade
+    setup  "Express", state: "sample"
     setup  "SenseOrgans", organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1
     input  balance: "sample", schema_hash: "sample"
     expect emits: ["BalanceAssessed", "Regulated"]
@@ -273,6 +274,7 @@ Hecks.behaviors "MietteBody" do
 
   test "DetectDrift cascades through policy chain" do
     tests "DetectDrift", on: "Proprioception", kind: :cascade
+    setup  "Express", state: "sample"
     setup  "SenseOrgans", organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1
     setup  "AssessBalance", balance: "sample", schema_hash: "sample"
     expect emits: ["DriftDetected", "OrgansSensed", "BalanceAssessed", "Regulated"]

@@ -11,6 +11,7 @@ Hecks.behaviors "FurnitureShowroom" do
 
   test "AddPiece cascades through policy chain" do
     tests "AddPiece", on: "FurniturePiece", kind: :cascade
+    setup  "StageRoom", room_name: "sample", style: "sample"
     input  sku: "sample", name: "sample", collection: "sample", material: "sample", price: 1.0
     expect emits: ["PieceAdded", "RoomStaged"]
   end
@@ -23,6 +24,9 @@ Hecks.behaviors "FurnitureShowroom" do
 
   test "SellPiece cascades through policy chain" do
     tests "SellPiece", on: "FurniturePiece", kind: :cascade
+    setup  "ScheduleDelivery", delivery_id: "sample", sku: "sample", customer_name: "sample", address: "sample", scheduled_date: "sample"
+    setup  "ActivateWarranty", warranty_id: "sample", sku: "sample", customer_name: "sample", coverage_type: "sample", expiration_date: "sample"
+    setup  "StageRoom", room_name: "sample", style: "sample"
     setup  "AddPiece", sku: "sample", name: "sample", collection: "sample", material: "sample", price: 1.0
     expect emits: ["PieceSold", "DeliveryScheduled", "DeliveryCompleted", "WarrantyActivated", "RoomRestaged"]
   end
@@ -80,6 +84,7 @@ Hecks.behaviors "FurnitureShowroom" do
   test "ReportDeliveryDamage cascades through policy chain" do
     tests "ReportDeliveryDamage", on: "Delivery", kind: :cascade
     setup  "ScheduleDelivery", delivery_id: "sample", sku: "sample", customer_name: "sample", address: "sample", scheduled_date: "sample"
+    setup  "ActivateWarranty", warranty_id: "sample", sku: "sample", customer_name: "sample", coverage_type: "sample", expiration_date: "sample"
     input  damage_description: "sample"
     expect emits: ["DeliveryDamageReported", "WarrantyClaimFiled", "WarrantyClaimResolved"]
   end

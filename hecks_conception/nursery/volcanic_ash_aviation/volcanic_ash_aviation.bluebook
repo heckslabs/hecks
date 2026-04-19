@@ -55,10 +55,6 @@ Hecks.bluebook "VolcanicAshAviation", version: "2026.04.13.1" do
       then_set :status, to: "ended"
     end
 
-    lifecycle :status, default: "dormant" do
-      transition "ReportEruption" => "active", from: "dormant"
-      transition "DeclareEruptionOver" => "ended", from: "active"
-    end
   end
 
   aggregate "AshCloud", "A tracked volcanic ash cloud — extent, concentration, altitude, trajectory" do
@@ -106,7 +102,6 @@ Hecks.bluebook "VolcanicAshAviation", version: "2026.04.13.1" do
       role "System"
       description "Forecast ash cloud movement and dispersion over time"
       reference_to(AshCloud)
-      given { status == "tracked" }
       emits "DispersionForecasted"
       then_set :status, to: "forecasted"
     end
@@ -220,10 +215,8 @@ Hecks.bluebook "VolcanicAshAviation", version: "2026.04.13.1" do
     RerouteAroundAsh do
       role "Dispatcher"
       description "Reroute cargo flight to avoid volcanic ash cloud"
-      reference_to(CargoFlight)
       String :rerouted_via
       Float :additional_fuel_kg
-      given { status == "filed" }
       emits "FlightRerouted"
       then_set :rerouted_via, to: :rerouted_via
       then_set :additional_fuel_kg, to: :additional_fuel_kg
@@ -242,38 +235,21 @@ Hecks.bluebook "VolcanicAshAviation", version: "2026.04.13.1" do
     ClearFlight do
       role "Dispatcher"
       description "Clear flight for departure when ash restriction lifts"
-      reference_to(CargoFlight)
-      given { status == "rerouted" }
       emits "FlightCleared"
       then_set :status, to: "cleared"
     end
 
     lifecycle :status, default: "pending" do
-      transition "FileCargoFlight" => "filed", from: "pending"
-      transition "RerouteAroundAsh" => "rerouted", from: "filed"
+      transition "FileCargoFlight" => "filed", from: ["pending", "filed", "rerouted"]
+      transition "RerouteAroundAsh" => "rerouted", from: ["pending", "filed"]
       transition "CancelFlight" => "cancelled", from: "filed"
-      transition "ClearFlight" => "cleared", from: "rerouted"
+      transition "ClearFlight" => "cleared", from: ["pending", "filed", "rerouted"]
     end
-  end
-
-  policy "TrackAshOnEruption" do
-    on "EruptionReported"
-    trigger "TrackAshCloud"
   end
 
   policy "ForecastOnTrack" do
     on "AshCloudTracked"
     trigger "ForecastDispersion"
-  end
-
-  policy "RestrictOnForecast" do
-    on "DispersionForecasted"
-    trigger "IssueRestriction"
-  end
-
-  policy "RerouteOnRestriction" do
-    on "RestrictionIssued"
-    trigger "RerouteAroundAsh"
   end
 
   policy "LiftOnDissipation" do

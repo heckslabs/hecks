@@ -11,6 +11,10 @@ Hecks.behaviors "CausalCombinatorics" do
 
   test "BuildGraph cascades through policy chain" do
     tests "BuildGraph", on: "PolicyGraph", kind: :cascade
+    setup  "TraceCascade", trigger_event: "sample"
+    setup  "MeasureEmergence", domains_combined: 1
+    setup  "EstimateCapacity", corpus_size: 1
+    setup  "ProposeLaw", name: "sample", statement: "sample"
     input  name: "sample", domain_names: "sample"
     expect emits: ["GraphBuilt", "GraphsMerged", "CascadeTraced", "CycleDetected", "EmergenceMeasured", "CombinationsRanked", "CapacityEstimated", "LawProposed", "LawTested"]
   end
@@ -25,12 +29,22 @@ Hecks.behaviors "CausalCombinatorics" do
   test "MergeGraphs cascades through policy chain" do
     tests "MergeGraphs", on: "PolicyGraph", kind: :cascade
     setup  "BuildGraph", name: "sample", domain_names: "sample"
+    setup  "TraceCascade", trigger_event: "sample"
+    setup  "MeasureEmergence", domains_combined: 1
+    setup  "EstimateCapacity", corpus_size: 1
+    setup  "ProposeLaw", name: "sample", statement: "sample"
     input  other_graph_name: "sample"
     expect emits: ["GraphsMerged", "CascadeTraced", "CycleDetected", "EmergenceMeasured", "CombinationsRanked", "CapacityEstimated", "LawProposed", "LawTested"]
   end
 
 
   # ── CascadeAnalysis aggregate ──────────────────────────────────────────
+
+  test "ConfirmEventInGraph runs" do
+    tests "ConfirmEventInGraph", on: "CascadeAnalysis"
+    setup  "TraceCascade", trigger_event: "sample"
+    expect ok: "true"
+  end
 
   test "TraceCascade sets trigger_event" do
     tests "TraceCascade", on: "CascadeAnalysis"
@@ -42,8 +56,23 @@ Hecks.behaviors "CausalCombinatorics" do
   test "TraceCascade cascades through policy chain" do
     tests "TraceCascade", on: "CascadeAnalysis", kind: :cascade
     setup  "BuildGraph", name: "sample", domain_names: "sample"
+    setup  "MeasureEmergence", domains_combined: 1
+    setup  "EstimateCapacity", corpus_size: 1
+    setup  "ProposeLaw", name: "sample", statement: "sample"
     input  trigger_event: "sample"
     expect emits: ["CascadeTraced", "CycleDetected", "EmergenceMeasured", "CombinationsRanked", "CapacityEstimated", "LawProposed", "LawTested"]
+  end
+
+  test "DetectCycle runs" do
+    tests "DetectCycle", on: "CascadeAnalysis"
+    setup  "TraceCascade", trigger_event: "sample"
+    expect ok: "true"
+  end
+
+  test "MeasureFanOut runs" do
+    tests "MeasureFanOut", on: "CascadeAnalysis"
+    setup  "TraceCascade", trigger_event: "sample"
+    expect ok: "true"
   end
 
 
@@ -59,6 +88,8 @@ Hecks.behaviors "CausalCombinatorics" do
   test "MeasureEmergence cascades through policy chain" do
     tests "MeasureEmergence", on: "EmergenceMetric", kind: :cascade
     setup  "BuildGraph", name: "sample", domain_names: "sample"
+    setup  "EstimateCapacity", corpus_size: 1
+    setup  "ProposeLaw", name: "sample", statement: "sample"
     input  domains_combined: 1
     expect emits: ["EmergenceMeasured", "CombinationsRanked", "CapacityEstimated", "LawProposed", "LawTested"]
   end
@@ -79,6 +110,8 @@ Hecks.behaviors "CausalCombinatorics" do
   test "RankCombinations cascades through policy chain" do
     tests "RankCombinations", on: "EmergenceMetric", kind: :cascade
     setup  "MeasureEmergence", domains_combined: 1
+    setup  "EstimateCapacity", corpus_size: 1
+    setup  "ProposeLaw", name: "sample", statement: "sample"
     expect emits: ["CombinationsRanked", "CapacityEstimated", "LawProposed", "LawTested"]
   end
 
@@ -93,6 +126,7 @@ Hecks.behaviors "CausalCombinatorics" do
 
   test "EstimateCapacity cascades through policy chain" do
     tests "EstimateCapacity", on: "GenerativeCapacity", kind: :cascade
+    setup  "ProposeLaw", name: "sample", statement: "sample"
     input  corpus_size: 1
     expect emits: ["CapacityEstimated", "LawProposed", "LawTested"]
   end

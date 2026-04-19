@@ -11,6 +11,8 @@ Hecks.behaviors "BrewingForVeterans" do
 
   test "EnrollApprentice cascades through policy chain" do
     tests "EnrollApprentice", on: "VeteranApprentice", kind: :cascade
+    setup  "FormCohort", cohort_id: "sample", cohort_name: "sample", start_date: "sample", brew_master: "sample"
+    setup  "PrepareUnit", unit_id: "sample", address: "sample", capacity: 1, funding_source: "sample"
     input  apprentice_id: "sample", name: "sample", branch_of_service: "sample", discharge_type: "sample", housing_status: "sample"
     expect emits: ["ApprenticeEnrolled", "CohortFormed", "ResidentAssigned"]
   end
@@ -29,6 +31,8 @@ Hecks.behaviors "BrewingForVeterans" do
 
   test "GraduateApprentice cascades through policy chain" do
     tests "GraduateApprentice", on: "VeteranApprentice", kind: :cascade
+    setup  "ChartPath", path_id: "sample", employment_goal: "sample", housing_transition: "sample", mentor_name: "sample"
+    setup  "PrepareUnit", unit_id: "sample", address: "sample", capacity: 1, funding_source: "sample"
     setup  "EnrollApprentice", apprentice_id: "sample", name: "sample", branch_of_service: "sample", discharge_type: "sample", housing_status: "sample"
     expect emits: ["ApprenticeGraduated", "PathCharted", "UnitReleased"]
   end
@@ -50,6 +54,8 @@ Hecks.behaviors "BrewingForVeterans" do
 
   test "CompleteBrew cascades through policy chain" do
     tests "CompleteBrew", on: "BrewingCohort", kind: :cascade
+    setup  "LaunchProduct", product_id: "sample", product_name: "sample", style: "sample", batch_number: "sample"
+    setup  "EnrollApprentice", apprentice_id: "sample", name: "sample", branch_of_service: "sample", discharge_type: "sample", housing_status: "sample"
     setup  "FormCohort", cohort_id: "sample", cohort_name: "sample", start_date: "sample", brew_master: "sample"
     expect emits: ["BrewCompleted", "ProductLaunched", "ApprenticeAdvanced"]
   end
@@ -78,6 +84,7 @@ Hecks.behaviors "BrewingForVeterans" do
 
   test "SellProduct cascades through policy chain" do
     tests "SellProduct", on: "ProductLine", kind: :cascade
+    setup  "OpenPeriod", period: "sample"
     setup  "LaunchProduct", product_id: "sample", product_name: "sample", style: "sample", batch_number: "sample"
     expect emits: ["ProductSold", "SaleRecorded", "RevenueAllocated"]
   end
@@ -137,7 +144,6 @@ Hecks.behaviors "BrewingForVeterans" do
   test "ReleaseUnit runs" do
     tests "ReleaseUnit", on: "HousingUnit"
     setup  "PrepareUnit", unit_id: "sample", address: "sample", capacity: 1, funding_source: "sample"
-    setup  "AssignResident"
     expect status: "available"
   end
 

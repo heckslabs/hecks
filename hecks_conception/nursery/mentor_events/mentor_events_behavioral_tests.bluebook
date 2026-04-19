@@ -17,6 +17,7 @@ Hecks.behaviors "MentorEvents" do
 
   test "CloseMatch cascades through policy chain" do
     tests "CloseMatch", on: "MentorMatch", kind: :cascade
+    setup  "MeasureImpact", report_id: "sample", match_id: "sample", academic_improvement: 1.0, confidence_score: 1.0, period: "sample"
     setup  "MakeMatch", match_id: "sample", mentor_name: "sample", mentee_name: "sample", focus_area: "sample", start_date: "sample"
     expect emits: ["MatchClosed", "ImpactMeasured"]
   end
@@ -32,6 +33,7 @@ Hecks.behaviors "MentorEvents" do
 
   test "PlanEvent cascades through policy chain" do
     tests "PlanEvent", on: "GroupEvent", kind: :cascade
+    setup  "RecordAttendance", attendance_id: "sample", event_id: "sample", participant_name: "sample", role_type: "sample", check_in_time: "sample"
     input  event_id: "sample", event_name: "sample", venue: "sample", date: "sample", capacity: 1
     expect emits: ["EventPlanned", "AttendanceRecorded"]
   end

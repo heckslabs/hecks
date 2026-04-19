@@ -11,6 +11,7 @@ Hecks.behaviors "Inbox" do
 
   test "PostMessage cascades through policy chain" do
     tests "PostMessage", on: "Message", kind: :cascade
+    setup  "OpenInbox", queued_count: 1, oldest_priority: "sample"
     input  body: "sample", priority: "sample"
     expect emits: ["MessagePosted", "Tallied"]
   end
@@ -24,6 +25,7 @@ Hecks.behaviors "Inbox" do
   test "AcknowledgeMessage cascades through policy chain" do
     tests "AcknowledgeMessage", on: "Message", kind: :cascade
     setup  "PostMessage", body: "sample", priority: "sample"
+    setup  "OpenInbox", queued_count: 1, oldest_priority: "sample"
     expect emits: ["MessageAcknowledged", "Tallied"]
   end
 
@@ -37,6 +39,7 @@ Hecks.behaviors "Inbox" do
   test "ActOnMessage cascades through policy chain" do
     tests "ActOnMessage", on: "Message", kind: :cascade
     setup  "PostMessage", body: "sample", priority: "sample"
+    setup  "OpenInbox", queued_count: 1, oldest_priority: "sample"
     setup  "AcknowledgeMessage"
     expect emits: ["MessageActedOn", "Tallied"]
   end

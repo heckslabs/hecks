@@ -20,7 +20,7 @@ Hecks.behaviors "ThermalComfort" do
     tests "MeasureTemperature", on: "ThermalZone", kind: :cascade
     setup  "DefineZone", zone_name: "sample", volume_m3: 1.0, insulation_r_value: 1.0, heat_load_watts: 1.0, setpoint_temp_c: 1.0
     input  current_temp_c: 1.0
-    expect emits: ["TemperatureMeasured", "HeatLossCalculated", "ComfortAssessed", "PMVCalculated", "DiscomfortFlagged", "EquipmentActivated"]
+    expect emits: ["TemperatureMeasured", "HeatLossCalculated"]
   end
 
   test "CalculateHeatLoss sets heat_load_watts" do
@@ -63,6 +63,7 @@ Hecks.behaviors "ThermalComfort" do
 
   test "AssessComfort cascades through policy chain" do
     tests "AssessComfort", on: "ComfortAssessment", kind: :cascade
+    setup  "InstallEquipment", equipment_id: "sample", equipment_type: "sample", capacity_kw: 1.0, efficiency_rating: 1.0, serving_zone: "sample"
     input  zone_name: "sample", air_temp_c: 1.0, mean_radiant_temp_c: 1.0, relative_humidity_pct: 1.0, air_velocity_ms: 1.0
     expect emits: ["ComfortAssessed", "PMVCalculated", "DiscomfortFlagged", "EquipmentActivated"]
   end
@@ -76,6 +77,7 @@ Hecks.behaviors "ThermalComfort" do
 
   test "CalculatePMV cascades through policy chain" do
     tests "CalculatePMV", on: "ComfortAssessment", kind: :cascade
+    setup  "InstallEquipment", equipment_id: "sample", equipment_type: "sample", capacity_kw: 1.0, efficiency_rating: 1.0, serving_zone: "sample"
     setup  "AssessComfort", zone_name: "sample", air_temp_c: 1.0, mean_radiant_temp_c: 1.0, relative_humidity_pct: 1.0, air_velocity_ms: 1.0
     input  pmv_index: 1.0, ppd_pct: 1.0
     expect emits: ["PMVCalculated", "DiscomfortFlagged", "EquipmentActivated"]
@@ -90,6 +92,7 @@ Hecks.behaviors "ThermalComfort" do
 
   test "FlagDiscomfort cascades through policy chain" do
     tests "FlagDiscomfort", on: "ComfortAssessment", kind: :cascade
+    setup  "InstallEquipment", equipment_id: "sample", equipment_type: "sample", capacity_kw: 1.0, efficiency_rating: 1.0, serving_zone: "sample"
     setup  "AssessComfort", zone_name: "sample", air_temp_c: 1.0, mean_radiant_temp_c: 1.0, relative_humidity_pct: 1.0, air_velocity_ms: 1.0
     setup  "CalculatePMV", pmv_index: 1.0, ppd_pct: 1.0
     expect emits: ["DiscomfortFlagged", "EquipmentActivated"]

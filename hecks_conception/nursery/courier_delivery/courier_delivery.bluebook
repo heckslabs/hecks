@@ -45,7 +45,6 @@ Hecks.bluebook "CourierDelivery" do
     DispatchParcel do
       description "Send parcel out for last-mile delivery"
       reference_to(Parcel)
-      given { status == "loaded" }
       emits "ParcelDispatched"
       then_set :status, to: "in_transit"
     end
@@ -108,7 +107,6 @@ Hecks.bluebook "CourierDelivery" do
     CompleteRoute do
       description "Mark all stops on the route as finished"
       reference_to(Route)
-      given { status == "active" }
       emits "RouteCompleted"
       then_set :status, to: "completed"
     end
@@ -147,7 +145,6 @@ Hecks.bluebook "CourierDelivery" do
     CheckOutDriver do
       description "Clock a driver out at end of shift"
       reference_to(Driver)
-      given { status == "on_duty" }
       emits "DriverCheckedOut"
       then_set :status, to: "available"
     end

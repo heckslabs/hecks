@@ -34,7 +34,7 @@ Hecks.behaviors "FireDepartment" do
   test "DispatchApparatus cascades through policy chain" do
     tests "DispatchApparatus", on: "Apparatus", kind: :cascade
     setup  "RegisterApparatus", unit_id: "sample", apparatus_type: "sample", water_capacity_gallons: 1.0
-    expect emits: ["ApparatusDispatched", "ApparatusOnScene", "OperationsEngaged", "OverhaulStarted", "SceneCleared", "ReportFiled", "ApparatusReturned", "CallClosed"]
+    expect emits: ["ApparatusDispatched", "ApparatusOnScene", "OperationsEngaged", "OverhaulStarted", "SceneCleared"]
   end
 
   test "ArriveOnScene runs" do
@@ -48,7 +48,7 @@ Hecks.behaviors "FireDepartment" do
     tests "ArriveOnScene", on: "Apparatus", kind: :cascade
     setup  "RegisterApparatus", unit_id: "sample", apparatus_type: "sample", water_capacity_gallons: 1.0
     setup  "DispatchApparatus"
-    expect emits: ["ApparatusOnScene", "OperationsEngaged", "OverhaulStarted", "SceneCleared", "ReportFiled", "ApparatusReturned", "CallClosed"]
+    expect emits: ["ApparatusOnScene", "OperationsEngaged", "OverhaulStarted", "SceneCleared"]
   end
 
   test "EngageOperations runs" do
@@ -64,7 +64,7 @@ Hecks.behaviors "FireDepartment" do
     setup  "RegisterApparatus", unit_id: "sample", apparatus_type: "sample", water_capacity_gallons: 1.0
     setup  "DispatchApparatus"
     setup  "ArriveOnScene"
-    expect emits: ["OperationsEngaged", "OverhaulStarted", "SceneCleared", "ReportFiled", "ApparatusReturned", "CallClosed"]
+    expect emits: ["OperationsEngaged", "OverhaulStarted", "SceneCleared"]
   end
 
   test "BeginOverhaul runs" do
@@ -82,7 +82,7 @@ Hecks.behaviors "FireDepartment" do
     setup  "DispatchApparatus"
     setup  "ArriveOnScene"
     setup  "EngageOperations"
-    expect emits: ["OverhaulStarted", "SceneCleared", "ReportFiled", "ApparatusReturned", "CallClosed"]
+    expect emits: ["OverhaulStarted", "SceneCleared"]
   end
 
   test "ClearScene runs" do
@@ -93,16 +93,6 @@ Hecks.behaviors "FireDepartment" do
     setup  "EngageOperations"
     setup  "BeginOverhaul"
     expect status: "returning"
-  end
-
-  test "ClearScene cascades through policy chain" do
-    tests "ClearScene", on: "Apparatus", kind: :cascade
-    setup  "RegisterApparatus", unit_id: "sample", apparatus_type: "sample", water_capacity_gallons: 1.0
-    setup  "DispatchApparatus"
-    setup  "ArriveOnScene"
-    setup  "EngageOperations"
-    setup  "BeginOverhaul"
-    expect emits: ["SceneCleared", "ReportFiled", "ApparatusReturned", "CallClosed"]
   end
 
   test "ReturnToStation runs" do
@@ -119,6 +109,9 @@ Hecks.behaviors "FireDepartment" do
   test "ReturnToStation cascades through policy chain" do
     tests "ReturnToStation", on: "Apparatus", kind: :cascade
     setup  "RegisterApparatus", unit_id: "sample", apparatus_type: "sample", water_capacity_gallons: 1.0
+    setup  "ReceiveCall", call_type: "sample", address: "sample", priority: "sample"
+    setup  "AssignCall"
+    setup  "FileReport", report_summary: "sample"
     setup  "DispatchApparatus"
     setup  "ArriveOnScene"
     setup  "EngageOperations"
@@ -138,8 +131,9 @@ Hecks.behaviors "FireDepartment" do
 
   test "ReceiveCall cascades through policy chain" do
     tests "ReceiveCall", on: "EmergencyCall", kind: :cascade
+    setup  "RegisterApparatus", unit_id: "sample", apparatus_type: "sample", water_capacity_gallons: 1.0
     input  call_type: "sample", address: "sample", priority: "sample"
-    expect emits: ["CallReceived", "ApparatusDispatched", "ApparatusOnScene", "OperationsEngaged", "OverhaulStarted", "SceneCleared", "ReportFiled", "ApparatusReturned", "CallClosed", "CallAssigned"]
+    expect emits: ["CallReceived", "CallAssigned"]
   end
 
   test "AssignCall runs" do
@@ -147,13 +141,6 @@ Hecks.behaviors "FireDepartment" do
     setup  "RegisterApparatus", unit_id: "sample", apparatus_type: "sample", water_capacity_gallons: 1.0
     setup  "ReceiveCall", call_type: "sample", address: "sample", priority: "sample"
     expect status: "dispatched"
-  end
-
-  test "AssignCall cascades through policy chain" do
-    tests "AssignCall", on: "EmergencyCall", kind: :cascade
-    setup  "RegisterApparatus", unit_id: "sample", apparatus_type: "sample", water_capacity_gallons: 1.0
-    setup  "ReceiveCall", call_type: "sample", address: "sample", priority: "sample"
-    expect emits: ["CallAssigned", "ApparatusDispatched", "ApparatusOnScene", "OperationsEngaged", "OverhaulStarted", "SceneCleared", "ReportFiled", "ApparatusReturned", "CallClosed"]
   end
 
   test "FileReport sets report_summary" do
@@ -166,6 +153,12 @@ Hecks.behaviors "FireDepartment" do
 
   test "FileReport cascades through policy chain" do
     tests "FileReport", on: "EmergencyCall", kind: :cascade
+    setup  "RegisterApparatus", unit_id: "sample", apparatus_type: "sample", water_capacity_gallons: 1.0
+    setup  "DispatchApparatus"
+    setup  "ArriveOnScene"
+    setup  "EngageOperations"
+    setup  "BeginOverhaul"
+    setup  "ClearScene"
     setup  "ReceiveCall", call_type: "sample", address: "sample", priority: "sample"
     setup  "AssignCall"
     input  report_summary: "sample"

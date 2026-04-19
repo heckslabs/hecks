@@ -32,6 +32,7 @@ Hecks.behaviors "RoofingCompany" do
   test "AcceptQuote cascades through policy chain" do
     tests "AcceptQuote", on: "RoofEstimate", kind: :cascade
     setup  "MeasureRoof", customer_name: "sample", address: "sample", square_footage: 1.0, pitch: 1.0
+    setup  "OrderMaterials", supplier: "sample", material_type: "sample", quantity_bundles: 1
     setup  "QuoteJob", material_cost_per_square: 1.0, labor_cost_per_square: 1.0
     expect emits: ["QuoteAccepted", "MaterialsOrdered"]
   end
@@ -55,6 +56,10 @@ Hecks.behaviors "RoofingCompany" do
   test "ReceiveDelivery cascades through policy chain" do
     tests "ReceiveDelivery", on: "MaterialOrder", kind: :cascade
     setup  "OrderMaterials", supplier: "sample", material_type: "sample", quantity_bundles: 1
+    setup  "FormCrew", foreman_name: "sample", crew_size: 1
+    setup  "MeasureRoof", customer_name: "sample", address: "sample", square_footage: 1.0, pitch: 1.0
+    setup  "RegisterWarranty", warranty_type: "sample", duration_years: 1, coverage_details: "sample"
+    setup  "PlaceHold", reason: "sample"
     expect emits: ["DeliveryReceived", "CrewAssignedToJob", "WarrantyRegistered", "HoldPlaced"]
   end
 
@@ -76,8 +81,10 @@ Hecks.behaviors "RoofingCompany" do
 
   test "AssignToJob cascades through policy chain" do
     tests "AssignToJob", on: "Crew", kind: :cascade
-    setup  "MeasureRoof", customer_name: "sample", address: "sample", square_footage: 1.0, pitch: 1.0
     setup  "FormCrew", foreman_name: "sample", crew_size: 1
+    setup  "MeasureRoof", customer_name: "sample", address: "sample", square_footage: 1.0, pitch: 1.0
+    setup  "RegisterWarranty", warranty_type: "sample", duration_years: 1, coverage_details: "sample"
+    setup  "PlaceHold", reason: "sample"
     expect emits: ["CrewAssignedToJob", "WarrantyRegistered", "HoldPlaced"]
   end
 
@@ -111,6 +118,7 @@ Hecks.behaviors "RoofingCompany" do
   test "FileLeakClaim cascades through policy chain" do
     tests "FileLeakClaim", on: "RoofWarranty", kind: :cascade
     setup  "RegisterWarranty", warranty_type: "sample", duration_years: 1, coverage_details: "sample"
+    setup  "MeasureRoof", customer_name: "sample", address: "sample", square_footage: 1.0, pitch: 1.0
     input  leak_location: "sample"
     expect emits: ["LeakClaimFiled", "RoofMeasured", "JobQuoted"]
   end

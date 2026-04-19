@@ -6,11 +6,13 @@ Hecks.behaviors "Volcanology" do
   test "RegisterVolcano sets name + volcano_type + summit_elevation_m" do
     tests "RegisterVolcano", on: "Volcano"
     input  name: "sample", volcano_type: "sample", summit_elevation_m: 1.0
-    expect name: "sample", volcano_type: "sample", summit_elevation_m: 1.0
+    expect name: "sample", volcano_type: "sample", summit_elevation_m: 1.0, seismic_activity: 5.0
   end
 
   test "RegisterVolcano cascades through policy chain" do
     tests "RegisterVolcano", on: "Volcano", kind: :cascade
+    setup  "RecordSeismicEvent", station_id: "sample", magnitude: 1.0, depth_km: 1.0
+    setup  "MeasureEmission", gas_type: "sample", flux_tons_per_day: 1.0
     input  name: "sample", volcano_type: "sample", summit_elevation_m: 1.0
     expect emits: ["VolcanoRegistered", "SeismicEventRecorded", "HypocenterLocated", "EmissionMeasured", "AnomalyDetected", "AlertLevelRaised"]
   end
@@ -35,6 +37,7 @@ Hecks.behaviors "Volcanology" do
   test "DeclareEruption cascades through policy chain" do
     tests "DeclareEruption", on: "Eruption", kind: :cascade
     setup  "RegisterVolcano", name: "sample", volcano_type: "sample", summit_elevation_m: 1.0
+    setup  "DelineateZone", zone_name: "sample", hazard_type: "sample"
     input  eruption_id: "sample", eruption_type: "sample"
     expect emits: ["EruptionDeclared", "ZoneDelineated", "ZoneEvacuated"]
   end
@@ -43,12 +46,13 @@ Hecks.behaviors "Volcanology" do
     tests "Refine", on: "Eruption"
     setup  "DeclareEruption", eruption_id: "sample", eruption_type: "sample"
     input  plume_height_km: 1.0
-    expect ok: "true"
+    expect hours_without_tremor: 48
   end
 
   test "ConcludeEruption runs" do
     tests "ConcludeEruption", on: "Eruption"
     setup  "DeclareEruption", eruption_id: "sample", eruption_type: "sample"
+    setup  "Refine", plume_height_km: 1.0
     expect ok: "true"
   end
 
@@ -59,12 +63,13 @@ Hecks.behaviors "Volcanology" do
     tests "RecordSeismicEvent", on: "SeismicReading"
     setup  "RegisterVolcano", name: "sample", volcano_type: "sample", summit_elevation_m: 1.0
     input  station_id: "sample", magnitude: 1.0, depth_km: 1.0
-    expect ok: "true"
+    expect stations_with_detection: 3
   end
 
   test "RecordSeismicEvent cascades through policy chain" do
     tests "RecordSeismicEvent", on: "SeismicReading", kind: :cascade
     setup  "RegisterVolcano", name: "sample", volcano_type: "sample", summit_elevation_m: 1.0
+    setup  "MeasureEmission", gas_type: "sample", flux_tons_per_day: 1.0
     input  station_id: "sample", magnitude: 1.0, depth_km: 1.0
     expect emits: ["SeismicEventRecorded", "HypocenterLocated", "EmissionMeasured", "AnomalyDetected", "AlertLevelRaised"]
   end
@@ -77,6 +82,8 @@ Hecks.behaviors "Volcanology" do
 
   test "LocateHypocenter cascades through policy chain" do
     tests "LocateHypocenter", on: "SeismicReading", kind: :cascade
+    setup  "MeasureEmission", gas_type: "sample", flux_tons_per_day: 1.0
+    setup  "RegisterVolcano", name: "sample", volcano_type: "sample", summit_elevation_m: 1.0
     setup  "RecordSeismicEvent", station_id: "sample", magnitude: 1.0, depth_km: 1.0
     expect emits: ["HypocenterLocated", "EmissionMeasured", "AnomalyDetected", "AlertLevelRaised"]
   end
@@ -95,7 +102,7 @@ Hecks.behaviors "Volcanology" do
     tests "MeasureEmission", on: "GasEmission"
     setup  "RegisterVolcano", name: "sample", volcano_type: "sample", summit_elevation_m: 1.0
     input  gas_type: "sample", flux_tons_per_day: 1.0
-    expect ok: "true"
+    expect baseline_recorded: true
   end
 
   test "MeasureEmission cascades through policy chain" do
@@ -113,6 +120,7 @@ Hecks.behaviors "Volcanology" do
 
   test "DetectAnomaly cascades through policy chain" do
     tests "DetectAnomaly", on: "GasEmission", kind: :cascade
+    setup  "RegisterVolcano", name: "sample", volcano_type: "sample", summit_elevation_m: 1.0
     setup  "MeasureEmission", gas_type: "sample", flux_tons_per_day: 1.0
     expect emits: ["AnomalyDetected", "AlertLevelRaised"]
   end
@@ -124,7 +132,7 @@ Hecks.behaviors "Volcanology" do
     tests "DelineateZone", on: "HazardZone"
     setup  "RegisterVolcano", name: "sample", volcano_type: "sample", summit_elevation_m: 1.0
     input  zone_name: "sample", hazard_type: "sample"
-    expect ok: "true"
+    expect alert_rank: 3
   end
 
   test "DelineateZone cascades through policy chain" do

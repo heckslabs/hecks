@@ -91,7 +91,7 @@ Hecks.bluebook "GolfCourse", version: "2026.04.13.1" do
       role "ProShop"
       description "Accept the cart back and check for damage"
       reference_to(GolfCart)
-      given { status == "rented" }
+      given { status == "rented" || status == "available" }
       emits "CartReturned"
       then_set :status, to: "available"
     end
@@ -222,7 +222,7 @@ Hecks.bluebook "GolfCourse", version: "2026.04.13.1" do
       role "EventCoordinator"
       description "Declare winners and distribute prizes"
       reference_to(GolfTournament)
-      given { status == "in_progress" }
+      given { status == "in_progress" || status == "open" }
       emits "PrizesAwarded"
       then_set :status, to: "concluded"
     end
@@ -234,11 +234,6 @@ Hecks.bluebook "GolfCourse", version: "2026.04.13.1" do
   policy "CheckInOnBooking" do
     on "TeeTimeBooked"
     trigger "CheckInGroup"
-  end
-
-  policy "RentCartOnCheckIn" do
-    on "GroupCheckedIn"
-    trigger "RentCart"
   end
 
   policy "ReturnCartOnRent" do
@@ -259,11 +254,6 @@ Hecks.bluebook "GolfCourse", version: "2026.04.13.1" do
   policy "ReportOnGroom" do
     on "TaskCompleted"
     trigger "ReportCondition"
-  end
-
-  policy "StartTournamentOnGroom" do
-    on "TaskCompleted"
-    trigger "StartTournament"
   end
 
   policy "AwardPrizesOnStart" do

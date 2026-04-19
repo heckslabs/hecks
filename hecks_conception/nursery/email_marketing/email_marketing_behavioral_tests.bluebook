@@ -35,6 +35,8 @@ Hecks.behaviors "EmailMarketing" do
   test "DesignCampaign cascades through policy chain" do
     tests "DesignCampaign", on: "EmailCampaign", kind: :cascade
     setup  "ComposeList", list_name: "sample", description: "sample", opt_in_method: "sample"
+    setup  "DispatchSend", send_id: "sample", recipient_email: "sample"
+    setup  "RecordOpen", event_id: "sample", recipient_email: "sample", user_agent: "sample", geo_region: "sample"
     input  campaign_name: "sample", subject_line: "sample", from_address: "sample", template_id: "sample"
     expect emits: ["CampaignDesigned", "CampaignScheduled", "SendDispatched", "DeliveryConfirmed", "OpenRecorded", "OpensAggregated"]
   end
@@ -48,6 +50,8 @@ Hecks.behaviors "EmailMarketing" do
 
   test "ScheduleCampaign cascades through policy chain" do
     tests "ScheduleCampaign", on: "EmailCampaign", kind: :cascade
+    setup  "DispatchSend", send_id: "sample", recipient_email: "sample"
+    setup  "RecordOpen", event_id: "sample", recipient_email: "sample", user_agent: "sample", geo_region: "sample"
     setup  "DesignCampaign", campaign_name: "sample", subject_line: "sample", from_address: "sample", template_id: "sample"
     input  send_at: "sample"
     expect emits: ["CampaignScheduled", "SendDispatched", "DeliveryConfirmed", "OpenRecorded", "OpensAggregated"]
@@ -72,6 +76,7 @@ Hecks.behaviors "EmailMarketing" do
   test "DispatchSend cascades through policy chain" do
     tests "DispatchSend", on: "Send", kind: :cascade
     setup  "DesignCampaign", campaign_name: "sample", subject_line: "sample", from_address: "sample", template_id: "sample"
+    setup  "RecordOpen", event_id: "sample", recipient_email: "sample", user_agent: "sample", geo_region: "sample"
     input  send_id: "sample", recipient_email: "sample"
     expect emits: ["SendDispatched", "DeliveryConfirmed", "OpenRecorded", "OpensAggregated"]
   end
@@ -85,6 +90,7 @@ Hecks.behaviors "EmailMarketing" do
   test "ConfirmDelivery cascades through policy chain" do
     tests "ConfirmDelivery", on: "Send", kind: :cascade
     setup  "DispatchSend", send_id: "sample", recipient_email: "sample"
+    setup  "RecordOpen", event_id: "sample", recipient_email: "sample", user_agent: "sample", geo_region: "sample"
     expect emits: ["DeliveryConfirmed", "OpenRecorded", "OpensAggregated"]
   end
 
@@ -98,6 +104,7 @@ Hecks.behaviors "EmailMarketing" do
   test "MarkFailed cascades through policy chain" do
     tests "MarkFailed", on: "Send", kind: :cascade
     setup  "DispatchSend", send_id: "sample", recipient_email: "sample"
+    setup  "RecordBounce", bounce_id: "sample", recipient_email: "sample", bounce_type: "sample", smtp_code: "sample"
     input  failure_reason: "sample"
     expect emits: ["SendFailed", "BounceRecorded", "BounceClassified", "AddressSuppressed"]
   end
@@ -165,7 +172,6 @@ Hecks.behaviors "EmailMarketing" do
   test "SuppressAddress runs" do
     tests "SuppressAddress", on: "Bounce"
     setup  "RecordBounce", bounce_id: "sample", recipient_email: "sample", bounce_type: "sample", smtp_code: "sample"
-    setup  "ClassifyBounce", bounce_type: "sample"
     expect ok: "true"
   end
 

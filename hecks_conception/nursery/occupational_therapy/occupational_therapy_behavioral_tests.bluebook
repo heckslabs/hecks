@@ -11,6 +11,10 @@ Hecks.behaviors "OccupationalTherapy" do
 
   test "ReferClient cascades through policy chain" do
     tests "ReferClient", on: "Client", kind: :cascade
+    setup  "EstablishGoal", client_name: "sample", goal_description: "sample", functional_area: "sample", independence_score: 1, target_score: 1
+    setup  "RecommendAdaptation", client_name: "sample", adaptation_type: "sample", description: "sample", location: "sample"
+    setup  "WriteProgressNote", client_name: "sample", note_date: "sample", session_summary: "sample", client_response: "sample", plan_for_next: "sample"
+    setup  "DefineActivity", name: "sample", category: "sample", complexity: "sample", instructions: "sample"
     input  name: "sample", date_of_birth: "sample", condition: "sample", functional_level: "sample"
     expect emits: ["ClientReferred", "ClientActivated", "GoalEstablished", "AdaptationRecommended", "AdaptationImplemented", "EffectivenessEvaluated", "ProgressNoteWritten", "ProgressMeasured", "ActivityGraded"]
   end
@@ -23,6 +27,10 @@ Hecks.behaviors "OccupationalTherapy" do
 
   test "ActivateClient cascades through policy chain" do
     tests "ActivateClient", on: "Client", kind: :cascade
+    setup  "EstablishGoal", client_name: "sample", goal_description: "sample", functional_area: "sample", independence_score: 1, target_score: 1
+    setup  "RecommendAdaptation", client_name: "sample", adaptation_type: "sample", description: "sample", location: "sample"
+    setup  "WriteProgressNote", client_name: "sample", note_date: "sample", session_summary: "sample", client_response: "sample", plan_for_next: "sample"
+    setup  "DefineActivity", name: "sample", category: "sample", complexity: "sample", instructions: "sample"
     setup  "ReferClient", name: "sample", date_of_birth: "sample", condition: "sample", functional_level: "sample"
     expect emits: ["ClientActivated", "GoalEstablished", "AdaptationRecommended", "AdaptationImplemented", "EffectivenessEvaluated", "ProgressNoteWritten", "ProgressMeasured", "ActivityGraded"]
   end
@@ -30,7 +38,6 @@ Hecks.behaviors "OccupationalTherapy" do
   test "DischargeClient runs" do
     tests "DischargeClient", on: "Client"
     setup  "ReferClient", name: "sample", date_of_birth: "sample", condition: "sample", functional_level: "sample"
-    setup  "ActivateClient"
     expect status: "discharged"
   end
 
@@ -63,6 +70,9 @@ Hecks.behaviors "OccupationalTherapy" do
   test "RecommendAdaptation cascades through policy chain" do
     tests "RecommendAdaptation", on: "Adaptation", kind: :cascade
     setup  "ReferClient", name: "sample", date_of_birth: "sample", condition: "sample", functional_level: "sample"
+    setup  "WriteProgressNote", client_name: "sample", note_date: "sample", session_summary: "sample", client_response: "sample", plan_for_next: "sample"
+    setup  "EstablishGoal", client_name: "sample", goal_description: "sample", functional_area: "sample", independence_score: 1, target_score: 1
+    setup  "DefineActivity", name: "sample", category: "sample", complexity: "sample", instructions: "sample"
     input  client_name: "sample", adaptation_type: "sample", description: "sample", location: "sample"
     expect emits: ["AdaptationRecommended", "AdaptationImplemented", "EffectivenessEvaluated", "ProgressNoteWritten", "ProgressMeasured", "ActivityGraded"]
   end
@@ -75,6 +85,10 @@ Hecks.behaviors "OccupationalTherapy" do
 
   test "ImplementAdaptation cascades through policy chain" do
     tests "ImplementAdaptation", on: "Adaptation", kind: :cascade
+    setup  "WriteProgressNote", client_name: "sample", note_date: "sample", session_summary: "sample", client_response: "sample", plan_for_next: "sample"
+    setup  "ReferClient", name: "sample", date_of_birth: "sample", condition: "sample", functional_level: "sample"
+    setup  "EstablishGoal", client_name: "sample", goal_description: "sample", functional_area: "sample", independence_score: 1, target_score: 1
+    setup  "DefineActivity", name: "sample", category: "sample", complexity: "sample", instructions: "sample"
     setup  "RecommendAdaptation", client_name: "sample", adaptation_type: "sample", description: "sample", location: "sample"
     expect emits: ["AdaptationImplemented", "EffectivenessEvaluated", "ProgressNoteWritten", "ProgressMeasured", "ActivityGraded"]
   end
@@ -88,6 +102,10 @@ Hecks.behaviors "OccupationalTherapy" do
   test "EvaluateEffectiveness cascades through policy chain" do
     tests "EvaluateEffectiveness", on: "Adaptation", kind: :cascade
     setup  "RecommendAdaptation", client_name: "sample", adaptation_type: "sample", description: "sample", location: "sample"
+    setup  "WriteProgressNote", client_name: "sample", note_date: "sample", session_summary: "sample", client_response: "sample", plan_for_next: "sample"
+    setup  "ReferClient", name: "sample", date_of_birth: "sample", condition: "sample", functional_level: "sample"
+    setup  "EstablishGoal", client_name: "sample", goal_description: "sample", functional_area: "sample", independence_score: 1, target_score: 1
+    setup  "DefineActivity", name: "sample", category: "sample", complexity: "sample", instructions: "sample"
     expect emits: ["EffectivenessEvaluated", "ProgressNoteWritten", "ProgressMeasured", "ActivityGraded"]
   end
 
@@ -104,6 +122,9 @@ Hecks.behaviors "OccupationalTherapy" do
   test "EstablishGoal cascades through policy chain" do
     tests "EstablishGoal", on: "FunctionalGoal", kind: :cascade
     setup  "ReferClient", name: "sample", date_of_birth: "sample", condition: "sample", functional_level: "sample"
+    setup  "RecommendAdaptation", client_name: "sample", adaptation_type: "sample", description: "sample", location: "sample"
+    setup  "WriteProgressNote", client_name: "sample", note_date: "sample", session_summary: "sample", client_response: "sample", plan_for_next: "sample"
+    setup  "DefineActivity", name: "sample", category: "sample", complexity: "sample", instructions: "sample"
     input  client_name: "sample", goal_description: "sample", functional_area: "sample", independence_score: 1, target_score: 1
     expect emits: ["GoalEstablished", "AdaptationRecommended", "AdaptationImplemented", "EffectivenessEvaluated", "ProgressNoteWritten", "ProgressMeasured", "ActivityGraded"]
   end
@@ -118,6 +139,7 @@ Hecks.behaviors "OccupationalTherapy" do
   test "MeasureProgress cascades through policy chain" do
     tests "MeasureProgress", on: "FunctionalGoal", kind: :cascade
     setup  "EstablishGoal", client_name: "sample", goal_description: "sample", functional_area: "sample", independence_score: 1, target_score: 1
+    setup  "DefineActivity", name: "sample", category: "sample", complexity: "sample", instructions: "sample"
     input  independence_score: 1
     expect emits: ["ProgressMeasured", "ActivityGraded"]
   end
@@ -130,6 +152,7 @@ Hecks.behaviors "OccupationalTherapy" do
 
   test "CompleteGoal cascades through policy chain" do
     tests "CompleteGoal", on: "FunctionalGoal", kind: :cascade
+    setup  "ReferClient", name: "sample", date_of_birth: "sample", condition: "sample", functional_level: "sample"
     setup  "EstablishGoal", client_name: "sample", goal_description: "sample", functional_area: "sample", independence_score: 1, target_score: 1
     expect emits: ["GoalCompleted", "ClientDischarged"]
   end
@@ -147,6 +170,8 @@ Hecks.behaviors "OccupationalTherapy" do
   test "WriteProgressNote cascades through policy chain" do
     tests "WriteProgressNote", on: "ProgressNote", kind: :cascade
     setup  "ReferClient", name: "sample", date_of_birth: "sample", condition: "sample", functional_level: "sample"
+    setup  "EstablishGoal", client_name: "sample", goal_description: "sample", functional_area: "sample", independence_score: 1, target_score: 1
+    setup  "DefineActivity", name: "sample", category: "sample", complexity: "sample", instructions: "sample"
     input  client_name: "sample", note_date: "sample", session_summary: "sample", client_response: "sample", plan_for_next: "sample"
     expect emits: ["ProgressNoteWritten", "ProgressMeasured", "ActivityGraded"]
   end

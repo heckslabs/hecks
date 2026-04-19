@@ -141,7 +141,6 @@ Hecks.bluebook "WeldingShop" do
       description "Examine welds and record pass/fail with documentation"
       String :inspection_type
       String :inspector_name
-      reference_to(FabricationJob)
       emits "InspectionPerformed"
     end
 
@@ -195,16 +194,6 @@ Hecks.bluebook "WeldingShop" do
     trigger "IssueMaterial"
   end
 
-  policy "AssignWelderOnMaterial" do
-    on "MaterialIssued"
-    trigger "AssignWelder"
-  end
-
-  policy "InspectAfterWeld" do
-    on "WelderAssigned"
-    trigger "PerformInspection"
-  end
-
   policy "HeatTreatAfterInspection" do
     on "InspectionPerformed"
     trigger "PerformHeatTreat"
@@ -220,8 +209,4 @@ Hecks.bluebook "WeldingShop" do
     trigger "ShipJob"
   end
 
-  policy "IssueMaterialOnJobAccepted" do
-    on "JobAccepted"
-    trigger "IssueMaterial"
-  end
 end

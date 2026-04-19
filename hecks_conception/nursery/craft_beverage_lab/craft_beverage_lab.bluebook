@@ -267,7 +267,7 @@ Hecks.bluebook "CraftBeverageLab", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "pending" do
-      transition "ConveneSensoryPanel" => "convened", from: "pending"
+      transition "ConveneSensoryPanel" => "convened", from: ["pending", "compared", "published"]
       transition "CompareSensoryPanel" => "compared", from: "convened"
       transition "PublishResults" => "published", from: "compared"
     end
@@ -313,7 +313,6 @@ Hecks.bluebook "CraftBeverageLab", version: "2026.04.13.1" do
       role "Scientist"
       description "Return equipment to available pool after use"
       reference_to(LabEquipment)
-      given { status == "reserved" }
       emits "EquipmentReleased"
       then_set :status, to: "available"
     end
@@ -330,7 +329,6 @@ Hecks.bluebook "CraftBeverageLab", version: "2026.04.13.1" do
     lifecycle :status, default: "pending" do
       transition "RegisterEquipment" => "available", from: "pending"
       transition "ReserveEquipment" => "reserved", from: "available"
-      transition "ReleaseEquipment" => "available", from: "reserved"
     end
   end
 

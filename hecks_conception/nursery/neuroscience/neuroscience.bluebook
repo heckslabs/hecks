@@ -77,7 +77,6 @@ Hecks.bluebook "Neuroscience" do
       emits "SessionStarted"
       reference_to Subject
       String :modality
-      given { subject_screening_confirmed == true }
     end
 
     command "CompleteSession" do
@@ -111,6 +110,7 @@ Hecks.bluebook "Neuroscience" do
       reference_to ImagingSession
       String :signal_type
       String :brain_region
+      then_set :raw_data_loaded, to: true
     end
 
     command "LoadRawData" do

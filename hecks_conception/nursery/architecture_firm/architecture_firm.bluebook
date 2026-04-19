@@ -33,7 +33,6 @@ Hecks.bluebook "ArchitectureFirm" do
     CloseOutProject do
       description "Complete construction administration and close project"
       reference_to(ArchProject)
-      given { phase == "construction_admin" }
       emits "ProjectClosedOut"
       then_set :phase, to: "closed"
     end

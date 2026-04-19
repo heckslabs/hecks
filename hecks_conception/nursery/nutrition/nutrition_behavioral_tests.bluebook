@@ -41,10 +41,26 @@ Hecks.behaviors "Nutrition" do
 
   test "AddMeal cascades through policy chain" do
     tests "AddMeal", on: "MealPlan", kind: :cascade
-    setup  "CatalogFood", name: "sample", food_group: "sample", serving_size_g: 1.0, calories_kcal: 1.0
     setup  "Compose", plan_name: "sample", duration_days: 1, target_calories: 1.0
+    setup  "CatalogFood", name: "sample", food_group: "sample", serving_size_g: 1.0, calories_kcal: 1.0
+    setup  "SetGoal", goal_type: "sample", nutrient: "sample", target_value: 1.0
+    setup  "DetectDeficiency", nutrient: "sample", severity: "sample"
     input  meal_type: "sample", servings: 1.0, new_meals_per_day: 1
     expect emits: ["MealAdded", "PlanFinalized", "ProgressEvaluated", "DeficiencyDetected", "TargetAdjusted", "DeficiencyResolved"]
+  end
+
+  test "FinalizePlan runs" do
+    tests "FinalizePlan", on: "MealPlan"
+    setup  "Compose", plan_name: "sample", duration_days: 1, target_calories: 1.0
+    expect ok: "true"
+  end
+
+  test "FinalizePlan cascades through policy chain" do
+    tests "FinalizePlan", on: "MealPlan", kind: :cascade
+    setup  "Compose", plan_name: "sample", duration_days: 1, target_calories: 1.0
+    setup  "SetGoal", goal_type: "sample", nutrient: "sample", target_value: 1.0
+    setup  "DetectDeficiency", nutrient: "sample", severity: "sample"
+    expect emits: ["PlanFinalized", "ProgressEvaluated", "DeficiencyDetected", "TargetAdjusted", "DeficiencyResolved"]
   end
 
 
@@ -58,6 +74,7 @@ Hecks.behaviors "Nutrition" do
 
   test "SetGoal cascades through policy chain" do
     tests "SetGoal", on: "DietaryGoal", kind: :cascade
+    setup  "Compose", plan_name: "sample", duration_days: 1, target_calories: 1.0
     input  goal_type: "sample", nutrient: "sample", target_value: 1.0
     expect emits: ["GoalSet", "PlanComposed"]
   end
@@ -72,14 +89,13 @@ Hecks.behaviors "Nutrition" do
   test "EvaluateProgress runs" do
     tests "EvaluateProgress", on: "DietaryGoal"
     setup  "SetGoal", goal_type: "sample", nutrient: "sample", target_value: 1.0
-    setup  "RecordIntake", observed_value: 1.0
     expect ok: "true"
   end
 
   test "EvaluateProgress cascades through policy chain" do
     tests "EvaluateProgress", on: "DietaryGoal", kind: :cascade
     setup  "SetGoal", goal_type: "sample", nutrient: "sample", target_value: 1.0
-    setup  "RecordIntake", observed_value: 1.0
+    setup  "DetectDeficiency", nutrient: "sample", severity: "sample"
     expect emits: ["ProgressEvaluated", "DeficiencyDetected", "TargetAdjusted", "DeficiencyResolved"]
   end
 
@@ -93,6 +109,7 @@ Hecks.behaviors "Nutrition" do
   test "AdjustTarget cascades through policy chain" do
     tests "AdjustTarget", on: "DietaryGoal", kind: :cascade
     setup  "SetGoal", goal_type: "sample", nutrient: "sample", target_value: 1.0
+    setup  "DetectDeficiency", nutrient: "sample", severity: "sample"
     input  new_target: 1.0
     expect emits: ["TargetAdjusted", "DeficiencyResolved"]
   end
@@ -119,6 +136,12 @@ Hecks.behaviors "Nutrition" do
     setup  "DetectDeficiency", nutrient: "sample", severity: "sample"
     input  new_intake: 1.0
     expect current_intake: 1.0
+  end
+
+  test "ResolveDeficiency runs" do
+    tests "ResolveDeficiency", on: "Deficiency"
+    setup  "DetectDeficiency", nutrient: "sample", severity: "sample"
+    expect ok: "true"
   end
 
 end

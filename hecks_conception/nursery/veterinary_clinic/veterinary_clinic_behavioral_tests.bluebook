@@ -11,6 +11,7 @@ Hecks.behaviors "VeterinaryClinic" do
 
   test "RegisterPet cascades through policy chain" do
     tests "RegisterPet", on: "Pet", kind: :cascade
+    setup  "ScheduleAppointment", appointment_date: "sample", time_slot: "sample", reason: "sample"
     input  name: "sample", species: "sample", breed: "sample", weight: 1.0, date_of_birth: "sample"
     expect emits: ["PetRegistered", "AppointmentScheduled"]
   end
@@ -25,6 +26,9 @@ Hecks.behaviors "VeterinaryClinic" do
   test "RecordWeight cascades through policy chain" do
     tests "RecordWeight", on: "Pet", kind: :cascade
     setup  "RegisterPet", name: "sample", species: "sample", breed: "sample", weight: 1.0, date_of_birth: "sample"
+    setup  "ScheduleAppointment", appointment_date: "sample", time_slot: "sample", reason: "sample"
+    setup  "PrescribeMedication", medication_name: "sample", dosage: "sample", frequency: "sample", refills_remaining: 1
+    setup  "CheckInPatient"
     input  weight: 1.0
     expect emits: ["WeightRecorded", "AppointmentCompleted", "MedicationPrescribed", "PrescriptionRefilled"]
   end
@@ -69,6 +73,9 @@ Hecks.behaviors "VeterinaryClinic" do
 
   test "CheckInPatient cascades through policy chain" do
     tests "CheckInPatient", on: "Appointment", kind: :cascade
+    setup  "RegisterPet", name: "sample", species: "sample", breed: "sample", weight: 1.0, date_of_birth: "sample"
+    setup  "PrescribeMedication", medication_name: "sample", dosage: "sample", frequency: "sample", refills_remaining: 1
+    setup  "AdministerVaccine", vaccine_name: "sample", lot_number: "sample", expiration_date: "sample"
     setup  "ScheduleAppointment", appointment_date: "sample", time_slot: "sample", reason: "sample"
     expect emits: ["PatientCheckedIn", "WeightRecorded", "AppointmentCompleted", "MedicationPrescribed", "PrescriptionRefilled", "VaccineAdministered"]
   end
@@ -83,6 +90,8 @@ Hecks.behaviors "VeterinaryClinic" do
 
   test "CompleteAppointment cascades through policy chain" do
     tests "CompleteAppointment", on: "Appointment", kind: :cascade
+    setup  "PrescribeMedication", medication_name: "sample", dosage: "sample", frequency: "sample", refills_remaining: 1
+    setup  "RegisterPet", name: "sample", species: "sample", breed: "sample", weight: 1.0, date_of_birth: "sample"
     setup  "ScheduleAppointment", appointment_date: "sample", time_slot: "sample", reason: "sample"
     setup  "CheckInPatient"
     input  notes: "sample"
@@ -107,6 +116,8 @@ Hecks.behaviors "VeterinaryClinic" do
 
   test "ExpireVaccination cascades through policy chain" do
     tests "ExpireVaccination", on: "Vaccination", kind: :cascade
+    setup  "ScheduleAppointment", appointment_date: "sample", time_slot: "sample", reason: "sample"
+    setup  "RegisterPet", name: "sample", species: "sample", breed: "sample", weight: 1.0, date_of_birth: "sample"
     setup  "AdministerVaccine", vaccine_name: "sample", lot_number: "sample", expiration_date: "sample"
     expect emits: ["VaccinationExpired", "AppointmentScheduled"]
   end

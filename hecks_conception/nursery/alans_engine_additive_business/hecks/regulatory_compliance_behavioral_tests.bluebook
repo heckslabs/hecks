@@ -19,6 +19,7 @@ Hecks.behaviors "RegulatoryCompliance" do
   test "AddRegulation cascades through policy chain" do
     tests "AddRegulation", on: "Jurisdiction", kind: :cascade
     setup  "RegisterJurisdiction", name: "sample", authority: "sample", region: "sample"
+    setup  "IdentifyObligation", jurisdiction: "sample", regulation_code: "sample", obligation: "sample", frequency: "sample"
     input  code: "sample", title: "sample", effective_date: "sample", applies_to: "sample", requirement: "sample", penalty: "sample"
     expect emits: ["RegulationAdded", "ObligationIdentified"]
   end
@@ -72,6 +73,7 @@ Hecks.behaviors "RegulatoryCompliance" do
   test "MarkComplete cascades through policy chain" do
     tests "MarkComplete", on: "ComplianceObligation", kind: :cascade
     setup  "IdentifyObligation", jurisdiction: "sample", regulation_code: "sample", obligation: "sample", frequency: "sample"
+    setup  "AssessReadiness", last_audit_date: "sample", next_expected: "sample", findings_open: 1, documents_current: 1, documents_expired: 1, readiness_score: 1.0
     setup  "AssignResponsibility", responsible_party: "sample"
     setup  "ScheduleDeadline", due_date: "sample"
     expect emits: ["ObligationCompleted", "ReadinessAssessed"]
@@ -88,6 +90,7 @@ Hecks.behaviors "RegulatoryCompliance" do
   test "FlagOverdue cascades through policy chain" do
     tests "FlagOverdue", on: "ComplianceObligation", kind: :cascade
     setup  "IdentifyObligation", jurisdiction: "sample", regulation_code: "sample", obligation: "sample", frequency: "sample"
+    setup  "AssessReadiness", last_audit_date: "sample", next_expected: "sample", findings_open: 1, documents_current: 1, documents_expired: 1, readiness_score: 1.0
     setup  "AssignResponsibility", responsible_party: "sample"
     setup  "ScheduleDeadline", due_date: "sample"
     expect emits: ["ObligationFlagged", "ReadinessAssessed"]

@@ -67,6 +67,7 @@ Hecks.behaviors "StormwaterManagement" do
 
   test "RecordStormEvent cascades through policy chain" do
     tests "RecordStormEvent", on: "StormEvent", kind: :cascade
+    setup  "MapDrainNetwork", name: "sample", watershed_name: "sample", total_capacity_cms: 1.0, inlet_count: 1, outlet_count: 1
     input  name: "sample", intensity_mm_hr: 1.0, duration_hours: 1.0, return_period_years: 1
     expect emits: ["StormEventRecorded", "RunoffModeled", "HydrographGenerated", "CapacityAssessed", "OverflowFlagged"]
   end
@@ -80,6 +81,7 @@ Hecks.behaviors "StormwaterManagement" do
 
   test "ModelRunoff cascades through policy chain" do
     tests "ModelRunoff", on: "StormEvent", kind: :cascade
+    setup  "MapDrainNetwork", name: "sample", watershed_name: "sample", total_capacity_cms: 1.0, inlet_count: 1, outlet_count: 1
     setup  "RecordStormEvent", name: "sample", intensity_mm_hr: 1.0, duration_hours: 1.0, return_period_years: 1
     input  runoff_volume_m3: 1.0
     expect emits: ["RunoffModeled", "HydrographGenerated", "CapacityAssessed", "OverflowFlagged"]
@@ -93,6 +95,7 @@ Hecks.behaviors "StormwaterManagement" do
 
   test "GenerateHydrograph cascades through policy chain" do
     tests "GenerateHydrograph", on: "StormEvent", kind: :cascade
+    setup  "MapDrainNetwork", name: "sample", watershed_name: "sample", total_capacity_cms: 1.0, inlet_count: 1, outlet_count: 1
     setup  "RecordStormEvent", name: "sample", intensity_mm_hr: 1.0, duration_hours: 1.0, return_period_years: 1
     expect emits: ["HydrographGenerated", "CapacityAssessed", "OverflowFlagged"]
   end

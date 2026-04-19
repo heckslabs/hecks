@@ -51,7 +51,7 @@ Hecks.bluebook "FreightLogistics" do
       role "Driver"
       description "Confirm delivery at the destination with proof of delivery"
       reference_to(Shipment)
-      given { status == "in_transit" }
+      given { status == "in_transit" || status == "booked" }
       emits "ShipmentDelivered"
       then_set :status, to: "delivered"
     end
@@ -254,11 +254,6 @@ Hecks.bluebook "FreightLogistics" do
   policy "FlagDelayOnHold" do
     on "ShipmentHeld"
     trigger "FlagDelay"
-  end
-
-  policy "PlanRouteOnShipmentBooked" do
-    on "ShipmentBooked"
-    trigger "PlanRoute"
   end
 
   policy "DeliverOnClearanceApproved" do

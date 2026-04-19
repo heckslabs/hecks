@@ -11,6 +11,8 @@ Hecks.behaviors "RefugeeIdentity" do
 
   test "OpenCase cascades through policy chain" do
     tests "OpenCase", on: "ResettlementCase", kind: :cascade
+    setup  "IssueDigitalID", identity_id: "sample", case_id: "sample", full_name: "sample", date_of_birth: "sample", biometric_hash: "sample"
+    setup  "MakeReferral", referral_id: "sample", case_id: "sample", service_type: "sample", provider_name: "sample"
     input  case_id: "sample", family_name: "sample", country_of_origin: "sample", family_size: 1, caseworker: "sample"
     expect emits: ["CaseOpened", "DigitalIDIssued", "ReferralMade"]
   end
@@ -32,6 +34,7 @@ Hecks.behaviors "RefugeeIdentity" do
 
   test "IssueDigitalID cascades through policy chain" do
     tests "IssueDigitalID", on: "DigitalID", kind: :cascade
+    setup  "MakeReferral", referral_id: "sample", case_id: "sample", service_type: "sample", provider_name: "sample"
     input  identity_id: "sample", case_id: "sample", full_name: "sample", date_of_birth: "sample", biometric_hash: "sample"
     expect emits: ["DigitalIDIssued", "ReferralMade"]
   end

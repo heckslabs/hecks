@@ -30,7 +30,6 @@ Hecks.bluebook "PublicLibrary" do
       description "Assign classification and shelving location"
       reference_to(Book)
       String :dewey_decimal
-      given { status == "acquired" }
       emits "BookCataloged"
       then_set :status, to: "cataloged"
     end
@@ -38,7 +37,6 @@ Hecks.bluebook "PublicLibrary" do
     ShelveBook do
       description "Place a cataloged book on its assigned shelf"
       reference_to(Book)
-      given { status == "cataloged" }
       emits "BookShelved"
       then_set :status, to: "available"
     end
@@ -80,7 +78,6 @@ Hecks.bluebook "PublicLibrary" do
     SuspendPatron do
       description "Suspend borrowing privileges for overdue fines"
       reference_to(Patron)
-      given { status == "active" }
       emits "PatronSuspended"
       then_set :status, to: "suspended"
     end
@@ -88,7 +85,6 @@ Hecks.bluebook "PublicLibrary" do
     ReinstatePatron do
       description "Restore privileges after fines are paid"
       reference_to(Patron)
-      given { status == "suspended" }
       emits "PatronReinstated"
       then_set :status, to: "active"
     end
@@ -166,7 +162,6 @@ Hecks.bluebook "PublicLibrary" do
     FulfillHold do
       description "Notify patron that their held book is ready for pickup"
       reference_to(Hold)
-      given { status == "pending" }
       emits "HoldFulfilled"
       then_set :status, to: "ready"
     end
@@ -222,11 +217,6 @@ Hecks.bluebook "PublicLibrary" do
     end
   end
 
-  policy "CatalogOnAcquire" do
-    on "BookAcquired"
-    trigger "CatalogBook"
-  end
-
   policy "ShelveOnCatalog" do
     on "BookCataloged"
     trigger "ShelveBook"
@@ -245,11 +235,6 @@ Hecks.bluebook "PublicLibrary" do
   policy "AssessFineOnOverdue" do
     on "LoanOverdue"
     trigger "AssessFine"
-  end
-
-  policy "SuspendOnFineAssessed" do
-    on "FineAssessed"
-    trigger "SuspendPatron"
   end
 
   policy "ReinstateOnFinePaid" do

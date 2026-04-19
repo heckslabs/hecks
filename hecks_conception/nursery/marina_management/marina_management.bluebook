@@ -58,7 +58,6 @@ Hecks.bluebook "MarinaManagement" do
       role "HarborMaster"
       description "Mark a slip as empty after a vessel departs"
       reference_to(Slip)
-      given { status == "occupied" }
       emits "SlipVacated"
       then_set :status, to: "available"
     end

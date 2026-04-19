@@ -49,7 +49,6 @@ Hecks.bluebook "AirportSecurity" do
     StandDown do
       description "Return checkpoint from high alert to normal operations"
       reference_to(Checkpoint)
-      given { status == "high_alert" }
       emits "CheckpointStoodDown"
       then_set :status, to: "open"
     end

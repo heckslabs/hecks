@@ -74,6 +74,8 @@ Hecks.behaviors "Storefront" do
   test "PublishListing cascades through policy chain" do
     tests "PublishListing", on: "ProductListing", kind: :cascade
     setup  "DraftListing", sku: "sample", name: "sample", brand: "sample", description: "sample", price: 1.0
+    setup  "GenerateScienceContent", product_sku: "sample", tribology_summary: "sample", test_results_summary: "sample", how_it_works: "sample"
+    setup  "ImportReviews", product_sku: "sample"
     expect emits: ["ListingPublished", "ScienceContentGenerated", "ReviewsImported"]
   end
 
@@ -131,6 +133,7 @@ Hecks.behaviors "Storefront" do
 
   test "PlaceOrder cascades through policy chain" do
     tests "PlaceOrder", on: "Order", kind: :cascade
+    setup  "DraftListing", sku: "sample", name: "sample", brand: "sample", description: "sample", price: 1.0
     input  order_number: "sample", customer_name: "sample", customer_email: "sample", shipping_address: "sample", subtotal: 1.0, tax: 1.0, shipping: 1.0, total: 1.0
     expect emits: ["OrderPlaced", "StockAdjusted"]
   end
@@ -200,6 +203,7 @@ Hecks.behaviors "Storefront" do
   test "RecordPurchase cascades through policy chain" do
     tests "RecordPurchase", on: "CustomerAccount", kind: :cascade
     setup  "RegisterAccount", email: "sample", name: "sample", vehicle_type: "sample"
+    setup  "GenerateRecommendation", customer_email: "sample", persona_match: "sample"
     input  order_number: "sample", amount: 1.0
     expect emits: ["PurchaseRecorded", "RecommendationGenerated"]
   end

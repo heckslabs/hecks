@@ -19,14 +19,22 @@ Hecks.behaviors "PlumbingService" do
 
   test "DiagnoseIssue cascades through policy chain" do
     tests "DiagnoseIssue", on: "ServiceCall", kind: :cascade
+    setup  "PrepareEstimate", labor_cost: 1.0, parts_cost: 1.0
     setup  "DispatchCall", customer_name: "sample", address: "sample", problem_description: "sample"
     input  diagnosis: "sample"
     expect emits: ["IssueDiagnosed", "EstimatePrepared"]
   end
 
+  test "CompleteCall runs" do
+    tests "CompleteCall", on: "ServiceCall"
+    setup  "DispatchCall", customer_name: "sample", address: "sample", problem_description: "sample"
+    expect ok: "true"
+  end
+
   test "CompleteCall cascades through policy chain" do
     tests "CompleteCall", on: "ServiceCall", kind: :cascade
     setup  "DispatchCall", customer_name: "sample", address: "sample", problem_description: "sample"
+    setup  "PrepareEstimate", labor_cost: 1.0, parts_cost: 1.0
     expect emits: ["CallCompleted", "EstimatePrepared"]
   end
 
@@ -59,6 +67,7 @@ Hecks.behaviors "PlumbingService" do
   test "InstallFixture cascades through policy chain" do
     tests "InstallFixture", on: "Fixture", kind: :cascade
     setup  "DispatchCall", customer_name: "sample", address: "sample", problem_description: "sample"
+    setup  "IssueWarranty", coverage_type: "sample", duration_months: 1, terms: "sample"
     input  type: "sample", brand: "sample", model: "sample", location: "sample"
     expect emits: ["FixtureInstalled", "WarrantyIssued"]
   end
@@ -73,6 +82,7 @@ Hecks.behaviors "PlumbingService" do
   test "ReplaceFixture cascades through policy chain" do
     tests "ReplaceFixture", on: "Fixture", kind: :cascade
     setup  "InstallFixture", type: "sample", brand: "sample", model: "sample", location: "sample"
+    setup  "IssueWarranty", coverage_type: "sample", duration_months: 1, terms: "sample"
     input  new_model: "sample"
     expect emits: ["FixtureReplaced", "WarrantyIssued"]
   end
@@ -95,6 +105,9 @@ Hecks.behaviors "PlumbingService" do
 
   test "ApproveEstimate cascades through policy chain" do
     tests "ApproveEstimate", on: "Estimate", kind: :cascade
+    setup  "InstallFixture", type: "sample", brand: "sample", model: "sample", location: "sample"
+    setup  "DispatchCall", customer_name: "sample", address: "sample", problem_description: "sample"
+    setup  "IssueWarranty", coverage_type: "sample", duration_months: 1, terms: "sample"
     setup  "PrepareEstimate", labor_cost: 1.0, parts_cost: 1.0
     expect emits: ["EstimateApproved", "FixtureInstalled", "WarrantyIssued"]
   end
@@ -119,6 +132,8 @@ Hecks.behaviors "PlumbingService" do
   test "FileWarrantyClaim cascades through policy chain" do
     tests "FileWarrantyClaim", on: "Warranty", kind: :cascade
     setup  "IssueWarranty", coverage_type: "sample", duration_months: 1, terms: "sample"
+    setup  "DispatchCall", customer_name: "sample", address: "sample", problem_description: "sample"
+    setup  "HireTechnician", name: "sample", license_number: "sample", specialties: "sample"
     input  defect_description: "sample"
     expect emits: ["WarrantyClaimFiled", "CallDispatched"]
   end

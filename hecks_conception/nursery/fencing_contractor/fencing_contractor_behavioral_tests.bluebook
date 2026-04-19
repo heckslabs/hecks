@@ -11,6 +11,7 @@ Hecks.behaviors "FencingContractor" do
 
   test "MeasureProperty cascades through policy chain" do
     tests "MeasureProperty", on: "FenceEstimate", kind: :cascade
+    setup  "VerifyPropertyLine", survey_source: "sample", setback_inches: 1.0
     input  customer_name: "sample", address: "sample", linear_feet: 1.0, fence_style: "sample", height_feet: 1.0, gate_count: 1
     expect emits: ["PropertyMeasured", "PropertyLineVerified", "FenceQuoted"]
   end
@@ -32,6 +33,7 @@ Hecks.behaviors "FencingContractor" do
   test "AcceptQuote cascades through policy chain" do
     tests "AcceptQuote", on: "FenceEstimate", kind: :cascade
     setup  "MeasureProperty", customer_name: "sample", address: "sample", linear_feet: 1.0, fence_style: "sample", height_feet: 1.0, gate_count: 1
+    setup  "OrderMaterials", supplier: "sample", post_count: 1, panel_count: 1
     setup  "QuoteFence", total_price: 1.0
     expect emits: ["QuoteAccepted", "MaterialsOrdered"]
   end
@@ -55,6 +57,9 @@ Hecks.behaviors "FencingContractor" do
   test "ReceiveDelivery cascades through policy chain" do
     tests "ReceiveDelivery", on: "MaterialOrder", kind: :cascade
     setup  "OrderMaterials", supplier: "sample", post_count: 1, panel_count: 1
+    setup  "DigHoles", hole_depth_inches: 1.0, hole_count: 1
+    setup  "MeasureProperty", customer_name: "sample", address: "sample", linear_feet: 1.0, fence_style: "sample", height_feet: 1.0, gate_count: 1
+    setup  "HangPanels", panels_installed: 1
     expect emits: ["DeliveryReceived", "HolesDug", "PostsSet", "PanelsHung", "GatesInstalled"]
   end
 
@@ -71,6 +76,7 @@ Hecks.behaviors "FencingContractor" do
   test "DigHoles cascades through policy chain" do
     tests "DigHoles", on: "PostSetting", kind: :cascade
     setup  "MeasureProperty", customer_name: "sample", address: "sample", linear_feet: 1.0, fence_style: "sample", height_feet: 1.0, gate_count: 1
+    setup  "HangPanels", panels_installed: 1
     input  hole_depth_inches: 1.0, hole_count: 1
     expect emits: ["HolesDug", "PostsSet", "PanelsHung", "GatesInstalled"]
   end
@@ -84,6 +90,7 @@ Hecks.behaviors "FencingContractor" do
 
   test "SetPosts cascades through policy chain" do
     tests "SetPosts", on: "PostSetting", kind: :cascade
+    setup  "HangPanels", panels_installed: 1
     setup  "DigHoles", hole_depth_inches: 1.0, hole_count: 1
     input  concrete_type: "sample"
     expect emits: ["PostsSet", "PanelsHung", "GatesInstalled"]

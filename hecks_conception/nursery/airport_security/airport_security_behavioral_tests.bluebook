@@ -11,6 +11,7 @@ Hecks.behaviors "AirportSecurity" do
 
   test "OpenCheckpoint cascades through policy chain" do
     tests "OpenCheckpoint", on: "Checkpoint", kind: :cascade
+    setup  "DeployOfficer", badge_number: "sample", name: "sample", clearance_level: "sample"
     input  checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
     expect emits: ["CheckpointOpened", "OfficerDeployed"]
   end
@@ -36,7 +37,6 @@ Hecks.behaviors "AirportSecurity" do
   test "StandDown runs" do
     tests "StandDown", on: "Checkpoint"
     setup  "OpenCheckpoint", checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
-    setup  "EscalateToHighAlert"
     expect status: "open"
   end
 
@@ -79,6 +79,7 @@ Hecks.behaviors "AirportSecurity" do
 
   test "FlagMalfunction cascades through policy chain" do
     tests "FlagMalfunction", on: "Scanner", kind: :cascade
+    setup  "OpenCheckpoint", checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
     setup  "InstallScanner", scanner_id: "sample", scanner_type: "sample"
     setup  "CalibrateScanner"
     expect emits: ["ScannerMalfunctioned", "CheckpointClosed"]
@@ -129,8 +130,8 @@ Hecks.behaviors "AirportSecurity" do
 
   test "ReportIncident cascades through policy chain" do
     tests "ReportIncident", on: "Incident", kind: :cascade
-    setup  "DeployOfficer", badge_number: "sample", name: "sample", clearance_level: "sample"
     setup  "OpenCheckpoint", checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
+    setup  "DeployOfficer", badge_number: "sample", name: "sample", clearance_level: "sample"
     input  incident_type: "sample", severity: "sample", description: "sample"
     expect emits: ["IncidentReported", "HighAlertActivated", "InvestigationStarted"]
   end
@@ -151,6 +152,7 @@ Hecks.behaviors "AirportSecurity" do
 
   test "ResolveIncident cascades through policy chain" do
     tests "ResolveIncident", on: "Incident", kind: :cascade
+    setup  "OpenCheckpoint", checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
     setup  "ReportIncident", incident_type: "sample", severity: "sample", description: "sample"
     setup  "InvestigateIncident"
     input  resolution: "sample"

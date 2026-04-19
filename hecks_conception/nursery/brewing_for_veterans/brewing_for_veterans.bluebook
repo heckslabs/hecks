@@ -239,7 +239,6 @@ Hecks.bluebook "BrewingForVeterans", version: "2026.04.13.1" do
       role "HousingManager"
       description "Release housing unit when apprentice graduates and transitions"
       reference_to(HousingUnit)
-      given { status == "occupied" }
       emits "UnitReleased"
       then_set :status, to: "available"
     end

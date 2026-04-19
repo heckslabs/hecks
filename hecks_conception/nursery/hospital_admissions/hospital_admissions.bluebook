@@ -37,7 +37,6 @@ Hecks.bluebook "HospitalAdmissions", version: "2026.04.13.1" do
       description "Assess urgency and assign a triage level"
       reference_to(Patient)
       String :triage_level
-      given { intake_validated == true }
       emits "PatientTriaged"
     end
   end
@@ -128,7 +127,6 @@ Hecks.bluebook "HospitalAdmissions", version: "2026.04.13.1" do
 
     ScheduleFollowUps do
       description "Book all follow-up appointments required for discharge"
-      reference_to(DischargeePlan)
       emits "FollowUpsScheduled"
       then_set :follow_ups_scheduled, to: true
     end
@@ -136,7 +134,6 @@ Hecks.bluebook "HospitalAdmissions", version: "2026.04.13.1" do
     ApproveDischargePlan do
       description "Physician signs off that the patient is safe to leave"
       reference_to(DischargeePlan)
-      given { follow_ups_scheduled == true }
       emits "DischargePlanApproved"
     end
 

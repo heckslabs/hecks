@@ -11,6 +11,8 @@ Hecks.behaviors "MedicalMedia" do
 
   test "DocumentCase cascades through policy chain" do
     tests "DocumentCase", on: "DermatologyCase", kind: :cascade
+    setup  "ObtainConsent", consent_id: "sample", case_id: "sample", patient_code: "sample", scope: "sample", expiry_date: "sample"
+    setup  "LaunchProject", project_id: "sample", case_id: "sample", title: "sample", target_audience: "sample"
     input  case_id: "sample", patient_code: "sample", condition_name: "sample", severity: "sample", treatment: "sample"
     expect emits: ["CaseDocumented", "ConsentObtained", "ProjectLaunched"]
   end
@@ -32,6 +34,7 @@ Hecks.behaviors "MedicalMedia" do
 
   test "ObtainConsent cascades through policy chain" do
     tests "ObtainConsent", on: "ConsentForm", kind: :cascade
+    setup  "LaunchProject", project_id: "sample", case_id: "sample", title: "sample", target_audience: "sample"
     input  consent_id: "sample", case_id: "sample", patient_code: "sample", scope: "sample", expiry_date: "sample"
     expect emits: ["ConsentObtained", "ProjectLaunched"]
   end

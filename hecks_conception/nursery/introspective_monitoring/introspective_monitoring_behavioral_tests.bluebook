@@ -11,6 +11,7 @@ Hecks.behaviors "IntrospectiveMonitoring" do
 
   test "RecordDream cascades through policy chain" do
     tests "RecordDream", on: "DreamJournal", kind: :cascade
+    setup  "LogMood", mood: "sample", intensity: 1, fatigue_level: 1
     input  title: "sample", narrative: "sample", vividness: 1
     expect emits: ["DreamRecorded", "MoodLogged"]
   end
@@ -25,6 +26,7 @@ Hecks.behaviors "IntrospectiveMonitoring" do
   test "TagTheme cascades through policy chain" do
     tests "TagTheme", on: "DreamJournal", kind: :cascade
     setup  "RecordDream", title: "sample", narrative: "sample", vividness: 1
+    setup  "PoseQuestion", question: "sample", domain_focus: "sample"
     input  symbol: "sample"
     expect emits: ["ThemeTagged", "QuestionPosed"]
   end
@@ -90,6 +92,7 @@ Hecks.behaviors "IntrospectiveMonitoring" do
 
   test "RecordFinding cascades through policy chain" do
     tests "RecordFinding", on: "SelfInquiry", kind: :cascade
+    setup  "SynthesizeAwareness", summary: "sample", dominant_theme: "sample", clarity_score: 1
     setup  "PoseQuestion", question: "sample", domain_focus: "sample"
     input  finding: "sample"
     expect emits: ["FindingRecorded", "AwarenessSynthesized"]

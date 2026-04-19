@@ -11,6 +11,7 @@ Hecks.behaviors "PaintingContractor" do
 
   test "EstimateJob cascades through policy chain" do
     tests "EstimateJob", on: "PaintEstimate", kind: :cascade
+    setup  "SelectColor", color_name: "sample", brand: "sample", sheen: "sample", surface_application: "sample"
     input  customer_name: "sample", address: "sample", total_sqft: 1.0, surface_type: "sample", coats: 1
     expect emits: ["JobEstimated", "ColorSelected", "PaintOrdered"]
   end
@@ -23,6 +24,10 @@ Hecks.behaviors "PaintingContractor" do
 
   test "AcceptEstimate cascades through policy chain" do
     tests "AcceptEstimate", on: "PaintEstimate", kind: :cascade
+    setup  "PrepSurface", prep_type: "sample", surface: "sample"
+    setup  "ApplyCoat", coat_number: 1, application_method: "sample"
+    setup  "SelectColor", color_name: "sample", brand: "sample", sheen: "sample", surface_application: "sample"
+    setup  "ConductWalkthrough"
     setup  "EstimateJob", customer_name: "sample", address: "sample", total_sqft: 1.0, surface_type: "sample", coats: 1
     expect emits: ["EstimateAccepted", "SurfacePrepped", "PrimerApplied", "CoatApplied", "CoatInspected", "WalkthroughConducted"]
   end
@@ -47,6 +52,9 @@ Hecks.behaviors "PaintingContractor" do
   test "PrepSurface cascades through policy chain" do
     tests "PrepSurface", on: "SurfacePrep", kind: :cascade
     setup  "EstimateJob", customer_name: "sample", address: "sample", total_sqft: 1.0, surface_type: "sample", coats: 1
+    setup  "ApplyCoat", coat_number: 1, application_method: "sample"
+    setup  "SelectColor", color_name: "sample", brand: "sample", sheen: "sample", surface_application: "sample"
+    setup  "ConductWalkthrough"
     input  prep_type: "sample", surface: "sample"
     expect emits: ["SurfacePrepped", "PrimerApplied", "CoatApplied", "CoatInspected", "WalkthroughConducted"]
   end
@@ -61,6 +69,10 @@ Hecks.behaviors "PaintingContractor" do
   test "ApplyPrimer cascades through policy chain" do
     tests "ApplyPrimer", on: "SurfacePrep", kind: :cascade
     setup  "PrepSurface", prep_type: "sample", surface: "sample"
+    setup  "ApplyCoat", coat_number: 1, application_method: "sample"
+    setup  "SelectColor", color_name: "sample", brand: "sample", sheen: "sample", surface_application: "sample"
+    setup  "ConductWalkthrough"
+    setup  "EstimateJob", customer_name: "sample", address: "sample", total_sqft: 1.0, surface_type: "sample", coats: 1
     input  primer_type: "sample"
     expect emits: ["PrimerApplied", "CoatApplied", "CoatInspected", "WalkthroughConducted"]
   end
@@ -102,6 +114,8 @@ Hecks.behaviors "PaintingContractor" do
   test "ApplyCoat cascades through policy chain" do
     tests "ApplyCoat", on: "CoatApplication", kind: :cascade
     setup  "SelectColor", color_name: "sample", brand: "sample", sheen: "sample", surface_application: "sample"
+    setup  "ConductWalkthrough"
+    setup  "EstimateJob", customer_name: "sample", address: "sample", total_sqft: 1.0, surface_type: "sample", coats: 1
     input  coat_number: 1, application_method: "sample"
     expect emits: ["CoatApplied", "CoatInspected", "WalkthroughConducted"]
   end
@@ -116,6 +130,8 @@ Hecks.behaviors "PaintingContractor" do
   test "InspectCoat cascades through policy chain" do
     tests "InspectCoat", on: "CoatApplication", kind: :cascade
     setup  "ApplyCoat", coat_number: 1, application_method: "sample"
+    setup  "ConductWalkthrough"
+    setup  "EstimateJob", customer_name: "sample", address: "sample", total_sqft: 1.0, surface_type: "sample", coats: 1
     input  inspection_notes: "sample"
     expect emits: ["CoatInspected", "WalkthroughConducted"]
   end

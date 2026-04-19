@@ -11,10 +11,12 @@ Hecks.bluebook "Cryptography" do
     String :owner
     Boolean :revoked, default: false
     Boolean :expired, default: false
+    reference_to Cipher
 
     command "GenerateKeyPair" do
       description "Create a new public-private key pair"
       emits "KeyPairGenerated"
+      reference_to Cipher
       String :algorithm
       Integer :key_length_bits
       String :owner
@@ -73,6 +75,7 @@ Hecks.bluebook "Cryptography" do
       description "Note that an approved replacement cipher exists"
       emits "ReplacementDesignated"
       reference_to Cipher
+      then_set :replacement_available, to: true
     end
 
     command "DeprecateCipher" do
@@ -104,6 +107,7 @@ Hecks.bluebook "Cryptography" do
       description "Confirm the supplied decryption key matches the encryption key"
       emits "DecryptionKeyMatched"
       reference_to EncryptedMessage
+      then_set :decryption_key_matched, to: true
     end
 
     command "DecryptMessage" do
@@ -135,6 +139,7 @@ Hecks.bluebook "Cryptography" do
       description "Confirm the signer's public key is neither expired nor revoked"
       emits "SigningKeyValidated"
       reference_to DigitalSignature
+      then_set :signing_key_valid, to: true
     end
 
     command "VerifySignature" do
@@ -154,6 +159,7 @@ Hecks.bluebook "Cryptography" do
     String :valid_to
     Boolean :revoked, default: false
     reference_to KeyPair
+    reference_to Cipher
 
     value_object "CertificateExtension" do
       String :oid
@@ -165,6 +171,7 @@ Hecks.bluebook "Cryptography" do
       description "Create and sign a new X.509 certificate"
       emits "CertificateIssued"
       reference_to KeyPair
+      reference_to Cipher
       String :subject
       String :valid_from
       String :valid_to
@@ -181,6 +188,7 @@ Hecks.bluebook "Cryptography" do
       description "Add the certificate to the revocation list"
       emits "CertificateRevoked"
       reference_to Certificate
+      reference_to KeyPair
       String :reason
     end
   end
@@ -217,11 +225,6 @@ Hecks.bluebook "Cryptography" do
   policy "SignAfterEncryption" do
     on "MessageEncrypted"
     trigger "SignMessage"
-  end
-
-  policy "VerifyAfterSigning" do
-    on "MessageSigned"
-    trigger "VerifySignature"
   end
 
   policy "RevokeKeyOnCertRevocation" do

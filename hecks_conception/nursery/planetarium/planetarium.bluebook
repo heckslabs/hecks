@@ -246,15 +246,7 @@ Hecks.bluebook "Planetarium", version: "2026.04.13.1" do
     trigger "PublishShow"
   end
 
-  policy "ScheduleOnPublish" do
-    on "ShowPublished"
-    trigger "ScheduleShow"
-  end
 
-  policy "ActivateOnSchedule" do
-    on "ShowScheduled"
-    trigger "ActivateProjector"
-  end
 
   fixture "CelestialBody", name: "Sirius", body_type: "star", right_ascension_hr: 6.75, declination_deg: -16.73, apparent_magnitude: -1.46, constellation: "Canis Major", status: "cataloged"
   fixture "CelestialBody", name: "Jupiter", body_type: "planet", right_ascension_hr: 2.35, declination_deg: 15.82, apparent_magnitude: -2.1, constellation: "Cetus", status: "cataloged"

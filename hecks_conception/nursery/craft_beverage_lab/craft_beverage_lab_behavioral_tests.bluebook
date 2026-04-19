@@ -17,6 +17,7 @@ Hecks.behaviors "CraftBeverageLab" do
 
   test "StartExperiment cascades through policy chain" do
     tests "StartExperiment", on: "Experiment", kind: :cascade
+    setup  "RegisterEquipment", name: "sample", equipment_type: "sample"
     setup  "DesignExperiment", title: "sample", experiment_type: "sample", hypothesis: "sample"
     expect emits: ["ExperimentStarted", "EquipmentReserved"]
   end
@@ -31,6 +32,7 @@ Hecks.behaviors "CraftBeverageLab" do
 
   test "ConcludeExperiment cascades through policy chain" do
     tests "ConcludeExperiment", on: "Experiment", kind: :cascade
+    setup  "RegisterEquipment", name: "sample", equipment_type: "sample"
     setup  "DesignExperiment", title: "sample", experiment_type: "sample", hypothesis: "sample"
     setup  "StartExperiment"
     input  conclusion: "sample"
@@ -68,6 +70,8 @@ Hecks.behaviors "CraftBeverageLab" do
 
   test "CompleteFermentation cascades through policy chain" do
     tests "CompleteFermentation", on: "YeastCulture", kind: :cascade
+    setup  "AnalyzeFlavorCompounds", compound_name: "sample", chemical_family: "sample", concentration_ppm: 1.0, source: "sample", aroma_descriptor: "sample"
+    setup  "DesignExperiment", title: "sample", experiment_type: "sample", hypothesis: "sample"
     setup  "CultivateYeast", strain_name: "sample", species: "sample", optimal_temperature: 1.0
     setup  "PitchYeast"
     expect emits: ["FermentationComplete", "FlavorCompoundsAnalyzed", "CompoundsCompared"]
@@ -98,6 +102,8 @@ Hecks.behaviors "CraftBeverageLab" do
 
   test "CompleteRoast cascades through policy chain" do
     tests "CompleteRoast", on: "RoastProfile", kind: :cascade
+    setup  "ConveneSensoryPanel", panel_name: "sample", panelist_count: 1
+    setup  "DesignExperiment", title: "sample", experiment_type: "sample", hypothesis: "sample"
     setup  "DraftProfile", bean_origin: "sample", roast_level: "sample", charge_temperature: 1.0
     setup  "ExecuteRoast"
     input  drop_temperature: 1.0, total_time_seconds: 1
@@ -168,7 +174,6 @@ Hecks.behaviors "CraftBeverageLab" do
   test "ReleaseEquipment runs" do
     tests "ReleaseEquipment", on: "LabEquipment"
     setup  "RegisterEquipment", name: "sample", equipment_type: "sample"
-    setup  "ReserveEquipment"
     expect status: "available"
   end
 

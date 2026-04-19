@@ -17,6 +17,8 @@ Hecks.behaviors "VetHousing" do
 
   test "ApproveApplication cascades through policy chain" do
     tests "ApproveApplication", on: "VeteranApplicant", kind: :cascade
+    setup  "ListUnit", unit_id: "sample", address: "sample", bedrooms: 1, monthly_rent: 1.0
+    setup  "GrantSubsidy", subsidy_id: "sample", veteran_id: "sample", unit_id: "sample", monthly_amount: 1.0, funding_source: "sample"
     setup  "ApplyForHousing", veteran_id: "sample", name: "sample", branch: "sample", disability_rating: "sample", income_level: "sample"
     expect emits: ["ApplicationApproved", "UnitAssigned", "SubsidyGranted"]
   end
@@ -38,6 +40,7 @@ Hecks.behaviors "VetHousing" do
 
   test "AssignUnit cascades through policy chain" do
     tests "AssignUnit", on: "HousingUnit", kind: :cascade
+    setup  "GrantSubsidy", subsidy_id: "sample", veteran_id: "sample", unit_id: "sample", monthly_amount: 1.0, funding_source: "sample"
     setup  "ListUnit", unit_id: "sample", address: "sample", bedrooms: 1, monthly_rent: 1.0
     expect emits: ["UnitAssigned", "SubsidyGranted"]
   end

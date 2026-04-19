@@ -11,6 +11,8 @@ Hecks.behaviors "FreelanceMarketplace" do
 
   test "PostGig cascades through policy chain" do
     tests "PostGig", on: "Gig", kind: :cascade
+    setup  "SubmitProposal", proposal_id: "sample", cover_letter: "sample", proposed_rate: 1.0, estimated_days: 1
+    setup  "RegisterFreelancer", freelancer_id: "sample", name: "sample", email: "sample", headline: "sample", hourly_rate: 1.0
     input  gig_title: "sample", description: "sample", category: "sample", budget: 1.0, deadline: "sample"
     expect emits: ["GigPosted", "ProposalSubmitted"]
   end
@@ -23,6 +25,7 @@ Hecks.behaviors "FreelanceMarketplace" do
 
   test "CloseGig cascades through policy chain" do
     tests "CloseGig", on: "Gig", kind: :cascade
+    setup  "SubmitProposal", proposal_id: "sample", cover_letter: "sample", proposed_rate: 1.0, estimated_days: 1
     setup  "PostGig", gig_title: "sample", description: "sample", category: "sample", budget: 1.0, deadline: "sample"
     expect emits: ["GigClosed", "ProposalRejected"]
   end
@@ -74,6 +77,10 @@ Hecks.behaviors "FreelanceMarketplace" do
 
   test "AcceptProposal cascades through policy chain" do
     tests "AcceptProposal", on: "Proposal", kind: :cascade
+    setup  "SignContract", contract_id: "sample", total_amount: 1.0, start_date: "sample", end_date: "sample"
+    setup  "PostGig", gig_title: "sample", description: "sample", category: "sample", budget: 1.0, deadline: "sample"
+    setup  "RegisterFreelancer", freelancer_id: "sample", name: "sample", email: "sample", headline: "sample", hourly_rate: 1.0
+    setup  "ReleasePayment", payment_id: "sample", amount: 1.0, payment_method: "sample"
     setup  "SubmitProposal", proposal_id: "sample", cover_letter: "sample", proposed_rate: 1.0, estimated_days: 1
     expect emits: ["ProposalAccepted", "ContractSigned", "PaymentHeld"]
   end
@@ -98,8 +105,9 @@ Hecks.behaviors "FreelanceMarketplace" do
 
   test "SignContract cascades through policy chain" do
     tests "SignContract", on: "Contract", kind: :cascade
-    setup  "RegisterFreelancer", freelancer_id: "sample", name: "sample", email: "sample", headline: "sample", hourly_rate: 1.0
     setup  "PostGig", gig_title: "sample", description: "sample", category: "sample", budget: 1.0, deadline: "sample"
+    setup  "RegisterFreelancer", freelancer_id: "sample", name: "sample", email: "sample", headline: "sample", hourly_rate: 1.0
+    setup  "ReleasePayment", payment_id: "sample", amount: 1.0, payment_method: "sample"
     input  contract_id: "sample", total_amount: 1.0, start_date: "sample", end_date: "sample"
     expect emits: ["ContractSigned", "PaymentHeld"]
   end
@@ -114,6 +122,7 @@ Hecks.behaviors "FreelanceMarketplace" do
   test "CompleteMilestone cascades through policy chain" do
     tests "CompleteMilestone", on: "Contract", kind: :cascade
     setup  "SignContract", contract_id: "sample", total_amount: 1.0, start_date: "sample", end_date: "sample"
+    setup  "ReleasePayment", payment_id: "sample", amount: 1.0, payment_method: "sample"
     input  milestone_title: "sample"
     expect emits: ["MilestoneCompleted", "PaymentReleased"]
   end
@@ -126,6 +135,7 @@ Hecks.behaviors "FreelanceMarketplace" do
 
   test "TerminateContract cascades through policy chain" do
     tests "TerminateContract", on: "Contract", kind: :cascade
+    setup  "ReleasePayment", payment_id: "sample", amount: 1.0, payment_method: "sample"
     setup  "SignContract", contract_id: "sample", total_amount: 1.0, start_date: "sample", end_date: "sample"
     expect emits: ["ContractTerminated", "PaymentRefunded"]
   end
@@ -149,7 +159,6 @@ Hecks.behaviors "FreelanceMarketplace" do
   test "RefundPayment runs" do
     tests "RefundPayment", on: "Payment"
     setup  "ReleasePayment", payment_id: "sample", amount: 1.0, payment_method: "sample"
-    setup  "HoldPayment"
     expect ok: "true"
   end
 

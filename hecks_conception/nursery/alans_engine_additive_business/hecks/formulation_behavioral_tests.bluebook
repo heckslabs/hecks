@@ -32,7 +32,6 @@ Hecks.behaviors "Formulation" do
   test "ReviseFormula runs" do
     tests "ReviseFormula", on: "Formula"
     setup  "DraftFormula", name: "sample", brand: "sample", product_type: "sample"
-    setup  "FinalizeFormula"
     expect status: "draft"
   end
 

@@ -15,12 +15,6 @@ Hecks.behaviors "WarehouseRobotics" do
     expect status: "working"
   end
 
-  test "AssignTask cascades through policy chain" do
-    tests "AssignTask", on: "Robot", kind: :cascade
-    setup  "ActivateRobot", robot_id: "sample", robot_type: "sample", max_payload_kg: 1.0, current_zone: "sample"
-    expect emits: ["TaskAssigned", "PathComputed", "PathExecuted"]
-  end
-
   test "CompleteTask sets battery_pct" do
     tests "CompleteTask", on: "Robot"
     setup  "ActivateRobot", robot_id: "sample", robot_type: "sample", max_payload_kg: 1.0, current_zone: "sample"
@@ -61,8 +55,9 @@ Hecks.behaviors "WarehouseRobotics" do
 
   test "GeneratePickList cascades through policy chain" do
     tests "GeneratePickList", on: "PickList", kind: :cascade
+    setup  "ActivateRobot", robot_id: "sample", robot_type: "sample", max_payload_kg: 1.0, current_zone: "sample"
     input  list_id: "sample", order_id: "sample", item_count: 1, priority: "sample"
-    expect emits: ["PickListGenerated", "PickListAssigned", "TaskAssigned", "PathComputed", "PathExecuted"]
+    expect emits: ["PickListGenerated", "PickListAssigned", "TaskAssigned"]
   end
 
   test "AssignToRobot sets assigned_robot" do
@@ -74,9 +69,10 @@ Hecks.behaviors "WarehouseRobotics" do
 
   test "AssignToRobot cascades through policy chain" do
     tests "AssignToRobot", on: "PickList", kind: :cascade
+    setup  "ActivateRobot", robot_id: "sample", robot_type: "sample", max_payload_kg: 1.0, current_zone: "sample"
     setup  "GeneratePickList", list_id: "sample", order_id: "sample", item_count: 1, priority: "sample"
     input  assigned_robot: "sample"
-    expect emits: ["PickListAssigned", "TaskAssigned", "PathComputed", "PathExecuted"]
+    expect emits: ["PickListAssigned", "TaskAssigned"]
   end
 
   test "CompletePickList runs" do

@@ -140,7 +140,6 @@ Hecks.bluebook "PostOffice" do
     ReturnCarrier do
       description "Clock a carrier back in after their route"
       reference_to(Carrier)
-      given { status == "delivering" }
       emits "CarrierReturned"
       then_set :status, to: "available"
     end

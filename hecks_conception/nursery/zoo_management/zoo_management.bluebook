@@ -245,11 +245,6 @@ Hecks.bluebook "ZooManagement" do
     trigger "ScheduleExam"
   end
 
-  policy "ClearQuarantineOnExam" do
-    on "ExamPerformed"
-    trigger "ClearQuarantine"
-  end
-
   policy "PlaceOnExhibitOnClear" do
     on "QuarantineCleared"
     trigger "PlaceOnExhibit"

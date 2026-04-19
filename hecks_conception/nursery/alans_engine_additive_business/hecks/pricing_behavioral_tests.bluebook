@@ -11,6 +11,7 @@ Hecks.behaviors "Pricing" do
 
   test "SetPriceList cascades through policy chain" do
     tests "SetPriceList", on: "PriceList", kind: :cascade
+    setup  "DetectViolation", sku: "sample", channel: "sample", advertised_price: 1.0, map_price: 1.0, violation_date: "sample"
     input  sku: "sample", msrp: 1.0, map_price: 1.0, distributor_price: 1.0, jobber_price: 1.0, retail_margin_target: 1.0, effective_date: "sample"
     expect emits: ["PriceListSet", "ViolationDetected", "ViolationCorrected"]
   end
@@ -25,6 +26,7 @@ Hecks.behaviors "Pricing" do
   test "SetChannelPrice cascades through policy chain" do
     tests "SetChannelPrice", on: "PriceList", kind: :cascade
     setup  "SetPriceList", sku: "sample", msrp: 1.0, map_price: 1.0, distributor_price: 1.0, jobber_price: 1.0, retail_margin_target: 1.0, effective_date: "sample"
+    setup  "DetectViolation", sku: "sample", channel: "sample", advertised_price: 1.0, map_price: 1.0, violation_date: "sample"
     input  channel: "sample", unit_price: 1.0, margin_percent: 1.0
     expect emits: ["ChannelPriceSet", "ViolationDetected", "ViolationCorrected"]
   end
@@ -49,14 +51,14 @@ Hecks.behaviors "Pricing" do
     tests "AddPromotionalWindow", on: "PricingPolicy"
     setup  "EstablishPricingPolicy", name: "sample", map_enforcement_level: "sample"
     input  name: "sample", start_date: "sample", end_date: "sample", discount_percent: 1.0
-    expect name: "sample", status: "draft"
+    expect name: "sample", status: "active"
   end
 
   test "AddVolumeTier sets min_quantity + discount_percent + tier_name" do
     tests "AddVolumeTier", on: "PricingPolicy"
     setup  "EstablishPricingPolicy", name: "sample", map_enforcement_level: "sample"
     input  min_quantity: 1, discount_percent: 1.0, tier_name: "sample"
-    expect status: "draft"
+    expect status: "active"
   end
 
 

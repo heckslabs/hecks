@@ -11,6 +11,7 @@ Hecks.behaviors "IoTPlatform" do
 
   test "RegisterDevice cascades through policy chain" do
     tests "RegisterDevice", on: "Device", kind: :cascade
+    setup  "AttachSensor", sensor_id: "sample", sensor_type: "sample", unit: "sample", min_range: 1.0, max_range: 1.0
     input  device_id: "sample", device_type: "sample", firmware_version: "sample", location: "sample"
     expect emits: ["DeviceRegistered", "SensorAttached", "SensorCalibrated"]
   end
@@ -91,6 +92,8 @@ Hecks.behaviors "IoTPlatform" do
   test "FlagAnomaly cascades through policy chain" do
     tests "FlagAnomaly", on: "Reading", kind: :cascade
     setup  "IngestReading", reading_id: "sample", value: 1.0, timestamp: "sample"
+    setup  "RaiseAlert", alert_id: "sample", severity: "sample", condition: "sample", message: "sample"
+    setup  "RegisterDevice", device_id: "sample", device_type: "sample", firmware_version: "sample", location: "sample"
     setup  "ValidateReading"
     expect emits: ["AnomalyFlagged", "AlertRaised", "DeviceSuspended"]
   end
@@ -128,6 +131,7 @@ Hecks.behaviors "IoTPlatform" do
   test "ResolveAlert cascades through policy chain" do
     tests "ResolveAlert", on: "Alert", kind: :cascade
     setup  "RaiseAlert", alert_id: "sample", severity: "sample", condition: "sample", message: "sample"
+    setup  "PublishUpdate", update_id: "sample", version: "sample", target_device_type: "sample", package_size_kb: 1, release_notes: "sample"
     setup  "AcknowledgeAlert"
     expect emits: ["AlertResolved", "UpdatePublished", "UpdateApplied"]
   end

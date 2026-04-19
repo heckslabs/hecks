@@ -24,6 +24,7 @@ Hecks.behaviors "SchoolDistrict" do
 
   test "CloseSchool cascades through policy chain" do
     tests "CloseSchool", on: "School", kind: :cascade
+    setup  "RegisterStudent", name: "sample", grade_level: "sample"
     setup  "OpenSchool", school_code: "sample", name: "sample", level: "sample", capacity: 1
     setup  "AccreditSchool"
     expect emits: ["SchoolClosed", "StudentTransferred"]
@@ -40,6 +41,8 @@ Hecks.behaviors "SchoolDistrict" do
 
   test "RegisterStudent cascades through policy chain" do
     tests "RegisterStudent", on: "Student", kind: :cascade
+    setup  "OpenSchool", school_code: "sample", name: "sample", level: "sample", capacity: 1
+    setup  "OfferCourse", course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
     input  name: "sample", grade_level: "sample"
     expect emits: ["StudentRegistered", "StudentEnrolled", "StudentEnrolledInCourse"]
   end
@@ -54,6 +57,7 @@ Hecks.behaviors "SchoolDistrict" do
   test "EnrollStudent cascades through policy chain" do
     tests "EnrollStudent", on: "Student", kind: :cascade
     setup  "OpenSchool", school_code: "sample", name: "sample", level: "sample", capacity: 1
+    setup  "OfferCourse", course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
     setup  "RegisterStudent", name: "sample", grade_level: "sample"
     expect emits: ["StudentEnrolled", "StudentEnrolledInCourse"]
   end
@@ -61,7 +65,6 @@ Hecks.behaviors "SchoolDistrict" do
   test "PromoteStudent sets new_grade_level" do
     tests "PromoteStudent", on: "Student"
     setup  "RegisterStudent", name: "sample", grade_level: "sample"
-    setup  "EnrollStudent"
     input  new_grade_level: "sample"
     expect ok: "true"
   end
@@ -70,7 +73,6 @@ Hecks.behaviors "SchoolDistrict" do
     tests "TransferStudent", on: "Student"
     setup  "OpenSchool", school_code: "sample", name: "sample", level: "sample", capacity: 1
     setup  "RegisterStudent", name: "sample", grade_level: "sample"
-    setup  "EnrollStudent"
     expect ok: "true"
   end
 
@@ -126,6 +128,7 @@ Hecks.behaviors "SchoolDistrict" do
   test "OfferCourse cascades through policy chain" do
     tests "OfferCourse", on: "Course", kind: :cascade
     setup  "OpenSchool", school_code: "sample", name: "sample", level: "sample", capacity: 1
+    setup  "HireTeacher", name: "sample", certification_area: "sample"
     input  course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
     expect emits: ["CourseOffered", "TeacherAssigned"]
   end
@@ -138,6 +141,8 @@ Hecks.behaviors "SchoolDistrict" do
 
   test "CompleteCourse cascades through policy chain" do
     tests "CompleteCourse", on: "Course", kind: :cascade
+    setup  "RecordGrade", letter_grade: "sample", numeric_score: 1.0, semester: "sample"
+    setup  "RegisterStudent", name: "sample", grade_level: "sample"
     setup  "OfferCourse", course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
     expect emits: ["CourseCompleted", "GradeRecorded", "GradeFinalized", "StudentPromoted"]
   end
@@ -155,8 +160,8 @@ Hecks.behaviors "SchoolDistrict" do
 
   test "RecordGrade cascades through policy chain" do
     tests "RecordGrade", on: "GradeRecord", kind: :cascade
-    setup  "OfferCourse", course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
     setup  "RegisterStudent", name: "sample", grade_level: "sample"
+    setup  "OfferCourse", course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
     input  letter_grade: "sample", numeric_score: 1.0, semester: "sample"
     expect emits: ["GradeRecorded", "GradeFinalized", "StudentPromoted"]
   end
@@ -176,6 +181,7 @@ Hecks.behaviors "SchoolDistrict" do
 
   test "FinalizeGrade cascades through policy chain" do
     tests "FinalizeGrade", on: "GradeRecord", kind: :cascade
+    setup  "RegisterStudent", name: "sample", grade_level: "sample"
     setup  "RecordGrade", letter_grade: "sample", numeric_score: 1.0, semester: "sample"
     expect emits: ["GradeFinalized", "StudentPromoted"]
   end

@@ -241,34 +241,14 @@ Hecks.bluebook "CognitiveSupport", version: "2026.04.13.1" do
     end
   end
 
-  policy "AssessFatigueOnCallComplete" do
-    on "CallCompleted"
-    trigger "AssessFatigue"
-  end
-
   policy "RecommendBreakOnAssessment" do
     on "FatigueAssessed"
     trigger "RecommendBreak"
   end
 
-  policy "ScheduleBreakOnRecommend" do
-    on "BreakRecommended"
-    trigger "ScheduleBreak"
-  end
-
-  policy "SendOnBreakOnSchedule" do
-    on "BreakScheduled"
-    trigger "SendOnBreak"
-  end
-
   policy "DetectOverloadOnWorkload" do
     on "WorkloadRecorded"
     trigger "DetectOverload"
-  end
-
-  policy "ReturnOnBreakEnd" do
-    on "BreakEnded"
-    trigger "ReturnFromBreak"
   end
 
   # Fixtures

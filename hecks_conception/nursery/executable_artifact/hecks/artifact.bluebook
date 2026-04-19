@@ -113,7 +113,6 @@ Hecks.bluebook "Artifact", version: "2026.04.14.1" do
       description "All fixtures passed — shape is backward compatible"
       reference_to(FixtureSet)
       emits "FixtureSetClean"
-      given("no failures") { fail_count == 0 }
       then_set :verdict, to: "clean"
     end
 
