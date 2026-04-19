@@ -23,10 +23,10 @@ Hecks.bluebook "DLMState", version: "2026.04.11.1" do
       description "Begin tracking a new session — record heartbeat at start"
       attribute :session_id, String
       attribute :heartbeat_at_start, Integer
-      attribute :now, String
+      attribute :started_at, String
       emits "SessionStarted"
       then_set :session_id, to: :session_id
-      then_set :started_at, to: :now
+      then_set :started_at, to: :started_at
       then_set :heartbeat_at_start, to: :heartbeat_at_start
       then_set :pulse_count, to: 0
       then_set :domains_conceived, to: 0
@@ -42,9 +42,9 @@ Hecks.bluebook "DLMState", version: "2026.04.11.1" do
       description "Close the session — record heartbeat at end, compute duration"
       reference_to(SessionState)
       attribute :heartbeat_at_end, Integer
-      attribute :now, String
+      attribute :ended_at, String
       emits "SessionEnded"
-      then_set :ended_at, to: :now
+      then_set :ended_at, to: :ended_at
       then_set :heartbeat_at_end, to: :heartbeat_at_end
     end
 
@@ -146,14 +146,14 @@ Hecks.bluebook "DLMState", version: "2026.04.11.1" do
       attribute :images, list_of(String)
       attribute :strongest_synapse, String
       attribute :proposed_domains, list_of(String)
-      attribute :now, String
+      attribute :dreamed_at, String
       emits "DreamLogged"
       then_set :dream_id, to: :dream_id
       then_set :session_id, to: :session_id
       then_set :images, to: :images
       then_set :strongest_synapse, to: :strongest_synapse
       then_set :proposed_domains, to: :proposed_domains
-      then_set :dreamed_at, to: :now
+      then_set :dreamed_at, to: :dreamed_at
     end
 
     command "ExtractProposals" do
@@ -184,12 +184,12 @@ Hecks.bluebook "DLMState", version: "2026.04.11.1" do
       attribute :metric_name, String
       attribute :value, Float
       attribute :unit, String
-      attribute :now, String
+      attribute :measured_at, String
       emits "MetricRecorded"
       then_set :metric_name, to: :metric_name
       then_set :value, to: :value
       then_set :unit, to: :unit
-      then_set :measured_at, to: :now
+      then_set :measured_at, to: :measured_at
     end
 
     command "CompareToTarget" do

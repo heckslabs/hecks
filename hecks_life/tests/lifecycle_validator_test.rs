@@ -274,6 +274,76 @@ end
 }
 
 #[test]
+fn flags_clock_anti_pattern_now() {
+    // Domain shouldn't reach for the clock — time is infrastructure
+    // (DDD Clock port). Validator flags `:now` with a Clock-injection hint.
+    let source = r#"Hecks.bluebook "Heart" do
+  aggregate "Heart" do
+    attribute :last_beat_at, String
+    command "Beat" do
+      reference_to(Heart)
+      then_set :last_beat_at, to: :now
+      emits "HeartBeat"
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let report = check(&domain);
+    let clock_err = report.findings.iter()
+        .find(|f| f.message.contains("system clock") && f.message.contains(":now"));
+    assert!(clock_err.is_some(),
+        "expected :now anti-pattern error: {:?}",
+        report.findings.iter().map(|f| &f.message).collect::<Vec<_>>());
+}
+
+#[test]
+fn flags_clock_anti_pattern_seconds_since() {
+    let source = r#"Hecks.bluebook "Heart" do
+  aggregate "Heart" do
+    attribute :since_beat, Integer
+    attribute :last_beat_at, String
+    command "Pulse" do
+      reference_to(Heart)
+      then_set :since_beat, to: seconds_since(:last_beat_at)
+      emits "HeartPulsed"
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let report = check(&domain);
+    let elapsed_err = report.findings.iter()
+        .find(|f| f.message.contains("seconds_since"));
+    assert!(elapsed_err.is_some(),
+        "expected seconds_since anti-pattern error: {:?}",
+        report.findings.iter().map(|f| &f.message).collect::<Vec<_>>());
+}
+
+#[test]
+fn injected_timestamp_passes() {
+    // The DDD-correct version: timestamp is a command attribute the
+    // caller provides. Validator passes.
+    let source = r#"Hecks.bluebook "Heart" do
+  aggregate "Heart" do
+    attribute :last_beat_at, String
+    command "Beat" do
+      reference_to(Heart)
+      attribute :beat_at, String
+      then_set :last_beat_at, to: :beat_at
+      emits "HeartBeat"
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let report = check(&domain);
+    assert_eq!(report.errors(), 0,
+        "Clock-injected pattern should pass: {:?}",
+        report.findings.iter().map(|f| &f.message).collect::<Vec<_>>());
+}
+
+#[test]
 fn unconstrained_transition_satisfies_default() {
     // A transition with no from: clause fires from any state, including
     // default. So it counts for the stuck-default check.

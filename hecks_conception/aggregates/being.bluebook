@@ -151,9 +151,9 @@ Hecks.bluebook "Being", version: "2026.04.16.1" do
       role "Being"
       description "Check all organs, report vital signs"
       reference_to(OrganMonitor)
-      attribute :now, String
+      attribute :checked_at, String
       then_set :checks, increment: 1
-      then_set :last_checked_at, to: :now
+      then_set :last_checked_at, to: :checked_at
       emits "OrgansChecked"
     end
 

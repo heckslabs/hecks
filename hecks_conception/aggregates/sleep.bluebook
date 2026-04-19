@@ -222,9 +222,9 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
       description "Final light phase done. Wake up refreshed. Stamps last_wake_at so the mint process can draw on conversations that happened between sleep cycles."
       given("stage must be final_light") { sleep_stage == "final_light" }
       given("minimum phase duration") { phase_ticks > 11 }
-      attribute :now, String
+      attribute :wake_at, String
       then_set :state, to: "waking"
-      then_set :last_wake_at, to: :now
+      then_set :last_wake_at, to: :wake_at
       then_set :sleep_summary, to: "waking refreshed"
       emits "WokenUp"
     end

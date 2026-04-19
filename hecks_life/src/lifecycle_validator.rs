@@ -92,6 +92,13 @@ pub fn check(domain: &Domain) -> Report {
 /// attribute or reference at runtime. If neither exists, the mutation
 /// is broken — at runtime the field stays null because there's nothing
 /// to copy from. Flag it.
+///
+/// Also flags two clock-touching anti-patterns the runtime synthesizes:
+///   • `to: :now` — current ISO timestamp
+///   • `to: seconds_since(:field)` — elapsed seconds
+/// Both reach into infrastructure (the system clock) from inside the
+/// domain. DDD: time is a Clock port — inject it as a command attribute
+/// instead of having the runtime supply it.
 fn check_mutation_references(agg: &Aggregate, out: &mut Vec<Finding>) {
     for cmd in &agg.commands {
         for m in &cmd.mutations {
@@ -99,6 +106,36 @@ fn check_mutation_references(agg: &Aggregate, out: &mut Vec<Finding>) {
             // Increment / Decrement / Toggle work differently.
             if !matches!(m.operation, MutationOp::Set) { continue; }
             let raw = m.value.trim();
+
+            // Clock anti-patterns — flag specifically with a hint.
+            if raw == ":now" || raw == "now" {
+                out.push(Finding::err(
+                    format!("{}.{}", agg.name, cmd.name),
+                    format!(
+                        "then_set :{} reaches the system clock via :now — \
+                         the domain shouldn't grab time, it's infrastructure. \
+                         Inject it: `attribute :{}, String` on the command + \
+                         `then_set :{}, to: :{}` so the caller (test, app, \
+                         hecksagon adapter) provides the timestamp.",
+                        m.field, m.field, m.field, m.field,
+                    ),
+                ));
+                continue;
+            }
+            if raw.starts_with("seconds_since(") {
+                out.push(Finding::err(
+                    format!("{}.{}", agg.name, cmd.name),
+                    format!(
+                        "then_set :{} uses seconds_since(...) — the runtime \
+                         synthesizes elapsed time from the system clock. \
+                         Inject the elapsed value as a command attribute \
+                         instead, computed by the caller (Clock port).",
+                        m.field,
+                    ),
+                ));
+                continue;
+            }
+
             let Some(sym) = raw.strip_prefix(':') else { continue };
             // Allow further wrapping (e.g. trailing whitespace before
             // a brace). Only flag bare-identifier symbols.
