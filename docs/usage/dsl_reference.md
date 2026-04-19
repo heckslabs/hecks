@@ -323,6 +323,35 @@ given { toppings.size < 10 }
 given("must be pending") { status == "pending" }
 ```
 
+The behavioral test generator's chain planner reasons about a fixed
+set of given shapes — express preconditions in one of these forms so
+auto-generated tests can satisfy them automatically:
+
+| Pattern | Example |
+|---------|---------|
+| Equality | `given { status == "pending" }` |
+| Boolean | `given { active == true }` |
+| Integer ineq. | `given { quantity > 0 }`, `>= N`, `< N` |
+| Float ineq. | `given { moisture_percent < 20.0 }` |
+| List size | `given { items.size > 0 }`, `.any?`, `.empty?` |
+| Cross-attr | `given { current_intake >= recommended_intake }` |
+
+Opaque English-prose givens (`given "must be approved by review board"`)
+generate skipped tests — the planner can't satisfy them. Rework as a
+boolean attr + producing command:
+
+```ruby
+attribute :approved, TrueClass, default: false
+command "Approve" do
+  reference_to(Proposal)
+  then_set :approved, to: true
+end
+command "Publish" do
+  reference_to(Proposal)
+  given { approved == true }     # ← planner can satisfy via Approve
+end
+```
+
 **`then_set`** — Declarative state mutation applied after preconditions pass.
 
 | Operation | Syntax | Effect |
