@@ -414,6 +414,7 @@
 - **Stuck default** — warns when no transition can fire from the default state (aggregate stuck forever)
 - **Unreachable given** — flags `given { field == "X" }` predicates where no command sets `field` to `X` (the gate can never open)
 - **Mutation reference check** — flags `then_set :event, to: :event` where `:event` matches no command attribute or reference (field stays null at runtime)
+- **Clock anti-pattern check** — flags `then_set :ts, to: :now` and `seconds_since(:field)` patterns where the domain reaches into the system clock. Hint: inject time as a command attribute (DDD Clock port) so the caller (test, hecksagon adapter, app) supplies the timestamp.
 - `--strict` promotes warnings to errors; pre-commit hook blocks on errors
 
 ### IO Validator (`hecks-life check-io`)
