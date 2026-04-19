@@ -46,7 +46,7 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
 
   aggregate "SoilProfile", "Soil characterization within the terroir — minerals, microbiome, moisture, pH that drive flavor" do
     String :profile_id
-    reference_to(ProtectedTerroir) :terroir
+    reference_to(ProtectedTerroir, as: :terroir)
     String :soil_type
     Float :ph_level
     String :mineral_composition
@@ -62,7 +62,7 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
       role "Ecologist"
       description "Characterize soil profile at a specific location within the terroir"
       String :profile_id
-      reference_to(ProtectedTerroir) :terroir
+      reference_to(ProtectedTerroir, as: :terroir)
       String :soil_type
       Float :ph_level
       String :mineral_composition
@@ -90,7 +90,7 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
     String :producer_id
     String :name
     String :craft_type
-    reference_to(ProtectedTerroir) :terroir
+    reference_to(ProtectedTerroir, as: :terroir)
     String :certification_status
     String :status
     list_of(ProductOffering) :products
@@ -106,7 +106,7 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
       String :producer_id
       String :name
       String :craft_type
-      reference_to(ProtectedTerroir) :terroir
+      reference_to(ProtectedTerroir, as: :terroir)
       emits "ProducerRegistered"
       then_set :producer_id, to: :producer_id
       then_set :name, to: :name
@@ -137,7 +137,7 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
 
   aggregate "SpeciesSurvey", "Biodiversity survey of the terroir — wild yeasts, insects, plants that contribute to flavor" do
     String :survey_id
-    reference_to(ProtectedTerroir) :terroir
+    reference_to(ProtectedTerroir, as: :terroir)
     String :survey_date
     String :season
     String :overall_diversity
@@ -152,7 +152,7 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
       role "Ecologist"
       description "Conduct species survey across the terroir — focus on flavor-contributing organisms"
       String :survey_id
-      reference_to(ProtectedTerroir) :terroir
+      reference_to(ProtectedTerroir, as: :terroir)
       String :survey_date
       String :season
       emits "SurveyConducted"
@@ -176,8 +176,8 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
 
   aggregate "VisitorExperience", "Eco-tourism experience within the terroir — tasting, foraging, producer visits" do
     String :experience_id
-    reference_to(ProtectedTerroir) :terroir
-    reference_to(CraftProducer) :host_producer
+    reference_to(ProtectedTerroir, as: :terroir)
+    reference_to(CraftProducer, as: :host_producer)
     String :experience_type
     Integer :capacity
     String :status
@@ -192,8 +192,8 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
       role "TourismCoordinator"
       description "Design a terroir visitor experience — tasting, foraging, ecology walk"
       String :experience_id
-      reference_to(ProtectedTerroir) :terroir
-      reference_to(CraftProducer) :host_producer
+      reference_to(ProtectedTerroir, as: :terroir)
+      reference_to(CraftProducer, as: :host_producer)
       String :experience_type
       Integer :capacity
       emits "ExperienceDesigned"
@@ -225,9 +225,9 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
 
   aggregate "FlavorProfile", "The sensory fingerprint of the terroir — connects soil, species, and craft into measurable flavor" do
     String :profile_id
-    reference_to(ProtectedTerroir) :terroir
-    reference_to(SoilProfile) :soil
-    reference_to(CraftProducer) :producer
+    reference_to(ProtectedTerroir, as: :terroir)
+    reference_to(SoilProfile, as: :soil)
+    reference_to(CraftProducer, as: :producer)
     String :vintage_season
     String :overall_character
     list_of(FlavorNote) :notes
@@ -240,9 +240,9 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
       role "SensoryAnalyst"
       description "Compose flavor profile linking terroir soil and species to product character"
       String :profile_id
-      reference_to(ProtectedTerroir) :terroir
-      reference_to(SoilProfile) :soil
-      reference_to(CraftProducer) :producer
+      reference_to(ProtectedTerroir, as: :terroir)
+      reference_to(SoilProfile, as: :soil)
+      reference_to(CraftProducer, as: :producer)
       String :vintage_season
       emits "ProfileComposed"
       then_set :profile_id, to: :profile_id

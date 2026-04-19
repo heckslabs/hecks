@@ -61,7 +61,7 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
   aggregate "Visitor", "A tourist in the protected zone — tracked for safety and conservation compliance" do
     String :name
     String :nationality
-    reference_to(Permit) :permit
+    reference_to(Permit, as: :permit)
     String :status
     list_of(LocationPing) :location_history
 
@@ -174,8 +174,8 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
 
   aggregate "ForensicCase", "A wildlife forensic investigation — DNA evidence, poacher tracking, prosecution" do
     String :case_number
-    reference_to(WildlifeSpecies) :species
-    reference_to(ProtectedArea) :area
+    reference_to(WildlifeSpecies, as: :species)
+    reference_to(ProtectedArea, as: :area)
     String :evidence_type
     String :dna_sample_id
     String :status
@@ -185,8 +185,8 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
       role "ForensicInvestigator"
       description "Open a forensic case when poaching evidence is discovered"
       String :case_number
-      reference_to(WildlifeSpecies) :species
-      reference_to(ProtectedArea) :area
+      reference_to(WildlifeSpecies, as: :species)
+      reference_to(ProtectedArea, as: :area)
       String :evidence_type
       String :dna_sample_id
       emits "PoachingDetected"
@@ -234,7 +234,7 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
     String :zone_name
     String :hazard_type
     String :alert_level
-    reference_to(ProtectedArea) :area
+    reference_to(ProtectedArea, as: :area)
     String :status
     list_of(SeismicReading) :readings
 
@@ -250,7 +250,7 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
       description "Define a hazard zone within or adjacent to a protected area"
       String :zone_name
       String :hazard_type
-      reference_to(ProtectedArea) :area
+      reference_to(ProtectedArea, as: :area)
       emits "HazardZoneDefined"
       then_set :zone_name, to: :zone_name
       then_set :hazard_type, to: :hazard_type
@@ -297,8 +297,8 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
   # === Permit ===
 
   aggregate "Permit", "A visitor permit — controls access, tracks fees, enforces zone restrictions" do
-    reference_to(Visitor) :visitor
-    reference_to(ProtectedArea) :area
+    reference_to(Visitor, as: :visitor)
+    reference_to(ProtectedArea, as: :area)
     String :permit_type
     String :valid_from
     String :valid_until
@@ -314,8 +314,8 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
     IssuePermit do
       role "ParkRanger"
       description "Issue an access permit for a visitor to enter protected zones"
-      reference_to(Visitor) :visitor
-      reference_to(ProtectedArea) :area
+      reference_to(Visitor, as: :visitor)
+      reference_to(ProtectedArea, as: :area)
       String :permit_type
       String :valid_from
       String :valid_until

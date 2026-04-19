@@ -75,7 +75,7 @@ Hecks.bluebook "ZeroWasteFarm", version: "2026.04.13.1" do
   # === Harvest ===
 
   aggregate "Harvest", "The yield from a field — weighed, graded, and routed to market or food bank" do
-    reference_to(Field) :field
+    reference_to(Field, as: :field)
     String :crop_type
     Float :weight_kg
     String :grade
@@ -88,7 +88,7 @@ Hecks.bluebook "ZeroWasteFarm", version: "2026.04.13.1" do
     RecordHarvest do
       role "Farmer"
       description "Weigh and grade the harvest from a field"
-      reference_to(Field) :field
+      reference_to(Field, as: :field)
       String :crop_type
       Float :weight_kg
       String :grade
@@ -176,7 +176,7 @@ Hecks.bluebook "ZeroWasteFarm", version: "2026.04.13.1" do
   aggregate "FoodBankAllocation", "A food bank receiving allocation — matched to harvest surplus and community need" do
     String :food_bank_name
     String :region
-    reference_to(Harvest) :harvest
+    reference_to(Harvest, as: :harvest)
     Float :allocated_kg
     String :status
     list_of(NeedCategory) :needs
@@ -196,7 +196,7 @@ Hecks.bluebook "ZeroWasteFarm", version: "2026.04.13.1" do
       description "Assign harvest surplus to a food bank based on regional need"
       String :food_bank_name
       String :region
-      reference_to(Harvest) :harvest
+      reference_to(Harvest, as: :harvest)
       Float :allocated_kg
       emits "FoodBankAllocated"
       then_set :food_bank_name, to: :food_bank_name
@@ -234,8 +234,8 @@ Hecks.bluebook "ZeroWasteFarm", version: "2026.04.13.1" do
   # === ColdRoute ===
 
   aggregate "ColdRoute", "A refrigerated transport route — keeps produce fresh from field to food bank" do
-    reference_to(Harvest) :harvest
-    reference_to(FoodBankAllocation) :allocation
+    reference_to(Harvest, as: :harvest)
+    reference_to(FoodBankAllocation, as: :allocation)
     String :driver_id
     Float :temperature
     String :status
@@ -254,7 +254,7 @@ Hecks.bluebook "ZeroWasteFarm", version: "2026.04.13.1" do
     ScheduleColdPickup do
       role "System"
       description "Schedule a refrigerated pickup from the farm for food bank delivery"
-      reference_to(Harvest) :harvest
+      reference_to(Harvest, as: :harvest)
       String :driver_id
       emits "ColdPickupScheduled"
       then_set :harvest, to: :harvest

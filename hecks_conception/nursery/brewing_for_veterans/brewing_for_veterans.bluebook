@@ -102,7 +102,7 @@ Hecks.bluebook "BrewingForVeterans", version: "2026.04.13.1" do
     String :product_id
     String :product_name
     String :style
-    reference_to(BrewingCohort) :producing_cohort
+    reference_to(BrewingCohort, as: :producing_cohort)
     String :batch_number
     String :status
     list_of(TastingNote) :tasting_notes
@@ -117,7 +117,7 @@ Hecks.bluebook "BrewingForVeterans", version: "2026.04.13.1" do
       String :product_id
       String :product_name
       String :style
-      reference_to(BrewingCohort) :producing_cohort
+      reference_to(BrewingCohort, as: :producing_cohort)
       String :batch_number
       emits "ProductLaunched"
       then_set :product_id, to: :product_id
@@ -204,7 +204,7 @@ Hecks.bluebook "BrewingForVeterans", version: "2026.04.13.1" do
     Integer :capacity
     String :funding_source
     String :status
-    reference_to(VeteranApprentice) :resident
+    reference_to(VeteranApprentice, as: :resident)
     list_of(MaintenanceRecord) :maintenance
     value_object "MaintenanceRecord" do
       String :date
@@ -230,7 +230,7 @@ Hecks.bluebook "BrewingForVeterans", version: "2026.04.13.1" do
       role "HousingManager"
       description "Assign a veteran apprentice to a housing unit"
       reference_to(HousingUnit)
-      reference_to(VeteranApprentice) :resident
+      reference_to(VeteranApprentice, as: :resident)
       given { status == "available" }
       emits "ResidentAssigned"
       then_set :status, to: "occupied"
@@ -249,7 +249,7 @@ Hecks.bluebook "BrewingForVeterans", version: "2026.04.13.1" do
 
   aggregate "GraduationPath", "Post-graduation pathway — job placement, independent housing, continued mentoring" do
     String :path_id
-    reference_to(VeteranApprentice) :graduate
+    reference_to(VeteranApprentice, as: :graduate)
     String :employment_goal
     String :housing_transition
     String :mentor_name
@@ -265,7 +265,7 @@ Hecks.bluebook "BrewingForVeterans", version: "2026.04.13.1" do
       role "ProgramDirector"
       description "Chart post-graduation pathway for a veteran"
       String :path_id
-      reference_to(VeteranApprentice) :graduate
+      reference_to(VeteranApprentice, as: :graduate)
       String :employment_goal
       String :housing_transition
       String :mentor_name

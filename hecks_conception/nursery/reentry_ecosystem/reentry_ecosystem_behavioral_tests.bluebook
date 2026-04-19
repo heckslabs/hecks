@@ -29,7 +29,7 @@ Hecks.behaviors "ReentryEcosystem" do
     tests "EnrollInTrack", on: "EducationTrack"
     setup  "OpenCase", case_id: "sample", participant_name: "sample", reentry_date: "sample", background_type: "sample", risk_level: "sample"
     input  track_id: "sample", track_type: "sample", institution: "sample"
-    expect track_id: "sample", reentry_case: 1, track_type: "sample", institution: "sample", status: "enrolled"
+    expect track_id: "sample", reentry_case: :reentry_case, track_type: "sample", institution: "sample", status: "enrolled"
   end
 
   test "CompleteModule runs" do
@@ -51,7 +51,7 @@ Hecks.behaviors "ReentryEcosystem" do
     tests "PlaceInHousing", on: "HousingMatch"
     setup  "OpenCase", case_id: "sample", participant_name: "sample", reentry_date: "sample", background_type: "sample", risk_level: "sample"
     input  match_id: "sample", housing_type: "sample", address: "sample", landlord_name: "sample"
-    expect match_id: "sample", housing_type: "sample", address: "sample", landlord_name: "sample", reentry_case: 1, status: "placed"
+    expect match_id: "sample", housing_type: "sample", address: "sample", landlord_name: "sample", reentry_case: :reentry_case, status: "placed"
   end
 
   test "RecordStabilityCheck runs" do
@@ -74,7 +74,7 @@ Hecks.behaviors "ReentryEcosystem" do
     tests "PlaceInJob", on: "EmploymentBridge"
     setup  "OpenCase", case_id: "sample", participant_name: "sample", reentry_date: "sample", background_type: "sample", risk_level: "sample"
     input  bridge_id: "sample", employer_name: "sample", job_title: "sample", start_date: "sample"
-    expect bridge_id: "sample", employer_name: "sample", job_title: "sample", start_date: "sample", reentry_case: 1, status: "employed"
+    expect bridge_id: "sample", employer_name: "sample", job_title: "sample", start_date: "sample", reentry_case: :reentry_case, status: "employed"
   end
 
   test "RecordRetention runs" do
@@ -90,7 +90,7 @@ Hecks.behaviors "ReentryEcosystem" do
     tests "AssignAttorney", on: "LegalSupport"
     setup  "OpenCase", case_id: "sample", participant_name: "sample", reentry_date: "sample", background_type: "sample", risk_level: "sample"
     input  support_id: "sample", legal_need: "sample", attorney_name: "sample"
-    expect support_id: "sample", reentry_case: 1, legal_need: "sample", attorney_name: "sample", status: "active"
+    expect support_id: "sample", reentry_case: :reentry_case, legal_need: "sample", attorney_name: "sample", status: "active"
   end
 
   test "FileExpungement runs" do
@@ -111,7 +111,7 @@ Hecks.behaviors "ReentryEcosystem" do
   test "InitializeTracker runs" do
     tests "InitializeTracker", on: "MilestoneTracker"
     setup  "OpenCase", case_id: "sample", participant_name: "sample", reentry_date: "sample", background_type: "sample", risk_level: "sample"
-    expect reentry_case: 1, overall_progress: "beginning"
+    expect reentry_case: :reentry_case, overall_progress: "beginning"
   end
 
   test "RecordMilestone sets overall_progress" do

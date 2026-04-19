@@ -11,7 +11,7 @@ Hecks.bluebook "TraumaPipeline", version: "2026.04.13.1" do
     String :blood_type_needed
     String :status
     Integer :estimated_arrival_minutes
-    reference_to(TraumaBay) :assigned_bay
+    reference_to(TraumaBay, as: :assigned_bay)
 
     value_object "IncidentDetail" do
       String :mechanism_of_injury
@@ -140,7 +140,7 @@ Hecks.bluebook "TraumaPipeline", version: "2026.04.13.1" do
   # === ColdTransport ===
 
   aggregate "ColdTransport", "A temperature-controlled courier run — blood from bank to trauma site" do
-    reference_to(BloodUnit) :blood_unit
+    reference_to(BloodUnit, as: :blood_unit)
     String :courier_id
     Float :temperature
     String :origin
@@ -157,7 +157,7 @@ Hecks.bluebook "TraumaPipeline", version: "2026.04.13.1" do
     DeployBloodCourier do
       role "System"
       description "Dispatch a cold-chain courier with matched blood to the trauma site"
-      reference_to(BloodUnit) :blood_unit
+      reference_to(BloodUnit, as: :blood_unit)
       String :courier_id
       String :origin
       String :destination
@@ -211,7 +211,7 @@ Hecks.bluebook "TraumaPipeline", version: "2026.04.13.1" do
     String :bay_number
     String :status
     String :trauma_level
-    reference_to(TraumaCall) :active_call
+    reference_to(TraumaCall, as: :active_call)
 
     PrepareBay do
       role "Nurse"
@@ -228,7 +228,7 @@ Hecks.bluebook "TraumaPipeline", version: "2026.04.13.1" do
       role "System"
       description "Link a trauma call to this bay so blood routes correctly"
       reference_to(TraumaBay)
-      reference_to(TraumaCall) :active_call
+      reference_to(TraumaCall, as: :active_call)
       given { status == "prepared" }
       emits "BayAssignedToCall"
       then_set :trauma_call, to: :trauma_call
@@ -257,8 +257,8 @@ Hecks.bluebook "TraumaPipeline", version: "2026.04.13.1" do
   # === CrossMatch ===
 
   aggregate "CrossMatch", "A compatibility test between patient blood and donor unit — the safety gate" do
-    reference_to(TraumaCall) :trauma_call
-    reference_to(BloodUnit) :blood_unit
+    reference_to(TraumaCall, as: :trauma_call)
+    reference_to(BloodUnit, as: :blood_unit)
     String :patient_blood_type
     String :donor_blood_type
     String :result
@@ -267,8 +267,8 @@ Hecks.bluebook "TraumaPipeline", version: "2026.04.13.1" do
     MatchBloodType do
       role "System"
       description "Run compatibility check between patient need and available blood units"
-      reference_to(TraumaCall) :trauma_call
-      reference_to(BloodUnit) :blood_unit
+      reference_to(TraumaCall, as: :trauma_call)
+      reference_to(BloodUnit, as: :blood_unit)
       String :patient_blood_type
       String :donor_blood_type
       emits "CrossMatchPerformed"

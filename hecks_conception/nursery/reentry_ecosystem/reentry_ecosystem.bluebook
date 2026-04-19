@@ -56,7 +56,7 @@ Hecks.bluebook "ReentryEcosystem", version: "2026.04.13.1" do
 
   aggregate "EducationTrack", "An education pathway — GED, vocational, or college track with progress" do
     String :track_id
-    reference_to(ReentryCase) :case
+    reference_to(ReentryCase, as: :case)
     String :track_type
     String :institution
     String :status
@@ -71,7 +71,7 @@ Hecks.bluebook "ReentryEcosystem", version: "2026.04.13.1" do
       role "EducationCoordinator"
       description "Enroll participant in an education track"
       String :track_id
-      reference_to(ReentryCase) :case
+      reference_to(ReentryCase, as: :case)
       String :track_type
       String :institution
       emits "TrackEnrolled"
@@ -102,7 +102,7 @@ Hecks.bluebook "ReentryEcosystem", version: "2026.04.13.1" do
 
   aggregate "HousingMatch", "A housing placement — transitional to permanent, with stability scoring" do
     String :match_id
-    reference_to(ReentryCase) :case
+    reference_to(ReentryCase, as: :case)
     String :housing_type
     String :address
     String :landlord_name
@@ -118,7 +118,7 @@ Hecks.bluebook "ReentryEcosystem", version: "2026.04.13.1" do
       role "HousingNavigator"
       description "Place participant in transitional or permanent housing"
       String :match_id
-      reference_to(ReentryCase) :case
+      reference_to(ReentryCase, as: :case)
       String :housing_type
       String :address
       String :landlord_name
@@ -154,7 +154,7 @@ Hecks.bluebook "ReentryEcosystem", version: "2026.04.13.1" do
 
   aggregate "EmploymentBridge", "Employment placement and support — from interview prep to sustained employment" do
     String :bridge_id
-    reference_to(ReentryCase) :case
+    reference_to(ReentryCase, as: :case)
     String :employer_name
     String :job_title
     String :start_date
@@ -169,7 +169,7 @@ Hecks.bluebook "ReentryEcosystem", version: "2026.04.13.1" do
       role "EmploymentCoach"
       description "Place participant in a job with a partner employer"
       String :bridge_id
-      reference_to(ReentryCase) :case
+      reference_to(ReentryCase, as: :case)
       String :employer_name
       String :job_title
       String :start_date
@@ -194,7 +194,7 @@ Hecks.bluebook "ReentryEcosystem", version: "2026.04.13.1" do
 
   aggregate "LegalSupport", "Legal aid — record expungement, license restoration, compliance tracking" do
     String :support_id
-    reference_to(ReentryCase) :case
+    reference_to(ReentryCase, as: :case)
     String :legal_need
     String :attorney_name
     String :status
@@ -209,7 +209,7 @@ Hecks.bluebook "ReentryEcosystem", version: "2026.04.13.1" do
       role "LegalCoordinator"
       description "Assign legal aid attorney to a reentry case"
       String :support_id
-      reference_to(ReentryCase) :case
+      reference_to(ReentryCase, as: :case)
       String :legal_need
       String :attorney_name
       emits "AttorneyAssigned"
@@ -239,7 +239,7 @@ Hecks.bluebook "ReentryEcosystem", version: "2026.04.13.1" do
   # === MilestoneTracker ===
 
   aggregate "MilestoneTracker", "Cross-service milestone tracking — housing, education, employment, legal milestones in one view" do
-    reference_to(ReentryCase) :case
+    reference_to(ReentryCase, as: :case)
     String :overall_progress
     list_of(Milestone) :milestones
     value_object "Milestone" do
@@ -251,7 +251,7 @@ Hecks.bluebook "ReentryEcosystem", version: "2026.04.13.1" do
     InitializeTracker do
       role "System"
       description "Create milestone tracker when case opens"
-      reference_to(ReentryCase) :case
+      reference_to(ReentryCase, as: :case)
       emits "TrackerInitialized"
       then_set :reentry_case, to: :reentry_case
       then_set :overall_progress, to: "beginning"

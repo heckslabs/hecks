@@ -53,7 +53,7 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
 
   aggregate "TriageStation", "A field triage point — classifies casualties and queues them for air evacuation" do
     String :station_id
-    reference_to(MassIncident) :incident
+    reference_to(MassIncident, as: :incident)
     String :location
     Integer :capacity
     Integer :current_count
@@ -69,7 +69,7 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
       role "Paramedic"
       description "Open a triage station at the incident scene"
       String :station_id
-      reference_to(MassIncident) :incident
+      reference_to(MassIncident, as: :incident)
       String :location
       Integer :capacity
       emits "StationOpened"
@@ -96,7 +96,7 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
 
   aggregate "AirEvac", "A medevac aircraft assigned to the mass casualty event" do
     String :callsign
-    reference_to(MassIncident) :incident
+    reference_to(MassIncident, as: :incident)
     String :origin
     String :destination
     Integer :patient_capacity
@@ -111,7 +111,7 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
       role "Dispatcher"
       description "Dispatch medevac to the incident triage station"
       String :callsign
-      reference_to(MassIncident) :incident
+      reference_to(MassIncident, as: :incident)
       String :origin
       Integer :patient_capacity
       emits "AircraftDispatched"
@@ -144,7 +144,7 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
 
   aggregate "BloodDispatch", "Blood product allocation for in-flight transfusion and receiving hospital prep" do
     String :dispatch_id
-    reference_to(AirEvac) :aircraft
+    reference_to(AirEvac, as: :aircraft)
     String :blood_type
     Integer :units_allocated
     String :status
@@ -159,7 +159,7 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
       role "BloodBankTech"
       description "Allocate blood products matched to casualty blood types on aircraft"
       String :dispatch_id
-      reference_to(AirEvac) :aircraft
+      reference_to(AirEvac, as: :aircraft)
       String :blood_type
       Integer :units_allocated
       emits "BloodAllocated"
@@ -186,7 +186,7 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
     Integer :available_beds
     Integer :available_surgeons
     String :status
-    reference_to(MassIncident) :active_incident
+    reference_to(MassIncident, as: :active_incident)
     list_of(IncomingCasualty) :incoming
     value_object "IncomingCasualty" do
       String :casualty_name
@@ -211,7 +211,7 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
       role "System"
       description "Accept routed casualties and decrement available beds"
       reference_to(ReceivingHospital)
-      reference_to(MassIncident) :active_incident
+      reference_to(MassIncident, as: :active_incident)
       given { status == "available" }
       emits "CasualtiesAccepted"
       then_set :status, to: "receiving"
@@ -232,9 +232,9 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
     String :blood_type
     String :triage_color
     String :current_phase
-    reference_to(TriageStation) :triage_station
-    reference_to(AirEvac) :aircraft
-    reference_to(ReceivingHospital) :hospital
+    reference_to(TriageStation, as: :triage_station)
+    reference_to(AirEvac, as: :aircraft)
+    reference_to(ReceivingHospital, as: :hospital)
     list_of(PhaseLog) :phase_history
     value_object "PhaseLog" do
       String :phase
@@ -247,7 +247,7 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
       String :casualty_name
       String :blood_type
       String :triage_color
-      reference_to(TriageStation) :triage_station
+      reference_to(TriageStation, as: :triage_station)
       emits "TrackingStarted"
       then_set :casualty_name, to: :casualty_name
       then_set :blood_type, to: :blood_type

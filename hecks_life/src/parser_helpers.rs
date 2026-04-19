@@ -140,28 +140,45 @@ pub fn parse_shorthand_attribute(line: &str) -> Option<crate::ir::Attribute> {
     Some(crate::ir::Attribute { name, attr_type, default: None, list })
 }
 
-/// Parse `reference_to(Order)`, `reference_to(Order).as(:recent_purchase)`,
-/// or `reference_to(Order, role: :recent_purchase)`. The Ruby DSL uses the
-/// `role:` kwarg form; the Rust shorthand uses `.as()`. Both should yield
-/// the same Reference IR.
+/// Parse a reference declaration in any of these forms:
+///
+///   reference_to(Order)                            — name = `order` (snake target)
+///   reference_to(Order, as: :recent_purchase)      — canonical alias kwarg
+///   reference_to(Order, role: :recent_purchase)    — legacy kwarg, still accepted
+///   reference_to(Order).as(:recent_purchase)       — Rust-style suffix
+///   reference_to(Order) :recent_purchase           — trailing-symbol shorthand
+///
+/// All five resolve to the same Reference IR. Canonical going forward
+/// is `as:`; the others remain accepted so existing bluebooks keep
+/// parsing while authors migrate.
 pub fn parse_shorthand_reference(line: &str) -> Option<crate::ir::Reference> {
     let open = line.find('(')? + 1;
     let close = line.find(')')?;
     let inside = &line[open..close];
+    let after_close = &line[close + 1..];
     // Target is the first identifier inside the parens (before any comma).
     let target = inside.split(',').next()?.trim().to_string();
 
-    // Role can be set via:
-    //   .as(:name) — Rust shorthand suffix
-    //   role: :name — Ruby kwarg inside the parens
-    // Falls back to snake-cased target.
     let name = if line.contains(".as(") {
+        // `.as(:foo)` Rust-style suffix.
         let as_pos = line.find(".as(")?;
         extract_symbol(&line[as_pos..]).unwrap_or_else(|| to_snake_case(&target))
+    } else if let Some(pos) = inside.find(", as:") {
+        // `, as: :foo` — canonical kwarg.
+        let after = &inside[pos + ", as:".len()..];
+        extract_symbol(after).unwrap_or_else(|| to_snake_case(&target))
+    } else if let Some(pos) = inside.find("as:") {
+        // `as: :foo` — also accepted (no leading comma).
+        let after = &inside[pos + "as:".len()..];
+        extract_symbol(after).unwrap_or_else(|| to_snake_case(&target))
     } else if let Some(role_pos) = inside.find("role:") {
-        // Skip past the `role:` kwarg colon, then extract the :symbol
+        // `role: :foo` — legacy, kept for back-compat.
         let after_kwarg = &inside[role_pos + "role:".len()..];
         extract_symbol(after_kwarg).unwrap_or_else(|| to_snake_case(&target))
+    } else if after_close.trim_start().starts_with(':') {
+        // `reference_to(Order) :foo` — trailing-symbol shorthand
+        // (mirrors `String :name` style on attributes).
+        extract_symbol(after_close).unwrap_or_else(|| to_snake_case(&target))
     } else {
         to_snake_case(&target)
     };

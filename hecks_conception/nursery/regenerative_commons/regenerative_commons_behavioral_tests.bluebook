@@ -22,7 +22,7 @@ Hecks.behaviors "RegenerativeCommons" do
     tests "AssignPlot", on: "FarmPlot"
     setup  "EstablishCommons", parcel_id: "sample", name: "sample", total_acres: 1, governance_model: "sample"
     input  plot_id: "sample", steward_name: "sample", current_crop: "sample"
-    expect plot_id: "sample", common_land: 1, steward_name: "sample", current_crop: "sample", status: "active"
+    expect plot_id: "sample", common_land: :common_land, steward_name: "sample", current_crop: "sample", status: "active"
   end
 
   test "ReportHarvest runs" do
@@ -45,7 +45,7 @@ Hecks.behaviors "RegenerativeCommons" do
     tests "DesignateZone", on: "ConservationZone"
     setup  "EstablishCommons", parcel_id: "sample", name: "sample", total_acres: 1, governance_model: "sample"
     input  zone_id: "sample", ecosystem_type: "sample", acres: 1
-    expect zone_id: "sample", common_land: 1, ecosystem_type: "sample", acres: 1, restoration_status: "planned", status: "active"
+    expect zone_id: "sample", common_land: :common_land, ecosystem_type: "sample", acres: 1, restoration_status: "planned", status: "active"
   end
 
   test "BeginRestoration runs" do
@@ -68,7 +68,7 @@ Hecks.behaviors "RegenerativeCommons" do
     tests "AllocateHarvest", on: "HarvestAllocation"
     setup  "AssignPlot", plot_id: "sample", steward_name: "sample", current_crop: "sample"
     input  allocation_id: "sample", season: "sample", total_yield_lbs: 1
-    expect allocation_id: "sample", farm_plot: 1, season: "sample", total_yield_lbs: 1, status: "allocated"
+    expect allocation_id: "sample", farm_plot: :farm_plot, season: "sample", total_yield_lbs: 1, status: "allocated"
   end
 
   test "DistributeToFoodBank runs" do
@@ -85,7 +85,7 @@ Hecks.behaviors "RegenerativeCommons" do
     setup  "AssignPlot", plot_id: "sample", steward_name: "sample", current_crop: "sample"
     setup  "DesignateZone", zone_id: "sample", ecosystem_type: "sample", acres: 1
     input  survey_id: "sample", survey_date: "sample"
-    expect survey_id: "sample", conservation_zone: 1, farm_plot: 1, survey_date: "sample", overall_health: "pending"
+    expect survey_id: "sample", conservation_zone: :conservation_zone, farm_plot: :farm_plot, survey_date: "sample", overall_health: "pending"
   end
 
   test "AssessHealth sets overall_health" do
@@ -102,7 +102,7 @@ Hecks.behaviors "RegenerativeCommons" do
     tests "RegisterMember", on: "CommunityMember"
     setup  "EstablishCommons", parcel_id: "sample", name: "sample", total_acres: 1, governance_model: "sample"
     input  member_id: "sample", name: "sample", role_type: "sample"
-    expect member_id: "sample", name: "sample", role_type: "sample", common_land: 1, status: "active"
+    expect member_id: "sample", name: "sample", role_type: "sample", common_land: :common_land, status: "active"
   end
 
   test "LogContribution runs" do

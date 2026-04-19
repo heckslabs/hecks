@@ -62,7 +62,7 @@ Hecks.bluebook "AutonomousRescue", version: "2026.04.13.1" do
     String :drone_id
     String :status
     Float :battery_percent
-    reference_to(RescueMission) :mission
+    reference_to(RescueMission, as: :mission)
     list_of(ScanResult) :scans
 
     value_object "ScanResult" do
@@ -127,7 +127,7 @@ Hecks.bluebook "AutonomousRescue", version: "2026.04.13.1" do
     String :payload_type
     Float :battery_percent
     String :status
-    reference_to(SurvivorBeacon) :target_beacon
+    reference_to(SurvivorBeacon, as: :target_beacon)
     list_of(NavigationLog) :nav_log
 
     value_object "NavigationLog" do
@@ -193,7 +193,7 @@ Hecks.bluebook "AutonomousRescue", version: "2026.04.13.1" do
     String :detection_method
     String :status
     String :rescue_priority
-    reference_to(RescueMission) :mission
+    reference_to(RescueMission, as: :mission)
 
     MarkBeacon do
       role "System"
@@ -281,7 +281,7 @@ Hecks.bluebook "AutonomousRescue", version: "2026.04.13.1" do
   # === DebrisMap ===
 
   aggregate "DebrisMap", "A real-time 3D map of the disaster site — built from drone scans, updated as debris shifts" do
-    reference_to(RescueMission) :mission
+    reference_to(RescueMission, as: :mission)
     String :map_version
     String :status
     Integer :sectors_mapped

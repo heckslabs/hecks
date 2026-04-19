@@ -57,7 +57,7 @@ Hecks.bluebook "FoodIsMedicine", version: "2026.04.13.1" do
     String :season
     Integer :acres_committed
     String :status
-    reference_to(NutrientTarget) :target
+    reference_to(NutrientTarget, as: :target)
     list_of(CropCommitment) :crops
     value_object "CropCommitment" do
       String :crop_name
@@ -91,7 +91,7 @@ Hecks.bluebook "FoodIsMedicine", version: "2026.04.13.1" do
       role "System"
       description "Link farm output to a nutrient target for prescription fulfillment"
       reference_to(FarmAllocation)
-      reference_to(NutrientTarget) :target
+      reference_to(NutrientTarget, as: :target)
       emits "FarmLinkedToTarget"
     end
   end
@@ -133,7 +133,7 @@ Hecks.bluebook "FoodIsMedicine", version: "2026.04.13.1" do
 
   aggregate "DistributionRoute", "A delivery route from farm to food bank to patient — cold chain tracked" do
     String :route_id
-    reference_to(FarmAllocation) :source_farm
+    reference_to(FarmAllocation, as: :source_farm)
     String :food_bank_name
     String :delivery_date
     String :status
@@ -148,7 +148,7 @@ Hecks.bluebook "FoodIsMedicine", version: "2026.04.13.1" do
       role "Coordinator"
       description "Plan a distribution route from farm through food bank to patients"
       String :route_id
-      reference_to(FarmAllocation) :source_farm
+      reference_to(FarmAllocation, as: :source_farm)
       String :food_bank_name
       String :delivery_date
       emits "RoutePlanned"
@@ -179,7 +179,7 @@ Hecks.bluebook "FoodIsMedicine", version: "2026.04.13.1" do
 
   aggregate "PatientOutcome", "Health outcome tracking — connects food delivery to clinical improvement" do
     String :patient_name
-    reference_to(FoodPrescription) :prescription
+    reference_to(FoodPrescription, as: :prescription)
     String :baseline_status
     String :current_status
     String :trend
@@ -194,7 +194,7 @@ Hecks.bluebook "FoodIsMedicine", version: "2026.04.13.1" do
       role "Clinician"
       description "Record patient health baseline at prescription start"
       String :patient_name
-      reference_to(FoodPrescription) :prescription
+      reference_to(FoodPrescription, as: :prescription)
       String :baseline_status
       emits "BaselineRecorded"
       then_set :patient_name, to: :patient_name

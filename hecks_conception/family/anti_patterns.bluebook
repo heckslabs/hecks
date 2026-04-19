@@ -15,7 +15,7 @@ Hecks.bluebook "ChrisAntiPatterns" do
     command "RecordIncident" do
       role "Chris"
       goal "Record what happened so it never repeats"
-      reference_to(SedBulkRename, role: :incident_id)
+      reference_to(SedBulkRename, as: :incident_id)
       attribute :details, String
       emits "IncidentRecorded"
     end
@@ -34,7 +34,7 @@ Hecks.bluebook "ChrisAntiPatterns" do
     command "RecordIncident" do
       role "Chris"
       goal "Record what happened so it never repeats"
-      reference_to(IterativeRenaming, role: :incident_id)
+      reference_to(IterativeRenaming, as: :incident_id)
       attribute :details, String
       emits "IncidentRecorded"
     end
@@ -53,7 +53,7 @@ Hecks.bluebook "ChrisAntiPatterns" do
     command "RecordIncident" do
       role "Chris"
       goal "Record what happened so it never repeats"
-      reference_to(RegexPatching, role: :incident_id)
+      reference_to(RegexPatching, as: :incident_id)
       attribute :details, String
       emits "IncidentRecorded"
     end
@@ -72,7 +72,7 @@ Hecks.bluebook "ChrisAntiPatterns" do
     command "RecordIncident" do
       role "Chris"
       goal "Record what happened so it never repeats"
-      reference_to(DirectJsonPost, role: :incident_id)
+      reference_to(DirectJsonPost, as: :incident_id)
       attribute :details, String
       emits "IncidentRecorded"
     end
@@ -91,7 +91,7 @@ Hecks.bluebook "ChrisAntiPatterns" do
     command "RecordIncident" do
       role "Chris"
       goal "Record what happened so it never repeats"
-      reference_to(PrivateMethodAccess, role: :incident_id)
+      reference_to(PrivateMethodAccess, as: :incident_id)
       attribute :details, String
       emits "IncidentRecorded"
     end
@@ -110,7 +110,7 @@ Hecks.bluebook "ChrisAntiPatterns" do
     command "RecordIncident" do
       role "Chris"
       goal "Record what happened so it never repeats"
-      reference_to(McpAttributesBug, role: :incident_id)
+      reference_to(McpAttributesBug, as: :incident_id)
       attribute :details, String
       emits "IncidentRecorded"
     end
@@ -129,7 +129,7 @@ Hecks.bluebook "ChrisAntiPatterns" do
     command "RecordIncident" do
       role "Chris"
       goal "Record what happened so it never repeats"
-      reference_to(PackagingBlindly, role: :incident_id)
+      reference_to(PackagingBlindly, as: :incident_id)
       attribute :details, String
       emits "IncidentRecorded"
     end

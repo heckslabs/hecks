@@ -58,7 +58,7 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
     Integer :patient_capacity
     Integer :range_nm
     String :status
-    reference_to(CrisisEvent) :assigned_crisis
+    reference_to(CrisisEvent, as: :assigned_crisis)
     list_of(MissionLog) :missions
     value_object "MissionLog" do
       String :mission_type
@@ -74,7 +74,7 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
       String :base_location
       Integer :patient_capacity
       Integer :range_nm
-      reference_to(CrisisEvent) :assigned_crisis
+      reference_to(CrisisEvent, as: :assigned_crisis)
       emits "AssetActivated"
       then_set :callsign, to: :callsign
       then_set :aircraft_type, to: :aircraft_type
@@ -201,9 +201,9 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
 
   aggregate "AirspaceDecision", "Airspace routing decision — balances hospital power, bed capacity, and flight range" do
     String :decision_id
-    reference_to(CrisisEvent) :crisis
-    reference_to(FlightAsset) :aircraft
-    reference_to(HospitalStatus) :target_hospital
+    reference_to(CrisisEvent, as: :crisis)
+    reference_to(FlightAsset, as: :aircraft)
+    reference_to(HospitalStatus, as: :target_hospital)
     String :rationale
     String :status
     list_of(ScoringFactor) :factors
@@ -216,9 +216,9 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
       role "System"
       description "Compute optimal hospital-aircraft pairing based on power, beds, and range"
       String :decision_id
-      reference_to(CrisisEvent) :crisis
-      reference_to(FlightAsset) :aircraft
-      reference_to(HospitalStatus) :target_hospital
+      reference_to(CrisisEvent, as: :crisis)
+      reference_to(FlightAsset, as: :aircraft)
+      reference_to(HospitalStatus, as: :target_hospital)
       String :rationale
       emits "DecisionComputed"
       then_set :decision_id, to: :decision_id
@@ -239,7 +239,7 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
 
   aggregate "PatientPriority", "Patient transport priority queue — who flies first based on acuity and hospital match" do
     String :queue_id
-    reference_to(CrisisEvent) :crisis
+    reference_to(CrisisEvent, as: :crisis)
     String :status
     list_of(PriorityEntry) :entries
     value_object "PriorityEntry" do
@@ -253,7 +253,7 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
       role "System"
       description "Open patient priority queue for crisis transport coordination"
       String :queue_id
-      reference_to(CrisisEvent) :crisis
+      reference_to(CrisisEvent, as: :crisis)
       emits "QueueOpened"
       then_set :queue_id, to: :queue_id
       then_set :status, to: "active"

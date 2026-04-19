@@ -205,7 +205,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
     String :protocol_type
     String :trigger_condition
     String :status
-    reference_to(DisasterEvent) :disaster
+    reference_to(DisasterEvent, as: :disaster)
     list_of(ProtocolStep) :steps
 
     value_object "ProtocolStep" do
@@ -222,7 +222,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
       String :protocol_name
       String :protocol_type
       String :trigger_condition
-      reference_to(DisasterEvent) :disaster
+      reference_to(DisasterEvent, as: :disaster)
       emits "ProtocolActivated"
       then_set :protocol_name, to: :protocol_name
       then_set :protocol_type, to: :protocol_type
@@ -257,7 +257,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
   # === CascadeChain ===
 
   aggregate "CascadeChain", "A chain of infrastructure failures — one failure triggers the next in sequence" do
-    reference_to(DisasterEvent) :disaster
+    reference_to(DisasterEvent, as: :disaster)
     String :chain_name
     Integer :cascade_depth
     String :status
@@ -273,7 +273,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
     StartCascade do
       role "System"
       description "Initialize a cascade chain when disaster impacts first infrastructure"
-      reference_to(DisasterEvent) :disaster
+      reference_to(DisasterEvent, as: :disaster)
       String :chain_name
       emits "CascadeStarted"
       then_set :disaster_event, to: :disaster_event
@@ -310,7 +310,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
   # === RecoveryPlan ===
 
   aggregate "RecoveryPlan", "A structured recovery plan — prioritized restoration of infrastructure after disaster" do
-    reference_to(DisasterEvent) :disaster
+    reference_to(DisasterEvent, as: :disaster)
     String :plan_name
     String :status
     Integer :priority_level
@@ -327,7 +327,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
     DraftRecoveryPlan do
       role "EmergencyManager"
       description "Create a prioritized recovery plan after disaster is resolved"
-      reference_to(DisasterEvent) :disaster
+      reference_to(DisasterEvent, as: :disaster)
       String :plan_name
       Integer :priority_level
       emits "RecoveryPlanDrafted"

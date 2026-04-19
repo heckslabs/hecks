@@ -142,15 +142,17 @@ module Hecks
       #   reference_to "LineItem"                        — entity/VO → composition
       #   reference_to "Order"                           — aggregate root → aggregation
       #   reference_to "Billing::Invoice"                — cross-domain → cross-context
-      #   reference_to "Team", role: "home_team"         — named role
+      #   reference_to "Team", as: :home_team            — canonical alias kwarg
+      #   reference_to "Team", role: :home_team          — legacy alias (still works)
       #
-      def reference_to(type, role: nil)
+      def reference_to(type, as: nil, role: nil)
         raise ArgumentError, "reference_to requires a constant, not a string: #{type.inspect}" if type.class == String
         type_str = type.to_s
         parts = type_str.split("::")
         target = parts.last
         domain = parts.length > 1 ? parts[0..-2].join("::") : nil
-        name = (role || target.gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
+        alias_name = as || role
+        name = (alias_name || target.gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
                                .gsub(/([a-z\d])([A-Z])/, '\1_\2').downcase).to_sym
         @references << BluebookModel::Structure::Reference.new(
           name: name, type: target, domain: domain

@@ -91,7 +91,7 @@ Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
       role "Learner"
       description "Learner finishes all modules and passes final assessment"
       reference_to(Course)
-      reference_to(Learner) :learner
+      reference_to(Learner, as: :learner)
       given { status == "active" }
       emits "CourseCompleted"
     end
@@ -114,7 +114,7 @@ Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
     Integer :xp_reward
     String :difficulty
     String :status
-    reference_to(Course) :related_course
+    reference_to(Course, as: :related_course)
     list_of(Objective) :objectives
 
     value_object "Objective" do
@@ -130,7 +130,7 @@ Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
       String :description
       Integer :xp_reward
       String :difficulty
-      reference_to(Course) :related_course
+      reference_to(Course, as: :related_course)
       emits "QuestDesigned"
       then_set :title, to: :title
       then_set :description, to: :description
@@ -144,7 +144,7 @@ Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
       role "Learner"
       description "Learner accepts a quest and begins working on objectives"
       reference_to(Quest)
-      reference_to(Learner) :learner
+      reference_to(Learner, as: :learner)
       given { status == "available" }
       emits "QuestAccepted"
       then_set :status, to: "in_progress"
@@ -173,7 +173,7 @@ Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
     String :description
     String :issuer
     String :credential_hash
-    reference_to(Learner) :holder
+    reference_to(Learner, as: :holder)
     String :status
 
     IssueBadge do
@@ -182,7 +182,7 @@ Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
       String :name
       String :description
       String :issuer
-      reference_to(Learner) :holder
+      reference_to(Learner, as: :holder)
       emits "BadgeIssued"
       then_set :name, to: :name
       then_set :description, to: :description
@@ -212,8 +212,8 @@ Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
   # === ParoleCredit ===
 
   aggregate "ParoleCredit", "Educational credits toward early release — every badge earns parole points" do
-    reference_to(Learner) :learner
-    reference_to(Badge) :badge
+    reference_to(Learner, as: :learner)
+    reference_to(Badge, as: :badge)
     Integer :credits_awarded
     String :approved_by
     String :status
@@ -221,8 +221,8 @@ Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
     AwardParoleCredit do
       role "System"
       description "Award parole credits when a badge is earned"
-      reference_to(Learner) :learner
-      reference_to(Badge) :badge
+      reference_to(Learner, as: :learner)
+      reference_to(Badge, as: :badge)
       Integer :credits_awarded
       emits "ParoleCreditAwarded"
       then_set :learner, to: :learner
@@ -261,7 +261,7 @@ Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
   # === EmployerMatch ===
 
   aggregate "EmployerMatch", "A job match — connecting graduated learners with employers who value their credentials" do
-    reference_to(Learner) :learner
+    reference_to(Learner, as: :learner)
     String :employer_name
     String :position
     String :status
@@ -275,7 +275,7 @@ Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
     MatchEmployer do
       role "System"
       description "Match a learner to employers based on earned badges and skills"
-      reference_to(Learner) :learner
+      reference_to(Learner, as: :learner)
       String :employer_name
       String :position
       emits "EmployerMatched"

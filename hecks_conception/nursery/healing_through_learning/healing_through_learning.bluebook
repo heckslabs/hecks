@@ -89,8 +89,8 @@ Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
 
   aggregate "CookingLab", "A hands-on cooking session — learners practice recipes that address their nutrition targets" do
     String :session_id
-    reference_to(Learner) :learner
-    reference_to(NutritionCurriculum) :curriculum
+    reference_to(Learner, as: :learner)
+    reference_to(NutritionCurriculum, as: :curriculum)
     String :recipe_name
     String :nutrition_focus
     String :status
@@ -104,8 +104,8 @@ Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
       role "Instructor"
       description "Schedule a cooking lab session for a learner"
       String :session_id
-      reference_to(Learner) :learner
-      reference_to(NutritionCurriculum) :curriculum
+      reference_to(Learner, as: :learner)
+      reference_to(NutritionCurriculum, as: :curriculum)
       String :recipe_name
       String :nutrition_focus
       emits "LabScheduled"
@@ -129,7 +129,7 @@ Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
 
   aggregate "HealthMetric", "Clinical health measurements — the 'grades' in this program are blood work and vitals" do
     String :metric_id
-    reference_to(Learner) :learner
+    reference_to(Learner, as: :learner)
     String :metric_type
     Float :baseline_value
     Float :current_value
@@ -144,7 +144,7 @@ Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
       role "Clinician"
       description "Record baseline health metric at enrollment"
       String :metric_id
-      reference_to(Learner) :learner
+      reference_to(Learner, as: :learner)
       String :metric_type
       Float :baseline_value
       emits "BaselineRecorded"
@@ -178,7 +178,7 @@ Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
 
   aggregate "Credential", "A professional credential earned through the program — food handler, nutrition coach" do
     String :credential_id
-    reference_to(Learner) :learner
+    reference_to(Learner, as: :learner)
     String :credential_type
     String :issuing_body
     String :status
@@ -192,7 +192,7 @@ Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
       role "ProgramDirector"
       description "Begin credential pathway for a learner"
       String :credential_id
-      reference_to(Learner) :learner
+      reference_to(Learner, as: :learner)
       String :credential_type
       String :issuing_body
       emits "CredentialInitiated"
@@ -216,7 +216,7 @@ Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
 
   aggregate "RecoveryMilestone", "Cross-domain milestone — connects cooking skill, health improvement, and credential progress" do
     String :milestone_id
-    reference_to(Learner) :learner
+    reference_to(Learner, as: :learner)
     String :milestone_type
     String :description
     String :achieved_date
@@ -230,7 +230,7 @@ Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
       role "CaseManager"
       description "Record a cross-domain recovery milestone"
       String :milestone_id
-      reference_to(Learner) :learner
+      reference_to(Learner, as: :learner)
       String :milestone_type
       String :description
       String :achieved_date

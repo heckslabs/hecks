@@ -10,8 +10,8 @@ Hecks.bluebook "CraftBeverageLab", version: "2026.04.13.1" do
     String :hypothesis
     String :status
     String :conclusion
-    reference_to(YeastCulture) :yeast
-    reference_to(RoastProfile) :roast
+    reference_to(YeastCulture, as: :yeast)
+    reference_to(RoastProfile, as: :roast)
 
     DesignExperiment do
       role "Scientist"
@@ -189,12 +189,12 @@ Hecks.bluebook "CraftBeverageLab", version: "2026.04.13.1" do
     Float :concentration_ppm
     String :source
     String :aroma_descriptor
-    reference_to(Experiment) :experiment
+    reference_to(Experiment, as: :experiment)
 
     AnalyzeFlavorCompounds do
       role "System"
       description "Run chemical analysis to identify flavor compounds in a sample"
-      reference_to(Experiment) :experiment
+      reference_to(Experiment, as: :experiment)
       String :compound_name
       String :chemical_family
       Float :concentration_ppm
@@ -222,7 +222,7 @@ Hecks.bluebook "CraftBeverageLab", version: "2026.04.13.1" do
   aggregate "SensoryPanel", "A blind tasting panel — trained evaluators scoring aroma, flavor, body, finish" do
     String :panel_name
     Integer :panelist_count
-    reference_to(Experiment) :experiment
+    reference_to(Experiment, as: :experiment)
     String :status
     list_of(SensoryScore) :scores
 
@@ -240,7 +240,7 @@ Hecks.bluebook "CraftBeverageLab", version: "2026.04.13.1" do
       description "Assemble a sensory panel for blind evaluation"
       String :panel_name
       Integer :panelist_count
-      reference_to(Experiment) :experiment
+      reference_to(Experiment, as: :experiment)
       emits "SensoryPanelConvened"
       then_set :panel_name, to: :panel_name
       then_set :panelist_count, to: :panelist_count

@@ -49,7 +49,7 @@ Hecks.bluebook "DisasterAutonomy", version: "2026.04.13.1" do
 
   aggregate "SearchFleet", "Autonomous drone fleet for search and rescue — deploys to impact zones" do
     String :fleet_id
-    reference_to(DisasterEvent) :event
+    reference_to(DisasterEvent, as: :event)
     Integer :drone_count
     String :deployment_zone
     String :status
@@ -64,7 +64,7 @@ Hecks.bluebook "DisasterAutonomy", version: "2026.04.13.1" do
       role "System"
       description "Deploy autonomous search drone fleet to disaster zone"
       String :fleet_id
-      reference_to(DisasterEvent) :event
+      reference_to(DisasterEvent, as: :event)
       Integer :drone_count
       String :deployment_zone
       emits "FleetDeployed"
@@ -94,7 +94,7 @@ Hecks.bluebook "DisasterAutonomy", version: "2026.04.13.1" do
 
   aggregate "SupplyDrop", "Autonomous supply delivery — drones or ground robots deliver to survivors" do
     String :drop_id
-    reference_to(DisasterEvent) :event
+    reference_to(DisasterEvent, as: :event)
     String :supply_type
     String :target_location
     String :delivery_method
@@ -109,7 +109,7 @@ Hecks.bluebook "DisasterAutonomy", version: "2026.04.13.1" do
       role "System"
       description "Plan supply delivery to detected survivor location"
       String :drop_id
-      reference_to(DisasterEvent) :event
+      reference_to(DisasterEvent, as: :event)
       String :supply_type
       String :target_location
       String :delivery_method
@@ -134,7 +134,7 @@ Hecks.bluebook "DisasterAutonomy", version: "2026.04.13.1" do
 
   aggregate "GridResponse", "Power grid autonomous response — isolates damage, reroutes power, prioritizes hospitals" do
     String :response_id
-    reference_to(DisasterEvent) :event
+    reference_to(DisasterEvent, as: :event)
     String :grid_sector
     Integer :affected_substations
     String :status
@@ -149,7 +149,7 @@ Hecks.bluebook "DisasterAutonomy", version: "2026.04.13.1" do
       role "System"
       description "Activate autonomous grid damage isolation and rerouting"
       String :response_id
-      reference_to(DisasterEvent) :event
+      reference_to(DisasterEvent, as: :event)
       String :grid_sector
       Integer :affected_substations
       emits "GridResponseActivated"
@@ -179,7 +179,7 @@ Hecks.bluebook "DisasterAutonomy", version: "2026.04.13.1" do
 
   aggregate "AirspaceControl", "Disaster airspace management — clear civilian traffic, authorize rescue drones" do
     String :control_id
-    reference_to(DisasterEvent) :event
+    reference_to(DisasterEvent, as: :event)
     String :restricted_zone
     String :status
     list_of(Authorization) :authorizations
@@ -193,7 +193,7 @@ Hecks.bluebook "DisasterAutonomy", version: "2026.04.13.1" do
       role "AirTrafficController"
       description "Restrict airspace over disaster zone for rescue operations only"
       String :control_id
-      reference_to(DisasterEvent) :event
+      reference_to(DisasterEvent, as: :event)
       String :restricted_zone
       emits "AirspaceRestricted"
       then_set :control_id, to: :control_id
@@ -221,7 +221,7 @@ Hecks.bluebook "DisasterAutonomy", version: "2026.04.13.1" do
 
   aggregate "SurvivorRegistry", "Registry of located survivors — tracks rescue status, medical needs, reunification" do
     String :registry_id
-    reference_to(DisasterEvent) :event
+    reference_to(DisasterEvent, as: :event)
     Integer :total_found
     String :status
     list_of(SurvivorRecord) :survivors
@@ -235,7 +235,7 @@ Hecks.bluebook "DisasterAutonomy", version: "2026.04.13.1" do
       role "System"
       description "Open survivor registry for the disaster event"
       String :registry_id
-      reference_to(DisasterEvent) :event
+      reference_to(DisasterEvent, as: :event)
       emits "RegistryOpened"
       then_set :registry_id, to: :registry_id
       then_set :total_found, to: 0

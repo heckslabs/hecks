@@ -94,7 +94,7 @@ Hecks.behaviors "NaturalDisasterGrid" do
     tests "ActivateEmergencyProtocol", on: "EmergencyProtocol"
     setup  "DeclareDisaster", event_type: "sample", location: "sample", severity: "sample", declared_at: "sample"
     input  protocol_name: "sample", protocol_type: "sample", trigger_condition: "sample"
-    expect protocol_name: "sample", protocol_type: "sample", trigger_condition: "sample", disaster_event: 1, status: "active"
+    expect protocol_name: "sample", protocol_type: "sample", trigger_condition: "sample", disaster_event: :disaster_event, status: "active"
   end
 
   test "ExecuteStep runs" do
@@ -116,7 +116,7 @@ Hecks.behaviors "NaturalDisasterGrid" do
     tests "StartCascade", on: "CascadeChain"
     setup  "DeclareDisaster", event_type: "sample", location: "sample", severity: "sample", declared_at: "sample"
     input  chain_name: "sample"
-    expect disaster_event: 1, chain_name: "sample", cascade_depth: 1, status: "cascading"
+    expect disaster_event: :disaster_event, chain_name: "sample", cascade_depth: 1, status: "cascading"
   end
 
   test "PropagateFailure sets source_system + target_system" do
@@ -139,7 +139,7 @@ Hecks.behaviors "NaturalDisasterGrid" do
     tests "DraftRecoveryPlan", on: "RecoveryPlan"
     setup  "DeclareDisaster", event_type: "sample", location: "sample", severity: "sample", declared_at: "sample"
     input  plan_name: "sample", priority_level: 1
-    expect disaster_event: 1, plan_name: "sample", priority_level: 1, status: "created"
+    expect disaster_event: :disaster_event, plan_name: "sample", priority_level: 1, status: "created"
   end
 
   test "ExecuteRecovery runs" do

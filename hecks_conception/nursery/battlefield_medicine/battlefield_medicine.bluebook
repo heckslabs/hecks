@@ -62,7 +62,7 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
     String :mission_type
     String :current_location
     String :status
-    reference_to(CasualtyReport) :assigned_casualty
+    reference_to(CasualtyReport, as: :assigned_casualty)
     Integer :battery_pct
     list_of(SensorReading) :sensor_log
     value_object "SensorReading" do
@@ -107,8 +107,8 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
 
   aggregate "BloodDrop", "A blood product drop package — matched to casualty blood type, cold chain maintained" do
     String :drop_id
-    reference_to(CasualtyReport) :target_casualty
-    reference_to(MedDrone) :carrier_drone
+    reference_to(CasualtyReport, as: :target_casualty)
+    reference_to(MedDrone, as: :carrier_drone)
     String :blood_type
     Integer :units
     String :cold_chain_status
@@ -158,8 +158,8 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
 
   aggregate "EvacRoute", "A computed evacuation route — avoids active combat, optimizes for casualty urgency" do
     String :route_id
-    reference_to(CasualtyReport) :casualty
-    reference_to(FieldHospital) :destination
+    reference_to(CasualtyReport, as: :casualty)
+    reference_to(FieldHospital, as: :destination)
     String :threat_level
     Integer :distance_km
     Integer :eta_minutes

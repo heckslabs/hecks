@@ -44,7 +44,7 @@ Hecks.bluebook "RegenerativeCommons", version: "2026.04.13.1" do
 
   aggregate "FarmPlot", "A farming plot within the commons — crop rotation, yield tracking, soil health" do
     String :plot_id
-    reference_to(CommonLand) :commons
+    reference_to(CommonLand, as: :commons)
     String :steward_name
     String :current_crop
     String :soil_health_score
@@ -59,7 +59,7 @@ Hecks.bluebook "RegenerativeCommons", version: "2026.04.13.1" do
       role "CommunityBoard"
       description "Assign a farming plot to a community steward"
       String :plot_id
-      reference_to(CommonLand) :commons
+      reference_to(CommonLand, as: :commons)
       String :steward_name
       String :current_crop
       emits "PlotAssigned"
@@ -91,7 +91,7 @@ Hecks.bluebook "RegenerativeCommons", version: "2026.04.13.1" do
 
   aggregate "ConservationZone", "A protected conservation area within the commons — species, corridors, restoration" do
     String :zone_id
-    reference_to(CommonLand) :commons
+    reference_to(CommonLand, as: :commons)
     String :ecosystem_type
     Integer :acres
     String :restoration_status
@@ -106,7 +106,7 @@ Hecks.bluebook "RegenerativeCommons", version: "2026.04.13.1" do
       role "Ecologist"
       description "Designate a conservation zone within the commons"
       String :zone_id
-      reference_to(CommonLand) :commons
+      reference_to(CommonLand, as: :commons)
       String :ecosystem_type
       Integer :acres
       emits "ZoneDesignated"
@@ -139,7 +139,7 @@ Hecks.bluebook "RegenerativeCommons", version: "2026.04.13.1" do
 
   aggregate "HarvestAllocation", "Allocation of harvest yield — community shares, food bank distribution, seed saving" do
     String :allocation_id
-    reference_to(FarmPlot) :source_plot
+    reference_to(FarmPlot, as: :source_plot)
     String :season
     Integer :total_yield_lbs
     String :status
@@ -154,7 +154,7 @@ Hecks.bluebook "RegenerativeCommons", version: "2026.04.13.1" do
       role "CommunityBoard"
       description "Allocate harvest yield across community, food bank, and seed saving"
       String :allocation_id
-      reference_to(FarmPlot) :source_plot
+      reference_to(FarmPlot, as: :source_plot)
       String :season
       Integer :total_yield_lbs
       emits "HarvestAllocated"
@@ -178,8 +178,8 @@ Hecks.bluebook "RegenerativeCommons", version: "2026.04.13.1" do
 
   aggregate "BiodiversitySurvey", "Periodic biodiversity assessment — species count, corridor health, farm-conservation interface" do
     String :survey_id
-    reference_to(ConservationZone) :zone
-    reference_to(FarmPlot) :adjacent_plot
+    reference_to(ConservationZone, as: :zone)
+    reference_to(FarmPlot, as: :adjacent_plot)
     String :survey_date
     String :overall_health
     list_of(SpeciesCount) :counts
@@ -193,8 +193,8 @@ Hecks.bluebook "RegenerativeCommons", version: "2026.04.13.1" do
       role "Ecologist"
       description "Conduct biodiversity survey across conservation and farm interface"
       String :survey_id
-      reference_to(ConservationZone) :zone
-      reference_to(FarmPlot) :adjacent_plot
+      reference_to(ConservationZone, as: :zone)
+      reference_to(FarmPlot, as: :adjacent_plot)
       String :survey_date
       emits "SurveyConducted"
       then_set :survey_id, to: :survey_id
@@ -218,7 +218,7 @@ Hecks.bluebook "RegenerativeCommons", version: "2026.04.13.1" do
   aggregate "CommunityMember", "A member of the commons — stewardship role, shares, participation record" do
     String :member_id
     String :name
-    reference_to(CommonLand) :commons
+    reference_to(CommonLand, as: :commons)
     String :role_type
     String :status
     list_of(Contribution) :contributions
@@ -233,7 +233,7 @@ Hecks.bluebook "RegenerativeCommons", version: "2026.04.13.1" do
       description "Register a new member of the regenerative commons"
       String :member_id
       String :name
-      reference_to(CommonLand) :commons
+      reference_to(CommonLand, as: :commons)
       String :role_type
       emits "MemberRegistered"
       then_set :member_id, to: :member_id

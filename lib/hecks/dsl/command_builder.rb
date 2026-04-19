@@ -256,13 +256,14 @@ module Hecks
       #   existence; true also checks authorization; false skips all validation
       #   (opt-out for cross-context eventual consistency)
       # @return [void]
-      def reference_to(type, role: nil, validate: :exists)
+      def reference_to(type, as: nil, role: nil, validate: :exists)
         raise ArgumentError, "reference_to requires a constant, not a string: #{type.inspect}" if type.class == String && Hecks::DSL::TypeName.match?(type)
         type_str = type.to_s
         parts = type_str.split("::")
         target = parts.last
         domain = parts.length > 1 ? parts[0..-2].join("::") : nil
-        name = (role || target.gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
+        alias_name = as || role
+        name = (alias_name || target.gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
                                .gsub(/([a-z\d])([A-Z])/, '\1_\2').downcase).to_sym
         @references << BluebookModel::Structure::Reference.new(
           name: name, type: target, domain: domain, validate: validate

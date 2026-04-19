@@ -11,7 +11,7 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
     String :triage_level
     String :status
     list_of(Allergy) :allergies
-    reference_to(Flight) :assigned_flight
+    reference_to(Flight, as: :assigned_flight)
 
     value_object "Allergy" do
       String :substance
@@ -38,7 +38,7 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
       role "Dispatcher"
       description "Assign patient to a specific medevac flight"
       reference_to(Patient)
-      reference_to(Flight) :flight
+      reference_to(Flight, as: :flight)
       given { status == "registered" }
       emits "PatientAssignedToFlight"
       then_set :assigned_flight, to: :flight
@@ -129,7 +129,7 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
   # === VitalStream ===
 
   aggregate "VitalStream", "Real-time telemetry from airborne patient monitors — streams vitals to ground" do
-    reference_to(Patient) :patient
+    reference_to(Patient, as: :patient)
     Integer :heart_rate
     Integer :blood_pressure_systolic
     Integer :blood_pressure_diastolic
@@ -148,7 +148,7 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
     StartMonitoring do
       role "FlightMedic"
       description "Begin streaming vitals from airborne patient monitors"
-      reference_to(Patient) :patient
+      reference_to(Patient, as: :patient)
       emits "MonitoringStarted"
       then_set :patient, to: :patient
       then_set :alarm_status, to: "normal"
@@ -182,7 +182,7 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
     String :trauma_level
     Integer :available_beds
     String :status
-    reference_to(Patient) :expected_patient
+    reference_to(Patient, as: :expected_patient)
 
     AssignTraumaBed do
       role "System"
@@ -220,9 +220,9 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
   # === Handoff ===
 
   aggregate "Handoff", "The moment of care transfer — flight medic to ground team, with full vitals history" do
-    reference_to(Patient) :patient
-    reference_to(Flight) :flight
-    reference_to(GroundReceiver) :receiver
+    reference_to(Patient, as: :patient)
+    reference_to(Flight, as: :flight)
+    reference_to(GroundReceiver, as: :receiver)
     String :status
     String :handoff_notes
     list_of(TransferItem) :transfer_checklist
@@ -236,8 +236,8 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
     InitiateHandoff do
       role "FlightMedic"
       description "Begin formal transfer of patient care at landing"
-      reference_to(Patient) :patient
-      reference_to(Flight) :flight
+      reference_to(Patient, as: :patient)
+      reference_to(Flight, as: :flight)
       attribute :receiver, String
       emits "HandoffInitiated"
       then_set :patient, to: :patient
