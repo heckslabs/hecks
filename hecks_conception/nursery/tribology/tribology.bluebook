@@ -582,7 +582,7 @@ Hecks.bluebook "Tribology", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "pending" do
-      transition "RunTest" => "running", from: ["pending", "running", "completed", "reported", "standard"]
+      transition "RunTest" => "running", from: ["pending", "running", "completed", "reported"]
       transition "RecordResult" => "completed", from: "running"
       transition "GenerateReport" => "reported", from: "completed"
     end

@@ -992,7 +992,7 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "pending" do
-      transition "CompleteProof" => "complete", from: ["pending", "in_progress"]
+      transition "CompleteProof" => "complete", from: "pending"
       transition "VerifyProof" => "verified", from: "complete"
     end
   end
