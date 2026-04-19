@@ -136,7 +136,7 @@ Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
       then_set :description, to: :description
       then_set :xp_reward, to: :xp_reward
       then_set :difficulty, to: :difficulty
-      then_set :course, to: :course
+      then_set :related_course, to: :related_course
       then_set :status, to: "available"
     end
 
@@ -187,7 +187,7 @@ Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
       then_set :name, to: :name
       then_set :description, to: :description
       then_set :issuer, to: :issuer
-      then_set :learner, to: :learner
+      then_set :holder, to: :holder
       then_set :status, to: "issued"
     end
 

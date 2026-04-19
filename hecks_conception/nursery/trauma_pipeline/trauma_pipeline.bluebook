@@ -231,7 +231,7 @@ Hecks.bluebook "TraumaPipeline", version: "2026.04.13.1" do
       reference_to(TraumaCall, as: :active_call)
       given { status == "prepared" }
       emits "BayAssignedToCall"
-      then_set :trauma_call, to: :trauma_call
+      then_set :active_call, to: :active_call
       then_set :status, to: "assigned"
     end
 

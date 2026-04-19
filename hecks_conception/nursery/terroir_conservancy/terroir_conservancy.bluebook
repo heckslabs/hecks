@@ -68,7 +68,7 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
       String :mineral_composition
       emits "SoilCharacterized"
       then_set :profile_id, to: :profile_id
-      then_set :protected_terroir, to: :protected_terroir
+      then_set :terroir, to: :terroir
       then_set :soil_type, to: :soil_type
       then_set :ph_level, to: :ph_level
       then_set :mineral_composition, to: :mineral_composition
@@ -111,7 +111,7 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
       then_set :producer_id, to: :producer_id
       then_set :name, to: :name
       then_set :craft_type, to: :craft_type
-      then_set :protected_terroir, to: :protected_terroir
+      then_set :terroir, to: :terroir
       then_set :certification_status, to: "pending"
       then_set :status, to: "active"
     end
@@ -157,7 +157,7 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
       String :season
       emits "SurveyConducted"
       then_set :survey_id, to: :survey_id
-      then_set :protected_terroir, to: :protected_terroir
+      then_set :terroir, to: :terroir
       then_set :survey_date, to: :survey_date
       then_set :season, to: :season
       then_set :overall_diversity, to: "pending"
@@ -198,8 +198,8 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
       Integer :capacity
       emits "ExperienceDesigned"
       then_set :experience_id, to: :experience_id
-      then_set :protected_terroir, to: :protected_terroir
-      then_set :craft_producer, to: :craft_producer
+      then_set :terroir, to: :terroir
+      then_set :host_producer, to: :host_producer
       then_set :experience_type, to: :experience_type
       then_set :capacity, to: :capacity
       then_set :status, to: "available"
@@ -246,9 +246,9 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
       String :vintage_season
       emits "ProfileComposed"
       then_set :profile_id, to: :profile_id
-      then_set :protected_terroir, to: :protected_terroir
-      then_set :soil_profile, to: :soil_profile
-      then_set :craft_producer, to: :craft_producer
+      then_set :terroir, to: :terroir
+      then_set :soil, to: :soil
+      then_set :producer, to: :producer
       then_set :vintage_season, to: :vintage_season
       then_set :overall_character, to: "pending"
     end
