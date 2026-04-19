@@ -190,16 +190,16 @@ Hecks.bluebook "GolfCourse", version: "2026.04.13.1" do
       String :registration_date
     end
 
-    CreateTournament do
+    ScheduleTournament do
       role "EventCoordinator"
-      description "Set up a new golf tournament with format and rules"
+      description "Schedule a new golf tournament with format and rules"
       String :tournament_id
       String :name
       String :format
       String :date
       Integer :max_players
       Float :entry_fee
-      emits "TournamentCreated"
+      emits "TournamentScheduled"
       then_set :tournament_id, to: :tournament_id
       then_set :name, to: :name
       then_set :format, to: :format
@@ -252,7 +252,7 @@ Hecks.bluebook "GolfCourse", version: "2026.04.13.1" do
   end
 
   policy "GroomForTournament" do
-    on "TournamentCreated"
+    on "TournamentScheduled"
     trigger "ScheduleTask"
   end
 

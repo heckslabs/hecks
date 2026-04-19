@@ -38,12 +38,12 @@ Hecks.bluebook "AutoRepairShop" do
       then_set :owner_name, to: :owner_name
     end
 
-    UpdateMileage do
+    LogMileage do
       role "Technician"
       description "Record the current odometer reading during service"
       reference_to(Vehicle)
       Integer :mileage
-      emits "MileageUpdated"
+      emits "MileageLogged"
       then_set :mileage, to: :mileage
     end
   end
@@ -211,11 +211,11 @@ Hecks.bluebook "AutoRepairShop" do
 
   policy "QualityCheckOnCompletion" do
     on "RepairCompleted"
-    trigger "UpdateMileage"
+    trigger "LogMileage"
   end
 
   policy "NotifyOnQualityPass" do
-    on "MileageUpdated"
+    on "MileageLogged"
     trigger "CloseWorkOrder"
   end
 

@@ -34,13 +34,13 @@ Hecks.bluebook "DentalPractice" do
       then_set :status, to: "active"
     end
 
-    UpdateInsurance do
+    RecordInsurance do
       role "Receptionist"
       description "Change the patient's insurance provider or policy number"
       reference_to(Patient)
       String :insurance_provider
       String :policy_number
-      emits "InsuranceUpdated"
+      emits "InsuranceRecorded"
       then_set :insurance_provider, to: :insurance_provider
       then_set :policy_number, to: :policy_number
     end

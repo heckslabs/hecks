@@ -35,12 +35,12 @@ Hecks.bluebook "Dialysis" do
       then_set :status, to: "active"
     end
 
-    UpdateAccessType do
+    ReviseAccess do
       role "Nephrologist"
       description "Change the vascular access method for the patient"
       reference_to(Patient)
       String :access_type
-      emits "AccessTypeUpdated"
+      emits "AccessRevised"
       then_set :access_type, to: :access_type
     end
 

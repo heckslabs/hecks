@@ -305,12 +305,12 @@ Hecks.bluebook "AutonomousRescue", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    UpdateMap do
+    RefreshMap do
       role "System"
       description "Incorporate new scan data into the debris map"
       reference_to(DebrisMap)
       Integer :sectors_mapped
-      emits "MapUpdated"
+      emits "MapRefreshed"
       then_set :sectors_mapped, to: :sectors_mapped
     end
 
@@ -345,14 +345,14 @@ Hecks.bluebook "AutonomousRescue", version: "2026.04.13.1" do
     trigger "MarkBeacon"
   end
 
-  policy "UpdateMapOnDeploy" do
+  policy "RefreshMapOnDeploy" do
     on "DroneDeployed"
     trigger "InitializeMap"
   end
 
-  policy "UpdateMapOnScan" do
+  policy "RefreshMapOnScan" do
     on "SurvivorDetected"
-    trigger "UpdateMap"
+    trigger "RefreshMap"
   end
 
   fixture "RescueMission", incident_name: "Downtown Collapse", incident_type: "structural_failure", location: "42.3601,-71.0589", status: "active", survivors_found: 3

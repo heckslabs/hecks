@@ -153,10 +153,10 @@ Hecks.bluebook "DigitalSignage", version: "2026.04.13.1" do
       emits "SchedulePaused"
     end
 
-    DeleteSchedule do
+    DiscardSchedule do
       description "Permanently remove a schedule"
       reference_to(Schedule)
-      emits "ScheduleDeleted"
+      emits "ScheduleDiscarded"
     end
   end
 
@@ -184,11 +184,11 @@ Hecks.bluebook "DigitalSignage", version: "2026.04.13.1" do
       emits "LocationRegistered"
     end
 
-    UpdateContact do
+    ReassignContact do
       description "Change the on-site contact for a location"
       reference_to(Location)
       String :contact_name
-      emits "ContactUpdated"
+      emits "ContactReassigned"
     end
 
     DeactivateLocation do

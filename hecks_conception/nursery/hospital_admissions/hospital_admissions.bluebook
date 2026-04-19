@@ -95,11 +95,11 @@ Hecks.bluebook "HospitalAdmissions", version: "2026.04.13.1" do
     list_of(String) :follow_up_appointments
     String :status
 
-    CreateDischargePlan do
+    DraftDischargePlan do
       description "Begin planning a patient's safe exit from the hospital"
       String :patient_name
       String :discharge_date
-      emits "DischargePlanCreated"
+      emits "DischargePlanDrafted"
     end
 
     ApproveDischargePlan do
@@ -116,7 +116,7 @@ Hecks.bluebook "HospitalAdmissions", version: "2026.04.13.1" do
     end
   end
 
-  # Workflow: Register → Triage → AssignBed → RecordDiagnosis → CreateDischargePlan → ApproveDischargePlan → DischargePatient → ReleaseBed
+  # Workflow: Register → Triage → AssignBed → RecordDiagnosis → DraftDischargePlan → ApproveDischargePlan → DischargePatient → ReleaseBed
   policy "TriageOnRegistration" do
     on "PatientRegistered"
     trigger "TriagePatient"
@@ -134,11 +134,11 @@ Hecks.bluebook "HospitalAdmissions", version: "2026.04.13.1" do
 
   policy "PlanOnDiagnosis" do
     on "DiagnosisRecorded"
-    trigger "CreateDischargePlan"
+    trigger "DraftDischargePlan"
   end
 
   policy "ApproveOnPlanCreation" do
-    on "DischargePlanCreated"
+    on "DischargePlanDrafted"
     trigger "ApproveDischargePlan"
   end
 

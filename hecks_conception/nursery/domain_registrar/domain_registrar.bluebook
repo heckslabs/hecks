@@ -133,7 +133,7 @@ Hecks.bluebook "DomainRegistrar", version: "2026.04.13.1" do
       String :changed_by
     end
 
-    CreateDNSRecord do
+    PublishDNSRecord do
       role "Customer"
       description "Add a DNS record to a managed domain"
       String :record_id
@@ -142,22 +142,22 @@ Hecks.bluebook "DomainRegistrar", version: "2026.04.13.1" do
       String :value
       Integer :ttl
       reference_to(DomainName)
-      emits "DNSRecordCreated"
+      emits "DNSRecordPublished"
     end
 
-    UpdateDNSRecord do
+    ReviseDNSRecord do
       description "Modify the value or TTL of a DNS record"
       reference_to(DNSRecord)
       String :value
       Integer :ttl
-      emits "DNSRecordUpdated"
+      emits "DNSRecordRevised"
     end
 
-    DeleteDNSRecord do
+    RetireDNSRecord do
       description "Remove a DNS record from the zone"
       reference_to(DNSRecord)
       given("record is active") { status == "active" }
-      emits "DNSRecordDeleted"
+      emits "DNSRecordRetired"
     end
   end
 
@@ -226,9 +226,9 @@ Hecks.bluebook "DomainRegistrar", version: "2026.04.13.1" do
     trigger "ActivatePrivacy"
   end
 
-  policy "RegisteredCreateDNS" do
+  policy "RegisteredPublishDNS" do
     on "DomainRegistered"
-    trigger "CreateDNSRecord"
+    trigger "PublishDNSRecord"
   end
 
   policy "LockedAutoRenew" do

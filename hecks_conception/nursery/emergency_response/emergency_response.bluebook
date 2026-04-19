@@ -100,12 +100,12 @@ Hecks.bluebook "EmergencyResponse", version: "2026.04.13.1" do
       then_set :scene_address, to: :scene_address
       then_set :hospital_name, to: :hospital_name
     end
-    UpdateETA do
+    ReviseETA do
       role "System"
       description "Update estimated arrival time based on traffic conditions"
       reference_to(Route)
       Float :eta_minutes
-      emits "ETAUpdated"
+      emits "ETARevised"
       then_set :eta_minutes, to: :eta_minutes
     end
   end

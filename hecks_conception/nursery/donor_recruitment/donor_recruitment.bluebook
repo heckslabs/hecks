@@ -8,14 +8,14 @@ Hecks.bluebook "DonorRecruitment", version: "2026.04.13.1" do
     Integer :units_available
     Integer :min_threshold
     String :status
-    UpdateStock do
+    RecordStock do
       role "LabTech"
       description "Update blood inventory after collection or shipment"
       String :center_id
       String :blood_type
       Integer :units_available
       Integer :min_threshold
-      emits "StockUpdated"
+      emits "StockRecorded"
       then_set :center_id, to: :center_id
       then_set :blood_type, to: :blood_type
       then_set :units_available, to: :units_available

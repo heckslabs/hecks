@@ -68,12 +68,12 @@ Hecks.bluebook "FreelanceMarketplace", version: "2026.04.13.1" do
       emits "FreelancerRegistered"
     end
 
-    UpdateProfile do
+    ReviseProfile do
       description "Modify headline, rate, or portfolio"
       reference_to(Freelancer)
       String :headline
       Float :hourly_rate
-      emits "ProfileUpdated"
+      emits "ProfileRevised"
     end
 
     SuspendFreelancer do
@@ -143,7 +143,7 @@ Hecks.bluebook "FreelanceMarketplace", version: "2026.04.13.1" do
       String :status
     end
 
-    CreateContract do
+    SignContract do
       role "Client"
       description "Formalize a contract after accepting a proposal"
       String :contract_id
@@ -152,7 +152,7 @@ Hecks.bluebook "FreelanceMarketplace", version: "2026.04.13.1" do
       String :end_date
       reference_to(Gig)
       reference_to(Freelancer)
-      emits "ContractCreated"
+      emits "ContractSigned"
     end
 
     CompleteMilestone do
@@ -219,8 +219,8 @@ Hecks.bluebook "FreelanceMarketplace", version: "2026.04.13.1" do
 
     transition from: "posted", to: "bidding", on: "ProposalSubmitted"
     transition from: "bidding", to: "awarded", on: "ProposalAccepted"
-    transition from: "awarded", to: "contracted", on: "ContractCreated"
-    transition from: "contracted", to: "in_progress", on: "ContractCreated"
+    transition from: "awarded", to: "contracted", on: "ContractSigned"
+    transition from: "contracted", to: "in_progress", on: "ContractSigned"
     transition from: "in_progress", to: "milestone_delivered", on: "MilestoneCompleted"
     transition from: "milestone_delivered", to: "paid", on: "PaymentReleased"
   end
@@ -230,13 +230,13 @@ Hecks.bluebook "FreelanceMarketplace", version: "2026.04.13.1" do
     trigger "SubmitProposal"
   end
 
-  policy "ProposalAcceptedCreateContract" do
+  policy "ProposalAcceptedSignContract" do
     on "ProposalAccepted"
-    trigger "CreateContract"
+    trigger "SignContract"
   end
 
-  policy "ContractCreatedHoldPayment" do
-    on "ContractCreated"
+  policy "ContractSignedHoldPayment" do
+    on "ContractSigned"
     trigger "HoldPayment"
   end
 

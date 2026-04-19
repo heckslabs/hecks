@@ -76,13 +76,13 @@ Hecks.bluebook "GenomicsInfra", version: "2026.04.13.1" do
       Float :cost_per_tb
       String :access_speed
     end
-    CreateStore do
+    ProvisionStore do
       role "InfraAdmin"
-      description "Create a genomic data storage bucket"
+      description "Provision a genomic data storage bucket"
       String :store_id
       String :cluster_id
       Float :quota_tb
-      emits "StoreCreated"
+      emits "StoreProvisioned"
       then_set :store_id, to: :store_id
       then_set :cluster_id, to: :cluster_id
       then_set :quota_tb, to: :quota_tb

@@ -25,12 +25,12 @@ Hecks.bluebook "HospitalPower", version: "2026.04.13.1" do
       then_set :power_load_kw, to: :power_load_kw
       then_set :status, to: "active"
     end
-    UpdateLoad do
+    MeasureLoad do
       role "Engineer"
       description "Update the current power load for the area"
       reference_to(PatientArea)
       Float :power_load_kw
-      emits "LoadUpdated"
+      emits "LoadMeasured"
       then_set :power_load_kw, to: :power_load_kw
     end
   end
@@ -147,7 +147,7 @@ Hecks.bluebook "HospitalPower", version: "2026.04.13.1" do
     trigger "StartGenerator"
   end
   policy "ShedOnLoad" do
-    on "LoadUpdated"
+    on "LoadMeasured"
     trigger "ActivateShedding"
   end
 

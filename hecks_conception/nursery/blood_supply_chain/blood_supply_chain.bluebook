@@ -120,14 +120,14 @@ Hecks.bluebook "BloodSupplyChain", version: "2026.04.13.1" do
     String :blood_type
     Integer :units_available
     String :oldest_expiry
-    UpdateInventory do
+    AdjustInventory do
       role "System"
-      description "Update blood inventory counts after donation or shipment"
+      description "Adjust blood inventory counts after donation or shipment"
       String :facility_name
       String :blood_type
       Integer :units_available
       String :oldest_expiry
-      emits "InventoryUpdated"
+      emits "InventoryAdjusted"
       then_set :facility_name, to: :facility_name
       then_set :blood_type, to: :blood_type
       then_set :units_available, to: :units_available
@@ -144,15 +144,15 @@ Hecks.bluebook "BloodSupplyChain", version: "2026.04.13.1" do
 
   policy "StoreOnTest" do
     on "DonationTested"
-    trigger "UpdateInventory"
+    trigger "AdjustInventory"
   end
   policy "FlagOnBreach" do
     on "TemperatureLogged"
     trigger "FlagBreach"
   end
-  policy "UpdateOnDelivery" do
+  policy "AdjustOnDelivery" do
     on "DeliveryConfirmed"
-    trigger "UpdateInventory"
+    trigger "AdjustInventory"
   end
 
   fixture "Donation", donation_id: "DON-2026-04-001", donor_name: "Maria Garcia", blood_type: "O negative", volume_ml: 450.0, collection_date: "2026-04-12", status: "tested"

@@ -136,12 +136,12 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
       then_set :accessibility, to: :accessibility
       then_set :status, to: "reported"
     end
-    UpdatePowerStatus do
+    ReportPowerStatus do
       role "System"
-      description "Update hospital power status from grid telemetry"
+      description "Report hospital power status from grid telemetry"
       reference_to(HospitalStatus)
       String :power_status
-      emits "PowerStatusUpdated"
+      emits "PowerStatusReported"
       then_set :power_status, to: :power_status
     end
     MarkInaccessible do
@@ -299,7 +299,7 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
   end
   policy "UpdateHospitalPowerOnGrid" do
     on "GridStatusReported"
-    trigger "UpdatePowerStatus"
+    trigger "ReportPowerStatus"
   end
   policy "ComputeDecisionOnStatus" do
     on "HospitalStatusReported"

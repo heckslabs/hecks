@@ -76,11 +76,11 @@ Hecks.bluebook "GymReservations", version: "2026.04.13.1" do
       emits "TrainerRegistered"
     end
 
-    UpdateAvailability do
-      description "Set which days a trainer can teach"
+    PublishAvailability do
+      description "Publish which days a trainer can teach"
       reference_to(Trainer)
       list_of(String) :available_days
-      emits "AvailabilityUpdated"
+      emits "AvailabilityPublished"
     end
   end
 
@@ -112,7 +112,7 @@ Hecks.bluebook "GymReservations", version: "2026.04.13.1" do
 
   policy "UpdateCapacityOnReserve" do
     on "SpotReserved"
-    trigger "UpdateAvailability"
+    trigger "PublishAvailability"
   end
 
   fixture "ClassSchedule", class_name: "Morning Yoga", day_of_week: "Monday", time_slot: "6:00 AM", trainer_name: "Emma Wilson", room: "Studio A", capacity: 20, enrolled: 18

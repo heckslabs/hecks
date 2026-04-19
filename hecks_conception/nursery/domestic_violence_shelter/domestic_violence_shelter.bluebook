@@ -58,7 +58,7 @@ Hecks.bluebook "DomesticViolenceShelter" do
       Integer :priority
     end
 
-    CreateSafetyPlan do
+    DraftSafetyPlan do
       role "Advocate"
       description "Develop a personalized safety plan with the resident"
       reference_to(Resident)
@@ -66,7 +66,7 @@ Hecks.bluebook "DomesticViolenceShelter" do
       String :created_date
       String :emergency_contacts
       String :escape_route
-      emits "SafetyPlanCreated"
+      emits "SafetyPlanDrafted"
       then_set :resident_alias, to: :resident_alias
       then_set :created_date, to: :created_date
       then_set :emergency_contacts, to: :emergency_contacts
@@ -177,7 +177,7 @@ Hecks.bluebook "DomesticViolenceShelter" do
       String :completed
     end
 
-    CreateExitPlan do
+    DraftExitPlan do
       role "CaseManager"
       description "Develop a safe exit and rehousing plan for the resident"
       reference_to(Resident)
@@ -185,7 +185,7 @@ Hecks.bluebook "DomesticViolenceShelter" do
       String :target_exit_date
       String :housing_arrangement
       String :employment_status
-      emits "ExitPlanCreated"
+      emits "ExitPlanDrafted"
       then_set :resident_alias, to: :resident_alias
       then_set :target_exit_date, to: :target_exit_date
       then_set :housing_arrangement, to: :housing_arrangement
@@ -217,13 +217,13 @@ Hecks.bluebook "DomesticViolenceShelter" do
     trigger "AssignResident"
   end
 
-  policy "CreateSafetyPlanOnAdmit" do
+  policy "DraftSafetyPlanOnAdmit" do
     on "ResidentAdmitted"
-    trigger "CreateSafetyPlan"
+    trigger "DraftSafetyPlan"
   end
 
   policy "ReferToServiceOnSafetyPlan" do
-    on "SafetyPlanCreated"
+    on "SafetyPlanDrafted"
     trigger "ReferToService"
   end
 
@@ -232,9 +232,9 @@ Hecks.bluebook "DomesticViolenceShelter" do
     trigger "ReassessRisk"
   end
 
-  policy "CreateExitPlanOnReassessment" do
+  policy "DraftExitPlanOnReassessment" do
     on "RiskReassessed"
-    trigger "CreateExitPlan"
+    trigger "DraftExitPlan"
   end
 
   policy "TransitionOnExit" do
@@ -253,7 +253,7 @@ Hecks.bluebook "DomesticViolenceShelter" do
   end
 
   policy "CompleteExitTaskOnExitPlan" do
-    on "ExitPlanCreated"
+    on "ExitPlanDrafted"
     trigger "CompleteExitTask"
   end
 

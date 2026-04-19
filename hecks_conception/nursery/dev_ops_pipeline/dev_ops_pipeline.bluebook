@@ -26,11 +26,11 @@ Hecks.bluebook "DevOpsPipeline", version: "2026.04.13.1" do
       emits "RepositoryRegistered"
     end
 
-    UpdateBranch do
+    RetargetBranch do
       description "Change the default branch tracked for builds"
       reference_to(Repository)
       String :default_branch
-      emits "BranchUpdated"
+      emits "BranchRetargeted"
     end
 
     DisconnectRepository do

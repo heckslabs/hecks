@@ -17,7 +17,7 @@ Hecks.bluebook "ELearning", version: "2026.04.13.1" do
       Integer :lesson_count
     end
 
-    CreateCourse do
+    AuthorCourse do
       role "Instructor"
       description "Author a new course with subject matter and difficulty"
       String :course_title
@@ -25,7 +25,7 @@ Hecks.bluebook "ELearning", version: "2026.04.13.1" do
       String :subject_area
       String :difficulty_level
       Integer :estimated_hours
-      emits "CourseCreated"
+      emits "CourseAuthored"
     end
 
     PublishCourse do
@@ -65,11 +65,11 @@ Hecks.bluebook "ELearning", version: "2026.04.13.1" do
       emits "StudentEnrolled"
     end
 
-    UpdateProgress do
+    RecordProgress do
       description "Record advancement through course material"
       reference_to(Enrollment)
       Float :progress_pct
-      emits "ProgressUpdated"
+      emits "ProgressRecorded"
     end
 
     WithdrawEnrollment do
@@ -107,11 +107,11 @@ Hecks.bluebook "ELearning", version: "2026.04.13.1" do
       emits "LessonAuthored"
     end
 
-    UpdateLesson do
+    ReviseLesson do
       description "Revise the content of an existing lesson"
       reference_to(Lesson)
       String :body
-      emits "LessonUpdated"
+      emits "LessonRevised"
     end
 
     ArchiveLesson do
@@ -137,7 +137,7 @@ Hecks.bluebook "ELearning", version: "2026.04.13.1" do
       Integer :points
     end
 
-    CreateQuiz do
+    AuthorQuiz do
       role "Instructor"
       description "Design a quiz with questions and passing criteria"
       String :quiz_title
@@ -145,7 +145,7 @@ Hecks.bluebook "ELearning", version: "2026.04.13.1" do
       Integer :time_limit_minutes
       Integer :max_attempts
       reference_to(Lesson)
-      emits "QuizCreated"
+      emits "QuizAuthored"
     end
 
     SubmitAttempt do
@@ -214,34 +214,34 @@ Hecks.bluebook "ELearning", version: "2026.04.13.1" do
     state "certified"
 
     transition from: "enrolled", to: "in_progress", on: "StudentEnrolled"
-    transition from: "in_progress", to: "lesson_complete", on: "ProgressUpdated"
+    transition from: "in_progress", to: "lesson_complete", on: "ProgressRecorded"
     transition from: "lesson_complete", to: "quiz_submitted", on: "AttemptSubmitted"
     transition from: "quiz_submitted", to: "graded", on: "AttemptSubmitted"
     transition from: "graded", to: "certified", on: "CertificateIssued"
   end
 
-  policy "StudentEnrolledUpdateProgress" do
+  policy "StudentEnrolledRecordProgress" do
     on "StudentEnrolled"
-    trigger "UpdateProgress"
+    trigger "RecordProgress"
   end
 
-  policy "LessonAuthoredCreateQuiz" do
+  policy "LessonAuthoredAuthorQuiz" do
     on "LessonAuthored"
-    trigger "CreateQuiz"
+    trigger "AuthorQuiz"
   end
 
-  policy "ProgressUpdatedSubmitAttempt" do
-    on "ProgressUpdated"
+  policy "ProgressRecordedSubmitAttempt" do
+    on "ProgressRecorded"
     trigger "SubmitAttempt"
   end
 
   policy "AttemptSubmittedGrade" do
     on "AttemptSubmitted"
-    trigger "UpdateProgress"
+    trigger "RecordProgress"
   end
 
   policy "CourseCompletedIssueCertificate" do
-    on "ProgressUpdated"
+    on "ProgressRecorded"
     trigger "IssueCertificate"
   end
 

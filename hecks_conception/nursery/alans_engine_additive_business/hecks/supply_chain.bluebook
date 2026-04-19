@@ -302,11 +302,11 @@ Hecks.bluebook "SupplyChain", version: "2026.04.11.1" do
       emits "UnitCostCalculated"
     end
 
-    UpdateBOM do
+    ReviseBOM do
       role "Formulator"
       description "Revise the BOM when formula or suppliers change"
       reference_to(BillOfMaterials)
-      emits "BOMUpdated"
+      emits "BOMRevised"
     end
   end
 

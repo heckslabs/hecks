@@ -16,7 +16,7 @@ Hecks.bluebook "IceCreamParlor", version: "2026.04.13.1" do
       String :intensity
     end
 
-    CreateFlavor do
+    ConcoctFlavor do
       role "Chef"
       description "Design a new ice cream flavor with its recipe profile"
       String :flavor_id
@@ -24,7 +24,7 @@ Hecks.bluebook "IceCreamParlor", version: "2026.04.13.1" do
       String :base
       String :description
       String :dairy_free
-      emits "FlavorCreated"
+      emits "FlavorConcocted"
       then_set :flavor_id, to: :flavor_id
       then_set :name, to: :name
       then_set :base, to: :base
@@ -182,7 +182,7 @@ Hecks.bluebook "IceCreamParlor", version: "2026.04.13.1" do
   # Workflow: Create flavor → Churn batch → Announce special → Prepare serving → Hand off → Deplete → Rechurn → Reorder toppings
 
   policy "ChurnOnCreate" do
-    on "FlavorCreated"
+    on "FlavorConcocted"
     trigger "ChurnBatch"
   end
 

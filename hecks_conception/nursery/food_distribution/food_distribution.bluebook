@@ -132,12 +132,12 @@ Hecks.bluebook "FoodDistribution", version: "2026.04.13.1" do
       then_set :families_served, to: :families_served
       then_set :status, to: "active"
     end
-    UpdateServed do
+    RecordServed do
       role "Manager"
       description "Update the number of families served by this agency"
       reference_to(RecipientAgency)
       Integer :families_served
-      emits "ServedUpdated"
+      emits "ServedRecorded"
       then_set :families_served, to: :families_served
     end
   end

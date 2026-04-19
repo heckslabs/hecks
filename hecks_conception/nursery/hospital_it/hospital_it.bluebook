@@ -16,13 +16,13 @@ Hecks.bluebook "HospitalIT", version: "2026.04.13.1" do
       String :timestamp
     end
 
-    CreateRecord do
+    OpenRecord do
       role "Registrar"
       description "Register a new patient record in the electronic health system"
       String :medical_record_number
       String :patient_name
       String :department
-      emits "RecordCreated"
+      emits "RecordOpened"
       then_set :medical_record_number, to: :medical_record_number
       then_set :patient_name, to: :patient_name
       then_set :department, to: :department

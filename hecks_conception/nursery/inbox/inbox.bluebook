@@ -57,6 +57,16 @@ Hecks.bluebook "Inbox", version: "2026.04.11.1" do
     Integer :queued_count
     String :oldest_priority
 
+    OpenInbox do
+      role "System"
+      description "Bring the inbox into existence so messages have a home"
+      Integer :queued_count
+      String :oldest_priority
+      emits "InboxOpened"
+      then_set :queued_count, to: :queued_count
+      then_set :oldest_priority, to: :oldest_priority
+    end
+
     DrainInbox do
       role "Miette"
       description "Process all queued messages in priority order"
@@ -64,13 +74,13 @@ Hecks.bluebook "Inbox", version: "2026.04.11.1" do
       emits "InboxDrained"
     end
 
-    UpdateCounts do
+    Tally do
       role "System"
       description "Recalculate queued count and oldest priority"
       reference_to(Inbox)
       Integer :queued_count
       String :oldest_priority
-      emits "CountsUpdated"
+      emits "Tallied"
       then_set :queued_count, to: :queued_count
       then_set :oldest_priority, to: :oldest_priority
     end
@@ -78,17 +88,17 @@ Hecks.bluebook "Inbox", version: "2026.04.11.1" do
 
   policy "CountOnPost" do
     on "MessagePosted"
-    trigger "UpdateCounts"
+    trigger "Tally"
   end
 
   policy "CountOnAcknowledge" do
     on "MessageAcknowledged"
-    trigger "UpdateCounts"
+    trigger "Tally"
   end
 
   policy "CountOnDone" do
     on "MessageActedOn"
-    trigger "UpdateCounts"
+    trigger "Tally"
   end
 
   fixture "Message", body: "Review new domain design for Autumn", priority: "high", posted_at: "2026-04-14T09:15:00Z", status: "queued"

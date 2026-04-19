@@ -82,11 +82,11 @@ Hecks.bluebook "GroceryStore", version: "2026.04.13.1" do
       then_set :shelf_count, to: :shelf_count
     end
 
-    UpdatePlanogram do
+    RevisePlanogram do
       role "Manager"
       description "Rearrange product placement within the aisle"
       reference_to(Aisle)
-      emits "PlanogramUpdated"
+      emits "PlanogramRevised"
     end
   end
 
@@ -203,7 +203,7 @@ Hecks.bluebook "GroceryStore", version: "2026.04.13.1" do
 
   policy "PlanogramOnStock" do
     on "ProductStocked"
-    trigger "UpdatePlanogram"
+    trigger "RevisePlanogram"
   end
 
   policy "PromoteOnStock" do

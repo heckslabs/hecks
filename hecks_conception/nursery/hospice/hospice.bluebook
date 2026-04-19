@@ -58,14 +58,14 @@ Hecks.bluebook "Hospice" do
       Integer :effectiveness_score
     end
 
-    CreateComfortPlan do
+    DraftComfortPlan do
       role "Nurse"
       description "Design a comfort-focused care plan for the patient"
       reference_to(Patient)
       String :patient_name
       String :pain_management_approach
       String :spiritual_preferences
-      emits "ComfortPlanCreated"
+      emits "ComfortPlanDrafted"
       then_set :patient_name, to: :patient_name
       then_set :pain_management_approach, to: :pain_management_approach
       then_set :spiritual_preferences, to: :spiritual_preferences
@@ -217,14 +217,14 @@ Hecks.bluebook "Hospice" do
     end
   end
 
-  # Workflow: Admit → CreateComfortPlan → PrescribeMedication → RegisterFamily → ScheduleVisit → CompleteVisit → AdjustPain → TitrateDosage → Recertify → RecordPassing → BeginBereavement
-  policy "CreateComfortPlanOnAdmission" do
+  # Workflow: Admit → DraftComfortPlan → PrescribeMedication → RegisterFamily → ScheduleVisit → CompleteVisit → AdjustPain → TitrateDosage → Recertify → RecordPassing → BeginBereavement
+  policy "DraftComfortPlanOnAdmission" do
     on "PatientAdmittedToHospice"
-    trigger "CreateComfortPlan"
+    trigger "DraftComfortPlan"
   end
 
   policy "PrescribeMedicationOnComfortPlan" do
-    on "ComfortPlanCreated"
+    on "ComfortPlanDrafted"
     trigger "PrescribeHospiceMedication"
   end
 
@@ -234,7 +234,7 @@ Hecks.bluebook "Hospice" do
   end
 
   policy "ScheduleVisitOnComfortPlan" do
-    on "ComfortPlanCreated"
+    on "ComfortPlanDrafted"
     trigger "ScheduleHospiceVisit"
   end
 

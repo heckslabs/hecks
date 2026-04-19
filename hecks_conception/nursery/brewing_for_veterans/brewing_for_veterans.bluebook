@@ -263,15 +263,15 @@ Hecks.bluebook "BrewingForVeterans", version: "2026.04.13.1" do
       String :achieved_date
       String :notes
     end
-    CreatePath do
+    ChartPath do
       role "ProgramDirector"
-      description "Create post-graduation pathway for a veteran"
+      description "Chart post-graduation pathway for a veteran"
       String :path_id
       reference_to(VeteranApprentice) :graduate
       String :employment_goal
       String :housing_transition
       String :mentor_name
-      emits "PathCreated"
+      emits "PathCharted"
       then_set :path_id, to: :path_id
       then_set :graduate, to: :graduate
       then_set :employment_goal, to: :employment_goal
@@ -318,9 +318,9 @@ Hecks.bluebook "BrewingForVeterans", version: "2026.04.13.1" do
     on "SaleRecorded"
     trigger "AllocateRevenue"
   end
-  policy "CreatePathOnGraduate" do
+  policy "ChartPathOnGraduate" do
     on "ApprenticeGraduated"
-    trigger "CreatePath"
+    trigger "ChartPath"
   end
   policy "ReleaseHousingOnGraduate" do
     on "ApprenticeGraduated"

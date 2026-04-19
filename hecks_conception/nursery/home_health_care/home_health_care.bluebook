@@ -81,12 +81,12 @@ Hecks.bluebook "HomeHealthCare" do
       then_set :max_visits_per_day, to: :max_visits_per_day
     end
 
-    UpdateAvailability do
+    Reschedule do
       role "Caregiver"
       description "Change the caregiver's schedule availability"
       reference_to(Caregiver)
       String :availability
-      emits "AvailabilityUpdated"
+      emits "Rescheduled"
       then_set :availability, to: :availability
     end
   end

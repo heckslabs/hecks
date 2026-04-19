@@ -87,13 +87,13 @@ Hecks.bluebook "GeriatricPharmacy", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    UpdateRenalFunction do
+    ReconcileRenalFunction do
       role "Physician"
-      description "Update kidney function lab results"
+      description "Reconcile kidney function lab results"
       reference_to(Resident)
       Float :creatinine_clearance_ml_min
       given { status == "active" }
-      emits "RenalFunctionUpdated"
+      emits "RenalFunctionReconciled"
       then_set :creatinine_clearance_ml_min, to: :creatinine_clearance_ml_min
     end
 
@@ -217,16 +217,16 @@ Hecks.bluebook "GeriatricPharmacy", version: "2026.04.13.1" do
       String :timestamp
     end
 
-    CreateMonitoringPlan do
+    EstablishMonitoringPlan do
       role "Pharmacist"
-      description "Create therapeutic monitoring plan for a medication"
+      description "Establish therapeutic monitoring plan for a medication"
       String :resident_name
       String :medication_name
       Float :target_trough_ng_ml
       Float :target_peak_ng_ml
       Float :toxicity_threshold_ng_ml
       String :monitoring_frequency
-      emits "MonitoringPlanCreated"
+      emits "MonitoringPlanEstablished"
       then_set :resident_name, to: :resident_name
       then_set :medication_name, to: :medication_name
       then_set :target_trough_ng_ml, to: :target_trough_ng_ml
@@ -254,7 +254,7 @@ Hecks.bluebook "GeriatricPharmacy", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "pending" do
-      transition "CreateMonitoringPlan" => "active", from: "pending"
+      transition "EstablishMonitoringPlan" => "active", from: "pending"
       transition "FlagToxicity" => "alert", from: "active"
     end
   end
@@ -276,7 +276,7 @@ Hecks.bluebook "GeriatricPharmacy", version: "2026.04.13.1" do
 
   policy "MonitorOnApprove" do
     on "DoseApproved"
-    trigger "CreateMonitoringPlan"
+    trigger "EstablishMonitoringPlan"
   end
 
   policy "FlagToxicityOnLevel" do
@@ -285,7 +285,7 @@ Hecks.bluebook "GeriatricPharmacy", version: "2026.04.13.1" do
   end
 
   policy "RecalcOnRenalUpdate" do
-    on "RenalFunctionUpdated"
+    on "RenalFunctionReconciled"
     trigger "CalculateDose"
   end
 

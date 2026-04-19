@@ -11,12 +11,12 @@ Hecks.bluebook "Heki", version: "2026.04.11.2" do
     Integer :version
     String :status
 
-    CreateStore do
+    OpenStore do
       role "Miette"
-      description "Create a new .heki store on disk"
+      description "Open a new .heki store on disk"
       String :name
       String :path
-      emits "StoreCreated"
+      emits "StoreOpened"
       then_set :name, to: :name
       then_set :path, to: :path
       then_set :record_count, to: 0
@@ -44,7 +44,7 @@ Hecks.bluebook "Heki", version: "2026.04.11.2" do
     end
 
     lifecycle :status, default: "empty" do
-      transition "CreateStore" => "empty", from: "pending"
+      transition "OpenStore" => "empty", from: "pending"
       transition "AppendRecord" => "active", from: "empty"
       transition "UpsertSingleton" => "active", from: "empty"
     end
@@ -80,11 +80,11 @@ Hecks.bluebook "Heki", version: "2026.04.11.2" do
       emits "RecordRead"
     end
 
-    DeleteRecord do
+    ForgetRecord do
       role "Miette"
-      description "Remove a record from a store"
+      description "Forget a record from a store"
       reference_to(Record)
-      emits "RecordDeleted"
+      emits "RecordForgotten"
     end
   end
 

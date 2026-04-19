@@ -94,13 +94,13 @@ Hecks.bluebook "ChiroQuality", version: "2026.04.13.1" do
       then_set :effect_size, to: :effect_size
       then_set :evidence_level, to: :evidence_level
     end
-    UpdateEvidence do
+    AmendEvidence do
       role "Researcher"
-      description "Update evidence with new study data"
+      description "Amend evidence with new study data"
       reference_to(EvidenceRecord)
       Float :effect_size
       Integer :sample_size
-      emits "EvidenceUpdated"
+      emits "EvidenceAmended"
       then_set :effect_size, to: :effect_size
       then_set :sample_size, to: :sample_size
     end

@@ -13,23 +13,23 @@ Hecks.bluebook "HealingGarden", version: "2026.04.13.1" do
       String :frequency
       String :notes
     end
-    CreateComfortPlan do
+    DraftComfortPlan do
       role "Nurse"
-      description "Create a comfort care plan for a hospice patient"
+      description "Draft a comfort care plan for a hospice patient"
       String :plan_id
       String :patient_name
       String :primary_nurse
-      emits "ComfortPlanCreated"
+      emits "ComfortPlanDrafted"
       then_set :plan_id, to: :plan_id
       then_set :patient_name, to: :patient_name
       then_set :primary_nurse, to: :primary_nurse
       then_set :status, to: "active"
     end
-    UpdatePlan do
+    TendPlan do
       role "Nurse"
-      description "Update the comfort plan based on patient needs"
+      description "Tend the comfort plan based on patient needs"
       reference_to(ComfortPlan)
-      emits "PlanUpdated"
+      emits "PlanTended"
     end
   end
 
@@ -138,9 +138,9 @@ Hecks.bluebook "HealingGarden", version: "2026.04.13.1" do
     on "PlotPlanted"
     trigger "ScheduleShift"
   end
-  policy "UpdatePlanOnMood" do
+  policy "TendPlanOnMood" do
     on "MoodRecorded"
-    trigger "UpdatePlan"
+    trigger "TendPlan"
   end
 
   fixture "ComfortPlan", plan_id: "CP-2026-0847", patient_name: "Robert Miller", primary_nurse: "Linda Garcia", status: "active"

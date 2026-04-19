@@ -272,12 +272,12 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
       then_set :drones_active, to: 0
       then_set :status, to: "active"
     end
-    UpdateEntry do
+    AmendEntry do
       role "System"
       description "Update a status entry on the operational board"
       reference_to(StatusBoard)
       given { status == "active" }
-      emits "EntryUpdated"
+      emits "EntryAmended"
     end
   end
 
@@ -313,7 +313,7 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
   end
   policy "UpdateBoardOnAll" do
     on "CasualtyReported"
-    trigger "UpdateEntry"
+    trigger "AmendEntry"
   end
 
   fixture "CasualtyReport", report_id: "CAS-001", casualty_name: "LCpl Maria Gonzalez", location_grid: "D7-42", injury_type: "blast_trauma", urgency: "critical", blood_type: "O+", status: "reported"

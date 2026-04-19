@@ -92,13 +92,13 @@ Hecks.bluebook "AuctionStrategy", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    UpdateValuation do
+    ReassessValuation do
       role "Bidder"
       description "Revise maximum valuation based on new information"
       reference_to(Bidder)
       Float :max_valuation
       given { status == "active" }
-      emits "ValuationUpdated"
+      emits "ValuationReassessed"
       then_set :max_valuation, to: :max_valuation
     end
 
@@ -237,9 +237,9 @@ Hecks.bluebook "AuctionStrategy", version: "2026.04.13.1" do
     trigger "AwardAuction"
   end
 
-  policy "UpdateValuationOnEval" do
+  policy "ReassessValuationOnEval" do
     on "BidEvaluated"
-    trigger "UpdateValuation"
+    trigger "ReassessValuation"
   end
 
   fixture "Auction", name: "Vintage Watch 1960", item_description: "Rolex Submariner gold case", auction_type: "sealed_bid", reserve_price: 8500.0, current_bid: 12300.0, start_time: "2026-04-10T18:00:00Z", end_time: "2026-04-15T18:00:00Z", status: "open"

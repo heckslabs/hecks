@@ -17,13 +17,13 @@ Hecks.bluebook "EmailMarketing", version: "2026.04.13.1" do
       String :status
     end
 
-    CreateList do
+    ComposeList do
       role "Marketer"
       description "Set up a new subscriber list for a target audience"
       String :list_name
       String :description
       String :opt_in_method
-      emits "ListCreated"
+      emits "ListComposed"
     end
 
     AddSubscriber do

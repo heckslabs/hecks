@@ -421,14 +421,14 @@ Hecks.bluebook "FormulationLab", version: "2026.04.11.1" do
     Integer :total_shelved
     Float :pipeline_value
 
-    UpdatePipeline do
+    RebalancePipeline do
       role "System"
       description "Recalculate pipeline counts from current formula statuses"
       Integer :total_proposed
       Integer :total_in_lab
       Integer :total_promoted
       Integer :total_shelved
-      emits "PipelineUpdated"
+      emits "PipelineRebalanced"
       then_set :total_proposed, to: :total_proposed
       then_set :total_in_lab, to: :total_in_lab
       then_set :total_promoted, to: :total_promoted
@@ -533,7 +533,7 @@ Hecks.bluebook "FormulationLab", version: "2026.04.11.1" do
 
   policy "PipelineOnPromotion" do
     on "FormulaPromoted"
-    trigger "UpdatePipeline"
+    trigger "RebalancePipeline"
   end
 
   fixture "LabTest", formula_codename: "EXP-2026-001", test_method: "ASTM D4172 Four-Ball Wear", specification: "Wear scar diameter < 0.45mm at 40kg/1200rpm/75C/60min"

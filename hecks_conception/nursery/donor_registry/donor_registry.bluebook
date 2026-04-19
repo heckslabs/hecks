@@ -108,14 +108,14 @@ Hecks.bluebook "DonorRegistry", version: "2026.04.13.1" do
     Float :transport_cost
     Float :total
     String :status
-    CreateSettlement do
+    OpenSettlement do
       role "BillingClerk"
       description "Create a financial settlement for organ procurement"
       String :settlement_id
       String :match_id
       Float :procurement_cost
       Float :transport_cost
-      emits "SettlementCreated"
+      emits "SettlementOpened"
       then_set :settlement_id, to: :settlement_id
       then_set :match_id, to: :match_id
       then_set :procurement_cost, to: :procurement_cost
@@ -138,7 +138,7 @@ Hecks.bluebook "DonorRegistry", version: "2026.04.13.1" do
   end
   policy "SettleOnArrival" do
     on "ArrivalConfirmed"
-    trigger "CreateSettlement"
+    trigger "OpenSettlement"
   end
 
   fixture "DonorProfile", donor_id: "DON-2026-001", name: "Maria Garcia", blood_type: "O+", status: "active"

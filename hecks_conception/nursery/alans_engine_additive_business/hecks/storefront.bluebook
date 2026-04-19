@@ -123,12 +123,12 @@ Hecks.bluebook "Storefront", version: "2026.04.11.1" do
       then_set :featured, to: :featured
     end
 
-    UpdateStock do
+    AdjustStock do
       role "System"
       description "Update stock availability from inventory domain"
       reference_to(ProductListing)
       String :in_stock
-      emits "StockUpdated"
+      emits "StockAdjusted"
       then_set :in_stock, to: :in_stock
     end
 
@@ -189,13 +189,13 @@ Hecks.bluebook "Storefront", version: "2026.04.11.1" do
       emits "ItemRemovedFromCart"
     end
 
-    UpdateQuantity do
+    AdjustQuantity do
       role "Customer"
       description "Change the quantity of a cart item"
       reference_to(ShoppingCart)
       String :sku
       Integer :quantity
-      emits "QuantityUpdated"
+      emits "QuantityAdjusted"
     end
 
     CalculateSubtotal do
@@ -432,12 +432,12 @@ Hecks.bluebook "Storefront", version: "2026.04.11.1" do
       emits "LabDataLinked"
     end
 
-    CreateComparisonChart do
+    PublishComparisonChart do
       role "ProductManager"
       description "Create a comparison chart showing Alan's products vs competitors with real data"
       reference_to(ScienceContent)
       String :comparison_to_competitor
-      emits "ComparisonChartCreated"
+      emits "ComparisonChartPublished"
       then_set :comparison_to_competitor, to: :comparison_to_competitor
     end
 
@@ -535,7 +535,7 @@ Hecks.bluebook "Storefront", version: "2026.04.11.1" do
 
   policy "StockOnOrder" do
     on "OrderPlaced"
-    trigger "UpdateStock"
+    trigger "AdjustStock"
     across "inventory"
   end
 
@@ -563,7 +563,7 @@ Hecks.bluebook "Storefront", version: "2026.04.11.1" do
   policy "PriceOnListing" do
     on "PriceListSet"
     across "pricing"
-    trigger "UpdateStock"
+    trigger "AdjustStock"
     description "Show MAP-compliant prices per channel on every product listing"
   end
 

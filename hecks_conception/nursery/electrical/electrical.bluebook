@@ -10,7 +10,7 @@ Hecks.bluebook "Electrical" do
     String :chemistry
     Float :state_of_charge
 
-    CreateBattery do
+    InstallBattery do
       role "Electrician"
       goal "Register a DC battery with voltage and capacity"
       description "Register a DC battery with voltage and capacity"
@@ -18,7 +18,7 @@ Hecks.bluebook "Electrical" do
       Float :voltage
       Float :amp_hours
       String :chemistry
-      emits "BatteryCreated"
+      emits "BatteryInstalled"
     end
 
     Discharge do
@@ -72,7 +72,7 @@ Hecks.bluebook "Electrical" do
     Float :max_amps
     String :phase
 
-    CreateACSource do
+    ConnectACSource do
       role "Electrician"
       goal "Register an AC power source with voltage and amperage"
       description "Register an AC power source with voltage and amperage"
@@ -81,7 +81,7 @@ Hecks.bluebook "Electrical" do
       Float :frequency
       Float :max_amps
       String :phase
-      emits "ACSourceCreated"
+      emits "ACSourceConnected"
     end
 
     CalculateAvailablePower do
@@ -126,7 +126,7 @@ Hecks.bluebook "Electrical" do
     Float :max_watts
     Float :efficiency
 
-    CreateConverter do
+    WireConverter do
       role "Electrician"
       goal "Register a power conversion device"
       description "Register a power conversion device — inverter, converter, or transformer"
@@ -136,7 +136,7 @@ Hecks.bluebook "Electrical" do
       Float :output_voltage
       Float :max_watts
       Float :efficiency
-      emits "ConverterCreated"
+      emits "ConverterWired"
     end
 
     CalculateDCDraw do

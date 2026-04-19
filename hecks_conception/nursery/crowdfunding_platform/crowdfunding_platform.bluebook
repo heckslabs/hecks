@@ -73,11 +73,11 @@ Hecks.bluebook "CrowdfundingPlatform", version: "2026.04.13.1" do
       emits "BackerRegistered"
     end
 
-    UpdatePaymentMethod do
+    ChangePaymentMethod do
       description "Change the backer's default payment method"
       reference_to(Backer)
       String :payment_method
-      emits "PaymentMethodUpdated"
+      emits "PaymentMethodChanged"
     end
 
     DeactivateBacker do

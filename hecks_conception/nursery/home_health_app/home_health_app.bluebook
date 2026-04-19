@@ -89,13 +89,13 @@ Hecks.bluebook "HomeHealthApp", version: "2026.04.13.1" do
       String :name
       String :level
     end
-    CreateProfile do
+    EnrollCaregiver do
       role "Admin"
       description "Create a caregiver profile in the mobile app"
       String :caregiver_id
       String :name
       String :license_type
-      emits "ProfileCreated"
+      emits "CaregiverEnrolled"
       then_set :caregiver_id, to: :caregiver_id
       then_set :name, to: :name
       then_set :license_type, to: :license_type

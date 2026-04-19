@@ -45,14 +45,14 @@ Hecks.bluebook "RegulatoryCompliance", version: "2026.04.11.1" do
       then_set :regulations, append: { code: :code, title: :title, effective_date: :effective_date, applies_to: :applies_to, requirement: :requirement, penalty: :penalty }
     end
 
-    UpdateRegulation do
+    AmendRegulation do
       role "RegulatorySpecialist"
       description "Update an existing regulation — requirement or penalty changed"
       reference_to(Jurisdiction)
       String :code
       String :requirement
       String :penalty
-      emits "RegulationUpdated"
+      emits "RegulationAmended"
     end
 
     RetireRegulation do

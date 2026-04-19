@@ -160,11 +160,11 @@ Hecks.bluebook "Blog", version: "2026.04.11.1" do
     String :slug
     Integer :post_count
 
-    CreateTag do
+    DefineTag do
       role "Editor"
       description "Define a new tag for categorizing posts"
       String :name
-      emits "TagCreated"
+      emits "TagDefined"
       then_set :name, to: :name
       then_set :post_count, to: 0
     end

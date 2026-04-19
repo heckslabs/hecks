@@ -72,7 +72,7 @@ Hecks.bluebook "GameStore", version: "2026.04.13.1" do
       Integer :seed
     end
 
-    CreateTournament do
+    ScheduleTournament do
       role "EventCoordinator"
       description "Set up a new tournament with rules and date"
       String :tournament_id
@@ -81,7 +81,7 @@ Hecks.bluebook "GameStore", version: "2026.04.13.1" do
       Integer :max_players
       Float :entry_fee
       String :date
-      emits "TournamentCreated"
+      emits "TournamentScheduled"
       then_set :tournament_id, to: :tournament_id
       then_set :game_title, to: :game_title
       then_set :format, to: :format
@@ -202,13 +202,13 @@ Hecks.bluebook "GameStore", version: "2026.04.13.1" do
     trigger "StockGame"
   end
 
-  policy "CreateTournamentOnStock" do
+  policy "ScheduleTournamentOnStock" do
     on "GameStocked"
-    trigger "CreateTournament"
+    trigger "ScheduleTournament"
   end
 
-  policy "LaunchOnCreate" do
-    on "TournamentCreated"
+  policy "LaunchOnSchedule" do
+    on "TournamentScheduled"
     trigger "LaunchTournament"
   end
 

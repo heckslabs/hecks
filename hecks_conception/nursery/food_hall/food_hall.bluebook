@@ -97,11 +97,11 @@ Hecks.bluebook "FoodHall", version: "2026.04.13.1" do
       then_set :status, to: "published"
     end
 
-    UpdateMenu do
+    ReviseMenu do
       role "Vendor"
       description "Revise prices or swap dishes on the existing menu"
       reference_to(HallMenu)
-      emits "MenuUpdated"
+      emits "MenuRevised"
     end
   end
 
@@ -229,9 +229,9 @@ Hecks.bluebook "FoodHall", version: "2026.04.13.1" do
     trigger "CloseSeating"
   end
 
-  policy "UpdateMenuOnEvent" do
+  policy "ReviseMenuOnEvent" do
     on "EventHosted"
-    trigger "UpdateMenu"
+    trigger "ReviseMenu"
   end
 
   # === Fixtures ===
