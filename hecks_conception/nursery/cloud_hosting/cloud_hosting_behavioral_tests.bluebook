@@ -85,12 +85,6 @@ Hecks.behaviors "CloudHosting" do
     expect ok: "true"
   end
 
-  test "SuspendTenant runs" do
-    tests "SuspendTenant", on: "Tenant"
-    setup  "RegisterTenant", tenant_name: "sample", billing_email: "sample", plan_tier: "sample"
-    expect ok: "true"
-  end
-
 
   # ── Alert aggregate ──────────────────────────────────────────
 
@@ -105,13 +99,6 @@ Hecks.behaviors "CloudHosting" do
     tests "AcknowledgeAlert", on: "Alert"
     setup  "RaiseAlert", alert_id: "sample", severity: "sample", message: "sample", source_metric: "sample"
     expect status: "acknowledged"
-  end
-
-  test "ResolveAlert runs" do
-    tests "ResolveAlert", on: "Alert"
-    setup  "RaiseAlert", alert_id: "sample", severity: "sample", message: "sample", source_metric: "sample"
-    setup  "AcknowledgeAlert"
-    expect ok: "true"
   end
 
 end

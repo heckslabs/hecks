@@ -18,11 +18,6 @@ Hecks.behaviors "Sleep" do
     expect idle_seconds: 1, state: "daydreaming"
   end
 
-  test "EnterDaydream runs" do
-    tests "EnterDaydream", on: "Consciousness"
-    expect state: "daydreaming"
-  end
-
   test "EnterSleep runs" do
     tests "EnterSleep", on: "Consciousness"
     setup  "EnterDaydream"

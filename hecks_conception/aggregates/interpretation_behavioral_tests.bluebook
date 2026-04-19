@@ -16,13 +16,6 @@ Hecks.behaviors "Interpretation" do
     expect recurring_theme: "sample", proposed_domain: "sample"
   end
 
-  test "ProposeDomainFromDream sets proposed_domain" do
-    tests "ProposeDomainFromDream", on: "DreamInterpretation"
-    setup  "InterpretDream", dream_images: "sample", strongest_synapse: "sample"
-    input  proposed_domain: "sample"
-    expect proposed_domain: "sample"
-  end
-
 
   # ── Process aggregate ──────────────────────────────────────────
 

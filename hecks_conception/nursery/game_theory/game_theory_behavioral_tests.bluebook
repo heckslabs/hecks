@@ -98,10 +98,4 @@ Hecks.behaviors "GameTheory" do
     expect ok: "true"
   end
 
-  test "ExportResults runs" do
-    tests "ExportResults", on: "Simulation"
-    setup  "ConfigureSimulation", simulation_id: "sample", iteration_count: 1, learning_rule: "sample"
-    expect ok: "true"
-  end
-
 end

@@ -61,12 +61,6 @@ Hecks.behaviors "Neuroscience" do
     expect ok: "true"
   end
 
-  test "ComputeConnectivity runs" do
-    tests "ComputeConnectivity", on: "NeuralSignal"
-    setup  "ExtractSignal", signal_type: "sample", brain_region: "sample"
-    expect ok: "true"
-  end
-
 
   # ── StimulusProtocol aggregate ──────────────────────────────────────────
 

@@ -33,22 +33,6 @@ Hecks.behaviors "Becoming" do
     expect ok: "true"
   end
 
-  test "GenerateNegatives runs" do
-    tests "GenerateNegatives", on: "Shape"
-    expect ok: "true"
-  end
-
-  test "AddChainOfThought runs" do
-    tests "AddChainOfThought", on: "Shape"
-    setup  "HarvestDomains", nursery_path: "sample"
-    expect ok: "true"
-  end
-
-  test "BalanceCategories runs" do
-    tests "BalanceCategories", on: "Shape"
-    expect ok: "true"
-  end
-
 
   # ── Enrich aggregate ──────────────────────────────────────────
 
@@ -70,24 +54,12 @@ Hecks.behaviors "Becoming" do
     expect ok: "true"
   end
 
-  test "DeepenWorkflows runs" do
-    tests "DeepenWorkflows", on: "Enrich"
-    setup  "HarvestDomains", nursery_path: "sample"
-    expect ok: "true"
-  end
-
 
   # ── Conceive aggregate ──────────────────────────────────────────
 
   test "ConceiveNewDomains sets topics + target_count" do
     tests "ConceiveNewDomains", on: "Conceive"
     input  topics: "sample", target_count: 1
-    expect ok: "true"
-  end
-
-  test "BreedCrossovers sets pair_count" do
-    tests "BreedCrossovers", on: "Conceive"
-    input  pair_count: 1
     expect ok: "true"
   end
 
@@ -124,12 +96,6 @@ Hecks.behaviors "Becoming" do
 
   test "CompareToBaseline runs" do
     tests "CompareToBaseline", on: "Evaluate"
-    setup  "RunEvaluation"
-    expect ok: "true"
-  end
-
-  test "DecideNextRound runs" do
-    tests "DecideNextRound", on: "Evaluate"
     setup  "RunEvaluation"
     expect ok: "true"
   end

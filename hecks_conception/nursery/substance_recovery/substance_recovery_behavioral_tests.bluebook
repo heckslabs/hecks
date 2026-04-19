@@ -15,12 +15,6 @@ Hecks.behaviors "SubstanceRecovery" do
     expect status: "discharged"
   end
 
-  test "DischargeClient runs" do
-    tests "DischargeClient", on: "Client"
-    setup  "IntakeClient", name: "sample", date_of_birth: "sample", primary_substance: "sample", intake_date: "sample", insurance_id: "sample"
-    expect status: "discharged"
-  end
-
 
   # ── TreatmentProgram aggregate ──────────────────────────────────────────
 
@@ -88,12 +82,6 @@ Hecks.behaviors "SubstanceRecovery" do
     tests "AddGroupMember", on: "SupportGroup"
     setup  "ConveneSupportGroup", group_name: "sample", meeting_day: "sample", meeting_time: "sample", facilitator_name: "sample", max_members: 1
     input  client_name: "sample", joined_date: "sample"
-    expect ok: "true"
-  end
-
-  test "RecordAttendance runs" do
-    tests "RecordAttendance", on: "SupportGroup"
-    setup  "ConveneSupportGroup", group_name: "sample", meeting_day: "sample", meeting_time: "sample", facilitator_name: "sample", max_members: 1
     expect ok: "true"
   end
 

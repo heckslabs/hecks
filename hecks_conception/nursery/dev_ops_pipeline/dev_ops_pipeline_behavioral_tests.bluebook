@@ -25,13 +25,6 @@ Hecks.behaviors "DevOpsPipeline" do
 
   # ── Build aggregate ──────────────────────────────────────────
 
-  test "TriggerBuild sets build_number + commit_sha" do
-    tests "TriggerBuild", on: "Build"
-    setup  "RegisterRepository", repo_name: "sample", clone_url: "sample", default_branch: "sample", language: "sample"
-    input  build_number: "sample", commit_sha: "sample"
-    expect ok: "true"
-  end
-
   test "CompleteBuild sets artifact_url + duration_seconds" do
     tests "CompleteBuild", on: "Build"
     setup  "TriggerBuild", build_number: "sample", commit_sha: "sample"

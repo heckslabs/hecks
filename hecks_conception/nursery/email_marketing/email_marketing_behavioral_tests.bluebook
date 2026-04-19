@@ -107,11 +107,4 @@ Hecks.behaviors "EmailMarketing" do
     expect bounce_type: "hard"
   end
 
-  test "SuppressAddress runs" do
-    tests "SuppressAddress", on: "Bounce"
-    setup  "RecordBounce", bounce_id: "sample", recipient_email: "sample", bounce_type: "sample", smtp_code: "sample"
-    setup  "ClassifyBounce", bounce_type: "sample"
-    expect ok: "true"
-  end
-
 end

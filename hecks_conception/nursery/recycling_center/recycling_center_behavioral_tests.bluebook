@@ -16,13 +16,6 @@ Hecks.behaviors "RecyclingCenter" do
     expect ok: "true"
   end
 
-  test "WeighInbound sets gross_weight_tons + tare_weight_tons" do
-    tests "WeighInbound", on: "Material"
-    setup  "RegisterMaterial", material_code: "sample", name: "sample", category: "sample", market_price_per_ton: 1.0
-    input  gross_weight_tons: 1.0, tare_weight_tons: 1.0
-    expect ok: "true"
-  end
-
   test "RepriceMaterial sets new_price_per_ton" do
     tests "RepriceMaterial", on: "Material"
     setup  "RegisterMaterial", material_code: "sample", name: "sample", category: "sample", market_price_per_ton: 1.0

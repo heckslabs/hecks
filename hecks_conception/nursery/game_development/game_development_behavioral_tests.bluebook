@@ -78,13 +78,6 @@ Hecks.behaviors "GameDevelopment" do
     expect status: "completed"
   end
 
-  test "AnalyzeResults runs" do
-    tests "AnalyzeResults", on: "Playtest"
-    setup  "SchedulePlaytest", session_name: "sample", tester_count: 1
-    setup  "ConductPlaytest"
-    expect ok: "true"
-  end
-
 
   # ── BugReport aggregate ──────────────────────────────────────────
 

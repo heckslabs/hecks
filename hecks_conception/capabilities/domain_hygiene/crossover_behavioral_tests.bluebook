@@ -25,12 +25,6 @@ Hecks.behaviors "DomainCrossover" do
     expect ok: "true"
   end
 
-  test "EnrichOffspring runs" do
-    tests "EnrichOffspring", on: "Offspring"
-    setup  "BreedDomain", name: "sample", vision: "sample", aggregates_from_each: 1
-    expect ok: "true"
-  end
-
 
   # ── Generation aggregate ──────────────────────────────────────────
 

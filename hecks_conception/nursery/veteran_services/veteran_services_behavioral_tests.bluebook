@@ -45,12 +45,6 @@ Hecks.behaviors "VeteranServices" do
     expect status: "appealed"
   end
 
-  test "AppealClaim runs" do
-    tests "AppealClaim", on: "BenefitClaim"
-    setup  "FileClaim", veteran_name: "sample", benefit_type: "sample", filing_date: "sample", description: "sample"
-    expect status: "appealed"
-  end
-
 
   # ── VeteranCounselor aggregate ──────────────────────────────────────────
 
@@ -78,13 +72,6 @@ Hecks.behaviors "VeteranServices" do
   test "EnrollVeteran runs" do
     tests "EnrollVeteran", on: "ServiceProgram"
     setup  "LaunchProgram", program_name: "sample", program_type: "sample", eligibility_criteria: "sample", capacity: 1
-    expect ok: "true"
-  end
-
-  test "ConductSession sets topic + facilitator + attendees" do
-    tests "ConductSession", on: "ServiceProgram"
-    setup  "LaunchProgram", program_name: "sample", program_type: "sample", eligibility_criteria: "sample", capacity: 1
-    input  topic: "sample", facilitator: "sample", attendees: 1
     expect ok: "true"
   end
 

@@ -3,12 +3,6 @@ Hecks.behaviors "BedAndBreakfast" do
 
   # ── GuestRoom aggregate ──────────────────────────────────────────
 
-  test "PrepareRoom sets room_id + name + room_type + max_guests + nightly_rate" do
-    tests "PrepareRoom", on: "GuestRoom"
-    input  room_id: "sample", name: "sample", room_type: "sample", max_guests: 1, nightly_rate: 1.0
-    expect room_id: "sample", name: "sample", room_type: "sample", max_guests: 1, nightly_rate: 1.0, status: "available"
-  end
-
   test "OccupyRoom runs" do
     tests "OccupyRoom", on: "GuestRoom"
     setup  "PrepareRoom", room_id: "sample", name: "sample", room_type: "sample", max_guests: 1, nightly_rate: 1.0

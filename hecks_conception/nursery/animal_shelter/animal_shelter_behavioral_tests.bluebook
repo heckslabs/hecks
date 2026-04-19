@@ -77,10 +77,4 @@ Hecks.behaviors "AnimalShelter" do
     expect vaccination_status: "complete", spay_neuter_status: "completed"
   end
 
-  test "PerformSpayNeuter runs" do
-    tests "PerformSpayNeuter", on: "ShelterMedicalRecord"
-    setup  "OpenMedicalRecord", animal_name: "sample", record_date: "sample", veterinarian: "sample"
-    expect spay_neuter_status: "completed"
-  end
-
 end

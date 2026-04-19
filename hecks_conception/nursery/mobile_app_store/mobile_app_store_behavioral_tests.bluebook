@@ -38,13 +38,6 @@ Hecks.behaviors "MobileAppStore" do
     expect status: "flagged"
   end
 
-  test "RemoveReview runs" do
-    tests "RemoveReview", on: "Review"
-    setup  "PostReview", review_id: "sample", author_name: "sample", rating: 1, comment: "sample"
-    setup  "FlagReview", reason: "sample"
-    expect ok: "true"
-  end
-
 
   # ── Download aggregate ──────────────────────────────────────────
 

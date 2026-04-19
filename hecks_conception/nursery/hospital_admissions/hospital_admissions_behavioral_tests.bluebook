@@ -61,10 +61,4 @@ Hecks.behaviors "HospitalAdmissions" do
     expect ok: "true"
   end
 
-  test "DischargePatient runs" do
-    tests "DischargePatient", on: "DischargeePlan"
-    setup  "DraftDischargePlan", patient_name: "sample", discharge_date: "sample"
-    expect ok: "true"
-  end
-
 end

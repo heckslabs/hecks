@@ -80,14 +80,6 @@ Hecks.behaviors "MentalHealthClinic" do
 
   # ── TherapySession aggregate ──────────────────────────────────────────
 
-  test "ScheduleTherapySession sets client_name + therapist_name + session_date + session_type" do
-    tests "ScheduleTherapySession", on: "TherapySession"
-    setup  "RegisterTherapist", name: "sample", license_type: "sample", license_number: "sample", specialty: "sample", caseload_limit: 1
-    setup  "IntakeClient", name: "sample", date_of_birth: "sample", referral_source: "sample", emergency_contact: "sample"
-    input  client_name: "sample", therapist_name: "sample", session_date: "sample", session_type: "sample"
-    expect client_name: "sample", therapist_name: "sample", session_date: "sample", session_type: "sample", status: "scheduled"
-  end
-
   test "CompleteTherapySession sets notes" do
     tests "CompleteTherapySession", on: "TherapySession"
     setup  "ScheduleTherapySession", client_name: "sample", therapist_name: "sample", session_date: "sample", session_type: "sample"

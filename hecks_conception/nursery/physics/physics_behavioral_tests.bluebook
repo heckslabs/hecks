@@ -93,13 +93,6 @@ Hecks.behaviors "Physics" do
     expect status: "at_rest"
   end
 
-  test "CalculateTrajectory sets time_duration + time_step" do
-    tests "CalculateTrajectory", on: "Motion"
-    setup  "InitiateMotion", body_name: "sample", velocity_x: 1.0, velocity_y: 1.0, velocity_z: 1.0
-    input  time_duration: 1.0, time_step: 1.0
-    expect ok: "true"
-  end
-
   test "ApplyNewtonLaw sets net_force + mass" do
     tests "ApplyNewtonLaw", on: "Motion"
     setup  "InitiateMotion", body_name: "sample", velocity_x: 1.0, velocity_y: 1.0, velocity_z: 1.0
@@ -202,13 +195,6 @@ Hecks.behaviors "Physics" do
     expect ok: "true"
   end
 
-  test "CalculateFlux sets surface_area + angle" do
-    tests "CalculateFlux", on: "Field"
-    setup  "DefineField", name: "sample", field_type: "sample", strength: 1.0
-    input  surface_area: 1.0, angle: 1.0
-    expect ok: "true"
-  end
-
   test "ApplyGaussLaw sets enclosed_charge" do
     tests "ApplyGaussLaw", on: "Field"
     setup  "DefineField", name: "sample", field_type: "sample", strength: 1.0
@@ -286,14 +272,6 @@ Hecks.behaviors "Physics" do
     tests "MeasureObservable", on: "QuantumState"
     setup  "PrepareState", name: "sample", system_type: "sample", num_qubits: 1
     input  observable_name: "sample", operator: "sample"
-    expect coherent: "false", status: "collapsed"
-  end
-
-  test "CollapseWavefunction sets measured_value" do
-    tests "CollapseWavefunction", on: "QuantumState"
-    setup  "PrepareState", name: "sample", system_type: "sample", num_qubits: 1
-    setup  "SuperposeStates"
-    input  measured_value: 1.0
     expect coherent: "false", status: "collapsed"
   end
 

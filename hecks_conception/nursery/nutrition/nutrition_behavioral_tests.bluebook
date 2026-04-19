@@ -39,12 +39,6 @@ Hecks.behaviors "Nutrition" do
     expect ok: "true"
   end
 
-  test "FinalizePlan runs" do
-    tests "FinalizePlan", on: "MealPlan"
-    setup  "Compose", plan_name: "sample", duration_days: 1, target_calories: 1.0
-    expect ok: "true"
-  end
-
 
   # ── DietaryGoal aggregate ──────────────────────────────────────────
 

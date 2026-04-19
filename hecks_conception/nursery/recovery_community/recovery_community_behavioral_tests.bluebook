@@ -15,12 +15,6 @@ Hecks.behaviors "RecoveryCommunity" do
     expect ok: "true"
   end
 
-  test "AwardMilestone runs" do
-    tests "AwardMilestone", on: "RecoveryJourney"
-    setup  "StartJourney", member_id: "sample", name: "sample", program_type: "sample"
-    expect ok: "true"
-  end
-
 
   # ── PeerGroup aggregate ──────────────────────────────────────────
 

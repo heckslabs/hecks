@@ -38,13 +38,6 @@ Hecks.behaviors "Oceanography" do
     expect ok: "true"
   end
 
-  test "FlagAnomalous sets reason" do
-    tests "FlagAnomalous", on: "CtdCast"
-    setup  "DeployCast", timestamp: "sample"
-    input  reason: "sample"
-    expect ok: "true"
-  end
-
 
   # ── CurrentMeter aggregate ──────────────────────────────────────────
 

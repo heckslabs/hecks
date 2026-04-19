@@ -46,13 +46,6 @@ Hecks.behaviors "ZooManagement" do
     expect status: "active"
   end
 
-  test "AssignAnimalToHabitat runs" do
-    tests "AssignAnimalToHabitat", on: "Habitat"
-    setup  "RegisterAnimal", common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample"
-    setup  "BuildHabitat", name: "sample", biome_type: "sample", area_sqft: 1.0, max_capacity: 1
-    expect ok: "true"
-  end
-
 
   # ── FeedingSchedule aggregate ──────────────────────────────────────────
 

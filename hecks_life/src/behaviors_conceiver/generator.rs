@@ -68,7 +68,14 @@ pub fn generate_behaviors(source: &Domain, _archetype: Option<&TestSuite>) -> St
             agg.name,
         ));
 
+        // Commands that are ONLY triggered via a same-aggregate policy
+        // cascade get no isolated test — the upstream command's test
+        // already exercises them through the cascade, and an isolated
+        // test for them doesn't reflect how they actually run.
+        let policy_triggered = collect_policy_only_triggered(source, agg);
+
         for cmd in &agg.commands {
+            if policy_triggered.contains(&cmd.name) { continue; }
             let lifecycle_to = lifecycles_by_command.iter()
                 .find(|(name, _, _)| name == &cmd.name)
                 .map(|(_, field, to)| (field.clone(), to.clone()));
@@ -183,6 +190,69 @@ fn collect_lifecycle_index(domain: &Domain) -> Vec<(String, String, String)> {
             (t.command.clone(), lc.field.clone(), t.to_state.clone())
         }))
         .collect()
+}
+
+/// Names of commands on `agg` that are triggered exclusively by a
+/// same-aggregate policy cascade. The upstream command's auto-generated
+/// test already exercises these via cascade simulation in `build_expect`,
+/// so emitting an isolated test for them is redundant — and worse, the
+/// isolated test runs the command in a different in-memory state than
+/// production (where it only ever runs as part of the upstream cascade).
+///
+/// "Same-aggregate" matters: cross-aggregate cascades touch a different
+/// repo at runtime, and the test runner doesn't auto-fire them anyway.
+/// Those commands still need their own isolated tests.
+///
+/// We also require `cascade_can_dispatch` so the cascade actually fires
+/// in the runtime — a triggered command with a self-ref that the upstream
+/// can't supply gets silently dropped at dispatch, in which case the
+/// upstream test does NOT cover it and we must keep the isolated test.
+fn collect_policy_only_triggered(domain: &Domain, agg: &Aggregate) -> BTreeSet<String> {
+    // First pass: collect (triggered, upstream) edges where upstream
+    // lives on the same aggregate AND the runtime cascade can dispatch.
+    // Each such edge is a candidate "skip the triggered command's test".
+    let mut edges: Vec<(String, String)> = Vec::new(); // (triggered, upstream)
+    for policy in &domain.policies {
+        let Some(triggered) = agg.commands.iter()
+            .find(|c| c.name == policy.trigger_command)
+        else { continue; };
+        let Some(upstream) = agg.commands.iter().find(|c| {
+            c.emits.as_deref() == Some(policy.on_event.as_str())
+        }) else { continue; };
+        if !cascade_can_dispatch(agg, upstream, triggered) { continue; }
+        edges.push((triggered.name.clone(), upstream.name.clone()));
+    }
+
+    // Cycle detection: if Y's only upstream is X, and X's only upstream
+    // is Y (or transitively reaches Y), then neither is "downstream-only"
+    // — every starting point is upstream of itself. Keeping both tests
+    // is the right call. Drop edges whose upstream chain loops back to
+    // the triggered command.
+    let mut out: BTreeSet<String> = BTreeSet::new();
+    for (triggered, _) in &edges {
+        if reaches_upstream(triggered, triggered, &edges, &mut Vec::new()) { continue; }
+        out.insert(triggered.clone());
+    }
+    out
+}
+
+/// True if `target` appears as an upstream of `from` (transitively) in
+/// the policy edge graph. Used to detect cyclic policy chains where
+/// neither participant is exclusively downstream.
+fn reaches_upstream(
+    from: &str,
+    target: &str,
+    edges: &[(String, String)],
+    visited: &mut Vec<String>,
+) -> bool {
+    if visited.contains(&from.to_string()) { return false; }
+    visited.push(from.to_string());
+    for (triggered, upstream) in edges {
+        if triggered != from { continue; }
+        if upstream == target { return true; }
+        if reaches_upstream(upstream, target, edges, visited) { return true; }
+    }
+    false
 }
 
 /// The command's self-ref name (snake-cased aggregate name) if any

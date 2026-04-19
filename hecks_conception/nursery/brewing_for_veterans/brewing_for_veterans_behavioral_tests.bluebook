@@ -80,13 +80,6 @@ Hecks.behaviors "BrewingForVeterans" do
     expect total_revenue: 1.0, housing_allocation: 1.0, education_allocation: 1.0, operations_allocation: 1.0, status: "allocated"
   end
 
-  test "AllocateRevenue sets housing_allocation + education_allocation + operations_allocation" do
-    tests "AllocateRevenue", on: "SalesRevenue"
-    setup  "OpenPeriod", period: "sample"
-    input  housing_allocation: 1.0, education_allocation: 1.0, operations_allocation: 1.0
-    expect housing_allocation: 1.0, education_allocation: 1.0, operations_allocation: 1.0, status: "allocated"
-  end
-
 
   # ── HousingUnit aggregate ──────────────────────────────────────────
 

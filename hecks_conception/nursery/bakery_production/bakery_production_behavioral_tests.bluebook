@@ -54,12 +54,6 @@ Hecks.behaviors "BakeryProduction" do
     expect ok: "true"
   end
 
-  test "FlagLowStock runs" do
-    tests "FlagLowStock", on: "IngredientStock"
-    setup  "ReceiveDelivery", ingredient_name: "sample", quantity: 1.0, supplier: "sample"
-    expect ok: "true"
-  end
-
 
   # ── Order aggregate ──────────────────────────────────────────
 

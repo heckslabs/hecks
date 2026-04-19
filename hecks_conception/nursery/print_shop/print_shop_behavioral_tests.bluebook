@@ -51,13 +51,6 @@ Hecks.behaviors "PrintShop" do
     expect ok: "true"
   end
 
-  test "ReorderSubstrate sets order_quantity" do
-    tests "ReorderSubstrate", on: "Substrate"
-    setup  "StockSubstrate", material_name: "sample", material_type: "sample", weight_gsm: 1.0, width_inches: 1.0, sheets_on_hand: 1, reorder_level: 1
-    input  order_quantity: 1
-    expect ok: "true"
-  end
-
 
   # ── PressSchedule aggregate ──────────────────────────────────────────
 
@@ -84,13 +77,6 @@ Hecks.behaviors "PrintShop" do
 
 
   # ── ProofCycle aggregate ──────────────────────────────────────────
-
-  test "SendProof sets proof_file + revision_number" do
-    tests "SendProof", on: "ProofCycle"
-    setup  "SubmitPrintJob", job_name: "sample", customer_name: "sample", quantity: 1, print_method: "sample", color_profile: "sample", due_date: "sample"
-    input  proof_file: "sample", revision_number: 1
-    expect proof_file: "sample", revision_number: 1, status: "awaiting_approval"
-  end
 
   test "ApproveProof runs" do
     tests "ApproveProof", on: "ProofCycle"

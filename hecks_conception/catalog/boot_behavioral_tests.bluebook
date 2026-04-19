@@ -27,13 +27,6 @@ Hecks.behaviors "Boot" do
     expect organ_count: 1, nerve_count: 1, law_count: 1, started_at: "sample", status: "live"
   end
 
-  test "GoLive sets started_at" do
-    tests "GoLive", on: "Session"
-    setup  "BootWithClaude"
-    input  started_at: "sample"
-    expect started_at: "sample", status: "live"
-  end
-
   test "EndSession runs" do
     tests "EndSession", on: "Session"
     setup  "BootWithClaude"

@@ -68,12 +68,6 @@ Hecks.behaviors "IntrospectiveMonitoring" do
 
   # ── SelfInquiry aggregate ──────────────────────────────────────────
 
-  test "PoseQuestion sets question + domain_focus" do
-    tests "PoseQuestion", on: "SelfInquiry"
-    input  question: "sample", domain_focus: "sample"
-    expect question: "sample", domain_focus: "sample", status: "open"
-  end
-
   test "RecordFinding sets finding" do
     tests "RecordFinding", on: "SelfInquiry"
     setup  "PoseQuestion", question: "sample", domain_focus: "sample"

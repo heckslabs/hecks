@@ -31,12 +31,6 @@ Hecks.behaviors "BloodSupplyChain" do
     expect current_temp_c: 1.0, status: "breached"
   end
 
-  test "FlagBreach runs" do
-    tests "FlagBreach", on: "ColdStorage"
-    setup  "SetupStorage", unit_id: "sample", location_name: "sample", target_temp_c: 1.0
-    expect status: "breached"
-  end
-
 
   # ── Transport aggregate ──────────────────────────────────────────
 

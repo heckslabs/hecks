@@ -25,11 +25,6 @@ Hecks.behaviors "Boot" do
     expect ok: "true"
   end
 
-  test "WriteCensus runs" do
-    tests "WriteCensus", on: "OrganDiscovery"
-    expect ok: "true"
-  end
-
 
   # ── CapabilityIndex aggregate ──────────────────────────────────────────
 

@@ -93,10 +93,4 @@ Hecks.behaviors "DaycareCenter" do
     expect guardian_notified: "yes", status: "closed"
   end
 
-  test "CloseIncident runs" do
-    tests "CloseIncident", on: "IncidentReport"
-    setup  "FileIncident", incident_date: "sample", incident_time: "sample", description: "sample", severity: "sample", action_taken: "sample"
-    expect status: "closed"
-  end
-
 end

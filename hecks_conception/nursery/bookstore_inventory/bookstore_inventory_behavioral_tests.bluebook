@@ -97,11 +97,4 @@ Hecks.behaviors "BookstoreInventory" do
     expect condition: "sample", resolution: "sample"
   end
 
-  test "ResolveReturn sets resolution" do
-    tests "ResolveReturn", on: "Return"
-    setup  "InitiateReturn", return_id: "sample", order_number: "sample", isbn: "sample", reason: "sample"
-    input  resolution: "sample"
-    expect resolution: "sample"
-  end
-
 end

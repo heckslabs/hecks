@@ -25,13 +25,6 @@ Hecks.behaviors "DentalPractice" do
 
   # ── DentalProcedure aggregate ──────────────────────────────────────────
 
-  test "PerformProcedure sets cdt_code + procedure_name + tooth_number + surface + notes" do
-    tests "PerformProcedure", on: "DentalProcedure"
-    setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
-    input  cdt_code: "sample", procedure_name: "sample", tooth_number: "sample", surface: "sample", notes: "sample"
-    expect cdt_code: "sample", procedure_name: "sample", tooth_number: "sample", surface: "sample", status: "completed"
-  end
-
   test "PlanTreatment sets cdt_code + procedure_name + tooth_number" do
     tests "PlanTreatment", on: "DentalProcedure"
     setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"

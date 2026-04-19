@@ -45,13 +45,6 @@ Hecks.behaviors "Conception" do
     expect completeness: "embryo", policy_count: 1
   end
 
-  test "AssessCompleteness sets gaps" do
-    tests "AssessCompleteness", on: "Blueprint"
-    setup  "StartConception", domain_name: "sample", vision: "sample", category: "sample"
-    input  gaps: "sample"
-    expect gaps: "sample", completeness: "assessed"
-  end
-
   test "Seal runs" do
     tests "Seal", on: "Blueprint"
     setup  "StartConception", domain_name: "sample", vision: "sample", category: "sample"

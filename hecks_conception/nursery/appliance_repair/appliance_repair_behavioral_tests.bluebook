@@ -66,12 +66,6 @@ Hecks.behaviors "ApplianceRepair" do
     expect ok: "true"
   end
 
-  test "InstallPart runs" do
-    tests "InstallPart", on: "PartsOrder"
-    setup  "OrderPart", part_number: "sample", part_name: "sample", vendor: "sample", cost: 1.0
-    expect ok: "true"
-  end
-
 
   # ── RepairWarranty aggregate ──────────────────────────────────────────
 

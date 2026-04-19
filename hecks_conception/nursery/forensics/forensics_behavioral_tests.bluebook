@@ -32,13 +32,6 @@ Hecks.behaviors "Forensics" do
     expect ok: "true"
   end
 
-  test "TransferCustody sets receiving_custodian" do
-    tests "TransferCustody", on: "EvidenceItem"
-    setup  "CollectEvidence", item_number: "sample", description: "sample", evidence_type: "sample"
-    input  receiving_custodian: "sample"
-    expect ok: "true"
-  end
-
   test "SealEvidence runs" do
     tests "SealEvidence", on: "EvidenceItem"
     setup  "CollectEvidence", item_number: "sample", description: "sample", evidence_type: "sample"
@@ -59,12 +52,6 @@ Hecks.behaviors "Forensics" do
     tests "RecordFindings", on: "LabAnalysis"
     setup  "SubmitForAnalysis", analysis_type: "sample", method: "sample"
     input  findings: "sample"
-    expect ok: "true"
-  end
-
-  test "PeerReviewAnalysis runs" do
-    tests "PeerReviewAnalysis", on: "LabAnalysis"
-    setup  "SubmitForAnalysis", analysis_type: "sample", method: "sample"
     expect ok: "true"
   end
 

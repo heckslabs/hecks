@@ -44,12 +44,6 @@ Hecks.behaviors "AirportSecurity" do
     expect status: "installed", scans_today: 0
   end
 
-  test "CalibrateScanner runs" do
-    tests "CalibrateScanner", on: "Scanner"
-    setup  "InstallScanner", scanner_id: "sample", scanner_type: "sample"
-    expect status: "operational"
-  end
-
   test "PerformScan runs" do
     tests "PerformScan", on: "Scanner"
     setup  "InstallScanner", scanner_id: "sample", scanner_type: "sample"

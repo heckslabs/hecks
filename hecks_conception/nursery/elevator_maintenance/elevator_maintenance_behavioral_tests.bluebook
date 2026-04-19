@@ -56,12 +56,6 @@ Hecks.behaviors "ElevatorMaintenance" do
     expect ok: "true"
   end
 
-  test "TestAfterInstall runs" do
-    tests "TestAfterInstall", on: "PartReplacement"
-    setup  "OrderPart", part_name: "sample", part_number: "sample", vendor: "sample", cost: 1.0
-    expect ok: "true"
-  end
-
 
   # ── ElevatorInspection aggregate ──────────────────────────────────────────
 
@@ -94,14 +88,6 @@ Hecks.behaviors "ElevatorMaintenance" do
     setup  "DispatchMechanic", building_name: "sample", unit_number: "sample", call_type: "sample"
     input  resolution: "sample"
     expect status: "resolved"
-  end
-
-  test "FileIncidentReport sets incident_details" do
-    tests "FileIncidentReport", on: "EmergencyCall"
-    setup  "DispatchMechanic", building_name: "sample", unit_number: "sample", call_type: "sample"
-    setup  "ResolveEmergency", resolution: "sample"
-    input  incident_details: "sample"
-    expect ok: "true"
   end
 
 end

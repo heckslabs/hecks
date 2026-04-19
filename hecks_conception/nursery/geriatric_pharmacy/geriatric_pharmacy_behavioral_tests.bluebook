@@ -77,10 +77,4 @@ Hecks.behaviors "GeriatricPharmacy" do
     expect status: "alert"
   end
 
-  test "FlagToxicity runs" do
-    tests "FlagToxicity", on: "MonitoringPlan"
-    setup  "EstablishMonitoringPlan", resident_name: "sample", medication_name: "sample", target_trough_ng_ml: 1.0, target_peak_ng_ml: 1.0, toxicity_threshold_ng_ml: 1.0, monitoring_frequency: "sample"
-    expect status: "alert"
-  end
-
 end

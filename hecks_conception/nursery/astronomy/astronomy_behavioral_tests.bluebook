@@ -41,13 +41,6 @@ Hecks.behaviors "Astronomy" do
     expect ok: "true"
   end
 
-  test "CorrectMagnitude sets corrected_value" do
-    tests "CorrectMagnitude", on: "Observation"
-    setup  "LogObservation", observer_name: "sample", timestamp: "sample"
-    input  corrected_value: 1.0
-    expect ok: "true"
-  end
-
 
   # ── Telescope aggregate ──────────────────────────────────────────
 

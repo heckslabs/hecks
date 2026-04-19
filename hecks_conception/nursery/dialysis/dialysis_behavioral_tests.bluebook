@@ -89,12 +89,6 @@ Hecks.behaviors "Dialysis" do
     expect status: "reordering"
   end
 
-  test "ReorderSupply runs" do
-    tests "ReorderSupply", on: "DialysisSupply"
-    setup  "StockSupply", supply_name: "sample", category: "sample", quantity_on_hand: 1, reorder_level: 1, supplier: "sample"
-    expect status: "reordering"
-  end
-
 
   # ── LabResult aggregate ──────────────────────────────────────────
 

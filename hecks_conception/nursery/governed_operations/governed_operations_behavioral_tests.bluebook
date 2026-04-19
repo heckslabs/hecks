@@ -413,18 +413,6 @@ Hecks.behaviors "GovernedOperations" do
     expect status: "routing"
   end
 
-  test "CheckOperational runs" do
-    tests "CheckOperational", on: "GovernanceGate"
-    setup  "EvaluateAction", action_type: "sample", action_id: "sample"
-    expect status: "routing"
-  end
-
-  test "RouteApproval runs" do
-    tests "RouteApproval", on: "GovernanceGate"
-    setup  "EvaluateAction", action_type: "sample", action_id: "sample"
-    expect status: "routing"
-  end
-
   test "AllowAction runs" do
     tests "AllowAction", on: "GovernanceGate"
     setup  "EvaluateAction", action_type: "sample", action_id: "sample"

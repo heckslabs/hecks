@@ -38,13 +38,6 @@ Hecks.behaviors "AquariumOperations" do
     expect ok: "true"
   end
 
-  test "ReleaseIntoTank runs" do
-    tests "ReleaseIntoTank", on: "Species"
-    setup  "SetupTank", tank_id: "sample", name: "sample", water_type: "sample", volume_gallons: 1.0, max_species: 1
-    setup  "IntroduceSpecies", common_name: "sample", scientific_name: "sample", water_type_requirement: "sample", min_temperature_f: 1.0, max_temperature_f: 1.0, population_count: 1
-    expect ok: "true"
-  end
-
   test "AdjustPopulation sets new_count" do
     tests "AdjustPopulation", on: "Species"
     setup  "IntroduceSpecies", common_name: "sample", scientific_name: "sample", water_type_requirement: "sample", min_temperature_f: 1.0, max_temperature_f: 1.0, population_count: 1

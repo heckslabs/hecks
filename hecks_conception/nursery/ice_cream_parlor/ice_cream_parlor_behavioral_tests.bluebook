@@ -18,12 +18,6 @@ Hecks.behaviors "IceCreamParlor" do
 
   # ── Batch aggregate ──────────────────────────────────────────
 
-  test "ChurnBatch sets batch_id + flavor_id + volume_liters + churned_date + expiration_date" do
-    tests "ChurnBatch", on: "Batch"
-    input  batch_id: "sample", flavor_id: "sample", volume_liters: 1.0, churned_date: "sample", expiration_date: "sample"
-    expect batch_id: "sample", flavor_id: "sample", volume_liters: 1.0, churned_date: "sample", expiration_date: "sample", status: "fresh"
-  end
-
   test "DepleteBatch runs" do
     tests "DepleteBatch", on: "Batch"
     setup  "ChurnBatch", batch_id: "sample", flavor_id: "sample", volume_liters: 1.0, churned_date: "sample", expiration_date: "sample"

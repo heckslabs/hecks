@@ -59,12 +59,6 @@ Hecks.behaviors "CloudTraining" do
     expect ok: "true"
   end
 
-  test "DeploySummer runs" do
-    tests "DeploySummer", on: "AdapterDownload"
-    setup  "DownloadAdapter", remote_path: "sample", local_path: "sample"
-    expect ok: "true"
-  end
-
 
   # ── CostTracker aggregate ──────────────────────────────────────────
 

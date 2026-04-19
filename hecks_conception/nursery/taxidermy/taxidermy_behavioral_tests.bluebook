@@ -65,13 +65,6 @@ Hecks.behaviors "Taxidermy" do
     expect status: "finished", drying_days: 1
   end
 
-  test "CureMount sets drying_days" do
-    tests "CureMount", on: "Preservation"
-    setup  "MountSpecimen", adhesive_type: "sample"
-    input  drying_days: 1
-    expect drying_days: 1
-  end
-
 
   # ── Display aggregate ──────────────────────────────────────────
 

@@ -71,18 +71,6 @@ Hecks.behaviors "DomainHygiene" do
     expect ok: "true"
   end
 
-  test "RepairFailures runs" do
-    tests "RepairFailures", on: "CorpusGrowth"
-    setup  "GrowCorpus", target_count: 1
-    expect ok: "true"
-  end
-
-  test "EnrichShallow runs" do
-    tests "EnrichShallow", on: "CorpusGrowth"
-    setup  "GrowCorpus", target_count: 1
-    expect ok: "true"
-  end
-
   test "ReportGrowth runs" do
     tests "ReportGrowth", on: "CorpusGrowth"
     setup  "GrowCorpus", target_count: 1

@@ -584,12 +584,6 @@ Hecks.behaviors "Mathematics" do
     expect ok: "true"
   end
 
-  test "ComputeEulerCharacteristic runs" do
-    tests "ComputeEulerCharacteristic", on: "TopologicalSpace"
-    setup  "DefineSpace", name: "sample", point_set: "sample", topology: "sample"
-    expect ok: "true"
-  end
-
   test "DetermineCompactness runs" do
     tests "DetermineCompactness", on: "TopologicalSpace"
     setup  "DefineSpace", name: "sample", point_set: "sample", topology: "sample"

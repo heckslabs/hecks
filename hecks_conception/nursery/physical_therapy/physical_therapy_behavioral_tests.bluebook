@@ -50,13 +50,6 @@ Hecks.behaviors "PhysicalTherapy" do
 
   # ── Session aggregate ──────────────────────────────────────────
 
-  test "ScheduleSession sets patient_name + therapist_name + scheduled_date" do
-    tests "ScheduleSession", on: "Session"
-    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diagnosis: "sample", insurance_id: "sample"
-    input  patient_name: "sample", therapist_name: "sample", scheduled_date: "sample"
-    expect patient_name: "sample", therapist_name: "sample", scheduled_date: "sample", status: "scheduled"
-  end
-
   test "CompleteSession sets notes" do
     tests "CompleteSession", on: "Session"
     setup  "ScheduleSession", patient_name: "sample", therapist_name: "sample", scheduled_date: "sample"

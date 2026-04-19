@@ -19,12 +19,6 @@ Hecks.behaviors "EmergencyRoom" do
 
   # ── Bed aggregate ──────────────────────────────────────────
 
-  test "PrepareBed sets bed_id + zone + equipment_level" do
-    tests "PrepareBed", on: "Bed"
-    input  bed_id: "sample", zone: "sample", equipment_level: "sample"
-    expect status: "available"
-  end
-
   test "OccupyBed runs" do
     tests "OccupyBed", on: "Bed"
     setup  "PrepareBed", bed_id: "sample", zone: "sample", equipment_level: "sample"

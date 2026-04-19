@@ -75,13 +75,6 @@ Hecks.behaviors "DisasterRelief" do
     expect supply_name: "sample", category: "sample", quantity: 1, warehouse_location: "sample", status: "in_stock"
   end
 
-  test "DispatchSupply sets destination + quantity_shipped" do
-    tests "DispatchSupply", on: "ReliefSupply"
-    setup  "ReceiveSupply", supply_name: "sample", category: "sample", quantity: 1, warehouse_location: "sample"
-    input  destination: "sample", quantity_shipped: 1
-    expect ok: "true"
-  end
-
   test "RequestResupply runs" do
     tests "RequestResupply", on: "ReliefSupply"
     setup  "ReceiveSupply", supply_name: "sample", category: "sample", quantity: 1, warehouse_location: "sample"

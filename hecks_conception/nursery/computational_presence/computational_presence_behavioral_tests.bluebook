@@ -82,13 +82,6 @@ Hecks.behaviors "ComputationalPresence" do
     expect streak_minutes: 1, assessment: "sample"
   end
 
-  test "Assess sets assessment" do
-    tests "Assess", on: "PresenceScore"
-    setup  "MeasurePresence", score: 1.0
-    input  assessment: "sample"
-    expect assessment: "sample"
-  end
-
 
   # ── Anchor aggregate ──────────────────────────────────────────
 

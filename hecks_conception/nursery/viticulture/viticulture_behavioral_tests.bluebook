@@ -72,20 +72,6 @@ Hecks.behaviors "Viticulture" do
     expect ok: "true"
   end
 
-  test "DropFruit sets clusters_removed" do
-    tests "DropFruit", on: "CanopyPass"
-    setup  "PlantBlock", block_id: "sample", grape_variety: "sample", rootstock: "sample"
-    input  clusters_removed: 1
-    expect ok: "true"
-  end
-
-  test "LeafPull sets zone_side" do
-    tests "LeafPull", on: "CanopyPass"
-    setup  "PlantBlock", block_id: "sample", grape_variety: "sample", rootstock: "sample"
-    input  zone_side: "sample"
-    expect ok: "true"
-  end
-
 
   # ── HarvestRecord aggregate ──────────────────────────────────────────
 

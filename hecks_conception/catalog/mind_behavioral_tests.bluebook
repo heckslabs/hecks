@@ -150,13 +150,6 @@ Hecks.behaviors "Mind" do
     expect name: "sample", vision: "sample"
   end
 
-  test "GraftDomain sets domain_name + domain_version + source_path + grafted_at" do
-    tests "GraftDomain", on: "Being"
-    setup  "BirthBeing", name: "sample", vision: "sample"
-    input  domain_name: "sample", domain_version: "sample", source_path: "sample", grafted_at: "sample"
-    expect organs_size: 1
-  end
-
   test "ShedDomain sets domain_name" do
     tests "ShedDomain", on: "Being"
     setup  "BirthBeing", name: "sample", vision: "sample"
@@ -231,13 +224,6 @@ Hecks.behaviors "Mind" do
     expect last_beat_at: "sample"
   end
 
-  test "ReportOrganPulse sets domain_name + event_count + last_event_at" do
-    tests "ReportOrganPulse", on: "Heartbeat"
-    setup  "BeginHeartbeat", being_name: "sample"
-    input  domain_name: "sample", event_count: "sample", last_event_at: "sample"
-    expect organ_status_size: 1
-  end
-
 
   # ── Identity aggregate ──────────────────────────────────────────
 
@@ -258,13 +244,6 @@ Hecks.behaviors "Mind" do
     setup  "EstablishIdentity", being_name: "sample"
     input  persona_name: "sample"
     expect personas_known_size: 1
-  end
-
-  test "EncodeIdentityMemory sets memory" do
-    tests "EncodeIdentityMemory", on: "Identity"
-    setup  "EstablishIdentity", being_name: "sample"
-    input  memory: "sample"
-    expect memories_size: 1
   end
 
 
@@ -473,11 +452,6 @@ Hecks.behaviors "Mind" do
     tests "DetectIdle", on: "Consciousness"
     input  idle_seconds: 1
     expect idle_seconds: 1, state: "daydreaming"
-  end
-
-  test "EnterDaydream runs" do
-    tests "EnterDaydream", on: "Consciousness"
-    expect state: "daydreaming"
   end
 
   test "EnterSleep runs" do

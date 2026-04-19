@@ -3,12 +3,6 @@ Hecks.behaviors "PropertyManagement" do
 
   # ── RentalUnit aggregate ──────────────────────────────────────────
 
-  test "ListUnit sets unit_number + address + unit_type + bedrooms + monthly_rent" do
-    tests "ListUnit", on: "RentalUnit"
-    input  unit_number: "sample", address: "sample", unit_type: "sample", bedrooms: 1, monthly_rent: 1.0
-    expect unit_number: "sample", address: "sample", unit_type: "sample", bedrooms: 1, monthly_rent: 1.0, status: "available"
-  end
-
   test "MarkVacant runs" do
     tests "MarkVacant", on: "RentalUnit"
     setup  "ListUnit", unit_number: "sample", address: "sample", unit_type: "sample", bedrooms: 1, monthly_rent: 1.0

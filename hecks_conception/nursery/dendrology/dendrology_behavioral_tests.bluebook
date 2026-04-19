@@ -39,12 +39,6 @@ Hecks.behaviors "Dendrology" do
     expect ok: "true"
   end
 
-  test "CrossdateRings runs" do
-    tests "CrossdateRings", on: "GrowthRingAnalysis"
-    setup  "ExtractCore", core_id: "sample"
-    expect ok: "true"
-  end
-
 
   # ── HealthAssessment aggregate ──────────────────────────────────────────
 
@@ -59,13 +53,6 @@ Hecks.behaviors "Dendrology" do
     tests "PrescribeTreatment", on: "HealthAssessment"
     setup  "AssessHealth", assessment_date: "sample", assessor: "sample"
     input  treatment_type: "sample"
-    expect ok: "true"
-  end
-
-  test "ScheduleFollowup sets followup_date" do
-    tests "ScheduleFollowup", on: "HealthAssessment"
-    setup  "AssessHealth", assessment_date: "sample", assessor: "sample"
-    input  followup_date: "sample"
     expect ok: "true"
   end
 

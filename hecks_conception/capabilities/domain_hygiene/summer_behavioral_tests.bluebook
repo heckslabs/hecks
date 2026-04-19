@@ -30,18 +30,6 @@ Hecks.behaviors "Summer" do
     expect ok: "true"
   end
 
-  test "ReviewDraft runs" do
-    tests "ReviewDraft", on: "Draft"
-    setup  "GenerateDraft", vision: "sample"
-    expect ok: "true"
-  end
-
-  test "AcceptDraft runs" do
-    tests "AcceptDraft", on: "Draft"
-    setup  "GenerateDraft", vision: "sample"
-    expect ok: "true"
-  end
-
 
   # ── Critique aggregate ──────────────────────────────────────────
 

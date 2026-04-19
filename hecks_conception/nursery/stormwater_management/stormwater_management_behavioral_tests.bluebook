@@ -38,12 +38,6 @@ Hecks.behaviors "StormwaterManagement" do
     expect status: "at_risk"
   end
 
-  test "FlagOverflow runs" do
-    tests "FlagOverflow", on: "DrainNetwork"
-    setup  "MapDrainNetwork", name: "sample", watershed_name: "sample", total_capacity_cms: 1.0, inlet_count: 1, outlet_count: 1
-    expect status: "at_risk"
-  end
-
 
   # ── StormEvent aggregate ──────────────────────────────────────────
 
@@ -58,12 +52,6 @@ Hecks.behaviors "StormwaterManagement" do
     setup  "RecordStormEvent", name: "sample", intensity_mm_hr: 1.0, duration_hours: 1.0, return_period_years: 1
     input  runoff_volume_m3: 1.0
     expect runoff_volume_m3: 1.0, status: "analyzed"
-  end
-
-  test "GenerateHydrograph runs" do
-    tests "GenerateHydrograph", on: "StormEvent"
-    setup  "RecordStormEvent", name: "sample", intensity_mm_hr: 1.0, duration_hours: 1.0, return_period_years: 1
-    expect status: "analyzed"
   end
 
 

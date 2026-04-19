@@ -91,12 +91,6 @@ Hecks.behaviors "AeromedicalEvac" do
     expect hospital_name: "sample", trauma_level: "sample", available_beds: 1, status: "ready"
   end
 
-  test "ActivateTraumaTeam runs" do
-    tests "ActivateTraumaTeam", on: "GroundReceiver"
-    setup  "RegisterHospital", hospital_name: "sample", trauma_level: "sample", available_beds: 1
-    expect status: "team_activated"
-  end
-
 
   # ── Handoff aggregate ──────────────────────────────────────────
 

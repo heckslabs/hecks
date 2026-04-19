@@ -104,11 +104,4 @@ Hecks.behaviors "FarmManagement" do
     expect ph_level: 1.0, nitrogen_ppm: 1.0, phosphorus_ppm: 1.0, potassium_ppm: 1.0, organic_matter_percent: 1.0, recommendations: "sample"
   end
 
-  test "IssueRecommendations sets recommendations" do
-    tests "IssueRecommendations", on: "SoilTest"
-    setup  "CollectSample", test_date: "sample"
-    input  recommendations: "sample"
-    expect recommendations: "sample"
-  end
-
 end

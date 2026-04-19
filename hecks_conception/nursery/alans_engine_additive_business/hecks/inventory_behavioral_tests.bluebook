@@ -30,10 +30,4 @@ Hecks.behaviors "Inventory" do
     expect ok: "true"
   end
 
-  test "TriggerReorder runs" do
-    tests "TriggerReorder", on: "Inventory"
-    setup  "ReceiveStock", sku: "sample", warehouse: "sample", quantity: 1
-    expect ok: "true"
-  end
-
 end

@@ -23,13 +23,6 @@ Hecks.behaviors "Biology" do
     expect differentiation_state: "sample", cell_type: "sample"
   end
 
-  test "Metabolize sets pathway + substrate" do
-    tests "Metabolize", on: "Cell"
-    setup  "CultureCell", cell_type: "sample", name: "sample", organism_type: "sample"
-    input  pathway: "sample", substrate: "sample"
-    expect ok: "true"
-  end
-
   test "TriggerApoptosis runs" do
     tests "TriggerApoptosis", on: "Cell"
     setup  "CultureCell", cell_type: "sample", name: "sample", organism_type: "sample"
@@ -77,13 +70,6 @@ Hecks.behaviors "Biology" do
     tests "Mutate", on: "DNA"
     setup  "SequenceDNA", sequence: "sample", organism: "sample", strand_type: "sample"
     input  mutation_type: "sample", position: 1, original_base: "sample", new_base: "sample"
-    expect integrity: 1.0
-  end
-
-  test "RepairDNA sets repair_mechanism + damage_site" do
-    tests "RepairDNA", on: "DNA"
-    setup  "SequenceDNA", sequence: "sample", organism: "sample", strand_type: "sample"
-    input  repair_mechanism: "sample", damage_site: 1
     expect integrity: 1.0
   end
 
@@ -207,13 +193,6 @@ Hecks.behaviors "Biology" do
     expect ok: "true"
   end
 
-  test "MeasureBiodiversity sets biodiversity_index" do
-    tests "MeasureBiodiversity", on: "Ecosystem"
-    setup  "EstablishEcosystem", name: "sample", biome: "sample", area: 1.0, energy_input: 1.0
-    input  biodiversity_index: 1.0
-    expect biodiversity_index: 1.0
-  end
-
 
   # ── Genetics aggregate ──────────────────────────────────────────
 
@@ -281,13 +260,6 @@ Hecks.behaviors "Biology" do
     expect ok: "true"
   end
 
-  test "TrackAdaptation sets trait + pressure + fitness_delta" do
-    tests "TrackAdaptation", on: "Evolution"
-    setup  "TrackLineage", lineage_name: "sample", selection_pressure: "sample"
-    input  trait: "sample", pressure: "sample", fitness_delta: 1.0
-    expect ok: "true"
-  end
-
   test "DateDivergence sets sister_lineage + divergence_time + method" do
     tests "DateDivergence", on: "Evolution"
     setup  "TrackLineage", lineage_name: "sample", selection_pressure: "sample"
@@ -315,13 +287,6 @@ Hecks.behaviors "Biology" do
     tests "FireNeuron", on: "Neuron"
     setup  "DefineNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
     input  stimulus_strength: 1.0
-    expect state: "refractory"
-  end
-
-  test "PropagateSignal sets conduction_type + velocity" do
-    tests "PropagateSignal", on: "Neuron"
-    setup  "DefineNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
-    input  conduction_type: "sample", velocity: 1.0
     expect state: "refractory"
   end
 
@@ -355,14 +320,6 @@ Hecks.behaviors "Biology" do
     expect response_type: "adaptive", status: "active", antibody_generated: "sample"
   end
 
-  test "GenerateAntibody sets antibody_name + isotype" do
-    tests "GenerateAntibody", on: "ImmuneResponse"
-    setup  "DetectPathogen", pathogen_name: "sample", pathogen_type: "sample", severity: "sample"
-    setup  "MountResponse", response_type: "sample"
-    input  antibody_name: "sample", isotype: "sample"
-    expect antibody_generated: "sample"
-  end
-
   test "Engulf sets cell_type + target" do
     tests "Engulf", on: "ImmuneResponse"
     setup  "DetectPathogen", pathogen_name: "sample", pathogen_type: "sample", severity: "sample"
@@ -390,13 +347,6 @@ Hecks.behaviors "Biology" do
     tests "CatalyzeReaction", on: "Metabolism"
     setup  "InitiatePathway", organism_name: "sample", pathway_name: "sample", pathway_type: "sample"
     input  enzyme_name: "sample", substrate: "sample", product: "sample"
-    expect ok: "true"
-  end
-
-  test "ProduceATP sets amount + mechanism" do
-    tests "ProduceATP", on: "Metabolism"
-    setup  "InitiatePathway", organism_name: "sample", pathway_name: "sample", pathway_type: "sample"
-    input  amount: 1.0, mechanism: "sample"
     expect ok: "true"
   end
 

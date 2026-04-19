@@ -16,18 +16,6 @@ Hecks.behaviors "RVWiringSheet" do
     expect entries_size: 1
   end
 
-  test "CalculateTotals runs" do
-    tests "CalculateTotals", on: "WiringSheet"
-    setup  "GenerateSheet", name: "sample"
-    expect ok: "true"
-  end
-
-  test "CheckOverloads runs" do
-    tests "CheckOverloads", on: "WiringSheet"
-    setup  "GenerateSheet", name: "sample"
-    expect ok: "true"
-  end
-
   test "PrintSheet runs" do
     tests "PrintSheet", on: "WiringSheet"
     setup  "GenerateSheet", name: "sample"

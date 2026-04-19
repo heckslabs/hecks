@@ -39,13 +39,6 @@ Hecks.behaviors "HVACService" do
     expect ok: "true"
   end
 
-  test "ResolveTicket sets resolution" do
-    tests "ResolveTicket", on: "ServiceTicket"
-    setup  "OpenTicket", customer_name: "sample", address: "sample", complaint: "sample"
-    input  resolution: "sample"
-    expect ok: "true"
-  end
-
 
   # ── RefrigerantLog aggregate ──────────────────────────────────────────
 

@@ -61,12 +61,6 @@ Hecks.behaviors "Archaeology" do
     expect ok: "true"
   end
 
-  test "SendForDating runs" do
-    tests "SendForDating", on: "Artifact"
-    setup  "RegisterFind", find_number: "sample", material: "sample", object_type: "sample"
-    expect ok: "true"
-  end
-
 
   # ── DatingResult aggregate ──────────────────────────────────────────
 
@@ -90,13 +84,6 @@ Hecks.behaviors "Archaeology" do
     tests "ConserveArtifact", on: "ConservationRecord"
     setup  "RegisterFind", find_number: "sample", material: "sample", object_type: "sample"
     input  treatment_type: "sample", conservator: "sample"
-    expect ok: "true"
-  end
-
-  test "PublishSiteReport sets report_title" do
-    tests "PublishSiteReport", on: "ConservationRecord"
-    setup  "OpenSite", site_code: "sample", name: "sample", latitude: 1.0, longitude: 1.0
-    input  report_title: "sample"
     expect ok: "true"
   end
 

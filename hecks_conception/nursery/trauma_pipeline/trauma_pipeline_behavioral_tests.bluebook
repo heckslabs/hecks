@@ -75,12 +75,6 @@ Hecks.behaviors "TraumaPipeline" do
     expect temperature: 1.0, status: "breached"
   end
 
-  test "FlagTempBreach runs" do
-    tests "FlagTempBreach", on: "ColdTransport"
-    setup  "DeployBloodCourier", courier_id: "sample", origin: "sample", destination: "sample"
-    expect status: "breached"
-  end
-
   test "DeliverBlood runs" do
     tests "DeliverBlood", on: "ColdTransport"
     setup  "DeployBloodCourier", courier_id: "sample", origin: "sample", destination: "sample"

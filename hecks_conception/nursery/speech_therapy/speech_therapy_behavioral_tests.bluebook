@@ -32,12 +32,6 @@ Hecks.behaviors "SpeechTherapy" do
     expect current_score: 1, status: "achieved"
   end
 
-  test "AchieveGoal runs" do
-    tests "AchieveGoal", on: "TherapyGoal"
-    setup  "SetGoal", client_name: "sample", goal_area: "sample", description: "sample", target_criterion: "sample", baseline_score: 1
-    expect status: "achieved"
-  end
-
 
   # ── TherapySession aggregate ──────────────────────────────────────────
 

@@ -53,12 +53,6 @@ Hecks.behaviors "SupplyChain" do
     expect lot_number: "sample", status: "inspecting"
   end
 
-  test "TrackLot runs" do
-    tests "TrackLot", on: "RawMaterial"
-    setup  "SourceMaterial", chemical_name: "sample", cas_number: "sample", supplier: "sample", grade: "sample", unit_cost: 1.0, unit: "sample"
-    expect ok: "true"
-  end
-
 
   # ── PackagingComponent aggregate ──────────────────────────────────────────
 
@@ -183,11 +177,6 @@ Hecks.behaviors "SupplyChain" do
 
   test "RecordRejection runs" do
     tests "RecordRejection", on: "SupplierQuality"
-    expect ok: "true"
-  end
-
-  test "CalculateMetrics runs" do
-    tests "CalculateMetrics", on: "SupplierQuality"
     expect ok: "true"
   end
 

@@ -54,12 +54,6 @@ Hecks.behaviors "OccupationalTherapy" do
     expect status: "implemented"
   end
 
-  test "EvaluateEffectiveness runs" do
-    tests "EvaluateEffectiveness", on: "Adaptation"
-    setup  "RecommendAdaptation", client_name: "sample", adaptation_type: "sample", description: "sample", location: "sample"
-    expect ok: "true"
-  end
-
 
   # ── FunctionalGoal aggregate ──────────────────────────────────────────
 

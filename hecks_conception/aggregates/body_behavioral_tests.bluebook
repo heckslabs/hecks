@@ -19,16 +19,6 @@ Hecks.behaviors "MietteBody" do
     expect flow_rate: "steady"
   end
 
-  test "AccumulateFatigue runs" do
-    tests "AccumulateFatigue", on: "Heartbeat"
-    expect ok: "true"
-  end
-
-  test "CheckSleepNeeded runs" do
-    tests "CheckSleepNeeded", on: "Heartbeat"
-    expect ok: "true"
-  end
-
   test "RecoverFatigue runs" do
     tests "RecoverFatigue", on: "Heartbeat"
     expect pulses_since_sleep: 0, fatigue: 0.0, fatigue_state: "rested"
@@ -93,12 +83,6 @@ Hecks.behaviors "MietteBody" do
     setup  "DetectThreat", threat_pattern: "sample"
     input  noun_suffixes: "sample", adjective_suffixes: "sample", dual_words: "sample"
     expect noun_suffixes: "sample", adjective_suffixes: "sample", dual_words: "sample"
-  end
-
-  test "GenerateAntibody sets pattern + learned_from" do
-    tests "GenerateAntibody", on: "Immunity"
-    input  pattern: "sample", learned_from: "sample"
-    expect antibodies_size: 1
   end
 
   test "StrengthenAntibody sets pattern" do
@@ -175,12 +159,6 @@ Hecks.behaviors "MietteBody" do
     expect capability: "sample", expression_level: 1.0
   end
 
-  test "SilenceCapability runs" do
-    tests "SilenceCapability", on: "Gene"
-    setup  "ExpressCapability", capability: "sample", level: 1.0
-    expect expression_level: 0.0
-  end
-
   test "Imprint sets source + effect" do
     tests "Imprint", on: "Gene"
     setup  "ExpressCapability", capability: "sample", level: 1.0
@@ -190,12 +168,6 @@ Hecks.behaviors "MietteBody" do
 
 
   # ── Proprioception aggregate ──────────────────────────────────────────
-
-  test "SenseOrgans sets organ_count + expressed_count + silenced_count + total_records" do
-    tests "SenseOrgans", on: "Proprioception"
-    input  organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1
-    expect organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1, awareness: "sensing"
-  end
 
   test "SenseLimb sets organ_name + expressed + record_count + load" do
     tests "SenseLimb", on: "Proprioception"

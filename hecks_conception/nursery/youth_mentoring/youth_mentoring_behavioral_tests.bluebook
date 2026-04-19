@@ -87,10 +87,4 @@ Hecks.behaviors "YouthMentoring" do
     expect status: "completed"
   end
 
-  test "CompleteGoal runs" do
-    tests "CompleteGoal", on: "DevelopmentGoal"
-    setup  "SetDevelopmentGoal", mentee_name: "sample", goal_area: "sample", description: "sample", target_date: "sample"
-    expect status: "completed"
-  end
-
 end

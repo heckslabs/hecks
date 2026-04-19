@@ -113,13 +113,6 @@ Hecks.behaviors "EcoProtectedZone" do
     expect zone_name: "sample", hazard_type: "sample", alert_level: "normal", status: "monitored"
   end
 
-  test "RaiseAlert sets alert_level" do
-    tests "RaiseAlert", on: "HazardZone"
-    setup  "DefineHazardZone", zone_name: "sample", hazard_type: "sample"
-    input  alert_level: "sample"
-    expect alert_level: "sample", status: "alert"
-  end
-
   test "LowerAlert runs" do
     tests "LowerAlert", on: "HazardZone"
     setup  "DefineHazardZone", zone_name: "sample", hazard_type: "sample"

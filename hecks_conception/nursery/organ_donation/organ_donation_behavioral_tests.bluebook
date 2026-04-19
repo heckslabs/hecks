@@ -15,12 +15,6 @@ Hecks.behaviors "OrganDonation" do
     expect consent_status: "confirmed"
   end
 
-  test "AssessOrganViability runs" do
-    tests "AssessOrganViability", on: "Donor"
-    setup  "RegisterDonor", name: "sample", blood_type: "sample", tissue_type: "sample", hospital: "sample", cause_of_death: "sample", consent_status: "sample"
-    expect ok: "true"
-  end
-
 
   # ── Recipient aggregate ──────────────────────────────────────────
 

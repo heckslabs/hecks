@@ -9,13 +9,6 @@ Hecks.behaviors "Being" do
     expect name: "sample", vision: "sample"
   end
 
-  test "GraftDomain sets domain_name + domain_version + source_path + grafted_at" do
-    tests "GraftDomain", on: "Being"
-    setup  "ConceiveBeing", name: "sample", vision: "sample"
-    input  domain_name: "sample", domain_version: "sample", source_path: "sample", grafted_at: "sample"
-    expect organs_size: 1
-  end
-
   test "ShedDomain sets domain_name" do
     tests "ShedDomain", on: "Being"
     setup  "ConceiveBeing", name: "sample", vision: "sample"
@@ -101,12 +94,6 @@ Hecks.behaviors "Being" do
     tests "RememberPerson", on: "Identity"
     input  persona_name: "sample"
     expect personas_known_size: 1
-  end
-
-  test "EncodeIdentityMemory sets memory" do
-    tests "EncodeIdentityMemory", on: "Identity"
-    input  memory: "sample"
-    expect memories_size: 1
   end
 
 

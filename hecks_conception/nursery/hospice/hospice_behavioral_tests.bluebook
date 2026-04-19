@@ -31,13 +31,6 @@ Hecks.behaviors "Hospice" do
     expect patient_name: "sample", pain_management_approach: "sample", spiritual_preferences: "sample", status: "active"
   end
 
-  test "AddIntervention sets symptom + intervention + frequency" do
-    tests "AddIntervention", on: "ComfortPlan"
-    setup  "DraftComfortPlan", patient_name: "sample", pain_management_approach: "sample", spiritual_preferences: "sample"
-    input  symptom: "sample", intervention: "sample", frequency: "sample"
-    expect ok: "true"
-  end
-
   test "AdjustPainManagement sets pain_management_approach" do
     tests "AdjustPainManagement", on: "ComfortPlan"
     setup  "DraftComfortPlan", patient_name: "sample", pain_management_approach: "sample", spiritual_preferences: "sample"

@@ -75,11 +75,4 @@ Hecks.behaviors "FurnitureShowroom" do
     expect status: "resolved"
   end
 
-  test "ResolveWarrantyClaim sets resolution" do
-    tests "ResolveWarrantyClaim", on: "Warranty"
-    setup  "ActivateWarranty", warranty_id: "sample", sku: "sample", customer_name: "sample", coverage_type: "sample", expiration_date: "sample"
-    input  resolution: "sample"
-    expect status: "resolved"
-  end
-
 end

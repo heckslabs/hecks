@@ -49,12 +49,6 @@ Hecks.behaviors "CoffeeShop" do
 
   # ── BeanSupply aggregate ──────────────────────────────────────────
 
-  test "ReceiveBeans sets batch_id + origin + roast_level + roaster + weight_kg + roast_date" do
-    tests "ReceiveBeans", on: "BeanSupply"
-    input  batch_id: "sample", origin: "sample", roast_level: "sample", roaster: "sample", weight_kg: 1.0, roast_date: "sample"
-    expect batch_id: "sample", origin: "sample", roast_level: "sample", roaster: "sample", weight_kg: 1.0, roast_date: "sample"
-  end
-
   test "DepleteBeans sets amount_used" do
     tests "DepleteBeans", on: "BeanSupply"
     setup  "ReceiveBeans", batch_id: "sample", origin: "sample", roast_level: "sample", roaster: "sample", weight_kg: 1.0, roast_date: "sample"
@@ -69,12 +63,6 @@ Hecks.behaviors "CoffeeShop" do
     tests "InstallEquipment", on: "Equipment"
     input  equipment_id: "sample", name: "sample", make: "sample", model: "sample"
     expect equipment_id: "sample", name: "sample", make: "sample", model: "sample", status: "operational"
-  end
-
-  test "ServiceEquipment runs" do
-    tests "ServiceEquipment", on: "Equipment"
-    setup  "InstallEquipment", equipment_id: "sample", name: "sample", make: "sample", model: "sample"
-    expect ok: "true"
   end
 
   test "ReportMalfunction runs" do

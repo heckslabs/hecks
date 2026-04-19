@@ -85,11 +85,4 @@ Hecks.behaviors "WeddingPlanning" do
     expect rsvp_status: "sample", meal_preference: "sample", table_assignment: "sample"
   end
 
-  test "AssignTable sets table_assignment" do
-    tests "AssignTable", on: "GuestListEntry"
-    setup  "InviteGuest", guest_name: "sample", email: "sample", party_size: 1
-    input  table_assignment: "sample"
-    expect table_assignment: "sample"
-  end
-
 end

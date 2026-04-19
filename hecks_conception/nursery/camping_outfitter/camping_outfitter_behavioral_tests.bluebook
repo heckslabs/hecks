@@ -30,13 +30,6 @@ Hecks.behaviors "CampingOutfitter" do
     expect status: "returned"
   end
 
-  test "ChargeLateFee sets fee_amount" do
-    tests "ChargeLateFee", on: "GearRental"
-    setup  "RentGear", rental_id: "sample", sku: "sample", renter_name: "sample", start_date: "sample", return_date: "sample", rental_fee: 1.0
-    input  fee_amount: 1.0
-    expect ok: "true"
-  end
-
 
   # ── TrailMap aggregate ──────────────────────────────────────────
 

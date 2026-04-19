@@ -36,12 +36,6 @@ Hecks.behaviors "GolfCourse" do
     expect status: "available"
   end
 
-  test "ServiceCart runs" do
-    tests "ServiceCart", on: "GolfCart"
-    setup  "RegisterCart", cart_id: "sample", cart_type: "sample", seating_capacity: 1, rental_fee: 1.0
-    expect ok: "true"
-  end
-
 
   # ── CourseHole aggregate ──────────────────────────────────────────
 

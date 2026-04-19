@@ -37,12 +37,6 @@ Hecks.behaviors "Genetics" do
     expect ok: "true"
   end
 
-  test "AnnotateFeatures runs" do
-    tests "AnnotateFeatures", on: "DnaSequence"
-    setup  "SubmitSequence", accession: "sample", sequencing_method: "sample", length_bp: 1
-    expect ok: "true"
-  end
-
 
   # ── Mutation aggregate ──────────────────────────────────────────
 

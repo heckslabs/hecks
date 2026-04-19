@@ -32,12 +32,6 @@ Hecks.behaviors "SolarOptics" do
     expect tilt_degrees: 1.0, status: "optimized"
   end
 
-  test "AdjustPanel runs" do
-    tests "AdjustPanel", on: "SolarPanel"
-    setup  "InstallPanel", panel_id: "sample", tilt_degrees: 1.0, azimuth_degrees: 1.0, area_m2: 1.0, efficiency_pct: 1.0, peak_power_watts: 1.0
-    expect status: "optimized"
-  end
-
 
   # ── ShadingAnalysis aggregate ──────────────────────────────────────────
 
@@ -52,13 +46,6 @@ Hecks.behaviors "SolarOptics" do
     setup  "AnalyzeShading", site_name: "sample", obstruction_type: "sample", obstruction_height_m: 1.0, obstruction_distance_m: 1.0
     input  shade_hours_per_day: 1.0
     expect shade_hours_per_day: 1.0, energy_loss_pct: 1.0, status: "quantified"
-  end
-
-  test "EstimateEnergyLoss sets energy_loss_pct" do
-    tests "EstimateEnergyLoss", on: "ShadingAnalysis"
-    setup  "AnalyzeShading", site_name: "sample", obstruction_type: "sample", obstruction_height_m: 1.0, obstruction_distance_m: 1.0
-    input  energy_loss_pct: 1.0
-    expect energy_loss_pct: 1.0, status: "quantified"
   end
 
 

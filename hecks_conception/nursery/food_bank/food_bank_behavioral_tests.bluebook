@@ -45,12 +45,6 @@ Hecks.behaviors "FoodBank" do
     expect status: "low"
   end
 
-  test "FlagLowStock runs" do
-    tests "FlagLowStock", on: "Inventory"
-    setup  "StockItem", item_name: "sample", category: "sample", quantity: 1, storage_location: "sample", expiration_date: "sample"
-    expect status: "low"
-  end
-
 
   # ── Distribution aggregate ──────────────────────────────────────────
 

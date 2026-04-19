@@ -77,12 +77,6 @@ Hecks.behaviors "Hydrology" do
     expect ok: "true"
   end
 
-  test "PublishFloodMap runs" do
-    tests "PublishFloodMap", on: "FloodModel"
-    setup  "BuildModel", model_id: "sample", scenario_name: "sample"
-    expect ok: "true"
-  end
-
 
   # ── MonitoringWell aggregate ──────────────────────────────────────────
 

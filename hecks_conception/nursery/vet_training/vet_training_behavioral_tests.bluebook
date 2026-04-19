@@ -46,12 +46,6 @@ Hecks.behaviors "VetTraining" do
     expect progress_pct: 1.0, status: "completed"
   end
 
-  test "CompleteCourse runs" do
-    tests "CompleteCourse", on: "Enrollment"
-    setup  "EnrollInCourse", enrollment_id: "sample", veteran_id: "sample", course_id: "sample"
-    expect status: "completed"
-  end
-
 
   # ── JobPlacement aggregate ──────────────────────────────────────────
 

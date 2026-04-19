@@ -95,13 +95,6 @@ Hecks.behaviors "MassCasualtyResponse" do
     expect status: "receiving"
   end
 
-  test "ActivateTraumaTeam runs" do
-    tests "ActivateTraumaTeam", on: "ReceivingHospital"
-    setup  "RegisterCapacity", hospital_name: "sample", trauma_level: "sample", available_beds: 1, available_surgeons: 1
-    setup  "AcceptCasualties"
-    expect ok: "true"
-  end
-
 
   # ── CasualtyTracker aggregate ──────────────────────────────────────────
 

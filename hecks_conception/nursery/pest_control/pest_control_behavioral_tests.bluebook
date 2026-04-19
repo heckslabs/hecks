@@ -24,13 +24,6 @@ Hecks.behaviors "PestControl" do
 
   # ── InspectionReport aggregate ──────────────────────────────────────────
 
-  test "ConductInspection sets inspection_date + pest_type + severity + entry_points + recommendations" do
-    tests "ConductInspection", on: "InspectionReport"
-    setup  "OpenAccount", customer_name: "sample", phone: "sample", email: "sample", service_address: "sample", property_type: "sample"
-    input  inspection_date: "sample", pest_type: "sample", severity: "sample", entry_points: "sample", recommendations: "sample"
-    expect inspection_date: "sample", pest_type: "sample", severity: "sample", entry_points: "sample", recommendations: "sample", status: "completed"
-  end
-
   test "FlagReinfestation runs" do
     tests "FlagReinfestation", on: "InspectionReport"
     setup  "ConductInspection", inspection_date: "sample", pest_type: "sample", severity: "sample", entry_points: "sample", recommendations: "sample"

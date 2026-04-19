@@ -121,13 +121,6 @@ Hecks.behaviors "Cosmology" do
     expect temperature: 1.0
   end
 
-  test "EmitHawkingRadiation sets temperature" do
-    tests "EmitHawkingRadiation", on: "BlackHole"
-    setup  "FormBlackHole", name: "sample", mass: 1.0, spin: 1.0, charge: 1.0
-    input  temperature: 1.0
-    expect temperature: 1.0
-  end
-
   test "MergeBlackHoles sets companion_mass" do
     tests "MergeBlackHoles", on: "BlackHole"
     setup  "FormBlackHole", name: "sample", mass: 1.0, spin: 1.0, charge: 1.0

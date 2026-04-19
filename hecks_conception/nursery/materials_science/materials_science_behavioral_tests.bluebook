@@ -388,13 +388,6 @@ Hecks.behaviors "MaterialsScience" do
     expect fatigue_cycles: 1, fracture_mode: "sample"
   end
 
-  test "PredictFracture sets fracture_mode + critical_stress" do
-    tests "PredictFracture", on: "Stress"
-    setup  "ApplyStress", material_name: "sample", stress_type: "sample", magnitude: 1.0
-    input  fracture_mode: "sample", critical_stress: 1.0
-    expect fracture_mode: "sample"
-  end
-
   test "MapStressField sets method + resolution" do
     tests "MapStressField", on: "Stress"
     setup  "ApplyStress", material_name: "sample", stress_type: "sample", magnitude: 1.0

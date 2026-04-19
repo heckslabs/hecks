@@ -73,13 +73,6 @@ Hecks.behaviors "NaturalDisasterGrid" do
     expect closure_reason: "sample", affected_flights: 1, status: "closed"
   end
 
-  test "CloseAirspace sets closure_reason + affected_flights" do
-    tests "CloseAirspace", on: "AirspaceZone"
-    setup  "DefineAirspace", zone_id: "sample", region: "sample"
-    input  closure_reason: "sample", affected_flights: 1
-    expect closure_reason: "sample", affected_flights: 1, status: "closed"
-  end
-
   test "ReopenAirspace runs" do
     tests "ReopenAirspace", on: "AirspaceZone"
     setup  "DefineAirspace", zone_id: "sample", region: "sample"

@@ -85,11 +85,6 @@ Hecks.behaviors "DLM" do
 
   # ── Physiology aggregate ──────────────────────────────────────────
 
-  test "RecordHeartbeat runs" do
-    tests "RecordHeartbeat", on: "Physiology"
-    expect ok: "true"
-  end
-
   test "RecordPulse runs" do
     tests "RecordPulse", on: "Physiology"
     expect ok: "true"
@@ -98,12 +93,6 @@ Hecks.behaviors "DLM" do
   test "EnterSleep runs" do
     tests "EnterSleep", on: "Physiology"
     expect pulse: 0
-  end
-
-  test "GenerateDream sets dream_images" do
-    tests "GenerateDream", on: "Physiology"
-    input  dream_images: "sample"
-    expect ok: "true"
   end
 
 

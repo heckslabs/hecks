@@ -23,12 +23,6 @@ Hecks.behaviors "WarehouseRobotics" do
     expect battery_pct: 1.0, status: "charging"
   end
 
-  test "SendToCharger runs" do
-    tests "SendToCharger", on: "Robot"
-    setup  "ActivateRobot", robot_id: "sample", robot_type: "sample", max_payload_kg: 1.0, current_zone: "sample"
-    expect status: "charging"
-  end
-
   test "FinishCharging runs" do
     tests "FinishCharging", on: "Robot"
     setup  "ActivateRobot", robot_id: "sample", robot_type: "sample", max_payload_kg: 1.0, current_zone: "sample"
