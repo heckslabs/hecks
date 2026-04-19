@@ -31,8 +31,8 @@ Hecks.behaviors "VeterinaryClinic" do
     expect first_name: "sample", last_name: "sample", phone: "sample", email: "sample"
   end
 
-  test "UpdateContactInfo sets phone + email" do
-    tests "UpdateContactInfo", on: "Owner"
+  test "RefreshContactInfo sets phone + email" do
+    tests "RefreshContactInfo", on: "Owner"
     setup  "RegisterOwner", first_name: "sample", last_name: "sample", phone: "sample", email: "sample"
     input  phone: "sample", email: "sample"
     expect phone: "sample", email: "sample"

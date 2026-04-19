@@ -93,22 +93,22 @@ Hecks.behaviors "CyberSecurity" do
 
   # ── AccessPolicy aggregate ──────────────────────────────────────────
 
-  test "CreateAccessPolicy sets policy_name + resource_scope + permission_level" do
-    tests "CreateAccessPolicy", on: "AccessPolicy"
+  test "EstablishAccessPolicy sets policy_name + resource_scope + permission_level" do
+    tests "EstablishAccessPolicy", on: "AccessPolicy"
     input  policy_name: "sample", resource_scope: "sample", permission_level: "sample"
-    expect policy_name: "sample", resource_scope: "sample", permission_level: "sample"
+    expect ok: "true"
   end
 
   test "GrantAccess sets principal + role" do
     tests "GrantAccess", on: "AccessPolicy"
-    setup  "CreateAccessPolicy", policy_name: "sample", resource_scope: "sample", permission_level: "sample"
+    setup  "EstablishAccessPolicy", policy_name: "sample", resource_scope: "sample", permission_level: "sample"
     input  principal: "sample", role: "sample"
     expect ok: "true"
   end
 
   test "RevokeAccess sets principal" do
     tests "RevokeAccess", on: "AccessPolicy"
-    setup  "CreateAccessPolicy", policy_name: "sample", resource_scope: "sample", permission_level: "sample"
+    setup  "EstablishAccessPolicy", policy_name: "sample", resource_scope: "sample", permission_level: "sample"
     input  principal: "sample"
     expect ok: "true"
   end

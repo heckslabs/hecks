@@ -39,8 +39,8 @@ Hecks.behaviors "YouthMentoring" do
 
   # ── MentorMatch aggregate ──────────────────────────────────────────
 
-  test "CreateMatch sets mentor_name + mentee_name + match_date + match_rationale" do
-    tests "CreateMatch", on: "MentorMatch"
+  test "MakeMatch sets mentor_name + mentee_name + match_date + match_rationale" do
+    tests "MakeMatch", on: "MentorMatch"
     setup  "EnrollMentee", name: "sample", age: "sample", school: "sample", interests: "sample", guardian_name: "sample"
     setup  "RegisterMentor", name: "sample", occupation: "sample", skills: "sample", availability: "sample"
     input  mentor_name: "sample", mentee_name: "sample", match_date: "sample", match_rationale: "sample"
@@ -49,7 +49,7 @@ Hecks.behaviors "YouthMentoring" do
 
   test "CloseMatch runs" do
     tests "CloseMatch", on: "MentorMatch"
-    setup  "CreateMatch", mentor_name: "sample", mentee_name: "sample", match_date: "sample", match_rationale: "sample"
+    setup  "MakeMatch", mentor_name: "sample", mentee_name: "sample", match_date: "sample", match_rationale: "sample"
     expect status: "closed"
   end
 
@@ -58,7 +58,7 @@ Hecks.behaviors "YouthMentoring" do
 
   test "ScheduleMeeting sets mentor_name + mentee_name + meeting_date + location + activity" do
     tests "ScheduleMeeting", on: "MentoringMeeting"
-    setup  "CreateMatch", mentor_name: "sample", mentee_name: "sample", match_date: "sample", match_rationale: "sample"
+    setup  "MakeMatch", mentor_name: "sample", mentee_name: "sample", match_date: "sample", match_rationale: "sample"
     input  mentor_name: "sample", mentee_name: "sample", meeting_date: "sample", location: "sample", activity: "sample"
     expect mentor_name: "sample", mentee_name: "sample", meeting_date: "sample", location: "sample", activity: "sample", status: "scheduled"
   end

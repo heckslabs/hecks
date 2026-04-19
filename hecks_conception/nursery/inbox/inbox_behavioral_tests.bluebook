@@ -31,13 +31,21 @@ Hecks.behaviors "Inbox" do
 
   # ── Inbox aggregate ──────────────────────────────────────────
 
+  test "OpenInbox sets queued_count + oldest_priority" do
+    tests "OpenInbox", on: "Inbox"
+    input  queued_count: 1, oldest_priority: "sample"
+    expect queued_count: 1, oldest_priority: "sample"
+  end
+
   test "DrainInbox runs" do
     tests "DrainInbox", on: "Inbox"
+    setup  "OpenInbox", queued_count: 1, oldest_priority: "sample"
     expect ok: "true"
   end
 
-  test "UpdateCounts sets queued_count + oldest_priority" do
-    tests "UpdateCounts", on: "Inbox"
+  test "Tally sets queued_count + oldest_priority" do
+    tests "Tally", on: "Inbox"
+    setup  "OpenInbox", queued_count: 1, oldest_priority: "sample"
     input  queued_count: 1, oldest_priority: "sample"
     expect queued_count: 1, oldest_priority: "sample"
   end

@@ -113,22 +113,22 @@ Hecks.behaviors "BrewingForVeterans" do
 
   # ── GraduationPath aggregate ──────────────────────────────────────────
 
-  test "CreatePath sets path_id + employment_goal + housing_transition + mentor_name" do
-    tests "CreatePath", on: "GraduationPath"
+  test "ChartPath sets path_id + employment_goal + housing_transition + mentor_name" do
+    tests "ChartPath", on: "GraduationPath"
     setup  "EnrollApprentice", apprentice_id: "sample", name: "sample", branch_of_service: "sample", discharge_type: "sample", housing_status: "sample"
     input  path_id: "sample", employment_goal: "sample", housing_transition: "sample", mentor_name: "sample"
-    expect path_id: "sample", employment_goal: "sample", housing_transition: "sample", mentor_name: "sample", graduate: :graduate, status: "active"
+    expect path_id: "sample", graduate: :graduate, employment_goal: "sample", housing_transition: "sample", mentor_name: "sample", status: "active"
   end
 
   test "AchieveMilestone runs" do
     tests "AchieveMilestone", on: "GraduationPath"
-    setup  "CreatePath", path_id: "sample", employment_goal: "sample", housing_transition: "sample", mentor_name: "sample"
+    setup  "ChartPath", path_id: "sample", employment_goal: "sample", housing_transition: "sample", mentor_name: "sample"
     expect ok: "true"
   end
 
   test "CompletePath runs" do
     tests "CompletePath", on: "GraduationPath"
-    setup  "CreatePath", path_id: "sample", employment_goal: "sample", housing_transition: "sample", mentor_name: "sample"
+    setup  "ChartPath", path_id: "sample", employment_goal: "sample", housing_transition: "sample", mentor_name: "sample"
     expect status: "completed"
   end
 

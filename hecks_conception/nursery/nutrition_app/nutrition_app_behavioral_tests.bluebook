@@ -3,15 +3,15 @@ Hecks.behaviors "NutritionApp" do
 
   # ── MealPlan aggregate ──────────────────────────────────────────
 
-  test "CreateMealPlan sets plan_id + user_name + goal + daily_calories" do
-    tests "CreateMealPlan", on: "MealPlan"
+  test "ComposeMealPlan sets plan_id + user_name + goal + daily_calories" do
+    tests "ComposeMealPlan", on: "MealPlan"
     input  plan_id: "sample", user_name: "sample", goal: "sample", daily_calories: 1
     expect plan_id: "sample", user_name: "sample", goal: "sample", daily_calories: 1, status: "active"
   end
 
   test "AdjustPlan sets daily_calories" do
     tests "AdjustPlan", on: "MealPlan"
-    setup  "CreateMealPlan", plan_id: "sample", user_name: "sample", goal: "sample", daily_calories: 1
+    setup  "ComposeMealPlan", plan_id: "sample", user_name: "sample", goal: "sample", daily_calories: 1
     input  daily_calories: 1
     expect daily_calories: 1
   end
@@ -57,8 +57,8 @@ Hecks.behaviors "NutritionApp" do
     expect goal_id: "sample", user_name: "sample", nutrient: "sample", target_amount: 1.0, unit: "sample", actual_amount: 0.0
   end
 
-  test "UpdateActual sets actual_amount" do
-    tests "UpdateActual", on: "NutrientGoal"
+  test "LogActual sets actual_amount" do
+    tests "LogActual", on: "NutrientGoal"
     setup  "SetGoal", goal_id: "sample", user_name: "sample", nutrient: "sample", target_amount: 1.0, unit: "sample"
     input  actual_amount: 1.0
     expect actual_amount: 1.0

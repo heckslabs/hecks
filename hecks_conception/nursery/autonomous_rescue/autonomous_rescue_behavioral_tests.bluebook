@@ -55,7 +55,7 @@ Hecks.behaviors "AutonomousRescue" do
 
   test "DeploySupplyBot sets bot_id + payload_type" do
     tests "DeploySupplyBot", on: "SupplyBot"
-    setup  "CreateBeacon", latitude: 1.0, longitude: 1.0, detection_method: "sample", rescue_priority: "sample"
+    setup  "MarkBeacon", latitude: 1.0, longitude: 1.0, detection_method: "sample", rescue_priority: "sample"
     input  bot_id: "sample", payload_type: "sample"
     expect bot_id: "sample", payload_type: "sample", target_beacon: :target_beacon, battery_percent: 100.0, status: "en_route"
   end
@@ -82,8 +82,8 @@ Hecks.behaviors "AutonomousRescue" do
 
   # ── SurvivorBeacon aggregate ──────────────────────────────────────────
 
-  test "CreateBeacon sets latitude + longitude + detection_method + rescue_priority" do
-    tests "CreateBeacon", on: "SurvivorBeacon"
+  test "MarkBeacon sets latitude + longitude + detection_method + rescue_priority" do
+    tests "MarkBeacon", on: "SurvivorBeacon"
     setup  "LaunchMission", incident_name: "sample", incident_type: "sample", location: "sample"
     input  latitude: 1.0, longitude: 1.0, detection_method: "sample", rescue_priority: "sample"
     expect latitude: 1.0, longitude: 1.0, detection_method: "sample", rescue_priority: "sample", mission: :mission, status: "active"
@@ -91,13 +91,13 @@ Hecks.behaviors "AutonomousRescue" do
 
   test "ConfirmSurvivor runs" do
     tests "ConfirmSurvivor", on: "SurvivorBeacon"
-    setup  "CreateBeacon", latitude: 1.0, longitude: 1.0, detection_method: "sample", rescue_priority: "sample"
+    setup  "MarkBeacon", latitude: 1.0, longitude: 1.0, detection_method: "sample", rescue_priority: "sample"
     expect status: "confirmed"
   end
 
   test "ExtractSurvivor runs" do
     tests "ExtractSurvivor", on: "SurvivorBeacon"
-    setup  "CreateBeacon", latitude: 1.0, longitude: 1.0, detection_method: "sample", rescue_priority: "sample"
+    setup  "MarkBeacon", latitude: 1.0, longitude: 1.0, detection_method: "sample", rescue_priority: "sample"
     setup  "ConfirmSurvivor"
     expect status: "extracted"
   end
@@ -132,8 +132,8 @@ Hecks.behaviors "AutonomousRescue" do
     expect mission: :mission, map_version: "1", sectors_mapped: 0, status: "active"
   end
 
-  test "UpdateMap sets sectors_mapped" do
-    tests "UpdateMap", on: "DebrisMap"
+  test "RefreshMap sets sectors_mapped" do
+    tests "RefreshMap", on: "DebrisMap"
     setup  "InitializeMap"
     input  sectors_mapped: 1
     expect sectors_mapped: 1

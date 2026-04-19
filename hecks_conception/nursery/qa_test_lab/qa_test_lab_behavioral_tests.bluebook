@@ -3,22 +3,22 @@ Hecks.behaviors "QATestLab" do
 
   # ── TestProject aggregate ──────────────────────────────────────────
 
-  test "CreateTestProject sets project_name + repository_url + team_lead + priority" do
-    tests "CreateTestProject", on: "TestProject"
+  test "RegisterTestProject sets project_name + repository_url + team_lead + priority" do
+    tests "RegisterTestProject", on: "TestProject"
     input  project_name: "sample", repository_url: "sample", team_lead: "sample", priority: "sample"
     expect project_name: "sample", repository_url: "sample", team_lead: "sample", priority: "sample"
   end
 
   test "AssignTeamLead sets team_lead" do
     tests "AssignTeamLead", on: "TestProject"
-    setup  "CreateTestProject", project_name: "sample", repository_url: "sample", team_lead: "sample", priority: "sample"
+    setup  "RegisterTestProject", project_name: "sample", repository_url: "sample", team_lead: "sample", priority: "sample"
     input  team_lead: "sample"
     expect ok: "true"
   end
 
   test "CloseProject runs" do
     tests "CloseProject", on: "TestProject"
-    setup  "CreateTestProject", project_name: "sample", repository_url: "sample", team_lead: "sample", priority: "sample"
+    setup  "RegisterTestProject", project_name: "sample", repository_url: "sample", team_lead: "sample", priority: "sample"
     expect ok: "true"
   end
 
@@ -27,7 +27,7 @@ Hecks.behaviors "QATestLab" do
 
   test "DefineTestSuite sets suite_name + test_type" do
     tests "DefineTestSuite", on: "TestSuite"
-    setup  "CreateTestProject", project_name: "sample", repository_url: "sample", team_lead: "sample", priority: "sample"
+    setup  "RegisterTestProject", project_name: "sample", repository_url: "sample", team_lead: "sample", priority: "sample"
     input  suite_name: "sample", test_type: "sample"
     expect ok: "true"
   end
@@ -94,7 +94,7 @@ Hecks.behaviors "QATestLab" do
 
   test "CandidateRelease sets release_version + branch_name + build_id" do
     tests "CandidateRelease", on: "Release"
-    setup  "CreateTestProject", project_name: "sample", repository_url: "sample", team_lead: "sample", priority: "sample"
+    setup  "RegisterTestProject", project_name: "sample", repository_url: "sample", team_lead: "sample", priority: "sample"
     input  release_version: "sample", branch_name: "sample", build_id: "sample"
     expect ok: "true"
   end

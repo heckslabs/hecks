@@ -66,8 +66,8 @@ Hecks.behaviors "EcoProtectedZone" do
     expect ok: "true"
   end
 
-  test "UpdateConservationStatus sets conservation_status" do
-    tests "UpdateConservationStatus", on: "WildlifeSpecies"
+  test "ReviseStatus sets conservation_status" do
+    tests "ReviseStatus", on: "WildlifeSpecies"
     setup  "CatalogSpecies", common_name: "sample", scientific_name: "sample", conservation_status: "sample", estimated_population: 1, primary_habitat: "sample"
     input  conservation_status: "sample"
     expect conservation_status: "sample"

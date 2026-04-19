@@ -3,15 +3,15 @@ Hecks.behaviors "HealingGarden" do
 
   # ── ComfortPlan aggregate ──────────────────────────────────────────
 
-  test "CreateComfortPlan sets plan_id + patient_name + primary_nurse" do
-    tests "CreateComfortPlan", on: "ComfortPlan"
+  test "DraftComfortPlan sets plan_id + patient_name + primary_nurse" do
+    tests "DraftComfortPlan", on: "ComfortPlan"
     input  plan_id: "sample", patient_name: "sample", primary_nurse: "sample"
     expect plan_id: "sample", patient_name: "sample", primary_nurse: "sample", status: "active"
   end
 
-  test "UpdatePlan runs" do
-    tests "UpdatePlan", on: "ComfortPlan"
-    setup  "CreateComfortPlan", plan_id: "sample", patient_name: "sample", primary_nurse: "sample"
+  test "TendPlan runs" do
+    tests "TendPlan", on: "ComfortPlan"
+    setup  "DraftComfortPlan", plan_id: "sample", patient_name: "sample", primary_nurse: "sample"
     expect ok: "true"
   end
 

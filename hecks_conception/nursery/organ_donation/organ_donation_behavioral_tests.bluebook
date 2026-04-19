@@ -30,8 +30,8 @@ Hecks.behaviors "OrganDonation" do
     expect name: "sample", blood_type: "sample", tissue_type: "sample", organ_needed: "sample", urgency_level: "sample", listing_date: "sample", status: "waiting"
   end
 
-  test "UpdateUrgency sets urgency_level" do
-    tests "UpdateUrgency", on: "Recipient"
+  test "EscalateUrgency sets urgency_level" do
+    tests "EscalateUrgency", on: "Recipient"
     setup  "ListRecipient", name: "sample", blood_type: "sample", tissue_type: "sample", organ_needed: "sample", urgency_level: "sample", listing_date: "sample"
     input  urgency_level: "sample"
     expect urgency_level: "sample"
@@ -94,8 +94,8 @@ Hecks.behaviors "OrganDonation" do
     expect recipient_name: "sample", organ_name: "sample", surgery_date: "sample", surgeon_name: "sample", graft_function: "sample", complications: "sample", status: "initial"
   end
 
-  test "UpdateGraftStatus sets graft_function" do
-    tests "UpdateGraftStatus", on: "TransplantOutcome"
+  test "MonitorGraft sets graft_function" do
+    tests "MonitorGraft", on: "TransplantOutcome"
     setup  "RecordOutcome", recipient_name: "sample", organ_name: "sample", surgery_date: "sample", surgeon_name: "sample", graft_function: "sample", complications: "sample"
     input  graft_function: "sample"
     expect graft_function: "sample"

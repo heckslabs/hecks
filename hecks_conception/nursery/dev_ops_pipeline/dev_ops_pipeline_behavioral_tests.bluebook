@@ -9,8 +9,8 @@ Hecks.behaviors "DevOpsPipeline" do
     expect repo_name: "sample", clone_url: "sample", default_branch: "sample", language: "sample"
   end
 
-  test "UpdateBranch sets default_branch" do
-    tests "UpdateBranch", on: "Repository"
+  test "RetargetBranch sets default_branch" do
+    tests "RetargetBranch", on: "Repository"
     setup  "RegisterRepository", repo_name: "sample", clone_url: "sample", default_branch: "sample", language: "sample"
     input  default_branch: "sample"
     expect ok: "true"

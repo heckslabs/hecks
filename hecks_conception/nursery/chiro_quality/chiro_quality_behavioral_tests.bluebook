@@ -39,8 +39,8 @@ Hecks.behaviors "ChiroQuality" do
     expect record_id: "sample", treatment_type: "sample", condition: "sample", sample_size: 1, effect_size: 1.0, evidence_level: "sample"
   end
 
-  test "UpdateEvidence sets effect_size + sample_size" do
-    tests "UpdateEvidence", on: "EvidenceRecord"
+  test "AmendEvidence sets effect_size + sample_size" do
+    tests "AmendEvidence", on: "EvidenceRecord"
     setup  "RecordEvidence", record_id: "sample", treatment_type: "sample", condition: "sample", sample_size: 1, effect_size: 1.0, evidence_level: "sample"
     input  effect_size: 1.0, sample_size: 1
     expect effect_size: 1.0, sample_size: 1

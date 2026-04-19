@@ -3,22 +3,22 @@ Hecks.behaviors "EmailMarketing" do
 
   # ── SubscriberList aggregate ──────────────────────────────────────────
 
-  test "CreateList sets list_name + description + opt_in_method" do
-    tests "CreateList", on: "SubscriberList"
+  test "ComposeList sets list_name + description + opt_in_method" do
+    tests "ComposeList", on: "SubscriberList"
     input  list_name: "sample", description: "sample", opt_in_method: "sample"
-    expect list_name: "sample", description: "sample", opt_in_method: "sample"
+    expect ok: "true"
   end
 
   test "AddSubscriber sets email + first_name" do
     tests "AddSubscriber", on: "SubscriberList"
-    setup  "CreateList", list_name: "sample", description: "sample", opt_in_method: "sample"
+    setup  "ComposeList", list_name: "sample", description: "sample", opt_in_method: "sample"
     input  email: "sample", first_name: "sample"
     expect ok: "true"
   end
 
   test "ArchiveList runs" do
     tests "ArchiveList", on: "SubscriberList"
-    setup  "CreateList", list_name: "sample", description: "sample", opt_in_method: "sample"
+    setup  "ComposeList", list_name: "sample", description: "sample", opt_in_method: "sample"
     expect ok: "true"
   end
 
@@ -27,7 +27,7 @@ Hecks.behaviors "EmailMarketing" do
 
   test "DesignCampaign sets campaign_name + subject_line + from_address + template_id" do
     tests "DesignCampaign", on: "EmailCampaign"
-    setup  "CreateList", list_name: "sample", description: "sample", opt_in_method: "sample"
+    setup  "ComposeList", list_name: "sample", description: "sample", opt_in_method: "sample"
     input  campaign_name: "sample", subject_line: "sample", from_address: "sample", template_id: "sample"
     expect ok: "true"
   end

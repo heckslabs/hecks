@@ -135,22 +135,22 @@ Hecks.behaviors "NaturalDisasterGrid" do
 
   # ── RecoveryPlan aggregate ──────────────────────────────────────────
 
-  test "CreateRecoveryPlan sets plan_name + priority_level" do
-    tests "CreateRecoveryPlan", on: "RecoveryPlan"
+  test "DraftRecoveryPlan sets plan_name + priority_level" do
+    tests "DraftRecoveryPlan", on: "RecoveryPlan"
     setup  "DeclareDisaster", event_type: "sample", location: "sample", severity: "sample", declared_at: "sample"
     input  plan_name: "sample", priority_level: 1
-    expect plan_name: "sample", priority_level: 1, disaster: :disaster, status: "created"
+    expect disaster: :disaster, plan_name: "sample", priority_level: 1, status: "created"
   end
 
   test "ExecuteRecovery runs" do
     tests "ExecuteRecovery", on: "RecoveryPlan"
-    setup  "CreateRecoveryPlan", plan_name: "sample", priority_level: 1
+    setup  "DraftRecoveryPlan", plan_name: "sample", priority_level: 1
     expect status: "executing"
   end
 
   test "CompleteRecovery runs" do
     tests "CompleteRecovery", on: "RecoveryPlan"
-    setup  "CreateRecoveryPlan", plan_name: "sample", priority_level: 1
+    setup  "DraftRecoveryPlan", plan_name: "sample", priority_level: 1
     setup  "ExecuteRecovery"
     expect status: "completed"
   end

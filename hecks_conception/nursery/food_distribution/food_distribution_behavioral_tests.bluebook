@@ -62,8 +62,8 @@ Hecks.behaviors "FoodDistribution" do
     expect agency_id: "sample", name: "sample", address: "sample", families_served: 1, status: "active"
   end
 
-  test "UpdateServed sets families_served" do
-    tests "UpdateServed", on: "RecipientAgency"
+  test "RecordServed sets families_served" do
+    tests "RecordServed", on: "RecipientAgency"
     setup  "RegisterAgency", agency_id: "sample", name: "sample", address: "sample", families_served: 1
     input  families_served: 1
     expect families_served: 1

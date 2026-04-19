@@ -3,15 +3,15 @@ Hecks.behaviors "MentorEvents" do
 
   # ── MentorMatch aggregate ──────────────────────────────────────────
 
-  test "CreateMatch sets match_id + mentor_name + mentee_name + focus_area + start_date" do
-    tests "CreateMatch", on: "MentorMatch"
+  test "MakeMatch sets match_id + mentor_name + mentee_name + focus_area + start_date" do
+    tests "MakeMatch", on: "MentorMatch"
     input  match_id: "sample", mentor_name: "sample", mentee_name: "sample", focus_area: "sample", start_date: "sample"
     expect match_id: "sample", mentor_name: "sample", mentee_name: "sample", focus_area: "sample", start_date: "sample", status: "active"
   end
 
   test "CloseMatch runs" do
     tests "CloseMatch", on: "MentorMatch"
-    setup  "CreateMatch", match_id: "sample", mentor_name: "sample", mentee_name: "sample", focus_area: "sample", start_date: "sample"
+    setup  "MakeMatch", match_id: "sample", mentor_name: "sample", mentee_name: "sample", focus_area: "sample", start_date: "sample"
     expect status: "closed"
   end
 

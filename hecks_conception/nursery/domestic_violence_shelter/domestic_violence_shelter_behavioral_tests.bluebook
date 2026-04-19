@@ -25,8 +25,8 @@ Hecks.behaviors "DomesticViolenceShelter" do
 
   # ── SafetyPlan aggregate ──────────────────────────────────────────
 
-  test "CreateSafetyPlan sets resident_alias + created_date + emergency_contacts + escape_route" do
-    tests "CreateSafetyPlan", on: "SafetyPlan"
+  test "DraftSafetyPlan sets resident_alias + created_date + emergency_contacts + escape_route" do
+    tests "DraftSafetyPlan", on: "SafetyPlan"
     setup  "AdmitResident", alias_name: "sample", intake_date: "sample", dependents_count: 1, risk_level: "sample"
     input  resident_alias: "sample", created_date: "sample", emergency_contacts: "sample", escape_route: "sample"
     expect resident_alias: "sample", created_date: "sample", emergency_contacts: "sample", escape_route: "sample", status: "active"
@@ -34,14 +34,14 @@ Hecks.behaviors "DomesticViolenceShelter" do
 
   test "AddSafetyStep sets scenario + action + resources_needed + priority" do
     tests "AddSafetyStep", on: "SafetyPlan"
-    setup  "CreateSafetyPlan", resident_alias: "sample", created_date: "sample", emergency_contacts: "sample", escape_route: "sample"
+    setup  "DraftSafetyPlan", resident_alias: "sample", created_date: "sample", emergency_contacts: "sample", escape_route: "sample"
     input  scenario: "sample", action: "sample", resources_needed: "sample", priority: 1
     expect ok: "true"
   end
 
   test "ReviewSafetyPlan runs" do
     tests "ReviewSafetyPlan", on: "SafetyPlan"
-    setup  "CreateSafetyPlan", resident_alias: "sample", created_date: "sample", emergency_contacts: "sample", escape_route: "sample"
+    setup  "DraftSafetyPlan", resident_alias: "sample", created_date: "sample", emergency_contacts: "sample", escape_route: "sample"
     expect ok: "true"
   end
 
@@ -84,8 +84,8 @@ Hecks.behaviors "DomesticViolenceShelter" do
 
   # ── ExitPlan aggregate ──────────────────────────────────────────
 
-  test "CreateExitPlan sets resident_alias + target_exit_date + housing_arrangement + employment_status" do
-    tests "CreateExitPlan", on: "ExitPlan"
+  test "DraftExitPlan sets resident_alias + target_exit_date + housing_arrangement + employment_status" do
+    tests "DraftExitPlan", on: "ExitPlan"
     setup  "AdmitResident", alias_name: "sample", intake_date: "sample", dependents_count: 1, risk_level: "sample"
     input  resident_alias: "sample", target_exit_date: "sample", housing_arrangement: "sample", employment_status: "sample"
     expect resident_alias: "sample", target_exit_date: "sample", housing_arrangement: "sample", employment_status: "sample", status: "in_progress"
@@ -93,14 +93,14 @@ Hecks.behaviors "DomesticViolenceShelter" do
 
   test "CompleteExitTask sets task_description" do
     tests "CompleteExitTask", on: "ExitPlan"
-    setup  "CreateExitPlan", resident_alias: "sample", target_exit_date: "sample", housing_arrangement: "sample", employment_status: "sample"
+    setup  "DraftExitPlan", resident_alias: "sample", target_exit_date: "sample", housing_arrangement: "sample", employment_status: "sample"
     input  task_description: "sample"
     expect ok: "true"
   end
 
   test "FinalizeExit runs" do
     tests "FinalizeExit", on: "ExitPlan"
-    setup  "CreateExitPlan", resident_alias: "sample", target_exit_date: "sample", housing_arrangement: "sample", employment_status: "sample"
+    setup  "DraftExitPlan", resident_alias: "sample", target_exit_date: "sample", housing_arrangement: "sample", employment_status: "sample"
     expect status: "finalized"
   end
 

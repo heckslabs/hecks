@@ -33,15 +33,15 @@ Hecks.behaviors "MedicalMedia" do
 
   # ── VideoProject aggregate ──────────────────────────────────────────
 
-  test "CreateProject sets project_id + case_id + title + target_audience" do
-    tests "CreateProject", on: "VideoProject"
+  test "LaunchProject sets project_id + case_id + title + target_audience" do
+    tests "LaunchProject", on: "VideoProject"
     input  project_id: "sample", case_id: "sample", title: "sample", target_audience: "sample"
     expect project_id: "sample", case_id: "sample", title: "sample", target_audience: "sample", status: "pre_production"
   end
 
   test "PublishVideo sets duration_minutes" do
     tests "PublishVideo", on: "VideoProject"
-    setup  "CreateProject", project_id: "sample", case_id: "sample", title: "sample", target_audience: "sample"
+    setup  "LaunchProject", project_id: "sample", case_id: "sample", title: "sample", target_audience: "sample"
     input  duration_minutes: 1.0
     expect duration_minutes: 1.0, status: "published"
   end

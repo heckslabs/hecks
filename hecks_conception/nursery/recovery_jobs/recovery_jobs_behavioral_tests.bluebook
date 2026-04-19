@@ -9,8 +9,8 @@ Hecks.behaviors "RecoveryJobs" do
     expect client_id: "sample", name: "sample", recovery_stage: "sample", skills_summary: "sample", status: "active"
   end
 
-  test "UpdateStage sets recovery_stage" do
-    tests "UpdateStage", on: "RecoveryClient"
+  test "AdvanceStage sets recovery_stage" do
+    tests "AdvanceStage", on: "RecoveryClient"
     setup  "RegisterClient", client_id: "sample", name: "sample", recovery_stage: "sample", skills_summary: "sample"
     input  recovery_stage: "sample"
     expect recovery_stage: "sample"
@@ -25,8 +25,8 @@ Hecks.behaviors "RecoveryJobs" do
     expect employer_id: "sample", company_name: "sample", industry: "sample", open_positions: 1, recovery_friendly: "yes", status: "active"
   end
 
-  test "UpdatePositions sets open_positions" do
-    tests "UpdatePositions", on: "EmployerPartner"
+  test "AdjustPositions sets open_positions" do
+    tests "AdjustPositions", on: "EmployerPartner"
     setup  "OnboardEmployer", employer_id: "sample", company_name: "sample", industry: "sample", open_positions: 1
     input  open_positions: 1
     expect open_positions: 1

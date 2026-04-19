@@ -9,8 +9,8 @@ Hecks.behaviors "SchoolLunch" do
     expect age_group: "sample", calories_min: 1.0, calories_max: 1.0, protein_g: 1.0, fat_max_g: 1.0, sodium_max_mg: 1.0, status: "active"
   end
 
-  test "UpdateRequirements sets calories_min + calories_max" do
-    tests "UpdateRequirements", on: "NutrientProfile"
+  test "ReviseRequirements sets calories_min + calories_max" do
+    tests "ReviseRequirements", on: "NutrientProfile"
     setup  "DefineNutrientProfile", age_group: "sample", calories_min: 1.0, calories_max: 1.0, protein_g: 1.0, fat_max_g: 1.0, sodium_max_mg: 1.0
     input  calories_min: 1.0, calories_max: 1.0
     expect calories_min: 1.0, calories_max: 1.0
@@ -19,21 +19,21 @@ Hecks.behaviors "SchoolLunch" do
 
   # ── MenuItem aggregate ──────────────────────────────────────────
 
-  test "CreateMenuItem sets name + category + calories + protein_g + cost_per_serving + allergens" do
-    tests "CreateMenuItem", on: "MenuItem"
+  test "PlanMenuItem sets name + category + calories + protein_g + cost_per_serving + allergens" do
+    tests "PlanMenuItem", on: "MenuItem"
     input  name: "sample", category: "sample", calories: 1.0, protein_g: 1.0, cost_per_serving: 1.0, allergens: "sample"
     expect name: "sample", category: "sample", calories: 1.0, protein_g: 1.0, cost_per_serving: 1.0, allergens: "sample", status: "active"
   end
 
   test "FlagAllergen runs" do
     tests "FlagAllergen", on: "MenuItem"
-    setup  "CreateMenuItem", name: "sample", category: "sample", calories: 1.0, protein_g: 1.0, cost_per_serving: 1.0, allergens: "sample"
+    setup  "PlanMenuItem", name: "sample", category: "sample", calories: 1.0, protein_g: 1.0, cost_per_serving: 1.0, allergens: "sample"
     expect ok: "true"
   end
 
   test "RetireMenuItem runs" do
     tests "RetireMenuItem", on: "MenuItem"
-    setup  "CreateMenuItem", name: "sample", category: "sample", calories: 1.0, protein_g: 1.0, cost_per_serving: 1.0, allergens: "sample"
+    setup  "PlanMenuItem", name: "sample", category: "sample", calories: 1.0, protein_g: 1.0, cost_per_serving: 1.0, allergens: "sample"
     expect status: "retired"
   end
 

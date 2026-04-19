@@ -40,15 +40,15 @@ Hecks.behaviors "HomeHealthApp" do
 
   # ── CaregiverProfile aggregate ──────────────────────────────────────────
 
-  test "CreateProfile sets caregiver_id + name + license_type" do
-    tests "CreateProfile", on: "CaregiverProfile"
+  test "EnrollCaregiver sets caregiver_id + name + license_type" do
+    tests "EnrollCaregiver", on: "CaregiverProfile"
     input  caregiver_id: "sample", name: "sample", license_type: "sample"
     expect caregiver_id: "sample", name: "sample", license_type: "sample", status: "active"
   end
 
   test "RateCaregiver sets rating" do
     tests "RateCaregiver", on: "CaregiverProfile"
-    setup  "CreateProfile", caregiver_id: "sample", name: "sample", license_type: "sample"
+    setup  "EnrollCaregiver", caregiver_id: "sample", name: "sample", license_type: "sample"
     input  rating: 1.0
     expect rating: 1.0
   end

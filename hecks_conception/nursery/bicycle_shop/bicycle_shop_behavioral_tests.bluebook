@@ -18,15 +18,15 @@ Hecks.behaviors "BicycleShop" do
 
   # ── RepairOrder aggregate ──────────────────────────────────────────
 
-  test "CreateRepairOrder sets order_id + customer_name + bike_description + issue + estimate" do
-    tests "CreateRepairOrder", on: "RepairOrder"
+  test "OpenRepairOrder sets order_id + customer_name + bike_description + issue + estimate" do
+    tests "OpenRepairOrder", on: "RepairOrder"
     input  order_id: "sample", customer_name: "sample", bike_description: "sample", issue: "sample", estimate: 1.0
     expect order_id: "sample", customer_name: "sample", bike_description: "sample", issue: "sample", estimate: 1.0, status: "pending"
   end
 
   test "CompleteRepair runs" do
     tests "CompleteRepair", on: "RepairOrder"
-    setup  "CreateRepairOrder", order_id: "sample", customer_name: "sample", bike_description: "sample", issue: "sample", estimate: 1.0
+    setup  "OpenRepairOrder", order_id: "sample", customer_name: "sample", bike_description: "sample", issue: "sample", estimate: 1.0
     expect status: "completed"
   end
 

@@ -34,15 +34,15 @@ Hecks.behaviors "GenomicsInfra" do
 
   # ── SequenceStore aggregate ──────────────────────────────────────────
 
-  test "CreateStore sets store_id + cluster_id + quota_tb" do
-    tests "CreateStore", on: "SequenceStore"
+  test "ProvisionStore sets store_id + cluster_id + quota_tb" do
+    tests "ProvisionStore", on: "SequenceStore"
     input  store_id: "sample", cluster_id: "sample", quota_tb: 1.0
     expect store_id: "sample", cluster_id: "sample", quota_tb: 1.0, used_tb: 0.0, status: "active"
   end
 
   test "ArchiveData runs" do
     tests "ArchiveData", on: "SequenceStore"
-    setup  "CreateStore", store_id: "sample", cluster_id: "sample", quota_tb: 1.0
+    setup  "ProvisionStore", store_id: "sample", cluster_id: "sample", quota_tb: 1.0
     expect ok: "true"
   end
 

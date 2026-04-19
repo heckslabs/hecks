@@ -18,15 +18,15 @@ Hecks.behaviors "VetTraining" do
 
   # ── Course aggregate ──────────────────────────────────────────
 
-  test "CreateCourse sets course_id + title + skill_area + duration_hours + difficulty" do
-    tests "CreateCourse", on: "Course"
+  test "OfferCourse sets course_id + title + skill_area + duration_hours + difficulty" do
+    tests "OfferCourse", on: "Course"
     input  course_id: "sample", title: "sample", skill_area: "sample", duration_hours: 1, difficulty: "sample"
     expect course_id: "sample", title: "sample", skill_area: "sample", duration_hours: 1, difficulty: "sample", status: "active"
   end
 
   test "RetireCourse runs" do
     tests "RetireCourse", on: "Course"
-    setup  "CreateCourse", course_id: "sample", title: "sample", skill_area: "sample", duration_hours: 1, difficulty: "sample"
+    setup  "OfferCourse", course_id: "sample", title: "sample", skill_area: "sample", duration_hours: 1, difficulty: "sample"
     expect status: "retired"
   end
 
@@ -39,8 +39,8 @@ Hecks.behaviors "VetTraining" do
     expect enrollment_id: "sample", veteran_id: "sample", course_id: "sample", progress_pct: 0.0, status: "in_progress"
   end
 
-  test "UpdateProgress sets progress_pct" do
-    tests "UpdateProgress", on: "Enrollment"
+  test "RecordProgress sets progress_pct" do
+    tests "RecordProgress", on: "Enrollment"
     setup  "EnrollInCourse", enrollment_id: "sample", veteran_id: "sample", course_id: "sample"
     input  progress_pct: 1.0
     expect progress_pct: 1.0

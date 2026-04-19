@@ -18,15 +18,15 @@ Hecks.behaviors "BrainTraining" do
 
   # ── BrainGame aggregate ──────────────────────────────────────────
 
-  test "CreateGame sets game_id + name + cognitive_target + difficulty + levels" do
-    tests "CreateGame", on: "BrainGame"
+  test "DesignGame sets game_id + name + cognitive_target + difficulty + levels" do
+    tests "DesignGame", on: "BrainGame"
     input  game_id: "sample", name: "sample", cognitive_target: "sample", difficulty: "sample", levels: 1
     expect game_id: "sample", name: "sample", cognitive_target: "sample", difficulty: "sample", levels: 1, status: "active"
   end
 
   test "PlayGame runs" do
     tests "PlayGame", on: "BrainGame"
-    setup  "CreateGame", game_id: "sample", name: "sample", cognitive_target: "sample", difficulty: "sample", levels: 1
+    setup  "DesignGame", game_id: "sample", name: "sample", cognitive_target: "sample", difficulty: "sample", levels: 1
     expect ok: "true"
   end
 
@@ -49,15 +49,15 @@ Hecks.behaviors "BrainTraining" do
 
   # ── TrainingPlan aggregate ──────────────────────────────────────────
 
-  test "CreateTrainingPlan sets plan_id + participant_id" do
-    tests "CreateTrainingPlan", on: "TrainingPlan"
+  test "PrescribeTrainingPlan sets plan_id + participant_id" do
+    tests "PrescribeTrainingPlan", on: "TrainingPlan"
     input  plan_id: "sample", participant_id: "sample"
     expect plan_id: "sample", participant_id: "sample", status: "active"
   end
 
   test "AdjustPlan runs" do
     tests "AdjustPlan", on: "TrainingPlan"
-    setup  "CreateTrainingPlan", plan_id: "sample", participant_id: "sample"
+    setup  "PrescribeTrainingPlan", plan_id: "sample", participant_id: "sample"
     expect ok: "true"
   end
 

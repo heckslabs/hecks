@@ -40,15 +40,15 @@ Hecks.behaviors "PetPortraits" do
 
   # ── AdoptionProfile aggregate ──────────────────────────────────────────
 
-  test "CreateProfile sets profile_id + animal_id + headline + story" do
-    tests "CreateProfile", on: "AdoptionProfile"
+  test "CommissionProfile sets profile_id + animal_id + headline + story" do
+    tests "CommissionProfile", on: "AdoptionProfile"
     input  profile_id: "sample", animal_id: "sample", headline: "sample", story: "sample"
     expect profile_id: "sample", animal_id: "sample", headline: "sample", story: "sample", status: "draft"
   end
 
   test "PublishProfile runs" do
     tests "PublishProfile", on: "AdoptionProfile"
-    setup  "CreateProfile", profile_id: "sample", animal_id: "sample", headline: "sample", story: "sample"
+    setup  "CommissionProfile", profile_id: "sample", animal_id: "sample", headline: "sample", story: "sample"
     expect status: "published"
   end
 

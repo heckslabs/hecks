@@ -9,8 +9,8 @@ Hecks.behaviors "TraumaPipeline" do
     expect incident_type: "sample", location: "sample", severity: "sample", blood_type_needed: "sample", estimated_arrival_minutes: 1, status: "dispatched"
   end
 
-  test "UpdateETA sets estimated_arrival_minutes" do
-    tests "UpdateETA", on: "TraumaCall"
+  test "ReviseETA sets estimated_arrival_minutes" do
+    tests "ReviseETA", on: "TraumaCall"
     setup  "DispatchTrauma", incident_type: "sample", location: "sample", severity: "sample", blood_type_needed: "sample", estimated_arrival_minutes: 1
     input  estimated_arrival_minutes: 1
     expect estimated_arrival_minutes: 1

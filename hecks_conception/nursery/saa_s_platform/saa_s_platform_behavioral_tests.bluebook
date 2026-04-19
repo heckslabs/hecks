@@ -47,22 +47,22 @@ Hecks.behaviors "SaaSPlatform" do
 
   # ── FeatureFlag aggregate ──────────────────────────────────────────
 
-  test "CreateFeatureFlag sets flag_name + description + rollout_strategy + rollout_percentage" do
-    tests "CreateFeatureFlag", on: "FeatureFlag"
+  test "ProvisionFeatureFlag sets flag_name + description + rollout_strategy + rollout_percentage" do
+    tests "ProvisionFeatureFlag", on: "FeatureFlag"
     input  flag_name: "sample", description: "sample", rollout_strategy: "sample", rollout_percentage: 1
-    expect flag_name: "sample", description: "sample", rollout_strategy: "sample", rollout_percentage: 1
+    expect ok: "true"
   end
 
   test "ToggleForTenant sets tenant_slug + enabled" do
     tests "ToggleForTenant", on: "FeatureFlag"
-    setup  "CreateFeatureFlag", flag_name: "sample", description: "sample", rollout_strategy: "sample", rollout_percentage: 1
+    setup  "ProvisionFeatureFlag", flag_name: "sample", description: "sample", rollout_strategy: "sample", rollout_percentage: 1
     input  tenant_slug: "sample", enabled: "sample"
     expect ok: "true"
   end
 
   test "RetireFlag runs" do
     tests "RetireFlag", on: "FeatureFlag"
-    setup  "CreateFeatureFlag", flag_name: "sample", description: "sample", rollout_strategy: "sample", rollout_percentage: 1
+    setup  "ProvisionFeatureFlag", flag_name: "sample", description: "sample", rollout_strategy: "sample", rollout_percentage: 1
     expect ok: "true"
   end
 

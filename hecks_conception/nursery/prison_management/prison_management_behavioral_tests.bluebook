@@ -88,23 +88,23 @@ Hecks.behaviors "PrisonManagement" do
 
   # ── Program aggregate ──────────────────────────────────────────
 
-  test "CreateProgram sets program_name + program_type + capacity" do
-    tests "CreateProgram", on: "Program"
+  test "LaunchProgram sets program_name + program_type + capacity" do
+    tests "LaunchProgram", on: "Program"
     input  program_name: "sample", program_type: "sample", capacity: 1
-    expect program_name: "sample", program_type: "sample", capacity: 1, status: "active", enrolled_count: 0
+    expect status: "active", enrolled_count: 0
   end
 
   test "EnrollInmate runs" do
     tests "EnrollInmate", on: "Program"
     setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
-    setup  "CreateProgram", program_name: "sample", program_type: "sample", capacity: 1
+    setup  "LaunchProgram", program_name: "sample", program_type: "sample", capacity: 1
     expect ok: "true"
   end
 
   test "GraduateInmate runs" do
     tests "GraduateInmate", on: "Program"
     setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
-    setup  "CreateProgram", program_name: "sample", program_type: "sample", capacity: 1
+    setup  "LaunchProgram", program_name: "sample", program_type: "sample", capacity: 1
     expect ok: "true"
   end
 

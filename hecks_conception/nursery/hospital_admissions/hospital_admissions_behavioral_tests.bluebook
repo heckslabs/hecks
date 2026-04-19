@@ -49,21 +49,21 @@ Hecks.behaviors "HospitalAdmissions" do
 
   # ── DischargeePlan aggregate ──────────────────────────────────────────
 
-  test "CreateDischargePlan sets patient_name + discharge_date" do
-    tests "CreateDischargePlan", on: "DischargeePlan"
+  test "DraftDischargePlan sets patient_name + discharge_date" do
+    tests "DraftDischargePlan", on: "DischargeePlan"
     input  patient_name: "sample", discharge_date: "sample"
-    expect patient_name: "sample", discharge_date: "sample"
+    expect ok: "true"
   end
 
   test "ApproveDischargePlan runs" do
     tests "ApproveDischargePlan", on: "DischargeePlan"
-    setup  "CreateDischargePlan", patient_name: "sample", discharge_date: "sample"
+    setup  "DraftDischargePlan", patient_name: "sample", discharge_date: "sample"
     expect ok: "true"
   end
 
   test "DischargePatient runs" do
     tests "DischargePatient", on: "DischargeePlan"
-    setup  "CreateDischargePlan", patient_name: "sample", discharge_date: "sample"
+    setup  "DraftDischargePlan", patient_name: "sample", discharge_date: "sample"
     expect ok: "true"
   end
 

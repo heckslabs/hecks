@@ -78,22 +78,22 @@ Hecks.behaviors "ScientificPestMgmt" do
 
   # ── IPMPlan aggregate ──────────────────────────────────────────
 
-  test "CreateIPMPlan sets site_address + target_pest + prevention_measures + monitoring_method" do
-    tests "CreateIPMPlan", on: "IPMPlan"
+  test "ScoutIPMPlan sets site_address + target_pest + prevention_measures + monitoring_method" do
+    tests "ScoutIPMPlan", on: "IPMPlan"
     input  site_address: "sample", target_pest: "sample", prevention_measures: "sample", monitoring_method: "sample"
     expect site_address: "sample", target_pest: "sample", prevention_measures: "sample", monitoring_method: "sample", intervention_tier: "prevention", status: "active"
   end
 
   test "EscalateTier sets intervention_tier" do
     tests "EscalateTier", on: "IPMPlan"
-    setup  "CreateIPMPlan", site_address: "sample", target_pest: "sample", prevention_measures: "sample", monitoring_method: "sample"
+    setup  "ScoutIPMPlan", site_address: "sample", target_pest: "sample", prevention_measures: "sample", monitoring_method: "sample"
     input  intervention_tier: "sample"
     expect intervention_tier: "sample"
   end
 
   test "ReviewIPMPlan runs" do
     tests "ReviewIPMPlan", on: "IPMPlan"
-    setup  "CreateIPMPlan", site_address: "sample", target_pest: "sample", prevention_measures: "sample", monitoring_method: "sample"
+    setup  "ScoutIPMPlan", site_address: "sample", target_pest: "sample", prevention_measures: "sample", monitoring_method: "sample"
     expect ok: "true"
   end
 

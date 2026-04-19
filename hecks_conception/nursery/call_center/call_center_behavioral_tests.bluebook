@@ -92,8 +92,8 @@ Hecks.behaviors "CallCenter" do
 
   # ── Queue aggregate ──────────────────────────────────────────
 
-  test "CreateQueue sets queue_name + skill_group + max_wait_seconds" do
-    tests "CreateQueue", on: "Queue"
+  test "OpenQueue sets queue_name + skill_group + max_wait_seconds" do
+    tests "OpenQueue", on: "Queue"
     input  queue_name: "sample", skill_group: "sample", max_wait_seconds: 1
     expect queue_name: "sample", skill_group: "sample", max_wait_seconds: 1, status: "active", depth: 0
   end
@@ -101,13 +101,13 @@ Hecks.behaviors "CallCenter" do
   test "EnqueueTicket runs" do
     tests "EnqueueTicket", on: "Queue"
     setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
-    setup  "CreateQueue", queue_name: "sample", skill_group: "sample", max_wait_seconds: 1
+    setup  "OpenQueue", queue_name: "sample", skill_group: "sample", max_wait_seconds: 1
     expect ok: "true"
   end
 
   test "DequeueTicket runs" do
     tests "DequeueTicket", on: "Queue"
-    setup  "CreateQueue", queue_name: "sample", skill_group: "sample", max_wait_seconds: 1
+    setup  "OpenQueue", queue_name: "sample", skill_group: "sample", max_wait_seconds: 1
     expect ok: "true"
   end
 

@@ -9,8 +9,8 @@ Hecks.behaviors "HospitalPower" do
     expect area_id: "sample", area_name: "sample", floor: "sample", criticality: "sample", power_load_kw: 1.0, status: "active"
   end
 
-  test "UpdateLoad sets power_load_kw" do
-    tests "UpdateLoad", on: "PatientArea"
+  test "MeasureLoad sets power_load_kw" do
+    tests "MeasureLoad", on: "PatientArea"
     setup  "DefineArea", area_id: "sample", area_name: "sample", floor: "sample", criticality: "sample", power_load_kw: 1.0
     input  power_load_kw: 1.0
     expect power_load_kw: 1.0

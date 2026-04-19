@@ -48,15 +48,15 @@ Hecks.behaviors "DonorRegistry" do
 
   # ── Settlement aggregate ──────────────────────────────────────────
 
-  test "CreateSettlement sets settlement_id + match_id + procurement_cost + transport_cost" do
-    tests "CreateSettlement", on: "Settlement"
+  test "OpenSettlement sets settlement_id + match_id + procurement_cost + transport_cost" do
+    tests "OpenSettlement", on: "Settlement"
     input  settlement_id: "sample", match_id: "sample", procurement_cost: 1.0, transport_cost: 1.0
     expect settlement_id: "sample", match_id: "sample", procurement_cost: 1.0, transport_cost: 1.0, status: "pending"
   end
 
   test "ProcessPayment runs" do
     tests "ProcessPayment", on: "Settlement"
-    setup  "CreateSettlement", settlement_id: "sample", match_id: "sample", procurement_cost: 1.0, transport_cost: 1.0
+    setup  "OpenSettlement", settlement_id: "sample", match_id: "sample", procurement_cost: 1.0, transport_cost: 1.0
     expect status: "paid"
   end
 

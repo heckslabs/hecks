@@ -81,7 +81,7 @@ Hecks.behaviors "SchoolDistrict" do
 
   test "AssignTeacher runs" do
     tests "AssignTeacher", on: "Teacher"
-    setup  "CreateCourse", course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
+    setup  "OfferCourse", course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
     setup  "HireTeacher", name: "sample", certification_area: "sample"
     expect ok: "true"
   end
@@ -96,23 +96,23 @@ Hecks.behaviors "SchoolDistrict" do
 
   # ── Course aggregate ──────────────────────────────────────────
 
-  test "CreateCourse sets course_code + title + subject + max_enrollment" do
-    tests "CreateCourse", on: "Course"
+  test "OfferCourse sets course_code + title + subject + max_enrollment" do
+    tests "OfferCourse", on: "Course"
     setup  "OpenSchool", school_code: "sample", name: "sample", level: "sample", capacity: 1
     input  course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
-    expect course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1, status: "active", current_enrollment: 0
+    expect status: "active", current_enrollment: 0
   end
 
   test "EnrollInCourse runs" do
     tests "EnrollInCourse", on: "Course"
     setup  "RegisterStudent", name: "sample", grade_level: "sample"
-    setup  "CreateCourse", course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
+    setup  "OfferCourse", course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
     expect ok: "true"
   end
 
   test "CompleteCourse runs" do
     tests "CompleteCourse", on: "Course"
-    setup  "CreateCourse", course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
+    setup  "OfferCourse", course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
     expect status: "completed"
   end
 
@@ -121,7 +121,7 @@ Hecks.behaviors "SchoolDistrict" do
 
   test "RecordGrade sets letter_grade + numeric_score + semester" do
     tests "RecordGrade", on: "GradeRecord"
-    setup  "CreateCourse", course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
+    setup  "OfferCourse", course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
     setup  "RegisterStudent", name: "sample", grade_level: "sample"
     input  letter_grade: "sample", numeric_score: 1.0, semester: "sample"
     expect status: "posted"

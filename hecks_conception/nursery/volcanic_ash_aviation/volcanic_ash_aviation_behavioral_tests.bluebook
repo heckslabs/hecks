@@ -9,8 +9,8 @@ Hecks.behaviors "VolcanicAshAviation" do
     expect volcano_name: "sample", latitude: 1.0, longitude: 1.0, ash_column_height_km: 1.0, eruption_type: "sample", vei_level: "sample", status: "active"
   end
 
-  test "UpdateAshColumn sets ash_column_height_km" do
-    tests "UpdateAshColumn", on: "Eruption"
+  test "RefreshAshColumn sets ash_column_height_km" do
+    tests "RefreshAshColumn", on: "Eruption"
     setup  "ReportEruption", volcano_name: "sample", latitude: 1.0, longitude: 1.0, ash_column_height_km: 1.0, eruption_type: "sample", vei_level: "sample"
     input  ash_column_height_km: 1.0
     expect ash_column_height_km: 1.0

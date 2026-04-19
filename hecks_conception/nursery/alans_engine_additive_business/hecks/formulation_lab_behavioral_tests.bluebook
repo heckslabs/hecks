@@ -210,28 +210,28 @@ Hecks.behaviors "FormulationLab" do
 
   # ── ProductPipeline aggregate ──────────────────────────────────────────
 
-  test "UpdatePipeline sets total_proposed + total_in_lab + total_promoted + total_shelved" do
-    tests "UpdatePipeline", on: "ProductPipeline"
+  test "RebalancePipeline sets total_proposed + total_in_lab + total_promoted + total_shelved" do
+    tests "RebalancePipeline", on: "ProductPipeline"
     input  total_proposed: 1, total_in_lab: 1, total_promoted: 1, total_shelved: 1
     expect total_proposed: 1, total_in_lab: 1, total_promoted: 1, total_shelved: 1
   end
 
   test "PrioritizeFormula runs" do
     tests "PrioritizeFormula", on: "ProductPipeline"
-    setup  "UpdatePipeline", total_proposed: 1, total_in_lab: 1, total_promoted: 1, total_shelved: 1
+    setup  "RebalancePipeline", total_proposed: 1, total_in_lab: 1, total_promoted: 1, total_shelved: 1
     expect ok: "true"
   end
 
   test "CalculatePipelineValue sets pipeline_value" do
     tests "CalculatePipelineValue", on: "ProductPipeline"
-    setup  "UpdatePipeline", total_proposed: 1, total_in_lab: 1, total_promoted: 1, total_shelved: 1
+    setup  "RebalancePipeline", total_proposed: 1, total_in_lab: 1, total_promoted: 1, total_shelved: 1
     input  pipeline_value: 1.0
     expect pipeline_value: 1.0
   end
 
   test "GenerateRoadmap runs" do
     tests "GenerateRoadmap", on: "ProductPipeline"
-    setup  "UpdatePipeline", total_proposed: 1, total_in_lab: 1, total_promoted: 1, total_shelved: 1
+    setup  "RebalancePipeline", total_proposed: 1, total_in_lab: 1, total_promoted: 1, total_shelved: 1
     expect ok: "true"
   end
 

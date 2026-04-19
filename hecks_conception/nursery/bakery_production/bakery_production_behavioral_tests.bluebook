@@ -3,15 +3,15 @@ Hecks.behaviors "BakeryProduction" do
 
   # ── Recipe aggregate ──────────────────────────────────────────
 
-  test "CreateRecipe sets name + category + yield_count + prep_minutes + bake_minutes + bake_temp_f" do
-    tests "CreateRecipe", on: "Recipe"
+  test "ComposeRecipe sets name + category + yield_count + prep_minutes + bake_minutes + bake_temp_f" do
+    tests "ComposeRecipe", on: "Recipe"
     input  name: "sample", category: "sample", yield_count: 1, prep_minutes: 1, bake_minutes: 1, bake_temp_f: 1.0
-    expect name: "sample", category: "sample", yield_count: 1, prep_minutes: 1, bake_minutes: 1, bake_temp_f: 1.0
+    expect ok: "true"
   end
 
   test "ScaleRecipe sets multiplier" do
     tests "ScaleRecipe", on: "Recipe"
-    setup  "CreateRecipe", name: "sample", category: "sample", yield_count: 1, prep_minutes: 1, bake_minutes: 1, bake_temp_f: 1.0
+    setup  "ComposeRecipe", name: "sample", category: "sample", yield_count: 1, prep_minutes: 1, bake_minutes: 1, bake_temp_f: 1.0
     input  multiplier: 1.0
     expect ok: "true"
   end

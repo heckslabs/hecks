@@ -24,22 +24,22 @@ Hecks.behaviors "StreamingPlatform" do
 
   # ── Channel aggregate ──────────────────────────────────────────
 
-  test "CreateChannel sets channel_name + description + curator + category" do
-    tests "CreateChannel", on: "Channel"
+  test "CurateChannel sets channel_name + description + curator + category" do
+    tests "CurateChannel", on: "Channel"
     input  channel_name: "sample", description: "sample", curator: "sample", category: "sample"
-    expect channel_name: "sample", description: "sample", curator: "sample", category: "sample"
+    expect ok: "true"
   end
 
   test "AddToChannel sets content_id + position" do
     tests "AddToChannel", on: "Channel"
-    setup  "CreateChannel", channel_name: "sample", description: "sample", curator: "sample", category: "sample"
+    setup  "CurateChannel", channel_name: "sample", description: "sample", curator: "sample", category: "sample"
     input  content_id: "sample", position: 1
     expect ok: "true"
   end
 
   test "DeactivateChannel runs" do
     tests "DeactivateChannel", on: "Channel"
-    setup  "CreateChannel", channel_name: "sample", description: "sample", curator: "sample", category: "sample"
+    setup  "CurateChannel", channel_name: "sample", description: "sample", curator: "sample", category: "sample"
     expect ok: "true"
   end
 

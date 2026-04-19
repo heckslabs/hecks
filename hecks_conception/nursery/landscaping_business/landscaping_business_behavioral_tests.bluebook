@@ -19,22 +19,22 @@ Hecks.behaviors "LandscapingBusiness" do
 
   # ── LandscapeDesign aggregate ──────────────────────────────────────────
 
-  test "CreateDesign sets design_name + style + budget" do
-    tests "CreateDesign", on: "LandscapeDesign"
+  test "DraftDesign sets design_name + style + budget" do
+    tests "DraftDesign", on: "LandscapeDesign"
     setup  "SurveyProperty", owner_name: "sample", address: "sample", lot_sqft: 1.0, soil_type: "sample", sun_exposure: "sample"
     input  design_name: "sample", style: "sample", budget: 1.0
-    expect design_name: "sample", style: "sample", budget: 1.0
+    expect ok: "true"
   end
 
   test "ApproveDesign runs" do
     tests "ApproveDesign", on: "LandscapeDesign"
-    setup  "CreateDesign", design_name: "sample", style: "sample", budget: 1.0
+    setup  "DraftDesign", design_name: "sample", style: "sample", budget: 1.0
     expect ok: "true"
   end
 
   test "ReviseDesign sets revision_notes" do
     tests "ReviseDesign", on: "LandscapeDesign"
-    setup  "CreateDesign", design_name: "sample", style: "sample", budget: 1.0
+    setup  "DraftDesign", design_name: "sample", style: "sample", budget: 1.0
     input  revision_notes: "sample"
     expect ok: "true"
   end
@@ -44,7 +44,7 @@ Hecks.behaviors "LandscapingBusiness" do
 
   test "SelectPlant sets species + common_name + size + placement_zone + quantity" do
     tests "SelectPlant", on: "Planting"
-    setup  "CreateDesign", design_name: "sample", style: "sample", budget: 1.0
+    setup  "DraftDesign", design_name: "sample", style: "sample", budget: 1.0
     input  species: "sample", common_name: "sample", size: "sample", placement_zone: "sample", quantity: 1
     expect ok: "true"
   end

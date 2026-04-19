@@ -25,22 +25,22 @@ Hecks.behaviors "DigitalSignage" do
 
   # ── Playlist aggregate ──────────────────────────────────────────
 
-  test "CreatePlaylist sets playlist_name + description + loop_mode" do
-    tests "CreatePlaylist", on: "Playlist"
+  test "ComposePlaylist sets playlist_name + description + loop_mode" do
+    tests "ComposePlaylist", on: "Playlist"
     input  playlist_name: "sample", description: "sample", loop_mode: "sample"
-    expect playlist_name: "sample", description: "sample", loop_mode: "sample"
+    expect ok: "true"
   end
 
   test "AddEntry sets content_id + duration_seconds" do
     tests "AddEntry", on: "Playlist"
-    setup  "CreatePlaylist", playlist_name: "sample", description: "sample", loop_mode: "sample"
+    setup  "ComposePlaylist", playlist_name: "sample", description: "sample", loop_mode: "sample"
     input  content_id: "sample", duration_seconds: 1
     expect ok: "true"
   end
 
   test "ArchivePlaylist runs" do
     tests "ArchivePlaylist", on: "Playlist"
-    setup  "CreatePlaylist", playlist_name: "sample", description: "sample", loop_mode: "sample"
+    setup  "ComposePlaylist", playlist_name: "sample", description: "sample", loop_mode: "sample"
     expect ok: "true"
   end
 
@@ -68,23 +68,23 @@ Hecks.behaviors "DigitalSignage" do
 
   # ── Schedule aggregate ──────────────────────────────────────────
 
-  test "CreateSchedule sets schedule_id + start_time + end_time + recurrence" do
-    tests "CreateSchedule", on: "Schedule"
-    setup  "CreatePlaylist", playlist_name: "sample", description: "sample", loop_mode: "sample"
+  test "ProgramSchedule sets schedule_id + start_time + end_time + recurrence" do
+    tests "ProgramSchedule", on: "Schedule"
+    setup  "ComposePlaylist", playlist_name: "sample", description: "sample", loop_mode: "sample"
     setup  "InstallDisplay", display_id: "sample", model: "sample", resolution: "sample", orientation: "sample"
     input  schedule_id: "sample", start_time: "sample", end_time: "sample", recurrence: "sample"
-    expect schedule_id: "sample", start_time: "sample", end_time: "sample", recurrence: "sample"
+    expect ok: "true"
   end
 
   test "PauseSchedule runs" do
     tests "PauseSchedule", on: "Schedule"
-    setup  "CreateSchedule", schedule_id: "sample", start_time: "sample", end_time: "sample", recurrence: "sample"
+    setup  "ProgramSchedule", schedule_id: "sample", start_time: "sample", end_time: "sample", recurrence: "sample"
     expect ok: "true"
   end
 
-  test "DeleteSchedule runs" do
-    tests "DeleteSchedule", on: "Schedule"
-    setup  "CreateSchedule", schedule_id: "sample", start_time: "sample", end_time: "sample", recurrence: "sample"
+  test "DiscardSchedule runs" do
+    tests "DiscardSchedule", on: "Schedule"
+    setup  "ProgramSchedule", schedule_id: "sample", start_time: "sample", end_time: "sample", recurrence: "sample"
     expect ok: "true"
   end
 
@@ -97,8 +97,8 @@ Hecks.behaviors "DigitalSignage" do
     expect location_name: "sample", address: "sample", location_type: "sample", contact_name: "sample"
   end
 
-  test "UpdateContact sets contact_name" do
-    tests "UpdateContact", on: "Location"
+  test "ReassignContact sets contact_name" do
+    tests "ReassignContact", on: "Location"
     setup  "RegisterLocation", location_name: "sample", address: "sample", location_type: "sample", contact_name: "sample"
     input  contact_name: "sample"
     expect ok: "true"

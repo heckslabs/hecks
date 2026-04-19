@@ -54,8 +54,8 @@ Hecks.behaviors "CrisisAviation" do
     expect hospital_name: "sample", region: "sample", total_beds: 1, available_beds: 1, power_status: "sample", accessibility: "sample", status: "reported"
   end
 
-  test "UpdatePowerStatus sets power_status" do
-    tests "UpdatePowerStatus", on: "HospitalStatus"
+  test "ReportPowerStatus sets power_status" do
+    tests "ReportPowerStatus", on: "HospitalStatus"
     setup  "ReportStatus", hospital_name: "sample", region: "sample", total_beds: 1, available_beds: 1, power_status: "sample", accessibility: "sample"
     input  power_status: "sample"
     expect power_status: "sample"

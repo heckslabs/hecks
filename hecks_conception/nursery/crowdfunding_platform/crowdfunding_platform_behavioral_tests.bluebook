@@ -30,8 +30,8 @@ Hecks.behaviors "CrowdfundingPlatform" do
     expect backer_id: "sample", name: "sample", email: "sample", payment_method: "sample"
   end
 
-  test "UpdatePaymentMethod sets payment_method" do
-    tests "UpdatePaymentMethod", on: "Backer"
+  test "ChangePaymentMethod sets payment_method" do
+    tests "ChangePaymentMethod", on: "Backer"
     setup  "RegisterBacker", backer_id: "sample", name: "sample", email: "sample", payment_method: "sample"
     input  payment_method: "sample"
     expect ok: "true"

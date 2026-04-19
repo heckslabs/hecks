@@ -36,8 +36,8 @@ Hecks.behaviors "SubstanceRecovery" do
     expect ok: "true"
   end
 
-  test "UpdateCapacity sets capacity" do
-    tests "UpdateCapacity", on: "TreatmentProgram"
+  test "AdjustCapacity sets capacity" do
+    tests "AdjustCapacity", on: "TreatmentProgram"
     setup  "EstablishProgram", program_name: "sample", treatment_level: "sample", duration_days: 1, modality: "sample", capacity: 1
     input  capacity: 1
     expect capacity: 1
@@ -77,8 +77,8 @@ Hecks.behaviors "SubstanceRecovery" do
 
   # ── SupportGroup aggregate ──────────────────────────────────────────
 
-  test "CreateSupportGroup sets group_name + meeting_day + meeting_time + facilitator_name + max_members" do
-    tests "CreateSupportGroup", on: "SupportGroup"
+  test "ConveneSupportGroup sets group_name + meeting_day + meeting_time + facilitator_name + max_members" do
+    tests "ConveneSupportGroup", on: "SupportGroup"
     setup  "HireCounselor", name: "sample", license_type: "sample", license_number: "sample", specialty: "sample"
     input  group_name: "sample", meeting_day: "sample", meeting_time: "sample", facilitator_name: "sample", max_members: 1
     expect group_name: "sample", meeting_day: "sample", meeting_time: "sample", facilitator_name: "sample", max_members: 1
@@ -86,14 +86,14 @@ Hecks.behaviors "SubstanceRecovery" do
 
   test "AddGroupMember sets client_name + joined_date" do
     tests "AddGroupMember", on: "SupportGroup"
-    setup  "CreateSupportGroup", group_name: "sample", meeting_day: "sample", meeting_time: "sample", facilitator_name: "sample", max_members: 1
+    setup  "ConveneSupportGroup", group_name: "sample", meeting_day: "sample", meeting_time: "sample", facilitator_name: "sample", max_members: 1
     input  client_name: "sample", joined_date: "sample"
     expect ok: "true"
   end
 
   test "RecordAttendance runs" do
     tests "RecordAttendance", on: "SupportGroup"
-    setup  "CreateSupportGroup", group_name: "sample", meeting_day: "sample", meeting_time: "sample", facilitator_name: "sample", max_members: 1
+    setup  "ConveneSupportGroup", group_name: "sample", meeting_day: "sample", meeting_time: "sample", facilitator_name: "sample", max_members: 1
     expect ok: "true"
   end
 

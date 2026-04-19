@@ -59,8 +59,8 @@ Hecks.behaviors "Chiropractic" do
 
   # ── TreatmentPlan aggregate ──────────────────────────────────────────
 
-  test "CreateTreatmentPlan sets patient_name + diagnosis + planned_visits + frequency" do
-    tests "CreateTreatmentPlan", on: "TreatmentPlan"
+  test "PrescribeCourse sets patient_name + diagnosis + planned_visits + frequency" do
+    tests "PrescribeCourse", on: "TreatmentPlan"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample", insurance_id: "sample"
     input  patient_name: "sample", diagnosis: "sample", planned_visits: 1, frequency: "sample"
     expect patient_name: "sample", diagnosis: "sample", planned_visits: 1, frequency: "sample", completed_visits: 0, status: "active"
@@ -68,21 +68,21 @@ Hecks.behaviors "Chiropractic" do
 
   test "RecordCompletedVisit runs" do
     tests "RecordCompletedVisit", on: "TreatmentPlan"
-    setup  "CreateTreatmentPlan", patient_name: "sample", diagnosis: "sample", planned_visits: 1, frequency: "sample"
+    setup  "PrescribeCourse", patient_name: "sample", diagnosis: "sample", planned_visits: 1, frequency: "sample"
     expect ok: "true"
   end
 
   test "CloseTreatmentPlan runs" do
     tests "CloseTreatmentPlan", on: "TreatmentPlan"
-    setup  "CreateTreatmentPlan", patient_name: "sample", diagnosis: "sample", planned_visits: 1, frequency: "sample"
+    setup  "PrescribeCourse", patient_name: "sample", diagnosis: "sample", planned_visits: 1, frequency: "sample"
     expect status: "closed"
   end
 
 
   # ── Invoice aggregate ──────────────────────────────────────────
 
-  test "CreateInvoice sets patient_name + service_date + total_amount" do
-    tests "CreateInvoice", on: "Invoice"
+  test "IssueInvoice sets patient_name + service_date + total_amount" do
+    tests "IssueInvoice", on: "Invoice"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample", insurance_id: "sample"
     input  patient_name: "sample", service_date: "sample", total_amount: 1.0
     expect patient_name: "sample", service_date: "sample", total_amount: 1.0, payment_status: "unpaid", insurance_claim_status: "pending"
@@ -90,13 +90,13 @@ Hecks.behaviors "Chiropractic" do
 
   test "SubmitInsuranceClaim runs" do
     tests "SubmitInsuranceClaim", on: "Invoice"
-    setup  "CreateInvoice", patient_name: "sample", service_date: "sample", total_amount: 1.0
+    setup  "IssueInvoice", patient_name: "sample", service_date: "sample", total_amount: 1.0
     expect insurance_claim_status: "submitted"
   end
 
   test "RecordPayment runs" do
     tests "RecordPayment", on: "Invoice"
-    setup  "CreateInvoice", patient_name: "sample", service_date: "sample", total_amount: 1.0
+    setup  "IssueInvoice", patient_name: "sample", service_date: "sample", total_amount: 1.0
     expect payment_status: "paid"
   end
 

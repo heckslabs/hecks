@@ -26,22 +26,22 @@ Hecks.behaviors "Pricing" do
 
   # ── PricingPolicy aggregate ──────────────────────────────────────────
 
-  test "CreatePricingPolicy sets name + map_enforcement_level" do
-    tests "CreatePricingPolicy", on: "PricingPolicy"
+  test "EstablishPricingPolicy sets name + map_enforcement_level" do
+    tests "EstablishPricingPolicy", on: "PricingPolicy"
     input  name: "sample", map_enforcement_level: "sample"
     expect name: "sample", map_enforcement_level: "sample", status: "active"
   end
 
   test "AddPromotionalWindow sets name + start_date + end_date + discount_percent" do
     tests "AddPromotionalWindow", on: "PricingPolicy"
-    setup  "CreatePricingPolicy", name: "sample", map_enforcement_level: "sample"
+    setup  "EstablishPricingPolicy", name: "sample", map_enforcement_level: "sample"
     input  name: "sample", start_date: "sample", end_date: "sample", discount_percent: 1.0
     expect name: "sample", status: "draft"
   end
 
   test "AddVolumeTier sets min_quantity + discount_percent + tier_name" do
     tests "AddVolumeTier", on: "PricingPolicy"
-    setup  "CreatePricingPolicy", name: "sample", map_enforcement_level: "sample"
+    setup  "EstablishPricingPolicy", name: "sample", map_enforcement_level: "sample"
     input  min_quantity: 1, discount_percent: 1.0, tier_name: "sample"
     expect status: "draft"
   end

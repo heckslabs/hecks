@@ -25,8 +25,8 @@ Hecks.behaviors "SmartFacility" do
     expect display_id: "sample", location_name: "sample", content_type: "sample", status: "active"
   end
 
-  test "UpdateContent sets current_content" do
-    tests "UpdateContent", on: "Display"
+  test "RefreshContent sets current_content" do
+    tests "RefreshContent", on: "Display"
     setup  "InstallDisplay", display_id: "sample", location_name: "sample", content_type: "sample"
     input  current_content: "sample"
     expect current_content: "sample"
@@ -35,15 +35,15 @@ Hecks.behaviors "SmartFacility" do
 
   # ── ReminderSchedule aggregate ──────────────────────────────────────────
 
-  test "CreateSchedule sets schedule_id + resident_id" do
-    tests "CreateSchedule", on: "ReminderSchedule"
+  test "ProvisionSchedule sets schedule_id + resident_id" do
+    tests "ProvisionSchedule", on: "ReminderSchedule"
     input  schedule_id: "sample", resident_id: "sample"
     expect schedule_id: "sample", resident_id: "sample", status: "active"
   end
 
   test "TriggerReminder runs" do
     tests "TriggerReminder", on: "ReminderSchedule"
-    setup  "CreateSchedule", schedule_id: "sample", resident_id: "sample"
+    setup  "ProvisionSchedule", schedule_id: "sample", resident_id: "sample"
     expect ok: "true"
   end
 

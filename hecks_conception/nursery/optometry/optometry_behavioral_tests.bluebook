@@ -9,8 +9,8 @@ Hecks.behaviors "Optometry" do
     expect name: "sample", date_of_birth: "sample", insurance_id: "sample", medical_history: "sample", status: "active"
   end
 
-  test "UpdateMedicalHistory sets medical_history" do
-    tests "UpdateMedicalHistory", on: "Patient"
+  test "RecordMedicalHistory sets medical_history" do
+    tests "RecordMedicalHistory", on: "Patient"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", insurance_id: "sample", medical_history: "sample"
     input  medical_history: "sample"
     expect medical_history: "sample"

@@ -55,15 +55,15 @@ Hecks.behaviors "BloodSupplyChain" do
 
   # ── Inventory aggregate ──────────────────────────────────────────
 
-  test "UpdateInventory sets facility_name + blood_type + units_available + oldest_expiry" do
-    tests "UpdateInventory", on: "Inventory"
+  test "AdjustInventory sets facility_name + blood_type + units_available + oldest_expiry" do
+    tests "AdjustInventory", on: "Inventory"
     input  facility_name: "sample", blood_type: "sample", units_available: 1, oldest_expiry: "sample"
     expect facility_name: "sample", blood_type: "sample", units_available: 1, oldest_expiry: "sample"
   end
 
   test "FlagShortage runs" do
     tests "FlagShortage", on: "Inventory"
-    setup  "UpdateInventory", facility_name: "sample", blood_type: "sample", units_available: 1, oldest_expiry: "sample"
+    setup  "AdjustInventory", facility_name: "sample", blood_type: "sample", units_available: 1, oldest_expiry: "sample"
     expect ok: "true"
   end
 

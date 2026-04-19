@@ -83,21 +83,21 @@ Hecks.behaviors "GolfCourse" do
 
   # ── GolfTournament aggregate ──────────────────────────────────────────
 
-  test "CreateTournament sets tournament_id + name + format + date + max_players + entry_fee" do
-    tests "CreateTournament", on: "GolfTournament"
+  test "ScheduleTournament sets tournament_id + name + format + date + max_players + entry_fee" do
+    tests "ScheduleTournament", on: "GolfTournament"
     input  tournament_id: "sample", name: "sample", format: "sample", date: "sample", max_players: 1, entry_fee: 1.0
     expect tournament_id: "sample", name: "sample", format: "sample", date: "sample", max_players: 1, entry_fee: 1.0, status: "open"
   end
 
   test "StartTournament runs" do
     tests "StartTournament", on: "GolfTournament"
-    setup  "CreateTournament", tournament_id: "sample", name: "sample", format: "sample", date: "sample", max_players: 1, entry_fee: 1.0
+    setup  "ScheduleTournament", tournament_id: "sample", name: "sample", format: "sample", date: "sample", max_players: 1, entry_fee: 1.0
     expect status: "in_progress"
   end
 
   test "AwardPrizes runs" do
     tests "AwardPrizes", on: "GolfTournament"
-    setup  "CreateTournament", tournament_id: "sample", name: "sample", format: "sample", date: "sample", max_players: 1, entry_fee: 1.0
+    setup  "ScheduleTournament", tournament_id: "sample", name: "sample", format: "sample", date: "sample", max_players: 1, entry_fee: 1.0
     setup  "StartTournament"
     expect status: "concluded"
   end

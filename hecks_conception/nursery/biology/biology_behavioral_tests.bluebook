@@ -3,49 +3,49 @@ Hecks.behaviors "Biology" do
 
   # ── Cell aggregate ──────────────────────────────────────────
 
-  test "CreateCell sets cell_type + name + organism_type" do
-    tests "CreateCell", on: "Cell"
+  test "CultureCell sets cell_type + name + organism_type" do
+    tests "CultureCell", on: "Cell"
     input  cell_type: "sample", name: "sample", organism_type: "sample"
     expect cell_type: "sample", name: "sample", organism_type: "sample", membrane_integrity: 1.0, energy_level: 100.0, phase: "interphase"
   end
 
   test "Divide sets division_type" do
     tests "Divide", on: "Cell"
-    setup  "CreateCell", cell_type: "sample", name: "sample", organism_type: "sample"
+    setup  "CultureCell", cell_type: "sample", name: "sample", organism_type: "sample"
     input  division_type: "sample"
     expect phase: "dividing"
   end
 
   test "Differentiate sets target_type + signals" do
     tests "Differentiate", on: "Cell"
-    setup  "CreateCell", cell_type: "sample", name: "sample", organism_type: "sample"
+    setup  "CultureCell", cell_type: "sample", name: "sample", organism_type: "sample"
     input  target_type: "sample", signals: "sample"
     expect differentiation_state: "sample", cell_type: "sample"
   end
 
   test "Metabolize sets pathway + substrate" do
     tests "Metabolize", on: "Cell"
-    setup  "CreateCell", cell_type: "sample", name: "sample", organism_type: "sample"
+    setup  "CultureCell", cell_type: "sample", name: "sample", organism_type: "sample"
     input  pathway: "sample", substrate: "sample"
     expect ok: "true"
   end
 
   test "TriggerApoptosis runs" do
     tests "TriggerApoptosis", on: "Cell"
-    setup  "CreateCell", cell_type: "sample", name: "sample", organism_type: "sample"
+    setup  "CultureCell", cell_type: "sample", name: "sample", organism_type: "sample"
     expect membrane_integrity: 0.0, phase: "apoptotic"
   end
 
   test "EnterPhase sets phase" do
     tests "EnterPhase", on: "Cell"
-    setup  "CreateCell", cell_type: "sample", name: "sample", organism_type: "sample"
+    setup  "CultureCell", cell_type: "sample", name: "sample", organism_type: "sample"
     input  phase: "sample"
     expect phase: "G1"
   end
 
   test "RepairMembrane sets integrity" do
     tests "RepairMembrane", on: "Cell"
-    setup  "CreateCell", cell_type: "sample", name: "sample", organism_type: "sample"
+    setup  "CultureCell", cell_type: "sample", name: "sample", organism_type: "sample"
     input  integrity: 1.0
     expect membrane_integrity: 1.0
   end
@@ -321,22 +321,22 @@ Hecks.behaviors "Biology" do
 
   # ── Neuron aggregate ──────────────────────────────────────────
 
-  test "CreateNeuron sets neuron_type + name + resting_potential + threshold + neurotransmitter" do
-    tests "CreateNeuron", on: "Neuron"
+  test "DefineNeuron sets neuron_type + name + resting_potential + threshold + neurotransmitter" do
+    tests "DefineNeuron", on: "Neuron"
     input  neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
     expect neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample", current_potential: 1.0, state: "resting"
   end
 
   test "FireNeuron sets stimulus_strength" do
     tests "FireNeuron", on: "Neuron"
-    setup  "CreateNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
+    setup  "DefineNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
     input  stimulus_strength: 1.0
     expect state: "firing"
   end
 
   test "Depolarize sets potential_change" do
     tests "Depolarize", on: "Neuron"
-    setup  "CreateNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
+    setup  "DefineNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
     setup  "FireNeuron", stimulus_strength: 1.0
     setup  "Repolarize"
     input  potential_change: 1.0
@@ -345,14 +345,14 @@ Hecks.behaviors "Biology" do
 
   test "Repolarize runs" do
     tests "Repolarize", on: "Neuron"
-    setup  "CreateNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
+    setup  "DefineNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
     setup  "FireNeuron", stimulus_strength: 1.0
     expect state: "refractory"
   end
 
   test "ReleaseSynapse sets target_neuron + amount" do
     tests "ReleaseSynapse", on: "Neuron"
-    setup  "CreateNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
+    setup  "DefineNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
     setup  "FireNeuron", stimulus_strength: 1.0
     input  target_neuron: "sample", amount: 1.0
     expect ok: "true"
@@ -360,21 +360,21 @@ Hecks.behaviors "Biology" do
 
   test "PropagateSignal sets conduction_type + velocity" do
     tests "PropagateSignal", on: "Neuron"
-    setup  "CreateNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
+    setup  "DefineNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
     input  conduction_type: "sample", velocity: 1.0
     expect ok: "true"
   end
 
   test "FormMemory sets synapse_target + strength_increase" do
     tests "FormMemory", on: "Neuron"
-    setup  "CreateNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
+    setup  "DefineNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
     input  synapse_target: "sample", strength_increase: 1.0
     expect ok: "true"
   end
 
   test "Inhibit sets inhibitor" do
     tests "Inhibit", on: "Neuron"
-    setup  "CreateNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
+    setup  "DefineNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
     input  inhibitor: "sample"
     expect state: "inhibited"
   end

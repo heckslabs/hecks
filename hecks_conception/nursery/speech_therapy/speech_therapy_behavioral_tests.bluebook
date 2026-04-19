@@ -25,8 +25,8 @@ Hecks.behaviors "SpeechTherapy" do
     expect client_name: "sample", goal_area: "sample", description: "sample", target_criterion: "sample", baseline_score: 1, current_score: 1, status: "in_progress"
   end
 
-  test "UpdateProgress sets current_score" do
-    tests "UpdateProgress", on: "TherapyGoal"
+  test "LogProgress sets current_score" do
+    tests "LogProgress", on: "TherapyGoal"
     setup  "SetGoal", client_name: "sample", goal_area: "sample", description: "sample", target_criterion: "sample", baseline_score: 1
     input  current_score: 1
     expect current_score: 1
@@ -58,15 +58,15 @@ Hecks.behaviors "SpeechTherapy" do
 
   # ── Exercise aggregate ──────────────────────────────────────────
 
-  test "CreateExercise sets name + target_skill + difficulty + instructions + modality" do
-    tests "CreateExercise", on: "Exercise"
+  test "DesignExercise sets name + target_skill + difficulty + instructions + modality" do
+    tests "DesignExercise", on: "Exercise"
     input  name: "sample", target_skill: "sample", difficulty: "sample", instructions: "sample", modality: "sample"
     expect name: "sample", target_skill: "sample", difficulty: "sample", instructions: "sample", modality: "sample"
   end
 
   test "ModifyExercise sets difficulty + instructions" do
     tests "ModifyExercise", on: "Exercise"
-    setup  "CreateExercise", name: "sample", target_skill: "sample", difficulty: "sample", instructions: "sample", modality: "sample"
+    setup  "DesignExercise", name: "sample", target_skill: "sample", difficulty: "sample", instructions: "sample", modality: "sample"
     input  difficulty: "sample", instructions: "sample"
     expect difficulty: "sample", instructions: "sample"
   end

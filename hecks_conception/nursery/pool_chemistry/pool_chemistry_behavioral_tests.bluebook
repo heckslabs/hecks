@@ -33,21 +33,21 @@ Hecks.behaviors "PoolChemistry" do
 
   # ── DosingPlan aggregate ──────────────────────────────────────────
 
-  test "CreateDosingPlan sets pool_name + chemical_name + current_level + target_level + dose_amount_ml + dosing_method" do
-    tests "CreateDosingPlan", on: "DosingPlan"
+  test "PrescribeDose sets pool_name + chemical_name + current_level + target_level + dose_amount_ml + dosing_method" do
+    tests "PrescribeDose", on: "DosingPlan"
     input  pool_name: "sample", chemical_name: "sample", current_level: 1.0, target_level: 1.0, dose_amount_ml: 1.0, dosing_method: "sample"
     expect pool_name: "sample", chemical_name: "sample", current_level: 1.0, target_level: 1.0, dose_amount_ml: 1.0, dosing_method: "sample", status: "created"
   end
 
   test "ExecuteDosing runs" do
     tests "ExecuteDosing", on: "DosingPlan"
-    setup  "CreateDosingPlan", pool_name: "sample", chemical_name: "sample", current_level: 1.0, target_level: 1.0, dose_amount_ml: 1.0, dosing_method: "sample"
+    setup  "PrescribeDose", pool_name: "sample", chemical_name: "sample", current_level: 1.0, target_level: 1.0, dose_amount_ml: 1.0, dosing_method: "sample"
     expect status: "executed"
   end
 
   test "VerifyDosing runs" do
     tests "VerifyDosing", on: "DosingPlan"
-    setup  "CreateDosingPlan", pool_name: "sample", chemical_name: "sample", current_level: 1.0, target_level: 1.0, dose_amount_ml: 1.0, dosing_method: "sample"
+    setup  "PrescribeDose", pool_name: "sample", chemical_name: "sample", current_level: 1.0, target_level: 1.0, dose_amount_ml: 1.0, dosing_method: "sample"
     setup  "ExecuteDosing"
     expect status: "verified"
   end

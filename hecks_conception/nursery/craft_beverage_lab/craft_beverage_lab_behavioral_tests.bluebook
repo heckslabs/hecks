@@ -55,21 +55,21 @@ Hecks.behaviors "CraftBeverageLab" do
 
   # ── RoastProfile aggregate ──────────────────────────────────────────
 
-  test "CreateProfile sets bean_origin + roast_level + charge_temperature" do
-    tests "CreateProfile", on: "RoastProfile"
+  test "DraftProfile sets bean_origin + roast_level + charge_temperature" do
+    tests "DraftProfile", on: "RoastProfile"
     input  bean_origin: "sample", roast_level: "sample", charge_temperature: 1.0
     expect bean_origin: "sample", roast_level: "sample", charge_temperature: 1.0, status: "created"
   end
 
   test "ExecuteRoast runs" do
     tests "ExecuteRoast", on: "RoastProfile"
-    setup  "CreateProfile", bean_origin: "sample", roast_level: "sample", charge_temperature: 1.0
+    setup  "DraftProfile", bean_origin: "sample", roast_level: "sample", charge_temperature: 1.0
     expect status: "roasting"
   end
 
   test "CompleteRoast sets drop_temperature + total_time_seconds" do
     tests "CompleteRoast", on: "RoastProfile"
-    setup  "CreateProfile", bean_origin: "sample", roast_level: "sample", charge_temperature: 1.0
+    setup  "DraftProfile", bean_origin: "sample", roast_level: "sample", charge_temperature: 1.0
     setup  "ExecuteRoast"
     input  drop_temperature: 1.0, total_time_seconds: 1
     expect drop_temperature: 1.0, total_time_seconds: 1, status: "profiled"

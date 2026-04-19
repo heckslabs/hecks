@@ -9,8 +9,8 @@ Hecks.behaviors "MarineNavigation" do
     expect name: "sample", speed_knots: 1.0, direction_degrees: 1.0, depth_meters: 1.0, season: "sample", status: "active"
   end
 
-  test "UpdateCurrentData sets speed_knots + direction_degrees" do
-    tests "UpdateCurrentData", on: "OceanCurrent"
+  test "RefreshCurrentData sets speed_knots + direction_degrees" do
+    tests "RefreshCurrentData", on: "OceanCurrent"
     setup  "MeasureCurrent", name: "sample", speed_knots: 1.0, direction_degrees: 1.0, depth_meters: 1.0, season: "sample"
     input  speed_knots: 1.0, direction_degrees: 1.0
     expect speed_knots: 1.0, direction_degrees: 1.0

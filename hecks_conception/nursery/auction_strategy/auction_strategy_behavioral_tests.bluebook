@@ -3,21 +3,21 @@ Hecks.behaviors "AuctionStrategy" do
 
   # ── Auction aggregate ──────────────────────────────────────────
 
-  test "CreateAuction sets name + item_description + auction_type + reserve_price + start_time + end_time" do
-    tests "CreateAuction", on: "Auction"
+  test "ListAuction sets name + item_description + auction_type + reserve_price + start_time + end_time" do
+    tests "ListAuction", on: "Auction"
     input  name: "sample", item_description: "sample", auction_type: "sample", reserve_price: 1.0, start_time: "sample", end_time: "sample"
-    expect name: "sample", item_description: "sample", auction_type: "sample", reserve_price: 1.0, start_time: "sample", end_time: "sample", current_bid: 0.0, status: "open"
+    expect name: "sample", item_description: "sample", auction_type: "sample", reserve_price: 1.0, current_bid: 0.0, start_time: "sample", end_time: "sample", status: "open"
   end
 
   test "CloseAuction runs" do
     tests "CloseAuction", on: "Auction"
-    setup  "CreateAuction", name: "sample", item_description: "sample", auction_type: "sample", reserve_price: 1.0, start_time: "sample", end_time: "sample"
+    setup  "ListAuction", name: "sample", item_description: "sample", auction_type: "sample", reserve_price: 1.0, start_time: "sample", end_time: "sample"
     expect status: "closed"
   end
 
   test "AwardAuction runs" do
     tests "AwardAuction", on: "Auction"
-    setup  "CreateAuction", name: "sample", item_description: "sample", auction_type: "sample", reserve_price: 1.0, start_time: "sample", end_time: "sample"
+    setup  "ListAuction", name: "sample", item_description: "sample", auction_type: "sample", reserve_price: 1.0, start_time: "sample", end_time: "sample"
     setup  "CloseAuction"
     expect status: "awarded"
   end
@@ -31,8 +31,8 @@ Hecks.behaviors "AuctionStrategy" do
     expect name: "sample", max_valuation: 1.0, budget: 1.0, risk_profile: "sample", bid_count: 0, status: "active"
   end
 
-  test "UpdateValuation sets max_valuation" do
-    tests "UpdateValuation", on: "Bidder"
+  test "ReassessValuation sets max_valuation" do
+    tests "ReassessValuation", on: "Bidder"
     setup  "RegisterBidder", name: "sample", max_valuation: 1.0, budget: 1.0, risk_profile: "sample"
     input  max_valuation: 1.0
     expect max_valuation: 1.0

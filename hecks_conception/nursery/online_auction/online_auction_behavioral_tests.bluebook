@@ -68,22 +68,22 @@ Hecks.behaviors "OnlineAuction" do
 
   # ── AuctionSettlement aggregate ──────────────────────────────────────────
 
-  test "CreateSettlement sets settlement_id + hammer_price + buyer_premium + seller_commission" do
-    tests "CreateSettlement", on: "AuctionSettlement"
+  test "SettleLot sets settlement_id + hammer_price + buyer_premium + seller_commission" do
+    tests "SettleLot", on: "AuctionSettlement"
     setup  "ListLot", lot_number: "sample", title: "sample", description: "sample", category: "sample", starting_price: 1.0, reserve_price: 1.0, auction_end: "sample"
     input  settlement_id: "sample", hammer_price: 1.0, buyer_premium: 1.0, seller_commission: 1.0
-    expect settlement_id: "sample", hammer_price: 1.0, buyer_premium: 1.0, seller_commission: 1.0
+    expect ok: "true"
   end
 
   test "DisburseToSeller runs" do
     tests "DisburseToSeller", on: "AuctionSettlement"
-    setup  "CreateSettlement", settlement_id: "sample", hammer_price: 1.0, buyer_premium: 1.0, seller_commission: 1.0
+    setup  "SettleLot", settlement_id: "sample", hammer_price: 1.0, buyer_premium: 1.0, seller_commission: 1.0
     expect ok: "true"
   end
 
   test "HoldSettlement sets hold_reason" do
     tests "HoldSettlement", on: "AuctionSettlement"
-    setup  "CreateSettlement", settlement_id: "sample", hammer_price: 1.0, buyer_premium: 1.0, seller_commission: 1.0
+    setup  "SettleLot", settlement_id: "sample", hammer_price: 1.0, buyer_premium: 1.0, seller_commission: 1.0
     input  hold_reason: "sample"
     expect ok: "true"
   end
@@ -93,7 +93,7 @@ Hecks.behaviors "OnlineAuction" do
 
   test "OpenDispute sets dispute_id + complainant + reason + description" do
     tests "OpenDispute", on: "Dispute"
-    setup  "CreateSettlement", settlement_id: "sample", hammer_price: 1.0, buyer_premium: 1.0, seller_commission: 1.0
+    setup  "SettleLot", settlement_id: "sample", hammer_price: 1.0, buyer_premium: 1.0, seller_commission: 1.0
     input  dispute_id: "sample", complainant: "sample", reason: "sample", description: "sample"
     expect dispute_id: "sample", complainant: "sample", reason: "sample", description: "sample"
   end

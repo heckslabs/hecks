@@ -9,8 +9,8 @@ Hecks.behaviors "VeteranServices" do
     expect name: "sample", service_branch: "sample", discharge_status: "sample", service_dates: "sample", disability_rating: "sample", status: "active"
   end
 
-  test "UpdateDisabilityRating sets disability_rating" do
-    tests "UpdateDisabilityRating", on: "Veteran"
+  test "RecordDisabilityRating sets disability_rating" do
+    tests "RecordDisabilityRating", on: "Veteran"
     setup  "RegisterVeteran", name: "sample", service_branch: "sample", discharge_status: "sample", service_dates: "sample", disability_rating: "sample"
     input  disability_rating: "sample"
     expect disability_rating: "sample"

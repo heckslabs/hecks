@@ -58,22 +58,22 @@ Hecks.behaviors "MusicFestival" do
 
   # ── TicketBatch aggregate ──────────────────────────────────────────
 
-  test "CreateTicketBatch sets tier_name + valid_date + price + total_quantity" do
-    tests "CreateTicketBatch", on: "TicketBatch"
+  test "IssueTicketBatch sets tier_name + valid_date + price + total_quantity" do
+    tests "IssueTicketBatch", on: "TicketBatch"
     input  tier_name: "sample", valid_date: "sample", price: 1.0, total_quantity: 1
     expect tier_name: "sample", valid_date: "sample", price: 1.0, total_quantity: 1, sold_count: 0, status: "on_sale"
   end
 
   test "SellTickets sets quantity" do
     tests "SellTickets", on: "TicketBatch"
-    setup  "CreateTicketBatch", tier_name: "sample", valid_date: "sample", price: 1.0, total_quantity: 1
+    setup  "IssueTicketBatch", tier_name: "sample", valid_date: "sample", price: 1.0, total_quantity: 1
     input  quantity: 1
     expect ok: "true"
   end
 
   test "CloseTicketSales runs" do
     tests "CloseTicketSales", on: "TicketBatch"
-    setup  "CreateTicketBatch", tier_name: "sample", valid_date: "sample", price: 1.0, total_quantity: 1
+    setup  "IssueTicketBatch", tier_name: "sample", valid_date: "sample", price: 1.0, total_quantity: 1
     expect status: "closed"
   end
 

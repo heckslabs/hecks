@@ -25,21 +25,21 @@ Hecks.behaviors "TeletherapyPlatform" do
 
   # ── VideoRoom aggregate ──────────────────────────────────────────
 
-  test "CreateRoom sets room_id + session_id + stream_url" do
-    tests "CreateRoom", on: "VideoRoom"
+  test "ProvisionRoom sets room_id + session_id + stream_url" do
+    tests "ProvisionRoom", on: "VideoRoom"
     input  room_id: "sample", session_id: "sample", stream_url: "sample"
     expect room_id: "sample", session_id: "sample", stream_url: "sample", status: "ready", recording_status: "off"
   end
 
   test "StartRecording runs" do
     tests "StartRecording", on: "VideoRoom"
-    setup  "CreateRoom", room_id: "sample", session_id: "sample", stream_url: "sample"
+    setup  "ProvisionRoom", room_id: "sample", session_id: "sample", stream_url: "sample"
     expect recording_status: "recording"
   end
 
   test "CloseRoom runs" do
     tests "CloseRoom", on: "VideoRoom"
-    setup  "CreateRoom", room_id: "sample", session_id: "sample", stream_url: "sample"
+    setup  "ProvisionRoom", room_id: "sample", session_id: "sample", stream_url: "sample"
     expect status: "closed"
   end
 
@@ -61,15 +61,15 @@ Hecks.behaviors "TeletherapyPlatform" do
 
   # ── BillingRecord aggregate ──────────────────────────────────────────
 
-  test "CreateInvoice sets invoice_id + session_id + client_id + amount" do
-    tests "CreateInvoice", on: "BillingRecord"
+  test "IssueInvoice sets invoice_id + session_id + client_id + amount" do
+    tests "IssueInvoice", on: "BillingRecord"
     input  invoice_id: "sample", session_id: "sample", client_id: "sample", amount: 1.0
     expect invoice_id: "sample", session_id: "sample", client_id: "sample", amount: 1.0, status: "pending"
   end
 
   test "MarkPaid runs" do
     tests "MarkPaid", on: "BillingRecord"
-    setup  "CreateInvoice", invoice_id: "sample", session_id: "sample", client_id: "sample", amount: 1.0
+    setup  "IssueInvoice", invoice_id: "sample", session_id: "sample", client_id: "sample", amount: 1.0
     expect status: "paid"
   end
 

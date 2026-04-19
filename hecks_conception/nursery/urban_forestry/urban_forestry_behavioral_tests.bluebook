@@ -32,21 +32,21 @@ Hecks.behaviors "UrbanForestry" do
 
   # ── PlantingPlan aggregate ──────────────────────────────────────────
 
-  test "CreatePlantingPlan sets name + site_address + tree_count + primary_species + spacing_m + season" do
-    tests "CreatePlantingPlan", on: "PlantingPlan"
+  test "DraftPlantingPlan sets name + site_address + tree_count + primary_species + spacing_m + season" do
+    tests "DraftPlantingPlan", on: "PlantingPlan"
     input  name: "sample", site_address: "sample", tree_count: 1, primary_species: "sample", spacing_m: 1.0, season: "sample"
     expect name: "sample", site_address: "sample", tree_count: 1, primary_species: "sample", spacing_m: 1.0, season: "sample", status: "drafted"
   end
 
   test "ApprovePlan runs" do
     tests "ApprovePlan", on: "PlantingPlan"
-    setup  "CreatePlantingPlan", name: "sample", site_address: "sample", tree_count: 1, primary_species: "sample", spacing_m: 1.0, season: "sample"
+    setup  "DraftPlantingPlan", name: "sample", site_address: "sample", tree_count: 1, primary_species: "sample", spacing_m: 1.0, season: "sample"
     expect status: "approved"
   end
 
   test "ExecutePlanting runs" do
     tests "ExecutePlanting", on: "PlantingPlan"
-    setup  "CreatePlantingPlan", name: "sample", site_address: "sample", tree_count: 1, primary_species: "sample", spacing_m: 1.0, season: "sample"
+    setup  "DraftPlantingPlan", name: "sample", site_address: "sample", tree_count: 1, primary_species: "sample", spacing_m: 1.0, season: "sample"
     setup  "ApprovePlan"
     expect status: "planted"
   end

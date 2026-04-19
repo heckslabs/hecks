@@ -38,42 +38,42 @@ Hecks.behaviors "Storefront" do
 
   # ── ProductListing aggregate ──────────────────────────────────────────
 
-  test "CreateListing sets sku + name + brand + description + price" do
-    tests "CreateListing", on: "ProductListing"
+  test "DraftListing sets sku + name + brand + description + price" do
+    tests "DraftListing", on: "ProductListing"
     input  sku: "sample", name: "sample", brand: "sample", description: "sample", price: 1.0
     expect sku: "sample", name: "sample", brand: "sample", description: "sample", price: 1.0, in_stock: "true", featured: "false", status: "draft"
   end
 
   test "EnrichWithScience sets test_results + benefits" do
     tests "EnrichWithScience", on: "ProductListing"
-    setup  "CreateListing", sku: "sample", name: "sample", brand: "sample", description: "sample", price: 1.0
+    setup  "DraftListing", sku: "sample", name: "sample", brand: "sample", description: "sample", price: 1.0
     input  specifications: "sample_specification", test_results: "sample", benefits: "sample"
     expect specifications: "sample_specification", test_results: "sample", benefits: "sample"
   end
 
   test "SetFeatured sets featured" do
     tests "SetFeatured", on: "ProductListing"
-    setup  "CreateListing", sku: "sample", name: "sample", brand: "sample", description: "sample", price: 1.0
+    setup  "DraftListing", sku: "sample", name: "sample", brand: "sample", description: "sample", price: 1.0
     input  featured: "sample"
     expect featured: "sample"
   end
 
-  test "UpdateStock sets in_stock" do
-    tests "UpdateStock", on: "ProductListing"
-    setup  "CreateListing", sku: "sample", name: "sample", brand: "sample", description: "sample", price: 1.0
+  test "AdjustStock sets in_stock" do
+    tests "AdjustStock", on: "ProductListing"
+    setup  "DraftListing", sku: "sample", name: "sample", brand: "sample", description: "sample", price: 1.0
     input  in_stock: "sample"
     expect in_stock: "sample"
   end
 
   test "PublishListing runs" do
     tests "PublishListing", on: "ProductListing"
-    setup  "CreateListing", sku: "sample", name: "sample", brand: "sample", description: "sample", price: 1.0
+    setup  "DraftListing", sku: "sample", name: "sample", brand: "sample", description: "sample", price: 1.0
     expect status: "published"
   end
 
   test "UnpublishListing runs" do
     tests "UnpublishListing", on: "ProductListing"
-    setup  "CreateListing", sku: "sample", name: "sample", brand: "sample", description: "sample", price: 1.0
+    setup  "DraftListing", sku: "sample", name: "sample", brand: "sample", description: "sample", price: 1.0
     setup  "PublishListing"
     expect status: "unpublished"
   end
@@ -94,8 +94,8 @@ Hecks.behaviors "Storefront" do
     expect ok: "true"
   end
 
-  test "UpdateQuantity sets sku + quantity" do
-    tests "UpdateQuantity", on: "ShoppingCart"
+  test "AdjustQuantity sets sku + quantity" do
+    tests "AdjustQuantity", on: "ShoppingCart"
     setup  "AddToCart", session_id: "sample", sku: "sample", name: "sample", quantity: 1, unit_price: 1.0
     input  sku: "sample", quantity: 1
     expect ok: "true"
@@ -166,35 +166,35 @@ Hecks.behaviors "Storefront" do
 
   # ── CustomerAccount aggregate ──────────────────────────────────────────
 
-  test "CreateAccount sets email + name + vehicle_type" do
-    tests "CreateAccount", on: "CustomerAccount"
+  test "RegisterAccount sets email + name + vehicle_type" do
+    tests "RegisterAccount", on: "CustomerAccount"
     input  email: "sample", name: "sample", vehicle_type: "sample"
     expect email: "sample", name: "sample", vehicle_type: "sample", lifetime_value: 0.0
   end
 
   test "RecordPurchase sets order_number + amount" do
     tests "RecordPurchase", on: "CustomerAccount"
-    setup  "CreateAccount", email: "sample", name: "sample", vehicle_type: "sample"
+    setup  "RegisterAccount", email: "sample", name: "sample", vehicle_type: "sample"
     input  order_number: "sample", amount: 1.0
     expect ok: "true"
   end
 
   test "IdentifyPersona sets persona_segment" do
     tests "IdentifyPersona", on: "CustomerAccount"
-    setup  "CreateAccount", email: "sample", name: "sample", vehicle_type: "sample"
+    setup  "RegisterAccount", email: "sample", name: "sample", vehicle_type: "sample"
     input  persona_segment: "sample"
     expect persona_segment: "sample"
   end
 
   test "RecommendProducts runs" do
     tests "RecommendProducts", on: "CustomerAccount"
-    setup  "CreateAccount", email: "sample", name: "sample", vehicle_type: "sample"
+    setup  "RegisterAccount", email: "sample", name: "sample", vehicle_type: "sample"
     expect ok: "true"
   end
 
   test "CalculateLifetimeValue sets lifetime_value" do
     tests "CalculateLifetimeValue", on: "CustomerAccount"
-    setup  "CreateAccount", email: "sample", name: "sample", vehicle_type: "sample"
+    setup  "RegisterAccount", email: "sample", name: "sample", vehicle_type: "sample"
     input  lifetime_value: 1.0
     expect lifetime_value: 1.0
   end
@@ -242,8 +242,8 @@ Hecks.behaviors "Storefront" do
     expect ok: "true"
   end
 
-  test "CreateComparisonChart sets comparison_to_competitor" do
-    tests "CreateComparisonChart", on: "ScienceContent"
+  test "PublishComparisonChart sets comparison_to_competitor" do
+    tests "PublishComparisonChart", on: "ScienceContent"
     setup  "GenerateScienceContent", product_sku: "sample", tribology_summary: "sample", test_results_summary: "sample", how_it_works: "sample"
     input  comparison_to_competitor: "sample"
     expect comparison_to_competitor: "sample"

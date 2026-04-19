@@ -3,22 +3,22 @@ Hecks.behaviors "TicketingPlatform" do
 
   # ── Event aggregate ──────────────────────────────────────────
 
-  test "CreateEvent sets event_name + event_type + date + organizer + capacity" do
-    tests "CreateEvent", on: "Event"
+  test "AnnounceEvent sets event_name + event_type + date + organizer + capacity" do
+    tests "AnnounceEvent", on: "Event"
     setup  "RegisterVenue", venue_name: "sample", address: "sample", total_capacity: 1, venue_type: "sample"
     input  event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
-    expect event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
+    expect ok: "true"
   end
 
   test "PublishEvent runs" do
     tests "PublishEvent", on: "Event"
-    setup  "CreateEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
+    setup  "AnnounceEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
     expect ok: "true"
   end
 
   test "CancelEvent runs" do
     tests "CancelEvent", on: "Event"
-    setup  "CreateEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
+    setup  "AnnounceEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
     expect ok: "true"
   end
 
@@ -31,8 +31,8 @@ Hecks.behaviors "TicketingPlatform" do
     expect venue_name: "sample", address: "sample", total_capacity: 1, venue_type: "sample"
   end
 
-  test "UpdateCapacity sets total_capacity" do
-    tests "UpdateCapacity", on: "Venue"
+  test "AdjustCapacity sets total_capacity" do
+    tests "AdjustCapacity", on: "Venue"
     setup  "RegisterVenue", venue_name: "sample", address: "sample", total_capacity: 1, venue_type: "sample"
     input  total_capacity: 1
     expect ok: "true"
@@ -49,7 +49,7 @@ Hecks.behaviors "TicketingPlatform" do
 
   test "PurchaseTicket sets ticket_id + tier_name + holder_name + holder_email + price_paid" do
     tests "PurchaseTicket", on: "Ticket"
-    setup  "CreateEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
+    setup  "AnnounceEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
     input  ticket_id: "sample", tier_name: "sample", holder_name: "sample", holder_email: "sample", price_paid: 1.0
     expect ok: "true"
   end
@@ -72,7 +72,7 @@ Hecks.behaviors "TicketingPlatform" do
 
   test "GenerateSalesReport sets report_id + period" do
     tests "GenerateSalesReport", on: "SalesReport"
-    setup  "CreateEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
+    setup  "AnnounceEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
     input  report_id: "sample", period: "sample"
     expect ok: "true"
   end

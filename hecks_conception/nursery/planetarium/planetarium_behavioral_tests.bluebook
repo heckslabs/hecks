@@ -41,21 +41,21 @@ Hecks.behaviors "Planetarium" do
 
   # ── Show aggregate ──────────────────────────────────────────
 
-  test "CreateShow sets title + theme + duration_minutes + target_audience + narration_type" do
-    tests "CreateShow", on: "Show"
+  test "ProjectShow sets title + theme + duration_minutes + target_audience + narration_type" do
+    tests "ProjectShow", on: "Show"
     input  title: "sample", theme: "sample", duration_minutes: 1, target_audience: "sample", narration_type: "sample"
     expect title: "sample", theme: "sample", duration_minutes: 1, target_audience: "sample", narration_type: "sample", status: "created"
   end
 
   test "RehearsalShow runs" do
     tests "RehearsalShow", on: "Show"
-    setup  "CreateShow", title: "sample", theme: "sample", duration_minutes: 1, target_audience: "sample", narration_type: "sample"
+    setup  "ProjectShow", title: "sample", theme: "sample", duration_minutes: 1, target_audience: "sample", narration_type: "sample"
     expect status: "rehearsed"
   end
 
   test "PublishShow runs" do
     tests "PublishShow", on: "Show"
-    setup  "CreateShow", title: "sample", theme: "sample", duration_minutes: 1, target_audience: "sample", narration_type: "sample"
+    setup  "ProjectShow", title: "sample", theme: "sample", duration_minutes: 1, target_audience: "sample", narration_type: "sample"
     setup  "RehearsalShow"
     expect status: "published"
   end

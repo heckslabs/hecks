@@ -97,18 +97,18 @@ Hecks.behaviors "TerroirConservancy" do
 
   # ── FlavorProfile aggregate ──────────────────────────────────────────
 
-  test "CreateProfile sets profile_id + vintage_season" do
-    tests "CreateProfile", on: "FlavorProfile"
+  test "ComposeProfile sets profile_id + vintage_season" do
+    tests "ComposeProfile", on: "FlavorProfile"
     setup  "RegisterProducer", producer_id: "sample", name: "sample", craft_type: "sample"
     setup  "CharacterizeSoil", profile_id: "sample", soil_type: "sample", ph_level: 1.0, mineral_composition: "sample"
     setup  "DesignateTerroir", terroir_id: "sample", name: "sample", region: "sample", designation_type: "sample", total_hectares: 1
     input  profile_id: "sample", vintage_season: "sample"
-    expect profile_id: "sample", vintage_season: "sample", terroir: :terroir, soil: :soil, producer: :producer, overall_character: "pending"
+    expect profile_id: "sample", terroir: :terroir, soil: :soil, producer: :producer, vintage_season: "sample", overall_character: "pending"
   end
 
   test "AssessCharacter sets overall_character" do
     tests "AssessCharacter", on: "FlavorProfile"
-    setup  "CreateProfile", profile_id: "sample", vintage_season: "sample"
+    setup  "ComposeProfile", profile_id: "sample", vintage_season: "sample"
     input  overall_character: "sample"
     expect overall_character: "sample"
   end

@@ -72,22 +72,22 @@ Hecks.behaviors "SpaAndWellness" do
 
   # ── WellnessPackage aggregate ──────────────────────────────────────────
 
-  test "CreatePackage sets package_id + name + package_price" do
-    tests "CreatePackage", on: "WellnessPackage"
+  test "BundlePackage sets package_id + name + package_price" do
+    tests "BundlePackage", on: "WellnessPackage"
     input  package_id: "sample", name: "sample", package_price: 1.0
     expect package_id: "sample", name: "sample", package_price: 1.0, status: "active"
   end
 
   test "RedeemSession sets treatment_name" do
     tests "RedeemSession", on: "WellnessPackage"
-    setup  "CreatePackage", package_id: "sample", name: "sample", package_price: 1.0
+    setup  "BundlePackage", package_id: "sample", name: "sample", package_price: 1.0
     input  treatment_name: "sample"
     expect ok: "true"
   end
 
   test "ExpirePackage runs" do
     tests "ExpirePackage", on: "WellnessPackage"
-    setup  "CreatePackage", package_id: "sample", name: "sample", package_price: 1.0
+    setup  "BundlePackage", package_id: "sample", name: "sample", package_price: 1.0
     expect status: "expired"
   end
 

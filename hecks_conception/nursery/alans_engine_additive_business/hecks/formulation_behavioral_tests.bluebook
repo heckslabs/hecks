@@ -3,35 +3,35 @@ Hecks.behaviors "Formulation" do
 
   # ── Formula aggregate ──────────────────────────────────────────
 
-  test "CreateFormula sets name + brand + product_type" do
-    tests "CreateFormula", on: "Formula"
+  test "DraftFormula sets name + brand + product_type" do
+    tests "DraftFormula", on: "Formula"
     input  name: "sample", brand: "sample", product_type: "sample"
     expect name: "sample", brand: "sample", product_type: "sample", status: "draft"
   end
 
   test "AddIngredient sets chemical_name + cas_number + percentage + function + supplier" do
     tests "AddIngredient", on: "Formula"
-    setup  "CreateFormula", name: "sample", brand: "sample", product_type: "sample"
+    setup  "DraftFormula", name: "sample", brand: "sample", product_type: "sample"
     input  chemical_name: "sample", cas_number: "sample", percentage: 1.0, function: "sample", supplier: "sample"
     expect status: "draft"
   end
 
   test "FinalizeFormula runs" do
     tests "FinalizeFormula", on: "Formula"
-    setup  "CreateFormula", name: "sample", brand: "sample", product_type: "sample"
+    setup  "DraftFormula", name: "sample", brand: "sample", product_type: "sample"
     expect status: "finalized"
   end
 
   test "ReviseFormula runs" do
     tests "ReviseFormula", on: "Formula"
-    setup  "CreateFormula", name: "sample", brand: "sample", product_type: "sample"
+    setup  "DraftFormula", name: "sample", brand: "sample", product_type: "sample"
     setup  "FinalizeFormula"
     expect status: "draft"
   end
 
   test "RetireFormula runs" do
     tests "RetireFormula", on: "Formula"
-    setup  "CreateFormula", name: "sample", brand: "sample", product_type: "sample"
+    setup  "DraftFormula", name: "sample", brand: "sample", product_type: "sample"
     setup  "FinalizeFormula"
     expect status: "retired"
   end

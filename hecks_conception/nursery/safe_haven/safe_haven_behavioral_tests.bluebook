@@ -3,15 +3,15 @@ Hecks.behaviors "SafeHaven" do
 
   # ── SafetyPlan aggregate ──────────────────────────────────────────
 
-  test "CreateSafetyPlan sets plan_id + client_code + advocate_name" do
-    tests "CreateSafetyPlan", on: "SafetyPlan"
+  test "IntakeSafetyPlan sets plan_id + client_code + advocate_name" do
+    tests "IntakeSafetyPlan", on: "SafetyPlan"
     input  plan_id: "sample", client_code: "sample", advocate_name: "sample"
     expect plan_id: "sample", client_code: "sample", advocate_name: "sample", status: "active"
   end
 
   test "ActivatePlan runs" do
     tests "ActivatePlan", on: "SafetyPlan"
-    setup  "CreateSafetyPlan", plan_id: "sample", client_code: "sample", advocate_name: "sample"
+    setup  "IntakeSafetyPlan", plan_id: "sample", client_code: "sample", advocate_name: "sample"
     expect status: "activated"
   end
 

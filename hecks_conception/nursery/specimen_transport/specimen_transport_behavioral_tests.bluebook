@@ -18,21 +18,21 @@ Hecks.behaviors "SpecimenTransport" do
 
   # ── ColdShipment aggregate ──────────────────────────────────────────
 
-  test "CreateShipment sets shipment_id + carrier + origin_lab + dest_lab + target_temp_c" do
-    tests "CreateShipment", on: "ColdShipment"
+  test "DispatchShipment sets shipment_id + carrier + origin_lab + dest_lab + target_temp_c" do
+    tests "DispatchShipment", on: "ColdShipment"
     input  shipment_id: "sample", carrier: "sample", origin_lab: "sample", dest_lab: "sample", target_temp_c: 1.0
     expect shipment_id: "sample", carrier: "sample", origin_lab: "sample", dest_lab: "sample", target_temp_c: 1.0, status: "created"
   end
 
   test "PickUpShipment runs" do
     tests "PickUpShipment", on: "ColdShipment"
-    setup  "CreateShipment", shipment_id: "sample", carrier: "sample", origin_lab: "sample", dest_lab: "sample", target_temp_c: 1.0
+    setup  "DispatchShipment", shipment_id: "sample", carrier: "sample", origin_lab: "sample", dest_lab: "sample", target_temp_c: 1.0
     expect status: "in_transit"
   end
 
   test "DeliverShipment runs" do
     tests "DeliverShipment", on: "ColdShipment"
-    setup  "CreateShipment", shipment_id: "sample", carrier: "sample", origin_lab: "sample", dest_lab: "sample", target_temp_c: 1.0
+    setup  "DispatchShipment", shipment_id: "sample", carrier: "sample", origin_lab: "sample", dest_lab: "sample", target_temp_c: 1.0
     setup  "PickUpShipment"
     expect status: "delivered"
   end

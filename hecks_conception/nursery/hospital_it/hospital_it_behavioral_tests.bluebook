@@ -3,15 +3,15 @@ Hecks.behaviors "HospitalIT" do
 
   # ── PatientRecord aggregate ──────────────────────────────────────────
 
-  test "CreateRecord sets medical_record_number + patient_name + department" do
-    tests "CreateRecord", on: "PatientRecord"
+  test "OpenRecord sets medical_record_number + patient_name + department" do
+    tests "OpenRecord", on: "PatientRecord"
     input  medical_record_number: "sample", patient_name: "sample", department: "sample"
     expect medical_record_number: "sample", patient_name: "sample", department: "sample", record_status: "active"
   end
 
   test "AddEntry sets entry_type + content + author" do
     tests "AddEntry", on: "PatientRecord"
-    setup  "CreateRecord", medical_record_number: "sample", patient_name: "sample", department: "sample"
+    setup  "OpenRecord", medical_record_number: "sample", patient_name: "sample", department: "sample"
     input  entry_type: "sample", content: "sample", author: "sample"
     expect ok: "true"
   end

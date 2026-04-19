@@ -34,15 +34,15 @@ Hecks.behaviors "PetAdoption" do
 
   # ── AdopterProfile aggregate ──────────────────────────────────────────
 
-  test "CreateAdopterProfile sets adopter_id + name + preferred_species + housing_type" do
-    tests "CreateAdopterProfile", on: "AdopterProfile"
+  test "EnrollAdopter sets adopter_id + name + preferred_species + housing_type" do
+    tests "EnrollAdopter", on: "AdopterProfile"
     input  adopter_id: "sample", name: "sample", preferred_species: "sample", housing_type: "sample"
     expect adopter_id: "sample", name: "sample", preferred_species: "sample", housing_type: "sample", status: "active"
   end
 
   test "MatchAdopter runs" do
     tests "MatchAdopter", on: "AdopterProfile"
-    setup  "CreateAdopterProfile", adopter_id: "sample", name: "sample", preferred_species: "sample", housing_type: "sample"
+    setup  "EnrollAdopter", adopter_id: "sample", name: "sample", preferred_species: "sample", housing_type: "sample"
     expect ok: "true"
   end
 

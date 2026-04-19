@@ -24,8 +24,8 @@ Hecks.behaviors "Hospice" do
 
   # ── ComfortPlan aggregate ──────────────────────────────────────────
 
-  test "CreateComfortPlan sets patient_name + pain_management_approach + spiritual_preferences" do
-    tests "CreateComfortPlan", on: "ComfortPlan"
+  test "DraftComfortPlan sets patient_name + pain_management_approach + spiritual_preferences" do
+    tests "DraftComfortPlan", on: "ComfortPlan"
     setup  "AdmitToHospice", name: "sample", date_of_birth: "sample", terminal_diagnosis: "sample", prognosis: "sample", advance_directive: "sample"
     input  patient_name: "sample", pain_management_approach: "sample", spiritual_preferences: "sample"
     expect patient_name: "sample", pain_management_approach: "sample", spiritual_preferences: "sample", status: "active"
@@ -33,14 +33,14 @@ Hecks.behaviors "Hospice" do
 
   test "AddIntervention sets symptom + intervention + frequency" do
     tests "AddIntervention", on: "ComfortPlan"
-    setup  "CreateComfortPlan", patient_name: "sample", pain_management_approach: "sample", spiritual_preferences: "sample"
+    setup  "DraftComfortPlan", patient_name: "sample", pain_management_approach: "sample", spiritual_preferences: "sample"
     input  symptom: "sample", intervention: "sample", frequency: "sample"
     expect ok: "true"
   end
 
   test "AdjustPainManagement sets pain_management_approach" do
     tests "AdjustPainManagement", on: "ComfortPlan"
-    setup  "CreateComfortPlan", patient_name: "sample", pain_management_approach: "sample", spiritual_preferences: "sample"
+    setup  "DraftComfortPlan", patient_name: "sample", pain_management_approach: "sample", spiritual_preferences: "sample"
     input  pain_management_approach: "sample"
     expect pain_management_approach: "sample"
   end

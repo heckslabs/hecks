@@ -33,15 +33,15 @@ Hecks.behaviors "SpeechMedia" do
 
   # ── ProgressAudio aggregate ──────────────────────────────────────────
 
-  test "CreateProgressClip sets clip_id + client_name + milestone + before_path + after_path" do
-    tests "CreateProgressClip", on: "ProgressAudio"
+  test "CaptureProgressClip sets clip_id + client_name + milestone + before_path + after_path" do
+    tests "CaptureProgressClip", on: "ProgressAudio"
     input  clip_id: "sample", client_name: "sample", milestone: "sample", before_path: "sample", after_path: "sample"
     expect clip_id: "sample", client_name: "sample", milestone: "sample", before_path: "sample", after_path: "sample"
   end
 
   test "ShareClip runs" do
     tests "ShareClip", on: "ProgressAudio"
-    setup  "CreateProgressClip", clip_id: "sample", client_name: "sample", milestone: "sample", before_path: "sample", after_path: "sample"
+    setup  "CaptureProgressClip", clip_id: "sample", client_name: "sample", milestone: "sample", before_path: "sample", after_path: "sample"
     expect ok: "true"
   end
 

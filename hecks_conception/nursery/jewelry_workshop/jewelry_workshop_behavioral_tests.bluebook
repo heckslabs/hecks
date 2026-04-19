@@ -65,8 +65,8 @@ Hecks.behaviors "JewelryWorkshop" do
     expect ok: "true"
   end
 
-  test "UpdateAppraisal sets new_value" do
-    tests "UpdateAppraisal", on: "Appraisal"
+  test "ReviseAppraisal sets new_value" do
+    tests "ReviseAppraisal", on: "Appraisal"
     setup  "AppraisePiece", appraiser_name: "sample", purpose: "sample", appraised_value: 1.0
     input  new_value: 1.0
     expect appraised_value: 1.0

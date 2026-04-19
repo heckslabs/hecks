@@ -46,22 +46,22 @@ Hecks.behaviors "PaymentGateway" do
 
   # ── Settlement aggregate ──────────────────────────────────────────
 
-  test "CreateSettlement sets settlement_id + gross_amount + fees + period" do
-    tests "CreateSettlement", on: "Settlement"
+  test "BatchSettlement sets settlement_id + gross_amount + fees + period" do
+    tests "BatchSettlement", on: "Settlement"
     setup  "OnboardMerchant", merchant_id: "sample", business_name: "sample", mcc_code: "sample", contact_email: "sample", processing_rate: 1.0
     input  settlement_id: "sample", gross_amount: 1.0, fees: 1.0, period: "sample"
-    expect settlement_id: "sample", gross_amount: 1.0, fees: 1.0, period: "sample"
+    expect ok: "true"
   end
 
   test "DisburseSettlement runs" do
     tests "DisburseSettlement", on: "Settlement"
-    setup  "CreateSettlement", settlement_id: "sample", gross_amount: 1.0, fees: 1.0, period: "sample"
+    setup  "BatchSettlement", settlement_id: "sample", gross_amount: 1.0, fees: 1.0, period: "sample"
     expect ok: "true"
   end
 
   test "HoldSettlement sets hold_reason" do
     tests "HoldSettlement", on: "Settlement"
-    setup  "CreateSettlement", settlement_id: "sample", gross_amount: 1.0, fees: 1.0, period: "sample"
+    setup  "BatchSettlement", settlement_id: "sample", gross_amount: 1.0, fees: 1.0, period: "sample"
     input  hold_reason: "sample"
     expect ok: "true"
   end

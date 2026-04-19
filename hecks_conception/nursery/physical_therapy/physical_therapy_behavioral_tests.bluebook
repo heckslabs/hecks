@@ -73,8 +73,8 @@ Hecks.behaviors "PhysicalTherapy" do
 
   # ── Prescription aggregate ──────────────────────────────────────────
 
-  test "CreatePrescription sets physician_name + patient_name + diagnosis + authorized_visits" do
-    tests "CreatePrescription", on: "Prescription"
+  test "PrescribeTherapy sets physician_name + patient_name + diagnosis + authorized_visits" do
+    tests "PrescribeTherapy", on: "Prescription"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diagnosis: "sample", insurance_id: "sample"
     input  physician_name: "sample", patient_name: "sample", diagnosis: "sample", authorized_visits: 1
     expect physician_name: "sample", patient_name: "sample", diagnosis: "sample", authorized_visits: 1, visits_used: 0, status: "active"
@@ -82,13 +82,13 @@ Hecks.behaviors "PhysicalTherapy" do
 
   test "RecordVisit runs" do
     tests "RecordVisit", on: "Prescription"
-    setup  "CreatePrescription", physician_name: "sample", patient_name: "sample", diagnosis: "sample", authorized_visits: 1
+    setup  "PrescribeTherapy", physician_name: "sample", patient_name: "sample", diagnosis: "sample", authorized_visits: 1
     expect ok: "true"
   end
 
   test "ExpirePrescription runs" do
     tests "ExpirePrescription", on: "Prescription"
-    setup  "CreatePrescription", physician_name: "sample", patient_name: "sample", diagnosis: "sample", authorized_visits: 1
+    setup  "PrescribeTherapy", physician_name: "sample", patient_name: "sample", diagnosis: "sample", authorized_visits: 1
     expect status: "expired"
   end
 

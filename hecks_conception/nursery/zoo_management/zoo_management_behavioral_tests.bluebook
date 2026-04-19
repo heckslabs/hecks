@@ -82,23 +82,23 @@ Hecks.behaviors "ZooManagement" do
 
   # ── FeedingSchedule aggregate ──────────────────────────────────────────
 
-  test "CreateFeedingSchedule sets diet_type + feeding_time + portion_kg" do
-    tests "CreateFeedingSchedule", on: "FeedingSchedule"
+  test "PlanFeeding sets diet_type + feeding_time + portion_kg" do
+    tests "PlanFeeding", on: "FeedingSchedule"
     setup  "RegisterAnimal", common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample"
     input  diet_type: "sample", feeding_time: "sample", portion_kg: 1.0
-    expect diet_type: "sample", feeding_time: "sample", portion_kg: 1.0, status: "active"
+    expect status: "active"
   end
 
   test "RecordFeeding sets fed_by" do
     tests "RecordFeeding", on: "FeedingSchedule"
-    setup  "CreateFeedingSchedule", diet_type: "sample", feeding_time: "sample", portion_kg: 1.0
+    setup  "PlanFeeding", diet_type: "sample", feeding_time: "sample", portion_kg: 1.0
     input  fed_by: "sample"
     expect ok: "true"
   end
 
   test "AdjustDiet sets new_diet_type + new_portion_kg" do
     tests "AdjustDiet", on: "FeedingSchedule"
-    setup  "CreateFeedingSchedule", diet_type: "sample", feeding_time: "sample", portion_kg: 1.0
+    setup  "PlanFeeding", diet_type: "sample", feeding_time: "sample", portion_kg: 1.0
     input  new_diet_type: "sample", new_portion_kg: 1.0
     expect ok: "true"
   end

@@ -9,8 +9,8 @@ Hecks.behaviors "RefugeeResettlement" do
     expect case_number: "sample", country_of_origin: "sample", arrival_date: "sample", assigned_agency: "sample", family_size: 1, status: "active"
   end
 
-  test "UpdateCaseStatus sets status" do
-    tests "UpdateCaseStatus", on: "ResettlementCase"
+  test "AdvanceCase sets status" do
+    tests "AdvanceCase", on: "ResettlementCase"
     setup  "OpenCase", case_number: "sample", country_of_origin: "sample", arrival_date: "sample", assigned_agency: "sample", family_size: 1
     input  status: "sample"
     expect status: "sample"
@@ -32,8 +32,8 @@ Hecks.behaviors "RefugeeResettlement" do
     expect name: "sample", date_of_birth: "sample", relationship: "sample", language_spoken: "sample", medical_needs: "sample", case_number: "sample"
   end
 
-  test "UpdateMedicalNeeds sets medical_needs" do
-    tests "UpdateMedicalNeeds", on: "FamilyMember"
+  test "ReviseMedicalNeeds sets medical_needs" do
+    tests "ReviseMedicalNeeds", on: "FamilyMember"
     setup  "RegisterFamilyMember", name: "sample", date_of_birth: "sample", relationship: "sample", language_spoken: "sample", medical_needs: "sample", case_number: "sample"
     input  medical_needs: "sample"
     expect medical_needs: "sample"

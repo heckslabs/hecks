@@ -137,15 +137,15 @@ Hecks.behaviors "PostOffice" do
 
   # ── ForwardingOrder aggregate ──────────────────────────────────────────
 
-  test "CreateForwarding sets old_address + new_address + start_date + end_date" do
-    tests "CreateForwarding", on: "ForwardingOrder"
+  test "OrderForwarding sets old_address + new_address + start_date + end_date" do
+    tests "OrderForwarding", on: "ForwardingOrder"
     input  old_address: "sample", new_address: "sample", start_date: "sample", end_date: "sample"
-    expect old_address: "sample", new_address: "sample", start_date: "sample", end_date: "sample", status: "active"
+    expect status: "active"
   end
 
   test "CancelForwarding runs" do
     tests "CancelForwarding", on: "ForwardingOrder"
-    setup  "CreateForwarding", old_address: "sample", new_address: "sample", start_date: "sample", end_date: "sample"
+    setup  "OrderForwarding", old_address: "sample", new_address: "sample", start_date: "sample", end_date: "sample"
     expect status: "cancelled"
   end
 

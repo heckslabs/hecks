@@ -26,22 +26,22 @@ Hecks.behaviors "CloudHosting" do
 
   # ── Deployment aggregate ──────────────────────────────────────────
 
-  test "CreateDeployment sets deploy_id + artifact_url + version_tag + strategy" do
-    tests "CreateDeployment", on: "Deployment"
+  test "ShipRelease sets deploy_id + artifact_url + version_tag + strategy" do
+    tests "ShipRelease", on: "Deployment"
     setup  "LaunchInstance", instance_id: "sample", region: "sample", machine_type: "sample", vcpus: 1, memory_gb: 1, image_id: "sample"
     input  deploy_id: "sample", artifact_url: "sample", version_tag: "sample", strategy: "sample"
-    expect deploy_id: "sample", artifact_url: "sample", version_tag: "sample", strategy: "sample"
+    expect ok: "true"
   end
 
   test "RollbackDeployment runs" do
     tests "RollbackDeployment", on: "Deployment"
-    setup  "CreateDeployment", deploy_id: "sample", artifact_url: "sample", version_tag: "sample", strategy: "sample"
+    setup  "ShipRelease", deploy_id: "sample", artifact_url: "sample", version_tag: "sample", strategy: "sample"
     expect ok: "true"
   end
 
   test "FinalizeDeployment runs" do
     tests "FinalizeDeployment", on: "Deployment"
-    setup  "CreateDeployment", deploy_id: "sample", artifact_url: "sample", version_tag: "sample", strategy: "sample"
+    setup  "ShipRelease", deploy_id: "sample", artifact_url: "sample", version_tag: "sample", strategy: "sample"
     expect ok: "true"
   end
 

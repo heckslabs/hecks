@@ -46,8 +46,8 @@ Hecks.behaviors "EmergencyResponse" do
     expect route_id: "sample", unit_id: "sample", origin_address: "sample", scene_address: "sample", hospital_name: "sample"
   end
 
-  test "UpdateETA sets eta_minutes" do
-    tests "UpdateETA", on: "Route"
+  test "ReviseETA sets eta_minutes" do
+    tests "ReviseETA", on: "Route"
     setup  "CalculateRoute", route_id: "sample", unit_id: "sample", origin_address: "sample", scene_address: "sample", hospital_name: "sample"
     input  eta_minutes: 1.0
     expect eta_minutes: 1.0

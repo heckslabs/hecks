@@ -31,8 +31,8 @@ Hecks.behaviors "GroceryStore" do
     expect aisle_number: "sample", category: "sample", shelf_count: 1
   end
 
-  test "UpdatePlanogram runs" do
-    tests "UpdatePlanogram", on: "Aisle"
+  test "RevisePlanogram runs" do
+    tests "RevisePlanogram", on: "Aisle"
     setup  "DesignateAisle", aisle_number: "sample", category: "sample", shelf_count: 1
     expect ok: "true"
   end

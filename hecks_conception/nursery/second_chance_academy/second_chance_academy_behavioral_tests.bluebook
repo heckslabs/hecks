@@ -9,8 +9,8 @@ Hecks.behaviors "SecondChanceAcademy" do
     expect name: "sample", facility: "sample", sentence_end_date: "sample", total_credits: 0, status: "enrolled"
   end
 
-  test "UpdateSkills runs" do
-    tests "UpdateSkills", on: "Learner"
+  test "RefreshSkills runs" do
+    tests "RefreshSkills", on: "Learner"
     setup  "EnrollLearner", name: "sample", facility: "sample", sentence_end_date: "sample"
     expect ok: "true"
   end
@@ -24,8 +24,8 @@ Hecks.behaviors "SecondChanceAcademy" do
 
   # ── Course aggregate ──────────────────────────────────────────
 
-  test "CreateCourse sets title + subject + difficulty + credit_value" do
-    tests "CreateCourse", on: "Course"
+  test "OfferCourse sets title + subject + difficulty + credit_value" do
+    tests "OfferCourse", on: "Course"
     input  title: "sample", subject: "sample", difficulty: "sample", credit_value: 1
     expect title: "sample", subject: "sample", difficulty: "sample", credit_value: 1, status: "active"
   end
@@ -33,22 +33,22 @@ Hecks.behaviors "SecondChanceAcademy" do
   test "CompleteCourse runs" do
     tests "CompleteCourse", on: "Course"
     setup  "EnrollLearner", name: "sample", facility: "sample", sentence_end_date: "sample"
-    setup  "CreateCourse", title: "sample", subject: "sample", difficulty: "sample", credit_value: 1
+    setup  "OfferCourse", title: "sample", subject: "sample", difficulty: "sample", credit_value: 1
     expect ok: "true"
   end
 
   test "RetireCourse runs" do
     tests "RetireCourse", on: "Course"
-    setup  "CreateCourse", title: "sample", subject: "sample", difficulty: "sample", credit_value: 1
+    setup  "OfferCourse", title: "sample", subject: "sample", difficulty: "sample", credit_value: 1
     expect status: "retired"
   end
 
 
   # ── Quest aggregate ──────────────────────────────────────────
 
-  test "CreateQuest sets title + description + xp_reward + difficulty" do
-    tests "CreateQuest", on: "Quest"
-    setup  "CreateCourse", title: "sample", subject: "sample", difficulty: "sample", credit_value: 1
+  test "DesignQuest sets title + description + xp_reward + difficulty" do
+    tests "DesignQuest", on: "Quest"
+    setup  "OfferCourse", title: "sample", subject: "sample", difficulty: "sample", credit_value: 1
     input  title: "sample", description: "sample", xp_reward: 1, difficulty: "sample"
     expect title: "sample", description: "sample", xp_reward: 1, difficulty: "sample", related_course: :related_course, status: "available"
   end
@@ -56,13 +56,13 @@ Hecks.behaviors "SecondChanceAcademy" do
   test "AcceptQuest runs" do
     tests "AcceptQuest", on: "Quest"
     setup  "EnrollLearner", name: "sample", facility: "sample", sentence_end_date: "sample"
-    setup  "CreateQuest", title: "sample", description: "sample", xp_reward: 1, difficulty: "sample"
+    setup  "DesignQuest", title: "sample", description: "sample", xp_reward: 1, difficulty: "sample"
     expect status: "in_progress"
   end
 
   test "CompleteQuest runs" do
     tests "CompleteQuest", on: "Quest"
-    setup  "CreateQuest", title: "sample", description: "sample", xp_reward: 1, difficulty: "sample"
+    setup  "DesignQuest", title: "sample", description: "sample", xp_reward: 1, difficulty: "sample"
     setup  "AcceptQuest"
     expect status: "completed"
   end

@@ -25,21 +25,21 @@ Hecks.behaviors "GameStore" do
 
   # ── Tournament aggregate ──────────────────────────────────────────
 
-  test "CreateTournament sets tournament_id + game_title + format + max_players + entry_fee + date" do
-    tests "CreateTournament", on: "Tournament"
+  test "ScheduleTournament sets tournament_id + game_title + format + max_players + entry_fee + date" do
+    tests "ScheduleTournament", on: "Tournament"
     input  tournament_id: "sample", game_title: "sample", format: "sample", max_players: 1, entry_fee: 1.0, date: "sample"
     expect tournament_id: "sample", game_title: "sample", format: "sample", max_players: 1, entry_fee: 1.0, date: "sample", status: "open"
   end
 
   test "LaunchTournament runs" do
     tests "LaunchTournament", on: "Tournament"
-    setup  "CreateTournament", tournament_id: "sample", game_title: "sample", format: "sample", max_players: 1, entry_fee: 1.0, date: "sample"
+    setup  "ScheduleTournament", tournament_id: "sample", game_title: "sample", format: "sample", max_players: 1, entry_fee: 1.0, date: "sample"
     expect status: "in_progress"
   end
 
   test "ConcludeTournament runs" do
     tests "ConcludeTournament", on: "Tournament"
-    setup  "CreateTournament", tournament_id: "sample", game_title: "sample", format: "sample", max_players: 1, entry_fee: 1.0, date: "sample"
+    setup  "ScheduleTournament", tournament_id: "sample", game_title: "sample", format: "sample", max_players: 1, entry_fee: 1.0, date: "sample"
     setup  "LaunchTournament"
     expect status: "concluded"
   end

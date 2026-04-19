@@ -25,8 +25,8 @@ Hecks.behaviors "ComplianceMentalHealth" do
 
   # ── TreatmentPlan aggregate ──────────────────────────────────────────
 
-  test "CreateTreatmentPlan sets diagnosis_code + primary_goal" do
-    tests "CreateTreatmentPlan", on: "TreatmentPlan"
+  test "DraftTreatmentPlan sets diagnosis_code + primary_goal" do
+    tests "DraftTreatmentPlan", on: "TreatmentPlan"
     setup  "RegisterPatient", mrn: "sample", full_name: "sample"
     input  diagnosis_code: "sample", primary_goal: "sample"
     expect diagnosis_code: "sample", primary_goal: "sample", status: "draft"
@@ -34,13 +34,13 @@ Hecks.behaviors "ComplianceMentalHealth" do
 
   test "ApproveTreatmentPlan runs" do
     tests "ApproveTreatmentPlan", on: "TreatmentPlan"
-    setup  "CreateTreatmentPlan", diagnosis_code: "sample", primary_goal: "sample"
+    setup  "DraftTreatmentPlan", diagnosis_code: "sample", primary_goal: "sample"
     expect status: "active"
   end
 
   test "ReviewTreatmentPlan sets updated_goal" do
     tests "ReviewTreatmentPlan", on: "TreatmentPlan"
-    setup  "CreateTreatmentPlan", diagnosis_code: "sample", primary_goal: "sample"
+    setup  "DraftTreatmentPlan", diagnosis_code: "sample", primary_goal: "sample"
     setup  "ApproveTreatmentPlan"
     input  updated_goal: "sample"
     expect primary_goal: "sample"

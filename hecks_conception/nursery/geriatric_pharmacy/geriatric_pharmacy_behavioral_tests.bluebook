@@ -24,8 +24,8 @@ Hecks.behaviors "GeriatricPharmacy" do
     expect name: "sample", age: 1, weight_kg: 1.0, creatinine_clearance_ml_min: 1.0, hepatic_function: "sample", status: "active"
   end
 
-  test "UpdateRenalFunction sets creatinine_clearance_ml_min" do
-    tests "UpdateRenalFunction", on: "Resident"
+  test "ReconcileRenalFunction sets creatinine_clearance_ml_min" do
+    tests "ReconcileRenalFunction", on: "Resident"
     setup  "AdmitResident", name: "sample", age: 1, weight_kg: 1.0, creatinine_clearance_ml_min: 1.0, hepatic_function: "sample"
     input  creatinine_clearance_ml_min: 1.0
     expect creatinine_clearance_ml_min: 1.0
@@ -65,21 +65,21 @@ Hecks.behaviors "GeriatricPharmacy" do
 
   # ── MonitoringPlan aggregate ──────────────────────────────────────────
 
-  test "CreateMonitoringPlan sets resident_name + medication_name + target_trough_ng_ml + target_peak_ng_ml + toxicity_threshold_ng_ml + monitoring_frequency" do
-    tests "CreateMonitoringPlan", on: "MonitoringPlan"
+  test "EstablishMonitoringPlan sets resident_name + medication_name + target_trough_ng_ml + target_peak_ng_ml + toxicity_threshold_ng_ml + monitoring_frequency" do
+    tests "EstablishMonitoringPlan", on: "MonitoringPlan"
     input  resident_name: "sample", medication_name: "sample", target_trough_ng_ml: 1.0, target_peak_ng_ml: 1.0, toxicity_threshold_ng_ml: 1.0, monitoring_frequency: "sample"
     expect resident_name: "sample", medication_name: "sample", target_trough_ng_ml: 1.0, target_peak_ng_ml: 1.0, toxicity_threshold_ng_ml: 1.0, monitoring_frequency: "sample", status: "active"
   end
 
   test "RecordLevel runs" do
     tests "RecordLevel", on: "MonitoringPlan"
-    setup  "CreateMonitoringPlan", resident_name: "sample", medication_name: "sample", target_trough_ng_ml: 1.0, target_peak_ng_ml: 1.0, toxicity_threshold_ng_ml: 1.0, monitoring_frequency: "sample"
+    setup  "EstablishMonitoringPlan", resident_name: "sample", medication_name: "sample", target_trough_ng_ml: 1.0, target_peak_ng_ml: 1.0, toxicity_threshold_ng_ml: 1.0, monitoring_frequency: "sample"
     expect ok: "true"
   end
 
   test "FlagToxicity runs" do
     tests "FlagToxicity", on: "MonitoringPlan"
-    setup  "CreateMonitoringPlan", resident_name: "sample", medication_name: "sample", target_trough_ng_ml: 1.0, target_peak_ng_ml: 1.0, toxicity_threshold_ng_ml: 1.0, monitoring_frequency: "sample"
+    setup  "EstablishMonitoringPlan", resident_name: "sample", medication_name: "sample", target_trough_ng_ml: 1.0, target_peak_ng_ml: 1.0, toxicity_threshold_ng_ml: 1.0, monitoring_frequency: "sample"
     expect status: "alert"
   end
 

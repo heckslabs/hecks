@@ -15,8 +15,8 @@ Hecks.behaviors "GovernedOperations" do
     expect status: "draft"
   end
 
-  test "UpdateRule sets rule_code" do
-    tests "UpdateRule", on: "JurisdictionalContract"
+  test "AmendRule sets rule_code" do
+    tests "AmendRule", on: "JurisdictionalContract"
     setup  "DefineContract", jurisdiction: "sample", regulation_code: "sample", effective_date: "sample"
     input  rule_code: "sample"
     expect ok: "true"
@@ -52,41 +52,41 @@ Hecks.behaviors "GovernedOperations" do
 
   # ── OperationalContract aggregate ──────────────────────────────────────────
 
-  test "CreateOperationalContract sets name + department" do
-    tests "CreateOperationalContract", on: "OperationalContract"
+  test "DefineOperationalContract sets name + department" do
+    tests "DefineOperationalContract", on: "OperationalContract"
     input  name: "sample", department: "sample"
     expect name: "sample", department: "sample", rules: [], version: 1, status: "draft"
   end
 
   test "AddStandard runs" do
     tests "AddStandard", on: "OperationalContract"
-    setup  "CreateOperationalContract", name: "sample", department: "sample"
+    setup  "DefineOperationalContract", name: "sample", department: "sample"
     expect status: "draft"
   end
 
-  test "UpdateStandard sets standard_name" do
-    tests "UpdateStandard", on: "OperationalContract"
-    setup  "CreateOperationalContract", name: "sample", department: "sample"
+  test "ReviseStandard sets standard_name" do
+    tests "ReviseStandard", on: "OperationalContract"
+    setup  "DefineOperationalContract", name: "sample", department: "sample"
     input  standard_name: "sample"
     expect ok: "true"
   end
 
   test "ApproveContract runs" do
     tests "ApproveContract", on: "OperationalContract"
-    setup  "CreateOperationalContract", name: "sample", department: "sample"
+    setup  "DefineOperationalContract", name: "sample", department: "sample"
     setup  "SubmitContract"
     expect status: "active"
   end
 
   test "SubmitContract runs" do
     tests "SubmitContract", on: "OperationalContract"
-    setup  "CreateOperationalContract", name: "sample", department: "sample"
+    setup  "DefineOperationalContract", name: "sample", department: "sample"
     expect status: "pending_approval"
   end
 
   test "RetireContract runs" do
     tests "RetireContract", on: "OperationalContract"
-    setup  "CreateOperationalContract", name: "sample", department: "sample"
+    setup  "DefineOperationalContract", name: "sample", department: "sample"
     setup  "SubmitContract"
     setup  "ApproveContract"
     expect status: "retired"
@@ -95,29 +95,29 @@ Hecks.behaviors "GovernedOperations" do
 
   # ── Batch aggregate ──────────────────────────────────────────
 
-  test "CreateBatch sets batch_number + product + quantity" do
-    tests "CreateBatch", on: "Batch"
+  test "RegisterBatch sets batch_number + product + quantity" do
+    tests "RegisterBatch", on: "Batch"
     input  batch_number: "sample", product: "sample", quantity: 1
     expect batch_number: "sample", product: "sample", quantity: 1, violations: [], status: "created"
   end
 
   test "RecordProduction sets produced_at" do
     tests "RecordProduction", on: "Batch"
-    setup  "CreateBatch", batch_number: "sample", product: "sample", quantity: 1
+    setup  "RegisterBatch", batch_number: "sample", product: "sample", quantity: 1
     input  produced_at: "sample"
     expect produced_at: "sample", status: "in_production"
   end
 
   test "SubmitForRelease runs" do
     tests "SubmitForRelease", on: "Batch"
-    setup  "CreateBatch", batch_number: "sample", product: "sample", quantity: 1
+    setup  "RegisterBatch", batch_number: "sample", product: "sample", quantity: 1
     setup  "RecordProduction", produced_at: "sample"
     expect status: "pending_release"
   end
 
   test "ApproveBatch runs" do
     tests "ApproveBatch", on: "Batch"
-    setup  "CreateBatch", batch_number: "sample", product: "sample", quantity: 1
+    setup  "RegisterBatch", batch_number: "sample", product: "sample", quantity: 1
     setup  "RecordProduction", produced_at: "sample"
     setup  "SubmitForRelease"
     expect status: "approved"
@@ -125,7 +125,7 @@ Hecks.behaviors "GovernedOperations" do
 
   test "RejectBatch sets reason" do
     tests "RejectBatch", on: "Batch"
-    setup  "CreateBatch", batch_number: "sample", product: "sample", quantity: 1
+    setup  "RegisterBatch", batch_number: "sample", product: "sample", quantity: 1
     setup  "RecordProduction", produced_at: "sample"
     setup  "SubmitForRelease"
     input  reason: "sample"
@@ -134,7 +134,7 @@ Hecks.behaviors "GovernedOperations" do
 
   test "QuarantineBatch sets reason" do
     tests "QuarantineBatch", on: "Batch"
-    setup  "CreateBatch", batch_number: "sample", product: "sample", quantity: 1
+    setup  "RegisterBatch", batch_number: "sample", product: "sample", quantity: 1
     setup  "RecordProduction", produced_at: "sample"
     setup  "SubmitForRelease"
     setup  "RejectBatch", reason: "sample"
@@ -144,7 +144,7 @@ Hecks.behaviors "GovernedOperations" do
 
   test "ReleaseBatch runs" do
     tests "ReleaseBatch", on: "Batch"
-    setup  "CreateBatch", batch_number: "sample", product: "sample", quantity: 1
+    setup  "RegisterBatch", batch_number: "sample", product: "sample", quantity: 1
     setup  "RecordProduction", produced_at: "sample"
     setup  "SubmitForRelease"
     setup  "ApproveBatch"
@@ -153,7 +153,7 @@ Hecks.behaviors "GovernedOperations" do
 
   test "RecordViolation runs" do
     tests "RecordViolation", on: "Batch"
-    setup  "CreateBatch", batch_number: "sample", product: "sample", quantity: 1
+    setup  "RegisterBatch", batch_number: "sample", product: "sample", quantity: 1
     expect ok: "true"
   end
 

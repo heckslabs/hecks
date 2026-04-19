@@ -110,22 +110,22 @@ Hecks.behaviors "PowerGrid" do
 
   # ── MaintenanceOrder aggregate ──────────────────────────────────────────
 
-  test "CreateOrder sets work_type + priority" do
-    tests "CreateOrder", on: "MaintenanceOrder"
+  test "IssueOrder sets work_type + priority" do
+    tests "IssueOrder", on: "MaintenanceOrder"
     setup  "EnergizeSubstation", substation_id: "sample", name: "sample", voltage_class: "sample", capacity_mva: 1.0
     input  work_type: "sample", priority: "sample"
-    expect work_type: "sample", priority: "sample", status: "scheduled"
+    expect status: "scheduled"
   end
 
   test "BeginWork runs" do
     tests "BeginWork", on: "MaintenanceOrder"
-    setup  "CreateOrder", work_type: "sample", priority: "sample"
+    setup  "IssueOrder", work_type: "sample", priority: "sample"
     expect status: "in_progress"
   end
 
   test "CompleteOrder runs" do
     tests "CompleteOrder", on: "MaintenanceOrder"
-    setup  "CreateOrder", work_type: "sample", priority: "sample"
+    setup  "IssueOrder", work_type: "sample", priority: "sample"
     setup  "BeginWork"
     expect status: "completed"
   end

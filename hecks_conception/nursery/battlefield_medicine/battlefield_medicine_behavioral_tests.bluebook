@@ -117,8 +117,8 @@ Hecks.behaviors "BattlefieldMedicine" do
     expect board_id: "sample", operation_name: "sample", total_casualties: 0, evacuated_count: 0, drones_active: 0, status: "active"
   end
 
-  test "UpdateEntry runs" do
-    tests "UpdateEntry", on: "StatusBoard"
+  test "AmendEntry runs" do
+    tests "AmendEntry", on: "StatusBoard"
     setup  "InitializeBoard", board_id: "sample", operation_name: "sample"
     expect ok: "true"
   end

@@ -9,8 +9,8 @@ Hecks.behaviors "AutoRepairShop" do
     expect vin: "sample", make: "sample", model: "sample", year: 1, mileage: 1, owner_name: "sample"
   end
 
-  test "UpdateMileage sets mileage" do
-    tests "UpdateMileage", on: "Vehicle"
+  test "LogMileage sets mileage" do
+    tests "LogMileage", on: "Vehicle"
     setup  "IntakeVehicle", vin: "sample", make: "sample", model: "sample", year: 1, mileage: 1, owner_name: "sample", owner_phone: "sample"
     input  mileage: 1
     expect mileage: 1

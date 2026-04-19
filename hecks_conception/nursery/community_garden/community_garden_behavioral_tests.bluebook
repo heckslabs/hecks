@@ -3,22 +3,22 @@ Hecks.behaviors "CommunityGarden" do
 
   # ── Plot aggregate ──────────────────────────────────────────
 
-  test "CreatePlot sets plot_number + size + soil_type + sun_exposure" do
-    tests "CreatePlot", on: "Plot"
+  test "EstablishPlot sets plot_number + size + soil_type + sun_exposure" do
+    tests "EstablishPlot", on: "Plot"
     input  plot_number: "sample", size: "sample", soil_type: "sample", sun_exposure: "sample"
     expect plot_number: "sample", size: "sample", soil_type: "sample", sun_exposure: "sample", status: "available"
   end
 
   test "AssignPlot sets assigned_gardener" do
     tests "AssignPlot", on: "Plot"
-    setup  "CreatePlot", plot_number: "sample", size: "sample", soil_type: "sample", sun_exposure: "sample"
+    setup  "EstablishPlot", plot_number: "sample", size: "sample", soil_type: "sample", sun_exposure: "sample"
     input  assigned_gardener: "sample"
     expect assigned_gardener: "sample", status: "assigned"
   end
 
   test "ReleasePlot runs" do
     tests "ReleasePlot", on: "Plot"
-    setup  "CreatePlot", plot_number: "sample", size: "sample", soil_type: "sample", sun_exposure: "sample"
+    setup  "EstablishPlot", plot_number: "sample", size: "sample", soil_type: "sample", sun_exposure: "sample"
     expect assigned_gardener: "", status: "available"
   end
 
@@ -73,7 +73,7 @@ Hecks.behaviors "CommunityGarden" do
   test "LogHarvest sets gardener_name + plot_number + crop_name + weight_pounds + harvest_date + destination" do
     tests "LogHarvest", on: "Harvest"
     setup  "RegisterGardener", name: "sample", email: "sample", phone: "sample", experience_level: "sample", membership_date: "sample"
-    setup  "CreatePlot", plot_number: "sample", size: "sample", soil_type: "sample", sun_exposure: "sample"
+    setup  "EstablishPlot", plot_number: "sample", size: "sample", soil_type: "sample", sun_exposure: "sample"
     input  gardener_name: "sample", plot_number: "sample", crop_name: "sample", weight_pounds: 1.0, harvest_date: "sample", destination: "sample"
     expect gardener_name: "sample", plot_number: "sample", crop_name: "sample", weight_pounds: 1.0, harvest_date: "sample", destination: "sample"
   end

@@ -16,8 +16,8 @@ Hecks.behaviors "StormwaterManagement" do
     expect runoff_coefficient: 1.0
   end
 
-  test "UpdateImperviousness sets impervious_pct" do
-    tests "UpdateImperviousness", on: "Watershed"
+  test "ResurveyImperviousness sets impervious_pct" do
+    tests "ResurveyImperviousness", on: "Watershed"
     setup  "DelineateWatershed", name: "sample", area_sq_km: 1.0, soil_type: "sample", impervious_pct: 1.0
     input  impervious_pct: 1.0
     expect impervious_pct: 1.0

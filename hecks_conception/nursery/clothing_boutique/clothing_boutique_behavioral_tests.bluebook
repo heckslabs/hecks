@@ -25,21 +25,21 @@ Hecks.behaviors "ClothingBoutique" do
 
   # ── Display aggregate ──────────────────────────────────────────
 
-  test "CreateDisplay sets display_name + theme + location" do
-    tests "CreateDisplay", on: "Display"
+  test "StyleDisplay sets display_name + theme + location" do
+    tests "StyleDisplay", on: "Display"
     input  display_name: "sample", theme: "sample", location: "sample"
     expect display_name: "sample", theme: "sample", location: "sample", status: "active"
   end
 
   test "RefreshDisplay runs" do
     tests "RefreshDisplay", on: "Display"
-    setup  "CreateDisplay", display_name: "sample", theme: "sample", location: "sample"
+    setup  "StyleDisplay", display_name: "sample", theme: "sample", location: "sample"
     expect ok: "true"
   end
 
   test "DismantleDisplay runs" do
     tests "DismantleDisplay", on: "Display"
-    setup  "CreateDisplay", display_name: "sample", theme: "sample", location: "sample"
+    setup  "StyleDisplay", display_name: "sample", theme: "sample", location: "sample"
     expect status: "dismantled"
   end
 

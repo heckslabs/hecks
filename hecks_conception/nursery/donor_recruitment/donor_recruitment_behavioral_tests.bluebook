@@ -3,15 +3,15 @@ Hecks.behaviors "DonorRecruitment" do
 
   # ── BloodInventory aggregate ──────────────────────────────────────────
 
-  test "UpdateStock sets center_id + blood_type + units_available + min_threshold" do
-    tests "UpdateStock", on: "BloodInventory"
+  test "RecordStock sets center_id + blood_type + units_available + min_threshold" do
+    tests "RecordStock", on: "BloodInventory"
     input  center_id: "sample", blood_type: "sample", units_available: 1, min_threshold: 1
     expect center_id: "sample", blood_type: "sample", units_available: 1, min_threshold: 1, status: "tracked"
   end
 
   test "FlagShortage runs" do
     tests "FlagShortage", on: "BloodInventory"
-    setup  "UpdateStock", center_id: "sample", blood_type: "sample", units_available: 1, min_threshold: 1
+    setup  "RecordStock", center_id: "sample", blood_type: "sample", units_available: 1, min_threshold: 1
     expect ok: "true"
   end
 

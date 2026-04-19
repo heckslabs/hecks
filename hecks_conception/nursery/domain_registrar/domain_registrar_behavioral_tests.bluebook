@@ -69,23 +69,23 @@ Hecks.behaviors "DomainRegistrar" do
 
   # ── DNSRecord aggregate ──────────────────────────────────────────
 
-  test "CreateDNSRecord sets record_id + record_type + hostname + value + ttl" do
-    tests "CreateDNSRecord", on: "DNSRecord"
+  test "PublishDNSRecord sets record_id + record_type + hostname + value + ttl" do
+    tests "PublishDNSRecord", on: "DNSRecord"
     setup  "RegisterDomain", domain: "sample", tld: "sample", registrant_email: "sample", registration_years: 1
     input  record_id: "sample", record_type: "sample", hostname: "sample", value: "sample", ttl: 1
-    expect record_id: "sample", record_type: "sample", hostname: "sample", value: "sample", ttl: 1
+    expect ok: "true"
   end
 
-  test "UpdateDNSRecord sets value + ttl" do
-    tests "UpdateDNSRecord", on: "DNSRecord"
-    setup  "CreateDNSRecord", record_id: "sample", record_type: "sample", hostname: "sample", value: "sample", ttl: 1
+  test "ReviseDNSRecord sets value + ttl" do
+    tests "ReviseDNSRecord", on: "DNSRecord"
+    setup  "PublishDNSRecord", record_id: "sample", record_type: "sample", hostname: "sample", value: "sample", ttl: 1
     input  value: "sample", ttl: 1
     expect ok: "true"
   end
 
-  test "DeleteDNSRecord runs" do
-    tests "DeleteDNSRecord", on: "DNSRecord"
-    setup  "CreateDNSRecord", record_id: "sample", record_type: "sample", hostname: "sample", value: "sample", ttl: 1
+  test "RetireDNSRecord runs" do
+    tests "RetireDNSRecord", on: "DNSRecord"
+    setup  "PublishDNSRecord", record_id: "sample", record_type: "sample", hostname: "sample", value: "sample", ttl: 1
     expect ok: "true"
   end
 

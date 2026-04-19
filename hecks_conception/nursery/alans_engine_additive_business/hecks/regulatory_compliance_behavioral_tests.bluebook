@@ -16,8 +16,8 @@ Hecks.behaviors "RegulatoryCompliance" do
     expect status: "active", regulations_size: 1
   end
 
-  test "UpdateRegulation sets code + requirement + penalty" do
-    tests "UpdateRegulation", on: "Jurisdiction"
+  test "AmendRegulation sets code + requirement + penalty" do
+    tests "AmendRegulation", on: "Jurisdiction"
     setup  "RegisterJurisdiction", name: "sample", authority: "sample", region: "sample"
     input  code: "sample", requirement: "sample", penalty: "sample"
     expect ok: "true"

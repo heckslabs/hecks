@@ -54,21 +54,21 @@ Hecks.behaviors "PollinationService" do
 
   # ── PollinationSchedule aggregate ──────────────────────────────────────────
 
-  test "CreateSchedule sets schedule_name + field_name + hive_id + start_date + end_date + hive_count" do
-    tests "CreateSchedule", on: "PollinationSchedule"
+  test "PollinatePlan sets schedule_name + field_name + hive_id + start_date + end_date + hive_count" do
+    tests "PollinatePlan", on: "PollinationSchedule"
     input  schedule_name: "sample", field_name: "sample", hive_id: "sample", start_date: "sample", end_date: "sample", hive_count: 1
     expect schedule_name: "sample", field_name: "sample", hive_id: "sample", start_date: "sample", end_date: "sample", hive_count: 1, status: "planned"
   end
 
   test "ActivateSchedule runs" do
     tests "ActivateSchedule", on: "PollinationSchedule"
-    setup  "CreateSchedule", schedule_name: "sample", field_name: "sample", hive_id: "sample", start_date: "sample", end_date: "sample", hive_count: 1
+    setup  "PollinatePlan", schedule_name: "sample", field_name: "sample", hive_id: "sample", start_date: "sample", end_date: "sample", hive_count: 1
     expect status: "active"
   end
 
   test "CompleteSchedule runs" do
     tests "CompleteSchedule", on: "PollinationSchedule"
-    setup  "CreateSchedule", schedule_name: "sample", field_name: "sample", hive_id: "sample", start_date: "sample", end_date: "sample", hive_count: 1
+    setup  "PollinatePlan", schedule_name: "sample", field_name: "sample", hive_id: "sample", start_date: "sample", end_date: "sample", hive_count: 1
     setup  "ActivateSchedule"
     expect status: "completed"
   end

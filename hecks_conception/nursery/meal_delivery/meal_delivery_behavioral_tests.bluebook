@@ -62,8 +62,8 @@ Hecks.behaviors "MealDelivery" do
     expect recipient_id: "sample", name: "sample", address: "sample", dietary_restriction: "sample", household_size: 1, status: "active"
   end
 
-  test "UpdateDiet sets dietary_restriction" do
-    tests "UpdateDiet", on: "Recipient"
+  test "ReviseDiet sets dietary_restriction" do
+    tests "ReviseDiet", on: "Recipient"
     setup  "RegisterRecipient", recipient_id: "sample", name: "sample", address: "sample", dietary_restriction: "sample", household_size: 1
     input  dietary_restriction: "sample"
     expect dietary_restriction: "sample"

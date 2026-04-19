@@ -23,8 +23,8 @@ Hecks.behaviors "RecyclingCenter" do
     expect ok: "true"
   end
 
-  test "UpdatePrice sets new_price_per_ton" do
-    tests "UpdatePrice", on: "Material"
+  test "RepriceMaterial sets new_price_per_ton" do
+    tests "RepriceMaterial", on: "Material"
     setup  "RegisterMaterial", material_code: "sample", name: "sample", category: "sample", market_price_per_ton: 1.0
     input  new_price_per_ton: 1.0
     expect ok: "true"

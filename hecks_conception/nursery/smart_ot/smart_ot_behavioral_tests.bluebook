@@ -9,8 +9,8 @@ Hecks.behaviors "SmartOT" do
     expect goal_id: "sample", client_name: "sample", goal_area: "sample", target_outcome: "sample", progress_pct: 0.0, status: "active"
   end
 
-  test "UpdateProgress sets progress_pct" do
-    tests "UpdateProgress", on: "TherapyGoal"
+  test "LogProgress sets progress_pct" do
+    tests "LogProgress", on: "TherapyGoal"
     setup  "SetGoal", goal_id: "sample", client_name: "sample", goal_area: "sample", target_outcome: "sample"
     input  progress_pct: 1.0
     expect progress_pct: 1.0

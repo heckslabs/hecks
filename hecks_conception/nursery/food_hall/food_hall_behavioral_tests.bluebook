@@ -39,8 +39,8 @@ Hecks.behaviors "FoodHall" do
     expect menu_id: "sample", vendor_id: "sample", status: "published"
   end
 
-  test "UpdateMenu runs" do
-    tests "UpdateMenu", on: "HallMenu"
+  test "ReviseMenu runs" do
+    tests "ReviseMenu", on: "HallMenu"
     setup  "PublishMenu", menu_id: "sample", vendor_id: "sample"
     expect ok: "true"
   end

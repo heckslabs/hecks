@@ -3,35 +3,35 @@ Hecks.behaviors "Physics" do
 
   # ── Particle aggregate ──────────────────────────────────────────
 
-  test "CreateParticle sets name + mass + charge + spin + particle_type" do
-    tests "CreateParticle", on: "Particle"
+  test "ObserveParticle sets name + mass + charge + spin + particle_type" do
+    tests "ObserveParticle", on: "Particle"
     input  name: "sample", mass: 1.0, charge: 1.0, spin: 1.0, particle_type: "sample"
     expect name: "sample", mass: 1.0, charge: 1.0, spin: 1.0, particle_type: "sample", status: "active"
   end
 
   test "MeasurePosition sets x + y + z" do
     tests "MeasurePosition", on: "Particle"
-    setup  "CreateParticle", name: "sample", mass: 1.0, charge: 1.0, spin: 1.0, particle_type: "sample"
+    setup  "ObserveParticle", name: "sample", mass: 1.0, charge: 1.0, spin: 1.0, particle_type: "sample"
     input  x: 1.0, y: 1.0, z: 1.0
     expect ok: "true"
   end
 
   test "MeasureMomentum sets px + py + pz" do
     tests "MeasureMomentum", on: "Particle"
-    setup  "CreateParticle", name: "sample", mass: 1.0, charge: 1.0, spin: 1.0, particle_type: "sample"
+    setup  "ObserveParticle", name: "sample", mass: 1.0, charge: 1.0, spin: 1.0, particle_type: "sample"
     input  px: 1.0, py: 1.0, pz: 1.0
     expect ok: "true"
   end
 
   test "Annihilate runs" do
     tests "Annihilate", on: "Particle"
-    setup  "CreateParticle", name: "sample", mass: 1.0, charge: 1.0, spin: 1.0, particle_type: "sample"
+    setup  "ObserveParticle", name: "sample", mass: 1.0, charge: 1.0, spin: 1.0, particle_type: "sample"
     expect status: "annihilated"
   end
 
   test "Decay sets decay_mode + half_life" do
     tests "Decay", on: "Particle"
-    setup  "CreateParticle", name: "sample", mass: 1.0, charge: 1.0, spin: 1.0, particle_type: "sample"
+    setup  "ObserveParticle", name: "sample", mass: 1.0, charge: 1.0, spin: 1.0, particle_type: "sample"
     input  decay_mode: "sample", half_life: 1.0
     expect status: "decayed"
   end

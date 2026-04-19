@@ -79,8 +79,8 @@ Hecks.behaviors "NutritionRx" do
     expect patient: 1, meal_plan: 1, status: "generated"
   end
 
-  test "UpdateGroceryList runs" do
-    tests "UpdateGroceryList", on: "GroceryList"
+  test "ReviseGroceryList runs" do
+    tests "ReviseGroceryList", on: "GroceryList"
     setup  "GenerateGroceryList"
     expect status: "updated"
   end

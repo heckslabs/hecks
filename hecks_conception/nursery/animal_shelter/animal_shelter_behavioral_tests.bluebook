@@ -71,8 +71,8 @@ Hecks.behaviors "AnimalShelter" do
 
   # ── ShelterMedicalRecord aggregate ──────────────────────────────────────────
 
-  test "CreateMedicalRecord sets animal_name + record_date + veterinarian" do
-    tests "CreateMedicalRecord", on: "ShelterMedicalRecord"
+  test "OpenMedicalRecord sets animal_name + record_date + veterinarian" do
+    tests "OpenMedicalRecord", on: "ShelterMedicalRecord"
     setup  "IntakeAnimal", name: "sample", species: "sample", breed: "sample", age_estimate: "sample", sex: "sample", temperament: "sample"
     input  animal_name: "sample", record_date: "sample", veterinarian: "sample"
     expect animal_name: "sample", record_date: "sample", veterinarian: "sample", spay_neuter_status: "pending", vaccination_status: "incomplete"
@@ -80,13 +80,13 @@ Hecks.behaviors "AnimalShelter" do
 
   test "AdministerVaccination runs" do
     tests "AdministerVaccination", on: "ShelterMedicalRecord"
-    setup  "CreateMedicalRecord", animal_name: "sample", record_date: "sample", veterinarian: "sample"
+    setup  "OpenMedicalRecord", animal_name: "sample", record_date: "sample", veterinarian: "sample"
     expect vaccination_status: "complete"
   end
 
   test "PerformSpayNeuter runs" do
     tests "PerformSpayNeuter", on: "ShelterMedicalRecord"
-    setup  "CreateMedicalRecord", animal_name: "sample", record_date: "sample", veterinarian: "sample"
+    setup  "OpenMedicalRecord", animal_name: "sample", record_date: "sample", veterinarian: "sample"
     expect spay_neuter_status: "completed"
   end
 

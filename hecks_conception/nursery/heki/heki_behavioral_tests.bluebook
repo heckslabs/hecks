@@ -3,22 +3,22 @@ Hecks.behaviors "Heki" do
 
   # ── Store aggregate ──────────────────────────────────────────
 
-  test "CreateStore sets name + path" do
-    tests "CreateStore", on: "Store"
+  test "OpenStore sets name + path" do
+    tests "OpenStore", on: "Store"
     input  name: "sample", path: "sample"
     expect name: "sample", path: "sample", record_count: 0, version: 2, status: "empty"
   end
 
   test "AppendRecord sets attrs" do
     tests "AppendRecord", on: "Store"
-    setup  "CreateStore", name: "sample", path: "sample"
+    setup  "OpenStore", name: "sample", path: "sample"
     input  attrs: "sample"
     expect record_count: 1, status: "active"
   end
 
   test "UpsertSingleton sets attrs" do
     tests "UpsertSingleton", on: "Store"
-    setup  "CreateStore", name: "sample", path: "sample"
+    setup  "OpenStore", name: "sample", path: "sample"
     input  attrs: "sample"
     expect status: "active"
   end
@@ -39,8 +39,8 @@ Hecks.behaviors "Heki" do
     expect ok: "true"
   end
 
-  test "DeleteRecord runs" do
-    tests "DeleteRecord", on: "Record"
+  test "ForgetRecord runs" do
+    tests "ForgetRecord", on: "Record"
     setup  "WriteRecord", store_name: "sample", payload: "sample"
     expect ok: "true"
   end

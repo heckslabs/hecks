@@ -3,22 +3,22 @@ Hecks.behaviors "Catalog" do
 
   # ── Product aggregate ──────────────────────────────────────────
 
-  test "CreateProduct sets sku + name + brand + formula_name + size + upc" do
-    tests "CreateProduct", on: "Product"
+  test "LaunchProduct sets sku + name + brand + formula_name + size + upc" do
+    tests "LaunchProduct", on: "Product"
     input  sku: "sample", name: "sample", brand: "sample", formula_name: "sample", size: "sample", upc: "sample"
     expect sku: "sample", name: "sample", brand: "sample", formula_name: "sample", size: "sample", upc: "sample", status: "active"
   end
 
   test "SetPricing sets msrp + wholesale_price" do
     tests "SetPricing", on: "Product"
-    setup  "CreateProduct", sku: "sample", name: "sample", brand: "sample", formula_name: "sample", size: "sample", upc: "sample"
+    setup  "LaunchProduct", sku: "sample", name: "sample", brand: "sample", formula_name: "sample", size: "sample", upc: "sample"
     input  msrp: 1.0, wholesale_price: 1.0
     expect msrp: 1.0, wholesale_price: 1.0
   end
 
   test "DiscontinueProduct runs" do
     tests "DiscontinueProduct", on: "Product"
-    setup  "CreateProduct", sku: "sample", name: "sample", brand: "sample", formula_name: "sample", size: "sample", upc: "sample"
+    setup  "LaunchProduct", sku: "sample", name: "sample", brand: "sample", formula_name: "sample", size: "sample", upc: "sample"
     expect status: "discontinued"
   end
 

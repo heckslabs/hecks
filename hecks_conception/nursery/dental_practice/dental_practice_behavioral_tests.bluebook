@@ -9,8 +9,8 @@ Hecks.behaviors "DentalPractice" do
     expect first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample", status: "active"
   end
 
-  test "UpdateInsurance sets insurance_provider + policy_number" do
-    tests "UpdateInsurance", on: "Patient"
+  test "RecordInsurance sets insurance_provider + policy_number" do
+    tests "RecordInsurance", on: "Patient"
     setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
     input  insurance_provider: "sample", policy_number: "sample"
     expect insurance_provider: "sample", policy_number: "sample"

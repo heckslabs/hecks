@@ -3,15 +3,15 @@ Hecks.behaviors "IceCreamParlor" do
 
   # ── Flavor aggregate ──────────────────────────────────────────
 
-  test "CreateFlavor sets flavor_id + name + base + description + dairy_free" do
-    tests "CreateFlavor", on: "Flavor"
+  test "ConcoctFlavor sets flavor_id + name + base + description + dairy_free" do
+    tests "ConcoctFlavor", on: "Flavor"
     input  flavor_id: "sample", name: "sample", base: "sample", description: "sample", dairy_free: "sample"
     expect flavor_id: "sample", name: "sample", base: "sample", description: "sample", dairy_free: "sample", available: "true"
   end
 
   test "RetireFlavor runs" do
     tests "RetireFlavor", on: "Flavor"
-    setup  "CreateFlavor", flavor_id: "sample", name: "sample", base: "sample", description: "sample", dairy_free: "sample"
+    setup  "ConcoctFlavor", flavor_id: "sample", name: "sample", base: "sample", description: "sample", dairy_free: "sample"
     expect available: "false"
   end
 

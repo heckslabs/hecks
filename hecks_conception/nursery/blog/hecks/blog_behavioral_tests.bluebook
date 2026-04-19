@@ -76,8 +76,8 @@ Hecks.behaviors "Blog" do
 
   # ── Tag aggregate ──────────────────────────────────────────
 
-  test "CreateTag sets name" do
-    tests "CreateTag", on: "Tag"
+  test "DefineTag sets name" do
+    tests "DefineTag", on: "Tag"
     input  name: "sample"
     expect name: "sample", post_count: 0
   end

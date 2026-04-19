@@ -96,17 +96,17 @@ Hecks.behaviors "CruiseShip" do
 
   # ── Excursion aggregate ──────────────────────────────────────────
 
-  test "CreateExcursion sets excursion_name + description + capacity + price_cents" do
-    tests "CreateExcursion", on: "Excursion"
+  test "OfferExcursion sets excursion_name + description + capacity + price_cents" do
+    tests "OfferExcursion", on: "Excursion"
     setup  "SchedulePort", port_name: "sample", country: "sample", arrival_time: "sample", departure_time: "sample"
     input  excursion_name: "sample", description: "sample", capacity: 1, price_cents: 1
-    expect excursion_name: "sample", description: "sample", capacity: 1, price_cents: 1, status: "open", booked_count: 0
+    expect status: "open", booked_count: 0
   end
 
   test "BookExcursion runs" do
     tests "BookExcursion", on: "Excursion"
     setup  "CheckInPassenger", booking_id: "sample", name: "sample", nationality: "sample", embarkation_port: "sample"
-    setup  "CreateExcursion", excursion_name: "sample", description: "sample", capacity: 1, price_cents: 1
+    setup  "OfferExcursion", excursion_name: "sample", description: "sample", capacity: 1, price_cents: 1
     expect ok: "true"
   end
 

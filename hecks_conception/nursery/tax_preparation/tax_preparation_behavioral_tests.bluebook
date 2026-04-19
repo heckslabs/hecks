@@ -9,8 +9,8 @@ Hecks.behaviors "TaxPreparation" do
     expect first_name: "sample", last_name: "sample", ssn_last_four: "sample", filing_status: "sample", phone: "sample", status: "active"
   end
 
-  test "UpdateFilingStatus sets filing_status" do
-    tests "UpdateFilingStatus", on: "TaxClient"
+  test "AmendFilingStatus sets filing_status" do
+    tests "AmendFilingStatus", on: "TaxClient"
     setup  "OnboardClient", first_name: "sample", last_name: "sample", ssn_last_four: "sample", filing_status: "sample", phone: "sample", email: "sample"
     input  filing_status: "sample"
     expect filing_status: "sample"

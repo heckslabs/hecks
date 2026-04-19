@@ -9,8 +9,8 @@ Hecks.behaviors "SeniorEntertainment" do
     expect resident_id: "sample", name: "sample", room_number: "sample", mobility_level: "sample", status: "active"
   end
 
-  test "UpdateNeeds sets vision_level + hearing_level" do
-    tests "UpdateNeeds", on: "SeniorResident"
+  test "ReviseNeeds sets vision_level + hearing_level" do
+    tests "ReviseNeeds", on: "SeniorResident"
     setup  "RegisterResident", resident_id: "sample", name: "sample", room_number: "sample", mobility_level: "sample"
     input  vision_level: "sample", hearing_level: "sample"
     expect vision_level: "sample", hearing_level: "sample"

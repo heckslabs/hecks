@@ -45,8 +45,8 @@ Hecks.behaviors "GymReservations" do
     expect name: "sample", specialization: "sample"
   end
 
-  test "UpdateAvailability sets available_days" do
-    tests "UpdateAvailability", on: "Trainer"
+  test "PublishAvailability sets available_days" do
+    tests "PublishAvailability", on: "Trainer"
     setup  "RegisterTrainer", name: "sample", specialization: "sample"
     input  available_days: "sample"
     expect ok: "true"

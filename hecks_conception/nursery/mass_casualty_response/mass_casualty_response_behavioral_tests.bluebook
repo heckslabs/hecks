@@ -112,8 +112,8 @@ Hecks.behaviors "MassCasualtyResponse" do
     expect casualty_name: "sample", blood_type: "sample", triage_color: "sample", triage_station: 1, current_phase: "triaged"
   end
 
-  test "UpdatePhase sets current_phase" do
-    tests "UpdatePhase", on: "CasualtyTracker"
+  test "AdvancePhase sets current_phase" do
+    tests "AdvancePhase", on: "CasualtyTracker"
     setup  "BeginTracking", casualty_name: "sample", blood_type: "sample", triage_color: "sample"
     input  current_phase: "sample"
     expect current_phase: "sample"

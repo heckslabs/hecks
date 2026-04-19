@@ -37,8 +37,8 @@ Hecks.behaviors "HomeHealthCare" do
     expect name: "sample", credential: "sample", phone: "sample", availability: "sample", max_visits_per_day: 1
   end
 
-  test "UpdateAvailability sets availability" do
-    tests "UpdateAvailability", on: "Caregiver"
+  test "Reschedule sets availability" do
+    tests "Reschedule", on: "Caregiver"
     setup  "RegisterCaregiver", name: "sample", credential: "sample", phone: "sample", availability: "sample", max_visits_per_day: 1
     input  availability: "sample"
     expect availability: "sample"
