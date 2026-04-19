@@ -21,7 +21,7 @@ RSpec.describe "Appeal IDE Domain" do
   describe "boot" do
     it "loads the Appeal definition" do
       expect(domain).not_to be_nil
-      expect(domain.name).to eq("HecksAppeal")
+      expect(domain.name).to eq("Appeal")
     end
 
     it "has more than 30 aggregates" do
@@ -30,7 +30,7 @@ RSpec.describe "Appeal IDE Domain" do
 
     it "includes expected aggregate names" do
       names = domain.aggregates.map(&:name)
-      %w[Layout Session Menu Feature Diagram Server].each do |name|
+      %w[Layout Session Menu Feature Diagram Console].each do |name|
         expect(names).to include(name)
       end
     end
@@ -42,7 +42,7 @@ RSpec.describe "Appeal IDE Domain" do
     end
 
     it "exposes the domain" do
-      expect(runtime.domain.name).to eq("HecksAppeal")
+      expect(runtime.domain.name).to eq("Appeal")
     end
 
     it "has an event bus" do
@@ -142,12 +142,15 @@ RSpec.describe "Appeal IDE Domain" do
   end
 
   describe "bounded contexts" do
-    it "has 6 .bluebook files in chapters/appeal/hecks/" do
-      bluebook_dir = File.expand_path(
-        "../../lib/hecks/chapters/appeal/hecks", __dir__
+    it "has paragraph files under chapters/appeal/" do
+      # Appeal is split into paragraph .rb files (one per bounded
+      # context: workbench, modeling, authoring, etc.) — not .bluebook
+      # files anymore. Each file groups aggregates via Hecks::Paragraph.
+      paragraph_dir = File.expand_path(
+        "../../lib/hecks/chapters/appeal", __dir__
       )
-      bluebooks = Dir[File.join(bluebook_dir, "*.bluebook")]
-      expect(bluebooks.size).to eq(6)
+      paragraphs = Dir[File.join(paragraph_dir, "*.rb")]
+      expect(paragraphs.size).to be > 5
     end
   end
 
