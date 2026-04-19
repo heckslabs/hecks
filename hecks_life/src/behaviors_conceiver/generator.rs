@@ -171,7 +171,10 @@ fn self_ref_for(agg: &Aggregate, cmd: &Command) -> Option<String> {
     for r in &cmd.references {
         let ref_snake = to_snake_case(&r.target);
         if ref_snake == agg_snake || agg_snake.ends_with(&ref_snake) {
-            return Some(ref_snake);
+            // Use r.name (which honors `role: :alias`) so this matches
+            // command_dispatch::find_self_ref. Both must agree on the
+            // kwarg name the runner injects from in_scope.
+            return Some(r.name.clone());
         }
     }
     None
