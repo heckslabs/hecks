@@ -43,7 +43,7 @@ Hecks.bluebook "Heki", version: "2026.04.11.2" do
       then_set :status, to: "active"
     end
 
-    lifecycle :status, default: "empty" do
+    lifecycle :status, default: "pending" do
       transition "OpenStore" => "empty", from: "pending"
       transition "AppendRecord" => "active", from: "empty"
       transition "UpsertSingleton" => "active", from: "empty"

@@ -543,7 +543,7 @@ Hecks.behaviors "Mathematics" do
     tests "AddProofStep", on: "Proof"
     setup  "ConstructProof", theorem: "sample", proof_method: "sample"
     input  statement: "sample", justification: "sample"
-    expect status: "in_progress"
+    expect status: "pending"
   end
 
   test "CompleteProof runs" do

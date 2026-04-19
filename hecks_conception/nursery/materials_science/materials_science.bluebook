@@ -223,9 +223,10 @@ Hecks.bluebook "MaterialsScience", version: "2026.04.11.1" do
       then_set :status, to: "solid"
     end
 
-    lifecycle :status, default: "solid" do
+    lifecycle :status, default: "pending" do
       transition "HeatMaterial" => "solid", from: "pending"
       transition "TriggerTransition" => "melting", from: "solid"
+      transition "TriggerTransition" => "liquid", from: "melting"
       transition "TriggerTransition" => "boiling", from: "liquid"
       transition "Quench" => "solid", from: "melting"
       transition "Quench" => "solid", from: "liquid"
@@ -610,7 +611,7 @@ Hecks.bluebook "MaterialsScience", version: "2026.04.11.1" do
       then_set :status, to: "integrated"
     end
 
-    lifecycle :status, default: "intrinsic" do
+    lifecycle :status, default: "pending" do
       transition "GrowWafer" => "intrinsic", from: "pending"
       transition "DopeSemiconductor" => "doped", from: "intrinsic"
       transition "EtchPattern" => "patterned", from: "doped"

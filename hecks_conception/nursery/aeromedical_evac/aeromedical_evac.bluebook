@@ -63,7 +63,7 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
       then_set :status, to: "handed_off"
     end
 
-    lifecycle :status, default: "registered" do
+    lifecycle :status, default: "pending" do
       transition "RegisterPatient" => "registered", from: "pending"
       transition "AssignToFlight" => "in_transit", from: "registered"
       transition "TransferToGround" => "handed_off", from: "in_transit"

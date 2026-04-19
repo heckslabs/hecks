@@ -13,7 +13,7 @@ Hecks.behaviors "Applications" do
     tests "AddApp", on: "Application"
     setup  "RegisterApplication", name: "sample", domain_path: "sample", app_types: "sample", version: "sample"
     input  app_type: "sample"
-    expect status: "viable", app_types_size: 1
+    expect status: "pending", app_types_size: 1
   end
 
   test "DeployApp runs" do

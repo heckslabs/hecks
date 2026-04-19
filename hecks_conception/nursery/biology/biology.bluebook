@@ -107,7 +107,7 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       then_set :membrane_integrity, to: :integrity
     end
 
-    lifecycle :phase, default: "interphase" do
+    lifecycle :phase, default: "none" do
       transition "CultureCell" => "interphase", from: "none"
       transition "EnterPhase" => "G1", from: "interphase"
       transition "EnterPhase" => "S", from: "G1"
@@ -320,7 +320,7 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       emits "ProteinBound"
     end
 
-    lifecycle :folding_state, default: "unfolded" do
+    lifecycle :folding_state, default: "none" do
       transition "Synthesize" => "unfolded", from: "none"
       transition "Fold" => "folded", from: "unfolded"
       transition "Denature" => "denatured", from: "folded"
@@ -513,7 +513,7 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       emits "SpeciesRemoved"
     end
 
-    lifecycle :status, default: "nascent" do
+    lifecycle :status, default: "pending" do
       transition "EstablishEcosystem" => "nascent", from: "pending"
       transition "AddSpecies" => "developing", from: "nascent"
       transition "ModelFoodWeb" => "stable", from: "developing"
@@ -806,7 +806,7 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       then_set :state, to: "inhibited"
     end
 
-    lifecycle :state, default: "resting" do
+    lifecycle :state, default: "none" do
       transition "DefineNeuron" => "resting", from: "none"
       transition "FireNeuron" => "firing", from: "resting"
       transition "Repolarize" => "refractory", from: "firing"

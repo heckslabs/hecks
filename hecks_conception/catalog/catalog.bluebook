@@ -58,7 +58,7 @@ Hecks.bluebook "Catalog", version: "2026.04.11.2" do
       then_set :status, to: "retired"
     end
 
-    lifecycle :status, default: "active" do
+    lifecycle :status, default: "pending" do
       transition "RegisterDomain" => "active", from: "pending"
       transition "RetireDomain" => "retired", from: "active"
     end

@@ -64,7 +64,7 @@ Hecks.bluebook "AdvertisingGeneration", version: "2026.04.11.1" do
       then_set :status, to: "approved"
     end
 
-    lifecycle :status, default: "draft" do
+    lifecycle :status, default: "pending" do
       transition "GenerateTemplate" => "draft", from: "pending"
       transition "CustomizeTemplate" => "customized", from: "draft"
       transition "ApproveTemplate" => "approved", from: "draft"
@@ -150,7 +150,7 @@ Hecks.bluebook "AdvertisingGeneration", version: "2026.04.11.1" do
       then_set :status, to: "completed"
     end
 
-    lifecycle :status, default: "planning" do
+    lifecycle :status, default: "pending" do
       transition "PlanCampaign" => "planning", from: "pending"
       transition "LaunchCampaign" => "active", from: "planning"
       transition "PauseCampaign" => "paused", from: "active"

@@ -323,7 +323,7 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
       then_set :status, to: "verified"
     end
 
-    lifecycle :status, default: "unsolved" do
+    lifecycle :status, default: "pending" do
       transition "DefineEquation" => "unsolved", from: "pending"
       transition "SolveEquation" => "solved", from: "unsolved"
       transition "VerifyEquation" => "verified", from: "solved"
@@ -977,7 +977,7 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
       then_set :status, to: "verified"
     end
 
-    lifecycle :status, default: "in_progress" do
+    lifecycle :status, default: "pending" do
       transition "ConstructProof" => "in_progress", from: "pending"
       transition "CompleteProof" => "complete", from: "in_progress"
       transition "VerifyProof" => "verified", from: "complete"

@@ -50,7 +50,7 @@ Hecks.bluebook "Applications", version: "2026.04.11.1" do
       then_set :status, to: "retired"
     end
 
-    lifecycle :status, default: "viable" do
+    lifecycle :status, default: "pending" do
       transition "RegisterApplication" => "viable", from: "pending"
       transition "DeployApp" => "deployed", from: "viable"
       transition "RetireApplication" => "retired", from: "deployed"
@@ -96,7 +96,7 @@ Hecks.bluebook "Applications", version: "2026.04.11.1" do
       then_set :stage, to: "viable"
     end
 
-    lifecycle :stage, default: "gestating" do
+    lifecycle :stage, default: "pending" do
       transition "TrackGestation" => "gestating", from: "pending"
       transition "TrackBirth" => "born", from: "gestating"
       transition "TrackViability" => "viable", from: "born"
