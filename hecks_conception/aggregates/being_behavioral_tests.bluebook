@@ -52,6 +52,13 @@ Hecks.behaviors "Being" do
     expect active: false
   end
 
+  test "RestoreNerve runs" do
+    tests "RestoreNerve", on: "Nerve"
+    setup  "ConnectNerve", name: "sample", from_domain: "sample", from_event: "sample", to_domain: "sample", to_command: "sample"
+    setup  "SeverNerve"
+    expect active: true
+  end
+
 
   # ── NerveDiscovery aggregate ──────────────────────────────────────────
 
@@ -64,9 +71,9 @@ Hecks.behaviors "Being" do
 
   # ── OrganMonitor aggregate ──────────────────────────────────────────
 
-  test "CheckOrgans sets now" do
+  test "CheckOrgans sets checked_at" do
     tests "CheckOrgans", on: "OrganMonitor"
-    input  now: "sample"
+    input  checked_at: "sample"
     expect last_checked_at: "sample"
   end
 

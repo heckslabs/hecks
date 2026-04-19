@@ -26,12 +26,26 @@ Hecks.behaviors "MovieTheater" do
     expect status: "on_sale"
   end
 
+  test "SellTicket sets patron_name + seat_number" do
+    tests "SellTicket", on: "Showing"
+    setup  "ScheduleShowing", film_title: "sample", showtime: "sample", rating: "sample"
+    input  patron_name: "sample", seat_number: "sample"
+    expect ok: "true"
+  end
+
 
   # ── Concession aggregate ──────────────────────────────────────────
 
   test "StockConcession sets item_name + price_cents + stock_count + category" do
     tests "StockConcession", on: "Concession"
     input  item_name: "sample", price_cents: 1, stock_count: 1, category: "sample"
+    expect ok: "true"
+  end
+
+  test "SellConcession sets quantity" do
+    tests "SellConcession", on: "Concession"
+    setup  "StockConcession", item_name: "sample", price_cents: 1, stock_count: 1, category: "sample"
+    input  quantity: 1
     expect ok: "true"
   end
 

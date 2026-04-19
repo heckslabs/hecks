@@ -16,14 +16,6 @@ Hecks.behaviors "Artifact" do
     expect status: "broken"
   end
 
-  test "Evolve sets shape_hash + aggregate_count + command_count + fixture_count + port_count" do
-    tests "Evolve", on: "Artifact"
-    setup  "Seal", domain_name: "sample", shape_hash: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, port_count: 1
-    setup  "TestSelf"
-    input  shape_hash: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, port_count: 1
-    expect shape_hash: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, port_count: 1, status: "sealed"
-  end
-
 
   # ── FixtureSet aggregate ──────────────────────────────────────────
 
@@ -38,6 +30,13 @@ Hecks.behaviors "Artifact" do
     setup  "Embed", domain_name: "sample", shape_hash_at_creation: "sample", fixture_count: 1
     input  pass_count: 1, fail_count: 1
     expect pass_count: 1, fail_count: 1, verdict: "tested"
+  end
+
+  test "MarkClean runs" do
+    tests "MarkClean", on: "FixtureSet"
+    setup  "Embed", domain_name: "sample", shape_hash_at_creation: "sample", fixture_count: 1
+    setup  "RecordVerdict", pass_count: 1, fail_count: 1
+    expect verdict: "clean"
   end
 
   test "MarkDrift runs" do

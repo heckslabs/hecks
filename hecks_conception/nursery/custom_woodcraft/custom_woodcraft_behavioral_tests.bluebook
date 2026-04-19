@@ -31,6 +31,13 @@ Hecks.behaviors "CustomWoodcraft" do
     expect ok: "true"
   end
 
+  test "FinalizeDesign runs" do
+    tests "FinalizeDesign", on: "FurnitureDesign"
+    setup  "DesignPiece", name: "sample", style: "sample"
+    setup  "SpecifyMaterial", species: "sample", board_feet_needed: 1.0, min_grade: "sample"
+    expect ok: "true"
+  end
+
 
   # ── WorkOrder aggregate ──────────────────────────────────────────
 

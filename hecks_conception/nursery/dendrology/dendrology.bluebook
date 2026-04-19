@@ -8,6 +8,10 @@ Hecks.bluebook "Dendrology" do
     String :common_name
     Float :dbh_cm
     Float :height_m
+    # habitat_assessed flips true when wildlife habitat assessment is
+    # complete; FellTree gates on it. AssessWildlifeHabitat is the
+    # producer the planner picks for the precondition.
+    attribute :habitat_assessed, Boolean, default: false
     reference_to ForestInventory
 
     value_object "CrownMetrics" do
@@ -24,6 +28,13 @@ Hecks.bluebook "Dendrology" do
       Float :dbh_cm
     end
 
+    command "AssessWildlifeHabitat" do
+      description "Inspect the tree for nests, cavities, and wildlife use"
+      emits "WildlifeHabitatAssessed"
+      reference_to TreeSpecimen
+      then_set :habitat_assessed, to: true
+    end
+
     command "MeasureGrowth" do
       description "Record updated diameter and height measurements"
       emits "GrowthMeasured"
@@ -37,7 +48,7 @@ Hecks.bluebook "Dendrology" do
       emits "TreeFelled"
       reference_to TreeSpecimen
       String :reason
-      given "tree must be assessed for wildlife habitat"
+      given { habitat_assessed == true }
     end
   end
 
@@ -47,6 +58,8 @@ Hecks.bluebook "Dendrology" do
     Integer :ring_count
     Integer :estimated_age
     Float :mean_ring_width_mm
+    # Prep state flag — sanding/polishing must complete before counting.
+    attribute :core_prepared, Boolean, default: false
     reference_to TreeSpecimen
 
     command "ExtractCore" do
@@ -56,11 +69,18 @@ Hecks.bluebook "Dendrology" do
       String :core_id
     end
 
+    command "PrepareCore" do
+      description "Sand and polish the core so rings are visible"
+      emits "CorePrepared"
+      reference_to GrowthRingAnalysis
+      then_set :core_prepared, to: true
+    end
+
     command "CountRings" do
       description "Analyze the core to count and measure rings"
       emits "RingsCounted"
       reference_to GrowthRingAnalysis
-      given "core must be sanded and polished"
+      given { core_prepared == true }
     end
 
     command "CrossdateRings" do
@@ -77,6 +97,9 @@ Hecks.bluebook "Dendrology" do
     String :vigor_rating
     String :structural_defects
     String :pest_signs
+    # Defect counter — RecordDefect appends to this list; PrescribeTreatment
+    # gates on it being non-empty (i.e. at least one defect identified).
+    attribute :defects, String, list: true
     reference_to TreeSpecimen
 
     command "AssessHealth" do
@@ -87,12 +110,20 @@ Hecks.bluebook "Dendrology" do
       String :assessor
     end
 
+    command "RecordDefect" do
+      description "Note a structural or biological defect found during assessment"
+      emits "DefectRecorded"
+      reference_to HealthAssessment
+      String :defect
+      then_set :defects, append: :defect
+    end
+
     command "PrescribeTreatment" do
       description "Recommend remedial action for a detected issue"
       emits "TreatmentPrescribed"
       reference_to HealthAssessment
       String :treatment_type
-      given "assessment must identify at least one defect"
+      given { defects.size > 0 }
     end
 
     command "ScheduleFollowup" do
@@ -110,6 +141,9 @@ Hecks.bluebook "Dendrology" do
     Integer :tree_count
     String :inventory_date
     String :forest_type
+    # all_trees_measured flips true when MeasureAllTrees runs.
+    # CloseInventory gates on it.
+    attribute :all_trees_measured, Boolean, default: false
 
     command "InitiateInventory" do
       description "Begin a new forest plot inventory"
@@ -125,11 +159,18 @@ Hecks.bluebook "Dendrology" do
       reference_to ForestInventory
     end
 
+    command "MeasureAllTrees" do
+      description "Walk the plot and record dbh and height for every tagged tree"
+      emits "AllTreesMeasured"
+      reference_to ForestInventory
+      then_set :all_trees_measured, to: true
+    end
+
     command "CloseInventory" do
       description "Finalize and submit the inventory data"
       emits "InventoryClosed"
       reference_to ForestInventory
-      given "all tagged trees must be measured"
+      given { all_trees_measured == true }
     end
   end
 

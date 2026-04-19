@@ -9,6 +9,13 @@ Hecks.behaviors "FermentationScience" do
     expect ok: "true"
   end
 
+  test "ApproveStrain runs" do
+    tests "ApproveStrain", on: "YeastStrain"
+    setup  "CatalogStrain", strain_name: "sample", species: "sample"
+    setup  "MapGene", gene_name: "sample", function: "sample", expression_level: 1.0
+    expect ok: "true"
+  end
+
 
   # ── BeerRecipe aggregate ──────────────────────────────────────────
 
@@ -27,6 +34,13 @@ Hecks.behaviors "FermentationScience" do
     setup  "CatalogStrain", strain_name: "sample", species: "sample"
     setup  "FormulateRecipe", recipe_name: "sample", style: "sample", target_abv: 1.0
     input  trial_number: "sample"
+    expect ok: "true"
+  end
+
+  test "CompleteTrial runs" do
+    tests "CompleteTrial", on: "FermentationTrial"
+    setup  "StartTrial", trial_number: "sample"
+    setup  "TakeSample", hour: 1, gravity: 1.0, ph: 1.0, cell_count: 1
     expect ok: "true"
   end
 

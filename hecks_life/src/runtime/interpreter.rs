@@ -67,35 +67,60 @@ pub fn apply_mutations(
 fn evaluate_given(
     expr: &str,
     state: &AggregateState,
-    _attrs: &HashMap<String, Value>,
+    attrs: &HashMap<String, Value>,
 ) -> bool {
     let expr = expr.trim();
 
+    // `field.any?` → field.size > 0; `field.empty?` → field.size == 0.
+    // Ruby idioms used in handwritten bluebooks; rewrite to runtime
+    // primitives so the comparison evaluator below handles them.
+    if let Some(field) = expr.strip_suffix(".any?") {
+        let val = resolve_expr(&format!("{}.size", field.trim()), state, attrs);
+        return compare_lt(&Value::Int(0), &val);
+    }
+    if let Some(field) = expr.strip_suffix(".empty?") {
+        let val = resolve_expr(&format!("{}.size", field.trim()), state, attrs);
+        return values_equal(&val, &Value::Int(0));
+    }
+
+    // Order matters: check `>=`/`<=` BEFORE `>`/`<` so the longer
+    // operator wins. The split_comparison helpers also bail out on the
+    // shorter operator when the longer is present.
+    if let Some((lhs, rhs)) = split_comparison(expr, ">=") {
+        let left = resolve_expr(lhs.trim(), state, attrs);
+        let right = resolve_expr(rhs.trim(), state, attrs);
+        return !compare_lt(&left, &right);
+    }
+    if let Some((lhs, rhs)) = split_comparison(expr, "<=") {
+        let left = resolve_expr(lhs.trim(), state, attrs);
+        let right = resolve_expr(rhs.trim(), state, attrs);
+        return !compare_lt(&right, &left);
+    }
     if let Some((lhs, rhs)) = split_comparison(expr, "<") {
-        let left = resolve_expr(lhs.trim(), state);
-        let right = resolve_expr(rhs.trim(), state);
+        let left = resolve_expr(lhs.trim(), state, attrs);
+        let right = resolve_expr(rhs.trim(), state, attrs);
         return compare_lt(&left, &right);
     }
     if let Some((lhs, rhs)) = split_comparison(expr, ">") {
-        let left = resolve_expr(lhs.trim(), state);
-        let right = resolve_expr(rhs.trim(), state);
+        let left = resolve_expr(lhs.trim(), state, attrs);
+        let right = resolve_expr(rhs.trim(), state, attrs);
         return compare_lt(&right, &left);
     }
     if let Some((lhs, rhs)) = split_comparison(expr, "==") {
-        let left = resolve_expr(lhs.trim(), state);
-        let right = resolve_expr(rhs.trim(), state);
+        let left = resolve_expr(lhs.trim(), state, attrs);
+        let right = resolve_expr(rhs.trim(), state, attrs);
         return values_equal(&left, &right);
     }
     if let Some((lhs, rhs)) = split_comparison(expr, "!=") {
-        let left = resolve_expr(lhs.trim(), state);
-        let right = resolve_expr(rhs.trim(), state);
+        let left = resolve_expr(lhs.trim(), state, attrs);
+        let right = resolve_expr(rhs.trim(), state, attrs);
         return !values_equal(&left, &right);
     }
 
     true
 }
 
-fn resolve_expr(expr: &str, state: &AggregateState) -> Value {
+fn resolve_expr(expr: &str, state: &AggregateState, attrs: &HashMap<String, Value>) -> Value {
     if let Ok(n) = expr.parse::<i64>() {
         return Value::Int(n);
     }
@@ -110,30 +135,53 @@ fn resolve_expr(expr: &str, state: &AggregateState) -> Value {
     }
     if expr.ends_with(".size") {
         let field = &expr[..expr.len() - 5];
-        return match state.get(field) {
+        let val = attrs.get(field)
+            .cloned()
+            .unwrap_or_else(|| state.get(field).clone());
+        return match val {
             Value::List(v) => Value::Int(v.len() as i64),
             Value::Str(s) => Value::Int(s.len() as i64),
             _ => Value::Int(0),
         };
     }
+    // Command attributes shadow state when they share a name — the
+    // `given` clause runs at dispatch time with the inbound input
+    // already in scope, mirroring how Ruby's predicate DSL evaluates
+    // against a binding that includes both attrs and state.
+    if let Some(v) = attrs.get(expr) {
+        return v.clone();
+    }
     state.get(expr).clone()
 }
 
 fn split_comparison<'a>(expr: &'a str, op: &str) -> Option<(&'a str, &'a str)> {
-    if op == "<" && expr.contains("<=") {
+    // Disambiguate single-char ops from their multi-char counterparts.
+    // `<` must not match against `<=` or `<` inside `!=`/`==`/`>=`.
+    if op == "<" && (expr.contains("<=") || expr.contains("<<")) {
         return None;
     }
-    if op == ">" && expr.contains(">=") {
+    if op == ">" && (expr.contains(">=") || expr.contains(">>")) {
         return None;
+    }
+    if op == "=" {
+        return None; // Bare `=` isn't a comparison; force callers to use ==.
     }
     let idx = expr.find(op)?;
+    // For ==/!=, ensure we're not confusing them with =/= prefixes; find
+    // returns the first occurrence of the literal substring so this is OK.
     Some((&expr[..idx], &expr[idx + op.len()..]))
 }
 
-/// Loose equality: Bool(true) == Str("true"), Int(42) == Str("42")
+/// Loose equality: Bool(true) == Str("true"), Int(42) == Str("42").
+/// Numeric coercion lets `Int(0) == Str("0")`, `Int(0) == Null` (Null
+/// stands in for an unset numeric attr), and `Str("1.0") == Int(1)`
+/// (Float values stored as strings still compare to whole-number ints).
 fn values_equal(left: &Value, right: &Value) -> bool {
     if left == right {
         return true;
+    }
+    if let (Some(a), Some(b)) = (numeric_value(left), numeric_value(right)) {
+        return a == b;
     }
     let ls = format!("{}", left);
     let rs = format!("{}", right);
@@ -141,9 +189,29 @@ fn values_equal(left: &Value, right: &Value) -> bool {
 }
 
 fn compare_lt(left: &Value, right: &Value) -> bool {
-    match (left, right) {
-        (Value::Int(a), Value::Int(b)) => a < b,
+    // Try Int<Int first; fall back to numeric coercion through f64 so
+    // Float-valued attrs (stored as Str("1.0")) and mixed Int/Str
+    // comparisons (e.g. `amount > 0` where amount is Str("1.5")) work.
+    if let (Value::Int(a), Value::Int(b)) = (left, right) { return a < b; }
+    let l = numeric_value(left);
+    let r = numeric_value(right);
+    match (l, r) {
+        (Some(a), Some(b)) => a < b,
         _ => false,
+    }
+}
+
+/// Best-effort numeric coercion: Int as-is, Str parsed as f64, Bool to
+/// 0/1, Null as 0 (an unset Integer attr behaves as zero). Returns None
+/// for List/Map and unparseable strings.
+fn numeric_value(v: &Value) -> Option<f64> {
+    match v {
+        Value::Int(n) => Some(*n as f64),
+        Value::Bool(true) => Some(1.0),
+        Value::Bool(false) => Some(0.0),
+        Value::Str(s) => s.parse::<f64>().ok(),
+        Value::Null => Some(0.0),
+        _ => None,
     }
 }
 

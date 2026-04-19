@@ -35,6 +35,13 @@ Hecks.behaviors "CompostLoop" do
     expect ok: "true"
   end
 
+  test "CureBatch runs" do
+    tests "CureBatch", on: "CompostBatch"
+    setup  "StartBatch", batch_id: "sample"
+    setup  "RecordReading", day: 1, temperature_c: 1.0, moisture_pct: 1.0, carbon_nitrogen_ratio: 1.0
+    expect ok: "true"
+  end
+
 
   # ── SoilAmendment aggregate ──────────────────────────────────────────
 

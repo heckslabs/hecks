@@ -54,6 +54,13 @@ Hecks.behaviors "FoodHall" do
     expect area_id: "sample", name: "sample", total_seats: 1, available_seats: 1, status: "open"
   end
 
+  test "ReserveSeats sets seats_needed" do
+    tests "ReserveSeats", on: "SeatingArea"
+    setup  "OpenSeating", area_id: "sample", name: "sample", total_seats: 1
+    input  seats_needed: 1
+    expect ok: "true"
+  end
+
   test "CloseSeating runs" do
     tests "CloseSeating", on: "SeatingArea"
     setup  "OpenSeating", area_id: "sample", name: "sample", total_seats: 1

@@ -35,6 +35,13 @@ Hecks.behaviors "FinancialFreedom" do
     expect ok: "true"
   end
 
+  test "FileReturn runs" do
+    tests "FileReturn", on: "TaxReturn"
+    setup  "PrepareTaxReturn", tax_year: "sample", filing_status: "sample"
+    setup  "AddDeduction", deduction_type: "sample", amount: 1.0, documentation: "sample"
+    expect ok: "true"
+  end
+
 
   # ── BenefitApplication aggregate ──────────────────────────────────────────
 
@@ -42,6 +49,13 @@ Hecks.behaviors "FinancialFreedom" do
     tests "StartApplication", on: "BenefitApplication"
     setup  "OpenCase", case_id: "sample", intake_date: "sample", safety_plan: "sample"
     input  benefit_type: "sample"
+    expect ok: "true"
+  end
+
+  test "SubmitApplication runs" do
+    tests "SubmitApplication", on: "BenefitApplication"
+    setup  "StartApplication", benefit_type: "sample"
+    setup  "AttachDocument", doc_type: "sample", description: "sample"
     expect ok: "true"
   end
 

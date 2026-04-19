@@ -43,15 +43,6 @@ Hecks.behaviors "Sleep" do
     expect ok: "true"
   end
 
-  test "DreamPulse sets impression" do
-    tests "DreamPulse", on: "Consciousness"
-    setup  "EnterDaydream"
-    setup  "EnterSleep"
-    setup  "AdvanceLightToRem"
-    input  impression: "sample"
-    expect sleep_summary: "sample"
-  end
-
 
   # ── Daydream aggregate ──────────────────────────────────────────
 

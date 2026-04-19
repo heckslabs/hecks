@@ -41,6 +41,13 @@ Hecks.behaviors "FireRobotics" do
     expect ok: "true"
   end
 
+  test "ExecuteMission runs" do
+    tests "ExecuteMission", on: "Mission"
+    setup  "PlanMission", mission_type: "sample"
+    setup  "AddWaypoint", lat: 1.0, lng: 1.0, action: "sample"
+    expect ok: "true"
+  end
+
 
   # ── RescueOperation aggregate ──────────────────────────────────────────
 

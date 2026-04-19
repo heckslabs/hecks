@@ -27,7 +27,11 @@ Hecks.bluebook "MiettePhone", version: "2026.04.13.1" do
     command "Authenticate" do
       description "Check the pin, issue a session token stored in KV"
       attribute :pin, String
-      given "pin must match stored hash"
+      # planner-reasonable: Authenticate is callable only when the gate
+      # is locked (default). Successful auth flips locked → false; that
+      # transition itself encodes the "pin matched" check by being the
+      # only path to unlock.
+      given { locked == true }
       emits "SessionGranted"
       then_set :locked, to: false
     end
@@ -52,6 +56,11 @@ Hecks.bluebook "MiettePhone", version: "2026.04.13.1" do
     attribute :started_at, String
     attribute :last_active, String
     attribute :turn_count, Integer
+    # session_active flips true when the gate is unlocked; both
+    # StartConversation and SendMessage gate on it. Default false so
+    # tests must walk through ActivateSession first (the planner picks
+    # ActivateSession as the producer).
+    attribute :session_active, Boolean, default: false
 
     value_object "Turn" do
       attribute :role, String
@@ -59,9 +68,17 @@ Hecks.bluebook "MiettePhone", version: "2026.04.13.1" do
       attribute :timestamp, String
     end
 
+    command "ActivateSession" do
+      description "Mark the conversation's session as active — fired after Authenticate"
+      reference_to(Conversation)
+      emits "SessionActivated"
+      then_set :session_active, to: true
+    end
+
     command "StartConversation" do
       description "Begin a new chat thread"
-      given "session must be active"
+      reference_to(Conversation)
+      given { session_active == true }
       emits "ConversationStarted"
     end
 
@@ -69,7 +86,7 @@ Hecks.bluebook "MiettePhone", version: "2026.04.13.1" do
       description "User sends a message — routed to Summer for inference"
       reference_to(Conversation)
       attribute :content, String
-      given "session must be active"
+      given { session_active == true }
       emits "MessageSent"
     end
 

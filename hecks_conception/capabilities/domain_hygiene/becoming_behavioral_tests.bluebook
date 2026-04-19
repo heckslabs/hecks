@@ -78,7 +78,7 @@ Hecks.behaviors "Becoming" do
   test "RunEvaluation runs" do
     tests "RunEvaluation", on: "Evaluate"
     setup  "PrepareSplit"
-    expect ok: "true"
+    expect evaluation_complete: true
   end
 
   test "CompareToBaseline runs" do

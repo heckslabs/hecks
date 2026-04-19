@@ -19,6 +19,13 @@ Hecks.behaviors "RoastScience" do
     expect ok: "true"
   end
 
+  test "ApproveProfile runs" do
+    tests "ApproveProfile", on: "RoastProfile"
+    setup  "DesignProfile", profile_name: "sample", roast_level: "sample"
+    setup  "AddCurvePoint", time_seconds: 1, temp_c: 1.0, phase: "sample"
+    expect ok: "true"
+  end
+
 
   # ── RoastBatch aggregate ──────────────────────────────────────────
 
@@ -42,6 +49,13 @@ Hecks.behaviors "RoastScience" do
     tests "Compose", on: "BrewRecipe"
     setup  "StartBatch", batch_number: "sample", weight_kg: 1.0
     input  recipe_name: "sample", brew_method: "sample"
+    expect ok: "true"
+  end
+
+  test "PublishRecipe runs" do
+    tests "PublishRecipe", on: "BrewRecipe"
+    setup  "Compose", recipe_name: "sample", brew_method: "sample"
+    setup  "SetParameter", param_name: "sample", value: 1.0, unit: "sample"
     expect ok: "true"
   end
 

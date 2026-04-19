@@ -15,8 +15,21 @@ Hecks.behaviors "OnlineAuction" do
     expect ok: "true"
   end
 
+  test "WithdrawLot runs" do
+    tests "WithdrawLot", on: "Lot"
+    setup  "ListLot", lot_number: "sample", title: "sample", description: "sample", category: "sample", starting_price: 1.0, reserve_price: 1.0, auction_end: "sample"
+    expect ok: "true"
+  end
+
 
   # ── Bid aggregate ──────────────────────────────────────────
+
+  test "PlaceBid sets bid_id + amount + bidder_name + bidder_email" do
+    tests "PlaceBid", on: "Bid"
+    setup  "ListLot", lot_number: "sample", title: "sample", description: "sample", category: "sample", starting_price: 1.0, reserve_price: 1.0, auction_end: "sample"
+    input  bid_id: "sample", amount: 1.0, bidder_name: "sample", bidder_email: "sample"
+    expect bid_id: "sample", amount: 1.0, bidder_name: "sample", bidder_email: "sample"
+  end
 
   test "RetractBid sets retraction_reason" do
     tests "RetractBid", on: "Bid"

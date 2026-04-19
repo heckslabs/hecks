@@ -18,6 +18,13 @@ Hecks.behaviors "InmateEducation" do
     expect ok: "true"
   end
 
+  test "PublishCourse runs" do
+    tests "PublishCourse", on: "Course"
+    setup  "Author", course_name: "sample", subject: "sample"
+    setup  "AddModule", module_name: "sample", content_type: "sample", duration_minutes: 1
+    expect ok: "true"
+  end
+
 
   # ── Enrollment aggregate ──────────────────────────────────────────
 
@@ -25,6 +32,13 @@ Hecks.behaviors "InmateEducation" do
     tests "RegisterEnrollment", on: "Enrollment"
     setup  "Author", course_name: "sample", subject: "sample"
     setup  "EnrollInmate", inmate_id: "sample", name: "sample", facility: "sample", education_level: "sample"
+    expect ok: "true"
+  end
+
+  test "CompleteEnrollment runs" do
+    tests "CompleteEnrollment", on: "Enrollment"
+    setup  "RegisterEnrollment"
+    setup  "SubmitAssignment", assignment_name: "sample", score: 1.0
     expect ok: "true"
   end
 

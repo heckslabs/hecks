@@ -34,6 +34,13 @@ Hecks.behaviors "MentorQuest" do
     expect ok: "true"
   end
 
+  test "PublishQuest runs" do
+    tests "PublishQuest", on: "QuestLine"
+    setup  "DesignQuest", quest_name: "sample", theme: "sample"
+    setup  "AddMission", mission_name: "sample", description: "sample", xp_reward: 1, difficulty: "sample"
+    expect ok: "true"
+  end
+
 
   # ── MentorshipSession aggregate ──────────────────────────────────────────
 

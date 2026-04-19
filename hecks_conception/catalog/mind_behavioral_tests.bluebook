@@ -193,6 +193,13 @@ Hecks.behaviors "Mind" do
     expect active: false
   end
 
+  test "RestoreNerve runs" do
+    tests "RestoreNerve", on: "Nerve"
+    setup  "ConnectNerve", name: "sample", from_domain: "sample", from_event: "sample", to_domain: "sample", to_command: "sample"
+    setup  "SeverNerve"
+    expect active: true
+  end
+
 
   # ── NerveDiscovery aggregate ──────────────────────────────────────────
 
@@ -211,10 +218,10 @@ Hecks.behaviors "Mind" do
     expect being_name: "sample", beats: 0
   end
 
-  test "Beat sets now" do
+  test "Beat sets beat_at" do
     tests "Beat", on: "Heartbeat"
     setup  "BeginHeartbeat", being_name: "sample"
-    input  now: "sample"
+    input  beat_at: "sample"
     expect last_beat_at: "sample"
   end
 

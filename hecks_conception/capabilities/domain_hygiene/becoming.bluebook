@@ -165,11 +165,15 @@ Hecks.bluebook "Becoming", version: "2026.04.13.1" do
     attribute :with_workflow_chains, Integer
     attribute :structural_accuracy, Float
     attribute :passed, TrueClass
+    # Flag flips true when RunEvaluation finishes; DecideNextRound gates
+    # on it. The planner picks RunEvaluation as the producer.
+    attribute :evaluation_complete, Boolean, default: false
 
     command "RunEvaluation" do
       description "Generate domains from held-out visions, validate each, measure structural fingerprint"
       reference_to(Train)
       emits "EvaluationComplete"
+      then_set :evaluation_complete, to: true
     end
 
     command "CompareToBaseline" do
@@ -181,7 +185,7 @@ Hecks.bluebook "Becoming", version: "2026.04.13.1" do
     command "DecideNextRound" do
       description "Did Summer improve enough? If not, what signal is missing?"
       reference_to(Evaluate)
-      given "evaluation must be complete"
+      given { evaluation_complete == true }
       emits "NextRoundDecided"
     end
   end

@@ -3,9 +3,9 @@ Hecks.behaviors "MietteBody" do
 
   # ── Heartbeat aggregate ──────────────────────────────────────────
 
-  test "Beat sets carrying + elapsed + now" do
+  test "Beat sets carrying + elapsed + beat_at" do
     tests "Beat", on: "Heartbeat"
-    input  carrying: "sample", elapsed: 1, now: "sample"
+    input  carrying: "sample", elapsed: 1, beat_at: "sample"
     expect last_beat_at: "sample", carrying: "sample"
   end
 
@@ -26,7 +26,7 @@ Hecks.behaviors "MietteBody" do
 
   test "ReadVitals returns matching records" do
     tests "ReadVitals", on: "Heartbeat", kind: :query
-    setup  "Beat", carrying: "sample", elapsed: 1, now: "sample"
+    setup  "Beat", carrying: "sample", elapsed: 1, beat_at: "sample"
     expect count: 1
   end
 

@@ -215,11 +215,48 @@ end
 }
 
 #[test]
-fn skips_command_with_non_equality_given() {
-    // Commands whose preconditions are non-equality predicates (>, <,
-    // "must have", etc.) can't be satisfied by the chain planner — it
-    // only handles `field == "value"`. Generating a test for such a
-    // command produces a noisy `given failed: ...` failure. Skip it.
+fn skips_command_with_truly_opaque_given() {
+    // Commands whose preconditions are opaque English prose can't be
+    // satisfied by the chain planner — there's no field/op to reason
+    // about. The test should be skipped (the previous round handled
+    // this case via the non-equality skip; this case still applies
+    // even after the planner extension).
+    let source = r#"Hecks.bluebook "Inventory" do
+  aggregate "Stock" do
+    attribute :quantity, Integer
+    command "AddStock" do
+      attribute :quantity, Integer
+      emits "StockAdded"
+      then_set :quantity, to: :quantity
+    end
+    command "OpaqueOp" do
+      reference_to(Stock)
+      given "supplier must be in good standing"
+      emits "OpaqueRan"
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let out = generate_behaviors(&domain, None);
+
+    // The bootstrap command (no givens) still gets a test.
+    assert!(out.contains("test \"AddStock"),
+        "AddStock test (no givens) should still emit:\n{}", out);
+    // The opaque-given command must NOT have an isolated test.
+    assert!(!out.contains("test \"OpaqueOp"),
+        "OpaqueOp has an opaque given — must be skipped, got:\n{}",
+        out);
+    assert!(!out.contains("tests \"OpaqueOp\""),
+        "OpaqueOp tests-line must be skipped, got:\n{}", out);
+}
+
+#[test]
+fn satisfies_inequality_given_with_increment_or_set() {
+    // `given { quantity_used > 0 }` is now planner-reasonable: the
+    // planner finds a Set producer that lands quantity_used at >= 1
+    // (the bootstrap `AddStock` sets it via the input attribute). The
+    // test should emit and pass.
     let source = r#"Hecks.bluebook "Inventory" do
   aggregate "Stock" do
     attribute :quantity, Integer
@@ -239,16 +276,95 @@ end
 "#;
     let domain = parser::parse(source);
     let out = generate_behaviors(&domain, None);
+    assert!(out.contains("test \"ConsumeStock"),
+        "ConsumeStock test should emit now that planner handles `> 0`:\n{}", out);
+    // It should setup AddStock first (the producer for quantity).
+    let block = test_block(&out, "ConsumeStock").expect("ConsumeStock block");
+    assert!(block.contains("setup  \"AddStock\""),
+        "expected AddStock setup before ConsumeStock test, got:\n{}", block);
+}
 
-    // The bootstrap command (no givens) still gets a test.
-    assert!(out.contains("test \"AddStock"),
-        "AddStock test (no givens) should still emit:\n{}", out);
-    // The non-equality-given command must NOT have an isolated test.
-    assert!(!out.contains("test \"ConsumeStock"),
-        "ConsumeStock has a non-equality given — must be skipped, got:\n{}",
-        out);
-    assert!(!out.contains("tests \"ConsumeStock\""),
-        "ConsumeStock tests-line must be skipped, got:\n{}", out);
+#[test]
+fn satisfies_boolean_equality_given() {
+    // `given { ready == true }` is parseable as an equality. The planner
+    // finds a producer that does `then_set :ready, to: true` and runs
+    // it as setup. Test should emit and pass.
+    let source = r#"Hecks.bluebook "Switch" do
+  aggregate "Device" do
+    attribute :ready, Boolean
+    command "Initialize" do
+      reference_to(Device)
+      emits "Initialized"
+      then_set :ready, to: true
+    end
+    command "Activate" do
+      reference_to(Device)
+      given("device must be ready") { ready == true }
+      emits "Activated"
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let out = generate_behaviors(&domain, None);
+    let block = test_block(&out, "Activate").expect("Activate test block");
+    assert!(block.contains("setup  \"Initialize\""),
+        "expected Initialize setup (ready=true producer) before Activate, got:\n{}", block);
+}
+
+#[test]
+fn satisfies_size_check_given_via_append() {
+    // `given { items.size > 0 }` is parseable as NonEmptyList. The
+    // planner finds an Append producer (`AddItem`) and runs it once.
+    let source = r#"Hecks.bluebook "Cart" do
+  aggregate "Cart" do
+    attribute :items, String, list: true
+    command "OpenCart" do
+      emits "CartOpened"
+    end
+    command "AddItem" do
+      reference_to(Cart)
+      attribute :name, String
+      emits "ItemAdded"
+      then_set :items, append: :name
+    end
+    command "Checkout" do
+      reference_to(Cart)
+      given("cart must have items") { items.size > 0 }
+      emits "CheckedOut"
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let out = generate_behaviors(&domain, None);
+    let block = test_block(&out, "Checkout").expect("Checkout test block");
+    assert!(block.contains("setup  \"AddItem\""),
+        "expected AddItem (append producer) setup before Checkout, got:\n{}", block);
+}
+
+#[test]
+fn empty_list_given_satisfied_by_default() {
+    // `given { items.empty? }` is true by default (lists start empty).
+    // No setup chain step needed beyond the bootstrap create.
+    let source = r#"Hecks.bluebook "Cart" do
+  aggregate "Cart" do
+    attribute :items, String, list: true
+    command "OpenCart" do
+      emits "CartOpened"
+    end
+    command "Reset" do
+      reference_to(Cart)
+      given("cart must be empty") { items.empty? }
+      emits "Reset"
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let out = generate_behaviors(&domain, None);
+    assert!(out.contains("test \"Reset"),
+        "Reset should emit (precondition trivially satisfied):\n{}", out);
 }
 
 // ─── helpers ────────────────────────────────────────────────────────

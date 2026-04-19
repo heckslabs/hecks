@@ -9,6 +9,12 @@ Hecks.behaviors "DonorRecruitment" do
     expect center_id: "sample", blood_type: "sample", units_available: 1, min_threshold: 1, status: "tracked"
   end
 
+  test "FlagShortage runs" do
+    tests "FlagShortage", on: "BloodInventory"
+    setup  "RecordStock", center_id: "sample", blood_type: "sample", units_available: 1, min_threshold: 1
+    expect ok: "true"
+  end
+
 
   # ── RecruitmentCampaign aggregate ──────────────────────────────────────────
 

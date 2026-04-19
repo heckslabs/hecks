@@ -9,6 +9,12 @@ Hecks.behaviors "DataCenter" do
     expect ok: "true"
   end
 
+  test "RemoveRack runs" do
+    tests "RemoveRack", on: "Rack"
+    setup  "InstallRack", rack_id: "sample", location_aisle: "sample", unit_capacity: 1, power_zone: "sample"
+    expect ok: "true"
+  end
+
 
   # ── Server aggregate ──────────────────────────────────────────
 

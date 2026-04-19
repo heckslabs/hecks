@@ -29,6 +29,13 @@ Hecks.behaviors "Regression" do
     expect last_pass_count: 1, last_fail_count: 1, last_run_at: "sample"
   end
 
+  test "MarkPassing runs" do
+    tests "MarkPassing", on: "RegressionSuite"
+    setup  "EnrollSuite", suite_name: "sample"
+    setup  "RunRegression"
+    expect last_run_status: "passing"
+  end
+
   test "MarkFailing runs" do
     tests "MarkFailing", on: "RegressionSuite"
     setup  "EnrollSuite", suite_name: "sample"

@@ -434,6 +434,13 @@ Hecks.behaviors "Mathematics" do
     expect ok: "true"
   end
 
+  test "ComputeCrossProduct sets other_vector" do
+    tests "ComputeCrossProduct", on: "Vector"
+    setup  "DefineVector", name: "sample", components: "sample", dimension: 1
+    input  other_vector: "sample"
+    expect ok: "true"
+  end
+
   test "NormalizeVector runs" do
     tests "NormalizeVector", on: "Vector"
     setup  "DefineVector", name: "sample", components: "sample", dimension: 1

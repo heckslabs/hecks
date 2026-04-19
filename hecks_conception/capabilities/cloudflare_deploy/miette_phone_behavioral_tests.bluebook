@@ -3,6 +3,12 @@ Hecks.behaviors "MiettePhone" do
 
   # ── Gate aggregate ──────────────────────────────────────────
 
+  test "Authenticate sets pin" do
+    tests "Authenticate", on: "Gate"
+    input  pin: "sample"
+    expect locked: "false"
+  end
+
   test "RevokeSession runs" do
     tests "RevokeSession", on: "Gate"
     setup  "Authenticate", pin: "sample"
@@ -12,9 +18,26 @@ Hecks.behaviors "MiettePhone" do
 
   # ── Conversation aggregate ──────────────────────────────────────────
 
+  test "ActivateSession runs" do
+    tests "ActivateSession", on: "Conversation"
+    expect session_active: true
+  end
+
+  test "StartConversation runs" do
+    tests "StartConversation", on: "Conversation"
+    setup  "ActivateSession"
+    expect ok: "true"
+  end
+
+  test "SendMessage sets content" do
+    tests "SendMessage", on: "Conversation"
+    setup  "ActivateSession"
+    input  content: "sample"
+    expect ok: "true"
+  end
+
   test "ReceiveReply sets content + latency_ms" do
     tests "ReceiveReply", on: "Conversation"
-    setup  "StartConversation"
     input  content: "sample", latency_ms: 1
     expect ok: "true"
   end
@@ -30,7 +53,6 @@ Hecks.behaviors "MiettePhone" do
 
   test "RelayMessage sets content" do
     tests "RelayMessage", on: "InferenceProxy"
-    setup  "StartConversation"
     input  content: "sample"
     expect ok: "true"
   end
@@ -45,13 +67,11 @@ Hecks.behaviors "MiettePhone" do
 
   test "RenderChat runs" do
     tests "RenderChat", on: "ChatScreen"
-    setup  "StartConversation"
     expect ok: "true"
   end
 
   test "StreamResponse runs" do
     tests "StreamResponse", on: "ChatScreen"
-    setup  "StartConversation"
     expect ok: "true"
   end
 

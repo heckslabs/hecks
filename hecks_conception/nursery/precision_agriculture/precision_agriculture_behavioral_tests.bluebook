@@ -19,6 +19,13 @@ Hecks.behaviors "PrecisionAgriculture" do
     expect ok: "true"
   end
 
+  test "PublishForecast runs" do
+    tests "PublishForecast", on: "Forecast"
+    setup  "GenerateForecast", forecast_date: "sample"
+    setup  "AddPrediction", hour: "sample", temp_c: 1.0, precip_mm: 1.0, wind_kph: 1.0
+    expect ok: "true"
+  end
+
 
   # ── CropField aggregate ──────────────────────────────────────────
 
@@ -36,6 +43,13 @@ Hecks.behaviors "PrecisionAgriculture" do
     setup  "GenerateForecast", forecast_date: "sample"
     setup  "PlantField", field_name: "sample", crop: "sample", acres: 1.0
     input  water_gallons: 1.0
+    expect ok: "true"
+  end
+
+  test "ActivatePlan runs" do
+    tests "ActivatePlan", on: "IrrigationPlan"
+    setup  "DraftPlan", water_gallons: 1.0
+    setup  "AddZone", zone_name: "sample", gallons_per_day: 1.0
     expect ok: "true"
   end
 

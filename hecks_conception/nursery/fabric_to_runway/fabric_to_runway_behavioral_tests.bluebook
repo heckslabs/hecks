@@ -9,6 +9,13 @@ Hecks.behaviors "FabricToRunway" do
     expect ok: "true"
   end
 
+  test "ApproveFabric runs" do
+    tests "ApproveFabric", on: "Fabric"
+    setup  "WeaveFabric", name: "sample", fiber_type: "sample", weight_gsm: 1.0
+    setup  "DyeFabric", color: "sample", batch_number: "sample", yards: 1.0
+    expect ok: "true"
+  end
+
 
   # ── Collection aggregate ──────────────────────────────────────────
 

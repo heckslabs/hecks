@@ -9,6 +9,13 @@ Hecks.behaviors "BorderSecurity" do
     expect ok: "true"
   end
 
+  test "FinalizeReport runs" do
+    tests "FinalizeReport", on: "ForensicSample"
+    setup  "CollectSample", sample_id: "sample", sample_type: "sample", collector: "sample"
+    setup  "RunAnalysis", test_type: "sample", result: "sample", confidence: 1.0
+    expect ok: "true"
+  end
+
 
   # ── Shipment aggregate ──────────────────────────────────────────
 

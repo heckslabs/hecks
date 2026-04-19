@@ -9,6 +9,13 @@ Hecks.behaviors "ArchitecturalGlass" do
     expect ok: "true"
   end
 
+  test "CertifyFormula runs" do
+    tests "CertifyFormula", on: "GlassFormula"
+    setup  "Forge", name: "sample", transparency: 1.0
+    setup  "AddComponent", material: "sample", percentage: 1.0
+    expect ok: "true"
+  end
+
 
   # ── BuildingProject aggregate ──────────────────────────────────────────
 

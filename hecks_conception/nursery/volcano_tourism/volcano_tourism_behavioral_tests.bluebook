@@ -42,6 +42,13 @@ Hecks.behaviors "VolcanoTourism" do
     expect ok: "true"
   end
 
+  test "ActivatePackage runs" do
+    tests "ActivatePackage", on: "TourPackage"
+    setup  "DesignPackage", package_name: "sample", price_cents: 1
+    setup  "AddActivity", activity_name: "sample", duration_hours: 1.0, risk_level: "sample"
+    expect ok: "true"
+  end
+
 
   # ── Booking aggregate ──────────────────────────────────────────
 
@@ -66,6 +73,13 @@ Hecks.behaviors "VolcanoTourism" do
     setup  "RegisterVolcano", name: "sample", elevation_m: 1.0
     setup  "RegisterHotel", name: "sample", distance_km: 1.0
     input  plan_name: "sample"
+    expect ok: "true"
+  end
+
+  test "ActivateEvacuation runs" do
+    tests "ActivateEvacuation", on: "EvacuationPlan"
+    setup  "PreparePlan", plan_name: "sample"
+    setup  "AddRoute", route_name: "sample", distance_km: 1.0, capacity: 1
     expect ok: "true"
   end
 

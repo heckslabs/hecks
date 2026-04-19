@@ -60,6 +60,12 @@ Hecks.behaviors "SaaSPlatform" do
     expect ok: "true"
   end
 
+  test "RetireFlag runs" do
+    tests "RetireFlag", on: "FeatureFlag"
+    setup  "ProvisionFeatureFlag", flag_name: "sample", description: "sample", rollout_strategy: "sample", rollout_percentage: 1
+    expect ok: "true"
+  end
+
 
   # ── UsageMeter aggregate ──────────────────────────────────────────
 

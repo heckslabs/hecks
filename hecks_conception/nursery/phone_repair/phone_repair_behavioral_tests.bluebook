@@ -39,6 +39,13 @@ Hecks.behaviors "PhoneRepair" do
     expect part_number: "sample", name: "sample", compatible_models: "sample", cost: 1.0, quantity_in_stock: 1
   end
 
+  test "UsePart sets quantity_used" do
+    tests "UsePart", on: "Part"
+    setup  "OrderPart", part_number: "sample", name: "sample", compatible_models: "sample", cost: 1.0, quantity_in_stock: 1
+    input  quantity_used: 1
+    expect ok: "true"
+  end
+
 
   # ── RepairWarranty aggregate ──────────────────────────────────────────
 

@@ -9,6 +9,13 @@ Hecks.behaviors "BookstoreInventory" do
     expect isbn: "sample", title: "sample", author_name: "sample", genre: "sample", price: 1.0, quantity_on_hand: 1, status: "in_stock"
   end
 
+  test "ReplenishStock sets additional_copies" do
+    tests "ReplenishStock", on: "Book"
+    setup  "CatalogBook", isbn: "sample", title: "sample", author_name: "sample", genre: "sample", price: 1.0, quantity_on_hand: 1
+    input  additional_copies: 1
+    expect ok: "true"
+  end
+
   test "MarkOutOfPrint runs" do
     tests "MarkOutOfPrint", on: "Book"
     setup  "CatalogBook", isbn: "sample", title: "sample", author_name: "sample", genre: "sample", price: 1.0, quantity_on_hand: 1

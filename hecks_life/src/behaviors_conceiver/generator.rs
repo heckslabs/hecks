@@ -48,6 +48,34 @@ enum SetupPlan<'a> {
     Unsatisfiable,
 }
 
+/// One thing the test command requires of the aggregate's state before it
+/// can run. Each variant captures a satisfaction strategy the planner
+/// knows about — anything we can't fit here we can't auto-setup, and the
+/// command's test is skipped.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+enum Precondition {
+    /// `field == "value"` (or `:value`, or `true`/`false`).
+    /// Satisfied by a Set producer or a lifecycle transition to value.
+    Equals(String, String),
+    /// `field > N` — satisfied by a producer that lands field at N+1
+    /// (or higher), or by running an Increment producer N+1 times.
+    GreaterThan(String, i64),
+    /// `field >= N` — satisfied by a producer that lands field at N.
+    GreaterOrEqual(String, i64),
+    /// `field < N` — already true if attribute default < N (Integer
+    /// defaults to 0 which is < N for any positive N), otherwise needs
+    /// a producer landing the field below N.
+    LessThan(String, i64),
+    /// `field.size > 0` / `field.any?` — satisfied by running an Append
+    /// producer once.
+    NonEmptyList(String),
+    /// `field.empty?` — satisfied by default (lists start empty); no
+    /// chain step needed, but we still record it so collect_preconditions
+    /// can mark the precondition met without a producer search.
+    EmptyList(String),
+}
+
+
 /// Generate the full text of a `_behavioral_tests.bluebook` for `source`.
 pub fn generate_behaviors(source: &Domain, _archetype: Option<&TestSuite>) -> String {
     let mut out = String::new();
@@ -110,14 +138,14 @@ fn command_test(
     cmd: &Command,
     lifecycle_to: Option<(String, String)>,
 ) -> Option<String> {
-    // Skip when ANY given is non-equality. The chain planner only knows
-    // how to satisfy `<field> == "<value>"` predicates via parse_equality;
-    // anything else (`> 0`, `must have items`, `bid exceeds current`,
-    // `must have elapsed minimum phase duration`) won't be auto-satisfied
-    // and the generated test would noisily fail with `given failed: ...`.
-    // These commands need hand-written setups — emit nothing rather than
-    // pollute the suite.
-    if cmd.givens.iter().any(|g| parse_equality(&g.expression).is_none()) {
+    // Skip when ANY given is unparseable. The planner knows how to satisfy
+    // a fixed set of patterns (equality, ordered comparisons, list-size
+    // checks) via `parse_precondition`; anything else (English-prose
+    // givens like "must have elapsed minimum phase duration", domain-
+    // specific predicates like "bid exceeds current") needs hand-written
+    // setup. Emit nothing for those rather than pollute the suite with
+    // tests that error on `given failed: ...`.
+    if cmd.givens.iter().any(|g| parse_precondition(&g.expression).is_none()) {
         return None;
     }
 
@@ -357,22 +385,20 @@ fn plan_setup_chain<'a>(
     if visited.contains(&target_cmd.name.as_str()) { return SetupPlan::Chain(Vec::new()); }
     visited.push(target_cmd.name.as_str());
     let mut chain: Vec<&Command> = Vec::new();
-    let mut produced: BTreeSet<(String, String)> = BTreeSet::new();
+    let mut produced: ProducedState = ProducedState::default();
     let mut unsatisfiable = false;
 
-    for (field, value) in collect_preconditions(agg, target_cmd) {
+    for pre in collect_preconditions(agg, target_cmd) {
         // Already satisfied by an earlier step in this chain?
-        if produced.contains(&(field.clone(), value.clone())) { continue; }
-        // Lifecycle default makes some preconditions trivially true.
-        if let Some(lc) = &agg.lifecycle {
-            if lc.field == field && lc.default == value { continue; }
-        }
+        if produced.satisfies(&pre) { continue; }
+        // Trivially true by the aggregate's defaults?
+        if precondition_default_holds(agg, &pre) { continue; }
         // Pick a producer that, after its full policy cascade, still
-        // leaves the aggregate in (field, value). If a candidate exists
-        // but every candidate cascades past the target state, mark the
-        // chain unsatisfiable so the test is skipped (the upstream test
-        // already exercises the cascade through `target_cmd`).
-        match find_producer(domain, agg, &field, &value) {
+        // leaves the aggregate in the precondition state. If a candidate
+        // exists but every candidate cascades past the target state, mark
+        // the chain unsatisfiable so the test is skipped (the upstream
+        // test already exercises the cascade through `target_cmd`).
+        match find_producer(domain, agg, &pre) {
             Some(producer) => {
                 // Recurse: producer may itself have preconditions.
                 let sub_chain = match plan_setup_chain(domain, agg, producer, depth - 1, visited) {
@@ -385,23 +411,23 @@ fn plan_setup_chain<'a>(
                 for sub in sub_chain {
                     if !chain.iter().any(|c| c.name == sub.name) {
                         chain.push(sub);
-                        track_produced(agg, sub, &mut produced);
+                        produced.absorb(agg, sub);
                     }
                 }
                 if !chain.iter().any(|c| c.name == producer.name) {
                     chain.push(producer);
-                    track_produced(agg, producer, &mut produced);
+                    produced.absorb(agg, producer);
                 }
             }
             None => {
                 // Distinguish two cases:
                 //   * No producer command exists at all in the bluebook
-                //     for (field, value) — silently skip the precondition
-                //     (matches the historical lenient behavior; the test
-                //     will fail loudly and the user can fix the bluebook).
-                //   * A producer command DOES exist but its cascaded final
-                //     state lands past the target — mark unsatisfiable.
-                if any_producer_exists(agg, &field, &value) {
+                //     for this precondition — silently skip (matches the
+                //     historical lenient behavior; the test will fail
+                //     loudly and the user can fix the bluebook).
+                //   * A producer DOES exist but its cascaded final state
+                //     lands past the target — mark unsatisfiable.
+                if any_producer_exists(agg, &pre) {
                     unsatisfiable = true;
                     break;
                 }
@@ -413,39 +439,177 @@ fn plan_setup_chain<'a>(
     if unsatisfiable { SetupPlan::Unsatisfiable } else { SetupPlan::Chain(chain) }
 }
 
-/// True if SOME command on `agg` declares an effect that lands `field`
-/// at `value` — independent of whether that effect survives the policy
-/// cascade. Used to distinguish "no producer at all" (lenient skip) from
-/// "every producer over-cascades" (mark test unsatisfiable).
-fn any_producer_exists(agg: &Aggregate, field: &str, value: &str) -> bool {
-    let by_mutation = agg.commands.iter().any(|c| {
-        c.mutations.iter().any(|m| {
-            matches!(m.operation, MutationOp::Set)
-                && m.field == field
-                && (m.value == value
-                    || m.value == format!("\"{}\"", value)
-                    || m.value.trim_matches('"') == value)
-        })
-    });
-    if by_mutation { return true; }
-    if let Some(lc) = &agg.lifecycle {
-        if lc.field == field {
-            return lc.transitions.iter().any(|t| t.to_state == value);
-        }
-    }
-    false
+/// Track what facts a chain step has produced. Used to short-circuit
+/// the planner when a later precondition is already covered by an
+/// earlier step's effects, and to feed the satisfiability check.
+#[derive(Default)]
+struct ProducedState {
+    /// (field, value) pairs from then_set or lifecycle transitions.
+    set_facts: BTreeSet<(String, String)>,
+    /// Field names that received Append in some chain step.
+    appended_fields: BTreeSet<String>,
+    /// Field names that received Increment in some chain step.
+    incremented_fields: BTreeSet<String>,
 }
 
-/// Equality preconditions on the same aggregate that `cmd` requires.
-/// Returns (field, expected_value) pairs, deduplicated.
-fn collect_preconditions(agg: &Aggregate, cmd: &Command) -> Vec<(String, String)> {
-    let mut out: Vec<(String, String)> = Vec::new();
-    let mut seen: BTreeSet<(String, String)> = BTreeSet::new();
+impl ProducedState {
+    fn absorb(&mut self, agg: &Aggregate, cmd: &Command) {
+        for m in &cmd.mutations {
+            let val = m.value.trim_matches('"').to_string();
+            match m.operation {
+                MutationOp::Set => {
+                    self.set_facts.insert((m.field.clone(), val));
+                }
+                MutationOp::Append => {
+                    self.appended_fields.insert(m.field.clone());
+                }
+                MutationOp::Increment => {
+                    self.incremented_fields.insert(m.field.clone());
+                }
+                MutationOp::Decrement | MutationOp::Toggle => {}
+            }
+        }
+        if let Some(lc) = &agg.lifecycle {
+            for t in &lc.transitions {
+                if t.command == cmd.name {
+                    self.set_facts.insert((lc.field.clone(), t.to_state.clone()));
+                }
+            }
+        }
+    }
 
-    // From givens: parse `<field> == "<value>"` patterns.
+    fn satisfies(&self, pre: &Precondition) -> bool {
+        match pre {
+            Precondition::Equals(f, v) => self.set_facts.contains(&(f.clone(), v.clone())),
+            Precondition::GreaterThan(f, n) => {
+                // A previous chain step set this field to an integer > n,
+                // OR there's an Increment on this field AND no Set has
+                // reset it to <= n (the chain runs in order).
+                self.set_facts.iter().any(|(k, v)| {
+                    k == f && v.parse::<i64>().map(|x| x > *n).unwrap_or(false)
+                }) || (self.incremented_fields.contains(f)
+                    && !self.set_facts.iter().any(|(k, v)| {
+                        k == f && v.parse::<i64>().map(|x| x <= *n).unwrap_or(true)
+                    }))
+            }
+            Precondition::GreaterOrEqual(f, n) => {
+                self.set_facts.iter().any(|(k, v)| {
+                    k == f && v.parse::<i64>().map(|x| x >= *n).unwrap_or(false)
+                }) || (self.incremented_fields.contains(f)
+                    && !self.set_facts.iter().any(|(k, v)| {
+                        k == f && v.parse::<i64>().map(|x| x < *n).unwrap_or(true)
+                    }))
+            }
+            Precondition::LessThan(_, _) => false, // Defaults handle this; chain steps don't.
+            Precondition::NonEmptyList(f) => self.appended_fields.contains(f),
+            Precondition::EmptyList(_) => true, // Always true by default; chains never violate.
+        }
+    }
+}
+
+/// True when the aggregate's default state already satisfies `pre` —
+/// so no setup step is needed. Lifecycle defaults cover Equals(field,
+/// default); list attributes start empty so EmptyList is always free;
+/// Integer defaults to 0 which makes `field < N` true for any N > 0.
+fn precondition_default_holds(agg: &Aggregate, pre: &Precondition) -> bool {
+    match pre {
+        Precondition::Equals(field, value) => {
+            if let Some(lc) = &agg.lifecycle {
+                if &lc.field == field && &lc.default == value { return true; }
+            }
+            // Boolean attribute with explicit default: false / default: true.
+            agg.attributes.iter().any(|a| {
+                &a.name == field && a.default.as_deref().map(|d| d.trim()) == Some(value.as_str())
+            })
+        }
+        Precondition::EmptyList(field) => {
+            // List attributes always start empty in the runtime, so this
+            // precondition is trivially satisfied unless the chain has
+            // already appended (and it hasn't yet at default time).
+            agg.attributes.iter().any(|a| &a.name == field && a.list)
+        }
+        Precondition::LessThan(field, n) => {
+            // Integer fields default to 0 (no explicit default needed).
+            // 0 < N for every N > 0, so the precondition trivially holds.
+            if *n <= 0 { return false; }
+            agg.attributes.iter().any(|a| &a.name == field && a.attr_type == "Integer")
+        }
+        // > / >= / NonEmptyList never hold by default — need a producer.
+        _ => false,
+    }
+}
+
+/// True if SOME command on `agg` declares an effect that COULD satisfy
+/// `pre` — independent of whether that effect survives the policy
+/// cascade. Used to distinguish "no producer at all" (lenient skip) from
+/// "every producer over-cascades" (mark test unsatisfiable).
+fn any_producer_exists(agg: &Aggregate, pre: &Precondition) -> bool {
+    match pre {
+        Precondition::Equals(field, value) => {
+            let by_mutation = agg.commands.iter().any(|c| {
+                c.mutations.iter().any(|m| {
+                    matches!(m.operation, MutationOp::Set)
+                        && &m.field == field
+                        && mutation_value_matches(&m.value, value)
+                })
+            });
+            if by_mutation { return true; }
+            if let Some(lc) = &agg.lifecycle {
+                if &lc.field == field {
+                    return lc.transitions.iter().any(|t| &t.to_state == value);
+                }
+            }
+            false
+        }
+        Precondition::GreaterThan(field, _) | Precondition::GreaterOrEqual(field, _) => {
+            agg.commands.iter().any(|c| {
+                c.mutations.iter().any(|m| {
+                    &m.field == field
+                        && matches!(m.operation, MutationOp::Set | MutationOp::Increment)
+                })
+            })
+        }
+        Precondition::LessThan(field, _) => {
+            agg.commands.iter().any(|c| {
+                c.mutations.iter().any(|m| {
+                    &m.field == field
+                        && matches!(m.operation, MutationOp::Set | MutationOp::Decrement)
+                })
+            })
+        }
+        Precondition::NonEmptyList(field) => {
+            agg.commands.iter().any(|c| {
+                c.mutations.iter().any(|m| {
+                    &m.field == field && matches!(m.operation, MutationOp::Append)
+                })
+            })
+        }
+        Precondition::EmptyList(_) => true,
+    }
+}
+
+/// True if a mutation's RHS token (raw from the bluebook source) lands
+/// at `value`. Tolerates the three forms a Set mutation might write a
+/// string in: bare token (`accepted`), quoted (`"accepted"`), or
+/// already-trimmed.
+fn mutation_value_matches(raw: &str, value: &str) -> bool {
+    raw == value
+        || raw == format!("\"{}\"", value)
+        || raw.trim_matches('"') == value
+}
+
+/// Preconditions on the same aggregate that `cmd` requires. Returns
+/// every Precondition the planner knows how to satisfy, deduplicated.
+fn collect_preconditions(agg: &Aggregate, cmd: &Command) -> Vec<Precondition> {
+    let mut out: Vec<Precondition> = Vec::new();
+    let mut seen: BTreeSet<Precondition> = BTreeSet::new();
+
+    // From givens: parse the supported pattern set (equality, inequality,
+    // size checks). Unparseable givens cause the whole command_test to
+    // bail out earlier — by the time we get here, every given parses.
     for g in &cmd.givens {
-        if let Some(pair) = parse_equality(&g.expression) {
-            if seen.insert(pair.clone()) { out.push(pair); }
+        if let Some(pre) = parse_precondition(&g.expression) {
+            if seen.insert(pre.clone()) { out.push(pre); }
         }
     }
 
@@ -464,8 +628,8 @@ fn collect_preconditions(agg: &Aggregate, cmd: &Command) -> Vec<(String, String)
         {
             if let Some(t) = cmd_transitions.first() {
                 if let Some(from) = &t.from_state {
-                    let pair = (lc.field.clone(), from.clone());
-                    if seen.insert(pair.clone()) { out.push(pair); }
+                    let pre = Precondition::Equals(lc.field.clone(), from.clone());
+                    if seen.insert(pre.clone()) { out.push(pre); }
                 }
             }
         }
@@ -474,15 +638,15 @@ fn collect_preconditions(agg: &Aggregate, cmd: &Command) -> Vec<(String, String)
     out
 }
 
-/// Parse `field == "value"` (or `field == :value`) into (field, value).
-/// Returns None for shapes the planner can't reason about.
+/// Parse `field == "value"`, `field == :value`, `field == true`,
+/// `field == false`, or `field == 42` into (field, stringified value).
+/// Returns None for shapes the planner can't reason about (e.g. RHS is
+/// another field, like `passcode == stored_passcode`).
 fn parse_equality(expr: &str) -> Option<(String, String)> {
     let parts: Vec<&str> = expr.splitn(2, "==").collect();
     if parts.len() != 2 { return None; }
     let field = parts[0].trim().to_string();
-    if field.is_empty() || !field.chars().all(|c| c.is_alphanumeric() || c == '_') {
-        return None;
-    }
+    if !is_simple_field(&field) { return None; }
     let raw = parts[1].trim().trim_end_matches('}').trim();
     // Quoted string
     if raw.starts_with('"') {
@@ -495,22 +659,148 @@ fn parse_equality(expr: &str) -> Option<(String, String)> {
             .unwrap_or(sym.len());
         return Some((field, sym[..end].to_string()));
     }
+    // Boolean literal — runtime stores booleans as Bool(true)/Bool(false)
+    // and a then_set with `to: true` produces them. Carry the bare token
+    // through so the producer search matches `m.value == "true"`.
+    if raw == "true" || raw == "false" {
+        return Some((field, raw.to_string()));
+    }
+    // Integer literal — carry through unquoted so the find_producer
+    // mutation match (`m.value == value`) lines up with `then_set :n, to: 5`.
+    if raw.parse::<i64>().is_ok() {
+        return Some((field, raw.to_string()));
+    }
     None
 }
 
-/// Find a command on `agg` that puts `field` to `value` AND, after its
-/// full policy cascade, still leaves the aggregate in that state.
-/// Two sources:
-///   • a then_set mutation `to: "value"` on this field
-///   • a lifecycle transition with this field's to_state == value
+/// Parse `field > N`, `field >= N`, `field < N` (RHS must be a bare
+/// integer literal). Returns (field, op, n) where op is one of "gt",
+/// "gte", "lt". RHS-on-the-left forms (`0 < field`) are not supported.
+fn parse_inequality(expr: &str) -> Option<(String, &'static str, i64)> {
+    // Order matters: longer ops first so "field >= 0" doesn't get
+    // misread as "field > = 0" by the splitn check.
+    for (op, tag) in &[(">=", "gte"), ("<=", "lte"), (">", "gt"), ("<", "lt")] {
+        if !expr.contains(op) { continue; }
+        // For "<" / ">" alone, skip if the longer form is present.
+        if *op == ">" && expr.contains(">=") { continue; }
+        if *op == "<" && expr.contains("<=") { continue; }
+        let parts: Vec<&str> = expr.splitn(2, op).collect();
+        if parts.len() != 2 { continue; }
+        let field = parts[0].trim().to_string();
+        if !is_simple_field(&field) { continue; }
+        let raw = parts[1].trim().trim_end_matches('}').trim();
+        // Bare integer literal only — `field > other_field` is not
+        // satisfiable by the planner (would need symbolic reasoning).
+        if let Ok(n) = raw.parse::<i64>() {
+            return Some((field, tag, n));
+        }
+    }
+    None
+}
+
+/// Parse `field.size > N`, `field.size >= N`, `field.any?`, `field.empty?`
+/// into (field, op, n). Op is "gt", "gte", "any", or "empty".
+fn parse_size_check(expr: &str) -> Option<(String, &'static str, i64)> {
+    let trimmed = expr.trim().trim_end_matches('}').trim();
+    if let Some(field) = trimmed.strip_suffix(".any?") {
+        let f = field.trim().to_string();
+        if !is_simple_field(&f) { return None; }
+        return Some((f, "any", 0));
+    }
+    if let Some(field) = trimmed.strip_suffix(".empty?") {
+        let f = field.trim().to_string();
+        if !is_simple_field(&f) { return None; }
+        return Some((f, "empty", 0));
+    }
+    // `<field>.size <op> <n>` — reuse the inequality parser by shape.
+    let dot = trimmed.find(".size")?;
+    let field = trimmed[..dot].trim().to_string();
+    if !is_simple_field(&field) { return None; }
+    let rest = trimmed[dot + 5..].trim().trim_end_matches('}').trim();
+    for (op, tag) in &[(">=", "gte"), ("<=", "lte"), (">", "gt"), ("<", "lt"),
+                       ("==", "eq")] {
+        if !rest.starts_with(op) { continue; }
+        let raw = rest[op.len()..].trim();
+        if let Ok(n) = raw.parse::<i64>() {
+            return Some((field, tag, n));
+        }
+    }
+    None
+}
+
+/// Top-level parser — try every shape the planner knows. Returns None
+/// when the given expression doesn't match any supported pattern.
+fn parse_precondition(expr: &str) -> Option<Precondition> {
+    // Size checks must come BEFORE inequality so `field.size > 0` isn't
+    // mis-parsed as `field.size` GT-of-something.
+    if let Some((field, op, n)) = parse_size_check(expr) {
+        return match op {
+            // `size > 0` and `size >= 1` are both "non-empty" — one
+            // Append step satisfies them. Larger thresholds (`>= 2`,
+            // `> 5`) would need the planner to repeat the Append step
+            // N times, which it doesn't do; bail so the test is skipped
+            // rather than emitted with an unsatisfied chain.
+            "gt"  if n == 0 => Some(Precondition::NonEmptyList(field)),
+            "gte" if n == 1 => Some(Precondition::NonEmptyList(field)),
+            "any" => Some(Precondition::NonEmptyList(field)),
+            "empty" | "eq" if n == 0 => Some(Precondition::EmptyList(field)),
+            _ => None, // Other size shapes — not satisfiable in a single step.
+        };
+    }
+    if let Some((field, value)) = parse_equality(expr) {
+        return Some(Precondition::Equals(field, value));
+    }
+    if let Some((field, op, n)) = parse_inequality(expr) {
+        return match op {
+            "gt"  => Some(Precondition::GreaterThan(field, n)),
+            "gte" => Some(Precondition::GreaterOrEqual(field, n)),
+            "lt"  => Some(Precondition::LessThan(field, n)),
+            // <= isn't in the satisfiable set — too easy to overshoot.
+            _ => None,
+        };
+    }
+    None
+}
+
+/// True when `s` is a simple bareword field name (alpha/digit/underscore
+/// only). Filters out RHS expressions that happen to look like fields.
+fn is_simple_field(s: &str) -> bool {
+    !s.is_empty() && s.chars().all(|c| c.is_alphanumeric() || c == '_')
+}
+
+/// Find a command on `agg` whose effects, after the full policy cascade,
+/// satisfy `pre`. Strategy varies by precondition shape:
+///   * Equals(f,v)  — Set mutation `to: v` on f, OR lifecycle transition
+///     to v on f. Cascade-aware: a candidate that lands at v then emits
+///     into a chain that moves f past v is rejected.
+///   * GreaterThan(f,n) / GreaterOrEqual(f,n) — Set mutation landing f
+///     at an integer ≥ n+1 (or n for >=), OR an Increment mutation on f
+///     (treated as "fires once, brings field to 1" — sufficient when n
+///     is 0; for larger n the planner doesn't yet replicate the cmd N+1
+///     times, but most observed bluebooks gate on > 0).
+///   * LessThan(f,n) — Set mutation landing f at an integer < n.
+///     Defaults handle the n>0 case before we even get here.
+///   * NonEmptyList(f) — Append mutation on f.
+///   * EmptyList — never reached (default-satisfied earlier).
 ///
-/// Cascade-aware: a candidate that lands at `value` directly but then
-/// emits an event triggering more commands that move the field PAST
-/// `value` is rejected — using it as setup would overshoot the target
-/// state and the caller's `given` clause would fail. When every
-/// candidate over-cascades, returns None and the caller marks the
-/// chain unsatisfiable (see `plan_setup_chain`).
+/// When every candidate over-cascades, returns None and the caller marks
+/// the chain unsatisfiable (see `plan_setup_chain`).
 fn find_producer<'a>(
+    domain: &'a Domain,
+    agg: &'a Aggregate,
+    pre: &Precondition,
+) -> Option<&'a Command> {
+    match pre {
+        Precondition::Equals(field, value) => find_equals_producer(domain, agg, field, value),
+        Precondition::GreaterThan(field, n) => find_int_producer(domain, agg, field, *n + 1, true),
+        Precondition::GreaterOrEqual(field, n) => find_int_producer(domain, agg, field, *n, true),
+        Precondition::LessThan(field, n) => find_int_producer(domain, agg, field, *n - 1, false),
+        Precondition::NonEmptyList(field) => find_append_producer(agg, field),
+        Precondition::EmptyList(_) => None,
+    }
+}
+
+fn find_equals_producer<'a>(
     domain: &'a Domain,
     agg: &'a Aggregate,
     field: &str,
@@ -529,9 +819,7 @@ fn find_producer<'a>(
         c.mutations.iter().any(|m| {
             matches!(m.operation, MutationOp::Set)
                 && m.field == field
-                && (m.value == value
-                    || m.value == format!("\"{}\"", value)
-                    || m.value.trim_matches('"') == value)
+                && mutation_value_matches(&m.value, value)
         })
     }).find(satisfies);
     if by_mutation.is_some() { return by_mutation; }
@@ -549,21 +837,64 @@ fn find_producer<'a>(
     None
 }
 
-/// Track what fields a command produces (after it runs successfully).
-fn track_produced(agg: &Aggregate, cmd: &Command, produced: &mut BTreeSet<(String, String)>) {
-    for m in &cmd.mutations {
-        if let MutationOp::Set = m.operation {
-            let val = m.value.trim_matches('"').to_string();
-            produced.insert((m.field.clone(), val));
+/// Find a producer that lands `field` at an integer satisfying the
+/// caller's bound. `at_least` chooses the direction: true means the
+/// chosen value must be ≥ `target`, false means ≤ `target`.
+///
+/// Increment producers count as "lands field at >= 1 from default 0",
+/// which is sufficient for `field > 0` / `field >= 1` (the common case).
+fn find_int_producer<'a>(
+    domain: &'a Domain,
+    agg: &'a Aggregate,
+    field: &str,
+    target: i64,
+    at_least: bool,
+) -> Option<&'a Command> {
+    // Direct Set with integer literal.
+    let by_set = agg.commands.iter().find(|c| {
+        c.mutations.iter().any(|m| {
+            if !matches!(m.operation, MutationOp::Set) || m.field != field { return false; }
+            let raw = m.value.trim().trim_matches('"');
+            let Ok(n) = raw.parse::<i64>() else { return false; };
+            if at_least { n >= target } else { n <= target }
+        })
+    });
+    if by_set.is_some() { return by_set; }
+
+    // Increment counts as a "raise it" producer; only useful for at_least
+    // bounds where target is small (one increment lands at 1). Reject
+    // when target > 1 since the chain only fires the producer once.
+    if at_least && target <= 1 {
+        let by_inc = agg.commands.iter().find(|c| {
+            c.mutations.iter().any(|m| {
+                matches!(m.operation, MutationOp::Increment) && m.field == field
+            })
+        });
+        if by_inc.is_some() {
+            // Cascade preservation: if the increment producer cascades
+            // into a Set that resets the field, the test would fail.
+            // simulate_cascade tracks Set/lifecycle only — Increment
+            // values aren't predicted, so we accept the producer when
+            // the cascade contains no Set on `field` after the increment.
+            let cascade = simulate_cascade(domain, agg, by_inc.unwrap());
+            let resets = cascade.iter().any(|(k, v)| {
+                k == field && v.trim_matches('"') == "0"
+            });
+            if !resets { return by_inc; }
         }
     }
-    if let Some(lc) = &agg.lifecycle {
-        for t in &lc.transitions {
-            if t.command == cmd.name {
-                produced.insert((lc.field.clone(), t.to_state.clone()));
-            }
-        }
-    }
+
+    // For LessThan with target == 0 we'd need a Decrement producer; not
+    // common enough to wire up — return None and the test gets skipped.
+    None
+}
+
+fn find_append_producer<'a>(agg: &'a Aggregate, field: &str) -> Option<&'a Command> {
+    agg.commands.iter().find(|c| {
+        c.mutations.iter().any(|m| {
+            matches!(m.operation, MutationOp::Append) && m.field == field
+        })
+    })
 }
 
 /// Emit a single setup line for a command on `agg`. Reference kwargs

@@ -9,6 +9,13 @@ Hecks.behaviors "PredictiveHealth" do
     expect ok: "true"
   end
 
+  test "CompleteProfile runs" do
+    tests "CompleteProfile", on: "GeneticProfile"
+    setup  "SubmitSample", patient_id: "sample", ethnicity: "sample"
+    setup  "RecordMarker", gene_name: "sample", variant: "sample", risk_factor: 1.0
+    expect ok: "true"
+  end
+
 
   # ── RiskModel aggregate ──────────────────────────────────────────
 

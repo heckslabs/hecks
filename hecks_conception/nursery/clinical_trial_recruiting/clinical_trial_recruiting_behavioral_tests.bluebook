@@ -25,6 +25,13 @@ Hecks.behaviors "ClinicalTrialRecruiting" do
     expect ok: "true"
   end
 
+  test "ApproveProtocol runs" do
+    tests "ApproveProtocol", on: "TrialProtocol"
+    setup  "DraftProtocol", protocol_name: "sample", target_enrollment: 1
+    setup  "AddCriterion", criterion_type: "sample", description: "sample"
+    expect ok: "true"
+  end
+
 
   # ── FreelanceParticipant aggregate ──────────────────────────────────────────
 
@@ -42,6 +49,13 @@ Hecks.behaviors "ClinicalTrialRecruiting" do
     setup  "DraftProtocol", protocol_name: "sample", target_enrollment: 1
     setup  "RegisterParticipant", participant_name: "sample", age: 1, availability: "sample"
     input  match_score: 1.0
+    expect ok: "true"
+  end
+
+  test "EnrollParticipant runs" do
+    tests "EnrollParticipant", on: "MatchResult"
+    setup  "MatchParticipant", match_score: 1.0
+    setup  "ScreenParticipant", criterion_type: "sample", passed: "sample", notes: "sample"
     expect ok: "true"
   end
 

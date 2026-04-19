@@ -9,6 +9,13 @@ Hecks.behaviors "Terroir" do
     expect ok: "true"
   end
 
+  test "CompleteSurvey runs" do
+    tests "CompleteSurvey", on: "GeologicalSurvey"
+    setup  "StartSurvey", survey_id: "sample", location: "sample"
+    setup  "RecordStratum", rock_type: "sample", depth_m: 1.0, mineral_content: "sample"
+    expect ok: "true"
+  end
+
 
   # ── Vineyard aggregate ──────────────────────────────────────────
 

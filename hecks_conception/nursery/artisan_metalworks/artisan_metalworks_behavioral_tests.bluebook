@@ -25,6 +25,12 @@ Hecks.behaviors "ArtisanMetalworks" do
     expect ok: "true"
   end
 
+  test "TapSmelt runs" do
+    tests "TapSmelt", on: "SmeltBatch"
+    setup  "ChargeFurnace", volume_kg: 1.0
+    expect ok: "true"
+  end
+
   test "GradeBatch sets quality_grade" do
     tests "GradeBatch", on: "SmeltBatch"
     setup  "ChargeFurnace", volume_kg: 1.0
@@ -39,6 +45,13 @@ Hecks.behaviors "ArtisanMetalworks" do
     tests "SketchDesign", on: "JewelryDesign"
     setup  "FormulatAlloy", name: "sample", carbon_content: 1.0, target_hardness: 1.0
     input  title: "sample", style: "sample"
+    expect ok: "true"
+  end
+
+  test "ApproveDesign runs" do
+    tests "ApproveDesign", on: "JewelryDesign"
+    setup  "SketchDesign", title: "sample", style: "sample"
+    setup  "SetGem", gem_type: "sample", carat: 1.0, setting_style: "sample"
     expect ok: "true"
   end
 

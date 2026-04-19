@@ -9,6 +9,13 @@ Hecks.behaviors "PerishableRescue" do
     expect ok: "true"
   end
 
+  test "ApproveDonation runs" do
+    tests "ApproveDonation", on: "FoodDonation"
+    setup  "ReceiveDonation", donor_name: "sample", donation_date: "sample"
+    setup  "AddItem", food_type: "sample", weight_kg: 1.0, expiry_date: "sample", temp_requirement_c: 1.0
+    expect ok: "true"
+  end
+
 
   # ── ColdChainRoute aggregate ──────────────────────────────────────────
 
@@ -31,6 +38,13 @@ Hecks.behaviors "PerishableRescue" do
     tests "ScheduleDistribution", on: "Distribution"
     setup  "ReceiveDonation", donor_name: "sample", donation_date: "sample"
     input  site_name: "sample", distribution_date: "sample"
+    expect ok: "true"
+  end
+
+  test "ExecuteDistribution runs" do
+    tests "ExecuteDistribution", on: "Distribution"
+    setup  "ScheduleDistribution", site_name: "sample", distribution_date: "sample"
+    setup  "RegisterRecipient", family_id: "sample", family_size: 1, dietary_needs: "sample"
     expect ok: "true"
   end
 

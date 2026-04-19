@@ -25,6 +25,13 @@ Hecks.behaviors "CallCenter" do
     expect status: "available", active_tickets: 0
   end
 
+  test "AssignTicket runs" do
+    tests "AssignTicket", on: "Agent"
+    setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
+    setup  "HireAgent", name: "sample", skill_level: "sample"
+    expect ok: "true"
+  end
+
   test "SetAgentBreak runs" do
     tests "SetAgentBreak", on: "Agent"
     setup  "HireAgent", name: "sample", skill_level: "sample"

@@ -28,12 +28,26 @@ Hecks.behaviors "SmartGrocery" do
     expect ok: "true"
   end
 
+  test "ApprovePlan runs" do
+    tests "ApprovePlan", on: "MealPlan"
+    setup  "GeneratePlan", week_start: "sample"
+    setup  "AddMeal", day: "sample", meal_type: "sample", recipe_name: "sample", calories: 1
+    expect ok: "true"
+  end
+
 
   # ── ShoppingList aggregate ──────────────────────────────────────────
 
   test "Compile runs" do
     tests "Compile", on: "ShoppingList"
     setup  "GeneratePlan", week_start: "sample"
+    expect ok: "true"
+  end
+
+  test "Checkout runs" do
+    tests "Checkout", on: "ShoppingList"
+    setup  "Compile"
+    setup  "AddItem", product_name: "sample", quantity: 1, aisle: "sample"
     expect ok: "true"
   end
 

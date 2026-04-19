@@ -67,6 +67,12 @@ Hecks.behaviors "Law" do
     expect enforced_at: "sample"
   end
 
+  test "PassAll runs" do
+    tests "PassAll", on: "Enforcement"
+    setup  "Enforce", scope: "sample"
+    expect verdict: "lawful"
+  end
+
   test "FailSome runs" do
     tests "FailSome", on: "Enforcement"
     setup  "Enforce", scope: "sample"
