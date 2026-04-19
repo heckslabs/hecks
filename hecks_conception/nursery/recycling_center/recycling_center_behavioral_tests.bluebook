@@ -75,21 +75,6 @@ Hecks.behaviors "RecyclingCenter" do
     expect status: "staged"
   end
 
-  test "StageBale runs" do
-    tests "StageBale", on: "Bale"
-    setup  "PressBale", weight_tons: 1.0
-    setup  "InspectBale"
-    expect status: "staged"
-  end
-
-  test "ShipBale runs" do
-    tests "ShipBale", on: "Bale"
-    setup  "PressBale", weight_tons: 1.0
-    setup  "InspectBale"
-    setup  "StageBale"
-    expect status: "shipped"
-  end
-
 
   # ── ContaminationReport aggregate ──────────────────────────────────────────
 

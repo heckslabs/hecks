@@ -12,13 +12,6 @@ Hecks.behaviors "WildlifeForensics" do
   test "TransferEvidence runs" do
     tests "TransferEvidence", on: "Evidence"
     setup  "CollectEvidence", evidence_id: "sample", evidence_type: "sample", location_found: "sample", collected_by: "sample", timestamp: "sample"
-    expect status: "in_lab"
-  end
-
-  test "AnalyzeEvidence runs" do
-    tests "AnalyzeEvidence", on: "Evidence"
-    setup  "CollectEvidence", evidence_id: "sample", evidence_type: "sample", location_found: "sample", collected_by: "sample", timestamp: "sample"
-    setup  "TransferEvidence"
     expect status: "analyzed"
   end
 
@@ -78,15 +71,7 @@ Hecks.behaviors "WildlifeForensics" do
     tests "SequenceDNA", on: "DNAAnalysis"
     setup  "ExtractDNA", analysis_id: "sample", evidence_id: "sample", extraction_method: "sample"
     input  sequence_region: "sample"
-    expect sequence_region: "sample", match_confidence_pct: 1.0, status: "sequenced"
-  end
-
-  test "MatchDatabase sets match_confidence_pct" do
-    tests "MatchDatabase", on: "DNAAnalysis"
-    setup  "ExtractDNA", analysis_id: "sample", evidence_id: "sample", extraction_method: "sample"
-    setup  "SequenceDNA", sequence_region: "sample"
-    input  match_confidence_pct: 1.0
-    expect match_confidence_pct: 1.0, status: "matched"
+    expect sequence_region: "sample", match_confidence_pct: 1.0, status: "matched"
   end
 
 end

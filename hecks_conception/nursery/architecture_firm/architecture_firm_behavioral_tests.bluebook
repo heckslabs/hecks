@@ -16,12 +16,6 @@ Hecks.behaviors "ArchitectureFirm" do
     expect phase: "sample"
   end
 
-  test "CloseOutProject runs" do
-    tests "CloseOutProject", on: "ArchProject"
-    setup  "AcceptProject", name: "sample", building_type: "sample", square_footage: 1.0, budget: 1.0
-    expect phase: "closed"
-  end
-
 
   # ── Drawing aggregate ──────────────────────────────────────────
 

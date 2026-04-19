@@ -16,22 +16,6 @@ Hecks.behaviors "PublicLibrary" do
     expect status: "available"
   end
 
-  test "ShelveBook runs" do
-    tests "ShelveBook", on: "Book"
-    setup  "AcquireBook", isbn: "sample", title: "sample", author: "sample", genre: "sample", copies_available: 1
-    setup  "CatalogBook", dewey_decimal: "sample"
-    expect status: "available"
-  end
-
-  test "WithdrawBook sets reason" do
-    tests "WithdrawBook", on: "Book"
-    setup  "AcquireBook", isbn: "sample", title: "sample", author: "sample", genre: "sample", copies_available: 1
-    setup  "CatalogBook", dewey_decimal: "sample"
-    setup  "ShelveBook"
-    input  reason: "sample"
-    expect status: "withdrawn"
-  end
-
 
   # ── Patron aggregate ──────────────────────────────────────────
 

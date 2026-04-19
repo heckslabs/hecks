@@ -22,14 +22,6 @@ Hecks.behaviors "Calligraphy" do
     expect status: "delivered"
   end
 
-  test "DeliverCommission runs" do
-    tests "DeliverCommission", on: "CalligraphyCommission"
-    setup  "QuoteCommission", client_name: "sample", text_content: "sample", purpose: "sample", deadline: "sample"
-    setup  "AcceptCommission"
-    setup  "LetterCommission"
-    expect status: "delivered"
-  end
-
 
   # ── Script aggregate ──────────────────────────────────────────
 

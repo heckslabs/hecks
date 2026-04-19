@@ -57,14 +57,6 @@ Hecks.behaviors "PhotographyStudio" do
     expect finals_count: 1, status: "delivered"
   end
 
-  test "DeliverFinals sets finals_count" do
-    tests "DeliverFinals", on: "EditSession"
-    setup  "CullSelects", selects_count: 1
-    setup  "RetouchSelects", preset_name: "sample"
-    input  finals_count: 1
-    expect finals_count: 1, status: "delivered"
-  end
-
 
   # ── Gallery aggregate ──────────────────────────────────────────
 

@@ -46,13 +46,6 @@ Hecks.behaviors "CoffeeShop" do
     expect status: "served"
   end
 
-  test "ServeDrink runs" do
-    tests "ServeDrink", on: "DrinkOrder"
-    setup  "PlaceOrder", order_id: "sample", customer_name: "sample"
-    setup  "PrepareDrink"
-    expect status: "served"
-  end
-
 
   # ── BeanSupply aggregate ──────────────────────────────────────────
 

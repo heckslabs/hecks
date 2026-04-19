@@ -36,13 +36,6 @@ Hecks.behaviors "GolfCourse" do
     expect status: "available"
   end
 
-  test "ReturnCart runs" do
-    tests "ReturnCart", on: "GolfCart"
-    setup  "RegisterCart", cart_id: "sample", cart_type: "sample", seating_capacity: 1, rental_fee: 1.0
-    setup  "RentCart"
-    expect status: "available"
-  end
-
   test "ServiceCart runs" do
     tests "ServiceCart", on: "GolfCart"
     setup  "RegisterCart", cart_id: "sample", cart_type: "sample", seating_capacity: 1, rental_fee: 1.0
@@ -92,13 +85,6 @@ Hecks.behaviors "GolfCourse" do
   test "StartTournament runs" do
     tests "StartTournament", on: "GolfTournament"
     setup  "ScheduleTournament", tournament_id: "sample", name: "sample", format: "sample", date: "sample", max_players: 1, entry_fee: 1.0
-    expect status: "concluded"
-  end
-
-  test "AwardPrizes runs" do
-    tests "AwardPrizes", on: "GolfTournament"
-    setup  "ScheduleTournament", tournament_id: "sample", name: "sample", format: "sample", date: "sample", max_players: 1, entry_fee: 1.0
-    setup  "StartTournament"
     expect status: "concluded"
   end
 

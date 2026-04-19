@@ -60,15 +60,6 @@ Hecks.behaviors "WarehouseManagement" do
     expect status: "staged"
   end
 
-  test "StagePallet runs" do
-    tests "StagePallet", on: "Pallet"
-    setup  "ReceivePallet", pallet_id: "sample", sku: "sample", quantity: 1
-    setup  "InspectPallet"
-    setup  "StowPallet"
-    setup  "PickPallet"
-    expect status: "staged"
-  end
-
 
   # ── PickList aggregate ──────────────────────────────────────────
 
@@ -97,13 +88,6 @@ Hecks.behaviors "WarehouseManagement" do
   test "LoadShipment runs" do
     tests "LoadShipment", on: "Shipment"
     setup  "PrepareShipment", carrier: "sample", destination: "sample"
-    expect status: "dispatched"
-  end
-
-  test "DispatchShipment runs" do
-    tests "DispatchShipment", on: "Shipment"
-    setup  "PrepareShipment", carrier: "sample", destination: "sample"
-    setup  "LoadShipment"
     expect status: "dispatched"
   end
 

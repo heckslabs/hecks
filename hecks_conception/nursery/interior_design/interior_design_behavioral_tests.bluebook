@@ -88,12 +88,4 @@ Hecks.behaviors "InteriorDesign" do
     expect status: "resolved"
   end
 
-  test "ResolvePunchList sets punch_list" do
-    tests "ResolvePunchList", on: "Installation"
-    setup  "ScheduleInstallation", date: "sample", crew_lead: "sample"
-    setup  "CompleteInstallation"
-    input  punch_list: "sample"
-    expect status: "resolved"
-  end
-
 end

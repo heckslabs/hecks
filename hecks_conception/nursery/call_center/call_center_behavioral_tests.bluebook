@@ -16,50 +16,6 @@ Hecks.behaviors "CallCenter" do
     expect status: "in_progress"
   end
 
-  test "BeginWork runs" do
-    tests "BeginWork", on: "Ticket"
-    setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
-    setup  "AssignToAgent"
-    expect status: "in_progress"
-  end
-
-  test "ResolveTicket sets resolution_note" do
-    tests "ResolveTicket", on: "Ticket"
-    setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
-    setup  "AssignToAgent"
-    setup  "BeginWork"
-    input  resolution_note: "sample"
-    expect status: "closed"
-  end
-
-  test "CloseTicket runs" do
-    tests "CloseTicket", on: "Ticket"
-    setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
-    setup  "AssignToAgent"
-    setup  "BeginWork"
-    setup  "ResolveTicket", resolution_note: "sample"
-    expect status: "closed"
-  end
-
-  test "ReopenTicket sets reason" do
-    tests "ReopenTicket", on: "Ticket"
-    setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
-    setup  "AssignToAgent"
-    setup  "BeginWork"
-    setup  "ResolveTicket", resolution_note: "sample"
-    input  reason: "sample"
-    expect status: "open"
-  end
-
-  test "EscalateTicket sets reason" do
-    tests "EscalateTicket", on: "Ticket"
-    setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
-    setup  "AssignToAgent"
-    setup  "BeginWork"
-    input  reason: "sample"
-    expect priority: "urgent"
-  end
-
 
   # ── Agent aggregate ──────────────────────────────────────────
 

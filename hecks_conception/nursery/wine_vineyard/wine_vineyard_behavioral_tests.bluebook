@@ -84,13 +84,6 @@ Hecks.behaviors "WineVineyard" do
     expect label_name: "sample", status: "released"
   end
 
-  test "ReleaseForSale runs" do
-    tests "ReleaseForSale", on: "BottlingRun"
-    setup  "BottleWine", bottle_count: 1, bottle_date: "sample", alcohol_percent: 1.0, closure_type: "sample"
-    setup  "LabelBottles", label_name: "sample"
-    expect status: "released"
-  end
-
 
   # ── TastingNote aggregate ──────────────────────────────────────────
 

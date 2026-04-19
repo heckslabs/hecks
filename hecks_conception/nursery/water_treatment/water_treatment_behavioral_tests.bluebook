@@ -61,14 +61,6 @@ Hecks.behaviors "WaterTreatment" do
     expect status: "active"
   end
 
-  test "RestoreProcess runs" do
-    tests "RestoreProcess", on: "TreatmentProcess"
-    setup  "ConfigureProcess", stage_name: "sample", technology: "sample"
-    setup  "ActivateProcess"
-    setup  "BypassProcess", reason: "sample"
-    expect status: "active"
-  end
-
 
   # ── WaterSample aggregate ──────────────────────────────────────────
 
@@ -83,20 +75,6 @@ Hecks.behaviors "WaterTreatment" do
     tests "AnalyzeSample", on: "WaterSample"
     setup  "CollectSample", sample_point: "sample"
     expect status: "approved"
-  end
-
-  test "ApproveSample runs" do
-    tests "ApproveSample", on: "WaterSample"
-    setup  "CollectSample", sample_point: "sample"
-    setup  "AnalyzeSample"
-    expect status: "approved"
-  end
-
-  test "RejectSample runs" do
-    tests "RejectSample", on: "WaterSample"
-    setup  "CollectSample", sample_point: "sample"
-    setup  "AnalyzeSample"
-    expect status: "rejected"
   end
 
 

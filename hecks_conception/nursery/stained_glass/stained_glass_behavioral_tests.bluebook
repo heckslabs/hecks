@@ -70,14 +70,6 @@ Hecks.behaviors "StainedGlass" do
     expect status: "finished"
   end
 
-  test "ApplyPatina sets patina_type" do
-    tests "ApplyPatina", on: "Leadwork"
-    setup  "PrepareCame", came_profile: "sample", came_width_mm: 1.0
-    setup  "SolderJoints", solder_type: "sample"
-    input  patina_type: "sample"
-    expect status: "finished"
-  end
-
 
   # ── GlassInstallation aggregate ──────────────────────────────────────────
 

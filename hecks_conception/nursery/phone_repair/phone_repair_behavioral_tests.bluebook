@@ -30,13 +30,6 @@ Hecks.behaviors "PhoneRepair" do
     expect status: "closed"
   end
 
-  test "CloseTicket runs" do
-    tests "CloseTicket", on: "RepairTicket"
-    setup  "OpenTicket", ticket_id: "sample", device_id: "sample", issue_description: "sample", estimated_cost: 1.0, priority: "sample"
-    setup  "BeginRepair"
-    expect status: "closed"
-  end
-
 
   # ── Part aggregate ──────────────────────────────────────────
 

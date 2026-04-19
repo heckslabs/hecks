@@ -15,39 +15,6 @@ Hecks.behaviors "TrainScheduling" do
     expect status: "running"
   end
 
-  test "DispatchTrain runs" do
-    tests "DispatchTrain", on: "Train"
-    setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
-    setup  "PrepareForService"
-    expect status: "running"
-  end
-
-  test "ArriveAtStation runs" do
-    tests "ArriveAtStation", on: "Train"
-    setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
-    setup  "PrepareForService"
-    setup  "DispatchTrain"
-    expect status: "at_station"
-  end
-
-  test "DepartStation runs" do
-    tests "DepartStation", on: "Train"
-    setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
-    setup  "PrepareForService"
-    setup  "DispatchTrain"
-    setup  "ArriveAtStation"
-    expect status: "running"
-  end
-
-  test "TerminateService runs" do
-    tests "TerminateService", on: "Train"
-    setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
-    setup  "PrepareForService"
-    setup  "DispatchTrain"
-    setup  "ArriveAtStation"
-    expect status: "terminated"
-  end
-
   test "WithdrawTrain sets reason" do
     tests "WithdrawTrain", on: "Train"
     setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1

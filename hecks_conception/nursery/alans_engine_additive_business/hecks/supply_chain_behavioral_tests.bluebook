@@ -50,32 +50,7 @@ Hecks.behaviors "SupplyChain" do
     tests "ReceiveMaterial", on: "RawMaterial"
     setup  "SourceMaterial", chemical_name: "sample", cas_number: "sample", supplier: "sample", grade: "sample", unit_cost: 1.0, unit: "sample"
     input  lot_number: "sample"
-    expect lot_number: "sample", status: "received"
-  end
-
-  test "InspectMaterial runs" do
-    tests "InspectMaterial", on: "RawMaterial"
-    setup  "SourceMaterial", chemical_name: "sample", cas_number: "sample", supplier: "sample", grade: "sample", unit_cost: 1.0, unit: "sample"
-    setup  "ReceiveMaterial", lot_number: "sample"
-    expect status: "inspecting"
-  end
-
-  test "AcceptMaterial sets coa_on_file" do
-    tests "AcceptMaterial", on: "RawMaterial"
-    setup  "SourceMaterial", chemical_name: "sample", cas_number: "sample", supplier: "sample", grade: "sample", unit_cost: 1.0, unit: "sample"
-    setup  "ReceiveMaterial", lot_number: "sample"
-    setup  "InspectMaterial"
-    input  coa_on_file: "sample"
-    expect coa_on_file: "sample", status: "accepted"
-  end
-
-  test "RejectMaterial sets reason" do
-    tests "RejectMaterial", on: "RawMaterial"
-    setup  "SourceMaterial", chemical_name: "sample", cas_number: "sample", supplier: "sample", grade: "sample", unit_cost: 1.0, unit: "sample"
-    setup  "ReceiveMaterial", lot_number: "sample"
-    setup  "InspectMaterial"
-    input  reason: "sample"
-    expect status: "rejected"
+    expect lot_number: "sample", status: "inspecting"
   end
 
   test "TrackLot runs" do

@@ -112,14 +112,7 @@ Hecks.behaviors "MaterialsScience" do
     tests "TriggerTransition", on: "PhaseTransition"
     setup  "HeatMaterial", material_name: "sample", temperature: 1.0, pressure: 1.0
     input  target_phase: "sample"
-    expect target_phase: "sample", status: "melting"
-  end
-
-  test "Quench runs" do
-    tests "Quench", on: "PhaseTransition"
-    setup  "HeatMaterial", material_name: "sample", temperature: 1.0, pressure: 1.0
-    setup  "TriggerTransition", target_phase: "sample"
-    expect status: "solid"
+    expect target_phase: "sample", status: "solid"
   end
 
 

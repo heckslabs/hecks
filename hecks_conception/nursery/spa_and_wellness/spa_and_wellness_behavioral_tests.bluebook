@@ -46,13 +46,6 @@ Hecks.behaviors "SpaAndWellness" do
     expect status: "available"
   end
 
-  test "ReleaseRoom runs" do
-    tests "ReleaseRoom", on: "SpaRoom"
-    setup  "PrepareRoom", room_id: "sample", name: "sample", room_type: "sample", capacity: 1
-    setup  "OccupyRoom"
-    expect status: "available"
-  end
-
 
   # ── RetailProduct aggregate ──────────────────────────────────────────
 

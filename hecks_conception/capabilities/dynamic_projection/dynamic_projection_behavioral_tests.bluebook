@@ -40,17 +40,10 @@ Hecks.behaviors "DynamicProjection" do
     expect aggregate_name: "sample", bluebook_path: "sample", status: "current"
   end
 
-  test "RegeneratePage runs" do
-    tests "RegeneratePage", on: "PageProjection"
-    setup  "ProjectPage", aggregate_name: "sample", bluebook_path: "sample"
-    setup  "FlagStale"
-    expect status: "current"
-  end
-
   test "FlagStale runs" do
     tests "FlagStale", on: "PageProjection"
     setup  "ProjectPage", aggregate_name: "sample", bluebook_path: "sample"
-    expect status: "stale"
+    expect status: "current"
   end
 
 

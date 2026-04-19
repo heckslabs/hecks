@@ -50,13 +50,6 @@ Hecks.behaviors "Planetarium" do
   test "RehearsalShow runs" do
     tests "RehearsalShow", on: "Show"
     setup  "ProjectShow", title: "sample", theme: "sample", duration_minutes: 1, target_audience: "sample", narration_type: "sample"
-    expect status: "rehearsed"
-  end
-
-  test "PublishShow runs" do
-    tests "PublishShow", on: "Show"
-    setup  "ProjectShow", title: "sample", theme: "sample", duration_minutes: 1, target_audience: "sample", narration_type: "sample"
-    setup  "RehearsalShow"
     expect status: "published"
   end
 

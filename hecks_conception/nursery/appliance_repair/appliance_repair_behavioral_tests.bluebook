@@ -16,12 +16,6 @@ Hecks.behaviors "ApplianceRepair" do
     expect ok: "true"
   end
 
-  test "CloseTicket runs" do
-    tests "CloseTicket", on: "RepairTicket"
-    setup  "ScheduleRepair", customer_name: "sample", address: "sample", appliance_type: "sample", symptom: "sample", scheduled_date: "sample"
-    expect ok: "true"
-  end
-
 
   # ── Appliance aggregate ──────────────────────────────────────────
 

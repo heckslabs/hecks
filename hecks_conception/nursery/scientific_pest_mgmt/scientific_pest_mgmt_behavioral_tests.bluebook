@@ -49,14 +49,6 @@ Hecks.behaviors "ScientificPestMgmt" do
   test "ApplyTreatment runs" do
     tests "ApplyTreatment", on: "Treatment"
     setup  "PrescribeTreatment", treatment_name: "sample", method: "sample", active_ingredient: "sample", concentration_pct: 1.0, target_life_stage: "sample"
-    expect effectiveness_pct: 1.0, status: "applied"
-  end
-
-  test "EvaluateEffectiveness sets effectiveness_pct" do
-    tests "EvaluateEffectiveness", on: "Treatment"
-    setup  "PrescribeTreatment", treatment_name: "sample", method: "sample", active_ingredient: "sample", concentration_pct: 1.0, target_life_stage: "sample"
-    setup  "ApplyTreatment"
-    input  effectiveness_pct: 1.0
     expect effectiveness_pct: 1.0, status: "evaluated"
   end
 

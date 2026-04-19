@@ -15,14 +15,6 @@ Hecks.behaviors "Taxidermy" do
     expect status: "tanned"
   end
 
-  test "TanHide sets tanning_method" do
-    tests "TanHide", on: "Specimen"
-    setup  "ReceiveSpecimen", species: "sample", common_name: "sample", weight_lbs: 1.0, source_type: "sample"
-    setup  "SkinSpecimen"
-    input  tanning_method: "sample"
-    expect status: "tanned"
-  end
-
 
   # ── Pose aggregate ──────────────────────────────────────────
 

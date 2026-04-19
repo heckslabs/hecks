@@ -61,13 +61,6 @@ Hecks.behaviors "OrganDonation" do
     expect crossmatch_result: "sample", status: "accepted"
   end
 
-  test "AcceptMatch runs" do
-    tests "AcceptMatch", on: "OrganMatch"
-    setup  "PerformMatch", donor_name: "sample", recipient_name: "sample", organ_name: "sample", compatibility_score: "sample"
-    setup  "RecordCrossmatch", crossmatch_result: "sample"
-    expect status: "accepted"
-  end
-
 
   # ── OrganTransport aggregate ──────────────────────────────────────────
 

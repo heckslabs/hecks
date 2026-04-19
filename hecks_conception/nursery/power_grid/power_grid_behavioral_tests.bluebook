@@ -40,21 +40,6 @@ Hecks.behaviors "PowerGrid" do
     expect status: "energized"
   end
 
-  test "InspectLine runs" do
-    tests "InspectLine", on: "TransmissionLine"
-    setup  "EnergizeLine", line_id: "sample", conductor_type: "sample", length_miles: 1.0, rating_mw: 1.0
-    setup  "TripLine", fault_type: "sample"
-    expect status: "energized"
-  end
-
-  test "RestoreLine runs" do
-    tests "RestoreLine", on: "TransmissionLine"
-    setup  "EnergizeLine", line_id: "sample", conductor_type: "sample", length_miles: 1.0, rating_mw: 1.0
-    setup  "TripLine", fault_type: "sample"
-    setup  "InspectLine"
-    expect status: "energized"
-  end
-
 
   # ── LoadZone aggregate ──────────────────────────────────────────
 

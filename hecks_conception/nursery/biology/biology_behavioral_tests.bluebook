@@ -197,7 +197,7 @@ Hecks.behaviors "Biology" do
     tests "AddSpecies", on: "Ecosystem"
     setup  "EstablishEcosystem", name: "sample", biome: "sample", area: 1.0, energy_input: 1.0
     input  species_name: "sample", initial_count: 1, trophic_level: "sample"
-    expect status: "developing"
+    expect status: "stable"
   end
 
   test "TrackPopulation sets species_name + new_count + growth_rate" do
@@ -207,27 +207,11 @@ Hecks.behaviors "Biology" do
     expect ok: "true"
   end
 
-  test "ModelFoodWeb runs" do
-    tests "ModelFoodWeb", on: "Ecosystem"
-    setup  "EstablishEcosystem", name: "sample", biome: "sample", area: 1.0, energy_input: 1.0
-    setup  "AddSpecies", species_name: "sample", initial_count: 1, trophic_level: "sample"
-    expect status: "stable"
-  end
-
   test "MeasureBiodiversity sets biodiversity_index" do
     tests "MeasureBiodiversity", on: "Ecosystem"
     setup  "EstablishEcosystem", name: "sample", biome: "sample", area: 1.0, energy_input: 1.0
     input  biodiversity_index: 1.0
     expect biodiversity_index: 1.0
-  end
-
-  test "RemoveSpecies sets species_name + cause" do
-    tests "RemoveSpecies", on: "Ecosystem"
-    setup  "EstablishEcosystem", name: "sample", biome: "sample", area: 1.0, energy_input: 1.0
-    setup  "AddSpecies", species_name: "sample", initial_count: 1, trophic_level: "sample"
-    setup  "ModelFoodWeb"
-    input  species_name: "sample", cause: "sample"
-    expect biodiversity_index: 1.0, status: "disturbed"
   end
 
 
@@ -331,31 +315,7 @@ Hecks.behaviors "Biology" do
     tests "FireNeuron", on: "Neuron"
     setup  "DefineNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
     input  stimulus_strength: 1.0
-    expect state: "firing"
-  end
-
-  test "Depolarize sets potential_change" do
-    tests "Depolarize", on: "Neuron"
-    setup  "DefineNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
-    setup  "FireNeuron", stimulus_strength: 1.0
-    setup  "Repolarize"
-    input  potential_change: 1.0
-    expect state: "resting"
-  end
-
-  test "Repolarize runs" do
-    tests "Repolarize", on: "Neuron"
-    setup  "DefineNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
-    setup  "FireNeuron", stimulus_strength: 1.0
     expect state: "refractory"
-  end
-
-  test "ReleaseSynapse sets target_neuron + amount" do
-    tests "ReleaseSynapse", on: "Neuron"
-    setup  "DefineNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
-    setup  "FireNeuron", stimulus_strength: 1.0
-    input  target_neuron: "sample", amount: 1.0
-    expect ok: "true"
   end
 
   test "PropagateSignal sets conduction_type + velocity" do
@@ -392,7 +352,7 @@ Hecks.behaviors "Biology" do
     tests "MountResponse", on: "ImmuneResponse"
     setup  "DetectPathogen", pathogen_name: "sample", pathogen_type: "sample", severity: "sample"
     input  response_type: "sample"
-    expect response_type: "adaptive", antibody_generated: "sample", status: "active"
+    expect response_type: "adaptive", status: "active", antibody_generated: "sample"
   end
 
   test "GenerateAntibody sets antibody_name + isotype" do
@@ -401,14 +361,6 @@ Hecks.behaviors "Biology" do
     setup  "MountResponse", response_type: "sample"
     input  antibody_name: "sample", isotype: "sample"
     expect antibody_generated: "sample"
-  end
-
-  test "RememberPathogen runs" do
-    tests "RememberPathogen", on: "ImmuneResponse"
-    setup  "DetectPathogen", pathogen_name: "sample", pathogen_type: "sample", severity: "sample"
-    setup  "MountResponse", response_type: "sample"
-    setup  "ResolveInfection"
-    expect memory_formed: "true", status: "immune"
   end
 
   test "Engulf sets cell_type + target" do
@@ -422,7 +374,7 @@ Hecks.behaviors "Biology" do
     tests "ResolveInfection", on: "ImmuneResponse"
     setup  "DetectPathogen", pathogen_name: "sample", pathogen_type: "sample", severity: "sample"
     setup  "MountResponse", response_type: "sample"
-    expect memory_formed: "true", status: "resolved"
+    expect memory_formed: "true", status: "immune"
   end
 
 

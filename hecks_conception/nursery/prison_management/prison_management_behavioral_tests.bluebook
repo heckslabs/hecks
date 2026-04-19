@@ -16,40 +16,6 @@ Hecks.behaviors "PrisonManagement" do
     expect status: "housed"
   end
 
-  test "HouseInmate runs" do
-    tests "HouseInmate", on: "Inmate"
-    setup  "OpenCell", cell_id: "sample", block: "sample", max_occupancy: 1, security_level: "sample"
-    setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
-    setup  "ClassifyInmate", classification: "sample"
-    expect status: "housed"
-  end
-
-  test "ReclassifyInmate sets new_classification" do
-    tests "ReclassifyInmate", on: "Inmate"
-    setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
-    setup  "ClassifyInmate", classification: "sample"
-    setup  "HouseInmate"
-    input  new_classification: "sample"
-    expect ok: "true"
-  end
-
-  test "PrepareForRelease runs" do
-    tests "PrepareForRelease", on: "Inmate"
-    setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
-    setup  "ClassifyInmate", classification: "sample"
-    setup  "HouseInmate"
-    expect status: "preparing_release"
-  end
-
-  test "ReleaseInmate runs" do
-    tests "ReleaseInmate", on: "Inmate"
-    setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
-    setup  "ClassifyInmate", classification: "sample"
-    setup  "HouseInmate"
-    setup  "PrepareForRelease"
-    expect status: "released"
-  end
-
 
   # ── Cell aggregate ──────────────────────────────────────────
 

@@ -6,7 +6,7 @@ Hecks.behaviors "HotelManagement" do
   test "AddRoom sets room_number + room_type + floor + nightly_rate + max_occupancy" do
     tests "AddRoom", on: "Room"
     input  room_number: "sample", room_type: "sample", floor: 1, nightly_rate: 1.0, max_occupancy: 1
-    expect room_number: "sample", room_type: "sample", floor: 1, nightly_rate: 1.0, max_occupancy: 1, status: "available"
+    expect max_occupancy: 1, room_number: "sample", room_type: "sample", floor: 1, nightly_rate: 1.0, status: "available"
   end
 
   test "BlockRoom runs" do
@@ -58,13 +58,6 @@ Hecks.behaviors "HotelManagement" do
   test "CompleteHousekeeping runs" do
     tests "CompleteHousekeeping", on: "HousekeepingTask"
     setup  "AssignHousekeeping", task_type: "sample", priority: "sample", assigned_to: "sample"
-    expect status: "inspected"
-  end
-
-  test "InspectRoom runs" do
-    tests "InspectRoom", on: "HousekeepingTask"
-    setup  "AssignHousekeeping", task_type: "sample", priority: "sample", assigned_to: "sample"
-    setup  "CompleteHousekeeping"
     expect status: "inspected"
   end
 

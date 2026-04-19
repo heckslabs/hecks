@@ -6,7 +6,7 @@ Hecks.behaviors "VeterinaryClinic" do
   test "RegisterPet sets name + species + breed + weight + date_of_birth" do
     tests "RegisterPet", on: "Pet"
     input  name: "sample", species: "sample", breed: "sample", weight: 1.0, date_of_birth: "sample"
-    expect name: "sample", species: "sample", breed: "sample", weight: 1.0, date_of_birth: "sample", status: "active"
+    expect date_of_birth: "sample", name: "sample", species: "sample", breed: "sample", weight: 1.0, status: "active"
   end
 
   test "RecordWeight sets weight" do

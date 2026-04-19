@@ -37,13 +37,6 @@ Hecks.behaviors "GameStore" do
     expect status: "concluded"
   end
 
-  test "ConcludeTournament runs" do
-    tests "ConcludeTournament", on: "Tournament"
-    setup  "ScheduleTournament", tournament_id: "sample", game_title: "sample", format: "sample", max_players: 1, entry_fee: 1.0, date: "sample"
-    setup  "LaunchTournament"
-    expect status: "concluded"
-  end
-
 
   # ── TradeIn aggregate ──────────────────────────────────────────
 

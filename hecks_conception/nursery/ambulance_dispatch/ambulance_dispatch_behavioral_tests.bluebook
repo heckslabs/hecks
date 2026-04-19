@@ -78,14 +78,6 @@ Hecks.behaviors "AmbulanceDispatch" do
     expect on_scene_at: "sample", transport_started_at: "sample", status: "transporting"
   end
 
-  test "TransportPatient sets transport_started_at" do
-    tests "TransportPatient", on: "DispatchRecord"
-    setup  "DispatchUnit", dispatched_at: "sample"
-    setup  "ArriveOnScene", on_scene_at: "sample"
-    input  transport_started_at: "sample"
-    expect transport_started_at: "sample", status: "transporting"
-  end
-
 
   # ── HospitalDestination aggregate ──────────────────────────────────────────
 

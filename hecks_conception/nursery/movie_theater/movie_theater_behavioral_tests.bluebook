@@ -23,12 +23,6 @@ Hecks.behaviors "MovieTheater" do
     tests "ScheduleShowing", on: "Showing"
     setup  "SetupScreen", screen_number: "sample", seat_count: 1, sound_format: "sample"
     input  film_title: "sample", showtime: "sample", rating: "sample"
-    expect status: "scheduled"
-  end
-
-  test "OpenSales runs" do
-    tests "OpenSales", on: "Showing"
-    setup  "ScheduleShowing", film_title: "sample", showtime: "sample", rating: "sample"
     expect status: "on_sale"
   end
 
@@ -37,47 +31,6 @@ Hecks.behaviors "MovieTheater" do
     setup  "ScheduleShowing", film_title: "sample", showtime: "sample", rating: "sample"
     input  patron_name: "sample", seat_number: "sample"
     expect ok: "true"
-  end
-
-  test "OpenDoors runs" do
-    tests "OpenDoors", on: "Showing"
-    setup  "ScheduleShowing", film_title: "sample", showtime: "sample", rating: "sample"
-    setup  "OpenSales"
-    expect status: "in_progress"
-  end
-
-  test "StartProjection runs" do
-    tests "StartProjection", on: "Showing"
-    setup  "ScheduleShowing", film_title: "sample", showtime: "sample", rating: "sample"
-    setup  "OpenSales"
-    setup  "OpenDoors"
-    expect status: "in_progress"
-  end
-
-  test "EndShowing runs" do
-    tests "EndShowing", on: "Showing"
-    setup  "ScheduleShowing", film_title: "sample", showtime: "sample", rating: "sample"
-    setup  "OpenSales"
-    setup  "OpenDoors"
-    setup  "StartProjection"
-    expect status: "cleared"
-  end
-
-  test "ClearAuditorium runs" do
-    tests "ClearAuditorium", on: "Showing"
-    setup  "ScheduleShowing", film_title: "sample", showtime: "sample", rating: "sample"
-    setup  "OpenSales"
-    setup  "OpenDoors"
-    setup  "StartProjection"
-    setup  "EndShowing"
-    expect status: "cleared"
-  end
-
-  test "CancelShowing sets reason" do
-    tests "CancelShowing", on: "Showing"
-    setup  "ScheduleShowing", film_title: "sample", showtime: "sample", rating: "sample"
-    input  reason: "sample"
-    expect status: "cancelled"
   end
 
 

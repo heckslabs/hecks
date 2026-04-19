@@ -42,7 +42,7 @@ Hecks.behaviors "Interpretation" do
   test "CompleteProcess runs" do
     tests "CompleteProcess", on: "Process"
     setup  "SpawnProcess", task: "sample", intent: "sample", heki_target: "sample"
-    expect status: "completed"
+    expect status: "absorbed"
   end
 
   test "FailProcess sets reason" do
@@ -50,13 +50,6 @@ Hecks.behaviors "Interpretation" do
     setup  "SpawnProcess", task: "sample", intent: "sample", heki_target: "sample"
     input  reason: "sample"
     expect status: "failed"
-  end
-
-  test "AbsorbFindings runs" do
-    tests "AbsorbFindings", on: "Process"
-    setup  "SpawnProcess", task: "sample", intent: "sample", heki_target: "sample"
-    setup  "CompleteProcess"
-    expect status: "absorbed"
   end
 
 

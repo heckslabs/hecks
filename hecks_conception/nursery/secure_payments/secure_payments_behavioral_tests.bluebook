@@ -34,22 +34,7 @@ Hecks.behaviors "SecurePayments" do
     tests "SignTransaction", on: "Transaction"
     setup  "InitiateTransaction", transaction_id: "sample", amount: 1.0, currency: "sample", payer: "sample", payee: "sample"
     input  signature_hash: "sample"
-    expect signature_hash: "sample", status: "signed"
-  end
-
-  test "VerifySignature runs" do
-    tests "VerifySignature", on: "Transaction"
-    setup  "InitiateTransaction", transaction_id: "sample", amount: 1.0, currency: "sample", payer: "sample", payee: "sample"
-    setup  "SignTransaction", signature_hash: "sample"
-    expect status: "verified"
-  end
-
-  test "SettleTransaction runs" do
-    tests "SettleTransaction", on: "Transaction"
-    setup  "InitiateTransaction", transaction_id: "sample", amount: 1.0, currency: "sample", payer: "sample", payee: "sample"
-    setup  "SignTransaction", signature_hash: "sample"
-    setup  "VerifySignature"
-    expect status: "settled"
+    expect signature_hash: "sample", status: "settled"
   end
 
 

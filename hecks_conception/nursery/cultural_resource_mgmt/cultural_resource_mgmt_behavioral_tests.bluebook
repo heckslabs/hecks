@@ -12,22 +12,7 @@ Hecks.behaviors "CulturalResourceMgmt" do
   test "AssessSite runs" do
     tests "AssessSite", on: "ArchaeologicalSite"
     setup  "DiscoverSite", site_id: "sample", location: "sample", era_period: "sample", significance_level: "sample"
-    expect status: "assessed"
-  end
-
-  test "ExcavateSite runs" do
-    tests "ExcavateSite", on: "ArchaeologicalSite"
-    setup  "DiscoverSite", site_id: "sample", location: "sample", era_period: "sample", significance_level: "sample"
-    setup  "AssessSite"
     expect status: "excavating"
-  end
-
-  test "ClearSite runs" do
-    tests "ClearSite", on: "ArchaeologicalSite"
-    setup  "DiscoverSite", site_id: "sample", location: "sample", era_period: "sample", significance_level: "sample"
-    setup  "AssessSite"
-    setup  "ExcavateSite"
-    expect status: "cleared"
   end
 
 

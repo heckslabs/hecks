@@ -6,7 +6,7 @@ Hecks.behaviors "FuneralHome" do
   test "RegisterDecedent sets first_name + last_name + date_of_birth + date_of_death + place_of_death + next_of_kin" do
     tests "RegisterDecedent", on: "Decedent"
     input  first_name: "sample", last_name: "sample", date_of_birth: "sample", date_of_death: "sample", place_of_death: "sample", next_of_kin: "sample"
-    expect first_name: "sample", last_name: "sample", date_of_birth: "sample", date_of_death: "sample", place_of_death: "sample", next_of_kin: "sample", status: "received"
+    expect place_of_death: "sample", first_name: "sample", last_name: "sample", date_of_birth: "sample", date_of_death: "sample", next_of_kin: "sample", status: "received"
   end
 
   test "PrepareRemains sets preparation_type" do

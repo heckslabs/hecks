@@ -28,14 +28,14 @@ Hecks.behaviors "Conception" do
     tests "AddFixtures", on: "Blueprint"
     setup  "StartConception", domain_name: "sample", vision: "sample", category: "sample"
     input  count: 1
-    expect completeness: "embryo", fixture_count: 1, gaps: "sample"
+    expect fixture_count: 1, gaps: "sample", completeness: "assessed"
   end
 
   test "AddAccessGates sets port_count + actor_count" do
     tests "AddAccessGates", on: "Blueprint"
     setup  "StartConception", domain_name: "sample", vision: "sample", category: "sample"
     input  port_count: 1, actor_count: 1
-    expect port_count: 1, actor_count: 1, completeness: "embryo"
+    expect completeness: "embryo", port_count: 1, actor_count: 1
   end
 
   test "AddPolicies sets count" do

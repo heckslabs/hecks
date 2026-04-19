@@ -50,7 +50,7 @@ Hecks.behaviors "MarineNavigation" do
   test "RegisterVessel sets name + vessel_type + length_meters + fuel_capacity_tons + max_speed_knots" do
     tests "RegisterVessel", on: "Vessel"
     input  name: "sample", vessel_type: "sample", length_meters: 1.0, fuel_capacity_tons: 1.0, max_speed_knots: 1.0
-    expect name: "sample", vessel_type: "sample", length_meters: 1.0, fuel_capacity_tons: 1.0, max_speed_knots: 1.0, current_fuel_tons: 1.0, status: "docked"
+    expect name: "sample", vessel_type: "sample", length_meters: 1.0, fuel_capacity_tons: 1.0, current_fuel_tons: 1.0, max_speed_knots: 1.0, status: "docked"
   end
 
   test "Depart runs" do

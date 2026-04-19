@@ -20,7 +20,7 @@ Hecks.behaviors "WarehouseRobotics" do
     setup  "ActivateRobot", robot_id: "sample", robot_type: "sample", max_payload_kg: 1.0, current_zone: "sample"
     setup  "AssignTask"
     input  battery_pct: 1.0
-    expect battery_pct: 1.0, status: "idle"
+    expect battery_pct: 1.0, status: "charging"
   end
 
   test "SendToCharger runs" do

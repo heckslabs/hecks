@@ -175,13 +175,6 @@ Hecks.behaviors "Mathematics" do
   test "SolveEquation runs" do
     tests "SolveEquation", on: "Equation"
     setup  "DefineEquation", left_side: "sample", right_side: "sample", equation_type: "sample"
-    expect status: "solved"
-  end
-
-  test "VerifyEquation runs" do
-    tests "VerifyEquation", on: "Equation"
-    setup  "DefineEquation", left_side: "sample", right_side: "sample", equation_type: "sample"
-    setup  "SolveEquation"
     expect status: "verified"
   end
 
@@ -558,13 +551,6 @@ Hecks.behaviors "Mathematics" do
   test "CompleteProof runs" do
     tests "CompleteProof", on: "Proof"
     setup  "ConstructProof", theorem: "sample", proof_method: "sample"
-    expect status: "complete"
-  end
-
-  test "VerifyProof runs" do
-    tests "VerifyProof", on: "Proof"
-    setup  "ConstructProof", theorem: "sample", proof_method: "sample"
-    setup  "CompleteProof"
     expect status: "verified"
   end
 

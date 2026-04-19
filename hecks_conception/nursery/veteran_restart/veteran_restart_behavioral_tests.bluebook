@@ -113,7 +113,7 @@ Hecks.behaviors "VeteranRestart" do
     tests "OpenCase", on: "LegalCase"
     setup  "EnrollVeteran", name: "sample", service_branch: "sample", discharge_type: "sample"
     input  case_type: "sample", description: "sample", assigned_attorney: "sample"
-    expect case_type: "sample", description: "sample", assigned_attorney: "sample", veteran: 1, status: "open"
+    expect veteran: 1, case_type: "sample", description: "sample", assigned_attorney: "sample", status: "open"
   end
 
   test "ResolveCase runs" do

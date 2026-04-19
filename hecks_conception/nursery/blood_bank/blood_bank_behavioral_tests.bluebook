@@ -63,23 +63,6 @@ Hecks.behaviors "BloodBank" do
     expect status: "issued"
   end
 
-  test "CrossmatchUnit sets patient_id" do
-    tests "CrossmatchUnit", on: "BloodUnit"
-    setup  "LabelUnit", blood_type: "sample", component: "sample", expiry_date: "sample"
-    setup  "ReleaseUnit"
-    input  patient_id: "sample"
-    expect status: "issued"
-  end
-
-  test "IssueUnit sets hospital_name" do
-    tests "IssueUnit", on: "BloodUnit"
-    setup  "LabelUnit", blood_type: "sample", component: "sample", expiry_date: "sample"
-    setup  "ReleaseUnit"
-    setup  "CrossmatchUnit", patient_id: "sample"
-    input  hospital_name: "sample"
-    expect status: "issued"
-  end
-
   test "DiscardUnit sets reason" do
     tests "DiscardUnit", on: "BloodUnit"
     setup  "LabelUnit", blood_type: "sample", component: "sample", expiry_date: "sample"

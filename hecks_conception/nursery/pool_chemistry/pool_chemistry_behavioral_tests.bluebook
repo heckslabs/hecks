@@ -42,13 +42,6 @@ Hecks.behaviors "PoolChemistry" do
   test "ExecuteDosing runs" do
     tests "ExecuteDosing", on: "DosingPlan"
     setup  "PrescribeDose", pool_name: "sample", chemical_name: "sample", current_level: 1.0, target_level: 1.0, dose_amount_ml: 1.0, dosing_method: "sample"
-    expect status: "executed"
-  end
-
-  test "VerifyDosing runs" do
-    tests "VerifyDosing", on: "DosingPlan"
-    setup  "PrescribeDose", pool_name: "sample", chemical_name: "sample", current_level: 1.0, target_level: 1.0, dose_amount_ml: 1.0, dosing_method: "sample"
-    setup  "ExecuteDosing"
     expect status: "verified"
   end
 

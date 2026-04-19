@@ -46,14 +46,6 @@ Hecks.behaviors "PodcastProduction" do
     expect status: "released"
   end
 
-  test "ReleaseEpisode runs" do
-    tests "ReleaseEpisode", on: "Episode"
-    setup  "OutlineEpisode", title: "sample", episode_number: 1
-    setup  "RecordEpisode", duration_seconds: 1
-    setup  "MarkEdited"
-    expect status: "released"
-  end
-
 
   # ── Guest aggregate ──────────────────────────────────────────
 

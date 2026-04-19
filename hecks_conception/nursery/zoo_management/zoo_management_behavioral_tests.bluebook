@@ -15,32 +15,6 @@ Hecks.behaviors "ZooManagement" do
     expect status: "on_exhibit"
   end
 
-  test "PlaceOnExhibit runs" do
-    tests "PlaceOnExhibit", on: "Animal"
-    setup  "BuildHabitat", name: "sample", biome_type: "sample", area_sqft: 1.0, max_capacity: 1
-    setup  "RegisterAnimal", common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample"
-    setup  "ClearQuarantine"
-    expect status: "on_exhibit"
-  end
-
-  test "MoveOffExhibit sets reason" do
-    tests "MoveOffExhibit", on: "Animal"
-    setup  "RegisterAnimal", common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample"
-    setup  "ClearQuarantine"
-    setup  "PlaceOnExhibit"
-    input  reason: "sample"
-    expect status: "off_exhibit"
-  end
-
-  test "TransferAnimal sets destination_zoo" do
-    tests "TransferAnimal", on: "Animal"
-    setup  "RegisterAnimal", common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample"
-    setup  "ClearQuarantine"
-    setup  "PlaceOnExhibit"
-    input  destination_zoo: "sample"
-    expect status: "transferred"
-  end
-
 
   # ── Habitat aggregate ──────────────────────────────────────────
 

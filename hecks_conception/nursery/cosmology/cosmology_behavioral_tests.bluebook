@@ -95,26 +95,7 @@ Hecks.behaviors "Cosmology" do
     setup  "FormStar", name: "sample", mass: 1.0, temperature: 1.0
     setup  "IgniteFusion", luminosity: 1.0, spectral_class: "sample"
     setup  "EvolveStar"
-    expect fuel_remaining: 0.0, status: "exhausted"
-  end
-
-  test "CollapseStar runs" do
-    tests "CollapseStar", on: "Star"
-    setup  "FormStar", name: "sample", mass: 1.0, temperature: 1.0
-    setup  "IgniteFusion", luminosity: 1.0, spectral_class: "sample"
-    setup  "EvolveStar"
-    setup  "ExhaustFuel"
-    expect status: "collapsed"
-  end
-
-  test "GoSupernova runs" do
-    tests "GoSupernova", on: "Star"
-    setup  "FormStar", name: "sample", mass: 1.0, temperature: 1.0
-    setup  "IgniteFusion", luminosity: 1.0, spectral_class: "sample"
-    setup  "EvolveStar"
-    setup  "ExhaustFuel"
-    setup  "CollapseStar"
-    expect status: "remnant"
+    expect fuel_remaining: 0.0, status: "collapsed"
   end
 
 
@@ -258,15 +239,7 @@ Hecks.behaviors "Cosmology" do
     setup  "ModelInflation", name: "sample", inflation_duration: 1.0
     setup  "SimulateNucleosynthesis", nucleosynthesis_temperature: 1.0, helium_fraction: 1.0
     input  recombination_redshift: 1.0
-    expect recombination_redshift: 1.0, status: "recombination"
-  end
-
-  test "TraceStructureFormation runs" do
-    tests "TraceStructureFormation", on: "BigBang"
-    setup  "ModelInflation", name: "sample", inflation_duration: 1.0
-    setup  "SimulateNucleosynthesis", nucleosynthesis_temperature: 1.0, helium_fraction: 1.0
-    setup  "CalculateRecombination", recombination_redshift: 1.0
-    expect status: "structure_formation"
+    expect recombination_redshift: 1.0, status: "structure_formation"
   end
 
 

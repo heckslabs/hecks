@@ -134,23 +134,7 @@ Hecks.behaviors "MietteBody" do
   test "Mature runs" do
     tests "Mature", on: "DomainCell"
     setup  "Conceive", domain_name: "sample"
-    expect phase: "growing"
-  end
-
-  test "PassCheckpoint sets checkpoint_name" do
-    tests "PassCheckpoint", on: "DomainCell"
-    setup  "Conceive", domain_name: "sample"
-    setup  "Mature"
-    input  checkpoint_name: "sample"
-    expect checkpoints_passed_size: 1, phase: "validated"
-  end
-
-  test "Divide runs" do
-    tests "Divide", on: "DomainCell"
-    setup  "Conceive", domain_name: "sample"
-    setup  "Mature"
-    setup  "PassCheckpoint", checkpoint_name: "sample"
-    expect phase: "divided"
+    expect phase: "validated"
   end
 
   test "TriggerApoptosis runs" do
@@ -208,7 +192,7 @@ Hecks.behaviors "MietteBody" do
     tests "DetectDrift", on: "Proprioception"
     setup  "SenseOrgans", organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1
     setup  "AssessBalance", balance: "sample", schema_hash: "sample"
-    expect organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1, awareness: "recalibrating"
+    expect organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1, awareness: "sensing"
   end
 
 end

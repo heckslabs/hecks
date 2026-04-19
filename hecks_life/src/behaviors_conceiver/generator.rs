@@ -36,6 +36,18 @@ use crate::behaviors_ir::TestSuite;
 use crate::ir::{Aggregate, Attribute, Command, Domain, MutationOp, Query, Transition};
 use std::collections::BTreeSet;
 
+/// Outcome of planning a setup chain. The planner can either:
+///   * `Chain(...)` — here's an ordered chain of commands that will leave
+///     the aggregate in the precondition state (possibly empty).
+///   * `Unsatisfiable` — every candidate producer cascades PAST the
+///     precondition state via policies, so no setup can stop at the
+///     target state. The caller should skip emitting this test entirely;
+///     the upstream test that exercises the cascade already covers it.
+enum SetupPlan<'a> {
+    Chain(Vec<&'a Command>),
+    Unsatisfiable,
+}
+
 /// Generate the full text of a `_behavioral_tests.bluebook` for `source`.
 pub fn generate_behaviors(source: &Domain, _archetype: Option<&TestSuite>) -> String {
     let mut out = String::new();
@@ -60,8 +72,13 @@ pub fn generate_behaviors(source: &Domain, _archetype: Option<&TestSuite>) -> St
             let lifecycle_to = lifecycles_by_command.iter()
                 .find(|(name, _, _)| name == &cmd.name)
                 .map(|(_, field, to)| (field.clone(), to.clone()));
-            out.push_str(&command_test(source, agg, cmd, lifecycle_to));
-            out.push('\n');
+            // command_test returns None when the test is unsatisfiable
+            // (every setup cascades past the required precondition).
+            // Skip emission so the suite stays clean.
+            if let Some(test) = command_test(source, agg, cmd, lifecycle_to) {
+                out.push_str(&test);
+                out.push('\n');
+            }
         }
 
         for q in &agg.queries {
@@ -85,7 +102,7 @@ fn command_test(
     agg: &Aggregate,
     cmd: &Command,
     lifecycle_to: Option<(String, String)>,
-) -> String {
+) -> Option<String> {
     let self_ref = self_ref_for(agg, cmd);
     let cross_refs = cross_refs_for(agg, cmd);
 
@@ -93,8 +110,13 @@ fn command_test(
 
     // Plan a setup chain that satisfies preconditions on the SAME
     // aggregate. Each step is a command on `agg` whose effect moves
-    // us closer to the state the test command requires.
-    let chain = plan_setup_chain(agg, cmd, 5, &mut Vec::new());
+    // us closer to the state the test command requires. Returns None
+    // when every candidate producer cascades past the precondition
+    // state via policies — in that case, skip the test entirely.
+    let chain = match plan_setup_chain(domain, agg, cmd, 5, &mut Vec::new()) {
+        SetupPlan::Chain(chain) => chain,
+        SetupPlan::Unsatisfiable => return None,
+    };
     for chain_cmd in &chain {
         setups.push(emit_setup(agg, chain_cmd));
     }
@@ -133,7 +155,7 @@ fn command_test(
     }
     s.push_str(&format!("    expect {}\n", join_kvs(&expect_pairs)));
     s.push_str("  end\n");
-    s
+    Some(s)
 }
 
 fn query_test(agg: &Aggregate, q: &Query) -> String {
@@ -244,16 +266,18 @@ fn pick_create_command(agg: &Aggregate) -> Option<&Command> {
 /// `depth` budgets recursion. `visited` carries (cmd_name) to prevent
 /// cycles when commands mutually depend.
 fn plan_setup_chain<'a>(
+    domain: &'a Domain,
     agg: &'a Aggregate,
     target_cmd: &'a Command,
     depth: usize,
     visited: &mut Vec<&'a str>,
-) -> Vec<&'a Command> {
-    if depth == 0 { return Vec::new(); }
-    if visited.contains(&target_cmd.name.as_str()) { return Vec::new(); }
+) -> SetupPlan<'a> {
+    if depth == 0 { return SetupPlan::Chain(Vec::new()); }
+    if visited.contains(&target_cmd.name.as_str()) { return SetupPlan::Chain(Vec::new()); }
     visited.push(target_cmd.name.as_str());
     let mut chain: Vec<&Command> = Vec::new();
     let mut produced: BTreeSet<(String, String)> = BTreeSet::new();
+    let mut unsatisfiable = false;
 
     for (field, value) in collect_preconditions(agg, target_cmd) {
         // Already satisfied by an earlier step in this chain?
@@ -262,23 +286,73 @@ fn plan_setup_chain<'a>(
         if let Some(lc) = &agg.lifecycle {
             if lc.field == field && lc.default == value { continue; }
         }
-        let Some(producer) = find_producer(agg, &field, &value) else { continue; };
-        // Recurse: producer may itself have preconditions.
-        let sub_chain = plan_setup_chain(agg, producer, depth - 1, visited);
-        for sub in sub_chain {
-            if !chain.iter().any(|c| c.name == sub.name) {
-                chain.push(sub);
-                track_produced(agg, sub, &mut produced);
+        // Pick a producer that, after its full policy cascade, still
+        // leaves the aggregate in (field, value). If a candidate exists
+        // but every candidate cascades past the target state, mark the
+        // chain unsatisfiable so the test is skipped (the upstream test
+        // already exercises the cascade through `target_cmd`).
+        match find_producer(domain, agg, &field, &value) {
+            Some(producer) => {
+                // Recurse: producer may itself have preconditions.
+                let sub_chain = match plan_setup_chain(domain, agg, producer, depth - 1, visited) {
+                    SetupPlan::Chain(sub) => sub,
+                    SetupPlan::Unsatisfiable => {
+                        unsatisfiable = true;
+                        break;
+                    }
+                };
+                for sub in sub_chain {
+                    if !chain.iter().any(|c| c.name == sub.name) {
+                        chain.push(sub);
+                        track_produced(agg, sub, &mut produced);
+                    }
+                }
+                if !chain.iter().any(|c| c.name == producer.name) {
+                    chain.push(producer);
+                    track_produced(agg, producer, &mut produced);
+                }
             }
-        }
-        if !chain.iter().any(|c| c.name == producer.name) {
-            chain.push(producer);
-            track_produced(agg, producer, &mut produced);
+            None => {
+                // Distinguish two cases:
+                //   * No producer command exists at all in the bluebook
+                //     for (field, value) — silently skip the precondition
+                //     (matches the historical lenient behavior; the test
+                //     will fail loudly and the user can fix the bluebook).
+                //   * A producer command DOES exist but its cascaded final
+                //     state lands past the target — mark unsatisfiable.
+                if any_producer_exists(agg, &field, &value) {
+                    unsatisfiable = true;
+                    break;
+                }
+            }
         }
     }
 
     visited.pop();
-    chain
+    if unsatisfiable { SetupPlan::Unsatisfiable } else { SetupPlan::Chain(chain) }
+}
+
+/// True if SOME command on `agg` declares an effect that lands `field`
+/// at `value` — independent of whether that effect survives the policy
+/// cascade. Used to distinguish "no producer at all" (lenient skip) from
+/// "every producer over-cascades" (mark test unsatisfiable).
+fn any_producer_exists(agg: &Aggregate, field: &str, value: &str) -> bool {
+    let by_mutation = agg.commands.iter().any(|c| {
+        c.mutations.iter().any(|m| {
+            matches!(m.operation, MutationOp::Set)
+                && m.field == field
+                && (m.value == value
+                    || m.value == format!("\"{}\"", value)
+                    || m.value.trim_matches('"') == value)
+        })
+    });
+    if by_mutation { return true; }
+    if let Some(lc) = &agg.lifecycle {
+        if lc.field == field {
+            return lc.transitions.iter().any(|t| t.to_state == value);
+        }
+    }
+    false
 }
 
 /// Equality preconditions on the same aggregate that `cmd` requires.
@@ -343,12 +417,34 @@ fn parse_equality(expr: &str) -> Option<(String, String)> {
     None
 }
 
-/// Find a command on `agg` that puts `field` to `value`. Two sources:
+/// Find a command on `agg` that puts `field` to `value` AND, after its
+/// full policy cascade, still leaves the aggregate in that state.
+/// Two sources:
 ///   • a then_set mutation `to: "value"` on this field
 ///   • a lifecycle transition with this field's to_state == value
-fn find_producer<'a>(agg: &'a Aggregate, field: &str, value: &str) -> Option<&'a Command> {
-    // Mutation match
-    let by_mutation = agg.commands.iter().find(|c| {
+///
+/// Cascade-aware: a candidate that lands at `value` directly but then
+/// emits an event triggering more commands that move the field PAST
+/// `value` is rejected — using it as setup would overshoot the target
+/// state and the caller's `given` clause would fail. When every
+/// candidate over-cascades, returns None and the caller marks the
+/// chain unsatisfiable (see `plan_setup_chain`).
+fn find_producer<'a>(
+    domain: &'a Domain,
+    agg: &'a Aggregate,
+    field: &str,
+    value: &str,
+) -> Option<&'a Command> {
+    let satisfies = |c: &&Command| {
+        let cascade = simulate_cascade(domain, agg, c);
+        cascade.iter().any(|(k, v)| {
+            k == field && (v == value || v.trim_matches('"') == value)
+        })
+    };
+
+    // Mutation match — among commands whose Set mutation targets the
+    // field/value, prefer one whose cascade preserves it.
+    let by_mutation = agg.commands.iter().filter(|c| {
         c.mutations.iter().any(|m| {
             matches!(m.operation, MutationOp::Set)
                 && m.field == field
@@ -356,15 +452,16 @@ fn find_producer<'a>(agg: &'a Aggregate, field: &str, value: &str) -> Option<&'a
                     || m.value == format!("\"{}\"", value)
                     || m.value.trim_matches('"') == value)
         })
-    });
+    }).find(satisfies);
     if by_mutation.is_some() { return by_mutation; }
 
-    // Lifecycle transition match
+    // Lifecycle transition match — same filter.
     if let Some(lc) = &agg.lifecycle {
         if lc.field == field {
-            if let Some(t) = lc.transitions.iter().find(|t| t.to_state == value) {
-                return agg.commands.iter().find(|c| c.name == t.command);
-            }
+            return lc.transitions.iter()
+                .filter(|t| t.to_state == value)
+                .filter_map(|t| agg.commands.iter().find(|c| c.name == t.command))
+                .find(satisfies);
         }
     }
 
@@ -413,20 +510,21 @@ fn build_input(
         .collect()
 }
 
-/// Expectations for the command under test. Four sources merged:
+/// Expectations for the command under test. Three sources merged:
 ///   - Create-style commands: command attrs that match aggregate attrs.
-///   - Each then_set mutation: `field: value` (or `field_size: 1` for append).
-///   - Cascaded mutations: when a command's emitted event triggers a policy
-///     that fires another command on the SAME aggregate, that command's
-///     Set mutations override earlier values (later wins). Walks the
-///     emit→policy→trigger graph with cycle detection.
-///   - Lifecycle transitions: `<field>: <to_state>` (most specific, wins).
+///   - Append/Toggle mutations: `field_size: 1` / `field: true`.
+///   - Cascade simulation: walk emit→policy→trigger, applying Set
+///     mutations and lifecycle transitions for `cmd` itself plus every
+///     command transitively triggered. Later cascade steps override
+///     earlier values (last-write-wins). Same-aggregate only.
+/// The lifecycle_to argument is unused — simulate_cascade computes it
+/// directly from `cmd`'s lifecycle transition.
 /// Falls back to `ok: "true"` when nothing else qualifies.
 fn build_expect(
     domain: &Domain,
     agg: &Aggregate,
     cmd: &Command,
-    lifecycle_to: Option<(String, String)>,
+    _lifecycle_to: Option<(String, String)>,
 ) -> Vec<(String, String)> {
     let mut out: Vec<(String, String)> = Vec::new();
     let mut seen: BTreeSet<String> = BTreeSet::new();
@@ -442,65 +540,50 @@ fn build_expect(
                 out.push((attr.name.clone(), sample_value(&attr.attr_type)));
             }
         }
-        // Also: if the aggregate has a lifecycle, the create lands in
-        // the lifecycle's default state. Include that expectation.
+        // Lifecycle default: only emit if the create command itself has
+        // no transition (otherwise the cascade simulator below adds the
+        // to_state, which is more specific).
         if let Some(lc) = &agg.lifecycle {
-            if !lc.default.is_empty() && seen.insert(lc.field.clone()) {
+            let has_transition = lc.transitions.iter().any(|t| t.command == cmd.name);
+            if !has_transition && !lc.default.is_empty() && seen.insert(lc.field.clone()) {
                 out.push((lc.field.clone(), quote_string(&lc.default)));
             }
         }
     }
 
-    // 2. then_set mutations: assert on the mutated field.
+    // 2. Append/Toggle (skipped by simulate_cascade — counts can't be
+    //    safely predicted across cascades, so we only emit them for the
+    //    direct command).
     for m in &cmd.mutations {
         match m.operation {
-            MutationOp::Set => {
-                // Mutation values can be:
-                //   • a quoted string   "planned"  → use as-is
-                //   • a number          0          → use as-is
-                //   • a symbol          :status    → reference to the
-                //     command's :status attribute. Resolve to that
-                //     attribute's sample value (matches what the
-                //     runtime stores after dispatch).
-                let resolved = resolve_mutation_value(&m.value, cmd);
-                if seen.insert(m.field.clone()) {
-                    out.push((m.field.clone(), resolved));
-                }
-            }
             MutationOp::Append => {
                 let key = format!("{}_size", m.field);
                 if seen.insert(key.clone()) {
                     out.push((key, "1".into()));
                 }
             }
-            MutationOp::Increment | MutationOp::Decrement => {
-                // Skipping: the resulting count depends on prior state
-                // (was the field 0? null? has setup already incremented?).
-                // The runner can't predict it; the generator picking "1"
-                // produces brittle expectations like "expected 1, got -1"
-                // for decrement-from-null. Author writes these by hand.
-            }
             MutationOp::Toggle => {
                 if seen.insert(m.field.clone()) {
                     out.push((m.field.clone(), "true".into()));
                 }
             }
+            // Set/Increment/Decrement: handled by simulate_cascade or
+            // skipped (Increment/Decrement depend on prior state).
+            _ => {}
         }
     }
 
-    // 2b. Cascade: walk emit→policy→trigger and let triggered commands'
-    //     Set mutations override earlier values. Same-aggregate only —
-    //     cross-aggregate cascades land in a different repo's state.
-    let mut visited: BTreeSet<String> = BTreeSet::new();
-    visited.insert(cmd.name.clone());
-    cascade_mutations(domain, agg, cmd, &mut visited, &mut out, &mut seen);
-
-    // 3. Lifecycle transition: assert on the lifecycle field.
-    if let Some((field, to_state)) = lifecycle_to {
-        // Override any earlier default from #1 — the transition's
-        // to_state is more specific than the lifecycle default.
+    // 3. Cascade simulation: applies Set mutations and lifecycle
+    //    transitions for cmd and every transitively triggered command,
+    //    last-write-wins. This is the source of truth for predicted
+    //    final state — captures `ProvisionD1 → ApplyMigrations →
+    //    DeployWorker → DeployPages` cascading status="ui_live", which
+    //    a naive prediction would miss.
+    let cascaded = simulate_cascade(domain, agg, cmd);
+    for (field, value) in cascaded {
         out.retain(|(k, _)| k != &field);
-        out.push((field, quote_string(&to_state)));
+        out.push((field.clone(), value));
+        seen.insert(field);
     }
 
     if out.is_empty() {
@@ -509,63 +592,102 @@ fn build_expect(
     out
 }
 
-/// Walk emit→policy→trigger from `cmd`, applying triggered commands'
-/// Set mutations on top of `out` (later wins). Same-aggregate only:
-/// cross-aggregate cascades touch a different repo's state and don't
-/// belong in this aggregate's expectations.
+/// Simulate the full cascade of `cmd` on `agg` — what fields end up at
+/// what values after `cmd` runs and every same-aggregate policy chain
+/// fires through. Returns ordered (field, value) pairs with later
+/// entries overriding earlier ones (last-write-wins; matches runtime).
 ///
-/// Gate: only follow a triggered command if the upstream command's
-/// emitted event would carry the references the triggered command
-/// requires. Concretely: the upstream `cmd` must reference its own
-/// aggregate (so its event.data includes a `:<agg>` key the runtime
-/// can use to resolve the triggered command's self-ref). Bootstrap
-/// commands (no self-ref) emit events with no aggregate id; the
-/// runtime drops the cascade silently when the triggered command
-/// fails to dispatch, so the generator must mirror that and stop
-/// predicting at this hop.
+/// Walks Set mutations and lifecycle transitions only; Append/Toggle/
+/// Increment/Decrement are skipped because their final values depend on
+/// prior state the simulator doesn't track.
 ///
-/// `visited` cycle-breaks the recursion (a policy graph may be circular).
-fn cascade_mutations(
+/// Cycle-safe via a visited-set (a policy graph may be circular).
+fn simulate_cascade(
     domain: &Domain,
     agg: &Aggregate,
     cmd: &Command,
+) -> Vec<(String, String)> {
+    let mut state: Vec<(String, String)> = Vec::new();
+    let mut visited: BTreeSet<String> = BTreeSet::new();
+    apply_cascade_step(domain, agg, cmd, &mut state, &mut visited);
+    state
+}
+
+/// One step of the cascade walker — applies `cmd`'s Set mutations and
+/// any lifecycle transition that fires for `cmd`, then recurses into
+/// every command triggered by `cmd.emits` via a same-aggregate policy.
+fn apply_cascade_step(
+    domain: &Domain,
+    agg: &Aggregate,
+    cmd: &Command,
+    state: &mut Vec<(String, String)>,
     visited: &mut BTreeSet<String>,
-    out: &mut Vec<(String, String)>,
-    seen: &mut BTreeSet<String>,
 ) {
-    let Some(emitted) = cmd.emits.as_deref() else { return; };
-    // The cascade only carries forward when the upstream command's
-    // event payload includes a self-ref to `agg` — that's the id the
-    // triggered command needs to resolve its own self-ref. If the
-    // upstream is a bootstrap (no self-ref on agg), the runtime
-    // policy fires but the triggered command errors and is silently
-    // dropped — so don't predict cascaded state past that point.
-    if self_ref_for(agg, cmd).is_none() {
-        return;
+    if !visited.insert(cmd.name.clone()) { return; }
+
+    // Apply this command's Set mutations.
+    for m in &cmd.mutations {
+        if let MutationOp::Set = m.operation {
+            let resolved = resolve_mutation_value(&m.value, cmd);
+            state.retain(|(k, _)| k != &m.field);
+            state.push((m.field.clone(), resolved));
+        }
     }
+
+    // Apply the first lifecycle transition that fires for this command.
+    // (Multiple transitions may exist for different from_states; the
+    // runtime picks one based on current state. The simulator picks the
+    // first as a best-effort prediction.)
+    if let Some(lc) = &agg.lifecycle {
+        if let Some(t) = lc.transitions.iter().find(|t| t.command == cmd.name) {
+            state.retain(|(k, _)| k != &lc.field);
+            state.push((lc.field.clone(), quote_string(&t.to_state)));
+        }
+    }
+
+    // Recurse into commands triggered by this one's event.
+    let Some(emitted) = cmd.emits.as_deref() else { return; };
     for policy in &domain.policies {
         if policy.on_event != emitted { continue; }
-        // Same-aggregate only — find the triggered command on `agg`.
+        // Same-aggregate only — cross-aggregate cascades touch a
+        // different repo's state and don't belong here.
         let Some(triggered) = agg.commands.iter()
             .find(|c| c.name == policy.trigger_command)
         else { continue; };
-        if visited.contains(&triggered.name) { continue; }
-        visited.insert(triggered.name.clone());
-
-        for m in &triggered.mutations {
-            if let MutationOp::Set = m.operation {
-                let resolved = resolve_mutation_value(&m.value, triggered);
-                // Cascade overrides: drop any earlier entry for this
-                // field, then push the new value at the end.
-                out.retain(|(k, _)| k != &m.field);
-                out.push((m.field.clone(), resolved));
-                seen.insert(m.field.clone());
-            }
-        }
-
-        // Recurse — the triggered command may itself emit and cascade.
-        cascade_mutations(domain, agg, triggered, visited, out, seen);
+        // Stop if `triggered` would fail to dispatch in the runtime —
+        // policies fire but the triggered command's dispatch errors and
+        // the cascade silently terminates. A self-ref command needs its
+        // id in event.data; the upstream `cmd` only carries the id when
+        // it itself has a self-ref to `agg`. Bootstrap triggered commands
+        // (Create-style) can self-create, so they're allowed even
+        // without an upstream self-ref.
+        if !cascade_can_dispatch(agg, cmd, triggered) { continue; }
+        apply_cascade_step(domain, agg, triggered, state, visited);
     }
+}
+
+/// Mirror of the runtime's command_dispatch gate: would `triggered` (a
+/// same-aggregate command fired by `upstream`'s emitted event) dispatch
+/// successfully? Returns false when the runtime would silently drop the
+/// cascade so the simulator stops predicting past that hop.
+///
+/// Three ways a triggered command can dispatch from a cascade:
+///   * No self-ref → singleton path always works.
+///   * Self-ref AND upstream has the SAME self-ref name → the runner
+///     injected the id at top level; it propagates verbatim through
+///     event.data into the triggered command's attrs.
+///   * Self-ref AND triggered is Create-style → can self-bootstrap.
+///
+/// Otherwise the runtime errors with MissingAttribute("self-referencing
+/// id"), drain_policies silently swallows it, and any state mutations
+/// downstream don't happen.
+fn cascade_can_dispatch(agg: &Aggregate, upstream: &Command, triggered: &Command) -> bool {
+    let Some(triggered_ref) = self_ref_for(agg, triggered) else { return true; };
+    if let Some(upstream_ref) = self_ref_for(agg, upstream) {
+        if upstream_ref == triggered_ref { return true; }
+    }
+    let prefixes = ["Create", "Add", "Place", "Register", "Open"];
+    prefixes.iter().any(|p| triggered.name.starts_with(p))
 }
 
 // ─── format helpers ──────────────────────────────────────────────────

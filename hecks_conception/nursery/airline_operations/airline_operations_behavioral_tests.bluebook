@@ -36,44 +36,6 @@ Hecks.behaviors "AirlineOperations" do
     expect status: "departed"
   end
 
-  test "ClearForDeparture runs" do
-    tests "ClearForDeparture", on: "Flight"
-    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
-    setup  "OpenBoarding"
-    setup  "CloseBoarding"
-    expect status: "departed"
-  end
-
-  test "MarkAirborne runs" do
-    tests "MarkAirborne", on: "Flight"
-    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
-    setup  "OpenBoarding"
-    setup  "CloseBoarding"
-    setup  "ClearForDeparture"
-    expect status: "in_flight"
-  end
-
-  test "RecordLanding runs" do
-    tests "RecordLanding", on: "Flight"
-    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
-    setup  "OpenBoarding"
-    setup  "CloseBoarding"
-    setup  "ClearForDeparture"
-    setup  "MarkAirborne"
-    expect status: "landed"
-  end
-
-  test "ArriveAtGate runs" do
-    tests "ArriveAtGate", on: "Flight"
-    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
-    setup  "OpenBoarding"
-    setup  "CloseBoarding"
-    setup  "ClearForDeparture"
-    setup  "MarkAirborne"
-    setup  "RecordLanding"
-    expect status: "at_gate"
-  end
-
   test "DelayFlight sets reason + new_departure" do
     tests "DelayFlight", on: "Flight"
     setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"

@@ -38,13 +38,6 @@ Hecks.behaviors "AnimalShelter" do
     expect status: "finalized"
   end
 
-  test "FinalizeAdoption runs" do
-    tests "FinalizeAdoption", on: "Adoption"
-    setup  "SubmitAdoptionApplication", animal_name: "sample", adopter_name: "sample", adoption_date: "sample", adoption_fee: "sample"
-    setup  "ApproveAdoption"
-    expect status: "finalized"
-  end
-
 
   # ── FosterPlacement aggregate ──────────────────────────────────────────
 

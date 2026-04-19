@@ -102,7 +102,7 @@ Hecks.behaviors "RegenerativeCommons" do
     tests "RegisterMember", on: "CommunityMember"
     setup  "EstablishCommons", parcel_id: "sample", name: "sample", total_acres: 1, governance_model: "sample"
     input  member_id: "sample", name: "sample", role_type: "sample"
-    expect member_id: "sample", name: "sample", role_type: "sample", commons: 1, status: "active"
+    expect member_id: "sample", name: "sample", commons: 1, role_type: "sample", status: "active"
   end
 
   test "LogContribution runs" do

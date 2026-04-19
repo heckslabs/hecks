@@ -16,41 +16,6 @@ Hecks.behaviors "EmergencyRoom" do
     expect status: "treating"
   end
 
-  test "BeginTreatment runs" do
-    tests "BeginTreatment", on: "Patient"
-    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
-    setup  "AdmitPatient"
-    expect status: "treating"
-  end
-
-  test "StabilizePatient runs" do
-    tests "StabilizePatient", on: "Patient"
-    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
-    setup  "AdmitPatient"
-    setup  "BeginTreatment"
-    expect status: "transferred"
-  end
-
-  test "DischargePatient sets discharge_instructions" do
-    tests "DischargePatient", on: "Patient"
-    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
-    setup  "AdmitPatient"
-    setup  "BeginTreatment"
-    setup  "StabilizePatient"
-    input  discharge_instructions: "sample"
-    expect status: "discharged"
-  end
-
-  test "TransferToInpatient sets ward" do
-    tests "TransferToInpatient", on: "Patient"
-    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
-    setup  "AdmitPatient"
-    setup  "BeginTreatment"
-    setup  "StabilizePatient"
-    input  ward: "sample"
-    expect status: "transferred"
-  end
-
 
   # ── Bed aggregate ──────────────────────────────────────────
 

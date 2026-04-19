@@ -23,14 +23,6 @@ Hecks.behaviors "Upholstery" do
     expect status: "completed"
   end
 
-  test "CompleteProject runs" do
-    tests "CompleteProject", on: "UpholsteryProject"
-    setup  "AssessProject", piece_description: "sample", furniture_type: "sample", client_name: "sample"
-    setup  "ApproveEstimate", quoted_price: 1.0
-    setup  "BeginWork"
-    expect status: "completed"
-  end
-
 
   # ── FabricSelection aggregate ──────────────────────────────────────────
 
@@ -44,13 +36,6 @@ Hecks.behaviors "Upholstery" do
   test "OrderFabric runs" do
     tests "OrderFabric", on: "FabricSelection"
     setup  "SelectFabric", fabric_name: "sample", material: "sample", color: "sample", yards_needed: 1.0, price_per_yard: 1.0
-    expect status: "received"
-  end
-
-  test "ReceiveFabric runs" do
-    tests "ReceiveFabric", on: "FabricSelection"
-    setup  "SelectFabric", fabric_name: "sample", material: "sample", color: "sample", yards_needed: 1.0, price_per_yard: 1.0
-    setup  "OrderFabric"
     expect status: "received"
   end
 

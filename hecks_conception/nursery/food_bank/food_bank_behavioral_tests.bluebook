@@ -67,13 +67,6 @@ Hecks.behaviors "FoodBank" do
     expect households_served: 1, total_weight_distributed: 1.0, status: "reported"
   end
 
-  test "ReportDistribution runs" do
-    tests "ReportDistribution", on: "Distribution"
-    setup  "ScheduleDistribution", event_date: "sample", location: "sample"
-    setup  "ConductDistribution", households_served: 1, total_weight_distributed: 1.0
-    expect status: "reported"
-  end
-
 
   # ── FoodBankVolunteer aggregate ──────────────────────────────────────────
 

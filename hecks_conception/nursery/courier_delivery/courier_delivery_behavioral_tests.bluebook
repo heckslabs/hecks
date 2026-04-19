@@ -16,50 +16,6 @@ Hecks.behaviors "CourierDelivery" do
     expect status: "loaded"
   end
 
-  test "LoadParcel runs" do
-    tests "LoadParcel", on: "Parcel"
-    setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
-    setup  "SortParcel", hub_code: "sample"
-    expect status: "loaded"
-  end
-
-  test "DispatchParcel runs" do
-    tests "DispatchParcel", on: "Parcel"
-    setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
-    setup  "SortParcel", hub_code: "sample"
-    setup  "LoadParcel"
-    expect status: "in_transit"
-  end
-
-  test "AttemptDelivery runs" do
-    tests "AttemptDelivery", on: "Parcel"
-    setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
-    setup  "SortParcel", hub_code: "sample"
-    setup  "LoadParcel"
-    setup  "DispatchParcel"
-    expect status: "attempted"
-  end
-
-  test "MarkDelivered runs" do
-    tests "MarkDelivered", on: "Parcel"
-    setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
-    setup  "SortParcel", hub_code: "sample"
-    setup  "LoadParcel"
-    setup  "DispatchParcel"
-    expect status: "delivered"
-  end
-
-  test "ReturnToSender sets reason" do
-    tests "ReturnToSender", on: "Parcel"
-    setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
-    setup  "SortParcel", hub_code: "sample"
-    setup  "LoadParcel"
-    setup  "DispatchParcel"
-    setup  "AttemptDelivery"
-    input  reason: "sample"
-    expect status: "returned"
-  end
-
 
   # ── Route aggregate ──────────────────────────────────────────
 

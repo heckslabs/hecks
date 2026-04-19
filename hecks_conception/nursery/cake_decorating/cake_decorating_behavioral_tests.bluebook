@@ -15,21 +15,6 @@ Hecks.behaviors "CakeDecorating" do
     expect status: "baking"
   end
 
-  test "StartBaking runs" do
-    tests "StartBaking", on: "CakeOrder"
-    setup  "PlaceOrder", client_name: "sample", occasion: "sample", tier_count: 1, servings: 1, delivery_date: "sample"
-    setup  "ConfirmOrder"
-    expect status: "baking"
-  end
-
-  test "CompleteOrder runs" do
-    tests "CompleteOrder", on: "CakeOrder"
-    setup  "PlaceOrder", client_name: "sample", occasion: "sample", tier_count: 1, servings: 1, delivery_date: "sample"
-    setup  "ConfirmOrder"
-    setup  "StartBaking"
-    expect status: "completed"
-  end
-
 
   # ── FlavorProfile aggregate ──────────────────────────────────────────
 

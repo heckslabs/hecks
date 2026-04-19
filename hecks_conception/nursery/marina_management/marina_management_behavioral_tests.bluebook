@@ -36,7 +36,7 @@ Hecks.behaviors "MarinaManagement" do
   test "RegisterVessel sets vessel_name + registration_number + vessel_type + length_overall + draft_feet + owner_name + owner_phone" do
     tests "RegisterVessel", on: "Vessel"
     input  vessel_name: "sample", registration_number: "sample", vessel_type: "sample", length_overall: 1.0, draft_feet: 1.0, owner_name: "sample", owner_phone: "sample"
-    expect vessel_name: "sample", registration_number: "sample", vessel_type: "sample", length_overall: 1.0, draft_feet: 1.0, owner_name: "sample", owner_phone: "sample", status: "active"
+    expect draft_feet: 1.0, owner_phone: "sample", vessel_name: "sample", registration_number: "sample", vessel_type: "sample", length_overall: 1.0, owner_name: "sample", status: "active"
   end
 
   test "AssignToSlip runs" do

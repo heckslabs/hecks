@@ -95,14 +95,7 @@ Hecks.behaviors "ElevatorPhysics" do
     tests "DetermineMotorRequirements", on: "LoadCalculation"
     setup  "CalculateForces", calculation_id: "sample", total_load_kg: 1.0
     input  motor_torque_nm: 1.0, power_required_kw: 1.0
-    expect motor_torque_nm: 1.0, power_required_kw: 1.0, status: "motor_sized"
-  end
-
-  test "ValidateSafety runs" do
-    tests "ValidateSafety", on: "LoadCalculation"
-    setup  "CalculateForces", calculation_id: "sample", total_load_kg: 1.0
-    setup  "DetermineMotorRequirements", motor_torque_nm: 1.0, power_required_kw: 1.0
-    expect status: "validated"
+    expect motor_torque_nm: 1.0, power_required_kw: 1.0, status: "validated"
   end
 
 

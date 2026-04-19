@@ -9,19 +9,13 @@ Hecks.behaviors "Sleep" do
     expect state: "focused"
   end
 
-  test "DissipateFatigue runs" do
-    tests "DissipateFatigue", on: "Fatigue"
-    setup  "AccumulateFatigue"
-    expect level: 0, pulses_since_sleep: 0, state: "alert"
-  end
-
 
   # ── Consciousness aggregate ──────────────────────────────────────────
 
   test "DetectIdle sets idle_seconds" do
     tests "DetectIdle", on: "Consciousness"
     input  idle_seconds: 1
-    expect idle_seconds: 1
+    expect idle_seconds: 1, state: "daydreaming"
   end
 
   test "EnterDaydream runs" do
@@ -49,14 +43,6 @@ Hecks.behaviors "Sleep" do
     tests "WakeUp", on: "Consciousness"
     setup  "EnterDaydream"
     setup  "EnterSleep"
-    expect state: "waking"
-  end
-
-  test "BecomeAttentive runs" do
-    tests "BecomeAttentive", on: "Consciousness"
-    setup  "EnterDaydream"
-    setup  "EnterSleep"
-    setup  "WakeUp"
     expect state: "attentive"
   end
 
@@ -123,7 +109,7 @@ Hecks.behaviors "Sleep" do
     setup  "AdvanceRemToDeep"
     setup  "AdvanceDeepToFinalLight"
     input  now: "sample"
-    expect last_wake_at: "sample", sleep_summary: "waking refreshed", state: "waking"
+    expect last_wake_at: "sample", sleep_summary: "waking refreshed", state: "attentive"
   end
 
   test "DreamPulse sets impression" do
@@ -158,13 +144,6 @@ Hecks.behaviors "Sleep" do
     setup  "StartCycle", cycle_number: 1, total_cycles: 1
     input  stage: "sample", rem_intensity: 1
     expect rem_intensity: 1, stage: "rem"
-  end
-
-  test "CompleteCycle runs" do
-    tests "CompleteCycle", on: "SleepCycle"
-    setup  "StartCycle", cycle_number: 1, total_cycles: 1
-    setup  "AdvanceStage", stage: "sample", rem_intensity: 1
-    expect stage: "light"
   end
 
 

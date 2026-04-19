@@ -40,14 +40,6 @@ Hecks.behaviors "FilmProduction" do
     expect status: "finalized"
   end
 
-  test "MarkSceneFinal sets final_take" do
-    tests "MarkSceneFinal", on: "Scene"
-    setup  "SlateScene", scene_number: 1, location: "sample", time_of_day: "sample"
-    setup  "PrintScene", take_number: 1
-    input  final_take: 1
-    expect status: "finalized"
-  end
-
 
   # ── CrewMember aggregate ──────────────────────────────────────────
 

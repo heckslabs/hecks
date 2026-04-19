@@ -12,13 +12,6 @@ Hecks.behaviors "AuctionStrategy" do
   test "CloseAuction runs" do
     tests "CloseAuction", on: "Auction"
     setup  "ListAuction", name: "sample", item_description: "sample", auction_type: "sample", reserve_price: 1.0, start_time: "sample", end_time: "sample"
-    expect status: "closed"
-  end
-
-  test "AwardAuction runs" do
-    tests "AwardAuction", on: "Auction"
-    setup  "ListAuction", name: "sample", item_description: "sample", auction_type: "sample", reserve_price: 1.0, start_time: "sample", end_time: "sample"
-    setup  "CloseAuction"
     expect status: "awarded"
   end
 

@@ -31,51 +31,6 @@ Hecks.behaviors "FireDepartment" do
     expect status: "returning"
   end
 
-  test "ArriveOnScene runs" do
-    tests "ArriveOnScene", on: "Apparatus"
-    setup  "RegisterApparatus", unit_id: "sample", apparatus_type: "sample", water_capacity_gallons: 1.0
-    setup  "DispatchApparatus"
-    expect status: "returning"
-  end
-
-  test "EngageOperations runs" do
-    tests "EngageOperations", on: "Apparatus"
-    setup  "RegisterApparatus", unit_id: "sample", apparatus_type: "sample", water_capacity_gallons: 1.0
-    setup  "DispatchApparatus"
-    setup  "ArriveOnScene"
-    expect status: "returning"
-  end
-
-  test "BeginOverhaul runs" do
-    tests "BeginOverhaul", on: "Apparatus"
-    setup  "RegisterApparatus", unit_id: "sample", apparatus_type: "sample", water_capacity_gallons: 1.0
-    setup  "DispatchApparatus"
-    setup  "ArriveOnScene"
-    setup  "EngageOperations"
-    expect status: "returning"
-  end
-
-  test "ClearScene runs" do
-    tests "ClearScene", on: "Apparatus"
-    setup  "RegisterApparatus", unit_id: "sample", apparatus_type: "sample", water_capacity_gallons: 1.0
-    setup  "DispatchApparatus"
-    setup  "ArriveOnScene"
-    setup  "EngageOperations"
-    setup  "BeginOverhaul"
-    expect status: "returning"
-  end
-
-  test "ReturnToStation runs" do
-    tests "ReturnToStation", on: "Apparatus"
-    setup  "RegisterApparatus", unit_id: "sample", apparatus_type: "sample", water_capacity_gallons: 1.0
-    setup  "DispatchApparatus"
-    setup  "ArriveOnScene"
-    setup  "EngageOperations"
-    setup  "BeginOverhaul"
-    setup  "ClearScene"
-    expect status: "in_service"
-  end
-
 
   # ── EmergencyCall aggregate ──────────────────────────────────────────
 

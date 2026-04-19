@@ -51,7 +51,7 @@ Hecks.behaviors "ReentryEcosystem" do
     tests "PlaceInHousing", on: "HousingMatch"
     setup  "OpenCase", case_id: "sample", participant_name: "sample", reentry_date: "sample", background_type: "sample", risk_level: "sample"
     input  match_id: "sample", housing_type: "sample", address: "sample", landlord_name: "sample"
-    expect match_id: "sample", housing_type: "sample", address: "sample", landlord_name: "sample", case: 1, status: "placed"
+    expect match_id: "sample", case: 1, housing_type: "sample", address: "sample", landlord_name: "sample", status: "placed"
   end
 
   test "RecordStabilityCheck runs" do
@@ -74,7 +74,7 @@ Hecks.behaviors "ReentryEcosystem" do
     tests "PlaceInJob", on: "EmploymentBridge"
     setup  "OpenCase", case_id: "sample", participant_name: "sample", reentry_date: "sample", background_type: "sample", risk_level: "sample"
     input  bridge_id: "sample", employer_name: "sample", job_title: "sample", start_date: "sample"
-    expect bridge_id: "sample", employer_name: "sample", job_title: "sample", start_date: "sample", case: 1, status: "employed"
+    expect bridge_id: "sample", case: 1, employer_name: "sample", job_title: "sample", start_date: "sample", status: "employed"
   end
 
   test "RecordRetention runs" do

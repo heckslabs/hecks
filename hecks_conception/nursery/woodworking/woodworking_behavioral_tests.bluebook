@@ -22,15 +22,6 @@ Hecks.behaviors "Woodworking" do
     expect status: "finished"
   end
 
-  test "ApplyFinish sets finish_type" do
-    tests "ApplyFinish", on: "WoodProject"
-    setup  "PlanProject", name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
-    setup  "StartMilling"
-    setup  "AssembleProject"
-    input  finish_type: "sample"
-    expect status: "finished"
-  end
-
 
   # ── LumberStock aggregate ──────────────────────────────────────────
 
@@ -60,13 +51,6 @@ Hecks.behaviors "Woodworking" do
   test "CutJoint runs" do
     tests "CutJoint", on: "Joinery"
     setup  "LayOutJoint", joint_type: "sample", part_a: "sample", part_b: "sample"
-    expect status: "fitted"
-  end
-
-  test "FitJoint runs" do
-    tests "FitJoint", on: "Joinery"
-    setup  "LayOutJoint", joint_type: "sample", part_a: "sample", part_b: "sample"
-    setup  "CutJoint"
     expect status: "fitted"
   end
 

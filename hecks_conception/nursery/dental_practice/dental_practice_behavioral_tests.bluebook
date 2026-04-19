@@ -6,7 +6,7 @@ Hecks.behaviors "DentalPractice" do
   test "RegisterPatient sets first_name + last_name + date_of_birth + phone + insurance_provider + policy_number" do
     tests "RegisterPatient", on: "Patient"
     input  first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
-    expect first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample", status: "active"
+    expect phone: "sample", insurance_provider: "sample", policy_number: "sample", first_name: "sample", last_name: "sample", date_of_birth: "sample", status: "active"
   end
 
   test "RecordInsurance sets insurance_provider + policy_number" do
@@ -36,7 +36,7 @@ Hecks.behaviors "DentalPractice" do
     tests "PlanTreatment", on: "DentalProcedure"
     setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
     input  cdt_code: "sample", procedure_name: "sample", tooth_number: "sample"
-    expect cdt_code: "sample", procedure_name: "sample", status: "planned"
+    expect cdt_code: "sample", procedure_name: "sample", tooth_number: "sample", surface: "sample", status: "completed"
   end
 
 

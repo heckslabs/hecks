@@ -15,30 +15,6 @@ Hecks.behaviors "RustToBluebook" do
     expect status: "deleted"
   end
 
-  test "GenerateBluebook runs" do
-    tests "GenerateBluebook", on: "RustFile"
-    setup  "Analyze", path: "sample"
-    setup  "MapToBluebook"
-    expect status: "deleted"
-  end
-
-  test "Verify runs" do
-    tests "Verify", on: "RustFile"
-    setup  "Analyze", path: "sample"
-    setup  "MapToBluebook"
-    setup  "GenerateBluebook"
-    expect status: "deleted"
-  end
-
-  test "DeleteRust runs" do
-    tests "DeleteRust", on: "RustFile"
-    setup  "Analyze", path: "sample"
-    setup  "MapToBluebook"
-    setup  "GenerateBluebook"
-    setup  "Verify"
-    expect status: "deleted"
-  end
-
 
   # ── Mapping aggregate ──────────────────────────────────────────
 

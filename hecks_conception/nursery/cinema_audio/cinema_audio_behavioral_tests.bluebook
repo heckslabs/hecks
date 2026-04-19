@@ -64,14 +64,7 @@ Hecks.behaviors "CinemaAudio" do
     tests "ApplyCorrection", on: "Calibration"
     setup  "RunCalibration", auditorium_name: "sample", calibration_type: "sample", target_spl_db: 1.0
     input  correction_db: 1.0
-    expect correction_db: 1.0, status: "calibrated"
-  end
-
-  test "VerifyCalibration runs" do
-    tests "VerifyCalibration", on: "Calibration"
-    setup  "RunCalibration", auditorium_name: "sample", calibration_type: "sample", target_spl_db: 1.0
-    setup  "ApplyCorrection", correction_db: 1.0
-    expect status: "verified"
+    expect correction_db: 1.0, status: "verified"
   end
 
 

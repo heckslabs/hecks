@@ -15,31 +15,6 @@ Hecks.behaviors "PotteryStudio" do
     expect status: "bisqued"
   end
 
-  test "BisqueFire runs" do
-    tests "BisqueFire", on: "Piece"
-    setup  "ThrowPiece", name: "sample", form: "sample", clay_body: "sample", weight_kg: 1.0
-    setup  "TrimPiece"
-    expect status: "bisqued"
-  end
-
-  test "GlazePiece sets glaze_name" do
-    tests "GlazePiece", on: "Piece"
-    setup  "ThrowPiece", name: "sample", form: "sample", clay_body: "sample", weight_kg: 1.0
-    setup  "TrimPiece"
-    setup  "BisqueFire"
-    input  glaze_name: "sample"
-    expect status: "glazed"
-  end
-
-  test "GlazeFire runs" do
-    tests "GlazeFire", on: "Piece"
-    setup  "ThrowPiece", name: "sample", form: "sample", clay_body: "sample", weight_kg: 1.0
-    setup  "TrimPiece"
-    setup  "BisqueFire"
-    setup  "GlazePiece", glaze_name: "sample"
-    expect status: "finished"
-  end
-
 
   # ── Firing aggregate ──────────────────────────────────────────
 
@@ -53,13 +28,6 @@ Hecks.behaviors "PotteryStudio" do
   test "StartFiring runs" do
     tests "StartFiring", on: "Firing"
     setup  "LoadKiln", firing_type: "sample", target_cone: 1, atmosphere: "sample", piece_count: 1
-    expect status: "completed"
-  end
-
-  test "CompleteFiring runs" do
-    tests "CompleteFiring", on: "Firing"
-    setup  "LoadKiln", firing_type: "sample", target_cone: 1, atmosphere: "sample", piece_count: 1
-    setup  "StartFiring"
     expect status: "completed"
   end
 
@@ -101,12 +69,6 @@ Hecks.behaviors "PotteryStudio" do
   test "CurateExhibition sets title + venue + opening_date + piece_count" do
     tests "CurateExhibition", on: "Exhibition"
     input  title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
-    expect status: "planning"
-  end
-
-  test "OpenExhibition runs" do
-    tests "OpenExhibition", on: "Exhibition"
-    setup  "CurateExhibition", title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
     expect status: "open"
   end
 

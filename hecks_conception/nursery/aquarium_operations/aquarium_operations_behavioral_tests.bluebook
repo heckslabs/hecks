@@ -15,30 +15,6 @@ Hecks.behaviors "AquariumOperations" do
     expect status: "active"
   end
 
-  test "ActivateTank runs" do
-    tests "ActivateTank", on: "Tank"
-    setup  "SetupTank", tank_id: "sample", name: "sample", water_type: "sample", volume_gallons: 1.0, max_species: 1
-    setup  "TestWaterCycle"
-    expect status: "active"
-  end
-
-  test "QuarantineTank runs" do
-    tests "QuarantineTank", on: "Tank"
-    setup  "SetupTank", tank_id: "sample", name: "sample", water_type: "sample", volume_gallons: 1.0, max_species: 1
-    setup  "TestWaterCycle"
-    setup  "ActivateTank"
-    expect status: "quarantined"
-  end
-
-  test "ClearTankQuarantine runs" do
-    tests "ClearTankQuarantine", on: "Tank"
-    setup  "SetupTank", tank_id: "sample", name: "sample", water_type: "sample", volume_gallons: 1.0, max_species: 1
-    setup  "TestWaterCycle"
-    setup  "ActivateTank"
-    setup  "QuarantineTank"
-    expect status: "active"
-  end
-
   test "DrainTank sets reason" do
     tests "DrainTank", on: "Tank"
     setup  "SetupTank", tank_id: "sample", name: "sample", water_type: "sample", volume_gallons: 1.0, max_species: 1

@@ -58,14 +58,7 @@ Hecks.behaviors "ThermalComfort" do
     tests "CalculatePMV", on: "ComfortAssessment"
     setup  "AssessComfort", zone_name: "sample", air_temp_c: 1.0, mean_radiant_temp_c: 1.0, relative_humidity_pct: 1.0, air_velocity_ms: 1.0
     input  pmv_index: 1.0, ppd_pct: 1.0
-    expect pmv_index: 1.0, ppd_pct: 1.0, status: "calculated"
-  end
-
-  test "FlagDiscomfort runs" do
-    tests "FlagDiscomfort", on: "ComfortAssessment"
-    setup  "AssessComfort", zone_name: "sample", air_temp_c: 1.0, mean_radiant_temp_c: 1.0, relative_humidity_pct: 1.0, air_velocity_ms: 1.0
-    setup  "CalculatePMV", pmv_index: 1.0, ppd_pct: 1.0
-    expect status: "flagged"
+    expect pmv_index: 1.0, ppd_pct: 1.0, status: "flagged"
   end
 
 
