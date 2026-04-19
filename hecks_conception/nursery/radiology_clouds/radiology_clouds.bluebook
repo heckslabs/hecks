@@ -41,13 +41,13 @@ Hecks.bluebook "RadiologyClouds", version: "2026.04.13.1" do
     Float :used_gb
     Float :quota_gb
     String :status
-    CreateBucket do
+    ProvisionBucket do
       role "CloudAdmin"
       description "Create a cloud storage bucket for radiology images"
       String :bucket_id
       String :region
       Float :quota_gb
-      emits "BucketCreated"
+      emits "BucketProvisioned"
       then_set :bucket_id, to: :bucket_id
       then_set :region, to: :region
       then_set :quota_gb, to: :quota_gb
@@ -102,14 +102,14 @@ Hecks.bluebook "RadiologyClouds", version: "2026.04.13.1" do
     String :recipient_email
     String :expires_at
     String :status
-    CreateShareLink do
+    IssueShareLink do
       role "Radiologist"
       description "Generate a secure sharing link for a scan"
       String :link_id
       String :scan_id
       String :recipient_email
       String :expires_at
-      emits "ShareLinkCreated"
+      emits "ShareLinkIssued"
       then_set :link_id, to: :link_id
       then_set :scan_id, to: :scan_id
       then_set :recipient_email, to: :recipient_email

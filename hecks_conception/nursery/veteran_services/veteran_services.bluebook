@@ -26,12 +26,12 @@ Hecks.bluebook "VeteranServices" do
       then_set :status, to: "active"
     end
 
-    UpdateDisabilityRating do
+    RecordDisabilityRating do
       role "BenefitsSpecialist"
       description "Record a new disability rating from the VA"
       reference_to(Veteran)
       String :disability_rating
-      emits "DisabilityRatingUpdated"
+      emits "DisabilityRatingRecorded"
       then_set :disability_rating, to: :disability_rating
     end
   end
@@ -265,9 +265,9 @@ Hecks.bluebook "VeteranServices" do
     trigger "AssignVeteran"
   end
 
-  policy "UpdateRatingOnApproval" do
+  policy "RecordRatingOnApproval" do
     on "ClaimApproved"
-    trigger "UpdateDisabilityRating"
+    trigger "RecordDisabilityRating"
   end
 
   policy "ConductSessionOnEnroll" do

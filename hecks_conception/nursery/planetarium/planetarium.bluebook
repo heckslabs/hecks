@@ -131,7 +131,7 @@ Hecks.bluebook "Planetarium", version: "2026.04.13.1" do
       Float :intensity
     end
 
-    CreateShow do
+    ProjectShow do
       role "Director"
       description "Create a planetarium show with theme and segments"
       String :title
@@ -167,7 +167,7 @@ Hecks.bluebook "Planetarium", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "draft" do
-      transition "CreateShow" => "created", from: "draft"
+      transition "ProjectShow" => "created", from: "draft"
       transition "RehearsalShow" => "rehearsed", from: "created"
       transition "PublishShow" => "published", from: "rehearsed"
     end

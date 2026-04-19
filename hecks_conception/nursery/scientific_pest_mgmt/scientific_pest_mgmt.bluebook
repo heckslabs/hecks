@@ -238,14 +238,14 @@ Hecks.bluebook "ScientificPestMgmt", version: "2026.04.13.1" do
       String :responsible_party
     end
 
-    CreateIPMPlan do
+    ScoutIPMPlan do
       role "Entomologist"
       description "Create an integrated pest management plan with prevention and monitoring"
       String :site_address
       String :target_pest
       String :prevention_measures
       String :monitoring_method
-      emits "IPMPlanCreated"
+      emits "IPMPlanScouted"
       then_set :site_address, to: :site_address
       then_set :target_pest, to: :target_pest
       then_set :prevention_measures, to: :prevention_measures
@@ -273,7 +273,7 @@ Hecks.bluebook "ScientificPestMgmt", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "draft" do
-      transition "CreateIPMPlan" => "active", from: "draft"
+      transition "ScoutIPMPlan" => "active", from: "draft"
     end
   end
 

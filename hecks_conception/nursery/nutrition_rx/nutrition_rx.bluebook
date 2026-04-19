@@ -187,11 +187,11 @@ Hecks.bluebook "NutritionRx", version: "2026.04.13.1" do
       then_set :status, to: "generated"
     end
 
-    UpdateGroceryList do
+    ReviseGroceryList do
       role "System"
       description "Update the grocery list when prescriptions change"
       reference_to(GroceryList)
-      emits "GroceryListUpdated"
+      emits "GroceryListRevised"
       then_set :status, to: "updated"
     end
 
@@ -206,7 +206,7 @@ Hecks.bluebook "NutritionRx", version: "2026.04.13.1" do
 
     lifecycle :status, default: "pending" do
       transition "GenerateGroceryList" => "generated", from: "pending"
-      transition "UpdateGroceryList" => "updated", from: "generated"
+      transition "ReviseGroceryList" => "updated", from: "generated"
       transition "FulfillGroceryList" => "fulfilled", from: "generated"
     end
   end
@@ -263,7 +263,7 @@ Hecks.bluebook "NutritionRx", version: "2026.04.13.1" do
 
   policy "GroceryListOnPrescription" do
     on "PrescriptionFilled"
-    trigger "UpdateGroceryList"
+    trigger "ReviseGroceryList"
   end
 
   policy "AdjustMealOnInteraction" do

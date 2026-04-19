@@ -9,7 +9,7 @@ Hecks.bluebook "MentorEvents", version: "2026.04.13.1" do
     String :focus_area
     String :start_date
     String :status
-    CreateMatch do
+    MakeMatch do
       role "Coordinator"
       description "Create a mentor-mentee match based on interests"
       String :match_id
@@ -17,7 +17,7 @@ Hecks.bluebook "MentorEvents", version: "2026.04.13.1" do
       String :mentee_name
       String :focus_area
       String :start_date
-      emits "MatchCreated"
+      emits "MatchMade"
       then_set :match_id, to: :match_id
       then_set :mentor_name, to: :mentor_name
       then_set :mentee_name, to: :mentee_name

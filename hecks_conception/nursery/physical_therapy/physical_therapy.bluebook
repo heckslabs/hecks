@@ -165,7 +165,7 @@ Hecks.bluebook "PhysicalTherapy" do
       satisfied_by { visits_used >= authorized_visits }
     end
 
-    CreatePrescription do
+    PrescribeTherapy do
       role "Physician"
       description "Write a physical therapy prescription for a patient"
       reference_to(Patient)
@@ -241,9 +241,9 @@ Hecks.bluebook "PhysicalTherapy" do
     trigger "AssessLimitation"
   end
 
-  policy "CreatePrescriptionOnAssessment" do
+  policy "PrescribeOnAssessment" do
     on "LimitationAssessed"
-    trigger "CreatePrescription"
+    trigger "PrescribeTherapy"
   end
 
   policy "ActivateOnPrescription" do

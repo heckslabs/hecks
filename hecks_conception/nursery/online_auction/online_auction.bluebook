@@ -147,7 +147,7 @@ Hecks.bluebook "OnlineAuction", version: "2026.04.13.1" do
       Float :rate
     end
 
-    CreateSettlement do
+    SettleLot do
       role "AuctionHouse"
       description "Calculate fees and create a settlement after lot closure"
       String :settlement_id
@@ -155,7 +155,7 @@ Hecks.bluebook "OnlineAuction", version: "2026.04.13.1" do
       Float :buyer_premium
       Float :seller_commission
       reference_to(Lot)
-      emits "SettlementCreated"
+      emits "LotSettled"
     end
 
     DisburseToSeller do
@@ -224,7 +224,7 @@ Hecks.bluebook "OnlineAuction", version: "2026.04.13.1" do
 
     transition from: "listed", to: "bidding", on: "BidPlaced"
     transition from: "bidding", to: "closed", on: "LotClosed"
-    transition from: "closed", to: "settling", on: "SettlementCreated"
+    transition from: "closed", to: "settling", on: "LotSettled"
     transition from: "settling", to: "disbursed", on: "SellerDisbursed"
     transition from: "settling", to: "disputed", on: "DisputeOpened"
     transition from: "disputed", to: "resolved", on: "DisputeResolved"
@@ -235,13 +235,13 @@ Hecks.bluebook "OnlineAuction", version: "2026.04.13.1" do
     trigger "VerifySeller"
   end
 
-  policy "LotClosedCreateSettlement" do
+  policy "LotClosedSettleLot" do
     on "LotClosed"
-    trigger "CreateSettlement"
+    trigger "SettleLot"
   end
 
-  policy "SettlementCreatedDisburse" do
-    on "SettlementCreated"
+  policy "LotSettledDisburse" do
+    on "LotSettled"
     trigger "DisburseToSeller"
   end
 

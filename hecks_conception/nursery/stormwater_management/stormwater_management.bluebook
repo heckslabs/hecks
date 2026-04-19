@@ -41,13 +41,13 @@ Hecks.bluebook "StormwaterManagement", version: "2026.04.13.1" do
       then_set :runoff_coefficient, to: :runoff_coefficient
     end
 
-    UpdateImperviousness do
+    ResurveyImperviousness do
       role "Planner"
       description "Update impervious percentage after development changes"
       reference_to(Watershed)
       Float :impervious_pct
       given { status == "delineated" }
-      emits "ImperviousnessUpdated"
+      emits "ImperviousnessResurveyed"
       then_set :impervious_pct, to: :impervious_pct
     end
 

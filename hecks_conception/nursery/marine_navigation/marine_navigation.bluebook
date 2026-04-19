@@ -33,14 +33,14 @@ Hecks.bluebook "MarineNavigation", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    UpdateCurrentData do
+    RefreshCurrentData do
       role "Oceanographer"
       description "Refresh current measurement with latest sensor data"
       reference_to(OceanCurrent)
       Float :speed_knots
       Float :direction_degrees
       given { status == "active" }
-      emits "CurrentDataUpdated"
+      emits "CurrentDataRefreshed"
       then_set :speed_knots, to: :speed_knots
       then_set :direction_degrees, to: :direction_degrees
     end

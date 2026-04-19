@@ -142,7 +142,7 @@ Hecks.bluebook "PollinationService", version: "2026.04.13.1" do
       String :retrieve_date
     end
 
-    CreateSchedule do
+    PollinatePlan do
       role "Coordinator"
       description "Create a pollination schedule matching hives to field bloom windows"
       String :schedule_name
@@ -180,7 +180,7 @@ Hecks.bluebook "PollinationService", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "draft" do
-      transition "CreateSchedule" => "planned", from: "draft"
+      transition "PollinatePlan" => "planned", from: "draft"
       transition "ActivateSchedule" => "active", from: "planned"
       transition "CompleteSchedule" => "completed", from: "active"
     end
@@ -257,9 +257,9 @@ Hecks.bluebook "PollinationService", version: "2026.04.13.1" do
     trigger "AnalyzeEffectiveness"
   end
 
-  policy "ScheduleOnFieldRegister" do
+  policy "PlanOnFieldRegister" do
     on "FieldRegistered"
-    trigger "CreateSchedule"
+    trigger "PollinatePlan"
   end
 
   fixture "Hive", hive_id: "NORTH-APIARY-001", population_estimate: 45000, queen_status: "healthy_young", honey_stores_kg: 18.5, health_rating: "good", status: "active"

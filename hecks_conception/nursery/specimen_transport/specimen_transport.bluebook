@@ -48,7 +48,7 @@ Hecks.bluebook "SpecimenTransport", version: "2026.04.13.1" do
       Float :temp_c
       String :within_range
     end
-    CreateShipment do
+    DispatchShipment do
       role "ShippingCoordinator"
       description "Create a cold chain shipment for specimens"
       String :shipment_id
@@ -56,7 +56,7 @@ Hecks.bluebook "SpecimenTransport", version: "2026.04.13.1" do
       String :origin_lab
       String :dest_lab
       Float :target_temp_c
-      emits "ShipmentCreated"
+      emits "ShipmentDispatched"
       then_set :shipment_id, to: :shipment_id
       then_set :carrier, to: :carrier
       then_set :origin_lab, to: :origin_lab
@@ -155,7 +155,7 @@ Hecks.bluebook "SpecimenTransport", version: "2026.04.13.1" do
 
   policy "ShipOnRelease" do
     on "SpecimenReleased"
-    trigger "CreateShipment"
+    trigger "DispatchShipment"
   end
   policy "CustodyOnRelease" do
     on "SpecimenReleased"

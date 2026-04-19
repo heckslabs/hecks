@@ -139,28 +139,28 @@ Hecks.bluebook "MentalHealthClinic" do
       String :intervention
     end
 
-    CreateTreatmentPlan do
+    EstablishTreatmentPlan do
       role "Therapist"
       description "Establish a treatment plan with diagnosis and goals"
       reference_to(Client)
       String :client_name
       String :diagnosis
       String :start_date
-      emits "TreatmentPlanCreated"
+      emits "TreatmentPlanEstablished"
       then_set :client_name, to: :client_name
       then_set :diagnosis, to: :diagnosis
       then_set :start_date, to: :start_date
       then_set :status, to: "active"
     end
 
-    UpdateGoal do
+    ReviseGoal do
       role "Therapist"
       description "Modify or add a goal within the treatment plan"
       reference_to(TreatmentPlan)
       String :description
       String :target_date
       String :intervention
-      emits "GoalUpdated"
+      emits "GoalRevised"
     end
 
     CloseTreatmentPlan do
@@ -212,7 +212,7 @@ Hecks.bluebook "MentalHealthClinic" do
     end
   end
 
-  # Workflow: Intake → AssignTherapist → Assess → ClassifyRisk → CreateTreatmentPlan → ScheduleSession → CompleteSession → UpdateGoal → ClosePlan → Discharge
+  # Workflow: Intake → AssignTherapist → Assess → ClassifyRisk → EstablishTreatmentPlan → ScheduleSession → CompleteSession → ReviseGoal → ClosePlan → Discharge
   policy "AssignClientOnIntake" do
     on "ClientIntaked"
     trigger "AssignClient"
@@ -230,17 +230,17 @@ Hecks.bluebook "MentalHealthClinic" do
 
   policy "CreatePlanOnRiskClassification" do
     on "RiskClassified"
-    trigger "CreateTreatmentPlan"
+    trigger "EstablishTreatmentPlan"
   end
 
   policy "ScheduleSessionOnPlan" do
-    on "TreatmentPlanCreated"
+    on "TreatmentPlanEstablished"
     trigger "ScheduleTherapySession"
   end
 
   policy "UpdateGoalOnSession" do
     on "TherapySessionCompleted"
-    trigger "UpdateGoal"
+    trigger "ReviseGoal"
   end
 
   policy "DischargeOnPlanClosed" do

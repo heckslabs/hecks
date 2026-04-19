@@ -86,7 +86,7 @@ Hecks.bluebook "PetAdoption", version: "2026.04.13.1" do
       String :attribute
       String :value
     end
-    CreateAdopterProfile do
+    EnrollAdopter do
       role "Adopter"
       description "Create an adopter profile with housing and pet preferences"
       String :adopter_id

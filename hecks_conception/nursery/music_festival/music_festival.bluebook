@@ -140,14 +140,14 @@ Hecks.bluebook "MusicFestival" do
       String :merch_discount
     end
 
-    CreateTicketBatch do
+    IssueTicketBatch do
       role "BoxOfficeManager"
       description "Define a ticket tier with pricing and quantity for a festival day"
       String :tier_name
       String :valid_date
       Float :price
       Integer :total_quantity
-      emits "TicketBatchCreated"
+      emits "TicketBatchIssued"
       then_set :tier_name, to: :tier_name
       then_set :valid_date, to: :valid_date
       then_set :price, to: :price
@@ -229,7 +229,7 @@ Hecks.bluebook "MusicFestival" do
 
   policy "CreateTicketsOnStageSetup" do
     on "StageSetUp"
-    trigger "CreateTicketBatch"
+    trigger "IssueTicketBatch"
   end
 
   policy "ApproveVendorsOnRegistration" do

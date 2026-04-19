@@ -47,7 +47,7 @@ Hecks.bluebook "LandscapingBusiness" do
     String :status
     reference_to(Property)
 
-    CreateDesign do
+    DraftDesign do
       role "Designer"
       goal "Draft a landscape design plan for the property"
       description "Create a design with planting areas, materials, and cost estimate"
@@ -55,7 +55,7 @@ Hecks.bluebook "LandscapingBusiness" do
       String :style
       Float :budget
       reference_to(Property)
-      emits "DesignCreated"
+      emits "DesignDrafted"
     end
 
     ApproveDesign do
@@ -173,11 +173,11 @@ Hecks.bluebook "LandscapingBusiness" do
 
   policy "DesignOnSurvey" do
     on "PropertySurveyed"
-    trigger "CreateDesign"
+    trigger "DraftDesign"
   end
 
   policy "SelectPlantsOnDesign" do
-    on "DesignCreated"
+    on "DesignDrafted"
     trigger "SelectPlant"
   end
 
@@ -203,7 +203,7 @@ Hecks.bluebook "LandscapingBusiness" do
 
   policy "DesignOnSurvey" do
     on "PropertySurveyed"
-    trigger "CreateDesign"
+    trigger "DraftDesign"
   end
 
   policy "PerformServiceOnServiceEnrolled" do

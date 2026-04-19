@@ -74,7 +74,7 @@ Hecks.bluebook "SpeechMedia", version: "2026.04.13.1" do
     String :milestone
     String :before_path
     String :after_path
-    CreateProgressClip do
+    CaptureProgressClip do
       role "SpeechPathologist"
       description "Create a before-and-after audio clip showing speech progress"
       String :clip_id
@@ -82,7 +82,7 @@ Hecks.bluebook "SpeechMedia", version: "2026.04.13.1" do
       String :milestone
       String :before_path
       String :after_path
-      emits "ProgressClipCreated"
+      emits "ProgressClipCaptured"
       then_set :clip_id, to: :clip_id
       then_set :client_name, to: :client_name
       then_set :milestone, to: :milestone
@@ -139,7 +139,7 @@ Hecks.bluebook "SpeechMedia", version: "2026.04.13.1" do
   end
   policy "ClipOnComplete" do
     on "ExerciseCompleted"
-    trigger "CreateProgressClip"
+    trigger "CaptureProgressClip"
   end
 
   fixture "TherapyExercise", exercise_id: "EX-001", client_name: "Emma Taylor", exercise_type: "Sound Isolation", target_sound: "/s/", repetitions: 30, status: "prescribed"

@@ -18,16 +18,16 @@ Hecks.bluebook "TicketingPlatform", version: "2026.04.13.1" do
       Integer :quantity_available
     end
 
-    CreateEvent do
+    AnnounceEvent do
       role "Organizer"
-      description "Set up a new event with date, venue, and ticket tiers"
+      description "Announce a new event with date, venue, and ticket tiers"
       String :event_name
       String :event_type
       String :date
       String :organizer
       Integer :capacity
       reference_to(Venue)
-      emits "EventCreated"
+      emits "EventAnnounced"
     end
 
     PublishEvent do
@@ -71,11 +71,11 @@ Hecks.bluebook "TicketingPlatform", version: "2026.04.13.1" do
       emits "VenueRegistered"
     end
 
-    UpdateCapacity do
+    AdjustCapacity do
       description "Adjust the total or section capacity of a venue"
       reference_to(Venue)
       Integer :total_capacity
-      emits "CapacityUpdated"
+      emits "CapacityAdjusted"
     end
 
     CloseVenue do

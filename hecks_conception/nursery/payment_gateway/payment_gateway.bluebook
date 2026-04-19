@@ -105,7 +105,7 @@ Hecks.bluebook "PaymentGateway", version: "2026.04.13.1" do
       Float :fee
     end
 
-    CreateSettlement do
+    BatchSettlement do
       role "SettlementEngine"
       description "Batch captured transactions into a settlement for payout"
       String :settlement_id
@@ -113,7 +113,7 @@ Hecks.bluebook "PaymentGateway", version: "2026.04.13.1" do
       Float :fees
       String :period
       reference_to(Merchant)
-      emits "SettlementCreated"
+      emits "SettlementBatched"
     end
 
     DisburseSettlement do
@@ -223,7 +223,7 @@ Hecks.bluebook "PaymentGateway", version: "2026.04.13.1" do
 
     transition from: "received", to: "authorized", on: "TransactionAuthorized"
     transition from: "authorized", to: "captured", on: "TransactionCaptured"
-    transition from: "captured", to: "settled", on: "SettlementCreated"
+    transition from: "captured", to: "settled", on: "SettlementBatched"
     transition from: "settled", to: "disbursed", on: "SettlementDisbursed"
     transition from: "disbursed", to: "chargebacked", on: "ChargebackFiled"
     transition from: "authorized", to: "voided", on: "TransactionVoided"
@@ -239,13 +239,13 @@ Hecks.bluebook "PaymentGateway", version: "2026.04.13.1" do
     trigger "RunComplianceCheck"
   end
 
-  policy "CheckPassedCreateSettlement" do
+  policy "CheckPassedBatchSettlement" do
     on "CheckPassed"
-    trigger "CreateSettlement"
+    trigger "BatchSettlement"
   end
 
-  policy "SettlementCreatedDisburse" do
-    on "SettlementCreated"
+  policy "SettlementBatchedDisburse" do
+    on "SettlementBatched"
     trigger "DisburseSettlement"
   end
 

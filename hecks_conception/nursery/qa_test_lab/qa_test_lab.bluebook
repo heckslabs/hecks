@@ -16,14 +16,14 @@ Hecks.bluebook "QATestLab", version: "2026.04.13.1" do
       String :status
     end
 
-    CreateTestProject do
+    RegisterTestProject do
       role "QAManager"
       description "Register a new software project for testing"
       String :project_name
       String :repository_url
       String :team_lead
       String :priority
-      emits "TestProjectCreated"
+      emits "TestProjectRegistered"
     end
 
     AssignTeamLead do

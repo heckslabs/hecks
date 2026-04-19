@@ -214,7 +214,7 @@ Hecks.bluebook "PostOffice" do
       String :verification_date
     end
 
-    CreateForwarding do
+    OrderForwarding do
       description "Set up mail forwarding from old to new address"
       String :old_address
       String :new_address

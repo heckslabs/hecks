@@ -259,12 +259,12 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
       then_set :triage_station, to: :triage_station
       then_set :current_phase, to: "triaged"
     end
-    UpdatePhase do
+    AdvancePhase do
       role "System"
       description "Advance casualty to next phase — airborne, transfused, admitted"
       reference_to(CasualtyTracker)
       String :current_phase
-      emits "PhaseUpdated"
+      emits "PhaseAdvanced"
       then_set :current_phase, to: :current_phase
     end
   end
@@ -301,7 +301,7 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
   end
   policy "UpdateTrackerOnRouted" do
     on "AircraftRouted"
-    trigger "UpdatePhase"
+    trigger "AdvancePhase"
   end
 
   # === Fixtures ===

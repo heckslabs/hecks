@@ -58,12 +58,12 @@ Hecks.bluebook "SmartFacility", version: "2026.04.13.1" do
       then_set :content_type, to: :content_type
       then_set :status, to: "active"
     end
-    UpdateContent do
+    RefreshContent do
       role "ActivityDirector"
       description "Push new content to a facility display"
       reference_to(Display)
       String :current_content
-      emits "ContentUpdated"
+      emits "ContentRefreshed"
       then_set :current_content, to: :current_content
     end
   end
@@ -78,12 +78,12 @@ Hecks.bluebook "SmartFacility", version: "2026.04.13.1" do
       String :time
       String :message
     end
-    CreateSchedule do
+    ProvisionSchedule do
       role "Nurse"
       description "Create a personalized reminder schedule for a resident"
       String :schedule_id
       String :resident_id
-      emits "ScheduleCreated"
+      emits "ScheduleProvisioned"
       then_set :schedule_id, to: :schedule_id
       then_set :resident_id, to: :resident_id
       then_set :status, to: "active"
@@ -130,11 +130,11 @@ Hecks.bluebook "SmartFacility", version: "2026.04.13.1" do
 
   policy "DisplayOnAdmit" do
     on "ResidentAdmitted"
-    trigger "CreateSchedule"
+    trigger "ProvisionSchedule"
   end
   policy "PushToDisplay" do
     on "BoardPublished"
-    trigger "UpdateContent"
+    trigger "RefreshContent"
   end
 
   # === Fixtures ===

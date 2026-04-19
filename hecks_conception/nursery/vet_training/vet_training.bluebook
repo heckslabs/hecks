@@ -48,15 +48,15 @@ Hecks.bluebook "VetTraining", version: "2026.04.13.1" do
     Integer :duration_hours
     String :difficulty
     String :status
-    CreateCourse do
+    OfferCourse do
       role "Instructor"
-      description "Create an e-learning course for veteran skills training"
+      description "Offer an e-learning course for veteran skills training"
       String :course_id
       String :title
       String :skill_area
       Integer :duration_hours
       String :difficulty
-      emits "CourseCreated"
+      emits "CourseOffered"
       then_set :course_id, to: :course_id
       then_set :title, to: :title
       then_set :skill_area, to: :skill_area
@@ -96,12 +96,12 @@ Hecks.bluebook "VetTraining", version: "2026.04.13.1" do
       then_set :progress_pct, to: 0.0
       then_set :status, to: "in_progress"
     end
-    UpdateProgress do
+    RecordProgress do
       role "System"
-      description "Update course completion percentage"
+      description "Record course completion percentage"
       reference_to(Enrollment)
       Float :progress_pct
-      emits "ProgressUpdated"
+      emits "ProgressRecorded"
       then_set :progress_pct, to: :progress_pct
     end
     CompleteCourse do
@@ -155,7 +155,7 @@ Hecks.bluebook "VetTraining", version: "2026.04.13.1" do
     trigger "PlaceVeteran"
   end
   policy "CompleteCourseOnProgress" do
-    on "ProgressUpdated"
+    on "ProgressRecorded"
     trigger "CompleteCourse"
   end
 end

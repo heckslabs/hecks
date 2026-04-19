@@ -236,15 +236,15 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
       String :intensity
       String :source_attribution
     end
-    CreateProfile do
+    ComposeProfile do
       role "SensoryAnalyst"
-      description "Create flavor profile linking terroir soil and species to product character"
+      description "Compose flavor profile linking terroir soil and species to product character"
       String :profile_id
       reference_to(ProtectedTerroir) :terroir
       reference_to(SoilProfile) :soil
       reference_to(CraftProducer) :producer
       String :vintage_season
-      emits "ProfileCreated"
+      emits "ProfileComposed"
       then_set :profile_id, to: :profile_id
       then_set :terroir, to: :terroir
       then_set :soil, to: :soil
@@ -276,9 +276,9 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
     on "MicrobiomeAssessed"
     trigger "CertifyProducer"
   end
-  policy "CreateProfileOnCertify" do
+  policy "ComposeProfileOnCertify" do
     on "ProducerCertified"
-    trigger "CreateProfile"
+    trigger "ComposeProfile"
   end
   policy "DesignExperienceOnCertify" do
     on "ProducerCertified"

@@ -82,12 +82,12 @@ Hecks.bluebook "OrganDonation" do
       then_set :status, to: "waiting"
     end
 
-    UpdateUrgency do
+    EscalateUrgency do
       role "Physician"
       description "Change the urgency level based on clinical deterioration"
       reference_to(Recipient)
       String :urgency_level
-      emits "UrgencyUpdated"
+      emits "UrgencyEscalated"
       then_set :urgency_level, to: :urgency_level
     end
 
@@ -218,12 +218,12 @@ Hecks.bluebook "OrganDonation" do
       then_set :status, to: "initial"
     end
 
-    UpdateGraftStatus do
+    MonitorGraft do
       role "Physician"
       description "Monitor ongoing graft function during follow-up"
       reference_to(TransplantOutcome)
       String :graft_function
-      emits "GraftStatusUpdated"
+      emits "GraftMonitored"
       then_set :graft_function, to: :graft_function
     end
   end
@@ -269,9 +269,9 @@ Hecks.bluebook "OrganDonation" do
     trigger "RemoveFromList"
   end
 
-  policy "UpdateGraftOnOutcome" do
+  policy "MonitorGraftOnOutcome" do
     on "OutcomeRecorded"
-    trigger "UpdateGraftStatus"
+    trigger "MonitorGraft"
   end
 
   fixture "Donor", name: "Robert Martinez", blood_type: "O+", tissue_type: "8/8", hospital: "Stanford Medical Center", cause_of_death: "Traumatic brain injury", consent_status: "confirmed"

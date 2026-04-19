@@ -14,14 +14,14 @@ Hecks.bluebook "NutritionApp", version: "2026.04.13.1" do
       String :recipe_name
       Integer :calories
     end
-    CreateMealPlan do
+    ComposeMealPlan do
       role "Dietitian"
       description "Create a personalized meal plan based on dietary goals"
       String :plan_id
       String :user_name
       String :goal
       Integer :daily_calories
-      emits "MealPlanCreated"
+      emits "MealPlanComposed"
       then_set :plan_id, to: :plan_id
       then_set :user_name, to: :user_name
       then_set :goal, to: :goal
@@ -129,12 +129,12 @@ Hecks.bluebook "NutritionApp", version: "2026.04.13.1" do
       then_set :unit, to: :unit
       then_set :actual_amount, to: 0.0
     end
-    UpdateActual do
+    LogActual do
       role "System"
       description "Update actual intake from food log entries"
       reference_to(NutrientGoal)
       Float :actual_amount
-      emits "ActualUpdated"
+      emits "ActualLogged"
       then_set :actual_amount, to: :actual_amount
     end
   end
@@ -145,7 +145,7 @@ Hecks.bluebook "NutritionApp", version: "2026.04.13.1" do
   end
   policy "UpdateGoalOnLog" do
     on "FoodLogged"
-    trigger "UpdateActual"
+    trigger "LogActual"
   end
 
   fixture "MealPlan", plan_id: "plan-001", user_name: "Alice Johnson", goal: "weight-loss", daily_calories: 1800, status: "active"

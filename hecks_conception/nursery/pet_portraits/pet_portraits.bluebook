@@ -88,7 +88,7 @@ Hecks.bluebook "PetPortraits", version: "2026.04.13.1" do
     String :headline
     String :story
     String :status
-    CreateProfile do
+    CommissionProfile do
       role "Copywriter"
       description "Create an adoption profile with compelling story and photos"
       String :profile_id
@@ -148,7 +148,7 @@ Hecks.bluebook "PetPortraits", version: "2026.04.13.1" do
   end
   policy "ProfileOnPhotos" do
     on "PhotosSelected"
-    trigger "CreateProfile"
+    trigger "CommissionProfile"
   end
 
   fixture "ShelterAnimal", animal_id: "PA-2026-001", name: "Max", species: "dog", breed: "Labrador Mix", personality: "playful and loyal", status: "available"

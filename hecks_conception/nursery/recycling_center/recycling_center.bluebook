@@ -40,11 +40,11 @@ Hecks.bluebook "RecyclingCenter" do
       emits "InboundWeighed"
     end
 
-    UpdatePrice do
+    RepriceMaterial do
       description "Adjust market price based on commodity index"
       reference_to(Material)
       Float :new_price_per_ton
-      emits "PriceUpdated"
+      emits "MaterialRepriced"
     end
   end
 

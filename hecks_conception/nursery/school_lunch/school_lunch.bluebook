@@ -36,14 +36,14 @@ Hecks.bluebook "SchoolLunch", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    UpdateRequirements do
+    ReviseRequirements do
       role "Nutritionist"
       description "Update nutrient requirements when guidelines change"
       reference_to(NutrientProfile)
       Float :calories_min
       Float :calories_max
       given { status == "active" }
-      emits "RequirementsUpdated"
+      emits "RequirementsRevised"
       then_set :calories_min, to: :calories_min
       then_set :calories_max, to: :calories_max
     end
@@ -74,7 +74,7 @@ Hecks.bluebook "SchoolLunch", version: "2026.04.13.1" do
       String :source_ingredient
     end
 
-    CreateMenuItem do
+    PlanMenuItem do
       role "Chef"
       description "Create a lunch menu item with nutritional data and allergens"
       String :name
@@ -83,7 +83,7 @@ Hecks.bluebook "SchoolLunch", version: "2026.04.13.1" do
       Float :protein_g
       Float :cost_per_serving
       String :allergens
-      emits "MenuItemCreated"
+      emits "MenuItemPlanned"
       then_set :name, to: :name
       then_set :category, to: :category
       then_set :calories, to: :calories
@@ -111,7 +111,7 @@ Hecks.bluebook "SchoolLunch", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "draft" do
-      transition "CreateMenuItem" => "active", from: "draft"
+      transition "PlanMenuItem" => "active", from: "draft"
       transition "RetireMenuItem" => "retired", from: "active"
     end
   end
@@ -227,8 +227,8 @@ Hecks.bluebook "SchoolLunch", version: "2026.04.13.1" do
     end
   end
 
-  policy "FlagAllergenOnCreate" do
-    on "MenuItemCreated"
+  policy "FlagAllergenOnPlan" do
+    on "MenuItemPlanned"
     trigger "FlagAllergen"
   end
 

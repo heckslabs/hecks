@@ -37,12 +37,12 @@ Hecks.bluebook "TraumaPipeline", version: "2026.04.13.1" do
       then_set :status, to: "dispatched"
     end
 
-    UpdateETA do
+    ReviseETA do
       role "Paramedic"
       description "Revise estimated arrival as ambulance progresses"
       reference_to(TraumaCall)
       Integer :estimated_arrival_minutes
-      emits "ETAUpdated"
+      emits "ETARevised"
       then_set :estimated_arrival_minutes, to: :estimated_arrival_minutes
     end
 

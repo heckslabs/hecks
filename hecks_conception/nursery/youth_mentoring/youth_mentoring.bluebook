@@ -103,7 +103,7 @@ Hecks.bluebook "YouthMentoring" do
     fixture "Wong & Alex", mentor_name: "Dr. Patricia Wong", mentee_name: "Alex Chen", match_date: "2026-03-01", match_rationale: "Shared interest in coding and technology", status: "active"
     fixture "Marcus & Jordan", mentor_name: "Marcus Green", mentee_name: "Jordan Martinez", match_date: "2026-02-15", match_rationale: "Both interested in writing and communication", status: "active"
 
-    CreateMatch do
+    MakeMatch do
       role "ProgramCoordinator"
       description "Pair a mentor with a mentee based on shared interests and goals"
       reference_to(Mentor)
@@ -112,7 +112,7 @@ Hecks.bluebook "YouthMentoring" do
       String :mentee_name
       String :match_date
       String :match_rationale
-      emits "MatchCreated"
+      emits "MatchMade"
       then_set :mentor_name, to: :mentor_name
       then_set :mentee_name, to: :mentee_name
       then_set :match_date, to: :match_date
@@ -232,13 +232,13 @@ Hecks.bluebook "YouthMentoring" do
     trigger "ClearBackgroundCheck"
   end
 
-  policy "CreateMatchOnMenteeEnroll" do
+  policy "MakeMatchOnMenteeEnroll" do
     on "MenteeEnrolled"
-    trigger "CreateMatch"
+    trigger "MakeMatch"
   end
 
   policy "SetGoalOnMatch" do
-    on "MatchCreated"
+    on "MatchMade"
     trigger "SetDevelopmentGoal"
   end
 

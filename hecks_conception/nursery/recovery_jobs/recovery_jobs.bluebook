@@ -28,12 +28,12 @@ Hecks.bluebook "RecoveryJobs", version: "2026.04.13.1" do
       then_set :skills_summary, to: :skills_summary
       then_set :status, to: "active"
     end
-    UpdateStage do
+    AdvanceStage do
       role "CaseManager"
       description "Update the recovery stage as client progresses"
       reference_to(RecoveryClient)
       String :recovery_stage
-      emits "StageUpdated"
+      emits "StageAdvanced"
       then_set :recovery_stage, to: :recovery_stage
     end
   end
@@ -60,12 +60,12 @@ Hecks.bluebook "RecoveryJobs", version: "2026.04.13.1" do
       then_set :recovery_friendly, to: "yes"
       then_set :status, to: "active"
     end
-    UpdatePositions do
+    AdjustPositions do
       role "Employer"
       description "Update the number of open positions"
       reference_to(EmployerPartner)
       Integer :open_positions
-      emits "PositionsUpdated"
+      emits "PositionsAdjusted"
       then_set :open_positions, to: :open_positions
     end
   end

@@ -81,13 +81,13 @@ Hecks.bluebook "VeterinaryClinic" do
       then_set :email, to: :email
     end
 
-    UpdateContactInfo do
+    RefreshContactInfo do
       role "Receptionist"
-      description "Update an owner's phone number or email address"
+      description "Refresh an owner's phone number or email address"
       reference_to(Owner)
       String :phone
       String :email
-      emits "ContactInfoUpdated"
+      emits "ContactInfoRefreshed"
       then_set :phone, to: :phone
       then_set :email, to: :email
     end

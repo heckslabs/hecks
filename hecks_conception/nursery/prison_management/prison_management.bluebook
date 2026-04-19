@@ -146,12 +146,12 @@ Hecks.bluebook "PrisonManagement" do
       String :end_time
     end
 
-    CreateProgram do
+    LaunchProgram do
       description "Establish a new rehabilitation program"
       String :program_name
       String :program_type
       Integer :capacity
-      emits "ProgramCreated"
+      emits "ProgramLaunched"
       then_set :status, to: "active"
       then_set :enrolled_count, to: 0
     end

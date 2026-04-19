@@ -24,12 +24,12 @@ Hecks.bluebook "SmartOT", version: "2026.04.13.1" do
       then_set :progress_pct, to: 0.0
       then_set :status, to: "active"
     end
-    UpdateProgress do
+    LogProgress do
       role "Therapist"
       description "Update progress toward the therapy goal"
       reference_to(TherapyGoal)
       Float :progress_pct
-      emits "ProgressUpdated"
+      emits "ProgressLogged"
       then_set :progress_pct, to: :progress_pct
     end
     AchieveGoal do
@@ -144,7 +144,7 @@ Hecks.bluebook "SmartOT", version: "2026.04.13.1" do
     trigger "LogActivity"
   end
   policy "AssessOnProgress" do
-    on "ProgressUpdated"
+    on "ProgressLogged"
     trigger "RunAssessment"
   end
 

@@ -58,14 +58,14 @@ Hecks.bluebook "StreamingPlatform", version: "2026.04.13.1" do
       String :added_at
     end
 
-    CreateChannel do
+    CurateChannel do
       role "ContentManager"
       description "Set up a new themed channel for content curation"
       String :channel_name
       String :description
       String :curator
       String :category
-      emits "ChannelCreated"
+      emits "ChannelCurated"
     end
 
     AddToChannel do

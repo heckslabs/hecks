@@ -23,12 +23,12 @@ Hecks.bluebook "Optometry" do
       then_set :status, to: "active"
     end
 
-    UpdateMedicalHistory do
+    RecordMedicalHistory do
       role "Optometrist"
       description "Record changes to the patient's medical history"
       reference_to(Patient)
       String :medical_history
-      emits "MedicalHistoryUpdated"
+      emits "MedicalHistoryRecorded"
       then_set :medical_history, to: :medical_history
     end
   end

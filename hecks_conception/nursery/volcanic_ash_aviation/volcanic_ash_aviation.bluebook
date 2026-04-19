@@ -36,13 +36,13 @@ Hecks.bluebook "VolcanicAshAviation", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    UpdateAshColumn do
+    RefreshAshColumn do
       role "Volcanologist"
-      description "Update ash column height as eruption evolves"
+      description "Refresh ash column height as eruption evolves"
       reference_to(Eruption)
       Float :ash_column_height_km
       given { status == "active" }
-      emits "AshColumnUpdated"
+      emits "AshColumnRefreshed"
       then_set :ash_column_height_km, to: :ash_column_height_km
     end
 

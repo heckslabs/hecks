@@ -114,11 +114,11 @@ Hecks.bluebook "JewelryWorkshop" do
       emits "PieceAppraised"
     end
 
-    UpdateAppraisal do
+    ReviseAppraisal do
       description "Revise the appraised value based on market changes"
       reference_to(Appraisal)
       Float :new_value
-      emits "AppraisalUpdated"
+      emits "AppraisalRevised"
       then_set :appraised_value, to: :new_value
     end
   end

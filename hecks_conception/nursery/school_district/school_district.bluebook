@@ -161,14 +161,14 @@ Hecks.bluebook "SchoolDistrict" do
       Integer :credit_hours
     end
 
-    CreateCourse do
+    OfferCourse do
       description "Add a new course to the school catalog"
       String :course_code
       String :title
       String :subject
       Integer :max_enrollment
       reference_to(School)
-      emits "CourseCreated"
+      emits "CourseOffered"
       then_set :status, to: "active"
       then_set :current_enrollment, to: 0
     end
@@ -238,8 +238,8 @@ Hecks.bluebook "SchoolDistrict" do
     trigger "EnrollStudent"
   end
 
-  policy "AssignTeacherOnCourseCreated" do
-    on "CourseCreated"
+  policy "AssignTeacherOnCourseOffered" do
+    on "CourseOffered"
     trigger "AssignTeacher"
   end
 

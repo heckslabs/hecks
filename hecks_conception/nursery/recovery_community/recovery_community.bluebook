@@ -49,7 +49,7 @@ Hecks.bluebook "RecoveryCommunity", version: "2026.04.13.1" do
     Integer :max_members
     String :meeting_schedule
     String :status
-    CreateGroup do
+    FormGroup do
       role "Facilitator"
       description "Create a peer support group with schedule and capacity"
       String :group_id
@@ -57,7 +57,7 @@ Hecks.bluebook "RecoveryCommunity", version: "2026.04.13.1" do
       String :facilitator
       Integer :max_members
       String :meeting_schedule
-      emits "GroupCreated"
+      emits "GroupFormed"
       then_set :group_id, to: :group_id
       then_set :group_name, to: :group_name
       then_set :facilitator, to: :facilitator
@@ -80,14 +80,14 @@ Hecks.bluebook "RecoveryCommunity", version: "2026.04.13.1" do
     String :content
     String :topic
     String :status
-    CreatePost do
+    SubmitPost do
       role "Member"
       description "Create a post in the recovery community forum"
       String :post_id
       String :author_id
       String :content
       String :topic
-      emits "PostCreated"
+      emits "PostSubmitted"
       then_set :post_id, to: :post_id
       then_set :author_id, to: :author_id
       then_set :content, to: :content
@@ -142,7 +142,7 @@ Hecks.bluebook "RecoveryCommunity", version: "2026.04.13.1" do
   end
 
   policy "FlagOnPost" do
-    on "PostCreated"
+    on "PostSubmitted"
     trigger "RaiseFlag"
   end
   policy "MilestoneOnDay" do

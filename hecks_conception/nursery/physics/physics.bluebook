@@ -26,7 +26,7 @@ Hecks.bluebook "Physics", version: "2026.04.11.1" do
       Float :magnitude
     end
 
-    CreateParticle do
+    ObserveParticle do
       role "Physicist"
       description "Instantiate a particle with mass, charge, and spin"
       String :name
@@ -84,7 +84,7 @@ Hecks.bluebook "Physics", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "active" do
-      transition "CreateParticle" => "active", from: "pending"
+      transition "ObserveParticle" => "active", from: "pending"
       transition "Annihilate" => "annihilated", from: "active"
       transition "Decay" => "decayed", from: "active"
     end

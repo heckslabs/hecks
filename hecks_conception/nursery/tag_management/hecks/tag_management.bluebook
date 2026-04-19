@@ -8,25 +8,25 @@ Hecks.bluebook "TagManagement", version: "2026.04.11.1" do
     String :notes
     String :status
 
-    CreateContainer do
+    ProvisionContainer do
       role "Admin"
-      description "Create a new container for a website or app"
+      description "Provision a new container for a website or app"
       String :name
       String :domain
       String :container_id
-      emits "ContainerCreated"
+      emits "ContainerProvisioned"
       then_set :name, to: :name
       then_set :domain, to: :domain
       then_set :container_id, to: :container_id
       then_set :status, to: "active"
     end
 
-    UpdateContainerName do
+    RenameContainer do
       role "Admin"
       description "Change the container's display name"
       reference_to(Container)
       String :name
-      emits "ContainerNameUpdated"
+      emits "ContainerRenamed"
       then_set :name, to: :name
     end
 
@@ -40,7 +40,7 @@ Hecks.bluebook "TagManagement", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "active" do
-      transition "CreateContainer" => "active"
+      transition "ProvisionContainer" => "active"
       transition "ArchiveContainer" => "archived", from: "active"
     end
   end
@@ -62,14 +62,14 @@ Hecks.bluebook "TagManagement", version: "2026.04.11.1" do
       String :value
     end
 
-    CreateTag do
+    DefineTag do
       role "Marketer"
-      description "Add a new tag to a container — analytics, conversion pixel, or custom HTML"
+      description "Define a new tag in a container — analytics, conversion pixel, or custom HTML"
       String :name
       String :tag_type
       String :container_id
       String :template
-      emits "TagCreated"
+      emits "TagDefined"
       then_set :name, to: :name
       then_set :tag_type, to: :tag_type
       then_set :container_id, to: :container_id
@@ -141,7 +141,7 @@ Hecks.bluebook "TagManagement", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "draft" do
-      transition "CreateTag" => "draft"
+      transition "DefineTag" => "draft"
       transition "PauseTag" => "paused", from: "draft"
       transition "ResumeTag" => "draft", from: "paused"
     end
@@ -160,14 +160,14 @@ Hecks.bluebook "TagManagement", version: "2026.04.11.1" do
       String :value
     end
 
-    CreateTrigger do
+    DefineTrigger do
       role "Marketer"
       description "Define a new trigger — when should tags fire?"
       String :name
       String :trigger_type
       String :container_id
       String :description
-      emits "TriggerCreated"
+      emits "TriggerDefined"
       then_set :name, to: :name
       then_set :trigger_type, to: :trigger_type
       then_set :container_id, to: :container_id
@@ -201,7 +201,7 @@ Hecks.bluebook "TagManagement", version: "2026.04.11.1" do
     String :default_value
     String :format
 
-    CreateVariable do
+    DefineVariable do
       role "Marketer"
       description "Define a new variable that triggers and tags can reference"
       String :name
@@ -209,7 +209,7 @@ Hecks.bluebook "TagManagement", version: "2026.04.11.1" do
       String :container_id
       String :selector
       String :default_value
-      emits "VariableCreated"
+      emits "VariableDefined"
       then_set :name, to: :name
       then_set :variable_type, to: :variable_type
       then_set :container_id, to: :container_id
@@ -217,12 +217,12 @@ Hecks.bluebook "TagManagement", version: "2026.04.11.1" do
       then_set :default_value, to: :default_value
     end
 
-    UpdateSelector do
+    RetargetVariable do
       role "Marketer"
       description "Change what this variable reads from — CSS selector, dataLayer key, cookie name"
       reference_to(Variable)
       String :selector
-      emits "SelectorUpdated"
+      emits "VariableRetargeted"
       then_set :selector, to: :selector
     end
 
@@ -246,7 +246,7 @@ Hecks.bluebook "TagManagement", version: "2026.04.11.1" do
     String :created_by
     String :status
 
-    CreateVersion do
+    SnapshotVersion do
       role "Marketer"
       description "Snapshot the current workspace into a numbered version"
       String :container_id
@@ -256,7 +256,7 @@ Hecks.bluebook "TagManagement", version: "2026.04.11.1" do
       Integer :variable_count
       String :description
       String :created_by
-      emits "VersionCreated"
+      emits "VersionSnapshotted"
       then_set :container_id, to: :container_id
       then_set :version_number, to: :version_number
       then_set :tag_count, to: :tag_count
@@ -303,7 +303,7 @@ Hecks.bluebook "TagManagement", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "draft" do
-      transition "CreateVersion" => "draft"
+      transition "SnapshotVersion" => "draft"
       transition "SubmitVersion" => "submitted", from: "draft"
       transition "ApproveVersion" => "approved", from: "submitted"
       transition "PublishVersion" => "published", from: "approved"
@@ -341,13 +341,13 @@ Hecks.bluebook "TagManagement", version: "2026.04.11.1" do
   # --- Policies ---
 
   policy "AuditTagCreation" do
-    on "TagCreated"
+    on "TagDefined"
     trigger "RecordChange"
     description "Log every new tag to the audit trail"
   end
 
   policy "AuditTriggerCreation" do
-    on "TriggerCreated"
+    on "TriggerDefined"
     trigger "RecordChange"
     description "Log every new trigger to the audit trail"
   end

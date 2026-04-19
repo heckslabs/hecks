@@ -194,12 +194,12 @@ Hecks.bluebook "PowerGrid" do
       Integer :crew_size
     end
 
-    CreateOrder do
+    IssueOrder do
       description "Schedule a maintenance task for grid equipment"
       String :work_type
       String :priority
       reference_to(Substation)
-      emits "OrderCreated"
+      emits "OrderIssued"
       then_set :status, to: "scheduled"
     end
 
@@ -220,9 +220,9 @@ Hecks.bluebook "PowerGrid" do
     end
   end
 
-  policy "CreateOrderOnTrip" do
+  policy "IssueOrderOnTrip" do
     on "LineTripped"
-    trigger "CreateOrder"
+    trigger "IssueOrder"
   end
 
   policy "InspectOnTrip" do

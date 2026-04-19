@@ -324,13 +324,13 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
       Integer :estimated_hours
     end
 
-    CreateRecoveryPlan do
+    DraftRecoveryPlan do
       role "EmergencyManager"
       description "Create a prioritized recovery plan after disaster is resolved"
       reference_to(DisasterEvent) :disaster
       String :plan_name
       Integer :priority_level
-      emits "RecoveryPlanCreated"
+      emits "RecoveryPlanDrafted"
       then_set :disaster, to: :disaster
       then_set :plan_name, to: :plan_name
       then_set :priority_level, to: :priority_level
@@ -356,7 +356,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "pending" do
-      transition "CreateRecoveryPlan" => "created", from: "pending"
+      transition "DraftRecoveryPlan" => "created", from: "pending"
       transition "ExecuteRecovery" => "executing", from: "created"
       transition "CompleteRecovery" => "completed", from: "executing"
     end
@@ -391,7 +391,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
 
   policy "RecoveryOnResolution" do
     on "DisasterResolved"
-    trigger "CreateRecoveryPlan"
+    trigger "DraftRecoveryPlan"
   end
 
   policy "RestoreOnRecovery" do

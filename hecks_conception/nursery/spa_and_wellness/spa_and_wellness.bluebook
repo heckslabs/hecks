@@ -162,13 +162,13 @@ Hecks.bluebook "SpaAndWellness", version: "2026.04.13.1" do
       Integer :sessions
     end
 
-    CreatePackage do
+    BundlePackage do
       role "SpaDirector"
       description "Bundle treatments into a discounted wellness package"
       String :package_id
       String :name
       Float :package_price
-      emits "PackageCreated"
+      emits "PackageBundled"
       then_set :package_id, to: :package_id
       then_set :name, to: :name
       then_set :package_price, to: :package_price
@@ -203,7 +203,7 @@ Hecks.bluebook "SpaAndWellness", version: "2026.04.13.1" do
 
   policy "PackageOnOnboard" do
     on "TherapistOnboarded"
-    trigger "CreatePackage"
+    trigger "BundlePackage"
   end
 
   policy "PrepareRoomOnRedeem" do
@@ -232,7 +232,7 @@ Hecks.bluebook "SpaAndWellness", version: "2026.04.13.1" do
   end
 
   policy "RedeemOnPackageCreate" do
-    on "PackageCreated"
+    on "PackageBundled"
     trigger "RedeemSession"
   end
 

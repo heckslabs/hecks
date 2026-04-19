@@ -123,7 +123,7 @@ Hecks.bluebook "PoolChemistry", version: "2026.04.13.1" do
       String :timing
     end
 
-    CreateDosingPlan do
+    PrescribeDose do
       role "Technician"
       description "Create a dosing plan to bring pool chemistry to target levels"
       String :pool_name
@@ -161,7 +161,7 @@ Hecks.bluebook "PoolChemistry", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "pending" do
-      transition "CreateDosingPlan" => "created", from: "pending"
+      transition "PrescribeDose" => "created", from: "pending"
       transition "ExecuteDosing" => "executed", from: "created"
       transition "VerifyDosing" => "verified", from: "executed"
     end
@@ -230,7 +230,7 @@ Hecks.bluebook "PoolChemistry", version: "2026.04.13.1" do
 
   policy "DoseOnAnalysis" do
     on "ChemistryAnalyzed"
-    trigger "CreateDosingPlan"
+    trigger "PrescribeDose"
   end
 
   policy "ExecuteOnDosePlan" do

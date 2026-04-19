@@ -14,13 +14,13 @@ Hecks.bluebook "SafeHaven", version: "2026.04.13.1" do
       String :contact
       String :trigger_event
     end
-    CreateSafetyPlan do
+    IntakeSafetyPlan do
       role "Advocate"
       description "Create a personalized safety plan for a survivor"
       String :plan_id
       String :client_code
       String :advocate_name
-      emits "SafetyPlanCreated"
+      emits "SafetyPlanIntaken"
       then_set :plan_id, to: :plan_id
       then_set :client_code, to: :client_code
       then_set :advocate_name, to: :advocate_name
@@ -130,7 +130,7 @@ Hecks.bluebook "SafeHaven", version: "2026.04.13.1" do
   end
 
   policy "SecureOnPlan" do
-    on "SafetyPlanCreated"
+    on "SafetyPlanIntaken"
     trigger "AssessThreat"
   end
   policy "LockOnActivate" do

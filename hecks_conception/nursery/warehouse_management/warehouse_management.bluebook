@@ -20,14 +20,14 @@ Hecks.bluebook "WarehouseManagement" do
       Float :height_ft
     end
 
-    CreateLocation do
+    RegisterLocation do
       description "Register a new storage location in the warehouse map"
       String :aisle
       String :rack
       String :shelf
       String :zone
       Integer :capacity
-      emits "LocationCreated"
+      emits "LocationRegistered"
       then_set :status, to: "empty"
       then_set :current_fill, to: 0
     end
@@ -154,12 +154,12 @@ Hecks.bluebook "WarehouseManagement" do
       String :service_level
     end
 
-    CreateShipment do
+    PrepareShipment do
       description "Prepare a new outbound shipment from completed picks"
       String :carrier
       String :destination
       reference_to(PickList)
-      emits "ShipmentCreated"
+      emits "ShipmentPrepared"
       then_set :status, to: "packing"
     end
 
@@ -202,11 +202,11 @@ Hecks.bluebook "WarehouseManagement" do
 
   policy "ShipOnPickComplete" do
     on "PickListCompleted"
-    trigger "CreateShipment"
+    trigger "PrepareShipment"
   end
 
-  policy "LoadOnShipmentCreated" do
-    on "ShipmentCreated"
+  policy "LoadOnShipmentPrepared" do
+    on "ShipmentPrepared"
     trigger "LoadShipment"
   end
 

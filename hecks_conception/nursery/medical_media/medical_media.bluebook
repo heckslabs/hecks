@@ -81,14 +81,14 @@ Hecks.bluebook "MedicalMedia", version: "2026.04.13.1" do
       String :description_text
       Float :duration_seconds
     end
-    CreateProject do
+    LaunchProject do
       role "Producer"
       description "Create an educational video project from a cleared case"
       String :project_id
       String :case_id
       String :title
       String :target_audience
-      emits "ProjectCreated"
+      emits "ProjectLaunched"
       then_set :project_id, to: :project_id
       then_set :case_id, to: :case_id
       then_set :title, to: :title
@@ -139,7 +139,7 @@ Hecks.bluebook "MedicalMedia", version: "2026.04.13.1" do
   end
   policy "ProjectOnConsent" do
     on "ConsentObtained"
-    trigger "CreateProject"
+    trigger "LaunchProject"
   end
 
   # === Fixtures ===

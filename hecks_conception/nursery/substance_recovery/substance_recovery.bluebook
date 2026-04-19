@@ -77,12 +77,12 @@ Hecks.bluebook "SubstanceRecovery" do
       emits "ClientEnrolledInProgram"
     end
 
-    UpdateCapacity do
+    AdjustCapacity do
       role "ClinicalDirector"
       description "Adjust the program's enrollment capacity"
       reference_to(TreatmentProgram)
       Integer :capacity
-      emits "CapacityUpdated"
+      emits "CapacityAdjusted"
       then_set :capacity, to: :capacity
     end
   end
@@ -170,7 +170,7 @@ Hecks.bluebook "SubstanceRecovery" do
       String :attendance_status
     end
 
-    CreateSupportGroup do
+    ConveneSupportGroup do
       role "Counselor"
       description "Start a new peer support group with schedule and facilitator"
       reference_to(Counselor)
@@ -179,7 +179,7 @@ Hecks.bluebook "SubstanceRecovery" do
       String :meeting_time
       String :facilitator_name
       Integer :max_members
-      emits "SupportGroupCreated"
+      emits "SupportGroupConvened"
       then_set :group_name, to: :group_name
       then_set :meeting_day, to: :meeting_day
       then_set :meeting_time, to: :meeting_time
@@ -240,9 +240,9 @@ Hecks.bluebook "SubstanceRecovery" do
     trigger "DischargeClient"
   end
 
-  policy "CreateGroupOnProgram" do
+  policy "ConveneGroupOnProgram" do
     on "ProgramEstablished"
-    trigger "CreateSupportGroup"
+    trigger "ConveneSupportGroup"
   end
 
   policy "RecordAttendanceOnGroupMember" do

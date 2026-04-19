@@ -96,7 +96,7 @@ Hecks.bluebook "UrbanForestry", version: "2026.04.13.1" do
       Float :pit_diameter_m
     end
 
-    CreatePlantingPlan do
+    DraftPlantingPlan do
       role "Planner"
       description "Design a planting plan with species and spacing for a site"
       String :name
@@ -105,7 +105,7 @@ Hecks.bluebook "UrbanForestry", version: "2026.04.13.1" do
       String :primary_species
       Float :spacing_m
       String :season
-      emits "PlantingPlanCreated"
+      emits "PlantingPlanDrafted"
       then_set :name, to: :name
       then_set :site_address, to: :site_address
       then_set :tree_count, to: :tree_count
@@ -134,7 +134,7 @@ Hecks.bluebook "UrbanForestry", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "pending" do
-      transition "CreatePlantingPlan" => "drafted", from: "pending"
+      transition "DraftPlantingPlan" => "drafted", from: "pending"
       transition "ApprovePlan" => "approved", from: "drafted"
       transition "ExecutePlanting" => "planted", from: "approved"
     end

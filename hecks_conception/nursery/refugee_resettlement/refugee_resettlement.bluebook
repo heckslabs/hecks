@@ -26,12 +26,12 @@ Hecks.bluebook "RefugeeResettlement" do
       then_set :status, to: "active"
     end
 
-    UpdateCaseStatus do
+    AdvanceCase do
       role "CaseWorker"
       description "Advance the case through resettlement phases"
       reference_to(ResettlementCase)
       String :status
-      emits "CaseStatusUpdated"
+      emits "CaseAdvanced"
       then_set :status, to: :status
     end
 
@@ -73,12 +73,12 @@ Hecks.bluebook "RefugeeResettlement" do
       then_set :case_number, to: :case_number
     end
 
-    UpdateMedicalNeeds do
+    ReviseMedicalNeeds do
       role "CaseWorker"
       description "Record new or changed medical needs for the family member"
       reference_to(FamilyMember)
       String :medical_needs
-      emits "MedicalNeedsUpdated"
+      emits "MedicalNeedsRevised"
       then_set :medical_needs, to: :medical_needs
     end
   end

@@ -136,12 +136,12 @@ Hecks.bluebook "MealDelivery", version: "2026.04.13.1" do
       then_set :household_size, to: :household_size
       then_set :status, to: "active"
     end
-    UpdateDiet do
+    ReviseDiet do
       role "CaseWorker"
       description "Update dietary restriction for a recipient"
       reference_to(Recipient)
       String :dietary_restriction
-      emits "DietUpdated"
+      emits "DietRevised"
       then_set :dietary_restriction, to: :dietary_restriction
     end
   end
