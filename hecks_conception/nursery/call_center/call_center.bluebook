@@ -138,7 +138,7 @@ Hecks.bluebook "CallCenter" do
       Float :abandonment_rate
     end
 
-    CreateQueue do
+    OpenQueue do
       description "Set up a new queue for a skill group"
       String :queue_name
       String :skill_group

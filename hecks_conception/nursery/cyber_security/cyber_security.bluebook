@@ -185,7 +185,7 @@ Hecks.bluebook "CyberSecurity", version: "2026.04.13.1" do
       String :granted_at
     end
 
-    CreateAccessPolicy do
+    EstablishAccessPolicy do
       role "SecurityAdmin"
       description "Define a new access control policy for a resource scope"
       String :policy_name
@@ -262,9 +262,9 @@ Hecks.bluebook "CyberSecurity", version: "2026.04.13.1" do
     trigger "NeutralizeThreat"
   end
 
-  policy "CreatePolicyOnAudit" do
+  policy "EstablishPolicyOnAudit" do
     on "AuditCompleted"
-    trigger "CreateAccessPolicy"
+    trigger "EstablishAccessPolicy"
   end
 
   fixture "Threat", threat_id: "threat-2026-0401", name: "APT-28 Spear Phishing Campaign", category: "social-engineering", severity: "high", source_feed: "threat-intel-feed-01", status: "active", indicators: []

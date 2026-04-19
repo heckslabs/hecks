@@ -169,7 +169,7 @@ Hecks.bluebook "CruiseShip" do
       String :fitness_requirement
     end
 
-    CreateExcursion do
+    OfferExcursion do
       description "Offer a new shore excursion at a port of call"
       String :excursion_name
       String :description
@@ -212,7 +212,7 @@ Hecks.bluebook "CruiseShip" do
 
   policy "OpenExcursionsOnArrival" do
     on "ArrivedAtPort"
-    trigger "CreateExcursion"
+    trigger "OfferExcursion"
   end
 
   policy "ShoreLeaveOnArrival" do
@@ -230,7 +230,7 @@ Hecks.bluebook "CruiseShip" do
     trigger "InspectCabin"
   end
 
-  policy "BookExcursionOnExcursionCreated" do
+  policy "BookExcursionOnExcursionOffered" do
     on "ExcursionCreated"
     trigger "BookExcursion"
   end

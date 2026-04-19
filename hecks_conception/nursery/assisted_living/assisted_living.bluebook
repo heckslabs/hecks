@@ -107,7 +107,7 @@ Hecks.bluebook "AssistedLiving" do
       String :time_of_day
     end
 
-    CreateCarePlan do
+    DraftCarePlan do
       role "Nurse"
       description "Establish a personalized care plan for a resident"
       reference_to(Resident)
@@ -191,7 +191,7 @@ Hecks.bluebook "AssistedLiving" do
       String :administered
     end
 
-    CreateMedicationSchedule do
+    PrescribeMedication do
       role "Nurse"
       description "Set up a daily medication schedule for a resident"
       reference_to(Resident)
@@ -227,12 +227,12 @@ Hecks.bluebook "AssistedLiving" do
 
   policy "CreateCarePlanOnAdmission" do
     on "ResidentAdmitted"
-    trigger "CreateCarePlan"
+    trigger "DraftCarePlan"
   end
 
   policy "CreateMedScheduleOnCarePlan" do
     on "CarePlanCreated"
-    trigger "CreateMedicationSchedule"
+    trigger "PrescribeMedication"
   end
 
   policy "ActivateOnRoomAssigned" do

@@ -262,7 +262,7 @@ Hecks.bluebook "SupplyChain", version: "2026.04.11.1" do
       Float :cost_per_unit
     end
 
-    CreateBOM do
+    DefineBOM do
       role "Formulator"
       description "Define a new bill of materials for a product SKU"
       String :product_sku
@@ -325,7 +325,7 @@ Hecks.bluebook "SupplyChain", version: "2026.04.11.1" do
       String :lot_required
     end
 
-    CreatePurchaseOrder do
+    DraftPurchaseOrder do
       role "ProcurementManager"
       description "Draft a new purchase order for a supplier"
       String :po_number
@@ -375,7 +375,7 @@ Hecks.bluebook "SupplyChain", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "draft" do
-      transition "CreatePurchaseOrder" => "draft"
+      transition "DraftPurchaseOrder" => "draft"
       transition "SubmitPurchaseOrder" => "submitted", from: "draft"
       transition "ConfirmPurchaseOrder" => "confirmed", from: "submitted"
       transition "ReceivePurchaseOrder" => "received", from: "confirmed"
@@ -518,7 +518,7 @@ Hecks.bluebook "SupplyChain", version: "2026.04.11.1" do
   policy "POOnReorder" do
     on "ReorderTriggered"
     across "Inventory"
-    trigger "CreatePurchaseOrder"
+    trigger "DraftPurchaseOrder"
   end
 
   policy "TraceOnAccept" do

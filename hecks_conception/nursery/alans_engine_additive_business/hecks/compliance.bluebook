@@ -13,7 +13,7 @@ Hecks.bluebook "Compliance", version: "2026.04.11.1" do
     String :revision_date
     String :status
 
-    CreateSafetyDataSheet do
+    AuthorSafetyDataSheet do
       role "RegulatorySpecialist"
       description "Author a new GHS-compliant 16-section SDS for a formula"
       String :formula_name
@@ -46,7 +46,7 @@ Hecks.bluebook "Compliance", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "draft" do
-      transition "CreateSafetyDataSheet" => "active", from: "draft"
+      transition "AuthorSafetyDataSheet" => "active", from: "draft"
     end
 
   end
@@ -172,6 +172,6 @@ Hecks.bluebook "Compliance", version: "2026.04.11.1" do
   policy "SdsOnFormulaFinalized" do
     on "FormulaFinalized"
     across "Formulation"
-    trigger "CreateSafetyDataSheet"
+    trigger "AuthorSafetyDataSheet"
   end
 end

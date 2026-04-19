@@ -160,7 +160,7 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
       emits "WildlifeSighted"
     end
 
-    UpdateConservationStatus do
+    ReviseStatus do
       role "Biologist"
       description "Revise species conservation status based on population data"
       reference_to(WildlifeSpecies)

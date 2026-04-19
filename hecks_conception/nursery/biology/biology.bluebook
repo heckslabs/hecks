@@ -33,7 +33,7 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       String :envelope_intact
     end
 
-    CreateCell do
+    CultureCell do
       role "Biologist"
       description "Instantiate a new cell with its type and organism origin"
       String :cell_type
@@ -108,7 +108,7 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
     end
 
     lifecycle :phase, default: "interphase" do
-      transition "CreateCell" => "interphase", from: "none"
+      transition "CultureCell" => "interphase", from: "none"
       transition "EnterPhase" => "G1", from: "interphase"
       transition "EnterPhase" => "S", from: "G1"
       transition "EnterPhase" => "G2", from: "S"
@@ -725,7 +725,7 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       String :effect
     end
 
-    CreateNeuron do
+    DefineNeuron do
       role "Neuroscientist"
       description "Define a neuron with its type, threshold, and resting potential"
       String :neuron_type
@@ -807,7 +807,7 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
     end
 
     lifecycle :state, default: "resting" do
-      transition "CreateNeuron" => "resting", from: "none"
+      transition "DefineNeuron" => "resting", from: "none"
       transition "FireNeuron" => "firing", from: "resting"
       transition "Repolarize" => "refractory", from: "firing"
       transition "Inhibit" => "inhibited", from: "resting"

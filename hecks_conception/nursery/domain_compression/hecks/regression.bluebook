@@ -10,7 +10,7 @@ Hecks.bluebook "Regression", version: "2026.04.14.1" do
     String :last_run_status
     String :last_run_at
 
-    CreateSuite do
+    EnrollSuite do
       role "Operator"
       description "Create a regression suite to track a set of compiled domains"
       String :suite_name

@@ -131,7 +131,7 @@ Hecks.bluebook "Chiropractic" do
     String :status
     reference_to Patient
 
-    CreateTreatmentPlan do
+    PrescribeCourse do
       role "Chiropractor"
       description "Design a treatment plan with visit frequency and goals"
       reference_to(Patient)
@@ -180,7 +180,7 @@ Hecks.bluebook "Chiropractic" do
       Float :amount
     end
 
-    CreateInvoice do
+    IssueInvoice do
       role "BillingClerk"
       description "Generate an invoice for services rendered"
       reference_to(Patient)
@@ -213,18 +213,18 @@ Hecks.bluebook "Chiropractic" do
     end
   end
 
-  # Workflow: Register → OrderImaging → InterpretImaging → CreateTreatmentPlan → Activate → PerformAdjustment → RecordVisit → CreateInvoice → SubmitClaim → ClosePlan → Deactivate
+  # Workflow: Register → OrderImaging → InterpretImaging → PrescribeCourse → Activate → PerformAdjustment → RecordVisit → IssueInvoice → SubmitClaim → ClosePlan → Deactivate
   policy "OrderImagingOnRegistration" do
     on "PatientRegistered"
     trigger "OrderImaging"
   end
 
-  policy "CreatePlanOnImaging" do
+  policy "PrescribePlanOnImaging" do
     on "ImagingInterpreted"
-    trigger "CreateTreatmentPlan"
+    trigger "PrescribeCourse"
   end
 
-  policy "ActivateOnPlanCreation" do
+  policy "ActivateOnPlanPrescription" do
     on "TreatmentPlanCreated"
     trigger "ActivatePatient"
   end
@@ -234,9 +234,9 @@ Hecks.bluebook "Chiropractic" do
     trigger "RecordCompletedVisit"
   end
 
-  policy "CreateInvoiceOnAdjustment" do
+  policy "IssueInvoiceOnAdjustment" do
     on "PostAdjustmentRecorded"
-    trigger "CreateInvoice"
+    trigger "IssueInvoice"
   end
 
   policy "SubmitClaimOnInvoice" do

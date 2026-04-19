@@ -139,7 +139,7 @@ Hecks.bluebook "CraftBeverageLab", version: "2026.04.13.1" do
       String :notes
     end
 
-    CreateProfile do
+    DraftProfile do
       role "Roaster"
       description "Define a new roast profile with charge and target parameters"
       String :bean_origin
@@ -175,7 +175,7 @@ Hecks.bluebook "CraftBeverageLab", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "draft" do
-      transition "CreateProfile" => "created", from: "draft"
+      transition "DraftProfile" => "created", from: "draft"
       transition "ExecuteRoast" => "roasting", from: "created"
       transition "CompleteRoast" => "profiled", from: "roasting"
     end

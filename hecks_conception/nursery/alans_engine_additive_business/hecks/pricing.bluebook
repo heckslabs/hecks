@@ -97,7 +97,7 @@ Hecks.bluebook "Pricing", version: "2026.04.11.1" do
       String :tier_name
     end
 
-    CreatePricingPolicy do
+    EstablishPricingPolicy do
       role "PricingManager"
       description "Define MAP enforcement rules and volume discount structure"
       String :name
@@ -130,7 +130,7 @@ Hecks.bluebook "Pricing", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "draft" do
-      transition "CreatePricingPolicy" => "active", from: "draft"
+      transition "EstablishPricingPolicy" => "active", from: "draft"
     end
   end
 

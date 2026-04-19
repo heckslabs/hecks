@@ -13,7 +13,7 @@ Hecks.bluebook "Catalog", version: "2026.04.11.1" do
     Float :wholesale_price
     String :status
 
-    CreateProduct do
+    LaunchProduct do
       role "ProductManager"
       description "Define a product SKU — a formula packaged under a brand at a specific size"
       String :sku
@@ -52,7 +52,7 @@ Hecks.bluebook "Catalog", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "active" do
-      transition "CreateProduct" => "active"
+      transition "LaunchProduct" => "active"
       transition "DiscontinueProduct" => "discontinued", from: "active"
     end
   end

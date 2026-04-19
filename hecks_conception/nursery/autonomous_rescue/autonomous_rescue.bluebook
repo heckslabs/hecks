@@ -195,7 +195,7 @@ Hecks.bluebook "AutonomousRescue", version: "2026.04.13.1" do
     String :rescue_priority
     reference_to(RescueMission) :mission
 
-    CreateBeacon do
+    MarkBeacon do
       role "System"
       description "Mark a survivor detection with location and confidence"
       Float :latitude
@@ -231,7 +231,7 @@ Hecks.bluebook "AutonomousRescue", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "pending" do
-      transition "CreateBeacon" => "active", from: "pending"
+      transition "MarkBeacon" => "active", from: "pending"
       transition "ConfirmSurvivor" => "confirmed", from: "active"
       transition "ExtractSurvivor" => "extracted", from: "confirmed"
     end
@@ -342,7 +342,7 @@ Hecks.bluebook "AutonomousRescue", version: "2026.04.13.1" do
 
   policy "CreateBeaconOnDetection" do
     on "SurvivorDetected"
-    trigger "CreateBeacon"
+    trigger "MarkBeacon"
   end
 
   policy "UpdateMapOnDeploy" do

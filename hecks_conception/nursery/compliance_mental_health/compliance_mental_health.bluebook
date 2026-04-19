@@ -39,7 +39,7 @@ Hecks.bluebook "ComplianceMentalHealth" do
     String :primary_goal
     String :status
     reference_to(Patient)
-    CreateTreatmentPlan do
+    DraftTreatmentPlan do
       role "Clinician"
       description "Draft a treatment plan tied to a diagnosis and modality"
       reference_to(Patient)

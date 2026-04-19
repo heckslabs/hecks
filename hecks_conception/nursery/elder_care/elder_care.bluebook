@@ -103,7 +103,7 @@ Hecks.bluebook "ElderCare" do
       String :visit_type
     end
 
-    CreateSchedule do
+    BuildSchedule do
       role "Scheduler"
       description "Build a weekly care schedule for a client"
       reference_to(Client)

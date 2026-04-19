@@ -159,7 +159,7 @@ Hecks.bluebook "AnimalShelter" do
       String :date_administered
     end
 
-    CreateMedicalRecord do
+    OpenMedicalRecord do
       role "Veterinarian"
       description "Start a medical record for a newly sheltered animal"
       reference_to(Animal)
@@ -195,7 +195,7 @@ Hecks.bluebook "AnimalShelter" do
   # Workflow: Intake → CreateMedical → Vaccinate → SpayNeuter → MakeAvailable → SubmitApplication → ApproveAdoption → FinalizeAdoption → MarkAdopted
   policy "CreateMedicalOnIntake" do
     on "AnimalIntaked"
-    trigger "CreateMedicalRecord"
+    trigger "OpenMedicalRecord"
   end
 
   policy "VaccinateOnMedicalCreated" do

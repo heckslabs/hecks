@@ -69,7 +69,7 @@ Hecks.bluebook "ClothingBoutique", version: "2026.04.13.1" do
       String :position
     end
 
-    CreateDisplay do
+    StyleDisplay do
       role "Stylist"
       description "Design a new visual merchandising display with a theme"
       String :display_name
@@ -182,7 +182,7 @@ Hecks.bluebook "ClothingBoutique", version: "2026.04.13.1" do
   end
 
   # Lifecycle: planned → launched → displayed → sold/altered → closed out → markdown → retired
-  # Workflow: Plan collection → Launch → Create display → Receive garments → Sell → Request alteration → Complete → Closeout → Markdown
+  # Workflow: Plan collection → Launch → Style display → Receive garments → Sell → Request alteration → Complete → Closeout → Markdown
 
   policy "LaunchOnPlan" do
     on "CollectionPlanned"
@@ -191,7 +191,7 @@ Hecks.bluebook "ClothingBoutique", version: "2026.04.13.1" do
 
   policy "DisplayOnLaunch" do
     on "CollectionLaunched"
-    trigger "CreateDisplay"
+    trigger "StyleDisplay"
   end
 
   policy "RefreshDisplayOnLaunch" do

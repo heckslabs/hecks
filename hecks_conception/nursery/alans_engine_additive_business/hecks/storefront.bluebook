@@ -82,7 +82,7 @@ Hecks.bluebook "Storefront", version: "2026.04.11.1" do
       String :astm_method
     end
 
-    CreateListing do
+    DraftListing do
       role "ProductManager"
       description "Create a product listing from catalog data"
       String :sku
@@ -149,7 +149,7 @@ Hecks.bluebook "Storefront", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "draft" do
-      transition "CreateListing" => "draft"
+      transition "DraftListing" => "draft"
       transition "PublishListing" => "published", from: "draft"
       transition "UnpublishListing" => "unpublished", from: "published"
       transition "PublishListing" => "published", from: "unpublished"
@@ -317,7 +317,7 @@ Hecks.bluebook "Storefront", version: "2026.04.11.1" do
     String :persona_segment
     Float :lifetime_value
 
-    CreateAccount do
+    RegisterAccount do
       role "Customer"
       description "Register a customer account on the storefront"
       String :email
@@ -598,7 +598,7 @@ Hecks.bluebook "Storefront", version: "2026.04.11.1" do
   policy "PipelinePreview" do
     on "PreviewGenerated"
     across "formulation_lab"
-    trigger "CreateListing"
+    trigger "DraftListing"
     description "Tease upcoming products from the formulation lab pipeline"
   end
 end

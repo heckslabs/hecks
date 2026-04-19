@@ -17,7 +17,7 @@ Hecks.bluebook "AuctionStrategy", version: "2026.04.13.1" do
       Float :current_price_threshold
     end
 
-    CreateAuction do
+    ListAuction do
       role "Seller"
       description "Create a new auction with item details and reserve price"
       String :name
@@ -56,7 +56,7 @@ Hecks.bluebook "AuctionStrategy", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "draft" do
-      transition "CreateAuction" => "open", from: "draft"
+      transition "ListAuction" => "open", from: "draft"
       transition "CloseAuction" => "closed", from: "open"
       transition "AwardAuction" => "awarded", from: "closed"
     end

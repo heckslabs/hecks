@@ -9,7 +9,7 @@ Hecks.bluebook "CommunityGarden" do
     String :assigned_gardener
     String :status
 
-    CreatePlot do
+    EstablishPlot do
       role "GardenManager"
       description "Establish a new garden plot for assignment"
       String :plot_number

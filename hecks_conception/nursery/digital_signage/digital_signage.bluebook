@@ -56,7 +56,7 @@ Hecks.bluebook "DigitalSignage", version: "2026.04.13.1" do
       Integer :position
     end
 
-    CreatePlaylist do
+    ComposePlaylist do
       role "ContentManager"
       description "Build a new playlist with a loop mode and entries"
       String :playlist_name
@@ -134,7 +134,7 @@ Hecks.bluebook "DigitalSignage", version: "2026.04.13.1" do
       String :end_time
     end
 
-    CreateSchedule do
+    ProgramSchedule do
       role "ContentManager"
       description "Assign a playlist to a display for a time window"
       String :schedule_id
@@ -224,14 +224,14 @@ Hecks.bluebook "DigitalSignage", version: "2026.04.13.1" do
     trigger "AddEntry"
   end
 
-  policy "PlaylistCreatedSchedule" do
+  policy "PlaylistComposedSchedule" do
     on "PlaylistCreated"
-    trigger "CreateSchedule"
+    trigger "ProgramSchedule"
   end
 
   policy "DisplayInstalledAssignSchedule" do
     on "DisplayInstalled"
-    trigger "CreateSchedule"
+    trigger "ProgramSchedule"
   end
 
   policy "LocationDeactivatedPauseSchedule" do
@@ -241,7 +241,7 @@ Hecks.bluebook "DigitalSignage", version: "2026.04.13.1" do
 
   policy "DisplayRebootedRefreshSchedule" do
     on "DisplayRebooted"
-    trigger "CreateSchedule"
+    trigger "ProgramSchedule"
   end
 
   fixture "Location", location_name: "Downtown Mall Main Concourse", address: "123 Main St, Springfield", location_type: "shopping_mall", display_count: 8, contact_name: "Manager Alex Thompson", status: "active"

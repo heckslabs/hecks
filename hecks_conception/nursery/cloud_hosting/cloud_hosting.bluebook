@@ -64,7 +64,7 @@ Hecks.bluebook "CloudHosting", version: "2026.04.13.1" do
       String :completed_at
     end
 
-    CreateDeployment do
+    ShipRelease do
       role "Developer"
       description "Push a new artifact version to a target instance"
       String :deploy_id
@@ -227,9 +227,9 @@ Hecks.bluebook "CloudHosting", version: "2026.04.13.1" do
     transition from: "active", to: "finalized", on: "DeploymentFinalized"
   end
 
-  policy "InstanceLaunchedCreateDeploy" do
+  policy "InstanceLaunchedShipRelease" do
     on "InstanceLaunched"
-    trigger "CreateDeployment"
+    trigger "ShipRelease"
   end
 
   policy "DeploymentCreatedDefineScaling" do

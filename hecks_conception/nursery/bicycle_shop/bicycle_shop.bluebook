@@ -62,7 +62,7 @@ Hecks.bluebook "BicycleShop", version: "2026.04.13.1" do
       Float :labor_minutes
     end
 
-    CreateRepairOrder do
+    OpenRepairOrder do
       role "Mechanic"
       description "Open a service ticket for a bike needing work"
       String :order_id
@@ -211,7 +211,7 @@ Hecks.bluebook "BicycleShop", version: "2026.04.13.1" do
 
   policy "InspectOnReturn" do
     on "RentalReturned"
-    trigger "CreateRepairOrder"
+    trigger "OpenRepairOrder"
   end
 
   policy "ConsumePartOnRepair" do

@@ -24,7 +24,7 @@ Hecks.bluebook "Formulation", version: "2026.04.11.1" do
       String :supplier
     end
 
-    CreateFormula do
+    DraftFormula do
       role "Formulator"
       description "Define a new additive formulation with ingredients and performance targets"
       String :name
@@ -75,7 +75,7 @@ Hecks.bluebook "Formulation", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "draft" do
-      transition "CreateFormula" => "draft"
+      transition "DraftFormula" => "draft"
       transition "FinalizeFormula" => "finalized", from: "draft"
       transition "ReviseFormula" => "draft", from: "finalized"
       transition "RetireFormula" => "retired", from: "finalized"
