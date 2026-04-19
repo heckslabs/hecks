@@ -34,5 +34,8 @@ jobs:
         working-directory: hecks_life
         run: cargo build --release --quiet
 
-      - name: Run parity suite
-        run: ruby -Ilib spec/parity/parity_test.rb
+      - name: Run parser parity suite (Ruby DSL ↔ Rust IR)
+        run: bundle exec ruby -Ilib spec/parity/parity_test.rb
+
+      - name: Run behaviors-runner parity suite (Ruby ↔ Rust)
+        run: bundle exec ruby -Ilib spec/parity/behaviors_parity_test.rb
