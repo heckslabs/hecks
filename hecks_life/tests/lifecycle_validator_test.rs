@@ -134,6 +134,82 @@ end
 }
 
 #[test]
+fn flags_unreachable_given_clause() {
+    // ScheduleVisit forgets to `then_set :status, to: "scheduled"`.
+    // RecordObservations requires status == "scheduled". No producer.
+    let source = r#"Hecks.bluebook "Studio" do
+  aggregate "SiteVisit" do
+    attribute :status, String
+    command "ScheduleVisit" do
+      attribute :date, String
+      emits "VisitScheduled"
+    end
+    command "RecordObservations" do
+      reference_to(SiteVisit)
+      attribute :notes, String
+      given { status == "scheduled" }
+      emits "ObservationsRecorded"
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let report = check(&domain);
+    assert_eq!(report.errors(), 1);
+    assert!(report.findings[0].location.contains("RecordObservations"));
+    assert!(report.findings[0].message.contains("unreachable"));
+    assert!(report.findings[0].message.contains("status"));
+    assert!(report.findings[0].message.contains("scheduled"));
+}
+
+#[test]
+fn given_satisfied_by_then_set() {
+    // Same shape as above, but ScheduleVisit DOES set status.
+    let source = r#"Hecks.bluebook "Studio" do
+  aggregate "SiteVisit" do
+    attribute :status, String
+    command "ScheduleVisit" do
+      attribute :date, String
+      emits "VisitScheduled"
+      then_set :status, to: "scheduled"
+    end
+    command "RecordObservations" do
+      reference_to(SiteVisit)
+      given { status == "scheduled" }
+      emits "ObservationsRecorded"
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let report = check(&domain);
+    assert_eq!(report.errors(), 0,
+        "given is reachable via ScheduleVisit's then_set: {:?}",
+        report.findings.iter().map(|f| &f.message).collect::<Vec<_>>());
+}
+
+#[test]
+fn given_satisfied_by_lifecycle_default() {
+    // No producer needed when the required value IS the lifecycle default.
+    let source = r#"Hecks.bluebook "Studio" do
+  aggregate "Order" do
+    attribute :status, String
+    command "Process" do
+      reference_to(Order)
+      given { status == "pending" }
+      emits "Processed"
+    end
+    lifecycle :status, default: "pending" do
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let report = check(&domain);
+    assert_eq!(report.errors(), 0);
+}
+
+#[test]
 fn unconstrained_transition_satisfies_default() {
     // A transition with no from: clause fires from any state, including
     // default. So it counts for the stuck-default check.

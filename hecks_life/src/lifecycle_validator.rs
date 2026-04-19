@@ -34,7 +34,7 @@
 //!   0 — no errors (and no warnings if --strict isn't set)
 //!   1 — at least one error, or --strict and at least one warning
 
-use crate::ir::{Aggregate, Domain, Lifecycle};
+use crate::ir::{Aggregate, Command, Domain, Lifecycle, MutationOp};
 use std::collections::BTreeSet;
 
 #[derive(Debug, PartialEq)]
@@ -82,9 +82,81 @@ pub fn check(domain: &Domain) -> Report {
         if let Some(lc) = &agg.lifecycle {
             check_aggregate(agg, lc, &mut findings);
         }
+        check_given_coverage(agg, &mut findings);
     }
     Report { findings }
 }
+
+/// Givens of the form `<field> == "<value>"` need a producer in the
+/// same aggregate — some command's `then_set <field>, to: "<value>"`,
+/// or a lifecycle transition with `<field>` as its lifecycle field
+/// and `<value>` as its to_state. Otherwise the gate is unreachable
+/// and the command can never fire.
+fn check_given_coverage(agg: &Aggregate, out: &mut Vec<Finding>) {
+    let producible = collect_producible_states(agg);
+
+    for cmd in &agg.commands {
+        for given in &cmd.givens {
+            let Some((field, value)) = parse_equality(&given.expression) else { continue };
+            // Lifecycle defaults satisfy themselves.
+            if let Some(lc) = &agg.lifecycle {
+                if lc.field == field && lc.default == value { continue; }
+            }
+            if !producible.contains(&(field.clone(), value.clone())) {
+                out.push(Finding::err(
+                    format!("{}.{}", agg.name, cmd.name),
+                    format!(
+                        "given `{} == {:?}` is unreachable — no command \
+                         sets {} to {:?} and no lifecycle transition \
+                         produces it",
+                        field, value, field, value,
+                    ),
+                ));
+            }
+        }
+    }
+}
+
+fn collect_producible_states(agg: &Aggregate) -> BTreeSet<(String, String)> {
+    let mut produced: BTreeSet<(String, String)> = BTreeSet::new();
+    // From every command's then_set Set mutations.
+    for cmd in &agg.commands {
+        for m in &cmd.mutations {
+            if let MutationOp::Set = m.operation {
+                let val = m.value.trim_matches('"').to_string();
+                produced.insert((m.field.clone(), val));
+            }
+        }
+    }
+    // From every lifecycle transition's to_state.
+    if let Some(lc) = &agg.lifecycle {
+        for t in &lc.transitions {
+            produced.insert((lc.field.clone(), t.to_state.clone()));
+        }
+    }
+    produced
+}
+
+/// Parse `<field> == "<value>"`. Returns None for non-equality or
+/// non-quoted-string-RHS forms — the validator can't reason about
+/// expressions like "size > 10" or "must have elapsed".
+fn parse_equality(expr: &str) -> Option<(String, String)> {
+    let parts: Vec<&str> = expr.splitn(2, "==").collect();
+    if parts.len() != 2 { return None; }
+    let field = parts[0].trim().to_string();
+    if field.is_empty() || !field.chars().all(|c| c.is_alphanumeric() || c == '_') {
+        return None;
+    }
+    let raw = parts[1].trim().trim_end_matches('}').trim();
+    if !raw.starts_with('"') { return None; }
+    let end = raw[1..].find('"')? + 1;
+    Some((field, raw[1..end].to_string()))
+}
+
+// (`Command` will be unused if no future check needs it; suppress
+// the warning preemptively.)
+#[allow(dead_code)]
+fn _force_command_use(_c: &Command) {}
 
 fn check_aggregate(agg: &Aggregate, lc: &Lifecycle, out: &mut Vec<Finding>) {
     // Reachable states: the lifecycle default plus every transition's
