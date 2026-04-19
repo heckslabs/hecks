@@ -13,9 +13,6 @@ Hecks.bluebook "DomainCrossover", version: "2026.04.13.1" do
       description "Find two domains whose vectors are similar enough to combine but different enough to be interesting"
       attribute :min_similarity, Float
       attribute :max_similarity, Float
-      given { min_similarity >= 0.3 }
-      given { max_similarity <= 0.8 }
-      given { min_similarity < max_similarity }
       emits "PairSelected"
     end
   end

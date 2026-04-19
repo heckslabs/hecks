@@ -15,14 +15,11 @@ Hecks.bluebook "Applications", version: "2026.04.11.1" do
       description "A born domain becomes viable — it has at least one running app"
       attribute :name, String
       attribute :domain_path, String
-      attribute :app_types, list_of(String)
       attribute :version, String
       emits "ApplicationRegistered"
       then_set :name, to: :name
       then_set :domain_path, to: :domain_path
-      then_set :app_types, to: :app_types
       then_set :version, to: :version
-      then_set :status, to: "viable"
     end
 
     command "AddApp" do
@@ -51,10 +48,9 @@ Hecks.bluebook "Applications", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "pending" do
-      transition "RegisterApplication" => "viable", from: "pending"
-      transition "DeployApp" => "deployed", from: "viable"
+      transition "DeployApp" => "deployed", from: "pending"
       transition "RetireApplication" => "retired", from: "deployed"
-      transition "RetireApplication" => "retired", from: "viable"
+      transition "RetireApplication" => "retired", from: "pending"
     end
   end
 

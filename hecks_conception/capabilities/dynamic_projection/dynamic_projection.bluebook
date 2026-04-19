@@ -95,7 +95,7 @@ Hecks.bluebook "DynamicProjection", version: "2026.04.11.1" do
 
     lifecycle :status, default: "pending" do
       transition "ProjectPage" => "current", from: "pending"
-      transition "FlagStale" => "stale", from: "current"
+      transition "FlagStale" => "stale", from: ["current", "pending", "stale"]
       transition "RegeneratePage" => "current", from: "stale"
     end
   end

@@ -31,7 +31,6 @@ Hecks.behaviors "MiettePhone" do
 
   test "StartConversation runs" do
     tests "StartConversation", on: "Conversation"
-    setup  "ActivateSession"
     expect ok: "true"
   end
 
@@ -44,6 +43,8 @@ Hecks.behaviors "MiettePhone" do
 
   test "SendMessage cascades through policy chain" do
     tests "SendMessage", on: "Conversation", kind: :cascade
+    setup  "ConfigureProxy", summer_origin: "sample", timeout_ms: 1
+    setup  "RenderChat"
     setup  "ActivateSession"
     input  content: "sample"
     expect emits: ["MessageSent", "MessageRelayed", "ReplyReceived", "ChatRendered", "StreamStarted"]
@@ -57,6 +58,7 @@ Hecks.behaviors "MiettePhone" do
 
   test "ReceiveReply cascades through policy chain" do
     tests "ReceiveReply", on: "Conversation", kind: :cascade
+    setup  "RenderChat"
     input  content: "sample", latency_ms: 1
     expect emits: ["ReplyReceived", "ChatRendered"]
   end
@@ -78,6 +80,7 @@ Hecks.behaviors "MiettePhone" do
 
   test "RelayMessage cascades through policy chain" do
     tests "RelayMessage", on: "InferenceProxy", kind: :cascade
+    setup  "RenderChat"
     input  content: "sample"
     expect emits: ["MessageRelayed", "ReplyReceived", "ChatRendered"]
   end

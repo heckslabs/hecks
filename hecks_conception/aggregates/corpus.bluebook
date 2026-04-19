@@ -21,6 +21,21 @@ Hecks.bluebook "Corpus", version: "2026.04.17.1" do
     attribute :command, String
     attribute :confidence, Float
 
+    command "IndexPhrase" do
+      description "Add a phrase to the searchable corpus"
+      attribute :input, String
+      attribute :matched_phrase, String
+      attribute :domain, String
+      attribute :aggregate, String
+      attribute :command, String
+      emits "PhraseIndexed"
+      then_set :input, to: :input
+      then_set :matched_phrase, to: :matched_phrase
+      then_set :domain, to: :domain
+      then_set :aggregate, to: :aggregate
+      then_set :command, to: :command
+    end
+
     query MatchInput do
       description "Find the command matching this phrase"
     end

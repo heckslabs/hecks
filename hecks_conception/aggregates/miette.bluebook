@@ -38,7 +38,6 @@ Hecks.bluebook "Miette", version: "2026.04.09.1" do
       attribute :responded, String
       attribute :timestamp, String
       then_set :turns, increment: 1
-      then_set :last_exchange, to: { said: :said, responded: :responded, timestamp: :timestamp }
       emits "Responded"
     end
 

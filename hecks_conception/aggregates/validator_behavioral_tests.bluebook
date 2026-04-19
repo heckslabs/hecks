@@ -3,8 +3,15 @@ Hecks.behaviors "Validator" do
 
   # ── Rule aggregate ──────────────────────────────────────────
 
+  test "RegisterRule sets name + category + description + severity" do
+    tests "RegisterRule", on: "Rule"
+    input  name: "sample", category: "sample", description: "sample", severity: "sample"
+    expect name: "sample", category: "sample", description: "sample", severity: "sample"
+  end
+
   test "ListRules returns matching records" do
     tests "ListRules", on: "Rule", kind: :query
+    setup  "RegisterRule", name: "sample", category: "sample", description: "sample", severity: "sample"
     expect count: 1
   end
 

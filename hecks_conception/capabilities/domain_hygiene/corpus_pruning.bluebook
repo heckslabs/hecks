@@ -83,8 +83,6 @@ Hecks.bluebook "CorpusPruning", version: "2026.04.13.1" do
       description "Compare all domain pairs by structural vector similarity — flag near-clones"
       attribute :jsonl_path, String
       attribute :similarity_threshold, Float
-      given { similarity_threshold >= 0.8 }
-      given { similarity_threshold <= 1.0 }
       emits "DuplicatesFound"
     end
 

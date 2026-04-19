@@ -23,7 +23,6 @@ Hecks.bluebook "ProjectManagement", version: "2026.04.11.1" do
       attribute :category, String
       attribute :priority, String
       attribute :assignee, String
-      attribute :labels, list_of(String)
       emits "FeatureProposed"
       then_set :title, to: :title
       then_set :description, to: :description
@@ -31,7 +30,6 @@ Hecks.bluebook "ProjectManagement", version: "2026.04.11.1" do
       then_set :category, to: :category
       then_set :priority, to: :priority
       then_set :assignee, to: :assignee
-      then_set :labels, to: :labels
       then_set :status, to: "backlog"
     end
 

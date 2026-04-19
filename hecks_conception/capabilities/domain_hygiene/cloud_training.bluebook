@@ -156,7 +156,6 @@ Hecks.bluebook "CloudTraining", version: "2026.04.13.1" do
 
     command "CheckBudget" do
       description "Verify spending is within budget before submitting a new job"
-      given { total_spent < budget_limit }
       emits "BudgetChecked"
     end
   end

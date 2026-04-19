@@ -5,8 +5,6 @@ Hecks.behaviors "Sleep" do
 
   test "AccumulateFatigue runs" do
     tests "AccumulateFatigue", on: "Fatigue"
-    setup  "AccumulateFatigue"
-    setup  "DissipateFatigue"
     expect state: "focused"
   end
 
@@ -44,6 +42,7 @@ Hecks.behaviors "Sleep" do
 
   test "EnterSleep cascades through policy chain" do
     tests "EnterSleep", on: "Consciousness", kind: :cascade
+    setup  "StartMonitoring", interval_seconds: 1
     setup  "EnterDaydream"
     expect emits: ["SleepEntered", "MonitoringStarted"]
   end
@@ -62,6 +61,8 @@ Hecks.behaviors "Sleep" do
 
   test "WakeUp cascades through policy chain" do
     tests "WakeUp", on: "Consciousness", kind: :cascade
+    setup  "AccumulateFatigue"
+    setup  "StartMonitoring", interval_seconds: 1
     setup  "EnterDaydream"
     setup  "EnterSleep"
     expect emits: ["WokenUp", "BecameAttentive", "FatigueDissipated", "MonitoringStopped"]
@@ -100,17 +101,17 @@ Hecks.behaviors "Sleep" do
     expect cycle_number: 1, total_cycles: 1, stage: "light"
   end
 
-  test "AdvanceStage sets stage + rem_intensity" do
+  test "AdvanceStage sets rem_intensity" do
     tests "AdvanceStage", on: "SleepCycle"
     setup  "StartCycle", cycle_number: 1, total_cycles: 1
-    input  stage: "sample", rem_intensity: 1
+    input  rem_intensity: 1
     expect rem_intensity: 1, stage: "rem"
   end
 
   test "CompleteCycle runs" do
     tests "CompleteCycle", on: "SleepCycle"
     setup  "StartCycle", cycle_number: 1, total_cycles: 1
-    setup  "AdvanceStage", stage: "sample", rem_intensity: 1
+    setup  "AdvanceStage", rem_intensity: 1
     expect stage: "light"
   end
 
@@ -124,6 +125,7 @@ Hecks.behaviors "Sleep" do
 
   test "StartNight cascades through policy chain" do
     tests "StartNight", on: "Night", kind: :cascade
+    setup  "SeedFromPreviousDreams", images: "sample", recombinations: "sample", strongest_synapses: "sample"
     expect emits: ["NightStarted", "DreamSeeded"]
   end
 

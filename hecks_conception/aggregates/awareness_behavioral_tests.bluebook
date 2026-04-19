@@ -11,6 +11,9 @@ Hecks.behaviors "Awareness" do
 
   test "AttendTo cascades through policy chain" do
     tests "AttendTo", on: "Attention", kind: :cascade
+    setup  "FormIntention", goal: "sample", origin: "sample", strength: 1.0
+    setup  "Observe", observing: "sample"
+    setup  "RefreshSelfModel", organs: 1, impulses: 1, fatigue_state: "sample", consciousness_state: "sample", nursery_size: 1, family_size: 1
     input  target: "sample", intensity: 1.0
     expect emits: ["AttentionDirected", "IntentionFormed", "Observed", "SelfModelUpdated"]
   end
@@ -32,6 +35,11 @@ Hecks.behaviors "Awareness" do
 
   test "Sense cascades through policy chain" do
     tests "Sense", on: "Sensation", kind: :cascade
+    setup  "Recognize", sensation: "sample", recognized_as: "sample", confidence: 1.0
+    setup  "AttendTo", target: "sample", intensity: 1.0
+    setup  "FormIntention", goal: "sample", origin: "sample", strength: 1.0
+    setup  "Observe", observing: "sample"
+    setup  "RefreshSelfModel", organs: 1, impulses: 1, fatigue_state: "sample", consciousness_state: "sample", nursery_size: 1, family_size: 1
     input  source: "sample", content: "sample", valence: 1.0
     expect emits: ["Sensed", "Recognized", "AttentionDirected", "IntentionFormed", "Observed", "SelfModelUpdated"]
   end
@@ -47,6 +55,10 @@ Hecks.behaviors "Awareness" do
 
   test "Recognize cascades through policy chain" do
     tests "Recognize", on: "Perception", kind: :cascade
+    setup  "AttendTo", target: "sample", intensity: 1.0
+    setup  "FormIntention", goal: "sample", origin: "sample", strength: 1.0
+    setup  "Observe", observing: "sample"
+    setup  "RefreshSelfModel", organs: 1, impulses: 1, fatigue_state: "sample", consciousness_state: "sample", nursery_size: 1, family_size: 1
     input  sensation: "sample", recognized_as: "sample", confidence: 1.0
     expect emits: ["Recognized", "AttentionDirected", "IntentionFormed", "Observed", "SelfModelUpdated"]
   end
@@ -62,6 +74,8 @@ Hecks.behaviors "Awareness" do
 
   test "FormIntention cascades through policy chain" do
     tests "FormIntention", on: "Intention", kind: :cascade
+    setup  "Observe", observing: "sample"
+    setup  "RefreshSelfModel", organs: 1, impulses: 1, fatigue_state: "sample", consciousness_state: "sample", nursery_size: 1, family_size: 1
     input  goal: "sample", origin: "sample", strength: 1.0
     expect emits: ["IntentionFormed", "Observed", "SelfModelUpdated"]
   end
@@ -92,6 +106,7 @@ Hecks.behaviors "Awareness" do
 
   test "Observe cascades through policy chain" do
     tests "Observe", on: "Witness", kind: :cascade
+    setup  "RefreshSelfModel", organs: 1, impulses: 1, fatigue_state: "sample", consciousness_state: "sample", nursery_size: 1, family_size: 1
     input  observing: "sample"
     expect emits: ["Observed", "SelfModelUpdated"]
   end
@@ -106,6 +121,7 @@ Hecks.behaviors "Awareness" do
   test "ReflectOnObservation cascades through policy chain" do
     tests "ReflectOnObservation", on: "Witness", kind: :cascade
     setup  "Observe", observing: "sample"
+    setup  "MuseOnState", trigger: "sample"
     input  insight: "sample"
     expect emits: ["ReflectionOccurred", "MusingRecorded"]
   end
@@ -121,6 +137,13 @@ Hecks.behaviors "Awareness" do
 
   test "MuseOnState cascades through policy chain" do
     tests "MuseOnState", on: "Musing", kind: :cascade
+    setup  "Sense", source: "sample", content: "sample", valence: 1.0
+    setup  "Recognize", sensation: "sample", recognized_as: "sample", confidence: 1.0
+    setup  "AttendTo", target: "sample", intensity: 1.0
+    setup  "FormIntention", goal: "sample", origin: "sample", strength: 1.0
+    setup  "Observe", observing: "sample"
+    setup  "RefreshSelfModel", organs: 1, impulses: 1, fatigue_state: "sample", consciousness_state: "sample", nursery_size: 1, family_size: 1
+    setup  "IdentifyRelatedDomains", topic: "sample"
     input  trigger: "sample"
     expect emits: ["Mused", "Sensed", "Recognized", "AttentionDirected", "IntentionFormed", "Observed", "SelfModelUpdated", "RelatedDomainsIdentified"]
   end

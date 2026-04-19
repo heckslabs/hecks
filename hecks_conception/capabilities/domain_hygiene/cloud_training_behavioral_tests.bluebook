@@ -38,6 +38,9 @@ Hecks.behaviors "CloudTraining" do
   test "CompleteJob cascades through policy chain" do
     tests "CompleteJob", on: "TrainingJob", kind: :cascade
     setup  "LinkUploadedData"
+    setup  "DownloadAdapter", remote_path: "sample", local_path: "sample"
+    setup  "RecordCost"
+    setup  "ConvertToOllama", ollama_model_name: "sample"
     setup  "MonitorJob"
     expect emits: ["JobCompleted", "AdapterDownloaded", "AdapterConverted", "SummerDeployed", "CostRecorded"]
   end
@@ -67,6 +70,8 @@ Hecks.behaviors "CloudTraining" do
 
   test "StageData cascades through policy chain" do
     tests "StageData", on: "DataUpload", kind: :cascade
+    setup  "LinkUploadedData"
+    setup  "RecordCost"
     setup  "ValidateJsonl", local_path: "sample"
     input  local_path: "sample"
     expect emits: ["DataStaged", "DataUploaded", "JobSubmitted", "JobMonitored", "BudgetChecked"]
@@ -82,6 +87,7 @@ Hecks.behaviors "CloudTraining" do
   test "UploadData cascades through policy chain" do
     tests "UploadData", on: "DataUpload", kind: :cascade
     setup  "ValidateJsonl", local_path: "sample"
+    setup  "LinkUploadedData"
     input  remote_path: "sample"
     expect emits: ["DataUploaded", "JobSubmitted", "JobMonitored"]
   end
@@ -128,6 +134,11 @@ Hecks.behaviors "CloudTraining" do
   test "RecordCost runs" do
     tests "RecordCost", on: "CostTracker"
     setup  "LinkUploadedData"
+    expect ok: "true"
+  end
+
+  test "CheckBudget runs" do
+    tests "CheckBudget", on: "CostTracker"
     expect ok: "true"
   end
 

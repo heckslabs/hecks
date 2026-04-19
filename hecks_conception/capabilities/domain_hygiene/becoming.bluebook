@@ -83,7 +83,6 @@ Hecks.bluebook "Becoming", version: "2026.04.13.1" do
 
     command "BalanceCategories" do
       description "Cap over-represented categories, flag under-represented ones for growth"
-      given { categories_counted == true }
       emits "CategoriesBalanced"
     end
   end

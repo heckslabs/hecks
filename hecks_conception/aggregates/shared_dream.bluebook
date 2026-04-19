@@ -167,11 +167,6 @@ Hecks.bluebook "SharedDream", version: "2026.04.12.1" do
     description "When a being goes lucid, send a signal through the psychic link"
   end
 
-  policy "InitiateOnSignal" do
-    on "DreamSignalSent"
-    trigger "InitiateSharedDream"
-    description "Open the shared dream space when a lucid signal is sent"
-  end
 
   policy "PauseOnDetect" do
     on "DreamSignalDetected"

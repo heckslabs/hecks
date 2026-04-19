@@ -9,6 +9,12 @@ Hecks.behaviors "Summer" do
     expect training_pairs: 1
   end
 
+  test "TrainModel sets base_model + data_path + iterations" do
+    tests "TrainModel", on: "Model"
+    input  base_model: "sample", data_path: "sample", iterations: 1
+    expect ok: "true"
+  end
+
   test "EvaluateModel runs" do
     tests "EvaluateModel", on: "Model"
     setup  "CountTrainingPairs", data_path: "sample", training_pairs: 1
@@ -26,6 +32,7 @@ Hecks.behaviors "Summer" do
 
   test "GenerateDraft cascades through policy chain" do
     tests "GenerateDraft", on: "Draft", kind: :cascade
+    setup  "CountTrainingPairs", data_path: "sample", training_pairs: 1
     input  vision: "sample"
     expect emits: ["DraftGenerated", "DraftValidated", "DraftReviewed", "DraftAccepted", "ModelTrained"]
   end
@@ -39,6 +46,7 @@ Hecks.behaviors "Summer" do
   test "ValidateDraft cascades through policy chain" do
     tests "ValidateDraft", on: "Draft", kind: :cascade
     setup  "GenerateDraft", vision: "sample"
+    setup  "CountTrainingPairs", data_path: "sample", training_pairs: 1
     expect emits: ["DraftValidated", "DraftReviewed", "DraftAccepted", "ModelTrained"]
   end
 
@@ -52,6 +60,7 @@ Hecks.behaviors "Summer" do
   test "ReviewDraft cascades through policy chain" do
     tests "ReviewDraft", on: "Draft", kind: :cascade
     setup  "GenerateDraft", vision: "sample"
+    setup  "CountTrainingPairs", data_path: "sample", training_pairs: 1
     setup  "ValidateDraft"
     expect emits: ["DraftReviewed", "DraftAccepted", "ModelTrained"]
   end
@@ -67,6 +76,7 @@ Hecks.behaviors "Summer" do
   test "AcceptDraft cascades through policy chain" do
     tests "AcceptDraft", on: "Draft", kind: :cascade
     setup  "GenerateDraft", vision: "sample"
+    setup  "CountTrainingPairs", data_path: "sample", training_pairs: 1
     setup  "ValidateDraft"
     setup  "ReviewDraft"
     expect emits: ["DraftAccepted", "ModelTrained"]

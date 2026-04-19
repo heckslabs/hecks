@@ -19,6 +19,8 @@ Hecks.behaviors "Console" do
   test "RecordMessage cascades through policy chain" do
     tests "RecordMessage", on: "Session", kind: :cascade
     setup  "StartSession", continuing: "sample"
+    setup  "RefreshFooter", branch: "sample", domain_count: 1, mood: "sample", beats: 1, sleep_state: "sample"
+    setup  "TalkWith", name: "sample"
     input  message: "sample"
     expect emits: ["MessageRecorded", "FooterRefreshed", "SpeakerObservationRecorded"]
   end

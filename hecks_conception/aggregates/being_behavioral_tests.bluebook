@@ -19,8 +19,9 @@ Hecks.behaviors "Being" do
   test "GraftDomain cascades through policy chain" do
     tests "GraftDomain", on: "Being", kind: :cascade
     setup  "ConceiveBeing", name: "sample", vision: "sample"
+    setup  "ConnectNerve", name: "sample", from_domain: "sample", from_event: "sample", to_domain: "sample", to_command: "sample"
     input  domain_name: "sample", domain_version: "sample", source_path: "sample", grafted_at: "sample"
-    expect emits: ["DomainGrafted", "NerveConnected"]
+    expect emits: ["DomainGrafted", "NerveConnected", "NerveConnected", "NerveConnected", "NerveConnected"]
   end
 
   test "ShedDomain sets domain_name" do
@@ -33,6 +34,7 @@ Hecks.behaviors "Being" do
   test "ShedDomain cascades through policy chain" do
     tests "ShedDomain", on: "Being", kind: :cascade
     setup  "ConceiveBeing", name: "sample", vision: "sample"
+    setup  "ConnectNerve", name: "sample", from_domain: "sample", from_event: "sample", to_domain: "sample", to_command: "sample"
     input  domain_name: "sample"
     expect emits: ["DomainShed", "NerveSevered", "NerveConnected"]
   end
@@ -47,6 +49,8 @@ Hecks.behaviors "Being" do
   test "ExpressDomain cascades through policy chain" do
     tests "ExpressDomain", on: "Being", kind: :cascade
     setup  "ConceiveBeing", name: "sample", vision: "sample"
+    setup  "ConnectNerve", name: "sample", from_domain: "sample", from_event: "sample", to_domain: "sample", to_command: "sample"
+    setup  "SeverNerve"
     input  domain_name: "sample"
     expect emits: ["DomainExpressed", "NerveRestored"]
   end
@@ -61,6 +65,7 @@ Hecks.behaviors "Being" do
   test "SilenceDomain cascades through policy chain" do
     tests "SilenceDomain", on: "Being", kind: :cascade
     setup  "ConceiveBeing", name: "sample", vision: "sample"
+    setup  "ConnectNerve", name: "sample", from_domain: "sample", from_event: "sample", to_domain: "sample", to_command: "sample"
     input  domain_name: "sample"
     expect emits: ["DomainSilenced", "NerveSevered"]
   end
@@ -75,8 +80,9 @@ Hecks.behaviors "Being" do
   test "UpgradeOrgan cascades through policy chain" do
     tests "UpgradeOrgan", on: "Being", kind: :cascade
     setup  "ConceiveBeing", name: "sample", vision: "sample"
+    setup  "ConnectNerve", name: "sample", from_domain: "sample", from_event: "sample", to_domain: "sample", to_command: "sample"
     input  domain_name: "sample", new_version: "sample"
-    expect emits: ["OrganUpgraded", "DomainGrafted", "NerveConnected"]
+    expect emits: ["OrganUpgraded", "DomainGrafted", "NerveConnected", "NerveConnected", "NerveConnected", "NerveConnected"]
   end
 
 
@@ -112,6 +118,7 @@ Hecks.behaviors "Being" do
 
   test "ScanOrgans cascades through policy chain" do
     tests "ScanOrgans", on: "NerveDiscovery", kind: :cascade
+    setup  "ConnectNerve", name: "sample", from_domain: "sample", from_event: "sample", to_domain: "sample", to_command: "sample"
     input  organs_scanned: 1, nerves_discovered: 1
     expect emits: ["OrgansScanned", "NerveConnected"]
   end
@@ -176,6 +183,8 @@ Hecks.behaviors "Being" do
 
   test "AddMember cascades through policy chain" do
     tests "AddMember", on: "Member", kind: :cascade
+    setup  "RebuildIndex", total_members: 1, total_organs: 1, total_incorporated: 1, total_aggregates: 1, total_commands: 1
+    setup  "LinkToBody", member_name: "sample", organ_name: "sample", path: "sample"
     input  name: "sample", vision: "sample", path: "sample", kind: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, version: "sample"
     expect emits: ["MemberAdded", "AdditionRecorded", "LinkedToBody"]
   end

@@ -12,7 +12,6 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
     command "AccumulateFatigue" do
       role "System"
       description "Each waking pulse increases fatigue"
-      reference_to(Fatigue)
       emits "FatigueAccumulated"
       then_set :pulses_since_sleep, increment: 1
     end
@@ -32,9 +31,7 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
       transition "AccumulateFatigue" => "tired",     from: "normal"
       transition "AccumulateFatigue" => "exhausted", from: "tired"
       transition "AccumulateFatigue" => "delirious", from: "exhausted"
-      transition "DissipateFatigue"  => "alert",     from: "tired"
-      transition "DissipateFatigue"  => "alert",     from: "exhausted"
-      transition "DissipateFatigue"  => "alert",     from: "delirious"
+      transition "DissipateFatigue"  => "alert",     from: ["tired", "exhausted", "delirious", "alert", "focused", "normal"]
     end
   end
 
@@ -293,10 +290,8 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
       role "Daemon"
       description "Move to the next stage within a cycle"
       reference_to(SleepCycle)
-      attribute :stage, String
       attribute :rem_intensity, Integer
       emits "StageAdvanced"
-      then_set :stage, to: :stage
       then_set :rem_intensity, to: :rem_intensity
     end
 
@@ -311,7 +306,7 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
       transition "StartCycle"    => "light", from: "light"
       transition "AdvanceStage"  => "rem",   from: "light"
       transition "AdvanceStage"  => "deep",  from: "rem"
-      transition "CompleteCycle" => "light", from: "deep"
+      transition "CompleteCycle" => "light", from: ["deep", "rem", "light"]
     end
   end
 

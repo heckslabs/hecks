@@ -3,41 +3,43 @@ Hecks.behaviors "ProjectManagement" do
 
   # ── Feature aggregate ──────────────────────────────────────────
 
-  test "ProposeFeature sets title + description + domain_name + category + priority + assignee + labels" do
+  test "ProposeFeature sets title + description + domain_name + category + priority + assignee" do
     tests "ProposeFeature", on: "Feature"
-    input  title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample", labels: "sample"
-    expect title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample", labels: "sample", status: "backlog"
+    input  title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample"
+    expect title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample", status: "backlog"
   end
 
   test "ProposeFeature cascades through policy chain" do
     tests "ProposeFeature", on: "Feature", kind: :cascade
-    input  title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample", labels: "sample"
+    setup  "LinkToDomain", feature_id: "sample", domain_name: "sample", aggregate_name: "sample", reason: "sample"
+    setup  "PrioritizeFeature", feature_id: "sample", rank: 1, reason: "sample"
+    input  title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample"
     expect emits: ["FeatureProposed", "LinkedToDomain", "FeaturePrioritized"]
   end
 
   test "AssignFeature sets assignee" do
     tests "AssignFeature", on: "Feature"
-    setup  "ProposeFeature", title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample", labels: "sample"
+    setup  "ProposeFeature", title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample"
     input  assignee: "sample"
     expect assignee: "sample"
   end
 
   test "LabelFeature sets label" do
     tests "LabelFeature", on: "Feature"
-    setup  "ProposeFeature", title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample", labels: "sample"
+    setup  "ProposeFeature", title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample"
     input  label: "sample"
     expect labels_size: 1
   end
 
   test "DeferFeature runs" do
     tests "DeferFeature", on: "Feature"
-    setup  "ProposeFeature", title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample", labels: "sample"
+    setup  "ProposeFeature", title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample"
     expect status: "deferred"
   end
 
   test "CancelFeature runs" do
     tests "CancelFeature", on: "Feature"
-    setup  "ProposeFeature", title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample", labels: "sample"
+    setup  "ProposeFeature", title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample"
     expect status: "cancelled"
   end
 

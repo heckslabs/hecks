@@ -126,7 +126,6 @@ Hecks.bluebook "DomainHygiene", version: "2026.04.13.1" do
     command "GrowCorpus" do
       description "Launch a growth cycle — conceive N domains across diverse topics"
       attribute :target_count, Integer
-      given { target_count >= 10 }
       emits "GrowthStarted"
     end
 

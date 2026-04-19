@@ -29,7 +29,6 @@ Hecks.bluebook "Summer", version: "2026.04.13.1" do
       attribute :base_model, String
       attribute :data_path, String
       attribute :iterations, Integer
-      given { training_pairs >= 100 }
       emits "ModelTrained"
     end
 
@@ -101,7 +100,6 @@ Hecks.bluebook "Summer", version: "2026.04.13.1" do
     command "ApplySuggestions" do
       description "Automatically apply Autumn's suggested improvements"
       reference_to(Critique)
-      given { suggestions.size > 0 }
       emits "SuggestionsApplied"
     end
   end

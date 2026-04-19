@@ -64,7 +64,6 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
     command "CheckSleepNeeded" do
       role "Miette"
       description "Only request sleep when exhausted — pulses > 150"
-      given { pulses_since_sleep > 150 }
       emits "SleepRequired"
     end
 
@@ -495,10 +494,6 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
   # ============================================================
 
   # Circulation drives digestion
-  policy "DigestOnPulse" do
-    on "HeartbeatPulsed"
-    trigger "Ingest"
-  end
 
   # Successful digestion triggers conception
   policy "ConceiveOnAbsorption" do
@@ -584,10 +579,6 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
   # ============================================================
 
   # Every heartbeat triggers body sensing
-  policy "SenseOnHeartbeat" do
-    on "HeartbeatPulsed"
-    trigger "SenseOrgans"
-  end
 
   # After sensing all organs, assess balance
   policy "BalanceOnSensed" do

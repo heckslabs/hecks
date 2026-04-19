@@ -11,6 +11,7 @@ Hecks.behaviors "RustToBluebook" do
 
   test "Analyze cascades through policy chain" do
     tests "Analyze", on: "RustFile", kind: :cascade
+    setup  "StartConversion"
     input  path: "sample"
     expect emits: ["FileAnalyzed", "BluebookMapped", "BluebookGenerated", "BluebookVerified", "RustDeleted", "FileConverted"]
   end
@@ -23,6 +24,7 @@ Hecks.behaviors "RustToBluebook" do
 
   test "MapToBluebook cascades through policy chain" do
     tests "MapToBluebook", on: "RustFile", kind: :cascade
+    setup  "StartConversion"
     setup  "Analyze", path: "sample"
     expect emits: ["BluebookMapped", "BluebookGenerated", "BluebookVerified", "RustDeleted", "FileConverted"]
   end
@@ -36,6 +38,7 @@ Hecks.behaviors "RustToBluebook" do
 
   test "GenerateBluebook cascades through policy chain" do
     tests "GenerateBluebook", on: "RustFile", kind: :cascade
+    setup  "StartConversion"
     setup  "Analyze", path: "sample"
     setup  "MapToBluebook"
     expect emits: ["BluebookGenerated", "BluebookVerified", "RustDeleted", "FileConverted"]
@@ -51,6 +54,7 @@ Hecks.behaviors "RustToBluebook" do
 
   test "Verify cascades through policy chain" do
     tests "Verify", on: "RustFile", kind: :cascade
+    setup  "StartConversion"
     setup  "Analyze", path: "sample"
     setup  "MapToBluebook"
     setup  "GenerateBluebook"
@@ -68,6 +72,7 @@ Hecks.behaviors "RustToBluebook" do
 
   test "DeleteRust cascades through policy chain" do
     tests "DeleteRust", on: "RustFile", kind: :cascade
+    setup  "StartConversion"
     setup  "Analyze", path: "sample"
     setup  "MapToBluebook"
     setup  "GenerateBluebook"

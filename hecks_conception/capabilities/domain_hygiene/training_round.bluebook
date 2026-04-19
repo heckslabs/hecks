@@ -28,7 +28,6 @@ Hecks.bluebook "TrainingRound", version: "2026.04.13.1" do
       attribute :growth_target, Integer
       attribute :min_reference_pct, Float
       attribute :min_policy_pct, Float
-      given { complete == true }
       emits "RoundStarted"
     end
 

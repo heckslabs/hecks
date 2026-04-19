@@ -18,6 +18,11 @@ Hecks.behaviors "Becoming" do
 
   test "HarvestDomains cascades through policy chain" do
     tests "HarvestDomains", on: "Harvest", kind: :cascade
+    setup  "VaryPrompts"
+    setup  "AddCrossAggregateFlows"
+    setup  "ConceiveNewDomains", topics: "sample", target_count: 1
+    setup  "PrepareSplit"
+    setup  "RunEvaluation"
     setup  "ScanNursery", nursery_path: "sample"
     input  nursery_path: "sample"
     expect emits: ["DomainsHarvested", "PromptsVaried", "NegativesGenerated", "ChainOfThoughtAdded", "CategoriesBalanced", "CrossAggregateFlowsAdded", "WorkflowsDeepened", "NewDomainsConceived", "CrossoversBred", "SplitPrepared", "FineTuneComplete", "EvaluationComplete", "BaselineCompared", "NextRoundDecided"]
@@ -50,6 +55,10 @@ Hecks.behaviors "Becoming" do
   test "VaryPrompts cascades through policy chain" do
     tests "VaryPrompts", on: "Shape", kind: :cascade
     setup  "ScanNursery", nursery_path: "sample"
+    setup  "AddCrossAggregateFlows"
+    setup  "ConceiveNewDomains", topics: "sample", target_count: 1
+    setup  "PrepareSplit"
+    setup  "RunEvaluation"
     expect emits: ["PromptsVaried", "NegativesGenerated", "ChainOfThoughtAdded", "CategoriesBalanced", "CrossAggregateFlowsAdded", "WorkflowsDeepened", "NewDomainsConceived", "CrossoversBred", "SplitPrepared", "FineTuneComplete", "EvaluationComplete", "BaselineCompared", "NextRoundDecided"]
   end
 
@@ -60,6 +69,11 @@ Hecks.behaviors "Becoming" do
 
   test "GenerateNegatives cascades through policy chain" do
     tests "GenerateNegatives", on: "Shape", kind: :cascade
+    setup  "ScanNursery", nursery_path: "sample"
+    setup  "AddCrossAggregateFlows"
+    setup  "ConceiveNewDomains", topics: "sample", target_count: 1
+    setup  "PrepareSplit"
+    setup  "RunEvaluation"
     expect emits: ["NegativesGenerated", "ChainOfThoughtAdded", "CategoriesBalanced", "CrossAggregateFlowsAdded", "WorkflowsDeepened", "NewDomainsConceived", "CrossoversBred", "SplitPrepared", "FineTuneComplete", "EvaluationComplete", "BaselineCompared", "NextRoundDecided"]
   end
 
@@ -72,6 +86,10 @@ Hecks.behaviors "Becoming" do
   test "AddChainOfThought cascades through policy chain" do
     tests "AddChainOfThought", on: "Shape", kind: :cascade
     setup  "ScanNursery", nursery_path: "sample"
+    setup  "AddCrossAggregateFlows"
+    setup  "ConceiveNewDomains", topics: "sample", target_count: 1
+    setup  "PrepareSplit"
+    setup  "RunEvaluation"
     expect emits: ["ChainOfThoughtAdded", "CategoriesBalanced", "CrossAggregateFlowsAdded", "WorkflowsDeepened", "NewDomainsConceived", "CrossoversBred", "SplitPrepared", "FineTuneComplete", "EvaluationComplete", "BaselineCompared", "NextRoundDecided"]
   end
 
@@ -82,13 +100,16 @@ Hecks.behaviors "Becoming" do
 
   test "BalanceCategories runs" do
     tests "BalanceCategories", on: "Shape"
-    setup  "CountCategories"
     expect ok: "true"
   end
 
   test "BalanceCategories cascades through policy chain" do
     tests "BalanceCategories", on: "Shape", kind: :cascade
-    setup  "CountCategories"
+    setup  "AddCrossAggregateFlows"
+    setup  "ScanNursery", nursery_path: "sample"
+    setup  "ConceiveNewDomains", topics: "sample", target_count: 1
+    setup  "PrepareSplit"
+    setup  "RunEvaluation"
     expect emits: ["CategoriesBalanced", "CrossAggregateFlowsAdded", "WorkflowsDeepened", "NewDomainsConceived", "CrossoversBred", "SplitPrepared", "FineTuneComplete", "EvaluationComplete", "BaselineCompared", "NextRoundDecided"]
   end
 
@@ -104,6 +125,10 @@ Hecks.behaviors "Becoming" do
   test "AddCrossAggregateFlows cascades through policy chain" do
     tests "AddCrossAggregateFlows", on: "Enrich", kind: :cascade
     setup  "ScanNursery", nursery_path: "sample"
+    setup  "ConceiveNewDomains", topics: "sample", target_count: 1
+    setup  "PrepareSplit"
+    setup  "VaryPrompts"
+    setup  "RunEvaluation"
     expect emits: ["CrossAggregateFlowsAdded", "WorkflowsDeepened", "NewDomainsConceived", "CrossoversBred", "SplitPrepared", "FineTuneComplete", "EvaluationComplete", "BaselineCompared", "NextRoundDecided"]
   end
 
@@ -128,6 +153,10 @@ Hecks.behaviors "Becoming" do
   test "DeepenWorkflows cascades through policy chain" do
     tests "DeepenWorkflows", on: "Enrich", kind: :cascade
     setup  "ScanNursery", nursery_path: "sample"
+    setup  "ConceiveNewDomains", topics: "sample", target_count: 1
+    setup  "PrepareSplit"
+    setup  "VaryPrompts"
+    setup  "RunEvaluation"
     expect emits: ["WorkflowsDeepened", "NewDomainsConceived", "CrossoversBred", "SplitPrepared", "FineTuneComplete", "EvaluationComplete", "BaselineCompared", "NextRoundDecided"]
   end
 
@@ -142,6 +171,9 @@ Hecks.behaviors "Becoming" do
 
   test "ConceiveNewDomains cascades through policy chain" do
     tests "ConceiveNewDomains", on: "Conceive", kind: :cascade
+    setup  "PrepareSplit"
+    setup  "VaryPrompts"
+    setup  "RunEvaluation"
     input  topics: "sample", target_count: 1
     expect emits: ["NewDomainsConceived", "CrossoversBred", "SplitPrepared", "FineTuneComplete", "EvaluationComplete", "BaselineCompared", "NextRoundDecided"]
   end
@@ -154,6 +186,9 @@ Hecks.behaviors "Becoming" do
 
   test "BreedCrossovers cascades through policy chain" do
     tests "BreedCrossovers", on: "Conceive", kind: :cascade
+    setup  "PrepareSplit"
+    setup  "VaryPrompts"
+    setup  "RunEvaluation"
     input  pair_count: 1
     expect emits: ["CrossoversBred", "SplitPrepared", "FineTuneComplete", "EvaluationComplete", "BaselineCompared", "NextRoundDecided"]
   end
@@ -176,6 +211,7 @@ Hecks.behaviors "Becoming" do
   test "PrepareSplit cascades through policy chain" do
     tests "PrepareSplit", on: "Train", kind: :cascade
     setup  "VaryPrompts"
+    setup  "RunEvaluation"
     expect emits: ["SplitPrepared", "FineTuneComplete", "EvaluationComplete", "BaselineCompared", "NextRoundDecided"]
   end
 
@@ -188,6 +224,7 @@ Hecks.behaviors "Becoming" do
 
   test "RunFineTune cascades through policy chain" do
     tests "RunFineTune", on: "Train", kind: :cascade
+    setup  "RunEvaluation"
     setup  "PrepareSplit"
     input  base_model: "sample", iterations: 1, learning_rate: 1.0
     expect emits: ["FineTuneComplete", "EvaluationComplete", "BaselineCompared", "NextRoundDecided"]

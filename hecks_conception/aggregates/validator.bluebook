@@ -18,6 +18,19 @@ Hecks.bluebook "Validator", version: "2026.04.17.1" do
     attribute :description, String
     attribute :severity, String
 
+    command "RegisterRule" do
+      description "Register a validation rule"
+      attribute :name, String
+      attribute :category, String
+      attribute :description, String
+      attribute :severity, String
+      emits "RuleRegistered"
+      then_set :name, to: :name
+      then_set :category, to: :category
+      then_set :description, to: :description
+      then_set :severity, to: :severity
+    end
+
     query ListRules do
       description "What rules do I enforce?"
     end

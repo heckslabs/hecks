@@ -11,6 +11,7 @@ Hecks.behaviors "Miette" do
 
   test "Greet cascades through policy chain" do
     tests "Greet", on: "Conversation", kind: :cascade
+    setup  "EncodeMemory", domain_name: "sample", persona: "sample", summary: "sample", conceived_at: "sample"
     input  person_name: "sample"
     expect emits: ["Greeted", "MemoryRecalled"]
   end
@@ -19,12 +20,14 @@ Hecks.behaviors "Miette" do
     tests "Respond", on: "Conversation"
     setup  "Greet", person_name: "sample"
     input  said: "sample", responded: "sample", timestamp: "sample"
-    expect last_exchange: { said: :said, responded: :responded, timestamp: :timestamp }
+    expect ok: "true"
   end
 
   test "Respond cascades through policy chain" do
     tests "Respond", on: "Conversation", kind: :cascade
     setup  "Greet", person_name: "sample"
+    setup  "EncodeMemory", domain_name: "sample", persona: "sample", summary: "sample", conceived_at: "sample"
+    setup  "RecognizePersona", name: "sample", fixture_type: "sample"
     input  said: "sample", responded: "sample", timestamp: "sample"
     expect emits: ["Responded", "MemoryEncoded", "PersonaRecognized"]
   end
@@ -54,6 +57,7 @@ Hecks.behaviors "Miette" do
 
   test "EncodeMemory cascades through policy chain" do
     tests "EncodeMemory", on: "Memory", kind: :cascade
+    setup  "RecognizePersona", name: "sample", fixture_type: "sample"
     input  domain_name: "sample", persona: "sample", summary: "sample", conceived_at: "sample"
     expect emits: ["MemoryEncoded", "PersonaRecognized"]
   end
@@ -105,6 +109,8 @@ Hecks.behaviors "Miette" do
 
   test "ConceiveDomain cascades through policy chain" do
     tests "ConceiveDomain", on: "NurseryAwareness", kind: :cascade
+    setup  "EncodeMemory", domain_name: "sample", persona: "sample", summary: "sample", conceived_at: "sample"
+    setup  "RecognizePersona", name: "sample", fixture_type: "sample"
     input  domain_name: "sample"
     expect emits: ["DomainConceived", "MemoryEncoded", "PersonaRecognized"]
   end

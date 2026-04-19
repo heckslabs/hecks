@@ -139,14 +139,11 @@ Hecks.bluebook "VoiceCorpusQuery", version: "2026.04.11.1" do
       description "Build a concise spoken answer from search results and sources"
       attribute :query_id, String
       attribute :answer_text, String
-      attribute :sources, list_of(String)
       attribute :confidence, Float
       emits "AnswerComposed"
       then_set :query_id, to: :query_id
       then_set :answer_text, to: :answer_text
-      then_set :sources, to: :sources
       then_set :confidence, to: :confidence
-      then_set :status, to: "composed"
     end
 
     command "AddSource" do
@@ -178,10 +175,8 @@ Hecks.bluebook "VoiceCorpusQuery", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "pending" do
-      transition "ComposeAnswer" => "composed", from: "pending"
-      transition "SimplifyForSpeech" => "simplified", from: "composed"
-      transition "DeliverAnswer" => "delivered", from: "simplified"
-      transition "DeliverAnswer" => "delivered", from: "composed"
+      transition "SimplifyForSpeech" => "simplified", from: "pending"
+      transition "DeliverAnswer" => "delivered", from: ["pending", "simplified"]
     end
   end
 
@@ -223,27 +218,6 @@ Hecks.bluebook "VoiceCorpusQuery", version: "2026.04.11.1" do
       reference_to(QueryHistory)
       emits "GapsIdentified"
     end
-  end
-
-  policy "ParseOnReceive" do
-    on "QueryReceived"
-    trigger "ClassifyIntent"
-  end
-
-  policy "SearchOnParse" do
-    on "IntentClassified"
-    trigger "SearchCorpus"
-  end
-
-  policy "AnswerOnSearch" do
-    on "CorpusSearched"
-    trigger "ComposeAnswer"
-  end
-
-  policy "SpeakOnAnswer" do
-    on "AnswerComposed"
-    trigger "SpeakAnswer"
-    across "Voice"
   end
 
   policy "LogOnAnswer" do

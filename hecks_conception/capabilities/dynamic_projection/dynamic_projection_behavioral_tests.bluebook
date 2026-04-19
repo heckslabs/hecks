@@ -34,6 +34,11 @@ Hecks.behaviors "DynamicProjection" do
   test "DetectChange cascades through policy chain" do
     tests "DetectChange", on: "BluebookWatch", kind: :cascade
     setup  "WatchBluebook", path: "sample"
+    setup  "ProjectPage", aggregate_name: "sample", bluebook_path: "sample"
+    setup  "ScanForDrift"
+    setup  "ProjectForm", command_name: "sample", aggregate_name: "sample"
+    setup  "ProjectNavigation", project_name: "sample"
+    setup  "FlagStale"
     input  path: "sample", change_type: "sample"
     expect emits: ["BluebookChanged", "PageStale", "PageRegenerated", "DriftScanned", "DriftReported", "FormRegenerated", "NavigationRegenerated"]
   end
@@ -56,6 +61,7 @@ Hecks.behaviors "DynamicProjection" do
 
   test "RegeneratePage cascades through policy chain" do
     tests "RegeneratePage", on: "PageProjection", kind: :cascade
+    setup  "ScanForDrift"
     setup  "ProjectPage", aggregate_name: "sample", bluebook_path: "sample"
     setup  "FlagStale"
     expect emits: ["PageRegenerated", "DriftScanned", "DriftReported"]
@@ -69,6 +75,7 @@ Hecks.behaviors "DynamicProjection" do
 
   test "FlagStale cascades through policy chain" do
     tests "FlagStale", on: "PageProjection", kind: :cascade
+    setup  "ScanForDrift"
     setup  "ProjectPage", aggregate_name: "sample", bluebook_path: "sample"
     expect emits: ["PageStale", "PageRegenerated", "DriftScanned", "DriftReported"]
   end

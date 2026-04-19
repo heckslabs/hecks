@@ -336,12 +336,6 @@ Hecks.bluebook "Conception", version: "2026.04.16.1" do
     trigger "IndexDomain"
   end
 
-  # Development triggers versioning in the Catalog
-  policy "VersionOnDevelopment" do
-    on "DomainDeveloped"
-    trigger "DevelopDomain"
-    across "Catalog"
-  end
 
   policy "SyncOnDevelopment" do
     on "DomainDeveloped"
@@ -372,11 +366,6 @@ Hecks.bluebook "Conception", version: "2026.04.16.1" do
     trigger "StartGestation"
   end
 
-  policy "ValidateOnContraction" do
-    on "Contracted"
-    trigger "ValidateBluebook"
-  end
-
   policy "DeliverOnPass" do
     on "LaborPassed"
     trigger "DeliverDomain"
@@ -397,13 +386,4 @@ Hecks.bluebook "Conception", version: "2026.04.16.1" do
     trigger "CheckParity"
   end
 
-  policy "IndexOnBirth" do
-    on "BirthRegistered"
-    trigger "IndexInNursery"
-  end
-
-  policy "RegisterInCorpus" do
-    on "IndexedInNursery"
-    trigger "RegisterBirth"
-  end
 end

@@ -134,7 +134,7 @@ Hecks.bluebook "Musings", version: "2026.04.16.1" do
     attribute :preview_count, Integer
     attribute :show_sources, TrueClass
 
-    command "Configure" do
+    command "ConfigurePresentation" do
       role "Self"
       description "Set how musings are presented — table format, preview count"
       attribute :preview_count, Integer

@@ -10,6 +10,7 @@ Hecks.behaviors "LucidDream" do
 
   test "BecomeLucid cascades through policy chain" do
     tests "BecomeLucid", on: "LucidDream", kind: :cascade
+    setup  "StartLucidMonitor", log_path: "sample"
     expect emits: ["BecameLucid", "LucidMonitorStarted"]
   end
 
@@ -32,6 +33,7 @@ Hecks.behaviors "LucidDream" do
 
   test "EndLucidity cascades through policy chain" do
     tests "EndLucidity", on: "LucidDream", kind: :cascade
+    setup  "StartLucidMonitor", log_path: "sample"
     expect emits: ["LucidityEnded", "LucidMonitorStopped"]
   end
 

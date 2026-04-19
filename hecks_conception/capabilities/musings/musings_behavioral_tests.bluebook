@@ -54,8 +54,8 @@ Hecks.behaviors "Musings" do
 
   # ── Presentation aggregate ──────────────────────────────────────────
 
-  test "Configure sets preview_count" do
-    tests "Configure", on: "Presentation"
+  test "ConfigurePresentation sets preview_count" do
+    tests "ConfigurePresentation", on: "Presentation"
     input  preview_count: 1
     expect preview_count: 1, format: "table_then_describe"
   end

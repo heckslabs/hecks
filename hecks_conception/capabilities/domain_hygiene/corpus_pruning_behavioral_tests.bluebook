@@ -51,6 +51,12 @@ Hecks.behaviors "CorpusPruning" do
 
   # ── Deduplicator aggregate ──────────────────────────────────────────
 
+  test "FindDuplicates sets jsonl_path + similarity_threshold" do
+    tests "FindDuplicates", on: "Deduplicator"
+    input  jsonl_path: "sample", similarity_threshold: 1.0
+    expect ok: "true"
+  end
+
   test "FindDuplicates cascades through policy chain" do
     tests "FindDuplicates", on: "Deduplicator", kind: :cascade
     input  jsonl_path: "sample", similarity_threshold: 1.0

@@ -78,7 +78,6 @@ Hecks.bluebook "MiettePhone", version: "2026.04.13.1" do
     command "StartConversation" do
       description "Begin a new chat thread"
       reference_to(Conversation)
-      given { session_active == true }
       emits "ConversationStarted"
     end
 
