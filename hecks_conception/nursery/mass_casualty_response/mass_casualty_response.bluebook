@@ -74,7 +74,6 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
       Integer :capacity
       emits "StationOpened"
       then_set :station_id, to: :station_id
-      then_set :incident, to: :incident
       then_set :location, to: :location
       then_set :capacity, to: :capacity
       then_set :current_count, to: 0
@@ -117,7 +116,6 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
       Integer :patient_capacity
       emits "AircraftDispatched"
       then_set :callsign, to: :callsign
-      then_set :incident, to: :incident
       then_set :origin, to: :origin
       then_set :patient_capacity, to: :patient_capacity
       then_set :status, to: "en_route"
@@ -166,7 +164,6 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
       Integer :units_allocated
       emits "BloodAllocated"
       then_set :dispatch_id, to: :dispatch_id
-      then_set :aircraft, to: :aircraft
       then_set :blood_type, to: :blood_type
       then_set :units_allocated, to: :units_allocated
       then_set :status, to: "dispatched"
@@ -217,7 +214,6 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
       reference_to(MassIncident) :active_incident
       given { status == "available" }
       emits "CasualtiesAccepted"
-      then_set :active_incident, to: :active_incident
       then_set :status, to: "receiving"
     end
     ActivateTraumaTeam do

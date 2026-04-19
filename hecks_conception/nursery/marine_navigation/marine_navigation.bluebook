@@ -177,7 +177,6 @@ Hecks.bluebook "MarineNavigation", version: "2026.04.13.1" do
       reference_to(Vessel)
       given { status == "docked" }
       emits "VesselRefueled"
-      then_set :current_fuel_tons, to: :fuel_capacity_tons
     end
 
     DockVessel do

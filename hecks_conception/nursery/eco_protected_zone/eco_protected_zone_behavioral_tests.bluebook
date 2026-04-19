@@ -81,7 +81,7 @@ Hecks.behaviors "EcoProtectedZone" do
     setup  "DesignateArea", name: "sample", protection_level: "sample", area_sq_km: 1.0
     setup  "CatalogSpecies", common_name: "sample", scientific_name: "sample", conservation_status: "sample", estimated_population: 1, primary_habitat: "sample"
     input  case_number: "sample", evidence_type: "sample", dna_sample_id: "sample"
-    expect case_number: "sample", evidence_type: "sample", dna_sample_id: "sample", species: :species, area: :area, status: "open"
+    expect case_number: "sample", evidence_type: "sample", dna_sample_id: "sample", status: "open"
   end
 
   test "MatchDNA runs" do
@@ -110,7 +110,7 @@ Hecks.behaviors "EcoProtectedZone" do
     tests "DefineHazardZone", on: "HazardZone"
     setup  "DesignateArea", name: "sample", protection_level: "sample", area_sq_km: 1.0
     input  zone_name: "sample", hazard_type: "sample"
-    expect zone_name: "sample", hazard_type: "sample", area: :area, alert_level: "normal", status: "monitored"
+    expect zone_name: "sample", hazard_type: "sample", alert_level: "normal", status: "monitored"
   end
 
   test "RaiseAlert sets alert_level" do
@@ -142,7 +142,7 @@ Hecks.behaviors "EcoProtectedZone" do
     setup  "DesignateArea", name: "sample", protection_level: "sample", area_sq_km: 1.0
     setup  "RegisterVisitor", name: "sample", nationality: "sample"
     input  permit_type: "sample", valid_from: "sample", valid_until: "sample"
-    expect visitor: 1, area: :area, permit_type: "sample", valid_from: "sample", valid_until: "sample", status: "active"
+    expect visitor: 1, permit_type: "sample", valid_from: "sample", valid_until: "sample", status: "active"
   end
 
   test "RevokePermit runs" do

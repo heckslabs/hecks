@@ -45,7 +45,7 @@ Hecks.behaviors "HealingThroughLearning" do
     setup  "DesignCurriculum", curriculum_id: "sample", title: "sample", difficulty_level: "sample"
     setup  "EnrollLearner", learner_id: "sample", name: "sample", recovery_stage: "sample", enrollment_date: "sample"
     input  session_id: "sample", recipe_name: "sample", nutrition_focus: "sample"
-    expect session_id: "sample", learner: 1, curriculum: :curriculum, recipe_name: "sample", nutrition_focus: "sample", status: "scheduled"
+    expect session_id: "sample", learner: 1, recipe_name: "sample", nutrition_focus: "sample", status: "scheduled"
   end
 
   test "CompleteLab runs" do

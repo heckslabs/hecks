@@ -31,6 +31,7 @@ Hecks.bluebook "GlassboxTraining", version: "2026.04.11.1" do
     command "CalculateTokenCount" do
       role "System"
       description "Calculate total token count across all training examples"
+      attribute :total_tokens, Integer
       emits "TokenCountCalculated"
       then_set :total_tokens, to: :total_tokens
     end

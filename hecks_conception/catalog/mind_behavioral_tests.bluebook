@@ -224,10 +224,11 @@ Hecks.behaviors "Mind" do
     expect being_name: "sample", beats: 0
   end
 
-  test "Beat runs" do
+  test "Beat sets now" do
     tests "Beat", on: "Heartbeat"
     setup  "BeginHeartbeat", being_name: "sample"
-    expect last_beat_at: :now
+    input  now: "sample"
+    expect last_beat_at: "sample"
   end
 
   test "ReportOrganPulse sets domain_name + event_count + last_event_at" do

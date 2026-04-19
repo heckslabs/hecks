@@ -23,7 +23,7 @@ Hecks.behaviors "DisasterAutonomy" do
     tests "DeployFleet", on: "SearchFleet"
     setup  "DeclareDisaster", event_id: "sample", disaster_type: "sample", affected_region: "sample", severity: "sample", estimated_affected: 1
     input  fleet_id: "sample", drone_count: 1, deployment_zone: "sample"
-    expect fleet_id: "sample", event: :event, drone_count: 1, deployment_zone: "sample", status: "deployed"
+    expect fleet_id: "sample", drone_count: 1, deployment_zone: "sample", status: "deployed"
   end
 
   test "ReportSurvivorFound runs" do
@@ -45,7 +45,7 @@ Hecks.behaviors "DisasterAutonomy" do
     tests "PlanDrop", on: "SupplyDrop"
     setup  "DeclareDisaster", event_id: "sample", disaster_type: "sample", affected_region: "sample", severity: "sample", estimated_affected: 1
     input  drop_id: "sample", supply_type: "sample", target_location: "sample", delivery_method: "sample"
-    expect drop_id: "sample", event: :event, supply_type: "sample", target_location: "sample", delivery_method: "sample", status: "planned"
+    expect drop_id: "sample", supply_type: "sample", target_location: "sample", delivery_method: "sample", status: "planned"
   end
 
   test "ExecuteDrop runs" do
@@ -61,7 +61,7 @@ Hecks.behaviors "DisasterAutonomy" do
     tests "ActivateGridResponse", on: "GridResponse"
     setup  "DeclareDisaster", event_id: "sample", disaster_type: "sample", affected_region: "sample", severity: "sample", estimated_affected: 1
     input  response_id: "sample", grid_sector: "sample", affected_substations: 1
-    expect response_id: "sample", event: :event, grid_sector: "sample", affected_substations: 1, status: "active"
+    expect response_id: "sample", grid_sector: "sample", affected_substations: 1, status: "active"
   end
 
   test "ReroutePower runs" do
@@ -83,7 +83,7 @@ Hecks.behaviors "DisasterAutonomy" do
     tests "DeclareRestriction", on: "AirspaceControl"
     setup  "DeclareDisaster", event_id: "sample", disaster_type: "sample", affected_region: "sample", severity: "sample", estimated_affected: 1
     input  control_id: "sample", restricted_zone: "sample"
-    expect control_id: "sample", event: :event, restricted_zone: "sample", status: "restricted"
+    expect control_id: "sample", restricted_zone: "sample", status: "restricted"
   end
 
   test "AuthorizeDroneFleet runs" do
@@ -105,7 +105,7 @@ Hecks.behaviors "DisasterAutonomy" do
     tests "OpenRegistry", on: "SurvivorRegistry"
     setup  "DeclareDisaster", event_id: "sample", disaster_type: "sample", affected_region: "sample", severity: "sample", estimated_affected: 1
     input  registry_id: "sample"
-    expect registry_id: "sample", event: :event, total_found: 0, status: "active"
+    expect registry_id: "sample", total_found: 0, status: "active"
   end
 
   test "RegisterSurvivor runs" do

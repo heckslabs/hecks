@@ -3,22 +3,22 @@ Hecks.behaviors "DLMState" do
 
   # ── SessionState aggregate ──────────────────────────────────────────
 
-  test "StartSession sets session_id + heartbeat_at_start" do
+  test "StartSession sets session_id + heartbeat_at_start + now" do
     tests "StartSession", on: "SessionState"
-    input  session_id: "sample", heartbeat_at_start: 1
-    expect session_id: "sample", started_at: :now, heartbeat_at_start: 1, pulse_count: 0, domains_conceived: 0, domains_developed: 0, conversations_held: 0, speaker_switches: 0, dreams_had: 0, memories_consolidated: 0
+    input  session_id: "sample", heartbeat_at_start: 1, now: "sample"
+    expect session_id: "sample", started_at: "sample", heartbeat_at_start: 1, pulse_count: 0, domains_conceived: 0, domains_developed: 0, conversations_held: 0, speaker_switches: 0, dreams_had: 0, memories_consolidated: 0
   end
 
-  test "EndSession sets heartbeat_at_end" do
+  test "EndSession sets heartbeat_at_end + now" do
     tests "EndSession", on: "SessionState"
-    setup  "StartSession", session_id: "sample", heartbeat_at_start: 1
-    input  heartbeat_at_end: 1
-    expect ended_at: :now, heartbeat_at_end: 1
+    setup  "StartSession", session_id: "sample", heartbeat_at_start: 1, now: "sample"
+    input  heartbeat_at_end: 1, now: "sample"
+    expect ended_at: "sample", heartbeat_at_end: 1
   end
 
   test "SnapshotSession runs" do
     tests "SnapshotSession", on: "SessionState"
-    setup  "StartSession", session_id: "sample", heartbeat_at_start: 1
+    setup  "StartSession", session_id: "sample", heartbeat_at_start: 1, now: "sample"
     expect ok: "true"
   end
 
@@ -64,15 +64,15 @@ Hecks.behaviors "DLMState" do
 
   # ── DreamLog aggregate ──────────────────────────────────────────
 
-  test "LogDream sets dream_id + session_id + images + strongest_synapse + proposed_domains" do
+  test "LogDream sets dream_id + session_id + images + strongest_synapse + proposed_domains + now" do
     tests "LogDream", on: "DreamLog"
-    input  dream_id: "sample", session_id: "sample", images: "sample", strongest_synapse: "sample", proposed_domains: "sample"
-    expect dream_id: "sample", session_id: "sample", images: "sample", strongest_synapse: "sample", proposed_domains: "sample", dreamed_at: :now
+    input  dream_id: "sample", session_id: "sample", images: "sample", strongest_synapse: "sample", proposed_domains: "sample", now: "sample"
+    expect dream_id: "sample", session_id: "sample", images: "sample", strongest_synapse: "sample", proposed_domains: "sample", dreamed_at: "sample"
   end
 
   test "ExtractProposals runs" do
     tests "ExtractProposals", on: "DreamLog"
-    setup  "LogDream", dream_id: "sample", session_id: "sample", images: "sample", strongest_synapse: "sample", proposed_domains: "sample"
+    setup  "LogDream", dream_id: "sample", session_id: "sample", images: "sample", strongest_synapse: "sample", proposed_domains: "sample", now: "sample"
     expect ok: "true"
   end
 
@@ -84,15 +84,15 @@ Hecks.behaviors "DLMState" do
 
   # ── PerformanceMetric aggregate ──────────────────────────────────────────
 
-  test "RecordMetric sets metric_name + value + unit" do
+  test "RecordMetric sets metric_name + value + unit + now" do
     tests "RecordMetric", on: "PerformanceMetric"
-    input  metric_name: "sample", value: 1.0, unit: "sample"
-    expect metric_name: "sample", value: 1.0, unit: "sample", measured_at: :now
+    input  metric_name: "sample", value: 1.0, unit: "sample", now: "sample"
+    expect metric_name: "sample", value: 1.0, unit: "sample", measured_at: "sample"
   end
 
   test "CompareToTarget sets target_value" do
     tests "CompareToTarget", on: "PerformanceMetric"
-    setup  "RecordMetric", metric_name: "sample", value: 1.0, unit: "sample"
+    setup  "RecordMetric", metric_name: "sample", value: 1.0, unit: "sample", now: "sample"
     input  target_value: 1.0
     expect ok: "true"
   end

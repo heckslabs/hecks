@@ -77,7 +77,7 @@ Hecks.bluebook "AutonomousRescue", version: "2026.04.13.1" do
       role "System"
       description "Deploy a search drone to scan a sector of the disaster site"
       String :drone_id
-      reference_to(RescueMission) :mission
+      attribute :mission, String
       emits "DroneDeployed"
       then_set :drone_id, to: :drone_id
       then_set :mission, to: :mission
@@ -143,7 +143,7 @@ Hecks.bluebook "AutonomousRescue", version: "2026.04.13.1" do
       description "Deploy a supply bot toward a detected survivor location"
       String :bot_id
       String :payload_type
-      reference_to(SurvivorBeacon) :target_beacon
+      attribute :target_beacon, String
       emits "SupplyBotDeployed"
       then_set :bot_id, to: :bot_id
       then_set :payload_type, to: :payload_type
@@ -202,7 +202,7 @@ Hecks.bluebook "AutonomousRescue", version: "2026.04.13.1" do
       Float :longitude
       String :detection_method
       String :rescue_priority
-      reference_to(RescueMission) :mission
+      attribute :mission, String
       emits "BeaconCreated"
       then_set :latitude, to: :latitude
       then_set :longitude, to: :longitude
@@ -297,7 +297,7 @@ Hecks.bluebook "AutonomousRescue", version: "2026.04.13.1" do
     InitializeMap do
       role "System"
       description "Create the initial debris map from first drone scan"
-      reference_to(RescueMission) :mission
+      attribute :mission, String
       emits "MapInitialized"
       then_set :mission, to: :mission
       then_set :map_version, to: "1"

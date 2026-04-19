@@ -87,7 +87,7 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
       role "System"
       description "Assign drone to a specific casualty for evacuation or blood delivery"
       reference_to(MedDrone)
-      reference_to(CasualtyReport) :assigned_casualty
+      attribute :assigned_casualty, String
       given { status == "airborne" }
       emits "DroneAssigned"
       then_set :assigned_casualty, to: :assigned_casualty
@@ -123,7 +123,7 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
       role "BloodBankTech"
       description "Prepare blood products matched to casualty for drone delivery"
       String :drop_id
-      reference_to(CasualtyReport) :target_casualty
+      attribute :target_casualty, String
       String :blood_type
       Integer :units
       emits "BloodDropPrepared"
@@ -138,7 +138,7 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
       role "System"
       description "Load blood package onto assigned medical drone"
       reference_to(BloodDrop)
-      reference_to(MedDrone) :carrier_drone
+      attribute :carrier_drone, String
       given { status == "prepared" }
       emits "BloodLoaded"
       then_set :carrier_drone, to: :carrier_drone
@@ -174,8 +174,8 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
       role "System"
       description "Compute optimal evacuation route avoiding active threats"
       String :route_id
-      reference_to(CasualtyReport) :casualty
-      reference_to(FieldHospital) :destination
+      attribute :casualty, String
+      attribute :destination, String
       String :threat_level
       Integer :distance_km
       Integer :eta_minutes

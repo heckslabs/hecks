@@ -167,17 +167,19 @@ fn run_one(source_text: &str, test: &Test) -> TestRun {
         // in the Ok arm, so it passes by virtue of being here.
         if key == "ok" && (expected == "true" || expected == "\"true\"") { continue; }
         if let Some(prefix) = key.strip_suffix("_size") {
-            // List length assertion: `toppings_size: 1` → state.toppings.len() == 1
-            let actual = match state.get(prefix) {
-                Value::List(v) => v.len(),
-                _ => 0,
-            };
-            let expected_n: usize = expected.parse().unwrap_or(0);
-            if actual != expected_n {
-                return TestRun::fail(&test.description,
-                    format!("expected {}.size == {}, got {}", prefix, expected_n, actual));
+            // Size assertion ONLY when `<prefix>` actually exists as a
+            // list field. Otherwise this is just a normal attribute
+            // whose name happens to end in `_size` (e.g. an Integer
+            // `family_size` field) — fall through to equality.
+            if let Value::List(v) = state.get(prefix) {
+                let actual = v.len();
+                let expected_n: usize = expected.parse().unwrap_or(0);
+                if actual != expected_n {
+                    return TestRun::fail(&test.description,
+                        format!("expected {}.size == {}, got {}", prefix, expected_n, actual));
+                }
+                continue;
             }
-            continue;
         }
         // Plain attribute equality. Compare the field's display form to
         // the expected source-token string — both parsers stringify

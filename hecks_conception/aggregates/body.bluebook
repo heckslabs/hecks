@@ -32,6 +32,7 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
       description "One heartbeat tick — caller passes elapsed seconds since last beat"
       attribute :carrying, String
       attribute :elapsed, Integer
+      attribute :now, String
       then_set :beats, increment: :elapsed
       then_set :last_beat_at, to: :now
       then_set :carrying, to: :carrying

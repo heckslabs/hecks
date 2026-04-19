@@ -64,7 +64,7 @@ Hecks.bluebook "RegenerativeCommons", version: "2026.04.13.1" do
       String :current_crop
       emits "PlotAssigned"
       then_set :plot_id, to: :plot_id
-      then_set :commons, to: :commons
+      then_set :common_land, to: :common_land
       then_set :steward_name, to: :steward_name
       then_set :current_crop, to: :current_crop
       then_set :status, to: "active"
@@ -111,7 +111,7 @@ Hecks.bluebook "RegenerativeCommons", version: "2026.04.13.1" do
       Integer :acres
       emits "ZoneDesignated"
       then_set :zone_id, to: :zone_id
-      then_set :commons, to: :commons
+      then_set :common_land, to: :common_land
       then_set :ecosystem_type, to: :ecosystem_type
       then_set :acres, to: :acres
       then_set :restoration_status, to: "planned"
@@ -159,7 +159,7 @@ Hecks.bluebook "RegenerativeCommons", version: "2026.04.13.1" do
       Integer :total_yield_lbs
       emits "HarvestAllocated"
       then_set :allocation_id, to: :allocation_id
-      then_set :source_plot, to: :source_plot
+      then_set :farm_plot, to: :farm_plot
       then_set :season, to: :season
       then_set :total_yield_lbs, to: :total_yield_lbs
       then_set :status, to: "allocated"
@@ -198,8 +198,8 @@ Hecks.bluebook "RegenerativeCommons", version: "2026.04.13.1" do
       String :survey_date
       emits "SurveyConducted"
       then_set :survey_id, to: :survey_id
-      then_set :zone, to: :zone
-      then_set :adjacent_plot, to: :adjacent_plot
+      then_set :conservation_zone, to: :conservation_zone
+      then_set :farm_plot, to: :farm_plot
       then_set :survey_date, to: :survey_date
       then_set :overall_health, to: "pending"
     end
@@ -238,7 +238,7 @@ Hecks.bluebook "RegenerativeCommons", version: "2026.04.13.1" do
       emits "MemberRegistered"
       then_set :member_id, to: :member_id
       then_set :name, to: :name
-      then_set :commons, to: :commons
+      then_set :common_land, to: :common_land
       then_set :role_type, to: :role_type
       then_set :status, to: "active"
     end

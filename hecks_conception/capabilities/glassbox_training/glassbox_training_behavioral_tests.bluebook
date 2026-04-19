@@ -20,9 +20,10 @@ Hecks.behaviors "GlassboxTraining" do
     expect ok: "true"
   end
 
-  test "CalculateTokenCount runs" do
+  test "CalculateTokenCount sets total_tokens" do
     tests "CalculateTokenCount", on: "TrainingCorpus"
-    expect total_tokens: :total_tokens
+    input  total_tokens: 1
+    expect total_tokens: 1
   end
 
 

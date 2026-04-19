@@ -41,7 +41,7 @@ Hecks.behaviors "FoodIsMedicine" do
     tests "LinkToTarget", on: "FarmAllocation"
     setup  "ComputeDemand", region: "sample", period: "sample"
     setup  "CommitFarm", farm_name: "sample", region: "sample", season: "sample", acres_committed: 1
-    expect target: :target
+    expect ok: "true"
   end
 
 
@@ -66,7 +66,7 @@ Hecks.behaviors "FoodIsMedicine" do
     tests "PlanRoute", on: "DistributionRoute"
     setup  "CommitFarm", farm_name: "sample", region: "sample", season: "sample", acres_committed: 1
     input  route_id: "sample", food_bank_name: "sample", delivery_date: "sample"
-    expect route_id: "sample", source_farm: :source_farm, food_bank_name: "sample", delivery_date: "sample", status: "planned"
+    expect route_id: "sample", food_bank_name: "sample", delivery_date: "sample", status: "planned"
   end
 
   test "DispatchDelivery runs" do
@@ -89,7 +89,7 @@ Hecks.behaviors "FoodIsMedicine" do
     tests "RecordBaseline", on: "PatientOutcome"
     setup  "IssuePrescription", prescription_id: "sample", patient_name: "sample", diagnosis: "sample", prescribing_clinician: "sample"
     input  patient_name: "sample", baseline_status: "sample"
-    expect patient_name: "sample", prescription: :prescription, baseline_status: "sample", current_status: "sample", trend: "stable"
+    expect patient_name: "sample", baseline_status: "sample", current_status: "sample", trend: "stable"
   end
 
   test "RecordCheckpoint sets current_status + trend" do

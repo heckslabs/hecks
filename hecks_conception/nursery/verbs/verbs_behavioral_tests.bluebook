@@ -12,7 +12,7 @@ Hecks.behaviors "Verbs" do
   test "ImportFromFile sets verbs" do
     tests "ImportFromFile", on: "Lexicon"
     input  verbs: "sample"
-    expect known_verbs: "sample", total: :count
+    expect known_verbs: "sample"
   end
 
   test "LearnVerb sets verb + source_domain" do

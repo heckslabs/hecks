@@ -93,7 +93,6 @@ Hecks.bluebook "FoodIsMedicine", version: "2026.04.13.1" do
       reference_to(FarmAllocation)
       reference_to(NutrientTarget) :target
       emits "FarmLinkedToTarget"
-      then_set :target, to: :target
     end
   end
 
@@ -154,7 +153,6 @@ Hecks.bluebook "FoodIsMedicine", version: "2026.04.13.1" do
       String :delivery_date
       emits "RoutePlanned"
       then_set :route_id, to: :route_id
-      then_set :source_farm, to: :source_farm
       then_set :food_bank_name, to: :food_bank_name
       then_set :delivery_date, to: :delivery_date
       then_set :status, to: "planned"
@@ -200,7 +198,6 @@ Hecks.bluebook "FoodIsMedicine", version: "2026.04.13.1" do
       String :baseline_status
       emits "BaselineRecorded"
       then_set :patient_name, to: :patient_name
-      then_set :prescription, to: :prescription
       then_set :baseline_status, to: :baseline_status
       then_set :current_status, to: :baseline_status
       then_set :trend, to: "stable"

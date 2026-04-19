@@ -31,58 +31,55 @@ Hecks.behaviors "BattlefieldMedicine" do
     expect drone_id: "sample", mission_type: "sample", current_location: "sample", battery_pct: 100, status: "airborne"
   end
 
-  test "AssignToCasualty runs" do
+  test "AssignToCasualty sets assigned_casualty" do
     tests "AssignToCasualty", on: "MedDrone"
-    setup  "FileCasualtyReport", report_id: "sample", casualty_name: "sample", location_grid: "sample", injury_type: "sample", urgency: "sample", blood_type: "sample"
     setup  "LaunchDrone", drone_id: "sample", mission_type: "sample", current_location: "sample"
-    expect assigned_casualty: :assigned_casualty, status: "en_route"
+    input  assigned_casualty: "sample"
+    expect assigned_casualty: "sample", status: "en_route"
   end
 
   test "CompleteMission runs" do
     tests "CompleteMission", on: "MedDrone"
     setup  "LaunchDrone", drone_id: "sample", mission_type: "sample", current_location: "sample"
-    setup  "AssignToCasualty"
+    setup  "AssignToCasualty", assigned_casualty: "sample"
     expect status: "returning"
   end
 
 
   # ── BloodDrop aggregate ──────────────────────────────────────────
 
-  test "PrepareBloodDrop sets drop_id + blood_type + units" do
+  test "PrepareBloodDrop sets drop_id + target_casualty + blood_type + units" do
     tests "PrepareBloodDrop", on: "BloodDrop"
-    setup  "FileCasualtyReport", report_id: "sample", casualty_name: "sample", location_grid: "sample", injury_type: "sample", urgency: "sample", blood_type: "sample"
-    input  drop_id: "sample", blood_type: "sample", units: 1
-    expect drop_id: "sample", target_casualty: :target_casualty, blood_type: "sample", units: 1, cold_chain_status: "sealed", status: "prepared"
+    input  drop_id: "sample", target_casualty: "sample", blood_type: "sample", units: 1
+    expect drop_id: "sample", target_casualty: "sample", blood_type: "sample", units: 1, cold_chain_status: "sealed", status: "prepared"
   end
 
-  test "LoadOnDrone runs" do
+  test "LoadOnDrone sets carrier_drone" do
     tests "LoadOnDrone", on: "BloodDrop"
-    setup  "LaunchDrone", drone_id: "sample", mission_type: "sample", current_location: "sample"
-    setup  "PrepareBloodDrop", drop_id: "sample", blood_type: "sample", units: 1
-    expect carrier_drone: :carrier_drone, status: "in_transit"
+    setup  "PrepareBloodDrop", drop_id: "sample", target_casualty: "sample", blood_type: "sample", units: 1
+    input  carrier_drone: "sample"
+    expect carrier_drone: "sample", status: "in_transit"
   end
 
   test "ConfirmDelivery runs" do
     tests "ConfirmDelivery", on: "BloodDrop"
-    setup  "PrepareBloodDrop", drop_id: "sample", blood_type: "sample", units: 1
-    setup  "LoadOnDrone"
+    setup  "PrepareBloodDrop", drop_id: "sample", target_casualty: "sample", blood_type: "sample", units: 1
+    setup  "LoadOnDrone", carrier_drone: "sample"
     expect status: "delivered"
   end
 
 
   # ── EvacRoute aggregate ──────────────────────────────────────────
 
-  test "ComputeRoute sets route_id + threat_level + distance_km + eta_minutes" do
+  test "ComputeRoute sets route_id + casualty + destination + threat_level + distance_km + eta_minutes" do
     tests "ComputeRoute", on: "EvacRoute"
-    setup  "EstablishHospital", hospital_id: "sample", location_grid: "sample", surgical_bays: 1
-    setup  "FileCasualtyReport", report_id: "sample", casualty_name: "sample", location_grid: "sample", injury_type: "sample", urgency: "sample", blood_type: "sample"
-    input  route_id: "sample", threat_level: "sample", distance_km: 1, eta_minutes: 1
-    expect route_id: "sample", casualty: :casualty, destination: :destination, threat_level: "sample", distance_km: 1, eta_minutes: 1, status: "active"
+    input  route_id: "sample", casualty: "sample", destination: "sample", threat_level: "sample", distance_km: 1, eta_minutes: 1
+    expect route_id: "sample", casualty: "sample", destination: "sample", threat_level: "sample", distance_km: 1, eta_minutes: 1, status: "active"
   end
 
   test "RerouteOnThreat sets threat_level" do
     tests "RerouteOnThreat", on: "EvacRoute"
-    setup  "ComputeRoute", route_id: "sample", threat_level: "sample", distance_km: 1, eta_minutes: 1
+    setup  "ComputeRoute", route_id: "sample", casualty: "sample", destination: "sample", threat_level: "sample", distance_km: 1, eta_minutes: 1
     input  threat_level: "sample"
     expect threat_level: "sample"
   end

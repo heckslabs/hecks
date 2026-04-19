@@ -76,7 +76,7 @@ Hecks.bluebook "ReentryEcosystem", version: "2026.04.13.1" do
       String :institution
       emits "TrackEnrolled"
       then_set :track_id, to: :track_id
-      then_set :case, to: :case
+      then_set :reentry_case, to: :reentry_case
       then_set :track_type, to: :track_type
       then_set :institution, to: :institution
       then_set :status, to: "enrolled"
@@ -124,7 +124,7 @@ Hecks.bluebook "ReentryEcosystem", version: "2026.04.13.1" do
       String :landlord_name
       emits "HousingPlaced"
       then_set :match_id, to: :match_id
-      then_set :case, to: :case
+      then_set :reentry_case, to: :reentry_case
       then_set :housing_type, to: :housing_type
       then_set :address, to: :address
       then_set :landlord_name, to: :landlord_name
@@ -175,7 +175,7 @@ Hecks.bluebook "ReentryEcosystem", version: "2026.04.13.1" do
       String :start_date
       emits "JobPlaced"
       then_set :bridge_id, to: :bridge_id
-      then_set :case, to: :case
+      then_set :reentry_case, to: :reentry_case
       then_set :employer_name, to: :employer_name
       then_set :job_title, to: :job_title
       then_set :start_date, to: :start_date
@@ -214,7 +214,7 @@ Hecks.bluebook "ReentryEcosystem", version: "2026.04.13.1" do
       String :attorney_name
       emits "AttorneyAssigned"
       then_set :support_id, to: :support_id
-      then_set :case, to: :case
+      then_set :reentry_case, to: :reentry_case
       then_set :legal_need, to: :legal_need
       then_set :attorney_name, to: :attorney_name
       then_set :status, to: "active"
@@ -253,7 +253,7 @@ Hecks.bluebook "ReentryEcosystem", version: "2026.04.13.1" do
       description "Create milestone tracker when case opens"
       reference_to(ReentryCase) :case
       emits "TrackerInitialized"
-      then_set :case, to: :case
+      then_set :reentry_case, to: :reentry_case
       then_set :overall_progress, to: "beginning"
     end
     RecordMilestone do

@@ -78,11 +78,11 @@ Hecks.behaviors "AeromedicalEvac" do
 
   # ── GroundReceiver aggregate ──────────────────────────────────────────
 
-  test "AssignTraumaBed runs" do
+  test "AssignTraumaBed sets expected_patient" do
     tests "AssignTraumaBed", on: "GroundReceiver"
-    setup  "RegisterPatient", name: "sample", blood_type: "sample", injury_classification: "sample", triage_level: "sample"
     setup  "RegisterHospital", hospital_name: "sample", trauma_level: "sample", available_beds: 1
-    expect expected_patient: :expected_patient, status: "prepared"
+    input  expected_patient: "sample"
+    expect expected_patient: "sample", status: "prepared"
   end
 
   test "RegisterHospital sets hospital_name + trauma_level + available_beds" do
@@ -100,24 +100,24 @@ Hecks.behaviors "AeromedicalEvac" do
 
   # ── Handoff aggregate ──────────────────────────────────────────
 
-  test "InitiateHandoff runs" do
+  test "InitiateHandoff sets receiver" do
     tests "InitiateHandoff", on: "Handoff"
-    setup  "RegisterHospital", hospital_name: "sample", trauma_level: "sample", available_beds: 1
     setup  "DispatchFlight", callsign: "sample", origin: "sample", destination: "sample"
     setup  "RegisterPatient", name: "sample", blood_type: "sample", injury_classification: "sample", triage_level: "sample"
-    expect patient: 1, flight: 1, receiver: :receiver, status: "in_progress"
+    input  receiver: "sample"
+    expect patient: 1, flight: 1, receiver: "sample", status: "in_progress"
   end
 
   test "VerifyTransfer sets handoff_notes" do
     tests "VerifyTransfer", on: "Handoff"
-    setup  "InitiateHandoff"
+    setup  "InitiateHandoff", receiver: "sample"
     input  handoff_notes: "sample"
     expect handoff_notes: "sample", status: "verified"
   end
 
   test "CompleteHandoff runs" do
     tests "CompleteHandoff", on: "Handoff"
-    setup  "InitiateHandoff"
+    setup  "InitiateHandoff", receiver: "sample"
     setup  "VerifyTransfer", handoff_notes: "sample"
     expect status: "complete"
   end

@@ -188,7 +188,7 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
       role "System"
       description "Reserve a trauma bed for incoming medevac patient"
       reference_to(GroundReceiver)
-      reference_to(Patient) :expected_patient
+      attribute :expected_patient, String
       given { available_beds > 0 }
       emits "TraumaBedAssigned"
       then_set :expected_patient, to: :expected_patient
@@ -238,7 +238,7 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
       description "Begin formal transfer of patient care at landing"
       reference_to(Patient) :patient
       reference_to(Flight) :flight
-      reference_to(GroundReceiver) :receiver
+      attribute :receiver, String
       emits "HandoffInitiated"
       then_set :patient, to: :patient
       then_set :flight, to: :flight

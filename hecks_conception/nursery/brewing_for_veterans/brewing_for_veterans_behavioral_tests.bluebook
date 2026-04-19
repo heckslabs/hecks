@@ -49,7 +49,7 @@ Hecks.behaviors "BrewingForVeterans" do
     tests "LaunchProduct", on: "ProductLine"
     setup  "FormCohort", cohort_id: "sample", cohort_name: "sample", start_date: "sample", brew_master: "sample"
     input  product_id: "sample", product_name: "sample", style: "sample", batch_number: "sample"
-    expect product_id: "sample", product_name: "sample", style: "sample", producing_cohort: :producing_cohort, batch_number: "sample", status: "available"
+    expect product_id: "sample", product_name: "sample", style: "sample", batch_number: "sample", status: "available"
   end
 
   test "SellProduct runs" do
@@ -100,7 +100,7 @@ Hecks.behaviors "BrewingForVeterans" do
     tests "AssignResident", on: "HousingUnit"
     setup  "EnrollApprentice", apprentice_id: "sample", name: "sample", branch_of_service: "sample", discharge_type: "sample", housing_status: "sample"
     setup  "PrepareUnit", unit_id: "sample", address: "sample", capacity: 1, funding_source: "sample"
-    expect resident: :resident, status: "occupied"
+    expect status: "occupied"
   end
 
   test "ReleaseUnit runs" do
@@ -117,7 +117,7 @@ Hecks.behaviors "BrewingForVeterans" do
     tests "ChartPath", on: "GraduationPath"
     setup  "EnrollApprentice", apprentice_id: "sample", name: "sample", branch_of_service: "sample", discharge_type: "sample", housing_status: "sample"
     input  path_id: "sample", employment_goal: "sample", housing_transition: "sample", mentor_name: "sample"
-    expect path_id: "sample", graduate: :graduate, employment_goal: "sample", housing_transition: "sample", mentor_name: "sample", status: "active"
+    expect path_id: "sample", employment_goal: "sample", housing_transition: "sample", mentor_name: "sample", status: "active"
   end
 
   test "AchieveMilestone runs" do

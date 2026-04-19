@@ -81,7 +81,6 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
       then_set :base_location, to: :base_location
       then_set :patient_capacity, to: :patient_capacity
       then_set :range_nm, to: :range_nm
-      then_set :assigned_crisis, to: :assigned_crisis
       then_set :status, to: "ready"
     end
     DispatchMission do
@@ -223,9 +222,6 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
       String :rationale
       emits "DecisionComputed"
       then_set :decision_id, to: :decision_id
-      then_set :crisis, to: :crisis
-      then_set :aircraft, to: :aircraft
-      then_set :target_hospital, to: :target_hospital
       then_set :rationale, to: :rationale
       then_set :status, to: "computed"
     end
@@ -260,7 +256,6 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
       reference_to(CrisisEvent) :crisis
       emits "QueueOpened"
       then_set :queue_id, to: :queue_id
-      then_set :crisis, to: :crisis
       then_set :status, to: "active"
     end
     AddPatient do

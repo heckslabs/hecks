@@ -123,7 +123,6 @@ Hecks.bluebook "BrewingForVeterans", version: "2026.04.13.1" do
       then_set :product_id, to: :product_id
       then_set :product_name, to: :product_name
       then_set :style, to: :style
-      then_set :producing_cohort, to: :producing_cohort
       then_set :batch_number, to: :batch_number
       then_set :status, to: "available"
     end
@@ -234,7 +233,6 @@ Hecks.bluebook "BrewingForVeterans", version: "2026.04.13.1" do
       reference_to(VeteranApprentice) :resident
       given { status == "available" }
       emits "ResidentAssigned"
-      then_set :resident, to: :resident
       then_set :status, to: "occupied"
     end
     ReleaseUnit do
@@ -273,7 +271,6 @@ Hecks.bluebook "BrewingForVeterans", version: "2026.04.13.1" do
       String :mentor_name
       emits "PathCharted"
       then_set :path_id, to: :path_id
-      then_set :graduate, to: :graduate
       then_set :employment_goal, to: :employment_goal
       then_set :housing_transition, to: :housing_transition
       then_set :mentor_name, to: :mentor_name

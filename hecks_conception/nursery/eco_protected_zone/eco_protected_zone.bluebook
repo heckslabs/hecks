@@ -191,8 +191,6 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
       String :dna_sample_id
       emits "PoachingDetected"
       then_set :case_number, to: :case_number
-      then_set :species, to: :species
-      then_set :area, to: :area
       then_set :evidence_type, to: :evidence_type
       then_set :dna_sample_id, to: :dna_sample_id
       then_set :status, to: "open"
@@ -256,7 +254,6 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
       emits "HazardZoneDefined"
       then_set :zone_name, to: :zone_name
       then_set :hazard_type, to: :hazard_type
-      then_set :area, to: :area
       then_set :alert_level, to: "normal"
       then_set :status, to: "monitored"
     end
@@ -324,7 +321,6 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
       String :valid_until
       emits "PermitIssued"
       then_set :visitor, to: :visitor
-      then_set :area, to: :area
       then_set :permit_type, to: :permit_type
       then_set :valid_from, to: :valid_from
       then_set :valid_until, to: :valid_until

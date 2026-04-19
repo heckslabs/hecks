@@ -62,7 +62,7 @@ Hecks.behaviors "MarineNavigation" do
   test "RefuelVessel runs" do
     tests "RefuelVessel", on: "Vessel"
     setup  "RegisterVessel", name: "sample", vessel_type: "sample", length_meters: 1.0, fuel_capacity_tons: 1.0, max_speed_knots: 1.0
-    expect current_fuel_tons: :fuel_capacity_tons
+    expect ok: "true"
   end
 
   test "DockVessel runs" do

@@ -23,6 +23,7 @@ Hecks.bluebook "DLMState", version: "2026.04.11.1" do
       description "Begin tracking a new session — record heartbeat at start"
       attribute :session_id, String
       attribute :heartbeat_at_start, Integer
+      attribute :now, String
       emits "SessionStarted"
       then_set :session_id, to: :session_id
       then_set :started_at, to: :now
@@ -41,6 +42,7 @@ Hecks.bluebook "DLMState", version: "2026.04.11.1" do
       description "Close the session — record heartbeat at end, compute duration"
       reference_to(SessionState)
       attribute :heartbeat_at_end, Integer
+      attribute :now, String
       emits "SessionEnded"
       then_set :ended_at, to: :now
       then_set :heartbeat_at_end, to: :heartbeat_at_end
@@ -144,6 +146,7 @@ Hecks.bluebook "DLMState", version: "2026.04.11.1" do
       attribute :images, list_of(String)
       attribute :strongest_synapse, String
       attribute :proposed_domains, list_of(String)
+      attribute :now, String
       emits "DreamLogged"
       then_set :dream_id, to: :dream_id
       then_set :session_id, to: :session_id
@@ -181,6 +184,7 @@ Hecks.bluebook "DLMState", version: "2026.04.11.1" do
       attribute :metric_name, String
       attribute :value, Float
       attribute :unit, String
+      attribute :now, String
       emits "MetricRecorded"
       then_set :metric_name, to: :metric_name
       then_set :value, to: :value

@@ -69,7 +69,6 @@ Hecks.bluebook "DisasterAutonomy", version: "2026.04.13.1" do
       String :deployment_zone
       emits "FleetDeployed"
       then_set :fleet_id, to: :fleet_id
-      then_set :event, to: :event
       then_set :drone_count, to: :drone_count
       then_set :deployment_zone, to: :deployment_zone
       then_set :status, to: "deployed"
@@ -116,7 +115,6 @@ Hecks.bluebook "DisasterAutonomy", version: "2026.04.13.1" do
       String :delivery_method
       emits "DropPlanned"
       then_set :drop_id, to: :drop_id
-      then_set :event, to: :event
       then_set :supply_type, to: :supply_type
       then_set :target_location, to: :target_location
       then_set :delivery_method, to: :delivery_method
@@ -156,7 +154,6 @@ Hecks.bluebook "DisasterAutonomy", version: "2026.04.13.1" do
       Integer :affected_substations
       emits "GridResponseActivated"
       then_set :response_id, to: :response_id
-      then_set :event, to: :event
       then_set :grid_sector, to: :grid_sector
       then_set :affected_substations, to: :affected_substations
       then_set :status, to: "active"
@@ -200,7 +197,6 @@ Hecks.bluebook "DisasterAutonomy", version: "2026.04.13.1" do
       String :restricted_zone
       emits "AirspaceRestricted"
       then_set :control_id, to: :control_id
-      then_set :event, to: :event
       then_set :restricted_zone, to: :restricted_zone
       then_set :status, to: "restricted"
     end
@@ -242,7 +238,6 @@ Hecks.bluebook "DisasterAutonomy", version: "2026.04.13.1" do
       reference_to(DisasterEvent) :event
       emits "RegistryOpened"
       then_set :registry_id, to: :registry_id
-      then_set :event, to: :event
       then_set :total_found, to: 0
       then_set :status, to: "active"
     end

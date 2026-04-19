@@ -227,7 +227,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
       then_set :protocol_name, to: :protocol_name
       then_set :protocol_type, to: :protocol_type
       then_set :trigger_condition, to: :trigger_condition
-      then_set :disaster, to: :disaster
+      then_set :disaster_event, to: :disaster_event
       then_set :status, to: "active"
     end
 
@@ -276,7 +276,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
       reference_to(DisasterEvent) :disaster
       String :chain_name
       emits "CascadeStarted"
-      then_set :disaster, to: :disaster
+      then_set :disaster_event, to: :disaster_event
       then_set :chain_name, to: :chain_name
       then_set :cascade_depth, to: 1
       then_set :status, to: "cascading"
@@ -331,7 +331,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
       String :plan_name
       Integer :priority_level
       emits "RecoveryPlanDrafted"
-      then_set :disaster, to: :disaster
+      then_set :disaster_event, to: :disaster_event
       then_set :plan_name, to: :plan_name
       then_set :priority_level, to: :priority_level
       then_set :status, to: "created"

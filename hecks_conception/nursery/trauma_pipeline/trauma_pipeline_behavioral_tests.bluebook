@@ -100,7 +100,7 @@ Hecks.behaviors "TraumaPipeline" do
     tests "AssignCall", on: "TraumaBay"
     setup  "DispatchTrauma", incident_type: "sample", location: "sample", severity: "sample", blood_type_needed: "sample", estimated_arrival_minutes: 1
     setup  "PrepareBay", bay_number: "sample", trauma_level: "sample"
-    expect active_call: :active_call, status: "assigned"
+    expect trauma_call: 1, status: "assigned"
   end
 
   test "ReleaseBay runs" do

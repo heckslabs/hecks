@@ -22,7 +22,6 @@ Hecks.bluebook "Verbs", version: "2026.04.11.1" do
       list_of(String) :verbs
       emits "FileImported"
       then_set :known_verbs, to: :verbs
-      then_set :total, to: :count
     end
 
     LearnVerb do

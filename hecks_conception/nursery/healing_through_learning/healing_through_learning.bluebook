@@ -111,7 +111,6 @@ Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
       emits "LabScheduled"
       then_set :session_id, to: :session_id
       then_set :learner, to: :learner
-      then_set :curriculum, to: :curriculum
       then_set :recipe_name, to: :recipe_name
       then_set :nutrition_focus, to: :nutrition_focus
       then_set :status, to: "scheduled"

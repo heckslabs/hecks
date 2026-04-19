@@ -77,9 +77,10 @@ Hecks.behaviors "Being" do
 
   # ── OrganMonitor aggregate ──────────────────────────────────────────
 
-  test "CheckOrgans runs" do
+  test "CheckOrgans sets now" do
     tests "CheckOrgans", on: "OrganMonitor"
-    expect last_checked_at: :now
+    input  now: "sample"
+    expect last_checked_at: "sample"
   end
 
   test "ReportOrganPulse sets domain_name + event_count + last_event_at" do
