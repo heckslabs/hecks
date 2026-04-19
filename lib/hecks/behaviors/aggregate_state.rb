@@ -45,6 +45,18 @@ module Hecks
         @fields[field.to_s] = Value.from(n.to_i)
       end
 
+      # Float-aware variant for fractional increments like 0.01.
+      # Stores the result as a Str (matching Rust runtime's behavior)
+      # so it round-trips through the DSL's numeric coercion.
+      def increment_float(field, amount)
+        n = (get(field).numeric || 0.0) + amount
+        @fields[field.to_s] = Value.new(:str, format_numeric(n))
+      end
+
+      def format_numeric(n)
+        n == n.to_i ? n.to_i.to_s : n.to_s
+      end
+
       def toggle(field)
         current = get(field)
         new_val = current.kind == :bool ? !current.raw : true

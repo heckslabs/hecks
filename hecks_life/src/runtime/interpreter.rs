@@ -46,15 +46,27 @@ pub fn apply_mutations(
                 state.append(&mutation.field, val);
             }
             MutationOp::Increment => {
-                let amount = resolve_mutation_value(&mutation.value, attrs, state)
-                    .as_int()
-                    .unwrap_or(1);
+                let val = resolve_mutation_value(&mutation.value, attrs, state);
+                // Float-valued increment (e.g. fatigue += 0.01) needs
+                // float arithmetic — `as_int()` would silently round it.
+                if let Some(f) = numeric_value(&val) {
+                    if f.fract() != 0.0 {
+                        state.increment_float(&mutation.field, f);
+                        continue;
+                    }
+                }
+                let amount = val.as_int().unwrap_or(1);
                 state.increment(&mutation.field, amount);
             }
             MutationOp::Decrement => {
-                let amount = resolve_mutation_value(&mutation.value, attrs, state)
-                    .as_int()
-                    .unwrap_or(1);
+                let val = resolve_mutation_value(&mutation.value, attrs, state);
+                if let Some(f) = numeric_value(&val) {
+                    if f.fract() != 0.0 {
+                        state.decrement_float(&mutation.field, f);
+                        continue;
+                    }
+                }
+                let amount = val.as_int().unwrap_or(1);
                 state.decrement(&mutation.field, amount);
             }
             MutationOp::Toggle => {

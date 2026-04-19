@@ -37,10 +37,23 @@ module Hecks
           case op
           when :set       then state.set(m.field, val)
           when :append    then state.append(m.field, val)
-          when :increment then state.increment(m.field, (val.numeric || 1).to_i)
-          when :decrement then state.decrement(m.field, (val.numeric || 1).to_i)
+          when :increment then increment_field(state, m.field, val)
+          when :decrement then increment_field(state, m.field, val, sign: -1)
           when :toggle    then state.toggle(m.field)
           end
+        end
+      end
+
+      # Float-aware increment/decrement so `then_set :fatigue,
+      # increment: 0.01` actually adds 0.01 (rather than rounding to 1
+      # via `.to_i`). Mirrors hecks_life/src/runtime/aggregate_state.rs
+      # increment_float.
+      def increment_field(state, field, val, sign: 1)
+        amount = val.numeric || 1
+        if amount.to_i.to_f == amount
+          state.increment(field, amount.to_i * sign)
+        else
+          state.increment_float(field, amount * sign)
         end
       end
 
