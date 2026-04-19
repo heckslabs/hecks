@@ -173,18 +173,63 @@ fn command_test(
     // that's how the runtime distinguishes bootstrap from operate-on.
     // (Name-prefix check would miss commands like `Ingest` that boot
     // an aggregate without using a Create/Add/etc. prefix.)
+    //
+    // The bootstrap fallback may itself have preconditions — plan its
+    // own setup chain recursively so we don't insert a bare create that
+    // fails its given. If even the create's chain is unsatisfiable, the
+    // whole test must be skipped.
     let chain_creates_entity = chain.iter().any(|c| self_ref_for(agg, c).is_none());
     if self_ref.is_some() && !chain_creates_entity {
         if let Some(create) = pick_create_command(agg) {
-            setups.insert(0, emit_setup(agg, create));
+            let create_chain = match plan_setup_chain(domain, agg, create, 5, &mut Vec::new()) {
+                SetupPlan::Chain(c) => c,
+                SetupPlan::Unsatisfiable => return None,
+            };
+            // The chain planner is lenient about missing producers
+            // (returns Chain([]) when no producer exists at all). For
+            // a bootstrap fallback we want stricter semantics: if any
+            // of the create's own preconditions remain unsatisfied
+            // after the chain runs, the setup is doomed — skip the
+            // test entirely rather than emit a doomed `setup`.
+            if !preconditions_covered(agg, create, &create_chain) {
+                return None;
+            }
+            // Build front insertion in correct execution order:
+            // chain steps then the create itself.
+            let mut prelude: Vec<String> = Vec::new();
+            for chain_cmd in &create_chain {
+                prelude.push(emit_setup(agg, chain_cmd));
+            }
+            prelude.push(emit_setup(agg, create));
+            // Splice prelude at the front while preserving its order.
+            for (i, line) in prelude.into_iter().enumerate() {
+                setups.insert(i, line);
+            }
         }
     }
 
-    // Cross-refs → create each referenced aggregate first.
+    // Cross-refs → create each referenced aggregate first. Same
+    // recursive-planning requirement: the cross-ref create command may
+    // itself have preconditions that must be satisfied in the TARGET
+    // aggregate's context (different repo, different commands).
     for cref in &cross_refs {
         if let Some(target_agg) = domain.aggregates.iter().find(|a| a.name == cref.target) {
             if let Some(create) = pick_create_command(target_agg) {
-                setups.insert(0, emit_setup(target_agg, create));
+                let create_chain = match plan_setup_chain(domain, target_agg, create, 5, &mut Vec::new()) {
+                    SetupPlan::Chain(c) => c,
+                    SetupPlan::Unsatisfiable => return None,
+                };
+                if !preconditions_covered(target_agg, create, &create_chain) {
+                    return None;
+                }
+                let mut prelude: Vec<String> = Vec::new();
+                for chain_cmd in &create_chain {
+                    prelude.push(emit_setup(target_agg, chain_cmd));
+                }
+                prelude.push(emit_setup(target_agg, create));
+                for (i, line) in prelude.into_iter().enumerate() {
+                    setups.insert(i, line);
+                }
             }
         }
     }
@@ -505,6 +550,23 @@ impl ProducedState {
             Precondition::EmptyList(_) => true, // Always true by default; chains never violate.
         }
     }
+}
+
+/// True when every precondition of `cmd` is satisfied by `chain` (a
+/// candidate setup chain) running on top of the aggregate's defaults.
+/// Used by the bootstrap-fallback / cross-ref-create paths to detect
+/// the case where the planner returned a lenient empty Chain (because
+/// no producer exists at all) and warn upstream that the create itself
+/// can't actually run — skip the whole test rather than emit a doomed
+/// `setup` that fails on its given.
+fn preconditions_covered(agg: &Aggregate, cmd: &Command, chain: &[&Command]) -> bool {
+    let mut produced = ProducedState::default();
+    for c in chain {
+        produced.absorb(agg, c);
+    }
+    collect_preconditions(agg, cmd).iter().all(|pre| {
+        precondition_default_holds(agg, pre) || produced.satisfies(pre)
+    })
 }
 
 /// True when the aggregate's default state already satisfies `pre` —

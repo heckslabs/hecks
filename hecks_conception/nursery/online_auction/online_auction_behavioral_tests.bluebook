@@ -31,19 +31,6 @@ Hecks.behaviors "OnlineAuction" do
     expect bid_id: "sample", amount: 1.0, bidder_name: "sample", bidder_email: "sample"
   end
 
-  test "RetractBid sets retraction_reason" do
-    tests "RetractBid", on: "Bid"
-    setup  "PlaceBid", bid_id: "sample", amount: 1.0, bidder_name: "sample", bidder_email: "sample"
-    input  retraction_reason: "sample"
-    expect ok: "true"
-  end
-
-  test "FlagSuspiciousBid runs" do
-    tests "FlagSuspiciousBid", on: "Bid"
-    setup  "PlaceBid", bid_id: "sample", amount: 1.0, bidder_name: "sample", bidder_email: "sample"
-    expect ok: "true"
-  end
-
 
   # ── Seller aggregate ──────────────────────────────────────────
 

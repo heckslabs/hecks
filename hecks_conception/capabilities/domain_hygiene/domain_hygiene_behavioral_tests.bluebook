@@ -71,17 +71,4 @@ Hecks.behaviors "DomainHygiene" do
     expect ok: "true"
   end
 
-  test "ConceiveBatch sets batch_size + topics" do
-    tests "ConceiveBatch", on: "CorpusGrowth"
-    setup  "GrowCorpus", target_count: 1
-    input  batch_size: 1, topics: "sample"
-    expect wave_valid: true
-  end
-
-  test "ReportGrowth runs" do
-    tests "ReportGrowth", on: "CorpusGrowth"
-    setup  "GrowCorpus", target_count: 1
-    expect ok: "true"
-  end
-
 end

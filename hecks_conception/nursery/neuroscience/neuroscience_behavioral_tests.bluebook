@@ -48,12 +48,14 @@ Hecks.behaviors "Neuroscience" do
 
   test "CompleteSession runs" do
     tests "CompleteSession", on: "ImagingSession"
+    setup  "ConfirmScreeningPassed"
     setup  "StartSession", modality: "sample"
     expect ok: "true"
   end
 
   test "RejectSession sets rejection_reason" do
     tests "RejectSession", on: "ImagingSession"
+    setup  "ConfirmScreeningPassed"
     setup  "StartSession", modality: "sample"
     input  rejection_reason: "sample"
     expect ok: "true"
@@ -64,6 +66,7 @@ Hecks.behaviors "Neuroscience" do
 
   test "ExtractSignal sets signal_type + brain_region" do
     tests "ExtractSignal", on: "NeuralSignal"
+    setup  "ConfirmScreeningPassed"
     setup  "StartSession", modality: "sample"
     input  signal_type: "sample", brain_region: "sample"
     expect ok: "true"

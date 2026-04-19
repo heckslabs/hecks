@@ -367,6 +367,96 @@ end
         "Reset should emit (precondition trivially satisfied):\n{}", out);
 }
 
+#[test]
+fn bootstrap_fallback_recurses_on_its_own_preconditions() {
+    // Aggregate has no Create-style command; the chain planner falls back
+    // to a non-self-ref command (`Trace`) as bootstrap. That bootstrap
+    // itself has a `given` precondition, satisfied by `Confirm`. Without
+    // the fix, the test for `Detect` would set up `Trace` directly and
+    // fail at runtime; with the fix, `Confirm` is planned + emitted first.
+    let source = r#"Hecks.bluebook "CC" do
+  aggregate "Analysis" do
+    attribute :ready, Boolean, default: false
+    command "Confirm" do
+      reference_to(Analysis)
+      emits "Confirmed"
+      then_set :ready, to: true
+    end
+    command "Trace" do
+      attribute :event, String
+      given { ready == true }
+      emits "Traced"
+    end
+    command "Detect" do
+      reference_to(Analysis)
+      emits "Detected"
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let out = generate_behaviors(&domain, None);
+    let block = test_block(&out, "Detect").expect("Detect test block missing");
+    // The bootstrap fallback (Trace) needs Confirm to run first.
+    let confirm_pos = block.find("setup  \"Confirm\"")
+        .unwrap_or_else(|| panic!(
+            "expected `setup  \"Confirm\"` (Trace's precondition producer) in Detect test, got:\n{}",
+            block));
+    let trace_pos = block.find("setup  \"Trace\"")
+        .unwrap_or_else(|| panic!(
+            "expected `setup  \"Trace\"` (bootstrap fallback) in Detect test, got:\n{}",
+            block));
+    assert!(confirm_pos < trace_pos,
+        "Confirm setup must come before Trace setup, got:\n{}", block);
+}
+
+#[test]
+fn cross_ref_create_recurses_on_its_own_preconditions() {
+    // Cross-aggregate dep: `Analyze` (on Report) cross-refs the `Source`
+    // aggregate. Source's only bootstrap is `OpenSource`, which itself
+    // has a precondition (`primed == true`) satisfied by `PrimeSource`.
+    // Without the fix, the cross-ref create path inserts `OpenSource`
+    // bare and the runtime errors on the given. With the fix, the
+    // PrimeSource setup is planned + emitted first, in the target
+    // aggregate's context.
+    let source = r#"Hecks.bluebook "Cross" do
+  aggregate "Source" do
+    attribute :primed, Boolean, default: false
+    command "PrimeSource" do
+      reference_to(Source)
+      emits "SourcePrimed"
+      then_set :primed, to: true
+    end
+    command "OpenSource" do
+      given { primed == true }
+      emits "SourceOpened"
+    end
+  end
+  aggregate "Report" do
+    attribute :note, String
+    command "Analyze" do
+      reference_to(Source)
+      attribute :note, String
+      emits "Analyzed"
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let out = generate_behaviors(&domain, None);
+    let block = test_block(&out, "Analyze").expect("Analyze test block missing");
+    let prime_pos = block.find("setup  \"PrimeSource\"")
+        .unwrap_or_else(|| panic!(
+            "expected `setup  \"PrimeSource\"` (cross-ref create's precondition producer) in Analyze test, got:\n{}",
+            block));
+    let open_pos = block.find("setup  \"OpenSource\"")
+        .unwrap_or_else(|| panic!(
+            "expected `setup  \"OpenSource\"` (cross-ref create) in Analyze test, got:\n{}",
+            block));
+    assert!(prime_pos < open_pos,
+        "PrimeSource setup must come before OpenSource setup, got:\n{}", block);
+}
+
 // ─── helpers ────────────────────────────────────────────────────────
 
 /// Slice the substring spanning a single `test "<cmd_name> ..."` block,

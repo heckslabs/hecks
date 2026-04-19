@@ -9,17 +9,12 @@ Hecks.behaviors "GymReservations" do
     expect ok: "true"
   end
 
-  test "CancelClass runs" do
-    tests "CancelClass", on: "ClassSchedule"
-    setup  "ScheduleClass", class_name: "sample", day_of_week: "sample", time_slot: "sample", trainer_name: "sample", room: "sample", capacity: 1
-    expect ok: "true"
-  end
-
 
   # ── Booking aggregate ──────────────────────────────────────────
 
   test "ConfirmCapacity runs" do
     tests "ConfirmCapacity", on: "Booking"
+    setup  "ConfirmCapacity"
     setup  "ReserveSpot", member_name: "sample", class_name: "sample", session_date: "sample"
     expect capacity_confirmed: true
   end
@@ -33,12 +28,14 @@ Hecks.behaviors "GymReservations" do
 
   test "CancelBooking runs" do
     tests "CancelBooking", on: "Booking"
+    setup  "ConfirmCapacity"
     setup  "ReserveSpot", member_name: "sample", class_name: "sample", session_date: "sample"
     expect ok: "true"
   end
 
   test "MarkAttended runs" do
     tests "MarkAttended", on: "Booking"
+    setup  "ConfirmCapacity"
     setup  "ReserveSpot", member_name: "sample", class_name: "sample", session_date: "sample"
     expect ok: "true"
   end

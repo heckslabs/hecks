@@ -34,13 +34,6 @@ Hecks.behaviors "Astronomy" do
     expect ok: "true"
   end
 
-  test "GradeSeeing sets seeing_conditions" do
-    tests "GradeSeeing", on: "Observation"
-    setup  "LogObservation", observer_name: "sample", timestamp: "sample"
-    input  seeing_conditions: "sample"
-    expect ok: "true"
-  end
-
 
   # ── Telescope aggregate ──────────────────────────────────────────
 

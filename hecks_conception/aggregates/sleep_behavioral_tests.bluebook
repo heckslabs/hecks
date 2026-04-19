@@ -3,12 +3,6 @@ Hecks.behaviors "Sleep" do
 
   # ── Fatigue aggregate ──────────────────────────────────────────
 
-  test "AccumulateFatigue runs" do
-    tests "AccumulateFatigue", on: "Fatigue"
-    setup  "DissipateFatigue"
-    expect state: "focused"
-  end
-
 
   # ── Consciousness aggregate ──────────────────────────────────────────
 

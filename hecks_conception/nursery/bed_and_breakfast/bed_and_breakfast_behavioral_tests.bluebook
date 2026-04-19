@@ -49,10 +49,4 @@ Hecks.behaviors "BedAndBreakfast" do
 
   # ── GuestReview aggregate ──────────────────────────────────────────
 
-  test "RespondToReview runs" do
-    tests "RespondToReview", on: "GuestReview"
-    setup  "SubmitReview", review_id: "sample", guest_name: "sample", booking_id: "sample", rating: 1, comment: "sample", review_date: "sample"
-    expect ok: "true"
-  end
-
 end

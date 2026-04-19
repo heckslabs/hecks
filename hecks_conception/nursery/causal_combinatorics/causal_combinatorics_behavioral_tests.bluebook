@@ -19,28 +19,10 @@ Hecks.behaviors "CausalCombinatorics" do
 
   # ── CascadeAnalysis aggregate ──────────────────────────────────────────
 
-  test "ConfirmEventInGraph runs" do
-    tests "ConfirmEventInGraph", on: "CascadeAnalysis"
-    setup  "TraceCascade", trigger_event: "sample"
-    expect ok: "true"
-  end
-
   test "TraceCascade sets trigger_event" do
     tests "TraceCascade", on: "CascadeAnalysis"
     setup  "BuildGraph", name: "sample", domain_names: "sample"
     input  trigger_event: "sample"
-    expect ok: "true"
-  end
-
-  test "DetectCycle runs" do
-    tests "DetectCycle", on: "CascadeAnalysis"
-    setup  "TraceCascade", trigger_event: "sample"
-    expect ok: "true"
-  end
-
-  test "MeasureFanOut runs" do
-    tests "MeasureFanOut", on: "CascadeAnalysis"
-    setup  "TraceCascade", trigger_event: "sample"
     expect ok: "true"
   end
 
