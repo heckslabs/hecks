@@ -32,6 +32,13 @@ Hecks.behaviors "InsuranceClaims" do
     expect claim_number: "sample", incident_date: "sample", incident_description: "sample", claimed_amount: 1.0, status: "filed"
   end
 
+  test "FileClaim cascades through policy chain" do
+    tests "FileClaim", on: "Claim", kind: :cascade
+    setup  "IssuePolicy", name: "sample", policy_number: "sample", coverage_type: "sample", premium: 1.0, deductible: 1.0, effective_date: "sample", expiration_date: "sample"
+    input  claim_number: "sample", incident_date: "sample", incident_description: "sample", claimed_amount: 1.0
+    expect emits: ["ClaimFiled", "AdjusterAssigned", "AssessmentSubmitted", "ClaimApproved", "SettlementOffered"]
+  end
+
   test "ReviewClaim runs" do
     tests "ReviewClaim", on: "Claim"
     setup  "FileClaim", claim_number: "sample", incident_date: "sample", incident_description: "sample", claimed_amount: 1.0
@@ -45,12 +52,27 @@ Hecks.behaviors "InsuranceClaims" do
     expect status: "approved"
   end
 
+  test "ApproveClaim cascades through policy chain" do
+    tests "ApproveClaim", on: "Claim", kind: :cascade
+    setup  "FileClaim", claim_number: "sample", incident_date: "sample", incident_description: "sample", claimed_amount: 1.0
+    setup  "ReviewClaim"
+    expect emits: ["ClaimApproved", "SettlementOffered"]
+  end
+
   test "DenyClaim sets denial_reason" do
     tests "DenyClaim", on: "Claim"
     setup  "FileClaim", claim_number: "sample", incident_date: "sample", incident_description: "sample", claimed_amount: 1.0
     setup  "ReviewClaim"
     input  denial_reason: "sample"
     expect status: "denied"
+  end
+
+  test "DenyClaim cascades through policy chain" do
+    tests "DenyClaim", on: "Claim", kind: :cascade
+    setup  "FileClaim", claim_number: "sample", incident_date: "sample", incident_description: "sample", claimed_amount: 1.0
+    setup  "ReviewClaim"
+    input  denial_reason: "sample"
+    expect emits: ["ClaimDenied", "AppealFiled"]
   end
 
 
@@ -63,11 +85,25 @@ Hecks.behaviors "InsuranceClaims" do
     expect adjuster_name: "sample", status: "assigned"
   end
 
+  test "AssignAdjuster cascades through policy chain" do
+    tests "AssignAdjuster", on: "AdjusterAssignment", kind: :cascade
+    setup  "FileClaim", claim_number: "sample", incident_date: "sample", incident_description: "sample", claimed_amount: 1.0
+    input  adjuster_name: "sample"
+    expect emits: ["AdjusterAssigned", "AssessmentSubmitted", "ClaimApproved", "SettlementOffered"]
+  end
+
   test "SubmitAssessment sets findings + assessed_amount" do
     tests "SubmitAssessment", on: "AdjusterAssignment"
     setup  "AssignAdjuster", adjuster_name: "sample"
     input  findings: "sample", assessed_amount: 1.0
     expect findings: "sample", assessed_amount: 1.0, status: "assessed"
+  end
+
+  test "SubmitAssessment cascades through policy chain" do
+    tests "SubmitAssessment", on: "AdjusterAssignment", kind: :cascade
+    setup  "AssignAdjuster", adjuster_name: "sample"
+    input  findings: "sample", assessed_amount: 1.0
+    expect emits: ["AssessmentSubmitted", "ClaimApproved", "SettlementOffered"]
   end
 
 
@@ -92,6 +128,12 @@ Hecks.behaviors "InsuranceClaims" do
     expect status: "rejected"
   end
 
+  test "RejectSettlement cascades through policy chain" do
+    tests "RejectSettlement", on: "Settlement", kind: :cascade
+    setup  "OfferSettlement", settlement_amount: 1.0, payment_method: "sample"
+    expect emits: ["SettlementRejected", "AppealFiled"]
+  end
+
 
   # ── Appeal aggregate ──────────────────────────────────────────
 
@@ -107,6 +149,13 @@ Hecks.behaviors "InsuranceClaims" do
     setup  "FileAppeal", reason: "sample", supporting_documents: "sample"
     input  resolution: "sample"
     expect resolution: "sample", status: "resolved"
+  end
+
+  test "ReviewAppeal cascades through policy chain" do
+    tests "ReviewAppeal", on: "Appeal", kind: :cascade
+    setup  "FileAppeal", reason: "sample", supporting_documents: "sample"
+    input  resolution: "sample"
+    expect emits: ["AppealReviewed", "AdjusterAssigned", "AssessmentSubmitted", "ClaimApproved", "SettlementOffered"]
   end
 
 end

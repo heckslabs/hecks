@@ -9,6 +9,12 @@ Hecks.behaviors "DisasterAutonomy" do
     expect event_id: "sample", disaster_type: "sample", affected_region: "sample", severity: "sample", estimated_affected: 1, status: "active"
   end
 
+  test "DeclareDisaster cascades through policy chain" do
+    tests "DeclareDisaster", on: "DisasterEvent", kind: :cascade
+    input  event_id: "sample", disaster_type: "sample", affected_region: "sample", severity: "sample", estimated_affected: 1
+    expect emits: ["DisasterDeclared", "FleetDeployed", "GridResponseActivated", "PowerRerouted", "AirspaceRestricted", "FleetAuthorized", "RegistryOpened"]
+  end
+
   test "EscalateDisaster sets severity" do
     tests "EscalateDisaster", on: "DisasterEvent"
     setup  "DeclareDisaster", event_id: "sample", disaster_type: "sample", affected_region: "sample", severity: "sample", estimated_affected: 1
@@ -30,6 +36,12 @@ Hecks.behaviors "DisasterAutonomy" do
     tests "ReportSurvivorFound", on: "SearchFleet"
     setup  "DeployFleet", fleet_id: "sample", drone_count: 1, deployment_zone: "sample"
     expect ok: "true"
+  end
+
+  test "ReportSurvivorFound cascades through policy chain" do
+    tests "ReportSurvivorFound", on: "SearchFleet", kind: :cascade
+    setup  "DeployFleet", fleet_id: "sample", drone_count: 1, deployment_zone: "sample"
+    expect emits: ["SurvivorDetected", "SurvivorRegistered", "DropPlanned"]
   end
 
   test "RecallFleet runs" do
@@ -64,6 +76,13 @@ Hecks.behaviors "DisasterAutonomy" do
     expect response_id: "sample", grid_sector: "sample", affected_substations: 1, status: "active"
   end
 
+  test "ActivateGridResponse cascades through policy chain" do
+    tests "ActivateGridResponse", on: "GridResponse", kind: :cascade
+    setup  "DeclareDisaster", event_id: "sample", disaster_type: "sample", affected_region: "sample", severity: "sample", estimated_affected: 1
+    input  response_id: "sample", grid_sector: "sample", affected_substations: 1
+    expect emits: ["GridResponseActivated", "PowerRerouted"]
+  end
+
   test "ReroutePower runs" do
     tests "ReroutePower", on: "GridResponse"
     setup  "ActivateGridResponse", response_id: "sample", grid_sector: "sample", affected_substations: 1
@@ -84,6 +103,13 @@ Hecks.behaviors "DisasterAutonomy" do
     setup  "DeclareDisaster", event_id: "sample", disaster_type: "sample", affected_region: "sample", severity: "sample", estimated_affected: 1
     input  control_id: "sample", restricted_zone: "sample"
     expect control_id: "sample", restricted_zone: "sample", status: "restricted"
+  end
+
+  test "DeclareRestriction cascades through policy chain" do
+    tests "DeclareRestriction", on: "AirspaceControl", kind: :cascade
+    setup  "DeclareDisaster", event_id: "sample", disaster_type: "sample", affected_region: "sample", severity: "sample", estimated_affected: 1
+    input  control_id: "sample", restricted_zone: "sample"
+    expect emits: ["AirspaceRestricted", "FleetAuthorized"]
   end
 
   test "AuthorizeDroneFleet runs" do

@@ -9,10 +9,22 @@ Hecks.behaviors "FoodBank" do
     expect donor_name: "sample", donation_date: "sample", food_category: "sample", weight_pounds: 1.0, expiration_date: "sample", status: "received"
   end
 
+  test "AcceptDonation cascades through policy chain" do
+    tests "AcceptDonation", on: "Donation", kind: :cascade
+    input  donor_name: "sample", donation_date: "sample", food_category: "sample", weight_pounds: 1.0, expiration_date: "sample"
+    expect emits: ["DonationAccepted", "DonationSorted", "ItemStocked", "DistributionScheduled", "ItemAllocated"]
+  end
+
   test "SortDonation runs" do
     tests "SortDonation", on: "Donation"
     setup  "AcceptDonation", donor_name: "sample", donation_date: "sample", food_category: "sample", weight_pounds: 1.0, expiration_date: "sample"
     expect status: "sorted"
+  end
+
+  test "SortDonation cascades through policy chain" do
+    tests "SortDonation", on: "Donation", kind: :cascade
+    setup  "AcceptDonation", donor_name: "sample", donation_date: "sample", food_category: "sample", weight_pounds: 1.0, expiration_date: "sample"
+    expect emits: ["DonationSorted", "ItemStocked", "DistributionScheduled", "ItemAllocated"]
   end
 
   test "DiscardExpired runs" do
@@ -30,6 +42,12 @@ Hecks.behaviors "FoodBank" do
     expect item_name: "sample", category: "sample", quantity: 1, storage_location: "sample", expiration_date: "sample", status: "available"
   end
 
+  test "StockItem cascades through policy chain" do
+    tests "StockItem", on: "Inventory", kind: :cascade
+    input  item_name: "sample", category: "sample", quantity: 1, storage_location: "sample", expiration_date: "sample"
+    expect emits: ["ItemStocked", "DistributionScheduled", "ItemAllocated"]
+  end
+
   test "AllocateItem sets quantity" do
     tests "AllocateItem", on: "Inventory"
     setup  "StockItem", item_name: "sample", category: "sample", quantity: 1, storage_location: "sample", expiration_date: "sample"
@@ -42,6 +60,20 @@ Hecks.behaviors "FoodBank" do
     setup  "StockItem", item_name: "sample", category: "sample", quantity: 1, storage_location: "sample", expiration_date: "sample"
     setup  "AllocateItem", quantity: 1
     input  quantity: 1
+    expect status: "depleted"
+  end
+
+  test "DepletItem cascades through policy chain" do
+    tests "DepletItem", on: "Inventory", kind: :cascade
+    setup  "StockItem", item_name: "sample", category: "sample", quantity: 1, storage_location: "sample", expiration_date: "sample"
+    setup  "AllocateItem", quantity: 1
+    input  quantity: 1
+    expect emits: ["ItemDepleted", "LowStockFlagged"]
+  end
+
+  test "FlagLowStock runs" do
+    tests "FlagLowStock", on: "Inventory"
+    setup  "StockItem", item_name: "sample", category: "sample", quantity: 1, storage_location: "sample", expiration_date: "sample"
     expect status: "low"
   end
 
@@ -54,11 +86,31 @@ Hecks.behaviors "FoodBank" do
     expect event_date: "sample", location: "sample", status: "scheduled"
   end
 
+  test "ScheduleDistribution cascades through policy chain" do
+    tests "ScheduleDistribution", on: "Distribution", kind: :cascade
+    input  event_date: "sample", location: "sample"
+    expect emits: ["DistributionScheduled", "ItemAllocated"]
+  end
+
   test "ConductDistribution sets households_served + total_weight_distributed" do
     tests "ConductDistribution", on: "Distribution"
     setup  "ScheduleDistribution", event_date: "sample", location: "sample"
     input  households_served: 1, total_weight_distributed: 1.0
-    expect households_served: 1, total_weight_distributed: 1.0, status: "reported"
+    expect households_served: 1, total_weight_distributed: 1.0, status: "completed"
+  end
+
+  test "ConductDistribution cascades through policy chain" do
+    tests "ConductDistribution", on: "Distribution", kind: :cascade
+    setup  "ScheduleDistribution", event_date: "sample", location: "sample"
+    input  households_served: 1, total_weight_distributed: 1.0
+    expect emits: ["DistributionConducted", "ItemDepleted", "LowStockFlagged", "DistributionReported", "PickupRecorded", "HoursLogged"]
+  end
+
+  test "ReportDistribution runs" do
+    tests "ReportDistribution", on: "Distribution"
+    setup  "ScheduleDistribution", event_date: "sample", location: "sample"
+    setup  "ConductDistribution", households_served: 1, total_weight_distributed: 1.0
+    expect status: "reported"
   end
 
 

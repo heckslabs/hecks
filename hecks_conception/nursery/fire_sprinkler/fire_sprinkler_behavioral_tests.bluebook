@@ -9,10 +9,22 @@ Hecks.behaviors "FireSprinkler" do
     expect status: "tested"
   end
 
+  test "DesignSystem cascades through policy chain" do
+    tests "DesignSystem", on: "SprinklerSystem", kind: :cascade
+    input  building_name: "sample", address: "sample", system_type: "sample", pipe_material: "sample", design_density_gpm: 1.0
+    expect emits: ["SystemDesigned", "RequirementTracked", "ZoneDefined", "HeadInstalled", "SystemActivated", "InspectionPerformed", "ComplianceCertIssued", "MarkedCompliant"]
+  end
+
   test "ActivateSystem runs" do
     tests "ActivateSystem", on: "SprinklerSystem"
     setup  "DesignSystem", building_name: "sample", address: "sample", system_type: "sample", pipe_material: "sample", design_density_gpm: 1.0
     expect ok: "true"
+  end
+
+  test "ActivateSystem cascades through policy chain" do
+    tests "ActivateSystem", on: "SprinklerSystem", kind: :cascade
+    setup  "DesignSystem", building_name: "sample", address: "sample", system_type: "sample", pipe_material: "sample", design_density_gpm: 1.0
+    expect emits: ["SystemActivated", "InspectionPerformed", "ComplianceCertIssued", "MarkedCompliant"]
   end
 
   test "ShutDownSystem sets reason" do
@@ -32,6 +44,13 @@ Hecks.behaviors "FireSprinkler" do
     expect ok: "true"
   end
 
+  test "DefineZone cascades through policy chain" do
+    tests "DefineZone", on: "Zone", kind: :cascade
+    setup  "DesignSystem", building_name: "sample", address: "sample", system_type: "sample", pipe_material: "sample", design_density_gpm: 1.0
+    input  zone_name: "sample", floor: "sample", head_count: 1, occupancy_type: "sample"
+    expect emits: ["ZoneDefined", "HeadInstalled", "SystemActivated", "InspectionPerformed", "ComplianceCertIssued", "MarkedCompliant"]
+  end
+
   test "AdjustHeadCount sets new_head_count" do
     tests "AdjustHeadCount", on: "Zone"
     setup  "DefineZone", zone_name: "sample", floor: "sample", head_count: 1, occupancy_type: "sample"
@@ -47,6 +66,13 @@ Hecks.behaviors "FireSprinkler" do
     setup  "DefineZone", zone_name: "sample", floor: "sample", head_count: 1, occupancy_type: "sample"
     input  head_type: "sample", k_factor: 1.0, temp_rating_f: 1, orientation: "sample"
     expect ok: "true"
+  end
+
+  test "InstallHead cascades through policy chain" do
+    tests "InstallHead", on: "SprinklerHead", kind: :cascade
+    setup  "DefineZone", zone_name: "sample", floor: "sample", head_count: 1, occupancy_type: "sample"
+    input  head_type: "sample", k_factor: 1.0, temp_rating_f: 1, orientation: "sample"
+    expect emits: ["HeadInstalled", "SystemActivated", "InspectionPerformed", "ComplianceCertIssued", "MarkedCompliant"]
   end
 
   test "ReplaceHead sets replacement_reason" do
@@ -66,6 +92,13 @@ Hecks.behaviors "FireSprinkler" do
     expect result: "pass"
   end
 
+  test "PerformInspection cascades through policy chain" do
+    tests "PerformInspection", on: "SprinklerInspection", kind: :cascade
+    setup  "DesignSystem", building_name: "sample", address: "sample", system_type: "sample", pipe_material: "sample", design_density_gpm: 1.0
+    input  inspection_type: "sample", inspector_name: "sample", inspection_date: "sample"
+    expect emits: ["InspectionPerformed", "ComplianceCertIssued", "MarkedCompliant"]
+  end
+
   test "RecordDeficiency sets deficiencies" do
     tests "RecordDeficiency", on: "SprinklerInspection"
     setup  "PerformInspection", inspection_type: "sample", inspector_name: "sample", inspection_date: "sample"
@@ -77,6 +110,12 @@ Hecks.behaviors "FireSprinkler" do
     tests "IssueComplianceCert", on: "SprinklerInspection"
     setup  "PerformInspection", inspection_type: "sample", inspector_name: "sample", inspection_date: "sample"
     expect ok: "true"
+  end
+
+  test "IssueComplianceCert cascades through policy chain" do
+    tests "IssueComplianceCert", on: "SprinklerInspection", kind: :cascade
+    setup  "PerformInspection", inspection_type: "sample", inspector_name: "sample", inspection_date: "sample"
+    expect emits: ["ComplianceCertIssued", "MarkedCompliant"]
   end
 
 

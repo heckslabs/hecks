@@ -22,6 +22,16 @@ Hecks.behaviors "Musings" do
     expect ok: "true"
   end
 
+  test "ReviewMusings cascades through policy chain" do
+    tests "ReviewMusings", on: "Collection", kind: :cascade
+    expect emits: ["MusingsReviewed", "SourcesCounted"]
+  end
+
+  test "CountBySource runs" do
+    tests "CountBySource", on: "Collection"
+    expect ok: "true"
+  end
+
 
   # ── Musing aggregate ──────────────────────────────────────────
 

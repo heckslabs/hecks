@@ -33,10 +33,23 @@ Hecks.behaviors "WineVineyard" do
     expect year: 1, grape_variety: "sample", tons_harvested: 1.0, brix_at_harvest: 1.0, ph_at_harvest: 1.0, status: "harvested"
   end
 
+  test "HarvestGrapes cascades through policy chain" do
+    tests "HarvestGrapes", on: "Vintage", kind: :cascade
+    setup  "EstablishVineyard", block_name: "sample", grape_variety: "sample", rootstock: "sample", acreage: 1.0, vine_count: 1, planted_year: 1
+    input  year: 1, grape_variety: "sample", tons_harvested: 1.0, brix_at_harvest: 1.0, ph_at_harvest: 1.0
+    expect emits: ["GrapesHarvested", "GrapesCrushed", "FermentationStarted"]
+  end
+
   test "CrushGrapes runs" do
     tests "CrushGrapes", on: "Vintage"
     setup  "HarvestGrapes", year: 1, grape_variety: "sample", tons_harvested: 1.0, brix_at_harvest: 1.0, ph_at_harvest: 1.0
     expect status: "crushed"
+  end
+
+  test "CrushGrapes cascades through policy chain" do
+    tests "CrushGrapes", on: "Vintage", kind: :cascade
+    setup  "HarvestGrapes", year: 1, grape_variety: "sample", tons_harvested: 1.0, brix_at_harvest: 1.0, ph_at_harvest: 1.0
+    expect emits: ["GrapesCrushed", "FermentationStarted"]
   end
 
   test "DeclassifyVintage runs" do
@@ -58,7 +71,25 @@ Hecks.behaviors "WineVineyard" do
   test "PunchDownCap runs" do
     tests "PunchDownCap", on: "Fermentation"
     setup  "StartFermentation", vessel_type: "sample", vessel_id: "sample", volume_liters: 1.0, yeast_strain: "sample", temperature_celsius: 1.0
+    expect ok: "true"
+  end
+
+  test "PunchDownCap cascades through policy chain" do
+    tests "PunchDownCap", on: "Fermentation", kind: :cascade
+    setup  "StartFermentation", vessel_type: "sample", vessel_id: "sample", volume_liters: 1.0, yeast_strain: "sample", temperature_celsius: 1.0
+    expect emits: ["CapPunchedDown", "WineRacked", "WineBottled", "BottlesLabeled", "WineReleased", "TastingRecorded"]
+  end
+
+  test "RackWine runs" do
+    tests "RackWine", on: "Fermentation"
+    setup  "StartFermentation", vessel_type: "sample", vessel_id: "sample", volume_liters: 1.0, yeast_strain: "sample", temperature_celsius: 1.0
     expect status: "aging"
+  end
+
+  test "RackWine cascades through policy chain" do
+    tests "RackWine", on: "Fermentation", kind: :cascade
+    setup  "StartFermentation", vessel_type: "sample", vessel_id: "sample", volume_liters: 1.0, yeast_strain: "sample", temperature_celsius: 1.0
+    expect emits: ["WineRacked", "WineBottled", "BottlesLabeled", "WineReleased", "TastingRecorded"]
   end
 
 
@@ -71,11 +102,39 @@ Hecks.behaviors "WineVineyard" do
     expect bottle_count: 1, bottle_date: "sample", alcohol_percent: 1.0, closure_type: "sample", status: "bottled"
   end
 
+  test "BottleWine cascades through policy chain" do
+    tests "BottleWine", on: "BottlingRun", kind: :cascade
+    setup  "StartFermentation", vessel_type: "sample", vessel_id: "sample", volume_liters: 1.0, yeast_strain: "sample", temperature_celsius: 1.0
+    input  bottle_count: 1, bottle_date: "sample", alcohol_percent: 1.0, closure_type: "sample"
+    expect emits: ["WineBottled", "BottlesLabeled", "WineReleased", "TastingRecorded"]
+  end
+
   test "LabelBottles sets label_name" do
     tests "LabelBottles", on: "BottlingRun"
     setup  "BottleWine", bottle_count: 1, bottle_date: "sample", alcohol_percent: 1.0, closure_type: "sample"
     input  label_name: "sample"
-    expect label_name: "sample", status: "released"
+    expect label_name: "sample", status: "labeled"
+  end
+
+  test "LabelBottles cascades through policy chain" do
+    tests "LabelBottles", on: "BottlingRun", kind: :cascade
+    setup  "BottleWine", bottle_count: 1, bottle_date: "sample", alcohol_percent: 1.0, closure_type: "sample"
+    input  label_name: "sample"
+    expect emits: ["BottlesLabeled", "WineReleased", "TastingRecorded"]
+  end
+
+  test "ReleaseForSale runs" do
+    tests "ReleaseForSale", on: "BottlingRun"
+    setup  "BottleWine", bottle_count: 1, bottle_date: "sample", alcohol_percent: 1.0, closure_type: "sample"
+    setup  "LabelBottles", label_name: "sample"
+    expect status: "released"
+  end
+
+  test "ReleaseForSale cascades through policy chain" do
+    tests "ReleaseForSale", on: "BottlingRun", kind: :cascade
+    setup  "BottleWine", bottle_count: 1, bottle_date: "sample", alcohol_percent: 1.0, closure_type: "sample"
+    setup  "LabelBottles", label_name: "sample"
+    expect emits: ["WineReleased", "TastingRecorded"]
   end
 
 

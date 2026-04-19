@@ -9,6 +9,12 @@ Hecks.behaviors "Court" do
     expect action_type: "sample", actor: "sample", target: "sample", detail: "sample", occurred_at: "sample", laws_applicable: 0, laws_passed: 0, laws_violated: 0, status: "filed"
   end
 
+  test "File cascades through policy chain" do
+    tests "File", on: "Case", kind: :cascade
+    input  action_type: "sample", actor: "sample", target: "sample", detail: "sample", occurred_at: "sample"
+    expect emits: ["CaseFiled", "CaseHeard"]
+  end
+
   test "Hear sets laws_applicable" do
     tests "Hear", on: "Case"
     setup  "File", action_type: "sample", actor: "sample", target: "sample", detail: "sample", occurred_at: "sample"
@@ -52,6 +58,12 @@ Hecks.behaviors "Court" do
     tests "RecordFinding", on: "Finding"
     input  case_id: "sample", law_name: "sample", check_expression: "sample", evidence: "sample", passed: "sample_trueclass", explanation: "sample"
     expect case_id: "sample", law_name: "sample", check_expression: "sample", evidence: "sample", passed: "sample_trueclass", explanation: "sample"
+  end
+
+  test "RecordFinding cascades through policy chain" do
+    tests "RecordFinding", on: "Finding", kind: :cascade
+    input  case_id: "sample", law_name: "sample", check_expression: "sample", evidence: "sample", passed: "sample_trueclass", explanation: "sample"
+    expect emits: ["FindingRecorded", "LawCheckedInCase"]
   end
 
 

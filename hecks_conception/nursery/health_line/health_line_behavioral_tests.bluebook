@@ -15,6 +15,12 @@ Hecks.behaviors "HealthLine" do
     expect status: "assigned"
   end
 
+  test "AssignToNurse cascades through policy chain" do
+    tests "AssignToNurse", on: "IncomingCall", kind: :cascade
+    setup  "ReceiveCall", call_id: "sample", caller_name: "sample", phone_number: "sample", chief_complaint: "sample"
+    expect emits: ["CallAssigned", "AssessmentPerformed"]
+  end
+
   test "EndCall runs" do
     tests "EndCall", on: "IncomingCall"
     setup  "ReceiveCall", call_id: "sample", caller_name: "sample", phone_number: "sample", chief_complaint: "sample"
@@ -51,6 +57,13 @@ Hecks.behaviors "HealthLine" do
     setup  "PerformAssessment", assessment_id: "sample", call_id: "sample", protocol_id: "sample"
     input  severity: "sample", recommendation: "sample"
     expect severity: "sample", recommendation: "sample", status: "finalized"
+  end
+
+  test "FinalizeAssessment cascades through policy chain" do
+    tests "FinalizeAssessment", on: "TriageAssessment", kind: :cascade
+    setup  "PerformAssessment", assessment_id: "sample", call_id: "sample", protocol_id: "sample"
+    input  severity: "sample", recommendation: "sample"
+    expect emits: ["AssessmentFinalized", "CallEscalated"]
   end
 
 

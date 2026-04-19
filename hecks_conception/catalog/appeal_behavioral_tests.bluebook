@@ -60,6 +60,13 @@ Hecks.behaviors "Appeal" do
     expect ok: "true"
   end
 
+  test "OpenFile cascades through policy chain" do
+    tests "OpenFile", on: "Explorer", kind: :cascade
+    setup  "OpenProject", path: "sample"
+    input  path: "sample", domain: "sample"
+    expect emits: ["FileOpened", "TabSelected", "DiagramGenerated"]
+  end
+
   test "GetLastOpened runs" do
     tests "GetLastOpened", on: "Explorer"
     expect ok: "true"
@@ -752,6 +759,12 @@ Hecks.behaviors "Appeal" do
     tests "SelectTab", on: "Layout"
     input  tab_name: "sample"
     expect ok: "true"
+  end
+
+  test "SelectTab cascades through policy chain" do
+    tests "SelectTab", on: "Layout", kind: :cascade
+    input  tab_name: "sample"
+    expect emits: ["TabSelected", "DiagramGenerated"]
   end
 
   test "ResizePanel sets panel_name + width + height" do

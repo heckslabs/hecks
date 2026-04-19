@@ -31,6 +31,12 @@ Hecks.behaviors "TagManagement" do
     expect name: "sample", tag_type: "sample", container_id: "sample", template: "sample", status: "draft"
   end
 
+  test "DefineTag cascades through policy chain" do
+    tests "DefineTag", on: "Tag", kind: :cascade
+    input  name: "sample", tag_type: "sample", container_id: "sample", template: "sample"
+    expect emits: ["TagDefined", "ChangeRecorded"]
+  end
+
   test "ConfigureTag sets key + value" do
     tests "ConfigureTag", on: "Tag"
     setup  "DefineTag", name: "sample", tag_type: "sample", container_id: "sample", template: "sample"
@@ -86,6 +92,12 @@ Hecks.behaviors "TagManagement" do
     tests "DefineTrigger", on: "Trigger"
     input  name: "sample", trigger_type: "sample", container_id: "sample", description: "sample"
     expect name: "sample", trigger_type: "sample", container_id: "sample", description: "sample"
+  end
+
+  test "DefineTrigger cascades through policy chain" do
+    tests "DefineTrigger", on: "Trigger", kind: :cascade
+    input  name: "sample", trigger_type: "sample", container_id: "sample", description: "sample"
+    expect emits: ["TriggerDefined", "ChangeRecorded"]
   end
 
   test "AddCondition sets variable_name + operator + value" do
@@ -153,6 +165,14 @@ Hecks.behaviors "TagManagement" do
     setup  "SubmitVersion"
     setup  "ApproveVersion"
     expect status: "published"
+  end
+
+  test "PublishVersion cascades through policy chain" do
+    tests "PublishVersion", on: "Version", kind: :cascade
+    setup  "SnapshotVersion", container_id: "sample", version_number: 1, tag_count: 1, trigger_count: 1, variable_count: 1, description: "sample", created_by: "sample"
+    setup  "SubmitVersion"
+    setup  "ApproveVersion"
+    expect emits: ["VersionPublished", "ChangeRecorded"]
   end
 
   test "RestoreVersion runs" do

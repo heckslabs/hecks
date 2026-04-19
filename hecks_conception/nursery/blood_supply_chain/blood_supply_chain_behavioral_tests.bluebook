@@ -15,6 +15,12 @@ Hecks.behaviors "BloodSupplyChain" do
     expect status: "tested"
   end
 
+  test "TestDonation cascades through policy chain" do
+    tests "TestDonation", on: "Donation", kind: :cascade
+    setup  "CollectDonation", donation_id: "sample", donor_name: "sample", blood_type: "sample", volume_ml: 1.0, collection_date: "sample"
+    expect emits: ["DonationTested", "InventoryAdjusted"]
+  end
+
 
   # ── ColdStorage aggregate ──────────────────────────────────────────
 
@@ -28,7 +34,20 @@ Hecks.behaviors "BloodSupplyChain" do
     tests "LogTemperature", on: "ColdStorage"
     setup  "SetupStorage", unit_id: "sample", location_name: "sample", target_temp_c: 1.0
     input  current_temp_c: 1.0
-    expect current_temp_c: 1.0, status: "breached"
+    expect current_temp_c: 1.0
+  end
+
+  test "LogTemperature cascades through policy chain" do
+    tests "LogTemperature", on: "ColdStorage", kind: :cascade
+    setup  "SetupStorage", unit_id: "sample", location_name: "sample", target_temp_c: 1.0
+    input  current_temp_c: 1.0
+    expect emits: ["TemperatureLogged", "BreachFlagged"]
+  end
+
+  test "FlagBreach runs" do
+    tests "FlagBreach", on: "ColdStorage"
+    setup  "SetupStorage", unit_id: "sample", location_name: "sample", target_temp_c: 1.0
+    expect status: "breached"
   end
 
 
@@ -44,6 +63,12 @@ Hecks.behaviors "BloodSupplyChain" do
     tests "ConfirmDelivery", on: "Transport"
     setup  "DispatchShipment", shipment_id: "sample", origin: "sample", target: "sample", blood_type: "sample", quantity_units: 1.0
     expect status: "delivered"
+  end
+
+  test "ConfirmDelivery cascades through policy chain" do
+    tests "ConfirmDelivery", on: "Transport", kind: :cascade
+    setup  "DispatchShipment", shipment_id: "sample", origin: "sample", target: "sample", blood_type: "sample", quantity_units: 1.0
+    expect emits: ["DeliveryConfirmed", "InventoryAdjusted"]
   end
 
 

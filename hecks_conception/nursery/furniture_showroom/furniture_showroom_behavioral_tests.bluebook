@@ -9,10 +9,22 @@ Hecks.behaviors "FurnitureShowroom" do
     expect sku: "sample", name: "sample", collection: "sample", material: "sample", price: 1.0, status: "on_display"
   end
 
+  test "AddPiece cascades through policy chain" do
+    tests "AddPiece", on: "FurniturePiece", kind: :cascade
+    input  sku: "sample", name: "sample", collection: "sample", material: "sample", price: 1.0
+    expect emits: ["PieceAdded", "RoomStaged"]
+  end
+
   test "SellPiece runs" do
     tests "SellPiece", on: "FurniturePiece"
     setup  "AddPiece", sku: "sample", name: "sample", collection: "sample", material: "sample", price: 1.0
     expect status: "sold"
+  end
+
+  test "SellPiece cascades through policy chain" do
+    tests "SellPiece", on: "FurniturePiece", kind: :cascade
+    setup  "AddPiece", sku: "sample", name: "sample", collection: "sample", material: "sample", price: 1.0
+    expect emits: ["PieceSold", "DeliveryScheduled", "DeliveryCompleted", "WarrantyActivated", "RoomRestaged"]
   end
 
   test "DiscontinuePiece runs" do
@@ -46,6 +58,12 @@ Hecks.behaviors "FurnitureShowroom" do
     expect delivery_id: "sample", sku: "sample", customer_name: "sample", address: "sample", scheduled_date: "sample", status: "scheduled"
   end
 
+  test "ScheduleDelivery cascades through policy chain" do
+    tests "ScheduleDelivery", on: "Delivery", kind: :cascade
+    input  delivery_id: "sample", sku: "sample", customer_name: "sample", address: "sample", scheduled_date: "sample"
+    expect emits: ["DeliveryScheduled", "DeliveryCompleted"]
+  end
+
   test "CompleteDelivery runs" do
     tests "CompleteDelivery", on: "Delivery"
     setup  "ScheduleDelivery", delivery_id: "sample", sku: "sample", customer_name: "sample", address: "sample", scheduled_date: "sample"
@@ -57,6 +75,13 @@ Hecks.behaviors "FurnitureShowroom" do
     setup  "ScheduleDelivery", delivery_id: "sample", sku: "sample", customer_name: "sample", address: "sample", scheduled_date: "sample"
     input  damage_description: "sample"
     expect status: "damaged"
+  end
+
+  test "ReportDeliveryDamage cascades through policy chain" do
+    tests "ReportDeliveryDamage", on: "Delivery", kind: :cascade
+    setup  "ScheduleDelivery", delivery_id: "sample", sku: "sample", customer_name: "sample", address: "sample", scheduled_date: "sample"
+    input  damage_description: "sample"
+    expect emits: ["DeliveryDamageReported", "WarrantyClaimFiled", "WarrantyClaimResolved"]
   end
 
 
@@ -72,6 +97,20 @@ Hecks.behaviors "FurnitureShowroom" do
     tests "FileWarrantyClaim", on: "Warranty"
     setup  "ActivateWarranty", warranty_id: "sample", sku: "sample", customer_name: "sample", coverage_type: "sample", expiration_date: "sample"
     input  issue_description: "sample"
+    expect status: "claim_pending"
+  end
+
+  test "FileWarrantyClaim cascades through policy chain" do
+    tests "FileWarrantyClaim", on: "Warranty", kind: :cascade
+    setup  "ActivateWarranty", warranty_id: "sample", sku: "sample", customer_name: "sample", coverage_type: "sample", expiration_date: "sample"
+    input  issue_description: "sample"
+    expect emits: ["WarrantyClaimFiled", "WarrantyClaimResolved"]
+  end
+
+  test "ResolveWarrantyClaim sets resolution" do
+    tests "ResolveWarrantyClaim", on: "Warranty"
+    setup  "ActivateWarranty", warranty_id: "sample", sku: "sample", customer_name: "sample", coverage_type: "sample", expiration_date: "sample"
+    input  resolution: "sample"
     expect status: "resolved"
   end
 

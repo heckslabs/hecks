@@ -9,10 +9,22 @@ Hecks.behaviors "AssistedLiving" do
     expect name: "sample", date_of_birth: "sample", emergency_contact: "sample", medical_conditions: "sample", mobility_level: "sample", status: "admitted"
   end
 
+  test "AdmitResident cascades through policy chain" do
+    tests "AdmitResident", on: "Resident", kind: :cascade
+    input  name: "sample", date_of_birth: "sample", emergency_contact: "sample", medical_conditions: "sample", mobility_level: "sample"
+    expect emits: ["ResidentAdmitted", "RoomAssigned", "ResidentActivated", "ActivityScheduled", "CarePlanCreated", "MedicationScheduleCreated", "DoseScheduled"]
+  end
+
   test "ActivateResident runs" do
     tests "ActivateResident", on: "Resident"
     setup  "AdmitResident", name: "sample", date_of_birth: "sample", emergency_contact: "sample", medical_conditions: "sample", mobility_level: "sample"
     expect status: "active"
+  end
+
+  test "ActivateResident cascades through policy chain" do
+    tests "ActivateResident", on: "Resident", kind: :cascade
+    setup  "AdmitResident", name: "sample", date_of_birth: "sample", emergency_contact: "sample", medical_conditions: "sample", mobility_level: "sample"
+    expect emits: ["ResidentActivated", "ActivityScheduled"]
   end
 
   test "TransferResident runs" do
@@ -28,6 +40,13 @@ Hecks.behaviors "AssistedLiving" do
     expect status: "discharged"
   end
 
+  test "DischargeResident cascades through policy chain" do
+    tests "DischargeResident", on: "Resident", kind: :cascade
+    setup  "AdmitResident", name: "sample", date_of_birth: "sample", emergency_contact: "sample", medical_conditions: "sample", mobility_level: "sample"
+    setup  "ActivateResident"
+    expect emits: ["ResidentDischarged", "RoomVacated"]
+  end
+
 
   # ── Room aggregate ──────────────────────────────────────────
 
@@ -36,6 +55,13 @@ Hecks.behaviors "AssistedLiving" do
     setup  "AdmitResident", name: "sample", date_of_birth: "sample", emergency_contact: "sample", medical_conditions: "sample", mobility_level: "sample"
     input  room_number: "sample", floor: "sample", room_type: "sample", occupant_name: "sample"
     expect room_number: "sample", floor: "sample", room_type: "sample", occupant_name: "sample", status: "occupied"
+  end
+
+  test "AssignRoom cascades through policy chain" do
+    tests "AssignRoom", on: "Room", kind: :cascade
+    setup  "AdmitResident", name: "sample", date_of_birth: "sample", emergency_contact: "sample", medical_conditions: "sample", mobility_level: "sample"
+    input  room_number: "sample", floor: "sample", room_type: "sample", occupant_name: "sample"
+    expect emits: ["RoomAssigned", "ResidentActivated", "ActivityScheduled"]
   end
 
   test "VacateRoom runs" do
@@ -54,11 +80,25 @@ Hecks.behaviors "AssistedLiving" do
     expect resident_name: "sample", created_date: "sample", dietary_needs: "sample", status: "active"
   end
 
+  test "DraftCarePlan cascades through policy chain" do
+    tests "DraftCarePlan", on: "CarePlan", kind: :cascade
+    setup  "AdmitResident", name: "sample", date_of_birth: "sample", emergency_contact: "sample", medical_conditions: "sample", mobility_level: "sample"
+    input  resident_name: "sample", created_date: "sample", dietary_needs: "sample"
+    expect emits: ["CarePlanCreated", "MedicationScheduleCreated", "DoseScheduled"]
+  end
+
   test "AddCareTask sets description + frequency + assigned_to + time_of_day" do
     tests "AddCareTask", on: "CarePlan"
     setup  "DraftCarePlan", resident_name: "sample", created_date: "sample", dietary_needs: "sample"
     input  description: "sample", frequency: "sample", assigned_to: "sample", time_of_day: "sample"
     expect ok: "true"
+  end
+
+  test "AddCareTask cascades through policy chain" do
+    tests "AddCareTask", on: "CarePlan", kind: :cascade
+    setup  "DraftCarePlan", resident_name: "sample", created_date: "sample", dietary_needs: "sample"
+    input  description: "sample", frequency: "sample", assigned_to: "sample", time_of_day: "sample"
+    expect emits: ["CareTaskAdded", "ResidentEnrolled"]
   end
 
   test "ReviewCarePlan runs" do
@@ -104,6 +144,12 @@ Hecks.behaviors "AssistedLiving" do
     tests "ConfirmAdministration", on: "MedicationSchedule"
     setup  "PrescribeMedication", resident_name: "sample"
     expect ok: "true"
+  end
+
+  test "ConfirmAdministration cascades through policy chain" do
+    tests "ConfirmAdministration", on: "MedicationSchedule", kind: :cascade
+    setup  "PrescribeMedication", resident_name: "sample"
+    expect emits: ["AdministrationConfirmed", "CarePlanReviewed"]
   end
 
 end

@@ -9,10 +9,22 @@ Hecks.behaviors "SkiResort" do
     expect lift_id: "sample", name: "sample", lift_type: "sample", capacity_per_chair: 1, vertical_rise_ft: 1, status: "running"
   end
 
+  test "ActivateLift cascades through policy chain" do
+    tests "ActivateLift", on: "Lift", kind: :cascade
+    input  lift_id: "sample", name: "sample", lift_type: "sample", capacity_per_chair: 1, vertical_rise_ft: 1
+    expect emits: ["LiftActivated", "PassSold", "EquipmentRented"]
+  end
+
   test "HaltLift runs" do
     tests "HaltLift", on: "Lift"
     setup  "ActivateLift", lift_id: "sample", name: "sample", lift_type: "sample", capacity_per_chair: 1, vertical_rise_ft: 1
     expect status: "halted"
+  end
+
+  test "HaltLift cascades through policy chain" do
+    tests "HaltLift", on: "Lift", kind: :cascade
+    setup  "ActivateLift", lift_id: "sample", name: "sample", lift_type: "sample", capacity_per_chair: 1, vertical_rise_ft: 1
+    expect emits: ["LiftHalted", "RunClosed", "EquipmentReturned", "PassSuspended"]
   end
 
   test "ResumeLift runs" do
@@ -31,16 +43,34 @@ Hecks.behaviors "SkiResort" do
     expect run_id: "sample", name: "sample", difficulty: "sample", length_km: 1.0, groomed: "false", status: "open"
   end
 
+  test "OpenRun cascades through policy chain" do
+    tests "OpenRun", on: "SkiRun", kind: :cascade
+    input  run_id: "sample", name: "sample", difficulty: "sample", length_km: 1.0
+    expect emits: ["RunOpened", "RunGroomed", "LiftActivated", "PassSold", "EquipmentRented", "ConditionsPublished", "LiftHalted", "RunClosed", "EquipmentReturned", "PassSuspended"]
+  end
+
   test "GroomRun runs" do
     tests "GroomRun", on: "SkiRun"
     setup  "OpenRun", run_id: "sample", name: "sample", difficulty: "sample", length_km: 1.0
     expect groomed: "true"
   end
 
+  test "GroomRun cascades through policy chain" do
+    tests "GroomRun", on: "SkiRun", kind: :cascade
+    setup  "OpenRun", run_id: "sample", name: "sample", difficulty: "sample", length_km: 1.0
+    expect emits: ["RunGroomed", "LiftActivated", "PassSold", "EquipmentRented", "ConditionsPublished", "LiftHalted", "RunClosed", "EquipmentReturned", "PassSuspended"]
+  end
+
   test "CloseRun runs" do
     tests "CloseRun", on: "SkiRun"
     setup  "OpenRun", run_id: "sample", name: "sample", difficulty: "sample", length_km: 1.0
     expect status: "closed"
+  end
+
+  test "CloseRun cascades through policy chain" do
+    tests "CloseRun", on: "SkiRun", kind: :cascade
+    setup  "OpenRun", run_id: "sample", name: "sample", difficulty: "sample", length_km: 1.0
+    expect emits: ["RunClosed", "EquipmentReturned", "PassSuspended"]
   end
 
 
@@ -50,6 +80,12 @@ Hecks.behaviors "SkiResort" do
     tests "SellPass", on: "LiftPass"
     input  pass_id: "sample", holder_name: "sample", pass_type: "sample", valid_from: "sample", valid_to: "sample", price: 1.0
     expect pass_id: "sample", holder_name: "sample", pass_type: "sample", valid_from: "sample", valid_to: "sample", price: 1.0, status: "active"
+  end
+
+  test "SellPass cascades through policy chain" do
+    tests "SellPass", on: "LiftPass", kind: :cascade
+    input  pass_id: "sample", holder_name: "sample", pass_type: "sample", valid_from: "sample", valid_to: "sample", price: 1.0
+    expect emits: ["PassSold", "EquipmentRented"]
   end
 
   test "SuspendPass runs" do
@@ -80,6 +116,12 @@ Hecks.behaviors "SkiResort" do
     tests "PublishConditions", on: "SnowCondition"
     input  report_id: "sample", date: "sample", base_depth_cm: 1, new_snow_cm: 1, snow_quality: "sample", wind_speed: "sample", temperature: "sample"
     expect report_id: "sample", date: "sample", base_depth_cm: 1, new_snow_cm: 1, snow_quality: "sample", wind_speed: "sample", temperature: "sample"
+  end
+
+  test "PublishConditions cascades through policy chain" do
+    tests "PublishConditions", on: "SnowCondition", kind: :cascade
+    input  report_id: "sample", date: "sample", base_depth_cm: 1, new_snow_cm: 1, snow_quality: "sample", wind_speed: "sample", temperature: "sample"
+    expect emits: ["ConditionsPublished", "LiftHalted", "RunClosed", "EquipmentReturned", "PassSuspended"]
   end
 
 end

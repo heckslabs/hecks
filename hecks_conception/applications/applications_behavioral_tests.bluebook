@@ -9,6 +9,12 @@ Hecks.behaviors "Applications" do
     expect name: "sample", domain_path: "sample", app_types: "sample", version: "sample", status: "viable"
   end
 
+  test "RegisterApplication cascades through policy chain" do
+    tests "RegisterApplication", on: "Application", kind: :cascade
+    input  name: "sample", domain_path: "sample", app_types: "sample", version: "sample"
+    expect emits: ["ApplicationRegistered", "RegistryRebuilt", "ViabilityTracked"]
+  end
+
   test "AddApp sets app_type" do
     tests "AddApp", on: "Application"
     setup  "RegisterApplication", name: "sample", domain_path: "sample", app_types: "sample", version: "sample"

@@ -10,10 +10,23 @@ Hecks.behaviors "DigitalSignage" do
     expect ok: "true"
   end
 
+  test "InstallDisplay cascades through policy chain" do
+    tests "InstallDisplay", on: "Display", kind: :cascade
+    setup  "RegisterLocation", location_name: "sample", address: "sample", location_type: "sample", contact_name: "sample"
+    input  display_id: "sample", model: "sample", resolution: "sample", orientation: "sample"
+    expect emits: ["DisplayInstalled", "ScheduleCreated"]
+  end
+
   test "RebootDisplay runs" do
     tests "RebootDisplay", on: "Display"
     setup  "InstallDisplay", display_id: "sample", model: "sample", resolution: "sample", orientation: "sample"
     expect status: "offline"
+  end
+
+  test "RebootDisplay cascades through policy chain" do
+    tests "RebootDisplay", on: "Display", kind: :cascade
+    setup  "InstallDisplay", display_id: "sample", model: "sample", resolution: "sample", orientation: "sample"
+    expect emits: ["DisplayRebooted", "ScheduleCreated"]
   end
 
   test "RemoveDisplay runs" do
@@ -30,6 +43,12 @@ Hecks.behaviors "DigitalSignage" do
     tests "ComposePlaylist", on: "Playlist"
     input  playlist_name: "sample", description: "sample", loop_mode: "sample"
     expect status: "active"
+  end
+
+  test "ComposePlaylist cascades through policy chain" do
+    tests "ComposePlaylist", on: "Playlist", kind: :cascade
+    input  playlist_name: "sample", description: "sample", loop_mode: "sample"
+    expect emits: ["PlaylistCreated", "ScheduleCreated"]
   end
 
   test "AddEntry sets content_id + duration_seconds" do
@@ -54,10 +73,22 @@ Hecks.behaviors "DigitalSignage" do
     expect status: "pending_review"
   end
 
+  test "UploadAsset cascades through policy chain" do
+    tests "UploadAsset", on: "ContentAsset", kind: :cascade
+    input  asset_id: "sample", title: "sample", media_type: "sample", file_size_kb: 1
+    expect emits: ["AssetUploaded", "AssetApproved", "EntryAdded"]
+  end
+
   test "ApproveAsset runs" do
     tests "ApproveAsset", on: "ContentAsset"
     setup  "UploadAsset", asset_id: "sample", title: "sample", media_type: "sample", file_size_kb: 1
     expect ok: "true"
+  end
+
+  test "ApproveAsset cascades through policy chain" do
+    tests "ApproveAsset", on: "ContentAsset", kind: :cascade
+    setup  "UploadAsset", asset_id: "sample", title: "sample", media_type: "sample", file_size_kb: 1
+    expect emits: ["AssetApproved", "EntryAdded"]
   end
 
   test "RetireAsset runs" do
@@ -109,6 +140,12 @@ Hecks.behaviors "DigitalSignage" do
     tests "DeactivateLocation", on: "Location"
     setup  "RegisterLocation", location_name: "sample", address: "sample", location_type: "sample", contact_name: "sample"
     expect ok: "true"
+  end
+
+  test "DeactivateLocation cascades through policy chain" do
+    tests "DeactivateLocation", on: "Location", kind: :cascade
+    setup  "RegisterLocation", location_name: "sample", address: "sample", location_type: "sample", contact_name: "sample"
+    expect emits: ["LocationDeactivated", "SchedulePaused"]
   end
 
 end

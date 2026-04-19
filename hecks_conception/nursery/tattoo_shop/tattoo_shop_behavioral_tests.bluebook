@@ -9,6 +9,12 @@ Hecks.behaviors "TattooShop" do
     expect ok: "true"
   end
 
+  test "HireArtist cascades through policy chain" do
+    tests "HireArtist", on: "Artist", kind: :cascade
+    input  name: "sample", specialty_style: "sample", station_number: "sample", years_experience: 1
+    expect emits: ["ArtistHired", "StationAssigned"]
+  end
+
   test "AssignStation sets station_number" do
     tests "AssignStation", on: "Artist"
     setup  "HireArtist", name: "sample", specialty_style: "sample", station_number: "sample", years_experience: 1
@@ -27,6 +33,14 @@ Hecks.behaviors "TattooShop" do
     expect status: "booked"
   end
 
+  test "BookAppointment cascades through policy chain" do
+    tests "BookAppointment", on: "Appointment", kind: :cascade
+    setup  "SketchDesign", title: "sample", style: "sample", placement: "sample", size_inches: 1.0
+    setup  "HireArtist", name: "sample", specialty_style: "sample", station_number: "sample", years_experience: 1
+    input  date: "sample", time_slot: "sample", duration_hours: 1, deposit_amount: 1.0
+    expect emits: ["AppointmentBooked", "ConsentSigned", "SessionStarted"]
+  end
+
   test "StartSession runs" do
     tests "StartSession", on: "Appointment"
     setup  "BookAppointment", date: "sample", time_slot: "sample", duration_hours: 1, deposit_amount: 1.0
@@ -38,6 +52,13 @@ Hecks.behaviors "TattooShop" do
     setup  "BookAppointment", date: "sample", time_slot: "sample", duration_hours: 1, deposit_amount: 1.0
     setup  "StartSession"
     expect status: "completed"
+  end
+
+  test "CompleteSession cascades through policy chain" do
+    tests "CompleteSession", on: "Appointment", kind: :cascade
+    setup  "BookAppointment", date: "sample", time_slot: "sample", duration_hours: 1, deposit_amount: 1.0
+    setup  "StartSession"
+    expect emits: ["SessionCompleted", "KitDispensed", "FollowUpScheduled"]
   end
 
 
@@ -53,6 +74,12 @@ Hecks.behaviors "TattooShop" do
     tests "ApproveDesign", on: "Design"
     setup  "SketchDesign", title: "sample", style: "sample", placement: "sample", size_inches: 1.0
     expect status: "approved"
+  end
+
+  test "ApproveDesign cascades through policy chain" do
+    tests "ApproveDesign", on: "Design", kind: :cascade
+    setup  "SketchDesign", title: "sample", style: "sample", placement: "sample", size_inches: 1.0
+    expect emits: ["DesignApproved", "AppointmentBooked", "ConsentSigned", "SessionStarted"]
   end
 
   test "ReviseDesign sets revision_notes" do
@@ -72,6 +99,13 @@ Hecks.behaviors "TattooShop" do
     expect status: "signed"
   end
 
+  test "SignConsent cascades through policy chain" do
+    tests "SignConsent", on: "ConsentForm", kind: :cascade
+    setup  "BookAppointment", date: "sample", time_slot: "sample", duration_hours: 1, deposit_amount: 1.0
+    input  client_name: "sample", allergies: "sample"
+    expect emits: ["ConsentSigned", "SessionStarted"]
+  end
+
   test "FlagAllergy sets allergen" do
     tests "FlagAllergy", on: "ConsentForm"
     setup  "SignConsent", client_name: "sample", allergies: "sample"
@@ -87,6 +121,13 @@ Hecks.behaviors "TattooShop" do
     setup  "BookAppointment", date: "sample", time_slot: "sample", duration_hours: 1, deposit_amount: 1.0
     input  instructions: "sample", ointment_type: "sample", follow_up_days: 1
     expect ok: "true"
+  end
+
+  test "DispenseKit cascades through policy chain" do
+    tests "DispenseKit", on: "AftercareKit", kind: :cascade
+    setup  "BookAppointment", date: "sample", time_slot: "sample", duration_hours: 1, deposit_amount: 1.0
+    input  instructions: "sample", ointment_type: "sample", follow_up_days: 1
+    expect emits: ["KitDispensed", "FollowUpScheduled"]
   end
 
   test "ScheduleFollowUp sets follow_up_date" do

@@ -15,12 +15,32 @@ Hecks.behaviors "WarehouseRobotics" do
     expect status: "working"
   end
 
+  test "AssignTask cascades through policy chain" do
+    tests "AssignTask", on: "Robot", kind: :cascade
+    setup  "ActivateRobot", robot_id: "sample", robot_type: "sample", max_payload_kg: 1.0, current_zone: "sample"
+    expect emits: ["TaskAssigned", "PathComputed", "PathExecuted"]
+  end
+
   test "CompleteTask sets battery_pct" do
     tests "CompleteTask", on: "Robot"
     setup  "ActivateRobot", robot_id: "sample", robot_type: "sample", max_payload_kg: 1.0, current_zone: "sample"
     setup  "AssignTask"
     input  battery_pct: 1.0
-    expect battery_pct: 1.0, status: "charging"
+    expect battery_pct: 1.0, status: "idle"
+  end
+
+  test "CompleteTask cascades through policy chain" do
+    tests "CompleteTask", on: "Robot", kind: :cascade
+    setup  "ActivateRobot", robot_id: "sample", robot_type: "sample", max_payload_kg: 1.0, current_zone: "sample"
+    setup  "AssignTask"
+    input  battery_pct: 1.0
+    expect emits: ["TaskCompleted", "RobotSentToCharger"]
+  end
+
+  test "SendToCharger runs" do
+    tests "SendToCharger", on: "Robot"
+    setup  "ActivateRobot", robot_id: "sample", robot_type: "sample", max_payload_kg: 1.0, current_zone: "sample"
+    expect status: "charging"
   end
 
   test "FinishCharging runs" do
@@ -39,11 +59,24 @@ Hecks.behaviors "WarehouseRobotics" do
     expect list_id: "sample", order_id: "sample", item_count: 1, priority: "sample", status: "generated"
   end
 
+  test "GeneratePickList cascades through policy chain" do
+    tests "GeneratePickList", on: "PickList", kind: :cascade
+    input  list_id: "sample", order_id: "sample", item_count: 1, priority: "sample"
+    expect emits: ["PickListGenerated", "PickListAssigned", "TaskAssigned", "PathComputed", "PathExecuted"]
+  end
+
   test "AssignToRobot sets assigned_robot" do
     tests "AssignToRobot", on: "PickList"
     setup  "GeneratePickList", list_id: "sample", order_id: "sample", item_count: 1, priority: "sample"
     input  assigned_robot: "sample"
     expect assigned_robot: "sample", status: "assigned"
+  end
+
+  test "AssignToRobot cascades through policy chain" do
+    tests "AssignToRobot", on: "PickList", kind: :cascade
+    setup  "GeneratePickList", list_id: "sample", order_id: "sample", item_count: 1, priority: "sample"
+    input  assigned_robot: "sample"
+    expect emits: ["PickListAssigned", "TaskAssigned", "PathComputed", "PathExecuted"]
   end
 
   test "CompletePickList runs" do
@@ -62,6 +95,12 @@ Hecks.behaviors "WarehouseRobotics" do
     expect path_id: "sample", robot_id: "sample", from_zone: "sample", to_zone: "sample", distance_m: 1.0, estimated_seconds: 1.0, status: "computed"
   end
 
+  test "ComputePath cascades through policy chain" do
+    tests "ComputePath", on: "NavigationPath", kind: :cascade
+    input  path_id: "sample", robot_id: "sample", from_zone: "sample", to_zone: "sample", distance_m: 1.0, estimated_seconds: 1.0
+    expect emits: ["PathComputed", "PathExecuted"]
+  end
+
   test "ExecutePath runs" do
     tests "ExecutePath", on: "NavigationPath"
     setup  "ComputePath", path_id: "sample", robot_id: "sample", from_zone: "sample", to_zone: "sample", distance_m: 1.0, estimated_seconds: 1.0
@@ -75,6 +114,12 @@ Hecks.behaviors "WarehouseRobotics" do
     tests "RecordThroughput", on: "ThroughputMetric"
     input  metric_id: "sample", period: "sample", total_picks: 1, picks_per_hour: 1.0, robot_utilization_pct: 1.0
     expect metric_id: "sample", period: "sample", total_picks: 1, picks_per_hour: 1.0, robot_utilization_pct: 1.0, status: "recorded"
+  end
+
+  test "RecordThroughput cascades through policy chain" do
+    tests "RecordThroughput", on: "ThroughputMetric", kind: :cascade
+    input  metric_id: "sample", period: "sample", total_picks: 1, picks_per_hour: 1.0, robot_utilization_pct: 1.0
+    expect emits: ["ThroughputRecorded", "BottlenecksAnalyzed"]
   end
 
   test "AnalyzeBottlenecks runs" do

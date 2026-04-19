@@ -29,6 +29,13 @@ Hecks.behaviors "Neuroscience" do
     expect screening_passed: true
   end
 
+  test "ScreenSubject cascades through policy chain" do
+    tests "ScreenSubject", on: "Subject", kind: :cascade
+    setup  "EnrollSubject", subject_id: "sample", age: 1, handedness: "sample"
+    setup  "SignConsent"
+    expect emits: ["SubjectScreened", "SessionStarted"]
+  end
+
 
   # ── ImagingSession aggregate ──────────────────────────────────────────
 
@@ -53,6 +60,13 @@ Hecks.behaviors "Neuroscience" do
     expect ok: "true"
   end
 
+  test "CompleteSession cascades through policy chain" do
+    tests "CompleteSession", on: "ImagingSession", kind: :cascade
+    setup  "StartSession", modality: "sample"
+    setup  "ConfirmScreeningPassed"
+    expect emits: ["SessionCompleted", "SignalExtracted", "NoiseFiltered", "ConnectivityComputed", "PaperDrafted"]
+  end
+
   test "RejectSession sets rejection_reason" do
     tests "RejectSession", on: "ImagingSession"
     setup  "ConfirmScreeningPassed"
@@ -72,6 +86,13 @@ Hecks.behaviors "Neuroscience" do
     expect ok: "true"
   end
 
+  test "ExtractSignal cascades through policy chain" do
+    tests "ExtractSignal", on: "NeuralSignal", kind: :cascade
+    setup  "StartSession", modality: "sample"
+    input  signal_type: "sample", brain_region: "sample"
+    expect emits: ["SignalExtracted", "NoiseFiltered", "ConnectivityComputed", "PaperDrafted"]
+  end
+
   test "LoadRawData runs" do
     tests "LoadRawData", on: "NeuralSignal"
     setup  "ExtractSignal", signal_type: "sample", brain_region: "sample"
@@ -85,6 +106,25 @@ Hecks.behaviors "Neuroscience" do
     expect ok: "true"
   end
 
+  test "FilterNoise cascades through policy chain" do
+    tests "FilterNoise", on: "NeuralSignal", kind: :cascade
+    setup  "ExtractSignal", signal_type: "sample", brain_region: "sample"
+    setup  "LoadRawData"
+    expect emits: ["NoiseFiltered", "ConnectivityComputed", "PaperDrafted"]
+  end
+
+  test "ComputeConnectivity runs" do
+    tests "ComputeConnectivity", on: "NeuralSignal"
+    setup  "ExtractSignal", signal_type: "sample", brain_region: "sample"
+    expect ok: "true"
+  end
+
+  test "ComputeConnectivity cascades through policy chain" do
+    tests "ComputeConnectivity", on: "NeuralSignal", kind: :cascade
+    setup  "ExtractSignal", signal_type: "sample", brain_region: "sample"
+    expect emits: ["ConnectivityComputed", "PaperDrafted"]
+  end
+
 
   # ── StimulusProtocol aggregate ──────────────────────────────────────────
 
@@ -92,6 +132,12 @@ Hecks.behaviors "Neuroscience" do
     tests "DesignProtocol", on: "StimulusProtocol"
     input  protocol_name: "sample", stimulus_type: "sample", trial_count: 1
     expect ok: "true"
+  end
+
+  test "DesignProtocol cascades through policy chain" do
+    tests "DesignProtocol", on: "StimulusProtocol", kind: :cascade
+    input  protocol_name: "sample", stimulus_type: "sample", trial_count: 1
+    expect emits: ["ProtocolDesigned", "SubjectEnrolled", "TrialsRandomized"]
   end
 
   test "AddTrialBlock sets new_block_count" do

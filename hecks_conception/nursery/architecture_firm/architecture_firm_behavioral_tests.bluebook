@@ -9,11 +9,24 @@ Hecks.behaviors "ArchitectureFirm" do
     expect ok: "true"
   end
 
+  test "AcceptProject cascades through policy chain" do
+    tests "AcceptProject", on: "ArchProject", kind: :cascade
+    input  name: "sample", building_type: "sample", square_footage: 1.0, budget: 1.0
+    expect emits: ["ProjectCommissioned", "DrawingProduced", "DrawingIssuedForReview", "RevisionRequested", "RevisionApproved", "PhaseAdvanced", "PermitSubmitted"]
+  end
+
   test "AdvancePhase sets next_phase" do
     tests "AdvancePhase", on: "ArchProject"
     setup  "AcceptProject", name: "sample", building_type: "sample", square_footage: 1.0, budget: 1.0
     input  next_phase: "sample"
     expect phase: "sample"
+  end
+
+  test "AdvancePhase cascades through policy chain" do
+    tests "AdvancePhase", on: "ArchProject", kind: :cascade
+    setup  "AcceptProject", name: "sample", building_type: "sample", square_footage: 1.0, budget: 1.0
+    input  next_phase: "sample"
+    expect emits: ["PhaseAdvanced", "PermitSubmitted"]
   end
 
 
@@ -24,6 +37,13 @@ Hecks.behaviors "ArchitectureFirm" do
     setup  "AcceptProject", name: "sample", building_type: "sample", square_footage: 1.0, budget: 1.0
     input  title: "sample", drawing_type: "sample", scale: "sample"
     expect status: "draft"
+  end
+
+  test "ProduceDrawing cascades through policy chain" do
+    tests "ProduceDrawing", on: "Drawing", kind: :cascade
+    setup  "AcceptProject", name: "sample", building_type: "sample", square_footage: 1.0, budget: 1.0
+    input  title: "sample", drawing_type: "sample", scale: "sample"
+    expect emits: ["DrawingProduced", "DrawingIssuedForReview", "RevisionRequested", "RevisionApproved", "PhaseAdvanced", "PermitSubmitted"]
   end
 
   test "ReviseDrawing sets revision_notes" do
@@ -39,6 +59,12 @@ Hecks.behaviors "ArchitectureFirm" do
     expect status: "under_review"
   end
 
+  test "IssueForReview cascades through policy chain" do
+    tests "IssueForReview", on: "Drawing", kind: :cascade
+    setup  "ProduceDrawing", title: "sample", drawing_type: "sample", scale: "sample"
+    expect emits: ["DrawingIssuedForReview", "RevisionRequested", "RevisionApproved", "PhaseAdvanced", "PermitSubmitted"]
+  end
+
 
   # ── Revision aggregate ──────────────────────────────────────────
 
@@ -49,10 +75,23 @@ Hecks.behaviors "ArchitectureFirm" do
     expect status: "pending"
   end
 
+  test "RequestRevision cascades through policy chain" do
+    tests "RequestRevision", on: "Revision", kind: :cascade
+    setup  "ProduceDrawing", title: "sample", drawing_type: "sample", scale: "sample"
+    input  reviewer_name: "sample", comments: "sample"
+    expect emits: ["RevisionRequested", "RevisionApproved", "PhaseAdvanced", "PermitSubmitted"]
+  end
+
   test "ApproveRevision runs" do
     tests "ApproveRevision", on: "Revision"
     setup  "RequestRevision", reviewer_name: "sample", comments: "sample"
     expect status: "approved"
+  end
+
+  test "ApproveRevision cascades through policy chain" do
+    tests "ApproveRevision", on: "Revision", kind: :cascade
+    setup  "RequestRevision", reviewer_name: "sample", comments: "sample"
+    expect emits: ["RevisionApproved", "PhaseAdvanced", "PermitSubmitted"]
   end
 
 
@@ -72,6 +111,13 @@ Hecks.behaviors "ArchitectureFirm" do
     expect status: "approved", permit_number: "sample"
   end
 
+  test "ReceiveApproval cascades through policy chain" do
+    tests "ReceiveApproval", on: "Permit", kind: :cascade
+    setup  "SubmitPermit", permit_type: "sample", jurisdiction: "sample"
+    input  permit_number: "sample"
+    expect emits: ["PermitApproved", "VisitScheduled"]
+  end
+
 
   # ── SiteVisit aggregate ──────────────────────────────────────────
 
@@ -87,6 +133,13 @@ Hecks.behaviors "ArchitectureFirm" do
     setup  "ScheduleVisit", date: "sample", inspector_name: "sample"
     input  notes: "sample", weather_conditions: "sample"
     expect status: "completed", notes: "sample"
+  end
+
+  test "RecordObservations cascades through policy chain" do
+    tests "RecordObservations", on: "SiteVisit", kind: :cascade
+    setup  "ScheduleVisit", date: "sample", inspector_name: "sample"
+    input  notes: "sample", weather_conditions: "sample"
+    expect emits: ["ObservationsRecorded", "ProjectClosedOut"]
   end
 
 end

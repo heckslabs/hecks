@@ -9,10 +9,36 @@ Hecks.behaviors "WildlifeForensics" do
     expect evidence_id: "sample", evidence_type: "sample", location_found: "sample", collected_by: "sample", timestamp: "sample", status: "collected"
   end
 
+  test "CollectEvidence cascades through policy chain" do
+    tests "CollectEvidence", on: "Evidence", kind: :cascade
+    input  evidence_id: "sample", evidence_type: "sample", location_found: "sample", collected_by: "sample", timestamp: "sample"
+    expect emits: ["EvidenceCollected", "EvidenceTransferred", "EvidenceAnalyzed", "DNAExtracted", "DNASequenced", "DatabaseMatched", "SpeciesIdentified", "EvidenceLinked"]
+  end
+
   test "TransferEvidence runs" do
     tests "TransferEvidence", on: "Evidence"
     setup  "CollectEvidence", evidence_id: "sample", evidence_type: "sample", location_found: "sample", collected_by: "sample", timestamp: "sample"
+    expect status: "in_lab"
+  end
+
+  test "TransferEvidence cascades through policy chain" do
+    tests "TransferEvidence", on: "Evidence", kind: :cascade
+    setup  "CollectEvidence", evidence_id: "sample", evidence_type: "sample", location_found: "sample", collected_by: "sample", timestamp: "sample"
+    expect emits: ["EvidenceTransferred", "EvidenceAnalyzed", "DNAExtracted", "DNASequenced", "DatabaseMatched", "SpeciesIdentified", "EvidenceLinked"]
+  end
+
+  test "AnalyzeEvidence runs" do
+    tests "AnalyzeEvidence", on: "Evidence"
+    setup  "CollectEvidence", evidence_id: "sample", evidence_type: "sample", location_found: "sample", collected_by: "sample", timestamp: "sample"
+    setup  "TransferEvidence"
     expect status: "analyzed"
+  end
+
+  test "AnalyzeEvidence cascades through policy chain" do
+    tests "AnalyzeEvidence", on: "Evidence", kind: :cascade
+    setup  "CollectEvidence", evidence_id: "sample", evidence_type: "sample", location_found: "sample", collected_by: "sample", timestamp: "sample"
+    setup  "TransferEvidence"
+    expect emits: ["EvidenceAnalyzed", "DNAExtracted", "DNASequenced", "DatabaseMatched", "SpeciesIdentified", "EvidenceLinked"]
   end
 
 
@@ -22,6 +48,12 @@ Hecks.behaviors "WildlifeForensics" do
     tests "IdentifySpecies", on: "SpeciesIdentification"
     input  sample_id: "sample", identified_species: "sample", common_name: "sample", conservation_status: "sample", confidence_pct: 1.0
     expect sample_id: "sample", identified_species: "sample", common_name: "sample", conservation_status: "sample", confidence_pct: 1.0, status: "identified"
+  end
+
+  test "IdentifySpecies cascades through policy chain" do
+    tests "IdentifySpecies", on: "SpeciesIdentification", kind: :cascade
+    input  sample_id: "sample", identified_species: "sample", common_name: "sample", conservation_status: "sample", confidence_pct: 1.0
+    expect emits: ["SpeciesIdentified", "EvidenceLinked"]
   end
 
   test "ConfirmWithDNA runs" do
@@ -67,11 +99,40 @@ Hecks.behaviors "WildlifeForensics" do
     expect analysis_id: "sample", evidence_id: "sample", extraction_method: "sample", status: "extracted"
   end
 
+  test "ExtractDNA cascades through policy chain" do
+    tests "ExtractDNA", on: "DNAAnalysis", kind: :cascade
+    input  analysis_id: "sample", evidence_id: "sample", extraction_method: "sample"
+    expect emits: ["DNAExtracted", "DNASequenced", "DatabaseMatched", "SpeciesIdentified", "EvidenceLinked"]
+  end
+
   test "SequenceDNA sets sequence_region" do
     tests "SequenceDNA", on: "DNAAnalysis"
     setup  "ExtractDNA", analysis_id: "sample", evidence_id: "sample", extraction_method: "sample"
     input  sequence_region: "sample"
-    expect sequence_region: "sample", match_confidence_pct: 1.0, status: "matched"
+    expect sequence_region: "sample", status: "sequenced"
+  end
+
+  test "SequenceDNA cascades through policy chain" do
+    tests "SequenceDNA", on: "DNAAnalysis", kind: :cascade
+    setup  "ExtractDNA", analysis_id: "sample", evidence_id: "sample", extraction_method: "sample"
+    input  sequence_region: "sample"
+    expect emits: ["DNASequenced", "DatabaseMatched", "SpeciesIdentified", "EvidenceLinked"]
+  end
+
+  test "MatchDatabase sets match_confidence_pct" do
+    tests "MatchDatabase", on: "DNAAnalysis"
+    setup  "ExtractDNA", analysis_id: "sample", evidence_id: "sample", extraction_method: "sample"
+    setup  "SequenceDNA", sequence_region: "sample"
+    input  match_confidence_pct: 1.0
+    expect match_confidence_pct: 1.0, status: "matched"
+  end
+
+  test "MatchDatabase cascades through policy chain" do
+    tests "MatchDatabase", on: "DNAAnalysis", kind: :cascade
+    setup  "ExtractDNA", analysis_id: "sample", evidence_id: "sample", extraction_method: "sample"
+    setup  "SequenceDNA", sequence_region: "sample"
+    input  match_confidence_pct: 1.0
+    expect emits: ["DatabaseMatched", "SpeciesIdentified", "EvidenceLinked"]
   end
 
 end

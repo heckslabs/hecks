@@ -97,6 +97,12 @@ Hecks.behaviors "Electrical" do
     expect ok: "true"
   end
 
+  test "DefineLoad cascades through policy chain" do
+    tests "DefineLoad", on: "Load", kind: :cascade
+    input  name: "sample", watts: 1.0, voltage: 1.0, power_type: "sample", duty_cycle: 1.0
+    expect emits: ["LoadDefined", "FuseSized", "GaugeSelected"]
+  end
+
   test "CalculateAmpDraw runs" do
     tests "CalculateAmpDraw", on: "Load"
     setup  "DefineLoad", name: "sample", watts: 1.0, voltage: 1.0, power_type: "sample", duty_cycle: 1.0

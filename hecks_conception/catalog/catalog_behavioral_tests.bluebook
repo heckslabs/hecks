@@ -9,11 +9,24 @@ Hecks.behaviors "Catalog" do
     expect name: "sample", version: "sample", path: "sample", aggregate_count: 1, command_count: 1, policy_count: 1, lines: 1, status: "active"
   end
 
+  test "RegisterDomain cascades through policy chain" do
+    tests "RegisterDomain", on: "Entry", kind: :cascade
+    input  name: "sample", version: "sample", path: "sample", aggregate_count: 1, command_count: 1, policy_count: 1, lines: 1
+    expect emits: ["DomainRegistered", "VersionSnapshotted", "IndexRebuilt"]
+  end
+
   test "DevelopDomain sets version + aggregate_count + command_count + policy_count + lines" do
     tests "DevelopDomain", on: "Entry"
     setup  "RegisterDomain", name: "sample", version: "sample", path: "sample", aggregate_count: 1, command_count: 1, policy_count: 1, lines: 1
     input  version: "sample", aggregate_count: 1, command_count: 1, policy_count: 1, lines: 1
     expect version: "sample", aggregate_count: 1, command_count: 1, policy_count: 1, lines: 1
+  end
+
+  test "DevelopDomain cascades through policy chain" do
+    tests "DevelopDomain", on: "Entry", kind: :cascade
+    setup  "RegisterDomain", name: "sample", version: "sample", path: "sample", aggregate_count: 1, command_count: 1, policy_count: 1, lines: 1
+    input  version: "sample", aggregate_count: 1, command_count: 1, policy_count: 1, lines: 1
+    expect emits: ["DomainDeveloped", "VersionSnapshotted", "IndexRebuilt"]
   end
 
   test "RetireDomain runs" do
@@ -49,6 +62,11 @@ Hecks.behaviors "Catalog" do
   test "DetectDrift runs" do
     tests "DetectDrift", on: "Mirror"
     expect ok: "true"
+  end
+
+  test "DetectDrift cascades through policy chain" do
+    tests "DetectDrift", on: "Mirror", kind: :cascade
+    expect emits: ["DriftDetected", "DomainDeveloped", "VersionSnapshotted", "IndexRebuilt"]
   end
 
 

@@ -9,6 +9,12 @@ Hecks.behaviors "GameDevelopment" do
     expect status: "pre_production"
   end
 
+  test "KickOffProject cascades through policy chain" do
+    tests "KickOffProject", on: "GameProject", kind: :cascade
+    input  title: "sample", engine: "sample", genre: "sample", target_platform: "sample"
+    expect emits: ["ProjectKickedOff", "SprintPlanned", "SprintStarted", "ProductionEntered"]
+  end
+
   test "EnterProduction runs" do
     tests "EnterProduction", on: "GameProject"
     setup  "KickOffProject", title: "sample", engine: "sample", genre: "sample", target_platform: "sample"
@@ -32,6 +38,13 @@ Hecks.behaviors "GameDevelopment" do
     expect status: "planning"
   end
 
+  test "PlanSprint cascades through policy chain" do
+    tests "PlanSprint", on: "Sprint", kind: :cascade
+    setup  "KickOffProject", title: "sample", engine: "sample", genre: "sample", target_platform: "sample"
+    input  name: "sample", duration_days: 1, story_points: 1
+    expect emits: ["SprintPlanned", "SprintStarted"]
+  end
+
   test "StartSprint runs" do
     tests "StartSprint", on: "Sprint"
     setup  "PlanSprint", name: "sample", duration_days: 1, story_points: 1
@@ -46,6 +59,14 @@ Hecks.behaviors "GameDevelopment" do
     expect status: "closed"
   end
 
+  test "CloseSprint cascades through policy chain" do
+    tests "CloseSprint", on: "Sprint", kind: :cascade
+    setup  "PlanSprint", name: "sample", duration_days: 1, story_points: 1
+    setup  "StartSprint"
+    input  completed_points: 1
+    expect emits: ["SprintClosed", "BuildTriggered", "BuildCertified", "PlaytestScheduled", "PlaytestConducted", "ResultsAnalyzed", "BugFiled"]
+  end
+
 
   # ── Build aggregate ──────────────────────────────────────────
 
@@ -56,10 +77,23 @@ Hecks.behaviors "GameDevelopment" do
     expect status: "building"
   end
 
+  test "TriggerBuild cascades through policy chain" do
+    tests "TriggerBuild", on: "Build", kind: :cascade
+    setup  "KickOffProject", title: "sample", engine: "sample", genre: "sample", target_platform: "sample"
+    input  version: "sample", platform: "sample", build_config: "sample"
+    expect emits: ["BuildTriggered", "BuildCertified", "PlaytestScheduled", "PlaytestConducted", "ResultsAnalyzed", "BugFiled"]
+  end
+
   test "CertifyBuild runs" do
     tests "CertifyBuild", on: "Build"
     setup  "TriggerBuild", version: "sample", platform: "sample", build_config: "sample"
     expect status: "certified"
+  end
+
+  test "CertifyBuild cascades through policy chain" do
+    tests "CertifyBuild", on: "Build", kind: :cascade
+    setup  "TriggerBuild", version: "sample", platform: "sample", build_config: "sample"
+    expect emits: ["BuildCertified", "PlaytestScheduled", "PlaytestConducted", "ResultsAnalyzed", "BugFiled"]
   end
 
 
@@ -72,10 +106,37 @@ Hecks.behaviors "GameDevelopment" do
     expect status: "scheduled"
   end
 
+  test "SchedulePlaytest cascades through policy chain" do
+    tests "SchedulePlaytest", on: "Playtest", kind: :cascade
+    setup  "TriggerBuild", version: "sample", platform: "sample", build_config: "sample"
+    input  session_name: "sample", tester_count: 1
+    expect emits: ["PlaytestScheduled", "PlaytestConducted", "ResultsAnalyzed", "BugFiled"]
+  end
+
   test "ConductPlaytest runs" do
     tests "ConductPlaytest", on: "Playtest"
     setup  "SchedulePlaytest", session_name: "sample", tester_count: 1
     expect status: "completed"
+  end
+
+  test "ConductPlaytest cascades through policy chain" do
+    tests "ConductPlaytest", on: "Playtest", kind: :cascade
+    setup  "SchedulePlaytest", session_name: "sample", tester_count: 1
+    expect emits: ["PlaytestConducted", "ResultsAnalyzed", "BugFiled"]
+  end
+
+  test "AnalyzeResults runs" do
+    tests "AnalyzeResults", on: "Playtest"
+    setup  "SchedulePlaytest", session_name: "sample", tester_count: 1
+    setup  "ConductPlaytest"
+    expect ok: "true"
+  end
+
+  test "AnalyzeResults cascades through policy chain" do
+    tests "AnalyzeResults", on: "Playtest", kind: :cascade
+    setup  "SchedulePlaytest", session_name: "sample", tester_count: 1
+    setup  "ConductPlaytest"
+    expect emits: ["ResultsAnalyzed", "BugFiled"]
   end
 
 
@@ -93,6 +154,13 @@ Hecks.behaviors "GameDevelopment" do
     setup  "FileBug", title: "sample", severity: "sample", repro_steps: "sample"
     input  resolution: "sample"
     expect status: "resolved"
+  end
+
+  test "ResolveBug cascades through policy chain" do
+    tests "ResolveBug", on: "BugReport", kind: :cascade
+    setup  "FileBug", title: "sample", severity: "sample", repro_steps: "sample"
+    input  resolution: "sample"
+    expect emits: ["BugResolved", "GoneGold"]
   end
 
 end

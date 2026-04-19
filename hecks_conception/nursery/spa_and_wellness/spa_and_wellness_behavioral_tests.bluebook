@@ -9,6 +9,12 @@ Hecks.behaviors "SpaAndWellness" do
     expect treatment_id: "sample", name: "sample", category: "sample", duration_minutes: 1, price: 1.0, description: "sample"
   end
 
+  test "DefineTreatment cascades through policy chain" do
+    tests "DefineTreatment", on: "Treatment", kind: :cascade
+    input  treatment_id: "sample", name: "sample", category: "sample", duration_minutes: 1, price: 1.0, description: "sample"
+    expect emits: ["TreatmentDefined", "TherapistOnboarded", "PackageBundled", "SessionRedeemed", "RoomPrepared", "RoomOccupied", "RoomReleased", "ProductSold", "SpecialtyAdded"]
+  end
+
   test "RetireTreatment runs" do
     tests "RetireTreatment", on: "Treatment"
     setup  "DefineTreatment", treatment_id: "sample", name: "sample", category: "sample", duration_minutes: 1, price: 1.0, description: "sample"
@@ -22,6 +28,12 @@ Hecks.behaviors "SpaAndWellness" do
     tests "OnboardTherapist", on: "Therapist"
     input  therapist_id: "sample", name: "sample", license_number: "sample"
     expect therapist_id: "sample", name: "sample", license_number: "sample"
+  end
+
+  test "OnboardTherapist cascades through policy chain" do
+    tests "OnboardTherapist", on: "Therapist", kind: :cascade
+    input  therapist_id: "sample", name: "sample", license_number: "sample"
+    expect emits: ["TherapistOnboarded", "PackageBundled", "SessionRedeemed", "RoomPrepared", "RoomOccupied", "RoomReleased", "ProductSold"]
   end
 
   test "AddSpecialty sets treatment_type" do
@@ -40,10 +52,36 @@ Hecks.behaviors "SpaAndWellness" do
     expect room_id: "sample", name: "sample", room_type: "sample", capacity: 1, status: "ready"
   end
 
+  test "PrepareRoom cascades through policy chain" do
+    tests "PrepareRoom", on: "SpaRoom", kind: :cascade
+    input  room_id: "sample", name: "sample", room_type: "sample", capacity: 1
+    expect emits: ["RoomPrepared", "RoomOccupied", "RoomReleased", "ProductSold"]
+  end
+
   test "OccupyRoom runs" do
     tests "OccupyRoom", on: "SpaRoom"
     setup  "PrepareRoom", room_id: "sample", name: "sample", room_type: "sample", capacity: 1
+    expect status: "occupied"
+  end
+
+  test "OccupyRoom cascades through policy chain" do
+    tests "OccupyRoom", on: "SpaRoom", kind: :cascade
+    setup  "PrepareRoom", room_id: "sample", name: "sample", room_type: "sample", capacity: 1
+    expect emits: ["RoomOccupied", "RoomReleased", "ProductSold"]
+  end
+
+  test "ReleaseRoom runs" do
+    tests "ReleaseRoom", on: "SpaRoom"
+    setup  "PrepareRoom", room_id: "sample", name: "sample", room_type: "sample", capacity: 1
+    setup  "OccupyRoom"
     expect status: "available"
+  end
+
+  test "ReleaseRoom cascades through policy chain" do
+    tests "ReleaseRoom", on: "SpaRoom", kind: :cascade
+    setup  "PrepareRoom", room_id: "sample", name: "sample", room_type: "sample", capacity: 1
+    setup  "OccupyRoom"
+    expect emits: ["RoomReleased", "ProductSold"]
   end
 
 
@@ -71,11 +109,24 @@ Hecks.behaviors "SpaAndWellness" do
     expect package_id: "sample", name: "sample", package_price: 1.0, status: "active"
   end
 
+  test "BundlePackage cascades through policy chain" do
+    tests "BundlePackage", on: "WellnessPackage", kind: :cascade
+    input  package_id: "sample", name: "sample", package_price: 1.0
+    expect emits: ["PackageBundled", "SessionRedeemed", "RoomPrepared", "RoomOccupied", "RoomReleased", "ProductSold"]
+  end
+
   test "RedeemSession sets treatment_name" do
     tests "RedeemSession", on: "WellnessPackage"
     setup  "BundlePackage", package_id: "sample", name: "sample", package_price: 1.0
     input  treatment_name: "sample"
     expect ok: "true"
+  end
+
+  test "RedeemSession cascades through policy chain" do
+    tests "RedeemSession", on: "WellnessPackage", kind: :cascade
+    setup  "BundlePackage", package_id: "sample", name: "sample", package_price: 1.0
+    input  treatment_name: "sample"
+    expect emits: ["SessionRedeemed", "RoomPrepared", "RoomOccupied", "RoomReleased", "ProductSold"]
   end
 
   test "ExpirePackage runs" do

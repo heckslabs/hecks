@@ -9,6 +9,12 @@ Hecks.behaviors "DevOpsPipeline" do
     expect repo_name: "sample", clone_url: "sample", default_branch: "sample", language: "sample", status: "idle"
   end
 
+  test "RegisterRepository cascades through policy chain" do
+    tests "RegisterRepository", on: "Repository", kind: :cascade
+    input  repo_name: "sample", clone_url: "sample", default_branch: "sample", language: "sample"
+    expect emits: ["RepositoryRegistered", "BuildTriggered"]
+  end
+
   test "RetargetBranch sets default_branch" do
     tests "RetargetBranch", on: "Repository"
     setup  "RegisterRepository", repo_name: "sample", clone_url: "sample", default_branch: "sample", language: "sample"
@@ -25,6 +31,13 @@ Hecks.behaviors "DevOpsPipeline" do
 
   # ── Build aggregate ──────────────────────────────────────────
 
+  test "TriggerBuild sets build_number + commit_sha" do
+    tests "TriggerBuild", on: "Build"
+    setup  "RegisterRepository", repo_name: "sample", clone_url: "sample", default_branch: "sample", language: "sample"
+    input  build_number: "sample", commit_sha: "sample"
+    expect ok: "true"
+  end
+
   test "CompleteBuild sets artifact_url + duration_seconds" do
     tests "CompleteBuild", on: "Build"
     setup  "TriggerBuild", build_number: "sample", commit_sha: "sample"
@@ -32,11 +45,25 @@ Hecks.behaviors "DevOpsPipeline" do
     expect ok: "true"
   end
 
+  test "CompleteBuild cascades through policy chain" do
+    tests "CompleteBuild", on: "Build", kind: :cascade
+    setup  "TriggerBuild", build_number: "sample", commit_sha: "sample"
+    input  artifact_url: "sample", duration_seconds: 1
+    expect emits: ["BuildCompleted", "ArtifactDeployed", "DeploymentPromoted", "MetricRecorded", "ThresholdBreached"]
+  end
+
   test "FailBuild sets error_message" do
     tests "FailBuild", on: "Build"
     setup  "TriggerBuild", build_number: "sample", commit_sha: "sample"
     input  error_message: "sample"
     expect ok: "true"
+  end
+
+  test "FailBuild cascades through policy chain" do
+    tests "FailBuild", on: "Build", kind: :cascade
+    setup  "TriggerBuild", build_number: "sample", commit_sha: "sample"
+    input  error_message: "sample"
+    expect emits: ["BuildFailed", "BuildTriggered"]
   end
 
 
@@ -49,16 +76,35 @@ Hecks.behaviors "DevOpsPipeline" do
     expect status: "healthy"
   end
 
+  test "DeployArtifact cascades through policy chain" do
+    tests "DeployArtifact", on: "Deployment", kind: :cascade
+    setup  "TriggerBuild", build_number: "sample", commit_sha: "sample"
+    input  deploy_id: "sample", environment: "sample", strategy: "sample", deployed_by: "sample"
+    expect emits: ["ArtifactDeployed", "DeploymentPromoted", "MetricRecorded", "ThresholdBreached"]
+  end
+
   test "PromoteDeployment runs" do
     tests "PromoteDeployment", on: "Deployment"
     setup  "DeployArtifact", deploy_id: "sample", environment: "sample", strategy: "sample", deployed_by: "sample"
     expect ok: "true"
   end
 
+  test "PromoteDeployment cascades through policy chain" do
+    tests "PromoteDeployment", on: "Deployment", kind: :cascade
+    setup  "DeployArtifact", deploy_id: "sample", environment: "sample", strategy: "sample", deployed_by: "sample"
+    expect emits: ["DeploymentPromoted", "MetricRecorded", "ThresholdBreached"]
+  end
+
   test "AbortDeployment runs" do
     tests "AbortDeployment", on: "Deployment"
     setup  "DeployArtifact", deploy_id: "sample", environment: "sample", strategy: "sample", deployed_by: "sample"
     expect ok: "true"
+  end
+
+  test "AbortDeployment cascades through policy chain" do
+    tests "AbortDeployment", on: "Deployment", kind: :cascade
+    setup  "DeployArtifact", deploy_id: "sample", environment: "sample", strategy: "sample", deployed_by: "sample"
+    expect emits: ["DeploymentAborted", "RollbackInitiated"]
   end
 
 
@@ -77,6 +123,12 @@ Hecks.behaviors "DevOpsPipeline" do
     expect ok: "true"
   end
 
+  test "CompleteRollback cascades through policy chain" do
+    tests "CompleteRollback", on: "Rollback", kind: :cascade
+    setup  "InitiateRollback", rollback_id: "sample", reason: "sample", target_version: "sample", initiated_by: "sample"
+    expect emits: ["RollbackCompleted", "MetricRecorded", "ThresholdBreached"]
+  end
+
   test "AbandonRollback runs" do
     tests "AbandonRollback", on: "Rollback"
     setup  "InitiateRollback", rollback_id: "sample", reason: "sample", target_version: "sample", initiated_by: "sample"
@@ -91,6 +143,13 @@ Hecks.behaviors "DevOpsPipeline" do
     setup  "RegisterRepository", repo_name: "sample", clone_url: "sample", default_branch: "sample", language: "sample"
     input  metric_name: "sample", value: 1.0, unit: "sample", period: "sample"
     expect ok: "true"
+  end
+
+  test "RecordMetric cascades through policy chain" do
+    tests "RecordMetric", on: "PipelineMetric", kind: :cascade
+    setup  "RegisterRepository", repo_name: "sample", clone_url: "sample", default_branch: "sample", language: "sample"
+    input  metric_name: "sample", value: 1.0, unit: "sample", period: "sample"
+    expect emits: ["MetricRecorded", "ThresholdBreached"]
   end
 
   test "SetThreshold sets warning_level + critical_level" do

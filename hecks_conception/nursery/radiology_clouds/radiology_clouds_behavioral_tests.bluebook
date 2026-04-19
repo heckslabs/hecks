@@ -9,6 +9,12 @@ Hecks.behaviors "RadiologyClouds" do
     expect scan_id: "sample", patient_name: "sample", modality: "sample", body_part: "sample", acquired_date: "sample", status: "acquired"
   end
 
+  test "AcquireScan cascades through policy chain" do
+    tests "AcquireScan", on: "Scan", kind: :cascade
+    input  scan_id: "sample", patient_name: "sample", modality: "sample", body_part: "sample", acquired_date: "sample"
+    expect emits: ["ScanAcquired", "ImageUploaded", "AnalysisStarted"]
+  end
+
   test "ReadScan runs" do
     tests "ReadScan", on: "Scan"
     setup  "AcquireScan", scan_id: "sample", patient_name: "sample", modality: "sample", body_part: "sample", acquired_date: "sample"

@@ -8,10 +8,21 @@ Hecks.behaviors "Boot" do
     expect engine: "claude", brain_source: "anthropic", status: "booting"
   end
 
+  test "BootWithClaude cascades through policy chain" do
+    tests "BootWithClaude", on: "Session", kind: :cascade
+    expect emits: ["SessionStartedWithClaude", "BrainProbed"]
+  end
+
   test "BootWithSummer sets ollama_model + ollama_port" do
     tests "BootWithSummer", on: "Session"
     input  ollama_model: "sample", ollama_port: 1
     expect engine: "summer", brain_source: "local", status: "booting"
+  end
+
+  test "BootWithSummer cascades through policy chain" do
+    tests "BootWithSummer", on: "Session", kind: :cascade
+    input  ollama_model: "sample", ollama_port: 1
+    expect emits: ["SessionStartedWithSummer", "BrainProbed"]
   end
 
   test "FailBoot sets reason" do
@@ -24,7 +35,21 @@ Hecks.behaviors "Boot" do
     tests "WireOrgans", on: "Session"
     setup  "BootWithClaude"
     input  organ_count: 1, nerve_count: 1, law_count: 1
-    expect organ_count: 1, nerve_count: 1, law_count: 1, started_at: "sample", status: "live"
+    expect organ_count: 1, nerve_count: 1, law_count: 1
+  end
+
+  test "WireOrgans cascades through policy chain" do
+    tests "WireOrgans", on: "Session", kind: :cascade
+    setup  "BootWithClaude"
+    input  organ_count: 1, nerve_count: 1, law_count: 1
+    expect emits: ["OrgansWired", "SessionLive"]
+  end
+
+  test "GoLive sets started_at" do
+    tests "GoLive", on: "Session"
+    setup  "BootWithClaude"
+    input  started_at: "sample"
+    expect started_at: "sample", status: "live"
   end
 
   test "EndSession runs" do
@@ -48,16 +73,34 @@ Hecks.behaviors "Boot" do
     expect recommended_engine: "claude"
   end
 
+  test "RecommendClaude cascades through policy chain" do
+    tests "RecommendClaude", on: "BrainProbe", kind: :cascade
+    setup  "Probe"
+    expect emits: ["ClaudeRecommended", "OrgansWired", "SessionLive"]
+  end
+
   test "RecommendSummer runs" do
     tests "RecommendSummer", on: "BrainProbe"
     setup  "Probe"
     expect recommended_engine: "summer"
   end
 
+  test "RecommendSummer cascades through policy chain" do
+    tests "RecommendSummer", on: "BrainProbe", kind: :cascade
+    setup  "Probe"
+    expect emits: ["SummerRecommended", "OrgansWired", "SessionLive"]
+  end
+
   test "RecommendNothing runs" do
     tests "RecommendNothing", on: "BrainProbe"
     setup  "Probe"
     expect recommended_engine: "none"
+  end
+
+  test "RecommendNothing cascades through policy chain" do
+    tests "RecommendNothing", on: "BrainProbe", kind: :cascade
+    setup  "Probe"
+    expect emits: ["NoBrainAvailable", "BootFailed"]
   end
 
 end

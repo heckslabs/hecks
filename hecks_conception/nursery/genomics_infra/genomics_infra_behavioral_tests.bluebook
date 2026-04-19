@@ -15,6 +15,12 @@ Hecks.behaviors "GenomicsInfra" do
     expect status: "sequenced"
   end
 
+  test "SequenceSample cascades through policy chain" do
+    tests "SequenceSample", on: "GenomeSample", kind: :cascade
+    setup  "SubmitSample", sample_id: "sample", patient_id: "sample", sample_type: "sample", collection_date: "sample"
+    expect emits: ["SampleSequenced", "PipelineLaunched"]
+  end
+
 
   # ── ComputeCluster aggregate ──────────────────────────────────────────
 
@@ -59,6 +65,12 @@ Hecks.behaviors "GenomicsInfra" do
     tests "CompletePipeline", on: "AnalysisPipeline"
     setup  "LaunchPipeline", pipeline_id: "sample", sample_id: "sample", pipeline_type: "sample"
     expect status: "completed"
+  end
+
+  test "CompletePipeline cascades through policy chain" do
+    tests "CompletePipeline", on: "AnalysisPipeline", kind: :cascade
+    setup  "LaunchPipeline", pipeline_id: "sample", sample_id: "sample", pipeline_type: "sample"
+    expect emits: ["PipelineCompleted", "DataArchived"]
   end
 
 end

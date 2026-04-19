@@ -15,6 +15,12 @@ Hecks.behaviors "DialysisNetworkOps" do
     expect status: "treating"
   end
 
+  test "StartTreatment cascades through policy chain" do
+    tests "StartTreatment", on: "DialysisMachine", kind: :cascade
+    setup  "RegisterMachine", machine_id: "sample", model: "sample", center_name: "sample"
+    expect emits: ["TreatmentStarted", "TelemetryRecorded"]
+  end
+
   test "EndTreatment runs" do
     tests "EndTreatment", on: "DialysisMachine"
     setup  "RegisterMachine", machine_id: "sample", model: "sample", center_name: "sample"
@@ -42,6 +48,12 @@ Hecks.behaviors "DialysisNetworkOps" do
     tests "MarkDown", on: "NetworkLink"
     setup  "EstablishLink", link_id: "sample", center_name: "sample", link_type: "sample", bandwidth_mbps: 1.0
     expect status: "down"
+  end
+
+  test "MarkDown cascades through policy chain" do
+    tests "MarkDown", on: "NetworkLink", kind: :cascade
+    setup  "EstablishLink", link_id: "sample", center_name: "sample", link_type: "sample", bandwidth_mbps: 1.0
+    expect emits: ["LinkDown", "AlertRaised"]
   end
 
 

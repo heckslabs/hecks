@@ -9,6 +9,12 @@ Hecks.behaviors "Scale" do
     expect tracked_files: 1, changed_since_last: 1
   end
 
+  test "ScanForChanges cascades through policy chain" do
+    tests "ScanForChanges", on: "ChangeTracker", kind: :cascade
+    input  tracked_files: 1, changed_since_last: 1
+    expect emits: ["ChangesScanned", "BatchCompleted", "ChangesProcessed"]
+  end
+
   test "MarkProcessed runs" do
     tests "MarkProcessed", on: "ChangeTracker"
     setup  "ScanForChanges", tracked_files: 1, changed_since_last: 1
@@ -38,6 +44,12 @@ Hecks.behaviors "Scale" do
     tests "RunBatch", on: "BatchOperation"
     input  operation: "sample", file_count: 1
     expect operation: "sample", file_count: 1
+  end
+
+  test "RunBatch cascades through policy chain" do
+    tests "RunBatch", on: "BatchOperation", kind: :cascade
+    input  operation: "sample", file_count: 1
+    expect emits: ["BatchCompleted", "ChangesProcessed"]
   end
 
 

@@ -18,6 +18,12 @@ Hecks.behaviors "SystemPrompt" do
     expect organ_count: 1
   end
 
+  test "AssemblePrompt cascades through policy chain" do
+    tests "AssemblePrompt", on: "Prompt", kind: :cascade
+    input  organ_count: 1
+    expect emits: ["PromptAssembled", "PromptWritten"]
+  end
+
   test "WritePrompt runs" do
     tests "WritePrompt", on: "Prompt"
     setup  "AssemblePrompt", organ_count: 1

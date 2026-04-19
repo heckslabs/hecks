@@ -9,6 +9,12 @@ Hecks.behaviors "TeletherapyPlatform" do
     expect session_id: "sample", client_name: "sample", therapist_name: "sample", session_type: "sample", scheduled_time: "sample", status: "scheduled"
   end
 
+  test "ScheduleSession cascades through policy chain" do
+    tests "ScheduleSession", on: "TherapySession", kind: :cascade
+    input  session_id: "sample", client_name: "sample", therapist_name: "sample", session_type: "sample", scheduled_time: "sample"
+    expect emits: ["SessionScheduled", "RoomProvisioned"]
+  end
+
   test "StartSession runs" do
     tests "StartSession", on: "TherapySession"
     setup  "ScheduleSession", session_id: "sample", client_name: "sample", therapist_name: "sample", session_type: "sample", scheduled_time: "sample"
@@ -20,6 +26,13 @@ Hecks.behaviors "TeletherapyPlatform" do
     setup  "ScheduleSession", session_id: "sample", client_name: "sample", therapist_name: "sample", session_type: "sample", scheduled_time: "sample"
     setup  "StartSession"
     expect status: "completed"
+  end
+
+  test "EndSession cascades through policy chain" do
+    tests "EndSession", on: "TherapySession", kind: :cascade
+    setup  "ScheduleSession", session_id: "sample", client_name: "sample", therapist_name: "sample", session_type: "sample", scheduled_time: "sample"
+    setup  "StartSession"
+    expect emits: ["SessionEnded", "InvoiceIssued", "RoomClosed"]
   end
 
 

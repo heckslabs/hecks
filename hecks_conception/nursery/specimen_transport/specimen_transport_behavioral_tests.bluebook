@@ -15,6 +15,12 @@ Hecks.behaviors "SpecimenTransport" do
     expect status: "released"
   end
 
+  test "ReleaseSpecimen cascades through policy chain" do
+    tests "ReleaseSpecimen", on: "LabSpecimen", kind: :cascade
+    setup  "PrepareSpecimen", specimen_id: "sample", patient_id: "sample", specimen_type: "sample", required_temp_c: 1.0, priority: "sample"
+    expect emits: ["SpecimenReleased", "ShipmentDispatched", "CustodyStarted"]
+  end
+
 
   # ── ColdShipment aggregate ──────────────────────────────────────────
 

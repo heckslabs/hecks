@@ -17,12 +17,32 @@ Hecks.behaviors "Boot" do
     expect ok: "true"
   end
 
+  test "HydrateStores cascades through policy chain" do
+    tests "HydrateStores", on: "Hydration", kind: :cascade
+    expect emits: ["StoresHydrated", "StoresClassified", "PromptGenerated", "MindstreamStarted"]
+  end
+
 
   # ── OrganDiscovery aggregate ──────────────────────────────────────────
 
   test "DiscoverOrgans runs" do
     tests "DiscoverOrgans", on: "OrganDiscovery"
     expect ok: "true"
+  end
+
+  test "DiscoverOrgans cascades through policy chain" do
+    tests "DiscoverOrgans", on: "OrganDiscovery", kind: :cascade
+    expect emits: ["OrgansDiscovered", "CensusWritten", "VitalsPrinted"]
+  end
+
+  test "WriteCensus runs" do
+    tests "WriteCensus", on: "OrganDiscovery"
+    expect ok: "true"
+  end
+
+  test "WriteCensus cascades through policy chain" do
+    tests "WriteCensus", on: "OrganDiscovery", kind: :cascade
+    expect emits: ["CensusWritten", "VitalsPrinted"]
   end
 
 
@@ -41,12 +61,22 @@ Hecks.behaviors "Boot" do
     expect ok: "true"
   end
 
+  test "ClassifyStores cascades through policy chain" do
+    tests "ClassifyStores", on: "StoreClassification", kind: :cascade
+    expect emits: ["StoresClassified", "PromptGenerated", "MindstreamStarted"]
+  end
+
 
   # ── PromptGeneration aggregate ──────────────────────────────────────────
 
   test "GeneratePrompt runs" do
     tests "GeneratePrompt", on: "PromptGeneration"
     expect generated: "yes"
+  end
+
+  test "GeneratePrompt cascades through policy chain" do
+    tests "GeneratePrompt", on: "PromptGeneration", kind: :cascade
+    expect emits: ["PromptGenerated", "MindstreamStarted"]
   end
 
 

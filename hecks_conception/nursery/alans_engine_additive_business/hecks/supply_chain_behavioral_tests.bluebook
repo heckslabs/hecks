@@ -50,7 +50,63 @@ Hecks.behaviors "SupplyChain" do
     tests "ReceiveMaterial", on: "RawMaterial"
     setup  "SourceMaterial", chemical_name: "sample", cas_number: "sample", supplier: "sample", grade: "sample", unit_cost: 1.0, unit: "sample"
     input  lot_number: "sample"
-    expect lot_number: "sample", status: "inspecting"
+    expect lot_number: "sample", status: "received"
+  end
+
+  test "ReceiveMaterial cascades through policy chain" do
+    tests "ReceiveMaterial", on: "RawMaterial", kind: :cascade
+    setup  "SourceMaterial", chemical_name: "sample", cas_number: "sample", supplier: "sample", grade: "sample", unit_cost: 1.0, unit: "sample"
+    input  lot_number: "sample"
+    expect emits: ["MaterialReceived", "MaterialInspecting", "LotTracked"]
+  end
+
+  test "InspectMaterial runs" do
+    tests "InspectMaterial", on: "RawMaterial"
+    setup  "SourceMaterial", chemical_name: "sample", cas_number: "sample", supplier: "sample", grade: "sample", unit_cost: 1.0, unit: "sample"
+    setup  "ReceiveMaterial", lot_number: "sample"
+    expect status: "inspecting"
+  end
+
+  test "AcceptMaterial sets coa_on_file" do
+    tests "AcceptMaterial", on: "RawMaterial"
+    setup  "SourceMaterial", chemical_name: "sample", cas_number: "sample", supplier: "sample", grade: "sample", unit_cost: 1.0, unit: "sample"
+    setup  "ReceiveMaterial", lot_number: "sample"
+    setup  "InspectMaterial"
+    input  coa_on_file: "sample"
+    expect coa_on_file: "sample", status: "accepted"
+  end
+
+  test "AcceptMaterial cascades through policy chain" do
+    tests "AcceptMaterial", on: "RawMaterial", kind: :cascade
+    setup  "SourceMaterial", chemical_name: "sample", cas_number: "sample", supplier: "sample", grade: "sample", unit_cost: 1.0, unit: "sample"
+    setup  "ReceiveMaterial", lot_number: "sample"
+    setup  "InspectMaterial"
+    input  coa_on_file: "sample"
+    expect emits: ["MaterialAccepted", "InboundLotTracked"]
+  end
+
+  test "RejectMaterial sets reason" do
+    tests "RejectMaterial", on: "RawMaterial"
+    setup  "SourceMaterial", chemical_name: "sample", cas_number: "sample", supplier: "sample", grade: "sample", unit_cost: 1.0, unit: "sample"
+    setup  "ReceiveMaterial", lot_number: "sample"
+    setup  "InspectMaterial"
+    input  reason: "sample"
+    expect status: "rejected"
+  end
+
+  test "RejectMaterial cascades through policy chain" do
+    tests "RejectMaterial", on: "RawMaterial", kind: :cascade
+    setup  "SourceMaterial", chemical_name: "sample", cas_number: "sample", supplier: "sample", grade: "sample", unit_cost: 1.0, unit: "sample"
+    setup  "ReceiveMaterial", lot_number: "sample"
+    setup  "InspectMaterial"
+    input  reason: "sample"
+    expect emits: ["MaterialRejected", "UnderperformerFlagged"]
+  end
+
+  test "TrackLot runs" do
+    tests "TrackLot", on: "RawMaterial"
+    setup  "SourceMaterial", chemical_name: "sample", cas_number: "sample", supplier: "sample", grade: "sample", unit_cost: 1.0, unit: "sample"
+    expect ok: "true"
   end
 
 
@@ -175,8 +231,18 @@ Hecks.behaviors "SupplyChain" do
     expect ok: "true"
   end
 
+  test "RecordReceipt cascades through policy chain" do
+    tests "RecordReceipt", on: "SupplierQuality", kind: :cascade
+    expect emits: ["ReceiptRecorded", "MetricsCalculated"]
+  end
+
   test "RecordRejection runs" do
     tests "RecordRejection", on: "SupplierQuality"
+    expect ok: "true"
+  end
+
+  test "CalculateMetrics runs" do
+    tests "CalculateMetrics", on: "SupplierQuality"
     expect ok: "true"
   end
 

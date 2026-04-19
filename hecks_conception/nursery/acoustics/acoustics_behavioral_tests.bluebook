@@ -9,10 +9,22 @@ Hecks.behaviors "Acoustics" do
     expect ok: "true"
   end
 
+  test "DefineRoom cascades through policy chain" do
+    tests "DefineRoom", on: "Room", kind: :cascade
+    input  room_id: "sample", name: "sample", length_m: 1.0, width_m: 1.0, height_m: 1.0
+    expect emits: ["RoomDefined", "MeasurementTaken", "SpectrumAnalyzed", "ReverberationCalculated", "TreatmentDesigned"]
+  end
+
   test "CalculateReverberation runs" do
     tests "CalculateReverberation", on: "Room"
     setup  "DefineRoom", room_id: "sample", name: "sample", length_m: 1.0, width_m: 1.0, height_m: 1.0
     expect ok: "true"
+  end
+
+  test "CalculateReverberation cascades through policy chain" do
+    tests "CalculateReverberation", on: "Room", kind: :cascade
+    setup  "DefineRoom", room_id: "sample", name: "sample", length_m: 1.0, width_m: 1.0, height_m: 1.0
+    expect emits: ["ReverberationCalculated", "TreatmentDesigned"]
   end
 
   test "ArchiveRoom runs" do
@@ -31,16 +43,35 @@ Hecks.behaviors "Acoustics" do
     expect ok: "true"
   end
 
+  test "TakeMeasurement cascades through policy chain" do
+    tests "TakeMeasurement", on: "AcousticMeasurement", kind: :cascade
+    setup  "DefineRoom", room_id: "sample", name: "sample", length_m: 1.0, width_m: 1.0, height_m: 1.0
+    input  measurement_type: "sample", spl_db: 1.0
+    expect emits: ["MeasurementTaken", "SpectrumAnalyzed", "ReverberationCalculated", "TreatmentDesigned"]
+  end
+
   test "AnalyzeSpectrum runs" do
     tests "AnalyzeSpectrum", on: "AcousticMeasurement"
     setup  "TakeMeasurement", measurement_type: "sample", spl_db: 1.0
     expect ok: "true"
   end
 
+  test "AnalyzeSpectrum cascades through policy chain" do
+    tests "AnalyzeSpectrum", on: "AcousticMeasurement", kind: :cascade
+    setup  "TakeMeasurement", measurement_type: "sample", spl_db: 1.0
+    expect emits: ["SpectrumAnalyzed", "ReverberationCalculated", "TreatmentDesigned"]
+  end
+
   test "CompareMeasurements runs" do
     tests "CompareMeasurements", on: "AcousticMeasurement"
     setup  "TakeMeasurement", measurement_type: "sample", spl_db: 1.0
     expect ok: "true"
+  end
+
+  test "CompareMeasurements cascades through policy chain" do
+    tests "CompareMeasurements", on: "AcousticMeasurement", kind: :cascade
+    setup  "TakeMeasurement", measurement_type: "sample", spl_db: 1.0
+    expect emits: ["MeasurementsCompared", "TreatmentEvaluated"]
   end
 
 
@@ -80,6 +111,14 @@ Hecks.behaviors "Acoustics" do
     setup  "DesignTreatment", plan_name: "sample", objective: "sample"
     input  coverage_m2: 1.0
     expect ok: "true"
+  end
+
+  test "ApplyMaterial cascades through policy chain" do
+    tests "ApplyMaterial", on: "TreatmentPlan", kind: :cascade
+    setup  "CatalogMaterial", name: "sample", material_type: "sample", nrc_rating: 1.0
+    setup  "DesignTreatment", plan_name: "sample", objective: "sample"
+    input  coverage_m2: 1.0
+    expect emits: ["MaterialApplied", "MeasurementTaken", "SpectrumAnalyzed", "ReverberationCalculated", "TreatmentDesigned"]
   end
 
   test "EvaluateTreatment runs" do

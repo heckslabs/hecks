@@ -9,11 +9,84 @@ Hecks.behaviors "CourierDelivery" do
     expect status: "accepted"
   end
 
+  test "AcceptParcel cascades through policy chain" do
+    tests "AcceptParcel", on: "Parcel", kind: :cascade
+    input  tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
+    expect emits: ["ParcelAccepted", "ParcelSorted", "ParcelLoaded", "RouteStarted", "ParcelDispatched"]
+  end
+
   test "SortParcel sets hub_code" do
     tests "SortParcel", on: "Parcel"
     setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
     input  hub_code: "sample"
+    expect status: "sorted"
+  end
+
+  test "SortParcel cascades through policy chain" do
+    tests "SortParcel", on: "Parcel", kind: :cascade
+    setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
+    input  hub_code: "sample"
+    expect emits: ["ParcelSorted", "ParcelLoaded", "RouteStarted", "ParcelDispatched"]
+  end
+
+  test "LoadParcel runs" do
+    tests "LoadParcel", on: "Parcel"
+    setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
+    setup  "SortParcel", hub_code: "sample"
     expect status: "loaded"
+  end
+
+  test "LoadParcel cascades through policy chain" do
+    tests "LoadParcel", on: "Parcel", kind: :cascade
+    setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
+    setup  "SortParcel", hub_code: "sample"
+    expect emits: ["ParcelLoaded", "RouteStarted", "ParcelDispatched"]
+  end
+
+  test "DispatchParcel runs" do
+    tests "DispatchParcel", on: "Parcel"
+    setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
+    setup  "SortParcel", hub_code: "sample"
+    setup  "LoadParcel"
+    expect status: "in_transit"
+  end
+
+  test "AttemptDelivery runs" do
+    tests "AttemptDelivery", on: "Parcel"
+    setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
+    setup  "SortParcel", hub_code: "sample"
+    setup  "LoadParcel"
+    setup  "DispatchParcel"
+    expect status: "attempted"
+  end
+
+  test "MarkDelivered runs" do
+    tests "MarkDelivered", on: "Parcel"
+    setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
+    setup  "SortParcel", hub_code: "sample"
+    setup  "LoadParcel"
+    setup  "DispatchParcel"
+    expect status: "delivered"
+  end
+
+  test "MarkDelivered cascades through policy chain" do
+    tests "MarkDelivered", on: "Parcel", kind: :cascade
+    setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
+    setup  "SortParcel", hub_code: "sample"
+    setup  "LoadParcel"
+    setup  "DispatchParcel"
+    expect emits: ["ParcelDelivered", "ProofCaptured", "RouteCompleted", "DriverCheckedOut"]
+  end
+
+  test "ReturnToSender sets reason" do
+    tests "ReturnToSender", on: "Parcel"
+    setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
+    setup  "SortParcel", hub_code: "sample"
+    setup  "LoadParcel"
+    setup  "DispatchParcel"
+    setup  "AttemptDelivery"
+    input  reason: "sample"
+    expect status: "returned"
   end
 
 
@@ -31,11 +104,24 @@ Hecks.behaviors "CourierDelivery" do
     expect status: "active"
   end
 
+  test "StartRoute cascades through policy chain" do
+    tests "StartRoute", on: "Route", kind: :cascade
+    setup  "PlanRoute", zone: "sample", stop_count: 1
+    expect emits: ["RouteStarted", "ParcelDispatched"]
+  end
+
   test "CompleteRoute runs" do
     tests "CompleteRoute", on: "Route"
     setup  "PlanRoute", zone: "sample", stop_count: 1
     setup  "StartRoute"
     expect status: "completed"
+  end
+
+  test "CompleteRoute cascades through policy chain" do
+    tests "CompleteRoute", on: "Route", kind: :cascade
+    setup  "PlanRoute", zone: "sample", stop_count: 1
+    setup  "StartRoute"
+    expect emits: ["RouteCompleted", "DriverCheckedOut"]
   end
 
 

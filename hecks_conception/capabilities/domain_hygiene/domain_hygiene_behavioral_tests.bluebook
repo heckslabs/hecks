@@ -18,6 +18,12 @@ Hecks.behaviors "DomainHygiene" do
     expect ok: "true"
   end
 
+  test "AssessQuality cascades through policy chain" do
+    tests "AssessQuality", on: "QualityReport", kind: :cascade
+    input  jsonl_path: "sample"
+    expect emits: ["QualityAssessed", "GapsIdentified"]
+  end
+
   test "IdentifyGaps runs" do
     tests "IdentifyGaps", on: "QualityReport"
     setup  "AssessQuality", jsonl_path: "sample"
@@ -40,10 +46,23 @@ Hecks.behaviors "DomainHygiene" do
     expect ok: "true"
   end
 
+  test "EnrichDomain cascades through policy chain" do
+    tests "EnrichDomain", on: "Enrichment", kind: :cascade
+    setup  "ConfirmBoots", domain_name: "sample"
+    input  domain_name: "sample", enrichment_type: "sample"
+    expect emits: ["DomainEnriched", "EnrichmentValidated", "DataHarvested", "GrowthReported", "QualityAssessed", "GapsIdentified"]
+  end
+
   test "Revalidate runs" do
     tests "Revalidate", on: "Enrichment"
     setup  "ConfirmBoots", domain_name: "sample"
     expect ok: "true"
+  end
+
+  test "Revalidate cascades through policy chain" do
+    tests "Revalidate", on: "Enrichment", kind: :cascade
+    setup  "ConfirmBoots", domain_name: "sample"
+    expect emits: ["EnrichmentValidated", "DataHarvested", "GrowthReported", "QualityAssessed", "GapsIdentified"]
   end
 
 
@@ -53,6 +72,12 @@ Hecks.behaviors "DomainHygiene" do
     tests "HarvestTrainingData", on: "TrainingHarvest"
     input  root_path: "sample", output_path: "sample"
     expect ok: "true"
+  end
+
+  test "HarvestTrainingData cascades through policy chain" do
+    tests "HarvestTrainingData", on: "TrainingHarvest", kind: :cascade
+    input  root_path: "sample", output_path: "sample"
+    expect emits: ["DataHarvested", "GrowthReported", "QualityAssessed", "GapsIdentified"]
   end
 
   test "CompareVersions sets previous_path" do
@@ -69,6 +94,32 @@ Hecks.behaviors "DomainHygiene" do
     tests "GrowCorpus", on: "CorpusGrowth"
     input  target_count: 1
     expect ok: "true"
+  end
+
+  test "GrowCorpus cascades through policy chain" do
+    tests "GrowCorpus", on: "CorpusGrowth", kind: :cascade
+    input  target_count: 1
+    expect emits: ["GrowthStarted", "BatchConceived", "FailuresRepaired", "ShallowEnriched", "DataHarvested", "GrowthReported", "QualityAssessed", "GapsIdentified"]
+  end
+
+  test "ConceiveBatch cascades through policy chain" do
+    tests "ConceiveBatch", on: "CorpusGrowth", kind: :cascade
+    setup  "GrowCorpus", target_count: 1
+    input  batch_size: 1, topics: "sample"
+    expect emits: ["BatchConceived", "FailuresRepaired", "ShallowEnriched", "DataHarvested", "GrowthReported", "QualityAssessed", "GapsIdentified"]
+  end
+
+  test "RepairFailures cascades through policy chain" do
+    tests "RepairFailures", on: "CorpusGrowth", kind: :cascade
+    setup  "GrowCorpus", target_count: 1
+    expect emits: ["FailuresRepaired", "ShallowEnriched", "DataHarvested", "GrowthReported", "QualityAssessed", "GapsIdentified"]
+  end
+
+  test "EnrichShallow cascades through policy chain" do
+    tests "EnrichShallow", on: "CorpusGrowth", kind: :cascade
+    setup  "GrowCorpus", target_count: 1
+    setup  "RepairFailures"
+    expect emits: ["ShallowEnriched", "DataHarvested", "GrowthReported", "QualityAssessed", "GapsIdentified"]
   end
 
 end

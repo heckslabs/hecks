@@ -16,11 +16,25 @@ Hecks.behaviors "ElevatorPhysics" do
     expect current_load_kg: 1.0
   end
 
+  test "LoadPassengers cascades through policy chain" do
+    tests "LoadPassengers", on: "ElevatorCar", kind: :cascade
+    setup  "InstallCar", car_id: "sample", car_weight_kg: 1.0, max_load_kg: 1.0
+    input  current_load_kg: 1.0
+    expect emits: ["PassengersLoaded", "ForcesCalculated", "MotorRequirementsDetermined", "SafetyValidated"]
+  end
+
   test "MoveToFloor sets current_floor" do
     tests "MoveToFloor", on: "ElevatorCar"
     setup  "InstallCar", car_id: "sample", car_weight_kg: 1.0, max_load_kg: 1.0
     input  current_floor: 1
     expect current_floor: 1, status: "moving"
+  end
+
+  test "MoveToFloor cascades through policy chain" do
+    tests "MoveToFloor", on: "ElevatorCar", kind: :cascade
+    setup  "InstallCar", car_id: "sample", car_weight_kg: 1.0, max_load_kg: 1.0
+    input  current_floor: 1
+    expect emits: ["CarMoved", "CableInspected"]
   end
 
   test "ArriveAtFloor runs" do
@@ -68,6 +82,12 @@ Hecks.behaviors "ElevatorPhysics" do
     expect counterweight_id: "sample", mass_kg: 1.0, car_weight_kg: 1.0, status: "configured"
   end
 
+  test "ConfigureCounterweight cascades through policy chain" do
+    tests "ConfigureCounterweight", on: "Counterweight", kind: :cascade
+    input  counterweight_id: "sample", mass_kg: 1.0, car_weight_kg: 1.0
+    expect emits: ["CounterweightConfigured", "BalanceRatioCalculated"]
+  end
+
   test "CalculateBalanceRatio sets balance_ratio" do
     tests "CalculateBalanceRatio", on: "Counterweight"
     setup  "ConfigureCounterweight", counterweight_id: "sample", mass_kg: 1.0, car_weight_kg: 1.0
@@ -91,11 +111,31 @@ Hecks.behaviors "ElevatorPhysics" do
     expect calculation_id: "sample", total_load_kg: 1.0, status: "calculated"
   end
 
+  test "CalculateForces cascades through policy chain" do
+    tests "CalculateForces", on: "LoadCalculation", kind: :cascade
+    input  calculation_id: "sample", total_load_kg: 1.0
+    expect emits: ["ForcesCalculated", "MotorRequirementsDetermined", "SafetyValidated"]
+  end
+
   test "DetermineMotorRequirements sets motor_torque_nm + power_required_kw" do
     tests "DetermineMotorRequirements", on: "LoadCalculation"
     setup  "CalculateForces", calculation_id: "sample", total_load_kg: 1.0
     input  motor_torque_nm: 1.0, power_required_kw: 1.0
-    expect motor_torque_nm: 1.0, power_required_kw: 1.0, status: "validated"
+    expect motor_torque_nm: 1.0, power_required_kw: 1.0, status: "motor_sized"
+  end
+
+  test "DetermineMotorRequirements cascades through policy chain" do
+    tests "DetermineMotorRequirements", on: "LoadCalculation", kind: :cascade
+    setup  "CalculateForces", calculation_id: "sample", total_load_kg: 1.0
+    input  motor_torque_nm: 1.0, power_required_kw: 1.0
+    expect emits: ["MotorRequirementsDetermined", "SafetyValidated"]
+  end
+
+  test "ValidateSafety runs" do
+    tests "ValidateSafety", on: "LoadCalculation"
+    setup  "CalculateForces", calculation_id: "sample", total_load_kg: 1.0
+    setup  "DetermineMotorRequirements", motor_torque_nm: 1.0, power_required_kw: 1.0
+    expect status: "validated"
   end
 
 
@@ -105,6 +145,12 @@ Hecks.behaviors "ElevatorPhysics" do
     tests "ConductInspection", on: "SafetyInspection"
     input  inspection_id: "sample", elevator_id: "sample", inspector_name: "sample", inspection_date: "sample"
     expect inspection_id: "sample", elevator_id: "sample", inspector_name: "sample", inspection_date: "sample", status: "conducted"
+  end
+
+  test "ConductInspection cascades through policy chain" do
+    tests "ConductInspection", on: "SafetyInspection", kind: :cascade
+    input  inspection_id: "sample", elevator_id: "sample", inspector_name: "sample", inspection_date: "sample"
+    expect emits: ["InspectionConducted", "FindingsRecorded"]
   end
 
   test "RecordFindings sets findings" do

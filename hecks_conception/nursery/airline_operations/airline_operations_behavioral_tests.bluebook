@@ -9,6 +9,12 @@ Hecks.behaviors "AirlineOperations" do
     expect status: "scheduled"
   end
 
+  test "ScheduleFlight cascades through policy chain" do
+    tests "ScheduleFlight", on: "Flight", kind: :cascade
+    input  flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    expect emits: ["FlightScheduled", "CrewAssigned", "AircraftPrepared", "BoardingOpened"]
+  end
+
   test "AssignAircraft runs" do
     tests "AssignAircraft", on: "Flight"
     setup  "RegisterAircraft", tail_number: "sample", model: "sample", seat_count: 1
@@ -23,6 +29,13 @@ Hecks.behaviors "AirlineOperations" do
     expect ok: "true"
   end
 
+  test "AssignCrew cascades through policy chain" do
+    tests "AssignCrew", on: "Flight", kind: :cascade
+    setup  "AssembleCrew", captain_name: "sample", member_count: 1
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    expect emits: ["CrewAssigned", "AircraftPrepared", "BoardingOpened"]
+  end
+
   test "OpenBoarding runs" do
     tests "OpenBoarding", on: "Flight"
     setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
@@ -33,7 +46,88 @@ Hecks.behaviors "AirlineOperations" do
     tests "CloseBoarding", on: "Flight"
     setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
     setup  "OpenBoarding"
+    expect status: "boarded"
+  end
+
+  test "CloseBoarding cascades through policy chain" do
+    tests "CloseBoarding", on: "Flight", kind: :cascade
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    setup  "OpenBoarding"
+    expect emits: ["BoardingClosed", "DepartureCleared", "GateReleased"]
+  end
+
+  test "ClearForDeparture runs" do
+    tests "ClearForDeparture", on: "Flight"
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    setup  "OpenBoarding"
+    setup  "CloseBoarding"
     expect status: "departed"
+  end
+
+  test "ClearForDeparture cascades through policy chain" do
+    tests "ClearForDeparture", on: "Flight", kind: :cascade
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    setup  "OpenBoarding"
+    setup  "CloseBoarding"
+    expect emits: ["DepartureCleared", "GateReleased"]
+  end
+
+  test "MarkAirborne runs" do
+    tests "MarkAirborne", on: "Flight"
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    setup  "OpenBoarding"
+    setup  "CloseBoarding"
+    setup  "ClearForDeparture"
+    expect status: "in_flight"
+  end
+
+  test "RecordLanding runs" do
+    tests "RecordLanding", on: "Flight"
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    setup  "OpenBoarding"
+    setup  "CloseBoarding"
+    setup  "ClearForDeparture"
+    setup  "MarkAirborne"
+    expect status: "landed"
+  end
+
+  test "RecordLanding cascades through policy chain" do
+    tests "RecordLanding", on: "Flight", kind: :cascade
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    setup  "OpenBoarding"
+    setup  "CloseBoarding"
+    setup  "ClearForDeparture"
+    setup  "MarkAirborne"
+    expect emits: ["FlightLanded", "GateAssigned"]
+  end
+
+  test "ArriveAtGate runs" do
+    tests "ArriveAtGate", on: "Flight"
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    setup  "OpenBoarding"
+    setup  "CloseBoarding"
+    setup  "ClearForDeparture"
+    setup  "MarkAirborne"
+    setup  "RecordLanding"
+    expect status: "at_gate"
+  end
+
+  test "ArriveAtGate cascades through policy chain" do
+    tests "ArriveAtGate", on: "Flight", kind: :cascade
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    setup  "OpenBoarding"
+    setup  "CloseBoarding"
+    setup  "ClearForDeparture"
+    setup  "MarkAirborne"
+    setup  "RecordLanding"
+    expect emits: ["ArrivedAtGate", "DutyHoursLogged"]
+  end
+
+  test "DelayFlight cascades through policy chain" do
+    tests "DelayFlight", on: "Flight", kind: :cascade
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    input  reason: "sample", new_departure: "sample"
+    expect emits: ["FlightDelayed", "GateReleased"]
   end
 
 
@@ -79,6 +173,12 @@ Hecks.behaviors "AirlineOperations" do
     tests "PrepareAircraft", on: "Aircraft"
     setup  "RegisterAircraft", tail_number: "sample", model: "sample", seat_count: 1
     expect maintenance_status: "flight_ready"
+  end
+
+  test "PrepareAircraft cascades through policy chain" do
+    tests "PrepareAircraft", on: "Aircraft", kind: :cascade
+    setup  "RegisterAircraft", tail_number: "sample", model: "sample", seat_count: 1
+    expect emits: ["AircraftPrepared", "BoardingOpened"]
   end
 
   test "GroundAircraft sets reason" do

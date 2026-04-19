@@ -9,6 +9,12 @@ Hecks.behaviors "CustomerPersonas" do
     expect name: "sample", segment: "sample", description: "sample", age_range: "sample", income_range: "sample", vehicle_type: "sample", vehicle_age: "sample", annual_mileage: "sample", brand_affinity: "sample", price_sensitivity: "sample", trust_source: "sample"
   end
 
+  test "DefinePersona cascades through policy chain" do
+    tests "DefinePersona", on: "Persona", kind: :cascade
+    input  name: "sample", segment: "sample", description: "sample", age_range: "sample", income_range: "sample", vehicle_type: "sample", vehicle_age: "sample", annual_mileage: "sample", brand_affinity: "sample", price_sensitivity: "sample", trust_source: "sample"
+    expect emits: ["PersonaDefined", "JourneyMapped", "ChannelFitScored", "ProductsRecommended", "LoyaltyAnalyzed"]
+  end
+
   test "AddMotivation sets need + emotion + urgency" do
     tests "AddMotivation", on: "Persona"
     setup  "DefinePersona", name: "sample", segment: "sample", description: "sample", age_range: "sample", income_range: "sample", vehicle_type: "sample", vehicle_age: "sample", annual_mileage: "sample", brand_affinity: "sample", price_sensitivity: "sample", trust_source: "sample"
@@ -106,6 +112,12 @@ Hecks.behaviors "CustomerPersonas" do
     tests "ScoreChannelFit", on: "ChannelFit"
     input  persona_name: "sample", channel: "sample", fit_score: 1.0, reasoning: "sample"
     expect persona_name: "sample", channel: "sample", fit_score: 1.0, reasoning: "sample"
+  end
+
+  test "ScoreChannelFit cascades through policy chain" do
+    tests "ScoreChannelFit", on: "ChannelFit", kind: :cascade
+    input  persona_name: "sample", channel: "sample", fit_score: 1.0, reasoning: "sample"
+    expect emits: ["ChannelFitScored", "ProductsRecommended"]
   end
 
   test "RecommendProducts sets products" do

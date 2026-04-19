@@ -3,17 +3,42 @@ Hecks.behaviors "BedAndBreakfast" do
 
   # ── GuestRoom aggregate ──────────────────────────────────────────
 
+  test "PrepareRoom sets room_id + name + room_type + max_guests + nightly_rate" do
+    tests "PrepareRoom", on: "GuestRoom"
+    input  room_id: "sample", name: "sample", room_type: "sample", max_guests: 1, nightly_rate: 1.0
+    expect room_id: "sample", name: "sample", room_type: "sample", max_guests: 1, nightly_rate: 1.0, status: "available"
+  end
+
+  test "PrepareRoom cascades through policy chain" do
+    tests "PrepareRoom", on: "GuestRoom", kind: :cascade
+    input  room_id: "sample", name: "sample", room_type: "sample", max_guests: 1, nightly_rate: 1.0
+    expect emits: ["RoomPrepared", "RoomOccupied", "BreakfastPlanned", "BreakfastServed"]
+  end
+
   test "OccupyRoom runs" do
     tests "OccupyRoom", on: "GuestRoom"
     setup  "PrepareRoom", room_id: "sample", name: "sample", room_type: "sample", max_guests: 1, nightly_rate: 1.0
     expect status: "occupied"
   end
 
+  test "OccupyRoom cascades through policy chain" do
+    tests "OccupyRoom", on: "GuestRoom", kind: :cascade
+    setup  "PrepareRoom", room_id: "sample", name: "sample", room_type: "sample", max_guests: 1, nightly_rate: 1.0
+    expect emits: ["RoomOccupied", "BreakfastPlanned", "BreakfastServed"]
+  end
+
   test "VacateRoom runs" do
     tests "VacateRoom", on: "GuestRoom"
     setup  "PrepareRoom", room_id: "sample", name: "sample", room_type: "sample", max_guests: 1, nightly_rate: 1.0
     setup  "OccupyRoom"
-    expect room_id: "sample", name: "sample", room_type: "sample", max_guests: 1, nightly_rate: 1.0, status: "available"
+    expect status: "needs_cleaning"
+  end
+
+  test "VacateRoom cascades through policy chain" do
+    tests "VacateRoom", on: "GuestRoom", kind: :cascade
+    setup  "PrepareRoom", room_id: "sample", name: "sample", room_type: "sample", max_guests: 1, nightly_rate: 1.0
+    setup  "OccupyRoom"
+    expect emits: ["RoomVacated", "RoomPrepared", "RoomOccupied", "BreakfastPlanned", "BreakfastServed", "ReviewSubmitted", "ReviewResponsePosted"]
   end
 
 
@@ -23,6 +48,12 @@ Hecks.behaviors "BedAndBreakfast" do
     tests "MakeBooking", on: "GuestBooking"
     input  booking_id: "sample", guest_name: "sample", guest_email: "sample", room_id: "sample", check_in_date: "sample", check_out_date: "sample", guests: 1, total_charge: 1.0
     expect booking_id: "sample", guest_name: "sample", guest_email: "sample", room_id: "sample", check_in_date: "sample", check_out_date: "sample", guests: 1, total_charge: 1.0, status: "confirmed"
+  end
+
+  test "MakeBooking cascades through policy chain" do
+    tests "MakeBooking", on: "GuestBooking", kind: :cascade
+    input  booking_id: "sample", guest_name: "sample", guest_email: "sample", room_id: "sample", check_in_date: "sample", check_out_date: "sample", guests: 1, total_charge: 1.0
+    expect emits: ["BookingMade", "RoomPrepared", "RoomOccupied", "BreakfastPlanned", "BreakfastServed"]
   end
 
   test "CancelBooking runs" do
@@ -38,6 +69,12 @@ Hecks.behaviors "BedAndBreakfast" do
     tests "PlanBreakfast", on: "BreakfastMenu"
     input  menu_id: "sample", date: "sample"
     expect menu_id: "sample", date: "sample", status: "planned"
+  end
+
+  test "PlanBreakfast cascades through policy chain" do
+    tests "PlanBreakfast", on: "BreakfastMenu", kind: :cascade
+    input  menu_id: "sample", date: "sample"
+    expect emits: ["BreakfastPlanned", "BreakfastServed"]
   end
 
   test "ServeBreakfast runs" do

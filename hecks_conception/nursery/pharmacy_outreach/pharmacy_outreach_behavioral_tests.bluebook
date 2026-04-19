@@ -9,6 +9,12 @@ Hecks.behaviors "PharmacyOutreach" do
     expect rx_number: "sample", patient_name: "sample", drug_name: "sample", refills_remaining: 1, status: "active"
   end
 
+  test "FillPrescription cascades through policy chain" do
+    tests "FillPrescription", on: "Prescription", kind: :cascade
+    input  rx_number: "sample", patient_name: "sample", drug_name: "sample", refills_remaining: 1
+    expect emits: ["PrescriptionFilled", "ReminderScheduled"]
+  end
+
 
   # ── Reminder aggregate ──────────────────────────────────────────
 
@@ -22,6 +28,12 @@ Hecks.behaviors "PharmacyOutreach" do
     tests "SendReminder", on: "Reminder"
     setup  "ScheduleReminder", reminder_id: "sample", rx_number: "sample", channel: "sample", scheduled_date: "sample"
     expect status: "sent"
+  end
+
+  test "SendReminder cascades through policy chain" do
+    tests "SendReminder", on: "Reminder", kind: :cascade
+    setup  "ScheduleReminder", reminder_id: "sample", rx_number: "sample", channel: "sample", scheduled_date: "sample"
+    expect emits: ["ReminderSent", "EngagementTracked"]
   end
 
 

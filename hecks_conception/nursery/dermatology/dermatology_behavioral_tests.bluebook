@@ -9,6 +9,12 @@ Hecks.behaviors "Dermatology" do
     expect name: "sample", date_of_birth: "sample", skin_type: "sample", insurance_id: "sample", status: "active"
   end
 
+  test "RegisterPatient cascades through policy chain" do
+    tests "RegisterPatient", on: "Patient", kind: :cascade
+    input  name: "sample", date_of_birth: "sample", skin_type: "sample", insurance_id: "sample"
+    expect emits: ["PatientRegistered", "ScreeningScheduled"]
+  end
+
   test "ScheduleScreening runs" do
     tests "ScheduleScreening", on: "Patient"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", skin_type: "sample", insurance_id: "sample"
@@ -23,6 +29,13 @@ Hecks.behaviors "Dermatology" do
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", skin_type: "sample", insurance_id: "sample"
     input  patient_name: "sample", condition_name: "sample", body_location: "sample", morphology: "sample", severity: "sample"
     expect patient_name: "sample", condition_name: "sample", body_location: "sample", morphology: "sample", severity: "sample", status: "active"
+  end
+
+  test "DiagnoseCondition cascades through policy chain" do
+    tests "DiagnoseCondition", on: "SkinCondition", kind: :cascade
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", skin_type: "sample", insurance_id: "sample"
+    input  patient_name: "sample", condition_name: "sample", body_location: "sample", morphology: "sample", severity: "sample"
+    expect emits: ["ConditionDiagnosed", "TreatmentPrescribed", "PrescriptionWritten", "BiopsyPerformed"]
   end
 
   test "TrackCondition sets severity" do
@@ -55,10 +68,22 @@ Hecks.behaviors "Dermatology" do
     expect ok: "true"
   end
 
+  test "PerformTreatmentSession cascades through policy chain" do
+    tests "PerformTreatmentSession", on: "DermatologyTreatment", kind: :cascade
+    setup  "PrescribeTreatment", patient_name: "sample", treatment_type: "sample", description: "sample", sessions_planned: 1
+    expect emits: ["TreatmentSessionPerformed", "ConditionTracked", "PrescriptionRefilled"]
+  end
+
   test "CompleteTreatment runs" do
     tests "CompleteTreatment", on: "DermatologyTreatment"
     setup  "PrescribeTreatment", patient_name: "sample", treatment_type: "sample", description: "sample", sessions_planned: 1
     expect status: "completed"
+  end
+
+  test "CompleteTreatment cascades through policy chain" do
+    tests "CompleteTreatment", on: "DermatologyTreatment", kind: :cascade
+    setup  "PrescribeTreatment", patient_name: "sample", treatment_type: "sample", description: "sample", sessions_planned: 1
+    expect emits: ["TreatmentCompleted", "ConditionResolved"]
   end
 
 
@@ -77,6 +102,13 @@ Hecks.behaviors "Dermatology" do
     setup  "PerformBiopsy", patient_name: "sample", biopsy_type: "sample", body_site: "sample", biopsy_date: "sample"
     input  pathology_result: "sample"
     expect pathology_result: "sample", status: "resulted"
+  end
+
+  test "ReceivePathologyResult cascades through policy chain" do
+    tests "ReceivePathologyResult", on: "Biopsy", kind: :cascade
+    setup  "PerformBiopsy", patient_name: "sample", biopsy_type: "sample", body_site: "sample", biopsy_date: "sample"
+    input  pathology_result: "sample"
+    expect emits: ["PathologyResultReceived", "ConditionTracked"]
   end
 
 

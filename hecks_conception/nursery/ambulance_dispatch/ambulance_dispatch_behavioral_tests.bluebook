@@ -31,11 +31,24 @@ Hecks.behaviors "AmbulanceDispatch" do
     expect caller_name: "sample", caller_phone: "sample", location: "sample", nature_of_emergency: "sample", received_at: "sample", status: "received"
   end
 
+  test "ReceiveCall cascades through policy chain" do
+    tests "ReceiveCall", on: "EmergencyCall", kind: :cascade
+    input  caller_name: "sample", caller_phone: "sample", location: "sample", nature_of_emergency: "sample", received_at: "sample"
+    expect emits: ["CallReceived", "CallTriaged", "UnitDispatched", "UnitOutOfService", "ArrivedOnScene", "PatientTransportStarted", "UnitReturnedToService"]
+  end
+
   test "TriageCall sets triage_priority" do
     tests "TriageCall", on: "EmergencyCall"
     setup  "ReceiveCall", caller_name: "sample", caller_phone: "sample", location: "sample", nature_of_emergency: "sample", received_at: "sample"
     input  triage_priority: "sample"
     expect triage_priority: "sample", status: "triaged"
+  end
+
+  test "TriageCall cascades through policy chain" do
+    tests "TriageCall", on: "EmergencyCall", kind: :cascade
+    setup  "ReceiveCall", caller_name: "sample", caller_phone: "sample", location: "sample", nature_of_emergency: "sample", received_at: "sample"
+    input  triage_priority: "sample"
+    expect emits: ["CallTriaged", "UnitDispatched", "UnitOutOfService", "ArrivedOnScene", "PatientTransportStarted", "UnitReturnedToService"]
   end
 
 
@@ -65,11 +78,42 @@ Hecks.behaviors "AmbulanceDispatch" do
     expect dispatched_at: "sample", status: "dispatched"
   end
 
+  test "DispatchUnit cascades through policy chain" do
+    tests "DispatchUnit", on: "DispatchRecord", kind: :cascade
+    setup  "ActivateUnit", unit_number: "sample", station: "sample", equipment_level: "sample", mileage: 1
+    setup  "ReceiveCall", caller_name: "sample", caller_phone: "sample", location: "sample", nature_of_emergency: "sample", received_at: "sample"
+    input  dispatched_at: "sample"
+    expect emits: ["UnitDispatched", "UnitOutOfService", "ArrivedOnScene", "PatientTransportStarted", "UnitReturnedToService"]
+  end
+
   test "ArriveOnScene sets on_scene_at" do
     tests "ArriveOnScene", on: "DispatchRecord"
     setup  "DispatchUnit", dispatched_at: "sample"
     input  on_scene_at: "sample"
-    expect on_scene_at: "sample", transport_started_at: "sample", status: "transporting"
+    expect on_scene_at: "sample", status: "on_scene"
+  end
+
+  test "ArriveOnScene cascades through policy chain" do
+    tests "ArriveOnScene", on: "DispatchRecord", kind: :cascade
+    setup  "DispatchUnit", dispatched_at: "sample"
+    input  on_scene_at: "sample"
+    expect emits: ["ArrivedOnScene", "PatientTransportStarted", "UnitReturnedToService"]
+  end
+
+  test "TransportPatient sets transport_started_at" do
+    tests "TransportPatient", on: "DispatchRecord"
+    setup  "DispatchUnit", dispatched_at: "sample"
+    setup  "ArriveOnScene", on_scene_at: "sample"
+    input  transport_started_at: "sample"
+    expect transport_started_at: "sample", status: "transporting"
+  end
+
+  test "TransportPatient cascades through policy chain" do
+    tests "TransportPatient", on: "DispatchRecord", kind: :cascade
+    setup  "DispatchUnit", dispatched_at: "sample"
+    setup  "ArriveOnScene", on_scene_at: "sample"
+    input  transport_started_at: "sample"
+    expect emits: ["PatientTransportStarted", "UnitReturnedToService"]
   end
 
 

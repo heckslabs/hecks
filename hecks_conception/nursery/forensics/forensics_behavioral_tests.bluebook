@@ -38,16 +38,43 @@ Hecks.behaviors "Forensics" do
     expect ok: "true"
   end
 
+  test "CollectEvidence cascades through policy chain" do
+    tests "CollectEvidence", on: "EvidenceItem", kind: :cascade
+    setup  "OpenCase", case_number: "sample", case_type: "sample", lead_investigator: "sample"
+    input  item_number: "sample", description: "sample", evidence_type: "sample"
+    expect emits: ["EvidenceCollected", "EvidenceSealed", "CustodyTransferred", "AnalysisSubmitted", "FindingsRecorded", "AnalysisPeerReviewed", "ReportDrafted"]
+  end
+
   test "BreakCustodyChain runs" do
     tests "BreakCustodyChain", on: "EvidenceItem"
     setup  "CollectEvidence", item_number: "sample", description: "sample", evidence_type: "sample"
     expect ok: "true"
   end
 
+  test "TransferCustody sets receiving_custodian" do
+    tests "TransferCustody", on: "EvidenceItem"
+    setup  "CollectEvidence", item_number: "sample", description: "sample", evidence_type: "sample"
+    input  receiving_custodian: "sample"
+    expect ok: "true"
+  end
+
+  test "TransferCustody cascades through policy chain" do
+    tests "TransferCustody", on: "EvidenceItem", kind: :cascade
+    setup  "CollectEvidence", item_number: "sample", description: "sample", evidence_type: "sample"
+    input  receiving_custodian: "sample"
+    expect emits: ["CustodyTransferred", "AnalysisSubmitted", "FindingsRecorded", "AnalysisPeerReviewed", "ReportDrafted"]
+  end
+
   test "SealEvidence runs" do
     tests "SealEvidence", on: "EvidenceItem"
     setup  "CollectEvidence", item_number: "sample", description: "sample", evidence_type: "sample"
     expect ok: "true"
+  end
+
+  test "SealEvidence cascades through policy chain" do
+    tests "SealEvidence", on: "EvidenceItem", kind: :cascade
+    setup  "CollectEvidence", item_number: "sample", description: "sample", evidence_type: "sample"
+    expect emits: ["EvidenceSealed", "CustodyTransferred", "AnalysisSubmitted", "FindingsRecorded", "AnalysisPeerReviewed", "ReportDrafted"]
   end
 
 
@@ -60,6 +87,13 @@ Hecks.behaviors "Forensics" do
     expect ok: "true"
   end
 
+  test "SubmitForAnalysis cascades through policy chain" do
+    tests "SubmitForAnalysis", on: "LabAnalysis", kind: :cascade
+    setup  "CollectEvidence", item_number: "sample", description: "sample", evidence_type: "sample"
+    input  analysis_type: "sample", method: "sample"
+    expect emits: ["AnalysisSubmitted", "FindingsRecorded", "AnalysisPeerReviewed", "ReportDrafted"]
+  end
+
   test "RecordFindings sets findings" do
     tests "RecordFindings", on: "LabAnalysis"
     setup  "SubmitForAnalysis", analysis_type: "sample", method: "sample"
@@ -67,10 +101,29 @@ Hecks.behaviors "Forensics" do
     expect ok: "true"
   end
 
+  test "RecordFindings cascades through policy chain" do
+    tests "RecordFindings", on: "LabAnalysis", kind: :cascade
+    setup  "SubmitForAnalysis", analysis_type: "sample", method: "sample"
+    input  findings: "sample"
+    expect emits: ["FindingsRecorded", "AnalysisPeerReviewed", "ReportDrafted"]
+  end
+
   test "MarkFindingsDocumented runs" do
     tests "MarkFindingsDocumented", on: "LabAnalysis"
     setup  "SubmitForAnalysis", analysis_type: "sample", method: "sample"
     expect ok: "true"
+  end
+
+  test "PeerReviewAnalysis runs" do
+    tests "PeerReviewAnalysis", on: "LabAnalysis"
+    setup  "SubmitForAnalysis", analysis_type: "sample", method: "sample"
+    expect ok: "true"
+  end
+
+  test "PeerReviewAnalysis cascades through policy chain" do
+    tests "PeerReviewAnalysis", on: "LabAnalysis", kind: :cascade
+    setup  "SubmitForAnalysis", analysis_type: "sample", method: "sample"
+    expect emits: ["AnalysisPeerReviewed", "ReportDrafted"]
   end
 
 
@@ -93,6 +146,12 @@ Hecks.behaviors "Forensics" do
     tests "FinalizeReport", on: "ExpertReport"
     setup  "DraftReport", expert_name: "sample"
     expect ok: "true"
+  end
+
+  test "FinalizeReport cascades through policy chain" do
+    tests "FinalizeReport", on: "ExpertReport", kind: :cascade
+    setup  "DraftReport", expert_name: "sample"
+    expect emits: ["ReportFinalized", "TestimonyScheduled"]
   end
 
 

@@ -9,10 +9,22 @@ Hecks.behaviors "Pharmacology" do
     expect compound_id: "sample", name: "sample", molecular_formula: "sample"
   end
 
+  test "RegisterCompound cascades through policy chain" do
+    tests "RegisterCompound", on: "Compound", kind: :cascade
+    input  compound_id: "sample", name: "sample", molecular_formula: "sample"
+    expect emits: ["CompoundRegistered", "CompoundScreened", "TrialInitiated", "SubjectEnrolled"]
+  end
+
   test "ScreenCompound runs" do
     tests "ScreenCompound", on: "Compound"
     setup  "RegisterCompound", compound_id: "sample", name: "sample", molecular_formula: "sample"
     expect ok: "true"
+  end
+
+  test "ScreenCompound cascades through policy chain" do
+    tests "ScreenCompound", on: "Compound", kind: :cascade
+    setup  "RegisterCompound", compound_id: "sample", name: "sample", molecular_formula: "sample"
+    expect emits: ["CompoundScreened", "TrialInitiated", "SubjectEnrolled"]
   end
 
   test "ShelveCompound runs" do
@@ -31,10 +43,23 @@ Hecks.behaviors "Pharmacology" do
     expect ok: "true"
   end
 
+  test "InitiateTrial cascades through policy chain" do
+    tests "InitiateTrial", on: "ClinicalTrial", kind: :cascade
+    setup  "RegisterCompound", compound_id: "sample", name: "sample", molecular_formula: "sample"
+    input  trial_id: "sample", phase: "sample", enrollment_target: 1
+    expect emits: ["TrialInitiated", "SubjectEnrolled"]
+  end
+
   test "ConcludeTrial runs" do
     tests "ConcludeTrial", on: "ClinicalTrial"
     setup  "InitiateTrial", trial_id: "sample", phase: "sample", enrollment_target: 1
     expect ok: "true"
+  end
+
+  test "ConcludeTrial cascades through policy chain" do
+    tests "ConcludeTrial", on: "ClinicalTrial", kind: :cascade
+    setup  "InitiateTrial", trial_id: "sample", phase: "sample", enrollment_target: 1
+    expect emits: ["TrialConcluded", "SubmissionFiled", "ApprovalGranted"]
   end
 
 
@@ -45,6 +70,13 @@ Hecks.behaviors "Pharmacology" do
     setup  "InitiateTrial", trial_id: "sample", phase: "sample", enrollment_target: 1
     input  description: "sample", severity: "sample"
     expect ok: "true"
+  end
+
+  test "ReportEvent cascades through policy chain" do
+    tests "ReportEvent", on: "AdverseEvent", kind: :cascade
+    setup  "InitiateTrial", trial_id: "sample", phase: "sample", enrollment_target: 1
+    input  description: "sample", severity: "sample"
+    expect emits: ["EventReported", "CausalityAssessed"]
   end
 
   test "AssessCausality sets assessment" do
@@ -62,6 +94,13 @@ Hecks.behaviors "Pharmacology" do
     setup  "RegisterCompound", compound_id: "sample", name: "sample", molecular_formula: "sample"
     input  agency: "sample", submission_type: "sample"
     expect ok: "true"
+  end
+
+  test "FileSubmission cascades through policy chain" do
+    tests "FileSubmission", on: "RegulatorySubmission", kind: :cascade
+    setup  "RegisterCompound", compound_id: "sample", name: "sample", molecular_formula: "sample"
+    input  agency: "sample", submission_type: "sample"
+    expect emits: ["SubmissionFiled", "ApprovalGranted"]
   end
 
   test "GrantApproval runs" do

@@ -33,6 +33,12 @@ Hecks.behaviors "Chemistry" do
     expect equation: "sample", reactants: "sample", products: "sample", status: "complete"
   end
 
+  test "React cascades through policy chain" do
+    tests "React", on: "Reaction", kind: :cascade
+    input  equation: "sample", reactants: "sample", products: "sample"
+    expect emits: ["ReactionOccurred", "BondFormed"]
+  end
+
   test "Catalyze sets catalyst" do
     tests "Catalyze", on: "Reaction"
     setup  "React", equation: "sample", reactants: "sample", products: "sample"
@@ -59,6 +65,12 @@ Hecks.behaviors "Chemistry" do
     tests "Break", on: "Bond"
     setup  "Form", atom_a: "sample", atom_b: "sample", bond_type: "sample"
     expect status: "broken"
+  end
+
+  test "Break cascades through policy chain" do
+    tests "Break", on: "Bond", kind: :cascade
+    setup  "Form", atom_a: "sample", atom_b: "sample", bond_type: "sample"
+    expect emits: ["BondBroken", "CompoundDecomposed"]
   end
 
 

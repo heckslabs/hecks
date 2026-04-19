@@ -15,6 +15,12 @@ Hecks.behaviors "SpeechMedia" do
     expect status: "completed"
   end
 
+  test "CompleteExercise cascades through policy chain" do
+    tests "CompleteExercise", on: "TherapyExercise", kind: :cascade
+    setup  "PrescribeExercise", exercise_id: "sample", client_name: "sample", exercise_type: "sample", target_sound: "sample", repetitions: 1
+    expect emits: ["ExerciseCompleted", "ProgressClipCaptured"]
+  end
+
 
   # ── RecordedSession aggregate ──────────────────────────────────────────
 
@@ -22,6 +28,12 @@ Hecks.behaviors "SpeechMedia" do
     tests "RecordSession", on: "RecordedSession"
     input  recording_id: "sample", client_name: "sample", session_date: "sample", duration_minutes: 1.0, file_path: "sample"
     expect recording_id: "sample", client_name: "sample", session_date: "sample", duration_minutes: 1.0, file_path: "sample", status: "recorded"
+  end
+
+  test "RecordSession cascades through policy chain" do
+    tests "RecordSession", on: "RecordedSession", kind: :cascade
+    input  recording_id: "sample", client_name: "sample", session_date: "sample", duration_minutes: 1.0, file_path: "sample"
+    expect emits: ["SessionRecorded", "RecordingAnalyzed"]
   end
 
   test "AnalyzeRecording runs" do

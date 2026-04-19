@@ -9,11 +9,30 @@ Hecks.behaviors "CinemaAudio" do
     expect name: "sample", length_m: 1.0, width_m: 1.0, height_m: 1.0, wall_material: "sample", status: "measured"
   end
 
+  test "MeasureRoom cascades through policy chain" do
+    tests "MeasureRoom", on: "Auditorium", kind: :cascade
+    input  name: "sample", length_m: 1.0, width_m: 1.0, height_m: 1.0, wall_material: "sample"
+    expect emits: ["RoomMeasured", "ReverberationCalculated", "RoomTreated"]
+  end
+
   test "CalculateReverberation sets reverberation_time_sec" do
     tests "CalculateReverberation", on: "Auditorium"
     setup  "MeasureRoom", name: "sample", length_m: 1.0, width_m: 1.0, height_m: 1.0, wall_material: "sample"
     input  reverberation_time_sec: 1.0
-    expect reverberation_time_sec: 1.0, status: "treated"
+    expect reverberation_time_sec: 1.0
+  end
+
+  test "CalculateReverberation cascades through policy chain" do
+    tests "CalculateReverberation", on: "Auditorium", kind: :cascade
+    setup  "MeasureRoom", name: "sample", length_m: 1.0, width_m: 1.0, height_m: 1.0, wall_material: "sample"
+    input  reverberation_time_sec: 1.0
+    expect emits: ["ReverberationCalculated", "RoomTreated"]
+  end
+
+  test "TreatRoom runs" do
+    tests "TreatRoom", on: "Auditorium"
+    setup  "MeasureRoom", name: "sample", length_m: 1.0, width_m: 1.0, height_m: 1.0, wall_material: "sample"
+    expect status: "treated"
   end
 
 
@@ -23,6 +42,12 @@ Hecks.behaviors "CinemaAudio" do
     tests "PlaceSpeaker", on: "Speaker"
     input  name: "sample", speaker_type: "sample", x_position: 1.0, y_position: 1.0, z_position: 1.0, power_watts: 1.0
     expect name: "sample", speaker_type: "sample", x_position: 1.0, y_position: 1.0, z_position: 1.0, power_watts: 1.0, status: "placed"
+  end
+
+  test "PlaceSpeaker cascades through policy chain" do
+    tests "PlaceSpeaker", on: "Speaker", kind: :cascade
+    input  name: "sample", speaker_type: "sample", x_position: 1.0, y_position: 1.0, z_position: 1.0, power_watts: 1.0
+    expect emits: ["SpeakerPlaced", "SpeakerAimed"]
   end
 
   test "AimSpeaker sets tilt_degrees + rotation_degrees" do
@@ -47,11 +72,45 @@ Hecks.behaviors "CinemaAudio" do
     expect auditorium_name: "sample", calibration_type: "sample", target_spl_db: 1.0, status: "running"
   end
 
+  test "RunCalibration cascades through policy chain" do
+    tests "RunCalibration", on: "Calibration", kind: :cascade
+    input  auditorium_name: "sample", calibration_type: "sample", target_spl_db: 1.0
+    expect emits: ["CalibrationStarted", "MeasurementRecorded", "CorrectionApplied", "CalibrationVerified"]
+  end
+
   test "RecordMeasurement sets measured_spl_db" do
     tests "RecordMeasurement", on: "Calibration"
     setup  "RunCalibration", auditorium_name: "sample", calibration_type: "sample", target_spl_db: 1.0
     input  measured_spl_db: 1.0
-    expect measured_spl_db: 1.0, correction_db: 1.0, status: "verified"
+    expect measured_spl_db: 1.0
+  end
+
+  test "RecordMeasurement cascades through policy chain" do
+    tests "RecordMeasurement", on: "Calibration", kind: :cascade
+    setup  "RunCalibration", auditorium_name: "sample", calibration_type: "sample", target_spl_db: 1.0
+    input  measured_spl_db: 1.0
+    expect emits: ["MeasurementRecorded", "CorrectionApplied", "CalibrationVerified"]
+  end
+
+  test "ApplyCorrection sets correction_db" do
+    tests "ApplyCorrection", on: "Calibration"
+    setup  "RunCalibration", auditorium_name: "sample", calibration_type: "sample", target_spl_db: 1.0
+    input  correction_db: 1.0
+    expect correction_db: 1.0, status: "calibrated"
+  end
+
+  test "ApplyCorrection cascades through policy chain" do
+    tests "ApplyCorrection", on: "Calibration", kind: :cascade
+    setup  "RunCalibration", auditorium_name: "sample", calibration_type: "sample", target_spl_db: 1.0
+    input  correction_db: 1.0
+    expect emits: ["CorrectionApplied", "CalibrationVerified"]
+  end
+
+  test "VerifyCalibration runs" do
+    tests "VerifyCalibration", on: "Calibration"
+    setup  "RunCalibration", auditorium_name: "sample", calibration_type: "sample", target_spl_db: 1.0
+    setup  "ApplyCorrection", correction_db: 1.0
+    expect status: "verified"
   end
 
 
@@ -61,6 +120,12 @@ Hecks.behaviors "CinemaAudio" do
     tests "LoadSoundtrack", on: "Soundtrack"
     input  title: "sample", format: "sample", channel_count: 1, dynamic_range_db: 1.0
     expect title: "sample", format: "sample", channel_count: 1, dynamic_range_db: 1.0, status: "loaded"
+  end
+
+  test "LoadSoundtrack cascades through policy chain" do
+    tests "LoadSoundtrack", on: "Soundtrack", kind: :cascade
+    input  title: "sample", format: "sample", channel_count: 1, dynamic_range_db: 1.0
+    expect emits: ["SoundtrackLoaded", "ChannelsMapped"]
   end
 
   test "MapChannels runs" do

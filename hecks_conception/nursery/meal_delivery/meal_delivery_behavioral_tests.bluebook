@@ -25,6 +25,12 @@ Hecks.behaviors "MealDelivery" do
     expect package_id: "sample", recipient_id: "sample", dietary_type: "sample", status: "assembled"
   end
 
+  test "AssembleMeal cascades through policy chain" do
+    tests "AssembleMeal", on: "MealPackage", kind: :cascade
+    input  package_id: "sample", recipient_id: "sample", dietary_type: "sample"
+    expect emits: ["MealAssembled", "RunPlanned"]
+  end
+
   test "MarkDelivered runs" do
     tests "MarkDelivered", on: "MealPackage"
     setup  "AssembleMeal", package_id: "sample", recipient_id: "sample", dietary_type: "sample"
@@ -60,6 +66,12 @@ Hecks.behaviors "MealDelivery" do
     tests "RegisterRecipient", on: "Recipient"
     input  recipient_id: "sample", name: "sample", address: "sample", dietary_restriction: "sample", household_size: 1
     expect recipient_id: "sample", name: "sample", address: "sample", dietary_restriction: "sample", household_size: 1, status: "active"
+  end
+
+  test "RegisterRecipient cascades through policy chain" do
+    tests "RegisterRecipient", on: "Recipient", kind: :cascade
+    input  recipient_id: "sample", name: "sample", address: "sample", dietary_restriction: "sample", household_size: 1
+    expect emits: ["RecipientRegistered", "MealAssembled", "RunPlanned"]
   end
 
   test "ReviseDiet sets dietary_restriction" do

@@ -24,11 +24,24 @@ Hecks.behaviors "UrbanFarm" do
     expect cycle_id: "sample", plot_id: "sample", crop_name: "sample", planted_date: "sample", expected_harvest: "sample", status: "growing"
   end
 
+  test "PlantCrop cascades through policy chain" do
+    tests "PlantCrop", on: "CropCycle", kind: :cascade
+    input  cycle_id: "sample", plot_id: "sample", crop_name: "sample", planted_date: "sample", expected_harvest: "sample"
+    expect emits: ["CropPlanted", "IrrigationRun"]
+  end
+
   test "HarvestCrop sets yield_lbs" do
     tests "HarvestCrop", on: "CropCycle"
     setup  "PlantCrop", cycle_id: "sample", plot_id: "sample", crop_name: "sample", planted_date: "sample", expected_harvest: "sample"
     input  yield_lbs: 1.0
     expect yield_lbs: 1.0, status: "harvested"
+  end
+
+  test "HarvestCrop cascades through policy chain" do
+    tests "HarvestCrop", on: "CropCycle", kind: :cascade
+    setup  "PlantCrop", cycle_id: "sample", plot_id: "sample", crop_name: "sample", planted_date: "sample", expected_harvest: "sample"
+    input  yield_lbs: 1.0
+    expect emits: ["CropHarvested", "HarvestDistributed"]
   end
 
 

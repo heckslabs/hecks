@@ -8,6 +8,11 @@ Hecks.behaviors "SelfCheckin" do
     expect ok: "true"
   end
 
+  test "ReadVitals cascades through policy chain" do
+    tests "ReadVitals", on: "Vitals", kind: :cascade
+    expect emits: ["VitalsRead", "MoodRead", "WakefulnessRead"]
+  end
+
 
   # ── InnerWeather aggregate ──────────────────────────────────────────
 

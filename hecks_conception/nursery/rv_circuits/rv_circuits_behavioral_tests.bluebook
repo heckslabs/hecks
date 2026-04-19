@@ -9,6 +9,12 @@ Hecks.behaviors "RVCircuits" do
     expect name: "sample", load_name: "sample", watts: 1.0, voltage: 1.0, power_type: "sample", run_length_feet: 1.0
   end
 
+  test "AddCircuit cascades through policy chain" do
+    tests "AddCircuit", on: "Circuit", kind: :cascade
+    input  name: "sample", load_name: "sample", watts: 1.0, voltage: 1.0, power_type: "sample", run_length_feet: 1.0
+    expect emits: ["CircuitAdded", "CircuitCalculated"]
+  end
+
   test "CalculateCircuit runs" do
     tests "CalculateCircuit", on: "Circuit"
     setup  "AddCircuit", name: "sample", load_name: "sample", watts: 1.0, voltage: 1.0, power_type: "sample", run_length_feet: 1.0

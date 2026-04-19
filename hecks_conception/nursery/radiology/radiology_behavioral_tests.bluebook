@@ -9,10 +9,22 @@ Hecks.behaviors "Radiology" do
     expect name: "sample", date_of_birth: "sample", allergies: "sample", pregnancy_status: "sample", status: "checked_in"
   end
 
+  test "RegisterPatient cascades through policy chain" do
+    tests "RegisterPatient", on: "Patient", kind: :cascade
+    input  name: "sample", date_of_birth: "sample", allergies: "sample", pregnancy_status: "sample"
+    expect emits: ["PatientRegistered", "ScreeningCompleted", "ScanOrderPlaced", "ScanPerformed", "ReportDrafted", "ReportFinalized", "ReferralFulfilled", "EquipmentCalibrated"]
+  end
+
   test "ScreenForContraindications runs" do
     tests "ScreenForContraindications", on: "Patient"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", allergies: "sample", pregnancy_status: "sample"
     expect ok: "true"
+  end
+
+  test "ScreenForContraindications cascades through policy chain" do
+    tests "ScreenForContraindications", on: "Patient", kind: :cascade
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", allergies: "sample", pregnancy_status: "sample"
+    expect emits: ["ScreeningCompleted", "ScanOrderPlaced", "ScanPerformed", "ReportDrafted", "ReportFinalized", "ReferralFulfilled", "EquipmentCalibrated"]
   end
 
 
@@ -25,10 +37,23 @@ Hecks.behaviors "Radiology" do
     expect patient_name: "sample", ordering_physician: "sample", modality: "sample", body_part: "sample", clinical_indication: "sample", urgency: "sample", status: "ordered"
   end
 
+  test "PlaceScanOrder cascades through policy chain" do
+    tests "PlaceScanOrder", on: "ScanOrder", kind: :cascade
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", allergies: "sample", pregnancy_status: "sample"
+    input  patient_name: "sample", ordering_physician: "sample", modality: "sample", body_part: "sample", clinical_indication: "sample", urgency: "sample"
+    expect emits: ["ScanOrderPlaced", "ScanPerformed", "ReportDrafted", "ReportFinalized", "ReferralFulfilled", "EquipmentCalibrated"]
+  end
+
   test "PerformScan runs" do
     tests "PerformScan", on: "ScanOrder"
     setup  "PlaceScanOrder", patient_name: "sample", ordering_physician: "sample", modality: "sample", body_part: "sample", clinical_indication: "sample", urgency: "sample"
     expect status: "completed"
+  end
+
+  test "PerformScan cascades through policy chain" do
+    tests "PerformScan", on: "ScanOrder", kind: :cascade
+    setup  "PlaceScanOrder", patient_name: "sample", ordering_physician: "sample", modality: "sample", body_part: "sample", clinical_indication: "sample", urgency: "sample"
+    expect emits: ["ScanPerformed", "ReportDrafted", "ReportFinalized", "ReferralFulfilled", "EquipmentCalibrated"]
   end
 
   test "CancelScanOrder runs" do
@@ -48,10 +73,24 @@ Hecks.behaviors "Radiology" do
     expect patient_name: "sample", modality: "sample", findings: "sample", impression: "sample", radiologist_name: "sample", report_date: "sample", status: "draft"
   end
 
+  test "DraftReport cascades through policy chain" do
+    tests "DraftReport", on: "RadiologyReport", kind: :cascade
+    setup  "PlaceScanOrder", patient_name: "sample", ordering_physician: "sample", modality: "sample", body_part: "sample", clinical_indication: "sample", urgency: "sample"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", allergies: "sample", pregnancy_status: "sample"
+    input  patient_name: "sample", modality: "sample", findings: "sample", impression: "sample", radiologist_name: "sample", report_date: "sample"
+    expect emits: ["ReportDrafted", "ReportFinalized", "ReferralFulfilled"]
+  end
+
   test "FinalizeReport runs" do
     tests "FinalizeReport", on: "RadiologyReport"
     setup  "DraftReport", patient_name: "sample", modality: "sample", findings: "sample", impression: "sample", radiologist_name: "sample", report_date: "sample"
     expect status: "final"
+  end
+
+  test "FinalizeReport cascades through policy chain" do
+    tests "FinalizeReport", on: "RadiologyReport", kind: :cascade
+    setup  "DraftReport", patient_name: "sample", modality: "sample", findings: "sample", impression: "sample", radiologist_name: "sample", report_date: "sample"
+    expect emits: ["ReportFinalized", "ReferralFulfilled"]
   end
 
   test "AddendReport sets findings" do

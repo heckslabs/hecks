@@ -32,6 +32,13 @@ Hecks.behaviors "Viticulture" do
     expect ok: "true"
   end
 
+  test "PlantBlock cascades through policy chain" do
+    tests "PlantBlock", on: "VineBlock", kind: :cascade
+    setup  "RegisterVineyard", name: "sample", appellation: "sample", total_hectares: 1.0
+    input  block_id: "sample", grape_variety: "sample", rootstock: "sample"
+    expect emits: ["BlockPlanted", "SoilSampled", "SoilAmended", "ShootsThinned", "LeavesPulled", "FruitDropped", "PickRecorded", "QualityGraded"]
+  end
+
   test "GraftVariety sets new_variety" do
     tests "GraftVariety", on: "VineBlock"
     setup  "PlantBlock", block_id: "sample", grape_variety: "sample", rootstock: "sample"
@@ -55,11 +62,25 @@ Hecks.behaviors "Viticulture" do
     expect ok: "true"
   end
 
+  test "SampleSoil cascades through policy chain" do
+    tests "SampleSoil", on: "SoilProfile", kind: :cascade
+    setup  "PlantBlock", block_id: "sample", grape_variety: "sample", rootstock: "sample"
+    input  horizon: "sample", depth_cm: 1.0
+    expect emits: ["SoilSampled", "SoilAmended", "ShootsThinned", "LeavesPulled", "FruitDropped", "PickRecorded", "QualityGraded"]
+  end
+
   test "AmendSoil sets amendment_type + rate_kg_per_hectare" do
     tests "AmendSoil", on: "SoilProfile"
     setup  "SampleSoil", horizon: "sample", depth_cm: 1.0
     input  amendment_type: "sample", rate_kg_per_hectare: 1.0
     expect ok: "true"
+  end
+
+  test "AmendSoil cascades through policy chain" do
+    tests "AmendSoil", on: "SoilProfile", kind: :cascade
+    setup  "SampleSoil", horizon: "sample", depth_cm: 1.0
+    input  amendment_type: "sample", rate_kg_per_hectare: 1.0
+    expect emits: ["SoilAmended", "ShootsThinned", "LeavesPulled", "FruitDropped", "PickRecorded", "QualityGraded"]
   end
 
 
@@ -72,6 +93,41 @@ Hecks.behaviors "Viticulture" do
     expect ok: "true"
   end
 
+  test "PerformShootThin cascades through policy chain" do
+    tests "PerformShootThin", on: "CanopyPass", kind: :cascade
+    setup  "PlantBlock", block_id: "sample", grape_variety: "sample", rootstock: "sample"
+    input  date_performed: "sample"
+    expect emits: ["ShootsThinned", "LeavesPulled", "FruitDropped", "PickRecorded", "QualityGraded"]
+  end
+
+  test "DropFruit sets clusters_removed" do
+    tests "DropFruit", on: "CanopyPass"
+    setup  "PlantBlock", block_id: "sample", grape_variety: "sample", rootstock: "sample"
+    input  clusters_removed: 1
+    expect ok: "true"
+  end
+
+  test "DropFruit cascades through policy chain" do
+    tests "DropFruit", on: "CanopyPass", kind: :cascade
+    setup  "PlantBlock", block_id: "sample", grape_variety: "sample", rootstock: "sample"
+    input  clusters_removed: 1
+    expect emits: ["FruitDropped", "PickRecorded", "QualityGraded"]
+  end
+
+  test "LeafPull sets zone_side" do
+    tests "LeafPull", on: "CanopyPass"
+    setup  "PlantBlock", block_id: "sample", grape_variety: "sample", rootstock: "sample"
+    input  zone_side: "sample"
+    expect ok: "true"
+  end
+
+  test "LeafPull cascades through policy chain" do
+    tests "LeafPull", on: "CanopyPass", kind: :cascade
+    setup  "PlantBlock", block_id: "sample", grape_variety: "sample", rootstock: "sample"
+    input  zone_side: "sample"
+    expect emits: ["LeavesPulled", "FruitDropped", "PickRecorded", "QualityGraded"]
+  end
+
 
   # ── HarvestRecord aggregate ──────────────────────────────────────────
 
@@ -80,6 +136,13 @@ Hecks.behaviors "Viticulture" do
     setup  "PlantBlock", block_id: "sample", grape_variety: "sample", rootstock: "sample"
     input  vintage_year: "sample", tons_picked: 1.0, brix_at_harvest: 1.0
     expect ok: "true"
+  end
+
+  test "RecordPick cascades through policy chain" do
+    tests "RecordPick", on: "HarvestRecord", kind: :cascade
+    setup  "PlantBlock", block_id: "sample", grape_variety: "sample", rootstock: "sample"
+    input  vintage_year: "sample", tons_picked: 1.0, brix_at_harvest: 1.0
+    expect emits: ["PickRecorded", "QualityGraded"]
   end
 
   test "GradeQuality sets quality_tier" do

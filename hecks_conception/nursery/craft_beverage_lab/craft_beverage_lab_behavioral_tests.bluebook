@@ -15,12 +15,26 @@ Hecks.behaviors "CraftBeverageLab" do
     expect status: "running"
   end
 
+  test "StartExperiment cascades through policy chain" do
+    tests "StartExperiment", on: "Experiment", kind: :cascade
+    setup  "DesignExperiment", title: "sample", experiment_type: "sample", hypothesis: "sample"
+    expect emits: ["ExperimentStarted", "EquipmentReserved"]
+  end
+
   test "ConcludeExperiment sets conclusion" do
     tests "ConcludeExperiment", on: "Experiment"
     setup  "DesignExperiment", title: "sample", experiment_type: "sample", hypothesis: "sample"
     setup  "StartExperiment"
     input  conclusion: "sample"
     expect conclusion: "sample", status: "concluded"
+  end
+
+  test "ConcludeExperiment cascades through policy chain" do
+    tests "ConcludeExperiment", on: "Experiment", kind: :cascade
+    setup  "DesignExperiment", title: "sample", experiment_type: "sample", hypothesis: "sample"
+    setup  "StartExperiment"
+    input  conclusion: "sample"
+    expect emits: ["ExperimentConcluded", "EquipmentReleased"]
   end
 
 
@@ -52,6 +66,13 @@ Hecks.behaviors "CraftBeverageLab" do
     expect status: "complete"
   end
 
+  test "CompleteFermentation cascades through policy chain" do
+    tests "CompleteFermentation", on: "YeastCulture", kind: :cascade
+    setup  "CultivateYeast", strain_name: "sample", species: "sample", optimal_temperature: 1.0
+    setup  "PitchYeast"
+    expect emits: ["FermentationComplete", "FlavorCompoundsAnalyzed", "CompoundsCompared"]
+  end
+
 
   # ── RoastProfile aggregate ──────────────────────────────────────────
 
@@ -75,6 +96,14 @@ Hecks.behaviors "CraftBeverageLab" do
     expect drop_temperature: 1.0, total_time_seconds: 1, status: "profiled"
   end
 
+  test "CompleteRoast cascades through policy chain" do
+    tests "CompleteRoast", on: "RoastProfile", kind: :cascade
+    setup  "DraftProfile", bean_origin: "sample", roast_level: "sample", charge_temperature: 1.0
+    setup  "ExecuteRoast"
+    input  drop_temperature: 1.0, total_time_seconds: 1
+    expect emits: ["RoastProfiled", "SensoryPanelCompared", "SensoryPanelConvened"]
+  end
+
 
   # ── FlavorCompound aggregate ──────────────────────────────────────────
 
@@ -83,6 +112,13 @@ Hecks.behaviors "CraftBeverageLab" do
     setup  "DesignExperiment", title: "sample", experiment_type: "sample", hypothesis: "sample"
     input  compound_name: "sample", chemical_family: "sample", concentration_ppm: 1.0, source: "sample", aroma_descriptor: "sample"
     expect experiment: 1, compound_name: "sample", chemical_family: "sample", concentration_ppm: 1.0, source: "sample", aroma_descriptor: "sample"
+  end
+
+  test "AnalyzeFlavorCompounds cascades through policy chain" do
+    tests "AnalyzeFlavorCompounds", on: "FlavorCompound", kind: :cascade
+    setup  "DesignExperiment", title: "sample", experiment_type: "sample", hypothesis: "sample"
+    input  compound_name: "sample", chemical_family: "sample", concentration_ppm: 1.0, source: "sample", aroma_descriptor: "sample"
+    expect emits: ["FlavorCompoundsAnalyzed", "CompoundsCompared"]
   end
 
   test "CompareCompounds runs" do

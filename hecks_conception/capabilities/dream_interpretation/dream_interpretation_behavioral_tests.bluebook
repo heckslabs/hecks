@@ -8,10 +8,21 @@ Hecks.behaviors "DreamInterpretation" do
     expect ok: "true"
   end
 
+  test "ReadDreamImages cascades through policy chain" do
+    tests "ReadDreamImages", on: "DreamReading", kind: :cascade
+    expect emits: ["DreamImagesRead", "ThemesIdentified", "DomainProposed"]
+  end
+
   test "IdentifyThemes runs" do
     tests "IdentifyThemes", on: "DreamReading"
     setup  "ReadDreamImages"
     expect ok: "true"
+  end
+
+  test "IdentifyThemes cascades through policy chain" do
+    tests "IdentifyThemes", on: "DreamReading", kind: :cascade
+    setup  "ReadDreamImages"
+    expect emits: ["ThemesIdentified", "DomainProposed"]
   end
 
   test "SynthesizeInterpretation runs" do

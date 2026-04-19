@@ -9,10 +9,22 @@ Hecks.behaviors "PoolChemistry" do
     expect test_id: "sample", pool_name: "sample", ph: 1.0, free_chlorine_ppm: 1.0, total_alkalinity_ppm: 1.0, temperature_c: 1.0, timestamp: "sample", status: "recorded"
   end
 
+  test "RecordWaterTest cascades through policy chain" do
+    tests "RecordWaterTest", on: "WaterTest", kind: :cascade
+    input  test_id: "sample", pool_name: "sample", ph: 1.0, free_chlorine_ppm: 1.0, total_alkalinity_ppm: 1.0, temperature_c: 1.0, timestamp: "sample"
+    expect emits: ["WaterTestRecorded", "ChemistryAnalyzed", "DosingPlanCreated", "DosingExecuted", "DosingVerified"]
+  end
+
   test "AnalyzeChemistry runs" do
     tests "AnalyzeChemistry", on: "WaterTest"
     setup  "RecordWaterTest", test_id: "sample", pool_name: "sample", ph: 1.0, free_chlorine_ppm: 1.0, total_alkalinity_ppm: 1.0, temperature_c: 1.0, timestamp: "sample"
     expect status: "analyzed"
+  end
+
+  test "AnalyzeChemistry cascades through policy chain" do
+    tests "AnalyzeChemistry", on: "WaterTest", kind: :cascade
+    setup  "RecordWaterTest", test_id: "sample", pool_name: "sample", ph: 1.0, free_chlorine_ppm: 1.0, total_alkalinity_ppm: 1.0, temperature_c: 1.0, timestamp: "sample"
+    expect emits: ["ChemistryAnalyzed", "DosingPlanCreated", "DosingExecuted", "DosingVerified"]
   end
 
 
@@ -22,6 +34,12 @@ Hecks.behaviors "PoolChemistry" do
     tests "DefineReaction", on: "ChemicalReaction"
     input  reaction_name: "sample", reagent_a: "sample", reagent_b: "sample", product: "sample", equilibrium_constant: 1.0, rate_constant: 1.0
     expect reaction_name: "sample", reagent_a: "sample", reagent_b: "sample", product: "sample", equilibrium_constant: 1.0, rate_constant: 1.0, status: "defined"
+  end
+
+  test "DefineReaction cascades through policy chain" do
+    tests "DefineReaction", on: "ChemicalReaction", kind: :cascade
+    input  reaction_name: "sample", reagent_a: "sample", reagent_b: "sample", product: "sample", equilibrium_constant: 1.0, rate_constant: 1.0
+    expect emits: ["ReactionDefined", "EquilibriumCalculated"]
   end
 
   test "CalculateEquilibrium runs" do
@@ -39,9 +57,28 @@ Hecks.behaviors "PoolChemistry" do
     expect pool_name: "sample", chemical_name: "sample", current_level: 1.0, target_level: 1.0, dose_amount_ml: 1.0, dosing_method: "sample", status: "created"
   end
 
+  test "PrescribeDose cascades through policy chain" do
+    tests "PrescribeDose", on: "DosingPlan", kind: :cascade
+    input  pool_name: "sample", chemical_name: "sample", current_level: 1.0, target_level: 1.0, dose_amount_ml: 1.0, dosing_method: "sample"
+    expect emits: ["DosingPlanCreated", "DosingExecuted", "DosingVerified"]
+  end
+
   test "ExecuteDosing runs" do
     tests "ExecuteDosing", on: "DosingPlan"
     setup  "PrescribeDose", pool_name: "sample", chemical_name: "sample", current_level: 1.0, target_level: 1.0, dose_amount_ml: 1.0, dosing_method: "sample"
+    expect status: "executed"
+  end
+
+  test "ExecuteDosing cascades through policy chain" do
+    tests "ExecuteDosing", on: "DosingPlan", kind: :cascade
+    setup  "PrescribeDose", pool_name: "sample", chemical_name: "sample", current_level: 1.0, target_level: 1.0, dose_amount_ml: 1.0, dosing_method: "sample"
+    expect emits: ["DosingExecuted", "DosingVerified"]
+  end
+
+  test "VerifyDosing runs" do
+    tests "VerifyDosing", on: "DosingPlan"
+    setup  "PrescribeDose", pool_name: "sample", chemical_name: "sample", current_level: 1.0, target_level: 1.0, dose_amount_ml: 1.0, dosing_method: "sample"
+    setup  "ExecuteDosing"
     expect status: "verified"
   end
 
@@ -52,6 +89,12 @@ Hecks.behaviors "PoolChemistry" do
     tests "ReportAlgae", on: "AlgaeIncident"
     input  pool_name: "sample", algae_type: "sample", severity: "sample", cause: "sample"
     expect pool_name: "sample", algae_type: "sample", severity: "sample", cause: "sample", status: "reported"
+  end
+
+  test "ReportAlgae cascades through policy chain" do
+    tests "ReportAlgae", on: "AlgaeIncident", kind: :cascade
+    input  pool_name: "sample", algae_type: "sample", severity: "sample", cause: "sample"
+    expect emits: ["AlgaeReported", "AlgaeTreated"]
   end
 
   test "TreatAlgae sets treatment_applied" do

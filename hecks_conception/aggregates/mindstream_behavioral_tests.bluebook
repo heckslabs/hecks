@@ -8,6 +8,11 @@ Hecks.behaviors "Mindstream" do
     expect ok: "true"
   end
 
+  test "MindstreamTick cascades through policy chain" do
+    tests "MindstreamTick", on: "Tick", kind: :cascade
+    expect emits: ["Ticked", "SignalsConsolidated", "SynapsesPruned", "DisplayUpdated", "MusingsPruned"]
+  end
+
 
   # ── Display aggregate ──────────────────────────────────────────
 

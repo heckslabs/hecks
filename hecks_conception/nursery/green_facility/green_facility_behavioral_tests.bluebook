@@ -46,11 +46,24 @@ Hecks.behaviors "GreenFacility" do
     expect ledger_id: "sample", month: "sample", produced_kwh: 1.0, consumed_kwh: 1.0
   end
 
+  test "RecordMonth cascades through policy chain" do
+    tests "RecordMonth", on: "EnergyLedger", kind: :cascade
+    input  ledger_id: "sample", month: "sample", produced_kwh: 1.0, consumed_kwh: 1.0
+    expect emits: ["MonthRecorded", "OffsetCalculated", "SavingsReportGenerated"]
+  end
+
   test "CalculateOffset sets grid_offset_kwh" do
     tests "CalculateOffset", on: "EnergyLedger"
     setup  "RecordMonth", ledger_id: "sample", month: "sample", produced_kwh: 1.0, consumed_kwh: 1.0
     input  grid_offset_kwh: 1.0
     expect grid_offset_kwh: 1.0
+  end
+
+  test "CalculateOffset cascades through policy chain" do
+    tests "CalculateOffset", on: "EnergyLedger", kind: :cascade
+    setup  "RecordMonth", ledger_id: "sample", month: "sample", produced_kwh: 1.0, consumed_kwh: 1.0
+    input  grid_offset_kwh: 1.0
+    expect emits: ["OffsetCalculated", "SavingsReportGenerated"]
   end
 
 

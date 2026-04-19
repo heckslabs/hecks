@@ -9,6 +9,12 @@ Hecks.behaviors "NetworkOperations" do
     expect device_id: "sample", hostname: "sample", device_type: "sample", ip_address: "sample", location: "sample", firmware_version: "sample"
   end
 
+  test "RegisterDevice cascades through policy chain" do
+    tests "RegisterDevice", on: "NetworkDevice", kind: :cascade
+    input  device_id: "sample", hostname: "sample", device_type: "sample", ip_address: "sample", location: "sample", firmware_version: "sample"
+    expect emits: ["DeviceRegistered", "LinkEstablished", "FlowCaptured", "FlowClassified", "LatencyMeasured"]
+  end
+
   test "SuspendDevice runs" do
     tests "SuspendDevice", on: "NetworkDevice"
     setup  "RegisterDevice", device_id: "sample", hostname: "sample", device_type: "sample", ip_address: "sample", location: "sample", firmware_version: "sample"
@@ -30,6 +36,13 @@ Hecks.behaviors "NetworkOperations" do
     setup  "RegisterDevice", device_id: "sample", hostname: "sample", device_type: "sample", ip_address: "sample", location: "sample", firmware_version: "sample"
     input  link_id: "sample", link_type: "sample", bandwidth_mbps: 1
     expect ok: "true"
+  end
+
+  test "EstablishLink cascades through policy chain" do
+    tests "EstablishLink", on: "Link", kind: :cascade
+    setup  "RegisterDevice", device_id: "sample", hostname: "sample", device_type: "sample", ip_address: "sample", location: "sample", firmware_version: "sample"
+    input  link_id: "sample", link_type: "sample", bandwidth_mbps: 1
+    expect emits: ["LinkEstablished", "FlowCaptured", "FlowClassified", "LatencyMeasured"]
   end
 
   test "MeasureLatency sets latency_ms" do
@@ -54,6 +67,12 @@ Hecks.behaviors "NetworkOperations" do
     expect status: "active"
   end
 
+  test "CaptureFlow cascades through policy chain" do
+    tests "CaptureFlow", on: "TrafficFlow", kind: :cascade
+    input  flow_id: "sample", source_ip: "sample", destination_ip: "sample", protocol: "sample", bytes_transferred: 1
+    expect emits: ["FlowCaptured", "FlowClassified"]
+  end
+
   test "ClassifyFlow sets classification" do
     tests "ClassifyFlow", on: "TrafficFlow"
     setup  "CaptureFlow", flow_id: "sample", source_ip: "sample", destination_ip: "sample", protocol: "sample", bytes_transferred: 1
@@ -67,6 +86,12 @@ Hecks.behaviors "NetworkOperations" do
     expect ok: "true"
   end
 
+  test "FlagAnomalousFlow cascades through policy chain" do
+    tests "FlagAnomalousFlow", on: "TrafficFlow", kind: :cascade
+    setup  "CaptureFlow", flow_id: "sample", source_ip: "sample", destination_ip: "sample", protocol: "sample", bytes_transferred: 1
+    expect emits: ["FlowFlagged", "OutageDeclared", "DeviceSuspended"]
+  end
+
 
   # ── Outage aggregate ──────────────────────────────────────────
 
@@ -75,6 +100,13 @@ Hecks.behaviors "NetworkOperations" do
     setup  "RegisterDevice", device_id: "sample", hostname: "sample", device_type: "sample", ip_address: "sample", location: "sample", firmware_version: "sample"
     input  outage_id: "sample", affected_segment: "sample", severity: "sample"
     expect status: "ongoing"
+  end
+
+  test "DeclareOutage cascades through policy chain" do
+    tests "DeclareOutage", on: "Outage", kind: :cascade
+    setup  "RegisterDevice", device_id: "sample", hostname: "sample", device_type: "sample", ip_address: "sample", location: "sample", firmware_version: "sample"
+    input  outage_id: "sample", affected_segment: "sample", severity: "sample"
+    expect emits: ["OutageDeclared", "DeviceSuspended"]
   end
 
   test "PostOutageUpdate sets note + author" do
@@ -91,6 +123,13 @@ Hecks.behaviors "NetworkOperations" do
     expect ok: "true"
   end
 
+  test "ResolveOutage cascades through policy chain" do
+    tests "ResolveOutage", on: "Outage", kind: :cascade
+    setup  "DeclareOutage", outage_id: "sample", affected_segment: "sample", severity: "sample"
+    input  root_cause: "sample"
+    expect emits: ["OutageResolved", "DeviceRestored"]
+  end
+
 
   # ── FirmwareRelease aggregate ──────────────────────────────────────────
 
@@ -98,6 +137,12 @@ Hecks.behaviors "NetworkOperations" do
     tests "PublishFirmware", on: "FirmwareRelease"
     input  release_id: "sample", version: "sample", device_type: "sample", changelog: "sample"
     expect status: "published"
+  end
+
+  test "PublishFirmware cascades through policy chain" do
+    tests "PublishFirmware", on: "FirmwareRelease", kind: :cascade
+    input  release_id: "sample", version: "sample", device_type: "sample", changelog: "sample"
+    expect emits: ["FirmwarePublished", "DeviceUpgraded"]
   end
 
   test "UpgradeDevice sets device_id" do

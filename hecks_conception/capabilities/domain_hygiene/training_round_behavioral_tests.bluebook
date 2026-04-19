@@ -9,6 +9,12 @@ Hecks.behaviors "TrainingRound" do
     expect ok: "true"
   end
 
+  test "StartRound cascades through policy chain" do
+    tests "StartRound", on: "Round", kind: :cascade
+    input  round_number: 1, growth_target: 1, min_reference_pct: 1.0, min_policy_pct: 1.0
+    expect emits: ["RoundStarted", "GrowthComplete", "EnrichmentComplete", "PruningComplete", "ExtractionComplete", "DecisionMade", "RoundCompleted"]
+  end
+
 
   # ── GrowthPhase aggregate ──────────────────────────────────────────
 
@@ -18,12 +24,23 @@ Hecks.behaviors "TrainingRound" do
     expect ok: "true"
   end
 
+  test "RunGrowth cascades through policy chain" do
+    tests "RunGrowth", on: "GrowthPhase", kind: :cascade
+    input  target_count: 1, topics: "sample"
+    expect emits: ["GrowthComplete", "EnrichmentComplete", "PruningComplete", "ExtractionComplete", "DecisionMade", "RoundCompleted"]
+  end
+
 
   # ── EnrichmentPhase aggregate ──────────────────────────────────────────
 
   test "RunEnrichment runs" do
     tests "RunEnrichment", on: "EnrichmentPhase"
     expect ok: "true"
+  end
+
+  test "RunEnrichment cascades through policy chain" do
+    tests "RunEnrichment", on: "EnrichmentPhase", kind: :cascade
+    expect emits: ["EnrichmentComplete", "PruningComplete", "ExtractionComplete", "DecisionMade", "RoundCompleted"]
   end
 
 
@@ -35,6 +52,12 @@ Hecks.behaviors "TrainingRound" do
     expect ok: "true"
   end
 
+  test "RunPruning cascades through policy chain" do
+    tests "RunPruning", on: "PruningPhase", kind: :cascade
+    input  max_completion_size: 1, similarity_threshold: 1.0
+    expect emits: ["PruningComplete", "ExtractionComplete", "DecisionMade", "RoundCompleted"]
+  end
+
 
   # ── ExtractionPhase aggregate ──────────────────────────────────────────
 
@@ -44,7 +67,19 @@ Hecks.behaviors "TrainingRound" do
     expect ok: "true"
   end
 
+  test "RunExtraction cascades through policy chain" do
+    tests "RunExtraction", on: "ExtractionPhase", kind: :cascade
+    input  output_path: "sample"
+    expect emits: ["ExtractionComplete", "DecisionMade", "RoundCompleted"]
+  end
+
 
   # ── Decision aggregate ──────────────────────────────────────────
+
+  test "Evaluate cascades through policy chain" do
+    tests "Evaluate", on: "Decision", kind: :cascade
+    setup  "StartRound", round_number: 1, growth_target: 1, min_reference_pct: 1.0, min_policy_pct: 1.0
+    expect emits: ["DecisionMade", "RoundCompleted"]
+  end
 
 end

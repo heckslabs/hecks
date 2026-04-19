@@ -9,11 +9,24 @@ Hecks.behaviors "Astronomy" do
     expect designation: "sample", body_type: "sample", right_ascension: 1.0, declination: 1.0
   end
 
+  test "RegisterBody cascades through policy chain" do
+    tests "RegisterBody", on: "CelestialBody", kind: :cascade
+    input  designation: "sample", body_type: "sample", right_ascension: 1.0, declination: 1.0
+    expect emits: ["BodyRegistered", "OpticsCalibrated", "ObservationLogged", "SeeingGraded", "MagnitudeCorrected", "EphemerisUpdated", "CatalogPublished", "TelescopeActivated"]
+  end
+
   test "UpdateEphemeris sets new_ra + new_dec" do
     tests "UpdateEphemeris", on: "CelestialBody"
     setup  "RegisterBody", designation: "sample", body_type: "sample", right_ascension: 1.0, declination: 1.0
     input  new_ra: 1.0, new_dec: 1.0
     expect ok: "true"
+  end
+
+  test "UpdateEphemeris cascades through policy chain" do
+    tests "UpdateEphemeris", on: "CelestialBody", kind: :cascade
+    setup  "RegisterBody", designation: "sample", body_type: "sample", right_ascension: 1.0, declination: 1.0
+    input  new_ra: 1.0, new_dec: 1.0
+    expect emits: ["EphemerisUpdated", "CatalogPublished"]
   end
 
   test "ReclassifyBody sets new_type" do
@@ -34,6 +47,28 @@ Hecks.behaviors "Astronomy" do
     expect ok: "true"
   end
 
+  test "LogObservation cascades through policy chain" do
+    tests "LogObservation", on: "Observation", kind: :cascade
+    setup  "ActivateTelescope", name: "sample", aperture_mm: 1.0, focal_length_mm: 1.0
+    setup  "RegisterBody", designation: "sample", body_type: "sample", right_ascension: 1.0, declination: 1.0
+    input  observer_name: "sample", timestamp: "sample"
+    expect emits: ["ObservationLogged", "SeeingGraded", "MagnitudeCorrected", "EphemerisUpdated", "CatalogPublished"]
+  end
+
+  test "GradeSeeing cascades through policy chain" do
+    tests "GradeSeeing", on: "Observation", kind: :cascade
+    setup  "LogObservation", observer_name: "sample", timestamp: "sample"
+    input  seeing_conditions: "sample"
+    expect emits: ["SeeingGraded", "MagnitudeCorrected", "EphemerisUpdated", "CatalogPublished"]
+  end
+
+  test "CorrectMagnitude cascades through policy chain" do
+    tests "CorrectMagnitude", on: "Observation", kind: :cascade
+    setup  "LogObservation", observer_name: "sample", timestamp: "sample"
+    input  corrected_value: 1.0
+    expect emits: ["MagnitudeCorrected", "EphemerisUpdated", "CatalogPublished"]
+  end
+
 
   # ── Telescope aggregate ──────────────────────────────────────────
 
@@ -47,6 +82,12 @@ Hecks.behaviors "Astronomy" do
     tests "CalibrateOptics", on: "Telescope"
     setup  "ActivateTelescope", name: "sample", aperture_mm: 1.0, focal_length_mm: 1.0
     expect ok: "true"
+  end
+
+  test "CalibrateOptics cascades through policy chain" do
+    tests "CalibrateOptics", on: "Telescope", kind: :cascade
+    setup  "ActivateTelescope", name: "sample", aperture_mm: 1.0, focal_length_mm: 1.0
+    expect emits: ["OpticsCalibrated", "ObservationLogged", "SeeingGraded", "MagnitudeCorrected", "EphemerisUpdated", "CatalogPublished"]
   end
 
   test "RetireTelescope runs" do

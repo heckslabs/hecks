@@ -9,6 +9,12 @@ Hecks.behaviors "CyberSecurity" do
     expect status: "active"
   end
 
+  test "IdentifyThreat cascades through policy chain" do
+    tests "IdentifyThreat", on: "Threat", kind: :cascade
+    input  threat_id: "sample", name: "sample", category: "sample", severity: "sample", source_feed: "sample"
+    expect emits: ["ThreatIdentified", "IncidentDeclared", "ResponseTeamAssigned", "PatchReleased", "PatchDeployed", "ThreatNeutralized"]
+  end
+
   test "EscalateThreat sets severity" do
     tests "EscalateThreat", on: "Threat"
     setup  "IdentifyThreat", threat_id: "sample", name: "sample", category: "sample", severity: "sample", source_feed: "sample"
@@ -32,11 +38,25 @@ Hecks.behaviors "CyberSecurity" do
     expect ok: "true"
   end
 
+  test "DeclareIncident cascades through policy chain" do
+    tests "DeclareIncident", on: "SecurityIncident", kind: :cascade
+    setup  "IdentifyThreat", threat_id: "sample", name: "sample", category: "sample", severity: "sample", source_feed: "sample"
+    input  incident_id: "sample", title: "sample", severity: "sample", attack_vector: "sample"
+    expect emits: ["IncidentDeclared", "ResponseTeamAssigned", "PatchReleased", "PatchDeployed", "ThreatNeutralized"]
+  end
+
   test "AssignResponseTeam sets assigned_team" do
     tests "AssignResponseTeam", on: "SecurityIncident"
     setup  "DeclareIncident", incident_id: "sample", title: "sample", severity: "sample", attack_vector: "sample"
     input  assigned_team: "sample"
     expect status: "in_progress"
+  end
+
+  test "AssignResponseTeam cascades through policy chain" do
+    tests "AssignResponseTeam", on: "SecurityIncident", kind: :cascade
+    setup  "DeclareIncident", incident_id: "sample", title: "sample", severity: "sample", attack_vector: "sample"
+    input  assigned_team: "sample"
+    expect emits: ["ResponseTeamAssigned", "PatchReleased", "PatchDeployed", "ThreatNeutralized"]
   end
 
   test "CloseIncident sets root_cause" do
@@ -45,6 +65,14 @@ Hecks.behaviors "CyberSecurity" do
     setup  "AssignResponseTeam", assigned_team: "sample"
     input  root_cause: "sample"
     expect ok: "true"
+  end
+
+  test "CloseIncident cascades through policy chain" do
+    tests "CloseIncident", on: "SecurityIncident", kind: :cascade
+    setup  "DeclareIncident", incident_id: "sample", title: "sample", severity: "sample", attack_vector: "sample"
+    setup  "AssignResponseTeam", assigned_team: "sample"
+    input  root_cause: "sample"
+    expect emits: ["IncidentClosed", "AuditInitiated"]
   end
 
 
@@ -56,11 +84,24 @@ Hecks.behaviors "CyberSecurity" do
     expect ok: "true"
   end
 
+  test "ReleasePatch cascades through policy chain" do
+    tests "ReleasePatch", on: "Patch", kind: :cascade
+    input  patch_id: "sample", cve_id: "sample", target_system: "sample", urgency: "sample"
+    expect emits: ["PatchReleased", "PatchDeployed", "ThreatNeutralized"]
+  end
+
   test "DeployPatch sets host" do
     tests "DeployPatch", on: "Patch"
     setup  "ReleasePatch", patch_id: "sample", cve_id: "sample", target_system: "sample", urgency: "sample"
     input  host: "sample"
     expect status: "deployed"
+  end
+
+  test "DeployPatch cascades through policy chain" do
+    tests "DeployPatch", on: "Patch", kind: :cascade
+    setup  "ReleasePatch", patch_id: "sample", cve_id: "sample", target_system: "sample", urgency: "sample"
+    input  host: "sample"
+    expect emits: ["PatchDeployed", "ThreatNeutralized"]
   end
 
   test "RollbackPatch runs" do
@@ -86,10 +127,23 @@ Hecks.behaviors "CyberSecurity" do
     expect ok: "true"
   end
 
+  test "RecordFinding cascades through policy chain" do
+    tests "RecordFinding", on: "SecurityAudit", kind: :cascade
+    setup  "InitiateAudit", audit_id: "sample", scope: "sample", framework: "sample", auditor: "sample"
+    input  control_id: "sample", description: "sample", severity: "sample"
+    expect emits: ["FindingRecorded", "AccessRevoked"]
+  end
+
   test "CompleteAudit runs" do
     tests "CompleteAudit", on: "SecurityAudit"
     setup  "InitiateAudit", audit_id: "sample", scope: "sample", framework: "sample", auditor: "sample"
     expect ok: "true"
+  end
+
+  test "CompleteAudit cascades through policy chain" do
+    tests "CompleteAudit", on: "SecurityAudit", kind: :cascade
+    setup  "InitiateAudit", audit_id: "sample", scope: "sample", framework: "sample", auditor: "sample"
+    expect emits: ["AuditCompleted", "AccessPolicyCreated"]
   end
 
 

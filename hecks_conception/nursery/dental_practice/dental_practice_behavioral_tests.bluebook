@@ -25,11 +25,32 @@ Hecks.behaviors "DentalPractice" do
 
   # ── DentalProcedure aggregate ──────────────────────────────────────────
 
+  test "PerformProcedure sets cdt_code + procedure_name + tooth_number + surface + notes" do
+    tests "PerformProcedure", on: "DentalProcedure"
+    setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
+    input  cdt_code: "sample", procedure_name: "sample", tooth_number: "sample", surface: "sample", notes: "sample"
+    expect cdt_code: "sample", procedure_name: "sample", tooth_number: "sample", surface: "sample", status: "completed"
+  end
+
+  test "PerformProcedure cascades through policy chain" do
+    tests "PerformProcedure", on: "DentalProcedure", kind: :cascade
+    setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
+    input  cdt_code: "sample", procedure_name: "sample", tooth_number: "sample", surface: "sample", notes: "sample"
+    expect emits: ["ProcedurePerformed", "ClaimSubmitted", "PaymentProcessed"]
+  end
+
   test "PlanTreatment sets cdt_code + procedure_name + tooth_number" do
     tests "PlanTreatment", on: "DentalProcedure"
     setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
     input  cdt_code: "sample", procedure_name: "sample", tooth_number: "sample"
-    expect cdt_code: "sample", procedure_name: "sample", tooth_number: "sample", surface: "sample", status: "completed"
+    expect cdt_code: "sample", procedure_name: "sample", status: "planned"
+  end
+
+  test "PlanTreatment cascades through policy chain" do
+    tests "PlanTreatment", on: "DentalProcedure", kind: :cascade
+    setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
+    input  cdt_code: "sample", procedure_name: "sample", tooth_number: "sample"
+    expect emits: ["TreatmentPlanned", "VisitScheduled", "VisitConfirmed", "RadiographTaken", "RadiographInterpreted", "ProcedurePerformed", "ClaimSubmitted", "PaymentProcessed"]
   end
 
 
@@ -42,11 +63,25 @@ Hecks.behaviors "DentalPractice" do
     expect image_type: "sample", tooth_region: "sample"
   end
 
+  test "TakeRadiograph cascades through policy chain" do
+    tests "TakeRadiograph", on: "Radiograph", kind: :cascade
+    setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
+    input  image_type: "sample", tooth_region: "sample"
+    expect emits: ["RadiographTaken", "RadiographInterpreted", "TreatmentPlanned", "VisitScheduled", "VisitConfirmed", "ProcedurePerformed", "ClaimSubmitted", "PaymentProcessed"]
+  end
+
   test "InterpretRadiograph sets findings" do
     tests "InterpretRadiograph", on: "Radiograph"
     setup  "TakeRadiograph", image_type: "sample", tooth_region: "sample"
     input  findings: "sample"
     expect findings: "sample"
+  end
+
+  test "InterpretRadiograph cascades through policy chain" do
+    tests "InterpretRadiograph", on: "Radiograph", kind: :cascade
+    setup  "TakeRadiograph", image_type: "sample", tooth_region: "sample"
+    input  findings: "sample"
+    expect emits: ["RadiographInterpreted", "TreatmentPlanned", "VisitScheduled", "VisitConfirmed", "RadiographTaken", "ProcedurePerformed", "ClaimSubmitted", "PaymentProcessed"]
   end
 
 
@@ -58,6 +93,14 @@ Hecks.behaviors "DentalPractice" do
     setup  "PlanTreatment", cdt_code: "sample", procedure_name: "sample", tooth_number: "sample"
     input  billed_amount: 1.0
     expect billed_amount: 1.0, status: "submitted"
+  end
+
+  test "SubmitClaim cascades through policy chain" do
+    tests "SubmitClaim", on: "InsuranceClaim", kind: :cascade
+    setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
+    setup  "PlanTreatment", cdt_code: "sample", procedure_name: "sample", tooth_number: "sample"
+    input  billed_amount: 1.0
+    expect emits: ["ClaimSubmitted", "PaymentProcessed"]
   end
 
   test "ProcessPayment sets allowed_amount + patient_responsibility" do
@@ -83,10 +126,23 @@ Hecks.behaviors "DentalPractice" do
     expect appointment_date: "sample", time_slot: "sample", visit_type: "sample", status: "scheduled"
   end
 
+  test "ScheduleVisit cascades through policy chain" do
+    tests "ScheduleVisit", on: "DentalAppointment", kind: :cascade
+    setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
+    input  appointment_date: "sample", time_slot: "sample", visit_type: "sample"
+    expect emits: ["VisitScheduled", "VisitConfirmed", "RadiographTaken", "RadiographInterpreted", "TreatmentPlanned", "ProcedurePerformed", "ClaimSubmitted", "PaymentProcessed"]
+  end
+
   test "ConfirmVisit runs" do
     tests "ConfirmVisit", on: "DentalAppointment"
     setup  "ScheduleVisit", appointment_date: "sample", time_slot: "sample", visit_type: "sample"
     expect status: "confirmed"
+  end
+
+  test "ConfirmVisit cascades through policy chain" do
+    tests "ConfirmVisit", on: "DentalAppointment", kind: :cascade
+    setup  "ScheduleVisit", appointment_date: "sample", time_slot: "sample", visit_type: "sample"
+    expect emits: ["VisitConfirmed", "RadiographTaken", "RadiographInterpreted", "TreatmentPlanned", "VisitScheduled", "ProcedurePerformed", "ClaimSubmitted", "PaymentProcessed"]
   end
 
 end

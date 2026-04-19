@@ -9,6 +9,19 @@ Hecks.behaviors "ClothingBoutique" do
     expect style_number: "sample", name: "sample", designer: "sample", fabric: "sample", retail_price: 1.0, season: "sample", status: "in_stock"
   end
 
+  test "ReceiveGarment cascades through policy chain" do
+    tests "ReceiveGarment", on: "Garment", kind: :cascade
+    input  style_number: "sample", name: "sample", designer: "sample", fabric: "sample", retail_price: 1.0, season: "sample"
+    expect emits: ["GarmentReceived", "AlterationRequested", "AlterationCompleted"]
+  end
+
+  test "MarkdownGarment cascades through policy chain" do
+    tests "MarkdownGarment", on: "Garment", kind: :cascade
+    setup  "ReceiveGarment", style_number: "sample", name: "sample", designer: "sample", fabric: "sample", retail_price: 1.0, season: "sample"
+    input  sale_price: 1.0
+    expect emits: ["GarmentMarkedDown", "DisplayDismantled"]
+  end
+
   test "RetireGarment runs" do
     tests "RetireGarment", on: "Garment"
     setup  "ReceiveGarment", style_number: "sample", name: "sample", designer: "sample", fabric: "sample", retail_price: 1.0, season: "sample"
@@ -45,6 +58,12 @@ Hecks.behaviors "ClothingBoutique" do
     expect ticket_number: "sample", style_number: "sample", customer_name: "sample", alteration_type: "sample", due_date: "sample", charge: 1.0, status: "pending"
   end
 
+  test "RequestAlteration cascades through policy chain" do
+    tests "RequestAlteration", on: "Alteration", kind: :cascade
+    input  ticket_number: "sample", style_number: "sample", customer_name: "sample", alteration_type: "sample", due_date: "sample", charge: 1.0
+    expect emits: ["AlterationRequested", "AlterationCompleted"]
+  end
+
   test "CompleteAlteration runs" do
     tests "CompleteAlteration", on: "Alteration"
     setup  "RequestAlteration", ticket_number: "sample", style_number: "sample", customer_name: "sample", alteration_type: "sample", due_date: "sample", charge: 1.0
@@ -60,10 +79,22 @@ Hecks.behaviors "ClothingBoutique" do
     expect season_name: "sample", year: "sample", theme: "sample", status: "planned"
   end
 
+  test "PlanCollection cascades through policy chain" do
+    tests "PlanCollection", on: "SeasonalCollection", kind: :cascade
+    input  season_name: "sample", year: "sample", theme: "sample"
+    expect emits: ["CollectionPlanned", "CollectionLaunched", "DisplayCreated", "DisplayRefreshed", "GarmentReceived", "AlterationRequested", "AlterationCompleted"]
+  end
+
   test "LaunchCollection runs" do
     tests "LaunchCollection", on: "SeasonalCollection"
     setup  "PlanCollection", season_name: "sample", year: "sample", theme: "sample"
     expect status: "active"
+  end
+
+  test "LaunchCollection cascades through policy chain" do
+    tests "LaunchCollection", on: "SeasonalCollection", kind: :cascade
+    setup  "PlanCollection", season_name: "sample", year: "sample", theme: "sample"
+    expect emits: ["CollectionLaunched", "DisplayCreated", "DisplayRefreshed", "GarmentReceived", "AlterationRequested", "AlterationCompleted"]
   end
 
   test "CloseOutCollection runs" do
@@ -71,6 +102,13 @@ Hecks.behaviors "ClothingBoutique" do
     setup  "PlanCollection", season_name: "sample", year: "sample", theme: "sample"
     setup  "LaunchCollection"
     expect status: "closed"
+  end
+
+  test "CloseOutCollection cascades through policy chain" do
+    tests "CloseOutCollection", on: "SeasonalCollection", kind: :cascade
+    setup  "PlanCollection", season_name: "sample", year: "sample", theme: "sample"
+    setup  "LaunchCollection"
+    expect emits: ["CollectionClosedOut", "GarmentMarkedDown", "DisplayDismantled", "GarmentRetired"]
   end
 
 end

@@ -9,11 +9,24 @@ Hecks.behaviors "Pricing" do
     expect sku: "sample", msrp: 1.0, map_price: 1.0, distributor_price: 1.0, jobber_price: 1.0, retail_margin_target: 1.0, effective_date: "sample", status: "active"
   end
 
+  test "SetPriceList cascades through policy chain" do
+    tests "SetPriceList", on: "PriceList", kind: :cascade
+    input  sku: "sample", msrp: 1.0, map_price: 1.0, distributor_price: 1.0, jobber_price: 1.0, retail_margin_target: 1.0, effective_date: "sample"
+    expect emits: ["PriceListSet", "ViolationDetected", "ViolationCorrected"]
+  end
+
   test "SetChannelPrice sets channel + unit_price + margin_percent" do
     tests "SetChannelPrice", on: "PriceList"
     setup  "SetPriceList", sku: "sample", msrp: 1.0, map_price: 1.0, distributor_price: 1.0, jobber_price: 1.0, retail_margin_target: 1.0, effective_date: "sample"
     input  channel: "sample", unit_price: 1.0, margin_percent: 1.0
     expect ok: "true"
+  end
+
+  test "SetChannelPrice cascades through policy chain" do
+    tests "SetChannelPrice", on: "PriceList", kind: :cascade
+    setup  "SetPriceList", sku: "sample", msrp: 1.0, map_price: 1.0, distributor_price: 1.0, jobber_price: 1.0, retail_margin_target: 1.0, effective_date: "sample"
+    input  channel: "sample", unit_price: 1.0, margin_percent: 1.0
+    expect emits: ["ChannelPriceSet", "ViolationDetected", "ViolationCorrected"]
   end
 
   test "RevisePriceList sets msrp + map_price + distributor_price + jobber_price" do
@@ -53,6 +66,12 @@ Hecks.behaviors "Pricing" do
     tests "DetectViolation", on: "PricingViolation"
     input  sku: "sample", channel: "sample", advertised_price: 1.0, map_price: 1.0, violation_date: "sample"
     expect sku: "sample", channel: "sample", advertised_price: 1.0, map_price: 1.0, violation_date: "sample", status: "open"
+  end
+
+  test "DetectViolation cascades through policy chain" do
+    tests "DetectViolation", on: "PricingViolation", kind: :cascade
+    input  sku: "sample", channel: "sample", advertised_price: 1.0, map_price: 1.0, violation_date: "sample"
+    expect emits: ["ViolationDetected", "ViolationCorrected"]
   end
 
   test "CorrectViolation sets corrective_action" do

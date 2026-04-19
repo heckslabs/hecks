@@ -9,11 +9,66 @@ Hecks.behaviors "PrisonManagement" do
     expect status: "intake"
   end
 
+  test "AdmitInmate cascades through policy chain" do
+    tests "AdmitInmate", on: "Inmate", kind: :cascade
+    input  name: "sample", classification: "sample", admission_date: "sample"
+    expect emits: ["InmateAdmitted", "InmateClassified", "InmateHoused", "InmateEnrolled"]
+  end
+
   test "ClassifyInmate sets classification" do
     tests "ClassifyInmate", on: "Inmate"
     setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
     input  classification: "sample"
+    expect status: "classified"
+  end
+
+  test "ClassifyInmate cascades through policy chain" do
+    tests "ClassifyInmate", on: "Inmate", kind: :cascade
+    setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
+    input  classification: "sample"
+    expect emits: ["InmateClassified", "InmateHoused", "InmateEnrolled"]
+  end
+
+  test "HouseInmate runs" do
+    tests "HouseInmate", on: "Inmate"
+    setup  "OpenCell", cell_id: "sample", block: "sample", max_occupancy: 1, security_level: "sample"
+    setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
+    setup  "ClassifyInmate", classification: "sample"
     expect status: "housed"
+  end
+
+  test "HouseInmate cascades through policy chain" do
+    tests "HouseInmate", on: "Inmate", kind: :cascade
+    setup  "OpenCell", cell_id: "sample", block: "sample", max_occupancy: 1, security_level: "sample"
+    setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
+    setup  "ClassifyInmate", classification: "sample"
+    expect emits: ["InmateHoused", "InmateEnrolled"]
+  end
+
+  test "ReclassifyInmate sets new_classification" do
+    tests "ReclassifyInmate", on: "Inmate"
+    setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
+    setup  "ClassifyInmate", classification: "sample"
+    setup  "HouseInmate"
+    input  new_classification: "sample"
+    expect ok: "true"
+  end
+
+  test "PrepareForRelease runs" do
+    tests "PrepareForRelease", on: "Inmate"
+    setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
+    setup  "ClassifyInmate", classification: "sample"
+    setup  "HouseInmate"
+    expect status: "preparing_release"
+  end
+
+  test "ReleaseInmate runs" do
+    tests "ReleaseInmate", on: "Inmate"
+    setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
+    setup  "ClassifyInmate", classification: "sample"
+    setup  "HouseInmate"
+    setup  "PrepareForRelease"
+    expect status: "released"
   end
 
 
@@ -70,6 +125,13 @@ Hecks.behaviors "PrisonManagement" do
     expect status: "open"
   end
 
+  test "FileIncident cascades through policy chain" do
+    tests "FileIncident", on: "Incident", kind: :cascade
+    setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
+    input  incident_type: "sample", severity: "sample", description: "sample"
+    expect emits: ["IncidentFiled", "CellLockedDown", "InvestigationStarted"]
+  end
+
   test "InvestigateIncident runs" do
     tests "InvestigateIncident", on: "Incident"
     setup  "FileIncident", incident_type: "sample", severity: "sample", description: "sample"
@@ -82,6 +144,14 @@ Hecks.behaviors "PrisonManagement" do
     setup  "InvestigateIncident"
     input  resolution: "sample"
     expect status: "resolved"
+  end
+
+  test "ResolveIncident cascades through policy chain" do
+    tests "ResolveIncident", on: "Incident", kind: :cascade
+    setup  "FileIncident", incident_type: "sample", severity: "sample", description: "sample"
+    setup  "InvestigateIncident"
+    input  resolution: "sample"
+    expect emits: ["IncidentResolved", "InmateReclassified", "LockdownLifted"]
   end
 
 

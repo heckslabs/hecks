@@ -9,10 +9,34 @@ Hecks.behaviors "OrganDonation" do
     expect name: "sample", blood_type: "sample", tissue_type: "sample", hospital: "sample", cause_of_death: "sample", consent_status: "sample"
   end
 
+  test "RegisterDonor cascades through policy chain" do
+    tests "RegisterDonor", on: "Donor", kind: :cascade
+    input  name: "sample", blood_type: "sample", tissue_type: "sample", hospital: "sample", cause_of_death: "sample", consent_status: "sample"
+    expect emits: ["DonorRegistered", "ConsentConfirmed", "ViabilityAssessed", "MatchPerformed", "CrossmatchRecorded", "MatchAccepted", "OrganDispatched"]
+  end
+
   test "ConfirmConsent runs" do
     tests "ConfirmConsent", on: "Donor"
     setup  "RegisterDonor", name: "sample", blood_type: "sample", tissue_type: "sample", hospital: "sample", cause_of_death: "sample", consent_status: "sample"
     expect consent_status: "confirmed"
+  end
+
+  test "ConfirmConsent cascades through policy chain" do
+    tests "ConfirmConsent", on: "Donor", kind: :cascade
+    setup  "RegisterDonor", name: "sample", blood_type: "sample", tissue_type: "sample", hospital: "sample", cause_of_death: "sample", consent_status: "sample"
+    expect emits: ["ConsentConfirmed", "ViabilityAssessed", "MatchPerformed", "CrossmatchRecorded", "MatchAccepted", "OrganDispatched"]
+  end
+
+  test "AssessOrganViability runs" do
+    tests "AssessOrganViability", on: "Donor"
+    setup  "RegisterDonor", name: "sample", blood_type: "sample", tissue_type: "sample", hospital: "sample", cause_of_death: "sample", consent_status: "sample"
+    expect ok: "true"
+  end
+
+  test "AssessOrganViability cascades through policy chain" do
+    tests "AssessOrganViability", on: "Donor", kind: :cascade
+    setup  "RegisterDonor", name: "sample", blood_type: "sample", tissue_type: "sample", hospital: "sample", cause_of_death: "sample", consent_status: "sample"
+    expect emits: ["ViabilityAssessed", "MatchPerformed", "CrossmatchRecorded", "MatchAccepted", "OrganDispatched"]
   end
 
 
@@ -48,11 +72,40 @@ Hecks.behaviors "OrganDonation" do
     expect donor_name: "sample", recipient_name: "sample", organ_name: "sample", compatibility_score: "sample", status: "pending_crossmatch"
   end
 
+  test "PerformMatch cascades through policy chain" do
+    tests "PerformMatch", on: "OrganMatch", kind: :cascade
+    setup  "ListRecipient", name: "sample", blood_type: "sample", tissue_type: "sample", organ_needed: "sample", urgency_level: "sample", listing_date: "sample"
+    setup  "RegisterDonor", name: "sample", blood_type: "sample", tissue_type: "sample", hospital: "sample", cause_of_death: "sample", consent_status: "sample"
+    input  donor_name: "sample", recipient_name: "sample", organ_name: "sample", compatibility_score: "sample"
+    expect emits: ["MatchPerformed", "CrossmatchRecorded", "MatchAccepted", "OrganDispatched"]
+  end
+
   test "RecordCrossmatch sets crossmatch_result" do
     tests "RecordCrossmatch", on: "OrganMatch"
     setup  "PerformMatch", donor_name: "sample", recipient_name: "sample", organ_name: "sample", compatibility_score: "sample"
     input  crossmatch_result: "sample"
-    expect crossmatch_result: "sample", status: "accepted"
+    expect crossmatch_result: "sample", status: "crossmatched"
+  end
+
+  test "RecordCrossmatch cascades through policy chain" do
+    tests "RecordCrossmatch", on: "OrganMatch", kind: :cascade
+    setup  "PerformMatch", donor_name: "sample", recipient_name: "sample", organ_name: "sample", compatibility_score: "sample"
+    input  crossmatch_result: "sample"
+    expect emits: ["CrossmatchRecorded", "MatchAccepted", "OrganDispatched"]
+  end
+
+  test "AcceptMatch runs" do
+    tests "AcceptMatch", on: "OrganMatch"
+    setup  "PerformMatch", donor_name: "sample", recipient_name: "sample", organ_name: "sample", compatibility_score: "sample"
+    setup  "RecordCrossmatch", crossmatch_result: "sample"
+    expect status: "accepted"
+  end
+
+  test "AcceptMatch cascades through policy chain" do
+    tests "AcceptMatch", on: "OrganMatch", kind: :cascade
+    setup  "PerformMatch", donor_name: "sample", recipient_name: "sample", organ_name: "sample", compatibility_score: "sample"
+    setup  "RecordCrossmatch", crossmatch_result: "sample"
+    expect emits: ["MatchAccepted", "OrganDispatched"]
   end
 
 
@@ -71,6 +124,12 @@ Hecks.behaviors "OrganDonation" do
     expect status: "delivered"
   end
 
+  test "ConfirmDelivery cascades through policy chain" do
+    tests "ConfirmDelivery", on: "OrganTransport", kind: :cascade
+    setup  "DispatchOrgan", organ_name: "sample", origin_hospital: "sample", destination_hospital: "sample", transport_method: "sample", departure_time: "sample", estimated_arrival: "sample"
+    expect emits: ["OrganDelivered", "OutcomeRecorded", "RecipientRemoved", "GraftMonitored"]
+  end
+
 
   # ── TransplantOutcome aggregate ──────────────────────────────────────────
 
@@ -79,6 +138,13 @@ Hecks.behaviors "OrganDonation" do
     setup  "ListRecipient", name: "sample", blood_type: "sample", tissue_type: "sample", organ_needed: "sample", urgency_level: "sample", listing_date: "sample"
     input  recipient_name: "sample", organ_name: "sample", surgery_date: "sample", surgeon_name: "sample", graft_function: "sample", complications: "sample"
     expect recipient_name: "sample", organ_name: "sample", surgery_date: "sample", surgeon_name: "sample", graft_function: "sample", complications: "sample", status: "initial"
+  end
+
+  test "RecordOutcome cascades through policy chain" do
+    tests "RecordOutcome", on: "TransplantOutcome", kind: :cascade
+    setup  "ListRecipient", name: "sample", blood_type: "sample", tissue_type: "sample", organ_needed: "sample", urgency_level: "sample", listing_date: "sample"
+    input  recipient_name: "sample", organ_name: "sample", surgery_date: "sample", surgeon_name: "sample", graft_function: "sample", complications: "sample"
+    expect emits: ["OutcomeRecorded", "RecipientRemoved", "GraftMonitored"]
   end
 
   test "MonitorGraft sets graft_function" do

@@ -41,11 +41,13 @@ end
 }
 
 #[test]
-fn cascade_through_same_aggregate_policy() {
+fn cascade_locked_down_via_emits() {
     // The canonical cascade: AcceptParcel emits ParcelAccepted, which
-    // a policy turns into SortParcel, which sets status: "sorted".
-    // The test for AcceptParcel must expect status: "sorted" (the
-    // post-cascade state), not "accepted" (its own then_set).
+    // a policy turns into SortParcel, which emits ParcelSorted. The test
+    // for AcceptParcel asserts the cascade as a list of events via
+    // `emits: [...]` — VCR for the emit→policy→trigger graph. Direct
+    // mutations (status: "accepted") still appear; cascade mutations
+    // (status: "sorted") do NOT — those belong to SortParcel's own test.
     let source = r#"Hecks.bluebook "Pipeline" do
   aggregate "Parcel" do
     attribute :status, String
@@ -70,19 +72,41 @@ end
     let domain = parser::parse(source);
     let out = generate_behaviors(&domain, None);
 
-    // Slice out just the AcceptParcel test so we don't confuse it with
-    // SortParcel's own block (which trivially expects status: "sorted").
-    let accept_block = test_block(&out, "AcceptParcel")
-        .expect("AcceptParcel test block missing");
+    // Three structural assertions — each general (works for any
+    // bluebook), they just happen to use names from THIS fixture as
+    // the concrete handles.
 
-    assert!(accept_block.contains("expect"),
-        "AcceptParcel block has no expect line:\n{}", accept_block);
-    assert!(accept_block.contains(r#"status: "sorted""#),
-        "expected cascaded status: \"sorted\" in AcceptParcel test, got:\n{}",
-        accept_block);
-    assert!(!accept_block.contains(r#"status: "accepted""#),
-        "AcceptParcel must not stop at its own then_set; cascade should override:\n{}",
-        accept_block);
+    // 1. Every command emits a state test asserting its own direct
+    //    mutations only (no emits, no cascade-state).
+    for cmd in &["AcceptParcel", "SortParcel"] {
+        let block = test_block(&out, cmd)
+            .unwrap_or_else(|| panic!("missing state test for {}", cmd));
+        assert!(!block.contains("emits:"),
+            "{} state test must NOT contain emits — that lives in the \
+             separate cascade test:\n{}", cmd, block);
+    }
+
+    // 2. AcceptParcel mutates status to "accepted" (its own then_set).
+    //    Generator should surface that as a state expectation.
+    let accept = test_block(&out, "AcceptParcel").unwrap();
+    assert!(accept.contains(r#"status: "accepted""#),
+        "expected direct then_set surfaced in state test:\n{}", accept);
+
+    // 3. Commands whose emit cascades through ≥1 policy get a
+    //    dedicated `kind: :cascade` test asserting the emit list.
+    //    Source declares: AcceptParcel → ParcelAccepted → SortParcel
+    //    → ParcelSorted (a 2-event chain).
+    let cascade_blocks: Vec<&str> = out.split("test \"")
+        .filter(|b| b.contains("kind: :cascade"))
+        .collect();
+    assert_eq!(cascade_blocks.len(), 1,
+        "expected exactly one cascade test (for AcceptParcel); got {}:\n{}",
+        cascade_blocks.len(), out);
+    let cascade = cascade_blocks[0];
+    assert!(cascade.contains(r#"tests "AcceptParcel""#),
+        "cascade test should target the chain's head command:\n{}", cascade);
+    assert!(cascade.contains(r#"emits: ["ParcelAccepted", "ParcelSorted"]"#),
+        "cascade test should lock down the static emit chain:\n{}", cascade);
 }
 
 #[test]

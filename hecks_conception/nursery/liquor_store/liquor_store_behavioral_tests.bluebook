@@ -9,6 +9,12 @@ Hecks.behaviors "LiquorStore" do
     expect sku: "sample", name: "sample", category: "sample", producer: "sample", region: "sample", abv: 1.0, price: 1.0, quantity: 1
   end
 
+  test "StockSpirit cascades through policy chain" do
+    tests "StockSpirit", on: "Spirit", kind: :cascade
+    input  sku: "sample", name: "sample", category: "sample", producer: "sample", region: "sample", abv: 1.0, price: 1.0, quantity: 1
+    expect emits: ["SpiritStocked", "VintageCataloged", "VintageScored", "TastingScheduled"]
+  end
+
 
   # ── Vintage aggregate ──────────────────────────────────────────
 
@@ -18,11 +24,24 @@ Hecks.behaviors "LiquorStore" do
     expect vintage_id: "sample", producer: "sample", year: 1, varietal: "sample", appellation: "sample"
   end
 
+  test "CatalogVintage cascades through policy chain" do
+    tests "CatalogVintage", on: "Vintage", kind: :cascade
+    input  vintage_id: "sample", producer: "sample", year: 1, varietal: "sample", appellation: "sample"
+    expect emits: ["VintageCataloged", "VintageScored", "TastingScheduled"]
+  end
+
   test "ScoreVintage sets score + drinking_window" do
     tests "ScoreVintage", on: "Vintage"
     setup  "CatalogVintage", vintage_id: "sample", producer: "sample", year: 1, varietal: "sample", appellation: "sample"
     input  score: 1.0, drinking_window: "sample"
     expect score: 1.0, drinking_window: "sample"
+  end
+
+  test "ScoreVintage cascades through policy chain" do
+    tests "ScoreVintage", on: "Vintage", kind: :cascade
+    setup  "CatalogVintage", vintage_id: "sample", producer: "sample", year: 1, varietal: "sample", appellation: "sample"
+    input  score: 1.0, drinking_window: "sample"
+    expect emits: ["VintageScored", "TastingScheduled"]
   end
 
 
@@ -49,11 +68,24 @@ Hecks.behaviors "LiquorStore" do
     expect count_id: "sample", count_date: "sample", discrepancies: 0, status: "in_progress"
   end
 
+  test "PerformCount cascades through policy chain" do
+    tests "PerformCount", on: "InventoryCount", kind: :cascade
+    input  count_id: "sample", count_date: "sample"
+    expect emits: ["CountPerformed", "CountReconciled", "SpiritMarkedDown"]
+  end
+
   test "ReconcileCount sets discrepancies" do
     tests "ReconcileCount", on: "InventoryCount"
     setup  "PerformCount", count_id: "sample", count_date: "sample"
     input  discrepancies: 1
     expect discrepancies: 1, status: "reconciled"
+  end
+
+  test "ReconcileCount cascades through policy chain" do
+    tests "ReconcileCount", on: "InventoryCount", kind: :cascade
+    setup  "PerformCount", count_id: "sample", count_date: "sample"
+    input  discrepancies: 1
+    expect emits: ["CountReconciled", "SpiritMarkedDown"]
   end
 
 
@@ -63,6 +95,12 @@ Hecks.behaviors "LiquorStore" do
     tests "RegisterLicense", on: "RegulatoryCompliance"
     input  compliance_id: "sample", license_type: "sample", license_number: "sample", expiration_date: "sample"
     expect compliance_id: "sample", license_type: "sample", license_number: "sample", expiration_date: "sample", status: "compliant"
+  end
+
+  test "RegisterLicense cascades through policy chain" do
+    tests "RegisterLicense", on: "RegulatoryCompliance", kind: :cascade
+    input  compliance_id: "sample", license_type: "sample", license_number: "sample", expiration_date: "sample"
+    expect emits: ["LicenseRegistered", "LicenseRenewed"]
   end
 
   test "RenewLicense sets new_expiration_date" do
@@ -76,6 +114,12 @@ Hecks.behaviors "LiquorStore" do
     tests "FlagViolation", on: "RegulatoryCompliance"
     setup  "RegisterLicense", compliance_id: "sample", license_type: "sample", license_number: "sample", expiration_date: "sample"
     expect status: "violation"
+  end
+
+  test "FlagViolation cascades through policy chain" do
+    tests "FlagViolation", on: "RegulatoryCompliance", kind: :cascade
+    setup  "RegisterLicense", compliance_id: "sample", license_type: "sample", license_number: "sample", expiration_date: "sample"
+    expect emits: ["ViolationFlagged", "CountPerformed", "CountReconciled", "SpiritMarkedDown"]
   end
 
 end

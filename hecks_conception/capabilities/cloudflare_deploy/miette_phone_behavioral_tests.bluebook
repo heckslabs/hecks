@@ -9,6 +9,12 @@ Hecks.behaviors "MiettePhone" do
     expect locked: "false"
   end
 
+  test "Authenticate cascades through policy chain" do
+    tests "Authenticate", on: "Gate", kind: :cascade
+    input  pin: "sample"
+    expect emits: ["SessionGranted", "ConversationStarted"]
+  end
+
   test "RevokeSession runs" do
     tests "RevokeSession", on: "Gate"
     setup  "Authenticate", pin: "sample"
@@ -36,10 +42,23 @@ Hecks.behaviors "MiettePhone" do
     expect ok: "true"
   end
 
+  test "SendMessage cascades through policy chain" do
+    tests "SendMessage", on: "Conversation", kind: :cascade
+    setup  "ActivateSession"
+    input  content: "sample"
+    expect emits: ["MessageSent", "MessageRelayed", "ReplyReceived", "ChatRendered", "StreamStarted"]
+  end
+
   test "ReceiveReply sets content + latency_ms" do
     tests "ReceiveReply", on: "Conversation"
     input  content: "sample", latency_ms: 1
     expect ok: "true"
+  end
+
+  test "ReceiveReply cascades through policy chain" do
+    tests "ReceiveReply", on: "Conversation", kind: :cascade
+    input  content: "sample", latency_ms: 1
+    expect emits: ["ReplyReceived", "ChatRendered"]
   end
 
 
@@ -55,6 +74,12 @@ Hecks.behaviors "MiettePhone" do
     tests "RelayMessage", on: "InferenceProxy"
     input  content: "sample"
     expect ok: "true"
+  end
+
+  test "RelayMessage cascades through policy chain" do
+    tests "RelayMessage", on: "InferenceProxy", kind: :cascade
+    input  content: "sample"
+    expect emits: ["MessageRelayed", "ReplyReceived", "ChatRendered"]
   end
 
   test "CheckHealth runs" do

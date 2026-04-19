@@ -9,6 +9,12 @@ Hecks.behaviors "SmartFacility" do
     expect resident_id: "sample", name: "sample", room_number: "sample", care_level: "sample", status: "active"
   end
 
+  test "AdmitResident cascades through policy chain" do
+    tests "AdmitResident", on: "Resident", kind: :cascade
+    input  resident_id: "sample", name: "sample", room_number: "sample", care_level: "sample"
+    expect emits: ["ResidentAdmitted", "ScheduleProvisioned"]
+  end
+
   test "TransferResident sets room_number + care_level" do
     tests "TransferResident", on: "Resident"
     setup  "AdmitResident", resident_id: "sample", name: "sample", room_number: "sample", care_level: "sample"
@@ -54,6 +60,12 @@ Hecks.behaviors "SmartFacility" do
     tests "PublishBoard", on: "ActivityBoard"
     input  board_id: "sample", date: "sample"
     expect board_id: "sample", date: "sample", status: "published"
+  end
+
+  test "PublishBoard cascades through policy chain" do
+    tests "PublishBoard", on: "ActivityBoard", kind: :cascade
+    input  board_id: "sample", date: "sample"
+    expect emits: ["BoardPublished", "ContentRefreshed"]
   end
 
   test "AddActivity sets name + time" do

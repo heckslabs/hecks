@@ -10,6 +10,13 @@ Hecks.behaviors "CloudHosting" do
     expect ok: "true"
   end
 
+  test "LaunchInstance cascades through policy chain" do
+    tests "LaunchInstance", on: "Instance", kind: :cascade
+    setup  "RegisterTenant", tenant_name: "sample", billing_email: "sample", plan_tier: "sample"
+    input  instance_id: "sample", region: "sample", machine_type: "sample", vcpus: 1, memory_gb: 1, image_id: "sample"
+    expect emits: ["InstanceLaunched", "DeploymentCreated", "ScalingRuleDefined"]
+  end
+
   test "TerminateInstance runs" do
     tests "TerminateInstance", on: "Instance"
     setup  "LaunchInstance", instance_id: "sample", region: "sample", machine_type: "sample", vcpus: 1, memory_gb: 1, image_id: "sample"
@@ -34,6 +41,13 @@ Hecks.behaviors "CloudHosting" do
     expect status: "active"
   end
 
+  test "ShipRelease cascades through policy chain" do
+    tests "ShipRelease", on: "Deployment", kind: :cascade
+    setup  "LaunchInstance", instance_id: "sample", region: "sample", machine_type: "sample", vcpus: 1, memory_gb: 1, image_id: "sample"
+    input  deploy_id: "sample", artifact_url: "sample", version_tag: "sample", strategy: "sample"
+    expect emits: ["DeploymentCreated", "ScalingRuleDefined"]
+  end
+
   test "RollbackDeployment runs" do
     tests "RollbackDeployment", on: "Deployment"
     setup  "ShipRelease", deploy_id: "sample", artifact_url: "sample", version_tag: "sample", strategy: "sample"
@@ -44,6 +58,12 @@ Hecks.behaviors "CloudHosting" do
     tests "FinalizeDeployment", on: "Deployment"
     setup  "ShipRelease", deploy_id: "sample", artifact_url: "sample", version_tag: "sample", strategy: "sample"
     expect ok: "true"
+  end
+
+  test "FinalizeDeployment cascades through policy chain" do
+    tests "FinalizeDeployment", on: "Deployment", kind: :cascade
+    setup  "ShipRelease", deploy_id: "sample", artifact_url: "sample", version_tag: "sample", strategy: "sample"
+    expect emits: ["DeploymentFinalized", "BillIssued", "TenantSuspended", "InstanceTerminated"]
   end
 
 
@@ -85,6 +105,25 @@ Hecks.behaviors "CloudHosting" do
     expect ok: "true"
   end
 
+  test "IssueBill cascades through policy chain" do
+    tests "IssueBill", on: "Tenant", kind: :cascade
+    setup  "RegisterTenant", tenant_name: "sample", billing_email: "sample", plan_tier: "sample"
+    input  amount: 1.0, period: "sample"
+    expect emits: ["BillIssued", "TenantSuspended", "InstanceTerminated"]
+  end
+
+  test "SuspendTenant runs" do
+    tests "SuspendTenant", on: "Tenant"
+    setup  "RegisterTenant", tenant_name: "sample", billing_email: "sample", plan_tier: "sample"
+    expect ok: "true"
+  end
+
+  test "SuspendTenant cascades through policy chain" do
+    tests "SuspendTenant", on: "Tenant", kind: :cascade
+    setup  "RegisterTenant", tenant_name: "sample", billing_email: "sample", plan_tier: "sample"
+    expect emits: ["TenantSuspended", "InstanceTerminated"]
+  end
+
 
   # ── Alert aggregate ──────────────────────────────────────────
 
@@ -95,10 +134,30 @@ Hecks.behaviors "CloudHosting" do
     expect ok: "true"
   end
 
+  test "RaiseAlert cascades through policy chain" do
+    tests "RaiseAlert", on: "Alert", kind: :cascade
+    setup  "LaunchInstance", instance_id: "sample", region: "sample", machine_type: "sample", vcpus: 1, memory_gb: 1, image_id: "sample"
+    input  alert_id: "sample", severity: "sample", message: "sample", source_metric: "sample"
+    expect emits: ["AlertRaised", "ScaledOut", "DeploymentRolledBack"]
+  end
+
   test "AcknowledgeAlert runs" do
     tests "AcknowledgeAlert", on: "Alert"
     setup  "RaiseAlert", alert_id: "sample", severity: "sample", message: "sample", source_metric: "sample"
     expect status: "acknowledged"
+  end
+
+  test "AcknowledgeAlert cascades through policy chain" do
+    tests "AcknowledgeAlert", on: "Alert", kind: :cascade
+    setup  "RaiseAlert", alert_id: "sample", severity: "sample", message: "sample", source_metric: "sample"
+    expect emits: ["AlertAcknowledged", "AlertResolved"]
+  end
+
+  test "ResolveAlert runs" do
+    tests "ResolveAlert", on: "Alert"
+    setup  "RaiseAlert", alert_id: "sample", severity: "sample", message: "sample", source_metric: "sample"
+    setup  "AcknowledgeAlert"
+    expect ok: "true"
   end
 
 end

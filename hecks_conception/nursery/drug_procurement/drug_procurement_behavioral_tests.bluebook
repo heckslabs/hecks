@@ -15,6 +15,12 @@ Hecks.behaviors "DrugProcurement" do
     expect regulatory_status: "cleared"
   end
 
+  test "ClearCompound cascades through policy chain" do
+    tests "ClearCompound", on: "Compound", kind: :cascade
+    setup  "RegisterCompound", compound_id: "sample", name: "sample", formula: "sample", therapeutic_class: "sample"
+    expect emits: ["CompoundCleared", "BidRoundOpened"]
+  end
+
 
   # ── BidRound aggregate ──────────────────────────────────────────
 
@@ -34,6 +40,12 @@ Hecks.behaviors "DrugProcurement" do
     tests "CloseBidRound", on: "BidRound"
     setup  "OpenBidRound", round_id: "sample", compound_id: "sample", reserve_price: 1.0
     expect status: "closed"
+  end
+
+  test "CloseBidRound cascades through policy chain" do
+    tests "CloseBidRound", on: "BidRound", kind: :cascade
+    setup  "OpenBidRound", round_id: "sample", compound_id: "sample", reserve_price: 1.0
+    expect emits: ["BidRoundClosed", "OrderAwarded"]
   end
 
 

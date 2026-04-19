@@ -9,6 +9,12 @@ Hecks.behaviors "PestControl" do
     expect customer_name: "sample", phone: "sample", email: "sample", service_address: "sample", property_type: "sample", status: "active"
   end
 
+  test "OpenAccount cascades through policy chain" do
+    tests "OpenAccount", on: "ServiceAccount", kind: :cascade
+    input  customer_name: "sample", phone: "sample", email: "sample", service_address: "sample", property_type: "sample"
+    expect emits: ["AccountOpened", "InspectionConducted", "TreatmentApplied", "ReentryTimeRecorded", "FollowUpScheduled", "ChemicalUsed"]
+  end
+
   test "SuspendAccount runs" do
     tests "SuspendAccount", on: "ServiceAccount"
     setup  "OpenAccount", customer_name: "sample", phone: "sample", email: "sample", service_address: "sample", property_type: "sample"
@@ -24,10 +30,30 @@ Hecks.behaviors "PestControl" do
 
   # ── InspectionReport aggregate ──────────────────────────────────────────
 
+  test "ConductInspection sets inspection_date + pest_type + severity + entry_points + recommendations" do
+    tests "ConductInspection", on: "InspectionReport"
+    setup  "OpenAccount", customer_name: "sample", phone: "sample", email: "sample", service_address: "sample", property_type: "sample"
+    input  inspection_date: "sample", pest_type: "sample", severity: "sample", entry_points: "sample", recommendations: "sample"
+    expect inspection_date: "sample", pest_type: "sample", severity: "sample", entry_points: "sample", recommendations: "sample", status: "completed"
+  end
+
+  test "ConductInspection cascades through policy chain" do
+    tests "ConductInspection", on: "InspectionReport", kind: :cascade
+    setup  "OpenAccount", customer_name: "sample", phone: "sample", email: "sample", service_address: "sample", property_type: "sample"
+    input  inspection_date: "sample", pest_type: "sample", severity: "sample", entry_points: "sample", recommendations: "sample"
+    expect emits: ["InspectionConducted", "TreatmentApplied", "ReentryTimeRecorded", "FollowUpScheduled", "ChemicalUsed"]
+  end
+
   test "FlagReinfestation runs" do
     tests "FlagReinfestation", on: "InspectionReport"
     setup  "ConductInspection", inspection_date: "sample", pest_type: "sample", severity: "sample", entry_points: "sample", recommendations: "sample"
-    expect inspection_date: "sample", pest_type: "sample", severity: "sample", entry_points: "sample", recommendations: "sample", status: "completed"
+    expect status: "reinfestation"
+  end
+
+  test "FlagReinfestation cascades through policy chain" do
+    tests "FlagReinfestation", on: "InspectionReport", kind: :cascade
+    setup  "ConductInspection", inspection_date: "sample", pest_type: "sample", severity: "sample", entry_points: "sample", recommendations: "sample"
+    expect emits: ["ReinfestationFlagged", "InspectionConducted", "TreatmentApplied", "ReentryTimeRecorded", "FollowUpScheduled", "ChemicalUsed"]
   end
 
 
@@ -39,6 +65,14 @@ Hecks.behaviors "PestControl" do
     setup  "OpenAccount", customer_name: "sample", phone: "sample", email: "sample", service_address: "sample", property_type: "sample"
     input  treatment_type: "sample", target_pest: "sample", application_method: "sample", areas_treated: "sample"
     expect treatment_type: "sample", target_pest: "sample", application_method: "sample", areas_treated: "sample", status: "applied"
+  end
+
+  test "ApplyTreatment cascades through policy chain" do
+    tests "ApplyTreatment", on: "TreatmentApplication", kind: :cascade
+    setup  "ConductInspection", inspection_date: "sample", pest_type: "sample", severity: "sample", entry_points: "sample", recommendations: "sample"
+    setup  "OpenAccount", customer_name: "sample", phone: "sample", email: "sample", service_address: "sample", property_type: "sample"
+    input  treatment_type: "sample", target_pest: "sample", application_method: "sample", areas_treated: "sample"
+    expect emits: ["TreatmentApplied", "ReentryTimeRecorded", "FollowUpScheduled", "ChemicalUsed"]
   end
 
   test "RecordReentryTime sets reentry_hours" do
@@ -85,6 +119,13 @@ Hecks.behaviors "PestControl" do
     setup  "ScheduleFollowUp", visit_date: "sample", purpose: "sample"
     input  findings: "sample"
     expect findings: "sample", status: "completed"
+  end
+
+  test "CompleteFollowUp cascades through policy chain" do
+    tests "CompleteFollowUp", on: "FollowUpVisit", kind: :cascade
+    setup  "ScheduleFollowUp", visit_date: "sample", purpose: "sample"
+    input  findings: "sample"
+    expect emits: ["FollowUpCompleted", "EffectivenessVerified"]
   end
 
 end

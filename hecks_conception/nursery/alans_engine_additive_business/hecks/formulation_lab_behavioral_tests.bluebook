@@ -9,6 +9,12 @@ Hecks.behaviors "FormulationLab" do
     expect codename: "sample", hypothesis: "sample", base_oil_type: "sample", additive_package: "sample", treat_rate_pct: 1.0, target_viscosity_grade: "sample", target_pour_point: "sample", target_flash_point: "sample", status: "proposed"
   end
 
+  test "ProposeFormula cascades through policy chain" do
+    tests "ProposeFormula", on: "ExperimentalFormula", kind: :cascade
+    input  codename: "sample", hypothesis: "sample", base_oil_type: "sample", additive_package: "sample", treat_rate_pct: 1.0, target_viscosity_grade: "sample", target_pour_point: "sample", target_flash_point: "sample"
+    expect emits: ["FormulaProposed", "LabTestOrdered"]
+  end
+
   test "AddComponent sets chemical_name + cas_number + function + percentage + supplier + cost_per_lb" do
     tests "AddComponent", on: "ExperimentalFormula"
     setup  "ProposeFormula", codename: "sample", hypothesis: "sample", base_oil_type: "sample", additive_package: "sample", treat_rate_pct: 1.0, target_viscosity_grade: "sample", target_pour_point: "sample", target_flash_point: "sample"
@@ -44,6 +50,14 @@ Hecks.behaviors "FormulationLab" do
     expect status: "promoted"
   end
 
+  test "PromoteToProduction cascades through policy chain" do
+    tests "PromoteToProduction", on: "ExperimentalFormula", kind: :cascade
+    setup  "ProposeFormula", codename: "sample", hypothesis: "sample", base_oil_type: "sample", additive_package: "sample", treat_rate_pct: 1.0, target_viscosity_grade: "sample", target_pour_point: "sample", target_flash_point: "sample"
+    setup  "SendToLabTest"
+    setup  "ReviewLabResults"
+    expect emits: ["FormulaPromoted", "PipelineRebalanced"]
+  end
+
   test "ShelveFormula runs" do
     tests "ShelveFormula", on: "ExperimentalFormula"
     setup  "ProposeFormula", codename: "sample", hypothesis: "sample", base_oil_type: "sample", additive_package: "sample", treat_rate_pct: 1.0, target_viscosity_grade: "sample", target_pour_point: "sample", target_flash_point: "sample"
@@ -64,6 +78,13 @@ Hecks.behaviors "FormulationLab" do
     setup  "OrderLabTest", formula_codename: "sample", test_method: "sample", specification: "sample"
     input  actual_result: "sample", pass_fail: "sample", tested_by: "sample", tested_at: "sample"
     expect actual_result: "sample", pass_fail: "sample", tested_by: "sample", tested_at: "sample"
+  end
+
+  test "RecordLabResult cascades through policy chain" do
+    tests "RecordLabResult", on: "LabTest", kind: :cascade
+    setup  "OrderLabTest", formula_codename: "sample", test_method: "sample", specification: "sample"
+    input  actual_result: "sample", pass_fail: "sample", tested_by: "sample", tested_at: "sample"
+    expect emits: ["LabResultRecorded", "ThesisDrafted"]
   end
 
   test "CompareToSpec runs" do
@@ -121,6 +142,12 @@ Hecks.behaviors "FormulationLab" do
     expect status: "validated"
   end
 
+  test "ValidateThesis cascades through policy chain" do
+    tests "ValidateThesis", on: "MarketThesis", kind: :cascade
+    setup  "WriteThesis", formula_codename: "sample", problem_statement: "sample", target_segment: "sample", competitive_gap: "sample", value_proposition: "sample"
+    expect emits: ["ThesisValidated", "PreviewGenerated"]
+  end
+
 
   # ── MarketingPreview aggregate ──────────────────────────────────────────
 
@@ -162,6 +189,13 @@ Hecks.behaviors "FormulationLab" do
     setup  "GeneratePreview", formula_codename: "sample", proposed_product_name: "sample", headline: "sample", key_message: "sample"
     setup  "PresentToStakeholder"
     expect status: "approved"
+  end
+
+  test "ApproveForDevelopment cascades through policy chain" do
+    tests "ApproveForDevelopment", on: "MarketingPreview", kind: :cascade
+    setup  "GeneratePreview", formula_codename: "sample", proposed_product_name: "sample", headline: "sample", key_message: "sample"
+    setup  "PresentToStakeholder"
+    expect emits: ["PreviewApproved", "ImpactAnalyzed"]
   end
 
   test "RejectPreview runs" do

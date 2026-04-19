@@ -9,6 +9,12 @@ Hecks.behaviors "UrbanForestry" do
     expect species: "sample", common_name: "sample", dbh_cm: 1.0, height_m: 1.0, canopy_spread_m: 1.0, health_rating: "good", status: "healthy"
   end
 
+  test "InventoryTree cascades through policy chain" do
+    tests "InventoryTree", on: "Tree", kind: :cascade
+    input  species: "sample", common_name: "sample", dbh_cm: 1.0, height_m: 1.0, canopy_spread_m: 1.0
+    expect emits: ["TreeInventoried", "HealthAssessed"]
+  end
+
   test "AssessHealth sets health_rating" do
     tests "AssessHealth", on: "Tree"
     setup  "InventoryTree", species: "sample", common_name: "sample", dbh_cm: 1.0, height_m: 1.0, canopy_spread_m: 1.0
@@ -20,6 +26,12 @@ Hecks.behaviors "UrbanForestry" do
     tests "FlagForRemoval", on: "Tree"
     setup  "InventoryTree", species: "sample", common_name: "sample", dbh_cm: 1.0, height_m: 1.0, canopy_spread_m: 1.0
     expect status: "removal_pending"
+  end
+
+  test "FlagForRemoval cascades through policy chain" do
+    tests "FlagForRemoval", on: "Tree", kind: :cascade
+    setup  "InventoryTree", species: "sample", common_name: "sample", dbh_cm: 1.0, height_m: 1.0, canopy_spread_m: 1.0
+    expect emits: ["TreeFlaggedForRemoval", "PermitApplicationSubmitted", "PermitReviewed", "PermitApproved"]
   end
 
   test "RemoveTree runs" do
@@ -41,7 +53,27 @@ Hecks.behaviors "UrbanForestry" do
   test "ApprovePlan runs" do
     tests "ApprovePlan", on: "PlantingPlan"
     setup  "DraftPlantingPlan", name: "sample", site_address: "sample", tree_count: 1, primary_species: "sample", spacing_m: 1.0, season: "sample"
+    expect status: "approved"
+  end
+
+  test "ApprovePlan cascades through policy chain" do
+    tests "ApprovePlan", on: "PlantingPlan", kind: :cascade
+    setup  "DraftPlantingPlan", name: "sample", site_address: "sample", tree_count: 1, primary_species: "sample", spacing_m: 1.0, season: "sample"
+    expect emits: ["PlantingPlanApproved", "PlantingExecuted", "MaintenanceScheduled"]
+  end
+
+  test "ExecutePlanting runs" do
+    tests "ExecutePlanting", on: "PlantingPlan"
+    setup  "DraftPlantingPlan", name: "sample", site_address: "sample", tree_count: 1, primary_species: "sample", spacing_m: 1.0, season: "sample"
+    setup  "ApprovePlan"
     expect status: "planted"
+  end
+
+  test "ExecutePlanting cascades through policy chain" do
+    tests "ExecutePlanting", on: "PlantingPlan", kind: :cascade
+    setup  "DraftPlantingPlan", name: "sample", site_address: "sample", tree_count: 1, primary_species: "sample", spacing_m: 1.0, season: "sample"
+    setup  "ApprovePlan"
+    expect emits: ["PlantingExecuted", "MaintenanceScheduled"]
   end
 
 
@@ -75,10 +107,36 @@ Hecks.behaviors "UrbanForestry" do
     expect permit_type: "sample", tree_species: "sample", site_address: "sample", applicant: "sample", justification: "sample", status: "submitted"
   end
 
+  test "ApplyForPermit cascades through policy chain" do
+    tests "ApplyForPermit", on: "TreePermit", kind: :cascade
+    input  permit_type: "sample", tree_species: "sample", site_address: "sample", applicant: "sample", justification: "sample"
+    expect emits: ["PermitApplicationSubmitted", "PermitReviewed", "PermitApproved"]
+  end
+
   test "ReviewPermit runs" do
     tests "ReviewPermit", on: "TreePermit"
     setup  "ApplyForPermit", permit_type: "sample", tree_species: "sample", site_address: "sample", applicant: "sample", justification: "sample"
+    expect status: "reviewed"
+  end
+
+  test "ReviewPermit cascades through policy chain" do
+    tests "ReviewPermit", on: "TreePermit", kind: :cascade
+    setup  "ApplyForPermit", permit_type: "sample", tree_species: "sample", site_address: "sample", applicant: "sample", justification: "sample"
+    expect emits: ["PermitReviewed", "PermitApproved"]
+  end
+
+  test "ApprovePermit runs" do
+    tests "ApprovePermit", on: "TreePermit"
+    setup  "ApplyForPermit", permit_type: "sample", tree_species: "sample", site_address: "sample", applicant: "sample", justification: "sample"
+    setup  "ReviewPermit"
     expect status: "approved"
+  end
+
+  test "DenyPermit runs" do
+    tests "DenyPermit", on: "TreePermit"
+    setup  "ApplyForPermit", permit_type: "sample", tree_species: "sample", site_address: "sample", applicant: "sample", justification: "sample"
+    setup  "ReviewPermit"
+    expect status: "denied"
   end
 
 end

@@ -25,6 +25,12 @@ Hecks.behaviors "WebApplicationCreation" do
     expect app_path: "sample", bluebook_path: "sample"
   end
 
+  test "ScanApp cascades through policy chain" do
+    tests "ScanApp", on: "DomainCompliance", kind: :cascade
+    input  app_path: "sample", bluebook_path: "sample"
+    expect emits: ["AppScanned", "ComplianceReported"]
+  end
+
   test "ReportCompliance sets total_elements + tagged_elements + orphan_elements + missing_commands" do
     tests "ReportCompliance", on: "DomainCompliance"
     setup  "ScanApp", app_path: "sample", bluebook_path: "sample"
@@ -83,6 +89,12 @@ Hecks.behaviors "WebApplicationCreation" do
     expect name: "sample", page_type: "sample", aggregate_name: "sample", route: "sample", status: "generated"
   end
 
+  test "GeneratePage cascades through policy chain" do
+    tests "GeneratePage", on: "Page", kind: :cascade
+    input  name: "sample", page_type: "sample", aggregate_name: "sample", route: "sample"
+    expect emits: ["PageGenerated", "AppScanned", "ComplianceReported"]
+  end
+
   test "CustomizePage runs" do
     tests "CustomizePage", on: "Page"
     setup  "GeneratePage", name: "sample", page_type: "sample", aggregate_name: "sample", route: "sample"
@@ -117,6 +129,12 @@ Hecks.behaviors "WebApplicationCreation" do
     tests "GenerateShell", on: "AppShell"
     input  app_name: "sample", layout_type: "sample"
     expect app_name: "sample", layout_type: "sample"
+  end
+
+  test "GenerateShell cascades through policy chain" do
+    tests "GenerateShell", on: "AppShell", kind: :cascade
+    input  app_name: "sample", layout_type: "sample"
+    expect emits: ["ShellGenerated", "NavigationBuilt"]
   end
 
   test "BuildNavigation runs" do

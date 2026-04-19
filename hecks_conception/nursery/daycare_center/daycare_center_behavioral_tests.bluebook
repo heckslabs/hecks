@@ -9,6 +9,12 @@ Hecks.behaviors "DaycareCenter" do
     expect first_name: "sample", last_name: "sample", date_of_birth: "sample", allergies: "sample", classroom: "sample", status: "active"
   end
 
+  test "EnrollChild cascades through policy chain" do
+    tests "EnrollChild", on: "Child", kind: :cascade
+    input  first_name: "sample", last_name: "sample", date_of_birth: "sample", allergies: "sample", classroom: "sample"
+    expect emits: ["ChildEnrolled", "MealsPlanned", "MealSubstituted", "ChildCheckedIn", "ChildCheckedOut"]
+  end
+
   test "TransferClassroom sets new_classroom" do
     tests "TransferClassroom", on: "Child"
     setup  "EnrollChild", first_name: "sample", last_name: "sample", date_of_birth: "sample", allergies: "sample", classroom: "sample"
@@ -47,6 +53,13 @@ Hecks.behaviors "DaycareCenter" do
     expect attendance_date: "sample", check_in_time: "sample", checked_in_by: "sample", status: "present"
   end
 
+  test "CheckInChild cascades through policy chain" do
+    tests "CheckInChild", on: "DailyAttendance", kind: :cascade
+    setup  "EnrollChild", first_name: "sample", last_name: "sample", date_of_birth: "sample", allergies: "sample", classroom: "sample"
+    input  attendance_date: "sample", check_in_time: "sample", checked_in_by: "sample"
+    expect emits: ["ChildCheckedIn", "ChildCheckedOut"]
+  end
+
   test "CheckOutChild sets check_out_time + checked_out_by" do
     tests "CheckOutChild", on: "DailyAttendance"
     setup  "CheckInChild", attendance_date: "sample", check_in_time: "sample", checked_in_by: "sample"
@@ -70,6 +83,12 @@ Hecks.behaviors "DaycareCenter" do
     expect meal_date: "sample", classroom: "sample", breakfast: "sample", lunch: "sample", snack: "sample"
   end
 
+  test "PlanMeals cascades through policy chain" do
+    tests "PlanMeals", on: "MealPlan", kind: :cascade
+    input  meal_date: "sample", classroom: "sample", breakfast: "sample", lunch: "sample", snack: "sample"
+    expect emits: ["MealsPlanned", "MealSubstituted"]
+  end
+
   test "SubstituteMeal sets meal_type + replacement + dietary_notes" do
     tests "SubstituteMeal", on: "MealPlan"
     setup  "PlanMeals", meal_date: "sample", classroom: "sample", breakfast: "sample", lunch: "sample", snack: "sample"
@@ -87,10 +106,29 @@ Hecks.behaviors "DaycareCenter" do
     expect incident_date: "sample", incident_time: "sample", description: "sample", severity: "sample", action_taken: "sample", status: "filed", guardian_notified: "no"
   end
 
+  test "FileIncident cascades through policy chain" do
+    tests "FileIncident", on: "IncidentReport", kind: :cascade
+    setup  "EnrollChild", first_name: "sample", last_name: "sample", date_of_birth: "sample", allergies: "sample", classroom: "sample"
+    input  incident_date: "sample", incident_time: "sample", description: "sample", severity: "sample", action_taken: "sample"
+    expect emits: ["IncidentFiled", "GuardianNotified", "IncidentClosed"]
+  end
+
   test "NotifyGuardian runs" do
     tests "NotifyGuardian", on: "IncidentReport"
     setup  "FileIncident", incident_date: "sample", incident_time: "sample", description: "sample", severity: "sample", action_taken: "sample"
-    expect guardian_notified: "yes", status: "closed"
+    expect guardian_notified: "yes"
+  end
+
+  test "NotifyGuardian cascades through policy chain" do
+    tests "NotifyGuardian", on: "IncidentReport", kind: :cascade
+    setup  "FileIncident", incident_date: "sample", incident_time: "sample", description: "sample", severity: "sample", action_taken: "sample"
+    expect emits: ["GuardianNotified", "IncidentClosed"]
+  end
+
+  test "CloseIncident runs" do
+    tests "CloseIncident", on: "IncidentReport"
+    setup  "FileIncident", incident_date: "sample", incident_time: "sample", description: "sample", severity: "sample", action_taken: "sample"
+    expect status: "closed"
   end
 
 end

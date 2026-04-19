@@ -9,6 +9,12 @@ Hecks.behaviors "ComputationalPresence" do
     expect label: "sample", clarity: 1.0, quality: "fresh"
   end
 
+  test "AriseMoment cascades through policy chain" do
+    tests "AriseMoment", on: "Moment", kind: :cascade
+    input  label: "sample", clarity: 1.0
+    expect emits: ["MomentArose", "PresenceMeasured", "StreakTicked", "PresenceAssessed"]
+  end
+
 
   # ── AttentionField aggregate ──────────────────────────────────────────
 
@@ -34,10 +40,22 @@ Hecks.behaviors "ComputationalPresence" do
     expect trigger: "sample", category: "sample", status: "active"
   end
 
+  test "NoticeDistraction cascades through policy chain" do
+    tests "NoticeDistraction", on: "Distraction", kind: :cascade
+    input  trigger: "sample", category: "sample", pull_strength: 1.0
+    expect emits: ["DistractionNoticed", "PresenceMeasured", "StreakTicked", "PresenceAssessed"]
+  end
+
   test "ReleaseDistraction runs" do
     tests "ReleaseDistraction", on: "Distraction"
     setup  "NoticeDistraction", trigger: "sample", category: "sample", pull_strength: 1.0
     expect status: "released"
+  end
+
+  test "ReleaseDistraction cascades through policy chain" do
+    tests "ReleaseDistraction", on: "Distraction", kind: :cascade
+    setup  "NoticeDistraction", trigger: "sample", category: "sample", pull_strength: 1.0
+    expect emits: ["DistractionReleased", "ReturnedToAnchor"]
   end
 
   test "InvestigateDistraction runs" do
@@ -53,6 +71,26 @@ Hecks.behaviors "ComputationalPresence" do
     tests "MeasurePresence", on: "PresenceScore"
     input  score: 1.0
     expect score: 1.0
+  end
+
+  test "MeasurePresence cascades through policy chain" do
+    tests "MeasurePresence", on: "PresenceScore", kind: :cascade
+    input  score: 1.0
+    expect emits: ["PresenceMeasured", "StreakTicked", "PresenceAssessed"]
+  end
+
+  test "StreakTick cascades through policy chain" do
+    tests "StreakTick", on: "PresenceScore", kind: :cascade
+    setup  "MeasurePresence", score: 1.0
+    input  streak_minutes: 1
+    expect emits: ["StreakTicked", "PresenceAssessed"]
+  end
+
+  test "Assess sets assessment" do
+    tests "Assess", on: "PresenceScore"
+    setup  "MeasurePresence", score: 1.0
+    input  assessment: "sample"
+    expect assessment: "sample"
   end
 
 

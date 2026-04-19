@@ -45,6 +45,12 @@ Hecks.behaviors "Physics" do
     expect name: "sample", force_type: "sample", magnitude: 1.0, direction_x: 1.0, direction_y: 1.0, direction_z: 1.0, source: "sample", target: "sample"
   end
 
+  test "ApplyForce cascades through policy chain" do
+    tests "ApplyForce", on: "Force", kind: :cascade
+    input  name: "sample", force_type: "sample", magnitude: 1.0, direction_x: 1.0, direction_y: 1.0, direction_z: 1.0, source: "sample", target: "sample"
+    expect emits: ["ForceApplied", "MagnitudeCalculated", "ComponentsResolved", "NewtonLawApplied"]
+  end
+
   test "CalculateMagnitude runs" do
     tests "CalculateMagnitude", on: "Force"
     setup  "ApplyForce", name: "sample", force_type: "sample", magnitude: 1.0, direction_x: 1.0, direction_y: 1.0, direction_z: 1.0, source: "sample", target: "sample"
@@ -86,11 +92,25 @@ Hecks.behaviors "Physics" do
     expect acceleration_x: 1.0, acceleration_y: 1.0, acceleration_z: 1.0
   end
 
+  test "Accelerate cascades through policy chain" do
+    tests "Accelerate", on: "Motion", kind: :cascade
+    setup  "InitiateMotion", body_name: "sample", velocity_x: 1.0, velocity_y: 1.0, velocity_z: 1.0
+    input  acceleration_x: 1.0, acceleration_y: 1.0, acceleration_z: 1.0
+    expect emits: ["BodyAccelerated", "TrajectoryCalculated"]
+  end
+
   test "Decelerate sets deceleration_x + deceleration_y + deceleration_z" do
     tests "Decelerate", on: "Motion"
     setup  "InitiateMotion", body_name: "sample", velocity_x: 1.0, velocity_y: 1.0, velocity_z: 1.0
     input  deceleration_x: 1.0, deceleration_y: 1.0, deceleration_z: 1.0
     expect status: "at_rest"
+  end
+
+  test "CalculateTrajectory sets time_duration + time_step" do
+    tests "CalculateTrajectory", on: "Motion"
+    setup  "InitiateMotion", body_name: "sample", velocity_x: 1.0, velocity_y: 1.0, velocity_z: 1.0
+    input  time_duration: 1.0, time_step: 1.0
+    expect ok: "true"
   end
 
   test "ApplyNewtonLaw sets net_force + mass" do
@@ -107,6 +127,12 @@ Hecks.behaviors "Physics" do
     tests "TransferEnergy", on: "Energy"
     input  name: "sample", energy_type: "sample", magnitude: 1.0, source: "sample"
     expect name: "sample", energy_type: "sample", magnitude: 1.0, source: "sample", status: "transferred"
+  end
+
+  test "TransferEnergy cascades through policy chain" do
+    tests "TransferEnergy", on: "Energy", kind: :cascade
+    input  name: "sample", energy_type: "sample", magnitude: 1.0, source: "sample"
+    expect emits: ["EnergyTransferred", "EnergyConserved"]
   end
 
   test "ConvertEnergy sets target_type + efficiency" do
@@ -144,6 +170,12 @@ Hecks.behaviors "Physics" do
     tests "PropagateWave", on: "Wave"
     input  name: "sample", wave_type: "sample", amplitude: 1.0, frequency: 1.0, wavelength: 1.0, medium: "sample"
     expect name: "sample", wave_type: "sample", amplitude: 1.0, frequency: 1.0, wavelength: 1.0, medium: "sample", status: "propagating"
+  end
+
+  test "PropagateWave cascades through policy chain" do
+    tests "PropagateWave", on: "Wave", kind: :cascade
+    input  name: "sample", wave_type: "sample", amplitude: 1.0, frequency: 1.0, wavelength: 1.0, medium: "sample"
+    expect emits: ["WavePropagated", "FrequencyCalculated"]
   end
 
   test "InterfereWaves sets other_amplitude + other_frequency + phase_difference" do
@@ -189,9 +221,28 @@ Hecks.behaviors "Physics" do
     expect name: "sample", field_type: "sample", strength: 1.0
   end
 
+  test "DefineField cascades through policy chain" do
+    tests "DefineField", on: "Field", kind: :cascade
+    input  name: "sample", field_type: "sample", strength: 1.0
+    expect emits: ["FieldDefined", "FieldLinesMapped", "FluxCalculated"]
+  end
+
   test "MapFieldLines runs" do
     tests "MapFieldLines", on: "Field"
     setup  "DefineField", name: "sample", field_type: "sample", strength: 1.0
+    expect ok: "true"
+  end
+
+  test "MapFieldLines cascades through policy chain" do
+    tests "MapFieldLines", on: "Field", kind: :cascade
+    setup  "DefineField", name: "sample", field_type: "sample", strength: 1.0
+    expect emits: ["FieldLinesMapped", "FluxCalculated"]
+  end
+
+  test "CalculateFlux sets surface_area + angle" do
+    tests "CalculateFlux", on: "Field"
+    setup  "DefineField", name: "sample", field_type: "sample", strength: 1.0
+    input  surface_area: 1.0, angle: 1.0
     expect ok: "true"
   end
 
@@ -216,6 +267,12 @@ Hecks.behaviors "Physics" do
     tests "TransferHeat", on: "ThermoSystem"
     input  name: "sample", heat: 1.0, temperature: 1.0
     expect name: "sample", heat: 1.0, temperature: 1.0, status: "active"
+  end
+
+  test "TransferHeat cascades through policy chain" do
+    tests "TransferHeat", on: "ThermoSystem", kind: :cascade
+    input  name: "sample", heat: 1.0, temperature: 1.0
+    expect emits: ["HeatTransferred", "EntropyCalculated"]
   end
 
   test "MeasureTemperature sets temperature" do
@@ -272,6 +329,21 @@ Hecks.behaviors "Physics" do
     tests "MeasureObservable", on: "QuantumState"
     setup  "PrepareState", name: "sample", system_type: "sample", num_qubits: 1
     input  observable_name: "sample", operator: "sample"
+    expect ok: "true"
+  end
+
+  test "MeasureObservable cascades through policy chain" do
+    tests "MeasureObservable", on: "QuantumState", kind: :cascade
+    setup  "PrepareState", name: "sample", system_type: "sample", num_qubits: 1
+    input  observable_name: "sample", operator: "sample"
+    expect emits: ["ObservableMeasured", "WavefunctionCollapsed"]
+  end
+
+  test "CollapseWavefunction sets measured_value" do
+    tests "CollapseWavefunction", on: "QuantumState"
+    setup  "PrepareState", name: "sample", system_type: "sample", num_qubits: 1
+    setup  "SuperposeStates"
+    input  measured_value: 1.0
     expect coherent: "false", status: "collapsed"
   end
 
@@ -282,6 +354,12 @@ Hecks.behaviors "Physics" do
     tests "TransformFrame", on: "SpacetimeEvent"
     input  name: "sample", frame: "sample", relative_velocity: 1.0
     expect name: "sample", frame: "sample"
+  end
+
+  test "TransformFrame cascades through policy chain" do
+    tests "TransformFrame", on: "SpacetimeEvent", kind: :cascade
+    input  name: "sample", frame: "sample", relative_velocity: 1.0
+    expect emits: ["FrameTransformed", "TimeDilationCalculated"]
   end
 
   test "CalculateTimeDilation sets velocity" do
@@ -319,6 +397,12 @@ Hecks.behaviors "Physics" do
     tests "BuildCircuit", on: "Circuit"
     input  name: "sample", circuit_type: "sample", voltage: 1.0
     expect name: "sample", circuit_type: "sample", voltage: 1.0, status: "open"
+  end
+
+  test "BuildCircuit cascades through policy chain" do
+    tests "BuildCircuit", on: "Circuit", kind: :cascade
+    input  name: "sample", circuit_type: "sample", voltage: 1.0
+    expect emits: ["CircuitBuilt", "OhmsLawApplied"]
   end
 
   test "ApplyOhmsLaw sets voltage + resistance" do

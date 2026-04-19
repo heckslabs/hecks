@@ -9,6 +9,12 @@ Hecks.behaviors "AirportSecurity" do
     expect checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1, status: "open"
   end
 
+  test "OpenCheckpoint cascades through policy chain" do
+    tests "OpenCheckpoint", on: "Checkpoint", kind: :cascade
+    input  checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
+    expect emits: ["CheckpointOpened", "OfficerDeployed"]
+  end
+
   test "CloseCheckpoint runs" do
     tests "CloseCheckpoint", on: "Checkpoint"
     setup  "OpenCheckpoint", checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
@@ -44,6 +50,19 @@ Hecks.behaviors "AirportSecurity" do
     expect status: "installed", scans_today: 0
   end
 
+  test "InstallScanner cascades through policy chain" do
+    tests "InstallScanner", on: "Scanner", kind: :cascade
+    setup  "OpenCheckpoint", checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
+    input  scanner_id: "sample", scanner_type: "sample"
+    expect emits: ["ScannerInstalled", "ScannerCalibrated"]
+  end
+
+  test "CalibrateScanner runs" do
+    tests "CalibrateScanner", on: "Scanner"
+    setup  "InstallScanner", scanner_id: "sample", scanner_type: "sample"
+    expect status: "operational"
+  end
+
   test "PerformScan runs" do
     tests "PerformScan", on: "Scanner"
     setup  "InstallScanner", scanner_id: "sample", scanner_type: "sample"
@@ -58,12 +77,27 @@ Hecks.behaviors "AirportSecurity" do
     expect status: "faulty"
   end
 
+  test "FlagMalfunction cascades through policy chain" do
+    tests "FlagMalfunction", on: "Scanner", kind: :cascade
+    setup  "InstallScanner", scanner_id: "sample", scanner_type: "sample"
+    setup  "CalibrateScanner"
+    expect emits: ["ScannerMalfunctioned", "CheckpointClosed"]
+  end
+
   test "RepairScanner runs" do
     tests "RepairScanner", on: "Scanner"
     setup  "InstallScanner", scanner_id: "sample", scanner_type: "sample"
     setup  "CalibrateScanner"
     setup  "FlagMalfunction"
-    expect status: "operational"
+    expect status: "installed"
+  end
+
+  test "RepairScanner cascades through policy chain" do
+    tests "RepairScanner", on: "Scanner", kind: :cascade
+    setup  "InstallScanner", scanner_id: "sample", scanner_type: "sample"
+    setup  "CalibrateScanner"
+    setup  "FlagMalfunction"
+    expect emits: ["ScannerRepaired", "ScannerCalibrated"]
   end
 
 
@@ -93,6 +127,14 @@ Hecks.behaviors "AirportSecurity" do
     expect status: "open"
   end
 
+  test "ReportIncident cascades through policy chain" do
+    tests "ReportIncident", on: "Incident", kind: :cascade
+    setup  "DeployOfficer", badge_number: "sample", name: "sample", clearance_level: "sample"
+    setup  "OpenCheckpoint", checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
+    input  incident_type: "sample", severity: "sample", description: "sample"
+    expect emits: ["IncidentReported", "HighAlertActivated", "InvestigationStarted"]
+  end
+
   test "InvestigateIncident runs" do
     tests "InvestigateIncident", on: "Incident"
     setup  "ReportIncident", incident_type: "sample", severity: "sample", description: "sample"
@@ -105,6 +147,14 @@ Hecks.behaviors "AirportSecurity" do
     setup  "InvestigateIncident"
     input  resolution: "sample"
     expect status: "resolved"
+  end
+
+  test "ResolveIncident cascades through policy chain" do
+    tests "ResolveIncident", on: "Incident", kind: :cascade
+    setup  "ReportIncident", incident_type: "sample", severity: "sample", description: "sample"
+    setup  "InvestigateIncident"
+    input  resolution: "sample"
+    expect emits: ["IncidentResolved", "CheckpointStoodDown"]
   end
 
 end

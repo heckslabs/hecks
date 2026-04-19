@@ -9,6 +9,12 @@ Hecks.behaviors "Hospice" do
     expect name: "sample", date_of_birth: "sample", terminal_diagnosis: "sample", prognosis: "sample", advance_directive: "sample", status: "active"
   end
 
+  test "AdmitToHospice cascades through policy chain" do
+    tests "AdmitToHospice", on: "Patient", kind: :cascade
+    input  name: "sample", date_of_birth: "sample", terminal_diagnosis: "sample", prognosis: "sample", advance_directive: "sample"
+    expect emits: ["PatientAdmittedToHospice", "ComfortPlanDrafted", "HospiceMedicationPrescribed", "HospiceVisitScheduled", "FamilyContactRegistered", "SupportSessionScheduled"]
+  end
+
   test "RecertifyHospice runs" do
     tests "RecertifyHospice", on: "Patient"
     setup  "AdmitToHospice", name: "sample", date_of_birth: "sample", terminal_diagnosis: "sample", prognosis: "sample", advance_directive: "sample"
@@ -21,6 +27,12 @@ Hecks.behaviors "Hospice" do
     expect status: "deceased"
   end
 
+  test "RecordPassing cascades through policy chain" do
+    tests "RecordPassing", on: "Patient", kind: :cascade
+    setup  "AdmitToHospice", name: "sample", date_of_birth: "sample", terminal_diagnosis: "sample", prognosis: "sample", advance_directive: "sample"
+    expect emits: ["PatientPassed", "BereavementCareStarted"]
+  end
+
 
   # ── ComfortPlan aggregate ──────────────────────────────────────────
 
@@ -31,11 +43,32 @@ Hecks.behaviors "Hospice" do
     expect patient_name: "sample", pain_management_approach: "sample", spiritual_preferences: "sample", status: "active"
   end
 
+  test "DraftComfortPlan cascades through policy chain" do
+    tests "DraftComfortPlan", on: "ComfortPlan", kind: :cascade
+    setup  "AdmitToHospice", name: "sample", date_of_birth: "sample", terminal_diagnosis: "sample", prognosis: "sample", advance_directive: "sample"
+    input  patient_name: "sample", pain_management_approach: "sample", spiritual_preferences: "sample"
+    expect emits: ["ComfortPlanDrafted", "HospiceMedicationPrescribed", "HospiceVisitScheduled"]
+  end
+
+  test "AddIntervention sets symptom + intervention + frequency" do
+    tests "AddIntervention", on: "ComfortPlan"
+    setup  "DraftComfortPlan", patient_name: "sample", pain_management_approach: "sample", spiritual_preferences: "sample"
+    input  symptom: "sample", intervention: "sample", frequency: "sample"
+    expect ok: "true"
+  end
+
   test "AdjustPainManagement sets pain_management_approach" do
     tests "AdjustPainManagement", on: "ComfortPlan"
     setup  "DraftComfortPlan", patient_name: "sample", pain_management_approach: "sample", spiritual_preferences: "sample"
     input  pain_management_approach: "sample"
     expect pain_management_approach: "sample"
+  end
+
+  test "AdjustPainManagement cascades through policy chain" do
+    tests "AdjustPainManagement", on: "ComfortPlan", kind: :cascade
+    setup  "DraftComfortPlan", patient_name: "sample", pain_management_approach: "sample", spiritual_preferences: "sample"
+    input  pain_management_approach: "sample"
+    expect emits: ["PainManagementAdjusted", "DosageTitrated", "InterventionAdded"]
   end
 
 
@@ -46,6 +79,13 @@ Hecks.behaviors "Hospice" do
     setup  "AdmitToHospice", name: "sample", date_of_birth: "sample", terminal_diagnosis: "sample", prognosis: "sample", advance_directive: "sample"
     input  family_contact_name: "sample", patient_name: "sample", relationship: "sample"
     expect family_contact_name: "sample", patient_name: "sample", relationship: "sample", bereavement_status: "pre-loss"
+  end
+
+  test "RegisterFamilyContact cascades through policy chain" do
+    tests "RegisterFamilyContact", on: "FamilySupport", kind: :cascade
+    setup  "AdmitToHospice", name: "sample", date_of_birth: "sample", terminal_diagnosis: "sample", prognosis: "sample", advance_directive: "sample"
+    input  family_contact_name: "sample", patient_name: "sample", relationship: "sample"
+    expect emits: ["FamilyContactRegistered", "SupportSessionScheduled"]
   end
 
   test "ScheduleSupportSession sets session_date + session_type + counselor_name" do
@@ -93,6 +133,13 @@ Hecks.behaviors "Hospice" do
     setup  "ScheduleHospiceVisit", patient_name: "sample", visitor_name: "sample", visitor_role: "sample", visit_date: "sample"
     input  pain_score: 1, notes: "sample"
     expect pain_score: 1, notes: "sample", status: "completed"
+  end
+
+  test "CompleteHospiceVisit cascades through policy chain" do
+    tests "CompleteHospiceVisit", on: "HospiceVisit", kind: :cascade
+    setup  "ScheduleHospiceVisit", patient_name: "sample", visitor_name: "sample", visitor_role: "sample", visit_date: "sample"
+    input  pain_score: 1, notes: "sample"
+    expect emits: ["HospiceVisitCompleted", "PainManagementAdjusted", "DosageTitrated", "InterventionAdded"]
   end
 
 end

@@ -24,11 +24,24 @@ Hecks.behaviors "GeriatricPharmacy" do
     expect name: "sample", age: 1, weight_kg: 1.0, creatinine_clearance_ml_min: 1.0, hepatic_function: "sample", status: "active"
   end
 
+  test "AdmitResident cascades through policy chain" do
+    tests "AdmitResident", on: "Resident", kind: :cascade
+    input  name: "sample", age: 1, weight_kg: 1.0, creatinine_clearance_ml_min: 1.0, hepatic_function: "sample"
+    expect emits: ["ResidentAdmitted", "InteractionScreened", "ActionRecommended", "DoseCalculated"]
+  end
+
   test "ReconcileRenalFunction sets creatinine_clearance_ml_min" do
     tests "ReconcileRenalFunction", on: "Resident"
     setup  "AdmitResident", name: "sample", age: 1, weight_kg: 1.0, creatinine_clearance_ml_min: 1.0, hepatic_function: "sample"
     input  creatinine_clearance_ml_min: 1.0
     expect creatinine_clearance_ml_min: 1.0
+  end
+
+  test "ReconcileRenalFunction cascades through policy chain" do
+    tests "ReconcileRenalFunction", on: "Resident", kind: :cascade
+    setup  "AdmitResident", name: "sample", age: 1, weight_kg: 1.0, creatinine_clearance_ml_min: 1.0, hepatic_function: "sample"
+    input  creatinine_clearance_ml_min: 1.0
+    expect emits: ["RenalFunctionReconciled", "DoseCalculated"]
   end
 
 
@@ -38,6 +51,12 @@ Hecks.behaviors "GeriatricPharmacy" do
     tests "ScreenInteraction", on: "InteractionCheck"
     input  medication_a: "sample", medication_b: "sample", interaction_type: "sample", severity: "sample", mechanism: "sample"
     expect medication_a: "sample", medication_b: "sample", interaction_type: "sample", severity: "sample", mechanism: "sample", status: "screened"
+  end
+
+  test "ScreenInteraction cascades through policy chain" do
+    tests "ScreenInteraction", on: "InteractionCheck", kind: :cascade
+    input  medication_a: "sample", medication_b: "sample", interaction_type: "sample", severity: "sample", mechanism: "sample"
+    expect emits: ["InteractionScreened", "ActionRecommended"]
   end
 
   test "RecommendAction sets recommendation" do
@@ -62,6 +81,12 @@ Hecks.behaviors "GeriatricPharmacy" do
     expect status: "approved"
   end
 
+  test "ApproveDose cascades through policy chain" do
+    tests "ApproveDose", on: "DosingRegimen", kind: :cascade
+    setup  "CalculateDose", resident_name: "sample", medication_name: "sample", standard_dose_mg: 1.0, adjusted_dose_mg: 1.0, frequency: "sample", adjustment_reason: "sample"
+    expect emits: ["DoseApproved", "MonitoringPlanEstablished"]
+  end
+
 
   # ── MonitoringPlan aggregate ──────────────────────────────────────────
 
@@ -73,6 +98,18 @@ Hecks.behaviors "GeriatricPharmacy" do
 
   test "RecordLevel runs" do
     tests "RecordLevel", on: "MonitoringPlan"
+    setup  "EstablishMonitoringPlan", resident_name: "sample", medication_name: "sample", target_trough_ng_ml: 1.0, target_peak_ng_ml: 1.0, toxicity_threshold_ng_ml: 1.0, monitoring_frequency: "sample"
+    expect ok: "true"
+  end
+
+  test "RecordLevel cascades through policy chain" do
+    tests "RecordLevel", on: "MonitoringPlan", kind: :cascade
+    setup  "EstablishMonitoringPlan", resident_name: "sample", medication_name: "sample", target_trough_ng_ml: 1.0, target_peak_ng_ml: 1.0, toxicity_threshold_ng_ml: 1.0, monitoring_frequency: "sample"
+    expect emits: ["LevelRecorded", "ToxicityFlagged"]
+  end
+
+  test "FlagToxicity runs" do
+    tests "FlagToxicity", on: "MonitoringPlan"
     setup  "EstablishMonitoringPlan", resident_name: "sample", medication_name: "sample", target_trough_ng_ml: 1.0, target_peak_ng_ml: 1.0, toxicity_threshold_ng_ml: 1.0, monitoring_frequency: "sample"
     expect status: "alert"
   end

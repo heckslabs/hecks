@@ -9,6 +9,12 @@ Hecks.behaviors "WarehouseManagement" do
     expect aisle: "sample", rack: "sample", shelf: "sample", zone: "sample", capacity: 1, status: "empty", current_fill: 0
   end
 
+  test "ReserveLocation cascades through policy chain" do
+    tests "ReserveLocation", on: "Location", kind: :cascade
+    setup  "RegisterLocation", aisle: "sample", rack: "sample", shelf: "sample", zone: "sample", capacity: 1
+    expect emits: ["LocationReserved", "PalletStowed", "PickListGenerated", "PalletPicked", "PalletStaged"]
+  end
+
   test "CloseLocation sets reason" do
     tests "CloseLocation", on: "Location"
     setup  "RegisterLocation", aisle: "sample", rack: "sample", shelf: "sample", zone: "sample", capacity: 1
@@ -32,10 +38,22 @@ Hecks.behaviors "WarehouseManagement" do
     expect status: "received"
   end
 
+  test "ReceivePallet cascades through policy chain" do
+    tests "ReceivePallet", on: "Pallet", kind: :cascade
+    input  pallet_id: "sample", sku: "sample", quantity: 1
+    expect emits: ["PalletReceived", "PalletInspected", "LocationReserved", "PalletStowed", "PickListGenerated", "PalletPicked", "PalletStaged"]
+  end
+
   test "InspectPallet runs" do
     tests "InspectPallet", on: "Pallet"
     setup  "ReceivePallet", pallet_id: "sample", sku: "sample", quantity: 1
     expect status: "inspected"
+  end
+
+  test "InspectPallet cascades through policy chain" do
+    tests "InspectPallet", on: "Pallet", kind: :cascade
+    setup  "ReceivePallet", pallet_id: "sample", sku: "sample", quantity: 1
+    expect emits: ["PalletInspected", "LocationReserved", "PalletStowed", "PickListGenerated", "PalletPicked", "PalletStaged"]
   end
 
   test "StowPallet runs" do
@@ -46,11 +64,36 @@ Hecks.behaviors "WarehouseManagement" do
     expect status: "stowed"
   end
 
+  test "StowPallet cascades through policy chain" do
+    tests "StowPallet", on: "Pallet", kind: :cascade
+    setup  "RegisterLocation", aisle: "sample", rack: "sample", shelf: "sample", zone: "sample", capacity: 1
+    setup  "ReceivePallet", pallet_id: "sample", sku: "sample", quantity: 1
+    setup  "InspectPallet"
+    expect emits: ["PalletStowed", "PickListGenerated", "PalletPicked", "PalletStaged"]
+  end
+
   test "PickPallet runs" do
     tests "PickPallet", on: "Pallet"
     setup  "ReceivePallet", pallet_id: "sample", sku: "sample", quantity: 1
     setup  "InspectPallet"
     setup  "StowPallet"
+    expect status: "picked"
+  end
+
+  test "PickPallet cascades through policy chain" do
+    tests "PickPallet", on: "Pallet", kind: :cascade
+    setup  "ReceivePallet", pallet_id: "sample", sku: "sample", quantity: 1
+    setup  "InspectPallet"
+    setup  "StowPallet"
+    expect emits: ["PalletPicked", "PalletStaged"]
+  end
+
+  test "StagePallet runs" do
+    tests "StagePallet", on: "Pallet"
+    setup  "ReceivePallet", pallet_id: "sample", sku: "sample", quantity: 1
+    setup  "InspectPallet"
+    setup  "StowPallet"
+    setup  "PickPallet"
     expect status: "staged"
   end
 
@@ -63,10 +106,22 @@ Hecks.behaviors "WarehouseManagement" do
     expect status: "pending"
   end
 
+  test "GeneratePickList cascades through policy chain" do
+    tests "GeneratePickList", on: "PickList", kind: :cascade
+    input  priority: "sample", line_count: 1
+    expect emits: ["PickListGenerated", "PalletPicked", "PalletStaged"]
+  end
+
   test "CompletePickList runs" do
     tests "CompletePickList", on: "PickList"
     setup  "GeneratePickList", priority: "sample", line_count: 1
     expect status: "completed"
+  end
+
+  test "CompletePickList cascades through policy chain" do
+    tests "CompletePickList", on: "PickList", kind: :cascade
+    setup  "GeneratePickList", priority: "sample", line_count: 1
+    expect emits: ["PickListCompleted", "ShipmentPrepared", "ShipmentLoaded", "ShipmentDispatched"]
   end
 
 
@@ -79,9 +134,29 @@ Hecks.behaviors "WarehouseManagement" do
     expect status: "packing"
   end
 
+  test "PrepareShipment cascades through policy chain" do
+    tests "PrepareShipment", on: "Shipment", kind: :cascade
+    setup  "GeneratePickList", priority: "sample", line_count: 1
+    input  carrier: "sample", destination: "sample"
+    expect emits: ["ShipmentPrepared", "ShipmentLoaded", "ShipmentDispatched"]
+  end
+
   test "LoadShipment runs" do
     tests "LoadShipment", on: "Shipment"
     setup  "PrepareShipment", carrier: "sample", destination: "sample"
+    expect status: "loaded"
+  end
+
+  test "LoadShipment cascades through policy chain" do
+    tests "LoadShipment", on: "Shipment", kind: :cascade
+    setup  "PrepareShipment", carrier: "sample", destination: "sample"
+    expect emits: ["ShipmentLoaded", "ShipmentDispatched"]
+  end
+
+  test "DispatchShipment runs" do
+    tests "DispatchShipment", on: "Shipment"
+    setup  "PrepareShipment", carrier: "sample", destination: "sample"
+    setup  "LoadShipment"
     expect status: "dispatched"
   end
 

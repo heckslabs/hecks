@@ -9,6 +9,12 @@ Hecks.behaviors "ProjectManagement" do
     expect title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample", labels: "sample", status: "backlog"
   end
 
+  test "ProposeFeature cascades through policy chain" do
+    tests "ProposeFeature", on: "Feature", kind: :cascade
+    input  title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample", labels: "sample"
+    expect emits: ["FeatureProposed", "LinkedToDomain", "FeaturePrioritized"]
+  end
+
   test "AssignFeature sets assignee" do
     tests "AssignFeature", on: "Feature"
     setup  "ProposeFeature", title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample", labels: "sample"

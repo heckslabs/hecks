@@ -23,6 +23,13 @@ Hecks.behaviors "WaterTreatment" do
     expect status: "offline"
   end
 
+  test "ShutdownPlant cascades through policy chain" do
+    tests "ShutdownPlant", on: "Plant", kind: :cascade
+    setup  "ActivatePlant", plant_id: "sample", name: "sample", capacity_mgd: 1.0
+    input  reason: "sample"
+    expect emits: ["PlantShutdown", "ProcessBypassed", "ProcessRestored"]
+  end
+
   test "RestartPlant runs" do
     tests "RestartPlant", on: "Plant"
     setup  "ActivatePlant", plant_id: "sample", name: "sample", capacity_mgd: 1.0
@@ -40,10 +47,23 @@ Hecks.behaviors "WaterTreatment" do
     expect status: "configured"
   end
 
+  test "ConfigureProcess cascades through policy chain" do
+    tests "ConfigureProcess", on: "TreatmentProcess", kind: :cascade
+    setup  "ActivatePlant", plant_id: "sample", name: "sample", capacity_mgd: 1.0
+    input  stage_name: "sample", technology: "sample"
+    expect emits: ["ProcessConfigured", "ProcessActivated", "DosingStarted"]
+  end
+
   test "ActivateProcess runs" do
     tests "ActivateProcess", on: "TreatmentProcess"
     setup  "ConfigureProcess", stage_name: "sample", technology: "sample"
     expect status: "active"
+  end
+
+  test "ActivateProcess cascades through policy chain" do
+    tests "ActivateProcess", on: "TreatmentProcess", kind: :cascade
+    setup  "ConfigureProcess", stage_name: "sample", technology: "sample"
+    expect emits: ["ProcessActivated", "DosingStarted"]
   end
 
   test "MonitorProcess sets efficiency_percent" do
@@ -53,11 +73,34 @@ Hecks.behaviors "WaterTreatment" do
     expect ok: "true"
   end
 
+  test "MonitorProcess cascades through policy chain" do
+    tests "MonitorProcess", on: "TreatmentProcess", kind: :cascade
+    setup  "ConfigureProcess", stage_name: "sample", technology: "sample"
+    input  efficiency_percent: 1.0
+    expect emits: ["ProcessMonitored", "SampleCollected", "SampleAnalyzed", "DoseAdjusted", "SampleApproved", "ReportFiled"]
+  end
+
   test "BypassProcess sets reason" do
     tests "BypassProcess", on: "TreatmentProcess"
     setup  "ConfigureProcess", stage_name: "sample", technology: "sample"
     setup  "ActivateProcess"
     input  reason: "sample"
+    expect status: "bypassed"
+  end
+
+  test "BypassProcess cascades through policy chain" do
+    tests "BypassProcess", on: "TreatmentProcess", kind: :cascade
+    setup  "ConfigureProcess", stage_name: "sample", technology: "sample"
+    setup  "ActivateProcess"
+    input  reason: "sample"
+    expect emits: ["ProcessBypassed", "ProcessRestored"]
+  end
+
+  test "RestoreProcess runs" do
+    tests "RestoreProcess", on: "TreatmentProcess"
+    setup  "ConfigureProcess", stage_name: "sample", technology: "sample"
+    setup  "ActivateProcess"
+    setup  "BypassProcess", reason: "sample"
     expect status: "active"
   end
 
@@ -71,10 +114,51 @@ Hecks.behaviors "WaterTreatment" do
     expect status: "collected"
   end
 
+  test "CollectSample cascades through policy chain" do
+    tests "CollectSample", on: "WaterSample", kind: :cascade
+    setup  "ActivatePlant", plant_id: "sample", name: "sample", capacity_mgd: 1.0
+    input  sample_point: "sample"
+    expect emits: ["SampleCollected", "SampleAnalyzed", "DoseAdjusted", "SampleApproved", "ReportFiled"]
+  end
+
   test "AnalyzeSample runs" do
     tests "AnalyzeSample", on: "WaterSample"
     setup  "CollectSample", sample_point: "sample"
+    expect status: "analyzed"
+  end
+
+  test "AnalyzeSample cascades through policy chain" do
+    tests "AnalyzeSample", on: "WaterSample", kind: :cascade
+    setup  "CollectSample", sample_point: "sample"
+    expect emits: ["SampleAnalyzed", "DoseAdjusted", "SampleApproved", "ReportFiled"]
+  end
+
+  test "ApproveSample runs" do
+    tests "ApproveSample", on: "WaterSample"
+    setup  "CollectSample", sample_point: "sample"
+    setup  "AnalyzeSample"
     expect status: "approved"
+  end
+
+  test "ApproveSample cascades through policy chain" do
+    tests "ApproveSample", on: "WaterSample", kind: :cascade
+    setup  "CollectSample", sample_point: "sample"
+    setup  "AnalyzeSample"
+    expect emits: ["SampleApproved", "ReportFiled"]
+  end
+
+  test "RejectSample runs" do
+    tests "RejectSample", on: "WaterSample"
+    setup  "CollectSample", sample_point: "sample"
+    setup  "AnalyzeSample"
+    expect status: "rejected"
+  end
+
+  test "RejectSample cascades through policy chain" do
+    tests "RejectSample", on: "WaterSample", kind: :cascade
+    setup  "CollectSample", sample_point: "sample"
+    setup  "AnalyzeSample"
+    expect emits: ["SampleRejected", "ViolationFlagged"]
   end
 
 

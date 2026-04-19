@@ -9,10 +9,22 @@ Hecks.behaviors "Inbox" do
     expect body: "sample", priority: "sample", status: "queued"
   end
 
+  test "PostMessage cascades through policy chain" do
+    tests "PostMessage", on: "Message", kind: :cascade
+    input  body: "sample", priority: "sample"
+    expect emits: ["MessagePosted", "Tallied"]
+  end
+
   test "AcknowledgeMessage runs" do
     tests "AcknowledgeMessage", on: "Message"
     setup  "PostMessage", body: "sample", priority: "sample"
     expect status: "acknowledged"
+  end
+
+  test "AcknowledgeMessage cascades through policy chain" do
+    tests "AcknowledgeMessage", on: "Message", kind: :cascade
+    setup  "PostMessage", body: "sample", priority: "sample"
+    expect emits: ["MessageAcknowledged", "Tallied"]
   end
 
   test "ActOnMessage runs" do
@@ -20,6 +32,13 @@ Hecks.behaviors "Inbox" do
     setup  "PostMessage", body: "sample", priority: "sample"
     setup  "AcknowledgeMessage"
     expect status: "done"
+  end
+
+  test "ActOnMessage cascades through policy chain" do
+    tests "ActOnMessage", on: "Message", kind: :cascade
+    setup  "PostMessage", body: "sample", priority: "sample"
+    setup  "AcknowledgeMessage"
+    expect emits: ["MessageActedOn", "Tallied"]
   end
 
   test "DeferMessage runs" do

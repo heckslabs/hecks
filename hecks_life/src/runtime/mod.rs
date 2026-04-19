@@ -120,6 +120,25 @@ impl Runtime {
         Ok(result)
     }
 
+    /// Dispatch without firing policy cascades. Used by tests for
+    /// SETUP commands so they don't overshoot the test command's
+    /// required state. The test command itself dispatches via the
+    /// regular `dispatch` so its emit cascade can fire and be
+    /// asserted via `expect emits: [...]`.
+    pub fn dispatch_isolated(
+        &mut self,
+        command_name: &str,
+        attrs: HashMap<String, Value>,
+    ) -> Result<CommandResult, RuntimeError> {
+        let result = command_dispatch::dispatch(self, command_name, attrs)?;
+        if let Some(ref event) = result.event {
+            for proj in &mut self.projections {
+                proj.apply(event);
+            }
+        }
+        Ok(result)
+    }
+
     pub fn find(&self, aggregate_name: &str, id: &str) -> Option<&AggregateState> {
         self.repositories
             .get(aggregate_name)
@@ -136,13 +155,28 @@ impl Runtime {
     /// Drain policy triggers recursively — each triggered command
     /// can emit events that trigger more policies. This is how
     /// EnterSleep cascades through 8 dream cycles to WakeUp.
+    ///
+    /// When the triggered command has a self-reference to the same
+    /// aggregate the event came from, inject the upstream aggregate_id
+    /// under that ref's name. Without this, downstream cascades stop
+    /// at any self-ref command (the dispatch errors with missing
+    /// self-referencing id), leaving aggregates stuck mid-pipeline.
+    /// The behaviors generator's static cascade prediction
+    /// (cascade::cascade_emits) assumes the runtime honors these
+    /// triggers — so this injection is what makes the prediction true.
     fn drain_policies(&mut self, result: &CommandResult) {
         if let Some(ref event) = result.event {
             let triggers = self.policy_engine.react(event);
             for trigger in triggers {
                 let policy_name = trigger.policy_name.clone();
                 let cmd = trigger.command_name.clone();
-                let data = trigger.event_data.clone();
+                let mut data = trigger.event_data.clone();
+
+                if let Some(self_ref) = self.find_self_ref_for(&cmd, &event.aggregate_type) {
+                    if !data.contains_key(&self_ref) {
+                        data.insert(self_ref, Value::Str(event.aggregate_id.clone()));
+                    }
+                }
 
                 if let Ok(inner_result) = command_dispatch::dispatch(self, &cmd, data) {
                     self.drain_policies(&inner_result);
@@ -150,6 +184,29 @@ impl Runtime {
                 self.policy_engine.complete(&policy_name);
             }
         }
+    }
+
+    /// If `cmd_name` is on the aggregate type `upstream_type` and has
+    /// a reference whose target matches that aggregate's own name
+    /// (self-ref), return the reference's name (honoring `as:` aliases).
+    /// Mirrors `command_dispatch::find_self_ref` but is callable from
+    /// outside dispatch — drain_policies needs to know the kwarg name
+    /// to inject the upstream id under.
+    fn find_self_ref_for(&self, cmd_name: &str, upstream_type: &str) -> Option<String> {
+        for agg in &self.domain.aggregates {
+            if agg.name != upstream_type { continue; }
+            for cmd in &agg.commands {
+                if cmd.name != cmd_name { continue; }
+                let agg_snake = to_snake(&agg.name);
+                for r in &cmd.references {
+                    let ref_snake = to_snake(&r.target);
+                    if ref_snake == agg_snake || agg_snake.ends_with(&ref_snake) {
+                        return Some(r.name.clone());
+                    }
+                }
+            }
+        }
+        None
     }
 
     pub fn add_projection(&mut self, projection: Projection) {
@@ -325,6 +382,15 @@ macro_rules! attrs {
         $(map.insert($key.to_string(), $val);)*
         map
     }};
+}
+
+fn to_snake(s: &str) -> String {
+    let mut out = String::new();
+    for (i, c) in s.chars().enumerate() {
+        if c.is_uppercase() && i > 0 { out.push('_'); }
+        out.push(c.to_lowercase().next().unwrap_or(c));
+    }
+    out
 }
 
 fn pascal_to_phrase(name: &str) -> String {

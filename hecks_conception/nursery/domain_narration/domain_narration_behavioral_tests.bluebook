@@ -9,6 +9,12 @@ Hecks.behaviors "DomainNarration" do
     expect ok: "true"
   end
 
+  test "InferWorkflow cascades through policy chain" do
+    tests "InferWorkflow", on: "Workflow", kind: :cascade
+    input  domain_name: "sample"
+    expect emits: ["WorkflowInferred", "EventTranslated", "ChainTraced"]
+  end
+
 
   # ── Narration aggregate ──────────────────────────────────────────
 
@@ -16,6 +22,12 @@ Hecks.behaviors "DomainNarration" do
     tests "TranslateEvent", on: "Narration"
     input  event_name: "sample"
     expect ok: "true"
+  end
+
+  test "TranslateEvent cascades through policy chain" do
+    tests "TranslateEvent", on: "Narration", kind: :cascade
+    input  event_name: "sample"
+    expect emits: ["EventTranslated", "ChainTraced"]
   end
 
   test "TranslateCommand sets command_name" do

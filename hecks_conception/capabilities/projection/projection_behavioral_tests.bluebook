@@ -24,6 +24,12 @@ Hecks.behaviors "Projection" do
     expect stale: "yes"
   end
 
+  test "MarkStale cascades through policy chain" do
+    tests "MarkStale", on: "ProjectedScript", kind: :cascade
+    setup  "RegisterProjection", domain_name: "sample", aggregate_name: "sample", target: "sample", script_path: "sample"
+    expect emits: ["ProjectionStale", "ParityChecked"]
+  end
+
   test "MarkFresh runs" do
     tests "MarkFresh", on: "ProjectedScript"
     setup  "RegisterProjection", domain_name: "sample", aggregate_name: "sample", target: "sample", script_path: "sample"

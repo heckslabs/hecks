@@ -9,10 +9,36 @@ Hecks.behaviors "FloralDesign" do
     expect status: "designed"
   end
 
+  test "DesignArrangement cascades through policy chain" do
+    tests "DesignArrangement", on: "Arrangement", kind: :cascade
+    input  name: "sample", style: "sample", vessel_type: "sample", stem_count: 1
+    expect emits: ["ArrangementDesigned", "ArrangementAssembled", "ArrangementConditioned", "DeliveryScheduled", "DeliveryConfirmed", "InstallationPlanned", "InstallationExecuted", "InstallationStruck"]
+  end
+
   test "AssembleArrangement runs" do
     tests "AssembleArrangement", on: "Arrangement"
     setup  "DesignArrangement", name: "sample", style: "sample", vessel_type: "sample", stem_count: 1
+    expect status: "assembled"
+  end
+
+  test "AssembleArrangement cascades through policy chain" do
+    tests "AssembleArrangement", on: "Arrangement", kind: :cascade
+    setup  "DesignArrangement", name: "sample", style: "sample", vessel_type: "sample", stem_count: 1
+    expect emits: ["ArrangementAssembled", "ArrangementConditioned", "DeliveryScheduled", "DeliveryConfirmed", "InstallationPlanned", "InstallationExecuted", "InstallationStruck"]
+  end
+
+  test "ConditionArrangement runs" do
+    tests "ConditionArrangement", on: "Arrangement"
+    setup  "DesignArrangement", name: "sample", style: "sample", vessel_type: "sample", stem_count: 1
+    setup  "AssembleArrangement"
     expect status: "conditioned"
+  end
+
+  test "ConditionArrangement cascades through policy chain" do
+    tests "ConditionArrangement", on: "Arrangement", kind: :cascade
+    setup  "DesignArrangement", name: "sample", style: "sample", vessel_type: "sample", stem_count: 1
+    setup  "AssembleArrangement"
+    expect emits: ["ArrangementConditioned", "DeliveryScheduled", "DeliveryConfirmed", "InstallationPlanned", "InstallationExecuted", "InstallationStruck"]
   end
 
 
@@ -39,10 +65,22 @@ Hecks.behaviors "FloralDesign" do
     expect status: "consulted"
   end
 
+  test "BookEvent cascades through policy chain" do
+    tests "BookEvent", on: "FloralEvent", kind: :cascade
+    input  event_name: "sample", venue: "sample", date: "sample", arrangement_count: 1
+    expect emits: ["EventBooked", "ProposalFinalized", "ArrangementDesigned", "ArrangementAssembled", "ArrangementConditioned", "DeliveryScheduled", "DeliveryConfirmed", "InstallationPlanned", "InstallationExecuted", "InstallationStruck"]
+  end
+
   test "FinalizeProposal runs" do
     tests "FinalizeProposal", on: "FloralEvent"
     setup  "BookEvent", event_name: "sample", venue: "sample", date: "sample", arrangement_count: 1
     expect status: "confirmed"
+  end
+
+  test "FinalizeProposal cascades through policy chain" do
+    tests "FinalizeProposal", on: "FloralEvent", kind: :cascade
+    setup  "BookEvent", event_name: "sample", venue: "sample", date: "sample", arrangement_count: 1
+    expect emits: ["ProposalFinalized", "ArrangementDesigned", "ArrangementAssembled", "ArrangementConditioned", "DeliveryScheduled", "DeliveryConfirmed", "InstallationPlanned", "InstallationExecuted", "InstallationStruck"]
   end
 
 
@@ -55,10 +93,23 @@ Hecks.behaviors "FloralDesign" do
     expect status: "scheduled"
   end
 
+  test "ScheduleDelivery cascades through policy chain" do
+    tests "ScheduleDelivery", on: "Delivery", kind: :cascade
+    setup  "DesignArrangement", name: "sample", style: "sample", vessel_type: "sample", stem_count: 1
+    input  address: "sample", delivery_date: "sample", time_window: "sample", driver_name: "sample"
+    expect emits: ["DeliveryScheduled", "DeliveryConfirmed", "InstallationPlanned", "InstallationExecuted", "InstallationStruck"]
+  end
+
   test "ConfirmDelivery runs" do
     tests "ConfirmDelivery", on: "Delivery"
     setup  "ScheduleDelivery", address: "sample", delivery_date: "sample", time_window: "sample", driver_name: "sample"
     expect status: "delivered"
+  end
+
+  test "ConfirmDelivery cascades through policy chain" do
+    tests "ConfirmDelivery", on: "Delivery", kind: :cascade
+    setup  "ScheduleDelivery", address: "sample", delivery_date: "sample", time_window: "sample", driver_name: "sample"
+    expect emits: ["DeliveryConfirmed", "InstallationPlanned", "InstallationExecuted", "InstallationStruck"]
   end
 
 
@@ -71,9 +122,29 @@ Hecks.behaviors "FloralDesign" do
     expect status: "planned"
   end
 
+  test "PlanInstallation cascades through policy chain" do
+    tests "PlanInstallation", on: "FloralInstallation", kind: :cascade
+    setup  "BookEvent", event_name: "sample", venue: "sample", date: "sample", arrangement_count: 1
+    input  location: "sample", design_theme: "sample", crew_size: 1
+    expect emits: ["InstallationPlanned", "InstallationExecuted", "InstallationStruck"]
+  end
+
   test "ExecuteInstallation runs" do
     tests "ExecuteInstallation", on: "FloralInstallation"
     setup  "PlanInstallation", location: "sample", design_theme: "sample", crew_size: 1
+    expect status: "installed"
+  end
+
+  test "ExecuteInstallation cascades through policy chain" do
+    tests "ExecuteInstallation", on: "FloralInstallation", kind: :cascade
+    setup  "PlanInstallation", location: "sample", design_theme: "sample", crew_size: 1
+    expect emits: ["InstallationExecuted", "InstallationStruck"]
+  end
+
+  test "StrikeInstallation runs" do
+    tests "StrikeInstallation", on: "FloralInstallation"
+    setup  "PlanInstallation", location: "sample", design_theme: "sample", crew_size: 1
+    setup  "ExecuteInstallation"
     expect status: "struck"
   end
 

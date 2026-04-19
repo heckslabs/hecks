@@ -9,6 +9,12 @@ Hecks.behaviors "RefugeeResettlement" do
     expect case_number: "sample", country_of_origin: "sample", arrival_date: "sample", assigned_agency: "sample", family_size: 1, status: "active"
   end
 
+  test "OpenCase cascades through policy chain" do
+    tests "OpenCase", on: "ResettlementCase", kind: :cascade
+    input  case_number: "sample", country_of_origin: "sample", arrival_date: "sample", assigned_agency: "sample", family_size: 1
+    expect emits: ["CaseOpened", "FamilyMemberRegistered", "HousingSecured", "ServiceScheduled", "JobSearchStarted", "ResumePrepared", "JobPlaced", "CaseClosed"]
+  end
+
   test "AdvanceCase sets status" do
     tests "AdvanceCase", on: "ResettlementCase"
     setup  "OpenCase", case_number: "sample", country_of_origin: "sample", arrival_date: "sample", assigned_agency: "sample", family_size: 1
@@ -72,6 +78,13 @@ Hecks.behaviors "RefugeeResettlement" do
     expect case_number: "sample", address: "sample", housing_type: "sample", lease_start_date: "sample", monthly_rent: "sample", subsidy_source: "sample", status: "active"
   end
 
+  test "SecureHousing cascades through policy chain" do
+    tests "SecureHousing", on: "HousingPlacement", kind: :cascade
+    setup  "OpenCase", case_number: "sample", country_of_origin: "sample", arrival_date: "sample", assigned_agency: "sample", family_size: 1
+    input  case_number: "sample", address: "sample", housing_type: "sample", lease_start_date: "sample", monthly_rent: "sample", subsidy_source: "sample"
+    expect emits: ["HousingSecured", "ServiceScheduled", "JobSearchStarted", "ResumePrepared", "JobPlaced", "CaseClosed"]
+  end
+
   test "ReportHousingIssue runs" do
     tests "ReportHousingIssue", on: "HousingPlacement"
     setup  "SecureHousing", case_number: "sample", address: "sample", housing_type: "sample", lease_start_date: "sample", monthly_rent: "sample", subsidy_source: "sample"
@@ -94,10 +107,37 @@ Hecks.behaviors "RefugeeResettlement" do
     expect family_member_name: "sample", desired_field: "sample", language_proficiency: "sample", resume_status: "not_started", placement_status: "searching"
   end
 
+  test "BeginJobSearch cascades through policy chain" do
+    tests "BeginJobSearch", on: "EmploymentAssistance", kind: :cascade
+    setup  "RegisterFamilyMember", name: "sample", date_of_birth: "sample", relationship: "sample", language_spoken: "sample", medical_needs: "sample", case_number: "sample"
+    input  family_member_name: "sample", desired_field: "sample", language_proficiency: "sample"
+    expect emits: ["JobSearchStarted", "ResumePrepared", "JobPlaced", "CaseClosed"]
+  end
+
   test "PrepareResume runs" do
     tests "PrepareResume", on: "EmploymentAssistance"
     setup  "BeginJobSearch", family_member_name: "sample", desired_field: "sample", language_proficiency: "sample"
-    expect resume_status: "complete", employer_name: "sample", placement_status: "placed"
+    expect resume_status: "complete"
+  end
+
+  test "PrepareResume cascades through policy chain" do
+    tests "PrepareResume", on: "EmploymentAssistance", kind: :cascade
+    setup  "BeginJobSearch", family_member_name: "sample", desired_field: "sample", language_proficiency: "sample"
+    expect emits: ["ResumePrepared", "JobPlaced", "CaseClosed"]
+  end
+
+  test "PlaceInJob sets employer_name" do
+    tests "PlaceInJob", on: "EmploymentAssistance"
+    setup  "BeginJobSearch", family_member_name: "sample", desired_field: "sample", language_proficiency: "sample"
+    input  employer_name: "sample"
+    expect employer_name: "sample", placement_status: "placed"
+  end
+
+  test "PlaceInJob cascades through policy chain" do
+    tests "PlaceInJob", on: "EmploymentAssistance", kind: :cascade
+    setup  "BeginJobSearch", family_member_name: "sample", desired_field: "sample", language_proficiency: "sample"
+    input  employer_name: "sample"
+    expect emits: ["JobPlaced", "CaseClosed"]
   end
 
 end

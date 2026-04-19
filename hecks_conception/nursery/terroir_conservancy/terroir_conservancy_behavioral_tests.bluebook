@@ -9,6 +9,12 @@ Hecks.behaviors "TerroirConservancy" do
     expect terroir_id: "sample", name: "sample", region: "sample", designation_type: "sample", total_hectares: 1, status: "protected"
   end
 
+  test "DesignateTerroir cascades through policy chain" do
+    tests "DesignateTerroir", on: "ProtectedTerroir", kind: :cascade
+    input  terroir_id: "sample", name: "sample", region: "sample", designation_type: "sample", total_hectares: 1
+    expect emits: ["TerroirDesignated", "SoilCharacterized", "SurveyConducted"]
+  end
+
   test "AmendProtection runs" do
     tests "AmendProtection", on: "ProtectedTerroir"
     setup  "DesignateTerroir", terroir_id: "sample", name: "sample", region: "sample", designation_type: "sample", total_hectares: 1
@@ -32,6 +38,13 @@ Hecks.behaviors "TerroirConservancy" do
     expect microbiome_diversity: "sample"
   end
 
+  test "AssessMicrobiome cascades through policy chain" do
+    tests "AssessMicrobiome", on: "SoilProfile", kind: :cascade
+    setup  "CharacterizeSoil", profile_id: "sample", soil_type: "sample", ph_level: 1.0, mineral_composition: "sample"
+    input  microbiome_diversity: "sample"
+    expect emits: ["MicrobiomeAssessed", "ProducerCertified", "ProfileComposed", "ExperienceDesigned"]
+  end
+
 
   # ── CraftProducer aggregate ──────────────────────────────────────────
 
@@ -46,6 +59,12 @@ Hecks.behaviors "TerroirConservancy" do
     tests "CertifyProducer", on: "CraftProducer"
     setup  "RegisterProducer", producer_id: "sample", name: "sample", craft_type: "sample"
     expect certification_status: "certified"
+  end
+
+  test "CertifyProducer cascades through policy chain" do
+    tests "CertifyProducer", on: "CraftProducer", kind: :cascade
+    setup  "RegisterProducer", producer_id: "sample", name: "sample", craft_type: "sample"
+    expect emits: ["ProducerCertified", "ProfileComposed", "ExperienceDesigned"]
   end
 
   test "SuspendProducer runs" do
@@ -69,6 +88,13 @@ Hecks.behaviors "TerroirConservancy" do
     setup  "ConductSurvey", survey_id: "sample", survey_date: "sample", season: "sample"
     input  overall_diversity: "sample"
     expect overall_diversity: "sample"
+  end
+
+  test "AssessDiversity cascades through policy chain" do
+    tests "AssessDiversity", on: "SpeciesSurvey", kind: :cascade
+    setup  "ConductSurvey", survey_id: "sample", survey_date: "sample", season: "sample"
+    input  overall_diversity: "sample"
+    expect emits: ["DiversityAssessed", "CharacterAssessed", "ProtectionAmended"]
   end
 
 

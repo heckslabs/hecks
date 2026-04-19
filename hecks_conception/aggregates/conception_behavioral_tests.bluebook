@@ -9,6 +9,12 @@ Hecks.behaviors "Conception" do
     expect name: "sample", vision: "sample", requested_by: "sample", source: "sample", category: "sample", bounded_contexts: "sample", status: "conceived"
   end
 
+  test "ConceiveDomain cascades through policy chain" do
+    tests "ConceiveDomain", on: "Conception", kind: :cascade
+    input  name: "sample", vision: "sample", requested_by: "sample", source: "sample", category: "sample", bounded_contexts: "sample"
+    expect emits: ["DomainConceived", "NearestFound", "GestationStarted"]
+  end
+
 
   # ── Gestation aggregate ──────────────────────────────────────────
 
@@ -45,6 +51,12 @@ Hecks.behaviors "Conception" do
     expect ok: "true"
   end
 
+  test "Contract cascades through policy chain" do
+    tests "Contract", on: "Gestation", kind: :cascade
+    setup  "StartGestation", project_name: "sample", nursery_path: "sample", bounded_contexts: "sample"
+    expect emits: ["Contracted", "BluebookValidated", "ParityChecked"]
+  end
+
 
   # ── Labor aggregate ──────────────────────────────────────────
 
@@ -52,6 +64,12 @@ Hecks.behaviors "Conception" do
     tests "ValidateBluebook", on: "Labor"
     input  domain_name: "sample", bluebook_source: "sample"
     expect domain_name: "sample", bluebook_source: "sample", valid: "checking"
+  end
+
+  test "ValidateBluebook cascades through policy chain" do
+    tests "ValidateBluebook", on: "Labor", kind: :cascade
+    input  domain_name: "sample", bluebook_source: "sample"
+    expect emits: ["BluebookValidated", "ParityChecked"]
   end
 
   test "CheckParity sets parity" do
@@ -67,6 +85,12 @@ Hecks.behaviors "Conception" do
     expect valid: "yes"
   end
 
+  test "PassLabor cascades through policy chain" do
+    tests "PassLabor", on: "Labor", kind: :cascade
+    setup  "ValidateBluebook", domain_name: "sample", bluebook_source: "sample"
+    expect emits: ["LaborPassed", "DomainDelivered", "BirthRegistered", "DomainIndexed", "HealthChecked", "IndexedInNursery"]
+  end
+
   test "FailLabor sets errors" do
     tests "FailLabor", on: "Labor"
     setup  "ValidateBluebook", domain_name: "sample", bluebook_source: "sample"
@@ -80,19 +104,37 @@ Hecks.behaviors "Conception" do
   test "DeliverDomain sets domain_name + path + aggregate_count + command_count + fixture_count" do
     tests "DeliverDomain", on: "Delivery"
     input  domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
-    expect domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, indexed: "yes"
+    expect domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
+  end
+
+  test "DeliverDomain cascades through policy chain" do
+    tests "DeliverDomain", on: "Delivery", kind: :cascade
+    input  domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
+    expect emits: ["DomainDelivered", "BirthRegistered", "DomainIndexed", "HealthChecked", "IndexedInNursery"]
   end
 
   test "RegisterBirth runs" do
     tests "RegisterBirth", on: "Delivery"
     setup  "DeliverDomain", domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
-    expect indexed: "yes"
+    expect ok: "true"
+  end
+
+  test "RegisterBirth cascades through policy chain" do
+    tests "RegisterBirth", on: "Delivery", kind: :cascade
+    setup  "DeliverDomain", domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
+    expect emits: ["BirthRegistered", "DomainIndexed", "HealthChecked", "IndexedInNursery"]
   end
 
   test "IndexInNursery runs" do
     tests "IndexInNursery", on: "Delivery"
     setup  "DeliverDomain", domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
     expect indexed: "yes"
+  end
+
+  test "IndexInNursery cascades through policy chain" do
+    tests "IndexInNursery", on: "Delivery", kind: :cascade
+    setup  "DeliverDomain", domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
+    expect emits: ["IndexedInNursery", "BirthRegistered", "DomainIndexed", "HealthChecked"]
   end
 
 
@@ -126,6 +168,12 @@ Hecks.behaviors "Conception" do
     expect domain_name: "sample", status: "vectorized"
   end
 
+  test "ComputeVector cascades through policy chain" do
+    tests "ComputeVector", on: "Development", kind: :cascade
+    input  domain_name: "sample"
+    expect emits: ["VectorComputed", "ArchetypeFound"]
+  end
+
   test "FindArchetype runs" do
     tests "FindArchetype", on: "Development"
     setup  "ComputeVector", domain_name: "sample"
@@ -146,6 +194,14 @@ Hecks.behaviors "Conception" do
     setup  "FindArchetype"
     setup  "PlanDevelopment", target_vector: 1.0
     expect status: "developed"
+  end
+
+  test "DevelopDomain cascades through policy chain" do
+    tests "DevelopDomain", on: "Development", kind: :cascade
+    setup  "ComputeVector", domain_name: "sample"
+    setup  "FindArchetype"
+    setup  "PlanDevelopment", target_vector: 1.0
+    expect emits: ["DomainDeveloped", "DomainIndexed"]
   end
 
   test "RejectDevelopment runs" do

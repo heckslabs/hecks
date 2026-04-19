@@ -47,6 +47,13 @@ Hecks.behaviors "SmartRehab" do
     expect battery_level: 1.0
   end
 
+  test "ReadSensor cascades through policy chain" do
+    tests "ReadSensor", on: "WearableSensor", kind: :cascade
+    setup  "PairSensor", device_id: "sample", patient_id: "sample", sensor_type: "sample"
+    input  battery_level: 1.0
+    expect emits: ["SensorRead", "ReportGenerated", "ProgramAdjusted"]
+  end
+
 
   # ── ProgressReport aggregate ──────────────────────────────────────────
 
@@ -54,6 +61,12 @@ Hecks.behaviors "SmartRehab" do
     tests "GenerateReport", on: "ProgressReport"
     input  report_id: "sample", patient_id: "sample", range_of_motion: 1.0, pain_score: 1.0, sensor_summary: "sample"
     expect report_id: "sample", patient_id: "sample", range_of_motion: 1.0, pain_score: 1.0, sensor_summary: "sample"
+  end
+
+  test "GenerateReport cascades through policy chain" do
+    tests "GenerateReport", on: "ProgressReport", kind: :cascade
+    input  report_id: "sample", patient_id: "sample", range_of_motion: 1.0, pain_score: 1.0, sensor_summary: "sample"
+    expect emits: ["ReportGenerated", "ProgramAdjusted"]
   end
 
   test "AnnotateReport sets therapist_notes" do

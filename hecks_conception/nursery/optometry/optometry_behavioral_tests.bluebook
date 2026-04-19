@@ -9,6 +9,12 @@ Hecks.behaviors "Optometry" do
     expect name: "sample", date_of_birth: "sample", insurance_id: "sample", medical_history: "sample", status: "active"
   end
 
+  test "RegisterPatient cascades through policy chain" do
+    tests "RegisterPatient", on: "Patient", kind: :cascade
+    input  name: "sample", date_of_birth: "sample", insurance_id: "sample", medical_history: "sample"
+    expect emits: ["PatientRegistered", "ExamConducted", "PrescriptionWritten", "LensOrderPlaced", "LensesDispensed", "FollowUpScheduled"]
+  end
+
   test "RecordMedicalHistory sets medical_history" do
     tests "RecordMedicalHistory", on: "Patient"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", insurance_id: "sample", medical_history: "sample"
@@ -26,11 +32,25 @@ Hecks.behaviors "Optometry" do
     expect patient_name: "sample", exam_date: "sample", visual_acuity_right: "sample", visual_acuity_left: "sample", intraocular_pressure_right: 1.0, intraocular_pressure_left: 1.0, status: "completed"
   end
 
+  test "ConductExam cascades through policy chain" do
+    tests "ConductExam", on: "EyeExam", kind: :cascade
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", insurance_id: "sample", medical_history: "sample"
+    input  patient_name: "sample", exam_date: "sample", visual_acuity_right: "sample", visual_acuity_left: "sample", intraocular_pressure_right: 1.0, intraocular_pressure_left: 1.0
+    expect emits: ["ExamConducted", "PrescriptionWritten", "LensOrderPlaced", "LensesDispensed", "FollowUpScheduled"]
+  end
+
   test "DocumentFinding sets eye + condition + severity + notes" do
     tests "DocumentFinding", on: "EyeExam"
     setup  "ConductExam", patient_name: "sample", exam_date: "sample", visual_acuity_right: "sample", visual_acuity_left: "sample", intraocular_pressure_right: 1.0, intraocular_pressure_left: 1.0
     input  eye: "sample", condition: "sample", severity: "sample", notes: "sample"
     expect ok: "true"
+  end
+
+  test "DocumentFinding cascades through policy chain" do
+    tests "DocumentFinding", on: "EyeExam", kind: :cascade
+    setup  "ConductExam", patient_name: "sample", exam_date: "sample", visual_acuity_right: "sample", visual_acuity_left: "sample", intraocular_pressure_right: 1.0, intraocular_pressure_left: 1.0
+    input  eye: "sample", condition: "sample", severity: "sample", notes: "sample"
+    expect emits: ["FindingDocumented", "FollowUpScheduled"]
   end
 
 
@@ -42,6 +62,14 @@ Hecks.behaviors "Optometry" do
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", insurance_id: "sample", medical_history: "sample"
     input  patient_name: "sample", sphere_right: 1.0, sphere_left: 1.0, cylinder_right: 1.0, cylinder_left: 1.0, axis_right: 1, axis_left: 1, add_power: 1.0, prescription_date: "sample", expiration_date: "sample"
     expect patient_name: "sample", sphere_right: 1.0, sphere_left: 1.0, prescription_date: "sample", expiration_date: "sample"
+  end
+
+  test "WritePrescription cascades through policy chain" do
+    tests "WritePrescription", on: "LensPrescription", kind: :cascade
+    setup  "ConductExam", patient_name: "sample", exam_date: "sample", visual_acuity_right: "sample", visual_acuity_left: "sample", intraocular_pressure_right: 1.0, intraocular_pressure_left: 1.0
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", insurance_id: "sample", medical_history: "sample"
+    input  patient_name: "sample", sphere_right: 1.0, sphere_left: 1.0, cylinder_right: 1.0, cylinder_left: 1.0, axis_right: 1, axis_left: 1, add_power: 1.0, prescription_date: "sample", expiration_date: "sample"
+    expect emits: ["PrescriptionWritten", "LensOrderPlaced", "LensesDispensed", "FollowUpScheduled"]
   end
 
   test "RenewPrescription sets expiration_date" do
@@ -62,10 +90,24 @@ Hecks.behaviors "Optometry" do
     expect patient_name: "sample", lens_type: "sample", frame_style: "sample", coating: "sample", order_date: "sample", status: "ordered"
   end
 
+  test "PlaceLensOrder cascades through policy chain" do
+    tests "PlaceLensOrder", on: "LensOrder", kind: :cascade
+    setup  "WritePrescription", patient_name: "sample", sphere_right: 1.0, sphere_left: 1.0, cylinder_right: 1.0, cylinder_left: 1.0, axis_right: 1, axis_left: 1, add_power: 1.0, prescription_date: "sample", expiration_date: "sample"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", insurance_id: "sample", medical_history: "sample"
+    input  patient_name: "sample", lens_type: "sample", frame_style: "sample", coating: "sample", order_date: "sample"
+    expect emits: ["LensOrderPlaced", "LensesDispensed", "FollowUpScheduled"]
+  end
+
   test "DispenseLenses runs" do
     tests "DispenseLenses", on: "LensOrder"
     setup  "PlaceLensOrder", patient_name: "sample", lens_type: "sample", frame_style: "sample", coating: "sample", order_date: "sample"
     expect status: "dispensed"
+  end
+
+  test "DispenseLenses cascades through policy chain" do
+    tests "DispenseLenses", on: "LensOrder", kind: :cascade
+    setup  "PlaceLensOrder", patient_name: "sample", lens_type: "sample", frame_style: "sample", coating: "sample", order_date: "sample"
+    expect emits: ["LensesDispensed", "FollowUpScheduled"]
   end
 
 
@@ -83,6 +125,13 @@ Hecks.behaviors "Optometry" do
     setup  "ScheduleFollowUp", patient_name: "sample", reason: "sample", scheduled_date: "sample"
     input  outcome_notes: "sample"
     expect outcome_notes: "sample", status: "completed"
+  end
+
+  test "CompleteFollowUp cascades through policy chain" do
+    tests "CompleteFollowUp", on: "FollowUp", kind: :cascade
+    setup  "ScheduleFollowUp", patient_name: "sample", reason: "sample", scheduled_date: "sample"
+    input  outcome_notes: "sample"
+    expect emits: ["FollowUpCompleted", "PrescriptionRenewed"]
   end
 
 end

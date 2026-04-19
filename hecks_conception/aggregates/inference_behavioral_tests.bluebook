@@ -36,6 +36,12 @@ Hecks.behaviors "Inference" do
     expect input: "sample"
   end
 
+  test "RunInference cascades through policy chain" do
+    tests "RunInference", on: "Prompt", kind: :cascade
+    input  input: "sample"
+    expect emits: ["InferenceRan", "OutputValidated"]
+  end
+
   test "ValidateOutput sets valid" do
     tests "ValidateOutput", on: "Prompt"
     setup  "RunInference", input: "sample"

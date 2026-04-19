@@ -46,10 +46,22 @@ Hecks.behaviors "MobileDialysis" do
     expect route_id: "sample", unit_id: "sample", date: "sample", total_miles: 1.0, status: "planned"
   end
 
+  test "PlanRoute cascades through policy chain" do
+    tests "PlanRoute", on: "TreatmentRoute", kind: :cascade
+    input  route_id: "sample", unit_id: "sample", date: "sample", total_miles: 1.0
+    expect emits: ["RoutePlanned", "UnitDispatched"]
+  end
+
   test "StartRoute runs" do
     tests "StartRoute", on: "TreatmentRoute"
     setup  "PlanRoute", route_id: "sample", unit_id: "sample", date: "sample", total_miles: 1.0
     expect status: "in_progress"
+  end
+
+  test "StartRoute cascades through policy chain" do
+    tests "StartRoute", on: "TreatmentRoute", kind: :cascade
+    setup  "PlanRoute", route_id: "sample", unit_id: "sample", date: "sample", total_miles: 1.0
+    expect emits: ["RouteStarted", "TreatmentStarted"]
   end
 
   test "FinishRoute runs" do

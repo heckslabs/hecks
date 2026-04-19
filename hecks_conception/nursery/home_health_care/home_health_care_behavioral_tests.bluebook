@@ -9,6 +9,12 @@ Hecks.behaviors "HomeHealthCare" do
     expect name: "sample", address: "sample", primary_diagnosis: "sample", physician_name: "sample", status: "enrolled"
   end
 
+  test "EnrollPatient cascades through policy chain" do
+    tests "EnrollPatient", on: "Patient", kind: :cascade
+    input  name: "sample", address: "sample", primary_diagnosis: "sample", physician_name: "sample"
+    expect emits: ["PatientEnrolled", "AllergyRecorded", "MedicationPrescribed", "VisitScheduled", "PatientActivated"]
+  end
+
   test "ActivatePatient runs" do
     tests "ActivatePatient", on: "Patient"
     setup  "EnrollPatient", name: "sample", address: "sample", primary_diagnosis: "sample", physician_name: "sample"
@@ -55,11 +61,26 @@ Hecks.behaviors "HomeHealthCare" do
     expect patient_name: "sample", caregiver_name: "sample", visit_date: "sample", visit_type: "sample", status: "scheduled"
   end
 
+  test "ScheduleVisit cascades through policy chain" do
+    tests "ScheduleVisit", on: "Visit", kind: :cascade
+    setup  "RegisterCaregiver", name: "sample", credential: "sample", phone: "sample", availability: "sample", max_visits_per_day: 1
+    setup  "EnrollPatient", name: "sample", address: "sample", primary_diagnosis: "sample", physician_name: "sample"
+    input  patient_name: "sample", caregiver_name: "sample", visit_date: "sample", visit_type: "sample"
+    expect emits: ["VisitScheduled", "PatientActivated"]
+  end
+
   test "CompleteVisit sets notes" do
     tests "CompleteVisit", on: "Visit"
     setup  "ScheduleVisit", patient_name: "sample", caregiver_name: "sample", visit_date: "sample", visit_type: "sample"
     input  notes: "sample"
     expect notes: "sample", status: "completed"
+  end
+
+  test "CompleteVisit cascades through policy chain" do
+    tests "CompleteVisit", on: "Visit", kind: :cascade
+    setup  "ScheduleVisit", patient_name: "sample", caregiver_name: "sample", visit_date: "sample", visit_type: "sample"
+    input  notes: "sample"
+    expect emits: ["VisitCompleted", "VitalsRecorded", "AbnormalVitalsFlagged", "VisitScheduled", "PatientActivated", "MedicationAdministered"]
   end
 
   test "CancelVisit runs" do
@@ -76,6 +97,13 @@ Hecks.behaviors "HomeHealthCare" do
     setup  "EnrollPatient", name: "sample", address: "sample", primary_diagnosis: "sample", physician_name: "sample"
     input  patient_name: "sample", drug_name: "sample", dosage: "sample", frequency: "sample", route: "sample", prescriber: "sample"
     expect patient_name: "sample", drug_name: "sample", dosage: "sample", frequency: "sample", route: "sample", prescriber: "sample", status: "active"
+  end
+
+  test "PrescribeMedication cascades through policy chain" do
+    tests "PrescribeMedication", on: "Medication", kind: :cascade
+    setup  "EnrollPatient", name: "sample", address: "sample", primary_diagnosis: "sample", physician_name: "sample"
+    input  patient_name: "sample", drug_name: "sample", dosage: "sample", frequency: "sample", route: "sample", prescriber: "sample"
+    expect emits: ["MedicationPrescribed", "VisitScheduled", "PatientActivated"]
   end
 
   test "AdministerMedication runs" do
@@ -100,10 +128,23 @@ Hecks.behaviors "HomeHealthCare" do
     expect patient_name: "sample", measurement_date: "sample", systolic: 1, diastolic: 1, heart_rate: 1, temperature: 1.0, oxygen_saturation: 1, alert_status: "normal"
   end
 
+  test "RecordVitals cascades through policy chain" do
+    tests "RecordVitals", on: "VitalSign", kind: :cascade
+    setup  "EnrollPatient", name: "sample", address: "sample", primary_diagnosis: "sample", physician_name: "sample"
+    input  patient_name: "sample", measurement_date: "sample", systolic: 1, diastolic: 1, heart_rate: 1, temperature: 1.0, oxygen_saturation: 1
+    expect emits: ["VitalsRecorded", "AbnormalVitalsFlagged", "VisitScheduled", "PatientActivated"]
+  end
+
   test "FlagAbnormalVitals runs" do
     tests "FlagAbnormalVitals", on: "VitalSign"
     setup  "RecordVitals", patient_name: "sample", measurement_date: "sample", systolic: 1, diastolic: 1, heart_rate: 1, temperature: 1.0, oxygen_saturation: 1
     expect alert_status: "abnormal"
+  end
+
+  test "FlagAbnormalVitals cascades through policy chain" do
+    tests "FlagAbnormalVitals", on: "VitalSign", kind: :cascade
+    setup  "RecordVitals", patient_name: "sample", measurement_date: "sample", systolic: 1, diastolic: 1, heart_rate: 1, temperature: 1.0, oxygen_saturation: 1
+    expect emits: ["AbnormalVitalsFlagged", "VisitScheduled", "PatientActivated"]
   end
 
 end

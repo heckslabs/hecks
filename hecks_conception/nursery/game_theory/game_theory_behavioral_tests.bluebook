@@ -9,6 +9,12 @@ Hecks.behaviors "GameTheory" do
     expect ok: "true"
   end
 
+  test "DefineGame cascades through policy chain" do
+    tests "DefineGame", on: "StrategicGame", kind: :cascade
+    input  game_id: "sample", name: "sample", game_type: "sample", player_count: 1
+    expect emits: ["GameDefined", "StrategyRegistered", "MatrixConstructed", "NashSolved", "EquilibriumRefined", "SimulationConfigured", "SimulationRun", "ResultsExported"]
+  end
+
   test "ValidateGame runs" do
     tests "ValidateGame", on: "StrategicGame"
     setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
@@ -36,6 +42,13 @@ Hecks.behaviors "GameTheory" do
     setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
     input  player_id: "sample", strategy_type: "sample"
     expect player_id: "sample", strategy_type: "sample"
+  end
+
+  test "RegisterStrategy cascades through policy chain" do
+    tests "RegisterStrategy", on: "Strategy", kind: :cascade
+    setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
+    input  player_id: "sample", strategy_type: "sample"
+    expect emits: ["StrategyRegistered", "MatrixConstructed", "NashSolved", "EquilibriumRefined", "SimulationConfigured", "SimulationRun", "ResultsExported"]
   end
 
   test "SpecifyOpponentStrategies runs" do
@@ -66,6 +79,13 @@ Hecks.behaviors "GameTheory" do
     expect ok: "true"
   end
 
+  test "ConstructMatrix cascades through policy chain" do
+    tests "ConstructMatrix", on: "PayoffMatrix", kind: :cascade
+    setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
+    input  rows: 1, columns: 1
+    expect emits: ["MatrixConstructed", "NashSolved", "EquilibriumRefined", "SimulationConfigured", "SimulationRun", "ResultsExported"]
+  end
+
   test "ModifyPayoff sets row + column + new_payoff" do
     tests "ModifyPayoff", on: "PayoffMatrix"
     setup  "ConstructMatrix", rows: 1, columns: 1
@@ -82,6 +102,12 @@ Hecks.behaviors "GameTheory" do
     expect ok: "true"
   end
 
+  test "SolveNash cascades through policy chain" do
+    tests "SolveNash", on: "Equilibrium", kind: :cascade
+    setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
+    expect emits: ["NashSolved", "EquilibriumRefined", "SimulationConfigured", "SimulationRun", "ResultsExported"]
+  end
+
   test "RecordNashEquilibrium sets nash_equilibrium_count" do
     tests "RecordNashEquilibrium", on: "Equilibrium"
     setup  "SolveNash"
@@ -96,6 +122,13 @@ Hecks.behaviors "GameTheory" do
     expect ok: "true"
   end
 
+  test "RefineEquilibrium cascades through policy chain" do
+    tests "RefineEquilibrium", on: "Equilibrium", kind: :cascade
+    setup  "SolveNash"
+    input  refinement_type: "sample"
+    expect emits: ["EquilibriumRefined", "SimulationConfigured", "SimulationRun", "ResultsExported"]
+  end
+
 
   # ── Simulation aggregate ──────────────────────────────────────────
 
@@ -106,6 +139,13 @@ Hecks.behaviors "GameTheory" do
     expect ok: "true"
   end
 
+  test "ConfigureSimulation cascades through policy chain" do
+    tests "ConfigureSimulation", on: "Simulation", kind: :cascade
+    setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
+    input  simulation_id: "sample", iteration_count: 1, learning_rule: "sample"
+    expect emits: ["SimulationConfigured", "SimulationRun", "ResultsExported"]
+  end
+
   test "MarkConfigured runs" do
     tests "MarkConfigured", on: "Simulation"
     setup  "ConfigureSimulation", simulation_id: "sample", iteration_count: 1, learning_rule: "sample"
@@ -114,6 +154,18 @@ Hecks.behaviors "GameTheory" do
 
   test "RunSimulation runs" do
     tests "RunSimulation", on: "Simulation"
+    setup  "ConfigureSimulation", simulation_id: "sample", iteration_count: 1, learning_rule: "sample"
+    expect ok: "true"
+  end
+
+  test "RunSimulation cascades through policy chain" do
+    tests "RunSimulation", on: "Simulation", kind: :cascade
+    setup  "ConfigureSimulation", simulation_id: "sample", iteration_count: 1, learning_rule: "sample"
+    expect emits: ["SimulationRun", "ResultsExported"]
+  end
+
+  test "ExportResults runs" do
+    tests "ExportResults", on: "Simulation"
     setup  "ConfigureSimulation", simulation_id: "sample", iteration_count: 1, learning_rule: "sample"
     expect ok: "true"
   end

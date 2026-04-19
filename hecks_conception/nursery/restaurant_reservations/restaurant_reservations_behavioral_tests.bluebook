@@ -15,11 +15,24 @@ Hecks.behaviors "RestaurantReservations" do
     expect status: "occupied"
   end
 
+  test "MarkOccupied cascades through policy chain" do
+    tests "MarkOccupied", on: "DiningTable", kind: :cascade
+    setup  "SetupTable", table_number: "sample", seat_capacity: 1, section: "sample"
+    expect emits: ["TableOccupied", "PartyWaitlisted"]
+  end
+
   test "ClearTable runs" do
     tests "ClearTable", on: "DiningTable"
     setup  "SetupTable", table_number: "sample", seat_capacity: 1, section: "sample"
     setup  "MarkOccupied"
     expect status: "available"
+  end
+
+  test "ClearTable cascades through policy chain" do
+    tests "ClearTable", on: "DiningTable", kind: :cascade
+    setup  "SetupTable", table_number: "sample", seat_capacity: 1, section: "sample"
+    setup  "MarkOccupied"
+    expect emits: ["TableCleared", "PartyNotified", "PartySeated", "TableOccupied", "PartyWaitlisted"]
   end
 
 
@@ -29,6 +42,12 @@ Hecks.behaviors "RestaurantReservations" do
     tests "BookReservation", on: "Reservation"
     input  guest_name: "sample", phone_number: "sample", reservation_date: "sample", time_slot: "sample", party_size: 1, special_requests: "sample"
     expect guest_name: "sample", phone_number: "sample", reservation_date: "sample", time_slot: "sample", party_size: 1, status: "confirmed"
+  end
+
+  test "BookReservation cascades through policy chain" do
+    tests "BookReservation", on: "Reservation", kind: :cascade
+    input  guest_name: "sample", phone_number: "sample", reservation_date: "sample", time_slot: "sample", party_size: 1, special_requests: "sample"
+    expect emits: ["ReservationBooked", "TableSetup"]
   end
 
   test "CancelReservation runs" do
@@ -41,6 +60,12 @@ Hecks.behaviors "RestaurantReservations" do
     tests "MarkNoShow", on: "Reservation"
     setup  "BookReservation", guest_name: "sample", phone_number: "sample", reservation_date: "sample", time_slot: "sample", party_size: 1, special_requests: "sample"
     expect status: "no_show"
+  end
+
+  test "MarkNoShow cascades through policy chain" do
+    tests "MarkNoShow", on: "Reservation", kind: :cascade
+    setup  "BookReservation", guest_name: "sample", phone_number: "sample", reservation_date: "sample", time_slot: "sample", party_size: 1, special_requests: "sample"
+    expect emits: ["GuestNoShow", "PartyNotified", "PartySeated", "TableOccupied", "PartyWaitlisted"]
   end
 
 
@@ -56,6 +81,12 @@ Hecks.behaviors "RestaurantReservations" do
     tests "NotifyParty", on: "Waitlist"
     setup  "AddToWaitlist", party_name: "sample", party_size: 1, quoted_wait_time: "sample"
     expect status: "notified"
+  end
+
+  test "NotifyParty cascades through policy chain" do
+    tests "NotifyParty", on: "Waitlist", kind: :cascade
+    setup  "AddToWaitlist", party_name: "sample", party_size: 1, quoted_wait_time: "sample"
+    expect emits: ["PartyNotified", "PartySeated", "TableOccupied", "PartyWaitlisted"]
   end
 
   test "RemoveFromWaitlist runs" do
@@ -74,10 +105,23 @@ Hecks.behaviors "RestaurantReservations" do
     expect server_name: "sample", covers: 1, status: "seated"
   end
 
+  test "SeatParty cascades through policy chain" do
+    tests "SeatParty", on: "Seating", kind: :cascade
+    setup  "SetupTable", table_number: "sample", seat_capacity: 1, section: "sample"
+    input  server_name: "sample", covers: 1
+    expect emits: ["PartySeated", "TableOccupied", "PartyWaitlisted"]
+  end
+
   test "CloseSeating runs" do
     tests "CloseSeating", on: "Seating"
     setup  "SeatParty", server_name: "sample", covers: 1
     expect status: "closed"
+  end
+
+  test "CloseSeating cascades through policy chain" do
+    tests "CloseSeating", on: "Seating", kind: :cascade
+    setup  "SeatParty", server_name: "sample", covers: 1
+    expect emits: ["SeatingClosed", "TableCleared", "PartyNotified", "PartySeated", "TableOccupied", "PartyWaitlisted"]
   end
 
 end

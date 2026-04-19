@@ -16,6 +16,13 @@ Hecks.behaviors "SmartOT" do
     expect progress_pct: 1.0
   end
 
+  test "LogProgress cascades through policy chain" do
+    tests "LogProgress", on: "TherapyGoal", kind: :cascade
+    setup  "SetGoal", goal_id: "sample", client_name: "sample", goal_area: "sample", target_outcome: "sample"
+    input  progress_pct: 1.0
+    expect emits: ["ProgressLogged", "AssessmentRun"]
+  end
+
 
   # ── SmartDevice aggregate ──────────────────────────────────────────
 
@@ -23,6 +30,12 @@ Hecks.behaviors "SmartOT" do
     tests "PairDevice", on: "SmartDevice"
     input  device_id: "sample", device_type: "sample", location_room: "sample", client_name: "sample"
     expect device_id: "sample", device_type: "sample", location_room: "sample", client_name: "sample", status: "paired"
+  end
+
+  test "PairDevice cascades through policy chain" do
+    tests "PairDevice", on: "SmartDevice", kind: :cascade
+    input  device_id: "sample", device_type: "sample", location_room: "sample", client_name: "sample"
+    expect emits: ["DevicePaired", "ActivityLogged"]
   end
 
   test "AdjustDevice runs" do

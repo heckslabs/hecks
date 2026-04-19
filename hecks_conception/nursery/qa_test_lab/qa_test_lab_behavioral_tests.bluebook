@@ -32,11 +32,25 @@ Hecks.behaviors "QATestLab" do
     expect status: "active"
   end
 
+  test "DefineTestSuite cascades through policy chain" do
+    tests "DefineTestSuite", on: "TestSuite", kind: :cascade
+    setup  "RegisterTestProject", project_name: "sample", repository_url: "sample", team_lead: "sample", priority: "sample"
+    input  suite_name: "sample", test_type: "sample"
+    expect emits: ["TestSuiteDefined", "EnvironmentSetUp", "EnvironmentLocked", "TestSuiteExecuted", "BugFiled", "ReleaseBlocked", "BugAssigned", "EnvironmentTornDown"]
+  end
+
   test "ExecuteTestSuite sets build_id" do
     tests "ExecuteTestSuite", on: "TestSuite"
     setup  "DefineTestSuite", suite_name: "sample", test_type: "sample"
     input  build_id: "sample"
     expect ok: "true"
+  end
+
+  test "ExecuteTestSuite cascades through policy chain" do
+    tests "ExecuteTestSuite", on: "TestSuite", kind: :cascade
+    setup  "DefineTestSuite", suite_name: "sample", test_type: "sample"
+    input  build_id: "sample"
+    expect emits: ["TestSuiteExecuted", "BugFiled", "ReleaseBlocked", "BugAssigned", "EnvironmentTornDown"]
   end
 
   test "RetireTestSuite runs" do
@@ -55,6 +69,13 @@ Hecks.behaviors "QATestLab" do
     expect ok: "true"
   end
 
+  test "FileBug cascades through policy chain" do
+    tests "FileBug", on: "Bug", kind: :cascade
+    setup  "DefineTestSuite", suite_name: "sample", test_type: "sample"
+    input  bug_id: "sample", title: "sample", description: "sample", severity: "sample"
+    expect emits: ["BugFiled", "ReleaseBlocked", "BugAssigned"]
+  end
+
   test "AssignBug sets assigned_to" do
     tests "AssignBug", on: "Bug"
     setup  "FileBug", bug_id: "sample", title: "sample", description: "sample", severity: "sample"
@@ -69,6 +90,13 @@ Hecks.behaviors "QATestLab" do
     expect ok: "true"
   end
 
+  test "CloseBug cascades through policy chain" do
+    tests "CloseBug", on: "Bug", kind: :cascade
+    setup  "FileBug", bug_id: "sample", title: "sample", description: "sample", severity: "sample"
+    setup  "AssignBug", assigned_to: "sample"
+    expect emits: ["BugClosed", "ReleaseCandidated"]
+  end
+
 
   # ── TestEnvironment aggregate ──────────────────────────────────────────
 
@@ -76,6 +104,12 @@ Hecks.behaviors "QATestLab" do
     tests "SetupEnvironment", on: "TestEnvironment"
     input  env_name: "sample", platform: "sample", browser_version: "sample", os_version: "sample"
     expect status: "idle"
+  end
+
+  test "SetupEnvironment cascades through policy chain" do
+    tests "SetupEnvironment", on: "TestEnvironment", kind: :cascade
+    input  env_name: "sample", platform: "sample", browser_version: "sample", os_version: "sample"
+    expect emits: ["EnvironmentSetUp", "EnvironmentLocked", "TestSuiteExecuted", "BugFiled", "ReleaseBlocked", "BugAssigned", "EnvironmentTornDown"]
   end
 
   test "TeardownEnvironment runs" do
@@ -88,6 +122,12 @@ Hecks.behaviors "QATestLab" do
     tests "LockEnvironment", on: "TestEnvironment"
     setup  "SetupEnvironment", env_name: "sample", platform: "sample", browser_version: "sample", os_version: "sample"
     expect ok: "true"
+  end
+
+  test "LockEnvironment cascades through policy chain" do
+    tests "LockEnvironment", on: "TestEnvironment", kind: :cascade
+    setup  "SetupEnvironment", env_name: "sample", platform: "sample", browser_version: "sample", os_version: "sample"
+    expect emits: ["EnvironmentLocked", "TestSuiteExecuted", "BugFiled", "ReleaseBlocked", "BugAssigned", "EnvironmentTornDown"]
   end
 
 

@@ -9,6 +9,12 @@ Hecks.behaviors "Vocabulary" do
     expect phrase: "sample", domain: "sample", command: "sample", aggregate: "sample", actor: "sample", parameters: "sample"
   end
 
+  test "Define cascades through policy chain" do
+    tests "Define", on: "Sentence", kind: :cascade
+    input  phrase: "sample", domain: "sample", command: "sample", aggregate: "sample", actor: "sample", parameters: "sample"
+    expect emits: ["SentenceDefined", "LexiconCompiled"]
+  end
+
   test "Translate sets natural_phrase" do
     tests "Translate", on: "Sentence"
     setup  "Define", phrase: "sample", domain: "sample", command: "sample", aggregate: "sample", actor: "sample", parameters: "sample"
@@ -23,6 +29,12 @@ Hecks.behaviors "Vocabulary" do
     tests "Compose", on: "Composition"
     input  phrase: "sample", from_domain: "sample", from_command: "sample", to_domain: "sample", to_command: "sample", bridge_type: "sample", connector: "sample"
     expect phrase: "sample", from_domain: "sample", from_command: "sample", to_domain: "sample", to_command: "sample", bridge_type: "sample", connector: "sample"
+  end
+
+  test "Compose cascades through policy chain" do
+    tests "Compose", on: "Composition", kind: :cascade
+    input  phrase: "sample", from_domain: "sample", from_command: "sample", to_domain: "sample", to_command: "sample", bridge_type: "sample", connector: "sample"
+    expect emits: ["CompositionCreated", "LexiconCompiled"]
   end
 
   test "TranslateComposition sets natural_phrase" do
@@ -45,6 +57,12 @@ Hecks.behaviors "Vocabulary" do
     tests "Grant", on: "Acl"
     input  actor: "sample", canonical_phrase: "sample", command_path: "sample"
     expect actor: "sample", canonical_phrase: "sample", command_path: "sample"
+  end
+
+  test "Grant cascades through policy chain" do
+    tests "Grant", on: "Acl", kind: :cascade
+    input  actor: "sample", canonical_phrase: "sample", command_path: "sample"
+    expect emits: ["AccessGranted", "LexiconCompiled"]
   end
 
   test "AddPhrase sets phrase" do

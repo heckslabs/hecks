@@ -9,10 +9,22 @@ Hecks.behaviors "GroceryStore" do
     expect sku: "sample", name: "sample", category: "sample", price: 1.0, quantity: 1, expiration_date: "sample", status: "available"
   end
 
+  test "StockProduct cascades through policy chain" do
+    tests "StockProduct", on: "Product", kind: :cascade
+    input  sku: "sample", name: "sample", category: "sample", price: 1.0, quantity: 1, expiration_date: "sample"
+    expect emits: ["ProductStocked", "PlanogramRevised", "PromotionLaunched", "ProductMarkedDown"]
+  end
+
   test "PullFromShelf runs" do
     tests "PullFromShelf", on: "Product"
     setup  "StockProduct", sku: "sample", name: "sample", category: "sample", price: 1.0, quantity: 1, expiration_date: "sample"
     expect status: "pulled"
+  end
+
+  test "PullFromShelf cascades through policy chain" do
+    tests "PullFromShelf", on: "Product", kind: :cascade
+    setup  "StockProduct", sku: "sample", name: "sample", category: "sample", price: 1.0, quantity: 1, expiration_date: "sample"
+    expect emits: ["ProductPulled", "ReorderPlaced", "ProductStocked", "PlanogramRevised", "PromotionLaunched", "ProductMarkedDown", "ShrinkageRecorded", "ShrinkageInvestigated", "PromotionEnded"]
   end
 
 
@@ -46,6 +58,13 @@ Hecks.behaviors "GroceryStore" do
     expect ok: "true"
   end
 
+  test "PlaceReorder cascades through policy chain" do
+    tests "PlaceReorder", on: "Supplier", kind: :cascade
+    setup  "RegisterSupplier", name: "sample", contact_email: "sample", delivery_schedule: "sample"
+    input  sku: "sample", quantity: 1
+    expect emits: ["ReorderPlaced", "ProductStocked", "PlanogramRevised", "PromotionLaunched", "ProductMarkedDown"]
+  end
+
 
   # ── Promotion aggregate ──────────────────────────────────────────
 
@@ -68,6 +87,12 @@ Hecks.behaviors "GroceryStore" do
     tests "RecordShrinkage", on: "ShrinkageReport"
     input  report_id: "sample", sku: "sample", units_lost: 1, cause: "sample", reported_date: "sample", estimated_loss: 1.0
     expect report_id: "sample", sku: "sample", units_lost: 1, cause: "sample", reported_date: "sample", estimated_loss: 1.0
+  end
+
+  test "RecordShrinkage cascades through policy chain" do
+    tests "RecordShrinkage", on: "ShrinkageReport", kind: :cascade
+    input  report_id: "sample", sku: "sample", units_lost: 1, cause: "sample", reported_date: "sample", estimated_loss: 1.0
+    expect emits: ["ShrinkageRecorded", "ShrinkageInvestigated"]
   end
 
   test "InvestigateShrinkage runs" do

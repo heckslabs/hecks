@@ -9,6 +9,12 @@ Hecks.behaviors "Cartography" do
     expect ok: "true"
   end
 
+  test "Plate cascades through policy chain" do
+    tests "Plate", on: "MapSheet", kind: :cascade
+    input  sheet_id: "sample", title: "sample", scale: "sample"
+    expect emits: ["SheetPlated", "FeatureDigitized", "FeatureAttributed", "DistortionComputed", "SheetPublished"]
+  end
+
   test "AddFeatureLayer runs" do
     tests "AddFeatureLayer", on: "MapSheet"
     setup  "Plate", sheet_id: "sample", title: "sample", scale: "sample"
@@ -36,11 +42,24 @@ Hecks.behaviors "Cartography" do
     expect ok: "true"
   end
 
+  test "DefineProjection cascades through policy chain" do
+    tests "DefineProjection", on: "Projection", kind: :cascade
+    input  name: "sample", projection_type: "sample", central_meridian: 1.0
+    expect emits: ["ProjectionDefined", "SheetPlated", "FeatureDigitized", "FeatureAttributed", "DistortionComputed", "SheetPublished"]
+  end
+
   test "ComputeDistortion sets latitude + longitude" do
     tests "ComputeDistortion", on: "Projection"
     setup  "DefineProjection", name: "sample", projection_type: "sample", central_meridian: 1.0
     input  latitude: 1.0, longitude: 1.0
     expect ok: "true"
+  end
+
+  test "ComputeDistortion cascades through policy chain" do
+    tests "ComputeDistortion", on: "Projection", kind: :cascade
+    setup  "DefineProjection", name: "sample", projection_type: "sample", central_meridian: 1.0
+    input  latitude: 1.0, longitude: 1.0
+    expect emits: ["DistortionComputed", "SheetPublished"]
   end
 
 
@@ -53,11 +72,25 @@ Hecks.behaviors "Cartography" do
     expect ok: "true"
   end
 
+  test "DigitizeFeature cascades through policy chain" do
+    tests "DigitizeFeature", on: "GeographicFeature", kind: :cascade
+    setup  "Plate", sheet_id: "sample", title: "sample", scale: "sample"
+    input  feature_type: "sample", name: "sample", geometry_wkt: "sample"
+    expect emits: ["FeatureDigitized", "FeatureAttributed", "DistortionComputed", "SheetPublished"]
+  end
+
   test "AttributeFeature sets attribute_name + attribute_value" do
     tests "AttributeFeature", on: "GeographicFeature"
     setup  "DigitizeFeature", feature_type: "sample", name: "sample", geometry_wkt: "sample"
     input  attribute_name: "sample", attribute_value: "sample"
     expect ok: "true"
+  end
+
+  test "AttributeFeature cascades through policy chain" do
+    tests "AttributeFeature", on: "GeographicFeature", kind: :cascade
+    setup  "DigitizeFeature", feature_type: "sample", name: "sample", geometry_wkt: "sample"
+    input  attribute_name: "sample", attribute_value: "sample"
+    expect emits: ["FeatureAttributed", "DistortionComputed", "SheetPublished"]
   end
 
   test "Erase runs" do
@@ -73,6 +106,12 @@ Hecks.behaviors "Cartography" do
     tests "RegisterDatum", on: "Datum"
     input  name: "sample", ellipsoid: "sample", semi_major_axis_m: 1.0
     expect name: "sample", ellipsoid: "sample", semi_major_axis_m: 1.0
+  end
+
+  test "RegisterDatum cascades through policy chain" do
+    tests "RegisterDatum", on: "Datum", kind: :cascade
+    input  name: "sample", ellipsoid: "sample", semi_major_axis_m: 1.0
+    expect emits: ["DatumRegistered", "ProjectionDefined", "SheetPlated", "FeatureDigitized", "FeatureAttributed", "DistortionComputed", "SheetPublished"]
   end
 
   test "RegisterTargetDatum runs" do

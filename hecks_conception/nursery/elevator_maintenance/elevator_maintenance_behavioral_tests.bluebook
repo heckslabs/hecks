@@ -9,6 +9,12 @@ Hecks.behaviors "ElevatorMaintenance" do
     expect building_name: "sample", unit_number: "sample", elevator_type: "sample", floors_served: 1, capacity_lbs: 1, install_year: 1
   end
 
+  test "RegisterUnit cascades through policy chain" do
+    tests "RegisterUnit", on: "ElevatorUnit", kind: :cascade
+    input  building_name: "sample", unit_number: "sample", elevator_type: "sample", floors_served: 1, capacity_lbs: 1, install_year: 1
+    expect emits: ["UnitRegistered", "InspectionScheduled", "MaintenancePerformed"]
+  end
+
   test "ShutDownUnit sets reason" do
     tests "ShutDownUnit", on: "ElevatorUnit"
     setup  "RegisterUnit", building_name: "sample", unit_number: "sample", elevator_type: "sample", floors_served: 1, capacity_lbs: 1, install_year: 1
@@ -40,6 +46,13 @@ Hecks.behaviors "ElevatorMaintenance" do
     expect ok: "true"
   end
 
+  test "ReportFinding cascades through policy chain" do
+    tests "ReportFinding", on: "MaintenanceVisit", kind: :cascade
+    setup  "PerformMaintenance", mechanic_name: "sample", visit_date: "sample"
+    input  findings: "sample"
+    expect emits: ["FindingReported", "PartOrdered", "PartInstalled", "PostInstallTestComplete", "UnitReturnedToService"]
+  end
+
 
   # ── PartReplacement aggregate ──────────────────────────────────────────
 
@@ -50,10 +63,35 @@ Hecks.behaviors "ElevatorMaintenance" do
     expect status: "received"
   end
 
+  test "OrderPart cascades through policy chain" do
+    tests "OrderPart", on: "PartReplacement", kind: :cascade
+    setup  "RegisterUnit", building_name: "sample", unit_number: "sample", elevator_type: "sample", floors_served: 1, capacity_lbs: 1, install_year: 1
+    input  part_name: "sample", part_number: "sample", vendor: "sample", cost: 1.0
+    expect emits: ["PartOrdered", "PartInstalled", "PostInstallTestComplete", "UnitReturnedToService"]
+  end
+
   test "InstallPart runs" do
     tests "InstallPart", on: "PartReplacement"
     setup  "OrderPart", part_name: "sample", part_number: "sample", vendor: "sample", cost: 1.0
     expect ok: "true"
+  end
+
+  test "InstallPart cascades through policy chain" do
+    tests "InstallPart", on: "PartReplacement", kind: :cascade
+    setup  "OrderPart", part_name: "sample", part_number: "sample", vendor: "sample", cost: 1.0
+    expect emits: ["PartInstalled", "PostInstallTestComplete", "UnitReturnedToService"]
+  end
+
+  test "TestAfterInstall runs" do
+    tests "TestAfterInstall", on: "PartReplacement"
+    setup  "OrderPart", part_name: "sample", part_number: "sample", vendor: "sample", cost: 1.0
+    expect ok: "true"
+  end
+
+  test "TestAfterInstall cascades through policy chain" do
+    tests "TestAfterInstall", on: "PartReplacement", kind: :cascade
+    setup  "OrderPart", part_name: "sample", part_number: "sample", vendor: "sample", cost: 1.0
+    expect emits: ["PostInstallTestComplete", "UnitReturnedToService"]
   end
 
 
@@ -88,6 +126,21 @@ Hecks.behaviors "ElevatorMaintenance" do
     setup  "DispatchMechanic", building_name: "sample", unit_number: "sample", call_type: "sample"
     input  resolution: "sample"
     expect status: "resolved"
+  end
+
+  test "ResolveEmergency cascades through policy chain" do
+    tests "ResolveEmergency", on: "EmergencyCall", kind: :cascade
+    setup  "DispatchMechanic", building_name: "sample", unit_number: "sample", call_type: "sample"
+    input  resolution: "sample"
+    expect emits: ["EmergencyResolved", "IncidentReportFiled"]
+  end
+
+  test "FileIncidentReport sets incident_details" do
+    tests "FileIncidentReport", on: "EmergencyCall"
+    setup  "DispatchMechanic", building_name: "sample", unit_number: "sample", call_type: "sample"
+    setup  "ResolveEmergency", resolution: "sample"
+    input  incident_details: "sample"
+    expect ok: "true"
   end
 
 end

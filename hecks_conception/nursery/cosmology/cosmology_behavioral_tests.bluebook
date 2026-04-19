@@ -95,7 +95,34 @@ Hecks.behaviors "Cosmology" do
     setup  "FormStar", name: "sample", mass: 1.0, temperature: 1.0
     setup  "IgniteFusion", luminosity: 1.0, spectral_class: "sample"
     setup  "EvolveStar"
-    expect fuel_remaining: 0.0, status: "collapsed"
+    expect fuel_remaining: 0.0, status: "exhausted"
+  end
+
+  test "ExhaustFuel cascades through policy chain" do
+    tests "ExhaustFuel", on: "Star", kind: :cascade
+    setup  "FormStar", name: "sample", mass: 1.0, temperature: 1.0
+    setup  "IgniteFusion", luminosity: 1.0, spectral_class: "sample"
+    setup  "EvolveStar"
+    expect emits: ["FuelExhausted", "StarCollapsed"]
+  end
+
+  test "CollapseStar runs" do
+    tests "CollapseStar", on: "Star"
+    setup  "FormStar", name: "sample", mass: 1.0, temperature: 1.0
+    setup  "IgniteFusion", luminosity: 1.0, spectral_class: "sample"
+    setup  "EvolveStar"
+    setup  "ExhaustFuel"
+    expect status: "collapsed"
+  end
+
+  test "GoSupernova runs" do
+    tests "GoSupernova", on: "Star"
+    setup  "FormStar", name: "sample", mass: 1.0, temperature: 1.0
+    setup  "IgniteFusion", luminosity: 1.0, spectral_class: "sample"
+    setup  "EvolveStar"
+    setup  "ExhaustFuel"
+    setup  "CollapseStar"
+    expect status: "remnant"
   end
 
 
@@ -118,6 +145,20 @@ Hecks.behaviors "Cosmology" do
     tests "AccreteMatter", on: "BlackHole"
     setup  "FormBlackHole", name: "sample", mass: 1.0, spin: 1.0, charge: 1.0
     input  accreted_mass: 1.0
+    expect ok: "true"
+  end
+
+  test "AccreteMatter cascades through policy chain" do
+    tests "AccreteMatter", on: "BlackHole", kind: :cascade
+    setup  "FormBlackHole", name: "sample", mass: 1.0, spin: 1.0, charge: 1.0
+    input  accreted_mass: 1.0
+    expect emits: ["MatterAccreted", "HawkingRadiationEmitted"]
+  end
+
+  test "EmitHawkingRadiation sets temperature" do
+    tests "EmitHawkingRadiation", on: "BlackHole"
+    setup  "FormBlackHole", name: "sample", mass: 1.0, spin: 1.0, charge: 1.0
+    input  temperature: 1.0
     expect temperature: 1.0
   end
 
@@ -135,6 +176,12 @@ Hecks.behaviors "Cosmology" do
     tests "DetectDarkMatter", on: "DarkMatter"
     input  name: "sample", halo_mass: 1.0, candidate_type: "sample"
     expect name: "sample", halo_mass: 1.0, candidate_type: "sample"
+  end
+
+  test "DetectDarkMatter cascades through policy chain" do
+    tests "DetectDarkMatter", on: "DarkMatter", kind: :cascade
+    input  name: "sample", halo_mass: 1.0, candidate_type: "sample"
+    expect emits: ["DarkMatterDetected", "GravitationalLensingMeasured"]
   end
 
   test "MapDistribution sets distribution + density" do
@@ -232,7 +279,23 @@ Hecks.behaviors "Cosmology" do
     setup  "ModelInflation", name: "sample", inflation_duration: 1.0
     setup  "SimulateNucleosynthesis", nucleosynthesis_temperature: 1.0, helium_fraction: 1.0
     input  recombination_redshift: 1.0
-    expect recombination_redshift: 1.0, status: "structure_formation"
+    expect recombination_redshift: 1.0, status: "recombination"
+  end
+
+  test "CalculateRecombination cascades through policy chain" do
+    tests "CalculateRecombination", on: "BigBang", kind: :cascade
+    setup  "ModelInflation", name: "sample", inflation_duration: 1.0
+    setup  "SimulateNucleosynthesis", nucleosynthesis_temperature: 1.0, helium_fraction: 1.0
+    input  recombination_redshift: 1.0
+    expect emits: ["RecombinationCalculated", "StructureFormationTraced"]
+  end
+
+  test "TraceStructureFormation runs" do
+    tests "TraceStructureFormation", on: "BigBang"
+    setup  "ModelInflation", name: "sample", inflation_duration: 1.0
+    setup  "SimulateNucleosynthesis", nucleosynthesis_temperature: 1.0, helium_fraction: 1.0
+    setup  "CalculateRecombination", recombination_redshift: 1.0
+    expect status: "structure_formation"
   end
 
 

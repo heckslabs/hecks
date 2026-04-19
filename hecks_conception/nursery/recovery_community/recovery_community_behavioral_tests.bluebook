@@ -15,6 +15,18 @@ Hecks.behaviors "RecoveryCommunity" do
     expect ok: "true"
   end
 
+  test "LogDay cascades through policy chain" do
+    tests "LogDay", on: "RecoveryJourney", kind: :cascade
+    setup  "StartJourney", member_id: "sample", name: "sample", program_type: "sample"
+    expect emits: ["DayLogged", "MilestoneAwarded"]
+  end
+
+  test "AwardMilestone runs" do
+    tests "AwardMilestone", on: "RecoveryJourney"
+    setup  "StartJourney", member_id: "sample", name: "sample", program_type: "sample"
+    expect ok: "true"
+  end
+
 
   # ── PeerGroup aggregate ──────────────────────────────────────────
 
@@ -37,6 +49,12 @@ Hecks.behaviors "RecoveryCommunity" do
     tests "SubmitPost", on: "CommunityPost"
     input  post_id: "sample", author_id: "sample", content: "sample", topic: "sample"
     expect post_id: "sample", author_id: "sample", content: "sample", topic: "sample", status: "pending_review"
+  end
+
+  test "SubmitPost cascades through policy chain" do
+    tests "SubmitPost", on: "CommunityPost", kind: :cascade
+    input  post_id: "sample", author_id: "sample", content: "sample", topic: "sample"
+    expect emits: ["PostSubmitted", "FlagRaised"]
   end
 
   test "ApprovePost runs" do

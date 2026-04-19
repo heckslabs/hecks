@@ -18,10 +18,22 @@ Hecks.behaviors "CorpusPruning" do
     expect domain_name: "sample"
   end
 
+  test "AddReferences cascades through policy chain" do
+    tests "AddReferences", on: "FeatureEnrichment", kind: :cascade
+    input  domain_name: "sample"
+    expect emits: ["ReferencesAdded", "EnrichmentValidated"]
+  end
+
   test "AddCollections sets domain_name" do
     tests "AddCollections", on: "FeatureEnrichment"
     input  domain_name: "sample"
     expect domain_name: "sample"
+  end
+
+  test "AddCollections cascades through policy chain" do
+    tests "AddCollections", on: "FeatureEnrichment", kind: :cascade
+    input  domain_name: "sample"
+    expect emits: ["CollectionsAdded", "EnrichmentValidated"]
   end
 
   test "AddGivens sets domain_name" do
@@ -39,6 +51,12 @@ Hecks.behaviors "CorpusPruning" do
 
   # ── Deduplicator aggregate ──────────────────────────────────────────
 
+  test "FindDuplicates cascades through policy chain" do
+    tests "FindDuplicates", on: "Deduplicator", kind: :cascade
+    input  jsonl_path: "sample", similarity_threshold: 1.0
+    expect emits: ["DuplicatesFound", "DuplicatesMerged"]
+  end
+
   test "MergeDuplicates runs" do
     tests "MergeDuplicates", on: "Deduplicator"
     setup  "FindDuplicates", jsonl_path: "sample", similarity_threshold: 1.0
@@ -52,6 +70,12 @@ Hecks.behaviors "CorpusPruning" do
     tests "AssessBalance", on: "CategoryBalancer"
     input  jsonl_path: "sample"
     expect ok: "true"
+  end
+
+  test "AssessBalance cascades through policy chain" do
+    tests "AssessBalance", on: "CategoryBalancer", kind: :cascade
+    input  jsonl_path: "sample"
+    expect emits: ["BalanceAssessed", "CategoryCapped"]
   end
 
   test "CapCategory sets category + max_count" do

@@ -15,6 +15,12 @@ Hecks.behaviors "VetTraining" do
     expect status: "graduated"
   end
 
+  test "GraduateVeteran cascades through policy chain" do
+    tests "GraduateVeteran", on: "VeteranProfile", kind: :cascade
+    setup  "EnrollVeteran", veteran_id: "sample", name: "sample", branch: "sample", discharge_status: "sample"
+    expect emits: ["VeteranGraduated", "VeteranPlaced"]
+  end
+
 
   # ── Course aggregate ──────────────────────────────────────────
 
@@ -43,7 +49,14 @@ Hecks.behaviors "VetTraining" do
     tests "RecordProgress", on: "Enrollment"
     setup  "EnrollInCourse", enrollment_id: "sample", veteran_id: "sample", course_id: "sample"
     input  progress_pct: 1.0
-    expect progress_pct: 1.0, status: "completed"
+    expect progress_pct: 1.0
+  end
+
+  test "RecordProgress cascades through policy chain" do
+    tests "RecordProgress", on: "Enrollment", kind: :cascade
+    setup  "EnrollInCourse", enrollment_id: "sample", veteran_id: "sample", course_id: "sample"
+    input  progress_pct: 1.0
+    expect emits: ["ProgressRecorded", "CourseCompleted"]
   end
 
 

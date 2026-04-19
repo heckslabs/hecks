@@ -9,6 +9,12 @@ Hecks.behaviors "Demand" do
     expect sku: "sample", channel: "sample", period: "sample", units_sold: 1, sell_through_rate: 1.0, weeks_of_supply: 1.0
   end
 
+  test "CaptureDemandSignal cascades through policy chain" do
+    tests "CaptureDemandSignal", on: "DemandSignal", kind: :cascade
+    input  sku: "sample", channel: "sample", period: "sample", units_sold: 1, sell_through_rate: 1.0, weeks_of_supply: 1.0
+    expect emits: ["DemandSignalCaptured", "ForecastGenerated", "ReorderRecommendationGenerated"]
+  end
+
   test "AdjustSeasonalIndex sets seasonal_index" do
     tests "AdjustSeasonalIndex", on: "DemandSignal"
     setup  "CaptureDemandSignal", sku: "sample", channel: "sample", period: "sample", units_sold: 1, sell_through_rate: 1.0, weeks_of_supply: 1.0
@@ -23,6 +29,12 @@ Hecks.behaviors "Demand" do
     tests "GenerateForecast", on: "Forecast"
     input  sku: "sample", channel: "sample", forecast_period: "sample", forecasted_units: 1, confidence_interval_low: 1, confidence_interval_high: 1, model_type: "sample", safety_stock_units: 1
     expect sku: "sample", channel: "sample", forecast_period: "sample", forecasted_units: 1, confidence_interval_low: 1, confidence_interval_high: 1, model_type: "sample", safety_stock_units: 1, status: "active"
+  end
+
+  test "GenerateForecast cascades through policy chain" do
+    tests "GenerateForecast", on: "Forecast", kind: :cascade
+    input  sku: "sample", channel: "sample", forecast_period: "sample", forecasted_units: 1, confidence_interval_low: 1, confidence_interval_high: 1, model_type: "sample", safety_stock_units: 1
+    expect emits: ["ForecastGenerated", "ReorderRecommendationGenerated"]
   end
 
   test "OverrideForecast sets forecasted_units + safety_stock_units" do

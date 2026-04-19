@@ -9,6 +9,12 @@ Hecks.behaviors "ScientificPestMgmt" do
     expect scientific_name: "sample", common_name: "sample", order: "sample", family: "sample", life_cycle_days: 1, habitat_preference: "sample", status: "identified"
   end
 
+  test "IdentifySpecies cascades through policy chain" do
+    tests "IdentifySpecies", on: "PestSpecies", kind: :cascade
+    input  scientific_name: "sample", common_name: "sample", order: "sample", family: "sample", life_cycle_days: 1, habitat_preference: "sample"
+    expect emits: ["PestSpeciesIdentified", "LifeCycleDocumented"]
+  end
+
   test "DocumentLifeCycle runs" do
     tests "DocumentLifeCycle", on: "PestSpecies"
     setup  "IdentifySpecies", scientific_name: "sample", common_name: "sample", order: "sample", family: "sample", life_cycle_days: 1, habitat_preference: "sample"
@@ -24,10 +30,22 @@ Hecks.behaviors "ScientificPestMgmt" do
     expect site_address: "sample", pest_species: "sample", severity: "sample", estimated_population: 1, affected_area: "sample", status: "reported"
   end
 
+  test "ReportInfestation cascades through policy chain" do
+    tests "ReportInfestation", on: "Infestation", kind: :cascade
+    input  site_address: "sample", pest_species: "sample", severity: "sample", estimated_population: 1, affected_area: "sample"
+    expect emits: ["InfestationReported", "InfestationAssessed", "TreatmentPrescribed", "TreatmentApplied", "EffectivenessEvaluated"]
+  end
+
   test "AssessInfestation runs" do
     tests "AssessInfestation", on: "Infestation"
     setup  "ReportInfestation", site_address: "sample", pest_species: "sample", severity: "sample", estimated_population: 1, affected_area: "sample"
     expect status: "assessed"
+  end
+
+  test "AssessInfestation cascades through policy chain" do
+    tests "AssessInfestation", on: "Infestation", kind: :cascade
+    setup  "ReportInfestation", site_address: "sample", pest_species: "sample", severity: "sample", estimated_population: 1, affected_area: "sample"
+    expect emits: ["InfestationAssessed", "TreatmentPrescribed", "TreatmentApplied", "EffectivenessEvaluated"]
   end
 
   test "ResolveInfestation runs" do
@@ -46,9 +64,29 @@ Hecks.behaviors "ScientificPestMgmt" do
     expect treatment_name: "sample", method: "sample", active_ingredient: "sample", concentration_pct: 1.0, target_life_stage: "sample", status: "prescribed"
   end
 
+  test "PrescribeTreatment cascades through policy chain" do
+    tests "PrescribeTreatment", on: "Treatment", kind: :cascade
+    input  treatment_name: "sample", method: "sample", active_ingredient: "sample", concentration_pct: 1.0, target_life_stage: "sample"
+    expect emits: ["TreatmentPrescribed", "TreatmentApplied", "EffectivenessEvaluated"]
+  end
+
   test "ApplyTreatment runs" do
     tests "ApplyTreatment", on: "Treatment"
     setup  "PrescribeTreatment", treatment_name: "sample", method: "sample", active_ingredient: "sample", concentration_pct: 1.0, target_life_stage: "sample"
+    expect status: "applied"
+  end
+
+  test "ApplyTreatment cascades through policy chain" do
+    tests "ApplyTreatment", on: "Treatment", kind: :cascade
+    setup  "PrescribeTreatment", treatment_name: "sample", method: "sample", active_ingredient: "sample", concentration_pct: 1.0, target_life_stage: "sample"
+    expect emits: ["TreatmentApplied", "EffectivenessEvaluated"]
+  end
+
+  test "EvaluateEffectiveness sets effectiveness_pct" do
+    tests "EvaluateEffectiveness", on: "Treatment"
+    setup  "PrescribeTreatment", treatment_name: "sample", method: "sample", active_ingredient: "sample", concentration_pct: 1.0, target_life_stage: "sample"
+    setup  "ApplyTreatment"
+    input  effectiveness_pct: 1.0
     expect effectiveness_pct: 1.0, status: "evaluated"
   end
 
@@ -59,6 +97,12 @@ Hecks.behaviors "ScientificPestMgmt" do
     tests "RecordResistance", on: "ResistanceProfile"
     input  pest_species: "sample", active_ingredient: "sample", resistance_mechanism: "sample", resistance_level_pct: 1.0, first_detected: "sample"
     expect pest_species: "sample", active_ingredient: "sample", resistance_mechanism: "sample", resistance_level_pct: 1.0, first_detected: "sample", status: "recorded"
+  end
+
+  test "RecordResistance cascades through policy chain" do
+    tests "RecordResistance", on: "ResistanceProfile", kind: :cascade
+    input  pest_species: "sample", active_ingredient: "sample", resistance_mechanism: "sample", resistance_level_pct: 1.0, first_detected: "sample"
+    expect emits: ["ResistanceRecorded", "RotationRecommended"]
   end
 
   test "RecommendRotation runs" do

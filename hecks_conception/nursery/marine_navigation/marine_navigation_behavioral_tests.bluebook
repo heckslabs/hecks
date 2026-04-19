@@ -38,6 +38,13 @@ Hecks.behaviors "MarineNavigation" do
     expect storm_warning: "sample"
   end
 
+  test "EscalateStormWarning cascades through policy chain" do
+    tests "EscalateStormWarning", on: "WeatherForecast", kind: :cascade
+    setup  "IssueForecast", region: "sample", wind_speed_knots: 1.0, wave_height_meters: 1.0, visibility_nm: 1.0, storm_warning: "sample", valid_from: "sample", valid_until: "sample"
+    input  storm_warning: "sample"
+    expect emits: ["StormWarningEscalated", "RouteRerouted"]
+  end
+
   test "ExpireForecast runs" do
     tests "ExpireForecast", on: "WeatherForecast"
     setup  "IssueForecast", region: "sample", wind_speed_knots: 1.0, wave_height_meters: 1.0, visibility_nm: 1.0, storm_warning: "sample", valid_from: "sample", valid_until: "sample"
@@ -81,16 +88,41 @@ Hecks.behaviors "MarineNavigation" do
     expect name: "sample", origin_port: "sample", destination_port: "sample", total_distance_nm: 1.0, status: "planned"
   end
 
+  test "PlanRoute cascades through policy chain" do
+    tests "PlanRoute", on: "Route", kind: :cascade
+    input  name: "sample", origin_port: "sample", destination_port: "sample", total_distance_nm: 1.0
+    expect emits: ["RoutePlanned", "RouteAdjustedForCurrents", "FuelEstimated"]
+  end
+
+  test "CalculateFuelEstimate sets estimated_fuel_tons + estimated_hours" do
+    tests "CalculateFuelEstimate", on: "Route"
+    setup  "PlanRoute", name: "sample", origin_port: "sample", destination_port: "sample", total_distance_nm: 1.0
+    input  estimated_fuel_tons: 1.0, estimated_hours: 1.0
+    expect estimated_fuel_tons: 1.0, estimated_hours: 1.0
+  end
+
   test "AdjustForCurrents runs" do
     tests "AdjustForCurrents", on: "Route"
     setup  "PlanRoute", name: "sample", origin_port: "sample", destination_port: "sample", total_distance_nm: 1.0
-    expect estimated_fuel_tons: 1.0, estimated_hours: 1.0
+    expect ok: "true"
+  end
+
+  test "AdjustForCurrents cascades through policy chain" do
+    tests "AdjustForCurrents", on: "Route", kind: :cascade
+    setup  "PlanRoute", name: "sample", origin_port: "sample", destination_port: "sample", total_distance_nm: 1.0
+    expect emits: ["RouteAdjustedForCurrents", "FuelEstimated"]
   end
 
   test "ApproveRoute runs" do
     tests "ApproveRoute", on: "Route"
     setup  "PlanRoute", name: "sample", origin_port: "sample", destination_port: "sample", total_distance_nm: 1.0
     expect status: "approved"
+  end
+
+  test "ApproveRoute cascades through policy chain" do
+    tests "ApproveRoute", on: "Route", kind: :cascade
+    setup  "PlanRoute", name: "sample", origin_port: "sample", destination_port: "sample", total_distance_nm: 1.0
+    expect emits: ["RouteApproved", "StormWarningEscalated", "RouteRerouted"]
   end
 
   test "RerouteForWeather sets reason" do
@@ -110,8 +142,26 @@ Hecks.behaviors "MarineNavigation" do
     expect vessel_name: "sample", fuel_burned_tons: 1.0, distance_traveled_nm: 1.0, timestamp: "sample", status: "recorded"
   end
 
+  test "RecordFuelBurn cascades through policy chain" do
+    tests "RecordFuelBurn", on: "FuelLog", kind: :cascade
+    input  vessel_name: "sample", fuel_burned_tons: 1.0, distance_traveled_nm: 1.0, timestamp: "sample"
+    expect emits: ["FuelBurnRecorded", "EfficiencyCalculated", "ExcessiveBurnFlagged"]
+  end
+
   test "CalculateEfficiency runs" do
     tests "CalculateEfficiency", on: "FuelLog"
+    setup  "RecordFuelBurn", vessel_name: "sample", fuel_burned_tons: 1.0, distance_traveled_nm: 1.0, timestamp: "sample"
+    expect ok: "true"
+  end
+
+  test "CalculateEfficiency cascades through policy chain" do
+    tests "CalculateEfficiency", on: "FuelLog", kind: :cascade
+    setup  "RecordFuelBurn", vessel_name: "sample", fuel_burned_tons: 1.0, distance_traveled_nm: 1.0, timestamp: "sample"
+    expect emits: ["EfficiencyCalculated", "ExcessiveBurnFlagged"]
+  end
+
+  test "FlagExcessiveBurn runs" do
+    tests "FlagExcessiveBurn", on: "FuelLog"
     setup  "RecordFuelBurn", vessel_name: "sample", fuel_burned_tons: 1.0, distance_traveled_nm: 1.0, timestamp: "sample"
     expect status: "flagged"
   end

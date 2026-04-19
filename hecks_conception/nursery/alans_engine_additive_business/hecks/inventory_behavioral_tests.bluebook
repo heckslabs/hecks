@@ -23,6 +23,13 @@ Hecks.behaviors "Inventory" do
     expect ok: "true"
   end
 
+  test "ShipStock cascades through policy chain" do
+    tests "ShipStock", on: "Inventory", kind: :cascade
+    setup  "ReceiveStock", sku: "sample", warehouse: "sample", quantity: 1
+    input  quantity: 1
+    expect emits: ["StockShipped", "ReorderTriggered"]
+  end
+
   test "AdjustInventory sets adjustment + reason" do
     tests "AdjustInventory", on: "Inventory"
     setup  "ReceiveStock", sku: "sample", warehouse: "sample", quantity: 1

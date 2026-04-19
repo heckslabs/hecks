@@ -9,10 +9,22 @@ Hecks.behaviors "FreelanceMarketplace" do
     expect status: "open"
   end
 
+  test "PostGig cascades through policy chain" do
+    tests "PostGig", on: "Gig", kind: :cascade
+    input  gig_title: "sample", description: "sample", category: "sample", budget: 1.0, deadline: "sample"
+    expect emits: ["GigPosted", "ProposalSubmitted"]
+  end
+
   test "CloseGig runs" do
     tests "CloseGig", on: "Gig"
     setup  "PostGig", gig_title: "sample", description: "sample", category: "sample", budget: 1.0, deadline: "sample"
     expect ok: "true"
+  end
+
+  test "CloseGig cascades through policy chain" do
+    tests "CloseGig", on: "Gig", kind: :cascade
+    setup  "PostGig", gig_title: "sample", description: "sample", category: "sample", budget: 1.0, deadline: "sample"
+    expect emits: ["GigClosed", "ProposalRejected"]
   end
 
   test "CancelGig runs" do
@@ -60,6 +72,12 @@ Hecks.behaviors "FreelanceMarketplace" do
     expect ok: "true"
   end
 
+  test "AcceptProposal cascades through policy chain" do
+    tests "AcceptProposal", on: "Proposal", kind: :cascade
+    setup  "SubmitProposal", proposal_id: "sample", cover_letter: "sample", proposed_rate: 1.0, estimated_days: 1
+    expect emits: ["ProposalAccepted", "ContractSigned", "PaymentHeld"]
+  end
+
   test "RejectProposal sets rejection_reason" do
     tests "RejectProposal", on: "Proposal"
     setup  "SubmitProposal", proposal_id: "sample", cover_letter: "sample", proposed_rate: 1.0, estimated_days: 1
@@ -78,6 +96,14 @@ Hecks.behaviors "FreelanceMarketplace" do
     expect status: "active"
   end
 
+  test "SignContract cascades through policy chain" do
+    tests "SignContract", on: "Contract", kind: :cascade
+    setup  "RegisterFreelancer", freelancer_id: "sample", name: "sample", email: "sample", headline: "sample", hourly_rate: 1.0
+    setup  "PostGig", gig_title: "sample", description: "sample", category: "sample", budget: 1.0, deadline: "sample"
+    input  contract_id: "sample", total_amount: 1.0, start_date: "sample", end_date: "sample"
+    expect emits: ["ContractSigned", "PaymentHeld"]
+  end
+
   test "CompleteMilestone sets milestone_title" do
     tests "CompleteMilestone", on: "Contract"
     setup  "SignContract", contract_id: "sample", total_amount: 1.0, start_date: "sample", end_date: "sample"
@@ -85,10 +111,23 @@ Hecks.behaviors "FreelanceMarketplace" do
     expect ok: "true"
   end
 
+  test "CompleteMilestone cascades through policy chain" do
+    tests "CompleteMilestone", on: "Contract", kind: :cascade
+    setup  "SignContract", contract_id: "sample", total_amount: 1.0, start_date: "sample", end_date: "sample"
+    input  milestone_title: "sample"
+    expect emits: ["MilestoneCompleted", "PaymentReleased"]
+  end
+
   test "TerminateContract runs" do
     tests "TerminateContract", on: "Contract"
     setup  "SignContract", contract_id: "sample", total_amount: 1.0, start_date: "sample", end_date: "sample"
     expect ok: "true"
+  end
+
+  test "TerminateContract cascades through policy chain" do
+    tests "TerminateContract", on: "Contract", kind: :cascade
+    setup  "SignContract", contract_id: "sample", total_amount: 1.0, start_date: "sample", end_date: "sample"
+    expect emits: ["ContractTerminated", "PaymentRefunded"]
   end
 
 

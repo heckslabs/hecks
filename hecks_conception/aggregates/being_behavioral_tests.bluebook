@@ -9,11 +9,32 @@ Hecks.behaviors "Being" do
     expect name: "sample", vision: "sample"
   end
 
+  test "GraftDomain sets domain_name + domain_version + source_path + grafted_at" do
+    tests "GraftDomain", on: "Being"
+    setup  "ConceiveBeing", name: "sample", vision: "sample"
+    input  domain_name: "sample", domain_version: "sample", source_path: "sample", grafted_at: "sample"
+    expect organs_size: 1
+  end
+
+  test "GraftDomain cascades through policy chain" do
+    tests "GraftDomain", on: "Being", kind: :cascade
+    setup  "ConceiveBeing", name: "sample", vision: "sample"
+    input  domain_name: "sample", domain_version: "sample", source_path: "sample", grafted_at: "sample"
+    expect emits: ["DomainGrafted", "NerveConnected"]
+  end
+
   test "ShedDomain sets domain_name" do
     tests "ShedDomain", on: "Being"
     setup  "ConceiveBeing", name: "sample", vision: "sample"
     input  domain_name: "sample"
     expect ok: "true"
+  end
+
+  test "ShedDomain cascades through policy chain" do
+    tests "ShedDomain", on: "Being", kind: :cascade
+    setup  "ConceiveBeing", name: "sample", vision: "sample"
+    input  domain_name: "sample"
+    expect emits: ["DomainShed", "NerveSevered", "NerveConnected"]
   end
 
   test "ExpressDomain sets domain_name" do
@@ -23,6 +44,13 @@ Hecks.behaviors "Being" do
     expect ok: "true"
   end
 
+  test "ExpressDomain cascades through policy chain" do
+    tests "ExpressDomain", on: "Being", kind: :cascade
+    setup  "ConceiveBeing", name: "sample", vision: "sample"
+    input  domain_name: "sample"
+    expect emits: ["DomainExpressed", "NerveRestored"]
+  end
+
   test "SilenceDomain sets domain_name" do
     tests "SilenceDomain", on: "Being"
     setup  "ConceiveBeing", name: "sample", vision: "sample"
@@ -30,11 +58,25 @@ Hecks.behaviors "Being" do
     expect ok: "true"
   end
 
+  test "SilenceDomain cascades through policy chain" do
+    tests "SilenceDomain", on: "Being", kind: :cascade
+    setup  "ConceiveBeing", name: "sample", vision: "sample"
+    input  domain_name: "sample"
+    expect emits: ["DomainSilenced", "NerveSevered"]
+  end
+
   test "UpgradeOrgan sets domain_name + new_version" do
     tests "UpgradeOrgan", on: "Being"
     setup  "ConceiveBeing", name: "sample", vision: "sample"
     input  domain_name: "sample", new_version: "sample"
     expect ok: "true"
+  end
+
+  test "UpgradeOrgan cascades through policy chain" do
+    tests "UpgradeOrgan", on: "Being", kind: :cascade
+    setup  "ConceiveBeing", name: "sample", vision: "sample"
+    input  domain_name: "sample", new_version: "sample"
+    expect emits: ["OrganUpgraded", "DomainGrafted", "NerveConnected"]
   end
 
 
@@ -68,6 +110,12 @@ Hecks.behaviors "Being" do
     expect organs_scanned: 1, nerves_discovered: 1
   end
 
+  test "ScanOrgans cascades through policy chain" do
+    tests "ScanOrgans", on: "NerveDiscovery", kind: :cascade
+    input  organs_scanned: 1, nerves_discovered: 1
+    expect emits: ["OrgansScanned", "NerveConnected"]
+  end
+
 
   # ── OrganMonitor aggregate ──────────────────────────────────────────
 
@@ -91,10 +139,21 @@ Hecks.behaviors "Being" do
     expect ok: "true"
   end
 
+  test "RecordSession cascades through policy chain" do
+    tests "RecordSession", on: "Identity", kind: :cascade
+    expect emits: ["SessionRecorded", "IdentityMemoryEncoded"]
+  end
+
   test "RememberPerson sets persona_name" do
     tests "RememberPerson", on: "Identity"
     input  persona_name: "sample"
     expect personas_known_size: 1
+  end
+
+  test "EncodeIdentityMemory sets memory" do
+    tests "EncodeIdentityMemory", on: "Identity"
+    input  memory: "sample"
+    expect memories_size: 1
   end
 
 
@@ -113,6 +172,12 @@ Hecks.behaviors "Being" do
     tests "AddMember", on: "Member"
     input  name: "sample", vision: "sample", path: "sample", kind: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, version: "sample"
     expect name: "sample", vision: "sample", path: "sample", kind: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, version: "sample", status: "active"
+  end
+
+  test "AddMember cascades through policy chain" do
+    tests "AddMember", on: "Member", kind: :cascade
+    input  name: "sample", vision: "sample", path: "sample", kind: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, version: "sample"
+    expect emits: ["MemberAdded", "AdditionRecorded", "LinkedToBody"]
   end
 
   test "EvolveMember sets version + aggregate_count + command_count + fixture_count" do

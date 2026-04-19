@@ -22,6 +22,13 @@ Hecks.behaviors "InteriorDesign" do
     expect status: "approved"
   end
 
+  test "ApproveConcept cascades through policy chain" do
+    tests "ApproveConcept", on: "DesignProject", kind: :cascade
+    setup  "ScopeProject", name: "sample", space_type: "sample", style_direction: "sample", budget: 1.0
+    setup  "PresentConcept"
+    expect emits: ["ConceptApproved", "RoomPlanned", "FixturesSpecified", "MaterialSpecified", "MaterialOrdered", "InstallationScheduled", "InstallationCompleted", "PunchListResolved"]
+  end
+
 
   # ── RoomDesign aggregate ──────────────────────────────────────────
 
@@ -32,11 +39,25 @@ Hecks.behaviors "InteriorDesign" do
     expect status: "planning"
   end
 
+  test "PlanRoom cascades through policy chain" do
+    tests "PlanRoom", on: "RoomDesign", kind: :cascade
+    setup  "ScopeProject", name: "sample", space_type: "sample", style_direction: "sample", budget: 1.0
+    input  room_name: "sample", function: "sample", square_footage: 1.0, color_palette: "sample"
+    expect emits: ["RoomPlanned", "FixturesSpecified", "MaterialSpecified", "MaterialOrdered", "InstallationScheduled", "InstallationCompleted", "PunchListResolved"]
+  end
+
   test "SpecifyFixtures sets fixture_list" do
     tests "SpecifyFixtures", on: "RoomDesign"
     setup  "PlanRoom", room_name: "sample", function: "sample", square_footage: 1.0, color_palette: "sample"
     input  fixture_list: "sample"
     expect status: "specified"
+  end
+
+  test "SpecifyFixtures cascades through policy chain" do
+    tests "SpecifyFixtures", on: "RoomDesign", kind: :cascade
+    setup  "PlanRoom", room_name: "sample", function: "sample", square_footage: 1.0, color_palette: "sample"
+    input  fixture_list: "sample"
+    expect emits: ["FixturesSpecified", "MaterialSpecified", "MaterialOrdered", "InstallationScheduled", "InstallationCompleted", "PunchListResolved"]
   end
 
 
@@ -49,11 +70,25 @@ Hecks.behaviors "InteriorDesign" do
     expect ok: "true"
   end
 
+  test "SpecifyMaterial cascades through policy chain" do
+    tests "SpecifyMaterial", on: "MaterialSelection", kind: :cascade
+    setup  "PlanRoom", room_name: "sample", function: "sample", square_footage: 1.0, color_palette: "sample"
+    input  material_name: "sample", category: "sample", supplier: "sample", unit_cost: 1.0, lead_time_days: 1
+    expect emits: ["MaterialSpecified", "MaterialOrdered", "InstallationScheduled", "InstallationCompleted", "PunchListResolved"]
+  end
+
   test "OrderMaterial sets quantity" do
     tests "OrderMaterial", on: "MaterialSelection"
     setup  "SpecifyMaterial", material_name: "sample", category: "sample", supplier: "sample", unit_cost: 1.0, lead_time_days: 1
     input  quantity: 1
     expect ok: "true"
+  end
+
+  test "OrderMaterial cascades through policy chain" do
+    tests "OrderMaterial", on: "MaterialSelection", kind: :cascade
+    setup  "SpecifyMaterial", material_name: "sample", category: "sample", supplier: "sample", unit_cost: 1.0, lead_time_days: 1
+    input  quantity: 1
+    expect emits: ["MaterialOrdered", "InstallationScheduled", "InstallationCompleted", "PunchListResolved"]
   end
 
 
@@ -82,9 +117,30 @@ Hecks.behaviors "InteriorDesign" do
     expect status: "scheduled"
   end
 
+  test "ScheduleInstallation cascades through policy chain" do
+    tests "ScheduleInstallation", on: "Installation", kind: :cascade
+    setup  "ScopeProject", name: "sample", space_type: "sample", style_direction: "sample", budget: 1.0
+    input  date: "sample", crew_lead: "sample"
+    expect emits: ["InstallationScheduled", "InstallationCompleted", "PunchListResolved"]
+  end
+
   test "CompleteInstallation runs" do
     tests "CompleteInstallation", on: "Installation"
     setup  "ScheduleInstallation", date: "sample", crew_lead: "sample"
+    expect status: "completed"
+  end
+
+  test "CompleteInstallation cascades through policy chain" do
+    tests "CompleteInstallation", on: "Installation", kind: :cascade
+    setup  "ScheduleInstallation", date: "sample", crew_lead: "sample"
+    expect emits: ["InstallationCompleted", "PunchListResolved"]
+  end
+
+  test "ResolvePunchList sets punch_list" do
+    tests "ResolvePunchList", on: "Installation"
+    setup  "ScheduleInstallation", date: "sample", crew_lead: "sample"
+    setup  "CompleteInstallation"
+    input  punch_list: "sample"
     expect status: "resolved"
   end
 

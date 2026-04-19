@@ -24,10 +24,22 @@ Hecks.behaviors "DLM" do
     expect name: "sample", input: "sample", deterministic: "true"
   end
 
+  test "ExecuteOperation cascades through policy chain" do
+    tests "ExecuteOperation", on: "Operation", kind: :cascade
+    input  name: "sample", input: "sample"
+    expect emits: ["OperationExecuted", "CorpusGrown", "StateAnnounced", "HonestOperationRecorded"]
+  end
+
   test "RejectOperation sets name + reason" do
     tests "RejectOperation", on: "Operation"
     input  name: "sample", reason: "sample"
     expect deterministic: "true"
+  end
+
+  test "RejectOperation cascades through policy chain" do
+    tests "RejectOperation", on: "Operation", kind: :cascade
+    input  name: "sample", reason: "sample"
+    expect emits: ["OperationRejected", "RefusalRecorded"]
   end
 
 
@@ -85,14 +97,35 @@ Hecks.behaviors "DLM" do
 
   # ── Physiology aggregate ──────────────────────────────────────────
 
+  test "RecordHeartbeat runs" do
+    tests "RecordHeartbeat", on: "Physiology"
+    expect ok: "true"
+  end
+
   test "RecordPulse runs" do
     tests "RecordPulse", on: "Physiology"
     expect ok: "true"
   end
 
+  test "RecordPulse cascades through policy chain" do
+    tests "RecordPulse", on: "Physiology", kind: :cascade
+    expect emits: ["Pulsed", "HeartbeatPulsed"]
+  end
+
   test "EnterSleep runs" do
     tests "EnterSleep", on: "Physiology"
     expect pulse: 0
+  end
+
+  test "EnterSleep cascades through policy chain" do
+    tests "EnterSleep", on: "Physiology", kind: :cascade
+    expect emits: ["Slept", "Dreamed"]
+  end
+
+  test "GenerateDream sets dream_images" do
+    tests "GenerateDream", on: "Physiology"
+    input  dream_images: "sample"
+    expect ok: "true"
   end
 
 
@@ -101,6 +134,11 @@ Hecks.behaviors "DLM" do
   test "RecordGrowth runs" do
     tests "RecordGrowth", on: "Growth"
     expect ok: "true"
+  end
+
+  test "RecordGrowth cascades through policy chain" do
+    tests "RecordGrowth", on: "Growth", kind: :cascade
+    expect emits: ["GrowthRecorded", "AccelerationMeasured"]
   end
 
   test "MeasureAcceleration runs" do

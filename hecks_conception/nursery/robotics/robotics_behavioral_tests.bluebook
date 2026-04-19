@@ -9,6 +9,12 @@ Hecks.behaviors "Robotics" do
     expect ok: "true"
   end
 
+  test "ActivateRobot cascades through policy chain" do
+    tests "ActivateRobot", on: "Robot", kind: :cascade
+    input  robot_id: "sample", name: "sample", platform_type: "sample"
+    expect emits: ["RobotActivated", "SensorMounted", "SensorCalibrated", "MissionPlanned", "MissionLaunched", "StreamStarted", "TelemetryAnalyzed", "ReportGenerated"]
+  end
+
   test "FlashFirmware sets new_version" do
     tests "FlashFirmware", on: "Robot"
     setup  "ActivateRobot", robot_id: "sample", name: "sample", platform_type: "sample"
@@ -32,10 +38,23 @@ Hecks.behaviors "Robotics" do
     expect ok: "true"
   end
 
+  test "MountSensor cascades through policy chain" do
+    tests "MountSensor", on: "Sensor", kind: :cascade
+    setup  "ActivateRobot", robot_id: "sample", name: "sample", platform_type: "sample"
+    input  sensor_id: "sample", sensor_type: "sample"
+    expect emits: ["SensorMounted", "SensorCalibrated", "MissionPlanned", "MissionLaunched", "StreamStarted", "TelemetryAnalyzed", "ReportGenerated"]
+  end
+
   test "CalibrateSensor runs" do
     tests "CalibrateSensor", on: "Sensor"
     setup  "MountSensor", sensor_id: "sample", sensor_type: "sample"
     expect ok: "true"
+  end
+
+  test "CalibrateSensor cascades through policy chain" do
+    tests "CalibrateSensor", on: "Sensor", kind: :cascade
+    setup  "MountSensor", sensor_id: "sample", sensor_type: "sample"
+    expect emits: ["SensorCalibrated", "MissionPlanned", "MissionLaunched", "StreamStarted", "TelemetryAnalyzed", "ReportGenerated"]
   end
 
   test "ReplaceSensor runs" do
@@ -77,10 +96,23 @@ Hecks.behaviors "Robotics" do
     expect ok: "true"
   end
 
+  test "PlanMission cascades through policy chain" do
+    tests "PlanMission", on: "Mission", kind: :cascade
+    setup  "ActivateRobot", robot_id: "sample", name: "sample", platform_type: "sample"
+    input  mission_id: "sample", objective: "sample"
+    expect emits: ["MissionPlanned", "MissionLaunched", "StreamStarted", "TelemetryAnalyzed", "ReportGenerated"]
+  end
+
   test "LaunchMission runs" do
     tests "LaunchMission", on: "Mission"
     setup  "PlanMission", mission_id: "sample", objective: "sample"
     expect ok: "true"
+  end
+
+  test "LaunchMission cascades through policy chain" do
+    tests "LaunchMission", on: "Mission", kind: :cascade
+    setup  "PlanMission", mission_id: "sample", objective: "sample"
+    expect emits: ["MissionLaunched", "StreamStarted", "TelemetryAnalyzed", "ReportGenerated"]
   end
 
   test "AbortMission sets abort_reason" do
@@ -100,10 +132,23 @@ Hecks.behaviors "Robotics" do
     expect ok: "true"
   end
 
+  test "StartStream cascades through policy chain" do
+    tests "StartStream", on: "TelemetryStream", kind: :cascade
+    setup  "ActivateRobot", robot_id: "sample", name: "sample", platform_type: "sample"
+    input  stream_id: "sample", data_type: "sample"
+    expect emits: ["StreamStarted", "TelemetryAnalyzed", "ReportGenerated"]
+  end
+
   test "PauseStream runs" do
     tests "PauseStream", on: "TelemetryStream"
     setup  "StartStream", stream_id: "sample", data_type: "sample"
     expect ok: "true"
+  end
+
+  test "AnalyzeTelemetry cascades through policy chain" do
+    tests "AnalyzeTelemetry", on: "TelemetryStream", kind: :cascade
+    setup  "StartStream", stream_id: "sample", data_type: "sample"
+    expect emits: ["TelemetryAnalyzed", "ReportGenerated"]
   end
 
 

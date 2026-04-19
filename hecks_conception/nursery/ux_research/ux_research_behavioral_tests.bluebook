@@ -9,16 +9,34 @@ Hecks.behaviors "UXResearch" do
     expect status: "planned"
   end
 
+  test "PlanStudy cascades through policy chain" do
+    tests "PlanStudy", on: "Study", kind: :cascade
+    input  study_name: "sample", research_question: "sample", methodology: "sample", lead_researcher: "sample", target_participants: 1
+    expect emits: ["StudyPlanned", "StudyLaunched", "ParticipantRecruited"]
+  end
+
   test "LaunchStudy runs" do
     tests "LaunchStudy", on: "Study"
     setup  "PlanStudy", study_name: "sample", research_question: "sample", methodology: "sample", lead_researcher: "sample", target_participants: 1
     expect ok: "true"
   end
 
+  test "LaunchStudy cascades through policy chain" do
+    tests "LaunchStudy", on: "Study", kind: :cascade
+    setup  "PlanStudy", study_name: "sample", research_question: "sample", methodology: "sample", lead_researcher: "sample", target_participants: 1
+    expect emits: ["StudyLaunched", "ParticipantRecruited"]
+  end
+
   test "ConcludeStudy runs" do
     tests "ConcludeStudy", on: "Study"
     setup  "PlanStudy", study_name: "sample", research_question: "sample", methodology: "sample", lead_researcher: "sample", target_participants: 1
     expect ok: "true"
+  end
+
+  test "ConcludeStudy cascades through policy chain" do
+    tests "ConcludeStudy", on: "Study", kind: :cascade
+    setup  "PlanStudy", study_name: "sample", research_question: "sample", methodology: "sample", lead_researcher: "sample", target_participants: 1
+    expect emits: ["StudyConcluded", "FindingValidated", "RecommendationProposed"]
   end
 
 
@@ -35,6 +53,12 @@ Hecks.behaviors "UXResearch" do
     tests "QualifyParticipant", on: "Participant"
     setup  "RecruitParticipant", participant_id: "sample", name: "sample", email: "sample", demographic_segment: "sample"
     expect ok: "true"
+  end
+
+  test "QualifyParticipant cascades through policy chain" do
+    tests "QualifyParticipant", on: "Participant", kind: :cascade
+    setup  "RecruitParticipant", participant_id: "sample", name: "sample", email: "sample", demographic_segment: "sample"
+    expect emits: ["ParticipantQualified", "SessionScheduled"]
   end
 
   test "ExcludeParticipant runs" do
@@ -59,6 +83,12 @@ Hecks.behaviors "UXResearch" do
     expect ok: "true"
   end
 
+  test "CompleteSession cascades through policy chain" do
+    tests "CompleteSession", on: "Session", kind: :cascade
+    setup  "ScheduleSession", session_id: "sample", session_type: "sample", scheduled_at: "sample", duration_minutes: 1, facilitator: "sample"
+    expect emits: ["SessionCompleted", "FindingDocumented"]
+  end
+
   test "CancelSession sets cancellation_reason" do
     tests "CancelSession", on: "Session"
     setup  "ScheduleSession", session_id: "sample", session_type: "sample", scheduled_at: "sample", duration_minutes: 1, facilitator: "sample"
@@ -80,6 +110,12 @@ Hecks.behaviors "UXResearch" do
     tests "ValidateFinding", on: "Finding"
     setup  "DocumentFinding", finding_id: "sample", title: "sample", description: "sample", severity: "sample", evidence_type: "sample"
     expect status: "validated"
+  end
+
+  test "ValidateFinding cascades through policy chain" do
+    tests "ValidateFinding", on: "Finding", kind: :cascade
+    setup  "DocumentFinding", finding_id: "sample", title: "sample", description: "sample", severity: "sample", evidence_type: "sample"
+    expect emits: ["FindingValidated", "RecommendationProposed"]
   end
 
   test "ArchiveFinding runs" do

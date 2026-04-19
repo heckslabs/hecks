@@ -29,6 +29,13 @@ Hecks.behaviors "CompostSeasonalBeings" do
     expect status: "reversed"
   end
 
+  test "Reverse cascades through policy chain" do
+    tests "Reverse", on: "Action", kind: :cascade
+    setup  "Plan", action_name: "sample", rationale: "sample"
+    setup  "Execute"
+    expect emits: ["ActionReversed", "BeingRestored"]
+  end
+
 
   # ── Composting aggregate ──────────────────────────────────────────
 
@@ -36,6 +43,12 @@ Hecks.behaviors "CompostSeasonalBeings" do
     tests "Compost", on: "Composting"
     input  name: "sample", kind: "sample", reason_absorbed: "sample", absorbed_by: "sample", files_removed: "sample", files_modified: "sample"
     expect name: "sample", kind: "sample", reason_absorbed: "sample", absorbed_by: "sample", files_removed: "sample", files_modified: "sample"
+  end
+
+  test "Compost cascades through policy chain" do
+    tests "Compost", on: "Composting", kind: :cascade
+    input  name: "sample", kind: "sample", reason_absorbed: "sample", absorbed_by: "sample", files_removed: "sample", files_modified: "sample"
+    expect emits: ["BeingComposted", "BeforeSnapshotted"]
   end
 
   test "SnapshotBefore sets before_snapshot" do

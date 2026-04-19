@@ -9,6 +9,12 @@ Hecks.behaviors "IoTPlatform" do
     expect device_id: "sample", device_type: "sample", firmware_version: "sample", location: "sample"
   end
 
+  test "RegisterDevice cascades through policy chain" do
+    tests "RegisterDevice", on: "Device", kind: :cascade
+    input  device_id: "sample", device_type: "sample", firmware_version: "sample", location: "sample"
+    expect emits: ["DeviceRegistered", "SensorAttached", "SensorCalibrated"]
+  end
+
   test "SuspendDevice runs" do
     tests "SuspendDevice", on: "Device"
     setup  "RegisterDevice", device_id: "sample", device_type: "sample", firmware_version: "sample", location: "sample"
@@ -30,6 +36,13 @@ Hecks.behaviors "IoTPlatform" do
     setup  "RegisterDevice", device_id: "sample", device_type: "sample", firmware_version: "sample", location: "sample"
     input  sensor_id: "sample", sensor_type: "sample", unit: "sample", min_range: 1.0, max_range: 1.0
     expect status: "active"
+  end
+
+  test "AttachSensor cascades through policy chain" do
+    tests "AttachSensor", on: "Sensor", kind: :cascade
+    setup  "RegisterDevice", device_id: "sample", device_type: "sample", firmware_version: "sample", location: "sample"
+    input  sensor_id: "sample", sensor_type: "sample", unit: "sample", min_range: 1.0, max_range: 1.0
+    expect emits: ["SensorAttached", "SensorCalibrated"]
   end
 
   test "CalibrateSensor sets offset + scale_factor" do
@@ -55,6 +68,13 @@ Hecks.behaviors "IoTPlatform" do
     expect ok: "true"
   end
 
+  test "IngestReading cascades through policy chain" do
+    tests "IngestReading", on: "Reading", kind: :cascade
+    setup  "AttachSensor", sensor_id: "sample", sensor_type: "sample", unit: "sample", min_range: 1.0, max_range: 1.0
+    input  reading_id: "sample", value: 1.0, timestamp: "sample"
+    expect emits: ["ReadingIngested", "ReadingValidated"]
+  end
+
   test "ValidateReading runs" do
     tests "ValidateReading", on: "Reading"
     setup  "IngestReading", reading_id: "sample", value: 1.0, timestamp: "sample"
@@ -68,6 +88,13 @@ Hecks.behaviors "IoTPlatform" do
     expect ok: "true"
   end
 
+  test "FlagAnomaly cascades through policy chain" do
+    tests "FlagAnomaly", on: "Reading", kind: :cascade
+    setup  "IngestReading", reading_id: "sample", value: 1.0, timestamp: "sample"
+    setup  "ValidateReading"
+    expect emits: ["AnomalyFlagged", "AlertRaised", "DeviceSuspended"]
+  end
+
 
   # ── Alert aggregate ──────────────────────────────────────────
 
@@ -76,6 +103,13 @@ Hecks.behaviors "IoTPlatform" do
     setup  "RegisterDevice", device_id: "sample", device_type: "sample", firmware_version: "sample", location: "sample"
     input  alert_id: "sample", severity: "sample", condition: "sample", message: "sample"
     expect ok: "true"
+  end
+
+  test "RaiseAlert cascades through policy chain" do
+    tests "RaiseAlert", on: "Alert", kind: :cascade
+    setup  "RegisterDevice", device_id: "sample", device_type: "sample", firmware_version: "sample", location: "sample"
+    input  alert_id: "sample", severity: "sample", condition: "sample", message: "sample"
+    expect emits: ["AlertRaised", "DeviceSuspended"]
   end
 
   test "AcknowledgeAlert runs" do
@@ -91,6 +125,13 @@ Hecks.behaviors "IoTPlatform" do
     expect ok: "true"
   end
 
+  test "ResolveAlert cascades through policy chain" do
+    tests "ResolveAlert", on: "Alert", kind: :cascade
+    setup  "RaiseAlert", alert_id: "sample", severity: "sample", condition: "sample", message: "sample"
+    setup  "AcknowledgeAlert"
+    expect emits: ["AlertResolved", "UpdatePublished", "UpdateApplied"]
+  end
+
 
   # ── FirmwareUpdate aggregate ──────────────────────────────────────────
 
@@ -98,6 +139,12 @@ Hecks.behaviors "IoTPlatform" do
     tests "PublishUpdate", on: "FirmwareUpdate"
     input  update_id: "sample", version: "sample", target_device_type: "sample", package_size_kb: 1, release_notes: "sample"
     expect ok: "true"
+  end
+
+  test "PublishUpdate cascades through policy chain" do
+    tests "PublishUpdate", on: "FirmwareUpdate", kind: :cascade
+    input  update_id: "sample", version: "sample", target_device_type: "sample", package_size_kb: 1, release_notes: "sample"
+    expect emits: ["UpdatePublished", "UpdateApplied"]
   end
 
   test "ApplyUpdate sets device_id" do

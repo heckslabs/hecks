@@ -9,6 +9,12 @@ Hecks.behaviors "MentalHealthClinic" do
     expect name: "sample", date_of_birth: "sample", referral_source: "sample", emergency_contact: "sample", status: "active"
   end
 
+  test "IntakeClient cascades through policy chain" do
+    tests "IntakeClient", on: "Client", kind: :cascade
+    input  name: "sample", date_of_birth: "sample", referral_source: "sample", emergency_contact: "sample"
+    expect emits: ["ClientIntaked", "ClientAssigned", "AssessmentAdministered", "RiskClassified", "TreatmentPlanEstablished", "TherapySessionScheduled", "ConcernDocumented"]
+  end
+
   test "DocumentConcern sets description + onset_date + severity" do
     tests "DocumentConcern", on: "Client"
     setup  "IntakeClient", name: "sample", date_of_birth: "sample", referral_source: "sample", emergency_contact: "sample"
@@ -31,6 +37,12 @@ Hecks.behaviors "MentalHealthClinic" do
     expect name: "sample", license_type: "sample", license_number: "sample", specialty: "sample", caseload_limit: 1, active_clients: 0
   end
 
+  test "AssignClient cascades through policy chain" do
+    tests "AssignClient", on: "Therapist", kind: :cascade
+    setup  "RegisterTherapist", name: "sample", license_type: "sample", license_number: "sample", specialty: "sample", caseload_limit: 1
+    expect emits: ["ClientAssigned", "AssessmentAdministered", "RiskClassified", "TreatmentPlanEstablished", "TherapySessionScheduled"]
+  end
+
 
   # ── Assessment aggregate ──────────────────────────────────────────
 
@@ -41,11 +53,25 @@ Hecks.behaviors "MentalHealthClinic" do
     expect client_name: "sample", instrument_name: "sample", administered_date: "sample", total_score: 1, notes: "sample"
   end
 
+  test "AdministerAssessment cascades through policy chain" do
+    tests "AdministerAssessment", on: "Assessment", kind: :cascade
+    setup  "IntakeClient", name: "sample", date_of_birth: "sample", referral_source: "sample", emergency_contact: "sample"
+    input  client_name: "sample", instrument_name: "sample", administered_date: "sample", total_score: 1, notes: "sample"
+    expect emits: ["AssessmentAdministered", "RiskClassified", "TreatmentPlanEstablished", "TherapySessionScheduled"]
+  end
+
   test "ClassifyRisk sets risk_level" do
     tests "ClassifyRisk", on: "Assessment"
     setup  "AdministerAssessment", client_name: "sample", instrument_name: "sample", administered_date: "sample", total_score: 1, notes: "sample"
     input  risk_level: "sample"
     expect risk_level: "sample"
+  end
+
+  test "ClassifyRisk cascades through policy chain" do
+    tests "ClassifyRisk", on: "Assessment", kind: :cascade
+    setup  "AdministerAssessment", client_name: "sample", instrument_name: "sample", administered_date: "sample", total_score: 1, notes: "sample"
+    input  risk_level: "sample"
+    expect emits: ["RiskClassified", "TreatmentPlanEstablished", "TherapySessionScheduled"]
   end
 
 
@@ -56,6 +82,13 @@ Hecks.behaviors "MentalHealthClinic" do
     setup  "IntakeClient", name: "sample", date_of_birth: "sample", referral_source: "sample", emergency_contact: "sample"
     input  client_name: "sample", diagnosis: "sample", start_date: "sample"
     expect client_name: "sample", diagnosis: "sample", start_date: "sample", status: "active"
+  end
+
+  test "EstablishTreatmentPlan cascades through policy chain" do
+    tests "EstablishTreatmentPlan", on: "TreatmentPlan", kind: :cascade
+    setup  "IntakeClient", name: "sample", date_of_birth: "sample", referral_source: "sample", emergency_contact: "sample"
+    input  client_name: "sample", diagnosis: "sample", start_date: "sample"
+    expect emits: ["TreatmentPlanEstablished", "TherapySessionScheduled"]
   end
 
   test "ReviseGoal sets description + target_date + intervention" do
@@ -71,14 +104,35 @@ Hecks.behaviors "MentalHealthClinic" do
     expect status: "closed"
   end
 
+  test "CloseTreatmentPlan cascades through policy chain" do
+    tests "CloseTreatmentPlan", on: "TreatmentPlan", kind: :cascade
+    setup  "EstablishTreatmentPlan", client_name: "sample", diagnosis: "sample", start_date: "sample"
+    expect emits: ["TreatmentPlanClosed", "ClientDischarged"]
+  end
+
 
   # ── TherapySession aggregate ──────────────────────────────────────────
+
+  test "ScheduleTherapySession sets client_name + therapist_name + session_date + session_type" do
+    tests "ScheduleTherapySession", on: "TherapySession"
+    setup  "RegisterTherapist", name: "sample", license_type: "sample", license_number: "sample", specialty: "sample", caseload_limit: 1
+    setup  "IntakeClient", name: "sample", date_of_birth: "sample", referral_source: "sample", emergency_contact: "sample"
+    input  client_name: "sample", therapist_name: "sample", session_date: "sample", session_type: "sample"
+    expect client_name: "sample", therapist_name: "sample", session_date: "sample", session_type: "sample", status: "scheduled"
+  end
 
   test "CompleteTherapySession sets notes" do
     tests "CompleteTherapySession", on: "TherapySession"
     setup  "ScheduleTherapySession", client_name: "sample", therapist_name: "sample", session_date: "sample", session_type: "sample"
     input  notes: "sample"
-    expect notes: "sample", client_name: "sample", therapist_name: "sample", session_date: "sample", session_type: "sample", status: "scheduled"
+    expect notes: "sample", status: "completed"
+  end
+
+  test "CompleteTherapySession cascades through policy chain" do
+    tests "CompleteTherapySession", on: "TherapySession", kind: :cascade
+    setup  "ScheduleTherapySession", client_name: "sample", therapist_name: "sample", session_date: "sample", session_type: "sample"
+    input  notes: "sample"
+    expect emits: ["TherapySessionCompleted", "GoalRevised", "TherapySessionScheduled"]
   end
 
 end

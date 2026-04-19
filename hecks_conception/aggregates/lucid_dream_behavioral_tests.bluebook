@@ -8,6 +8,11 @@ Hecks.behaviors "LucidDream" do
     expect active: "yes", latest_narrative: "becoming lucid — recognizing the dream"
   end
 
+  test "BecomeLucid cascades through policy chain" do
+    tests "BecomeLucid", on: "LucidDream", kind: :cascade
+    expect emits: ["BecameLucid", "LucidMonitorStarted"]
+  end
+
   test "ObserveDream sets observation" do
     tests "ObserveDream", on: "LucidDream"
     input  observation: "sample"
@@ -23,6 +28,11 @@ Hecks.behaviors "LucidDream" do
   test "EndLucidity runs" do
     tests "EndLucidity", on: "LucidDream"
     expect active: "no", latest_narrative: "lucidity fading"
+  end
+
+  test "EndLucidity cascades through policy chain" do
+    tests "EndLucidity", on: "LucidDream", kind: :cascade
+    expect emits: ["LucidityEnded", "LucidMonitorStopped"]
   end
 
 

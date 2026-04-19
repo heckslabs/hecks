@@ -9,6 +9,12 @@ Hecks.behaviors "FarmersMarket" do
     expect vendor_id: "sample", farm_name: "sample", contact_name: "sample", contact_phone: "sample", product_type: "sample", status: "active"
   end
 
+  test "RegisterVendor cascades through policy chain" do
+    tests "RegisterVendor", on: "Vendor", kind: :cascade
+    input  vendor_id: "sample", farm_name: "sample", contact_name: "sample", contact_phone: "sample", product_type: "sample"
+    expect emits: ["VendorRegistered", "InspectionConducted"]
+  end
+
   test "SuspendVendor runs" do
     tests "SuspendVendor", on: "Vendor"
     setup  "RegisterVendor", vendor_id: "sample", farm_name: "sample", contact_name: "sample", contact_phone: "sample", product_type: "sample"
@@ -46,10 +52,22 @@ Hecks.behaviors "FarmersMarket" do
     expect permit_id: "sample", vendor_id: "sample", permit_type: "sample", issue_date: "sample", expiration_date: "sample", status: "valid"
   end
 
+  test "IssuePermit cascades through policy chain" do
+    tests "IssuePermit", on: "MarketPermit", kind: :cascade
+    input  permit_id: "sample", vendor_id: "sample", permit_type: "sample", issue_date: "sample", expiration_date: "sample"
+    expect emits: ["PermitIssued", "StallAssigned"]
+  end
+
   test "RevokePermit runs" do
     tests "RevokePermit", on: "MarketPermit"
     setup  "IssuePermit", permit_id: "sample", vendor_id: "sample", permit_type: "sample", issue_date: "sample", expiration_date: "sample"
     expect status: "revoked"
+  end
+
+  test "RevokePermit cascades through policy chain" do
+    tests "RevokePermit", on: "MarketPermit", kind: :cascade
+    setup  "IssuePermit", permit_id: "sample", vendor_id: "sample", permit_type: "sample", issue_date: "sample", expiration_date: "sample"
+    expect emits: ["PermitRevoked", "VendorSuspended"]
   end
 
 
@@ -68,6 +86,13 @@ Hecks.behaviors "FarmersMarket" do
     expect result: "sample"
   end
 
+  test "RecordResult cascades through policy chain" do
+    tests "RecordResult", on: "Inspection", kind: :cascade
+    setup  "ConductInspection", inspection_id: "sample", vendor_id: "sample", inspector_name: "sample", inspection_date: "sample"
+    input  result: "sample"
+    expect emits: ["ResultRecorded", "PermitIssued", "StallAssigned", "PermitRevoked", "VendorSuspended"]
+  end
+
 
   # ── MarketSeason aggregate ──────────────────────────────────────────
 
@@ -77,10 +102,22 @@ Hecks.behaviors "FarmersMarket" do
     expect season_id: "sample", name: "sample", start_date: "sample", end_date: "sample", status: "open"
   end
 
+  test "OpenSeason cascades through policy chain" do
+    tests "OpenSeason", on: "MarketSeason", kind: :cascade
+    input  season_id: "sample", name: "sample", start_date: "sample", end_date: "sample"
+    expect emits: ["SeasonOpened", "VendorRegistered", "InspectionConducted"]
+  end
+
   test "CloseSeason runs" do
     tests "CloseSeason", on: "MarketSeason"
     setup  "OpenSeason", season_id: "sample", name: "sample", start_date: "sample", end_date: "sample"
     expect status: "closed"
+  end
+
+  test "CloseSeason cascades through policy chain" do
+    tests "CloseSeason", on: "MarketSeason", kind: :cascade
+    setup  "OpenSeason", season_id: "sample", name: "sample", start_date: "sample", end_date: "sample"
+    expect emits: ["SeasonClosed", "StallVacated"]
   end
 
 end

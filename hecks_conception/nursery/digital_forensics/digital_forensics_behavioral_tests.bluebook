@@ -9,10 +9,22 @@ Hecks.behaviors "DigitalForensics" do
     expect evidence_id: "sample", case_number: "sample", source_device: "sample", file_type: "sample", size_mb: 1.0, hash_value: "sample", status: "collected"
   end
 
+  test "CollectEvidence cascades through policy chain" do
+    tests "CollectEvidence", on: "EvidenceItem", kind: :cascade
+    input  evidence_id: "sample", case_number: "sample", source_device: "sample", file_type: "sample", size_mb: 1.0, hash_value: "sample"
+    expect emits: ["EvidenceCollected", "ChainStarted"]
+  end
+
   test "VerifyIntegrity runs" do
     tests "VerifyIntegrity", on: "EvidenceItem"
     setup  "CollectEvidence", evidence_id: "sample", case_number: "sample", source_device: "sample", file_type: "sample", size_mb: 1.0, hash_value: "sample"
     expect status: "verified"
+  end
+
+  test "VerifyIntegrity cascades through policy chain" do
+    tests "VerifyIntegrity", on: "EvidenceItem", kind: :cascade
+    setup  "CollectEvidence", evidence_id: "sample", case_number: "sample", source_device: "sample", file_type: "sample", size_mb: 1.0, hash_value: "sample"
+    expect emits: ["IntegrityVerified", "ContentAnalysisStarted"]
   end
 
 

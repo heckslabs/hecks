@@ -9,11 +9,24 @@ Hecks.behaviors "WebAccessibility" do
     expect status: "running"
   end
 
+  test "LaunchAudit cascades through policy chain" do
+    tests "LaunchAudit", on: "AccessibilityAudit", kind: :cascade
+    input  audit_id: "sample", site_url: "sample", wcag_level: "sample", auditor: "sample"
+    expect emits: ["AuditLaunched", "PageCrawled", "ViolationReported", "ViolationConfirmed", "RemediationAssigned"]
+  end
+
   test "CompleteAudit sets pages_scanned" do
     tests "CompleteAudit", on: "AccessibilityAudit"
     setup  "LaunchAudit", audit_id: "sample", site_url: "sample", wcag_level: "sample", auditor: "sample"
     input  pages_scanned: 1
     expect ok: "true"
+  end
+
+  test "CompleteAudit cascades through policy chain" do
+    tests "CompleteAudit", on: "AccessibilityAudit", kind: :cascade
+    setup  "LaunchAudit", audit_id: "sample", site_url: "sample", wcag_level: "sample", auditor: "sample"
+    input  pages_scanned: 1
+    expect emits: ["AuditCompleted", "CertificateIssued"]
   end
 
   test "ReopenAudit runs" do
@@ -30,6 +43,13 @@ Hecks.behaviors "WebAccessibility" do
     setup  "LaunchAudit", audit_id: "sample", site_url: "sample", wcag_level: "sample", auditor: "sample"
     input  page_url: "sample", title: "sample", content_type: "sample", dom_elements: 1
     expect status: "pending"
+  end
+
+  test "CrawlPage cascades through policy chain" do
+    tests "CrawlPage", on: "Page", kind: :cascade
+    setup  "LaunchAudit", audit_id: "sample", site_url: "sample", wcag_level: "sample", auditor: "sample"
+    input  page_url: "sample", title: "sample", content_type: "sample", dom_elements: 1
+    expect emits: ["PageCrawled", "ViolationReported", "ViolationConfirmed", "RemediationAssigned"]
   end
 
   test "MarkReviewed runs" do
@@ -54,10 +74,23 @@ Hecks.behaviors "WebAccessibility" do
     expect status: "reported"
   end
 
+  test "ReportViolation cascades through policy chain" do
+    tests "ReportViolation", on: "Violation", kind: :cascade
+    setup  "CrawlPage", page_url: "sample", title: "sample", content_type: "sample", dom_elements: 1
+    input  violation_id: "sample", rule_id: "sample", severity: "sample", element_selector: "sample", description: "sample"
+    expect emits: ["ViolationReported", "ViolationConfirmed", "RemediationAssigned"]
+  end
+
   test "ConfirmViolation runs" do
     tests "ConfirmViolation", on: "Violation"
     setup  "ReportViolation", violation_id: "sample", rule_id: "sample", severity: "sample", element_selector: "sample", description: "sample"
     expect ok: "true"
+  end
+
+  test "ConfirmViolation cascades through policy chain" do
+    tests "ConfirmViolation", on: "Violation", kind: :cascade
+    setup  "ReportViolation", violation_id: "sample", rule_id: "sample", severity: "sample", element_selector: "sample", description: "sample"
+    expect emits: ["ViolationConfirmed", "RemediationAssigned"]
   end
 
   test "DismissViolation sets dismissal_reason" do
@@ -83,11 +116,24 @@ Hecks.behaviors "WebAccessibility" do
     expect ok: "true"
   end
 
+  test "CompleteRemediation cascades through policy chain" do
+    tests "CompleteRemediation", on: "Remediation", kind: :cascade
+    setup  "AssignRemediation", remediation_id: "sample", fix_description: "sample", assigned_to: "sample", priority: "sample"
+    expect emits: ["RemediationCompleted", "AuditCompleted", "CertificateIssued", "PageReviewed"]
+  end
+
   test "RejectRemediation sets rejection_reason" do
     tests "RejectRemediation", on: "Remediation"
     setup  "AssignRemediation", remediation_id: "sample", fix_description: "sample", assigned_to: "sample", priority: "sample"
     input  rejection_reason: "sample"
     expect ok: "true"
+  end
+
+  test "RejectRemediation cascades through policy chain" do
+    tests "RejectRemediation", on: "Remediation", kind: :cascade
+    setup  "AssignRemediation", remediation_id: "sample", fix_description: "sample", assigned_to: "sample", priority: "sample"
+    input  rejection_reason: "sample"
+    expect emits: ["RemediationRejected", "AuditReopened"]
   end
 
 

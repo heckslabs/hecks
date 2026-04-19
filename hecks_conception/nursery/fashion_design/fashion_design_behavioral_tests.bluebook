@@ -16,6 +16,13 @@ Hecks.behaviors "FashionDesign" do
     expect status: "finalized", piece_count: 1
   end
 
+  test "FinalizeCollection cascades through policy chain" do
+    tests "FinalizeCollection", on: "Collection", kind: :cascade
+    setup  "LaunchCollection", name: "sample", season: "sample", theme: "sample"
+    input  piece_count: 1
+    expect emits: ["CollectionFinalized", "ShowPlanned", "ShowRehearsed", "CollectionShown"]
+  end
+
   test "ShowCollection runs" do
     tests "ShowCollection", on: "Collection"
     setup  "LaunchCollection", name: "sample", season: "sample", theme: "sample"
@@ -33,10 +40,23 @@ Hecks.behaviors "FashionDesign" do
     expect status: "drafted"
   end
 
+  test "DraftGarment cascades through policy chain" do
+    tests "DraftGarment", on: "Garment", kind: :cascade
+    setup  "LaunchCollection", name: "sample", season: "sample", theme: "sample"
+    input  name: "sample", garment_type: "sample", fabric: "sample"
+    expect emits: ["GarmentDrafted", "PatternDrafted", "PatternGraded", "MuslinSewn", "FittingScheduled"]
+  end
+
   test "SewMuslin runs" do
     tests "SewMuslin", on: "Garment"
     setup  "DraftGarment", name: "sample", garment_type: "sample", fabric: "sample"
     expect status: "muslin"
+  end
+
+  test "SewMuslin cascades through policy chain" do
+    tests "SewMuslin", on: "Garment", kind: :cascade
+    setup  "DraftGarment", name: "sample", garment_type: "sample", fabric: "sample"
+    expect emits: ["MuslinSewn", "FittingScheduled"]
   end
 
   test "ProduceGarment runs" do
@@ -44,6 +64,13 @@ Hecks.behaviors "FashionDesign" do
     setup  "DraftGarment", name: "sample", garment_type: "sample", fabric: "sample"
     setup  "SewMuslin"
     expect status: "produced"
+  end
+
+  test "ProduceGarment cascades through policy chain" do
+    tests "ProduceGarment", on: "Garment", kind: :cascade
+    setup  "DraftGarment", name: "sample", garment_type: "sample", fabric: "sample"
+    setup  "SewMuslin"
+    expect emits: ["GarmentProduced", "CollectionFinalized", "ShowPlanned", "ShowRehearsed", "CollectionShown"]
   end
 
 
@@ -56,10 +83,23 @@ Hecks.behaviors "FashionDesign" do
     expect status: "draft"
   end
 
+  test "DraftPattern cascades through policy chain" do
+    tests "DraftPattern", on: "Pattern", kind: :cascade
+    setup  "DraftGarment", name: "sample", garment_type: "sample", fabric: "sample"
+    input  name: "sample", piece_count: 1
+    expect emits: ["PatternDrafted", "PatternGraded", "MuslinSewn", "FittingScheduled"]
+  end
+
   test "GradePattern runs" do
     tests "GradePattern", on: "Pattern"
     setup  "DraftPattern", name: "sample", piece_count: 1
     expect status: "graded"
+  end
+
+  test "GradePattern cascades through policy chain" do
+    tests "GradePattern", on: "Pattern", kind: :cascade
+    setup  "DraftPattern", name: "sample", piece_count: 1
+    expect emits: ["PatternGraded", "MuslinSewn", "FittingScheduled"]
   end
 
 
@@ -79,6 +119,13 @@ Hecks.behaviors "FashionDesign" do
     expect status: "adjusted", notes: "sample"
   end
 
+  test "RecordAdjustments cascades through policy chain" do
+    tests "RecordAdjustments", on: "Fitting", kind: :cascade
+    setup  "ScheduleFitting", model_name: "sample", date: "sample"
+    input  notes: "sample"
+    expect emits: ["AdjustmentsRecorded", "GarmentProduced", "CollectionFinalized", "ShowPlanned", "ShowRehearsed", "CollectionShown"]
+  end
+
 
   # ── RunwayShow aggregate ──────────────────────────────────────────
 
@@ -89,10 +136,23 @@ Hecks.behaviors "FashionDesign" do
     expect status: "planning"
   end
 
+  test "PlanShow cascades through policy chain" do
+    tests "PlanShow", on: "RunwayShow", kind: :cascade
+    setup  "LaunchCollection", name: "sample", season: "sample", theme: "sample"
+    input  venue: "sample", date: "sample"
+    expect emits: ["ShowPlanned", "ShowRehearsed", "CollectionShown"]
+  end
+
   test "RehearsShow runs" do
     tests "RehearsShow", on: "RunwayShow"
     setup  "PlanShow", venue: "sample", date: "sample"
     expect status: "rehearsed"
+  end
+
+  test "RehearsShow cascades through policy chain" do
+    tests "RehearsShow", on: "RunwayShow", kind: :cascade
+    setup  "PlanShow", venue: "sample", date: "sample"
+    expect emits: ["ShowRehearsed", "CollectionShown"]
   end
 
 end

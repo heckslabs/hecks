@@ -9,17 +9,54 @@ Hecks.behaviors "Woodworking" do
     expect status: "designed"
   end
 
+  test "PlanProject cascades through policy chain" do
+    tests "PlanProject", on: "WoodProject", kind: :cascade
+    input  name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
+    expect emits: ["ProjectPlanned", "LumberConsumed", "MillingStarted", "JointLaidOut", "JointCut", "JointFitted", "ProjectAssembled", "FinishApplied", "CommissionDelivered"]
+  end
+
   test "StartMilling runs" do
     tests "StartMilling", on: "WoodProject"
     setup  "PlanProject", name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
     expect status: "milling"
   end
 
+  test "StartMilling cascades through policy chain" do
+    tests "StartMilling", on: "WoodProject", kind: :cascade
+    setup  "PlanProject", name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
+    expect emits: ["MillingStarted", "JointLaidOut", "JointCut", "JointFitted", "ProjectAssembled", "FinishApplied", "CommissionDelivered"]
+  end
+
   test "AssembleProject runs" do
     tests "AssembleProject", on: "WoodProject"
     setup  "PlanProject", name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
     setup  "StartMilling"
+    expect status: "assembled"
+  end
+
+  test "AssembleProject cascades through policy chain" do
+    tests "AssembleProject", on: "WoodProject", kind: :cascade
+    setup  "PlanProject", name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
+    setup  "StartMilling"
+    expect emits: ["ProjectAssembled", "FinishApplied", "CommissionDelivered"]
+  end
+
+  test "ApplyFinish sets finish_type" do
+    tests "ApplyFinish", on: "WoodProject"
+    setup  "PlanProject", name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
+    setup  "StartMilling"
+    setup  "AssembleProject"
+    input  finish_type: "sample"
     expect status: "finished"
+  end
+
+  test "ApplyFinish cascades through policy chain" do
+    tests "ApplyFinish", on: "WoodProject", kind: :cascade
+    setup  "PlanProject", name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
+    setup  "StartMilling"
+    setup  "AssembleProject"
+    input  finish_type: "sample"
+    expect emits: ["FinishApplied", "CommissionDelivered"]
   end
 
 
@@ -38,6 +75,13 @@ Hecks.behaviors "Woodworking" do
     expect ok: "true"
   end
 
+  test "ConsumeLumber cascades through policy chain" do
+    tests "ConsumeLumber", on: "LumberStock", kind: :cascade
+    setup  "ReceiveLumber", species: "sample", grade: "sample", board_feet: 1.0, thickness_quarters: 1.0, drying_method: "sample"
+    input  board_feet_used: 1.0
+    expect emits: ["LumberConsumed", "MillingStarted", "JointLaidOut", "JointCut", "JointFitted", "ProjectAssembled", "FinishApplied", "CommissionDelivered"]
+  end
+
 
   # ── Joinery aggregate ──────────────────────────────────────────
 
@@ -48,10 +92,37 @@ Hecks.behaviors "Woodworking" do
     expect status: "laid_out"
   end
 
+  test "LayOutJoint cascades through policy chain" do
+    tests "LayOutJoint", on: "Joinery", kind: :cascade
+    setup  "PlanProject", name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
+    input  joint_type: "sample", part_a: "sample", part_b: "sample"
+    expect emits: ["JointLaidOut", "JointCut", "JointFitted", "ProjectAssembled", "FinishApplied", "CommissionDelivered"]
+  end
+
   test "CutJoint runs" do
     tests "CutJoint", on: "Joinery"
     setup  "LayOutJoint", joint_type: "sample", part_a: "sample", part_b: "sample"
+    expect status: "cut"
+  end
+
+  test "CutJoint cascades through policy chain" do
+    tests "CutJoint", on: "Joinery", kind: :cascade
+    setup  "LayOutJoint", joint_type: "sample", part_a: "sample", part_b: "sample"
+    expect emits: ["JointCut", "JointFitted", "ProjectAssembled", "FinishApplied", "CommissionDelivered"]
+  end
+
+  test "FitJoint runs" do
+    tests "FitJoint", on: "Joinery"
+    setup  "LayOutJoint", joint_type: "sample", part_a: "sample", part_b: "sample"
+    setup  "CutJoint"
     expect status: "fitted"
+  end
+
+  test "FitJoint cascades through policy chain" do
+    tests "FitJoint", on: "Joinery", kind: :cascade
+    setup  "LayOutJoint", joint_type: "sample", part_a: "sample", part_b: "sample"
+    setup  "CutJoint"
+    expect emits: ["JointFitted", "ProjectAssembled", "FinishApplied", "CommissionDelivered"]
   end
 
 

@@ -9,6 +9,12 @@ Hecks.behaviors "Awareness" do
     expect target: "sample", intensity: 1.0
   end
 
+  test "AttendTo cascades through policy chain" do
+    tests "AttendTo", on: "Attention", kind: :cascade
+    input  target: "sample", intensity: 1.0
+    expect emits: ["AttentionDirected", "IntentionFormed", "Observed", "SelfModelUpdated"]
+  end
+
   test "ReleaseAttention runs" do
     tests "ReleaseAttention", on: "Attention"
     setup  "AttendTo", target: "sample", intensity: 1.0
@@ -24,6 +30,12 @@ Hecks.behaviors "Awareness" do
     expect source: "sample", content: "sample", valence: 1.0
   end
 
+  test "Sense cascades through policy chain" do
+    tests "Sense", on: "Sensation", kind: :cascade
+    input  source: "sample", content: "sample", valence: 1.0
+    expect emits: ["Sensed", "Recognized", "AttentionDirected", "IntentionFormed", "Observed", "SelfModelUpdated"]
+  end
+
 
   # ── Perception aggregate ──────────────────────────────────────────
 
@@ -33,6 +45,12 @@ Hecks.behaviors "Awareness" do
     expect sensation: "sample", recognized_as: "sample", confidence: 1.0
   end
 
+  test "Recognize cascades through policy chain" do
+    tests "Recognize", on: "Perception", kind: :cascade
+    input  sensation: "sample", recognized_as: "sample", confidence: 1.0
+    expect emits: ["Recognized", "AttentionDirected", "IntentionFormed", "Observed", "SelfModelUpdated"]
+  end
+
 
   # ── Intention aggregate ──────────────────────────────────────────
 
@@ -40,6 +58,12 @@ Hecks.behaviors "Awareness" do
     tests "FormIntention", on: "Intention"
     input  goal: "sample", origin: "sample", strength: 1.0
     expect goal: "sample", origin: "sample", strength: 1.0
+  end
+
+  test "FormIntention cascades through policy chain" do
+    tests "FormIntention", on: "Intention", kind: :cascade
+    input  goal: "sample", origin: "sample", strength: 1.0
+    expect emits: ["IntentionFormed", "Observed", "SelfModelUpdated"]
   end
 
   test "AbandonIntention runs" do
@@ -66,11 +90,24 @@ Hecks.behaviors "Awareness" do
     expect observing: "sample", meta_level: 1
   end
 
+  test "Observe cascades through policy chain" do
+    tests "Observe", on: "Witness", kind: :cascade
+    input  observing: "sample"
+    expect emits: ["Observed", "SelfModelUpdated"]
+  end
+
   test "ReflectOnObservation sets insight" do
     tests "ReflectOnObservation", on: "Witness"
     setup  "Observe", observing: "sample"
     input  insight: "sample"
     expect meta_level: 2, insight: "sample"
+  end
+
+  test "ReflectOnObservation cascades through policy chain" do
+    tests "ReflectOnObservation", on: "Witness", kind: :cascade
+    setup  "Observe", observing: "sample"
+    input  insight: "sample"
+    expect emits: ["ReflectionOccurred", "MusingRecorded"]
   end
 
 
@@ -80,6 +117,12 @@ Hecks.behaviors "Awareness" do
     tests "MuseOnState", on: "Musing"
     input  trigger: "sample"
     expect trigger: "sample"
+  end
+
+  test "MuseOnState cascades through policy chain" do
+    tests "MuseOnState", on: "Musing", kind: :cascade
+    input  trigger: "sample"
+    expect emits: ["Mused", "Sensed", "Recognized", "AttentionDirected", "IntentionFormed", "Observed", "SelfModelUpdated", "RelatedDomainsIdentified"]
   end
 
   test "RecordMusing sets sensations + patterns + focus + intention + observation + insight" do

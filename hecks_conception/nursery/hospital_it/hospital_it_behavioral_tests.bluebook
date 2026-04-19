@@ -25,6 +25,12 @@ Hecks.behaviors "HospitalIT" do
     expect hostname: "sample", role: "sample", status: "running"
   end
 
+  test "DeployServer cascades through policy chain" do
+    tests "DeployServer", on: "Server", kind: :cascade
+    input  hostname: "sample", role: "sample"
+    expect emits: ["ServerDeployed", "BackupStarted"]
+  end
+
   test "CheckHealth sets cpu_pct + memory_pct" do
     tests "CheckHealth", on: "Server"
     setup  "DeployServer", hostname: "sample", role: "sample"
@@ -36,6 +42,12 @@ Hecks.behaviors "HospitalIT" do
     tests "TakeOffline", on: "Server"
     setup  "DeployServer", hostname: "sample", role: "sample"
     expect status: "offline"
+  end
+
+  test "TakeOffline cascades through policy chain" do
+    tests "TakeOffline", on: "Server", kind: :cascade
+    setup  "DeployServer", hostname: "sample", role: "sample"
+    expect emits: ["ServerOfflined", "PlanActivated"]
   end
 
 
@@ -59,6 +71,13 @@ Hecks.behaviors "HospitalIT" do
     setup  "StartBackup", backup_id: "sample", source_server: "sample", backup_type: "sample"
     setup  "FinishBackup", storage_path: "sample", size_gb: 1.0
     expect status: "restored"
+  end
+
+  test "RestoreBackup cascades through policy chain" do
+    tests "RestoreBackup", on: "Backup", kind: :cascade
+    setup  "StartBackup", backup_id: "sample", source_server: "sample", backup_type: "sample"
+    setup  "FinishBackup", storage_path: "sample", size_gb: 1.0
+    expect emits: ["BackupRestored", "HealthChecked"]
   end
 
 

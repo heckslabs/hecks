@@ -311,6 +311,12 @@ Hecks.behaviors "Hecksagon" do
     expect name: "sample", expressed: "true"
   end
 
+  test "DeclareDomain cascades through policy chain" do
+    tests "DeclareDomain", on: "DomainDeclaration", kind: :cascade
+    input  name: "sample"
+    expect emits: ["DomainDeclared", "DependencyWired"]
+  end
+
   test "WireDependency sets target_domain" do
     tests "WireDependency", on: "DomainDeclaration"
     setup  "DeclareDomain", name: "sample"

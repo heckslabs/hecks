@@ -15,6 +15,12 @@ Hecks.behaviors "PetAdoption" do
     expect status: "adopted"
   end
 
+  test "AdoptAnimal cascades through policy chain" do
+    tests "AdoptAnimal", on: "Animal", kind: :cascade
+    setup  "IntakeAnimal", animal_id: "sample", name: "sample", species: "sample", breed: "sample", age_months: 1, temperament: "sample"
+    expect emits: ["AnimalAdopted", "FollowUpScheduled"]
+  end
+
 
   # ── AdoptionCampaign aggregate ──────────────────────────────────────────
 
@@ -38,6 +44,12 @@ Hecks.behaviors "PetAdoption" do
     tests "EnrollAdopter", on: "AdopterProfile"
     input  adopter_id: "sample", name: "sample", preferred_species: "sample", housing_type: "sample"
     expect adopter_id: "sample", name: "sample", preferred_species: "sample", housing_type: "sample", status: "active"
+  end
+
+  test "EnrollAdopter cascades through policy chain" do
+    tests "EnrollAdopter", on: "AdopterProfile", kind: :cascade
+    input  adopter_id: "sample", name: "sample", preferred_species: "sample", housing_type: "sample"
+    expect emits: ["AdopterProfileCreated", "AdopterMatched"]
   end
 
   test "MatchAdopter runs" do

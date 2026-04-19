@@ -15,6 +15,12 @@ Hecks.behaviors "FoodDistribution" do
     expect status: "sorted"
   end
 
+  test "SortDonation cascades through policy chain" do
+    tests "SortDonation", on: "FoodDonation", kind: :cascade
+    setup  "ReceiveDonation", donation_id: "sample", donor_name: "sample", food_type: "sample", weight_lbs: 1.0, expiry_date: "sample"
+    expect emits: ["DonationSorted", "ZoneStocked", "RoutePlanned"]
+  end
+
 
   # ── WarehouseZone aggregate ──────────────────────────────────────────
 
@@ -29,6 +35,13 @@ Hecks.behaviors "FoodDistribution" do
     setup  "SetupZone", zone_id: "sample", zone_type: "sample", temperature_f: 1.0, capacity_pallets: 1
     input  pallets_added: 1
     expect ok: "true"
+  end
+
+  test "StockZone cascades through policy chain" do
+    tests "StockZone", on: "WarehouseZone", kind: :cascade
+    setup  "SetupZone", zone_id: "sample", zone_type: "sample", temperature_f: 1.0, capacity_pallets: 1
+    input  pallets_added: 1
+    expect emits: ["ZoneStocked", "RoutePlanned"]
   end
 
 

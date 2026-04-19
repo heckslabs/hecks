@@ -9,6 +9,12 @@ Hecks.behaviors "RouteOptimization" do
     expect name: "sample", area_sq_km: 1.0, road_count: 1, status: "defined"
   end
 
+  test "DefineRegion cascades through policy chain" do
+    tests "DefineRegion", on: "MapRegion", kind: :cascade
+    input  name: "sample", area_sq_km: 1.0, road_count: 1
+    expect emits: ["RegionDefined", "RoadNetworkUpdated"]
+  end
+
   test "UpdateRoadNetwork sets road_count" do
     tests "UpdateRoadNetwork", on: "MapRegion"
     setup  "DefineRegion", name: "sample", area_sq_km: 1.0, road_count: 1
@@ -23,6 +29,12 @@ Hecks.behaviors "RouteOptimization" do
     tests "RegisterParcel", on: "Parcel"
     input  tracking_id: "sample", weight_kg: 1.0, destination_address: "sample", priority: "sample", delivery_window: "sample"
     expect tracking_id: "sample", weight_kg: 1.0, destination_address: "sample", priority: "sample", delivery_window: "sample", status: "registered"
+  end
+
+  test "RegisterParcel cascades through policy chain" do
+    tests "RegisterParcel", on: "Parcel", kind: :cascade
+    input  tracking_id: "sample", weight_kg: 1.0, destination_address: "sample", priority: "sample", delivery_window: "sample"
+    expect emits: ["ParcelRegistered", "ParcelAssignedToRoute"]
   end
 
   test "AssignToRoute runs" do
@@ -47,10 +59,22 @@ Hecks.behaviors "RouteOptimization" do
     expect road_segment: "sample", avg_speed_kmh: 1.0, congestion_level: 1.0, timestamp: "sample", status: "current"
   end
 
+  test "ReportTraffic cascades through policy chain" do
+    tests "ReportTraffic", on: "TrafficCondition", kind: :cascade
+    input  road_segment: "sample", avg_speed_kmh: 1.0, congestion_level: 1.0, timestamp: "sample"
+    expect emits: ["TrafficReported", "CongestionDetected", "RouteAdjustedForTraffic"]
+  end
+
   test "DetectCongestion runs" do
     tests "DetectCongestion", on: "TrafficCondition"
     setup  "ReportTraffic", road_segment: "sample", avg_speed_kmh: 1.0, congestion_level: 1.0, timestamp: "sample"
     expect status: "congested"
+  end
+
+  test "DetectCongestion cascades through policy chain" do
+    tests "DetectCongestion", on: "TrafficCondition", kind: :cascade
+    setup  "ReportTraffic", road_segment: "sample", avg_speed_kmh: 1.0, congestion_level: 1.0, timestamp: "sample"
+    expect emits: ["CongestionDetected", "RouteAdjustedForTraffic"]
   end
 
 
@@ -60,6 +84,12 @@ Hecks.behaviors "RouteOptimization" do
     tests "OptimizeRoute", on: "DeliveryRoute"
     input  name: "sample", courier_name: "sample", stop_count: 1, total_distance_km: 1.0, estimated_hours: 1.0
     expect name: "sample", courier_name: "sample", stop_count: 1, total_distance_km: 1.0, estimated_hours: 1.0, status: "optimized"
+  end
+
+  test "OptimizeRoute cascades through policy chain" do
+    tests "OptimizeRoute", on: "DeliveryRoute", kind: :cascade
+    input  name: "sample", courier_name: "sample", stop_count: 1, total_distance_km: 1.0, estimated_hours: 1.0
+    expect emits: ["RouteOptimized", "RouteDispatched"]
   end
 
   test "AdjustForTraffic runs" do

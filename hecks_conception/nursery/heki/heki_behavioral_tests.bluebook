@@ -26,6 +26,12 @@ Hecks.behaviors "Heki" do
 
   # ── Record aggregate ──────────────────────────────────────────
 
+  test "WriteRecord cascades through policy chain" do
+    tests "WriteRecord", on: "Record", kind: :cascade
+    input  store_name: "sample", payload: "sample"
+    expect emits: ["RecordWritten", "Compressed", "ChecksumComputed", "AtomicWriteCompleted"]
+  end
+
   test "ReadRecord sets store_name" do
     tests "ReadRecord", on: "Record"
     setup  "WriteRecord", store_name: "sample", payload: "sample"
@@ -71,10 +77,22 @@ Hecks.behaviors "Heki" do
     expect store_name: "sample", algorithm: "crc32"
   end
 
+  test "ComputeChecksum cascades through policy chain" do
+    tests "ComputeChecksum", on: "Integrity", kind: :cascade
+    input  store_name: "sample", payload: "sample"
+    expect emits: ["ChecksumComputed", "AtomicWriteCompleted"]
+  end
+
   test "VerifyChecksum runs" do
     tests "VerifyChecksum", on: "Integrity"
     setup  "ComputeChecksum", store_name: "sample", payload: "sample"
     expect verified: "true"
+  end
+
+  test "VerifyChecksum cascades through policy chain" do
+    tests "VerifyChecksum", on: "Integrity", kind: :cascade
+    setup  "ComputeChecksum", store_name: "sample", payload: "sample"
+    expect emits: ["ChecksumVerified", "RecordValidated"]
   end
 
   test "ReportCorruption runs" do
@@ -92,10 +110,22 @@ Hecks.behaviors "Heki" do
     expect format: "json+zlib+crc32"
   end
 
+  test "Compress cascades through policy chain" do
+    tests "Compress", on: "Codec", kind: :cascade
+    input  records: "sample"
+    expect emits: ["Compressed", "ChecksumComputed", "AtomicWriteCompleted"]
+  end
+
   test "Decompress sets data" do
     tests "Decompress", on: "Codec"
     input  data: "sample"
     expect ok: "true"
+  end
+
+  test "Decompress cascades through policy chain" do
+    tests "Decompress", on: "Codec", kind: :cascade
+    input  data: "sample"
+    expect emits: ["Decompressed", "ChecksumVerified", "RecordValidated"]
   end
 
   test "WriteAtomically sets path + data" do

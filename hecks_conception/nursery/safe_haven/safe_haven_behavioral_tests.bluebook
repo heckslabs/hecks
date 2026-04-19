@@ -9,10 +9,22 @@ Hecks.behaviors "SafeHaven" do
     expect plan_id: "sample", client_code: "sample", advocate_name: "sample", status: "active"
   end
 
+  test "IntakeSafetyPlan cascades through policy chain" do
+    tests "IntakeSafetyPlan", on: "SafetyPlan", kind: :cascade
+    input  plan_id: "sample", client_code: "sample", advocate_name: "sample"
+    expect emits: ["SafetyPlanIntaken", "ThreatAssessed"]
+  end
+
   test "ActivatePlan runs" do
     tests "ActivatePlan", on: "SafetyPlan"
     setup  "IntakeSafetyPlan", plan_id: "sample", client_code: "sample", advocate_name: "sample"
     expect status: "activated"
+  end
+
+  test "ActivatePlan cascades through policy chain" do
+    tests "ActivatePlan", on: "SafetyPlan", kind: :cascade
+    setup  "IntakeSafetyPlan", plan_id: "sample", client_code: "sample", advocate_name: "sample"
+    expect emits: ["PlanActivated", "AccountsLocked"]
   end
 
 

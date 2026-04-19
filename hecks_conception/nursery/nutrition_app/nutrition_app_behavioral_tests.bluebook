@@ -32,6 +32,13 @@ Hecks.behaviors "NutritionApp" do
     expect ok: "true"
   end
 
+  test "LogFood cascades through policy chain" do
+    tests "LogFood", on: "FoodLog", kind: :cascade
+    setup  "StartDailyLog", log_id: "sample", user_name: "sample", date: "sample"
+    input  food_name: "sample", calories: 1
+    expect emits: ["FoodLogged", "ActualLogged"]
+  end
+
 
   # ── BarcodeScan aggregate ──────────────────────────────────────────
 
@@ -46,6 +53,13 @@ Hecks.behaviors "NutritionApp" do
     setup  "ScanBarcode", scan_id: "sample", barcode: "sample"
     input  product_name: "sample", calories: 1, serving_size_g: 1.0
     expect product_name: "sample", calories: 1, serving_size_g: 1.0, status: "resolved"
+  end
+
+  test "ResolveProduct cascades through policy chain" do
+    tests "ResolveProduct", on: "BarcodeScan", kind: :cascade
+    setup  "ScanBarcode", scan_id: "sample", barcode: "sample"
+    input  product_name: "sample", calories: 1, serving_size_g: 1.0
+    expect emits: ["ProductResolved", "FoodLogged", "ActualLogged"]
   end
 
 

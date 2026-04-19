@@ -41,6 +41,13 @@ Hecks.behaviors "BulkGenerator" do
     expect duration_seconds: 1, status: "complete"
   end
 
+  test "CompleteGeneration cascades through policy chain" do
+    tests "CompleteGeneration", on: "Generation", kind: :cascade
+    setup  "StartGeneration", target_count: 1
+    input  duration_seconds: 1
+    expect emits: ["GenerationCompleted", "ExistingChecked"]
+  end
+
 
   # ── Deduplication aggregate ──────────────────────────────────────────
 

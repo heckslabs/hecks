@@ -9,6 +9,12 @@ Hecks.behaviors "SaaSPlatform" do
     expect status: "active"
   end
 
+  test "OnboardTenant cascades through policy chain" do
+    tests "OnboardTenant", on: "Tenant", kind: :cascade
+    input  tenant_name: "sample", slug: "sample", admin_email: "sample", plan: "sample"
+    expect emits: ["TenantOnboarded", "SubscriptionStarted", "MeterInitialized", "FeatureFlagProvisioned"]
+  end
+
   test "SuspendTenant runs" do
     tests "SuspendTenant", on: "Tenant"
     setup  "OnboardTenant", tenant_name: "sample", slug: "sample", admin_email: "sample", plan: "sample"
@@ -31,6 +37,13 @@ Hecks.behaviors "SaaSPlatform" do
     expect status: "active"
   end
 
+  test "StartSubscription cascades through policy chain" do
+    tests "StartSubscription", on: "Subscription", kind: :cascade
+    setup  "OnboardTenant", tenant_name: "sample", slug: "sample", admin_email: "sample", plan: "sample"
+    input  subscription_id: "sample", plan_name: "sample", monthly_rate: 1.0, billing_cycle: "sample"
+    expect emits: ["SubscriptionStarted", "MeterInitialized", "FeatureFlagProvisioned"]
+  end
+
   test "UpgradePlan sets plan_name + monthly_rate" do
     tests "UpgradePlan", on: "Subscription"
     setup  "StartSubscription", subscription_id: "sample", plan_name: "sample", monthly_rate: 1.0, billing_cycle: "sample"
@@ -38,10 +51,23 @@ Hecks.behaviors "SaaSPlatform" do
     expect ok: "true"
   end
 
+  test "UpgradePlan cascades through policy chain" do
+    tests "UpgradePlan", on: "Subscription", kind: :cascade
+    setup  "StartSubscription", subscription_id: "sample", plan_name: "sample", monthly_rate: 1.0, billing_cycle: "sample"
+    input  plan_name: "sample", monthly_rate: 1.0
+    expect emits: ["PlanUpgraded", "FlagToggledForTenant"]
+  end
+
   test "CancelSubscription runs" do
     tests "CancelSubscription", on: "Subscription"
     setup  "StartSubscription", subscription_id: "sample", plan_name: "sample", monthly_rate: 1.0, billing_cycle: "sample"
     expect ok: "true"
+  end
+
+  test "CancelSubscription cascades through policy chain" do
+    tests "CancelSubscription", on: "Subscription", kind: :cascade
+    setup  "StartSubscription", subscription_id: "sample", plan_name: "sample", monthly_rate: 1.0, billing_cycle: "sample"
+    expect emits: ["SubscriptionCanceled", "TenantSuspended"]
   end
 
 
@@ -76,6 +102,20 @@ Hecks.behaviors "SaaSPlatform" do
     expect ok: "true"
   end
 
+  test "InitializeMeter cascades through policy chain" do
+    tests "InitializeMeter", on: "UsageMeter", kind: :cascade
+    setup  "OnboardTenant", tenant_name: "sample", slug: "sample", admin_email: "sample", plan: "sample"
+    input  meter_name: "sample", unit: "sample", quota: 1, period: "sample"
+    expect emits: ["MeterInitialized", "FeatureFlagProvisioned"]
+  end
+
+  test "RecordUsage cascades through policy chain" do
+    tests "RecordUsage", on: "UsageMeter", kind: :cascade
+    setup  "InitializeMeter", meter_name: "sample", unit: "sample", quota: 1, period: "sample"
+    input  delta: 1
+    expect emits: ["UsageRecorded", "ChargePosted", "BalanceSettled", "MeterReset"]
+  end
+
   test "ResetMeter runs" do
     tests "ResetMeter", on: "UsageMeter"
     setup  "InitializeMeter", meter_name: "sample", unit: "sample", quota: 1, period: "sample"
@@ -92,6 +132,13 @@ Hecks.behaviors "SaaSPlatform" do
     expect ok: "true"
   end
 
+  test "PostCharge cascades through policy chain" do
+    tests "PostCharge", on: "BillingEvent", kind: :cascade
+    setup  "OnboardTenant", tenant_name: "sample", slug: "sample", admin_email: "sample", plan: "sample"
+    input  event_id: "sample", amount: 1.0, description: "sample"
+    expect emits: ["ChargePosted", "BalanceSettled", "MeterReset"]
+  end
+
   test "IssueCredit sets amount + reason" do
     tests "IssueCredit", on: "BillingEvent"
     setup  "PostCharge", event_id: "sample", amount: 1.0, description: "sample"
@@ -103,6 +150,12 @@ Hecks.behaviors "SaaSPlatform" do
     tests "SettleBalance", on: "BillingEvent"
     setup  "PostCharge", event_id: "sample", amount: 1.0, description: "sample"
     expect ok: "true"
+  end
+
+  test "SettleBalance cascades through policy chain" do
+    tests "SettleBalance", on: "BillingEvent", kind: :cascade
+    setup  "PostCharge", event_id: "sample", amount: 1.0, description: "sample"
+    expect emits: ["BalanceSettled", "MeterReset"]
   end
 
 end

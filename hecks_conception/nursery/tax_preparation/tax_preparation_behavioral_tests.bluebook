@@ -9,6 +9,12 @@ Hecks.behaviors "TaxPreparation" do
     expect first_name: "sample", last_name: "sample", ssn_last_four: "sample", filing_status: "sample", phone: "sample", status: "active"
   end
 
+  test "OnboardClient cascades through policy chain" do
+    tests "OnboardClient", on: "TaxClient", kind: :cascade
+    input  first_name: "sample", last_name: "sample", ssn_last_four: "sample", filing_status: "sample", phone: "sample", email: "sample"
+    expect emits: ["ClientOnboarded", "DocumentCollected"]
+  end
+
   test "AmendFilingStatus sets filing_status" do
     tests "AmendFilingStatus", on: "TaxClient"
     setup  "OnboardClient", first_name: "sample", last_name: "sample", ssn_last_four: "sample", filing_status: "sample", phone: "sample", email: "sample"
@@ -32,11 +38,37 @@ Hecks.behaviors "TaxPreparation" do
     expect tax_year: "sample", return_type: "sample", status: "in_progress"
   end
 
+  test "StartReturn cascades through policy chain" do
+    tests "StartReturn", on: "TaxReturn", kind: :cascade
+    setup  "OnboardClient", first_name: "sample", last_name: "sample", ssn_last_four: "sample", filing_status: "sample", phone: "sample", email: "sample"
+    input  tax_year: "sample", return_type: "sample"
+    expect emits: ["ReturnStarted", "DeductionClaimed"]
+  end
+
   test "CalculateTax sets gross_income + adjusted_gross_income + taxable_income + tax_owed + refund_amount" do
     tests "CalculateTax", on: "TaxReturn"
     setup  "StartReturn", tax_year: "sample", return_type: "sample"
     input  gross_income: 1.0, adjusted_gross_income: 1.0, taxable_income: 1.0, tax_owed: 1.0, refund_amount: 1.0
-    expect gross_income: 1.0, adjusted_gross_income: 1.0, taxable_income: 1.0, tax_owed: 1.0, refund_amount: 1.0, status: "finalized"
+    expect gross_income: 1.0, adjusted_gross_income: 1.0, taxable_income: 1.0, tax_owed: 1.0, refund_amount: 1.0
+  end
+
+  test "CalculateTax cascades through policy chain" do
+    tests "CalculateTax", on: "TaxReturn", kind: :cascade
+    setup  "StartReturn", tax_year: "sample", return_type: "sample"
+    input  gross_income: 1.0, adjusted_gross_income: 1.0, taxable_income: 1.0, tax_owed: 1.0, refund_amount: 1.0
+    expect emits: ["TaxCalculated", "ReturnFinalized", "ReturnEFiled"]
+  end
+
+  test "FinalizeReturn runs" do
+    tests "FinalizeReturn", on: "TaxReturn"
+    setup  "StartReturn", tax_year: "sample", return_type: "sample"
+    expect status: "finalized"
+  end
+
+  test "FinalizeReturn cascades through policy chain" do
+    tests "FinalizeReturn", on: "TaxReturn", kind: :cascade
+    setup  "StartReturn", tax_year: "sample", return_type: "sample"
+    expect emits: ["ReturnFinalized", "ReturnEFiled"]
   end
 
 
@@ -53,6 +85,12 @@ Hecks.behaviors "TaxPreparation" do
     tests "VerifyDocument", on: "TaxDocument"
     setup  "CollectDocument", document_type: "sample", issuer: "sample", tax_year: "sample"
     expect status: "verified"
+  end
+
+  test "VerifyDocument cascades through policy chain" do
+    tests "VerifyDocument", on: "TaxDocument", kind: :cascade
+    setup  "CollectDocument", document_type: "sample", issuer: "sample", tax_year: "sample"
+    expect emits: ["DocumentVerified", "ReturnStarted", "DeductionClaimed"]
   end
 
   test "RequestMissingDocument sets document_type + issuer" do
@@ -76,6 +114,12 @@ Hecks.behaviors "TaxPreparation" do
     tests "SubstantiateDeduction", on: "Deduction"
     setup  "ClaimDeduction", deduction_type: "sample", category: "sample", amount: 1.0
     expect documentation_status: "substantiated"
+  end
+
+  test "SubstantiateDeduction cascades through policy chain" do
+    tests "SubstantiateDeduction", on: "Deduction", kind: :cascade
+    setup  "ClaimDeduction", deduction_type: "sample", category: "sample", amount: 1.0
+    expect emits: ["DeductionSubstantiated", "TaxCalculated", "ReturnFinalized", "ReturnEFiled"]
   end
 
   test "DisallowDeduction runs" do
@@ -106,6 +150,13 @@ Hecks.behaviors "TaxPreparation" do
     setup  "FileElectronically", filed_date: "sample"
     input  rejection_reason: "sample"
     expect status: "rejected"
+  end
+
+  test "HandleRejection cascades through policy chain" do
+    tests "HandleRejection", on: "ElectronicFiling", kind: :cascade
+    setup  "FileElectronically", filed_date: "sample"
+    input  rejection_reason: "sample"
+    expect emits: ["FilingRejected", "ReturnStarted", "DeductionClaimed"]
   end
 
 end

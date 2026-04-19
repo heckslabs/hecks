@@ -9,15 +9,94 @@ Hecks.behaviors "EmergencyRoom" do
     expect name: "sample", date_of_birth: "sample", chief_complaint: "sample", status: "triaged"
   end
 
+  test "RegisterPatient cascades through policy chain" do
+    tests "RegisterPatient", on: "Patient", kind: :cascade
+    input  name: "sample", date_of_birth: "sample", chief_complaint: "sample"
+    expect emits: ["PatientRegistered", "TriageCompleted", "PatientAdmitted", "BedOccupied", "TreatmentBegun", "ProcedureOrdered"]
+  end
+
   test "AdmitPatient runs" do
     tests "AdmitPatient", on: "Patient"
     setup  "PrepareBed", bed_id: "sample", zone: "sample", equipment_level: "sample"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
+    expect status: "admitted"
+  end
+
+  test "AdmitPatient cascades through policy chain" do
+    tests "AdmitPatient", on: "Patient", kind: :cascade
+    setup  "PrepareBed", bed_id: "sample", zone: "sample", equipment_level: "sample"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
+    expect emits: ["PatientAdmitted", "BedOccupied", "TreatmentBegun", "ProcedureOrdered"]
+  end
+
+  test "BeginTreatment runs" do
+    tests "BeginTreatment", on: "Patient"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
+    setup  "AdmitPatient"
     expect status: "treating"
+  end
+
+  test "BeginTreatment cascades through policy chain" do
+    tests "BeginTreatment", on: "Patient", kind: :cascade
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
+    setup  "AdmitPatient"
+    expect emits: ["TreatmentBegun", "ProcedureOrdered"]
+  end
+
+  test "StabilizePatient runs" do
+    tests "StabilizePatient", on: "Patient"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
+    setup  "AdmitPatient"
+    setup  "BeginTreatment"
+    expect status: "stabilized"
+  end
+
+  test "StabilizePatient cascades through policy chain" do
+    tests "StabilizePatient", on: "Patient", kind: :cascade
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
+    setup  "AdmitPatient"
+    setup  "BeginTreatment"
+    expect emits: ["PatientStabilized", "PatientDischarged", "BedCleaned", "BedPrepared", "PatientTransferred"]
+  end
+
+  test "DischargePatient sets discharge_instructions" do
+    tests "DischargePatient", on: "Patient"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
+    setup  "AdmitPatient"
+    setup  "BeginTreatment"
+    setup  "StabilizePatient"
+    input  discharge_instructions: "sample"
+    expect status: "discharged"
+  end
+
+  test "DischargePatient cascades through policy chain" do
+    tests "DischargePatient", on: "Patient", kind: :cascade
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
+    setup  "AdmitPatient"
+    setup  "BeginTreatment"
+    setup  "StabilizePatient"
+    input  discharge_instructions: "sample"
+    expect emits: ["PatientDischarged", "BedCleaned", "BedPrepared"]
+  end
+
+  test "TransferToInpatient sets ward" do
+    tests "TransferToInpatient", on: "Patient"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
+    setup  "AdmitPatient"
+    setup  "BeginTreatment"
+    setup  "StabilizePatient"
+    input  ward: "sample"
+    expect status: "transferred"
   end
 
 
   # ── Bed aggregate ──────────────────────────────────────────
+
+  test "PrepareBed sets bed_id + zone + equipment_level" do
+    tests "PrepareBed", on: "Bed"
+    input  bed_id: "sample", zone: "sample", equipment_level: "sample"
+    expect status: "available"
+  end
 
   test "OccupyBed runs" do
     tests "OccupyBed", on: "Bed"
@@ -32,6 +111,13 @@ Hecks.behaviors "EmergencyRoom" do
     expect status: "available"
   end
 
+  test "CleanBed cascades through policy chain" do
+    tests "CleanBed", on: "Bed", kind: :cascade
+    setup  "PrepareBed", bed_id: "sample", zone: "sample", equipment_level: "sample"
+    setup  "OccupyBed"
+    expect emits: ["BedCleaned", "BedPrepared"]
+  end
+
 
   # ── TriageAssessment aggregate ──────────────────────────────────────────
 
@@ -40,6 +126,13 @@ Hecks.behaviors "EmergencyRoom" do
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
     input  acuity_level: 1, vital_signs_summary: "sample"
     expect status: "completed"
+  end
+
+  test "PerformTriage cascades through policy chain" do
+    tests "PerformTriage", on: "TriageAssessment", kind: :cascade
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
+    input  acuity_level: 1, vital_signs_summary: "sample"
+    expect emits: ["TriageCompleted", "PatientAdmitted", "BedOccupied", "TreatmentBegun", "ProcedureOrdered"]
   end
 
   test "EscalateTriage sets new_acuity_level" do
@@ -64,6 +157,13 @@ Hecks.behaviors "EmergencyRoom" do
     setup  "OrderProcedure", procedure_name: "sample", physician: "sample"
     input  notes: "sample"
     expect status: "completed"
+  end
+
+  test "PerformProcedure cascades through policy chain" do
+    tests "PerformProcedure", on: "Procedure", kind: :cascade
+    setup  "OrderProcedure", procedure_name: "sample", physician: "sample"
+    input  notes: "sample"
+    expect emits: ["ProcedurePerformed", "PatientStabilized", "PatientDischarged", "BedCleaned", "BedPrepared", "PatientTransferred"]
   end
 
 end

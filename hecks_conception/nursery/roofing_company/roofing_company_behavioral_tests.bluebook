@@ -9,6 +9,12 @@ Hecks.behaviors "RoofingCompany" do
     expect ok: "true"
   end
 
+  test "MeasureRoof cascades through policy chain" do
+    tests "MeasureRoof", on: "RoofEstimate", kind: :cascade
+    input  customer_name: "sample", address: "sample", square_footage: 1.0, pitch: 1.0
+    expect emits: ["RoofMeasured", "JobQuoted"]
+  end
+
   test "QuoteJob sets material_cost_per_square + labor_cost_per_square" do
     tests "QuoteJob", on: "RoofEstimate"
     setup  "MeasureRoof", customer_name: "sample", address: "sample", square_footage: 1.0, pitch: 1.0
@@ -21,6 +27,13 @@ Hecks.behaviors "RoofingCompany" do
     setup  "MeasureRoof", customer_name: "sample", address: "sample", square_footage: 1.0, pitch: 1.0
     setup  "QuoteJob", material_cost_per_square: 1.0, labor_cost_per_square: 1.0
     expect ok: "true"
+  end
+
+  test "AcceptQuote cascades through policy chain" do
+    tests "AcceptQuote", on: "RoofEstimate", kind: :cascade
+    setup  "MeasureRoof", customer_name: "sample", address: "sample", square_footage: 1.0, pitch: 1.0
+    setup  "QuoteJob", material_cost_per_square: 1.0, labor_cost_per_square: 1.0
+    expect emits: ["QuoteAccepted", "MaterialsOrdered"]
   end
 
 
@@ -39,6 +52,12 @@ Hecks.behaviors "RoofingCompany" do
     expect ok: "true"
   end
 
+  test "ReceiveDelivery cascades through policy chain" do
+    tests "ReceiveDelivery", on: "MaterialOrder", kind: :cascade
+    setup  "OrderMaterials", supplier: "sample", material_type: "sample", quantity_bundles: 1
+    expect emits: ["DeliveryReceived", "CrewAssignedToJob", "WarrantyRegistered", "HoldPlaced"]
+  end
+
 
   # ── Crew aggregate ──────────────────────────────────────────
 
@@ -53,6 +72,13 @@ Hecks.behaviors "RoofingCompany" do
     setup  "MeasureRoof", customer_name: "sample", address: "sample", square_footage: 1.0, pitch: 1.0
     setup  "FormCrew", foreman_name: "sample", crew_size: 1
     expect ok: "true"
+  end
+
+  test "AssignToJob cascades through policy chain" do
+    tests "AssignToJob", on: "Crew", kind: :cascade
+    setup  "MeasureRoof", customer_name: "sample", address: "sample", square_footage: 1.0, pitch: 1.0
+    setup  "FormCrew", foreman_name: "sample", crew_size: 1
+    expect emits: ["CrewAssignedToJob", "WarrantyRegistered", "HoldPlaced"]
   end
 
 
@@ -80,6 +106,13 @@ Hecks.behaviors "RoofingCompany" do
     setup  "RegisterWarranty", warranty_type: "sample", duration_years: 1, coverage_details: "sample"
     input  leak_location: "sample"
     expect ok: "true"
+  end
+
+  test "FileLeakClaim cascades through policy chain" do
+    tests "FileLeakClaim", on: "RoofWarranty", kind: :cascade
+    setup  "RegisterWarranty", warranty_type: "sample", duration_years: 1, coverage_details: "sample"
+    input  leak_location: "sample"
+    expect emits: ["LeakClaimFiled", "RoofMeasured", "JobQuoted"]
   end
 
 end

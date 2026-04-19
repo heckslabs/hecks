@@ -9,11 +9,24 @@ Hecks.behaviors "IntrospectiveMonitoring" do
     expect title: "sample", narrative: "sample", vividness: 1, clarity: "fresh"
   end
 
+  test "RecordDream cascades through policy chain" do
+    tests "RecordDream", on: "DreamJournal", kind: :cascade
+    input  title: "sample", narrative: "sample", vividness: 1
+    expect emits: ["DreamRecorded", "MoodLogged"]
+  end
+
   test "TagTheme sets symbol" do
     tests "TagTheme", on: "DreamJournal"
     setup  "RecordDream", title: "sample", narrative: "sample", vividness: 1
     input  symbol: "sample"
     expect ok: "true"
+  end
+
+  test "TagTheme cascades through policy chain" do
+    tests "TagTheme", on: "DreamJournal", kind: :cascade
+    setup  "RecordDream", title: "sample", narrative: "sample", vividness: 1
+    input  symbol: "sample"
+    expect emits: ["ThemeTagged", "QuestionPosed"]
   end
 
   test "FadeDream runs" do
@@ -62,6 +75,12 @@ Hecks.behaviors "IntrospectiveMonitoring" do
 
   # ── SelfInquiry aggregate ──────────────────────────────────────────
 
+  test "PoseQuestion sets question + domain_focus" do
+    tests "PoseQuestion", on: "SelfInquiry"
+    input  question: "sample", domain_focus: "sample"
+    expect question: "sample", domain_focus: "sample", status: "open"
+  end
+
   test "RecordFinding sets finding" do
     tests "RecordFinding", on: "SelfInquiry"
     setup  "PoseQuestion", question: "sample", domain_focus: "sample"
@@ -69,12 +88,27 @@ Hecks.behaviors "IntrospectiveMonitoring" do
     expect finding: "sample", status: "answered"
   end
 
+  test "RecordFinding cascades through policy chain" do
+    tests "RecordFinding", on: "SelfInquiry", kind: :cascade
+    setup  "PoseQuestion", question: "sample", domain_focus: "sample"
+    input  finding: "sample"
+    expect emits: ["FindingRecorded", "AwarenessSynthesized"]
+  end
+
   test "CorrelateSignals sets left_signal + right_signal" do
     tests "CorrelateSignals", on: "SelfInquiry"
     setup  "PoseQuestion", question: "sample", domain_focus: "sample"
     setup  "RecordFinding", finding: "sample"
     input  left_signal: "sample", right_signal: "sample"
-    expect question: "sample", domain_focus: "sample", status: "open"
+    expect ok: "true"
+  end
+
+  test "CorrelateSignals cascades through policy chain" do
+    tests "CorrelateSignals", on: "SelfInquiry", kind: :cascade
+    setup  "PoseQuestion", question: "sample", domain_focus: "sample"
+    setup  "RecordFinding", finding: "sample"
+    input  left_signal: "sample", right_signal: "sample"
+    expect emits: ["SignalsCorrelated", "QuestionPosed"]
   end
 
 

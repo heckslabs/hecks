@@ -9,10 +9,22 @@ Hecks.behaviors "Meteorology" do
     expect ok: "true"
   end
 
+  test "InstallStation cascades through policy chain" do
+    tests "InstallStation", on: "WeatherStation", kind: :cascade
+    input  station_id: "sample", name: "sample", latitude: 1.0, longitude: 1.0
+    expect emits: ["StationInstalled", "InstrumentsCalibrated", "ObservationRecorded", "ObservationValidated", "SystemTracked", "ForecastIssued", "AlertIssued", "ForecastVerified"]
+  end
+
   test "CalibrateInstruments runs" do
     tests "CalibrateInstruments", on: "WeatherStation"
     setup  "InstallStation", station_id: "sample", name: "sample", latitude: 1.0, longitude: 1.0
     expect ok: "true"
+  end
+
+  test "CalibrateInstruments cascades through policy chain" do
+    tests "CalibrateInstruments", on: "WeatherStation", kind: :cascade
+    setup  "InstallStation", station_id: "sample", name: "sample", latitude: 1.0, longitude: 1.0
+    expect emits: ["InstrumentsCalibrated", "ObservationRecorded", "ObservationValidated", "SystemTracked", "ForecastIssued", "AlertIssued", "ForecastVerified"]
   end
 
   test "ClearPendingAlerts runs" do
@@ -38,6 +50,13 @@ Hecks.behaviors "Meteorology" do
     expect ok: "true"
   end
 
+  test "RecordObservation cascades through policy chain" do
+    tests "RecordObservation", on: "SurfaceObservation", kind: :cascade
+    setup  "InstallStation", station_id: "sample", name: "sample", latitude: 1.0, longitude: 1.0
+    input  timestamp: "sample", temperature_c: 1.0, pressure_hpa: 1.0
+    expect emits: ["ObservationRecorded", "ObservationValidated", "SystemTracked", "ForecastIssued", "AlertIssued", "ForecastVerified"]
+  end
+
   test "CompleteObservation runs" do
     tests "CompleteObservation", on: "SurfaceObservation"
     setup  "RecordObservation", timestamp: "sample", temperature_c: 1.0, pressure_hpa: 1.0
@@ -51,6 +70,13 @@ Hecks.behaviors "Meteorology" do
     expect ok: "true"
   end
 
+  test "ValidateObservation cascades through policy chain" do
+    tests "ValidateObservation", on: "SurfaceObservation", kind: :cascade
+    setup  "RecordObservation", timestamp: "sample", temperature_c: 1.0, pressure_hpa: 1.0
+    setup  "CompleteObservation"
+    expect emits: ["ObservationValidated", "SystemTracked", "ForecastIssued", "AlertIssued", "ForecastVerified"]
+  end
+
 
   # ── Forecast aggregate ──────────────────────────────────────────
 
@@ -58,6 +84,12 @@ Hecks.behaviors "Meteorology" do
     tests "IssueForecast", on: "Forecast"
     input  region: "sample", synopsis: "sample", valid_from: "sample", valid_to: "sample"
     expect ok: "true"
+  end
+
+  test "IssueForecast cascades through policy chain" do
+    tests "IssueForecast", on: "Forecast", kind: :cascade
+    input  region: "sample", synopsis: "sample", valid_from: "sample", valid_to: "sample"
+    expect emits: ["ForecastIssued", "AlertIssued", "ForecastVerified"]
   end
 
   test "AmendForecast sets amendment" do
@@ -89,6 +121,12 @@ Hecks.behaviors "Meteorology" do
     expect ok: "true"
   end
 
+  test "TrackSystem cascades through policy chain" do
+    tests "TrackSystem", on: "PressureSystem", kind: :cascade
+    input  system_type: "sample", central_pressure_hpa: 1.0
+    expect emits: ["SystemTracked", "ForecastIssued", "AlertIssued", "ForecastVerified"]
+  end
+
   test "Reposition sets latitude + longitude" do
     tests "Reposition", on: "PressureSystem"
     setup  "TrackSystem", system_type: "sample", central_pressure_hpa: 1.0
@@ -103,6 +141,12 @@ Hecks.behaviors "Meteorology" do
     tests "IssueAlert", on: "WeatherAlert"
     input  alert_type: "sample", severity: "sample", region: "sample"
     expect alert_active: true
+  end
+
+  test "IssueAlert cascades through policy chain" do
+    tests "IssueAlert", on: "WeatherAlert", kind: :cascade
+    input  alert_type: "sample", severity: "sample", region: "sample"
+    expect emits: ["AlertIssued", "ForecastVerified"]
   end
 
   test "CancelAlert runs" do

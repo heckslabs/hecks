@@ -39,6 +39,12 @@ Hecks.behaviors "Tribology" do
     expect name: "sample", surface_a: "sample", surface_b: "sample", normal_load: 1.0, sliding_speed: 1.0, status: "measured"
   end
 
+  test "MeasureFriction cascades through policy chain" do
+    tests "MeasureFriction", on: "Friction", kind: :cascade
+    input  name: "sample", surface_a: "sample", surface_b: "sample", normal_load: 1.0, sliding_speed: 1.0
+    expect emits: ["FrictionMeasured", "FlashTemperatureCalculated", "ThermalBreakdownPredicted", "CoefficientCalculated"]
+  end
+
   test "CalculateCoefficient sets friction_force + normal_force" do
     tests "CalculateCoefficient", on: "Friction"
     setup  "MeasureFriction", name: "sample", surface_a: "sample", surface_b: "sample", normal_load: 1.0, sliding_speed: 1.0
@@ -76,6 +82,12 @@ Hecks.behaviors "Tribology" do
     expect name: "sample", test_method: "sample", status: "measured"
   end
 
+  test "MeasureWear cascades through policy chain" do
+    tests "MeasureWear", on: "Wear", kind: :cascade
+    input  name: "sample", test_method: "sample"
+    expect emits: ["WearMeasured", "WearDebrisAnalyzed"]
+  end
+
   test "ClassifyWearMechanism sets mechanism" do
     tests "ClassifyWearMechanism", on: "Wear"
     setup  "MeasureWear", name: "sample", test_method: "sample"
@@ -106,11 +118,24 @@ Hecks.behaviors "Tribology" do
     expect name: "sample", base_oil_type: "sample", sae_grade: "sample", status: "formulated"
   end
 
+  test "FormulateLubricant cascades through policy chain" do
+    tests "FormulateLubricant", on: "Lubricant", kind: :cascade
+    input  name: "sample", base_oil_type: "sample", sae_grade: "sample"
+    expect emits: ["LubricantFormulated", "MinimumFilmCalculated", "TestRun"]
+  end
+
   test "MeasureViscosity sets kinematic_40c + kinematic_100c" do
     tests "MeasureViscosity", on: "Lubricant"
     setup  "FormulateLubricant", name: "sample", base_oil_type: "sample", sae_grade: "sample"
     input  kinematic_40c: 1.0, kinematic_100c: 1.0
     expect ok: "true"
+  end
+
+  test "MeasureViscosity cascades through policy chain" do
+    tests "MeasureViscosity", on: "Lubricant", kind: :cascade
+    setup  "FormulateLubricant", name: "sample", base_oil_type: "sample", sae_grade: "sample"
+    input  kinematic_40c: 1.0, kinematic_100c: 1.0
+    expect emits: ["ViscosityMeasured", "RegimeIdentified", "WearRatePredicted"]
   end
 
   test "CalculateViscosityIndex sets kinematic_40c + kinematic_100c" do
@@ -150,6 +175,12 @@ Hecks.behaviors "Tribology" do
     expect name: "sample", lambda_ratio: 1.0, regime_type: "pending", status: "identified"
   end
 
+  test "IdentifyRegime cascades through policy chain" do
+    tests "IdentifyRegime", on: "LubricationRegime", kind: :cascade
+    input  name: "sample", lambda_ratio: 1.0
+    expect emits: ["RegimeIdentified", "WearRatePredicted"]
+  end
+
   test "CalculateFilmParameter sets min_film_thickness + composite_roughness" do
     tests "CalculateFilmParameter", on: "LubricationRegime"
     setup  "IdentifyRegime", name: "sample", lambda_ratio: 1.0
@@ -162,6 +193,13 @@ Hecks.behaviors "Tribology" do
     setup  "IdentifyRegime", name: "sample", lambda_ratio: 1.0
     input  from_regime: "sample", to_regime: "sample", cause: "sample"
     expect regime_type: "sample", status: "transitioned"
+  end
+
+  test "TransitionRegime cascades through policy chain" do
+    tests "TransitionRegime", on: "LubricationRegime", kind: :cascade
+    setup  "IdentifyRegime", name: "sample", lambda_ratio: 1.0
+    input  from_regime: "sample", to_regime: "sample", cause: "sample"
+    expect emits: ["RegimeTransitioned", "FilmThicknessMeasured"]
   end
 
   test "OptimizeRegime sets target_regime + method" do
@@ -208,6 +246,12 @@ Hecks.behaviors "Tribology" do
     tests "CalculateContactPressure", on: "ContactMechanics"
     input  name: "sample", contact_type: "sample", load: 1.0, radius_a: 1.0, radius_b: 1.0, modulus_a: 1.0, modulus_b: 1.0
     expect name: "sample", contact_type: "sample"
+  end
+
+  test "CalculateContactPressure cascades through policy chain" do
+    tests "CalculateContactPressure", on: "ContactMechanics", kind: :cascade
+    input  name: "sample", contact_type: "sample", load: 1.0, radius_a: 1.0, radius_b: 1.0, modulus_a: 1.0, modulus_b: 1.0
+    expect emits: ["ContactPressureCalculated", "StressFieldAnalyzed"]
   end
 
   test "ModelHertzianContact sets load" do
@@ -299,6 +343,12 @@ Hecks.behaviors "Tribology" do
     tests "CalculateFlashTemperature", on: "ThermalBehavior"
     input  name: "sample", friction_coefficient: 1.0, load: 1.0, sliding_speed: 1.0, thermal_conductivity: 1.0
     expect name: "sample", thermal_status: "calculated"
+  end
+
+  test "CalculateFlashTemperature cascades through policy chain" do
+    tests "CalculateFlashTemperature", on: "ThermalBehavior", kind: :cascade
+    input  name: "sample", friction_coefficient: 1.0, load: 1.0, sliding_speed: 1.0, thermal_conductivity: 1.0
+    expect emits: ["FlashTemperatureCalculated", "ThermalBreakdownPredicted"]
   end
 
   test "MeasureHeatDissipation sets heat_dissipation_rate + coolant_flow" do

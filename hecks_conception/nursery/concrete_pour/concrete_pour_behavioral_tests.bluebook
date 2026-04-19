@@ -9,6 +9,12 @@ Hecks.behaviors "ConcretePour" do
     expect status: "in_progress"
   end
 
+  test "SchedulePour cascades through policy chain" do
+    tests "SchedulePour", on: "PourSchedule", kind: :cascade
+    input  project_name: "sample", pour_location: "sample", cubic_yards: 1.0, pour_date: "sample", crew_size: 1
+    expect emits: ["PourScheduled", "MixSpecified", "RebarPlaced", "ReinforcementInspected", "PourCompleted", "CuringBegun", "TemperatureMonitored", "CylinderBroken"]
+  end
+
   test "PostponePour sets reason" do
     tests "PostponePour", on: "PourSchedule"
     setup  "SchedulePour", project_name: "sample", pour_location: "sample", cubic_yards: 1.0, pour_date: "sample", crew_size: 1
@@ -22,6 +28,12 @@ Hecks.behaviors "ConcretePour" do
     expect ok: "true"
   end
 
+  test "CompletePour cascades through policy chain" do
+    tests "CompletePour", on: "PourSchedule", kind: :cascade
+    setup  "SchedulePour", project_name: "sample", pour_location: "sample", cubic_yards: 1.0, pour_date: "sample", crew_size: 1
+    expect emits: ["PourCompleted", "CuringBegun", "TemperatureMonitored", "CylinderBroken"]
+  end
+
 
   # ── MixDesign aggregate ──────────────────────────────────────────
 
@@ -30,6 +42,13 @@ Hecks.behaviors "ConcretePour" do
     setup  "SchedulePour", project_name: "sample", pour_location: "sample", cubic_yards: 1.0, pour_date: "sample", crew_size: 1
     input  mix_number: "sample", target_psi: 1.0, water_cement_ratio: 1.0, aggregate_size: "sample", slump_inches: 1.0
     expect ok: "true"
+  end
+
+  test "SpecifyMix cascades through policy chain" do
+    tests "SpecifyMix", on: "MixDesign", kind: :cascade
+    setup  "SchedulePour", project_name: "sample", pour_location: "sample", cubic_yards: 1.0, pour_date: "sample", crew_size: 1
+    input  mix_number: "sample", target_psi: 1.0, water_cement_ratio: 1.0, aggregate_size: "sample", slump_inches: 1.0
+    expect emits: ["MixSpecified", "RebarPlaced", "ReinforcementInspected", "PourCompleted", "CuringBegun", "TemperatureMonitored", "CylinderBroken"]
   end
 
 
@@ -42,11 +61,25 @@ Hecks.behaviors "ConcretePour" do
     expect rebar_size: "sample", spacing: "sample", coverage_inches: 1.0
   end
 
+  test "PlaceRebar cascades through policy chain" do
+    tests "PlaceRebar", on: "Reinforcement", kind: :cascade
+    setup  "SchedulePour", project_name: "sample", pour_location: "sample", cubic_yards: 1.0, pour_date: "sample", crew_size: 1
+    input  rebar_size: "sample", spacing: "sample", coverage_inches: 1.0
+    expect emits: ["RebarPlaced", "ReinforcementInspected", "PourCompleted", "CuringBegun", "TemperatureMonitored", "CylinderBroken"]
+  end
+
   test "InspectReinforcement sets inspection_result" do
     tests "InspectReinforcement", on: "Reinforcement"
     setup  "PlaceRebar", rebar_size: "sample", spacing: "sample", coverage_inches: 1.0
     input  inspection_result: "sample"
     expect ok: "true"
+  end
+
+  test "InspectReinforcement cascades through policy chain" do
+    tests "InspectReinforcement", on: "Reinforcement", kind: :cascade
+    setup  "PlaceRebar", rebar_size: "sample", spacing: "sample", coverage_inches: 1.0
+    input  inspection_result: "sample"
+    expect emits: ["ReinforcementInspected", "PourCompleted", "CuringBegun", "TemperatureMonitored", "CylinderBroken"]
   end
 
 
@@ -57,6 +90,13 @@ Hecks.behaviors "ConcretePour" do
     setup  "SchedulePour", project_name: "sample", pour_location: "sample", cubic_yards: 1.0, pour_date: "sample", crew_size: 1
     input  curing_method: "sample", cure_days: 1, min_temp_f: 1.0
     expect ok: "true"
+  end
+
+  test "BeginCuring cascades through policy chain" do
+    tests "BeginCuring", on: "CuringProtocol", kind: :cascade
+    setup  "SchedulePour", project_name: "sample", pour_location: "sample", cubic_yards: 1.0, pour_date: "sample", crew_size: 1
+    input  curing_method: "sample", cure_days: 1, min_temp_f: 1.0
+    expect emits: ["CuringBegun", "TemperatureMonitored", "CylinderBroken"]
   end
 
   test "MonitorTemperature sets measured_temp_f" do

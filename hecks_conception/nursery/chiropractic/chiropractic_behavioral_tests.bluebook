@@ -9,10 +9,22 @@ Hecks.behaviors "Chiropractic" do
     expect name: "sample", date_of_birth: "sample", chief_complaint: "sample", insurance_id: "sample", status: "intake"
   end
 
+  test "RegisterPatient cascades through policy chain" do
+    tests "RegisterPatient", on: "Patient", kind: :cascade
+    input  name: "sample", date_of_birth: "sample", chief_complaint: "sample", insurance_id: "sample"
+    expect emits: ["PatientRegistered", "ImagingOrdered"]
+  end
+
   test "ActivatePatient runs" do
     tests "ActivatePatient", on: "Patient"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample", insurance_id: "sample"
     expect status: "active"
+  end
+
+  test "ActivatePatient cascades through policy chain" do
+    tests "ActivatePatient", on: "Patient", kind: :cascade
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample", insurance_id: "sample"
+    expect emits: ["PatientActivated", "AdjustmentPerformed", "VisitCompleted"]
   end
 
   test "DeactivatePatient runs" do
@@ -32,11 +44,25 @@ Hecks.behaviors "Chiropractic" do
     expect patient_name: "sample", adjustment_date: "sample", technique: "sample", pain_before: 1
   end
 
+  test "PerformAdjustment cascades through policy chain" do
+    tests "PerformAdjustment", on: "Adjustment", kind: :cascade
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample", insurance_id: "sample"
+    input  patient_name: "sample", adjustment_date: "sample", technique: "sample", pain_before: 1
+    expect emits: ["AdjustmentPerformed", "VisitCompleted"]
+  end
+
   test "RecordPostAdjustment sets pain_after + notes" do
     tests "RecordPostAdjustment", on: "Adjustment"
     setup  "PerformAdjustment", patient_name: "sample", adjustment_date: "sample", technique: "sample", pain_before: 1
     input  pain_after: 1, notes: "sample"
     expect pain_after: 1, notes: "sample"
+  end
+
+  test "RecordPostAdjustment cascades through policy chain" do
+    tests "RecordPostAdjustment", on: "Adjustment", kind: :cascade
+    setup  "PerformAdjustment", patient_name: "sample", adjustment_date: "sample", technique: "sample", pain_before: 1
+    input  pain_after: 1, notes: "sample"
+    expect emits: ["PostAdjustmentRecorded", "InvoiceCreated", "InsuranceClaimSubmitted", "PaymentRecorded"]
   end
 
 
@@ -56,6 +82,13 @@ Hecks.behaviors "Chiropractic" do
     expect findings: "sample", status: "interpreted"
   end
 
+  test "InterpretImaging cascades through policy chain" do
+    tests "InterpretImaging", on: "ImagingStudy", kind: :cascade
+    setup  "OrderImaging", patient_name: "sample", imaging_type: "sample", body_region: "sample", order_date: "sample"
+    input  findings: "sample"
+    expect emits: ["ImagingInterpreted", "TreatmentPlanCreated", "PatientActivated", "AdjustmentPerformed", "VisitCompleted"]
+  end
+
 
   # ── TreatmentPlan aggregate ──────────────────────────────────────────
 
@@ -64,6 +97,13 @@ Hecks.behaviors "Chiropractic" do
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample", insurance_id: "sample"
     input  patient_name: "sample", diagnosis: "sample", planned_visits: 1, frequency: "sample"
     expect patient_name: "sample", diagnosis: "sample", planned_visits: 1, frequency: "sample", completed_visits: 0, status: "active"
+  end
+
+  test "PrescribeCourse cascades through policy chain" do
+    tests "PrescribeCourse", on: "TreatmentPlan", kind: :cascade
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample", insurance_id: "sample"
+    input  patient_name: "sample", diagnosis: "sample", planned_visits: 1, frequency: "sample"
+    expect emits: ["TreatmentPlanCreated", "PatientActivated", "AdjustmentPerformed", "VisitCompleted"]
   end
 
   test "RecordCompletedVisit runs" do
@@ -78,6 +118,12 @@ Hecks.behaviors "Chiropractic" do
     expect status: "closed"
   end
 
+  test "CloseTreatmentPlan cascades through policy chain" do
+    tests "CloseTreatmentPlan", on: "TreatmentPlan", kind: :cascade
+    setup  "PrescribeCourse", patient_name: "sample", diagnosis: "sample", planned_visits: 1, frequency: "sample"
+    expect emits: ["TreatmentPlanClosed", "PatientDeactivated"]
+  end
+
 
   # ── Invoice aggregate ──────────────────────────────────────────
 
@@ -88,10 +134,29 @@ Hecks.behaviors "Chiropractic" do
     expect patient_name: "sample", service_date: "sample", total_amount: 1.0, payment_status: "unpaid", insurance_claim_status: "pending"
   end
 
+  test "IssueInvoice cascades through policy chain" do
+    tests "IssueInvoice", on: "Invoice", kind: :cascade
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample", insurance_id: "sample"
+    input  patient_name: "sample", service_date: "sample", total_amount: 1.0
+    expect emits: ["InvoiceCreated", "InsuranceClaimSubmitted", "PaymentRecorded"]
+  end
+
   test "SubmitInsuranceClaim runs" do
     tests "SubmitInsuranceClaim", on: "Invoice"
     setup  "IssueInvoice", patient_name: "sample", service_date: "sample", total_amount: 1.0
-    expect insurance_claim_status: "submitted", payment_status: "paid"
+    expect insurance_claim_status: "submitted"
+  end
+
+  test "SubmitInsuranceClaim cascades through policy chain" do
+    tests "SubmitInsuranceClaim", on: "Invoice", kind: :cascade
+    setup  "IssueInvoice", patient_name: "sample", service_date: "sample", total_amount: 1.0
+    expect emits: ["InsuranceClaimSubmitted", "PaymentRecorded"]
+  end
+
+  test "RecordPayment runs" do
+    tests "RecordPayment", on: "Invoice"
+    setup  "IssueInvoice", patient_name: "sample", service_date: "sample", total_amount: 1.0
+    expect payment_status: "paid"
   end
 
 end

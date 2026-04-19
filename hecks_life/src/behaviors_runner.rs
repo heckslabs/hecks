@@ -83,10 +83,15 @@ fn run_one(source_text: &str, test: &Test) -> TestRun {
     // (the next dispatch will surface a clear error if they matter).
     pre_seed_singletons(&mut rt, &mut in_scope);
 
-    // Replay setup commands.
+    // Replay setup commands. Setups dispatch with cascade OFF so they
+    // don't overshoot the test command's required precondition state
+    // (e.g. SortParcel triggers LoadParcel via policy, putting status
+    // at "loaded" when the test needed it at "sorted"). The test
+    // command itself dispatches via the cascading `dispatch` so its
+    // `expect emits: [...]` assertion can fire and lock the cascade.
     for setup in &test.setups {
         let attrs = build_attrs(&setup.args, &setup.command, &rt, &in_scope);
-        match rt.dispatch(&setup.command, attrs) {
+        match rt.dispatch_isolated(&setup.command, attrs) {
             Ok(result) => {
                 // Setup just created (or operated on) an aggregate of
                 // this type. Stash it as the in-scope handle so
@@ -106,8 +111,19 @@ fn run_one(source_text: &str, test: &Test) -> TestRun {
         return run_query(&rt, test);
     }
 
+    // Snapshot the event bus boundary so the `emits:` assertion only
+    // compares events produced by THIS dispatch, not events from setup.
+    let pre_dispatch_event_count = rt.event_bus.events().len();
     let input_attrs = build_attrs(&test.input, &test.tests_command, &rt, &in_scope);
-    let result = rt.dispatch(&test.tests_command, input_attrs);
+    // `kind: :cascade` tests explicitly want the policy chain to fire
+    // so they can assert the cascade via `expect emits: [...]`. All
+    // other tests dispatch isolated so the asserted state matches the
+    // command's DIRECT mutations (no cascade overshoot).
+    let result = if test.kind == "cascade" {
+        rt.dispatch(&test.tests_command, input_attrs)
+    } else {
+        rt.dispatch_isolated(&test.tests_command, input_attrs)
+    };
 
     // The expect map drives every assertion. `refused` is a special
     // key that asserts the dispatch failed with a matching given-clause
@@ -166,6 +182,23 @@ fn run_one(source_text: &str, test: &Test) -> TestRun {
         // meaningful state assertion to make" sentinel. We're already
         // in the Ok arm, so it passes by virtue of being here.
         if key == "ok" && (expected == "true" || expected == "\"true\"") { continue; }
+        // `emits: [E1, E2, ...]` — assert the runtime's event bus
+        // published these events in this order. Lock down the
+        // emit→policy→trigger cascade as data: drift in policies
+        // surfaces here as a test failure.
+        if key == "emits" {
+            let expected_events = parse_event_list(expected);
+            let actual: Vec<String> = rt.event_bus.events()
+                .iter()
+                .skip(pre_dispatch_event_count)
+                .map(|e| e.name.clone())
+                .collect();
+            if actual != expected_events {
+                return TestRun::fail(&test.description,
+                    format!("expected emits: {:?}, got {:?}", expected_events, actual));
+            }
+            continue;
+        }
         if let Some(prefix) = key.strip_suffix("_size") {
             // Size assertion ONLY when `<prefix>` actually exists as a
             // list field. Otherwise this is just a normal attribute
@@ -315,6 +348,22 @@ fn parse_value(s: &str) -> Value {
     if s == "true" { return Value::Bool(true); }
     if s == "false" { return Value::Bool(false); }
     Value::Str(s.to_string())
+}
+
+/// Parse the value side of `expect emits: [E1, E2, E3]` from the
+/// behaviors IR (which carries the source-token form). Strips brackets
+/// and splits on commas; tolerates surrounding whitespace and quoted
+/// strings. An empty list (`[]`) returns an empty Vec.
+fn parse_event_list(raw: &str) -> Vec<String> {
+    let trimmed = raw.trim();
+    let inner = trimmed
+        .strip_prefix('[').unwrap_or(trimmed)
+        .strip_suffix(']').unwrap_or(trimmed);
+    if inner.trim().is_empty() { return Vec::new(); }
+    inner.split(',')
+        .map(|s| s.trim().trim_matches('"').trim_matches('\'').to_string())
+        .filter(|s| !s.is_empty())
+        .collect()
 }
 
 /// Count records in a resolve_query result. The result shape is

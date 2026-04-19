@@ -9,11 +9,77 @@ Hecks.behaviors "CallCenter" do
     expect subject: "sample", description: "sample", priority: "sample", channel: "sample", status: "queued"
   end
 
+  test "OpenTicket cascades through policy chain" do
+    tests "OpenTicket", on: "Ticket", kind: :cascade
+    input  subject: "sample", description: "sample", priority: "sample", channel: "sample"
+    expect emits: ["TicketOpened", "TicketEnqueued"]
+  end
+
   test "AssignToAgent runs" do
     tests "AssignToAgent", on: "Ticket"
     setup  "HireAgent", name: "sample", skill_level: "sample"
     setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
+    expect status: "assigned"
+  end
+
+  test "AssignToAgent cascades through policy chain" do
+    tests "AssignToAgent", on: "Ticket", kind: :cascade
+    setup  "HireAgent", name: "sample", skill_level: "sample"
+    setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
+    expect emits: ["TicketAssignedToAgent", "WorkBegun"]
+  end
+
+  test "BeginWork runs" do
+    tests "BeginWork", on: "Ticket"
+    setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
+    setup  "AssignToAgent"
     expect status: "in_progress"
+  end
+
+  test "ResolveTicket sets resolution_note" do
+    tests "ResolveTicket", on: "Ticket"
+    setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
+    setup  "AssignToAgent"
+    setup  "BeginWork"
+    input  resolution_note: "sample"
+    expect status: "resolved"
+  end
+
+  test "ResolveTicket cascades through policy chain" do
+    tests "ResolveTicket", on: "Ticket", kind: :cascade
+    setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
+    setup  "AssignToAgent"
+    setup  "BeginWork"
+    input  resolution_note: "sample"
+    expect emits: ["TicketResolved", "TicketClosed"]
+  end
+
+  test "CloseTicket runs" do
+    tests "CloseTicket", on: "Ticket"
+    setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
+    setup  "AssignToAgent"
+    setup  "BeginWork"
+    setup  "ResolveTicket", resolution_note: "sample"
+    expect status: "closed"
+  end
+
+  test "ReopenTicket sets reason" do
+    tests "ReopenTicket", on: "Ticket"
+    setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
+    setup  "AssignToAgent"
+    setup  "BeginWork"
+    setup  "ResolveTicket", resolution_note: "sample"
+    input  reason: "sample"
+    expect status: "open"
+  end
+
+  test "EscalateTicket sets reason" do
+    tests "EscalateTicket", on: "Ticket"
+    setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
+    setup  "AssignToAgent"
+    setup  "BeginWork"
+    input  reason: "sample"
+    expect priority: "urgent"
   end
 
 
@@ -43,6 +109,13 @@ Hecks.behaviors "CallCenter" do
     setup  "HireAgent", name: "sample", skill_level: "sample"
     setup  "SetAgentBreak"
     expect status: "available"
+  end
+
+  test "ReturnFromBreak cascades through policy chain" do
+    tests "ReturnFromBreak", on: "Agent", kind: :cascade
+    setup  "HireAgent", name: "sample", skill_level: "sample"
+    setup  "SetAgentBreak"
+    expect emits: ["AgentReturned", "TicketDequeued", "TicketAssigned"]
   end
 
 
@@ -75,6 +148,13 @@ Hecks.behaviors "CallCenter" do
     setup  "DefineSla", policy_name: "sample", priority: "sample", response_minutes: 1, resolution_minutes: 1
     input  ticket_id: "sample", breach_type: "sample"
     expect ok: "true"
+  end
+
+  test "BreachSla cascades through policy chain" do
+    tests "BreachSla", on: "SlaPolicy", kind: :cascade
+    setup  "DefineSla", policy_name: "sample", priority: "sample", response_minutes: 1, resolution_minutes: 1
+    input  ticket_id: "sample", breach_type: "sample"
+    expect emits: ["SlaBreached", "TicketEscalated"]
   end
 
 end

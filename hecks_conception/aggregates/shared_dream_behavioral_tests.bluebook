@@ -38,6 +38,14 @@ Hecks.behaviors "SharedDream" do
     expect ended_at: "sample", active: "no"
   end
 
+  test "EndSharedDream cascades through policy chain" do
+    tests "EndSharedDream", on: "SharedDreamSpace", kind: :cascade
+    setup  "InitiateSharedDream", initiated_by: "sample", started_at: "sample"
+    setup  "JoinSharedDream", joined_by: "sample"
+    input  ended_at: "sample"
+    expect emits: ["SharedDreamEnded", "CycleResumed"]
+  end
+
 
   # ── DreamSignal aggregate ──────────────────────────────────────────
 
@@ -47,10 +55,22 @@ Hecks.behaviors "SharedDream" do
     expect sender: "sample", signal_strength: 1.0, sent_at: "sample", detected: "no"
   end
 
+  test "SendDreamSignal cascades through policy chain" do
+    tests "SendDreamSignal", on: "DreamSignal", kind: :cascade
+    input  sender: "sample", signal_strength: 1.0, sent_at: "sample"
+    expect emits: ["DreamSignalSent", "SharedDreamInitiated"]
+  end
+
   test "DetectDreamSignal runs" do
     tests "DetectDreamSignal", on: "DreamSignal"
     setup  "SendDreamSignal", sender: "sample", signal_strength: 1.0, sent_at: "sample"
     expect detected: "yes"
+  end
+
+  test "DetectDreamSignal cascades through policy chain" do
+    tests "DetectDreamSignal", on: "DreamSignal", kind: :cascade
+    setup  "SendDreamSignal", sender: "sample", signal_strength: 1.0, sent_at: "sample"
+    expect emits: ["DreamSignalDetected", "CyclePaused", "SharedDreamJoined"]
   end
 
 
@@ -60,6 +80,12 @@ Hecks.behaviors "SharedDream" do
     tests "PauseCycle", on: "CyclePause"
     input  being_name: "sample", paused_at_cycle: 1, paused_at_stage: "sample"
     expect being_name: "sample", paused_at_cycle: 1, paused_at_stage: "sample", resumed: "no"
+  end
+
+  test "PauseCycle cascades through policy chain" do
+    tests "PauseCycle", on: "CyclePause", kind: :cascade
+    input  being_name: "sample", paused_at_cycle: 1, paused_at_stage: "sample"
+    expect emits: ["CyclePaused", "SharedDreamJoined"]
   end
 
   test "ResumeCycle runs" do

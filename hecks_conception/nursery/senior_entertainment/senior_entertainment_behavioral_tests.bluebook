@@ -25,6 +25,12 @@ Hecks.behaviors "SeniorEntertainment" do
     expect screening_id: "sample", movie_title: "sample", genre: "sample", date: "sample", venue: "sample", seats_available: 1, status: "scheduled"
   end
 
+  test "ScheduleScreening cascades through policy chain" do
+    tests "ScheduleScreening", on: "MovieScreening", kind: :cascade
+    input  screening_id: "sample", movie_title: "sample", genre: "sample", date: "sample", venue: "sample", seats_available: 1
+    expect emits: ["ScreeningScheduled", "SocialEventPlanned"]
+  end
+
   test "CancelScreening runs" do
     tests "CancelScreening", on: "MovieScreening"
     setup  "ScheduleScreening", screening_id: "sample", movie_title: "sample", genre: "sample", date: "sample", venue: "sample", seats_available: 1
@@ -38,6 +44,12 @@ Hecks.behaviors "SeniorEntertainment" do
     tests "SubmitRSVP", on: "RSVP"
     input  rsvp_id: "sample", resident_id: "sample", screening_id: "sample", accessibility_needs: "sample"
     expect rsvp_id: "sample", resident_id: "sample", screening_id: "sample", accessibility_needs: "sample", status: "confirmed"
+  end
+
+  test "SubmitRSVP cascades through policy chain" do
+    tests "SubmitRSVP", on: "RSVP", kind: :cascade
+    input  rsvp_id: "sample", resident_id: "sample", screening_id: "sample", accessibility_needs: "sample"
+    expect emits: ["RSVPSubmitted", "NeedsRevised"]
   end
 
   test "CancelRSVP runs" do

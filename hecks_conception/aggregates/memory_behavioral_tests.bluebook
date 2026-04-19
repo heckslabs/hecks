@@ -34,6 +34,12 @@ Hecks.behaviors "Memory" do
     expect signals_consolidated: 1, memories_created: 1
   end
 
+  test "ConsolidateSignals cascades through policy chain" do
+    tests "ConsolidateSignals", on: "Consolidation", kind: :cascade
+    input  signals_consolidated: 1, memories_created: 1
+    expect emits: ["SignalsConsolidated", "MemoryEncoded"]
+  end
+
 
   # ── Forgetting aggregate ──────────────────────────────────────────
 
@@ -41,6 +47,12 @@ Hecks.behaviors "Memory" do
     tests "ForgetMemory", on: "Forgetting"
     input  forgotten: "sample", reason: "sample"
     expect forgotten: "sample", reason: "sample", composted: "yes"
+  end
+
+  test "ForgetMemory cascades through policy chain" do
+    tests "ForgetMemory", on: "Forgetting", kind: :cascade
+    input  forgotten: "sample", reason: "sample"
+    expect emits: ["MemoryForgotten", "SignalsConsolidated", "MemoryEncoded"]
   end
 
 end

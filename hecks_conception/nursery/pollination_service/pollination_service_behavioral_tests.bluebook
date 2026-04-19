@@ -22,6 +22,12 @@ Hecks.behaviors "PollinationService" do
     expect status: "deployed"
   end
 
+  test "DeployForPollination cascades through policy chain" do
+    tests "DeployForPollination", on: "Hive", kind: :cascade
+    setup  "RegisterHive", hive_id: "sample", population_estimate: 1, queen_status: "sample", honey_stores_kg: 1.0
+    expect emits: ["HiveDeployed", "PollinationConfirmed"]
+  end
+
   test "ReturnFromField runs" do
     tests "ReturnFromField", on: "Hive"
     setup  "RegisterHive", hive_id: "sample", population_estimate: 1, queen_status: "sample", honey_stores_kg: 1.0
@@ -38,10 +44,22 @@ Hecks.behaviors "PollinationService" do
     expect name: "sample", crop_type: "sample", area_hectares: 1.0, bloom_start: "sample", bloom_end: "sample", hives_needed: 1, status: "registered"
   end
 
+  test "RegisterField cascades through policy chain" do
+    tests "RegisterField", on: "CropField", kind: :cascade
+    input  name: "sample", crop_type: "sample", area_hectares: 1.0, bloom_start: "sample", bloom_end: "sample", hives_needed: 1
+    expect emits: ["FieldRegistered", "ScheduleCreated"]
+  end
+
   test "RequestPollination runs" do
     tests "RequestPollination", on: "CropField"
     setup  "RegisterField", name: "sample", crop_type: "sample", area_hectares: 1.0, bloom_start: "sample", bloom_end: "sample", hives_needed: 1
     expect status: "requested"
+  end
+
+  test "RequestPollination cascades through policy chain" do
+    tests "RequestPollination", on: "CropField", kind: :cascade
+    setup  "RegisterField", name: "sample", crop_type: "sample", area_hectares: 1.0, bloom_start: "sample", bloom_end: "sample", hives_needed: 1
+    expect emits: ["PollinationRequested", "HiveInspected"]
   end
 
   test "ConfirmPollination runs" do
@@ -66,11 +84,24 @@ Hecks.behaviors "PollinationService" do
     expect status: "active"
   end
 
+  test "ActivateSchedule cascades through policy chain" do
+    tests "ActivateSchedule", on: "PollinationSchedule", kind: :cascade
+    setup  "PollinatePlan", schedule_name: "sample", field_name: "sample", hive_id: "sample", start_date: "sample", end_date: "sample", hive_count: 1
+    expect emits: ["ScheduleActivated", "HiveDeployed", "PollinationConfirmed"]
+  end
+
   test "CompleteSchedule runs" do
     tests "CompleteSchedule", on: "PollinationSchedule"
     setup  "PollinatePlan", schedule_name: "sample", field_name: "sample", hive_id: "sample", start_date: "sample", end_date: "sample", hive_count: 1
     setup  "ActivateSchedule"
     expect status: "completed"
+  end
+
+  test "CompleteSchedule cascades through policy chain" do
+    tests "CompleteSchedule", on: "PollinationSchedule", kind: :cascade
+    setup  "PollinatePlan", schedule_name: "sample", field_name: "sample", hive_id: "sample", start_date: "sample", end_date: "sample", hive_count: 1
+    setup  "ActivateSchedule"
+    expect emits: ["ScheduleCompleted", "HiveReturned"]
   end
 
 
@@ -80,6 +111,12 @@ Hecks.behaviors "PollinationService" do
     tests "RecordYield", on: "YieldReport"
     input  field_name: "sample", crop_type: "sample", yield_tons: 1.0, yield_per_hectare: 1.0
     expect field_name: "sample", crop_type: "sample", yield_tons: 1.0, yield_per_hectare: 1.0, status: "recorded"
+  end
+
+  test "RecordYield cascades through policy chain" do
+    tests "RecordYield", on: "YieldReport", kind: :cascade
+    input  field_name: "sample", crop_type: "sample", yield_tons: 1.0, yield_per_hectare: 1.0
+    expect emits: ["YieldRecorded", "EffectivenessAnalyzed"]
   end
 
   test "AnalyzeEffectiveness sets pollination_effectiveness" do

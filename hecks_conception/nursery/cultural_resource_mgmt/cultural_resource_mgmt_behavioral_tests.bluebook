@@ -9,10 +9,45 @@ Hecks.behaviors "CulturalResourceMgmt" do
     expect site_id: "sample", location: "sample", era_period: "sample", significance_level: "sample", artifact_count: 0, status: "discovered"
   end
 
+  test "DiscoverSite cascades through policy chain" do
+    tests "DiscoverSite", on: "ArchaeologicalSite", kind: :cascade
+    input  site_id: "sample", location: "sample", era_period: "sample", significance_level: "sample"
+    expect emits: ["SiteDiscovered", "SiteAssessed", "ExcavationStarted", "PhaseHalted"]
+  end
+
   test "AssessSite runs" do
     tests "AssessSite", on: "ArchaeologicalSite"
     setup  "DiscoverSite", site_id: "sample", location: "sample", era_period: "sample", significance_level: "sample"
+    expect status: "assessed"
+  end
+
+  test "AssessSite cascades through policy chain" do
+    tests "AssessSite", on: "ArchaeologicalSite", kind: :cascade
+    setup  "DiscoverSite", site_id: "sample", location: "sample", era_period: "sample", significance_level: "sample"
+    expect emits: ["SiteAssessed", "ExcavationStarted"]
+  end
+
+  test "ExcavateSite runs" do
+    tests "ExcavateSite", on: "ArchaeologicalSite"
+    setup  "DiscoverSite", site_id: "sample", location: "sample", era_period: "sample", significance_level: "sample"
+    setup  "AssessSite"
     expect status: "excavating"
+  end
+
+  test "ClearSite runs" do
+    tests "ClearSite", on: "ArchaeologicalSite"
+    setup  "DiscoverSite", site_id: "sample", location: "sample", era_period: "sample", significance_level: "sample"
+    setup  "AssessSite"
+    setup  "ExcavateSite"
+    expect status: "cleared"
+  end
+
+  test "ClearSite cascades through policy chain" do
+    tests "ClearSite", on: "ArchaeologicalSite", kind: :cascade
+    setup  "DiscoverSite", site_id: "sample", location: "sample", era_period: "sample", significance_level: "sample"
+    setup  "AssessSite"
+    setup  "ExcavateSite"
+    expect emits: ["SiteCleared", "PhaseResumed"]
   end
 
 
@@ -22,6 +57,12 @@ Hecks.behaviors "CulturalResourceMgmt" do
     tests "CatalogArtifact", on: "Artifact"
     input  catalog_number: "sample", artifact_type: "sample", site_id: "sample", depth_found_m: 1.0, condition: "sample"
     expect catalog_number: "sample", artifact_type: "sample", site_id: "sample", depth_found_m: 1.0, condition: "sample", status: "cataloged"
+  end
+
+  test "CatalogArtifact cascades through policy chain" do
+    tests "CatalogArtifact", on: "Artifact", kind: :cascade
+    input  catalog_number: "sample", artifact_type: "sample", site_id: "sample", depth_found_m: 1.0, condition: "sample"
+    expect emits: ["ArtifactCataloged", "ArtifactPreserved"]
   end
 
   test "PreserveArtifact sets preservation_method" do
@@ -68,6 +109,12 @@ Hecks.behaviors "CulturalResourceMgmt" do
     tests "ApplyForPreservationPermit", on: "PreservationPermit"
     input  permit_number: "sample", site_id: "sample", applicant: "sample", permit_type: "sample"
     expect permit_number: "sample", site_id: "sample", applicant: "sample", permit_type: "sample", status: "applied"
+  end
+
+  test "ApplyForPreservationPermit cascades through policy chain" do
+    tests "ApplyForPreservationPermit", on: "PreservationPermit", kind: :cascade
+    input  permit_number: "sample", site_id: "sample", applicant: "sample", permit_type: "sample"
+    expect emits: ["PreservationPermitApplied", "PreservationPermitReviewed"]
   end
 
   test "ReviewPreservationPermit sets conditions" do

@@ -9,6 +9,12 @@ Hecks.behaviors "Mathematics" do
     expect value: "sample", number_type: "sample"
   end
 
+  test "DefineNumber cascades through policy chain" do
+    tests "DefineNumber", on: "Number", kind: :cascade
+    input  value: "sample", number_type: "sample"
+    expect emits: ["NumberDefined", "NumberClassified", "PrimeFound"]
+  end
+
   test "AddNumbers sets addend" do
     tests "AddNumbers", on: "Number"
     setup  "DefineNumber", value: "sample", number_type: "sample"
@@ -96,6 +102,12 @@ Hecks.behaviors "Mathematics" do
     expect name: "sample", domain_set: "sample", codomain_set: "sample", rule: "sample"
   end
 
+  test "DefineFunction cascades through policy chain" do
+    tests "DefineFunction", on: "MathFunction", kind: :cascade
+    input  name: "sample", domain_set: "sample", codomain_set: "sample", rule: "sample"
+    expect emits: ["FunctionDefined", "FunctionClassified", "ContinuityDetermined"]
+  end
+
   test "ComposeFunction sets inner_function" do
     tests "ComposeFunction", on: "MathFunction"
     setup  "DefineFunction", name: "sample", domain_set: "sample", codomain_set: "sample", rule: "sample"
@@ -139,6 +151,12 @@ Hecks.behaviors "Mathematics" do
     expect notation: "sample", expression_type: "sample", simplified: "false"
   end
 
+  test "DefineExpression cascades through policy chain" do
+    tests "DefineExpression", on: "Expression", kind: :cascade
+    input  notation: "sample", expression_type: "sample"
+    expect emits: ["ExpressionDefined", "ExpressionSimplified"]
+  end
+
   test "SimplifyExpression runs" do
     tests "SimplifyExpression", on: "Expression"
     setup  "DefineExpression", notation: "sample", expression_type: "sample"
@@ -175,6 +193,19 @@ Hecks.behaviors "Mathematics" do
   test "SolveEquation runs" do
     tests "SolveEquation", on: "Equation"
     setup  "DefineEquation", left_side: "sample", right_side: "sample", equation_type: "sample"
+    expect status: "solved"
+  end
+
+  test "SolveEquation cascades through policy chain" do
+    tests "SolveEquation", on: "Equation", kind: :cascade
+    setup  "DefineEquation", left_side: "sample", right_side: "sample", equation_type: "sample"
+    expect emits: ["EquationSolved", "EquationVerified"]
+  end
+
+  test "VerifyEquation runs" do
+    tests "VerifyEquation", on: "Equation"
+    setup  "DefineEquation", left_side: "sample", right_side: "sample", equation_type: "sample"
+    setup  "SolveEquation"
     expect status: "verified"
   end
 
@@ -185,6 +216,12 @@ Hecks.behaviors "Mathematics" do
     tests "DefineGroup", on: "AlgebraicStructure"
     input  name: "sample", underlying_set: "sample", operations: "sample", identity_element: "sample"
     expect name: "sample", structure_type: "group", underlying_set: "sample", operations: "sample", identity_element: "sample"
+  end
+
+  test "DefineGroup cascades through policy chain" do
+    tests "DefineGroup", on: "AlgebraicStructure", kind: :cascade
+    input  name: "sample", underlying_set: "sample", operations: "sample", identity_element: "sample"
+    expect emits: ["GroupDefined", "AxiomsVerified"]
   end
 
   test "VerifyAxioms runs" do
@@ -206,6 +243,12 @@ Hecks.behaviors "Mathematics" do
     tests "ConstructShape", on: "Shape"
     input  name: "sample", shape_type: "sample", dimension: 1
     expect name: "sample", shape_type: "sample", dimension: 1
+  end
+
+  test "ConstructShape cascades through policy chain" do
+    tests "ConstructShape", on: "Shape", kind: :cascade
+    input  name: "sample", shape_type: "sample", dimension: 1
+    expect emits: ["ShapeConstructed", "AreaCalculated", "PerimeterCalculated"]
   end
 
   test "MeasureAngle sets vertex + edge_a + edge_b" do
@@ -270,6 +313,12 @@ Hecks.behaviors "Mathematics" do
     tests "ComputeLimit", on: "Limit"
     input  function_name: "sample", point: "sample", direction: "sample"
     expect function_name: "sample", point: "sample", direction: "sample"
+  end
+
+  test "ComputeLimit cascades through policy chain" do
+    tests "ComputeLimit", on: "Limit", kind: :cascade
+    input  function_name: "sample", point: "sample", direction: "sample"
+    expect emits: ["LimitComputed", "LimitExistenceChecked"]
   end
 
   test "CheckLimitExistence runs" do
@@ -343,6 +392,12 @@ Hecks.behaviors "Mathematics" do
     expect name: "sample", general_term: "sample", series_type: "sample"
   end
 
+  test "ExpandSeries cascades through policy chain" do
+    tests "ExpandSeries", on: "Series", kind: :cascade
+    input  name: "sample", general_term: "sample", series_type: "sample"
+    expect emits: ["SeriesExpanded", "ConvergenceTested"]
+  end
+
   test "TestConvergence sets test_method" do
     tests "TestConvergence", on: "Series"
     setup  "ExpandSeries", name: "sample", general_term: "sample", series_type: "sample"
@@ -364,6 +419,12 @@ Hecks.behaviors "Mathematics" do
     tests "DefineMatrix", on: "Matrix"
     input  name: "sample", rows: 1, columns: 1, entries: "sample"
     expect name: "sample", rows: 1, columns: 1, entries: "sample"
+  end
+
+  test "DefineMatrix cascades through policy chain" do
+    tests "DefineMatrix", on: "Matrix", kind: :cascade
+    input  name: "sample", rows: 1, columns: 1, entries: "sample"
+    expect emits: ["MatrixDefined", "DeterminantFound", "EigenvaluesComputed"]
   end
 
   test "MultiplyMatrices sets other_matrix" do
@@ -418,6 +479,12 @@ Hecks.behaviors "Mathematics" do
     tests "DefineVector", on: "Vector"
     input  name: "sample", components: "sample", dimension: 1
     expect name: "sample", components: "sample", dimension: 1
+  end
+
+  test "DefineVector cascades through policy chain" do
+    tests "DefineVector", on: "Vector", kind: :cascade
+    input  name: "sample", components: "sample", dimension: 1
+    expect emits: ["VectorDefined", "VectorNormalized"]
   end
 
   test "AddVectors sets other_vector" do
@@ -485,6 +552,12 @@ Hecks.behaviors "Mathematics" do
     expect name: "sample", distribution_type: "sample", parameters: "sample"
   end
 
+  test "DefineDistribution cascades through policy chain" do
+    tests "DefineDistribution", on: "Distribution", kind: :cascade
+    input  name: "sample", distribution_type: "sample", parameters: "sample"
+    expect emits: ["DistributionDefined", "ExpectedValueComputed", "VarianceComputed"]
+  end
+
   test "ComputeExpectedValue runs" do
     tests "ComputeExpectedValue", on: "Distribution"
     setup  "DefineDistribution", name: "sample", distribution_type: "sample", parameters: "sample"
@@ -511,6 +584,12 @@ Hecks.behaviors "Mathematics" do
     tests "DefineProposition", on: "Proposition"
     input  statement: "sample", proposition_type: "sample"
     expect statement: "sample", proposition_type: "sample"
+  end
+
+  test "DefineProposition cascades through policy chain" do
+    tests "DefineProposition", on: "Proposition", kind: :cascade
+    input  statement: "sample", proposition_type: "sample"
+    expect emits: ["PropositionDefined", "ValidityChecked"]
   end
 
   test "NegateProposition runs" do
@@ -551,6 +630,19 @@ Hecks.behaviors "Mathematics" do
   test "CompleteProof runs" do
     tests "CompleteProof", on: "Proof"
     setup  "ConstructProof", theorem: "sample", proof_method: "sample"
+    expect status: "complete"
+  end
+
+  test "CompleteProof cascades through policy chain" do
+    tests "CompleteProof", on: "Proof", kind: :cascade
+    setup  "ConstructProof", theorem: "sample", proof_method: "sample"
+    expect emits: ["ProofCompleted", "ProofVerified"]
+  end
+
+  test "VerifyProof runs" do
+    tests "VerifyProof", on: "Proof"
+    setup  "ConstructProof", theorem: "sample", proof_method: "sample"
+    setup  "CompleteProof"
     expect status: "verified"
   end
 
@@ -561,6 +653,12 @@ Hecks.behaviors "Mathematics" do
     tests "DefineSpace", on: "TopologicalSpace"
     input  name: "sample", point_set: "sample", topology: "sample"
     expect name: "sample", point_set: "sample", topology: "sample"
+  end
+
+  test "DefineSpace cascades through policy chain" do
+    tests "DefineSpace", on: "TopologicalSpace", kind: :cascade
+    input  name: "sample", point_set: "sample", topology: "sample"
+    expect emits: ["SpaceDefined", "CompactnessDetermined"]
   end
 
   test "CheckTopologicalContinuity sets map_name" do
@@ -577,10 +675,23 @@ Hecks.behaviors "Mathematics" do
     expect ok: "true"
   end
 
+  test "ClassifySurface cascades through policy chain" do
+    tests "ClassifySurface", on: "TopologicalSpace", kind: :cascade
+    setup  "DefineSpace", name: "sample", point_set: "sample", topology: "sample"
+    input  genus: 1
+    expect emits: ["SurfaceClassified", "EulerCharacteristicComputed"]
+  end
+
   test "FindHomeomorphism sets target_space" do
     tests "FindHomeomorphism", on: "TopologicalSpace"
     setup  "DefineSpace", name: "sample", point_set: "sample", topology: "sample"
     input  target_space: "sample"
+    expect ok: "true"
+  end
+
+  test "ComputeEulerCharacteristic runs" do
+    tests "ComputeEulerCharacteristic", on: "TopologicalSpace"
+    setup  "DefineSpace", name: "sample", point_set: "sample", topology: "sample"
     expect ok: "true"
   end
 

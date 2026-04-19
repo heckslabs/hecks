@@ -31,11 +31,25 @@ Hecks.behaviors "ELearning" do
     expect status: "active"
   end
 
+  test "EnrollStudent cascades through policy chain" do
+    tests "EnrollStudent", on: "Enrollment", kind: :cascade
+    setup  "AuthorCourse", course_title: "sample", instructor: "sample", subject_area: "sample", difficulty_level: "sample", estimated_hours: 1
+    input  enrollment_id: "sample", student_email: "sample"
+    expect emits: ["StudentEnrolled", "ProgressRecorded", "AttemptSubmitted", "CertificateIssued", "CertificateVerified"]
+  end
+
   test "RecordProgress sets progress_pct" do
     tests "RecordProgress", on: "Enrollment"
     setup  "EnrollStudent", enrollment_id: "sample", student_email: "sample"
     input  progress_pct: 1.0
     expect ok: "true"
+  end
+
+  test "RecordProgress cascades through policy chain" do
+    tests "RecordProgress", on: "Enrollment", kind: :cascade
+    setup  "EnrollStudent", enrollment_id: "sample", student_email: "sample"
+    input  progress_pct: 1.0
+    expect emits: ["ProgressRecorded", "AttemptSubmitted", "CertificateIssued", "CertificateVerified"]
   end
 
   test "WithdrawEnrollment runs" do
@@ -52,6 +66,13 @@ Hecks.behaviors "ELearning" do
     setup  "AuthorCourse", course_title: "sample", instructor: "sample", subject_area: "sample", difficulty_level: "sample", estimated_hours: 1
     input  lesson_title: "sample", content_type: "sample", body: "sample", duration_minutes: 1, sequence_order: 1
     expect status: "published"
+  end
+
+  test "AuthorLesson cascades through policy chain" do
+    tests "AuthorLesson", on: "Lesson", kind: :cascade
+    setup  "AuthorCourse", course_title: "sample", instructor: "sample", subject_area: "sample", difficulty_level: "sample", estimated_hours: 1
+    input  lesson_title: "sample", content_type: "sample", body: "sample", duration_minutes: 1, sequence_order: 1
+    expect emits: ["LessonAuthored", "QuizAuthored", "CoursePublished"]
   end
 
   test "ReviseLesson sets body" do
@@ -84,6 +105,13 @@ Hecks.behaviors "ELearning" do
     expect ok: "true"
   end
 
+  test "SubmitAttempt cascades through policy chain" do
+    tests "SubmitAttempt", on: "Quiz", kind: :cascade
+    setup  "AuthorQuiz", quiz_title: "sample", passing_score: 1, time_limit_minutes: 1, max_attempts: 1
+    input  student_email: "sample", score: 1
+    expect emits: ["AttemptSubmitted", "ProgressRecorded", "CertificateIssued", "CertificateVerified"]
+  end
+
   test "SuspendQuiz runs" do
     tests "SuspendQuiz", on: "Quiz"
     setup  "AuthorQuiz", quiz_title: "sample", passing_score: 1, time_limit_minutes: 1, max_attempts: 1
@@ -98,6 +126,13 @@ Hecks.behaviors "ELearning" do
     setup  "EnrollStudent", enrollment_id: "sample", student_email: "sample"
     input  certificate_id: "sample", student_email: "sample", course_title: "sample", verification_code: "sample"
     expect status: "valid"
+  end
+
+  test "IssueCertificate cascades through policy chain" do
+    tests "IssueCertificate", on: "Certificate", kind: :cascade
+    setup  "EnrollStudent", enrollment_id: "sample", student_email: "sample"
+    input  certificate_id: "sample", student_email: "sample", course_title: "sample", verification_code: "sample"
+    expect emits: ["CertificateIssued", "CertificateVerified"]
   end
 
   test "VerifyCertificate sets verification_code" do

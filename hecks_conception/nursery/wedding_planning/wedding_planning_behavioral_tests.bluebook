@@ -9,10 +9,28 @@ Hecks.behaviors "WeddingPlanning" do
     expect couple_names: "sample", wedding_date: "sample", venue_name: "sample", total_budget: 1.0, status: "planning"
   end
 
+  test "PlanWedding cascades through policy chain" do
+    tests "PlanWedding", on: "Wedding", kind: :cascade
+    input  couple_names: "sample", wedding_date: "sample", venue_name: "sample", total_budget: 1.0, expected_guests: 1
+    expect emits: ["WeddingPlanned", "BudgetAllocated", "VendorBooked", "ExpenseRecorded"]
+  end
+
   test "FinalizeDetails runs" do
     tests "FinalizeDetails", on: "Wedding"
     setup  "PlanWedding", couple_names: "sample", wedding_date: "sample", venue_name: "sample", total_budget: 1.0, expected_guests: 1
     expect status: "finalized"
+  end
+
+  test "FinalizeDetails cascades through policy chain" do
+    tests "FinalizeDetails", on: "Wedding", kind: :cascade
+    setup  "PlanWedding", couple_names: "sample", wedding_date: "sample", venue_name: "sample", total_budget: 1.0, expected_guests: 1
+    expect emits: ["DetailFinalized", "GuestInvited"]
+  end
+
+  test "CancelWedding cascades through policy chain" do
+    tests "CancelWedding", on: "Wedding", kind: :cascade
+    setup  "PlanWedding", couple_names: "sample", wedding_date: "sample", venue_name: "sample", total_budget: 1.0, expected_guests: 1
+    expect emits: ["WeddingCancelled", "VendorCancelled"]
   end
 
 
@@ -25,11 +43,25 @@ Hecks.behaviors "WeddingPlanning" do
     expect vendor_name: "sample", service_type: "sample", contract_amount: 1.0, deposit_paid: 1.0, status: "booked"
   end
 
+  test "BookVendor cascades through policy chain" do
+    tests "BookVendor", on: "VendorContract", kind: :cascade
+    setup  "PlanWedding", couple_names: "sample", wedding_date: "sample", venue_name: "sample", total_budget: 1.0, expected_guests: 1
+    input  vendor_name: "sample", service_type: "sample", contract_amount: 1.0, deposit_paid: 1.0
+    expect emits: ["VendorBooked", "ExpenseRecorded"]
+  end
+
   test "PayVendor sets amount" do
     tests "PayVendor", on: "VendorContract"
     setup  "BookVendor", vendor_name: "sample", service_type: "sample", contract_amount: 1.0, deposit_paid: 1.0
     input  amount: 1.0
     expect ok: "true"
+  end
+
+  test "PayVendor cascades through policy chain" do
+    tests "PayVendor", on: "VendorContract", kind: :cascade
+    setup  "BookVendor", vendor_name: "sample", service_type: "sample", contract_amount: 1.0, deposit_paid: 1.0
+    input  amount: 1.0
+    expect emits: ["VendorPaid", "ExpenseRecorded"]
   end
 
   test "CancelVendor runs" do
@@ -76,7 +108,21 @@ Hecks.behaviors "WeddingPlanning" do
     tests "RecordRSVP", on: "GuestListEntry"
     setup  "InviteGuest", guest_name: "sample", email: "sample", party_size: 1
     input  rsvp_status: "sample", meal_preference: "sample"
-    expect rsvp_status: "sample", meal_preference: "sample", table_assignment: "sample"
+    expect rsvp_status: "sample", meal_preference: "sample"
+  end
+
+  test "RecordRSVP cascades through policy chain" do
+    tests "RecordRSVP", on: "GuestListEntry", kind: :cascade
+    setup  "InviteGuest", guest_name: "sample", email: "sample", party_size: 1
+    input  rsvp_status: "sample", meal_preference: "sample"
+    expect emits: ["RSVPRecorded", "TableAssigned"]
+  end
+
+  test "AssignTable sets table_assignment" do
+    tests "AssignTable", on: "GuestListEntry"
+    setup  "InviteGuest", guest_name: "sample", email: "sample", party_size: 1
+    input  table_assignment: "sample"
+    expect table_assignment: "sample"
   end
 
 end

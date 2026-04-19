@@ -24,10 +24,52 @@ Hecks.behaviors "Summer" do
     expect ok: "true"
   end
 
+  test "GenerateDraft cascades through policy chain" do
+    tests "GenerateDraft", on: "Draft", kind: :cascade
+    input  vision: "sample"
+    expect emits: ["DraftGenerated", "DraftValidated", "DraftReviewed", "DraftAccepted", "ModelTrained"]
+  end
+
   test "ValidateDraft runs" do
     tests "ValidateDraft", on: "Draft"
     setup  "GenerateDraft", vision: "sample"
-    expect validated: true, review_done: true
+    expect validated: true
+  end
+
+  test "ValidateDraft cascades through policy chain" do
+    tests "ValidateDraft", on: "Draft", kind: :cascade
+    setup  "GenerateDraft", vision: "sample"
+    expect emits: ["DraftValidated", "DraftReviewed", "DraftAccepted", "ModelTrained"]
+  end
+
+  test "ReviewDraft runs" do
+    tests "ReviewDraft", on: "Draft"
+    setup  "GenerateDraft", vision: "sample"
+    setup  "ValidateDraft"
+    expect review_done: true
+  end
+
+  test "ReviewDraft cascades through policy chain" do
+    tests "ReviewDraft", on: "Draft", kind: :cascade
+    setup  "GenerateDraft", vision: "sample"
+    setup  "ValidateDraft"
+    expect emits: ["DraftReviewed", "DraftAccepted", "ModelTrained"]
+  end
+
+  test "AcceptDraft runs" do
+    tests "AcceptDraft", on: "Draft"
+    setup  "GenerateDraft", vision: "sample"
+    setup  "ValidateDraft"
+    setup  "ReviewDraft"
+    expect ok: "true"
+  end
+
+  test "AcceptDraft cascades through policy chain" do
+    tests "AcceptDraft", on: "Draft", kind: :cascade
+    setup  "GenerateDraft", vision: "sample"
+    setup  "ValidateDraft"
+    setup  "ReviewDraft"
+    expect emits: ["DraftAccepted", "ModelTrained"]
   end
 
 
@@ -37,6 +79,12 @@ Hecks.behaviors "Summer" do
     tests "CritiqueDomain", on: "Critique"
     input  domain_name: "sample"
     expect ok: "true"
+  end
+
+  test "CritiqueDomain cascades through policy chain" do
+    tests "CritiqueDomain", on: "Critique", kind: :cascade
+    input  domain_name: "sample"
+    expect emits: ["DomainCritiqued", "SuggestionsApplied"]
   end
 
   test "ApplySuggestions runs" do

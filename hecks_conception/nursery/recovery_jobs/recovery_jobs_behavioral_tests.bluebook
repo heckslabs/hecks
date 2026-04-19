@@ -9,6 +9,12 @@ Hecks.behaviors "RecoveryJobs" do
     expect client_id: "sample", name: "sample", recovery_stage: "sample", skills_summary: "sample", status: "active"
   end
 
+  test "RegisterClient cascades through policy chain" do
+    tests "RegisterClient", on: "RecoveryClient", kind: :cascade
+    input  client_id: "sample", name: "sample", recovery_stage: "sample", skills_summary: "sample"
+    expect emits: ["ClientRegistered", "ClientMatched"]
+  end
+
   test "AdvanceStage sets recovery_stage" do
     tests "AdvanceStage", on: "RecoveryClient"
     setup  "RegisterClient", client_id: "sample", name: "sample", recovery_stage: "sample", skills_summary: "sample"
@@ -45,6 +51,12 @@ Hecks.behaviors "RecoveryJobs" do
     tests "AcceptMatch", on: "JobMatch"
     setup  "MatchClient", match_id: "sample", client_id: "sample", employer_id: "sample", job_title: "sample", compatibility_score: 1.0
     expect status: "accepted"
+  end
+
+  test "AcceptMatch cascades through policy chain" do
+    tests "AcceptMatch", on: "JobMatch", kind: :cascade
+    setup  "MatchClient", match_id: "sample", client_id: "sample", employer_id: "sample", job_title: "sample", compatibility_score: 1.0
+    expect emits: ["MatchAccepted", "OutcomeRecorded"]
   end
 
 

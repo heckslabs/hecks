@@ -27,6 +27,12 @@ Hecks.behaviors "Language" do
     expect pattern_type: "sample", pattern: "sample", indicates: "sample"
   end
 
+  test "RegisterNonVerb cascades through policy chain" do
+    tests "RegisterNonVerb", on: "NonVerbPattern", kind: :cascade
+    input  pattern_type: "sample", pattern: "sample", indicates: "sample"
+    expect emits: ["NonVerbRegistered", "CommandNameValidated"]
+  end
+
 
   # ── CommandValidator aggregate ──────────────────────────────────────────
 

@@ -9,11 +9,24 @@ Hecks.behaviors "Miette" do
     expect person_name: "sample", mood: "warm"
   end
 
+  test "Greet cascades through policy chain" do
+    tests "Greet", on: "Conversation", kind: :cascade
+    input  person_name: "sample"
+    expect emits: ["Greeted", "MemoryRecalled"]
+  end
+
   test "Respond sets said + responded + timestamp" do
     tests "Respond", on: "Conversation"
     setup  "Greet", person_name: "sample"
     input  said: "sample", responded: "sample", timestamp: "sample"
     expect last_exchange: { said: :said, responded: :responded, timestamp: :timestamp }
+  end
+
+  test "Respond cascades through policy chain" do
+    tests "Respond", on: "Conversation", kind: :cascade
+    setup  "Greet", person_name: "sample"
+    input  said: "sample", responded: "sample", timestamp: "sample"
+    expect emits: ["Responded", "MemoryEncoded", "PersonaRecognized"]
   end
 
   test "ShiftTopic sets topic" do
@@ -37,6 +50,12 @@ Hecks.behaviors "Miette" do
     tests "EncodeMemory", on: "Memory"
     input  domain_name: "sample", persona: "sample", summary: "sample", conceived_at: "sample"
     expect domain_name: "sample", persona: "sample", summary: "sample", conceived_at: "sample"
+  end
+
+  test "EncodeMemory cascades through policy chain" do
+    tests "EncodeMemory", on: "Memory", kind: :cascade
+    input  domain_name: "sample", persona: "sample", summary: "sample", conceived_at: "sample"
+    expect emits: ["MemoryEncoded", "PersonaRecognized"]
   end
 
   test "AddInsight sets observation + applies_to" do
@@ -82,6 +101,12 @@ Hecks.behaviors "Miette" do
     tests "ConceiveDomain", on: "NurseryAwareness"
     input  domain_name: "sample"
     expect last_conceived: "sample"
+  end
+
+  test "ConceiveDomain cascades through policy chain" do
+    tests "ConceiveDomain", on: "NurseryAwareness", kind: :cascade
+    input  domain_name: "sample"
+    expect emits: ["DomainConceived", "MemoryEncoded", "PersonaRecognized"]
   end
 
   test "MarkFavorite sets domain_name" do

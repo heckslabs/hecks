@@ -9,6 +9,12 @@ Hecks.behaviors "TraumaPipeline" do
     expect incident_type: "sample", location: "sample", severity: "sample", blood_type_needed: "sample", estimated_arrival_minutes: 1, status: "dispatched"
   end
 
+  test "DispatchTrauma cascades through policy chain" do
+    tests "DispatchTrauma", on: "TraumaCall", kind: :cascade
+    input  incident_type: "sample", location: "sample", severity: "sample", blood_type_needed: "sample", estimated_arrival_minutes: 1
+    expect emits: ["TraumaDispatched", "CrossMatchPerformed", "BloodUnitReserved", "BayPrepared"]
+  end
+
   test "ReviseETA sets estimated_arrival_minutes" do
     tests "ReviseETA", on: "TraumaCall"
     setup  "DispatchTrauma", incident_type: "sample", location: "sample", severity: "sample", blood_type_needed: "sample", estimated_arrival_minutes: 1
@@ -27,6 +33,13 @@ Hecks.behaviors "TraumaPipeline" do
     setup  "DispatchTrauma", incident_type: "sample", location: "sample", severity: "sample", blood_type_needed: "sample", estimated_arrival_minutes: 1
     setup  "ArriveAtBay"
     expect status: "closed"
+  end
+
+  test "CloseCall cascades through policy chain" do
+    tests "CloseCall", on: "TraumaCall", kind: :cascade
+    setup  "DispatchTrauma", incident_type: "sample", location: "sample", severity: "sample", blood_type_needed: "sample", estimated_arrival_minutes: 1
+    setup  "ArriveAtBay"
+    expect emits: ["TraumaCallClosed", "BayReleased"]
   end
 
 
@@ -72,13 +85,32 @@ Hecks.behaviors "TraumaPipeline" do
     tests "RecordTemperature", on: "ColdTransport"
     setup  "DeployBloodCourier", courier_id: "sample", origin: "sample", destination: "sample"
     input  temperature: 1.0
-    expect temperature: 1.0, status: "breached"
+    expect temperature: 1.0
+  end
+
+  test "RecordTemperature cascades through policy chain" do
+    tests "RecordTemperature", on: "ColdTransport", kind: :cascade
+    setup  "DeployBloodCourier", courier_id: "sample", origin: "sample", destination: "sample"
+    input  temperature: 1.0
+    expect emits: ["TemperatureRecorded", "ColdChainBreached"]
+  end
+
+  test "FlagTempBreach runs" do
+    tests "FlagTempBreach", on: "ColdTransport"
+    setup  "DeployBloodCourier", courier_id: "sample", origin: "sample", destination: "sample"
+    expect status: "breached"
   end
 
   test "DeliverBlood runs" do
     tests "DeliverBlood", on: "ColdTransport"
     setup  "DeployBloodCourier", courier_id: "sample", origin: "sample", destination: "sample"
     expect status: "delivered"
+  end
+
+  test "DeliverBlood cascades through policy chain" do
+    tests "DeliverBlood", on: "ColdTransport", kind: :cascade
+    setup  "DeployBloodCourier", courier_id: "sample", origin: "sample", destination: "sample"
+    expect emits: ["BloodDelivered", "BayAssignedToCall"]
   end
 
 
@@ -115,10 +147,24 @@ Hecks.behaviors "TraumaPipeline" do
     expect trauma_call: 1, blood_unit: 1, patient_blood_type: "sample", donor_blood_type: "sample", status: "tested"
   end
 
+  test "MatchBloodType cascades through policy chain" do
+    tests "MatchBloodType", on: "CrossMatch", kind: :cascade
+    setup  "RegisterUnit", blood_type: "sample", product_type: "sample", donation_id: "sample", expiration_date: "sample"
+    setup  "DispatchTrauma", incident_type: "sample", location: "sample", severity: "sample", blood_type_needed: "sample", estimated_arrival_minutes: 1
+    input  patient_blood_type: "sample", donor_blood_type: "sample"
+    expect emits: ["CrossMatchPerformed", "BloodUnitReserved"]
+  end
+
   test "ApproveMatch runs" do
     tests "ApproveMatch", on: "CrossMatch"
     setup  "MatchBloodType", patient_blood_type: "sample", donor_blood_type: "sample"
     expect result: "compatible", status: "approved"
+  end
+
+  test "ApproveMatch cascades through policy chain" do
+    tests "ApproveMatch", on: "CrossMatch", kind: :cascade
+    setup  "MatchBloodType", patient_blood_type: "sample", donor_blood_type: "sample"
+    expect emits: ["CrossMatchApproved", "BloodCourierDeployed"]
   end
 
   test "RejectMatch runs" do

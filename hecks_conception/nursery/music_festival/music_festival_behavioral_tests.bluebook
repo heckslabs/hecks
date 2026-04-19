@@ -9,6 +9,12 @@ Hecks.behaviors "MusicFestival" do
     expect stage_name: "sample", capacity: 1, sound_system: "sample", location_on_grounds: "sample", status: "ready"
   end
 
+  test "SetupStage cascades through policy chain" do
+    tests "SetupStage", on: "Stage", kind: :cascade
+    input  stage_name: "sample", capacity: 1, sound_system: "sample", location_on_grounds: "sample"
+    expect emits: ["StageSetUp", "TicketBatchIssued"]
+  end
+
   test "CloseStage runs" do
     tests "CloseStage", on: "Stage"
     setup  "SetupStage", stage_name: "sample", capacity: 1, sound_system: "sample", location_on_grounds: "sample"
@@ -25,6 +31,13 @@ Hecks.behaviors "MusicFestival" do
     expect artist_name: "sample", genre: "sample", booking_fee: 1.0, set_duration_minutes: 1, status: "confirmed"
   end
 
+  test "BookArtist cascades through policy chain" do
+    tests "BookArtist", on: "ArtistBooking", kind: :cascade
+    setup  "SetupStage", stage_name: "sample", capacity: 1, sound_system: "sample", location_on_grounds: "sample"
+    input  artist_name: "sample", genre: "sample", booking_fee: 1.0, set_duration_minutes: 1
+    expect emits: ["ArtistBooked", "PerformanceScheduled"]
+  end
+
   test "CancelBooking runs" do
     tests "CancelBooking", on: "ArtistBooking"
     setup  "BookArtist", artist_name: "sample", genre: "sample", booking_fee: 1.0, set_duration_minutes: 1
@@ -35,6 +48,12 @@ Hecks.behaviors "MusicFestival" do
     tests "CompletePerformance", on: "ArtistBooking"
     setup  "BookArtist", artist_name: "sample", genre: "sample", booking_fee: 1.0, set_duration_minutes: 1
     expect status: "performed"
+  end
+
+  test "CompletePerformance cascades through policy chain" do
+    tests "CompletePerformance", on: "ArtistBooking", kind: :cascade
+    setup  "BookArtist", artist_name: "sample", genre: "sample", booking_fee: 1.0, set_duration_minutes: 1
+    expect emits: ["PerformanceCompleted", "StageClosed"]
   end
 
 
@@ -77,6 +96,12 @@ Hecks.behaviors "MusicFestival" do
     expect status: "closed"
   end
 
+  test "CloseTicketSales cascades through policy chain" do
+    tests "CloseTicketSales", on: "TicketBatch", kind: :cascade
+    setup  "IssueTicketBatch", tier_name: "sample", valid_date: "sample", price: 1.0, total_quantity: 1
+    expect emits: ["TicketSalesClosed", "StageClosed"]
+  end
+
 
   # ── FestivalVendor aggregate ──────────────────────────────────────────
 
@@ -84,6 +109,12 @@ Hecks.behaviors "MusicFestival" do
     tests "RegisterVendor", on: "FestivalVendor"
     input  vendor_name: "sample", vendor_type: "sample", booth_location: "sample", booth_fee: 1.0
     expect vendor_name: "sample", vendor_type: "sample", booth_location: "sample", booth_fee: 1.0, status: "registered"
+  end
+
+  test "RegisterVendor cascades through policy chain" do
+    tests "RegisterVendor", on: "FestivalVendor", kind: :cascade
+    input  vendor_name: "sample", vendor_type: "sample", booth_location: "sample", booth_fee: 1.0
+    expect emits: ["VendorRegistered", "VendorApproved"]
   end
 
   test "ApproveVendor runs" do

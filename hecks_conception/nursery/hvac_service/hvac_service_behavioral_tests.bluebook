@@ -16,6 +16,13 @@ Hecks.behaviors "HVACService" do
     expect ok: "true"
   end
 
+  test "RetireUnit cascades through policy chain" do
+    tests "RetireUnit", on: "Unit", kind: :cascade
+    setup  "RegisterUnit", unit_type: "sample", brand: "sample", model: "sample", tonnage: 1.0, seer_rating: 1.0, location: "sample"
+    input  disposal_method: "sample"
+    expect emits: ["UnitDecommissioned", "RefrigerantRecovered"]
+  end
+
   test "RecordAge sets manufacture_date + expected_lifespan_years" do
     tests "RecordAge", on: "Unit"
     setup  "RegisterUnit", unit_type: "sample", brand: "sample", model: "sample", tonnage: 1.0, seer_rating: 1.0, location: "sample"
@@ -32,11 +39,38 @@ Hecks.behaviors "HVACService" do
     expect customer_name: "sample", address: "sample", complaint: "sample", status: "open"
   end
 
+  test "OpenTicket cascades through policy chain" do
+    tests "OpenTicket", on: "ServiceTicket", kind: :cascade
+    input  customer_name: "sample", address: "sample", complaint: "sample"
+    expect emits: ["TicketOpened", "SystemDiagnosed", "RefrigerantCharged", "TicketResolved", "UnitRegistered"]
+  end
+
   test "DiagnoseSystem sets diagnosis" do
     tests "DiagnoseSystem", on: "ServiceTicket"
     setup  "OpenTicket", customer_name: "sample", address: "sample", complaint: "sample"
     input  diagnosis: "sample"
     expect ok: "true"
+  end
+
+  test "DiagnoseSystem cascades through policy chain" do
+    tests "DiagnoseSystem", on: "ServiceTicket", kind: :cascade
+    setup  "OpenTicket", customer_name: "sample", address: "sample", complaint: "sample"
+    input  diagnosis: "sample"
+    expect emits: ["SystemDiagnosed", "RefrigerantCharged", "TicketResolved", "UnitRegistered"]
+  end
+
+  test "ResolveTicket sets resolution" do
+    tests "ResolveTicket", on: "ServiceTicket"
+    setup  "OpenTicket", customer_name: "sample", address: "sample", complaint: "sample"
+    input  resolution: "sample"
+    expect ok: "true"
+  end
+
+  test "ResolveTicket cascades through policy chain" do
+    tests "ResolveTicket", on: "ServiceTicket", kind: :cascade
+    setup  "OpenTicket", customer_name: "sample", address: "sample", complaint: "sample"
+    input  resolution: "sample"
+    expect emits: ["TicketResolved", "UnitRegistered"]
   end
 
 
@@ -64,6 +98,13 @@ Hecks.behaviors "HVACService" do
     setup  "RegisterUnit", unit_type: "sample", brand: "sample", model: "sample", tonnage: 1.0, seer_rating: 1.0, location: "sample"
     input  plan_name: "sample", customer_name: "sample", visits_per_year: 1, annual_price: 1.0
     expect status: "active"
+  end
+
+  test "EnrollPlan cascades through policy chain" do
+    tests "EnrollPlan", on: "MaintenancePlan", kind: :cascade
+    setup  "RegisterUnit", unit_type: "sample", brand: "sample", model: "sample", tonnage: 1.0, seer_rating: 1.0, location: "sample"
+    input  plan_name: "sample", customer_name: "sample", visits_per_year: 1, annual_price: 1.0
+    expect emits: ["PlanEnrolled", "TuneUpScheduled"]
   end
 
   test "ScheduleTuneUp sets scheduled_date" do

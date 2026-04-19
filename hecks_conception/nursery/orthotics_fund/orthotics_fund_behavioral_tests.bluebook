@@ -15,6 +15,12 @@ Hecks.behaviors "OrthoticsFund" do
     expect status: "prescribed"
   end
 
+  test "PrescribeDevice cascades through policy chain" do
+    tests "PrescribeDevice", on: "PodiatryPatient", kind: :cascade
+    setup  "AssessPatient", patient_id: "sample", name: "sample", diagnosis: "sample", foot_type: "sample"
+    expect emits: ["DevicePrescribed", "CampaignLaunched"]
+  end
+
 
   # ── CustomDevice aggregate ──────────────────────────────────────────
 
@@ -50,6 +56,12 @@ Hecks.behaviors "OrthoticsFund" do
     tests "CloseCampaign", on: "FundingCampaign"
     setup  "LaunchCampaign", campaign_id: "sample", patient_id: "sample", goal_amount: 1.0
     expect status: "closed"
+  end
+
+  test "CloseCampaign cascades through policy chain" do
+    tests "CloseCampaign", on: "FundingCampaign", kind: :cascade
+    setup  "LaunchCampaign", campaign_id: "sample", patient_id: "sample", goal_amount: 1.0
+    expect emits: ["CampaignClosed", "FundsReleased"]
   end
 
 

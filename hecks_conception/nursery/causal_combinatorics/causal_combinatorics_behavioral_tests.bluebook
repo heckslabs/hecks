@@ -9,11 +9,24 @@ Hecks.behaviors "CausalCombinatorics" do
     expect ok: "true"
   end
 
+  test "BuildGraph cascades through policy chain" do
+    tests "BuildGraph", on: "PolicyGraph", kind: :cascade
+    input  name: "sample", domain_names: "sample"
+    expect emits: ["GraphBuilt", "GraphsMerged", "CascadeTraced", "CycleDetected", "EmergenceMeasured", "CombinationsRanked", "CapacityEstimated", "LawProposed", "LawTested"]
+  end
+
   test "MergeGraphs sets other_graph_name" do
     tests "MergeGraphs", on: "PolicyGraph"
     setup  "BuildGraph", name: "sample", domain_names: "sample"
     input  other_graph_name: "sample"
     expect ok: "true"
+  end
+
+  test "MergeGraphs cascades through policy chain" do
+    tests "MergeGraphs", on: "PolicyGraph", kind: :cascade
+    setup  "BuildGraph", name: "sample", domain_names: "sample"
+    input  other_graph_name: "sample"
+    expect emits: ["GraphsMerged", "CascadeTraced", "CycleDetected", "EmergenceMeasured", "CombinationsRanked", "CapacityEstimated", "LawProposed", "LawTested"]
   end
 
 
@@ -26,6 +39,13 @@ Hecks.behaviors "CausalCombinatorics" do
     expect ok: "true"
   end
 
+  test "TraceCascade cascades through policy chain" do
+    tests "TraceCascade", on: "CascadeAnalysis", kind: :cascade
+    setup  "BuildGraph", name: "sample", domain_names: "sample"
+    input  trigger_event: "sample"
+    expect emits: ["CascadeTraced", "CycleDetected", "EmergenceMeasured", "CombinationsRanked", "CapacityEstimated", "LawProposed", "LawTested"]
+  end
+
 
   # ── EmergenceMetric aggregate ──────────────────────────────────────────
 
@@ -34,6 +54,13 @@ Hecks.behaviors "CausalCombinatorics" do
     setup  "BuildGraph", name: "sample", domain_names: "sample"
     input  domains_combined: 1
     expect ok: "true"
+  end
+
+  test "MeasureEmergence cascades through policy chain" do
+    tests "MeasureEmergence", on: "EmergenceMetric", kind: :cascade
+    setup  "BuildGraph", name: "sample", domain_names: "sample"
+    input  domains_combined: 1
+    expect emits: ["EmergenceMeasured", "CombinationsRanked", "CapacityEstimated", "LawProposed", "LawTested"]
   end
 
   test "SetRankedDomainCount sets ranked_domain_count" do
@@ -49,6 +76,12 @@ Hecks.behaviors "CausalCombinatorics" do
     expect ok: "true"
   end
 
+  test "RankCombinations cascades through policy chain" do
+    tests "RankCombinations", on: "EmergenceMetric", kind: :cascade
+    setup  "MeasureEmergence", domains_combined: 1
+    expect emits: ["CombinationsRanked", "CapacityEstimated", "LawProposed", "LawTested"]
+  end
+
 
   # ── GenerativeCapacity aggregate ──────────────────────────────────────────
 
@@ -56,6 +89,12 @@ Hecks.behaviors "CausalCombinatorics" do
     tests "EstimateCapacity", on: "GenerativeCapacity"
     input  corpus_size: 1
     expect ok: "true"
+  end
+
+  test "EstimateCapacity cascades through policy chain" do
+    tests "EstimateCapacity", on: "GenerativeCapacity", kind: :cascade
+    input  corpus_size: 1
+    expect emits: ["CapacityEstimated", "LawProposed", "LawTested"]
   end
 
   test "MeasureSaturation runs" do
@@ -71,6 +110,12 @@ Hecks.behaviors "CausalCombinatorics" do
     tests "ProposeLaw", on: "CombinatorialLaw"
     input  name: "sample", statement: "sample"
     expect ok: "true"
+  end
+
+  test "ProposeLaw cascades through policy chain" do
+    tests "ProposeLaw", on: "CombinatorialLaw", kind: :cascade
+    input  name: "sample", statement: "sample"
+    expect emits: ["LawProposed", "LawTested"]
   end
 
   test "RecordObservation sets observations" do

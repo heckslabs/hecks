@@ -9,10 +9,22 @@ Hecks.behaviors "BookPublishing" do
     expect status: "submitted"
   end
 
+  test "SubmitManuscript cascades through policy chain" do
+    tests "SubmitManuscript", on: "Manuscript", kind: :cascade
+    input  title: "sample", genre: "sample", author_name: "sample", word_count: 1
+    expect emits: ["ManuscriptSubmitted", "ManuscriptAccepted", "EditorAssigned", "PassCompleted", "DesignerBriefed", "CoverApproved", "PrintRunOrdered", "ShipmentReceived", "SalesRecorded", "RoyaltySetUp"]
+  end
+
   test "AcceptManuscript runs" do
     tests "AcceptManuscript", on: "Manuscript"
     setup  "SubmitManuscript", title: "sample", genre: "sample", author_name: "sample", word_count: 1
     expect status: "accepted"
+  end
+
+  test "AcceptManuscript cascades through policy chain" do
+    tests "AcceptManuscript", on: "Manuscript", kind: :cascade
+    setup  "SubmitManuscript", title: "sample", genre: "sample", author_name: "sample", word_count: 1
+    expect emits: ["ManuscriptAccepted", "EditorAssigned", "PassCompleted", "DesignerBriefed", "CoverApproved", "PrintRunOrdered", "ShipmentReceived", "SalesRecorded", "RoyaltySetUp"]
   end
 
   test "RejectManuscript sets rejection_reason" do
@@ -32,11 +44,25 @@ Hecks.behaviors "BookPublishing" do
     expect status: "assigned"
   end
 
+  test "AssignEditor cascades through policy chain" do
+    tests "AssignEditor", on: "EditorialPass", kind: :cascade
+    setup  "SubmitManuscript", title: "sample", genre: "sample", author_name: "sample", word_count: 1
+    input  pass_type: "sample", editor_name: "sample"
+    expect emits: ["EditorAssigned", "PassCompleted", "DesignerBriefed", "CoverApproved", "PrintRunOrdered", "ShipmentReceived", "SalesRecorded"]
+  end
+
   test "CompletePass sets change_count" do
     tests "CompletePass", on: "EditorialPass"
     setup  "AssignEditor", pass_type: "sample", editor_name: "sample"
     input  change_count: 1
     expect status: "completed", change_count: 1
+  end
+
+  test "CompletePass cascades through policy chain" do
+    tests "CompletePass", on: "EditorialPass", kind: :cascade
+    setup  "AssignEditor", pass_type: "sample", editor_name: "sample"
+    input  change_count: 1
+    expect emits: ["PassCompleted", "DesignerBriefed", "CoverApproved", "PrintRunOrdered", "ShipmentReceived", "SalesRecorded"]
   end
 
   test "RequestRevision sets revision_notes" do
@@ -56,10 +82,23 @@ Hecks.behaviors "BookPublishing" do
     expect status: "briefed"
   end
 
+  test "BriefDesigner cascades through policy chain" do
+    tests "BriefDesigner", on: "CoverDesign", kind: :cascade
+    setup  "SubmitManuscript", title: "sample", genre: "sample", author_name: "sample", word_count: 1
+    input  designer_name: "sample", art_style: "sample"
+    expect emits: ["DesignerBriefed", "CoverApproved", "PrintRunOrdered", "ShipmentReceived", "SalesRecorded"]
+  end
+
   test "ApproveCover runs" do
     tests "ApproveCover", on: "CoverDesign"
     setup  "BriefDesigner", designer_name: "sample", art_style: "sample"
     expect status: "approved"
+  end
+
+  test "ApproveCover cascades through policy chain" do
+    tests "ApproveCover", on: "CoverDesign", kind: :cascade
+    setup  "BriefDesigner", designer_name: "sample", art_style: "sample"
+    expect emits: ["CoverApproved", "PrintRunOrdered", "ShipmentReceived", "SalesRecorded"]
   end
 
 
@@ -72,11 +111,25 @@ Hecks.behaviors "BookPublishing" do
     expect status: "ordered"
   end
 
+  test "OrderPrintRun cascades through policy chain" do
+    tests "OrderPrintRun", on: "PrintRun", kind: :cascade
+    setup  "SubmitManuscript", title: "sample", genre: "sample", author_name: "sample", word_count: 1
+    input  quantity: 1, binding_type: "sample", paper_stock: "sample"
+    expect emits: ["PrintRunOrdered", "ShipmentReceived", "SalesRecorded"]
+  end
+
   test "ReceiveShipment sets received_quantity" do
     tests "ReceiveShipment", on: "PrintRun"
     setup  "OrderPrintRun", quantity: 1, binding_type: "sample", paper_stock: "sample"
     input  received_quantity: 1
     expect status: "received"
+  end
+
+  test "ReceiveShipment cascades through policy chain" do
+    tests "ReceiveShipment", on: "PrintRun", kind: :cascade
+    setup  "OrderPrintRun", quantity: 1, binding_type: "sample", paper_stock: "sample"
+    input  received_quantity: 1
+    expect emits: ["ShipmentReceived", "SalesRecorded"]
   end
 
 

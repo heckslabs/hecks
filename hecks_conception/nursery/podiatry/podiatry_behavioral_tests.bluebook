@@ -9,6 +9,12 @@ Hecks.behaviors "Podiatry" do
     expect name: "sample", date_of_birth: "sample", diabetic_status: "sample", insurance_id: "sample", status: "active"
   end
 
+  test "RegisterPatient cascades through policy chain" do
+    tests "RegisterPatient", on: "Patient", kind: :cascade
+    input  name: "sample", date_of_birth: "sample", diabetic_status: "sample", insurance_id: "sample"
+    expect emits: ["PatientRegistered", "HighRiskFlagged"]
+  end
+
   test "FlagHighRisk runs" do
     tests "FlagHighRisk", on: "Patient"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diabetic_status: "sample", insurance_id: "sample"
@@ -23,6 +29,13 @@ Hecks.behaviors "Podiatry" do
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diabetic_status: "sample", insurance_id: "sample"
     input  patient_name: "sample", condition_name: "sample", affected_foot: "sample", severity: "sample", onset_date: "sample"
     expect patient_name: "sample", condition_name: "sample", affected_foot: "sample", severity: "sample", onset_date: "sample", status: "active"
+  end
+
+  test "DiagnoseCondition cascades through policy chain" do
+    tests "DiagnoseCondition", on: "FootCondition", kind: :cascade
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diabetic_status: "sample", insurance_id: "sample"
+    input  patient_name: "sample", condition_name: "sample", affected_foot: "sample", severity: "sample", onset_date: "sample"
+    expect emits: ["ConditionDiagnosed", "OrthoticOrdered", "OrthoticFitted", "ProcedureScheduled"]
   end
 
   test "ResolveCondition runs" do
@@ -40,6 +53,14 @@ Hecks.behaviors "Podiatry" do
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diabetic_status: "sample", insurance_id: "sample"
     input  patient_name: "sample", orthotic_type: "sample", material: "sample", corrections: "sample", order_date: "sample"
     expect patient_name: "sample", orthotic_type: "sample", material: "sample", corrections: "sample", order_date: "sample", status: "ordered"
+  end
+
+  test "OrderOrthotic cascades through policy chain" do
+    tests "OrderOrthotic", on: "Orthotic", kind: :cascade
+    setup  "DiagnoseCondition", patient_name: "sample", condition_name: "sample", affected_foot: "sample", severity: "sample", onset_date: "sample"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diabetic_status: "sample", insurance_id: "sample"
+    input  patient_name: "sample", orthotic_type: "sample", material: "sample", corrections: "sample", order_date: "sample"
+    expect emits: ["OrthoticOrdered", "OrthoticFitted"]
   end
 
   test "FitOrthotic runs" do
@@ -73,6 +94,13 @@ Hecks.behaviors "Podiatry" do
     expect notes: "sample", status: "completed"
   end
 
+  test "CompleteProcedure cascades through policy chain" do
+    tests "CompleteProcedure", on: "FootProcedure", kind: :cascade
+    setup  "ScheduleProcedure", patient_name: "sample", procedure_name: "sample", procedure_date: "sample", anesthesia_type: "sample"
+    input  notes: "sample"
+    expect emits: ["ProcedureCompleted", "FollowUpScheduled"]
+  end
+
 
   # ── PodiatryFollowUp aggregate ──────────────────────────────────────────
 
@@ -88,6 +116,13 @@ Hecks.behaviors "Podiatry" do
     setup  "ScheduleFollowUp", patient_name: "sample", reason: "sample", scheduled_date: "sample"
     input  wound_status: "sample", notes: "sample"
     expect wound_status: "sample", notes: "sample", status: "completed"
+  end
+
+  test "CompleteFollowUp cascades through policy chain" do
+    tests "CompleteFollowUp", on: "PodiatryFollowUp", kind: :cascade
+    setup  "ScheduleFollowUp", patient_name: "sample", reason: "sample", scheduled_date: "sample"
+    input  wound_status: "sample", notes: "sample"
+    expect emits: ["FollowUpCompleted", "OrthoticAdjusted", "ConditionResolved"]
   end
 
 end

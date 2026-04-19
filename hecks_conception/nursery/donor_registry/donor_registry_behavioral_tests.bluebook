@@ -30,6 +30,12 @@ Hecks.behaviors "DonorRegistry" do
     expect status: "confirmed"
   end
 
+  test "ConfirmMatch cascades through policy chain" do
+    tests "ConfirmMatch", on: "RecipientMatch", kind: :cascade
+    setup  "FindMatch", match_id: "sample", donor_id: "sample", recipient_name: "sample", organ_name: "sample", compatibility_score: 1.0
+    expect emits: ["MatchConfirmed", "TransportArranged"]
+  end
+
 
   # ── OrganTransport aggregate ──────────────────────────────────────────
 
@@ -43,6 +49,12 @@ Hecks.behaviors "DonorRegistry" do
     tests "ConfirmArrival", on: "OrganTransport"
     setup  "ArrangeTransport", transport_id: "sample", match_id: "sample", origin_hospital: "sample", dest_hospital: "sample", max_hours: 1.0
     expect status: "delivered"
+  end
+
+  test "ConfirmArrival cascades through policy chain" do
+    tests "ConfirmArrival", on: "OrganTransport", kind: :cascade
+    setup  "ArrangeTransport", transport_id: "sample", match_id: "sample", origin_hospital: "sample", dest_hospital: "sample", max_hours: 1.0
+    expect emits: ["ArrivalConfirmed", "SettlementOpened"]
   end
 
 

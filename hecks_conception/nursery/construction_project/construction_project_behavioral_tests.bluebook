@@ -9,11 +9,24 @@ Hecks.behaviors "ConstructionProject" do
     expect site_name: "sample", address: "sample", project_type: "sample", lot_size_sqft: 1.0, phase: "planning", status: "active"
   end
 
+  test "OpenSite cascades through policy chain" do
+    tests "OpenSite", on: "Site", kind: :cascade
+    input  site_name: "sample", address: "sample", project_type: "sample", lot_size_sqft: 1.0
+    expect emits: ["SiteOpened", "PermitApplied"]
+  end
+
   test "AdvancePhase sets phase" do
     tests "AdvancePhase", on: "Site"
     setup  "OpenSite", site_name: "sample", address: "sample", project_type: "sample", lot_size_sqft: 1.0
     input  phase: "sample"
     expect phase: "sample"
+  end
+
+  test "AdvancePhase cascades through policy chain" do
+    tests "AdvancePhase", on: "Site", kind: :cascade
+    setup  "OpenSite", site_name: "sample", address: "sample", project_type: "sample", lot_size_sqft: 1.0
+    input  phase: "sample"
+    expect emits: ["PhaseAdvanced", "InspectionScheduled", "ResultRecorded", "SiteClosed"]
   end
 
   test "CloseSite runs" do
@@ -37,6 +50,13 @@ Hecks.behaviors "ConstructionProject" do
     setup  "ApplyForPermit", permit_type: "sample"
     input  permit_number: "sample", issued_date: "sample", expiration_date: "sample"
     expect permit_number: "sample", issued_date: "sample", expiration_date: "sample", status: "issued"
+  end
+
+  test "IssuePermit cascades through policy chain" do
+    tests "IssuePermit", on: "BuildingPermit", kind: :cascade
+    setup  "ApplyForPermit", permit_type: "sample"
+    input  permit_number: "sample", issued_date: "sample", expiration_date: "sample"
+    expect emits: ["PermitIssued", "SubcontractorHired", "MaterialsOrdered", "MaterialsReceived", "PhaseAdvanced", "InspectionScheduled", "ResultRecorded", "SiteClosed"]
   end
 
   test "RevokePermit runs" do
@@ -79,10 +99,23 @@ Hecks.behaviors "ConstructionProject" do
     expect supplier: "sample", material_type: "sample", quantity: 1, total_cost: 1.0, status: "ordered"
   end
 
+  test "OrderMaterials cascades through policy chain" do
+    tests "OrderMaterials", on: "MaterialOrder", kind: :cascade
+    setup  "OpenSite", site_name: "sample", address: "sample", project_type: "sample", lot_size_sqft: 1.0
+    input  supplier: "sample", material_type: "sample", quantity: 1, unit: "sample", total_cost: 1.0
+    expect emits: ["MaterialsOrdered", "MaterialsReceived", "PhaseAdvanced", "InspectionScheduled", "ResultRecorded", "SiteClosed"]
+  end
+
   test "ReceiveMaterials runs" do
     tests "ReceiveMaterials", on: "MaterialOrder"
     setup  "OrderMaterials", supplier: "sample", material_type: "sample", quantity: 1, unit: "sample", total_cost: 1.0
     expect status: "received"
+  end
+
+  test "ReceiveMaterials cascades through policy chain" do
+    tests "ReceiveMaterials", on: "MaterialOrder", kind: :cascade
+    setup  "OrderMaterials", supplier: "sample", material_type: "sample", quantity: 1, unit: "sample", total_cost: 1.0
+    expect emits: ["MaterialsReceived", "PhaseAdvanced", "InspectionScheduled", "ResultRecorded", "SiteClosed"]
   end
 
   test "RejectDelivery runs" do
@@ -102,11 +135,26 @@ Hecks.behaviors "ConstructionProject" do
     expect inspection_type: "sample", inspection_date: "sample", status: "scheduled"
   end
 
+  test "ScheduleInspection cascades through policy chain" do
+    tests "ScheduleInspection", on: "SiteInspection", kind: :cascade
+    setup  "ApplyForPermit", permit_type: "sample"
+    setup  "OpenSite", site_name: "sample", address: "sample", project_type: "sample", lot_size_sqft: 1.0
+    input  inspection_type: "sample", inspection_date: "sample"
+    expect emits: ["InspectionScheduled", "ResultRecorded", "SiteClosed"]
+  end
+
   test "RecordResult sets inspector_name + result + deficiencies" do
     tests "RecordResult", on: "SiteInspection"
     setup  "ScheduleInspection", inspection_type: "sample", inspection_date: "sample"
     input  inspector_name: "sample", result: "sample", deficiencies: "sample"
     expect inspector_name: "sample", result: "sample", deficiencies: "sample", status: "completed"
+  end
+
+  test "RecordResult cascades through policy chain" do
+    tests "RecordResult", on: "SiteInspection", kind: :cascade
+    setup  "ScheduleInspection", inspection_type: "sample", inspection_date: "sample"
+    input  inspector_name: "sample", result: "sample", deficiencies: "sample"
+    expect emits: ["ResultRecorded", "SiteClosed"]
   end
 
 end

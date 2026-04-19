@@ -32,6 +32,13 @@ Hecks.behaviors "HotelManagement" do
     expect guest_name: "sample", email: "sample", check_in_date: "sample", check_out_date: "sample", nights: 1, status: "checked_in"
   end
 
+  test "CheckInGuest cascades through policy chain" do
+    tests "CheckInGuest", on: "GuestStay", kind: :cascade
+    setup  "AddRoom", room_number: "sample", room_type: "sample", floor: 1, nightly_rate: 1.0, max_occupancy: 1
+    input  guest_name: "sample", email: "sample", check_in_date: "sample", check_out_date: "sample", nights: 1
+    expect emits: ["GuestCheckedIn", "FolioOpened", "HousekeepingAssigned"]
+  end
+
   test "ExtendStay sets additional_nights" do
     tests "ExtendStay", on: "GuestStay"
     setup  "CheckInGuest", guest_name: "sample", email: "sample", check_in_date: "sample", check_out_date: "sample", nights: 1
@@ -39,10 +46,23 @@ Hecks.behaviors "HotelManagement" do
     expect ok: "true"
   end
 
+  test "ExtendStay cascades through policy chain" do
+    tests "ExtendStay", on: "GuestStay", kind: :cascade
+    setup  "CheckInGuest", guest_name: "sample", email: "sample", check_in_date: "sample", check_out_date: "sample", nights: 1
+    input  additional_nights: 1
+    expect emits: ["StayExtended", "ChargePosted"]
+  end
+
   test "CheckOutGuest runs" do
     tests "CheckOutGuest", on: "GuestStay"
     setup  "CheckInGuest", guest_name: "sample", email: "sample", check_in_date: "sample", check_out_date: "sample", nights: 1
     expect status: "checked_out"
+  end
+
+  test "CheckOutGuest cascades through policy chain" do
+    tests "CheckOutGuest", on: "GuestStay", kind: :cascade
+    setup  "CheckInGuest", guest_name: "sample", email: "sample", check_in_date: "sample", check_out_date: "sample", nights: 1
+    expect emits: ["GuestCheckedOut", "FolioSettled", "HousekeepingAssigned"]
   end
 
 
@@ -58,7 +78,27 @@ Hecks.behaviors "HotelManagement" do
   test "CompleteHousekeeping runs" do
     tests "CompleteHousekeeping", on: "HousekeepingTask"
     setup  "AssignHousekeeping", task_type: "sample", priority: "sample", assigned_to: "sample"
+    expect status: "completed"
+  end
+
+  test "CompleteHousekeeping cascades through policy chain" do
+    tests "CompleteHousekeeping", on: "HousekeepingTask", kind: :cascade
+    setup  "AssignHousekeeping", task_type: "sample", priority: "sample", assigned_to: "sample"
+    expect emits: ["HousekeepingCompleted", "RoomInspected", "RoomReleased"]
+  end
+
+  test "InspectRoom runs" do
+    tests "InspectRoom", on: "HousekeepingTask"
+    setup  "AssignHousekeeping", task_type: "sample", priority: "sample", assigned_to: "sample"
+    setup  "CompleteHousekeeping"
     expect status: "inspected"
+  end
+
+  test "InspectRoom cascades through policy chain" do
+    tests "InspectRoom", on: "HousekeepingTask", kind: :cascade
+    setup  "AssignHousekeeping", task_type: "sample", priority: "sample", assigned_to: "sample"
+    setup  "CompleteHousekeeping"
+    expect emits: ["RoomInspected", "RoomReleased"]
   end
 
 

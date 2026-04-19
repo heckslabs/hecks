@@ -15,6 +15,12 @@ Hecks.behaviors "ReliefLogistics" do
     expect status: "approved"
   end
 
+  test "ApproveRequest cascades through policy chain" do
+    tests "ApproveRequest", on: "SupplyRequest", kind: :cascade
+    setup  "SubmitRequest", request_id: "sample", disaster_type: "sample", location_name: "sample", urgency: "sample"
+    expect emits: ["RequestApproved", "ContainerLoaded"]
+  end
+
 
   # ── ShippingContainer aggregate ──────────────────────────────────────────
 
@@ -37,6 +43,13 @@ Hecks.behaviors "ReliefLogistics" do
     expect status: "received"
   end
 
+  test "ReceiveContainer cascades through policy chain" do
+    tests "ReceiveContainer", on: "ShippingContainer", kind: :cascade
+    setup  "LoadContainer", container_id: "sample", request_id: "sample", origin_port: "sample", dest_port: "sample", weight_tons: 1.0
+    setup  "ShipContainer"
+    expect emits: ["ContainerReceived", "ClearanceFiled"]
+  end
+
 
   # ── CustomsClearance aggregate ──────────────────────────────────────────
 
@@ -50,6 +63,12 @@ Hecks.behaviors "ReliefLogistics" do
     tests "GrantClearance", on: "CustomsClearance"
     setup  "FileClearance", clearance_id: "sample", container_id: "sample", country: "sample"
     expect status: "cleared"
+  end
+
+  test "GrantClearance cascades through policy chain" do
+    tests "GrantClearance", on: "CustomsClearance", kind: :cascade
+    setup  "FileClearance", clearance_id: "sample", container_id: "sample", country: "sample"
+    expect emits: ["ClearanceGranted", "DistributionPlanned"]
   end
 
 

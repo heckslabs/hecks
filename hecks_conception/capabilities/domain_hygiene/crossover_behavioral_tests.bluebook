@@ -3,6 +3,12 @@ Hecks.behaviors "DomainCrossover" do
 
   # ── ParentPair aggregate ──────────────────────────────────────────
 
+  test "SelectPair cascades through policy chain" do
+    tests "SelectPair", on: "ParentPair", kind: :cascade
+    input  min_similarity: 1.0, max_similarity: 1.0
+    expect emits: ["PairSelected", "DomainBred", "OffspringValidated", "OffspringEnriched"]
+  end
+
 
   # ── Offspring aggregate ──────────────────────────────────────────
 
@@ -13,10 +19,30 @@ Hecks.behaviors "DomainCrossover" do
     expect ok: "true"
   end
 
+  test "BreedDomain cascades through policy chain" do
+    tests "BreedDomain", on: "Offspring", kind: :cascade
+    setup  "SelectPair", min_similarity: 1.0, max_similarity: 1.0
+    input  name: "sample", vision: "sample", aggregates_from_each: 1
+    expect emits: ["DomainBred", "OffspringValidated", "OffspringEnriched"]
+  end
+
   test "ValidateOffspring runs" do
     tests "ValidateOffspring", on: "Offspring"
     setup  "BreedDomain", name: "sample", vision: "sample", aggregates_from_each: 1
     expect validated: true
+  end
+
+  test "ValidateOffspring cascades through policy chain" do
+    tests "ValidateOffspring", on: "Offspring", kind: :cascade
+    setup  "BreedDomain", name: "sample", vision: "sample", aggregates_from_each: 1
+    expect emits: ["OffspringValidated", "OffspringEnriched"]
+  end
+
+  test "EnrichOffspring runs" do
+    tests "EnrichOffspring", on: "Offspring"
+    setup  "BreedDomain", name: "sample", vision: "sample", aggregates_from_each: 1
+    setup  "ValidateOffspring"
+    expect ok: "true"
   end
 
 
@@ -26,6 +52,12 @@ Hecks.behaviors "DomainCrossover" do
     tests "RunGeneration", on: "Generation"
     input  pair_count: 1
     expect ok: "true"
+  end
+
+  test "RunGeneration cascades through policy chain" do
+    tests "RunGeneration", on: "Generation", kind: :cascade
+    input  pair_count: 1
+    expect emits: ["GenerationComplete", "GenerationAssessed"]
   end
 
   test "AssessGeneration runs" do

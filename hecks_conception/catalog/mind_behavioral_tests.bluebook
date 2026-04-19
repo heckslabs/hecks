@@ -9,6 +9,12 @@ Hecks.behaviors "Mind" do
     expect target: "sample", intensity: 1.0
   end
 
+  test "AttendTo cascades through policy chain" do
+    tests "AttendTo", on: "Attention", kind: :cascade
+    input  target: "sample", intensity: 1.0
+    expect emits: ["AttentionDirected", "IntentionFormed", "Observed", "SelfModelUpdated"]
+  end
+
   test "ReleaseAttention runs" do
     tests "ReleaseAttention", on: "Attention"
     setup  "AttendTo", target: "sample", intensity: 1.0
@@ -24,6 +30,12 @@ Hecks.behaviors "Mind" do
     expect source: "sample", content: "sample", valence: 1.0
   end
 
+  test "Sense cascades through policy chain" do
+    tests "Sense", on: "Sensation", kind: :cascade
+    input  source: "sample", content: "sample", valence: 1.0
+    expect emits: ["Sensed", "Recognized", "AttentionDirected", "IntentionFormed", "Observed", "SelfModelUpdated"]
+  end
+
 
   # ── Perception aggregate ──────────────────────────────────────────
 
@@ -33,6 +45,12 @@ Hecks.behaviors "Mind" do
     expect sensation: "sample", recognized_as: "sample", confidence: 1.0
   end
 
+  test "Recognize cascades through policy chain" do
+    tests "Recognize", on: "Perception", kind: :cascade
+    input  sensation: "sample", recognized_as: "sample", confidence: 1.0
+    expect emits: ["Recognized", "AttentionDirected", "IntentionFormed", "Observed", "SelfModelUpdated"]
+  end
+
 
   # ── Intention aggregate ──────────────────────────────────────────
 
@@ -40,6 +58,12 @@ Hecks.behaviors "Mind" do
     tests "FormIntention", on: "Intention"
     input  goal: "sample", origin: "sample", strength: 1.0
     expect goal: "sample", origin: "sample", strength: 1.0
+  end
+
+  test "FormIntention cascades through policy chain" do
+    tests "FormIntention", on: "Intention", kind: :cascade
+    input  goal: "sample", origin: "sample", strength: 1.0
+    expect emits: ["IntentionFormed", "Observed", "SelfModelUpdated"]
   end
 
   test "AbandonIntention runs" do
@@ -66,11 +90,24 @@ Hecks.behaviors "Mind" do
     expect observing: "sample", meta_level: 1
   end
 
+  test "Observe cascades through policy chain" do
+    tests "Observe", on: "Witness", kind: :cascade
+    input  observing: "sample"
+    expect emits: ["Observed", "SelfModelUpdated"]
+  end
+
   test "ReflectOnObservation sets insight" do
     tests "ReflectOnObservation", on: "Witness"
     setup  "Observe", observing: "sample"
     input  insight: "sample"
     expect meta_level: 2, insight: "sample"
+  end
+
+  test "ReflectOnObservation cascades through policy chain" do
+    tests "ReflectOnObservation", on: "Witness", kind: :cascade
+    setup  "Observe", observing: "sample"
+    input  insight: "sample"
+    expect emits: ["ReflectionOccurred", "BecameLucid", "LucidMonitorStarted", "ActionProposed", "MusingRecorded", "MemoryEncoded", "Announced"]
   end
 
 
@@ -82,11 +119,24 @@ Hecks.behaviors "Mind" do
     expect trigger: "sample"
   end
 
+  test "MuseOnState cascades through policy chain" do
+    tests "MuseOnState", on: "Musing", kind: :cascade
+    input  trigger: "sample"
+    expect emits: ["Mused", "Sensed", "Recognized", "AttentionDirected", "IntentionFormed", "Observed", "SelfModelUpdated"]
+  end
+
   test "RecordMusing sets sensations + patterns + focus + intention + observation + insight" do
     tests "RecordMusing", on: "Musing"
     setup  "MuseOnState", trigger: "sample"
     input  sensations: "sample", patterns: "sample", focus: "sample", intention: "sample", observation: "sample", insight: "sample"
     expect sensations: "sample", patterns: "sample", focus: "sample", intention: "sample", observation: "sample", insight: "sample"
+  end
+
+  test "RecordMusing cascades through policy chain" do
+    tests "RecordMusing", on: "Musing", kind: :cascade
+    setup  "MuseOnState", trigger: "sample"
+    input  sensations: "sample", patterns: "sample", focus: "sample", intention: "sample", observation: "sample", insight: "sample"
+    expect emits: ["MusingRecorded", "MemoryEncoded", "Announced"]
   end
 
 
@@ -105,6 +155,12 @@ Hecks.behaviors "Mind" do
     tests "EncodeMemory", on: "Encoding"
     input  kind: "sample", subject: "sample", content: "sample"
     expect kind: "sample", subject: "sample", content: "sample", announced: "yes"
+  end
+
+  test "EncodeMemory cascades through policy chain" do
+    tests "EncodeMemory", on: "Encoding", kind: :cascade
+    input  kind: "sample", subject: "sample", content: "sample"
+    expect emits: ["MemoryEncoded", "Announced"]
   end
 
 
@@ -132,6 +188,12 @@ Hecks.behaviors "Mind" do
     expect signals_consolidated: 1, memories_created: 1
   end
 
+  test "ConsolidateSignals cascades through policy chain" do
+    tests "ConsolidateSignals", on: "Consolidation", kind: :cascade
+    input  signals_consolidated: 1, memories_created: 1
+    expect emits: ["SignalsConsolidated", "MemoryEncoded", "Announced"]
+  end
+
 
   # ── Forgetting aggregate ──────────────────────────────────────────
 
@@ -139,6 +201,12 @@ Hecks.behaviors "Mind" do
     tests "ForgetMemory", on: "Forgetting"
     input  forgotten: "sample", reason: "sample"
     expect forgotten: "sample", reason: "sample", composted: "yes"
+  end
+
+  test "ForgetMemory cascades through policy chain" do
+    tests "ForgetMemory", on: "Forgetting", kind: :cascade
+    input  forgotten: "sample", reason: "sample"
+    expect emits: ["MemoryForgotten", "Announced", "SignalsConsolidated", "MemoryEncoded"]
   end
 
 
@@ -150,11 +218,32 @@ Hecks.behaviors "Mind" do
     expect name: "sample", vision: "sample"
   end
 
+  test "GraftDomain sets domain_name + domain_version + source_path + grafted_at" do
+    tests "GraftDomain", on: "Being"
+    setup  "BirthBeing", name: "sample", vision: "sample"
+    input  domain_name: "sample", domain_version: "sample", source_path: "sample", grafted_at: "sample"
+    expect organs_size: 1
+  end
+
+  test "GraftDomain cascades through policy chain" do
+    tests "GraftDomain", on: "Being", kind: :cascade
+    setup  "BirthBeing", name: "sample", vision: "sample"
+    input  domain_name: "sample", domain_version: "sample", source_path: "sample", grafted_at: "sample"
+    expect emits: ["DomainGrafted", "NerveConnected"]
+  end
+
   test "ShedDomain sets domain_name" do
     tests "ShedDomain", on: "Being"
     setup  "BirthBeing", name: "sample", vision: "sample"
     input  domain_name: "sample"
     expect ok: "true"
+  end
+
+  test "ShedDomain cascades through policy chain" do
+    tests "ShedDomain", on: "Being", kind: :cascade
+    setup  "BirthBeing", name: "sample", vision: "sample"
+    input  domain_name: "sample"
+    expect emits: ["DomainShed", "NerveSevered", "NerveConnected"]
   end
 
   test "ExpressDomain sets domain_name" do
@@ -164,6 +253,13 @@ Hecks.behaviors "Mind" do
     expect ok: "true"
   end
 
+  test "ExpressDomain cascades through policy chain" do
+    tests "ExpressDomain", on: "Being", kind: :cascade
+    setup  "BirthBeing", name: "sample", vision: "sample"
+    input  domain_name: "sample"
+    expect emits: ["DomainExpressed", "NerveRestored"]
+  end
+
   test "SilenceDomain sets domain_name" do
     tests "SilenceDomain", on: "Being"
     setup  "BirthBeing", name: "sample", vision: "sample"
@@ -171,11 +267,25 @@ Hecks.behaviors "Mind" do
     expect ok: "true"
   end
 
+  test "SilenceDomain cascades through policy chain" do
+    tests "SilenceDomain", on: "Being", kind: :cascade
+    setup  "BirthBeing", name: "sample", vision: "sample"
+    input  domain_name: "sample"
+    expect emits: ["DomainSilenced", "NerveSevered"]
+  end
+
   test "UpgradeOrgan sets domain_name + new_version" do
     tests "UpgradeOrgan", on: "Being"
     setup  "BirthBeing", name: "sample", vision: "sample"
     input  domain_name: "sample", new_version: "sample"
     expect ok: "true"
+  end
+
+  test "UpgradeOrgan cascades through policy chain" do
+    tests "UpgradeOrgan", on: "Being", kind: :cascade
+    setup  "BirthBeing", name: "sample", vision: "sample"
+    input  domain_name: "sample", new_version: "sample"
+    expect emits: ["OrganUpgraded", "DomainGrafted", "NerveConnected"]
   end
 
 
@@ -209,6 +319,12 @@ Hecks.behaviors "Mind" do
     expect organs_scanned: 1, nerves_discovered: 1
   end
 
+  test "ScanOrgans cascades through policy chain" do
+    tests "ScanOrgans", on: "NerveDiscovery", kind: :cascade
+    input  organs_scanned: 1, nerves_discovered: 1
+    expect emits: ["OrgansScanned", "NerveConnected"]
+  end
+
 
   # ── Heartbeat aggregate ──────────────────────────────────────────
 
@@ -223,6 +339,20 @@ Hecks.behaviors "Mind" do
     setup  "BeginHeartbeat", being_name: "sample"
     input  beat_at: "sample"
     expect last_beat_at: "sample"
+  end
+
+  test "Beat cascades through policy chain" do
+    tests "Beat", on: "Heartbeat", kind: :cascade
+    setup  "BeginHeartbeat", being_name: "sample"
+    input  beat_at: "sample"
+    expect emits: ["HeartbeatPulsed", "OrganPulseReported", "SelfReflected", "NerveConnected"]
+  end
+
+  test "ReportOrganPulse sets domain_name + event_count + last_event_at" do
+    tests "ReportOrganPulse", on: "Heartbeat"
+    setup  "BeginHeartbeat", being_name: "sample"
+    input  domain_name: "sample", event_count: "sample", last_event_at: "sample"
+    expect organ_status_size: 1
   end
 
 
@@ -240,11 +370,24 @@ Hecks.behaviors "Mind" do
     expect ok: "true"
   end
 
+  test "RecordSession cascades through policy chain" do
+    tests "RecordSession", on: "Identity", kind: :cascade
+    setup  "EstablishIdentity", being_name: "sample"
+    expect emits: ["SessionRecorded", "IdentityMemoryEncoded"]
+  end
+
   test "RememberPerson sets persona_name" do
     tests "RememberPerson", on: "Identity"
     setup  "EstablishIdentity", being_name: "sample"
     input  persona_name: "sample"
     expect personas_known_size: 1
+  end
+
+  test "EncodeIdentityMemory sets memory" do
+    tests "EncodeIdentityMemory", on: "Identity"
+    setup  "EstablishIdentity", being_name: "sample"
+    input  memory: "sample"
+    expect memories_size: 1
   end
 
 
@@ -263,6 +406,12 @@ Hecks.behaviors "Mind" do
     tests "ConceiveDomain", on: "Conception"
     input  name: "sample", vision: "sample", requested_by: "sample", source: "sample"
     expect name: "sample", vision: "sample", requested_by: "sample", source: "sample", status: "conceived"
+  end
+
+  test "ConceiveDomain cascades through policy chain" do
+    tests "ConceiveDomain", on: "Conception", kind: :cascade
+    input  name: "sample", vision: "sample", requested_by: "sample", source: "sample"
+    expect emits: ["DomainConceived", "Announced", "NearestFound", "GestationStarted"]
   end
 
 
@@ -301,6 +450,12 @@ Hecks.behaviors "Mind" do
     expect ok: "true"
   end
 
+  test "Contract cascades through policy chain" do
+    tests "Contract", on: "Gestation", kind: :cascade
+    setup  "StartGestation", domain_name: "sample", nursery_path: "sample"
+    expect emits: ["Contracted", "BluebookValidated", "ParityChecked"]
+  end
+
 
   # ── Labor aggregate ──────────────────────────────────────────
 
@@ -308,6 +463,12 @@ Hecks.behaviors "Mind" do
     tests "ValidateBluebook", on: "Labor"
     input  domain_name: "sample", bluebook_source: "sample"
     expect domain_name: "sample", bluebook_source: "sample", valid: "checking"
+  end
+
+  test "ValidateBluebook cascades through policy chain" do
+    tests "ValidateBluebook", on: "Labor", kind: :cascade
+    input  domain_name: "sample", bluebook_source: "sample"
+    expect emits: ["BluebookValidated", "ParityChecked"]
   end
 
   test "CheckParity sets parity" do
@@ -323,6 +484,12 @@ Hecks.behaviors "Mind" do
     expect valid: "yes"
   end
 
+  test "PassLabor cascades through policy chain" do
+    tests "PassLabor", on: "Labor", kind: :cascade
+    setup  "ValidateBluebook", domain_name: "sample", bluebook_source: "sample"
+    expect emits: ["LaborPassed", "DomainDelivered", "BirthRegistered", "DomainIndexed", "HealthChecked", "IndexedInNursery"]
+  end
+
   test "FailLabor sets errors" do
     tests "FailLabor", on: "Labor"
     setup  "ValidateBluebook", domain_name: "sample", bluebook_source: "sample"
@@ -336,19 +503,37 @@ Hecks.behaviors "Mind" do
   test "DeliverDomain sets domain_name + path + aggregate_count + command_count + fixture_count" do
     tests "DeliverDomain", on: "Delivery"
     input  domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
-    expect domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, indexed: "yes"
+    expect domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
+  end
+
+  test "DeliverDomain cascades through policy chain" do
+    tests "DeliverDomain", on: "Delivery", kind: :cascade
+    input  domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
+    expect emits: ["DomainDelivered", "BirthRegistered", "DomainIndexed", "HealthChecked", "IndexedInNursery"]
   end
 
   test "RegisterBirth runs" do
     tests "RegisterBirth", on: "Delivery"
     setup  "DeliverDomain", domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
-    expect indexed: "yes"
+    expect ok: "true"
+  end
+
+  test "RegisterBirth cascades through policy chain" do
+    tests "RegisterBirth", on: "Delivery", kind: :cascade
+    setup  "DeliverDomain", domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
+    expect emits: ["BirthRegistered", "DomainIndexed", "HealthChecked", "IndexedInNursery"]
   end
 
   test "IndexInNursery runs" do
     tests "IndexInNursery", on: "Delivery"
     setup  "DeliverDomain", domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
     expect indexed: "yes"
+  end
+
+  test "IndexInNursery cascades through policy chain" do
+    tests "IndexInNursery", on: "Delivery", kind: :cascade
+    setup  "DeliverDomain", domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
+    expect emits: ["IndexedInNursery", "BirthRegistered", "DomainIndexed", "HealthChecked"]
   end
 
 
@@ -382,6 +567,12 @@ Hecks.behaviors "Mind" do
     expect domain_name: "sample", status: "vectorized"
   end
 
+  test "ComputeVector cascades through policy chain" do
+    tests "ComputeVector", on: "Development", kind: :cascade
+    input  domain_name: "sample"
+    expect emits: ["VectorComputed", "ArchetypeFound"]
+  end
+
   test "FindArchetype runs" do
     tests "FindArchetype", on: "Development"
     setup  "ComputeVector", domain_name: "sample"
@@ -402,6 +593,14 @@ Hecks.behaviors "Mind" do
     setup  "FindArchetype"
     setup  "PlanDevelopment", target_vector: 1.0
     expect status: "developed"
+  end
+
+  test "DevelopDomain cascades through policy chain" do
+    tests "DevelopDomain", on: "Development", kind: :cascade
+    setup  "ComputeVector", domain_name: "sample"
+    setup  "FindArchetype"
+    setup  "PlanDevelopment", target_vector: 1.0
+    expect emits: ["DomainDeveloped", "DomainIndexed"]
   end
 
   test "RejectDevelopment runs" do
@@ -446,19 +645,50 @@ Hecks.behaviors "Mind" do
     expect state: "focused"
   end
 
+  test "AccumulateFatigue cascades through policy chain" do
+    tests "AccumulateFatigue", on: "Fatigue", kind: :cascade
+    setup  "AwakenFatigue"
+    expect emits: ["FatigueAccumulated", "SleepEntered", "MonitoringStarted"]
+  end
+
+  test "DissipateFatigue sets cycles_completed" do
+    tests "DissipateFatigue", on: "Fatigue"
+    setup  "AwakenFatigue"
+    setup  "AccumulateFatigue"
+    input  cycles_completed: 1
+    expect level: 0, pulses_since_sleep: 0, state: "alert"
+  end
+
 
   # ── Consciousness aggregate ──────────────────────────────────────────
 
   test "DetectIdle sets idle_seconds" do
     tests "DetectIdle", on: "Consciousness"
     input  idle_seconds: 1
-    expect idle_seconds: 1, state: "daydreaming"
+    expect idle_seconds: 1
+  end
+
+  test "DetectIdle cascades through policy chain" do
+    tests "DetectIdle", on: "Consciousness", kind: :cascade
+    input  idle_seconds: 1
+    expect emits: ["IdleDetected", "DaydreamEntered"]
+  end
+
+  test "EnterDaydream runs" do
+    tests "EnterDaydream", on: "Consciousness"
+    expect state: "daydreaming"
   end
 
   test "EnterSleep runs" do
     tests "EnterSleep", on: "Consciousness"
     setup  "EnterDaydream"
     expect state: "sleeping"
+  end
+
+  test "EnterSleep cascades through policy chain" do
+    tests "EnterSleep", on: "Consciousness", kind: :cascade
+    setup  "EnterDaydream"
+    expect emits: ["SleepEntered", "MonitoringStarted"]
   end
 
   test "TakeNap runs" do
@@ -471,6 +701,13 @@ Hecks.behaviors "Mind" do
     setup  "EnterDaydream"
     setup  "EnterSleep"
     expect state: "waking"
+  end
+
+  test "WakeUp cascades through policy chain" do
+    tests "WakeUp", on: "Consciousness", kind: :cascade
+    setup  "EnterDaydream"
+    setup  "EnterSleep"
+    expect emits: ["WokenUp", "FatigueDissipated", "MonitoringStopped"]
   end
 
   test "BecomeAttentive runs" do
@@ -506,12 +743,31 @@ Hecks.behaviors "Mind" do
     expect rem_intensity: 1, stage: "rem"
   end
 
+  test "AdvanceStage cascades through policy chain" do
+    tests "AdvanceStage", on: "SleepCycle", kind: :cascade
+    setup  "StartCycle", cycle_number: 1, total_cycles: 1
+    input  stage: "sample", rem_intensity: 1
+    expect emits: ["StageAdvanced", "BecameLucid", "LucidMonitorStarted"]
+  end
+
+  test "CompleteCycle runs" do
+    tests "CompleteCycle", on: "SleepCycle"
+    setup  "StartCycle", cycle_number: 1, total_cycles: 1
+    setup  "AdvanceStage", stage: "sample", rem_intensity: 1
+    expect stage: "light"
+  end
+
 
   # ── Night aggregate ──────────────────────────────────────────
 
   test "StartNight runs" do
     tests "StartNight", on: "Night"
     expect cycles_completed: 0, dream_pulses: 0, consolidated: 0
+  end
+
+  test "StartNight cascades through policy chain" do
+    tests "StartNight", on: "Night", kind: :cascade
+    expect emits: ["NightStarted", "DreamSeeded"]
   end
 
   test "AccumulateDream sets dream_images + recombinations + dream_pulses" do
@@ -533,6 +789,13 @@ Hecks.behaviors "Mind" do
     setup  "StartNight"
     input  duration_seconds: 1, woke_from: "sample"
     expect duration_seconds: 1, woke_from: "sample"
+  end
+
+  test "EndNight cascades through policy chain" do
+    tests "EndNight", on: "Night", kind: :cascade
+    setup  "StartNight"
+    input  duration_seconds: 1, woke_from: "sample"
+    expect emits: ["NightEnded", "WakeMoodSet", "ExperienceInterpreted", "ActionProposed"]
   end
 
 
@@ -583,6 +846,11 @@ Hecks.behaviors "Mind" do
     expect active: "yes"
   end
 
+  test "BecomeLucid cascades through policy chain" do
+    tests "BecomeLucid", on: "LucidDream", kind: :cascade
+    expect emits: ["BecameLucid", "LucidMonitorStarted"]
+  end
+
   test "ObserveDream sets observation" do
     tests "ObserveDream", on: "LucidDream"
     setup  "BecomeLucid"
@@ -601,6 +869,12 @@ Hecks.behaviors "Mind" do
     tests "EndLucidity", on: "LucidDream"
     setup  "BecomeLucid"
     expect active: "no"
+  end
+
+  test "EndLucidity cascades through policy chain" do
+    tests "EndLucidity", on: "LucidDream", kind: :cascade
+    setup  "BecomeLucid"
+    expect emits: ["LucidityEnded", "LucidMonitorStopped"]
   end
 
 
@@ -637,7 +911,13 @@ Hecks.behaviors "Mind" do
   test "CompleteProcess runs" do
     tests "CompleteProcess", on: "Process"
     setup  "SpawnProcess", task: "sample", intent: "sample", heki_target: "sample"
-    expect status: "absorbed"
+    expect status: "completed"
+  end
+
+  test "CompleteProcess cascades through policy chain" do
+    tests "CompleteProcess", on: "Process", kind: :cascade
+    setup  "SpawnProcess", task: "sample", intent: "sample", heki_target: "sample"
+    expect emits: ["ProcessCompleted", "FindingsAbsorbed"]
   end
 
   test "FailProcess sets reason" do
@@ -645,6 +925,13 @@ Hecks.behaviors "Mind" do
     setup  "SpawnProcess", task: "sample", intent: "sample", heki_target: "sample"
     input  reason: "sample"
     expect status: "failed"
+  end
+
+  test "AbsorbFindings runs" do
+    tests "AbsorbFindings", on: "Process"
+    setup  "SpawnProcess", task: "sample", intent: "sample", heki_target: "sample"
+    setup  "CompleteProcess"
+    expect status: "absorbed"
   end
 
 
@@ -663,6 +950,12 @@ Hecks.behaviors "Mind" do
     tests "InterpretExperience", on: "Interpretation"
     input  source: "sample", raw_material: "sample", insight: "sample"
     expect source: "sample", raw_material: "sample", insight: "sample"
+  end
+
+  test "InterpretExperience cascades through policy chain" do
+    tests "InterpretExperience", on: "Interpretation", kind: :cascade
+    input  source: "sample", raw_material: "sample", insight: "sample"
+    expect emits: ["ExperienceInterpreted", "ActionProposed"]
   end
 
 
@@ -699,6 +992,12 @@ Hecks.behaviors "Mind" do
     tests "AddMember", on: "Member"
     input  name: "sample", vision: "sample", path: "sample", kind: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, version: "sample"
     expect name: "sample", vision: "sample", path: "sample", kind: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, version: "sample", status: "active"
+  end
+
+  test "AddMember cascades through policy chain" do
+    tests "AddMember", on: "Member", kind: :cascade
+    input  name: "sample", vision: "sample", path: "sample", kind: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, version: "sample"
+    expect emits: ["MemberAdded", "AdditionRecorded", "LinkedToBody"]
   end
 
   test "UpdateMember sets version + aggregate_count + command_count + fixture_count" do

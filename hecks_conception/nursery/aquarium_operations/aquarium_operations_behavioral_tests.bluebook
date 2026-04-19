@@ -9,9 +9,45 @@ Hecks.behaviors "AquariumOperations" do
     expect status: "cycling", current_species_count: 0
   end
 
+  test "SetupTank cascades through policy chain" do
+    tests "SetupTank", on: "Tank", kind: :cascade
+    input  tank_id: "sample", name: "sample", water_type: "sample", volume_gallons: 1.0, max_species: 1
+    expect emits: ["TankSetup", "WaterCycleTested", "TankActivated"]
+  end
+
   test "TestWaterCycle runs" do
     tests "TestWaterCycle", on: "Tank"
     setup  "SetupTank", tank_id: "sample", name: "sample", water_type: "sample", volume_gallons: 1.0, max_species: 1
+    expect status: "tested"
+  end
+
+  test "TestWaterCycle cascades through policy chain" do
+    tests "TestWaterCycle", on: "Tank", kind: :cascade
+    setup  "SetupTank", tank_id: "sample", name: "sample", water_type: "sample", volume_gallons: 1.0, max_species: 1
+    expect emits: ["WaterCycleTested", "TankActivated"]
+  end
+
+  test "ActivateTank runs" do
+    tests "ActivateTank", on: "Tank"
+    setup  "SetupTank", tank_id: "sample", name: "sample", water_type: "sample", volume_gallons: 1.0, max_species: 1
+    setup  "TestWaterCycle"
+    expect status: "active"
+  end
+
+  test "QuarantineTank runs" do
+    tests "QuarantineTank", on: "Tank"
+    setup  "SetupTank", tank_id: "sample", name: "sample", water_type: "sample", volume_gallons: 1.0, max_species: 1
+    setup  "TestWaterCycle"
+    setup  "ActivateTank"
+    expect status: "quarantined"
+  end
+
+  test "ClearTankQuarantine runs" do
+    tests "ClearTankQuarantine", on: "Tank"
+    setup  "SetupTank", tank_id: "sample", name: "sample", water_type: "sample", volume_gallons: 1.0, max_species: 1
+    setup  "TestWaterCycle"
+    setup  "ActivateTank"
+    setup  "QuarantineTank"
     expect status: "active"
   end
 
@@ -20,6 +56,13 @@ Hecks.behaviors "AquariumOperations" do
     setup  "SetupTank", tank_id: "sample", name: "sample", water_type: "sample", volume_gallons: 1.0, max_species: 1
     input  reason: "sample"
     expect status: "drained"
+  end
+
+  test "DrainTank cascades through policy chain" do
+    tests "DrainTank", on: "Tank", kind: :cascade
+    setup  "SetupTank", tank_id: "sample", name: "sample", water_type: "sample", volume_gallons: 1.0, max_species: 1
+    input  reason: "sample"
+    expect emits: ["TankDrained", "ExhibitClosed"]
   end
 
 
@@ -32,8 +75,28 @@ Hecks.behaviors "AquariumOperations" do
     expect ok: "true"
   end
 
+  test "IntroduceSpecies cascades through policy chain" do
+    tests "IntroduceSpecies", on: "Species", kind: :cascade
+    setup  "SetupTank", tank_id: "sample", name: "sample", water_type: "sample", volume_gallons: 1.0, max_species: 1
+    input  common_name: "sample", scientific_name: "sample", water_type_requirement: "sample", min_temperature_f: 1.0, max_temperature_f: 1.0, population_count: 1
+    expect emits: ["SpeciesIntroduced", "SpeciesAcclimating", "SpeciesReleased"]
+  end
+
   test "AcclimateSpecies runs" do
     tests "AcclimateSpecies", on: "Species"
+    setup  "IntroduceSpecies", common_name: "sample", scientific_name: "sample", water_type_requirement: "sample", min_temperature_f: 1.0, max_temperature_f: 1.0, population_count: 1
+    expect ok: "true"
+  end
+
+  test "AcclimateSpecies cascades through policy chain" do
+    tests "AcclimateSpecies", on: "Species", kind: :cascade
+    setup  "IntroduceSpecies", common_name: "sample", scientific_name: "sample", water_type_requirement: "sample", min_temperature_f: 1.0, max_temperature_f: 1.0, population_count: 1
+    expect emits: ["SpeciesAcclimating", "SpeciesReleased"]
+  end
+
+  test "ReleaseIntoTank runs" do
+    tests "ReleaseIntoTank", on: "Species"
+    setup  "SetupTank", tank_id: "sample", name: "sample", water_type: "sample", volume_gallons: 1.0, max_species: 1
     setup  "IntroduceSpecies", common_name: "sample", scientific_name: "sample", water_type_requirement: "sample", min_temperature_f: 1.0, max_temperature_f: 1.0, population_count: 1
     expect ok: "true"
   end
@@ -73,6 +136,13 @@ Hecks.behaviors "AquariumOperations" do
     setup  "RecordReading", temperature_f: 1.0, ph: 1.0, ammonia_ppm: 1.0, nitrate_ppm: 1.0, salinity_ppt: 1.0
     input  parameter: "sample"
     expect status: "flagged"
+  end
+
+  test "FlagAnomaly cascades through policy chain" do
+    tests "FlagAnomaly", on: "WaterQualityReading", kind: :cascade
+    setup  "RecordReading", temperature_f: 1.0, ph: 1.0, ammonia_ppm: 1.0, nitrate_ppm: 1.0, salinity_ppt: 1.0
+    input  parameter: "sample"
+    expect emits: ["AnomalyFlagged", "TankQuarantined", "SpeciesRelocated"]
   end
 
 

@@ -9,10 +9,22 @@ Hecks.behaviors "PavingCompany" do
     expect status: "estimated"
   end
 
+  test "SurveyJobSite cascades through policy chain" do
+    tests "SurveyJobSite", on: "PavingProject", kind: :cascade
+    input  client_name: "sample", location: "sample", project_type: "sample", area_sqft: 1.0, thickness_inches: 1.0
+    expect emits: ["JobSiteSurveyed", "WeatherEvaluated"]
+  end
+
   test "AwardContract runs" do
     tests "AwardContract", on: "PavingProject"
     setup  "SurveyJobSite", client_name: "sample", location: "sample", project_type: "sample", area_sqft: 1.0, thickness_inches: 1.0
     expect ok: "true"
+  end
+
+  test "AwardContract cascades through policy chain" do
+    tests "AwardContract", on: "PavingProject", kind: :cascade
+    setup  "SurveyJobSite", client_name: "sample", location: "sample", project_type: "sample", area_sqft: 1.0, thickness_inches: 1.0
+    expect emits: ["ContractAwarded", "MixDesigned", "MixOrdered", "EquipmentMobilized", "CoreTaken", "CureTimeRecorded", "ProjectClosed"]
   end
 
   test "CloseProject runs" do
@@ -31,11 +43,25 @@ Hecks.behaviors "PavingCompany" do
     expect ok: "true"
   end
 
+  test "DesignMix cascades through policy chain" do
+    tests "DesignMix", on: "AsphaltMix", kind: :cascade
+    setup  "SurveyJobSite", client_name: "sample", location: "sample", project_type: "sample", area_sqft: 1.0, thickness_inches: 1.0
+    input  mix_designation: "sample", binder_grade: "sample", target_temp_f: 1.0
+    expect emits: ["MixDesigned", "MixOrdered", "EquipmentMobilized", "CoreTaken", "CureTimeRecorded", "ProjectClosed"]
+  end
+
   test "OrderFromPlant sets tons_needed" do
     tests "OrderFromPlant", on: "AsphaltMix"
     setup  "DesignMix", mix_designation: "sample", binder_grade: "sample", target_temp_f: 1.0
     input  tons_needed: 1.0
     expect ok: "true"
+  end
+
+  test "OrderFromPlant cascades through policy chain" do
+    tests "OrderFromPlant", on: "AsphaltMix", kind: :cascade
+    setup  "DesignMix", mix_designation: "sample", binder_grade: "sample", target_temp_f: 1.0
+    input  tons_needed: 1.0
+    expect emits: ["MixOrdered", "EquipmentMobilized", "CoreTaken", "CureTimeRecorded", "ProjectClosed"]
   end
 
 
@@ -46,6 +72,13 @@ Hecks.behaviors "PavingCompany" do
     setup  "SurveyJobSite", client_name: "sample", location: "sample", project_type: "sample", area_sqft: 1.0, thickness_inches: 1.0
     input  equipment_type: "sample", make: "sample", model: "sample"
     expect ok: "true"
+  end
+
+  test "MobilizeEquipment cascades through policy chain" do
+    tests "MobilizeEquipment", on: "PavingEquipment", kind: :cascade
+    setup  "SurveyJobSite", client_name: "sample", location: "sample", project_type: "sample", area_sqft: 1.0, thickness_inches: 1.0
+    input  equipment_type: "sample", make: "sample", model: "sample"
+    expect emits: ["EquipmentMobilized", "CoreTaken", "CureTimeRecorded", "ProjectClosed"]
   end
 
   test "LogMaintenance sets maintenance_type" do
@@ -75,11 +108,25 @@ Hecks.behaviors "PavingCompany" do
     expect ok: "true"
   end
 
+  test "TakeCore cascades through policy chain" do
+    tests "TakeCore", on: "CuringRecord", kind: :cascade
+    setup  "SurveyJobSite", client_name: "sample", location: "sample", project_type: "sample", area_sqft: 1.0, thickness_inches: 1.0
+    input  core_density: 1.0, air_voids_pct: 1.0
+    expect emits: ["CoreTaken", "CureTimeRecorded", "ProjectClosed"]
+  end
+
   test "RecordCureTime sets cure_hours" do
     tests "RecordCureTime", on: "CuringRecord"
     setup  "TakeCore", core_density: 1.0, air_voids_pct: 1.0
     input  cure_hours: 1
     expect ok: "true"
+  end
+
+  test "RecordCureTime cascades through policy chain" do
+    tests "RecordCureTime", on: "CuringRecord", kind: :cascade
+    setup  "TakeCore", core_density: 1.0, air_voids_pct: 1.0
+    input  cure_hours: 1
+    expect emits: ["CureTimeRecorded", "ProjectClosed"]
   end
 
 end

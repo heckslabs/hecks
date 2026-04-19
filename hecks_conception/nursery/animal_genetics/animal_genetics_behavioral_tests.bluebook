@@ -15,11 +15,24 @@ Hecks.behaviors "AnimalGenetics" do
     expect status: "testing"
   end
 
+  test "OrderDNATest cascades through policy chain" do
+    tests "OrderDNATest", on: "AnimalProfile", kind: :cascade
+    setup  "IntakeAnimal", name: "sample", species: "sample", primary_breed: "sample", age_years: 1.0, temperament: "sample"
+    expect emits: ["DNATestOrdered", "DNASampleProcessed", "BreedsIdentified", "ConditionsScreened", "PreventionRecommended", "AnimalAvailable", "MatchGenerated"]
+  end
+
   test "MakeAvailable runs" do
     tests "MakeAvailable", on: "AnimalProfile"
     setup  "IntakeAnimal", name: "sample", species: "sample", primary_breed: "sample", age_years: 1.0, temperament: "sample"
     setup  "OrderDNATest"
     expect status: "available"
+  end
+
+  test "MakeAvailable cascades through policy chain" do
+    tests "MakeAvailable", on: "AnimalProfile", kind: :cascade
+    setup  "IntakeAnimal", name: "sample", species: "sample", primary_breed: "sample", age_years: 1.0, temperament: "sample"
+    setup  "OrderDNATest"
+    expect emits: ["AnimalAvailable", "MatchGenerated"]
   end
 
   test "AdoptAnimal runs" do
@@ -39,11 +52,24 @@ Hecks.behaviors "AnimalGenetics" do
     expect animal_name: "sample", sample_id: "sample", status: "processed"
   end
 
+  test "ProcessDNASample cascades through policy chain" do
+    tests "ProcessDNASample", on: "DNAProfile", kind: :cascade
+    input  animal_name: "sample", sample_id: "sample"
+    expect emits: ["DNASampleProcessed", "BreedsIdentified", "ConditionsScreened", "PreventionRecommended", "AnimalAvailable", "MatchGenerated"]
+  end
+
   test "IdentifyBreeds sets primary_breed_result + secondary_breed_result + breed_confidence_pct" do
     tests "IdentifyBreeds", on: "DNAProfile"
     setup  "ProcessDNASample", animal_name: "sample", sample_id: "sample"
     input  primary_breed_result: "sample", secondary_breed_result: "sample", breed_confidence_pct: 1.0
     expect primary_breed_result: "sample", secondary_breed_result: "sample", breed_confidence_pct: 1.0, status: "identified"
+  end
+
+  test "IdentifyBreeds cascades through policy chain" do
+    tests "IdentifyBreeds", on: "DNAProfile", kind: :cascade
+    setup  "ProcessDNASample", animal_name: "sample", sample_id: "sample"
+    input  primary_breed_result: "sample", secondary_breed_result: "sample", breed_confidence_pct: 1.0
+    expect emits: ["BreedsIdentified", "ConditionsScreened", "PreventionRecommended", "AnimalAvailable", "MatchGenerated"]
   end
 
 
@@ -55,11 +81,24 @@ Hecks.behaviors "AnimalGenetics" do
     expect animal_name: "sample", condition_name: "sample", risk_probability: 1.0, severity: "sample", status: "screened"
   end
 
+  test "ScreenForConditions cascades through policy chain" do
+    tests "ScreenForConditions", on: "HealthPredisposition", kind: :cascade
+    input  animal_name: "sample", condition_name: "sample", risk_probability: 1.0, severity: "sample"
+    expect emits: ["ConditionsScreened", "PreventionRecommended", "AnimalAvailable", "MatchGenerated"]
+  end
+
   test "RecommendPrevention sets preventive_action" do
     tests "RecommendPrevention", on: "HealthPredisposition"
     setup  "ScreenForConditions", animal_name: "sample", condition_name: "sample", risk_probability: 1.0, severity: "sample"
     input  preventive_action: "sample"
     expect preventive_action: "sample", status: "recommended"
+  end
+
+  test "RecommendPrevention cascades through policy chain" do
+    tests "RecommendPrevention", on: "HealthPredisposition", kind: :cascade
+    setup  "ScreenForConditions", animal_name: "sample", condition_name: "sample", risk_probability: 1.0, severity: "sample"
+    input  preventive_action: "sample"
+    expect emits: ["PreventionRecommended", "AnimalAvailable", "MatchGenerated"]
   end
 
 

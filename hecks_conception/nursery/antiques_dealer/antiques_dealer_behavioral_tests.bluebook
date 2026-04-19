@@ -9,16 +9,34 @@ Hecks.behaviors "AntiquesDealer" do
     expect piece_id: "sample", name: "sample", period: "sample", category: "sample", material: "sample", condition: "sample", asking_price: 1.0, status: "in_stock"
   end
 
+  test "AcquirePiece cascades through policy chain" do
+    tests "AcquirePiece", on: "AntiquePiece", kind: :cascade
+    input  piece_id: "sample", name: "sample", period: "sample", category: "sample", material: "sample", condition: "sample", asking_price: 1.0
+    expect emits: ["PieceAcquired", "PieceAuthenticated", "AppraisalPerformed", "ConsignmentAccepted"]
+  end
+
   test "SellPiece runs" do
     tests "SellPiece", on: "AntiquePiece"
     setup  "AcquirePiece", piece_id: "sample", name: "sample", period: "sample", category: "sample", material: "sample", condition: "sample", asking_price: 1.0
     expect status: "sold"
   end
 
+  test "SellPiece cascades through policy chain" do
+    tests "SellPiece", on: "AntiquePiece", kind: :cascade
+    setup  "AcquirePiece", piece_id: "sample", name: "sample", period: "sample", category: "sample", material: "sample", condition: "sample", asking_price: 1.0
+    expect emits: ["PieceSold", "ConsignmentSettled"]
+  end
+
   test "AuthenticatePiece runs" do
     tests "AuthenticatePiece", on: "AntiquePiece"
     setup  "AcquirePiece", piece_id: "sample", name: "sample", period: "sample", category: "sample", material: "sample", condition: "sample", asking_price: 1.0
     expect ok: "true"
+  end
+
+  test "AuthenticatePiece cascades through policy chain" do
+    tests "AuthenticatePiece", on: "AntiquePiece", kind: :cascade
+    setup  "AcquirePiece", piece_id: "sample", name: "sample", period: "sample", category: "sample", material: "sample", condition: "sample", asking_price: 1.0
+    expect emits: ["PieceAuthenticated", "AppraisalPerformed", "ConsignmentAccepted"]
   end
 
 
@@ -30,10 +48,22 @@ Hecks.behaviors "AntiquesDealer" do
     expect appraisal_id: "sample", piece_id: "sample", appraiser_name: "sample", estimated_value: 1.0, appraisal_date: "sample", purpose: "sample"
   end
 
+  test "PerformAppraisal cascades through policy chain" do
+    tests "PerformAppraisal", on: "Appraisal", kind: :cascade
+    input  appraisal_id: "sample", piece_id: "sample", appraiser_name: "sample", estimated_value: 1.0, appraisal_date: "sample", purpose: "sample"
+    expect emits: ["AppraisalPerformed", "ConsignmentAccepted", "PieceAuthenticated"]
+  end
+
   test "ContestAppraisal runs" do
     tests "ContestAppraisal", on: "Appraisal"
     setup  "PerformAppraisal", appraisal_id: "sample", piece_id: "sample", appraiser_name: "sample", estimated_value: 1.0, appraisal_date: "sample", purpose: "sample"
     expect ok: "true"
+  end
+
+  test "ContestAppraisal cascades through policy chain" do
+    tests "ContestAppraisal", on: "Appraisal", kind: :cascade
+    setup  "PerformAppraisal", appraisal_id: "sample", piece_id: "sample", appraiser_name: "sample", estimated_value: 1.0, appraisal_date: "sample", purpose: "sample"
+    expect emits: ["AppraisalContested", "RestorationOrdered"]
   end
 
 
@@ -43,6 +73,12 @@ Hecks.behaviors "AntiquesDealer" do
     tests "AcceptConsignment", on: "Consignment"
     input  consignment_id: "sample", piece_id: "sample", consignor_name: "sample", agreed_commission: 1.0, start_date: "sample", end_date: "sample"
     expect consignment_id: "sample", piece_id: "sample", consignor_name: "sample", agreed_commission: 1.0, start_date: "sample", end_date: "sample", status: "active"
+  end
+
+  test "AcceptConsignment cascades through policy chain" do
+    tests "AcceptConsignment", on: "Consignment", kind: :cascade
+    input  consignment_id: "sample", piece_id: "sample", consignor_name: "sample", agreed_commission: 1.0, start_date: "sample", end_date: "sample"
+    expect emits: ["ConsignmentAccepted", "PieceAuthenticated", "AppraisalPerformed"]
   end
 
   test "ReturnConsignment runs" do
@@ -70,6 +106,12 @@ Hecks.behaviors "AntiquesDealer" do
     tests "CompleteRestoration", on: "Restoration"
     setup  "OrderRestoration", restoration_id: "sample", piece_id: "sample", restorer_name: "sample", work_description: "sample", cost: 1.0
     expect status: "completed"
+  end
+
+  test "CompleteRestoration cascades through policy chain" do
+    tests "CompleteRestoration", on: "Restoration", kind: :cascade
+    setup  "OrderRestoration", restoration_id: "sample", piece_id: "sample", restorer_name: "sample", work_description: "sample", cost: 1.0
+    expect emits: ["RestorationCompleted", "AppraisalPerformed", "ConsignmentAccepted", "PieceAuthenticated"]
   end
 
 end

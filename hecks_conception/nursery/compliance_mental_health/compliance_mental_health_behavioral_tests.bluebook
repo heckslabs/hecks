@@ -22,6 +22,12 @@ Hecks.behaviors "ComplianceMentalHealth" do
     expect status: "discharged"
   end
 
+  test "DischargePatient cascades through policy chain" do
+    tests "DischargePatient", on: "Patient", kind: :cascade
+    setup  "RegisterPatient", mrn: "sample", full_name: "sample"
+    expect emits: ["PatientDischarged", "TreatmentPlanReviewed"]
+  end
+
 
   # ── TreatmentPlan aggregate ──────────────────────────────────────────
 
@@ -30,6 +36,13 @@ Hecks.behaviors "ComplianceMentalHealth" do
     setup  "RegisterPatient", mrn: "sample", full_name: "sample"
     input  diagnosis_code: "sample", primary_goal: "sample"
     expect diagnosis_code: "sample", primary_goal: "sample", status: "draft"
+  end
+
+  test "DraftTreatmentPlan cascades through policy chain" do
+    tests "DraftTreatmentPlan", on: "TreatmentPlan", kind: :cascade
+    setup  "RegisterPatient", mrn: "sample", full_name: "sample"
+    input  diagnosis_code: "sample", primary_goal: "sample"
+    expect emits: ["TreatmentPlanCreated", "TreatmentPlanApproved"]
   end
 
   test "ApproveTreatmentPlan runs" do
@@ -56,11 +69,25 @@ Hecks.behaviors "ComplianceMentalHealth" do
     expect content_summary: "sample", clinician_name: "sample", status: "pending_cosign"
   end
 
+  test "RecordSessionNote cascades through policy chain" do
+    tests "RecordSessionNote", on: "SessionNote", kind: :cascade
+    setup  "RegisterPatient", mrn: "sample", full_name: "sample"
+    input  content_summary: "sample", clinician_name: "sample"
+    expect emits: ["SessionNoteRecorded", "SessionNoteCosigned", "ClaimSubmitted"]
+  end
+
   test "CosignSessionNote sets cosigner_name" do
     tests "CosignSessionNote", on: "SessionNote"
     setup  "RecordSessionNote", content_summary: "sample", clinician_name: "sample"
     input  cosigner_name: "sample"
     expect status: "finalized"
+  end
+
+  test "CosignSessionNote cascades through policy chain" do
+    tests "CosignSessionNote", on: "SessionNote", kind: :cascade
+    setup  "RecordSessionNote", content_summary: "sample", clinician_name: "sample"
+    input  cosigner_name: "sample"
+    expect emits: ["SessionNoteCosigned", "ClaimSubmitted"]
   end
 
   test "AmendSessionNote sets amendment_text" do
@@ -69,6 +96,14 @@ Hecks.behaviors "ComplianceMentalHealth" do
     setup  "CosignSessionNote", cosigner_name: "sample"
     input  amendment_text: "sample"
     expect ok: "true"
+  end
+
+  test "AmendSessionNote cascades through policy chain" do
+    tests "AmendSessionNote", on: "SessionNote", kind: :cascade
+    setup  "RecordSessionNote", content_summary: "sample", clinician_name: "sample"
+    setup  "CosignSessionNote", cosigner_name: "sample"
+    input  amendment_text: "sample"
+    expect emits: ["SessionNoteAmended", "RiskLevelElevated"]
   end
 
 

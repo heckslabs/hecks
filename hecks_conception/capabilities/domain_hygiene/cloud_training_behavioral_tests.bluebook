@@ -15,6 +15,13 @@ Hecks.behaviors "CloudTraining" do
     expect running: true
   end
 
+  test "SubmitJob cascades through policy chain" do
+    tests "SubmitJob", on: "TrainingJob", kind: :cascade
+    setup  "LinkUploadedData"
+    input  provider: "sample", gpu_type: "sample", base_model: "sample", iterations: 1, learning_rate: 1.0
+    expect emits: ["JobSubmitted", "JobMonitored"]
+  end
+
   test "MonitorJob runs" do
     tests "MonitorJob", on: "TrainingJob"
     setup  "LinkUploadedData"
@@ -26,6 +33,13 @@ Hecks.behaviors "CloudTraining" do
     setup  "LinkUploadedData"
     setup  "MonitorJob"
     expect running: false
+  end
+
+  test "CompleteJob cascades through policy chain" do
+    tests "CompleteJob", on: "TrainingJob", kind: :cascade
+    setup  "LinkUploadedData"
+    setup  "MonitorJob"
+    expect emits: ["JobCompleted", "AdapterDownloaded", "AdapterConverted", "SummerDeployed", "CostRecorded"]
   end
 
   test "CancelJob runs" do
@@ -51,11 +65,25 @@ Hecks.behaviors "CloudTraining" do
     expect ok: "true"
   end
 
+  test "StageData cascades through policy chain" do
+    tests "StageData", on: "DataUpload", kind: :cascade
+    setup  "ValidateJsonl", local_path: "sample"
+    input  local_path: "sample"
+    expect emits: ["DataStaged", "DataUploaded", "JobSubmitted", "JobMonitored", "BudgetChecked"]
+  end
+
   test "UploadData sets remote_path" do
     tests "UploadData", on: "DataUpload"
     setup  "ValidateJsonl", local_path: "sample"
     input  remote_path: "sample"
     expect ok: "true"
+  end
+
+  test "UploadData cascades through policy chain" do
+    tests "UploadData", on: "DataUpload", kind: :cascade
+    setup  "ValidateJsonl", local_path: "sample"
+    input  remote_path: "sample"
+    expect emits: ["DataUploaded", "JobSubmitted", "JobMonitored"]
   end
 
 
@@ -67,11 +95,31 @@ Hecks.behaviors "CloudTraining" do
     expect ok: "true"
   end
 
+  test "DownloadAdapter cascades through policy chain" do
+    tests "DownloadAdapter", on: "AdapterDownload", kind: :cascade
+    input  remote_path: "sample", local_path: "sample"
+    expect emits: ["AdapterDownloaded", "AdapterConverted", "SummerDeployed"]
+  end
+
   test "ConvertToOllama sets ollama_model_name" do
     tests "ConvertToOllama", on: "AdapterDownload"
     setup  "DownloadAdapter", remote_path: "sample", local_path: "sample"
     input  ollama_model_name: "sample"
     expect adapter_converted: true
+  end
+
+  test "ConvertToOllama cascades through policy chain" do
+    tests "ConvertToOllama", on: "AdapterDownload", kind: :cascade
+    setup  "DownloadAdapter", remote_path: "sample", local_path: "sample"
+    input  ollama_model_name: "sample"
+    expect emits: ["AdapterConverted", "SummerDeployed"]
+  end
+
+  test "DeploySummer runs" do
+    tests "DeploySummer", on: "AdapterDownload"
+    setup  "DownloadAdapter", remote_path: "sample", local_path: "sample"
+    setup  "ConvertToOllama", ollama_model_name: "sample"
+    expect ok: "true"
   end
 
 

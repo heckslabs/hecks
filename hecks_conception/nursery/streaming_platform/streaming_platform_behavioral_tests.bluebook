@@ -9,10 +9,22 @@ Hecks.behaviors "StreamingPlatform" do
     expect status: "processed"
   end
 
+  test "IngestContent cascades through policy chain" do
+    tests "IngestContent", on: "Content", kind: :cascade
+    input  content_id: "sample", title: "sample", genre: "sample", duration_seconds: 1, content_rating: "sample"
+    expect emits: ["ContentIngested", "ContentPublished", "ContentAddedToChannel", "RecommendationGenerated"]
+  end
+
   test "PublishContent runs" do
     tests "PublishContent", on: "Content"
     setup  "IngestContent", content_id: "sample", title: "sample", genre: "sample", duration_seconds: 1, content_rating: "sample"
     expect ok: "true"
+  end
+
+  test "PublishContent cascades through policy chain" do
+    tests "PublishContent", on: "Content", kind: :cascade
+    setup  "IngestContent", content_id: "sample", title: "sample", genre: "sample", duration_seconds: 1, content_rating: "sample"
+    expect emits: ["ContentPublished", "ContentAddedToChannel", "RecommendationGenerated"]
   end
 
   test "ArchiveContent runs" do
@@ -43,6 +55,12 @@ Hecks.behaviors "StreamingPlatform" do
     expect ok: "true"
   end
 
+  test "DeactivateChannel cascades through policy chain" do
+    tests "DeactivateChannel", on: "Channel", kind: :cascade
+    setup  "CurateChannel", channel_name: "sample", description: "sample", curator: "sample", category: "sample"
+    expect emits: ["ChannelDeactivated", "ContentArchived"]
+  end
+
 
   # ── Subscriber aggregate ──────────────────────────────────────────
 
@@ -50,6 +68,12 @@ Hecks.behaviors "StreamingPlatform" do
     tests "EnrollSubscriber", on: "Subscriber"
     input  subscriber_id: "sample", email: "sample", plan: "sample", payment_method: "sample"
     expect status: "active"
+  end
+
+  test "EnrollSubscriber cascades through policy chain" do
+    tests "EnrollSubscriber", on: "Subscriber", kind: :cascade
+    input  subscriber_id: "sample", email: "sample", plan: "sample", payment_method: "sample"
+    expect emits: ["SubscriberEnrolled", "RecommendationGenerated"]
   end
 
   test "UpgradePlan sets plan" do
@@ -88,6 +112,12 @@ Hecks.behaviors "StreamingPlatform" do
     expect ok: "true"
   end
 
+  test "ConvertRecommendation cascades through policy chain" do
+    tests "ConvertRecommendation", on: "Recommendation", kind: :cascade
+    setup  "GenerateRecommendation", recommendation_id: "sample", algorithm: "sample", relevance_score: 1.0, reason: "sample"
+    expect emits: ["RecommendationConverted", "SnapshotCaptured", "ReportPublished", "PlanUpgraded"]
+  end
+
 
   # ── AnalyticsSnapshot aggregate ──────────────────────────────────────────
 
@@ -95,6 +125,12 @@ Hecks.behaviors "StreamingPlatform" do
     tests "CaptureSnapshot", on: "AnalyticsSnapshot"
     input  snapshot_id: "sample", period: "sample", total_streams: 1, unique_viewers: 1, avg_watch_minutes: 1.0
     expect status: "captured"
+  end
+
+  test "CaptureSnapshot cascades through policy chain" do
+    tests "CaptureSnapshot", on: "AnalyticsSnapshot", kind: :cascade
+    input  snapshot_id: "sample", period: "sample", total_streams: 1, unique_viewers: 1, avg_watch_minutes: 1.0
+    expect emits: ["SnapshotCaptured", "ReportPublished"]
   end
 
   test "PublishReport runs" do

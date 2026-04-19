@@ -9,10 +9,22 @@ Hecks.behaviors "GlassInstaller" do
     expect customer_name: "sample", glass_type: "sample", application: "sample", quantity: 1, status: "measured"
   end
 
+  test "PlaceOrder cascades through policy chain" do
+    tests "PlaceOrder", on: "GlassOrder", kind: :cascade
+    input  customer_name: "sample", glass_type: "sample", application: "sample", quantity: 1
+    expect emits: ["OrderPlaced", "MeasurementsTaken", "MeasurementsVerified", "OrderConfirmed", "InstallScheduled", "InstallCompleted", "WarrantyIssued"]
+  end
+
   test "ConfirmOrder runs" do
     tests "ConfirmOrder", on: "GlassOrder"
     setup  "PlaceOrder", customer_name: "sample", glass_type: "sample", application: "sample", quantity: 1
     expect ok: "true"
+  end
+
+  test "ConfirmOrder cascades through policy chain" do
+    tests "ConfirmOrder", on: "GlassOrder", kind: :cascade
+    setup  "PlaceOrder", customer_name: "sample", glass_type: "sample", application: "sample", quantity: 1
+    expect emits: ["OrderConfirmed", "InstallScheduled", "InstallCompleted", "WarrantyIssued"]
   end
 
   test "CancelOrder runs" do
@@ -31,10 +43,23 @@ Hecks.behaviors "GlassInstaller" do
     expect ok: "true"
   end
 
+  test "TakeMeasurements cascades through policy chain" do
+    tests "TakeMeasurements", on: "FieldMeasurement", kind: :cascade
+    setup  "PlaceOrder", customer_name: "sample", glass_type: "sample", application: "sample", quantity: 1
+    input  width_inches: 1.0, height_inches: 1.0, depth_inches: 1.0, opening_type: "sample"
+    expect emits: ["MeasurementsTaken", "MeasurementsVerified", "OrderConfirmed", "InstallScheduled", "InstallCompleted", "WarrantyIssued"]
+  end
+
   test "VerifyMeasurements runs" do
     tests "VerifyMeasurements", on: "FieldMeasurement"
     setup  "TakeMeasurements", width_inches: 1.0, height_inches: 1.0, depth_inches: 1.0, opening_type: "sample"
     expect ok: "true"
+  end
+
+  test "VerifyMeasurements cascades through policy chain" do
+    tests "VerifyMeasurements", on: "FieldMeasurement", kind: :cascade
+    setup  "TakeMeasurements", width_inches: 1.0, height_inches: 1.0, depth_inches: 1.0, opening_type: "sample"
+    expect emits: ["MeasurementsVerified", "OrderConfirmed", "InstallScheduled", "InstallCompleted", "WarrantyIssued"]
   end
 
 
@@ -47,6 +72,13 @@ Hecks.behaviors "GlassInstaller" do
     expect ok: "true"
   end
 
+  test "ScheduleInstall cascades through policy chain" do
+    tests "ScheduleInstall", on: "Installation", kind: :cascade
+    setup  "PlaceOrder", customer_name: "sample", glass_type: "sample", application: "sample", quantity: 1
+    input  installer_name: "sample", install_date: "sample"
+    expect emits: ["InstallScheduled", "InstallCompleted", "WarrantyIssued"]
+  end
+
   test "CompleteInstall sets sealant_type" do
     tests "CompleteInstall", on: "Installation"
     setup  "ScheduleInstall", installer_name: "sample", install_date: "sample"
@@ -54,11 +86,25 @@ Hecks.behaviors "GlassInstaller" do
     expect ok: "true"
   end
 
+  test "CompleteInstall cascades through policy chain" do
+    tests "CompleteInstall", on: "Installation", kind: :cascade
+    setup  "ScheduleInstall", installer_name: "sample", install_date: "sample"
+    input  sealant_type: "sample"
+    expect emits: ["InstallCompleted", "WarrantyIssued"]
+  end
+
   test "ReportBreakage sets breakage_cause" do
     tests "ReportBreakage", on: "Installation"
     setup  "ScheduleInstall", installer_name: "sample", install_date: "sample"
     input  breakage_cause: "sample"
     expect ok: "true"
+  end
+
+  test "ReportBreakage cascades through policy chain" do
+    tests "ReportBreakage", on: "Installation", kind: :cascade
+    setup  "ScheduleInstall", installer_name: "sample", install_date: "sample"
+    input  breakage_cause: "sample"
+    expect emits: ["BreakageReported", "OrderPlaced", "MeasurementsTaken", "MeasurementsVerified", "OrderConfirmed", "InstallScheduled", "InstallCompleted", "WarrantyIssued"]
   end
 
 

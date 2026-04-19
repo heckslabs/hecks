@@ -22,11 +22,24 @@ Hecks.behaviors "ZeroWasteFarm" do
     expect status: "harvest_ready"
   end
 
+  test "DeclareHarvestReady cascades through policy chain" do
+    tests "DeclareHarvestReady", on: "Field", kind: :cascade
+    setup  "RegisterField", name: "sample", crop_type: "sample", acreage: 1.0, soil_type: "sample"
+    expect emits: ["HarvestReady", "ColdPickupScheduled", "ColdTransportStarted"]
+  end
+
   test "CompleteHarvest runs" do
     tests "CompleteHarvest", on: "Field"
     setup  "RegisterField", name: "sample", crop_type: "sample", acreage: 1.0, soil_type: "sample"
     setup  "DeclareHarvestReady"
     expect status: "harvested"
+  end
+
+  test "CompleteHarvest cascades through policy chain" do
+    tests "CompleteHarvest", on: "Field", kind: :cascade
+    setup  "RegisterField", name: "sample", crop_type: "sample", acreage: 1.0, soil_type: "sample"
+    setup  "DeclareHarvestReady"
+    expect emits: ["FieldHarvested", "HarvestRecorded"]
   end
 
 
@@ -60,10 +73,22 @@ Hecks.behaviors "ZeroWasteFarm" do
     expect crop_type: "sample", current_price: 1.0, threshold_price: 1.0, status: "active"
   end
 
+  test "SetPrice cascades through policy chain" do
+    tests "SetPrice", on: "MarketPrice", kind: :cascade
+    input  crop_type: "sample", current_price: 1.0, threshold_price: 1.0
+    expect emits: ["PriceUpdated", "PriceBelowThreshold", "FoodBankAllocated", "HarvestRoutedToFoodBank"]
+  end
+
   test "DetectPriceDrop runs" do
     tests "DetectPriceDrop", on: "MarketPrice"
     setup  "SetPrice", crop_type: "sample", current_price: 1.0, threshold_price: 1.0
     expect status: "below_threshold"
+  end
+
+  test "DetectPriceDrop cascades through policy chain" do
+    tests "DetectPriceDrop", on: "MarketPrice", kind: :cascade
+    setup  "SetPrice", crop_type: "sample", current_price: 1.0, threshold_price: 1.0
+    expect emits: ["PriceBelowThreshold", "FoodBankAllocated", "HarvestRoutedToFoodBank"]
   end
 
   test "RecoverPrice runs" do
@@ -81,6 +106,13 @@ Hecks.behaviors "ZeroWasteFarm" do
     setup  "RecordHarvest", crop_type: "sample", weight_kg: 1.0, grade: "sample"
     input  food_bank_name: "sample", region: "sample", allocated_kg: 1.0
     expect food_bank_name: "sample", region: "sample", harvest: 1, allocated_kg: 1.0, status: "allocated"
+  end
+
+  test "AllocateToFoodBank cascades through policy chain" do
+    tests "AllocateToFoodBank", on: "FoodBankAllocation", kind: :cascade
+    setup  "RecordHarvest", crop_type: "sample", weight_kg: 1.0, grade: "sample"
+    input  food_bank_name: "sample", region: "sample", allocated_kg: 1.0
+    expect emits: ["FoodBankAllocated", "HarvestRoutedToFoodBank"]
   end
 
   test "ConfirmReceipt runs" do
@@ -106,6 +138,13 @@ Hecks.behaviors "ZeroWasteFarm" do
     expect harvest: 1, driver_id: "sample", status: "scheduled"
   end
 
+  test "ScheduleColdPickup cascades through policy chain" do
+    tests "ScheduleColdPickup", on: "ColdRoute", kind: :cascade
+    setup  "RecordHarvest", crop_type: "sample", weight_kg: 1.0, grade: "sample"
+    input  driver_id: "sample"
+    expect emits: ["ColdPickupScheduled", "ColdTransportStarted"]
+  end
+
   test "BeginTransport runs" do
     tests "BeginTransport", on: "ColdRoute"
     setup  "ScheduleColdPickup", driver_id: "sample"
@@ -124,6 +163,13 @@ Hecks.behaviors "ZeroWasteFarm" do
     setup  "ScheduleColdPickup", driver_id: "sample"
     setup  "BeginTransport"
     expect status: "delivered"
+  end
+
+  test "CompleteDelivery cascades through policy chain" do
+    tests "CompleteDelivery", on: "ColdRoute", kind: :cascade
+    setup  "ScheduleColdPickup", driver_id: "sample"
+    setup  "BeginTransport"
+    expect emits: ["ColdDeliveryCompleted", "DonationReceived"]
   end
 
 end

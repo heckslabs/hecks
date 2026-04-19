@@ -9,6 +9,12 @@ Hecks.behaviors "CrisisAviation" do
     expect event_id: "sample", crisis_type: "sample", affected_region: "sample", severity: "sample", status: "active"
   end
 
+  test "DeclareCrisis cascades through policy chain" do
+    tests "DeclareCrisis", on: "CrisisEvent", kind: :cascade
+    input  event_id: "sample", crisis_type: "sample", affected_region: "sample", severity: "sample"
+    expect emits: ["CrisisDeclared", "AssetActivated", "HospitalStatusReported", "DecisionComputed", "GridStatusReported", "PowerStatusReported", "QueueOpened"]
+  end
+
   test "EscalateCrisis sets severity" do
     tests "EscalateCrisis", on: "CrisisEvent"
     setup  "DeclareCrisis", event_id: "sample", crisis_type: "sample", affected_region: "sample", severity: "sample"
@@ -54,6 +60,12 @@ Hecks.behaviors "CrisisAviation" do
     expect hospital_name: "sample", region: "sample", total_beds: 1, available_beds: 1, power_status: "sample", accessibility: "sample", status: "reported"
   end
 
+  test "ReportStatus cascades through policy chain" do
+    tests "ReportStatus", on: "HospitalStatus", kind: :cascade
+    input  hospital_name: "sample", region: "sample", total_beds: 1, available_beds: 1, power_status: "sample", accessibility: "sample"
+    expect emits: ["HospitalStatusReported", "DecisionComputed"]
+  end
+
   test "ReportPowerStatus sets power_status" do
     tests "ReportPowerStatus", on: "HospitalStatus"
     setup  "ReportStatus", hospital_name: "sample", region: "sample", total_beds: 1, available_beds: 1, power_status: "sample", accessibility: "sample"
@@ -67,6 +79,12 @@ Hecks.behaviors "CrisisAviation" do
     expect accessibility: "air_only"
   end
 
+  test "MarkInaccessible cascades through policy chain" do
+    tests "MarkInaccessible", on: "HospitalStatus", kind: :cascade
+    setup  "ReportStatus", hospital_name: "sample", region: "sample", total_beds: 1, available_beds: 1, power_status: "sample", accessibility: "sample"
+    expect emits: ["HospitalInaccessible", "GeneratorDeployed"]
+  end
+
 
   # ── PowerStatus aggregate ──────────────────────────────────────────
 
@@ -74,6 +92,12 @@ Hecks.behaviors "CrisisAviation" do
     tests "ReportGridStatus", on: "PowerStatus"
     input  sector_id: "sample", region: "sample", substations_online: 1, substations_total: 1
     expect sector_id: "sample", region: "sample", substations_online: 1, substations_total: 1, grid_status: "degraded"
+  end
+
+  test "ReportGridStatus cascades through policy chain" do
+    tests "ReportGridStatus", on: "PowerStatus", kind: :cascade
+    input  sector_id: "sample", region: "sample", substations_online: 1, substations_total: 1
+    expect emits: ["GridStatusReported", "PowerStatusReported"]
   end
 
   test "DeployGenerator runs" do
@@ -104,6 +128,12 @@ Hecks.behaviors "CrisisAviation" do
     tests "ApproveDecision", on: "AirspaceDecision"
     setup  "ComputeDecision", decision_id: "sample", rationale: "sample"
     expect status: "approved"
+  end
+
+  test "ApproveDecision cascades through policy chain" do
+    tests "ApproveDecision", on: "AirspaceDecision", kind: :cascade
+    setup  "ComputeDecision", decision_id: "sample", rationale: "sample"
+    expect emits: ["DecisionApproved", "MissionDispatched"]
   end
 
 

@@ -9,6 +9,12 @@ Hecks.behaviors "Planetarium" do
     expect name: "sample", body_type: "sample", right_ascension_hr: 1.0, declination_deg: 1.0, apparent_magnitude: 1.0, constellation: "sample", status: "cataloged"
   end
 
+  test "CatalogBody cascades through policy chain" do
+    tests "CatalogBody", on: "CelestialBody", kind: :cascade
+    input  name: "sample", body_type: "sample", right_ascension_hr: 1.0, declination_deg: 1.0, apparent_magnitude: 1.0, constellation: "sample"
+    expect emits: ["BodyCataloged", "PositionUpdated"]
+  end
+
   test "UpdatePosition sets right_ascension_hr + declination_deg" do
     tests "UpdatePosition", on: "CelestialBody"
     setup  "CatalogBody", name: "sample", body_type: "sample", right_ascension_hr: 1.0, declination_deg: 1.0, apparent_magnitude: 1.0, constellation: "sample"
@@ -23,6 +29,12 @@ Hecks.behaviors "Planetarium" do
     tests "InstallProjector", on: "Projector"
     input  projector_id: "sample", projector_type: "sample", resolution_pixels: 1, dome_coverage_pct: 1.0, brightness_lumens: 1.0
     expect projector_id: "sample", projector_type: "sample", resolution_pixels: 1, dome_coverage_pct: 1.0, brightness_lumens: 1.0, status: "installed"
+  end
+
+  test "InstallProjector cascades through policy chain" do
+    tests "InstallProjector", on: "Projector", kind: :cascade
+    input  projector_id: "sample", projector_type: "sample", resolution_pixels: 1, dome_coverage_pct: 1.0, brightness_lumens: 1.0
+    expect emits: ["ProjectorInstalled", "ProjectorCalibrated"]
   end
 
   test "CalibrateProjector runs" do
@@ -47,10 +59,36 @@ Hecks.behaviors "Planetarium" do
     expect title: "sample", theme: "sample", duration_minutes: 1, target_audience: "sample", narration_type: "sample", status: "created"
   end
 
+  test "ProjectShow cascades through policy chain" do
+    tests "ProjectShow", on: "Show", kind: :cascade
+    input  title: "sample", theme: "sample", duration_minutes: 1, target_audience: "sample", narration_type: "sample"
+    expect emits: ["ShowCreated", "ShowRehearsed", "ShowPublished", "ShowScheduled", "ProjectorActivated"]
+  end
+
   test "RehearsalShow runs" do
     tests "RehearsalShow", on: "Show"
     setup  "ProjectShow", title: "sample", theme: "sample", duration_minutes: 1, target_audience: "sample", narration_type: "sample"
+    expect status: "rehearsed"
+  end
+
+  test "RehearsalShow cascades through policy chain" do
+    tests "RehearsalShow", on: "Show", kind: :cascade
+    setup  "ProjectShow", title: "sample", theme: "sample", duration_minutes: 1, target_audience: "sample", narration_type: "sample"
+    expect emits: ["ShowRehearsed", "ShowPublished", "ShowScheduled", "ProjectorActivated"]
+  end
+
+  test "PublishShow runs" do
+    tests "PublishShow", on: "Show"
+    setup  "ProjectShow", title: "sample", theme: "sample", duration_minutes: 1, target_audience: "sample", narration_type: "sample"
+    setup  "RehearsalShow"
     expect status: "published"
+  end
+
+  test "PublishShow cascades through policy chain" do
+    tests "PublishShow", on: "Show", kind: :cascade
+    setup  "ProjectShow", title: "sample", theme: "sample", duration_minutes: 1, target_audience: "sample", narration_type: "sample"
+    setup  "RehearsalShow"
+    expect emits: ["ShowPublished", "ShowScheduled", "ProjectorActivated"]
   end
 
 
@@ -60,6 +98,12 @@ Hecks.behaviors "Planetarium" do
     tests "ScheduleShow", on: "ShowSchedule"
     input  show_title: "sample", show_date: "sample", show_time: "sample", capacity: 1
     expect show_title: "sample", show_date: "sample", show_time: "sample", capacity: 1, tickets_sold: 0, status: "scheduled"
+  end
+
+  test "ScheduleShow cascades through policy chain" do
+    tests "ScheduleShow", on: "ShowSchedule", kind: :cascade
+    input  show_title: "sample", show_date: "sample", show_time: "sample", capacity: 1
+    expect emits: ["ShowScheduled", "ProjectorActivated"]
   end
 
   test "SellTicket runs" do

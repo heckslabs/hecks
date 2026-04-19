@@ -9,6 +9,12 @@ Hecks.behaviors "ReentryEcosystem" do
     expect case_id: "sample", participant_name: "sample", reentry_date: "sample", background_type: "sample", risk_level: "sample", status: "active"
   end
 
+  test "OpenCase cascades through policy chain" do
+    tests "OpenCase", on: "ReentryCase", kind: :cascade
+    input  case_id: "sample", participant_name: "sample", reentry_date: "sample", background_type: "sample", risk_level: "sample"
+    expect emits: ["CaseOpened", "TrackerInitialized", "TrackEnrolled", "HousingPlaced", "AttorneyAssigned"]
+  end
+
   test "EscalateCase sets risk_level" do
     tests "EscalateCase", on: "ReentryCase"
     setup  "OpenCase", case_id: "sample", participant_name: "sample", reentry_date: "sample", background_type: "sample", risk_level: "sample"
@@ -44,6 +50,12 @@ Hecks.behaviors "ReentryEcosystem" do
     expect status: "graduated"
   end
 
+  test "GraduateTrack cascades through policy chain" do
+    tests "GraduateTrack", on: "EducationTrack", kind: :cascade
+    setup  "EnrollInTrack", track_id: "sample", track_type: "sample", institution: "sample"
+    expect emits: ["TrackGraduated", "JobPlaced", "MilestoneRecorded"]
+  end
+
 
   # ── HousingMatch aggregate ──────────────────────────────────────────
 
@@ -65,6 +77,13 @@ Hecks.behaviors "ReentryEcosystem" do
     setup  "PlaceInHousing", match_id: "sample", housing_type: "sample", address: "sample", landlord_name: "sample"
     input  housing_type: "sample", address: "sample"
     expect housing_type: "sample", address: "sample"
+  end
+
+  test "UpgradeHousing cascades through policy chain" do
+    tests "UpgradeHousing", on: "HousingMatch", kind: :cascade
+    setup  "PlaceInHousing", match_id: "sample", housing_type: "sample", address: "sample", landlord_name: "sample"
+    input  housing_type: "sample", address: "sample"
+    expect emits: ["HousingUpgraded", "MilestoneRecorded"]
   end
 
 
@@ -103,6 +122,12 @@ Hecks.behaviors "ReentryEcosystem" do
     tests "ResolveLegalMatter", on: "LegalSupport"
     setup  "AssignAttorney", support_id: "sample", legal_need: "sample", attorney_name: "sample"
     expect status: "resolved"
+  end
+
+  test "ResolveLegalMatter cascades through policy chain" do
+    tests "ResolveLegalMatter", on: "LegalSupport", kind: :cascade
+    setup  "AssignAttorney", support_id: "sample", legal_need: "sample", attorney_name: "sample"
+    expect emits: ["LegalMatterResolved", "MilestoneRecorded"]
   end
 
 

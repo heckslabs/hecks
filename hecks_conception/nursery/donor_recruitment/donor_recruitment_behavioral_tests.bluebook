@@ -15,6 +15,12 @@ Hecks.behaviors "DonorRecruitment" do
     expect ok: "true"
   end
 
+  test "FlagShortage cascades through policy chain" do
+    tests "FlagShortage", on: "BloodInventory", kind: :cascade
+    setup  "RecordStock", center_id: "sample", blood_type: "sample", units_available: 1, min_threshold: 1
+    expect emits: ["ShortageFlagged", "CampaignLaunched"]
+  end
+
 
   # ── RecruitmentCampaign aggregate ──────────────────────────────────────────
 
@@ -37,6 +43,12 @@ Hecks.behaviors "DonorRecruitment" do
     tests "CaptureLead", on: "DonorLead"
     input  lead_id: "sample", name: "sample", blood_type: "sample", source_campaign: "sample"
     expect lead_id: "sample", name: "sample", blood_type: "sample", source_campaign: "sample", status: "captured"
+  end
+
+  test "CaptureLead cascades through policy chain" do
+    tests "CaptureLead", on: "DonorLead", kind: :cascade
+    input  lead_id: "sample", name: "sample", blood_type: "sample", source_campaign: "sample"
+    expect emits: ["LeadCaptured", "LeadConverted"]
   end
 
   test "ConvertLead runs" do

@@ -15,6 +15,12 @@ Hecks.behaviors "TherapeuticHorticulture" do
     expect status: "graduated"
   end
 
+  test "GraduateClient cascades through policy chain" do
+    tests "GraduateClient", on: "TherapyClient", kind: :cascade
+    setup  "EnrollClient", client_id: "sample", name: "sample", diagnosis: "sample", therapist_name: "sample"
+    expect emits: ["ClientGraduated", "TherapyReportGenerated"]
+  end
+
 
   # ── GardenPlot aggregate ──────────────────────────────────────────
 
@@ -28,6 +34,12 @@ Hecks.behaviors "TherapeuticHorticulture" do
     tests "TendPlot", on: "GardenPlot"
     setup  "AssignPlot", plot_id: "sample", client_id: "sample", plant_type: "sample", season: "sample"
     expect ok: "true"
+  end
+
+  test "TendPlot cascades through policy chain" do
+    tests "TendPlot", on: "GardenPlot", kind: :cascade
+    setup  "AssignPlot", plot_id: "sample", client_id: "sample", plant_type: "sample", season: "sample"
+    expect emits: ["PlotTended", "MoodRecorded"]
   end
 
   test "HarvestPlot runs" do

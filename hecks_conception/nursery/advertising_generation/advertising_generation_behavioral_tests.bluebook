@@ -9,6 +9,12 @@ Hecks.behaviors "AdvertisingGeneration" do
     expect brand: "sample", owned_word: "sample", channel: "sample", format: "sample", headline: "sample", subheadline: "sample", body_copy: "sample", proof_point: "sample", call_to_action: "sample", image_direction: "sample", status: "draft"
   end
 
+  test "GenerateTemplate cascades through policy chain" do
+    tests "GenerateTemplate", on: "AdTemplate", kind: :cascade
+    input  brand: "sample", owned_word: "sample", channel: "sample", format: "sample", headline: "sample", subheadline: "sample", body_copy: "sample", proof_point: "sample", call_to_action: "sample", image_direction: "sample"
+    expect emits: ["TemplateGenerated", "SpecDefined"]
+  end
+
   test "CustomizeTemplate sets headline + body_copy + image_direction" do
     tests "CustomizeTemplate", on: "AdTemplate"
     setup  "GenerateTemplate", brand: "sample", owned_word: "sample", channel: "sample", format: "sample", headline: "sample", subheadline: "sample", body_copy: "sample", proof_point: "sample", call_to_action: "sample", image_direction: "sample"
@@ -20,6 +26,12 @@ Hecks.behaviors "AdvertisingGeneration" do
     tests "ApproveTemplate", on: "AdTemplate"
     setup  "GenerateTemplate", brand: "sample", owned_word: "sample", channel: "sample", format: "sample", headline: "sample", subheadline: "sample", body_copy: "sample", proof_point: "sample", call_to_action: "sample", image_direction: "sample"
     expect status: "approved"
+  end
+
+  test "ApproveTemplate cascades through policy chain" do
+    tests "ApproveTemplate", on: "AdTemplate", kind: :cascade
+    setup  "GenerateTemplate", brand: "sample", owned_word: "sample", channel: "sample", format: "sample", headline: "sample", subheadline: "sample", body_copy: "sample", proof_point: "sample", call_to_action: "sample", image_direction: "sample"
+    expect emits: ["TemplateApproved", "CopyGenerated"]
   end
 
 

@@ -9,6 +9,12 @@ Hecks.behaviors "DentalSaaS" do
     expect tenant_id: "sample", practice_name: "sample", plan_tier: "sample", status: "active"
   end
 
+  test "RegisterTenant cascades through policy chain" do
+    tests "RegisterTenant", on: "Tenant", kind: :cascade
+    input  tenant_id: "sample", practice_name: "sample", plan_tier: "sample"
+    expect emits: ["TenantRegistered", "SubscriptionStarted"]
+  end
+
   test "SuspendTenant runs" do
     tests "SuspendTenant", on: "Tenant"
     setup  "RegisterTenant", tenant_id: "sample", practice_name: "sample", plan_tier: "sample"
@@ -43,6 +49,12 @@ Hecks.behaviors "DentalSaaS" do
     tests "CancelSubscription", on: "Subscription"
     setup  "StartSubscription", tenant_id: "sample", plan_name: "sample", monthly_rate: 1.0
     expect status: "cancelled"
+  end
+
+  test "CancelSubscription cascades through policy chain" do
+    tests "CancelSubscription", on: "Subscription", kind: :cascade
+    setup  "StartSubscription", tenant_id: "sample", plan_name: "sample", monthly_rate: 1.0
+    expect emits: ["SubscriptionCancelled", "TenantSuspended"]
   end
 
 

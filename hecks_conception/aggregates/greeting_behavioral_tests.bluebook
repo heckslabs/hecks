@@ -15,6 +15,12 @@ Hecks.behaviors "Greeting" do
     expect served: "true"
   end
 
+  test "ServeGreeting cascades through policy chain" do
+    tests "ServeGreeting", on: "Greeting", kind: :cascade
+    setup  "GenerateGreeting", being: "sample", text: "sample", mood: "sample", generated_at: "sample"
+    expect emits: ["GreetingServed", "QueueRefilled"]
+  end
+
 
   # ── GreetingQueue aggregate ──────────────────────────────────────────
 

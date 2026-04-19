@@ -16,6 +16,27 @@ Hecks.behaviors "RecyclingCenter" do
     expect ok: "true"
   end
 
+  test "ReceiveInbound cascades through policy chain" do
+    tests "ReceiveInbound", on: "Material", kind: :cascade
+    setup  "RegisterMaterial", material_code: "sample", name: "sample", category: "sample", market_price_per_ton: 1.0
+    input  weight_tons: 1.0
+    expect emits: ["InboundReceived", "InboundWeighed", "LineStarted"]
+  end
+
+  test "WeighInbound sets gross_weight_tons + tare_weight_tons" do
+    tests "WeighInbound", on: "Material"
+    setup  "RegisterMaterial", material_code: "sample", name: "sample", category: "sample", market_price_per_ton: 1.0
+    input  gross_weight_tons: 1.0, tare_weight_tons: 1.0
+    expect ok: "true"
+  end
+
+  test "WeighInbound cascades through policy chain" do
+    tests "WeighInbound", on: "Material", kind: :cascade
+    setup  "RegisterMaterial", material_code: "sample", name: "sample", category: "sample", market_price_per_ton: 1.0
+    input  gross_weight_tons: 1.0, tare_weight_tons: 1.0
+    expect emits: ["InboundWeighed", "LineStarted"]
+  end
+
   test "RepriceMaterial sets new_price_per_ton" do
     tests "RepriceMaterial", on: "Material"
     setup  "RegisterMaterial", material_code: "sample", name: "sample", category: "sample", market_price_per_ton: 1.0
@@ -36,6 +57,12 @@ Hecks.behaviors "RecyclingCenter" do
     tests "CompleteSortRun", on: "SortingLine"
     setup  "StartLine", line_id: "sample", line_type: "sample", throughput_tons_per_hour: 1.0
     expect status: "idle"
+  end
+
+  test "CompleteSortRun cascades through policy chain" do
+    tests "CompleteSortRun", on: "SortingLine", kind: :cascade
+    setup  "StartLine", line_id: "sample", line_type: "sample", throughput_tons_per_hour: 1.0
+    expect emits: ["SortRunCompleted", "BalePressed", "BaleInspected", "BaleStaged"]
   end
 
   test "HaltLine sets reason" do
@@ -62,10 +89,38 @@ Hecks.behaviors "RecyclingCenter" do
     expect status: "pressed"
   end
 
+  test "PressBale cascades through policy chain" do
+    tests "PressBale", on: "Bale", kind: :cascade
+    setup  "RegisterMaterial", material_code: "sample", name: "sample", category: "sample", market_price_per_ton: 1.0
+    input  weight_tons: 1.0
+    expect emits: ["BalePressed", "BaleInspected", "BaleStaged"]
+  end
+
   test "InspectBale runs" do
     tests "InspectBale", on: "Bale"
     setup  "PressBale", weight_tons: 1.0
+    expect status: "inspected"
+  end
+
+  test "InspectBale cascades through policy chain" do
+    tests "InspectBale", on: "Bale", kind: :cascade
+    setup  "PressBale", weight_tons: 1.0
+    expect emits: ["BaleInspected", "BaleStaged"]
+  end
+
+  test "StageBale runs" do
+    tests "StageBale", on: "Bale"
+    setup  "PressBale", weight_tons: 1.0
+    setup  "InspectBale"
     expect status: "staged"
+  end
+
+  test "ShipBale runs" do
+    tests "ShipBale", on: "Bale"
+    setup  "PressBale", weight_tons: 1.0
+    setup  "InspectBale"
+    setup  "StageBale"
+    expect status: "shipped"
   end
 
 
@@ -76,6 +131,13 @@ Hecks.behaviors "RecyclingCenter" do
     setup  "RegisterMaterial", material_code: "sample", name: "sample", category: "sample", market_price_per_ton: 1.0
     input  contaminant_type: "sample", contamination_percent: 1.0
     expect status: "open"
+  end
+
+  test "FileContamination cascades through policy chain" do
+    tests "FileContamination", on: "ContaminationReport", kind: :cascade
+    setup  "RegisterMaterial", material_code: "sample", name: "sample", category: "sample", market_price_per_ton: 1.0
+    input  contaminant_type: "sample", contamination_percent: 1.0
+    expect emits: ["ContaminationFiled", "LineHalted"]
   end
 
   test "ResolveContamination runs" do
@@ -98,6 +160,13 @@ Hecks.behaviors "RecyclingCenter" do
     setup  "RegisterBuyer", buyer_id: "sample", company_name: "sample", material_interest: "sample", contracted_price_per_ton: 1.0
     input  tons_requested: 1.0
     expect ok: "true"
+  end
+
+  test "PlaceOrder cascades through policy chain" do
+    tests "PlaceOrder", on: "Buyer", kind: :cascade
+    setup  "RegisterBuyer", buyer_id: "sample", company_name: "sample", material_interest: "sample", contracted_price_per_ton: 1.0
+    input  tons_requested: 1.0
+    expect emits: ["OrderPlaced", "BaleShipped"]
   end
 
 end

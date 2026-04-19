@@ -30,6 +30,12 @@ Hecks.behaviors "DiveShop" do
     expect status: "certified"
   end
 
+  test "CompleteCourse cascades through policy chain" do
+    tests "CompleteCourse", on: "DiverCertification", kind: :cascade
+    setup  "EnrollStudent", cert_id: "sample", student_name: "sample", course_level: "sample", instructor_name: "sample", pool_sessions: 1, open_water_dives: 1
+    expect emits: ["CourseCompleted", "TripOrganized", "TankFilled", "TripLaunched", "EquipmentSold"]
+  end
+
   test "FailStudent runs" do
     tests "FailStudent", on: "DiverCertification"
     setup  "EnrollStudent", cert_id: "sample", student_name: "sample", course_level: "sample", instructor_name: "sample", pool_sessions: 1, open_water_dives: 1
@@ -45,6 +51,12 @@ Hecks.behaviors "DiveShop" do
     expect trip_id: "sample", destination: "sample", date: "sample", divemaster_name: "sample", max_divers: 1, price_per_diver: 1.0, status: "open"
   end
 
+  test "OrganizeTrip cascades through policy chain" do
+    tests "OrganizeTrip", on: "DiveTrip", kind: :cascade
+    input  trip_id: "sample", destination: "sample", date: "sample", divemaster_name: "sample", max_divers: 1, price_per_diver: 1.0
+    expect emits: ["TripOrganized", "TankFilled", "TripLaunched"]
+  end
+
   test "LaunchTrip runs" do
     tests "LaunchTrip", on: "DiveTrip"
     setup  "OrganizeTrip", trip_id: "sample", destination: "sample", date: "sample", divemaster_name: "sample", max_divers: 1, price_per_diver: 1.0
@@ -58,6 +70,13 @@ Hecks.behaviors "DiveShop" do
     expect status: "completed"
   end
 
+  test "CompleteTrip cascades through policy chain" do
+    tests "CompleteTrip", on: "DiveTrip", kind: :cascade
+    setup  "OrganizeTrip", trip_id: "sample", destination: "sample", date: "sample", divemaster_name: "sample", max_divers: 1, price_per_diver: 1.0
+    setup  "LaunchTrip"
+    expect emits: ["TripCompleted", "MaintenanceTicketOpened"]
+  end
+
 
   # ── Tank aggregate ──────────────────────────────────────────
 
@@ -67,10 +86,22 @@ Hecks.behaviors "DiveShop" do
     expect tank_id: "sample", material: "sample", volume_liters: 1.0, last_hydro_date: "sample", next_hydro_date: "sample", status: "ready"
   end
 
+  test "RegisterTank cascades through policy chain" do
+    tests "RegisterTank", on: "Tank", kind: :cascade
+    input  tank_id: "sample", material: "sample", volume_liters: 1.0, last_hydro_date: "sample", next_hydro_date: "sample"
+    expect emits: ["TankRegistered", "TankFilled", "TripLaunched"]
+  end
+
   test "FillTank runs" do
     tests "FillTank", on: "Tank"
     setup  "RegisterTank", tank_id: "sample", material: "sample", volume_liters: 1.0, last_hydro_date: "sample", next_hydro_date: "sample"
     expect ok: "true"
+  end
+
+  test "FillTank cascades through policy chain" do
+    tests "FillTank", on: "Tank", kind: :cascade
+    setup  "RegisterTank", tank_id: "sample", material: "sample", volume_liters: 1.0, last_hydro_date: "sample", next_hydro_date: "sample"
+    expect emits: ["TankFilled", "TripLaunched"]
   end
 
   test "HydroTestTank sets new_hydro_date" do
@@ -93,6 +124,12 @@ Hecks.behaviors "DiveShop" do
     tests "CompleteMaintenance", on: "EquipmentMaintenance"
     setup  "OpenMaintenanceTicket", maintenance_id: "sample", equipment_id: "sample", issue_description: "sample", technician_name: "sample", cost: 1.0
     expect status: "completed"
+  end
+
+  test "CompleteMaintenance cascades through policy chain" do
+    tests "CompleteMaintenance", on: "EquipmentMaintenance", kind: :cascade
+    setup  "OpenMaintenanceTicket", maintenance_id: "sample", equipment_id: "sample", issue_description: "sample", technician_name: "sample", cost: 1.0
+    expect emits: ["MaintenanceCompleted", "TankHydroTested", "EquipmentRetired"]
   end
 
 end

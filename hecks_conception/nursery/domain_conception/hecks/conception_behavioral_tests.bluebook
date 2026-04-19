@@ -38,6 +38,13 @@ Hecks.behaviors "Conception" do
     expect completeness: "embryo", policy_count: 1
   end
 
+  test "AssessCompleteness sets gaps" do
+    tests "AssessCompleteness", on: "Blueprint"
+    setup  "StartConception", domain_name: "sample", vision: "sample", category: "sample"
+    input  gaps: "sample"
+    expect gaps: "sample", completeness: "assessed"
+  end
+
 
   # ── ConceptionRule aggregate ──────────────────────────────────────────
 
@@ -54,6 +61,12 @@ Hecks.behaviors "Conception" do
     tests "RecordConception", on: "ConceptionLog"
     input  domain_name: "sample", conceived_by: "sample", conceived_at: "sample", fixture_count: 1, gap_count: 1
     expect domain_name: "sample", conceived_by: "sample", conceived_at: "sample", fixture_count: 1, gap_count: 1, verdict: "recorded"
+  end
+
+  test "RecordConception cascades through policy chain" do
+    tests "RecordConception", on: "ConceptionLog", kind: :cascade
+    input  domain_name: "sample", conceived_by: "sample", conceived_at: "sample", fixture_count: 1, gap_count: 1
+    expect emits: ["ConceptionRecorded", "DomainViable"]
   end
 
   test "MarkIncomplete runs" do

@@ -9,6 +9,12 @@ Hecks.behaviors "TrainingCorpus" do
     expect total_domains: 1, format: "sample"
   end
 
+  test "BuildCorpus cascades through policy chain" do
+    tests "BuildCorpus", on: "Corpus", kind: :cascade
+    input  total_domains: 1, format: "sample"
+    expect emits: ["CorpusBuilt", "DomainsEnriched"]
+  end
+
 
   # ── QualityTier aggregate ──────────────────────────────────────────
 

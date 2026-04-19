@@ -24,6 +24,12 @@ Hecks.behaviors "HealingGarden" do
     expect plot_id: "sample", garden_name: "sample", plant_type: "sample", therapeutic_purpose: "sample", season: "sample", status: "growing"
   end
 
+  test "PlantPlot cascades through policy chain" do
+    tests "PlantPlot", on: "GardenPlot", kind: :cascade
+    input  plot_id: "sample", garden_name: "sample", plant_type: "sample", therapeutic_purpose: "sample", season: "sample"
+    expect emits: ["PlotPlanted", "ShiftScheduled"]
+  end
+
   test "HarvestPlot runs" do
     tests "HarvestPlot", on: "GardenPlot"
     setup  "PlantPlot", plot_id: "sample", garden_name: "sample", plant_type: "sample", therapeutic_purpose: "sample", season: "sample"
@@ -44,6 +50,13 @@ Hecks.behaviors "HealingGarden" do
     setup  "LogGardenVisit", visit_id: "sample", patient_name: "sample", plot_id: "sample", activity: "sample", duration_minutes: 1.0, mood_before: "sample"
     input  mood_after: "sample"
     expect mood_after: "sample"
+  end
+
+  test "RecordMoodAfter cascades through policy chain" do
+    tests "RecordMoodAfter", on: "GardenVisit", kind: :cascade
+    setup  "LogGardenVisit", visit_id: "sample", patient_name: "sample", plot_id: "sample", activity: "sample", duration_minutes: 1.0, mood_before: "sample"
+    input  mood_after: "sample"
+    expect emits: ["MoodRecorded", "PlanTended"]
   end
 
 

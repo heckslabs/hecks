@@ -9,6 +9,12 @@ Hecks.behaviors "ElderCare" do
     expect name: "sample", date_of_birth: "sample", address: "sample", primary_need: "sample", emergency_contact: "sample", status: "active"
   end
 
+  test "EnrollClient cascades through policy chain" do
+    tests "EnrollClient", on: "Client", kind: :cascade
+    input  name: "sample", date_of_birth: "sample", address: "sample", primary_need: "sample", emergency_contact: "sample"
+    expect emits: ["ClientEnrolled", "CaregiverAssigned"]
+  end
+
   test "SuspendServices runs" do
     tests "SuspendServices", on: "Client"
     setup  "EnrollClient", name: "sample", date_of_birth: "sample", address: "sample", primary_need: "sample", emergency_contact: "sample"
@@ -53,11 +59,26 @@ Hecks.behaviors "ElderCare" do
     expect client_name: "sample", caregiver_name: "sample", week_starting: "sample", status: "active"
   end
 
+  test "BuildSchedule cascades through policy chain" do
+    tests "BuildSchedule", on: "CareSchedule", kind: :cascade
+    setup  "HireCaregiver", name: "sample", certification: "sample", phone: "sample", years_experience: 1, specialty: "sample"
+    setup  "EnrollClient", name: "sample", date_of_birth: "sample", address: "sample", primary_need: "sample", emergency_contact: "sample"
+    input  client_name: "sample", caregiver_name: "sample", week_starting: "sample"
+    expect emits: ["ScheduleCreated", "MedicationAdded", "AssessmentConducted", "RisksFlagged", "ServicesSuspended"]
+  end
+
   test "AddVisitToSchedule sets day_of_week + start_time + end_time + visit_type" do
     tests "AddVisitToSchedule", on: "CareSchedule"
     setup  "BuildSchedule", client_name: "sample", caregiver_name: "sample", week_starting: "sample"
     input  day_of_week: "sample", start_time: "sample", end_time: "sample", visit_type: "sample"
     expect ok: "true"
+  end
+
+  test "AddVisitToSchedule cascades through policy chain" do
+    tests "AddVisitToSchedule", on: "CareSchedule", kind: :cascade
+    setup  "BuildSchedule", client_name: "sample", caregiver_name: "sample", week_starting: "sample"
+    input  day_of_week: "sample", start_time: "sample", end_time: "sample", visit_type: "sample"
+    expect emits: ["VisitAddedToSchedule", "MedicationAdministered"]
   end
 
   test "CancelSchedule runs" do
@@ -76,6 +97,13 @@ Hecks.behaviors "ElderCare" do
     expect client_name: "sample", medication_name: "sample", dosage: "sample", frequency: "sample", prescriber: "sample", status: "active"
   end
 
+  test "AddMedication cascades through policy chain" do
+    tests "AddMedication", on: "ElderMedication", kind: :cascade
+    setup  "EnrollClient", name: "sample", date_of_birth: "sample", address: "sample", primary_need: "sample", emergency_contact: "sample"
+    input  client_name: "sample", medication_name: "sample", dosage: "sample", frequency: "sample", prescriber: "sample"
+    expect emits: ["MedicationAdded", "AssessmentConducted", "RisksFlagged", "ServicesSuspended"]
+  end
+
   test "AdministerMedication runs" do
     tests "AdministerMedication", on: "ElderMedication"
     setup  "AddMedication", client_name: "sample", medication_name: "sample", dosage: "sample", frequency: "sample", prescriber: "sample"
@@ -91,11 +119,32 @@ Hecks.behaviors "ElderCare" do
 
   # ── WellnessAssessment aggregate ──────────────────────────────────────────
 
+  test "ConductAssessment sets client_name + assessment_date + mobility_score + cognitive_score + nutrition_score + assessor_name" do
+    tests "ConductAssessment", on: "WellnessAssessment"
+    setup  "EnrollClient", name: "sample", date_of_birth: "sample", address: "sample", primary_need: "sample", emergency_contact: "sample"
+    input  client_name: "sample", assessment_date: "sample", mobility_score: 1, cognitive_score: 1, nutrition_score: 1, assessor_name: "sample"
+    expect client_name: "sample", assessment_date: "sample", mobility_score: 1, cognitive_score: 1, nutrition_score: 1, assessor_name: "sample", risk_flags: "none"
+  end
+
+  test "ConductAssessment cascades through policy chain" do
+    tests "ConductAssessment", on: "WellnessAssessment", kind: :cascade
+    setup  "EnrollClient", name: "sample", date_of_birth: "sample", address: "sample", primary_need: "sample", emergency_contact: "sample"
+    input  client_name: "sample", assessment_date: "sample", mobility_score: 1, cognitive_score: 1, nutrition_score: 1, assessor_name: "sample"
+    expect emits: ["AssessmentConducted", "RisksFlagged", "ServicesSuspended"]
+  end
+
   test "FlagRisks sets risk_flags" do
     tests "FlagRisks", on: "WellnessAssessment"
     setup  "ConductAssessment", client_name: "sample", assessment_date: "sample", mobility_score: 1, cognitive_score: 1, nutrition_score: 1, assessor_name: "sample"
     input  risk_flags: "sample"
-    expect client_name: "sample", assessment_date: "sample", mobility_score: 1, cognitive_score: 1, nutrition_score: 1, assessor_name: "sample", risk_flags: "none"
+    expect risk_flags: "sample"
+  end
+
+  test "FlagRisks cascades through policy chain" do
+    tests "FlagRisks", on: "WellnessAssessment", kind: :cascade
+    setup  "ConductAssessment", client_name: "sample", assessment_date: "sample", mobility_score: 1, cognitive_score: 1, nutrition_score: 1, assessor_name: "sample"
+    input  risk_flags: "sample"
+    expect emits: ["RisksFlagged", "AssessmentConducted", "ServicesSuspended"]
   end
 
 end

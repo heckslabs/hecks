@@ -23,6 +23,13 @@ Hecks.behaviors "NutritionRx" do
     expect ok: "true"
   end
 
+  test "FlagDeficiency cascades through policy chain" do
+    tests "FlagDeficiency", on: "Patient", kind: :cascade
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", dietary_restriction: "sample"
+    input  nutrient: "sample", severity: "sample"
+    expect emits: ["DeficiencyDetected", "MealPlanGenerated", "NutrientTargetSet"]
+  end
+
 
   # ── Prescription aggregate ──────────────────────────────────────────
 
@@ -39,11 +46,24 @@ Hecks.behaviors "NutritionRx" do
     expect status: "filled"
   end
 
+  test "FillPrescription cascades through policy chain" do
+    tests "FillPrescription", on: "Prescription", kind: :cascade
+    setup  "WritePrescription", medication: "sample", dosage: "sample", frequency: "sample"
+    expect emits: ["PrescriptionFilled", "GroceryListRevised"]
+  end
+
   test "FlagInteraction sets food_item + interaction_type" do
     tests "FlagInteraction", on: "Prescription"
     setup  "WritePrescription", medication: "sample", dosage: "sample", frequency: "sample"
     input  food_item: "sample", interaction_type: "sample"
     expect ok: "true"
+  end
+
+  test "FlagInteraction cascades through policy chain" do
+    tests "FlagInteraction", on: "Prescription", kind: :cascade
+    setup  "WritePrescription", medication: "sample", dosage: "sample", frequency: "sample"
+    input  food_item: "sample", interaction_type: "sample"
+    expect emits: ["FoodInteractionFlagged", "MealPlanAdjusted"]
   end
 
 
@@ -60,6 +80,12 @@ Hecks.behaviors "NutritionRx" do
     tests "ApproveMealPlan", on: "MealPlan"
     setup  "GenerateMealPlan", goal: "sample", daily_calories: 1
     expect status: "approved"
+  end
+
+  test "ApproveMealPlan cascades through policy chain" do
+    tests "ApproveMealPlan", on: "MealPlan", kind: :cascade
+    setup  "GenerateMealPlan", goal: "sample", daily_calories: 1
+    expect emits: ["MealPlanApproved", "GroceryListGenerated"]
   end
 
   test "AdjustForInteraction sets food_item + replacement" do
@@ -105,7 +131,20 @@ Hecks.behaviors "NutritionRx" do
     tests "RecordIntake", on: "NutrientTarget"
     setup  "SetTarget", nutrient: "sample", target_amount: 1.0, unit: "sample"
     input  amount: 1.0
-    expect current_intake: 1.0, status: "achieved"
+    expect current_intake: 1.0
+  end
+
+  test "RecordIntake cascades through policy chain" do
+    tests "RecordIntake", on: "NutrientTarget", kind: :cascade
+    setup  "SetTarget", nutrient: "sample", target_amount: 1.0, unit: "sample"
+    input  amount: 1.0
+    expect emits: ["IntakeRecorded", "TargetAchieved"]
+  end
+
+  test "AchieveTarget runs" do
+    tests "AchieveTarget", on: "NutrientTarget"
+    setup  "SetTarget", nutrient: "sample", target_amount: 1.0, unit: "sample"
+    expect status: "achieved"
   end
 
 end

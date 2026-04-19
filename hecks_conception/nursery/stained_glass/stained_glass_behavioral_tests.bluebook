@@ -9,10 +9,22 @@ Hecks.behaviors "StainedGlass" do
     expect status: "cartooned"
   end
 
+  test "CartoonPanel cascades through policy chain" do
+    tests "CartoonPanel", on: "Panel", kind: :cascade
+    input  title: "sample", width_inches: 1.0, height_inches: 1.0, piece_count: 1
+    expect emits: ["PanelCartooned", "PanelCut", "CamePrepared", "PanelLeaded", "JointsSoldered", "PatinaApplied", "InstallationScheduled", "InstallationCompleted"]
+  end
+
   test "CutPanel runs" do
     tests "CutPanel", on: "Panel"
     setup  "CartoonPanel", title: "sample", width_inches: 1.0, height_inches: 1.0, piece_count: 1
     expect status: "cut"
+  end
+
+  test "CutPanel cascades through policy chain" do
+    tests "CutPanel", on: "Panel", kind: :cascade
+    setup  "CartoonPanel", title: "sample", width_inches: 1.0, height_inches: 1.0, piece_count: 1
+    expect emits: ["PanelCut", "CamePrepared", "PanelLeaded", "JointsSoldered", "PatinaApplied", "InstallationScheduled", "InstallationCompleted"]
   end
 
   test "LeadPanel runs" do
@@ -20,6 +32,13 @@ Hecks.behaviors "StainedGlass" do
     setup  "CartoonPanel", title: "sample", width_inches: 1.0, height_inches: 1.0, piece_count: 1
     setup  "CutPanel"
     expect status: "leaded"
+  end
+
+  test "LeadPanel cascades through policy chain" do
+    tests "LeadPanel", on: "Panel", kind: :cascade
+    setup  "CartoonPanel", title: "sample", width_inches: 1.0, height_inches: 1.0, piece_count: 1
+    setup  "CutPanel"
+    expect emits: ["PanelLeaded", "JointsSoldered", "PatinaApplied", "InstallationScheduled", "InstallationCompleted"]
   end
 
 
@@ -35,6 +54,12 @@ Hecks.behaviors "StainedGlass" do
     tests "ApproveDesign", on: "GlassDesign"
     setup  "SketchDesign", title: "sample", style: "sample", client_name: "sample"
     expect status: "approved"
+  end
+
+  test "ApproveDesign cascades through policy chain" do
+    tests "ApproveDesign", on: "GlassDesign", kind: :cascade
+    setup  "SketchDesign", title: "sample", style: "sample", client_name: "sample"
+    expect emits: ["DesignApproved", "PanelCartooned", "PanelCut", "CamePrepared", "PanelLeaded", "JointsSoldered", "PatinaApplied", "InstallationScheduled", "InstallationCompleted"]
   end
 
 
@@ -63,11 +88,41 @@ Hecks.behaviors "StainedGlass" do
     expect status: "prepared"
   end
 
+  test "PrepareCame cascades through policy chain" do
+    tests "PrepareCame", on: "Leadwork", kind: :cascade
+    setup  "CartoonPanel", title: "sample", width_inches: 1.0, height_inches: 1.0, piece_count: 1
+    input  came_profile: "sample", came_width_mm: 1.0
+    expect emits: ["CamePrepared", "PanelLeaded", "JointsSoldered", "PatinaApplied", "InstallationScheduled", "InstallationCompleted"]
+  end
+
   test "SolderJoints sets solder_type" do
     tests "SolderJoints", on: "Leadwork"
     setup  "PrepareCame", came_profile: "sample", came_width_mm: 1.0
     input  solder_type: "sample"
+    expect status: "soldered"
+  end
+
+  test "SolderJoints cascades through policy chain" do
+    tests "SolderJoints", on: "Leadwork", kind: :cascade
+    setup  "PrepareCame", came_profile: "sample", came_width_mm: 1.0
+    input  solder_type: "sample"
+    expect emits: ["JointsSoldered", "PatinaApplied", "InstallationScheduled", "InstallationCompleted"]
+  end
+
+  test "ApplyPatina sets patina_type" do
+    tests "ApplyPatina", on: "Leadwork"
+    setup  "PrepareCame", came_profile: "sample", came_width_mm: 1.0
+    setup  "SolderJoints", solder_type: "sample"
+    input  patina_type: "sample"
     expect status: "finished"
+  end
+
+  test "ApplyPatina cascades through policy chain" do
+    tests "ApplyPatina", on: "Leadwork", kind: :cascade
+    setup  "PrepareCame", came_profile: "sample", came_width_mm: 1.0
+    setup  "SolderJoints", solder_type: "sample"
+    input  patina_type: "sample"
+    expect emits: ["PatinaApplied", "InstallationScheduled", "InstallationCompleted"]
   end
 
 
@@ -78,6 +133,13 @@ Hecks.behaviors "StainedGlass" do
     setup  "CartoonPanel", title: "sample", width_inches: 1.0, height_inches: 1.0, piece_count: 1
     input  location: "sample", date: "sample", installer_name: "sample"
     expect status: "scheduled"
+  end
+
+  test "ScheduleInstallation cascades through policy chain" do
+    tests "ScheduleInstallation", on: "GlassInstallation", kind: :cascade
+    setup  "CartoonPanel", title: "sample", width_inches: 1.0, height_inches: 1.0, piece_count: 1
+    input  location: "sample", date: "sample", installer_name: "sample"
+    expect emits: ["InstallationScheduled", "InstallationCompleted"]
   end
 
   test "CompleteInstallation runs" do

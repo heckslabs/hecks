@@ -15,6 +15,12 @@ Hecks.behaviors "VisionAPI" do
     expect status: "prescribed"
   end
 
+  test "WriteRx cascades through policy chain" do
+    tests "WriteRx", on: "EyeExam", kind: :cascade
+    setup  "ConductExam", exam_id: "sample", patient_name: "sample", optometrist: "sample", exam_date: "sample"
+    expect emits: ["RxWritten", "LensOrderPlaced"]
+  end
+
 
   # ── LensOrder aggregate ──────────────────────────────────────────
 
@@ -28,6 +34,12 @@ Hecks.behaviors "VisionAPI" do
     tests "FulfillOrder", on: "LensOrder"
     setup  "PlaceLensOrder", order_id: "sample", exam_id: "sample", lens_type: "sample", vendor: "sample", price: 1.0
     expect status: "fulfilled"
+  end
+
+  test "FulfillOrder cascades through policy chain" do
+    tests "FulfillOrder", on: "LensOrder", kind: :cascade
+    setup  "PlaceLensOrder", order_id: "sample", exam_id: "sample", lens_type: "sample", vendor: "sample", price: 1.0
+    expect emits: ["OrderFulfilled", "ClaimSubmitted"]
   end
 
 

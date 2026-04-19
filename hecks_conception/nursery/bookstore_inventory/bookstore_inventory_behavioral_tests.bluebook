@@ -9,6 +9,12 @@ Hecks.behaviors "BookstoreInventory" do
     expect isbn: "sample", title: "sample", author_name: "sample", genre: "sample", price: 1.0, quantity_on_hand: 1, status: "in_stock"
   end
 
+  test "CatalogBook cascades through policy chain" do
+    tests "CatalogBook", on: "Book", kind: :cascade
+    input  isbn: "sample", title: "sample", author_name: "sample", genre: "sample", price: 1.0, quantity_on_hand: 1
+    expect emits: ["BookCataloged", "BookShelved", "SigningScheduled"]
+  end
+
   test "ReplenishStock sets additional_copies" do
     tests "ReplenishStock", on: "Book"
     setup  "CatalogBook", isbn: "sample", title: "sample", author_name: "sample", genre: "sample", price: 1.0, quantity_on_hand: 1
@@ -62,10 +68,22 @@ Hecks.behaviors "BookstoreInventory" do
     expect order_number: "sample", customer_name: "sample", status: "placed"
   end
 
+  test "PlaceOrder cascades through policy chain" do
+    tests "PlaceOrder", on: "Order", kind: :cascade
+    input  order_number: "sample", customer_name: "sample"
+    expect emits: ["OrderPlaced", "OrderFulfilled", "StockReplenished"]
+  end
+
   test "FulfillOrder runs" do
     tests "FulfillOrder", on: "Order"
     setup  "PlaceOrder", order_number: "sample", customer_name: "sample"
     expect status: "fulfilled"
+  end
+
+  test "FulfillOrder cascades through policy chain" do
+    tests "FulfillOrder", on: "Order", kind: :cascade
+    setup  "PlaceOrder", order_number: "sample", customer_name: "sample"
+    expect emits: ["OrderFulfilled", "StockReplenished"]
   end
 
   test "CancelOrder runs" do
@@ -83,11 +101,38 @@ Hecks.behaviors "BookstoreInventory" do
     expect return_id: "sample", order_number: "sample", isbn: "sample", reason: "sample"
   end
 
+  test "InitiateReturn cascades through policy chain" do
+    tests "InitiateReturn", on: "Return", kind: :cascade
+    input  return_id: "sample", order_number: "sample", isbn: "sample", reason: "sample"
+    expect emits: ["ReturnInitiated", "ReturnInspected", "ReturnResolved", "BookShelved", "StockReplenished"]
+  end
+
   test "InspectReturn sets condition" do
     tests "InspectReturn", on: "Return"
     setup  "InitiateReturn", return_id: "sample", order_number: "sample", isbn: "sample", reason: "sample"
     input  condition: "sample"
-    expect condition: "sample", resolution: "sample"
+    expect condition: "sample"
+  end
+
+  test "InspectReturn cascades through policy chain" do
+    tests "InspectReturn", on: "Return", kind: :cascade
+    setup  "InitiateReturn", return_id: "sample", order_number: "sample", isbn: "sample", reason: "sample"
+    input  condition: "sample"
+    expect emits: ["ReturnInspected", "ReturnResolved", "BookShelved", "StockReplenished"]
+  end
+
+  test "ResolveReturn sets resolution" do
+    tests "ResolveReturn", on: "Return"
+    setup  "InitiateReturn", return_id: "sample", order_number: "sample", isbn: "sample", reason: "sample"
+    input  resolution: "sample"
+    expect resolution: "sample"
+  end
+
+  test "ResolveReturn cascades through policy chain" do
+    tests "ResolveReturn", on: "Return", kind: :cascade
+    setup  "InitiateReturn", return_id: "sample", order_number: "sample", isbn: "sample", reason: "sample"
+    input  resolution: "sample"
+    expect emits: ["ReturnResolved", "BookShelved", "StockReplenished"]
   end
 
 end

@@ -15,6 +15,12 @@ Hecks.behaviors "MentorEvents" do
     expect status: "closed"
   end
 
+  test "CloseMatch cascades through policy chain" do
+    tests "CloseMatch", on: "MentorMatch", kind: :cascade
+    setup  "MakeMatch", match_id: "sample", mentor_name: "sample", mentee_name: "sample", focus_area: "sample", start_date: "sample"
+    expect emits: ["MatchClosed", "ImpactMeasured"]
+  end
+
 
   # ── GroupEvent aggregate ──────────────────────────────────────────
 
@@ -22,6 +28,12 @@ Hecks.behaviors "MentorEvents" do
     tests "PlanEvent", on: "GroupEvent"
     input  event_id: "sample", event_name: "sample", venue: "sample", date: "sample", capacity: 1
     expect event_id: "sample", event_name: "sample", venue: "sample", date: "sample", capacity: 1, status: "planned"
+  end
+
+  test "PlanEvent cascades through policy chain" do
+    tests "PlanEvent", on: "GroupEvent", kind: :cascade
+    input  event_id: "sample", event_name: "sample", venue: "sample", date: "sample", capacity: 1
+    expect emits: ["EventPlanned", "AttendanceRecorded"]
   end
 
   test "CancelEvent runs" do

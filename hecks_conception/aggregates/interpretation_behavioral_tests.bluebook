@@ -9,11 +9,31 @@ Hecks.behaviors "Interpretation" do
     expect dream_images: "sample", strongest_synapse: "sample"
   end
 
+  test "InterpretDream cascades through policy chain" do
+    tests "InterpretDream", on: "DreamInterpretation", kind: :cascade
+    input  dream_images: "sample", strongest_synapse: "sample"
+    expect emits: ["DreamInterpreted", "ThemeExtracted", "DreamDomainProposed"]
+  end
+
   test "ExtractTheme sets recurring_theme" do
     tests "ExtractTheme", on: "DreamInterpretation"
     setup  "InterpretDream", dream_images: "sample", strongest_synapse: "sample"
     input  recurring_theme: "sample"
-    expect recurring_theme: "sample", proposed_domain: "sample"
+    expect recurring_theme: "sample"
+  end
+
+  test "ExtractTheme cascades through policy chain" do
+    tests "ExtractTheme", on: "DreamInterpretation", kind: :cascade
+    setup  "InterpretDream", dream_images: "sample", strongest_synapse: "sample"
+    input  recurring_theme: "sample"
+    expect emits: ["ThemeExtracted", "DreamDomainProposed"]
+  end
+
+  test "ProposeDomainFromDream sets proposed_domain" do
+    tests "ProposeDomainFromDream", on: "DreamInterpretation"
+    setup  "InterpretDream", dream_images: "sample", strongest_synapse: "sample"
+    input  proposed_domain: "sample"
+    expect proposed_domain: "sample"
   end
 
 
@@ -35,7 +55,13 @@ Hecks.behaviors "Interpretation" do
   test "CompleteProcess runs" do
     tests "CompleteProcess", on: "Process"
     setup  "SpawnProcess", task: "sample", intent: "sample", heki_target: "sample"
-    expect status: "absorbed"
+    expect status: "completed"
+  end
+
+  test "CompleteProcess cascades through policy chain" do
+    tests "CompleteProcess", on: "Process", kind: :cascade
+    setup  "SpawnProcess", task: "sample", intent: "sample", heki_target: "sample"
+    expect emits: ["ProcessCompleted", "FindingsAbsorbed"]
   end
 
   test "FailProcess sets reason" do
@@ -43,6 +69,13 @@ Hecks.behaviors "Interpretation" do
     setup  "SpawnProcess", task: "sample", intent: "sample", heki_target: "sample"
     input  reason: "sample"
     expect status: "failed"
+  end
+
+  test "AbsorbFindings runs" do
+    tests "AbsorbFindings", on: "Process"
+    setup  "SpawnProcess", task: "sample", intent: "sample", heki_target: "sample"
+    setup  "CompleteProcess"
+    expect status: "absorbed"
   end
 
 
@@ -61,6 +94,12 @@ Hecks.behaviors "Interpretation" do
     tests "InterpretExperience", on: "Interpretation"
     input  source: "sample", raw_material: "sample", insight: "sample"
     expect source: "sample", raw_material: "sample", insight: "sample"
+  end
+
+  test "InterpretExperience cascades through policy chain" do
+    tests "InterpretExperience", on: "Interpretation", kind: :cascade
+    input  source: "sample", raw_material: "sample", insight: "sample"
+    expect emits: ["ExperienceInterpreted", "ActionProposed"]
   end
 
 

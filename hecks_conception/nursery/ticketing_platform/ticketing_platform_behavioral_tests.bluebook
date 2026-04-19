@@ -16,10 +16,22 @@ Hecks.behaviors "TicketingPlatform" do
     expect ok: "true"
   end
 
+  test "PublishEvent cascades through policy chain" do
+    tests "PublishEvent", on: "Event", kind: :cascade
+    setup  "AnnounceEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
+    expect emits: ["EventPublished", "SalesReportGenerated", "ReportPublished"]
+  end
+
   test "CancelEvent runs" do
     tests "CancelEvent", on: "Event"
     setup  "AnnounceEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
     expect ok: "true"
+  end
+
+  test "CancelEvent cascades through policy chain" do
+    tests "CancelEvent", on: "Event", kind: :cascade
+    setup  "AnnounceEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
+    expect emits: ["EventCanceled", "RefundRequested", "RefundApproved"]
   end
 
 
@@ -54,6 +66,13 @@ Hecks.behaviors "TicketingPlatform" do
     expect status: "valid"
   end
 
+  test "PurchaseTicket cascades through policy chain" do
+    tests "PurchaseTicket", on: "Ticket", kind: :cascade
+    setup  "AnnounceEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
+    input  ticket_id: "sample", tier_name: "sample", holder_name: "sample", holder_email: "sample", price_paid: 1.0
+    expect emits: ["TicketPurchased", "SalesReportGenerated", "ReportPublished"]
+  end
+
   test "TransferTicket sets new_holder_name + new_holder_email" do
     tests "TransferTicket", on: "Ticket"
     setup  "PurchaseTicket", ticket_id: "sample", tier_name: "sample", holder_name: "sample", holder_email: "sample", price_paid: 1.0
@@ -67,6 +86,12 @@ Hecks.behaviors "TicketingPlatform" do
     expect ok: "true"
   end
 
+  test "CheckInTicket cascades through policy chain" do
+    tests "CheckInTicket", on: "Ticket", kind: :cascade
+    setup  "PurchaseTicket", ticket_id: "sample", tier_name: "sample", holder_name: "sample", holder_email: "sample", price_paid: 1.0
+    expect emits: ["TicketCheckedIn", "SalesReportGenerated", "ReportPublished"]
+  end
+
 
   # ── SalesReport aggregate ──────────────────────────────────────────
 
@@ -75,6 +100,13 @@ Hecks.behaviors "TicketingPlatform" do
     setup  "AnnounceEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
     input  report_id: "sample", period: "sample"
     expect status: "generated"
+  end
+
+  test "GenerateSalesReport cascades through policy chain" do
+    tests "GenerateSalesReport", on: "SalesReport", kind: :cascade
+    setup  "AnnounceEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
+    input  report_id: "sample", period: "sample"
+    expect emits: ["SalesReportGenerated", "ReportPublished"]
   end
 
   test "PublishReport runs" do
@@ -97,6 +129,13 @@ Hecks.behaviors "TicketingPlatform" do
     setup  "PurchaseTicket", ticket_id: "sample", tier_name: "sample", holder_name: "sample", holder_email: "sample", price_paid: 1.0
     input  refund_id: "sample", refund_amount: 1.0, reason: "sample", refund_method: "sample"
     expect status: "pending"
+  end
+
+  test "RequestRefund cascades through policy chain" do
+    tests "RequestRefund", on: "Refund", kind: :cascade
+    setup  "PurchaseTicket", ticket_id: "sample", tier_name: "sample", holder_name: "sample", holder_email: "sample", price_paid: 1.0
+    input  refund_id: "sample", refund_amount: 1.0, reason: "sample", refund_method: "sample"
+    expect emits: ["RefundRequested", "RefundApproved"]
   end
 
   test "ApproveRefund runs" do

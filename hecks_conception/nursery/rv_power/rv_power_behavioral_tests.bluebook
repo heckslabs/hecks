@@ -9,6 +9,12 @@ Hecks.behaviors "RVPower" do
     expect ok: "true"
   end
 
+  test "ConnectShore cascades through policy chain" do
+    tests "ConnectShore", on: "ShorePower", kind: :cascade
+    input  amperage: 1.0, voltage: 1.0, adapter: "sample"
+    expect emits: ["ShoreConnected", "RuntimeEstimated"]
+  end
+
   test "DisconnectShore runs" do
     tests "DisconnectShore", on: "ShorePower"
     setup  "ConnectShore", amperage: 1.0, voltage: 1.0, adapter: "sample"
@@ -22,6 +28,12 @@ Hecks.behaviors "RVPower" do
     tests "ConfigureBank", on: "BatteryBank"
     input  name: "sample", batteries: 1, voltage: 1.0, ah_per_battery: 1.0, chemistry: "sample", usable_pct: 1.0
     expect ok: "true"
+  end
+
+  test "ConfigureBank cascades through policy chain" do
+    tests "ConfigureBank", on: "BatteryBank", kind: :cascade
+    input  name: "sample", batteries: 1, voltage: 1.0, ah_per_battery: 1.0, chemistry: "sample", usable_pct: 1.0
+    expect emits: ["BankConfigured", "RuntimeEstimated"]
   end
 
   test "EstimateRuntime sets total_dc_amps" do
@@ -38,6 +50,12 @@ Hecks.behaviors "RVPower" do
     tests "ConfigureSolar", on: "SolarArray"
     input  panel_watts: 1.0, panel_count: 1, controller_type: "sample", controller_amps: 1.0
     expect ok: "true"
+  end
+
+  test "ConfigureSolar cascades through policy chain" do
+    tests "ConfigureSolar", on: "SolarArray", kind: :cascade
+    input  panel_watts: 1.0, panel_count: 1, controller_type: "sample", controller_amps: 1.0
+    expect emits: ["SolarConfigured", "DailyHarvestCalculated"]
   end
 
   test "CalculateDailyHarvest sets sun_hours" do

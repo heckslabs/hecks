@@ -9,6 +9,12 @@ Hecks.behaviors "VoiceCorpusQuery" do
     expect transcript: "sample", status: "received"
   end
 
+  test "ReceiveQuery cascades through policy chain" do
+    tests "ReceiveQuery", on: "VoiceQuery", kind: :cascade
+    input  transcript: "sample"
+    expect emits: ["QueryReceived", "IntentClassified", "CorpusSearched", "AnswerComposed", "AnswerSpoken"]
+  end
+
   test "ParseIntent sets intent" do
     tests "ParseIntent", on: "VoiceQuery"
     setup  "ReceiveQuery", transcript: "sample"
@@ -22,6 +28,14 @@ Hecks.behaviors "VoiceCorpusQuery" do
     setup  "ParseIntent", intent: "sample"
     input  matched_domains: "sample_domainmatch"
     expect matched_domains: "sample_domainmatch", status: "searched"
+  end
+
+  test "SearchCorpus cascades through policy chain" do
+    tests "SearchCorpus", on: "VoiceQuery", kind: :cascade
+    setup  "ReceiveQuery", transcript: "sample"
+    setup  "ParseIntent", intent: "sample"
+    input  matched_domains: "sample_domainmatch"
+    expect emits: ["CorpusSearched", "AnswerComposed", "AnswerSpoken"]
   end
 
   test "FormulateAnswer sets answer" do
@@ -52,6 +66,12 @@ Hecks.behaviors "VoiceCorpusQuery" do
     expect raw_query: "sample", intent_type: "sample", target: "sample", confidence: 1.0, status: "classified"
   end
 
+  test "ClassifyIntent cascades through policy chain" do
+    tests "ClassifyIntent", on: "QueryIntent", kind: :cascade
+    input  raw_query: "sample", intent_type: "sample", target: "sample", confidence: 1.0
+    expect emits: ["IntentClassified", "CorpusSearched", "AnswerComposed", "AnswerSpoken"]
+  end
+
   test "RefineIntent sets intent_type + target + confidence" do
     tests "RefineIntent", on: "QueryIntent"
     setup  "ClassifyIntent", raw_query: "sample", intent_type: "sample", target: "sample", confidence: 1.0
@@ -74,6 +94,12 @@ Hecks.behaviors "VoiceCorpusQuery" do
     expect query_id: "sample", answer_text: "sample", sources: "sample", confidence: 1.0, status: "composed"
   end
 
+  test "ComposeAnswer cascades through policy chain" do
+    tests "ComposeAnswer", on: "CorpusAnswer", kind: :cascade
+    input  query_id: "sample", answer_text: "sample", sources: "sample", confidence: 1.0
+    expect emits: ["AnswerComposed", "AnswerSpoken"]
+  end
+
   test "AddSource sets source" do
     tests "AddSource", on: "CorpusAnswer"
     setup  "ComposeAnswer", query_id: "sample", answer_text: "sample", sources: "sample", confidence: 1.0
@@ -93,6 +119,13 @@ Hecks.behaviors "VoiceCorpusQuery" do
     setup  "ComposeAnswer", query_id: "sample", answer_text: "sample", sources: "sample", confidence: 1.0
     setup  "SimplifyForSpeech", answer_text: "sample"
     expect spoken: "yes", status: "delivered"
+  end
+
+  test "DeliverAnswer cascades through policy chain" do
+    tests "DeliverAnswer", on: "CorpusAnswer", kind: :cascade
+    setup  "ComposeAnswer", query_id: "sample", answer_text: "sample", sources: "sample", confidence: 1.0
+    setup  "SimplifyForSpeech", answer_text: "sample"
+    expect emits: ["AnswerDelivered", "QueryRecorded"]
   end
 
 

@@ -9,6 +9,12 @@ Hecks.behaviors "Census" do
     expect total_domains: 1, total_aggregates: 1, total_commands: 1, total_policies: 1, sector_count: 1, errors: 1
   end
 
+  test "TakeCensus cascades through policy chain" do
+    tests "TakeCensus", on: "NurseryCensus", kind: :cascade
+    input  total_domains: 1, total_aggregates: 1, total_commands: 1, total_policies: 1, sector_count: 1, errors: 1
+    expect emits: ["CensusTaken", "SectorClassified"]
+  end
+
   test "RecountDomains sets total_domains" do
     tests "RecountDomains", on: "NurseryCensus"
     setup  "TakeCensus", total_domains: 1, total_aggregates: 1, total_commands: 1, total_policies: 1, sector_count: 1, errors: 1

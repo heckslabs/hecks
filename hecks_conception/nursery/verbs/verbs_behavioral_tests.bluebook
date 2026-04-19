@@ -70,6 +70,13 @@ Hecks.behaviors "Verbs" do
     expect verdict: "accepted"
   end
 
+  test "AcceptVerb cascades through policy chain" do
+    tests "AcceptVerb", on: "Validation", kind: :cascade
+    setup  "ValidateCommandVerb", word: "sample"
+    input  word: "sample", reason: "sample"
+    expect emits: ["VerbAccepted", "VerbLearned"]
+  end
+
   test "RejectVerb sets word + reason" do
     tests "RejectVerb", on: "Validation"
     setup  "ValidateCommandVerb", word: "sample"

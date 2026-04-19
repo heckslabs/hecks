@@ -15,6 +15,12 @@ Hecks.behaviors "EcoProtectedZone" do
     expect status: "closed"
   end
 
+  test "CloseZone cascades through policy chain" do
+    tests "CloseZone", on: "ProtectedArea", kind: :cascade
+    setup  "DesignateArea", name: "sample", protection_level: "sample", area_sq_km: 1.0
+    expect emits: ["ZoneClosed", "PermitRevoked"]
+  end
+
   test "ReopenZone runs" do
     tests "ReopenZone", on: "ProtectedArea"
     setup  "DesignateArea", name: "sample", protection_level: "sample", area_sq_km: 1.0
@@ -84,6 +90,14 @@ Hecks.behaviors "EcoProtectedZone" do
     expect case_number: "sample", evidence_type: "sample", dna_sample_id: "sample", status: "open"
   end
 
+  test "OpenForensicCase cascades through policy chain" do
+    tests "OpenForensicCase", on: "ForensicCase", kind: :cascade
+    setup  "DesignateArea", name: "sample", protection_level: "sample", area_sq_km: 1.0
+    setup  "CatalogSpecies", common_name: "sample", scientific_name: "sample", conservation_status: "sample", estimated_population: 1, primary_habitat: "sample"
+    input  case_number: "sample", evidence_type: "sample", dna_sample_id: "sample"
+    expect emits: ["PoachingDetected", "ZoneClosed", "PermitRevoked", "DNAMatched"]
+  end
+
   test "MatchDNA runs" do
     tests "MatchDNA", on: "ForensicCase"
     setup  "OpenForensicCase", case_number: "sample", evidence_type: "sample", dna_sample_id: "sample"
@@ -113,6 +127,20 @@ Hecks.behaviors "EcoProtectedZone" do
     expect zone_name: "sample", hazard_type: "sample", alert_level: "normal", status: "monitored"
   end
 
+  test "RaiseAlert sets alert_level" do
+    tests "RaiseAlert", on: "HazardZone"
+    setup  "DefineHazardZone", zone_name: "sample", hazard_type: "sample"
+    input  alert_level: "sample"
+    expect alert_level: "sample", status: "alert"
+  end
+
+  test "RaiseAlert cascades through policy chain" do
+    tests "RaiseAlert", on: "HazardZone", kind: :cascade
+    setup  "DefineHazardZone", zone_name: "sample", hazard_type: "sample"
+    input  alert_level: "sample"
+    expect emits: ["EruptionAlert", "VisitorEvacuated", "ZoneClosed", "PermitRevoked"]
+  end
+
   test "LowerAlert runs" do
     tests "LowerAlert", on: "HazardZone"
     setup  "DefineHazardZone", zone_name: "sample", hazard_type: "sample"
@@ -124,7 +152,14 @@ Hecks.behaviors "EcoProtectedZone" do
     tests "RecordSeismicActivity", on: "HazardZone"
     setup  "DefineHazardZone", zone_name: "sample", hazard_type: "sample"
     input  magnitude: 1.0, depth_km: 1.0
-    expect alert_level: "sample", status: "alert"
+    expect ok: "true"
+  end
+
+  test "RecordSeismicActivity cascades through policy chain" do
+    tests "RecordSeismicActivity", on: "HazardZone", kind: :cascade
+    setup  "DefineHazardZone", zone_name: "sample", hazard_type: "sample"
+    input  magnitude: 1.0, depth_km: 1.0
+    expect emits: ["SeismicActivityRecorded", "EruptionAlert", "VisitorEvacuated", "ZoneClosed", "PermitRevoked"]
   end
 
 

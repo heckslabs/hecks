@@ -26,11 +26,25 @@ Hecks.behaviors "GymReservations" do
     expect ok: "true"
   end
 
+  test "ReserveSpot cascades through policy chain" do
+    tests "ReserveSpot", on: "Booking", kind: :cascade
+    setup  "ConfirmCapacity"
+    input  member_name: "sample", class_name: "sample", session_date: "sample"
+    expect emits: ["SpotReserved", "AvailabilityPublished"]
+  end
+
   test "CancelBooking runs" do
     tests "CancelBooking", on: "Booking"
     setup  "ConfirmCapacity"
     setup  "ReserveSpot", member_name: "sample", class_name: "sample", session_date: "sample"
     expect ok: "true"
+  end
+
+  test "CancelBooking cascades through policy chain" do
+    tests "CancelBooking", on: "Booking", kind: :cascade
+    setup  "ReserveSpot", member_name: "sample", class_name: "sample", session_date: "sample"
+    setup  "ConfirmCapacity"
+    expect emits: ["BookingCancelled", "WaitListPromoted"]
   end
 
   test "MarkAttended runs" do

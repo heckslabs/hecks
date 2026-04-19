@@ -9,10 +9,72 @@ Hecks.behaviors "TrainScheduling" do
     expect status: "active"
   end
 
+  test "ActivateTrain cascades through policy chain" do
+    tests "ActivateTrain", on: "Train", kind: :cascade
+    input  train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
+    expect emits: ["TrainActivated", "TrainAssignedToRoute", "TrainPrepared", "TrainDispatched"]
+  end
+
   test "PrepareForService runs" do
     tests "PrepareForService", on: "Train"
     setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
+    expect status: "prepared"
+  end
+
+  test "PrepareForService cascades through policy chain" do
+    tests "PrepareForService", on: "Train", kind: :cascade
+    setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
+    expect emits: ["TrainPrepared", "TrainDispatched"]
+  end
+
+  test "DispatchTrain runs" do
+    tests "DispatchTrain", on: "Train"
+    setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
+    setup  "PrepareForService"
     expect status: "running"
+  end
+
+  test "ArriveAtStation runs" do
+    tests "ArriveAtStation", on: "Train"
+    setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
+    setup  "PrepareForService"
+    setup  "DispatchTrain"
+    expect status: "at_station"
+  end
+
+  test "ArriveAtStation cascades through policy chain" do
+    tests "ArriveAtStation", on: "Train", kind: :cascade
+    setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
+    setup  "PrepareForService"
+    setup  "DispatchTrain"
+    expect emits: ["TrainArrived", "PlatformAllocated"]
+  end
+
+  test "DepartStation runs" do
+    tests "DepartStation", on: "Train"
+    setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
+    setup  "PrepareForService"
+    setup  "DispatchTrain"
+    setup  "ArriveAtStation"
+    expect status: "running"
+  end
+
+  test "DepartStation cascades through policy chain" do
+    tests "DepartStation", on: "Train", kind: :cascade
+    setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
+    setup  "PrepareForService"
+    setup  "DispatchTrain"
+    setup  "ArriveAtStation"
+    expect emits: ["TrainDeparted", "PlatformReleased"]
+  end
+
+  test "TerminateService runs" do
+    tests "TerminateService", on: "Train"
+    setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
+    setup  "PrepareForService"
+    setup  "DispatchTrain"
+    setup  "ArriveAtStation"
+    expect status: "terminated"
   end
 
   test "WithdrawTrain sets reason" do
@@ -36,6 +98,13 @@ Hecks.behaviors "TrainScheduling" do
     setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
     setup  "DefineRoute", route_code: "sample", origin_station: "sample", destination_station: "sample", stop_count: 1, distance_km: 1.0
     expect ok: "true"
+  end
+
+  test "AssignTrainToRoute cascades through policy chain" do
+    tests "AssignTrainToRoute", on: "Route", kind: :cascade
+    setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
+    setup  "DefineRoute", route_code: "sample", origin_station: "sample", destination_station: "sample", stop_count: 1, distance_km: 1.0
+    expect emits: ["TrainAssignedToRoute", "TrainPrepared", "TrainDispatched"]
   end
 
 
@@ -68,6 +137,13 @@ Hecks.behaviors "TrainScheduling" do
     setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
     input  cause: "sample", delay_minutes: 1
     expect status: "active"
+  end
+
+  test "ReportDelay cascades through policy chain" do
+    tests "ReportDelay", on: "Delay", kind: :cascade
+    setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
+    input  cause: "sample", delay_minutes: 1
+    expect emits: ["DelayReported", "TrainWithdrawn"]
   end
 
   test "ResolveDelay runs" do

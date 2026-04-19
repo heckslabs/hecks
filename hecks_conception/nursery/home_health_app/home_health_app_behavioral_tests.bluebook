@@ -15,6 +15,12 @@ Hecks.behaviors "HomeHealthApp" do
     expect status: "in_progress"
   end
 
+  test "CheckIn cascades through policy chain" do
+    tests "CheckIn", on: "HomeVisit", kind: :cascade
+    setup  "ScheduleVisit", visit_id: "sample", patient_name: "sample", caregiver_name: "sample", visit_type: "sample", scheduled_date: "sample"
+    expect emits: ["CaregiverCheckedIn", "VitalsRecorded"]
+  end
+
   test "CompleteVisit runs" do
     tests "CompleteVisit", on: "HomeVisit"
     setup  "ScheduleVisit", visit_id: "sample", patient_name: "sample", caregiver_name: "sample", visit_type: "sample", scheduled_date: "sample"
@@ -35,6 +41,12 @@ Hecks.behaviors "HomeHealthApp" do
     tests "FlagAbnormal", on: "VitalSign"
     setup  "RecordVitals", reading_id: "sample", visit_id: "sample", heart_rate: 1.0, blood_pressure_sys: 1.0, blood_pressure_dia: 1.0, temperature: 1.0, oxygen_sat: 1.0
     expect ok: "true"
+  end
+
+  test "FlagAbnormal cascades through policy chain" do
+    tests "FlagAbnormal", on: "VitalSign", kind: :cascade
+    setup  "RecordVitals", reading_id: "sample", visit_id: "sample", heart_rate: 1.0, blood_pressure_sys: 1.0, blood_pressure_dia: 1.0, temperature: 1.0, oxygen_sat: 1.0
+    expect emits: ["AbnormalFlagged", "AlertSent"]
   end
 
 

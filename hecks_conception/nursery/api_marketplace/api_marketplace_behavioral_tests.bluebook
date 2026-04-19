@@ -32,6 +32,12 @@ Hecks.behaviors "APIMarketplace" do
     expect consumer_name: "sample", email: "sample", organization: "sample", plan: "sample", status: "active"
   end
 
+  test "RegisterConsumer cascades through policy chain" do
+    tests "RegisterConsumer", on: "Consumer", kind: :cascade
+    input  consumer_name: "sample", email: "sample", organization: "sample", plan: "sample"
+    expect emits: ["ConsumerRegistered", "KeyIssued", "ConsumerSubscribed", "RateLimitDefined", "KeyRotated"]
+  end
+
   test "SubscribeToAPI sets api_name + tier" do
     tests "SubscribeToAPI", on: "Consumer"
     setup  "RegisterConsumer", consumer_name: "sample", email: "sample", organization: "sample", plan: "sample"
@@ -39,10 +45,23 @@ Hecks.behaviors "APIMarketplace" do
     expect ok: "true"
   end
 
+  test "SubscribeToAPI cascades through policy chain" do
+    tests "SubscribeToAPI", on: "Consumer", kind: :cascade
+    setup  "RegisterConsumer", consumer_name: "sample", email: "sample", organization: "sample", plan: "sample"
+    input  api_name: "sample", tier: "sample"
+    expect emits: ["ConsumerSubscribed", "RateLimitDefined", "KeyRotated"]
+  end
+
   test "SuspendConsumer runs" do
     tests "SuspendConsumer", on: "Consumer"
     setup  "RegisterConsumer", consumer_name: "sample", email: "sample", organization: "sample", plan: "sample"
     expect ok: "true"
+  end
+
+  test "SuspendConsumer cascades through policy chain" do
+    tests "SuspendConsumer", on: "Consumer", kind: :cascade
+    setup  "RegisterConsumer", consumer_name: "sample", email: "sample", organization: "sample", plan: "sample"
+    expect emits: ["ConsumerSuspended", "KeyRevoked"]
   end
 
 
@@ -91,6 +110,13 @@ Hecks.behaviors "APIMarketplace" do
     expect ok: "true"
   end
 
+  test "EnforceThrottle cascades through policy chain" do
+    tests "EnforceThrottle", on: "RateLimitPolicy", kind: :cascade
+    setup  "DefineRateLimit", policy_name: "sample", requests_per_minute: 1, requests_per_day: 1, burst_limit: 1
+    input  consumer_id: "sample"
+    expect emits: ["ConsumerThrottled", "BillGenerated", "PaymentCollected", "ConsumerSuspended", "KeyRevoked"]
+  end
+
 
   # ── UsageBill aggregate ──────────────────────────────────────────
 
@@ -99,6 +125,13 @@ Hecks.behaviors "APIMarketplace" do
     setup  "RegisterConsumer", consumer_name: "sample", email: "sample", organization: "sample", plan: "sample"
     input  bill_id: "sample", amount: 1.0, total_calls: 1, billing_period: "sample"
     expect status: "unpaid"
+  end
+
+  test "GenerateBill cascades through policy chain" do
+    tests "GenerateBill", on: "UsageBill", kind: :cascade
+    setup  "RegisterConsumer", consumer_name: "sample", email: "sample", organization: "sample", plan: "sample"
+    input  bill_id: "sample", amount: 1.0, total_calls: 1, billing_period: "sample"
+    expect emits: ["BillGenerated", "PaymentCollected", "ConsumerSuspended", "KeyRevoked"]
   end
 
   test "CollectPayment runs" do

@@ -9,10 +9,22 @@ Hecks.behaviors "FreightLogistics" do
     expect tracking_number: "sample", origin: "sample", destination: "sample", weight_kg: 1.0, pallet_count: 1, commodity_type: "sample", status: "booked"
   end
 
+  test "BookShipment cascades through policy chain" do
+    tests "BookShipment", on: "Shipment", kind: :cascade
+    input  tracking_number: "sample", origin: "sample", destination: "sample", weight_kg: 1.0, pallet_count: 1, commodity_type: "sample"
+    expect emits: ["ShipmentBooked", "RoutePlanned", "ShipmentDispatched", "ClearanceFiled", "TrackingEventRecorded"]
+  end
+
   test "DispatchShipment runs" do
     tests "DispatchShipment", on: "Shipment"
     setup  "BookShipment", tracking_number: "sample", origin: "sample", destination: "sample", weight_kg: 1.0, pallet_count: 1, commodity_type: "sample"
     expect status: "in_transit"
+  end
+
+  test "DispatchShipment cascades through policy chain" do
+    tests "DispatchShipment", on: "Shipment", kind: :cascade
+    setup  "BookShipment", tracking_number: "sample", origin: "sample", destination: "sample", weight_kg: 1.0, pallet_count: 1, commodity_type: "sample"
+    expect emits: ["ShipmentDispatched", "ClearanceFiled", "TrackingEventRecorded"]
   end
 
   test "DeliverShipment runs" do
@@ -54,6 +66,13 @@ Hecks.behaviors "FreightLogistics" do
     expect origin: "sample", destination: "sample", distance_miles: 1.0, estimated_hours: 1, status: "planned"
   end
 
+  test "PlanRoute cascades through policy chain" do
+    tests "PlanRoute", on: "Route", kind: :cascade
+    setup  "BookShipment", tracking_number: "sample", origin: "sample", destination: "sample", weight_kg: 1.0, pallet_count: 1, commodity_type: "sample"
+    input  origin: "sample", destination: "sample", distance_miles: 1.0, estimated_hours: 1
+    expect emits: ["RoutePlanned", "ShipmentDispatched", "ClearanceFiled", "TrackingEventRecorded"]
+  end
+
   test "RerouteShipment sets new_destination + new_distance_miles" do
     tests "RerouteShipment", on: "Route"
     setup  "PlanRoute", origin: "sample", destination: "sample", distance_miles: 1.0, estimated_hours: 1
@@ -78,10 +97,23 @@ Hecks.behaviors "FreightLogistics" do
     expect duty_amount: 1.0, status: "cleared"
   end
 
+  test "ApproveClearance cascades through policy chain" do
+    tests "ApproveClearance", on: "CustomsClearance", kind: :cascade
+    setup  "FileClearance", declaration_number: "sample", country_of_origin: "sample", tariff_code: "sample", declared_value: 1.0
+    input  duty_amount: 1.0
+    expect emits: ["ClearanceApproved", "TrackingEventRecorded", "ShipmentDelivered"]
+  end
+
   test "HoldForInspection runs" do
     tests "HoldForInspection", on: "CustomsClearance"
     setup  "FileClearance", declaration_number: "sample", country_of_origin: "sample", tariff_code: "sample", declared_value: 1.0
     expect status: "held"
+  end
+
+  test "HoldForInspection cascades through policy chain" do
+    tests "HoldForInspection", on: "CustomsClearance", kind: :cascade
+    setup  "FileClearance", declaration_number: "sample", country_of_origin: "sample", tariff_code: "sample", declared_value: 1.0
+    expect emits: ["ShipmentHeld", "DelayFlagged"]
   end
 
 

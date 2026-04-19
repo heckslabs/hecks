@@ -18,6 +18,12 @@ Hecks.behaviors "TrainingPipeline" do
     expect format: "sample", status: "prepared"
   end
 
+  test "PrepareData cascades through policy chain" do
+    tests "PrepareData", on: "DataPrep", kind: :cascade
+    input  format: "sample"
+    expect emits: ["DataPrepared", "DatasetSplit"]
+  end
+
   test "SplitDataset runs" do
     tests "SplitDataset", on: "DataPrep"
     setup  "PrepareData", format: "sample"
@@ -53,6 +59,12 @@ Hecks.behaviors "TrainingPipeline" do
     tests "CompleteFineTune", on: "FineTune"
     setup  "StartFineTune", base_model: "sample", dataset_size: 1, epochs: 1, learning_rate: 1.0
     expect status: "complete"
+  end
+
+  test "CompleteFineTune cascades through policy chain" do
+    tests "CompleteFineTune", on: "FineTune", kind: :cascade
+    setup  "StartFineTune", base_model: "sample", dataset_size: 1, epochs: 1, learning_rate: 1.0
+    expect emits: ["FineTuneCompleted", "ModelEvaluated"]
   end
 
 

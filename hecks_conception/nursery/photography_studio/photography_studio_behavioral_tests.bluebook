@@ -24,6 +24,14 @@ Hecks.behaviors "PhotographyStudio" do
     expect status: "wrapped", frame_count: 1
   end
 
+  test "WrapShoot cascades through policy chain" do
+    tests "WrapShoot", on: "Shoot", kind: :cascade
+    setup  "ScheduleShoot", title: "sample", location: "sample", shoot_type: "sample"
+    setup  "StartShoot"
+    input  final_frame_count: 1
+    expect emits: ["ShootWrapped", "SelectsCulled", "SelectsRetouched", "FinalsDelivered", "GalleryPublished", "PrintOrderPlaced", "PrintOrderFulfilled", "ClientTierUpgraded"]
+  end
+
 
   # ── Client aggregate ──────────────────────────────────────────
 
@@ -50,11 +58,41 @@ Hecks.behaviors "PhotographyStudio" do
     expect selects_count: 1, status: "culling"
   end
 
+  test "CullSelects cascades through policy chain" do
+    tests "CullSelects", on: "EditSession", kind: :cascade
+    setup  "ScheduleShoot", title: "sample", location: "sample", shoot_type: "sample"
+    input  selects_count: 1
+    expect emits: ["SelectsCulled", "SelectsRetouched", "FinalsDelivered", "GalleryPublished", "PrintOrderPlaced", "PrintOrderFulfilled", "ClientTierUpgraded"]
+  end
+
   test "RetouchSelects sets preset_name" do
     tests "RetouchSelects", on: "EditSession"
     setup  "CullSelects", selects_count: 1
     input  preset_name: "sample"
+    expect status: "retouched"
+  end
+
+  test "RetouchSelects cascades through policy chain" do
+    tests "RetouchSelects", on: "EditSession", kind: :cascade
+    setup  "CullSelects", selects_count: 1
+    input  preset_name: "sample"
+    expect emits: ["SelectsRetouched", "FinalsDelivered", "GalleryPublished", "PrintOrderPlaced", "PrintOrderFulfilled", "ClientTierUpgraded"]
+  end
+
+  test "DeliverFinals sets finals_count" do
+    tests "DeliverFinals", on: "EditSession"
+    setup  "CullSelects", selects_count: 1
+    setup  "RetouchSelects", preset_name: "sample"
+    input  finals_count: 1
     expect finals_count: 1, status: "delivered"
+  end
+
+  test "DeliverFinals cascades through policy chain" do
+    tests "DeliverFinals", on: "EditSession", kind: :cascade
+    setup  "CullSelects", selects_count: 1
+    setup  "RetouchSelects", preset_name: "sample"
+    input  finals_count: 1
+    expect emits: ["FinalsDelivered", "GalleryPublished", "PrintOrderPlaced", "PrintOrderFulfilled", "ClientTierUpgraded"]
   end
 
 
@@ -64,6 +102,12 @@ Hecks.behaviors "PhotographyStudio" do
     tests "PublishGallery", on: "Gallery"
     input  title: "sample", access_code: "sample", image_count: 1
     expect status: "published"
+  end
+
+  test "PublishGallery cascades through policy chain" do
+    tests "PublishGallery", on: "Gallery", kind: :cascade
+    input  title: "sample", access_code: "sample", image_count: 1
+    expect emits: ["GalleryPublished", "PrintOrderPlaced", "PrintOrderFulfilled", "ClientTierUpgraded"]
   end
 
   test "ExpireGallery runs" do
@@ -81,10 +125,22 @@ Hecks.behaviors "PhotographyStudio" do
     expect paper_stock: "sample", finish: "sample", quantity: 1, status: "pending"
   end
 
+  test "PlacePrintOrder cascades through policy chain" do
+    tests "PlacePrintOrder", on: "PrintOrder", kind: :cascade
+    input  paper_stock: "sample", finish: "sample", quantity: 1
+    expect emits: ["PrintOrderPlaced", "PrintOrderFulfilled", "ClientTierUpgraded"]
+  end
+
   test "FulfillPrintOrder runs" do
     tests "FulfillPrintOrder", on: "PrintOrder"
     setup  "PlacePrintOrder", paper_stock: "sample", finish: "sample", quantity: 1
     expect status: "fulfilled"
+  end
+
+  test "FulfillPrintOrder cascades through policy chain" do
+    tests "FulfillPrintOrder", on: "PrintOrder", kind: :cascade
+    setup  "PlacePrintOrder", paper_stock: "sample", finish: "sample", quantity: 1
+    expect emits: ["PrintOrderFulfilled", "ClientTierUpgraded"]
   end
 
 end

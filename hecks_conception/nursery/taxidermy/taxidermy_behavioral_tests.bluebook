@@ -9,10 +9,38 @@ Hecks.behaviors "Taxidermy" do
     expect status: "received"
   end
 
+  test "ReceiveSpecimen cascades through policy chain" do
+    tests "ReceiveSpecimen", on: "Specimen", kind: :cascade
+    input  species: "sample", common_name: "sample", weight_lbs: 1.0, source_type: "sample"
+    expect emits: ["SpecimenReceived", "SpecimenSkinned", "HideTanned", "PoseSelected", "AlterationSculpted", "SpecimenMounted", "MountFinished", "MountCured", "DisplayStaged"]
+  end
+
   test "SkinSpecimen runs" do
     tests "SkinSpecimen", on: "Specimen"
     setup  "ReceiveSpecimen", species: "sample", common_name: "sample", weight_lbs: 1.0, source_type: "sample"
+    expect status: "skinned"
+  end
+
+  test "SkinSpecimen cascades through policy chain" do
+    tests "SkinSpecimen", on: "Specimen", kind: :cascade
+    setup  "ReceiveSpecimen", species: "sample", common_name: "sample", weight_lbs: 1.0, source_type: "sample"
+    expect emits: ["SpecimenSkinned", "HideTanned", "PoseSelected", "AlterationSculpted", "SpecimenMounted", "MountFinished", "MountCured", "DisplayStaged"]
+  end
+
+  test "TanHide sets tanning_method" do
+    tests "TanHide", on: "Specimen"
+    setup  "ReceiveSpecimen", species: "sample", common_name: "sample", weight_lbs: 1.0, source_type: "sample"
+    setup  "SkinSpecimen"
+    input  tanning_method: "sample"
     expect status: "tanned"
+  end
+
+  test "TanHide cascades through policy chain" do
+    tests "TanHide", on: "Specimen", kind: :cascade
+    setup  "ReceiveSpecimen", species: "sample", common_name: "sample", weight_lbs: 1.0, source_type: "sample"
+    setup  "SkinSpecimen"
+    input  tanning_method: "sample"
+    expect emits: ["HideTanned", "PoseSelected", "AlterationSculpted", "SpecimenMounted", "MountFinished", "MountCured", "DisplayStaged"]
   end
 
 
@@ -25,11 +53,25 @@ Hecks.behaviors "Taxidermy" do
     expect status: "selected"
   end
 
+  test "SelectPose cascades through policy chain" do
+    tests "SelectPose", on: "Pose", kind: :cascade
+    setup  "ReceiveSpecimen", species: "sample", common_name: "sample", weight_lbs: 1.0, source_type: "sample"
+    input  pose_name: "sample", position: "sample", expression: "sample"
+    expect emits: ["PoseSelected", "AlterationSculpted", "SpecimenMounted", "MountFinished", "MountCured", "DisplayStaged"]
+  end
+
   test "SculptAlteration sets alteration_details" do
     tests "SculptAlteration", on: "Pose"
     setup  "SelectPose", pose_name: "sample", position: "sample", expression: "sample"
     input  alteration_details: "sample"
     expect status: "altered"
+  end
+
+  test "SculptAlteration cascades through policy chain" do
+    tests "SculptAlteration", on: "Pose", kind: :cascade
+    setup  "SelectPose", pose_name: "sample", position: "sample", expression: "sample"
+    input  alteration_details: "sample"
+    expect emits: ["AlterationSculpted", "SpecimenMounted", "MountFinished", "MountCured", "DisplayStaged"]
   end
 
 
@@ -59,10 +101,38 @@ Hecks.behaviors "Taxidermy" do
     expect status: "in_progress"
   end
 
+  test "MountSpecimen cascades through policy chain" do
+    tests "MountSpecimen", on: "Preservation", kind: :cascade
+    setup  "SelectPose", pose_name: "sample", position: "sample", expression: "sample"
+    setup  "ReceiveSpecimen", species: "sample", common_name: "sample", weight_lbs: 1.0, source_type: "sample"
+    input  adhesive_type: "sample"
+    expect emits: ["SpecimenMounted", "MountFinished", "MountCured", "DisplayStaged"]
+  end
+
   test "FinishMount runs" do
     tests "FinishMount", on: "Preservation"
     setup  "MountSpecimen", adhesive_type: "sample"
-    expect status: "finished", drying_days: 1
+    expect status: "finished"
+  end
+
+  test "FinishMount cascades through policy chain" do
+    tests "FinishMount", on: "Preservation", kind: :cascade
+    setup  "MountSpecimen", adhesive_type: "sample"
+    expect emits: ["MountFinished", "MountCured", "DisplayStaged"]
+  end
+
+  test "CureMount sets drying_days" do
+    tests "CureMount", on: "Preservation"
+    setup  "MountSpecimen", adhesive_type: "sample"
+    input  drying_days: 1
+    expect drying_days: 1
+  end
+
+  test "CureMount cascades through policy chain" do
+    tests "CureMount", on: "Preservation", kind: :cascade
+    setup  "MountSpecimen", adhesive_type: "sample"
+    input  drying_days: 1
+    expect emits: ["MountCured", "DisplayStaged"]
   end
 
 

@@ -9,6 +9,12 @@ Hecks.behaviors "NaturalDisasterGrid" do
     expect event_type: "sample", location: "sample", severity: "sample", declared_at: "sample", status: "active"
   end
 
+  test "DeclareDisaster cascades through policy chain" do
+    tests "DeclareDisaster", on: "DisasterEvent", kind: :cascade
+    input  event_type: "sample", location: "sample", severity: "sample", declared_at: "sample"
+    expect emits: ["DisasterDeclared", "GridRerouted", "CascadeStarted"]
+  end
+
   test "AssessImpact sets infrastructure_type + impact_level" do
     tests "AssessImpact", on: "DisasterEvent"
     setup  "DeclareDisaster", event_type: "sample", location: "sample", severity: "sample", declared_at: "sample"
@@ -27,6 +33,12 @@ Hecks.behaviors "NaturalDisasterGrid" do
     tests "ResolveDisaster", on: "DisasterEvent"
     setup  "DeclareDisaster", event_type: "sample", location: "sample", severity: "sample", declared_at: "sample"
     expect status: "resolved"
+  end
+
+  test "ResolveDisaster cascades through policy chain" do
+    tests "ResolveDisaster", on: "DisasterEvent", kind: :cascade
+    setup  "DeclareDisaster", event_type: "sample", location: "sample", severity: "sample", declared_at: "sample"
+    expect emits: ["DisasterResolved", "RecoveryPlanDrafted"]
   end
 
 
@@ -50,6 +62,12 @@ Hecks.behaviors "NaturalDisasterGrid" do
     expect status: "failed"
   end
 
+  test "FailSegment cascades through policy chain" do
+    tests "FailSegment", on: "GridSegment", kind: :cascade
+    setup  "RegisterSegment", segment_id: "sample", region: "sample", capacity_mw: 1.0
+    expect emits: ["GridFailed", "ProtocolActivated", "FailurePropagated"]
+  end
+
   test "RestoreSegment runs" do
     tests "RestoreSegment", on: "GridSegment"
     setup  "RegisterSegment", segment_id: "sample", region: "sample", capacity_mw: 1.0
@@ -70,6 +88,20 @@ Hecks.behaviors "NaturalDisasterGrid" do
     tests "DetectAsh", on: "AirspaceZone"
     setup  "DefineAirspace", zone_id: "sample", region: "sample"
     input  concentration_mg_m3: 1.0
+    expect ok: "true"
+  end
+
+  test "DetectAsh cascades through policy chain" do
+    tests "DetectAsh", on: "AirspaceZone", kind: :cascade
+    setup  "DefineAirspace", zone_id: "sample", region: "sample"
+    input  concentration_mg_m3: 1.0
+    expect emits: ["AshDetected", "AirspaceClosed"]
+  end
+
+  test "CloseAirspace sets closure_reason + affected_flights" do
+    tests "CloseAirspace", on: "AirspaceZone"
+    setup  "DefineAirspace", zone_id: "sample", region: "sample"
+    input  closure_reason: "sample", affected_flights: 1
     expect closure_reason: "sample", affected_flights: 1, status: "closed"
   end
 
@@ -146,6 +178,13 @@ Hecks.behaviors "NaturalDisasterGrid" do
     setup  "DraftRecoveryPlan", plan_name: "sample", priority_level: 1
     setup  "ExecuteRecovery"
     expect status: "completed"
+  end
+
+  test "CompleteRecovery cascades through policy chain" do
+    tests "CompleteRecovery", on: "RecoveryPlan", kind: :cascade
+    setup  "DraftRecoveryPlan", plan_name: "sample", priority_level: 1
+    setup  "ExecuteRecovery"
+    expect emits: ["RecoveryCompleted", "SegmentRestored"]
   end
 
 end

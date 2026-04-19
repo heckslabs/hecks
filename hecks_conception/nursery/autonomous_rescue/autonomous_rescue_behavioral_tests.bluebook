@@ -30,6 +30,12 @@ Hecks.behaviors "AutonomousRescue" do
     expect drone_id: "sample", mission: "sample", battery_percent: 100.0, status: "searching"
   end
 
+  test "DeployDrone cascades through policy chain" do
+    tests "DeployDrone", on: "SearchDrone", kind: :cascade
+    input  drone_id: "sample", mission: "sample"
+    expect emits: ["DroneDeployed", "MapInitialized"]
+  end
+
   test "DetectSurvivor sets latitude + longitude + confidence" do
     tests "DetectSurvivor", on: "SearchDrone"
     setup  "DeployDrone", drone_id: "sample", mission: "sample"
@@ -37,10 +43,23 @@ Hecks.behaviors "AutonomousRescue" do
     expect ok: "true"
   end
 
+  test "DetectSurvivor cascades through policy chain" do
+    tests "DetectSurvivor", on: "SearchDrone", kind: :cascade
+    setup  "DeployDrone", drone_id: "sample", mission: "sample"
+    input  latitude: 1.0, longitude: 1.0, confidence: "sample"
+    expect emits: ["SurvivorDetected", "SupplyBotDeployed", "BeaconCreated", "MapRefreshed"]
+  end
+
   test "ReportBatteryLow runs" do
     tests "ReportBatteryLow", on: "SearchDrone"
     setup  "DeployDrone", drone_id: "sample", mission: "sample"
     expect status: "returning"
+  end
+
+  test "ReportBatteryLow cascades through policy chain" do
+    tests "ReportBatteryLow", on: "SearchDrone", kind: :cascade
+    setup  "DeployDrone", drone_id: "sample", mission: "sample"
+    expect emits: ["DroneBatteryLow", "UnitRoutedToCharger"]
   end
 
   test "RecallDrone runs" do
@@ -68,6 +87,12 @@ Hecks.behaviors "AutonomousRescue" do
     tests "ReportBotBatteryLow", on: "SupplyBot"
     setup  "DeploySupplyBot", bot_id: "sample", payload_type: "sample", target_beacon: "sample"
     expect status: "returning"
+  end
+
+  test "ReportBotBatteryLow cascades through policy chain" do
+    tests "ReportBotBatteryLow", on: "SupplyBot", kind: :cascade
+    setup  "DeploySupplyBot", bot_id: "sample", payload_type: "sample", target_beacon: "sample"
+    expect emits: ["BotBatteryLow", "UnitRoutedToCharger"]
   end
 
   test "ReturnToBase runs" do

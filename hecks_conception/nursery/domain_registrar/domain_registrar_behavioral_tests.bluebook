@@ -9,10 +9,22 @@ Hecks.behaviors "DomainRegistrar" do
     expect domain: "sample", tld: "sample", registrant_email: "sample", status: "active"
   end
 
+  test "RegisterDomain cascades through policy chain" do
+    tests "RegisterDomain", on: "DomainName", kind: :cascade
+    input  domain: "sample", tld: "sample", registrant_email: "sample", registration_years: 1
+    expect emits: ["DomainRegistered", "DomainLocked", "DomainAutoRenewed", "PrivacyActivated", "DNSRecordPublished"]
+  end
+
   test "LockDomain runs" do
     tests "LockDomain", on: "DomainName"
     setup  "RegisterDomain", domain: "sample", tld: "sample", registrant_email: "sample", registration_years: 1
     expect ok: "true"
+  end
+
+  test "LockDomain cascades through policy chain" do
+    tests "LockDomain", on: "DomainName", kind: :cascade
+    setup  "RegisterDomain", domain: "sample", tld: "sample", registrant_email: "sample", registration_years: 1
+    expect emits: ["DomainLocked", "DomainAutoRenewed"]
   end
 
   test "SuspendDomain runs" do
@@ -43,6 +55,12 @@ Hecks.behaviors "DomainRegistrar" do
     expect ok: "true"
   end
 
+  test "CancelRenewal cascades through policy chain" do
+    tests "CancelRenewal", on: "Renewal", kind: :cascade
+    setup  "RenewDomain", renewal_id: "sample", years: 1, price: 1.0
+    expect emits: ["RenewalCanceled", "DomainSuspended"]
+  end
+
 
   # ── Transfer aggregate ──────────────────────────────────────────
 
@@ -57,6 +75,12 @@ Hecks.behaviors "DomainRegistrar" do
     tests "ApproveTransfer", on: "Transfer"
     setup  "InitiateTransfer", transfer_id: "sample", auth_code: "sample", gaining_registrar: "sample"
     expect ok: "true"
+  end
+
+  test "ApproveTransfer cascades through policy chain" do
+    tests "ApproveTransfer", on: "Transfer", kind: :cascade
+    setup  "InitiateTransfer", transfer_id: "sample", auth_code: "sample", gaining_registrar: "sample"
+    expect emits: ["TransferApproved", "ProxyRefreshed"]
   end
 
   test "RejectTransfer sets rejection_reason" do

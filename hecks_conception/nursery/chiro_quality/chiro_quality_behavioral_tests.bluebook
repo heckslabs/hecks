@@ -15,6 +15,12 @@ Hecks.behaviors "ChiroQuality" do
     expect status: "closed"
   end
 
+  test "CloseVisit cascades through policy chain" do
+    tests "CloseVisit", on: "ChiroVisit", kind: :cascade
+    setup  "RecordVisit", visit_id: "sample", patient_name: "sample", chiropractor: "sample", chief_complaint: "sample", visit_date: "sample"
+    expect emits: ["VisitClosed", "OutcomeMeasured", "BaselineCompared"]
+  end
+
 
   # ── OutcomeMeasure aggregate ──────────────────────────────────────────
 
@@ -22,6 +28,12 @@ Hecks.behaviors "ChiroQuality" do
     tests "MeasureOutcome", on: "OutcomeMeasure"
     input  measure_id: "sample", patient_name: "sample", instrument: "sample", score: 1.0, assessment_date: "sample"
     expect measure_id: "sample", patient_name: "sample", instrument: "sample", score: 1.0, assessment_date: "sample"
+  end
+
+  test "MeasureOutcome cascades through policy chain" do
+    tests "MeasureOutcome", on: "OutcomeMeasure", kind: :cascade
+    input  measure_id: "sample", patient_name: "sample", instrument: "sample", score: 1.0, assessment_date: "sample"
+    expect emits: ["OutcomeMeasured", "BaselineCompared"]
   end
 
   test "CompareBaseline runs" do

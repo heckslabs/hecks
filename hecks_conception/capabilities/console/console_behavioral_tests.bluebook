@@ -16,6 +16,13 @@ Hecks.behaviors "Console" do
     expect history_size: 1
   end
 
+  test "RecordMessage cascades through policy chain" do
+    tests "RecordMessage", on: "Session", kind: :cascade
+    setup  "StartSession", continuing: "sample"
+    input  message: "sample"
+    expect emits: ["MessageRecorded", "FooterRefreshed", "SpeakerObservationRecorded"]
+  end
+
 
   # ── Layout aggregate ──────────────────────────────────────────
 
@@ -59,6 +66,12 @@ Hecks.behaviors "Console" do
     tests "TalkWith", on: "Speaker"
     input  name: "sample"
     expect name: "sample", status: "active"
+  end
+
+  test "TalkWith cascades through policy chain" do
+    tests "TalkWith", on: "Speaker", kind: :cascade
+    input  name: "sample"
+    expect emits: ["SpeakerActivated", "SpeakerMemoryLoaded"]
   end
 
   test "LoadSpeakerMemory sets bluebook_path + known + context" do

@@ -39,6 +39,13 @@ Hecks.behaviors "Hydrology" do
     expect ok: "true"
   end
 
+  test "InstallGauge cascades through policy chain" do
+    tests "InstallGauge", on: "StreamGauge", kind: :cascade
+    setup  "DelineateWatershed", watershed_id: "sample", name: "sample", area_km2: 1.0
+    input  gauge_id: "sample", stream_name: "sample"
+    expect emits: ["GaugeInstalled", "GaugeCalibrated", "DischargeRecorded", "MeasurementValidated", "ModelBuilt", "SimulationRun", "FloodMapPublished"]
+  end
+
   test "RecordDischargeMeasurement sets new_count" do
     tests "RecordDischargeMeasurement", on: "StreamGauge"
     setup  "InstallGauge", gauge_id: "sample", stream_name: "sample"
@@ -62,6 +69,13 @@ Hecks.behaviors "Hydrology" do
     expect ok: "true"
   end
 
+  test "RecordDischarge cascades through policy chain" do
+    tests "RecordDischarge", on: "FlowMeasurement", kind: :cascade
+    setup  "InstallGauge", gauge_id: "sample", stream_name: "sample"
+    input  measurement_date: "sample", stage_m: 1.0, discharge_cms: 1.0
+    expect emits: ["DischargeRecorded", "MeasurementValidated", "ModelBuilt", "SimulationRun", "FloodMapPublished"]
+  end
+
   test "RefreshRatingCurve runs" do
     tests "RefreshRatingCurve", on: "FlowMeasurement"
     setup  "RecordDischarge", measurement_date: "sample", stage_m: 1.0, discharge_cms: 1.0
@@ -75,6 +89,13 @@ Hecks.behaviors "Hydrology" do
     expect ok: "true"
   end
 
+  test "ValidateMeasurement cascades through policy chain" do
+    tests "ValidateMeasurement", on: "FlowMeasurement", kind: :cascade
+    setup  "RecordDischarge", measurement_date: "sample", stage_m: 1.0, discharge_cms: 1.0
+    setup  "RefreshRatingCurve"
+    expect emits: ["MeasurementValidated", "ModelBuilt", "SimulationRun", "FloodMapPublished"]
+  end
+
 
   # ── FloodModel aggregate ──────────────────────────────────────────
 
@@ -83,6 +104,13 @@ Hecks.behaviors "Hydrology" do
     setup  "DelineateWatershed", watershed_id: "sample", name: "sample", area_km2: 1.0
     input  model_id: "sample", scenario_name: "sample"
     expect ok: "true"
+  end
+
+  test "BuildModel cascades through policy chain" do
+    tests "BuildModel", on: "FloodModel", kind: :cascade
+    setup  "DelineateWatershed", watershed_id: "sample", name: "sample", area_km2: 1.0
+    input  model_id: "sample", scenario_name: "sample"
+    expect emits: ["ModelBuilt", "SimulationRun", "FloodMapPublished"]
   end
 
   test "CalibrateModel runs" do
@@ -96,6 +124,20 @@ Hecks.behaviors "Hydrology" do
     setup  "BuildModel", model_id: "sample", scenario_name: "sample"
     setup  "CalibrateModel"
     input  return_period_years: 1
+    expect ok: "true"
+  end
+
+  test "RunSimulation cascades through policy chain" do
+    tests "RunSimulation", on: "FloodModel", kind: :cascade
+    setup  "BuildModel", model_id: "sample", scenario_name: "sample"
+    setup  "CalibrateModel"
+    input  return_period_years: 1
+    expect emits: ["SimulationRun", "FloodMapPublished"]
+  end
+
+  test "PublishFloodMap runs" do
+    tests "PublishFloodMap", on: "FloodModel"
+    setup  "BuildModel", model_id: "sample", scenario_name: "sample"
     expect ok: "true"
   end
 

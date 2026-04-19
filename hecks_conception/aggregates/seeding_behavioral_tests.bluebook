@@ -32,6 +32,13 @@ Hecks.behaviors "Seeding" do
     expect domains_produced: 1
   end
 
+  test "CompleteWorker cascades through policy chain" do
+    tests "CompleteWorker", on: "Worker", kind: :cascade
+    setup  "SpawnWorker", worker_id: 1, range_start: 1, range_end: 1
+    input  domains_produced: 1
+    expect emits: ["WorkerCompleted", "ResultsMerged"]
+  end
+
 
   # ── Merge aggregate ──────────────────────────────────────────
 

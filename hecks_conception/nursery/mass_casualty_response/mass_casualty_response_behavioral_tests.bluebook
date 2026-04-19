@@ -9,6 +9,12 @@ Hecks.behaviors "MassCasualtyResponse" do
     expect incident_id: "sample", location: "sample", severity: "sample", estimated_casualties: 1, status: "active"
   end
 
+  test "DeclareIncident cascades through policy chain" do
+    tests "DeclareIncident", on: "MassIncident", kind: :cascade
+    input  incident_id: "sample", location: "sample", severity: "sample", estimated_casualties: 1
+    expect emits: ["IncidentDeclared", "StationOpened", "AircraftDispatched"]
+  end
+
   test "EscalateIncident sets severity" do
     tests "EscalateIncident", on: "MassIncident"
     setup  "DeclareIncident", incident_id: "sample", location: "sample", severity: "sample", estimated_casualties: 1
@@ -39,6 +45,13 @@ Hecks.behaviors "MassCasualtyResponse" do
     expect ok: "true"
   end
 
+  test "TriageCasualty cascades through policy chain" do
+    tests "TriageCasualty", on: "TriageStation", kind: :cascade
+    setup  "OpenStation", station_id: "sample", location: "sample", capacity: 1
+    input  casualty_name: "sample", triage_color: "sample", injury_summary: "sample", blood_type: "sample"
+    expect emits: ["CasualtyTriaged", "TrackingStarted"]
+  end
+
 
   # ── AirEvac aggregate ──────────────────────────────────────────
 
@@ -55,12 +68,26 @@ Hecks.behaviors "MassCasualtyResponse" do
     expect status: "loaded"
   end
 
+  test "LoadPatients cascades through policy chain" do
+    tests "LoadPatients", on: "AirEvac", kind: :cascade
+    setup  "DispatchAircraft", callsign: "sample", origin: "sample", patient_capacity: 1
+    expect emits: ["PatientsLoaded", "BloodAllocated", "AircraftRouted", "CasualtiesAccepted", "TraumaTeamActivated", "PhaseAdvanced"]
+  end
+
   test "RouteToHospital sets destination" do
     tests "RouteToHospital", on: "AirEvac"
     setup  "DispatchAircraft", callsign: "sample", origin: "sample", patient_capacity: 1
     setup  "LoadPatients"
     input  destination: "sample"
     expect destination: "sample", status: "airborne"
+  end
+
+  test "RouteToHospital cascades through policy chain" do
+    tests "RouteToHospital", on: "AirEvac", kind: :cascade
+    setup  "DispatchAircraft", callsign: "sample", origin: "sample", patient_capacity: 1
+    setup  "LoadPatients"
+    input  destination: "sample"
+    expect emits: ["AircraftRouted", "CasualtiesAccepted", "TraumaTeamActivated", "PhaseAdvanced"]
   end
 
 
@@ -71,6 +98,13 @@ Hecks.behaviors "MassCasualtyResponse" do
     setup  "DispatchAircraft", callsign: "sample", origin: "sample", patient_capacity: 1
     input  dispatch_id: "sample", blood_type: "sample", units_allocated: 1
     expect dispatch_id: "sample", blood_type: "sample", units_allocated: 1, status: "dispatched"
+  end
+
+  test "AllocateBlood cascades through policy chain" do
+    tests "AllocateBlood", on: "BloodDispatch", kind: :cascade
+    setup  "DispatchAircraft", callsign: "sample", origin: "sample", patient_capacity: 1
+    input  dispatch_id: "sample", blood_type: "sample", units_allocated: 1
+    expect emits: ["BloodAllocated", "AircraftRouted", "CasualtiesAccepted", "TraumaTeamActivated", "PhaseAdvanced"]
   end
 
   test "ConfirmTransfusion runs" do
@@ -93,6 +127,20 @@ Hecks.behaviors "MassCasualtyResponse" do
     setup  "DeclareIncident", incident_id: "sample", location: "sample", severity: "sample", estimated_casualties: 1
     setup  "RegisterCapacity", hospital_name: "sample", trauma_level: "sample", available_beds: 1, available_surgeons: 1
     expect status: "receiving"
+  end
+
+  test "AcceptCasualties cascades through policy chain" do
+    tests "AcceptCasualties", on: "ReceivingHospital", kind: :cascade
+    setup  "DeclareIncident", incident_id: "sample", location: "sample", severity: "sample", estimated_casualties: 1
+    setup  "RegisterCapacity", hospital_name: "sample", trauma_level: "sample", available_beds: 1, available_surgeons: 1
+    expect emits: ["CasualtiesAccepted", "TraumaTeamActivated"]
+  end
+
+  test "ActivateTraumaTeam runs" do
+    tests "ActivateTraumaTeam", on: "ReceivingHospital"
+    setup  "RegisterCapacity", hospital_name: "sample", trauma_level: "sample", available_beds: 1, available_surgeons: 1
+    setup  "AcceptCasualties"
+    expect ok: "true"
   end
 
 

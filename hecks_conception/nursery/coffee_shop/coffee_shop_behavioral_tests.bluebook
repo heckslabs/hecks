@@ -24,6 +24,12 @@ Hecks.behaviors "CoffeeShop" do
     expect employee_id: "sample", name: "sample", skill_level: "sample"
   end
 
+  test "HireBarista cascades through policy chain" do
+    tests "HireBarista", on: "Barista", kind: :cascade
+    input  employee_id: "sample", name: "sample", skill_level: "sample"
+    expect emits: ["BaristaHired", "BaristaCertified"]
+  end
+
   test "CertifyBarista sets skill_name" do
     tests "CertifyBarista", on: "Barista"
     setup  "HireBarista", employee_id: "sample", name: "sample", skill_level: "sample"
@@ -40,20 +46,59 @@ Hecks.behaviors "CoffeeShop" do
     expect order_id: "sample", customer_name: "sample", status: "placed"
   end
 
+  test "PlaceOrder cascades through policy chain" do
+    tests "PlaceOrder", on: "DrinkOrder", kind: :cascade
+    input  order_id: "sample", customer_name: "sample"
+    expect emits: ["OrderPlaced", "BeansDepleted", "DrinkPrepared", "DrinkServed", "EquipmentServiced", "BeansReceived"]
+  end
+
   test "PrepareDrink runs" do
     tests "PrepareDrink", on: "DrinkOrder"
     setup  "PlaceOrder", order_id: "sample", customer_name: "sample"
+    expect status: "ready"
+  end
+
+  test "PrepareDrink cascades through policy chain" do
+    tests "PrepareDrink", on: "DrinkOrder", kind: :cascade
+    setup  "PlaceOrder", order_id: "sample", customer_name: "sample"
+    expect emits: ["DrinkPrepared", "DrinkServed", "EquipmentServiced"]
+  end
+
+  test "ServeDrink runs" do
+    tests "ServeDrink", on: "DrinkOrder"
+    setup  "PlaceOrder", order_id: "sample", customer_name: "sample"
+    setup  "PrepareDrink"
     expect status: "served"
+  end
+
+  test "ServeDrink cascades through policy chain" do
+    tests "ServeDrink", on: "DrinkOrder", kind: :cascade
+    setup  "PlaceOrder", order_id: "sample", customer_name: "sample"
+    setup  "PrepareDrink"
+    expect emits: ["DrinkServed", "EquipmentServiced"]
   end
 
 
   # ── BeanSupply aggregate ──────────────────────────────────────────
 
+  test "ReceiveBeans sets batch_id + origin + roast_level + roaster + weight_kg + roast_date" do
+    tests "ReceiveBeans", on: "BeanSupply"
+    input  batch_id: "sample", origin: "sample", roast_level: "sample", roaster: "sample", weight_kg: 1.0, roast_date: "sample"
+    expect batch_id: "sample", origin: "sample", roast_level: "sample", roaster: "sample", weight_kg: 1.0, roast_date: "sample"
+  end
+
   test "DepleteBeans sets amount_used" do
     tests "DepleteBeans", on: "BeanSupply"
     setup  "ReceiveBeans", batch_id: "sample", origin: "sample", roast_level: "sample", roaster: "sample", weight_kg: 1.0, roast_date: "sample"
     input  amount_used: 1.0
-    expect batch_id: "sample", origin: "sample", roast_level: "sample", roaster: "sample", weight_kg: 1.0, roast_date: "sample"
+    expect ok: "true"
+  end
+
+  test "DepleteBeans cascades through policy chain" do
+    tests "DepleteBeans", on: "BeanSupply", kind: :cascade
+    setup  "ReceiveBeans", batch_id: "sample", origin: "sample", roast_level: "sample", roaster: "sample", weight_kg: 1.0, roast_date: "sample"
+    input  amount_used: 1.0
+    expect emits: ["BeansDepleted", "DrinkPrepared", "DrinkServed", "EquipmentServiced", "BeansReceived"]
   end
 
 
@@ -65,10 +110,22 @@ Hecks.behaviors "CoffeeShop" do
     expect equipment_id: "sample", name: "sample", make: "sample", model: "sample", status: "operational"
   end
 
+  test "ServiceEquipment runs" do
+    tests "ServiceEquipment", on: "Equipment"
+    setup  "InstallEquipment", equipment_id: "sample", name: "sample", make: "sample", model: "sample"
+    expect ok: "true"
+  end
+
   test "ReportMalfunction runs" do
     tests "ReportMalfunction", on: "Equipment"
     setup  "InstallEquipment", equipment_id: "sample", name: "sample", make: "sample", model: "sample"
     expect status: "out_of_service"
+  end
+
+  test "ReportMalfunction cascades through policy chain" do
+    tests "ReportMalfunction", on: "Equipment", kind: :cascade
+    setup  "InstallEquipment", equipment_id: "sample", name: "sample", make: "sample", model: "sample"
+    expect emits: ["MalfunctionReported", "EquipmentServiced"]
   end
 
 end

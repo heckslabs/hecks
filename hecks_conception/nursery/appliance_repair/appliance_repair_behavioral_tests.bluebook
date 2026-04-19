@@ -9,6 +9,12 @@ Hecks.behaviors "ApplianceRepair" do
     expect ok: "true"
   end
 
+  test "ScheduleRepair cascades through policy chain" do
+    tests "ScheduleRepair", on: "RepairTicket", kind: :cascade
+    input  customer_name: "sample", address: "sample", appliance_type: "sample", symptom: "sample", scheduled_date: "sample"
+    expect emits: ["RepairScheduled", "ApplianceRegistered", "DiagnosticRun", "FaultCodeRecorded", "PartOrdered"]
+  end
+
   test "RescheduleRepair sets new_date" do
     tests "RescheduleRepair", on: "RepairTicket"
     setup  "ScheduleRepair", customer_name: "sample", address: "sample", appliance_type: "sample", symptom: "sample", scheduled_date: "sample"
@@ -24,6 +30,13 @@ Hecks.behaviors "ApplianceRepair" do
     setup  "ScheduleRepair", customer_name: "sample", address: "sample", appliance_type: "sample", symptom: "sample", scheduled_date: "sample"
     input  brand: "sample", model: "sample", serial_number: "sample", age_years: 1, appliance_type: "sample"
     expect brand: "sample", model: "sample", serial_number: "sample", age_years: 1, appliance_type: "sample"
+  end
+
+  test "RegisterAppliance cascades through policy chain" do
+    tests "RegisterAppliance", on: "Appliance", kind: :cascade
+    setup  "ScheduleRepair", customer_name: "sample", address: "sample", appliance_type: "sample", symptom: "sample", scheduled_date: "sample"
+    input  brand: "sample", model: "sample", serial_number: "sample", age_years: 1, appliance_type: "sample"
+    expect emits: ["ApplianceRegistered", "DiagnosticRun", "FaultCodeRecorded", "PartOrdered"]
   end
 
   test "RecommendReplacement sets estimated_repair_cost + replacement_cost" do
@@ -43,11 +56,25 @@ Hecks.behaviors "ApplianceRepair" do
     expect ok: "true"
   end
 
+  test "RunDiagnostic cascades through policy chain" do
+    tests "RunDiagnostic", on: "Diagnostic", kind: :cascade
+    setup  "RegisterAppliance", brand: "sample", model: "sample", serial_number: "sample", age_years: 1, appliance_type: "sample"
+    input  test_performed: "sample"
+    expect emits: ["DiagnosticRun", "FaultCodeRecorded", "PartOrdered"]
+  end
+
   test "RecordFaultCode sets fault_code + root_cause" do
     tests "RecordFaultCode", on: "Diagnostic"
     setup  "RunDiagnostic", test_performed: "sample"
     input  fault_code: "sample", root_cause: "sample"
     expect ok: "true"
+  end
+
+  test "RecordFaultCode cascades through policy chain" do
+    tests "RecordFaultCode", on: "Diagnostic", kind: :cascade
+    setup  "RunDiagnostic", test_performed: "sample"
+    input  fault_code: "sample", root_cause: "sample"
+    expect emits: ["FaultCodeRecorded", "PartOrdered"]
   end
 
 
@@ -64,6 +91,24 @@ Hecks.behaviors "ApplianceRepair" do
     tests "ReceivePart", on: "PartsOrder"
     setup  "OrderPart", part_number: "sample", part_name: "sample", vendor: "sample", cost: 1.0
     expect ok: "true"
+  end
+
+  test "ReceivePart cascades through policy chain" do
+    tests "ReceivePart", on: "PartsOrder", kind: :cascade
+    setup  "OrderPart", part_number: "sample", part_name: "sample", vendor: "sample", cost: 1.0
+    expect emits: ["PartReceived", "PartInstalled", "TicketClosed", "WarrantyIssued"]
+  end
+
+  test "InstallPart runs" do
+    tests "InstallPart", on: "PartsOrder"
+    setup  "OrderPart", part_number: "sample", part_name: "sample", vendor: "sample", cost: 1.0
+    expect ok: "true"
+  end
+
+  test "InstallPart cascades through policy chain" do
+    tests "InstallPart", on: "PartsOrder", kind: :cascade
+    setup  "OrderPart", part_number: "sample", part_name: "sample", vendor: "sample", cost: 1.0
+    expect emits: ["PartInstalled", "TicketClosed", "WarrantyIssued"]
   end
 
 

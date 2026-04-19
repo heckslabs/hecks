@@ -16,10 +16,23 @@ Hecks.behaviors "Security" do
     expect ok: "true"
   end
 
+  test "VerifySecret cascades through policy chain" do
+    tests "VerifySecret", on: "HashedSecret", kind: :cascade
+    setup  "StoreSecret", name: "sample", plaintext: "sample", owner: "sample"
+    input  candidate: "sample"
+    expect emits: ["SecretVerified", "AccessGranted"]
+  end
+
   test "RejectSecret runs" do
     tests "RejectSecret", on: "HashedSecret"
     setup  "StoreSecret", name: "sample", plaintext: "sample", owner: "sample"
     expect ok: "true"
+  end
+
+  test "RejectSecret cascades through policy chain" do
+    tests "RejectSecret", on: "HashedSecret", kind: :cascade
+    setup  "StoreSecret", name: "sample", plaintext: "sample", owner: "sample"
+    expect emits: ["SecretRejected", "AccessDenied"]
   end
 
 
@@ -29,6 +42,12 @@ Hecks.behaviors "Security" do
     tests "RequestAccess", on: "AccessGate"
     input  protected_context: "sample"
     expect protected_context: "sample", status: "challenging"
+  end
+
+  test "RequestAccess cascades through policy chain" do
+    tests "RequestAccess", on: "AccessGate", kind: :cascade
+    input  protected_context: "sample"
+    expect emits: ["AccessRequested", "SecretVerified", "AccessGranted"]
   end
 
   test "GrantAccess runs" do

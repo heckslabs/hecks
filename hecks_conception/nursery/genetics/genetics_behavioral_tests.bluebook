@@ -9,6 +9,12 @@ Hecks.behaviors "Genetics" do
     expect ok: "true"
   end
 
+  test "CollectSpecimen cascades through policy chain" do
+    tests "CollectSpecimen", on: "Specimen", kind: :cascade
+    input  specimen_id: "sample", organism: "sample", tissue_type: "sample"
+    expect emits: ["SpecimenCollected", "DnaExtracted", "SequenceSubmitted", "SequenceAligned", "VariantCalled", "PathogenicityClassified", "FindingsPublished", "FeaturesAnnotated"]
+  end
+
   test "PreserveSpecimen runs" do
     tests "PreserveSpecimen", on: "Specimen"
     setup  "CollectSpecimen", specimen_id: "sample", organism: "sample", tissue_type: "sample"
@@ -19,6 +25,12 @@ Hecks.behaviors "Genetics" do
     tests "ExtractDna", on: "Specimen"
     setup  "CollectSpecimen", specimen_id: "sample", organism: "sample", tissue_type: "sample"
     expect ok: "true"
+  end
+
+  test "ExtractDna cascades through policy chain" do
+    tests "ExtractDna", on: "Specimen", kind: :cascade
+    setup  "CollectSpecimen", specimen_id: "sample", organism: "sample", tissue_type: "sample"
+    expect emits: ["DnaExtracted", "SequenceSubmitted", "SequenceAligned", "VariantCalled", "PathogenicityClassified", "FindingsPublished", "FeaturesAnnotated"]
   end
 
   test "DiscardSpecimen runs" do
@@ -37,6 +49,13 @@ Hecks.behaviors "Genetics" do
     expect ok: "true"
   end
 
+  test "SubmitSequence cascades through policy chain" do
+    tests "SubmitSequence", on: "DnaSequence", kind: :cascade
+    setup  "CollectSpecimen", specimen_id: "sample", organism: "sample", tissue_type: "sample"
+    input  accession: "sample", sequencing_method: "sample", length_bp: 1
+    expect emits: ["SequenceSubmitted", "SequenceAligned", "VariantCalled", "PathogenicityClassified", "FindingsPublished", "FeaturesAnnotated"]
+  end
+
   test "PassQualityFilter runs" do
     tests "PassQualityFilter", on: "DnaSequence"
     setup  "SubmitSequence", accession: "sample", sequencing_method: "sample", length_bp: 1
@@ -45,6 +64,18 @@ Hecks.behaviors "Genetics" do
 
   test "AlignSequence runs" do
     tests "AlignSequence", on: "DnaSequence"
+    setup  "SubmitSequence", accession: "sample", sequencing_method: "sample", length_bp: 1
+    expect ok: "true"
+  end
+
+  test "AlignSequence cascades through policy chain" do
+    tests "AlignSequence", on: "DnaSequence", kind: :cascade
+    setup  "SubmitSequence", accession: "sample", sequencing_method: "sample", length_bp: 1
+    expect emits: ["SequenceAligned", "VariantCalled", "PathogenicityClassified", "FindingsPublished", "FeaturesAnnotated"]
+  end
+
+  test "AnnotateFeatures runs" do
+    tests "AnnotateFeatures", on: "DnaSequence"
     setup  "SubmitSequence", accession: "sample", sequencing_method: "sample", length_bp: 1
     expect ok: "true"
   end
@@ -59,6 +90,13 @@ Hecks.behaviors "Genetics" do
     expect ok: "true"
   end
 
+  test "CallVariant cascades through policy chain" do
+    tests "CallVariant", on: "Mutation", kind: :cascade
+    setup  "SubmitSequence", accession: "sample", sequencing_method: "sample", length_bp: 1
+    input  mutation_type: "sample", position: 1
+    expect emits: ["VariantCalled", "PathogenicityClassified", "FindingsPublished"]
+  end
+
   test "ConfirmByMethod sets confirmation_method_count" do
     tests "ConfirmByMethod", on: "Mutation"
     setup  "CallVariant", mutation_type: "sample", position: 1
@@ -71,6 +109,13 @@ Hecks.behaviors "Genetics" do
     setup  "CallVariant", mutation_type: "sample", position: 1
     input  classification: "sample"
     expect ok: "true"
+  end
+
+  test "ClassifyPathogenicity cascades through policy chain" do
+    tests "ClassifyPathogenicity", on: "Mutation", kind: :cascade
+    setup  "CallVariant", mutation_type: "sample", position: 1
+    input  classification: "sample"
+    expect emits: ["PathogenicityClassified", "FindingsPublished"]
   end
 
 

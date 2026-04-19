@@ -9,11 +9,25 @@ Hecks.behaviors "Biology" do
     expect cell_type: "stem", name: "sample", organism_type: "sample", membrane_integrity: 1.0, energy_level: 100.0, phase: "interphase"
   end
 
+  test "Divide cascades through policy chain" do
+    tests "Divide", on: "Cell", kind: :cascade
+    setup  "CultureCell", cell_type: "sample", name: "sample", organism_type: "sample"
+    input  division_type: "sample"
+    expect emits: ["CellDivided", "CellMetabolized"]
+  end
+
   test "Differentiate sets target_type + signals" do
     tests "Differentiate", on: "Cell"
     setup  "CultureCell", cell_type: "sample", name: "sample", organism_type: "sample"
     input  target_type: "sample", signals: "sample"
     expect differentiation_state: "sample", cell_type: "sample"
+  end
+
+  test "Metabolize sets pathway + substrate" do
+    tests "Metabolize", on: "Cell"
+    setup  "CultureCell", cell_type: "sample", name: "sample", organism_type: "sample"
+    input  pathway: "sample", substrate: "sample"
+    expect ok: "true"
   end
 
   test "TriggerApoptosis runs" do
@@ -52,10 +66,31 @@ Hecks.behaviors "Biology" do
     expect ok: "true"
   end
 
+  test "Transcribe cascades through policy chain" do
+    tests "Transcribe", on: "DNA", kind: :cascade
+    setup  "SequenceDNA", sequence: "sample", organism: "sample", strand_type: "sample"
+    input  gene_name: "sample", promoter: "sample"
+    expect emits: ["GeneTranscribed", "ProteinSynthesized", "ProteinFolded"]
+  end
+
   test "Mutate sets mutation_type + position + original_base + new_base" do
     tests "Mutate", on: "DNA"
     setup  "SequenceDNA", sequence: "sample", organism: "sample", strand_type: "sample"
     input  mutation_type: "sample", position: 1, original_base: "sample", new_base: "sample"
+    expect ok: "true"
+  end
+
+  test "Mutate cascades through policy chain" do
+    tests "Mutate", on: "DNA", kind: :cascade
+    setup  "SequenceDNA", sequence: "sample", organism: "sample", strand_type: "sample"
+    input  mutation_type: "sample", position: 1, original_base: "sample", new_base: "sample"
+    expect emits: ["DNAMutated", "DNARepaired"]
+  end
+
+  test "RepairDNA sets repair_mechanism + damage_site" do
+    tests "RepairDNA", on: "DNA"
+    setup  "SequenceDNA", sequence: "sample", organism: "sample", strand_type: "sample"
+    input  repair_mechanism: "sample", damage_site: 1
     expect integrity: 1.0
   end
 
@@ -73,6 +108,13 @@ Hecks.behaviors "Biology" do
     expect ok: "true"
   end
 
+  test "Splice cascades through policy chain" do
+    tests "Splice", on: "DNA", kind: :cascade
+    setup  "SequenceDNA", sequence: "sample", organism: "sample", strand_type: "sample"
+    input  gene_name: "sample", exons_retained: "sample"
+    expect emits: ["RNASpliced", "GeneExpressed"]
+  end
+
 
   # ── Protein aggregate ──────────────────────────────────────────
 
@@ -80,6 +122,12 @@ Hecks.behaviors "Biology" do
     tests "Synthesize", on: "Protein"
     input  name: "sample", sequence: "sample", function: "sample"
     expect name: "sample", sequence: "sample", function: "enzyme", active: "false", folding_state: "unfolded"
+  end
+
+  test "Synthesize cascades through policy chain" do
+    tests "Synthesize", on: "Protein", kind: :cascade
+    input  name: "sample", sequence: "sample", function: "sample"
+    expect emits: ["ProteinSynthesized", "ProteinFolded"]
   end
 
   test "Fold sets secondary_structure + tertiary_structure" do
@@ -103,6 +151,14 @@ Hecks.behaviors "Biology" do
     setup  "Fold", secondary_structure: "sample", tertiary_structure: "sample"
     input  substrate: "sample", product: "sample"
     expect ok: "true"
+  end
+
+  test "Catalyze cascades through policy chain" do
+    tests "Catalyze", on: "Protein", kind: :cascade
+    setup  "Synthesize", name: "sample", sequence: "sample", function: "sample"
+    setup  "Fold", secondary_structure: "sample", tertiary_structure: "sample"
+    input  substrate: "sample", product: "sample"
+    expect emits: ["ReactionCatalyzed", "ATPProduced"]
   end
 
   test "Phosphorylate sets site + kinase" do
@@ -169,7 +225,14 @@ Hecks.behaviors "Biology" do
     tests "AddSpecies", on: "Ecosystem"
     setup  "EstablishEcosystem", name: "sample", biome: "sample", area: 1.0, energy_input: 1.0
     input  species_name: "sample", initial_count: 1, trophic_level: "sample"
-    expect status: "stable"
+    expect status: "developing"
+  end
+
+  test "AddSpecies cascades through policy chain" do
+    tests "AddSpecies", on: "Ecosystem", kind: :cascade
+    setup  "EstablishEcosystem", name: "sample", biome: "sample", area: 1.0, energy_input: 1.0
+    input  species_name: "sample", initial_count: 1, trophic_level: "sample"
+    expect emits: ["SpeciesAdded", "FoodWebModeled"]
   end
 
   test "TrackPopulation sets species_name + new_count + growth_rate" do
@@ -177,6 +240,38 @@ Hecks.behaviors "Biology" do
     setup  "EstablishEcosystem", name: "sample", biome: "sample", area: 1.0, energy_input: 1.0
     input  species_name: "sample", new_count: 1, growth_rate: 1.0
     expect ok: "true"
+  end
+
+  test "ModelFoodWeb runs" do
+    tests "ModelFoodWeb", on: "Ecosystem"
+    setup  "EstablishEcosystem", name: "sample", biome: "sample", area: 1.0, energy_input: 1.0
+    setup  "AddSpecies", species_name: "sample", initial_count: 1, trophic_level: "sample"
+    expect status: "stable"
+  end
+
+  test "MeasureBiodiversity sets biodiversity_index" do
+    tests "MeasureBiodiversity", on: "Ecosystem"
+    setup  "EstablishEcosystem", name: "sample", biome: "sample", area: 1.0, energy_input: 1.0
+    input  biodiversity_index: 1.0
+    expect biodiversity_index: 1.0
+  end
+
+  test "RemoveSpecies sets species_name + cause" do
+    tests "RemoveSpecies", on: "Ecosystem"
+    setup  "EstablishEcosystem", name: "sample", biome: "sample", area: 1.0, energy_input: 1.0
+    setup  "AddSpecies", species_name: "sample", initial_count: 1, trophic_level: "sample"
+    setup  "ModelFoodWeb"
+    input  species_name: "sample", cause: "sample"
+    expect status: "disturbed"
+  end
+
+  test "RemoveSpecies cascades through policy chain" do
+    tests "RemoveSpecies", on: "Ecosystem", kind: :cascade
+    setup  "EstablishEcosystem", name: "sample", biome: "sample", area: 1.0, energy_input: 1.0
+    setup  "AddSpecies", species_name: "sample", initial_count: 1, trophic_level: "sample"
+    setup  "ModelFoodWeb"
+    input  species_name: "sample", cause: "sample"
+    expect emits: ["SpeciesRemoved", "BiodiversityMeasured"]
   end
 
 
@@ -239,10 +334,24 @@ Hecks.behaviors "Biology" do
     expect ok: "true"
   end
 
+  test "SelectFittest cascades through policy chain" do
+    tests "SelectFittest", on: "Evolution", kind: :cascade
+    setup  "TrackLineage", lineage_name: "sample", selection_pressure: "sample"
+    input  trait_favored: "sample", survivors_fraction: 1.0
+    expect emits: ["FittestSelected", "AdaptationTracked"]
+  end
+
   test "Speciate sets mechanism + new_species_name + barrier" do
     tests "Speciate", on: "Evolution"
     setup  "TrackLineage", lineage_name: "sample", selection_pressure: "sample"
     input  mechanism: "sample", new_species_name: "sample", barrier: "sample"
+    expect ok: "true"
+  end
+
+  test "TrackAdaptation sets trait + pressure + fitness_delta" do
+    tests "TrackAdaptation", on: "Evolution"
+    setup  "TrackLineage", lineage_name: "sample", selection_pressure: "sample"
+    input  trait: "sample", pressure: "sample", fitness_delta: 1.0
     expect ok: "true"
   end
 
@@ -273,7 +382,52 @@ Hecks.behaviors "Biology" do
     tests "FireNeuron", on: "Neuron"
     setup  "DefineNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
     input  stimulus_strength: 1.0
+    expect state: "firing"
+  end
+
+  test "FireNeuron cascades through policy chain" do
+    tests "FireNeuron", on: "Neuron", kind: :cascade
+    setup  "DefineNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
+    input  stimulus_strength: 1.0
+    expect emits: ["NeuronFired", "SynapseReleased", "SignalPropagated", "NeuronRepolarized"]
+  end
+
+  test "Depolarize sets potential_change" do
+    tests "Depolarize", on: "Neuron"
+    setup  "DefineNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
+    setup  "FireNeuron", stimulus_strength: 1.0
+    setup  "Repolarize"
+    input  potential_change: 1.0
+    expect state: "resting"
+  end
+
+  test "Repolarize runs" do
+    tests "Repolarize", on: "Neuron"
+    setup  "DefineNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
+    setup  "FireNeuron", stimulus_strength: 1.0
     expect state: "refractory"
+  end
+
+  test "ReleaseSynapse sets target_neuron + amount" do
+    tests "ReleaseSynapse", on: "Neuron"
+    setup  "DefineNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
+    setup  "FireNeuron", stimulus_strength: 1.0
+    input  target_neuron: "sample", amount: 1.0
+    expect ok: "true"
+  end
+
+  test "PropagateSignal sets conduction_type + velocity" do
+    tests "PropagateSignal", on: "Neuron"
+    setup  "DefineNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
+    input  conduction_type: "sample", velocity: 1.0
+    expect ok: "true"
+  end
+
+  test "PropagateSignal cascades through policy chain" do
+    tests "PropagateSignal", on: "Neuron", kind: :cascade
+    setup  "DefineNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
+    input  conduction_type: "sample", velocity: 1.0
+    expect emits: ["SignalPropagated", "NeuronRepolarized"]
   end
 
   test "FormMemory sets synapse_target + strength_increase" do
@@ -299,11 +453,40 @@ Hecks.behaviors "Biology" do
     expect pathogen_name: "sample", pathogen_type: "sample", severity: "sample", memory_formed: "false", status: "detected"
   end
 
+  test "DetectPathogen cascades through policy chain" do
+    tests "DetectPathogen", on: "ImmuneResponse", kind: :cascade
+    input  pathogen_name: "sample", pathogen_type: "sample", severity: "sample"
+    expect emits: ["PathogenDetected", "ResponseMounted", "AntibodyGenerated"]
+  end
+
   test "MountResponse sets response_type" do
     tests "MountResponse", on: "ImmuneResponse"
     setup  "DetectPathogen", pathogen_name: "sample", pathogen_type: "sample", severity: "sample"
     input  response_type: "sample"
-    expect response_type: "adaptive", status: "active", antibody_generated: "sample"
+    expect response_type: "adaptive", status: "active"
+  end
+
+  test "MountResponse cascades through policy chain" do
+    tests "MountResponse", on: "ImmuneResponse", kind: :cascade
+    setup  "DetectPathogen", pathogen_name: "sample", pathogen_type: "sample", severity: "sample"
+    input  response_type: "sample"
+    expect emits: ["ResponseMounted", "AntibodyGenerated"]
+  end
+
+  test "GenerateAntibody sets antibody_name + isotype" do
+    tests "GenerateAntibody", on: "ImmuneResponse"
+    setup  "DetectPathogen", pathogen_name: "sample", pathogen_type: "sample", severity: "sample"
+    setup  "MountResponse", response_type: "sample"
+    input  antibody_name: "sample", isotype: "sample"
+    expect antibody_generated: "sample"
+  end
+
+  test "RememberPathogen runs" do
+    tests "RememberPathogen", on: "ImmuneResponse"
+    setup  "DetectPathogen", pathogen_name: "sample", pathogen_type: "sample", severity: "sample"
+    setup  "MountResponse", response_type: "sample"
+    setup  "ResolveInfection"
+    expect memory_formed: "true", status: "immune"
   end
 
   test "Engulf sets cell_type + target" do
@@ -317,7 +500,14 @@ Hecks.behaviors "Biology" do
     tests "ResolveInfection", on: "ImmuneResponse"
     setup  "DetectPathogen", pathogen_name: "sample", pathogen_type: "sample", severity: "sample"
     setup  "MountResponse", response_type: "sample"
-    expect memory_formed: "true", status: "immune"
+    expect status: "resolved"
+  end
+
+  test "ResolveInfection cascades through policy chain" do
+    tests "ResolveInfection", on: "ImmuneResponse", kind: :cascade
+    setup  "DetectPathogen", pathogen_name: "sample", pathogen_type: "sample", severity: "sample"
+    setup  "MountResponse", response_type: "sample"
+    expect emits: ["InfectionResolved", "PathogenRemembered"]
   end
 
 
@@ -333,6 +523,20 @@ Hecks.behaviors "Biology" do
     tests "CatalyzeReaction", on: "Metabolism"
     setup  "InitiatePathway", organism_name: "sample", pathway_name: "sample", pathway_type: "sample"
     input  enzyme_name: "sample", substrate: "sample", product: "sample"
+    expect ok: "true"
+  end
+
+  test "CatalyzeReaction cascades through policy chain" do
+    tests "CatalyzeReaction", on: "Metabolism", kind: :cascade
+    setup  "InitiatePathway", organism_name: "sample", pathway_name: "sample", pathway_type: "sample"
+    input  enzyme_name: "sample", substrate: "sample", product: "sample"
+    expect emits: ["ReactionCatalyzed", "ATPProduced"]
+  end
+
+  test "ProduceATP sets amount + mechanism" do
+    tests "ProduceATP", on: "Metabolism"
+    setup  "InitiatePathway", organism_name: "sample", pathway_name: "sample", pathway_type: "sample"
+    input  amount: 1.0, mechanism: "sample"
     expect ok: "true"
   end
 

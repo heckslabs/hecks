@@ -9,6 +9,12 @@ Hecks.behaviors "RefugeeIdentity" do
     expect case_id: "sample", family_name: "sample", country_of_origin: "sample", family_size: 1, caseworker: "sample", status: "open"
   end
 
+  test "OpenCase cascades through policy chain" do
+    tests "OpenCase", on: "ResettlementCase", kind: :cascade
+    input  case_id: "sample", family_name: "sample", country_of_origin: "sample", family_size: 1, caseworker: "sample"
+    expect emits: ["CaseOpened", "DigitalIDIssued", "ReferralMade"]
+  end
+
   test "CloseCase runs" do
     tests "CloseCase", on: "ResettlementCase"
     setup  "OpenCase", case_id: "sample", family_name: "sample", country_of_origin: "sample", family_size: 1, caseworker: "sample"
@@ -22,6 +28,12 @@ Hecks.behaviors "RefugeeIdentity" do
     tests "IssueDigitalID", on: "DigitalID"
     input  identity_id: "sample", case_id: "sample", full_name: "sample", date_of_birth: "sample", biometric_hash: "sample"
     expect identity_id: "sample", case_id: "sample", full_name: "sample", date_of_birth: "sample", biometric_hash: "sample", status: "active"
+  end
+
+  test "IssueDigitalID cascades through policy chain" do
+    tests "IssueDigitalID", on: "DigitalID", kind: :cascade
+    input  identity_id: "sample", case_id: "sample", full_name: "sample", date_of_birth: "sample", biometric_hash: "sample"
+    expect emits: ["DigitalIDIssued", "ReferralMade"]
   end
 
   test "SuspendID runs" do

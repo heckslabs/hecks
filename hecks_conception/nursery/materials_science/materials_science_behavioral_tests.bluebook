@@ -87,11 +87,24 @@ Hecks.behaviors "MaterialsScience" do
     expect material_name: "sample", temperature: 1.0, pressure: 1.0, status: "solid"
   end
 
+  test "HeatMaterial cascades through policy chain" do
+    tests "HeatMaterial", on: "PhaseTransition", kind: :cascade
+    input  material_name: "sample", temperature: 1.0, pressure: 1.0
+    expect emits: ["MaterialHeated", "TransitionTriggered", "MaterialQuenched"]
+  end
+
   test "CoolMaterial sets temperature + cooling_rate" do
     tests "CoolMaterial", on: "PhaseTransition"
     setup  "HeatMaterial", material_name: "sample", temperature: 1.0, pressure: 1.0
     input  temperature: 1.0, cooling_rate: 1.0
     expect temperature: 1.0
+  end
+
+  test "CoolMaterial cascades through policy chain" do
+    tests "CoolMaterial", on: "PhaseTransition", kind: :cascade
+    setup  "HeatMaterial", material_name: "sample", temperature: 1.0, pressure: 1.0
+    input  temperature: 1.0, cooling_rate: 1.0
+    expect emits: ["MaterialCooled", "CrystalGrown"]
   end
 
   test "IdentifyPhase sets current_phase" do
@@ -112,7 +125,21 @@ Hecks.behaviors "MaterialsScience" do
     tests "TriggerTransition", on: "PhaseTransition"
     setup  "HeatMaterial", material_name: "sample", temperature: 1.0, pressure: 1.0
     input  target_phase: "sample"
-    expect target_phase: "sample", status: "solid"
+    expect target_phase: "sample", status: "melting"
+  end
+
+  test "TriggerTransition cascades through policy chain" do
+    tests "TriggerTransition", on: "PhaseTransition", kind: :cascade
+    setup  "HeatMaterial", material_name: "sample", temperature: 1.0, pressure: 1.0
+    input  target_phase: "sample"
+    expect emits: ["TransitionTriggered", "MaterialQuenched"]
+  end
+
+  test "Quench runs" do
+    tests "Quench", on: "PhaseTransition"
+    setup  "HeatMaterial", material_name: "sample", temperature: 1.0, pressure: 1.0
+    setup  "TriggerTransition", target_phase: "sample"
+    expect status: "solid"
   end
 
 
@@ -122,6 +149,12 @@ Hecks.behaviors "MaterialsScience" do
     tests "FormAlloy", on: "Alloy"
     input  name: "sample", base_metal: "sample"
     expect name: "sample", base_metal: "sample"
+  end
+
+  test "FormAlloy cascades through policy chain" do
+    tests "FormAlloy", on: "Alloy", kind: :cascade
+    input  name: "sample", base_metal: "sample"
+    expect emits: ["AlloyFormed", "TensileStrengthTested"]
   end
 
   test "MixComponents sets element + weight_percent" do
@@ -385,7 +418,21 @@ Hecks.behaviors "MaterialsScience" do
     tests "TestFatigue", on: "Stress"
     setup  "ApplyStress", material_name: "sample", stress_type: "sample", magnitude: 1.0
     input  fatigue_cycles: 1, stress_amplitude: 1.0
-    expect fatigue_cycles: 1, fracture_mode: "sample"
+    expect fatigue_cycles: 1
+  end
+
+  test "TestFatigue cascades through policy chain" do
+    tests "TestFatigue", on: "Stress", kind: :cascade
+    setup  "ApplyStress", material_name: "sample", stress_type: "sample", magnitude: 1.0
+    input  fatigue_cycles: 1, stress_amplitude: 1.0
+    expect emits: ["FatigueTested", "FracturePredicted"]
+  end
+
+  test "PredictFracture sets fracture_mode + critical_stress" do
+    tests "PredictFracture", on: "Stress"
+    setup  "ApplyStress", material_name: "sample", stress_type: "sample", magnitude: 1.0
+    input  fracture_mode: "sample", critical_stress: 1.0
+    expect fracture_mode: "sample"
   end
 
   test "MapStressField sets method + resolution" do

@@ -10,10 +10,23 @@ Hecks.behaviors "PaymentGateway" do
     expect status: "authorized"
   end
 
+  test "AuthorizeTransaction cascades through policy chain" do
+    tests "AuthorizeTransaction", on: "Transaction", kind: :cascade
+    setup  "OnboardMerchant", merchant_id: "sample", business_name: "sample", mcc_code: "sample", contact_email: "sample", processing_rate: 1.0
+    input  transaction_id: "sample", amount: 1.0, currency: "sample", card_last_four: "sample"
+    expect emits: ["TransactionAuthorized", "TransactionCaptured", "ComplianceCheckRun"]
+  end
+
   test "CaptureTransaction runs" do
     tests "CaptureTransaction", on: "Transaction"
     setup  "AuthorizeTransaction", transaction_id: "sample", amount: 1.0, currency: "sample", card_last_four: "sample"
     expect ok: "true"
+  end
+
+  test "CaptureTransaction cascades through policy chain" do
+    tests "CaptureTransaction", on: "Transaction", kind: :cascade
+    setup  "AuthorizeTransaction", transaction_id: "sample", amount: 1.0, currency: "sample", card_last_four: "sample"
+    expect emits: ["TransactionCaptured", "ComplianceCheckRun"]
   end
 
   test "VoidTransaction runs" do
@@ -29,6 +42,12 @@ Hecks.behaviors "PaymentGateway" do
     tests "OnboardMerchant", on: "Merchant"
     input  merchant_id: "sample", business_name: "sample", mcc_code: "sample", contact_email: "sample", processing_rate: 1.0
     expect ok: "true"
+  end
+
+  test "OnboardMerchant cascades through policy chain" do
+    tests "OnboardMerchant", on: "Merchant", kind: :cascade
+    input  merchant_id: "sample", business_name: "sample", mcc_code: "sample", contact_email: "sample", processing_rate: 1.0
+    expect emits: ["MerchantOnboarded", "ComplianceCheckRun"]
   end
 
   test "SuspendMerchant runs" do
@@ -54,6 +73,13 @@ Hecks.behaviors "PaymentGateway" do
     expect status: "pending"
   end
 
+  test "BatchSettlement cascades through policy chain" do
+    tests "BatchSettlement", on: "Settlement", kind: :cascade
+    setup  "OnboardMerchant", merchant_id: "sample", business_name: "sample", mcc_code: "sample", contact_email: "sample", processing_rate: 1.0
+    input  settlement_id: "sample", gross_amount: 1.0, fees: 1.0, period: "sample"
+    expect emits: ["SettlementBatched", "SettlementDisbursed"]
+  end
+
   test "DisburseSettlement runs" do
     tests "DisburseSettlement", on: "Settlement"
     setup  "BatchSettlement", settlement_id: "sample", gross_amount: 1.0, fees: 1.0, period: "sample"
@@ -75,6 +101,13 @@ Hecks.behaviors "PaymentGateway" do
     setup  "AuthorizeTransaction", transaction_id: "sample", amount: 1.0, currency: "sample", card_last_four: "sample"
     input  chargeback_id: "sample", reason_code: "sample", amount: 1.0, evidence_due_date: "sample"
     expect status: "open"
+  end
+
+  test "FileChargeback cascades through policy chain" do
+    tests "FileChargeback", on: "Chargeback", kind: :cascade
+    setup  "AuthorizeTransaction", transaction_id: "sample", amount: 1.0, currency: "sample", card_last_four: "sample"
+    input  chargeback_id: "sample", reason_code: "sample", amount: 1.0, evidence_due_date: "sample"
+    expect emits: ["ChargebackFiled", "SettlementHeld", "EvidenceSubmitted"]
   end
 
   test "SubmitEvidence sets document_type + document_url" do
@@ -107,11 +140,24 @@ Hecks.behaviors "PaymentGateway" do
     expect ok: "true"
   end
 
+  test "PassCheck cascades through policy chain" do
+    tests "PassCheck", on: "ComplianceCheck", kind: :cascade
+    setup  "RunComplianceCheck", check_id: "sample", check_type: "sample", scope: "sample"
+    expect emits: ["CheckPassed", "SettlementBatched", "SettlementDisbursed"]
+  end
+
   test "FailCheck sets failure_reason" do
     tests "FailCheck", on: "ComplianceCheck"
     setup  "RunComplianceCheck", check_id: "sample", check_type: "sample", scope: "sample"
     input  failure_reason: "sample"
     expect ok: "true"
+  end
+
+  test "FailCheck cascades through policy chain" do
+    tests "FailCheck", on: "ComplianceCheck", kind: :cascade
+    setup  "RunComplianceCheck", check_id: "sample", check_type: "sample", scope: "sample"
+    input  failure_reason: "sample"
+    expect emits: ["CheckFailed", "MerchantSuspended"]
   end
 
 end

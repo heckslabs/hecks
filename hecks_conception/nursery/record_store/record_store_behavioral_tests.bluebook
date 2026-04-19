@@ -9,11 +9,24 @@ Hecks.behaviors "RecordStore" do
     expect catalog_number: "sample", title: "sample", artist_name: "sample", genre: "sample", format: "sample", condition: "sample", price: 1.0, quantity: 1
   end
 
+  test "StockRecord cascades through policy chain" do
+    tests "StockRecord", on: "VinylRecord", kind: :cascade
+    input  catalog_number: "sample", title: "sample", artist_name: "sample", genre: "sample", format: "sample", condition: "sample", price: 1.0, quantity: 1
+    expect emits: ["RecordStocked", "RecordGraded", "RecordFiled", "RecordLoaded", "SpecialOrderFulfilled", "ArtistFeatured", "ArtistRegistered", "CrateSetUp"]
+  end
+
   test "GradeRecord sets condition" do
     tests "GradeRecord", on: "VinylRecord"
     setup  "StockRecord", catalog_number: "sample", title: "sample", artist_name: "sample", genre: "sample", format: "sample", condition: "sample", price: 1.0, quantity: 1
     input  condition: "sample"
     expect condition: "sample"
+  end
+
+  test "GradeRecord cascades through policy chain" do
+    tests "GradeRecord", on: "VinylRecord", kind: :cascade
+    setup  "StockRecord", catalog_number: "sample", title: "sample", artist_name: "sample", genre: "sample", format: "sample", condition: "sample", price: 1.0, quantity: 1
+    input  condition: "sample"
+    expect emits: ["RecordGraded", "RecordFiled", "RecordLoaded"]
   end
 
 
@@ -38,6 +51,13 @@ Hecks.behaviors "RecordStore" do
     tests "SetupCrate", on: "Crate"
     input  crate_id: "sample", label: "sample", location: "sample", capacity: 1
     expect crate_id: "sample", label: "sample", location: "sample", capacity: 1, current_count: 0
+  end
+
+  test "FileRecord cascades through policy chain" do
+    tests "FileRecord", on: "Crate", kind: :cascade
+    setup  "SetupCrate", crate_id: "sample", label: "sample", location: "sample", capacity: 1
+    input  catalog_number: "sample"
+    expect emits: ["RecordFiled", "RecordLoaded"]
   end
 
 

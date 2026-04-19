@@ -15,6 +15,12 @@ Hecks.behaviors "VeteranRestart" do
     expect status: "assessed"
   end
 
+  test "AssessNeeds cascades through policy chain" do
+    tests "AssessNeeds", on: "Veteran", kind: :cascade
+    setup  "EnrollVeteran", name: "sample", service_branch: "sample", discharge_type: "sample"
+    expect emits: ["NeedsAssessed", "ClaimFiled", "LegalCaseOpened"]
+  end
+
   test "GraduateProgram runs" do
     tests "GraduateProgram", on: "Veteran"
     setup  "EnrollVeteran", name: "sample", service_branch: "sample", discharge_type: "sample"
@@ -53,6 +59,14 @@ Hecks.behaviors "VeteranRestart" do
     expect status: "leased"
   end
 
+  test "SignLease cascades through policy chain" do
+    tests "SignLease", on: "HousingApplication", kind: :cascade
+    setup  "MatchHousing", housing_type: "sample", location_preference: "sample", budget: 1.0
+    setup  "SubmitApplication"
+    setup  "ApproveApplication"
+    expect emits: ["LeasesSigned", "FinancialPlanStarted", "MilestoneAchieved"]
+  end
+
 
   # ── BenefitsClaim aggregate ──────────────────────────────────────────
 
@@ -68,6 +82,13 @@ Hecks.behaviors "VeteranRestart" do
     setup  "FileClaim", benefit_type: "sample", description: "sample"
     input  monthly_amount: 1.0
     expect monthly_amount: 1.0, status: "approved"
+  end
+
+  test "ApproveBenefits cascades through policy chain" do
+    tests "ApproveBenefits", on: "BenefitsClaim", kind: :cascade
+    setup  "FileClaim", benefit_type: "sample", description: "sample"
+    input  monthly_amount: 1.0
+    expect emits: ["BenefitsApproved", "HousingMatched", "MilestoneAchieved"]
   end
 
   test "DenyClaim runs" do
@@ -120,6 +141,12 @@ Hecks.behaviors "VeteranRestart" do
     tests "ResolveCase", on: "LegalCase"
     setup  "OpenCase", case_type: "sample", description: "sample", assigned_attorney: "sample"
     expect status: "resolved"
+  end
+
+  test "ResolveCase cascades through policy chain" do
+    tests "ResolveCase", on: "LegalCase", kind: :cascade
+    setup  "OpenCase", case_type: "sample", description: "sample", assigned_attorney: "sample"
+    expect emits: ["LegalCaseResolved", "MilestoneAchieved"]
   end
 
   test "EscalateCase runs" do

@@ -12,6 +12,19 @@ Hecks.behaviors "AuctionStrategy" do
   test "CloseAuction runs" do
     tests "CloseAuction", on: "Auction"
     setup  "ListAuction", name: "sample", item_description: "sample", auction_type: "sample", reserve_price: 1.0, start_time: "sample", end_time: "sample"
+    expect status: "closed"
+  end
+
+  test "CloseAuction cascades through policy chain" do
+    tests "CloseAuction", on: "Auction", kind: :cascade
+    setup  "ListAuction", name: "sample", item_description: "sample", auction_type: "sample", reserve_price: 1.0, start_time: "sample", end_time: "sample"
+    expect emits: ["AuctionClosed", "AuctionAwarded"]
+  end
+
+  test "AwardAuction runs" do
+    tests "AwardAuction", on: "Auction"
+    setup  "ListAuction", name: "sample", item_description: "sample", auction_type: "sample", reserve_price: 1.0, start_time: "sample", end_time: "sample"
+    setup  "CloseAuction"
     expect status: "awarded"
   end
 
@@ -40,6 +53,12 @@ Hecks.behaviors "AuctionStrategy" do
     expect name: "sample", strategy_type: "sample", aggression_factor: 1.0, shade_pct: 1.0, status: "defined"
   end
 
+  test "DefineStrategy cascades through policy chain" do
+    tests "DefineStrategy", on: "BiddingStrategy", kind: :cascade
+    input  name: "sample", strategy_type: "sample", aggression_factor: 1.0, shade_pct: 1.0
+    expect emits: ["StrategyDefined", "EquilibriumComputed"]
+  end
+
   test "ComputeEquilibrium sets expected_payoff" do
     tests "ComputeEquilibrium", on: "BiddingStrategy"
     setup  "DefineStrategy", name: "sample", strategy_type: "sample", aggression_factor: 1.0, shade_pct: 1.0
@@ -62,11 +81,24 @@ Hecks.behaviors "AuctionStrategy" do
     expect bidder_name: "sample", auction_name: "sample", amount: 1.0, strategy_used: "sample", timestamp: "sample", status: "placed"
   end
 
+  test "PlaceBid cascades through policy chain" do
+    tests "PlaceBid", on: "Bid", kind: :cascade
+    input  bidder_name: "sample", auction_name: "sample", amount: 1.0, strategy_used: "sample", timestamp: "sample"
+    expect emits: ["BidPlaced", "BidEvaluated", "ValuationReassessed", "AuctionClosed", "AuctionAwarded"]
+  end
+
   test "EvaluateBid sets outcome" do
     tests "EvaluateBid", on: "Bid"
     setup  "PlaceBid", bidder_name: "sample", auction_name: "sample", amount: 1.0, strategy_used: "sample", timestamp: "sample"
     input  outcome: "sample"
     expect outcome: "sample", status: "evaluated"
+  end
+
+  test "EvaluateBid cascades through policy chain" do
+    tests "EvaluateBid", on: "Bid", kind: :cascade
+    setup  "PlaceBid", bidder_name: "sample", auction_name: "sample", amount: 1.0, strategy_used: "sample", timestamp: "sample"
+    input  outcome: "sample"
+    expect emits: ["BidEvaluated", "ValuationReassessed"]
   end
 
 end

@@ -16,6 +16,13 @@ Hecks.behaviors "HospitalPower" do
     expect power_load_kw: 1.0
   end
 
+  test "MeasureLoad cascades through policy chain" do
+    tests "MeasureLoad", on: "PatientArea", kind: :cascade
+    setup  "DefineArea", area_id: "sample", area_name: "sample", floor: "sample", criticality: "sample", power_load_kw: 1.0
+    input  power_load_kw: 1.0
+    expect emits: ["LoadMeasured", "SheddingActivated"]
+  end
+
 
   # ── BackupGenerator aggregate ──────────────────────────────────────────
 
@@ -51,6 +58,12 @@ Hecks.behaviors "HospitalPower" do
     tests "SwitchToBackup", on: "TransferSwitch"
     setup  "ConfigureSwitch", switch_id: "sample", area_id: "sample", generator_id: "sample"
     expect current_source: "backup"
+  end
+
+  test "SwitchToBackup cascades through policy chain" do
+    tests "SwitchToBackup", on: "TransferSwitch", kind: :cascade
+    setup  "ConfigureSwitch", switch_id: "sample", area_id: "sample", generator_id: "sample"
+    expect emits: ["SwitchedToBackup", "GeneratorStarted"]
   end
 
   test "SwitchToMain runs" do

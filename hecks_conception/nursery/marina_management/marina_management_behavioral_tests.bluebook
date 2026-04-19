@@ -15,6 +15,12 @@ Hecks.behaviors "MarinaManagement" do
     expect status: "reserved"
   end
 
+  test "ReserveSlip cascades through policy chain" do
+    tests "ReserveSlip", on: "Slip", kind: :cascade
+    setup  "OpenSlip", slip_number: "sample", length_feet: 1.0, beam_feet: 1.0, dock_section: "sample", power_hookup: "sample", monthly_rate: 1.0
+    expect emits: ["SlipReserved", "VesselDocked", "FuelDispensed", "MaintenanceScheduled"]
+  end
+
   test "OccupySlip runs" do
     tests "OccupySlip", on: "Slip"
     setup  "OpenSlip", slip_number: "sample", length_feet: 1.0, beam_feet: 1.0, dock_section: "sample", power_hookup: "sample", monthly_rate: 1.0
@@ -39,6 +45,12 @@ Hecks.behaviors "MarinaManagement" do
     expect draft_feet: 1.0, owner_phone: "sample", vessel_name: "sample", registration_number: "sample", vessel_type: "sample", length_overall: 1.0, owner_name: "sample", status: "active"
   end
 
+  test "RegisterVessel cascades through policy chain" do
+    tests "RegisterVessel", on: "Vessel", kind: :cascade
+    input  vessel_name: "sample", registration_number: "sample", vessel_type: "sample", length_overall: 1.0, draft_feet: 1.0, owner_name: "sample", owner_phone: "sample"
+    expect emits: ["VesselRegistered", "SlipReserved", "VesselDocked", "FuelDispensed", "MaintenanceScheduled"]
+  end
+
   test "AssignToSlip runs" do
     tests "AssignToSlip", on: "Vessel"
     setup  "OpenSlip", slip_number: "sample", length_feet: 1.0, beam_feet: 1.0, dock_section: "sample", power_hookup: "sample", monthly_rate: 1.0
@@ -46,11 +58,25 @@ Hecks.behaviors "MarinaManagement" do
     expect status: "docked"
   end
 
+  test "AssignToSlip cascades through policy chain" do
+    tests "AssignToSlip", on: "Vessel", kind: :cascade
+    setup  "OpenSlip", slip_number: "sample", length_feet: 1.0, beam_feet: 1.0, dock_section: "sample", power_hookup: "sample", monthly_rate: 1.0
+    setup  "RegisterVessel", vessel_name: "sample", registration_number: "sample", vessel_type: "sample", length_overall: 1.0, draft_feet: 1.0, owner_name: "sample", owner_phone: "sample"
+    expect emits: ["VesselDocked", "FuelDispensed", "MaintenanceScheduled"]
+  end
+
   test "RecordDeparture runs" do
     tests "RecordDeparture", on: "Vessel"
     setup  "RegisterVessel", vessel_name: "sample", registration_number: "sample", vessel_type: "sample", length_overall: 1.0, draft_feet: 1.0, owner_name: "sample", owner_phone: "sample"
     setup  "AssignToSlip"
     expect status: "at_sea"
+  end
+
+  test "RecordDeparture cascades through policy chain" do
+    tests "RecordDeparture", on: "Vessel", kind: :cascade
+    setup  "RegisterVessel", vessel_name: "sample", registration_number: "sample", vessel_type: "sample", length_overall: 1.0, draft_feet: 1.0, owner_name: "sample", owner_phone: "sample"
+    setup  "AssignToSlip"
+    expect emits: ["VesselDeparted", "SlipVacated"]
   end
 
 
@@ -106,6 +132,13 @@ Hecks.behaviors "MarinaManagement" do
     setup  "IssueAlert", alert_type: "sample", severity: "sample", description: "sample", effective_from: "sample", effective_until: "sample"
     input  new_severity: "sample"
     expect severity: "sample"
+  end
+
+  test "EscalateAlert cascades through policy chain" do
+    tests "EscalateAlert", on: "WeatherAlert", kind: :cascade
+    setup  "IssueAlert", alert_type: "sample", severity: "sample", description: "sample", effective_from: "sample", effective_until: "sample"
+    input  new_severity: "sample"
+    expect emits: ["AlertEscalated", "MaintenanceScheduled"]
   end
 
   test "LiftAlert runs" do

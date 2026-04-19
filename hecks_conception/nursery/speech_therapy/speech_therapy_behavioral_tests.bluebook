@@ -9,6 +9,12 @@ Hecks.behaviors "SpeechTherapy" do
     expect name: "sample", date_of_birth: "sample", referral_source: "sample", primary_disorder: "sample", status: "active"
   end
 
+  test "EnrollClient cascades through policy chain" do
+    tests "EnrollClient", on: "Client", kind: :cascade
+    input  name: "sample", date_of_birth: "sample", referral_source: "sample", primary_disorder: "sample"
+    expect emits: ["ClientEnrolled", "AssessmentAdministered", "AssessmentScored", "GoalSet", "SessionScheduled"]
+  end
+
   test "DischargeClient runs" do
     tests "DischargeClient", on: "Client"
     setup  "EnrollClient", name: "sample", date_of_birth: "sample", referral_source: "sample", primary_disorder: "sample"
@@ -25,11 +31,37 @@ Hecks.behaviors "SpeechTherapy" do
     expect client_name: "sample", goal_area: "sample", description: "sample", target_criterion: "sample", baseline_score: 1, current_score: 1, status: "in_progress"
   end
 
+  test "SetGoal cascades through policy chain" do
+    tests "SetGoal", on: "TherapyGoal", kind: :cascade
+    setup  "EnrollClient", name: "sample", date_of_birth: "sample", referral_source: "sample", primary_disorder: "sample"
+    input  client_name: "sample", goal_area: "sample", description: "sample", target_criterion: "sample", baseline_score: 1
+    expect emits: ["GoalSet", "SessionScheduled"]
+  end
+
   test "LogProgress sets current_score" do
     tests "LogProgress", on: "TherapyGoal"
     setup  "SetGoal", client_name: "sample", goal_area: "sample", description: "sample", target_criterion: "sample", baseline_score: 1
     input  current_score: 1
-    expect current_score: 1, status: "achieved"
+    expect current_score: 1
+  end
+
+  test "LogProgress cascades through policy chain" do
+    tests "LogProgress", on: "TherapyGoal", kind: :cascade
+    setup  "SetGoal", client_name: "sample", goal_area: "sample", description: "sample", target_criterion: "sample", baseline_score: 1
+    input  current_score: 1
+    expect emits: ["ProgressLogged", "GoalAchieved", "ClientDischarged"]
+  end
+
+  test "AchieveGoal runs" do
+    tests "AchieveGoal", on: "TherapyGoal"
+    setup  "SetGoal", client_name: "sample", goal_area: "sample", description: "sample", target_criterion: "sample", baseline_score: 1
+    expect status: "achieved"
+  end
+
+  test "AchieveGoal cascades through policy chain" do
+    tests "AchieveGoal", on: "TherapyGoal", kind: :cascade
+    setup  "SetGoal", client_name: "sample", goal_area: "sample", description: "sample", target_criterion: "sample", baseline_score: 1
+    expect emits: ["GoalAchieved", "ClientDischarged"]
   end
 
 
@@ -47,6 +79,13 @@ Hecks.behaviors "SpeechTherapy" do
     setup  "ScheduleSession", client_name: "sample", pathologist_name: "sample", session_date: "sample", session_type: "sample"
     input  notes: "sample"
     expect notes: "sample", status: "completed"
+  end
+
+  test "CompleteSession cascades through policy chain" do
+    tests "CompleteSession", on: "TherapySession", kind: :cascade
+    setup  "ScheduleSession", client_name: "sample", pathologist_name: "sample", session_date: "sample", session_type: "sample"
+    input  notes: "sample"
+    expect emits: ["SessionCompleted", "ProgressLogged", "GoalAchieved", "ClientDischarged"]
   end
 
 
@@ -75,11 +114,25 @@ Hecks.behaviors "SpeechTherapy" do
     expect client_name: "sample", assessment_tool: "sample", assessment_date: "sample"
   end
 
+  test "AdministerAssessment cascades through policy chain" do
+    tests "AdministerAssessment", on: "SpeechAssessment", kind: :cascade
+    setup  "EnrollClient", name: "sample", date_of_birth: "sample", referral_source: "sample", primary_disorder: "sample"
+    input  client_name: "sample", assessment_tool: "sample", assessment_date: "sample"
+    expect emits: ["AssessmentAdministered", "AssessmentScored", "GoalSet", "SessionScheduled"]
+  end
+
   test "ScoreAssessment sets composite_score + severity_rating" do
     tests "ScoreAssessment", on: "SpeechAssessment"
     setup  "AdministerAssessment", client_name: "sample", assessment_tool: "sample", assessment_date: "sample"
     input  composite_score: 1, severity_rating: "sample"
     expect composite_score: 1, severity_rating: "sample"
+  end
+
+  test "ScoreAssessment cascades through policy chain" do
+    tests "ScoreAssessment", on: "SpeechAssessment", kind: :cascade
+    setup  "AdministerAssessment", client_name: "sample", assessment_tool: "sample", assessment_date: "sample"
+    input  composite_score: 1, severity_rating: "sample"
+    expect emits: ["AssessmentScored", "GoalSet", "SessionScheduled"]
   end
 
 end

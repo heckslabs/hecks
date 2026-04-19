@@ -15,6 +15,12 @@ Hecks.behaviors "FlightWeather" do
     expect ok: "true"
   end
 
+  test "ReportWeather cascades through policy chain" do
+    tests "ReportWeather", on: "WeatherStation", kind: :cascade
+    setup  "ActivateStation", station_id: "sample", airport_code: "sample", latitude: 1.0, longitude: 1.0, elevation_ft: 1.0
+    expect emits: ["WeatherReported", "DelayPredicted", "DelayEscalated", "FlightDiverted"]
+  end
+
 
   # ── FlightPlan aggregate ──────────────────────────────────────────
 
@@ -24,9 +30,28 @@ Hecks.behaviors "FlightWeather" do
     expect flight_number: "sample", origin: "sample", destination: "sample", planned_altitude_ft: 1.0, fuel_load_kg: 1.0, estimated_flight_time_hr: 1.0, status: "filed"
   end
 
+  test "FileFlightPlan cascades through policy chain" do
+    tests "FileFlightPlan", on: "FlightPlan", kind: :cascade
+    input  flight_number: "sample", origin: "sample", destination: "sample", planned_altitude_ft: 1.0, fuel_load_kg: 1.0, estimated_flight_time_hr: 1.0
+    expect emits: ["FlightPlanFiled", "WeatherImpactAssessed", "FuelAdjusted", "FuelPlanCalculated"]
+  end
+
   test "AssessWeatherImpact runs" do
     tests "AssessWeatherImpact", on: "FlightPlan"
     setup  "FileFlightPlan", flight_number: "sample", origin: "sample", destination: "sample", planned_altitude_ft: 1.0, fuel_load_kg: 1.0, estimated_flight_time_hr: 1.0
+    expect ok: "true"
+  end
+
+  test "AssessWeatherImpact cascades through policy chain" do
+    tests "AssessWeatherImpact", on: "FlightPlan", kind: :cascade
+    setup  "FileFlightPlan", flight_number: "sample", origin: "sample", destination: "sample", planned_altitude_ft: 1.0, fuel_load_kg: 1.0, estimated_flight_time_hr: 1.0
+    expect emits: ["WeatherImpactAssessed", "FuelAdjusted"]
+  end
+
+  test "AdjustFuelForWeather sets fuel_load_kg" do
+    tests "AdjustFuelForWeather", on: "FlightPlan"
+    setup  "FileFlightPlan", flight_number: "sample", origin: "sample", destination: "sample", planned_altitude_ft: 1.0, fuel_load_kg: 1.0, estimated_flight_time_hr: 1.0
+    input  fuel_load_kg: 1.0
     expect fuel_load_kg: 1.0
   end
 
@@ -53,10 +78,22 @@ Hecks.behaviors "FlightWeather" do
     expect airport_code: "sample", delay_probability_pct: 1.0, expected_delay_minutes: 1.0, cause: "sample", forecast_time: "sample", status: "predicted"
   end
 
+  test "PredictDelay cascades through policy chain" do
+    tests "PredictDelay", on: "DelayForecast", kind: :cascade
+    input  airport_code: "sample", delay_probability_pct: 1.0, expected_delay_minutes: 1.0, cause: "sample", forecast_time: "sample"
+    expect emits: ["DelayPredicted", "DelayEscalated", "FlightDiverted"]
+  end
+
   test "EscalateDelay runs" do
     tests "EscalateDelay", on: "DelayForecast"
     setup  "PredictDelay", airport_code: "sample", delay_probability_pct: 1.0, expected_delay_minutes: 1.0, cause: "sample", forecast_time: "sample"
     expect status: "escalated"
+  end
+
+  test "EscalateDelay cascades through policy chain" do
+    tests "EscalateDelay", on: "DelayForecast", kind: :cascade
+    setup  "PredictDelay", airport_code: "sample", delay_probability_pct: 1.0, expected_delay_minutes: 1.0, cause: "sample", forecast_time: "sample"
+    expect emits: ["DelayEscalated", "FlightDiverted"]
   end
 
 

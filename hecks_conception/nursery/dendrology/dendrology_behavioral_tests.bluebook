@@ -9,6 +9,12 @@ Hecks.behaviors "Dendrology" do
     expect ok: "true"
   end
 
+  test "TagTree cascades through policy chain" do
+    tests "TagTree", on: "TreeSpecimen", kind: :cascade
+    input  specimen_id: "sample", species: "sample", dbh_cm: 1.0
+    expect emits: ["TreeTagged", "CoreExtracted", "RingsCounted", "RingsCrossdated", "HealthAssessed", "TreatmentPrescribed", "FollowupScheduled"]
+  end
+
   test "AssessWildlifeHabitat runs" do
     tests "AssessWildlifeHabitat", on: "TreeSpecimen"
     setup  "TagTree", specimen_id: "sample", species: "sample", dbh_cm: 1.0
@@ -40,6 +46,13 @@ Hecks.behaviors "Dendrology" do
     expect ok: "true"
   end
 
+  test "ExtractCore cascades through policy chain" do
+    tests "ExtractCore", on: "GrowthRingAnalysis", kind: :cascade
+    setup  "TagTree", specimen_id: "sample", species: "sample", dbh_cm: 1.0
+    input  core_id: "sample"
+    expect emits: ["CoreExtracted", "RingsCounted", "RingsCrossdated", "HealthAssessed", "TreatmentPrescribed", "FollowupScheduled"]
+  end
+
   test "PrepareCore runs" do
     tests "PrepareCore", on: "GrowthRingAnalysis"
     setup  "ExtractCore", core_id: "sample"
@@ -53,6 +66,25 @@ Hecks.behaviors "Dendrology" do
     expect ok: "true"
   end
 
+  test "CountRings cascades through policy chain" do
+    tests "CountRings", on: "GrowthRingAnalysis", kind: :cascade
+    setup  "ExtractCore", core_id: "sample"
+    setup  "PrepareCore"
+    expect emits: ["RingsCounted", "RingsCrossdated", "HealthAssessed", "TreatmentPrescribed", "FollowupScheduled"]
+  end
+
+  test "CrossdateRings runs" do
+    tests "CrossdateRings", on: "GrowthRingAnalysis"
+    setup  "ExtractCore", core_id: "sample"
+    expect ok: "true"
+  end
+
+  test "CrossdateRings cascades through policy chain" do
+    tests "CrossdateRings", on: "GrowthRingAnalysis", kind: :cascade
+    setup  "ExtractCore", core_id: "sample"
+    expect emits: ["RingsCrossdated", "HealthAssessed", "TreatmentPrescribed", "FollowupScheduled"]
+  end
+
 
   # ── HealthAssessment aggregate ──────────────────────────────────────────
 
@@ -61,6 +93,13 @@ Hecks.behaviors "Dendrology" do
     setup  "TagTree", specimen_id: "sample", species: "sample", dbh_cm: 1.0
     input  assessment_date: "sample", assessor: "sample"
     expect ok: "true"
+  end
+
+  test "AssessHealth cascades through policy chain" do
+    tests "AssessHealth", on: "HealthAssessment", kind: :cascade
+    setup  "TagTree", specimen_id: "sample", species: "sample", dbh_cm: 1.0
+    input  assessment_date: "sample", assessor: "sample"
+    expect emits: ["HealthAssessed", "TreatmentPrescribed", "FollowupScheduled"]
   end
 
   test "RecordDefect sets defect" do
@@ -75,6 +114,21 @@ Hecks.behaviors "Dendrology" do
     setup  "AssessHealth", assessment_date: "sample", assessor: "sample"
     setup  "RecordDefect", defect: "sample"
     input  treatment_type: "sample"
+    expect ok: "true"
+  end
+
+  test "PrescribeTreatment cascades through policy chain" do
+    tests "PrescribeTreatment", on: "HealthAssessment", kind: :cascade
+    setup  "AssessHealth", assessment_date: "sample", assessor: "sample"
+    setup  "RecordDefect", defect: "sample"
+    input  treatment_type: "sample"
+    expect emits: ["TreatmentPrescribed", "FollowupScheduled"]
+  end
+
+  test "ScheduleFollowup sets followup_date" do
+    tests "ScheduleFollowup", on: "HealthAssessment"
+    setup  "AssessHealth", assessment_date: "sample", assessor: "sample"
+    input  followup_date: "sample"
     expect ok: "true"
   end
 
