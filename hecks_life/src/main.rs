@@ -122,6 +122,11 @@ fn main() {
         return;
     }
 
+    if command == "check-lifecycle" {
+        run_check_lifecycle(&args);
+        return;
+    }
+
     // Batch mode: read file paths from stdin, process each
     if path == "--batch" {
         run_batch(command);
@@ -416,6 +421,50 @@ fn run_check_io(args: &[String]) {
         println!("FAIL — {} {}", path,
                  if report.errors() > 0 { "has IO-implying issues" }
                  else { "has warnings (--strict)" });
+        std::process::exit(1);
+    }
+}
+
+/// `hecks-life check-lifecycle <bluebook> [--strict]`
+///
+/// Catches contradictory lifecycle declarations — transitions whose
+/// `from:` state is unreachable, defaults that no transition can
+/// exit, etc. Static IR walk; no runtime needed.
+fn run_check_lifecycle(args: &[String]) {
+    let path = args.get(2).unwrap_or_else(|| {
+        eprintln!("Usage: hecks-life check-lifecycle <bluebook> [--strict]");
+        std::process::exit(1);
+    });
+    let strict = args.iter().any(|a| a == "--strict");
+
+    let source = std::fs::read_to_string(path).unwrap_or_else(|e| {
+        eprintln!("Cannot read {}: {}", path, e); std::process::exit(1);
+    });
+    let domain = hecks_life::parser::parse(&source);
+    if domain.aggregates.is_empty() {
+        eprintln!("{} has no aggregates — nothing to check", path);
+        std::process::exit(1);
+    }
+
+    println!("Checking {} ({})", domain.name, path);
+
+    let report = hecks_life::lifecycle_validator::check(&domain);
+    if report.findings.is_empty() {
+        println!("\nLifecycle: clean");
+    } else {
+        println!("\nLifecycle:");
+        for f in &report.findings {
+            println!("  {} {} — {}", f.icon(), f.location, f.message);
+        }
+    }
+
+    println!("\n{} error(s), {} warning(s)", report.errors(), report.warnings());
+    if report.passes(strict) {
+        println!("PASS — {} has consistent lifecycles", path);
+    } else {
+        println!("FAIL — {} {}", path,
+                 if report.errors() > 0 { "has unreachable transitions" }
+                 else { "has stuck-default warnings (--strict)" });
         std::process::exit(1);
     }
 }
