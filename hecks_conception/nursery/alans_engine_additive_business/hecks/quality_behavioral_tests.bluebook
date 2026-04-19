@@ -13,7 +13,7 @@ Hecks.behaviors "Quality" do
     tests "RecordResult", on: "QualityTest"
     setup  "RunTest", test_name: "sample", astm_test_method: "sample", formula_name: "sample", batch_number: "sample", lot_number: "sample", specification_min: 1.0, specification_max: 1.0
     input  actual_value: 1.0, result: "sample", out_of_spec: "sample"
-    expect actual_value: 1.0, result: "sample", out_of_spec: "sample"
+    expect actual_value: 1.0, result: "sample", out_of_spec: "sample", certificate_of_analysis: "sample"
   end
 
   test "IssueCertificateOfAnalysis sets certificate_of_analysis" do

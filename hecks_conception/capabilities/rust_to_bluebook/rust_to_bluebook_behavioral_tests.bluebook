@@ -12,14 +12,14 @@ Hecks.behaviors "RustToBluebook" do
   test "MapToBluebook runs" do
     tests "MapToBluebook", on: "RustFile"
     setup  "Analyze", path: "sample"
-    expect status: "mapped"
+    expect status: "deleted"
   end
 
   test "GenerateBluebook runs" do
     tests "GenerateBluebook", on: "RustFile"
     setup  "Analyze", path: "sample"
     setup  "MapToBluebook"
-    expect status: "generated"
+    expect status: "deleted"
   end
 
   test "Verify runs" do
@@ -27,7 +27,7 @@ Hecks.behaviors "RustToBluebook" do
     setup  "Analyze", path: "sample"
     setup  "MapToBluebook"
     setup  "GenerateBluebook"
-    expect status: "verified"
+    expect status: "deleted"
   end
 
   test "DeleteRust runs" do

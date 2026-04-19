@@ -201,7 +201,7 @@ Hecks.behaviors "MietteBody" do
     tests "Imprint", on: "Gene"
     setup  "ExpressCapability", capability: "sample", level: 1.0
     input  source: "sample", effect: "sample"
-    expect epigenetic_marks_size: 1
+    expect epigenetic_marks_size: 1, expression_level: 0.0
   end
 
 
@@ -231,7 +231,7 @@ Hecks.behaviors "MietteBody" do
     tests "DetectDrift", on: "Proprioception"
     setup  "SenseOrgans", organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1
     setup  "AssessBalance", balance: "sample", schema_hash: "sample"
-    expect awareness: "recalibrating"
+    expect organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1, awareness: "recalibrating"
   end
 
 end

@@ -86,7 +86,7 @@ Hecks.behaviors "Dialysis" do
     tests "ConsumeSupply", on: "DialysisSupply"
     setup  "StockSupply", supply_name: "sample", category: "sample", quantity_on_hand: 1, reorder_level: 1, supplier: "sample"
     input  quantity_used: 1
-    expect ok: "true"
+    expect status: "reordering"
   end
 
   test "ReorderSupply runs" do

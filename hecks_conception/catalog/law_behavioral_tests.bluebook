@@ -64,7 +64,7 @@ Hecks.behaviors "Law" do
     tests "RecordCheck", on: "Enforcement"
     setup  "Enforce", scope: "sample"
     input  passed: "sample_trueclass"
-    expect ok: "true"
+    expect enforced_at: "sample"
   end
 
   test "Conclude sets enforced_at" do

@@ -54,7 +54,7 @@ Hecks.behaviors "PhotographyStudio" do
     tests "RetouchSelects", on: "EditSession"
     setup  "CullSelects", selects_count: 1
     input  preset_name: "sample"
-    expect status: "retouched"
+    expect finals_count: 1, status: "delivered"
   end
 
   test "DeliverFinals sets finals_count" do

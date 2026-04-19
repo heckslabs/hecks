@@ -36,7 +36,7 @@ Hecks.behaviors "TaxPreparation" do
     tests "CalculateTax", on: "TaxReturn"
     setup  "StartReturn", tax_year: "sample", return_type: "sample"
     input  gross_income: 1.0, adjusted_gross_income: 1.0, taxable_income: 1.0, tax_owed: 1.0, refund_amount: 1.0
-    expect gross_income: 1.0, adjusted_gross_income: 1.0, taxable_income: 1.0, tax_owed: 1.0, refund_amount: 1.0
+    expect gross_income: 1.0, adjusted_gross_income: 1.0, taxable_income: 1.0, tax_owed: 1.0, refund_amount: 1.0, status: "finalized"
   end
 
   test "FinalizeReturn runs" do

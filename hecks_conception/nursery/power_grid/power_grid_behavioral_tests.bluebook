@@ -37,14 +37,14 @@ Hecks.behaviors "PowerGrid" do
     tests "TripLine", on: "TransmissionLine"
     setup  "EnergizeLine", line_id: "sample", conductor_type: "sample", length_miles: 1.0, rating_mw: 1.0
     input  fault_type: "sample"
-    expect status: "tripped"
+    expect status: "energized"
   end
 
   test "InspectLine runs" do
     tests "InspectLine", on: "TransmissionLine"
     setup  "EnergizeLine", line_id: "sample", conductor_type: "sample", length_miles: 1.0, rating_mw: 1.0
     setup  "TripLine", fault_type: "sample"
-    expect status: "inspected"
+    expect status: "energized"
   end
 
   test "RestoreLine runs" do

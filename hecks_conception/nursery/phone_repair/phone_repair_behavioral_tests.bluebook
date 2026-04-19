@@ -27,7 +27,7 @@ Hecks.behaviors "PhoneRepair" do
   test "BeginRepair runs" do
     tests "BeginRepair", on: "RepairTicket"
     setup  "OpenTicket", ticket_id: "sample", device_id: "sample", issue_description: "sample", estimated_cost: 1.0, priority: "sample"
-    expect status: "in_progress"
+    expect status: "closed"
   end
 
   test "CloseTicket runs" do

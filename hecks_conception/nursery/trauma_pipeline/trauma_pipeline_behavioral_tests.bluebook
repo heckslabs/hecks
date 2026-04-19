@@ -72,7 +72,7 @@ Hecks.behaviors "TraumaPipeline" do
     tests "RecordTemperature", on: "ColdTransport"
     setup  "DeployBloodCourier", courier_id: "sample", origin: "sample", destination: "sample"
     input  temperature: 1.0
-    expect temperature: 1.0
+    expect temperature: 1.0, status: "breached"
   end
 
   test "FlagTempBreach runs" do
@@ -100,7 +100,7 @@ Hecks.behaviors "TraumaPipeline" do
     tests "AssignCall", on: "TraumaBay"
     setup  "DispatchTrauma", incident_type: "sample", location: "sample", severity: "sample", blood_type_needed: "sample", estimated_arrival_minutes: 1
     setup  "PrepareBay", bay_number: "sample", trauma_level: "sample"
-    expect trauma_call: :trauma_call, status: "assigned"
+    expect active_call: 1, status: "assigned"
   end
 
   test "ReleaseBay runs" do

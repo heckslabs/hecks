@@ -13,7 +13,7 @@ Hecks.behaviors "ThermalComfort" do
     tests "MeasureTemperature", on: "ThermalZone"
     setup  "DefineZone", zone_name: "sample", volume_m3: 1.0, insulation_r_value: 1.0, heat_load_watts: 1.0, setpoint_temp_c: 1.0
     input  current_temp_c: 1.0
-    expect current_temp_c: 1.0
+    expect current_temp_c: 1.0, heat_load_watts: 1.0
   end
 
   test "CalculateHeatLoss sets heat_load_watts" do

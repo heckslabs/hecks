@@ -58,7 +58,7 @@ Hecks.behaviors "WaterTreatment" do
     setup  "ConfigureProcess", stage_name: "sample", technology: "sample"
     setup  "ActivateProcess"
     input  reason: "sample"
-    expect status: "bypassed"
+    expect status: "active"
   end
 
   test "RestoreProcess runs" do
@@ -82,7 +82,7 @@ Hecks.behaviors "WaterTreatment" do
   test "AnalyzeSample runs" do
     tests "AnalyzeSample", on: "WaterSample"
     setup  "CollectSample", sample_point: "sample"
-    expect status: "analyzed"
+    expect status: "approved"
   end
 
   test "ApproveSample runs" do

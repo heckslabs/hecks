@@ -137,7 +137,7 @@ Hecks.behaviors "Cosmology" do
     tests "AccreteMatter", on: "BlackHole"
     setup  "FormBlackHole", name: "sample", mass: 1.0, spin: 1.0, charge: 1.0
     input  accreted_mass: 1.0
-    expect ok: "true"
+    expect temperature: 1.0
   end
 
   test "EmitHawkingRadiation sets temperature" do

@@ -122,7 +122,7 @@ fn command_test(
     }
 
     let input_pairs = build_input(cmd, &self_ref, &cross_refs);
-    let expect_pairs = build_expect(agg, cmd, lifecycle_to);
+    let expect_pairs = build_expect(domain, agg, cmd, lifecycle_to);
 
     let mut s = String::new();
     s.push_str(&format!("  test \"{}\" do\n", test_name(cmd, agg)));
@@ -413,12 +413,17 @@ fn build_input(
         .collect()
 }
 
-/// Expectations for the command under test. Three sources merged:
+/// Expectations for the command under test. Four sources merged:
 ///   - Create-style commands: command attrs that match aggregate attrs.
 ///   - Each then_set mutation: `field: value` (or `field_size: 1` for append).
-///   - Lifecycle transitions: `<field>: <to_state>`.
+///   - Cascaded mutations: when a command's emitted event triggers a policy
+///     that fires another command on the SAME aggregate, that command's
+///     Set mutations override earlier values (later wins). Walks the
+///     emit→policy→trigger graph with cycle detection.
+///   - Lifecycle transitions: `<field>: <to_state>` (most specific, wins).
 /// Falls back to `ok: "true"` when nothing else qualifies.
 fn build_expect(
+    domain: &Domain,
     agg: &Aggregate,
     cmd: &Command,
     lifecycle_to: Option<(String, String)>,
@@ -483,6 +488,13 @@ fn build_expect(
         }
     }
 
+    // 2b. Cascade: walk emit→policy→trigger and let triggered commands'
+    //     Set mutations override earlier values. Same-aggregate only —
+    //     cross-aggregate cascades land in a different repo's state.
+    let mut visited: BTreeSet<String> = BTreeSet::new();
+    visited.insert(cmd.name.clone());
+    cascade_mutations(domain, agg, cmd, &mut visited, &mut out, &mut seen);
+
     // 3. Lifecycle transition: assert on the lifecycle field.
     if let Some((field, to_state)) = lifecycle_to {
         // Override any earlier default from #1 — the transition's
@@ -495,6 +507,65 @@ fn build_expect(
         out.push(("ok".into(), "\"true\"".into()));
     }
     out
+}
+
+/// Walk emit→policy→trigger from `cmd`, applying triggered commands'
+/// Set mutations on top of `out` (later wins). Same-aggregate only:
+/// cross-aggregate cascades touch a different repo's state and don't
+/// belong in this aggregate's expectations.
+///
+/// Gate: only follow a triggered command if the upstream command's
+/// emitted event would carry the references the triggered command
+/// requires. Concretely: the upstream `cmd` must reference its own
+/// aggregate (so its event.data includes a `:<agg>` key the runtime
+/// can use to resolve the triggered command's self-ref). Bootstrap
+/// commands (no self-ref) emit events with no aggregate id; the
+/// runtime drops the cascade silently when the triggered command
+/// fails to dispatch, so the generator must mirror that and stop
+/// predicting at this hop.
+///
+/// `visited` cycle-breaks the recursion (a policy graph may be circular).
+fn cascade_mutations(
+    domain: &Domain,
+    agg: &Aggregate,
+    cmd: &Command,
+    visited: &mut BTreeSet<String>,
+    out: &mut Vec<(String, String)>,
+    seen: &mut BTreeSet<String>,
+) {
+    let Some(emitted) = cmd.emits.as_deref() else { return; };
+    // The cascade only carries forward when the upstream command's
+    // event payload includes a self-ref to `agg` — that's the id the
+    // triggered command needs to resolve its own self-ref. If the
+    // upstream is a bootstrap (no self-ref on agg), the runtime
+    // policy fires but the triggered command errors and is silently
+    // dropped — so don't predict cascaded state past that point.
+    if self_ref_for(agg, cmd).is_none() {
+        return;
+    }
+    for policy in &domain.policies {
+        if policy.on_event != emitted { continue; }
+        // Same-aggregate only — find the triggered command on `agg`.
+        let Some(triggered) = agg.commands.iter()
+            .find(|c| c.name == policy.trigger_command)
+        else { continue; };
+        if visited.contains(&triggered.name) { continue; }
+        visited.insert(triggered.name.clone());
+
+        for m in &triggered.mutations {
+            if let MutationOp::Set = m.operation {
+                let resolved = resolve_mutation_value(&m.value, triggered);
+                // Cascade overrides: drop any earlier entry for this
+                // field, then push the new value at the end.
+                out.retain(|(k, _)| k != &m.field);
+                out.push((m.field.clone(), resolved));
+                seen.insert(m.field.clone());
+            }
+        }
+
+        // Recurse — the triggered command may itself emit and cascade.
+        cascade_mutations(domain, agg, triggered, visited, out, seen);
+    }
 }
 
 // ─── format helpers ──────────────────────────────────────────────────

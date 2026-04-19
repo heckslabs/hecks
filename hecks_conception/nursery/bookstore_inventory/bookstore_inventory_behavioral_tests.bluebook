@@ -94,7 +94,7 @@ Hecks.behaviors "BookstoreInventory" do
     tests "InspectReturn", on: "Return"
     setup  "InitiateReturn", return_id: "sample", order_number: "sample", isbn: "sample", reason: "sample"
     input  condition: "sample"
-    expect condition: "sample"
+    expect condition: "sample", resolution: "sample"
   end
 
   test "ResolveReturn sets resolution" do

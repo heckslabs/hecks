@@ -42,7 +42,7 @@ Hecks.behaviors "FoodBank" do
     setup  "StockItem", item_name: "sample", category: "sample", quantity: 1, storage_location: "sample", expiration_date: "sample"
     setup  "AllocateItem", quantity: 1
     input  quantity: 1
-    expect status: "depleted"
+    expect status: "low"
   end
 
   test "FlagLowStock runs" do
@@ -64,7 +64,7 @@ Hecks.behaviors "FoodBank" do
     tests "ConductDistribution", on: "Distribution"
     setup  "ScheduleDistribution", event_date: "sample", location: "sample"
     input  households_served: 1, total_weight_distributed: 1.0
-    expect households_served: 1, total_weight_distributed: 1.0, status: "completed"
+    expect households_served: 1, total_weight_distributed: 1.0, status: "reported"
   end
 
   test "ReportDistribution runs" do

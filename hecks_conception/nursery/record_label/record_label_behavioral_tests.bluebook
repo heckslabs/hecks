@@ -36,7 +36,7 @@ Hecks.behaviors "RecordLabel" do
     tests "MasterAlbum", on: "Album"
     setup  "GreenLightAlbum", title: "sample", producer: "sample"
     input  mastering_engineer: "sample"
-    expect status: "mastered"
+    expect status: "released", release_date: "sample"
   end
 
   test "ReleaseAlbum sets release_date" do
@@ -76,7 +76,7 @@ Hecks.behaviors "RecordLabel" do
   test "ApproveStatement runs" do
     tests "ApproveStatement", on: "RoyaltyStatement"
     setup  "CalculateRoyalties", period: "sample", gross_revenue: 1.0, split_percentage: 1.0
-    expect status: "approved"
+    expect status: "paid"
   end
 
   test "DisbursePayment runs" do

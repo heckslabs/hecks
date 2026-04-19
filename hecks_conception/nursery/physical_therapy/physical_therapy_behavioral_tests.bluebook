@@ -61,7 +61,7 @@ Hecks.behaviors "PhysicalTherapy" do
     tests "CompleteSession", on: "Session"
     setup  "ScheduleSession", patient_name: "sample", therapist_name: "sample", scheduled_date: "sample"
     input  notes: "sample"
-    expect notes: "sample", status: "completed"
+    expect notes: "sample", patient_name: "sample", therapist_name: "sample", scheduled_date: "sample", status: "scheduled"
   end
 
   test "CancelSession runs" do

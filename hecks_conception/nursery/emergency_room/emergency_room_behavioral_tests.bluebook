@@ -13,7 +13,7 @@ Hecks.behaviors "EmergencyRoom" do
     tests "AdmitPatient", on: "Patient"
     setup  "PrepareBed", bed_id: "sample", zone: "sample", equipment_level: "sample"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
-    expect status: "admitted"
+    expect status: "treating"
   end
 
   test "BeginTreatment runs" do
@@ -28,7 +28,7 @@ Hecks.behaviors "EmergencyRoom" do
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
     setup  "AdmitPatient"
     setup  "BeginTreatment"
-    expect status: "stabilized"
+    expect status: "transferred"
   end
 
   test "DischargePatient sets discharge_instructions" do

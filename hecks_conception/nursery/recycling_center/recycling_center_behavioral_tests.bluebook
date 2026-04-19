@@ -72,7 +72,7 @@ Hecks.behaviors "RecyclingCenter" do
   test "InspectBale runs" do
     tests "InspectBale", on: "Bale"
     setup  "PressBale", weight_tons: 1.0
-    expect status: "inspected"
+    expect status: "staged"
   end
 
   test "StageBale runs" do

@@ -13,7 +13,7 @@ Hecks.behaviors "CinemaAudio" do
     tests "CalculateReverberation", on: "Auditorium"
     setup  "MeasureRoom", name: "sample", length_m: 1.0, width_m: 1.0, height_m: 1.0, wall_material: "sample"
     input  reverberation_time_sec: 1.0
-    expect reverberation_time_sec: 1.0
+    expect reverberation_time_sec: 1.0, status: "treated"
   end
 
   test "TreatRoom runs" do
@@ -57,7 +57,7 @@ Hecks.behaviors "CinemaAudio" do
     tests "RecordMeasurement", on: "Calibration"
     setup  "RunCalibration", auditorium_name: "sample", calibration_type: "sample", target_spl_db: 1.0
     input  measured_spl_db: 1.0
-    expect measured_spl_db: 1.0
+    expect measured_spl_db: 1.0, correction_db: 1.0, status: "verified"
   end
 
   test "ApplyCorrection sets correction_db" do

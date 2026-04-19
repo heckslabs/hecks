@@ -28,14 +28,14 @@ Hecks.behaviors "FireDepartment" do
   test "DispatchApparatus runs" do
     tests "DispatchApparatus", on: "Apparatus"
     setup  "RegisterApparatus", unit_id: "sample", apparatus_type: "sample", water_capacity_gallons: 1.0
-    expect status: "dispatched"
+    expect status: "returning"
   end
 
   test "ArriveOnScene runs" do
     tests "ArriveOnScene", on: "Apparatus"
     setup  "RegisterApparatus", unit_id: "sample", apparatus_type: "sample", water_capacity_gallons: 1.0
     setup  "DispatchApparatus"
-    expect status: "on_scene"
+    expect status: "returning"
   end
 
   test "EngageOperations runs" do
@@ -43,7 +43,7 @@ Hecks.behaviors "FireDepartment" do
     setup  "RegisterApparatus", unit_id: "sample", apparatus_type: "sample", water_capacity_gallons: 1.0
     setup  "DispatchApparatus"
     setup  "ArriveOnScene"
-    expect status: "operating"
+    expect status: "returning"
   end
 
   test "BeginOverhaul runs" do
@@ -52,7 +52,7 @@ Hecks.behaviors "FireDepartment" do
     setup  "DispatchApparatus"
     setup  "ArriveOnScene"
     setup  "EngageOperations"
-    expect status: "overhauling"
+    expect status: "returning"
   end
 
   test "ClearScene runs" do

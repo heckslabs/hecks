@@ -12,7 +12,7 @@ Hecks.behaviors "AquariumOperations" do
   test "TestWaterCycle runs" do
     tests "TestWaterCycle", on: "Tank"
     setup  "SetupTank", tank_id: "sample", name: "sample", water_type: "sample", volume_gallons: 1.0, max_species: 1
-    expect status: "tested"
+    expect status: "active"
   end
 
   test "ActivateTank runs" do

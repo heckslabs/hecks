@@ -37,7 +37,7 @@ Hecks.behaviors "FilmProduction" do
     tests "PrintScene", on: "Scene"
     setup  "SlateScene", scene_number: 1, location: "sample", time_of_day: "sample"
     input  take_number: 1
-    expect status: "in_progress"
+    expect status: "finalized"
   end
 
   test "MarkSceneFinal sets final_take" do

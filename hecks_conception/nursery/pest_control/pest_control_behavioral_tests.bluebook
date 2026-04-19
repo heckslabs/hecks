@@ -34,7 +34,7 @@ Hecks.behaviors "PestControl" do
   test "FlagReinfestation runs" do
     tests "FlagReinfestation", on: "InspectionReport"
     setup  "ConductInspection", inspection_date: "sample", pest_type: "sample", severity: "sample", entry_points: "sample", recommendations: "sample"
-    expect status: "reinfestation"
+    expect inspection_date: "sample", pest_type: "sample", severity: "sample", entry_points: "sample", recommendations: "sample", status: "completed"
   end
 
 

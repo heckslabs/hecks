@@ -12,7 +12,7 @@ Hecks.behaviors "CakeDecorating" do
   test "ConfirmOrder runs" do
     tests "ConfirmOrder", on: "CakeOrder"
     setup  "PlaceOrder", client_name: "sample", occasion: "sample", tier_count: 1, servings: 1, delivery_date: "sample"
-    expect status: "confirmed"
+    expect status: "baking"
   end
 
   test "StartBaking runs" do

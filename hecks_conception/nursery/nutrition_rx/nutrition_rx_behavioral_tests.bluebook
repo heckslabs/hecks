@@ -105,7 +105,7 @@ Hecks.behaviors "NutritionRx" do
     tests "RecordIntake", on: "NutrientTarget"
     setup  "SetTarget", nutrient: "sample", target_amount: 1.0, unit: "sample"
     input  amount: 1.0
-    expect current_intake: 1.0
+    expect current_intake: 1.0, status: "achieved"
   end
 
   test "AchieveTarget runs" do

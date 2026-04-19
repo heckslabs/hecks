@@ -33,7 +33,7 @@ Hecks.behaviors "AirlineOperations" do
     tests "CloseBoarding", on: "Flight"
     setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
     setup  "OpenBoarding"
-    expect status: "boarded"
+    expect status: "departed"
   end
 
   test "ClearForDeparture runs" do

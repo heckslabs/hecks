@@ -77,7 +77,7 @@ Hecks.behaviors "Biology" do
     tests "Mutate", on: "DNA"
     setup  "SequenceDNA", sequence: "sample", organism: "sample", strand_type: "sample"
     input  mutation_type: "sample", position: 1, original_base: "sample", new_base: "sample"
-    expect ok: "true"
+    expect integrity: 1.0
   end
 
   test "RepairDNA sets repair_mechanism + damage_site" do
@@ -227,7 +227,7 @@ Hecks.behaviors "Biology" do
     setup  "AddSpecies", species_name: "sample", initial_count: 1, trophic_level: "sample"
     setup  "ModelFoodWeb"
     input  species_name: "sample", cause: "sample"
-    expect status: "disturbed"
+    expect biodiversity_index: 1.0, status: "disturbed"
   end
 
 
@@ -362,7 +362,7 @@ Hecks.behaviors "Biology" do
     tests "PropagateSignal", on: "Neuron"
     setup  "DefineNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
     input  conduction_type: "sample", velocity: 1.0
-    expect ok: "true"
+    expect state: "refractory"
   end
 
   test "FormMemory sets synapse_target + strength_increase" do
@@ -392,7 +392,7 @@ Hecks.behaviors "Biology" do
     tests "MountResponse", on: "ImmuneResponse"
     setup  "DetectPathogen", pathogen_name: "sample", pathogen_type: "sample", severity: "sample"
     input  response_type: "sample"
-    expect response_type: "adaptive", status: "active"
+    expect response_type: "adaptive", antibody_generated: "sample", status: "active"
   end
 
   test "GenerateAntibody sets antibody_name + isotype" do
@@ -422,7 +422,7 @@ Hecks.behaviors "Biology" do
     tests "ResolveInfection", on: "ImmuneResponse"
     setup  "DetectPathogen", pathogen_name: "sample", pathogen_type: "sample", severity: "sample"
     setup  "MountResponse", response_type: "sample"
-    expect status: "resolved"
+    expect memory_formed: "true", status: "resolved"
   end
 
 

@@ -57,7 +57,7 @@ Hecks.behaviors "WarehouseManagement" do
     setup  "ReceivePallet", pallet_id: "sample", sku: "sample", quantity: 1
     setup  "InspectPallet"
     setup  "StowPallet"
-    expect status: "picked"
+    expect status: "staged"
   end
 
   test "StagePallet runs" do
@@ -97,7 +97,7 @@ Hecks.behaviors "WarehouseManagement" do
   test "LoadShipment runs" do
     tests "LoadShipment", on: "Shipment"
     setup  "PrepareShipment", carrier: "sample", destination: "sample"
-    expect status: "loaded"
+    expect status: "dispatched"
   end
 
   test "DispatchShipment runs" do

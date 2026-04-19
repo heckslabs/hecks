@@ -27,7 +27,7 @@ Hecks.behaviors "FlightWeather" do
   test "AssessWeatherImpact runs" do
     tests "AssessWeatherImpact", on: "FlightPlan"
     setup  "FileFlightPlan", flight_number: "sample", origin: "sample", destination: "sample", planned_altitude_ft: 1.0, fuel_load_kg: 1.0, estimated_flight_time_hr: 1.0
-    expect ok: "true"
+    expect fuel_load_kg: 1.0
   end
 
   test "AdjustFuelForWeather sets fuel_load_kg" do

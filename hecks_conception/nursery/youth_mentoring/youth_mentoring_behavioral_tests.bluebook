@@ -84,7 +84,7 @@ Hecks.behaviors "YouthMentoring" do
     tests "RecordMilestone", on: "DevelopmentGoal"
     setup  "SetDevelopmentGoal", mentee_name: "sample", goal_area: "sample", description: "sample", target_date: "sample"
     input  description: "sample", achieved_date: "sample"
-    expect ok: "true"
+    expect status: "completed"
   end
 
   test "CompleteGoal runs" do

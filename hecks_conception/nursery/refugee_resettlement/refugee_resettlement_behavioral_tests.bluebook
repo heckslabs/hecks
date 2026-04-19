@@ -97,7 +97,7 @@ Hecks.behaviors "RefugeeResettlement" do
   test "PrepareResume runs" do
     tests "PrepareResume", on: "EmploymentAssistance"
     setup  "BeginJobSearch", family_member_name: "sample", desired_field: "sample", language_proficiency: "sample"
-    expect resume_status: "complete"
+    expect resume_status: "complete", employer_name: "sample", placement_status: "placed"
   end
 
   test "PlaceInJob sets employer_name" do

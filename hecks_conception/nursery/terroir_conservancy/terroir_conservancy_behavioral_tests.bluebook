@@ -22,7 +22,7 @@ Hecks.behaviors "TerroirConservancy" do
     tests "CharacterizeSoil", on: "SoilProfile"
     setup  "DesignateTerroir", terroir_id: "sample", name: "sample", region: "sample", designation_type: "sample", total_hectares: 1
     input  profile_id: "sample", soil_type: "sample", ph_level: 1.0, mineral_composition: "sample"
-    expect profile_id: "sample", protected_terroir: :protected_terroir, soil_type: "sample", ph_level: 1.0, mineral_composition: "sample", microbiome_diversity: "pending"
+    expect profile_id: "sample", terroir: 1, soil_type: "sample", ph_level: 1.0, mineral_composition: "sample", microbiome_diversity: "pending"
   end
 
   test "AssessMicrobiome sets microbiome_diversity" do
@@ -39,7 +39,7 @@ Hecks.behaviors "TerroirConservancy" do
     tests "RegisterProducer", on: "CraftProducer"
     setup  "DesignateTerroir", terroir_id: "sample", name: "sample", region: "sample", designation_type: "sample", total_hectares: 1
     input  producer_id: "sample", name: "sample", craft_type: "sample"
-    expect producer_id: "sample", name: "sample", craft_type: "sample", protected_terroir: :protected_terroir, certification_status: "pending", status: "active"
+    expect producer_id: "sample", name: "sample", craft_type: "sample", terroir: 1, certification_status: "pending", status: "active"
   end
 
   test "CertifyProducer runs" do
@@ -61,7 +61,7 @@ Hecks.behaviors "TerroirConservancy" do
     tests "ConductSurvey", on: "SpeciesSurvey"
     setup  "DesignateTerroir", terroir_id: "sample", name: "sample", region: "sample", designation_type: "sample", total_hectares: 1
     input  survey_id: "sample", survey_date: "sample", season: "sample"
-    expect survey_id: "sample", protected_terroir: :protected_terroir, survey_date: "sample", season: "sample", overall_diversity: "pending"
+    expect survey_id: "sample", terroir: 1, survey_date: "sample", season: "sample", overall_diversity: "pending"
   end
 
   test "AssessDiversity sets overall_diversity" do
@@ -79,7 +79,7 @@ Hecks.behaviors "TerroirConservancy" do
     setup  "RegisterProducer", producer_id: "sample", name: "sample", craft_type: "sample"
     setup  "DesignateTerroir", terroir_id: "sample", name: "sample", region: "sample", designation_type: "sample", total_hectares: 1
     input  experience_id: "sample", experience_type: "sample", capacity: 1
-    expect experience_id: "sample", protected_terroir: :protected_terroir, craft_producer: :craft_producer, experience_type: "sample", capacity: 1, status: "available"
+    expect experience_id: "sample", terroir: 1, host_producer: 1, experience_type: "sample", capacity: 1, status: "available"
   end
 
   test "BookExperience runs" do
@@ -103,7 +103,7 @@ Hecks.behaviors "TerroirConservancy" do
     setup  "CharacterizeSoil", profile_id: "sample", soil_type: "sample", ph_level: 1.0, mineral_composition: "sample"
     setup  "DesignateTerroir", terroir_id: "sample", name: "sample", region: "sample", designation_type: "sample", total_hectares: 1
     input  profile_id: "sample", vintage_season: "sample"
-    expect profile_id: "sample", protected_terroir: :protected_terroir, soil_profile: :soil_profile, craft_producer: :craft_producer, vintage_season: "sample", overall_character: "pending"
+    expect profile_id: "sample", terroir: 1, soil: 1, producer: 1, vintage_season: "sample", overall_character: "pending"
   end
 
   test "AssessCharacter sets overall_character" do

@@ -91,7 +91,7 @@ Hecks.behaviors "Chiropractic" do
   test "SubmitInsuranceClaim runs" do
     tests "SubmitInsuranceClaim", on: "Invoice"
     setup  "IssueInvoice", patient_name: "sample", service_date: "sample", total_amount: 1.0
-    expect insurance_claim_status: "submitted"
+    expect insurance_claim_status: "submitted", payment_status: "paid"
   end
 
   test "RecordPayment runs" do

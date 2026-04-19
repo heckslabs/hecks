@@ -12,7 +12,7 @@ Hecks.behaviors "FloralDesign" do
   test "AssembleArrangement runs" do
     tests "AssembleArrangement", on: "Arrangement"
     setup  "DesignArrangement", name: "sample", style: "sample", vessel_type: "sample", stem_count: 1
-    expect status: "assembled"
+    expect status: "conditioned"
   end
 
   test "ConditionArrangement runs" do
@@ -81,7 +81,7 @@ Hecks.behaviors "FloralDesign" do
   test "ExecuteInstallation runs" do
     tests "ExecuteInstallation", on: "FloralInstallation"
     setup  "PlanInstallation", location: "sample", design_theme: "sample", crew_size: 1
-    expect status: "installed"
+    expect status: "struck"
   end
 
   test "StrikeInstallation runs" do

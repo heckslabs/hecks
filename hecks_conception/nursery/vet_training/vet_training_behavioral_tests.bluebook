@@ -43,7 +43,7 @@ Hecks.behaviors "VetTraining" do
     tests "RecordProgress", on: "Enrollment"
     setup  "EnrollInCourse", enrollment_id: "sample", veteran_id: "sample", course_id: "sample"
     input  progress_pct: 1.0
-    expect progress_pct: 1.0
+    expect progress_pct: 1.0, status: "completed"
   end
 
   test "CompleteCourse runs" do

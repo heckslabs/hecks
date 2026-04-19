@@ -12,7 +12,7 @@ Hecks.behaviors "PostOffice" do
   test "CancelMail runs" do
     tests "CancelMail", on: "MailPiece"
     setup  "AcceptMail", mail_class: "sample", sender_address: "sample", recipient_address: "sample"
-    expect status: "cancelled_stamp"
+    expect status: "sequenced"
   end
 
   test "SortMail runs" do
@@ -20,7 +20,7 @@ Hecks.behaviors "PostOffice" do
     setup  "DefineRoute", route_code: "sample", zip_code: "sample", stop_count: 1, route_type: "sample"
     setup  "AcceptMail", mail_class: "sample", sender_address: "sample", recipient_address: "sample"
     setup  "CancelMail"
-    expect status: "sorted"
+    expect status: "sequenced"
   end
 
   test "SequenceMail runs" do
@@ -108,7 +108,7 @@ Hecks.behaviors "PostOffice" do
     tests "ScanPackage", on: "Package"
     setup  "AcceptPackage", weight_lbs: 1.0, service_level: "sample", destination: "sample"
     input  facility_code: "sample"
-    expect status: "in_transit"
+    expect status: "out_for_delivery"
   end
 
   test "OutForDelivery runs" do

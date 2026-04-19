@@ -13,7 +13,7 @@ Hecks.behaviors "CallCenter" do
     tests "AssignToAgent", on: "Ticket"
     setup  "HireAgent", name: "sample", skill_level: "sample"
     setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
-    expect status: "assigned"
+    expect status: "in_progress"
   end
 
   test "BeginWork runs" do
@@ -29,7 +29,7 @@ Hecks.behaviors "CallCenter" do
     setup  "AssignToAgent"
     setup  "BeginWork"
     input  resolution_note: "sample"
-    expect status: "resolved"
+    expect status: "closed"
   end
 
   test "CloseTicket runs" do

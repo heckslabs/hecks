@@ -91,7 +91,7 @@ Hecks.behaviors "MarineNavigation" do
   test "AdjustForCurrents runs" do
     tests "AdjustForCurrents", on: "Route"
     setup  "PlanRoute", name: "sample", origin_port: "sample", destination_port: "sample", total_distance_nm: 1.0
-    expect ok: "true"
+    expect estimated_fuel_tons: 1.0, estimated_hours: 1.0
   end
 
   test "ApproveRoute runs" do
@@ -120,7 +120,7 @@ Hecks.behaviors "MarineNavigation" do
   test "CalculateEfficiency runs" do
     tests "CalculateEfficiency", on: "FuelLog"
     setup  "RecordFuelBurn", vessel_name: "sample", fuel_burned_tons: 1.0, distance_traveled_nm: 1.0, timestamp: "sample"
-    expect ok: "true"
+    expect status: "flagged"
   end
 
   test "FlagExcessiveBurn runs" do

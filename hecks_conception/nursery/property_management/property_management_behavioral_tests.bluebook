@@ -12,7 +12,7 @@ Hecks.behaviors "PropertyManagement" do
   test "MarkVacant runs" do
     tests "MarkVacant", on: "RentalUnit"
     setup  "ListUnit", unit_number: "sample", address: "sample", unit_type: "sample", bedrooms: 1, monthly_rent: 1.0
-    expect status: "vacant"
+    expect unit_number: "sample", address: "sample", unit_type: "sample", bedrooms: 1, monthly_rent: 1.0, status: "available"
   end
 
   test "TakeOffMarket runs" do

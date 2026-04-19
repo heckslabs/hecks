@@ -78,7 +78,7 @@ Hecks.behaviors "WildlifeForensics" do
     tests "SequenceDNA", on: "DNAAnalysis"
     setup  "ExtractDNA", analysis_id: "sample", evidence_id: "sample", extraction_method: "sample"
     input  sequence_region: "sample"
-    expect sequence_region: "sample", status: "sequenced"
+    expect sequence_region: "sample", match_confidence_pct: 1.0, status: "sequenced"
   end
 
   test "MatchDatabase sets match_confidence_pct" do

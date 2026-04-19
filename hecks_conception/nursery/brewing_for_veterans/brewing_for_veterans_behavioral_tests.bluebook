@@ -77,7 +77,7 @@ Hecks.behaviors "BrewingForVeterans" do
     tests "RecordSale", on: "SalesRevenue"
     setup  "OpenPeriod", period: "sample"
     input  total_revenue: 1.0
-    expect total_revenue: 1.0
+    expect total_revenue: 1.0, housing_allocation: 1.0, education_allocation: 1.0, operations_allocation: 1.0, status: "allocated"
   end
 
   test "AllocateRevenue sets housing_allocation + education_allocation + operations_allocation" do

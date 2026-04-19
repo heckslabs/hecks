@@ -86,7 +86,7 @@ Hecks.behaviors "Conception" do
   test "RegisterBirth runs" do
     tests "RegisterBirth", on: "Delivery"
     setup  "DeliverDomain", domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
-    expect ok: "true"
+    expect indexed: "yes"
   end
 
   test "IndexInNursery runs" do

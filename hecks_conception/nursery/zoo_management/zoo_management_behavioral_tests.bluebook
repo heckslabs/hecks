@@ -12,7 +12,7 @@ Hecks.behaviors "ZooManagement" do
   test "ClearQuarantine runs" do
     tests "ClearQuarantine", on: "Animal"
     setup  "RegisterAnimal", common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample"
-    expect status: "cleared"
+    expect status: "on_exhibit"
   end
 
   test "PlaceOnExhibit runs" do

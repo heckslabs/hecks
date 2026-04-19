@@ -24,7 +24,7 @@ Hecks.behaviors "Boot" do
     tests "WireOrgans", on: "Session"
     setup  "BootWithClaude"
     input  organ_count: 1, nerve_count: 1, law_count: 1
-    expect organ_count: 1, nerve_count: 1, law_count: 1
+    expect organ_count: 1, nerve_count: 1, law_count: 1, started_at: "sample", status: "live"
   end
 
   test "GoLive sets started_at" do

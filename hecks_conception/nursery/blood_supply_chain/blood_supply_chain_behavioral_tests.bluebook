@@ -28,7 +28,7 @@ Hecks.behaviors "BloodSupplyChain" do
     tests "LogTemperature", on: "ColdStorage"
     setup  "SetupStorage", unit_id: "sample", location_name: "sample", target_temp_c: 1.0
     input  current_temp_c: 1.0
-    expect current_temp_c: 1.0
+    expect current_temp_c: 1.0, status: "breached"
   end
 
   test "FlagBreach runs" do

@@ -13,7 +13,7 @@ Hecks.behaviors "PrisonManagement" do
     tests "ClassifyInmate", on: "Inmate"
     setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
     input  classification: "sample"
-    expect status: "classified"
+    expect status: "housed"
   end
 
   test "HouseInmate runs" do

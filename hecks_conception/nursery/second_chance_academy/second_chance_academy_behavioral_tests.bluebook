@@ -50,7 +50,7 @@ Hecks.behaviors "SecondChanceAcademy" do
     tests "DesignQuest", on: "Quest"
     setup  "OfferCourse", title: "sample", subject: "sample", difficulty: "sample", credit_value: 1
     input  title: "sample", description: "sample", xp_reward: 1, difficulty: "sample"
-    expect title: "sample", description: "sample", xp_reward: 1, difficulty: "sample", course: :course, status: "available"
+    expect title: "sample", description: "sample", xp_reward: 1, difficulty: "sample", related_course: 1, status: "available"
   end
 
   test "AcceptQuest runs" do
@@ -74,7 +74,7 @@ Hecks.behaviors "SecondChanceAcademy" do
     tests "IssueBadge", on: "Badge"
     setup  "EnrollLearner", name: "sample", facility: "sample", sentence_end_date: "sample"
     input  name: "sample", description: "sample", issuer: "sample"
-    expect name: "sample", description: "sample", issuer: "sample", learner: :learner, status: "issued"
+    expect name: "sample", description: "sample", issuer: "sample", holder: 1, status: "issued"
   end
 
   test "VerifyBadge runs" do

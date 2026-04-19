@@ -12,7 +12,7 @@ Hecks.behaviors "TrainScheduling" do
   test "PrepareForService runs" do
     tests "PrepareForService", on: "Train"
     setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
-    expect status: "prepared"
+    expect status: "running"
   end
 
   test "DispatchTrain runs" do

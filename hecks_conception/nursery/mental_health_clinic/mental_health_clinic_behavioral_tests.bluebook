@@ -92,7 +92,7 @@ Hecks.behaviors "MentalHealthClinic" do
     tests "CompleteTherapySession", on: "TherapySession"
     setup  "ScheduleTherapySession", client_name: "sample", therapist_name: "sample", session_date: "sample", session_type: "sample"
     input  notes: "sample"
-    expect notes: "sample", status: "completed"
+    expect notes: "sample", client_name: "sample", therapist_name: "sample", session_date: "sample", session_type: "sample", status: "scheduled"
   end
 
 end

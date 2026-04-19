@@ -43,7 +43,7 @@ Hecks.behaviors "BicycleShop" do
     tests "ConsumePart", on: "BikePart"
     setup  "StockPart", part_number: "sample", name: "sample", category: "sample", price: 1.0, quantity: 1
     input  quantity_used: 1
-    expect ok: "true"
+    expect part_number: "sample", name: "sample", category: "sample", price: 1.0, quantity: 1
   end
 
 

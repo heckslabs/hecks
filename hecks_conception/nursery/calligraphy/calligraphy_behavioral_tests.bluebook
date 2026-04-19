@@ -19,7 +19,7 @@ Hecks.behaviors "Calligraphy" do
     tests "LetterCommission", on: "CalligraphyCommission"
     setup  "QuoteCommission", client_name: "sample", text_content: "sample", purpose: "sample", deadline: "sample"
     setup  "AcceptCommission"
-    expect status: "lettered"
+    expect status: "delivered"
   end
 
   test "DeliverCommission runs" do

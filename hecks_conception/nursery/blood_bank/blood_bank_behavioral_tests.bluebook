@@ -60,7 +60,7 @@ Hecks.behaviors "BloodBank" do
   test "ReleaseUnit runs" do
     tests "ReleaseUnit", on: "BloodUnit"
     setup  "LabelUnit", blood_type: "sample", component: "sample", expiry_date: "sample"
-    expect status: "available"
+    expect status: "issued"
   end
 
   test "CrossmatchUnit sets patient_id" do
@@ -68,7 +68,7 @@ Hecks.behaviors "BloodBank" do
     setup  "LabelUnit", blood_type: "sample", component: "sample", expiry_date: "sample"
     setup  "ReleaseUnit"
     input  patient_id: "sample"
-    expect status: "crossmatched"
+    expect status: "issued"
   end
 
   test "IssueUnit sets hospital_name" do

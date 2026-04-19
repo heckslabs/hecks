@@ -12,7 +12,7 @@ Hecks.behaviors "Glassblowing" do
   test "BlowPiece runs" do
     tests "BlowPiece", on: "GlassPiece"
     setup  "GatherGlass", name: "sample", form: "sample", technique: "sample"
-    expect status: "blown"
+    expect status: "annealing"
   end
 
   test "TransferToAnnealer runs" do
@@ -72,7 +72,7 @@ Hecks.behaviors "Glassblowing" do
   test "StartCycle runs" do
     tests "StartCycle", on: "AnnealingCycle"
     setup  "LoadAnnealer", hold_temp_f: 1, ramp_rate_per_hour: 1, total_hours: 1
-    expect status: "annealing"
+    expect status: "completed"
   end
 
   test "CompleteCycle runs" do

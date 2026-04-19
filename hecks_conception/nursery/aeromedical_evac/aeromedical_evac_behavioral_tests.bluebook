@@ -82,7 +82,7 @@ Hecks.behaviors "AeromedicalEvac" do
     tests "AssignTraumaBed", on: "GroundReceiver"
     setup  "RegisterHospital", hospital_name: "sample", trauma_level: "sample", available_beds: 1
     input  expected_patient: "sample"
-    expect expected_patient: "sample", status: "prepared"
+    expect expected_patient: "sample", status: "team_activated"
   end
 
   test "RegisterHospital sets hospital_name + trauma_level + available_beds" do

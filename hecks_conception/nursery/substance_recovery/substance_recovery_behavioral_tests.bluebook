@@ -12,7 +12,7 @@ Hecks.behaviors "SubstanceRecovery" do
   test "TransitionToAftercare runs" do
     tests "TransitionToAftercare", on: "Client"
     setup  "IntakeClient", name: "sample", date_of_birth: "sample", primary_substance: "sample", intake_date: "sample", insurance_id: "sample"
-    expect status: "aftercare"
+    expect status: "discharged"
   end
 
   test "DischargeClient runs" do

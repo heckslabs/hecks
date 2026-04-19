@@ -27,7 +27,7 @@ Hecks.behaviors "IceCreamParlor" do
   test "DepleteBatch runs" do
     tests "DepleteBatch", on: "Batch"
     setup  "ChurnBatch", batch_id: "sample", flavor_id: "sample", volume_liters: 1.0, churned_date: "sample", expiration_date: "sample"
-    expect status: "depleted"
+    expect batch_id: "sample", flavor_id: "sample", volume_liters: 1.0, churned_date: "sample", expiration_date: "sample", status: "fresh"
   end
 
   test "DiscardBatch runs" do

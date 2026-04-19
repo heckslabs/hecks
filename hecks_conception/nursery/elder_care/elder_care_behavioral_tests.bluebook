@@ -102,7 +102,7 @@ Hecks.behaviors "ElderCare" do
     tests "FlagRisks", on: "WellnessAssessment"
     setup  "ConductAssessment", client_name: "sample", assessment_date: "sample", mobility_score: 1, cognitive_score: 1, nutrition_score: 1, assessor_name: "sample"
     input  risk_flags: "sample"
-    expect risk_flags: "sample"
+    expect client_name: "sample", assessment_date: "sample", mobility_score: 1, cognitive_score: 1, nutrition_score: 1, assessor_name: "sample", risk_flags: "none"
   end
 
 end

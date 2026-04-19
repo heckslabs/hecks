@@ -19,7 +19,7 @@ Hecks.behaviors "Woodworking" do
     tests "AssembleProject", on: "WoodProject"
     setup  "PlanProject", name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
     setup  "StartMilling"
-    expect status: "assembled"
+    expect status: "finished"
   end
 
   test "ApplyFinish sets finish_type" do
@@ -60,7 +60,7 @@ Hecks.behaviors "Woodworking" do
   test "CutJoint runs" do
     tests "CutJoint", on: "Joinery"
     setup  "LayOutJoint", joint_type: "sample", part_a: "sample", part_b: "sample"
-    expect status: "cut"
+    expect status: "fitted"
   end
 
   test "FitJoint runs" do

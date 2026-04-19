@@ -67,7 +67,7 @@ Hecks.behaviors "StainedGlass" do
     tests "SolderJoints", on: "Leadwork"
     setup  "PrepareCame", came_profile: "sample", came_width_mm: 1.0
     input  solder_type: "sample"
-    expect status: "soldered"
+    expect status: "finished"
   end
 
   test "ApplyPatina sets patina_type" do

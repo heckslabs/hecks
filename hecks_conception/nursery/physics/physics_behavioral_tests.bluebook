@@ -286,7 +286,7 @@ Hecks.behaviors "Physics" do
     tests "MeasureObservable", on: "QuantumState"
     setup  "PrepareState", name: "sample", system_type: "sample", num_qubits: 1
     input  observable_name: "sample", operator: "sample"
-    expect ok: "true"
+    expect coherent: "false", status: "collapsed"
   end
 
   test "CollapseWavefunction sets measured_value" do

@@ -79,7 +79,7 @@ Hecks.behaviors "ComputationalPresence" do
     tests "StreakTick", on: "PresenceScore"
     setup  "MeasurePresence", score: 1.0
     input  streak_minutes: 1
-    expect streak_minutes: 1
+    expect streak_minutes: 1, assessment: "sample"
   end
 
   test "Assess sets assessment" do

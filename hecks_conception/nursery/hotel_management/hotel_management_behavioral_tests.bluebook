@@ -58,7 +58,7 @@ Hecks.behaviors "HotelManagement" do
   test "CompleteHousekeeping runs" do
     tests "CompleteHousekeeping", on: "HousekeepingTask"
     setup  "AssignHousekeeping", task_type: "sample", priority: "sample", assigned_to: "sample"
-    expect status: "completed"
+    expect status: "inspected"
   end
 
   test "InspectRoom runs" do

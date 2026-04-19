@@ -58,7 +58,7 @@ Hecks.behaviors "OrganDonation" do
     tests "RecordCrossmatch", on: "OrganMatch"
     setup  "PerformMatch", donor_name: "sample", recipient_name: "sample", organ_name: "sample", compatibility_score: "sample"
     input  crossmatch_result: "sample"
-    expect crossmatch_result: "sample", status: "crossmatched"
+    expect crossmatch_result: "sample", status: "accepted"
   end
 
   test "AcceptMatch runs" do

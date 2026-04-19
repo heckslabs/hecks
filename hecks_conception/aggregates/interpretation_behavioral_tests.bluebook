@@ -13,7 +13,7 @@ Hecks.behaviors "Interpretation" do
     tests "ExtractTheme", on: "DreamInterpretation"
     setup  "InterpretDream", dream_images: "sample", strongest_synapse: "sample"
     input  recurring_theme: "sample"
-    expect recurring_theme: "sample"
+    expect recurring_theme: "sample", proposed_domain: "sample"
   end
 
   test "ProposeDomainFromDream sets proposed_domain" do

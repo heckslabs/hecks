@@ -34,7 +34,7 @@ Hecks.behaviors "GameStore" do
   test "LaunchTournament runs" do
     tests "LaunchTournament", on: "Tournament"
     setup  "ScheduleTournament", tournament_id: "sample", game_title: "sample", format: "sample", max_players: 1, entry_fee: 1.0, date: "sample"
-    expect status: "in_progress"
+    expect status: "concluded"
   end
 
   test "ConcludeTournament runs" do

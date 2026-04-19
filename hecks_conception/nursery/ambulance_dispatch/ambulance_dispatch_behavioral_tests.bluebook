@@ -75,7 +75,7 @@ Hecks.behaviors "AmbulanceDispatch" do
     tests "ArriveOnScene", on: "DispatchRecord"
     setup  "DispatchUnit", dispatched_at: "sample"
     input  on_scene_at: "sample"
-    expect on_scene_at: "sample", status: "on_scene"
+    expect on_scene_at: "sample", transport_started_at: "sample", status: "transporting"
   end
 
   test "TransportPatient sets transport_started_at" do

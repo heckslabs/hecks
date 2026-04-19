@@ -28,7 +28,7 @@ Hecks.behaviors "Conception" do
     tests "AddFixtures", on: "Blueprint"
     setup  "StartConception", domain_name: "sample", vision: "sample", category: "sample"
     input  count: 1
-    expect completeness: "embryo", fixture_count: 1
+    expect completeness: "embryo", fixture_count: 1, gaps: "sample"
   end
 
   test "AddAccessGates sets port_count + actor_count" do

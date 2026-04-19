@@ -131,7 +131,7 @@ Hecks.behaviors "EcoProtectedZone" do
     tests "RecordSeismicActivity", on: "HazardZone"
     setup  "DefineHazardZone", zone_name: "sample", hazard_type: "sample"
     input  magnitude: 1.0, depth_km: 1.0
-    expect ok: "true"
+    expect alert_level: "sample", status: "alert"
   end
 
 

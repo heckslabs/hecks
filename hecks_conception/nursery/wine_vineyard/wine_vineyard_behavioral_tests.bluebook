@@ -58,7 +58,7 @@ Hecks.behaviors "WineVineyard" do
   test "PunchDownCap runs" do
     tests "PunchDownCap", on: "Fermentation"
     setup  "StartFermentation", vessel_type: "sample", vessel_id: "sample", volume_liters: 1.0, yeast_strain: "sample", temperature_celsius: 1.0
-    expect ok: "true"
+    expect status: "aging"
   end
 
   test "RackWine runs" do
@@ -81,7 +81,7 @@ Hecks.behaviors "WineVineyard" do
     tests "LabelBottles", on: "BottlingRun"
     setup  "BottleWine", bottle_count: 1, bottle_date: "sample", alcohol_percent: 1.0, closure_type: "sample"
     input  label_name: "sample"
-    expect label_name: "sample", status: "labeled"
+    expect label_name: "sample", status: "released"
   end
 
   test "ReleaseForSale runs" do

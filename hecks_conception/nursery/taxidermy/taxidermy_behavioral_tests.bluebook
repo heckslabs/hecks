@@ -12,7 +12,7 @@ Hecks.behaviors "Taxidermy" do
   test "SkinSpecimen runs" do
     tests "SkinSpecimen", on: "Specimen"
     setup  "ReceiveSpecimen", species: "sample", common_name: "sample", weight_lbs: 1.0, source_type: "sample"
-    expect status: "skinned"
+    expect status: "tanned"
   end
 
   test "TanHide sets tanning_method" do
@@ -70,7 +70,7 @@ Hecks.behaviors "Taxidermy" do
   test "FinishMount runs" do
     tests "FinishMount", on: "Preservation"
     setup  "MountSpecimen", adhesive_type: "sample"
-    expect status: "finished"
+    expect status: "finished", drying_days: 1
   end
 
   test "CureMount sets drying_days" do

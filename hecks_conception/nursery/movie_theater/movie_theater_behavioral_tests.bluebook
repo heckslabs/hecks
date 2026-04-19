@@ -43,7 +43,7 @@ Hecks.behaviors "MovieTheater" do
     tests "OpenDoors", on: "Showing"
     setup  "ScheduleShowing", film_title: "sample", showtime: "sample", rating: "sample"
     setup  "OpenSales"
-    expect status: "seating"
+    expect status: "in_progress"
   end
 
   test "StartProjection runs" do
@@ -60,7 +60,7 @@ Hecks.behaviors "MovieTheater" do
     setup  "OpenSales"
     setup  "OpenDoors"
     setup  "StartProjection"
-    expect status: "ended"
+    expect status: "cleared"
   end
 
   test "ClearAuditorium runs" do

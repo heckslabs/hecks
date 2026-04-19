@@ -69,7 +69,7 @@ Hecks.behaviors "AirportSecurity" do
     setup  "InstallScanner", scanner_id: "sample", scanner_type: "sample"
     setup  "CalibrateScanner"
     setup  "FlagMalfunction"
-    expect status: "installed"
+    expect status: "operational"
   end
 
 

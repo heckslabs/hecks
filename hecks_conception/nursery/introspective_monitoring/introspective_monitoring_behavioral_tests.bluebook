@@ -86,7 +86,7 @@ Hecks.behaviors "IntrospectiveMonitoring" do
     setup  "PoseQuestion", question: "sample", domain_focus: "sample"
     setup  "RecordFinding", finding: "sample"
     input  left_signal: "sample", right_signal: "sample"
-    expect ok: "true"
+    expect question: "sample", domain_focus: "sample", status: "open"
   end
 
 

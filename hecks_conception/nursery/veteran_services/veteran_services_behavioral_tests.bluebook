@@ -42,7 +42,7 @@ Hecks.behaviors "VeteranServices" do
   test "DenyClaim runs" do
     tests "DenyClaim", on: "BenefitClaim"
     setup  "FileClaim", veteran_name: "sample", benefit_type: "sample", filing_date: "sample", description: "sample"
-    expect status: "denied"
+    expect status: "appealed"
   end
 
   test "AppealClaim runs" do

@@ -85,7 +85,7 @@ Hecks.behaviors "InteriorDesign" do
   test "CompleteInstallation runs" do
     tests "CompleteInstallation", on: "Installation"
     setup  "ScheduleInstallation", date: "sample", crew_lead: "sample"
-    expect status: "completed"
+    expect status: "resolved"
   end
 
   test "ResolvePunchList sets punch_list" do

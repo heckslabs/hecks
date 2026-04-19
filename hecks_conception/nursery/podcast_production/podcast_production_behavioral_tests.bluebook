@@ -43,7 +43,7 @@ Hecks.behaviors "PodcastProduction" do
     tests "MarkEdited", on: "Episode"
     setup  "OutlineEpisode", title: "sample", episode_number: 1
     setup  "RecordEpisode", duration_seconds: 1
-    expect status: "edited"
+    expect status: "released"
   end
 
   test "ReleaseEpisode runs" do

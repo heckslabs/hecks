@@ -102,7 +102,7 @@ Hecks.behaviors "PrintShop" do
     tests "RequestRevision", on: "ProofCycle"
     setup  "SendProof", proof_file: "sample", revision_number: 1
     input  customer_feedback: "sample"
-    expect customer_feedback: "sample", status: "revision_needed"
+    expect customer_feedback: "sample", proof_file: "sample", revision_number: 1, status: "awaiting_approval"
   end
 
 

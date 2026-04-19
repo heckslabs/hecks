@@ -13,7 +13,7 @@ Hecks.behaviors "CourierDelivery" do
     tests "SortParcel", on: "Parcel"
     setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
     input  hub_code: "sample"
-    expect status: "sorted"
+    expect status: "loaded"
   end
 
   test "LoadParcel runs" do
