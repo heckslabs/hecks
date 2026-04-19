@@ -8,6 +8,7 @@ Hecks.bluebook "Robotics" do
     String :platform_type
     String :firmware_version
     Float :battery_capacity_wh
+    Boolean :in_standby, default: false
 
     command "ActivateRobot" do
       description "Bring a new robot online and register it in the fleet"
@@ -15,6 +16,7 @@ Hecks.bluebook "Robotics" do
       String :robot_id
       String :name
       String :platform_type
+      then_set :in_standby, true
     end
 
     command "FlashFirmware" do
@@ -22,7 +24,7 @@ Hecks.bluebook "Robotics" do
       emits "FirmwareFlashed"
       reference_to Robot
       String :new_version
-      given "robot must be in standby mode"
+      given { in_standby == true }
     end
 
     command "RetireRobot" do
@@ -43,6 +45,7 @@ Hecks.bluebook "Robotics" do
     String :model
     Float :sampling_rate_hz
     Float :range_max
+    Boolean :mounted_and_powered, default: false
     reference_to Robot
 
     value_object "CalibrationData" do
@@ -57,13 +60,14 @@ Hecks.bluebook "Robotics" do
       reference_to Robot
       String :sensor_id
       String :sensor_type
+      then_set :mounted_and_powered, true
     end
 
     command "CalibrateSensor" do
       description "Run calibration routine against known references"
       emits "SensorCalibrated"
       reference_to Sensor
-      given "sensor must be mounted and powered"
+      given { mounted_and_powered == true }
     end
 
     command "ReplaceSensor" do
@@ -83,6 +87,7 @@ Hecks.bluebook "Robotics" do
     String :actuator_type
     Float :max_torque_nm
     Float :max_speed_rpm
+    Boolean :fault_detected, default: false
     reference_to Robot
 
     command "InstallActuator" do
@@ -100,13 +105,14 @@ Hecks.bluebook "Robotics" do
       Float :kp
       Float :ki
       Float :kd
+      then_set :fault_detected, true
     end
 
     command "HaltActuator" do
       description "Emergency stop an actuator"
       emits "ActuatorHalted"
       reference_to Actuator
-      given "fault condition must be detected"
+      given { fault_detected == true }
     end
 
     fixture "Actuator", actuator_id: "ACT-001", actuator_type: "brushless_motor", max_torque_nm: 85.0, max_speed_rpm: 300.0
@@ -121,6 +127,7 @@ Hecks.bluebook "Robotics" do
     String :start_time
     String :end_time
     String :status
+    Boolean :preflight_passed, default: false
     reference_to Robot
 
     value_object "Waypoint" do
@@ -136,13 +143,14 @@ Hecks.bluebook "Robotics" do
       reference_to Robot
       String :mission_id
       String :objective
+      then_set :preflight_passed, true
     end
 
     command "LaunchMission" do
       description "Deploy the robot to execute the mission"
       emits "MissionLaunched"
       reference_to Mission
-      given "robot must pass pre-flight checks"
+      given { preflight_passed == true }
     end
 
     command "AbortMission" do
@@ -163,6 +171,7 @@ Hecks.bluebook "Robotics" do
     String :data_type
     Float :frequency_hz
     String :encoding
+    Float :seconds_recorded, default: 0.0
     reference_to Robot
 
     command "StartStream" do
@@ -171,6 +180,7 @@ Hecks.bluebook "Robotics" do
       reference_to Robot
       String :stream_id
       String :data_type
+      then_set :seconds_recorded, 90.0
     end
 
     command "PauseStream" do
@@ -183,7 +193,7 @@ Hecks.bluebook "Robotics" do
       description "Run anomaly detection on recorded telemetry"
       emits "TelemetryAnalyzed"
       reference_to TelemetryStream
-      given "stream must have at least one minute of data"
+      given { seconds_recorded >= 60.0 }
     end
 
     fixture "TelemetryStream", stream_id: "TEL-001", data_type: "imu_accelerometer", frequency_hz: 100.0, encoding: "protobuf"

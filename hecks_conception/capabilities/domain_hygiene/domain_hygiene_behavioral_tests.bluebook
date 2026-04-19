@@ -27,9 +27,22 @@ Hecks.behaviors "DomainHygiene" do
 
   # ── Enrichment aggregate ──────────────────────────────────────────
 
+  test "ConfirmBoots sets domain_name" do
+    tests "ConfirmBoots", on: "Enrichment"
+    input  domain_name: "sample"
+    expect boots: true
+  end
+
+  test "EnrichDomain sets domain_name + enrichment_type" do
+    tests "EnrichDomain", on: "Enrichment"
+    setup  "ConfirmBoots", domain_name: "sample"
+    input  domain_name: "sample", enrichment_type: "sample"
+    expect ok: "true"
+  end
+
   test "Revalidate runs" do
     tests "Revalidate", on: "Enrichment"
-    setup  "EnrichDomain", domain_name: "sample", enrichment_type: "sample"
+    setup  "ConfirmBoots", domain_name: "sample"
     expect ok: "true"
   end
 
@@ -52,11 +65,17 @@ Hecks.behaviors "DomainHygiene" do
 
   # ── CorpusGrowth aggregate ──────────────────────────────────────────
 
+  test "GrowCorpus sets target_count" do
+    tests "GrowCorpus", on: "CorpusGrowth"
+    input  target_count: 1
+    expect ok: "true"
+  end
+
   test "ConceiveBatch sets batch_size + topics" do
     tests "ConceiveBatch", on: "CorpusGrowth"
     setup  "GrowCorpus", target_count: 1
     input  batch_size: 1, topics: "sample"
-    expect ok: "true"
+    expect wave_valid: true
   end
 
   test "ReportGrowth runs" do

@@ -9,6 +9,12 @@ Hecks.behaviors "Archaeology" do
     expect site_code: "sample", name: "sample", latitude: 1.0, longitude: 1.0
   end
 
+  test "CloseSite runs" do
+    tests "CloseSite", on: "ExcavationSite"
+    setup  "OpenSite", site_code: "sample", name: "sample", latitude: 1.0, longitude: 1.0
+    expect ok: "true"
+  end
+
   test "AssignDirector sets director_name" do
     tests "AssignDirector", on: "ExcavationSite"
     setup  "OpenSite", site_code: "sample", name: "sample", latitude: 1.0, longitude: 1.0
@@ -62,6 +68,12 @@ Hecks.behaviors "Archaeology" do
     tests "SubmitResult", on: "DatingResult"
     setup  "RegisterFind", find_number: "sample", material: "sample", object_type: "sample"
     input  method: "sample", date_bp: 1, error_margin: 1
+    expect ok: "true"
+  end
+
+  test "CalibrateDate runs" do
+    tests "CalibrateDate", on: "DatingResult"
+    setup  "SubmitResult", method: "sample", date_bp: 1, error_margin: 1
     expect ok: "true"
   end
 

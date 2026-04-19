@@ -9,6 +9,13 @@ Hecks.behaviors "Astronomy" do
     expect designation: "sample", body_type: "sample", right_ascension: 1.0, declination: 1.0
   end
 
+  test "UpdateEphemeris sets new_ra + new_dec" do
+    tests "UpdateEphemeris", on: "CelestialBody"
+    setup  "RegisterBody", designation: "sample", body_type: "sample", right_ascension: 1.0, declination: 1.0
+    input  new_ra: 1.0, new_dec: 1.0
+    expect ok: "true"
+  end
+
   test "ReclassifyBody sets new_type" do
     tests "ReclassifyBody", on: "CelestialBody"
     setup  "RegisterBody", designation: "sample", body_type: "sample", right_ascension: 1.0, declination: 1.0
@@ -18,6 +25,14 @@ Hecks.behaviors "Astronomy" do
 
 
   # ── Observation aggregate ──────────────────────────────────────────
+
+  test "LogObservation sets observer_name + timestamp" do
+    tests "LogObservation", on: "Observation"
+    setup  "ActivateTelescope", name: "sample", aperture_mm: 1.0, focal_length_mm: 1.0
+    setup  "RegisterBody", designation: "sample", body_type: "sample", right_ascension: 1.0, declination: 1.0
+    input  observer_name: "sample", timestamp: "sample"
+    expect ok: "true"
+  end
 
   test "GradeSeeing sets seeing_conditions" do
     tests "GradeSeeing", on: "Observation"
@@ -41,12 +56,24 @@ Hecks.behaviors "Astronomy" do
     expect ok: "true"
   end
 
+  test "RetireTelescope runs" do
+    tests "RetireTelescope", on: "Telescope"
+    setup  "ActivateTelescope", name: "sample", aperture_mm: 1.0, focal_length_mm: 1.0
+    expect ok: "true"
+  end
+
 
   # ── Catalog aggregate ──────────────────────────────────────────
 
   test "Establish sets name + authority" do
     tests "Establish", on: "Catalog"
     input  name: "sample", authority: "sample"
+    expect ok: "true"
+  end
+
+  test "PublishCatalog runs" do
+    tests "PublishCatalog", on: "Catalog"
+    setup  "Establish", name: "sample", authority: "sample"
     expect ok: "true"
   end
 

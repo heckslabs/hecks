@@ -16,12 +16,20 @@ Hecks.bluebook "Summer", version: "2026.04.13.1" do
       attribute :pair_count, Integer
     end
 
+    command "CountTrainingPairs" do
+      description "Read the training data and record how many pairs are available — required before training"
+      attribute :data_path, String
+      attribute :training_pairs, Integer
+      emits "TrainingPairsCounted"
+      then_set :training_pairs, to: :training_pairs
+    end
+
     command "TrainModel" do
       description "Fine-tune the base model on the current corpus — produces a new adapter"
       attribute :base_model, String
       attribute :data_path, String
       attribute :iterations, Integer
-      given "training data must have at least 100 pairs"
+      given { training_pairs >= 100 }
       emits "ModelTrained"
     end
 
@@ -39,6 +47,10 @@ Hecks.bluebook "Summer", version: "2026.04.13.1" do
     attribute :valid, TrueClass
     attribute :reviewed, TrueClass
     attribute :review_notes, String
+    # Booleans the planner gates on. validated flips when ValidateDraft
+    # finishes; review_done flips when ReviewDraft finishes.
+    attribute :validated, Boolean, default: false
+    attribute :review_done, Boolean, default: false
 
     command "GenerateDraft" do
       description "Feed a vision to Autumn, get back a bluebook structure in seconds"
@@ -50,19 +62,21 @@ Hecks.bluebook "Summer", version: "2026.04.13.1" do
       description "Parse and validate the draft through the Rust validator"
       reference_to(Draft)
       emits "DraftValidated"
+      then_set :validated, to: true
     end
 
     command "ReviewDraft" do
       description "Miette reviews the draft — enriches, corrects, approves or rejects"
       reference_to(Draft)
-      given "draft must be validated first"
+      given { validated == true }
       emits "DraftReviewed"
+      then_set :review_done, to: true
     end
 
     command "AcceptDraft" do
       description "Move the reviewed draft into the nursery as a real domain"
       reference_to(Draft)
-      given "draft must be reviewed"
+      given { review_done == true }
       emits "DraftAccepted"
     end
   end
@@ -87,7 +101,7 @@ Hecks.bluebook "Summer", version: "2026.04.13.1" do
     command "ApplySuggestions" do
       description "Automatically apply Autumn's suggested improvements"
       reference_to(Critique)
-      given "at least one suggestion must exist"
+      given { suggestions.size > 0 }
       emits "SuggestionsApplied"
     end
   end

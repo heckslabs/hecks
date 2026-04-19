@@ -16,6 +16,19 @@ Hecks.behaviors "Hydrology" do
     expect ok: "true"
   end
 
+  test "AcquireDEMData runs" do
+    tests "AcquireDEMData", on: "Watershed"
+    setup  "DelineateWatershed", watershed_id: "sample", name: "sample", area_km2: 1.0
+    expect dem_data_available: true
+  end
+
+  test "UpdateBoundary runs" do
+    tests "UpdateBoundary", on: "Watershed"
+    setup  "DelineateWatershed", watershed_id: "sample", name: "sample", area_km2: 1.0
+    setup  "AcquireDEMData"
+    expect ok: "true"
+  end
+
 
   # ── StreamGauge aggregate ──────────────────────────────────────────
 
@@ -24,6 +37,13 @@ Hecks.behaviors "Hydrology" do
     setup  "DelineateWatershed", watershed_id: "sample", name: "sample", area_km2: 1.0
     input  gauge_id: "sample", stream_name: "sample"
     expect ok: "true"
+  end
+
+  test "RecordDischargeMeasurement sets new_count" do
+    tests "RecordDischargeMeasurement", on: "StreamGauge"
+    setup  "InstallGauge", gauge_id: "sample", stream_name: "sample"
+    input  new_count: 1
+    expect discharge_measurement_count: 1
   end
 
   test "RemoveGauge runs" do
@@ -42,6 +62,19 @@ Hecks.behaviors "Hydrology" do
     expect ok: "true"
   end
 
+  test "RefreshRatingCurve runs" do
+    tests "RefreshRatingCurve", on: "FlowMeasurement"
+    setup  "RecordDischarge", measurement_date: "sample", stage_m: 1.0, discharge_cms: 1.0
+    expect rating_curve_current: true
+  end
+
+  test "ValidateMeasurement runs" do
+    tests "ValidateMeasurement", on: "FlowMeasurement"
+    setup  "RecordDischarge", measurement_date: "sample", stage_m: 1.0, discharge_cms: 1.0
+    setup  "RefreshRatingCurve"
+    expect ok: "true"
+  end
+
 
   # ── FloodModel aggregate ──────────────────────────────────────────
 
@@ -49,6 +82,20 @@ Hecks.behaviors "Hydrology" do
     tests "BuildModel", on: "FloodModel"
     setup  "DelineateWatershed", watershed_id: "sample", name: "sample", area_km2: 1.0
     input  model_id: "sample", scenario_name: "sample"
+    expect ok: "true"
+  end
+
+  test "CalibrateModel runs" do
+    tests "CalibrateModel", on: "FloodModel"
+    setup  "BuildModel", model_id: "sample", scenario_name: "sample"
+    expect model_calibrated: true
+  end
+
+  test "RunSimulation sets return_period_years" do
+    tests "RunSimulation", on: "FloodModel"
+    setup  "BuildModel", model_id: "sample", scenario_name: "sample"
+    setup  "CalibrateModel"
+    input  return_period_years: 1
     expect ok: "true"
   end
 
@@ -66,6 +113,19 @@ Hecks.behaviors "Hydrology" do
     tests "MeasureWaterLevel", on: "MonitoringWell"
     setup  "DrillWell", well_id: "sample", depth_m: 1.0
     input  depth_to_water_m: 1.0
+    expect ok: "true"
+  end
+
+  test "PurgeWell runs" do
+    tests "PurgeWell", on: "MonitoringWell"
+    setup  "DrillWell", well_id: "sample", depth_m: 1.0
+    expect well_purged: true
+  end
+
+  test "SampleGroundwater runs" do
+    tests "SampleGroundwater", on: "MonitoringWell"
+    setup  "DrillWell", well_id: "sample", depth_m: 1.0
+    setup  "PurgeWell"
     expect ok: "true"
   end
 

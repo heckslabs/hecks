@@ -9,6 +9,13 @@ Hecks.behaviors "Robotics" do
     expect ok: "true"
   end
 
+  test "FlashFirmware sets new_version" do
+    tests "FlashFirmware", on: "Robot"
+    setup  "ActivateRobot", robot_id: "sample", name: "sample", platform_type: "sample"
+    input  new_version: "sample"
+    expect ok: "true"
+  end
+
   test "RetireRobot runs" do
     tests "RetireRobot", on: "Robot"
     setup  "ActivateRobot", robot_id: "sample", name: "sample", platform_type: "sample"
@@ -22,6 +29,12 @@ Hecks.behaviors "Robotics" do
     tests "MountSensor", on: "Sensor"
     setup  "ActivateRobot", robot_id: "sample", name: "sample", platform_type: "sample"
     input  sensor_id: "sample", sensor_type: "sample"
+    expect ok: "true"
+  end
+
+  test "CalibrateSensor runs" do
+    tests "CalibrateSensor", on: "Sensor"
+    setup  "MountSensor", sensor_id: "sample", sensor_type: "sample"
     expect ok: "true"
   end
 
@@ -48,6 +61,12 @@ Hecks.behaviors "Robotics" do
     expect ok: "true"
   end
 
+  test "HaltActuator runs" do
+    tests "HaltActuator", on: "Actuator"
+    setup  "InstallActuator", actuator_id: "sample", actuator_type: "sample"
+    expect ok: "true"
+  end
+
 
   # ── Mission aggregate ──────────────────────────────────────────
 
@@ -55,6 +74,12 @@ Hecks.behaviors "Robotics" do
     tests "PlanMission", on: "Mission"
     setup  "ActivateRobot", robot_id: "sample", name: "sample", platform_type: "sample"
     input  mission_id: "sample", objective: "sample"
+    expect ok: "true"
+  end
+
+  test "LaunchMission runs" do
+    tests "LaunchMission", on: "Mission"
+    setup  "PlanMission", mission_id: "sample", objective: "sample"
     expect ok: "true"
   end
 

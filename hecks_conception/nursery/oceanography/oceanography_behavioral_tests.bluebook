@@ -9,6 +9,12 @@ Hecks.behaviors "Oceanography" do
     expect ok: "true"
   end
 
+  test "CloseStation runs" do
+    tests "CloseStation", on: "SamplingStation"
+    setup  "EstablishStation", station_id: "sample", latitude: 1.0, longitude: 1.0
+    expect ok: "true"
+  end
+
   test "RelocateStation sets new_latitude + new_longitude" do
     tests "RelocateStation", on: "SamplingStation"
     setup  "EstablishStation", station_id: "sample", latitude: 1.0, longitude: 1.0
@@ -18,6 +24,13 @@ Hecks.behaviors "Oceanography" do
 
 
   # ── CtdCast aggregate ──────────────────────────────────────────
+
+  test "DeployCast sets timestamp" do
+    tests "DeployCast", on: "CtdCast"
+    setup  "EstablishStation", station_id: "sample", latitude: 1.0, longitude: 1.0
+    input  timestamp: "sample"
+    expect ok: "true"
+  end
 
   test "ProcessCastData runs" do
     tests "ProcessCastData", on: "CtdCast"
@@ -35,6 +48,12 @@ Hecks.behaviors "Oceanography" do
     expect ok: "true"
   end
 
+  test "RecoverMeter runs" do
+    tests "RecoverMeter", on: "CurrentMeter"
+    setup  "DeployMeter", instrument_id: "sample", deployment_depth_m: 1.0
+    expect ok: "true"
+  end
+
 
   # ── SpeciesCount aggregate ──────────────────────────────────────────
 
@@ -42,6 +61,12 @@ Hecks.behaviors "Oceanography" do
     tests "RecordCount", on: "SpeciesCount"
     setup  "EstablishStation", station_id: "sample", latitude: 1.0, longitude: 1.0
     input  species_name: "sample", count: 1
+    expect ok: "true"
+  end
+
+  test "VerifyTaxonomy runs" do
+    tests "VerifyTaxonomy", on: "SpeciesCount"
+    setup  "RecordCount", species_name: "sample", count: 1
     expect ok: "true"
   end
 

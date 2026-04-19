@@ -7,6 +7,7 @@ Hecks.bluebook "Cartography" do
     String :title
     String :scale
     String :edition
+    Integer :feature_layer_count, default: 0
     reference_to Datum
     reference_to Projection
 
@@ -18,11 +19,17 @@ Hecks.bluebook "Cartography" do
       String :scale
     end
 
+    command "AddFeatureLayer" do
+      description "Attach a feature layer to the map sheet"
+      emits "FeatureLayerAdded"
+      reference_to MapSheet
+    end
+
     command "PublishSheet" do
       description "Release the map sheet for distribution"
       emits "SheetPublished"
       reference_to MapSheet
-      given "sheet must have at least one feature layer"
+      given { feature_layer_count > 0 }
     end
 
     command "RetireSheet" do
@@ -68,6 +75,7 @@ Hecks.bluebook "Cartography" do
     String :feature_type
     String :name
     String :geometry_wkt
+    Integer :referencing_feature_count, default: 0
     reference_to MapSheet
 
     command "DigitizeFeature" do
@@ -91,7 +99,7 @@ Hecks.bluebook "Cartography" do
       description "Remove an erroneous feature from the map"
       emits "FeatureErased"
       reference_to GeographicFeature
-      given "feature must not be referenced by other features"
+      given { referencing_feature_count == 0 }
     end
   end
 
@@ -101,6 +109,7 @@ Hecks.bluebook "Cartography" do
     String :ellipsoid
     Float :semi_major_axis_m
     Float :inverse_flattening
+    Boolean :target_datum_registered, default: false
 
     command "RegisterDatum" do
       description "Add a new geodetic datum to the registry"
@@ -110,13 +119,19 @@ Hecks.bluebook "Cartography" do
       Float :semi_major_axis_m
     end
 
+    command "RegisterTargetDatum" do
+      description "Mark the target datum as registered for cross-datum transforms"
+      emits "TargetDatumRegistered"
+      reference_to Datum
+    end
+
     command "TransformCoordinates" do
       description "Convert coordinates between two datums"
       emits "CoordinatesTransformed"
       reference_to Datum
       Float :source_lat
       Float :source_lon
-      given "target datum must also be registered"
+      given { target_datum_registered == true }
     end
   end
 
@@ -126,6 +141,7 @@ Hecks.bluebook "Cartography" do
     String :revision_date
     String :change_description
     String :reviewer
+    Boolean :field_verified, default: false
     reference_to MapSheet
 
     command "SubmitRevision" do
@@ -135,12 +151,18 @@ Hecks.bluebook "Cartography" do
       String :change_description
     end
 
+    command "FieldVerifyRevision" do
+      description "Mark the revision as confirmed by field survey"
+      emits "RevisionFieldVerified"
+      reference_to MapRevision
+    end
+
     command "ApproveRevision" do
       description "Accept the proposed map revision after review"
       emits "RevisionApproved"
       reference_to MapRevision
       String :reviewer
-      given "revision must be field-verified"
+      given { field_verified == true }
     end
   end
 

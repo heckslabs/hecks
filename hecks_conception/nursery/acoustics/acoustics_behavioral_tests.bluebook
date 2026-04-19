@@ -9,6 +9,12 @@ Hecks.behaviors "Acoustics" do
     expect ok: "true"
   end
 
+  test "CalculateReverberation runs" do
+    tests "CalculateReverberation", on: "Room"
+    setup  "DefineRoom", room_id: "sample", name: "sample", length_m: 1.0, width_m: 1.0, height_m: 1.0
+    expect ok: "true"
+  end
+
   test "ArchiveRoom runs" do
     tests "ArchiveRoom", on: "Room"
     setup  "DefineRoom", room_id: "sample", name: "sample", length_m: 1.0, width_m: 1.0, height_m: 1.0
@@ -22,6 +28,12 @@ Hecks.behaviors "Acoustics" do
     tests "TakeMeasurement", on: "AcousticMeasurement"
     setup  "DefineRoom", room_id: "sample", name: "sample", length_m: 1.0, width_m: 1.0, height_m: 1.0
     input  measurement_type: "sample", spl_db: 1.0
+    expect ok: "true"
+  end
+
+  test "AnalyzeSpectrum runs" do
+    tests "AnalyzeSpectrum", on: "AcousticMeasurement"
+    setup  "TakeMeasurement", measurement_type: "sample", spl_db: 1.0
     expect ok: "true"
   end
 
@@ -46,6 +58,12 @@ Hecks.behaviors "Acoustics" do
     expect ok: "true"
   end
 
+  test "DeprecateMaterial runs" do
+    tests "DeprecateMaterial", on: "AcousticMaterial"
+    setup  "CatalogMaterial", name: "sample", material_type: "sample", nrc_rating: 1.0
+    expect ok: "true"
+  end
+
 
   # ── TreatmentPlan aggregate ──────────────────────────────────────────
 
@@ -61,6 +79,12 @@ Hecks.behaviors "Acoustics" do
     setup  "CatalogMaterial", name: "sample", material_type: "sample", nrc_rating: 1.0
     setup  "DesignTreatment", plan_name: "sample", objective: "sample"
     input  coverage_m2: 1.0
+    expect ok: "true"
+  end
+
+  test "EvaluateTreatment runs" do
+    tests "EvaluateTreatment", on: "TreatmentPlan"
+    setup  "DesignTreatment", plan_name: "sample", objective: "sample"
     expect ok: "true"
   end
 

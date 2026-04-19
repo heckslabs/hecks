@@ -8,6 +8,10 @@ Hecks.bluebook "Meteorology" do
     Float :latitude
     Float :longitude
     Float :elevation_m
+    # Gate flag — flips true after ClearPendingAlerts confirms there are
+    # no active alerts attached to the station. DeactivateStation is
+    # gated on it so we never silence a station mid-warning.
+    attribute :alerts_cleared, Boolean, default: false
 
     value_object "Instrumentation" do
       String :barometer_type
@@ -30,11 +34,18 @@ Hecks.bluebook "Meteorology" do
       reference_to WeatherStation
     end
 
+    command "ClearPendingAlerts" do
+      description "Resolve or transfer any alerts tied to this station"
+      emits "PendingAlertsCleared"
+      reference_to WeatherStation
+      then_set :alerts_cleared, to: true
+    end
+
     command "DeactivateStation" do
       description "Take a station offline for maintenance"
       emits "StationDeactivated"
       reference_to WeatherStation
-      given "station must not have pending alerts"
+      given { alerts_cleared == true }
     end
   end
 
@@ -46,6 +57,9 @@ Hecks.bluebook "Meteorology" do
     Float :humidity_percent
     Float :wind_speed_kts
     Float :wind_direction_deg
+    # Gate flag — flips true once CompleteObservation backfills missing
+    # required fields. ValidateObservation is gated on it.
+    attribute :fields_complete, Boolean, default: false
     reference_to WeatherStation
 
     command "RecordObservation" do
@@ -57,11 +71,18 @@ Hecks.bluebook "Meteorology" do
       Float :pressure_hpa
     end
 
+    command "CompleteObservation" do
+      description "Fill in any missing required fields on the observation"
+      emits "ObservationCompleted"
+      reference_to SurfaceObservation
+      then_set :fields_complete, to: true
+    end
+
     command "ValidateObservation" do
       description "Check observation against climatological bounds"
       emits "ObservationValidated"
       reference_to SurfaceObservation
-      given "observation must have all required fields"
+      given { fields_complete == true }
     end
   end
 
@@ -72,6 +93,9 @@ Hecks.bluebook "Meteorology" do
     String :valid_to
     String :region
     String :synopsis
+    # Gate flag — flips true after MarkForecastExpired confirms the
+    # forecast's valid_to has elapsed. VerifyForecast is gated on it.
+    attribute :valid_period_elapsed, Boolean, default: false
     reference_to PressureSystem
 
     command "IssueForecast" do
@@ -90,11 +114,18 @@ Hecks.bluebook "Meteorology" do
       String :amendment
     end
 
+    command "MarkForecastExpired" do
+      description "Note that the forecast's valid period has now elapsed"
+      emits "ForecastExpired"
+      reference_to Forecast
+      then_set :valid_period_elapsed, to: true
+    end
+
     command "VerifyForecast" do
       description "Compare forecast against actual observations"
       emits "ForecastVerified"
       reference_to Forecast
-      given "forecast valid period must have elapsed"
+      given { valid_period_elapsed == true }
     end
   end
 
@@ -128,6 +159,9 @@ Hecks.bluebook "Meteorology" do
     String :severity
     String :region
     String :message
+    # Gate flag — flips true the moment IssueAlert broadcasts the warning;
+    # CancelAlert is gated on it so a never-issued alert cannot be cancelled.
+    attribute :alert_active, Boolean, default: false
     reference_to Forecast
 
     command "IssueAlert" do
@@ -136,13 +170,14 @@ Hecks.bluebook "Meteorology" do
       String :alert_type
       String :severity
       String :region
+      then_set :alert_active, to: true
     end
 
     command "CancelAlert" do
       description "Retract an active weather alert"
       emits "AlertCancelled"
       reference_to WeatherAlert
-      given "alert must still be active"
+      given { alert_active == true }
     end
   end
 

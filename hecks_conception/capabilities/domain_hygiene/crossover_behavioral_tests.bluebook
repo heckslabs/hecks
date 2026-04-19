@@ -16,7 +16,7 @@ Hecks.behaviors "DomainCrossover" do
   test "ValidateOffspring runs" do
     tests "ValidateOffspring", on: "Offspring"
     setup  "BreedDomain", name: "sample", vision: "sample", aggregates_from_each: 1
-    expect ok: "true"
+    expect validated: true
   end
 
 

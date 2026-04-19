@@ -19,6 +19,19 @@ Hecks.behaviors "CausalCombinatorics" do
 
   # ── CascadeAnalysis aggregate ──────────────────────────────────────────
 
+  test "ConfirmEventInGraph runs" do
+    tests "ConfirmEventInGraph", on: "CascadeAnalysis"
+    setup  "TraceCascade", trigger_event: "sample"
+    expect ok: "true"
+  end
+
+  test "TraceCascade sets trigger_event" do
+    tests "TraceCascade", on: "CascadeAnalysis"
+    setup  "BuildGraph", name: "sample", domain_names: "sample"
+    input  trigger_event: "sample"
+    expect ok: "true"
+  end
+
   test "DetectCycle runs" do
     tests "DetectCycle", on: "CascadeAnalysis"
     setup  "TraceCascade", trigger_event: "sample"
@@ -38,6 +51,19 @@ Hecks.behaviors "CausalCombinatorics" do
     tests "MeasureEmergence", on: "EmergenceMetric"
     setup  "BuildGraph", name: "sample", domain_names: "sample"
     input  domains_combined: 1
+    expect ok: "true"
+  end
+
+  test "SetRankedDomainCount sets ranked_domain_count" do
+    tests "SetRankedDomainCount", on: "EmergenceMetric"
+    setup  "MeasureEmergence", domains_combined: 1
+    input  ranked_domain_count: 1
+    expect ok: "true"
+  end
+
+  test "RankCombinations runs" do
+    tests "RankCombinations", on: "EmergenceMetric"
+    setup  "MeasureEmergence", domains_combined: 1
     expect ok: "true"
   end
 
@@ -62,6 +88,19 @@ Hecks.behaviors "CausalCombinatorics" do
   test "ProposeLaw sets name + statement" do
     tests "ProposeLaw", on: "CombinatorialLaw"
     input  name: "sample", statement: "sample"
+    expect ok: "true"
+  end
+
+  test "RecordObservation sets observations" do
+    tests "RecordObservation", on: "CombinatorialLaw"
+    setup  "ProposeLaw", name: "sample", statement: "sample"
+    input  observations: 1
+    expect ok: "true"
+  end
+
+  test "TestLaw runs" do
+    tests "TestLaw", on: "CombinatorialLaw"
+    setup  "ProposeLaw", name: "sample", statement: "sample"
     expect ok: "true"
   end
 

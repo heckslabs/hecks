@@ -8,6 +8,7 @@ Hecks.bluebook "Forensics" do
     String :lead_investigator
     String :opened_date
     String :jurisdiction
+    Boolean :all_evidence_analyzed, default: false
 
     command "OpenCase" do
       description "Initiate a new forensic investigation"
@@ -17,11 +18,17 @@ Hecks.bluebook "Forensics" do
       String :lead_investigator
     end
 
+    command "MarkAllEvidenceAnalyzed" do
+      description "Confirm every evidence item for the case has lab results"
+      emits "AllEvidenceAnalyzed"
+      reference_to CriminalCase
+    end
+
     command "CloseCase" do
       description "Conclude the investigation and archive"
       emits "CaseClosed"
       reference_to CriminalCase
-      given "all evidence must be analyzed"
+      given { all_evidence_analyzed == true }
     end
 
     command "ReassignInvestigator" do
@@ -39,6 +46,7 @@ Hecks.bluebook "Forensics" do
     String :evidence_type
     String :collection_location
     String :collected_by
+    Boolean :custody_chain_intact, default: true
     reference_to CriminalCase
 
     value_object "StorageCondition" do
@@ -56,12 +64,18 @@ Hecks.bluebook "Forensics" do
       String :evidence_type
     end
 
+    command "BreakCustodyChain" do
+      description "Record that the chain of custody for this evidence is broken"
+      emits "CustodyChainBroken"
+      reference_to EvidenceItem
+    end
+
     command "TransferCustody" do
       description "Hand evidence to another custodian"
       emits "CustodyTransferred"
       reference_to EvidenceItem
       String :receiving_custodian
-      given "chain of custody must be unbroken"
+      given { custody_chain_intact == true }
     end
 
     command "SealEvidence" do
@@ -77,6 +91,8 @@ Hecks.bluebook "Forensics" do
     String :analyst_name
     String :method
     String :findings
+    Boolean :findings_documented, default: false
+    Boolean :peer_reviewed, default: false
     reference_to EvidenceItem
 
     command "SubmitForAnalysis" do
@@ -94,11 +110,17 @@ Hecks.bluebook "Forensics" do
       String :findings
     end
 
+    command "MarkFindingsDocumented" do
+      description "Flag the analysis findings as documented and ready for review"
+      emits "FindingsDocumented"
+      reference_to LabAnalysis
+    end
+
     command "PeerReviewAnalysis" do
       description "Have another analyst verify the results"
       emits "AnalysisPeerReviewed"
       reference_to LabAnalysis
-      given "findings must be documented"
+      given { findings_documented == true }
     end
   end
 
@@ -107,6 +129,7 @@ Hecks.bluebook "Forensics" do
     String :report_number
     String :expert_name
     String :conclusion
+    Boolean :peer_reviewed, default: false
     reference_to LabAnalysis
     reference_to CriminalCase
 
@@ -117,11 +140,17 @@ Hecks.bluebook "Forensics" do
       String :expert_name
     end
 
+    command "MarkReportPeerReviewed" do
+      description "Record that the report has been peer-reviewed by another expert"
+      emits "ReportPeerReviewed"
+      reference_to ExpertReport
+    end
+
     command "FinalizeReport" do
       description "Lock the report for submission to court"
       emits "ReportFinalized"
       reference_to ExpertReport
-      given "report must be peer-reviewed"
+      given { peer_reviewed == true }
     end
   end
 

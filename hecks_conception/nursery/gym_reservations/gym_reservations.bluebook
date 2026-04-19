@@ -18,7 +18,7 @@ Hecks.bluebook "GymReservations", version: "2026.04.13.1" do
       String :trainer_name
       String :room
       Integer :capacity
-      given "capacity must be at least 5"
+      given { capacity >= 5 }
       emits "ClassScheduled"
     end
 
@@ -34,13 +34,23 @@ Hecks.bluebook "GymReservations", version: "2026.04.13.1" do
     String :class_name
     String :session_date
     String :status
+    # Gate flag — flips true when ConfirmCapacity verifies the target
+    # class still has open spots. ReserveSpot is gated on it.
+    attribute :capacity_confirmed, Boolean, default: false
+
+    ConfirmCapacity do
+      description "Verify that the target class still has open spots"
+      reference_to(Booking)
+      emits "CapacityConfirmed"
+      then_set :capacity_confirmed, to: true
+    end
 
     ReserveSpot do
       description "Book a member into an upcoming class session"
       String :member_name
       String :class_name
       String :session_date
-      given "class must not be full"
+      given { capacity_confirmed == true }
       emits "SpotReserved"
     end
 

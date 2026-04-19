@@ -3,6 +3,12 @@ Hecks.behaviors "CorpusPruning" do
 
   # ── MonsterSplit aggregate ──────────────────────────────────────────
 
+  test "MeasureDomain sets source_domain + original_size" do
+    tests "MeasureDomain", on: "MonsterSplit"
+    input  source_domain: "sample", original_size: 1
+    expect original_size: 1, measured: true
+  end
+
 
   # ── FeatureEnrichment aggregate ──────────────────────────────────────────
 

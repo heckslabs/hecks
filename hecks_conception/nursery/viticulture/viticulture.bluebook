@@ -8,6 +8,7 @@ Hecks.bluebook "Viticulture" do
     Float :total_hectares
     Float :elevation_m
     String :orientation
+    Integer :years_without_synthetic_inputs, default: 0
 
     command "RegisterVineyard" do
       description "Add a new vineyard to the management system"
@@ -15,13 +16,14 @@ Hecks.bluebook "Viticulture" do
       String :name
       String :appellation
       Float :total_hectares
+      then_set :years_without_synthetic_inputs, 3
     end
 
     command "CertifyOrganic" do
       description "Record organic certification for the vineyard"
       emits "OrganicCertified"
       reference_to Vineyard
-      given "vineyard must have three years without synthetic inputs"
+      given { years_without_synthetic_inputs >= 3 }
     end
 
     command "Reclassify" do
@@ -40,6 +42,7 @@ Hecks.bluebook "Viticulture" do
     Integer :plant_year
     Float :vine_spacing_m
     String :trellis_system
+    Boolean :dormant, default: false
     reference_to Vineyard
 
     value_object "PlantingSpec" do
@@ -56,6 +59,7 @@ Hecks.bluebook "Viticulture" do
       String :block_id
       String :grape_variety
       String :rootstock
+      then_set :dormant, true
     end
 
     command "GraftVariety" do
@@ -63,7 +67,7 @@ Hecks.bluebook "Viticulture" do
       emits "VarietyGrafted"
       reference_to VineBlock
       String :new_variety
-      given "vines must be dormant"
+      given { dormant == true }
     end
 
     command "RemoveBlock" do
@@ -80,6 +84,7 @@ Hecks.bluebook "Viticulture" do
     Float :ph
     Float :organic_matter_percent
     Float :depth_cm
+    Integer :days_since_sample, default: 9999
     reference_to VineBlock
 
     value_object "NutrientAnalysis" do
@@ -94,6 +99,7 @@ Hecks.bluebook "Viticulture" do
       reference_to VineBlock
       String :horizon
       Float :depth_cm
+      then_set :days_since_sample, 0
     end
 
     command "AmendSoil" do
@@ -102,7 +108,7 @@ Hecks.bluebook "Viticulture" do
       reference_to SoilProfile
       String :amendment_type
       Float :rate_kg_per_hectare
-      given "soil test must be less than one year old"
+      given { days_since_sample < 365 }
     end
   end
 
@@ -111,6 +117,7 @@ Hecks.bluebook "Viticulture" do
     String :operation_type
     String :date_performed
     String :crew_lead
+    Boolean :veraison_started, default: false
     reference_to VineBlock
 
     command "PerformShootThin" do
@@ -125,7 +132,7 @@ Hecks.bluebook "Viticulture" do
       emits "FruitDropped"
       reference_to VineBlock
       Integer :clusters_removed
-      given "veraison must not have started"
+      given { veraison_started == false }
     end
 
     command "LeafPull" do
@@ -142,6 +149,7 @@ Hecks.bluebook "Viticulture" do
     Float :tons_picked
     Float :brix_at_harvest
     Float :ph_at_harvest
+    Boolean :weighed_and_tested, default: false
     reference_to VineBlock
 
     command "RecordPick" do
@@ -151,6 +159,7 @@ Hecks.bluebook "Viticulture" do
       String :vintage_year
       Float :tons_picked
       Float :brix_at_harvest
+      then_set :weighed_and_tested, true
     end
 
     command "GradeQuality" do
@@ -158,7 +167,7 @@ Hecks.bluebook "Viticulture" do
       emits "QualityGraded"
       reference_to HarvestRecord
       String :quality_tier
-      given "grapes must be weighed and tested"
+      given { weighed_and_tested == true }
     end
   end
 

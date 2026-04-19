@@ -9,6 +9,8 @@ Hecks.bluebook "Cryptography" do
     String :created_date
     String :expiry_date
     String :owner
+    Boolean :revoked, default: false
+    Boolean :expired, default: false
 
     command "GenerateKeyPair" do
       description "Create a new public-private key pair"
@@ -23,7 +25,13 @@ Hecks.bluebook "Cryptography" do
       emits "KeyRevoked"
       reference_to KeyPair
       String :revocation_reason
-      given "key must not already be revoked"
+      given { revoked == false }
+    end
+
+    command "MarkExpired" do
+      description "Flag the key pair as past its expiry date"
+      emits "KeyExpired"
+      reference_to KeyPair
     end
 
     command "RotateKey" do
@@ -39,6 +47,7 @@ Hecks.bluebook "Cryptography" do
     String :cipher_type
     Integer :block_size_bits
     String :mode_of_operation
+    Boolean :replacement_available, default: false
 
     value_object "CipherSpec" do
       String :padding_scheme
@@ -60,11 +69,17 @@ Hecks.bluebook "Cryptography" do
       reference_to Cipher
     end
 
+    command "DesignateReplacement" do
+      description "Note that an approved replacement cipher exists"
+      emits "ReplacementDesignated"
+      reference_to Cipher
+    end
+
     command "DeprecateCipher" do
       description "Mark a cipher as no longer safe for use"
       emits "CipherDeprecated"
       reference_to Cipher
-      given "replacement cipher must be available"
+      given { replacement_available == true }
     end
   end
 
@@ -73,6 +88,7 @@ Hecks.bluebook "Cryptography" do
     String :message_id
     String :ciphertext
     String :encrypted_at
+    Boolean :decryption_key_matched, default: false
     reference_to KeyPair
     reference_to Cipher
 
@@ -84,11 +100,17 @@ Hecks.bluebook "Cryptography" do
       String :plaintext
     end
 
+    command "MatchDecryptionKey" do
+      description "Confirm the supplied decryption key matches the encryption key"
+      emits "DecryptionKeyMatched"
+      reference_to EncryptedMessage
+    end
+
     command "DecryptMessage" do
       description "Recover plaintext from ciphertext using the private key"
       emits "MessageDecrypted"
       reference_to EncryptedMessage
-      given "decryption key must match encryption key"
+      given { decryption_key_matched == true }
     end
   end
 
@@ -98,6 +120,7 @@ Hecks.bluebook "Cryptography" do
     String :signature_value
     String :signed_at
     String :hash_algorithm
+    Boolean :signing_key_valid, default: false
     reference_to KeyPair
 
     command "SignMessage" do
@@ -108,11 +131,17 @@ Hecks.bluebook "Cryptography" do
       String :hash_algorithm
     end
 
+    command "ValidateSigningKey" do
+      description "Confirm the signer's public key is neither expired nor revoked"
+      emits "SigningKeyValidated"
+      reference_to DigitalSignature
+    end
+
     command "VerifySignature" do
       description "Check a signature against the signer's public key"
       emits "SignatureVerified"
       reference_to DigitalSignature
-      given "public key must not be expired or revoked"
+      given { signing_key_valid == true }
     end
   end
 
@@ -123,6 +152,7 @@ Hecks.bluebook "Cryptography" do
     String :issuer
     String :valid_from
     String :valid_to
+    Boolean :revoked, default: false
     reference_to KeyPair
 
     value_object "CertificateExtension" do
@@ -144,7 +174,7 @@ Hecks.bluebook "Cryptography" do
       description "Extend the validity period of a certificate"
       emits "CertificateRenewed"
       reference_to Certificate
-      given "certificate must not be revoked"
+      given { revoked == false }
     end
 
     command "RevokeCertificate" do

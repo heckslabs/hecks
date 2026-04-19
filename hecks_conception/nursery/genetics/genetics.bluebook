@@ -8,6 +8,7 @@ Hecks.bluebook "Genetics" do
     String :tissue_type
     String :collection_date
     String :collector
+    Boolean :preserved, default: false
 
     command "CollectSpecimen" do
       description "Register a new biological specimen"
@@ -17,11 +18,17 @@ Hecks.bluebook "Genetics" do
       String :tissue_type
     end
 
+    command "PreserveSpecimen" do
+      description "Apply preservation treatment to the specimen tissue"
+      emits "SpecimenPreserved"
+      reference_to Specimen
+    end
+
     command "ExtractDna" do
       description "Isolate DNA from the specimen tissue"
       emits "DnaExtracted"
       reference_to Specimen
-      given "specimen must be properly preserved"
+      given { preserved == true }
     end
 
     command "DiscardSpecimen" do
@@ -37,6 +44,7 @@ Hecks.bluebook "Genetics" do
     String :sequence_data
     Integer :length_bp
     String :sequencing_method
+    Boolean :quality_passed, default: false
     reference_to Specimen
 
     value_object "QualityMetrics" do
@@ -54,11 +62,17 @@ Hecks.bluebook "Genetics" do
       Integer :length_bp
     end
 
+    command "PassQualityFilter" do
+      description "Mark the sequence as having passed quality filters"
+      emits "QualityFilterPassed"
+      reference_to DnaSequence
+    end
+
     command "AlignSequence" do
       description "Perform multiple sequence alignment against references"
       emits "SequenceAligned"
       reference_to DnaSequence
-      given "sequence must pass quality filters"
+      given { quality_passed == true }
     end
 
     command "AnnotateFeatures" do
@@ -75,6 +89,7 @@ Hecks.bluebook "Genetics" do
     Integer :position
     String :reference_allele
     String :alternate_allele
+    Integer :confirmation_method_count, default: 0
     reference_to DnaSequence
 
     command "CallVariant" do
@@ -85,12 +100,19 @@ Hecks.bluebook "Genetics" do
       Integer :position
     end
 
+    command "ConfirmByMethod" do
+      description "Record an additional confirmation method for the variant"
+      emits "MethodConfirmed"
+      reference_to Mutation
+      Integer :confirmation_method_count
+    end
+
     command "ClassifyPathogenicity" do
       description "Assess whether the variant is pathogenic"
       emits "PathogenicityClassified"
       reference_to Mutation
       String :classification
-      given "variant must be confirmed by two methods"
+      given { confirmation_method_count >= 2 }
     end
   end
 
@@ -122,11 +144,18 @@ Hecks.bluebook "Genetics" do
       String :relationship
     end
 
+    command "SetGenerationCount" do
+      description "Update the recorded generation span of the pedigree"
+      emits "GenerationCountSet"
+      reference_to Pedigree
+      Integer :generation_count
+    end
+
     command "TraceInheritance" do
       description "Analyze the inheritance pattern of a trait"
       emits "InheritanceTraced"
       reference_to Pedigree
-      given "pedigree must span at least two generations"
+      given { generation_count >= 2 }
     end
   end
 

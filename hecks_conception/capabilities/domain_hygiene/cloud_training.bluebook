@@ -13,12 +13,25 @@ Hecks.bluebook "CloudTraining", version: "2026.04.13.1" do
     attribute :final_loss, Float
     attribute :status, String
     attribute :checkpoints, list_of(Checkpoint)
+    # Booleans the planner can chain on. data_ready is set by an upstream
+    # DataUpload event-handler (LinkUploadedData). running flips on submit
+    # and off on completion/cancel. remote_complete flips when MonitorJob
+    # observes the remote side finished.
+    attribute :data_ready, Boolean, default: false
+    attribute :running, Boolean, default: false
+    attribute :remote_complete, Boolean, default: false
 
     value_object "Checkpoint" do
       attribute :iteration, Integer
       attribute :train_loss, Float
       attribute :val_loss, Float
       attribute :saved_at, String
+    end
+
+    command "LinkUploadedData" do
+      description "Record that DataUpload has finished staging — gates SubmitJob"
+      emits "UploadedDataLinked"
+      then_set :data_ready, to: true
     end
 
     command "SubmitJob" do
@@ -28,28 +41,32 @@ Hecks.bluebook "CloudTraining", version: "2026.04.13.1" do
       attribute :base_model, String
       attribute :iterations, Integer
       attribute :learning_rate, Float
-      given "training data must exist locally"
+      given { data_ready == true }
       emits "JobSubmitted"
+      then_set :running, to: true
     end
 
     command "MonitorJob" do
       description "Poll the remote job for progress — loss, checkpoints, completion"
       reference_to(TrainingJob)
       emits "JobMonitored"
+      then_set :remote_complete, to: true
     end
 
     command "CompleteJob" do
       description "Job finished — download the adapter weights"
       reference_to(TrainingJob)
-      given "remote job must report complete"
+      given { remote_complete == true }
       emits "JobCompleted"
+      then_set :running, to: false
     end
 
     command "CancelJob" do
       description "Stop a running job to save cost"
       reference_to(TrainingJob)
-      given "job must be running"
+      given { running == true }
       emits "JobCancelled"
+      then_set :running, to: false
     end
   end
 
@@ -59,11 +76,21 @@ Hecks.bluebook "CloudTraining", version: "2026.04.13.1" do
     attribute :pair_count, Integer
     attribute :size_mb, Float
     attribute :checksum, String
+    # Set true when ValidateJsonl confirms train.jsonl + valid.jsonl exist.
+    # StageData gates on it; planner picks ValidateJsonl as the producer.
+    attribute :jsonl_valid, Boolean, default: false
+
+    command "ValidateJsonl" do
+      description "Confirm train.jsonl and valid.jsonl exist and parse — required before staging"
+      attribute :local_path, String
+      emits "JsonlValidated"
+      then_set :jsonl_valid, to: true
+    end
 
     command "StageData" do
       description "Prepare and validate training data for upload"
       attribute :local_path, String
-      given "JSONL must have train.jsonl and valid.jsonl"
+      given { jsonl_valid == true }
       emits "DataStaged"
     end
 
@@ -81,6 +108,9 @@ Hecks.bluebook "CloudTraining", version: "2026.04.13.1" do
     attribute :size_mb, Float
     attribute :format, String
     attribute :converted, TrueClass
+    # Boolean the planner uses for DeploySummer's precondition. Flipped by
+    # ConvertToOllama.
+    attribute :adapter_converted, Boolean, default: false
 
     command "DownloadAdapter" do
       description "Pull the trained LoRA adapter from cloud to local"
@@ -94,12 +124,13 @@ Hecks.bluebook "CloudTraining", version: "2026.04.13.1" do
       reference_to(AdapterDownload)
       attribute :ollama_model_name, String
       emits "AdapterConverted"
+      then_set :adapter_converted, to: true
     end
 
     command "DeploySummer" do
       description "Replace Summer's current adapter with the new one and restart"
       reference_to(AdapterDownload)
-      given "adapter must be converted"
+      given { adapter_converted == true }
       emits "SummerDeployed"
     end
   end
@@ -125,7 +156,7 @@ Hecks.bluebook "CloudTraining", version: "2026.04.13.1" do
 
     command "CheckBudget" do
       description "Verify spending is within budget before submitting a new job"
-      given "total spent must be under budget limit"
+      given { total_spent < budget_limit }
       emits "BudgetChecked"
     end
   end

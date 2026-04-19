@@ -10,6 +10,7 @@ Hecks.bluebook "TrainingRound", version: "2026.04.13.1" do
     attribute :reference_coverage, Float
     attribute :policy_coverage, Float
     attribute :status, String
+    attribute :complete, TrueClass, default: false
     attribute :phases, list_of(Phase)
 
     value_object "Phase" do
@@ -27,7 +28,7 @@ Hecks.bluebook "TrainingRound", version: "2026.04.13.1" do
       attribute :growth_target, Integer
       attribute :min_reference_pct, Float
       attribute :min_policy_pct, Float
-      given "previous round must be complete or this is round 1"
+      given { complete == true }
       emits "RoundStarted"
     end
 

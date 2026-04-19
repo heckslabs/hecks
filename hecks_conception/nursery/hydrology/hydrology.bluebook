@@ -8,6 +8,9 @@ Hecks.bluebook "Hydrology" do
     Float :area_km2
     String :outlet_location
     String :land_use_dominant
+    # Gate flag — flips true after AcquireDEMData confirms new elevation
+    # data has been loaded. UpdateBoundary is gated on it.
+    attribute :dem_data_available, Boolean, default: false
 
     command "DelineateWatershed" do
       description "Define a watershed boundary from elevation data"
@@ -24,11 +27,18 @@ Hecks.bluebook "Hydrology" do
       String :land_use_dominant
     end
 
+    command "AcquireDEMData" do
+      description "Load fresh digital elevation data for this watershed"
+      emits "DEMDataAcquired"
+      reference_to Watershed
+      then_set :dem_data_available, to: true
+    end
+
     command "UpdateBoundary" do
       description "Revise the watershed boundary with new terrain data"
       emits "BoundaryUpdated"
       reference_to Watershed
-      given "new DEM data must be available"
+      given { dem_data_available == true }
     end
   end
 
@@ -39,6 +49,7 @@ Hecks.bluebook "Hydrology" do
     Float :latitude
     Float :longitude
     String :datum_elevation
+    Integer :discharge_measurement_count
     reference_to Watershed
 
     value_object "RatingCurve" do
@@ -55,11 +66,19 @@ Hecks.bluebook "Hydrology" do
       String :stream_name
     end
 
+    command "RecordDischargeMeasurement" do
+      description "Update the count of valid discharge measurements at this gauge"
+      emits "DischargeMeasurementCounted"
+      reference_to StreamGauge
+      Integer :new_count
+      then_set :discharge_measurement_count, to: :new_count
+    end
+
     command "CalibrateGauge" do
       description "Develop or update the stage-discharge rating curve"
       emits "GaugeCalibrated"
       reference_to StreamGauge
-      given "at least five discharge measurements are needed"
+      given { discharge_measurement_count >= 5 }
     end
 
     command "RemoveGauge" do
@@ -75,6 +94,9 @@ Hecks.bluebook "Hydrology" do
     Float :stage_m
     Float :discharge_cms
     String :method
+    # Gate flag — flips true when RefreshRatingCurve confirms the gauge's
+    # rating curve is current. ValidateMeasurement is gated on it.
+    attribute :rating_curve_current, Boolean, default: false
     reference_to StreamGauge
 
     command "RecordDischarge" do
@@ -86,11 +108,18 @@ Hecks.bluebook "Hydrology" do
       Float :discharge_cms
     end
 
+    command "RefreshRatingCurve" do
+      description "Confirm the gauge's stage-discharge rating curve is current"
+      emits "RatingCurveRefreshed"
+      reference_to FlowMeasurement
+      then_set :rating_curve_current, to: true
+    end
+
     command "ValidateMeasurement" do
       description "Quality check the measurement against the rating curve"
       emits "MeasurementValidated"
       reference_to FlowMeasurement
-      given "rating curve must be current"
+      given { rating_curve_current == true }
     end
   end
 
@@ -100,6 +129,9 @@ Hecks.bluebook "Hydrology" do
     String :scenario_name
     Integer :return_period_years
     Float :peak_discharge_cms
+    # Gate flag — flips true when CalibrateModel confirms the simulation
+    # has been calibrated against historic flood records.
+    attribute :model_calibrated, Boolean, default: false
     reference_to Watershed
 
     command "BuildModel" do
@@ -110,12 +142,19 @@ Hecks.bluebook "Hydrology" do
       String :scenario_name
     end
 
+    command "CalibrateModel" do
+      description "Tune the model against historic flood records"
+      emits "ModelCalibrated"
+      reference_to FloodModel
+      then_set :model_calibrated, to: true
+    end
+
     command "RunSimulation" do
       description "Execute the flood model and generate inundation maps"
       emits "SimulationRun"
       reference_to FloodModel
       Integer :return_period_years
-      given "model must be calibrated against historic floods"
+      given { model_calibrated == true }
     end
 
     command "PublishFloodMap" do
@@ -131,6 +170,9 @@ Hecks.bluebook "Hydrology" do
     Float :depth_m
     Float :screen_top_m
     Float :screen_bottom_m
+    # Gate flag — flips true once PurgeWell evacuates stagnant water so a
+    # representative sample can be taken. SampleGroundwater is gated on it.
+    attribute :well_purged, Boolean, default: false
     reference_to Watershed
 
     command "DrillWell" do
@@ -148,11 +190,18 @@ Hecks.bluebook "Hydrology" do
       Float :depth_to_water_m
     end
 
+    command "PurgeWell" do
+      description "Evacuate stagnant water from the well casing before sampling"
+      emits "WellPurged"
+      reference_to MonitoringWell
+      then_set :well_purged, to: true
+    end
+
     command "SampleGroundwater" do
       description "Collect a water sample for chemical analysis"
       emits "GroundwaterSampled"
       reference_to MonitoringWell
-      given "well must be purged before sampling"
+      given { well_purged == true }
     end
   end
 

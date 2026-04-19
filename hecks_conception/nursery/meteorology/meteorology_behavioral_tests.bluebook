@@ -15,6 +15,19 @@ Hecks.behaviors "Meteorology" do
     expect ok: "true"
   end
 
+  test "ClearPendingAlerts runs" do
+    tests "ClearPendingAlerts", on: "WeatherStation"
+    setup  "InstallStation", station_id: "sample", name: "sample", latitude: 1.0, longitude: 1.0
+    expect alerts_cleared: true
+  end
+
+  test "DeactivateStation runs" do
+    tests "DeactivateStation", on: "WeatherStation"
+    setup  "InstallStation", station_id: "sample", name: "sample", latitude: 1.0, longitude: 1.0
+    setup  "ClearPendingAlerts"
+    expect ok: "true"
+  end
+
 
   # ── SurfaceObservation aggregate ──────────────────────────────────────────
 
@@ -22,6 +35,19 @@ Hecks.behaviors "Meteorology" do
     tests "RecordObservation", on: "SurfaceObservation"
     setup  "InstallStation", station_id: "sample", name: "sample", latitude: 1.0, longitude: 1.0
     input  timestamp: "sample", temperature_c: 1.0, pressure_hpa: 1.0
+    expect ok: "true"
+  end
+
+  test "CompleteObservation runs" do
+    tests "CompleteObservation", on: "SurfaceObservation"
+    setup  "RecordObservation", timestamp: "sample", temperature_c: 1.0, pressure_hpa: 1.0
+    expect fields_complete: true
+  end
+
+  test "ValidateObservation runs" do
+    tests "ValidateObservation", on: "SurfaceObservation"
+    setup  "RecordObservation", timestamp: "sample", temperature_c: 1.0, pressure_hpa: 1.0
+    setup  "CompleteObservation"
     expect ok: "true"
   end
 
@@ -38,6 +64,19 @@ Hecks.behaviors "Meteorology" do
     tests "AmendForecast", on: "Forecast"
     setup  "IssueForecast", region: "sample", synopsis: "sample", valid_from: "sample", valid_to: "sample"
     input  amendment: "sample"
+    expect ok: "true"
+  end
+
+  test "MarkForecastExpired runs" do
+    tests "MarkForecastExpired", on: "Forecast"
+    setup  "IssueForecast", region: "sample", synopsis: "sample", valid_from: "sample", valid_to: "sample"
+    expect valid_period_elapsed: true
+  end
+
+  test "VerifyForecast runs" do
+    tests "VerifyForecast", on: "Forecast"
+    setup  "IssueForecast", region: "sample", synopsis: "sample", valid_from: "sample", valid_to: "sample"
+    setup  "MarkForecastExpired"
     expect ok: "true"
   end
 
@@ -63,6 +102,12 @@ Hecks.behaviors "Meteorology" do
   test "IssueAlert sets alert_type + severity + region" do
     tests "IssueAlert", on: "WeatherAlert"
     input  alert_type: "sample", severity: "sample", region: "sample"
+    expect alert_active: true
+  end
+
+  test "CancelAlert runs" do
+    tests "CancelAlert", on: "WeatherAlert"
+    setup  "IssueAlert", alert_type: "sample", severity: "sample", region: "sample"
     expect ok: "true"
   end
 

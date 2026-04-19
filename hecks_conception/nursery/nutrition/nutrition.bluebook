@@ -44,6 +44,7 @@ Hecks.bluebook "Nutrition" do
     String :start_date
     Integer :duration_days
     Float :target_calories
+    Integer :meals_per_day
 
     command "Compose" do
       description "Draft a new meal plan"
@@ -60,13 +61,15 @@ Hecks.bluebook "Nutrition" do
       reference_to FoodItem
       String :meal_type
       Float :servings
+      Integer :new_meals_per_day
+      then_set :meals_per_day, to: :new_meals_per_day
     end
 
     command "FinalizePlan" do
       description "Lock the meal plan for adherence tracking"
       emits "PlanFinalized"
       reference_to MealPlan
-      given "plan must have at least three meals per day"
+      given { meals_per_day >= 3 }
     end
   end
 
@@ -76,6 +79,9 @@ Hecks.bluebook "Nutrition" do
     String :nutrient
     Float :target_value
     String :unit
+    # Gate flag — flips true once RecordIntake stores at least one
+    # observed intake value for this goal. EvaluateProgress is gated on it.
+    attribute :intake_data_tracked, Boolean, default: false
     reference_to MealPlan
 
     command "SetGoal" do
@@ -86,11 +92,19 @@ Hecks.bluebook "Nutrition" do
       Float :target_value
     end
 
+    command "RecordIntake" do
+      description "Log an observed intake measurement against this goal"
+      emits "IntakeRecorded"
+      reference_to DietaryGoal
+      Float :observed_value
+      then_set :intake_data_tracked, to: true
+    end
+
     command "EvaluateProgress" do
       description "Check current intake against the goal"
       emits "ProgressEvaluated"
       reference_to DietaryGoal
-      given "goal must have tracked intake data"
+      given { intake_data_tracked == true }
     end
 
     command "AdjustTarget" do
@@ -117,11 +131,19 @@ Hecks.bluebook "Nutrition" do
       String :severity
     end
 
+    command "UpdateCurrentIntake" do
+      description "Record the latest observed intake for this nutrient"
+      emits "CurrentIntakeUpdated"
+      reference_to Deficiency
+      Float :new_intake
+      then_set :current_intake, to: :new_intake
+    end
+
     command "ResolveDeficiency" do
       description "Mark a deficiency as corrected through dietary changes"
       emits "DeficiencyResolved"
       reference_to Deficiency
-      given "intake must now meet recommended levels"
+      given { current_intake >= recommended_intake }
     end
   end
 

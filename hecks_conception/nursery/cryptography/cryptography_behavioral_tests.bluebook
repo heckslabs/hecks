@@ -9,6 +9,19 @@ Hecks.behaviors "Cryptography" do
     expect ok: "true"
   end
 
+  test "RevokeKey sets revocation_reason" do
+    tests "RevokeKey", on: "KeyPair"
+    setup  "GenerateKeyPair", algorithm: "sample", key_length_bits: 1, owner: "sample"
+    input  revocation_reason: "sample"
+    expect ok: "true"
+  end
+
+  test "MarkExpired runs" do
+    tests "MarkExpired", on: "KeyPair"
+    setup  "GenerateKeyPair", algorithm: "sample", key_length_bits: 1, owner: "sample"
+    expect ok: "true"
+  end
+
   test "RotateKey runs" do
     tests "RotateKey", on: "KeyPair"
     setup  "GenerateKeyPair", algorithm: "sample", key_length_bits: 1, owner: "sample"
@@ -30,6 +43,18 @@ Hecks.behaviors "Cryptography" do
     expect ok: "true"
   end
 
+  test "DesignateReplacement runs" do
+    tests "DesignateReplacement", on: "Cipher"
+    setup  "RegisterCipher", cipher_name: "sample", cipher_type: "sample", block_size_bits: 1
+    expect ok: "true"
+  end
+
+  test "DeprecateCipher runs" do
+    tests "DeprecateCipher", on: "Cipher"
+    setup  "RegisterCipher", cipher_name: "sample", cipher_type: "sample", block_size_bits: 1
+    expect ok: "true"
+  end
+
 
   # ── EncryptedMessage aggregate ──────────────────────────────────────────
 
@@ -38,6 +63,18 @@ Hecks.behaviors "Cryptography" do
     setup  "RegisterCipher", cipher_name: "sample", cipher_type: "sample", block_size_bits: 1
     setup  "GenerateKeyPair", algorithm: "sample", key_length_bits: 1, owner: "sample"
     input  plaintext: "sample"
+    expect ok: "true"
+  end
+
+  test "MatchDecryptionKey runs" do
+    tests "MatchDecryptionKey", on: "EncryptedMessage"
+    setup  "EncryptMessage", plaintext: "sample"
+    expect ok: "true"
+  end
+
+  test "DecryptMessage runs" do
+    tests "DecryptMessage", on: "EncryptedMessage"
+    setup  "EncryptMessage", plaintext: "sample"
     expect ok: "true"
   end
 
@@ -51,6 +88,18 @@ Hecks.behaviors "Cryptography" do
     expect ok: "true"
   end
 
+  test "ValidateSigningKey runs" do
+    tests "ValidateSigningKey", on: "DigitalSignature"
+    setup  "SignMessage", message_hash: "sample", hash_algorithm: "sample"
+    expect ok: "true"
+  end
+
+  test "VerifySignature runs" do
+    tests "VerifySignature", on: "DigitalSignature"
+    setup  "SignMessage", message_hash: "sample", hash_algorithm: "sample"
+    expect ok: "true"
+  end
+
 
   # ── Certificate aggregate ──────────────────────────────────────────
 
@@ -58,6 +107,12 @@ Hecks.behaviors "Cryptography" do
     tests "IssueCertificate", on: "Certificate"
     setup  "GenerateKeyPair", algorithm: "sample", key_length_bits: 1, owner: "sample"
     input  subject: "sample", valid_from: "sample", valid_to: "sample"
+    expect ok: "true"
+  end
+
+  test "RenewCertificate runs" do
+    tests "RenewCertificate", on: "Certificate"
+    setup  "IssueCertificate", subject: "sample", valid_from: "sample", valid_to: "sample"
     expect ok: "true"
   end
 

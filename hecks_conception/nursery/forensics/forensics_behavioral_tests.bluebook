@@ -9,6 +9,18 @@ Hecks.behaviors "Forensics" do
     expect case_number: "sample", case_type: "sample", lead_investigator: "sample"
   end
 
+  test "MarkAllEvidenceAnalyzed runs" do
+    tests "MarkAllEvidenceAnalyzed", on: "CriminalCase"
+    setup  "OpenCase", case_number: "sample", case_type: "sample", lead_investigator: "sample"
+    expect ok: "true"
+  end
+
+  test "CloseCase runs" do
+    tests "CloseCase", on: "CriminalCase"
+    setup  "OpenCase", case_number: "sample", case_type: "sample", lead_investigator: "sample"
+    expect ok: "true"
+  end
+
   test "ReassignInvestigator sets new_investigator" do
     tests "ReassignInvestigator", on: "CriminalCase"
     setup  "OpenCase", case_number: "sample", case_type: "sample", lead_investigator: "sample"
@@ -23,6 +35,12 @@ Hecks.behaviors "Forensics" do
     tests "CollectEvidence", on: "EvidenceItem"
     setup  "OpenCase", case_number: "sample", case_type: "sample", lead_investigator: "sample"
     input  item_number: "sample", description: "sample", evidence_type: "sample"
+    expect ok: "true"
+  end
+
+  test "BreakCustodyChain runs" do
+    tests "BreakCustodyChain", on: "EvidenceItem"
+    setup  "CollectEvidence", item_number: "sample", description: "sample", evidence_type: "sample"
     expect ok: "true"
   end
 
@@ -49,6 +67,12 @@ Hecks.behaviors "Forensics" do
     expect ok: "true"
   end
 
+  test "MarkFindingsDocumented runs" do
+    tests "MarkFindingsDocumented", on: "LabAnalysis"
+    setup  "SubmitForAnalysis", analysis_type: "sample", method: "sample"
+    expect ok: "true"
+  end
+
 
   # ── ExpertReport aggregate ──────────────────────────────────────────
 
@@ -56,6 +80,18 @@ Hecks.behaviors "Forensics" do
     tests "DraftReport", on: "ExpertReport"
     setup  "SubmitForAnalysis", analysis_type: "sample", method: "sample"
     input  expert_name: "sample"
+    expect ok: "true"
+  end
+
+  test "MarkReportPeerReviewed runs" do
+    tests "MarkReportPeerReviewed", on: "ExpertReport"
+    setup  "DraftReport", expert_name: "sample"
+    expect ok: "true"
+  end
+
+  test "FinalizeReport runs" do
+    tests "FinalizeReport", on: "ExpertReport"
+    setup  "DraftReport", expert_name: "sample"
     expect ok: "true"
   end
 

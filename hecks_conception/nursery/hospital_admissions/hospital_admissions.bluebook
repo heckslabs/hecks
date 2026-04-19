@@ -8,6 +8,9 @@ Hecks.bluebook "HospitalAdmissions", version: "2026.04.13.1" do
     String :emergency_contact
     String :chief_complaint
     String :triage_level
+    # Gate flag — flips true when intake forms are verified complete and
+    # the patient is ready to be triaged. TriagePatient is gated on it.
+    attribute :intake_validated, Boolean, default: false
 
     specification "CriticalTriage" do
       satisfied_by { triage_level == "1" }
@@ -23,11 +26,18 @@ Hecks.bluebook "HospitalAdmissions", version: "2026.04.13.1" do
       emits "PatientRegistered"
     end
 
+    ValidateIntake do
+      description "Verify intake forms and insurance details are complete"
+      reference_to(Patient)
+      emits "IntakeValidated"
+      then_set :intake_validated, to: true
+    end
+
     TriagePatient do
       description "Assess urgency and assign a triage level"
       reference_to(Patient)
       String :triage_level
-      given "triage level must be 1 through 5"
+      given { intake_validated == true }
       emits "PatientTriaged"
     end
   end
@@ -38,12 +48,22 @@ Hecks.bluebook "HospitalAdmissions", version: "2026.04.13.1" do
     String :bed_type
     String :status
     String :assigned_patient
+    # Gate flag — flips true after PrepareBed sanitizes and confirms the
+    # bed is empty and ready for assignment. AssignBed is gated on it.
+    attribute :bed_ready, Boolean, default: false
+
+    PrepareBed do
+      description "Sanitize and confirm the bed is empty and ready for use"
+      reference_to(Bed)
+      emits "BedPrepared"
+      then_set :bed_ready, to: true
+    end
 
     AssignBed do
       description "Place a triaged patient in an available bed"
       reference_to(Bed)
       String :patient_name
-      given "bed must be unoccupied"
+      given { bed_ready == true }
       emits "BedAssigned"
     end
 
@@ -94,6 +114,10 @@ Hecks.bluebook "HospitalAdmissions", version: "2026.04.13.1" do
     list_of(String) :medications
     list_of(String) :follow_up_appointments
     String :status
+    # Gate flag — flips true once every follow-up has been booked.
+    # ApproveDischargePlan is gated on it so a plan cannot be signed
+    # off until follow-ups are in place.
+    attribute :follow_ups_scheduled, Boolean, default: false
 
     DraftDischargePlan do
       description "Begin planning a patient's safe exit from the hospital"
@@ -102,10 +126,17 @@ Hecks.bluebook "HospitalAdmissions", version: "2026.04.13.1" do
       emits "DischargePlanDrafted"
     end
 
+    ScheduleFollowUps do
+      description "Book all follow-up appointments required for discharge"
+      reference_to(DischargeePlan)
+      emits "FollowUpsScheduled"
+      then_set :follow_ups_scheduled, to: true
+    end
+
     ApproveDischargePlan do
       description "Physician signs off that the patient is safe to leave"
       reference_to(DischargeePlan)
-      given "all follow-up appointments must be scheduled"
+      given { follow_ups_scheduled == true }
       emits "DischargePlanApproved"
     end
 

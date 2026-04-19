@@ -8,6 +8,7 @@ Hecks.bluebook "Archaeology" do
     Float :latitude
     Float :longitude
     String :period_estimate
+    TrueClass :trenches_backfilled, default: false
 
     command "OpenSite" do
       description "Begin excavation at a new archaeological site"
@@ -22,7 +23,7 @@ Hecks.bluebook "Archaeology" do
       description "Conclude fieldwork and seal the site"
       emits "SiteClosed"
       reference_to ExcavationSite
-      given "all trenches must be backfilled"
+      given { trenches_backfilled == true }
     end
 
     command "AssignDirector" do
@@ -76,6 +77,9 @@ Hecks.bluebook "Archaeology" do
     String :material
     String :object_type
     Float :weight_g
+    TrueClass :is_organic, default: false
+    TrueClass :photographed, default: false
+    TrueClass :cataloged, default: false
     reference_to StratigraphicUnit
 
     command "RegisterFind" do
@@ -97,7 +101,7 @@ Hecks.bluebook "Archaeology" do
       description "Submit the artifact for radiometric dating"
       emits "DatingRequested"
       reference_to Artifact
-      given "artifact must be from organic material"
+      given { is_organic == true }
     end
   end
 
@@ -106,6 +110,7 @@ Hecks.bluebook "Archaeology" do
     String :method
     Integer :date_bp
     Integer :error_margin
+    TrueClass :is_radiocarbon, default: false
     reference_to Artifact
 
     command "SubmitResult" do
@@ -121,7 +126,7 @@ Hecks.bluebook "Archaeology" do
       description "Apply calibration curve to convert raw date"
       emits "DateCalibrated"
       reference_to DatingResult
-      given "result must be radiocarbon method"
+      given { is_radiocarbon == true }
     end
   end
 
@@ -139,7 +144,7 @@ Hecks.bluebook "Archaeology" do
       reference_to Artifact
       String :treatment_type
       String :conservator
-      given "artifact must be photographed and cataloged"
+      given { photographed == true && cataloged == true }
     end
 
     command "PublishSiteReport" do

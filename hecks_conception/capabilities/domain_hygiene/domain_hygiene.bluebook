@@ -56,12 +56,22 @@ Hecks.bluebook "DomainHygiene", version: "2026.04.13.1" do
     attribute :before_state, String
     attribute :after_state, String
     attribute :revalidated, TrueClass
+    # Flipped true by ConfirmBoots; EnrichDomain gates on it. Planner picks
+    # ConfirmBoots as the producer.
+    attribute :boots, TrueClass, default: false
+
+    command "ConfirmBoots" do
+      description "Parse the target domain and confirm it boots — required before enrichment"
+      attribute :domain_name, String
+      emits "BootConfirmed"
+      then_set :boots, to: true
+    end
 
     command "EnrichDomain" do
       description "Add missing policies, events, or descriptions to a domain that lacks them"
       attribute :domain_name, String
       attribute :enrichment_type, String
-      given "domain must already boot before enrichment"
+      given { boots == true }
       emits "DomainEnriched"
     end
 
@@ -101,6 +111,9 @@ Hecks.bluebook "DomainHygiene", version: "2026.04.13.1" do
     attribute :enriched, Integer
     attribute :harvested, Integer
     attribute :waves, list_of(GrowthWave)
+    # Flipped true once RepairFailures finishes — at that point the wave's
+    # remaining domains are valid and ready for enrichment.
+    attribute :wave_valid, Boolean, default: false
 
     value_object "GrowthWave" do
       attribute :wave_number, Integer
@@ -113,7 +126,7 @@ Hecks.bluebook "DomainHygiene", version: "2026.04.13.1" do
     command "GrowCorpus" do
       description "Launch a growth cycle — conceive N domains across diverse topics"
       attribute :target_count, Integer
-      given "target must be at least 10"
+      given { target_count >= 10 }
       emits "GrowthStarted"
     end
 
@@ -129,12 +142,13 @@ Hecks.bluebook "DomainHygiene", version: "2026.04.13.1" do
       description "Read validation errors, fix the bluebooks, revalidate"
       reference_to(CorpusGrowth)
       emits "FailuresRepaired"
+      then_set :wave_valid, to: true
     end
 
     command "EnrichShallow" do
       description "Add policies, references, and givens to valid but thin domains"
       reference_to(CorpusGrowth)
-      given "domain must be valid before enrichment"
+      given { wave_valid == true }
       emits "ShallowEnriched"
     end
 

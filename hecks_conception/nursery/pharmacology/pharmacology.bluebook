@@ -8,6 +8,7 @@ Hecks.bluebook "Pharmacology" do
     String :molecular_formula
     Float :molecular_weight
     String :mechanism_of_action
+    Boolean :structure_data_loaded, default: false
 
     value_object "PharmacokineticsProfile" do
       Float :half_life_hours
@@ -22,13 +23,14 @@ Hecks.bluebook "Pharmacology" do
       String :compound_id
       String :name
       String :molecular_formula
+      then_set :structure_data_loaded, true
     end
 
     command "ScreenCompound" do
       description "Run in-vitro screening assays on the compound"
       emits "CompoundScreened"
       reference_to Compound
-      given "compound must have structure data"
+      given { structure_data_loaded == true }
     end
 
     command "ShelveCompound" do
@@ -61,7 +63,7 @@ Hecks.bluebook "Pharmacology" do
       emits "SubjectEnrolled"
       reference_to ClinicalTrial
       String :subject_id
-      given "trial must not be at enrollment capacity"
+      given { enrolled_count < enrollment_target }
     end
 
     command "ConcludeTrial" do
@@ -77,6 +79,7 @@ Hecks.bluebook "Pharmacology" do
     String :description
     String :severity
     String :causality_assessment
+    Boolean :medically_reviewed, default: false
     reference_to ClinicalTrial
 
     command "ReportEvent" do
@@ -85,6 +88,7 @@ Hecks.bluebook "Pharmacology" do
       reference_to ClinicalTrial
       String :description
       String :severity
+      then_set :medically_reviewed, true
     end
 
     command "AssessCausality" do
@@ -92,7 +96,7 @@ Hecks.bluebook "Pharmacology" do
       emits "CausalityAssessed"
       reference_to AdverseEvent
       String :assessment
-      given "event must be medically reviewed"
+      given { medically_reviewed == true }
     end
   end
 
@@ -102,6 +106,7 @@ Hecks.bluebook "Pharmacology" do
     String :agency
     String :submission_type
     String :status
+    Boolean :trial_results_included, default: false
     reference_to Compound
 
     command "FileSubmission" do
@@ -110,13 +115,14 @@ Hecks.bluebook "Pharmacology" do
       reference_to Compound
       String :agency
       String :submission_type
+      then_set :trial_results_included, true
     end
 
     command "GrantApproval" do
       description "Record regulatory approval of the drug"
       emits "ApprovalGranted"
       reference_to RegulatorySubmission
-      given "submission must include trial results"
+      given { trial_results_included == true }
     end
   end
 

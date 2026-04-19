@@ -3,9 +3,15 @@ Hecks.behaviors "Summer" do
 
   # ── Model aggregate ──────────────────────────────────────────
 
+  test "CountTrainingPairs sets data_path + training_pairs" do
+    tests "CountTrainingPairs", on: "Model"
+    input  data_path: "sample", training_pairs: 1
+    expect training_pairs: 1
+  end
+
   test "EvaluateModel runs" do
     tests "EvaluateModel", on: "Model"
-    setup  "TrainModel", base_model: "sample", data_path: "sample", iterations: 1
+    setup  "CountTrainingPairs", data_path: "sample", training_pairs: 1
     expect ok: "true"
   end
 
@@ -21,7 +27,7 @@ Hecks.behaviors "Summer" do
   test "ValidateDraft runs" do
     tests "ValidateDraft", on: "Draft"
     setup  "GenerateDraft", vision: "sample"
-    expect ok: "true"
+    expect validated: true, review_done: true
   end
 
 
@@ -30,6 +36,12 @@ Hecks.behaviors "Summer" do
   test "CritiqueDomain sets domain_name" do
     tests "CritiqueDomain", on: "Critique"
     input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+  test "ApplySuggestions runs" do
+    tests "ApplySuggestions", on: "Critique"
+    setup  "CritiqueDomain", domain_name: "sample"
     expect ok: "true"
   end
 

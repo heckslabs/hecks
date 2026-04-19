@@ -13,7 +13,9 @@ Hecks.bluebook "DomainCrossover", version: "2026.04.13.1" do
       description "Find two domains whose vectors are similar enough to combine but different enough to be interesting"
       attribute :min_similarity, Float
       attribute :max_similarity, Float
-      given "similarity must be between 0.3 and 0.8 — too close is a clone, too far is nonsense"
+      given { min_similarity >= 0.3 }
+      given { max_similarity <= 0.8 }
+      given { min_similarity < max_similarity }
       emits "PairSelected"
     end
   end
@@ -27,6 +29,8 @@ Hecks.bluebook "DomainCrossover", version: "2026.04.13.1" do
     attribute :aggregates_from_b, list_of(String)
     attribute :cross_policies, list_of(String)
     attribute :valid, TrueClass
+    # Flipped true by ValidateOffspring; EnrichOffspring gates on it.
+    attribute :validated, Boolean, default: false
 
     command "BreedDomain" do
       description "Combine aggregates from two parents and wire cross-domain policies between them"
@@ -41,12 +45,13 @@ Hecks.bluebook "DomainCrossover", version: "2026.04.13.1" do
       description "Parse and validate the bred domain — does it boot?"
       reference_to(Offspring)
       emits "OffspringValidated"
+      then_set :validated, to: true
     end
 
     command "EnrichOffspring" do
       description "Add givens, references, and value objects the crossover missed"
       reference_to(Offspring)
-      given "offspring must be valid before enrichment"
+      given { validated == true }
       emits "OffspringEnriched"
     end
   end

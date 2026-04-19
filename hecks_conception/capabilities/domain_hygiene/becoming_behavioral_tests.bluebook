@@ -3,6 +3,19 @@ Hecks.behaviors "Becoming" do
 
   # ── Harvest aggregate ──────────────────────────────────────────
 
+  test "ScanNursery sets nursery_path" do
+    tests "ScanNursery", on: "Harvest"
+    input  nursery_path: "sample"
+    expect nursery_ready: true
+  end
+
+  test "HarvestDomains sets nursery_path" do
+    tests "HarvestDomains", on: "Harvest"
+    setup  "ScanNursery", nursery_path: "sample"
+    input  nursery_path: "sample"
+    expect ok: "true"
+  end
+
   test "HarvestConversations runs" do
     tests "HarvestConversations", on: "Harvest"
     expect ok: "true"
@@ -23,8 +36,13 @@ Hecks.behaviors "Becoming" do
 
   test "VaryPrompts runs" do
     tests "VaryPrompts", on: "Shape"
-    setup  "HarvestDomains", nursery_path: "sample"
+    setup  "ScanNursery", nursery_path: "sample"
     expect ok: "true"
+  end
+
+  test "CountCategories runs" do
+    tests "CountCategories", on: "Shape"
+    expect categories_counted: true
   end
 
 
@@ -32,19 +50,19 @@ Hecks.behaviors "Becoming" do
 
   test "AddCrossAggregateFlows runs" do
     tests "AddCrossAggregateFlows", on: "Enrich"
-    setup  "HarvestDomains", nursery_path: "sample"
+    setup  "ScanNursery", nursery_path: "sample"
     expect ok: "true"
   end
 
   test "AddSpecifications runs" do
     tests "AddSpecifications", on: "Enrich"
-    setup  "HarvestDomains", nursery_path: "sample"
+    setup  "ScanNursery", nursery_path: "sample"
     expect ok: "true"
   end
 
   test "AddCollections runs" do
     tests "AddCollections", on: "Enrich"
-    setup  "HarvestDomains", nursery_path: "sample"
+    setup  "ScanNursery", nursery_path: "sample"
     expect ok: "true"
   end
 
@@ -69,6 +87,13 @@ Hecks.behaviors "Becoming" do
   test "PrepareSplit runs" do
     tests "PrepareSplit", on: "Train"
     setup  "VaryPrompts"
+    expect split_ready: true
+  end
+
+  test "RunFineTune sets base_model + iterations + learning_rate" do
+    tests "RunFineTune", on: "Train"
+    setup  "PrepareSplit"
+    input  base_model: "sample", iterations: 1, learning_rate: 1.0
     expect ok: "true"
   end
 

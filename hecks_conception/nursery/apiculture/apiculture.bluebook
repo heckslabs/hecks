@@ -7,6 +7,7 @@ Hecks.bluebook "Apiculture" do
     String :hive_type
     String :location
     Integer :frame_count
+    Integer :brood_frame_count, default: 0
     String :status
 
     command "EstablishHive" do
@@ -21,7 +22,7 @@ Hecks.bluebook "Apiculture" do
       description "Divide a strong colony to prevent swarming"
       emits "HiveSplit"
       reference_to Hive
-      given "colony must have at least eight frames of brood"
+      given { brood_frame_count >= 8 }
     end
 
     command "RetireHive" do
@@ -85,7 +86,7 @@ Hecks.bluebook "Apiculture" do
       reference_to Hive
       String :harvest_date
       Float :weight_kg
-      given "moisture content must be below twenty percent"
+      given { moisture_percent < 20.0 }
     end
 
     command "JarHoney" do
@@ -102,6 +103,7 @@ Hecks.bluebook "Apiculture" do
     String :lineage
     String :marked_color
     Integer :year_introduced
+    Integer :age_years, default: 0
     reference_to Hive
 
     value_object "QueenPerformance" do
@@ -129,7 +131,7 @@ Hecks.bluebook "Apiculture" do
       description "Replace an underperforming queen"
       emits "QueenSuperseded"
       reference_to Queen
-      given "queen must be at least one year old"
+      given { age_years >= 1 }
     end
   end
 
@@ -139,6 +141,7 @@ Hecks.bluebook "Apiculture" do
     String :active_ingredient
     String :application_date
     Integer :duration_days
+    TrueClass :duration_elapsed, default: false
     reference_to Hive
 
     command "ApplyTreatment" do
@@ -153,7 +156,7 @@ Hecks.bluebook "Apiculture" do
       description "Assess whether the treatment resolved the condition"
       emits "EfficacyEvaluated"
       reference_to DiseaseTreatment
-      given "treatment duration must have elapsed"
+      given { duration_elapsed == true }
     end
   end
 

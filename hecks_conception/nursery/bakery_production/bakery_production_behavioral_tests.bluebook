@@ -18,6 +18,12 @@ Hecks.behaviors "BakeryProduction" do
     expect ok: "true"
   end
 
+  test "CompleteBatch runs" do
+    tests "CompleteBatch", on: "Batch"
+    setup  "StartBatch", recipe_name: "sample", production_date: "sample", quantity: 1, baker: "sample"
+    expect ok: "true"
+  end
+
   test "RejectBatch sets reason" do
     tests "RejectBatch", on: "Batch"
     setup  "StartBatch", recipe_name: "sample", production_date: "sample", quantity: 1, baker: "sample"

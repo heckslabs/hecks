@@ -8,6 +8,7 @@ Hecks.bluebook "Astronomy" do
     Float :right_ascension
     Float :declination
     Float :apparent_magnitude
+    TrueClass :coordinates_initialized, default: false
     reference_to Catalog
 
     value_object "Coordinates" do
@@ -31,7 +32,7 @@ Hecks.bluebook "Astronomy" do
       reference_to CelestialBody
       Float :new_ra
       Float :new_dec
-      given "body must have initial coordinates"
+      given { coordinates_initialized == true }
     end
 
     command "ReclassifyBody" do
@@ -48,6 +49,7 @@ Hecks.bluebook "Astronomy" do
     String :timestamp
     String :seeing_conditions
     Float :measured_magnitude
+    TrueClass :telescope_calibrated, default: false
     reference_to CelestialBody
     reference_to Telescope
 
@@ -58,7 +60,7 @@ Hecks.bluebook "Astronomy" do
       String :timestamp
       reference_to CelestialBody
       reference_to Telescope
-      given "telescope must be calibrated"
+      given { telescope_calibrated == true }
     end
 
     command "GradeSeeing" do
@@ -82,6 +84,7 @@ Hecks.bluebook "Astronomy" do
     Float :aperture_mm
     Float :focal_length_mm
     String :mount_type
+    Integer :active_session_count, default: 0
 
     value_object "OpticalConfig" do
       Float :eyepiece_focal_length
@@ -107,7 +110,7 @@ Hecks.bluebook "Astronomy" do
       description "Take a telescope out of service"
       emits "TelescopeRetired"
       reference_to Telescope
-      given "telescope must not have active observation sessions"
+      given { active_session_count == 0 }
     end
   end
 
@@ -128,7 +131,7 @@ Hecks.bluebook "Astronomy" do
       description "Release the catalog for public use"
       emits "CatalogPublished"
       reference_to Catalog
-      given "catalog must have at least one entry"
+      given { entry_count >= 1 }
     end
   end
 

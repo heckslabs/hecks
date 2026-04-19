@@ -10,11 +10,22 @@ Hecks.bluebook "Becoming", version: "2026.04.13.1" do
     attribute :dreams_collected, Integer
     attribute :identity_pairs, Integer
     attribute :harvested_at, String
+    # Set true once ScanNursery confirms the nursery has enough domains to
+    # train on. HarvestDomains gates on this — the planner picks ScanNursery
+    # as the producer.
+    attribute :nursery_ready, Boolean, default: false
+
+    command "ScanNursery" do
+      description "Count valid bluebooks in the nursery and confirm the corpus is large enough to harvest"
+      attribute :nursery_path, String
+      emits "NurseryScanned"
+      then_set :nursery_ready, to: true
+    end
 
     command "HarvestDomains" do
       description "Walk the nursery, validate each bluebook, extract prompt/completion pairs"
       attribute :nursery_path, String
-      given "nursery must contain at least 100 domains"
+      given { nursery_ready == true }
       emits "DomainsHarvested"
     end
 
@@ -42,6 +53,10 @@ Hecks.bluebook "Becoming", version: "2026.04.13.1" do
     attribute :varied_pairs, Integer
     attribute :chain_of_thought_pairs, Integer
     attribute :category_balance_score, Float
+    # Set true once CountCategories confirms enough categories are
+    # well-populated. BalanceCategories gates on this — planner picks
+    # CountCategories as the producer.
+    attribute :categories_counted, Boolean, default: false
 
     command "VaryPrompts" do
       description "Generate 2 alternative phrasings per domain pair — same completion, different prompt"
@@ -60,9 +75,15 @@ Hecks.bluebook "Becoming", version: "2026.04.13.1" do
       emits "ChainOfThoughtAdded"
     end
 
+    command "CountCategories" do
+      description "Tally pairs per category and confirm the corpus has enough variety to balance"
+      emits "CategoriesCounted"
+      then_set :categories_counted, to: true
+    end
+
     command "BalanceCategories" do
       description "Cap over-represented categories, flag under-represented ones for growth"
-      given "must have at least 5 categories with 10+ domains each"
+      given { categories_counted == true }
       emits "CategoriesBalanced"
     end
   end
@@ -137,11 +158,15 @@ Hecks.bluebook "Becoming", version: "2026.04.13.1" do
     attribute :learning_rate, Float
     attribute :final_train_loss, Float
     attribute :final_val_loss, Float
+    # Flag flips true when PrepareSplit finishes; RunFineTune gates on it.
+    # Planner picks PrepareSplit as the producer.
+    attribute :split_ready, Boolean, default: false
 
     command "PrepareSplit" do
       description "Merge all signal types into train/valid JSONL, shuffle, split 90/10"
       reference_to(Shape)
       emits "SplitPrepared"
+      then_set :split_ready, to: true
     end
 
     command "RunFineTune" do
@@ -150,7 +175,7 @@ Hecks.bluebook "Becoming", version: "2026.04.13.1" do
       attribute :base_model, String
       attribute :iterations, Integer
       attribute :learning_rate, Float
-      given "training data must have at least 500 pairs"
+      given { split_ready == true }
       emits "FineTuneComplete"
     end
   end

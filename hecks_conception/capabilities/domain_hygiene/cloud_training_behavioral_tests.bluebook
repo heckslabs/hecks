@@ -3,18 +3,57 @@ Hecks.behaviors "CloudTraining" do
 
   # ── TrainingJob aggregate ──────────────────────────────────────────
 
+  test "LinkUploadedData runs" do
+    tests "LinkUploadedData", on: "TrainingJob"
+    expect data_ready: true
+  end
+
+  test "SubmitJob sets provider + gpu_type + base_model + iterations + learning_rate" do
+    tests "SubmitJob", on: "TrainingJob"
+    setup  "LinkUploadedData"
+    input  provider: "sample", gpu_type: "sample", base_model: "sample", iterations: 1, learning_rate: 1.0
+    expect running: true
+  end
+
   test "MonitorJob runs" do
     tests "MonitorJob", on: "TrainingJob"
+    setup  "LinkUploadedData"
+    expect remote_complete: true
+  end
+
+  test "CompleteJob runs" do
+    tests "CompleteJob", on: "TrainingJob"
+    setup  "LinkUploadedData"
+    setup  "MonitorJob"
+    expect running: false
+  end
+
+  test "CancelJob runs" do
+    tests "CancelJob", on: "TrainingJob"
+    setup  "LinkUploadedData"
     setup  "SubmitJob", provider: "sample", gpu_type: "sample", base_model: "sample", iterations: 1, learning_rate: 1.0
-    expect ok: "true"
+    expect running: false
   end
 
 
   # ── DataUpload aggregate ──────────────────────────────────────────
 
+  test "ValidateJsonl sets local_path" do
+    tests "ValidateJsonl", on: "DataUpload"
+    input  local_path: "sample"
+    expect jsonl_valid: true
+  end
+
+  test "StageData sets local_path" do
+    tests "StageData", on: "DataUpload"
+    setup  "ValidateJsonl", local_path: "sample"
+    input  local_path: "sample"
+    expect ok: "true"
+  end
+
   test "UploadData sets remote_path" do
     tests "UploadData", on: "DataUpload"
-    setup  "StageData", local_path: "sample"
+    setup  "ValidateJsonl", local_path: "sample"
     input  remote_path: "sample"
     expect ok: "true"
   end
@@ -32,7 +71,7 @@ Hecks.behaviors "CloudTraining" do
     tests "ConvertToOllama", on: "AdapterDownload"
     setup  "DownloadAdapter", remote_path: "sample", local_path: "sample"
     input  ollama_model_name: "sample"
-    expect ok: "true"
+    expect adapter_converted: true
   end
 
 
@@ -40,7 +79,7 @@ Hecks.behaviors "CloudTraining" do
 
   test "RecordCost runs" do
     tests "RecordCost", on: "CostTracker"
-    setup  "SubmitJob", provider: "sample", gpu_type: "sample", base_model: "sample", iterations: 1, learning_rate: 1.0
+    setup  "LinkUploadedData"
     expect ok: "true"
   end
 

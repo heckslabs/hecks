@@ -9,6 +9,19 @@ Hecks.behaviors "GameTheory" do
     expect ok: "true"
   end
 
+  test "ValidateGame runs" do
+    tests "ValidateGame", on: "StrategicGame"
+    setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
+    expect ok: "true"
+  end
+
+  test "SetPlayerCount sets player_count" do
+    tests "SetPlayerCount", on: "StrategicGame"
+    setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
+    input  player_count: 1
+    expect ok: "true"
+  end
+
   test "ArchiveGame runs" do
     tests "ArchiveGame", on: "StrategicGame"
     setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
@@ -23,6 +36,18 @@ Hecks.behaviors "GameTheory" do
     setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
     input  player_id: "sample", strategy_type: "sample"
     expect player_id: "sample", strategy_type: "sample"
+  end
+
+  test "SpecifyOpponentStrategies runs" do
+    tests "SpecifyOpponentStrategies", on: "Strategy"
+    setup  "RegisterStrategy", player_id: "sample", strategy_type: "sample"
+    expect ok: "true"
+  end
+
+  test "ComputeBestResponse runs" do
+    tests "ComputeBestResponse", on: "Strategy"
+    setup  "RegisterStrategy", player_id: "sample", strategy_type: "sample"
+    expect ok: "true"
   end
 
   test "EliminateDominated runs" do
@@ -57,6 +82,20 @@ Hecks.behaviors "GameTheory" do
     expect ok: "true"
   end
 
+  test "RecordNashEquilibrium sets nash_equilibrium_count" do
+    tests "RecordNashEquilibrium", on: "Equilibrium"
+    setup  "SolveNash"
+    input  nash_equilibrium_count: 1
+    expect ok: "true"
+  end
+
+  test "RefineEquilibrium sets refinement_type" do
+    tests "RefineEquilibrium", on: "Equilibrium"
+    setup  "SolveNash"
+    input  refinement_type: "sample"
+    expect ok: "true"
+  end
+
 
   # ── Simulation aggregate ──────────────────────────────────────────
 
@@ -64,6 +103,18 @@ Hecks.behaviors "GameTheory" do
     tests "ConfigureSimulation", on: "Simulation"
     setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
     input  simulation_id: "sample", iteration_count: 1, learning_rule: "sample"
+    expect ok: "true"
+  end
+
+  test "MarkConfigured runs" do
+    tests "MarkConfigured", on: "Simulation"
+    setup  "ConfigureSimulation", simulation_id: "sample", iteration_count: 1, learning_rule: "sample"
+    expect ok: "true"
+  end
+
+  test "RunSimulation runs" do
+    tests "RunSimulation", on: "Simulation"
+    setup  "ConfigureSimulation", simulation_id: "sample", iteration_count: 1, learning_rule: "sample"
     expect ok: "true"
   end
 

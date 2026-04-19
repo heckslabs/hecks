@@ -10,6 +10,7 @@ Hecks.bluebook "Acoustics" do
     Float :width_m
     Float :height_m
     Float :volume_m3
+    Integer :surface_material_count, default: 0
 
     command "DefineRoom" do
       description "Register a new room for acoustic analysis"
@@ -25,7 +26,7 @@ Hecks.bluebook "Acoustics" do
       description "Compute the RT60 reverberation time using Sabine equation"
       emits "ReverberationCalculated"
       reference_to Room
-      given "room must have at least one surface material assigned"
+      given { surface_material_count > 0 }
     end
 
     command "ArchiveRoom" do
@@ -42,6 +43,7 @@ Hecks.bluebook "Acoustics" do
     String :timestamp
     Float :spl_db
     Float :rt60_seconds
+    TrueClass :raw_audio_captured, default: false
     reference_to Room
 
     value_object "FrequencyResponse" do
@@ -62,7 +64,7 @@ Hecks.bluebook "Acoustics" do
       description "Perform FFT analysis on the recorded impulse response"
       emits "SpectrumAnalyzed"
       reference_to AcousticMeasurement
-      given "raw audio data must be captured"
+      given { raw_audio_captured == true }
     end
 
     command "CompareMeasurements" do
@@ -78,6 +80,7 @@ Hecks.bluebook "Acoustics" do
     String :material_type
     Float :nrc_rating
     Float :thickness_mm
+    Integer :active_treatment_count, default: 0
 
     value_object "AbsorptionCoefficients" do
       Float :at_125hz
@@ -106,7 +109,7 @@ Hecks.bluebook "Acoustics" do
       description "Mark a material as no longer manufactured"
       emits "MaterialDeprecated"
       reference_to AcousticMaterial
-      given "material must not be referenced in active treatments"
+      given { active_treatment_count == 0 }
     end
   end
 
@@ -115,6 +118,7 @@ Hecks.bluebook "Acoustics" do
     String :plan_name
     String :objective
     Float :target_rt60
+    Integer :post_treatment_measurement_count, default: 0
     reference_to Room
 
     command "DesignTreatment" do
@@ -137,7 +141,7 @@ Hecks.bluebook "Acoustics" do
       description "Compare post-treatment measurements against targets"
       emits "TreatmentEvaluated"
       reference_to TreatmentPlan
-      given "post-treatment measurement must exist"
+      given { post_treatment_measurement_count > 0 }
     end
   end
 

@@ -7,6 +7,9 @@ Hecks.bluebook "CorpusPruning", version: "2026.04.13.1" do
     attribute :original_size, Integer
     attribute :chunk_count, Integer
     attribute :chunks, list_of(Chunk)
+    # original_size is set by MeasureDomain so SplitMonster can gate on it.
+    # The planner picks MeasureDomain as the producer.
+    attribute :measured, Boolean, default: false
 
     value_object "Chunk" do
       attribute :sub_domain_name, String
@@ -15,11 +18,21 @@ Hecks.bluebook "CorpusPruning", version: "2026.04.13.1" do
       attribute :focus_description, String
     end
 
+    command "MeasureDomain" do
+      description "Count aggregates in the source domain so SplitMonster knows whether it is large enough to chunk"
+      attribute :source_domain, String
+      attribute :original_size, Integer
+      emits "DomainMeasured"
+      then_set :original_size, to: :original_size
+      then_set :measured, to: true
+    end
+
     command "SplitMonster" do
       description "Break a domain with 10+ aggregates into 3-4 aggregate chunks"
       attribute :source_domain, String
       attribute :max_aggregates_per_chunk, Integer
-      given "domain must have more than 8 aggregates"
+      given { measured == true }
+      given { original_size > 8 }
       emits "MonsterSplit"
     end
   end
@@ -70,7 +83,8 @@ Hecks.bluebook "CorpusPruning", version: "2026.04.13.1" do
       description "Compare all domain pairs by structural vector similarity — flag near-clones"
       attribute :jsonl_path, String
       attribute :similarity_threshold, Float
-      given "threshold must be between 0.8 and 1.0"
+      given { similarity_threshold >= 0.8 }
+      given { similarity_threshold <= 1.0 }
       emits "DuplicatesFound"
     end
 
