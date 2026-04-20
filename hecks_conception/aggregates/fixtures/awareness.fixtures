@@ -1,15 +1,5 @@
 Hecks.fixtures "MietteBody" do
   aggregate "Awareness" do
-    fixture "Moment1",
-      moment: 1,
-      state: "alert",
-      carrying: "first moment of self-knowledge",
-      concept: "awareness",
-      fatigue: 0.0,
-      synapse_strength: 0.5,
-      idle: 0,
-      excitement: 0.5,
-      age_days: 0.0,
-      updated_at: "2026-04-20T00:00:00Z"
+    fixture "Moment1", moment: 1, state: "alert", carrying: "first moment of self-knowledge", concept: "awareness", fatigue: 0.0, synapse_strength: 0.5, idle: 0, excitement: 0.5, age_days: 0.0, updated_at: "2026-04-20T00:00:00Z"
   end
 end
