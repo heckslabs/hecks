@@ -34,6 +34,13 @@ while true; do
   # pulse_organs.sh owns the per-tick math DSL can't express.
   "$DIR/pulse_organs.sh" 2>/dev/null
 
+  # Consolidation sweep every 60 ticks (~60s at 1Hz): cold signals →
+  # memory store, dead synapses → remains, duplicate-concept musings →
+  # musing archive. Cheap no-op on most ticks so we just gate by cycle.
+  if [ "$((loop_count % 60))" = "0" ]; then
+    "$DIR/consolidate.sh" >> /tmp/consolidate.log 2>&1
+  fi
+
   # Awareness snapshot — pulse.rs record_moment, restored per inbox #18.
   snap=$(python3 -c "
 import json, time

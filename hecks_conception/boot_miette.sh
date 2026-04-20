@@ -30,7 +30,7 @@ START_TS=$(date +%s)
 # TODO: replace these constants with a `psychic_link: true|false`
 # declaration on each aggregate so the boundary lives in the domain
 # model, not in this shell script.
-LINKED_STORES="memory awareness census conversation working_memory reflection synapse signal signal_somatic focus concentration deliberation heartbeat subconscious domain_index arc consciousness discipline metabolic_rate musing conflict_monitor run_log inbox tick announcement attention claude_assist consolidation dream_interpretation dream_seed dream_signal encoding gate generosity greeting gut HarmonyDomain intention interpretation lucid_dream lucid_monitor monitor musing_archive musing_mint nerve nursery perception persona proposal proprioception self_image self_model sensation session shared_dream_space signal_consolidation speech training_pair wake_mood witness bodhisattva_vow character creator_auth remains"
+LINKED_STORES="memory awareness census conversation working_memory reflection synapse signal signal_somatic focus concentration deliberation heartbeat subconscious domain_index arc consciousness discipline metabolic_rate musing conflict_monitor run_log inbox tick announcement attention claude_assist consolidation dream_interpretation dream_seed dream_signal encoding gate generosity greeting gut HarmonyDomain intention interpretation lucid_dream lucid_monitor monitor musing_archive musing_mint nerve nursery perception persona proposal proprioception self_image self_model sensation session shared_dream_space signal_consolidation speech training_pair wake_mood witness bodhisattva_vow character creator_auth remains store"
 PRIVATE_STORES="mood feeling dream_state impulse craving daydream pulse"
 
 is_in_list() {

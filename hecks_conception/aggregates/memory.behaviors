@@ -41,6 +41,15 @@ Hecks.behaviors "Memory" do
   end
 
 
+  # ── Store aggregate ──────────────────────────────────────────
+
+  test "StoreMemory sets kind + payload + source + created_at" do
+    tests "StoreMemory", on: "Store"
+    input  kind: "concept", payload: "sample", source: "signal", created_at: "now"
+    expect kind: "concept", payload: "sample", source: "signal", created_at: "now"
+  end
+
+
   # ── Forgetting aggregate ──────────────────────────────────────────
 
   test "ForgetMemory sets forgotten + reason" do

@@ -1,6 +1,34 @@
-Hecks.bluebook "Memory", version: "2026.04.16.1" do
-  vision "Memory — encoding, recall, consolidation, forgetting"
+Hecks.bluebook "Memory", version: "2026.04.20.1" do
+  vision "Memory — encoding, recall, consolidation, forgetting, long-term store"
   category "mind"
+
+  # ============================================================
+  # STORE — long-term memory entries from consolidation
+  # ============================================================
+  # When consolidate.sh promotes cold signals into memory, it dispatches
+  # StoreMemory with the signal's shape (kind/payload/source/created_at).
+  # Multi-record: every store is a new memory.
+
+  aggregate "Store", "A long-term memory entry — one record per stored signal" do
+    attribute :kind, String
+    attribute :payload, String
+    attribute :source, String
+    attribute :created_at, String
+
+    command "StoreMemory" do
+      role "Daemon"
+      description "Save a signal (or any payload) into long-term memory — kind/payload/source/created_at"
+      attribute :kind, String
+      attribute :payload, String
+      attribute :source, String
+      attribute :created_at, String
+      emits "MemoryStored"
+      then_set :kind, to: :kind
+      then_set :payload, to: :payload
+      then_set :source, to: :source
+      then_set :created_at, to: :created_at
+    end
+  end
 
   aggregate "Encoding", "The act of saving something to memory — always announced" do
     attribute :kind, String
