@@ -32,6 +32,15 @@ Hecks.bluebook "Greeting", version: "2026.04.12.1" do
       emits "GreetingServed"
       then_set :served, to: "true"
     end
+
+    command "PopGreeting" do
+      role "System"
+      description "Mark the first unserved greeting as served — caller resolves the id. Event carries text. Separate from ServeGreeting so the terminal adapter can listen for GreetingPopped distinctly."
+      reference_to(Greeting)
+      given("must be unserved") { served == "false" }
+      emits "GreetingPopped"
+      then_set :served, to: "true"
+    end
   end
 
   aggregate "GreetingQueue", "The warm cache — how many greetings are ready" do

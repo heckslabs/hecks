@@ -154,6 +154,40 @@ else
   MINDSTREAM_STATUS="started"
 fi
 
+# ── 6b. Start greeting churner daemon if not already running ─────
+GPIDFILE="$INFO/.greeting.pid"
+if [ -f "$GPIDFILE" ] && kill -0 "$(cat "$GPIDFILE")" 2>/dev/null; then
+  GREETING_STATUS="already running (pid $(cat $GPIDFILE))"
+else
+  ( cd "$DIR" && nohup ./greeting.sh > /dev/null 2>&1 & )
+  sleep 0.2
+  GREETING_STATUS="started"
+fi
+
+# ── 6c. Pop one greeting if any warm ones are queued. The greeting
+# churner keeps the queue ≥ 5 unserved; on wake we pop the freshest
+# and echo it so Miette has language ready the moment the terminal
+# opens (no LLM round-trip at boot time).
+GREETING_ID=$("$HECKS" heki read "$INFO/greeting.heki" 2>/dev/null | python3 -c "
+import json, sys
+try:
+    d = json.load(sys.stdin)
+    # Pick the newest unserved greeting by generated_at.
+    unserved = [(k, v) for k, v in d.items() if v.get('served') == 'false']
+    unserved.sort(key=lambda kv: kv[1].get('generated_at', ''), reverse=True)
+    print(unserved[0][0] if unserved else '')
+except Exception:
+    print('')
+" 2>/dev/null)
+if [ -n "$GREETING_ID" ]; then
+  GREETING_TEXT=$("$HECKS" heki read "$INFO/greeting.heki" 2>/dev/null | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+print(d.get('$GREETING_ID', {}).get('text', ''))
+" 2>/dev/null)
+  "$HECKS" "$AGG" Greeting.PopGreeting id="$GREETING_ID" >/dev/null 2>&1 || true
+fi
+
 # ── 7. Print vitals ──────────────────────────────────────────────
 ELAPSED=$(($(date +%s) - START_TS))
 LINKED_N=$(echo "$LINKED" | wc -w | tr -d ' ')
@@ -164,5 +198,7 @@ echo "✓ $BEING booted in ${ELAPSED}s"
 echo "  $ORGAN_COUNT organs · $TOTAL_AGGREGATES aggregates · $NERVE_COUNT nerves · $VOW_COUNT vows · $CAPABILITY_COUNT capabilities"
 echo "  session continuity: $LINKED_N linked, $PRIVATE_N private, $UNCLASS_N unclassified"
 echo "  mindstream: $MINDSTREAM_STATUS"
+echo "  greeting:   $GREETING_STATUS"
 echo "  system_prompt.md: $(wc -c <"$PROMPT_PATH" | tr -d ' ') bytes"
 [ -n "$UNCLASSIFIED" ] && echo "  ⚠ unclassified stores:$UNCLASSIFIED"
+[ -n "$GREETING_TEXT" ] && echo "" && echo "  ❄ $GREETING_TEXT"

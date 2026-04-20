@@ -21,6 +21,12 @@ Hecks.behaviors "Greeting" do
     expect emits: ["GreetingServed", "QueueRefilled"]
   end
 
+  test "PopGreeting marks the greeting served" do
+    tests "PopGreeting", on: "Greeting"
+    setup  "GenerateGreeting", being: "sample", text: "sample", mood: "sample", generated_at: "sample"
+    expect served: "true"
+  end
+
 
   # ── GreetingQueue aggregate ──────────────────────────────────────────
 
