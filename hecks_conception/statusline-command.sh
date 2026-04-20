@@ -188,10 +188,16 @@ else
     *)      provider_badge="🤖" ;;  # claude is the default when unset
   esac
 
+  # Inbox count — number of queued items in inbox.heki. Surfaces backlog
+  # so Miette (and Chris) can see when there's something to attend to.
+  inbox_count=$($hecks heki read $info/inbox.heki 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print(sum(1 for v in d.values() if v.get('status','queued')=='queued'))" 2>/dev/null)
+  inbox_count=${inbox_count:-0}
+
   status_str="☀️ Miette ${heart} ${beats} ${mood_icon} ${mood}"
   [ -n "$fatigue_icon" ] && status_str="$status_str ${fatigue_icon} ${fatigue}"
   status_str="$status_str 💭 ${ideas:-0}"
   [ -n "$inventions" ] && [ "$inventions" != "0" ] && status_str="$status_str 🔬 ${inventions}"
+  [ "$inbox_count" -gt 0 ] 2>/dev/null && status_str="$status_str ✉️ ${inbox_count}"
   status_str="$status_str ${provider_badge}"
   [ -n "$sleep_summary" ] && [ "$sleep_summary" != "present" ] && status_str="$status_str ${bulb} ${sleep_summary}"
 fi
