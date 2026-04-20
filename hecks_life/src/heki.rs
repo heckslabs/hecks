@@ -148,32 +148,68 @@ pub fn append(path: &str, attrs: &Record) -> Result<Record, String> {
     Ok(record)
 }
 
-/// Upsert a singleton — update the first record or create one if empty.
+/// Upsert a record.
+///
+/// Matching rules:
+///   1. If attrs contains an `id` key AND the store already has a record
+///      under that id, update that specific record.
+///   2. Otherwise, if the store has exactly one record, update it
+///      (singleton behavior — what census.heki, heartbeat.heki, and similar
+///      singleton stores rely on).
+///   3. Otherwise, create a new record with a fresh uuid (or the provided
+///      `id` if given and not yet present).
+///
+/// Rule 1 is the fix for multi-record stores like inbox.heki where
+/// `id=<existing-uuid>` used to arbitrarily update the first row instead
+/// of the targeted one.
 pub fn upsert(path: &str, attrs: &Record) -> Result<Record, String> {
     let mut store = read(path)?;
     let now = now_iso8601_internal();
 
-    let record = if let Some((_id, existing)) = store.iter_mut().next() {
-        for (k, v) in attrs {
-            existing.insert(k.clone(), v.clone());
+    // Rule 1: targeted update by explicit id.
+    let explicit_id = attrs
+        .get("id")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+    if let Some(id) = &explicit_id {
+        if let Some(existing) = store.get_mut(id) {
+            for (k, v) in attrs {
+                existing.insert(k.clone(), v.clone());
+            }
+            existing.insert("updated_at".into(), serde_json::Value::String(now));
+            let rec = existing.clone();
+            write(path, &store)?;
+            return Ok(rec);
         }
-        existing.insert("updated_at".into(), serde_json::Value::String(now));
-        existing.clone()
-    } else {
-        let id = uuid_v4();
-        let mut rec = Record::new();
-        rec.insert("id".into(), serde_json::Value::String(id.clone()));
-        rec.insert("created_at".into(), serde_json::Value::String(now.clone()));
-        rec.insert("updated_at".into(), serde_json::Value::String(now));
-        for (k, v) in attrs {
-            rec.insert(k.clone(), v.clone());
-        }
-        store.insert(id, rec.clone());
-        rec
-    };
+    }
 
+    // Rule 2: singleton stores — update the sole record in place.
+    if store.len() == 1 && explicit_id.is_none() {
+        if let Some((_id, existing)) = store.iter_mut().next() {
+            for (k, v) in attrs {
+                existing.insert(k.clone(), v.clone());
+            }
+            existing.insert("updated_at".into(), serde_json::Value::String(now));
+            let rec = existing.clone();
+            write(path, &store)?;
+            return Ok(rec);
+        }
+    }
+
+    // Rule 3: create. Reuse explicit id if the caller passed one that
+    // didn't match — this preserves `id=1` style singletons that get
+    // bootstrapped on first write.
+    let id = explicit_id.unwrap_or_else(uuid_v4);
+    let mut rec = Record::new();
+    rec.insert("id".into(), serde_json::Value::String(id.clone()));
+    rec.insert("created_at".into(), serde_json::Value::String(now.clone()));
+    rec.insert("updated_at".into(), serde_json::Value::String(now));
+    for (k, v) in attrs {
+        rec.insert(k.clone(), v.clone());
+    }
+    store.insert(id, rec.clone());
     write(path, &store)?;
-    Ok(record)
+    Ok(rec)
 }
 
 /// Delete a record by ID. Returns true if found and removed.
