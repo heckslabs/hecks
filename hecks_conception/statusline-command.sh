@@ -55,9 +55,9 @@ esac
 # heartbeat now (one tick per second from mindstream.sh).
 beats_raw=$($hecks heki read $info/tick.heki 2>/dev/null | grep '"cycle"' | head -1 | sed 's/.*: //' | sed 's/[^0-9].*//')
 if [ -n "$beats_raw" ] && [ "$beats_raw" -ge 1000000 ] 2>/dev/null; then
-  beats=$(python3 -c "print(f'{$beats_raw/1000000:.1f}m')")
+  beats=$(python3 -c "print(f'{$beats_raw/1000000:.2f}m')")
 elif [ -n "$beats_raw" ] && [ "$beats_raw" -ge 1000 ] 2>/dev/null; then
-  beats=$(python3 -c "print(f'{$beats_raw/1000:.1f}k')")
+  beats=$(python3 -c "print(f'{$beats_raw/1000:.2f}k')")
 else
   beats="$beats_raw"
 fi
