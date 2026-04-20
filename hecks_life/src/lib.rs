@@ -11,6 +11,7 @@ pub mod runtime;
 pub mod json_helpers;
 pub mod server;
 pub mod validator;
+pub mod validator_warnings;
 pub mod conceiver;
 pub mod heki;
 pub mod dump;
