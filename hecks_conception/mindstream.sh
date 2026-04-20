@@ -84,6 +84,32 @@ print(f\"{$loop_count}|{hb.get('fatigue_state','alert')}|{hb.get('carrying','')}
     if [ "$((RANDOM % 300))" = "0" ]; then
       "$DIR/mint_musing.sh" >> /tmp/mint_musing.log 2>&1 &
     fi
+
+    # Daydream: attentive+idle wander across the nursery. Fires when
+    # idle ∈ [10, 60]s (heartbeat.updated_at age). Gated to once per
+    # 60s via a timestamp file so a 50-tick idle window doesn't spam
+    # daydreams. State check above already excluded "sleeping".
+    idle=$(python3 -c "
+import json, sys
+from datetime import datetime, timezone
+try:
+    d = json.load(open('$INFO/heartbeat.heki'))
+    for v in d.values():
+        ts = v.get('updated_at','')
+        if ts:
+            dt = datetime.fromisoformat(ts.replace('Z','+00:00'))
+            print(int((datetime.now(timezone.utc) - dt).total_seconds())); break
+    else: print(999)
+except Exception: print(999)" 2>/dev/null)
+    if [ "${idle:-999}" -ge 10 ] && [ "${idle:-999}" -le 60 ]; then
+      stamp="$INFO/.daydream.last"
+      last=$(cat "$stamp" 2>/dev/null || echo 0)
+      nowsec=$(date +%s)
+      if [ "$((nowsec - last))" -ge 60 ]; then
+        echo "$nowsec" > "$stamp"
+        "$DIR/daydream.sh" >> /tmp/daydream.log 2>&1 &
+      fi
+    fi
   fi
 
   sleep 1
