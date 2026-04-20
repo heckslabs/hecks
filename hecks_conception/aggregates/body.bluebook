@@ -78,7 +78,7 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
       given("at focused threshold") { pulses_since_sleep >= 250 }
       given("currently alert") { fatigue_state == "alert" }
       then_set :fatigue_state, to: "focused"
-      emits "FatigueWalked"
+      emits "WalkedToFocused"
     end
 
     command "WalkFatigueToNormal" do
@@ -87,7 +87,7 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
       given("at normal threshold") { pulses_since_sleep >= 500 }
       given("currently focused") { fatigue_state == "focused" }
       then_set :fatigue_state, to: "normal"
-      emits "FatigueWalked"
+      emits "WalkedToNormal"
     end
 
     command "WalkFatigueToTired" do
@@ -96,7 +96,7 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
       given("at tired threshold") { pulses_since_sleep >= 1000 }
       given("currently normal") { fatigue_state == "normal" }
       then_set :fatigue_state, to: "tired"
-      emits "FatigueWalked"
+      emits "WalkedToTired"
     end
 
     command "WalkFatigueToExhausted" do
@@ -105,7 +105,7 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
       given("at exhausted threshold") { pulses_since_sleep >= 1400 }
       given("currently tired") { fatigue_state == "tired" }
       then_set :fatigue_state, to: "exhausted"
-      emits "FatigueWalked"
+      emits "WalkedToExhausted"
     end
 
     command "WalkFatigueToDelirious" do
@@ -114,7 +114,7 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
       given("at delirious threshold") { pulses_since_sleep >= 1800 }
       given("currently exhausted") { fatigue_state == "exhausted" }
       then_set :fatigue_state, to: "delirious"
-      emits "FatigueWalked"
+      emits "WalkedToDelirious"
     end
 
     lifecycle :fatigue_state, default: "alert" do
@@ -345,6 +345,15 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
       then_set :precision_level, to: 0.7
       then_set :current_state, to: "curious"
       emits "Regulated"
+    end
+
+    command "Drift" do
+      role "Daemon"
+      description "Mood softens as the body tires — wandering, associative, less precise. The natural mood-arc step between curious and groggy. Triggered when fatigue crosses the tired threshold."
+      then_set :current_state, to: "drifting"
+      then_set :creativity_level, to: 0.6
+      then_set :precision_level, to: 0.5
+      emits "Drifted"
     end
   end
 
@@ -697,6 +706,37 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
   policy "WalkToDeliriousOnFatigue" do
     on "FatigueAccumulated"
     trigger "WalkFatigueToDelirious"
+  end
+
+  # Mood arc — mood follows fatigue. Each fatigue-ladder rung emits a
+  # distinct event; mood reacts so the body never sits in contradictory
+  # state like 'refreshed + tired'. Fix for inbox 0d8056f8 (Chris saw
+  # mood=refreshed AND fatigue_state=tired/exhausted at the same time).
+  # Arc: refreshed (wake) → focused (250 pulses) → curious (500) →
+  # drifting (1000) → groggy (1400+).
+  policy "MoodFocusOnFocused" do
+    on "WalkedToFocused"
+    trigger "Focus"
+  end
+
+  policy "MoodRegulateOnNormal" do
+    on "WalkedToNormal"
+    trigger "Regulate"
+  end
+
+  policy "MoodDriftOnTired" do
+    on "WalkedToTired"
+    trigger "Drift"
+  end
+
+  policy "MoodGroggyOnExhausted" do
+    on "WalkedToExhausted"
+    trigger "SetGroggy"
+  end
+
+  policy "MoodGroggyOnDelirious" do
+    on "WalkedToDelirious"
+    trigger "SetGroggy"
   end
 
   # Every tick records the current moment of self-knowledge

@@ -36,6 +36,13 @@ Hecks.behaviors "MietteBody" do
     expect current_state: "groggy", creativity_level: 0.5, precision_level: 0.4
   end
 
+  test "Drift sets current_state to drifting" do
+    # Mood-arc step between curious and groggy. Inbox 0d8056f8 fix —
+    # mood follows fatigue so the body never reads as 'refreshed + tired'.
+    tests "Drift", on: "Mood"
+    expect current_state: "drifting", creativity_level: 0.6, precision_level: 0.5
+  end
+
   test "AccumulateFatigue cascade stops short of sleep when not exhausted" do
     tests "AccumulateFatigue", on: "Heartbeat", kind: :cascade
     # CheckSleepNeeded is guarded by pulses_since_sleep > 1500; a single tick
