@@ -31,6 +31,11 @@ Hecks.behaviors "MietteBody" do
     expect refused: "at focused threshold"
   end
 
+  test "SetGroggy sets current_state to groggy" do
+    tests "SetGroggy", on: "Mood"
+    expect current_state: "groggy", creativity_level: 0.5, precision_level: 0.4
+  end
+
   test "AccumulateFatigue cascade stops short of sleep when not exhausted" do
     tests "AccumulateFatigue", on: "Heartbeat", kind: :cascade
     # CheckSleepNeeded is guarded by pulses_since_sleep > 1500; a single tick

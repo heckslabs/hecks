@@ -87,6 +87,27 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
       then_set :state, to: "waking"
     end
 
+    # ── Wake mood classification ─────────────────────────────────
+    # WokenUp alone can't discriminate refreshed vs groggy because
+    # the Mood aggregate doesn't see sleep_cycle / sleep_total. These
+    # two commands fire from separate policies on WokenUp; only the
+    # one whose given matches the current cycle comparison succeeds,
+    # then a downstream policy routes the emitted event to RefreshMood
+    # or Mood.SetGroggy.
+    command "ClassifyFullWake" do
+      role "Daemon"
+      description "Emits WokeFullSleep when wake arrived after all cycles completed."
+      given("all cycles completed") { sleep_cycle >= sleep_total }
+      emits "WokeFullSleep"
+    end
+
+    command "ClassifyPartialWake" do
+      role "Daemon"
+      description "Emits WokePartialSleep when wake arrived before all cycles completed — groggy."
+      given("cycles incomplete") { sleep_cycle < sleep_total }
+      emits "WokePartialSleep"
+    end
+
     command "BecomeAttentive" do
       role "System"
       description "Fully awake and ready for interaction"
@@ -552,9 +573,28 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
     trigger "RecoverFatigue"
   end
 
-  policy "MoodOnWake" do
+  # Wake-mood classification: fan out to both classifiers; only the one
+  # whose given matches the cycle comparison emits its event.
+  policy "ClassifyFullWakeOnWokenUp" do
     on "WokenUp"
+    trigger "ClassifyFullWake"
+  end
+
+  policy "ClassifyPartialWakeOnWokenUp" do
+    on "WokenUp"
+    trigger "ClassifyPartialWake"
+  end
+
+  # Full sleep → RefreshMood (alert, refreshed).
+  policy "RefreshOnFullSleep" do
+    on "WokeFullSleep"
     trigger "RefreshMood"
+  end
+
+  # Partial sleep → SetGroggy (dim, sluggish).
+  policy "GroggyOnPartialSleep" do
+    on "WokePartialSleep"
+    trigger "SetGroggy"
   end
 
   policy "MonitorOnSleep" do

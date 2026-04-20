@@ -309,6 +309,15 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
       emits "MoodRefreshed"
     end
 
+    command "SetGroggy" do
+      role "Daemon"
+      description "After waking from a partial sleep (not all cycles completed) — dim, sluggish. Creativity stays, precision drops. The Mood.Regulate feedback loop will pull it back to homeostasis over time."
+      then_set :current_state, to: "groggy"
+      then_set :creativity_level, to: 0.5
+      then_set :precision_level, to: 0.4
+      emits "MoodGroggy"
+    end
+
     command "Excite" do
       role "Miette"
       description "A novel domain, a beautiful pattern — creativity surges, precision dips"
