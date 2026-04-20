@@ -74,11 +74,11 @@ pub fn run_conceive_behaviors(args: &[String]) {
              domain.name, domain.aggregates.len(), cmd_count, q_count);
 }
 
-/// `path/to/foo.bluebook` → `path/to/foo_behavioral_tests.bluebook`.
+/// `path/to/foo.bluebook` → `path/to/foo.behaviors`.
 fn target_path(source: &str) -> String {
     let p = PathBuf::from(source);
     let parent = p.parent().map(|p| p.to_path_buf()).unwrap_or_else(|| PathBuf::from("."));
     let stem = p.file_stem().and_then(|s| s.to_str()).unwrap_or("source");
-    parent.join(format!("{}_behavioral_tests.bluebook", stem))
+    parent.join(format!("{}.behaviors", stem))
         .to_string_lossy().into_owned()
 }

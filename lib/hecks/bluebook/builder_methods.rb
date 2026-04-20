@@ -55,6 +55,19 @@ module Hecks
       result
     end
 
+    # Entry point for .fixtures files (`Hecks.fixtures "X" do ... end`).
+    # Sibling to `bluebook` and `behaviors`: its own DSL, its own file
+    # extension, its own parity contract with the Rust parser. See
+    # Hecks::DSL::FixturesBuilder for the surface.
+    def fixtures(name = nil, &block)
+      require "hecks/dsl/fixtures_builder"
+      builder = DSL::FixturesBuilder.new(name)
+      builder.instance_eval(&block) if block
+      result = builder.build
+      Hecks.last_fixtures_file = result
+      result
+    end
+
     # Generic entry point — delegates to whichever grammar's builder.
     #   Hecks.model "SpaceGame", grammar: :game_book do ... end
     #   Hecks.model "Pizzas" do ... end  # defaults to :bluebook

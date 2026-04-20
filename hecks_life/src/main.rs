@@ -555,7 +555,11 @@ fn run_check_all(args: &[String]) {
     }
 }
 
-/// `path/to/foo_behavioral_tests.bluebook` → `path/to/foo.bluebook`
+/// Find the source bluebook for a behaviors file.
+///
+/// Two name conventions, in order of preference:
+///   `path/to/foo.behaviors`                    → `path/to/foo.bluebook`
+///   `path/to/foo_behavioral_tests.bluebook`    → `path/to/foo.bluebook` (legacy)
 fn source_for_suite(suite_path: &str) -> String {
     let p = std::path::PathBuf::from(suite_path);
     let stem = p.file_stem().and_then(|s| s.to_str()).unwrap_or("");

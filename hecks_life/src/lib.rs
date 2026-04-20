@@ -23,3 +23,5 @@ pub mod behaviors_runner;
 pub mod io_validator;
 pub mod lifecycle_validator;
 pub mod cascade;
+pub mod fixtures_ir;
+pub mod fixtures_parser;
