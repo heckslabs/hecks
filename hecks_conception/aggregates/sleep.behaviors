@@ -49,24 +49,21 @@ Hecks.behaviors "Sleep" do
     expect state: "waking"
   end
 
-  test "WakeUp cascades to attentive + monitoring stop" do
-    # Exact emits list is parity-unstable: the Ruby and Rust runners treat
-    # setup-chain integer state differently when the cascade evaluates
-    # downstream given clauses. Ruby resets sleep_cycle/sleep_total to 0
-    # (so the cascade emits WokeFullSleep); Rust preserves 1/8 (so it emits
-    # WokePartialSleep). Both observations are legitimate wake paths; the
-    # classifier correctness is verified via direct-dispatch isolated tests
-    # and the real-runtime paths both work. Filed to inbox as a behaviors-
-    # runner parity bug.
+  test "WakeUp cascade routes partial sleep through groggy classifier" do
+    # Regression for the Ilya P1 cascade-state-propagation bug. Pre-fix:
+    # Ruby's StateResolver#next_id minted a fresh id on every cascade
+    # dispatch to a singleton aggregate, blanking the setup-chain
+    # integer state. ClassifyFullWake's `given(sleep_cycle >= sleep_total)`
+    # then evaluated 0 >= 0 = true and emitted WokeFullSleep. Rust used
+    # the heki singleton adapter and read the real (1, 8) → emitted
+    # WokePartialSleep. Two runners, two answers, silent across corpus.
+    # Post-fix (state_resolver.rb next_id reuses existing key): both
+    # runners agree on this exact emit sequence.
     tests "WakeUp", on: "Consciousness", kind: :cascade
     setup  "StartMonitoring", interval_seconds: 1
     setup  "EnterDaydream"
     setup  "EnterSleep"
-    # Final state parity-unstable (Ruby "waking", Rust "attentive" because
-    # cascade continues through BecameAttentive). The classifier dispatch
-    # is what this commit is actually testing — both runners fan out to
-    # ClassifyFullWake + ClassifyPartialWake with one succeeding.
-    expect ok: "true"
+    expect emits: ["WokenUp", "BecameAttentive", "WokePartialSleep", "MonitoringStopped"]
   end
 
   test "BecomeAttentive runs" do
