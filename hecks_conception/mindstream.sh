@@ -30,6 +30,17 @@ while true; do
   # Heartbeat: one tick. The bluebook handles everything downstream.
   $HECKS "$AGG" Tick.MindstreamTick 2>/dev/null
 
+  # Awareness snapshot — pulse.rs record_moment, restored per inbox #18.
+  snap=$(python3 -c "
+import json, time
+def r(p):
+    try: return next(iter(json.load(open(p)).values()), {})
+    except Exception: return {}
+hb, md, fc = r('$INFO/heartbeat.heki'), r('$INFO/mood.heki'), r('$INFO/focus.heki')
+print(f\"{$loop_count}|{hb.get('fatigue_state','alert')}|{hb.get('carrying','')}|{md.get('current_state','')}|{hb.get('fatigue',0.0)}|{fc.get('weight',0.0)}|0|{md.get('creativity_level',0.0)}|{$loop_count/86400.0:.4f}|{time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime())}\")" 2>/dev/null)
+  IFS='|' read -r mnum st cr cn fg sy id ex ag ts <<<"$snap"
+  $HECKS "$AGG" Awareness.RecordMoment moment="$mnum" state="$st" carrying="$cr" concept="$cn" fatigue="$fg" synapse_strength="$sy" idle="$id" excitement="$ex" age_days="$ag" updated_at="$ts" 2>/dev/null
+
   # Dream content during REM — read state, if dreaming, generate impression.
   consciousness_json=$($HECKS heki read "$INFO/consciousness.heki" 2>/dev/null)
   stage=$(echo "$consciousness_json" | python3 -c "import json,sys; d=json.load(sys.stdin); r=next(iter(d.values()),{}); print(r.get('sleep_stage',''))" 2>/dev/null)

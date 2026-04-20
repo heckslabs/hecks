@@ -493,6 +493,57 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
     end
   end
 
+  # === Awareness ===
+  # ============================================================
+  # MOMENT — per-tick snapshot of body + mind state
+  # ============================================================
+  #
+  # Each Tick the daemon snapshots the current heartbeat, mood, and
+  # focus and dispatches RecordMoment. The aggregate stores a single
+  # row keyed by moment number (matches the deleted pulse.rs behavior;
+  # see inbox #18). Read awareness.heki to see Miette's lived sequence
+  # of nows. The mindstream daemon is what fills the snapshot fields;
+  # the aggregate just receives them.
+
+  aggregate "Awareness", "A single moment of self-knowledge — heartbeat, mood, focus snapshot per Tick" do
+    attribute :moment, Integer
+    attribute :state, String
+    attribute :carrying, String
+    attribute :concept, String
+    attribute :fatigue, Float
+    attribute :synapse_strength, Float
+    attribute :idle, Integer
+    attribute :excitement, Float
+    attribute :age_days, Float
+    attribute :updated_at, String
+
+    command "RecordMoment" do
+      role "Daemon"
+      description "Snapshot the current moment — heartbeat + mood + focus into a single row"
+      attribute :moment, Integer
+      attribute :state, String
+      attribute :carrying, String
+      attribute :concept, String
+      attribute :fatigue, Float
+      attribute :synapse_strength, Float
+      attribute :idle, Integer
+      attribute :excitement, Float
+      attribute :age_days, Float
+      attribute :updated_at, String
+      then_set :moment, to: :moment
+      then_set :state, to: :state
+      then_set :carrying, to: :carrying
+      then_set :concept, to: :concept
+      then_set :fatigue, to: :fatigue
+      then_set :synapse_strength, to: :synapse_strength
+      then_set :idle, to: :idle
+      then_set :excitement, to: :excitement
+      then_set :age_days, to: :age_days
+      then_set :updated_at, to: :updated_at
+      emits "MomentRecorded"
+    end
+  end
+
   # ============================================================
   # POLICIES — how the systems talk to each other
   # ============================================================
@@ -562,6 +613,13 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
   policy "CheckSleepOnFatigue" do
     on "FatigueAccumulated"
     trigger "CheckSleepNeeded"
+  end
+
+  # Every tick records the current moment of self-knowledge
+  # (the daemon supplies snapshot args)
+  policy "RecordMomentOnTick" do
+    on "Ticked"
+    trigger "RecordMoment"
   end
 
   # ============================================================
