@@ -451,24 +451,9 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
     end
   end
 
-  aggregate "DreamSeed", "Previous dreams that feed into new sleep — memory is not storage, it's a signal source" do
-    attribute :images, list_of(String)
-    attribute :recombinations, list_of(String)
-    attribute :strongest_synapses, list_of(String)
-    attribute :seeded_at, String
-
-    command "SeedFromPreviousDreams" do
-      role "Daemon"
-      description "Load the richest images and connections from past dreams into the new sleep"
-      attribute :images, list_of(String)
-      attribute :recombinations, list_of(String)
-      attribute :strongest_synapses, list_of(String)
-      emits "DreamSeeded"
-      then_set :images, to: :images
-      then_set :recombinations, to: :recombinations
-      then_set :strongest_synapses, to: :strongest_synapses
-    end
-  end
+  # DreamSeed aggregate moved to aggregates/dream_seed.bluebook —
+  # dream seeding is its own concern with SeedFromPreviousDreams (batch)
+  # and PlantSeed (per-image, dispatched by mindstream on first REM tick).
 
   # LucidDream + LucidMonitor aggregates moved to aggregates/lucid_dream.bluebook —
   # lucid dreaming is its own domain with its own lifecycle.
@@ -582,10 +567,8 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
     trigger "StopMonitoring"
   end
 
-  policy "SeedOnNightStart" do
-    on "NightStarted"
-    trigger "SeedFromPreviousDreams"
-  end
+  # SeedOnNightStart policy moved to aggregates/dream_seed.bluebook,
+  # alongside the SeedFromPreviousDreams command it triggers.
 
   # Lucid dream policies moved to aggregates/lucid_dream.bluebook.
   # BecomeLucid is triggered by the mindstream daemon when entering

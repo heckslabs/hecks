@@ -1,0 +1,24 @@
+Hecks.behaviors "DreamSeed" do
+  vision "Behavioral tests for the DreamSeed aggregate — SeedFromPreviousDreams (batch) and PlantSeed (per-image)"
+
+  # ── DreamSeed aggregate ──────────────────────────────────────────
+
+  test "SeedFromPreviousDreams sets images + recombinations + strongest_synapses" do
+    tests "SeedFromPreviousDreams", on: "DreamSeed"
+    input  images: "sample", recombinations: "sample", strongest_synapses: "sample"
+    expect images: "sample", recombinations: "sample", strongest_synapses: "sample"
+  end
+
+  test "PlantSeed appends one image" do
+    tests "PlantSeed", on: "DreamSeed"
+    input  image: "sample"
+    expect images_size: 1
+  end
+
+  test "PlantSeed emits SeedPlanted" do
+    tests "PlantSeed", on: "DreamSeed", kind: :cascade
+    input  image: "sample"
+    expect emits: ["SeedPlanted"]
+  end
+
+end

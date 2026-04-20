@@ -115,11 +115,10 @@ Hecks.behaviors "Sleep" do
     expect cycles_completed: 0, phase: "starting"
   end
 
-  test "StartNight cascades through policy chain" do
-    tests "StartNight", on: "Night", kind: :cascade
-    setup  "SeedFromPreviousDreams", images: "sample", recombinations: "sample", strongest_synapses: "sample"
-    expect emits: ["NightStarted", "DreamSeeded"]
-  end
+  # StartNight cascade test moved to dream_seed.behaviors — it exercises
+  # the cross-aggregate SeedOnNightStart policy that triggers
+  # DreamSeed.SeedFromPreviousDreams, which now lives in
+  # aggregates/dream_seed.bluebook.
 
   test "DreamCycle1 runs" do
     tests "DreamCycle1", on: "Night"
@@ -233,12 +232,7 @@ Hecks.behaviors "Sleep" do
   end
 
 
-  # ── DreamSeed aggregate ──────────────────────────────────────────
-
-  test "SeedFromPreviousDreams sets images + recombinations + strongest_synapses" do
-    tests "SeedFromPreviousDreams", on: "DreamSeed"
-    input  images: "sample", recombinations: "sample", strongest_synapses: "sample"
-    expect images: "sample", recombinations: "sample", strongest_synapses: "sample"
-  end
+  # DreamSeed tests moved to aggregates/dream_seed.behaviors — the
+  # aggregate itself is now in aggregates/dream_seed.bluebook.
 
 end

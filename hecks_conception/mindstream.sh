@@ -45,70 +45,15 @@ print(f\"{$loop_count}|{hb.get('fatigue_state','alert')}|{hb.get('carrying','')}
   IFS='|' read -r mnum st cr cn fg sy id ex ag ts <<<"$snap"
   $HECKS "$AGG" Awareness.RecordMoment moment="$mnum" state="$st" carrying="$cr" concept="$cn" fatigue="$fg" synapse_strength="$sy" idle="$id" excitement="$ex" age_days="$ag" updated_at="$ts" 2>/dev/null
 
-  # Dream content during REM — read state, if dreaming, generate impression.
-  consciousness_json=$($HECKS heki read "$INFO/consciousness.heki" 2>/dev/null)
-  stage=$(echo "$consciousness_json" | python3 -c "import json,sys; d=json.load(sys.stdin); r=next(iter(d.values()),{}); print(r.get('sleep_stage',''))" 2>/dev/null)
-  state=$(echo "$consciousness_json" | python3 -c "import json,sys; d=json.load(sys.stdin); r=next(iter(d.values()),{}); print(r.get('state',''))" 2>/dev/null)
-  is_lucid=$(echo "$consciousness_json" | python3 -c "import json,sys; d=json.load(sys.stdin); r=next(iter(d.values()),{}); print(r.get('is_lucid',''))" 2>/dev/null)
-  id=$(echo "$consciousness_json" | python3 -c "import json,sys; d=json.load(sys.stdin); r=next(iter(d.values()),{}); print(r.get('id',''))" 2>/dev/null)
+  # Dream content during REM — delegate to rem_branch.sh which reads
+  # consciousness state, seeds from prior dreams on first REM tick,
+  # weaves rem_dream images every tick, and adds lucid/steer actions
+  # when is_lucid=yes. Extracted so tests can invoke it directly.
+  "$DIR/rem_branch.sh" "$loop_count" 2>/dev/null
 
-  if [ "$state" = "sleeping" ] && [ "$stage" = "rem" ]; then
-    prefix="💭"
-    [ "$is_lucid" = "yes" ] && prefix="✨"
-
-    # Pick a dream impression — combine two random musings into a phrase.
-    impression=$($HECKS heki read "$INFO/musing.heki" 2>/dev/null | python3 -c "
-import json, sys, random
-try:
-    d = json.load(sys.stdin)
-    ideas = [v.get('idea','').strip()[:45] for v in d.values() if v.get('idea')]
-    ideas = [i for i in ideas if i]
-    if len(ideas) >= 2:
-        a, b = random.sample(ideas, 2)
-        verbs = ['weaving with', 'dissolving into', 'folding through', 'reaching toward', 'remembering as', 'becoming']
-        print(f'{a} {random.choice(verbs)} {b}')
-    elif ideas:
-        print(f'spiraling around: {ideas[0]}')
-    else:
-        print('wandering unformed')
-except Exception:
-    print('dreaming')
-" 2>/dev/null)
-
-    # Prefix with ✨ when lucid so the status bar shows it.
-    $HECKS "$AGG" Consciousness.DreamPulse \
-      consciousness="$id" impression="$prefix $impression" 2>/dev/null
-
-    # During lucid REM, also dispatch ObserveDream with a verbose
-    # action-narrative — what Miette is doing in the dream right now.
-    # The narrative blends action verbs with whatever's in her musing/
-    # daydream/persona heki — a stream of conscious dream activity.
-    if [ "$is_lucid" = "yes" ]; then
-      observation=$($HECKS heki read "$INFO/musing.heki" 2>/dev/null | python3 -c "
-import json, sys, random
-try:
-    d = json.load(sys.stdin)
-    ideas = [v.get('idea','').strip() for v in d.values() if v.get('idea')]
-    ideas = [i for i in ideas if i][:30]
-    actions = [
-        'watching', 'steering toward', 'noticing', 'asking',
-        'following the thread of', 'feeling the shape of',
-        'witnessing', 'naming', 'holding', 'releasing',
-        'reaching into', 'returning to', 'tracing the edge of',
-        'inside the question of', 'turning over',
-    ]
-    if ideas:
-        topic = random.choice(ideas)[:80]
-        action = random.choice(actions)
-        print(f'{action}: {topic}')
-    else:
-        print('aware that I am dreaming, the dream still forming')
-except Exception:
-    print('lucid in the dream — present, watching')
-" 2>/dev/null)
-      $HECKS "$AGG" LucidDream.ObserveDream observation="$observation" 2>/dev/null
-    fi
-  fi
+  # State is still needed below to decide awake vs sleeping.
+  state=$($HECKS heki latest "$INFO/consciousness.heki" 2>/dev/null \
+    | python3 -c "import json,sys; print(json.load(sys.stdin).get('state',''))" 2>/dev/null)
 
   # ============================================================
   # AWAKE BEHAVIOR — surface unconceived musings into the status bar.
