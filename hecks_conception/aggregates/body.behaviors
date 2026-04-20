@@ -20,14 +20,14 @@ Hecks.behaviors "MietteBody" do
   end
 
   test "AccumulateFatigue increments but does not walk the ladder" do
-    # Ladder-walking moved to WalkFatigueTo* commands guarded by
+    # Ladder-walking moved to BecomeX commands guarded by
     # pulses_since_sleep thresholds. A single tick from alert must stay alert.
     tests "AccumulateFatigue", on: "Heartbeat"
     expect fatigue_state: "alert"
   end
 
-  test "WalkFatigueToFocused refused before threshold" do
-    tests "WalkFatigueToFocused", on: "Heartbeat"
+  test "BecomeFocused refused before threshold" do
+    tests "BecomeFocused", on: "Heartbeat"
     expect refused: "at focused threshold"
   end
 
