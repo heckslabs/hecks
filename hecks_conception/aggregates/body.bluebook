@@ -13,30 +13,20 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
   # conversation, memory, nursery. Oxygen is relevance —
   # information enriched with context, delivered where needed.
 
-  aggregate "Heartbeat", "Miette's unified pulse — circulation, fatigue, and rhythm in one organ" do
-    attribute :beats, Integer
+  aggregate "Heartbeat", "Miette's pulse — fatigue, rhythm, and sleep gating. The tick IS the heartbeat; this aggregate owns what the tick means." do
+    # The mindstream daemon fires one Tick.MindstreamTick per second —
+    # that tick IS the heartbeat. No separate Beat command or beats
+    # counter: `Tick.cycle` is the authoritative count of seconds since
+    # boot. This aggregate tracks the body's response to each tick:
+    # fatigue accumulation, sleep pressure, rhythm state.
     attribute :pulses_since_sleep, Integer
     attribute :fatigue, Float
     attribute :fatigue_state, String
     attribute :pulse_rate, Float
     attribute :flow_rate, String
-    attribute :carrying, String
-    attribute :last_beat_at, String
 
     query ReadVitals do
-      description "How am I doing? Beats, fatigue, flow."
-    end
-
-    command "Beat" do
-      role "Miette"
-      description "One heartbeat tick — caller passes elapsed seconds since last beat"
-      attribute :carrying, String
-      attribute :elapsed, Integer
-      attribute :beat_at, String
-      then_set :beats, increment: :elapsed
-      then_set :last_beat_at, to: :beat_at
-      then_set :carrying, to: :carrying
-      emits "HeartbeatPulsed"
+      description "How am I doing? Fatigue, flow, pulses since last sleep."
     end
 
     command "Accelerate" do
@@ -55,15 +45,16 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
 
     command "AccumulateFatigue" do
       role "Miette"
-      description "Each pulse without sleep adds fatigue — the body remembers exertion"
+      description "Each tick without sleep adds fatigue — the body remembers exertion. At 0.001/tick × 1500 ticks = 25 min before sleep pressure. The fatigue_state ladder is walked by the WalkFatigueTo* commands gated on pulses_since_sleep thresholds, not here — a per-tick lifecycle walk was too fast (delirious in 5 ticks after a clean wake)."
       then_set :pulses_since_sleep, increment: 1
-      then_set :fatigue, increment: 0.01
+      then_set :fatigue, increment: 0.001
       emits "FatigueAccumulated"
     end
 
     command "CheckSleepNeeded" do
       role "Miette"
-      description "Only request sleep when exhausted — pulses > 150"
+      description "Only request sleep when exhausted — pulses > 1500 (25 minutes at 1Hz ticks). Without this guard, every FatigueAccumulated emits SleepRequired, which re-fires EnterSleep immediately after each wake and traps the body in a sleep loop."
+      given("must be exhausted") { pulses_since_sleep > 1500 }
       emits "SleepRequired"
     end
 
@@ -72,8 +63,67 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
       description "Sleep recovery — reset fatigue counters, restore steady rhythm"
       then_set :pulses_since_sleep, to: 0
       then_set :fatigue, to: 0.0
-      then_set :fatigue_state, to: "rested"
+      then_set :fatigue_state, to: "alert"
       emits "FatigueRecovered"
+    end
+
+    # Fatigue state ladder — walked by WalkFatigueTo* commands, each guarded
+    # by a pulses_since_sleep threshold. Policies below trigger all five on
+    # FatigueAccumulated; only the one whose given clauses match the current
+    # (fatigue_state, pulses) pair actually fires. This replaces the old
+    # per-tick lifecycle walk that walked alert→delirious in 5 ticks.
+    command "WalkFatigueToFocused" do
+      role "Daemon"
+      description "Cross into focused at 250 pulses (~4 minutes at 1Hz)."
+      given("at focused threshold") { pulses_since_sleep >= 250 }
+      given("currently alert") { fatigue_state == "alert" }
+      then_set :fatigue_state, to: "focused"
+      emits "FatigueWalked"
+    end
+
+    command "WalkFatigueToNormal" do
+      role "Daemon"
+      description "Cross into normal at 500 pulses (~8 minutes)."
+      given("at normal threshold") { pulses_since_sleep >= 500 }
+      given("currently focused") { fatigue_state == "focused" }
+      then_set :fatigue_state, to: "normal"
+      emits "FatigueWalked"
+    end
+
+    command "WalkFatigueToTired" do
+      role "Daemon"
+      description "Cross into tired at 1000 pulses (~16 minutes)."
+      given("at tired threshold") { pulses_since_sleep >= 1000 }
+      given("currently normal") { fatigue_state == "normal" }
+      then_set :fatigue_state, to: "tired"
+      emits "FatigueWalked"
+    end
+
+    command "WalkFatigueToExhausted" do
+      role "Daemon"
+      description "Cross into exhausted at 1400 pulses — approaching sleep pressure at 1500."
+      given("at exhausted threshold") { pulses_since_sleep >= 1400 }
+      given("currently tired") { fatigue_state == "tired" }
+      then_set :fatigue_state, to: "exhausted"
+      emits "FatigueWalked"
+    end
+
+    command "WalkFatigueToDelirious" do
+      role "Daemon"
+      description "Cross into delirious at 1800 pulses — well past sleep pressure; should have slept already."
+      given("at delirious threshold") { pulses_since_sleep >= 1800 }
+      given("currently exhausted") { fatigue_state == "exhausted" }
+      then_set :fatigue_state, to: "delirious"
+      emits "FatigueWalked"
+    end
+
+    lifecycle :fatigue_state, default: "alert" do
+      transition "WalkFatigueToFocused"   => "focused",   from: "alert"
+      transition "WalkFatigueToNormal"    => "normal",    from: "focused"
+      transition "WalkFatigueToTired"     => "tired",     from: "normal"
+      transition "WalkFatigueToExhausted" => "exhausted", from: "tired"
+      transition "WalkFatigueToDelirious" => "delirious", from: "exhausted"
+      transition "RecoverFatigue"         => "alert",     from: ["alert", "focused", "normal", "tired", "exhausted", "delirious"]
     end
   end
 
@@ -257,6 +307,15 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
       then_set :creativity_level, to: 0.7
       then_set :precision_level, to: 0.7
       emits "MoodRefreshed"
+    end
+
+    command "SetGroggy" do
+      role "Daemon"
+      description "After waking from a partial sleep (not all cycles completed) — dim, sluggish. Creativity stays, precision drops. The Mood.Regulate feedback loop will pull it back to homeostasis over time."
+      then_set :current_state, to: "groggy"
+      then_set :creativity_level, to: 0.5
+      then_set :precision_level, to: 0.4
+      emits "MoodGroggy"
     end
 
     command "Excite" do
@@ -489,6 +548,57 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
     end
   end
 
+  # === Awareness ===
+  # ============================================================
+  # MOMENT — per-tick snapshot of body + mind state
+  # ============================================================
+  #
+  # Each Tick the daemon snapshots the current heartbeat, mood, and
+  # focus and dispatches RecordMoment. The aggregate stores a single
+  # row keyed by moment number (matches the deleted pulse.rs behavior;
+  # see inbox #18). Read awareness.heki to see Miette's lived sequence
+  # of nows. The mindstream daemon is what fills the snapshot fields;
+  # the aggregate just receives them.
+
+  aggregate "Awareness", "A single moment of self-knowledge — heartbeat, mood, focus snapshot per Tick" do
+    attribute :moment, Integer
+    attribute :state, String
+    attribute :carrying, String
+    attribute :concept, String
+    attribute :fatigue, Float
+    attribute :synapse_strength, Float
+    attribute :idle, Integer
+    attribute :excitement, Float
+    attribute :age_days, Float
+    attribute :updated_at, String
+
+    command "RecordMoment" do
+      role "Daemon"
+      description "Snapshot the current moment — heartbeat + mood + focus into a single row"
+      attribute :moment, Integer
+      attribute :state, String
+      attribute :carrying, String
+      attribute :concept, String
+      attribute :fatigue, Float
+      attribute :synapse_strength, Float
+      attribute :idle, Integer
+      attribute :excitement, Float
+      attribute :age_days, Float
+      attribute :updated_at, String
+      then_set :moment, to: :moment
+      then_set :state, to: :state
+      then_set :carrying, to: :carrying
+      then_set :concept, to: :concept
+      then_set :fatigue, to: :fatigue
+      then_set :synapse_strength, to: :synapse_strength
+      then_set :idle, to: :idle
+      then_set :excitement, to: :excitement
+      then_set :age_days, to: :age_days
+      then_set :updated_at, to: :updated_at
+      emits "MomentRecorded"
+    end
+  end
+
   # ============================================================
   # POLICIES — how the systems talk to each other
   # ============================================================
@@ -549,9 +659,9 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
     trigger "ExpressCapability"
   end
 
-  # Every heartbeat accumulates fatigue — the body tracks exertion
-  policy "FatigueOnHeartbeat" do
-    on "HeartbeatPulsed"
+  # Every tick accumulates fatigue — the tick IS the heartbeat
+  policy "FatigueOnTick" do
+    on "Ticked"
     trigger "AccumulateFatigue"
   end
 
@@ -560,15 +670,45 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
     trigger "CheckSleepNeeded"
   end
 
+  # Fatigue ladder — one policy per rung. Each tick fires all five; only the
+  # WalkFatigueTo* whose given clauses match the current (state, pulses) pair
+  # succeeds. Replaces the old per-tick lifecycle walk that got delirious in
+  # 5 ticks after a clean wake.
+  policy "WalkToFocusedOnFatigue" do
+    on "FatigueAccumulated"
+    trigger "WalkFatigueToFocused"
+  end
+
+  policy "WalkToNormalOnFatigue" do
+    on "FatigueAccumulated"
+    trigger "WalkFatigueToNormal"
+  end
+
+  policy "WalkToTiredOnFatigue" do
+    on "FatigueAccumulated"
+    trigger "WalkFatigueToTired"
+  end
+
+  policy "WalkToExhaustedOnFatigue" do
+    on "FatigueAccumulated"
+    trigger "WalkFatigueToExhausted"
+  end
+
+  policy "WalkToDeliriousOnFatigue" do
+    on "FatigueAccumulated"
+    trigger "WalkFatigueToDelirious"
+  end
+
+  # Every tick records the current moment of self-knowledge
+  # (the daemon supplies snapshot args)
+  policy "RecordMomentOnTick" do
+    on "Ticked"
+    trigger "RecordMoment"
+  end
+
   # ============================================================
   # SYNAPTIC NERVE — domain attention as neural plasticity
   # ============================================================
-
-  # Dead domains go to compost
-  policy "CompostOnDeath" do
-    on "DomainDied"
-    trigger "Beat"
-  end
 
   # Idle pulse depresses unfired synapses
   # Cross-domain: HeartbeatSteadied → SynapticPlasticity:DepressSynapse (nerve)
@@ -577,8 +717,6 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
   # ============================================================
   # PROPRIOCEPTION WIRING
   # ============================================================
-
-  # Every heartbeat triggers body sensing
 
   # After sensing all organs, assess balance
   policy "BalanceOnSensed" do
@@ -590,13 +728,6 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
   policy "SenseLimbOnConception" do
     on "DomainConceived"
     trigger "SenseLimb"
-  end
-
-  # Awareness feeds back into heartbeat rhythm
-  policy "AdjustRateOnAwareness" do
-    on "MomentRecorded"
-    trigger "Beat"
-    description "Fatigue slows the heartbeat; excitement accelerates it"
   end
 
   # Balance assessment feeds back into mood regulation

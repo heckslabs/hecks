@@ -1,0 +1,24 @@
+Hecks.fixtures "Organs" do
+  aggregate "Synapse" do
+    fixture "Synapse1", from: "carrying", to: "concept", strength: 0.5, state: "alive", firings: 12, last_fired_at: "now"
+    fixture "Synapse2", from: "domain", to: "memory", strength: 0.85, state: "alive", firings: 47, last_fired_at: "now"
+    fixture "Synapse3", from: "fading", to: "topic", strength: 0.08, state: "alive", firings: 3, last_fired_at: "earlier"
+  end
+  aggregate "Signal" do
+    fixture "Signal1", kind: "somatic", payload: "heartbeat", strength: 0.6, access_count: 5, created_at: "now"
+    fixture "Signal2", kind: "concept", payload: "musing surfaced", strength: 0.4, access_count: 1, created_at: "earlier"
+    fixture "Signal3", kind: "archived", payload: "old hum", strength: 0.1, access_count: 0, created_at: "long ago"
+  end
+  aggregate "Focus" do
+    fixture "Focus1", target: "domain modeling", weight: 0.8, updated_at: "now"
+    fixture "Focus2", target: "rest", weight: 0.2, updated_at: "earlier"
+  end
+  aggregate "Arc" do
+    fixture "Arc1", phase: "rising", pulse_count: 42, topics: ["domain", "memory"], momentum: 0.3
+    fixture "Arc2", phase: "falling", pulse_count: 7, topics: ["sleep"], momentum: -0.1
+  end
+  aggregate "Remains" do
+    fixture "Remains1", from_synapse: "fading", strength_at_death: 0.09, firings: 3, died_at: "now"
+    fixture "Remains2", from_synapse: "lost topic", strength_at_death: 0.07, firings: 1, died_at: "earlier"
+  end
+end

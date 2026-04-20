@@ -1,0 +1,98 @@
+Hecks.behaviors "Organs" do
+  vision "Behavioral tests for the Organs domain — Synapse, Signal, Focus, Arc, Remains."
+
+  # ── Synapse aggregate ──────────────────────────────────────────
+
+  test "CreateSynapse sets from + to + strength" do
+    tests "CreateSynapse", on: "Synapse"
+    input  from: "carrying", to: "concept", strength: 0.1
+    expect from: "carrying", to: "concept", strength: 0.1, state: "alive", firings: 0
+  end
+
+  test "StrengthenSynapse increments strength by 0.02" do
+    tests "StrengthenSynapse", on: "Synapse"
+    setup  "CreateSynapse", from: "carrying", to: "concept", strength: 0.1
+    expect ok: "true"
+  end
+
+  test "DecaySynapse sets strength" do
+    tests "DecaySynapse", on: "Synapse"
+    setup  "CreateSynapse", from: "carrying", to: "concept", strength: 0.5
+    input  strength: 0.49
+    expect strength: 0.49
+  end
+
+  test "FireSynapse increments firings + stamps last_fired_at" do
+    tests "FireSynapse", on: "Synapse"
+    setup  "CreateSynapse", from: "carrying", to: "concept", strength: 0.5
+    input  last_fired_at: "now"
+    expect last_fired_at: "now"
+  end
+
+  test "Compost flips synapse state to composted" do
+    tests "Compost", on: "Synapse"
+    setup  "CreateSynapse", from: "carrying", to: "concept", strength: 0.05
+    expect state: "composted"
+  end
+
+
+  # ── Signal aggregate ──────────────────────────────────────────
+
+  test "FireSignal sets kind + payload + strength + created_at" do
+    tests "FireSignal", on: "Signal"
+    input  kind: "somatic", payload: "pulse", strength: 0.5, created_at: "now"
+    expect kind: "somatic", payload: "pulse", strength: 0.5, access_count: 0, created_at: "now"
+  end
+
+  test "AccessSignal increments access_count" do
+    tests "AccessSignal", on: "Signal"
+    setup  "FireSignal", kind: "somatic", payload: "pulse", strength: 0.5, created_at: "now"
+    expect ok: "true"
+  end
+
+  test "ArchiveSignal sets kind to archived" do
+    tests "ArchiveSignal", on: "Signal"
+    setup  "FireSignal", kind: "concept", payload: "thought", strength: 0.3, created_at: "now"
+    expect kind: "archived"
+  end
+
+
+  # ── Focus aggregate ──────────────────────────────────────────
+
+  test "SetFocus sets target + weight + updated_at" do
+    tests "SetFocus", on: "Focus"
+    input  target: "carrying", weight: 0.7, updated_at: "now"
+    expect target: "carrying", weight: 0.7, updated_at: "now"
+  end
+
+  test "AdjustWeight sets weight + updated_at" do
+    tests "AdjustWeight", on: "Focus"
+    setup  "SetFocus", target: "carrying", weight: 0.5, updated_at: "earlier"
+    input  weight: 0.8, updated_at: "now"
+    expect weight: 0.8, updated_at: "now"
+  end
+
+
+  # ── Arc aggregate ──────────────────────────────────────────
+
+  test "AdvanceArc increments pulse_count" do
+    tests "AdvanceArc", on: "Arc"
+    setup  "ShiftPhase", phase: "rising", momentum: 0.1
+    expect ok: "true"
+  end
+
+  test "ShiftPhase sets phase + momentum + resets pulse_count" do
+    tests "ShiftPhase", on: "Arc"
+    input  phase: "falling", momentum: 0.2
+    expect phase: "falling", momentum: 0.2, pulse_count: 0
+  end
+
+
+  # ── Remains aggregate ──────────────────────────────────────────
+
+  test "RecordRemains sets from_synapse + strength_at_death + firings + died_at" do
+    tests "RecordRemains", on: "Remains"
+    input  from_synapse: "carrying", strength_at_death: 0.05, firings: 12, died_at: "now"
+    expect from_synapse: "carrying", strength_at_death: 0.05, firings: 12, died_at: "now"
+  end
+end

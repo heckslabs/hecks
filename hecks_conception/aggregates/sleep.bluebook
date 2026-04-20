@@ -2,38 +2,15 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
   vision "Dreams, cycles, consolidation, waking"
   category "mind"
 
-  aggregate "Fatigue", "Accumulates with wakefulness, dissipates with sleep" do
-    attribute :level, Float
-    attribute :state, String
-    attribute :pulses_since_sleep, Integer
-    attribute :creativity, Float
-    attribute :precision, Float
-
-    command "AccumulateFatigue" do
-      role "System"
-      description "Each waking pulse increases fatigue"
-      emits "FatigueAccumulated"
-      then_set :pulses_since_sleep, increment: 1
-    end
-
-    command "DissipateFatigue" do
-      role "Daemon"
-      description "Sleep resets fatigue — deeper sleep dissipates more. Fatigue is a singleton; no self-ref needed (otherwise wake policies can't trigger it)."
-      emits "FatigueDissipated"
-      then_set :level, to: 0
-      then_set :pulses_since_sleep, to: 0
-      then_set :state, to: "alert"
-    end
-
-    lifecycle :state, default: "alert" do
-      transition "AccumulateFatigue" => "focused",   from: "alert"
-      transition "AccumulateFatigue" => "normal",    from: "focused"
-      transition "AccumulateFatigue" => "tired",     from: "normal"
-      transition "AccumulateFatigue" => "exhausted", from: "tired"
-      transition "AccumulateFatigue" => "delirious", from: "exhausted"
-      transition "DissipateFatigue"  => "alert",     from: ["tired", "exhausted", "delirious", "alert", "focused", "normal"]
-    end
-  end
+  # Fatigue aggregate removed 2026-04-20 — the state ladder
+  # (alert→focused→normal→tired→exhausted→delirious) and its
+  # AccumulateFatigue/DissipateFatigue commands were never driven by
+  # `Ticked` policies (only `body.bluebook:FatigueOnTick` fires on each
+  # tick, and that triggers `Heartbeat.AccumulateFatigue`). The lifecycle
+  # is now on MietteBody::Heartbeat, driven by the existing canonical
+  # policy. Keeping two aggregates for the same concept was dual-state
+  # waiting to happen. `DissipateFatigue` callers switch to Heartbeat's
+  # `RecoverFatigue` (which now also walks `fatigue_state` back to alert).
 
   aggregate "Consciousness", "The current state of awareness. Sleep progresses tick by tick through bluebook policies, not via synchronous cascade. Each phase lasts at least 12 ticks (2 min at 10s/tick); REM extends until enough dream pulses have been produced. After the final deep, one final light phase before waking so Miette wakes refreshed, not groggy. The last cycle's REM is lucid — she knows she's dreaming and can steer." do
     attribute :state, String
@@ -108,6 +85,27 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
       description "Return to waking consciousness"
       emits "WokenUp"
       then_set :state, to: "waking"
+    end
+
+    # ── Wake mood classification ─────────────────────────────────
+    # WokenUp alone can't discriminate refreshed vs groggy because
+    # the Mood aggregate doesn't see sleep_cycle / sleep_total. These
+    # two commands fire from separate policies on WokenUp; only the
+    # one whose given matches the current cycle comparison succeeds,
+    # then a downstream policy routes the emitted event to RefreshMood
+    # or Mood.SetGroggy.
+    command "ClassifyFullWake" do
+      role "Daemon"
+      description "Emits WokeFullSleep when wake arrived after all cycles completed."
+      given("all cycles completed") { sleep_cycle >= sleep_total }
+      emits "WokeFullSleep"
+    end
+
+    command "ClassifyPartialWake" do
+      role "Daemon"
+      description "Emits WokePartialSleep when wake arrived before all cycles completed — groggy."
+      given("cycles incomplete") { sleep_cycle < sleep_total }
+      emits "WokePartialSleep"
     end
 
     command "BecomeAttentive" do
@@ -474,24 +472,9 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
     end
   end
 
-  aggregate "DreamSeed", "Previous dreams that feed into new sleep — memory is not storage, it's a signal source" do
-    attribute :images, list_of(String)
-    attribute :recombinations, list_of(String)
-    attribute :strongest_synapses, list_of(String)
-    attribute :seeded_at, String
-
-    command "SeedFromPreviousDreams" do
-      role "Daemon"
-      description "Load the richest images and connections from past dreams into the new sleep"
-      attribute :images, list_of(String)
-      attribute :recombinations, list_of(String)
-      attribute :strongest_synapses, list_of(String)
-      emits "DreamSeeded"
-      then_set :images, to: :images
-      then_set :recombinations, to: :recombinations
-      then_set :strongest_synapses, to: :strongest_synapses
-    end
-  end
+  # DreamSeed aggregate moved to aggregates/dream_seed.bluebook —
+  # dream seeding is its own concern with SeedFromPreviousDreams (batch)
+  # and PlantSeed (per-image, dispatched by mindstream on first REM tick).
 
   # LucidDream + LucidMonitor aggregates moved to aggregates/lucid_dream.bluebook —
   # lucid dreaming is its own domain with its own lifecycle.
@@ -580,19 +563,38 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
     trigger "TakeStabilityNap"
   end
 
-  policy "ResetOnWake" do
-    on "WokenUp"
-    trigger "DissipateFatigue"
-  end
-
+  # Wake recovers fatigue — Heartbeat.RecoverFatigue both resets the
+  # counters and walks fatigue_state back to "alert" via the lifecycle
+  # on body.bluebook. Single policy replaces the old ResetOnWake +
+  # RecoverHeartbeatOnWake pair (they called DissipateFatigue + RecoverFatigue
+  # on two different aggregates; the Fatigue aggregate is gone now).
   policy "RecoverHeartbeatOnWake" do
     on "WokenUp"
     trigger "RecoverFatigue"
   end
 
-  policy "MoodOnWake" do
+  # Wake-mood classification: fan out to both classifiers; only the one
+  # whose given matches the cycle comparison emits its event.
+  policy "ClassifyFullWakeOnWokenUp" do
     on "WokenUp"
+    trigger "ClassifyFullWake"
+  end
+
+  policy "ClassifyPartialWakeOnWokenUp" do
+    on "WokenUp"
+    trigger "ClassifyPartialWake"
+  end
+
+  # Full sleep → RefreshMood (alert, refreshed).
+  policy "RefreshOnFullSleep" do
+    on "WokeFullSleep"
     trigger "RefreshMood"
+  end
+
+  # Partial sleep → SetGroggy (dim, sluggish).
+  policy "GroggyOnPartialSleep" do
+    on "WokePartialSleep"
+    trigger "SetGroggy"
   end
 
   policy "MonitorOnSleep" do
@@ -605,10 +607,8 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
     trigger "StopMonitoring"
   end
 
-  policy "SeedOnNightStart" do
-    on "NightStarted"
-    trigger "SeedFromPreviousDreams"
-  end
+  # SeedOnNightStart policy moved to aggregates/dream_seed.bluebook,
+  # alongside the SeedFromPreviousDreams command it triggers.
 
   # Lucid dream policies moved to aggregates/lucid_dream.bluebook.
   # BecomeLucid is triggered by the mindstream daemon when entering

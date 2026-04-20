@@ -1,0 +1,35 @@
+Hecks.bluebook "MusingArchive", version: "2026.04.20.1" do
+  vision "Archived musings — when too many share a concept, the oldest are tucked away so the active pool stays fresh."
+  category "mind"
+
+  # ============================================================
+  # MUSING ARCHIVE
+  # ============================================================
+  # consolidate.sh groups live musings by concept (thinking_source or
+  # feeling_source). If more than three share a concept, the oldest are
+  # moved here via Archive. Multi-record: each archived musing is a row.
+
+  aggregate "MusingArchive", "An archived musing — moved out of the active pool because its concept had too many duplicates" do
+    attribute :idea, String
+    attribute :source, String
+    attribute :concept, String
+    attribute :archived_reason, String
+    attribute :archived_at, String
+
+    command "Archive" do
+      role "Daemon"
+      description "Move a musing into the archive — record idea, source, concept, why, and when"
+      attribute :idea, String
+      attribute :source, String
+      attribute :concept, String
+      attribute :archived_reason, String
+      attribute :archived_at, String
+      emits "MusingArchived"
+      then_set :idea, to: :idea
+      then_set :source, to: :source
+      then_set :concept, to: :concept
+      then_set :archived_reason, to: :archived_reason
+      then_set :archived_at, to: :archived_at
+    end
+  end
+end

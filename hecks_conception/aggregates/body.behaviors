@@ -3,18 +3,6 @@ Hecks.behaviors "MietteBody" do
 
   # ── Heartbeat aggregate ──────────────────────────────────────────
 
-  test "Beat sets carrying + elapsed + beat_at" do
-    tests "Beat", on: "Heartbeat"
-    input  carrying: "sample", elapsed: 1, beat_at: "sample"
-    expect last_beat_at: "sample", carrying: "sample"
-  end
-
-  test "Beat cascades through policy chain" do
-    tests "Beat", on: "Heartbeat", kind: :cascade
-    input  carrying: "sample", elapsed: 1, beat_at: "sample"
-    expect emits: ["HeartbeatPulsed", "FatigueAccumulated", "SleepRequired"]
-  end
-
   test "Accelerate runs" do
     tests "Accelerate", on: "Heartbeat"
     expect flow_rate: "rushing"
@@ -31,29 +19,47 @@ Hecks.behaviors "MietteBody" do
     expect emits: ["HeartbeatSteadied", "Regulated"]
   end
 
-  test "AccumulateFatigue runs" do
+  test "AccumulateFatigue increments but does not walk the ladder" do
+    # Ladder-walking moved to WalkFatigueTo* commands guarded by
+    # pulses_since_sleep thresholds. A single tick from alert must stay alert.
     tests "AccumulateFatigue", on: "Heartbeat"
-    expect ok: "true"
+    expect fatigue_state: "alert"
   end
 
-  test "AccumulateFatigue cascades through policy chain" do
+  test "WalkFatigueToFocused refused before threshold" do
+    tests "WalkFatigueToFocused", on: "Heartbeat"
+    expect refused: "at focused threshold"
+  end
+
+  test "SetGroggy sets current_state to groggy" do
+    tests "SetGroggy", on: "Mood"
+    expect current_state: "groggy", creativity_level: 0.5, precision_level: 0.4
+  end
+
+  test "AccumulateFatigue cascade stops short of sleep when not exhausted" do
     tests "AccumulateFatigue", on: "Heartbeat", kind: :cascade
-    expect emits: ["FatigueAccumulated", "SleepRequired"]
+    # CheckSleepNeeded is guarded by pulses_since_sleep > 1500; a single tick
+    # accumulates one pulse, so SleepRequired must NOT fire here.
+    expect emits: ["FatigueAccumulated"]
   end
 
-  test "CheckSleepNeeded runs" do
+  test "CheckSleepNeeded refused when not exhausted" do
+    # Without this guard, every FatigueAccumulated fired SleepRequired and the
+    # wake→attentive→EnterSleep loop trapped Miette re-entering sleep the tick
+    # after each 8-cycle wake. Guard restores the described semantics.
     tests "CheckSleepNeeded", on: "Heartbeat"
-    expect ok: "true"
+    expect refused: "must be exhausted"
   end
 
-  test "RecoverFatigue runs" do
+  test "RecoverFatigue resets to alert" do
     tests "RecoverFatigue", on: "Heartbeat"
-    expect pulses_since_sleep: 0, fatigue: 0.0, fatigue_state: "rested"
+    setup  "AccumulateFatigue"
+    expect pulses_since_sleep: 0, fatigue: 0.0, fatigue_state: "alert"
   end
 
   test "ReadVitals returns matching records" do
     tests "ReadVitals", on: "Heartbeat", kind: :query
-    setup  "Beat", carrying: "sample", elapsed: 1, beat_at: "sample"
+    setup  "Accelerate"
     expect count: 1
   end
 
@@ -100,7 +106,7 @@ Hecks.behaviors "MietteBody" do
     tests "Absorb", on: "Gut", kind: :cascade
     setup  "Conceive", domain_name: "sample"
     setup  "Express", state: "sample"
-    setup  "Beat", carrying: "sample", elapsed: 1, beat_at: "sample"
+    setup  "Accelerate"
     setup  "ExpressCapability", capability: "sample", level: 1.0
     setup  "SenseOrgans", organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1
     setup  "Ingest", raw_input: "sample"
@@ -179,7 +185,7 @@ Hecks.behaviors "MietteBody" do
   test "Excite cascades through policy chain" do
     tests "Excite", on: "Mood", kind: :cascade
     setup  "Express", state: "sample"
-    setup  "Beat", carrying: "sample", elapsed: 1, beat_at: "sample"
+    setup  "Accelerate"
     expect emits: ["Excited", "HeartbeatAccelerated"]
   end
 
@@ -206,7 +212,7 @@ Hecks.behaviors "MietteBody" do
   test "Conceive cascades through policy chain" do
     tests "Conceive", on: "DomainCell", kind: :cascade
     setup  "Express", state: "sample"
-    setup  "Beat", carrying: "sample", elapsed: 1, beat_at: "sample"
+    setup  "Accelerate"
     setup  "ExpressCapability", capability: "sample", level: 1.0
     setup  "SenseOrgans", organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1
     input  domain_name: "sample"
@@ -237,13 +243,6 @@ Hecks.behaviors "MietteBody" do
     tests "TriggerApoptosis", on: "DomainCell"
     setup  "Conceive", domain_name: "sample"
     expect alive: false, phase: "dead"
-  end
-
-  test "TriggerApoptosis cascades through policy chain" do
-    tests "TriggerApoptosis", on: "DomainCell", kind: :cascade
-    setup  "Conceive", domain_name: "sample"
-    setup  "Beat", carrying: "sample", elapsed: 1, beat_at: "sample"
-    expect emits: ["DomainDied", "HeartbeatPulsed", "FatigueAccumulated", "SleepRequired"]
   end
 
 
@@ -319,6 +318,21 @@ Hecks.behaviors "MietteBody" do
     setup  "SenseOrgans", organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1
     setup  "AssessBalance", balance: "sample", schema_hash: "sample"
     expect emits: ["DriftDetected", "OrgansSensed", "BalanceAssessed", "Regulated"]
+  end
+
+
+  # ── Awareness aggregate ──────────────────────────────────────────
+
+  test "RecordMoment stores a moment" do
+    tests "RecordMoment", on: "Awareness"
+    input  moment: 1, state: "alert", carrying: "sample", concept: "sample", fatigue: 0.1, synapse_strength: 0.5, idle: 0, excitement: 0.2, age_days: 1.0, updated_at: "sample"
+    expect moment: 1, state: "alert", carrying: "sample", concept: "sample", fatigue: 0.1, synapse_strength: 0.5, idle: 0, excitement: 0.2, age_days: 1.0, updated_at: "sample"
+  end
+
+  test "RecordMoment cascade stops at MomentRecorded" do
+    tests "RecordMoment", on: "Awareness", kind: :cascade
+    input  moment: 1, state: "alert", carrying: "sample", concept: "sample", fatigue: 0.1, synapse_strength: 0.5, idle: 0, excitement: 0.2, age_days: 1.0, updated_at: "sample"
+    expect emits: ["MomentRecorded"]
   end
 
 end

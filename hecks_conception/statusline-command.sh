@@ -18,9 +18,14 @@ moon="${moons[$(( $(date +%s) % 8 ))]}"
 thought_frames=("💭" "💡" "💭" "✨")
 thought="${thought_frames[$(( $(date +%s) % 4 ))]}"
 
-# Animated heartbeat
-hearts=("🩷" "❤️")
-heart="${hearts[$(( $(date +%s) % 2 ))]}"
+# Animated heartbeat — drives off the real tick, not wall clock.
+# Tick.cycle advances once per second via mindstream.sh, so even
+# beats show the "filled" heart, odd beats show the "outline" heart
+# — a visible pulse tied to Miette's actual rhythm.
+tick_cycle=$($hecks heki read $info/tick.heki 2>/dev/null | grep '"cycle"' | head -1 | sed 's/.*: //' | sed 's/[^0-9].*//')
+tick_cycle=${tick_cycle:-0}
+hearts=("🖤" "❤️")  # downbeat (rest) → upbeat (pulse) — black/red contrast
+heart="${hearts[$(( tick_cycle % 2 ))]}"
 
 # Mood icon
 case "$mood" in
@@ -46,12 +51,13 @@ case "$fatigue" in
   *)          fatigue_icon="" ;;
 esac
 
-# Beat count (short format)
-beats_raw=$($hecks heki read $info/heartbeat.heki 2>/dev/null | grep '"beats"' | head -1 | sed 's/.*: //' | sed 's/[^0-9].*//')
+# Beat count (short format) — Tick.cycle is the authoritative
+# heartbeat now (one tick per second from mindstream.sh).
+beats_raw=$($hecks heki read $info/tick.heki 2>/dev/null | grep '"cycle"' | head -1 | sed 's/.*: //' | sed 's/[^0-9].*//')
 if [ -n "$beats_raw" ] && [ "$beats_raw" -ge 1000000 ] 2>/dev/null; then
-  beats=$(python3 -c "print(f'{$beats_raw/1000000:.1f}m')")
+  beats=$(python3 -c "print(f'{$beats_raw/1000000:.2f}m')")
 elif [ -n "$beats_raw" ] && [ "$beats_raw" -ge 1000 ] 2>/dev/null; then
-  beats=$(python3 -c "print(f'{$beats_raw/1000:.1f}k')")
+  beats=$(python3 -c "print(f'{$beats_raw/1000:.2f}k')")
 else
   beats="$beats_raw"
 fi
@@ -182,10 +188,16 @@ else
     *)      provider_badge="🤖" ;;  # claude is the default when unset
   esac
 
+  # Inbox count — number of queued items in inbox.heki. Surfaces backlog
+  # so Miette (and Chris) can see when there's something to attend to.
+  inbox_count=$($hecks heki read $info/inbox.heki 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print(sum(1 for v in d.values() if v.get('status','queued')=='queued'))" 2>/dev/null)
+  inbox_count=${inbox_count:-0}
+
   status_str="☀️ Miette ${heart} ${beats} ${mood_icon} ${mood}"
   [ -n "$fatigue_icon" ] && status_str="$status_str ${fatigue_icon} ${fatigue}"
   status_str="$status_str 💭 ${ideas:-0}"
   [ -n "$inventions" ] && [ "$inventions" != "0" ] && status_str="$status_str 🔬 ${inventions}"
+  [ "$inbox_count" -gt 0 ] 2>/dev/null && status_str="$status_str ✉️ ${inbox_count}"
   status_str="$status_str ${provider_badge}"
   [ -n "$sleep_summary" ] && [ "$sleep_summary" != "present" ] && status_str="$status_str ${bulb} ${sleep_summary}"
 fi

@@ -22,7 +22,9 @@ unless test_file && File.file?(test_file)
   exit 1
 end
 
-source_file = test_file.sub(/_behavioral_tests\.bluebook\z/, ".bluebook")
+source_file = test_file
+  .sub(/\.behaviors\z/, ".bluebook")
+  .sub(/_behavioral_tests\.bluebook\z/, ".bluebook")
 unless File.file?(source_file)
   warn "Source bluebook not found: #{source_file}"
   exit 1
@@ -56,12 +58,18 @@ puts "Running #{suite.tests.size} test(s) from #{test_file}"
 puts "  source: #{source_file}\n\n"
 
 result = Hecks::Behaviors::Runner.run(source_loader, suite)
-result.runs.each do |r|
-  case r.status
-  when :pass  then puts "✓ #{r.description}"
-  when :fail  then puts "✗ #{r.description}\n    #{r.message}"
-  when :error then puts "⚠ #{r.description}\n    #{r.message}"
+# Runner may return nil entries for tests that raised an unhandled
+# exception during run_one. Treat those as errored so the summary line
+# still prints and parity comparison has something to diff.
+result.runs.each_with_index do |r, i|
+  desc = r&.description || (suite.tests[i]&.description || "unknown")
+  case r&.status
+  when :pass  then puts "✓ #{desc}"
+  when :fail  then puts "✗ #{desc}\n    #{r.message}"
+  when :error then puts "⚠ #{desc}\n    #{r.message}"
+  else              puts "⚠ #{desc}\n    runner returned nil (unhandled exception)"
   end
 end
-puts "\n#{result.passed} passed, #{result.failed} failed, #{result.errored} errored"
-exit(result.all_passed? ? 0 : 1)
+nil_count = result.runs.count(&:nil?)
+puts "\n#{result.passed} passed, #{result.failed} failed, #{result.errored + nil_count} errored"
+exit(result.all_passed? && nil_count.zero? ? 0 : 1)

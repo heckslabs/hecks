@@ -210,4 +210,13 @@ Hecks.bluebook "Miette", version: "2026.04.09.1" do
     on "DomainConceived"
     trigger "EncodeMemory"
   end
+
+  # Every time I speak, record the exchange as a Conversation row.
+  # Pulled from the deleted pulse.rs record_turn (inbox #18): conversation
+  # history lives in conversation.heki. The adapter_terminal dispatcher
+  # supplies the `said` text; the policy takes care of the rest.
+  policy "RespondOnSpoken" do
+    on "Spoken"
+    trigger "Respond"
+  end
 end

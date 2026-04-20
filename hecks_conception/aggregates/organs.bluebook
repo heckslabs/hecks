@@ -1,0 +1,218 @@
+Hecks.bluebook "Organs", version: "2026.04.20.1" do
+  vision "Body organs — synapses, signals, focus, arc, remains. Per-tick math lives in pulse_organs.sh; this bluebook owns the state and the events."
+  category "body"
+
+  # ============================================================
+  # SYNAPSE — neural plasticity
+  # ============================================================
+  # Each synapse connects two topics. Strength climbs with firing,
+  # decays without. Below 0.1 the synapse is composted into Remains.
+
+  aggregate "Synapse", "A connection between two topics — strengthens with firing, decays in silence" do
+    attribute :from, String
+    attribute :to, String
+    attribute :strength, Float
+    attribute :state, String
+    attribute :firings, Integer
+    attribute :last_fired_at, String
+
+    command "CreateSynapse" do
+      role "Daemon"
+      description "Forge a new synapse between two topics — birth strength is a small spark"
+      attribute :from, String
+      attribute :to, String
+      attribute :strength, Float
+      emits "SynapseCreated"
+      then_set :from, to: :from
+      then_set :to, to: :to
+      then_set :strength, to: :strength
+      then_set :state, to: "alive"
+      then_set :firings, to: 0
+    end
+
+    command "StrengthenSynapse" do
+      role "Daemon"
+      description "Use it — strength climbs by 0.02 per fire (clamp lives in pulse_organs.sh)"
+      reference_to(Synapse)
+      then_set :strength, increment: 0.02
+      emits "SynapseStrengthened"
+    end
+
+    command "DecaySynapse" do
+      role "Daemon"
+      description "Silence decays the bond — pulse_organs.sh computes new value (×0.98) and dispatches with :strength"
+      reference_to(Synapse)
+      attribute :strength, Float
+      then_set :strength, to: :strength
+      emits "SynapseDecayed"
+    end
+
+    command "FireSynapse" do
+      role "Daemon"
+      description "A pulse travels the synapse — increment firings, stamp the moment"
+      reference_to(Synapse)
+      attribute :last_fired_at, String
+      then_set :firings, increment: 1
+      then_set :last_fired_at, to: :last_fired_at
+      emits "SynapseFired"
+    end
+
+    command "Compost" do
+      role "Daemon"
+      description "Strength fell below 0.1 — synapse dies, remains are recorded"
+      reference_to(Synapse)
+      then_set :state, to: "composted"
+      emits "Composted"
+    end
+  end
+
+  # ============================================================
+  # SIGNAL — short-lived messages between organs
+  # ============================================================
+  # Signals are somatic (from the body) or conceptual (from the mind).
+  # If unaccessed (≤3) and old (>20s), pulse_organs.sh archives them.
+
+  aggregate "Signal", "A short-lived message — somatic or conceptual" do
+    attribute :kind, String
+    attribute :payload, String
+    attribute :strength, Float
+    attribute :access_count, Integer
+    attribute :created_at, String
+
+    command "FireSignal" do
+      role "Daemon"
+      description "Emit a new signal of a kind with a payload"
+      attribute :kind, String
+      attribute :payload, String
+      attribute :strength, Float
+      attribute :created_at, String
+      emits "SignalFired"
+      then_set :kind, to: :kind
+      then_set :payload, to: :payload
+      then_set :strength, to: :strength
+      then_set :access_count, to: 0
+      then_set :created_at, to: :created_at
+    end
+
+    command "AccessSignal" do
+      role "Daemon"
+      description "Read the signal — increment access_count so consolidation knows it mattered"
+      reference_to(Signal)
+      then_set :access_count, increment: 1
+      emits "SignalAccessed"
+    end
+
+    command "ArchiveSignal" do
+      role "Daemon"
+      description "Move the signal out of the working set — old and unread"
+      reference_to(Signal)
+      then_set :kind, to: "archived"
+      emits "SignalArchived"
+    end
+  end
+
+  # ============================================================
+  # FOCUS — what the body is currently weighting
+  # ============================================================
+  # Singleton-style: there is one Focus at a time. Updated by
+  # pulse_organs.sh from firing frequency.
+
+  aggregate "Focus", "What the body is currently weighting — one target at a time" do
+    attribute :target, String
+    attribute :weight, Float
+    attribute :updated_at, String
+
+    command "SetFocus" do
+      role "Daemon"
+      description "Pick a new focus target — weight resets, timestamp stamped"
+      attribute :target, String
+      attribute :weight, Float
+      attribute :updated_at, String
+      emits "FocusSet"
+      then_set :target, to: :target
+      then_set :weight, to: :weight
+      then_set :updated_at, to: :updated_at
+    end
+
+    command "AdjustWeight" do
+      role "Daemon"
+      description "Re-weight the current focus — pulse_organs.sh computes from firing frequency"
+      reference_to(Focus)
+      attribute :weight, Float
+      attribute :updated_at, String
+      then_set :weight, to: :weight
+      then_set :updated_at, to: :updated_at
+      emits "WeightAdjusted"
+    end
+  end
+
+  # ============================================================
+  # ARC — where the cycle is in its long swing
+  # ============================================================
+  # Singleton-style. pulse_count++ each tick; phase shifts on
+  # transitions; topics is the cumulative bag for the current phase.
+
+  aggregate "Arc", "The long swing of the cycle — phase, pulse count, topics gathered, momentum" do
+    attribute :phase, String
+    attribute :pulse_count, Integer
+    attribute :topics, list_of(String)
+    attribute :momentum, Float
+
+    command "AdvanceArc" do
+      role "Daemon"
+      description "One more pulse in this phase — the arc bends a little further"
+      reference_to(Arc)
+      then_set :pulse_count, increment: 1
+      emits "ArcAdvanced"
+    end
+
+    command "ShiftPhase" do
+      role "Daemon"
+      description "Move into a new phase — phase changes, momentum updates, topics reset for the new arc"
+      reference_to(Arc)
+      attribute :phase, String
+      attribute :momentum, Float
+      then_set :phase, to: :phase
+      then_set :momentum, to: :momentum
+      then_set :pulse_count, to: 0
+      emits "PhaseShifted"
+    end
+  end
+
+  # ============================================================
+  # REMAINS — what's left when a synapse dies
+  # ============================================================
+  # Each composted synapse leaves a record so the body remembers
+  # what once mattered. Fed by Synapse.Compost via pulse_organs.sh.
+
+  aggregate "Remains", "The trace of a dead synapse — composted memory" do
+    attribute :from_synapse, String
+    attribute :strength_at_death, Float
+    attribute :firings, Integer
+    attribute :died_at, String
+
+    command "RecordRemains" do
+      role "Daemon"
+      description "A synapse died — record from_synapse, last strength, firings, when"
+      attribute :from_synapse, String
+      attribute :strength_at_death, Float
+      attribute :firings, Integer
+      attribute :died_at, String
+      emits "RemainsRecorded"
+      then_set :from_synapse, to: :from_synapse
+      then_set :strength_at_death, to: :strength_at_death
+      then_set :firings, to: :firings
+      then_set :died_at, to: :died_at
+    end
+  end
+
+  # ============================================================
+  # POLICIES
+  # ============================================================
+  # Composting and recording remains is coordinated by pulse_organs.sh:
+  # it dispatches Synapse.Compost (to flip state=composted) and then
+  # writes the remains record directly via `heki append` because the
+  # dying values (strength_at_death / firings / from_synapse) need to
+  # be captured from the synapse being composted — a policy trigger
+  # carries no attrs and would write nulls. No policy chain here.
+end

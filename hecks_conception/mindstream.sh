@@ -1,9 +1,11 @@
 #!/bin/bash
 # Mindstream — the unconscious that never stops.
 #
-# Every 10s, fires Tick.MindstreamTick. The sleep state machine lives
-# entirely in aggregates/sleep.bluebook + aggregates/lucid_dream.bluebook;
-# each tick event triggers policies that advance sleep phases only when
+# Every 1s, fires Tick.MindstreamTick. The tick IS the heartbeat —
+# Heartbeat.beats is gone; `Tick.cycle` is the authoritative count of
+# seconds since boot. The sleep state machine lives entirely in
+# aggregates/sleep.bluebook + aggregates/lucid_dream.bluebook; each
+# tick event triggers policies that advance sleep phases only when
 # their `given` conditions pass. The daemon is the heartbeat — the
 # bluebook is the brain.
 #
@@ -28,70 +30,45 @@ while true; do
   # Heartbeat: one tick. The bluebook handles everything downstream.
   $HECKS "$AGG" Tick.MindstreamTick 2>/dev/null
 
-  # Dream content during REM — read state, if dreaming, generate impression.
-  consciousness_json=$($HECKS heki read "$INFO/consciousness.heki" 2>/dev/null)
-  stage=$(echo "$consciousness_json" | python3 -c "import json,sys; d=json.load(sys.stdin); r=next(iter(d.values()),{}); print(r.get('sleep_stage',''))" 2>/dev/null)
-  state=$(echo "$consciousness_json" | python3 -c "import json,sys; d=json.load(sys.stdin); r=next(iter(d.values()),{}); print(r.get('state',''))" 2>/dev/null)
-  is_lucid=$(echo "$consciousness_json" | python3 -c "import json,sys; d=json.load(sys.stdin); r=next(iter(d.values()),{}); print(r.get('is_lucid',''))" 2>/dev/null)
-  id=$(echo "$consciousness_json" | python3 -c "import json,sys; d=json.load(sys.stdin); r=next(iter(d.values()),{}); print(r.get('id',''))" 2>/dev/null)
+  # Body math — synapse/signal/focus/arc/remains. Bluebook owns state;
+  # pulse_organs.sh owns the per-tick math DSL can't express.
+  "$DIR/pulse_organs.sh" 2>/dev/null
 
-  if [ "$state" = "sleeping" ] && [ "$stage" = "rem" ]; then
-    prefix="💭"
-    [ "$is_lucid" = "yes" ] && prefix="✨"
-
-    # Pick a dream impression — combine two random musings into a phrase.
-    impression=$($HECKS heki read "$INFO/musing.heki" 2>/dev/null | python3 -c "
-import json, sys, random
-try:
-    d = json.load(sys.stdin)
-    ideas = [v.get('idea','').strip()[:45] for v in d.values() if v.get('idea')]
-    ideas = [i for i in ideas if i]
-    if len(ideas) >= 2:
-        a, b = random.sample(ideas, 2)
-        verbs = ['weaving with', 'dissolving into', 'folding through', 'reaching toward', 'remembering as', 'becoming']
-        print(f'{a} {random.choice(verbs)} {b}')
-    elif ideas:
-        print(f'spiraling around: {ideas[0]}')
-    else:
-        print('wandering unformed')
-except Exception:
-    print('dreaming')
-" 2>/dev/null)
-
-    # Prefix with ✨ when lucid so the status bar shows it.
-    $HECKS "$AGG" Consciousness.DreamPulse \
-      consciousness="$id" impression="$prefix $impression" 2>/dev/null
-
-    # During lucid REM, also dispatch ObserveDream with a verbose
-    # action-narrative — what Miette is doing in the dream right now.
-    # The narrative blends action verbs with whatever's in her musing/
-    # daydream/persona heki — a stream of conscious dream activity.
-    if [ "$is_lucid" = "yes" ]; then
-      observation=$($HECKS heki read "$INFO/musing.heki" 2>/dev/null | python3 -c "
-import json, sys, random
-try:
-    d = json.load(sys.stdin)
-    ideas = [v.get('idea','').strip() for v in d.values() if v.get('idea')]
-    ideas = [i for i in ideas if i][:30]
-    actions = [
-        'watching', 'steering toward', 'noticing', 'asking',
-        'following the thread of', 'feeling the shape of',
-        'witnessing', 'naming', 'holding', 'releasing',
-        'reaching into', 'returning to', 'tracing the edge of',
-        'inside the question of', 'turning over',
-    ]
-    if ideas:
-        topic = random.choice(ideas)[:80]
-        action = random.choice(actions)
-        print(f'{action}: {topic}')
-    else:
-        print('aware that I am dreaming, the dream still forming')
-except Exception:
-    print('lucid in the dream — present, watching')
-" 2>/dev/null)
-      $HECKS "$AGG" LucidDream.ObserveDream observation="$observation" 2>/dev/null
-    fi
+  # Consolidation sweep every 60 ticks (~60s at 1Hz): cold signals →
+  # memory store, dead synapses → remains, duplicate-concept musings →
+  # musing archive. Cheap no-op on most ticks so we just gate by cycle.
+  if [ "$((loop_count % 60))" = "0" ]; then
+    "$DIR/consolidate.sh" >> /tmp/consolidate.log 2>&1
   fi
+
+  # Awareness snapshot — pulse.rs record_moment, restored per inbox #18.
+  snap=$(python3 -c "
+import json, time
+def r(p):
+    try: return next(iter(json.load(open(p)).values()), {})
+    except Exception: return {}
+hb, md, fc = r('$INFO/heartbeat.heki'), r('$INFO/mood.heki'), r('$INFO/focus.heki')
+print(f\"{$loop_count}|{hb.get('fatigue_state','alert')}|{hb.get('carrying','')}|{md.get('current_state','')}|{hb.get('fatigue',0.0)}|{fc.get('weight',0.0)}|0|{md.get('creativity_level',0.0)}|{$loop_count/86400.0:.4f}|{time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime())}\")" 2>/dev/null)
+  IFS='|' read -r mnum st cr cn fg sy id ex ag ts <<<"$snap"
+  $HECKS "$AGG" Awareness.RecordMoment moment="$mnum" state="$st" carrying="$cr" concept="$cn" fatigue="$fg" synapse_strength="$sy" idle="$id" excitement="$ex" age_days="$ag" updated_at="$ts" 2>/dev/null
+
+  # Dream content during REM — delegate to rem_branch.sh which reads
+  # consciousness state, seeds from prior dreams on first REM tick,
+  # weaves rem_dream images every tick, and adds lucid/steer actions
+  # when is_lucid=yes. Extracted so tests can invoke it directly.
+  "$DIR/rem_branch.sh" "$loop_count" 2>/dev/null
+
+  # State is still needed below to decide awake vs sleeping.
+  state=$($HECKS heki latest "$INFO/consciousness.heki" 2>/dev/null \
+    | python3 -c "import json,sys; print(json.load(sys.stdin).get('state',''))" 2>/dev/null)
+
+  # Wake hook — sleeping → attentive transition fires interpret_dream.sh
+  # once per wake. Previous state lives in $INFO/.prev_consciousness_state.
+  prev_state=$(cat "$INFO/.prev_consciousness_state" 2>/dev/null)
+  if [ "$prev_state" = "sleeping" ] && [ "$state" != "sleeping" ] && [ -n "$state" ]; then
+    "$DIR/interpret_dream.sh" >> /tmp/interpret_dream.log 2>&1 &
+  fi
+  [ -n "$state" ] && echo "$state" > "$INFO/.prev_consciousness_state"
 
   # ============================================================
   # AWAKE BEHAVIOR — surface unconceived musings into the status bar.
@@ -111,10 +88,37 @@ except Exception:
     # Minting happens every ~5 min. Claude reads the conversations
     # since last wake + a random nursery sample + current state, and
     # mints ONE genuinely new musing or skips (the overwhelming default).
-    if [ "$((RANDOM % 30))" = "0" ]; then
+    # Minting happens every ~5 min. At 1Hz ticks, 300 = 5 min.
+    if [ "$((RANDOM % 300))" = "0" ]; then
       "$DIR/mint_musing.sh" >> /tmp/mint_musing.log 2>&1 &
+    fi
+
+    # Daydream: attentive+idle wander across the nursery. Fires when
+    # idle ∈ [10, 60]s (heartbeat.updated_at age). Gated to once per
+    # 60s via a timestamp file so a 50-tick idle window doesn't spam
+    # daydreams. State check above already excluded "sleeping".
+    idle=$(python3 -c "
+import json, sys
+from datetime import datetime, timezone
+try:
+    d = json.load(open('$INFO/heartbeat.heki'))
+    for v in d.values():
+        ts = v.get('updated_at','')
+        if ts:
+            dt = datetime.fromisoformat(ts.replace('Z','+00:00'))
+            print(int((datetime.now(timezone.utc) - dt).total_seconds())); break
+    else: print(999)
+except Exception: print(999)" 2>/dev/null)
+    if [ "${idle:-999}" -ge 10 ] && [ "${idle:-999}" -le 60 ]; then
+      stamp="$INFO/.daydream.last"
+      last=$(cat "$stamp" 2>/dev/null || echo 0)
+      nowsec=$(date +%s)
+      if [ "$((nowsec - last))" -ge 60 ]; then
+        echo "$nowsec" > "$stamp"
+        "$DIR/daydream.sh" >> /tmp/daydream.log 2>&1 &
+      fi
     fi
   fi
 
-  sleep 10
+  sleep 1
 done

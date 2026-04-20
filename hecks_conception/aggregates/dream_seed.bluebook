@@ -1,0 +1,54 @@
+Hecks.bluebook "DreamSeed", version: "2026.04.20.1" do
+  vision "Previous dreams feed forward — top images from the last night plant seeds for tonight's REM"
+  category "mind"
+
+  # ============================================================
+  # DREAM SEEDS — memory is not storage, it's a signal source.
+  # ============================================================
+  #
+  # At the start of a sleep session (first REM tick of the first cycle),
+  # the mindstream reads the richest images from the previous night's
+  # dream_state.heki and plants them as seeds. Each PlantSeed is one
+  # image that tonight's dreams can weave back into new recombinations.
+  #
+  # SeedFromPreviousDreams is the batch command (fires on NightStarted,
+  # per policy `SeedOnNightStart` in sleep.bluebook) — it stamps the
+  # aggregate with lists of images + recombinations + synapses.
+  # PlantSeed is the per-image command — the mindstream dispatches it
+  # once for each of the top-5 carried-forward images.
+
+  aggregate "DreamSeed", "Previous dreams that feed into new sleep — memory is not storage, it's a signal source" do
+    attribute :images, list_of(String)
+    attribute :recombinations, list_of(String)
+    attribute :strongest_synapses, list_of(String)
+    attribute :seeded_at, String
+
+    command "SeedFromPreviousDreams" do
+      role "Daemon"
+      description "Load the richest images and connections from past dreams into the new sleep"
+      attribute :images, list_of(String)
+      attribute :recombinations, list_of(String)
+      attribute :strongest_synapses, list_of(String)
+      emits "DreamSeeded"
+      then_set :images, to: :images
+      then_set :recombinations, to: :recombinations
+      then_set :strongest_synapses, to: :strongest_synapses
+    end
+
+    command "PlantSeed" do
+      role "Daemon"
+      description "Plant one image from a prior dream as a seed for tonight. Dispatched per-image by the mindstream on the first REM tick of a night. Appends to images so each night accumulates seeds; the oldest fall off naturally as the list truncates over many nights."
+      attribute :image, String
+      then_set :images, append: :image
+      emits "SeedPlanted"
+    end
+  end
+
+  # When a sleep session begins (Night.StartNight → NightStarted), the
+  # batch SeedFromPreviousDreams fires. Policy moved here with the
+  # command it triggers; lives alongside its target, not alongside Night.
+  policy "SeedOnNightStart" do
+    on "NightStarted"
+    trigger "SeedFromPreviousDreams"
+  end
+end
