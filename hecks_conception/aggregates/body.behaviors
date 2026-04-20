@@ -24,14 +24,19 @@ Hecks.behaviors "MietteBody" do
     expect fatigue_state: "focused"
   end
 
-  test "AccumulateFatigue cascades through policy chain" do
+  test "AccumulateFatigue cascade stops short of sleep when not exhausted" do
     tests "AccumulateFatigue", on: "Heartbeat", kind: :cascade
-    expect emits: ["FatigueAccumulated", "SleepRequired"]
+    # CheckSleepNeeded is guarded by pulses_since_sleep > 1500; a single tick
+    # accumulates one pulse, so SleepRequired must NOT fire here.
+    expect emits: ["FatigueAccumulated"]
   end
 
-  test "CheckSleepNeeded runs" do
+  test "CheckSleepNeeded refused when not exhausted" do
+    # Without this guard, every FatigueAccumulated fired SleepRequired and the
+    # wake→attentive→EnterSleep loop trapped Miette re-entering sleep the tick
+    # after each 8-cycle wake. Guard restores the described semantics.
     tests "CheckSleepNeeded", on: "Heartbeat"
-    expect ok: "true"
+    expect refused: "must be exhausted"
   end
 
   test "RecoverFatigue resets to alert" do

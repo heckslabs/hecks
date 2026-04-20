@@ -53,7 +53,8 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
 
     command "CheckSleepNeeded" do
       role "Miette"
-      description "Only request sleep when exhausted — pulses > 1500 (25 minutes at 1Hz ticks)"
+      description "Only request sleep when exhausted — pulses > 1500 (25 minutes at 1Hz ticks). Without this guard, every FatigueAccumulated emits SleepRequired, which re-fires EnterSleep immediately after each wake and traps the body in a sleep loop."
+      given("must be exhausted") { pulses_since_sleep > 1500 }
       emits "SleepRequired"
     end
 
