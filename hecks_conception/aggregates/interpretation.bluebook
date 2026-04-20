@@ -28,6 +28,15 @@ Hecks.bluebook "Interpretation", version: "2026.04.16.1" do
       then_set :recurring_theme, to: :recurring_theme
     end
 
+    command "Synthesize" do
+      role "Miette"
+      description "Join extracted themes into a single interpretation phrase"
+      reference_to(DreamInterpretation)
+      attribute :interpretation, String
+      emits "InterpretationSynthesized"
+      then_set :interpretation, to: :interpretation
+    end
+
     command "ProposeDomainFromDream" do
       role "Miette"
       description "The dream suggests something to conceive — name it"

@@ -62,6 +62,14 @@ print(f\"{$loop_count}|{hb.get('fatigue_state','alert')}|{hb.get('carrying','')}
   state=$($HECKS heki latest "$INFO/consciousness.heki" 2>/dev/null \
     | python3 -c "import json,sys; print(json.load(sys.stdin).get('state',''))" 2>/dev/null)
 
+  # Wake hook — sleeping → attentive transition fires interpret_dream.sh
+  # once per wake. Previous state lives in $INFO/.prev_consciousness_state.
+  prev_state=$(cat "$INFO/.prev_consciousness_state" 2>/dev/null)
+  if [ "$prev_state" = "sleeping" ] && [ "$state" != "sleeping" ] && [ -n "$state" ]; then
+    "$DIR/interpret_dream.sh" >> /tmp/interpret_dream.log 2>&1 &
+  fi
+  [ -n "$state" ] && echo "$state" > "$INFO/.prev_consciousness_state"
+
   # ============================================================
   # AWAKE BEHAVIOR — surface unconceived musings into the status bar.
   # ============================================================

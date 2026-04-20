@@ -43,13 +43,16 @@ Hecks.bluebook "Mindstream", version: "2026.04.16.1" do
 
   aggregate "MusingMint", "Minting new musings — only really great ideas. Random domain collisions produce noise; quality requires curation. Claude (or any LLM adapter wired in via ClaudeAssist) is the quality filter." do
     attribute :last_minted, String
+    attribute :last_source, String
     attribute :total_minted, Integer
 
     command "MintMusing" do
       description "Record a curated musing — the idea has been judged good enough to keep"
       attribute :idea, String
+      attribute :source, String
       emits "MusingMinted"
       then_set :last_minted, to: :idea
+      then_set :last_source, to: :source
       then_set :total_minted, increment: 1
     end
 

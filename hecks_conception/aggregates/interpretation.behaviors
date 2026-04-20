@@ -36,6 +36,13 @@ Hecks.behaviors "Interpretation" do
     expect proposed_domain: "sample"
   end
 
+  test "Synthesize sets interpretation" do
+    tests "Synthesize", on: "DreamInterpretation"
+    setup  "InterpretDream", dream_images: "sample", strongest_synapse: "sample"
+    input  interpretation: "joined themes"
+    expect interpretation: "joined themes"
+  end
+
 
   # ── Process aggregate ──────────────────────────────────────────
 
