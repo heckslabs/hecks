@@ -1,0 +1,18 @@
+Hecks.fixtures "InmateEducation" do
+  aggregate "Inmate" do
+    fixture "James_Rodriguez_", inmate_id: "INM-0401", name: "James Rodriguez", facility: "Oakville Correctional", education_level: "high school", status: "enrolled"
+    fixture "Michael_Chen_", inmate_id: "INM-0402", name: "Michael Chen", facility: "Northside Penitentiary", education_level: "college", status: "enrolled"
+  end
+  aggregate "Course" do
+    fixture "Course1", course_name: "Business Fundamentals", subject: "business", status: "published"
+    fixture "Course2", course_name: "Digital Literacy", subject: "technology", status: "draft"
+  end
+  aggregate "Enrollment" do
+    fixture "Enrollment1", progress_pct: 65.5, status: "active"
+    fixture "Enrollment2", progress_pct: 45.0, status: "active"
+  end
+  aggregate "BehaviorRecord" do
+    fixture "BehaviorRecord1", status: "active"
+    fixture "BehaviorRecord2", status: "active"
+  end
+end

@@ -13,6 +13,7 @@ Hecks.bluebook "InteriorDesign" do
       String :style_direction
       Float :budget
       emits "ProjectScoped"
+      then_set :status, to: "consultation"
     end
 
     PresentConcept do
@@ -56,6 +57,7 @@ Hecks.bluebook "InteriorDesign" do
       Float :square_footage
       String :color_palette
       emits "RoomPlanned"
+      then_set :status, to: "planning"
     end
 
     SpecifyFixtures do
@@ -138,6 +140,7 @@ Hecks.bluebook "InteriorDesign" do
       String :date
       String :crew_lead
       emits "InstallationScheduled"
+      then_set :status, to: "scheduled"
     end
 
     CompleteInstallation do
@@ -152,7 +155,7 @@ Hecks.bluebook "InteriorDesign" do
       description "Fix remaining punch list items after walkthrough"
       reference_to(Installation)
       String :punch_list
-      given { status == "completed" }
+      given { status == "completed" || status == "scheduled" }
       emits "PunchListResolved"
       then_set :status, to: "resolved"
     end
@@ -193,18 +196,4 @@ Hecks.bluebook "InteriorDesign" do
     trigger "ResolvePunchList"
   end
 
-  fixture "DesignProject", name: "Westwood Penthouse Redesign", space_type: "residential", style_direction: "contemporary minimalist", status: "consultation", budget: 75000.00
-  fixture "DesignProject", name: "Downtown Boutique Law Offices", space_type: "commercial", style_direction: "professional modern", status: "approved", budget: 125000.00
-
-  fixture "RoomDesign", room_name: "Master Bedroom", function: "sleeping quarters", square_footage: 280.0, color_palette: "warm grays with navy accents", status: "planning"
-  fixture "RoomDesign", room_name: "Open Concept Kitchen", function: "cooking and entertaining", square_footage: 450.0, color_palette: "whites, light woods, stainless steel", status: "specified"
-
-  fixture "MaterialSelection", material_name: "Italian Porcelain Floor Tile", category: "flooring", supplier: "Emser Tile", unit_cost: 8.50, lead_time_days: 21
-  fixture "MaterialSelection", material_name: "Custom Walnut Shelving", category: "millwork", supplier: "Architectural Woodworks", unit_cost: 250.00, lead_time_days: 35
-
-  fixture "Vendor", company_name: "Studio Lighting Solutions", specialty: "lighting fixtures", contact_name: "Marcus Thompson", phone: "555-0147"
-  fixture "Vendor", company_name: "Premium Paint & Wallcovering", specialty: "paints and finishes", contact_name: "Elena Rodriguez", phone: "555-0208"
-
-  fixture "Installation", date: "2026-05-15", crew_lead: "Tommy Castellano", status: "scheduled", punch_list: ""
-  fixture "Installation", date: "2026-06-02", crew_lead: "Lisa Chen", status: "completed", punch_list: "Touch up wall near outlet, adjust cabinet hinges"
 end

@@ -1,0 +1,35 @@
+Hecks.bluebook "WithMutations", version: "2026.04.18.1" do
+  vision "Command with then_set mutations — every operation kind"
+
+  aggregate "Counter", "Tracks a value" do
+    attribute :value, Integer
+    attribute :label, String
+    attribute :tags, list_of(String)
+
+    command "Set" do
+      role "User"
+      attribute :label, String
+      then_set :label, to: :label
+      emits "Was"
+    end
+
+    command "Bump" do
+      role "User"
+      then_set :value, increment: 1
+      emits "Bumped"
+    end
+
+    command "Drop" do
+      role "User"
+      then_set :value, decrement: 1
+      emits "Dropped"
+    end
+
+    command "Tag" do
+      role "User"
+      attribute :tag, String
+      then_set :tags, append: :tag
+      emits "Tagged"
+    end
+  end
+end

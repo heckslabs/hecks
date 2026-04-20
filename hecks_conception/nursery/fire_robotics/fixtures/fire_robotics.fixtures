@@ -1,0 +1,18 @@
+Hecks.fixtures "FireRobotics" do
+  aggregate "FireIncident" do
+    fixture "FireIncident1", incident_id: "INC-2026-0414-001", location: "742 Elm Lane", fire_type: "structure", severity: "high", status: "reported"
+    fixture "FireIncident2", incident_id: "INC-2026-0414-002", location: "Suite 200, Commerce Plaza", fire_type: "electrical", severity: "medium", status: "reported"
+  end
+  aggregate "FireRobot" do
+    fixture "FireRobot1", robot_id: "FR-Quad-01", robot_type: "structure", battery_pct: 87.5, status: "standby"
+    fixture "FireRobot2", robot_id: "FR-Thermal-02", robot_type: "thermal_scout", battery_pct: 95.0, status: "standby"
+  end
+  aggregate "Mission" do
+    fixture "Mission1", mission_type: "reconnaissance", status: "planned"
+    fixture "Mission2", mission_type: "extraction_support", status: "planned"
+  end
+  aggregate "RescueOperation" do
+    fixture "RescueOperation1", victims_located: 0, status: "searching"
+    fixture "RescueOperation2", victims_located: 2, status: "searching"
+  end
+end

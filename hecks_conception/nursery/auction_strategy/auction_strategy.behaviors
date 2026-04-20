@@ -1,0 +1,106 @@
+Hecks.behaviors "AuctionStrategy" do
+  vision "Behavioral tests for the AuctionStrategy domain — exercises every command and query in memory"
+
+  # ── Auction aggregate ──────────────────────────────────────────
+
+  test "ListAuction sets name + item_description + auction_type + reserve_price + start_time + end_time" do
+    tests "ListAuction", on: "Auction"
+    input  name: "sample", item_description: "sample", auction_type: "sample", reserve_price: 1.0, start_time: "sample", end_time: "sample"
+    expect name: "sample", item_description: "sample", auction_type: "sample", reserve_price: 1.0, current_bid: 0.0, start_time: "sample", end_time: "sample", status: "open"
+  end
+
+  test "CloseAuction runs" do
+    tests "CloseAuction", on: "Auction"
+    setup  "ListAuction", name: "sample", item_description: "sample", auction_type: "sample", reserve_price: 1.0, start_time: "sample", end_time: "sample"
+    expect status: "closed"
+  end
+
+  test "CloseAuction cascades through policy chain" do
+    tests "CloseAuction", on: "Auction", kind: :cascade
+    setup  "ListAuction", name: "sample", item_description: "sample", auction_type: "sample", reserve_price: 1.0, start_time: "sample", end_time: "sample"
+    expect emits: ["AuctionClosed", "AuctionAwarded"]
+  end
+
+  test "AwardAuction runs" do
+    tests "AwardAuction", on: "Auction"
+    setup  "ListAuction", name: "sample", item_description: "sample", auction_type: "sample", reserve_price: 1.0, start_time: "sample", end_time: "sample"
+    expect status: "awarded"
+  end
+
+
+  # ── Bidder aggregate ──────────────────────────────────────────
+
+  test "RegisterBidder sets name + max_valuation + budget + risk_profile" do
+    tests "RegisterBidder", on: "Bidder"
+    input  name: "sample", max_valuation: 1.0, budget: 1.0, risk_profile: "sample"
+    expect name: "sample", max_valuation: 1.0, budget: 1.0, risk_profile: "sample", bid_count: 0, status: "active"
+  end
+
+  test "ReassessValuation sets max_valuation" do
+    tests "ReassessValuation", on: "Bidder"
+    setup  "RegisterBidder", name: "sample", max_valuation: 1.0, budget: 1.0, risk_profile: "sample"
+    input  max_valuation: 1.0
+    expect max_valuation: 1.0
+  end
+
+
+  # ── BiddingStrategy aggregate ──────────────────────────────────────────
+
+  test "DefineStrategy sets name + strategy_type + aggression_factor + shade_pct" do
+    tests "DefineStrategy", on: "BiddingStrategy"
+    input  name: "sample", strategy_type: "sample", aggression_factor: 1.0, shade_pct: 1.0
+    expect name: "sample", strategy_type: "sample", aggression_factor: 1.0, shade_pct: 1.0, status: "defined"
+  end
+
+  test "DefineStrategy cascades through policy chain" do
+    tests "DefineStrategy", on: "BiddingStrategy", kind: :cascade
+    input  name: "sample", strategy_type: "sample", aggression_factor: 1.0, shade_pct: 1.0
+    expect emits: ["StrategyDefined", "EquilibriumComputed"]
+  end
+
+  test "ComputeEquilibrium sets expected_payoff" do
+    tests "ComputeEquilibrium", on: "BiddingStrategy"
+    setup  "DefineStrategy", name: "sample", strategy_type: "sample", aggression_factor: 1.0, shade_pct: 1.0
+    input  expected_payoff: 1.0
+    expect expected_payoff: 1.0
+  end
+
+  test "ActivateStrategy runs" do
+    tests "ActivateStrategy", on: "BiddingStrategy"
+    setup  "DefineStrategy", name: "sample", strategy_type: "sample", aggression_factor: 1.0, shade_pct: 1.0
+    expect status: "active"
+  end
+
+
+  # ── Bid aggregate ──────────────────────────────────────────
+
+  test "PlaceBid sets bidder_name + auction_name + amount + strategy_used + timestamp" do
+    tests "PlaceBid", on: "Bid"
+    input  bidder_name: "sample", auction_name: "sample", amount: 1.0, strategy_used: "sample", timestamp: "sample"
+    expect bidder_name: "sample", auction_name: "sample", amount: 1.0, strategy_used: "sample", timestamp: "sample", status: "placed"
+  end
+
+  test "PlaceBid cascades through policy chain" do
+    tests "PlaceBid", on: "Bid", kind: :cascade
+    setup  "RegisterBidder", name: "sample", max_valuation: 1.0, budget: 1.0, risk_profile: "sample"
+    setup  "ListAuction", name: "sample", item_description: "sample", auction_type: "sample", reserve_price: 1.0, start_time: "sample", end_time: "sample"
+    input  bidder_name: "sample", auction_name: "sample", amount: 1.0, strategy_used: "sample", timestamp: "sample"
+    expect emits: ["BidPlaced", "BidEvaluated", "ValuationReassessed", "AuctionClosed", "AuctionAwarded"]
+  end
+
+  test "EvaluateBid sets outcome" do
+    tests "EvaluateBid", on: "Bid"
+    setup  "PlaceBid", bidder_name: "sample", auction_name: "sample", amount: 1.0, strategy_used: "sample", timestamp: "sample"
+    input  outcome: "sample"
+    expect outcome: "sample", status: "evaluated"
+  end
+
+  test "EvaluateBid cascades through policy chain" do
+    tests "EvaluateBid", on: "Bid", kind: :cascade
+    setup  "RegisterBidder", name: "sample", max_valuation: 1.0, budget: 1.0, risk_profile: "sample"
+    setup  "PlaceBid", bidder_name: "sample", auction_name: "sample", amount: 1.0, strategy_used: "sample", timestamp: "sample"
+    input  outcome: "sample"
+    expect emits: ["BidEvaluated", "ValuationReassessed"]
+  end
+
+end

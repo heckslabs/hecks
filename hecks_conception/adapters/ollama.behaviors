@@ -1,0 +1,33 @@
+Hecks.behaviors "OllamaAdapter" do
+  vision "Behavioral tests for the OllamaAdapter domain — exercises every command and query in memory"
+
+  # ── Connection aggregate ──────────────────────────────────────────
+
+  test "Connect sets url + model" do
+    tests "Connect", on: "Connection"
+    input  url: "sample", model: "sample"
+    expect url: "sample", model: "sample", status: "ready"
+  end
+
+  test "CheckHealth returns matching records" do
+    tests "CheckHealth", on: "Connection", kind: :query
+    setup  "Connect", url: "sample", model: "sample"
+    expect count: 1
+  end
+
+
+  # ── Inference aggregate ──────────────────────────────────────────
+
+  test "Infer sets prompt" do
+    tests "Infer", on: "Inference"
+    input  prompt: "sample"
+    expect prompt: "sample"
+  end
+
+  test "ReadResponse returns matching records" do
+    tests "ReadResponse", on: "Inference", kind: :query
+    setup  "Infer", prompt: "sample"
+    expect count: 1
+  end
+
+end

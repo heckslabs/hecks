@@ -1,0 +1,47 @@
+Hecks.behaviors "Distribution" do
+  vision "Behavioral tests for the Distribution domain — exercises every command and query in memory"
+
+  # ── Channel aggregate ──────────────────────────────────────────
+
+  test "RegisterChannel sets name + channel_type + account_id" do
+    tests "RegisterChannel", on: "Channel"
+    input  name: "sample", channel_type: "sample", account_id: "sample"
+    expect name: "sample", channel_type: "sample", account_id: "sample", status: "active"
+  end
+
+  test "ListProduct sets sku" do
+    tests "ListProduct", on: "Channel"
+    setup  "RegisterChannel", name: "sample", channel_type: "sample", account_id: "sample"
+    input  sku: "sample"
+    expect active_skus_size: 1
+  end
+
+  test "DelistProduct sets sku" do
+    tests "DelistProduct", on: "Channel"
+    setup  "RegisterChannel", name: "sample", channel_type: "sample", account_id: "sample"
+    input  sku: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SalesOrder aggregate ──────────────────────────────────────────
+
+  test "PlaceOrder sets order_number + channel + customer + purchase_order_number" do
+    tests "PlaceOrder", on: "SalesOrder"
+    input  order_number: "sample", channel: "sample", customer: "sample", purchase_order_number: "sample"
+    expect order_number: "sample", channel: "sample", customer: "sample", purchase_order_number: "sample", status: "placed"
+  end
+
+  test "FulfillOrder runs" do
+    tests "FulfillOrder", on: "SalesOrder"
+    setup  "PlaceOrder", order_number: "sample", channel: "sample", customer: "sample", purchase_order_number: "sample"
+    expect status: "fulfilled"
+  end
+
+  test "CancelOrder runs" do
+    tests "CancelOrder", on: "SalesOrder"
+    setup  "PlaceOrder", order_number: "sample", channel: "sample", customer: "sample", purchase_order_number: "sample"
+    expect status: "cancelled"
+  end
+
+end

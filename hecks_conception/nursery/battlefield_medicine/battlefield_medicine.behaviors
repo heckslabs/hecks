@@ -1,0 +1,163 @@
+Hecks.behaviors "BattlefieldMedicine" do
+  vision "Behavioral tests for the BattlefieldMedicine domain — exercises every command and query in memory"
+
+  # ── CasualtyReport aggregate ──────────────────────────────────────────
+
+  test "FileCasualtyReport sets report_id + casualty_name + location_grid + injury_type + urgency + blood_type" do
+    tests "FileCasualtyReport", on: "CasualtyReport"
+    input  report_id: "sample", casualty_name: "sample", location_grid: "sample", injury_type: "sample", urgency: "sample", blood_type: "sample"
+    expect report_id: "sample", casualty_name: "sample", location_grid: "sample", injury_type: "sample", urgency: "sample", blood_type: "sample", status: "reported"
+  end
+
+  test "FileCasualtyReport cascades through policy chain" do
+    tests "FileCasualtyReport", on: "CasualtyReport", kind: :cascade
+    setup  "LaunchDrone", drone_id: "sample", mission_type: "sample", current_location: "sample"
+    setup  "PrepareBloodDrop", drop_id: "sample", target_casualty: "sample", blood_type: "sample", units: 1
+    setup  "ComputeRoute", route_id: "sample", casualty: "sample", destination: "sample", threat_level: "sample", distance_km: 1, eta_minutes: 1
+    setup  "EstablishHospital", hospital_id: "sample", location_grid: "sample", surgical_bays: 1
+    setup  "InitializeBoard", board_id: "sample", operation_name: "sample"
+    input  report_id: "sample", casualty_name: "sample", location_grid: "sample", injury_type: "sample", urgency: "sample", blood_type: "sample"
+    expect emits: ["CasualtyReported", "DroneLaunched", "DroneAssigned", "BloodLoaded", "BloodDropPrepared", "RouteComputed", "BayPrepared", "EntryAmended"]
+  end
+
+  test "EscalateCasualty sets urgency" do
+    tests "EscalateCasualty", on: "CasualtyReport"
+    setup  "FileCasualtyReport", report_id: "sample", casualty_name: "sample", location_grid: "sample", injury_type: "sample", urgency: "sample", blood_type: "sample"
+    input  urgency: "sample"
+    expect urgency: "sample"
+  end
+
+  test "MarkEvacuated runs" do
+    tests "MarkEvacuated", on: "CasualtyReport"
+    setup  "FileCasualtyReport", report_id: "sample", casualty_name: "sample", location_grid: "sample", injury_type: "sample", urgency: "sample", blood_type: "sample"
+    expect status: "evacuated"
+  end
+
+  test "MarkEvacuated cascades through policy chain" do
+    tests "MarkEvacuated", on: "CasualtyReport", kind: :cascade
+    setup  "EstablishHospital", hospital_id: "sample", location_grid: "sample", surgical_bays: 1
+    setup  "FileCasualtyReport", report_id: "sample", casualty_name: "sample", location_grid: "sample", injury_type: "sample", urgency: "sample", blood_type: "sample"
+    expect emits: ["CasualtyEvacuated", "CasualtyAdmitted"]
+  end
+
+
+  # ── MedDrone aggregate ──────────────────────────────────────────
+
+  test "LaunchDrone sets drone_id + mission_type + current_location" do
+    tests "LaunchDrone", on: "MedDrone"
+    input  drone_id: "sample", mission_type: "sample", current_location: "sample"
+    expect drone_id: "sample", mission_type: "sample", current_location: "sample", battery_pct: 100, status: "airborne"
+  end
+
+  test "LaunchDrone cascades through policy chain" do
+    tests "LaunchDrone", on: "MedDrone", kind: :cascade
+    setup  "PrepareBloodDrop", drop_id: "sample", target_casualty: "sample", blood_type: "sample", units: 1
+    input  drone_id: "sample", mission_type: "sample", current_location: "sample"
+    expect emits: ["DroneLaunched", "DroneAssigned", "BloodLoaded"]
+  end
+
+  test "AssignToCasualty sets assigned_casualty" do
+    tests "AssignToCasualty", on: "MedDrone"
+    setup  "LaunchDrone", drone_id: "sample", mission_type: "sample", current_location: "sample"
+    input  assigned_casualty: "sample"
+    expect assigned_casualty: "sample", status: "en_route"
+  end
+
+  test "AssignToCasualty cascades through policy chain" do
+    tests "AssignToCasualty", on: "MedDrone", kind: :cascade
+    setup  "PrepareBloodDrop", drop_id: "sample", target_casualty: "sample", blood_type: "sample", units: 1
+    setup  "LaunchDrone", drone_id: "sample", mission_type: "sample", current_location: "sample"
+    input  assigned_casualty: "sample"
+    expect emits: ["DroneAssigned", "BloodLoaded"]
+  end
+
+  test "CompleteMission runs" do
+    tests "CompleteMission", on: "MedDrone"
+    setup  "LaunchDrone", drone_id: "sample", mission_type: "sample", current_location: "sample"
+    setup  "AssignToCasualty", assigned_casualty: "sample"
+    expect status: "returning"
+  end
+
+
+  # ── BloodDrop aggregate ──────────────────────────────────────────
+
+  test "PrepareBloodDrop sets drop_id + target_casualty + blood_type + units" do
+    tests "PrepareBloodDrop", on: "BloodDrop"
+    input  drop_id: "sample", target_casualty: "sample", blood_type: "sample", units: 1
+    expect drop_id: "sample", target_casualty: "sample", blood_type: "sample", units: 1, cold_chain_status: "sealed", status: "prepared"
+  end
+
+  test "LoadOnDrone sets carrier_drone" do
+    tests "LoadOnDrone", on: "BloodDrop"
+    setup  "PrepareBloodDrop", drop_id: "sample", target_casualty: "sample", blood_type: "sample", units: 1
+    input  carrier_drone: "sample"
+    expect carrier_drone: "sample", status: "in_transit"
+  end
+
+  test "ConfirmDelivery runs" do
+    tests "ConfirmDelivery", on: "BloodDrop"
+    setup  "PrepareBloodDrop", drop_id: "sample", target_casualty: "sample", blood_type: "sample", units: 1
+    setup  "LoadOnDrone", carrier_drone: "sample"
+    expect status: "delivered"
+  end
+
+
+  # ── EvacRoute aggregate ──────────────────────────────────────────
+
+  test "ComputeRoute sets route_id + casualty + destination + threat_level + distance_km + eta_minutes" do
+    tests "ComputeRoute", on: "EvacRoute"
+    input  route_id: "sample", casualty: "sample", destination: "sample", threat_level: "sample", distance_km: 1, eta_minutes: 1
+    expect route_id: "sample", casualty: "sample", destination: "sample", threat_level: "sample", distance_km: 1, eta_minutes: 1, status: "active"
+  end
+
+  test "ComputeRoute cascades through policy chain" do
+    tests "ComputeRoute", on: "EvacRoute", kind: :cascade
+    setup  "EstablishHospital", hospital_id: "sample", location_grid: "sample", surgical_bays: 1
+    input  route_id: "sample", casualty: "sample", destination: "sample", threat_level: "sample", distance_km: 1, eta_minutes: 1
+    expect emits: ["RouteComputed", "BayPrepared"]
+  end
+
+  test "RerouteOnThreat sets threat_level" do
+    tests "RerouteOnThreat", on: "EvacRoute"
+    setup  "ComputeRoute", route_id: "sample", casualty: "sample", destination: "sample", threat_level: "sample", distance_km: 1, eta_minutes: 1
+    input  threat_level: "sample"
+    expect threat_level: "sample"
+  end
+
+
+  # ── FieldHospital aggregate ──────────────────────────────────────────
+
+  test "EstablishHospital sets hospital_id + location_grid + surgical_bays" do
+    tests "EstablishHospital", on: "FieldHospital"
+    input  hospital_id: "sample", location_grid: "sample", surgical_bays: 1
+    expect hospital_id: "sample", location_grid: "sample", surgical_bays: 1, available_bays: 1, status: "operational"
+  end
+
+  test "PrepareBay runs" do
+    tests "PrepareBay", on: "FieldHospital"
+    setup  "EstablishHospital", hospital_id: "sample", location_grid: "sample", surgical_bays: 1
+    expect ok: "true"
+  end
+
+  test "AdmitCasualty runs" do
+    tests "AdmitCasualty", on: "FieldHospital"
+    setup  "EstablishHospital", hospital_id: "sample", location_grid: "sample", surgical_bays: 1
+    expect ok: "true"
+  end
+
+
+  # ── StatusBoard aggregate ──────────────────────────────────────────
+
+  test "InitializeBoard sets board_id + operation_name" do
+    tests "InitializeBoard", on: "StatusBoard"
+    input  board_id: "sample", operation_name: "sample"
+    expect board_id: "sample", operation_name: "sample", total_casualties: 0, evacuated_count: 0, drones_active: 0, status: "active"
+  end
+
+  test "AmendEntry runs" do
+    tests "AmendEntry", on: "StatusBoard"
+    setup  "InitializeBoard", board_id: "sample", operation_name: "sample"
+    expect ok: "true"
+  end
+
+end

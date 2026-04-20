@@ -1,0 +1,174 @@
+Hecks.behaviors "OrganDonation" do
+  vision "Behavioral tests for the OrganDonation domain — exercises every command and query in memory"
+
+  # ── Donor aggregate ──────────────────────────────────────────
+
+  test "RegisterDonor sets name + blood_type + tissue_type + hospital + cause_of_death + consent_status" do
+    tests "RegisterDonor", on: "Donor"
+    input  name: "sample", blood_type: "sample", tissue_type: "sample", hospital: "sample", cause_of_death: "sample", consent_status: "sample"
+    expect name: "sample", blood_type: "sample", tissue_type: "sample", hospital: "sample", cause_of_death: "sample", consent_status: "sample"
+  end
+
+  test "RegisterDonor cascades through policy chain" do
+    tests "RegisterDonor", on: "Donor", kind: :cascade
+    setup  "PerformMatch", donor_name: "sample", recipient_name: "sample", organ_name: "sample", compatibility_score: "sample"
+    setup  "ListRecipient", name: "sample", blood_type: "sample", tissue_type: "sample", organ_needed: "sample", urgency_level: "sample", listing_date: "sample"
+    setup  "DispatchOrgan", organ_name: "sample", origin_hospital: "sample", destination_hospital: "sample", transport_method: "sample", departure_time: "sample", estimated_arrival: "sample"
+    setup  "RecordCrossmatch", crossmatch_result: "sample"
+    input  name: "sample", blood_type: "sample", tissue_type: "sample", hospital: "sample", cause_of_death: "sample", consent_status: "sample"
+    expect emits: ["DonorRegistered", "ConsentConfirmed", "ViabilityAssessed", "MatchPerformed", "CrossmatchRecorded", "MatchAccepted", "OrganDispatched"]
+  end
+
+  test "ConfirmConsent runs" do
+    tests "ConfirmConsent", on: "Donor"
+    setup  "RegisterDonor", name: "sample", blood_type: "sample", tissue_type: "sample", hospital: "sample", cause_of_death: "sample", consent_status: "sample"
+    expect consent_status: "confirmed"
+  end
+
+  test "ConfirmConsent cascades through policy chain" do
+    tests "ConfirmConsent", on: "Donor", kind: :cascade
+    setup  "RegisterDonor", name: "sample", blood_type: "sample", tissue_type: "sample", hospital: "sample", cause_of_death: "sample", consent_status: "sample"
+    setup  "PerformMatch", donor_name: "sample", recipient_name: "sample", organ_name: "sample", compatibility_score: "sample"
+    setup  "ListRecipient", name: "sample", blood_type: "sample", tissue_type: "sample", organ_needed: "sample", urgency_level: "sample", listing_date: "sample"
+    setup  "DispatchOrgan", organ_name: "sample", origin_hospital: "sample", destination_hospital: "sample", transport_method: "sample", departure_time: "sample", estimated_arrival: "sample"
+    setup  "RecordCrossmatch", crossmatch_result: "sample"
+    expect emits: ["ConsentConfirmed", "ViabilityAssessed", "MatchPerformed", "CrossmatchRecorded", "MatchAccepted", "OrganDispatched"]
+  end
+
+  test "AssessOrganViability runs" do
+    tests "AssessOrganViability", on: "Donor"
+    setup  "RegisterDonor", name: "sample", blood_type: "sample", tissue_type: "sample", hospital: "sample", cause_of_death: "sample", consent_status: "sample"
+    expect ok: "true"
+  end
+
+  test "AssessOrganViability cascades through policy chain" do
+    tests "AssessOrganViability", on: "Donor", kind: :cascade
+    setup  "RegisterDonor", name: "sample", blood_type: "sample", tissue_type: "sample", hospital: "sample", cause_of_death: "sample", consent_status: "sample"
+    setup  "PerformMatch", donor_name: "sample", recipient_name: "sample", organ_name: "sample", compatibility_score: "sample"
+    setup  "ListRecipient", name: "sample", blood_type: "sample", tissue_type: "sample", organ_needed: "sample", urgency_level: "sample", listing_date: "sample"
+    setup  "DispatchOrgan", organ_name: "sample", origin_hospital: "sample", destination_hospital: "sample", transport_method: "sample", departure_time: "sample", estimated_arrival: "sample"
+    setup  "RecordCrossmatch", crossmatch_result: "sample"
+    expect emits: ["ViabilityAssessed", "MatchPerformed", "CrossmatchRecorded", "MatchAccepted", "OrganDispatched"]
+  end
+
+
+  # ── Recipient aggregate ──────────────────────────────────────────
+
+  test "ListRecipient sets name + blood_type + tissue_type + organ_needed + urgency_level + listing_date" do
+    tests "ListRecipient", on: "Recipient"
+    input  name: "sample", blood_type: "sample", tissue_type: "sample", organ_needed: "sample", urgency_level: "sample", listing_date: "sample"
+    expect name: "sample", blood_type: "sample", tissue_type: "sample", organ_needed: "sample", urgency_level: "sample", listing_date: "sample", status: "waiting"
+  end
+
+  test "EscalateUrgency sets urgency_level" do
+    tests "EscalateUrgency", on: "Recipient"
+    setup  "ListRecipient", name: "sample", blood_type: "sample", tissue_type: "sample", organ_needed: "sample", urgency_level: "sample", listing_date: "sample"
+    input  urgency_level: "sample"
+    expect urgency_level: "sample"
+  end
+
+  test "RemoveFromList runs" do
+    tests "RemoveFromList", on: "Recipient"
+    setup  "ListRecipient", name: "sample", blood_type: "sample", tissue_type: "sample", organ_needed: "sample", urgency_level: "sample", listing_date: "sample"
+    expect status: "removed"
+  end
+
+
+  # ── OrganMatch aggregate ──────────────────────────────────────────
+
+  test "PerformMatch sets donor_name + recipient_name + organ_name + compatibility_score" do
+    tests "PerformMatch", on: "OrganMatch"
+    setup  "ListRecipient", name: "sample", blood_type: "sample", tissue_type: "sample", organ_needed: "sample", urgency_level: "sample", listing_date: "sample"
+    setup  "RegisterDonor", name: "sample", blood_type: "sample", tissue_type: "sample", hospital: "sample", cause_of_death: "sample", consent_status: "sample"
+    input  donor_name: "sample", recipient_name: "sample", organ_name: "sample", compatibility_score: "sample"
+    expect donor_name: "sample", recipient_name: "sample", organ_name: "sample", compatibility_score: "sample", status: "pending_crossmatch"
+  end
+
+  test "PerformMatch cascades through policy chain" do
+    tests "PerformMatch", on: "OrganMatch", kind: :cascade
+    setup  "RegisterDonor", name: "sample", blood_type: "sample", tissue_type: "sample", hospital: "sample", cause_of_death: "sample", consent_status: "sample"
+    setup  "ListRecipient", name: "sample", blood_type: "sample", tissue_type: "sample", organ_needed: "sample", urgency_level: "sample", listing_date: "sample"
+    setup  "DispatchOrgan", organ_name: "sample", origin_hospital: "sample", destination_hospital: "sample", transport_method: "sample", departure_time: "sample", estimated_arrival: "sample"
+    input  donor_name: "sample", recipient_name: "sample", organ_name: "sample", compatibility_score: "sample"
+    expect emits: ["MatchPerformed", "CrossmatchRecorded", "MatchAccepted", "OrganDispatched"]
+  end
+
+  test "RecordCrossmatch sets crossmatch_result" do
+    tests "RecordCrossmatch", on: "OrganMatch"
+    setup  "PerformMatch", donor_name: "sample", recipient_name: "sample", organ_name: "sample", compatibility_score: "sample"
+    input  crossmatch_result: "sample"
+    expect crossmatch_result: "sample", status: "crossmatched"
+  end
+
+  test "RecordCrossmatch cascades through policy chain" do
+    tests "RecordCrossmatch", on: "OrganMatch", kind: :cascade
+    setup  "DispatchOrgan", organ_name: "sample", origin_hospital: "sample", destination_hospital: "sample", transport_method: "sample", departure_time: "sample", estimated_arrival: "sample"
+    setup  "PerformMatch", donor_name: "sample", recipient_name: "sample", organ_name: "sample", compatibility_score: "sample"
+    input  crossmatch_result: "sample"
+    expect emits: ["CrossmatchRecorded", "MatchAccepted", "OrganDispatched"]
+  end
+
+  test "AcceptMatch runs" do
+    tests "AcceptMatch", on: "OrganMatch"
+    setup  "PerformMatch", donor_name: "sample", recipient_name: "sample", organ_name: "sample", compatibility_score: "sample"
+    setup  "RecordCrossmatch", crossmatch_result: "sample"
+    expect status: "accepted"
+  end
+
+  test "AcceptMatch cascades through policy chain" do
+    tests "AcceptMatch", on: "OrganMatch", kind: :cascade
+    setup  "DispatchOrgan", organ_name: "sample", origin_hospital: "sample", destination_hospital: "sample", transport_method: "sample", departure_time: "sample", estimated_arrival: "sample"
+    setup  "PerformMatch", donor_name: "sample", recipient_name: "sample", organ_name: "sample", compatibility_score: "sample"
+    setup  "RecordCrossmatch", crossmatch_result: "sample"
+    expect emits: ["MatchAccepted", "OrganDispatched"]
+  end
+
+
+  # ── OrganTransport aggregate ──────────────────────────────────────────
+
+  test "DispatchOrgan sets organ_name + origin_hospital + destination_hospital + transport_method + departure_time + estimated_arrival" do
+    tests "DispatchOrgan", on: "OrganTransport"
+    setup  "PerformMatch", donor_name: "sample", recipient_name: "sample", organ_name: "sample", compatibility_score: "sample"
+    input  organ_name: "sample", origin_hospital: "sample", destination_hospital: "sample", transport_method: "sample", departure_time: "sample", estimated_arrival: "sample"
+    expect organ_name: "sample", origin_hospital: "sample", destination_hospital: "sample", transport_method: "sample", departure_time: "sample", estimated_arrival: "sample", status: "in_transit"
+  end
+
+  test "ConfirmDelivery runs" do
+    tests "ConfirmDelivery", on: "OrganTransport"
+    setup  "DispatchOrgan", organ_name: "sample", origin_hospital: "sample", destination_hospital: "sample", transport_method: "sample", departure_time: "sample", estimated_arrival: "sample"
+    expect status: "delivered"
+  end
+
+  test "ConfirmDelivery cascades through policy chain" do
+    tests "ConfirmDelivery", on: "OrganTransport", kind: :cascade
+    setup  "RecordOutcome", recipient_name: "sample", organ_name: "sample", surgery_date: "sample", surgeon_name: "sample", graft_function: "sample", complications: "sample"
+    setup  "ListRecipient", name: "sample", blood_type: "sample", tissue_type: "sample", organ_needed: "sample", urgency_level: "sample", listing_date: "sample"
+    setup  "DispatchOrgan", organ_name: "sample", origin_hospital: "sample", destination_hospital: "sample", transport_method: "sample", departure_time: "sample", estimated_arrival: "sample"
+    expect emits: ["OrganDelivered", "OutcomeRecorded", "RecipientRemoved", "GraftMonitored"]
+  end
+
+
+  # ── TransplantOutcome aggregate ──────────────────────────────────────────
+
+  test "RecordOutcome sets recipient_name + organ_name + surgery_date + surgeon_name + graft_function + complications" do
+    tests "RecordOutcome", on: "TransplantOutcome"
+    setup  "ListRecipient", name: "sample", blood_type: "sample", tissue_type: "sample", organ_needed: "sample", urgency_level: "sample", listing_date: "sample"
+    input  recipient_name: "sample", organ_name: "sample", surgery_date: "sample", surgeon_name: "sample", graft_function: "sample", complications: "sample"
+    expect recipient_name: "sample", organ_name: "sample", surgery_date: "sample", surgeon_name: "sample", graft_function: "sample", complications: "sample", status: "initial"
+  end
+
+  test "RecordOutcome cascades through policy chain" do
+    tests "RecordOutcome", on: "TransplantOutcome", kind: :cascade
+    setup  "ListRecipient", name: "sample", blood_type: "sample", tissue_type: "sample", organ_needed: "sample", urgency_level: "sample", listing_date: "sample"
+    input  recipient_name: "sample", organ_name: "sample", surgery_date: "sample", surgeon_name: "sample", graft_function: "sample", complications: "sample"
+    expect emits: ["OutcomeRecorded", "RecipientRemoved", "GraftMonitored"]
+  end
+
+  test "MonitorGraft sets graft_function" do
+    tests "MonitorGraft", on: "TransplantOutcome"
+    setup  "RecordOutcome", recipient_name: "sample", organ_name: "sample", surgery_date: "sample", surgeon_name: "sample", graft_function: "sample", complications: "sample"
+    input  graft_function: "sample"
+    expect graft_function: "sample"
+  end
+
+end

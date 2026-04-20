@@ -1,0 +1,54 @@
+Hecks.behaviors "FabricToRunway" do
+  vision "Behavioral tests for the FabricToRunway domain — exercises every command and query in memory"
+
+  # ── Fabric aggregate ──────────────────────────────────────────
+
+  test "WeaveFabric sets name + fiber_type + weight_gsm" do
+    tests "WeaveFabric", on: "Fabric"
+    input  name: "sample", fiber_type: "sample", weight_gsm: 1.0
+    expect ok: "true"
+  end
+
+  test "ApproveFabric runs" do
+    tests "ApproveFabric", on: "Fabric"
+    setup  "WeaveFabric", name: "sample", fiber_type: "sample", weight_gsm: 1.0
+    setup  "DyeFabric", color: "sample", batch_number: "sample", yards: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── Collection aggregate ──────────────────────────────────────────
+
+  test "Curate sets name + season" do
+    tests "Curate", on: "Collection"
+    input  name: "sample", season: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Pattern aggregate ──────────────────────────────────────────
+
+  test "DraftPattern sets garment_name + size_range" do
+    tests "DraftPattern", on: "Pattern"
+    setup  "WeaveFabric", name: "sample", fiber_type: "sample", weight_gsm: 1.0
+    input  garment_name: "sample", size_range: "sample"
+    expect ok: "true"
+  end
+
+  test "FinalizePattern runs" do
+    tests "FinalizePattern", on: "Pattern"
+    setup  "DraftPattern", garment_name: "sample", size_range: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── RunwayShow aggregate ──────────────────────────────────────────
+
+  test "PlanShow sets venue + show_date" do
+    tests "PlanShow", on: "RunwayShow"
+    setup  "Curate", name: "sample", season: "sample"
+    input  venue: "sample", show_date: "sample"
+    expect ok: "true"
+  end
+
+end

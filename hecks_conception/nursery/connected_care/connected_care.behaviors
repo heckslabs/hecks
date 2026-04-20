@@ -1,0 +1,80 @@
+Hecks.behaviors "ConnectedCare" do
+  vision "Behavioral tests for the ConnectedCare domain — exercises every command and query in memory"
+
+  # ── HomePatient aggregate ──────────────────────────────────────────
+
+  test "EnrollPatient sets patient_id + name + address + condition + primary_caregiver" do
+    tests "EnrollPatient", on: "HomePatient"
+    input  patient_id: "sample", name: "sample", address: "sample", condition: "sample", primary_caregiver: "sample"
+    expect patient_id: "sample", name: "sample", address: "sample", condition: "sample", primary_caregiver: "sample", status: "enrolled"
+  end
+
+  test "DischargePatient runs" do
+    tests "DischargePatient", on: "HomePatient"
+    setup  "EnrollPatient", patient_id: "sample", name: "sample", address: "sample", condition: "sample", primary_caregiver: "sample"
+    expect status: "discharged"
+  end
+
+
+  # ── HomeSensor aggregate ──────────────────────────────────────────
+
+  test "DeploySensor sets sensor_id + patient_id + sensor_type + location_room" do
+    tests "DeploySensor", on: "HomeSensor"
+    input  sensor_id: "sample", patient_id: "sample", sensor_type: "sample", location_room: "sample"
+    expect sensor_id: "sample", patient_id: "sample", sensor_type: "sample", location_room: "sample", status: "active"
+  end
+
+  test "ReadSensor sets battery_pct" do
+    tests "ReadSensor", on: "HomeSensor"
+    setup  "DeploySensor", sensor_id: "sample", patient_id: "sample", sensor_type: "sample", location_room: "sample"
+    input  battery_pct: 1.0
+    expect battery_pct: 1.0
+  end
+
+  test "ReadSensor cascades through policy chain" do
+    tests "ReadSensor", on: "HomeSensor", kind: :cascade
+    setup  "DeploySensor", sensor_id: "sample", patient_id: "sample", sensor_type: "sample", location_room: "sample"
+    setup  "TriggerAlert", alert_id: "sample", patient_id: "sample", sensor_id: "sample", alert_type: "sample", severity: "sample"
+    setup  "DispatchCaregiver", dispatch_id: "sample", alert_id: "sample", caregiver_name: "sample", eta: "sample"
+    input  battery_pct: 1.0
+    expect emits: ["SensorDataRead", "AlertTriggered", "CaregiverDispatched"]
+  end
+
+
+  # ── CareAlert aggregate ──────────────────────────────────────────
+
+  test "TriggerAlert sets alert_id + patient_id + sensor_id + alert_type + severity" do
+    tests "TriggerAlert", on: "CareAlert"
+    input  alert_id: "sample", patient_id: "sample", sensor_id: "sample", alert_type: "sample", severity: "sample"
+    expect alert_id: "sample", patient_id: "sample", sensor_id: "sample", alert_type: "sample", severity: "sample", status: "open"
+  end
+
+  test "TriggerAlert cascades through policy chain" do
+    tests "TriggerAlert", on: "CareAlert", kind: :cascade
+    setup  "DispatchCaregiver", dispatch_id: "sample", alert_id: "sample", caregiver_name: "sample", eta: "sample"
+    input  alert_id: "sample", patient_id: "sample", sensor_id: "sample", alert_type: "sample", severity: "sample"
+    expect emits: ["AlertTriggered", "CaregiverDispatched"]
+  end
+
+  test "ResolveAlert runs" do
+    tests "ResolveAlert", on: "CareAlert"
+    setup  "TriggerAlert", alert_id: "sample", patient_id: "sample", sensor_id: "sample", alert_type: "sample", severity: "sample"
+    expect status: "resolved"
+  end
+
+
+  # ── CaregiverDispatch aggregate ──────────────────────────────────────────
+
+  test "DispatchCaregiver sets dispatch_id + alert_id + caregiver_name + eta" do
+    tests "DispatchCaregiver", on: "CaregiverDispatch"
+    input  dispatch_id: "sample", alert_id: "sample", caregiver_name: "sample", eta: "sample"
+    expect dispatch_id: "sample", alert_id: "sample", caregiver_name: "sample", eta: "sample", status: "dispatched"
+  end
+
+  test "ConfirmArrival runs" do
+    tests "ConfirmArrival", on: "CaregiverDispatch"
+    setup  "DispatchCaregiver", dispatch_id: "sample", alert_id: "sample", caregiver_name: "sample", eta: "sample"
+    expect status: "on_site"
+  end
+
+end

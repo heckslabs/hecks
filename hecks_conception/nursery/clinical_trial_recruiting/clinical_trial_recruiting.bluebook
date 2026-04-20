@@ -184,15 +184,4 @@ Hecks.bluebook "ClinicalTrialRecruiting" do
     map freelance_participant_id: :participant_id, condition_name: :indication
   end
 
-  fixture "DrugCandidate", compound_name: "LT-2847", indication: "Type 2 Diabetes", phase: "Phase 2", status: "phase_1_complete"
-  fixture "DrugCandidate", compound_name: "MX-5621", indication: "Hypertension", phase: "Phase 3", status: "phase_2_complete"
-
-  fixture "TrialProtocol", protocol_name: "LT-2847-EFFICACY-2026", target_enrollment: 480, status: "approved"
-  fixture "TrialProtocol", protocol_name: "MX-5621-SAFETY-2026", target_enrollment: 320, status: "draft"
-
-  fixture "FreelanceParticipant", participant_name: "Jennifer Lopez", age: 54, availability: "weekdays 9am-5pm", status: "available"
-  fixture "FreelanceParticipant", participant_name: "David Chen", age: 48, availability: "flexible", status: "available"
-
-  fixture "MatchResult", match_score: 0.92, status: "enrolled"
-  fixture "MatchResult", match_score: 0.87, status: "pending"
 end

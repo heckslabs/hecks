@@ -61,7 +61,7 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
   aggregate "Visitor", "A tourist in the protected zone — tracked for safety and conservation compliance" do
     String :name
     String :nationality
-    reference_to(Permit) :permit
+    reference_to(Permit, as: :permit)
     String :status
     list_of(LocationPing) :location_history
 
@@ -160,7 +160,7 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
       emits "WildlifeSighted"
     end
 
-    UpdateConservationStatus do
+    ReviseStatus do
       role "Biologist"
       description "Revise species conservation status based on population data"
       reference_to(WildlifeSpecies)
@@ -174,8 +174,8 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
 
   aggregate "ForensicCase", "A wildlife forensic investigation — DNA evidence, poacher tracking, prosecution" do
     String :case_number
-    reference_to(WildlifeSpecies) :species
-    reference_to(ProtectedArea) :area
+    reference_to(WildlifeSpecies, as: :species)
+    reference_to(ProtectedArea, as: :area)
     String :evidence_type
     String :dna_sample_id
     String :status
@@ -185,14 +185,12 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
       role "ForensicInvestigator"
       description "Open a forensic case when poaching evidence is discovered"
       String :case_number
-      reference_to(WildlifeSpecies) :species
-      reference_to(ProtectedArea) :area
+      reference_to(WildlifeSpecies, as: :species)
+      reference_to(ProtectedArea, as: :area)
       String :evidence_type
       String :dna_sample_id
       emits "PoachingDetected"
       then_set :case_number, to: :case_number
-      then_set :species, to: :species
-      then_set :area, to: :area
       then_set :evidence_type, to: :evidence_type
       then_set :dna_sample_id, to: :dna_sample_id
       then_set :status, to: "open"
@@ -236,7 +234,7 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
     String :zone_name
     String :hazard_type
     String :alert_level
-    reference_to(ProtectedArea) :area
+    reference_to(ProtectedArea, as: :area)
     String :status
     list_of(SeismicReading) :readings
 
@@ -252,11 +250,10 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
       description "Define a hazard zone within or adjacent to a protected area"
       String :zone_name
       String :hazard_type
-      reference_to(ProtectedArea) :area
+      reference_to(ProtectedArea, as: :area)
       emits "HazardZoneDefined"
       then_set :zone_name, to: :zone_name
       then_set :hazard_type, to: :hazard_type
-      then_set :area, to: :area
       then_set :alert_level, to: "normal"
       then_set :status, to: "monitored"
     end
@@ -300,8 +297,8 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
   # === Permit ===
 
   aggregate "Permit", "A visitor permit — controls access, tracks fees, enforces zone restrictions" do
-    reference_to(Visitor) :visitor
-    reference_to(ProtectedArea) :area
+    reference_to(Visitor, as: :visitor)
+    reference_to(ProtectedArea, as: :area)
     String :permit_type
     String :valid_from
     String :valid_until
@@ -317,14 +314,13 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
     IssuePermit do
       role "ParkRanger"
       description "Issue an access permit for a visitor to enter protected zones"
-      reference_to(Visitor) :visitor
-      reference_to(ProtectedArea) :area
+      reference_to(Visitor, as: :visitor)
+      reference_to(ProtectedArea, as: :area)
       String :permit_type
       String :valid_from
       String :valid_until
       emits "PermitIssued"
       then_set :visitor, to: :visitor
-      then_set :area, to: :area
       then_set :permit_type, to: :permit_type
       then_set :valid_from, to: :valid_from
       then_set :valid_until, to: :valid_until
@@ -388,21 +384,4 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
     trigger "RaiseAlert"
   end
 
-  fixture "ProtectedArea", name: "Serengeti National Park", protection_level: "strict", area_sq_km: 14750.0, status: "active"
-  fixture "ProtectedArea", name: "Amazon Rainforest Reserve", protection_level: "moderate", area_sq_km: 550000.0, status: "closed"
-
-  fixture "Visitor", name: "Alice Thompson", nationality: "United States", status: "registered"
-  fixture "Visitor", name: "Carlos Rodriguez", nationality: "Mexico", status: "checked_out"
-
-  fixture "WildlifeSpecies", common_name: "African Lion", scientific_name: "Panthera leo", conservation_status: "vulnerable", estimated_population: 23000, primary_habitat: "savanna"
-  fixture "WildlifeSpecies", common_name: "Bengal Tiger", scientific_name: "Panthera tigris tigris", conservation_status: "endangered", estimated_population: 3900, primary_habitat: "tropical_forest"
-
-  fixture "ForensicCase", case_number: "CASE-2026-001", evidence_type: "hide_sample", dna_sample_id: "DNA-LAB-2026-001", status: "open", suspect_description: "male, 40-50 years, armed with rifle"
-  fixture "ForensicCase", case_number: "CASE-2026-002", evidence_type: "ivory_poaching", dna_sample_id: "DNA-LAB-2026-002", status: "closed", suspect_description: "organized poaching ring, 5+ individuals"
-
-  fixture "HazardZone", zone_name: "Mount Kilimanjaro Summit", hazard_type: "volcanic", alert_level: "normal", status: "monitored"
-  fixture "HazardZone", zone_name: "Krafla Geothermal Field", hazard_type: "geothermal", alert_level: "elevated", status: "alert"
-
-  fixture "Permit", permit_type: "research", valid_from: "2026-04-01", valid_until: "2026-06-30", status: "active"
-  fixture "Permit", permit_type: "tourism", valid_from: "2026-02-15", valid_until: "2026-03-15", status: "expired"
 end

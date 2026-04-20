@@ -1,0 +1,63 @@
+Hecks.behaviors "Musings" do
+  vision "Behavioral tests for the Musings domain — exercises every command and query in memory"
+
+  # ── Minting aggregate ──────────────────────────────────────────
+
+  test "Configure sets cycle_interval_seconds + idle_threshold_seconds + mint_every_cycles" do
+    tests "Configure", on: "Minting"
+    input  cycle_interval_seconds: 1, idle_threshold_seconds: 1, mint_every_cycles: 1
+    expect cycle_interval_seconds: 1, idle_threshold_seconds: 1, mint_every_cycles: 1
+  end
+
+  test "Mint runs" do
+    tests "Mint", on: "Minting"
+    expect ok: "true"
+  end
+
+
+  # ── Collection aggregate ──────────────────────────────────────────
+
+  test "ReviewMusings runs" do
+    tests "ReviewMusings", on: "Collection"
+    expect ok: "true"
+  end
+
+  test "ReviewMusings cascades through policy chain" do
+    tests "ReviewMusings", on: "Collection", kind: :cascade
+    expect emits: ["MusingsReviewed", "SourcesCounted"]
+  end
+
+  test "CountBySource runs" do
+    tests "CountBySource", on: "Collection"
+    expect ok: "true"
+  end
+
+
+  # ── Musing aggregate ──────────────────────────────────────────
+
+  test "Present runs" do
+    tests "Present", on: "Musing"
+    expect ok: "true"
+  end
+
+  test "Conceive sets domain_name" do
+    tests "Conceive", on: "Musing"
+    input  domain_name: "sample"
+    expect conceived: true, conceived_as: "sample"
+  end
+
+  test "Dismiss runs" do
+    tests "Dismiss", on: "Musing"
+    expect conceived: true, conceived_as: "dismissed"
+  end
+
+
+  # ── Presentation aggregate ──────────────────────────────────────────
+
+  test "ConfigurePresentation sets preview_count" do
+    tests "ConfigurePresentation", on: "Presentation"
+    input  preview_count: 1
+    expect preview_count: 1, format: "table_then_describe"
+  end
+
+end

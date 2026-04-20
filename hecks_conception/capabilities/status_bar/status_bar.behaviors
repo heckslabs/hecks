@@ -1,0 +1,45 @@
+Hecks.behaviors "StatusBar" do
+  vision "Behavioral tests for the StatusBar domain — exercises every command and query in memory"
+
+  # ── Mode aggregate ──────────────────────────────────────────
+
+  test "SetAttentive runs" do
+    tests "SetAttentive", on: "Mode"
+    expect current: "attentive"
+  end
+
+  test "SetMusing runs" do
+    tests "SetMusing", on: "Mode"
+    expect current: "musing"
+  end
+
+  test "SetSleeping runs" do
+    tests "SetSleeping", on: "Mode"
+    expect current: "sleeping"
+  end
+
+
+  # ── AttentiveLayout aggregate ──────────────────────────────────────────
+
+  test "Configure runs" do
+    tests "Configure", on: "AttentiveLayout"
+    expect ok: "true"
+  end
+
+
+  # ── MusingLayout aggregate ──────────────────────────────────────────
+
+  test "Configure runs" do
+    tests "Configure", on: "MusingLayout"
+    expect ok: "true"
+  end
+
+
+  # ── SleepLayout aggregate ──────────────────────────────────────────
+
+  test "Configure runs" do
+    tests "Configure", on: "SleepLayout"
+    expect ok: "true"
+  end
+
+end

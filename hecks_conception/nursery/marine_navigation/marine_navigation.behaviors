@@ -1,0 +1,156 @@
+Hecks.behaviors "MarineNavigation" do
+  vision "Behavioral tests for the MarineNavigation domain — exercises every command and query in memory"
+
+  # ── OceanCurrent aggregate ──────────────────────────────────────────
+
+  test "MeasureCurrent sets name + speed_knots + direction_degrees + depth_meters + season" do
+    tests "MeasureCurrent", on: "OceanCurrent"
+    input  name: "sample", speed_knots: 1.0, direction_degrees: 1.0, depth_meters: 1.0, season: "sample"
+    expect name: "sample", speed_knots: 1.0, direction_degrees: 1.0, depth_meters: 1.0, season: "sample", status: "active"
+  end
+
+  test "RefreshCurrentData sets speed_knots + direction_degrees" do
+    tests "RefreshCurrentData", on: "OceanCurrent"
+    setup  "MeasureCurrent", name: "sample", speed_knots: 1.0, direction_degrees: 1.0, depth_meters: 1.0, season: "sample"
+    input  speed_knots: 1.0, direction_degrees: 1.0
+    expect speed_knots: 1.0, direction_degrees: 1.0
+  end
+
+  test "DeactivateCurrent runs" do
+    tests "DeactivateCurrent", on: "OceanCurrent"
+    setup  "MeasureCurrent", name: "sample", speed_knots: 1.0, direction_degrees: 1.0, depth_meters: 1.0, season: "sample"
+    expect status: "stale"
+  end
+
+
+  # ── WeatherForecast aggregate ──────────────────────────────────────────
+
+  test "IssueForecast sets region + wind_speed_knots + wave_height_meters + visibility_nm + storm_warning + valid_from + valid_until" do
+    tests "IssueForecast", on: "WeatherForecast"
+    input  region: "sample", wind_speed_knots: 1.0, wave_height_meters: 1.0, visibility_nm: 1.0, storm_warning: "sample", valid_from: "sample", valid_until: "sample"
+    expect region: "sample", wind_speed_knots: 1.0, wave_height_meters: 1.0, visibility_nm: 1.0, storm_warning: "sample", valid_from: "sample", valid_until: "sample", status: "active"
+  end
+
+  test "EscalateStormWarning sets storm_warning" do
+    tests "EscalateStormWarning", on: "WeatherForecast"
+    setup  "IssueForecast", region: "sample", wind_speed_knots: 1.0, wave_height_meters: 1.0, visibility_nm: 1.0, storm_warning: "sample", valid_from: "sample", valid_until: "sample"
+    input  storm_warning: "sample"
+    expect storm_warning: "sample"
+  end
+
+  test "ExpireForecast runs" do
+    tests "ExpireForecast", on: "WeatherForecast"
+    setup  "IssueForecast", region: "sample", wind_speed_knots: 1.0, wave_height_meters: 1.0, visibility_nm: 1.0, storm_warning: "sample", valid_from: "sample", valid_until: "sample"
+    expect status: "expired"
+  end
+
+
+  # ── Vessel aggregate ──────────────────────────────────────────
+
+  test "RegisterVessel sets name + vessel_type + length_meters + fuel_capacity_tons + max_speed_knots" do
+    tests "RegisterVessel", on: "Vessel"
+    input  name: "sample", vessel_type: "sample", length_meters: 1.0, fuel_capacity_tons: 1.0, max_speed_knots: 1.0
+    expect name: "sample", vessel_type: "sample", length_meters: 1.0, fuel_capacity_tons: 1.0, current_fuel_tons: 1.0, max_speed_knots: 1.0, status: "docked"
+  end
+
+  test "Depart runs" do
+    tests "Depart", on: "Vessel"
+    setup  "RegisterVessel", name: "sample", vessel_type: "sample", length_meters: 1.0, fuel_capacity_tons: 1.0, max_speed_knots: 1.0
+    expect status: "underway"
+  end
+
+  test "RefuelVessel runs" do
+    tests "RefuelVessel", on: "Vessel"
+    setup  "RegisterVessel", name: "sample", vessel_type: "sample", length_meters: 1.0, fuel_capacity_tons: 1.0, max_speed_knots: 1.0
+    expect ok: "true"
+  end
+
+  test "DockVessel runs" do
+    tests "DockVessel", on: "Vessel"
+    setup  "RegisterVessel", name: "sample", vessel_type: "sample", length_meters: 1.0, fuel_capacity_tons: 1.0, max_speed_knots: 1.0
+    setup  "Depart"
+    expect status: "docked"
+  end
+
+
+  # ── Route aggregate ──────────────────────────────────────────
+
+  test "PlanRoute sets name + origin_port + destination_port + total_distance_nm" do
+    tests "PlanRoute", on: "Route"
+    input  name: "sample", origin_port: "sample", destination_port: "sample", total_distance_nm: 1.0
+    expect name: "sample", origin_port: "sample", destination_port: "sample", total_distance_nm: 1.0, status: "planned"
+  end
+
+  test "PlanRoute cascades through policy chain" do
+    tests "PlanRoute", on: "Route", kind: :cascade
+    input  name: "sample", origin_port: "sample", destination_port: "sample", total_distance_nm: 1.0
+    expect emits: ["RoutePlanned", "RouteAdjustedForCurrents", "FuelEstimated"]
+  end
+
+  test "CalculateFuelEstimate sets estimated_fuel_tons + estimated_hours" do
+    tests "CalculateFuelEstimate", on: "Route"
+    setup  "PlanRoute", name: "sample", origin_port: "sample", destination_port: "sample", total_distance_nm: 1.0
+    input  estimated_fuel_tons: 1.0, estimated_hours: 1.0
+    expect estimated_fuel_tons: 1.0, estimated_hours: 1.0
+  end
+
+  test "AdjustForCurrents runs" do
+    tests "AdjustForCurrents", on: "Route"
+    setup  "PlanRoute", name: "sample", origin_port: "sample", destination_port: "sample", total_distance_nm: 1.0
+    expect ok: "true"
+  end
+
+  test "AdjustForCurrents cascades through policy chain" do
+    tests "AdjustForCurrents", on: "Route", kind: :cascade
+    setup  "PlanRoute", name: "sample", origin_port: "sample", destination_port: "sample", total_distance_nm: 1.0
+    expect emits: ["RouteAdjustedForCurrents", "FuelEstimated"]
+  end
+
+  test "ApproveRoute runs" do
+    tests "ApproveRoute", on: "Route"
+    setup  "PlanRoute", name: "sample", origin_port: "sample", destination_port: "sample", total_distance_nm: 1.0
+    expect status: "approved"
+  end
+
+  test "RerouteForWeather sets reason" do
+    tests "RerouteForWeather", on: "Route"
+    setup  "PlanRoute", name: "sample", origin_port: "sample", destination_port: "sample", total_distance_nm: 1.0
+    setup  "ApproveRoute"
+    input  reason: "sample"
+    expect status: "rerouted"
+  end
+
+
+  # ── FuelLog aggregate ──────────────────────────────────────────
+
+  test "RecordFuelBurn sets vessel_name + fuel_burned_tons + distance_traveled_nm + timestamp" do
+    tests "RecordFuelBurn", on: "FuelLog"
+    input  vessel_name: "sample", fuel_burned_tons: 1.0, distance_traveled_nm: 1.0, timestamp: "sample"
+    expect vessel_name: "sample", fuel_burned_tons: 1.0, distance_traveled_nm: 1.0, timestamp: "sample", status: "recorded"
+  end
+
+  test "RecordFuelBurn cascades through policy chain" do
+    tests "RecordFuelBurn", on: "FuelLog", kind: :cascade
+    input  vessel_name: "sample", fuel_burned_tons: 1.0, distance_traveled_nm: 1.0, timestamp: "sample"
+    expect emits: ["FuelBurnRecorded", "EfficiencyCalculated", "ExcessiveBurnFlagged"]
+  end
+
+  test "CalculateEfficiency runs" do
+    tests "CalculateEfficiency", on: "FuelLog"
+    setup  "RecordFuelBurn", vessel_name: "sample", fuel_burned_tons: 1.0, distance_traveled_nm: 1.0, timestamp: "sample"
+    expect ok: "true"
+  end
+
+  test "CalculateEfficiency cascades through policy chain" do
+    tests "CalculateEfficiency", on: "FuelLog", kind: :cascade
+    setup  "RecordFuelBurn", vessel_name: "sample", fuel_burned_tons: 1.0, distance_traveled_nm: 1.0, timestamp: "sample"
+    expect emits: ["EfficiencyCalculated", "ExcessiveBurnFlagged"]
+  end
+
+  test "FlagExcessiveBurn runs" do
+    tests "FlagExcessiveBurn", on: "FuelLog"
+    setup  "RecordFuelBurn", vessel_name: "sample", fuel_burned_tons: 1.0, distance_traveled_nm: 1.0, timestamp: "sample"
+    expect status: "flagged"
+  end
+
+end

@@ -1,0 +1,160 @@
+Hecks.behaviors "DigitalSignage" do
+  vision "Behavioral tests for the DigitalSignage domain — exercises every command and query in memory"
+
+  # ── Display aggregate ──────────────────────────────────────────
+
+  test "InstallDisplay sets display_id + model + resolution + orientation" do
+    tests "InstallDisplay", on: "Display"
+    setup  "RegisterLocation", location_name: "sample", address: "sample", location_type: "sample", contact_name: "sample"
+    input  display_id: "sample", model: "sample", resolution: "sample", orientation: "sample"
+    expect ok: "true"
+  end
+
+  test "InstallDisplay cascades through policy chain" do
+    tests "InstallDisplay", on: "Display", kind: :cascade
+    setup  "RegisterLocation", location_name: "sample", address: "sample", location_type: "sample", contact_name: "sample"
+    setup  "ProgramSchedule", schedule_id: "sample", start_time: "sample", end_time: "sample", recurrence: "sample"
+    setup  "ComposePlaylist", playlist_name: "sample", description: "sample", loop_mode: "sample"
+    input  display_id: "sample", model: "sample", resolution: "sample", orientation: "sample"
+    expect emits: ["DisplayInstalled", "ScheduleCreated"]
+  end
+
+  test "RebootDisplay runs" do
+    tests "RebootDisplay", on: "Display"
+    setup  "InstallDisplay", display_id: "sample", model: "sample", resolution: "sample", orientation: "sample"
+    expect status: "offline"
+  end
+
+  test "RebootDisplay cascades through policy chain" do
+    tests "RebootDisplay", on: "Display", kind: :cascade
+    setup  "InstallDisplay", display_id: "sample", model: "sample", resolution: "sample", orientation: "sample"
+    setup  "ProgramSchedule", schedule_id: "sample", start_time: "sample", end_time: "sample", recurrence: "sample"
+    setup  "ComposePlaylist", playlist_name: "sample", description: "sample", loop_mode: "sample"
+    expect emits: ["DisplayRebooted", "ScheduleCreated"]
+  end
+
+  test "RemoveDisplay runs" do
+    tests "RemoveDisplay", on: "Display"
+    setup  "InstallDisplay", display_id: "sample", model: "sample", resolution: "sample", orientation: "sample"
+    setup  "RebootDisplay"
+    expect ok: "true"
+  end
+
+
+  # ── Playlist aggregate ──────────────────────────────────────────
+
+  test "ComposePlaylist sets playlist_name + description + loop_mode" do
+    tests "ComposePlaylist", on: "Playlist"
+    input  playlist_name: "sample", description: "sample", loop_mode: "sample"
+    expect status: "active"
+  end
+
+  test "ComposePlaylist cascades through policy chain" do
+    tests "ComposePlaylist", on: "Playlist", kind: :cascade
+    setup  "ProgramSchedule", schedule_id: "sample", start_time: "sample", end_time: "sample", recurrence: "sample"
+    setup  "InstallDisplay", display_id: "sample", model: "sample", resolution: "sample", orientation: "sample"
+    input  playlist_name: "sample", description: "sample", loop_mode: "sample"
+    expect emits: ["PlaylistCreated", "ScheduleCreated"]
+  end
+
+  test "AddEntry sets content_id + duration_seconds" do
+    tests "AddEntry", on: "Playlist"
+    setup  "ComposePlaylist", playlist_name: "sample", description: "sample", loop_mode: "sample"
+    input  content_id: "sample", duration_seconds: 1
+    expect ok: "true"
+  end
+
+  test "ArchivePlaylist runs" do
+    tests "ArchivePlaylist", on: "Playlist"
+    setup  "ComposePlaylist", playlist_name: "sample", description: "sample", loop_mode: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ContentAsset aggregate ──────────────────────────────────────────
+
+  test "UploadAsset sets asset_id + title + media_type + file_size_kb" do
+    tests "UploadAsset", on: "ContentAsset"
+    input  asset_id: "sample", title: "sample", media_type: "sample", file_size_kb: 1
+    expect status: "pending_review"
+  end
+
+  test "UploadAsset cascades through policy chain" do
+    tests "UploadAsset", on: "ContentAsset", kind: :cascade
+    setup  "ComposePlaylist", playlist_name: "sample", description: "sample", loop_mode: "sample"
+    input  asset_id: "sample", title: "sample", media_type: "sample", file_size_kb: 1
+    expect emits: ["AssetUploaded", "AssetApproved", "EntryAdded"]
+  end
+
+  test "ApproveAsset runs" do
+    tests "ApproveAsset", on: "ContentAsset"
+    setup  "UploadAsset", asset_id: "sample", title: "sample", media_type: "sample", file_size_kb: 1
+    expect ok: "true"
+  end
+
+  test "ApproveAsset cascades through policy chain" do
+    tests "ApproveAsset", on: "ContentAsset", kind: :cascade
+    setup  "ComposePlaylist", playlist_name: "sample", description: "sample", loop_mode: "sample"
+    setup  "UploadAsset", asset_id: "sample", title: "sample", media_type: "sample", file_size_kb: 1
+    expect emits: ["AssetApproved", "EntryAdded"]
+  end
+
+  test "RetireAsset runs" do
+    tests "RetireAsset", on: "ContentAsset"
+    setup  "UploadAsset", asset_id: "sample", title: "sample", media_type: "sample", file_size_kb: 1
+    expect ok: "true"
+  end
+
+
+  # ── Schedule aggregate ──────────────────────────────────────────
+
+  test "ProgramSchedule sets schedule_id + start_time + end_time + recurrence" do
+    tests "ProgramSchedule", on: "Schedule"
+    setup  "ComposePlaylist", playlist_name: "sample", description: "sample", loop_mode: "sample"
+    setup  "InstallDisplay", display_id: "sample", model: "sample", resolution: "sample", orientation: "sample"
+    input  schedule_id: "sample", start_time: "sample", end_time: "sample", recurrence: "sample"
+    expect status: "active"
+  end
+
+  test "PauseSchedule runs" do
+    tests "PauseSchedule", on: "Schedule"
+    setup  "ProgramSchedule", schedule_id: "sample", start_time: "sample", end_time: "sample", recurrence: "sample"
+    expect ok: "true"
+  end
+
+  test "DiscardSchedule runs" do
+    tests "DiscardSchedule", on: "Schedule"
+    setup  "ProgramSchedule", schedule_id: "sample", start_time: "sample", end_time: "sample", recurrence: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Location aggregate ──────────────────────────────────────────
+
+  test "RegisterLocation sets location_name + address + location_type + contact_name" do
+    tests "RegisterLocation", on: "Location"
+    input  location_name: "sample", address: "sample", location_type: "sample", contact_name: "sample"
+    expect location_name: "sample", address: "sample", location_type: "sample", contact_name: "sample", status: "active"
+  end
+
+  test "ReassignContact sets contact_name" do
+    tests "ReassignContact", on: "Location"
+    setup  "RegisterLocation", location_name: "sample", address: "sample", location_type: "sample", contact_name: "sample"
+    input  contact_name: "sample"
+    expect ok: "true"
+  end
+
+  test "DeactivateLocation runs" do
+    tests "DeactivateLocation", on: "Location"
+    setup  "RegisterLocation", location_name: "sample", address: "sample", location_type: "sample", contact_name: "sample"
+    expect ok: "true"
+  end
+
+  test "DeactivateLocation cascades through policy chain" do
+    tests "DeactivateLocation", on: "Location", kind: :cascade
+    setup  "ProgramSchedule", schedule_id: "sample", start_time: "sample", end_time: "sample", recurrence: "sample"
+    setup  "RegisterLocation", location_name: "sample", address: "sample", location_type: "sample", contact_name: "sample"
+    expect emits: ["LocationDeactivated", "SchedulePaused"]
+  end
+
+end

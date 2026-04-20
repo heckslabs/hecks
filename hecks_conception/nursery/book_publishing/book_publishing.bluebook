@@ -19,6 +19,7 @@ Hecks.bluebook "BookPublishing" do
       String :genre
       String :author_name
       Integer :word_count
+      then_set :status, to: "submitted"
       emits "ManuscriptSubmitted"
     end
 
@@ -52,6 +53,7 @@ Hecks.bluebook "BookPublishing" do
       reference_to(Manuscript)
       String :pass_type
       String :editor_name
+      then_set :status, to: "assigned"
       emits "EditorAssigned"
     end
 
@@ -92,6 +94,7 @@ Hecks.bluebook "BookPublishing" do
       reference_to(Manuscript)
       String :designer_name
       String :art_style
+      then_set :status, to: "briefed"
       emits "DesignerBriefed"
     end
 
@@ -117,6 +120,7 @@ Hecks.bluebook "BookPublishing" do
       Integer :quantity
       String :binding_type
       String :paper_stock
+      then_set :status, to: "ordered"
       emits "PrintRunOrdered"
     end
 
@@ -199,18 +203,4 @@ Hecks.bluebook "BookPublishing" do
     trigger "CompletePass"
   end
 
-  fixture "Manuscript", title: "The Midnight Library", genre: "Science Fiction", author_name: "Sarah Mitchell", word_count: 92000, status: "submitted"
-  fixture "Manuscript", title: "Garden of Thorns", genre: "Fantasy", author_name: "Elena Rodriguez", word_count: 115000, status: "accepted"
-
-  fixture "EditorialPass", pass_type: "developmental", editor_name: "David Brooks", status: "assigned", change_count: 0, manuscript_id: "M001"
-  fixture "EditorialPass", pass_type: "copy edit", editor_name: "Jennifer Walsh", status: "completed", change_count: 247, manuscript_id: "M002"
-
-  fixture "CoverDesign", designer_name: "Marcus Chen", art_style: "minimalist", status: "briefed", revision_number: 0, manuscript_id: "M001"
-  fixture "CoverDesign", designer_name: "Yuki Tanaka", art_style: "photorealistic", status: "approved", revision_number: 2, manuscript_id: "M002"
-
-  fixture "PrintRun", quantity: 5000, binding_type: "hardcover", paper_stock: "cream 80gsm", status: "ordered", manuscript_id: "M001"
-  fixture "PrintRun", quantity: 10000, binding_type: "paperback", paper_stock: "white 70gsm", status: "received", manuscript_id: "M002"
-
-  fixture "RoyaltyAccount", advance_paid: 15000.0, earned_royalties: 2350.0, royalty_rate: 0.10, status: "unearned", manuscript_id: "M001"
-  fixture "RoyaltyAccount", advance_paid: 25000.0, earned_royalties: 8900.0, royalty_rate: 0.12, status: "unearned", manuscript_id: "M002"
 end

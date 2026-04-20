@@ -3,68 +3,70 @@ Hecks.bluebook "DomainCrossover", version: "2026.04.13.1" do
   category "capability"
 
   aggregate "ParentPair", "Two domains selected for crossover based on vector compatibility" do
-    String :parent_a
-    String :parent_b
-    Float :similarity
-    Float :complementarity
-    list_of(String) :shared_concepts
+    attribute :parent_a, String
+    attribute :parent_b, String
+    attribute :similarity, Float
+    attribute :complementarity, Float
+    attribute :shared_concepts, list_of(String)
 
-    SelectPair do
+    command "SelectPair" do
       description "Find two domains whose vectors are similar enough to combine but different enough to be interesting"
-      Float :min_similarity
-      Float :max_similarity
-      given "similarity must be between 0.3 and 0.8 — too close is a clone, too far is nonsense"
+      attribute :min_similarity, Float
+      attribute :max_similarity, Float
       emits "PairSelected"
     end
   end
 
   aggregate "Offspring", "A new domain bred from two parents — inherits aggregates and policies from both" do
-    String :name
-    String :vision
-    String :parent_a
-    String :parent_b
-    list_of(String) :aggregates_from_a
-    list_of(String) :aggregates_from_b
-    list_of(String) :cross_policies
-    Boolean :valid
+    attribute :name, String
+    attribute :vision, String
+    attribute :parent_a, String
+    attribute :parent_b, String
+    attribute :aggregates_from_a, list_of(String)
+    attribute :aggregates_from_b, list_of(String)
+    attribute :cross_policies, list_of(String)
+    attribute :valid, TrueClass
+    # Flipped true by ValidateOffspring; EnrichOffspring gates on it.
+    attribute :validated, Boolean, default: false
 
-    BreedDomain do
+    command "BreedDomain" do
       description "Combine aggregates from two parents and wire cross-domain policies between them"
       reference_to(ParentPair)
-      String :name
-      String :vision
-      Integer :aggregates_from_each
+      attribute :name, String
+      attribute :vision, String
+      attribute :aggregates_from_each, Integer
       emits "DomainBred"
     end
 
-    ValidateOffspring do
+    command "ValidateOffspring" do
       description "Parse and validate the bred domain — does it boot?"
       reference_to(Offspring)
       emits "OffspringValidated"
+      then_set :validated, to: true
     end
 
-    EnrichOffspring do
+    command "EnrichOffspring" do
       description "Add givens, references, and value objects the crossover missed"
       reference_to(Offspring)
-      given "offspring must be valid before enrichment"
+      given { validated == true }
       emits "OffspringEnriched"
     end
   end
 
   aggregate "Generation", "One batch of crossover breeding — track yield rate and quality" do
-    Integer :generation_number
-    Integer :pairs_attempted
-    Integer :offspring_valid
-    Integer :offspring_strong
-    Float :yield_rate
+    attribute :generation_number, Integer
+    attribute :pairs_attempted, Integer
+    attribute :offspring_valid, Integer
+    attribute :offspring_strong, Integer
+    attribute :yield_rate, Float
 
-    RunGeneration do
+    command "RunGeneration" do
       description "Select N parent pairs, breed each one, validate and assess"
-      Integer :pair_count
+      attribute :pair_count, Integer
       emits "GenerationComplete"
     end
 
-    AssessGeneration do
+    command "AssessGeneration" do
       description "Compare this generation's quality to the previous one"
       reference_to(Generation)
       emits "GenerationAssessed"

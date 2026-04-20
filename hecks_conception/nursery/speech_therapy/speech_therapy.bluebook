@@ -62,12 +62,12 @@ Hecks.bluebook "SpeechTherapy" do
       then_set :status, to: "in_progress"
     end
 
-    UpdateProgress do
+    LogProgress do
       role "Pathologist"
       description "Record new score toward the goal"
       reference_to(TherapyGoal)
       Integer :current_score
-      emits "ProgressUpdated"
+      emits "ProgressLogged"
       then_set :current_score, to: :current_score
     end
 
@@ -138,7 +138,7 @@ Hecks.bluebook "SpeechTherapy" do
       String :description
     end
 
-    CreateExercise do
+    DesignExercise do
       role "Pathologist"
       description "Design a new speech therapy exercise for the exercise library"
       String :name
@@ -146,7 +146,7 @@ Hecks.bluebook "SpeechTherapy" do
       String :difficulty
       String :instructions
       String :modality
-      emits "ExerciseCreated"
+      emits "ExerciseDesigned"
       then_set :name, to: :name
       then_set :target_skill, to: :target_skill
       then_set :difficulty, to: :difficulty
@@ -230,11 +230,11 @@ Hecks.bluebook "SpeechTherapy" do
 
   policy "UpdateProgressOnSession" do
     on "SessionCompleted"
-    trigger "UpdateProgress"
+    trigger "LogProgress"
   end
 
   policy "AchieveGoalOnProgress" do
-    on "ProgressUpdated"
+    on "ProgressLogged"
     trigger "AchieveGoal"
   end
 
@@ -243,18 +243,4 @@ Hecks.bluebook "SpeechTherapy" do
     trigger "DischargeClient"
   end
 
-  fixture "Client", name: "Sophia Martinez", date_of_birth: "2018-05-12", referral_source: "Pediatrician", primary_disorder: "Speech Sound Disorder", status: "active"
-  fixture "Client", name: "Owen Campbell", date_of_birth: "2019-08-25", referral_source: "School Screening", primary_disorder: "Language Delay", status: "active"
-
-  fixture "TherapyGoal", client_name: "Sophia Martinez", goal_area: "Articulation", description: "Produce /s/ sounds correctly in words", target_criterion: "90% accuracy in sentences", baseline_score: 45, current_score: 45, status: "in_progress", reference_to: "Client_1"
-  fixture "TherapyGoal", client_name: "Owen Campbell", goal_area: "Vocabulary", description: "Expand expressive vocabulary", target_criterion: "200+ word vocabulary", baseline_score: 85, current_score: 85, status: "in_progress", reference_to: "Client_2"
-
-  fixture "TherapySession", client_name: "Sophia Martinez", pathologist_name: "Dr. Amanda Lee", session_date: "2026-04-14", session_type: "Individual", activities: [{ exercise_name: "Sound Isolation Drills", trials: 20, correct_responses: 18, cueing_level: "Minimal" }], notes: "Good progress on /s/ production", status: "scheduled", reference_to: "Client_1"
-  fixture "TherapySession", client_name: "Owen Campbell", pathologist_name: "Dr. Mark Foster", session_date: "2026-04-15", session_type: "Individual", activities: [{ exercise_name: "Vocabulary Building Game", trials: 15, correct_responses: 13, cueing_level: "Moderate" }], notes: "Engaged and motivated", status: "scheduled", reference_to: "Client_2"
-
-  fixture "Exercise", name: "Sound Pair Discrimination", target_skill: "Phonological Awareness", difficulty: "Intermediate", instructions: "Client listens and identifies same/different sound pairs", modality: "Auditory"
-  fixture "Exercise", name: "Picture Naming", target_skill: "Vocabulary Retrieval", difficulty: "Beginner", instructions: "Client names objects presented in pictures", modality: "Visual"
-
-  fixture "SpeechAssessment", client_name: "Sophia Martinez", assessment_tool: "GFTA-2", assessment_date: "2026-04-01", subtest_results: [{ subtest_name: "Sounds in Words", raw_score: 78, standard_score: 92, percentile: 42 }], composite_score: 88, severity_rating: "Mild", reference_to: "Client_1"
-  fixture "SpeechAssessment", client_name: "Owen Campbell", assessment_tool: "CELF-5", assessment_date: "2026-03-28", subtest_results: [{ subtest_name: "Expressive Vocabulary", raw_score: 24, standard_score: 85, percentile: 28 }], composite_score: 82, severity_rating: "Mild-Moderate", reference_to: "Client_2"
 end

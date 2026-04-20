@@ -1,0 +1,30 @@
+Hecks.behaviors "Verbs" do
+  vision "Behavioral tests for the Verbs domain — exercises every command and query in memory"
+
+  # ── NonVerbSuffix aggregate ──────────────────────────────────────────
+
+  test "RegisterSuffix sets suffix + part_of_speech" do
+    tests "RegisterSuffix", on: "NonVerbSuffix"
+    input  suffix: "sample", part_of_speech: "sample"
+    expect suffix: "sample", part_of_speech: "sample"
+  end
+
+
+  # ── DualWord aggregate ──────────────────────────────────────────
+
+  test "RegisterDualWord sets word" do
+    tests "RegisterDualWord", on: "DualWord"
+    input  word: "sample"
+    expect word: "sample"
+  end
+
+
+  # ── Prefix aggregate ──────────────────────────────────────────
+
+  test "RegisterPrefix sets prefix + meaning" do
+    tests "RegisterPrefix", on: "Prefix"
+    input  prefix: "sample", meaning: "sample"
+    expect prefix: "sample", meaning: "sample"
+  end
+
+end

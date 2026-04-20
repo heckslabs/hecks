@@ -1,0 +1,26 @@
+Hecks.fixtures "DisasterAutonomy" do
+  aggregate "DisasterEvent" do
+    fixture "DisasterEvent1", event_id: "disaster-2026-0415-01", disaster_type: "earthquake", affected_region: "San Francisco Bay Area", severity: "critical", estimated_affected: 250000, status: "active"
+    fixture "DisasterEvent2", event_id: "disaster-2026-0416-02", disaster_type: "hurricane", affected_region: "Miami-Dade County", severity: "severe", estimated_affected: 180000, status: "active"
+  end
+  aggregate "SearchFleet" do
+    fixture "SearchFleet1", fleet_id: "fleet-srch-001", event: "disaster-2026-0415-01", drone_count: 12, deployment_zone: "Marina District", status: "deployed"
+    fixture "SearchFleet2", fleet_id: "fleet-srch-002", event: "disaster-2026-0416-02", drone_count: 18, deployment_zone: "Biscayne Bay", status: "deployed"
+  end
+  aggregate "SupplyDrop" do
+    fixture "SupplyDrop1", drop_id: "drop-001", event: "disaster-2026-0415-01", supply_type: "medical", target_location: "40.776,-73.971", delivery_method: "drone", status: "delivered"
+    fixture "SupplyDrop2", drop_id: "drop-002", event: "disaster-2026-0415-01", supply_type: "water", target_location: "40.782,-73.965", delivery_method: "ground_robot", status: "planned"
+  end
+  aggregate "GridResponse" do
+    fixture "GridResponse1", response_id: "grid-resp-001", event: "disaster-2026-0415-01", grid_sector: "SF-North-01", affected_substations: 4, status: "active"
+    fixture "GridResponse2", response_id: "grid-resp-002", event: "disaster-2026-0416-02", grid_sector: "Miami-Central-02", affected_substations: 6, status: "restored"
+  end
+  aggregate "AirspaceControl" do
+    fixture "AirspaceControl1", control_id: "airspace-001", event: "disaster-2026-0415-01", restricted_zone: "40.776,-73.971,5km", status: "restricted"
+    fixture "AirspaceControl2", control_id: "airspace-002", event: "disaster-2026-0416-02", restricted_zone: "25.761,-80.193,8km", status: "open"
+  end
+  aggregate "SurvivorRegistry" do
+    fixture "SurvivorRegistry1", registry_id: "registry-2026-0415-01", event: "disaster-2026-0415-01", total_found: 847, status: "active"
+    fixture "SurvivorRegistry2", registry_id: "registry-2026-0416-02", event: "disaster-2026-0416-02", total_found: 612, status: "active"
+  end
+end

@@ -1,0 +1,18 @@
+Hecks.behaviors "RVDC" do
+  vision "Behavioral tests for the RVDC domain — exercises every command and query in memory"
+
+  # ── App aggregate ──────────────────────────────────────────
+
+  test "Boot sets port" do
+    tests "Boot", on: "App"
+    input  port: 1
+    expect ok: "true"
+  end
+
+  test "RegisterDomains sets domains" do
+    tests "RegisterDomains", on: "App"
+    input  domains: "sample"
+    expect domains: "sample"
+  end
+
+end

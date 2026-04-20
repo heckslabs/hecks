@@ -1,0 +1,82 @@
+Hecks.behaviors "SmartRehab" do
+  vision "Behavioral tests for the SmartRehab domain — exercises every command and query in memory"
+
+  # ── Patient aggregate ──────────────────────────────────────────
+
+  test "RegisterPatient sets patient_id + name + diagnosis + therapist_name" do
+    tests "RegisterPatient", on: "Patient"
+    input  patient_id: "sample", name: "sample", diagnosis: "sample", therapist_name: "sample"
+    expect patient_id: "sample", name: "sample", diagnosis: "sample", therapist_name: "sample", status: "active"
+  end
+
+  test "DischargePatient runs" do
+    tests "DischargePatient", on: "Patient"
+    setup  "RegisterPatient", patient_id: "sample", name: "sample", diagnosis: "sample", therapist_name: "sample"
+    expect status: "discharged"
+  end
+
+
+  # ── ExerciseProgram aggregate ──────────────────────────────────────────
+
+  test "PrescribeProgram sets program_id + patient_id + frequency" do
+    tests "PrescribeProgram", on: "ExerciseProgram"
+    input  program_id: "sample", patient_id: "sample", frequency: "sample"
+    expect program_id: "sample", patient_id: "sample", frequency: "sample", status: "active"
+  end
+
+  test "AdjustProgram sets frequency" do
+    tests "AdjustProgram", on: "ExerciseProgram"
+    setup  "PrescribeProgram", program_id: "sample", patient_id: "sample", frequency: "sample"
+    input  frequency: "sample"
+    expect frequency: "sample"
+  end
+
+
+  # ── WearableSensor aggregate ──────────────────────────────────────────
+
+  test "PairSensor sets device_id + patient_id + sensor_type" do
+    tests "PairSensor", on: "WearableSensor"
+    input  device_id: "sample", patient_id: "sample", sensor_type: "sample"
+    expect device_id: "sample", patient_id: "sample", sensor_type: "sample", status: "paired"
+  end
+
+  test "ReadSensor sets battery_level" do
+    tests "ReadSensor", on: "WearableSensor"
+    setup  "PairSensor", device_id: "sample", patient_id: "sample", sensor_type: "sample"
+    input  battery_level: 1.0
+    expect battery_level: 1.0
+  end
+
+  test "ReadSensor cascades through policy chain" do
+    tests "ReadSensor", on: "WearableSensor", kind: :cascade
+    setup  "PairSensor", device_id: "sample", patient_id: "sample", sensor_type: "sample"
+    setup  "GenerateReport", report_id: "sample", patient_id: "sample", range_of_motion: 1.0, pain_score: 1.0, sensor_summary: "sample"
+    setup  "PrescribeProgram", program_id: "sample", patient_id: "sample", frequency: "sample"
+    input  battery_level: 1.0
+    expect emits: ["SensorRead", "ReportGenerated", "ProgramAdjusted"]
+  end
+
+
+  # ── ProgressReport aggregate ──────────────────────────────────────────
+
+  test "GenerateReport sets report_id + patient_id + range_of_motion + pain_score + sensor_summary" do
+    tests "GenerateReport", on: "ProgressReport"
+    input  report_id: "sample", patient_id: "sample", range_of_motion: 1.0, pain_score: 1.0, sensor_summary: "sample"
+    expect report_id: "sample", patient_id: "sample", range_of_motion: 1.0, pain_score: 1.0, sensor_summary: "sample"
+  end
+
+  test "GenerateReport cascades through policy chain" do
+    tests "GenerateReport", on: "ProgressReport", kind: :cascade
+    setup  "PrescribeProgram", program_id: "sample", patient_id: "sample", frequency: "sample"
+    input  report_id: "sample", patient_id: "sample", range_of_motion: 1.0, pain_score: 1.0, sensor_summary: "sample"
+    expect emits: ["ReportGenerated", "ProgramAdjusted"]
+  end
+
+  test "AnnotateReport sets therapist_notes" do
+    tests "AnnotateReport", on: "ProgressReport"
+    setup  "GenerateReport", report_id: "sample", patient_id: "sample", range_of_motion: 1.0, pain_score: 1.0, sensor_summary: "sample"
+    input  therapist_notes: "sample"
+    expect therapist_notes: "sample"
+  end
+
+end

@@ -1,0 +1,92 @@
+Hecks.behaviors "DialysisNetworkOps" do
+  vision "Behavioral tests for the DialysisNetworkOps domain — exercises every command and query in memory"
+
+  # ── DialysisMachine aggregate ──────────────────────────────────────────
+
+  test "RegisterMachine sets machine_id + model + center_name" do
+    tests "RegisterMachine", on: "DialysisMachine"
+    input  machine_id: "sample", model: "sample", center_name: "sample"
+    expect machine_id: "sample", model: "sample", center_name: "sample", hours_used: 0.0, status: "online"
+  end
+
+  test "StartTreatment runs" do
+    tests "StartTreatment", on: "DialysisMachine"
+    setup  "RegisterMachine", machine_id: "sample", model: "sample", center_name: "sample"
+    expect status: "treating"
+  end
+
+  test "StartTreatment cascades through policy chain" do
+    tests "StartTreatment", on: "DialysisMachine", kind: :cascade
+    setup  "RecordTelemetry", log_id: "sample", machine_id: "sample", blood_flow_rate: 1.0, dialysate_temp: 1.0, timestamp: "sample"
+    setup  "RegisterMachine", machine_id: "sample", model: "sample", center_name: "sample"
+    expect emits: ["TreatmentStarted", "TelemetryRecorded"]
+  end
+
+  test "EndTreatment runs" do
+    tests "EndTreatment", on: "DialysisMachine"
+    setup  "RegisterMachine", machine_id: "sample", model: "sample", center_name: "sample"
+    setup  "StartTreatment"
+    expect status: "online"
+  end
+
+
+  # ── NetworkLink aggregate ──────────────────────────────────────────
+
+  test "EstablishLink sets link_id + center_name + link_type + bandwidth_mbps" do
+    tests "EstablishLink", on: "NetworkLink"
+    input  link_id: "sample", center_name: "sample", link_type: "sample", bandwidth_mbps: 1.0
+    expect link_id: "sample", center_name: "sample", link_type: "sample", bandwidth_mbps: 1.0, status: "up"
+  end
+
+  test "TestLink sets latency_ms" do
+    tests "TestLink", on: "NetworkLink"
+    setup  "EstablishLink", link_id: "sample", center_name: "sample", link_type: "sample", bandwidth_mbps: 1.0
+    input  latency_ms: 1.0
+    expect latency_ms: 1.0
+  end
+
+  test "MarkDown runs" do
+    tests "MarkDown", on: "NetworkLink"
+    setup  "EstablishLink", link_id: "sample", center_name: "sample", link_type: "sample", bandwidth_mbps: 1.0
+    expect status: "down"
+  end
+
+  test "MarkDown cascades through policy chain" do
+    tests "MarkDown", on: "NetworkLink", kind: :cascade
+    setup  "RaiseAlert", alert_id: "sample", machine_id: "sample", alert_type: "sample", severity: "sample", message: "sample"
+    setup  "EstablishLink", link_id: "sample", center_name: "sample", link_type: "sample", bandwidth_mbps: 1.0
+    expect emits: ["LinkDown", "AlertRaised"]
+  end
+
+
+  # ── RemoteAlert aggregate ──────────────────────────────────────────
+
+  test "RaiseAlert sets alert_id + machine_id + alert_type + severity + message" do
+    tests "RaiseAlert", on: "RemoteAlert"
+    input  alert_id: "sample", machine_id: "sample", alert_type: "sample", severity: "sample", message: "sample"
+    expect alert_id: "sample", machine_id: "sample", alert_type: "sample", severity: "sample", message: "sample", status: "open"
+  end
+
+  test "AcknowledgeAlert runs" do
+    tests "AcknowledgeAlert", on: "RemoteAlert"
+    setup  "RaiseAlert", alert_id: "sample", machine_id: "sample", alert_type: "sample", severity: "sample", message: "sample"
+    expect status: "acknowledged"
+  end
+
+  test "ResolveAlert runs" do
+    tests "ResolveAlert", on: "RemoteAlert"
+    setup  "RaiseAlert", alert_id: "sample", machine_id: "sample", alert_type: "sample", severity: "sample", message: "sample"
+    setup  "AcknowledgeAlert"
+    expect status: "resolved"
+  end
+
+
+  # ── TelemetryLog aggregate ──────────────────────────────────────────
+
+  test "RecordTelemetry sets log_id + machine_id + blood_flow_rate + dialysate_temp + timestamp" do
+    tests "RecordTelemetry", on: "TelemetryLog"
+    input  log_id: "sample", machine_id: "sample", blood_flow_rate: 1.0, dialysate_temp: 1.0, timestamp: "sample"
+    expect log_id: "sample", machine_id: "sample", blood_flow_rate: 1.0, dialysate_temp: 1.0, timestamp: "sample"
+  end
+
+end

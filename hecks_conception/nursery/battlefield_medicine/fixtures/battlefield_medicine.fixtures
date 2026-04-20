@@ -1,0 +1,27 @@
+Hecks.fixtures "BattlefieldMedicine" do
+  aggregate "CasualtyReport" do
+    fixture "CasualtyReport1", report_id: "CAS-001", casualty_name: "LCpl Maria Gonzalez", location_grid: "D7-42", injury_type: "blast_trauma", urgency: "critical", blood_type: "O+", status: "reported"
+    fixture "CasualtyReport2", report_id: "CAS-002", casualty_name: "PFC James Sullivan", location_grid: "E9-18", injury_type: "gunshot_wound", urgency: "urgent", blood_type: "AB+", status: "reported"
+    fixture "CasualtyReport3", report_id: "CAS-003", casualty_name: "SSG Ahmed Hassan", location_grid: "C5-33", injury_type: "shrapnel", urgency: "high", blood_type: "A+", status: "evacuated"
+  end
+  aggregate "MedDrone" do
+    fixture "MedDrone1", drone_id: "MD-001", mission_type: "evacuation", current_location: "D7-40", status: "en_route", assigned_casualty: "ref:CasualtyReport:CAS-001", battery_pct: 78
+    fixture "MedDrone2", drone_id: "MD-002", mission_type: "supply_delivery", current_location: "E9-15", status: "returning", assigned_casualty: "ref:CasualtyReport:CAS-002", battery_pct: 42
+  end
+  aggregate "BloodDrop" do
+    fixture "BloodDrop1", drop_id: "BD-047", target_casualty: "ref:CasualtyReport:CAS-001", carrier_drone: "ref:MedDrone:MD-001", blood_type: "O+", units: 2, cold_chain_status: "sealed", status: "in_transit"
+    fixture "BloodDrop2", drop_id: "BD-048", target_casualty: "ref:CasualtyReport:CAS-002", carrier_drone: "ref:MedDrone:MD-002", blood_type: "AB+", units: 1, cold_chain_status: "sealed", status: "prepared"
+  end
+  aggregate "EvacRoute" do
+    fixture "EvacRoute1", route_id: "ROUTE-001", casualty: "ref:CasualtyReport:CAS-001", destination: "ref:FieldHospital:FH-ALPHA", threat_level: "moderate", distance_km: 12, eta_minutes: 18, status: "active"
+    fixture "EvacRoute2", route_id: "ROUTE-002", casualty: "ref:CasualtyReport:CAS-002", destination: "ref:FieldHospital:FH-BRAVO", threat_level: "high", distance_km: 8, eta_minutes: 12, status: "active"
+  end
+  aggregate "FieldHospital" do
+    fixture "FieldHospital1", hospital_id: "FH-ALPHA", location_grid: "F2-50", surgical_bays: 4, available_bays: 1, status: "operational"
+    fixture "FieldHospital2", hospital_id: "FH-BRAVO", location_grid: "G8-25", surgical_bays: 6, available_bays: 3, status: "operational"
+  end
+  aggregate "StatusBoard" do
+    fixture "StatusBoard1", board_id: "OPBOARD-1", operation_name: "Desert Storm Relief", total_casualties: 15, evacuated_count: 7, drones_active: 4, status: "active"
+    fixture "StatusBoard2", board_id: "OPBOARD-2", operation_name: "Mountain Rescue", total_casualties: 23, evacuated_count: 19, drones_active: 6, status: "active"
+  end
+end

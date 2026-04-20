@@ -1,0 +1,73 @@
+Hecks.behaviors "MedicalMedia" do
+  vision "Behavioral tests for the MedicalMedia domain — exercises every command and query in memory"
+
+  # ── DermatologyCase aggregate ──────────────────────────────────────────
+
+  test "DocumentCase sets case_id + patient_code + condition_name + severity + treatment" do
+    tests "DocumentCase", on: "DermatologyCase"
+    input  case_id: "sample", patient_code: "sample", condition_name: "sample", severity: "sample", treatment: "sample"
+    expect case_id: "sample", patient_code: "sample", condition_name: "sample", severity: "sample", treatment: "sample", status: "documented"
+  end
+
+  test "DocumentCase cascades through policy chain" do
+    tests "DocumentCase", on: "DermatologyCase", kind: :cascade
+    setup  "ObtainConsent", consent_id: "sample", case_id: "sample", patient_code: "sample", scope: "sample", expiry_date: "sample"
+    setup  "LaunchProject", project_id: "sample", case_id: "sample", title: "sample", target_audience: "sample"
+    input  case_id: "sample", patient_code: "sample", condition_name: "sample", severity: "sample", treatment: "sample"
+    expect emits: ["CaseDocumented", "ConsentObtained", "ProjectLaunched"]
+  end
+
+  test "ClearForMedia runs" do
+    tests "ClearForMedia", on: "DermatologyCase"
+    setup  "DocumentCase", case_id: "sample", patient_code: "sample", condition_name: "sample", severity: "sample", treatment: "sample"
+    expect status: "cleared"
+  end
+
+
+  # ── ConsentForm aggregate ──────────────────────────────────────────
+
+  test "ObtainConsent sets consent_id + case_id + patient_code + scope + expiry_date" do
+    tests "ObtainConsent", on: "ConsentForm"
+    input  consent_id: "sample", case_id: "sample", patient_code: "sample", scope: "sample", expiry_date: "sample"
+    expect consent_id: "sample", case_id: "sample", patient_code: "sample", scope: "sample", expiry_date: "sample", status: "active"
+  end
+
+  test "ObtainConsent cascades through policy chain" do
+    tests "ObtainConsent", on: "ConsentForm", kind: :cascade
+    setup  "LaunchProject", project_id: "sample", case_id: "sample", title: "sample", target_audience: "sample"
+    input  consent_id: "sample", case_id: "sample", patient_code: "sample", scope: "sample", expiry_date: "sample"
+    expect emits: ["ConsentObtained", "ProjectLaunched"]
+  end
+
+  test "RevokeConsent runs" do
+    tests "RevokeConsent", on: "ConsentForm"
+    setup  "ObtainConsent", consent_id: "sample", case_id: "sample", patient_code: "sample", scope: "sample", expiry_date: "sample"
+    expect status: "revoked"
+  end
+
+
+  # ── VideoProject aggregate ──────────────────────────────────────────
+
+  test "LaunchProject sets project_id + case_id + title + target_audience" do
+    tests "LaunchProject", on: "VideoProject"
+    input  project_id: "sample", case_id: "sample", title: "sample", target_audience: "sample"
+    expect project_id: "sample", case_id: "sample", title: "sample", target_audience: "sample", status: "pre_production"
+  end
+
+  test "PublishVideo sets duration_minutes" do
+    tests "PublishVideo", on: "VideoProject"
+    setup  "LaunchProject", project_id: "sample", case_id: "sample", title: "sample", target_audience: "sample"
+    input  duration_minutes: 1.0
+    expect duration_minutes: 1.0, status: "published"
+  end
+
+
+  # ── ViewerFeedback aggregate ──────────────────────────────────────────
+
+  test "SubmitFeedback sets feedback_id + project_id + viewer_role + clarity_score + usefulness_score + comments" do
+    tests "SubmitFeedback", on: "ViewerFeedback"
+    input  feedback_id: "sample", project_id: "sample", viewer_role: "sample", clarity_score: 1.0, usefulness_score: 1.0, comments: "sample"
+    expect feedback_id: "sample", project_id: "sample", viewer_role: "sample", clarity_score: 1.0, usefulness_score: 1.0, comments: "sample"
+  end
+
+end

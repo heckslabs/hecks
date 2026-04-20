@@ -62,7 +62,7 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
   # === HousingApplication ===
 
   aggregate "HousingApplication", "A housing search and application — from shelter to stable home" do
-    reference_to(Veteran) :veteran
+    reference_to(Veteran, as: :veteran)
     String :housing_type
     String :location_preference
     Float :budget
@@ -80,7 +80,7 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
     MatchHousing do
       role "System"
       description "Find housing options that match veteran's benefits and needs"
-      reference_to(Veteran) :veteran
+      reference_to(Veteran, as: :veteran)
       String :housing_type
       String :location_preference
       Float :budget
@@ -133,7 +133,7 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
   # === BenefitsClaim ===
 
   aggregate "BenefitsClaim", "A VA benefits claim — disability, education, healthcare entitlements" do
-    reference_to(Veteran) :veteran
+    reference_to(Veteran, as: :veteran)
     String :benefit_type
     String :description
     String :status
@@ -142,7 +142,7 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
     FileClaim do
       role "CaseManager"
       description "File a benefits claim with the VA on behalf of the veteran"
-      reference_to(Veteran) :veteran
+      reference_to(Veteran, as: :veteran)
       String :benefit_type
       String :description
       emits "ClaimFiled"
@@ -195,7 +195,7 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
   # === FinancialPlan ===
 
   aggregate "FinancialPlan", "A financial restart plan — budgeting, debt management, savings goals" do
-    reference_to(Veteran) :veteran
+    reference_to(Veteran, as: :veteran)
     Float :monthly_income
     Float :monthly_expenses
     Float :savings_target
@@ -212,7 +212,7 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
     StartFinancialPlan do
       role "System"
       description "Create a financial plan based on approved benefits and housing costs"
-      reference_to(Veteran) :veteran
+      reference_to(Veteran, as: :veteran)
       Float :monthly_income
       emits "FinancialPlanStarted"
       then_set :veteran, to: :veteran
@@ -246,7 +246,7 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
   # === LegalCase ===
 
   aggregate "LegalCase", "A legal matter — discharge upgrade, expungement, child custody, debt resolution" do
-    reference_to(Veteran) :veteran
+    reference_to(Veteran, as: :veteran)
     String :case_type
     String :description
     String :status
@@ -255,7 +255,7 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
     OpenCase do
       role "LegalAid"
       description "Open a legal case for the veteran"
-      reference_to(Veteran) :veteran
+      reference_to(Veteran, as: :veteran)
       String :case_type
       String :description
       String :assigned_attorney
@@ -298,7 +298,7 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
   # === Milestone ===
 
   aggregate "Milestone", "A restart milestone — trackable achievement on the path to independence" do
-    reference_to(Veteran) :veteran
+    reference_to(Veteran, as: :veteran)
     String :milestone_type
     String :description
     String :target_date
@@ -307,7 +307,7 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
     SetMilestone do
       role "CaseManager"
       description "Define a milestone for the veteran's restart journey"
-      reference_to(Veteran) :veteran
+      reference_to(Veteran, as: :veteran)
       String :milestone_type
       String :description
       String :target_date
@@ -334,24 +334,9 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
 
   # === Cross-wire policies ===
 
-  policy "MatchHousingOnBenefits" do
-    on "BenefitsApproved"
-    trigger "MatchHousing"
-  end
-
   policy "FinancialPlanOnLease" do
     on "LeasesSigned"
     trigger "StartFinancialPlan"
-  end
-
-  policy "FileClaimOnAssessment" do
-    on "NeedsAssessed"
-    trigger "FileClaim"
-  end
-
-  policy "OpenLegalOnAssessment" do
-    on "NeedsAssessed"
-    trigger "OpenCase"
   end
 
   policy "MilestoneOnLease" do

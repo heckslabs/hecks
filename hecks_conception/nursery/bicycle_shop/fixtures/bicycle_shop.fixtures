@@ -1,0 +1,29 @@
+Hecks.fixtures "BicycleShop" do
+  aggregate "Bicycle" do
+    fixture "Bicycle1", bike_id: "BK-2001", brand: "Trek", model: "Domane AL 3", type: "road", frame_size: "56cm", price: 649.99, status: "available"
+    fixture "Bicycle2", bike_id: "BK-2002", brand: "Specialized", model: "Rockhopper Sport 26", type: "mountain", frame_size: "medium", price: 399.99, status: "available"
+    fixture "Bicycle3", bike_id: "BK-2003", brand: "Giant", model: "Escape 3", type: "hybrid", frame_size: "large", price: 299.99, status: "sold"
+    fixture "Bicycle4", bike_id: "BK-2004", brand: "Cannondale", model: "Quick 5", type: "hybrid", frame_size: "medium", price: 449.99, status: "available"
+  end
+  aggregate "RepairOrder" do
+    fixture "RepairOrder1", order_id: "REP-001", customer_name: "Thomas Anderson", bike_description: "Trek road bike, model year 2023", issue: "Front brake not engaging properly", estimate: 65.0, status: "pending"
+    fixture "RepairOrder2", order_id: "REP-002", customer_name: "Lisa Martinez", bike_description: "Specialized mountain bike, flat tire", issue: "Puncture, needs new tire and tube", estimate: 85.0, status: "pending"
+    fixture "RepairOrder3", order_id: "REP-003", customer_name: "Kevin O'Brien", bike_description: "Giant hybrid, chain slipping", issue: "Chain derailment, cable adjustment needed", estimate: 45.0, status: "completed"
+  end
+  aggregate "BikePart" do
+    fixture "Brake_Cable_", part_number: "FBK-300", name: "Brake Cable", category: "drivetrain", price: 8.50, quantity: 24
+    fixture "Road_Tire_700x28c_", part_number: "WHE-700", name: "Road Tire 700x28c", category: "wheels", price: 45.00, quantity: 12
+    fixture "Chain_10_speed_", part_number: "CHA-100", name: "Chain 10-speed", category: "drivetrain", price: 22.50, quantity: 8
+    fixture "Drop_Bar_Handlebar_", part_number: "BAR-050", name: "Drop Bar Handlebar", category: "components", price: 35.00, quantity: 5
+  end
+  aggregate "BikeFitting" do
+    fixture "BikeFitting1", fitting_id: "FIT-001", customer_name: "Alexandra Chen", ride_style: "casual_commuting", recommended_size: "small"
+    fixture "BikeFitting2", fitting_id: "FIT-002", customer_name: "James Wilson", ride_style: "competitive_road", recommended_size: "large"
+    fixture "BikeFitting3", fitting_id: "FIT-003", customer_name: "Sofia Reyes", ride_style: "mountain_trails", recommended_size: "medium"
+  end
+  aggregate "Rental" do
+    fixture "Rental1", rental_id: "RNT-001", bike_id: "BK-2002", renter_name: "Marcus Johnson", start_date: "2026-04-14", end_date: "2026-04-16", daily_rate: 25.0, status: "rented"
+    fixture "Rental2", rental_id: "RNT-002", bike_id: "BK-2004", renter_name: "Rebecca Foster", start_date: "2026-04-13", end_date: "2026-04-15", daily_rate: 25.0, status: "returned"
+    fixture "Rental3", rental_id: "RNT-003", bike_id: "BK-2001", renter_name: "Daniel Lee", start_date: "2026-04-15", end_date: "2026-04-17", daily_rate: 35.0, status: "rented"
+  end
+end

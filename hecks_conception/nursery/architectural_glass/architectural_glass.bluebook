@@ -18,7 +18,7 @@ Hecks.bluebook "ArchitecturalGlass" do
       end
     end
 
-    command "CreateFormula" do
+    command "Forge" do
       role "GlassMaster"
       goal "Design a new glass formula"
       attribute :name
@@ -163,7 +163,7 @@ Hecks.bluebook "ArchitecturalGlass" do
 
   policy "InstallationSpecifiedTriggersFormula" do
     on "InstallationSpecified"
-    trigger "CreateFormula"
+    trigger "Forge"
     map name: :glass_type
   end
 
@@ -185,15 +185,4 @@ Hecks.bluebook "ArchitecturalGlass" do
     map building_project_id: :project_id
   end
 
-  fixture "GlassFormula", name: "ClearFloat2024", transparency: 0.92, strength_mpa: 80.5, status: "certified"
-  fixture "GlassFormula", name: "TintedBronze", transparency: 0.68, strength_mpa: 75.2, status: "certified"
-
-  fixture "BuildingProject", project_name: "SkyTower Headquarters", client: "SkyTower Inc.", floors: 45, status: "design"
-  fixture "BuildingProject", project_name: "MidCentury Plaza", client: "Westbrook Development", floors: 28, status: "construction"
-
-  fixture "BlowingSession", artisan: "Marcus Chen", furnace_temp: 1680.0, status: "cooling"
-  fixture "BlowingSession", artisan: "Elena Rodriguez", furnace_temp: 1700.0, status: "heating"
-
-  fixture "Installation", installer: "Glass Pro Installations", status: "completed"
-  fixture "Installation", installer: "Precision Glass Services", status: "scheduled"
 end

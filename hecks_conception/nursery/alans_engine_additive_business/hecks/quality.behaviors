@@ -1,0 +1,39 @@
+Hecks.behaviors "Quality" do
+  vision "Behavioral tests for the Quality domain — exercises every command and query in memory"
+
+  # ── QualityTest aggregate ──────────────────────────────────────────
+
+  test "RunTest sets test_name + astm_test_method + formula_name + batch_number + lot_number + specification_min + specification_max" do
+    tests "RunTest", on: "QualityTest"
+    input  test_name: "sample", astm_test_method: "sample", formula_name: "sample", batch_number: "sample", lot_number: "sample", specification_min: 1.0, specification_max: 1.0
+    expect test_name: "sample", astm_test_method: "sample", formula_name: "sample", batch_number: "sample", lot_number: "sample", specification_min: 1.0, specification_max: 1.0
+  end
+
+  test "RunTest cascades through policy chain" do
+    tests "RunTest", on: "QualityTest", kind: :cascade
+    input  test_name: "sample", astm_test_method: "sample", formula_name: "sample", batch_number: "sample", lot_number: "sample", specification_min: 1.0, specification_max: 1.0
+    expect emits: ["TestRun", "ResultRecorded", "CertificateOfAnalysisIssued"]
+  end
+
+  test "RecordResult sets actual_value + result + out_of_spec" do
+    tests "RecordResult", on: "QualityTest"
+    setup  "RunTest", test_name: "sample", astm_test_method: "sample", formula_name: "sample", batch_number: "sample", lot_number: "sample", specification_min: 1.0, specification_max: 1.0
+    input  actual_value: 1.0, result: "sample", out_of_spec: "sample"
+    expect actual_value: 1.0, result: "sample", out_of_spec: "sample"
+  end
+
+  test "RecordResult cascades through policy chain" do
+    tests "RecordResult", on: "QualityTest", kind: :cascade
+    setup  "RunTest", test_name: "sample", astm_test_method: "sample", formula_name: "sample", batch_number: "sample", lot_number: "sample", specification_min: 1.0, specification_max: 1.0
+    input  actual_value: 1.0, result: "sample", out_of_spec: "sample"
+    expect emits: ["ResultRecorded", "CertificateOfAnalysisIssued"]
+  end
+
+  test "IssueCertificateOfAnalysis sets certificate_of_analysis" do
+    tests "IssueCertificateOfAnalysis", on: "QualityTest"
+    setup  "RunTest", test_name: "sample", astm_test_method: "sample", formula_name: "sample", batch_number: "sample", lot_number: "sample", specification_min: 1.0, specification_max: 1.0
+    input  certificate_of_analysis: "sample"
+    expect certificate_of_analysis: "sample"
+  end
+
+end

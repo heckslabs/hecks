@@ -1,0 +1,130 @@
+Hecks.behaviors "SurfShop" do
+  vision "Behavioral tests for the SurfShop domain — exercises every command and query in memory"
+
+  # ── Surfboard aggregate ──────────────────────────────────────────
+
+  test "StockBoard sets board_id + shaper + model + board_type + length_ft + volume_liters + price" do
+    tests "StockBoard", on: "Surfboard"
+    input  board_id: "sample", shaper: "sample", model: "sample", board_type: "sample", length_ft: 1.0, volume_liters: 1.0, price: 1.0
+    expect board_id: "sample", shaper: "sample", model: "sample", board_type: "sample", length_ft: 1.0, volume_liters: 1.0, price: 1.0, status: "available"
+  end
+
+  test "StockBoard cascades through policy chain" do
+    tests "StockBoard", on: "Surfboard", kind: :cascade
+    setup  "ScheduleLesson", lesson_id: "sample", instructor_name: "sample", skill_level: "sample", max_students: 1, scheduled_date: "sample"
+    setup  "RentGear", rental_id: "sample", item_type: "sample", item_id: "sample", renter_name: "sample", start_time: "sample", end_time: "sample", rate: 1.0
+    setup  "AcceptRepair", repair_id: "sample", board_id: "sample", damage_type: "sample", estimated_cost: 1.0
+    setup  "StockWetsuit", wetsuit_id: "sample", brand: "sample", thickness_mm: "sample", size: "sample", price: 1.0, quantity: 1
+    input  board_id: "sample", shaper: "sample", model: "sample", board_type: "sample", length_ft: 1.0, volume_liters: 1.0, price: 1.0
+    expect emits: ["BoardStocked", "LessonScheduled", "GearRented", "LessonConducted", "GearReturned", "RepairAccepted", "WetsuitStocked", "BoardSold"]
+  end
+
+  test "SellBoard runs" do
+    tests "SellBoard", on: "Surfboard"
+    setup  "StockBoard", board_id: "sample", shaper: "sample", model: "sample", board_type: "sample", length_ft: 1.0, volume_liters: 1.0, price: 1.0
+    expect status: "sold"
+  end
+
+
+  # ── Wetsuit aggregate ──────────────────────────────────────────
+
+  test "StockWetsuit sets wetsuit_id + brand + thickness_mm + size + price + quantity" do
+    tests "StockWetsuit", on: "Wetsuit"
+    input  wetsuit_id: "sample", brand: "sample", thickness_mm: "sample", size: "sample", price: 1.0, quantity: 1
+    expect wetsuit_id: "sample", brand: "sample", thickness_mm: "sample", size: "sample", price: 1.0, quantity: 1
+  end
+
+
+  # ── GearRental aggregate ──────────────────────────────────────────
+
+  test "RentGear sets rental_id + item_type + item_id + renter_name + start_time + end_time + rate" do
+    tests "RentGear", on: "GearRental"
+    input  rental_id: "sample", item_type: "sample", item_id: "sample", renter_name: "sample", start_time: "sample", end_time: "sample", rate: 1.0
+    expect rental_id: "sample", item_type: "sample", item_id: "sample", renter_name: "sample", start_time: "sample", end_time: "sample", rate: 1.0, status: "rented"
+  end
+
+  test "RentGear cascades through policy chain" do
+    tests "RentGear", on: "GearRental", kind: :cascade
+    setup  "ScheduleLesson", lesson_id: "sample", instructor_name: "sample", skill_level: "sample", max_students: 1, scheduled_date: "sample"
+    setup  "AcceptRepair", repair_id: "sample", board_id: "sample", damage_type: "sample", estimated_cost: 1.0
+    setup  "StockWetsuit", wetsuit_id: "sample", brand: "sample", thickness_mm: "sample", size: "sample", price: 1.0, quantity: 1
+    setup  "StockBoard", board_id: "sample", shaper: "sample", model: "sample", board_type: "sample", length_ft: 1.0, volume_liters: 1.0, price: 1.0
+    input  rental_id: "sample", item_type: "sample", item_id: "sample", renter_name: "sample", start_time: "sample", end_time: "sample", rate: 1.0
+    expect emits: ["GearRented", "LessonConducted", "GearReturned", "RepairAccepted", "WetsuitStocked", "BoardSold"]
+  end
+
+  test "ReturnGear runs" do
+    tests "ReturnGear", on: "GearRental"
+    setup  "RentGear", rental_id: "sample", item_type: "sample", item_id: "sample", renter_name: "sample", start_time: "sample", end_time: "sample", rate: 1.0
+    expect status: "returned"
+  end
+
+  test "ReturnGear cascades through policy chain" do
+    tests "ReturnGear", on: "GearRental", kind: :cascade
+    setup  "AcceptRepair", repair_id: "sample", board_id: "sample", damage_type: "sample", estimated_cost: 1.0
+    setup  "StockWetsuit", wetsuit_id: "sample", brand: "sample", thickness_mm: "sample", size: "sample", price: 1.0, quantity: 1
+    setup  "RentGear", rental_id: "sample", item_type: "sample", item_id: "sample", renter_name: "sample", start_time: "sample", end_time: "sample", rate: 1.0
+    expect emits: ["GearReturned", "RepairAccepted", "WetsuitStocked"]
+  end
+
+
+  # ── SurfLesson aggregate ──────────────────────────────────────────
+
+  test "ScheduleLesson sets lesson_id + instructor_name + skill_level + max_students + scheduled_date" do
+    tests "ScheduleLesson", on: "SurfLesson"
+    input  lesson_id: "sample", instructor_name: "sample", skill_level: "sample", max_students: 1, scheduled_date: "sample"
+    expect lesson_id: "sample", instructor_name: "sample", skill_level: "sample", max_students: 1, scheduled_date: "sample", status: "scheduled"
+  end
+
+  test "ScheduleLesson cascades through policy chain" do
+    tests "ScheduleLesson", on: "SurfLesson", kind: :cascade
+    setup  "RentGear", rental_id: "sample", item_type: "sample", item_id: "sample", renter_name: "sample", start_time: "sample", end_time: "sample", rate: 1.0
+    setup  "AcceptRepair", repair_id: "sample", board_id: "sample", damage_type: "sample", estimated_cost: 1.0
+    setup  "StockWetsuit", wetsuit_id: "sample", brand: "sample", thickness_mm: "sample", size: "sample", price: 1.0, quantity: 1
+    setup  "StockBoard", board_id: "sample", shaper: "sample", model: "sample", board_type: "sample", length_ft: 1.0, volume_liters: 1.0, price: 1.0
+    input  lesson_id: "sample", instructor_name: "sample", skill_level: "sample", max_students: 1, scheduled_date: "sample"
+    expect emits: ["LessonScheduled", "GearRented", "LessonConducted", "GearReturned", "RepairAccepted", "WetsuitStocked", "BoardSold"]
+  end
+
+  test "ConductLesson runs" do
+    tests "ConductLesson", on: "SurfLesson"
+    setup  "ScheduleLesson", lesson_id: "sample", instructor_name: "sample", skill_level: "sample", max_students: 1, scheduled_date: "sample"
+    expect status: "completed"
+  end
+
+  test "ConductLesson cascades through policy chain" do
+    tests "ConductLesson", on: "SurfLesson", kind: :cascade
+    setup  "RentGear", rental_id: "sample", item_type: "sample", item_id: "sample", renter_name: "sample", start_time: "sample", end_time: "sample", rate: 1.0
+    setup  "AcceptRepair", repair_id: "sample", board_id: "sample", damage_type: "sample", estimated_cost: 1.0
+    setup  "StockWetsuit", wetsuit_id: "sample", brand: "sample", thickness_mm: "sample", size: "sample", price: 1.0, quantity: 1
+    setup  "StockBoard", board_id: "sample", shaper: "sample", model: "sample", board_type: "sample", length_ft: 1.0, volume_liters: 1.0, price: 1.0
+    setup  "ScheduleLesson", lesson_id: "sample", instructor_name: "sample", skill_level: "sample", max_students: 1, scheduled_date: "sample"
+    expect emits: ["LessonConducted", "GearReturned", "RepairAccepted", "WetsuitStocked", "BoardSold"]
+  end
+
+
+  # ── DingRepair aggregate ──────────────────────────────────────────
+
+  test "AcceptRepair sets repair_id + board_id + damage_type + estimated_cost" do
+    tests "AcceptRepair", on: "DingRepair"
+    input  repair_id: "sample", board_id: "sample", damage_type: "sample", estimated_cost: 1.0
+    expect repair_id: "sample", board_id: "sample", damage_type: "sample", estimated_cost: 1.0, status: "in_progress"
+  end
+
+  test "CompleteRepair runs" do
+    tests "CompleteRepair", on: "DingRepair"
+    setup  "AcceptRepair", repair_id: "sample", board_id: "sample", damage_type: "sample", estimated_cost: 1.0
+    expect status: "completed"
+  end
+
+  test "CompleteRepair cascades through policy chain" do
+    tests "CompleteRepair", on: "DingRepair", kind: :cascade
+    setup  "StockBoard", board_id: "sample", shaper: "sample", model: "sample", board_type: "sample", length_ft: 1.0, volume_liters: 1.0, price: 1.0
+    setup  "ScheduleLesson", lesson_id: "sample", instructor_name: "sample", skill_level: "sample", max_students: 1, scheduled_date: "sample"
+    setup  "RentGear", rental_id: "sample", item_type: "sample", item_id: "sample", renter_name: "sample", start_time: "sample", end_time: "sample", rate: 1.0
+    setup  "StockWetsuit", wetsuit_id: "sample", brand: "sample", thickness_mm: "sample", size: "sample", price: 1.0, quantity: 1
+    setup  "AcceptRepair", repair_id: "sample", board_id: "sample", damage_type: "sample", estimated_cost: 1.0
+    expect emits: ["RepairCompleted", "BoardStocked", "LessonScheduled", "GearRented", "LessonConducted", "GearReturned", "RepairAccepted", "WetsuitStocked", "BoardSold"]
+  end
+
+end

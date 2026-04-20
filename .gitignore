@@ -51,3 +51,8 @@ hecks_conception/summer/__pycache__/
 hecks_conception/autumn/.wrangler/
 hecks_conception/information/.*.pid
 hecks_conception/.DS_Store
+
+# Daemon PID files — process IDs, not state. Always ephemeral.
+hecks_conception/information/.mindstream.pid
+hecks_conception/information/.*.pid
+

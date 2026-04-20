@@ -22,7 +22,14 @@ Hecks.bluebook "GameTheory" do
       description "Check the game definition for completeness"
       emits "GameValidated"
       reference_to StrategicGame
-      given "game must have at least two players"
+      given { player_count >= 1 }
+    end
+
+    command "SetPlayerCount" do
+      description "Update the recorded player count for the game"
+      emits "PlayerCountSet"
+      reference_to StrategicGame
+      Integer :player_count
     end
 
     command "ArchiveGame" do
@@ -38,6 +45,7 @@ Hecks.bluebook "GameTheory" do
     String :player_id
     String :strategy_type
     String :action_sequence
+    Boolean :opponent_strategies_specified, default: false
     reference_to StrategicGame
 
     value_object "MixedStrategy" do
@@ -53,11 +61,18 @@ Hecks.bluebook "GameTheory" do
       String :strategy_type
     end
 
+    command "SpecifyOpponentStrategies" do
+      description "Record that opponent strategies are now defined"
+      emits "OpponentStrategiesSpecified"
+      reference_to Strategy
+      then_set :opponent_strategies_specified, to: true
+    end
+
     command "ComputeBestResponse" do
       description "Find the optimal response to opponent strategies"
       emits "BestResponseComputed"
       reference_to Strategy
-      given "opponent strategies must be specified"
+      given { opponent_strategies_specified == true }
     end
 
     command "EliminateDominated" do
@@ -96,7 +111,7 @@ Hecks.bluebook "GameTheory" do
       description "Check whether the game is symmetric"
       emits "SymmetryVerified"
       reference_to PayoffMatrix
-      given "matrix must be square"
+      given { rows == columns }
     end
   end
 
@@ -105,12 +120,21 @@ Hecks.bluebook "GameTheory" do
     String :equilibrium_type
     String :strategy_profile
     Float :expected_payoff
+    Integer :nash_equilibrium_count, default: 0
     reference_to StrategicGame
 
     command "SolveNash" do
       description "Compute Nash equilibria for the game"
       emits "NashSolved"
       reference_to StrategicGame
+      then_set :nash_equilibrium_count, to: 1
+    end
+
+    command "RecordNashEquilibrium" do
+      description "Increment the count of Nash equilibria found for this game"
+      emits "NashEquilibriumRecorded"
+      reference_to Equilibrium
+      Integer :nash_equilibrium_count
     end
 
     command "RefineEquilibrium" do
@@ -118,7 +142,7 @@ Hecks.bluebook "GameTheory" do
       emits "EquilibriumRefined"
       reference_to Equilibrium
       String :refinement_type
-      given "at least one Nash equilibrium must exist"
+      given { nash_equilibrium_count >= 1 }
     end
   end
 
@@ -128,6 +152,7 @@ Hecks.bluebook "GameTheory" do
     Integer :iteration_count
     String :learning_rule
     Float :convergence_threshold
+    Boolean :configured, default: false
     reference_to StrategicGame
 
     command "ConfigureSimulation" do
@@ -137,13 +162,20 @@ Hecks.bluebook "GameTheory" do
       String :simulation_id
       Integer :iteration_count
       String :learning_rule
+      then_set :configured, to: true
+    end
+
+    command "MarkConfigured" do
+      description "Confirm the simulation parameters are valid and ready to run"
+      emits "SimulationMarkedConfigured"
+      reference_to Simulation
     end
 
     command "RunSimulation" do
       description "Execute the simulation and collect outcome statistics"
       emits "SimulationRun"
       reference_to Simulation
-      given "simulation must be configured with valid parameters"
+      given { configured == true }
     end
 
     command "ExportResults" do
@@ -202,18 +234,4 @@ Hecks.bluebook "GameTheory" do
     trigger "ExportResults"
   end
 
-  fixture "StrategicGame", game_id: "GT-0001", name: "Prisoner's Dilemma", game_type: "simultaneous", player_count: 2, information_structure: "symmetric"
-  fixture "StrategicGame", game_id: "GT-0002", name: "Market Entry Game", game_type: "sequential", player_count: 3, information_structure: "imperfect"
-
-  fixture "Strategy", strategy_id: "STR-001-A", player_id: "P1", strategy_type: "pure", action_sequence: "cooperate"
-  fixture "Strategy", strategy_id: "STR-001-B", player_id: "P2", strategy_type: "mixed", action_sequence: "0.6_defect_0.4_cooperate"
-
-  fixture "PayoffMatrix", matrix_id: "MAT-0001", rows: 2, columns: 2, payoff_data: "[[3,3],[0,5],[5,0],[1,1]]"
-  fixture "PayoffMatrix", matrix_id: "MAT-0002", rows: 3, columns: 3, payoff_data: "[[2,2],[0,3],[3,0],[1,4],[4,1],[2,2],[2,2],[2,2],[3,3]]"
-
-  fixture "Equilibrium", equilibrium_type: "pure_strategy_nash", strategy_profile: "defect_defect", expected_payoff: 1.0
-  fixture "Equilibrium", equilibrium_type: "mixed_strategy_nash", strategy_profile: "0.5_cooperate_0.5_defect", expected_payoff: 2.5
-
-  fixture "Simulation", simulation_id: "SIM-0001", iteration_count: 1000, learning_rule: "fictitious_play", convergence_threshold: 0.01
-  fixture "Simulation", simulation_id: "SIM-0002", iteration_count: 5000, learning_rule: "replicator_dynamics", convergence_threshold: 0.001
 end

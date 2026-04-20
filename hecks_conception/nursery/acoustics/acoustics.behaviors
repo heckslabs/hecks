@@ -1,0 +1,139 @@
+Hecks.behaviors "Acoustics" do
+  vision "Behavioral tests for the Acoustics domain — exercises every command and query in memory"
+
+  # ── Room aggregate ──────────────────────────────────────────
+
+  test "DefineRoom sets room_id + name + length_m + width_m + height_m" do
+    tests "DefineRoom", on: "Room"
+    input  room_id: "sample", name: "sample", length_m: 1.0, width_m: 1.0, height_m: 1.0
+    expect ok: "true"
+  end
+
+  test "DefineRoom cascades through policy chain" do
+    tests "DefineRoom", on: "Room", kind: :cascade
+    setup  "TakeMeasurement", measurement_type: "sample", spl_db: 1.0
+    setup  "DesignTreatment", plan_name: "sample", objective: "sample"
+    input  room_id: "sample", name: "sample", length_m: 1.0, width_m: 1.0, height_m: 1.0
+    expect emits: ["RoomDefined", "MeasurementTaken", "SpectrumAnalyzed", "ReverberationCalculated", "TreatmentDesigned"]
+  end
+
+  test "CalculateReverberation runs" do
+    tests "CalculateReverberation", on: "Room"
+    setup  "DefineRoom", room_id: "sample", name: "sample", length_m: 1.0, width_m: 1.0, height_m: 1.0
+    expect ok: "true"
+  end
+
+  test "CalculateReverberation cascades through policy chain" do
+    tests "CalculateReverberation", on: "Room", kind: :cascade
+    setup  "DefineRoom", room_id: "sample", name: "sample", length_m: 1.0, width_m: 1.0, height_m: 1.0
+    setup  "DesignTreatment", plan_name: "sample", objective: "sample"
+    expect emits: ["ReverberationCalculated", "TreatmentDesigned"]
+  end
+
+  test "ArchiveRoom runs" do
+    tests "ArchiveRoom", on: "Room"
+    setup  "DefineRoom", room_id: "sample", name: "sample", length_m: 1.0, width_m: 1.0, height_m: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── AcousticMeasurement aggregate ──────────────────────────────────────────
+
+  test "TakeMeasurement sets measurement_type + spl_db" do
+    tests "TakeMeasurement", on: "AcousticMeasurement"
+    setup  "DefineRoom", room_id: "sample", name: "sample", length_m: 1.0, width_m: 1.0, height_m: 1.0
+    input  measurement_type: "sample", spl_db: 1.0
+    expect raw_audio_captured: true
+  end
+
+  test "TakeMeasurement cascades through policy chain" do
+    tests "TakeMeasurement", on: "AcousticMeasurement", kind: :cascade
+    setup  "DefineRoom", room_id: "sample", name: "sample", length_m: 1.0, width_m: 1.0, height_m: 1.0
+    setup  "DesignTreatment", plan_name: "sample", objective: "sample"
+    input  measurement_type: "sample", spl_db: 1.0
+    expect emits: ["MeasurementTaken", "SpectrumAnalyzed", "ReverberationCalculated", "TreatmentDesigned"]
+  end
+
+  test "AnalyzeSpectrum runs" do
+    tests "AnalyzeSpectrum", on: "AcousticMeasurement"
+    setup  "TakeMeasurement", measurement_type: "sample", spl_db: 1.0
+    expect ok: "true"
+  end
+
+  test "AnalyzeSpectrum cascades through policy chain" do
+    tests "AnalyzeSpectrum", on: "AcousticMeasurement", kind: :cascade
+    setup  "DefineRoom", room_id: "sample", name: "sample", length_m: 1.0, width_m: 1.0, height_m: 1.0
+    setup  "DesignTreatment", plan_name: "sample", objective: "sample"
+    setup  "TakeMeasurement", measurement_type: "sample", spl_db: 1.0
+    expect emits: ["SpectrumAnalyzed", "ReverberationCalculated", "TreatmentDesigned"]
+  end
+
+  test "CompareMeasurements runs" do
+    tests "CompareMeasurements", on: "AcousticMeasurement"
+    setup  "TakeMeasurement", measurement_type: "sample", spl_db: 1.0
+    expect ok: "true"
+  end
+
+  test "CompareMeasurements cascades through policy chain" do
+    tests "CompareMeasurements", on: "AcousticMeasurement", kind: :cascade
+    setup  "TakeMeasurement", measurement_type: "sample", spl_db: 1.0
+    setup  "DesignTreatment", plan_name: "sample", objective: "sample"
+    expect emits: ["MeasurementsCompared", "TreatmentEvaluated"]
+  end
+
+
+  # ── AcousticMaterial aggregate ──────────────────────────────────────────
+
+  test "CatalogMaterial sets name + material_type + nrc_rating" do
+    tests "CatalogMaterial", on: "AcousticMaterial"
+    input  name: "sample", material_type: "sample", nrc_rating: 1.0
+    expect ok: "true"
+  end
+
+  test "TestAbsorption runs" do
+    tests "TestAbsorption", on: "AcousticMaterial"
+    setup  "CatalogMaterial", name: "sample", material_type: "sample", nrc_rating: 1.0
+    expect ok: "true"
+  end
+
+  test "DeprecateMaterial runs" do
+    tests "DeprecateMaterial", on: "AcousticMaterial"
+    setup  "CatalogMaterial", name: "sample", material_type: "sample", nrc_rating: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── TreatmentPlan aggregate ──────────────────────────────────────────
+
+  test "DesignTreatment sets plan_name + objective" do
+    tests "DesignTreatment", on: "TreatmentPlan"
+    setup  "DefineRoom", room_id: "sample", name: "sample", length_m: 1.0, width_m: 1.0, height_m: 1.0
+    input  plan_name: "sample", objective: "sample"
+    expect ok: "true"
+  end
+
+  test "ApplyMaterial sets coverage_m2" do
+    tests "ApplyMaterial", on: "TreatmentPlan"
+    setup  "CatalogMaterial", name: "sample", material_type: "sample", nrc_rating: 1.0
+    setup  "DesignTreatment", plan_name: "sample", objective: "sample"
+    input  coverage_m2: 1.0
+    expect ok: "true"
+  end
+
+  test "ApplyMaterial cascades through policy chain" do
+    tests "ApplyMaterial", on: "TreatmentPlan", kind: :cascade
+    setup  "DesignTreatment", plan_name: "sample", objective: "sample"
+    setup  "CatalogMaterial", name: "sample", material_type: "sample", nrc_rating: 1.0
+    setup  "TakeMeasurement", measurement_type: "sample", spl_db: 1.0
+    setup  "DefineRoom", room_id: "sample", name: "sample", length_m: 1.0, width_m: 1.0, height_m: 1.0
+    input  coverage_m2: 1.0
+    expect emits: ["MaterialApplied", "MeasurementTaken", "SpectrumAnalyzed", "ReverberationCalculated", "TreatmentDesigned"]
+  end
+
+  test "EvaluateTreatment runs" do
+    tests "EvaluateTreatment", on: "TreatmentPlan"
+    setup  "DesignTreatment", plan_name: "sample", objective: "sample"
+    expect ok: "true"
+  end
+
+end

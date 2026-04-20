@@ -1,0 +1,147 @@
+Hecks.behaviors "Nutrition" do
+  vision "Behavioral tests for the Nutrition domain — exercises every command and query in memory"
+
+  # ── FoodItem aggregate ──────────────────────────────────────────
+
+  test "CatalogFood sets name + food_group + serving_size_g + calories_kcal" do
+    tests "CatalogFood", on: "FoodItem"
+    input  name: "sample", food_group: "sample", serving_size_g: 1.0, calories_kcal: 1.0
+    expect ok: "true"
+  end
+
+  test "UpdateComposition sets calories_kcal" do
+    tests "UpdateComposition", on: "FoodItem"
+    setup  "CatalogFood", name: "sample", food_group: "sample", serving_size_g: 1.0, calories_kcal: 1.0
+    input  calories_kcal: 1.0
+    expect ok: "true"
+  end
+
+  test "RetireFood runs" do
+    tests "RetireFood", on: "FoodItem"
+    setup  "CatalogFood", name: "sample", food_group: "sample", serving_size_g: 1.0, calories_kcal: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── MealPlan aggregate ──────────────────────────────────────────
+
+  test "Compose sets plan_name + duration_days + target_calories" do
+    tests "Compose", on: "MealPlan"
+    input  plan_name: "sample", duration_days: 1, target_calories: 1.0
+    expect ok: "true"
+  end
+
+  test "AddMeal sets meal_type + servings + new_meals_per_day" do
+    tests "AddMeal", on: "MealPlan"
+    setup  "CatalogFood", name: "sample", food_group: "sample", serving_size_g: 1.0, calories_kcal: 1.0
+    setup  "Compose", plan_name: "sample", duration_days: 1, target_calories: 1.0
+    input  meal_type: "sample", servings: 1.0, new_meals_per_day: 1
+    expect meals_per_day: 1
+  end
+
+  test "AddMeal cascades through policy chain" do
+    tests "AddMeal", on: "MealPlan", kind: :cascade
+    setup  "Compose", plan_name: "sample", duration_days: 1, target_calories: 1.0
+    setup  "CatalogFood", name: "sample", food_group: "sample", serving_size_g: 1.0, calories_kcal: 1.0
+    setup  "SetGoal", goal_type: "sample", nutrient: "sample", target_value: 1.0
+    setup  "DetectDeficiency", nutrient: "sample", severity: "sample"
+    input  meal_type: "sample", servings: 1.0, new_meals_per_day: 1
+    expect emits: ["MealAdded", "PlanFinalized", "ProgressEvaluated", "DeficiencyDetected", "TargetAdjusted", "DeficiencyResolved"]
+  end
+
+  test "FinalizePlan runs" do
+    tests "FinalizePlan", on: "MealPlan"
+    setup  "Compose", plan_name: "sample", duration_days: 1, target_calories: 1.0
+    expect ok: "true"
+  end
+
+  test "FinalizePlan cascades through policy chain" do
+    tests "FinalizePlan", on: "MealPlan", kind: :cascade
+    setup  "Compose", plan_name: "sample", duration_days: 1, target_calories: 1.0
+    setup  "SetGoal", goal_type: "sample", nutrient: "sample", target_value: 1.0
+    setup  "DetectDeficiency", nutrient: "sample", severity: "sample"
+    expect emits: ["PlanFinalized", "ProgressEvaluated", "DeficiencyDetected", "TargetAdjusted", "DeficiencyResolved"]
+  end
+
+
+  # ── DietaryGoal aggregate ──────────────────────────────────────────
+
+  test "SetGoal sets goal_type + nutrient + target_value" do
+    tests "SetGoal", on: "DietaryGoal"
+    input  goal_type: "sample", nutrient: "sample", target_value: 1.0
+    expect ok: "true"
+  end
+
+  test "SetGoal cascades through policy chain" do
+    tests "SetGoal", on: "DietaryGoal", kind: :cascade
+    setup  "Compose", plan_name: "sample", duration_days: 1, target_calories: 1.0
+    input  goal_type: "sample", nutrient: "sample", target_value: 1.0
+    expect emits: ["GoalSet", "PlanComposed"]
+  end
+
+  test "RecordIntake sets observed_value" do
+    tests "RecordIntake", on: "DietaryGoal"
+    setup  "SetGoal", goal_type: "sample", nutrient: "sample", target_value: 1.0
+    input  observed_value: 1.0
+    expect intake_data_tracked: true
+  end
+
+  test "EvaluateProgress runs" do
+    tests "EvaluateProgress", on: "DietaryGoal"
+    setup  "SetGoal", goal_type: "sample", nutrient: "sample", target_value: 1.0
+    expect ok: "true"
+  end
+
+  test "EvaluateProgress cascades through policy chain" do
+    tests "EvaluateProgress", on: "DietaryGoal", kind: :cascade
+    setup  "SetGoal", goal_type: "sample", nutrient: "sample", target_value: 1.0
+    setup  "DetectDeficiency", nutrient: "sample", severity: "sample"
+    expect emits: ["ProgressEvaluated", "DeficiencyDetected", "TargetAdjusted", "DeficiencyResolved"]
+  end
+
+  test "AdjustTarget sets new_target" do
+    tests "AdjustTarget", on: "DietaryGoal"
+    setup  "SetGoal", goal_type: "sample", nutrient: "sample", target_value: 1.0
+    input  new_target: 1.0
+    expect ok: "true"
+  end
+
+  test "AdjustTarget cascades through policy chain" do
+    tests "AdjustTarget", on: "DietaryGoal", kind: :cascade
+    setup  "SetGoal", goal_type: "sample", nutrient: "sample", target_value: 1.0
+    setup  "DetectDeficiency", nutrient: "sample", severity: "sample"
+    input  new_target: 1.0
+    expect emits: ["TargetAdjusted", "DeficiencyResolved"]
+  end
+
+
+  # ── Deficiency aggregate ──────────────────────────────────────────
+
+  test "DetectDeficiency sets nutrient + severity" do
+    tests "DetectDeficiency", on: "Deficiency"
+    setup  "SetGoal", goal_type: "sample", nutrient: "sample", target_value: 1.0
+    input  nutrient: "sample", severity: "sample"
+    expect ok: "true"
+  end
+
+  test "DetectDeficiency cascades through policy chain" do
+    tests "DetectDeficiency", on: "Deficiency", kind: :cascade
+    setup  "SetGoal", goal_type: "sample", nutrient: "sample", target_value: 1.0
+    input  nutrient: "sample", severity: "sample"
+    expect emits: ["DeficiencyDetected", "TargetAdjusted", "DeficiencyResolved"]
+  end
+
+  test "UpdateCurrentIntake sets new_intake" do
+    tests "UpdateCurrentIntake", on: "Deficiency"
+    setup  "DetectDeficiency", nutrient: "sample", severity: "sample"
+    input  new_intake: 1.0
+    expect current_intake: 1.0
+  end
+
+  test "ResolveDeficiency runs" do
+    tests "ResolveDeficiency", on: "Deficiency"
+    setup  "DetectDeficiency", nutrient: "sample", severity: "sample"
+    expect ok: "true"
+  end
+
+end

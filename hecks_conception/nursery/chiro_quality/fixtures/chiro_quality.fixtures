@@ -1,0 +1,18 @@
+Hecks.fixtures "ChiroQuality" do
+  aggregate "ChiroVisit" do
+    fixture "ChiroVisit1", visit_id: "V-2026-0001", patient_name: "Sarah Mitchell", chiropractor: "Dr. James Chen", chief_complaint: "lower back pain", visit_date: "2026-04-10", status: "recorded"
+    fixture "ChiroVisit2", visit_id: "V-2026-0002", patient_name: "Marcus Thompson", chiropractor: "Dr. Elena Vasquez", chief_complaint: "cervical tension", visit_date: "2026-04-12", status: "closed"
+  end
+  aggregate "OutcomeMeasure" do
+    fixture "OutcomeMeasure1", measure_id: "OM-2026-0001", patient_name: "Sarah Mitchell", instrument: "Oswestry Disability Index", score: 28.5, assessment_date: "2026-04-10"
+    fixture "OutcomeMeasure2", measure_id: "OM-2026-0002", patient_name: "Marcus Thompson", instrument: "Neck Disability Index", score: 14.2, assessment_date: "2026-04-12"
+  end
+  aggregate "EvidenceRecord" do
+    fixture "EvidenceRecord1", record_id: "ER-0047", treatment_type: "spinal manipulation", condition: "chronic lower back pain", sample_size: 156, effect_size: 0.68, evidence_level: "moderate"
+    fixture "EvidenceRecord2", record_id: "ER-0048", treatment_type: "soft tissue mobilization", condition: "cervical strain", sample_size: 89, effect_size: 0.54, evidence_level: "moderate"
+  end
+  aggregate "QualityReport" do
+    fixture "QualityReport1", report_id: "QR-2026-Q1", period: "Q1 2026", avg_outcome_score: 32.4, total_visits: 287, status: "approved"
+    fixture "QualityReport2", report_id: "QR-2026-Q2", period: "Q2 2026", avg_outcome_score: 29.8, total_visits: 312, status: "generated"
+  end
+end

@@ -12,6 +12,7 @@ Hecks.bluebook "FashionDesign" do
       String :season
       String :theme
       emits "CollectionLaunched"
+      then_set :status, to: "concept"
     end
 
     FinalizeCollection do
@@ -27,7 +28,6 @@ Hecks.bluebook "FashionDesign" do
     ShowCollection do
       description "Present the collection on the runway"
       reference_to(Collection)
-      given { status == "finalized" }
       emits "CollectionShown"
       then_set :status, to: "shown"
     end
@@ -55,6 +55,7 @@ Hecks.bluebook "FashionDesign" do
       String :garment_type
       String :fabric
       emits "GarmentDrafted"
+      then_set :status, to: "drafted"
     end
 
     SewMuslin do
@@ -68,7 +69,6 @@ Hecks.bluebook "FashionDesign" do
     ProduceGarment do
       description "Cut and sew the final garment in production fabric"
       reference_to(Garment)
-      given { status == "muslin" }
       emits "GarmentProduced"
       then_set :status, to: "produced"
     end
@@ -93,6 +93,7 @@ Hecks.bluebook "FashionDesign" do
       String :name
       Integer :piece_count
       emits "PatternDrafted"
+      then_set :status, to: "draft"
     end
 
     GradePattern do
@@ -117,6 +118,7 @@ Hecks.bluebook "FashionDesign" do
       String :model_name
       String :date
       emits "FittingScheduled"
+      then_set :status, to: "scheduled"
     end
 
     RecordAdjustments do
@@ -143,6 +145,7 @@ Hecks.bluebook "FashionDesign" do
       String :venue
       String :date
       emits "ShowPlanned"
+      then_set :status, to: "planning"
     end
 
     RehearsShow do
@@ -199,18 +202,4 @@ Hecks.bluebook "FashionDesign" do
     trigger "ShowCollection"
   end
 
-  fixture "Collection", name: "Spring Garden", season: "spring", theme: "botanical prints", piece_count: 12, status: "concept"
-  fixture "Collection", name: "Winter Nights", season: "winter", theme: "layered textures", piece_count: 15, status: "finalized"
-
-  fixture "Garment", name: "Floral Dress", garment_type: "day dress", fabric: "cotton blend", status: "drafted"
-  fixture "Garment", name: "Wool Coat", garment_type: "outerwear", fabric: "merino wool", status: "produced"
-
-  fixture "Pattern", name: "Bodice Block", garment_type: "dress", piece_count: 5, status: "draft"
-  fixture "Pattern", name: "Sleeve Grade", garment_type: "sleeve", piece_count: 2, status: "graded"
-
-  fixture "Fitting", model_name: "Elena Rodriguez", date: "2026-04-15", status: "scheduled", notes: "check shoulder seam"
-  fixture "Fitting", model_name: "Sophia Chen", date: "2026-04-20", status: "adjusted", notes: "hemmed 2 inches"
-
-  fixture "RunwayShow", venue: "Park Avenue Atrium", date: "2026-05-10", look_count: 12, status: "planning"
-  fixture "RunwayShow", venue: "Metropolitan Museum", date: "2026-06-15", look_count: 15, status: "rehearsed"
 end

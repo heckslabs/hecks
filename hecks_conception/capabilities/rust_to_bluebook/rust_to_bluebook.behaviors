@@ -1,0 +1,119 @@
+Hecks.behaviors "RustToBluebook" do
+  vision "Behavioral tests for the RustToBluebook domain — exercises every command and query in memory"
+
+  # ── RustFile aggregate ──────────────────────────────────────────
+
+  test "Analyze sets path" do
+    tests "Analyze", on: "RustFile"
+    input  path: "sample"
+    expect path: "sample", status: "analyzed"
+  end
+
+  test "Analyze cascades through policy chain" do
+    tests "Analyze", on: "RustFile", kind: :cascade
+    setup  "StartConversion"
+    input  path: "sample"
+    expect emits: ["FileAnalyzed", "BluebookMapped", "BluebookGenerated", "BluebookVerified", "RustDeleted", "FileConverted"]
+  end
+
+  test "MapToBluebook runs" do
+    tests "MapToBluebook", on: "RustFile"
+    setup  "Analyze", path: "sample"
+    expect status: "mapped"
+  end
+
+  test "MapToBluebook cascades through policy chain" do
+    tests "MapToBluebook", on: "RustFile", kind: :cascade
+    setup  "StartConversion"
+    setup  "Analyze", path: "sample"
+    expect emits: ["BluebookMapped", "BluebookGenerated", "BluebookVerified", "RustDeleted", "FileConverted"]
+  end
+
+  test "GenerateBluebook runs" do
+    tests "GenerateBluebook", on: "RustFile"
+    setup  "Analyze", path: "sample"
+    setup  "MapToBluebook"
+    expect status: "generated"
+  end
+
+  test "GenerateBluebook cascades through policy chain" do
+    tests "GenerateBluebook", on: "RustFile", kind: :cascade
+    setup  "StartConversion"
+    setup  "Analyze", path: "sample"
+    setup  "MapToBluebook"
+    expect emits: ["BluebookGenerated", "BluebookVerified", "RustDeleted", "FileConverted"]
+  end
+
+  test "Verify runs" do
+    tests "Verify", on: "RustFile"
+    setup  "Analyze", path: "sample"
+    setup  "MapToBluebook"
+    setup  "GenerateBluebook"
+    expect status: "verified"
+  end
+
+  test "Verify cascades through policy chain" do
+    tests "Verify", on: "RustFile", kind: :cascade
+    setup  "StartConversion"
+    setup  "Analyze", path: "sample"
+    setup  "MapToBluebook"
+    setup  "GenerateBluebook"
+    expect emits: ["BluebookVerified", "RustDeleted", "FileConverted"]
+  end
+
+  test "DeleteRust runs" do
+    tests "DeleteRust", on: "RustFile"
+    setup  "Analyze", path: "sample"
+    setup  "MapToBluebook"
+    setup  "GenerateBluebook"
+    setup  "Verify"
+    expect status: "deleted"
+  end
+
+  test "DeleteRust cascades through policy chain" do
+    tests "DeleteRust", on: "RustFile", kind: :cascade
+    setup  "StartConversion"
+    setup  "Analyze", path: "sample"
+    setup  "MapToBluebook"
+    setup  "GenerateBluebook"
+    setup  "Verify"
+    expect emits: ["RustDeleted", "FileConverted"]
+  end
+
+
+  # ── Mapping aggregate ──────────────────────────────────────────
+
+  test "MapFunction sets rust_construct + bluebook_concept" do
+    tests "MapFunction", on: "Mapping"
+    input  rust_construct: "sample", bluebook_concept: "sample"
+    expect rust_construct: "sample", rust_type: "function", bluebook_concept: "sample", bluebook_type: "command"
+  end
+
+  test "MapSideEffect sets rust_construct + bluebook_concept" do
+    tests "MapSideEffect", on: "Mapping"
+    input  rust_construct: "sample", bluebook_concept: "sample"
+    expect rust_construct: "sample", rust_type: "side_effect", bluebook_concept: "sample"
+  end
+
+  test "MapControlFlow sets rust_construct + bluebook_concept" do
+    tests "MapControlFlow", on: "Mapping"
+    input  rust_construct: "sample", bluebook_concept: "sample"
+    expect rust_construct: "sample", rust_type: "control_flow", bluebook_concept: "sample"
+  end
+
+
+  # ── Conversion aggregate ──────────────────────────────────────────
+
+  test "StartConversion runs" do
+    tests "StartConversion", on: "Conversion"
+    expect files_converted: 0, lines_deleted: 0
+  end
+
+  test "RecordConversion sets lines_deleted" do
+    tests "RecordConversion", on: "Conversion"
+    setup  "StartConversion"
+    input  lines_deleted: 1
+    expect ok: "true"
+  end
+
+end

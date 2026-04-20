@@ -1,0 +1,165 @@
+Hecks.behaviors "FreelanceMarketplace" do
+  vision "Behavioral tests for the FreelanceMarketplace domain — exercises every command and query in memory"
+
+  # ── Gig aggregate ──────────────────────────────────────────
+
+  test "PostGig sets gig_title + description + category + budget + deadline" do
+    tests "PostGig", on: "Gig"
+    input  gig_title: "sample", description: "sample", category: "sample", budget: 1.0, deadline: "sample"
+    expect status: "open"
+  end
+
+  test "PostGig cascades through policy chain" do
+    tests "PostGig", on: "Gig", kind: :cascade
+    setup  "SubmitProposal", proposal_id: "sample", cover_letter: "sample", proposed_rate: 1.0, estimated_days: 1
+    setup  "RegisterFreelancer", freelancer_id: "sample", name: "sample", email: "sample", headline: "sample", hourly_rate: 1.0
+    input  gig_title: "sample", description: "sample", category: "sample", budget: 1.0, deadline: "sample"
+    expect emits: ["GigPosted", "ProposalSubmitted"]
+  end
+
+  test "CloseGig runs" do
+    tests "CloseGig", on: "Gig"
+    setup  "PostGig", gig_title: "sample", description: "sample", category: "sample", budget: 1.0, deadline: "sample"
+    expect ok: "true"
+  end
+
+  test "CloseGig cascades through policy chain" do
+    tests "CloseGig", on: "Gig", kind: :cascade
+    setup  "SubmitProposal", proposal_id: "sample", cover_letter: "sample", proposed_rate: 1.0, estimated_days: 1
+    setup  "PostGig", gig_title: "sample", description: "sample", category: "sample", budget: 1.0, deadline: "sample"
+    expect emits: ["GigClosed", "ProposalRejected"]
+  end
+
+  test "CancelGig runs" do
+    tests "CancelGig", on: "Gig"
+    setup  "PostGig", gig_title: "sample", description: "sample", category: "sample", budget: 1.0, deadline: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Freelancer aggregate ──────────────────────────────────────────
+
+  test "RegisterFreelancer sets freelancer_id + name + email + headline + hourly_rate" do
+    tests "RegisterFreelancer", on: "Freelancer"
+    input  freelancer_id: "sample", name: "sample", email: "sample", headline: "sample", hourly_rate: 1.0
+    expect freelancer_id: "sample", name: "sample", email: "sample", headline: "sample", hourly_rate: 1.0, status: "active"
+  end
+
+  test "ReviseProfile sets headline + hourly_rate" do
+    tests "ReviseProfile", on: "Freelancer"
+    setup  "RegisterFreelancer", freelancer_id: "sample", name: "sample", email: "sample", headline: "sample", hourly_rate: 1.0
+    input  headline: "sample", hourly_rate: 1.0
+    expect ok: "true"
+  end
+
+  test "SuspendFreelancer runs" do
+    tests "SuspendFreelancer", on: "Freelancer"
+    setup  "RegisterFreelancer", freelancer_id: "sample", name: "sample", email: "sample", headline: "sample", hourly_rate: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── Proposal aggregate ──────────────────────────────────────────
+
+  test "SubmitProposal sets proposal_id + cover_letter + proposed_rate + estimated_days" do
+    tests "SubmitProposal", on: "Proposal"
+    setup  "RegisterFreelancer", freelancer_id: "sample", name: "sample", email: "sample", headline: "sample", hourly_rate: 1.0
+    setup  "PostGig", gig_title: "sample", description: "sample", category: "sample", budget: 1.0, deadline: "sample"
+    input  proposal_id: "sample", cover_letter: "sample", proposed_rate: 1.0, estimated_days: 1
+    expect status: "pending"
+  end
+
+  test "AcceptProposal runs" do
+    tests "AcceptProposal", on: "Proposal"
+    setup  "SubmitProposal", proposal_id: "sample", cover_letter: "sample", proposed_rate: 1.0, estimated_days: 1
+    expect ok: "true"
+  end
+
+  test "AcceptProposal cascades through policy chain" do
+    tests "AcceptProposal", on: "Proposal", kind: :cascade
+    setup  "SignContract", contract_id: "sample", total_amount: 1.0, start_date: "sample", end_date: "sample"
+    setup  "PostGig", gig_title: "sample", description: "sample", category: "sample", budget: 1.0, deadline: "sample"
+    setup  "RegisterFreelancer", freelancer_id: "sample", name: "sample", email: "sample", headline: "sample", hourly_rate: 1.0
+    setup  "ReleasePayment", payment_id: "sample", amount: 1.0, payment_method: "sample"
+    setup  "SubmitProposal", proposal_id: "sample", cover_letter: "sample", proposed_rate: 1.0, estimated_days: 1
+    expect emits: ["ProposalAccepted", "ContractSigned", "PaymentHeld"]
+  end
+
+  test "RejectProposal sets rejection_reason" do
+    tests "RejectProposal", on: "Proposal"
+    setup  "SubmitProposal", proposal_id: "sample", cover_letter: "sample", proposed_rate: 1.0, estimated_days: 1
+    input  rejection_reason: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Contract aggregate ──────────────────────────────────────────
+
+  test "SignContract sets contract_id + total_amount + start_date + end_date" do
+    tests "SignContract", on: "Contract"
+    setup  "RegisterFreelancer", freelancer_id: "sample", name: "sample", email: "sample", headline: "sample", hourly_rate: 1.0
+    setup  "PostGig", gig_title: "sample", description: "sample", category: "sample", budget: 1.0, deadline: "sample"
+    input  contract_id: "sample", total_amount: 1.0, start_date: "sample", end_date: "sample"
+    expect status: "active"
+  end
+
+  test "SignContract cascades through policy chain" do
+    tests "SignContract", on: "Contract", kind: :cascade
+    setup  "PostGig", gig_title: "sample", description: "sample", category: "sample", budget: 1.0, deadline: "sample"
+    setup  "RegisterFreelancer", freelancer_id: "sample", name: "sample", email: "sample", headline: "sample", hourly_rate: 1.0
+    setup  "ReleasePayment", payment_id: "sample", amount: 1.0, payment_method: "sample"
+    input  contract_id: "sample", total_amount: 1.0, start_date: "sample", end_date: "sample"
+    expect emits: ["ContractSigned", "PaymentHeld"]
+  end
+
+  test "CompleteMilestone sets milestone_title" do
+    tests "CompleteMilestone", on: "Contract"
+    setup  "SignContract", contract_id: "sample", total_amount: 1.0, start_date: "sample", end_date: "sample"
+    input  milestone_title: "sample"
+    expect ok: "true"
+  end
+
+  test "CompleteMilestone cascades through policy chain" do
+    tests "CompleteMilestone", on: "Contract", kind: :cascade
+    setup  "SignContract", contract_id: "sample", total_amount: 1.0, start_date: "sample", end_date: "sample"
+    setup  "ReleasePayment", payment_id: "sample", amount: 1.0, payment_method: "sample"
+    input  milestone_title: "sample"
+    expect emits: ["MilestoneCompleted", "PaymentReleased"]
+  end
+
+  test "TerminateContract runs" do
+    tests "TerminateContract", on: "Contract"
+    setup  "SignContract", contract_id: "sample", total_amount: 1.0, start_date: "sample", end_date: "sample"
+    expect ok: "true"
+  end
+
+  test "TerminateContract cascades through policy chain" do
+    tests "TerminateContract", on: "Contract", kind: :cascade
+    setup  "ReleasePayment", payment_id: "sample", amount: 1.0, payment_method: "sample"
+    setup  "SignContract", contract_id: "sample", total_amount: 1.0, start_date: "sample", end_date: "sample"
+    expect emits: ["ContractTerminated", "PaymentRefunded"]
+  end
+
+
+  # ── Payment aggregate ──────────────────────────────────────────
+
+  test "ReleasePayment sets payment_id + amount + payment_method" do
+    tests "ReleasePayment", on: "Payment"
+    setup  "SignContract", contract_id: "sample", total_amount: 1.0, start_date: "sample", end_date: "sample"
+    input  payment_id: "sample", amount: 1.0, payment_method: "sample"
+    expect ok: "true"
+  end
+
+  test "HoldPayment runs" do
+    tests "HoldPayment", on: "Payment"
+    setup  "ReleasePayment", payment_id: "sample", amount: 1.0, payment_method: "sample"
+    expect status: "held"
+  end
+
+  test "RefundPayment runs" do
+    tests "RefundPayment", on: "Payment"
+    setup  "ReleasePayment", payment_id: "sample", amount: 1.0, payment_method: "sample"
+    expect ok: "true"
+  end
+
+end

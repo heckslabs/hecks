@@ -1,0 +1,56 @@
+Hecks.behaviors "CompostLoop" do
+  vision "Behavioral tests for the CompostLoop domain — exercises every command and query in memory"
+
+  # ── GardenPlot aggregate ──────────────────────────────────────────
+
+  test "AssignPlot sets plot_id + gardener" do
+    tests "AssignPlot", on: "GardenPlot"
+    input  plot_id: "sample", gardener: "sample"
+    expect ok: "true"
+  end
+
+  test "HarvestCrop sets crop_name" do
+    tests "HarvestCrop", on: "GardenPlot"
+    setup  "AssignPlot", plot_id: "sample", gardener: "sample"
+    input  crop_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── WasteStream aggregate ──────────────────────────────────────────
+
+  test "RegisterStream sets source + waste_type" do
+    tests "RegisterStream", on: "WasteStream"
+    input  source: "sample", waste_type: "sample"
+    expect source: "sample", waste_type: "sample"
+  end
+
+
+  # ── CompostBatch aggregate ──────────────────────────────────────────
+
+  test "StartBatch sets batch_id" do
+    tests "StartBatch", on: "CompostBatch"
+    setup  "RegisterStream", source: "sample", waste_type: "sample"
+    input  batch_id: "sample"
+    expect ok: "true"
+  end
+
+  test "CureBatch runs" do
+    tests "CureBatch", on: "CompostBatch"
+    setup  "StartBatch", batch_id: "sample"
+    setup  "RecordReading", day: 1, temperature_c: 1.0, moisture_pct: 1.0, carbon_nitrogen_ratio: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── SoilAmendment aggregate ──────────────────────────────────────────
+
+  test "ApplyAmendment sets application_date + volume_liters" do
+    tests "ApplyAmendment", on: "SoilAmendment"
+    setup  "AssignPlot", plot_id: "sample", gardener: "sample"
+    setup  "StartBatch", batch_id: "sample"
+    input  application_date: "sample", volume_liters: 1.0
+    expect ok: "true"
+  end
+
+end

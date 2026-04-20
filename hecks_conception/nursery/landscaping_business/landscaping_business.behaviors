@@ -1,0 +1,141 @@
+Hecks.behaviors "LandscapingBusiness" do
+  vision "Behavioral tests for the LandscapingBusiness domain — exercises every command and query in memory"
+
+  # ── Property aggregate ──────────────────────────────────────────
+
+  test "SurveyProperty sets owner_name + address + lot_sqft + soil_type + sun_exposure" do
+    tests "SurveyProperty", on: "Property"
+    input  owner_name: "sample", address: "sample", lot_sqft: 1.0, soil_type: "sample", sun_exposure: "sample"
+    expect ok: "true"
+  end
+
+  test "SurveyProperty cascades through policy chain" do
+    tests "SurveyProperty", on: "Property", kind: :cascade
+    setup  "DraftDesign", design_name: "sample", style: "sample", budget: 1.0
+    setup  "SelectPlant", species: "sample", common_name: "sample", size: "sample", placement_zone: "sample", quantity: 1
+    input  owner_name: "sample", address: "sample", lot_sqft: 1.0, soil_type: "sample", sun_exposure: "sample"
+    expect emits: ["PropertySurveyed", "DesignDrafted", "PlantSelected"]
+  end
+
+  test "RecordIrrigation sets irrigation_type + zone_count" do
+    tests "RecordIrrigation", on: "Property"
+    setup  "SurveyProperty", owner_name: "sample", address: "sample", lot_sqft: 1.0, soil_type: "sample", sun_exposure: "sample"
+    input  irrigation_type: "sample", zone_count: 1
+    expect ok: "true"
+  end
+
+
+  # ── LandscapeDesign aggregate ──────────────────────────────────────────
+
+  test "DraftDesign sets design_name + style + budget" do
+    tests "DraftDesign", on: "LandscapeDesign"
+    setup  "SurveyProperty", owner_name: "sample", address: "sample", lot_sqft: 1.0, soil_type: "sample", sun_exposure: "sample"
+    input  design_name: "sample", style: "sample", budget: 1.0
+    expect status: "in_review"
+  end
+
+  test "DraftDesign cascades through policy chain" do
+    tests "DraftDesign", on: "LandscapeDesign", kind: :cascade
+    setup  "SurveyProperty", owner_name: "sample", address: "sample", lot_sqft: 1.0, soil_type: "sample", sun_exposure: "sample"
+    setup  "SelectPlant", species: "sample", common_name: "sample", size: "sample", placement_zone: "sample", quantity: 1
+    input  design_name: "sample", style: "sample", budget: 1.0
+    expect emits: ["DesignDrafted", "PlantSelected"]
+  end
+
+  test "ApproveDesign runs" do
+    tests "ApproveDesign", on: "LandscapeDesign"
+    setup  "DraftDesign", design_name: "sample", style: "sample", budget: 1.0
+    expect ok: "true"
+  end
+
+  test "ApproveDesign cascades through policy chain" do
+    tests "ApproveDesign", on: "LandscapeDesign", kind: :cascade
+    setup  "ScheduleCrew", crew_lead: "sample", scheduled_date: "sample", crew_size: 1
+    setup  "SurveyProperty", owner_name: "sample", address: "sample", lot_sqft: 1.0, soil_type: "sample", sun_exposure: "sample"
+    setup  "SelectPlant", species: "sample", common_name: "sample", size: "sample", placement_zone: "sample", quantity: 1
+    setup  "EnrollService", service_type: "sample", season: "sample", frequency: "sample", price: 1.0
+    setup  "DraftDesign", design_name: "sample", style: "sample", budget: 1.0
+    expect emits: ["DesignApproved", "CrewScheduled", "PlantingInstalled", "ServiceEnrolled", "ServicePerformed", "IrrigationRecorded"]
+  end
+
+  test "ReviseDesign sets revision_notes" do
+    tests "ReviseDesign", on: "LandscapeDesign"
+    setup  "DraftDesign", design_name: "sample", style: "sample", budget: 1.0
+    input  revision_notes: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Planting aggregate ──────────────────────────────────────────
+
+  test "SelectPlant sets species + common_name + size + placement_zone + quantity" do
+    tests "SelectPlant", on: "Planting"
+    setup  "DraftDesign", design_name: "sample", style: "sample", budget: 1.0
+    input  species: "sample", common_name: "sample", size: "sample", placement_zone: "sample", quantity: 1
+    expect ok: "true"
+  end
+
+  test "InstallPlanting runs" do
+    tests "InstallPlanting", on: "Planting"
+    setup  "SelectPlant", species: "sample", common_name: "sample", size: "sample", placement_zone: "sample", quantity: 1
+    expect ok: "true"
+  end
+
+  test "InstallPlanting cascades through policy chain" do
+    tests "InstallPlanting", on: "Planting", kind: :cascade
+    setup  "SelectPlant", species: "sample", common_name: "sample", size: "sample", placement_zone: "sample", quantity: 1
+    setup  "EnrollService", service_type: "sample", season: "sample", frequency: "sample", price: 1.0
+    setup  "SurveyProperty", owner_name: "sample", address: "sample", lot_sqft: 1.0, soil_type: "sample", sun_exposure: "sample"
+    expect emits: ["PlantingInstalled", "ServiceEnrolled", "ServicePerformed", "IrrigationRecorded"]
+  end
+
+
+  # ── CrewSchedule aggregate ──────────────────────────────────────────
+
+  test "ScheduleCrew sets crew_lead + scheduled_date + crew_size" do
+    tests "ScheduleCrew", on: "CrewSchedule"
+    setup  "SurveyProperty", owner_name: "sample", address: "sample", lot_sqft: 1.0, soil_type: "sample", sun_exposure: "sample"
+    input  crew_lead: "sample", scheduled_date: "sample", crew_size: 1
+    expect ok: "true"
+  end
+
+  test "ScheduleCrew cascades through policy chain" do
+    tests "ScheduleCrew", on: "CrewSchedule", kind: :cascade
+    setup  "SurveyProperty", owner_name: "sample", address: "sample", lot_sqft: 1.0, soil_type: "sample", sun_exposure: "sample"
+    setup  "SelectPlant", species: "sample", common_name: "sample", size: "sample", placement_zone: "sample", quantity: 1
+    setup  "EnrollService", service_type: "sample", season: "sample", frequency: "sample", price: 1.0
+    input  crew_lead: "sample", scheduled_date: "sample", crew_size: 1
+    expect emits: ["CrewScheduled", "PlantingInstalled", "ServiceEnrolled", "ServicePerformed", "IrrigationRecorded"]
+  end
+
+  test "CancelDueToWeather sets reason" do
+    tests "CancelDueToWeather", on: "CrewSchedule"
+    setup  "ScheduleCrew", crew_lead: "sample", scheduled_date: "sample", crew_size: 1
+    input  reason: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SeasonalService aggregate ──────────────────────────────────────────
+
+  test "EnrollService sets service_type + season + frequency + price" do
+    tests "EnrollService", on: "SeasonalService"
+    setup  "SurveyProperty", owner_name: "sample", address: "sample", lot_sqft: 1.0, soil_type: "sample", sun_exposure: "sample"
+    input  service_type: "sample", season: "sample", frequency: "sample", price: 1.0
+    expect ok: "true"
+  end
+
+  test "EnrollService cascades through policy chain" do
+    tests "EnrollService", on: "SeasonalService", kind: :cascade
+    setup  "SurveyProperty", owner_name: "sample", address: "sample", lot_sqft: 1.0, soil_type: "sample", sun_exposure: "sample"
+    input  service_type: "sample", season: "sample", frequency: "sample", price: 1.0
+    expect emits: ["ServiceEnrolled", "ServicePerformed"]
+  end
+
+  test "PerformService runs" do
+    tests "PerformService", on: "SeasonalService"
+    setup  "EnrollService", service_type: "sample", season: "sample", frequency: "sample", price: 1.0
+    expect ok: "true"
+  end
+
+end

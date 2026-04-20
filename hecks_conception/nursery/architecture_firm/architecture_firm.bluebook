@@ -33,9 +33,12 @@ Hecks.bluebook "ArchitectureFirm" do
     CloseOutProject do
       description "Complete construction administration and close project"
       reference_to(ArchProject)
-      given { phase == "construction_admin" }
       emits "ProjectClosedOut"
       then_set :phase, to: "closed"
+    end
+
+    lifecycle :phase, default: "schematic_design" do
+      transition "PhaseAdvanced" => "construction_admin", from: "schematic_design"
     end
   end
 
@@ -53,6 +56,7 @@ Hecks.bluebook "ArchitectureFirm" do
       String :title
       String :drawing_type
       String :scale
+      then_set :status, to: "draft"
       emits "DrawingProduced"
     end
 
@@ -84,6 +88,7 @@ Hecks.bluebook "ArchitectureFirm" do
       reference_to(Drawing)
       String :reviewer_name
       String :comments
+      then_set :status, to: "pending"
       emits "RevisionRequested"
     end
 
@@ -142,6 +147,7 @@ Hecks.bluebook "ArchitectureFirm" do
       reference_to(ArchProject)
       String :date
       String :inspector_name
+      then_set :status, to: "scheduled"
       emits "VisitScheduled"
     end
 
@@ -197,18 +203,4 @@ Hecks.bluebook "ArchitectureFirm" do
     trigger "CloseOutProject"
   end
 
-  fixture "ArchProject", name: "Downtown Mixed-Use Development", building_type: "Mixed-Use", square_footage: 185000.0, budget: 42500000.0, phase: "schematic_design"
-  fixture "ArchProject", name: "Community Health Center", building_type: "Medical", square_footage: 65000.0, budget: 18750000.0, phase: "design_development"
-
-  fixture "Drawing", title: "Ground Floor Plan Sheet A1.01", drawing_type: "Floor Plan", scale: "1/8\"=1'", revision_number: 3, status: "under_review"
-  fixture "Drawing", title: "Building Section North-South", drawing_type: "Section", scale: "1/4\"=1'", revision_number: 1, status: "draft"
-
-  fixture "Revision", revision_number: 1, reviewer_name: "Sarah Mitchell", comments: "Clarify egress widths on north stair", status: "approved"
-  fixture "Revision", revision_number: 2, reviewer_name: "Building Official Chen", comments: "Add fire rating details", status: "pending"
-
-  fixture "Permit", permit_type: "Building Permit", jurisdiction: "City of Springfield", status: "approved", permit_number: "BP-2026-4521"
-  fixture "Permit", permit_type: "Zoning Variance", jurisdiction: "County Planning Board", status: "submitted", permit_number: ""
-
-  fixture "SiteVisit", date: "2026-04-12", inspector_name: "James Thompson", weather_conditions: "Clear, 65F", status: "completed"
-  fixture "SiteVisit", date: "2026-04-20", inspector_name: "Patricia Lee", weather_conditions: "Overcast", status: "scheduled"
 end

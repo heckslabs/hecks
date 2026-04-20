@@ -1,0 +1,168 @@
+Hecks.behaviors "IoTPlatform" do
+  vision "Behavioral tests for the IoTPlatform domain — exercises every command and query in memory"
+
+  # ── Device aggregate ──────────────────────────────────────────
+
+  test "RegisterDevice sets device_id + device_type + firmware_version + location" do
+    tests "RegisterDevice", on: "Device"
+    input  device_id: "sample", device_type: "sample", firmware_version: "sample", location: "sample"
+    expect device_id: "sample", device_type: "sample", firmware_version: "sample", location: "sample"
+  end
+
+  test "RegisterDevice cascades through policy chain" do
+    tests "RegisterDevice", on: "Device", kind: :cascade
+    setup  "AttachSensor", sensor_id: "sample", sensor_type: "sample", unit: "sample", min_range: 1.0, max_range: 1.0
+    input  device_id: "sample", device_type: "sample", firmware_version: "sample", location: "sample"
+    expect emits: ["DeviceRegistered", "SensorAttached", "SensorCalibrated"]
+  end
+
+  test "SuspendDevice runs" do
+    tests "SuspendDevice", on: "Device"
+    setup  "RegisterDevice", device_id: "sample", device_type: "sample", firmware_version: "sample", location: "sample"
+    expect status: "suspended"
+  end
+
+  test "DeregisterDevice runs" do
+    tests "DeregisterDevice", on: "Device"
+    setup  "RegisterDevice", device_id: "sample", device_type: "sample", firmware_version: "sample", location: "sample"
+    setup  "SuspendDevice"
+    expect ok: "true"
+  end
+
+
+  # ── Sensor aggregate ──────────────────────────────────────────
+
+  test "AttachSensor sets sensor_id + sensor_type + unit + min_range + max_range" do
+    tests "AttachSensor", on: "Sensor"
+    setup  "RegisterDevice", device_id: "sample", device_type: "sample", firmware_version: "sample", location: "sample"
+    input  sensor_id: "sample", sensor_type: "sample", unit: "sample", min_range: 1.0, max_range: 1.0
+    expect status: "active"
+  end
+
+  test "AttachSensor cascades through policy chain" do
+    tests "AttachSensor", on: "Sensor", kind: :cascade
+    setup  "RegisterDevice", device_id: "sample", device_type: "sample", firmware_version: "sample", location: "sample"
+    input  sensor_id: "sample", sensor_type: "sample", unit: "sample", min_range: 1.0, max_range: 1.0
+    expect emits: ["SensorAttached", "SensorCalibrated"]
+  end
+
+  test "CalibrateSensor sets offset + scale_factor" do
+    tests "CalibrateSensor", on: "Sensor"
+    setup  "AttachSensor", sensor_id: "sample", sensor_type: "sample", unit: "sample", min_range: 1.0, max_range: 1.0
+    input  offset: 1.0, scale_factor: 1.0
+    expect ok: "true"
+  end
+
+  test "DetachSensor runs" do
+    tests "DetachSensor", on: "Sensor"
+    setup  "AttachSensor", sensor_id: "sample", sensor_type: "sample", unit: "sample", min_range: 1.0, max_range: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── Reading aggregate ──────────────────────────────────────────
+
+  test "IngestReading sets reading_id + value + timestamp" do
+    tests "IngestReading", on: "Reading"
+    setup  "AttachSensor", sensor_id: "sample", sensor_type: "sample", unit: "sample", min_range: 1.0, max_range: 1.0
+    input  reading_id: "sample", value: 1.0, timestamp: "sample"
+    expect ok: "true"
+  end
+
+  test "IngestReading cascades through policy chain" do
+    tests "IngestReading", on: "Reading", kind: :cascade
+    setup  "AttachSensor", sensor_id: "sample", sensor_type: "sample", unit: "sample", min_range: 1.0, max_range: 1.0
+    input  reading_id: "sample", value: 1.0, timestamp: "sample"
+    expect emits: ["ReadingIngested", "ReadingValidated"]
+  end
+
+  test "ValidateReading runs" do
+    tests "ValidateReading", on: "Reading"
+    setup  "IngestReading", reading_id: "sample", value: 1.0, timestamp: "sample"
+    expect status: "validated"
+  end
+
+  test "FlagAnomaly runs" do
+    tests "FlagAnomaly", on: "Reading"
+    setup  "IngestReading", reading_id: "sample", value: 1.0, timestamp: "sample"
+    setup  "ValidateReading"
+    expect ok: "true"
+  end
+
+  test "FlagAnomaly cascades through policy chain" do
+    tests "FlagAnomaly", on: "Reading", kind: :cascade
+    setup  "IngestReading", reading_id: "sample", value: 1.0, timestamp: "sample"
+    setup  "RaiseAlert", alert_id: "sample", severity: "sample", condition: "sample", message: "sample"
+    setup  "RegisterDevice", device_id: "sample", device_type: "sample", firmware_version: "sample", location: "sample"
+    setup  "ValidateReading"
+    expect emits: ["AnomalyFlagged", "AlertRaised", "DeviceSuspended"]
+  end
+
+
+  # ── Alert aggregate ──────────────────────────────────────────
+
+  test "RaiseAlert sets alert_id + severity + condition + message" do
+    tests "RaiseAlert", on: "Alert"
+    setup  "RegisterDevice", device_id: "sample", device_type: "sample", firmware_version: "sample", location: "sample"
+    input  alert_id: "sample", severity: "sample", condition: "sample", message: "sample"
+    expect ok: "true"
+  end
+
+  test "RaiseAlert cascades through policy chain" do
+    tests "RaiseAlert", on: "Alert", kind: :cascade
+    setup  "RegisterDevice", device_id: "sample", device_type: "sample", firmware_version: "sample", location: "sample"
+    input  alert_id: "sample", severity: "sample", condition: "sample", message: "sample"
+    expect emits: ["AlertRaised", "DeviceSuspended"]
+  end
+
+  test "AcknowledgeAlert runs" do
+    tests "AcknowledgeAlert", on: "Alert"
+    setup  "RaiseAlert", alert_id: "sample", severity: "sample", condition: "sample", message: "sample"
+    expect status: "acknowledged"
+  end
+
+  test "ResolveAlert runs" do
+    tests "ResolveAlert", on: "Alert"
+    setup  "RaiseAlert", alert_id: "sample", severity: "sample", condition: "sample", message: "sample"
+    setup  "AcknowledgeAlert"
+    expect ok: "true"
+  end
+
+  test "ResolveAlert cascades through policy chain" do
+    tests "ResolveAlert", on: "Alert", kind: :cascade
+    setup  "RaiseAlert", alert_id: "sample", severity: "sample", condition: "sample", message: "sample"
+    setup  "PublishUpdate", update_id: "sample", version: "sample", target_device_type: "sample", package_size_kb: 1, release_notes: "sample"
+    setup  "AcknowledgeAlert"
+    expect emits: ["AlertResolved", "UpdatePublished", "UpdateApplied"]
+  end
+
+
+  # ── FirmwareUpdate aggregate ──────────────────────────────────────────
+
+  test "PublishUpdate sets update_id + version + target_device_type + package_size_kb + release_notes" do
+    tests "PublishUpdate", on: "FirmwareUpdate"
+    input  update_id: "sample", version: "sample", target_device_type: "sample", package_size_kb: 1, release_notes: "sample"
+    expect ok: "true"
+  end
+
+  test "PublishUpdate cascades through policy chain" do
+    tests "PublishUpdate", on: "FirmwareUpdate", kind: :cascade
+    input  update_id: "sample", version: "sample", target_device_type: "sample", package_size_kb: 1, release_notes: "sample"
+    expect emits: ["UpdatePublished", "UpdateApplied"]
+  end
+
+  test "ApplyUpdate sets device_id" do
+    tests "ApplyUpdate", on: "FirmwareUpdate"
+    setup  "PublishUpdate", update_id: "sample", version: "sample", target_device_type: "sample", package_size_kb: 1, release_notes: "sample"
+    input  device_id: "sample"
+    expect status: "applied"
+  end
+
+  test "RollbackUpdate runs" do
+    tests "RollbackUpdate", on: "FirmwareUpdate"
+    setup  "PublishUpdate", update_id: "sample", version: "sample", target_device_type: "sample", package_size_kb: 1, release_notes: "sample"
+    setup  "ApplyUpdate", device_id: "sample"
+    expect ok: "true"
+  end
+
+end

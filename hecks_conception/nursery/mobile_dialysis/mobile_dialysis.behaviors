@@ -1,0 +1,92 @@
+Hecks.behaviors "MobileDialysis" do
+  vision "Behavioral tests for the MobileDialysis domain — exercises every command and query in memory"
+
+  # ── DialysisPatient aggregate ──────────────────────────────────────────
+
+  test "EnrollPatient sets patient_id + name + blood_type + access_type + treatments_per_week" do
+    tests "EnrollPatient", on: "DialysisPatient"
+    input  patient_id: "sample", name: "sample", blood_type: "sample", access_type: "sample", treatments_per_week: 1
+    expect patient_id: "sample", name: "sample", blood_type: "sample", access_type: "sample", treatments_per_week: 1, status: "enrolled"
+  end
+
+  test "PauseEnrollment runs" do
+    tests "PauseEnrollment", on: "DialysisPatient"
+    setup  "EnrollPatient", patient_id: "sample", name: "sample", blood_type: "sample", access_type: "sample", treatments_per_week: 1
+    expect status: "paused"
+  end
+
+
+  # ── MobileUnit aggregate ──────────────────────────────────────────
+
+  test "RegisterUnit sets unit_id + license_plate + treatment_stations + nurse_name" do
+    tests "RegisterUnit", on: "MobileUnit"
+    input  unit_id: "sample", license_plate: "sample", treatment_stations: 1, nurse_name: "sample"
+    expect unit_id: "sample", license_plate: "sample", treatment_stations: 1, nurse_name: "sample", status: "available"
+  end
+
+  test "DispatchUnit runs" do
+    tests "DispatchUnit", on: "MobileUnit"
+    setup  "RegisterUnit", unit_id: "sample", license_plate: "sample", treatment_stations: 1, nurse_name: "sample"
+    expect status: "dispatched"
+  end
+
+  test "ReturnUnit runs" do
+    tests "ReturnUnit", on: "MobileUnit"
+    setup  "RegisterUnit", unit_id: "sample", license_plate: "sample", treatment_stations: 1, nurse_name: "sample"
+    setup  "DispatchUnit"
+    expect status: "available"
+  end
+
+
+  # ── TreatmentRoute aggregate ──────────────────────────────────────────
+
+  test "PlanRoute sets route_id + unit_id + date + total_miles" do
+    tests "PlanRoute", on: "TreatmentRoute"
+    input  route_id: "sample", unit_id: "sample", date: "sample", total_miles: 1.0
+    expect route_id: "sample", unit_id: "sample", date: "sample", total_miles: 1.0, status: "planned"
+  end
+
+  test "PlanRoute cascades through policy chain" do
+    tests "PlanRoute", on: "TreatmentRoute", kind: :cascade
+    setup  "RegisterUnit", unit_id: "sample", license_plate: "sample", treatment_stations: 1, nurse_name: "sample"
+    input  route_id: "sample", unit_id: "sample", date: "sample", total_miles: 1.0
+    expect emits: ["RoutePlanned", "UnitDispatched"]
+  end
+
+  test "StartRoute runs" do
+    tests "StartRoute", on: "TreatmentRoute"
+    setup  "PlanRoute", route_id: "sample", unit_id: "sample", date: "sample", total_miles: 1.0
+    expect status: "in_progress"
+  end
+
+  test "StartRoute cascades through policy chain" do
+    tests "StartRoute", on: "TreatmentRoute", kind: :cascade
+    setup  "StartTreatment", session_id: "sample", patient_id: "sample", unit_id: "sample"
+    setup  "PlanRoute", route_id: "sample", unit_id: "sample", date: "sample", total_miles: 1.0
+    expect emits: ["RouteStarted", "TreatmentStarted"]
+  end
+
+  test "FinishRoute runs" do
+    tests "FinishRoute", on: "TreatmentRoute"
+    setup  "PlanRoute", route_id: "sample", unit_id: "sample", date: "sample", total_miles: 1.0
+    setup  "StartRoute"
+    expect status: "finished"
+  end
+
+
+  # ── TreatmentSession aggregate ──────────────────────────────────────────
+
+  test "StartTreatment sets session_id + patient_id + unit_id" do
+    tests "StartTreatment", on: "TreatmentSession"
+    input  session_id: "sample", patient_id: "sample", unit_id: "sample"
+    expect session_id: "sample", patient_id: "sample", unit_id: "sample", status: "in_progress"
+  end
+
+  test "EndTreatment sets duration_hours + fluid_removed_liters" do
+    tests "EndTreatment", on: "TreatmentSession"
+    setup  "StartTreatment", session_id: "sample", patient_id: "sample", unit_id: "sample"
+    input  duration_hours: 1.0, fluid_removed_liters: 1.0
+    expect duration_hours: 1.0, fluid_removed_liters: 1.0, status: "completed"
+  end
+
+end

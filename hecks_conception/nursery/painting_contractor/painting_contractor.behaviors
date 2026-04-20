@@ -1,0 +1,155 @@
+Hecks.behaviors "PaintingContractor" do
+  vision "Behavioral tests for the PaintingContractor domain — exercises every command and query in memory"
+
+  # ── PaintEstimate aggregate ──────────────────────────────────────────
+
+  test "EstimateJob sets customer_name + address + total_sqft + surface_type + coats" do
+    tests "EstimateJob", on: "PaintEstimate"
+    input  customer_name: "sample", address: "sample", total_sqft: 1.0, surface_type: "sample", coats: 1
+    expect status: "presented"
+  end
+
+  test "EstimateJob cascades through policy chain" do
+    tests "EstimateJob", on: "PaintEstimate", kind: :cascade
+    setup  "SelectColor", color_name: "sample", brand: "sample", sheen: "sample", surface_application: "sample"
+    input  customer_name: "sample", address: "sample", total_sqft: 1.0, surface_type: "sample", coats: 1
+    expect emits: ["JobEstimated", "ColorSelected", "PaintOrdered"]
+  end
+
+  test "AcceptEstimate runs" do
+    tests "AcceptEstimate", on: "PaintEstimate"
+    setup  "EstimateJob", customer_name: "sample", address: "sample", total_sqft: 1.0, surface_type: "sample", coats: 1
+    expect ok: "true"
+  end
+
+  test "AcceptEstimate cascades through policy chain" do
+    tests "AcceptEstimate", on: "PaintEstimate", kind: :cascade
+    setup  "PrepSurface", prep_type: "sample", surface: "sample"
+    setup  "ApplyCoat", coat_number: 1, application_method: "sample"
+    setup  "SelectColor", color_name: "sample", brand: "sample", sheen: "sample", surface_application: "sample"
+    setup  "ConductWalkthrough"
+    setup  "EstimateJob", customer_name: "sample", address: "sample", total_sqft: 1.0, surface_type: "sample", coats: 1
+    expect emits: ["EstimateAccepted", "SurfacePrepped", "PrimerApplied", "CoatApplied", "CoatInspected", "WalkthroughConducted"]
+  end
+
+  test "AdjustScope sets revised_sqft + revised_price" do
+    tests "AdjustScope", on: "PaintEstimate"
+    setup  "EstimateJob", customer_name: "sample", address: "sample", total_sqft: 1.0, surface_type: "sample", coats: 1
+    input  revised_sqft: 1.0, revised_price: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── SurfacePrep aggregate ──────────────────────────────────────────
+
+  test "PrepSurface sets prep_type + surface" do
+    tests "PrepSurface", on: "SurfacePrep"
+    setup  "EstimateJob", customer_name: "sample", address: "sample", total_sqft: 1.0, surface_type: "sample", coats: 1
+    input  prep_type: "sample", surface: "sample"
+    expect ok: "true"
+  end
+
+  test "PrepSurface cascades through policy chain" do
+    tests "PrepSurface", on: "SurfacePrep", kind: :cascade
+    setup  "EstimateJob", customer_name: "sample", address: "sample", total_sqft: 1.0, surface_type: "sample", coats: 1
+    setup  "ApplyCoat", coat_number: 1, application_method: "sample"
+    setup  "SelectColor", color_name: "sample", brand: "sample", sheen: "sample", surface_application: "sample"
+    setup  "ConductWalkthrough"
+    input  prep_type: "sample", surface: "sample"
+    expect emits: ["SurfacePrepped", "PrimerApplied", "CoatApplied", "CoatInspected", "WalkthroughConducted"]
+  end
+
+  test "ApplyPrimer sets primer_type" do
+    tests "ApplyPrimer", on: "SurfacePrep"
+    setup  "PrepSurface", prep_type: "sample", surface: "sample"
+    input  primer_type: "sample"
+    expect ok: "true"
+  end
+
+  test "ApplyPrimer cascades through policy chain" do
+    tests "ApplyPrimer", on: "SurfacePrep", kind: :cascade
+    setup  "PrepSurface", prep_type: "sample", surface: "sample"
+    setup  "ApplyCoat", coat_number: 1, application_method: "sample"
+    setup  "SelectColor", color_name: "sample", brand: "sample", sheen: "sample", surface_application: "sample"
+    setup  "ConductWalkthrough"
+    setup  "EstimateJob", customer_name: "sample", address: "sample", total_sqft: 1.0, surface_type: "sample", coats: 1
+    input  primer_type: "sample"
+    expect emits: ["PrimerApplied", "CoatApplied", "CoatInspected", "WalkthroughConducted"]
+  end
+
+
+  # ── ColorSelection aggregate ──────────────────────────────────────────
+
+  test "SelectColor sets color_name + brand + sheen + surface_application" do
+    tests "SelectColor", on: "ColorSelection"
+    setup  "EstimateJob", customer_name: "sample", address: "sample", total_sqft: 1.0, surface_type: "sample", coats: 1
+    input  color_name: "sample", brand: "sample", sheen: "sample", surface_application: "sample"
+    expect ok: "true"
+  end
+
+  test "SelectColor cascades through policy chain" do
+    tests "SelectColor", on: "ColorSelection", kind: :cascade
+    setup  "EstimateJob", customer_name: "sample", address: "sample", total_sqft: 1.0, surface_type: "sample", coats: 1
+    input  color_name: "sample", brand: "sample", sheen: "sample", surface_application: "sample"
+    expect emits: ["ColorSelected", "PaintOrdered"]
+  end
+
+  test "OrderPaint sets gallons_needed" do
+    tests "OrderPaint", on: "ColorSelection"
+    setup  "SelectColor", color_name: "sample", brand: "sample", sheen: "sample", surface_application: "sample"
+    input  gallons_needed: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── CoatApplication aggregate ──────────────────────────────────────────
+
+  test "ApplyCoat sets coat_number + application_method" do
+    tests "ApplyCoat", on: "CoatApplication"
+    setup  "SelectColor", color_name: "sample", brand: "sample", sheen: "sample", surface_application: "sample"
+    input  coat_number: 1, application_method: "sample"
+    expect ok: "true"
+  end
+
+  test "ApplyCoat cascades through policy chain" do
+    tests "ApplyCoat", on: "CoatApplication", kind: :cascade
+    setup  "SelectColor", color_name: "sample", brand: "sample", sheen: "sample", surface_application: "sample"
+    setup  "ConductWalkthrough"
+    setup  "EstimateJob", customer_name: "sample", address: "sample", total_sqft: 1.0, surface_type: "sample", coats: 1
+    input  coat_number: 1, application_method: "sample"
+    expect emits: ["CoatApplied", "CoatInspected", "WalkthroughConducted"]
+  end
+
+  test "InspectCoat sets inspection_notes" do
+    tests "InspectCoat", on: "CoatApplication"
+    setup  "ApplyCoat", coat_number: 1, application_method: "sample"
+    input  inspection_notes: "sample"
+    expect ok: "true"
+  end
+
+  test "InspectCoat cascades through policy chain" do
+    tests "InspectCoat", on: "CoatApplication", kind: :cascade
+    setup  "ApplyCoat", coat_number: 1, application_method: "sample"
+    setup  "ConductWalkthrough"
+    setup  "EstimateJob", customer_name: "sample", address: "sample", total_sqft: 1.0, surface_type: "sample", coats: 1
+    input  inspection_notes: "sample"
+    expect emits: ["CoatInspected", "WalkthroughConducted"]
+  end
+
+
+  # ── FinalWalkthrough aggregate ──────────────────────────────────────────
+
+  test "ConductWalkthrough runs" do
+    tests "ConductWalkthrough", on: "FinalWalkthrough"
+    setup  "EstimateJob", customer_name: "sample", address: "sample", total_sqft: 1.0, surface_type: "sample", coats: 1
+    expect ok: "true"
+  end
+
+  test "RecordPunchList sets punch_list_items" do
+    tests "RecordPunchList", on: "FinalWalkthrough"
+    setup  "ConductWalkthrough"
+    input  punch_list_items: "sample"
+    expect ok: "true"
+  end
+
+end

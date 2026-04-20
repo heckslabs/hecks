@@ -1,0 +1,160 @@
+Hecks.behaviors "TicketingPlatform" do
+  vision "Behavioral tests for the TicketingPlatform domain — exercises every command and query in memory"
+
+  # ── Event aggregate ──────────────────────────────────────────
+
+  test "AnnounceEvent sets event_name + event_type + date + organizer + capacity" do
+    tests "AnnounceEvent", on: "Event"
+    setup  "RegisterVenue", venue_name: "sample", address: "sample", total_capacity: 1, venue_type: "sample"
+    input  event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
+    expect status: "draft"
+  end
+
+  test "PublishEvent runs" do
+    tests "PublishEvent", on: "Event"
+    setup  "AnnounceEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
+    expect ok: "true"
+  end
+
+  test "PublishEvent cascades through policy chain" do
+    tests "PublishEvent", on: "Event", kind: :cascade
+    setup  "GenerateSalesReport", report_id: "sample", period: "sample"
+    setup  "AnnounceEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
+    expect emits: ["EventPublished", "SalesReportGenerated", "ReportPublished"]
+  end
+
+  test "CancelEvent runs" do
+    tests "CancelEvent", on: "Event"
+    setup  "AnnounceEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
+    expect ok: "true"
+  end
+
+  test "CancelEvent cascades through policy chain" do
+    tests "CancelEvent", on: "Event", kind: :cascade
+    setup  "AnnounceEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
+    setup  "RequestRefund", refund_id: "sample", refund_amount: 1.0, reason: "sample", refund_method: "sample"
+    setup  "PurchaseTicket", ticket_id: "sample", tier_name: "sample", holder_name: "sample", holder_email: "sample", price_paid: 1.0
+    expect emits: ["EventCanceled", "RefundRequested", "RefundApproved"]
+  end
+
+
+  # ── Venue aggregate ──────────────────────────────────────────
+
+  test "RegisterVenue sets venue_name + address + total_capacity + venue_type" do
+    tests "RegisterVenue", on: "Venue"
+    input  venue_name: "sample", address: "sample", total_capacity: 1, venue_type: "sample"
+    expect venue_name: "sample", address: "sample", total_capacity: 1, venue_type: "sample", status: "active"
+  end
+
+  test "AdjustCapacity sets total_capacity" do
+    tests "AdjustCapacity", on: "Venue"
+    setup  "RegisterVenue", venue_name: "sample", address: "sample", total_capacity: 1, venue_type: "sample"
+    input  total_capacity: 1
+    expect ok: "true"
+  end
+
+  test "CloseVenue runs" do
+    tests "CloseVenue", on: "Venue"
+    setup  "RegisterVenue", venue_name: "sample", address: "sample", total_capacity: 1, venue_type: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Ticket aggregate ──────────────────────────────────────────
+
+  test "PurchaseTicket sets ticket_id + tier_name + holder_name + holder_email + price_paid" do
+    tests "PurchaseTicket", on: "Ticket"
+    setup  "AnnounceEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
+    input  ticket_id: "sample", tier_name: "sample", holder_name: "sample", holder_email: "sample", price_paid: 1.0
+    expect status: "valid"
+  end
+
+  test "PurchaseTicket cascades through policy chain" do
+    tests "PurchaseTicket", on: "Ticket", kind: :cascade
+    setup  "AnnounceEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
+    setup  "GenerateSalesReport", report_id: "sample", period: "sample"
+    input  ticket_id: "sample", tier_name: "sample", holder_name: "sample", holder_email: "sample", price_paid: 1.0
+    expect emits: ["TicketPurchased", "SalesReportGenerated", "ReportPublished"]
+  end
+
+  test "TransferTicket sets new_holder_name + new_holder_email" do
+    tests "TransferTicket", on: "Ticket"
+    setup  "PurchaseTicket", ticket_id: "sample", tier_name: "sample", holder_name: "sample", holder_email: "sample", price_paid: 1.0
+    input  new_holder_name: "sample", new_holder_email: "sample"
+    expect ok: "true"
+  end
+
+  test "CheckInTicket runs" do
+    tests "CheckInTicket", on: "Ticket"
+    setup  "PurchaseTicket", ticket_id: "sample", tier_name: "sample", holder_name: "sample", holder_email: "sample", price_paid: 1.0
+    expect ok: "true"
+  end
+
+  test "CheckInTicket cascades through policy chain" do
+    tests "CheckInTicket", on: "Ticket", kind: :cascade
+    setup  "GenerateSalesReport", report_id: "sample", period: "sample"
+    setup  "AnnounceEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
+    setup  "PurchaseTicket", ticket_id: "sample", tier_name: "sample", holder_name: "sample", holder_email: "sample", price_paid: 1.0
+    expect emits: ["TicketCheckedIn", "SalesReportGenerated", "ReportPublished"]
+  end
+
+
+  # ── SalesReport aggregate ──────────────────────────────────────────
+
+  test "GenerateSalesReport sets report_id + period" do
+    tests "GenerateSalesReport", on: "SalesReport"
+    setup  "AnnounceEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
+    input  report_id: "sample", period: "sample"
+    expect status: "generated"
+  end
+
+  test "GenerateSalesReport cascades through policy chain" do
+    tests "GenerateSalesReport", on: "SalesReport", kind: :cascade
+    setup  "AnnounceEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
+    input  report_id: "sample", period: "sample"
+    expect emits: ["SalesReportGenerated", "ReportPublished"]
+  end
+
+  test "PublishReport runs" do
+    tests "PublishReport", on: "SalesReport"
+    setup  "GenerateSalesReport", report_id: "sample", period: "sample"
+    expect ok: "true"
+  end
+
+  test "ArchiveReport runs" do
+    tests "ArchiveReport", on: "SalesReport"
+    setup  "GenerateSalesReport", report_id: "sample", period: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Refund aggregate ──────────────────────────────────────────
+
+  test "RequestRefund sets refund_id + refund_amount + reason + refund_method" do
+    tests "RequestRefund", on: "Refund"
+    setup  "PurchaseTicket", ticket_id: "sample", tier_name: "sample", holder_name: "sample", holder_email: "sample", price_paid: 1.0
+    input  refund_id: "sample", refund_amount: 1.0, reason: "sample", refund_method: "sample"
+    expect status: "pending"
+  end
+
+  test "RequestRefund cascades through policy chain" do
+    tests "RequestRefund", on: "Refund", kind: :cascade
+    setup  "PurchaseTicket", ticket_id: "sample", tier_name: "sample", holder_name: "sample", holder_email: "sample", price_paid: 1.0
+    input  refund_id: "sample", refund_amount: 1.0, reason: "sample", refund_method: "sample"
+    expect emits: ["RefundRequested", "RefundApproved"]
+  end
+
+  test "ApproveRefund runs" do
+    tests "ApproveRefund", on: "Refund"
+    setup  "RequestRefund", refund_id: "sample", refund_amount: 1.0, reason: "sample", refund_method: "sample"
+    expect ok: "true"
+  end
+
+  test "DenyRefund sets denial_reason" do
+    tests "DenyRefund", on: "Refund"
+    setup  "RequestRefund", refund_id: "sample", refund_amount: 1.0, reason: "sample", refund_method: "sample"
+    input  denial_reason: "sample"
+    expect ok: "true"
+  end
+
+end

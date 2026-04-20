@@ -1,0 +1,10 @@
+Hecks.fixtures "Inbox" do
+  aggregate "Message" do
+    fixture "Message1", body: "Review new domain design for Autumn", priority: "high", posted_at: "2026-04-14T09:15:00Z", status: "queued"
+    fixture "Message2", body: "Merge PR #42 when CI passes", priority: "medium", posted_at: "2026-04-14T08:30:00Z", status: "acknowledged"
+  end
+  aggregate "Inbox" do
+    fixture "Inbox1", queued_count: 3, oldest_priority: "high"
+    fixture "Inbox2", queued_count: 0, oldest_priority: "none"
+  end
+end

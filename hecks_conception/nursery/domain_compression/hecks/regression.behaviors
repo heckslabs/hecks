@@ -1,0 +1,61 @@
+Hecks.behaviors "Regression" do
+  vision "Behavioral tests for the Regression domain — exercises every command and query in memory"
+
+  # ── RegressionSuite aggregate ──────────────────────────────────────────
+
+  test "EnrollSuite sets suite_name" do
+    tests "EnrollSuite", on: "RegressionSuite"
+    input  suite_name: "sample"
+    expect suite_name: "sample", blueprint_count: 0, last_pass_count: 0, last_fail_count: 0, last_run_status: "never_run"
+  end
+
+  test "EnrollBlueprint sets domain_name" do
+    tests "EnrollBlueprint", on: "RegressionSuite"
+    setup  "EnrollSuite", suite_name: "sample"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+  test "RunRegression runs" do
+    tests "RunRegression", on: "RegressionSuite"
+    setup  "EnrollSuite", suite_name: "sample"
+    expect last_run_status: "running"
+  end
+
+  test "RecordResults sets pass_count + fail_count + run_at" do
+    tests "RecordResults", on: "RegressionSuite"
+    setup  "EnrollSuite", suite_name: "sample"
+    input  pass_count: 1, fail_count: 1, run_at: "sample"
+    expect last_pass_count: 1, last_fail_count: 1, last_run_at: "sample"
+  end
+
+  test "MarkPassing runs" do
+    tests "MarkPassing", on: "RegressionSuite"
+    setup  "EnrollSuite", suite_name: "sample"
+    setup  "RunRegression"
+    expect last_run_status: "passing"
+  end
+
+  test "MarkFailing runs" do
+    tests "MarkFailing", on: "RegressionSuite"
+    setup  "EnrollSuite", suite_name: "sample"
+    setup  "RunRegression"
+    expect last_run_status: "failing"
+  end
+
+
+  # ── FixtureResult aggregate ──────────────────────────────────────────
+
+  test "RecordPass sets domain_name + command_name + expected_event + run_at" do
+    tests "RecordPass", on: "FixtureResult"
+    input  domain_name: "sample", command_name: "sample", expected_event: "sample", run_at: "sample"
+    expect domain_name: "sample", command_name: "sample", expected_event: "sample", actual_event: "sample", outcome: "pass", run_at: "sample"
+  end
+
+  test "RecordFail sets domain_name + command_name + expected_event + actual_event + failure_reason + run_at" do
+    tests "RecordFail", on: "FixtureResult"
+    input  domain_name: "sample", command_name: "sample", expected_event: "sample", actual_event: "sample", failure_reason: "sample", run_at: "sample"
+    expect domain_name: "sample", command_name: "sample", expected_event: "sample", actual_event: "sample", failure_reason: "sample", outcome: "fail", run_at: "sample"
+  end
+
+end

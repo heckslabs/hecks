@@ -1,0 +1,128 @@
+Hecks.behaviors "Optician" do
+  vision "Behavioral tests for the Optician domain — exercises every command and query in memory"
+
+  # ── Frame aggregate ──────────────────────────────────────────
+
+  test "StockFrame sets frame_id + brand + model + material + color + price + quantity" do
+    tests "StockFrame", on: "Frame"
+    input  frame_id: "sample", brand: "sample", model: "sample", material: "sample", color: "sample", price: 1.0, quantity: 1
+    expect frame_id: "sample", brand: "sample", model: "sample", material: "sample", color: "sample", price: 1.0, quantity: 1
+  end
+
+  test "DiscontinueFrame runs" do
+    tests "DiscontinueFrame", on: "Frame"
+    setup  "StockFrame", frame_id: "sample", brand: "sample", model: "sample", material: "sample", color: "sample", price: 1.0, quantity: 1
+    expect ok: "true"
+  end
+
+
+  # ── Lens aggregate ──────────────────────────────────────────
+
+  test "GrindLens sets lens_id + lens_type + material + coating + sphere + cylinder + axis + price" do
+    tests "GrindLens", on: "Lens"
+    input  lens_id: "sample", lens_type: "sample", material: "sample", coating: "sample", sphere: 1.0, cylinder: 1.0, axis: 1, price: 1.0
+    expect lens_id: "sample", lens_type: "sample", material: "sample", coating: "sample", sphere: 1.0, cylinder: 1.0, axis: 1, price: 1.0
+  end
+
+  test "GrindLens cascades through policy chain" do
+    tests "GrindLens", on: "Lens", kind: :cascade
+    setup  "PerformFitting", fitting_id: "sample", patient_name: "sample", frame_id: "sample"
+    setup  "SubmitClaim", claim_id: "sample", patient_name: "sample", insurance_provider: "sample", amount_claimed: 1.0
+    input  lens_id: "sample", lens_type: "sample", material: "sample", coating: "sample", sphere: 1.0, cylinder: 1.0, axis: 1, price: 1.0
+    expect emits: ["LensGround", "CoatingApplied", "FittingPerformed", "SatisfactionRecorded", "ClaimSubmitted", "ClaimResolved"]
+  end
+
+  test "ApplyCoating sets coating" do
+    tests "ApplyCoating", on: "Lens"
+    setup  "GrindLens", lens_id: "sample", lens_type: "sample", material: "sample", coating: "sample", sphere: 1.0, cylinder: 1.0, axis: 1, price: 1.0
+    input  coating: "sample"
+    expect coating: "sample"
+  end
+
+  test "ApplyCoating cascades through policy chain" do
+    tests "ApplyCoating", on: "Lens", kind: :cascade
+    setup  "GrindLens", lens_id: "sample", lens_type: "sample", material: "sample", coating: "sample", sphere: 1.0, cylinder: 1.0, axis: 1, price: 1.0
+    setup  "PerformFitting", fitting_id: "sample", patient_name: "sample", frame_id: "sample"
+    setup  "SubmitClaim", claim_id: "sample", patient_name: "sample", insurance_provider: "sample", amount_claimed: 1.0
+    input  coating: "sample"
+    expect emits: ["CoatingApplied", "FittingPerformed", "SatisfactionRecorded", "ClaimSubmitted", "ClaimResolved"]
+  end
+
+
+  # ── Prescription aggregate ──────────────────────────────────────────
+
+  test "RecordPrescription sets prescription_id + patient_name + doctor_name + issue_date + expiration_date + right_sphere + left_sphere" do
+    tests "RecordPrescription", on: "Prescription"
+    input  prescription_id: "sample", patient_name: "sample", doctor_name: "sample", issue_date: "sample", expiration_date: "sample", right_sphere: 1.0, left_sphere: 1.0
+    expect prescription_id: "sample", patient_name: "sample", doctor_name: "sample", issue_date: "sample", expiration_date: "sample", right_sphere: 1.0, left_sphere: 1.0, status: "active"
+  end
+
+  test "RecordPrescription cascades through policy chain" do
+    tests "RecordPrescription", on: "Prescription", kind: :cascade
+    setup  "GrindLens", lens_id: "sample", lens_type: "sample", material: "sample", coating: "sample", sphere: 1.0, cylinder: 1.0, axis: 1, price: 1.0
+    setup  "PerformFitting", fitting_id: "sample", patient_name: "sample", frame_id: "sample"
+    setup  "SubmitClaim", claim_id: "sample", patient_name: "sample", insurance_provider: "sample", amount_claimed: 1.0
+    input  prescription_id: "sample", patient_name: "sample", doctor_name: "sample", issue_date: "sample", expiration_date: "sample", right_sphere: 1.0, left_sphere: 1.0
+    expect emits: ["PrescriptionRecorded", "LensGround", "CoatingApplied", "FittingPerformed", "SatisfactionRecorded", "ClaimSubmitted", "ClaimResolved"]
+  end
+
+  test "ExpirePrescription runs" do
+    tests "ExpirePrescription", on: "Prescription"
+    setup  "RecordPrescription", prescription_id: "sample", patient_name: "sample", doctor_name: "sample", issue_date: "sample", expiration_date: "sample", right_sphere: 1.0, left_sphere: 1.0
+    expect status: "expired"
+  end
+
+
+  # ── Fitting aggregate ──────────────────────────────────────────
+
+  test "PerformFitting sets fitting_id + patient_name + frame_id" do
+    tests "PerformFitting", on: "Fitting"
+    input  fitting_id: "sample", patient_name: "sample", frame_id: "sample"
+    expect fitting_id: "sample", patient_name: "sample", frame_id: "sample"
+  end
+
+  test "PerformFitting cascades through policy chain" do
+    tests "PerformFitting", on: "Fitting", kind: :cascade
+    setup  "SubmitClaim", claim_id: "sample", patient_name: "sample", insurance_provider: "sample", amount_claimed: 1.0
+    input  fitting_id: "sample", patient_name: "sample", frame_id: "sample"
+    expect emits: ["FittingPerformed", "SatisfactionRecorded", "ClaimSubmitted", "ClaimResolved"]
+  end
+
+  test "RecordSatisfaction sets satisfaction" do
+    tests "RecordSatisfaction", on: "Fitting"
+    setup  "PerformFitting", fitting_id: "sample", patient_name: "sample", frame_id: "sample"
+    input  satisfaction: "sample"
+    expect satisfaction: "sample"
+  end
+
+  test "RecordSatisfaction cascades through policy chain" do
+    tests "RecordSatisfaction", on: "Fitting", kind: :cascade
+    setup  "PerformFitting", fitting_id: "sample", patient_name: "sample", frame_id: "sample"
+    setup  "SubmitClaim", claim_id: "sample", patient_name: "sample", insurance_provider: "sample", amount_claimed: 1.0
+    input  satisfaction: "sample"
+    expect emits: ["SatisfactionRecorded", "ClaimSubmitted", "ClaimResolved"]
+  end
+
+
+  # ── InsuranceClaim aggregate ──────────────────────────────────────────
+
+  test "SubmitClaim sets claim_id + patient_name + insurance_provider + amount_claimed" do
+    tests "SubmitClaim", on: "InsuranceClaim"
+    input  claim_id: "sample", patient_name: "sample", insurance_provider: "sample", amount_claimed: 1.0
+    expect claim_id: "sample", patient_name: "sample", insurance_provider: "sample", amount_claimed: 1.0, status: "submitted"
+  end
+
+  test "SubmitClaim cascades through policy chain" do
+    tests "SubmitClaim", on: "InsuranceClaim", kind: :cascade
+    input  claim_id: "sample", patient_name: "sample", insurance_provider: "sample", amount_claimed: 1.0
+    expect emits: ["ClaimSubmitted", "ClaimResolved"]
+  end
+
+  test "ResolveClaim sets resolution" do
+    tests "ResolveClaim", on: "InsuranceClaim"
+    setup  "SubmitClaim", claim_id: "sample", patient_name: "sample", insurance_provider: "sample", amount_claimed: 1.0
+    input  resolution: "sample"
+    expect status: "sample"
+  end
+
+end

@@ -62,7 +62,7 @@ Hecks.bluebook "AutonomousRescue", version: "2026.04.13.1" do
     String :drone_id
     String :status
     Float :battery_percent
-    reference_to(RescueMission) :mission
+    reference_to(RescueMission, as: :mission)
     list_of(ScanResult) :scans
 
     value_object "ScanResult" do
@@ -77,7 +77,7 @@ Hecks.bluebook "AutonomousRescue", version: "2026.04.13.1" do
       role "System"
       description "Deploy a search drone to scan a sector of the disaster site"
       String :drone_id
-      reference_to(RescueMission) :mission
+      attribute :mission, String
       emits "DroneDeployed"
       then_set :drone_id, to: :drone_id
       then_set :mission, to: :mission
@@ -127,7 +127,7 @@ Hecks.bluebook "AutonomousRescue", version: "2026.04.13.1" do
     String :payload_type
     Float :battery_percent
     String :status
-    reference_to(SurvivorBeacon) :target_beacon
+    reference_to(SurvivorBeacon, as: :target_beacon)
     list_of(NavigationLog) :nav_log
 
     value_object "NavigationLog" do
@@ -143,7 +143,7 @@ Hecks.bluebook "AutonomousRescue", version: "2026.04.13.1" do
       description "Deploy a supply bot toward a detected survivor location"
       String :bot_id
       String :payload_type
-      reference_to(SurvivorBeacon) :target_beacon
+      attribute :target_beacon, String
       emits "SupplyBotDeployed"
       then_set :bot_id, to: :bot_id
       then_set :payload_type, to: :payload_type
@@ -178,7 +178,7 @@ Hecks.bluebook "AutonomousRescue", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "standby" do
-      transition "DeploySupplyBot" => "en_route", from: "standby"
+      transition "DeploySupplyBot" => "en_route", from: ["standby", "en_route"]
       transition "DeliverSupplies" => "delivered", from: "en_route"
       transition "ReportBotBatteryLow" => "returning", from: "en_route"
       transition "ReturnToBase" => "at_base", from: "returning"
@@ -193,16 +193,16 @@ Hecks.bluebook "AutonomousRescue", version: "2026.04.13.1" do
     String :detection_method
     String :status
     String :rescue_priority
-    reference_to(RescueMission) :mission
+    reference_to(RescueMission, as: :mission)
 
-    CreateBeacon do
+    MarkBeacon do
       role "System"
       description "Mark a survivor detection with location and confidence"
       Float :latitude
       Float :longitude
       String :detection_method
       String :rescue_priority
-      reference_to(RescueMission) :mission
+      attribute :mission, String
       emits "BeaconCreated"
       then_set :latitude, to: :latitude
       then_set :longitude, to: :longitude
@@ -231,7 +231,7 @@ Hecks.bluebook "AutonomousRescue", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "pending" do
-      transition "CreateBeacon" => "active", from: "pending"
+      transition "MarkBeacon" => "active", from: ["pending", "active"]
       transition "ConfirmSurvivor" => "confirmed", from: "active"
       transition "ExtractSurvivor" => "extracted", from: "confirmed"
     end
@@ -281,7 +281,7 @@ Hecks.bluebook "AutonomousRescue", version: "2026.04.13.1" do
   # === DebrisMap ===
 
   aggregate "DebrisMap", "A real-time 3D map of the disaster site — built from drone scans, updated as debris shifts" do
-    reference_to(RescueMission) :mission
+    reference_to(RescueMission, as: :mission)
     String :map_version
     String :status
     Integer :sectors_mapped
@@ -297,7 +297,7 @@ Hecks.bluebook "AutonomousRescue", version: "2026.04.13.1" do
     InitializeMap do
       role "System"
       description "Create the initial debris map from first drone scan"
-      reference_to(RescueMission) :mission
+      attribute :mission, String
       emits "MapInitialized"
       then_set :mission, to: :mission
       then_set :map_version, to: "1"
@@ -305,12 +305,12 @@ Hecks.bluebook "AutonomousRescue", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    UpdateMap do
+    RefreshMap do
       role "System"
       description "Incorporate new scan data into the debris map"
       reference_to(DebrisMap)
       Integer :sectors_mapped
-      emits "MapUpdated"
+      emits "MapRefreshed"
       then_set :sectors_mapped, to: :sectors_mapped
     end
 
@@ -342,34 +342,17 @@ Hecks.bluebook "AutonomousRescue", version: "2026.04.13.1" do
 
   policy "CreateBeaconOnDetection" do
     on "SurvivorDetected"
-    trigger "CreateBeacon"
+    trigger "MarkBeacon"
   end
 
-  policy "UpdateMapOnDeploy" do
+  policy "RefreshMapOnDeploy" do
     on "DroneDeployed"
     trigger "InitializeMap"
   end
 
-  policy "UpdateMapOnScan" do
+  policy "RefreshMapOnScan" do
     on "SurvivorDetected"
-    trigger "UpdateMap"
+    trigger "RefreshMap"
   end
 
-  fixture "RescueMission", incident_name: "Downtown Collapse", incident_type: "structural_failure", location: "42.3601,-71.0589", status: "active", survivors_found: 3
-  fixture "RescueMission", incident_name: "Highway Overpass", incident_type: "earthquake_damage", location: "40.7128,-74.0060", status: "planning", survivors_found: 0
-
-  fixture "SearchDrone", drone_id: "SD-001", status: "searching", battery_percent: 87.5, mission: "ref:RescueMission:Downtown Collapse"
-  fixture "SearchDrone", drone_id: "SD-002", status: "returning", battery_percent: 15.0, mission: "ref:RescueMission:Highway Overpass"
-
-  fixture "SupplyBot", bot_id: "SB-101", payload_type: "medical_kit", battery_percent: 92.0, status: "en_route", target_beacon: "ref:SurvivorBeacon:beacon-west-03"
-  fixture "SupplyBot", bot_id: "SB-102", payload_type: "water_supplies", battery_percent: 45.0, status: "at_base", target_beacon: "ref:SurvivorBeacon:beacon-south-01"
-
-  fixture "SurvivorBeacon", latitude: 42.3615, longitude: -71.0574, detection_method: "thermal_imaging", status: "confirmed", rescue_priority: "critical", mission: "ref:RescueMission:Downtown Collapse"
-  fixture "SurvivorBeacon", latitude: 42.3598, longitude: -71.0602, detection_method: "audio_detection", status: "active", rescue_priority: "high", mission: "ref:RescueMission:Downtown Collapse"
-
-  fixture "ChargingStation", station_id: "CS-01", location: "42.3610,-71.0580", charging_slots: 8, slots_available: 3, status: "operational"
-  fixture "ChargingStation", station_id: "CS-02", location: "40.7145,-74.0050", charging_slots: 6, slots_available: 6, status: "operational"
-
-  fixture "DebrisMap", mission: "ref:RescueMission:Downtown Collapse", map_version: "5", status: "active", sectors_mapped: 12
-  fixture "DebrisMap", mission: "ref:RescueMission:Highway Overpass", map_version: "1", status: "active", sectors_mapped: 2
 end

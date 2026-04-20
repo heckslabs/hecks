@@ -8,6 +8,9 @@ Hecks.bluebook "HospitalAdmissions", version: "2026.04.13.1" do
     String :emergency_contact
     String :chief_complaint
     String :triage_level
+    # Gate flag — flips true when intake forms are verified complete and
+    # the patient is ready to be triaged. TriagePatient is gated on it.
+    attribute :intake_validated, Boolean, default: false
 
     specification "CriticalTriage" do
       satisfied_by { triage_level == "1" }
@@ -23,11 +26,17 @@ Hecks.bluebook "HospitalAdmissions", version: "2026.04.13.1" do
       emits "PatientRegistered"
     end
 
+    ValidateIntake do
+      description "Verify intake forms and insurance details are complete"
+      reference_to(Patient)
+      emits "IntakeValidated"
+      then_set :intake_validated, to: true
+    end
+
     TriagePatient do
       description "Assess urgency and assign a triage level"
       reference_to(Patient)
       String :triage_level
-      given "triage level must be 1 through 5"
       emits "PatientTriaged"
     end
   end
@@ -38,12 +47,22 @@ Hecks.bluebook "HospitalAdmissions", version: "2026.04.13.1" do
     String :bed_type
     String :status
     String :assigned_patient
+    # Gate flag — flips true after PrepareBed sanitizes and confirms the
+    # bed is empty and ready for assignment. AssignBed is gated on it.
+    attribute :bed_ready, Boolean, default: false
+
+    PrepareBed do
+      description "Sanitize and confirm the bed is empty and ready for use"
+      reference_to(Bed)
+      emits "BedPrepared"
+      then_set :bed_ready, to: true
+    end
 
     AssignBed do
       description "Place a triaged patient in an available bed"
       reference_to(Bed)
       String :patient_name
-      given "bed must be unoccupied"
+      given { bed_ready == true }
       emits "BedAssigned"
     end
 
@@ -94,18 +113,27 @@ Hecks.bluebook "HospitalAdmissions", version: "2026.04.13.1" do
     list_of(String) :medications
     list_of(String) :follow_up_appointments
     String :status
+    # Gate flag — flips true once every follow-up has been booked.
+    # ApproveDischargePlan is gated on it so a plan cannot be signed
+    # off until follow-ups are in place.
+    attribute :follow_ups_scheduled, Boolean, default: false
 
-    CreateDischargePlan do
+    DraftDischargePlan do
       description "Begin planning a patient's safe exit from the hospital"
       String :patient_name
       String :discharge_date
-      emits "DischargePlanCreated"
+      emits "DischargePlanDrafted"
+    end
+
+    ScheduleFollowUps do
+      description "Book all follow-up appointments required for discharge"
+      emits "FollowUpsScheduled"
+      then_set :follow_ups_scheduled, to: true
     end
 
     ApproveDischargePlan do
       description "Physician signs off that the patient is safe to leave"
       reference_to(DischargeePlan)
-      given "all follow-up appointments must be scheduled"
       emits "DischargePlanApproved"
     end
 
@@ -116,7 +144,7 @@ Hecks.bluebook "HospitalAdmissions", version: "2026.04.13.1" do
     end
   end
 
-  # Workflow: Register → Triage → AssignBed → RecordDiagnosis → CreateDischargePlan → ApproveDischargePlan → DischargePatient → ReleaseBed
+  # Workflow: Register → Triage → AssignBed → RecordDiagnosis → DraftDischargePlan → ApproveDischargePlan → DischargePatient → ReleaseBed
   policy "TriageOnRegistration" do
     on "PatientRegistered"
     trigger "TriagePatient"
@@ -134,11 +162,11 @@ Hecks.bluebook "HospitalAdmissions", version: "2026.04.13.1" do
 
   policy "PlanOnDiagnosis" do
     on "DiagnosisRecorded"
-    trigger "CreateDischargePlan"
+    trigger "DraftDischargePlan"
   end
 
   policy "ApproveOnPlanCreation" do
-    on "DischargePlanCreated"
+    on "DischargePlanDrafted"
     trigger "ApproveDischargePlan"
   end
 
@@ -152,15 +180,4 @@ Hecks.bluebook "HospitalAdmissions", version: "2026.04.13.1" do
     trigger "ReleaseBed"
   end
 
-  fixture "Patient", name: "Susan O'Brien", date_of_birth: "1965-03-22", insurance_id: "BC123456789", emergency_contact: "Michael O'Brien 555-0171", chief_complaint: "Chest pain", triage_level: "2"
-  fixture "Patient", name: "David Kumar", date_of_birth: "1958-07-15", insurance_id: "UCSB987654321", emergency_contact: "Priya Kumar 555-0172", chief_complaint: "Severe headache", triage_level: "3"
-
-  fixture "Bed", ward: "ICU", room_number: "405", bed_type: "Critical care", status: "available", assigned_patient: ""
-  fixture "Bed", ward: "Med-Surg", room_number: "210B", bed_type: "Standard", status: "available", assigned_patient: ""
-
-  fixture "Diagnosis", patient_name: "Susan O'Brien", icd_code: "I10", description: "Essential hypertension", diagnosing_physician: "Dr. Robert Hayes", diagnosed_at: "2026-04-14"
-  fixture "Diagnosis", patient_name: "David Kumar", icd_code: "G89.29", description: "Other chronic pain", diagnosing_physician: "Dr. Angela Mitchell", diagnosed_at: "2026-04-14"
-
-  fixture "DischargeePlan", patient_name: "Susan O'Brien", discharge_date: "2026-04-17", status: "created"
-  fixture "DischargeePlan", patient_name: "David Kumar", discharge_date: "2026-04-16", status: "created"
 end

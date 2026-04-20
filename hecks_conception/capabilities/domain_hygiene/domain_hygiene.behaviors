@@ -1,0 +1,167 @@
+Hecks.behaviors "DomainHygiene" do
+  vision "Behavioral tests for the DomainHygiene domain — exercises every command and query in memory"
+
+  # ── HealthCheck aggregate ──────────────────────────────────────────
+
+  test "ScanCorpus sets root_path" do
+    tests "ScanCorpus", on: "HealthCheck"
+    input  root_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── QualityReport aggregate ──────────────────────────────────────────
+
+  test "AssessQuality sets jsonl_path" do
+    tests "AssessQuality", on: "QualityReport"
+    input  jsonl_path: "sample"
+    expect ok: "true"
+  end
+
+  test "AssessQuality cascades through policy chain" do
+    tests "AssessQuality", on: "QualityReport", kind: :cascade
+    input  jsonl_path: "sample"
+    expect emits: ["QualityAssessed", "GapsIdentified"]
+  end
+
+  test "IdentifyGaps runs" do
+    tests "IdentifyGaps", on: "QualityReport"
+    setup  "AssessQuality", jsonl_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Enrichment aggregate ──────────────────────────────────────────
+
+  test "ConfirmBoots sets domain_name" do
+    tests "ConfirmBoots", on: "Enrichment"
+    input  domain_name: "sample"
+    expect boots: true
+  end
+
+  test "EnrichDomain sets domain_name + enrichment_type" do
+    tests "EnrichDomain", on: "Enrichment"
+    setup  "ConfirmBoots", domain_name: "sample"
+    input  domain_name: "sample", enrichment_type: "sample"
+    expect ok: "true"
+  end
+
+  test "EnrichDomain cascades through policy chain" do
+    tests "EnrichDomain", on: "Enrichment", kind: :cascade
+    setup  "HarvestTrainingData", root_path: "sample", output_path: "sample"
+    setup  "GrowCorpus", target_count: 1
+    setup  "AssessQuality", jsonl_path: "sample"
+    setup  "ConfirmBoots", domain_name: "sample"
+    input  domain_name: "sample", enrichment_type: "sample"
+    expect emits: ["DomainEnriched", "EnrichmentValidated", "DataHarvested", "GrowthReported", "QualityAssessed", "GapsIdentified"]
+  end
+
+  test "Revalidate runs" do
+    tests "Revalidate", on: "Enrichment"
+    setup  "ConfirmBoots", domain_name: "sample"
+    expect ok: "true"
+  end
+
+  test "Revalidate cascades through policy chain" do
+    tests "Revalidate", on: "Enrichment", kind: :cascade
+    setup  "ConfirmBoots", domain_name: "sample"
+    setup  "HarvestTrainingData", root_path: "sample", output_path: "sample"
+    setup  "GrowCorpus", target_count: 1
+    setup  "AssessQuality", jsonl_path: "sample"
+    expect emits: ["EnrichmentValidated", "DataHarvested", "GrowthReported", "QualityAssessed", "GapsIdentified"]
+  end
+
+
+  # ── TrainingHarvest aggregate ──────────────────────────────────────────
+
+  test "HarvestTrainingData sets root_path + output_path" do
+    tests "HarvestTrainingData", on: "TrainingHarvest"
+    input  root_path: "sample", output_path: "sample"
+    expect ok: "true"
+  end
+
+  test "HarvestTrainingData cascades through policy chain" do
+    tests "HarvestTrainingData", on: "TrainingHarvest", kind: :cascade
+    setup  "GrowCorpus", target_count: 1
+    setup  "AssessQuality", jsonl_path: "sample"
+    input  root_path: "sample", output_path: "sample"
+    expect emits: ["DataHarvested", "GrowthReported", "QualityAssessed", "GapsIdentified"]
+  end
+
+  test "CompareVersions sets previous_path" do
+    tests "CompareVersions", on: "TrainingHarvest"
+    setup  "HarvestTrainingData", root_path: "sample", output_path: "sample"
+    input  previous_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── CorpusGrowth aggregate ──────────────────────────────────────────
+
+  test "GrowCorpus sets target_count" do
+    tests "GrowCorpus", on: "CorpusGrowth"
+    input  target_count: 1
+    expect ok: "true"
+  end
+
+  test "GrowCorpus cascades through policy chain" do
+    tests "GrowCorpus", on: "CorpusGrowth", kind: :cascade
+    setup  "HarvestTrainingData", root_path: "sample", output_path: "sample"
+    setup  "AssessQuality", jsonl_path: "sample"
+    input  target_count: 1
+    expect emits: ["GrowthStarted", "BatchConceived", "FailuresRepaired", "ShallowEnriched", "DataHarvested", "GrowthReported", "QualityAssessed", "GapsIdentified"]
+  end
+
+  test "ConceiveBatch sets batch_size + topics" do
+    tests "ConceiveBatch", on: "CorpusGrowth"
+    setup  "GrowCorpus", target_count: 1
+    input  batch_size: 1, topics: "sample"
+    expect ok: "true"
+  end
+
+  test "ConceiveBatch cascades through policy chain" do
+    tests "ConceiveBatch", on: "CorpusGrowth", kind: :cascade
+    setup  "GrowCorpus", target_count: 1
+    setup  "HarvestTrainingData", root_path: "sample", output_path: "sample"
+    setup  "AssessQuality", jsonl_path: "sample"
+    input  batch_size: 1, topics: "sample"
+    expect emits: ["BatchConceived", "FailuresRepaired", "ShallowEnriched", "DataHarvested", "GrowthReported", "QualityAssessed", "GapsIdentified"]
+  end
+
+  test "RepairFailures runs" do
+    tests "RepairFailures", on: "CorpusGrowth"
+    setup  "GrowCorpus", target_count: 1
+    expect wave_valid: true
+  end
+
+  test "RepairFailures cascades through policy chain" do
+    tests "RepairFailures", on: "CorpusGrowth", kind: :cascade
+    setup  "GrowCorpus", target_count: 1
+    setup  "HarvestTrainingData", root_path: "sample", output_path: "sample"
+    setup  "AssessQuality", jsonl_path: "sample"
+    expect emits: ["FailuresRepaired", "ShallowEnriched", "DataHarvested", "GrowthReported", "QualityAssessed", "GapsIdentified"]
+  end
+
+  test "EnrichShallow runs" do
+    tests "EnrichShallow", on: "CorpusGrowth"
+    setup  "GrowCorpus", target_count: 1
+    setup  "RepairFailures"
+    expect ok: "true"
+  end
+
+  test "EnrichShallow cascades through policy chain" do
+    tests "EnrichShallow", on: "CorpusGrowth", kind: :cascade
+    setup  "GrowCorpus", target_count: 1
+    setup  "HarvestTrainingData", root_path: "sample", output_path: "sample"
+    setup  "AssessQuality", jsonl_path: "sample"
+    setup  "RepairFailures"
+    expect emits: ["ShallowEnriched", "DataHarvested", "GrowthReported", "QualityAssessed", "GapsIdentified"]
+  end
+
+  test "ReportGrowth runs" do
+    tests "ReportGrowth", on: "CorpusGrowth"
+    setup  "GrowCorpus", target_count: 1
+    expect ok: "true"
+  end
+
+end

@@ -1,0 +1,174 @@
+Hecks.behaviors "CrowdfundingPlatform" do
+  vision "Behavioral tests for the CrowdfundingPlatform domain — exercises every command and query in memory"
+
+  # ── Campaign aggregate ──────────────────────────────────────────
+
+  test "LaunchCampaign sets campaign_title + creator_name + description + funding_goal + deadline" do
+    tests "LaunchCampaign", on: "Campaign"
+    input  campaign_title: "sample", creator_name: "sample", description: "sample", funding_goal: 1.0, deadline: "sample"
+    expect ok: "true"
+  end
+
+  test "LaunchCampaign cascades through policy chain" do
+    tests "LaunchCampaign", on: "Campaign", kind: :cascade
+    setup  "SetMilestone", milestone_id: "sample", title: "sample", description: "sample", target_date: "sample"
+    input  campaign_title: "sample", creator_name: "sample", description: "sample", funding_goal: 1.0, deadline: "sample"
+    expect emits: ["CampaignLaunched", "MilestoneSet"]
+  end
+
+  test "FundCampaign runs" do
+    tests "FundCampaign", on: "Campaign"
+    setup  "LaunchCampaign", campaign_title: "sample", creator_name: "sample", description: "sample", funding_goal: 1.0, deadline: "sample"
+    expect ok: "true"
+  end
+
+  test "FundCampaign cascades through policy chain" do
+    tests "FundCampaign", on: "Campaign", kind: :cascade
+    setup  "LaunchCampaign", campaign_title: "sample", creator_name: "sample", description: "sample", funding_goal: 1.0, deadline: "sample"
+    setup  "FulfillReward", reward_id: "sample", tier_name: "sample", description: "sample", shipping_address: "sample"
+    setup  "MakePledge", pledge_id: "sample", amount: 1.0, reward_tier: "sample"
+    setup  "SetMilestone", milestone_id: "sample", title: "sample", description: "sample", target_date: "sample"
+    expect emits: ["CampaignFunded", "RewardFulfilled", "RewardShipped", "MilestoneCompleted"]
+  end
+
+  test "CancelCampaign runs" do
+    tests "CancelCampaign", on: "Campaign"
+    setup  "LaunchCampaign", campaign_title: "sample", creator_name: "sample", description: "sample", funding_goal: 1.0, deadline: "sample"
+    expect ok: "true"
+  end
+
+  test "CancelCampaign cascades through policy chain" do
+    tests "CancelCampaign", on: "Campaign", kind: :cascade
+    setup  "LaunchCampaign", campaign_title: "sample", creator_name: "sample", description: "sample", funding_goal: 1.0, deadline: "sample"
+    setup  "MakePledge", pledge_id: "sample", amount: 1.0, reward_tier: "sample"
+    expect emits: ["CampaignCanceled", "PledgeWithdrawn"]
+  end
+
+
+  # ── Backer aggregate ──────────────────────────────────────────
+
+  test "RegisterBacker sets backer_id + name + email + payment_method" do
+    tests "RegisterBacker", on: "Backer"
+    input  backer_id: "sample", name: "sample", email: "sample", payment_method: "sample"
+    expect backer_id: "sample", name: "sample", email: "sample", payment_method: "sample", status: "active"
+  end
+
+  test "ChangePaymentMethod sets payment_method" do
+    tests "ChangePaymentMethod", on: "Backer"
+    setup  "RegisterBacker", backer_id: "sample", name: "sample", email: "sample", payment_method: "sample"
+    input  payment_method: "sample"
+    expect ok: "true"
+  end
+
+  test "DeactivateBacker runs" do
+    tests "DeactivateBacker", on: "Backer"
+    setup  "RegisterBacker", backer_id: "sample", name: "sample", email: "sample", payment_method: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Pledge aggregate ──────────────────────────────────────────
+
+  test "MakePledge sets pledge_id + amount + reward_tier" do
+    tests "MakePledge", on: "Pledge"
+    setup  "RegisterBacker", backer_id: "sample", name: "sample", email: "sample", payment_method: "sample"
+    setup  "LaunchCampaign", campaign_title: "sample", creator_name: "sample", description: "sample", funding_goal: 1.0, deadline: "sample"
+    input  pledge_id: "sample", amount: 1.0, reward_tier: "sample"
+    expect status: "active"
+  end
+
+  test "MakePledge cascades through policy chain" do
+    tests "MakePledge", on: "Pledge", kind: :cascade
+    setup  "LaunchCampaign", campaign_title: "sample", creator_name: "sample", description: "sample", funding_goal: 1.0, deadline: "sample"
+    setup  "RegisterBacker", backer_id: "sample", name: "sample", email: "sample", payment_method: "sample"
+    setup  "FulfillReward", reward_id: "sample", tier_name: "sample", description: "sample", shipping_address: "sample"
+    setup  "SetMilestone", milestone_id: "sample", title: "sample", description: "sample", target_date: "sample"
+    input  pledge_id: "sample", amount: 1.0, reward_tier: "sample"
+    expect emits: ["PledgeMade", "CampaignFunded", "RewardFulfilled", "RewardShipped", "MilestoneCompleted"]
+  end
+
+  test "IncreasePledge sets additional_amount" do
+    tests "IncreasePledge", on: "Pledge"
+    setup  "MakePledge", pledge_id: "sample", amount: 1.0, reward_tier: "sample"
+    input  additional_amount: 1.0
+    expect ok: "true"
+  end
+
+  test "WithdrawPledge runs" do
+    tests "WithdrawPledge", on: "Pledge"
+    setup  "MakePledge", pledge_id: "sample", amount: 1.0, reward_tier: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Reward aggregate ──────────────────────────────────────────
+
+  test "FulfillReward sets reward_id + tier_name + description + shipping_address" do
+    tests "FulfillReward", on: "Reward"
+    setup  "MakePledge", pledge_id: "sample", amount: 1.0, reward_tier: "sample"
+    input  reward_id: "sample", tier_name: "sample", description: "sample", shipping_address: "sample"
+    expect ok: "true"
+  end
+
+  test "FulfillReward cascades through policy chain" do
+    tests "FulfillReward", on: "Reward", kind: :cascade
+    setup  "MakePledge", pledge_id: "sample", amount: 1.0, reward_tier: "sample"
+    setup  "SetMilestone", milestone_id: "sample", title: "sample", description: "sample", target_date: "sample"
+    input  reward_id: "sample", tier_name: "sample", description: "sample", shipping_address: "sample"
+    expect emits: ["RewardFulfilled", "RewardShipped", "MilestoneCompleted"]
+  end
+
+  test "MarkShipped sets carrier + tracking_number" do
+    tests "MarkShipped", on: "Reward"
+    setup  "FulfillReward", reward_id: "sample", tier_name: "sample", description: "sample", shipping_address: "sample"
+    input  carrier: "sample", tracking_number: "sample"
+    expect fulfillment_status: "shipped"
+  end
+
+  test "MarkShipped cascades through policy chain" do
+    tests "MarkShipped", on: "Reward", kind: :cascade
+    setup  "FulfillReward", reward_id: "sample", tier_name: "sample", description: "sample", shipping_address: "sample"
+    setup  "SetMilestone", milestone_id: "sample", title: "sample", description: "sample", target_date: "sample"
+    input  carrier: "sample", tracking_number: "sample"
+    expect emits: ["RewardShipped", "MilestoneCompleted"]
+  end
+
+  test "ReportDamaged runs" do
+    tests "ReportDamaged", on: "Reward"
+    setup  "FulfillReward", reward_id: "sample", tier_name: "sample", description: "sample", shipping_address: "sample"
+    setup  "MarkShipped", carrier: "sample", tracking_number: "sample"
+    expect ok: "true"
+  end
+
+  test "ReportDamaged cascades through policy chain" do
+    tests "ReportDamaged", on: "Reward", kind: :cascade
+    setup  "FulfillReward", reward_id: "sample", tier_name: "sample", description: "sample", shipping_address: "sample"
+    setup  "SetMilestone", milestone_id: "sample", title: "sample", description: "sample", target_date: "sample"
+    setup  "MarkShipped", carrier: "sample", tracking_number: "sample"
+    expect emits: ["RewardDamaged", "MilestoneDelayed"]
+  end
+
+
+  # ── Milestone aggregate ──────────────────────────────────────────
+
+  test "SetMilestone sets milestone_id + title + description + target_date" do
+    tests "SetMilestone", on: "Milestone"
+    setup  "LaunchCampaign", campaign_title: "sample", creator_name: "sample", description: "sample", funding_goal: 1.0, deadline: "sample"
+    input  milestone_id: "sample", title: "sample", description: "sample", target_date: "sample"
+    expect status: "pending"
+  end
+
+  test "CompleteMilestone runs" do
+    tests "CompleteMilestone", on: "Milestone"
+    setup  "SetMilestone", milestone_id: "sample", title: "sample", description: "sample", target_date: "sample"
+    expect ok: "true"
+  end
+
+  test "DelayMilestone sets new_target_date + delay_reason" do
+    tests "DelayMilestone", on: "Milestone"
+    setup  "SetMilestone", milestone_id: "sample", title: "sample", description: "sample", target_date: "sample"
+    input  new_target_date: "sample", delay_reason: "sample"
+    expect ok: "true"
+  end
+
+end

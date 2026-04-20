@@ -8,23 +8,23 @@ Hecks.bluebook "Vocabulary", version: "2026.04.11.1" do
   # ============================================================
 
   aggregate "Sentence", "One thing a being can say that maps to a command" do
-    String :phrase
-    String :domain
-    String :command
-    String :aggregate
-    String :actor
-    list_of(String) :parameters
-    list_of(String) :translations
+    attribute :phrase, String
+    attribute :domain, String
+    attribute :command, String
+    attribute :aggregate, String
+    attribute :actor, String
+    attribute :parameters, list_of(String)
+    attribute :translations, list_of(String)
 
-    Define do
+    command "Define" do
       role "System"
       description "Register a single valid sentence from a bluebook command"
-      String :phrase
-      String :domain
-      String :command
-      String :aggregate
-      String :actor
-      list_of(String) :parameters
+      attribute :phrase, String
+      attribute :domain, String
+      attribute :command, String
+      attribute :aggregate, String
+      attribute :actor, String
+      attribute :parameters, list_of(String)
       emits "SentenceDefined"
       then_set :phrase, to: :phrase
       then_set :domain, to: :domain
@@ -34,11 +34,11 @@ Hecks.bluebook "Vocabulary", version: "2026.04.11.1" do
       then_set :parameters, to: :parameters
     end
 
-    Translate do
+    command "Translate" do
       role "Linguist"
       description "Add a natural language translation — how a human would actually say it"
       reference_to(Sentence)
-      String :natural_phrase
+      attribute :natural_phrase, String
       emits "TranslationAdded"
       then_set :translations, append: :natural_phrase
     end
@@ -49,26 +49,26 @@ Hecks.bluebook "Vocabulary", version: "2026.04.11.1" do
   # ============================================================
 
   aggregate "Composition", "Two commands chained — the output of one feeds the input of the next" do
-    String :phrase
-    String :from_domain
-    String :from_command
-    String :to_domain
-    String :to_command
-    String :bridge_type
+    attribute :phrase, String
+    attribute :from_domain, String
+    attribute :from_command, String
+    attribute :to_domain, String
+    attribute :to_command, String
+    attribute :bridge_type, String
     attribute :connector, default: "then"
-    list_of(String) :translations
+    attribute :translations, list_of(String)
     attribute :valid, default: "true"
 
-    Compose do
+    command "Compose" do
       role "System"
       description "Register a valid cross-domain composition — types must align"
-      String :phrase
-      String :from_domain
-      String :from_command
-      String :to_domain
-      String :to_command
-      String :bridge_type
-      String :connector
+      attribute :phrase, String
+      attribute :from_domain, String
+      attribute :from_command, String
+      attribute :to_domain, String
+      attribute :to_command, String
+      attribute :bridge_type, String
+      attribute :connector, String
       emits "CompositionCreated"
       then_set :phrase, to: :phrase
       then_set :from_domain, to: :from_domain
@@ -79,16 +79,16 @@ Hecks.bluebook "Vocabulary", version: "2026.04.11.1" do
       then_set :connector, to: :connector
     end
 
-    TranslateComposition do
+    command "TranslateComposition" do
       role "Linguist"
       description "Add a natural language translation for this composition"
       reference_to(Composition)
-      String :natural_phrase
+      attribute :natural_phrase, String
       emits "CompositionTranslated"
       then_set :translations, append: :natural_phrase
     end
 
-    MarkInvalid do
+    command "MarkInvalid" do
       role "System"
       description "Mark a composition as invalid — types don't bridge"
       reference_to(Composition)
@@ -102,46 +102,46 @@ Hecks.bluebook "Vocabulary", version: "2026.04.11.1" do
   # ============================================================
 
   aggregate "Acl", "A phrase book entry — who can say what, and how they say it" do
-    String :actor
-    String :canonical_phrase
-    list_of(String) :command_path
-    list_of(String) :natural_phrases
-    list_of(ParamBinding) :parameter_map
+    attribute :actor, String
+    attribute :canonical_phrase, String
+    attribute :command_path, list_of(String)
+    attribute :natural_phrases, list_of(String)
+    attribute :parameter_map, list_of(ParamBinding)
 
     value_object "ParamBinding" do
-      String :word
-      String :maps_to
-      String :in_command
+      attribute :word, String
+      attribute :maps_to, String
+      attribute :in_command, String
     end
 
-    Grant do
+    command "Grant" do
       role "System"
       description "Grant an actor the right to speak a phrase"
-      String :actor
-      String :canonical_phrase
-      list_of(String) :command_path
+      attribute :actor, String
+      attribute :canonical_phrase, String
+      attribute :command_path, list_of(String)
       emits "AccessGranted"
       then_set :actor, to: :actor
       then_set :canonical_phrase, to: :canonical_phrase
       then_set :command_path, to: :command_path
     end
 
-    AddPhrase do
+    command "AddPhrase" do
       role "Linguist"
       description "Add a natural way to say this — the human version"
       reference_to(Acl)
-      String :phrase
+      attribute :phrase, String
       emits "PhraseAdded"
       then_set :natural_phrases, append: :phrase
     end
 
-    BindParam do
+    command "BindParam" do
       role "Linguist"
       description "Map a word in the phrase to a command parameter"
       reference_to(Acl)
-      String :word
-      String :maps_to
-      String :in_command
+      attribute :word, String
+      attribute :maps_to, String
+      attribute :in_command, String
       emits "ParamBound"
       then_set :parameter_map, append: { word: :word, maps_to: :maps_to, in_command: :in_command }
     end
@@ -152,23 +152,23 @@ Hecks.bluebook "Vocabulary", version: "2026.04.11.1" do
   # ============================================================
 
   aggregate "Lexicon", "The compiled vocabulary — all sentences, compositions, and ACLs indexed for matching" do
-    Integer :sentence_count
-    Integer :composition_count
-    Integer :acl_count
-    String :last_compiled
+    attribute :sentence_count, Integer
+    attribute :composition_count, Integer
+    attribute :acl_count, Integer
+    attribute :last_compiled, String
 
-    Compile do
+    command "Compile" do
       role "System"
       description "Walk all bluebooks, enumerate valid sentences and compositions, build the phrase book"
       emits "LexiconCompiled"
       then_set :last_compiled, to: "now"
     end
 
-    Match do
+    command "Match" do
       role "System"
       description "Match natural input against the lexicon — return the command path or nothing"
       reference_to(Lexicon)
-      String :input
+      attribute :input, String
       emits "InputMatched"
     end
   end
@@ -197,19 +197,8 @@ Hecks.bluebook "Vocabulary", version: "2026.04.11.1" do
   # ============================================================
 
   # --- Single sentences ---
-  fixture "Sentence", phrase: "create a pizza", domain: "Pizzas", command: "CreatePizza", aggregate: "Pizza", actor: "Admin", parameters: ["name", "description", "price"]
-  fixture "Sentence", phrase: "place an order", domain: "Pizzas", command: "PlaceOrder", aggregate: "Order", actor: "Customer", parameters: ["customer_name", "pizza", "quantity"]
-  fixture "Sentence", phrase: "cancel an order", domain: "Pizzas", command: "CancelOrder", aggregate: "Order", actor: "Customer", parameters: ["order"]
-  fixture "Sentence", phrase: "fulfill an order", domain: "Pizzas", command: "FulfillOrder", aggregate: "Order", actor: "Admin", parameters: ["order"]
 
   # --- Compositions ---
-  fixture "Composition", phrase: "create a pizza then place an order", from_domain: "Pizzas", from_command: "CreatePizza", to_domain: "Pizzas", to_command: "PlaceOrder", bridge_type: "Pizza", connector: "then"
-  fixture "Composition", phrase: "place an order then fulfill it", from_domain: "Pizzas", from_command: "PlaceOrder", to_domain: "Pizzas", to_command: "FulfillOrder", bridge_type: "Order", connector: "then"
-  fixture "Composition", phrase: "cancel an order then refund payment", from_domain: "Pizzas", from_command: "CancelOrder", to_domain: "Billing", to_command: "RefundPayment", bridge_type: "Order", connector: "then"
 
   # --- ACLs with natural translations ---
-  fixture "Acl", actor: "Customer", canonical_phrase: "place an order", command_path: ["Pizzas::PlaceOrder"]
-  fixture "Acl", actor: "Customer", canonical_phrase: "cancel an order then get a refund", command_path: ["Pizzas::CancelOrder", "Billing::RefundPayment"]
-  fixture "Acl", actor: "Admin", canonical_phrase: "create a pizza", command_path: ["Pizzas::CreatePizza"]
-  fixture "Acl", actor: "Chef", canonical_phrase: "create a pizza then compost it", command_path: ["Pizzas::CreatePizza", "Waste::CompostItem"]
 end

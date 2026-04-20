@@ -1,0 +1,437 @@
+Hecks.behaviors "Physics" do
+  vision "Behavioral tests for the Physics domain — exercises every command and query in memory"
+
+  # ── Particle aggregate ──────────────────────────────────────────
+
+  test "ObserveParticle sets name + mass + charge + spin + particle_type" do
+    tests "ObserveParticle", on: "Particle"
+    input  name: "sample", mass: 1.0, charge: 1.0, spin: 1.0, particle_type: "sample"
+    expect name: "sample", mass: 1.0, charge: 1.0, spin: 1.0, particle_type: "sample", status: "active"
+  end
+
+  test "MeasurePosition sets x + y + z" do
+    tests "MeasurePosition", on: "Particle"
+    setup  "ObserveParticle", name: "sample", mass: 1.0, charge: 1.0, spin: 1.0, particle_type: "sample"
+    input  x: 1.0, y: 1.0, z: 1.0
+    expect ok: "true"
+  end
+
+  test "MeasureMomentum sets px + py + pz" do
+    tests "MeasureMomentum", on: "Particle"
+    setup  "ObserveParticle", name: "sample", mass: 1.0, charge: 1.0, spin: 1.0, particle_type: "sample"
+    input  px: 1.0, py: 1.0, pz: 1.0
+    expect ok: "true"
+  end
+
+  test "Annihilate runs" do
+    tests "Annihilate", on: "Particle"
+    setup  "ObserveParticle", name: "sample", mass: 1.0, charge: 1.0, spin: 1.0, particle_type: "sample"
+    expect status: "annihilated"
+  end
+
+  test "Decay sets decay_mode + half_life" do
+    tests "Decay", on: "Particle"
+    setup  "ObserveParticle", name: "sample", mass: 1.0, charge: 1.0, spin: 1.0, particle_type: "sample"
+    input  decay_mode: "sample", half_life: 1.0
+    expect status: "decayed"
+  end
+
+
+  # ── Force aggregate ──────────────────────────────────────────
+
+  test "ApplyForce sets name + force_type + magnitude + direction_x + direction_y + direction_z + source + target" do
+    tests "ApplyForce", on: "Force"
+    input  name: "sample", force_type: "sample", magnitude: 1.0, direction_x: 1.0, direction_y: 1.0, direction_z: 1.0, source: "sample", target: "sample"
+    expect name: "sample", force_type: "sample", magnitude: 1.0, direction_x: 1.0, direction_y: 1.0, direction_z: 1.0, source: "sample", target: "sample"
+  end
+
+  test "ApplyForce cascades through policy chain" do
+    tests "ApplyForce", on: "Force", kind: :cascade
+    setup  "InitiateMotion", body_name: "sample", velocity_x: 1.0, velocity_y: 1.0, velocity_z: 1.0
+    input  name: "sample", force_type: "sample", magnitude: 1.0, direction_x: 1.0, direction_y: 1.0, direction_z: 1.0, source: "sample", target: "sample"
+    expect emits: ["ForceApplied", "MagnitudeCalculated", "ComponentsResolved", "NewtonLawApplied"]
+  end
+
+  test "CalculateMagnitude runs" do
+    tests "CalculateMagnitude", on: "Force"
+    setup  "ApplyForce", name: "sample", force_type: "sample", magnitude: 1.0, direction_x: 1.0, direction_y: 1.0, direction_z: 1.0, source: "sample", target: "sample"
+    expect ok: "true"
+  end
+
+  test "ResolveComponents runs" do
+    tests "ResolveComponents", on: "Force"
+    setup  "ApplyForce", name: "sample", force_type: "sample", magnitude: 1.0, direction_x: 1.0, direction_y: 1.0, direction_z: 1.0, source: "sample", target: "sample"
+    expect ok: "true"
+  end
+
+  test "FindEquilibrium runs" do
+    tests "FindEquilibrium", on: "Force"
+    setup  "ApplyForce", name: "sample", force_type: "sample", magnitude: 1.0, direction_x: 1.0, direction_y: 1.0, direction_z: 1.0, source: "sample", target: "sample"
+    expect ok: "true"
+  end
+
+  test "SuperposeForces sets other_magnitude + other_direction_x + other_direction_y + other_direction_z" do
+    tests "SuperposeForces", on: "Force"
+    setup  "ApplyForce", name: "sample", force_type: "sample", magnitude: 1.0, direction_x: 1.0, direction_y: 1.0, direction_z: 1.0, source: "sample", target: "sample"
+    input  other_magnitude: 1.0, other_direction_x: 1.0, other_direction_y: 1.0, other_direction_z: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── Motion aggregate ──────────────────────────────────────────
+
+  test "InitiateMotion sets body_name + velocity_x + velocity_y + velocity_z" do
+    tests "InitiateMotion", on: "Motion"
+    input  body_name: "sample", velocity_x: 1.0, velocity_y: 1.0, velocity_z: 1.0
+    expect body_name: "sample", velocity_x: 1.0, velocity_y: 1.0, velocity_z: 1.0, status: "moving"
+  end
+
+  test "Accelerate sets acceleration_x + acceleration_y + acceleration_z" do
+    tests "Accelerate", on: "Motion"
+    setup  "InitiateMotion", body_name: "sample", velocity_x: 1.0, velocity_y: 1.0, velocity_z: 1.0
+    input  acceleration_x: 1.0, acceleration_y: 1.0, acceleration_z: 1.0
+    expect acceleration_x: 1.0, acceleration_y: 1.0, acceleration_z: 1.0
+  end
+
+  test "Accelerate cascades through policy chain" do
+    tests "Accelerate", on: "Motion", kind: :cascade
+    setup  "InitiateMotion", body_name: "sample", velocity_x: 1.0, velocity_y: 1.0, velocity_z: 1.0
+    input  acceleration_x: 1.0, acceleration_y: 1.0, acceleration_z: 1.0
+    expect emits: ["BodyAccelerated", "TrajectoryCalculated"]
+  end
+
+  test "Decelerate sets deceleration_x + deceleration_y + deceleration_z" do
+    tests "Decelerate", on: "Motion"
+    setup  "InitiateMotion", body_name: "sample", velocity_x: 1.0, velocity_y: 1.0, velocity_z: 1.0
+    input  deceleration_x: 1.0, deceleration_y: 1.0, deceleration_z: 1.0
+    expect status: "at_rest"
+  end
+
+  test "CalculateTrajectory sets time_duration + time_step" do
+    tests "CalculateTrajectory", on: "Motion"
+    setup  "InitiateMotion", body_name: "sample", velocity_x: 1.0, velocity_y: 1.0, velocity_z: 1.0
+    input  time_duration: 1.0, time_step: 1.0
+    expect ok: "true"
+  end
+
+  test "ApplyNewtonLaw sets net_force + mass" do
+    tests "ApplyNewtonLaw", on: "Motion"
+    setup  "InitiateMotion", body_name: "sample", velocity_x: 1.0, velocity_y: 1.0, velocity_z: 1.0
+    input  net_force: 1.0, mass: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── Energy aggregate ──────────────────────────────────────────
+
+  test "TransferEnergy sets name + energy_type + magnitude + source" do
+    tests "TransferEnergy", on: "Energy"
+    input  name: "sample", energy_type: "sample", magnitude: 1.0, source: "sample"
+    expect name: "sample", energy_type: "sample", magnitude: 1.0, source: "sample", status: "transferred"
+  end
+
+  test "TransferEnergy cascades through policy chain" do
+    tests "TransferEnergy", on: "Energy", kind: :cascade
+    input  name: "sample", energy_type: "sample", magnitude: 1.0, source: "sample"
+    expect emits: ["EnergyTransferred", "EnergyConserved"]
+  end
+
+  test "ConvertEnergy sets target_type + efficiency" do
+    tests "ConvertEnergy", on: "Energy"
+    setup  "TransferEnergy", name: "sample", energy_type: "sample", magnitude: 1.0, source: "sample"
+    input  target_type: "sample", efficiency: 1.0
+    expect energy_type: "sample"
+  end
+
+  test "MeasureWork sets force + displacement + angle" do
+    tests "MeasureWork", on: "Energy"
+    setup  "TransferEnergy", name: "sample", energy_type: "sample", magnitude: 1.0, source: "sample"
+    input  force: 1.0, displacement: 1.0, angle: 1.0
+    expect ok: "true"
+  end
+
+  test "CalculateEfficiency sets input_energy + output_energy" do
+    tests "CalculateEfficiency", on: "Energy"
+    setup  "TransferEnergy", name: "sample", energy_type: "sample", magnitude: 1.0, source: "sample"
+    input  input_energy: 1.0, output_energy: 1.0
+    expect ok: "true"
+  end
+
+  test "ConserveEnergy sets total_before + total_after" do
+    tests "ConserveEnergy", on: "Energy"
+    setup  "TransferEnergy", name: "sample", energy_type: "sample", magnitude: 1.0, source: "sample"
+    input  total_before: 1.0, total_after: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── Wave aggregate ──────────────────────────────────────────
+
+  test "PropagateWave sets name + wave_type + amplitude + frequency + wavelength + medium" do
+    tests "PropagateWave", on: "Wave"
+    input  name: "sample", wave_type: "sample", amplitude: 1.0, frequency: 1.0, wavelength: 1.0, medium: "sample"
+    expect name: "sample", wave_type: "sample", amplitude: 1.0, frequency: 1.0, wavelength: 1.0, medium: "sample", status: "propagating"
+  end
+
+  test "PropagateWave cascades through policy chain" do
+    tests "PropagateWave", on: "Wave", kind: :cascade
+    input  name: "sample", wave_type: "sample", amplitude: 1.0, frequency: 1.0, wavelength: 1.0, medium: "sample"
+    expect emits: ["WavePropagated", "FrequencyCalculated"]
+  end
+
+  test "InterfereWaves sets other_amplitude + other_frequency + phase_difference" do
+    tests "InterfereWaves", on: "Wave"
+    setup  "PropagateWave", name: "sample", wave_type: "sample", amplitude: 1.0, frequency: 1.0, wavelength: 1.0, medium: "sample"
+    input  other_amplitude: 1.0, other_frequency: 1.0, phase_difference: 1.0
+    expect ok: "true"
+  end
+
+  test "DiffractWave sets aperture_width" do
+    tests "DiffractWave", on: "Wave"
+    setup  "PropagateWave", name: "sample", wave_type: "sample", amplitude: 1.0, frequency: 1.0, wavelength: 1.0, medium: "sample"
+    input  aperture_width: 1.0
+    expect ok: "true"
+  end
+
+  test "ReflectWave sets angle_of_incidence" do
+    tests "ReflectWave", on: "Wave"
+    setup  "PropagateWave", name: "sample", wave_type: "sample", amplitude: 1.0, frequency: 1.0, wavelength: 1.0, medium: "sample"
+    input  angle_of_incidence: 1.0
+    expect ok: "true"
+  end
+
+  test "RefractWave sets refractive_index_1 + refractive_index_2 + angle_of_incidence" do
+    tests "RefractWave", on: "Wave"
+    setup  "PropagateWave", name: "sample", wave_type: "sample", amplitude: 1.0, frequency: 1.0, wavelength: 1.0, medium: "sample"
+    input  refractive_index_1: 1.0, refractive_index_2: 1.0, angle_of_incidence: 1.0
+    expect ok: "true"
+  end
+
+  test "CalculateFrequency runs" do
+    tests "CalculateFrequency", on: "Wave"
+    setup  "PropagateWave", name: "sample", wave_type: "sample", amplitude: 1.0, frequency: 1.0, wavelength: 1.0, medium: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Field aggregate ──────────────────────────────────────────
+
+  test "DefineField sets name + field_type + strength" do
+    tests "DefineField", on: "Field"
+    input  name: "sample", field_type: "sample", strength: 1.0
+    expect name: "sample", field_type: "sample", strength: 1.0
+  end
+
+  test "DefineField cascades through policy chain" do
+    tests "DefineField", on: "Field", kind: :cascade
+    input  name: "sample", field_type: "sample", strength: 1.0
+    expect emits: ["FieldDefined", "FieldLinesMapped", "FluxCalculated"]
+  end
+
+  test "MapFieldLines runs" do
+    tests "MapFieldLines", on: "Field"
+    setup  "DefineField", name: "sample", field_type: "sample", strength: 1.0
+    expect ok: "true"
+  end
+
+  test "MapFieldLines cascades through policy chain" do
+    tests "MapFieldLines", on: "Field", kind: :cascade
+    setup  "DefineField", name: "sample", field_type: "sample", strength: 1.0
+    expect emits: ["FieldLinesMapped", "FluxCalculated"]
+  end
+
+  test "CalculateFlux sets surface_area + angle" do
+    tests "CalculateFlux", on: "Field"
+    setup  "DefineField", name: "sample", field_type: "sample", strength: 1.0
+    input  surface_area: 1.0, angle: 1.0
+    expect ok: "true"
+  end
+
+  test "ApplyGaussLaw sets enclosed_charge" do
+    tests "ApplyGaussLaw", on: "Field"
+    setup  "DefineField", name: "sample", field_type: "sample", strength: 1.0
+    input  enclosed_charge: 1.0
+    expect ok: "true"
+  end
+
+  test "InduceField sets rate_of_change" do
+    tests "InduceField", on: "Field"
+    setup  "DefineField", name: "sample", field_type: "sample", strength: 1.0
+    input  rate_of_change: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── ThermoSystem aggregate ──────────────────────────────────────────
+
+  test "TransferHeat sets name + heat + temperature" do
+    tests "TransferHeat", on: "ThermoSystem"
+    input  name: "sample", heat: 1.0, temperature: 1.0
+    expect name: "sample", heat: 1.0, temperature: 1.0, status: "active"
+  end
+
+  test "TransferHeat cascades through policy chain" do
+    tests "TransferHeat", on: "ThermoSystem", kind: :cascade
+    input  name: "sample", heat: 1.0, temperature: 1.0
+    expect emits: ["HeatTransferred", "EntropyCalculated"]
+  end
+
+  test "MeasureTemperature sets temperature" do
+    tests "MeasureTemperature", on: "ThermoSystem"
+    setup  "TransferHeat", name: "sample", heat: 1.0, temperature: 1.0
+    input  temperature: 1.0
+    expect temperature: 1.0
+  end
+
+  test "CalculateEntropy sets entropy" do
+    tests "CalculateEntropy", on: "ThermoSystem"
+    setup  "TransferHeat", name: "sample", heat: 1.0, temperature: 1.0
+    input  entropy: 1.0
+    expect entropy: 1.0
+  end
+
+  test "ApplyCarnot sets hot_reservoir + cold_reservoir" do
+    tests "ApplyCarnot", on: "ThermoSystem"
+    setup  "TransferHeat", name: "sample", heat: 1.0, temperature: 1.0
+    input  hot_reservoir: 1.0, cold_reservoir: 1.0
+    expect ok: "true"
+  end
+
+  test "ReachThermalEquilibrium sets equilibrium_temperature" do
+    tests "ReachThermalEquilibrium", on: "ThermoSystem"
+    setup  "TransferHeat", name: "sample", heat: 1.0, temperature: 1.0
+    input  equilibrium_temperature: 1.0
+    expect temperature: 1.0, status: "equilibrium"
+  end
+
+
+  # ── QuantumState aggregate ──────────────────────────────────────────
+
+  test "PrepareState sets name + system_type + num_qubits" do
+    tests "PrepareState", on: "QuantumState"
+    input  name: "sample", system_type: "sample", num_qubits: 1
+    expect name: "sample", system_type: "sample", num_qubits: 1, coherent: "true", status: "prepared"
+  end
+
+  test "SuperposeStates runs" do
+    tests "SuperposeStates", on: "QuantumState"
+    setup  "PrepareState", name: "sample", system_type: "sample", num_qubits: 1
+    expect status: "superposed"
+  end
+
+  test "EntangleParticles sets particle_a + particle_b + bell_state" do
+    tests "EntangleParticles", on: "QuantumState"
+    setup  "PrepareState", name: "sample", system_type: "sample", num_qubits: 1
+    input  particle_a: "sample", particle_b: "sample", bell_state: "sample"
+    expect status: "entangled"
+  end
+
+  test "MeasureObservable sets observable_name + operator" do
+    tests "MeasureObservable", on: "QuantumState"
+    setup  "PrepareState", name: "sample", system_type: "sample", num_qubits: 1
+    input  observable_name: "sample", operator: "sample"
+    expect ok: "true"
+  end
+
+  test "MeasureObservable cascades through policy chain" do
+    tests "MeasureObservable", on: "QuantumState", kind: :cascade
+    setup  "PrepareState", name: "sample", system_type: "sample", num_qubits: 1
+    input  observable_name: "sample", operator: "sample"
+    expect emits: ["ObservableMeasured", "WavefunctionCollapsed"]
+  end
+
+  test "CollapseWavefunction sets measured_value" do
+    tests "CollapseWavefunction", on: "QuantumState"
+    setup  "PrepareState", name: "sample", system_type: "sample", num_qubits: 1
+    setup  "SuperposeStates"
+    input  measured_value: 1.0
+    expect coherent: "false", status: "collapsed"
+  end
+
+
+  # ── SpacetimeEvent aggregate ──────────────────────────────────────────
+
+  test "TransformFrame sets name + frame + relative_velocity" do
+    tests "TransformFrame", on: "SpacetimeEvent"
+    input  name: "sample", frame: "sample", relative_velocity: 1.0
+    expect name: "sample", frame: "sample"
+  end
+
+  test "TransformFrame cascades through policy chain" do
+    tests "TransformFrame", on: "SpacetimeEvent", kind: :cascade
+    input  name: "sample", frame: "sample", relative_velocity: 1.0
+    expect emits: ["FrameTransformed", "TimeDilationCalculated"]
+  end
+
+  test "CalculateTimeDilation sets velocity" do
+    tests "CalculateTimeDilation", on: "SpacetimeEvent"
+    setup  "TransformFrame", name: "sample", frame: "sample", relative_velocity: 1.0
+    input  velocity: 1.0
+    expect ok: "true"
+  end
+
+  test "CurveSpacetime sets mass + radius" do
+    tests "CurveSpacetime", on: "SpacetimeEvent"
+    setup  "TransformFrame", name: "sample", frame: "sample", relative_velocity: 1.0
+    input  mass: 1.0, radius: 1.0
+    expect ok: "true"
+  end
+
+  test "CalculateGeodesic sets start_time + end_time" do
+    tests "CalculateGeodesic", on: "SpacetimeEvent"
+    setup  "TransformFrame", name: "sample", frame: "sample", relative_velocity: 1.0
+    input  start_time: 1.0, end_time: 1.0
+    expect ok: "true"
+  end
+
+  test "ConvertMassEnergy sets mass" do
+    tests "ConvertMassEnergy", on: "SpacetimeEvent"
+    setup  "TransformFrame", name: "sample", frame: "sample", relative_velocity: 1.0
+    input  mass: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── Circuit aggregate ──────────────────────────────────────────
+
+  test "BuildCircuit sets name + circuit_type + voltage" do
+    tests "BuildCircuit", on: "Circuit"
+    input  name: "sample", circuit_type: "sample", voltage: 1.0
+    expect name: "sample", circuit_type: "sample", voltage: 1.0, status: "open"
+  end
+
+  test "BuildCircuit cascades through policy chain" do
+    tests "BuildCircuit", on: "Circuit", kind: :cascade
+    input  name: "sample", circuit_type: "sample", voltage: 1.0
+    expect emits: ["CircuitBuilt", "OhmsLawApplied"]
+  end
+
+  test "ApplyOhmsLaw sets voltage + resistance" do
+    tests "ApplyOhmsLaw", on: "Circuit"
+    setup  "BuildCircuit", name: "sample", circuit_type: "sample", voltage: 1.0
+    input  voltage: 1.0, resistance: 1.0
+    expect voltage: 1.0, resistance: 1.0
+  end
+
+  test "CalculateResistance sets resistance" do
+    tests "CalculateResistance", on: "Circuit"
+    setup  "BuildCircuit", name: "sample", circuit_type: "sample", voltage: 1.0
+    input  resistance: 1.0
+    expect resistance: 1.0
+  end
+
+  test "InduceCurrent sets flux_change + time_interval" do
+    tests "InduceCurrent", on: "Circuit"
+    setup  "BuildCircuit", name: "sample", circuit_type: "sample", voltage: 1.0
+    input  flux_change: 1.0, time_interval: 1.0
+    expect ok: "true"
+  end
+
+  test "RadiateWave sets frequency + power" do
+    tests "RadiateWave", on: "Circuit"
+    setup  "BuildCircuit", name: "sample", circuit_type: "sample", voltage: 1.0
+    input  frequency: 1.0, power: 1.0
+    expect power: 1.0
+  end
+
+end

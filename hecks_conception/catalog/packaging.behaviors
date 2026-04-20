@@ -1,0 +1,47 @@
+Hecks.behaviors "Packaging" do
+  vision "Behavioral tests for the Packaging domain — exercises every command and query in memory"
+
+  # ── ChapterRegistry aggregate ──────────────────────────────────────────
+
+  test "RegisterChapter sets name" do
+    tests "RegisterChapter", on: "ChapterRegistry"
+    input  name: "sample"
+    expect name: "sample"
+  end
+
+  test "LoadChapter sets chapter_id" do
+    tests "LoadChapter", on: "ChapterRegistry"
+    input  chapter_id: "sample"
+    expect ok: "true"
+  end
+
+  test "UnloadChapter sets chapter_id" do
+    tests "UnloadChapter", on: "ChapterRegistry"
+    input  chapter_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ChapterSelector aggregate ──────────────────────────────────────────
+
+  test "SelectChapters sets names" do
+    tests "SelectChapters", on: "ChapterSelector"
+    input  names: "sample"
+    expect ok: "true"
+  end
+
+  test "SelectAll runs" do
+    tests "SelectAll", on: "ChapterSelector"
+    expect ok: "true"
+  end
+
+
+  # ── ChapterFile aggregate ──────────────────────────────────────────
+
+  test "ParseChapterFile sets path" do
+    tests "ParseChapterFile", on: "ChapterFile"
+    input  path: "sample"
+    expect ok: "true"
+  end
+
+end

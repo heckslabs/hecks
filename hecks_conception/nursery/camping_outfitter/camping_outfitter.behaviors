@@ -1,0 +1,122 @@
+Hecks.behaviors "CampingOutfitter" do
+  vision "Behavioral tests for the CampingOutfitter domain — exercises every command and query in memory"
+
+  # ── CampingGear aggregate ──────────────────────────────────────────
+
+  test "StockGear sets sku + name + category + brand + weight_kg + price + quantity" do
+    tests "StockGear", on: "CampingGear"
+    input  sku: "sample", name: "sample", category: "sample", brand: "sample", weight_kg: 1.0, price: 1.0, quantity: 1
+    expect sku: "sample", name: "sample", category: "sample", brand: "sample", weight_kg: 1.0, price: 1.0, quantity: 1
+  end
+
+
+  # ── GearRental aggregate ──────────────────────────────────────────
+
+  test "RentGear sets rental_id + sku + renter_name + start_date + return_date + rental_fee" do
+    tests "RentGear", on: "GearRental"
+    input  rental_id: "sample", sku: "sample", renter_name: "sample", start_date: "sample", return_date: "sample", rental_fee: 1.0
+    expect rental_id: "sample", sku: "sample", renter_name: "sample", start_date: "sample", return_date: "sample", rental_fee: 1.0, status: "rented"
+  end
+
+  test "RentGear cascades through policy chain" do
+    tests "RentGear", on: "GearRental", kind: :cascade
+    setup  "StockMap", map_id: "sample", trail_name: "sample", region: "sample", difficulty: "sample", distance_km: 1.0, copies_on_hand: 1
+    input  rental_id: "sample", sku: "sample", renter_name: "sample", start_date: "sample", return_date: "sample", rental_fee: 1.0
+    expect emits: ["GearRented", "MapDistributed"]
+  end
+
+  test "ReturnGear runs" do
+    tests "ReturnGear", on: "GearRental"
+    setup  "RentGear", rental_id: "sample", sku: "sample", renter_name: "sample", start_date: "sample", return_date: "sample", rental_fee: 1.0
+    expect status: "returned"
+  end
+
+  test "ReturnGear cascades through policy chain" do
+    tests "ReturnGear", on: "GearRental", kind: :cascade
+    setup  "StockGear", sku: "sample", name: "sample", category: "sample", brand: "sample", weight_kg: 1.0, price: 1.0, quantity: 1
+    setup  "StockMap", map_id: "sample", trail_name: "sample", region: "sample", difficulty: "sample", distance_km: 1.0, copies_on_hand: 1
+    setup  "RentGear", rental_id: "sample", sku: "sample", renter_name: "sample", start_date: "sample", return_date: "sample", rental_fee: 1.0
+    expect emits: ["GearReturned", "GearStocked", "LateFeeCharged", "MapStocked"]
+  end
+
+  test "ChargeLateFee sets fee_amount" do
+    tests "ChargeLateFee", on: "GearRental"
+    setup  "RentGear", rental_id: "sample", sku: "sample", renter_name: "sample", start_date: "sample", return_date: "sample", rental_fee: 1.0
+    input  fee_amount: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── TrailMap aggregate ──────────────────────────────────────────
+
+  test "StockMap sets map_id + trail_name + region + difficulty + distance_km + copies_on_hand" do
+    tests "StockMap", on: "TrailMap"
+    input  map_id: "sample", trail_name: "sample", region: "sample", difficulty: "sample", distance_km: 1.0, copies_on_hand: 1
+    expect map_id: "sample", trail_name: "sample", region: "sample", difficulty: "sample", distance_km: 1.0, copies_on_hand: 1
+  end
+
+
+  # ── GuidedTrip aggregate ──────────────────────────────────────────
+
+  test "ScheduleTrip sets trip_id + guide_name + destination + date + max_participants + price_per_person" do
+    tests "ScheduleTrip", on: "GuidedTrip"
+    input  trip_id: "sample", guide_name: "sample", destination: "sample", date: "sample", max_participants: 1, price_per_person: 1.0
+    expect trip_id: "sample", guide_name: "sample", destination: "sample", date: "sample", max_participants: 1, price_per_person: 1.0, status: "scheduled"
+  end
+
+  test "ScheduleTrip cascades through policy chain" do
+    tests "ScheduleTrip", on: "GuidedTrip", kind: :cascade
+    setup  "RentGear", rental_id: "sample", sku: "sample", renter_name: "sample", start_date: "sample", return_date: "sample", rental_fee: 1.0
+    setup  "StockGear", sku: "sample", name: "sample", category: "sample", brand: "sample", weight_kg: 1.0, price: 1.0, quantity: 1
+    setup  "StockMap", map_id: "sample", trail_name: "sample", region: "sample", difficulty: "sample", distance_km: 1.0, copies_on_hand: 1
+    input  trip_id: "sample", guide_name: "sample", destination: "sample", date: "sample", max_participants: 1, price_per_person: 1.0
+    expect emits: ["TripScheduled", "TripConducted", "GearReturned", "GearStocked", "LateFeeCharged", "MapStocked"]
+  end
+
+  test "ConductTrip runs" do
+    tests "ConductTrip", on: "GuidedTrip"
+    setup  "ScheduleTrip", trip_id: "sample", guide_name: "sample", destination: "sample", date: "sample", max_participants: 1, price_per_person: 1.0
+    expect status: "completed"
+  end
+
+  test "ConductTrip cascades through policy chain" do
+    tests "ConductTrip", on: "GuidedTrip", kind: :cascade
+    setup  "RentGear", rental_id: "sample", sku: "sample", renter_name: "sample", start_date: "sample", return_date: "sample", rental_fee: 1.0
+    setup  "StockGear", sku: "sample", name: "sample", category: "sample", brand: "sample", weight_kg: 1.0, price: 1.0, quantity: 1
+    setup  "StockMap", map_id: "sample", trail_name: "sample", region: "sample", difficulty: "sample", distance_km: 1.0, copies_on_hand: 1
+    setup  "ScheduleTrip", trip_id: "sample", guide_name: "sample", destination: "sample", date: "sample", max_participants: 1, price_per_person: 1.0
+    expect emits: ["TripConducted", "GearReturned", "GearStocked", "LateFeeCharged", "MapStocked"]
+  end
+
+  test "CancelTrip runs" do
+    tests "CancelTrip", on: "GuidedTrip"
+    setup  "ScheduleTrip", trip_id: "sample", guide_name: "sample", destination: "sample", date: "sample", max_participants: 1, price_per_person: 1.0
+    expect status: "canceled"
+  end
+
+
+  # ── CampsiteReservation aggregate ──────────────────────────────────────────
+
+  test "BookCampsite sets reservation_id + campsite_name + guest_name + check_in + check_out + total_fee" do
+    tests "BookCampsite", on: "CampsiteReservation"
+    input  reservation_id: "sample", campsite_name: "sample", guest_name: "sample", check_in: "sample", check_out: "sample", total_fee: 1.0
+    expect reservation_id: "sample", campsite_name: "sample", guest_name: "sample", check_in: "sample", check_out: "sample", total_fee: 1.0, status: "confirmed"
+  end
+
+  test "BookCampsite cascades through policy chain" do
+    tests "BookCampsite", on: "CampsiteReservation", kind: :cascade
+    setup  "RentGear", rental_id: "sample", sku: "sample", renter_name: "sample", start_date: "sample", return_date: "sample", rental_fee: 1.0
+    setup  "StockMap", map_id: "sample", trail_name: "sample", region: "sample", difficulty: "sample", distance_km: 1.0, copies_on_hand: 1
+    setup  "ScheduleTrip", trip_id: "sample", guide_name: "sample", destination: "sample", date: "sample", max_participants: 1, price_per_person: 1.0
+    setup  "StockGear", sku: "sample", name: "sample", category: "sample", brand: "sample", weight_kg: 1.0, price: 1.0, quantity: 1
+    input  reservation_id: "sample", campsite_name: "sample", guest_name: "sample", check_in: "sample", check_out: "sample", total_fee: 1.0
+    expect emits: ["CampsiteBooked", "GearRented", "MapDistributed", "TripScheduled", "TripConducted", "GearReturned", "GearStocked", "LateFeeCharged", "MapStocked"]
+  end
+
+  test "CancelReservation runs" do
+    tests "CancelReservation", on: "CampsiteReservation"
+    setup  "BookCampsite", reservation_id: "sample", campsite_name: "sample", guest_name: "sample", check_in: "sample", check_out: "sample", total_fee: 1.0
+    expect status: "canceled"
+  end
+
+end

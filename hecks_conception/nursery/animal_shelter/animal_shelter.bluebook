@@ -159,7 +159,7 @@ Hecks.bluebook "AnimalShelter" do
       String :date_administered
     end
 
-    CreateMedicalRecord do
+    OpenMedicalRecord do
       role "Veterinarian"
       description "Start a medical record for a newly sheltered animal"
       reference_to(Animal)
@@ -195,7 +195,7 @@ Hecks.bluebook "AnimalShelter" do
   # Workflow: Intake → CreateMedical → Vaccinate → SpayNeuter → MakeAvailable → SubmitApplication → ApproveAdoption → FinalizeAdoption → MarkAdopted
   policy "CreateMedicalOnIntake" do
     on "AnimalIntaked"
-    trigger "CreateMedicalRecord"
+    trigger "OpenMedicalRecord"
   end
 
   policy "VaccinateOnMedicalCreated" do
@@ -208,11 +208,6 @@ Hecks.bluebook "AnimalShelter" do
     trigger "PerformSpayNeuter"
   end
 
-  policy "MakeAvailableOnSpayNeuter" do
-    on "SpayNeuterPerformed"
-    trigger "MakeAvailable"
-  end
-
   policy "ApproveOnApplication" do
     on "AdoptionApplicationSubmitted"
     trigger "ApproveAdoption"
@@ -223,30 +218,9 @@ Hecks.bluebook "AnimalShelter" do
     trigger "FinalizeAdoption"
   end
 
-  policy "MarkAdoptedOnFinalize" do
-    on "AdoptionFinalized"
-    trigger "MarkAdopted"
-  end
-
-  policy "MakeAvailableOnReturn" do
-    on "AnimalReturnedFromFoster"
-    trigger "MakeAvailable"
-  end
-
   policy "PlaceInFosterOnIntake" do
     on "AnimalIntaked"
     trigger "PlaceInFoster"
   end
 
-  fixture "Animal", name: "Max", species: "dog", breed: "German Shepherd Mix", age_estimate: "2-3 years", sex: "male", temperament: "gentle, trained", status: "available"
-  fixture "Animal", name: "Luna", species: "cat", breed: "Siamese", age_estimate: "5-6 months", sex: "female", temperament: "shy, needs socialization", status: "intake"
-
-  fixture "Adoption", animal_name: "Max", adopter_name: "Kevin O'Malley", adoption_date: "2026-04-14", adoption_fee: "150.00", status: "finalized"
-  fixture "Adoption", animal_name: "Luna", adopter_name: "Patricia Wong", adoption_date: "2026-04-15", adoption_fee: "75.00", status: "pending"
-
-  fixture "FosterPlacement", animal_name: "Spot", foster_parent_name: "Monica Ramirez", start_date: "2026-04-10", expected_return_date: "2026-05-10", reason: "recovering from surgery", status: "active"
-  fixture "FosterPlacement", animal_name: "Daisy", foster_parent_name: "Thomas Greene", start_date: "2026-03-20", expected_return_date: "2026-04-05", reason: "behavioral training", status: "returned"
-
-  fixture "ShelterMedicalRecord", animal_name: "Max", record_date: "2026-04-14", veterinarian: "Dr. Alexandra Holmes", spay_neuter_status: "completed", vaccination_status: "complete"
-  fixture "ShelterMedicalRecord", animal_name: "Luna", record_date: "2026-04-14", veterinarian: "Dr. Mark Sullivan", spay_neuter_status: "pending", vaccination_status: "incomplete"
 end

@@ -1,0 +1,92 @@
+Hecks.behaviors "ArtisanMetalworks" do
+  vision "Behavioral tests for the ArtisanMetalworks domain — exercises every command and query in memory"
+
+  # ── Alloy aggregate ──────────────────────────────────────────
+
+  test "FormulatAlloy sets name + carbon_content + target_hardness" do
+    tests "FormulatAlloy", on: "Alloy"
+    input  name: "sample", carbon_content: 1.0, target_hardness: 1.0
+    expect ok: "true"
+  end
+
+  test "ByHardness returns matching records" do
+    tests "ByHardness", on: "Alloy", kind: :query
+    setup  "FormulatAlloy", name: "sample", carbon_content: 1.0, target_hardness: 1.0
+    expect count: 1
+  end
+
+
+  # ── SmeltBatch aggregate ──────────────────────────────────────────
+
+  test "ChargeFurnace sets volume_kg" do
+    tests "ChargeFurnace", on: "SmeltBatch"
+    setup  "FormulatAlloy", name: "sample", carbon_content: 1.0, target_hardness: 1.0
+    input  volume_kg: 1.0
+    expect temperature: 1500.0
+  end
+
+  test "GradeBatch sets quality_grade" do
+    tests "GradeBatch", on: "SmeltBatch"
+    setup  "ChargeFurnace", volume_kg: 1.0
+    input  quality_grade: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── JewelryDesign aggregate ──────────────────────────────────────────
+
+  test "SketchDesign sets title + style" do
+    tests "SketchDesign", on: "JewelryDesign"
+    setup  "FormulatAlloy", name: "sample", carbon_content: 1.0, target_hardness: 1.0
+    input  title: "sample", style: "sample"
+    expect ok: "true"
+  end
+
+  test "ApproveDesign runs" do
+    tests "ApproveDesign", on: "JewelryDesign"
+    setup  "SketchDesign", title: "sample", style: "sample"
+    setup  "SetGem", gem_type: "sample", carat: 1.0, setting_style: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── CastingOrder aggregate ──────────────────────────────────────────
+
+  test "Cast sets quantity" do
+    tests "Cast", on: "CastingOrder"
+    setup  "SketchDesign", title: "sample", style: "sample"
+    setup  "ChargeFurnace", volume_kg: 1.0
+    input  quantity: 1
+    expect ok: "true"
+  end
+
+  test "CompleteCasting runs" do
+    tests "CompleteCasting", on: "CastingOrder"
+    setup  "Cast", quantity: 1
+    expect ok: "true"
+  end
+
+  test "ReportDefect sets defect_type + severity" do
+    tests "ReportDefect", on: "CastingOrder"
+    setup  "Cast", quantity: 1
+    input  defect_type: "sample", severity: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Showcase aggregate ──────────────────────────────────────────
+
+  test "PlanShowcase sets name + venue" do
+    tests "PlanShowcase", on: "Showcase"
+    input  name: "sample", venue: "sample"
+    expect ok: "true"
+  end
+
+  test "SellPiece sets piece_title" do
+    tests "SellPiece", on: "Showcase"
+    setup  "PlanShowcase", name: "sample", venue: "sample"
+    input  piece_title: "sample"
+    expect ok: "true"
+  end
+
+end

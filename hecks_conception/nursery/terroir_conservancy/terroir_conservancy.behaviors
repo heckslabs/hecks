@@ -1,0 +1,154 @@
+Hecks.behaviors "TerroirConservancy" do
+  vision "Behavioral tests for the TerroirConservancy domain — exercises every command and query in memory"
+
+  # ── ProtectedTerroir aggregate ──────────────────────────────────────────
+
+  test "DesignateTerroir sets terroir_id + name + region + designation_type + total_hectares" do
+    tests "DesignateTerroir", on: "ProtectedTerroir"
+    input  terroir_id: "sample", name: "sample", region: "sample", designation_type: "sample", total_hectares: 1
+    expect terroir_id: "sample", name: "sample", region: "sample", designation_type: "sample", total_hectares: 1, status: "protected"
+  end
+
+  test "DesignateTerroir cascades through policy chain" do
+    tests "DesignateTerroir", on: "ProtectedTerroir", kind: :cascade
+    setup  "CharacterizeSoil", profile_id: "sample", soil_type: "sample", ph_level: 1.0, mineral_composition: "sample"
+    setup  "ConductSurvey", survey_id: "sample", survey_date: "sample", season: "sample"
+    input  terroir_id: "sample", name: "sample", region: "sample", designation_type: "sample", total_hectares: 1
+    expect emits: ["TerroirDesignated", "SoilCharacterized", "SurveyConducted"]
+  end
+
+  test "AmendProtection runs" do
+    tests "AmendProtection", on: "ProtectedTerroir"
+    setup  "DesignateTerroir", terroir_id: "sample", name: "sample", region: "sample", designation_type: "sample", total_hectares: 1
+    expect ok: "true"
+  end
+
+
+  # ── SoilProfile aggregate ──────────────────────────────────────────
+
+  test "CharacterizeSoil sets profile_id + soil_type + ph_level + mineral_composition" do
+    tests "CharacterizeSoil", on: "SoilProfile"
+    setup  "DesignateTerroir", terroir_id: "sample", name: "sample", region: "sample", designation_type: "sample", total_hectares: 1
+    input  profile_id: "sample", soil_type: "sample", ph_level: 1.0, mineral_composition: "sample"
+    expect profile_id: "sample", terroir: 1, soil_type: "sample", ph_level: 1.0, mineral_composition: "sample", microbiome_diversity: "pending"
+  end
+
+  test "AssessMicrobiome sets microbiome_diversity" do
+    tests "AssessMicrobiome", on: "SoilProfile"
+    setup  "CharacterizeSoil", profile_id: "sample", soil_type: "sample", ph_level: 1.0, mineral_composition: "sample"
+    input  microbiome_diversity: "sample"
+    expect microbiome_diversity: "sample"
+  end
+
+  test "AssessMicrobiome cascades through policy chain" do
+    tests "AssessMicrobiome", on: "SoilProfile", kind: :cascade
+    setup  "CharacterizeSoil", profile_id: "sample", soil_type: "sample", ph_level: 1.0, mineral_composition: "sample"
+    setup  "RegisterProducer", producer_id: "sample", name: "sample", craft_type: "sample"
+    setup  "ComposeProfile", profile_id: "sample", vintage_season: "sample"
+    setup  "DesignateTerroir", terroir_id: "sample", name: "sample", region: "sample", designation_type: "sample", total_hectares: 1
+    setup  "DesignExperience", experience_id: "sample", experience_type: "sample", capacity: 1
+    input  microbiome_diversity: "sample"
+    expect emits: ["MicrobiomeAssessed", "ProducerCertified", "ProfileComposed", "ExperienceDesigned"]
+  end
+
+
+  # ── CraftProducer aggregate ──────────────────────────────────────────
+
+  test "RegisterProducer sets producer_id + name + craft_type" do
+    tests "RegisterProducer", on: "CraftProducer"
+    setup  "DesignateTerroir", terroir_id: "sample", name: "sample", region: "sample", designation_type: "sample", total_hectares: 1
+    input  producer_id: "sample", name: "sample", craft_type: "sample"
+    expect producer_id: "sample", name: "sample", craft_type: "sample", terroir: 1, certification_status: "pending", status: "active"
+  end
+
+  test "CertifyProducer runs" do
+    tests "CertifyProducer", on: "CraftProducer"
+    setup  "RegisterProducer", producer_id: "sample", name: "sample", craft_type: "sample"
+    expect certification_status: "certified"
+  end
+
+  test "CertifyProducer cascades through policy chain" do
+    tests "CertifyProducer", on: "CraftProducer", kind: :cascade
+    setup  "ComposeProfile", profile_id: "sample", vintage_season: "sample"
+    setup  "DesignateTerroir", terroir_id: "sample", name: "sample", region: "sample", designation_type: "sample", total_hectares: 1
+    setup  "CharacterizeSoil", profile_id: "sample", soil_type: "sample", ph_level: 1.0, mineral_composition: "sample"
+    setup  "DesignExperience", experience_id: "sample", experience_type: "sample", capacity: 1
+    setup  "RegisterProducer", producer_id: "sample", name: "sample", craft_type: "sample"
+    expect emits: ["ProducerCertified", "ProfileComposed", "ExperienceDesigned"]
+  end
+
+  test "SuspendProducer runs" do
+    tests "SuspendProducer", on: "CraftProducer"
+    setup  "RegisterProducer", producer_id: "sample", name: "sample", craft_type: "sample"
+    expect certification_status: "suspended"
+  end
+
+
+  # ── SpeciesSurvey aggregate ──────────────────────────────────────────
+
+  test "ConductSurvey sets survey_id + survey_date + season" do
+    tests "ConductSurvey", on: "SpeciesSurvey"
+    setup  "DesignateTerroir", terroir_id: "sample", name: "sample", region: "sample", designation_type: "sample", total_hectares: 1
+    input  survey_id: "sample", survey_date: "sample", season: "sample"
+    expect survey_id: "sample", terroir: 1, survey_date: "sample", season: "sample", overall_diversity: "pending"
+  end
+
+  test "AssessDiversity sets overall_diversity" do
+    tests "AssessDiversity", on: "SpeciesSurvey"
+    setup  "ConductSurvey", survey_id: "sample", survey_date: "sample", season: "sample"
+    input  overall_diversity: "sample"
+    expect overall_diversity: "sample"
+  end
+
+  test "AssessDiversity cascades through policy chain" do
+    tests "AssessDiversity", on: "SpeciesSurvey", kind: :cascade
+    setup  "ConductSurvey", survey_id: "sample", survey_date: "sample", season: "sample"
+    setup  "ComposeProfile", profile_id: "sample", vintage_season: "sample"
+    setup  "DesignateTerroir", terroir_id: "sample", name: "sample", region: "sample", designation_type: "sample", total_hectares: 1
+    input  overall_diversity: "sample"
+    expect emits: ["DiversityAssessed", "CharacterAssessed", "ProtectionAmended"]
+  end
+
+
+  # ── VisitorExperience aggregate ──────────────────────────────────────────
+
+  test "DesignExperience sets experience_id + experience_type + capacity" do
+    tests "DesignExperience", on: "VisitorExperience"
+    setup  "RegisterProducer", producer_id: "sample", name: "sample", craft_type: "sample"
+    setup  "DesignateTerroir", terroir_id: "sample", name: "sample", region: "sample", designation_type: "sample", total_hectares: 1
+    input  experience_id: "sample", experience_type: "sample", capacity: 1
+    expect experience_id: "sample", terroir: 1, host_producer: 1, experience_type: "sample", capacity: 1, status: "available"
+  end
+
+  test "BookExperience runs" do
+    tests "BookExperience", on: "VisitorExperience"
+    setup  "DesignExperience", experience_id: "sample", experience_type: "sample", capacity: 1
+    expect ok: "true"
+  end
+
+  test "CompleteExperience runs" do
+    tests "CompleteExperience", on: "VisitorExperience"
+    setup  "DesignExperience", experience_id: "sample", experience_type: "sample", capacity: 1
+    expect status: "completed"
+  end
+
+
+  # ── FlavorProfile aggregate ──────────────────────────────────────────
+
+  test "ComposeProfile sets profile_id + vintage_season" do
+    tests "ComposeProfile", on: "FlavorProfile"
+    setup  "RegisterProducer", producer_id: "sample", name: "sample", craft_type: "sample"
+    setup  "CharacterizeSoil", profile_id: "sample", soil_type: "sample", ph_level: 1.0, mineral_composition: "sample"
+    setup  "DesignateTerroir", terroir_id: "sample", name: "sample", region: "sample", designation_type: "sample", total_hectares: 1
+    input  profile_id: "sample", vintage_season: "sample"
+    expect profile_id: "sample", terroir: 1, soil: 1, producer: 1, vintage_season: "sample", overall_character: "pending"
+  end
+
+  test "AssessCharacter sets overall_character" do
+    tests "AssessCharacter", on: "FlavorProfile"
+    setup  "ComposeProfile", profile_id: "sample", vintage_season: "sample"
+    input  overall_character: "sample"
+    expect overall_character: "sample"
+  end
+
+end

@@ -1,0 +1,144 @@
+Hecks.behaviors "WarehouseManagement" do
+  vision "Behavioral tests for the WarehouseManagement domain — exercises every command and query in memory"
+
+  # ── Location aggregate ──────────────────────────────────────────
+
+  test "RegisterLocation sets aisle + rack + shelf + zone + capacity" do
+    tests "RegisterLocation", on: "Location"
+    input  aisle: "sample", rack: "sample", shelf: "sample", zone: "sample", capacity: 1
+    expect aisle: "sample", rack: "sample", shelf: "sample", zone: "sample", capacity: 1, status: "empty", current_fill: 0
+  end
+
+  test "ReserveLocation cascades through policy chain" do
+    tests "ReserveLocation", on: "Location", kind: :cascade
+    setup  "RegisterLocation", aisle: "sample", rack: "sample", shelf: "sample", zone: "sample", capacity: 1
+    setup  "ReceivePallet", pallet_id: "sample", sku: "sample", quantity: 1
+    setup  "GeneratePickList", priority: "sample", line_count: 1
+    expect emits: ["LocationReserved", "PalletStowed", "PickListGenerated"]
+  end
+
+  test "CloseLocation sets reason" do
+    tests "CloseLocation", on: "Location"
+    setup  "RegisterLocation", aisle: "sample", rack: "sample", shelf: "sample", zone: "sample", capacity: 1
+    input  reason: "sample"
+    expect status: "closed"
+  end
+
+  test "ReopenLocation runs" do
+    tests "ReopenLocation", on: "Location"
+    setup  "RegisterLocation", aisle: "sample", rack: "sample", shelf: "sample", zone: "sample", capacity: 1
+    setup  "CloseLocation", reason: "sample"
+    expect status: "empty"
+  end
+
+
+  # ── Pallet aggregate ──────────────────────────────────────────
+
+  test "ReceivePallet sets pallet_id + sku + quantity" do
+    tests "ReceivePallet", on: "Pallet"
+    input  pallet_id: "sample", sku: "sample", quantity: 1
+    expect status: "received"
+  end
+
+  test "ReceivePallet cascades through policy chain" do
+    tests "ReceivePallet", on: "Pallet", kind: :cascade
+    setup  "RegisterLocation", aisle: "sample", rack: "sample", shelf: "sample", zone: "sample", capacity: 1
+    setup  "GeneratePickList", priority: "sample", line_count: 1
+    input  pallet_id: "sample", sku: "sample", quantity: 1
+    expect emits: ["PalletReceived", "PalletInspected", "LocationReserved", "PalletStowed", "PickListGenerated"]
+  end
+
+  test "InspectPallet runs" do
+    tests "InspectPallet", on: "Pallet"
+    setup  "ReceivePallet", pallet_id: "sample", sku: "sample", quantity: 1
+    expect status: "inspected"
+  end
+
+  test "InspectPallet cascades through policy chain" do
+    tests "InspectPallet", on: "Pallet", kind: :cascade
+    setup  "RegisterLocation", aisle: "sample", rack: "sample", shelf: "sample", zone: "sample", capacity: 1
+    setup  "GeneratePickList", priority: "sample", line_count: 1
+    setup  "ReceivePallet", pallet_id: "sample", sku: "sample", quantity: 1
+    expect emits: ["PalletInspected", "LocationReserved", "PalletStowed", "PickListGenerated"]
+  end
+
+  test "StowPallet runs" do
+    tests "StowPallet", on: "Pallet"
+    setup  "RegisterLocation", aisle: "sample", rack: "sample", shelf: "sample", zone: "sample", capacity: 1
+    setup  "ReceivePallet", pallet_id: "sample", sku: "sample", quantity: 1
+    expect status: "stowed"
+  end
+
+  test "StowPallet cascades through policy chain" do
+    tests "StowPallet", on: "Pallet", kind: :cascade
+    setup  "ReceivePallet", pallet_id: "sample", sku: "sample", quantity: 1
+    setup  "RegisterLocation", aisle: "sample", rack: "sample", shelf: "sample", zone: "sample", capacity: 1
+    setup  "GeneratePickList", priority: "sample", line_count: 1
+    expect emits: ["PalletStowed", "PickListGenerated"]
+  end
+
+  test "PickPallet runs" do
+    tests "PickPallet", on: "Pallet"
+    setup  "ReceivePallet", pallet_id: "sample", sku: "sample", quantity: 1
+    expect status: "picked"
+  end
+
+  test "StagePallet runs" do
+    tests "StagePallet", on: "Pallet"
+    setup  "ReceivePallet", pallet_id: "sample", sku: "sample", quantity: 1
+    setup  "PickPallet"
+    expect status: "staged"
+  end
+
+
+  # ── PickList aggregate ──────────────────────────────────────────
+
+  test "GeneratePickList sets priority + line_count" do
+    tests "GeneratePickList", on: "PickList"
+    input  priority: "sample", line_count: 1
+    expect status: "pending"
+  end
+
+  test "CompletePickList runs" do
+    tests "CompletePickList", on: "PickList"
+    setup  "GeneratePickList", priority: "sample", line_count: 1
+    expect status: "completed"
+  end
+
+  test "CompletePickList cascades through policy chain" do
+    tests "CompletePickList", on: "PickList", kind: :cascade
+    setup  "PrepareShipment", carrier: "sample", destination: "sample"
+    setup  "GeneratePickList", priority: "sample", line_count: 1
+    expect emits: ["PickListCompleted", "ShipmentPrepared"]
+  end
+
+
+  # ── Shipment aggregate ──────────────────────────────────────────
+
+  test "PrepareShipment sets carrier + destination" do
+    tests "PrepareShipment", on: "Shipment"
+    setup  "GeneratePickList", priority: "sample", line_count: 1
+    input  carrier: "sample", destination: "sample"
+    expect status: "packing"
+  end
+
+  test "LoadShipment runs" do
+    tests "LoadShipment", on: "Shipment"
+    setup  "PrepareShipment", carrier: "sample", destination: "sample"
+    expect status: "loaded"
+  end
+
+  test "LoadShipment cascades through policy chain" do
+    tests "LoadShipment", on: "Shipment", kind: :cascade
+    setup  "PrepareShipment", carrier: "sample", destination: "sample"
+    expect emits: ["ShipmentLoaded", "ShipmentDispatched"]
+  end
+
+  test "DispatchShipment runs" do
+    tests "DispatchShipment", on: "Shipment"
+    setup  "PrepareShipment", carrier: "sample", destination: "sample"
+    setup  "LoadShipment"
+    expect status: "dispatched"
+  end
+
+end

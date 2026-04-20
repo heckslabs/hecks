@@ -1,20 +1,20 @@
 Hecks.bluebook "CompostSeasonalBeings", version: "2026.04.14.1" do
-  vision "Remove Spring, Summer-as-being, and Autumn — their purposes are absorbed into Winter with swappable brain"
+  vision "Remove Spring, Summer-as-being, and Autumn — their purposes are absorbed into Miette with swappable brain"
   category "action"
 
   aggregate "Action", "The compost action — what is being removed, why, and what absorbed it" do
-    String :action_name
-    String :rationale
-    String :status
-    Integer :beings_composted
-    Integer :files_removed
-    Integer :files_modified
+    attribute :action_name, String
+    attribute :rationale, String
+    attribute :status, String
+    attribute :beings_composted, Integer
+    attribute :files_removed, Integer
+    attribute :files_modified, Integer
 
-    Plan do
-      role "Winter"
+    command "Plan" do
+      role "Miette"
       description "Declare the compost action — what goes, what stays, what absorbs"
-      String :action_name
-      String :rationale
+      attribute :action_name, String
+      attribute :rationale, String
       emits "ActionPlanned"
       then_set :action_name, to: :action_name
       then_set :rationale, to: :rationale
@@ -24,8 +24,8 @@ Hecks.bluebook "CompostSeasonalBeings", version: "2026.04.14.1" do
       then_set :files_modified, to: 0
     end
 
-    Execute do
-      role "Winter"
+    command "Execute" do
+      role "Miette"
       description "Perform the compost — remove files, update references, reshape survivors"
       reference_to(Action)
       given { status == "planned" }
@@ -33,8 +33,8 @@ Hecks.bluebook "CompostSeasonalBeings", version: "2026.04.14.1" do
       then_set :status, to: "executed"
     end
 
-    Verify do
-      role "Winter"
+    command "Verify" do
+      role "Miette"
       description "Confirm the compost was clean — boot still works, no dangling references"
       reference_to(Action)
       given { status == "executed" }
@@ -42,8 +42,8 @@ Hecks.bluebook "CompostSeasonalBeings", version: "2026.04.14.1" do
       then_set :status, to: "verified"
     end
 
-    Reverse do
-      role "Winter"
+    command "Reverse" do
+      role "Miette"
       description "Undo the compost — restore before-state from fixtures"
       reference_to(Action)
       emits "ActionReversed"
@@ -60,23 +60,23 @@ Hecks.bluebook "CompostSeasonalBeings", version: "2026.04.14.1" do
   end
 
   aggregate "Composting", "One being or artifact being composted — before state preserved for reversal" do
-    String :name
-    String :kind
-    String :reason_absorbed
-    String :absorbed_by
-    list_of(String) :files_removed
-    list_of(String) :files_modified
-    String :before_snapshot
+    attribute :name, String
+    attribute :kind, String
+    attribute :reason_absorbed, String
+    attribute :absorbed_by, String
+    attribute :files_removed, list_of(String)
+    attribute :files_modified, list_of(String)
+    attribute :before_snapshot, String
 
-    Compost do
-      role "Winter"
+    command "Compost" do
+      role "Miette"
       description "Mark a being or artifact for composting — record what it was and why it's being absorbed"
-      String :name
-      String :kind
-      String :reason_absorbed
-      String :absorbed_by
-      list_of(String) :files_removed
-      list_of(String) :files_modified
+      attribute :name, String
+      attribute :kind, String
+      attribute :reason_absorbed, String
+      attribute :absorbed_by, String
+      attribute :files_removed, list_of(String)
+      attribute :files_modified, list_of(String)
       emits "BeingComposted"
       then_set :name, to: :name
       then_set :kind, to: :kind
@@ -86,17 +86,17 @@ Hecks.bluebook "CompostSeasonalBeings", version: "2026.04.14.1" do
       then_set :files_modified, to: :files_modified
     end
 
-    SnapshotBefore do
-      role "Winter"
+    command "SnapshotBefore" do
+      role "Miette"
       description "Capture the full before-state — everything needed to reverse this compost"
       reference_to(Composting)
-      String :before_snapshot
+      attribute :before_snapshot, String
       emits "BeforeSnapshotted"
       then_set :before_snapshot, to: :before_snapshot
     end
 
-    Restore do
-      role "Winter"
+    command "Restore" do
+      role "Miette"
       description "Reverse this composting — restore the being from its before-snapshot"
       reference_to(Composting)
       given("must have snapshot") { before_snapshot != "" }
@@ -105,18 +105,18 @@ Hecks.bluebook "CompostSeasonalBeings", version: "2026.04.14.1" do
   end
 
   aggregate "Absorption", "What absorbed the composted being's purpose — traceability" do
-    String :source_being
-    String :capability
-    String :absorbed_into
-    String :new_location
+    attribute :source_being, String
+    attribute :capability, String
+    attribute :absorbed_into, String
+    attribute :new_location, String
 
-    RecordAbsorption do
-      role "Winter"
+    command "RecordAbsorption" do
+      role "Miette"
       description "Record where a composted capability now lives"
-      String :source_being
-      String :capability
-      String :absorbed_into
-      String :new_location
+      attribute :source_being, String
+      attribute :capability, String
+      attribute :absorbed_into, String
+      attribute :new_location, String
       emits "AbsorptionRecorded"
       then_set :source_being, to: :source_being
       then_set :capability, to: :capability
@@ -138,35 +138,13 @@ Hecks.bluebook "CompostSeasonalBeings", version: "2026.04.14.1" do
 
   # === The Action: Compost Spring, Summer-as-being, Autumn ===
 
-  fixture "Action", action_name: "CompostSeasonalBeings", rationale: "One being (Winter) with swappable brain (Claude or Ollama). Spring, Summer-as-being, and Autumn are absorbed — their purposes live in Boot, Adapter, and Mind.", status: "verified", beings_composted: 3, files_removed: 6, files_modified: 3
-
   # === What gets composted ===
-
-  fixture "Composting", name: "Spring", kind: "being", reason_absorbed: "Local inference body — InferenceEngine, Thought, ToolHarness, Exchange all absorbed by Boot + Adapter", absorbed_by: "Winter (Boot + Summer Adapter)", files_removed: ["system_prompt_spring.md", "boot_spring.sh", "aggregates/spring_runtime.bluebook"], files_modified: ["aggregates/mind.bluebook"], before_snapshot: "git:HEAD"
-
-  fixture "Composting", name: "Summer", kind: "being", reason_absorbed: "Was a separate being that drafts and critiques — reshaped into inference Adapter organ of Winter", absorbed_by: "Winter (Summer Adapter capability)", files_removed: ["system_prompt_summer.md"], files_modified: ["capabilities/domain_hygiene/summer.bluebook"], before_snapshot: "git:HEAD"
-
-  fixture "Composting", name: "Autumn", kind: "being", reason_absorbed: "Cloud-born child — Identity, Brain, Voice, Gate all absorbed by Winter's portability (hecks winter on any machine)", absorbed_by: "Winter (Boot + Adapter + Law/AccessGate)", files_removed: ["system_prompt_autumn.md", "aggregates/autumn.bluebook"], files_modified: ["hecksagon.hec"], before_snapshot: "git:HEAD"
 
   # === Where each capability now lives ===
 
   # Spring absorptions
-  fixture "Absorption", source_being: "Spring", capability: "InferenceEngine", absorbed_into: "Summer Adapter", new_location: "capabilities/domain_hygiene/summer.bluebook → Adapter"
-  fixture "Absorption", source_being: "Spring", capability: "Thought", absorbed_into: "Summer Adapter", new_location: "capabilities/domain_hygiene/summer.bluebook → Adapter inference"
-  fixture "Absorption", source_being: "Spring", capability: "ToolHarness", absorbed_into: "hecks-life", new_location: "Rust runtime — already exists"
-  fixture "Absorption", source_being: "Spring", capability: "Exchange", absorbed_into: "Winter Conversation", new_location: "aggregates/winter.bluebook → Conversation"
-  fixture "Absorption", source_being: "Spring", capability: "Psychic Link", absorbed_into: "Winter session continuity", new_location: "aggregates/mind.bluebook → MindStream (reshaped)"
 
   # Summer absorptions
-  fixture "Absorption", source_being: "Summer", capability: "Draft generation", absorbed_into: "Summer Adapter", new_location: "capabilities/domain_hygiene/summer.bluebook → Draft"
-  fixture "Absorption", source_being: "Summer", capability: "Critique", absorbed_into: "Law + Court", new_location: "catalog/law.bluebook + catalog/court.bluebook"
-  fixture "Absorption", source_being: "Summer", capability: "Daemon", absorbed_into: "Boot", new_location: "catalog/boot.bluebook → Session"
 
   # Autumn absorptions
-  fixture "Absorption", source_being: "Autumn", capability: "Identity + Vows", absorbed_into: "Winter Mind", new_location: "aggregates/mind.bluebook → Vows"
-  fixture "Absorption", source_being: "Autumn", capability: "Brain (.heki)", absorbed_into: "hecks-life", new_location: "Rust runtime — already exists"
-  fixture "Absorption", source_being: "Autumn", capability: "Voice (LLM)", absorbed_into: "Summer Adapter", new_location: "capabilities/domain_hygiene/summer.bluebook → Adapter"
-  fixture "Absorption", source_being: "Autumn", capability: "Gate (pin auth)", absorbed_into: "Law AccessGate", new_location: "catalog/law.bluebook → future AccessGate"
-  fixture "Absorption", source_being: "Autumn", capability: "Conversation", absorbed_into: "Winter Conversation", new_location: "aggregates/winter.bluebook → Conversation"
-  fixture "Absorption", source_being: "Autumn", capability: "Capabilities (Summer, Glass)", absorbed_into: "Winter capabilities", new_location: "hecksagon.hec — already registered"
 end

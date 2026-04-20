@@ -1,0 +1,83 @@
+Hecks.behaviors "DrugProcurement" do
+  vision "Behavioral tests for the DrugProcurement domain — exercises every command and query in memory"
+
+  # ── Compound aggregate ──────────────────────────────────────────
+
+  test "RegisterCompound sets compound_id + name + formula + therapeutic_class" do
+    tests "RegisterCompound", on: "Compound"
+    input  compound_id: "sample", name: "sample", formula: "sample", therapeutic_class: "sample"
+    expect compound_id: "sample", name: "sample", formula: "sample", therapeutic_class: "sample", regulatory_status: "pending"
+  end
+
+  test "ClearCompound runs" do
+    tests "ClearCompound", on: "Compound"
+    setup  "RegisterCompound", compound_id: "sample", name: "sample", formula: "sample", therapeutic_class: "sample"
+    expect regulatory_status: "cleared"
+  end
+
+  test "ClearCompound cascades through policy chain" do
+    tests "ClearCompound", on: "Compound", kind: :cascade
+    setup  "OpenBidRound", round_id: "sample", compound_id: "sample", reserve_price: 1.0
+    setup  "RegisterCompound", compound_id: "sample", name: "sample", formula: "sample", therapeutic_class: "sample"
+    expect emits: ["CompoundCleared", "BidRoundOpened"]
+  end
+
+
+  # ── BidRound aggregate ──────────────────────────────────────────
+
+  test "OpenBidRound sets round_id + compound_id + reserve_price" do
+    tests "OpenBidRound", on: "BidRound"
+    input  round_id: "sample", compound_id: "sample", reserve_price: 1.0
+    expect round_id: "sample", compound_id: "sample", reserve_price: 1.0, status: "open"
+  end
+
+  test "PlaceBid runs" do
+    tests "PlaceBid", on: "BidRound"
+    setup  "OpenBidRound", round_id: "sample", compound_id: "sample", reserve_price: 1.0
+    expect ok: "true"
+  end
+
+  test "CloseBidRound runs" do
+    tests "CloseBidRound", on: "BidRound"
+    setup  "OpenBidRound", round_id: "sample", compound_id: "sample", reserve_price: 1.0
+    expect status: "closed"
+  end
+
+  test "CloseBidRound cascades through policy chain" do
+    tests "CloseBidRound", on: "BidRound", kind: :cascade
+    setup  "AwardOrder", order_id: "sample", round_id: "sample", supplier_id: "sample", quantity: 1.0, total_price: 1.0
+    setup  "OpenBidRound", round_id: "sample", compound_id: "sample", reserve_price: 1.0
+    expect emits: ["BidRoundClosed", "OrderAwarded"]
+  end
+
+
+  # ── SupplierProfile aggregate ──────────────────────────────────────────
+
+  test "QualifySupplier sets supplier_id + company_name + country + gmp_certified" do
+    tests "QualifySupplier", on: "SupplierProfile"
+    input  supplier_id: "sample", company_name: "sample", country: "sample", gmp_certified: "sample"
+    expect supplier_id: "sample", company_name: "sample", country: "sample", gmp_certified: "sample", status: "qualified"
+  end
+
+  test "DisqualifySupplier runs" do
+    tests "DisqualifySupplier", on: "SupplierProfile"
+    setup  "QualifySupplier", supplier_id: "sample", company_name: "sample", country: "sample", gmp_certified: "sample"
+    expect status: "disqualified"
+  end
+
+
+  # ── PurchaseOrder aggregate ──────────────────────────────────────────
+
+  test "AwardOrder sets order_id + round_id + supplier_id + quantity + total_price" do
+    tests "AwardOrder", on: "PurchaseOrder"
+    input  order_id: "sample", round_id: "sample", supplier_id: "sample", quantity: 1.0, total_price: 1.0
+    expect order_id: "sample", round_id: "sample", supplier_id: "sample", quantity: 1.0, total_price: 1.0, status: "awarded"
+  end
+
+  test "ConfirmDelivery runs" do
+    tests "ConfirmDelivery", on: "PurchaseOrder"
+    setup  "AwardOrder", order_id: "sample", round_id: "sample", supplier_id: "sample", quantity: 1.0, total_price: 1.0
+    expect status: "delivered"
+  end
+
+end

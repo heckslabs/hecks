@@ -223,18 +223,4 @@ Hecks.bluebook "Optician", version: "2026.04.13.1" do
     trigger "ResolveClaim"
   end
 
-  fixture "Frame", frame_id: "RAY-BAN-001", brand: "Ray-Ban", model: "Wayfarer Classic", material: "acetate", color: "tortoiseshell", price: 150.0, quantity: 12, measurements: []
-  fixture "Frame", frame_id: "OAKLEY-002", brand: "Oakley", model: "Holbrook Metal", material: "titanium alloy", color: "matte black", price: 225.0, quantity: 8, measurements: []
-
-  fixture "Lens", lens_id: "LENS-2026-0401", lens_type: "progressive multifocal", material: "polycarbonate", coating: "anti-reflective", sphere: -2.5, cylinder: -0.75, axis: 180, price: 280.0
-  fixture "Lens", lens_id: "LENS-2026-0402", lens_type: "single vision distance", material: "high-index 1.67", coating: "blue-light filter", sphere: 1.25, cylinder: 0.0, axis: 0, price: 150.0
-
-  fixture "Prescription", prescription_id: "RX-2026-0401", patient_name: "Sarah Mitchell", doctor_name: "Dr. Jennifer Lee", issue_date: "2026-04-01", expiration_date: "2027-04-01", right_sphere: -2.5, left_sphere: -2.75, status: "active"
-  fixture "Prescription", prescription_id: "RX-2026-0402", patient_name: "Tom Richardson", doctor_name: "Dr. Michael Chen", issue_date: "2026-03-15", expiration_date: "2027-03-15", right_sphere: 1.25, left_sphere: 1.0, status: "active"
-
-  fixture "Fitting", fitting_id: "FIT-2026-0401", patient_name: "Sarah Mitchell", frame_id: "RAY-BAN-001", adjustments_made: "Nose pad height adjusted, temples tightened", satisfaction: "very satisfied"
-  fixture "Fitting", fitting_id: "FIT-2026-0402", patient_name: "Tom Richardson", frame_id: "OAKLEY-002", adjustments_made: "Bridge width reduced, temple flexibility improved", satisfaction: "satisfied"
-
-  fixture "InsuranceClaim", claim_id: "CLAIM-2026-0401", patient_name: "Sarah Mitchell", insurance_provider: "VSP Vision", amount_claimed: 285.0, status: "submitted"
-  fixture "InsuranceClaim", claim_id: "CLAIM-2026-0402", patient_name: "Tom Richardson", insurance_provider: "EyeMed", amount_claimed: 195.0, status: "submitted"
 end

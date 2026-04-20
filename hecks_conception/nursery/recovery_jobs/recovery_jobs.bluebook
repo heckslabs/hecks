@@ -28,12 +28,12 @@ Hecks.bluebook "RecoveryJobs", version: "2026.04.13.1" do
       then_set :skills_summary, to: :skills_summary
       then_set :status, to: "active"
     end
-    UpdateStage do
+    AdvanceStage do
       role "CaseManager"
       description "Update the recovery stage as client progresses"
       reference_to(RecoveryClient)
       String :recovery_stage
-      emits "StageUpdated"
+      emits "StageAdvanced"
       then_set :recovery_stage, to: :recovery_stage
     end
   end
@@ -60,12 +60,12 @@ Hecks.bluebook "RecoveryJobs", version: "2026.04.13.1" do
       then_set :recovery_friendly, to: "yes"
       then_set :status, to: "active"
     end
-    UpdatePositions do
+    AdjustPositions do
       role "Employer"
       description "Update the number of open positions"
       reference_to(EmployerPartner)
       Integer :open_positions
-      emits "PositionsUpdated"
+      emits "PositionsAdjusted"
       then_set :open_positions, to: :open_positions
     end
   end
@@ -141,15 +141,4 @@ Hecks.bluebook "RecoveryJobs", version: "2026.04.13.1" do
     trigger "RecordOutcome"
   end
 
-  fixture "RecoveryClient", client_id: "CLI-2025-001", name: "Jessica Lee", recovery_stage: "intermediate", skills_summary: "customer service, retail, basic IT", status: "active"
-  fixture "RecoveryClient", client_id: "CLI-2025-002", name: "David Brown", recovery_stage: "early", skills_summary: "construction, landscaping, equipment operation", status: "active"
-
-  fixture "EmployerPartner", employer_id: "EMP-2025-001", company_name: "SecondChance Logistics", industry: "transportation", open_positions: 5, recovery_friendly: "yes", status: "active"
-  fixture "EmployerPartner", employer_id: "EMP-2025-002", company_name: "GreenPath Services", industry: "environmental", open_positions: 3, recovery_friendly: "yes", status: "active"
-
-  fixture "JobMatch", match_id: "MAT-2025-001", client_id: "CLI-2025-001", employer_id: "EMP-2025-001", job_title: "Customer Service Rep", compatibility_score: 0.87, status: "accepted"
-  fixture "JobMatch", match_id: "MAT-2025-002", client_id: "CLI-2025-002", employer_id: "EMP-2025-002", job_title: "Field Technician", compatibility_score: 0.92, status: "proposed"
-
-  fixture "EmploymentOutcome", outcome_id: "OUT-2025-001", match_id: "MAT-2025-001", days_employed: 45, retention_status: "strong", supervisor_feedback: "Reliable and punctual, excellent attitude"
-  fixture "EmploymentOutcome", outcome_id: "OUT-2025-002", match_id: "MAT-2025-002", days_employed: 12, retention_status: "developing", supervisor_feedback: "Still learning systems but showing good effort"
 end

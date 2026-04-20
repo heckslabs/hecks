@@ -242,18 +242,4 @@ Hecks.bluebook "RecordStore", version: "2026.04.13.1" do
     trigger "SetupCrate"
   end
 
-  fixture "VinylRecord", catalog_number: "WARNER-LP-001", title: "Dark Side of the Moon", artist_name: "Pink Floyd", genre: "progressive rock", format: "LP", condition: "mint", price: 35.99, quantity: 3
-  fixture "VinylRecord", catalog_number: "MOTOWN-45-024", title: "Superstition", artist_name: "Stevie Wonder", genre: "funk", format: "single", condition: "very good", price: 12.50, quantity: 7
-
-  fixture "Artist", artist_id: "AFI-2024-1", name: "Miles Davis", genre: "jazz", biography: "Legendary jazz trumpeter and bandleader"
-  fixture "Artist", artist_id: "AFI-2024-2", name: "Aretha Franklin", genre: "soul", biography: "Queen of soul with unmatched vocal power"
-
-  fixture "Crate", crate_id: "CRATE-JAZZ-1", label: "Jazz Classics", location: "Front Left", capacity: 150, current_count: 42
-  fixture "Crate", crate_id: "CRATE-ROCK-3", label: "Classic Rock A-M", location: "Back Center", capacity: 200, current_count: 178
-
-  fixture "ListeningStation", station_id: "STATION-01", turntable_model: "Audio-Technica AT-LP120", current_record: "WARNER-LP-001", status: "available"
-  fixture "ListeningStation", station_id: "STATION-02", turntable_model: "Technics SL-1200MK2", current_record: "", status: "in_use"
-
-  fixture "SpecialOrder", order_id: "SO-2025-045", customer_name: "James Wilson", artist_name: "The Beatles", album_title: "Abbey Road", format_requested: "original pressing", status: "fulfilled"
-  fixture "SpecialOrder", order_id: "SO-2025-046", customer_name: "Maya Chen", artist_name: "David Bowie", album_title: "Ziggy Stardust", format_requested: "remaster 180g", status: "pending"
 end

@@ -1,0 +1,185 @@
+Hecks.behaviors "TraumaPipeline" do
+  vision "Behavioral tests for the TraumaPipeline domain — exercises every command and query in memory"
+
+  # ── TraumaCall aggregate ──────────────────────────────────────────
+
+  test "DispatchTrauma sets incident_type + location + severity + blood_type_needed + estimated_arrival_minutes" do
+    tests "DispatchTrauma", on: "TraumaCall"
+    input  incident_type: "sample", location: "sample", severity: "sample", blood_type_needed: "sample", estimated_arrival_minutes: 1
+    expect incident_type: "sample", location: "sample", severity: "sample", blood_type_needed: "sample", estimated_arrival_minutes: 1, status: "dispatched"
+  end
+
+  test "DispatchTrauma cascades through policy chain" do
+    tests "DispatchTrauma", on: "TraumaCall", kind: :cascade
+    setup  "MatchBloodType", patient_blood_type: "sample", donor_blood_type: "sample"
+    setup  "RegisterUnit", blood_type: "sample", product_type: "sample", donation_id: "sample", expiration_date: "sample"
+    setup  "PrepareBay", bay_number: "sample", trauma_level: "sample"
+    input  incident_type: "sample", location: "sample", severity: "sample", blood_type_needed: "sample", estimated_arrival_minutes: 1
+    expect emits: ["TraumaDispatched", "CrossMatchPerformed", "BloodUnitReserved", "BayPrepared"]
+  end
+
+  test "ReviseETA sets estimated_arrival_minutes" do
+    tests "ReviseETA", on: "TraumaCall"
+    setup  "DispatchTrauma", incident_type: "sample", location: "sample", severity: "sample", blood_type_needed: "sample", estimated_arrival_minutes: 1
+    input  estimated_arrival_minutes: 1
+    expect estimated_arrival_minutes: 1
+  end
+
+  test "ArriveAtBay runs" do
+    tests "ArriveAtBay", on: "TraumaCall"
+    setup  "DispatchTrauma", incident_type: "sample", location: "sample", severity: "sample", blood_type_needed: "sample", estimated_arrival_minutes: 1
+    expect status: "arrived"
+  end
+
+  test "CloseCall runs" do
+    tests "CloseCall", on: "TraumaCall"
+    setup  "DispatchTrauma", incident_type: "sample", location: "sample", severity: "sample", blood_type_needed: "sample", estimated_arrival_minutes: 1
+    setup  "ArriveAtBay"
+    expect status: "closed"
+  end
+
+  test "CloseCall cascades through policy chain" do
+    tests "CloseCall", on: "TraumaCall", kind: :cascade
+    setup  "PrepareBay", bay_number: "sample", trauma_level: "sample"
+    setup  "AssignCall"
+    setup  "DispatchTrauma", incident_type: "sample", location: "sample", severity: "sample", blood_type_needed: "sample", estimated_arrival_minutes: 1
+    setup  "ArriveAtBay"
+    expect emits: ["TraumaCallClosed", "BayReleased"]
+  end
+
+
+  # ── BloodUnit aggregate ──────────────────────────────────────────
+
+  test "RegisterUnit sets blood_type + product_type + donation_id + expiration_date" do
+    tests "RegisterUnit", on: "BloodUnit"
+    input  blood_type: "sample", product_type: "sample", donation_id: "sample", expiration_date: "sample"
+    expect blood_type: "sample", product_type: "sample", donation_id: "sample", expiration_date: "sample", status: "available"
+  end
+
+  test "ReserveUnit runs" do
+    tests "ReserveUnit", on: "BloodUnit"
+    setup  "RegisterUnit", blood_type: "sample", product_type: "sample", donation_id: "sample", expiration_date: "sample"
+    expect status: "reserved"
+  end
+
+  test "ReleaseUnit runs" do
+    tests "ReleaseUnit", on: "BloodUnit"
+    setup  "RegisterUnit", blood_type: "sample", product_type: "sample", donation_id: "sample", expiration_date: "sample"
+    setup  "ReserveUnit"
+    expect status: "available"
+  end
+
+  test "TransfuseUnit runs" do
+    tests "TransfuseUnit", on: "BloodUnit"
+    setup  "RegisterUnit", blood_type: "sample", product_type: "sample", donation_id: "sample", expiration_date: "sample"
+    setup  "ReserveUnit"
+    expect status: "transfused"
+  end
+
+
+  # ── ColdTransport aggregate ──────────────────────────────────────────
+
+  test "DeployBloodCourier sets courier_id + origin + destination" do
+    tests "DeployBloodCourier", on: "ColdTransport"
+    setup  "RegisterUnit", blood_type: "sample", product_type: "sample", donation_id: "sample", expiration_date: "sample"
+    input  courier_id: "sample", origin: "sample", destination: "sample"
+    expect blood_unit: 1, courier_id: "sample", origin: "sample", destination: "sample", status: "in_transit"
+  end
+
+  test "RecordTemperature sets temperature" do
+    tests "RecordTemperature", on: "ColdTransport"
+    setup  "DeployBloodCourier", courier_id: "sample", origin: "sample", destination: "sample"
+    input  temperature: 1.0
+    expect temperature: 1.0
+  end
+
+  test "RecordTemperature cascades through policy chain" do
+    tests "RecordTemperature", on: "ColdTransport", kind: :cascade
+    setup  "DeployBloodCourier", courier_id: "sample", origin: "sample", destination: "sample"
+    input  temperature: 1.0
+    expect emits: ["TemperatureRecorded", "ColdChainBreached"]
+  end
+
+  test "FlagTempBreach runs" do
+    tests "FlagTempBreach", on: "ColdTransport"
+    setup  "DeployBloodCourier", courier_id: "sample", origin: "sample", destination: "sample"
+    expect status: "breached"
+  end
+
+  test "DeliverBlood runs" do
+    tests "DeliverBlood", on: "ColdTransport"
+    setup  "DeployBloodCourier", courier_id: "sample", origin: "sample", destination: "sample"
+    expect status: "delivered"
+  end
+
+  test "DeliverBlood cascades through policy chain" do
+    tests "DeliverBlood", on: "ColdTransport", kind: :cascade
+    setup  "PrepareBay", bay_number: "sample", trauma_level: "sample"
+    setup  "DispatchTrauma", incident_type: "sample", location: "sample", severity: "sample", blood_type_needed: "sample", estimated_arrival_minutes: 1
+    setup  "DeployBloodCourier", courier_id: "sample", origin: "sample", destination: "sample"
+    expect emits: ["BloodDelivered", "BayAssignedToCall"]
+  end
+
+
+  # ── TraumaBay aggregate ──────────────────────────────────────────
+
+  test "PrepareBay sets bay_number + trauma_level" do
+    tests "PrepareBay", on: "TraumaBay"
+    input  bay_number: "sample", trauma_level: "sample"
+    expect bay_number: "sample", trauma_level: "sample", status: "prepared"
+  end
+
+  test "AssignCall runs" do
+    tests "AssignCall", on: "TraumaBay"
+    setup  "DispatchTrauma", incident_type: "sample", location: "sample", severity: "sample", blood_type_needed: "sample", estimated_arrival_minutes: 1
+    setup  "PrepareBay", bay_number: "sample", trauma_level: "sample"
+    expect active_call: 1, status: "assigned"
+  end
+
+  test "ReleaseBay runs" do
+    tests "ReleaseBay", on: "TraumaBay"
+    setup  "PrepareBay", bay_number: "sample", trauma_level: "sample"
+    setup  "AssignCall"
+    expect status: "available"
+  end
+
+
+  # ── CrossMatch aggregate ──────────────────────────────────────────
+
+  test "MatchBloodType sets patient_blood_type + donor_blood_type" do
+    tests "MatchBloodType", on: "CrossMatch"
+    setup  "RegisterUnit", blood_type: "sample", product_type: "sample", donation_id: "sample", expiration_date: "sample"
+    setup  "DispatchTrauma", incident_type: "sample", location: "sample", severity: "sample", blood_type_needed: "sample", estimated_arrival_minutes: 1
+    input  patient_blood_type: "sample", donor_blood_type: "sample"
+    expect trauma_call: 1, blood_unit: 1, patient_blood_type: "sample", donor_blood_type: "sample", status: "tested"
+  end
+
+  test "MatchBloodType cascades through policy chain" do
+    tests "MatchBloodType", on: "CrossMatch", kind: :cascade
+    setup  "DispatchTrauma", incident_type: "sample", location: "sample", severity: "sample", blood_type_needed: "sample", estimated_arrival_minutes: 1
+    setup  "RegisterUnit", blood_type: "sample", product_type: "sample", donation_id: "sample", expiration_date: "sample"
+    input  patient_blood_type: "sample", donor_blood_type: "sample"
+    expect emits: ["CrossMatchPerformed", "BloodUnitReserved"]
+  end
+
+  test "ApproveMatch runs" do
+    tests "ApproveMatch", on: "CrossMatch"
+    setup  "MatchBloodType", patient_blood_type: "sample", donor_blood_type: "sample"
+    expect result: "compatible", status: "approved"
+  end
+
+  test "ApproveMatch cascades through policy chain" do
+    tests "ApproveMatch", on: "CrossMatch", kind: :cascade
+    setup  "DeployBloodCourier", courier_id: "sample", origin: "sample", destination: "sample"
+    setup  "RegisterUnit", blood_type: "sample", product_type: "sample", donation_id: "sample", expiration_date: "sample"
+    setup  "MatchBloodType", patient_blood_type: "sample", donor_blood_type: "sample"
+    expect emits: ["CrossMatchApproved", "BloodCourierDeployed"]
+  end
+
+  test "RejectMatch runs" do
+    tests "RejectMatch", on: "CrossMatch"
+    setup  "MatchBloodType", patient_blood_type: "sample", donor_blood_type: "sample"
+    expect result: "incompatible", status: "rejected"
+  end
+
+end

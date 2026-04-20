@@ -1,0 +1,84 @@
+Hecks.behaviors "NutritionApp" do
+  vision "Behavioral tests for the NutritionApp domain — exercises every command and query in memory"
+
+  # ── MealPlan aggregate ──────────────────────────────────────────
+
+  test "ComposeMealPlan sets plan_id + user_name + goal + daily_calories" do
+    tests "ComposeMealPlan", on: "MealPlan"
+    input  plan_id: "sample", user_name: "sample", goal: "sample", daily_calories: 1
+    expect plan_id: "sample", user_name: "sample", goal: "sample", daily_calories: 1, status: "active"
+  end
+
+  test "AdjustPlan sets daily_calories" do
+    tests "AdjustPlan", on: "MealPlan"
+    setup  "ComposeMealPlan", plan_id: "sample", user_name: "sample", goal: "sample", daily_calories: 1
+    input  daily_calories: 1
+    expect daily_calories: 1
+  end
+
+
+  # ── FoodLog aggregate ──────────────────────────────────────────
+
+  test "StartDailyLog sets log_id + user_name + date" do
+    tests "StartDailyLog", on: "FoodLog"
+    input  log_id: "sample", user_name: "sample", date: "sample"
+    expect log_id: "sample", user_name: "sample", date: "sample", total_calories: 0
+  end
+
+  test "LogFood sets food_name + calories" do
+    tests "LogFood", on: "FoodLog"
+    setup  "StartDailyLog", log_id: "sample", user_name: "sample", date: "sample"
+    input  food_name: "sample", calories: 1
+    expect ok: "true"
+  end
+
+  test "LogFood cascades through policy chain" do
+    tests "LogFood", on: "FoodLog", kind: :cascade
+    setup  "StartDailyLog", log_id: "sample", user_name: "sample", date: "sample"
+    setup  "SetGoal", goal_id: "sample", user_name: "sample", nutrient: "sample", target_amount: 1.0, unit: "sample"
+    input  food_name: "sample", calories: 1
+    expect emits: ["FoodLogged", "ActualLogged"]
+  end
+
+
+  # ── BarcodeScan aggregate ──────────────────────────────────────────
+
+  test "ScanBarcode sets scan_id + barcode" do
+    tests "ScanBarcode", on: "BarcodeScan"
+    input  scan_id: "sample", barcode: "sample"
+    expect scan_id: "sample", barcode: "sample", status: "scanning"
+  end
+
+  test "ResolveProduct sets product_name + calories + serving_size_g" do
+    tests "ResolveProduct", on: "BarcodeScan"
+    setup  "ScanBarcode", scan_id: "sample", barcode: "sample"
+    input  product_name: "sample", calories: 1, serving_size_g: 1.0
+    expect product_name: "sample", calories: 1, serving_size_g: 1.0, status: "resolved"
+  end
+
+  test "ResolveProduct cascades through policy chain" do
+    tests "ResolveProduct", on: "BarcodeScan", kind: :cascade
+    setup  "StartDailyLog", log_id: "sample", user_name: "sample", date: "sample"
+    setup  "SetGoal", goal_id: "sample", user_name: "sample", nutrient: "sample", target_amount: 1.0, unit: "sample"
+    setup  "ScanBarcode", scan_id: "sample", barcode: "sample"
+    input  product_name: "sample", calories: 1, serving_size_g: 1.0
+    expect emits: ["ProductResolved", "FoodLogged", "ActualLogged"]
+  end
+
+
+  # ── NutrientGoal aggregate ──────────────────────────────────────────
+
+  test "SetGoal sets goal_id + user_name + nutrient + target_amount + unit" do
+    tests "SetGoal", on: "NutrientGoal"
+    input  goal_id: "sample", user_name: "sample", nutrient: "sample", target_amount: 1.0, unit: "sample"
+    expect goal_id: "sample", user_name: "sample", nutrient: "sample", target_amount: 1.0, unit: "sample", actual_amount: 0.0
+  end
+
+  test "LogActual sets actual_amount" do
+    tests "LogActual", on: "NutrientGoal"
+    setup  "SetGoal", goal_id: "sample", user_name: "sample", nutrient: "sample", target_amount: 1.0, unit: "sample"
+    input  actual_amount: 1.0
+    expect actual_amount: 1.0
+  end
+
+end

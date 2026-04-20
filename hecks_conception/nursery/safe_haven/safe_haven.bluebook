@@ -14,13 +14,13 @@ Hecks.bluebook "SafeHaven", version: "2026.04.13.1" do
       String :contact
       String :trigger_event
     end
-    CreateSafetyPlan do
+    IntakeSafetyPlan do
       role "Advocate"
       description "Create a personalized safety plan for a survivor"
       String :plan_id
       String :client_code
       String :advocate_name
-      emits "SafetyPlanCreated"
+      emits "SafetyPlanIntaken"
       then_set :plan_id, to: :plan_id
       then_set :client_code, to: :client_code
       then_set :advocate_name, to: :advocate_name
@@ -130,7 +130,7 @@ Hecks.bluebook "SafeHaven", version: "2026.04.13.1" do
   end
 
   policy "SecureOnPlan" do
-    on "SafetyPlanCreated"
+    on "SafetyPlanIntaken"
     trigger "AssessThreat"
   end
   policy "LockOnActivate" do
@@ -138,15 +138,4 @@ Hecks.bluebook "SafeHaven", version: "2026.04.13.1" do
     trigger "LockAccounts"
   end
 
-  fixture "SafetyPlan", plan_id: "sp-001", client_code: "CC-2024-001", advocate_name: "Maria Sanchez", status: "active"
-  fixture "SafetyPlan", plan_id: "sp-002", client_code: "CC-2024-002", advocate_name: "Dr. James Chen", status: "activated"
-
-  fixture "DigitalSecurity", profile_id: "ds-001", client_code: "CC-2024-001", threat_level: "high", status: "assessed"
-  fixture "DigitalSecurity", profile_id: "ds-002", client_code: "CC-2024-002", threat_level: "medium", status: "secured"
-
-  fixture "LocationPrivacy", privacy_id: "lp-001", client_code: "CC-2024-001", safe_address: "123 Oak St, Portland OR", vpn_status: "active", gps_spoofing: "enabled", status: "active"
-  fixture "LocationPrivacy", privacy_id: "lp-002", client_code: "CC-2024-002", safe_address: "456 Pine Ave, Seattle WA", vpn_status: "inactive", gps_spoofing: "disabled", status: "active"
-
-  fixture "IncidentLog", log_id: "il-001", client_code: "CC-2024-001", incident_type: "harassment", description_text: "Threatening phone calls received", date: "2026-03-15", reported_to: ""
-  fixture "IncidentLog", log_id: "il-002", client_code: "CC-2024-002", incident_type: "property_damage", description_text: "Apartment door damaged", date: "2026-03-20", reported_to: "Portland Police"
 end

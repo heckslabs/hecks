@@ -13,13 +13,6 @@ pub struct Domain {
     pub aggregates: Vec<Aggregate>,
     pub policies: Vec<Policy>,
     pub fixtures: Vec<Fixture>,
-    pub vows: Vec<Vow>,
-}
-
-#[derive(Debug)]
-pub struct Vow {
-    pub name: String,
-    pub text: String,
 }
 
 #[derive(Debug)]
@@ -28,6 +21,7 @@ pub struct Aggregate {
     pub description: Option<String>,
     pub attributes: Vec<Attribute>,
     pub commands: Vec<Command>,
+    pub queries: Vec<Query>,
     pub value_objects: Vec<ValueObject>,
     pub references: Vec<Reference>,
     pub lifecycle: Option<Lifecycle>,
@@ -51,6 +45,12 @@ pub struct Command {
     pub emits: Option<String>,
     pub givens: Vec<Given>,
     pub mutations: Vec<Mutation>,
+}
+
+#[derive(Debug)]
+pub struct Query {
+    pub name: String,
+    pub description: Option<String>,
 }
 
 #[derive(Debug)]
@@ -113,48 +113,35 @@ pub struct Transition {
 
 #[derive(Debug)]
 pub struct Fixture {
+    /// Optional logical identifier (set by the block form's first positional
+    /// arg). None for inline-form fixtures.
+    pub name: Option<String>,
     pub aggregate_name: String,
     pub attributes: Vec<(String, String)>,
 }
 
 impl fmt::Display for Domain {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} ({} aggregates)", self.name, self.aggregates.len())?;
-        if let Some(ref cat) = self.category {
-            write!(f, " [{}]", cat)?;
-        }
-        writeln!(f)?;
-        for agg in &self.aggregates {
-            writeln!(f, "  {} — {}", agg.name, agg.description.as_deref().unwrap_or(""))?;
-            for cmd in &agg.commands {
-                let givens = cmd.givens.len();
-                let mutations = cmd.mutations.len();
-                write!(f, "    {}", cmd.name)?;
-                if givens > 0 || mutations > 0 {
-                    write!(f, " ({} givens, {} mutations)", givens, mutations)?;
-                }
+        writeln!(f, "{}", self.name)?;
+        let agg_count = self.aggregates.len();
+        for (ai, agg) in self.aggregates.iter().enumerate() {
+            let is_last_agg = ai == agg_count - 1;
+            let prefix = if is_last_agg { "└──" } else { "├──" };
+            let cont = if is_last_agg { "    " } else { "│   " };
+            writeln!(f, "{} {} — {}", prefix, agg.name, agg.description.as_deref().unwrap_or(""))?;
+            let cmd_count = agg.commands.len();
+            for (ci, cmd) in agg.commands.iter().enumerate() {
+                let cmd_prefix = if ci == cmd_count - 1 { "└──" } else { "├──" };
+                write!(f, "{}{} {}", cont, cmd_prefix, cmd.name)?;
                 if let Some(ref emits) = cmd.emits {
-                    write!(f, " → {}", emits)?;
+                    write!(f, " -> {}", emits)?;
                 }
                 writeln!(f)?;
             }
         }
         if !self.policies.is_empty() {
-            writeln!(f)?;
-            writeln!(f, "Policies:")?;
             for pol in &self.policies {
-                if let Some(ref target) = pol.target_domain {
-                    writeln!(f, "  {} → {}:{}", pol.on_event, target, pol.trigger_command)?;
-                } else {
-                    writeln!(f, "  {} → {}", pol.on_event, pol.trigger_command)?;
-                }
-            }
-        }
-        if !self.vows.is_empty() {
-            writeln!(f)?;
-            writeln!(f, "Vows:")?;
-            for vow in &self.vows {
-                writeln!(f, "  {} — {}", vow.name, vow.text)?;
+                writeln!(f, "  {} : {} -> {}", pol.name, pol.on_event, pol.trigger_command)?;
             }
         }
         Ok(())

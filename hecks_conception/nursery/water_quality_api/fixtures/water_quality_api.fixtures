@@ -1,0 +1,18 @@
+Hecks.fixtures "WaterQualityAPI" do
+  aggregate "TreatmentPlant" do
+    fixture "TreatmentPlant1", plant_name: "Springfield Regional WTP", capacity_gallons: 50000000.0, status: "operational"
+    fixture "TreatmentPlant2", plant_name: "Riverside Municipal WTP", capacity_gallons: 75000000.0, status: "operational"
+  end
+  aggregate "WaterSample" do
+    fixture "WaterSample1", sample_point: "Post-treatment tank", collected_at: "2026-04-10T08:00:00Z", status: "collected"
+    fixture "WaterSample2", sample_point: "Distribution main", collected_at: "2026-04-10T12:00:00Z", status: "collected"
+  end
+  aggregate "APIEndpoint" do
+    fixture "APIEndpoint1", endpoint_path: "/api/v1/water-quality", description: "Real-time water quality metrics", rate_limit: 10000, status: "draft"
+    fixture "APIEndpoint2", endpoint_path: "/api/v1/treatment-status", description: "Treatment plant operational status", rate_limit: 5000, status: "draft"
+  end
+  aggregate "DataFeed" do
+    fixture "DataFeed1", feed_name: "Quality to API", frequency_seconds: 300, status: "configured"
+    fixture "DataFeed2", feed_name: "Plant metrics to API", frequency_seconds: 600, status: "configured"
+  end
+end

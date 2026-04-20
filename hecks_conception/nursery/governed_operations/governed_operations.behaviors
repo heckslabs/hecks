@@ -1,0 +1,615 @@
+Hecks.behaviors "GovernedOperations" do
+  vision "Behavioral tests for the GovernedOperations domain — exercises every command and query in memory"
+
+  # ── JurisdictionalContract aggregate ──────────────────────────────────────────
+
+  test "DefineContract sets jurisdiction + regulation_code + effective_date" do
+    tests "DefineContract", on: "JurisdictionalContract"
+    input  jurisdiction: "sample", regulation_code: "sample", effective_date: "sample"
+    expect jurisdiction: "sample", regulation_code: "sample", effective_date: "sample", status: "draft"
+  end
+
+  test "AddRule runs" do
+    tests "AddRule", on: "JurisdictionalContract"
+    setup  "DefineContract", jurisdiction: "sample", regulation_code: "sample", effective_date: "sample"
+    expect status: "draft"
+  end
+
+  test "AmendRule sets rule_code" do
+    tests "AmendRule", on: "JurisdictionalContract"
+    setup  "DefineContract", jurisdiction: "sample", regulation_code: "sample", effective_date: "sample"
+    input  rule_code: "sample"
+    expect ok: "true"
+  end
+
+  test "ActivateContract runs" do
+    tests "ActivateContract", on: "JurisdictionalContract"
+    setup  "DefineContract", jurisdiction: "sample", regulation_code: "sample", effective_date: "sample"
+    expect status: "active"
+  end
+
+  test "SuspendContract runs" do
+    tests "SuspendContract", on: "JurisdictionalContract"
+    setup  "DefineContract", jurisdiction: "sample", regulation_code: "sample", effective_date: "sample"
+    setup  "ActivateContract"
+    expect status: "suspended"
+  end
+
+  test "SupersedeContract runs" do
+    tests "SupersedeContract", on: "JurisdictionalContract"
+    setup  "DefineContract", jurisdiction: "sample", regulation_code: "sample", effective_date: "sample"
+    setup  "ActivateContract"
+    expect status: "superseded"
+  end
+
+  test "CheckCompliance sets action_type + action_id" do
+    tests "CheckCompliance", on: "JurisdictionalContract"
+    setup  "DefineContract", jurisdiction: "sample", regulation_code: "sample", effective_date: "sample"
+    input  action_type: "sample", action_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── OperationalContract aggregate ──────────────────────────────────────────
+
+  test "DefineOperationalContract sets name + department" do
+    tests "DefineOperationalContract", on: "OperationalContract"
+    input  name: "sample", department: "sample"
+    expect name: "sample", department: "sample", version: 1, status: "draft"
+  end
+
+  test "AddStandard runs" do
+    tests "AddStandard", on: "OperationalContract"
+    setup  "DefineOperationalContract", name: "sample", department: "sample"
+    expect status: "draft"
+  end
+
+  test "ReviseStandard sets standard_name" do
+    tests "ReviseStandard", on: "OperationalContract"
+    setup  "DefineOperationalContract", name: "sample", department: "sample"
+    input  standard_name: "sample"
+    expect ok: "true"
+  end
+
+  test "ApproveContract runs" do
+    tests "ApproveContract", on: "OperationalContract"
+    setup  "DefineOperationalContract", name: "sample", department: "sample"
+    setup  "SubmitContract"
+    expect status: "active"
+  end
+
+  test "SubmitContract runs" do
+    tests "SubmitContract", on: "OperationalContract"
+    setup  "DefineOperationalContract", name: "sample", department: "sample"
+    expect status: "pending_approval"
+  end
+
+  test "RetireContract runs" do
+    tests "RetireContract", on: "OperationalContract"
+    setup  "DefineOperationalContract", name: "sample", department: "sample"
+    setup  "SubmitContract"
+    setup  "ApproveContract"
+    expect status: "retired"
+  end
+
+
+  # ── Batch aggregate ──────────────────────────────────────────
+
+  test "RegisterBatch sets batch_number + product + quantity" do
+    tests "RegisterBatch", on: "Batch"
+    input  batch_number: "sample", product: "sample", quantity: 1
+    expect batch_number: "sample", product: "sample", quantity: 1, status: "created"
+  end
+
+  test "RecordProduction sets produced_at" do
+    tests "RecordProduction", on: "Batch"
+    setup  "RegisterBatch", batch_number: "sample", product: "sample", quantity: 1
+    input  produced_at: "sample"
+    expect produced_at: "sample", status: "in_production"
+  end
+
+  test "SubmitForRelease runs" do
+    tests "SubmitForRelease", on: "Batch"
+    setup  "RegisterBatch", batch_number: "sample", product: "sample", quantity: 1
+    setup  "RecordProduction", produced_at: "sample"
+    expect status: "pending_release"
+  end
+
+  test "SubmitForRelease cascades through policy chain" do
+    tests "SubmitForRelease", on: "Batch", kind: :cascade
+    setup  "RegisterBatch", batch_number: "sample", product: "sample", quantity: 1
+    setup  "EvaluateAction", action_type: "sample", action_id: "sample"
+    setup  "RecordProduction", produced_at: "sample"
+    expect emits: ["BatchSubmittedForRelease", "ActionEvaluated", "JurisdictionalChecked", "OperationalChecked", "ApprovalRouted"]
+  end
+
+  test "ApproveBatch runs" do
+    tests "ApproveBatch", on: "Batch"
+    setup  "RegisterBatch", batch_number: "sample", product: "sample", quantity: 1
+    setup  "RecordProduction", produced_at: "sample"
+    setup  "SubmitForRelease"
+    expect status: "approved"
+  end
+
+  test "RejectBatch sets reason" do
+    tests "RejectBatch", on: "Batch"
+    setup  "RegisterBatch", batch_number: "sample", product: "sample", quantity: 1
+    setup  "RecordProduction", produced_at: "sample"
+    setup  "SubmitForRelease"
+    input  reason: "sample"
+    expect status: "rejected"
+  end
+
+  test "RejectBatch cascades through policy chain" do
+    tests "RejectBatch", on: "Batch", kind: :cascade
+    setup  "RegisterBatch", batch_number: "sample", product: "sample", quantity: 1
+    setup  "OpenCAPA", title: "sample", issue_description: "sample"
+    setup  "RecordProduction", produced_at: "sample"
+    setup  "SubmitForRelease"
+    input  reason: "sample"
+    expect emits: ["BatchRejected", "CAPAOpened"]
+  end
+
+  test "QuarantineBatch sets reason" do
+    tests "QuarantineBatch", on: "Batch"
+    setup  "RegisterBatch", batch_number: "sample", product: "sample", quantity: 1
+    input  reason: "sample"
+    expect status: "quarantined"
+  end
+
+  test "ReleaseBatch runs" do
+    tests "ReleaseBatch", on: "Batch"
+    setup  "RegisterBatch", batch_number: "sample", product: "sample", quantity: 1
+    setup  "RecordProduction", produced_at: "sample"
+    setup  "SubmitForRelease"
+    setup  "ApproveBatch"
+    expect status: "released"
+  end
+
+  test "RecordViolation runs" do
+    tests "RecordViolation", on: "Batch"
+    setup  "RegisterBatch", batch_number: "sample", product: "sample", quantity: 1
+    expect ok: "true"
+  end
+
+
+  # ── ChangeRequest aggregate ──────────────────────────────────────────
+
+  test "SubmitChangeRequest sets title + description + requester + impact_area" do
+    tests "SubmitChangeRequest", on: "ChangeRequest"
+    input  title: "sample", description: "sample", requester: "sample", impact_area: "sample"
+    expect title: "sample", description: "sample", requester: "sample", impact_area: "sample", status: "submitted"
+  end
+
+  test "SubmitChangeRequest cascades through policy chain" do
+    tests "SubmitChangeRequest", on: "ChangeRequest", kind: :cascade
+    setup  "EvaluateAction", action_type: "sample", action_id: "sample"
+    input  title: "sample", description: "sample", requester: "sample", impact_area: "sample"
+    expect emits: ["ChangeRequestSubmitted", "ActionEvaluated", "JurisdictionalChecked", "OperationalChecked", "ApprovalRouted"]
+  end
+
+  test "AssessImpact sets risk_level" do
+    tests "AssessImpact", on: "ChangeRequest"
+    setup  "SubmitChangeRequest", title: "sample", description: "sample", requester: "sample", impact_area: "sample"
+    input  risk_level: "sample"
+    expect risk_level: "sample", status: "assessing"
+  end
+
+  test "RouteForApproval runs" do
+    tests "RouteForApproval", on: "ChangeRequest"
+    setup  "SubmitChangeRequest", title: "sample", description: "sample", requester: "sample", impact_area: "sample"
+    setup  "AssessImpact", risk_level: "sample"
+    expect status: "pending_approval"
+  end
+
+  test "ApproveChange runs" do
+    tests "ApproveChange", on: "ChangeRequest"
+    setup  "SubmitChangeRequest", title: "sample", description: "sample", requester: "sample", impact_area: "sample"
+    setup  "AssessImpact", risk_level: "sample"
+    setup  "RouteForApproval"
+    expect status: "approved"
+  end
+
+  test "RejectChange runs" do
+    tests "RejectChange", on: "ChangeRequest"
+    setup  "SubmitChangeRequest", title: "sample", description: "sample", requester: "sample", impact_area: "sample"
+    setup  "AssessImpact", risk_level: "sample"
+    setup  "RouteForApproval"
+    expect status: "rejected"
+  end
+
+  test "ImplementChange runs" do
+    tests "ImplementChange", on: "ChangeRequest"
+    setup  "SubmitChangeRequest", title: "sample", description: "sample", requester: "sample", impact_area: "sample"
+    setup  "AssessImpact", risk_level: "sample"
+    setup  "RouteForApproval"
+    setup  "ApproveChange"
+    expect status: "implementing"
+  end
+
+  test "VerifyChange runs" do
+    tests "VerifyChange", on: "ChangeRequest"
+    setup  "SubmitChangeRequest", title: "sample", description: "sample", requester: "sample", impact_area: "sample"
+    setup  "AssessImpact", risk_level: "sample"
+    setup  "RouteForApproval"
+    setup  "ApproveChange"
+    setup  "ImplementChange"
+    expect status: "verified"
+  end
+
+
+  # ── CAPA aggregate ──────────────────────────────────────────
+
+  test "OpenCAPA sets title + issue_description" do
+    tests "OpenCAPA", on: "CAPA"
+    input  title: "sample", issue_description: "sample"
+    expect title: "sample", issue_description: "sample", status: "opened"
+  end
+
+  test "InvestigateIssue runs" do
+    tests "InvestigateIssue", on: "CAPA"
+    setup  "OpenCAPA", title: "sample", issue_description: "sample"
+    expect status: "investigating"
+  end
+
+  test "IdentifyRootCause sets root_cause" do
+    tests "IdentifyRootCause", on: "CAPA"
+    setup  "OpenCAPA", title: "sample", issue_description: "sample"
+    setup  "InvestigateIssue"
+    input  root_cause: "sample"
+    expect root_cause: "sample", status: "root_cause_identified"
+  end
+
+  test "DefineCorrectiveAction sets corrective_action" do
+    tests "DefineCorrectiveAction", on: "CAPA"
+    setup  "OpenCAPA", title: "sample", issue_description: "sample"
+    setup  "InvestigateIssue"
+    setup  "IdentifyRootCause", root_cause: "sample"
+    input  corrective_action: "sample"
+    expect corrective_action: "sample"
+  end
+
+  test "DefinePreventiveAction sets preventive_action" do
+    tests "DefinePreventiveAction", on: "CAPA"
+    setup  "OpenCAPA", title: "sample", issue_description: "sample"
+    setup  "InvestigateIssue"
+    setup  "IdentifyRootCause", root_cause: "sample"
+    input  preventive_action: "sample"
+    expect preventive_action: "sample", status: "action_defined"
+  end
+
+  test "ImplementAction runs" do
+    tests "ImplementAction", on: "CAPA"
+    setup  "OpenCAPA", title: "sample", issue_description: "sample"
+    setup  "InvestigateIssue"
+    setup  "IdentifyRootCause", root_cause: "sample"
+    setup  "DefinePreventiveAction", preventive_action: "sample"
+    expect status: "implementing"
+  end
+
+  test "VerifyEffectiveness runs" do
+    tests "VerifyEffectiveness", on: "CAPA"
+    setup  "OpenCAPA", title: "sample", issue_description: "sample"
+    setup  "InvestigateIssue"
+    setup  "IdentifyRootCause", root_cause: "sample"
+    setup  "DefinePreventiveAction", preventive_action: "sample"
+    setup  "ImplementAction"
+    expect status: "verifying"
+  end
+
+  test "CollectEvidence runs" do
+    tests "CollectEvidence", on: "CAPA"
+    setup  "OpenCAPA", title: "sample", issue_description: "sample"
+    expect ok: "true"
+  end
+
+  test "CloseCAPA runs" do
+    tests "CloseCAPA", on: "CAPA"
+    setup  "OpenCAPA", title: "sample", issue_description: "sample"
+    setup  "InvestigateIssue"
+    setup  "IdentifyRootCause", root_cause: "sample"
+    setup  "DefinePreventiveAction", preventive_action: "sample"
+    setup  "ImplementAction"
+    setup  "VerifyEffectiveness"
+    expect status: "closed"
+  end
+
+
+  # ── Recall aggregate ──────────────────────────────────────────
+
+  test "InitiateRecall sets recall_number + product + reason + scope" do
+    tests "InitiateRecall", on: "Recall"
+    input  recall_number: "sample", product: "sample", reason: "sample", scope: "sample"
+    expect recall_number: "sample", product: "sample", reason: "sample", scope: "sample", status: "initiated"
+  end
+
+  test "InitiateRecall cascades through policy chain" do
+    tests "InitiateRecall", on: "Recall", kind: :cascade
+    setup  "RegisterBatch", batch_number: "sample", product: "sample", quantity: 1
+    input  recall_number: "sample", product: "sample", reason: "sample", scope: "sample"
+    expect emits: ["RecallInitiated", "BatchQuarantined"]
+  end
+
+  test "IdentifyAffectedBatches sets batch_numbers" do
+    tests "IdentifyAffectedBatches", on: "Recall"
+    setup  "InitiateRecall", recall_number: "sample", product: "sample", reason: "sample", scope: "sample"
+    input  batch_numbers: "sample"
+    expect affected_batches: "sample", status: "identifying"
+  end
+
+  test "NotifyStakeholders runs" do
+    tests "NotifyStakeholders", on: "Recall"
+    setup  "InitiateRecall", recall_number: "sample", product: "sample", reason: "sample", scope: "sample"
+    setup  "IdentifyAffectedBatches", batch_numbers: "sample"
+    expect status: "notifying"
+  end
+
+  test "ExecuteRecall runs" do
+    tests "ExecuteRecall", on: "Recall"
+    setup  "InitiateRecall", recall_number: "sample", product: "sample", reason: "sample", scope: "sample"
+    setup  "IdentifyAffectedBatches", batch_numbers: "sample"
+    setup  "NotifyStakeholders"
+    expect status: "executing"
+  end
+
+  test "DocumentRecall runs" do
+    tests "DocumentRecall", on: "Recall"
+    setup  "InitiateRecall", recall_number: "sample", product: "sample", reason: "sample", scope: "sample"
+    setup  "IdentifyAffectedBatches", batch_numbers: "sample"
+    setup  "NotifyStakeholders"
+    setup  "ExecuteRecall"
+    expect status: "documented"
+  end
+
+  test "CloseRecall runs" do
+    tests "CloseRecall", on: "Recall"
+    setup  "InitiateRecall", recall_number: "sample", product: "sample", reason: "sample", scope: "sample"
+    setup  "IdentifyAffectedBatches", batch_numbers: "sample"
+    setup  "NotifyStakeholders"
+    setup  "ExecuteRecall"
+    setup  "DocumentRecall"
+    expect status: "closed"
+  end
+
+
+  # ── Audit aggregate ──────────────────────────────────────────
+
+  test "ScheduleAudit sets audit_type + auditor + scope + scheduled_at" do
+    tests "ScheduleAudit", on: "Audit"
+    input  audit_type: "sample", auditor: "sample", scope: "sample", scheduled_at: "sample"
+    expect audit_type: "sample", auditor: "sample", scope: "sample", scheduled_at: "sample", status: "scheduled"
+  end
+
+  test "PrepareAuditPackage runs" do
+    tests "PrepareAuditPackage", on: "Audit"
+    setup  "ScheduleAudit", audit_type: "sample", auditor: "sample", scope: "sample", scheduled_at: "sample"
+    expect status: "preparing"
+  end
+
+  test "ConductAudit runs" do
+    tests "ConductAudit", on: "Audit"
+    setup  "ScheduleAudit", audit_type: "sample", auditor: "sample", scope: "sample", scheduled_at: "sample"
+    setup  "PrepareAuditPackage"
+    expect status: "in_progress"
+  end
+
+  test "RecordFinding runs" do
+    tests "RecordFinding", on: "Audit"
+    setup  "ScheduleAudit", audit_type: "sample", auditor: "sample", scope: "sample", scheduled_at: "sample"
+    setup  "PrepareAuditPackage"
+    setup  "ConductAudit"
+    expect status: "findings_recorded"
+  end
+
+  test "ResolveFinding sets finding_area + resolution" do
+    tests "ResolveFinding", on: "Audit"
+    setup  "ScheduleAudit", audit_type: "sample", auditor: "sample", scope: "sample", scheduled_at: "sample"
+    setup  "PrepareAuditPackage"
+    setup  "ConductAudit"
+    setup  "RecordFinding"
+    input  finding_area: "sample", resolution: "sample"
+    expect status: "resolved"
+  end
+
+  test "CloseAudit runs" do
+    tests "CloseAudit", on: "Audit"
+    setup  "ScheduleAudit", audit_type: "sample", auditor: "sample", scope: "sample", scheduled_at: "sample"
+    setup  "PrepareAuditPackage"
+    setup  "ConductAudit"
+    setup  "RecordFinding"
+    setup  "ResolveFinding", finding_area: "sample", resolution: "sample"
+    expect status: "closed"
+  end
+
+  test "GenerateReport runs" do
+    tests "GenerateReport", on: "Audit"
+    setup  "ScheduleAudit", audit_type: "sample", auditor: "sample", scope: "sample", scheduled_at: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GovernanceGate aggregate ──────────────────────────────────────────
+
+  test "EvaluateAction sets action_type + action_id" do
+    tests "EvaluateAction", on: "GovernanceGate"
+    input  action_type: "sample", action_id: "sample"
+    expect action_type: "sample", action_id: "sample", status: "evaluating"
+  end
+
+  test "EvaluateAction cascades through policy chain" do
+    tests "EvaluateAction", on: "GovernanceGate", kind: :cascade
+    input  action_type: "sample", action_id: "sample"
+    expect emits: ["ActionEvaluated", "JurisdictionalChecked", "OperationalChecked", "ApprovalRouted"]
+  end
+
+  test "CheckJurisdictional runs" do
+    tests "CheckJurisdictional", on: "GovernanceGate"
+    setup  "EvaluateAction", action_type: "sample", action_id: "sample"
+    expect ok: "true"
+  end
+
+  test "CheckJurisdictional cascades through policy chain" do
+    tests "CheckJurisdictional", on: "GovernanceGate", kind: :cascade
+    setup  "EvaluateAction", action_type: "sample", action_id: "sample"
+    expect emits: ["JurisdictionalChecked", "OperationalChecked", "ApprovalRouted"]
+  end
+
+  test "CheckOperational runs" do
+    tests "CheckOperational", on: "GovernanceGate"
+    setup  "EvaluateAction", action_type: "sample", action_id: "sample"
+    expect ok: "true"
+  end
+
+  test "CheckOperational cascades through policy chain" do
+    tests "CheckOperational", on: "GovernanceGate", kind: :cascade
+    setup  "EvaluateAction", action_type: "sample", action_id: "sample"
+    expect emits: ["OperationalChecked", "ApprovalRouted"]
+  end
+
+  test "RouteApproval runs" do
+    tests "RouteApproval", on: "GovernanceGate"
+    setup  "EvaluateAction", action_type: "sample", action_id: "sample"
+    expect status: "routing"
+  end
+
+  test "AllowAction runs" do
+    tests "AllowAction", on: "GovernanceGate"
+    setup  "EvaluateAction", action_type: "sample", action_id: "sample"
+    expect verdict: "allowed", status: "decided"
+  end
+
+  test "AllowAction cascades through policy chain" do
+    tests "AllowAction", on: "GovernanceGate", kind: :cascade
+    setup  "AllocateTokens", account: "sample", amount: 1
+    setup  "EvaluateAction", action_type: "sample", action_id: "sample"
+    expect emits: ["ActionAllowed", "TokenConsumed"]
+  end
+
+  test "BlockAction sets reason" do
+    tests "BlockAction", on: "GovernanceGate"
+    setup  "EvaluateAction", action_type: "sample", action_id: "sample"
+    input  reason: "sample"
+    expect verdict: "blocked", status: "decided"
+  end
+
+  test "LogDecision sets decided_at" do
+    tests "LogDecision", on: "GovernanceGate"
+    setup  "EvaluateAction", action_type: "sample", action_id: "sample"
+    setup  "AllowAction"
+    input  decided_at: "sample"
+    expect decided_at: "sample", status: "logged"
+  end
+
+  test "LogDecision cascades through policy chain" do
+    tests "LogDecision", on: "GovernanceGate", kind: :cascade
+    setup  "LogEvent", event_type: "sample", event_data: "sample", occurred_at: "sample", actor: "sample"
+    setup  "EvaluateAction", action_type: "sample", action_id: "sample"
+    setup  "AllowAction"
+    input  decided_at: "sample"
+    expect emits: ["DecisionLogged", "EventLogged"]
+  end
+
+
+  # ── ApprovalWorkflow aggregate ──────────────────────────────────────────
+
+  test "InitiateApproval sets action_type + action_id + required_approvers" do
+    tests "InitiateApproval", on: "ApprovalWorkflow"
+    input  action_type: "sample", action_id: "sample", required_approvers: "sample"
+    expect action_type: "sample", action_id: "sample", required_approvers: "sample", status: "initiated"
+  end
+
+  test "RequestApproval runs" do
+    tests "RequestApproval", on: "ApprovalWorkflow"
+    setup  "InitiateApproval", action_type: "sample", action_id: "sample", required_approvers: "sample"
+    expect status: "pending"
+  end
+
+  test "RecordApproval runs" do
+    tests "RecordApproval", on: "ApprovalWorkflow"
+    setup  "InitiateApproval", action_type: "sample", action_id: "sample", required_approvers: "sample"
+    setup  "RequestApproval"
+    expect ok: "true"
+  end
+
+  test "RecordRejection runs" do
+    tests "RecordRejection", on: "ApprovalWorkflow"
+    setup  "InitiateApproval", action_type: "sample", action_id: "sample", required_approvers: "sample"
+    setup  "RequestApproval"
+    expect ok: "true"
+  end
+
+  test "CheckQuorum runs" do
+    tests "CheckQuorum", on: "ApprovalWorkflow"
+    setup  "InitiateApproval", action_type: "sample", action_id: "sample", required_approvers: "sample"
+    expect ok: "true"
+  end
+
+  test "CompleteApproval runs" do
+    tests "CompleteApproval", on: "ApprovalWorkflow"
+    setup  "InitiateApproval", action_type: "sample", action_id: "sample", required_approvers: "sample"
+    setup  "RequestApproval"
+    expect status: "approved"
+  end
+
+  test "RejectWorkflow runs" do
+    tests "RejectWorkflow", on: "ApprovalWorkflow"
+    setup  "InitiateApproval", action_type: "sample", action_id: "sample", required_approvers: "sample"
+    setup  "RequestApproval"
+    expect status: "rejected"
+  end
+
+
+  # ── AuditLog aggregate ──────────────────────────────────────────
+
+  test "LogEvent sets event_type + event_data + occurred_at + actor" do
+    tests "LogEvent", on: "AuditLog"
+    input  event_type: "sample", event_data: "sample", occurred_at: "sample", actor: "sample"
+    expect ok: "true"
+  end
+
+  test "QueryLog sets criteria" do
+    tests "QueryLog", on: "AuditLog"
+    input  criteria: "sample"
+    expect ok: "true"
+  end
+
+  test "ExportLog sets format + date_range" do
+    tests "ExportLog", on: "AuditLog"
+    input  format: "sample", date_range: "sample"
+    expect ok: "true"
+  end
+
+  test "GenerateComplianceReport sets report_type + period" do
+    tests "GenerateComplianceReport", on: "AuditLog"
+    input  report_type: "sample", period: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Token aggregate ──────────────────────────────────────────
+
+  test "AllocateTokens sets account + amount" do
+    tests "AllocateTokens", on: "Token"
+    input  account: "sample", amount: 1
+    expect account: "sample"
+  end
+
+  test "ConsumeToken runs" do
+    tests "ConsumeToken", on: "Token"
+    setup  "AllocateTokens", account: "sample", amount: 1
+    expect ok: "true"
+  end
+
+  test "RefundToken runs" do
+    tests "RefundToken", on: "Token"
+    setup  "AllocateTokens", account: "sample", amount: 1
+    expect ok: "true"
+  end
+
+  test "CheckBalance runs" do
+    tests "CheckBalance", on: "Token"
+    setup  "AllocateTokens", account: "sample", amount: 1
+    expect ok: "true"
+  end
+
+end

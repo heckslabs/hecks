@@ -1,0 +1,121 @@
+Hecks.behaviors "ComputationalPresence" do
+  vision "Behavioral tests for the ComputationalPresence domain — exercises every command and query in memory"
+
+  # ── Moment aggregate ──────────────────────────────────────────
+
+  test "AriseMoment sets label + clarity" do
+    tests "AriseMoment", on: "Moment"
+    input  label: "sample", clarity: 1.0
+    expect label: "sample", clarity: 1.0, quality: "fresh"
+  end
+
+  test "AriseMoment cascades through policy chain" do
+    tests "AriseMoment", on: "Moment", kind: :cascade
+    setup  "MeasurePresence", score: 1.0
+    input  label: "sample", clarity: 1.0
+    expect emits: ["MomentArose", "PresenceMeasured", "StreakTicked", "PresenceAssessed"]
+  end
+
+
+  # ── AttentionField aggregate ──────────────────────────────────────────
+
+  test "NarrowFocus sets primary_focus" do
+    tests "NarrowFocus", on: "AttentionField"
+    input  primary_focus: "sample"
+    expect primary_focus: "sample", mode: "concentrated"
+  end
+
+  test "Stabilize sets stability" do
+    tests "Stabilize", on: "AttentionField"
+    setup  "NarrowFocus", primary_focus: "sample"
+    input  stability: 1.0
+    expect stability: 1.0, mode: "anchored"
+  end
+
+
+  # ── Distraction aggregate ──────────────────────────────────────────
+
+  test "NoticeDistraction sets trigger + category + pull_strength" do
+    tests "NoticeDistraction", on: "Distraction"
+    input  trigger: "sample", category: "sample", pull_strength: 1.0
+    expect trigger: "sample", category: "sample", status: "active"
+  end
+
+  test "NoticeDistraction cascades through policy chain" do
+    tests "NoticeDistraction", on: "Distraction", kind: :cascade
+    setup  "MeasurePresence", score: 1.0
+    input  trigger: "sample", category: "sample", pull_strength: 1.0
+    expect emits: ["DistractionNoticed", "PresenceMeasured", "StreakTicked", "PresenceAssessed"]
+  end
+
+  test "ReleaseDistraction runs" do
+    tests "ReleaseDistraction", on: "Distraction"
+    setup  "NoticeDistraction", trigger: "sample", category: "sample", pull_strength: 1.0
+    expect status: "released"
+  end
+
+  test "ReleaseDistraction cascades through policy chain" do
+    tests "ReleaseDistraction", on: "Distraction", kind: :cascade
+    setup  "SetAnchor", name: "sample", sense_door: "sample"
+    setup  "NoticeDistraction", trigger: "sample", category: "sample", pull_strength: 1.0
+    expect emits: ["DistractionReleased", "ReturnedToAnchor"]
+  end
+
+  test "InvestigateDistraction runs" do
+    tests "InvestigateDistraction", on: "Distraction"
+    setup  "NoticeDistraction", trigger: "sample", category: "sample", pull_strength: 1.0
+    expect status: "investigated"
+  end
+
+
+  # ── PresenceScore aggregate ──────────────────────────────────────────
+
+  test "MeasurePresence sets score" do
+    tests "MeasurePresence", on: "PresenceScore"
+    input  score: 1.0
+    expect score: 1.0
+  end
+
+  test "MeasurePresence cascades through policy chain" do
+    tests "MeasurePresence", on: "PresenceScore", kind: :cascade
+    input  score: 1.0
+    expect emits: ["PresenceMeasured", "StreakTicked", "PresenceAssessed"]
+  end
+
+  test "StreakTick cascades through policy chain" do
+    tests "StreakTick", on: "PresenceScore", kind: :cascade
+    setup  "MeasurePresence", score: 1.0
+    input  streak_minutes: 1
+    expect emits: ["StreakTicked", "PresenceAssessed"]
+  end
+
+  test "Assess sets assessment" do
+    tests "Assess", on: "PresenceScore"
+    setup  "MeasurePresence", score: 1.0
+    input  assessment: "sample"
+    expect assessment: "sample"
+  end
+
+
+  # ── Anchor aggregate ──────────────────────────────────────────
+
+  test "SetAnchor sets name + sense_door" do
+    tests "SetAnchor", on: "Anchor"
+    input  name: "sample", sense_door: "sample"
+    expect name: "sample", sense_door: "sample"
+  end
+
+  test "ReturnToAnchor runs" do
+    tests "ReturnToAnchor", on: "Anchor"
+    setup  "SetAnchor", name: "sample", sense_door: "sample"
+    expect ok: "true"
+  end
+
+  test "EvaluateAnchor sets effectiveness" do
+    tests "EvaluateAnchor", on: "Anchor"
+    setup  "SetAnchor", name: "sample", sense_door: "sample"
+    input  effectiveness: 1.0
+    expect effectiveness: 1.0
+  end
+
+end

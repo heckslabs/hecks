@@ -1,0 +1,12 @@
+Hecks.fixtures "Boot" do
+  aggregate "Session" do
+    fixture "Session1", engine: "claude", status: "live", started_at: "2026-04-14T10:00:00Z", organ_count: 19, nerve_count: 11, law_count: 13, brain_source: "anthropic"
+    fixture "Session2", engine: "summer", status: "live", started_at: "2026-04-14T10:00:00Z", organ_count: 19, nerve_count: 11, law_count: 13, brain_source: "local"
+    fixture "Session3", engine: "", status: "failed", started_at: "", organ_count: 0, nerve_count: 0, law_count: 0, brain_source: ""
+  end
+  aggregate "BrainProbe" do
+    fixture "BrainProbe1", claude_available: true, ollama_running: true, summer_adapter_present: true, recommended_engine: "claude"
+    fixture "BrainProbe2", claude_available: false, ollama_running: true, summer_adapter_present: true, recommended_engine: "summer"
+    fixture "BrainProbe3", claude_available: false, ollama_running: false, summer_adapter_present: false, recommended_engine: "none"
+  end
+end

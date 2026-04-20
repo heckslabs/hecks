@@ -1,0 +1,106 @@
+Hecks.behaviors "Console" do
+  vision "Behavioral tests for the Console domain — exercises every command and query in memory"
+
+  # ── Session aggregate ──────────────────────────────────────────
+
+  test "StartSession sets continuing" do
+    tests "StartSession", on: "Session"
+    input  continuing: "sample"
+    expect continuing: "sample", message_count: 0
+  end
+
+  test "RecordMessage sets message" do
+    tests "RecordMessage", on: "Session"
+    setup  "StartSession", continuing: "sample"
+    input  message: "sample"
+    expect history_size: 1
+  end
+
+  test "RecordMessage cascades through policy chain" do
+    tests "RecordMessage", on: "Session", kind: :cascade
+    setup  "StartSession", continuing: "sample"
+    setup  "RefreshFooter", branch: "sample", domain_count: 1, mood: "sample", beats: 1, sleep_state: "sample"
+    setup  "TalkWith", name: "sample"
+    input  message: "sample"
+    expect emits: ["MessageRecorded", "FooterRefreshed", "SpeakerObservationRecorded"]
+  end
+
+
+  # ── Layout aggregate ──────────────────────────────────────────
+
+  test "ComposeLayout sets activity_expanded" do
+    tests "ComposeLayout", on: "Layout"
+    input  activity_expanded: "sample"
+    expect activity_expanded: "sample", thinking: "no"
+  end
+
+  test "ToggleActivity runs" do
+    tests "ToggleActivity", on: "Layout"
+    setup  "ComposeLayout", activity_expanded: "sample"
+    expect ok: "true"
+  end
+
+  test "StartThinking runs" do
+    tests "StartThinking", on: "Layout"
+    setup  "ComposeLayout", activity_expanded: "sample"
+    expect thinking: "yes"
+  end
+
+  test "StopThinking runs" do
+    tests "StopThinking", on: "Layout"
+    setup  "ComposeLayout", activity_expanded: "sample"
+    expect thinking: "no"
+  end
+
+
+  # ── Footer aggregate ──────────────────────────────────────────
+
+  test "RefreshFooter sets branch + domain_count + mood + beats + sleep_state" do
+    tests "RefreshFooter", on: "Footer"
+    input  branch: "sample", domain_count: 1, mood: "sample", beats: 1, sleep_state: "sample"
+    expect branch: "sample", domain_count: 1, mood: "sample", beats: 1, sleep_state: "sample"
+  end
+
+
+  # ── Speaker aggregate ──────────────────────────────────────────
+
+  test "TalkWith sets name" do
+    tests "TalkWith", on: "Speaker"
+    input  name: "sample"
+    expect name: "sample", status: "active"
+  end
+
+  test "TalkWith cascades through policy chain" do
+    tests "TalkWith", on: "Speaker", kind: :cascade
+    input  name: "sample"
+    expect emits: ["SpeakerActivated", "SpeakerMemoryLoaded"]
+  end
+
+  test "LoadSpeakerMemory sets bluebook_path + known + context" do
+    tests "LoadSpeakerMemory", on: "Speaker"
+    setup  "TalkWith", name: "sample"
+    input  bluebook_path: "sample", known: "sample", context: "sample"
+    expect bluebook_path: "sample", known: "sample", context: "sample"
+  end
+
+  test "LearnAboutSpeaker sets observation" do
+    tests "LearnAboutSpeaker", on: "Speaker"
+    setup  "TalkWith", name: "sample"
+    input  observation: "sample"
+    expect ok: "true"
+  end
+
+  test "RequestCreatorAccess runs" do
+    tests "RequestCreatorAccess", on: "Speaker"
+    setup  "TalkWith", name: "sample"
+    expect status: "authenticating"
+  end
+
+  test "RejectAccess runs" do
+    tests "RejectAccess", on: "Speaker"
+    setup  "TalkWith", name: "sample"
+    setup  "RequestCreatorAccess"
+    expect status: "active"
+  end
+
+end

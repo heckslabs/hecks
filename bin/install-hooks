@@ -1,0 +1,23 @@
+#!/bin/sh
+# Install the tracked git hooks from bin/git-hooks/ into .git/hooks/.
+# Run after clone, or whenever a hook in bin/git-hooks/ changes.
+
+set -e
+
+REPO="$(cd "$(dirname "$0")/.." && pwd)"
+SRC="$REPO/bin/git-hooks"
+DEST="$REPO/.git/hooks"
+
+if [ ! -d "$DEST" ]; then
+    echo "No .git/hooks/ — is this a git working tree?"
+    exit 1
+fi
+
+for hook in "$SRC"/*; do
+    name="$(basename "$hook")"
+    target="$DEST/$name"
+    rm -f "$target"
+    cp "$hook" "$target"
+    chmod +x "$target"
+    echo "installed: $name"
+done

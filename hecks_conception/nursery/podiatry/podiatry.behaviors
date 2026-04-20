@@ -1,0 +1,134 @@
+Hecks.behaviors "Podiatry" do
+  vision "Behavioral tests for the Podiatry domain — exercises every command and query in memory"
+
+  # ── Patient aggregate ──────────────────────────────────────────
+
+  test "RegisterPatient sets name + date_of_birth + diabetic_status + insurance_id" do
+    tests "RegisterPatient", on: "Patient"
+    input  name: "sample", date_of_birth: "sample", diabetic_status: "sample", insurance_id: "sample"
+    expect name: "sample", date_of_birth: "sample", diabetic_status: "sample", insurance_id: "sample", status: "active"
+  end
+
+  test "RegisterPatient cascades through policy chain" do
+    tests "RegisterPatient", on: "Patient", kind: :cascade
+    input  name: "sample", date_of_birth: "sample", diabetic_status: "sample", insurance_id: "sample"
+    expect emits: ["PatientRegistered", "HighRiskFlagged"]
+  end
+
+  test "FlagHighRisk runs" do
+    tests "FlagHighRisk", on: "Patient"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diabetic_status: "sample", insurance_id: "sample"
+    expect status: "high_risk"
+  end
+
+
+  # ── FootCondition aggregate ──────────────────────────────────────────
+
+  test "DiagnoseCondition sets patient_name + condition_name + affected_foot + severity + onset_date" do
+    tests "DiagnoseCondition", on: "FootCondition"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diabetic_status: "sample", insurance_id: "sample"
+    input  patient_name: "sample", condition_name: "sample", affected_foot: "sample", severity: "sample", onset_date: "sample"
+    expect patient_name: "sample", condition_name: "sample", affected_foot: "sample", severity: "sample", onset_date: "sample", status: "active"
+  end
+
+  test "DiagnoseCondition cascades through policy chain" do
+    tests "DiagnoseCondition", on: "FootCondition", kind: :cascade
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diabetic_status: "sample", insurance_id: "sample"
+    setup  "OrderOrthotic", patient_name: "sample", orthotic_type: "sample", material: "sample", corrections: "sample", order_date: "sample"
+    setup  "ScheduleProcedure", patient_name: "sample", procedure_name: "sample", procedure_date: "sample", anesthesia_type: "sample"
+    input  patient_name: "sample", condition_name: "sample", affected_foot: "sample", severity: "sample", onset_date: "sample"
+    expect emits: ["ConditionDiagnosed", "OrthoticOrdered", "OrthoticFitted", "ProcedureScheduled"]
+  end
+
+  test "ResolveCondition runs" do
+    tests "ResolveCondition", on: "FootCondition"
+    setup  "DiagnoseCondition", patient_name: "sample", condition_name: "sample", affected_foot: "sample", severity: "sample", onset_date: "sample"
+    expect status: "resolved"
+  end
+
+
+  # ── Orthotic aggregate ──────────────────────────────────────────
+
+  test "OrderOrthotic sets patient_name + orthotic_type + material + corrections + order_date" do
+    tests "OrderOrthotic", on: "Orthotic"
+    setup  "DiagnoseCondition", patient_name: "sample", condition_name: "sample", affected_foot: "sample", severity: "sample", onset_date: "sample"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diabetic_status: "sample", insurance_id: "sample"
+    input  patient_name: "sample", orthotic_type: "sample", material: "sample", corrections: "sample", order_date: "sample"
+    expect patient_name: "sample", orthotic_type: "sample", material: "sample", corrections: "sample", order_date: "sample", status: "ordered"
+  end
+
+  test "OrderOrthotic cascades through policy chain" do
+    tests "OrderOrthotic", on: "Orthotic", kind: :cascade
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diabetic_status: "sample", insurance_id: "sample"
+    setup  "DiagnoseCondition", patient_name: "sample", condition_name: "sample", affected_foot: "sample", severity: "sample", onset_date: "sample"
+    input  patient_name: "sample", orthotic_type: "sample", material: "sample", corrections: "sample", order_date: "sample"
+    expect emits: ["OrthoticOrdered", "OrthoticFitted"]
+  end
+
+  test "FitOrthotic runs" do
+    tests "FitOrthotic", on: "Orthotic"
+    setup  "OrderOrthotic", patient_name: "sample", orthotic_type: "sample", material: "sample", corrections: "sample", order_date: "sample"
+    expect status: "fitted"
+  end
+
+  test "AdjustOrthotic sets corrections" do
+    tests "AdjustOrthotic", on: "Orthotic"
+    setup  "OrderOrthotic", patient_name: "sample", orthotic_type: "sample", material: "sample", corrections: "sample", order_date: "sample"
+    input  corrections: "sample"
+    expect corrections: "sample"
+  end
+
+
+  # ── FootProcedure aggregate ──────────────────────────────────────────
+
+  test "ScheduleProcedure sets patient_name + procedure_name + procedure_date + anesthesia_type" do
+    tests "ScheduleProcedure", on: "FootProcedure"
+    setup  "DiagnoseCondition", patient_name: "sample", condition_name: "sample", affected_foot: "sample", severity: "sample", onset_date: "sample"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diabetic_status: "sample", insurance_id: "sample"
+    input  patient_name: "sample", procedure_name: "sample", procedure_date: "sample", anesthesia_type: "sample"
+    expect patient_name: "sample", procedure_name: "sample", procedure_date: "sample", anesthesia_type: "sample", status: "scheduled"
+  end
+
+  test "CompleteProcedure sets notes" do
+    tests "CompleteProcedure", on: "FootProcedure"
+    setup  "ScheduleProcedure", patient_name: "sample", procedure_name: "sample", procedure_date: "sample", anesthesia_type: "sample"
+    input  notes: "sample"
+    expect notes: "sample", status: "completed"
+  end
+
+  test "CompleteProcedure cascades through policy chain" do
+    tests "CompleteProcedure", on: "FootProcedure", kind: :cascade
+    setup  "ScheduleFollowUp", patient_name: "sample", reason: "sample", scheduled_date: "sample"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diabetic_status: "sample", insurance_id: "sample"
+    setup  "ScheduleProcedure", patient_name: "sample", procedure_name: "sample", procedure_date: "sample", anesthesia_type: "sample"
+    input  notes: "sample"
+    expect emits: ["ProcedureCompleted", "FollowUpScheduled"]
+  end
+
+
+  # ── PodiatryFollowUp aggregate ──────────────────────────────────────────
+
+  test "ScheduleFollowUp sets patient_name + reason + scheduled_date" do
+    tests "ScheduleFollowUp", on: "PodiatryFollowUp"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diabetic_status: "sample", insurance_id: "sample"
+    input  patient_name: "sample", reason: "sample", scheduled_date: "sample"
+    expect patient_name: "sample", reason: "sample", scheduled_date: "sample", status: "scheduled"
+  end
+
+  test "CompleteFollowUp sets wound_status + notes" do
+    tests "CompleteFollowUp", on: "PodiatryFollowUp"
+    setup  "ScheduleFollowUp", patient_name: "sample", reason: "sample", scheduled_date: "sample"
+    input  wound_status: "sample", notes: "sample"
+    expect wound_status: "sample", notes: "sample", status: "completed"
+  end
+
+  test "CompleteFollowUp cascades through policy chain" do
+    tests "CompleteFollowUp", on: "PodiatryFollowUp", kind: :cascade
+    setup  "OrderOrthotic", patient_name: "sample", orthotic_type: "sample", material: "sample", corrections: "sample", order_date: "sample"
+    setup  "DiagnoseCondition", patient_name: "sample", condition_name: "sample", affected_foot: "sample", severity: "sample", onset_date: "sample"
+    setup  "ScheduleFollowUp", patient_name: "sample", reason: "sample", scheduled_date: "sample"
+    input  wound_status: "sample", notes: "sample"
+    expect emits: ["FollowUpCompleted", "OrthoticAdjusted", "ConditionResolved"]
+  end
+
+end

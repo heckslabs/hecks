@@ -1,0 +1,137 @@
+Hecks.behaviors "Florist" do
+  vision "Behavioral tests for the Florist domain — exercises every command and query in memory"
+
+  # ── Arrangement aggregate ──────────────────────────────────────────
+
+  test "DesignArrangement sets arrangement_id + name + style + price + occasion" do
+    tests "DesignArrangement", on: "Arrangement"
+    input  arrangement_id: "sample", name: "sample", style: "sample", price: 1.0, occasion: "sample"
+    expect arrangement_id: "sample", name: "sample", style: "sample", price: 1.0, occasion: "sample", status: "designed"
+  end
+
+  test "DesignArrangement cascades through policy chain" do
+    tests "DesignArrangement", on: "Arrangement", kind: :cascade
+    setup  "ScheduleDelivery", delivery_id: "sample", order_id: "sample", address: "sample", delivery_date: "sample", time_window: "sample"
+    input  arrangement_id: "sample", name: "sample", style: "sample", price: 1.0, occasion: "sample"
+    expect emits: ["ArrangementDesigned", "ArrangementAssembled", "DeliveryScheduled", "DeliveryCompleted"]
+  end
+
+  test "AssembleArrangement runs" do
+    tests "AssembleArrangement", on: "Arrangement"
+    setup  "DesignArrangement", arrangement_id: "sample", name: "sample", style: "sample", price: 1.0, occasion: "sample"
+    expect status: "assembled"
+  end
+
+  test "AssembleArrangement cascades through policy chain" do
+    tests "AssembleArrangement", on: "Arrangement", kind: :cascade
+    setup  "ScheduleDelivery", delivery_id: "sample", order_id: "sample", address: "sample", delivery_date: "sample", time_window: "sample"
+    setup  "DesignArrangement", arrangement_id: "sample", name: "sample", style: "sample", price: 1.0, occasion: "sample"
+    expect emits: ["ArrangementAssembled", "DeliveryScheduled", "DeliveryCompleted"]
+  end
+
+
+  # ── Flower aggregate ──────────────────────────────────────────
+
+  test "ReceiveFlowers sets flower_id + common_name + botanical_name + color + season + vase_life_days + quantity_on_hand" do
+    tests "ReceiveFlowers", on: "Flower"
+    input  flower_id: "sample", common_name: "sample", botanical_name: "sample", color: "sample", season: "sample", vase_life_days: 1, quantity_on_hand: 1
+    expect flower_id: "sample", common_name: "sample", botanical_name: "sample", color: "sample", season: "sample", vase_life_days: 1, quantity_on_hand: 1
+  end
+
+  test "ReceiveFlowers cascades through policy chain" do
+    tests "ReceiveFlowers", on: "Flower", kind: :cascade
+    input  flower_id: "sample", common_name: "sample", botanical_name: "sample", color: "sample", season: "sample", vase_life_days: 1, quantity_on_hand: 1
+    expect emits: ["FlowersReceived", "WiltedFlowersDiscarded"]
+  end
+
+  test "DiscardWiltedFlowers sets quantity_discarded" do
+    tests "DiscardWiltedFlowers", on: "Flower"
+    setup  "ReceiveFlowers", flower_id: "sample", common_name: "sample", botanical_name: "sample", color: "sample", season: "sample", vase_life_days: 1, quantity_on_hand: 1
+    input  quantity_discarded: 1
+    expect ok: "true"
+  end
+
+
+  # ── EventOrder aggregate ──────────────────────────────────────────
+
+  test "PlaceEventOrder sets order_id + customer_name + event_type + event_date + budget" do
+    tests "PlaceEventOrder", on: "EventOrder"
+    input  order_id: "sample", customer_name: "sample", event_type: "sample", event_date: "sample", budget: 1.0
+    expect order_id: "sample", customer_name: "sample", event_type: "sample", event_date: "sample", budget: 1.0, status: "placed"
+  end
+
+  test "PlaceEventOrder cascades through policy chain" do
+    tests "PlaceEventOrder", on: "EventOrder", kind: :cascade
+    setup  "DesignArrangement", arrangement_id: "sample", name: "sample", style: "sample", price: 1.0, occasion: "sample"
+    setup  "ScheduleDelivery", delivery_id: "sample", order_id: "sample", address: "sample", delivery_date: "sample", time_window: "sample"
+    setup  "ReceiveFlowers", flower_id: "sample", common_name: "sample", botanical_name: "sample", color: "sample", season: "sample", vase_life_days: 1, quantity_on_hand: 1
+    input  order_id: "sample", customer_name: "sample", event_type: "sample", event_date: "sample", budget: 1.0
+    expect emits: ["EventOrderPlaced", "EventOrderConfirmed", "ArrangementDesigned", "ArrangementAssembled", "DeliveryScheduled", "DeliveryCompleted", "FlowersReceived", "WiltedFlowersDiscarded"]
+  end
+
+  test "ConfirmEventOrder runs" do
+    tests "ConfirmEventOrder", on: "EventOrder"
+    setup  "PlaceEventOrder", order_id: "sample", customer_name: "sample", event_type: "sample", event_date: "sample", budget: 1.0
+    expect status: "confirmed"
+  end
+
+  test "ConfirmEventOrder cascades through policy chain" do
+    tests "ConfirmEventOrder", on: "EventOrder", kind: :cascade
+    setup  "DesignArrangement", arrangement_id: "sample", name: "sample", style: "sample", price: 1.0, occasion: "sample"
+    setup  "ScheduleDelivery", delivery_id: "sample", order_id: "sample", address: "sample", delivery_date: "sample", time_window: "sample"
+    setup  "ReceiveFlowers", flower_id: "sample", common_name: "sample", botanical_name: "sample", color: "sample", season: "sample", vase_life_days: 1, quantity_on_hand: 1
+    setup  "PlaceEventOrder", order_id: "sample", customer_name: "sample", event_type: "sample", event_date: "sample", budget: 1.0
+    expect emits: ["EventOrderConfirmed", "ArrangementDesigned", "ArrangementAssembled", "DeliveryScheduled", "DeliveryCompleted", "FlowersReceived", "WiltedFlowersDiscarded"]
+  end
+
+
+  # ── FloralDelivery aggregate ──────────────────────────────────────────
+
+  test "ScheduleDelivery sets delivery_id + order_id + address + delivery_date + time_window" do
+    tests "ScheduleDelivery", on: "FloralDelivery"
+    input  delivery_id: "sample", order_id: "sample", address: "sample", delivery_date: "sample", time_window: "sample"
+    expect delivery_id: "sample", order_id: "sample", address: "sample", delivery_date: "sample", time_window: "sample", status: "scheduled"
+  end
+
+  test "ScheduleDelivery cascades through policy chain" do
+    tests "ScheduleDelivery", on: "FloralDelivery", kind: :cascade
+    input  delivery_id: "sample", order_id: "sample", address: "sample", delivery_date: "sample", time_window: "sample"
+    expect emits: ["DeliveryScheduled", "DeliveryCompleted"]
+  end
+
+  test "CompleteDelivery runs" do
+    tests "CompleteDelivery", on: "FloralDelivery"
+    setup  "ScheduleDelivery", delivery_id: "sample", order_id: "sample", address: "sample", delivery_date: "sample", time_window: "sample"
+    expect status: "delivered"
+  end
+
+
+  # ── Subscription aggregate ──────────────────────────────────────────
+
+  test "StartSubscription sets subscription_id + customer_name + frequency + arrangement_style + price_per_delivery" do
+    tests "StartSubscription", on: "Subscription"
+    input  subscription_id: "sample", customer_name: "sample", frequency: "sample", arrangement_style: "sample", price_per_delivery: 1.0
+    expect subscription_id: "sample", customer_name: "sample", frequency: "sample", arrangement_style: "sample", price_per_delivery: 1.0, status: "active"
+  end
+
+  test "StartSubscription cascades through policy chain" do
+    tests "StartSubscription", on: "Subscription", kind: :cascade
+    setup  "DesignArrangement", arrangement_id: "sample", name: "sample", style: "sample", price: 1.0, occasion: "sample"
+    setup  "ScheduleDelivery", delivery_id: "sample", order_id: "sample", address: "sample", delivery_date: "sample", time_window: "sample"
+    input  subscription_id: "sample", customer_name: "sample", frequency: "sample", arrangement_style: "sample", price_per_delivery: 1.0
+    expect emits: ["SubscriptionStarted", "ArrangementDesigned", "ArrangementAssembled", "DeliveryScheduled", "DeliveryCompleted"]
+  end
+
+  test "PauseSubscription runs" do
+    tests "PauseSubscription", on: "Subscription"
+    setup  "StartSubscription", subscription_id: "sample", customer_name: "sample", frequency: "sample", arrangement_style: "sample", price_per_delivery: 1.0
+    expect status: "paused"
+  end
+
+  test "CancelSubscription runs" do
+    tests "CancelSubscription", on: "Subscription"
+    setup  "StartSubscription", subscription_id: "sample", customer_name: "sample", frequency: "sample", arrangement_style: "sample", price_per_delivery: 1.0
+    expect status: "canceled"
+  end
+
+end

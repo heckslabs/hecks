@@ -68,7 +68,6 @@ Hecks.bluebook "MovieTheater" do
       reference_to(Showing)
       String :patron_name
       String :seat_number
-      given { available_seats > 0 }
       emits "TicketSold"
     end
 
@@ -188,16 +187,6 @@ Hecks.bluebook "MovieTheater" do
     trigger "CalibrateProjector"
   end
 
-  policy "OpenDoorsOnCalibration" do
-    on "ProjectorCalibrated"
-    trigger "OpenDoors"
-  end
-
-  policy "StartProjectionOnSeating" do
-    on "DoorsOpened"
-    trigger "StartProjection"
-  end
-
   policy "ClearAfterShowing" do
     on "ShowingEnded"
     trigger "ClearAuditorium"
@@ -208,15 +197,4 @@ Hecks.bluebook "MovieTheater" do
     trigger "CancelShowing"
   end
 
-  fixture "Screen", screen_number: "1", seat_count: 250, sound_format: "Dolby Atmos", status: "active", reference_to: "proj-imax-01"
-  fixture "Screen", screen_number: "5", seat_count: 180, sound_format: "Dolby 7.1", status: "active", reference_to: "proj-standard-02"
-
-  fixture "Showing", film_title: "Quantum Odyssey", showtime: "19:30", rating: "PG-13", available_seats: 45, status: "on_sale", reference_to: "1"
-  fixture "Showing", film_title: "Love in Paris", showtime: "14:00", rating: "R", available_seats: 120, status: "scheduled", reference_to: "5"
-
-  fixture "Concession", item_name: "Large Popcorn", price_cents: 750, stock_count: 85, category: "snacks"
-  fixture "Concession", item_name: "Fountain Drink", price_cents: 550, stock_count: 120, category: "beverages"
-
-  fixture "Projector", projector_id: "proj-imax-01", technology: "IMAX DCP", lamp_hours: 3420, status: "operational"
-  fixture "Projector", projector_id: "proj-standard-02", technology: "DCI 4K", lamp_hours: 5890, status: "operational"
 end

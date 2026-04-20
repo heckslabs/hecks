@@ -1,0 +1,74 @@
+Hecks.behaviors "Applications" do
+  vision "Behavioral tests for the Applications domain — exercises every command and query in memory"
+
+  # ── Application aggregate ──────────────────────────────────────────
+
+  test "RegisterApplication sets name + domain_path + version" do
+    tests "RegisterApplication", on: "Application"
+    input  name: "sample", domain_path: "sample", version: "sample"
+    expect status: "pending", name: "sample", domain_path: "sample", version: "sample"
+  end
+
+  test "RegisterApplication cascades through policy chain" do
+    tests "RegisterApplication", on: "Application", kind: :cascade
+    setup  "IndexRegistry", total_applications: 1, total_web: 1, total_cli: 1, total_api: 1
+    setup  "TrackGestation", domain_name: "sample", nursery_path: "sample"
+    setup  "TrackBirth", catalog_path: "sample"
+    input  name: "sample", domain_path: "sample", version: "sample"
+    expect emits: ["ApplicationRegistered", "RegistryRebuilt", "ViabilityTracked"]
+  end
+
+  test "AddApp sets app_type" do
+    tests "AddApp", on: "Application"
+    setup  "RegisterApplication", name: "sample", domain_path: "sample", version: "sample"
+    input  app_type: "sample"
+    expect status: "pending", app_types_size: 1
+  end
+
+  test "DeployApp runs" do
+    tests "DeployApp", on: "Application"
+    setup  "RegisterApplication", name: "sample", domain_path: "sample", version: "sample"
+    expect status: "deployed"
+  end
+
+  test "RetireApplication runs" do
+    tests "RetireApplication", on: "Application"
+    setup  "RegisterApplication", name: "sample", domain_path: "sample", version: "sample"
+    setup  "DeployApp"
+    expect status: "retired"
+  end
+
+
+  # ── DomainLifecycle aggregate ──────────────────────────────────────────
+
+  test "TrackGestation sets domain_name + nursery_path" do
+    tests "TrackGestation", on: "DomainLifecycle"
+    input  domain_name: "sample", nursery_path: "sample"
+    expect domain_name: "sample", nursery_path: "sample", stage: "gestating"
+  end
+
+  test "TrackBirth sets catalog_path" do
+    tests "TrackBirth", on: "DomainLifecycle"
+    setup  "TrackGestation", domain_name: "sample", nursery_path: "sample"
+    input  catalog_path: "sample"
+    expect catalog_path: "sample", stage: "born"
+  end
+
+  test "TrackViability sets application_path" do
+    tests "TrackViability", on: "DomainLifecycle"
+    setup  "TrackGestation", domain_name: "sample", nursery_path: "sample"
+    setup  "TrackBirth", catalog_path: "sample"
+    input  application_path: "sample"
+    expect application_path: "sample", stage: "viable"
+  end
+
+
+  # ── AppRegistry aggregate ──────────────────────────────────────────
+
+  test "IndexRegistry sets total_applications + total_web + total_cli + total_api" do
+    tests "IndexRegistry", on: "AppRegistry"
+    input  total_applications: 1, total_web: 1, total_cli: 1, total_api: 1
+    expect total_applications: 1, total_web: 1, total_cli: 1, total_api: 1
+  end
+
+end

@@ -1,0 +1,107 @@
+Hecks.behaviors "RecordStore" do
+  vision "Behavioral tests for the RecordStore domain — exercises every command and query in memory"
+
+  # ── VinylRecord aggregate ──────────────────────────────────────────
+
+  test "StockRecord sets catalog_number + title + artist_name + genre + format + condition + price + quantity" do
+    tests "StockRecord", on: "VinylRecord"
+    input  catalog_number: "sample", title: "sample", artist_name: "sample", genre: "sample", format: "sample", condition: "sample", price: 1.0, quantity: 1
+    expect catalog_number: "sample", title: "sample", artist_name: "sample", genre: "sample", format: "sample", condition: "sample", price: 1.0, quantity: 1
+  end
+
+  test "StockRecord cascades through policy chain" do
+    tests "StockRecord", on: "VinylRecord", kind: :cascade
+    setup  "SetupCrate", crate_id: "sample", label: "sample", location: "sample", capacity: 1
+    setup  "ActivateStation", station_id: "sample", turntable_model: "sample"
+    setup  "PlaceSpecialOrder", order_id: "sample", customer_name: "sample", artist_name: "sample", album_title: "sample", format_requested: "sample"
+    setup  "RegisterArtist", artist_id: "sample", name: "sample", genre: "sample", biography: "sample"
+    input  catalog_number: "sample", title: "sample", artist_name: "sample", genre: "sample", format: "sample", condition: "sample", price: 1.0, quantity: 1
+    expect emits: ["RecordStocked", "RecordGraded", "RecordFiled", "RecordLoaded", "SpecialOrderFulfilled", "ArtistFeatured", "ArtistRegistered", "CrateSetUp"]
+  end
+
+  test "GradeRecord sets condition" do
+    tests "GradeRecord", on: "VinylRecord"
+    setup  "StockRecord", catalog_number: "sample", title: "sample", artist_name: "sample", genre: "sample", format: "sample", condition: "sample", price: 1.0, quantity: 1
+    input  condition: "sample"
+    expect condition: "sample"
+  end
+
+  test "GradeRecord cascades through policy chain" do
+    tests "GradeRecord", on: "VinylRecord", kind: :cascade
+    setup  "StockRecord", catalog_number: "sample", title: "sample", artist_name: "sample", genre: "sample", format: "sample", condition: "sample", price: 1.0, quantity: 1
+    setup  "SetupCrate", crate_id: "sample", label: "sample", location: "sample", capacity: 1
+    setup  "ActivateStation", station_id: "sample", turntable_model: "sample"
+    input  condition: "sample"
+    expect emits: ["RecordGraded", "RecordFiled", "RecordLoaded"]
+  end
+
+
+  # ── Artist aggregate ──────────────────────────────────────────
+
+  test "RegisterArtist sets artist_id + name + genre + biography" do
+    tests "RegisterArtist", on: "Artist"
+    input  artist_id: "sample", name: "sample", genre: "sample", biography: "sample"
+    expect artist_id: "sample", name: "sample", genre: "sample", biography: "sample"
+  end
+
+  test "FeatureArtist runs" do
+    tests "FeatureArtist", on: "Artist"
+    setup  "RegisterArtist", artist_id: "sample", name: "sample", genre: "sample", biography: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Crate aggregate ──────────────────────────────────────────
+
+  test "SetupCrate sets crate_id + label + location + capacity" do
+    tests "SetupCrate", on: "Crate"
+    input  crate_id: "sample", label: "sample", location: "sample", capacity: 1
+    expect crate_id: "sample", label: "sample", location: "sample", capacity: 1, current_count: 0
+  end
+
+  test "FileRecord cascades through policy chain" do
+    tests "FileRecord", on: "Crate", kind: :cascade
+    setup  "SetupCrate", crate_id: "sample", label: "sample", location: "sample", capacity: 1
+    setup  "ActivateStation", station_id: "sample", turntable_model: "sample"
+    input  catalog_number: "sample"
+    expect emits: ["RecordFiled", "RecordLoaded"]
+  end
+
+
+  # ── ListeningStation aggregate ──────────────────────────────────────────
+
+  test "ActivateStation sets station_id + turntable_model" do
+    tests "ActivateStation", on: "ListeningStation"
+    input  station_id: "sample", turntable_model: "sample"
+    expect station_id: "sample", turntable_model: "sample", status: "available"
+  end
+
+  test "LoadRecord sets current_record" do
+    tests "LoadRecord", on: "ListeningStation"
+    setup  "ActivateStation", station_id: "sample", turntable_model: "sample"
+    input  current_record: "sample"
+    expect current_record: "sample", status: "in_use"
+  end
+
+  test "FreeStation runs" do
+    tests "FreeStation", on: "ListeningStation"
+    setup  "ActivateStation", station_id: "sample", turntable_model: "sample"
+    expect status: "available"
+  end
+
+
+  # ── SpecialOrder aggregate ──────────────────────────────────────────
+
+  test "PlaceSpecialOrder sets order_id + customer_name + artist_name + album_title + format_requested" do
+    tests "PlaceSpecialOrder", on: "SpecialOrder"
+    input  order_id: "sample", customer_name: "sample", artist_name: "sample", album_title: "sample", format_requested: "sample"
+    expect order_id: "sample", customer_name: "sample", artist_name: "sample", album_title: "sample", format_requested: "sample", status: "pending"
+  end
+
+  test "FulfillSpecialOrder runs" do
+    tests "FulfillSpecialOrder", on: "SpecialOrder"
+    setup  "PlaceSpecialOrder", order_id: "sample", customer_name: "sample", artist_name: "sample", album_title: "sample", format_requested: "sample"
+    expect status: "fulfilled"
+  end
+
+end

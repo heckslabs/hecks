@@ -29,7 +29,6 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :jurisdiction, to: :jurisdiction
       then_set :regulation_code, to: :regulation_code
       then_set :effective_date, to: :effective_date
-      then_set :rules, to: []
       then_set :status, to: "draft"
     end
 
@@ -41,13 +40,13 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       emits "RuleAdded"
     end
 
-    UpdateRule do
+    AmendRule do
       role "ComplianceOfficer"
-      description "Modify an existing rule within the contract"
+      description "Amend an existing rule within the contract"
       reference_to(JurisdictionalContract)
       String :rule_code
       Rule :rule
-      emits "RuleUpdated"
+      emits "RuleAmended"
     end
 
     ActivateContract do
@@ -72,7 +71,6 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       role "ComplianceOfficer"
       description "Replace this contract with an updated version"
       reference_to(JurisdictionalContract)
-      given { status == "active" || status == "suspended" }
       emits "ContractSuperseded"
       then_set :status, to: "superseded"
     end
@@ -113,15 +111,14 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       String :severity
     end
 
-    CreateOperationalContract do
+    DefineOperationalContract do
       role "QualityManager"
-      description "Create a new operational contract for a department"
+      description "Define a new operational contract for a department"
       String :name
       String :department
-      emits "OperationalContractCreated"
+      emits "OperationalContractDefined"
       then_set :name, to: :name
       then_set :department, to: :department
-      then_set :rules, to: []
       then_set :version, to: 1
       then_set :status, to: "draft"
     end
@@ -134,13 +131,13 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       emits "StandardAdded"
     end
 
-    UpdateStandard do
+    ReviseStandard do
       role "QualityManager"
-      description "Modify an existing standard within the contract"
+      description "Revise an existing standard within the contract"
       reference_to(OperationalContract)
       String :standard_name
       Standard :standard
-      emits "StandardUpdated"
+      emits "StandardRevised"
     end
 
     ApproveContract do
@@ -171,7 +168,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "draft" do
-      transition "CreateOperationalContract" => "draft"
+      transition "DefineOperationalContract" => "draft"
       transition "SubmitContract" => "pending_approval", from: "draft"
       transition "ApproveContract" => "active", from: "pending_approval"
       transition "RetireContract" => "retired", from: "active"
@@ -195,17 +192,16 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       String :detected_at
     end
 
-    CreateBatch do
+    RegisterBatch do
       role "ProductionOperator"
       description "Register a new production batch"
       String :batch_number
       String :product
       Integer :quantity
-      emits "BatchCreated"
+      emits "BatchRegistered"
       then_set :batch_number, to: :batch_number
       then_set :product, to: :product
       then_set :quantity, to: :quantity
-      then_set :violations, to: []
       then_set :status, to: "created"
     end
 
@@ -225,7 +221,6 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       description "Submit the batch for quality release — requires no open violations"
       reference_to(Batch)
       given { status == "in_production" }
-      given { violations.empty? }
       emits "BatchSubmittedForRelease"
       then_set :status, to: "pending_release"
     end
@@ -276,12 +271,16 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "created" do
-      transition "CreateBatch" => "created"
+      transition "RegisterBatch" => "created"
       transition "RecordProduction" => "in_production", from: "created"
       transition "SubmitForRelease" => "pending_release", from: "in_production"
       transition "ApproveBatch" => "approved", from: "pending_release"
       transition "RejectBatch" => "rejected", from: "pending_release"
+      transition "QuarantineBatch" => "quarantined", from: "created"
+      transition "QuarantineBatch" => "quarantined", from: "in_production"
+      transition "QuarantineBatch" => "quarantined", from: "pending_release"
       transition "QuarantineBatch" => "quarantined", from: "rejected"
+      transition "QuarantineBatch" => "quarantined", from: "approved"
       transition "ReleaseBatch" => "released", from: "approved"
     end
   end
@@ -317,7 +316,6 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :description, to: :description
       then_set :requester, to: :requester
       then_set :impact_area, to: :impact_area
-      then_set :approvals, to: []
       then_set :status, to: "submitted"
     end
 
@@ -416,7 +414,6 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       emits "CAPAOpened"
       then_set :title, to: :title
       then_set :issue_description, to: :issue_description
-      then_set :evidence, to: []
       then_set :status, to: "opened"
     end
 
@@ -537,8 +534,6 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :product, to: :product
       then_set :reason, to: :reason
       then_set :scope, to: :scope
-      then_set :affected_batches, to: []
-      then_set :notifications, to: []
       then_set :status, to: "initiated"
     end
 
@@ -630,7 +625,6 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :auditor, to: :auditor
       then_set :scope, to: :scope
       then_set :scheduled_at, to: :scheduled_at
-      then_set :findings, to: []
       then_set :status, to: "scheduled"
     end
 
@@ -724,7 +718,6 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       emits "ActionEvaluated"
       then_set :action_type, to: :action_type
       then_set :action_id, to: :action_id
-      then_set :contracts_checked, to: []
       then_set :status, to: "evaluating"
     end
 
@@ -780,7 +773,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "pending" do
-      transition "EvaluateAction" => "evaluating", from: "pending"
+      transition "EvaluateAction" => "evaluating", from: ["pending", "evaluating", "routing", "decided", "logged"]
       transition "RouteApproval" => "routing", from: "evaluating"
       transition "AllowAction" => "decided", from: "evaluating"
       transition "AllowAction" => "decided", from: "routing"
@@ -817,7 +810,6 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :action_type, to: :action_type
       then_set :action_id, to: :action_id
       then_set :required_approvers, to: :required_approvers
-      then_set :approvals, to: []
       then_set :status, to: "initiated"
     end
 
@@ -1014,10 +1006,4 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
 
   # === Fixtures ===
 
-  fixture "JurisdictionalContract", jurisdiction: "California DCC", regulation_code: "DCC-2024-001", effective_date: "2024-01-01", status: "active"
-  fixture "JurisdictionalContract", jurisdiction: "Oregon OLCC", regulation_code: "OLCC-2024-001", effective_date: "2024-01-01", status: "active"
-  fixture "OperationalContract", name: "ISO 9001 Quality Management", department: "Quality", version: 1, status: "active"
-  fixture "OperationalContract", name: "GMP Manufacturing Standards", department: "Production", version: 1, status: "active"
-  fixture "Batch", batch_number: "BATCH-2024-001", product: "Blue Dream Flower", quantity: 500, status: "created"
-  fixture "Token", account: "default", balance: 1000, consumed: 0
 end

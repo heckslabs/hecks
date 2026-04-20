@@ -26,6 +26,7 @@ Hecks.bluebook "UXResearch", version: "2026.04.13.1" do
       String :lead_researcher
       Integer :target_participants
       emits "StudyPlanned"
+      then_set :status, to: "planned"
     end
 
     LaunchStudy do
@@ -69,6 +70,7 @@ Hecks.bluebook "UXResearch", version: "2026.04.13.1" do
       String :demographic_segment
       reference_to(Study)
       emits "ParticipantRecruited"
+      then_set :screening_status, to: "screened"
     end
 
     QualifyParticipant do
@@ -114,6 +116,7 @@ Hecks.bluebook "UXResearch", version: "2026.04.13.1" do
       String :facilitator
       reference_to(Participant)
       emits "SessionScheduled"
+      then_set :status, to: "in_progress"
     end
 
     CompleteSession do
@@ -166,6 +169,7 @@ Hecks.bluebook "UXResearch", version: "2026.04.13.1" do
       description "Cross-reference a finding with additional data sources"
       reference_to(Finding)
       emits "FindingValidated"
+      then_set :status, to: "validated"
     end
 
     ArchiveFinding do
@@ -204,6 +208,7 @@ Hecks.bluebook "UXResearch", version: "2026.04.13.1" do
       String :priority
       reference_to(Finding)
       emits "RecommendationProposed"
+      then_set :status, to: "proposed"
     end
 
     AcceptRecommendation do

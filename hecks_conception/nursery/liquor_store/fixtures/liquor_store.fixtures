@@ -1,0 +1,22 @@
+Hecks.fixtures "LiquorStore" do
+  aggregate "Spirit" do
+    fixture "Macallan_18_Year_", sku: "SPR-001847", name: "Macallan 18 Year", category: "single malt", producer: "Macallan", region: "Speyside", abv: 43.0, price: 125.99, quantity: 12
+    fixture "Pappy_Van_Winkle_23_", sku: "SPR-001848", name: "Pappy Van Winkle 23", category: "bourbon", producer: "Buffalo Trace", region: "Kentucky", abv: 47.8, price: 189.50, quantity: 5
+  end
+  aggregate "Vintage" do
+    fixture "Vintage1", vintage_id: "VIN-2015-001", producer: "Château Margaux", year: 2015, varietal: "Cabernet Sauvignon", appellation: "Bordeaux", score: 95.0, drinking_window: "2026-2040"
+    fixture "Vintage2", vintage_id: "VIN-2016-002", producer: "Barolo Riserva", year: 2016, varietal: "Nebbiolo", appellation: "Piedmont", score: 92.5, drinking_window: "2027-2045"
+  end
+  aggregate "Tasting" do
+    fixture "Tasting1", tasting_id: "TASTE-0421", theme: "Single Malts of Scotland", date: "2026-04-25", max_attendees: 30, current_attendees: 18, status: "scheduled"
+    fixture "Tasting2", tasting_id: "TASTE-0422", theme: "Old World Wines", date: "2026-05-02", max_attendees: 25, current_attendees: 12, status: "scheduled"
+  end
+  aggregate "InventoryCount" do
+    fixture "InventoryCount1", count_id: "CNT-2026-042", count_date: "2026-04-10", total_bottles: 847, discrepancies: 3, status: "reconciled"
+    fixture "InventoryCount2", count_id: "CNT-2026-043", count_date: "2026-04-14", total_bottles: 862, discrepancies: 0, status: "in_progress"
+  end
+  aggregate "RegulatoryCompliance" do
+    fixture "RegulatoryCompliance1", compliance_id: "COMP-001", license_type: "Liquor License - Class B", license_number: "LQ-8472-2024", expiration_date: "2027-03-31", status: "compliant"
+    fixture "RegulatoryCompliance2", compliance_id: "COMP-002", license_type: "Beer and Wine License", license_number: "BW-5821-2024", expiration_date: "2026-12-15", status: "compliant"
+  end
+end

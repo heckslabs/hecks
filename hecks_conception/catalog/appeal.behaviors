@@ -1,0 +1,912 @@
+Hecks.behaviors "Appeal" do
+  vision "Behavioral tests for the Appeal domain — exercises every command and query in memory"
+
+  # ── Project aggregate ──────────────────────────────────────────
+
+  test "OpenProject sets path" do
+    tests "OpenProject", on: "Project"
+    input  path: "sample"
+    expect path: "sample"
+  end
+
+  test "InitProject sets name + path" do
+    tests "InitProject", on: "Project"
+    input  name: "sample", path: "sample"
+    expect ok: "true"
+  end
+
+  test "CloseProject runs" do
+    tests "CloseProject", on: "Project"
+    expect ok: "true"
+  end
+
+  test "DiscoverProjects sets search_path" do
+    tests "DiscoverProjects", on: "Project"
+    input  search_path: "sample"
+    expect ok: "true"
+  end
+
+  test "LoadProjects sets search_path" do
+    tests "LoadProjects", on: "Project"
+    input  search_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Explorer aggregate ──────────────────────────────────────────
+
+  test "LoadDomain runs" do
+    tests "LoadDomain", on: "Explorer"
+    setup  "OpenProject", path: "sample"
+    expect ok: "true"
+  end
+
+  test "InspectAggregate sets aggregate_name" do
+    tests "InspectAggregate", on: "Explorer"
+    input  aggregate_name: "sample"
+    expect ok: "true"
+  end
+
+  test "InspectCommand sets aggregate_name + command_name" do
+    tests "InspectCommand", on: "Explorer"
+    input  aggregate_name: "sample", command_name: "sample"
+    expect ok: "true"
+  end
+
+  test "OpenFile sets path + domain" do
+    tests "OpenFile", on: "Explorer"
+    setup  "OpenProject", path: "sample"
+    input  path: "sample", domain: "sample"
+    expect ok: "true"
+  end
+
+  test "OpenFile cascades through policy chain" do
+    tests "OpenFile", on: "Explorer", kind: :cascade
+    setup  "OpenProject", path: "sample"
+    setup  "OpenPanel", panel_name: "sample"
+    setup  "GenerateDiagram", view_type: "sample", path: "sample", domain: "sample"
+    input  path: "sample", domain: "sample"
+    expect emits: ["FileOpened", "TabSelected", "DiagramGenerated"]
+  end
+
+  test "GetLastOpened runs" do
+    tests "GetLastOpened", on: "Explorer"
+    expect ok: "true"
+  end
+
+  test "ExportBluebook sets format" do
+    tests "ExportBluebook", on: "Explorer"
+    input  format: "sample"
+    expect ok: "true"
+  end
+
+  test "ByKind returns matching records" do
+    tests "ByKind", on: "Explorer", kind: :query
+    setup  "OpenFile", path: "sample", domain: "sample"
+    expect count: 1
+  end
+
+
+  # ── Document aggregate ──────────────────────────────────────────
+
+  test "OpenDocument sets filename" do
+    tests "OpenDocument", on: "Document"
+    setup  "OpenProject", path: "sample"
+    input  filename: "sample"
+    expect filename: "sample"
+  end
+
+  test "EditDocument sets content" do
+    tests "EditDocument", on: "Document"
+    input  content: "sample"
+    expect ok: "true"
+  end
+
+  test "SaveDocument runs" do
+    tests "SaveDocument", on: "Document"
+    expect ok: "true"
+  end
+
+  test "ValidateDocument runs" do
+    tests "ValidateDocument", on: "Document"
+    expect ok: "true"
+  end
+
+
+  # ── Timeline aggregate ──────────────────────────────────────────
+
+  test "RecordChange sets action + detail" do
+    tests "RecordChange", on: "Timeline"
+    setup  "OpenDocument", filename: "sample"
+    input  action: "sample", detail: "sample"
+    expect ok: "true"
+  end
+
+  test "Undo runs" do
+    tests "Undo", on: "Timeline"
+    expect ok: "true"
+  end
+
+  test "Redo runs" do
+    tests "Redo", on: "Timeline"
+    expect ok: "true"
+  end
+
+
+  # ── Generator aggregate ──────────────────────────────────────────
+
+  test "SelectTarget sets target" do
+    tests "SelectTarget", on: "Generator"
+    setup  "OpenProject", path: "sample"
+    input  target: "sample"
+    expect ok: "true"
+  end
+
+  test "BuildTarget runs" do
+    tests "BuildTarget", on: "Generator"
+    expect ok: "true"
+  end
+
+  test "PreviewArtifact sets filename" do
+    tests "PreviewArtifact", on: "Generator"
+    input  filename: "sample"
+    expect ok: "true"
+  end
+
+  test "CompareArtifact sets filename" do
+    tests "CompareArtifact", on: "Generator"
+    input  filename: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Pattern aggregate ──────────────────────────────────────────
+
+  test "CoinPattern sets name + category + template" do
+    tests "CoinPattern", on: "Pattern"
+    input  name: "sample", category: "sample", template: "sample"
+    expect ok: "true"
+  end
+
+  test "ApplyPattern sets pattern_name + aggregate_name + parameters" do
+    tests "ApplyPattern", on: "Pattern"
+    setup  "OpenProject", path: "sample"
+    input  pattern_name: "sample", aggregate_name: "sample", parameters: "sample"
+    expect ok: "true"
+  end
+
+  test "ListPatterns sets category" do
+    tests "ListPatterns", on: "Pattern"
+    input  category: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Feature aggregate ──────────────────────────────────────────
+
+  test "DraftFeature sets title + description" do
+    tests "DraftFeature", on: "Feature"
+    input  title: "sample", description: "sample"
+    expect ok: "true"
+  end
+
+  test "PlanFeature runs" do
+    tests "PlanFeature", on: "Feature"
+    expect status: "planned"
+  end
+
+  test "AddDomainAddition sets kind + name + parent + description" do
+    tests "AddDomainAddition", on: "Feature"
+    input  kind: "sample", name: "sample", parent: "sample", description: "sample"
+    expect description: "sample", status: "draft"
+  end
+
+  test "VerifyAdditions runs" do
+    tests "VerifyAdditions", on: "Feature"
+    setup  "PlanFeature"
+    setup  "BuildFeature"
+    expect status: "planned"
+  end
+
+  test "BuildFeature runs" do
+    tests "BuildFeature", on: "Feature"
+    setup  "PlanFeature"
+    expect status: "building"
+  end
+
+  test "CompleteFeature runs" do
+    tests "CompleteFeature", on: "Feature"
+    setup  "PlanFeature"
+    expect status: "done"
+  end
+
+
+  # ── Backlog aggregate ──────────────────────────────────────────
+
+  test "AddToBacklog sets feature_title" do
+    tests "AddToBacklog", on: "Backlog"
+    input  feature_title: "sample"
+    expect ok: "true"
+  end
+
+  test "Prioritize sets feature_title + position" do
+    tests "Prioritize", on: "Backlog"
+    input  feature_title: "sample", position: 1
+    expect ok: "true"
+  end
+
+  test "TrackProgress runs" do
+    tests "TrackProgress", on: "Backlog"
+    expect ok: "true"
+  end
+
+
+  # ── ProductExecutor aggregate ──────────────────────────────────────────
+
+  test "SendToAgent sets agent_name + content" do
+    tests "SendToAgent", on: "ProductExecutor"
+    input  agent_name: "sample", content: "sample"
+    expect ok: "true"
+  end
+
+  test "SwitchAgent sets agent_name" do
+    tests "SwitchAgent", on: "ProductExecutor"
+    input  agent_name: "sample"
+    expect ok: "true"
+  end
+
+  test "ClearAgent sets agent_name" do
+    tests "ClearAgent", on: "ProductExecutor"
+    input  agent_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── FeatureFlag aggregate ──────────────────────────────────────────
+
+  test "RaiseFlag sets feature_title" do
+    tests "RaiseFlag", on: "FeatureFlag"
+    input  feature_title: "sample"
+    expect ok: "true"
+  end
+
+  test "ToggleFlag runs" do
+    tests "ToggleFlag", on: "FeatureFlag"
+    expect ok: "true"
+  end
+
+  test "RemoveFlag runs" do
+    tests "RemoveFlag", on: "FeatureFlag"
+    expect ok: "true"
+  end
+
+
+  # ── Review aggregate ──────────────────────────────────────────
+
+  test "ProposeChange sets title + author + changes_summary" do
+    tests "ProposeChange", on: "Review"
+    input  title: "sample", author: "sample", changes_summary: "sample"
+    expect ok: "true"
+  end
+
+  test "AddComment sets author + body + element_name" do
+    tests "AddComment", on: "Review"
+    input  author: "sample", body: "sample", element_name: "sample"
+    expect author: "sample"
+  end
+
+  test "ApproveReview sets author" do
+    tests "ApproveReview", on: "Review"
+    input  author: "sample"
+    expect ok: "true"
+  end
+
+  test "RejectReview sets author + reason" do
+    tests "RejectReview", on: "Review"
+    input  author: "sample", reason: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Annotation aggregate ──────────────────────────────────────────
+
+  test "Annotate sets element_type + element_name + body" do
+    tests "Annotate", on: "Annotation"
+    input  element_type: "sample", element_name: "sample", body: "sample"
+    expect ok: "true"
+  end
+
+  test "ResolveAnnotation runs" do
+    tests "ResolveAnnotation", on: "Annotation"
+    expect ok: "true"
+  end
+
+  test "ReplyToAnnotation sets author + body" do
+    tests "ReplyToAnnotation", on: "Annotation"
+    input  author: "sample", body: "sample"
+    expect ok: "true"
+  end
+
+  test "Unresolved returns matching records" do
+    tests "Unresolved", on: "Annotation", kind: :query
+    setup  "Annotate", element_type: "sample", element_name: "sample", body: "sample"
+    expect count: 1
+  end
+
+
+  # ── Agent aggregate ──────────────────────────────────────────
+
+  test "SendMessage sets content" do
+    tests "SendMessage", on: "Agent"
+    input  content: "sample"
+    expect thinking: "thinking"
+  end
+
+  test "ToggleAdapter sets mode" do
+    tests "ToggleAdapter", on: "Agent"
+    input  mode: "sample"
+    expect ok: "true"
+  end
+
+  test "ClearConversation runs" do
+    tests "ClearConversation", on: "Agent"
+    expect ok: "true"
+  end
+
+  test "ApplySuggestion sets title" do
+    tests "ApplySuggestion", on: "Agent"
+    input  title: "sample"
+    expect ok: "true"
+  end
+
+  test "RequestReview runs" do
+    tests "RequestReview", on: "Agent"
+    expect ok: "true"
+  end
+
+  test "LoadDomainContext sets domain_name" do
+    tests "LoadDomainContext", on: "Agent"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Insight aggregate ──────────────────────────────────────────
+
+  test "AnalyzeDomain sets scope" do
+    tests "AnalyzeDomain", on: "Insight"
+    input  scope: "sample"
+    expect ok: "true"
+  end
+
+  test "DismissInsight sets rule + element_name" do
+    tests "DismissInsight", on: "Insight"
+    input  rule: "sample", element_name: "sample"
+    expect ok: "true"
+  end
+
+  test "ConfigureRules sets rule + enabled" do
+    tests "ConfigureRules", on: "Insight"
+    input  rule: "sample", enabled: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Migration aggregate ──────────────────────────────────────────
+
+  test "DetectChanges sets from_version" do
+    tests "DetectChanges", on: "Migration"
+    input  from_version: "sample"
+    expect ok: "true"
+  end
+
+  test "GenerateMigration runs" do
+    tests "GenerateMigration", on: "Migration"
+    expect ok: "true"
+  end
+
+  test "ApplyMigration runs" do
+    tests "ApplyMigration", on: "Migration"
+    expect ok: "true"
+  end
+
+
+  # ── Comparison aggregate ──────────────────────────────────────────
+
+  test "CompareVersions sets left_version + right_version" do
+    tests "CompareVersions", on: "Comparison"
+    input  left_version: "sample", right_version: "sample"
+    expect ok: "true"
+  end
+
+  test "HighlightBreaking runs" do
+    tests "HighlightBreaking", on: "Comparison"
+    expect ok: "true"
+  end
+
+
+  # ── Diagram aggregate ──────────────────────────────────────────
+
+  test "GenerateDiagram sets view_type + path + domain" do
+    tests "GenerateDiagram", on: "Diagram"
+    input  view_type: "sample", path: "sample", domain: "sample"
+    expect ok: "true"
+  end
+
+  test "GenerateOverview sets scope" do
+    tests "GenerateOverview", on: "Diagram"
+    input  scope: "sample"
+    expect ok: "true"
+  end
+
+  test "SelectView sets view_type" do
+    tests "SelectView", on: "Diagram"
+    input  view_type: "sample"
+    expect ok: "true"
+  end
+
+  test "FilterByAggregate sets aggregate_name" do
+    tests "FilterByAggregate", on: "Diagram"
+    input  aggregate_name: "sample"
+    expect ok: "true"
+  end
+
+  test "RunAnalysis runs" do
+    tests "RunAnalysis", on: "Diagram"
+    expect ok: "true"
+  end
+
+
+  # ── EventStorm aggregate ──────────────────────────────────────────
+
+  test "StartStorm sets name" do
+    tests "StartStorm", on: "EventStorm"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+  test "AddSticky sets label + kind" do
+    tests "AddSticky", on: "EventStorm"
+    input  label: "sample", kind: "sample"
+    expect ok: "true"
+  end
+
+  test "MoveSticky sets label + position_x + position_y" do
+    tests "MoveSticky", on: "EventStorm"
+    input  label: "sample", position_x: 1, position_y: 1
+    expect ok: "true"
+  end
+
+  test "ConvertToDomain runs" do
+    tests "ConvertToDomain", on: "EventStorm"
+    expect ok: "true"
+  end
+
+
+  # ── Glossary aggregate ──────────────────────────────────────────
+
+  test "ShowGlossary runs" do
+    tests "ShowGlossary", on: "Glossary"
+    expect ok: "true"
+  end
+
+  test "DefineTerm sets name + definition + category" do
+    tests "DefineTerm", on: "Glossary"
+    input  name: "sample", definition: "sample", category: "sample"
+    expect ok: "true"
+  end
+
+  test "RenameTerm sets old_name + new_name" do
+    tests "RenameTerm", on: "Glossary"
+    input  old_name: "sample", new_name: "sample"
+    expect ok: "true"
+  end
+
+  test "FlagAmbiguity sets term_name + reason" do
+    tests "FlagAmbiguity", on: "Glossary"
+    input  term_name: "sample", reason: "sample"
+    expect ok: "true"
+  end
+
+  test "LinkTerms sets from_term + to_term + relationship" do
+    tests "LinkTerms", on: "Glossary"
+    input  from_term: "sample", to_term: "sample", relationship: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Console aggregate ──────────────────────────────────────────
+
+  test "OpenConsole runs" do
+    tests "OpenConsole", on: "Console"
+    expect ok: "true"
+  end
+
+  test "SelectCommand sets aggregate_name + command_name" do
+    tests "SelectCommand", on: "Console"
+    input  aggregate_name: "sample", command_name: "sample"
+    expect ok: "true"
+  end
+
+  test "SubmitForm sets values" do
+    tests "SubmitForm", on: "Console"
+    input  values: "sample"
+    expect ok: "true"
+  end
+
+  test "ViewResult runs" do
+    tests "ViewResult", on: "Console"
+    expect ok: "true"
+  end
+
+
+  # ── AcceptanceTest aggregate ──────────────────────────────────────────
+
+  test "RunAll runs" do
+    tests "RunAll", on: "AcceptanceTest"
+    expect status: "running"
+  end
+
+  test "RunCommand sets aggregate_name + command_name" do
+    tests "RunCommand", on: "AcceptanceTest"
+    input  aggregate_name: "sample", command_name: "sample"
+    expect ok: "true"
+  end
+
+  test "Reset runs" do
+    tests "Reset", on: "AcceptanceTest"
+    expect status: "idle"
+  end
+
+
+  # ── EventStream aggregate ──────────────────────────────────────────
+
+  test "SubscribeToEvents runs" do
+    tests "SubscribeToEvents", on: "EventStream"
+    expect ok: "true"
+  end
+
+  test "StopStreaming runs" do
+    tests "StopStreaming", on: "EventStream"
+    expect ok: "true"
+  end
+
+  test "PauseStream runs" do
+    tests "PauseStream", on: "EventStream"
+    expect ok: "true"
+  end
+
+  test "ResumeStream runs" do
+    tests "ResumeStream", on: "EventStream"
+    expect ok: "true"
+  end
+
+  test "ClearEvents runs" do
+    tests "ClearEvents", on: "EventStream"
+    expect ok: "true"
+  end
+
+  test "FilterEvents sets aggregate_name + event_type" do
+    tests "FilterEvents", on: "EventStream"
+    input  aggregate_name: "sample", event_type: "sample"
+    expect ok: "true"
+  end
+
+  test "InspectEvent sets event_name + timestamp" do
+    tests "InspectEvent", on: "EventStream"
+    input  event_name: "sample", timestamp: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Scenario aggregate ──────────────────────────────────────────
+
+  test "DraftScenario sets name" do
+    tests "DraftScenario", on: "Scenario"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+  test "AddStep sets phase + aggregate_name + command_name + attributes" do
+    tests "AddStep", on: "Scenario"
+    input  phase: "sample", aggregate_name: "sample", command_name: "sample", attributes: "sample"
+    expect ok: "true"
+  end
+
+  test "RunScenario runs" do
+    tests "RunScenario", on: "Scenario"
+    expect ok: "true"
+  end
+
+  test "RecordResult sets result" do
+    tests "RecordResult", on: "Scenario"
+    input  result: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Fixture aggregate ──────────────────────────────────────────
+
+  test "ComposeFixture sets name" do
+    tests "ComposeFixture", on: "Fixture"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+  test "AddEntry sets aggregate_name + attributes" do
+    tests "AddEntry", on: "Fixture"
+    input  aggregate_name: "sample", attributes: "sample"
+    expect ok: "true"
+  end
+
+  test "ApplyToScenario runs" do
+    tests "ApplyToScenario", on: "Fixture"
+    setup  "DraftScenario", name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Playground aggregate ──────────────────────────────────────────
+
+  test "ExecuteCommand sets aggregate_name + command_name + attributes" do
+    tests "ExecuteCommand", on: "Playground"
+    input  aggregate_name: "sample", command_name: "sample", attributes: "sample"
+    expect ok: "true"
+  end
+
+  test "InspectState sets aggregate_name" do
+    tests "InspectState", on: "Playground"
+    input  aggregate_name: "sample"
+    expect ok: "true"
+  end
+
+  test "ResetPlayground runs" do
+    tests "ResetPlayground", on: "Playground"
+    expect ok: "true"
+  end
+
+  test "RecentEvents returns matching records" do
+    tests "RecentEvents", on: "Playground", kind: :query
+    setup  "ExecuteCommand", aggregate_name: "sample", command_name: "sample", attributes: "sample"
+    expect count: 1
+  end
+
+
+  # ── Workbench aggregate ──────────────────────────────────────────
+
+  test "ShowWorkbench runs" do
+    tests "ShowWorkbench", on: "Workbench"
+    expect ok: "true"
+  end
+
+  test "SelectProject sets project_name" do
+    tests "SelectProject", on: "Workbench"
+    input  project_name: "sample"
+    expect ok: "true"
+  end
+
+  test "SelectAggregate sets aggregate_name" do
+    tests "SelectAggregate", on: "Workbench"
+    input  aggregate_name: "sample"
+    expect ok: "true"
+  end
+
+  test "ExecuteCommand sets command_name + args" do
+    tests "ExecuteCommand", on: "Workbench"
+    input  command_name: "sample", args: "sample"
+    expect ok: "true"
+  end
+
+  test "InspectRepository sets aggregate_name" do
+    tests "InspectRepository", on: "Workbench"
+    input  aggregate_name: "sample"
+    expect ok: "true"
+  end
+
+  test "FindRecord sets aggregate_name + record_id" do
+    tests "FindRecord", on: "Workbench"
+    input  aggregate_name: "sample", record_id: "sample"
+    expect ok: "true"
+  end
+
+  test "ShowEventHistory runs" do
+    tests "ShowEventHistory", on: "Workbench"
+    expect ok: "true"
+  end
+
+
+  # ── Session aggregate ──────────────────────────────────────────
+
+  test "EnterSketch runs" do
+    tests "EnterSketch", on: "Session"
+    expect ok: "true"
+  end
+
+  test "EnterPlay runs" do
+    tests "EnterPlay", on: "Session"
+    expect ok: "true"
+  end
+
+  test "Connect runs" do
+    tests "Connect", on: "Session"
+    expect ok: "true"
+  end
+
+  test "Disconnect runs" do
+    tests "Disconnect", on: "Session"
+    expect ok: "true"
+  end
+
+  test "RestoreConnection runs" do
+    tests "RestoreConnection", on: "Session"
+    expect ok: "true"
+  end
+
+
+  # ── Layout aggregate ──────────────────────────────────────────
+
+  test "OpenPanel sets panel_name" do
+    tests "OpenPanel", on: "Layout"
+    input  panel_name: "sample"
+    expect ok: "true"
+  end
+
+  test "ClosePanel sets panel_name" do
+    tests "ClosePanel", on: "Layout"
+    input  panel_name: "sample"
+    expect ok: "true"
+  end
+
+  test "SelectTab sets tab_name" do
+    tests "SelectTab", on: "Layout"
+    input  tab_name: "sample"
+    expect ok: "true"
+  end
+
+  test "SelectTab cascades through policy chain" do
+    tests "SelectTab", on: "Layout", kind: :cascade
+    setup  "GenerateDiagram", view_type: "sample", path: "sample", domain: "sample"
+    input  tab_name: "sample"
+    expect emits: ["TabSelected", "DiagramGenerated"]
+  end
+
+  test "ResizePanel sets panel_name + width + height" do
+    tests "ResizePanel", on: "Layout"
+    input  panel_name: "sample", width: 1, height: 1
+    expect ok: "true"
+  end
+
+  test "ToggleSidebar runs" do
+    tests "ToggleSidebar", on: "Layout"
+    expect ok: "true"
+  end
+
+  test "ToggleEventsPanel runs" do
+    tests "ToggleEventsPanel", on: "Layout"
+    expect ok: "true"
+  end
+
+  test "HideProjects runs" do
+    tests "HideProjects", on: "Layout"
+    expect ok: "true"
+  end
+
+  test "ShowProjects runs" do
+    tests "ShowProjects", on: "Layout"
+    expect ok: "true"
+  end
+
+
+  # ── LayoutState aggregate ──────────────────────────────────────────
+
+  test "TrackCurrentFile sets path + domain" do
+    tests "TrackCurrentFile", on: "LayoutState"
+    input  path: "sample", domain: "sample"
+    expect ok: "true"
+  end
+
+  test "SaveState runs" do
+    tests "SaveState", on: "LayoutState"
+    expect ok: "true"
+  end
+
+  test "RestoreState runs" do
+    tests "RestoreState", on: "LayoutState"
+    expect ok: "true"
+  end
+
+
+  # ── Menu aggregate ──────────────────────────────────────────
+
+  test "OpenMenu sets menu_name" do
+    tests "OpenMenu", on: "Menu"
+    input  menu_name: "sample"
+    expect ok: "true"
+  end
+
+  test "CloseMenu runs" do
+    tests "CloseMenu", on: "Menu"
+    expect ok: "true"
+  end
+
+  test "SelectMenuItem sets menu_name + action" do
+    tests "SelectMenuItem", on: "Menu"
+    input  menu_name: "sample", action: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── KeyboardShortcut aggregate ──────────────────────────────────────────
+
+  test "BindShortcut sets key + modifiers + command_aggregate + command_name" do
+    tests "BindShortcut", on: "KeyboardShortcut"
+    input  key: "sample", modifiers: "sample", command_aggregate: "sample", command_name: "sample"
+    expect ok: "true"
+  end
+
+  test "TriggerShortcut sets key + modifiers" do
+    tests "TriggerShortcut", on: "KeyboardShortcut"
+    input  key: "sample", modifiers: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Notification aggregate ──────────────────────────────────────────
+
+  test "Notify sets severity + message + context" do
+    tests "Notify", on: "Notification"
+    input  severity: "sample", message: "sample", context: "sample"
+    expect ok: "true"
+  end
+
+  test "DismissNotification runs" do
+    tests "DismissNotification", on: "Notification"
+    expect ok: "true"
+  end
+
+  test "Active returns matching records" do
+    tests "Active", on: "Notification", kind: :query
+    setup  "Notify", severity: "sample", message: "sample", context: "sample"
+    expect count: 1
+  end
+
+
+  # ── Screenshot aggregate ──────────────────────────────────────────
+
+  test "CaptureScreen sets frame_data + timestamp" do
+    tests "CaptureScreen", on: "Screenshot"
+    input  frame_data: "sample", timestamp: "sample"
+    expect ok: "true"
+  end
+
+  test "PauseCapture runs" do
+    tests "PauseCapture", on: "Screenshot"
+    expect ok: "true"
+  end
+
+  test "ResumeCapture runs" do
+    tests "ResumeCapture", on: "Screenshot"
+    expect ok: "true"
+  end
+
+
+  # ── Search aggregate ──────────────────────────────────────────
+
+  test "SearchDomain sets query_text" do
+    tests "SearchDomain", on: "Search"
+    input  query_text: "sample"
+    expect ok: "true"
+  end
+
+  test "ClearSearch runs" do
+    tests "ClearSearch", on: "Search"
+    expect ok: "true"
+  end
+
+  test "FilterSearchResults sets element_type" do
+    tests "FilterSearchResults", on: "Search"
+    input  element_type: "sample"
+    expect ok: "true"
+  end
+
+end

@@ -1,0 +1,22 @@
+Hecks.fixtures "VolcanoTourism" do
+  aggregate "Volcano" do
+    fixture "Mount_Stromboli_", name: "Mount Stromboli", elevation_m: 924.0, alert_level: "green", status: "monitored"
+    fixture "Mount_Etna_", name: "Mount Etna", elevation_m: 3357.0, alert_level: "yellow", status: "monitored"
+  end
+  aggregate "HotelProperty" do
+    fixture "Crater_View_Resort_", name: "Crater View Resort", distance_km: 12.5, status: "open"
+    fixture "Lava_Mountain_Lodge_", name: "Lava Mountain Lodge", distance_km: 18.0, status: "open"
+  end
+  aggregate "TourPackage" do
+    fixture "TourPackage1", package_name: "Summit Explorer", price_cents: 89999, status: "draft"
+    fixture "TourPackage2", package_name: "Seismic Adventure", price_cents: 64999, status: "draft"
+  end
+  aggregate "Booking" do
+    fixture "Booking1", guest_name: "Anna Bergstrom", party_size: 4, status: "confirmed"
+    fixture "Booking2", guest_name: "Paolo Rossi", party_size: 2, status: "confirmed"
+  end
+  aggregate "EvacuationPlan" do
+    fixture "EvacuationPlan1", plan_name: "Hotel Alpha Evacuation", status: "prepared"
+    fixture "EvacuationPlan2", plan_name: "Hotel Beta Evacuation", status: "prepared"
+  end
+end

@@ -27,6 +27,7 @@ Hecks.bluebook "StreamingPlatform", version: "2026.04.13.1" do
       Integer :duration_seconds
       String :content_rating
       emits "ContentIngested"
+      then_set :status, to: "processed"
     end
 
     PublishContent do
@@ -58,14 +59,15 @@ Hecks.bluebook "StreamingPlatform", version: "2026.04.13.1" do
       String :added_at
     end
 
-    CreateChannel do
+    CurateChannel do
       role "ContentManager"
       description "Set up a new themed channel for content curation"
       String :channel_name
       String :description
       String :curator
       String :category
-      emits "ChannelCreated"
+      emits "ChannelCurated"
+      then_set :status, to: "active"
     end
 
     AddToChannel do
@@ -106,6 +108,7 @@ Hecks.bluebook "StreamingPlatform", version: "2026.04.13.1" do
       String :plan
       String :payment_method
       emits "SubscriberEnrolled"
+      then_set :status, to: "active"
     end
 
     UpgradePlan do
@@ -148,6 +151,7 @@ Hecks.bluebook "StreamingPlatform", version: "2026.04.13.1" do
       reference_to(Subscriber)
       reference_to(Content)
       emits "RecommendationGenerated"
+      then_set :status, to: "pending"
     end
 
     DismissRecommendation do
@@ -187,6 +191,7 @@ Hecks.bluebook "StreamingPlatform", version: "2026.04.13.1" do
       Integer :unique_viewers
       Float :avg_watch_minutes
       emits "SnapshotCaptured"
+      then_set :status, to: "captured"
     end
 
     PublishReport do
@@ -258,18 +263,4 @@ Hecks.bluebook "StreamingPlatform", version: "2026.04.13.1" do
     trigger "UpgradePlan"
   end
 
-  fixture "Content", content_id: "c001", title: "The Witcher", genre: "fantasy", duration_seconds: 3600, content_rating: "TV-MA", status: "published"
-  fixture "Content", content_id: "c002", title: "Midnight Sun", genre: "sci-fi", duration_seconds: 7200, content_rating: "PG-13", status: "published"
-
-  fixture "Channel", channel_name: "Dark Fantasy", description: "Mysterious fantasy worlds", curator: "elena_hart", category: "drama", status: "active"
-  fixture "Channel", channel_name: "Sci-Fi Classics", description: "Timeless science fiction", curator: "david_chen", category: "sci-fi", status: "active"
-
-  fixture "Subscriber", subscriber_id: "sub001", email: "alice@example.com", plan: "premium", payment_method: "visa_4242", status: "active"
-  fixture "Subscriber", subscriber_id: "sub002", email: "bob@example.com", plan: "basic", payment_method: "amex_3782", status: "active"
-
-  fixture "Recommendation", recommendation_id: "rec001", algorithm: "collaborative_filtering", relevance_score: 0.92, reason: "You watched similar shows", status: "pending"
-  fixture "Recommendation", recommendation_id: "rec002", algorithm: "content_based", relevance_score: 0.87, reason: "Matches your viewing history", status: "pending"
-
-  fixture "AnalyticsSnapshot", snapshot_id: "snap001", period: "2026-04-07_to_2026-04-13", total_streams: 145000, unique_viewers: 32000, avg_watch_minutes: 47.5, status: "published"
-  fixture "AnalyticsSnapshot", snapshot_id: "snap002", period: "2026-03-31_to_2026-04-06", total_streams: 138000, unique_viewers: 30500, avg_watch_minutes: 45.2, status: "published"
 end

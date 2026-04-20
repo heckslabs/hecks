@@ -1,0 +1,16 @@
+Hecks.fixtures "Formulation" do
+  aggregate "Formula" do
+    fixture "DuraLube_Diesel_Defense_", name: "DuraLube Diesel Defense", brand: "DuraLube", product_type: "diesel_treatment", base_oil_type: "Group III", viscosity_index: 135, status: "draft"
+    fixture "MotorKote_Transmission_Guard_", name: "MotorKote Transmission Guard", brand: "MotorKote", product_type: "transmission_treatment", base_oil_type: "synthetic", viscosity_index: 160, status: "draft"
+    fixture "Slick_50_Turbo_Shield_", name: "Slick 50 Turbo Shield", brand: "Slick 50", product_type: "turbo_treatment", base_oil_type: "Group IV", viscosity_index: 170, status: "draft"
+    fixture "DuraLube_Advanced_Engine_Treatment_", name: "DuraLube Advanced Engine Treatment", brand: "DuraLube", product_type: "engine_treatment", base_oil_type: "Group III", viscosity_index: 140, pour_point_celsius: -42, flash_point_celsius: 220, status: "finalized"
+    fixture "MotorKote_Hyper_Lubricant_", name: "MotorKote Hyper Lubricant", brand: "MotorKote", product_type: "metal_treatment", base_oil_type: "synthetic blend", viscosity_index: 155, status: "finalized"
+    fixture "Slick_50_Recharged_Engine_Treatment_", name: "Slick 50 Recharged Engine Treatment", brand: "Slick 50", product_type: "engine_treatment", base_oil_type: "Group II", viscosity_index: 130, status: "finalized"
+    fixture "DuraLube_High_Mileage_Protector_", name: "DuraLube High-Mileage Protector", brand: "DuraLube", product_type: "engine_treatment", base_oil_type: "Group II+", viscosity_index: 145, status: "finalized"
+    fixture "Slick_50_Complete_Engine_Flush_", name: "Slick 50 Complete Engine Flush", brand: "Slick 50", product_type: "engine_flush", base_oil_type: "Group I", viscosity_index: 95, status: "finalized"
+    fixture "MotorKote_Marine_Guard_", name: "MotorKote Marine Guard", brand: "MotorKote", product_type: "marine_treatment", base_oil_type: "synthetic", viscosity_index: 150, status: "finalized"
+    fixture "DuraLube_Classic_V1_", name: "DuraLube Classic V1", brand: "DuraLube", product_type: "engine_treatment", base_oil_type: "Group I", viscosity_index: 110, status: "retired"
+    fixture "Slick_50_Original_Formula_", name: "Slick 50 Original Formula", brand: "Slick 50", product_type: "engine_treatment", base_oil_type: "mineral", viscosity_index: 100, status: "retired"
+    fixture "MotorKote_Legacy_Blend_", name: "MotorKote Legacy Blend", brand: "MotorKote", product_type: "metal_treatment", base_oil_type: "mineral", viscosity_index: 105, status: "retired"
+  end
+end

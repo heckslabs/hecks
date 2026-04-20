@@ -1,0 +1,18 @@
+Hecks.fixtures "SchoolLunch" do
+  aggregate "NutrientProfile" do
+    fixture "NutrientProfile1", age_group: "K-2", calories_min: 600.0, calories_max: 700.0, protein_g: 10.0, fat_max_g: 23.0, sodium_max_mg: 700.0, status: "active"
+    fixture "NutrientProfile2", age_group: "6-8", calories_min: 700.0, calories_max: 850.0, protein_g: 12.0, fat_max_g: 28.0, sodium_max_mg: 900.0, status: "active"
+  end
+  aggregate "MenuItem" do
+    fixture "Grilled_Chicken_Breast_", name: "Grilled Chicken Breast", category: "entree", calories: 250.0, protein_g: 35.0, cost_per_serving: 2.50, allergens: "none", status: "active"
+    fixture "Peanut_Butter_Sandwich_", name: "Peanut Butter Sandwich", category: "entree", calories: 320.0, protein_g: 12.0, cost_per_serving: 1.75, allergens: "peanut, wheat", status: "active"
+  end
+  aggregate "WeeklyMenu" do
+    fixture "WeeklyMenu1", week_of: "2026-04-14", school_name: "Lincoln Elementary", meal_count: 25, avg_calories: 650.0, total_budget: 1200.0, status: "approved"
+    fixture "WeeklyMenu2", week_of: "2026-04-21", school_name: "Roosevelt High", meal_count: 25, avg_calories: 750.0, total_budget: 1400.0, status: "planned"
+  end
+  aggregate "ComplianceAudit" do
+    fixture "ComplianceAudit1", school_name: "Lincoln Elementary", audit_period: "Q1 2026", compliance_score: 92.5, findings: "Minor labeling issues in cold storage", status: "scored"
+    fixture "ComplianceAudit2", school_name: "Roosevelt High", audit_period: "Q1 2026", compliance_score: 88.0, findings: "Sodium content exceeds limits on 2 items", status: "corrective"
+  end
+end

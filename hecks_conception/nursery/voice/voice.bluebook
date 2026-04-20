@@ -1,5 +1,5 @@
 Hecks.bluebook "Voice", version: "2026.04.11.1" do
-  vision "Winter's ability to speak and listen — Almond for ears, Aria for mouth"
+  vision "Miette's ability to speak and listen — Almond for ears, Aria for mouth"
   category "infrastructure"
 
   aggregate "Listener", "Watches for voice input — clipboard changes from Almond" do
@@ -8,7 +8,7 @@ Hecks.bluebook "Voice", version: "2026.04.11.1" do
     String :last_heard_at
 
     StartListening do
-      role "Winter"
+      role "Miette"
       description "Begin watching the clipboard for Almond transcriptions"
       emits "ListeningStarted"
       then_set :status, to: "listening"
@@ -24,7 +24,7 @@ Hecks.bluebook "Voice", version: "2026.04.11.1" do
     end
 
     StopListening do
-      role "Winter"
+      role "Miette"
       description "Stop watching the clipboard"
       reference_to(Listener)
       emits "ListeningStopped"
@@ -32,7 +32,7 @@ Hecks.bluebook "Voice", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "silent" do
-      transition "StartListening" => "listening", from: "silent"
+      transition "StartListening" => "listening", from: ["silent", "listening"]
       transition "StopListening" => "silent", from: "listening"
     end
   end
@@ -45,7 +45,7 @@ Hecks.bluebook "Voice", version: "2026.04.11.1" do
     String :last_spoke_at
 
     Speak do
-      role "Winter"
+      role "Miette"
       description "Say something aloud using the neural voice"
       String :text
       emits "Spoken"
@@ -70,8 +70,6 @@ Hecks.bluebook "Voice", version: "2026.04.11.1" do
       then_set :rate, to: :rate
     end
   end
-
-  fixture "Speaker", voice: "en-US-AriaNeural", rate: "+20%", engine: "edge-tts"
 
   aggregate "Conversation", "A voice conversation session — turns of listening and speaking" do
     Integer :turn_count

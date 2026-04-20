@@ -1,0 +1,16 @@
+Hecks.fixtures "GovernedOperations" do
+  aggregate "JurisdictionalContract" do
+    fixture "JurisdictionalContract1", jurisdiction: "California DCC", regulation_code: "DCC-2024-001", effective_date: "2024-01-01", status: "active"
+    fixture "JurisdictionalContract2", jurisdiction: "Oregon OLCC", regulation_code: "OLCC-2024-001", effective_date: "2024-01-01", status: "active"
+  end
+  aggregate "OperationalContract" do
+    fixture "ISO_9001_Quality_Management_", name: "ISO 9001 Quality Management", department: "Quality", version: 1, status: "active"
+    fixture "GMP_Manufacturing_Standards_", name: "GMP Manufacturing Standards", department: "Production", version: 1, status: "active"
+  end
+  aggregate "Batch" do
+    fixture "Batch1", batch_number: "BATCH-2024-001", product: "Blue Dream Flower", quantity: 500, status: "created"
+  end
+  aggregate "Token" do
+    fixture "Token1", account: "default", balance: 1000, consumed: 0
+  end
+end

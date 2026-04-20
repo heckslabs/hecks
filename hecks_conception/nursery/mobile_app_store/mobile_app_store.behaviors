@@ -1,0 +1,157 @@
+Hecks.behaviors "MobileAppStore" do
+  vision "Behavioral tests for the MobileAppStore domain — exercises every command and query in memory"
+
+  # ── App aggregate ──────────────────────────────────────────
+
+  test "SubmitApp sets bundle_id + title + developer_name + category + price" do
+    tests "SubmitApp", on: "App"
+    input  bundle_id: "sample", title: "sample", developer_name: "sample", category: "sample", price: 1.0
+    expect status: "pending_review"
+  end
+
+  test "ApproveApp runs" do
+    tests "ApproveApp", on: "App"
+    setup  "SubmitApp", bundle_id: "sample", title: "sample", developer_name: "sample", category: "sample", price: 1.0
+    expect ok: "true"
+  end
+
+  test "ApproveApp cascades through policy chain" do
+    tests "ApproveApp", on: "App", kind: :cascade
+    setup  "RecordDownload", download_id: "sample", user_id: "sample", device_type: "sample", os_version: "sample"
+    setup  "PostReview", review_id: "sample", author_name: "sample", rating: 1, comment: "sample"
+    setup  "CalculateSplit", split_id: "sample", gross_amount: 1.0, period: "sample"
+    setup  "SubmitApp", bundle_id: "sample", title: "sample", developer_name: "sample", category: "sample", price: 1.0
+    expect emits: ["AppApproved", "DownloadRecorded", "ReviewPosted", "SplitCalculated", "DeveloperShareDisbursed"]
+  end
+
+  test "SuspendApp runs" do
+    tests "SuspendApp", on: "App"
+    setup  "SubmitApp", bundle_id: "sample", title: "sample", developer_name: "sample", category: "sample", price: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── Review aggregate ──────────────────────────────────────────
+
+  test "FlagReview sets reason" do
+    tests "FlagReview", on: "Review"
+    setup  "PostReview", review_id: "sample", author_name: "sample", rating: 1, comment: "sample"
+    input  reason: "sample"
+    expect status: "flagged"
+  end
+
+  test "FlagReview cascades through policy chain" do
+    tests "FlagReview", on: "Review", kind: :cascade
+    setup  "PostReview", review_id: "sample", author_name: "sample", rating: 1, comment: "sample"
+    setup  "SubmitApp", bundle_id: "sample", title: "sample", developer_name: "sample", category: "sample", price: 1.0
+    input  reason: "sample"
+    expect emits: ["ReviewFlagged", "ReviewRemoved", "AppSuspended"]
+  end
+
+  test "RemoveReview runs" do
+    tests "RemoveReview", on: "Review"
+    setup  "PostReview", review_id: "sample", author_name: "sample", rating: 1, comment: "sample"
+    setup  "FlagReview", reason: "sample"
+    expect ok: "true"
+  end
+
+  test "RemoveReview cascades through policy chain" do
+    tests "RemoveReview", on: "Review", kind: :cascade
+    setup  "PostReview", review_id: "sample", author_name: "sample", rating: 1, comment: "sample"
+    setup  "SubmitApp", bundle_id: "sample", title: "sample", developer_name: "sample", category: "sample", price: 1.0
+    setup  "FlagReview", reason: "sample"
+    expect emits: ["ReviewRemoved", "AppSuspended"]
+  end
+
+
+  # ── Download aggregate ──────────────────────────────────────────
+
+  test "RecordDownload sets download_id + user_id + device_type + os_version" do
+    tests "RecordDownload", on: "Download"
+    setup  "SubmitApp", bundle_id: "sample", title: "sample", developer_name: "sample", category: "sample", price: 1.0
+    input  download_id: "sample", user_id: "sample", device_type: "sample", os_version: "sample"
+    expect status: "active"
+  end
+
+  test "RecordDownload cascades through policy chain" do
+    tests "RecordDownload", on: "Download", kind: :cascade
+    setup  "SubmitApp", bundle_id: "sample", title: "sample", developer_name: "sample", category: "sample", price: 1.0
+    setup  "PostReview", review_id: "sample", author_name: "sample", rating: 1, comment: "sample"
+    setup  "CalculateSplit", split_id: "sample", gross_amount: 1.0, period: "sample"
+    input  download_id: "sample", user_id: "sample", device_type: "sample", os_version: "sample"
+    expect emits: ["DownloadRecorded", "ReviewPosted", "SplitCalculated", "DeveloperShareDisbursed"]
+  end
+
+  test "RecordUninstall runs" do
+    tests "RecordUninstall", on: "Download"
+    setup  "RecordDownload", download_id: "sample", user_id: "sample", device_type: "sample", os_version: "sample"
+    expect ok: "true"
+  end
+
+  test "RefundPurchase runs" do
+    tests "RefundPurchase", on: "Download"
+    setup  "RecordDownload", download_id: "sample", user_id: "sample", device_type: "sample", os_version: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── AppUpdate aggregate ──────────────────────────────────────────
+
+  test "SubmitUpdate sets update_id + version_number + release_notes + size_mb" do
+    tests "SubmitUpdate", on: "AppUpdate"
+    setup  "SubmitApp", bundle_id: "sample", title: "sample", developer_name: "sample", category: "sample", price: 1.0
+    input  update_id: "sample", version_number: "sample", release_notes: "sample", size_mb: 1
+    expect status: "pending"
+  end
+
+  test "SubmitUpdate cascades through policy chain" do
+    tests "SubmitUpdate", on: "AppUpdate", kind: :cascade
+    setup  "SubmitApp", bundle_id: "sample", title: "sample", developer_name: "sample", category: "sample", price: 1.0
+    input  update_id: "sample", version_number: "sample", release_notes: "sample", size_mb: 1
+    expect emits: ["UpdateSubmitted", "UpdateApproved"]
+  end
+
+  test "ApproveUpdate runs" do
+    tests "ApproveUpdate", on: "AppUpdate"
+    setup  "SubmitUpdate", update_id: "sample", version_number: "sample", release_notes: "sample", size_mb: 1
+    expect ok: "true"
+  end
+
+  test "RejectUpdate sets rejection_reason" do
+    tests "RejectUpdate", on: "AppUpdate"
+    setup  "SubmitUpdate", update_id: "sample", version_number: "sample", release_notes: "sample", size_mb: 1
+    input  rejection_reason: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── RevenueSplit aggregate ──────────────────────────────────────────
+
+  test "CalculateSplit sets split_id + gross_amount + period" do
+    tests "CalculateSplit", on: "RevenueSplit"
+    setup  "SubmitApp", bundle_id: "sample", title: "sample", developer_name: "sample", category: "sample", price: 1.0
+    input  split_id: "sample", gross_amount: 1.0, period: "sample"
+    expect status: "calculated"
+  end
+
+  test "CalculateSplit cascades through policy chain" do
+    tests "CalculateSplit", on: "RevenueSplit", kind: :cascade
+    setup  "SubmitApp", bundle_id: "sample", title: "sample", developer_name: "sample", category: "sample", price: 1.0
+    input  split_id: "sample", gross_amount: 1.0, period: "sample"
+    expect emits: ["SplitCalculated", "DeveloperShareDisbursed"]
+  end
+
+  test "DisburseDeveloperShare runs" do
+    tests "DisburseDeveloperShare", on: "RevenueSplit"
+    setup  "CalculateSplit", split_id: "sample", gross_amount: 1.0, period: "sample"
+    expect ok: "true"
+  end
+
+  test "DisputeSplit sets dispute_reason" do
+    tests "DisputeSplit", on: "RevenueSplit"
+    setup  "CalculateSplit", split_id: "sample", gross_amount: 1.0, period: "sample"
+    input  dispute_reason: "sample"
+    expect ok: "true"
+  end
+
+end

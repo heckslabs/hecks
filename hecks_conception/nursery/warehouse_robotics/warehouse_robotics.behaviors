@@ -1,0 +1,127 @@
+Hecks.behaviors "WarehouseRobotics" do
+  vision "Behavioral tests for the WarehouseRobotics domain — exercises every command and query in memory"
+
+  # ── Robot aggregate ──────────────────────────────────────────
+
+  test "ActivateRobot sets robot_id + robot_type + max_payload_kg + current_zone" do
+    tests "ActivateRobot", on: "Robot"
+    input  robot_id: "sample", robot_type: "sample", max_payload_kg: 1.0, current_zone: "sample"
+    expect robot_id: "sample", robot_type: "sample", battery_pct: 100.0, max_payload_kg: 1.0, current_zone: "sample", status: "idle"
+  end
+
+  test "AssignTask runs" do
+    tests "AssignTask", on: "Robot"
+    setup  "ActivateRobot", robot_id: "sample", robot_type: "sample", max_payload_kg: 1.0, current_zone: "sample"
+    expect status: "working"
+  end
+
+  test "CompleteTask sets battery_pct" do
+    tests "CompleteTask", on: "Robot"
+    setup  "ActivateRobot", robot_id: "sample", robot_type: "sample", max_payload_kg: 1.0, current_zone: "sample"
+    setup  "AssignTask"
+    input  battery_pct: 1.0
+    expect battery_pct: 1.0, status: "idle"
+  end
+
+  test "CompleteTask cascades through policy chain" do
+    tests "CompleteTask", on: "Robot", kind: :cascade
+    setup  "ActivateRobot", robot_id: "sample", robot_type: "sample", max_payload_kg: 1.0, current_zone: "sample"
+    setup  "AssignTask"
+    input  battery_pct: 1.0
+    expect emits: ["TaskCompleted", "RobotSentToCharger"]
+  end
+
+  test "SendToCharger runs" do
+    tests "SendToCharger", on: "Robot"
+    setup  "ActivateRobot", robot_id: "sample", robot_type: "sample", max_payload_kg: 1.0, current_zone: "sample"
+    expect status: "charging"
+  end
+
+  test "FinishCharging runs" do
+    tests "FinishCharging", on: "Robot"
+    setup  "ActivateRobot", robot_id: "sample", robot_type: "sample", max_payload_kg: 1.0, current_zone: "sample"
+    setup  "SendToCharger"
+    expect battery_pct: 100.0, status: "idle"
+  end
+
+
+  # ── PickList aggregate ──────────────────────────────────────────
+
+  test "GeneratePickList sets list_id + order_id + item_count + priority" do
+    tests "GeneratePickList", on: "PickList"
+    input  list_id: "sample", order_id: "sample", item_count: 1, priority: "sample"
+    expect list_id: "sample", order_id: "sample", item_count: 1, priority: "sample", status: "generated"
+  end
+
+  test "GeneratePickList cascades through policy chain" do
+    tests "GeneratePickList", on: "PickList", kind: :cascade
+    setup  "ActivateRobot", robot_id: "sample", robot_type: "sample", max_payload_kg: 1.0, current_zone: "sample"
+    input  list_id: "sample", order_id: "sample", item_count: 1, priority: "sample"
+    expect emits: ["PickListGenerated", "PickListAssigned", "TaskAssigned"]
+  end
+
+  test "AssignToRobot sets assigned_robot" do
+    tests "AssignToRobot", on: "PickList"
+    setup  "GeneratePickList", list_id: "sample", order_id: "sample", item_count: 1, priority: "sample"
+    input  assigned_robot: "sample"
+    expect assigned_robot: "sample", status: "assigned"
+  end
+
+  test "AssignToRobot cascades through policy chain" do
+    tests "AssignToRobot", on: "PickList", kind: :cascade
+    setup  "ActivateRobot", robot_id: "sample", robot_type: "sample", max_payload_kg: 1.0, current_zone: "sample"
+    setup  "GeneratePickList", list_id: "sample", order_id: "sample", item_count: 1, priority: "sample"
+    input  assigned_robot: "sample"
+    expect emits: ["PickListAssigned", "TaskAssigned"]
+  end
+
+  test "CompletePickList runs" do
+    tests "CompletePickList", on: "PickList"
+    setup  "GeneratePickList", list_id: "sample", order_id: "sample", item_count: 1, priority: "sample"
+    setup  "AssignToRobot", assigned_robot: "sample"
+    expect status: "completed"
+  end
+
+
+  # ── NavigationPath aggregate ──────────────────────────────────────────
+
+  test "ComputePath sets path_id + robot_id + from_zone + to_zone + distance_m + estimated_seconds" do
+    tests "ComputePath", on: "NavigationPath"
+    input  path_id: "sample", robot_id: "sample", from_zone: "sample", to_zone: "sample", distance_m: 1.0, estimated_seconds: 1.0
+    expect path_id: "sample", robot_id: "sample", from_zone: "sample", to_zone: "sample", distance_m: 1.0, estimated_seconds: 1.0, status: "computed"
+  end
+
+  test "ComputePath cascades through policy chain" do
+    tests "ComputePath", on: "NavigationPath", kind: :cascade
+    input  path_id: "sample", robot_id: "sample", from_zone: "sample", to_zone: "sample", distance_m: 1.0, estimated_seconds: 1.0
+    expect emits: ["PathComputed", "PathExecuted"]
+  end
+
+  test "ExecutePath runs" do
+    tests "ExecutePath", on: "NavigationPath"
+    setup  "ComputePath", path_id: "sample", robot_id: "sample", from_zone: "sample", to_zone: "sample", distance_m: 1.0, estimated_seconds: 1.0
+    expect status: "executed"
+  end
+
+
+  # ── ThroughputMetric aggregate ──────────────────────────────────────────
+
+  test "RecordThroughput sets metric_id + period + total_picks + picks_per_hour + robot_utilization_pct" do
+    tests "RecordThroughput", on: "ThroughputMetric"
+    input  metric_id: "sample", period: "sample", total_picks: 1, picks_per_hour: 1.0, robot_utilization_pct: 1.0
+    expect metric_id: "sample", period: "sample", total_picks: 1, picks_per_hour: 1.0, robot_utilization_pct: 1.0, status: "recorded"
+  end
+
+  test "RecordThroughput cascades through policy chain" do
+    tests "RecordThroughput", on: "ThroughputMetric", kind: :cascade
+    input  metric_id: "sample", period: "sample", total_picks: 1, picks_per_hour: 1.0, robot_utilization_pct: 1.0
+    expect emits: ["ThroughputRecorded", "BottlenecksAnalyzed"]
+  end
+
+  test "AnalyzeBottlenecks runs" do
+    tests "AnalyzeBottlenecks", on: "ThroughputMetric"
+    setup  "RecordThroughput", metric_id: "sample", period: "sample", total_picks: 1, picks_per_hour: 1.0, robot_utilization_pct: 1.0
+    expect status: "analyzed"
+  end
+
+end

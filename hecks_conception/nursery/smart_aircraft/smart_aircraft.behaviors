@@ -1,0 +1,67 @@
+Hecks.behaviors "SmartAircraft" do
+  vision "Behavioral tests for the SmartAircraft domain — exercises every command and query in memory"
+
+  # ── Aircraft aggregate ──────────────────────────────────────────
+
+  test "RegisterAircraft sets tail_number + model" do
+    tests "RegisterAircraft", on: "Aircraft"
+    input  tail_number: "sample", model: "sample"
+    expect tail_number: "sample", model: "sample"
+  end
+
+  test "GroundAircraft runs" do
+    tests "GroundAircraft", on: "Aircraft"
+    setup  "RegisterAircraft", tail_number: "sample", model: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Flight aggregate ──────────────────────────────────────────
+
+  test "ScheduleFlight sets flight_number + origin + destination" do
+    tests "ScheduleFlight", on: "Flight"
+    setup  "RegisterAircraft", tail_number: "sample", model: "sample"
+    input  flight_number: "sample", origin: "sample", destination: "sample"
+    expect ok: "true"
+  end
+
+  test "DepartFlight runs" do
+    tests "DepartFlight", on: "Flight"
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample"
+    expect ok: "true"
+  end
+
+  test "CompleteFlight runs" do
+    tests "CompleteFlight", on: "Flight"
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SensorStream aggregate ──────────────────────────────────────────
+
+  test "StartStream sets stream_id" do
+    tests "StartStream", on: "SensorStream"
+    setup  "RegisterAircraft", tail_number: "sample", model: "sample"
+    input  stream_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── MaintenanceAlert aggregate ──────────────────────────────────────────
+
+  test "RaiseAlert sets alert_type + severity" do
+    tests "RaiseAlert", on: "MaintenanceAlert"
+    setup  "StartStream", stream_id: "sample"
+    setup  "RegisterAircraft", tail_number: "sample", model: "sample"
+    input  alert_type: "sample", severity: "sample"
+    expect ok: "true"
+  end
+
+  test "ResolveAlert runs" do
+    tests "ResolveAlert", on: "MaintenanceAlert"
+    setup  "RaiseAlert", alert_type: "sample", severity: "sample"
+    expect ok: "true"
+  end
+
+end

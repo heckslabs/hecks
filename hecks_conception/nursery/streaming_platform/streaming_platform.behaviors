@@ -1,0 +1,159 @@
+Hecks.behaviors "StreamingPlatform" do
+  vision "Behavioral tests for the StreamingPlatform domain — exercises every command and query in memory"
+
+  # ── Content aggregate ──────────────────────────────────────────
+
+  test "IngestContent sets content_id + title + genre + duration_seconds + content_rating" do
+    tests "IngestContent", on: "Content"
+    input  content_id: "sample", title: "sample", genre: "sample", duration_seconds: 1, content_rating: "sample"
+    expect status: "processed"
+  end
+
+  test "IngestContent cascades through policy chain" do
+    tests "IngestContent", on: "Content", kind: :cascade
+    setup  "CurateChannel", channel_name: "sample", description: "sample", curator: "sample", category: "sample"
+    setup  "GenerateRecommendation", recommendation_id: "sample", algorithm: "sample", relevance_score: 1.0, reason: "sample"
+    setup  "EnrollSubscriber", subscriber_id: "sample", email: "sample", plan: "sample", payment_method: "sample"
+    input  content_id: "sample", title: "sample", genre: "sample", duration_seconds: 1, content_rating: "sample"
+    expect emits: ["ContentIngested", "ContentPublished", "ContentAddedToChannel", "RecommendationGenerated"]
+  end
+
+  test "PublishContent runs" do
+    tests "PublishContent", on: "Content"
+    setup  "IngestContent", content_id: "sample", title: "sample", genre: "sample", duration_seconds: 1, content_rating: "sample"
+    expect ok: "true"
+  end
+
+  test "PublishContent cascades through policy chain" do
+    tests "PublishContent", on: "Content", kind: :cascade
+    setup  "CurateChannel", channel_name: "sample", description: "sample", curator: "sample", category: "sample"
+    setup  "GenerateRecommendation", recommendation_id: "sample", algorithm: "sample", relevance_score: 1.0, reason: "sample"
+    setup  "EnrollSubscriber", subscriber_id: "sample", email: "sample", plan: "sample", payment_method: "sample"
+    setup  "IngestContent", content_id: "sample", title: "sample", genre: "sample", duration_seconds: 1, content_rating: "sample"
+    expect emits: ["ContentPublished", "ContentAddedToChannel", "RecommendationGenerated"]
+  end
+
+  test "ArchiveContent runs" do
+    tests "ArchiveContent", on: "Content"
+    setup  "IngestContent", content_id: "sample", title: "sample", genre: "sample", duration_seconds: 1, content_rating: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Channel aggregate ──────────────────────────────────────────
+
+  test "CurateChannel sets channel_name + description + curator + category" do
+    tests "CurateChannel", on: "Channel"
+    input  channel_name: "sample", description: "sample", curator: "sample", category: "sample"
+    expect status: "active"
+  end
+
+  test "AddToChannel sets content_id + position" do
+    tests "AddToChannel", on: "Channel"
+    setup  "CurateChannel", channel_name: "sample", description: "sample", curator: "sample", category: "sample"
+    input  content_id: "sample", position: 1
+    expect ok: "true"
+  end
+
+  test "DeactivateChannel runs" do
+    tests "DeactivateChannel", on: "Channel"
+    setup  "CurateChannel", channel_name: "sample", description: "sample", curator: "sample", category: "sample"
+    expect ok: "true"
+  end
+
+  test "DeactivateChannel cascades through policy chain" do
+    tests "DeactivateChannel", on: "Channel", kind: :cascade
+    setup  "IngestContent", content_id: "sample", title: "sample", genre: "sample", duration_seconds: 1, content_rating: "sample"
+    setup  "CurateChannel", channel_name: "sample", description: "sample", curator: "sample", category: "sample"
+    expect emits: ["ChannelDeactivated", "ContentArchived"]
+  end
+
+
+  # ── Subscriber aggregate ──────────────────────────────────────────
+
+  test "EnrollSubscriber sets subscriber_id + email + plan + payment_method" do
+    tests "EnrollSubscriber", on: "Subscriber"
+    input  subscriber_id: "sample", email: "sample", plan: "sample", payment_method: "sample"
+    expect status: "active"
+  end
+
+  test "EnrollSubscriber cascades through policy chain" do
+    tests "EnrollSubscriber", on: "Subscriber", kind: :cascade
+    setup  "GenerateRecommendation", recommendation_id: "sample", algorithm: "sample", relevance_score: 1.0, reason: "sample"
+    setup  "IngestContent", content_id: "sample", title: "sample", genre: "sample", duration_seconds: 1, content_rating: "sample"
+    input  subscriber_id: "sample", email: "sample", plan: "sample", payment_method: "sample"
+    expect emits: ["SubscriberEnrolled", "RecommendationGenerated"]
+  end
+
+  test "UpgradePlan sets plan" do
+    tests "UpgradePlan", on: "Subscriber"
+    setup  "EnrollSubscriber", subscriber_id: "sample", email: "sample", plan: "sample", payment_method: "sample"
+    input  plan: "sample"
+    expect ok: "true"
+  end
+
+  test "CancelSubscription runs" do
+    tests "CancelSubscription", on: "Subscriber"
+    setup  "EnrollSubscriber", subscriber_id: "sample", email: "sample", plan: "sample", payment_method: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Recommendation aggregate ──────────────────────────────────────────
+
+  test "GenerateRecommendation sets recommendation_id + algorithm + relevance_score + reason" do
+    tests "GenerateRecommendation", on: "Recommendation"
+    setup  "IngestContent", content_id: "sample", title: "sample", genre: "sample", duration_seconds: 1, content_rating: "sample"
+    setup  "EnrollSubscriber", subscriber_id: "sample", email: "sample", plan: "sample", payment_method: "sample"
+    input  recommendation_id: "sample", algorithm: "sample", relevance_score: 1.0, reason: "sample"
+    expect status: "pending"
+  end
+
+  test "DismissRecommendation runs" do
+    tests "DismissRecommendation", on: "Recommendation"
+    setup  "GenerateRecommendation", recommendation_id: "sample", algorithm: "sample", relevance_score: 1.0, reason: "sample"
+    expect ok: "true"
+  end
+
+  test "ConvertRecommendation runs" do
+    tests "ConvertRecommendation", on: "Recommendation"
+    setup  "GenerateRecommendation", recommendation_id: "sample", algorithm: "sample", relevance_score: 1.0, reason: "sample"
+    expect ok: "true"
+  end
+
+  test "ConvertRecommendation cascades through policy chain" do
+    tests "ConvertRecommendation", on: "Recommendation", kind: :cascade
+    setup  "CaptureSnapshot", snapshot_id: "sample", period: "sample", total_streams: 1, unique_viewers: 1, avg_watch_minutes: 1.0
+    setup  "EnrollSubscriber", subscriber_id: "sample", email: "sample", plan: "sample", payment_method: "sample"
+    setup  "GenerateRecommendation", recommendation_id: "sample", algorithm: "sample", relevance_score: 1.0, reason: "sample"
+    expect emits: ["RecommendationConverted", "SnapshotCaptured", "ReportPublished", "PlanUpgraded"]
+  end
+
+
+  # ── AnalyticsSnapshot aggregate ──────────────────────────────────────────
+
+  test "CaptureSnapshot sets snapshot_id + period + total_streams + unique_viewers + avg_watch_minutes" do
+    tests "CaptureSnapshot", on: "AnalyticsSnapshot"
+    input  snapshot_id: "sample", period: "sample", total_streams: 1, unique_viewers: 1, avg_watch_minutes: 1.0
+    expect status: "captured"
+  end
+
+  test "CaptureSnapshot cascades through policy chain" do
+    tests "CaptureSnapshot", on: "AnalyticsSnapshot", kind: :cascade
+    input  snapshot_id: "sample", period: "sample", total_streams: 1, unique_viewers: 1, avg_watch_minutes: 1.0
+    expect emits: ["SnapshotCaptured", "ReportPublished"]
+  end
+
+  test "PublishReport runs" do
+    tests "PublishReport", on: "AnalyticsSnapshot"
+    setup  "CaptureSnapshot", snapshot_id: "sample", period: "sample", total_streams: 1, unique_viewers: 1, avg_watch_minutes: 1.0
+    expect ok: "true"
+  end
+
+  test "ArchiveSnapshot runs" do
+    tests "ArchiveSnapshot", on: "AnalyticsSnapshot"
+    setup  "CaptureSnapshot", snapshot_id: "sample", period: "sample", total_streams: 1, unique_viewers: 1, avg_watch_minutes: 1.0
+    expect ok: "true"
+  end
+
+end

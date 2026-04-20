@@ -50,7 +50,12 @@ pub fn dispatch(
             return Err(RuntimeError::MissingAttribute("self-referencing id".into()));
         }
     } else {
-        (AggregateState::new(&repo.next_id()), true)
+        // Heki adapter: if a record already exists, use it (singleton)
+        let id = repo.next_id();
+        match repo.find(&id).cloned() {
+            Some(s) => (s, false),
+            None => (AggregateState::new(&id), true),
+        }
     };
 
     if is_new {
@@ -112,7 +117,11 @@ fn find_self_ref(rt: &Runtime, agg_idx: usize, cmd_idx: usize) -> Option<String>
     for r in &cmd.references {
         let ref_snake = to_snake_case(&r.target);
         if ref_snake == agg_snake || agg_snake.ends_with(&ref_snake) {
-            return Some(ref_snake);
+            // Return the reference's actual name (which may be aliased
+            // via `role: :incident_id`), not the snake-cased target.
+            // The runner / DSL passes the kwarg under r.name; the
+            // runtime must look up under the same key.
+            return Some(r.name.clone());
         }
     }
     None

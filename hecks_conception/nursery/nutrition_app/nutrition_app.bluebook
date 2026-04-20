@@ -14,14 +14,14 @@ Hecks.bluebook "NutritionApp", version: "2026.04.13.1" do
       String :recipe_name
       Integer :calories
     end
-    CreateMealPlan do
+    ComposeMealPlan do
       role "Dietitian"
       description "Create a personalized meal plan based on dietary goals"
       String :plan_id
       String :user_name
       String :goal
       Integer :daily_calories
-      emits "MealPlanCreated"
+      emits "MealPlanComposed"
       then_set :plan_id, to: :plan_id
       then_set :user_name, to: :user_name
       then_set :goal, to: :goal
@@ -129,12 +129,12 @@ Hecks.bluebook "NutritionApp", version: "2026.04.13.1" do
       then_set :unit, to: :unit
       then_set :actual_amount, to: 0.0
     end
-    UpdateActual do
+    LogActual do
       role "System"
       description "Update actual intake from food log entries"
       reference_to(NutrientGoal)
       Float :actual_amount
-      emits "ActualUpdated"
+      emits "ActualLogged"
       then_set :actual_amount, to: :actual_amount
     end
   end
@@ -145,18 +145,7 @@ Hecks.bluebook "NutritionApp", version: "2026.04.13.1" do
   end
   policy "UpdateGoalOnLog" do
     on "FoodLogged"
-    trigger "UpdateActual"
+    trigger "LogActual"
   end
 
-  fixture "MealPlan", plan_id: "plan-001", user_name: "Alice Johnson", goal: "weight-loss", daily_calories: 1800, status: "active"
-  fixture "MealPlan", plan_id: "plan-002", user_name: "Bob Smith", goal: "muscle-gain", daily_calories: 2800, status: "active"
-
-  fixture "FoodLog", log_id: "log-001", user_name: "Alice Johnson", date: "2026-04-14", total_calories: 1750
-  fixture "FoodLog", log_id: "log-002", user_name: "Bob Smith", date: "2026-04-14", total_calories: 2650
-
-  fixture "BarcodeScan", scan_id: "scan-001", barcode: "5901234123457", product_name: "Whole Wheat Bread", calories: 220, serving_size_g: 50, status: "resolved"
-  fixture "BarcodeScan", scan_id: "scan-002", barcode: "5012345678901", product_name: "Greek Yogurt", calories: 130, serving_size_g: 150, status: "resolved"
-
-  fixture "NutrientGoal", goal_id: "goal-001", user_name: "Alice Johnson", nutrient: "protein", target_amount: 120.0, unit: "g"
-  fixture "NutrientGoal", goal_id: "goal-002", user_name: "Bob Smith", nutrient: "fiber", target_amount: 35.0, unit: "g"
 end

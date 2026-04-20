@@ -1,0 +1,145 @@
+Hecks.behaviors "CloudTraining" do
+  vision "Behavioral tests for the CloudTraining domain — exercises every command and query in memory"
+
+  # ── TrainingJob aggregate ──────────────────────────────────────────
+
+  test "LinkUploadedData runs" do
+    tests "LinkUploadedData", on: "TrainingJob"
+    expect data_ready: true
+  end
+
+  test "SubmitJob sets provider + gpu_type + base_model + iterations + learning_rate" do
+    tests "SubmitJob", on: "TrainingJob"
+    setup  "LinkUploadedData"
+    input  provider: "sample", gpu_type: "sample", base_model: "sample", iterations: 1, learning_rate: 1.0
+    expect running: true
+  end
+
+  test "SubmitJob cascades through policy chain" do
+    tests "SubmitJob", on: "TrainingJob", kind: :cascade
+    setup  "LinkUploadedData"
+    input  provider: "sample", gpu_type: "sample", base_model: "sample", iterations: 1, learning_rate: 1.0
+    expect emits: ["JobSubmitted", "JobMonitored"]
+  end
+
+  test "MonitorJob runs" do
+    tests "MonitorJob", on: "TrainingJob"
+    setup  "LinkUploadedData"
+    expect remote_complete: true
+  end
+
+  test "CompleteJob runs" do
+    tests "CompleteJob", on: "TrainingJob"
+    setup  "LinkUploadedData"
+    setup  "MonitorJob"
+    expect running: false
+  end
+
+  test "CompleteJob cascades through policy chain" do
+    tests "CompleteJob", on: "TrainingJob", kind: :cascade
+    setup  "LinkUploadedData"
+    setup  "DownloadAdapter", remote_path: "sample", local_path: "sample"
+    setup  "RecordCost"
+    setup  "ConvertToOllama", ollama_model_name: "sample"
+    setup  "MonitorJob"
+    expect emits: ["JobCompleted", "AdapterDownloaded", "AdapterConverted", "SummerDeployed", "CostRecorded"]
+  end
+
+  test "CancelJob runs" do
+    tests "CancelJob", on: "TrainingJob"
+    setup  "LinkUploadedData"
+    setup  "SubmitJob", provider: "sample", gpu_type: "sample", base_model: "sample", iterations: 1, learning_rate: 1.0
+    expect running: false
+  end
+
+
+  # ── DataUpload aggregate ──────────────────────────────────────────
+
+  test "ValidateJsonl sets local_path" do
+    tests "ValidateJsonl", on: "DataUpload"
+    input  local_path: "sample"
+    expect jsonl_valid: true
+  end
+
+  test "StageData sets local_path" do
+    tests "StageData", on: "DataUpload"
+    setup  "ValidateJsonl", local_path: "sample"
+    input  local_path: "sample"
+    expect ok: "true"
+  end
+
+  test "StageData cascades through policy chain" do
+    tests "StageData", on: "DataUpload", kind: :cascade
+    setup  "LinkUploadedData"
+    setup  "RecordCost"
+    setup  "ValidateJsonl", local_path: "sample"
+    input  local_path: "sample"
+    expect emits: ["DataStaged", "DataUploaded", "JobSubmitted", "JobMonitored", "BudgetChecked"]
+  end
+
+  test "UploadData sets remote_path" do
+    tests "UploadData", on: "DataUpload"
+    setup  "ValidateJsonl", local_path: "sample"
+    input  remote_path: "sample"
+    expect ok: "true"
+  end
+
+  test "UploadData cascades through policy chain" do
+    tests "UploadData", on: "DataUpload", kind: :cascade
+    setup  "ValidateJsonl", local_path: "sample"
+    setup  "LinkUploadedData"
+    input  remote_path: "sample"
+    expect emits: ["DataUploaded", "JobSubmitted", "JobMonitored"]
+  end
+
+
+  # ── AdapterDownload aggregate ──────────────────────────────────────────
+
+  test "DownloadAdapter sets remote_path + local_path" do
+    tests "DownloadAdapter", on: "AdapterDownload"
+    input  remote_path: "sample", local_path: "sample"
+    expect ok: "true"
+  end
+
+  test "DownloadAdapter cascades through policy chain" do
+    tests "DownloadAdapter", on: "AdapterDownload", kind: :cascade
+    input  remote_path: "sample", local_path: "sample"
+    expect emits: ["AdapterDownloaded", "AdapterConverted", "SummerDeployed"]
+  end
+
+  test "ConvertToOllama sets ollama_model_name" do
+    tests "ConvertToOllama", on: "AdapterDownload"
+    setup  "DownloadAdapter", remote_path: "sample", local_path: "sample"
+    input  ollama_model_name: "sample"
+    expect adapter_converted: true
+  end
+
+  test "ConvertToOllama cascades through policy chain" do
+    tests "ConvertToOllama", on: "AdapterDownload", kind: :cascade
+    setup  "DownloadAdapter", remote_path: "sample", local_path: "sample"
+    input  ollama_model_name: "sample"
+    expect emits: ["AdapterConverted", "SummerDeployed"]
+  end
+
+  test "DeploySummer runs" do
+    tests "DeploySummer", on: "AdapterDownload"
+    setup  "DownloadAdapter", remote_path: "sample", local_path: "sample"
+    setup  "ConvertToOllama", ollama_model_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── CostTracker aggregate ──────────────────────────────────────────
+
+  test "RecordCost runs" do
+    tests "RecordCost", on: "CostTracker"
+    setup  "LinkUploadedData"
+    expect ok: "true"
+  end
+
+  test "CheckBudget runs" do
+    tests "CheckBudget", on: "CostTracker"
+    expect ok: "true"
+  end
+
+end

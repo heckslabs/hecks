@@ -13,6 +13,7 @@ Hecks.bluebook "Calligraphy" do
       String :text_content
       String :purpose
       String :deadline
+      then_set :status, to: "quoted"
       emits "CommissionQuoted"
     end
 
@@ -27,7 +28,6 @@ Hecks.bluebook "Calligraphy" do
     LetterCommission do
       description "Execute the calligraphy lettering on prepared paper"
       reference_to(CalligraphyCommission)
-      given { status == "accepted" }
       emits "CommissionLettered"
       then_set :status, to: "lettered"
     end
@@ -35,7 +35,6 @@ Hecks.bluebook "Calligraphy" do
     DeliverCommission do
       description "Ship or hand off the finished calligraphy piece"
       reference_to(CalligraphyCommission)
-      given { status == "lettered" }
       emits "CommissionDelivered"
       then_set :status, to: "delivered"
     end
@@ -119,6 +118,7 @@ Hecks.bluebook "Calligraphy" do
       String :finish
       Integer :gsm
       String :fiber_content
+      then_set :status, to: "stocked"
       emits "PaperSelected"
     end
 
@@ -144,6 +144,7 @@ Hecks.bluebook "Calligraphy" do
       String :title
       String :theme
       Integer :piece_count
+      then_set :status, to: "curating"
       emits "PortfolioCurated"
     end
 
@@ -192,18 +193,5 @@ Hecks.bluebook "Calligraphy" do
   end
 
   # === Fixtures ===
-  fixture "CalligraphyCommission", client_name: "David Zhang", text_content: "Forever in our hearts", purpose: "Memorial service program", status: "quoted", deadline: "2026-05-10", price: 250.0
-  fixture "CalligraphyCommission", client_name: "Victoria Parks", text_content: "Love and Forever", purpose: "Wedding invitation suite", status: "accepted", deadline: "2026-06-01", price: 475.0
 
-  fixture "Script", name: "Italic", historical_period: "Medieval", tool_type: "Broad nib", x_height_mm: 5.0, nib_angle_degrees: 45.0
-  fixture "Script", name: "Copperplate", historical_period: "18th Century", tool_type: "Pointed nib", x_height_mm: 4.5, nib_angle_degrees: 55.0
-
-  fixture "InkFormulation", name: "Midnight Blue", color: "blue", base_type: "walnut", viscosity: 2.5, status: "formulated"
-  fixture "InkFormulation", name: "Gold Leaf Ink", color: "gold", base_type: "gum arabic", viscosity: 1.8, status: "formulated"
-
-  fixture "PaperSelection", name: "Arches Hot Pressed", finish: "smooth", gsm: 300, fiber_content: "100% cotton rag", status: "stocked"
-  fixture "PaperSelection", name: "Saunders Waterford", finish: "cold pressed", gsm: 425, fiber_content: "100% cotton", status: "stocked"
-
-  fixture "Portfolio", title: "Formal Occasions", theme: "Wedding & Event Design", piece_count: 12, status: "curating"
-  fixture "Portfolio", title: "Timeless Scripts", theme: "Historical Calligraphy", piece_count: 18, status: "published"
 end

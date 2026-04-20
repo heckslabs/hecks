@@ -190,15 +190,4 @@ Hecks.bluebook "MentorQuest" do
     map mentor_id: :matched_mentor_id, skill_area: :topic
   end
 
-  fixture "Mentor", name: "Jordan Blake", specialties: [], mentees_max: 5, status: "active"
-  fixture "Mentor", name: "Casey Rivera", specialties: [], mentees_max: 8, status: "active"
-
-  fixture "Youth", name: "Aisha Patel", age: 14, interests: [], xp_points: 0, status: "enrolled"
-  fixture "Youth", name: "Kenji Yamamoto", age: 15, interests: [], xp_points: 150, status: "enrolled"
-
-  fixture "QuestLine", quest_name: "The Coding Quest", theme: "Web Development", missions: [], status: "design"
-  fixture "QuestLine", quest_name: "Robotics Challenge", theme: "Engineering", missions: [], status: "design"
-
-  fixture "MentorshipSession", session_date: "2026-04-20", achievements: [], status: "scheduled"
-  fixture "MentorshipSession", session_date: "2026-04-25", achievements: [], status: "scheduled"
 end

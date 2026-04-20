@@ -1,0 +1,60 @@
+Hecks.behaviors "Seeding" do
+  vision "Behavioral tests for the Seeding domain — exercises every command and query in memory"
+
+  # ── NurserySeed aggregate ──────────────────────────────────────────
+
+  test "StartSeeding sets worker_count" do
+    tests "StartSeeding", on: "NurserySeed"
+    input  worker_count: 1
+    expect worker_count: 1, status: "running"
+  end
+
+  test "CompleteSeeding sets domains_seeded" do
+    tests "CompleteSeeding", on: "NurserySeed"
+    setup  "StartSeeding", worker_count: 1
+    input  domains_seeded: 1
+    expect domains_seeded: 1, status: "complete"
+  end
+
+
+  # ── Worker aggregate ──────────────────────────────────────────
+
+  test "SpawnWorker sets worker_id + range_start + range_end" do
+    tests "SpawnWorker", on: "Worker"
+    input  worker_id: 1, range_start: 1, range_end: 1
+    expect worker_id: 1, range_start: 1, range_end: 1
+  end
+
+  test "CompleteWorker sets domains_produced" do
+    tests "CompleteWorker", on: "Worker"
+    setup  "SpawnWorker", worker_id: 1, range_start: 1, range_end: 1
+    input  domains_produced: 1
+    expect domains_produced: 1
+  end
+
+  test "CompleteWorker cascades through policy chain" do
+    tests "CompleteWorker", on: "Worker", kind: :cascade
+    setup  "SpawnWorker", worker_id: 1, range_start: 1, range_end: 1
+    input  domains_produced: 1
+    expect emits: ["WorkerCompleted", "ResultsMerged"]
+  end
+
+
+  # ── Merge aggregate ──────────────────────────────────────────
+
+  test "MergeResults sets workers_merged + total_domains" do
+    tests "MergeResults", on: "Merge"
+    input  workers_merged: 1, total_domains: 1
+    expect workers_merged: 1, total_domains: 1
+  end
+
+
+  # ── InitialState aggregate ──────────────────────────────────────────
+
+  test "SeedOrgans sets organs_seeded + records_created" do
+    tests "SeedOrgans", on: "InitialState"
+    input  organs_seeded: 1, records_created: 1
+    expect organs_seeded: 1, records_created: 1
+  end
+
+end

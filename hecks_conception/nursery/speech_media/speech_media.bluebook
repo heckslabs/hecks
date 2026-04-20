@@ -74,7 +74,7 @@ Hecks.bluebook "SpeechMedia", version: "2026.04.13.1" do
     String :milestone
     String :before_path
     String :after_path
-    CreateProgressClip do
+    CaptureProgressClip do
       role "SpeechPathologist"
       description "Create a before-and-after audio clip showing speech progress"
       String :clip_id
@@ -82,7 +82,7 @@ Hecks.bluebook "SpeechMedia", version: "2026.04.13.1" do
       String :milestone
       String :before_path
       String :after_path
-      emits "ProgressClipCreated"
+      emits "ProgressClipCaptured"
       then_set :clip_id, to: :clip_id
       then_set :client_name, to: :client_name
       then_set :milestone, to: :milestone
@@ -139,18 +139,7 @@ Hecks.bluebook "SpeechMedia", version: "2026.04.13.1" do
   end
   policy "ClipOnComplete" do
     on "ExerciseCompleted"
-    trigger "CreateProgressClip"
+    trigger "CaptureProgressClip"
   end
 
-  fixture "TherapyExercise", exercise_id: "EX-001", client_name: "Emma Taylor", exercise_type: "Sound Isolation", target_sound: "/s/", repetitions: 30, status: "prescribed"
-  fixture "TherapyExercise", exercise_id: "EX-002", client_name: "Lucas Brown", exercise_type: "Sentence Reading", target_sound: "/r/", repetitions: 20, status: "prescribed"
-
-  fixture "RecordedSession", recording_id: "REC-001", client_name: "Emma Taylor", session_date: "2026-04-10", duration_minutes: 45.0, file_path: "/recordings/emma_session_2026_04_10.wav", status: "recorded"
-  fixture "RecordedSession", recording_id: "REC-002", client_name: "Lucas Brown", session_date: "2026-04-11", duration_minutes: 50.0, file_path: "/recordings/lucas_session_2026_04_11.wav", status: "recorded"
-
-  fixture "ProgressAudio", clip_id: "CLIP-001", client_name: "Emma Taylor", milestone: "S-sound clarity improvement", before_path: "/progress/emma_before_s.wav", after_path: "/progress/emma_after_s.wav"
-  fixture "ProgressAudio", clip_id: "CLIP-002", client_name: "Lucas Brown", milestone: "R-sound articulation progress", before_path: "/progress/lucas_before_r.wav", after_path: "/progress/lucas_after_r.wav"
-
-  fixture "PodcastEpisode", episode_id: "POD-001", title: "Stuttering Solutions", topic: "Fluency Techniques", duration_minutes: 42.0, status: "produced", segments: [{ segment_type: "Interview", start_time: 0.0, end_time: 28.5 }]
-  fixture "PodcastEpisode", episode_id: "POD-002", title: "Voice and Resonance", topic: "Vocal Quality", duration_minutes: 38.0, status: "produced", segments: [{ segment_type: "Expert Talk", start_time: 0.0, end_time: 38.0 }]
 end

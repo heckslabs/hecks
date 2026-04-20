@@ -1,0 +1,39 @@
+Hecks.bluebook "CrossRef", version: "2026.04.18.1" do
+  vision "Multiple aggregates referencing each other — locks the classify_references flow"
+
+  aggregate "Customer", "A buyer" do
+    attribute :name, String
+    attribute :email, String
+
+    command "Register" do
+      role "Customer"
+      attribute :name, String
+      attribute :email, String
+      emits "Registered"
+    end
+  end
+
+  aggregate "Order", "An order placed by a customer" do
+    attribute :total, Integer
+
+    command "Place" do
+      role "Customer"
+      reference_to(Customer)
+      attribute :total, Integer
+      emits "Placed"
+    end
+  end
+
+  aggregate "LineItem", "A line in an order" do
+    attribute :quantity, Integer
+    attribute :price, Integer
+
+    command "AddItem" do
+      role "Customer"
+      reference_to(Order)
+      attribute :quantity, Integer
+      attribute :price, Integer
+      emits "Added"
+    end
+  end
+end

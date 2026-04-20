@@ -1,0 +1,62 @@
+Hecks.behaviors "FinancialFreedom" do
+  vision "Behavioral tests for the FinancialFreedom domain — exercises every command and query in memory"
+
+  # ── SurvivorCase aggregate ──────────────────────────────────────────
+
+  test "OpenCase sets case_id + intake_date + safety_plan" do
+    tests "OpenCase", on: "SurvivorCase"
+    input  case_id: "sample", intake_date: "sample", safety_plan: "sample"
+    expect case_id: "sample", intake_date: "sample", safety_plan: "sample"
+  end
+
+  test "TransitionCase runs" do
+    tests "TransitionCase", on: "SurvivorCase"
+    setup  "OpenCase", case_id: "sample", intake_date: "sample", safety_plan: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── FinancialProfile aggregate ──────────────────────────────────────────
+
+  test "Assess runs" do
+    tests "Assess", on: "FinancialProfile"
+    setup  "OpenCase", case_id: "sample", intake_date: "sample", safety_plan: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── TaxReturn aggregate ──────────────────────────────────────────
+
+  test "PrepareTaxReturn sets tax_year + filing_status" do
+    tests "PrepareTaxReturn", on: "TaxReturn"
+    setup  "Assess"
+    setup  "OpenCase", case_id: "sample", intake_date: "sample", safety_plan: "sample"
+    input  tax_year: "sample", filing_status: "sample"
+    expect ok: "true"
+  end
+
+  test "FileReturn runs" do
+    tests "FileReturn", on: "TaxReturn"
+    setup  "PrepareTaxReturn", tax_year: "sample", filing_status: "sample"
+    setup  "AddDeduction", deduction_type: "sample", amount: 1.0, documentation: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── BenefitApplication aggregate ──────────────────────────────────────────
+
+  test "StartApplication sets benefit_type" do
+    tests "StartApplication", on: "BenefitApplication"
+    setup  "OpenCase", case_id: "sample", intake_date: "sample", safety_plan: "sample"
+    input  benefit_type: "sample"
+    expect ok: "true"
+  end
+
+  test "SubmitApplication runs" do
+    tests "SubmitApplication", on: "BenefitApplication"
+    setup  "StartApplication", benefit_type: "sample"
+    setup  "AttachDocument", doc_type: "sample", description: "sample"
+    expect ok: "true"
+  end
+
+end

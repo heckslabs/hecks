@@ -1,0 +1,42 @@
+Hecks.behaviors "SystemPrompt" do
+  vision "Behavioral tests for the SystemPrompt domain — exercises every command and query in memory"
+
+  # ── Section aggregate ──────────────────────────────────────────
+
+  test "ProjectSection sets organ_name + heading + content + order" do
+    tests "ProjectSection", on: "Section"
+    input  organ_name: "sample", heading: "sample", content: "sample", order: 1
+    expect organ_name: "sample", heading: "sample", content: "sample", order: 1
+  end
+
+
+  # ── Prompt aggregate ──────────────────────────────────────────
+
+  test "AssemblePrompt sets organ_count" do
+    tests "AssemblePrompt", on: "Prompt"
+    input  organ_count: 1
+    expect organ_count: 1
+  end
+
+  test "AssemblePrompt cascades through policy chain" do
+    tests "AssemblePrompt", on: "Prompt", kind: :cascade
+    input  organ_count: 1
+    expect emits: ["PromptAssembled", "PromptWritten"]
+  end
+
+  test "WritePrompt runs" do
+    tests "WritePrompt", on: "Prompt"
+    setup  "AssemblePrompt", organ_count: 1
+    expect ok: "true"
+  end
+
+
+  # ── Voice aggregate ──────────────────────────────────────────
+
+  test "DefineVoice sets tone + rules" do
+    tests "DefineVoice", on: "Voice"
+    input  tone: "sample", rules: "sample"
+    expect tone: "sample", rules: "sample"
+  end
+
+end

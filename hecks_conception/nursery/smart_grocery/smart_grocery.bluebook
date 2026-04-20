@@ -63,9 +63,9 @@ Hecks.bluebook "SmartGrocery" do
       end
     end
 
-    command "CreateProfile" do
+    command "Enroll" do
       role "Customer"
-      goal "Create a dietary profile"
+      goal "Enroll a customer with a dietary profile"
       attribute :customer_name
       attribute :calorie_target, Integer
     end
@@ -150,9 +150,9 @@ Hecks.bluebook "SmartGrocery" do
       end
     end
 
-    command "GenerateList" do
+    command "Compile" do
       role "SmartSystem"
-      goal "Generate shopping list from meal plan"
+      goal "Compile shopping list from meal plan"
       reference_to MealPlan
     end
 
@@ -175,15 +175,15 @@ Hecks.bluebook "SmartGrocery" do
     end
   end
 
-  policy "ProfileCreatedTriggersPlan" do
-    on "ProfileCreated"
+  policy "EnrolledTriggersPlan" do
+    on "Enrolled"
     trigger "GeneratePlan"
     map dietary_profile_id: :profile_id
   end
 
   policy "PlanApprovedTriggersList" do
     on "PlanApproved"
-    trigger "GenerateList"
+    trigger "Compile"
     map meal_plan_id: :plan_id
   end
 
@@ -205,15 +205,4 @@ Hecks.bluebook "SmartGrocery" do
     map name: :depleted_product
   end
 
-  fixture "Product", name: "Organic Spinach", category: "Produce", price_cents: 299, nutrients: [{ nutrient_name: "Iron", amount: 2.7, unit: "mg", daily_value_pct: 15 }], status: "stocked"
-  fixture "Product", name: "Greek Yogurt", category: "Dairy", price_cents: 599, nutrients: [{ nutrient_name: "Protein", amount: 20.0, unit: "g", daily_value_pct: 40 }], status: "stocked"
-
-  fixture "DietaryProfile", customer_name: "Alice Chen", calorie_target: 2000, restrictions: [{ restriction_type: "Gluten-Free", severity: "High" }], goals: [{ nutrient_name: "Fiber", target_amount: 30.0, unit: "g" }], status: "active"
-  fixture "DietaryProfile", customer_name: "Bob Rodriguez", calorie_target: 2500, restrictions: [], goals: [{ nutrient_name: "Protein", target_amount: 150.0, unit: "g" }], status: "active"
-
-  fixture "MealPlan", week_start: "2026-04-14", meals: [{ day: "Monday", meal_type: "Breakfast", recipe_name: "Oatmeal with Berries", calories: 350 }], status: "draft"
-  fixture "MealPlan", week_start: "2026-04-21", meals: [{ day: "Tuesday", meal_type: "Lunch", recipe_name: "Grilled Chicken Salad", calories: 450 }], status: "draft"
-
-  fixture "ShoppingList", items: [{ product_name: "Chicken Breast", quantity: 2, aisle: "Meat" }], total_cents: 1299, status: "generated"
-  fixture "ShoppingList", items: [{ product_name: "Whole Wheat Bread", quantity: 1, aisle: "Bakery" }, { product_name: "Almond Butter", quantity: 1, aisle: "Condiments" }], total_cents: 749, status: "generated"
 end

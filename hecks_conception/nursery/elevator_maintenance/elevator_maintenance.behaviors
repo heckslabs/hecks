@@ -1,0 +1,151 @@
+Hecks.behaviors "ElevatorMaintenance" do
+  vision "Behavioral tests for the ElevatorMaintenance domain — exercises every command and query in memory"
+
+  # ── ElevatorUnit aggregate ──────────────────────────────────────────
+
+  test "RegisterUnit sets building_name + unit_number + elevator_type + floors_served + capacity_lbs + install_year" do
+    tests "RegisterUnit", on: "ElevatorUnit"
+    input  building_name: "sample", unit_number: "sample", elevator_type: "sample", floors_served: 1, capacity_lbs: 1, install_year: 1
+    expect building_name: "sample", unit_number: "sample", elevator_type: "sample", floors_served: 1, capacity_lbs: 1, install_year: 1
+  end
+
+  test "RegisterUnit cascades through policy chain" do
+    tests "RegisterUnit", on: "ElevatorUnit", kind: :cascade
+    setup  "ScheduleInspection", inspection_type: "sample", inspection_date: "sample"
+    setup  "PerformMaintenance", mechanic_name: "sample", visit_date: "sample"
+    input  building_name: "sample", unit_number: "sample", elevator_type: "sample", floors_served: 1, capacity_lbs: 1, install_year: 1
+    expect emits: ["UnitRegistered", "InspectionScheduled", "MaintenancePerformed"]
+  end
+
+  test "ShutDownUnit sets reason" do
+    tests "ShutDownUnit", on: "ElevatorUnit"
+    setup  "RegisterUnit", building_name: "sample", unit_number: "sample", elevator_type: "sample", floors_served: 1, capacity_lbs: 1, install_year: 1
+    input  reason: "sample"
+    expect status: "out_of_service"
+  end
+
+  test "ReturnToService runs" do
+    tests "ReturnToService", on: "ElevatorUnit"
+    setup  "RegisterUnit", building_name: "sample", unit_number: "sample", elevator_type: "sample", floors_served: 1, capacity_lbs: 1, install_year: 1
+    expect ok: "true"
+  end
+
+
+  # ── MaintenanceVisit aggregate ──────────────────────────────────────────
+
+  test "PerformMaintenance sets mechanic_name + visit_date" do
+    tests "PerformMaintenance", on: "MaintenanceVisit"
+    setup  "RegisterUnit", building_name: "sample", unit_number: "sample", elevator_type: "sample", floors_served: 1, capacity_lbs: 1, install_year: 1
+    input  mechanic_name: "sample", visit_date: "sample"
+    expect ok: "true"
+  end
+
+  test "ReportFinding sets findings" do
+    tests "ReportFinding", on: "MaintenanceVisit"
+    setup  "PerformMaintenance", mechanic_name: "sample", visit_date: "sample"
+    input  findings: "sample"
+    expect ok: "true"
+  end
+
+  test "ReportFinding cascades through policy chain" do
+    tests "ReportFinding", on: "MaintenanceVisit", kind: :cascade
+    setup  "PerformMaintenance", mechanic_name: "sample", visit_date: "sample"
+    setup  "OrderPart", part_name: "sample", part_number: "sample", vendor: "sample", cost: 1.0
+    setup  "RegisterUnit", building_name: "sample", unit_number: "sample", elevator_type: "sample", floors_served: 1, capacity_lbs: 1, install_year: 1
+    input  findings: "sample"
+    expect emits: ["FindingReported", "PartOrdered", "PartInstalled", "PostInstallTestComplete", "UnitReturnedToService"]
+  end
+
+
+  # ── PartReplacement aggregate ──────────────────────────────────────────
+
+  test "OrderPart sets part_name + part_number + vendor + cost" do
+    tests "OrderPart", on: "PartReplacement"
+    setup  "RegisterUnit", building_name: "sample", unit_number: "sample", elevator_type: "sample", floors_served: 1, capacity_lbs: 1, install_year: 1
+    input  part_name: "sample", part_number: "sample", vendor: "sample", cost: 1.0
+    expect status: "received"
+  end
+
+  test "OrderPart cascades through policy chain" do
+    tests "OrderPart", on: "PartReplacement", kind: :cascade
+    setup  "RegisterUnit", building_name: "sample", unit_number: "sample", elevator_type: "sample", floors_served: 1, capacity_lbs: 1, install_year: 1
+    input  part_name: "sample", part_number: "sample", vendor: "sample", cost: 1.0
+    expect emits: ["PartOrdered", "PartInstalled", "PostInstallTestComplete", "UnitReturnedToService"]
+  end
+
+  test "InstallPart runs" do
+    tests "InstallPart", on: "PartReplacement"
+    setup  "OrderPart", part_name: "sample", part_number: "sample", vendor: "sample", cost: 1.0
+    expect ok: "true"
+  end
+
+  test "InstallPart cascades through policy chain" do
+    tests "InstallPart", on: "PartReplacement", kind: :cascade
+    setup  "RegisterUnit", building_name: "sample", unit_number: "sample", elevator_type: "sample", floors_served: 1, capacity_lbs: 1, install_year: 1
+    setup  "OrderPart", part_name: "sample", part_number: "sample", vendor: "sample", cost: 1.0
+    expect emits: ["PartInstalled", "PostInstallTestComplete", "UnitReturnedToService"]
+  end
+
+  test "TestAfterInstall runs" do
+    tests "TestAfterInstall", on: "PartReplacement"
+    setup  "OrderPart", part_name: "sample", part_number: "sample", vendor: "sample", cost: 1.0
+    expect ok: "true"
+  end
+
+  test "TestAfterInstall cascades through policy chain" do
+    tests "TestAfterInstall", on: "PartReplacement", kind: :cascade
+    setup  "OrderPart", part_name: "sample", part_number: "sample", vendor: "sample", cost: 1.0
+    setup  "RegisterUnit", building_name: "sample", unit_number: "sample", elevator_type: "sample", floors_served: 1, capacity_lbs: 1, install_year: 1
+    expect emits: ["PostInstallTestComplete", "UnitReturnedToService"]
+  end
+
+
+  # ── ElevatorInspection aggregate ──────────────────────────────────────────
+
+  test "ScheduleInspection sets inspection_type + inspection_date" do
+    tests "ScheduleInspection", on: "ElevatorInspection"
+    setup  "RegisterUnit", building_name: "sample", unit_number: "sample", elevator_type: "sample", floors_served: 1, capacity_lbs: 1, install_year: 1
+    input  inspection_type: "sample", inspection_date: "sample"
+    expect ok: "true"
+  end
+
+  test "RecordInspectionResult sets result + violations" do
+    tests "RecordInspectionResult", on: "ElevatorInspection"
+    setup  "ScheduleInspection", inspection_type: "sample", inspection_date: "sample"
+    input  result: "sample", violations: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── EmergencyCall aggregate ──────────────────────────────────────────
+
+  test "DispatchMechanic sets building_name + unit_number + call_type" do
+    tests "DispatchMechanic", on: "EmergencyCall"
+    setup  "RegisterUnit", building_name: "sample", unit_number: "sample", elevator_type: "sample", floors_served: 1, capacity_lbs: 1, install_year: 1
+    input  building_name: "sample", unit_number: "sample", call_type: "sample"
+    expect ok: "true"
+  end
+
+  test "ResolveEmergency sets resolution" do
+    tests "ResolveEmergency", on: "EmergencyCall"
+    setup  "DispatchMechanic", building_name: "sample", unit_number: "sample", call_type: "sample"
+    input  resolution: "sample"
+    expect status: "resolved"
+  end
+
+  test "ResolveEmergency cascades through policy chain" do
+    tests "ResolveEmergency", on: "EmergencyCall", kind: :cascade
+    setup  "DispatchMechanic", building_name: "sample", unit_number: "sample", call_type: "sample"
+    input  resolution: "sample"
+    expect emits: ["EmergencyResolved", "IncidentReportFiled"]
+  end
+
+  test "FileIncidentReport sets incident_details" do
+    tests "FileIncidentReport", on: "EmergencyCall"
+    setup  "DispatchMechanic", building_name: "sample", unit_number: "sample", call_type: "sample"
+    setup  "ResolveEmergency", resolution: "sample"
+    input  incident_details: "sample"
+    expect ok: "true"
+  end
+
+end

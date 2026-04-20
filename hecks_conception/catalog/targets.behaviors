@@ -1,0 +1,515 @@
+Hecks.behaviors "Targets" do
+  vision "Behavioral tests for the Targets domain — exercises every command and query in memory"
+
+  # ── Target aggregate ──────────────────────────────────────────
+
+  test "RegisterTarget sets name + language" do
+    tests "RegisterTarget", on: "Target"
+    input  name: "sample", language: "sample"
+    expect name: "sample", language: "sample"
+  end
+
+  test "Build sets target_id + domain_id" do
+    tests "Build", on: "Target"
+    input  target_id: "sample", domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── NodeUtils aggregate ──────────────────────────────────────────
+
+  test "TsType sets attribute_name" do
+    tests "TsType", on: "NodeUtils"
+    input  attribute_name: "sample"
+    expect ok: "true"
+  end
+
+  test "CamelCase sets input" do
+    tests "CamelCase", on: "NodeUtils"
+    input  input: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── NodeAggregateGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate sets aggregate_name" do
+    tests "Generate", on: "NodeAggregateGenerator"
+    input  aggregate_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── NodeCommandGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate sets command_name + aggregate_name" do
+    tests "Generate", on: "NodeCommandGenerator"
+    input  command_name: "sample", aggregate_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── NodeRepositoryGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate sets aggregate_name" do
+    tests "Generate", on: "NodeRepositoryGenerator"
+    input  aggregate_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── NodeServerGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate sets domain_name" do
+    tests "Generate", on: "NodeServerGenerator"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── NodeProjectGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate sets domain_name + output_dir" do
+    tests "Generate", on: "NodeProjectGenerator"
+    input  domain_name: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── NodeGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate sets domain_name + output_dir" do
+    tests "Generate", on: "NodeGenerator"
+    input  domain_name: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GoCodeBuilder aggregate ──────────────────────────────────────────
+
+  test "Struct sets name" do
+    tests "Struct", on: "GoCodeBuilder"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+  test "Receiver sets type_name + method_name" do
+    tests "Receiver", on: "GoCodeBuilder"
+    input  type_name: "sample", method_name: "sample"
+    expect ok: "true"
+  end
+
+  test "Func sets name + params" do
+    tests "Func", on: "GoCodeBuilder"
+    input  name: "sample", params: "sample"
+    expect ok: "true"
+  end
+
+  test "Render sets package" do
+    tests "Render", on: "GoCodeBuilder"
+    input  package: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GoUtils aggregate ──────────────────────────────────────────
+
+  test "GoType sets attribute_name" do
+    tests "GoType", on: "GoUtils"
+    input  attribute_name: "sample"
+    expect ok: "true"
+  end
+
+  test "PascalCase sets input" do
+    tests "PascalCase", on: "GoUtils"
+    input  input: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GoAggregateGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate sets aggregate_name + package" do
+    tests "Generate", on: "GoAggregateGenerator"
+    input  aggregate_name: "sample", package: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GoCommandGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate sets command_name + aggregate_name" do
+    tests "Generate", on: "GoCommandGenerator"
+    input  command_name: "sample", aggregate_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GoEventGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate sets event_name + aggregate_name" do
+    tests "Generate", on: "GoEventGenerator"
+    input  event_name: "sample", aggregate_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GoLifecycleGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate sets aggregate_name + package" do
+    tests "Generate", on: "GoLifecycleGenerator"
+    input  aggregate_name: "sample", package: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GoPolicyGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate sets policy_name + package" do
+    tests "Generate", on: "GoPolicyGenerator"
+    input  policy_name: "sample", package: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GoQueryGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate sets query_name + aggregate_name" do
+    tests "Generate", on: "GoQueryGenerator"
+    input  query_name: "sample", aggregate_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GoSpecificationGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate sets spec_name + aggregate_name" do
+    tests "Generate", on: "GoSpecificationGenerator"
+    input  spec_name: "sample", aggregate_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GoValueObjectGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate sets value_object_name + package" do
+    tests "Generate", on: "GoValueObjectGenerator"
+    input  value_object_name: "sample", package: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GoPortGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate sets aggregate_name + package" do
+    tests "Generate", on: "GoPortGenerator"
+    input  aggregate_name: "sample", package: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GoMemoryAdapterGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate sets aggregate_name + package" do
+    tests "Generate", on: "GoMemoryAdapterGenerator"
+    input  aggregate_name: "sample", package: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GoErrorsGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate sets package" do
+    tests "Generate", on: "GoErrorsGenerator"
+    input  package: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GoApplicationGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate sets module_path" do
+    tests "Generate", on: "GoApplicationGenerator"
+    input  module_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GoRuntimeGenerator aggregate ──────────────────────────────────────────
+
+  test "GenerateEventBus runs" do
+    tests "GenerateEventBus", on: "GoRuntimeGenerator"
+    expect ok: "true"
+  end
+
+  test "GenerateCommandBus runs" do
+    tests "GenerateCommandBus", on: "GoRuntimeGenerator"
+    expect ok: "true"
+  end
+
+
+  # ── GoRegistryGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate runs" do
+    tests "Generate", on: "GoRegistryGenerator"
+    expect ok: "true"
+  end
+
+
+  # ── GoRegisterGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate sets domain_name + module_path" do
+    tests "Generate", on: "GoRegisterGenerator"
+    input  domain_name: "sample", module_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GoServerGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate sets domain_name + module_path" do
+    tests "Generate", on: "GoServerGenerator"
+    input  domain_name: "sample", module_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DataRoutes aggregate ──────────────────────────────────────────
+
+  test "Generate sets domain_name" do
+    tests "Generate", on: "DataRoutes"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── HtmlRoutes aggregate ──────────────────────────────────────────
+
+  test "Generate sets domain_name" do
+    tests "Generate", on: "HtmlRoutes"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── UIRoutes aggregate ──────────────────────────────────────────
+
+  test "Generate sets domain_name" do
+    tests "Generate", on: "UIRoutes"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DomainBehaviorRoutes aggregate ──────────────────────────────────────────
+
+  test "Generate sets domain_name" do
+    tests "Generate", on: "DomainBehaviorRoutes"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GoRendererGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate runs" do
+    tests "Generate", on: "GoRendererGenerator"
+    expect ok: "true"
+  end
+
+
+  # ── GoViewGenerator aggregate ──────────────────────────────────────────
+
+  test "Convert sets template_name" do
+    tests "Convert", on: "GoViewGenerator"
+    input  template_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GoFormTemplate aggregate ──────────────────────────────────────────
+
+  test "Generate runs" do
+    tests "Generate", on: "GoFormTemplate"
+    expect ok: "true"
+  end
+
+
+  # ── GoIndexTemplate aggregate ──────────────────────────────────────────
+
+  test "Generate runs" do
+    tests "Generate", on: "GoIndexTemplate"
+    expect ok: "true"
+  end
+
+
+  # ── GoShowTemplate aggregate ──────────────────────────────────────────
+
+  test "Generate runs" do
+    tests "Generate", on: "GoShowTemplate"
+    expect ok: "true"
+  end
+
+
+  # ── GoProjectGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate sets domain_name + output_dir" do
+    tests "Generate", on: "GoProjectGenerator"
+    input  domain_name: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GoMultiProjectGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate sets output_dir" do
+    tests "Generate", on: "GoMultiProjectGenerator"
+    input  output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GoMultiServerGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate sets module_path" do
+    tests "Generate", on: "GoMultiServerGenerator"
+    input  module_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── BinaryBuilder aggregate ──────────────────────────────────────────
+
+  test "Build sets domain_id + output_dir" do
+    tests "Build", on: "BinaryBuilder"
+    input  domain_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── EntryPointGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate sets domain_name" do
+    tests "Generate", on: "EntryPointGenerator"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── RuntimeWriter aggregate ──────────────────────────────────────────
+
+  test "Generate sets domain_module" do
+    tests "Generate", on: "RuntimeWriter"
+    input  domain_module: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── RubyServerGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate sets domain_name" do
+    tests "Generate", on: "RubyServerGenerator"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DomainRoutes aggregate ──────────────────────────────────────────
+
+  test "Generate sets domain_name" do
+    tests "Generate", on: "DomainRoutes"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── RubyUIGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate sets domain_name" do
+    tests "Generate", on: "RubyUIGenerator"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── FormRoutes aggregate ──────────────────────────────────────────
+
+  test "Generate sets domain_name" do
+    tests "Generate", on: "FormRoutes"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ConfigRoutes aggregate ──────────────────────────────────────────
+
+  test "Generate sets domain_name" do
+    tests "Generate", on: "ConfigRoutes"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ShowRoute aggregate ──────────────────────────────────────────
+
+  test "Generate sets domain_name" do
+    tests "Generate", on: "ShowRoute"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DomainWriter aggregate ──────────────────────────────────────────
+
+  test "Generate sets domain_name" do
+    tests "Generate", on: "DomainWriter"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── BootWiring aggregate ──────────────────────────────────────────
+
+  test "Generate sets domain_name" do
+    tests "Generate", on: "BootWiring"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── TypescriptGenerator aggregate ──────────────────────────────────────────
+
+  test "GenerateTypescript sets domain_id + output_dir" do
+    tests "GenerateTypescript", on: "TypescriptGenerator"
+    input  domain_id: "sample", output_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── JsonSchemaGenerator aggregate ──────────────────────────────────────────
+
+  test "GenerateJsonSchema sets aggregate_id" do
+    tests "GenerateJsonSchema", on: "JsonSchemaGenerator"
+    input  aggregate_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── OpenapiGenerator aggregate ──────────────────────────────────────────
+
+  test "GenerateOpenapi sets domain_id" do
+    tests "GenerateOpenapi", on: "OpenapiGenerator"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── RpcDiscovery aggregate ──────────────────────────────────────────
+
+  test "GenerateRpcDiscovery sets domain_id" do
+    tests "GenerateRpcDiscovery", on: "RpcDiscovery"
+    input  domain_id: "sample"
+    expect ok: "true"
+  end
+
+end

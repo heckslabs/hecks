@@ -1,0 +1,164 @@
+Hecks.behaviors "FarmManagement" do
+  vision "Behavioral tests for the FarmManagement domain — exercises every command and query in memory"
+
+  # ── Field aggregate ──────────────────────────────────────────
+
+  test "RegisterField sets name + acreage + soil_type + gps_coordinates" do
+    tests "RegisterField", on: "Field"
+    input  name: "sample", acreage: 1.0, soil_type: "sample", gps_coordinates: "sample"
+    expect name: "sample", acreage: 1.0, soil_type: "sample", gps_coordinates: "sample", status: "idle"
+  end
+
+  test "PlantField sets current_crop" do
+    tests "PlantField", on: "Field"
+    setup  "RegisterField", name: "sample", acreage: 1.0, soil_type: "sample", gps_coordinates: "sample"
+    input  current_crop: "sample"
+    expect current_crop: "sample", status: "planted"
+  end
+
+  test "PlantField cascades through policy chain" do
+    tests "PlantField", on: "Field", kind: :cascade
+    setup  "SetIrrigation", method: "sample", frequency: "sample", volume_gallons: 1.0
+    setup  "StartCropCycle", crop_variety: "sample", planting_date: "sample", days_to_maturity: 1
+    setup  "RegisterField", name: "sample", acreage: 1.0, soil_type: "sample", gps_coordinates: "sample"
+    input  current_crop: "sample"
+    expect emits: ["FieldPlanted", "IrrigationSet", "CropCycleStarted"]
+  end
+
+  test "FallowField runs" do
+    tests "FallowField", on: "Field"
+    setup  "RegisterField", name: "sample", acreage: 1.0, soil_type: "sample", gps_coordinates: "sample"
+    expect current_crop: "", status: "fallow"
+  end
+
+  test "FallowField cascades through policy chain" do
+    tests "FallowField", on: "Field", kind: :cascade
+    setup  "RegisterField", name: "sample", acreage: 1.0, soil_type: "sample", gps_coordinates: "sample"
+    setup  "CollectSample", test_date: "sample"
+    expect emits: ["FieldFallowed", "SampleCollected", "ResultsRecorded", "RecommendationsIssued"]
+  end
+
+
+  # ── CropCycle aggregate ──────────────────────────────────────────
+
+  test "StartCropCycle sets crop_variety + planting_date + days_to_maturity" do
+    tests "StartCropCycle", on: "CropCycle"
+    setup  "RegisterField", name: "sample", acreage: 1.0, soil_type: "sample", gps_coordinates: "sample"
+    input  crop_variety: "sample", planting_date: "sample", days_to_maturity: 1
+    expect crop_variety: "sample", planting_date: "sample", days_to_maturity: 1, growth_stage: "seedling", status: "growing"
+  end
+
+  test "AdvanceGrowthStage sets growth_stage" do
+    tests "AdvanceGrowthStage", on: "CropCycle"
+    setup  "StartCropCycle", crop_variety: "sample", planting_date: "sample", days_to_maturity: 1
+    input  growth_stage: "sample"
+    expect growth_stage: "sample"
+  end
+
+  test "AdvanceGrowthStage cascades through policy chain" do
+    tests "AdvanceGrowthStage", on: "CropCycle", kind: :cascade
+    setup  "SetIrrigation", method: "sample", frequency: "sample", volume_gallons: 1.0
+    setup  "RecordHarvest", harvest_date: "sample", yield_bushels: 1.0, moisture_percent: 1.0, quality_grade: "sample"
+    setup  "RegisterField", name: "sample", acreage: 1.0, soil_type: "sample", gps_coordinates: "sample"
+    setup  "CollectSample", test_date: "sample"
+    setup  "StartCropCycle", crop_variety: "sample", planting_date: "sample", days_to_maturity: 1
+    input  growth_stage: "sample"
+    expect emits: ["GrowthStageAdvanced", "VolumeAdjusted", "HarvestRecorded", "HarvestStored", "FieldFallowed", "SampleCollected", "ResultsRecorded", "RecommendationsIssued"]
+  end
+
+  test "RecordCropLoss sets loss_reason" do
+    tests "RecordCropLoss", on: "CropCycle"
+    setup  "StartCropCycle", crop_variety: "sample", planting_date: "sample", days_to_maturity: 1
+    input  loss_reason: "sample"
+    expect status: "damaged"
+  end
+
+
+  # ── IrrigationSchedule aggregate ──────────────────────────────────────────
+
+  test "SetIrrigation sets method + frequency + volume_gallons" do
+    tests "SetIrrigation", on: "IrrigationSchedule"
+    setup  "RegisterField", name: "sample", acreage: 1.0, soil_type: "sample", gps_coordinates: "sample"
+    input  method: "sample", frequency: "sample", volume_gallons: 1.0
+    expect method: "sample", frequency: "sample", volume_gallons: 1.0, status: "active"
+  end
+
+  test "AdjustVolume sets new_volume" do
+    tests "AdjustVolume", on: "IrrigationSchedule"
+    setup  "SetIrrigation", method: "sample", frequency: "sample", volume_gallons: 1.0
+    input  new_volume: 1.0
+    expect volume_gallons: 1.0
+  end
+
+  test "SuspendIrrigation runs" do
+    tests "SuspendIrrigation", on: "IrrigationSchedule"
+    setup  "SetIrrigation", method: "sample", frequency: "sample", volume_gallons: 1.0
+    expect status: "suspended"
+  end
+
+
+  # ── Harvest aggregate ──────────────────────────────────────────
+
+  test "RecordHarvest sets harvest_date + yield_bushels + moisture_percent + quality_grade" do
+    tests "RecordHarvest", on: "Harvest"
+    setup  "RegisterField", name: "sample", acreage: 1.0, soil_type: "sample", gps_coordinates: "sample"
+    setup  "StartCropCycle", crop_variety: "sample", planting_date: "sample", days_to_maturity: 1
+    input  harvest_date: "sample", yield_bushels: 1.0, moisture_percent: 1.0, quality_grade: "sample"
+    expect harvest_date: "sample", yield_bushels: 1.0, moisture_percent: 1.0, quality_grade: "sample"
+  end
+
+  test "RecordHarvest cascades through policy chain" do
+    tests "RecordHarvest", on: "Harvest", kind: :cascade
+    setup  "StartCropCycle", crop_variety: "sample", planting_date: "sample", days_to_maturity: 1
+    setup  "RegisterField", name: "sample", acreage: 1.0, soil_type: "sample", gps_coordinates: "sample"
+    setup  "CollectSample", test_date: "sample"
+    input  harvest_date: "sample", yield_bushels: 1.0, moisture_percent: 1.0, quality_grade: "sample"
+    expect emits: ["HarvestRecorded", "HarvestStored", "FieldFallowed", "SampleCollected", "ResultsRecorded", "RecommendationsIssued"]
+  end
+
+  test "StoreHarvest sets storage_location" do
+    tests "StoreHarvest", on: "Harvest"
+    setup  "RecordHarvest", harvest_date: "sample", yield_bushels: 1.0, moisture_percent: 1.0, quality_grade: "sample"
+    input  storage_location: "sample"
+    expect storage_location: "sample"
+  end
+
+
+  # ── SoilTest aggregate ──────────────────────────────────────────
+
+  test "CollectSample sets test_date" do
+    tests "CollectSample", on: "SoilTest"
+    setup  "RegisterField", name: "sample", acreage: 1.0, soil_type: "sample", gps_coordinates: "sample"
+    input  test_date: "sample"
+    expect test_date: "sample"
+  end
+
+  test "CollectSample cascades through policy chain" do
+    tests "CollectSample", on: "SoilTest", kind: :cascade
+    setup  "RegisterField", name: "sample", acreage: 1.0, soil_type: "sample", gps_coordinates: "sample"
+    input  test_date: "sample"
+    expect emits: ["SampleCollected", "ResultsRecorded", "RecommendationsIssued"]
+  end
+
+  test "RecordResults sets ph_level + nitrogen_ppm + phosphorus_ppm + potassium_ppm + organic_matter_percent" do
+    tests "RecordResults", on: "SoilTest"
+    setup  "CollectSample", test_date: "sample"
+    input  ph_level: 1.0, nitrogen_ppm: 1.0, phosphorus_ppm: 1.0, potassium_ppm: 1.0, organic_matter_percent: 1.0
+    expect ph_level: 1.0, nitrogen_ppm: 1.0, phosphorus_ppm: 1.0, potassium_ppm: 1.0, organic_matter_percent: 1.0
+  end
+
+  test "RecordResults cascades through policy chain" do
+    tests "RecordResults", on: "SoilTest", kind: :cascade
+    setup  "CollectSample", test_date: "sample"
+    input  ph_level: 1.0, nitrogen_ppm: 1.0, phosphorus_ppm: 1.0, potassium_ppm: 1.0, organic_matter_percent: 1.0
+    expect emits: ["ResultsRecorded", "RecommendationsIssued"]
+  end
+
+  test "IssueRecommendations sets recommendations" do
+    tests "IssueRecommendations", on: "SoilTest"
+    setup  "CollectSample", test_date: "sample"
+    input  recommendations: "sample"
+    expect recommendations: "sample"
+  end
+
+end

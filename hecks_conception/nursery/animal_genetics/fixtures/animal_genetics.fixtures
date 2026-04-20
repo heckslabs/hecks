@@ -1,0 +1,18 @@
+Hecks.fixtures "AnimalGenetics" do
+  aggregate "AnimalProfile" do
+    fixture "Buddy_", name: "Buddy", species: "Canis familiaris", primary_breed: "Golden Retriever", age_years: 3.5, temperament: "friendly, energetic", status: "available"
+    fixture "Whiskers_", name: "Whiskers", species: "Felis catus", primary_breed: "Bengal Mix", age_years: 2.1, temperament: "playful, social", status: "adopted"
+  end
+  aggregate "DNAProfile" do
+    fixture "DNAProfile1", animal_name: "Buddy", sample_id: "DNA-2026-0414-001", breed_confidence_pct: 94.5, primary_breed_result: "Golden Retriever", secondary_breed_result: "Labrador Retriever", status: "identified"
+    fixture "DNAProfile2", animal_name: "Whiskers", sample_id: "DNA-2026-0414-002", breed_confidence_pct: 87.2, primary_breed_result: "Bengal", secondary_breed_result: "Domestic Shorthair", status: "identified"
+  end
+  aggregate "HealthPredisposition" do
+    fixture "HealthPredisposition1", animal_name: "Buddy", condition_name: "hip_dysplasia", risk_probability: 0.32, severity: "moderate", preventive_action: "controlled exercise, weight management", status: "recommended"
+    fixture "HealthPredisposition2", animal_name: "Whiskers", condition_name: "hypertrophic_cardiomyopathy", risk_probability: 0.18, severity: "high", preventive_action: "annual cardiac ultrasound, limit strenuous activity", status: "recommended"
+  end
+  aggregate "AdoptionMatch" do
+    fixture "AdoptionMatch1", animal_name: "Buddy", adopter_name: "Emily Watson", compatibility_score: 0.91, match_factors: "active_household, experience_with_large_dogs, outdoor_lifestyle", status: "approved"
+    fixture "AdoptionMatch2", animal_name: "Whiskers", adopter_name: "James Lee", compatibility_score: 0.84, match_factors: "indoor_apartment, experience_with_active_cats, available_for_play", status: "approved"
+  end
+end

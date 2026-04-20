@@ -1,0 +1,173 @@
+Hecks.behaviors "Spec" do
+  vision "Behavioral tests for the Spec domain — exercises every command and query in memory"
+
+  # ── TestHelper aggregate ──────────────────────────────────────────
+
+  test "Reset runs" do
+    tests "Reset", on: "TestHelper"
+    expect ok: "true"
+  end
+
+
+  # ── InMemoryLoader aggregate ──────────────────────────────────────────
+
+  test "Load sets domain + mod" do
+    tests "Load", on: "InMemoryLoader"
+    input  domain: "sample", mod: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── MemoryAdapter aggregate ──────────────────────────────────────────
+
+  test "Generate sets aggregate + domain_module" do
+    tests "Generate", on: "MemoryAdapter"
+    input  aggregate: "sample", domain_module: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── MemoryOutbox aggregate ──────────────────────────────────────────
+
+  test "Store sets event" do
+    tests "Store", on: "MemoryOutbox"
+    input  event: "sample"
+    expect ok: "true"
+  end
+
+  test "Poll runs" do
+    tests "Poll", on: "MemoryOutbox"
+    expect ok: "true"
+  end
+
+  test "MarkPublished sets entry_id" do
+    tests "MarkPublished", on: "MemoryOutbox"
+    input  entry_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── EventBus aggregate ──────────────────────────────────────────
+
+  test "Subscribe sets event_name" do
+    tests "Subscribe", on: "EventBus"
+    input  event_name: "sample"
+    expect ok: "true"
+  end
+
+  test "Publish sets event" do
+    tests "Publish", on: "EventBus"
+    input  event: "sample"
+    expect ok: "true"
+  end
+
+  test "Clear runs" do
+    tests "Clear", on: "EventBus"
+    expect ok: "true"
+  end
+
+
+  # ── InMemoryExecutor aggregate ──────────────────────────────────────────
+
+  test "Execute runs" do
+    tests "Execute", on: "InMemoryExecutor"
+    expect ok: "true"
+  end
+
+
+  # ── SpecGenerator aggregate ──────────────────────────────────────────
+
+  test "GenerateSpecHelper runs" do
+    tests "GenerateSpecHelper", on: "SpecGenerator"
+    expect ok: "true"
+  end
+
+
+  # ── SpecHelpers aggregate ──────────────────────────────────────────
+
+  test "ExampleArgs sets thing" do
+    tests "ExampleArgs", on: "SpecHelpers"
+    input  thing: "sample"
+    expect ok: "true"
+  end
+
+  test "ExampleValue sets attr" do
+    tests "ExampleValue", on: "SpecHelpers"
+    input  attr: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SpecWriter aggregate ──────────────────────────────────────────
+
+  test "GenerateSpecs sets root + gem_name" do
+    tests "GenerateSpecs", on: "SpecWriter"
+    input  root: "sample", gem_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ServerHelpers aggregate ──────────────────────────────────────────
+
+  test "FreePort runs" do
+    tests "FreePort", on: "ServerHelpers"
+    expect ok: "true"
+  end
+
+  test "WaitForServer sets url" do
+    tests "WaitForServer", on: "ServerHelpers"
+    input  url: "sample"
+    expect ok: "true"
+  end
+
+  test "SubmitForm sets base_url + form_path" do
+    tests "SubmitForm", on: "ServerHelpers"
+    input  base_url: "sample", form_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Pizza aggregate ──────────────────────────────────────────
+
+  test "CreatePizza sets name + description" do
+    tests "CreatePizza", on: "Pizza"
+    input  name: "sample", description: "sample"
+    expect name: "sample", description: "sample"
+  end
+
+  test "AddTopping sets name + amount" do
+    tests "AddTopping", on: "Pizza"
+    setup  "CreatePizza", name: "sample", description: "sample"
+    input  name: "sample", amount: 1
+    expect name: "sample"
+  end
+
+  test "ByDescription returns matching records" do
+    tests "ByDescription", on: "Pizza", kind: :query
+    setup  "CreatePizza", name: "sample", description: "sample"
+    expect count: 1
+  end
+
+
+  # ── Order aggregate ──────────────────────────────────────────
+
+  test "PlaceOrder sets customer_name + quantity" do
+    tests "PlaceOrder", on: "Order"
+    setup  "CreatePizza", name: "sample", description: "sample"
+    input  customer_name: "sample", quantity: 1
+    expect customer_name: "sample", status: "pending"
+  end
+
+  test "CancelOrder runs" do
+    tests "CancelOrder", on: "Order"
+    setup  "PlaceOrder", customer_name: "sample", quantity: 1
+    expect status: "cancelled"
+  end
+
+  test "Pending returns matching records" do
+    tests "Pending", on: "Order", kind: :query
+    setup  "PlaceOrder", customer_name: "sample", quantity: 1
+    expect count: 1
+  end
+
+end

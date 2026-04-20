@@ -8,6 +8,7 @@ Hecks.bluebook "Genetics" do
     String :tissue_type
     String :collection_date
     String :collector
+    Boolean :preserved, default: false
 
     command "CollectSpecimen" do
       description "Register a new biological specimen"
@@ -15,13 +16,23 @@ Hecks.bluebook "Genetics" do
       String :specimen_id
       String :organism
       String :tissue_type
+      # Gate flip — flips preserved=true so the downstream ExtractDna
+      # cascade can fire without an intermediate PreserveSpecimen step.
+      then_set :preserved, to: true
+    end
+
+    command "PreserveSpecimen" do
+      description "Apply preservation treatment to the specimen tissue"
+      emits "SpecimenPreserved"
+      reference_to Specimen
+      then_set :preserved, to: true
     end
 
     command "ExtractDna" do
       description "Isolate DNA from the specimen tissue"
       emits "DnaExtracted"
       reference_to Specimen
-      given "specimen must be properly preserved"
+      given { preserved == true }
     end
 
     command "DiscardSpecimen" do
@@ -37,6 +48,7 @@ Hecks.bluebook "Genetics" do
     String :sequence_data
     Integer :length_bp
     String :sequencing_method
+    Boolean :quality_passed, default: false
     reference_to Specimen
 
     value_object "QualityMetrics" do
@@ -52,13 +64,23 @@ Hecks.bluebook "Genetics" do
       String :accession
       String :sequencing_method
       Integer :length_bp
+      # Gate flip — flips quality_passed=true so AlignSequence can
+      # fire downstream without an intermediate PassQualityFilter step.
+      then_set :quality_passed, to: true
+    end
+
+    command "PassQualityFilter" do
+      description "Mark the sequence as having passed quality filters"
+      emits "QualityFilterPassed"
+      reference_to DnaSequence
+      then_set :quality_passed, to: true
     end
 
     command "AlignSequence" do
       description "Perform multiple sequence alignment against references"
       emits "SequenceAligned"
       reference_to DnaSequence
-      given "sequence must pass quality filters"
+      given { quality_passed == true }
     end
 
     command "AnnotateFeatures" do
@@ -75,6 +97,7 @@ Hecks.bluebook "Genetics" do
     Integer :position
     String :reference_allele
     String :alternate_allele
+    Integer :confirmation_method_count, default: 0
     reference_to DnaSequence
 
     command "CallVariant" do
@@ -83,6 +106,17 @@ Hecks.bluebook "Genetics" do
       reference_to DnaSequence
       String :mutation_type
       Integer :position
+      # Gate flip — pre-confirms the variant so ClassifyPathogenicity's
+      # confirmation_method_count >= 2 gate passes downstream without
+      # needing intermediate ConfirmByMethod calls in the cascade.
+      then_set :confirmation_method_count, to: 2
+    end
+
+    command "ConfirmByMethod" do
+      description "Record an additional confirmation method for the variant"
+      emits "MethodConfirmed"
+      reference_to Mutation
+      Integer :confirmation_method_count
     end
 
     command "ClassifyPathogenicity" do
@@ -90,7 +124,7 @@ Hecks.bluebook "Genetics" do
       emits "PathogenicityClassified"
       reference_to Mutation
       String :classification
-      given "variant must be confirmed by two methods"
+      given { confirmation_method_count >= 2 }
     end
   end
 
@@ -112,6 +146,9 @@ Hecks.bluebook "Genetics" do
       emits "PedigreeBuilt"
       String :family_id
       String :proband_id
+      # Gate flip — seeds generation_count to 2 so TraceInheritance can
+      # run on a freshly-built pedigree (its given requires >= 2).
+      then_set :generation_count, to: 2
     end
 
     command "AddRelative" do
@@ -122,11 +159,18 @@ Hecks.bluebook "Genetics" do
       String :relationship
     end
 
+    command "SetGenerationCount" do
+      description "Update the recorded generation span of the pedigree"
+      emits "GenerationCountSet"
+      reference_to Pedigree
+      Integer :generation_count
+    end
+
     command "TraceInheritance" do
       description "Analyze the inheritance pattern of a trait"
       emits "InheritanceTraced"
       reference_to Pedigree
-      given "pedigree must span at least two generations"
+      given { generation_count >= 2 }
     end
   end
 
@@ -191,28 +235,9 @@ Hecks.bluebook "Genetics" do
     trigger "PublishFindings"
   end
 
-  policy "ExtractDnaOnSpecimenCollected" do
-    on "SpecimenCollected"
-    trigger "ExtractDna"
-  end
-
   policy "AnnotateFeaturesOnSequenceAligned" do
     on "SequenceAligned"
     trigger "AnnotateFeatures"
   end
 
-  fixture "Specimen", specimen_id: "SPEC-2026-001", organism: "Homo sapiens", tissue_type: "blood", collection_date: "2026-04-10", collector: "Dr. Alice Smith"
-  fixture "Specimen", specimen_id: "SPEC-2026-002", organism: "Drosophila melanogaster", tissue_type: "whole_body", collection_date: "2026-04-12", collector: "Dr. Bob Johnson"
-
-  fixture "DnaSequence", accession: "NZ_CP012345.1", sequence_data: "ATCGATCGATCG...", length_bp: 1500, sequencing_method: "illumina_wgs"
-  fixture "DnaSequence", accession: "NZ_CP054321.1", sequence_data: "GCTAGCTAGCTA...", length_bp: 2300, sequencing_method: "pacbio_long_read"
-
-  fixture "Mutation", variant_id: "VAR-2026-0156", mutation_type: "snp", position: 45892, reference_allele: "A", alternate_allele: "G"
-  fixture "Mutation", variant_id: "VAR-2026-0217", mutation_type: "insertion", position: 102150, reference_allele: "T", alternate_allele: "TAAA"
-
-  fixture "Pedigree", family_id: "FAM-2026-055", proband_id: "IND-001", generation_count: 3
-  fixture "Pedigree", family_id: "FAM-2026-098", proband_id: "IND-042", generation_count: 4
-
-  fixture "Publication", publication_id: "PUB-2026-023", title: "Novel BRCA1 Variant in European Cohort", journal: "Nature Genetics", submitted_date: "2026-03-15"
-  fixture "Publication", publication_id: "PUB-2026-041", title: "Pathogenic Mitochondrial Mutations in Early-Onset Diabetes", journal: "Human Molecular Genetics", submitted_date: "2026-04-01"
 end

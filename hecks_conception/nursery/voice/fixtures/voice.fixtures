@@ -1,0 +1,5 @@
+Hecks.fixtures "Voice" do
+  aggregate "Speaker" do
+    fixture "Speaker1", voice: "en-US-AriaNeural", rate: "+20%", engine: "edge-tts"
+  end
+end

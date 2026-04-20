@@ -1,0 +1,86 @@
+Hecks.behaviors "VolcanoTourism" do
+  vision "Behavioral tests for the VolcanoTourism domain — exercises every command and query in memory"
+
+  # ── Volcano aggregate ──────────────────────────────────────────
+
+  test "RegisterVolcano sets name + elevation_m" do
+    tests "RegisterVolcano", on: "Volcano"
+    input  name: "sample", elevation_m: 1.0
+    expect name: "sample", elevation_m: 1.0
+  end
+
+  test "UpdateAlertLevel sets alert_level" do
+    tests "UpdateAlertLevel", on: "Volcano"
+    setup  "RegisterVolcano", name: "sample", elevation_m: 1.0
+    input  alert_level: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── HotelProperty aggregate ──────────────────────────────────────────
+
+  test "RegisterHotel sets name + distance_km" do
+    tests "RegisterHotel", on: "HotelProperty"
+    input  name: "sample", distance_km: 1.0
+    expect name: "sample", distance_km: 1.0
+  end
+
+  test "CloseHotel runs" do
+    tests "CloseHotel", on: "HotelProperty"
+    setup  "RegisterHotel", name: "sample", distance_km: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── TourPackage aggregate ──────────────────────────────────────────
+
+  test "DesignPackage sets package_name + price_cents" do
+    tests "DesignPackage", on: "TourPackage"
+    setup  "RegisterHotel", name: "sample", distance_km: 1.0
+    setup  "RegisterVolcano", name: "sample", elevation_m: 1.0
+    input  package_name: "sample", price_cents: 1
+    expect ok: "true"
+  end
+
+  test "ActivatePackage runs" do
+    tests "ActivatePackage", on: "TourPackage"
+    setup  "DesignPackage", package_name: "sample", price_cents: 1
+    setup  "AddActivity", activity_name: "sample", duration_hours: 1.0, risk_level: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Booking aggregate ──────────────────────────────────────────
+
+  test "BookTour sets guest_name + party_size" do
+    tests "BookTour", on: "Booking"
+    setup  "DesignPackage", package_name: "sample", price_cents: 1
+    input  guest_name: "sample", party_size: 1
+    expect ok: "true"
+  end
+
+  test "CancelBooking runs" do
+    tests "CancelBooking", on: "Booking"
+    setup  "BookTour", guest_name: "sample", party_size: 1
+    expect ok: "true"
+  end
+
+
+  # ── EvacuationPlan aggregate ──────────────────────────────────────────
+
+  test "PreparePlan sets plan_name" do
+    tests "PreparePlan", on: "EvacuationPlan"
+    setup  "RegisterVolcano", name: "sample", elevation_m: 1.0
+    setup  "RegisterHotel", name: "sample", distance_km: 1.0
+    input  plan_name: "sample"
+    expect ok: "true"
+  end
+
+  test "ActivateEvacuation runs" do
+    tests "ActivateEvacuation", on: "EvacuationPlan"
+    setup  "PreparePlan", plan_name: "sample"
+    setup  "AddRoute", route_name: "sample", distance_km: 1.0, capacity: 1
+    expect ok: "true"
+  end
+
+end

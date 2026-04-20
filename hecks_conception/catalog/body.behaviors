@@ -1,0 +1,283 @@
+Hecks.behaviors "MietteBody" do
+  vision "Behavioral tests for the MietteBody domain — exercises every command and query in memory"
+
+  # ── Pulse aggregate ──────────────────────────────────────────
+
+  test "Beat sets carrying" do
+    tests "Beat", on: "Pulse"
+    input  carrying: "sample"
+    expect carrying: "sample"
+  end
+
+  test "Accelerate runs" do
+    tests "Accelerate", on: "Pulse"
+    expect flow_rate: "rushing"
+  end
+
+  test "Steady runs" do
+    tests "Steady", on: "Pulse"
+    expect flow_rate: "steady"
+  end
+
+  test "Steady cascades through policy chain" do
+    tests "Steady", on: "Pulse", kind: :cascade
+    setup  "Express", state: "sample"
+    expect emits: ["PulseSteadied", "Regulated"]
+  end
+
+
+  # ── Gut aggregate ──────────────────────────────────────────
+
+  test "Ingest sets raw_input" do
+    tests "Ingest", on: "Gut"
+    input  raw_input: "sample"
+    expect raw_input: "sample", digestion_stage: "ingested", stage: "ingested"
+  end
+
+  test "ExtractAggregate sets aggregate_name" do
+    tests "ExtractAggregate", on: "Gut"
+    setup  "Ingest", raw_input: "sample"
+    input  aggregate_name: "sample"
+    expect extracted_aggregates_size: 1, stage: "digesting"
+  end
+
+  test "ExtractCommand sets command_name" do
+    tests "ExtractCommand", on: "Gut"
+    setup  "Ingest", raw_input: "sample"
+    setup  "ExtractAggregate", aggregate_name: "sample"
+    input  command_name: "sample"
+    expect extracted_commands_size: 1, stage: "digesting"
+  end
+
+  test "ExtractEvent sets event_name" do
+    tests "ExtractEvent", on: "Gut"
+    setup  "Ingest", raw_input: "sample"
+    setup  "ExtractAggregate", aggregate_name: "sample"
+    input  event_name: "sample"
+    expect extracted_events_size: 1, stage: "digesting"
+  end
+
+  test "Absorb runs" do
+    tests "Absorb", on: "Gut"
+    setup  "Ingest", raw_input: "sample"
+    setup  "ExtractAggregate", aggregate_name: "sample"
+    expect digestion_stage: "absorbed", stage: "absorbed"
+  end
+
+  test "Absorb cascades through policy chain" do
+    tests "Absorb", on: "Gut", kind: :cascade
+    setup  "Conceive", domain_name: "sample"
+    setup  "Express", state: "sample"
+    setup  "Beat", carrying: "sample"
+    setup  "ExpressCapability", capability: "sample", level: 1.0
+    setup  "SenseOrgans", organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1
+    setup  "Ingest", raw_input: "sample"
+    setup  "ExtractAggregate", aggregate_name: "sample"
+    expect emits: ["DomainAbsorbed", "DomainConceived", "Excited", "PulseAccelerated", "CapabilityExpressed", "LimbSensed"]
+  end
+
+
+  # ── Immunity aggregate ──────────────────────────────────────────
+
+  test "DetectThreat sets threat_pattern" do
+    tests "DetectThreat", on: "Immunity"
+    input  threat_pattern: "sample"
+    expect ok: "true"
+  end
+
+  test "DetectThreat cascades through policy chain" do
+    tests "DetectThreat", on: "Immunity", kind: :cascade
+    setup  "Express", state: "sample"
+    input  threat_pattern: "sample"
+    expect emits: ["ThreatDetected", "Focused"]
+  end
+
+  test "GraftVerbImmunity sets noun_suffixes + adjective_suffixes + dual_words" do
+    tests "GraftVerbImmunity", on: "Immunity"
+    setup  "DetectThreat", threat_pattern: "sample"
+    input  noun_suffixes: "sample", adjective_suffixes: "sample", dual_words: "sample"
+    expect noun_suffixes: "sample", adjective_suffixes: "sample", dual_words: "sample"
+  end
+
+  test "GenerateAntibody sets pattern + learned_from" do
+    tests "GenerateAntibody", on: "Immunity"
+    input  pattern: "sample", learned_from: "sample"
+    expect antibodies_size: 1
+  end
+
+  test "StrengthenAntibody sets pattern" do
+    tests "StrengthenAntibody", on: "Immunity"
+    setup  "DetectThreat", threat_pattern: "sample"
+    input  pattern: "sample"
+    expect ok: "true"
+  end
+
+  test "Neutralize runs" do
+    tests "Neutralize", on: "Immunity"
+    setup  "DetectThreat", threat_pattern: "sample"
+    expect ok: "true"
+  end
+
+  test "Neutralize cascades through policy chain" do
+    tests "Neutralize", on: "Immunity", kind: :cascade
+    setup  "DetectThreat", threat_pattern: "sample"
+    expect emits: ["ThreatNeutralized", "AntibodyGenerated"]
+  end
+
+
+  # ── Mood aggregate ──────────────────────────────────────────
+
+  test "Express sets state" do
+    tests "Express", on: "Mood"
+    input  state: "sample"
+    expect current_state: "sample"
+  end
+
+  test "Excite runs" do
+    tests "Excite", on: "Mood"
+    expect current_state: "excited"
+  end
+
+  test "Excite cascades through policy chain" do
+    tests "Excite", on: "Mood", kind: :cascade
+    setup  "Beat", carrying: "sample"
+    expect emits: ["Excited", "PulseAccelerated"]
+  end
+
+  test "Focus runs" do
+    tests "Focus", on: "Mood"
+    expect current_state: "focused"
+  end
+
+  test "Regulate runs" do
+    tests "Regulate", on: "Mood"
+    expect creativity_level: 0.7, precision_level: 0.7, current_state: "curious"
+  end
+
+
+  # ── DomainCell aggregate ──────────────────────────────────────────
+
+  test "Conceive sets domain_name" do
+    tests "Conceive", on: "DomainCell"
+    input  domain_name: "sample"
+    expect domain_name: "sample", maturity: 0, phase: "conceived"
+  end
+
+  test "Conceive cascades through policy chain" do
+    tests "Conceive", on: "DomainCell", kind: :cascade
+    setup  "Express", state: "sample"
+    setup  "Beat", carrying: "sample"
+    setup  "ExpressCapability", capability: "sample", level: 1.0
+    setup  "SenseOrgans", organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1
+    input  domain_name: "sample"
+    expect emits: ["DomainConceived", "Excited", "PulseAccelerated", "CapabilityExpressed", "LimbSensed"]
+  end
+
+  test "Mature runs" do
+    tests "Mature", on: "DomainCell"
+    setup  "Conceive", domain_name: "sample"
+    expect phase: "growing"
+  end
+
+  test "Mature cascades through policy chain" do
+    tests "Mature", on: "DomainCell", kind: :cascade
+    setup  "Conceive", domain_name: "sample"
+    expect emits: ["DomainMatured", "CheckpointPassed"]
+  end
+
+  test "PassCheckpoint sets checkpoint_name" do
+    tests "PassCheckpoint", on: "DomainCell"
+    setup  "Conceive", domain_name: "sample"
+    setup  "Mature"
+    input  checkpoint_name: "sample"
+    expect checkpoints_passed_size: 1, phase: "validated"
+  end
+
+  test "TriggerApoptosis runs" do
+    tests "TriggerApoptosis", on: "DomainCell"
+    setup  "Conceive", domain_name: "sample"
+    expect alive: false, phase: "dead"
+  end
+
+  test "TriggerApoptosis cascades through policy chain" do
+    tests "TriggerApoptosis", on: "DomainCell", kind: :cascade
+    setup  "Conceive", domain_name: "sample"
+    setup  "Beat", carrying: "sample"
+    expect emits: ["DomainDied", "PulseBeat"]
+  end
+
+
+  # ── Gene aggregate ──────────────────────────────────────────
+
+  test "ExpressCapability sets capability + level" do
+    tests "ExpressCapability", on: "Gene"
+    input  capability: "sample", level: 1.0
+    expect capability: "sample", expression_level: 1.0
+  end
+
+  test "SilenceCapability runs" do
+    tests "SilenceCapability", on: "Gene"
+    setup  "ExpressCapability", capability: "sample", level: 1.0
+    expect expression_level: 0.0
+  end
+
+  test "Imprint sets source + effect" do
+    tests "Imprint", on: "Gene"
+    setup  "ExpressCapability", capability: "sample", level: 1.0
+    input  source: "sample", effect: "sample"
+    expect epigenetic_marks_size: 1
+  end
+
+  test "Imprint cascades through policy chain" do
+    tests "Imprint", on: "Gene", kind: :cascade
+    setup  "ExpressCapability", capability: "sample", level: 1.0
+    input  source: "sample", effect: "sample"
+    expect emits: ["Imprinted", "CapabilitySilenced"]
+  end
+
+
+  # ── Proprioception aggregate ──────────────────────────────────────────
+
+  test "SenseOrgans sets organ_count + expressed_count + silenced_count + total_records" do
+    tests "SenseOrgans", on: "Proprioception"
+    input  organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1
+    expect organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1, awareness: "sensing"
+  end
+
+  test "SenseOrgans cascades through policy chain" do
+    tests "SenseOrgans", on: "Proprioception", kind: :cascade
+    setup  "Express", state: "sample"
+    input  organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1
+    expect emits: ["OrgansSensed", "BalanceAssessed", "Regulated"]
+  end
+
+  test "SenseLimb sets organ_name + expressed + record_count + load" do
+    tests "SenseLimb", on: "Proprioception"
+    input  organ_name: "sample", expressed: "sample", record_count: 1, load: "sample"
+    expect limbs_size: 1, awareness: "sensing"
+  end
+
+  test "AssessBalance sets balance + schema_hash" do
+    tests "AssessBalance", on: "Proprioception"
+    setup  "SenseOrgans", organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1
+    input  balance: "sample", schema_hash: "sample"
+    expect balance: "sample", schema_hash: "sample", awareness: "aware"
+  end
+
+  test "AssessBalance cascades through policy chain" do
+    tests "AssessBalance", on: "Proprioception", kind: :cascade
+    setup  "Express", state: "sample"
+    setup  "SenseOrgans", organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1
+    input  balance: "sample", schema_hash: "sample"
+    expect emits: ["BalanceAssessed", "Regulated"]
+  end
+
+  test "DetectDrift cascades through policy chain" do
+    tests "DetectDrift", on: "Proprioception", kind: :cascade
+    setup  "Express", state: "sample"
+    setup  "SenseOrgans", organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1
+    setup  "AssessBalance", balance: "sample", schema_hash: "sample"
+    expect emits: ["DriftDetected", "OrgansSensed", "BalanceAssessed", "Regulated"]
+  end
+
+end

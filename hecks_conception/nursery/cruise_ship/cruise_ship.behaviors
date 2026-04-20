@@ -1,0 +1,140 @@
+Hecks.behaviors "CruiseShip" do
+  vision "Behavioral tests for the CruiseShip domain — exercises every command and query in memory"
+
+  # ── Cabin aggregate ──────────────────────────────────────────
+
+  test "PrepareCabin sets cabin_number + deck + category + max_occupancy" do
+    tests "PrepareCabin", on: "Cabin"
+    input  cabin_number: "sample", deck: "sample", category: "sample", max_occupancy: 1
+    expect status: "available", current_occupancy: 0
+  end
+
+  test "PrepareCabin cascades through policy chain" do
+    tests "PrepareCabin", on: "Cabin", kind: :cascade
+    input  cabin_number: "sample", deck: "sample", category: "sample", max_occupancy: 1
+    expect emits: ["CabinPrepared", "CabinInspected"]
+  end
+
+  test "InspectCabin runs" do
+    tests "InspectCabin", on: "Cabin"
+    setup  "PrepareCabin", cabin_number: "sample", deck: "sample", category: "sample", max_occupancy: 1
+    expect status: "inspected"
+  end
+
+  test "CleanCabin runs" do
+    tests "CleanCabin", on: "Cabin"
+    setup  "PrepareCabin", cabin_number: "sample", deck: "sample", category: "sample", max_occupancy: 1
+    expect status: "available"
+  end
+
+  test "CleanCabin cascades through policy chain" do
+    tests "CleanCabin", on: "Cabin", kind: :cascade
+    setup  "PrepareCabin", cabin_number: "sample", deck: "sample", category: "sample", max_occupancy: 1
+    expect emits: ["CabinCleaned", "CabinInspected"]
+  end
+
+
+  # ── Passenger aggregate ──────────────────────────────────────────
+
+  test "CheckInPassenger sets booking_id + name + nationality + embarkation_port" do
+    tests "CheckInPassenger", on: "Passenger"
+    input  booking_id: "sample", name: "sample", nationality: "sample", embarkation_port: "sample"
+    expect status: "checked_in", muster_status: "pending"
+  end
+
+  test "CheckInPassenger cascades through policy chain" do
+    tests "CheckInPassenger", on: "Passenger", kind: :cascade
+    setup  "PrepareCabin", cabin_number: "sample", deck: "sample", category: "sample", max_occupancy: 1
+    input  booking_id: "sample", name: "sample", nationality: "sample", embarkation_port: "sample"
+    expect emits: ["PassengerCheckedIn", "PassengerEmbarked", "PassengerAssigned", "MusterCompleted"]
+  end
+
+  test "EmbarkPassenger runs" do
+    tests "EmbarkPassenger", on: "Passenger"
+    setup  "CheckInPassenger", booking_id: "sample", name: "sample", nationality: "sample", embarkation_port: "sample"
+    expect status: "embarked"
+  end
+
+  test "EmbarkPassenger cascades through policy chain" do
+    tests "EmbarkPassenger", on: "Passenger", kind: :cascade
+    setup  "PrepareCabin", cabin_number: "sample", deck: "sample", category: "sample", max_occupancy: 1
+    setup  "CheckInPassenger", booking_id: "sample", name: "sample", nationality: "sample", embarkation_port: "sample"
+    expect emits: ["PassengerEmbarked", "PassengerAssigned", "MusterCompleted"]
+  end
+
+  test "CompleteMusterDrill runs" do
+    tests "CompleteMusterDrill", on: "Passenger"
+    setup  "CheckInPassenger", booking_id: "sample", name: "sample", nationality: "sample", embarkation_port: "sample"
+    expect muster_status: "completed"
+  end
+
+  test "ClearForShoreLeave runs" do
+    tests "ClearForShoreLeave", on: "Passenger"
+    setup  "CheckInPassenger", booking_id: "sample", name: "sample", nationality: "sample", embarkation_port: "sample"
+    setup  "EmbarkPassenger"
+    expect status: "ashore"
+  end
+
+  test "ReturnOnboard runs" do
+    tests "ReturnOnboard", on: "Passenger"
+    setup  "CheckInPassenger", booking_id: "sample", name: "sample", nationality: "sample", embarkation_port: "sample"
+    setup  "EmbarkPassenger"
+    setup  "ClearForShoreLeave"
+    expect status: "embarked"
+  end
+
+  test "DisembarkPassenger runs" do
+    tests "DisembarkPassenger", on: "Passenger"
+    setup  "CheckInPassenger", booking_id: "sample", name: "sample", nationality: "sample", embarkation_port: "sample"
+    setup  "EmbarkPassenger"
+    expect status: "disembarked"
+  end
+
+  test "DisembarkPassenger cascades through policy chain" do
+    tests "DisembarkPassenger", on: "Passenger", kind: :cascade
+    setup  "PrepareCabin", cabin_number: "sample", deck: "sample", category: "sample", max_occupancy: 1
+    setup  "CheckInPassenger", booking_id: "sample", name: "sample", nationality: "sample", embarkation_port: "sample"
+    setup  "EmbarkPassenger"
+    expect emits: ["PassengerDisembarked", "CabinCleaned", "CabinInspected"]
+  end
+
+
+  # ── PortOfCall aggregate ──────────────────────────────────────────
+
+  test "SchedulePort sets port_name + country + arrival_time + departure_time" do
+    tests "SchedulePort", on: "PortOfCall"
+    input  port_name: "sample", country: "sample", arrival_time: "sample", departure_time: "sample"
+    expect status: "scheduled"
+  end
+
+  test "ArriveAtPort runs" do
+    tests "ArriveAtPort", on: "PortOfCall"
+    setup  "SchedulePort", port_name: "sample", country: "sample", arrival_time: "sample", departure_time: "sample"
+    expect status: "in_port"
+  end
+
+  test "ArriveAtPort cascades through policy chain" do
+    tests "ArriveAtPort", on: "PortOfCall", kind: :cascade
+    setup  "OfferExcursion", excursion_name: "sample", description: "sample", capacity: 1, price_cents: 1
+    setup  "SchedulePort", port_name: "sample", country: "sample", arrival_time: "sample", departure_time: "sample"
+    expect emits: ["ArrivedAtPort", "ExcursionCreated"]
+  end
+
+  test "DepartPort runs" do
+    tests "DepartPort", on: "PortOfCall"
+    setup  "SchedulePort", port_name: "sample", country: "sample", arrival_time: "sample", departure_time: "sample"
+    setup  "ArriveAtPort"
+    expect status: "departed"
+  end
+
+
+  # ── Excursion aggregate ──────────────────────────────────────────
+
+  test "OfferExcursion sets excursion_name + description + capacity + price_cents" do
+    tests "OfferExcursion", on: "Excursion"
+    setup  "SchedulePort", port_name: "sample", country: "sample", arrival_time: "sample", departure_time: "sample"
+    input  excursion_name: "sample", description: "sample", capacity: 1, price_cents: 1
+    expect status: "open", booked_count: 0
+  end
+
+end

@@ -1,0 +1,147 @@
+Hecks.behaviors "NutritionRx" do
+  vision "Behavioral tests for the NutritionRx domain — exercises every command and query in memory"
+
+  # ── Patient aggregate ──────────────────────────────────────────
+
+  test "RegisterPatient sets name + date_of_birth + dietary_restriction" do
+    tests "RegisterPatient", on: "Patient"
+    input  name: "sample", date_of_birth: "sample", dietary_restriction: "sample"
+    expect name: "sample", date_of_birth: "sample", dietary_restriction: "sample", status: "active"
+  end
+
+  test "AddCondition sets condition_name + severity" do
+    tests "AddCondition", on: "Patient"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", dietary_restriction: "sample"
+    input  condition_name: "sample", severity: "sample"
+    expect ok: "true"
+  end
+
+  test "FlagDeficiency sets nutrient + severity" do
+    tests "FlagDeficiency", on: "Patient"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", dietary_restriction: "sample"
+    input  nutrient: "sample", severity: "sample"
+    expect ok: "true"
+  end
+
+  test "FlagDeficiency cascades through policy chain" do
+    tests "FlagDeficiency", on: "Patient", kind: :cascade
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", dietary_restriction: "sample"
+    setup  "SetTarget", nutrient: "sample", target_amount: 1.0, unit: "sample"
+    input  nutrient: "sample", severity: "sample"
+    expect emits: ["DeficiencyDetected", "NutrientTargetSet"]
+  end
+
+
+  # ── Prescription aggregate ──────────────────────────────────────────
+
+  test "WritePrescription sets medication + dosage + frequency" do
+    tests "WritePrescription", on: "Prescription"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", dietary_restriction: "sample"
+    input  medication: "sample", dosage: "sample", frequency: "sample"
+    expect patient: 1, medication: "sample", dosage: "sample", frequency: "sample", status: "written"
+  end
+
+  test "FillPrescription runs" do
+    tests "FillPrescription", on: "Prescription"
+    setup  "WritePrescription", medication: "sample", dosage: "sample", frequency: "sample"
+    expect status: "filled"
+  end
+
+  test "FillPrescription cascades through policy chain" do
+    tests "FillPrescription", on: "Prescription", kind: :cascade
+    setup  "GenerateGroceryList"
+    setup  "WritePrescription", medication: "sample", dosage: "sample", frequency: "sample"
+    expect emits: ["PrescriptionFilled", "GroceryListRevised"]
+  end
+
+  test "FlagInteraction sets food_item + interaction_type" do
+    tests "FlagInteraction", on: "Prescription"
+    setup  "WritePrescription", medication: "sample", dosage: "sample", frequency: "sample"
+    input  food_item: "sample", interaction_type: "sample"
+    expect ok: "true"
+  end
+
+  test "FlagInteraction cascades through policy chain" do
+    tests "FlagInteraction", on: "Prescription", kind: :cascade
+    setup  "WritePrescription", medication: "sample", dosage: "sample", frequency: "sample"
+    setup  "GenerateMealPlan", goal: "sample", daily_calories: 1
+    input  food_item: "sample", interaction_type: "sample"
+    expect emits: ["FoodInteractionFlagged", "MealPlanAdjusted"]
+  end
+
+
+  # ── MealPlan aggregate ──────────────────────────────────────────
+
+  test "GenerateMealPlan sets goal + daily_calories" do
+    tests "GenerateMealPlan", on: "MealPlan"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", dietary_restriction: "sample"
+    input  goal: "sample", daily_calories: 1
+    expect patient: 1, goal: "sample", daily_calories: 1, status: "draft"
+  end
+
+  test "ApproveMealPlan runs" do
+    tests "ApproveMealPlan", on: "MealPlan"
+    setup  "GenerateMealPlan", goal: "sample", daily_calories: 1
+    expect status: "approved"
+  end
+
+  test "AdjustForInteraction sets food_item + replacement" do
+    tests "AdjustForInteraction", on: "MealPlan"
+    setup  "GenerateMealPlan", goal: "sample", daily_calories: 1
+    input  food_item: "sample", replacement: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GroceryList aggregate ──────────────────────────────────────────
+
+  test "GenerateGroceryList runs" do
+    tests "GenerateGroceryList", on: "GroceryList"
+    setup  "GenerateMealPlan", goal: "sample", daily_calories: 1
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", dietary_restriction: "sample"
+    expect patient: 1, meal_plan: 1, status: "generated"
+  end
+
+  test "ReviseGroceryList runs" do
+    tests "ReviseGroceryList", on: "GroceryList"
+    setup  "GenerateGroceryList"
+    expect status: "updated"
+  end
+
+  test "FulfillGroceryList runs" do
+    tests "FulfillGroceryList", on: "GroceryList"
+    setup  "GenerateGroceryList"
+    expect status: "fulfilled"
+  end
+
+
+  # ── NutrientTarget aggregate ──────────────────────────────────────────
+
+  test "SetTarget sets nutrient + target_amount + unit" do
+    tests "SetTarget", on: "NutrientTarget"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", dietary_restriction: "sample"
+    input  nutrient: "sample", target_amount: 1.0, unit: "sample"
+    expect patient: 1, nutrient: "sample", target_amount: 1.0, unit: "sample", status: "tracking"
+  end
+
+  test "RecordIntake sets amount" do
+    tests "RecordIntake", on: "NutrientTarget"
+    setup  "SetTarget", nutrient: "sample", target_amount: 1.0, unit: "sample"
+    input  amount: 1.0
+    expect current_intake: 1.0
+  end
+
+  test "RecordIntake cascades through policy chain" do
+    tests "RecordIntake", on: "NutrientTarget", kind: :cascade
+    setup  "SetTarget", nutrient: "sample", target_amount: 1.0, unit: "sample"
+    input  amount: 1.0
+    expect emits: ["IntakeRecorded", "TargetAchieved"]
+  end
+
+  test "AchieveTarget runs" do
+    tests "AchieveTarget", on: "NutrientTarget"
+    setup  "SetTarget", nutrient: "sample", target_amount: 1.0, unit: "sample"
+    expect status: "achieved"
+  end
+
+end

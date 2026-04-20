@@ -1,0 +1,174 @@
+Hecks.behaviors "RecordLabel" do
+  vision "Behavioral tests for the RecordLabel domain — exercises every command and query in memory"
+
+  # ── RecordingArtist aggregate ──────────────────────────────────────────
+
+  test "SignArtist sets name + genre" do
+    tests "SignArtist", on: "RecordingArtist"
+    input  name: "sample", genre: "sample"
+    expect contract_status: "active"
+  end
+
+  test "SignArtist cascades through policy chain" do
+    tests "SignArtist", on: "RecordingArtist", kind: :cascade
+    setup  "GreenLightAlbum", title: "sample", producer: "sample"
+    setup  "RecordTrack", title: "sample", track_number: 1
+    setup  "SubmitForDistribution", channel: "sample", format: "sample", territory: "sample"
+    input  name: "sample", genre: "sample"
+    expect emits: ["ArtistSigned", "AlbumCommissioned", "TrackRecorded", "TrackMixed", "AlbumMastered", "AlbumReleased", "DistributionSubmitted"]
+  end
+
+  test "RenewContract sets term_years" do
+    tests "RenewContract", on: "RecordingArtist"
+    setup  "SignArtist", name: "sample", genre: "sample"
+    input  term_years: 1
+    expect ok: "true"
+  end
+
+  test "DropArtist runs" do
+    tests "DropArtist", on: "RecordingArtist"
+    setup  "SignArtist", name: "sample", genre: "sample"
+    expect contract_status: "dropped"
+  end
+
+
+  # ── Album aggregate ──────────────────────────────────────────
+
+  test "GreenLightAlbum sets title + producer" do
+    tests "GreenLightAlbum", on: "Album"
+    setup  "SignArtist", name: "sample", genre: "sample"
+    input  title: "sample", producer: "sample"
+    expect status: "recording"
+  end
+
+  test "GreenLightAlbum cascades through policy chain" do
+    tests "GreenLightAlbum", on: "Album", kind: :cascade
+    setup  "SignArtist", name: "sample", genre: "sample"
+    setup  "RecordTrack", title: "sample", track_number: 1
+    setup  "SubmitForDistribution", channel: "sample", format: "sample", territory: "sample"
+    input  title: "sample", producer: "sample"
+    expect emits: ["AlbumCommissioned", "TrackRecorded", "TrackMixed", "AlbumMastered", "AlbumReleased", "DistributionSubmitted"]
+  end
+
+  test "MasterAlbum sets mastering_engineer" do
+    tests "MasterAlbum", on: "Album"
+    setup  "GreenLightAlbum", title: "sample", producer: "sample"
+    input  mastering_engineer: "sample"
+    expect status: "mastered"
+  end
+
+  test "MasterAlbum cascades through policy chain" do
+    tests "MasterAlbum", on: "Album", kind: :cascade
+    setup  "SubmitForDistribution", channel: "sample", format: "sample", territory: "sample"
+    setup  "GreenLightAlbum", title: "sample", producer: "sample"
+    input  mastering_engineer: "sample"
+    expect emits: ["AlbumMastered", "AlbumReleased", "DistributionSubmitted"]
+  end
+
+  test "ReleaseAlbum sets release_date" do
+    tests "ReleaseAlbum", on: "Album"
+    setup  "GreenLightAlbum", title: "sample", producer: "sample"
+    input  release_date: "sample"
+    expect status: "released", release_date: "sample"
+  end
+
+  test "ReleaseAlbum cascades through policy chain" do
+    tests "ReleaseAlbum", on: "Album", kind: :cascade
+    setup  "GreenLightAlbum", title: "sample", producer: "sample"
+    setup  "SubmitForDistribution", channel: "sample", format: "sample", territory: "sample"
+    input  release_date: "sample"
+    expect emits: ["AlbumReleased", "DistributionSubmitted"]
+  end
+
+
+  # ── Track aggregate ──────────────────────────────────────────
+
+  test "RecordTrack sets title + track_number" do
+    tests "RecordTrack", on: "Track"
+    setup  "GreenLightAlbum", title: "sample", producer: "sample"
+    input  title: "sample", track_number: 1
+    expect status: "recorded"
+  end
+
+  test "RecordTrack cascades through policy chain" do
+    tests "RecordTrack", on: "Track", kind: :cascade
+    setup  "GreenLightAlbum", title: "sample", producer: "sample"
+    setup  "SubmitForDistribution", channel: "sample", format: "sample", territory: "sample"
+    input  title: "sample", track_number: 1
+    expect emits: ["TrackRecorded", "TrackMixed", "AlbumMastered", "AlbumReleased", "DistributionSubmitted"]
+  end
+
+  test "MixTrack runs" do
+    tests "MixTrack", on: "Track"
+    setup  "RecordTrack", title: "sample", track_number: 1
+    expect status: "mixed"
+  end
+
+  test "MixTrack cascades through policy chain" do
+    tests "MixTrack", on: "Track", kind: :cascade
+    setup  "GreenLightAlbum", title: "sample", producer: "sample"
+    setup  "SubmitForDistribution", channel: "sample", format: "sample", territory: "sample"
+    setup  "RecordTrack", title: "sample", track_number: 1
+    expect emits: ["TrackMixed", "AlbumMastered", "AlbumReleased", "DistributionSubmitted"]
+  end
+
+
+  # ── RoyaltyStatement aggregate ──────────────────────────────────────────
+
+  test "CalculateRoyalties sets period + gross_revenue + split_percentage" do
+    tests "CalculateRoyalties", on: "RoyaltyStatement"
+    setup  "SignArtist", name: "sample", genre: "sample"
+    input  period: "sample", gross_revenue: 1.0, split_percentage: 1.0
+    expect status: "draft"
+  end
+
+  test "CalculateRoyalties cascades through policy chain" do
+    tests "CalculateRoyalties", on: "RoyaltyStatement", kind: :cascade
+    setup  "SignArtist", name: "sample", genre: "sample"
+    input  period: "sample", gross_revenue: 1.0, split_percentage: 1.0
+    expect emits: ["RoyaltiesCalculated", "StatementApproved", "PaymentDisbursed"]
+  end
+
+  test "ApproveStatement runs" do
+    tests "ApproveStatement", on: "RoyaltyStatement"
+    setup  "CalculateRoyalties", period: "sample", gross_revenue: 1.0, split_percentage: 1.0
+    expect status: "approved"
+  end
+
+  test "ApproveStatement cascades through policy chain" do
+    tests "ApproveStatement", on: "RoyaltyStatement", kind: :cascade
+    setup  "CalculateRoyalties", period: "sample", gross_revenue: 1.0, split_percentage: 1.0
+    expect emits: ["StatementApproved", "PaymentDisbursed"]
+  end
+
+  test "DisbursePayment runs" do
+    tests "DisbursePayment", on: "RoyaltyStatement"
+    setup  "CalculateRoyalties", period: "sample", gross_revenue: 1.0, split_percentage: 1.0
+    expect status: "paid"
+  end
+
+
+  # ── Distribution aggregate ──────────────────────────────────────────
+
+  test "SubmitForDistribution sets channel + format + territory" do
+    tests "SubmitForDistribution", on: "Distribution"
+    setup  "GreenLightAlbum", title: "sample", producer: "sample"
+    input  channel: "sample", format: "sample", territory: "sample"
+    expect status: "pending"
+  end
+
+  test "ConfirmDistribution runs" do
+    tests "ConfirmDistribution", on: "Distribution"
+    setup  "SubmitForDistribution", channel: "sample", format: "sample", territory: "sample"
+    expect status: "live"
+  end
+
+  test "ConfirmDistribution cascades through policy chain" do
+    tests "ConfirmDistribution", on: "Distribution", kind: :cascade
+    setup  "SubmitForDistribution", channel: "sample", format: "sample", territory: "sample"
+    setup  "CalculateRoyalties", period: "sample", gross_revenue: 1.0, split_percentage: 1.0
+    setup  "SignArtist", name: "sample", genre: "sample"
+    expect emits: ["DistributionConfirmed", "RoyaltiesCalculated", "StatementApproved", "PaymentDisbursed"]
+  end
+
+end

@@ -46,7 +46,7 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
 
   aggregate "SoilProfile", "Soil characterization within the terroir — minerals, microbiome, moisture, pH that drive flavor" do
     String :profile_id
-    reference_to(ProtectedTerroir) :terroir
+    reference_to(ProtectedTerroir, as: :terroir)
     String :soil_type
     Float :ph_level
     String :mineral_composition
@@ -62,7 +62,7 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
       role "Ecologist"
       description "Characterize soil profile at a specific location within the terroir"
       String :profile_id
-      reference_to(ProtectedTerroir) :terroir
+      reference_to(ProtectedTerroir, as: :terroir)
       String :soil_type
       Float :ph_level
       String :mineral_composition
@@ -90,7 +90,7 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
     String :producer_id
     String :name
     String :craft_type
-    reference_to(ProtectedTerroir) :terroir
+    reference_to(ProtectedTerroir, as: :terroir)
     String :certification_status
     String :status
     list_of(ProductOffering) :products
@@ -106,7 +106,7 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
       String :producer_id
       String :name
       String :craft_type
-      reference_to(ProtectedTerroir) :terroir
+      reference_to(ProtectedTerroir, as: :terroir)
       emits "ProducerRegistered"
       then_set :producer_id, to: :producer_id
       then_set :name, to: :name
@@ -137,7 +137,7 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
 
   aggregate "SpeciesSurvey", "Biodiversity survey of the terroir — wild yeasts, insects, plants that contribute to flavor" do
     String :survey_id
-    reference_to(ProtectedTerroir) :terroir
+    reference_to(ProtectedTerroir, as: :terroir)
     String :survey_date
     String :season
     String :overall_diversity
@@ -152,7 +152,7 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
       role "Ecologist"
       description "Conduct species survey across the terroir — focus on flavor-contributing organisms"
       String :survey_id
-      reference_to(ProtectedTerroir) :terroir
+      reference_to(ProtectedTerroir, as: :terroir)
       String :survey_date
       String :season
       emits "SurveyConducted"
@@ -176,8 +176,8 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
 
   aggregate "VisitorExperience", "Eco-tourism experience within the terroir — tasting, foraging, producer visits" do
     String :experience_id
-    reference_to(ProtectedTerroir) :terroir
-    reference_to(CraftProducer) :host_producer
+    reference_to(ProtectedTerroir, as: :terroir)
+    reference_to(CraftProducer, as: :host_producer)
     String :experience_type
     Integer :capacity
     String :status
@@ -192,8 +192,8 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
       role "TourismCoordinator"
       description "Design a terroir visitor experience — tasting, foraging, ecology walk"
       String :experience_id
-      reference_to(ProtectedTerroir) :terroir
-      reference_to(CraftProducer) :host_producer
+      reference_to(ProtectedTerroir, as: :terroir)
+      reference_to(CraftProducer, as: :host_producer)
       String :experience_type
       Integer :capacity
       emits "ExperienceDesigned"
@@ -225,9 +225,9 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
 
   aggregate "FlavorProfile", "The sensory fingerprint of the terroir — connects soil, species, and craft into measurable flavor" do
     String :profile_id
-    reference_to(ProtectedTerroir) :terroir
-    reference_to(SoilProfile) :soil
-    reference_to(CraftProducer) :producer
+    reference_to(ProtectedTerroir, as: :terroir)
+    reference_to(SoilProfile, as: :soil)
+    reference_to(CraftProducer, as: :producer)
     String :vintage_season
     String :overall_character
     list_of(FlavorNote) :notes
@@ -236,15 +236,15 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
       String :intensity
       String :source_attribution
     end
-    CreateProfile do
+    ComposeProfile do
       role "SensoryAnalyst"
-      description "Create flavor profile linking terroir soil and species to product character"
+      description "Compose flavor profile linking terroir soil and species to product character"
       String :profile_id
-      reference_to(ProtectedTerroir) :terroir
-      reference_to(SoilProfile) :soil
-      reference_to(CraftProducer) :producer
+      reference_to(ProtectedTerroir, as: :terroir)
+      reference_to(SoilProfile, as: :soil)
+      reference_to(CraftProducer, as: :producer)
       String :vintage_season
-      emits "ProfileCreated"
+      emits "ProfileComposed"
       then_set :profile_id, to: :profile_id
       then_set :terroir, to: :terroir
       then_set :soil, to: :soil
@@ -276,9 +276,9 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
     on "MicrobiomeAssessed"
     trigger "CertifyProducer"
   end
-  policy "CreateProfileOnCertify" do
+  policy "ComposeProfileOnCertify" do
     on "ProducerCertified"
-    trigger "CreateProfile"
+    trigger "ComposeProfile"
   end
   policy "DesignExperienceOnCertify" do
     on "ProducerCertified"
@@ -293,21 +293,4 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
     trigger "AmendProtection"
   end
 
-  fixture "ProtectedTerroir", terroir_id: "t001", name: "Bourgogne Pinot Noir", region: "Burgundy, France", designation_type: "AOC", total_hectares: 1500, status: "protected"
-  fixture "ProtectedTerroir", terroir_id: "t002", name: "Asturian Cider Valley", region: "Asturias, Spain", designation_type: "DOP", total_hectares: 800, status: "protected"
-
-  fixture "SoilProfile", profile_id: "sp001", soil_type: "clay_limestone", ph_level: 6.8, mineral_composition: "chalk_calcite_iron_oxide", microbiome_diversity: "high"
-  fixture "SoilProfile", profile_id: "sp002", soil_type: "slate_schist", ph_level: 5.9, mineral_composition: "quartz_slate_feldspar", microbiome_diversity: "moderate"
-
-  fixture "CraftProducer", producer_id: "cp001", name: "Domaine de la Romanée", craft_type: "wine", certification_status: "certified", status: "active"
-  fixture "CraftProducer", producer_id: "cp002", name: "La Sidra del Rey", craft_type: "cider", certification_status: "certified", status: "active"
-
-  fixture "SpeciesSurvey", survey_id: "ss001", survey_date: "2026-04-10", season: "spring", overall_diversity: "high"
-  fixture "SpeciesSurvey", survey_id: "ss002", survey_date: "2026-04-08", season: "spring", overall_diversity: "moderate"
-
-  fixture "VisitorExperience", experience_id: "ve001", experience_type: "wine_tasting_walk", capacity: 12, status: "available"
-  fixture "VisitorExperience", experience_id: "ve002", experience_type: "foraging_ecology_tour", capacity: 8, status: "available"
-
-  fixture "FlavorProfile", profile_id: "fp001", vintage_season: "2023_autumn", overall_character: "complex_minerality"
-  fixture "FlavorProfile", profile_id: "fp002", vintage_season: "2024_summer", overall_character: "bright_apple_caramel"
 end

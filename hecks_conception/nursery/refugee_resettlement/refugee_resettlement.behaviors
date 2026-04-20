@@ -1,0 +1,153 @@
+Hecks.behaviors "RefugeeResettlement" do
+  vision "Behavioral tests for the RefugeeResettlement domain — exercises every command and query in memory"
+
+  # ── ResettlementCase aggregate ──────────────────────────────────────────
+
+  test "OpenCase sets case_number + country_of_origin + arrival_date + assigned_agency + family_size" do
+    tests "OpenCase", on: "ResettlementCase"
+    input  case_number: "sample", country_of_origin: "sample", arrival_date: "sample", assigned_agency: "sample", family_size: 1
+    expect case_number: "sample", country_of_origin: "sample", arrival_date: "sample", assigned_agency: "sample", family_size: 1, status: "active"
+  end
+
+  test "OpenCase cascades through policy chain" do
+    tests "OpenCase", on: "ResettlementCase", kind: :cascade
+    setup  "RegisterFamilyMember", name: "sample", date_of_birth: "sample", relationship: "sample", language_spoken: "sample", medical_needs: "sample", case_number: "sample"
+    setup  "SecureHousing", case_number: "sample", address: "sample", housing_type: "sample", lease_start_date: "sample", monthly_rent: "sample", subsidy_source: "sample"
+    setup  "ScheduleService", service_name: "sample", service_category: "sample", provider: "sample", case_number: "sample", scheduled_date: "sample"
+    setup  "BeginJobSearch", family_member_name: "sample", desired_field: "sample", language_proficiency: "sample"
+    input  case_number: "sample", country_of_origin: "sample", arrival_date: "sample", assigned_agency: "sample", family_size: 1
+    expect emits: ["CaseOpened", "FamilyMemberRegistered", "HousingSecured", "ServiceScheduled", "JobSearchStarted", "ResumePrepared", "JobPlaced", "CaseClosed"]
+  end
+
+  test "AdvanceCase sets status" do
+    tests "AdvanceCase", on: "ResettlementCase"
+    setup  "OpenCase", case_number: "sample", country_of_origin: "sample", arrival_date: "sample", assigned_agency: "sample", family_size: 1
+    input  status: "sample"
+    expect status: "sample"
+  end
+
+  test "CloseCase runs" do
+    tests "CloseCase", on: "ResettlementCase"
+    setup  "OpenCase", case_number: "sample", country_of_origin: "sample", arrival_date: "sample", assigned_agency: "sample", family_size: 1
+    expect status: "closed"
+  end
+
+
+  # ── FamilyMember aggregate ──────────────────────────────────────────
+
+  test "RegisterFamilyMember sets name + date_of_birth + relationship + language_spoken + medical_needs + case_number" do
+    tests "RegisterFamilyMember", on: "FamilyMember"
+    setup  "OpenCase", case_number: "sample", country_of_origin: "sample", arrival_date: "sample", assigned_agency: "sample", family_size: 1
+    input  name: "sample", date_of_birth: "sample", relationship: "sample", language_spoken: "sample", medical_needs: "sample", case_number: "sample"
+    expect name: "sample", date_of_birth: "sample", relationship: "sample", language_spoken: "sample", medical_needs: "sample", case_number: "sample"
+  end
+
+  test "ReviseMedicalNeeds sets medical_needs" do
+    tests "ReviseMedicalNeeds", on: "FamilyMember"
+    setup  "RegisterFamilyMember", name: "sample", date_of_birth: "sample", relationship: "sample", language_spoken: "sample", medical_needs: "sample", case_number: "sample"
+    input  medical_needs: "sample"
+    expect medical_needs: "sample"
+  end
+
+
+  # ── ResettlementService aggregate ──────────────────────────────────────────
+
+  test "ScheduleService sets service_name + service_category + provider + case_number + scheduled_date" do
+    tests "ScheduleService", on: "ResettlementService"
+    setup  "OpenCase", case_number: "sample", country_of_origin: "sample", arrival_date: "sample", assigned_agency: "sample", family_size: 1
+    input  service_name: "sample", service_category: "sample", provider: "sample", case_number: "sample", scheduled_date: "sample"
+    expect service_name: "sample", service_category: "sample", provider: "sample", case_number: "sample", scheduled_date: "sample", status: "scheduled"
+  end
+
+  test "DeliverService runs" do
+    tests "DeliverService", on: "ResettlementService"
+    setup  "ScheduleService", service_name: "sample", service_category: "sample", provider: "sample", case_number: "sample", scheduled_date: "sample"
+    expect status: "delivered"
+  end
+
+  test "DocumentServiceNote sets content" do
+    tests "DocumentServiceNote", on: "ResettlementService"
+    setup  "ScheduleService", service_name: "sample", service_category: "sample", provider: "sample", case_number: "sample", scheduled_date: "sample"
+    input  content: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── HousingPlacement aggregate ──────────────────────────────────────────
+
+  test "SecureHousing sets case_number + address + housing_type + lease_start_date + monthly_rent + subsidy_source" do
+    tests "SecureHousing", on: "HousingPlacement"
+    setup  "OpenCase", case_number: "sample", country_of_origin: "sample", arrival_date: "sample", assigned_agency: "sample", family_size: 1
+    input  case_number: "sample", address: "sample", housing_type: "sample", lease_start_date: "sample", monthly_rent: "sample", subsidy_source: "sample"
+    expect case_number: "sample", address: "sample", housing_type: "sample", lease_start_date: "sample", monthly_rent: "sample", subsidy_source: "sample", status: "active"
+  end
+
+  test "SecureHousing cascades through policy chain" do
+    tests "SecureHousing", on: "HousingPlacement", kind: :cascade
+    setup  "OpenCase", case_number: "sample", country_of_origin: "sample", arrival_date: "sample", assigned_agency: "sample", family_size: 1
+    setup  "ScheduleService", service_name: "sample", service_category: "sample", provider: "sample", case_number: "sample", scheduled_date: "sample"
+    setup  "BeginJobSearch", family_member_name: "sample", desired_field: "sample", language_proficiency: "sample"
+    setup  "RegisterFamilyMember", name: "sample", date_of_birth: "sample", relationship: "sample", language_spoken: "sample", medical_needs: "sample", case_number: "sample"
+    input  case_number: "sample", address: "sample", housing_type: "sample", lease_start_date: "sample", monthly_rent: "sample", subsidy_source: "sample"
+    expect emits: ["HousingSecured", "ServiceScheduled", "JobSearchStarted", "ResumePrepared", "JobPlaced", "CaseClosed"]
+  end
+
+  test "ReportHousingIssue runs" do
+    tests "ReportHousingIssue", on: "HousingPlacement"
+    setup  "SecureHousing", case_number: "sample", address: "sample", housing_type: "sample", lease_start_date: "sample", monthly_rent: "sample", subsidy_source: "sample"
+    expect ok: "true"
+  end
+
+  test "TerminateLease runs" do
+    tests "TerminateLease", on: "HousingPlacement"
+    setup  "SecureHousing", case_number: "sample", address: "sample", housing_type: "sample", lease_start_date: "sample", monthly_rent: "sample", subsidy_source: "sample"
+    expect status: "terminated"
+  end
+
+
+  # ── EmploymentAssistance aggregate ──────────────────────────────────────────
+
+  test "BeginJobSearch sets family_member_name + desired_field + language_proficiency" do
+    tests "BeginJobSearch", on: "EmploymentAssistance"
+    setup  "RegisterFamilyMember", name: "sample", date_of_birth: "sample", relationship: "sample", language_spoken: "sample", medical_needs: "sample", case_number: "sample"
+    input  family_member_name: "sample", desired_field: "sample", language_proficiency: "sample"
+    expect family_member_name: "sample", desired_field: "sample", language_proficiency: "sample", resume_status: "not_started", placement_status: "searching"
+  end
+
+  test "BeginJobSearch cascades through policy chain" do
+    tests "BeginJobSearch", on: "EmploymentAssistance", kind: :cascade
+    setup  "RegisterFamilyMember", name: "sample", date_of_birth: "sample", relationship: "sample", language_spoken: "sample", medical_needs: "sample", case_number: "sample"
+    setup  "OpenCase", case_number: "sample", country_of_origin: "sample", arrival_date: "sample", assigned_agency: "sample", family_size: 1
+    input  family_member_name: "sample", desired_field: "sample", language_proficiency: "sample"
+    expect emits: ["JobSearchStarted", "ResumePrepared", "JobPlaced", "CaseClosed"]
+  end
+
+  test "PrepareResume runs" do
+    tests "PrepareResume", on: "EmploymentAssistance"
+    setup  "BeginJobSearch", family_member_name: "sample", desired_field: "sample", language_proficiency: "sample"
+    expect resume_status: "complete"
+  end
+
+  test "PrepareResume cascades through policy chain" do
+    tests "PrepareResume", on: "EmploymentAssistance", kind: :cascade
+    setup  "BeginJobSearch", family_member_name: "sample", desired_field: "sample", language_proficiency: "sample"
+    setup  "OpenCase", case_number: "sample", country_of_origin: "sample", arrival_date: "sample", assigned_agency: "sample", family_size: 1
+    expect emits: ["ResumePrepared", "JobPlaced", "CaseClosed"]
+  end
+
+  test "PlaceInJob sets employer_name" do
+    tests "PlaceInJob", on: "EmploymentAssistance"
+    setup  "BeginJobSearch", family_member_name: "sample", desired_field: "sample", language_proficiency: "sample"
+    input  employer_name: "sample"
+    expect employer_name: "sample", placement_status: "placed"
+  end
+
+  test "PlaceInJob cascades through policy chain" do
+    tests "PlaceInJob", on: "EmploymentAssistance", kind: :cascade
+    setup  "OpenCase", case_number: "sample", country_of_origin: "sample", arrival_date: "sample", assigned_agency: "sample", family_size: 1
+    setup  "BeginJobSearch", family_member_name: "sample", desired_field: "sample", language_proficiency: "sample"
+    input  employer_name: "sample"
+    expect emits: ["JobPlaced", "CaseClosed"]
+  end
+
+end

@@ -53,7 +53,7 @@ Hecks.bluebook "NutritionRx", version: "2026.04.13.1" do
   # === Prescription ===
 
   aggregate "Prescription", "A medication order that may interact with food — the pharmacy side of the equation" do
-    reference_to(Patient) :patient
+    reference_to(Patient, as: :patient)
     String :medication
     String :dosage
     String :frequency
@@ -70,7 +70,7 @@ Hecks.bluebook "NutritionRx", version: "2026.04.13.1" do
     WritePrescription do
       role "Physician"
       description "Prescribe a medication with dosage and frequency"
-      reference_to(Patient) :patient
+      reference_to(Patient, as: :patient)
       String :medication
       String :dosage
       String :frequency
@@ -109,7 +109,7 @@ Hecks.bluebook "NutritionRx", version: "2026.04.13.1" do
   # === MealPlan ===
 
   aggregate "MealPlan", "A therapeutic meal plan — designed to address deficiencies and respect drug interactions" do
-    reference_to(Patient) :patient
+    reference_to(Patient, as: :patient)
     String :goal
     Integer :daily_calories
     String :status
@@ -125,7 +125,7 @@ Hecks.bluebook "NutritionRx", version: "2026.04.13.1" do
     GenerateMealPlan do
       role "System"
       description "Auto-generate a meal plan from deficiency data and drug interactions"
-      reference_to(Patient) :patient
+      reference_to(Patient, as: :patient)
       String :goal
       Integer :daily_calories
       emits "MealPlanGenerated"
@@ -162,8 +162,8 @@ Hecks.bluebook "NutritionRx", version: "2026.04.13.1" do
   # === GroceryList ===
 
   aggregate "GroceryList", "An auto-generated grocery list — derived from the meal plan, respecting budget and availability" do
-    reference_to(Patient) :patient
-    reference_to(MealPlan) :meal_plan
+    reference_to(Patient, as: :patient)
+    reference_to(MealPlan, as: :meal_plan)
     String :status
     Float :estimated_cost
     list_of(GroceryItem) :items
@@ -179,19 +179,19 @@ Hecks.bluebook "NutritionRx", version: "2026.04.13.1" do
     GenerateGroceryList do
       role "System"
       description "Build a grocery list from an approved meal plan"
-      reference_to(Patient) :patient
-      reference_to(MealPlan) :meal_plan
+      reference_to(Patient, as: :patient)
+      reference_to(MealPlan, as: :meal_plan)
       emits "GroceryListGenerated"
       then_set :patient, to: :patient
       then_set :meal_plan, to: :meal_plan
       then_set :status, to: "generated"
     end
 
-    UpdateGroceryList do
+    ReviseGroceryList do
       role "System"
       description "Update the grocery list when prescriptions change"
       reference_to(GroceryList)
-      emits "GroceryListUpdated"
+      emits "GroceryListRevised"
       then_set :status, to: "updated"
     end
 
@@ -206,7 +206,7 @@ Hecks.bluebook "NutritionRx", version: "2026.04.13.1" do
 
     lifecycle :status, default: "pending" do
       transition "GenerateGroceryList" => "generated", from: "pending"
-      transition "UpdateGroceryList" => "updated", from: "generated"
+      transition "ReviseGroceryList" => "updated", from: "generated"
       transition "FulfillGroceryList" => "fulfilled", from: "generated"
     end
   end
@@ -214,7 +214,7 @@ Hecks.bluebook "NutritionRx", version: "2026.04.13.1" do
   # === NutrientTarget ===
 
   aggregate "NutrientTarget", "A specific nutrient goal for a patient — tracks intake against recommended levels" do
-    reference_to(Patient) :patient
+    reference_to(Patient, as: :patient)
     String :nutrient
     Float :target_amount
     String :unit
@@ -224,7 +224,7 @@ Hecks.bluebook "NutritionRx", version: "2026.04.13.1" do
     SetTarget do
       role "Nutritionist"
       description "Set a daily nutrient target for a specific deficiency"
-      reference_to(Patient) :patient
+      reference_to(Patient, as: :patient)
       String :nutrient
       Float :target_amount
       String :unit
@@ -256,24 +256,14 @@ Hecks.bluebook "NutritionRx", version: "2026.04.13.1" do
 
   # === Cross-wire policies ===
 
-  policy "MealPlanOnDeficiency" do
-    on "DeficiencyDetected"
-    trigger "GenerateMealPlan"
-  end
-
   policy "GroceryListOnPrescription" do
     on "PrescriptionFilled"
-    trigger "UpdateGroceryList"
+    trigger "ReviseGroceryList"
   end
 
   policy "AdjustMealOnInteraction" do
     on "FoodInteractionFlagged"
     trigger "AdjustForInteraction"
-  end
-
-  policy "GroceryListOnMealPlan" do
-    on "MealPlanApproved"
-    trigger "GenerateGroceryList"
   end
 
   policy "SetTargetOnDeficiency" do
@@ -286,18 +276,4 @@ Hecks.bluebook "NutritionRx", version: "2026.04.13.1" do
     trigger "AchieveTarget"
   end
 
-  fixture "Patient", name: "Carol Williams", date_of_birth: "1975-06-20", dietary_restriction: "gluten-free", status: "active"
-  fixture "Patient", name: "David Brown", date_of_birth: "1982-11-08", dietary_restriction: "vegan", status: "active"
-
-  fixture "Prescription", medication: "Metformin", dosage: "500mg", frequency: "twice daily", status: "written"
-  fixture "Prescription", medication: "Lisinopril", dosage: "10mg", frequency: "once daily", status: "filled"
-
-  fixture "MealPlan", goal: "diabetes-management", daily_calories: 2000, status: "draft"
-  fixture "MealPlan", goal: "cardiovascular-health", daily_calories: 1900, status: "approved"
-
-  fixture "GroceryList", status: "generated", estimated_cost: 85.50
-  fixture "GroceryList", status: "fulfilled", estimated_cost: 92.00
-
-  fixture "NutrientTarget", nutrient: "vitamin-D", target_amount: 1000.0, unit: "IU", current_intake: 0.0, status: "tracking"
-  fixture "NutrientTarget", nutrient: "sodium", target_amount: 2300.0, unit: "mg", current_intake: 0.0, status: "tracking"
 end

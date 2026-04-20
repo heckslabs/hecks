@@ -1,0 +1,161 @@
+Hecks.behaviors "DentalPractice" do
+  vision "Behavioral tests for the DentalPractice domain — exercises every command and query in memory"
+
+  # ── Patient aggregate ──────────────────────────────────────────
+
+  test "RegisterPatient sets first_name + last_name + date_of_birth + phone + insurance_provider + policy_number" do
+    tests "RegisterPatient", on: "Patient"
+    input  first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
+    expect phone: "sample", insurance_provider: "sample", policy_number: "sample", first_name: "sample", last_name: "sample", date_of_birth: "sample", status: "active"
+  end
+
+  test "RecordInsurance sets insurance_provider + policy_number" do
+    tests "RecordInsurance", on: "Patient"
+    setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
+    input  insurance_provider: "sample", policy_number: "sample"
+    expect insurance_provider: "sample", policy_number: "sample"
+  end
+
+  test "DeactivatePatient runs" do
+    tests "DeactivatePatient", on: "Patient"
+    setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
+    expect status: "inactive"
+  end
+
+
+  # ── DentalProcedure aggregate ──────────────────────────────────────────
+
+  test "PerformProcedure sets cdt_code + procedure_name + tooth_number + surface + notes" do
+    tests "PerformProcedure", on: "DentalProcedure"
+    setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
+    input  cdt_code: "sample", procedure_name: "sample", tooth_number: "sample", surface: "sample", notes: "sample"
+    expect cdt_code: "sample", procedure_name: "sample", tooth_number: "sample", surface: "sample", status: "completed"
+  end
+
+  test "PerformProcedure cascades through policy chain" do
+    tests "PerformProcedure", on: "DentalProcedure", kind: :cascade
+    setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
+    setup  "SubmitClaim", billed_amount: 1.0
+    input  cdt_code: "sample", procedure_name: "sample", tooth_number: "sample", surface: "sample", notes: "sample"
+    expect emits: ["ProcedurePerformed", "ClaimSubmitted", "PaymentProcessed"]
+  end
+
+  test "PlanTreatment sets cdt_code + procedure_name + tooth_number" do
+    tests "PlanTreatment", on: "DentalProcedure"
+    setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
+    input  cdt_code: "sample", procedure_name: "sample", tooth_number: "sample"
+    expect cdt_code: "sample", procedure_name: "sample", status: "planned"
+  end
+
+  test "PlanTreatment cascades through policy chain" do
+    tests "PlanTreatment", on: "DentalProcedure", kind: :cascade
+    setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
+    setup  "ScheduleVisit", appointment_date: "sample", time_slot: "sample", visit_type: "sample"
+    setup  "TakeRadiograph", image_type: "sample", tooth_region: "sample"
+    input  cdt_code: "sample", procedure_name: "sample", tooth_number: "sample"
+    expect emits: ["TreatmentPlanned", "VisitScheduled", "VisitConfirmed", "RadiographTaken", "RadiographInterpreted", "TreatmentPlanned"]
+  end
+
+
+  # ── Radiograph aggregate ──────────────────────────────────────────
+
+  test "TakeRadiograph sets image_type + tooth_region" do
+    tests "TakeRadiograph", on: "Radiograph"
+    setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
+    input  image_type: "sample", tooth_region: "sample"
+    expect image_type: "sample", tooth_region: "sample"
+  end
+
+  test "TakeRadiograph cascades through policy chain" do
+    tests "TakeRadiograph", on: "Radiograph", kind: :cascade
+    setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
+    setup  "PlanTreatment", cdt_code: "sample", procedure_name: "sample", tooth_number: "sample"
+    setup  "ScheduleVisit", appointment_date: "sample", time_slot: "sample", visit_type: "sample"
+    input  image_type: "sample", tooth_region: "sample"
+    expect emits: ["RadiographTaken", "RadiographInterpreted", "TreatmentPlanned", "VisitScheduled", "VisitConfirmed", "RadiographTaken"]
+  end
+
+  test "InterpretRadiograph sets findings" do
+    tests "InterpretRadiograph", on: "Radiograph"
+    setup  "TakeRadiograph", image_type: "sample", tooth_region: "sample"
+    input  findings: "sample"
+    expect findings: "sample"
+  end
+
+  test "InterpretRadiograph cascades through policy chain" do
+    tests "InterpretRadiograph", on: "Radiograph", kind: :cascade
+    setup  "TakeRadiograph", image_type: "sample", tooth_region: "sample"
+    setup  "PlanTreatment", cdt_code: "sample", procedure_name: "sample", tooth_number: "sample"
+    setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
+    setup  "ScheduleVisit", appointment_date: "sample", time_slot: "sample", visit_type: "sample"
+    input  findings: "sample"
+    expect emits: ["RadiographInterpreted", "TreatmentPlanned", "VisitScheduled", "VisitConfirmed", "RadiographTaken", "RadiographInterpreted"]
+  end
+
+
+  # ── InsuranceClaim aggregate ──────────────────────────────────────────
+
+  test "SubmitClaim sets billed_amount" do
+    tests "SubmitClaim", on: "InsuranceClaim"
+    setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
+    setup  "PlanTreatment", cdt_code: "sample", procedure_name: "sample", tooth_number: "sample"
+    input  billed_amount: 1.0
+    expect billed_amount: 1.0, status: "submitted"
+  end
+
+  test "SubmitClaim cascades through policy chain" do
+    tests "SubmitClaim", on: "InsuranceClaim", kind: :cascade
+    setup  "PlanTreatment", cdt_code: "sample", procedure_name: "sample", tooth_number: "sample"
+    setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
+    input  billed_amount: 1.0
+    expect emits: ["ClaimSubmitted", "PaymentProcessed"]
+  end
+
+  test "ProcessPayment sets allowed_amount + patient_responsibility" do
+    tests "ProcessPayment", on: "InsuranceClaim"
+    setup  "SubmitClaim", billed_amount: 1.0
+    input  allowed_amount: 1.0, patient_responsibility: 1.0
+    expect allowed_amount: 1.0, patient_responsibility: 1.0, status: "paid"
+  end
+
+  test "DenyClaim runs" do
+    tests "DenyClaim", on: "InsuranceClaim"
+    setup  "SubmitClaim", billed_amount: 1.0
+    expect status: "denied"
+  end
+
+
+  # ── DentalAppointment aggregate ──────────────────────────────────────────
+
+  test "ScheduleVisit sets appointment_date + time_slot + visit_type" do
+    tests "ScheduleVisit", on: "DentalAppointment"
+    setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
+    input  appointment_date: "sample", time_slot: "sample", visit_type: "sample"
+    expect appointment_date: "sample", time_slot: "sample", visit_type: "sample", status: "scheduled"
+  end
+
+  test "ScheduleVisit cascades through policy chain" do
+    tests "ScheduleVisit", on: "DentalAppointment", kind: :cascade
+    setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
+    setup  "TakeRadiograph", image_type: "sample", tooth_region: "sample"
+    setup  "PlanTreatment", cdt_code: "sample", procedure_name: "sample", tooth_number: "sample"
+    input  appointment_date: "sample", time_slot: "sample", visit_type: "sample"
+    expect emits: ["VisitScheduled", "VisitConfirmed", "RadiographTaken", "RadiographInterpreted", "TreatmentPlanned", "VisitScheduled"]
+  end
+
+  test "ConfirmVisit runs" do
+    tests "ConfirmVisit", on: "DentalAppointment"
+    setup  "ScheduleVisit", appointment_date: "sample", time_slot: "sample", visit_type: "sample"
+    expect status: "confirmed"
+  end
+
+  test "ConfirmVisit cascades through policy chain" do
+    tests "ConfirmVisit", on: "DentalAppointment", kind: :cascade
+    setup  "TakeRadiograph", image_type: "sample", tooth_region: "sample"
+    setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
+    setup  "PlanTreatment", cdt_code: "sample", procedure_name: "sample", tooth_number: "sample"
+    setup  "ScheduleVisit", appointment_date: "sample", time_slot: "sample", visit_type: "sample"
+    expect emits: ["VisitConfirmed", "RadiographTaken", "RadiographInterpreted", "TreatmentPlanned", "VisitScheduled", "VisitConfirmed"]
+  end
+
+end

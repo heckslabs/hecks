@@ -27,6 +27,7 @@ Hecks.bluebook "FireSprinkler" do
       String :pipe_material
       Float :design_density_gpm
       emits "SystemDesigned"
+      then_set :status, to: "tested"
     end
 
     ActivateSystem do
@@ -138,6 +139,7 @@ Hecks.bluebook "FireSprinkler" do
       String :inspection_date
       reference_to(SprinklerSystem)
       emits "InspectionPerformed"
+      then_set :result, to: "pass"
     end
 
     RecordDeficiency do
@@ -222,18 +224,4 @@ Hecks.bluebook "FireSprinkler" do
     trigger "MarkCompliant"
   end
 
-  fixture "SprinklerSystem", building_name: "Harbor Point Office Tower", address: "425 Oak Street, Suite 1200", system_type: "wet_pipe", pipe_material: "steel", design_density_gpm: 0.15, status: "active"
-  fixture "SprinklerSystem", building_name: "Riverside Medical Center", address: "1200 Harbor Avenue", system_type: "dry_pipe", pipe_material: "copper", design_density_gpm: 0.20, status: "active"
-
-  fixture "Zone", zone_name: "North Wing 3rd Floor", floor: "3", head_count: 32, occupancy_type: "office", reference_to(SprinklerSystem)
-  fixture "Zone", zone_name: "East Corridor 2nd Floor", floor: "2", head_count: 28, occupancy_type: "office", reference_to(SprinklerSystem)
-
-  fixture "SprinklerHead", head_type: "pendent", k_factor: 5.6, temp_rating_f: 155, orientation: "down", coverage_area: "100_sqft", reference_to(Zone)
-  fixture "SprinklerHead", head_type: "upright", k_factor: 8.0, temp_rating_f: 165, orientation: "up", coverage_area: "130_sqft", reference_to(Zone)
-
-  fixture "SprinklerInspection", inspection_type: "annual", inspector_name: "John Martinez", result: "pass", deficiencies: "", inspection_date: "2026-03-20", reference_to(SprinklerSystem)
-  fixture "SprinklerInspection", inspection_type: "5year_flow", inspector_name: "Sarah Chen", result: "pass", deficiencies: "", inspection_date: "2025-11-15", reference_to(SprinklerSystem)
-
-  fixture "ComplianceRecord", ahj_name: "County Fire Marshal", requirement: "annual_inspection", due_date: "2027-03-20", status: "compliant", reference_to(SprinklerSystem)
-  fixture "ComplianceRecord", ahj_name: "City Building Department", requirement: "5year_flow_test", due_date: "2030-11-15", status: "compliant", reference_to(SprinklerSystem)
 end

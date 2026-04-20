@@ -1,0 +1,18 @@
+Hecks.fixtures "SmartRehab" do
+  aggregate "Patient" do
+    fixture "Maria_Santos_", patient_id: "PAT-001", name: "Maria Santos", diagnosis: "Rotator Cuff Repair", therapist_name: "Dr. James Chen", status: "active"
+    fixture "John_Doe_", patient_id: "PAT-002", name: "John Doe", diagnosis: "ACL Reconstruction", therapist_name: "Dr. Sarah Johnson", status: "active"
+  end
+  aggregate "ExerciseProgram" do
+    fixture "ExerciseProgram1", program_id: "PRG-001", patient_id: "PAT-001", exercises: [{ name: "Pendulum Swings", sets: 3, reps: 15, target_muscle: "Rotator Cuff" }], frequency: "3x weekly", status: "active"
+    fixture "ExerciseProgram2", program_id: "PRG-002", patient_id: "PAT-002", exercises: [{ name: "Quad Sets", sets: 4, reps: 20, target_muscle: "Quadriceps" }], frequency: "5x weekly", status: "active"
+  end
+  aggregate "WearableSensor" do
+    fixture "WearableSensor1", device_id: "DEV-001", patient_id: "PAT-001", sensor_type: "Accelerometer", battery_level: 85.5, status: "paired"
+    fixture "WearableSensor2", device_id: "DEV-002", patient_id: "PAT-002", sensor_type: "Motion Sensor", battery_level: 72.0, status: "paired"
+  end
+  aggregate "ProgressReport" do
+    fixture "ProgressReport1", report_id: "RPT-001", patient_id: "PAT-001", range_of_motion: 95.5, pain_score: 2.5, sensor_summary: "Steady improvement in ROM", therapist_notes: "Patient showing excellent compliance"
+    fixture "ProgressReport2", report_id: "RPT-002", patient_id: "PAT-002", range_of_motion: 110.0, pain_score: 1.8, sensor_summary: "Strong motion gains", therapist_notes: "Ready to advance intensity"
+  end
+end

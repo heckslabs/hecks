@@ -8,6 +8,7 @@ Hecks.bluebook "Oceanography" do
     Float :longitude
     Float :water_depth_m
     String :station_type
+    Boolean :active, default: false
 
     command "EstablishStation" do
       description "Set up a new oceanographic sampling station"
@@ -15,13 +16,15 @@ Hecks.bluebook "Oceanography" do
       String :station_id
       Float :latitude
       Float :longitude
+      then_set :active, true
     end
 
     command "CloseStation" do
       description "Remove a station from active service"
       emits "StationClosed"
       reference_to SamplingStation
-      given "station must have no active buoys"
+      given { active == true }
+      then_set :active, false
     end
 
     command "RelocateStation" do
@@ -52,7 +55,6 @@ Hecks.bluebook "Oceanography" do
       emits "CastDeployed"
       reference_to SamplingStation
       String :timestamp
-      given "station must be active"
     end
 
     command "ProcessCastData" do
@@ -74,6 +76,7 @@ Hecks.bluebook "Oceanography" do
     String :instrument_id
     Float :deployment_depth_m
     String :mooring_type
+    Boolean :deployed, default: false
     reference_to SamplingStation
 
     command "DeployMeter" do
@@ -82,13 +85,15 @@ Hecks.bluebook "Oceanography" do
       reference_to SamplingStation
       String :instrument_id
       Float :deployment_depth_m
+      then_set :deployed, true
     end
 
     command "RecoverMeter" do
       description "Retrieve the instrument and download data"
       emits "MeterRecovered"
       reference_to CurrentMeter
-      given "meter must be deployed"
+      given { deployed == true }
+      then_set :deployed, false
     end
   end
 
@@ -111,7 +116,7 @@ Hecks.bluebook "Oceanography" do
       description "Confirm species identification with a taxonomist"
       emits "TaxonomyVerified"
       reference_to SpeciesCount
-      given "count must be above zero"
+      given { count > 0 }
     end
   end
 
@@ -159,15 +164,4 @@ Hecks.bluebook "Oceanography" do
     trigger "FlagAnomalous"
   end
 
-  fixture "SamplingStation", station_id: "WHOI-001", latitude: 41.5256, longitude: -70.4687, water_depth_m: 1520.0, station_type: "mooring"
-  fixture "SamplingStation", station_id: "OCE-SHELF-02", latitude: 37.8054, longitude: -122.4772, water_depth_m: 85.5, station_type: "fixed"
-
-  fixture "CtdCast", cast_id: "CAST-2026-0412-001", timestamp: "2026-04-12T14:30:00Z", max_depth_m: 1500.0
-  fixture "CtdCast", cast_id: "CAST-2026-0411-005", timestamp: "2026-04-11T09:15:00Z", max_depth_m: 80.0
-
-  fixture "CurrentMeter", instrument_id: "ADCP-07", deployment_depth_m: 450.0, mooring_type: "subsurface"
-  fixture "CurrentMeter", instrument_id: "AANDERAA-12", deployment_depth_m: 200.0, mooring_type: "mid-water"
-
-  fixture "SpeciesCount", species_name: "Calanus finmarchicus", count: 2847, survey_method: "net tow"
-  fixture "SpeciesCount", species_name: "Euphausia superba", count: 156, survey_method: "visual transect"
 end

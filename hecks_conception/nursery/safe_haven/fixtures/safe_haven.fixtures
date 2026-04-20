@@ -1,0 +1,18 @@
+Hecks.fixtures "SafeHaven" do
+  aggregate "SafetyPlan" do
+    fixture "SafetyPlan1", plan_id: "sp-001", client_code: "CC-2024-001", advocate_name: "Maria Sanchez", status: "active"
+    fixture "SafetyPlan2", plan_id: "sp-002", client_code: "CC-2024-002", advocate_name: "Dr. James Chen", status: "activated"
+  end
+  aggregate "DigitalSecurity" do
+    fixture "DigitalSecurity1", profile_id: "ds-001", client_code: "CC-2024-001", threat_level: "high", status: "assessed"
+    fixture "DigitalSecurity2", profile_id: "ds-002", client_code: "CC-2024-002", threat_level: "medium", status: "secured"
+  end
+  aggregate "LocationPrivacy" do
+    fixture "LocationPrivacy1", privacy_id: "lp-001", client_code: "CC-2024-001", safe_address: "123 Oak St, Portland OR", vpn_status: "active", gps_spoofing: "enabled", status: "active"
+    fixture "LocationPrivacy2", privacy_id: "lp-002", client_code: "CC-2024-002", safe_address: "456 Pine Ave, Seattle WA", vpn_status: "inactive", gps_spoofing: "disabled", status: "active"
+  end
+  aggregate "IncidentLog" do
+    fixture "IncidentLog1", log_id: "il-001", client_code: "CC-2024-001", incident_type: "harassment", description_text: "Threatening phone calls received", date: "2026-03-15", reported_to: ""
+    fixture "IncidentLog2", log_id: "il-002", client_code: "CC-2024-002", incident_type: "property_damage", description_text: "Apartment door damaged", date: "2026-03-20", reported_to: "Portland Police"
+  end
+end

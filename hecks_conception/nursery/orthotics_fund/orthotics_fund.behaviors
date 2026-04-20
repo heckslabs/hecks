@@ -1,0 +1,84 @@
+Hecks.behaviors "OrthoticsFund" do
+  vision "Behavioral tests for the OrthoticsFund domain — exercises every command and query in memory"
+
+  # ── PodiatryPatient aggregate ──────────────────────────────────────────
+
+  test "AssessPatient sets patient_id + name + diagnosis + foot_type" do
+    tests "AssessPatient", on: "PodiatryPatient"
+    input  patient_id: "sample", name: "sample", diagnosis: "sample", foot_type: "sample"
+    expect patient_id: "sample", name: "sample", diagnosis: "sample", foot_type: "sample", status: "assessed"
+  end
+
+  test "PrescribeDevice runs" do
+    tests "PrescribeDevice", on: "PodiatryPatient"
+    setup  "AssessPatient", patient_id: "sample", name: "sample", diagnosis: "sample", foot_type: "sample"
+    expect status: "prescribed"
+  end
+
+  test "PrescribeDevice cascades through policy chain" do
+    tests "PrescribeDevice", on: "PodiatryPatient", kind: :cascade
+    setup  "LaunchCampaign", campaign_id: "sample", patient_id: "sample", goal_amount: 1.0
+    setup  "AssessPatient", patient_id: "sample", name: "sample", diagnosis: "sample", foot_type: "sample"
+    expect emits: ["DevicePrescribed", "CampaignLaunched"]
+  end
+
+
+  # ── CustomDevice aggregate ──────────────────────────────────────────
+
+  test "DesignDevice sets device_id + patient_id + device_type + cost" do
+    tests "DesignDevice", on: "CustomDevice"
+    input  device_id: "sample", patient_id: "sample", device_type: "sample", cost: 1.0
+    expect device_id: "sample", patient_id: "sample", device_type: "sample", cost: 1.0, status: "designed"
+  end
+
+  test "FabricateDevice runs" do
+    tests "FabricateDevice", on: "CustomDevice"
+    setup  "DesignDevice", device_id: "sample", patient_id: "sample", device_type: "sample", cost: 1.0
+    expect status: "fabricated"
+  end
+
+
+  # ── FundingCampaign aggregate ──────────────────────────────────────────
+
+  test "LaunchCampaign sets campaign_id + patient_id + goal_amount" do
+    tests "LaunchCampaign", on: "FundingCampaign"
+    input  campaign_id: "sample", patient_id: "sample", goal_amount: 1.0
+    expect campaign_id: "sample", patient_id: "sample", goal_amount: 1.0, raised_amount: 0.0, status: "active"
+  end
+
+  test "RecordPledge sets amount" do
+    tests "RecordPledge", on: "FundingCampaign"
+    setup  "LaunchCampaign", campaign_id: "sample", patient_id: "sample", goal_amount: 1.0
+    input  amount: 1.0
+    expect ok: "true"
+  end
+
+  test "CloseCampaign runs" do
+    tests "CloseCampaign", on: "FundingCampaign"
+    setup  "LaunchCampaign", campaign_id: "sample", patient_id: "sample", goal_amount: 1.0
+    expect status: "closed"
+  end
+
+  test "CloseCampaign cascades through policy chain" do
+    tests "CloseCampaign", on: "FundingCampaign", kind: :cascade
+    setup  "ReleaseFunds", disbursement_id: "sample", campaign_id: "sample", device_id: "sample", amount: 1.0
+    setup  "LaunchCampaign", campaign_id: "sample", patient_id: "sample", goal_amount: 1.0
+    expect emits: ["CampaignClosed", "FundsReleased"]
+  end
+
+
+  # ── Disbursement aggregate ──────────────────────────────────────────
+
+  test "ReleaseFunds sets disbursement_id + campaign_id + device_id + amount" do
+    tests "ReleaseFunds", on: "Disbursement"
+    input  disbursement_id: "sample", campaign_id: "sample", device_id: "sample", amount: 1.0
+    expect disbursement_id: "sample", campaign_id: "sample", device_id: "sample", amount: 1.0, status: "released"
+  end
+
+  test "ConfirmReceipt runs" do
+    tests "ConfirmReceipt", on: "Disbursement"
+    setup  "ReleaseFunds", disbursement_id: "sample", campaign_id: "sample", device_id: "sample", amount: 1.0
+    expect status: "confirmed"
+  end
+
+end

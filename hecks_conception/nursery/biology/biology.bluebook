@@ -33,14 +33,13 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       String :envelope_intact
     end
 
-    CreateCell do
+    CultureCell do
       role "Biologist"
       description "Instantiate a new cell with its type and organism origin"
-      String :cell_type
       String :name
       String :organism_type
       emits "CellCreated"
-      then_set :cell_type, to: :cell_type
+      then_set :cell_type, to: "stem"
       then_set :name, to: :name
       then_set :organism_type, to: :organism_type
       then_set :phase, to: "interphase"
@@ -93,9 +92,7 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       role "System"
       description "Advance the cell cycle — G1, S, G2, M"
       reference_to(Cell)
-      String :phase
       emits "PhaseEntered"
-      then_set :phase, to: :phase
     end
 
     RepairMembrane do
@@ -107,8 +104,8 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       then_set :membrane_integrity, to: :integrity
     end
 
-    lifecycle :phase, default: "interphase" do
-      transition "CreateCell" => "interphase", from: "none"
+    lifecycle :phase, default: "none" do
+      transition "CultureCell" => "interphase", from: "none"
       transition "EnterPhase" => "G1", from: "interphase"
       transition "EnterPhase" => "S", from: "G1"
       transition "EnterPhase" => "G2", from: "S"
@@ -257,11 +254,10 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       description "Build a protein on the ribosome — translate mRNA to amino acid chain"
       String :name
       String :sequence
-      String :function
       emits "ProteinSynthesized"
       then_set :name, to: :name
       then_set :sequence, to: :sequence
-      then_set :function, to: :function
+      then_set :function, to: "enzyme"
       then_set :folding_state, to: "unfolded"
       then_set :active, to: "false"
     end
@@ -299,7 +295,7 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       String :product
       given { active == "true" }
       given { function == "enzyme" }
-      emits "ReactionCatalyzed"
+      emits "EnzymeCatalyzed"
     end
 
     Phosphorylate do
@@ -320,12 +316,13 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       emits "ProteinBound"
     end
 
-    lifecycle :folding_state, default: "unfolded" do
+    lifecycle :folding_state, default: "none" do
       transition "Synthesize" => "unfolded", from: "none"
       transition "Fold" => "folded", from: "unfolded"
       transition "Denature" => "denatured", from: "folded"
       transition "Fold" => "folded", from: "denatured"
     end
+
   end
 
   # === Organism ===
@@ -513,7 +510,7 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       emits "SpeciesRemoved"
     end
 
-    lifecycle :status, default: "nascent" do
+    lifecycle :status, default: "pending" do
       transition "EstablishEcosystem" => "nascent", from: "pending"
       transition "AddSpecies" => "developing", from: "nascent"
       transition "ModelFoodWeb" => "stable", from: "developing"
@@ -725,7 +722,7 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       String :effect
     end
 
-    CreateNeuron do
+    DefineNeuron do
       role "Neuroscientist"
       description "Define a neuron with its type, threshold, and resting potential"
       String :neuron_type
@@ -785,6 +782,7 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       reference_to(Neuron)
       String :conduction_type
       Float :velocity
+      given { state == "firing" }
       emits "SignalPropagated"
     end
 
@@ -806,8 +804,8 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       then_set :state, to: "inhibited"
     end
 
-    lifecycle :state, default: "resting" do
-      transition "CreateNeuron" => "resting", from: "none"
+    lifecycle :state, default: "none" do
+      transition "DefineNeuron" => "resting", from: "none"
       transition "FireNeuron" => "firing", from: "resting"
       transition "Repolarize" => "refractory", from: "firing"
       transition "Inhibit" => "inhibited", from: "resting"
@@ -867,10 +865,9 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       role "System"
       description "Activate immune cascade — innate first, adaptive if needed"
       reference_to(ImmuneResponse)
-      String :response_type
       given { status == "detected" }
       emits "ResponseMounted"
-      then_set :response_type, to: :response_type
+      then_set :response_type, to: "adaptive"
       then_set :status, to: "active"
     end
 
@@ -918,6 +915,7 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       transition "ResolveInfection" => "resolved", from: "active"
       transition "RememberPathogen" => "immune", from: "resolved"
     end
+
   end
 
   # === Metabolism ===
@@ -1036,16 +1034,6 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
 
   # === Policies ===
 
-  policy "SynthesizeProteinOnTranscription" do
-    on "GeneTranscribed"
-    trigger "Synthesize"
-  end
-
-  policy "FoldOnSynthesis" do
-    on "ProteinSynthesized"
-    trigger "Fold"
-  end
-
   policy "MountResponseOnDetection" do
     on "PathogenDetected"
     trigger "MountResponse"
@@ -1064,11 +1052,6 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
   policy "RepairOnMutation" do
     on "DNAMutated"
     trigger "RepairDNA"
-  end
-
-  policy "ExpressGeneOnSplice" do
-    on "RNASpliced"
-    trigger "ExpressGene"
   end
 
   policy "ModelFoodWebOnSpeciesAdded" do
@@ -1114,36 +1097,16 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
   # === Fixtures ===
 
   # Cells
-  fixture "Cell", cell_type: "eukaryotic", name: "Human Epithelial Cell", organism_type: "Homo sapiens", phase: "interphase", energy_level: 100.0, membrane_integrity: 1.0
-  fixture "Cell", cell_type: "prokaryotic", name: "E. coli", organism_type: "Escherichia coli", phase: "interphase", energy_level: 80.0, membrane_integrity: 1.0
-  fixture "Cell", cell_type: "stem", name: "Hematopoietic Stem Cell", organism_type: "Homo sapiens", phase: "interphase", energy_level: 100.0, membrane_integrity: 1.0
 
   # DNA
-  fixture "DNA", sequence: "ATGCGATCGATCG", strand_type: "double", organism: "Homo sapiens", integrity: 1.0
-  fixture "DNA", sequence: "ATGAAAGGGCCC", strand_type: "double", organism: "Escherichia coli", integrity: 1.0
 
   # Proteins
-  fixture "Protein", name: "Hemoglobin", sequence: "MVLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHFDLSH", function: "oxygen_transport", folding_state: "folded", active: "true"
-  fixture "Protein", name: "Insulin", sequence: "MALWMRLLPLLALLALWGPDPAAAFVNQHLCGSHLVEALYLVCGERGFFYTPKT", function: "hormone", folding_state: "folded", active: "true"
-  fixture "Protein", name: "Lysozyme", sequence: "MKALIVLGLVLLSVTVQGKVFGRCELAA", function: "enzyme", folding_state: "folded", active: "true"
 
   # Organisms
-  fixture "Organism", species_name: "Homo sapiens", common_name: "Human", domain: "Eukarya", kingdom: "Animalia", phylum: "Chordata", alive: "true", generation: 1
-  fixture "Organism", species_name: "Escherichia coli", common_name: "E. coli", domain: "Bacteria", kingdom: "Eubacteria", phylum: "Proteobacteria", alive: "true", generation: 1
-  fixture "Organism", species_name: "Arabidopsis thaliana", common_name: "Thale cress", domain: "Eukarya", kingdom: "Plantae", phylum: "Magnoliophyta", alive: "true", generation: 1
-  fixture "Organism", species_name: "Drosophila melanogaster", common_name: "Fruit fly", domain: "Eukarya", kingdom: "Animalia", phylum: "Arthropoda", alive: "true", generation: 1
 
   # Ecosystems
-  fixture "Ecosystem", name: "Amazon Rainforest", biome: "tropical_rainforest", area: 5500000.0, energy_input: 2200.0, status: "stable"
-  fixture "Ecosystem", name: "Great Barrier Reef", biome: "coral_reef", area: 344400.0, energy_input: 1800.0, status: "stable"
 
   # Neurons
-  fixture "Neuron", neuron_type: "motor", name: "Alpha Motor Neuron", resting_potential: -70.0, threshold: -55.0, current_potential: -70.0, state: "resting", neurotransmitter: "acetylcholine"
-  fixture "Neuron", neuron_type: "sensory", name: "Dorsal Root Ganglion", resting_potential: -65.0, threshold: -50.0, current_potential: -65.0, state: "resting", neurotransmitter: "glutamate"
-  fixture "Neuron", neuron_type: "interneuron", name: "Purkinje Cell", resting_potential: -68.0, threshold: -52.0, current_potential: -68.0, state: "resting", neurotransmitter: "GABA"
 
   # Metabolism pathways
-  fixture "Metabolism", organism_name: "Homo sapiens", pathway_name: "Glycolysis", pathway_type: "catabolic", atp_produced: 2.0, atp_consumed: 2.0, net_atp: 2.0, status: "active"
-  fixture "Metabolism", organism_name: "Homo sapiens", pathway_name: "Krebs Cycle", pathway_type: "catabolic", atp_produced: 2.0, atp_consumed: 0.0, net_atp: 2.0, status: "active"
-  fixture "Metabolism", organism_name: "Saccharomyces cerevisiae", pathway_name: "Alcoholic Fermentation", pathway_type: "catabolic", atp_produced: 2.0, atp_consumed: 2.0, net_atp: 2.0, status: "active"
 end

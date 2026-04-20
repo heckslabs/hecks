@@ -1,4 +1,4 @@
-Hecks.hecksagon "Winter" do
+Hecks.hecksagon "Miette" do
   capabilities :console
   capabilities :voice
   capabilities :security

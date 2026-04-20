@@ -1,0 +1,138 @@
+Hecks.behaviors "PollinationService" do
+  vision "Behavioral tests for the PollinationService domain — exercises every command and query in memory"
+
+  # ── Hive aggregate ──────────────────────────────────────────
+
+  test "RegisterHive sets hive_id + population_estimate + queen_status + honey_stores_kg" do
+    tests "RegisterHive", on: "Hive"
+    input  hive_id: "sample", population_estimate: 1, queen_status: "sample", honey_stores_kg: 1.0
+    expect hive_id: "sample", population_estimate: 1, queen_status: "sample", honey_stores_kg: 1.0, health_rating: "good", status: "active"
+  end
+
+  test "InspectHive sets health_rating" do
+    tests "InspectHive", on: "Hive"
+    setup  "RegisterHive", hive_id: "sample", population_estimate: 1, queen_status: "sample", honey_stores_kg: 1.0
+    input  health_rating: "sample"
+    expect health_rating: "sample"
+  end
+
+  test "DeployForPollination runs" do
+    tests "DeployForPollination", on: "Hive"
+    setup  "RegisterHive", hive_id: "sample", population_estimate: 1, queen_status: "sample", honey_stores_kg: 1.0
+    expect status: "deployed"
+  end
+
+  test "DeployForPollination cascades through policy chain" do
+    tests "DeployForPollination", on: "Hive", kind: :cascade
+    setup  "RegisterField", name: "sample", crop_type: "sample", area_hectares: 1.0, bloom_start: "sample", bloom_end: "sample", hives_needed: 1
+    setup  "RequestPollination"
+    setup  "RegisterHive", hive_id: "sample", population_estimate: 1, queen_status: "sample", honey_stores_kg: 1.0
+    expect emits: ["HiveDeployed", "PollinationConfirmed"]
+  end
+
+  test "ReturnFromField runs" do
+    tests "ReturnFromField", on: "Hive"
+    setup  "RegisterHive", hive_id: "sample", population_estimate: 1, queen_status: "sample", honey_stores_kg: 1.0
+    setup  "DeployForPollination"
+    expect status: "active"
+  end
+
+
+  # ── CropField aggregate ──────────────────────────────────────────
+
+  test "RegisterField sets name + crop_type + area_hectares + bloom_start + bloom_end + hives_needed" do
+    tests "RegisterField", on: "CropField"
+    input  name: "sample", crop_type: "sample", area_hectares: 1.0, bloom_start: "sample", bloom_end: "sample", hives_needed: 1
+    expect name: "sample", crop_type: "sample", area_hectares: 1.0, bloom_start: "sample", bloom_end: "sample", hives_needed: 1, status: "registered"
+  end
+
+  test "RegisterField cascades through policy chain" do
+    tests "RegisterField", on: "CropField", kind: :cascade
+    setup  "PollinatePlan", schedule_name: "sample", field_name: "sample", hive_id: "sample", start_date: "sample", end_date: "sample", hive_count: 1
+    input  name: "sample", crop_type: "sample", area_hectares: 1.0, bloom_start: "sample", bloom_end: "sample", hives_needed: 1
+    expect emits: ["FieldRegistered", "ScheduleCreated"]
+  end
+
+  test "RequestPollination runs" do
+    tests "RequestPollination", on: "CropField"
+    setup  "RegisterField", name: "sample", crop_type: "sample", area_hectares: 1.0, bloom_start: "sample", bloom_end: "sample", hives_needed: 1
+    expect status: "requested"
+  end
+
+  test "RequestPollination cascades through policy chain" do
+    tests "RequestPollination", on: "CropField", kind: :cascade
+    setup  "RegisterHive", hive_id: "sample", population_estimate: 1, queen_status: "sample", honey_stores_kg: 1.0
+    setup  "RegisterField", name: "sample", crop_type: "sample", area_hectares: 1.0, bloom_start: "sample", bloom_end: "sample", hives_needed: 1
+    expect emits: ["PollinationRequested", "HiveInspected"]
+  end
+
+  test "ConfirmPollination runs" do
+    tests "ConfirmPollination", on: "CropField"
+    setup  "RegisterField", name: "sample", crop_type: "sample", area_hectares: 1.0, bloom_start: "sample", bloom_end: "sample", hives_needed: 1
+    setup  "RequestPollination"
+    expect status: "pollinating"
+  end
+
+
+  # ── PollinationSchedule aggregate ──────────────────────────────────────────
+
+  test "PollinatePlan sets schedule_name + field_name + hive_id + start_date + end_date + hive_count" do
+    tests "PollinatePlan", on: "PollinationSchedule"
+    input  schedule_name: "sample", field_name: "sample", hive_id: "sample", start_date: "sample", end_date: "sample", hive_count: 1
+    expect schedule_name: "sample", field_name: "sample", hive_id: "sample", start_date: "sample", end_date: "sample", hive_count: 1, status: "planned"
+  end
+
+  test "ActivateSchedule runs" do
+    tests "ActivateSchedule", on: "PollinationSchedule"
+    setup  "PollinatePlan", schedule_name: "sample", field_name: "sample", hive_id: "sample", start_date: "sample", end_date: "sample", hive_count: 1
+    expect status: "active"
+  end
+
+  test "ActivateSchedule cascades through policy chain" do
+    tests "ActivateSchedule", on: "PollinationSchedule", kind: :cascade
+    setup  "RegisterHive", hive_id: "sample", population_estimate: 1, queen_status: "sample", honey_stores_kg: 1.0
+    setup  "RegisterField", name: "sample", crop_type: "sample", area_hectares: 1.0, bloom_start: "sample", bloom_end: "sample", hives_needed: 1
+    setup  "RequestPollination"
+    setup  "PollinatePlan", schedule_name: "sample", field_name: "sample", hive_id: "sample", start_date: "sample", end_date: "sample", hive_count: 1
+    expect emits: ["ScheduleActivated", "HiveDeployed", "PollinationConfirmed"]
+  end
+
+  test "CompleteSchedule runs" do
+    tests "CompleteSchedule", on: "PollinationSchedule"
+    setup  "PollinatePlan", schedule_name: "sample", field_name: "sample", hive_id: "sample", start_date: "sample", end_date: "sample", hive_count: 1
+    setup  "ActivateSchedule"
+    expect status: "completed"
+  end
+
+  test "CompleteSchedule cascades through policy chain" do
+    tests "CompleteSchedule", on: "PollinationSchedule", kind: :cascade
+    setup  "RegisterHive", hive_id: "sample", population_estimate: 1, queen_status: "sample", honey_stores_kg: 1.0
+    setup  "DeployForPollination"
+    setup  "PollinatePlan", schedule_name: "sample", field_name: "sample", hive_id: "sample", start_date: "sample", end_date: "sample", hive_count: 1
+    setup  "ActivateSchedule"
+    expect emits: ["ScheduleCompleted", "HiveReturned"]
+  end
+
+
+  # ── YieldReport aggregate ──────────────────────────────────────────
+
+  test "RecordYield sets field_name + crop_type + yield_tons + yield_per_hectare" do
+    tests "RecordYield", on: "YieldReport"
+    input  field_name: "sample", crop_type: "sample", yield_tons: 1.0, yield_per_hectare: 1.0
+    expect field_name: "sample", crop_type: "sample", yield_tons: 1.0, yield_per_hectare: 1.0, status: "recorded"
+  end
+
+  test "RecordYield cascades through policy chain" do
+    tests "RecordYield", on: "YieldReport", kind: :cascade
+    input  field_name: "sample", crop_type: "sample", yield_tons: 1.0, yield_per_hectare: 1.0
+    expect emits: ["YieldRecorded", "EffectivenessAnalyzed"]
+  end
+
+  test "AnalyzeEffectiveness sets pollination_effectiveness" do
+    tests "AnalyzeEffectiveness", on: "YieldReport"
+    setup  "RecordYield", field_name: "sample", crop_type: "sample", yield_tons: 1.0, yield_per_hectare: 1.0
+    input  pollination_effectiveness: 1.0
+    expect pollination_effectiveness: 1.0, status: "analyzed"
+  end
+
+end

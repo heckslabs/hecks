@@ -1,0 +1,18 @@
+Hecks.fixtures "Terroir" do
+  aggregate "GeologicalSurvey" do
+    fixture "GeologicalSurvey1", survey_id: "gs001", location: "North Vineyard Ridge", status: "completed"
+    fixture "GeologicalSurvey2", survey_id: "gs002", location: "South Valley Slope", status: "completed"
+  end
+  aggregate "Vineyard" do
+    fixture "Vineyard1", block_name: "Block A Pinot", grape_variety: "Pinot Noir", acres: 12.5, status: "planted"
+    fixture "Vineyard2", block_name: "Block B Chardonnay", grape_variety: "Chardonnay", acres: 15.0, status: "planted"
+  end
+  aggregate "Harvest" do
+    fixture "Harvest1", harvest_date: "2025-09-15", brix: 23.5, tons: 18.5, status: "picking"
+    fixture "Harvest2", harvest_date: "2025-09-20", brix: 24.1, tons: 22.3, status: "picking"
+  end
+  aggregate "Fermentation" do
+    fixture "Fermentation1", vessel_type: "oak_barrel", yeast_strain: "BM4x", status: "active"
+    fixture "Fermentation2", vessel_type: "concrete_egg", yeast_strain: "EC1118", status: "active"
+  end
+end

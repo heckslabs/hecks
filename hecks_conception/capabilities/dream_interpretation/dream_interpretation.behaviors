@@ -1,0 +1,55 @@
+Hecks.behaviors "DreamInterpretation" do
+  vision "Behavioral tests for the DreamInterpretation domain — exercises every command and query in memory"
+
+  # ── DreamReading aggregate ──────────────────────────────────────────
+
+  test "ReadDreamImages runs" do
+    tests "ReadDreamImages", on: "DreamReading"
+    expect ok: "true"
+  end
+
+  test "ReadDreamImages cascades through policy chain" do
+    tests "ReadDreamImages", on: "DreamReading", kind: :cascade
+    expect emits: ["DreamImagesRead", "ThemesIdentified", "DomainProposed"]
+  end
+
+  test "IdentifyThemes runs" do
+    tests "IdentifyThemes", on: "DreamReading"
+    setup  "ReadDreamImages"
+    expect ok: "true"
+  end
+
+  test "IdentifyThemes cascades through policy chain" do
+    tests "IdentifyThemes", on: "DreamReading", kind: :cascade
+    setup  "ReadDreamImages"
+    expect emits: ["ThemesIdentified", "DomainProposed"]
+  end
+
+  test "SynthesizeInterpretation runs" do
+    tests "SynthesizeInterpretation", on: "DreamReading"
+    setup  "ReadDreamImages"
+    expect ok: "true"
+  end
+
+
+  # ── DomainProposal aggregate ──────────────────────────────────────────
+
+  test "ProposeDomain sets theme" do
+    tests "ProposeDomain", on: "DomainProposal"
+    input  theme: "sample"
+    expect theme: "sample", accepted: false
+  end
+
+  test "AcceptProposal runs" do
+    tests "AcceptProposal", on: "DomainProposal"
+    setup  "ProposeDomain", theme: "sample"
+    expect accepted: true
+  end
+
+  test "DismissProposal runs" do
+    tests "DismissProposal", on: "DomainProposal"
+    setup  "ProposeDomain", theme: "sample"
+    expect ok: "true"
+  end
+
+end

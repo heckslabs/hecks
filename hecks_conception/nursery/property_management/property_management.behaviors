@@ -1,0 +1,176 @@
+Hecks.behaviors "PropertyManagement" do
+  vision "Behavioral tests for the PropertyManagement domain — exercises every command and query in memory"
+
+  # ── RentalUnit aggregate ──────────────────────────────────────────
+
+  test "ListUnit sets unit_number + address + unit_type + bedrooms + monthly_rent" do
+    tests "ListUnit", on: "RentalUnit"
+    input  unit_number: "sample", address: "sample", unit_type: "sample", bedrooms: 1, monthly_rent: 1.0
+    expect unit_number: "sample", address: "sample", unit_type: "sample", bedrooms: 1, monthly_rent: 1.0, status: "available"
+  end
+
+  test "ListUnit cascades through policy chain" do
+    tests "ListUnit", on: "RentalUnit", kind: :cascade
+    setup  "ScreenTenant", first_name: "sample", last_name: "sample", phone: "sample", email: "sample", monthly_income: 1.0
+    input  unit_number: "sample", address: "sample", unit_type: "sample", bedrooms: 1, monthly_rent: 1.0
+    expect emits: ["UnitListed", "TenantScreened"]
+  end
+
+  test "MarkVacant runs" do
+    tests "MarkVacant", on: "RentalUnit"
+    setup  "ListUnit", unit_number: "sample", address: "sample", unit_type: "sample", bedrooms: 1, monthly_rent: 1.0
+    expect status: "vacant"
+  end
+
+  test "MarkVacant cascades through policy chain" do
+    tests "MarkVacant", on: "RentalUnit", kind: :cascade
+    setup  "ListUnit", unit_number: "sample", address: "sample", unit_type: "sample", bedrooms: 1, monthly_rent: 1.0
+    setup  "ScreenTenant", first_name: "sample", last_name: "sample", phone: "sample", email: "sample", monthly_income: 1.0
+    expect emits: ["UnitVacated", "UnitListed", "TenantScreened"]
+  end
+
+  test "TakeOffMarket runs" do
+    tests "TakeOffMarket", on: "RentalUnit"
+    setup  "ListUnit", unit_number: "sample", address: "sample", unit_type: "sample", bedrooms: 1, monthly_rent: 1.0
+    expect status: "off_market"
+  end
+
+
+  # ── Tenant aggregate ──────────────────────────────────────────
+
+  test "ScreenTenant sets first_name + last_name + phone + email + monthly_income" do
+    tests "ScreenTenant", on: "Tenant"
+    input  first_name: "sample", last_name: "sample", phone: "sample", email: "sample", monthly_income: 1.0
+    expect first_name: "sample", last_name: "sample", phone: "sample", email: "sample", monthly_income: 1.0, background_check_status: "pending"
+  end
+
+  test "ApproveTenant runs" do
+    tests "ApproveTenant", on: "Tenant"
+    setup  "ScreenTenant", first_name: "sample", last_name: "sample", phone: "sample", email: "sample", monthly_income: 1.0
+    expect background_check_status: "approved"
+  end
+
+  test "ApproveTenant cascades through policy chain" do
+    tests "ApproveTenant", on: "Tenant", kind: :cascade
+    setup  "SignLease", start_date: "sample", end_date: "sample", monthly_rent: 1.0, security_deposit: 1.0
+    setup  "ListUnit", unit_number: "sample", address: "sample", unit_type: "sample", bedrooms: 1, monthly_rent: 1.0
+    setup  "ScreenTenant", first_name: "sample", last_name: "sample", phone: "sample", email: "sample", monthly_income: 1.0
+    expect emits: ["TenantApproved", "LeaseSigned", "LeaseRenewed"]
+  end
+
+  test "RejectTenant runs" do
+    tests "RejectTenant", on: "Tenant"
+    setup  "ScreenTenant", first_name: "sample", last_name: "sample", phone: "sample", email: "sample", monthly_income: 1.0
+    expect background_check_status: "rejected"
+  end
+
+
+  # ── Lease aggregate ──────────────────────────────────────────
+
+  test "SignLease sets start_date + end_date + monthly_rent + security_deposit" do
+    tests "SignLease", on: "Lease"
+    setup  "ScreenTenant", first_name: "sample", last_name: "sample", phone: "sample", email: "sample", monthly_income: 1.0
+    setup  "ListUnit", unit_number: "sample", address: "sample", unit_type: "sample", bedrooms: 1, monthly_rent: 1.0
+    input  start_date: "sample", end_date: "sample", monthly_rent: 1.0, security_deposit: 1.0
+    expect start_date: "sample", end_date: "sample", monthly_rent: 1.0, security_deposit: 1.0, status: "active"
+  end
+
+  test "SignLease cascades through policy chain" do
+    tests "SignLease", on: "Lease", kind: :cascade
+    setup  "ListUnit", unit_number: "sample", address: "sample", unit_type: "sample", bedrooms: 1, monthly_rent: 1.0
+    setup  "ScreenTenant", first_name: "sample", last_name: "sample", phone: "sample", email: "sample", monthly_income: 1.0
+    input  start_date: "sample", end_date: "sample", monthly_rent: 1.0, security_deposit: 1.0
+    expect emits: ["LeaseSigned", "LeaseRenewed"]
+  end
+
+  test "RenewLease sets new_end_date + new_monthly_rent" do
+    tests "RenewLease", on: "Lease"
+    setup  "SignLease", start_date: "sample", end_date: "sample", monthly_rent: 1.0, security_deposit: 1.0
+    input  new_end_date: "sample", new_monthly_rent: 1.0
+    expect end_date: "sample", monthly_rent: 1.0
+  end
+
+  test "TerminateLease runs" do
+    tests "TerminateLease", on: "Lease"
+    setup  "SignLease", start_date: "sample", end_date: "sample", monthly_rent: 1.0, security_deposit: 1.0
+    expect status: "terminated"
+  end
+
+  test "TerminateLease cascades through policy chain" do
+    tests "TerminateLease", on: "Lease", kind: :cascade
+    setup  "ScheduleInspection", inspection_date: "sample", inspection_type: "sample"
+    setup  "ListUnit", unit_number: "sample", address: "sample", unit_type: "sample", bedrooms: 1, monthly_rent: 1.0
+    setup  "ScreenTenant", first_name: "sample", last_name: "sample", phone: "sample", email: "sample", monthly_income: 1.0
+    setup  "SignLease", start_date: "sample", end_date: "sample", monthly_rent: 1.0, security_deposit: 1.0
+    expect emits: ["LeaseTerminated", "InspectionScheduled", "FindingsRecorded", "UnitVacated", "UnitListed", "TenantScreened"]
+  end
+
+
+  # ── MaintenanceRequest aggregate ──────────────────────────────────────────
+
+  test "SubmitRequest sets description + category + priority" do
+    tests "SubmitRequest", on: "MaintenanceRequest"
+    setup  "ScreenTenant", first_name: "sample", last_name: "sample", phone: "sample", email: "sample", monthly_income: 1.0
+    setup  "ListUnit", unit_number: "sample", address: "sample", unit_type: "sample", bedrooms: 1, monthly_rent: 1.0
+    input  description: "sample", category: "sample", priority: "sample"
+    expect description: "sample", category: "sample", priority: "sample", status: "open"
+  end
+
+  test "SubmitRequest cascades through policy chain" do
+    tests "SubmitRequest", on: "MaintenanceRequest", kind: :cascade
+    setup  "ListUnit", unit_number: "sample", address: "sample", unit_type: "sample", bedrooms: 1, monthly_rent: 1.0
+    setup  "ScreenTenant", first_name: "sample", last_name: "sample", phone: "sample", email: "sample", monthly_income: 1.0
+    input  description: "sample", category: "sample", priority: "sample"
+    expect emits: ["RequestSubmitted", "TechnicianAssigned"]
+  end
+
+  test "AssignTechnician sets assigned_to" do
+    tests "AssignTechnician", on: "MaintenanceRequest"
+    setup  "SubmitRequest", description: "sample", category: "sample", priority: "sample"
+    input  assigned_to: "sample"
+    expect assigned_to: "sample", status: "assigned"
+  end
+
+  test "ResolveRequest sets resolution_notes" do
+    tests "ResolveRequest", on: "MaintenanceRequest"
+    setup  "SubmitRequest", description: "sample", category: "sample", priority: "sample"
+    setup  "AssignTechnician", assigned_to: "sample"
+    input  resolution_notes: "sample"
+    expect resolution_notes: "sample", status: "resolved"
+  end
+
+  test "ResolveRequest cascades through policy chain" do
+    tests "ResolveRequest", on: "MaintenanceRequest", kind: :cascade
+    setup  "ScheduleInspection", inspection_date: "sample", inspection_type: "sample"
+    setup  "ListUnit", unit_number: "sample", address: "sample", unit_type: "sample", bedrooms: 1, monthly_rent: 1.0
+    setup  "SubmitRequest", description: "sample", category: "sample", priority: "sample"
+    setup  "AssignTechnician", assigned_to: "sample"
+    input  resolution_notes: "sample"
+    expect emits: ["RequestResolved", "InspectionScheduled", "FindingsRecorded"]
+  end
+
+
+  # ── PropertyInspection aggregate ──────────────────────────────────────────
+
+  test "ScheduleInspection sets inspection_date + inspection_type" do
+    tests "ScheduleInspection", on: "PropertyInspection"
+    setup  "ListUnit", unit_number: "sample", address: "sample", unit_type: "sample", bedrooms: 1, monthly_rent: 1.0
+    input  inspection_date: "sample", inspection_type: "sample"
+    expect inspection_date: "sample", inspection_type: "sample", status: "scheduled"
+  end
+
+  test "ScheduleInspection cascades through policy chain" do
+    tests "ScheduleInspection", on: "PropertyInspection", kind: :cascade
+    setup  "ListUnit", unit_number: "sample", address: "sample", unit_type: "sample", bedrooms: 1, monthly_rent: 1.0
+    input  inspection_date: "sample", inspection_type: "sample"
+    expect emits: ["InspectionScheduled", "FindingsRecorded"]
+  end
+
+  test "RecordFindings sets findings" do
+    tests "RecordFindings", on: "PropertyInspection"
+    setup  "ScheduleInspection", inspection_date: "sample", inspection_type: "sample"
+    input  findings: "sample"
+    expect findings: "sample", status: "completed"
+  end
+
+end

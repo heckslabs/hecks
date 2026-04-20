@@ -1,0 +1,24 @@
+Hecks.behaviors "MusingGrooming" do
+  vision "Behavioral tests for the MusingGrooming domain — exercises every command and query in memory"
+
+  # ── Session aggregate ──────────────────────────────────────────
+
+  test "StartGrooming runs" do
+    tests "StartGrooming", on: "Session"
+    expect kept: 0, dismissed: 0, batch_size: 5, status: "active"
+  end
+
+  test "KeepSelected sets keep_numbers" do
+    tests "KeepSelected", on: "Session"
+    setup  "StartGrooming"
+    input  keep_numbers: 1
+    expect ok: "true"
+  end
+
+  test "FinishGrooming runs" do
+    tests "FinishGrooming", on: "Session"
+    setup  "StartGrooming"
+    expect status: "complete"
+  end
+
+end

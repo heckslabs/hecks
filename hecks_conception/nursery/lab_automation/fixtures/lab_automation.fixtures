@@ -1,0 +1,18 @@
+Hecks.fixtures "LabAutomation" do
+  aggregate "Specimen" do
+    fixture "Specimen1", specimen_id: "SPL-2026-001847", patient_name: "John Anderson", specimen_type: "blood", collection_date: "2026-04-12", status: "collected"
+    fixture "Specimen2", specimen_id: "SPL-2026-001848", patient_name: "Maria Garcia", specimen_type: "urine", collection_date: "2026-04-13", status: "accepted"
+  end
+  aggregate "TestPipeline" do
+    fixture "TestPipeline1", pipeline_id: "PIPE-004521", specimen_id: "SPL-2026-001847", test_type: "CBC", status: "running"
+    fixture "TestPipeline2", pipeline_id: "PIPE-004522", specimen_id: "SPL-2026-001848", test_type: "metabolic panel", status: "finished"
+  end
+  aggregate "LabResult" do
+    fixture "LabResult1", result_id: "RES-892341", specimen_id: "SPL-2026-001847", test_type: "CBC", value: "7.2", reference_range: "4.5-11.0", interpretation: "normal", status: "published"
+    fixture "LabResult2", result_id: "RES-892342", specimen_id: "SPL-2026-001848", test_type: "glucose", value: "105", reference_range: "70-100", interpretation: "slightly elevated", status: "published"
+  end
+  aggregate "QualityCheck" do
+    fixture "QualityCheck1", check_id: "QC-2026-0342", equipment_name: "Hematology Analyzer XL", check_type: "calibration", result: "pass", status: "passed"
+    fixture "QualityCheck2", check_id: "QC-2026-0343", equipment_name: "Chemistry Analyzer 5000", check_type: "control run", result: "pending", status: "pending"
+  end
+end

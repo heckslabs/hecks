@@ -1,0 +1,78 @@
+Hecks.behaviors "VetTraining" do
+  vision "Behavioral tests for the VetTraining domain — exercises every command and query in memory"
+
+  # ── VeteranProfile aggregate ──────────────────────────────────────────
+
+  test "EnrollVeteran sets veteran_id + name + branch + discharge_status" do
+    tests "EnrollVeteran", on: "VeteranProfile"
+    input  veteran_id: "sample", name: "sample", branch: "sample", discharge_status: "sample"
+    expect veteran_id: "sample", name: "sample", branch: "sample", discharge_status: "sample", status: "enrolled"
+  end
+
+  test "GraduateVeteran runs" do
+    tests "GraduateVeteran", on: "VeteranProfile"
+    setup  "EnrollVeteran", veteran_id: "sample", name: "sample", branch: "sample", discharge_status: "sample"
+    expect status: "graduated"
+  end
+
+  test "GraduateVeteran cascades through policy chain" do
+    tests "GraduateVeteran", on: "VeteranProfile", kind: :cascade
+    setup  "PlaceVeteran", placement_id: "sample", veteran_id: "sample", employer_name: "sample", job_title: "sample"
+    setup  "EnrollVeteran", veteran_id: "sample", name: "sample", branch: "sample", discharge_status: "sample"
+    expect emits: ["VeteranGraduated", "VeteranPlaced"]
+  end
+
+
+  # ── Course aggregate ──────────────────────────────────────────
+
+  test "OfferCourse sets course_id + title + skill_area + duration_hours + difficulty" do
+    tests "OfferCourse", on: "Course"
+    input  course_id: "sample", title: "sample", skill_area: "sample", duration_hours: 1, difficulty: "sample"
+    expect course_id: "sample", title: "sample", skill_area: "sample", duration_hours: 1, difficulty: "sample", status: "active"
+  end
+
+  test "RetireCourse runs" do
+    tests "RetireCourse", on: "Course"
+    setup  "OfferCourse", course_id: "sample", title: "sample", skill_area: "sample", duration_hours: 1, difficulty: "sample"
+    expect status: "retired"
+  end
+
+
+  # ── Enrollment aggregate ──────────────────────────────────────────
+
+  test "EnrollInCourse sets enrollment_id + veteran_id + course_id" do
+    tests "EnrollInCourse", on: "Enrollment"
+    input  enrollment_id: "sample", veteran_id: "sample", course_id: "sample"
+    expect enrollment_id: "sample", veteran_id: "sample", course_id: "sample", progress_pct: 0.0, status: "in_progress"
+  end
+
+  test "RecordProgress sets progress_pct" do
+    tests "RecordProgress", on: "Enrollment"
+    setup  "EnrollInCourse", enrollment_id: "sample", veteran_id: "sample", course_id: "sample"
+    input  progress_pct: 1.0
+    expect progress_pct: 1.0
+  end
+
+  test "RecordProgress cascades through policy chain" do
+    tests "RecordProgress", on: "Enrollment", kind: :cascade
+    setup  "EnrollInCourse", enrollment_id: "sample", veteran_id: "sample", course_id: "sample"
+    input  progress_pct: 1.0
+    expect emits: ["ProgressRecorded", "CourseCompleted"]
+  end
+
+
+  # ── JobPlacement aggregate ──────────────────────────────────────────
+
+  test "PlaceVeteran sets placement_id + veteran_id + employer_name + job_title" do
+    tests "PlaceVeteran", on: "JobPlacement"
+    input  placement_id: "sample", veteran_id: "sample", employer_name: "sample", job_title: "sample"
+    expect placement_id: "sample", veteran_id: "sample", employer_name: "sample", job_title: "sample", status: "placed"
+  end
+
+  test "ConfirmHire runs" do
+    tests "ConfirmHire", on: "JobPlacement"
+    setup  "PlaceVeteran", placement_id: "sample", veteran_id: "sample", employer_name: "sample", job_title: "sample"
+    expect status: "hired"
+  end
+
+end

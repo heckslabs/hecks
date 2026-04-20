@@ -13,7 +13,7 @@ Hecks.bluebook "Compliance", version: "2026.04.11.1" do
     String :revision_date
     String :status
 
-    CreateSafetyDataSheet do
+    AuthorSafetyDataSheet do
       role "RegulatorySpecialist"
       description "Author a new GHS-compliant 16-section SDS for a formula"
       String :formula_name
@@ -46,7 +46,7 @@ Hecks.bluebook "Compliance", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "draft" do
-      transition "CreateSafetyDataSheet" => "active", from: "draft"
+      transition "AuthorSafetyDataSheet" => "active", from: "draft"
     end
 
   end
@@ -163,15 +163,9 @@ Hecks.bluebook "Compliance", version: "2026.04.11.1" do
     end
   end
 
-  fixture "SafetyDataSheet", formula_name: "DuraLube Advanced Engine Treatment", sds_number: "SDS-DL-001", revision: 2, ghs_classification: "Not classified as hazardous", hmis_rating: "1-0-0", nfpa_rating: "1-0-0", revision_date: "2026-03-15", status: "active"
-  fixture "SafetyDataSheet", formula_name: "MotorKote Hyper Lubricant", sds_number: "SDS-MK-001", revision: 1, ghs_classification: "Not classified as hazardous", hmis_rating: "1-0-0", nfpa_rating: "1-0-0", status: "active"
-
-  fixture "ChemicalRegistration", formula_name: "DuraLube Advanced Engine Treatment", registration_type: "EPA/TSCA", jurisdiction: "Federal", registration_number: "EPA-DL-2024-001", voc_content_grams_per_liter: 12.5, prop_65_listed: "false", tsca_compliant: "true", expiration_date: "2027-12-31", status: "active"
-  fixture "ChemicalRegistration", formula_name: "Slick 50 Recharged Engine Treatment", registration_type: "California VOC", jurisdiction: "California", registration_number: "CARB-S50-2025-001", voc_content_grams_per_liter: 18.0, prop_65_listed: "false", tsca_compliant: "true", expiration_date: "2027-06-30", status: "active"
-
   policy "SdsOnFormulaFinalized" do
     on "FormulaFinalized"
     across "Formulation"
-    trigger "CreateSafetyDataSheet"
+    trigger "AuthorSafetyDataSheet"
   end
 end

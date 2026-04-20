@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Summer — Winter's local conception organ.
+"""Summer — Miette's local conception organ.
 
-Runs as an HTTP server on the laptop. Winter calls her for drafts.
+Runs as an HTTP server on the laptop. Miette calls her for drafts.
 Post-processes output to deduplicate policies and ensure clean termination.
 
 Usage:
@@ -134,7 +134,7 @@ class SummerHandler(BaseHTTPRequestHandler):
         else:
             self.send_json(200, {
                 "name": "Summer",
-                "role": "Winter's local conception organ",
+                "role": "Miette's local conception organ",
                 "endpoints": ["/conceive", "/critique", "/health"],
             })
 

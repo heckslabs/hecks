@@ -26,6 +26,7 @@ Hecks.bluebook "SEOAgency", version: "2026.04.13.1" do
       String :contact_email
       String :plan_tier
       emits "ClientSigned"
+      then_set :status, to: "active"
     end
 
     PauseEngagement do
@@ -107,6 +108,7 @@ Hecks.bluebook "SEOAgency", version: "2026.04.13.1" do
       Integer :pages_crawled
       reference_to(Client)
       emits "AuditRun"
+      then_set :status, to: "in_progress"
     end
 
     LogIssue do
@@ -151,6 +153,7 @@ Hecks.bluebook "SEOAgency", version: "2026.04.13.1" do
       String :anchor_text
       reference_to(Client)
       emits "BacklinkAcquired"
+      then_set :status, to: "active"
     end
 
     VerifyBacklink do
@@ -189,6 +192,7 @@ Hecks.bluebook "SEOAgency", version: "2026.04.13.1" do
       String :period
       reference_to(Client)
       emits "ReportGenerated"
+      then_set :status, to: "ready"
     end
 
     DeliverReport do
@@ -250,18 +254,4 @@ Hecks.bluebook "SEOAgency", version: "2026.04.13.1" do
     trigger "DeliverReport"
   end
 
-  fixture "Client", client_name: "TechFlow Solutions", website_url: "techflow.io", industry: "software", contact_email: "seo@techflow.io", plan_tier: "premium", status: "active"
-  fixture "Client", client_name: "LocalPlumbing Pro", website_url: "localplumbingpro.com", industry: "services", contact_email: "owner@localplumbing.com", plan_tier: "starter", status: "active"
-
-  fixture "Keyword", phrase: "software development services", search_volume: 8900, difficulty_score: 65.5, intent_type: "commercial", status: "tracked"
-  fixture "Keyword", phrase: "emergency plumber near me", search_volume: 12000, difficulty_score: 42.0, intent_type: "local_intent", status: "tracked"
-
-  fixture "SiteAudit", audit_id: "AUD-001", audit_type: "technical", pages_crawled: 145, issues_found: 8, status: "in_progress"
-  fixture "SiteAudit", audit_id: "AUD-002", audit_type: "content", pages_crawled: 89, issues_found: 5, status: "in_progress"
-
-  fixture "Backlink", backlink_id: "BL-001", source_url: "techblog.com/review", target_url: "techflow.io", domain_authority: 48.0, anchor_text: "best software solutions", status: "active"
-  fixture "Backlink", backlink_id: "BL-002", source_url: "spamsite.net/links", target_url: "localplumbingpro.com", domain_authority: 12.0, anchor_text: "cheap plumber", status: "active"
-
-  fixture "RankingReport", report_id: "REP-001", period: "March 2026", keywords_improved: 18, keywords_declined: 3, average_position: 12.5, status: "ready"
-  fixture "RankingReport", report_id: "REP-002", period: "February 2026", keywords_improved: 12, keywords_declined: 5, average_position: 14.2, status: "delivered"
 end

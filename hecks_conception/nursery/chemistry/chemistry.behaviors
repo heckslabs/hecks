@@ -1,0 +1,93 @@
+Hecks.behaviors "Chemistry" do
+  vision "Behavioral tests for the Chemistry domain — exercises every command and query in memory"
+
+  # ── Element aggregate ──────────────────────────────────────────
+
+  test "Register sets symbol + name + atomic_number" do
+    tests "Register", on: "Element"
+    input  symbol: "sample", name: "sample", atomic_number: 1
+    expect symbol: "sample", name: "sample", atomic_number: 1
+  end
+
+
+  # ── Compound aggregate ──────────────────────────────────────────
+
+  test "Synthesize sets formula + name + elements" do
+    tests "Synthesize", on: "Compound"
+    input  formula: "sample", name: "sample", elements: "sample"
+    expect formula: "sample", name: "sample", elements: "sample"
+  end
+
+  test "Decompose runs" do
+    tests "Decompose", on: "Compound"
+    setup  "Synthesize", formula: "sample", name: "sample", elements: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Reaction aggregate ──────────────────────────────────────────
+
+  test "React sets equation + reactants + products" do
+    tests "React", on: "Reaction"
+    input  equation: "sample", reactants: "sample", products: "sample"
+    expect equation: "sample", reactants: "sample", products: "sample", status: "complete"
+  end
+
+  test "React cascades through policy chain" do
+    tests "React", on: "Reaction", kind: :cascade
+    setup  "Form", atom_a: "sample", atom_b: "sample", bond_type: "sample"
+    input  equation: "sample", reactants: "sample", products: "sample"
+    expect emits: ["ReactionOccurred", "BondFormed"]
+  end
+
+  test "Catalyze sets catalyst" do
+    tests "Catalyze", on: "Reaction"
+    setup  "React", equation: "sample", reactants: "sample", products: "sample"
+    input  catalyst: "sample"
+    expect catalyst: "sample"
+  end
+
+  test "Reverse runs" do
+    tests "Reverse", on: "Reaction"
+    setup  "React", equation: "sample", reactants: "sample", products: "sample"
+    expect status: "reversed"
+  end
+
+
+  # ── Bond aggregate ──────────────────────────────────────────
+
+  test "Form sets atom_a + atom_b + bond_type" do
+    tests "Form", on: "Bond"
+    input  atom_a: "sample", atom_b: "sample", bond_type: "sample"
+    expect atom_a: "sample", atom_b: "sample", bond_type: "sample", status: "stable"
+  end
+
+  test "Break runs" do
+    tests "Break", on: "Bond"
+    setup  "Form", atom_a: "sample", atom_b: "sample", bond_type: "sample"
+    expect status: "broken"
+  end
+
+  test "Break cascades through policy chain" do
+    tests "Break", on: "Bond", kind: :cascade
+    setup  "Form", atom_a: "sample", atom_b: "sample", bond_type: "sample"
+    setup  "Synthesize", formula: "sample", name: "sample", elements: "sample"
+    expect emits: ["BondBroken", "CompoundDecomposed"]
+  end
+
+
+  # ── Solution aggregate ──────────────────────────────────────────
+
+  test "Dissolve sets solvent + solutes" do
+    tests "Dissolve", on: "Solution"
+    input  solvent: "sample", solutes: "sample"
+    expect solvent: "sample", solutes: "sample"
+  end
+
+  test "Precipitate runs" do
+    tests "Precipitate", on: "Solution"
+    setup  "Dissolve", solvent: "sample", solutes: "sample"
+    expect ok: "true"
+  end
+
+end

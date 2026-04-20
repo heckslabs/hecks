@@ -1,0 +1,22 @@
+Hecks.fixtures "SchoolDistrict" do
+  aggregate "School" do
+    fixture "Lincoln_Elementary_", school_code: "ES-001", name: "Lincoln Elementary", level: "elementary", capacity: 500, enrollment: 425, status: "active"
+    fixture "Roosevelt_High_School_", school_code: "HS-001", name: "Roosevelt High School", level: "secondary", capacity: 1200, enrollment: 1050, status: "accredited"
+  end
+  aggregate "Student" do
+    fixture "Emma_Wilson_", student_id: "STU-001", name: "Emma Wilson", grade_level: "5", status: "enrolled"
+    fixture "Marcus_Johnson_", student_id: "STU-002", name: "Marcus Johnson", grade_level: "9", status: "enrolled"
+  end
+  aggregate "Teacher" do
+    fixture "Sarah_Martinez_", employee_id: "TEA-001", name: "Sarah Martinez", certification_area: "Mathematics", status: "active"
+    fixture "David_Chen_", employee_id: "TEA-002", name: "David Chen", certification_area: "English Language Arts", status: "active"
+  end
+  aggregate "Course" do
+    fixture "Algebra_I_", course_code: "MATH-101", title: "Algebra I", subject: "Mathematics", max_enrollment: 30, current_enrollment: 28, status: "active"
+    fixture "American_Literature_", course_code: "ENG-201", title: "American Literature", subject: "English", max_enrollment: 25, current_enrollment: 24, status: "active"
+  end
+  aggregate "GradeRecord" do
+    fixture "GradeRecord1", record_id: "GR-001", letter_grade: "A", numeric_score: 95.5, semester: "Fall 2025", status: "posted"
+    fixture "GradeRecord2", record_id: "GR-002", letter_grade: "B+", numeric_score: 87.0, semester: "Fall 2025", status: "finalized"
+  end
+end

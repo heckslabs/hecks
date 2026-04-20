@@ -1,0 +1,172 @@
+Hecks.behaviors "Genetics" do
+  vision "Behavioral tests for the Genetics domain — exercises every command and query in memory"
+
+  # ── Specimen aggregate ──────────────────────────────────────────
+
+  test "CollectSpecimen sets specimen_id + organism + tissue_type" do
+    tests "CollectSpecimen", on: "Specimen"
+    input  specimen_id: "sample", organism: "sample", tissue_type: "sample"
+    expect preserved: true
+  end
+
+  test "CollectSpecimen cascades through policy chain" do
+    tests "CollectSpecimen", on: "Specimen", kind: :cascade
+    setup  "SubmitSequence", accession: "sample", sequencing_method: "sample", length_bp: 1
+    setup  "CallVariant", mutation_type: "sample", position: 1
+    setup  "PublishFindings", title: "sample", journal: "sample"
+    input  specimen_id: "sample", organism: "sample", tissue_type: "sample"
+    expect emits: ["SpecimenCollected", "DnaExtracted", "SequenceSubmitted", "SequenceAligned", "VariantCalled", "PathogenicityClassified", "FindingsPublished", "FeaturesAnnotated"]
+  end
+
+  test "PreserveSpecimen runs" do
+    tests "PreserveSpecimen", on: "Specimen"
+    setup  "CollectSpecimen", specimen_id: "sample", organism: "sample", tissue_type: "sample"
+    expect preserved: true
+  end
+
+  test "ExtractDna runs" do
+    tests "ExtractDna", on: "Specimen"
+    setup  "CollectSpecimen", specimen_id: "sample", organism: "sample", tissue_type: "sample"
+    expect ok: "true"
+  end
+
+  test "ExtractDna cascades through policy chain" do
+    tests "ExtractDna", on: "Specimen", kind: :cascade
+    setup  "SubmitSequence", accession: "sample", sequencing_method: "sample", length_bp: 1
+    setup  "CallVariant", mutation_type: "sample", position: 1
+    setup  "PublishFindings", title: "sample", journal: "sample"
+    setup  "CollectSpecimen", specimen_id: "sample", organism: "sample", tissue_type: "sample"
+    expect emits: ["DnaExtracted", "SequenceSubmitted", "SequenceAligned", "VariantCalled", "PathogenicityClassified", "FindingsPublished", "FeaturesAnnotated"]
+  end
+
+  test "DiscardSpecimen runs" do
+    tests "DiscardSpecimen", on: "Specimen"
+    setup  "CollectSpecimen", specimen_id: "sample", organism: "sample", tissue_type: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DnaSequence aggregate ──────────────────────────────────────────
+
+  test "SubmitSequence sets accession + sequencing_method + length_bp" do
+    tests "SubmitSequence", on: "DnaSequence"
+    setup  "CollectSpecimen", specimen_id: "sample", organism: "sample", tissue_type: "sample"
+    input  accession: "sample", sequencing_method: "sample", length_bp: 1
+    expect quality_passed: true
+  end
+
+  test "SubmitSequence cascades through policy chain" do
+    tests "SubmitSequence", on: "DnaSequence", kind: :cascade
+    setup  "CollectSpecimen", specimen_id: "sample", organism: "sample", tissue_type: "sample"
+    setup  "CallVariant", mutation_type: "sample", position: 1
+    setup  "PublishFindings", title: "sample", journal: "sample"
+    input  accession: "sample", sequencing_method: "sample", length_bp: 1
+    expect emits: ["SequenceSubmitted", "SequenceAligned", "VariantCalled", "PathogenicityClassified", "FindingsPublished", "FeaturesAnnotated"]
+  end
+
+  test "PassQualityFilter runs" do
+    tests "PassQualityFilter", on: "DnaSequence"
+    setup  "SubmitSequence", accession: "sample", sequencing_method: "sample", length_bp: 1
+    expect quality_passed: true
+  end
+
+  test "AlignSequence runs" do
+    tests "AlignSequence", on: "DnaSequence"
+    setup  "SubmitSequence", accession: "sample", sequencing_method: "sample", length_bp: 1
+    expect ok: "true"
+  end
+
+  test "AlignSequence cascades through policy chain" do
+    tests "AlignSequence", on: "DnaSequence", kind: :cascade
+    setup  "CallVariant", mutation_type: "sample", position: 1
+    setup  "PublishFindings", title: "sample", journal: "sample"
+    setup  "SubmitSequence", accession: "sample", sequencing_method: "sample", length_bp: 1
+    expect emits: ["SequenceAligned", "VariantCalled", "PathogenicityClassified", "FindingsPublished", "FeaturesAnnotated"]
+  end
+
+  test "AnnotateFeatures runs" do
+    tests "AnnotateFeatures", on: "DnaSequence"
+    setup  "SubmitSequence", accession: "sample", sequencing_method: "sample", length_bp: 1
+    expect ok: "true"
+  end
+
+
+  # ── Mutation aggregate ──────────────────────────────────────────
+
+  test "CallVariant sets mutation_type + position" do
+    tests "CallVariant", on: "Mutation"
+    setup  "SubmitSequence", accession: "sample", sequencing_method: "sample", length_bp: 1
+    input  mutation_type: "sample", position: 1
+    expect confirmation_method_count: 2
+  end
+
+  test "CallVariant cascades through policy chain" do
+    tests "CallVariant", on: "Mutation", kind: :cascade
+    setup  "SubmitSequence", accession: "sample", sequencing_method: "sample", length_bp: 1
+    setup  "PublishFindings", title: "sample", journal: "sample"
+    input  mutation_type: "sample", position: 1
+    expect emits: ["VariantCalled", "PathogenicityClassified", "FindingsPublished"]
+  end
+
+  test "ConfirmByMethod sets confirmation_method_count" do
+    tests "ConfirmByMethod", on: "Mutation"
+    setup  "CallVariant", mutation_type: "sample", position: 1
+    input  confirmation_method_count: 1
+    expect ok: "true"
+  end
+
+  test "ClassifyPathogenicity sets classification" do
+    tests "ClassifyPathogenicity", on: "Mutation"
+    setup  "CallVariant", mutation_type: "sample", position: 1
+    input  classification: "sample"
+    expect ok: "true"
+  end
+
+  test "ClassifyPathogenicity cascades through policy chain" do
+    tests "ClassifyPathogenicity", on: "Mutation", kind: :cascade
+    setup  "PublishFindings", title: "sample", journal: "sample"
+    setup  "CallVariant", mutation_type: "sample", position: 1
+    input  classification: "sample"
+    expect emits: ["PathogenicityClassified", "FindingsPublished"]
+  end
+
+
+  # ── Pedigree aggregate ──────────────────────────────────────────
+
+  test "BuildPedigree sets family_id + proband_id" do
+    tests "BuildPedigree", on: "Pedigree"
+    input  family_id: "sample", proband_id: "sample"
+    expect generation_count: 2
+  end
+
+  test "AddRelative sets individual_id + relationship" do
+    tests "AddRelative", on: "Pedigree"
+    setup  "BuildPedigree", family_id: "sample", proband_id: "sample"
+    input  individual_id: "sample", relationship: "sample"
+    expect ok: "true"
+  end
+
+  test "SetGenerationCount sets generation_count" do
+    tests "SetGenerationCount", on: "Pedigree"
+    setup  "BuildPedigree", family_id: "sample", proband_id: "sample"
+    input  generation_count: 1
+    expect ok: "true"
+  end
+
+  test "TraceInheritance runs" do
+    tests "TraceInheritance", on: "Pedigree"
+    setup  "BuildPedigree", family_id: "sample", proband_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Publication aggregate ──────────────────────────────────────────
+
+  test "PublishFindings sets title + journal" do
+    tests "PublishFindings", on: "Publication"
+    setup  "CallVariant", mutation_type: "sample", position: 1
+    input  title: "sample", journal: "sample"
+    expect ok: "true"
+  end
+
+end

@@ -1,0 +1,78 @@
+Hecks.behaviors "PetAdoption" do
+  vision "Behavioral tests for the PetAdoption domain — exercises every command and query in memory"
+
+  # ── Animal aggregate ──────────────────────────────────────────
+
+  test "IntakeAnimal sets animal_id + name + species + breed + age_months + temperament" do
+    tests "IntakeAnimal", on: "Animal"
+    input  animal_id: "sample", name: "sample", species: "sample", breed: "sample", age_months: 1, temperament: "sample"
+    expect animal_id: "sample", name: "sample", species: "sample", breed: "sample", age_months: 1, temperament: "sample", status: "available"
+  end
+
+  test "AdoptAnimal runs" do
+    tests "AdoptAnimal", on: "Animal"
+    setup  "IntakeAnimal", animal_id: "sample", name: "sample", species: "sample", breed: "sample", age_months: 1, temperament: "sample"
+    expect status: "adopted"
+  end
+
+  test "AdoptAnimal cascades through policy chain" do
+    tests "AdoptAnimal", on: "Animal", kind: :cascade
+    setup  "ScheduleFollowUp", followup_id: "sample", animal_id: "sample", adopter_id: "sample", scheduled_date: "sample"
+    setup  "IntakeAnimal", animal_id: "sample", name: "sample", species: "sample", breed: "sample", age_months: 1, temperament: "sample"
+    expect emits: ["AnimalAdopted", "FollowUpScheduled"]
+  end
+
+
+  # ── AdoptionCampaign aggregate ──────────────────────────────────────────
+
+  test "LaunchCampaign sets campaign_id + target_audience + platform + budget" do
+    tests "LaunchCampaign", on: "AdoptionCampaign"
+    input  campaign_id: "sample", target_audience: "sample", platform: "sample", budget: 1.0
+    expect campaign_id: "sample", target_audience: "sample", platform: "sample", budget: 1.0, status: "active"
+  end
+
+  test "TrackImpressions sets impressions" do
+    tests "TrackImpressions", on: "AdoptionCampaign"
+    setup  "LaunchCampaign", campaign_id: "sample", target_audience: "sample", platform: "sample", budget: 1.0
+    input  impressions: 1
+    expect impressions: 1
+  end
+
+
+  # ── AdopterProfile aggregate ──────────────────────────────────────────
+
+  test "EnrollAdopter sets adopter_id + name + preferred_species + housing_type" do
+    tests "EnrollAdopter", on: "AdopterProfile"
+    input  adopter_id: "sample", name: "sample", preferred_species: "sample", housing_type: "sample"
+    expect adopter_id: "sample", name: "sample", preferred_species: "sample", housing_type: "sample", status: "active"
+  end
+
+  test "EnrollAdopter cascades through policy chain" do
+    tests "EnrollAdopter", on: "AdopterProfile", kind: :cascade
+    input  adopter_id: "sample", name: "sample", preferred_species: "sample", housing_type: "sample"
+    expect emits: ["AdopterProfileCreated", "AdopterMatched"]
+  end
+
+  test "MatchAdopter runs" do
+    tests "MatchAdopter", on: "AdopterProfile"
+    setup  "EnrollAdopter", adopter_id: "sample", name: "sample", preferred_species: "sample", housing_type: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── FollowUp aggregate ──────────────────────────────────────────
+
+  test "ScheduleFollowUp sets followup_id + animal_id + adopter_id + scheduled_date" do
+    tests "ScheduleFollowUp", on: "FollowUp"
+    input  followup_id: "sample", animal_id: "sample", adopter_id: "sample", scheduled_date: "sample"
+    expect followup_id: "sample", animal_id: "sample", adopter_id: "sample", scheduled_date: "sample", status: "scheduled"
+  end
+
+  test "RecordOutcome sets outcome" do
+    tests "RecordOutcome", on: "FollowUp"
+    setup  "ScheduleFollowUp", followup_id: "sample", animal_id: "sample", adopter_id: "sample", scheduled_date: "sample"
+    input  outcome: "sample"
+    expect outcome: "sample", status: "completed"
+  end
+
+end

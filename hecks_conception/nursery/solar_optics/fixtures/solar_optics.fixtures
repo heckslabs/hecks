@@ -1,0 +1,18 @@
+Hecks.fixtures "SolarOptics" do
+  aggregate "SolarPosition" do
+    fixture "SolarPosition1", location_name: "Denver, CO", latitude: 39.7392, longitude: -104.9903, solar_altitude_deg: 62.5, solar_azimuth_deg: 180.0, date_time: "2026-04-14 12:00:00", status: "calculated"
+    fixture "SolarPosition2", location_name: "San Francisco, CA", latitude: 37.7749, longitude: -122.4194, solar_altitude_deg: 58.2, solar_azimuth_deg: 175.5, date_time: "2026-04-14 12:00:00", status: "calculated"
+  end
+  aggregate "SolarPanel" do
+    fixture "SolarPanel1", panel_id: "PANEL-001", tilt_degrees: 35.0, azimuth_degrees: 180.0, area_m2: 2.1, efficiency_pct: 20.5, peak_power_watts: 430.0, status: "installed"
+    fixture "SolarPanel2", panel_id: "PANEL-002", tilt_degrees: 30.0, azimuth_degrees: 175.0, area_m2: 2.0, efficiency_pct: 21.0, peak_power_watts: 425.0, status: "installed"
+  end
+  aggregate "ShadingAnalysis" do
+    fixture "ShadingAnalysis1", site_name: "Downtown Office Building", obstruction_type: "Building Overhang", obstruction_height_m: 4.5, obstruction_distance_m: 12.0, shade_hours_per_day: 2.5, energy_loss_pct: 12.0, status: "analyzed"
+    fixture "ShadingAnalysis2", site_name: "Residential Home", obstruction_type: "Tree Canopy", obstruction_height_m: 20.0, obstruction_distance_m: 8.0, shade_hours_per_day: 3.2, energy_loss_pct: 18.5, status: "analyzed"
+  end
+  aggregate "OutputForecast" do
+    fixture "OutputForecast1", site_name: "Denver Rooftop", global_irradiance_kwh_m2: 6.2, temperature_derating_pct: 5.5, shade_derating_pct: 12.0, estimated_yield_kwh: 8450.0, forecast_period: "Annual", status: "forecasted"
+    fixture "OutputForecast2", site_name: "Bay Area Installation", global_irradiance_kwh_m2: 5.8, temperature_derating_pct: 4.2, shade_derating_pct: 18.5, estimated_yield_kwh: 6920.0, forecast_period: "Annual", status: "forecasted"
+  end
+end

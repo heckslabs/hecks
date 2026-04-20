@@ -1,0 +1,18 @@
+Hecks.behaviors "TrainingExtraction" do
+  vision "Behavioral tests for the TrainingExtraction domain — exercises every command and query in memory"
+
+  # ── TrainingPair aggregate ──────────────────────────────────────────
+
+  test "ExtractPair sets domain_name + vision" do
+    tests "ExtractPair", on: "TrainingPair"
+    input  domain_name: "sample", vision: "sample"
+    expect domain_name: "sample", vision: "sample", prompt: "sample"
+  end
+
+  test "ReadPair returns matching records" do
+    tests "ReadPair", on: "TrainingPair", kind: :query
+    setup  "ExtractPair", domain_name: "sample", vision: "sample"
+    expect count: 1
+  end
+
+end

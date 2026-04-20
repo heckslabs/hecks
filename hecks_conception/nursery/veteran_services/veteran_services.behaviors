@@ -1,0 +1,159 @@
+Hecks.behaviors "VeteranServices" do
+  vision "Behavioral tests for the VeteranServices domain — exercises every command and query in memory"
+
+  # ── Veteran aggregate ──────────────────────────────────────────
+
+  test "RegisterVeteran sets name + service_branch + discharge_status + service_dates + disability_rating" do
+    tests "RegisterVeteran", on: "Veteran"
+    input  name: "sample", service_branch: "sample", discharge_status: "sample", service_dates: "sample", disability_rating: "sample"
+    expect name: "sample", service_branch: "sample", discharge_status: "sample", service_dates: "sample", disability_rating: "sample", status: "active"
+  end
+
+  test "RegisterVeteran cascades through policy chain" do
+    tests "RegisterVeteran", on: "Veteran", kind: :cascade
+    setup  "HireCounselor", name: "sample", specialty: "sample", license_number: "sample"
+    setup  "FileClaim", veteran_name: "sample", benefit_type: "sample", filing_date: "sample", description: "sample"
+    input  name: "sample", service_branch: "sample", discharge_status: "sample", service_dates: "sample", disability_rating: "sample"
+    expect emits: ["VeteranRegistered", "VeteranAssigned", "ClaimFiled", "EvidenceSubmitted"]
+  end
+
+  test "RecordDisabilityRating sets disability_rating" do
+    tests "RecordDisabilityRating", on: "Veteran"
+    setup  "RegisterVeteran", name: "sample", service_branch: "sample", discharge_status: "sample", service_dates: "sample", disability_rating: "sample"
+    input  disability_rating: "sample"
+    expect disability_rating: "sample"
+  end
+
+
+  # ── BenefitClaim aggregate ──────────────────────────────────────────
+
+  test "FileClaim sets veteran_name + benefit_type + filing_date + description" do
+    tests "FileClaim", on: "BenefitClaim"
+    setup  "RegisterVeteran", name: "sample", service_branch: "sample", discharge_status: "sample", service_dates: "sample", disability_rating: "sample"
+    input  veteran_name: "sample", benefit_type: "sample", filing_date: "sample", description: "sample"
+    expect veteran_name: "sample", benefit_type: "sample", filing_date: "sample", description: "sample", status: "filed"
+  end
+
+  test "FileClaim cascades through policy chain" do
+    tests "FileClaim", on: "BenefitClaim", kind: :cascade
+    setup  "RegisterVeteran", name: "sample", service_branch: "sample", discharge_status: "sample", service_dates: "sample", disability_rating: "sample"
+    input  veteran_name: "sample", benefit_type: "sample", filing_date: "sample", description: "sample"
+    expect emits: ["ClaimFiled", "EvidenceSubmitted"]
+  end
+
+  test "SubmitEvidence sets document_name + document_type" do
+    tests "SubmitEvidence", on: "BenefitClaim"
+    setup  "FileClaim", veteran_name: "sample", benefit_type: "sample", filing_date: "sample", description: "sample"
+    input  document_name: "sample", document_type: "sample"
+    expect ok: "true"
+  end
+
+  test "ApproveClaim runs" do
+    tests "ApproveClaim", on: "BenefitClaim"
+    setup  "FileClaim", veteran_name: "sample", benefit_type: "sample", filing_date: "sample", description: "sample"
+    expect status: "approved"
+  end
+
+  test "ApproveClaim cascades through policy chain" do
+    tests "ApproveClaim", on: "BenefitClaim", kind: :cascade
+    setup  "LaunchProgram", program_name: "sample", program_type: "sample", eligibility_criteria: "sample", capacity: 1
+    setup  "RegisterVeteran", name: "sample", service_branch: "sample", discharge_status: "sample", service_dates: "sample", disability_rating: "sample"
+    setup  "FileClaim", veteran_name: "sample", benefit_type: "sample", filing_date: "sample", description: "sample"
+    expect emits: ["ClaimApproved", "VeteranEnrolled", "SessionConducted", "DisabilityRatingRecorded"]
+  end
+
+  test "DenyClaim runs" do
+    tests "DenyClaim", on: "BenefitClaim"
+    setup  "FileClaim", veteran_name: "sample", benefit_type: "sample", filing_date: "sample", description: "sample"
+    expect status: "denied"
+  end
+
+  test "DenyClaim cascades through policy chain" do
+    tests "DenyClaim", on: "BenefitClaim", kind: :cascade
+    setup  "FileClaim", veteran_name: "sample", benefit_type: "sample", filing_date: "sample", description: "sample"
+    expect emits: ["ClaimDenied", "ClaimAppealed"]
+  end
+
+  test "AppealClaim runs" do
+    tests "AppealClaim", on: "BenefitClaim"
+    setup  "FileClaim", veteran_name: "sample", benefit_type: "sample", filing_date: "sample", description: "sample"
+    expect status: "appealed"
+  end
+
+
+  # ── VeteranCounselor aggregate ──────────────────────────────────────────
+
+  test "HireCounselor sets name + specialty + license_number" do
+    tests "HireCounselor", on: "VeteranCounselor"
+    input  name: "sample", specialty: "sample", license_number: "sample"
+    expect name: "sample", specialty: "sample", license_number: "sample", caseload: 0, status: "active"
+  end
+
+  test "AssignVeteran runs" do
+    tests "AssignVeteran", on: "VeteranCounselor"
+    setup  "HireCounselor", name: "sample", specialty: "sample", license_number: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ServiceProgram aggregate ──────────────────────────────────────────
+
+  test "LaunchProgram sets program_name + program_type + eligibility_criteria + capacity" do
+    tests "LaunchProgram", on: "ServiceProgram"
+    input  program_name: "sample", program_type: "sample", eligibility_criteria: "sample", capacity: 1
+    expect program_name: "sample", program_type: "sample", eligibility_criteria: "sample", capacity: 1, enrolled_count: 0, status: "active"
+  end
+
+  test "EnrollVeteran cascades through policy chain" do
+    tests "EnrollVeteran", on: "ServiceProgram", kind: :cascade
+    setup  "LaunchProgram", program_name: "sample", program_type: "sample", eligibility_criteria: "sample", capacity: 1
+    expect emits: ["VeteranEnrolled", "SessionConducted"]
+  end
+
+  test "ConductSession sets topic + facilitator + attendees" do
+    tests "ConductSession", on: "ServiceProgram"
+    setup  "LaunchProgram", program_name: "sample", program_type: "sample", eligibility_criteria: "sample", capacity: 1
+    input  topic: "sample", facilitator: "sample", attendees: 1
+    expect ok: "true"
+  end
+
+
+  # ── CrisisIntervention aggregate ──────────────────────────────────────────
+
+  test "ReportCrisis sets veteran_name + crisis_type + reported_date" do
+    tests "ReportCrisis", on: "CrisisIntervention"
+    setup  "RegisterVeteran", name: "sample", service_branch: "sample", discharge_status: "sample", service_dates: "sample", disability_rating: "sample"
+    input  veteran_name: "sample", crisis_type: "sample", reported_date: "sample"
+    expect veteran_name: "sample", crisis_type: "sample", reported_date: "sample", status: "reported"
+  end
+
+  test "ReportCrisis cascades through policy chain" do
+    tests "ReportCrisis", on: "CrisisIntervention", kind: :cascade
+    setup  "RegisterVeteran", name: "sample", service_branch: "sample", discharge_status: "sample", service_dates: "sample", disability_rating: "sample"
+    input  veteran_name: "sample", crisis_type: "sample", reported_date: "sample"
+    expect emits: ["CrisisReported", "CrisisResponded"]
+  end
+
+  test "RespondToCrisis sets responder_name" do
+    tests "RespondToCrisis", on: "CrisisIntervention"
+    setup  "ReportCrisis", veteran_name: "sample", crisis_type: "sample", reported_date: "sample"
+    input  responder_name: "sample"
+    expect responder_name: "sample", status: "responding"
+  end
+
+  test "ResolveCrisis sets resolution" do
+    tests "ResolveCrisis", on: "CrisisIntervention"
+    setup  "ReportCrisis", veteran_name: "sample", crisis_type: "sample", reported_date: "sample"
+    input  resolution: "sample"
+    expect resolution: "sample", status: "resolved"
+  end
+
+  test "ResolveCrisis cascades through policy chain" do
+    tests "ResolveCrisis", on: "CrisisIntervention", kind: :cascade
+    setup  "ReportCrisis", veteran_name: "sample", crisis_type: "sample", reported_date: "sample"
+    setup  "HireCounselor", name: "sample", specialty: "sample", license_number: "sample"
+    input  resolution: "sample"
+    expect emits: ["CrisisResolved", "VeteranAssigned"]
+  end
+
+end

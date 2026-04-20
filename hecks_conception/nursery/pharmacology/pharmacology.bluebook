@@ -8,6 +8,7 @@ Hecks.bluebook "Pharmacology" do
     String :molecular_formula
     Float :molecular_weight
     String :mechanism_of_action
+    Boolean :structure_data_loaded, default: false
 
     value_object "PharmacokineticsProfile" do
       Float :half_life_hours
@@ -22,13 +23,14 @@ Hecks.bluebook "Pharmacology" do
       String :compound_id
       String :name
       String :molecular_formula
+      then_set :structure_data_loaded, true
     end
 
     command "ScreenCompound" do
       description "Run in-vitro screening assays on the compound"
       emits "CompoundScreened"
       reference_to Compound
-      given "compound must have structure data"
+      given { structure_data_loaded == true }
     end
 
     command "ShelveCompound" do
@@ -61,7 +63,7 @@ Hecks.bluebook "Pharmacology" do
       emits "SubjectEnrolled"
       reference_to ClinicalTrial
       String :subject_id
-      given "trial must not be at enrollment capacity"
+      given { enrolled_count < enrollment_target }
     end
 
     command "ConcludeTrial" do
@@ -77,6 +79,7 @@ Hecks.bluebook "Pharmacology" do
     String :description
     String :severity
     String :causality_assessment
+    Boolean :medically_reviewed, default: false
     reference_to ClinicalTrial
 
     command "ReportEvent" do
@@ -85,6 +88,7 @@ Hecks.bluebook "Pharmacology" do
       reference_to ClinicalTrial
       String :description
       String :severity
+      then_set :medically_reviewed, true
     end
 
     command "AssessCausality" do
@@ -92,7 +96,7 @@ Hecks.bluebook "Pharmacology" do
       emits "CausalityAssessed"
       reference_to AdverseEvent
       String :assessment
-      given "event must be medically reviewed"
+      given { medically_reviewed == true }
     end
   end
 
@@ -102,6 +106,7 @@ Hecks.bluebook "Pharmacology" do
     String :agency
     String :submission_type
     String :status
+    Boolean :trial_results_included, default: false
     reference_to Compound
 
     command "FileSubmission" do
@@ -110,13 +115,14 @@ Hecks.bluebook "Pharmacology" do
       reference_to Compound
       String :agency
       String :submission_type
+      then_set :trial_results_included, true
     end
 
     command "GrantApproval" do
       description "Record regulatory approval of the drug"
       emits "ApprovalGranted"
       reference_to RegulatorySubmission
-      given "submission must include trial results"
+      given { trial_results_included == true }
     end
   end
 
@@ -164,15 +170,4 @@ Hecks.bluebook "Pharmacology" do
     trigger "EnrollSubject"
   end
 
-  fixture "Compound", compound_id: "CMP-2026-001", name: "Aspirin", molecular_formula: "C9H8O4", molecular_weight: 180.16, mechanism_of_action: "COX inhibitor"
-  fixture "Compound", compound_id: "CMP-2026-002", name: "Metformin", molecular_formula: "C4H11N5", molecular_weight: 129.16, mechanism_of_action: "AMPK activator"
-
-  fixture "ClinicalTrial", trial_id: "TRIAL-001", phase: "Phase II", enrollment_target: 50, enrolled_count: 35, start_date: "2026-03-01", reference_to: "CMP-2026-001"
-  fixture "ClinicalTrial", trial_id: "TRIAL-002", phase: "Phase III", enrollment_target: 200, enrolled_count: 150, start_date: "2026-02-15", reference_to: "CMP-2026-002"
-
-  fixture "AdverseEvent", event_id: "AE-001", description: "Mild headache reported by subject 7", severity: "mild", causality_assessment: "possibly_related", reference_to: "TRIAL-001"
-  fixture "AdverseEvent", event_id: "AE-002", description: "Nausea and dizziness onset day 14", severity: "moderate", causality_assessment: "probably_related", reference_to: "TRIAL-002"
-
-  fixture "RegulatorySubmission", submission_id: "REG-001", agency: "FDA", submission_type: "NDA", status: "pending_review", reference_to: "CMP-2026-001"
-  fixture "RegulatorySubmission", submission_id: "REG-002", agency: "EMA", submission_type: "MAA", status: "accepted", reference_to: "CMP-2026-002"
 end

@@ -1,0 +1,70 @@
+Hecks.behaviors "DonorRecruitment" do
+  vision "Behavioral tests for the DonorRecruitment domain — exercises every command and query in memory"
+
+  # ── BloodInventory aggregate ──────────────────────────────────────────
+
+  test "RecordStock sets center_id + blood_type + units_available + min_threshold" do
+    tests "RecordStock", on: "BloodInventory"
+    input  center_id: "sample", blood_type: "sample", units_available: 1, min_threshold: 1
+    expect center_id: "sample", blood_type: "sample", units_available: 1, min_threshold: 1, status: "tracked"
+  end
+
+  test "FlagShortage runs" do
+    tests "FlagShortage", on: "BloodInventory"
+    setup  "RecordStock", center_id: "sample", blood_type: "sample", units_available: 1, min_threshold: 1
+    expect ok: "true"
+  end
+
+  test "FlagShortage cascades through policy chain" do
+    tests "FlagShortage", on: "BloodInventory", kind: :cascade
+    setup  "RecordStock", center_id: "sample", blood_type: "sample", units_available: 1, min_threshold: 1
+    setup  "LaunchCampaign", campaign_id: "sample", target_blood_type: "sample", platform: "sample", budget: 1.0, target_donors: 1
+    expect emits: ["ShortageFlagged", "CampaignLaunched"]
+  end
+
+
+  # ── RecruitmentCampaign aggregate ──────────────────────────────────────────
+
+  test "LaunchCampaign sets campaign_id + target_blood_type + platform + budget + target_donors" do
+    tests "LaunchCampaign", on: "RecruitmentCampaign"
+    input  campaign_id: "sample", target_blood_type: "sample", platform: "sample", budget: 1.0, target_donors: 1
+    expect campaign_id: "sample", target_blood_type: "sample", platform: "sample", budget: 1.0, target_donors: 1, status: "active"
+  end
+
+  test "PauseCampaign runs" do
+    tests "PauseCampaign", on: "RecruitmentCampaign"
+    setup  "LaunchCampaign", campaign_id: "sample", target_blood_type: "sample", platform: "sample", budget: 1.0, target_donors: 1
+    expect status: "paused"
+  end
+
+
+  # ── DonorLead aggregate ──────────────────────────────────────────
+
+  test "CaptureLead sets lead_id + name + blood_type + source_campaign" do
+    tests "CaptureLead", on: "DonorLead"
+    input  lead_id: "sample", name: "sample", blood_type: "sample", source_campaign: "sample"
+    expect lead_id: "sample", name: "sample", blood_type: "sample", source_campaign: "sample", status: "captured"
+  end
+
+  test "CaptureLead cascades through policy chain" do
+    tests "CaptureLead", on: "DonorLead", kind: :cascade
+    input  lead_id: "sample", name: "sample", blood_type: "sample", source_campaign: "sample"
+    expect emits: ["LeadCaptured", "LeadConverted"]
+  end
+
+  test "ConvertLead runs" do
+    tests "ConvertLead", on: "DonorLead"
+    setup  "CaptureLead", lead_id: "sample", name: "sample", blood_type: "sample", source_campaign: "sample"
+    expect status: "converted"
+  end
+
+
+  # ── DonorConversion aggregate ──────────────────────────────────────────
+
+  test "RecordConversion sets conversion_id + lead_id + campaign_id + donation_date" do
+    tests "RecordConversion", on: "DonorConversion"
+    input  conversion_id: "sample", lead_id: "sample", campaign_id: "sample", donation_date: "sample"
+    expect conversion_id: "sample", lead_id: "sample", campaign_id: "sample", donation_date: "sample", status: "completed"
+  end
+
+end

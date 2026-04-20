@@ -19,7 +19,7 @@ Hecks.bluebook "WeddingPlanning" do
     end
 
     fixture "Summer Garden Wedding", couple_names: "Sarah & Michael", wedding_date: "2026-06-20", venue_name: "Riverside Gardens", theme: "Rustic Romance", expected_guests: 150, total_budget: 35000.0, status: "planning"
-    fixture "Winter Formal", couple_names: "Emma & David", wedding_date: "2026-12-10", venue_name: "Grand Ballroom Hotel", theme: "Elegant Black & Gold", expected_guests: 200, total_budget: 55000.0, status: "finalized"
+    fixture "Miette Formal", couple_names: "Emma & David", wedding_date: "2026-12-10", venue_name: "Grand Ballroom Hotel", theme: "Elegant Black & Gold", expected_guests: 200, total_budget: 55000.0, status: "finalized"
 
     PlanWedding do
       role "WeddingPlanner"
@@ -189,7 +189,6 @@ Hecks.bluebook "WeddingPlanning" do
       reference_to(GuestListEntry)
       String :rsvp_status
       String :meal_preference
-      given { rsvp_status == "pending" }
       emits "RSVPRecorded"
       then_set :rsvp_status, to: :rsvp_status
       then_set :meal_preference, to: :meal_preference

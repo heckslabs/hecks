@@ -1,0 +1,10 @@
+Hecks.fixtures "Compilation" do
+  aggregate "ExecutableBlueprint" do
+    fixture "ExecutableBlueprint1", domain_name: "Pizzas", source_bluebook_path: "nursery/pizzas/hecks/pizzas.bluebook", compilation_status: "validated", embedding: "vec_pizzas_0x3fa2", aggregate_count: 2, command_count: 5, event_count: 5, fixture_count: 8
+    fixture "ExecutableBlueprint2", domain_name: "Catalog", source_bluebook_path: "nursery/alans_engine_additive_business/hecks/catalog.bluebook", compilation_status: "validated", embedding: "vec_catalog_0x7cb1", aggregate_count: 2, command_count: 4, event_count: 4, fixture_count: 9
+    fixture "ExecutableBlueprint3", domain_name: "AmbulanceDispatch", source_bluebook_path: "nursery/ambulance_dispatch/hecks/dispatch.bluebook", compilation_status: "compiled", embedding: "vec_dispatch_0x1de4", aggregate_count: 3, command_count: 7, event_count: 7, fixture_count: 0
+  end
+  aggregate "CompressionRun" do
+    fixture "CompressionRun1", run_id: "run_2026_04_14_001", status: "completed", domain_count: 3, compiled_count: 3, failed_count: 0, started_at: "2026-04-14T08:00:00Z", completed_at: "2026-04-14T08:02:31Z"
+  end
+end

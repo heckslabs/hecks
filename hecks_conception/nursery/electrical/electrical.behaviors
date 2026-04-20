@@ -1,0 +1,136 @@
+Hecks.behaviors "Electrical" do
+  vision "Behavioral tests for the Electrical domain — exercises every command and query in memory"
+
+  # ── DCSource aggregate ──────────────────────────────────────────
+
+  test "InstallBattery sets name + voltage + amp_hours + chemistry" do
+    tests "InstallBattery", on: "DCSource"
+    input  name: "sample", voltage: 1.0, amp_hours: 1.0, chemistry: "sample"
+    expect ok: "true"
+  end
+
+  test "Discharge sets amps + hours" do
+    tests "Discharge", on: "DCSource"
+    setup  "InstallBattery", name: "sample", voltage: 1.0, amp_hours: 1.0, chemistry: "sample"
+    input  amps: 1.0, hours: 1.0
+    expect ok: "true"
+  end
+
+  test "Charge sets amps + hours" do
+    tests "Charge", on: "DCSource"
+    setup  "InstallBattery", name: "sample", voltage: 1.0, amp_hours: 1.0, chemistry: "sample"
+    input  amps: 1.0, hours: 1.0
+    expect ok: "true"
+  end
+
+  test "MeasureStateOfCharge runs" do
+    tests "MeasureStateOfCharge", on: "DCSource"
+    setup  "InstallBattery", name: "sample", voltage: 1.0, amp_hours: 1.0, chemistry: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ACSource aggregate ──────────────────────────────────────────
+
+  test "ConnectACSource sets name + voltage + frequency + max_amps + phase" do
+    tests "ConnectACSource", on: "ACSource"
+    input  name: "sample", voltage: 1.0, frequency: 1.0, max_amps: 1.0, phase: "sample"
+    expect ok: "true"
+  end
+
+  test "CalculateAvailablePower runs" do
+    tests "CalculateAvailablePower", on: "ACSource"
+    setup  "ConnectACSource", name: "sample", voltage: 1.0, frequency: 1.0, max_amps: 1.0, phase: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Converter aggregate ──────────────────────────────────────────
+
+  test "WireConverter sets name + conversion_type + input_voltage + output_voltage + max_watts + efficiency" do
+    tests "WireConverter", on: "Converter"
+    input  name: "sample", conversion_type: "sample", input_voltage: 1.0, output_voltage: 1.0, max_watts: 1.0, efficiency: 1.0
+    expect ok: "true"
+  end
+
+  test "CalculateDCDraw sets ac_watts" do
+    tests "CalculateDCDraw", on: "Converter"
+    setup  "WireConverter", name: "sample", conversion_type: "sample", input_voltage: 1.0, output_voltage: 1.0, max_watts: 1.0, efficiency: 1.0
+    input  ac_watts: 1.0
+    expect ok: "true"
+  end
+
+  test "CalculateRuntime sets ac_watts + battery_ah + battery_voltage" do
+    tests "CalculateRuntime", on: "Converter"
+    setup  "WireConverter", name: "sample", conversion_type: "sample", input_voltage: 1.0, output_voltage: 1.0, max_watts: 1.0, efficiency: 1.0
+    input  ac_watts: 1.0, battery_ah: 1.0, battery_voltage: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── Wire aggregate ──────────────────────────────────────────
+
+  test "SelectGauge sets amps + length_feet + voltage + max_drop_pct" do
+    tests "SelectGauge", on: "Wire"
+    input  amps: 1.0, length_feet: 1.0, voltage: 1.0, max_drop_pct: 1.0
+    expect ok: "true"
+  end
+
+  test "CalculateVoltageDrop sets gauge + amps + length_feet + voltage" do
+    tests "CalculateVoltageDrop", on: "Wire"
+    input  gauge: "sample", amps: 1.0, length_feet: 1.0, voltage: 1.0
+    expect ok: "true"
+  end
+
+  test "CalculateAmpacity sets gauge" do
+    tests "CalculateAmpacity", on: "Wire"
+    input  gauge: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Load aggregate ──────────────────────────────────────────
+
+  test "DefineLoad sets name + watts + voltage + power_type + duty_cycle" do
+    tests "DefineLoad", on: "Load"
+    input  name: "sample", watts: 1.0, voltage: 1.0, power_type: "sample", duty_cycle: 1.0
+    expect ok: "true"
+  end
+
+  test "DefineLoad cascades through policy chain" do
+    tests "DefineLoad", on: "Load", kind: :cascade
+    setup  "SizeFuse", load_amps: 1.0, voltage: 1.0
+    setup  "SelectGauge", amps: 1.0, length_feet: 1.0, voltage: 1.0, max_drop_pct: 1.0
+    input  name: "sample", watts: 1.0, voltage: 1.0, power_type: "sample", duty_cycle: 1.0
+    expect emits: ["LoadDefined", "FuseSized", "GaugeSelected"]
+  end
+
+  test "CalculateAmpDraw runs" do
+    tests "CalculateAmpDraw", on: "Load"
+    setup  "DefineLoad", name: "sample", watts: 1.0, voltage: 1.0, power_type: "sample", duty_cycle: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── Fuse aggregate ──────────────────────────────────────────
+
+  test "SizeFuse sets load_amps + voltage" do
+    tests "SizeFuse", on: "Fuse"
+    input  load_amps: 1.0, voltage: 1.0
+    expect ok: "true"
+  end
+
+  test "Trip sets actual_amps" do
+    tests "Trip", on: "Fuse"
+    setup  "SizeFuse", load_amps: 1.0, voltage: 1.0
+    input  actual_amps: 1.0
+    expect ok: "true"
+  end
+
+  test "Reset runs" do
+    tests "Reset", on: "Fuse"
+    setup  "SizeFuse", load_amps: 1.0, voltage: 1.0
+    expect ok: "true"
+  end
+
+end

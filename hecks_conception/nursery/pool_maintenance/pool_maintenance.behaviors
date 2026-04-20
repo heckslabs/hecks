@@ -1,0 +1,133 @@
+Hecks.behaviors "PoolMaintenance" do
+  vision "Behavioral tests for the PoolMaintenance domain — exercises every command and query in memory"
+
+  # ── Pool aggregate ──────────────────────────────────────────
+
+  test "RegisterPool sets owner_name + address + pool_type + gallons + surface_type + sanitizer_type" do
+    tests "RegisterPool", on: "Pool"
+    input  owner_name: "sample", address: "sample", pool_type: "sample", gallons: 1.0, surface_type: "sample", sanitizer_type: "sample"
+    expect owner_name: "sample", address: "sample", pool_type: "sample", gallons: 1.0, surface_type: "sample", sanitizer_type: "sample"
+  end
+
+  test "RegisterPool cascades through policy chain" do
+    tests "RegisterPool", on: "Pool", kind: :cascade
+    setup  "BuildRoute", tech_name: "sample", route_day: "sample", pool_count: 1
+    input  owner_name: "sample", address: "sample", pool_type: "sample", gallons: 1.0, surface_type: "sample", sanitizer_type: "sample"
+    expect emits: ["PoolRegistered", "PoolAddedToRoute"]
+  end
+
+  test "MietteizePool runs" do
+    tests "MietteizePool", on: "Pool"
+    setup  "RegisterPool", owner_name: "sample", address: "sample", pool_type: "sample", gallons: 1.0, surface_type: "sample", sanitizer_type: "sample"
+    expect ok: "true"
+  end
+
+  test "OpenPool runs" do
+    tests "OpenPool", on: "Pool"
+    setup  "RegisterPool", owner_name: "sample", address: "sample", pool_type: "sample", gallons: 1.0, surface_type: "sample", sanitizer_type: "sample"
+    expect ok: "true"
+  end
+
+  test "OpenPool cascades through policy chain" do
+    tests "OpenPool", on: "Pool", kind: :cascade
+    setup  "RegisterPool", owner_name: "sample", address: "sample", pool_type: "sample", gallons: 1.0, surface_type: "sample", sanitizer_type: "sample"
+    setup  "TakeReading", ph: 1.0, free_chlorine: 1.0, total_alkalinity: 1.0, calcium_hardness: 1.0, cya: 1.0
+    setup  "InstallEquipment", equipment_type: "sample", brand: "sample", model: "sample"
+    setup  "OpenRepairTicket", problem_description: "sample"
+    expect emits: ["PoolOpened", "ReadingTaken", "ChemicalsDosed", "EquipmentServiced", "RepairTicketOpened"]
+  end
+
+
+  # ── ChemicalReading aggregate ──────────────────────────────────────────
+
+  test "TakeReading sets ph + free_chlorine + total_alkalinity + calcium_hardness + cya" do
+    tests "TakeReading", on: "ChemicalReading"
+    setup  "RegisterPool", owner_name: "sample", address: "sample", pool_type: "sample", gallons: 1.0, surface_type: "sample", sanitizer_type: "sample"
+    input  ph: 1.0, free_chlorine: 1.0, total_alkalinity: 1.0, calcium_hardness: 1.0, cya: 1.0
+    expect ok: "true"
+  end
+
+  test "TakeReading cascades through policy chain" do
+    tests "TakeReading", on: "ChemicalReading", kind: :cascade
+    setup  "RegisterPool", owner_name: "sample", address: "sample", pool_type: "sample", gallons: 1.0, surface_type: "sample", sanitizer_type: "sample"
+    setup  "InstallEquipment", equipment_type: "sample", brand: "sample", model: "sample"
+    setup  "OpenRepairTicket", problem_description: "sample"
+    input  ph: 1.0, free_chlorine: 1.0, total_alkalinity: 1.0, calcium_hardness: 1.0, cya: 1.0
+    expect emits: ["ReadingTaken", "ChemicalsDosed", "EquipmentServiced", "RepairTicketOpened"]
+  end
+
+  test "DoseChemicals sets chemical_name + dose_oz" do
+    tests "DoseChemicals", on: "ChemicalReading"
+    setup  "TakeReading", ph: 1.0, free_chlorine: 1.0, total_alkalinity: 1.0, calcium_hardness: 1.0, cya: 1.0
+    input  chemical_name: "sample", dose_oz: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── PoolEquipment aggregate ──────────────────────────────────────────
+
+  test "InstallEquipment sets equipment_type + brand + model" do
+    tests "InstallEquipment", on: "PoolEquipment"
+    setup  "RegisterPool", owner_name: "sample", address: "sample", pool_type: "sample", gallons: 1.0, surface_type: "sample", sanitizer_type: "sample"
+    input  equipment_type: "sample", brand: "sample", model: "sample"
+    expect ok: "true"
+  end
+
+  test "ServiceEquipment sets service_performed" do
+    tests "ServiceEquipment", on: "PoolEquipment"
+    setup  "InstallEquipment", equipment_type: "sample", brand: "sample", model: "sample"
+    input  service_performed: "sample"
+    expect ok: "true"
+  end
+
+  test "ServiceEquipment cascades through policy chain" do
+    tests "ServiceEquipment", on: "PoolEquipment", kind: :cascade
+    setup  "InstallEquipment", equipment_type: "sample", brand: "sample", model: "sample"
+    setup  "OpenRepairTicket", problem_description: "sample"
+    setup  "RegisterPool", owner_name: "sample", address: "sample", pool_type: "sample", gallons: 1.0, surface_type: "sample", sanitizer_type: "sample"
+    input  service_performed: "sample"
+    expect emits: ["EquipmentServiced", "RepairTicketOpened"]
+  end
+
+
+  # ── ServiceRoute aggregate ──────────────────────────────────────────
+
+  test "BuildRoute sets tech_name + route_day + pool_count" do
+    tests "BuildRoute", on: "ServiceRoute"
+    input  tech_name: "sample", route_day: "sample", pool_count: 1
+    expect ok: "true"
+  end
+
+  test "AddPoolToRoute runs" do
+    tests "AddPoolToRoute", on: "ServiceRoute"
+    setup  "RegisterPool", owner_name: "sample", address: "sample", pool_type: "sample", gallons: 1.0, surface_type: "sample", sanitizer_type: "sample"
+    setup  "BuildRoute", tech_name: "sample", route_day: "sample", pool_count: 1
+    expect ok: "true"
+  end
+
+
+  # ── RepairTicket aggregate ──────────────────────────────────────────
+
+  test "OpenRepairTicket sets problem_description" do
+    tests "OpenRepairTicket", on: "RepairTicket"
+    setup  "RegisterPool", owner_name: "sample", address: "sample", pool_type: "sample", gallons: 1.0, surface_type: "sample", sanitizer_type: "sample"
+    input  problem_description: "sample"
+    expect problem_description: "sample", status: "diagnosed"
+  end
+
+  test "CompleteRepair sets diagnosis + repair_cost" do
+    tests "CompleteRepair", on: "RepairTicket"
+    setup  "OpenRepairTicket", problem_description: "sample"
+    input  diagnosis: "sample", repair_cost: 1.0
+    expect ok: "true"
+  end
+
+  test "CompleteRepair cascades through policy chain" do
+    tests "CompleteRepair", on: "RepairTicket", kind: :cascade
+    setup  "RegisterPool", owner_name: "sample", address: "sample", pool_type: "sample", gallons: 1.0, surface_type: "sample", sanitizer_type: "sample"
+    setup  "OpenRepairTicket", problem_description: "sample"
+    input  diagnosis: "sample", repair_cost: 1.0
+    expect emits: ["RepairCompleted", "PoolMietteized"]
+  end
+
+end

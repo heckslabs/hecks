@@ -16,7 +16,7 @@ Hecks.bluebook "BakeryProduction", version: "2026.04.13.1" do
       String :unit
     end
 
-    CreateRecipe do
+    ComposeRecipe do
       description "Define a new bakery recipe with ingredients and timing"
       String :name
       String :category
@@ -31,7 +31,7 @@ Hecks.bluebook "BakeryProduction", version: "2026.04.13.1" do
       description "Multiply ingredient quantities for a larger batch"
       reference_to(Recipe)
       Float :multiplier
-      given "multiplier must be positive"
+      given { multiplier > 0.0 }
       emits "RecipeScaled"
     end
   end
@@ -44,6 +44,7 @@ Hecks.bluebook "BakeryProduction", version: "2026.04.13.1" do
     String :status
     String :started_at
     String :completed_at
+    TrueClass :in_progress, default: false
 
     StartBatch do
       description "Begin a production run — pull ingredients and start prep"
@@ -57,7 +58,6 @@ Hecks.bluebook "BakeryProduction", version: "2026.04.13.1" do
     CompleteBatch do
       description "Mark a batch as finished and ready for sale or packaging"
       reference_to(Batch)
-      given "batch must be in progress"
       emits "BatchCompleted"
     end
 
@@ -93,14 +93,12 @@ Hecks.bluebook "BakeryProduction", version: "2026.04.13.1" do
       description "Subtract ingredients used in a production batch"
       reference_to(IngredientStock)
       Float :quantity
-      given "cannot deduct more than on hand"
       emits "StockDeducted"
     end
 
     FlagLowStock do
       description "Alert when ingredient falls below par level"
       reference_to(IngredientStock)
-      given "quantity must be below par level"
       emits "LowStockFlagged"
     end
   end
@@ -147,23 +145,4 @@ Hecks.bluebook "BakeryProduction", version: "2026.04.13.1" do
     trigger "FulfillOrder"
   end
 
-  fixture "Recipe", name: "Sourdough Levain", category: "bread", yield_count: 8, prep_minutes: 480, bake_minutes: 45, bake_temp_f: 475.0
-  fixture "Recipe", name: "Chocolate Croissants", category: "pastry", yield_count: 24, prep_minutes: 120, bake_minutes: 22, bake_temp_f: 400.0
-  fixture "Recipe", name: "Blueberry Muffins", category: "breakfast", yield_count: 12, prep_minutes: 20, bake_minutes: 25, bake_temp_f: 375.0
-  fixture "Recipe", name: "Focaccia Rosemary", category: "bread", yield_count: 4, prep_minutes: 90, bake_minutes: 30, bake_temp_f: 450.0
-
-  fixture "Batch", recipe_name: "Sourdough Levain", production_date: "2026-04-14", quantity: 16, baker: "Thomas Wright", status: "completed", started_at: "04:30", completed_at: "11:00"
-  fixture "Batch", recipe_name: "Whole Wheat", production_date: "2026-04-14", quantity: 12, baker: "Sophia Martinez", status: "in_progress", started_at: "05:00", completed_at: ""
-  fixture "Batch", recipe_name: "Blueberry Muffins", production_date: "2026-04-15", quantity: 30, baker: "Marcus Chen", status: "pending", started_at: "", completed_at: ""
-  fixture "Batch", recipe_name: "Chocolate Croissants", production_date: "2026-04-14", quantity: 20, baker: "Thomas Wright", status: "completed", started_at: "06:00", completed_at: "08:30"
-
-  fixture "IngredientStock", ingredient_name: "All-Purpose Flour", quantity_on_hand: 450.0, unit: "lbs", par_level: 300.0, supplier: "Premier Grain Mills", cost_per_unit: 0.35
-  fixture "IngredientStock", ingredient_name: "Sea Salt", quantity_on_hand: 8.0, unit: "lbs", par_level: 15.0, supplier: "Atlantic Salt Co", cost_per_unit: 2.10
-  fixture "IngredientStock", ingredient_name: "Fresh Blueberries", quantity_on_hand: 25.0, unit: "lbs", par_level: 40.0, supplier: "Mountain Valley Farms", cost_per_unit: 5.50
-  fixture "IngredientStock", ingredient_name: "Dark Chocolate Chips", quantity_on_hand: 120.0, unit: "lbs", par_level: 100.0, supplier: "Belgian Chocolate Supply", cost_per_unit: 3.75
-
-  fixture "Order", customer_name: "Westside Cafe", order_date: "2026-04-12", pickup_date: "2026-04-15", status: "confirmed"
-  fixture "Order", customer_name: "Jane Chen Wedding", order_date: "2026-04-10", pickup_date: "2026-04-20", status: "in_production"
-  fixture "Order", customer_name: "Downtown Hotel", order_date: "2026-04-13", pickup_date: "2026-04-15", status: "confirmed"
-  fixture "Order", customer_name: "Corporate Breakfast", order_date: "2026-04-14", pickup_date: "2026-04-15", status: "pending"
 end

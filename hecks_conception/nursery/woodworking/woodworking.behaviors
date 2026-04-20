@@ -1,0 +1,172 @@
+Hecks.behaviors "Woodworking" do
+  vision "Behavioral tests for the Woodworking domain — exercises every command and query in memory"
+
+  # ── WoodProject aggregate ──────────────────────────────────────────
+
+  test "PlanProject sets name + project_type + wood_species + estimated_hours" do
+    tests "PlanProject", on: "WoodProject"
+    input  name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
+    expect status: "designed"
+  end
+
+  test "PlanProject cascades through policy chain" do
+    tests "PlanProject", on: "WoodProject", kind: :cascade
+    setup  "ReceiveLumber", species: "sample", grade: "sample", board_feet: 1.0, thickness_quarters: 1.0, drying_method: "sample"
+    setup  "LayOutJoint", joint_type: "sample", part_a: "sample", part_b: "sample"
+    setup  "QuoteCommission", client_name: "sample", description: "sample", quoted_price: 1.0, deadline: "sample"
+    input  name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
+    expect emits: ["ProjectPlanned", "LumberConsumed", "MillingStarted", "JointLaidOut", "JointCut", "JointFitted", "ProjectAssembled", "FinishApplied", "CommissionDelivered"]
+  end
+
+  test "StartMilling runs" do
+    tests "StartMilling", on: "WoodProject"
+    setup  "PlanProject", name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
+    expect status: "milling"
+  end
+
+  test "StartMilling cascades through policy chain" do
+    tests "StartMilling", on: "WoodProject", kind: :cascade
+    setup  "PlanProject", name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
+    setup  "LayOutJoint", joint_type: "sample", part_a: "sample", part_b: "sample"
+    setup  "QuoteCommission", client_name: "sample", description: "sample", quoted_price: 1.0, deadline: "sample"
+    expect emits: ["MillingStarted", "JointLaidOut", "JointCut", "JointFitted", "ProjectAssembled", "FinishApplied", "CommissionDelivered"]
+  end
+
+  test "AssembleProject runs" do
+    tests "AssembleProject", on: "WoodProject"
+    setup  "PlanProject", name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
+    expect status: "assembled"
+  end
+
+  test "AssembleProject cascades through policy chain" do
+    tests "AssembleProject", on: "WoodProject", kind: :cascade
+    setup  "PlanProject", name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
+    setup  "QuoteCommission", client_name: "sample", description: "sample", quoted_price: 1.0, deadline: "sample"
+    expect emits: ["ProjectAssembled", "FinishApplied", "CommissionDelivered"]
+  end
+
+  test "ApplyFinish sets finish_type" do
+    tests "ApplyFinish", on: "WoodProject"
+    setup  "PlanProject", name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
+    input  finish_type: "sample"
+    expect status: "finished"
+  end
+
+  test "ApplyFinish cascades through policy chain" do
+    tests "ApplyFinish", on: "WoodProject", kind: :cascade
+    setup  "PlanProject", name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
+    setup  "QuoteCommission", client_name: "sample", description: "sample", quoted_price: 1.0, deadline: "sample"
+    input  finish_type: "sample"
+    expect emits: ["FinishApplied", "CommissionDelivered"]
+  end
+
+
+  # ── LumberStock aggregate ──────────────────────────────────────────
+
+  test "ReceiveLumber sets species + grade + board_feet + thickness_quarters + drying_method" do
+    tests "ReceiveLumber", on: "LumberStock"
+    input  species: "sample", grade: "sample", board_feet: 1.0, thickness_quarters: 1.0, drying_method: "sample"
+    expect ok: "true"
+  end
+
+  test "ConsumeLumber sets board_feet_used" do
+    tests "ConsumeLumber", on: "LumberStock"
+    setup  "ReceiveLumber", species: "sample", grade: "sample", board_feet: 1.0, thickness_quarters: 1.0, drying_method: "sample"
+    input  board_feet_used: 1.0
+    expect ok: "true"
+  end
+
+  test "ConsumeLumber cascades through policy chain" do
+    tests "ConsumeLumber", on: "LumberStock", kind: :cascade
+    setup  "ReceiveLumber", species: "sample", grade: "sample", board_feet: 1.0, thickness_quarters: 1.0, drying_method: "sample"
+    setup  "PlanProject", name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
+    setup  "LayOutJoint", joint_type: "sample", part_a: "sample", part_b: "sample"
+    setup  "QuoteCommission", client_name: "sample", description: "sample", quoted_price: 1.0, deadline: "sample"
+    input  board_feet_used: 1.0
+    expect emits: ["LumberConsumed", "MillingStarted", "JointLaidOut", "JointCut", "JointFitted", "ProjectAssembled", "FinishApplied", "CommissionDelivered"]
+  end
+
+
+  # ── Joinery aggregate ──────────────────────────────────────────
+
+  test "LayOutJoint sets joint_type + part_a + part_b" do
+    tests "LayOutJoint", on: "Joinery"
+    setup  "PlanProject", name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
+    input  joint_type: "sample", part_a: "sample", part_b: "sample"
+    expect status: "laid_out"
+  end
+
+  test "LayOutJoint cascades through policy chain" do
+    tests "LayOutJoint", on: "Joinery", kind: :cascade
+    setup  "PlanProject", name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
+    setup  "QuoteCommission", client_name: "sample", description: "sample", quoted_price: 1.0, deadline: "sample"
+    input  joint_type: "sample", part_a: "sample", part_b: "sample"
+    expect emits: ["JointLaidOut", "JointCut", "JointFitted", "ProjectAssembled", "FinishApplied", "CommissionDelivered"]
+  end
+
+  test "CutJoint runs" do
+    tests "CutJoint", on: "Joinery"
+    setup  "LayOutJoint", joint_type: "sample", part_a: "sample", part_b: "sample"
+    expect status: "cut"
+  end
+
+  test "CutJoint cascades through policy chain" do
+    tests "CutJoint", on: "Joinery", kind: :cascade
+    setup  "LayOutJoint", joint_type: "sample", part_a: "sample", part_b: "sample"
+    setup  "PlanProject", name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
+    setup  "QuoteCommission", client_name: "sample", description: "sample", quoted_price: 1.0, deadline: "sample"
+    expect emits: ["JointCut", "JointFitted", "ProjectAssembled", "FinishApplied", "CommissionDelivered"]
+  end
+
+  test "FitJoint runs" do
+    tests "FitJoint", on: "Joinery"
+    setup  "LayOutJoint", joint_type: "sample", part_a: "sample", part_b: "sample"
+    expect status: "fitted"
+  end
+
+  test "FitJoint cascades through policy chain" do
+    tests "FitJoint", on: "Joinery", kind: :cascade
+    setup  "LayOutJoint", joint_type: "sample", part_a: "sample", part_b: "sample"
+    setup  "PlanProject", name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
+    setup  "QuoteCommission", client_name: "sample", description: "sample", quoted_price: 1.0, deadline: "sample"
+    expect emits: ["JointFitted", "ProjectAssembled", "FinishApplied", "CommissionDelivered"]
+  end
+
+
+  # ── Finish aggregate ──────────────────────────────────────────
+
+  test "MixFinish sets finish_name + finish_type + coats_required + cure_hours" do
+    tests "MixFinish", on: "Finish"
+    input  finish_name: "sample", finish_type: "sample", coats_required: 1, cure_hours: 1
+    expect ok: "true"
+  end
+
+  test "ApplyCoat sets coat_number" do
+    tests "ApplyCoat", on: "Finish"
+    setup  "MixFinish", finish_name: "sample", finish_type: "sample", coats_required: 1, cure_hours: 1
+    input  coat_number: 1
+    expect ok: "true"
+  end
+
+
+  # ── WoodCommission aggregate ──────────────────────────────────────────
+
+  test "QuoteCommission sets client_name + description + quoted_price + deadline" do
+    tests "QuoteCommission", on: "WoodCommission"
+    input  client_name: "sample", description: "sample", quoted_price: 1.0, deadline: "sample"
+    expect status: "quoted"
+  end
+
+  test "AcceptCommission runs" do
+    tests "AcceptCommission", on: "WoodCommission"
+    setup  "QuoteCommission", client_name: "sample", description: "sample", quoted_price: 1.0, deadline: "sample"
+    expect status: "in_progress"
+  end
+
+  test "DeliverCommission runs" do
+    tests "DeliverCommission", on: "WoodCommission"
+    setup  "QuoteCommission", client_name: "sample", description: "sample", quoted_price: 1.0, deadline: "sample"
+    expect status: "delivered"
+  end
+
+end

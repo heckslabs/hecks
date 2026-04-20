@@ -1,0 +1,181 @@
+Hecks.behaviors "ContentModeration" do
+  vision "Behavioral tests for the ContentModeration domain — exercises every command and query in memory"
+
+  # ── Post aggregate ──────────────────────────────────────────
+
+  test "IngestPost sets post_id + author_id + content_type + body + language" do
+    tests "IngestPost", on: "Post"
+    input  post_id: "sample", author_id: "sample", content_type: "sample", body: "sample", language: "sample"
+    expect status: "pending"
+  end
+
+  test "IngestPost cascades through policy chain" do
+    tests "IngestPost", on: "Post", kind: :cascade
+    setup  "AssignReview", review_id: "sample", reviewer_id: "sample", queue_name: "sample"
+    input  post_id: "sample", author_id: "sample", content_type: "sample", body: "sample", language: "sample"
+    expect emits: ["PostIngested", "PostAutoFlagged", "ReviewAssigned"]
+  end
+
+  test "AutoFlagPost sets flag_reason" do
+    tests "AutoFlagPost", on: "Post"
+    setup  "IngestPost", post_id: "sample", author_id: "sample", content_type: "sample", body: "sample", language: "sample"
+    input  flag_reason: "sample"
+    expect ok: "true"
+  end
+
+  test "AutoFlagPost cascades through policy chain" do
+    tests "AutoFlagPost", on: "Post", kind: :cascade
+    setup  "IngestPost", post_id: "sample", author_id: "sample", content_type: "sample", body: "sample", language: "sample"
+    setup  "AssignReview", review_id: "sample", reviewer_id: "sample", queue_name: "sample"
+    input  flag_reason: "sample"
+    expect emits: ["PostAutoFlagged", "ReviewAssigned"]
+  end
+
+  test "PublishPost runs" do
+    tests "PublishPost", on: "Post"
+    setup  "IngestPost", post_id: "sample", author_id: "sample", content_type: "sample", body: "sample", language: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Report aggregate ──────────────────────────────────────────
+
+  test "SubmitReport sets report_id + reporter_id + reason_category + description" do
+    tests "SubmitReport", on: "Report"
+    setup  "IngestPost", post_id: "sample", author_id: "sample", content_type: "sample", body: "sample", language: "sample"
+    input  report_id: "sample", reporter_id: "sample", reason_category: "sample", description: "sample"
+    expect status: "open"
+  end
+
+  test "SubmitReport cascades through policy chain" do
+    tests "SubmitReport", on: "Report", kind: :cascade
+    setup  "IngestPost", post_id: "sample", author_id: "sample", content_type: "sample", body: "sample", language: "sample"
+    setup  "AssignReview", review_id: "sample", reviewer_id: "sample", queue_name: "sample"
+    input  report_id: "sample", reporter_id: "sample", reason_category: "sample", description: "sample"
+    expect emits: ["ReportSubmitted", "ReportPrioritized", "ReviewAssigned"]
+  end
+
+  test "PrioritizeReport sets priority" do
+    tests "PrioritizeReport", on: "Report"
+    setup  "SubmitReport", report_id: "sample", reporter_id: "sample", reason_category: "sample", description: "sample"
+    input  priority: "sample"
+    expect ok: "true"
+  end
+
+  test "PrioritizeReport cascades through policy chain" do
+    tests "PrioritizeReport", on: "Report", kind: :cascade
+    setup  "SubmitReport", report_id: "sample", reporter_id: "sample", reason_category: "sample", description: "sample"
+    setup  "AssignReview", review_id: "sample", reviewer_id: "sample", queue_name: "sample"
+    setup  "IngestPost", post_id: "sample", author_id: "sample", content_type: "sample", body: "sample", language: "sample"
+    input  priority: "sample"
+    expect emits: ["ReportPrioritized", "ReviewAssigned"]
+  end
+
+  test "DismissReport runs" do
+    tests "DismissReport", on: "Report"
+    setup  "SubmitReport", report_id: "sample", reporter_id: "sample", reason_category: "sample", description: "sample"
+    expect ok: "true"
+  end
+
+  test "DismissReport cascades through policy chain" do
+    tests "DismissReport", on: "Report", kind: :cascade
+    setup  "IngestPost", post_id: "sample", author_id: "sample", content_type: "sample", body: "sample", language: "sample"
+    setup  "SubmitReport", report_id: "sample", reporter_id: "sample", reason_category: "sample", description: "sample"
+    expect emits: ["ReportDismissed", "PostPublished"]
+  end
+
+
+  # ── ModerationReview aggregate ──────────────────────────────────────────
+
+  test "AssignReview sets review_id + reviewer_id + queue_name" do
+    tests "AssignReview", on: "ModerationReview"
+    setup  "IngestPost", post_id: "sample", author_id: "sample", content_type: "sample", body: "sample", language: "sample"
+    input  review_id: "sample", reviewer_id: "sample", queue_name: "sample"
+    expect status: "in_progress"
+  end
+
+  test "RenderVerdict sets verdict" do
+    tests "RenderVerdict", on: "ModerationReview"
+    setup  "AssignReview", review_id: "sample", reviewer_id: "sample", queue_name: "sample"
+    input  verdict: "sample"
+    expect ok: "true"
+  end
+
+  test "RenderVerdict cascades through policy chain" do
+    tests "RenderVerdict", on: "ModerationReview", kind: :cascade
+    setup  "EnforceAction", action_id: "sample", action_type: "sample", target_id: "sample", reason: "sample", duration_days: 1
+    setup  "FileAppeal", appeal_id: "sample", appellant_id: "sample", grounds: "sample"
+    setup  "AssignReview", review_id: "sample", reviewer_id: "sample", queue_name: "sample"
+    input  verdict: "sample"
+    expect emits: ["VerdictRendered", "ActionEnforced", "AppealFiled"]
+  end
+
+  test "EscalateReview sets escalation_reason" do
+    tests "EscalateReview", on: "ModerationReview"
+    setup  "AssignReview", review_id: "sample", reviewer_id: "sample", queue_name: "sample"
+    input  escalation_reason: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── EnforcementAction aggregate ──────────────────────────────────────────
+
+  test "EnforceAction sets action_id + action_type + target_id + reason + duration_days" do
+    tests "EnforceAction", on: "EnforcementAction"
+    setup  "AssignReview", review_id: "sample", reviewer_id: "sample", queue_name: "sample"
+    input  action_id: "sample", action_type: "sample", target_id: "sample", reason: "sample", duration_days: 1
+    expect status: "active"
+  end
+
+  test "EnforceAction cascades through policy chain" do
+    tests "EnforceAction", on: "EnforcementAction", kind: :cascade
+    setup  "AssignReview", review_id: "sample", reviewer_id: "sample", queue_name: "sample"
+    setup  "FileAppeal", appeal_id: "sample", appellant_id: "sample", grounds: "sample"
+    input  action_id: "sample", action_type: "sample", target_id: "sample", reason: "sample", duration_days: 1
+    expect emits: ["ActionEnforced", "AppealFiled"]
+  end
+
+  test "LiftAction runs" do
+    tests "LiftAction", on: "EnforcementAction"
+    setup  "EnforceAction", action_id: "sample", action_type: "sample", target_id: "sample", reason: "sample", duration_days: 1
+    expect ok: "true"
+  end
+
+  test "ExtendAction sets additional_days" do
+    tests "ExtendAction", on: "EnforcementAction"
+    setup  "EnforceAction", action_id: "sample", action_type: "sample", target_id: "sample", reason: "sample", duration_days: 1
+    input  additional_days: 1
+    expect ok: "true"
+  end
+
+
+  # ── Appeal aggregate ──────────────────────────────────────────
+
+  test "FileAppeal sets appeal_id + appellant_id + grounds" do
+    tests "FileAppeal", on: "Appeal"
+    setup  "EnforceAction", action_id: "sample", action_type: "sample", target_id: "sample", reason: "sample", duration_days: 1
+    input  appeal_id: "sample", appellant_id: "sample", grounds: "sample"
+    expect status: "under_review"
+  end
+
+  test "GrantAppeal runs" do
+    tests "GrantAppeal", on: "Appeal"
+    setup  "FileAppeal", appeal_id: "sample", appellant_id: "sample", grounds: "sample"
+    expect ok: "true"
+  end
+
+  test "GrantAppeal cascades through policy chain" do
+    tests "GrantAppeal", on: "Appeal", kind: :cascade
+    setup  "EnforceAction", action_id: "sample", action_type: "sample", target_id: "sample", reason: "sample", duration_days: 1
+    setup  "FileAppeal", appeal_id: "sample", appellant_id: "sample", grounds: "sample"
+    expect emits: ["AppealGranted", "ActionLifted"]
+  end
+
+  test "DenyAppeal sets denial_reason" do
+    tests "DenyAppeal", on: "Appeal"
+    setup  "FileAppeal", appeal_id: "sample", appellant_id: "sample", grounds: "sample"
+    input  denial_reason: "sample"
+    expect ok: "true"
+  end
+
+end

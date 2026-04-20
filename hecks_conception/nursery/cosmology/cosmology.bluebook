@@ -610,7 +610,6 @@ Hecks.bluebook "Cosmology", version: "2026.04.11.1" do
       role "Cosmologist"
       description "Trace a filament of galaxies connecting clusters across megaparsecs"
       String :name
-      String :structure_type
       Float :scale
       emits "FilamentMapped"
       then_set :name, to: :name
@@ -677,9 +676,4 @@ Hecks.bluebook "Cosmology", version: "2026.04.11.1" do
 
   # === Fixtures — Cosmological Constants ===
 
-  fixture "Universe", name: "ObservableUniverse", age: 13.8e9, radius: 46.5e9, curvature: 0.0, expansion_rate: 67.4, total_mass: 1.5e53, geometry: "flat"
-  fixture "CosmicMicrowaveBackground", name: "CMBBlackbody", temperature: 2.725, anisotropy_amplitude: 1.0e-5, polarization_mode: "E-mode", angular_power_spectrum: "Planck2018", redshift: 1089.0
-  fixture "DarkEnergy", name: "CosmologicalConstant", energy_density: 6.91e-27, equation_of_state: -1.0, acceleration_rate: 73.3, cosmological_constant: 1.1056e-52
-  fixture "Spacetime", name: "SpeedOfLight", curvature: 0.0, metric_type: "Minkowski", dimension: 4, gravitational_wave_strain: 0.0
-  fixture "DarkMatter", name: "CosmicDarkMatter", halo_mass: 1.0e12, density: 2.241e-27, distribution: "NFW", lensing_strength: 0.0, candidate_type: "WIMP"
 end

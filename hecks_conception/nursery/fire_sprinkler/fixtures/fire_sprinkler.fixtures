@@ -1,0 +1,22 @@
+Hecks.fixtures "FireSprinkler" do
+  aggregate "SprinklerSystem" do
+    fixture "SprinklerSystem1", building_name: "Harbor Point Office Tower", address: "425 Oak Street, Suite 1200", system_type: "wet_pipe", pipe_material: "steel", design_density_gpm: 0.15, status: "active"
+    fixture "SprinklerSystem2", building_name: "Riverside Medical Center", address: "1200 Harbor Avenue", system_type: "dry_pipe", pipe_material: "copper", design_density_gpm: 0.20, status: "active"
+  end
+  aggregate "Zone" do
+    fixture "Zone1", zone_name: "North Wing 3rd Floor", floor: "3", head_count: 32, occupancy_type: "office"
+    fixture "Zone2", zone_name: "East Corridor 2nd Floor", floor: "2", head_count: 28, occupancy_type: "office"
+  end
+  aggregate "SprinklerHead" do
+    fixture "SprinklerHead1", head_type: "pendent", k_factor: 5.6, temp_rating_f: 155, orientation: "down", coverage_area: "100_sqft"
+    fixture "SprinklerHead2", head_type: "upright", k_factor: 8.0, temp_rating_f: 165, orientation: "up", coverage_area: "130_sqft"
+  end
+  aggregate "SprinklerInspection" do
+    fixture "SprinklerInspection1", inspection_type: "annual", inspector_name: "John Martinez", result: "pass", deficiencies: "", inspection_date: "2026-03-20"
+    fixture "SprinklerInspection2", inspection_type: "5year_flow", inspector_name: "Sarah Chen", result: "pass", deficiencies: "", inspection_date: "2025-11-15"
+  end
+  aggregate "ComplianceRecord" do
+    fixture "ComplianceRecord1", ahj_name: "County Fire Marshal", requirement: "annual_inspection", due_date: "2027-03-20", status: "compliant"
+    fixture "ComplianceRecord2", ahj_name: "City Building Department", requirement: "5year_flow_test", due_date: "2030-11-15", status: "compliant"
+  end
+end

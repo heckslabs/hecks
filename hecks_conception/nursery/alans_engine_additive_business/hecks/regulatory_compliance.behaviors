@@ -1,0 +1,317 @@
+Hecks.behaviors "RegulatoryCompliance" do
+  vision "Behavioral tests for the RegulatoryCompliance domain — exercises every command and query in memory"
+
+  # ── Jurisdiction aggregate ──────────────────────────────────────────
+
+  test "RegisterJurisdiction sets name + authority + region" do
+    tests "RegisterJurisdiction", on: "Jurisdiction"
+    input  name: "sample", authority: "sample", region: "sample"
+    expect name: "sample", authority: "sample", region: "sample", status: "active"
+  end
+
+  test "AddRegulation sets code + title + effective_date + applies_to + requirement + penalty" do
+    tests "AddRegulation", on: "Jurisdiction"
+    setup  "RegisterJurisdiction", name: "sample", authority: "sample", region: "sample"
+    input  code: "sample", title: "sample", effective_date: "sample", applies_to: "sample", requirement: "sample", penalty: "sample"
+    expect status: "active", regulations_size: 1
+  end
+
+  test "AddRegulation cascades through policy chain" do
+    tests "AddRegulation", on: "Jurisdiction", kind: :cascade
+    setup  "RegisterJurisdiction", name: "sample", authority: "sample", region: "sample"
+    setup  "IdentifyObligation", jurisdiction: "sample", regulation_code: "sample", obligation: "sample", frequency: "sample"
+    input  code: "sample", title: "sample", effective_date: "sample", applies_to: "sample", requirement: "sample", penalty: "sample"
+    expect emits: ["RegulationAdded", "ObligationIdentified"]
+  end
+
+  test "AmendRegulation sets code + requirement + penalty" do
+    tests "AmendRegulation", on: "Jurisdiction"
+    setup  "RegisterJurisdiction", name: "sample", authority: "sample", region: "sample"
+    input  code: "sample", requirement: "sample", penalty: "sample"
+    expect ok: "true"
+  end
+
+  test "RetireRegulation sets code" do
+    tests "RetireRegulation", on: "Jurisdiction"
+    setup  "RegisterJurisdiction", name: "sample", authority: "sample", region: "sample"
+    input  code: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ComplianceObligation aggregate ──────────────────────────────────────────
+
+  test "IdentifyObligation sets jurisdiction + regulation_code + obligation + frequency" do
+    tests "IdentifyObligation", on: "ComplianceObligation"
+    input  jurisdiction: "sample", regulation_code: "sample", obligation: "sample", frequency: "sample"
+    expect jurisdiction: "sample", regulation_code: "sample", obligation: "sample", frequency: "sample", status: "identified"
+  end
+
+  test "AssignResponsibility sets responsible_party" do
+    tests "AssignResponsibility", on: "ComplianceObligation"
+    setup  "IdentifyObligation", jurisdiction: "sample", regulation_code: "sample", obligation: "sample", frequency: "sample"
+    input  responsible_party: "sample"
+    expect responsible_party: "sample", status: "assigned"
+  end
+
+  test "ScheduleDeadline sets due_date" do
+    tests "ScheduleDeadline", on: "ComplianceObligation"
+    setup  "IdentifyObligation", jurisdiction: "sample", regulation_code: "sample", obligation: "sample", frequency: "sample"
+    setup  "AssignResponsibility", responsible_party: "sample"
+    input  due_date: "sample"
+    expect due_date: "sample", status: "scheduled"
+  end
+
+  test "MarkComplete runs" do
+    tests "MarkComplete", on: "ComplianceObligation"
+    setup  "IdentifyObligation", jurisdiction: "sample", regulation_code: "sample", obligation: "sample", frequency: "sample"
+    setup  "AssignResponsibility", responsible_party: "sample"
+    setup  "ScheduleDeadline", due_date: "sample"
+    expect status: "completed"
+  end
+
+  test "MarkComplete cascades through policy chain" do
+    tests "MarkComplete", on: "ComplianceObligation", kind: :cascade
+    setup  "IdentifyObligation", jurisdiction: "sample", regulation_code: "sample", obligation: "sample", frequency: "sample"
+    setup  "AssessReadiness", last_audit_date: "sample", next_expected: "sample", findings_open: 1, documents_current: 1, documents_expired: 1, readiness_score: 1.0
+    setup  "AssignResponsibility", responsible_party: "sample"
+    setup  "ScheduleDeadline", due_date: "sample"
+    expect emits: ["ObligationCompleted", "ReadinessAssessed"]
+  end
+
+  test "FlagOverdue runs" do
+    tests "FlagOverdue", on: "ComplianceObligation"
+    setup  "IdentifyObligation", jurisdiction: "sample", regulation_code: "sample", obligation: "sample", frequency: "sample"
+    setup  "AssignResponsibility", responsible_party: "sample"
+    setup  "ScheduleDeadline", due_date: "sample"
+    expect status: "overdue"
+  end
+
+  test "FlagOverdue cascades through policy chain" do
+    tests "FlagOverdue", on: "ComplianceObligation", kind: :cascade
+    setup  "IdentifyObligation", jurisdiction: "sample", regulation_code: "sample", obligation: "sample", frequency: "sample"
+    setup  "AssessReadiness", last_audit_date: "sample", next_expected: "sample", findings_open: 1, documents_current: 1, documents_expired: 1, readiness_score: 1.0
+    setup  "AssignResponsibility", responsible_party: "sample"
+    setup  "ScheduleDeadline", due_date: "sample"
+    expect emits: ["ObligationFlagged", "ReadinessAssessed"]
+  end
+
+
+  # ── SafetyDataSheet aggregate ──────────────────────────────────────────
+
+  test "DraftSDS sets formula_name + ghs_classification" do
+    tests "DraftSDS", on: "SafetyDataSheet"
+    input  formula_name: "sample", ghs_classification: "sample"
+    expect formula_name: "sample", ghs_classification: "sample", sds_version: 1, sections_complete: 0, status: "drafting"
+  end
+
+  test "CompleteSection runs" do
+    tests "CompleteSection", on: "SafetyDataSheet"
+    setup  "DraftSDS", formula_name: "sample", ghs_classification: "sample"
+    expect ok: "true"
+  end
+
+  test "ReviewSDS sets reviewer" do
+    tests "ReviewSDS", on: "SafetyDataSheet"
+    setup  "DraftSDS", formula_name: "sample", ghs_classification: "sample"
+    input  reviewer: "sample"
+    expect reviewer: "sample", status: "under_review"
+  end
+
+  test "ApproveSDS sets approved_date" do
+    tests "ApproveSDS", on: "SafetyDataSheet"
+    setup  "DraftSDS", formula_name: "sample", ghs_classification: "sample"
+    setup  "ReviewSDS", reviewer: "sample"
+    input  approved_date: "sample"
+    expect approved_date: "sample", status: "approved"
+  end
+
+  test "PublishSDS runs" do
+    tests "PublishSDS", on: "SafetyDataSheet"
+    setup  "DraftSDS", formula_name: "sample", ghs_classification: "sample"
+    setup  "ReviewSDS", reviewer: "sample"
+    setup  "ApproveSDS", approved_date: "sample"
+    expect status: "published"
+  end
+
+  test "ReviseSDS runs" do
+    tests "ReviseSDS", on: "SafetyDataSheet"
+    setup  "DraftSDS", formula_name: "sample", ghs_classification: "sample"
+    setup  "ReviewSDS", reviewer: "sample"
+    setup  "ApproveSDS", approved_date: "sample"
+    setup  "PublishSDS"
+    expect sections_complete: 0, status: "drafting"
+  end
+
+
+  # ── LabelCompliance aggregate ──────────────────────────────────────────
+
+  test "AuditLabel sets product_sku + jurisdiction" do
+    tests "AuditLabel", on: "LabelCompliance"
+    input  product_sku: "sample", jurisdiction: "sample", required_elements: "sample_labelelement"
+    expect product_sku: "sample", jurisdiction: "sample", required_elements: "sample_labelelement", status: "audited"
+  end
+
+  test "IdentifyGap runs" do
+    tests "IdentifyGap", on: "LabelCompliance"
+    setup  "AuditLabel", product_sku: "sample", jurisdiction: "sample", required_elements: "sample_labelelement"
+    expect status: "gap_found"
+  end
+
+  test "CorrectLabel runs" do
+    tests "CorrectLabel", on: "LabelCompliance"
+    setup  "AuditLabel", product_sku: "sample", jurisdiction: "sample", required_elements: "sample_labelelement"
+    setup  "IdentifyGap"
+    input  required_elements: "sample_labelelement"
+    expect required_elements: "sample_labelelement", status: "corrected"
+  end
+
+  test "CertifyLabel runs" do
+    tests "CertifyLabel", on: "LabelCompliance"
+    setup  "AuditLabel", product_sku: "sample", jurisdiction: "sample", required_elements: "sample_labelelement"
+    expect status: "certified"
+  end
+
+
+  # ── HazmatShipping aggregate ──────────────────────────────────────────
+
+  test "ClassifyShipment sets product_sku + un_number + proper_shipping_name + hazard_class + packing_group + special_provisions" do
+    tests "ClassifyShipment", on: "HazmatShipping"
+    input  product_sku: "sample", un_number: "sample", proper_shipping_name: "sample", hazard_class: "sample", packing_group: "sample", special_provisions: "sample"
+    expect product_sku: "sample", un_number: "sample", proper_shipping_name: "sample", hazard_class: "sample", packing_group: "sample", special_provisions: "sample", status: "classified"
+  end
+
+  test "GenerateShippingPaper runs" do
+    tests "GenerateShippingPaper", on: "HazmatShipping"
+    setup  "ClassifyShipment", product_sku: "sample", un_number: "sample", proper_shipping_name: "sample", hazard_class: "sample", packing_group: "sample", special_provisions: "sample"
+    expect status: "documented"
+  end
+
+  test "ValidatePackaging runs" do
+    tests "ValidatePackaging", on: "HazmatShipping"
+    setup  "ClassifyShipment", product_sku: "sample", un_number: "sample", proper_shipping_name: "sample", hazard_class: "sample", packing_group: "sample", special_provisions: "sample"
+    setup  "GenerateShippingPaper"
+    expect status: "validated"
+  end
+
+  test "CertifyCompliance runs" do
+    tests "CertifyCompliance", on: "HazmatShipping"
+    setup  "ClassifyShipment", product_sku: "sample", un_number: "sample", proper_shipping_name: "sample", hazard_class: "sample", packing_group: "sample", special_provisions: "sample"
+    setup  "GenerateShippingPaper"
+    setup  "ValidatePackaging"
+    expect status: "certified"
+  end
+
+
+  # ── EnvironmentalReport aggregate ──────────────────────────────────────────
+
+  test "CalculateVOC sets reporting_period + jurisdiction + voc_content + voc_limit" do
+    tests "CalculateVOC", on: "EnvironmentalReport"
+    input  reporting_period: "sample", jurisdiction: "sample", voc_content: 1.0, voc_limit: 1.0
+    expect reporting_period: "sample", jurisdiction: "sample", voc_content: 1.0, voc_limit: 1.0, filed: "false", status: "calculated"
+  end
+
+  test "PrepareReport sets waste_generated + disposal_method" do
+    tests "PrepareReport", on: "EnvironmentalReport"
+    setup  "CalculateVOC", reporting_period: "sample", jurisdiction: "sample", voc_content: 1.0, voc_limit: 1.0
+    input  waste_generated: 1.0, disposal_method: "sample"
+    expect waste_generated: 1.0, disposal_method: "sample", status: "prepared"
+  end
+
+  test "FileReport runs" do
+    tests "FileReport", on: "EnvironmentalReport"
+    setup  "CalculateVOC", reporting_period: "sample", jurisdiction: "sample", voc_content: 1.0, voc_limit: 1.0
+    setup  "PrepareReport", waste_generated: 1.0, disposal_method: "sample"
+    expect filed: "true", status: "filed"
+  end
+
+  test "TrackWaste sets waste_generated + disposal_method" do
+    tests "TrackWaste", on: "EnvironmentalReport"
+    setup  "CalculateVOC", reporting_period: "sample", jurisdiction: "sample", voc_content: 1.0, voc_limit: 1.0
+    input  waste_generated: 1.0, disposal_method: "sample"
+    expect waste_generated: 1.0, disposal_method: "sample"
+  end
+
+
+  # ── AuditReadiness aggregate ──────────────────────────────────────────
+
+  test "AssessReadiness sets last_audit_date + next_expected + findings_open + documents_current + documents_expired + readiness_score" do
+    tests "AssessReadiness", on: "AuditReadiness"
+    input  last_audit_date: "sample", next_expected: "sample", findings_open: 1, documents_current: 1, documents_expired: 1, readiness_score: 1.0
+    expect last_audit_date: "sample", next_expected: "sample", findings_open: 1, documents_current: 1, documents_expired: 1, readiness_score: 1.0
+  end
+
+  test "IdentifyExpiredDocuments sets documents_expired" do
+    tests "IdentifyExpiredDocuments", on: "AuditReadiness"
+    setup  "AssessReadiness", last_audit_date: "sample", next_expected: "sample", findings_open: 1, documents_current: 1, documents_expired: 1, readiness_score: 1.0
+    input  documents_expired: 1
+    expect documents_expired: 1
+  end
+
+  test "GenerateAuditPackage runs" do
+    tests "GenerateAuditPackage", on: "AuditReadiness"
+    setup  "AssessReadiness", last_audit_date: "sample", next_expected: "sample", findings_open: 1, documents_current: 1, documents_expired: 1, readiness_score: 1.0
+    expect ok: "true"
+  end
+
+  test "SimulateInspection sets findings_open + readiness_score" do
+    tests "SimulateInspection", on: "AuditReadiness"
+    setup  "AssessReadiness", last_audit_date: "sample", next_expected: "sample", findings_open: 1, documents_current: 1, documents_expired: 1, readiness_score: 1.0
+    input  findings_open: 1, readiness_score: 1.0
+    expect findings_open: 1, readiness_score: 1.0
+  end
+
+  test "CloseAuditFinding runs" do
+    tests "CloseAuditFinding", on: "AuditReadiness"
+    setup  "AssessReadiness", last_audit_date: "sample", next_expected: "sample", findings_open: 1, documents_current: 1, documents_expired: 1, readiness_score: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── RegulatoryChange aggregate ──────────────────────────────────────────
+
+  test "DetectChange sets jurisdiction + regulation_code + change_description + effective_date" do
+    tests "DetectChange", on: "RegulatoryChange"
+    input  jurisdiction: "sample", regulation_code: "sample", change_description: "sample", effective_date: "sample"
+    expect jurisdiction: "sample", regulation_code: "sample", change_description: "sample", effective_date: "sample", status: "detected"
+  end
+
+  test "DetectChange cascades through policy chain" do
+    tests "DetectChange", on: "RegulatoryChange", kind: :cascade
+    input  jurisdiction: "sample", regulation_code: "sample", change_description: "sample", effective_date: "sample"
+    expect emits: ["RegulatoryChangeDetected", "ImpactAssessed"]
+  end
+
+  test "AssessImpact sets impact_assessment" do
+    tests "AssessImpact", on: "RegulatoryChange"
+    setup  "DetectChange", jurisdiction: "sample", regulation_code: "sample", change_description: "sample", effective_date: "sample"
+    input  impact_assessment: "sample"
+    expect impact_assessment: "sample", status: "assessed"
+  end
+
+  test "PlanResponse sets action_required" do
+    tests "PlanResponse", on: "RegulatoryChange"
+    setup  "DetectChange", jurisdiction: "sample", regulation_code: "sample", change_description: "sample", effective_date: "sample"
+    setup  "AssessImpact", impact_assessment: "sample"
+    input  action_required: "sample"
+    expect action_required: "sample", status: "planned"
+  end
+
+  test "ImplementChange runs" do
+    tests "ImplementChange", on: "RegulatoryChange"
+    setup  "DetectChange", jurisdiction: "sample", regulation_code: "sample", change_description: "sample", effective_date: "sample"
+    setup  "AssessImpact", impact_assessment: "sample"
+    setup  "PlanResponse", action_required: "sample"
+    expect status: "implemented"
+  end
+
+  test "VerifyCompliance runs" do
+    tests "VerifyCompliance", on: "RegulatoryChange"
+    setup  "DetectChange", jurisdiction: "sample", regulation_code: "sample", change_description: "sample", effective_date: "sample"
+    setup  "AssessImpact", impact_assessment: "sample"
+    setup  "PlanResponse", action_required: "sample"
+    setup  "ImplementChange"
+    expect status: "verified"
+  end
+
+end

@@ -1,0 +1,165 @@
+Hecks.behaviors "SEOAgency" do
+  vision "Behavioral tests for the SEOAgency domain — exercises every command and query in memory"
+
+  # ── Client aggregate ──────────────────────────────────────────
+
+  test "SignClient sets client_name + website_url + industry + contact_email + plan_tier" do
+    tests "SignClient", on: "Client"
+    input  client_name: "sample", website_url: "sample", industry: "sample", contact_email: "sample", plan_tier: "sample"
+    expect status: "active"
+  end
+
+  test "SignClient cascades through policy chain" do
+    tests "SignClient", on: "Client", kind: :cascade
+    setup  "RunAudit", audit_id: "sample", audit_type: "sample", pages_crawled: 1
+    input  client_name: "sample", website_url: "sample", industry: "sample", contact_email: "sample", plan_tier: "sample"
+    expect emits: ["ClientSigned", "AuditRun"]
+  end
+
+  test "PauseEngagement runs" do
+    tests "PauseEngagement", on: "Client"
+    setup  "SignClient", client_name: "sample", website_url: "sample", industry: "sample", contact_email: "sample", plan_tier: "sample"
+    expect ok: "true"
+  end
+
+  test "TerminateClient runs" do
+    tests "TerminateClient", on: "Client"
+    setup  "SignClient", client_name: "sample", website_url: "sample", industry: "sample", contact_email: "sample", plan_tier: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Keyword aggregate ──────────────────────────────────────────
+
+  test "TargetKeyword sets phrase + search_volume + difficulty_score + intent_type" do
+    tests "TargetKeyword", on: "Keyword"
+    setup  "SignClient", client_name: "sample", website_url: "sample", industry: "sample", contact_email: "sample", plan_tier: "sample"
+    input  phrase: "sample", search_volume: 1, difficulty_score: 1.0, intent_type: "sample"
+    expect ok: "true"
+  end
+
+  test "TargetKeyword cascades through policy chain" do
+    tests "TargetKeyword", on: "Keyword", kind: :cascade
+    setup  "SignClient", client_name: "sample", website_url: "sample", industry: "sample", contact_email: "sample", plan_tier: "sample"
+    setup  "AcquireBacklink", backlink_id: "sample", source_url: "sample", target_url: "sample", domain_authority: 1.0, anchor_text: "sample"
+    setup  "GenerateReport", report_id: "sample", period: "sample"
+    input  phrase: "sample", search_volume: 1, difficulty_score: 1.0, intent_type: "sample"
+    expect emits: ["KeywordTargeted", "BacklinkAcquired", "RankingRecorded", "ReportGenerated", "ReportDelivered"]
+  end
+
+  test "RecordRanking sets position + search_engine" do
+    tests "RecordRanking", on: "Keyword"
+    setup  "TargetKeyword", phrase: "sample", search_volume: 1, difficulty_score: 1.0, intent_type: "sample"
+    input  position: 1, search_engine: "sample"
+    expect ok: "true"
+  end
+
+  test "RecordRanking cascades through policy chain" do
+    tests "RecordRanking", on: "Keyword", kind: :cascade
+    setup  "TargetKeyword", phrase: "sample", search_volume: 1, difficulty_score: 1.0, intent_type: "sample"
+    setup  "GenerateReport", report_id: "sample", period: "sample"
+    setup  "SignClient", client_name: "sample", website_url: "sample", industry: "sample", contact_email: "sample", plan_tier: "sample"
+    input  position: 1, search_engine: "sample"
+    expect emits: ["RankingRecorded", "ReportGenerated", "ReportDelivered"]
+  end
+
+  test "DropKeyword runs" do
+    tests "DropKeyword", on: "Keyword"
+    setup  "TargetKeyword", phrase: "sample", search_volume: 1, difficulty_score: 1.0, intent_type: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SiteAudit aggregate ──────────────────────────────────────────
+
+  test "RunAudit sets audit_id + audit_type + pages_crawled" do
+    tests "RunAudit", on: "SiteAudit"
+    setup  "SignClient", client_name: "sample", website_url: "sample", industry: "sample", contact_email: "sample", plan_tier: "sample"
+    input  audit_id: "sample", audit_type: "sample", pages_crawled: 1
+    expect status: "in_progress"
+  end
+
+  test "LogIssue sets page_url + issue_type + severity" do
+    tests "LogIssue", on: "SiteAudit"
+    setup  "RunAudit", audit_id: "sample", audit_type: "sample", pages_crawled: 1
+    input  page_url: "sample", issue_type: "sample", severity: "sample"
+    expect ok: "true"
+  end
+
+  test "FinalizeAudit runs" do
+    tests "FinalizeAudit", on: "SiteAudit"
+    setup  "RunAudit", audit_id: "sample", audit_type: "sample", pages_crawled: 1
+    expect ok: "true"
+  end
+
+  test "FinalizeAudit cascades through policy chain" do
+    tests "FinalizeAudit", on: "SiteAudit", kind: :cascade
+    setup  "TargetKeyword", phrase: "sample", search_volume: 1, difficulty_score: 1.0, intent_type: "sample"
+    setup  "SignClient", client_name: "sample", website_url: "sample", industry: "sample", contact_email: "sample", plan_tier: "sample"
+    setup  "AcquireBacklink", backlink_id: "sample", source_url: "sample", target_url: "sample", domain_authority: 1.0, anchor_text: "sample"
+    setup  "GenerateReport", report_id: "sample", period: "sample"
+    setup  "RunAudit", audit_id: "sample", audit_type: "sample", pages_crawled: 1
+    expect emits: ["AuditFinalized", "KeywordTargeted", "BacklinkAcquired", "RankingRecorded", "ReportGenerated", "ReportDelivered"]
+  end
+
+
+  # ── Backlink aggregate ──────────────────────────────────────────
+
+  test "AcquireBacklink sets backlink_id + source_url + target_url + domain_authority + anchor_text" do
+    tests "AcquireBacklink", on: "Backlink"
+    setup  "SignClient", client_name: "sample", website_url: "sample", industry: "sample", contact_email: "sample", plan_tier: "sample"
+    input  backlink_id: "sample", source_url: "sample", target_url: "sample", domain_authority: 1.0, anchor_text: "sample"
+    expect status: "active"
+  end
+
+  test "AcquireBacklink cascades through policy chain" do
+    tests "AcquireBacklink", on: "Backlink", kind: :cascade
+    setup  "SignClient", client_name: "sample", website_url: "sample", industry: "sample", contact_email: "sample", plan_tier: "sample"
+    setup  "TargetKeyword", phrase: "sample", search_volume: 1, difficulty_score: 1.0, intent_type: "sample"
+    setup  "GenerateReport", report_id: "sample", period: "sample"
+    input  backlink_id: "sample", source_url: "sample", target_url: "sample", domain_authority: 1.0, anchor_text: "sample"
+    expect emits: ["BacklinkAcquired", "RankingRecorded", "ReportGenerated", "ReportDelivered"]
+  end
+
+  test "VerifyBacklink runs" do
+    tests "VerifyBacklink", on: "Backlink"
+    setup  "AcquireBacklink", backlink_id: "sample", source_url: "sample", target_url: "sample", domain_authority: 1.0, anchor_text: "sample"
+    expect ok: "true"
+  end
+
+  test "DisavowBacklink runs" do
+    tests "DisavowBacklink", on: "Backlink"
+    setup  "AcquireBacklink", backlink_id: "sample", source_url: "sample", target_url: "sample", domain_authority: 1.0, anchor_text: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── RankingReport aggregate ──────────────────────────────────────────
+
+  test "GenerateReport sets report_id + period" do
+    tests "GenerateReport", on: "RankingReport"
+    setup  "SignClient", client_name: "sample", website_url: "sample", industry: "sample", contact_email: "sample", plan_tier: "sample"
+    input  report_id: "sample", period: "sample"
+    expect status: "ready"
+  end
+
+  test "GenerateReport cascades through policy chain" do
+    tests "GenerateReport", on: "RankingReport", kind: :cascade
+    setup  "SignClient", client_name: "sample", website_url: "sample", industry: "sample", contact_email: "sample", plan_tier: "sample"
+    input  report_id: "sample", period: "sample"
+    expect emits: ["ReportGenerated", "ReportDelivered"]
+  end
+
+  test "DeliverReport runs" do
+    tests "DeliverReport", on: "RankingReport"
+    setup  "GenerateReport", report_id: "sample", period: "sample"
+    expect ok: "true"
+  end
+
+  test "ArchiveReport runs" do
+    tests "ArchiveReport", on: "RankingReport"
+    setup  "GenerateReport", report_id: "sample", period: "sample"
+    expect ok: "true"
+  end
+
+end

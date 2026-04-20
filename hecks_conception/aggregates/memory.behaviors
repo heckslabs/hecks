@@ -1,0 +1,67 @@
+Hecks.behaviors "Memory" do
+  vision "Behavioral tests for the Memory domain — exercises every command and query in memory"
+
+  # ── Encoding aggregate ──────────────────────────────────────────
+
+  test "EncodeMemory sets kind + subject + content" do
+    tests "EncodeMemory", on: "Encoding"
+    input  kind: "sample", subject: "sample", content: "sample"
+    expect kind: "sample", subject: "sample", content: "sample", announced: "yes"
+  end
+
+
+  # ── Recall aggregate ──────────────────────────────────────────
+
+  test "RecallMemory sets query" do
+    tests "RecallMemory", on: "Recall"
+    input  query: "sample"
+    expect query: "sample"
+  end
+
+  test "RecordHit sets found + source" do
+    tests "RecordHit", on: "Recall"
+    setup  "RecallMemory", query: "sample"
+    input  found: "sample", source: "sample"
+    expect found: "sample", source: "sample"
+  end
+
+
+  # ── Consolidation aggregate ──────────────────────────────────────────
+
+  test "ConsolidateSignals sets signals_consolidated + memories_created" do
+    tests "ConsolidateSignals", on: "Consolidation"
+    input  signals_consolidated: 1, memories_created: 1
+    expect signals_consolidated: 1, memories_created: 1
+  end
+
+  test "ConsolidateSignals cascades through policy chain" do
+    tests "ConsolidateSignals", on: "Consolidation", kind: :cascade
+    input  signals_consolidated: 1, memories_created: 1
+    expect emits: ["SignalsConsolidated", "MemoryEncoded"]
+  end
+
+
+  # ── Store aggregate ──────────────────────────────────────────
+
+  test "StoreMemory sets kind + payload + source + created_at" do
+    tests "StoreMemory", on: "Store"
+    input  kind: "concept", payload: "sample", source: "signal", created_at: "now"
+    expect kind: "concept", payload: "sample", source: "signal", created_at: "now"
+  end
+
+
+  # ── Forgetting aggregate ──────────────────────────────────────────
+
+  test "ForgetMemory sets forgotten + reason" do
+    tests "ForgetMemory", on: "Forgetting"
+    input  forgotten: "sample", reason: "sample"
+    expect forgotten: "sample", reason: "sample", composted: "yes"
+  end
+
+  test "ForgetMemory cascades through policy chain" do
+    tests "ForgetMemory", on: "Forgetting", kind: :cascade
+    input  forgotten: "sample", reason: "sample"
+    expect emits: ["MemoryForgotten", "SignalsConsolidated", "MemoryEncoded"]
+  end
+
+end

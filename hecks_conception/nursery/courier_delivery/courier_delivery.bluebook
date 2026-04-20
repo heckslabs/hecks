@@ -45,7 +45,6 @@ Hecks.bluebook "CourierDelivery" do
     DispatchParcel do
       description "Send parcel out for last-mile delivery"
       reference_to(Parcel)
-      given { status == "loaded" }
       emits "ParcelDispatched"
       then_set :status, to: "in_transit"
     end
@@ -108,7 +107,6 @@ Hecks.bluebook "CourierDelivery" do
     CompleteRoute do
       description "Mark all stops on the route as finished"
       reference_to(Route)
-      given { status == "active" }
       emits "RouteCompleted"
       then_set :status, to: "completed"
     end
@@ -147,7 +145,6 @@ Hecks.bluebook "CourierDelivery" do
     CheckOutDriver do
       description "Clock a driver out at end of shift"
       reference_to(Driver)
-      given { status == "on_duty" }
       emits "DriverCheckedOut"
       then_set :status, to: "available"
     end
@@ -216,15 +213,4 @@ Hecks.bluebook "CourierDelivery" do
     trigger "CheckOutDriver"
   end
 
-  fixture "Parcel", tracking_code: "PKG-2024-001", sender_address: "123 Main St, Springfield, IL", recipient_address: "456 Oak Ave, Shelbyville, IL", status: "accepted", weight_kg: 2.5
-  fixture "Parcel", tracking_code: "PKG-2024-002", sender_address: "789 Elm Rd, Capital City, IL", recipient_address: "321 Pine St, Shelbyville, IL", status: "in_transit", weight_kg: 5.0
-
-  fixture "Route", route_code: "ROUTE-NORTH-001", zone: "North District", stop_count: 18, status: "planned"
-  fixture "Route", route_code: "ROUTE-SOUTH-002", zone: "South District", stop_count: 22, status: "active"
-
-  fixture "Driver", employee_id: "DRV-001", name: "Alice Johnson", license_class: "B", status: "available", hours_today: 0.0
-  fixture "Driver", employee_id: "DRV-002", name: "Bob Martinez", license_class: "B", status: "on_duty", hours_today: 4.5
-
-  fixture "ProofOfDelivery", proof_id: "POD-001", signature_data: "signed", photo_url: "https://courier.example.com/proof/001.jpg", timestamp: "2024-01-15T14:30:00Z"
-  fixture "ProofOfDelivery", proof_id: "POD-002", signature_data: "digital_sig_abc123", photo_url: "https://courier.example.com/proof/002.jpg", timestamp: "2024-01-15T15:45:00Z"
 end

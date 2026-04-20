@@ -1,0 +1,152 @@
+Hecks.behaviors "OnlineAuction" do
+  vision "Behavioral tests for the OnlineAuction domain — exercises every command and query in memory"
+
+  # ── Lot aggregate ──────────────────────────────────────────
+
+  test "ListLot sets lot_number + title + description + category + starting_price + reserve_price + auction_end" do
+    tests "ListLot", on: "Lot"
+    input  lot_number: "sample", title: "sample", description: "sample", category: "sample", starting_price: 1.0, reserve_price: 1.0, auction_end: "sample"
+    expect status: "active"
+  end
+
+  test "ListLot cascades through policy chain" do
+    tests "ListLot", on: "Lot", kind: :cascade
+    setup  "RegisterSeller", seller_id: "sample", name: "sample", email: "sample"
+    input  lot_number: "sample", title: "sample", description: "sample", category: "sample", starting_price: 1.0, reserve_price: 1.0, auction_end: "sample"
+    expect emits: ["LotListed", "SellerVerified"]
+  end
+
+  test "CloseLot runs" do
+    tests "CloseLot", on: "Lot"
+    setup  "ListLot", lot_number: "sample", title: "sample", description: "sample", category: "sample", starting_price: 1.0, reserve_price: 1.0, auction_end: "sample"
+    expect ok: "true"
+  end
+
+  test "CloseLot cascades through policy chain" do
+    tests "CloseLot", on: "Lot", kind: :cascade
+    setup  "SettleLot", settlement_id: "sample", hammer_price: 1.0, buyer_premium: 1.0, seller_commission: 1.0
+    setup  "ListLot", lot_number: "sample", title: "sample", description: "sample", category: "sample", starting_price: 1.0, reserve_price: 1.0, auction_end: "sample"
+    expect emits: ["LotClosed", "LotSettled", "SellerDisbursed"]
+  end
+
+  test "WithdrawLot runs" do
+    tests "WithdrawLot", on: "Lot"
+    setup  "ListLot", lot_number: "sample", title: "sample", description: "sample", category: "sample", starting_price: 1.0, reserve_price: 1.0, auction_end: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Bid aggregate ──────────────────────────────────────────
+
+  test "PlaceBid sets bid_id + amount + bidder_name + bidder_email" do
+    tests "PlaceBid", on: "Bid"
+    setup  "ListLot", lot_number: "sample", title: "sample", description: "sample", category: "sample", starting_price: 1.0, reserve_price: 1.0, auction_end: "sample"
+    input  bid_id: "sample", amount: 1.0, bidder_name: "sample", bidder_email: "sample"
+    expect bid_id: "sample", amount: 1.0, bidder_name: "sample", bidder_email: "sample"
+  end
+
+  test "FlagSuspiciousBid cascades through policy chain" do
+    tests "FlagSuspiciousBid", on: "Bid", kind: :cascade
+    setup  "PlaceBid", bid_id: "sample", amount: 1.0, bidder_name: "sample", bidder_email: "sample"
+    setup  "OpenDispute", dispute_id: "sample", complainant: "sample", reason: "sample", description: "sample"
+    setup  "RegisterSeller", seller_id: "sample", name: "sample", email: "sample"
+    expect emits: ["BidFlagged", "DisputeEscalated", "SellerSuspended"]
+  end
+
+
+  # ── Seller aggregate ──────────────────────────────────────────
+
+  test "RegisterSeller sets seller_id + name + email" do
+    tests "RegisterSeller", on: "Seller"
+    input  seller_id: "sample", name: "sample", email: "sample"
+    expect seller_id: "sample", name: "sample", email: "sample"
+  end
+
+  test "VerifySeller runs" do
+    tests "VerifySeller", on: "Seller"
+    setup  "RegisterSeller", seller_id: "sample", name: "sample", email: "sample"
+    expect status: "active"
+  end
+
+  test "SuspendSeller runs" do
+    tests "SuspendSeller", on: "Seller"
+    setup  "RegisterSeller", seller_id: "sample", name: "sample", email: "sample"
+    expect status: "suspended"
+  end
+
+
+  # ── AuctionSettlement aggregate ──────────────────────────────────────────
+
+  test "SettleLot sets settlement_id + hammer_price + buyer_premium + seller_commission" do
+    tests "SettleLot", on: "AuctionSettlement"
+    setup  "ListLot", lot_number: "sample", title: "sample", description: "sample", category: "sample", starting_price: 1.0, reserve_price: 1.0, auction_end: "sample"
+    input  settlement_id: "sample", hammer_price: 1.0, buyer_premium: 1.0, seller_commission: 1.0
+    expect status: "pending"
+  end
+
+  test "SettleLot cascades through policy chain" do
+    tests "SettleLot", on: "AuctionSettlement", kind: :cascade
+    setup  "ListLot", lot_number: "sample", title: "sample", description: "sample", category: "sample", starting_price: 1.0, reserve_price: 1.0, auction_end: "sample"
+    input  settlement_id: "sample", hammer_price: 1.0, buyer_premium: 1.0, seller_commission: 1.0
+    expect emits: ["LotSettled", "SellerDisbursed"]
+  end
+
+  test "DisburseToSeller runs" do
+    tests "DisburseToSeller", on: "AuctionSettlement"
+    setup  "SettleLot", settlement_id: "sample", hammer_price: 1.0, buyer_premium: 1.0, seller_commission: 1.0
+    expect ok: "true"
+  end
+
+  test "HoldSettlement sets hold_reason" do
+    tests "HoldSettlement", on: "AuctionSettlement"
+    setup  "SettleLot", settlement_id: "sample", hammer_price: 1.0, buyer_premium: 1.0, seller_commission: 1.0
+    input  hold_reason: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Dispute aggregate ──────────────────────────────────────────
+
+  test "OpenDispute sets dispute_id + complainant + reason + description" do
+    tests "OpenDispute", on: "Dispute"
+    setup  "SettleLot", settlement_id: "sample", hammer_price: 1.0, buyer_premium: 1.0, seller_commission: 1.0
+    input  dispute_id: "sample", complainant: "sample", reason: "sample", description: "sample"
+    expect dispute_id: "sample", complainant: "sample", reason: "sample", description: "sample", status: "open"
+  end
+
+  test "OpenDispute cascades through policy chain" do
+    tests "OpenDispute", on: "Dispute", kind: :cascade
+    setup  "SettleLot", settlement_id: "sample", hammer_price: 1.0, buyer_premium: 1.0, seller_commission: 1.0
+    input  dispute_id: "sample", complainant: "sample", reason: "sample", description: "sample"
+    expect emits: ["DisputeOpened", "SettlementHeld"]
+  end
+
+  test "ResolveDispute sets resolution" do
+    tests "ResolveDispute", on: "Dispute"
+    setup  "OpenDispute", dispute_id: "sample", complainant: "sample", reason: "sample", description: "sample"
+    input  resolution: "sample"
+    expect ok: "true"
+  end
+
+  test "ResolveDispute cascades through policy chain" do
+    tests "ResolveDispute", on: "Dispute", kind: :cascade
+    setup  "SettleLot", settlement_id: "sample", hammer_price: 1.0, buyer_premium: 1.0, seller_commission: 1.0
+    setup  "OpenDispute", dispute_id: "sample", complainant: "sample", reason: "sample", description: "sample"
+    input  resolution: "sample"
+    expect emits: ["DisputeResolved", "SellerDisbursed"]
+  end
+
+  test "EscalateDispute runs" do
+    tests "EscalateDispute", on: "Dispute"
+    setup  "OpenDispute", dispute_id: "sample", complainant: "sample", reason: "sample", description: "sample"
+    expect ok: "true"
+  end
+
+  test "EscalateDispute cascades through policy chain" do
+    tests "EscalateDispute", on: "Dispute", kind: :cascade
+    setup  "OpenDispute", dispute_id: "sample", complainant: "sample", reason: "sample", description: "sample"
+    setup  "RegisterSeller", seller_id: "sample", name: "sample", email: "sample"
+    expect emits: ["DisputeEscalated", "SellerSuspended"]
+  end
+
+end

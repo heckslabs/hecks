@@ -1,0 +1,65 @@
+Hecks.behaviors "PharmacyOutreach" do
+  vision "Behavioral tests for the PharmacyOutreach domain — exercises every command and query in memory"
+
+  # ── Prescription aggregate ──────────────────────────────────────────
+
+  test "FillPrescription sets rx_number + patient_name + drug_name + refills_remaining" do
+    tests "FillPrescription", on: "Prescription"
+    input  rx_number: "sample", patient_name: "sample", drug_name: "sample", refills_remaining: 1
+    expect rx_number: "sample", patient_name: "sample", drug_name: "sample", refills_remaining: 1, status: "active"
+  end
+
+  test "FillPrescription cascades through policy chain" do
+    tests "FillPrescription", on: "Prescription", kind: :cascade
+    setup  "ScheduleReminder", reminder_id: "sample", rx_number: "sample", channel: "sample", scheduled_date: "sample"
+    input  rx_number: "sample", patient_name: "sample", drug_name: "sample", refills_remaining: 1
+    expect emits: ["PrescriptionFilled", "ReminderScheduled"]
+  end
+
+
+  # ── Reminder aggregate ──────────────────────────────────────────
+
+  test "ScheduleReminder sets reminder_id + rx_number + channel + scheduled_date" do
+    tests "ScheduleReminder", on: "Reminder"
+    input  reminder_id: "sample", rx_number: "sample", channel: "sample", scheduled_date: "sample"
+    expect reminder_id: "sample", rx_number: "sample", channel: "sample", scheduled_date: "sample", status: "pending"
+  end
+
+  test "SendReminder runs" do
+    tests "SendReminder", on: "Reminder"
+    setup  "ScheduleReminder", reminder_id: "sample", rx_number: "sample", channel: "sample", scheduled_date: "sample"
+    expect status: "sent"
+  end
+
+  test "SendReminder cascades through policy chain" do
+    tests "SendReminder", on: "Reminder", kind: :cascade
+    setup  "TrackEngagement", patient_id: "sample", campaign_name: "sample", action_type: "sample", timestamp: "sample"
+    setup  "ScheduleReminder", reminder_id: "sample", rx_number: "sample", channel: "sample", scheduled_date: "sample"
+    expect emits: ["ReminderSent", "EngagementTracked"]
+  end
+
+
+  # ── Campaign aggregate ──────────────────────────────────────────
+
+  test "LaunchCampaign sets campaign_name + target_segment + audience_size" do
+    tests "LaunchCampaign", on: "Campaign"
+    input  campaign_name: "sample", target_segment: "sample", audience_size: 1
+    expect campaign_name: "sample", target_segment: "sample", audience_size: 1, status: "active"
+  end
+
+  test "PauseCampaign runs" do
+    tests "PauseCampaign", on: "Campaign"
+    setup  "LaunchCampaign", campaign_name: "sample", target_segment: "sample", audience_size: 1
+    expect status: "paused"
+  end
+
+
+  # ── Engagement aggregate ──────────────────────────────────────────
+
+  test "TrackEngagement sets patient_id + campaign_name + action_type + timestamp" do
+    tests "TrackEngagement", on: "Engagement"
+    input  patient_id: "sample", campaign_name: "sample", action_type: "sample", timestamp: "sample"
+    expect patient_id: "sample", campaign_name: "sample", action_type: "sample", timestamp: "sample"
+  end
+
+end

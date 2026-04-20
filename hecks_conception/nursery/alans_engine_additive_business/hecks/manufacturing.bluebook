@@ -85,27 +85,16 @@ Hecks.bluebook "Manufacturing", version: "2026.04.11.1" do
   end
 
   # Draft orders
-  fixture "ManufacturingOrder", order_number: "MO-2026-004", manufacturer: "PetroBlend Industries", formula_name: "DuraLube Advanced Engine Treatment", quantity: 10000, unit: "gallons", requested_delivery: "2026-05-20", status: "draft"
-  fixture "ManufacturingOrder", order_number: "MO-2026-008", manufacturer: "PetroBlend Industries", formula_name: "DuraLube Diesel Defense", quantity: 1500, unit: "gallons", requested_delivery: "2026-06-15", status: "draft"
 
   # Placed orders
-  fixture "ManufacturingOrder", order_number: "MO-2026-002", manufacturer: "PetroBlend Industries", formula_name: "MotorKote Hyper Lubricant", quantity: 3000, unit: "gallons", requested_delivery: "2026-05-10", status: "placed"
-  fixture "ManufacturingOrder", order_number: "MO-2026-009", manufacturer: "ChemBlend Corp", formula_name: "Slick 50 Turbo Shield", quantity: 2000, unit: "gallons", requested_delivery: "2026-06-01", status: "placed"
 
   # In production
-  fixture "ManufacturingOrder", order_number: "MO-2026-001", manufacturer: "PetroBlend Industries", formula_name: "DuraLube Advanced Engine Treatment", quantity: 5000, unit: "gallons", requested_delivery: "2026-04-25", status: "in_production", lot_number: "LOT-DL-20260411", batch_record_number: "BR-001"
-  fixture "ManufacturingOrder", order_number: "MO-2026-010", manufacturer: "PetroBlend Industries", formula_name: "DuraLube High-Mileage Protector", quantity: 3000, unit: "gallons", requested_delivery: "2026-05-15", status: "in_production", lot_number: "LOT-DL-20260502", batch_record_number: "BR-010"
 
   # Shipped
-  fixture "ManufacturingOrder", order_number: "MO-2026-005", manufacturer: "PetroBlend Industries", formula_name: "MotorKote Marine Guard", quantity: 2000, unit: "gallons", requested_delivery: "2026-04-10", status: "shipped", lot_number: "LOT-MK-20260408", batch_record_number: "BR-005"
-  fixture "ManufacturingOrder", order_number: "MO-2026-011", manufacturer: "ChemBlend Corp", formula_name: "Slick 50 Complete Engine Flush", quantity: 4000, unit: "gallons", requested_delivery: "2026-04-20", status: "shipped", lot_number: "LOT-S50-20260418", batch_record_number: "BR-011"
 
   # Received
-  fixture "ManufacturingOrder", order_number: "MO-2026-003", manufacturer: "PetroBlend Industries", formula_name: "Slick 50 Recharged Engine Treatment", quantity: 8000, unit: "gallons", requested_delivery: "2026-04-01", actual_delivery: "2026-04-03", status: "received", lot_number: "LOT-S50-20260403", batch_record_number: "BR-003", certificate_of_analysis: "COA-S50-20260403"
-  fixture "ManufacturingOrder", order_number: "MO-2026-006", manufacturer: "PetroBlend Industries", formula_name: "Slick 50 Complete Engine Flush", quantity: 4000, unit: "gallons", requested_delivery: "2026-03-20", actual_delivery: "2026-03-22", status: "received", lot_number: "LOT-S50-20260322", batch_record_number: "BR-006", certificate_of_analysis: "COA-S50-20260322"
 
   # Rejected
-  fixture "ManufacturingOrder", order_number: "MO-2026-007", manufacturer: "PetroBlend Industries", formula_name: "DuraLube Classic V1", quantity: 500, unit: "gallons", requested_delivery: "2026-03-15", status: "rejected", lot_number: "LOT-DL-20260312", batch_record_number: "BR-007"
 
   policy "TestOnReceive" do
     on "OrderReceived"

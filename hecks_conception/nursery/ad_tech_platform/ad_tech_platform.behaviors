@@ -1,0 +1,166 @@
+Hecks.behaviors "AdTechPlatform" do
+  vision "Behavioral tests for the AdTechPlatform domain — exercises every command and query in memory"
+
+  # ── Campaign aggregate ──────────────────────────────────────────
+
+  test "LaunchCampaign sets campaign_id + advertiser_name + objective + target_audience + daily_budget + total_budget" do
+    tests "LaunchCampaign", on: "Campaign"
+    input  campaign_id: "sample", advertiser_name: "sample", objective: "sample", target_audience: "sample", daily_budget: 1.0, total_budget: 1.0
+    expect status: "running"
+  end
+
+  test "LaunchCampaign cascades through policy chain" do
+    tests "LaunchCampaign", on: "Campaign", kind: :cascade
+    setup  "AllocateBudget", budget_id: "sample", allocated_amount: 1.0, period: "sample"
+    input  campaign_id: "sample", advertiser_name: "sample", objective: "sample", target_audience: "sample", daily_budget: 1.0, total_budget: 1.0
+    expect emits: ["CampaignLaunched", "BudgetAllocated"]
+  end
+
+  test "PauseCampaign runs" do
+    tests "PauseCampaign", on: "Campaign"
+    setup  "LaunchCampaign", campaign_id: "sample", advertiser_name: "sample", objective: "sample", target_audience: "sample", daily_budget: 1.0, total_budget: 1.0
+    expect ok: "true"
+  end
+
+  test "EndCampaign runs" do
+    tests "EndCampaign", on: "Campaign"
+    setup  "LaunchCampaign", campaign_id: "sample", advertiser_name: "sample", objective: "sample", target_audience: "sample", daily_budget: 1.0, total_budget: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── Impression aggregate ──────────────────────────────────────────
+
+  test "ServeImpression sets impression_id + placement_id + creative_id + user_segment + bid_price" do
+    tests "ServeImpression", on: "Impression"
+    setup  "LaunchCampaign", campaign_id: "sample", advertiser_name: "sample", objective: "sample", target_audience: "sample", daily_budget: 1.0, total_budget: 1.0
+    input  impression_id: "sample", placement_id: "sample", creative_id: "sample", user_segment: "sample", bid_price: 1.0
+    expect ok: "true"
+  end
+
+  test "ServeImpression cascades through policy chain" do
+    tests "ServeImpression", on: "Impression", kind: :cascade
+    setup  "LaunchCampaign", campaign_id: "sample", advertiser_name: "sample", objective: "sample", target_audience: "sample", daily_budget: 1.0, total_budget: 1.0
+    setup  "AllocateBudget", budget_id: "sample", allocated_amount: 1.0, period: "sample"
+    setup  "RecordClick", click_id: "sample", landing_url: "sample", referrer: "sample", cost: 1.0
+    setup  "TrackConversion", conversion_id: "sample", conversion_type: "sample", value: 1.0, attribution_model: "sample"
+    input  impression_id: "sample", placement_id: "sample", creative_id: "sample", user_segment: "sample", bid_price: 1.0
+    expect emits: ["ImpressionServed", "SpendDeducted", "ImpressionMarkedViewable", "ClickRecorded", "ClickValidated", "ConversionTracked", "SpendDeducted"]
+  end
+
+  test "MarkViewable runs" do
+    tests "MarkViewable", on: "Impression"
+    setup  "ServeImpression", impression_id: "sample", placement_id: "sample", creative_id: "sample", user_segment: "sample", bid_price: 1.0
+    expect ok: "true"
+  end
+
+  test "MarkViewable cascades through policy chain" do
+    tests "MarkViewable", on: "Impression", kind: :cascade
+    setup  "ServeImpression", impression_id: "sample", placement_id: "sample", creative_id: "sample", user_segment: "sample", bid_price: 1.0
+    setup  "RecordClick", click_id: "sample", landing_url: "sample", referrer: "sample", cost: 1.0
+    setup  "TrackConversion", conversion_id: "sample", conversion_type: "sample", value: 1.0, attribution_model: "sample"
+    setup  "AllocateBudget", budget_id: "sample", allocated_amount: 1.0, period: "sample"
+    expect emits: ["ImpressionMarkedViewable", "ClickRecorded", "ClickValidated", "ConversionTracked", "SpendDeducted"]
+  end
+
+  test "FlagFraudulent runs" do
+    tests "FlagFraudulent", on: "Impression"
+    setup  "ServeImpression", impression_id: "sample", placement_id: "sample", creative_id: "sample", user_segment: "sample", bid_price: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── Click aggregate ──────────────────────────────────────────
+
+  test "RecordClick sets click_id + landing_url + referrer + cost" do
+    tests "RecordClick", on: "Click"
+    setup  "ServeImpression", impression_id: "sample", placement_id: "sample", creative_id: "sample", user_segment: "sample", bid_price: 1.0
+    input  click_id: "sample", landing_url: "sample", referrer: "sample", cost: 1.0
+    expect ok: "true"
+  end
+
+  test "RecordClick cascades through policy chain" do
+    tests "RecordClick", on: "Click", kind: :cascade
+    setup  "ServeImpression", impression_id: "sample", placement_id: "sample", creative_id: "sample", user_segment: "sample", bid_price: 1.0
+    setup  "TrackConversion", conversion_id: "sample", conversion_type: "sample", value: 1.0, attribution_model: "sample"
+    setup  "AllocateBudget", budget_id: "sample", allocated_amount: 1.0, period: "sample"
+    input  click_id: "sample", landing_url: "sample", referrer: "sample", cost: 1.0
+    expect emits: ["ClickRecorded", "ClickValidated", "ConversionTracked", "SpendDeducted"]
+  end
+
+  test "ValidateClick runs" do
+    tests "ValidateClick", on: "Click"
+    setup  "RecordClick", click_id: "sample", landing_url: "sample", referrer: "sample", cost: 1.0
+    expect ok: "true"
+  end
+
+  test "ValidateClick cascades through policy chain" do
+    tests "ValidateClick", on: "Click", kind: :cascade
+    setup  "RecordClick", click_id: "sample", landing_url: "sample", referrer: "sample", cost: 1.0
+    setup  "TrackConversion", conversion_id: "sample", conversion_type: "sample", value: 1.0, attribution_model: "sample"
+    setup  "AllocateBudget", budget_id: "sample", allocated_amount: 1.0, period: "sample"
+    expect emits: ["ClickValidated", "ConversionTracked", "SpendDeducted"]
+  end
+
+  test "DisputeClick sets dispute_reason" do
+    tests "DisputeClick", on: "Click"
+    setup  "RecordClick", click_id: "sample", landing_url: "sample", referrer: "sample", cost: 1.0
+    input  dispute_reason: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Conversion aggregate ──────────────────────────────────────────
+
+  test "TrackConversion sets conversion_id + conversion_type + value + attribution_model" do
+    tests "TrackConversion", on: "Conversion"
+    setup  "RecordClick", click_id: "sample", landing_url: "sample", referrer: "sample", cost: 1.0
+    input  conversion_id: "sample", conversion_type: "sample", value: 1.0, attribution_model: "sample"
+    expect status: "confirmed"
+  end
+
+  test "TrackConversion cascades through policy chain" do
+    tests "TrackConversion", on: "Conversion", kind: :cascade
+    setup  "RecordClick", click_id: "sample", landing_url: "sample", referrer: "sample", cost: 1.0
+    setup  "AllocateBudget", budget_id: "sample", allocated_amount: 1.0, period: "sample"
+    input  conversion_id: "sample", conversion_type: "sample", value: 1.0, attribution_model: "sample"
+    expect emits: ["ConversionTracked", "SpendDeducted"]
+  end
+
+  test "AdjustAttribution sets attribution_model" do
+    tests "AdjustAttribution", on: "Conversion"
+    setup  "TrackConversion", conversion_id: "sample", conversion_type: "sample", value: 1.0, attribution_model: "sample"
+    input  attribution_model: "sample"
+    expect ok: "true"
+  end
+
+  test "VoidConversion runs" do
+    tests "VoidConversion", on: "Conversion"
+    setup  "TrackConversion", conversion_id: "sample", conversion_type: "sample", value: 1.0, attribution_model: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Budget aggregate ──────────────────────────────────────────
+
+  test "AllocateBudget sets budget_id + allocated_amount + period" do
+    tests "AllocateBudget", on: "Budget"
+    setup  "LaunchCampaign", campaign_id: "sample", advertiser_name: "sample", objective: "sample", target_audience: "sample", daily_budget: 1.0, total_budget: 1.0
+    input  budget_id: "sample", allocated_amount: 1.0, period: "sample"
+    expect ok: "true"
+  end
+
+  test "ExhaustBudget runs" do
+    tests "ExhaustBudget", on: "Budget"
+    setup  "AllocateBudget", budget_id: "sample", allocated_amount: 1.0, period: "sample"
+    expect ok: "true"
+  end
+
+  test "ExhaustBudget cascades through policy chain" do
+    tests "ExhaustBudget", on: "Budget", kind: :cascade
+    setup  "AllocateBudget", budget_id: "sample", allocated_amount: 1.0, period: "sample"
+    setup  "LaunchCampaign", campaign_id: "sample", advertiser_name: "sample", objective: "sample", target_audience: "sample", daily_budget: 1.0, total_budget: 1.0
+    expect emits: ["BudgetExhausted", "CampaignPaused"]
+  end
+
+end

@@ -1,0 +1,18 @@
+Hecks.fixtures "PerishableRescue" do
+  aggregate "FoodDonation" do
+    fixture "FoodDonation1", donor_name: "Riverside Organic Farm", donation_date: "2026-04-14", status: "received"
+    fixture "FoodDonation2", donor_name: "Downtown Market District", donation_date: "2026-04-13", status: "approved"
+  end
+  aggregate "ColdChainRoute" do
+    fixture "ColdChainRoute1", route_id: "RT-2026-001", vehicle_id: "VAN-42", status: "planned"
+    fixture "ColdChainRoute2", route_id: "RT-2026-002", vehicle_id: "TRUCK-15", status: "in_transit"
+  end
+  aggregate "Distribution" do
+    fixture "Distribution1", site_name: "Lincoln Park Community Center", distribution_date: "2026-04-15", status: "scheduled"
+    fixture "Distribution2", site_name: "Eastside Food Hub", distribution_date: "2026-04-14", status: "executed"
+  end
+  aggregate "TempAlert" do
+    fixture "TempAlert1", alert_type: "temp_spike", temp_deviation_c: 4.5, status: "active"
+    fixture "TempAlert2", alert_type: "temp_drop", temp_deviation_c: -5.2, status: "resolved"
+  end
+end

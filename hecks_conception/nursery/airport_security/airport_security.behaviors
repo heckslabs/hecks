@@ -1,0 +1,162 @@
+Hecks.behaviors "AirportSecurity" do
+  vision "Behavioral tests for the AirportSecurity domain — exercises every command and query in memory"
+
+  # ── Checkpoint aggregate ──────────────────────────────────────────
+
+  test "OpenCheckpoint sets checkpoint_id + terminal + lane_count + throughput_per_hour" do
+    tests "OpenCheckpoint", on: "Checkpoint"
+    input  checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
+    expect checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1, status: "open"
+  end
+
+  test "OpenCheckpoint cascades through policy chain" do
+    tests "OpenCheckpoint", on: "Checkpoint", kind: :cascade
+    setup  "DeployOfficer", badge_number: "sample", name: "sample", clearance_level: "sample"
+    input  checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
+    expect emits: ["CheckpointOpened", "OfficerDeployed"]
+  end
+
+  test "CloseCheckpoint runs" do
+    tests "CloseCheckpoint", on: "Checkpoint"
+    setup  "OpenCheckpoint", checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
+    expect status: "closed"
+  end
+
+  test "AddLane runs" do
+    tests "AddLane", on: "Checkpoint"
+    setup  "OpenCheckpoint", checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
+    expect ok: "true"
+  end
+
+  test "EscalateToHighAlert runs" do
+    tests "EscalateToHighAlert", on: "Checkpoint"
+    setup  "OpenCheckpoint", checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
+    expect status: "high_alert"
+  end
+
+  test "StandDown runs" do
+    tests "StandDown", on: "Checkpoint"
+    setup  "OpenCheckpoint", checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
+    expect status: "open"
+  end
+
+
+  # ── Scanner aggregate ──────────────────────────────────────────
+
+  test "InstallScanner sets scanner_id + scanner_type" do
+    tests "InstallScanner", on: "Scanner"
+    setup  "OpenCheckpoint", checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
+    input  scanner_id: "sample", scanner_type: "sample"
+    expect status: "installed", scans_today: 0
+  end
+
+  test "InstallScanner cascades through policy chain" do
+    tests "InstallScanner", on: "Scanner", kind: :cascade
+    setup  "OpenCheckpoint", checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
+    input  scanner_id: "sample", scanner_type: "sample"
+    expect emits: ["ScannerInstalled", "ScannerCalibrated"]
+  end
+
+  test "CalibrateScanner runs" do
+    tests "CalibrateScanner", on: "Scanner"
+    setup  "InstallScanner", scanner_id: "sample", scanner_type: "sample"
+    expect status: "operational"
+  end
+
+  test "PerformScan runs" do
+    tests "PerformScan", on: "Scanner"
+    setup  "InstallScanner", scanner_id: "sample", scanner_type: "sample"
+    setup  "CalibrateScanner"
+    expect ok: "true"
+  end
+
+  test "FlagMalfunction runs" do
+    tests "FlagMalfunction", on: "Scanner"
+    setup  "InstallScanner", scanner_id: "sample", scanner_type: "sample"
+    setup  "CalibrateScanner"
+    expect status: "faulty"
+  end
+
+  test "FlagMalfunction cascades through policy chain" do
+    tests "FlagMalfunction", on: "Scanner", kind: :cascade
+    setup  "OpenCheckpoint", checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
+    setup  "InstallScanner", scanner_id: "sample", scanner_type: "sample"
+    setup  "CalibrateScanner"
+    expect emits: ["ScannerMalfunctioned", "CheckpointClosed"]
+  end
+
+  test "RepairScanner runs" do
+    tests "RepairScanner", on: "Scanner"
+    setup  "InstallScanner", scanner_id: "sample", scanner_type: "sample"
+    setup  "CalibrateScanner"
+    setup  "FlagMalfunction"
+    expect status: "installed"
+  end
+
+  test "RepairScanner cascades through policy chain" do
+    tests "RepairScanner", on: "Scanner", kind: :cascade
+    setup  "InstallScanner", scanner_id: "sample", scanner_type: "sample"
+    setup  "CalibrateScanner"
+    setup  "FlagMalfunction"
+    expect emits: ["ScannerRepaired", "ScannerCalibrated"]
+  end
+
+
+  # ── Officer aggregate ──────────────────────────────────────────
+
+  test "DeployOfficer sets badge_number + name + clearance_level" do
+    tests "DeployOfficer", on: "Officer"
+    setup  "OpenCheckpoint", checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
+    input  badge_number: "sample", name: "sample", clearance_level: "sample"
+    expect status: "on_duty"
+  end
+
+  test "RelieveOfficer runs" do
+    tests "RelieveOfficer", on: "Officer"
+    setup  "DeployOfficer", badge_number: "sample", name: "sample", clearance_level: "sample"
+    expect status: "off_duty"
+  end
+
+
+  # ── Incident aggregate ──────────────────────────────────────────
+
+  test "ReportIncident sets incident_type + severity + description" do
+    tests "ReportIncident", on: "Incident"
+    setup  "DeployOfficer", badge_number: "sample", name: "sample", clearance_level: "sample"
+    setup  "OpenCheckpoint", checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
+    input  incident_type: "sample", severity: "sample", description: "sample"
+    expect status: "open"
+  end
+
+  test "ReportIncident cascades through policy chain" do
+    tests "ReportIncident", on: "Incident", kind: :cascade
+    setup  "OpenCheckpoint", checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
+    setup  "DeployOfficer", badge_number: "sample", name: "sample", clearance_level: "sample"
+    input  incident_type: "sample", severity: "sample", description: "sample"
+    expect emits: ["IncidentReported", "HighAlertActivated", "InvestigationStarted"]
+  end
+
+  test "InvestigateIncident runs" do
+    tests "InvestigateIncident", on: "Incident"
+    setup  "ReportIncident", incident_type: "sample", severity: "sample", description: "sample"
+    expect status: "investigating"
+  end
+
+  test "ResolveIncident sets resolution" do
+    tests "ResolveIncident", on: "Incident"
+    setup  "ReportIncident", incident_type: "sample", severity: "sample", description: "sample"
+    setup  "InvestigateIncident"
+    input  resolution: "sample"
+    expect status: "resolved"
+  end
+
+  test "ResolveIncident cascades through policy chain" do
+    tests "ResolveIncident", on: "Incident", kind: :cascade
+    setup  "OpenCheckpoint", checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
+    setup  "ReportIncident", incident_type: "sample", severity: "sample", description: "sample"
+    setup  "InvestigateIncident"
+    input  resolution: "sample"
+    expect emits: ["IncidentResolved", "CheckpointStoodDown"]
+  end
+
+end

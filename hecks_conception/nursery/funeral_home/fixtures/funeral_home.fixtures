@@ -1,0 +1,22 @@
+Hecks.fixtures "FuneralHome" do
+  aggregate "Decedent" do
+    fixture "Decedent1", first_name: "Margaret", last_name: "Chen", date_of_birth: "1945-06-15", date_of_death: "2025-03-10", place_of_death: "St. Mary Hospital", next_of_kin: "David Chen", status: "received"
+    fixture "Decedent2", first_name: "James", last_name: "Sullivan", date_of_birth: "1938-11-22", date_of_death: "2025-03-12", place_of_death: "Home", next_of_kin: "Patricia Sullivan", status: "prepared"
+  end
+  aggregate "ServiceArrangement" do
+    fixture "ServiceArrangement1", service_type: "funeral", service_date: "2025-03-20", service_time: "10:00 AM", venue: "Grace Memorial Chapel", officiant: "Rev. Michael O'Brien", expected_attendees: 75, status: "planned"
+    fixture "ServiceArrangement2", service_type: "memorial", service_date: "2025-03-22", service_time: "2:00 PM", venue: "Community Center", officiant: "Ms. Sarah Johnson", expected_attendees: 150, status: "completed"
+  end
+  aggregate "Obituary" do
+    fixture "Obituary1", headline: "Margaret Chen, Beloved Educator and Mother, 1945-2025", body_text: "Margaret Rose Chen, 79, of Portland, passed away peacefully on March 10. She was a dedicated teacher for 40 years.", publication_name: "Portland Gazette", publish_date: "2025-03-15", status: "published"
+    fixture "Obituary2", headline: "James Sullivan, Navy Veteran and Community Leader", body_text: "James Patrick Sullivan, 86, of Boston, entered eternal rest on March 12. A decorated Navy commander and civic volunteer.", publication_name: "Boston Herald", publish_date: "2025-03-18", status: "draft"
+  end
+  aggregate "TransportRequest" do
+    fixture "TransportRequest1", pickup_location: "St. Mary Hospital", delivery_location: "Grace Memorial Chapel", transport_date: "2025-03-13", vehicle_type: "hearse", status: "scheduled"
+    fixture "TransportRequest2", pickup_location: "Grace Memorial Chapel", delivery_location: "Riverside Cemetery", transport_date: "2025-03-20", vehicle_type: "hearse", status: "completed"
+  end
+  aggregate "FuneralInvoice" do
+    fixture "FuneralInvoice1", services_total: 3500.0, merchandise_total: 2250.0, cash_advances: 500.0, grand_total: 6250.0, status: "pending"
+    fixture "FuneralInvoice2", services_total: 4200.0, merchandise_total: 1800.0, cash_advances: 0.0, grand_total: 6000.0, status: "paid"
+  end
+end

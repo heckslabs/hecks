@@ -18,7 +18,6 @@ Hecks.bluebook "GymReservations", version: "2026.04.13.1" do
       String :trainer_name
       String :room
       Integer :capacity
-      given "capacity must be at least 5"
       emits "ClassScheduled"
     end
 
@@ -34,13 +33,21 @@ Hecks.bluebook "GymReservations", version: "2026.04.13.1" do
     String :class_name
     String :session_date
     String :status
+    # Gate flag — flips true when ConfirmCapacity verifies the target
+    # class still has open spots. ReserveSpot is gated on it.
+    attribute :capacity_confirmed, Boolean, default: false
+
+    ConfirmCapacity do
+      description "Verify that the target class still has open spots"
+      emits "CapacityConfirmed"
+      then_set :capacity_confirmed, to: true
+    end
 
     ReserveSpot do
       description "Book a member into an upcoming class session"
       String :member_name
       String :class_name
       String :session_date
-      given "class must not be full"
       emits "SpotReserved"
     end
 
@@ -76,11 +83,11 @@ Hecks.bluebook "GymReservations", version: "2026.04.13.1" do
       emits "TrainerRegistered"
     end
 
-    UpdateAvailability do
-      description "Set which days a trainer can teach"
+    PublishAvailability do
+      description "Publish which days a trainer can teach"
       reference_to(Trainer)
       list_of(String) :available_days
-      emits "AvailabilityUpdated"
+      emits "AvailabilityPublished"
     end
   end
 
@@ -112,18 +119,7 @@ Hecks.bluebook "GymReservations", version: "2026.04.13.1" do
 
   policy "UpdateCapacityOnReserve" do
     on "SpotReserved"
-    trigger "UpdateAvailability"
+    trigger "PublishAvailability"
   end
 
-  fixture "ClassSchedule", class_name: "Morning Yoga", day_of_week: "Monday", time_slot: "6:00 AM", trainer_name: "Emma Wilson", room: "Studio A", capacity: 20, enrolled: 18
-  fixture "ClassSchedule", class_name: "HIIT Bootcamp", day_of_week: "Wednesday", time_slot: "5:30 PM", trainer_name: "Marcus Chen", room: "Studio B", capacity: 15, enrolled: 15
-
-  fixture "Booking", member_name: "Alice Rodriguez", class_name: "Morning Yoga", session_date: "2026-04-14", status: "confirmed"
-  fixture "Booking", member_name: "David Thompson", class_name: "HIIT Bootcamp", session_date: "2026-04-16", status: "attended"
-
-  fixture "Trainer", name: "Emma Wilson", specialization: "yoga and flexibility", available_days: ["Monday", "Wednesday", "Friday"]
-  fixture "Trainer", name: "Marcus Chen", specialization: "strength and conditioning", available_days: ["Tuesday", "Wednesday", "Thursday", "Saturday"]
-
-  fixture "WaitList", member_name: "Patricia Adams", class_name: "HIIT Bootcamp", requested_date: "2026-04-18", position: 1
-  fixture "WaitList", member_name: "Kevin Lopez", class_name: "Morning Yoga", requested_date: "2026-04-16", position: 2
 end

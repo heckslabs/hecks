@@ -33,11 +33,11 @@ Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
       then_set :status, to: "enrolled"
     end
 
-    UpdateSkills do
+    RefreshSkills do
       role "System"
       description "Update learner skill profile after course or quest completion"
       reference_to(Learner)
-      emits "SkillsUpdated"
+      emits "SkillsRefreshed"
     end
 
     GraduateAcademy do
@@ -72,14 +72,14 @@ Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
       String :assessment_type
     end
 
-    CreateCourse do
+    OfferCourse do
       role "Educator"
       description "Design a course with modules, assessments, and credit value"
       String :title
       String :subject
       String :difficulty
       Integer :credit_value
-      emits "CourseCreated"
+      emits "CourseOffered"
       then_set :title, to: :title
       then_set :subject, to: :subject
       then_set :difficulty, to: :difficulty
@@ -91,7 +91,7 @@ Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
       role "Learner"
       description "Learner finishes all modules and passes final assessment"
       reference_to(Course)
-      reference_to(Learner) :learner
+      reference_to(Learner, as: :learner)
       given { status == "active" }
       emits "CourseCompleted"
     end
@@ -114,7 +114,7 @@ Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
     Integer :xp_reward
     String :difficulty
     String :status
-    reference_to(Course) :related_course
+    reference_to(Course, as: :related_course)
     list_of(Objective) :objectives
 
     value_object "Objective" do
@@ -123,15 +123,15 @@ Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
       String :completed
     end
 
-    CreateQuest do
+    DesignQuest do
       role "GameDesigner"
       description "Design a quest with objectives and XP reward"
       String :title
       String :description
       Integer :xp_reward
       String :difficulty
-      reference_to(Course) :related_course
-      emits "QuestCreated"
+      reference_to(Course, as: :related_course)
+      emits "QuestDesigned"
       then_set :title, to: :title
       then_set :description, to: :description
       then_set :xp_reward, to: :xp_reward
@@ -144,7 +144,7 @@ Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
       role "Learner"
       description "Learner accepts a quest and begins working on objectives"
       reference_to(Quest)
-      reference_to(Learner) :learner
+      reference_to(Learner, as: :learner)
       given { status == "available" }
       emits "QuestAccepted"
       then_set :status, to: "in_progress"
@@ -160,7 +160,7 @@ Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "draft" do
-      transition "CreateQuest" => "available", from: "draft"
+      transition "DesignQuest" => "available", from: "draft"
       transition "AcceptQuest" => "in_progress", from: "available"
       transition "CompleteQuest" => "completed", from: "in_progress"
     end
@@ -173,7 +173,7 @@ Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
     String :description
     String :issuer
     String :credential_hash
-    reference_to(Learner) :holder
+    reference_to(Learner, as: :holder)
     String :status
 
     IssueBadge do
@@ -182,7 +182,7 @@ Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
       String :name
       String :description
       String :issuer
-      reference_to(Learner) :holder
+      reference_to(Learner, as: :holder)
       emits "BadgeIssued"
       then_set :name, to: :name
       then_set :description, to: :description
@@ -212,8 +212,8 @@ Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
   # === ParoleCredit ===
 
   aggregate "ParoleCredit", "Educational credits toward early release — every badge earns parole points" do
-    reference_to(Learner) :learner
-    reference_to(Badge) :badge
+    reference_to(Learner, as: :learner)
+    reference_to(Badge, as: :badge)
     Integer :credits_awarded
     String :approved_by
     String :status
@@ -221,8 +221,8 @@ Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
     AwardParoleCredit do
       role "System"
       description "Award parole credits when a badge is earned"
-      reference_to(Learner) :learner
-      reference_to(Badge) :badge
+      reference_to(Learner, as: :learner)
+      reference_to(Badge, as: :badge)
       Integer :credits_awarded
       emits "ParoleCreditAwarded"
       then_set :learner, to: :learner
@@ -252,7 +252,7 @@ Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "pending" do
-      transition "AwardParoleCredit" => "pending_review", from: "pending"
+      transition "AwardParoleCredit" => "pending_review", from: ["pending", "pending_review"]
       transition "ApproveCredit" => "approved", from: "pending_review"
       transition "DenyCredit" => "denied", from: "pending_review"
     end
@@ -261,7 +261,7 @@ Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
   # === EmployerMatch ===
 
   aggregate "EmployerMatch", "A job match — connecting graduated learners with employers who value their credentials" do
-    reference_to(Learner) :learner
+    reference_to(Learner, as: :learner)
     String :employer_name
     String :position
     String :status
@@ -275,7 +275,7 @@ Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
     MatchEmployer do
       role "System"
       description "Match a learner to employers based on earned badges and skills"
-      reference_to(Learner) :learner
+      reference_to(Learner, as: :learner)
       String :employer_name
       String :position
       emits "EmployerMatched"
@@ -304,7 +304,7 @@ Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "pending" do
-      transition "MatchEmployer" => "matched", from: "pending"
+      transition "MatchEmployer" => "matched", from: ["pending", "matched"]
       transition "ScheduleInterview" => "interviewing", from: "matched"
       transition "ExtendOffer" => "offered", from: "interviewing"
     end
@@ -327,14 +327,14 @@ Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
     trigger "MatchEmployer"
   end
 
-  policy "UpdateSkillsOnQuest" do
+  policy "RefreshSkillsOnQuest" do
     on "QuestCompleted"
-    trigger "UpdateSkills"
+    trigger "RefreshSkills"
   end
 
-  policy "UpdateSkillsOnCourse" do
+  policy "RefreshSkillsOnCourse" do
     on "CourseCompleted"
-    trigger "UpdateSkills"
+    trigger "RefreshSkills"
   end
 
   policy "BadgeOnCourseComplete" do
@@ -342,21 +342,4 @@ Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
     trigger "IssueBadge"
   end
 
-  fixture "Learner", name: "James Morrison", facility: "Oakwood Correctional", sentence_end_date: "2027-08-15", total_credits: 45, status: "enrolled"
-  fixture "Learner", name: "Sofia Ramirez", facility: "Northern State Prison", sentence_end_date: "2028-02-20", total_credits: 75, status: "enrolled"
-
-  fixture "Course", title: "Introduction to Carpentry", subject: "Trades", difficulty: "beginner", credit_value: 15, status: "active"
-  fixture "Course", title: "Advanced Welding Certification", subject: "Trades", difficulty: "intermediate", credit_value: 20, status: "active"
-
-  fixture "Quest", title: "Build a Birdhouse", description: "Construct a functional birdhouse using hand tools", xp_reward: 250, difficulty: "easy", status: "available"
-  fixture "Quest", title: "Repair a Bicycle", description: "Complete bicycle repair and safety inspection", xp_reward: 500, difficulty: "medium", status: "completed"
-
-  fixture "Badge", name: "Carpentry Fundamentals", description: "Mastered basic carpentry skills", issuer: "Second Chance Academy", credential_hash: "bch-2024-001", status: "issued"
-  fixture "Badge", name: "Welding Certification", description: "AWS certified welding practitioner", issuer: "Second Chance Academy", credential_hash: "bch-2024-002", status: "verified"
-
-  fixture "ParoleCredit", credits_awarded: 5, approved_by: "", status: "approved"
-  fixture "ParoleCredit", credits_awarded: 8, approved_by: "Judge Patricia Lewis", status: "approved"
-
-  fixture "EmployerMatch", employer_name: "BuildRight Construction", position: "Junior Carpenter", status: "offered"
-  fixture "EmployerMatch", employer_name: "Metro Welding Services", position: "Welding Assistant", status: "interviewing"
 end

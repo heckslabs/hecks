@@ -1,0 +1,8 @@
+Hecks.fixtures "GlassboxTraining" do
+  aggregate "TrainingExample" do
+    fixture "ScienceExample", input: "A domain for tracking chemical reactions and molecular bonds", output: "Hecks.bluebook 'Chemistry' do ... end", category: "science"
+    fixture "BusinessExample", input: "A domain for managing customer subscriptions and billing cycles", output: "Hecks.bluebook 'Billing' do ... end", category: "business"
+    fixture "InfrastructureExample", input: "A domain for managing deployment pipelines and build artifacts", output: "Hecks.bluebook 'Deployment' do ... end", category: "infrastructure"
+    fixture "MetaExample", input: "A domain for training a model on bluebook definitions", output: "Hecks.bluebook 'GlassboxTraining' do ... end", category: "meta"
+  end
+end

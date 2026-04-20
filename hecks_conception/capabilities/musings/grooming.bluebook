@@ -27,13 +27,13 @@ Hecks.bluebook "MusingGrooming", version: "2026.04.16.2" do
   # The quality gate in minting should prevent junk from reaching grooming.
 
   aggregate "Session", "A grooming session — walking through musings in batches" do
-    Integer :total
-    Integer :kept
-    Integer :dismissed
-    Integer :batch_size
-    String :status
+    attribute :total, Integer
+    attribute :kept, Integer
+    attribute :dismissed, Integer
+    attribute :batch_size, Integer
+    attribute :status, String
 
-    StartGrooming do
+    command "StartGrooming" do
       role "Creator"
       description "Begin grooming — load all unconceived musings, show first batch of 5"
       emits "GroomingStarted"
@@ -43,15 +43,15 @@ Hecks.bluebook "MusingGrooming", version: "2026.04.16.2" do
       then_set :status, to: "active"
     end
 
-    KeepSelected do
+    command "KeepSelected" do
       role "Creator"
       description "Keep the numbered musings from this batch, dismiss the rest"
       reference_to(Session)
-      list_of(Integer) :keep_numbers
+      attribute :keep_numbers, list_of(Integer)
       emits "BatchProcessed"
     end
 
-    FinishGrooming do
+    command "FinishGrooming" do
       role "Creator"
       description "Done grooming — report what survived"
       reference_to(Session)

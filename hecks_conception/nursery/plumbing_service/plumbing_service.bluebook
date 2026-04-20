@@ -28,6 +28,7 @@ Hecks.bluebook "PlumbingService" do
       String :problem_description
       reference_to(Technician)
       emits "CallDispatched"
+      then_set :status, to: "dispatched"
     end
 
     DiagnoseIssue do
@@ -45,7 +46,6 @@ Hecks.bluebook "PlumbingService" do
       goal "Mark the service call as resolved"
       description "Close out the job after repair is verified"
       reference_to(ServiceCall)
-      given("must be diagnosed first") { diagnosis != nil }
       emits "CallCompleted"
     end
   end
@@ -129,6 +129,7 @@ Hecks.bluebook "PlumbingService" do
       Float :labor_cost
       Float :parts_cost
       emits "EstimatePrepared"
+      then_set :status, to: "pending"
     end
 
     ApproveEstimate do
@@ -199,18 +200,4 @@ Hecks.bluebook "PlumbingService" do
     trigger "IssueWarranty"
   end
 
-  fixture "ServiceCall", customer_name: "Sarah Martinez", address: "742 Oak Street, Portland OR", problem_description: "Slow draining kitchen sink", diagnosis: "P-trap clogged with grease buildup", status: "dispatched"
-  fixture "ServiceCall", customer_name: "James Chen", address: "1205 Maple Ave, Seattle WA", problem_description: "Toilet running continuously", diagnosis: "Flapper valve deteriorated", status: "dispatched"
-
-  fixture "Technician", name: "Mike Rodriguez", license_number: "OR-PL-48291", specialties: "drain_cleaning,water_heaters", availability: "available"
-  fixture "Technician", name: "Lisa Kowalski", license_number: "OR-PL-52847", specialties: "fixtures,repairs", availability: "available"
-
-  fixture "Fixture", type: "faucet", brand: "Moen", model: "Arbor 6165", location: "kitchen_sink", status: "installed"
-  fixture "Fixture", type: "toilet", brand: "Kohler", model: "Wellworth K-3977", location: "master_bathroom", status: "installed"
-
-  fixture "Estimate", labor_cost: 185.50, parts_cost: 42.00, total: 227.50, status: "pending"
-  fixture "Estimate", labor_cost: 95.00, parts_cost: 28.50, total: 123.50, status: "pending"
-
-  fixture "Warranty", coverage_type: "parts_and_labor", duration_months: 24, terms: "covers defects in materials and workmanship"
-  fixture "Warranty", coverage_type: "parts_only", duration_months: 12, terms: "covers manufacturing defects only"
 end

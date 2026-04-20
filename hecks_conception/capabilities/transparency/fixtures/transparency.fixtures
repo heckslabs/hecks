@@ -1,0 +1,13 @@
+Hecks.fixtures "Transparency" do
+  aggregate "NarrationRule" do
+    fixture "NarrationRule1", act: "conceiving", template: "conceiving {subject}", trigger_event: "DomainConceived", always: true
+    fixture "NarrationRule2", act: "remembering", template: "remembering {subject}", trigger_event: "MemoryRecalled", always: true
+    fixture "NarrationRule3", act: "encoding", template: "encoding {subject}", trigger_event: "MemoryEncoded", always: true
+    fixture "NarrationRule4", act: "forgetting", template: "forgetting {subject}", trigger_event: "MemoryForgotten", always: true
+    fixture "NarrationRule5", act: "dreaming", template: "dreaming {subject}", trigger_event: "DreamAccumulated", always: false
+    fixture "NarrationRule6", act: "sleeping", template: "sleeping", trigger_event: "SleepEntered", always: true
+    fixture "NarrationRule7", act: "waking", template: "waking up", trigger_event: "WokenUp", always: true
+    fixture "NarrationRule8", act: "grooming", template: "grooming {subject}", trigger_event: "GroomingStarted", always: true
+    fixture "NarrationRule9", act: "interpreting", template: "interpreting {subject}", trigger_event: "InterpretationSynthesized", always: true
+  end
+end

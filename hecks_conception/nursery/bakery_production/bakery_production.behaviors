@@ -1,0 +1,92 @@
+Hecks.behaviors "BakeryProduction" do
+  vision "Behavioral tests for the BakeryProduction domain — exercises every command and query in memory"
+
+  # ── Recipe aggregate ──────────────────────────────────────────
+
+  test "ComposeRecipe sets name + category + yield_count + prep_minutes + bake_minutes + bake_temp_f" do
+    tests "ComposeRecipe", on: "Recipe"
+    input  name: "sample", category: "sample", yield_count: 1, prep_minutes: 1, bake_minutes: 1, bake_temp_f: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── Batch aggregate ──────────────────────────────────────────
+
+  test "StartBatch sets recipe_name + production_date + quantity + baker" do
+    tests "StartBatch", on: "Batch"
+    input  recipe_name: "sample", production_date: "sample", quantity: 1, baker: "sample"
+    expect ok: "true"
+  end
+
+  test "StartBatch cascades through policy chain" do
+    tests "StartBatch", on: "Batch", kind: :cascade
+    setup  "ReceiveDelivery", ingredient_name: "sample", quantity: 1.0, supplier: "sample"
+    input  recipe_name: "sample", production_date: "sample", quantity: 1, baker: "sample"
+    expect emits: ["BatchStarted", "StockDeducted", "LowStockFlagged"]
+  end
+
+  test "CompleteBatch runs" do
+    tests "CompleteBatch", on: "Batch"
+    setup  "StartBatch", recipe_name: "sample", production_date: "sample", quantity: 1, baker: "sample"
+    expect ok: "true"
+  end
+
+  test "CompleteBatch cascades through policy chain" do
+    tests "CompleteBatch", on: "Batch", kind: :cascade
+    setup  "StartBatch", recipe_name: "sample", production_date: "sample", quantity: 1, baker: "sample"
+    setup  "PlaceOrder", customer_name: "sample", pickup_date: "sample"
+    expect emits: ["BatchCompleted", "OrderFulfilled"]
+  end
+
+  test "RejectBatch sets reason" do
+    tests "RejectBatch", on: "Batch"
+    setup  "StartBatch", recipe_name: "sample", production_date: "sample", quantity: 1, baker: "sample"
+    input  reason: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── IngredientStock aggregate ──────────────────────────────────────────
+
+  test "ReceiveDelivery sets ingredient_name + quantity + supplier" do
+    tests "ReceiveDelivery", on: "IngredientStock"
+    input  ingredient_name: "sample", quantity: 1.0, supplier: "sample"
+    expect ok: "true"
+  end
+
+  test "DeductForBatch sets quantity" do
+    tests "DeductForBatch", on: "IngredientStock"
+    setup  "ReceiveDelivery", ingredient_name: "sample", quantity: 1.0, supplier: "sample"
+    input  quantity: 1.0
+    expect ok: "true"
+  end
+
+  test "DeductForBatch cascades through policy chain" do
+    tests "DeductForBatch", on: "IngredientStock", kind: :cascade
+    setup  "ReceiveDelivery", ingredient_name: "sample", quantity: 1.0, supplier: "sample"
+    input  quantity: 1.0
+    expect emits: ["StockDeducted", "LowStockFlagged"]
+  end
+
+  test "FlagLowStock runs" do
+    tests "FlagLowStock", on: "IngredientStock"
+    setup  "ReceiveDelivery", ingredient_name: "sample", quantity: 1.0, supplier: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Order aggregate ──────────────────────────────────────────
+
+  test "PlaceOrder sets customer_name + pickup_date" do
+    tests "PlaceOrder", on: "Order"
+    input  customer_name: "sample", pickup_date: "sample"
+    expect customer_name: "sample", pickup_date: "sample"
+  end
+
+  test "FulfillOrder runs" do
+    tests "FulfillOrder", on: "Order"
+    setup  "PlaceOrder", customer_name: "sample", pickup_date: "sample"
+    expect ok: "true"
+  end
+
+end

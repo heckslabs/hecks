@@ -1,0 +1,171 @@
+Hecks.behaviors "QATestLab" do
+  vision "Behavioral tests for the QATestLab domain — exercises every command and query in memory"
+
+  # ── TestProject aggregate ──────────────────────────────────────────
+
+  test "RegisterTestProject sets project_name + repository_url + team_lead + priority" do
+    tests "RegisterTestProject", on: "TestProject"
+    input  project_name: "sample", repository_url: "sample", team_lead: "sample", priority: "sample"
+    expect project_name: "sample", repository_url: "sample", team_lead: "sample", priority: "sample", status: "active"
+  end
+
+  test "AssignTeamLead sets team_lead" do
+    tests "AssignTeamLead", on: "TestProject"
+    setup  "RegisterTestProject", project_name: "sample", repository_url: "sample", team_lead: "sample", priority: "sample"
+    input  team_lead: "sample"
+    expect ok: "true"
+  end
+
+  test "CloseProject runs" do
+    tests "CloseProject", on: "TestProject"
+    setup  "RegisterTestProject", project_name: "sample", repository_url: "sample", team_lead: "sample", priority: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── TestSuite aggregate ──────────────────────────────────────────
+
+  test "DefineTestSuite sets suite_name + test_type" do
+    tests "DefineTestSuite", on: "TestSuite"
+    setup  "RegisterTestProject", project_name: "sample", repository_url: "sample", team_lead: "sample", priority: "sample"
+    input  suite_name: "sample", test_type: "sample"
+    expect status: "active"
+  end
+
+  test "DefineTestSuite cascades through policy chain" do
+    tests "DefineTestSuite", on: "TestSuite", kind: :cascade
+    setup  "RegisterTestProject", project_name: "sample", repository_url: "sample", team_lead: "sample", priority: "sample"
+    setup  "SetupEnvironment", env_name: "sample", platform: "sample", browser_version: "sample", os_version: "sample"
+    setup  "FileBug", bug_id: "sample", title: "sample", description: "sample", severity: "sample"
+    setup  "CandidateRelease", release_version: "sample", branch_name: "sample", build_id: "sample"
+    input  suite_name: "sample", test_type: "sample"
+    expect emits: ["TestSuiteDefined", "EnvironmentSetUp", "EnvironmentLocked", "TestSuiteExecuted", "BugFiled", "ReleaseBlocked", "BugAssigned", "EnvironmentTornDown"]
+  end
+
+  test "ExecuteTestSuite sets build_id" do
+    tests "ExecuteTestSuite", on: "TestSuite"
+    setup  "DefineTestSuite", suite_name: "sample", test_type: "sample"
+    input  build_id: "sample"
+    expect ok: "true"
+  end
+
+  test "ExecuteTestSuite cascades through policy chain" do
+    tests "ExecuteTestSuite", on: "TestSuite", kind: :cascade
+    setup  "DefineTestSuite", suite_name: "sample", test_type: "sample"
+    setup  "FileBug", bug_id: "sample", title: "sample", description: "sample", severity: "sample"
+    setup  "CandidateRelease", release_version: "sample", branch_name: "sample", build_id: "sample"
+    setup  "SetupEnvironment", env_name: "sample", platform: "sample", browser_version: "sample", os_version: "sample"
+    input  build_id: "sample"
+    expect emits: ["TestSuiteExecuted", "BugFiled", "ReleaseBlocked", "BugAssigned", "EnvironmentTornDown"]
+  end
+
+  test "RetireTestSuite runs" do
+    tests "RetireTestSuite", on: "TestSuite"
+    setup  "DefineTestSuite", suite_name: "sample", test_type: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Bug aggregate ──────────────────────────────────────────
+
+  test "FileBug sets bug_id + title + description + severity" do
+    tests "FileBug", on: "Bug"
+    setup  "DefineTestSuite", suite_name: "sample", test_type: "sample"
+    input  bug_id: "sample", title: "sample", description: "sample", severity: "sample"
+    expect ok: "true"
+  end
+
+  test "FileBug cascades through policy chain" do
+    tests "FileBug", on: "Bug", kind: :cascade
+    setup  "DefineTestSuite", suite_name: "sample", test_type: "sample"
+    setup  "CandidateRelease", release_version: "sample", branch_name: "sample", build_id: "sample"
+    input  bug_id: "sample", title: "sample", description: "sample", severity: "sample"
+    expect emits: ["BugFiled", "ReleaseBlocked", "BugAssigned"]
+  end
+
+  test "AssignBug sets assigned_to" do
+    tests "AssignBug", on: "Bug"
+    setup  "FileBug", bug_id: "sample", title: "sample", description: "sample", severity: "sample"
+    input  assigned_to: "sample"
+    expect status: "in_progress"
+  end
+
+  test "CloseBug runs" do
+    tests "CloseBug", on: "Bug"
+    setup  "FileBug", bug_id: "sample", title: "sample", description: "sample", severity: "sample"
+    setup  "AssignBug", assigned_to: "sample"
+    expect ok: "true"
+  end
+
+  test "CloseBug cascades through policy chain" do
+    tests "CloseBug", on: "Bug", kind: :cascade
+    setup  "FileBug", bug_id: "sample", title: "sample", description: "sample", severity: "sample"
+    setup  "CandidateRelease", release_version: "sample", branch_name: "sample", build_id: "sample"
+    setup  "RegisterTestProject", project_name: "sample", repository_url: "sample", team_lead: "sample", priority: "sample"
+    setup  "AssignBug", assigned_to: "sample"
+    expect emits: ["BugClosed", "ReleaseCandidated"]
+  end
+
+
+  # ── TestEnvironment aggregate ──────────────────────────────────────────
+
+  test "SetupEnvironment sets env_name + platform + browser_version + os_version" do
+    tests "SetupEnvironment", on: "TestEnvironment"
+    input  env_name: "sample", platform: "sample", browser_version: "sample", os_version: "sample"
+    expect status: "idle"
+  end
+
+  test "SetupEnvironment cascades through policy chain" do
+    tests "SetupEnvironment", on: "TestEnvironment", kind: :cascade
+    setup  "DefineTestSuite", suite_name: "sample", test_type: "sample"
+    setup  "FileBug", bug_id: "sample", title: "sample", description: "sample", severity: "sample"
+    setup  "CandidateRelease", release_version: "sample", branch_name: "sample", build_id: "sample"
+    input  env_name: "sample", platform: "sample", browser_version: "sample", os_version: "sample"
+    expect emits: ["EnvironmentSetUp", "EnvironmentLocked", "TestSuiteExecuted", "BugFiled", "ReleaseBlocked", "BugAssigned", "EnvironmentTornDown"]
+  end
+
+  test "TeardownEnvironment runs" do
+    tests "TeardownEnvironment", on: "TestEnvironment"
+    setup  "SetupEnvironment", env_name: "sample", platform: "sample", browser_version: "sample", os_version: "sample"
+    expect ok: "true"
+  end
+
+  test "LockEnvironment runs" do
+    tests "LockEnvironment", on: "TestEnvironment"
+    setup  "SetupEnvironment", env_name: "sample", platform: "sample", browser_version: "sample", os_version: "sample"
+    expect ok: "true"
+  end
+
+  test "LockEnvironment cascades through policy chain" do
+    tests "LockEnvironment", on: "TestEnvironment", kind: :cascade
+    setup  "SetupEnvironment", env_name: "sample", platform: "sample", browser_version: "sample", os_version: "sample"
+    setup  "DefineTestSuite", suite_name: "sample", test_type: "sample"
+    setup  "FileBug", bug_id: "sample", title: "sample", description: "sample", severity: "sample"
+    setup  "CandidateRelease", release_version: "sample", branch_name: "sample", build_id: "sample"
+    expect emits: ["EnvironmentLocked", "TestSuiteExecuted", "BugFiled", "ReleaseBlocked", "BugAssigned", "EnvironmentTornDown"]
+  end
+
+
+  # ── Release aggregate ──────────────────────────────────────────
+
+  test "CandidateRelease sets release_version + branch_name + build_id" do
+    tests "CandidateRelease", on: "Release"
+    setup  "RegisterTestProject", project_name: "sample", repository_url: "sample", team_lead: "sample", priority: "sample"
+    input  release_version: "sample", branch_name: "sample", build_id: "sample"
+    expect ok: "true"
+  end
+
+  test "ApproveRelease runs" do
+    tests "ApproveRelease", on: "Release"
+    setup  "CandidateRelease", release_version: "sample", branch_name: "sample", build_id: "sample"
+    expect ok: "true"
+  end
+
+  test "BlockRelease sets block_reason" do
+    tests "BlockRelease", on: "Release"
+    setup  "CandidateRelease", release_version: "sample", branch_name: "sample", build_id: "sample"
+    input  block_reason: "sample"
+    expect ok: "true"
+  end
+
+end

@@ -49,10 +49,38 @@ pub fn extract_after(line: &str, keyword: &str) -> Option<String> {
     Some(rest.trim_end_matches(|c: char| c == ',' || c == ' ').to_string())
 }
 
-/// Check if line ends with ` do` as a whole word (not "domain", "document", etc.)
+/// Extract a state token from `text`: either a quoted "string" or a bare
+/// token like `true`, `false`, or `:symbol`. Used by lifecycle parsing
+/// where Ruby happily stringifies `true`/`false`/symbols into the IR.
+pub fn extract_state_token(text: &str) -> Option<String> {
+    let t = text.trim_start();
+    if t.starts_with('"') {
+        return extract_string(t);
+    }
+    // Bare token — strip a leading `:` (symbol form) and read alphanumerics.
+    let body = t.strip_prefix(':').unwrap_or(t);
+    let end = body
+        .find(|c: char| !c.is_alphanumeric() && c != '_')
+        .unwrap_or(body.len());
+    let tok = body[..end].trim().to_string();
+    if tok.is_empty() { None } else { Some(tok) }
+}
+
+/// Check if line ends with ` do` (with optional block-arg list `|arg, ...|`).
+/// Matches `... do`, `do`, and `... do |x|`, `... do |x, y|`.
 pub fn ends_with_do_block(line: &str) -> bool {
     let trimmed = line.trim();
-    trimmed.ends_with(" do") || trimmed == "do"
+    if trimmed.ends_with(" do") || trimmed == "do" {
+        return true;
+    }
+    // `... do |args|` — strip a trailing |...| if present
+    if trimmed.ends_with('|') {
+        if let Some(open) = trimmed[..trimmed.len() - 1].rfind('|') {
+            let head = trimmed[..open].trim_end();
+            return head.ends_with(" do") || head == "do";
+        }
+    }
+    false
 }
 
 pub fn to_snake_case(s: &str) -> String {
@@ -97,7 +125,8 @@ pub fn is_shorthand_command(line: &str) -> bool {
         && !KEYWORDS.iter().any(|k| first_word == *k)
 }
 
-/// Parse `String :name`, `Integer :count`, `list_of(Order) :tags`.
+/// Parse `String :name`, `Integer :count`, `list_of(Order) :tags`,
+/// and the `default:` kwarg form `Integer :count, default: 0`.
 pub fn parse_shorthand_attribute(line: &str) -> Option<crate::ir::Attribute> {
     let list = line.starts_with("list_of(");
     let attr_type = if list {
@@ -109,18 +138,62 @@ pub fn parse_shorthand_attribute(line: &str) -> Option<crate::ir::Attribute> {
         line[..end].to_string()
     };
     let name = extract_symbol(line)?;
-    Some(crate::ir::Attribute { name, attr_type, default: None, list })
+    let default = if line.contains("default:") {
+        let pos = line.find("default:")?;
+        let after = line[pos + "default:".len()..].trim();
+        if after.starts_with('"') {
+            // Quoted string default — strip quotes.
+            let end = after[1..].find('"').map(|i| i + 1)?;
+            Some(after[1..end].to_string())
+        } else {
+            // Bare token default (number, true, false, identifier).
+            let token = after.split(|c: char| c == ',' || c.is_whitespace())
+                .next().unwrap_or("").to_string();
+            if token.is_empty() { None } else { Some(token) }
+        }
+    } else { None };
+    Some(crate::ir::Attribute { name, attr_type, default, list })
 }
 
-/// Parse `reference_to(Order)` or `reference_to(Order).as(:recent_purchase)`.
+/// Parse a reference declaration in any of these forms:
+///
+///   reference_to(Order)                            — name = `order` (snake target)
+///   reference_to(Order, as: :recent_purchase)      — canonical alias kwarg
+///   reference_to(Order, role: :recent_purchase)    — legacy kwarg, still accepted
+///   reference_to(Order).as(:recent_purchase)       — Rust-style suffix
+///   reference_to(Order) :recent_purchase           — trailing-symbol shorthand
+///
+/// All five resolve to the same Reference IR. Canonical going forward
+/// is `as:`; the others remain accepted so existing bluebooks keep
+/// parsing while authors migrate.
 pub fn parse_shorthand_reference(line: &str) -> Option<crate::ir::Reference> {
     let open = line.find('(')? + 1;
     let close = line.find(')')?;
-    let target = line[open..close].trim().to_string();
+    let inside = &line[open..close];
+    let after_close = &line[close + 1..];
+    // Target is the first identifier inside the parens (before any comma).
+    let target = inside.split(',').next()?.trim().to_string();
 
     let name = if line.contains(".as(") {
+        // `.as(:foo)` Rust-style suffix.
         let as_pos = line.find(".as(")?;
         extract_symbol(&line[as_pos..]).unwrap_or_else(|| to_snake_case(&target))
+    } else if let Some(pos) = inside.find(", as:") {
+        // `, as: :foo` — canonical kwarg.
+        let after = &inside[pos + ", as:".len()..];
+        extract_symbol(after).unwrap_or_else(|| to_snake_case(&target))
+    } else if let Some(pos) = inside.find("as:") {
+        // `as: :foo` — also accepted (no leading comma).
+        let after = &inside[pos + "as:".len()..];
+        extract_symbol(after).unwrap_or_else(|| to_snake_case(&target))
+    } else if let Some(role_pos) = inside.find("role:") {
+        // `role: :foo` — legacy, kept for back-compat.
+        let after_kwarg = &inside[role_pos + "role:".len()..];
+        extract_symbol(after_kwarg).unwrap_or_else(|| to_snake_case(&target))
+    } else if after_close.trim_start().starts_with(':') {
+        // `reference_to(Order) :foo` — trailing-symbol shorthand
+        // (mirrors `String :name` style on attributes).
+        extract_symbol(after_close).unwrap_or_else(|| to_snake_case(&target))
     } else {
         to_snake_case(&target)
     };

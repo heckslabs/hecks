@@ -1,0 +1,121 @@
+Hecks.behaviors "Summer" do
+  vision "Behavioral tests for the Summer domain — exercises every command and query in memory"
+
+  # ── Model aggregate ──────────────────────────────────────────
+
+  test "CountTrainingPairs sets data_path + training_pairs" do
+    tests "CountTrainingPairs", on: "Model"
+    input  data_path: "sample", training_pairs: 1
+    expect training_pairs: 1
+  end
+
+  test "TrainModel sets base_model + data_path + iterations" do
+    tests "TrainModel", on: "Model"
+    input  base_model: "sample", data_path: "sample", iterations: 1
+    expect ok: "true"
+  end
+
+  test "EvaluateModel runs" do
+    tests "EvaluateModel", on: "Model"
+    setup  "CountTrainingPairs", data_path: "sample", training_pairs: 1
+    expect ok: "true"
+  end
+
+
+  # ── Draft aggregate ──────────────────────────────────────────
+
+  test "GenerateDraft sets vision" do
+    tests "GenerateDraft", on: "Draft"
+    input  vision: "sample"
+    expect ok: "true"
+  end
+
+  test "GenerateDraft cascades through policy chain" do
+    tests "GenerateDraft", on: "Draft", kind: :cascade
+    setup  "CountTrainingPairs", data_path: "sample", training_pairs: 1
+    input  vision: "sample"
+    expect emits: ["DraftGenerated", "DraftValidated", "DraftReviewed", "DraftAccepted", "ModelTrained"]
+  end
+
+  test "ValidateDraft runs" do
+    tests "ValidateDraft", on: "Draft"
+    setup  "GenerateDraft", vision: "sample"
+    expect validated: true
+  end
+
+  test "ValidateDraft cascades through policy chain" do
+    tests "ValidateDraft", on: "Draft", kind: :cascade
+    setup  "GenerateDraft", vision: "sample"
+    setup  "CountTrainingPairs", data_path: "sample", training_pairs: 1
+    expect emits: ["DraftValidated", "DraftReviewed", "DraftAccepted", "ModelTrained"]
+  end
+
+  test "ReviewDraft runs" do
+    tests "ReviewDraft", on: "Draft"
+    setup  "GenerateDraft", vision: "sample"
+    setup  "ValidateDraft"
+    expect review_done: true
+  end
+
+  test "ReviewDraft cascades through policy chain" do
+    tests "ReviewDraft", on: "Draft", kind: :cascade
+    setup  "GenerateDraft", vision: "sample"
+    setup  "CountTrainingPairs", data_path: "sample", training_pairs: 1
+    setup  "ValidateDraft"
+    expect emits: ["DraftReviewed", "DraftAccepted", "ModelTrained"]
+  end
+
+  test "AcceptDraft runs" do
+    tests "AcceptDraft", on: "Draft"
+    setup  "GenerateDraft", vision: "sample"
+    setup  "ValidateDraft"
+    setup  "ReviewDraft"
+    expect ok: "true"
+  end
+
+  test "AcceptDraft cascades through policy chain" do
+    tests "AcceptDraft", on: "Draft", kind: :cascade
+    setup  "GenerateDraft", vision: "sample"
+    setup  "CountTrainingPairs", data_path: "sample", training_pairs: 1
+    setup  "ValidateDraft"
+    setup  "ReviewDraft"
+    expect emits: ["DraftAccepted", "ModelTrained"]
+  end
+
+
+  # ── Critique aggregate ──────────────────────────────────────────
+
+  test "CritiqueDomain sets domain_name" do
+    tests "CritiqueDomain", on: "Critique"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+  test "CritiqueDomain cascades through policy chain" do
+    tests "CritiqueDomain", on: "Critique", kind: :cascade
+    input  domain_name: "sample"
+    expect emits: ["DomainCritiqued", "SuggestionsApplied"]
+  end
+
+  test "ApplySuggestions runs" do
+    tests "ApplySuggestions", on: "Critique"
+    setup  "CritiqueDomain", domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Daemon aggregate ──────────────────────────────────────────
+
+  test "StartDaemon sets port" do
+    tests "StartDaemon", on: "Daemon"
+    input  port: 1
+    expect ok: "true"
+  end
+
+  test "StopDaemon runs" do
+    tests "StopDaemon", on: "Daemon"
+    setup  "StartDaemon", port: 1
+    expect ok: "true"
+  end
+
+end

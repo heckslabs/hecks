@@ -1,0 +1,22 @@
+Hecks.fixtures "PotteryStudio" do
+  aggregate "Piece" do
+    fixture "Sunset_Vase_", name: "Sunset Vase", form: "cylinder", clay_body: "porcelain", status: "thrown", weight_kg: 1.2
+    fixture "Raku_Bowl_", name: "Raku Bowl", form: "bowl", clay_body: "stoneware", status: "trimmed", weight_kg: 0.8
+  end
+  aggregate "Firing" do
+    fixture "Firing1", firing_type: "bisque", target_cone: 04, atmosphere: "oxidation", status: "loading", piece_count: 24
+    fixture "Firing2", firing_type: "glaze", target_cone: 6, atmosphere: "reduction", status: "firing", piece_count: 18
+  end
+  aggregate "Glaze" do
+    fixture "Cobalt_Blue_", name: "Cobalt Blue", surface_type: "matte", cone_low: 5, cone_high: 8, color_result: "deep blue"
+    fixture "Ash_Glaze_", name: "Ash Glaze", surface_type: "satin", cone_low: 8, cone_high: 10, color_result: "grey-green"
+  end
+  aggregate "Kiln" do
+    fixture "Studio_Electric_", name: "Studio Electric", fuel_type: "electric", cubic_feet: 42.0, status: "idle", total_firings: 127
+    fixture "Raku_Kiln_", name: "Raku Kiln", fuel_type: "gas", cubic_feet: 8.5, status: "idle", total_firings: 89
+  end
+  aggregate "Exhibition" do
+    fixture "Spring_Harmonies_", title: "Spring Harmonies", venue: "Downtown Gallery", opening_date: "2026-05-01", piece_count: 32, status: "planning"
+    fixture "Ceramic_Dialogues_", title: "Ceramic Dialogues", venue: "Artist Center", opening_date: "2026-06-15", piece_count: 28, status: "planning"
+  end
+end

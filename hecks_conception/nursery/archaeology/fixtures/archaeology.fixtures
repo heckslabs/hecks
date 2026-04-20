@@ -1,0 +1,22 @@
+Hecks.fixtures "Archaeology" do
+  aggregate "ExcavationSite" do
+    fixture "Miller_Valley_Mound_Complex_", site_code: "EF2024_001", name: "Miller Valley Mound Complex", latitude: 42.3601, longitude: -71.0589, period_estimate: "Middle Woodland"
+    fixture "Sunrise_Ridge_Rockshelter_", site_code: "EF2024_002", name: "Sunrise Ridge Rockshelter", latitude: 40.7128, longitude: -74.0060, period_estimate: "Late Archaic"
+  end
+  aggregate "StratigraphicUnit" do
+    fixture "StratigraphicUnit1", context_number: "EF24-001-C01", soil_description: "Dark brown silt loam with charcoal flecks, cultural debris", depth_top_m: 0.0, depth_bottom_m: 0.25
+    fixture "StratigraphicUnit2", context_number: "EF24-001-C02", soil_description: "Tan clay with iron oxide staining, sterile natural substratum", depth_top_m: 0.25, depth_bottom_m: 0.55
+  end
+  aggregate "Artifact" do
+    fixture "Artifact1", find_number: "EF24-001-2847", material: "ceramic", object_type: "pottery vessel rim fragment", weight_g: 34.2
+    fixture "Artifact2", find_number: "EF24-001-2848", material: "stone", object_type: "chert projectile point", weight_g: 8.7
+  end
+  aggregate "DatingResult" do
+    fixture "DatingResult1", method: "Radiocarbon", date_bp: 1245, error_margin: 45
+    fixture "DatingResult2", method: "Obsidian Hydration", date_bp: 1890, error_margin: 120
+  end
+  aggregate "ConservationRecord" do
+    fixture "ConservationRecord1", record_id: "CON_2026_001", treatment_type: "Acid-free stabilization", conservator: "Dr. Elena Rodriguez", date_performed: "2026-03-20"
+    fixture "ConservationRecord2", record_id: "CON_2026_002", treatment_type: "Consolidation with Paraloid B-72", conservator: "Dr. James Okafor", date_performed: "2026-04-05"
+  end
+end

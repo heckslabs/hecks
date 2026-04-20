@@ -1,0 +1,26 @@
+Hecks.fixtures "CraftBeverageLab" do
+  aggregate "Experiment" do
+    fixture "IPA_Hop_Integration_", title: "IPA Hop Integration", experiment_type: "fermentation", hypothesis: "Dry-hopping at 60F produces brighter citrus notes", status: "designed", conclusion: ""
+    fixture "Ethiopian_Yirgacheffe_Profile_", title: "Ethiopian Yirgacheffe Profile", experiment_type: "roasting", hypothesis: "Light roast at 195C highlights floral undertones", status: "running", conclusion: ""
+  end
+  aggregate "YeastCulture" do
+    fixture "YeastCulture1", strain_name: "WLP566", species: "Saccharomyces cerevisiae", viability_percent: 100.0, optimal_temperature: 18.0, status: "active"
+    fixture "YeastCulture2", strain_name: "Belle Saison", species: "Saccharomyces cerevisiae", viability_percent: 95.0, optimal_temperature: 22.0, status: "dormant"
+  end
+  aggregate "RoastProfile" do
+    fixture "RoastProfile1", bean_origin: "Kenya Nyeri", roast_level: "medium", charge_temperature: 200.0, drop_temperature: 0.0, total_time_seconds: 0, status: "draft"
+    fixture "RoastProfile2", bean_origin: "Brazil Santos", roast_level: "dark", charge_temperature: 205.0, drop_temperature: 204.0, total_time_seconds: 540, status: "profiled"
+  end
+  aggregate "FlavorCompound" do
+    fixture "FlavorCompound1", compound_name: "Limonene", chemical_family: "Terpene", concentration_ppm: 45.2, source: "fermentation", aroma_descriptor: "citrus, lemon"
+    fixture "FlavorCompound2", compound_name: "Ethyl Acetate", chemical_family: "Ester", concentration_ppm: 12.7, source: "roasting", aroma_descriptor: "fruity, apple"
+  end
+  aggregate "SensoryPanel" do
+    fixture "SensoryPanel1", panel_name: "Regional Judges 2024", panelist_count: 5, status: "convened"
+    fixture "SensoryPanel2", panel_name: "Blind Cupping Q2", panelist_count: 8, status: "pending"
+  end
+  aggregate "LabEquipment" do
+    fixture "Conical_Fermenter_50L_", name: "Conical Fermenter 50L", equipment_type: "fermenter", status: "available", last_calibration: "2024-01-10"
+    fixture "Bullet_Roaster_1kg_", name: "Bullet Roaster 1kg", equipment_type: "roaster", status: "reserved", last_calibration: "2024-01-08"
+  end
+end

@@ -1,0 +1,77 @@
+Hecks.behaviors "DonorRegistry" do
+  vision "Behavioral tests for the DonorRegistry domain — exercises every command and query in memory"
+
+  # ── DonorProfile aggregate ──────────────────────────────────────────
+
+  test "RegisterDonor sets donor_id + name + blood_type" do
+    tests "RegisterDonor", on: "DonorProfile"
+    input  donor_id: "sample", name: "sample", blood_type: "sample"
+    expect donor_id: "sample", name: "sample", blood_type: "sample", status: "active"
+  end
+
+  test "DeactivateDonor runs" do
+    tests "DeactivateDonor", on: "DonorProfile"
+    setup  "RegisterDonor", donor_id: "sample", name: "sample", blood_type: "sample"
+    expect status: "inactive"
+  end
+
+
+  # ── RecipientMatch aggregate ──────────────────────────────────────────
+
+  test "FindMatch sets match_id + donor_id + recipient_name + organ_name + compatibility_score" do
+    tests "FindMatch", on: "RecipientMatch"
+    input  match_id: "sample", donor_id: "sample", recipient_name: "sample", organ_name: "sample", compatibility_score: 1.0
+    expect match_id: "sample", donor_id: "sample", recipient_name: "sample", organ_name: "sample", compatibility_score: 1.0, status: "pending"
+  end
+
+  test "ConfirmMatch runs" do
+    tests "ConfirmMatch", on: "RecipientMatch"
+    setup  "FindMatch", match_id: "sample", donor_id: "sample", recipient_name: "sample", organ_name: "sample", compatibility_score: 1.0
+    expect status: "confirmed"
+  end
+
+  test "ConfirmMatch cascades through policy chain" do
+    tests "ConfirmMatch", on: "RecipientMatch", kind: :cascade
+    setup  "ArrangeTransport", transport_id: "sample", match_id: "sample", origin_hospital: "sample", dest_hospital: "sample", max_hours: 1.0
+    setup  "FindMatch", match_id: "sample", donor_id: "sample", recipient_name: "sample", organ_name: "sample", compatibility_score: 1.0
+    expect emits: ["MatchConfirmed", "TransportArranged"]
+  end
+
+
+  # ── OrganTransport aggregate ──────────────────────────────────────────
+
+  test "ArrangeTransport sets transport_id + match_id + origin_hospital + dest_hospital + max_hours" do
+    tests "ArrangeTransport", on: "OrganTransport"
+    input  transport_id: "sample", match_id: "sample", origin_hospital: "sample", dest_hospital: "sample", max_hours: 1.0
+    expect transport_id: "sample", match_id: "sample", origin_hospital: "sample", dest_hospital: "sample", max_hours: 1.0, status: "arranged"
+  end
+
+  test "ConfirmArrival runs" do
+    tests "ConfirmArrival", on: "OrganTransport"
+    setup  "ArrangeTransport", transport_id: "sample", match_id: "sample", origin_hospital: "sample", dest_hospital: "sample", max_hours: 1.0
+    expect status: "delivered"
+  end
+
+  test "ConfirmArrival cascades through policy chain" do
+    tests "ConfirmArrival", on: "OrganTransport", kind: :cascade
+    setup  "OpenSettlement", settlement_id: "sample", match_id: "sample", procurement_cost: 1.0, transport_cost: 1.0
+    setup  "ArrangeTransport", transport_id: "sample", match_id: "sample", origin_hospital: "sample", dest_hospital: "sample", max_hours: 1.0
+    expect emits: ["ArrivalConfirmed", "SettlementOpened"]
+  end
+
+
+  # ── Settlement aggregate ──────────────────────────────────────────
+
+  test "OpenSettlement sets settlement_id + match_id + procurement_cost + transport_cost" do
+    tests "OpenSettlement", on: "Settlement"
+    input  settlement_id: "sample", match_id: "sample", procurement_cost: 1.0, transport_cost: 1.0
+    expect settlement_id: "sample", match_id: "sample", procurement_cost: 1.0, transport_cost: 1.0, status: "pending"
+  end
+
+  test "ProcessPayment runs" do
+    tests "ProcessPayment", on: "Settlement"
+    setup  "OpenSettlement", settlement_id: "sample", match_id: "sample", procurement_cost: 1.0, transport_cost: 1.0
+    expect status: "paid"
+  end
+
+end

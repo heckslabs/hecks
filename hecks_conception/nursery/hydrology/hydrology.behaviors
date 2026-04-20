@@ -1,0 +1,191 @@
+Hecks.behaviors "Hydrology" do
+  vision "Behavioral tests for the Hydrology domain — exercises every command and query in memory"
+
+  # ── Watershed aggregate ──────────────────────────────────────────
+
+  test "DelineateWatershed sets watershed_id + name + area_km2" do
+    tests "DelineateWatershed", on: "Watershed"
+    input  watershed_id: "sample", name: "sample", area_km2: 1.0
+    expect ok: "true"
+  end
+
+  test "ClassifyLandUse sets land_use_dominant" do
+    tests "ClassifyLandUse", on: "Watershed"
+    setup  "DelineateWatershed", watershed_id: "sample", name: "sample", area_km2: 1.0
+    input  land_use_dominant: "sample"
+    expect ok: "true"
+  end
+
+  test "AcquireDEMData runs" do
+    tests "AcquireDEMData", on: "Watershed"
+    setup  "DelineateWatershed", watershed_id: "sample", name: "sample", area_km2: 1.0
+    expect dem_data_available: true
+  end
+
+  test "UpdateBoundary runs" do
+    tests "UpdateBoundary", on: "Watershed"
+    setup  "DelineateWatershed", watershed_id: "sample", name: "sample", area_km2: 1.0
+    setup  "AcquireDEMData"
+    expect ok: "true"
+  end
+
+
+  # ── StreamGauge aggregate ──────────────────────────────────────────
+
+  test "InstallGauge sets gauge_id + stream_name" do
+    tests "InstallGauge", on: "StreamGauge"
+    setup  "DelineateWatershed", watershed_id: "sample", name: "sample", area_km2: 1.0
+    input  gauge_id: "sample", stream_name: "sample"
+    expect ok: "true"
+  end
+
+  test "InstallGauge cascades through policy chain" do
+    tests "InstallGauge", on: "StreamGauge", kind: :cascade
+    setup  "DelineateWatershed", watershed_id: "sample", name: "sample", area_km2: 1.0
+    setup  "RecordDischarge", measurement_date: "sample", stage_m: 1.0, discharge_cms: 1.0
+    setup  "BuildModel", model_id: "sample", scenario_name: "sample"
+    input  gauge_id: "sample", stream_name: "sample"
+    expect emits: ["GaugeInstalled", "GaugeCalibrated", "DischargeRecorded", "MeasurementValidated", "ModelBuilt", "SimulationRun", "FloodMapPublished"]
+  end
+
+  test "RecordDischargeMeasurement sets new_count" do
+    tests "RecordDischargeMeasurement", on: "StreamGauge"
+    setup  "InstallGauge", gauge_id: "sample", stream_name: "sample"
+    input  new_count: 1
+    expect discharge_measurement_count: 1
+  end
+
+  test "CalibrateGauge runs" do
+    tests "CalibrateGauge", on: "StreamGauge"
+    setup  "InstallGauge", gauge_id: "sample", stream_name: "sample"
+    expect ok: "true"
+  end
+
+  test "CalibrateGauge cascades through policy chain" do
+    tests "CalibrateGauge", on: "StreamGauge", kind: :cascade
+    setup  "InstallGauge", gauge_id: "sample", stream_name: "sample"
+    setup  "RecordDischarge", measurement_date: "sample", stage_m: 1.0, discharge_cms: 1.0
+    setup  "BuildModel", model_id: "sample", scenario_name: "sample"
+    setup  "DelineateWatershed", watershed_id: "sample", name: "sample", area_km2: 1.0
+    expect emits: ["GaugeCalibrated", "DischargeRecorded", "MeasurementValidated", "ModelBuilt", "SimulationRun", "FloodMapPublished"]
+  end
+
+  test "RemoveGauge runs" do
+    tests "RemoveGauge", on: "StreamGauge"
+    setup  "InstallGauge", gauge_id: "sample", stream_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── FlowMeasurement aggregate ──────────────────────────────────────────
+
+  test "RecordDischarge sets measurement_date + stage_m + discharge_cms" do
+    tests "RecordDischarge", on: "FlowMeasurement"
+    setup  "InstallGauge", gauge_id: "sample", stream_name: "sample"
+    input  measurement_date: "sample", stage_m: 1.0, discharge_cms: 1.0
+    expect ok: "true"
+  end
+
+  test "RecordDischarge cascades through policy chain" do
+    tests "RecordDischarge", on: "FlowMeasurement", kind: :cascade
+    setup  "InstallGauge", gauge_id: "sample", stream_name: "sample"
+    setup  "BuildModel", model_id: "sample", scenario_name: "sample"
+    setup  "DelineateWatershed", watershed_id: "sample", name: "sample", area_km2: 1.0
+    input  measurement_date: "sample", stage_m: 1.0, discharge_cms: 1.0
+    expect emits: ["DischargeRecorded", "MeasurementValidated", "ModelBuilt", "SimulationRun", "FloodMapPublished"]
+  end
+
+  test "RefreshRatingCurve runs" do
+    tests "RefreshRatingCurve", on: "FlowMeasurement"
+    setup  "RecordDischarge", measurement_date: "sample", stage_m: 1.0, discharge_cms: 1.0
+    expect rating_curve_current: true
+  end
+
+  test "ValidateMeasurement runs" do
+    tests "ValidateMeasurement", on: "FlowMeasurement"
+    setup  "RecordDischarge", measurement_date: "sample", stage_m: 1.0, discharge_cms: 1.0
+    expect ok: "true"
+  end
+
+  test "ValidateMeasurement cascades through policy chain" do
+    tests "ValidateMeasurement", on: "FlowMeasurement", kind: :cascade
+    setup  "RecordDischarge", measurement_date: "sample", stage_m: 1.0, discharge_cms: 1.0
+    setup  "BuildModel", model_id: "sample", scenario_name: "sample"
+    setup  "DelineateWatershed", watershed_id: "sample", name: "sample", area_km2: 1.0
+    expect emits: ["MeasurementValidated", "ModelBuilt", "SimulationRun", "FloodMapPublished"]
+  end
+
+
+  # ── FloodModel aggregate ──────────────────────────────────────────
+
+  test "BuildModel sets model_id + scenario_name" do
+    tests "BuildModel", on: "FloodModel"
+    setup  "DelineateWatershed", watershed_id: "sample", name: "sample", area_km2: 1.0
+    input  model_id: "sample", scenario_name: "sample"
+    expect ok: "true"
+  end
+
+  test "BuildModel cascades through policy chain" do
+    tests "BuildModel", on: "FloodModel", kind: :cascade
+    setup  "DelineateWatershed", watershed_id: "sample", name: "sample", area_km2: 1.0
+    input  model_id: "sample", scenario_name: "sample"
+    expect emits: ["ModelBuilt", "SimulationRun", "FloodMapPublished"]
+  end
+
+  test "CalibrateModel runs" do
+    tests "CalibrateModel", on: "FloodModel"
+    setup  "BuildModel", model_id: "sample", scenario_name: "sample"
+    expect model_calibrated: true
+  end
+
+  test "RunSimulation sets return_period_years" do
+    tests "RunSimulation", on: "FloodModel"
+    setup  "BuildModel", model_id: "sample", scenario_name: "sample"
+    input  return_period_years: 1
+    expect ok: "true"
+  end
+
+  test "RunSimulation cascades through policy chain" do
+    tests "RunSimulation", on: "FloodModel", kind: :cascade
+    setup  "BuildModel", model_id: "sample", scenario_name: "sample"
+    input  return_period_years: 1
+    expect emits: ["SimulationRun", "FloodMapPublished"]
+  end
+
+  test "PublishFloodMap runs" do
+    tests "PublishFloodMap", on: "FloodModel"
+    setup  "BuildModel", model_id: "sample", scenario_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── MonitoringWell aggregate ──────────────────────────────────────────
+
+  test "DrillWell sets well_id + depth_m" do
+    tests "DrillWell", on: "MonitoringWell"
+    setup  "DelineateWatershed", watershed_id: "sample", name: "sample", area_km2: 1.0
+    input  well_id: "sample", depth_m: 1.0
+    expect ok: "true"
+  end
+
+  test "MeasureWaterLevel sets depth_to_water_m" do
+    tests "MeasureWaterLevel", on: "MonitoringWell"
+    setup  "DrillWell", well_id: "sample", depth_m: 1.0
+    input  depth_to_water_m: 1.0
+    expect ok: "true"
+  end
+
+  test "PurgeWell runs" do
+    tests "PurgeWell", on: "MonitoringWell"
+    setup  "DrillWell", well_id: "sample", depth_m: 1.0
+    expect well_purged: true
+  end
+
+  test "SampleGroundwater runs" do
+    tests "SampleGroundwater", on: "MonitoringWell"
+    setup  "DrillWell", well_id: "sample", depth_m: 1.0
+    setup  "PurgeWell"
+    expect ok: "true"
+  end
+
+end

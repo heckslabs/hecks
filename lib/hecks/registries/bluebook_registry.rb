@@ -49,6 +49,24 @@ module Hecks
       @last_world = world
     end
 
+    def last_test_suite
+      @last_test_suite
+    end
+
+    def last_test_suite=(suite)
+      @last_test_suite = suite
+    end
+
+    # Most recently parsed .fixtures file. Set by Hecks.fixtures.
+    # Mirrors last_test_suite — single-shot accessor, not a stack.
+    def last_fixtures_file
+      @last_fixtures_file
+    end
+
+    def last_fixtures_file=(file)
+      @last_fixtures_file = file
+    end
+
     def load_strategy
       @load_strategy ||= :memory
     end

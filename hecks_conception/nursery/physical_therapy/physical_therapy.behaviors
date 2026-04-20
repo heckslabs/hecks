@@ -1,0 +1,169 @@
+Hecks.behaviors "PhysicalTherapy" do
+  vision "Behavioral tests for the PhysicalTherapy domain — exercises every command and query in memory"
+
+  # ── Patient aggregate ──────────────────────────────────────────
+
+  test "RegisterPatient sets name + date_of_birth + diagnosis + insurance_id" do
+    tests "RegisterPatient", on: "Patient"
+    input  name: "sample", date_of_birth: "sample", diagnosis: "sample", insurance_id: "sample"
+    expect name: "sample", date_of_birth: "sample", diagnosis: "sample", insurance_id: "sample", status: "intake"
+  end
+
+  test "RegisterPatient cascades through policy chain" do
+    tests "RegisterPatient", on: "Patient", kind: :cascade
+    setup  "PrescribeTherapy", physician_name: "sample", patient_name: "sample", diagnosis: "sample", authorized_visits: 1
+    setup  "ScheduleSession", patient_name: "sample", therapist_name: "sample", scheduled_date: "sample"
+    input  name: "sample", date_of_birth: "sample", diagnosis: "sample", insurance_id: "sample"
+    expect emits: ["PatientRegistered", "LimitationAssessed", "PrescriptionCreated", "PatientActivated", "SessionScheduled"]
+  end
+
+  test "AssessLimitation sets body_region + description + severity_score" do
+    tests "AssessLimitation", on: "Patient"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diagnosis: "sample", insurance_id: "sample"
+    input  body_region: "sample", description: "sample", severity_score: 1
+    expect status: "assessed"
+  end
+
+  test "AssessLimitation cascades through policy chain" do
+    tests "AssessLimitation", on: "Patient", kind: :cascade
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diagnosis: "sample", insurance_id: "sample"
+    setup  "PrescribeTherapy", physician_name: "sample", patient_name: "sample", diagnosis: "sample", authorized_visits: 1
+    setup  "ScheduleSession", patient_name: "sample", therapist_name: "sample", scheduled_date: "sample"
+    input  body_region: "sample", description: "sample", severity_score: 1
+    expect emits: ["LimitationAssessed", "PrescriptionCreated", "PatientActivated", "SessionScheduled"]
+  end
+
+  test "ActivatePatient runs" do
+    tests "ActivatePatient", on: "Patient"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diagnosis: "sample", insurance_id: "sample"
+    expect status: "active"
+  end
+
+  test "ActivatePatient cascades through policy chain" do
+    tests "ActivatePatient", on: "Patient", kind: :cascade
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diagnosis: "sample", insurance_id: "sample"
+    setup  "ScheduleSession", patient_name: "sample", therapist_name: "sample", scheduled_date: "sample"
+    expect emits: ["PatientActivated", "SessionScheduled"]
+  end
+
+  test "DischargePatient runs" do
+    tests "DischargePatient", on: "Patient"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diagnosis: "sample", insurance_id: "sample"
+    expect status: "discharged"
+  end
+
+
+  # ── Exercise aggregate ──────────────────────────────────────────
+
+  test "DefineExercise sets name + target_muscle_group + difficulty + instructions + repetitions + sets" do
+    tests "DefineExercise", on: "Exercise"
+    input  name: "sample", target_muscle_group: "sample", difficulty: "sample", instructions: "sample", repetitions: 1, sets: 1
+    expect name: "sample", target_muscle_group: "sample", difficulty: "sample", instructions: "sample", repetitions: 1, sets: 1
+  end
+
+  test "AdjustDifficulty sets difficulty" do
+    tests "AdjustDifficulty", on: "Exercise"
+    setup  "DefineExercise", name: "sample", target_muscle_group: "sample", difficulty: "sample", instructions: "sample", repetitions: 1, sets: 1
+    input  difficulty: "sample"
+    expect difficulty: "sample"
+  end
+
+
+  # ── Session aggregate ──────────────────────────────────────────
+
+  test "ScheduleSession sets patient_name + therapist_name + scheduled_date" do
+    tests "ScheduleSession", on: "Session"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diagnosis: "sample", insurance_id: "sample"
+    input  patient_name: "sample", therapist_name: "sample", scheduled_date: "sample"
+    expect patient_name: "sample", therapist_name: "sample", scheduled_date: "sample", status: "scheduled"
+  end
+
+  test "CompleteSession sets notes" do
+    tests "CompleteSession", on: "Session"
+    setup  "ScheduleSession", patient_name: "sample", therapist_name: "sample", scheduled_date: "sample"
+    input  notes: "sample"
+    expect notes: "sample", status: "completed"
+  end
+
+  test "CompleteSession cascades through policy chain" do
+    tests "CompleteSession", on: "Session", kind: :cascade
+    setup  "PrescribeTherapy", physician_name: "sample", patient_name: "sample", diagnosis: "sample", authorized_visits: 1
+    setup  "RecordProgress", patient_name: "sample", assessment_date: "sample", pain_score: 1, range_of_motion: 1, strength_score: 1, therapist_notes: "sample"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diagnosis: "sample", insurance_id: "sample"
+    setup  "DefineExercise", name: "sample", target_muscle_group: "sample", difficulty: "sample", instructions: "sample", repetitions: 1, sets: 1
+    setup  "ScheduleSession", patient_name: "sample", therapist_name: "sample", scheduled_date: "sample"
+    input  notes: "sample"
+    expect emits: ["SessionCompleted", "VisitRecorded", "ProgressRecorded", "RegressionFlagged", "DifficultyAdjusted", "SessionScheduled"]
+  end
+
+  test "CancelSession runs" do
+    tests "CancelSession", on: "Session"
+    setup  "ScheduleSession", patient_name: "sample", therapist_name: "sample", scheduled_date: "sample"
+    expect status: "cancelled"
+  end
+
+
+  # ── Prescription aggregate ──────────────────────────────────────────
+
+  test "PrescribeTherapy sets physician_name + patient_name + diagnosis + authorized_visits" do
+    tests "PrescribeTherapy", on: "Prescription"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diagnosis: "sample", insurance_id: "sample"
+    input  physician_name: "sample", patient_name: "sample", diagnosis: "sample", authorized_visits: 1
+    expect physician_name: "sample", patient_name: "sample", diagnosis: "sample", authorized_visits: 1, visits_used: 0, status: "active"
+  end
+
+  test "PrescribeTherapy cascades through policy chain" do
+    tests "PrescribeTherapy", on: "Prescription", kind: :cascade
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diagnosis: "sample", insurance_id: "sample"
+    setup  "ScheduleSession", patient_name: "sample", therapist_name: "sample", scheduled_date: "sample"
+    input  physician_name: "sample", patient_name: "sample", diagnosis: "sample", authorized_visits: 1
+    expect emits: ["PrescriptionCreated", "PatientActivated", "SessionScheduled"]
+  end
+
+  test "RecordVisit cascades through policy chain" do
+    tests "RecordVisit", on: "Prescription", kind: :cascade
+    setup  "PrescribeTherapy", physician_name: "sample", patient_name: "sample", diagnosis: "sample", authorized_visits: 1
+    setup  "RecordProgress", patient_name: "sample", assessment_date: "sample", pain_score: 1, range_of_motion: 1, strength_score: 1, therapist_notes: "sample"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diagnosis: "sample", insurance_id: "sample"
+    setup  "DefineExercise", name: "sample", target_muscle_group: "sample", difficulty: "sample", instructions: "sample", repetitions: 1, sets: 1
+    expect emits: ["VisitRecorded", "ProgressRecorded", "RegressionFlagged", "DifficultyAdjusted"]
+  end
+
+  test "ExpirePrescription runs" do
+    tests "ExpirePrescription", on: "Prescription"
+    setup  "PrescribeTherapy", physician_name: "sample", patient_name: "sample", diagnosis: "sample", authorized_visits: 1
+    expect status: "expired"
+  end
+
+  test "ExpirePrescription cascades through policy chain" do
+    tests "ExpirePrescription", on: "Prescription", kind: :cascade
+    setup  "PrescribeTherapy", physician_name: "sample", patient_name: "sample", diagnosis: "sample", authorized_visits: 1
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diagnosis: "sample", insurance_id: "sample"
+    expect emits: ["PrescriptionExpired", "PatientDischarged"]
+  end
+
+
+  # ── ProgressReport aggregate ──────────────────────────────────────────
+
+  test "RecordProgress sets patient_name + assessment_date + pain_score + range_of_motion + strength_score + therapist_notes" do
+    tests "RecordProgress", on: "ProgressReport"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diagnosis: "sample", insurance_id: "sample"
+    input  patient_name: "sample", assessment_date: "sample", pain_score: 1, range_of_motion: 1, strength_score: 1, therapist_notes: "sample"
+    expect patient_name: "sample", assessment_date: "sample", pain_score: 1, range_of_motion: 1, strength_score: 1, therapist_notes: "sample"
+  end
+
+  test "RecordProgress cascades through policy chain" do
+    tests "RecordProgress", on: "ProgressReport", kind: :cascade
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diagnosis: "sample", insurance_id: "sample"
+    setup  "DefineExercise", name: "sample", target_muscle_group: "sample", difficulty: "sample", instructions: "sample", repetitions: 1, sets: 1
+    input  patient_name: "sample", assessment_date: "sample", pain_score: 1, range_of_motion: 1, strength_score: 1, therapist_notes: "sample"
+    expect emits: ["ProgressRecorded", "RegressionFlagged", "DifficultyAdjusted"]
+  end
+
+  test "FlagRegression runs" do
+    tests "FlagRegression", on: "ProgressReport"
+    setup  "RecordProgress", patient_name: "sample", assessment_date: "sample", pain_score: 1, range_of_motion: 1, strength_score: 1, therapist_notes: "sample"
+    expect ok: "true"
+  end
+
+end

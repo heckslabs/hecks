@@ -1,0 +1,18 @@
+Hecks.fixtures "AirportSecurity" do
+  aggregate "Checkpoint" do
+    fixture "Checkpoint1", checkpoint_id: "CP-001", terminal: "A", lane_count: 5, status: "open", throughput_per_hour: 300
+    fixture "Checkpoint2", checkpoint_id: "CP-002", terminal: "B", lane_count: 3, status: "closed", throughput_per_hour: 180
+  end
+  aggregate "Scanner" do
+    fixture "Scanner1", scanner_id: "SC-001", scanner_type: "X-ray", status: "operational", scans_today: 127, checkpoint_id: "CP-001"
+    fixture "Scanner2", scanner_id: "SC-002", scanner_type: "body_scanner", status: "faulty", scans_today: 45, checkpoint_id: "CP-001"
+  end
+  aggregate "Officer" do
+    fixture "Jane_Smith_", badge_number: "TSA-4521", name: "Jane Smith", clearance_level: "SECRET", status: "on_duty", checkpoint_id: "CP-001"
+    fixture "Robert_Johnson_", badge_number: "TSA-3891", name: "Robert Johnson", clearance_level: "TOP_SECRET", status: "off_duty", checkpoint_id: "CP-002"
+  end
+  aggregate "Incident" do
+    fixture "Incident1", incident_id: "INC-001", incident_type: "suspicious_item", severity: "high", description: "Unattended bag found near checkpoint", status: "investigating", checkpoint_id: "CP-001", officer_id: "TSA-4521"
+    fixture "Incident2", incident_id: "INC-002", incident_type: "passenger_altercation", severity: "medium", description: "Passenger became aggressive during screening", status: "resolved", checkpoint_id: "CP-002", officer_id: "TSA-3891"
+  end
+end

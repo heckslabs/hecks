@@ -1,0 +1,158 @@
+Hecks.behaviors "SubstanceRecovery" do
+  vision "Behavioral tests for the SubstanceRecovery domain — exercises every command and query in memory"
+
+  # ── Client aggregate ──────────────────────────────────────────
+
+  test "IntakeClient sets name + date_of_birth + primary_substance + intake_date + insurance_id" do
+    tests "IntakeClient", on: "Client"
+    input  name: "sample", date_of_birth: "sample", primary_substance: "sample", intake_date: "sample", insurance_id: "sample"
+    expect name: "sample", date_of_birth: "sample", primary_substance: "sample", intake_date: "sample", insurance_id: "sample", status: "active"
+  end
+
+  test "IntakeClient cascades through policy chain" do
+    tests "IntakeClient", on: "Client", kind: :cascade
+    setup  "HireCounselor", name: "sample", license_type: "sample", license_number: "sample", specialty: "sample"
+    setup  "EstablishProgram", program_name: "sample", treatment_level: "sample", duration_days: 1, modality: "sample", capacity: 1
+    setup  "ConveneSupportGroup", group_name: "sample", meeting_day: "sample", meeting_time: "sample", facilitator_name: "sample", max_members: 1
+    setup  "RecordMilestone", client_name: "sample", milestone_type: "sample", description: "sample", achieved_date: "sample", days_sober: 1, verified_by: "sample"
+    input  name: "sample", date_of_birth: "sample", primary_substance: "sample", intake_date: "sample", insurance_id: "sample"
+    expect emits: ["ClientIntaked", "CaseAssigned", "ClientEnrolledInProgram", "GroupMemberAdded", "AttendanceRecorded", "MilestoneRecorded", "MilestoneCelebrated", "ClientTransitionedToAftercare", "ClientDischarged"]
+  end
+
+  test "TransitionToAftercare runs" do
+    tests "TransitionToAftercare", on: "Client"
+    setup  "IntakeClient", name: "sample", date_of_birth: "sample", primary_substance: "sample", intake_date: "sample", insurance_id: "sample"
+    expect status: "aftercare"
+  end
+
+  test "TransitionToAftercare cascades through policy chain" do
+    tests "TransitionToAftercare", on: "Client", kind: :cascade
+    setup  "IntakeClient", name: "sample", date_of_birth: "sample", primary_substance: "sample", intake_date: "sample", insurance_id: "sample"
+    expect emits: ["ClientTransitionedToAftercare", "ClientDischarged"]
+  end
+
+  test "DischargeClient runs" do
+    tests "DischargeClient", on: "Client"
+    setup  "IntakeClient", name: "sample", date_of_birth: "sample", primary_substance: "sample", intake_date: "sample", insurance_id: "sample"
+    expect status: "discharged"
+  end
+
+
+  # ── TreatmentProgram aggregate ──────────────────────────────────────────
+
+  test "EstablishProgram sets program_name + treatment_level + duration_days + modality + capacity" do
+    tests "EstablishProgram", on: "TreatmentProgram"
+    input  program_name: "sample", treatment_level: "sample", duration_days: 1, modality: "sample", capacity: 1
+    expect program_name: "sample", treatment_level: "sample", duration_days: 1, modality: "sample", capacity: 1, current_enrollment: 0
+  end
+
+  test "EstablishProgram cascades through policy chain" do
+    tests "EstablishProgram", on: "TreatmentProgram", kind: :cascade
+    setup  "ConveneSupportGroup", group_name: "sample", meeting_day: "sample", meeting_time: "sample", facilitator_name: "sample", max_members: 1
+    setup  "HireCounselor", name: "sample", license_type: "sample", license_number: "sample", specialty: "sample"
+    input  program_name: "sample", treatment_level: "sample", duration_days: 1, modality: "sample", capacity: 1
+    expect emits: ["ProgramEstablished", "SupportGroupConvened"]
+  end
+
+  test "EnrollInProgram cascades through policy chain" do
+    tests "EnrollInProgram", on: "TreatmentProgram", kind: :cascade
+    setup  "EstablishProgram", program_name: "sample", treatment_level: "sample", duration_days: 1, modality: "sample", capacity: 1
+    setup  "ConveneSupportGroup", group_name: "sample", meeting_day: "sample", meeting_time: "sample", facilitator_name: "sample", max_members: 1
+    setup  "RecordMilestone", client_name: "sample", milestone_type: "sample", description: "sample", achieved_date: "sample", days_sober: 1, verified_by: "sample"
+    setup  "IntakeClient", name: "sample", date_of_birth: "sample", primary_substance: "sample", intake_date: "sample", insurance_id: "sample"
+    expect emits: ["ClientEnrolledInProgram", "GroupMemberAdded", "AttendanceRecorded", "MilestoneRecorded", "MilestoneCelebrated", "ClientTransitionedToAftercare", "ClientDischarged"]
+  end
+
+  test "AdjustCapacity sets capacity" do
+    tests "AdjustCapacity", on: "TreatmentProgram"
+    setup  "EstablishProgram", program_name: "sample", treatment_level: "sample", duration_days: 1, modality: "sample", capacity: 1
+    input  capacity: 1
+    expect capacity: 1
+  end
+
+
+  # ── RecoveryMilestone aggregate ──────────────────────────────────────────
+
+  test "RecordMilestone sets client_name + milestone_type + description + achieved_date + days_sober + verified_by" do
+    tests "RecordMilestone", on: "RecoveryMilestone"
+    setup  "IntakeClient", name: "sample", date_of_birth: "sample", primary_substance: "sample", intake_date: "sample", insurance_id: "sample"
+    input  client_name: "sample", milestone_type: "sample", description: "sample", achieved_date: "sample", days_sober: 1, verified_by: "sample"
+    expect client_name: "sample", milestone_type: "sample", description: "sample", achieved_date: "sample", days_sober: 1, verified_by: "sample"
+  end
+
+  test "RecordMilestone cascades through policy chain" do
+    tests "RecordMilestone", on: "RecoveryMilestone", kind: :cascade
+    setup  "IntakeClient", name: "sample", date_of_birth: "sample", primary_substance: "sample", intake_date: "sample", insurance_id: "sample"
+    input  client_name: "sample", milestone_type: "sample", description: "sample", achieved_date: "sample", days_sober: 1, verified_by: "sample"
+    expect emits: ["MilestoneRecorded", "MilestoneCelebrated", "ClientTransitionedToAftercare", "ClientDischarged"]
+  end
+
+  test "CelebrateMilestone runs" do
+    tests "CelebrateMilestone", on: "RecoveryMilestone"
+    setup  "RecordMilestone", client_name: "sample", milestone_type: "sample", description: "sample", achieved_date: "sample", days_sober: 1, verified_by: "sample"
+    expect ok: "true"
+  end
+
+  test "CelebrateMilestone cascades through policy chain" do
+    tests "CelebrateMilestone", on: "RecoveryMilestone", kind: :cascade
+    setup  "RecordMilestone", client_name: "sample", milestone_type: "sample", description: "sample", achieved_date: "sample", days_sober: 1, verified_by: "sample"
+    setup  "IntakeClient", name: "sample", date_of_birth: "sample", primary_substance: "sample", intake_date: "sample", insurance_id: "sample"
+    expect emits: ["MilestoneCelebrated", "ClientTransitionedToAftercare", "ClientDischarged"]
+  end
+
+
+  # ── Counselor aggregate ──────────────────────────────────────────
+
+  test "HireCounselor sets name + license_type + license_number + specialty" do
+    tests "HireCounselor", on: "Counselor"
+    input  name: "sample", license_type: "sample", license_number: "sample", specialty: "sample"
+    expect name: "sample", license_type: "sample", license_number: "sample", specialty: "sample", caseload: 0, status: "active"
+  end
+
+  test "AssignCase runs" do
+    tests "AssignCase", on: "Counselor"
+    setup  "HireCounselor", name: "sample", license_type: "sample", license_number: "sample", specialty: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SupportGroup aggregate ──────────────────────────────────────────
+
+  test "ConveneSupportGroup sets group_name + meeting_day + meeting_time + facilitator_name + max_members" do
+    tests "ConveneSupportGroup", on: "SupportGroup"
+    setup  "HireCounselor", name: "sample", license_type: "sample", license_number: "sample", specialty: "sample"
+    input  group_name: "sample", meeting_day: "sample", meeting_time: "sample", facilitator_name: "sample", max_members: 1
+    expect group_name: "sample", meeting_day: "sample", meeting_time: "sample", facilitator_name: "sample", max_members: 1
+  end
+
+  test "AddGroupMember sets client_name + joined_date" do
+    tests "AddGroupMember", on: "SupportGroup"
+    setup  "ConveneSupportGroup", group_name: "sample", meeting_day: "sample", meeting_time: "sample", facilitator_name: "sample", max_members: 1
+    input  client_name: "sample", joined_date: "sample"
+    expect ok: "true"
+  end
+
+  test "AddGroupMember cascades through policy chain" do
+    tests "AddGroupMember", on: "SupportGroup", kind: :cascade
+    setup  "ConveneSupportGroup", group_name: "sample", meeting_day: "sample", meeting_time: "sample", facilitator_name: "sample", max_members: 1
+    setup  "RecordMilestone", client_name: "sample", milestone_type: "sample", description: "sample", achieved_date: "sample", days_sober: 1, verified_by: "sample"
+    setup  "IntakeClient", name: "sample", date_of_birth: "sample", primary_substance: "sample", intake_date: "sample", insurance_id: "sample"
+    input  client_name: "sample", joined_date: "sample"
+    expect emits: ["GroupMemberAdded", "AttendanceRecorded", "MilestoneRecorded", "MilestoneCelebrated", "ClientTransitionedToAftercare", "ClientDischarged"]
+  end
+
+  test "RecordAttendance runs" do
+    tests "RecordAttendance", on: "SupportGroup"
+    setup  "ConveneSupportGroup", group_name: "sample", meeting_day: "sample", meeting_time: "sample", facilitator_name: "sample", max_members: 1
+    expect ok: "true"
+  end
+
+  test "RecordAttendance cascades through policy chain" do
+    tests "RecordAttendance", on: "SupportGroup", kind: :cascade
+    setup  "ConveneSupportGroup", group_name: "sample", meeting_day: "sample", meeting_time: "sample", facilitator_name: "sample", max_members: 1
+    setup  "RecordMilestone", client_name: "sample", milestone_type: "sample", description: "sample", achieved_date: "sample", days_sober: 1, verified_by: "sample"
+    setup  "IntakeClient", name: "sample", date_of_birth: "sample", primary_substance: "sample", intake_date: "sample", insurance_id: "sample"
+    expect emits: ["AttendanceRecorded", "MilestoneRecorded", "MilestoneCelebrated", "ClientTransitionedToAftercare", "ClientDischarged"]
+  end
+
+end

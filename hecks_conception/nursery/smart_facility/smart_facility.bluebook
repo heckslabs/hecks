@@ -58,12 +58,12 @@ Hecks.bluebook "SmartFacility", version: "2026.04.13.1" do
       then_set :content_type, to: :content_type
       then_set :status, to: "active"
     end
-    UpdateContent do
+    RefreshContent do
       role "ActivityDirector"
       description "Push new content to a facility display"
       reference_to(Display)
       String :current_content
-      emits "ContentUpdated"
+      emits "ContentRefreshed"
       then_set :current_content, to: :current_content
     end
   end
@@ -78,12 +78,12 @@ Hecks.bluebook "SmartFacility", version: "2026.04.13.1" do
       String :time
       String :message
     end
-    CreateSchedule do
+    ProvisionSchedule do
       role "Nurse"
       description "Create a personalized reminder schedule for a resident"
       String :schedule_id
       String :resident_id
-      emits "ScheduleCreated"
+      emits "ScheduleProvisioned"
       then_set :schedule_id, to: :schedule_id
       then_set :resident_id, to: :resident_id
       then_set :status, to: "active"
@@ -130,24 +130,13 @@ Hecks.bluebook "SmartFacility", version: "2026.04.13.1" do
 
   policy "DisplayOnAdmit" do
     on "ResidentAdmitted"
-    trigger "CreateSchedule"
+    trigger "ProvisionSchedule"
   end
   policy "PushToDisplay" do
     on "BoardPublished"
-    trigger "UpdateContent"
+    trigger "RefreshContent"
   end
 
   # === Fixtures ===
 
-  fixture "Resident", resident_id: "res_001", name: "Margaret Rose Johnson", room_number: "215", care_level: "assisted_living", status: "active"
-  fixture "Resident", resident_id: "res_002", name: "Robert William Smith", room_number: "312", care_level: "memory_care", status: "active"
-
-  fixture "Display", display_id: "disp_main_lobby", location_name: "Main Lobby", content_type: "activity_schedule", current_content: "Monday: Aqua Aerobics 10am, Crafts 2pm"
-  fixture "Display", display_id: "disp_dining_hall", location_name: "Dining Hall", content_type: "menu_board", current_content: "Today: Roasted chicken, vegetables, apple pie"
-
-  fixture "ReminderSchedule", schedule_id: "sched_res_001", resident_id: "res_001", status: "active"
-  fixture "ReminderSchedule", schedule_id: "sched_res_002", resident_id: "res_002", status: "active"
-
-  fixture "ActivityBoard", board_id: "board_2024_04_14", date: "2024-04-14", status: "published"
-  fixture "ActivityBoard", board_id: "board_2024_04_15", date: "2024-04-15", status: "published"
 end

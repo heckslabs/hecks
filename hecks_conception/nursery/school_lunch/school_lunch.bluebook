@@ -36,14 +36,14 @@ Hecks.bluebook "SchoolLunch", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    UpdateRequirements do
+    ReviseRequirements do
       role "Nutritionist"
       description "Update nutrient requirements when guidelines change"
       reference_to(NutrientProfile)
       Float :calories_min
       Float :calories_max
       given { status == "active" }
-      emits "RequirementsUpdated"
+      emits "RequirementsRevised"
       then_set :calories_min, to: :calories_min
       then_set :calories_max, to: :calories_max
     end
@@ -74,7 +74,7 @@ Hecks.bluebook "SchoolLunch", version: "2026.04.13.1" do
       String :source_ingredient
     end
 
-    CreateMenuItem do
+    PlanMenuItem do
       role "Chef"
       description "Create a lunch menu item with nutritional data and allergens"
       String :name
@@ -83,7 +83,7 @@ Hecks.bluebook "SchoolLunch", version: "2026.04.13.1" do
       Float :protein_g
       Float :cost_per_serving
       String :allergens
-      emits "MenuItemCreated"
+      emits "MenuItemPlanned"
       then_set :name, to: :name
       then_set :category, to: :category
       then_set :calories, to: :calories
@@ -111,7 +111,7 @@ Hecks.bluebook "SchoolLunch", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "draft" do
-      transition "CreateMenuItem" => "active", from: "draft"
+      transition "PlanMenuItem" => "active", from: "draft"
       transition "RetireMenuItem" => "retired", from: "active"
     end
   end
@@ -227,8 +227,8 @@ Hecks.bluebook "SchoolLunch", version: "2026.04.13.1" do
     end
   end
 
-  policy "FlagAllergenOnCreate" do
-    on "MenuItemCreated"
+  policy "FlagAllergenOnPlan" do
+    on "MenuItemPlanned"
     trigger "FlagAllergen"
   end
 
@@ -252,15 +252,4 @@ Hecks.bluebook "SchoolLunch", version: "2026.04.13.1" do
     trigger "IssueCorrectiveAction"
   end
 
-  fixture "NutrientProfile", age_group: "K-2", calories_min: 600.0, calories_max: 700.0, protein_g: 10.0, fat_max_g: 23.0, sodium_max_mg: 700.0, status: "active"
-  fixture "NutrientProfile", age_group: "6-8", calories_min: 700.0, calories_max: 850.0, protein_g: 12.0, fat_max_g: 28.0, sodium_max_mg: 900.0, status: "active"
-
-  fixture "MenuItem", name: "Grilled Chicken Breast", category: "entree", calories: 250.0, protein_g: 35.0, cost_per_serving: 2.50, allergens: "none", status: "active"
-  fixture "MenuItem", name: "Peanut Butter Sandwich", category: "entree", calories: 320.0, protein_g: 12.0, cost_per_serving: 1.75, allergens: "peanut, wheat", status: "active"
-
-  fixture "WeeklyMenu", week_of: "2026-04-14", school_name: "Lincoln Elementary", meal_count: 25, avg_calories: 650.0, total_budget: 1200.0, status: "approved"
-  fixture "WeeklyMenu", week_of: "2026-04-21", school_name: "Roosevelt High", meal_count: 25, avg_calories: 750.0, total_budget: 1400.0, status: "planned"
-
-  fixture "ComplianceAudit", school_name: "Lincoln Elementary", audit_period: "Q1 2026", compliance_score: 92.5, findings: "Minor labeling issues in cold storage", status: "scored"
-  fixture "ComplianceAudit", school_name: "Roosevelt High", audit_period: "Q1 2026", compliance_score: 88.0, findings: "Sodium content exceeds limits on 2 items", status: "corrective"
 end

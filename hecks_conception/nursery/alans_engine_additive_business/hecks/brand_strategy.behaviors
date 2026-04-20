@@ -1,0 +1,63 @@
+Hecks.behaviors "BrandStrategy" do
+  vision "Behavioral tests for the BrandStrategy domain — exercises every command and query in memory"
+
+  # ── BrandPosition aggregate ──────────────────────────────────────────
+
+  test "DefineBrandPosition sets brand + owned_word + target_customer + differentiator" do
+    tests "DefineBrandPosition", on: "BrandPosition"
+    input  brand: "sample", owned_word: "sample", target_customer: "sample", differentiator: "sample"
+    expect brand: "sample", owned_word: "sample", target_customer: "sample", differentiator: "sample"
+  end
+
+  test "AnalyzeCompetitor sets competitor + competitor_position" do
+    tests "AnalyzeCompetitor", on: "BrandPosition"
+    setup  "DefineBrandPosition", brand: "sample", owned_word: "sample", target_customer: "sample", differentiator: "sample"
+    input  competitor: "sample", competitor_position: "sample"
+    expect competitor: "sample", competitor_position: "sample"
+  end
+
+  test "CraftMessage sets channel + headline + proof_point + call_to_action" do
+    tests "CraftMessage", on: "BrandPosition"
+    setup  "DefineBrandPosition", brand: "sample", owned_word: "sample", target_customer: "sample", differentiator: "sample"
+    input  channel: "sample", headline: "sample", proof_point: "sample", call_to_action: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Campaign aggregate ──────────────────────────────────────────
+
+  test "LaunchCampaign sets name + brand + channel + budget + target_audience + kpi" do
+    tests "LaunchCampaign", on: "Campaign"
+    input  name: "sample", brand: "sample", channel: "sample", budget: 1.0, target_audience: "sample", kpi: "sample"
+    expect name: "sample", brand: "sample", channel: "sample", budget: 1.0, target_audience: "sample", kpi: "sample", status: "active"
+  end
+
+  test "MeasureCampaign sets actual_result" do
+    tests "MeasureCampaign", on: "Campaign"
+    setup  "LaunchCampaign", name: "sample", brand: "sample", channel: "sample", budget: 1.0, target_audience: "sample", kpi: "sample"
+    input  actual_result: "sample"
+    expect actual_result: "sample"
+  end
+
+  test "EndCampaign runs" do
+    tests "EndCampaign", on: "Campaign"
+    setup  "LaunchCampaign", name: "sample", brand: "sample", channel: "sample", budget: 1.0, target_audience: "sample", kpi: "sample"
+    expect status: "completed"
+  end
+
+
+  # ── CustomerReview aggregate ──────────────────────────────────────────
+
+  test "CaptureReview sets product_sku + channel + rating + review_text + verified_purchase" do
+    tests "CaptureReview", on: "CustomerReview"
+    input  product_sku: "sample", channel: "sample", rating: 1, review_text: "sample", verified_purchase: "sample"
+    expect product_sku: "sample", channel: "sample", rating: 1, review_text: "sample", verified_purchase: "sample", responded: "false"
+  end
+
+  test "RespondToReview runs" do
+    tests "RespondToReview", on: "CustomerReview"
+    setup  "CaptureReview", product_sku: "sample", channel: "sample", rating: 1, review_text: "sample", verified_purchase: "sample"
+    expect responded: "true"
+  end
+
+end

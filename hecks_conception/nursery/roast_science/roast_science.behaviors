@@ -1,0 +1,62 @@
+Hecks.behaviors "RoastScience" do
+  vision "Behavioral tests for the RoastScience domain — exercises every command and query in memory"
+
+  # ── GreenBean aggregate ──────────────────────────────────────────
+
+  test "SourceBeans sets origin + variety + altitude_m" do
+    tests "SourceBeans", on: "GreenBean"
+    input  origin: "sample", variety: "sample", altitude_m: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── RoastProfile aggregate ──────────────────────────────────────────
+
+  test "DesignProfile sets profile_name + roast_level" do
+    tests "DesignProfile", on: "RoastProfile"
+    setup  "SourceBeans", origin: "sample", variety: "sample", altitude_m: 1.0
+    input  profile_name: "sample", roast_level: "sample"
+    expect ok: "true"
+  end
+
+  test "ApproveProfile runs" do
+    tests "ApproveProfile", on: "RoastProfile"
+    setup  "DesignProfile", profile_name: "sample", roast_level: "sample"
+    setup  "AddCurvePoint", time_seconds: 1, temp_c: 1.0, phase: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── RoastBatch aggregate ──────────────────────────────────────────
+
+  test "StartBatch sets batch_number + weight_kg" do
+    tests "StartBatch", on: "RoastBatch"
+    setup  "DesignProfile", profile_name: "sample", roast_level: "sample"
+    input  batch_number: "sample", weight_kg: 1.0
+    expect ok: "true"
+  end
+
+  test "CompleteBatch runs" do
+    tests "CompleteBatch", on: "RoastBatch"
+    setup  "StartBatch", batch_number: "sample", weight_kg: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── BrewRecipe aggregate ──────────────────────────────────────────
+
+  test "Compose sets recipe_name + brew_method" do
+    tests "Compose", on: "BrewRecipe"
+    setup  "StartBatch", batch_number: "sample", weight_kg: 1.0
+    input  recipe_name: "sample", brew_method: "sample"
+    expect ok: "true"
+  end
+
+  test "PublishRecipe runs" do
+    tests "PublishRecipe", on: "BrewRecipe"
+    setup  "Compose", recipe_name: "sample", brew_method: "sample"
+    setup  "SetParameter", param_name: "sample", value: 1.0, unit: "sample"
+    expect ok: "true"
+  end
+
+end

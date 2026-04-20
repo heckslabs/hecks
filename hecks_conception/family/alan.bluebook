@@ -2,18 +2,34 @@ Hecks.bluebook "Alan", version: "2026.04.11.1" do
   vision "Alan — engine additive entrepreneur, owner of DuraLube, MotorKote, and Slick 50"
 
   aggregate "Identity", "Who Alan is" do
-    String :name
-    String :relationship
-    String :industry
-    String :role
-    list_of(String) :brands
+    attribute :name, String
+    attribute :relationship, String
+    attribute :industry, String
+    attribute :role, String
+    attribute :brands, list_of(String)
 
-    UpdateIdentity do
+    command "MeetAlan" do
+      role "Chris"
+      description "First record of who Alan is — name, industry, brands"
+      attribute :name, String
+      attribute :relationship, String
+      attribute :industry, String
+      attribute :role, String
+      attribute :brands, list_of(String)
+      emits "AlanMet"
+      then_set :name, to: :name
+      then_set :relationship, to: :relationship
+      then_set :industry, to: :industry
+      then_set :role, to: :role
+      then_set :brands, to: :brands
+    end
+
+    command "Recognize" do
       role "Chris"
       description "Update what we know about Alan"
       reference_to(Identity)
-      String :role
-      emits "IdentityUpdated"
+      attribute :role, String
+      emits "Recognized"
       then_set :role, to: :role
     end
   end
@@ -26,26 +42,38 @@ Hecks.bluebook "Alan", version: "2026.04.11.1" do
   #   brands: DuraLube, MotorKote, Slick 50
 
   aggregate "Business", "Alan's business model and operations" do
-    String :model
-    list_of(String) :channels
-    list_of(String) :competitors
-    list_of(String) :pain_points
-    list_of(String) :notes
+    attribute :model, String
+    attribute :channels, list_of(String)
+    attribute :competitors, list_of(String)
+    attribute :pain_points, list_of(String)
+    attribute :notes, list_of(String)
 
-    RecordInsight do
+    command "MapBusiness" do
+      role "Chris"
+      description "Map Alan's business — model, channels, competitors"
+      attribute :model, String
+      attribute :channels, list_of(String)
+      attribute :competitors, list_of(String)
+      emits "BusinessMapped"
+      then_set :model, to: :model
+      then_set :channels, to: :channels
+      then_set :competitors, to: :competitors
+    end
+
+    command "RecordInsight" do
       role "Chris"
       description "Note something about Alan's business"
       reference_to(Business)
-      String :note
+      attribute :note, String
       emits "InsightRecorded"
       then_set :notes, append: :note
     end
 
-    AddPainPoint do
+    command "AddPainPoint" do
       role "Chris"
       description "Record a business challenge Alan faces"
       reference_to(Business)
-      String :pain_point
+      attribute :pain_point, String
       emits "PainPointAdded"
       then_set :pain_points, append: :pain_point
     end
@@ -60,16 +88,27 @@ Hecks.bluebook "Alan", version: "2026.04.11.1" do
   #     - Needs marketing strategy to differentiate three brands
 
   aggregate "Demo", "Tracking what we're building for Alan's demo" do
-    list_of(String) :domains_conceived
-    String :demo_date
-    String :status
-    list_of(String) :notes
+    attribute :domains_conceived, list_of(String)
+    attribute :demo_date, String
+    attribute :status, String
+    attribute :notes, list_of(String)
 
-    RecordDemoProgress do
+    command "ScheduleDemo" do
+      role "Chris"
+      description "Schedule Alan's demo — set date and initialize the conceived list"
+      attribute :demo_date, String
+      attribute :domains_conceived, list_of(String)
+      emits "DemoScheduled"
+      then_set :demo_date, to: :demo_date
+      then_set :domains_conceived, to: :domains_conceived
+      then_set :status, to: "scheduled"
+    end
+
+    command "RecordDemoProgress" do
       role "Chris"
       description "Track what's been built for the demo"
       reference_to(Demo)
-      String :note
+      attribute :note, String
       emits "DemoProgressRecorded"
       then_set :notes, append: :note
     end
@@ -88,14 +127,14 @@ Hecks.bluebook "Alan", version: "2026.04.11.1" do
   #     - Use his language — ASTM, SDS, MAP, COA
 
   aggregate "ContributedIdeas", "Design ideas Alan taught us during his demo session" do
-    String :idea
-    String :context
+    attribute :idea, String
+    attribute :context, String
 
-    RecordIdea do
+    command "RecordIdea" do
       role "Chris"
       description "Record a design insight from Alan"
-      String :idea
-      String :context
+      attribute :idea, String
+      attribute :context, String
       emits "IdeaRecorded"
       then_set :idea, to: :idea
       then_set :context, to: :context

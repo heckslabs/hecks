@@ -1,0 +1,22 @@
+Hecks.fixtures "GroceryStore" do
+  aggregate "Product" do
+    fixture "Organic_Whole_Milk_", sku: "PROD-001", name: "Organic Whole Milk", category: "dairy", price: 4.99, quantity: 48, expiration_date: "2026-04-28", status: "available"
+    fixture "Sourdough_Bread_", sku: "PROD-002", name: "Sourdough Bread", category: "bakery", price: 3.49, quantity: 24, expiration_date: "2026-04-17", status: "available"
+  end
+  aggregate "Aisle" do
+    fixture "Aisle1", aisle_number: "A-01", category: "dairy", shelf_count: 5
+    fixture "Aisle2", aisle_number: "A-07", category: "produce", shelf_count: 6
+  end
+  aggregate "Supplier" do
+    fixture "Golden_Valley_Dairy_", name: "Golden Valley Dairy", contact_email: "orders@goldenvalley.com", delivery_schedule: "mon_wed_fri"
+    fixture "Fresh_Harvest_Co_", name: "Fresh Harvest Co", contact_email: "procurement@freshharv.com", delivery_schedule: "daily"
+  end
+  aggregate "Promotion" do
+    fixture "Promotion1", promo_code: "SPRING20", description: "Spring produce sale 20% off", start_date: "2026-04-15", end_date: "2026-04-30", discount_percent: 20.0, status: "active"
+    fixture "Promotion2", promo_code: "DAIRY15", description: "Dairy products 15% off", start_date: "2026-04-10", end_date: "2026-04-17", discount_percent: 15.0, status: "ended"
+  end
+  aggregate "ShrinkageReport" do
+    fixture "ShrinkageReport1", report_id: "SHRINK-001", sku: "PROD-015", units_lost: 12, cause: "theft", reported_date: "2026-04-14", estimated_loss: 89.88
+    fixture "ShrinkageReport2", report_id: "SHRINK-002", sku: "PROD-032", units_lost: 8, cause: "spoilage", reported_date: "2026-04-13", estimated_loss: 124.32
+  end
+end

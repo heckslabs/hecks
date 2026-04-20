@@ -1,0 +1,70 @@
+Hecks.behaviors "DistilleryMedia" do
+  vision "Behavioral tests for the DistilleryMedia domain — exercises every command and query in memory"
+
+  # ── Spirit aggregate ──────────────────────────────────────────
+
+  test "Distill sets name + spirit_type" do
+    tests "Distill", on: "Spirit"
+    input  name: "sample", spirit_type: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── BarrelAging aggregate ──────────────────────────────────────────
+
+  test "FillBarrel sets barrel_type" do
+    tests "FillBarrel", on: "BarrelAging"
+    setup  "Distill", name: "sample", spirit_type: "sample"
+    input  barrel_type: "sample"
+    expect ok: "true"
+  end
+
+  test "SampleBarrel sets flavor_profile + score" do
+    tests "SampleBarrel", on: "BarrelAging"
+    setup  "FillBarrel", barrel_type: "sample"
+    input  flavor_profile: "sample", score: 1
+    expect ok: "true"
+  end
+
+
+  # ── Episode aggregate ──────────────────────────────────────────
+
+  test "PlanEpisode sets title + topic" do
+    tests "PlanEpisode", on: "Episode"
+    input  title: "sample", topic: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── TastingSession aggregate ──────────────────────────────────────────
+
+  test "ScheduleTasting sets host" do
+    tests "ScheduleTasting", on: "TastingSession"
+    setup  "Distill", name: "sample", spirit_type: "sample"
+    input  host: "sample"
+    expect ok: "true"
+  end
+
+  test "RecordSession runs" do
+    tests "RecordSession", on: "TastingSession"
+    setup  "ScheduleTasting", host: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Sponsorship aggregate ──────────────────────────────────────────
+
+  test "ProposeDeal sets sponsor_name + deal_value_cents" do
+    tests "ProposeDeal", on: "Sponsorship"
+    setup  "Distill", name: "sample", spirit_type: "sample"
+    input  sponsor_name: "sample", deal_value_cents: 1
+    expect ok: "true"
+  end
+
+  test "ApproveDeal runs" do
+    tests "ApproveDeal", on: "Sponsorship"
+    setup  "ProposeDeal", sponsor_name: "sample", deal_value_cents: 1
+    expect ok: "true"
+  end
+
+end

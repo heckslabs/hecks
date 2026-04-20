@@ -1,0 +1,117 @@
+Hecks.behaviors "PhoneRepair" do
+  vision "Behavioral tests for the PhoneRepair domain — exercises every command and query in memory"
+
+  # ── Device aggregate ──────────────────────────────────────────
+
+  test "RegisterDevice sets device_id + make + model + serial_number + owner_name" do
+    tests "RegisterDevice", on: "Device"
+    input  device_id: "sample", make: "sample", model: "sample", serial_number: "sample", owner_name: "sample"
+    expect device_id: "sample", make: "sample", model: "sample", serial_number: "sample", owner_name: "sample", condition: "intake"
+  end
+
+  test "RegisterDevice cascades through policy chain" do
+    tests "RegisterDevice", on: "Device", kind: :cascade
+    setup  "OpenTicket", ticket_id: "sample", device_id: "sample", issue_description: "sample", estimated_cost: 1.0, priority: "sample"
+    setup  "OrderPart", part_number: "sample", name: "sample", compatible_models: "sample", cost: 1.0, quantity_in_stock: 1
+    input  device_id: "sample", make: "sample", model: "sample", serial_number: "sample", owner_name: "sample"
+    expect emits: ["DeviceRegistered", "DeviceDiagnosed", "TicketOpened", "PartOrdered"]
+  end
+
+  test "DiagnoseDevice runs" do
+    tests "DiagnoseDevice", on: "Device"
+    setup  "RegisterDevice", device_id: "sample", make: "sample", model: "sample", serial_number: "sample", owner_name: "sample"
+    expect condition: "diagnosed"
+  end
+
+  test "DiagnoseDevice cascades through policy chain" do
+    tests "DiagnoseDevice", on: "Device", kind: :cascade
+    setup  "RegisterDevice", device_id: "sample", make: "sample", model: "sample", serial_number: "sample", owner_name: "sample"
+    setup  "OpenTicket", ticket_id: "sample", device_id: "sample", issue_description: "sample", estimated_cost: 1.0, priority: "sample"
+    setup  "OrderPart", part_number: "sample", name: "sample", compatible_models: "sample", cost: 1.0, quantity_in_stock: 1
+    expect emits: ["DeviceDiagnosed", "TicketOpened", "PartOrdered"]
+  end
+
+
+  # ── RepairTicket aggregate ──────────────────────────────────────────
+
+  test "OpenTicket sets ticket_id + device_id + issue_description + estimated_cost + priority" do
+    tests "OpenTicket", on: "RepairTicket"
+    input  ticket_id: "sample", device_id: "sample", issue_description: "sample", estimated_cost: 1.0, priority: "sample"
+    expect ticket_id: "sample", device_id: "sample", issue_description: "sample", estimated_cost: 1.0, priority: "sample", status: "open"
+  end
+
+  test "OpenTicket cascades through policy chain" do
+    tests "OpenTicket", on: "RepairTicket", kind: :cascade
+    setup  "OrderPart", part_number: "sample", name: "sample", compatible_models: "sample", cost: 1.0, quantity_in_stock: 1
+    input  ticket_id: "sample", device_id: "sample", issue_description: "sample", estimated_cost: 1.0, priority: "sample"
+    expect emits: ["TicketOpened", "PartOrdered"]
+  end
+
+  test "BeginRepair runs" do
+    tests "BeginRepair", on: "RepairTicket"
+    setup  "OpenTicket", ticket_id: "sample", device_id: "sample", issue_description: "sample", estimated_cost: 1.0, priority: "sample"
+    expect status: "in_progress"
+  end
+
+  test "BeginRepair cascades through policy chain" do
+    tests "BeginRepair", on: "RepairTicket", kind: :cascade
+    setup  "IssueWarranty", warranty_id: "sample", ticket_id: "sample", duration_days: 1, expiration_date: "sample"
+    setup  "OpenTicket", ticket_id: "sample", device_id: "sample", issue_description: "sample", estimated_cost: 1.0, priority: "sample"
+    expect emits: ["RepairStarted", "TicketClosed", "WarrantyIssued"]
+  end
+
+  test "CloseTicket runs" do
+    tests "CloseTicket", on: "RepairTicket"
+    setup  "OpenTicket", ticket_id: "sample", device_id: "sample", issue_description: "sample", estimated_cost: 1.0, priority: "sample"
+    setup  "BeginRepair"
+    expect status: "closed"
+  end
+
+  test "CloseTicket cascades through policy chain" do
+    tests "CloseTicket", on: "RepairTicket", kind: :cascade
+    setup  "IssueWarranty", warranty_id: "sample", ticket_id: "sample", duration_days: 1, expiration_date: "sample"
+    setup  "OpenTicket", ticket_id: "sample", device_id: "sample", issue_description: "sample", estimated_cost: 1.0, priority: "sample"
+    setup  "BeginRepair"
+    expect emits: ["TicketClosed", "WarrantyIssued"]
+  end
+
+
+  # ── Part aggregate ──────────────────────────────────────────
+
+  test "OrderPart sets part_number + name + compatible_models + cost + quantity_in_stock" do
+    tests "OrderPart", on: "Part"
+    input  part_number: "sample", name: "sample", compatible_models: "sample", cost: 1.0, quantity_in_stock: 1
+    expect part_number: "sample", name: "sample", compatible_models: "sample", cost: 1.0, quantity_in_stock: 1
+  end
+
+  test "UsePart sets quantity_used" do
+    tests "UsePart", on: "Part"
+    setup  "OrderPart", part_number: "sample", name: "sample", compatible_models: "sample", cost: 1.0, quantity_in_stock: 1
+    input  quantity_used: 1
+    expect ok: "true"
+  end
+
+
+  # ── RepairWarranty aggregate ──────────────────────────────────────────
+
+  test "IssueWarranty sets warranty_id + ticket_id + duration_days + expiration_date" do
+    tests "IssueWarranty", on: "RepairWarranty"
+    input  warranty_id: "sample", ticket_id: "sample", duration_days: 1, expiration_date: "sample"
+    expect warranty_id: "sample", ticket_id: "sample", duration_days: 1, expiration_date: "sample", status: "active"
+  end
+
+  test "ClaimWarranty runs" do
+    tests "ClaimWarranty", on: "RepairWarranty"
+    setup  "IssueWarranty", warranty_id: "sample", ticket_id: "sample", duration_days: 1, expiration_date: "sample"
+    expect status: "claimed"
+  end
+
+  test "ClaimWarranty cascades through policy chain" do
+    tests "ClaimWarranty", on: "RepairWarranty", kind: :cascade
+    setup  "OpenTicket", ticket_id: "sample", device_id: "sample", issue_description: "sample", estimated_cost: 1.0, priority: "sample"
+    setup  "OrderPart", part_number: "sample", name: "sample", compatible_models: "sample", cost: 1.0, quantity_in_stock: 1
+    setup  "IssueWarranty", warranty_id: "sample", ticket_id: "sample", duration_days: 1, expiration_date: "sample"
+    expect emits: ["WarrantyClaimed", "TicketOpened", "PartOrdered"]
+  end
+
+end

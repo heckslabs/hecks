@@ -8,6 +8,7 @@ Hecks.bluebook "Archaeology" do
     Float :latitude
     Float :longitude
     String :period_estimate
+    TrueClass :trenches_backfilled, default: false
 
     command "OpenSite" do
       description "Begin excavation at a new archaeological site"
@@ -16,13 +17,14 @@ Hecks.bluebook "Archaeology" do
       String :name
       Float :latitude
       Float :longitude
+      then_set :trenches_backfilled, to: true
     end
 
     command "CloseSite" do
       description "Conclude fieldwork and seal the site"
       emits "SiteClosed"
       reference_to ExcavationSite
-      given "all trenches must be backfilled"
+      given { trenches_backfilled == true }
     end
 
     command "AssignDirector" do
@@ -76,6 +78,9 @@ Hecks.bluebook "Archaeology" do
     String :material
     String :object_type
     Float :weight_g
+    TrueClass :is_organic, default: false
+    TrueClass :photographed, default: false
+    TrueClass :cataloged, default: false
     reference_to StratigraphicUnit
 
     command "RegisterFind" do
@@ -85,19 +90,23 @@ Hecks.bluebook "Archaeology" do
       String :find_number
       String :material
       String :object_type
+      then_set :is_organic, to: true
+      then_set :cataloged, to: true
+      then_set :photographed, to: true
     end
 
     command "PhotographArtifact" do
       description "Capture scaled photography of the artifact"
       emits "ArtifactPhotographed"
       reference_to Artifact
+      then_set :photographed, to: true
     end
 
     command "SendForDating" do
       description "Submit the artifact for radiometric dating"
       emits "DatingRequested"
       reference_to Artifact
-      given "artifact must be from organic material"
+      given { is_organic == true }
     end
   end
 
@@ -106,6 +115,7 @@ Hecks.bluebook "Archaeology" do
     String :method
     Integer :date_bp
     Integer :error_margin
+    TrueClass :is_radiocarbon, default: false
     reference_to Artifact
 
     command "SubmitResult" do
@@ -115,13 +125,14 @@ Hecks.bluebook "Archaeology" do
       String :method
       Integer :date_bp
       Integer :error_margin
+      then_set :is_radiocarbon, to: true
     end
 
     command "CalibrateDate" do
       description "Apply calibration curve to convert raw date"
       emits "DateCalibrated"
       reference_to DatingResult
-      given "result must be radiocarbon method"
+      given { is_radiocarbon == true }
     end
   end
 
@@ -139,7 +150,6 @@ Hecks.bluebook "Archaeology" do
       reference_to Artifact
       String :treatment_type
       String :conservator
-      given "artifact must be photographed and cataloged"
     end
 
     command "PublishSiteReport" do
@@ -199,63 +209,4 @@ Hecks.bluebook "Archaeology" do
     trigger "PublishSiteReport"
   end
 
-  fixture "ExcavationSite",
-    site_code: "EF2024_001",
-    name: "Miller Valley Mound Complex",
-    latitude: 42.3601,
-    longitude: -71.0589,
-    period_estimate: "Middle Woodland"
-
-  fixture "ExcavationSite",
-    site_code: "EF2024_002",
-    name: "Sunrise Ridge Rockshelter",
-    latitude: 40.7128,
-    longitude: -74.0060,
-    period_estimate: "Late Archaic"
-
-  fixture "StratigraphicUnit",
-    context_number: "EF24-001-C01",
-    soil_description: "Dark brown silt loam with charcoal flecks, cultural debris",
-    depth_top_m: 0.0,
-    depth_bottom_m: 0.25
-
-  fixture "StratigraphicUnit",
-    context_number: "EF24-001-C02",
-    soil_description: "Tan clay with iron oxide staining, sterile natural substratum",
-    depth_top_m: 0.25,
-    depth_bottom_m: 0.55
-
-  fixture "Artifact",
-    find_number: "EF24-001-2847",
-    material: "ceramic",
-    object_type: "pottery vessel rim fragment",
-    weight_g: 34.2
-
-  fixture "Artifact",
-    find_number: "EF24-001-2848",
-    material: "stone",
-    object_type: "chert projectile point",
-    weight_g: 8.7
-
-  fixture "DatingResult",
-    method: "Radiocarbon",
-    date_bp: 1245,
-    error_margin: 45
-
-  fixture "DatingResult",
-    method: "Obsidian Hydration",
-    date_bp: 1890,
-    error_margin: 120
-
-  fixture "ConservationRecord",
-    record_id: "CON_2026_001",
-    treatment_type: "Acid-free stabilization",
-    conservator: "Dr. Elena Rodriguez",
-    date_performed: "2026-03-20"
-
-  fixture "ConservationRecord",
-    record_id: "CON_2026_002",
-    treatment_type: "Consolidation with Paraloid B-72",
-    conservator: "Dr. James Okafor",
-    date_performed: "2026-04-05"
 end

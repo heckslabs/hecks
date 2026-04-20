@@ -1,0 +1,100 @@
+Hecks.behaviors "Actions" do
+  vision "Behavioral tests for the Actions domain — exercises every command and query in memory"
+
+  # ── ActionPlan aggregate ──────────────────────────────────────────
+
+  test "Conceive sets name + description + rationale + action_bluebook_path + steps_total" do
+    tests "Conceive", on: "ActionPlan"
+    input  name: "sample", description: "sample", rationale: "sample", action_bluebook_path: "sample", steps_total: 1
+    expect name: "sample", description: "sample", rationale: "sample", action_bluebook_path: "sample", steps_total: 1, steps_completed: 0, status: "conceived"
+  end
+
+  test "Conceive cascades through policy chain" do
+    tests "Conceive", on: "ActionPlan", kind: :cascade
+    input  name: "sample", description: "sample", rationale: "sample", action_bluebook_path: "sample", steps_total: 1
+    expect emits: ["ActionConceived", "ActionSubmittedToCourt"]
+  end
+
+  test "ReviewWithCourt runs" do
+    tests "ReviewWithCourt", on: "ActionPlan"
+    setup  "Conceive", name: "sample", description: "sample", rationale: "sample", action_bluebook_path: "sample", steps_total: 1
+    expect status: "reviewed"
+  end
+
+  test "Execute runs" do
+    tests "Execute", on: "ActionPlan"
+    setup  "Conceive", name: "sample", description: "sample", rationale: "sample", action_bluebook_path: "sample", steps_total: 1
+    setup  "ReviewWithCourt"
+    expect status: "executed"
+  end
+
+  test "Execute cascades through policy chain" do
+    tests "Execute", on: "ActionPlan", kind: :cascade
+    setup  "Conceive", name: "sample", description: "sample", rationale: "sample", action_bluebook_path: "sample", steps_total: 1
+    setup  "ReviewWithCourt"
+    expect emits: ["ActionExecuted", "ActionLogged"]
+  end
+
+  test "CompleteStep runs" do
+    tests "CompleteStep", on: "ActionPlan"
+    setup  "Conceive", name: "sample", description: "sample", rationale: "sample", action_bluebook_path: "sample", steps_total: 1
+    expect ok: "true"
+  end
+
+  test "TestReverse runs" do
+    tests "TestReverse", on: "ActionPlan"
+    setup  "Conceive", name: "sample", description: "sample", rationale: "sample", action_bluebook_path: "sample", steps_total: 1
+    setup  "ReviewWithCourt"
+    setup  "Execute"
+    expect status: "reverse_tested"
+  end
+
+  test "ReExecute runs" do
+    tests "ReExecute", on: "ActionPlan"
+    setup  "Conceive", name: "sample", description: "sample", rationale: "sample", action_bluebook_path: "sample", steps_total: 1
+    setup  "ReviewWithCourt"
+    setup  "Execute"
+    setup  "TestReverse"
+    expect status: "confirmed"
+  end
+
+  test "Verify runs" do
+    tests "Verify", on: "ActionPlan"
+    setup  "Conceive", name: "sample", description: "sample", rationale: "sample", action_bluebook_path: "sample", steps_total: 1
+    setup  "ReviewWithCourt"
+    setup  "Execute"
+    setup  "TestReverse"
+    setup  "ReExecute"
+    expect status: "verified"
+  end
+
+  test "Reverse runs" do
+    tests "Reverse", on: "ActionPlan"
+    setup  "Conceive", name: "sample", description: "sample", rationale: "sample", action_bluebook_path: "sample", steps_total: 1
+    setup  "ReviewWithCourt"
+    setup  "Execute"
+    setup  "TestReverse"
+    setup  "ReExecute"
+    expect steps_completed: 0, status: "reversed"
+  end
+
+  test "Reverse cascades through policy chain" do
+    tests "Reverse", on: "ActionPlan", kind: :cascade
+    setup  "Conceive", name: "sample", description: "sample", rationale: "sample", action_bluebook_path: "sample", steps_total: 1
+    setup  "ReviewWithCourt"
+    setup  "Execute"
+    setup  "TestReverse"
+    setup  "ReExecute"
+    expect emits: ["ActionReversed", "ActionLogged"]
+  end
+
+
+  # ── ActionLog aggregate ──────────────────────────────────────────
+
+  test "Log sets action_name + executed_at + engine_used + ruling + files_changed + outcome" do
+    tests "Log", on: "ActionLog"
+    input  action_name: "sample", executed_at: "sample", engine_used: "sample", ruling: "sample", files_changed: 1, outcome: "sample"
+    expect action_name: "sample", executed_at: "sample", engine_used: "sample", ruling: "sample", files_changed: 1, outcome: "sample"
+  end
+
+end

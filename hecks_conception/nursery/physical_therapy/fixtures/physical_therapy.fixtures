@@ -1,0 +1,22 @@
+Hecks.fixtures "PhysicalTherapy" do
+  aggregate "Patient" do
+    fixture "Robert_Martinez_", name: "Robert Martinez", date_of_birth: "1965-07-14", diagnosis: "Rotator cuff tear", insurance_id: "INS-4829374", status: "intake"
+    fixture "Jennifer_Lee_", name: "Jennifer Lee", date_of_birth: "1978-03-22", diagnosis: "Knee osteoarthritis", insurance_id: "INS-5839201", status: "active"
+  end
+  aggregate "Exercise" do
+    fixture "Shoulder_Pendulum_Swings_", name: "Shoulder Pendulum Swings", target_muscle_group: "rotator cuff", difficulty: "easy", instructions: "Lean forward, let arm hang, swing in slow circles", repetitions: 20, sets: 3
+    fixture "Quad_Sets_with_Resistance_", name: "Quad Sets with Resistance", target_muscle_group: "quadriceps", difficulty: "medium", instructions: "Seated, tighten thigh muscle against band for 3 seconds", repetitions: 15, sets: 4
+  end
+  aggregate "Session" do
+    fixture "Session1", patient_name: "Robert Martinez", therapist_name: "Dr. Sarah Thompson", scheduled_date: "2026-04-15T10:00:00", status: "scheduled", notes: "", reference_to: "robert-martinez"
+    fixture "Session2", patient_name: "Jennifer Lee", therapist_name: "Mike Johnson", scheduled_date: "2026-04-14T14:30:00", status: "completed", notes: "Patient performed well, increased ROM by 5 degrees", reference_to: "jennifer-lee"
+  end
+  aggregate "Prescription" do
+    fixture "Prescription1", physician_name: "Dr. James Wilson", patient_name: "Robert Martinez", diagnosis: "Rotator cuff tear", authorized_visits: 12, visits_used: 3, status: "active", reference_to: "robert-martinez"
+    fixture "Prescription2", physician_name: "Dr. Amanda Stone", patient_name: "Jennifer Lee", diagnosis: "Knee osteoarthritis", authorized_visits: 20, visits_used: 18, status: "active", reference_to: "jennifer-lee"
+  end
+  aggregate "ProgressReport" do
+    fixture "ProgressReport1", patient_name: "Robert Martinez", assessment_date: "2026-04-08", pain_score: 6, range_of_motion: 85, strength_score: 62, therapist_notes: "Good progress on ROM exercises", reference_to: "robert-martinez"
+    fixture "ProgressReport2", patient_name: "Jennifer Lee", assessment_date: "2026-04-13", pain_score: 3, range_of_motion: 120, strength_score: 88, therapist_notes: "Nearly back to baseline function", reference_to: "jennifer-lee"
+  end
+end

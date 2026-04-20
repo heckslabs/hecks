@@ -1,0 +1,164 @@
+Hecks.behaviors "Cartography" do
+  vision "Behavioral tests for the Cartography domain — exercises every command and query in memory"
+
+  # ── MapSheet aggregate ──────────────────────────────────────────
+
+  test "Plate sets sheet_id + title + scale" do
+    tests "Plate", on: "MapSheet"
+    input  sheet_id: "sample", title: "sample", scale: "sample"
+    expect feature_layer_count: 1
+  end
+
+  test "Plate cascades through policy chain" do
+    tests "Plate", on: "MapSheet", kind: :cascade
+    setup  "DigitizeFeature", feature_type: "sample", name: "sample", geometry_wkt: "sample"
+    setup  "DefineProjection", name: "sample", projection_type: "sample", central_meridian: 1.0
+    input  sheet_id: "sample", title: "sample", scale: "sample"
+    expect emits: ["SheetPlated", "FeatureDigitized", "FeatureAttributed", "DistortionComputed", "SheetPublished"]
+  end
+
+  test "AddFeatureLayer runs" do
+    tests "AddFeatureLayer", on: "MapSheet"
+    setup  "Plate", sheet_id: "sample", title: "sample", scale: "sample"
+    expect ok: "true"
+  end
+
+  test "PublishSheet runs" do
+    tests "PublishSheet", on: "MapSheet"
+    setup  "Plate", sheet_id: "sample", title: "sample", scale: "sample"
+    expect ok: "true"
+  end
+
+  test "RetireSheet runs" do
+    tests "RetireSheet", on: "MapSheet"
+    setup  "Plate", sheet_id: "sample", title: "sample", scale: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Projection aggregate ──────────────────────────────────────────
+
+  test "DefineProjection sets name + projection_type + central_meridian" do
+    tests "DefineProjection", on: "Projection"
+    input  name: "sample", projection_type: "sample", central_meridian: 1.0
+    expect ok: "true"
+  end
+
+  test "DefineProjection cascades through policy chain" do
+    tests "DefineProjection", on: "Projection", kind: :cascade
+    setup  "Plate", sheet_id: "sample", title: "sample", scale: "sample"
+    setup  "DigitizeFeature", feature_type: "sample", name: "sample", geometry_wkt: "sample"
+    input  name: "sample", projection_type: "sample", central_meridian: 1.0
+    expect emits: ["ProjectionDefined", "SheetPlated", "FeatureDigitized", "FeatureAttributed", "DistortionComputed", "SheetPublished"]
+  end
+
+  test "ComputeDistortion sets latitude + longitude" do
+    tests "ComputeDistortion", on: "Projection"
+    setup  "DefineProjection", name: "sample", projection_type: "sample", central_meridian: 1.0
+    input  latitude: 1.0, longitude: 1.0
+    expect ok: "true"
+  end
+
+  test "ComputeDistortion cascades through policy chain" do
+    tests "ComputeDistortion", on: "Projection", kind: :cascade
+    setup  "DefineProjection", name: "sample", projection_type: "sample", central_meridian: 1.0
+    setup  "Plate", sheet_id: "sample", title: "sample", scale: "sample"
+    input  latitude: 1.0, longitude: 1.0
+    expect emits: ["DistortionComputed", "SheetPublished"]
+  end
+
+
+  # ── GeographicFeature aggregate ──────────────────────────────────────────
+
+  test "DigitizeFeature sets feature_type + name + geometry_wkt" do
+    tests "DigitizeFeature", on: "GeographicFeature"
+    setup  "Plate", sheet_id: "sample", title: "sample", scale: "sample"
+    input  feature_type: "sample", name: "sample", geometry_wkt: "sample"
+    expect ok: "true"
+  end
+
+  test "DigitizeFeature cascades through policy chain" do
+    tests "DigitizeFeature", on: "GeographicFeature", kind: :cascade
+    setup  "Plate", sheet_id: "sample", title: "sample", scale: "sample"
+    setup  "DefineProjection", name: "sample", projection_type: "sample", central_meridian: 1.0
+    input  feature_type: "sample", name: "sample", geometry_wkt: "sample"
+    expect emits: ["FeatureDigitized", "FeatureAttributed", "DistortionComputed", "SheetPublished"]
+  end
+
+  test "AttributeFeature sets attribute_name + attribute_value" do
+    tests "AttributeFeature", on: "GeographicFeature"
+    setup  "DigitizeFeature", feature_type: "sample", name: "sample", geometry_wkt: "sample"
+    input  attribute_name: "sample", attribute_value: "sample"
+    expect ok: "true"
+  end
+
+  test "AttributeFeature cascades through policy chain" do
+    tests "AttributeFeature", on: "GeographicFeature", kind: :cascade
+    setup  "DigitizeFeature", feature_type: "sample", name: "sample", geometry_wkt: "sample"
+    setup  "DefineProjection", name: "sample", projection_type: "sample", central_meridian: 1.0
+    setup  "Plate", sheet_id: "sample", title: "sample", scale: "sample"
+    input  attribute_name: "sample", attribute_value: "sample"
+    expect emits: ["FeatureAttributed", "DistortionComputed", "SheetPublished"]
+  end
+
+  test "Erase runs" do
+    tests "Erase", on: "GeographicFeature"
+    setup  "DigitizeFeature", feature_type: "sample", name: "sample", geometry_wkt: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Datum aggregate ──────────────────────────────────────────
+
+  test "RegisterDatum sets name + ellipsoid + semi_major_axis_m" do
+    tests "RegisterDatum", on: "Datum"
+    input  name: "sample", ellipsoid: "sample", semi_major_axis_m: 1.0
+    expect name: "sample", ellipsoid: "sample", semi_major_axis_m: 1.0, target_datum_registered: true
+  end
+
+  test "RegisterDatum cascades through policy chain" do
+    tests "RegisterDatum", on: "Datum", kind: :cascade
+    setup  "DefineProjection", name: "sample", projection_type: "sample", central_meridian: 1.0
+    setup  "Plate", sheet_id: "sample", title: "sample", scale: "sample"
+    setup  "DigitizeFeature", feature_type: "sample", name: "sample", geometry_wkt: "sample"
+    input  name: "sample", ellipsoid: "sample", semi_major_axis_m: 1.0
+    expect emits: ["DatumRegistered", "ProjectionDefined", "SheetPlated", "FeatureDigitized", "FeatureAttributed", "DistortionComputed", "SheetPublished"]
+  end
+
+  test "RegisterTargetDatum runs" do
+    tests "RegisterTargetDatum", on: "Datum"
+    setup  "RegisterDatum", name: "sample", ellipsoid: "sample", semi_major_axis_m: 1.0
+    expect ok: "true"
+  end
+
+  test "TransformCoordinates sets source_lat + source_lon" do
+    tests "TransformCoordinates", on: "Datum"
+    setup  "RegisterDatum", name: "sample", ellipsoid: "sample", semi_major_axis_m: 1.0
+    input  source_lat: 1.0, source_lon: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── MapRevision aggregate ──────────────────────────────────────────
+
+  test "SubmitRevision sets change_description" do
+    tests "SubmitRevision", on: "MapRevision"
+    setup  "Plate", sheet_id: "sample", title: "sample", scale: "sample"
+    input  change_description: "sample"
+    expect field_verified: true
+  end
+
+  test "FieldVerifyRevision runs" do
+    tests "FieldVerifyRevision", on: "MapRevision"
+    setup  "SubmitRevision", change_description: "sample"
+    expect ok: "true"
+  end
+
+  test "ApproveRevision sets reviewer" do
+    tests "ApproveRevision", on: "MapRevision"
+    setup  "SubmitRevision", change_description: "sample"
+    input  reviewer: "sample"
+    expect ok: "true"
+  end
+
+end

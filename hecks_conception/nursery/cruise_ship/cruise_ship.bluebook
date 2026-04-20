@@ -169,7 +169,7 @@ Hecks.bluebook "CruiseShip" do
       String :fitness_requirement
     end
 
-    CreateExcursion do
+    OfferExcursion do
       description "Offer a new shore excursion at a port of call"
       String :excursion_name
       String :description
@@ -212,12 +212,7 @@ Hecks.bluebook "CruiseShip" do
 
   policy "OpenExcursionsOnArrival" do
     on "ArrivedAtPort"
-    trigger "CreateExcursion"
-  end
-
-  policy "ShoreLeaveOnArrival" do
-    on "ArrivedAtPort"
-    trigger "ClearForShoreLeave"
+    trigger "OfferExcursion"
   end
 
   policy "CleanCabinOnDisembark" do
@@ -230,25 +225,4 @@ Hecks.bluebook "CruiseShip" do
     trigger "InspectCabin"
   end
 
-  policy "BookExcursionOnExcursionCreated" do
-    on "ExcursionCreated"
-    trigger "BookExcursion"
-  end
-
-  policy "DepartPortOnPassengerReturned" do
-    on "PassengerReturned"
-    trigger "DepartPort"
-  end
-
-  fixture "Cabin", cabin_number: "A-1245", deck: "Promenade", category: "Oceanview Balcony", max_occupancy: 2, current_occupancy: 0, status: "available"
-  fixture "Cabin", cabin_number: "B-2089", deck: "Main", category: "Inside", max_occupancy: 2, current_occupancy: 2, status: "inspected"
-
-  fixture "Passenger", booking_id: "BK-2024-0451", name: "Robert Harrison", nationality: "US", muster_status: "pending", embarkation_port: "Miami", status: "checked_in"
-  fixture "Passenger", booking_id: "BK-2024-0452", name: "Elena Garcia", nationality: "Spain", muster_status: "completed", embarkation_port: "Miami", status: "embarked"
-
-  fixture "PortOfCall", port_name: "Cozumel", country: "Mexico", arrival_time: "2024-02-10T08:00:00Z", departure_time: "2024-02-10T18:00:00Z", status: "scheduled"
-  fixture "PortOfCall", port_name: "Grand Cayman", country: "Cayman Islands", arrival_time: "2024-02-11T07:00:00Z", departure_time: "2024-02-11T17:00:00Z", status: "in_port"
-
-  fixture "Excursion", excursion_name: "Cenote Snorkeling Adventure", description: "Explore underground cenotes and coral formations", capacity: 40, booked_count: 0, price_cents: 9999, status: "open"
-  fixture "Excursion", excursion_name: "Stingray City Encounter", description: "Swim with Southern rays in shallow water sanctuary", capacity: 30, booked_count: 18, price_cents: 8999, status: "open"
 end

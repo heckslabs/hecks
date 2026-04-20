@@ -1,0 +1,75 @@
+Hecks.behaviors "Inbox" do
+  vision "Behavioral tests for the Inbox domain — exercises every command and query in memory"
+
+  # ── Message aggregate ──────────────────────────────────────────
+
+  test "PostMessage sets body + priority" do
+    tests "PostMessage", on: "Message"
+    input  body: "sample", priority: "sample"
+    expect body: "sample", priority: "sample", status: "queued"
+  end
+
+  test "PostMessage cascades through policy chain" do
+    tests "PostMessage", on: "Message", kind: :cascade
+    setup  "OpenInbox", queued_count: 1, oldest_priority: "sample"
+    input  body: "sample", priority: "sample"
+    expect emits: ["MessagePosted", "Tallied"]
+  end
+
+  test "AcknowledgeMessage runs" do
+    tests "AcknowledgeMessage", on: "Message"
+    setup  "PostMessage", body: "sample", priority: "sample"
+    expect status: "acknowledged"
+  end
+
+  test "AcknowledgeMessage cascades through policy chain" do
+    tests "AcknowledgeMessage", on: "Message", kind: :cascade
+    setup  "PostMessage", body: "sample", priority: "sample"
+    setup  "OpenInbox", queued_count: 1, oldest_priority: "sample"
+    expect emits: ["MessageAcknowledged", "Tallied"]
+  end
+
+  test "ActOnMessage runs" do
+    tests "ActOnMessage", on: "Message"
+    setup  "PostMessage", body: "sample", priority: "sample"
+    setup  "AcknowledgeMessage"
+    expect status: "done"
+  end
+
+  test "ActOnMessage cascades through policy chain" do
+    tests "ActOnMessage", on: "Message", kind: :cascade
+    setup  "PostMessage", body: "sample", priority: "sample"
+    setup  "OpenInbox", queued_count: 1, oldest_priority: "sample"
+    setup  "AcknowledgeMessage"
+    expect emits: ["MessageActedOn", "Tallied"]
+  end
+
+  test "DeferMessage runs" do
+    tests "DeferMessage", on: "Message"
+    setup  "PostMessage", body: "sample", priority: "sample"
+    expect status: "deferred"
+  end
+
+
+  # ── Inbox aggregate ──────────────────────────────────────────
+
+  test "OpenInbox sets queued_count + oldest_priority" do
+    tests "OpenInbox", on: "Inbox"
+    input  queued_count: 1, oldest_priority: "sample"
+    expect queued_count: 1, oldest_priority: "sample"
+  end
+
+  test "DrainInbox runs" do
+    tests "DrainInbox", on: "Inbox"
+    setup  "OpenInbox", queued_count: 1, oldest_priority: "sample"
+    expect ok: "true"
+  end
+
+  test "Tally sets queued_count + oldest_priority" do
+    tests "Tally", on: "Inbox"
+    setup  "OpenInbox", queued_count: 1, oldest_priority: "sample"
+    input  queued_count: 1, oldest_priority: "sample"
+    expect queued_count: 1, oldest_priority: "sample"
+  end
+
+end

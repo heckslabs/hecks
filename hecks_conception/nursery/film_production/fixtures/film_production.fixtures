@@ -1,0 +1,22 @@
+Hecks.fixtures "FilmProduction" do
+  aggregate "Production" do
+    fixture "Desert_Road_", title: "Desert Road", genre: "thriller", status: "development", total_budget: 2500000.0, start_date: "2026-06-01"
+    fixture "City_Stories_", title: "City Stories", genre: "drama", status: "shooting", total_budget: 5000000.0, start_date: "2026-05-15"
+  end
+  aggregate "Scene" do
+    fixture "Scene1", scene_number: 1, location: "desert highway", time_of_day: "sunrise", status: "scheduled", take_count: 0
+    fixture "Scene2", scene_number: 45, location: "downtown loft", time_of_day: "evening", status: "finalized", take_count: 7
+  end
+  aggregate "CrewMember" do
+    fixture "Alice_Johnson_", name: "Alice Johnson", role: "cinematographer", department: "camera", day_rate: 800.0
+    fixture "Marcus_Lee_", name: "Marcus Lee", role: "key grip", department: "grip", day_rate: 650.0
+  end
+  aggregate "Equipment" do
+    fixture "RED_Komodo_", name: "RED Komodo", category: "camera", serial_number: "RED-2025-001", status: "available"
+    fixture "HMI_2_5K_", name: "HMI 2.5K", category: "lighting", serial_number: "HMI-LT-042", status: "in_use"
+  end
+  aggregate "BudgetLine" do
+    fixture "BudgetLine1", department: "camera", category: "rentals", allocated: 450000.0, spent: 125000.0
+    fixture "BudgetLine2", department: "catering", category: "meals", allocated: 180000.0, spent: 89500.0
+  end
+end

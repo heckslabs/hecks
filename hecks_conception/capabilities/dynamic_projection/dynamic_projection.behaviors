@@ -1,0 +1,142 @@
+Hecks.behaviors "DynamicProjection" do
+  vision "Behavioral tests for the DynamicProjection domain — exercises every command and query in memory"
+
+  # ── Binding aggregate ──────────────────────────────────────────
+
+  test "BindElement sets bluebook_path + concept_type + concept_name + element_id + element_type" do
+    tests "BindElement", on: "Binding"
+    input  bluebook_path: "sample", concept_type: "sample", concept_name: "sample", element_id: "sample", element_type: "sample"
+    expect bluebook_path: "sample", concept_type: "sample", concept_name: "sample", element_id: "sample", element_type: "sample"
+  end
+
+  test "UnbindElement runs" do
+    tests "UnbindElement", on: "Binding"
+    setup  "BindElement", bluebook_path: "sample", concept_type: "sample", concept_name: "sample", element_id: "sample", element_type: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── BluebookWatch aggregate ──────────────────────────────────────────
+
+  test "WatchBluebook sets path" do
+    tests "WatchBluebook", on: "BluebookWatch"
+    input  path: "sample"
+    expect watched_paths_size: 1
+  end
+
+  test "DetectChange sets path + change_type" do
+    tests "DetectChange", on: "BluebookWatch"
+    setup  "WatchBluebook", path: "sample"
+    input  path: "sample", change_type: "sample"
+    expect ok: "true"
+  end
+
+  test "DetectChange cascades through policy chain" do
+    tests "DetectChange", on: "BluebookWatch", kind: :cascade
+    setup  "WatchBluebook", path: "sample"
+    setup  "ProjectPage", aggregate_name: "sample", bluebook_path: "sample"
+    setup  "ScanForDrift"
+    setup  "ProjectForm", command_name: "sample", aggregate_name: "sample"
+    setup  "ProjectNavigation", project_name: "sample"
+    setup  "FlagStale"
+    input  path: "sample", change_type: "sample"
+    expect emits: ["BluebookChanged", "PageStale", "PageRegenerated", "DriftScanned", "DriftReported", "FormRegenerated", "NavigationRegenerated"]
+  end
+
+
+  # ── PageProjection aggregate ──────────────────────────────────────────
+
+  test "ProjectPage sets aggregate_name + bluebook_path" do
+    tests "ProjectPage", on: "PageProjection"
+    input  aggregate_name: "sample", bluebook_path: "sample"
+    expect aggregate_name: "sample", bluebook_path: "sample", status: "current"
+  end
+
+  test "RegeneratePage runs" do
+    tests "RegeneratePage", on: "PageProjection"
+    setup  "ProjectPage", aggregate_name: "sample", bluebook_path: "sample"
+    setup  "FlagStale"
+    expect status: "current"
+  end
+
+  test "RegeneratePage cascades through policy chain" do
+    tests "RegeneratePage", on: "PageProjection", kind: :cascade
+    setup  "ScanForDrift"
+    setup  "ProjectPage", aggregate_name: "sample", bluebook_path: "sample"
+    setup  "FlagStale"
+    expect emits: ["PageRegenerated", "DriftScanned", "DriftReported"]
+  end
+
+  test "FlagStale runs" do
+    tests "FlagStale", on: "PageProjection"
+    setup  "ProjectPage", aggregate_name: "sample", bluebook_path: "sample"
+    expect status: "stale"
+  end
+
+  test "FlagStale cascades through policy chain" do
+    tests "FlagStale", on: "PageProjection", kind: :cascade
+    setup  "ScanForDrift"
+    setup  "ProjectPage", aggregate_name: "sample", bluebook_path: "sample"
+    expect emits: ["PageStale", "PageRegenerated", "DriftScanned", "DriftReported"]
+  end
+
+
+  # ── FormProjection aggregate ──────────────────────────────────────────
+
+  test "ProjectForm sets command_name + aggregate_name" do
+    tests "ProjectForm", on: "FormProjection"
+    input  command_name: "sample", aggregate_name: "sample"
+    expect command_name: "sample", aggregate_name: "sample"
+  end
+
+  test "RegenerateForm runs" do
+    tests "RegenerateForm", on: "FormProjection"
+    setup  "ProjectForm", command_name: "sample", aggregate_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── NavigationProjection aggregate ──────────────────────────────────────────
+
+  test "ProjectNavigation sets project_name" do
+    tests "ProjectNavigation", on: "NavigationProjection"
+    input  project_name: "sample"
+    expect project_name: "sample"
+  end
+
+  test "RegenerateNavigation runs" do
+    tests "RegenerateNavigation", on: "NavigationProjection"
+    setup  "ProjectNavigation", project_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── LifecycleBadge aggregate ──────────────────────────────────────────
+
+  test "ProjectBadge sets aggregate_name + lifecycle_field" do
+    tests "ProjectBadge", on: "LifecycleBadge"
+    input  aggregate_name: "sample", lifecycle_field: "sample"
+    expect aggregate_name: "sample", lifecycle_field: "sample"
+  end
+
+
+  # ── DriftDetector aggregate ──────────────────────────────────────────
+
+  test "ScanForDrift runs" do
+    tests "ScanForDrift", on: "DriftDetector"
+    expect ok: "true"
+  end
+
+  test "ScanForDrift cascades through policy chain" do
+    tests "ScanForDrift", on: "DriftDetector", kind: :cascade
+    expect emits: ["DriftScanned", "DriftReported"]
+  end
+
+  test "ReportDrift sets total_bindings + stale_bindings + orphan_elements + missing_projections" do
+    tests "ReportDrift", on: "DriftDetector"
+    setup  "ScanForDrift"
+    input  total_bindings: 1, stale_bindings: 1, orphan_elements: 1, missing_projections: 1
+    expect total_bindings: 1, stale_bindings: 1, orphan_elements: 1, missing_projections: 1
+  end
+
+end

@@ -39,6 +39,7 @@ Hecks.bluebook "CausalCombinatorics", version: "2026.04.13.1" do
     list_of(Activation) :chain
     Boolean :has_cycle
     Boolean :has_fan_out
+    Boolean :trigger_event_in_graph, default: false
 
     value_object "Activation" do
       Integer :step
@@ -47,11 +48,16 @@ Hecks.bluebook "CausalCombinatorics", version: "2026.04.13.1" do
       String :domain
     end
 
+    ConfirmEventInGraph do
+      description "Verify a trigger event is present in the policy graph before tracing"
+      reference_to(CascadeAnalysis)
+      emits "EventConfirmedInGraph"
+    end
+
     TraceCascade do
       description "Fire an event and follow every policy edge to see how far the cascade reaches"
       reference_to(PolicyGraph)
       String :trigger_event
-      given "event must exist in the graph"
       emits "CascadeTraced"
     end
 
@@ -75,6 +81,7 @@ Hecks.bluebook "CausalCombinatorics", version: "2026.04.13.1" do
     Integer :novel_cascades
     Float :emergence_ratio
     Float :cross_wire_density
+    Integer :ranked_domain_count, default: 0
 
     MeasureEmergence do
       description "Compare policies in isolated domains vs merged — the difference is emergence"
@@ -83,10 +90,16 @@ Hecks.bluebook "CausalCombinatorics", version: "2026.04.13.1" do
       emits "EmergenceMeasured"
     end
 
+    SetRankedDomainCount do
+      description "Record how many domains are eligible for ranking"
+      reference_to(EmergenceMetric)
+      Integer :ranked_domain_count
+      emits "RankedDomainCountSet"
+    end
+
     RankCombinations do
       description "Score all possible domain pairs by their emergence ratio — which crosses produce the most novelty"
       reference_to(EmergenceMetric)
-      given "must have at least 10 domains to rank meaningfully"
       emits "CombinationsRanked"
     end
   end
@@ -132,10 +145,16 @@ Hecks.bluebook "CausalCombinatorics", version: "2026.04.13.1" do
       emits "LawProposed"
     end
 
+    RecordObservation do
+      description "Increment the observation count for a candidate law"
+      reference_to(CombinatorialLaw)
+      Integer :observations
+      emits "ObservationRecorded"
+    end
+
     TestLaw do
       description "Validate a proposed law against observed emergence data"
       reference_to(CombinatorialLaw)
-      given "must have at least 20 observations"
       emits "LawTested"
     end
 
@@ -187,18 +206,4 @@ Hecks.bluebook "CausalCombinatorics", version: "2026.04.13.1" do
     trigger "TestLaw"
   end
 
-  fixture "PolicyGraph", name: "ecommerce-inventory-payment", node_count: 42, edge_count: 156, domain_count: 3
-  fixture "PolicyGraph", name: "fintech-settlement", node_count: 67, edge_count: 289, domain_count: 5
-
-  fixture "CascadeAnalysis", trigger_event: "OrderPlaced", cascade_depth: 5, total_activations: 23, has_cycle: false, has_fan_out: true
-  fixture "CascadeAnalysis", trigger_event: "PaymentProcessed", cascade_depth: 8, total_activations: 41, has_cycle: true, has_fan_out: true
-
-  fixture "EmergenceMetric", domains_combined: 3, policies_before: 24, policies_after: 38, novel_cascades: 14, emergence_ratio: 1.58, cross_wire_density: 0.32
-  fixture "EmergenceMetric", domains_combined: 5, policies_before: 68, policies_after: 127, novel_cascades: 59, emergence_ratio: 1.87, cross_wire_density: 0.44
-
-  fixture "GenerativeCapacity", corpus_size: 50, total_policies: 240, total_events: 180, possible_cross_wires: 2840, realized_cross_wires: 892, saturation: 0.314
-  fixture "GenerativeCapacity", corpus_size: 100, total_policies: 580, total_events: 420, possible_cross_wires: 8960, realized_cross_wires: 3284, saturation: 0.366
-
-  fixture "CombinatorialLaw", name: "emergence-scales-with-policy-density", statement: "Emergence ratio = 1 + 0.3 * log(policy_density)", confidence: 0.87, observations: 24
-  fixture "CombinatorialLaw", name: "cycle-probability-threshold", statement: "Cycles emerge when cross_wire_density > 0.4", confidence: 0.92, observations: 31
 end

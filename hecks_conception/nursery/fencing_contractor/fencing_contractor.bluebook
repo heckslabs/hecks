@@ -39,6 +39,7 @@ Hecks.bluebook "FencingContractor" do
       description "Price out posts, panels, gates, concrete, and labor"
       reference_to(FenceEstimate)
       Float :total_price
+      then_set :status, to: "quoted"
       emits "FenceQuoted"
     end
 
@@ -96,6 +97,7 @@ Hecks.bluebook "FencingContractor" do
       reference_to(FenceEstimate)
       Float :hole_depth_inches
       Integer :hole_count
+      then_set :status, to: "holes_dug"
       emits "HolesDug"
     end
 
@@ -197,18 +199,4 @@ Hecks.bluebook "FencingContractor" do
     trigger "InstallGates"
   end
 
-  fixture "FenceEstimate", customer_name: "John Martinez", address: "1247 Oak Ridge Road", linear_feet: 156.0, fence_style: "privacy", height_feet: 6.0, gate_count: 1, total_price: 3840.0, status: "quoted"
-  fixture "FenceEstimate", customer_name: "Sarah Williams", address: "892 Maple Lane", linear_feet: 240.0, fence_style: "split rail", height_feet: 4.5, gate_count: 2, total_price: 4200.0, status: "accepted"
-
-  fixture "MaterialOrder", supplier: "Southern Lumber Supply", material_list: "4x4 posts, privacy panels, hinges", post_count: 26, panel_count: 12, status: "ordered"
-  fixture "MaterialOrder", supplier: "Home Depot Pro", material_list: "pressure-treated posts, rails, concrete", post_count: 40, panel_count: 18, status: "received"
-
-  fixture "PostSetting", posts_set: 0, hole_depth_inches: 36.0, concrete_type: "fast-set", status: "planning"
-  fixture "PostSetting", posts_set: 26, hole_depth_inches: 36.0, concrete_type: "standard", status: "complete"
-
-  fixture "PanelInstallation", panels_installed: 0, status: "pending"
-  fixture "PanelInstallation", panels_installed: 12, status: "complete"
-
-  fixture "PropertyLine", survey_source: "County Assessor 2024", setback_inches: 6.0, neighbor_notification: "certified mail sent"
-  fixture "PropertyLine", survey_source: "Professional survey 2026", setback_inches: 12.0, neighbor_notification: "verbal notice documented"
 end

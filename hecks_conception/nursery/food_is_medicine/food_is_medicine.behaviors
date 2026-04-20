@@ -1,0 +1,149 @@
+Hecks.behaviors "FoodIsMedicine" do
+  vision "Behavioral tests for the FoodIsMedicine domain — exercises every command and query in memory"
+
+  # ── FoodPrescription aggregate ──────────────────────────────────────────
+
+  test "IssuePrescription sets prescription_id + patient_name + diagnosis + prescribing_clinician" do
+    tests "IssuePrescription", on: "FoodPrescription"
+    input  prescription_id: "sample", patient_name: "sample", diagnosis: "sample", prescribing_clinician: "sample"
+    expect prescription_id: "sample", patient_name: "sample", diagnosis: "sample", prescribing_clinician: "sample", status: "active"
+  end
+
+  test "IssuePrescription cascades through policy chain" do
+    tests "IssuePrescription", on: "FoodPrescription", kind: :cascade
+    setup  "ComputeDemand", region: "sample", period: "sample"
+    setup  "RecordBaseline", patient_name: "sample", baseline_status: "sample"
+    input  prescription_id: "sample", patient_name: "sample", diagnosis: "sample", prescribing_clinician: "sample"
+    expect emits: ["PrescriptionIssued", "DemandComputed", "BaselineRecorded"]
+  end
+
+  test "AdjustPrescription sets diagnosis" do
+    tests "AdjustPrescription", on: "FoodPrescription"
+    setup  "IssuePrescription", prescription_id: "sample", patient_name: "sample", diagnosis: "sample", prescribing_clinician: "sample"
+    input  diagnosis: "sample"
+    expect diagnosis: "sample"
+  end
+
+  test "CompletePrescription runs" do
+    tests "CompletePrescription", on: "FoodPrescription"
+    setup  "IssuePrescription", prescription_id: "sample", patient_name: "sample", diagnosis: "sample", prescribing_clinician: "sample"
+    expect status: "completed"
+  end
+
+
+  # ── FarmAllocation aggregate ──────────────────────────────────────────
+
+  test "CommitFarm sets farm_name + region + season + acres_committed" do
+    tests "CommitFarm", on: "FarmAllocation"
+    input  farm_name: "sample", region: "sample", season: "sample", acres_committed: 1
+    expect farm_name: "sample", region: "sample", season: "sample", acres_committed: 1, status: "committed"
+  end
+
+  test "ReportHarvest runs" do
+    tests "ReportHarvest", on: "FarmAllocation"
+    setup  "CommitFarm", farm_name: "sample", region: "sample", season: "sample", acres_committed: 1
+    expect status: "harvested"
+  end
+
+  test "ReportHarvest cascades through policy chain" do
+    tests "ReportHarvest", on: "FarmAllocation", kind: :cascade
+    setup  "ComputeDemand", region: "sample", period: "sample"
+    setup  "PlanRoute", route_id: "sample", food_bank_name: "sample", delivery_date: "sample"
+    setup  "CommitFarm", farm_name: "sample", region: "sample", season: "sample", acres_committed: 1
+    expect emits: ["HarvestReported", "FarmLinkedToTarget", "SupplyMatched", "RoutePlanned"]
+  end
+
+  test "LinkToTarget runs" do
+    tests "LinkToTarget", on: "FarmAllocation"
+    setup  "ComputeDemand", region: "sample", period: "sample"
+    setup  "CommitFarm", farm_name: "sample", region: "sample", season: "sample", acres_committed: 1
+    expect ok: "true"
+  end
+
+  test "LinkToTarget cascades through policy chain" do
+    tests "LinkToTarget", on: "FarmAllocation", kind: :cascade
+    setup  "CommitFarm", farm_name: "sample", region: "sample", season: "sample", acres_committed: 1
+    setup  "ComputeDemand", region: "sample", period: "sample"
+    setup  "PlanRoute", route_id: "sample", food_bank_name: "sample", delivery_date: "sample"
+    expect emits: ["FarmLinkedToTarget", "SupplyMatched", "RoutePlanned"]
+  end
+
+
+  # ── NutrientTarget aggregate ──────────────────────────────────────────
+
+  test "ComputeDemand sets region + period" do
+    tests "ComputeDemand", on: "NutrientTarget"
+    input  region: "sample", period: "sample"
+    expect region: "sample", period: "sample", status: "computed"
+  end
+
+  test "MatchSupply runs" do
+    tests "MatchSupply", on: "NutrientTarget"
+    setup  "ComputeDemand", region: "sample", period: "sample"
+    expect status: "matched"
+  end
+
+  test "MatchSupply cascades through policy chain" do
+    tests "MatchSupply", on: "NutrientTarget", kind: :cascade
+    setup  "PlanRoute", route_id: "sample", food_bank_name: "sample", delivery_date: "sample"
+    setup  "CommitFarm", farm_name: "sample", region: "sample", season: "sample", acres_committed: 1
+    setup  "ComputeDemand", region: "sample", period: "sample"
+    expect emits: ["SupplyMatched", "RoutePlanned"]
+  end
+
+
+  # ── DistributionRoute aggregate ──────────────────────────────────────────
+
+  test "PlanRoute sets route_id + food_bank_name + delivery_date" do
+    tests "PlanRoute", on: "DistributionRoute"
+    setup  "CommitFarm", farm_name: "sample", region: "sample", season: "sample", acres_committed: 1
+    input  route_id: "sample", food_bank_name: "sample", delivery_date: "sample"
+    expect route_id: "sample", food_bank_name: "sample", delivery_date: "sample", status: "planned"
+  end
+
+  test "DispatchDelivery runs" do
+    tests "DispatchDelivery", on: "DistributionRoute"
+    setup  "PlanRoute", route_id: "sample", food_bank_name: "sample", delivery_date: "sample"
+    expect status: "in_transit"
+  end
+
+  test "ConfirmDelivery runs" do
+    tests "ConfirmDelivery", on: "DistributionRoute"
+    setup  "PlanRoute", route_id: "sample", food_bank_name: "sample", delivery_date: "sample"
+    setup  "DispatchDelivery"
+    expect status: "delivered"
+  end
+
+
+  # ── PatientOutcome aggregate ──────────────────────────────────────────
+
+  test "RecordBaseline sets patient_name + baseline_status" do
+    tests "RecordBaseline", on: "PatientOutcome"
+    setup  "IssuePrescription", prescription_id: "sample", patient_name: "sample", diagnosis: "sample", prescribing_clinician: "sample"
+    input  patient_name: "sample", baseline_status: "sample"
+    expect patient_name: "sample", baseline_status: "sample", current_status: "sample", trend: "stable"
+  end
+
+  test "RecordCheckpoint sets current_status + trend" do
+    tests "RecordCheckpoint", on: "PatientOutcome"
+    setup  "RecordBaseline", patient_name: "sample", baseline_status: "sample"
+    input  current_status: "sample", trend: "sample"
+    expect current_status: "sample", trend: "improving"
+  end
+
+  test "FlagImprovement runs" do
+    tests "FlagImprovement", on: "PatientOutcome"
+    setup  "RecordBaseline", patient_name: "sample", baseline_status: "sample"
+    setup  "RecordCheckpoint", current_status: "sample", trend: "sample"
+    expect ok: "true"
+  end
+
+  test "FlagImprovement cascades through policy chain" do
+    tests "FlagImprovement", on: "PatientOutcome", kind: :cascade
+    setup  "RecordBaseline", patient_name: "sample", baseline_status: "sample"
+    setup  "IssuePrescription", prescription_id: "sample", patient_name: "sample", diagnosis: "sample", prescribing_clinician: "sample"
+    setup  "RecordCheckpoint", current_status: "sample", trend: "sample"
+    expect emits: ["ImprovementFlagged", "PrescriptionAdjusted", "PrescriptionCompleted"]
+  end
+
+end

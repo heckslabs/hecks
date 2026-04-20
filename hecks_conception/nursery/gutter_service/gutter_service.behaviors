@@ -1,0 +1,150 @@
+Hecks.behaviors "GutterService" do
+  vision "Behavioral tests for the GutterService domain — exercises every command and query in memory"
+
+  # ── GutterProperty aggregate ──────────────────────────────────────────
+
+  test "SurveyProperty sets owner_name + address + roofline_feet + existing_gutter_condition" do
+    tests "SurveyProperty", on: "GutterProperty"
+    input  owner_name: "sample", address: "sample", roofline_feet: 1.0, existing_gutter_condition: "sample"
+    expect ok: "true"
+  end
+
+  test "SurveyProperty cascades through policy chain" do
+    tests "SurveyProperty", on: "GutterProperty", kind: :cascade
+    setup  "TakeMeasurements", run_length_feet: 1.0, drop_per_foot: 1.0, miter_count: 1, gutter_profile: "sample"
+    setup  "OrderMaterial", material_type: "sample", gauge: "sample", color: "sample", coil_footage: 1.0
+    setup  "ScheduleInstall", installer_name: "sample", install_date: "sample"
+    input  owner_name: "sample", address: "sample", roofline_feet: 1.0, existing_gutter_condition: "sample"
+    expect emits: ["PropertySurveyed", "MeasurementsTaken", "MaterialsCalculated", "MaterialOrdered", "GutterFabricated", "InstallScheduled", "GuttersHung", "DownspoutsConnected", "DrainageAssessed"]
+  end
+
+  test "AssessDrainage sets drainage_notes" do
+    tests "AssessDrainage", on: "GutterProperty"
+    setup  "SurveyProperty", owner_name: "sample", address: "sample", roofline_feet: 1.0, existing_gutter_condition: "sample"
+    input  drainage_notes: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GutterMeasurement aggregate ──────────────────────────────────────────
+
+  test "TakeMeasurements sets run_length_feet + drop_per_foot + miter_count + gutter_profile" do
+    tests "TakeMeasurements", on: "GutterMeasurement"
+    setup  "SurveyProperty", owner_name: "sample", address: "sample", roofline_feet: 1.0, existing_gutter_condition: "sample"
+    input  run_length_feet: 1.0, drop_per_foot: 1.0, miter_count: 1, gutter_profile: "sample"
+    expect ok: "true"
+  end
+
+  test "TakeMeasurements cascades through policy chain" do
+    tests "TakeMeasurements", on: "GutterMeasurement", kind: :cascade
+    setup  "SurveyProperty", owner_name: "sample", address: "sample", roofline_feet: 1.0, existing_gutter_condition: "sample"
+    setup  "OrderMaterial", material_type: "sample", gauge: "sample", color: "sample", coil_footage: 1.0
+    setup  "ScheduleInstall", installer_name: "sample", install_date: "sample"
+    input  run_length_feet: 1.0, drop_per_foot: 1.0, miter_count: 1, gutter_profile: "sample"
+    expect emits: ["MeasurementsTaken", "MaterialsCalculated", "MaterialOrdered", "GutterFabricated", "InstallScheduled", "GuttersHung", "DownspoutsConnected"]
+  end
+
+  test "CalculateMaterials runs" do
+    tests "CalculateMaterials", on: "GutterMeasurement"
+    setup  "TakeMeasurements", run_length_feet: 1.0, drop_per_foot: 1.0, miter_count: 1, gutter_profile: "sample"
+    expect ok: "true"
+  end
+
+  test "CalculateMaterials cascades through policy chain" do
+    tests "CalculateMaterials", on: "GutterMeasurement", kind: :cascade
+    setup  "TakeMeasurements", run_length_feet: 1.0, drop_per_foot: 1.0, miter_count: 1, gutter_profile: "sample"
+    setup  "OrderMaterial", material_type: "sample", gauge: "sample", color: "sample", coil_footage: 1.0
+    setup  "ScheduleInstall", installer_name: "sample", install_date: "sample"
+    setup  "SurveyProperty", owner_name: "sample", address: "sample", roofline_feet: 1.0, existing_gutter_condition: "sample"
+    expect emits: ["MaterialsCalculated", "MaterialOrdered", "GutterFabricated", "InstallScheduled", "GuttersHung", "DownspoutsConnected"]
+  end
+
+
+  # ── GutterMaterial aggregate ──────────────────────────────────────────
+
+  test "OrderMaterial sets material_type + gauge + color + coil_footage" do
+    tests "OrderMaterial", on: "GutterMaterial"
+    setup  "TakeMeasurements", run_length_feet: 1.0, drop_per_foot: 1.0, miter_count: 1, gutter_profile: "sample"
+    input  material_type: "sample", gauge: "sample", color: "sample", coil_footage: 1.0
+    expect status: "delivered"
+  end
+
+  test "OrderMaterial cascades through policy chain" do
+    tests "OrderMaterial", on: "GutterMaterial", kind: :cascade
+    setup  "TakeMeasurements", run_length_feet: 1.0, drop_per_foot: 1.0, miter_count: 1, gutter_profile: "sample"
+    setup  "ScheduleInstall", installer_name: "sample", install_date: "sample"
+    setup  "SurveyProperty", owner_name: "sample", address: "sample", roofline_feet: 1.0, existing_gutter_condition: "sample"
+    input  material_type: "sample", gauge: "sample", color: "sample", coil_footage: 1.0
+    expect emits: ["MaterialOrdered", "GutterFabricated", "InstallScheduled", "GuttersHung", "DownspoutsConnected"]
+  end
+
+  test "FabricateGutter runs" do
+    tests "FabricateGutter", on: "GutterMaterial"
+    setup  "OrderMaterial", material_type: "sample", gauge: "sample", color: "sample", coil_footage: 1.0
+    expect ok: "true"
+  end
+
+  test "FabricateGutter cascades through policy chain" do
+    tests "FabricateGutter", on: "GutterMaterial", kind: :cascade
+    setup  "ScheduleInstall", installer_name: "sample", install_date: "sample"
+    setup  "SurveyProperty", owner_name: "sample", address: "sample", roofline_feet: 1.0, existing_gutter_condition: "sample"
+    setup  "OrderMaterial", material_type: "sample", gauge: "sample", color: "sample", coil_footage: 1.0
+    expect emits: ["GutterFabricated", "InstallScheduled", "GuttersHung", "DownspoutsConnected"]
+  end
+
+
+  # ── GutterInstallation aggregate ──────────────────────────────────────────
+
+  test "ScheduleInstall sets installer_name + install_date" do
+    tests "ScheduleInstall", on: "GutterInstallation"
+    setup  "SurveyProperty", owner_name: "sample", address: "sample", roofline_feet: 1.0, existing_gutter_condition: "sample"
+    input  installer_name: "sample", install_date: "sample"
+    expect ok: "true"
+  end
+
+  test "ScheduleInstall cascades through policy chain" do
+    tests "ScheduleInstall", on: "GutterInstallation", kind: :cascade
+    setup  "SurveyProperty", owner_name: "sample", address: "sample", roofline_feet: 1.0, existing_gutter_condition: "sample"
+    input  installer_name: "sample", install_date: "sample"
+    expect emits: ["InstallScheduled", "GuttersHung", "DownspoutsConnected"]
+  end
+
+  test "HangGutters sets hangers_used" do
+    tests "HangGutters", on: "GutterInstallation"
+    setup  "ScheduleInstall", installer_name: "sample", install_date: "sample"
+    input  hangers_used: 1
+    expect ok: "true"
+  end
+
+  test "HangGutters cascades through policy chain" do
+    tests "HangGutters", on: "GutterInstallation", kind: :cascade
+    setup  "ScheduleInstall", installer_name: "sample", install_date: "sample"
+    input  hangers_used: 1
+    expect emits: ["GuttersHung", "DownspoutsConnected"]
+  end
+
+  test "ConnectDownspouts sets downspout_count" do
+    tests "ConnectDownspouts", on: "GutterInstallation"
+    setup  "ScheduleInstall", installer_name: "sample", install_date: "sample"
+    input  downspout_count: 1
+    expect ok: "true"
+  end
+
+
+  # ── GutterCleaning aggregate ──────────────────────────────────────────
+
+  test "ScheduleCleaning sets service_date" do
+    tests "ScheduleCleaning", on: "GutterCleaning"
+    setup  "SurveyProperty", owner_name: "sample", address: "sample", roofline_feet: 1.0, existing_gutter_condition: "sample"
+    input  service_date: "sample"
+    expect ok: "true"
+  end
+
+  test "PerformCleaning sets debris_type + condition_notes" do
+    tests "PerformCleaning", on: "GutterCleaning"
+    setup  "ScheduleCleaning", service_date: "sample"
+    input  debris_type: "sample", condition_notes: "sample"
+    expect ok: "true"
+  end
+
+end

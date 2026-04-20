@@ -280,33 +280,4 @@ Hecks.bluebook "GeologicalMining", version: "2026.04.13.1" do
     trigger "ValidateQC"
   end
 
-  policy "DelineateOnValidate" do
-    on "QCValidated"
-    trigger "DelineateOreBody"
-  end
-
-  policy "DesignOnUpgrade" do
-    on "ResourceUpgraded"
-    trigger "DesignExtractionPlan"
-  end
-
-  policy "ApproveOnDesign" do
-    on "ExtractionPlanDesigned"
-    trigger "ApproveExtraction"
-  end
-
-  fixture "GeologicalFormation", name: "Sierra Madre Granite", rock_type: "granite", geological_age: "Cretaceous", depth_m: 500.0, thickness_m: 300.0, mineralization: "gold-bearing quartz", status: "classified"
-  fixture "GeologicalFormation", name: "Salton Trough Sediment", rock_type: "sandstone", geological_age: "Pliocene", depth_m: 1200.0, thickness_m: 800.0, mineralization: "copper-porphyry", status: "mapped"
-
-  fixture "OreBody", name: "Main Ore Zone Alpha", mineral: "chalcopyrite", grade_pct: 0.85, estimated_tonnage: 2500000.0, depth_m: 600.0, status: "measured"
-  fixture "OreBody", name: "Deep Ore Zone Beta", mineral: "bornite", grade_pct: 1.2, estimated_tonnage: 5000000.0, depth_m: 1500.0, status: "delineated"
-
-  fixture "DrillCore", hole_id: "DHO-2026-001", from_m: 0.0, to_m: 500.0, lithology: "granite with quartz veins", recovery_pct: 94.5, status: "submitted"
-  fixture "DrillCore", hole_id: "DHO-2026-002", from_m: 500.0, to_m: 1000.0, lithology: "porphyritic granite", recovery_pct: 97.0, status: "logged"
-
-  fixture "AssayResult", sample_id: "AS-DHO-2026-001-A", hole_id: "DHO-2026-001", element: "copper", concentration_ppm: 850.0, grade_pct: 0.085, lab_name: "ALS Global", status: "validated"
-  fixture "AssayResult", sample_id: "AS-DHO-2026-002-B", hole_id: "DHO-2026-002", element: "gold", concentration_ppm: 2.3, grade_pct: 0.00023, lab_name: "SGS Geosol", status: "recorded"
-
-  fixture "ExtractionPlan", name: "Alpha Zone Open Pit", ore_body_name: "Main Ore Zone Alpha", extraction_method: "open_pit", planned_tonnage: 2500000.0, strip_ratio: 2.1, cost_per_ton: 2.45, status: "approved"
-  fixture "ExtractionPlan", name: "Beta Zone Underground", ore_body_name: "Deep Ore Zone Beta", extraction_method: "underground", planned_tonnage: 5000000.0, strip_ratio: 1.0, cost_per_ton: 3.80, status: "designed"
 end

@@ -1,0 +1,126 @@
+Hecks.behaviors "CulturalResourceMgmt" do
+  vision "Behavioral tests for the CulturalResourceMgmt domain — exercises every command and query in memory"
+
+  # ── ArchaeologicalSite aggregate ──────────────────────────────────────────
+
+  test "DiscoverSite sets site_id + location + era_period + significance_level" do
+    tests "DiscoverSite", on: "ArchaeologicalSite"
+    input  site_id: "sample", location: "sample", era_period: "sample", significance_level: "sample"
+    expect site_id: "sample", location: "sample", era_period: "sample", significance_level: "sample", artifact_count: 0, status: "discovered"
+  end
+
+  test "DiscoverSite cascades through policy chain" do
+    tests "DiscoverSite", on: "ArchaeologicalSite", kind: :cascade
+    input  site_id: "sample", location: "sample", era_period: "sample", significance_level: "sample"
+    expect emits: ["SiteDiscovered", "SiteAssessed", "ExcavationStarted"]
+  end
+
+  test "AssessSite runs" do
+    tests "AssessSite", on: "ArchaeologicalSite"
+    setup  "DiscoverSite", site_id: "sample", location: "sample", era_period: "sample", significance_level: "sample"
+    expect status: "assessed"
+  end
+
+  test "AssessSite cascades through policy chain" do
+    tests "AssessSite", on: "ArchaeologicalSite", kind: :cascade
+    setup  "DiscoverSite", site_id: "sample", location: "sample", era_period: "sample", significance_level: "sample"
+    expect emits: ["SiteAssessed", "ExcavationStarted"]
+  end
+
+  test "ExcavateSite runs" do
+    tests "ExcavateSite", on: "ArchaeologicalSite"
+    setup  "DiscoverSite", site_id: "sample", location: "sample", era_period: "sample", significance_level: "sample"
+    setup  "AssessSite"
+    expect status: "excavating"
+  end
+
+  test "ClearSite runs" do
+    tests "ClearSite", on: "ArchaeologicalSite"
+    setup  "DiscoverSite", site_id: "sample", location: "sample", era_period: "sample", significance_level: "sample"
+    setup  "AssessSite"
+    setup  "ExcavateSite"
+    expect status: "cleared"
+  end
+
+
+  # ── Artifact aggregate ──────────────────────────────────────────
+
+  test "CatalogArtifact sets catalog_number + artifact_type + site_id + depth_found_m + condition" do
+    tests "CatalogArtifact", on: "Artifact"
+    input  catalog_number: "sample", artifact_type: "sample", site_id: "sample", depth_found_m: 1.0, condition: "sample"
+    expect catalog_number: "sample", artifact_type: "sample", site_id: "sample", depth_found_m: 1.0, condition: "sample", status: "cataloged"
+  end
+
+  test "CatalogArtifact cascades through policy chain" do
+    tests "CatalogArtifact", on: "Artifact", kind: :cascade
+    input  catalog_number: "sample", artifact_type: "sample", site_id: "sample", depth_found_m: 1.0, condition: "sample"
+    expect emits: ["ArtifactCataloged", "ArtifactPreserved"]
+  end
+
+  test "PreserveArtifact sets preservation_method" do
+    tests "PreserveArtifact", on: "Artifact"
+    setup  "CatalogArtifact", catalog_number: "sample", artifact_type: "sample", site_id: "sample", depth_found_m: 1.0, condition: "sample"
+    input  preservation_method: "sample"
+    expect preservation_method: "sample", status: "preserved"
+  end
+
+
+  # ── ConstructionPhase aggregate ──────────────────────────────────────────
+
+  test "PlanPhase sets phase_name + project_name + area + start_date + end_date" do
+    tests "PlanPhase", on: "ConstructionPhase"
+    input  phase_name: "sample", project_name: "sample", area: "sample", start_date: "sample", end_date: "sample"
+    expect phase_name: "sample", project_name: "sample", area: "sample", start_date: "sample", end_date: "sample", status: "planned"
+  end
+
+  test "HaltForArchaeology runs" do
+    tests "HaltForArchaeology", on: "ConstructionPhase"
+    setup  "PlanPhase", phase_name: "sample", project_name: "sample", area: "sample", start_date: "sample", end_date: "sample"
+    expect status: "halted"
+  end
+
+  test "ResumePhase runs" do
+    tests "ResumePhase", on: "ConstructionPhase"
+    setup  "PlanPhase", phase_name: "sample", project_name: "sample", area: "sample", start_date: "sample", end_date: "sample"
+    setup  "HaltForArchaeology"
+    expect status: "active"
+  end
+
+  test "CompletePhase runs" do
+    tests "CompletePhase", on: "ConstructionPhase"
+    setup  "PlanPhase", phase_name: "sample", project_name: "sample", area: "sample", start_date: "sample", end_date: "sample"
+    setup  "HaltForArchaeology"
+    setup  "ResumePhase"
+    expect status: "completed"
+  end
+
+
+  # ── PreservationPermit aggregate ──────────────────────────────────────────
+
+  test "ApplyForPreservationPermit sets permit_number + site_id + applicant + permit_type" do
+    tests "ApplyForPreservationPermit", on: "PreservationPermit"
+    input  permit_number: "sample", site_id: "sample", applicant: "sample", permit_type: "sample"
+    expect permit_number: "sample", site_id: "sample", applicant: "sample", permit_type: "sample", status: "applied"
+  end
+
+  test "ApplyForPreservationPermit cascades through policy chain" do
+    tests "ApplyForPreservationPermit", on: "PreservationPermit", kind: :cascade
+    input  permit_number: "sample", site_id: "sample", applicant: "sample", permit_type: "sample"
+    expect emits: ["PreservationPermitApplied", "PreservationPermitReviewed"]
+  end
+
+  test "ReviewPreservationPermit sets conditions" do
+    tests "ReviewPreservationPermit", on: "PreservationPermit"
+    setup  "ApplyForPreservationPermit", permit_number: "sample", site_id: "sample", applicant: "sample", permit_type: "sample"
+    input  conditions: "sample"
+    expect conditions: "sample", status: "reviewed"
+  end
+
+  test "GrantPermit runs" do
+    tests "GrantPermit", on: "PreservationPermit"
+    setup  "ApplyForPreservationPermit", permit_number: "sample", site_id: "sample", applicant: "sample", permit_type: "sample"
+    setup  "ReviewPreservationPermit", conditions: "sample"
+    expect status: "granted"
+  end
+
+end

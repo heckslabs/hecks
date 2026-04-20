@@ -65,7 +65,7 @@ Hecks.bluebook "FinancialFreedom" do
       attribute :interest_rate, Float
     end
 
-    command "CreateProfile" do
+    command "Assess" do
       role "FinancialCounselor"
       goal "Create a financial profile"
       reference_to SurvivorCase
@@ -179,12 +179,12 @@ Hecks.bluebook "FinancialFreedom" do
 
   policy "CaseOpenedTriggersProfile" do
     on "CaseOpened"
-    trigger "CreateProfile"
+    trigger "Assess"
     map survivor_case_id: :case_id
   end
 
-  policy "ProfileCreatedTriggersTaxReturn" do
-    on "ProfileCreated"
+  policy "ProfileAssessedTriggersTaxReturn" do
+    on "ProfileAssessed"
     trigger "PrepareTaxReturn"
     map survivor_case_id: :case_id, financial_profile_id: :profile_id
   end
@@ -208,15 +208,4 @@ Hecks.bluebook "FinancialFreedom" do
     condition { |event| event.benefit_type == "housing_voucher" }
   end
 
-  fixture "SurvivorCase", case_id: "SC-2026-001", intake_date: "2026-03-15", safety_plan: "contact police, safe house", status: "active"
-  fixture "SurvivorCase", case_id: "SC-2026-002", intake_date: "2026-02-20", safety_plan: "restraining order, secure phone", status: "active"
-
-  fixture "FinancialProfile", annual_income: 18000.0, status: "gathering"
-  fixture "FinancialProfile", annual_income: 24500.0, status: "gathering"
-
-  fixture "TaxReturn", tax_year: 2025, filing_status: "head of household", refund_cents: 285000, status: "preparing"
-  fixture "TaxReturn", tax_year: 2025, filing_status: "single", refund_cents: 150000, status: "preparing"
-
-  fixture "BenefitApplication", benefit_type: "SNAP", status: "draft"
-  fixture "BenefitApplication", benefit_type: "housing_voucher", status: "draft"
 end

@@ -1,0 +1,55 @@
+Hecks.behaviors "Terroir" do
+  vision "Behavioral tests for the Terroir domain — exercises every command and query in memory"
+
+  # ── GeologicalSurvey aggregate ──────────────────────────────────────────
+
+  test "StartSurvey sets survey_id + location" do
+    tests "StartSurvey", on: "GeologicalSurvey"
+    input  survey_id: "sample", location: "sample"
+    expect ok: "true"
+  end
+
+  test "CompleteSurvey runs" do
+    tests "CompleteSurvey", on: "GeologicalSurvey"
+    setup  "StartSurvey", survey_id: "sample", location: "sample"
+    setup  "RecordStratum", rock_type: "sample", depth_m: 1.0, mineral_content: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Vineyard aggregate ──────────────────────────────────────────
+
+  test "PlantVineyard sets block_name + grape_variety + acres" do
+    tests "PlantVineyard", on: "Vineyard"
+    setup  "StartSurvey", survey_id: "sample", location: "sample"
+    input  block_name: "sample", grape_variety: "sample", acres: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── Harvest aggregate ──────────────────────────────────────────
+
+  test "StartHarvest sets harvest_date + brix" do
+    tests "StartHarvest", on: "Harvest"
+    setup  "PlantVineyard", block_name: "sample", grape_variety: "sample", acres: 1.0
+    input  harvest_date: "sample", brix: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── Fermentation aggregate ──────────────────────────────────────────
+
+  test "StartFermentation sets vessel_type + yeast_strain" do
+    tests "StartFermentation", on: "Fermentation"
+    setup  "StartHarvest", harvest_date: "sample", brix: 1.0
+    input  vessel_type: "sample", yeast_strain: "sample"
+    expect ok: "true"
+  end
+
+  test "CompleteFermentation runs" do
+    tests "CompleteFermentation", on: "Fermentation"
+    setup  "StartFermentation", vessel_type: "sample", yeast_strain: "sample"
+    expect ok: "true"
+  end
+
+end

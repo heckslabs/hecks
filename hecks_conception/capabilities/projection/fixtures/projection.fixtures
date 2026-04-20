@@ -1,0 +1,30 @@
+Hecks.fixtures "Projection" do
+  aggregate "Target" do
+    fixture "ruby_", name: "ruby", language: "Ruby", output_path: "lib/"
+    fixture "rust_", name: "rust", language: "Rust", output_path: "hecks_life/src/"
+    fixture "shell_", name: "shell", language: "Bash", output_path: "hecks_conception/"
+    fixture "statusline_", name: "statusline", language: "Bash", output_path: "~/.claude/"
+  end
+  aggregate "ProjectedScript" do
+    fixture "ProjectedScript1", domain_name: "Dream", aggregate_name: "SleepCycle", target: "shell", script_path: "sleep_cycle.rb"
+    fixture "ProjectedScript2", domain_name: "Dream", aggregate_name: "Daydream", target: "shell", script_path: "daydream.rb"
+    fixture "ProjectedScript3", domain_name: "Dream", aggregate_name: "Fatigue", target: "shell", script_path: "pulse.rb"
+    fixture "ProjectedScript4", domain_name: "Dream", aggregate_name: "Monitor", target: "shell", script_path: "miette_status.rb"
+    fixture "ProjectedScript5", domain_name: "Dream", aggregate_name: "LucidMonitor", target: "shell", script_path: "sleep_cycle.rb"
+    fixture "ProjectedScript6", domain_name: "StatusBar", aggregate_name: "Display", target: "statusline", script_path: "statusline-command.sh"
+    fixture "ProjectedScript7", domain_name: "Subconscious", aggregate_name: "Process", target: "shell", script_path: "subconscious_task.rb"
+    fixture "ProjectedScript8", domain_name: "Verbs", aggregate_name: "Rules", target: "rust", script_path: "validator.rs"
+    fixture "ProjectedScript9", domain_name: "SystemPrompt", aggregate_name: "Prompt", target: "shell", script_path: "generate_prompt.rb"
+    fixture "ProjectedScript10", domain_name: "Boot", aggregate_name: "Brain", target: "shell", script_path: "boot_miette.rb"
+    fixture "ProjectedScript11", domain_name: "Seeding", aggregate_name: "NurserySeed", target: "shell", script_path: "seed_linux.rb"
+    fixture "ProjectedScript12", domain_name: "Seeding", aggregate_name: "Worker", target: "shell", script_path: "seed_linux_worker.rb"
+    fixture "ProjectedScript13", domain_name: "Seeding", aggregate_name: "Merge", target: "shell", script_path: "seed_linux_merge.rb"
+    fixture "ProjectedScript14", domain_name: "Seeding", aggregate_name: "InitialState", target: "shell", script_path: "seed_miette.rb"
+    fixture "ProjectedScript15", domain_name: "Census", aggregate_name: "NurseryCensus", target: "shell", script_path: "seed_nursery.rb"
+    fixture "ProjectedScript16", domain_name: "Census", aggregate_name: "DomainEntry", target: "shell", script_path: "index_nursery.rb"
+    fixture "ProjectedScript17", domain_name: "Census", aggregate_name: "Compilation", target: "shell", script_path: "compile_nursery.rb"
+    fixture "ProjectedScript18", domain_name: "Midwife", aggregate_name: "Conception", target: "shell", script_path: "conceive_v2.rb"
+    fixture "ProjectedScript19", domain_name: "Console", aggregate_name: "Session", target: "shell", script_path: "miette_console.rb"
+    fixture "ProjectedScript20", domain_name: "Console", aggregate_name: "Layout", target: "shell", script_path: "miette_console.js"
+  end
+end

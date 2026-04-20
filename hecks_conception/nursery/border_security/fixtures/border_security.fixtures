@@ -1,0 +1,18 @@
+Hecks.fixtures "BorderSecurity" do
+  aggregate "ForensicSample" do
+    fixture "ForensicSample1", sample_id: "FS-2026-04-001", sample_type: "powder", collector: "Agent Martinez", status: "collected"
+    fixture "ForensicSample2", sample_id: "FS-2026-04-002", sample_type: "liquid", collector: "Agent Johnson", status: "collected"
+  end
+  aggregate "Shipment" do
+    fixture "Shipment1", tracking_number: "SHIP-US-2026-04-100", origin_country: "Mexico", destination_country: "United States", status: "manifested"
+    fixture "Shipment2", tracking_number: "SHIP-US-2026-04-101", origin_country: "Canada", destination_country: "United States", status: "manifested"
+  end
+  aggregate "RiskAlert" do
+    fixture "RiskAlert1", alert_level: "high", reason: "positive narcotics test", status: "active"
+    fixture "RiskAlert2", alert_level: "medium", reason: "undeclared currency", status: "active"
+  end
+  aggregate "Inspection" do
+    fixture "Inspection1", inspector: "Officer Williams", status: "scheduled"
+    fixture "Inspection2", inspector: "Officer Garcia", status: "scheduled"
+  end
+end

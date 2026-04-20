@@ -1,0 +1,98 @@
+Hecks.behaviors "Boot" do
+  vision "Behavioral tests for the Boot domain — exercises every command and query in memory"
+
+  # ── Identity aggregate ──────────────────────────────────────────
+
+  test "Identify sets name" do
+    tests "Identify", on: "Identity"
+    input  name: "sample"
+    expect name: "sample"
+  end
+
+
+  # ── Hydration aggregate ──────────────────────────────────────────
+
+  test "HydrateStores runs" do
+    tests "HydrateStores", on: "Hydration"
+    expect ok: "true"
+  end
+
+  test "HydrateStores cascades through policy chain" do
+    tests "HydrateStores", on: "Hydration", kind: :cascade
+    expect emits: ["StoresHydrated", "StoresClassified", "PromptGenerated", "MindstreamStarted"]
+  end
+
+
+  # ── OrganDiscovery aggregate ──────────────────────────────────────────
+
+  test "DiscoverOrgans runs" do
+    tests "DiscoverOrgans", on: "OrganDiscovery"
+    expect ok: "true"
+  end
+
+  test "DiscoverOrgans cascades through policy chain" do
+    tests "DiscoverOrgans", on: "OrganDiscovery", kind: :cascade
+    expect emits: ["OrgansDiscovered", "CensusWritten", "VitalsPrinted"]
+  end
+
+  test "WriteCensus runs" do
+    tests "WriteCensus", on: "OrganDiscovery"
+    expect ok: "true"
+  end
+
+  test "WriteCensus cascades through policy chain" do
+    tests "WriteCensus", on: "OrganDiscovery", kind: :cascade
+    expect emits: ["CensusWritten", "VitalsPrinted"]
+  end
+
+
+  # ── CapabilityIndex aggregate ──────────────────────────────────────────
+
+  test "IndexCapabilities runs" do
+    tests "IndexCapabilities", on: "CapabilityIndex"
+    expect ok: "true"
+  end
+
+
+  # ── StoreClassification aggregate ──────────────────────────────────────────
+
+  test "ClassifyStores runs" do
+    tests "ClassifyStores", on: "StoreClassification"
+    expect ok: "true"
+  end
+
+  test "ClassifyStores cascades through policy chain" do
+    tests "ClassifyStores", on: "StoreClassification", kind: :cascade
+    expect emits: ["StoresClassified", "PromptGenerated", "MindstreamStarted"]
+  end
+
+
+  # ── PromptGeneration aggregate ──────────────────────────────────────────
+
+  test "GeneratePrompt runs" do
+    tests "GeneratePrompt", on: "PromptGeneration"
+    expect generated: "yes"
+  end
+
+  test "GeneratePrompt cascades through policy chain" do
+    tests "GeneratePrompt", on: "PromptGeneration", kind: :cascade
+    expect emits: ["PromptGenerated", "MindstreamStarted"]
+  end
+
+
+  # ── VitalSummary aggregate ──────────────────────────────────────────
+
+  test "PrintVitals runs" do
+    tests "PrintVitals", on: "VitalSummary"
+    expect printed: "yes"
+  end
+
+
+  # ── MindstreamDaemon aggregate ──────────────────────────────────────────
+
+  test "StartMindstream runs" do
+    tests "StartMindstream", on: "MindstreamDaemon"
+    expect running: "yes"
+  end
+
+end

@@ -1,0 +1,79 @@
+Hecks.behaviors "HealingGarden" do
+  vision "Behavioral tests for the HealingGarden domain — exercises every command and query in memory"
+
+  # ── ComfortPlan aggregate ──────────────────────────────────────────
+
+  test "DraftComfortPlan sets plan_id + patient_name + primary_nurse" do
+    tests "DraftComfortPlan", on: "ComfortPlan"
+    input  plan_id: "sample", patient_name: "sample", primary_nurse: "sample"
+    expect plan_id: "sample", patient_name: "sample", primary_nurse: "sample", status: "active"
+  end
+
+  test "TendPlan runs" do
+    tests "TendPlan", on: "ComfortPlan"
+    setup  "DraftComfortPlan", plan_id: "sample", patient_name: "sample", primary_nurse: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GardenPlot aggregate ──────────────────────────────────────────
+
+  test "PlantPlot sets plot_id + garden_name + plant_type + therapeutic_purpose + season" do
+    tests "PlantPlot", on: "GardenPlot"
+    input  plot_id: "sample", garden_name: "sample", plant_type: "sample", therapeutic_purpose: "sample", season: "sample"
+    expect plot_id: "sample", garden_name: "sample", plant_type: "sample", therapeutic_purpose: "sample", season: "sample", status: "growing"
+  end
+
+  test "PlantPlot cascades through policy chain" do
+    tests "PlantPlot", on: "GardenPlot", kind: :cascade
+    setup  "ScheduleShift", shift_id: "sample", volunteer_name: "sample", garden_name: "sample", date: "sample", hours: 1.0
+    input  plot_id: "sample", garden_name: "sample", plant_type: "sample", therapeutic_purpose: "sample", season: "sample"
+    expect emits: ["PlotPlanted", "ShiftScheduled"]
+  end
+
+  test "HarvestPlot runs" do
+    tests "HarvestPlot", on: "GardenPlot"
+    setup  "PlantPlot", plot_id: "sample", garden_name: "sample", plant_type: "sample", therapeutic_purpose: "sample", season: "sample"
+    expect status: "harvested"
+  end
+
+
+  # ── GardenVisit aggregate ──────────────────────────────────────────
+
+  test "LogGardenVisit sets visit_id + patient_name + plot_id + activity + duration_minutes + mood_before" do
+    tests "LogGardenVisit", on: "GardenVisit"
+    input  visit_id: "sample", patient_name: "sample", plot_id: "sample", activity: "sample", duration_minutes: 1.0, mood_before: "sample"
+    expect visit_id: "sample", patient_name: "sample", plot_id: "sample", activity: "sample", duration_minutes: 1.0, mood_before: "sample"
+  end
+
+  test "RecordMoodAfter sets mood_after" do
+    tests "RecordMoodAfter", on: "GardenVisit"
+    setup  "LogGardenVisit", visit_id: "sample", patient_name: "sample", plot_id: "sample", activity: "sample", duration_minutes: 1.0, mood_before: "sample"
+    input  mood_after: "sample"
+    expect mood_after: "sample"
+  end
+
+  test "RecordMoodAfter cascades through policy chain" do
+    tests "RecordMoodAfter", on: "GardenVisit", kind: :cascade
+    setup  "LogGardenVisit", visit_id: "sample", patient_name: "sample", plot_id: "sample", activity: "sample", duration_minutes: 1.0, mood_before: "sample"
+    setup  "DraftComfortPlan", plan_id: "sample", patient_name: "sample", primary_nurse: "sample"
+    input  mood_after: "sample"
+    expect emits: ["MoodRecorded", "PlanTended"]
+  end
+
+
+  # ── VolunteerShift aggregate ──────────────────────────────────────────
+
+  test "ScheduleShift sets shift_id + volunteer_name + garden_name + date + hours" do
+    tests "ScheduleShift", on: "VolunteerShift"
+    input  shift_id: "sample", volunteer_name: "sample", garden_name: "sample", date: "sample", hours: 1.0
+    expect shift_id: "sample", volunteer_name: "sample", garden_name: "sample", date: "sample", hours: 1.0, status: "scheduled"
+  end
+
+  test "CompleteShift runs" do
+    tests "CompleteShift", on: "VolunteerShift"
+    setup  "ScheduleShift", shift_id: "sample", volunteer_name: "sample", garden_name: "sample", date: "sample", hours: 1.0
+    expect status: "completed"
+  end
+
+end

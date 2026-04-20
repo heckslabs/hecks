@@ -1,0 +1,18 @@
+Hecks.fixtures "LocksmithService" do
+  aggregate "ServiceCall" do
+    fixture "ServiceCall1", customer_name: "Amanda Peterson", address: "2847 Willowbrook Avenue", service_type: "lockout", status: "dispatched", urgency: "high"
+    fixture "ServiceCall2", customer_name: "Robert Chen", address: "156 Elm Street", service_type: "rekey", status: "completed", urgency: "standard"
+  end
+  aggregate "Lock" do
+    fixture "Lock1", lock_type: "deadbolt", brand: "Schlage", grade: "commercial", location: "front door", status: "installed"
+    fixture "Lock2", lock_type: "electronic keypad", brand: "Kaba Master Lock", grade: "residential", location: "garage entry", status: "installed"
+  end
+  aggregate "KeyOrder" do
+    fixture "KeyOrder1", key_type: "standard", quantity: 4, blank_code: "SC1", status: "completed"
+    fixture "KeyOrder2", key_type: "transponder", quantity: 2, blank_code: "TPK-2022", status: "completed"
+  end
+  aggregate "AccessCode" do
+    fixture "AccessCode1", code_name: "Manager Override", code_value: "8472", access_level: "full", valid_until: "2026-12-31"
+    fixture "AccessCode2", code_name: "Employee Temporary", code_value: "5521", access_level: "restricted", valid_until: "2026-05-31"
+  end
+end

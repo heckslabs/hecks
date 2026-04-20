@@ -1,0 +1,186 @@
+Hecks.behaviors "GameTheory" do
+  vision "Behavioral tests for the GameTheory domain — exercises every command and query in memory"
+
+  # ── StrategicGame aggregate ──────────────────────────────────────────
+
+  test "DefineGame sets game_id + name + game_type + player_count" do
+    tests "DefineGame", on: "StrategicGame"
+    input  game_id: "sample", name: "sample", game_type: "sample", player_count: 1
+    expect ok: "true"
+  end
+
+  test "DefineGame cascades through policy chain" do
+    tests "DefineGame", on: "StrategicGame", kind: :cascade
+    setup  "RegisterStrategy", player_id: "sample", strategy_type: "sample"
+    setup  "ConstructMatrix", rows: 1, columns: 1
+    setup  "SolveNash"
+    setup  "ConfigureSimulation", simulation_id: "sample", iteration_count: 1, learning_rule: "sample"
+    input  game_id: "sample", name: "sample", game_type: "sample", player_count: 1
+    expect emits: ["GameDefined", "StrategyRegistered", "MatrixConstructed", "NashSolved", "EquilibriumRefined", "SimulationConfigured", "SimulationRun", "ResultsExported"]
+  end
+
+  test "ValidateGame runs" do
+    tests "ValidateGame", on: "StrategicGame"
+    setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
+    expect ok: "true"
+  end
+
+  test "SetPlayerCount sets player_count" do
+    tests "SetPlayerCount", on: "StrategicGame"
+    setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
+    input  player_count: 1
+    expect ok: "true"
+  end
+
+  test "ArchiveGame runs" do
+    tests "ArchiveGame", on: "StrategicGame"
+    setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
+    expect ok: "true"
+  end
+
+
+  # ── Strategy aggregate ──────────────────────────────────────────
+
+  test "RegisterStrategy sets player_id + strategy_type" do
+    tests "RegisterStrategy", on: "Strategy"
+    setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
+    input  player_id: "sample", strategy_type: "sample"
+    expect player_id: "sample", strategy_type: "sample"
+  end
+
+  test "RegisterStrategy cascades through policy chain" do
+    tests "RegisterStrategy", on: "Strategy", kind: :cascade
+    setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
+    setup  "ConstructMatrix", rows: 1, columns: 1
+    setup  "SolveNash"
+    setup  "ConfigureSimulation", simulation_id: "sample", iteration_count: 1, learning_rule: "sample"
+    input  player_id: "sample", strategy_type: "sample"
+    expect emits: ["StrategyRegistered", "MatrixConstructed", "NashSolved", "EquilibriumRefined", "SimulationConfigured", "SimulationRun", "ResultsExported"]
+  end
+
+  test "SpecifyOpponentStrategies runs" do
+    tests "SpecifyOpponentStrategies", on: "Strategy"
+    setup  "RegisterStrategy", player_id: "sample", strategy_type: "sample"
+    expect opponent_strategies_specified: true
+  end
+
+  test "ComputeBestResponse runs" do
+    tests "ComputeBestResponse", on: "Strategy"
+    setup  "RegisterStrategy", player_id: "sample", strategy_type: "sample"
+    setup  "SpecifyOpponentStrategies"
+    expect ok: "true"
+  end
+
+  test "EliminateDominated runs" do
+    tests "EliminateDominated", on: "Strategy"
+    setup  "RegisterStrategy", player_id: "sample", strategy_type: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── PayoffMatrix aggregate ──────────────────────────────────────────
+
+  test "ConstructMatrix sets rows + columns" do
+    tests "ConstructMatrix", on: "PayoffMatrix"
+    setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
+    input  rows: 1, columns: 1
+    expect ok: "true"
+  end
+
+  test "ConstructMatrix cascades through policy chain" do
+    tests "ConstructMatrix", on: "PayoffMatrix", kind: :cascade
+    setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
+    setup  "SolveNash"
+    setup  "ConfigureSimulation", simulation_id: "sample", iteration_count: 1, learning_rule: "sample"
+    input  rows: 1, columns: 1
+    expect emits: ["MatrixConstructed", "NashSolved", "EquilibriumRefined", "SimulationConfigured", "SimulationRun", "ResultsExported"]
+  end
+
+  test "ModifyPayoff sets row + column + new_payoff" do
+    tests "ModifyPayoff", on: "PayoffMatrix"
+    setup  "ConstructMatrix", rows: 1, columns: 1
+    input  row: 1, column: 1, new_payoff: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Equilibrium aggregate ──────────────────────────────────────────
+
+  test "SolveNash runs" do
+    tests "SolveNash", on: "Equilibrium"
+    setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
+    expect nash_equilibrium_count: 1
+  end
+
+  test "SolveNash cascades through policy chain" do
+    tests "SolveNash", on: "Equilibrium", kind: :cascade
+    setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
+    setup  "ConfigureSimulation", simulation_id: "sample", iteration_count: 1, learning_rule: "sample"
+    expect emits: ["NashSolved", "EquilibriumRefined", "SimulationConfigured", "SimulationRun", "ResultsExported"]
+  end
+
+  test "RecordNashEquilibrium sets nash_equilibrium_count" do
+    tests "RecordNashEquilibrium", on: "Equilibrium"
+    setup  "SolveNash"
+    input  nash_equilibrium_count: 1
+    expect ok: "true"
+  end
+
+  test "RefineEquilibrium sets refinement_type" do
+    tests "RefineEquilibrium", on: "Equilibrium"
+    setup  "SolveNash"
+    input  refinement_type: "sample"
+    expect ok: "true"
+  end
+
+  test "RefineEquilibrium cascades through policy chain" do
+    tests "RefineEquilibrium", on: "Equilibrium", kind: :cascade
+    setup  "ConfigureSimulation", simulation_id: "sample", iteration_count: 1, learning_rule: "sample"
+    setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
+    setup  "SolveNash"
+    input  refinement_type: "sample"
+    expect emits: ["EquilibriumRefined", "SimulationConfigured", "SimulationRun", "ResultsExported"]
+  end
+
+
+  # ── Simulation aggregate ──────────────────────────────────────────
+
+  test "ConfigureSimulation sets simulation_id + iteration_count + learning_rule" do
+    tests "ConfigureSimulation", on: "Simulation"
+    setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
+    input  simulation_id: "sample", iteration_count: 1, learning_rule: "sample"
+    expect configured: true
+  end
+
+  test "ConfigureSimulation cascades through policy chain" do
+    tests "ConfigureSimulation", on: "Simulation", kind: :cascade
+    setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
+    input  simulation_id: "sample", iteration_count: 1, learning_rule: "sample"
+    expect emits: ["SimulationConfigured", "SimulationRun", "ResultsExported"]
+  end
+
+  test "MarkConfigured runs" do
+    tests "MarkConfigured", on: "Simulation"
+    setup  "ConfigureSimulation", simulation_id: "sample", iteration_count: 1, learning_rule: "sample"
+    expect ok: "true"
+  end
+
+  test "RunSimulation runs" do
+    tests "RunSimulation", on: "Simulation"
+    setup  "ConfigureSimulation", simulation_id: "sample", iteration_count: 1, learning_rule: "sample"
+    expect ok: "true"
+  end
+
+  test "RunSimulation cascades through policy chain" do
+    tests "RunSimulation", on: "Simulation", kind: :cascade
+    setup  "ConfigureSimulation", simulation_id: "sample", iteration_count: 1, learning_rule: "sample"
+    expect emits: ["SimulationRun", "ResultsExported"]
+  end
+
+  test "ExportResults runs" do
+    tests "ExportResults", on: "Simulation"
+    setup  "ConfigureSimulation", simulation_id: "sample", iteration_count: 1, learning_rule: "sample"
+    expect ok: "true"
+  end
+
+end

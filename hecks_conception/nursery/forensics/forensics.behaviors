@@ -1,0 +1,185 @@
+Hecks.behaviors "Forensics" do
+  vision "Behavioral tests for the Forensics domain — exercises every command and query in memory"
+
+  # ── CriminalCase aggregate ──────────────────────────────────────────
+
+  test "OpenCase sets case_number + case_type + lead_investigator" do
+    tests "OpenCase", on: "CriminalCase"
+    input  case_number: "sample", case_type: "sample", lead_investigator: "sample"
+    expect case_number: "sample", case_type: "sample", lead_investigator: "sample"
+  end
+
+  test "MarkAllEvidenceAnalyzed runs" do
+    tests "MarkAllEvidenceAnalyzed", on: "CriminalCase"
+    setup  "OpenCase", case_number: "sample", case_type: "sample", lead_investigator: "sample"
+    expect all_evidence_analyzed: true
+  end
+
+  test "CloseCase runs" do
+    tests "CloseCase", on: "CriminalCase"
+    setup  "OpenCase", case_number: "sample", case_type: "sample", lead_investigator: "sample"
+    setup  "MarkAllEvidenceAnalyzed"
+    expect ok: "true"
+  end
+
+  test "ReassignInvestigator sets new_investigator" do
+    tests "ReassignInvestigator", on: "CriminalCase"
+    setup  "OpenCase", case_number: "sample", case_type: "sample", lead_investigator: "sample"
+    input  new_investigator: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── EvidenceItem aggregate ──────────────────────────────────────────
+
+  test "CollectEvidence sets item_number + description + evidence_type" do
+    tests "CollectEvidence", on: "EvidenceItem"
+    setup  "OpenCase", case_number: "sample", case_type: "sample", lead_investigator: "sample"
+    input  item_number: "sample", description: "sample", evidence_type: "sample"
+    expect ok: "true"
+  end
+
+  test "CollectEvidence cascades through policy chain" do
+    tests "CollectEvidence", on: "EvidenceItem", kind: :cascade
+    setup  "OpenCase", case_number: "sample", case_type: "sample", lead_investigator: "sample"
+    setup  "SubmitForAnalysis", analysis_type: "sample", method: "sample"
+    setup  "DraftReport", expert_name: "sample"
+    setup  "RecordFindings", findings: "sample"
+    input  item_number: "sample", description: "sample", evidence_type: "sample"
+    expect emits: ["EvidenceCollected", "EvidenceSealed", "CustodyTransferred", "AnalysisSubmitted", "FindingsRecorded", "AnalysisPeerReviewed", "ReportDrafted"]
+  end
+
+  test "BreakCustodyChain runs" do
+    tests "BreakCustodyChain", on: "EvidenceItem"
+    setup  "CollectEvidence", item_number: "sample", description: "sample", evidence_type: "sample"
+    expect ok: "true"
+  end
+
+  test "TransferCustody sets receiving_custodian" do
+    tests "TransferCustody", on: "EvidenceItem"
+    setup  "CollectEvidence", item_number: "sample", description: "sample", evidence_type: "sample"
+    input  receiving_custodian: "sample"
+    expect ok: "true"
+  end
+
+  test "TransferCustody cascades through policy chain" do
+    tests "TransferCustody", on: "EvidenceItem", kind: :cascade
+    setup  "CollectEvidence", item_number: "sample", description: "sample", evidence_type: "sample"
+    setup  "SubmitForAnalysis", analysis_type: "sample", method: "sample"
+    setup  "DraftReport", expert_name: "sample"
+    setup  "RecordFindings", findings: "sample"
+    input  receiving_custodian: "sample"
+    expect emits: ["CustodyTransferred", "AnalysisSubmitted", "FindingsRecorded", "AnalysisPeerReviewed", "ReportDrafted"]
+  end
+
+  test "SealEvidence runs" do
+    tests "SealEvidence", on: "EvidenceItem"
+    setup  "CollectEvidence", item_number: "sample", description: "sample", evidence_type: "sample"
+    expect ok: "true"
+  end
+
+  test "SealEvidence cascades through policy chain" do
+    tests "SealEvidence", on: "EvidenceItem", kind: :cascade
+    setup  "CollectEvidence", item_number: "sample", description: "sample", evidence_type: "sample"
+    setup  "SubmitForAnalysis", analysis_type: "sample", method: "sample"
+    setup  "DraftReport", expert_name: "sample"
+    setup  "RecordFindings", findings: "sample"
+    expect emits: ["EvidenceSealed", "CustodyTransferred", "AnalysisSubmitted", "FindingsRecorded", "AnalysisPeerReviewed", "ReportDrafted"]
+  end
+
+
+  # ── LabAnalysis aggregate ──────────────────────────────────────────
+
+  test "SubmitForAnalysis sets analysis_type + method" do
+    tests "SubmitForAnalysis", on: "LabAnalysis"
+    setup  "CollectEvidence", item_number: "sample", description: "sample", evidence_type: "sample"
+    input  analysis_type: "sample", method: "sample"
+    expect ok: "true"
+  end
+
+  test "SubmitForAnalysis cascades through policy chain" do
+    tests "SubmitForAnalysis", on: "LabAnalysis", kind: :cascade
+    setup  "CollectEvidence", item_number: "sample", description: "sample", evidence_type: "sample"
+    setup  "DraftReport", expert_name: "sample"
+    input  analysis_type: "sample", method: "sample"
+    expect emits: ["AnalysisSubmitted", "FindingsRecorded", "AnalysisPeerReviewed", "ReportDrafted"]
+  end
+
+  test "RecordFindings sets findings" do
+    tests "RecordFindings", on: "LabAnalysis"
+    setup  "SubmitForAnalysis", analysis_type: "sample", method: "sample"
+    input  findings: "sample"
+    expect findings: "sample", findings_documented: true
+  end
+
+  test "RecordFindings cascades through policy chain" do
+    tests "RecordFindings", on: "LabAnalysis", kind: :cascade
+    setup  "SubmitForAnalysis", analysis_type: "sample", method: "sample"
+    setup  "DraftReport", expert_name: "sample"
+    input  findings: "sample"
+    expect emits: ["FindingsRecorded", "AnalysisPeerReviewed", "ReportDrafted"]
+  end
+
+  test "MarkFindingsDocumented runs" do
+    tests "MarkFindingsDocumented", on: "LabAnalysis"
+    setup  "SubmitForAnalysis", analysis_type: "sample", method: "sample"
+    expect findings_documented: true
+  end
+
+  test "PeerReviewAnalysis runs" do
+    tests "PeerReviewAnalysis", on: "LabAnalysis"
+    setup  "SubmitForAnalysis", analysis_type: "sample", method: "sample"
+    setup  "RecordFindings", findings: "sample"
+    expect ok: "true"
+  end
+
+  test "PeerReviewAnalysis cascades through policy chain" do
+    tests "PeerReviewAnalysis", on: "LabAnalysis", kind: :cascade
+    setup  "SubmitForAnalysis", analysis_type: "sample", method: "sample"
+    setup  "DraftReport", expert_name: "sample"
+    setup  "RecordFindings", findings: "sample"
+    expect emits: ["AnalysisPeerReviewed", "ReportDrafted"]
+  end
+
+
+  # ── ExpertReport aggregate ──────────────────────────────────────────
+
+  test "DraftReport sets expert_name" do
+    tests "DraftReport", on: "ExpertReport"
+    setup  "SubmitForAnalysis", analysis_type: "sample", method: "sample"
+    input  expert_name: "sample"
+    expect ok: "true"
+  end
+
+  test "MarkReportPeerReviewed runs" do
+    tests "MarkReportPeerReviewed", on: "ExpertReport"
+    setup  "DraftReport", expert_name: "sample"
+    expect peer_reviewed: true
+  end
+
+  test "FinalizeReport runs" do
+    tests "FinalizeReport", on: "ExpertReport"
+    setup  "DraftReport", expert_name: "sample"
+    setup  "MarkReportPeerReviewed"
+    expect ok: "true"
+  end
+
+  test "FinalizeReport cascades through policy chain" do
+    tests "FinalizeReport", on: "ExpertReport", kind: :cascade
+    setup  "DraftReport", expert_name: "sample"
+    setup  "ScheduleTestimony", court_name: "sample", hearing_date: "sample"
+    setup  "MarkReportPeerReviewed"
+    expect emits: ["ReportFinalized", "TestimonyScheduled"]
+  end
+
+
+  # ── CourtTestimony aggregate ──────────────────────────────────────────
+
+  test "ScheduleTestimony sets court_name + hearing_date" do
+    tests "ScheduleTestimony", on: "CourtTestimony"
+    setup  "DraftReport", expert_name: "sample"
+    input  court_name: "sample", hearing_date: "sample"
+    expect ok: "true"
+  end
+
+end

@@ -1,0 +1,10 @@
+Hecks.fixtures "Compliance" do
+  aggregate "SafetyDataSheet" do
+    fixture "SafetyDataSheet1", formula_name: "DuraLube Advanced Engine Treatment", sds_number: "SDS-DL-001", revision: 2, ghs_classification: "Not classified as hazardous", hmis_rating: "1-0-0", nfpa_rating: "1-0-0", revision_date: "2026-03-15", status: "active"
+    fixture "SafetyDataSheet2", formula_name: "MotorKote Hyper Lubricant", sds_number: "SDS-MK-001", revision: 1, ghs_classification: "Not classified as hazardous", hmis_rating: "1-0-0", nfpa_rating: "1-0-0", status: "active"
+  end
+  aggregate "ChemicalRegistration" do
+    fixture "ChemicalRegistration1", formula_name: "DuraLube Advanced Engine Treatment", registration_type: "EPA/TSCA", jurisdiction: "Federal", registration_number: "EPA-DL-2024-001", voc_content_grams_per_liter: 12.5, prop_65_listed: "false", tsca_compliant: "true", expiration_date: "2027-12-31", status: "active"
+    fixture "ChemicalRegistration2", formula_name: "Slick 50 Recharged Engine Treatment", registration_type: "California VOC", jurisdiction: "California", registration_number: "CARB-S50-2025-001", voc_content_grams_per_liter: 18.0, prop_65_listed: "false", tsca_compliant: "true", expiration_date: "2027-06-30", status: "active"
+  end
+end

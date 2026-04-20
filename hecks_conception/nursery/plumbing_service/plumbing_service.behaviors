@@ -1,0 +1,141 @@
+Hecks.behaviors "PlumbingService" do
+  vision "Behavioral tests for the PlumbingService domain — exercises every command and query in memory"
+
+  # ── ServiceCall aggregate ──────────────────────────────────────────
+
+  test "DispatchCall sets customer_name + address + problem_description" do
+    tests "DispatchCall", on: "ServiceCall"
+    setup  "HireTechnician", name: "sample", license_number: "sample", specialties: "sample"
+    input  customer_name: "sample", address: "sample", problem_description: "sample"
+    expect status: "dispatched"
+  end
+
+  test "DiagnoseIssue sets diagnosis" do
+    tests "DiagnoseIssue", on: "ServiceCall"
+    setup  "DispatchCall", customer_name: "sample", address: "sample", problem_description: "sample"
+    input  diagnosis: "sample"
+    expect ok: "true"
+  end
+
+  test "DiagnoseIssue cascades through policy chain" do
+    tests "DiagnoseIssue", on: "ServiceCall", kind: :cascade
+    setup  "PrepareEstimate", labor_cost: 1.0, parts_cost: 1.0
+    setup  "DispatchCall", customer_name: "sample", address: "sample", problem_description: "sample"
+    input  diagnosis: "sample"
+    expect emits: ["IssueDiagnosed", "EstimatePrepared"]
+  end
+
+  test "CompleteCall runs" do
+    tests "CompleteCall", on: "ServiceCall"
+    setup  "DispatchCall", customer_name: "sample", address: "sample", problem_description: "sample"
+    expect ok: "true"
+  end
+
+  test "CompleteCall cascades through policy chain" do
+    tests "CompleteCall", on: "ServiceCall", kind: :cascade
+    setup  "DispatchCall", customer_name: "sample", address: "sample", problem_description: "sample"
+    setup  "PrepareEstimate", labor_cost: 1.0, parts_cost: 1.0
+    expect emits: ["CallCompleted", "EstimatePrepared"]
+  end
+
+
+  # ── Technician aggregate ──────────────────────────────────────────
+
+  test "HireTechnician sets name + license_number + specialties" do
+    tests "HireTechnician", on: "Technician"
+    input  name: "sample", license_number: "sample", specialties: "sample"
+    expect ok: "true"
+  end
+
+  test "AssignTerritory sets territory" do
+    tests "AssignTerritory", on: "Technician"
+    setup  "HireTechnician", name: "sample", license_number: "sample", specialties: "sample"
+    input  territory: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Fixture aggregate ──────────────────────────────────────────
+
+  test "InstallFixture sets type + brand + model + location" do
+    tests "InstallFixture", on: "Fixture"
+    setup  "DispatchCall", customer_name: "sample", address: "sample", problem_description: "sample"
+    input  type: "sample", brand: "sample", model: "sample", location: "sample"
+    expect ok: "true"
+  end
+
+  test "InstallFixture cascades through policy chain" do
+    tests "InstallFixture", on: "Fixture", kind: :cascade
+    setup  "DispatchCall", customer_name: "sample", address: "sample", problem_description: "sample"
+    setup  "IssueWarranty", coverage_type: "sample", duration_months: 1, terms: "sample"
+    input  type: "sample", brand: "sample", model: "sample", location: "sample"
+    expect emits: ["FixtureInstalled", "WarrantyIssued"]
+  end
+
+  test "ReplaceFixture sets new_model" do
+    tests "ReplaceFixture", on: "Fixture"
+    setup  "InstallFixture", type: "sample", brand: "sample", model: "sample", location: "sample"
+    input  new_model: "sample"
+    expect ok: "true"
+  end
+
+  test "ReplaceFixture cascades through policy chain" do
+    tests "ReplaceFixture", on: "Fixture", kind: :cascade
+    setup  "InstallFixture", type: "sample", brand: "sample", model: "sample", location: "sample"
+    setup  "IssueWarranty", coverage_type: "sample", duration_months: 1, terms: "sample"
+    input  new_model: "sample"
+    expect emits: ["FixtureReplaced", "WarrantyIssued"]
+  end
+
+
+  # ── Estimate aggregate ──────────────────────────────────────────
+
+  test "PrepareEstimate sets labor_cost + parts_cost" do
+    tests "PrepareEstimate", on: "Estimate"
+    setup  "DispatchCall", customer_name: "sample", address: "sample", problem_description: "sample"
+    input  labor_cost: 1.0, parts_cost: 1.0
+    expect status: "pending"
+  end
+
+  test "ApproveEstimate runs" do
+    tests "ApproveEstimate", on: "Estimate"
+    setup  "PrepareEstimate", labor_cost: 1.0, parts_cost: 1.0
+    expect ok: "true"
+  end
+
+  test "ApproveEstimate cascades through policy chain" do
+    tests "ApproveEstimate", on: "Estimate", kind: :cascade
+    setup  "InstallFixture", type: "sample", brand: "sample", model: "sample", location: "sample"
+    setup  "DispatchCall", customer_name: "sample", address: "sample", problem_description: "sample"
+    setup  "IssueWarranty", coverage_type: "sample", duration_months: 1, terms: "sample"
+    setup  "PrepareEstimate", labor_cost: 1.0, parts_cost: 1.0
+    expect emits: ["EstimateApproved", "FixtureInstalled", "WarrantyIssued"]
+  end
+
+
+  # ── Warranty aggregate ──────────────────────────────────────────
+
+  test "IssueWarranty sets coverage_type + duration_months + terms" do
+    tests "IssueWarranty", on: "Warranty"
+    setup  "InstallFixture", type: "sample", brand: "sample", model: "sample", location: "sample"
+    input  coverage_type: "sample", duration_months: 1, terms: "sample"
+    expect ok: "true"
+  end
+
+  test "FileWarrantyClaim sets defect_description" do
+    tests "FileWarrantyClaim", on: "Warranty"
+    setup  "IssueWarranty", coverage_type: "sample", duration_months: 1, terms: "sample"
+    input  defect_description: "sample"
+    expect ok: "true"
+  end
+
+  test "FileWarrantyClaim cascades through policy chain" do
+    tests "FileWarrantyClaim", on: "Warranty", kind: :cascade
+    setup  "IssueWarranty", coverage_type: "sample", duration_months: 1, terms: "sample"
+    setup  "DispatchCall", customer_name: "sample", address: "sample", problem_description: "sample"
+    setup  "HireTechnician", name: "sample", license_number: "sample", specialties: "sample"
+    input  defect_description: "sample"
+    expect emits: ["WarrantyClaimFiled", "CallDispatched"]
+  end
+
+end

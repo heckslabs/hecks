@@ -47,7 +47,7 @@ Hecks.bluebook "LandscapingBusiness" do
     String :status
     reference_to(Property)
 
-    CreateDesign do
+    DraftDesign do
       role "Designer"
       goal "Draft a landscape design plan for the property"
       description "Create a design with planting areas, materials, and cost estimate"
@@ -55,7 +55,8 @@ Hecks.bluebook "LandscapingBusiness" do
       String :style
       Float :budget
       reference_to(Property)
-      emits "DesignCreated"
+      emits "DesignDrafted"
+      then_set :status, to: "in_review"
     end
 
     ApproveDesign do
@@ -173,11 +174,11 @@ Hecks.bluebook "LandscapingBusiness" do
 
   policy "DesignOnSurvey" do
     on "PropertySurveyed"
-    trigger "CreateDesign"
+    trigger "DraftDesign"
   end
 
   policy "SelectPlantsOnDesign" do
-    on "DesignCreated"
+    on "DesignDrafted"
     trigger "SelectPlant"
   end
 
@@ -201,28 +202,9 @@ Hecks.bluebook "LandscapingBusiness" do
     trigger "RecordIrrigation"
   end
 
-  policy "DesignOnSurvey" do
-    on "PropertySurveyed"
-    trigger "CreateDesign"
-  end
-
   policy "PerformServiceOnServiceEnrolled" do
     on "ServiceEnrolled"
     trigger "PerformService"
   end
 
-  fixture "Property", owner_name: "Elizabeth Winters", address: "427 Oak Ridge Lane", lot_sqft: 8500.0, soil_type: "clay loam", sun_exposure: "partial shade"
-  fixture "Property", owner_name: "Michael Torres", address: "1250 Maple Drive", lot_sqft: 12000.0, soil_type: "sandy loam", sun_exposure: "full sun"
-
-  fixture "LandscapeDesign", design_name: "Modern Zen Garden", style: "contemporary", budget: 15000.0, status: "in_review"
-  fixture "LandscapeDesign", design_name: "Traditional English Garden", style: "cottage", budget: 22500.0, status: "approved"
-
-  fixture "Planting", species: "Ilex crenata", common_name: "Japanese Holly", size: "3-gallon", placement_zone: "north border", quantity: 8
-  fixture "Planting", species: "Liriope muscari", common_name: "Big Blue Lilyturf", size: "1-gallon", placement_zone: "ground cover", quantity: 24
-
-  fixture "CrewSchedule", crew_lead: "Marcus Johnson", scheduled_date: "2026-04-20", crew_size: 4
-  fixture "CrewSchedule", crew_lead: "Sarah Chen", scheduled_date: "2026-04-21", crew_size: 5
-
-  fixture "SeasonalService", service_type: "spring cleanup", season: "spring", frequency: "annual", price: 450.00
-  fixture "SeasonalService", service_type: "fall leaf removal", season: "fall", frequency: "annual", price: 350.00
 end

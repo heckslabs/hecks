@@ -1,0 +1,181 @@
+Hecks.behaviors "ProjectManagement" do
+  vision "Behavioral tests for the ProjectManagement domain — exercises every command and query in memory"
+
+  # ── Feature aggregate ──────────────────────────────────────────
+
+  test "ProposeFeature sets title + description + domain_name + category + priority + assignee" do
+    tests "ProposeFeature", on: "Feature"
+    input  title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample"
+    expect title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample", status: "backlog"
+  end
+
+  test "ProposeFeature cascades through policy chain" do
+    tests "ProposeFeature", on: "Feature", kind: :cascade
+    setup  "LinkToDomain", feature_id: "sample", domain_name: "sample", aggregate_name: "sample", reason: "sample"
+    setup  "PrioritizeFeature", feature_id: "sample", rank: 1, reason: "sample"
+    input  title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample"
+    expect emits: ["FeatureProposed", "LinkedToDomain", "FeaturePrioritized"]
+  end
+
+  test "AssignFeature sets assignee" do
+    tests "AssignFeature", on: "Feature"
+    setup  "ProposeFeature", title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample"
+    input  assignee: "sample"
+    expect assignee: "sample"
+  end
+
+  test "LabelFeature sets label" do
+    tests "LabelFeature", on: "Feature"
+    setup  "ProposeFeature", title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample"
+    input  label: "sample"
+    expect labels_size: 1
+  end
+
+  test "DeferFeature runs" do
+    tests "DeferFeature", on: "Feature"
+    setup  "ProposeFeature", title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample"
+    expect status: "deferred"
+  end
+
+  test "CancelFeature runs" do
+    tests "CancelFeature", on: "Feature"
+    setup  "ProposeFeature", title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample"
+    expect status: "cancelled"
+  end
+
+
+  # ── Sprint aggregate ──────────────────────────────────────────
+
+  test "PlanSprint sets name + goal + start_date + end_date" do
+    tests "PlanSprint", on: "Sprint"
+    input  name: "sample", goal: "sample", start_date: "sample", end_date: "sample"
+    expect name: "sample", goal: "sample", start_date: "sample", end_date: "sample", status: "planning"
+  end
+
+  test "AddToSprint sets feature_id" do
+    tests "AddToSprint", on: "Sprint"
+    setup  "PlanSprint", name: "sample", goal: "sample", start_date: "sample", end_date: "sample"
+    input  feature_id: "sample"
+    expect status: "planning", features_size: 1
+  end
+
+  test "StartSprint runs" do
+    tests "StartSprint", on: "Sprint"
+    setup  "PlanSprint", name: "sample", goal: "sample", start_date: "sample", end_date: "sample"
+    expect status: "active"
+  end
+
+  test "CompleteSprint runs" do
+    tests "CompleteSprint", on: "Sprint"
+    setup  "PlanSprint", name: "sample", goal: "sample", start_date: "sample", end_date: "sample"
+    setup  "StartSprint"
+    expect status: "completed"
+  end
+
+  test "ReviewSprint runs" do
+    tests "ReviewSprint", on: "Sprint"
+    setup  "PlanSprint", name: "sample", goal: "sample", start_date: "sample", end_date: "sample"
+    setup  "StartSprint"
+    setup  "CompleteSprint"
+    expect status: "reviewed"
+  end
+
+
+  # ── Priority aggregate ──────────────────────────────────────────
+
+  test "PrioritizeFeature sets feature_id + rank + reason" do
+    tests "PrioritizeFeature", on: "Priority"
+    input  feature_id: "sample", rank: 1, reason: "sample"
+    expect feature_id: "sample", rank: 1, reason: "sample"
+  end
+
+  test "ReorderFeature sets rank + reason" do
+    tests "ReorderFeature", on: "Priority"
+    setup  "PrioritizeFeature", feature_id: "sample", rank: 1, reason: "sample"
+    input  rank: 1, reason: "sample"
+    expect rank: 1, reason: "sample"
+  end
+
+  test "RemoveFromBacklog runs" do
+    tests "RemoveFromBacklog", on: "Priority"
+    setup  "PrioritizeFeature", feature_id: "sample", rank: 1, reason: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Dependency aggregate ──────────────────────────────────────────
+
+  test "RecordDependency sets feature_id + blocked_by" do
+    tests "RecordDependency", on: "Dependency"
+    input  feature_id: "sample", blocked_by: "sample"
+    expect feature_id: "sample", blocked_by: "sample", status: "blocking"
+  end
+
+  test "ResolveDependency runs" do
+    tests "ResolveDependency", on: "Dependency"
+    setup  "RecordDependency", feature_id: "sample", blocked_by: "sample"
+    expect status: "resolved"
+  end
+
+
+  # ── Milestone aggregate ──────────────────────────────────────────
+
+  test "DeclareMilestone sets name + target_date" do
+    tests "DeclareMilestone", on: "Milestone"
+    input  name: "sample", target_date: "sample"
+    expect name: "sample", target_date: "sample", progress_pct: 0.0, status: "planned"
+  end
+
+  test "AddFeatureToMilestone sets feature_id" do
+    tests "AddFeatureToMilestone", on: "Milestone"
+    setup  "DeclareMilestone", name: "sample", target_date: "sample"
+    input  feature_id: "sample"
+    expect features_size: 1, status: "in_progress"
+  end
+
+  test "CalculateProgress sets progress_pct" do
+    tests "CalculateProgress", on: "Milestone"
+    setup  "DeclareMilestone", name: "sample", target_date: "sample"
+    input  progress_pct: 1.0
+    expect progress_pct: 1.0
+  end
+
+  test "CompleteMilestone runs" do
+    tests "CompleteMilestone", on: "Milestone"
+    setup  "DeclareMilestone", name: "sample", target_date: "sample"
+    setup  "AddFeatureToMilestone", feature_id: "sample"
+    expect progress_pct: 100.0, status: "completed"
+  end
+
+
+  # ── DomainLink aggregate ──────────────────────────────────────────
+
+  test "LinkToDomain sets feature_id + domain_name + aggregate_name + reason" do
+    tests "LinkToDomain", on: "DomainLink"
+    input  feature_id: "sample", domain_name: "sample", aggregate_name: "sample", reason: "sample"
+    expect feature_id: "sample", domain_name: "sample", aggregate_name: "sample", reason: "sample"
+  end
+
+  test "UnlinkFromDomain runs" do
+    tests "UnlinkFromDomain", on: "DomainLink"
+    setup  "LinkToDomain", feature_id: "sample", domain_name: "sample", aggregate_name: "sample", reason: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── WorkLog aggregate ──────────────────────────────────────────
+
+  test "LogWork sets feature_id + description + duration_minutes + logged_at" do
+    tests "LogWork", on: "WorkLog"
+    input  feature_id: "sample", description: "sample", duration_minutes: 1, logged_at: "sample"
+    expect feature_id: "sample", description: "sample", duration_minutes: 1, logged_at: "sample"
+  end
+
+  test "LinkCommit sets commit_sha" do
+    tests "LinkCommit", on: "WorkLog"
+    setup  "LogWork", feature_id: "sample", description: "sample", duration_minutes: 1, logged_at: "sample"
+    input  commit_sha: "sample"
+    expect commit_sha: "sample"
+  end
+
+end

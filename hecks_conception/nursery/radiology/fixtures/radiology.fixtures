@@ -1,0 +1,22 @@
+Hecks.fixtures "Radiology" do
+  aggregate "Patient" do
+    fixture "Michael_Thompson_", name: "Michael Thompson", date_of_birth: "1975-06-14", allergies: "penicillin", pregnancy_status: "no", status: "checked_in"
+    fixture "Angela_Williams_", name: "Angela Williams", date_of_birth: "1988-03-22", allergies: "none", pregnancy_status: "yes", status: "checked_in"
+  end
+  aggregate "ScanOrder" do
+    fixture "ScanOrder1", patient_name: "Michael Thompson", ordering_physician: "Dr. Sarah Kim", modality: "CT", body_part: "abdomen", clinical_indication: "evaluate for appendicitis", urgency: "urgent", status: "ordered"
+    fixture "ScanOrder2", patient_name: "Angela Williams", ordering_physician: "Dr. Robert Chen", modality: "X-ray", body_part: "chest", clinical_indication: "routine pregnancy screening", urgency: "routine", status: "completed"
+  end
+  aggregate "RadiologyReport" do
+    fixture "RadiologyReport1", patient_name: "Michael Thompson", modality: "CT", findings: "Inflamed appendix with periappendiceal fat stranding", impression: "Acute appendicitis", radiologist_name: "Dr. Maria Gonzalez", report_date: "2026-04-01", status: "final"
+    fixture "RadiologyReport2", patient_name: "Angela Williams", modality: "X-ray", findings: "Normal cardiopulmonary silhouette, no acute findings", impression: "No acute cardiopulmonary process", radiologist_name: "Dr. James Wilson", report_date: "2026-04-02", status: "draft"
+  end
+  aggregate "ImagingEquipment" do
+    fixture "ImagingEquipment1", equipment_name: "GE LightSpeed CT", modality: "CT", serial_number: "CT-2019-0001", last_calibration_date: "2026-03-15", status: "operational"
+    fixture "ImagingEquipment2", equipment_name: "Siemens X-ray System", modality: "X-ray", serial_number: "XR-2020-0005", last_calibration_date: "2026-04-01", status: "operational"
+  end
+  aggregate "Referral" do
+    fixture "Referral1", referring_physician: "Dr. Lisa Patterson", patient_name: "David Nguyen", clinical_question: "Rule out pneumothorax", preferred_modality: "X-ray", status: "received"
+    fixture "Referral2", referring_physician: "Dr. Kevin O'Brien", patient_name: "Patricia Santos", clinical_question: "Evaluate for stroke", preferred_modality: "MRI", status: "fulfilled"
+  end
+end

@@ -14,23 +14,26 @@ fn parse_file(rel_path: &str) -> hecks_life::ir::Domain {
 
 #[test]
 fn pizzas_domain_is_valid() {
-    let domain = parse_file("../hecks_conception/nursery/pizzas/pizzas.bluebook");
+    let domain = parse_file("../hecks_conception/catalog/pizzas.bluebook");
     let errors = validator::validate(&domain);
     assert!(errors.is_empty(), "pizzas errors: {:?}", errors);
 }
 
 #[test]
-fn veterinary_domain_is_valid() {
-    let domain = parse_file("../hecks_conception/nursery/veterinary/veterinary.bluebook");
+fn veterinary_clinic_domain_is_valid() {
+    let domain = parse_file("../hecks_conception/nursery/veterinary_clinic/veterinary_clinic.bluebook");
     let errors = validator::validate(&domain);
-    assert!(errors.is_empty(), "veterinary errors: {:?}", errors);
+    assert!(errors.is_empty(), "veterinary_clinic errors: {:?}", errors);
 }
 
 #[test]
-fn life_domain_is_valid() {
-    let domain = parse_file("../hecks_conception/nursery/hecks/life.bluebook");
+fn mind_domain_is_valid() {
+    // Replaces the deleted `nursery/hecks/life` self-hosting fixture
+    // with the catalog/mind chapter — large, lifecycle-heavy domain
+    // that exercises the validator across all check categories.
+    let domain = parse_file("../hecks_conception/catalog/mind.bluebook");
     let errors = validator::validate(&domain);
-    assert!(errors.is_empty(), "life errors: {:?}", errors);
+    assert!(errors.is_empty(), "mind errors: {:?}", errors);
 }
 
 #[test]
@@ -81,14 +84,18 @@ end"#);
 
 #[test]
 fn detects_non_verb_command() {
+    // First-word-only check: "Configuration" starts the command and
+    // ends in a noun suffix ("tion") that's not in the verb-exception
+    // list. Compare with `WidgetThing` — first_word is "Widget", which
+    // has no noun/adjective suffix, so the validator can't tell.
     let domain = parser::parse(r#"Hecks.bluebook "Bad" do
   aggregate "Widget" do
     description "A widget"
-    command "WidgetThing" do
+    command "ConfigurationWidget" do
       role "User"
     end
   end
 end"#);
     let errors = validator::validate(&domain);
-    assert!(errors.iter().any(|e| e.contains("doesn't start with a verb")));
+    assert!(errors.iter().any(|e| e.contains("commands should start with a verb")));
 }

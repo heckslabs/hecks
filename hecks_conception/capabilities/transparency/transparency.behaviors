@@ -1,0 +1,33 @@
+Hecks.behaviors "Transparency" do
+  vision "Behavioral tests for the Transparency domain — exercises every command and query in memory"
+
+  # ── NarrationRule aggregate ──────────────────────────────────────────
+
+  test "DefineRule sets act + template + trigger_event" do
+    tests "DefineRule", on: "NarrationRule"
+    input  act: "sample", template: "sample", trigger_event: "sample", always: "sample_trueclass"
+    expect act: "sample", template: "sample", trigger_event: "sample", always: "sample_trueclass"
+  end
+
+  test "SilenceRule runs" do
+    tests "SilenceRule", on: "NarrationRule"
+    setup  "DefineRule", act: "sample", template: "sample", trigger_event: "sample", always: "sample_trueclass"
+    expect always: false
+  end
+
+  test "RestoreRule runs" do
+    tests "RestoreRule", on: "NarrationRule"
+    setup  "DefineRule", act: "sample", template: "sample", trigger_event: "sample", always: "sample_trueclass"
+    expect always: true
+  end
+
+
+  # ── Narration aggregate ──────────────────────────────────────────
+
+  test "Narrate sets act + subject" do
+    tests "Narrate", on: "Narration"
+    input  act: "sample", subject: "sample"
+    expect ok: "true"
+  end
+
+end

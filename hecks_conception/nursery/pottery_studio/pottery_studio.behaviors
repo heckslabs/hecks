@@ -1,0 +1,165 @@
+Hecks.behaviors "PotteryStudio" do
+  vision "Behavioral tests for the PotteryStudio domain — exercises every command and query in memory"
+
+  # ── Piece aggregate ──────────────────────────────────────────
+
+  test "ThrowPiece sets name + form + clay_body + weight_kg" do
+    tests "ThrowPiece", on: "Piece"
+    input  name: "sample", form: "sample", clay_body: "sample", weight_kg: 1.0
+    expect status: "thrown"
+  end
+
+  test "ThrowPiece cascades through policy chain" do
+    tests "ThrowPiece", on: "Piece", kind: :cascade
+    input  name: "sample", form: "sample", clay_body: "sample", weight_kg: 1.0
+    expect emits: ["PieceThrown", "PieceTrimmed", "BisqueFired"]
+  end
+
+  test "TrimPiece runs" do
+    tests "TrimPiece", on: "Piece"
+    setup  "ThrowPiece", name: "sample", form: "sample", clay_body: "sample", weight_kg: 1.0
+    expect status: "trimmed"
+  end
+
+  test "TrimPiece cascades through policy chain" do
+    tests "TrimPiece", on: "Piece", kind: :cascade
+    setup  "ThrowPiece", name: "sample", form: "sample", clay_body: "sample", weight_kg: 1.0
+    expect emits: ["PieceTrimmed", "BisqueFired"]
+  end
+
+  test "BisqueFire runs" do
+    tests "BisqueFire", on: "Piece"
+    setup  "ThrowPiece", name: "sample", form: "sample", clay_body: "sample", weight_kg: 1.0
+    setup  "TrimPiece"
+    expect status: "bisqued"
+  end
+
+  test "GlazePiece sets glaze_name" do
+    tests "GlazePiece", on: "Piece"
+    setup  "ThrowPiece", name: "sample", form: "sample", clay_body: "sample", weight_kg: 1.0
+    setup  "TrimPiece"
+    setup  "BisqueFire"
+    input  glaze_name: "sample"
+    expect status: "glazed"
+  end
+
+  test "GlazeFire runs" do
+    tests "GlazeFire", on: "Piece"
+    setup  "ThrowPiece", name: "sample", form: "sample", clay_body: "sample", weight_kg: 1.0
+    setup  "TrimPiece"
+    setup  "BisqueFire"
+    setup  "GlazePiece", glaze_name: "sample"
+    expect status: "finished"
+  end
+
+
+  # ── Firing aggregate ──────────────────────────────────────────
+
+  test "LoadKiln sets firing_type + target_cone + atmosphere + piece_count" do
+    tests "LoadKiln", on: "Firing"
+    setup  "SetUpKiln", name: "sample", fuel_type: "sample", cubic_feet: 1.0
+    input  firing_type: "sample", target_cone: 1, atmosphere: "sample", piece_count: 1
+    expect status: "loading"
+  end
+
+  test "LoadKiln cascades through policy chain" do
+    tests "LoadKiln", on: "Firing", kind: :cascade
+    setup  "SetUpKiln", name: "sample", fuel_type: "sample", cubic_feet: 1.0
+    setup  "FormulateGlaze", name: "sample", surface_type: "sample", cone_low: 1, cone_high: 1
+    setup  "CurateExhibition", title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
+    input  firing_type: "sample", target_cone: 1, atmosphere: "sample", piece_count: 1
+    expect emits: ["KilnLoaded", "FiringStarted", "FiringCompleted", "GlazeTested", "ExhibitionCurated", "ExhibitionOpened"]
+  end
+
+  test "StartFiring runs" do
+    tests "StartFiring", on: "Firing"
+    setup  "LoadKiln", firing_type: "sample", target_cone: 1, atmosphere: "sample", piece_count: 1
+    expect status: "firing"
+  end
+
+  test "StartFiring cascades through policy chain" do
+    tests "StartFiring", on: "Firing", kind: :cascade
+    setup  "LoadKiln", firing_type: "sample", target_cone: 1, atmosphere: "sample", piece_count: 1
+    setup  "FormulateGlaze", name: "sample", surface_type: "sample", cone_low: 1, cone_high: 1
+    setup  "CurateExhibition", title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
+    expect emits: ["FiringStarted", "FiringCompleted", "GlazeTested", "ExhibitionCurated", "ExhibitionOpened"]
+  end
+
+  test "CompleteFiring runs" do
+    tests "CompleteFiring", on: "Firing"
+    setup  "LoadKiln", firing_type: "sample", target_cone: 1, atmosphere: "sample", piece_count: 1
+    setup  "StartFiring"
+    expect status: "completed"
+  end
+
+  test "CompleteFiring cascades through policy chain" do
+    tests "CompleteFiring", on: "Firing", kind: :cascade
+    setup  "LoadKiln", firing_type: "sample", target_cone: 1, atmosphere: "sample", piece_count: 1
+    setup  "FormulateGlaze", name: "sample", surface_type: "sample", cone_low: 1, cone_high: 1
+    setup  "CurateExhibition", title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
+    setup  "StartFiring"
+    expect emits: ["FiringCompleted", "GlazeTested", "ExhibitionCurated", "ExhibitionOpened"]
+  end
+
+
+  # ── Glaze aggregate ──────────────────────────────────────────
+
+  test "FormulateGlaze sets name + surface_type + cone_low + cone_high" do
+    tests "FormulateGlaze", on: "Glaze"
+    input  name: "sample", surface_type: "sample", cone_low: 1, cone_high: 1
+    expect ok: "true"
+  end
+
+  test "TestGlaze sets test_cone" do
+    tests "TestGlaze", on: "Glaze"
+    setup  "FormulateGlaze", name: "sample", surface_type: "sample", cone_low: 1, cone_high: 1
+    input  test_cone: 1
+    expect ok: "true"
+  end
+
+  test "TestGlaze cascades through policy chain" do
+    tests "TestGlaze", on: "Glaze", kind: :cascade
+    setup  "FormulateGlaze", name: "sample", surface_type: "sample", cone_low: 1, cone_high: 1
+    setup  "CurateExhibition", title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
+    input  test_cone: 1
+    expect emits: ["GlazeTested", "ExhibitionCurated", "ExhibitionOpened"]
+  end
+
+
+  # ── Kiln aggregate ──────────────────────────────────────────
+
+  test "SetUpKiln sets name + fuel_type + cubic_feet" do
+    tests "SetUpKiln", on: "Kiln"
+    input  name: "sample", fuel_type: "sample", cubic_feet: 1.0
+    expect ok: "true"
+  end
+
+  test "ServiceKiln sets service_type" do
+    tests "ServiceKiln", on: "Kiln"
+    setup  "SetUpKiln", name: "sample", fuel_type: "sample", cubic_feet: 1.0
+    input  service_type: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Exhibition aggregate ──────────────────────────────────────────
+
+  test "CurateExhibition sets title + venue + opening_date + piece_count" do
+    tests "CurateExhibition", on: "Exhibition"
+    input  title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
+    expect status: "planning"
+  end
+
+  test "CurateExhibition cascades through policy chain" do
+    tests "CurateExhibition", on: "Exhibition", kind: :cascade
+    input  title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
+    expect emits: ["ExhibitionCurated", "ExhibitionOpened"]
+  end
+
+  test "OpenExhibition runs" do
+    tests "OpenExhibition", on: "Exhibition"
+    setup  "CurateExhibition", title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
+    expect status: "open"
+  end
+
+end

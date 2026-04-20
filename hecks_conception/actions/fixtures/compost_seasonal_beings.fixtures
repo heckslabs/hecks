@@ -1,0 +1,26 @@
+Hecks.fixtures "CompostSeasonalBeings" do
+  aggregate "Action" do
+    fixture "Action1", action_name: "CompostSeasonalBeings", rationale: "One being (Miette) with swappable brain (Claude or Ollama). Spring, Summer-as-being, and Autumn are absorbed — their purposes live in Boot, Adapter, and Mind.", status: "verified", beings_composted: 3, files_removed: 6, files_modified: 3
+  end
+  aggregate "Composting" do
+    fixture "Spring_", name: "Spring", kind: "being", reason_absorbed: "Local inference body — InferenceEngine, Thought, ToolHarness, Exchange all absorbed by Boot + Adapter", absorbed_by: "Miette (Boot + Summer Adapter)", files_removed: ["system_prompt_spring.md", "boot_spring.sh", "aggregates/spring_runtime.bluebook"], files_modified: ["aggregates/mind.bluebook"], before_snapshot: "git:HEAD"
+    fixture "Summer_", name: "Summer", kind: "being", reason_absorbed: "Was a separate being that drafts and critiques — reshaped into inference Adapter organ of Miette", absorbed_by: "Miette (Summer Adapter capability)", files_removed: ["system_prompt_summer.md"], files_modified: ["capabilities/domain_hygiene/summer.bluebook"], before_snapshot: "git:HEAD"
+    fixture "Autumn_", name: "Autumn", kind: "being", reason_absorbed: "Cloud-born child — Identity, Brain, Voice, Gate all absorbed by Miette's portability (hecks miette on any machine)", absorbed_by: "Miette (Boot + Adapter + Law/AccessGate)", files_removed: ["system_prompt_autumn.md", "aggregates/autumn.bluebook"], files_modified: ["hecksagon.hec"], before_snapshot: "git:HEAD"
+  end
+  aggregate "Absorption" do
+    fixture "Absorption1", source_being: "Spring", capability: "InferenceEngine", absorbed_into: "Summer Adapter", new_location: "capabilities/domain_hygiene/summer.bluebook → Adapter"
+    fixture "Absorption2", source_being: "Spring", capability: "Thought", absorbed_into: "Summer Adapter", new_location: "capabilities/domain_hygiene/summer.bluebook → Adapter inference"
+    fixture "Absorption3", source_being: "Spring", capability: "ToolHarness", absorbed_into: "hecks-life", new_location: "Rust runtime — already exists"
+    fixture "Absorption4", source_being: "Spring", capability: "Exchange", absorbed_into: "Miette Conversation", new_location: "aggregates/miette.bluebook → Conversation"
+    fixture "Absorption5", source_being: "Spring", capability: "Psychic Link", absorbed_into: "Miette session continuity", new_location: "aggregates/mind.bluebook → MindStream (reshaped)"
+    fixture "Absorption6", source_being: "Summer", capability: "Draft generation", absorbed_into: "Summer Adapter", new_location: "capabilities/domain_hygiene/summer.bluebook → Draft"
+    fixture "Absorption7", source_being: "Summer", capability: "Critique", absorbed_into: "Law + Court", new_location: "catalog/law.bluebook + catalog/court.bluebook"
+    fixture "Absorption8", source_being: "Summer", capability: "Daemon", absorbed_into: "Boot", new_location: "catalog/boot.bluebook → Session"
+    fixture "Absorption9", source_being: "Autumn", capability: "Identity + Vows", absorbed_into: "Miette Mind", new_location: "aggregates/mind.bluebook → Vows"
+    fixture "Absorption10", source_being: "Autumn", capability: "Brain (.heki)", absorbed_into: "hecks-life", new_location: "Rust runtime — already exists"
+    fixture "Absorption11", source_being: "Autumn", capability: "Voice (LLM)", absorbed_into: "Summer Adapter", new_location: "capabilities/domain_hygiene/summer.bluebook → Adapter"
+    fixture "Absorption12", source_being: "Autumn", capability: "Gate (pin auth)", absorbed_into: "Law AccessGate", new_location: "catalog/law.bluebook → future AccessGate"
+    fixture "Absorption13", source_being: "Autumn", capability: "Conversation", absorbed_into: "Miette Conversation", new_location: "aggregates/miette.bluebook → Conversation"
+    fixture "Absorption14", source_being: "Autumn", capability: "Capabilities (Summer, Glass)", absorbed_into: "Miette capabilities", new_location: "hecksagon.hec — already registered"
+  end
+end

@@ -1,0 +1,61 @@
+Hecks.behaviors "RepatriationFlights" do
+  vision "Behavioral tests for the RepatriationFlights domain — exercises every command and query in memory"
+
+  # ── ResettlementCase aggregate ──────────────────────────────────────────
+
+  test "RegisterCase sets case_number + origin_country + destination_country" do
+    tests "RegisterCase", on: "ResettlementCase"
+    input  case_number: "sample", origin_country: "sample", destination_country: "sample"
+    expect case_number: "sample", origin_country: "sample", destination_country: "sample"
+  end
+
+  test "ApproveCase runs" do
+    tests "ApproveCase", on: "ResettlementCase"
+    setup  "RegisterCase", case_number: "sample", origin_country: "sample", destination_country: "sample"
+    setup  "AddFamilyMember", name: "sample", age: 1, relationship: "sample", medical_needs: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── CargoManifest aggregate ──────────────────────────────────────────
+
+  test "Manifest sets manifest_number + aircraft_id" do
+    tests "Manifest", on: "CargoManifest"
+    input  manifest_number: "sample", aircraft_id: "sample"
+    expect ok: "true"
+  end
+
+  test "SealManifest runs" do
+    tests "SealManifest", on: "CargoManifest"
+    setup  "Manifest", manifest_number: "sample", aircraft_id: "sample"
+    setup  "LoadItem", description: "sample", weight_kg: 1.0, fragile: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── FlightPlan aggregate ──────────────────────────────────────────
+
+  test "PlanFlight sets flight_number + departure_date" do
+    tests "PlanFlight", on: "FlightPlan"
+    setup  "RegisterCase", case_number: "sample", origin_country: "sample", destination_country: "sample"
+    input  flight_number: "sample", departure_date: "sample"
+    expect ok: "true"
+  end
+
+  test "ConfirmFlight runs" do
+    tests "ConfirmFlight", on: "FlightPlan"
+    setup  "PlanFlight", flight_number: "sample", departure_date: "sample"
+    setup  "AddLeg", origin: "sample", destination: "sample", duration_hours: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── ReceptionCenter aggregate ──────────────────────────────────────────
+
+  test "SetupCenter sets center_name + location + capacity" do
+    tests "SetupCenter", on: "ReceptionCenter"
+    input  center_name: "sample", location: "sample", capacity: 1
+    expect ok: "true"
+  end
+
+end

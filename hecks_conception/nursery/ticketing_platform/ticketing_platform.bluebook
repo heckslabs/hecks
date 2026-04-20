@@ -18,16 +18,17 @@ Hecks.bluebook "TicketingPlatform", version: "2026.04.13.1" do
       Integer :quantity_available
     end
 
-    CreateEvent do
+    AnnounceEvent do
       role "Organizer"
-      description "Set up a new event with date, venue, and ticket tiers"
+      description "Announce a new event with date, venue, and ticket tiers"
       String :event_name
       String :event_type
       String :date
       String :organizer
       Integer :capacity
       reference_to(Venue)
-      emits "EventCreated"
+      emits "EventAnnounced"
+      then_set :status, to: "draft"
     end
 
     PublishEvent do
@@ -69,13 +70,14 @@ Hecks.bluebook "TicketingPlatform", version: "2026.04.13.1" do
       Integer :total_capacity
       String :venue_type
       emits "VenueRegistered"
+      then_set :status, to: "active"
     end
 
-    UpdateCapacity do
+    AdjustCapacity do
       description "Adjust the total or section capacity of a venue"
       reference_to(Venue)
       Integer :total_capacity
-      emits "CapacityUpdated"
+      emits "CapacityAdjusted"
     end
 
     CloseVenue do
@@ -114,6 +116,7 @@ Hecks.bluebook "TicketingPlatform", version: "2026.04.13.1" do
       Float :price_paid
       reference_to(Event)
       emits "TicketPurchased"
+      then_set :status, to: "valid"
     end
 
     TransferTicket do
@@ -157,6 +160,7 @@ Hecks.bluebook "TicketingPlatform", version: "2026.04.13.1" do
       String :period
       reference_to(Event)
       emits "SalesReportGenerated"
+      then_set :status, to: "generated"
     end
 
     PublishReport do
@@ -199,6 +203,7 @@ Hecks.bluebook "TicketingPlatform", version: "2026.04.13.1" do
       String :refund_method
       reference_to(Ticket)
       emits "RefundRequested"
+      then_set :status, to: "pending"
     end
 
     ApproveRefund do

@@ -1,0 +1,676 @@
+Hecks.behaviors "Cli" do
+  vision "Behavioral tests for the Cli domain — exercises every command and query in memory"
+
+  # ── CLI aggregate ──────────────────────────────────────────
+
+  test "Start sets argv" do
+    tests "Start", on: "CLI"
+    input  argv: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── InitCommand aggregate ──────────────────────────────────────────
+
+  test "Init sets project_name" do
+    tests "Init", on: "InitCommand"
+    input  project_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── BuildCommand aggregate ──────────────────────────────────────────
+
+  test "Build sets target" do
+    tests "Build", on: "BuildCommand"
+    input  target: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ValidateCommand aggregate ──────────────────────────────────────────
+
+  test "Validate sets domain_path" do
+    tests "Validate", on: "ValidateCommand"
+    input  domain_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ListCommand aggregate ──────────────────────────────────────────
+
+  test "List sets domain_path" do
+    tests "List", on: "ListCommand"
+    input  domain_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── InspectCommand aggregate ──────────────────────────────────────────
+
+  test "Inspect sets domain_path" do
+    tests "Inspect", on: "InspectCommand"
+    input  domain_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── TreeCommand aggregate ──────────────────────────────────────────
+
+  test "Tree sets domain_path" do
+    tests "Tree", on: "TreeCommand"
+    input  domain_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DiffCommand aggregate ──────────────────────────────────────────
+
+  test "Diff sets from_version + to_version" do
+    tests "Diff", on: "DiffCommand"
+    input  from_version: "sample", to_version: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DumpCommand aggregate ──────────────────────────────────────────
+
+  test "Dump sets format" do
+    tests "Dump", on: "DumpCommand"
+    input  format: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GemCommand aggregate ──────────────────────────────────────────
+
+  test "Package sets domain_path" do
+    tests "Package", on: "GemCommand"
+    input  domain_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ImportCommand aggregate ──────────────────────────────────────────
+
+  test "Import sets source_path" do
+    tests "Import", on: "ImportCommand"
+    input  source_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── InterviewCommand aggregate ──────────────────────────────────────────
+
+  test "Interview sets domain_name" do
+    tests "Interview", on: "InterviewCommand"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── VersionCommand aggregate ──────────────────────────────────────────
+
+  test "Show sets format" do
+    tests "Show", on: "VersionCommand"
+    input  format: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── VersionTagCommand aggregate ──────────────────────────────────────────
+
+  test "Tag sets version" do
+    tests "Tag", on: "VersionTagCommand"
+    input  version: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── VersionLogCommand aggregate ──────────────────────────────────────────
+
+  test "Log sets domain_path" do
+    tests "Log", on: "VersionLogCommand"
+    input  domain_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── VisualizeCommand aggregate ──────────────────────────────────────────
+
+  test "Visualize sets format" do
+    tests "Visualize", on: "VisualizeCommand"
+    input  format: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ContextMapCommand aggregate ──────────────────────────────────────────
+
+  test "Generate sets domain_path" do
+    tests "Generate", on: "ContextMapCommand"
+    input  domain_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GlossaryCommand aggregate ──────────────────────────────────────────
+
+  test "Generate sets domain_path" do
+    tests "Generate", on: "GlossaryCommand"
+    input  domain_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── LlmsCommand aggregate ──────────────────────────────────────────
+
+  test "Generate sets domain_path" do
+    tests "Generate", on: "LlmsCommand"
+    input  domain_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ExtractCommand aggregate ──────────────────────────────────────────
+
+  test "Extract sets aggregate_name" do
+    tests "Extract", on: "ExtractCommand"
+    input  aggregate_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GenerateStubCommand aggregate ──────────────────────────────────────────
+
+  test "Generate sets domain_path" do
+    tests "Generate", on: "GenerateStubCommand"
+    input  domain_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GenerateSinatraCommand aggregate ──────────────────────────────────────────
+
+  test "Generate sets domain_path" do
+    tests "Generate", on: "GenerateSinatraCommand"
+    input  domain_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GenerateConfigCommand aggregate ──────────────────────────────────────────
+
+  test "Generate sets domain_path" do
+    tests "Generate", on: "GenerateConfigCommand"
+    input  domain_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── InfoCommand aggregate ──────────────────────────────────────────
+
+  test "Show sets domain_path" do
+    tests "Show", on: "InfoCommand"
+    input  domain_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── CompileCommand aggregate ──────────────────────────────────────────
+
+  test "Compile sets output" do
+    tests "Compile", on: "CompileCommand"
+    input  output: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ClaudeCommand aggregate ──────────────────────────────────────────
+
+  test "Launch sets args" do
+    tests "Launch", on: "ClaudeCommand"
+    input  args: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── AppealCommand aggregate ──────────────────────────────────────────
+
+  test "Launch sets path" do
+    tests "Launch", on: "AppealCommand"
+    input  path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── NewProjectCommand aggregate ──────────────────────────────────────────
+
+  test "Scaffold sets project_name" do
+    tests "Scaffold", on: "NewProjectCommand"
+    input  project_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SelfDiffCommand aggregate ──────────────────────────────────────────
+
+  test "Diff sets chapter + framework" do
+    tests "Diff", on: "SelfDiffCommand"
+    input  chapter: "sample", framework: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── VerifyCommand aggregate ──────────────────────────────────────────
+
+  test "Verify sets format" do
+    tests "Verify", on: "VerifyCommand"
+    input  format: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SmoketestCommand aggregate ──────────────────────────────────────────
+
+  test "Run sets format" do
+    tests "Run", on: "SmoketestCommand"
+    input  format: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── AllureCommand aggregate ──────────────────────────────────────────
+
+  test "Launch sets bluebook" do
+    tests "Launch", on: "AllureCommand"
+    input  bluebook: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DocsCommand aggregate ──────────────────────────────────────────
+
+  test "Serve sets bluebook" do
+    tests "Serve", on: "DocsCommand"
+    input  bluebook: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ArchitectureCommand aggregate ──────────────────────────────────────────
+
+  test "Show runs" do
+    tests "Show", on: "ArchitectureCommand"
+    expect ok: "true"
+  end
+
+
+  # ── CoverageCommand aggregate ──────────────────────────────────────────
+
+  test "Check runs" do
+    tests "Check", on: "CoverageCommand"
+    expect ok: "true"
+  end
+
+
+  # ── MietteCommand aggregate ──────────────────────────────────────────
+
+  test "Wake sets action + domain" do
+    tests "Wake", on: "MietteCommand"
+    input  action: "sample", domain: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ConsoleCommand aggregate ──────────────────────────────────────────
+
+  test "Start sets name" do
+    tests "Start", on: "ConsoleCommand"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── WebWorkshopCommand aggregate ──────────────────────────────────────────
+
+  test "Start sets name" do
+    tests "Start", on: "WebWorkshopCommand"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── TourCommand aggregate ──────────────────────────────────────────
+
+  test "Start sets architecture" do
+    tests "Start", on: "TourCommand"
+    input  architecture: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── StatsCommand aggregate ──────────────────────────────────────────
+
+  test "Show runs" do
+    tests "Show", on: "StatsCommand"
+    expect ok: "true"
+  end
+
+
+  # ── SmokeCommand aggregate ──────────────────────────────────────────
+
+  test "Run runs" do
+    tests "Run", on: "SmokeCommand"
+    expect ok: "true"
+  end
+
+
+  # ── RegenerateExamplesCommand aggregate ──────────────────────────────────────────
+
+  test "Run runs" do
+    tests "Run", on: "RegenerateExamplesCommand"
+    expect ok: "true"
+  end
+
+
+  # ── McpCommand aggregate ──────────────────────────────────────────
+
+  test "Start sets domain" do
+    tests "Start", on: "McpCommand"
+    input  domain: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── PromoteCommand aggregate ──────────────────────────────────────────
+
+  test "Promote sets aggregate" do
+    tests "Promote", on: "PromoteCommand"
+    input  aggregate: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── VersionLogFormatter aggregate ──────────────────────────────────────────
+
+  test "Format sets entries" do
+    tests "Format", on: "VersionLogFormatter"
+    input  entries: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Steps aggregate ──────────────────────────────────────────
+
+  test "BuildSteps sets domain_name" do
+    tests "BuildSteps", on: "Steps"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SinatraAppGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate sets domain_path" do
+    tests "Generate", on: "SinatraAppGenerator"
+    input  domain_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Interviewer aggregate ──────────────────────────────────────────
+
+  test "Interview sets domain_name" do
+    tests "Interview", on: "Interviewer"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── WorldConcernsPrompt aggregate ──────────────────────────────────────────
+
+  test "Prompt sets domain_name" do
+    tests "Prompt", on: "WorldConcernsPrompt"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Cli aggregate ──────────────────────────────────────────
+
+  test "Start sets argv" do
+    tests "Start", on: "Cli"
+    input  argv: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ArchitectureTour aggregate ──────────────────────────────────────────
+
+  test "RunTour sets domain_name" do
+    tests "RunTour", on: "ArchitectureTour"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Import aggregate ──────────────────────────────────────────
+
+  test "FromRails sets app_path" do
+    tests "FromRails", on: "Import"
+    input  app_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DomainStats aggregate ──────────────────────────────────────────
+
+  test "Calculate sets domain" do
+    tests "Calculate", on: "DomainStats"
+    input  domain: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ProjectStats aggregate ──────────────────────────────────────────
+
+  test "Calculate sets project_path" do
+    tests "Calculate", on: "ProjectStats"
+    input  project_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ImportPipeline aggregate ──────────────────────────────────────────
+
+  test "ParseModels sets source_path" do
+    tests "ParseModels", on: "ImportPipeline"
+    input  source_path: "sample"
+    expect ok: "true"
+  end
+
+  test "ParseSchemas sets schema_path" do
+    tests "ParseSchemas", on: "ImportPipeline"
+    input  schema_path: "sample"
+    expect ok: "true"
+  end
+
+  test "AssembleDomain sets models" do
+    tests "AssembleDomain", on: "ImportPipeline"
+    input  models: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── StubGenerator aggregate ──────────────────────────────────────────
+
+  test "Generate sets domain_name" do
+    tests "Generate", on: "StubGenerator"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DomainHelpers aggregate ──────────────────────────────────────────
+
+  test "LoadDomain sets domain_path" do
+    tests "LoadDomain", on: "DomainHelpers"
+    input  domain_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GemBuilder aggregate ──────────────────────────────────────────
+
+  test "Build sets root" do
+    tests "Build", on: "GemBuilder"
+    input  root: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DomainIntrospector aggregate ──────────────────────────────────────────
+
+  test "Introspect sets domains" do
+    tests "Introspect", on: "DomainIntrospector"
+    input  domains: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ConflictHandler aggregate ──────────────────────────────────────────
+
+  test "Resolve sets file_path" do
+    tests "Resolve", on: "ConflictHandler"
+    input  file_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── AggregateFormatter aggregate ──────────────────────────────────────────
+
+  test "Format sets aggregate" do
+    tests "Format", on: "AggregateFormatter"
+    input  aggregate: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── BehaviorFormatters aggregate ──────────────────────────────────────────
+
+  test "Format sets aggregate" do
+    tests "Format", on: "BehaviorFormatters"
+    input  aggregate: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── StructureFormatters aggregate ──────────────────────────────────────────
+
+  test "Format sets aggregate" do
+    tests "Format", on: "StructureFormatters"
+    input  aggregate: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── LifecycleFormatter aggregate ──────────────────────────────────────────
+
+  test "Format sets aggregate" do
+    tests "Format", on: "LifecycleFormatter"
+    input  aggregate: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── RuleFormatters aggregate ──────────────────────────────────────────
+
+  test "Format sets aggregate" do
+    tests "Format", on: "RuleFormatters"
+    input  aggregate: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SecondaryFormatters aggregate ──────────────────────────────────────────
+
+  test "Format sets aggregate" do
+    tests "Format", on: "SecondaryFormatters"
+    input  aggregate: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DomainInspector aggregate ──────────────────────────────────────────
+
+  test "InspectDomain sets domain_name" do
+    tests "InspectDomain", on: "DomainInspector"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DomainAssembler aggregate ──────────────────────────────────────────
+
+  test "Assemble sets schema_data + model_data" do
+    tests "Assemble", on: "DomainAssembler"
+    input  schema_data: "sample", model_data: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ModelParser aggregate ──────────────────────────────────────────
+
+  test "Parse sets models_dir" do
+    tests "Parse", on: "ModelParser"
+    input  models_dir: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ModelOnlyAssembler aggregate ──────────────────────────────────────────
+
+  test "Assemble sets model_data" do
+    tests "Assemble", on: "ModelOnlyAssembler"
+    input  model_data: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SchemaParser aggregate ──────────────────────────────────────────
+
+  test "Parse sets schema_path" do
+    tests "Parse", on: "SchemaParser"
+    input  schema_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SchemaSandbox aggregate ──────────────────────────────────────────
+
+  test "CreateTable sets name" do
+    tests "CreateTable", on: "SchemaSandbox"
+    input  name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ColumnCollector aggregate ──────────────────────────────────────────
+
+  test "Collect sets type + name" do
+    tests "Collect", on: "ColumnCollector"
+    input  type: "sample", name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── PrismHelpers aggregate ──────────────────────────────────────────
+
+  test "Extract sets call_node" do
+    tests "Extract", on: "PrismHelpers"
+    input  call_node: "sample"
+    expect ok: "true"
+  end
+
+end

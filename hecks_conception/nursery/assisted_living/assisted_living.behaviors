@@ -1,0 +1,165 @@
+Hecks.behaviors "AssistedLiving" do
+  vision "Behavioral tests for the AssistedLiving domain — exercises every command and query in memory"
+
+  # ── Resident aggregate ──────────────────────────────────────────
+
+  test "AdmitResident sets name + date_of_birth + emergency_contact + medical_conditions + mobility_level" do
+    tests "AdmitResident", on: "Resident"
+    input  name: "sample", date_of_birth: "sample", emergency_contact: "sample", medical_conditions: "sample", mobility_level: "sample"
+    expect name: "sample", date_of_birth: "sample", emergency_contact: "sample", medical_conditions: "sample", mobility_level: "sample", status: "admitted"
+  end
+
+  test "AdmitResident cascades through policy chain" do
+    tests "AdmitResident", on: "Resident", kind: :cascade
+    setup  "AssignRoom", room_number: "sample", floor: "sample", room_type: "sample", occupant_name: "sample"
+    setup  "ScheduleActivity", name: "sample", activity_type: "sample", scheduled_time: "sample", location: "sample", capacity: 1
+    setup  "DraftCarePlan", resident_name: "sample", created_date: "sample", dietary_needs: "sample"
+    setup  "PrescribeMedication", resident_name: "sample"
+    input  name: "sample", date_of_birth: "sample", emergency_contact: "sample", medical_conditions: "sample", mobility_level: "sample"
+    expect emits: ["ResidentAdmitted", "RoomAssigned", "ResidentActivated", "ActivityScheduled", "CarePlanCreated", "MedicationScheduleCreated", "DoseScheduled"]
+  end
+
+  test "ActivateResident runs" do
+    tests "ActivateResident", on: "Resident"
+    setup  "AdmitResident", name: "sample", date_of_birth: "sample", emergency_contact: "sample", medical_conditions: "sample", mobility_level: "sample"
+    expect status: "active"
+  end
+
+  test "ActivateResident cascades through policy chain" do
+    tests "ActivateResident", on: "Resident", kind: :cascade
+    setup  "ScheduleActivity", name: "sample", activity_type: "sample", scheduled_time: "sample", location: "sample", capacity: 1
+    setup  "AdmitResident", name: "sample", date_of_birth: "sample", emergency_contact: "sample", medical_conditions: "sample", mobility_level: "sample"
+    expect emits: ["ResidentActivated", "ActivityScheduled"]
+  end
+
+  test "TransferResident runs" do
+    tests "TransferResident", on: "Resident"
+    setup  "AdmitResident", name: "sample", date_of_birth: "sample", emergency_contact: "sample", medical_conditions: "sample", mobility_level: "sample"
+    expect status: "transferred"
+  end
+
+  test "DischargeResident runs" do
+    tests "DischargeResident", on: "Resident"
+    setup  "AdmitResident", name: "sample", date_of_birth: "sample", emergency_contact: "sample", medical_conditions: "sample", mobility_level: "sample"
+    setup  "ActivateResident"
+    expect status: "discharged"
+  end
+
+  test "DischargeResident cascades through policy chain" do
+    tests "DischargeResident", on: "Resident", kind: :cascade
+    setup  "AssignRoom", room_number: "sample", floor: "sample", room_type: "sample", occupant_name: "sample"
+    setup  "AdmitResident", name: "sample", date_of_birth: "sample", emergency_contact: "sample", medical_conditions: "sample", mobility_level: "sample"
+    setup  "ActivateResident"
+    expect emits: ["ResidentDischarged", "RoomVacated"]
+  end
+
+
+  # ── Room aggregate ──────────────────────────────────────────
+
+  test "AssignRoom sets room_number + floor + room_type + occupant_name" do
+    tests "AssignRoom", on: "Room"
+    setup  "AdmitResident", name: "sample", date_of_birth: "sample", emergency_contact: "sample", medical_conditions: "sample", mobility_level: "sample"
+    input  room_number: "sample", floor: "sample", room_type: "sample", occupant_name: "sample"
+    expect room_number: "sample", floor: "sample", room_type: "sample", occupant_name: "sample", status: "occupied"
+  end
+
+  test "AssignRoom cascades through policy chain" do
+    tests "AssignRoom", on: "Room", kind: :cascade
+    setup  "AdmitResident", name: "sample", date_of_birth: "sample", emergency_contact: "sample", medical_conditions: "sample", mobility_level: "sample"
+    setup  "ScheduleActivity", name: "sample", activity_type: "sample", scheduled_time: "sample", location: "sample", capacity: 1
+    input  room_number: "sample", floor: "sample", room_type: "sample", occupant_name: "sample"
+    expect emits: ["RoomAssigned", "ResidentActivated", "ActivityScheduled"]
+  end
+
+  test "VacateRoom runs" do
+    tests "VacateRoom", on: "Room"
+    setup  "AssignRoom", room_number: "sample", floor: "sample", room_type: "sample", occupant_name: "sample"
+    expect status: "available", occupant_name: ""
+  end
+
+
+  # ── CarePlan aggregate ──────────────────────────────────────────
+
+  test "DraftCarePlan sets resident_name + created_date + dietary_needs" do
+    tests "DraftCarePlan", on: "CarePlan"
+    setup  "AdmitResident", name: "sample", date_of_birth: "sample", emergency_contact: "sample", medical_conditions: "sample", mobility_level: "sample"
+    input  resident_name: "sample", created_date: "sample", dietary_needs: "sample"
+    expect resident_name: "sample", created_date: "sample", dietary_needs: "sample", status: "active"
+  end
+
+  test "DraftCarePlan cascades through policy chain" do
+    tests "DraftCarePlan", on: "CarePlan", kind: :cascade
+    setup  "AdmitResident", name: "sample", date_of_birth: "sample", emergency_contact: "sample", medical_conditions: "sample", mobility_level: "sample"
+    setup  "PrescribeMedication", resident_name: "sample"
+    input  resident_name: "sample", created_date: "sample", dietary_needs: "sample"
+    expect emits: ["CarePlanCreated", "MedicationScheduleCreated", "DoseScheduled"]
+  end
+
+  test "AddCareTask sets description + frequency + assigned_to + time_of_day" do
+    tests "AddCareTask", on: "CarePlan"
+    setup  "DraftCarePlan", resident_name: "sample", created_date: "sample", dietary_needs: "sample"
+    input  description: "sample", frequency: "sample", assigned_to: "sample", time_of_day: "sample"
+    expect ok: "true"
+  end
+
+  test "AddCareTask cascades through policy chain" do
+    tests "AddCareTask", on: "CarePlan", kind: :cascade
+    setup  "DraftCarePlan", resident_name: "sample", created_date: "sample", dietary_needs: "sample"
+    setup  "ScheduleActivity", name: "sample", activity_type: "sample", scheduled_time: "sample", location: "sample", capacity: 1
+    input  description: "sample", frequency: "sample", assigned_to: "sample", time_of_day: "sample"
+    expect emits: ["CareTaskAdded", "ResidentEnrolled"]
+  end
+
+  test "ReviewCarePlan runs" do
+    tests "ReviewCarePlan", on: "CarePlan"
+    setup  "DraftCarePlan", resident_name: "sample", created_date: "sample", dietary_needs: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Activity aggregate ──────────────────────────────────────────
+
+  test "ScheduleActivity sets name + activity_type + scheduled_time + location + capacity" do
+    tests "ScheduleActivity", on: "Activity"
+    input  name: "sample", activity_type: "sample", scheduled_time: "sample", location: "sample", capacity: 1
+    expect name: "sample", activity_type: "sample", scheduled_time: "sample", location: "sample", capacity: 1
+  end
+
+  test "EnrollInActivity sets resident_name" do
+    tests "EnrollInActivity", on: "Activity"
+    setup  "ScheduleActivity", name: "sample", activity_type: "sample", scheduled_time: "sample", location: "sample", capacity: 1
+    input  resident_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── MedicationSchedule aggregate ──────────────────────────────────────────
+
+  test "PrescribeMedication sets resident_name" do
+    tests "PrescribeMedication", on: "MedicationSchedule"
+    setup  "AdmitResident", name: "sample", date_of_birth: "sample", emergency_contact: "sample", medical_conditions: "sample", mobility_level: "sample"
+    input  resident_name: "sample"
+    expect resident_name: "sample", status: "active"
+  end
+
+  test "AddScheduledDose sets drug_name + dosage + time_of_day" do
+    tests "AddScheduledDose", on: "MedicationSchedule"
+    setup  "PrescribeMedication", resident_name: "sample"
+    input  drug_name: "sample", dosage: "sample", time_of_day: "sample"
+    expect ok: "true"
+  end
+
+  test "ConfirmAdministration runs" do
+    tests "ConfirmAdministration", on: "MedicationSchedule"
+    setup  "PrescribeMedication", resident_name: "sample"
+    expect ok: "true"
+  end
+
+  test "ConfirmAdministration cascades through policy chain" do
+    tests "ConfirmAdministration", on: "MedicationSchedule", kind: :cascade
+    setup  "PrescribeMedication", resident_name: "sample"
+    setup  "DraftCarePlan", resident_name: "sample", created_date: "sample", dietary_needs: "sample"
+    expect emits: ["AdministrationConfirmed", "CarePlanReviewed"]
+  end
+
+end

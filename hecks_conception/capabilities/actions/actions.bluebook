@@ -1,24 +1,24 @@
 Hecks.bluebook "Actions", version: "2026.04.14.1" do
-  vision "Winter's ability to plan, execute, verify, and reverse structural changes — every action is a Bluebook with before/after state"
+  vision "Miette's ability to plan, execute, verify, and reverse structural changes — every action is a Bluebook with before/after state"
   category "capability"
 
-  aggregate "ActionPlan", "A structural change Winter intends to make — encoded as Bluebook before execution" do
-    String :name
-    String :description
-    String :rationale
-    String :action_bluebook_path
-    String :status
-    Integer :steps_total
-    Integer :steps_completed
+  aggregate "ActionPlan", "A structural change Miette intends to make — encoded as Bluebook before execution" do
+    attribute :name, String
+    attribute :description, String
+    attribute :rationale, String
+    attribute :action_bluebook_path, String
+    attribute :status, String
+    attribute :steps_total, Integer
+    attribute :steps_completed, Integer
 
-    Conceive do
-      role "Winter"
+    command "Conceive" do
+      role "Miette"
       description "Conceive an action — write the action Bluebook with fixtures for before/after state"
-      String :name
-      String :description
-      String :rationale
-      String :action_bluebook_path
-      Integer :steps_total
+      attribute :name, String
+      attribute :description, String
+      attribute :rationale, String
+      attribute :action_bluebook_path, String
+      attribute :steps_total, Integer
       emits "ActionConceived"
       then_set :name, to: :name
       then_set :description, to: :description
@@ -29,8 +29,8 @@ Hecks.bluebook "Actions", version: "2026.04.14.1" do
       then_set :status, to: "conceived"
     end
 
-    ReviewWithCourt do
-      role "Winter"
+    command "ReviewWithCourt" do
+      role "Miette"
       description "Submit the planned action to Court — check it against active laws before executing"
       reference_to(ActionPlan)
       given { status == "conceived" }
@@ -38,8 +38,8 @@ Hecks.bluebook "Actions", version: "2026.04.14.1" do
       then_set :status, to: "reviewed"
     end
 
-    Execute do
-      role "Winter"
+    command "Execute" do
+      role "Miette"
       description "Perform the action — the Bluebook is the script, the fixtures are the checkpoints"
       reference_to(ActionPlan)
       given { status == "reviewed" }
@@ -47,16 +47,16 @@ Hecks.bluebook "Actions", version: "2026.04.14.1" do
       then_set :status, to: "executed"
     end
 
-    CompleteStep do
-      role "Winter"
+    command "CompleteStep" do
+      role "Miette"
       description "Mark one step of the action as done"
       reference_to(ActionPlan)
       emits "StepCompleted"
       then_set :steps_completed, increment: 1
     end
 
-    TestReverse do
-      role "Winter"
+    command "TestReverse" do
+      role "Miette"
       description "Reverse the action to prove it's reversible — restore before-state, confirm it works"
       reference_to(ActionPlan)
       given { status == "executed" }
@@ -64,8 +64,8 @@ Hecks.bluebook "Actions", version: "2026.04.14.1" do
       then_set :status, to: "reverse_tested"
     end
 
-    ReExecute do
-      role "Winter"
+    command "ReExecute" do
+      role "Miette"
       description "After successful reverse test, re-execute the action for real"
       reference_to(ActionPlan)
       given { status == "reverse_tested" }
@@ -73,8 +73,8 @@ Hecks.bluebook "Actions", version: "2026.04.14.1" do
       then_set :status, to: "confirmed"
     end
 
-    Verify do
-      role "Winter"
+    command "Verify" do
+      role "Miette"
       description "Confirm the action was clean — boot works, no dangling references, laws still pass"
       reference_to(ActionPlan)
       given { status == "confirmed" }
@@ -82,8 +82,8 @@ Hecks.bluebook "Actions", version: "2026.04.14.1" do
       then_set :status, to: "verified"
     end
 
-    Reverse do
-      role "Winter"
+    command "Reverse" do
+      role "Miette"
       description "Undo the action for real — restore before-state from the action Bluebook's fixtures"
       reference_to(ActionPlan)
       emits "ActionReversed"
@@ -104,22 +104,22 @@ Hecks.bluebook "Actions", version: "2026.04.14.1" do
   end
 
   aggregate "ActionLog", "Permanent record of actions taken — the history of structural decisions" do
-    String :action_name
-    String :executed_at
-    String :engine_used
-    String :ruling
-    Integer :files_changed
-    String :outcome
+    attribute :action_name, String
+    attribute :executed_at, String
+    attribute :engine_used, String
+    attribute :ruling, String
+    attribute :files_changed, Integer
+    attribute :outcome, String
 
-    Log do
+    command "Log" do
       role "System"
       description "Record that an action was executed — who, when, with what brain, what Court ruled"
-      String :action_name
-      String :executed_at
-      String :engine_used
-      String :ruling
-      Integer :files_changed
-      String :outcome
+      attribute :action_name, String
+      attribute :executed_at, String
+      attribute :engine_used, String
+      attribute :ruling, String
+      attribute :files_changed, Integer
+      attribute :outcome, String
       emits "ActionLogged"
       then_set :action_name, to: :action_name
       then_set :executed_at, to: :executed_at
@@ -158,6 +158,4 @@ Hecks.bluebook "Actions", version: "2026.04.14.1" do
     map source: "action_reversal", valence: 0.0
   end
 
-  fixture "ActionPlan", name: "CompostSeasonalBeings", description: "Remove Spring, Summer-as-being, and Autumn", rationale: "One being with swappable brain — seasonal beings absorbed", action_bluebook_path: "actions/compost_seasonal_beings.bluebook", status: "conceived", steps_total: 3, steps_completed: 0
-  fixture "ActionLog", action_name: "CompostSeasonalBeings", executed_at: "", engine_used: "claude", ruling: "pending", files_changed: 8, outcome: "pending"
 end

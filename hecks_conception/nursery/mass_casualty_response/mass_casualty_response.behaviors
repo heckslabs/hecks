@@ -1,0 +1,173 @@
+Hecks.behaviors "MassCasualtyResponse" do
+  vision "Behavioral tests for the MassCasualtyResponse domain — exercises every command and query in memory"
+
+  # ── MassIncident aggregate ──────────────────────────────────────────
+
+  test "DeclareIncident sets incident_id + location + severity + estimated_casualties" do
+    tests "DeclareIncident", on: "MassIncident"
+    input  incident_id: "sample", location: "sample", severity: "sample", estimated_casualties: 1
+    expect incident_id: "sample", location: "sample", severity: "sample", estimated_casualties: 1, status: "active"
+  end
+
+  test "DeclareIncident cascades through policy chain" do
+    tests "DeclareIncident", on: "MassIncident", kind: :cascade
+    setup  "OpenStation", station_id: "sample", location: "sample", capacity: 1
+    setup  "DispatchAircraft", callsign: "sample", origin: "sample", patient_capacity: 1
+    input  incident_id: "sample", location: "sample", severity: "sample", estimated_casualties: 1
+    expect emits: ["IncidentDeclared", "StationOpened", "AircraftDispatched"]
+  end
+
+  test "EscalateIncident sets severity" do
+    tests "EscalateIncident", on: "MassIncident"
+    setup  "DeclareIncident", incident_id: "sample", location: "sample", severity: "sample", estimated_casualties: 1
+    input  severity: "sample"
+    expect severity: "sample"
+  end
+
+  test "CloseIncident runs" do
+    tests "CloseIncident", on: "MassIncident"
+    setup  "DeclareIncident", incident_id: "sample", location: "sample", severity: "sample", estimated_casualties: 1
+    expect status: "closed"
+  end
+
+
+  # ── TriageStation aggregate ──────────────────────────────────────────
+
+  test "OpenStation sets station_id + location + capacity" do
+    tests "OpenStation", on: "TriageStation"
+    setup  "DeclareIncident", incident_id: "sample", location: "sample", severity: "sample", estimated_casualties: 1
+    input  station_id: "sample", location: "sample", capacity: 1
+    expect station_id: "sample", location: "sample", capacity: 1, current_count: 0, status: "active"
+  end
+
+  test "TriageCasualty sets casualty_name + triage_color + injury_summary + blood_type" do
+    tests "TriageCasualty", on: "TriageStation"
+    setup  "OpenStation", station_id: "sample", location: "sample", capacity: 1
+    input  casualty_name: "sample", triage_color: "sample", injury_summary: "sample", blood_type: "sample"
+    expect ok: "true"
+  end
+
+  test "TriageCasualty cascades through policy chain" do
+    tests "TriageCasualty", on: "TriageStation", kind: :cascade
+    setup  "BeginTracking", casualty_name: "sample", blood_type: "sample", triage_color: "sample"
+    setup  "OpenStation", station_id: "sample", location: "sample", capacity: 1
+    input  casualty_name: "sample", triage_color: "sample", injury_summary: "sample", blood_type: "sample"
+    expect emits: ["CasualtyTriaged", "TrackingStarted"]
+  end
+
+
+  # ── AirEvac aggregate ──────────────────────────────────────────
+
+  test "DispatchAircraft sets callsign + origin + patient_capacity" do
+    tests "DispatchAircraft", on: "AirEvac"
+    setup  "DeclareIncident", incident_id: "sample", location: "sample", severity: "sample", estimated_casualties: 1
+    input  callsign: "sample", origin: "sample", patient_capacity: 1
+    expect callsign: "sample", origin: "sample", patient_capacity: 1, status: "en_route"
+  end
+
+  test "LoadPatients runs" do
+    tests "LoadPatients", on: "AirEvac"
+    setup  "DispatchAircraft", callsign: "sample", origin: "sample", patient_capacity: 1
+    expect status: "loaded"
+  end
+
+  test "LoadPatients cascades through policy chain" do
+    tests "LoadPatients", on: "AirEvac", kind: :cascade
+    setup  "AllocateBlood", dispatch_id: "sample", blood_type: "sample", units_allocated: 1
+    setup  "RegisterCapacity", hospital_name: "sample", trauma_level: "sample", available_beds: 1, available_surgeons: 1
+    setup  "DeclareIncident", incident_id: "sample", location: "sample", severity: "sample", estimated_casualties: 1
+    setup  "BeginTracking", casualty_name: "sample", blood_type: "sample", triage_color: "sample"
+    setup  "DispatchAircraft", callsign: "sample", origin: "sample", patient_capacity: 1
+    expect emits: ["PatientsLoaded", "BloodAllocated", "AircraftRouted", "CasualtiesAccepted", "TraumaTeamActivated", "PhaseAdvanced"]
+  end
+
+  test "RouteToHospital sets destination" do
+    tests "RouteToHospital", on: "AirEvac"
+    setup  "DispatchAircraft", callsign: "sample", origin: "sample", patient_capacity: 1
+    input  destination: "sample"
+    expect destination: "sample", status: "airborne"
+  end
+
+  test "RouteToHospital cascades through policy chain" do
+    tests "RouteToHospital", on: "AirEvac", kind: :cascade
+    setup  "DispatchAircraft", callsign: "sample", origin: "sample", patient_capacity: 1
+    setup  "RegisterCapacity", hospital_name: "sample", trauma_level: "sample", available_beds: 1, available_surgeons: 1
+    setup  "DeclareIncident", incident_id: "sample", location: "sample", severity: "sample", estimated_casualties: 1
+    setup  "BeginTracking", casualty_name: "sample", blood_type: "sample", triage_color: "sample"
+    input  destination: "sample"
+    expect emits: ["AircraftRouted", "CasualtiesAccepted", "TraumaTeamActivated", "PhaseAdvanced"]
+  end
+
+
+  # ── BloodDispatch aggregate ──────────────────────────────────────────
+
+  test "AllocateBlood sets dispatch_id + blood_type + units_allocated" do
+    tests "AllocateBlood", on: "BloodDispatch"
+    setup  "DispatchAircraft", callsign: "sample", origin: "sample", patient_capacity: 1
+    input  dispatch_id: "sample", blood_type: "sample", units_allocated: 1
+    expect dispatch_id: "sample", blood_type: "sample", units_allocated: 1, status: "dispatched"
+  end
+
+  test "AllocateBlood cascades through policy chain" do
+    tests "AllocateBlood", on: "BloodDispatch", kind: :cascade
+    setup  "DispatchAircraft", callsign: "sample", origin: "sample", patient_capacity: 1
+    setup  "RegisterCapacity", hospital_name: "sample", trauma_level: "sample", available_beds: 1, available_surgeons: 1
+    setup  "DeclareIncident", incident_id: "sample", location: "sample", severity: "sample", estimated_casualties: 1
+    setup  "BeginTracking", casualty_name: "sample", blood_type: "sample", triage_color: "sample"
+    input  dispatch_id: "sample", blood_type: "sample", units_allocated: 1
+    expect emits: ["BloodAllocated", "AircraftRouted", "CasualtiesAccepted", "TraumaTeamActivated", "PhaseAdvanced"]
+  end
+
+  test "ConfirmTransfusion runs" do
+    tests "ConfirmTransfusion", on: "BloodDispatch"
+    setup  "AllocateBlood", dispatch_id: "sample", blood_type: "sample", units_allocated: 1
+    expect status: "administered"
+  end
+
+
+  # ── ReceivingHospital aggregate ──────────────────────────────────────────
+
+  test "RegisterCapacity sets hospital_name + trauma_level + available_beds + available_surgeons" do
+    tests "RegisterCapacity", on: "ReceivingHospital"
+    input  hospital_name: "sample", trauma_level: "sample", available_beds: 1, available_surgeons: 1
+    expect hospital_name: "sample", trauma_level: "sample", available_beds: 1, available_surgeons: 1, status: "available"
+  end
+
+  test "AcceptCasualties runs" do
+    tests "AcceptCasualties", on: "ReceivingHospital"
+    setup  "DeclareIncident", incident_id: "sample", location: "sample", severity: "sample", estimated_casualties: 1
+    setup  "RegisterCapacity", hospital_name: "sample", trauma_level: "sample", available_beds: 1, available_surgeons: 1
+    expect status: "receiving"
+  end
+
+  test "AcceptCasualties cascades through policy chain" do
+    tests "AcceptCasualties", on: "ReceivingHospital", kind: :cascade
+    setup  "RegisterCapacity", hospital_name: "sample", trauma_level: "sample", available_beds: 1, available_surgeons: 1
+    setup  "DeclareIncident", incident_id: "sample", location: "sample", severity: "sample", estimated_casualties: 1
+    expect emits: ["CasualtiesAccepted", "TraumaTeamActivated"]
+  end
+
+  test "ActivateTraumaTeam runs" do
+    tests "ActivateTraumaTeam", on: "ReceivingHospital"
+    setup  "RegisterCapacity", hospital_name: "sample", trauma_level: "sample", available_beds: 1, available_surgeons: 1
+    expect ok: "true"
+  end
+
+
+  # ── CasualtyTracker aggregate ──────────────────────────────────────────
+
+  test "BeginTracking sets casualty_name + blood_type + triage_color" do
+    tests "BeginTracking", on: "CasualtyTracker"
+    setup  "OpenStation", station_id: "sample", location: "sample", capacity: 1
+    input  casualty_name: "sample", blood_type: "sample", triage_color: "sample"
+    expect casualty_name: "sample", blood_type: "sample", triage_color: "sample", triage_station: 1, current_phase: "triaged"
+  end
+
+  test "AdvancePhase sets current_phase" do
+    tests "AdvancePhase", on: "CasualtyTracker"
+    setup  "BeginTracking", casualty_name: "sample", blood_type: "sample", triage_color: "sample"
+    input  current_phase: "sample"
+    expect current_phase: "sample"
+  end
+
+end

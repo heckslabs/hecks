@@ -1,0 +1,140 @@
+Hecks.behaviors "HospitalAdmissions" do
+  vision "Behavioral tests for the HospitalAdmissions domain — exercises every command and query in memory"
+
+  # ── Patient aggregate ──────────────────────────────────────────
+
+  test "RegisterPatient sets name + date_of_birth + insurance_id + emergency_contact + chief_complaint" do
+    tests "RegisterPatient", on: "Patient"
+    input  name: "sample", date_of_birth: "sample", insurance_id: "sample", emergency_contact: "sample", chief_complaint: "sample"
+    expect name: "sample", date_of_birth: "sample", insurance_id: "sample", emergency_contact: "sample", chief_complaint: "sample"
+  end
+
+  test "RegisterPatient cascades through policy chain" do
+    tests "RegisterPatient", on: "Patient", kind: :cascade
+    setup  "RecordDiagnosis", patient_name: "sample", icd_code: "sample", description: "sample", diagnosing_physician: "sample"
+    setup  "DraftDischargePlan", patient_name: "sample", discharge_date: "sample"
+    setup  "PrepareBed"
+    input  name: "sample", date_of_birth: "sample", insurance_id: "sample", emergency_contact: "sample", chief_complaint: "sample"
+    expect emits: ["PatientRegistered", "PatientTriaged", "BedAssigned", "DiagnosisRecorded", "DischargePlanDrafted", "DischargePlanApproved", "PatientDischarged", "BedReleased"]
+  end
+
+  test "ValidateIntake runs" do
+    tests "ValidateIntake", on: "Patient"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", insurance_id: "sample", emergency_contact: "sample", chief_complaint: "sample"
+    expect intake_validated: true
+  end
+
+  test "TriagePatient sets triage_level" do
+    tests "TriagePatient", on: "Patient"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", insurance_id: "sample", emergency_contact: "sample", chief_complaint: "sample"
+    input  triage_level: "sample"
+    expect ok: "true"
+  end
+
+  test "TriagePatient cascades through policy chain" do
+    tests "TriagePatient", on: "Patient", kind: :cascade
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", insurance_id: "sample", emergency_contact: "sample", chief_complaint: "sample"
+    setup  "RecordDiagnosis", patient_name: "sample", icd_code: "sample", description: "sample", diagnosing_physician: "sample"
+    setup  "DraftDischargePlan", patient_name: "sample", discharge_date: "sample"
+    setup  "PrepareBed"
+    input  triage_level: "sample"
+    expect emits: ["PatientTriaged", "BedAssigned", "DiagnosisRecorded", "DischargePlanDrafted", "DischargePlanApproved", "PatientDischarged", "BedReleased"]
+  end
+
+
+  # ── Bed aggregate ──────────────────────────────────────────
+
+  test "PrepareBed runs" do
+    tests "PrepareBed", on: "Bed"
+    expect bed_ready: true
+  end
+
+  test "AssignBed sets patient_name" do
+    tests "AssignBed", on: "Bed"
+    setup  "PrepareBed"
+    input  patient_name: "sample"
+    expect ok: "true"
+  end
+
+  test "AssignBed cascades through policy chain" do
+    tests "AssignBed", on: "Bed", kind: :cascade
+    setup  "RecordDiagnosis", patient_name: "sample", icd_code: "sample", description: "sample", diagnosing_physician: "sample"
+    setup  "DraftDischargePlan", patient_name: "sample", discharge_date: "sample"
+    setup  "PrepareBed"
+    input  patient_name: "sample"
+    expect emits: ["BedAssigned", "DiagnosisRecorded", "DischargePlanDrafted", "DischargePlanApproved", "PatientDischarged", "BedReleased"]
+  end
+
+  test "ReleaseBed runs" do
+    tests "ReleaseBed", on: "Bed"
+    expect ok: "true"
+  end
+
+
+  # ── Diagnosis aggregate ──────────────────────────────────────────
+
+  test "RecordDiagnosis sets patient_name + icd_code + description + diagnosing_physician" do
+    tests "RecordDiagnosis", on: "Diagnosis"
+    input  patient_name: "sample", icd_code: "sample", description: "sample", diagnosing_physician: "sample"
+    expect ok: "true"
+  end
+
+  test "RecordDiagnosis cascades through policy chain" do
+    tests "RecordDiagnosis", on: "Diagnosis", kind: :cascade
+    setup  "DraftDischargePlan", patient_name: "sample", discharge_date: "sample"
+    input  patient_name: "sample", icd_code: "sample", description: "sample", diagnosing_physician: "sample"
+    expect emits: ["DiagnosisRecorded", "DischargePlanDrafted", "DischargePlanApproved", "PatientDischarged", "BedReleased"]
+  end
+
+  test "AttachLabResult sets test_name + result_value + reference_range" do
+    tests "AttachLabResult", on: "Diagnosis"
+    setup  "RecordDiagnosis", patient_name: "sample", icd_code: "sample", description: "sample", diagnosing_physician: "sample"
+    input  test_name: "sample", result_value: "sample", reference_range: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DischargeePlan aggregate ──────────────────────────────────────────
+
+  test "DraftDischargePlan sets patient_name + discharge_date" do
+    tests "DraftDischargePlan", on: "DischargeePlan"
+    input  patient_name: "sample", discharge_date: "sample"
+    expect ok: "true"
+  end
+
+  test "DraftDischargePlan cascades through policy chain" do
+    tests "DraftDischargePlan", on: "DischargeePlan", kind: :cascade
+    input  patient_name: "sample", discharge_date: "sample"
+    expect emits: ["DischargePlanDrafted", "DischargePlanApproved", "PatientDischarged", "BedReleased"]
+  end
+
+  test "ScheduleFollowUps runs" do
+    tests "ScheduleFollowUps", on: "DischargeePlan"
+    expect follow_ups_scheduled: true
+  end
+
+  test "ApproveDischargePlan runs" do
+    tests "ApproveDischargePlan", on: "DischargeePlan"
+    setup  "DraftDischargePlan", patient_name: "sample", discharge_date: "sample"
+    expect ok: "true"
+  end
+
+  test "ApproveDischargePlan cascades through policy chain" do
+    tests "ApproveDischargePlan", on: "DischargeePlan", kind: :cascade
+    setup  "DraftDischargePlan", patient_name: "sample", discharge_date: "sample"
+    expect emits: ["DischargePlanApproved", "PatientDischarged", "BedReleased"]
+  end
+
+  test "DischargePatient runs" do
+    tests "DischargePatient", on: "DischargeePlan"
+    setup  "DraftDischargePlan", patient_name: "sample", discharge_date: "sample"
+    expect ok: "true"
+  end
+
+  test "DischargePatient cascades through policy chain" do
+    tests "DischargePatient", on: "DischargeePlan", kind: :cascade
+    setup  "DraftDischargePlan", patient_name: "sample", discharge_date: "sample"
+    expect emits: ["PatientDischarged", "BedReleased"]
+  end
+
+end

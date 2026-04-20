@@ -1,0 +1,18 @@
+Hecks.fixtures "AnimalShelter" do
+  aggregate "Animal" do
+    fixture "Max_", name: "Max", species: "dog", breed: "German Shepherd Mix", age_estimate: "2-3 years", sex: "male", temperament: "gentle, trained", status: "available"
+    fixture "Luna_", name: "Luna", species: "cat", breed: "Siamese", age_estimate: "5-6 months", sex: "female", temperament: "shy, needs socialization", status: "intake"
+  end
+  aggregate "Adoption" do
+    fixture "Adoption1", animal_name: "Max", adopter_name: "Kevin O'Malley", adoption_date: "2026-04-14", adoption_fee: "150.00", status: "finalized"
+    fixture "Adoption2", animal_name: "Luna", adopter_name: "Patricia Wong", adoption_date: "2026-04-15", adoption_fee: "75.00", status: "pending"
+  end
+  aggregate "FosterPlacement" do
+    fixture "FosterPlacement1", animal_name: "Spot", foster_parent_name: "Monica Ramirez", start_date: "2026-04-10", expected_return_date: "2026-05-10", reason: "recovering from surgery", status: "active"
+    fixture "FosterPlacement2", animal_name: "Daisy", foster_parent_name: "Thomas Greene", start_date: "2026-03-20", expected_return_date: "2026-04-05", reason: "behavioral training", status: "returned"
+  end
+  aggregate "ShelterMedicalRecord" do
+    fixture "ShelterMedicalRecord1", animal_name: "Max", record_date: "2026-04-14", veterinarian: "Dr. Alexandra Holmes", spay_neuter_status: "completed", vaccination_status: "complete"
+    fixture "ShelterMedicalRecord2", animal_name: "Luna", record_date: "2026-04-14", veterinarian: "Dr. Mark Sullivan", spay_neuter_status: "pending", vaccination_status: "incomplete"
+  end
+end

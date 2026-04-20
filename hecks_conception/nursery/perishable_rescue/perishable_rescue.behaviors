@@ -1,0 +1,67 @@
+Hecks.behaviors "PerishableRescue" do
+  vision "Behavioral tests for the PerishableRescue domain — exercises every command and query in memory"
+
+  # ── FoodDonation aggregate ──────────────────────────────────────────
+
+  test "ReceiveDonation sets donor_name + donation_date" do
+    tests "ReceiveDonation", on: "FoodDonation"
+    input  donor_name: "sample", donation_date: "sample"
+    expect ok: "true"
+  end
+
+  test "ApproveDonation runs" do
+    tests "ApproveDonation", on: "FoodDonation"
+    setup  "ReceiveDonation", donor_name: "sample", donation_date: "sample"
+    setup  "AddItem", food_type: "sample", weight_kg: 1.0, expiry_date: "sample", temp_requirement_c: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── ColdChainRoute aggregate ──────────────────────────────────────────
+
+  test "PlanRoute sets route_id + vehicle_id" do
+    tests "PlanRoute", on: "ColdChainRoute"
+    input  route_id: "sample", vehicle_id: "sample"
+    expect ok: "true"
+  end
+
+  test "CompleteRoute runs" do
+    tests "CompleteRoute", on: "ColdChainRoute"
+    setup  "PlanRoute", route_id: "sample", vehicle_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Distribution aggregate ──────────────────────────────────────────
+
+  test "ScheduleDistribution sets site_name + distribution_date" do
+    tests "ScheduleDistribution", on: "Distribution"
+    setup  "ReceiveDonation", donor_name: "sample", donation_date: "sample"
+    input  site_name: "sample", distribution_date: "sample"
+    expect ok: "true"
+  end
+
+  test "ExecuteDistribution runs" do
+    tests "ExecuteDistribution", on: "Distribution"
+    setup  "ScheduleDistribution", site_name: "sample", distribution_date: "sample"
+    setup  "RegisterRecipient", family_id: "sample", family_size: 1, dietary_needs: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── TempAlert aggregate ──────────────────────────────────────────
+
+  test "RaiseAlert sets alert_type + temp_deviation_c" do
+    tests "RaiseAlert", on: "TempAlert"
+    setup  "PlanRoute", route_id: "sample", vehicle_id: "sample"
+    input  alert_type: "sample", temp_deviation_c: 1.0
+    expect ok: "true"
+  end
+
+  test "ResolveAlert runs" do
+    tests "ResolveAlert", on: "TempAlert"
+    setup  "RaiseAlert", alert_type: "sample", temp_deviation_c: 1.0
+    expect ok: "true"
+  end
+
+end

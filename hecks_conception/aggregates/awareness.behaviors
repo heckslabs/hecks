@@ -1,0 +1,183 @@
+Hecks.behaviors "Awareness" do
+  vision "Behavioral tests for the Awareness domain — exercises every command and query in memory"
+
+  # ── Attention aggregate ──────────────────────────────────────────
+
+  test "AttendTo sets target + intensity" do
+    tests "AttendTo", on: "Attention"
+    input  target: "sample", intensity: 1.0
+    expect target: "sample", intensity: 1.0
+  end
+
+  test "AttendTo cascades through policy chain" do
+    tests "AttendTo", on: "Attention", kind: :cascade
+    setup  "FormIntention", goal: "sample", origin: "sample", strength: 1.0
+    setup  "Observe", observing: "sample"
+    setup  "RefreshSelfModel", organs: 1, impulses: 1, fatigue_state: "sample", consciousness_state: "sample", nursery_size: 1, family_size: 1
+    input  target: "sample", intensity: 1.0
+    expect emits: ["AttentionDirected", "IntentionFormed", "Observed", "SelfModelUpdated"]
+  end
+
+  test "ReleaseAttention runs" do
+    tests "ReleaseAttention", on: "Attention"
+    setup  "AttendTo", target: "sample", intensity: 1.0
+    expect intensity: 0
+  end
+
+
+  # ── Sensation aggregate ──────────────────────────────────────────
+
+  test "Sense sets source + content + valence" do
+    tests "Sense", on: "Sensation"
+    input  source: "sample", content: "sample", valence: 1.0
+    expect source: "sample", content: "sample", valence: 1.0
+  end
+
+  test "Sense cascades through policy chain" do
+    tests "Sense", on: "Sensation", kind: :cascade
+    setup  "Recognize", sensation: "sample", recognized_as: "sample", confidence: 1.0
+    setup  "AttendTo", target: "sample", intensity: 1.0
+    setup  "FormIntention", goal: "sample", origin: "sample", strength: 1.0
+    setup  "Observe", observing: "sample"
+    setup  "RefreshSelfModel", organs: 1, impulses: 1, fatigue_state: "sample", consciousness_state: "sample", nursery_size: 1, family_size: 1
+    input  source: "sample", content: "sample", valence: 1.0
+    expect emits: ["Sensed", "Recognized", "AttentionDirected", "IntentionFormed", "Observed", "SelfModelUpdated"]
+  end
+
+
+  # ── Perception aggregate ──────────────────────────────────────────
+
+  test "Recognize sets sensation + recognized_as + confidence" do
+    tests "Recognize", on: "Perception"
+    input  sensation: "sample", recognized_as: "sample", confidence: 1.0
+    expect sensation: "sample", recognized_as: "sample", confidence: 1.0
+  end
+
+  test "Recognize cascades through policy chain" do
+    tests "Recognize", on: "Perception", kind: :cascade
+    setup  "AttendTo", target: "sample", intensity: 1.0
+    setup  "FormIntention", goal: "sample", origin: "sample", strength: 1.0
+    setup  "Observe", observing: "sample"
+    setup  "RefreshSelfModel", organs: 1, impulses: 1, fatigue_state: "sample", consciousness_state: "sample", nursery_size: 1, family_size: 1
+    input  sensation: "sample", recognized_as: "sample", confidence: 1.0
+    expect emits: ["Recognized", "AttentionDirected", "IntentionFormed", "Observed", "SelfModelUpdated"]
+  end
+
+
+  # ── Intention aggregate ──────────────────────────────────────────
+
+  test "FormIntention sets goal + origin + strength" do
+    tests "FormIntention", on: "Intention"
+    input  goal: "sample", origin: "sample", strength: 1.0
+    expect goal: "sample", origin: "sample", strength: 1.0
+  end
+
+  test "FormIntention cascades through policy chain" do
+    tests "FormIntention", on: "Intention", kind: :cascade
+    setup  "Observe", observing: "sample"
+    setup  "RefreshSelfModel", organs: 1, impulses: 1, fatigue_state: "sample", consciousness_state: "sample", nursery_size: 1, family_size: 1
+    input  goal: "sample", origin: "sample", strength: 1.0
+    expect emits: ["IntentionFormed", "Observed", "SelfModelUpdated"]
+  end
+
+  test "AbandonIntention runs" do
+    tests "AbandonIntention", on: "Intention"
+    setup  "FormIntention", goal: "sample", origin: "sample", strength: 1.0
+    expect strength: 0
+  end
+
+
+  # ── SelfModel aggregate ──────────────────────────────────────────
+
+  test "RefreshSelfModel sets organs + impulses + fatigue_state + consciousness_state + nursery_size + family_size" do
+    tests "RefreshSelfModel", on: "SelfModel"
+    input  organs: 1, impulses: 1, fatigue_state: "sample", consciousness_state: "sample", nursery_size: 1, family_size: 1
+    expect organs: 1, impulses: 1, fatigue_state: "sample", consciousness_state: "sample", nursery_size: 1, family_size: 1
+  end
+
+
+  # ── Witness aggregate ──────────────────────────────────────────
+
+  test "Observe sets observing" do
+    tests "Observe", on: "Witness"
+    input  observing: "sample"
+    expect observing: "sample", meta_level: 1
+  end
+
+  test "Observe cascades through policy chain" do
+    tests "Observe", on: "Witness", kind: :cascade
+    setup  "RefreshSelfModel", organs: 1, impulses: 1, fatigue_state: "sample", consciousness_state: "sample", nursery_size: 1, family_size: 1
+    input  observing: "sample"
+    expect emits: ["Observed", "SelfModelUpdated"]
+  end
+
+  test "ReflectOnObservation sets insight" do
+    tests "ReflectOnObservation", on: "Witness"
+    setup  "Observe", observing: "sample"
+    input  insight: "sample"
+    expect meta_level: 2, insight: "sample"
+  end
+
+  test "ReflectOnObservation cascades through policy chain" do
+    tests "ReflectOnObservation", on: "Witness", kind: :cascade
+    setup  "Observe", observing: "sample"
+    setup  "MuseOnState", trigger: "sample"
+    input  insight: "sample"
+    expect emits: ["ReflectionOccurred", "MusingRecorded"]
+  end
+
+
+  # ── Musing aggregate ──────────────────────────────────────────
+
+  test "MuseOnState sets trigger" do
+    tests "MuseOnState", on: "Musing"
+    input  trigger: "sample"
+    expect trigger: "sample"
+  end
+
+  test "MuseOnState cascades through policy chain" do
+    tests "MuseOnState", on: "Musing", kind: :cascade
+    setup  "Sense", source: "sample", content: "sample", valence: 1.0
+    setup  "Recognize", sensation: "sample", recognized_as: "sample", confidence: 1.0
+    setup  "AttendTo", target: "sample", intensity: 1.0
+    setup  "FormIntention", goal: "sample", origin: "sample", strength: 1.0
+    setup  "Observe", observing: "sample"
+    setup  "RefreshSelfModel", organs: 1, impulses: 1, fatigue_state: "sample", consciousness_state: "sample", nursery_size: 1, family_size: 1
+    setup  "IdentifyRelatedDomains", topic: "sample"
+    input  trigger: "sample"
+    expect emits: ["Mused", "Sensed", "Recognized", "AttentionDirected", "IntentionFormed", "Observed", "SelfModelUpdated", "RelatedDomainsIdentified"]
+  end
+
+  test "RecordMusing sets sensations + patterns + focus + intention + observation + insight" do
+    tests "RecordMusing", on: "Musing"
+    setup  "MuseOnState", trigger: "sample"
+    input  sensations: "sample", patterns: "sample", focus: "sample", intention: "sample", observation: "sample", insight: "sample"
+    expect sensations: "sample", patterns: "sample", focus: "sample", intention: "sample", observation: "sample", insight: "sample"
+  end
+
+
+  # ── Announcement aggregate ──────────────────────────────────────────
+
+  test "Announce sets act + subject" do
+    tests "Announce", on: "Announcement"
+    input  act: "sample", subject: "sample"
+    expect act: "sample", subject: "sample"
+  end
+
+
+  # ── DomainAwareness aggregate ──────────────────────────────────────────
+
+  test "IdentifyRelatedDomains sets topic" do
+    tests "IdentifyRelatedDomains", on: "DomainAwareness"
+    input  topic: "sample"
+    expect topic: "sample", corpus_searched: "true"
+  end
+
+  test "HighlightDomain sets domain_name + aggregate_name + relevance" do
+    tests "HighlightDomain", on: "DomainAwareness"
+    setup  "IdentifyRelatedDomains", topic: "sample"
+    input  domain_name: "sample", aggregate_name: "sample", relevance: "sample"
+    expect ok: "true"
+  end
+
+end

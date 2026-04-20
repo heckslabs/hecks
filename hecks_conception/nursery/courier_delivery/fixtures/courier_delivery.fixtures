@@ -1,0 +1,18 @@
+Hecks.fixtures "CourierDelivery" do
+  aggregate "Parcel" do
+    fixture "Parcel1", tracking_code: "PKG-2024-001", sender_address: "123 Main St, Springfield, IL", recipient_address: "456 Oak Ave, Shelbyville, IL", status: "accepted", weight_kg: 2.5
+    fixture "Parcel2", tracking_code: "PKG-2024-002", sender_address: "789 Elm Rd, Capital City, IL", recipient_address: "321 Pine St, Shelbyville, IL", status: "in_transit", weight_kg: 5.0
+  end
+  aggregate "Route" do
+    fixture "Route1", route_code: "ROUTE-NORTH-001", zone: "North District", stop_count: 18, status: "planned"
+    fixture "Route2", route_code: "ROUTE-SOUTH-002", zone: "South District", stop_count: 22, status: "active"
+  end
+  aggregate "Driver" do
+    fixture "Alice_Johnson_", employee_id: "DRV-001", name: "Alice Johnson", license_class: "B", status: "available", hours_today: 0.0
+    fixture "Bob_Martinez_", employee_id: "DRV-002", name: "Bob Martinez", license_class: "B", status: "on_duty", hours_today: 4.5
+  end
+  aggregate "ProofOfDelivery" do
+    fixture "ProofOfDelivery1", proof_id: "POD-001", signature_data: "signed", photo_url: "https://courier.example.com/proof/001.jpg", timestamp: "2024-01-15T14:30:00Z"
+    fixture "ProofOfDelivery2", proof_id: "POD-002", signature_data: "digital_sig_abc123", photo_url: "https://courier.example.com/proof/002.jpg", timestamp: "2024-01-15T15:45:00Z"
+  end
+end

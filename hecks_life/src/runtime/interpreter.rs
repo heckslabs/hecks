@@ -38,23 +38,35 @@ pub fn apply_mutations(
     for mutation in &cmd.mutations {
         match mutation.operation {
             MutationOp::Set => {
-                let val = resolve_mutation_value(&mutation.value, attrs);
+                let val = resolve_mutation_value(&mutation.value, attrs, state);
                 state.set(&mutation.field, val);
             }
             MutationOp::Append => {
-                let val = resolve_mutation_value(&mutation.value, attrs);
+                let val = resolve_mutation_value(&mutation.value, attrs, state);
                 state.append(&mutation.field, val);
             }
             MutationOp::Increment => {
-                let amount = resolve_mutation_value(&mutation.value, attrs)
-                    .as_int()
-                    .unwrap_or(1);
+                let val = resolve_mutation_value(&mutation.value, attrs, state);
+                // Float-valued increment (e.g. fatigue += 0.01) needs
+                // float arithmetic — `as_int()` would silently round it.
+                if let Some(f) = numeric_value(&val) {
+                    if f.fract() != 0.0 {
+                        state.increment_float(&mutation.field, f);
+                        continue;
+                    }
+                }
+                let amount = val.as_int().unwrap_or(1);
                 state.increment(&mutation.field, amount);
             }
             MutationOp::Decrement => {
-                let amount = resolve_mutation_value(&mutation.value, attrs)
-                    .as_int()
-                    .unwrap_or(1);
+                let val = resolve_mutation_value(&mutation.value, attrs, state);
+                if let Some(f) = numeric_value(&val) {
+                    if f.fract() != 0.0 {
+                        state.decrement_float(&mutation.field, f);
+                        continue;
+                    }
+                }
+                let amount = val.as_int().unwrap_or(1);
                 state.decrement(&mutation.field, amount);
             }
             MutationOp::Toggle => {
@@ -67,35 +79,72 @@ pub fn apply_mutations(
 fn evaluate_given(
     expr: &str,
     state: &AggregateState,
-    _attrs: &HashMap<String, Value>,
+    attrs: &HashMap<String, Value>,
 ) -> bool {
     let expr = expr.trim();
 
+    // Boolean operators — split lowest precedence first.
+    // `||` binds looser than `&&`, so split on `||` before `&&`.
+    // We don't honor parentheses or short-circuit semantics beyond what
+    // recursion gives us; `a || b || c` parses left-to-right via the
+    // first `||` split, which matches common usage in givens.
+    if let Some((lhs, rhs)) = split_top_level(expr, "||") {
+        return evaluate_given(lhs, state, attrs) || evaluate_given(rhs, state, attrs);
+    }
+    if let Some((lhs, rhs)) = split_top_level(expr, "&&") {
+        return evaluate_given(lhs, state, attrs) && evaluate_given(rhs, state, attrs);
+    }
+
+    // `field.any?` → field.size > 0; `field.empty?` → field.size == 0.
+    // Ruby idioms used in handwritten bluebooks; rewrite to runtime
+    // primitives so the comparison evaluator below handles them.
+    if let Some(field) = expr.strip_suffix(".any?") {
+        let val = resolve_expr(&format!("{}.size", field.trim()), state, attrs);
+        return compare_lt(&Value::Int(0), &val);
+    }
+    if let Some(field) = expr.strip_suffix(".empty?") {
+        let val = resolve_expr(&format!("{}.size", field.trim()), state, attrs);
+        return values_equal(&val, &Value::Int(0));
+    }
+
+    // Order matters: check `>=`/`<=` BEFORE `>`/`<` so the longer
+    // operator wins. The split_comparison helpers also bail out on the
+    // shorter operator when the longer is present.
+    if let Some((lhs, rhs)) = split_comparison(expr, ">=") {
+        let left = resolve_expr(lhs.trim(), state, attrs);
+        let right = resolve_expr(rhs.trim(), state, attrs);
+        return !compare_lt(&left, &right);
+    }
+    if let Some((lhs, rhs)) = split_comparison(expr, "<=") {
+        let left = resolve_expr(lhs.trim(), state, attrs);
+        let right = resolve_expr(rhs.trim(), state, attrs);
+        return !compare_lt(&right, &left);
+    }
     if let Some((lhs, rhs)) = split_comparison(expr, "<") {
-        let left = resolve_expr(lhs.trim(), state);
-        let right = resolve_expr(rhs.trim(), state);
+        let left = resolve_expr(lhs.trim(), state, attrs);
+        let right = resolve_expr(rhs.trim(), state, attrs);
         return compare_lt(&left, &right);
     }
     if let Some((lhs, rhs)) = split_comparison(expr, ">") {
-        let left = resolve_expr(lhs.trim(), state);
-        let right = resolve_expr(rhs.trim(), state);
+        let left = resolve_expr(lhs.trim(), state, attrs);
+        let right = resolve_expr(rhs.trim(), state, attrs);
         return compare_lt(&right, &left);
     }
     if let Some((lhs, rhs)) = split_comparison(expr, "==") {
-        let left = resolve_expr(lhs.trim(), state);
-        let right = resolve_expr(rhs.trim(), state);
+        let left = resolve_expr(lhs.trim(), state, attrs);
+        let right = resolve_expr(rhs.trim(), state, attrs);
         return values_equal(&left, &right);
     }
     if let Some((lhs, rhs)) = split_comparison(expr, "!=") {
-        let left = resolve_expr(lhs.trim(), state);
-        let right = resolve_expr(rhs.trim(), state);
+        let left = resolve_expr(lhs.trim(), state, attrs);
+        let right = resolve_expr(rhs.trim(), state, attrs);
         return !values_equal(&left, &right);
     }
 
     true
 }
 
-fn resolve_expr(expr: &str, state: &AggregateState) -> Value {
+fn resolve_expr(expr: &str, state: &AggregateState, attrs: &HashMap<String, Value>) -> Value {
     if let Ok(n) = expr.parse::<i64>() {
         return Value::Int(n);
     }
@@ -110,30 +159,75 @@ fn resolve_expr(expr: &str, state: &AggregateState) -> Value {
     }
     if expr.ends_with(".size") {
         let field = &expr[..expr.len() - 5];
-        return match state.get(field) {
+        let val = attrs.get(field)
+            .cloned()
+            .unwrap_or_else(|| state.get(field).clone());
+        return match val {
             Value::List(v) => Value::Int(v.len() as i64),
             Value::Str(s) => Value::Int(s.len() as i64),
             _ => Value::Int(0),
         };
     }
+    // Command attributes shadow state when they share a name — the
+    // `given` clause runs at dispatch time with the inbound input
+    // already in scope, mirroring how Ruby's predicate DSL evaluates
+    // against a binding that includes both attrs and state.
+    if let Some(v) = attrs.get(expr) {
+        return v.clone();
+    }
     state.get(expr).clone()
 }
 
+/// Split on the first occurrence of `op` that isn't inside a quoted
+/// string. Returns (lhs, rhs) trimmed slices, or None if not found.
+/// Used for boolean operators `||` and `&&` where quoted comparison
+/// values may legitimately contain pipe/ampersand characters.
+fn split_top_level<'a>(expr: &'a str, op: &str) -> Option<(&'a str, &'a str)> {
+    let bytes = expr.as_bytes();
+    let op_bytes = op.as_bytes();
+    let mut in_str = false;
+    let mut i = 0;
+    while i + op_bytes.len() <= bytes.len() {
+        let b = bytes[i];
+        if b == b'"' { in_str = !in_str; }
+        if !in_str && &bytes[i..i + op_bytes.len()] == op_bytes {
+            let lhs = expr[..i].trim();
+            let rhs = expr[i + op_bytes.len()..].trim();
+            return Some((lhs, rhs));
+        }
+        i += 1;
+    }
+    None
+}
+
 fn split_comparison<'a>(expr: &'a str, op: &str) -> Option<(&'a str, &'a str)> {
-    if op == "<" && expr.contains("<=") {
+    // Disambiguate single-char ops from their multi-char counterparts.
+    // `<` must not match against `<=` or `<` inside `!=`/`==`/`>=`.
+    if op == "<" && (expr.contains("<=") || expr.contains("<<")) {
         return None;
     }
-    if op == ">" && expr.contains(">=") {
+    if op == ">" && (expr.contains(">=") || expr.contains(">>")) {
         return None;
+    }
+    if op == "=" {
+        return None; // Bare `=` isn't a comparison; force callers to use ==.
     }
     let idx = expr.find(op)?;
+    // For ==/!=, ensure we're not confusing them with =/= prefixes; find
+    // returns the first occurrence of the literal substring so this is OK.
     Some((&expr[..idx], &expr[idx + op.len()..]))
 }
 
-/// Loose equality: Bool(true) == Str("true"), Int(42) == Str("42")
+/// Loose equality: Bool(true) == Str("true"), Int(42) == Str("42").
+/// Numeric coercion lets `Int(0) == Str("0")`, `Int(0) == Null` (Null
+/// stands in for an unset numeric attr), and `Str("1.0") == Int(1)`
+/// (Float values stored as strings still compare to whole-number ints).
 fn values_equal(left: &Value, right: &Value) -> bool {
     if left == right {
         return true;
+    }
+    if let (Some(a), Some(b)) = (numeric_value(left), numeric_value(right)) {
+        return a == b;
     }
     let ls = format!("{}", left);
     let rs = format!("{}", right);
@@ -141,15 +235,36 @@ fn values_equal(left: &Value, right: &Value) -> bool {
 }
 
 fn compare_lt(left: &Value, right: &Value) -> bool {
-    match (left, right) {
-        (Value::Int(a), Value::Int(b)) => a < b,
+    // Try Int<Int first; fall back to numeric coercion through f64 so
+    // Float-valued attrs (stored as Str("1.0")) and mixed Int/Str
+    // comparisons (e.g. `amount > 0` where amount is Str("1.5")) work.
+    if let (Value::Int(a), Value::Int(b)) = (left, right) { return a < b; }
+    let l = numeric_value(left);
+    let r = numeric_value(right);
+    match (l, r) {
+        (Some(a), Some(b)) => a < b,
         _ => false,
+    }
+}
+
+/// Best-effort numeric coercion: Int as-is, Str parsed as f64, Bool to
+/// 0/1, Null as 0 (an unset Integer attr behaves as zero). Returns None
+/// for List/Map and unparseable strings.
+fn numeric_value(v: &Value) -> Option<f64> {
+    match v {
+        Value::Int(n) => Some(*n as f64),
+        Value::Bool(true) => Some(1.0),
+        Value::Bool(false) => Some(0.0),
+        Value::Str(s) => s.parse::<f64>().ok(),
+        Value::Null => Some(0.0),
+        _ => None,
     }
 }
 
 pub fn resolve_mutation_value(
     value_expr: &str,
     attrs: &HashMap<String, Value>,
+    state: &AggregateState,
 ) -> Value {
     let value_expr = value_expr.trim();
 
@@ -172,9 +287,20 @@ pub fn resolve_mutation_value(
         return Value::Map(map);
     }
 
+    // `:now` and `seconds_since(:field)` used to resolve here — both
+    // reached into the system clock from inside the domain (DDD
+    // anti-pattern). They're gone. Time is infrastructure: the caller
+    // (test, hecksagon adapter, app) provides the timestamp as a
+    // command attribute. The lifecycle_validator catches any bluebook
+    // that tries to bring them back.
+
     if value_expr.starts_with(':') {
         let field = &value_expr[1..];
-        return attrs.get(field).cloned().unwrap_or(Value::Null);
+        // Try attrs first, then state fields
+        return attrs.get(field)
+            .or_else(|| state.fields.get(field))
+            .cloned()
+            .unwrap_or(Value::Null);
     }
 
     if let Ok(n) = value_expr.parse::<i64>() {
@@ -184,6 +310,24 @@ pub fn resolve_mutation_value(
     if value_expr.starts_with('"') && value_expr.ends_with('"') {
         return Value::Str(value_expr[1..value_expr.len() - 1].to_string());
     }
+
+    // List literal: `[]` → empty list, `[1, 2]` → list of resolved items.
+    // Without this, `then_set :foo, to: []` previously stored the string
+    // "[]", which broke `given { foo.empty? }` (length 2, not 0).
+    if value_expr.starts_with('[') && value_expr.ends_with(']') {
+        let inner = value_expr[1..value_expr.len() - 1].trim();
+        if inner.is_empty() {
+            return Value::List(vec![]);
+        }
+        let items: Vec<Value> = inner
+            .split(',')
+            .map(|item| resolve_mutation_value(item.trim(), attrs, state))
+            .collect();
+        return Value::List(items);
+    }
+
+    if value_expr == "true" { return Value::Bool(true); }
+    if value_expr == "false" { return Value::Bool(false); }
 
     attrs
         .get(value_expr)

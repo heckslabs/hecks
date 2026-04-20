@@ -1,0 +1,67 @@
+Hecks.behaviors "FireRobotics" do
+  vision "Behavioral tests for the FireRobotics domain — exercises every command and query in memory"
+
+  # ── FireIncident aggregate ──────────────────────────────────────────
+
+  test "ReportFire sets incident_id + location + fire_type + severity" do
+    tests "ReportFire", on: "FireIncident"
+    input  incident_id: "sample", location: "sample", fire_type: "sample", severity: "sample"
+    expect ok: "true"
+  end
+
+  test "ContainFire runs" do
+    tests "ContainFire", on: "FireIncident"
+    setup  "ReportFire", incident_id: "sample", location: "sample", fire_type: "sample", severity: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── FireRobot aggregate ──────────────────────────────────────────
+
+  test "DeployRobot sets robot_id + robot_type" do
+    tests "DeployRobot", on: "FireRobot"
+    input  robot_id: "sample", robot_type: "sample"
+    expect ok: "true"
+  end
+
+  test "RecallRobot runs" do
+    tests "RecallRobot", on: "FireRobot"
+    setup  "DeployRobot", robot_id: "sample", robot_type: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Mission aggregate ──────────────────────────────────────────
+
+  test "PlanMission sets mission_type" do
+    tests "PlanMission", on: "Mission"
+    setup  "DeployRobot", robot_id: "sample", robot_type: "sample"
+    setup  "ReportFire", incident_id: "sample", location: "sample", fire_type: "sample", severity: "sample"
+    input  mission_type: "sample"
+    expect ok: "true"
+  end
+
+  test "ExecuteMission runs" do
+    tests "ExecuteMission", on: "Mission"
+    setup  "PlanMission", mission_type: "sample"
+    setup  "AddWaypoint", lat: 1.0, lng: 1.0, action: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── RescueOperation aggregate ──────────────────────────────────────────
+
+  test "InitiateRescue runs" do
+    tests "InitiateRescue", on: "RescueOperation"
+    setup  "DeployRobot", robot_id: "sample", robot_type: "sample"
+    setup  "ReportFire", incident_id: "sample", location: "sample", fire_type: "sample", severity: "sample"
+    expect ok: "true"
+  end
+
+  test "CompleteRescue runs" do
+    tests "CompleteRescue", on: "RescueOperation"
+    setup  "InitiateRescue"
+    expect ok: "true"
+  end
+
+end

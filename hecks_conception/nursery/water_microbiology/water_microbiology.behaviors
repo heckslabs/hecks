@@ -1,0 +1,124 @@
+Hecks.behaviors "WaterMicrobiology" do
+  vision "Behavioral tests for the WaterMicrobiology domain — exercises every command and query in memory"
+
+  # ── WaterSample aggregate ──────────────────────────────────────────
+
+  test "CollectSample sets sample_id + source_type + collection_point + temperature_c + ph + turbidity_ntu" do
+    tests "CollectSample", on: "WaterSample"
+    input  sample_id: "sample", source_type: "sample", collection_point: "sample", temperature_c: 1.0, ph: 1.0, turbidity_ntu: 1.0
+    expect sample_id: "sample", source_type: "sample", collection_point: "sample", temperature_c: 1.0, ph: 1.0, turbidity_ntu: 1.0, status: "collected"
+  end
+
+  test "CollectSample cascades through policy chain" do
+    tests "CollectSample", on: "WaterSample", kind: :cascade
+    setup  "CultureSample", sample_id: "sample", organism_name: "sample", colony_count_cfu: 1, gram_stain: "sample"
+    setup  "DeclareContamination", event_id: "sample", contaminant: "sample", concentration: 1.0, severity: "sample", source_hypothesis: "sample"
+    setup  "DesignProtocol", protocol_name: "sample", treatment_method: "sample", dose_mg_l: 1.0, contact_time_min: 1.0, target_log_reduction: 1.0
+    input  sample_id: "sample", source_type: "sample", collection_point: "sample", temperature_c: 1.0, ph: 1.0, turbidity_ntu: 1.0
+    expect emits: ["SampleCollected", "SampleAnalyzed", "SampleCultured", "OrganismIdentified", "ContaminationDeclared", "ProtocolActivated", "TreatmentVerified"]
+  end
+
+  test "AnalyzeSample runs" do
+    tests "AnalyzeSample", on: "WaterSample"
+    setup  "CollectSample", sample_id: "sample", source_type: "sample", collection_point: "sample", temperature_c: 1.0, ph: 1.0, turbidity_ntu: 1.0
+    expect status: "analyzed"
+  end
+
+  test "AnalyzeSample cascades through policy chain" do
+    tests "AnalyzeSample", on: "WaterSample", kind: :cascade
+    setup  "CollectSample", sample_id: "sample", source_type: "sample", collection_point: "sample", temperature_c: 1.0, ph: 1.0, turbidity_ntu: 1.0
+    setup  "CultureSample", sample_id: "sample", organism_name: "sample", colony_count_cfu: 1, gram_stain: "sample"
+    setup  "DeclareContamination", event_id: "sample", contaminant: "sample", concentration: 1.0, severity: "sample", source_hypothesis: "sample"
+    setup  "DesignProtocol", protocol_name: "sample", treatment_method: "sample", dose_mg_l: 1.0, contact_time_min: 1.0, target_log_reduction: 1.0
+    expect emits: ["SampleAnalyzed", "SampleCultured", "OrganismIdentified", "ContaminationDeclared", "ProtocolActivated", "TreatmentVerified"]
+  end
+
+
+  # ── MicrobialCulture aggregate ──────────────────────────────────────────
+
+  test "CultureSample sets sample_id + organism_name + colony_count_cfu + gram_stain" do
+    tests "CultureSample", on: "MicrobialCulture"
+    input  sample_id: "sample", organism_name: "sample", colony_count_cfu: 1, gram_stain: "sample"
+    expect sample_id: "sample", organism_name: "sample", colony_count_cfu: 1, gram_stain: "sample", status: "cultured"
+  end
+
+  test "CultureSample cascades through policy chain" do
+    tests "CultureSample", on: "MicrobialCulture", kind: :cascade
+    setup  "DeclareContamination", event_id: "sample", contaminant: "sample", concentration: 1.0, severity: "sample", source_hypothesis: "sample"
+    setup  "DesignProtocol", protocol_name: "sample", treatment_method: "sample", dose_mg_l: 1.0, contact_time_min: 1.0, target_log_reduction: 1.0
+    input  sample_id: "sample", organism_name: "sample", colony_count_cfu: 1, gram_stain: "sample"
+    expect emits: ["SampleCultured", "OrganismIdentified", "ContaminationDeclared", "ProtocolActivated", "TreatmentVerified"]
+  end
+
+  test "IdentifyOrganism sets pathogenicity" do
+    tests "IdentifyOrganism", on: "MicrobialCulture"
+    setup  "CultureSample", sample_id: "sample", organism_name: "sample", colony_count_cfu: 1, gram_stain: "sample"
+    input  pathogenicity: "sample"
+    expect pathogenicity: "sample", status: "identified"
+  end
+
+  test "IdentifyOrganism cascades through policy chain" do
+    tests "IdentifyOrganism", on: "MicrobialCulture", kind: :cascade
+    setup  "CultureSample", sample_id: "sample", organism_name: "sample", colony_count_cfu: 1, gram_stain: "sample"
+    setup  "DeclareContamination", event_id: "sample", contaminant: "sample", concentration: 1.0, severity: "sample", source_hypothesis: "sample"
+    setup  "DesignProtocol", protocol_name: "sample", treatment_method: "sample", dose_mg_l: 1.0, contact_time_min: 1.0, target_log_reduction: 1.0
+    input  pathogenicity: "sample"
+    expect emits: ["OrganismIdentified", "ContaminationDeclared", "ProtocolActivated", "TreatmentVerified"]
+  end
+
+
+  # ── ContaminationEvent aggregate ──────────────────────────────────────────
+
+  test "DeclareContamination sets event_id + contaminant + concentration + severity + source_hypothesis" do
+    tests "DeclareContamination", on: "ContaminationEvent"
+    input  event_id: "sample", contaminant: "sample", concentration: 1.0, severity: "sample", source_hypothesis: "sample"
+    expect event_id: "sample", contaminant: "sample", concentration: 1.0, severity: "sample", source_hypothesis: "sample", status: "declared"
+  end
+
+  test "DeclareContamination cascades through policy chain" do
+    tests "DeclareContamination", on: "ContaminationEvent", kind: :cascade
+    setup  "DesignProtocol", protocol_name: "sample", treatment_method: "sample", dose_mg_l: 1.0, contact_time_min: 1.0, target_log_reduction: 1.0
+    input  event_id: "sample", contaminant: "sample", concentration: 1.0, severity: "sample", source_hypothesis: "sample"
+    expect emits: ["ContaminationDeclared", "ProtocolActivated", "TreatmentVerified"]
+  end
+
+  test "InvestigateSource runs" do
+    tests "InvestigateSource", on: "ContaminationEvent"
+    setup  "DeclareContamination", event_id: "sample", contaminant: "sample", concentration: 1.0, severity: "sample", source_hypothesis: "sample"
+    expect status: "investigated"
+  end
+
+  test "ResolveContamination runs" do
+    tests "ResolveContamination", on: "ContaminationEvent"
+    setup  "DeclareContamination", event_id: "sample", contaminant: "sample", concentration: 1.0, severity: "sample", source_hypothesis: "sample"
+    expect status: "resolved"
+  end
+
+
+  # ── TreatmentProtocol aggregate ──────────────────────────────────────────
+
+  test "DesignProtocol sets protocol_name + treatment_method + dose_mg_l + contact_time_min + target_log_reduction" do
+    tests "DesignProtocol", on: "TreatmentProtocol"
+    input  protocol_name: "sample", treatment_method: "sample", dose_mg_l: 1.0, contact_time_min: 1.0, target_log_reduction: 1.0
+    expect protocol_name: "sample", treatment_method: "sample", dose_mg_l: 1.0, contact_time_min: 1.0, target_log_reduction: 1.0, status: "designed"
+  end
+
+  test "ActivateProtocol runs" do
+    tests "ActivateProtocol", on: "TreatmentProtocol"
+    setup  "DesignProtocol", protocol_name: "sample", treatment_method: "sample", dose_mg_l: 1.0, contact_time_min: 1.0, target_log_reduction: 1.0
+    expect status: "active"
+  end
+
+  test "ActivateProtocol cascades through policy chain" do
+    tests "ActivateProtocol", on: "TreatmentProtocol", kind: :cascade
+    setup  "DesignProtocol", protocol_name: "sample", treatment_method: "sample", dose_mg_l: 1.0, contact_time_min: 1.0, target_log_reduction: 1.0
+    expect emits: ["ProtocolActivated", "TreatmentVerified"]
+  end
+
+  test "VerifyTreatment runs" do
+    tests "VerifyTreatment", on: "TreatmentProtocol"
+    setup  "DesignProtocol", protocol_name: "sample", treatment_method: "sample", dose_mg_l: 1.0, contact_time_min: 1.0, target_log_reduction: 1.0
+    expect status: "verified"
+  end
+
+end

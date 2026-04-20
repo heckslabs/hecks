@@ -1,0 +1,166 @@
+Hecks.behaviors "Dendrology" do
+  vision "Behavioral tests for the Dendrology domain — exercises every command and query in memory"
+
+  # ── TreeSpecimen aggregate ──────────────────────────────────────────
+
+  test "TagTree sets specimen_id + species + dbh_cm" do
+    tests "TagTree", on: "TreeSpecimen"
+    input  specimen_id: "sample", species: "sample", dbh_cm: 1.0
+    expect ok: "true"
+  end
+
+  test "TagTree cascades through policy chain" do
+    tests "TagTree", on: "TreeSpecimen", kind: :cascade
+    setup  "ExtractCore", core_id: "sample"
+    setup  "AssessHealth", assessment_date: "sample", assessor: "sample"
+    input  specimen_id: "sample", species: "sample", dbh_cm: 1.0
+    expect emits: ["TreeTagged", "CoreExtracted", "RingsCounted", "RingsCrossdated", "HealthAssessed", "TreatmentPrescribed", "FollowupScheduled"]
+  end
+
+  test "AssessWildlifeHabitat runs" do
+    tests "AssessWildlifeHabitat", on: "TreeSpecimen"
+    setup  "TagTree", specimen_id: "sample", species: "sample", dbh_cm: 1.0
+    expect habitat_assessed: true
+  end
+
+  test "MeasureGrowth sets new_dbh_cm + new_height_m" do
+    tests "MeasureGrowth", on: "TreeSpecimen"
+    setup  "TagTree", specimen_id: "sample", species: "sample", dbh_cm: 1.0
+    input  new_dbh_cm: 1.0, new_height_m: 1.0
+    expect ok: "true"
+  end
+
+  test "FellTree sets reason" do
+    tests "FellTree", on: "TreeSpecimen"
+    setup  "TagTree", specimen_id: "sample", species: "sample", dbh_cm: 1.0
+    setup  "AssessWildlifeHabitat"
+    input  reason: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── GrowthRingAnalysis aggregate ──────────────────────────────────────────
+
+  test "ExtractCore sets core_id" do
+    tests "ExtractCore", on: "GrowthRingAnalysis"
+    setup  "TagTree", specimen_id: "sample", species: "sample", dbh_cm: 1.0
+    input  core_id: "sample"
+    expect core_prepared: true
+  end
+
+  test "ExtractCore cascades through policy chain" do
+    tests "ExtractCore", on: "GrowthRingAnalysis", kind: :cascade
+    setup  "TagTree", specimen_id: "sample", species: "sample", dbh_cm: 1.0
+    setup  "AssessHealth", assessment_date: "sample", assessor: "sample"
+    input  core_id: "sample"
+    expect emits: ["CoreExtracted", "RingsCounted", "RingsCrossdated", "HealthAssessed", "TreatmentPrescribed", "FollowupScheduled"]
+  end
+
+  test "PrepareCore runs" do
+    tests "PrepareCore", on: "GrowthRingAnalysis"
+    setup  "ExtractCore", core_id: "sample"
+    expect core_prepared: true
+  end
+
+  test "CountRings runs" do
+    tests "CountRings", on: "GrowthRingAnalysis"
+    setup  "ExtractCore", core_id: "sample"
+    expect ok: "true"
+  end
+
+  test "CountRings cascades through policy chain" do
+    tests "CountRings", on: "GrowthRingAnalysis", kind: :cascade
+    setup  "AssessHealth", assessment_date: "sample", assessor: "sample"
+    setup  "TagTree", specimen_id: "sample", species: "sample", dbh_cm: 1.0
+    setup  "ExtractCore", core_id: "sample"
+    expect emits: ["RingsCounted", "RingsCrossdated", "HealthAssessed", "TreatmentPrescribed", "FollowupScheduled"]
+  end
+
+  test "CrossdateRings runs" do
+    tests "CrossdateRings", on: "GrowthRingAnalysis"
+    setup  "ExtractCore", core_id: "sample"
+    expect ok: "true"
+  end
+
+  test "CrossdateRings cascades through policy chain" do
+    tests "CrossdateRings", on: "GrowthRingAnalysis", kind: :cascade
+    setup  "ExtractCore", core_id: "sample"
+    setup  "AssessHealth", assessment_date: "sample", assessor: "sample"
+    setup  "TagTree", specimen_id: "sample", species: "sample", dbh_cm: 1.0
+    expect emits: ["RingsCrossdated", "HealthAssessed", "TreatmentPrescribed", "FollowupScheduled"]
+  end
+
+
+  # ── HealthAssessment aggregate ──────────────────────────────────────────
+
+  test "AssessHealth sets assessment_date + assessor" do
+    tests "AssessHealth", on: "HealthAssessment"
+    setup  "TagTree", specimen_id: "sample", species: "sample", dbh_cm: 1.0
+    input  assessment_date: "sample", assessor: "sample"
+    expect ok: "true"
+  end
+
+  test "AssessHealth cascades through policy chain" do
+    tests "AssessHealth", on: "HealthAssessment", kind: :cascade
+    setup  "TagTree", specimen_id: "sample", species: "sample", dbh_cm: 1.0
+    input  assessment_date: "sample", assessor: "sample"
+    expect emits: ["HealthAssessed", "TreatmentPrescribed", "FollowupScheduled"]
+  end
+
+  test "RecordDefect sets defect" do
+    tests "RecordDefect", on: "HealthAssessment"
+    setup  "AssessHealth", assessment_date: "sample", assessor: "sample"
+    input  defect: "sample"
+    expect defects_size: 1
+  end
+
+  test "PrescribeTreatment sets treatment_type" do
+    tests "PrescribeTreatment", on: "HealthAssessment"
+    setup  "AssessHealth", assessment_date: "sample", assessor: "sample"
+    input  treatment_type: "sample"
+    expect ok: "true"
+  end
+
+  test "PrescribeTreatment cascades through policy chain" do
+    tests "PrescribeTreatment", on: "HealthAssessment", kind: :cascade
+    setup  "AssessHealth", assessment_date: "sample", assessor: "sample"
+    input  treatment_type: "sample"
+    expect emits: ["TreatmentPrescribed", "FollowupScheduled"]
+  end
+
+  test "ScheduleFollowup sets followup_date" do
+    tests "ScheduleFollowup", on: "HealthAssessment"
+    setup  "AssessHealth", assessment_date: "sample", assessor: "sample"
+    input  followup_date: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ForestInventory aggregate ──────────────────────────────────────────
+
+  test "InitiateInventory sets plot_id + area_hectares + forest_type" do
+    tests "InitiateInventory", on: "ForestInventory"
+    input  plot_id: "sample", area_hectares: 1.0, forest_type: "sample"
+    expect ok: "true"
+  end
+
+  test "TallySpecies runs" do
+    tests "TallySpecies", on: "ForestInventory"
+    setup  "InitiateInventory", plot_id: "sample", area_hectares: 1.0, forest_type: "sample"
+    expect ok: "true"
+  end
+
+  test "MeasureAllTrees runs" do
+    tests "MeasureAllTrees", on: "ForestInventory"
+    setup  "InitiateInventory", plot_id: "sample", area_hectares: 1.0, forest_type: "sample"
+    expect all_trees_measured: true
+  end
+
+  test "CloseInventory runs" do
+    tests "CloseInventory", on: "ForestInventory"
+    setup  "InitiateInventory", plot_id: "sample", area_hectares: 1.0, forest_type: "sample"
+    setup  "MeasureAllTrees"
+    expect ok: "true"
+  end
+
+end

@@ -1,0 +1,315 @@
+Hecks.behaviors "Storefront" do
+  vision "Behavioral tests for the Storefront domain — exercises every command and query in memory"
+
+  # ── StorefrontSite aggregate ──────────────────────────────────────────
+
+  test "LaunchStorefront sets brand + domain_name + tagline + theme" do
+    tests "LaunchStorefront", on: "StorefrontSite"
+    input  brand: "sample", domain_name: "sample", tagline: "sample", theme: "sample"
+    expect brand: "sample", domain_name: "sample", tagline: "sample", theme: "sample", active: "true"
+  end
+
+  test "ConfigureBrand sets tagline + theme" do
+    tests "ConfigureBrand", on: "StorefrontSite"
+    setup  "LaunchStorefront", brand: "sample", domain_name: "sample", tagline: "sample", theme: "sample"
+    input  tagline: "sample", theme: "sample"
+    expect tagline: "sample", theme: "sample"
+  end
+
+  test "SetTheme sets theme" do
+    tests "SetTheme", on: "StorefrontSite"
+    setup  "LaunchStorefront", brand: "sample", domain_name: "sample", tagline: "sample", theme: "sample"
+    input  theme: "sample"
+    expect theme: "sample"
+  end
+
+  test "EnableBrand runs" do
+    tests "EnableBrand", on: "StorefrontSite"
+    setup  "LaunchStorefront", brand: "sample", domain_name: "sample", tagline: "sample", theme: "sample"
+    expect active: "true"
+  end
+
+  test "DisableBrand runs" do
+    tests "DisableBrand", on: "StorefrontSite"
+    setup  "LaunchStorefront", brand: "sample", domain_name: "sample", tagline: "sample", theme: "sample"
+    expect active: "false"
+  end
+
+
+  # ── ProductListing aggregate ──────────────────────────────────────────
+
+  test "DraftListing sets sku + name + brand + description + price" do
+    tests "DraftListing", on: "ProductListing"
+    input  sku: "sample", name: "sample", brand: "sample", description: "sample", price: 1.0
+    expect sku: "sample", name: "sample", brand: "sample", description: "sample", price: 1.0, in_stock: "true", featured: "false", status: "draft"
+  end
+
+  test "EnrichWithScience sets test_results + benefits" do
+    tests "EnrichWithScience", on: "ProductListing"
+    setup  "DraftListing", sku: "sample", name: "sample", brand: "sample", description: "sample", price: 1.0
+    input  specifications: "sample_specification", test_results: "sample", benefits: "sample"
+    expect specifications: "sample_specification", test_results: "sample", benefits: "sample"
+  end
+
+  test "SetFeatured sets featured" do
+    tests "SetFeatured", on: "ProductListing"
+    setup  "DraftListing", sku: "sample", name: "sample", brand: "sample", description: "sample", price: 1.0
+    input  featured: "sample"
+    expect featured: "sample"
+  end
+
+  test "AdjustStock sets in_stock" do
+    tests "AdjustStock", on: "ProductListing"
+    setup  "DraftListing", sku: "sample", name: "sample", brand: "sample", description: "sample", price: 1.0
+    input  in_stock: "sample"
+    expect in_stock: "sample"
+  end
+
+  test "PublishListing runs" do
+    tests "PublishListing", on: "ProductListing"
+    setup  "DraftListing", sku: "sample", name: "sample", brand: "sample", description: "sample", price: 1.0
+    expect status: "published"
+  end
+
+  test "PublishListing cascades through policy chain" do
+    tests "PublishListing", on: "ProductListing", kind: :cascade
+    setup  "DraftListing", sku: "sample", name: "sample", brand: "sample", description: "sample", price: 1.0
+    setup  "GenerateScienceContent", product_sku: "sample", tribology_summary: "sample", test_results_summary: "sample", how_it_works: "sample"
+    setup  "ImportReviews", product_sku: "sample"
+    expect emits: ["ListingPublished", "ScienceContentGenerated", "ReviewsImported"]
+  end
+
+  test "UnpublishListing runs" do
+    tests "UnpublishListing", on: "ProductListing"
+    setup  "DraftListing", sku: "sample", name: "sample", brand: "sample", description: "sample", price: 1.0
+    setup  "PublishListing"
+    expect status: "unpublished"
+  end
+
+
+  # ── ShoppingCart aggregate ──────────────────────────────────────────
+
+  test "AddToCart sets session_id + sku + name + quantity + unit_price" do
+    tests "AddToCart", on: "ShoppingCart"
+    input  session_id: "sample", sku: "sample", name: "sample", quantity: 1, unit_price: 1.0
+    expect session_id: "sample"
+  end
+
+  test "RemoveFromCart sets sku" do
+    tests "RemoveFromCart", on: "ShoppingCart"
+    setup  "AddToCart", session_id: "sample", sku: "sample", name: "sample", quantity: 1, unit_price: 1.0
+    input  sku: "sample"
+    expect ok: "true"
+  end
+
+  test "AdjustQuantity sets sku + quantity" do
+    tests "AdjustQuantity", on: "ShoppingCart"
+    setup  "AddToCart", session_id: "sample", sku: "sample", name: "sample", quantity: 1, unit_price: 1.0
+    input  sku: "sample", quantity: 1
+    expect ok: "true"
+  end
+
+  test "CalculateSubtotal runs" do
+    tests "CalculateSubtotal", on: "ShoppingCart"
+    setup  "AddToCart", session_id: "sample", sku: "sample", name: "sample", quantity: 1, unit_price: 1.0
+    expect ok: "true"
+  end
+
+  test "ApplyDiscount sets discount_amount + reason" do
+    tests "ApplyDiscount", on: "ShoppingCart"
+    setup  "AddToCart", session_id: "sample", sku: "sample", name: "sample", quantity: 1, unit_price: 1.0
+    input  discount_amount: 1.0, reason: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Order aggregate ──────────────────────────────────────────
+
+  test "PlaceOrder sets order_number + customer_name + customer_email + shipping_address + subtotal + tax + shipping + total" do
+    tests "PlaceOrder", on: "Order"
+    input  order_number: "sample", customer_name: "sample", customer_email: "sample", shipping_address: "sample", subtotal: 1.0, tax: 1.0, shipping: 1.0, total: 1.0
+    expect order_number: "sample", customer_name: "sample", customer_email: "sample", shipping_address: "sample", subtotal: 1.0, tax: 1.0, shipping: 1.0, total: 1.0, status: "placed"
+  end
+
+  test "PlaceOrder cascades through policy chain" do
+    tests "PlaceOrder", on: "Order", kind: :cascade
+    setup  "DraftListing", sku: "sample", name: "sample", brand: "sample", description: "sample", price: 1.0
+    input  order_number: "sample", customer_name: "sample", customer_email: "sample", shipping_address: "sample", subtotal: 1.0, tax: 1.0, shipping: 1.0, total: 1.0
+    expect emits: ["OrderPlaced", "StockAdjusted"]
+  end
+
+  test "ConfirmPayment runs" do
+    tests "ConfirmPayment", on: "Order"
+    setup  "PlaceOrder", order_number: "sample", customer_name: "sample", customer_email: "sample", shipping_address: "sample", subtotal: 1.0, tax: 1.0, shipping: 1.0, total: 1.0
+    expect status: "confirmed"
+  end
+
+  test "FulfillOrder runs" do
+    tests "FulfillOrder", on: "Order"
+    setup  "PlaceOrder", order_number: "sample", customer_name: "sample", customer_email: "sample", shipping_address: "sample", subtotal: 1.0, tax: 1.0, shipping: 1.0, total: 1.0
+    setup  "ConfirmPayment"
+    expect status: "fulfilling"
+  end
+
+  test "ShipOrder runs" do
+    tests "ShipOrder", on: "Order"
+    setup  "PlaceOrder", order_number: "sample", customer_name: "sample", customer_email: "sample", shipping_address: "sample", subtotal: 1.0, tax: 1.0, shipping: 1.0, total: 1.0
+    setup  "ConfirmPayment"
+    setup  "FulfillOrder"
+    expect status: "shipped"
+  end
+
+  test "DeliverOrder runs" do
+    tests "DeliverOrder", on: "Order"
+    setup  "PlaceOrder", order_number: "sample", customer_name: "sample", customer_email: "sample", shipping_address: "sample", subtotal: 1.0, tax: 1.0, shipping: 1.0, total: 1.0
+    setup  "ConfirmPayment"
+    setup  "FulfillOrder"
+    setup  "ShipOrder"
+    expect status: "delivered"
+  end
+
+  test "RequestReturn runs" do
+    tests "RequestReturn", on: "Order"
+    setup  "PlaceOrder", order_number: "sample", customer_name: "sample", customer_email: "sample", shipping_address: "sample", subtotal: 1.0, tax: 1.0, shipping: 1.0, total: 1.0
+    setup  "ConfirmPayment"
+    setup  "FulfillOrder"
+    setup  "ShipOrder"
+    setup  "DeliverOrder"
+    expect status: "returned"
+  end
+
+
+  # ── CustomerAccount aggregate ──────────────────────────────────────────
+
+  test "RegisterAccount sets email + name + vehicle_type" do
+    tests "RegisterAccount", on: "CustomerAccount"
+    input  email: "sample", name: "sample", vehicle_type: "sample"
+    expect email: "sample", name: "sample", vehicle_type: "sample", lifetime_value: 0.0
+  end
+
+  test "RegisterAccount cascades through policy chain" do
+    tests "RegisterAccount", on: "CustomerAccount", kind: :cascade
+    input  email: "sample", name: "sample", vehicle_type: "sample"
+    expect emits: ["AccountCreated", "PersonaIdentified"]
+  end
+
+  test "RecordPurchase sets order_number + amount" do
+    tests "RecordPurchase", on: "CustomerAccount"
+    setup  "RegisterAccount", email: "sample", name: "sample", vehicle_type: "sample"
+    input  order_number: "sample", amount: 1.0
+    expect ok: "true"
+  end
+
+  test "RecordPurchase cascades through policy chain" do
+    tests "RecordPurchase", on: "CustomerAccount", kind: :cascade
+    setup  "RegisterAccount", email: "sample", name: "sample", vehicle_type: "sample"
+    setup  "GenerateRecommendation", customer_email: "sample", persona_match: "sample"
+    input  order_number: "sample", amount: 1.0
+    expect emits: ["PurchaseRecorded", "RecommendationGenerated"]
+  end
+
+  test "IdentifyPersona sets persona_segment" do
+    tests "IdentifyPersona", on: "CustomerAccount"
+    setup  "RegisterAccount", email: "sample", name: "sample", vehicle_type: "sample"
+    input  persona_segment: "sample"
+    expect persona_segment: "sample"
+  end
+
+  test "RecommendProducts runs" do
+    tests "RecommendProducts", on: "CustomerAccount"
+    setup  "RegisterAccount", email: "sample", name: "sample", vehicle_type: "sample"
+    expect ok: "true"
+  end
+
+  test "CalculateLifetimeValue sets lifetime_value" do
+    tests "CalculateLifetimeValue", on: "CustomerAccount"
+    setup  "RegisterAccount", email: "sample", name: "sample", vehicle_type: "sample"
+    input  lifetime_value: 1.0
+    expect lifetime_value: 1.0
+  end
+
+
+  # ── ProductRecommendation aggregate ──────────────────────────────────────────
+
+  test "GenerateRecommendation sets customer_email + persona_match" do
+    tests "GenerateRecommendation", on: "ProductRecommendation"
+    input  customer_email: "sample", persona_match: "sample"
+    expect customer_email: "sample", persona_match: "sample"
+  end
+
+  test "PersonalizeByVehicle sets vehicle_type" do
+    tests "PersonalizeByVehicle", on: "ProductRecommendation"
+    setup  "GenerateRecommendation", customer_email: "sample", persona_match: "sample"
+    input  vehicle_type: "sample"
+    expect ok: "true"
+  end
+
+  test "PersonalizeByHistory runs" do
+    tests "PersonalizeByHistory", on: "ProductRecommendation"
+    setup  "GenerateRecommendation", customer_email: "sample", persona_match: "sample"
+    expect ok: "true"
+  end
+
+  test "DisplayRecommendation runs" do
+    tests "DisplayRecommendation", on: "ProductRecommendation"
+    setup  "GenerateRecommendation", customer_email: "sample", persona_match: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ScienceContent aggregate ──────────────────────────────────────────
+
+  test "GenerateScienceContent sets product_sku + tribology_summary + test_results_summary + how_it_works" do
+    tests "GenerateScienceContent", on: "ScienceContent"
+    input  product_sku: "sample", tribology_summary: "sample", test_results_summary: "sample", how_it_works: "sample"
+    expect product_sku: "sample", tribology_summary: "sample", test_results_summary: "sample", how_it_works: "sample"
+  end
+
+  test "LinkToLabData runs" do
+    tests "LinkToLabData", on: "ScienceContent"
+    setup  "GenerateScienceContent", product_sku: "sample", tribology_summary: "sample", test_results_summary: "sample", how_it_works: "sample"
+    expect ok: "true"
+  end
+
+  test "PublishComparisonChart sets comparison_to_competitor" do
+    tests "PublishComparisonChart", on: "ScienceContent"
+    setup  "GenerateScienceContent", product_sku: "sample", tribology_summary: "sample", test_results_summary: "sample", how_it_works: "sample"
+    input  comparison_to_competitor: "sample"
+    expect comparison_to_competitor: "sample"
+  end
+
+  test "PublishContent runs" do
+    tests "PublishContent", on: "ScienceContent"
+    setup  "GenerateScienceContent", product_sku: "sample", tribology_summary: "sample", test_results_summary: "sample", how_it_works: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ReviewIntegration aggregate ──────────────────────────────────────────
+
+  test "ImportReviews sets product_sku" do
+    tests "ImportReviews", on: "ReviewIntegration"
+    input  product_sku: "sample"
+    expect product_sku: "sample"
+  end
+
+  test "DisplayReviews runs" do
+    tests "DisplayReviews", on: "ReviewIntegration"
+    setup  "ImportReviews", product_sku: "sample"
+    expect ok: "true"
+  end
+
+  test "HighlightBestReview runs" do
+    tests "HighlightBestReview", on: "ReviewIntegration"
+    setup  "ImportReviews", product_sku: "sample"
+    expect ok: "true"
+  end
+
+  test "RespondToReview sets review_text + response" do
+    tests "RespondToReview", on: "ReviewIntegration"
+    setup  "ImportReviews", product_sku: "sample"
+    input  review_text: "sample", response: "sample"
+    expect ok: "true"
+  end
+
+end

@@ -1,0 +1,164 @@
+Hecks.behaviors "InteriorDesign" do
+  vision "Behavioral tests for the InteriorDesign domain — exercises every command and query in memory"
+
+  # ── DesignProject aggregate ──────────────────────────────────────────
+
+  test "ScopeProject sets name + space_type + style_direction + budget" do
+    tests "ScopeProject", on: "DesignProject"
+    input  name: "sample", space_type: "sample", style_direction: "sample", budget: 1.0
+    expect status: "consultation"
+  end
+
+  test "PresentConcept runs" do
+    tests "PresentConcept", on: "DesignProject"
+    setup  "ScopeProject", name: "sample", space_type: "sample", style_direction: "sample", budget: 1.0
+    expect status: "concept_review"
+  end
+
+  test "ApproveConcept runs" do
+    tests "ApproveConcept", on: "DesignProject"
+    setup  "ScopeProject", name: "sample", space_type: "sample", style_direction: "sample", budget: 1.0
+    setup  "PresentConcept"
+    expect status: "approved"
+  end
+
+  test "ApproveConcept cascades through policy chain" do
+    tests "ApproveConcept", on: "DesignProject", kind: :cascade
+    setup  "ScopeProject", name: "sample", space_type: "sample", style_direction: "sample", budget: 1.0
+    setup  "PlanRoom", room_name: "sample", function: "sample", square_footage: 1.0, color_palette: "sample"
+    setup  "SpecifyMaterial", material_name: "sample", category: "sample", supplier: "sample", unit_cost: 1.0, lead_time_days: 1
+    setup  "ScheduleInstallation", date: "sample", crew_lead: "sample"
+    setup  "CompleteInstallation"
+    setup  "PresentConcept"
+    expect emits: ["ConceptApproved", "RoomPlanned", "FixturesSpecified", "MaterialSpecified", "MaterialOrdered", "InstallationScheduled", "InstallationCompleted", "PunchListResolved"]
+  end
+
+
+  # ── RoomDesign aggregate ──────────────────────────────────────────
+
+  test "PlanRoom sets room_name + function + square_footage + color_palette" do
+    tests "PlanRoom", on: "RoomDesign"
+    setup  "ScopeProject", name: "sample", space_type: "sample", style_direction: "sample", budget: 1.0
+    input  room_name: "sample", function: "sample", square_footage: 1.0, color_palette: "sample"
+    expect status: "planning"
+  end
+
+  test "PlanRoom cascades through policy chain" do
+    tests "PlanRoom", on: "RoomDesign", kind: :cascade
+    setup  "ScopeProject", name: "sample", space_type: "sample", style_direction: "sample", budget: 1.0
+    setup  "SpecifyMaterial", material_name: "sample", category: "sample", supplier: "sample", unit_cost: 1.0, lead_time_days: 1
+    setup  "ScheduleInstallation", date: "sample", crew_lead: "sample"
+    setup  "CompleteInstallation"
+    input  room_name: "sample", function: "sample", square_footage: 1.0, color_palette: "sample"
+    expect emits: ["RoomPlanned", "FixturesSpecified", "MaterialSpecified", "MaterialOrdered", "InstallationScheduled", "InstallationCompleted", "PunchListResolved"]
+  end
+
+  test "SpecifyFixtures sets fixture_list" do
+    tests "SpecifyFixtures", on: "RoomDesign"
+    setup  "PlanRoom", room_name: "sample", function: "sample", square_footage: 1.0, color_palette: "sample"
+    input  fixture_list: "sample"
+    expect status: "specified"
+  end
+
+  test "SpecifyFixtures cascades through policy chain" do
+    tests "SpecifyFixtures", on: "RoomDesign", kind: :cascade
+    setup  "PlanRoom", room_name: "sample", function: "sample", square_footage: 1.0, color_palette: "sample"
+    setup  "SpecifyMaterial", material_name: "sample", category: "sample", supplier: "sample", unit_cost: 1.0, lead_time_days: 1
+    setup  "ScheduleInstallation", date: "sample", crew_lead: "sample"
+    setup  "ScopeProject", name: "sample", space_type: "sample", style_direction: "sample", budget: 1.0
+    setup  "CompleteInstallation"
+    input  fixture_list: "sample"
+    expect emits: ["FixturesSpecified", "MaterialSpecified", "MaterialOrdered", "InstallationScheduled", "InstallationCompleted", "PunchListResolved"]
+  end
+
+
+  # ── MaterialSelection aggregate ──────────────────────────────────────────
+
+  test "SpecifyMaterial sets material_name + category + supplier + unit_cost + lead_time_days" do
+    tests "SpecifyMaterial", on: "MaterialSelection"
+    setup  "PlanRoom", room_name: "sample", function: "sample", square_footage: 1.0, color_palette: "sample"
+    input  material_name: "sample", category: "sample", supplier: "sample", unit_cost: 1.0, lead_time_days: 1
+    expect ok: "true"
+  end
+
+  test "SpecifyMaterial cascades through policy chain" do
+    tests "SpecifyMaterial", on: "MaterialSelection", kind: :cascade
+    setup  "PlanRoom", room_name: "sample", function: "sample", square_footage: 1.0, color_palette: "sample"
+    setup  "ScheduleInstallation", date: "sample", crew_lead: "sample"
+    setup  "ScopeProject", name: "sample", space_type: "sample", style_direction: "sample", budget: 1.0
+    setup  "CompleteInstallation"
+    input  material_name: "sample", category: "sample", supplier: "sample", unit_cost: 1.0, lead_time_days: 1
+    expect emits: ["MaterialSpecified", "MaterialOrdered", "InstallationScheduled", "InstallationCompleted", "PunchListResolved"]
+  end
+
+  test "OrderMaterial sets quantity" do
+    tests "OrderMaterial", on: "MaterialSelection"
+    setup  "SpecifyMaterial", material_name: "sample", category: "sample", supplier: "sample", unit_cost: 1.0, lead_time_days: 1
+    input  quantity: 1
+    expect ok: "true"
+  end
+
+  test "OrderMaterial cascades through policy chain" do
+    tests "OrderMaterial", on: "MaterialSelection", kind: :cascade
+    setup  "SpecifyMaterial", material_name: "sample", category: "sample", supplier: "sample", unit_cost: 1.0, lead_time_days: 1
+    setup  "ScheduleInstallation", date: "sample", crew_lead: "sample"
+    setup  "ScopeProject", name: "sample", space_type: "sample", style_direction: "sample", budget: 1.0
+    setup  "CompleteInstallation"
+    input  quantity: 1
+    expect emits: ["MaterialOrdered", "InstallationScheduled", "InstallationCompleted", "PunchListResolved"]
+  end
+
+
+  # ── Vendor aggregate ──────────────────────────────────────────
+
+  test "RegisterVendor sets company_name + specialty + contact_name + phone" do
+    tests "RegisterVendor", on: "Vendor"
+    input  company_name: "sample", specialty: "sample", contact_name: "sample", phone: "sample"
+    expect company_name: "sample", specialty: "sample", contact_name: "sample", phone: "sample"
+  end
+
+  test "NegotiateTerms sets discount_percentage" do
+    tests "NegotiateTerms", on: "Vendor"
+    setup  "RegisterVendor", company_name: "sample", specialty: "sample", contact_name: "sample", phone: "sample"
+    input  discount_percentage: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── Installation aggregate ──────────────────────────────────────────
+
+  test "ScheduleInstallation sets date + crew_lead" do
+    tests "ScheduleInstallation", on: "Installation"
+    setup  "ScopeProject", name: "sample", space_type: "sample", style_direction: "sample", budget: 1.0
+    input  date: "sample", crew_lead: "sample"
+    expect status: "scheduled"
+  end
+
+  test "ScheduleInstallation cascades through policy chain" do
+    tests "ScheduleInstallation", on: "Installation", kind: :cascade
+    setup  "ScopeProject", name: "sample", space_type: "sample", style_direction: "sample", budget: 1.0
+    input  date: "sample", crew_lead: "sample"
+    expect emits: ["InstallationScheduled", "InstallationCompleted", "PunchListResolved"]
+  end
+
+  test "CompleteInstallation runs" do
+    tests "CompleteInstallation", on: "Installation"
+    setup  "ScheduleInstallation", date: "sample", crew_lead: "sample"
+    expect status: "completed"
+  end
+
+  test "CompleteInstallation cascades through policy chain" do
+    tests "CompleteInstallation", on: "Installation", kind: :cascade
+    setup  "ScheduleInstallation", date: "sample", crew_lead: "sample"
+    expect emits: ["InstallationCompleted", "PunchListResolved"]
+  end
+
+  test "ResolvePunchList sets punch_list" do
+    tests "ResolvePunchList", on: "Installation"
+    setup  "ScheduleInstallation", date: "sample", crew_lead: "sample"
+    setup  "CompleteInstallation"
+    input  punch_list: "sample"
+    expect status: "resolved"
+  end
+
+end

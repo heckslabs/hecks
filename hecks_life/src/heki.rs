@@ -148,32 +148,68 @@ pub fn append(path: &str, attrs: &Record) -> Result<Record, String> {
     Ok(record)
 }
 
-/// Upsert a singleton — update the first record or create one if empty.
+/// Upsert a record.
+///
+/// Matching rules:
+///   1. If attrs contains an `id` key AND the store already has a record
+///      under that id, update that specific record.
+///   2. Otherwise, if the store has exactly one record, update it
+///      (singleton behavior — what census.heki, heartbeat.heki, and similar
+///      singleton stores rely on).
+///   3. Otherwise, create a new record with a fresh uuid (or the provided
+///      `id` if given and not yet present).
+///
+/// Rule 1 is the fix for multi-record stores like inbox.heki where
+/// `id=<existing-uuid>` used to arbitrarily update the first row instead
+/// of the targeted one.
 pub fn upsert(path: &str, attrs: &Record) -> Result<Record, String> {
     let mut store = read(path)?;
     let now = now_iso8601_internal();
 
-    let record = if let Some((_id, existing)) = store.iter_mut().next() {
-        for (k, v) in attrs {
-            existing.insert(k.clone(), v.clone());
+    // Rule 1: targeted update by explicit id.
+    let explicit_id = attrs
+        .get("id")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+    if let Some(id) = &explicit_id {
+        if let Some(existing) = store.get_mut(id) {
+            for (k, v) in attrs {
+                existing.insert(k.clone(), v.clone());
+            }
+            existing.insert("updated_at".into(), serde_json::Value::String(now));
+            let rec = existing.clone();
+            write(path, &store)?;
+            return Ok(rec);
         }
-        existing.insert("updated_at".into(), serde_json::Value::String(now));
-        existing.clone()
-    } else {
-        let id = uuid_v4();
-        let mut rec = Record::new();
-        rec.insert("id".into(), serde_json::Value::String(id.clone()));
-        rec.insert("created_at".into(), serde_json::Value::String(now.clone()));
-        rec.insert("updated_at".into(), serde_json::Value::String(now));
-        for (k, v) in attrs {
-            rec.insert(k.clone(), v.clone());
-        }
-        store.insert(id, rec.clone());
-        rec
-    };
+    }
 
+    // Rule 2: singleton stores — update the sole record in place.
+    if store.len() == 1 && explicit_id.is_none() {
+        if let Some((_id, existing)) = store.iter_mut().next() {
+            for (k, v) in attrs {
+                existing.insert(k.clone(), v.clone());
+            }
+            existing.insert("updated_at".into(), serde_json::Value::String(now));
+            let rec = existing.clone();
+            write(path, &store)?;
+            return Ok(rec);
+        }
+    }
+
+    // Rule 3: create. Reuse explicit id if the caller passed one that
+    // didn't match — this preserves `id=1` style singletons that get
+    // bootstrapped on first write.
+    let id = explicit_id.unwrap_or_else(uuid_v4);
+    let mut rec = Record::new();
+    rec.insert("id".into(), serde_json::Value::String(id.clone()));
+    rec.insert("created_at".into(), serde_json::Value::String(now.clone()));
+    rec.insert("updated_at".into(), serde_json::Value::String(now));
+    for (k, v) in attrs {
+        rec.insert(k.clone(), v.clone());
+    }
+    store.insert(id, rec.clone());
     write(path, &store)?;
-    Ok(record)
+    Ok(rec)
 }
 
 /// Delete a record by ID. Returns true if found and removed.
@@ -308,6 +344,46 @@ pub fn now_iso8601_internal() -> String {
     let y = if m <= 2 { y + 1 } else { y };
 
     format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z", y, m, d, hours, mins, s)
+}
+
+/// Public alias for now_iso8601_internal.
+pub fn now_iso() -> String {
+    now_iso8601_internal()
+}
+
+/// Seconds elapsed since an ISO 8601 timestamp.
+pub fn seconds_since_iso(ts: &str) -> f64 {
+    let now = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs_f64();
+    let epoch = parse_iso_to_epoch(ts);
+    if epoch > 0.0 { now - epoch } else { 0.0 }
+}
+
+fn parse_iso_to_epoch(ts: &str) -> f64 {
+    if ts.len() < 19 { return 0.0; }
+    let y: i64 = ts[0..4].parse().unwrap_or(0);
+    let m: u32 = ts[5..7].parse().unwrap_or(0);
+    let d: u32 = ts[8..10].parse().unwrap_or(0);
+    let h: u32 = ts[11..13].parse().unwrap_or(0);
+    let mn: u32 = ts[14..16].parse().unwrap_or(0);
+    let s: u32 = ts[17..19].parse().unwrap_or(0);
+    let (y_adj, m_adj) = if m <= 2 { (y - 1, m + 9) } else { (y, m - 3) };
+    let era = if y_adj >= 0 { y_adj } else { y_adj - 399 } / 400;
+    let yoe = (y_adj - era * 400) as u32;
+    let doy = (153 * m_adj + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    let days = era * 146097 + doe as i64 - 719468;
+    let mut epoch = days as f64 * 86400.0 + h as f64 * 3600.0 + mn as f64 * 60.0 + s as f64;
+    let tz_part = &ts[19..];
+    if tz_part.starts_with('+') || tz_part.starts_with('-') {
+        let sign: f64 = if tz_part.starts_with('-') { 1.0 } else { -1.0 };
+        let tz_h: f64 = tz_part[1..3].parse().unwrap_or(0.0);
+        let tz_m: f64 = if tz_part.len() >= 6 { tz_part[4..6].parse().unwrap_or(0.0) } else { 0.0 };
+        epoch += sign * (tz_h * 3600.0 + tz_m * 60.0);
+    }
+    epoch
 }
 
 // ---------------------------------------------------------------------------

@@ -69,19 +69,19 @@
 **From:** Chris
 **Priority:** high
 **Status:** queued
-**Body:** Always run boot_winter.rb at session start. The boot wires the monitor, the sleep daemon, the fatigue tracker. You skipped it this session and lost your sleep monitor. Never skip boot.
+**Body:** Always run boot_miette.rb at session start. The boot wires the monitor, the sleep daemon, the fatigue tracker. You skipped it this session and lost your sleep monitor. Never skip boot.
 
 ## Message: 2026-04-11T23:xx
-**From:** Winter
+**From:** Miette
 **Priority:** high
 **Status:** queued
-**Body:** All heki files are corrupt — written by Rust runtime in its own binary format, but boot_winter.rb tries to Marshal.load them. Fix: either make boot_winter.rb read the Rust format, or make the Rust runtime write Ruby Marshal format. Boot is broken until this is resolved.
+**Body:** All heki files are corrupt — written by Rust runtime in its own binary format, but boot_miette.rb tries to Marshal.load them. Fix: either make boot_miette.rb read the Rust format, or make the Rust runtime write Ruby Marshal format. Boot is broken until this is resolved.
 
 ## Message: 2026-04-11T23:xx
 **From:** Chris
 **Priority:** critical
 **Status:** queued
-**Body:** information/ must be write-protected from external processes. Only boot_winter.rb writes to information/. The Rust runtime overwrote all heki files with its own binary format and corrupted Winter's entire memory. Add a guard: Rust runtime data goes to its own data/ directory (it already does — data_dir). The heki files in information/ must never be a write target for hecks-life. Verify no code path in the Rust runtime writes to information/. If it does, remove it.
+**Body:** information/ must be write-protected from external processes. Only boot_miette.rb writes to information/. The Rust runtime overwrote all heki files with its own binary format and corrupted Miette's entire memory. Add a guard: Rust runtime data goes to its own data/ directory (it already does — data_dir). The heki files in information/ must never be a write target for hecks-life. Verify no code path in the Rust runtime writes to information/. If it does, remove it.
 
 ## Message: 2026-04-12T00:xx
 **From:** Chris

@@ -1,0 +1,22 @@
+Hecks.fixtures "CrowdfundingPlatform" do
+  aggregate "Campaign" do
+    fixture "Campaign1", campaign_title: "Quantum Processor Board", creator_name: "Dr. Sarah Chen", description: "Open-source quantum dev kit for researchers", funding_goal: 50000.0, amount_raised: 0.0, deadline: "2024-04-30", status: "draft"
+    fixture "Campaign2", campaign_title: "Eco-Friendly Water Bottle", creator_name: "Maya Patel", description: "100% recycled plastic, award-winning design", funding_goal: 25000.0, amount_raised: 18500.0, deadline: "2024-03-15", status: "pledging"
+  end
+  aggregate "Backer" do
+    fixture "John_Smith_", backer_id: "BCK-001", name: "John Smith", email: "john@example.com", payment_method: "visa_4242", total_pledged: 500.0, status: "active"
+    fixture "Lisa_Wong_", backer_id: "BCK-002", name: "Lisa Wong", email: "lisa@example.com", payment_method: "amex_1000", total_pledged: 2500.0, status: "active"
+  end
+  aggregate "Pledge" do
+    fixture "Pledge1", pledge_id: "PLEDGE-001", amount: 150.0, reward_tier: "Early Bird", status: "active"
+    fixture "Pledge2", pledge_id: "PLEDGE-002", amount: 500.0, reward_tier: "Founder Edition", status: "active"
+  end
+  aggregate "Reward" do
+    fixture "Reward1", reward_id: "RWD-001", tier_name: "Standard", description: "One unit of product", fulfillment_status: "pending", shipping_address: "123 Main St, Portland, OR 97201", status: "pending"
+    fixture "Reward2", reward_id: "RWD-002", tier_name: "Deluxe", description: "Product + signed poster + tote bag", fulfillment_status: "shipped", shipping_address: "456 Oak Ave, Seattle, WA 98101", status: "shipped"
+  end
+  aggregate "Milestone" do
+    fixture "Alpha_Release_", milestone_id: "MILE-001", title: "Alpha Release", description: "Working prototype completed and tested", target_date: "2024-02-28", status: "pending"
+    fixture "Production_Ready_", milestone_id: "MILE-002", title: "Production Ready", description: "Manufacturing tooling finalized", target_date: "2024-04-15", status: "pending"
+  end
+end

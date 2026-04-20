@@ -49,7 +49,7 @@ Hecks.bluebook "DisasterAutonomy", version: "2026.04.13.1" do
 
   aggregate "SearchFleet", "Autonomous drone fleet for search and rescue — deploys to impact zones" do
     String :fleet_id
-    reference_to(DisasterEvent) :event
+    reference_to(DisasterEvent, as: :event)
     Integer :drone_count
     String :deployment_zone
     String :status
@@ -64,12 +64,11 @@ Hecks.bluebook "DisasterAutonomy", version: "2026.04.13.1" do
       role "System"
       description "Deploy autonomous search drone fleet to disaster zone"
       String :fleet_id
-      reference_to(DisasterEvent) :event
+      reference_to(DisasterEvent, as: :event)
       Integer :drone_count
       String :deployment_zone
       emits "FleetDeployed"
       then_set :fleet_id, to: :fleet_id
-      then_set :event, to: :event
       then_set :drone_count, to: :drone_count
       then_set :deployment_zone, to: :deployment_zone
       then_set :status, to: "deployed"
@@ -95,7 +94,7 @@ Hecks.bluebook "DisasterAutonomy", version: "2026.04.13.1" do
 
   aggregate "SupplyDrop", "Autonomous supply delivery — drones or ground robots deliver to survivors" do
     String :drop_id
-    reference_to(DisasterEvent) :event
+    reference_to(DisasterEvent, as: :event)
     String :supply_type
     String :target_location
     String :delivery_method
@@ -110,13 +109,12 @@ Hecks.bluebook "DisasterAutonomy", version: "2026.04.13.1" do
       role "System"
       description "Plan supply delivery to detected survivor location"
       String :drop_id
-      reference_to(DisasterEvent) :event
+      reference_to(DisasterEvent, as: :event)
       String :supply_type
       String :target_location
       String :delivery_method
       emits "DropPlanned"
       then_set :drop_id, to: :drop_id
-      then_set :event, to: :event
       then_set :supply_type, to: :supply_type
       then_set :target_location, to: :target_location
       then_set :delivery_method, to: :delivery_method
@@ -136,7 +134,7 @@ Hecks.bluebook "DisasterAutonomy", version: "2026.04.13.1" do
 
   aggregate "GridResponse", "Power grid autonomous response — isolates damage, reroutes power, prioritizes hospitals" do
     String :response_id
-    reference_to(DisasterEvent) :event
+    reference_to(DisasterEvent, as: :event)
     String :grid_sector
     Integer :affected_substations
     String :status
@@ -151,12 +149,11 @@ Hecks.bluebook "DisasterAutonomy", version: "2026.04.13.1" do
       role "System"
       description "Activate autonomous grid damage isolation and rerouting"
       String :response_id
-      reference_to(DisasterEvent) :event
+      reference_to(DisasterEvent, as: :event)
       String :grid_sector
       Integer :affected_substations
       emits "GridResponseActivated"
       then_set :response_id, to: :response_id
-      then_set :event, to: :event
       then_set :grid_sector, to: :grid_sector
       then_set :affected_substations, to: :affected_substations
       then_set :status, to: "active"
@@ -182,7 +179,7 @@ Hecks.bluebook "DisasterAutonomy", version: "2026.04.13.1" do
 
   aggregate "AirspaceControl", "Disaster airspace management — clear civilian traffic, authorize rescue drones" do
     String :control_id
-    reference_to(DisasterEvent) :event
+    reference_to(DisasterEvent, as: :event)
     String :restricted_zone
     String :status
     list_of(Authorization) :authorizations
@@ -196,11 +193,10 @@ Hecks.bluebook "DisasterAutonomy", version: "2026.04.13.1" do
       role "AirTrafficController"
       description "Restrict airspace over disaster zone for rescue operations only"
       String :control_id
-      reference_to(DisasterEvent) :event
+      reference_to(DisasterEvent, as: :event)
       String :restricted_zone
       emits "AirspaceRestricted"
       then_set :control_id, to: :control_id
-      then_set :event, to: :event
       then_set :restricted_zone, to: :restricted_zone
       then_set :status, to: "restricted"
     end
@@ -225,7 +221,7 @@ Hecks.bluebook "DisasterAutonomy", version: "2026.04.13.1" do
 
   aggregate "SurvivorRegistry", "Registry of located survivors — tracks rescue status, medical needs, reunification" do
     String :registry_id
-    reference_to(DisasterEvent) :event
+    reference_to(DisasterEvent, as: :event)
     Integer :total_found
     String :status
     list_of(SurvivorRecord) :survivors
@@ -239,10 +235,9 @@ Hecks.bluebook "DisasterAutonomy", version: "2026.04.13.1" do
       role "System"
       description "Open survivor registry for the disaster event"
       String :registry_id
-      reference_to(DisasterEvent) :event
+      reference_to(DisasterEvent, as: :event)
       emits "RegistryOpened"
       then_set :registry_id, to: :registry_id
-      then_set :event, to: :event
       then_set :total_found, to: 0
       then_set :status, to: "active"
     end
@@ -299,21 +294,4 @@ Hecks.bluebook "DisasterAutonomy", version: "2026.04.13.1" do
 
   # === Fixtures ===
 
-  fixture "DisasterEvent", event_id: "disaster-2026-0415-01", disaster_type: "earthquake", affected_region: "San Francisco Bay Area", severity: "critical", estimated_affected: 250000, status: "active"
-  fixture "DisasterEvent", event_id: "disaster-2026-0416-02", disaster_type: "hurricane", affected_region: "Miami-Dade County", severity: "severe", estimated_affected: 180000, status: "active"
-
-  fixture "SearchFleet", fleet_id: "fleet-srch-001", event: "disaster-2026-0415-01", drone_count: 12, deployment_zone: "Marina District", status: "deployed"
-  fixture "SearchFleet", fleet_id: "fleet-srch-002", event: "disaster-2026-0416-02", drone_count: 18, deployment_zone: "Biscayne Bay", status: "deployed"
-
-  fixture "SupplyDrop", drop_id: "drop-001", event: "disaster-2026-0415-01", supply_type: "medical", target_location: "40.776,-73.971", delivery_method: "drone", status: "delivered"
-  fixture "SupplyDrop", drop_id: "drop-002", event: "disaster-2026-0415-01", supply_type: "water", target_location: "40.782,-73.965", delivery_method: "ground_robot", status: "planned"
-
-  fixture "GridResponse", response_id: "grid-resp-001", event: "disaster-2026-0415-01", grid_sector: "SF-North-01", affected_substations: 4, status: "active"
-  fixture "GridResponse", response_id: "grid-resp-002", event: "disaster-2026-0416-02", grid_sector: "Miami-Central-02", affected_substations: 6, status: "restored"
-
-  fixture "AirspaceControl", control_id: "airspace-001", event: "disaster-2026-0415-01", restricted_zone: "40.776,-73.971,5km", status: "restricted"
-  fixture "AirspaceControl", control_id: "airspace-002", event: "disaster-2026-0416-02", restricted_zone: "25.761,-80.193,8km", status: "open"
-
-  fixture "SurvivorRegistry", registry_id: "registry-2026-0415-01", event: "disaster-2026-0415-01", total_found: 847, status: "active"
-  fixture "SurvivorRegistry", registry_id: "registry-2026-0416-02", event: "disaster-2026-0416-02", total_found: 612, status: "active"
 end

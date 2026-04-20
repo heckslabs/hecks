@@ -1,0 +1,22 @@
+Hecks.fixtures "Cryptography" do
+  aggregate "KeyPair" do
+    fixture "KeyPair1", key_id: "rsa-2048-prod-01", algorithm: "RSA", key_length_bits: 2048, created_date: "2026-04-14", expiry_date: "2028-04-14", owner: "backend-service"
+    fixture "KeyPair2", key_id: "ecdsa-p256-payment", algorithm: "ECDSA", key_length_bits: 256, created_date: "2026-03-01", expiry_date: "2027-03-01", owner: "payment-gateway"
+  end
+  aggregate "Cipher" do
+    fixture "Cipher1", cipher_name: "AES-256-GCM", cipher_type: "symmetric", block_size_bits: 128, mode_of_operation: "GCM"
+    fixture "Cipher2", cipher_name: "ChaCha20-Poly1305", cipher_type: "symmetric", block_size_bits: 512, mode_of_operation: "AEAD"
+  end
+  aggregate "EncryptedMessage" do
+    fixture "EncryptedMessage1", message_id: "msg-2026-0414-001", ciphertext: "0x4a3f8c2b9e1d7f5a", encrypted_at: "2026-04-14T10:30:00Z", key_pair_id: "rsa-2048-prod-01", cipher_id: "AES-256-GCM"
+    fixture "EncryptedMessage2", message_id: "msg-2026-0414-002", ciphertext: "0x9e2c7f1a3b5d8c4e", encrypted_at: "2026-04-14T11:45:00Z", key_pair_id: "ecdsa-p256-payment", cipher_id: "ChaCha20-Poly1305"
+  end
+  aggregate "DigitalSignature" do
+    fixture "DigitalSignature1", signature_id: "sig-2026-0414-001", signature_value: "0x3f8a1c2e9b4d7f5a", signed_at: "2026-04-14T09:15:00Z", hash_algorithm: "SHA-256", key_pair_id: "rsa-2048-prod-01"
+    fixture "DigitalSignature2", signature_id: "sig-2026-0414-002", signature_value: "0x7e2b1f4a9c5d3e8b", signed_at: "2026-04-14T14:20:00Z", hash_algorithm: "SHA-512", key_pair_id: "ecdsa-p256-payment"
+  end
+  aggregate "Certificate" do
+    fixture "Certificate1", serial_number: "2026041401000001", subject: "CN=backend-service.example.com,O=Acme Corp,C=US", issuer: "CN=Acme CA,O=Acme Corp,C=US", valid_from: "2026-04-14", valid_to: "2027-04-14", key_pair_id: "rsa-2048-prod-01"
+    fixture "Certificate2", serial_number: "2026041401000002", subject: "CN=payment-gateway.example.com,O=Acme Corp,C=US", issuer: "CN=Acme CA,O=Acme Corp,C=US", valid_from: "2026-03-01", valid_to: "2027-03-01", key_pair_id: "ecdsa-p256-payment"
+  end
+end

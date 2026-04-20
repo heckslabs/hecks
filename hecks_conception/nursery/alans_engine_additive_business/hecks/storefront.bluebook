@@ -82,7 +82,7 @@ Hecks.bluebook "Storefront", version: "2026.04.11.1" do
       String :astm_method
     end
 
-    CreateListing do
+    DraftListing do
       role "ProductManager"
       description "Create a product listing from catalog data"
       String :sku
@@ -123,12 +123,12 @@ Hecks.bluebook "Storefront", version: "2026.04.11.1" do
       then_set :featured, to: :featured
     end
 
-    UpdateStock do
+    AdjustStock do
       role "System"
       description "Update stock availability from inventory domain"
       reference_to(ProductListing)
       String :in_stock
-      emits "StockUpdated"
+      emits "StockAdjusted"
       then_set :in_stock, to: :in_stock
     end
 
@@ -149,7 +149,7 @@ Hecks.bluebook "Storefront", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "draft" do
-      transition "CreateListing" => "draft"
+      transition "DraftListing" => "draft"
       transition "PublishListing" => "published", from: "draft"
       transition "UnpublishListing" => "unpublished", from: "published"
       transition "PublishListing" => "published", from: "unpublished"
@@ -189,13 +189,13 @@ Hecks.bluebook "Storefront", version: "2026.04.11.1" do
       emits "ItemRemovedFromCart"
     end
 
-    UpdateQuantity do
+    AdjustQuantity do
       role "Customer"
       description "Change the quantity of a cart item"
       reference_to(ShoppingCart)
       String :sku
       Integer :quantity
-      emits "QuantityUpdated"
+      emits "QuantityAdjusted"
     end
 
     CalculateSubtotal do
@@ -317,7 +317,7 @@ Hecks.bluebook "Storefront", version: "2026.04.11.1" do
     String :persona_segment
     Float :lifetime_value
 
-    CreateAccount do
+    RegisterAccount do
       role "Customer"
       description "Register a customer account on the storefront"
       String :email
@@ -432,12 +432,12 @@ Hecks.bluebook "Storefront", version: "2026.04.11.1" do
       emits "LabDataLinked"
     end
 
-    CreateComparisonChart do
+    PublishComparisonChart do
       role "ProductManager"
       description "Create a comparison chart showing Alan's products vs competitors with real data"
       reference_to(ScienceContent)
       String :comparison_to_competitor
-      emits "ComparisonChartCreated"
+      emits "ComparisonChartPublished"
       then_set :comparison_to_competitor, to: :comparison_to_competitor
     end
 
@@ -496,46 +496,20 @@ Hecks.bluebook "Storefront", version: "2026.04.11.1" do
   end
 
   # Storefront sites
-  fixture "StorefrontSite", brand: "DuraLube", domain_name: "duralube.com", tagline: "Proven Protection, ASTM Verified", theme: "industrial-blue", active: "true"
-  fixture "StorefrontSite", brand: "MotorKote", domain_name: "motorkote.com", tagline: "Science That Performs", theme: "tech-green", active: "true"
-  fixture "StorefrontSite", brand: "Slick 50", domain_name: "slick50.com", tagline: "The Original Engine Treatment", theme: "classic-red", active: "true"
 
   # Product listings — all lifecycle states
-  fixture "ProductListing", sku: "DL-ET-32OZ", name: "DuraLube Advanced Engine Treatment 32oz", brand: "DuraLube", description: "Advanced anti-wear engine treatment with ASTM-verified 40% wear reduction", price: 14.99, in_stock: "true", featured: "true", status: "published"
-  fixture "ProductListing", sku: "DL-ET-16OZ", name: "DuraLube Advanced Engine Treatment 16oz", brand: "DuraLube", description: "Same advanced formula in a convenient 16oz size", price: 9.99, in_stock: "true", featured: "false", status: "published"
-  fixture "ProductListing", sku: "MK-HL-16OZ", name: "MotorKote Hyper Lubricant 16oz", brand: "MotorKote", description: "Anti-friction metal treatment for engines, transmissions, and differentials", price: 19.99, in_stock: "true", featured: "true", status: "published"
-  fixture "ProductListing", sku: "S50-RE-32OZ", name: "Slick 50 Recharged Engine Treatment 32oz", brand: "Slick 50", description: "Next-gen engine treatment with modern anti-wear chemistry", price: 17.99, in_stock: "true", featured: "false", status: "published"
-  fixture "ProductListing", sku: "DL-DD-32OZ", name: "DuraLube Diesel Defense 32oz", brand: "DuraLube", description: "Diesel-specific additive treatment for heavy-duty engines", price: 22.99, in_stock: "false", featured: "false", status: "draft"
-  fixture "ProductListing", sku: "MK-MG-16OZ", name: "MotorKote Marine Guard 16oz", brand: "MotorKote", description: "Marine engine protection for saltwater and freshwater applications", price: 29.99, in_stock: "false", featured: "false", status: "draft"
-  fixture "ProductListing", sku: "S50-RE-16OZ", name: "Slick 50 Recharged Engine Treatment 16oz", brand: "Slick 50", description: "Compact size for single-vehicle treatment", price: 11.99, in_stock: "false", featured: "false", status: "unpublished"
 
   # Customer accounts
-  fixture "CustomerAccount", email: "john.smith@example.com", name: "John Smith", vehicle_type: "truck", persona_segment: "weekend_warrior", lifetime_value: 149.92
-  fixture "CustomerAccount", email: "sarah.chen@example.com", name: "Sarah Chen", vehicle_type: "sedan", persona_segment: "daily_driver", lifetime_value: 44.97
-  fixture "CustomerAccount", email: "fleet@fleetservices.com", name: "Fleet Services Inc", vehicle_type: "mixed_fleet", persona_segment: "commercial_fleet", lifetime_value: 8994.00
-  fixture "CustomerAccount", email: "bob@bobsauto.com", name: "Bob's Auto Shop", vehicle_type: "mixed", persona_segment: "professional_mechanic", lifetime_value: 2699.40
 
   # Orders — all lifecycle states
-  fixture "Order", order_number: "ORD-2026-001", customer_name: "John Smith", customer_email: "john.smith@example.com", shipping_address: "123 Main St, Austin TX", subtotal: 39.98, tax: 3.30, shipping: 5.99, total: 49.27, status: "placed"
-  fixture "Order", order_number: "ORD-2026-002", customer_name: "Sarah Chen", customer_email: "sarah.chen@example.com", shipping_address: "456 Oak Ave, Portland OR", subtotal: 44.97, tax: 0.0, shipping: 0.0, total: 44.97, status: "confirmed"
-  fixture "Order", order_number: "ORD-2026-003", customer_name: "Fleet Services Inc", customer_email: "fleet@fleetservices.com", shipping_address: "789 Industrial Blvd, Houston TX", subtotal: 4200.00, tax: 346.50, shipping: 0.0, total: 4546.50, status: "fulfilling"
-  fixture "Order", order_number: "ORD-2026-004", customer_name: "Bob's Auto Shop", customer_email: "bob@bobsauto.com", shipping_address: "321 Mechanic Lane, Denver CO", subtotal: 899.80, tax: 62.99, shipping: 12.99, total: 975.78, status: "shipped"
-  fixture "Order", order_number: "ORD-2026-005", customer_name: "John Smith", customer_email: "john.smith@example.com", shipping_address: "123 Main St, Austin TX", subtotal: 19.99, tax: 1.65, shipping: 5.99, total: 27.63, status: "delivered"
-  fixture "Order", order_number: "ORD-2026-006", customer_name: "Tom Davis", customer_email: "tom.davis@example.com", shipping_address: "555 Elm St, Seattle WA", subtotal: 17.99, tax: 1.80, shipping: 5.99, total: 25.78, status: "returned"
 
   # Reviews
-  fixture "ReviewIntegration", product_sku: "DL-ET-32OZ", average_rating: 4.3, review_count: 847
-  fixture "ReviewIntegration", product_sku: "MK-HL-16OZ", average_rating: 4.6, review_count: 312
-  fixture "ReviewIntegration", product_sku: "S50-RE-32OZ", average_rating: 4.1, review_count: 1243
 
   # Science content
-  fixture "ScienceContent", product_sku: "DL-ET-32OZ", tribology_summary: "Reduces four-ball wear scar diameter by 40% (ASTM D4172, 75C, 40kg load, 1200rpm). Boundary lubrication regime enhanced by anti-wear additive package.", how_it_works: "Advanced anti-wear additives form a protective tribofilm on metal surfaces under boundary and mixed lubrication conditions, reducing metal-to-metal contact.", comparison_to_competitor: "Lucas Oil Stabilizer: general viscosity thickener. DuraLube: targeted anti-wear chemistry with ASTM-verified results."
-  fixture "ScienceContent", product_sku: "MK-HL-16OZ", tribology_summary: "Metal-to-metal friction coefficient reduced from 0.12 to 0.07 (ASTM D5183). Extreme pressure performance exceeds MIL-PRF-46010 requirements.", how_it_works: "Proprietary metal treatment bonds to ferrous surfaces creating a low-friction boundary layer that withstands extreme pressure conditions."
-  fixture "ScienceContent", product_sku: "S50-RE-32OZ", tribology_summary: "Wear protection at 150C exceeds baseline by 35% (ASTM D4172). PTFE-free reformulation with modern anti-wear chemistry.", how_it_works: "Next-generation anti-wear additives replace legacy PTFE technology with chemically-bonded tribofilm protection."
 
   policy "StockOnOrder" do
     on "OrderPlaced"
-    trigger "UpdateStock"
+    trigger "AdjustStock"
     across "inventory"
   end
 
@@ -563,7 +537,7 @@ Hecks.bluebook "Storefront", version: "2026.04.11.1" do
   policy "PriceOnListing" do
     on "PriceListSet"
     across "pricing"
-    trigger "UpdateStock"
+    trigger "AdjustStock"
     description "Show MAP-compliant prices per channel on every product listing"
   end
 
@@ -598,7 +572,7 @@ Hecks.bluebook "Storefront", version: "2026.04.11.1" do
   policy "PipelinePreview" do
     on "PreviewGenerated"
     across "formulation_lab"
-    trigger "CreateListing"
+    trigger "DraftListing"
     description "Tease upcoming products from the formulation lab pipeline"
   end
 end

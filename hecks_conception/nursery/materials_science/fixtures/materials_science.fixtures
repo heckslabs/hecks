@@ -1,0 +1,21 @@
+Hecks.fixtures "MaterialsScience" do
+  aggregate "Material" do
+    fixture "Steel_", name: "Steel", material_class: "metal", density: 7.85, hardness: 80.0, microstructure: "pearlite_ferrite"
+    fixture "Aluminum_", name: "Aluminum", material_class: "metal", density: 2.70, hardness: 15.0, microstructure: "fcc_grains"
+  end
+  aggregate "Semiconductor" do
+    fixture "Silicon_", name: "Silicon", base_material: "Si", band_gap: 1.12, dopant: "none", dopant_concentration: 0.0, conductivity_type: "intrinsic", status: "intrinsic"
+  end
+  aggregate "Crystal" do
+    fixture "Diamond_", name: "Diamond", crystal_system: "cubic", space_group: "Fd-3m", symmetry_class: "octahedral", defect_type: "none", defect_density: 0.0, status: "crystallized"
+  end
+  aggregate "Nanomaterial" do
+    fixture "Graphene_", name: "Graphene", nanomaterial_type: "2d_sheet", particle_size: 0.335, surface_area: 2630.0, quantum_effect: "ballistic_transport", functionalization: "none"
+  end
+  aggregate "Composite" do
+    fixture "Kevlar_", name: "Kevlar", matrix_material: "epoxy", reinforcement: "aramid_fiber", fiber_volume_fraction: 0.60, strength: 3620.0, delamination_risk: "low", status: "cured"
+  end
+  aggregate "Ceramic" do
+    fixture "Glass_", name: "Glass", ceramic_type: "amorphous_silicate", fracture_toughness: 0.7, thermal_conductivity: 1.0, porosity: 0.0, glaze: "none", status: "fired"
+  end
+end

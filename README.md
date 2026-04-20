@@ -376,6 +376,59 @@ Eight contracts guarantee Ruby and Go generate identical behavior:
 
 No inline code generation. Every display convention is a named method on a contract.
 
+## Parity Suite
+
+Two parsers read the same `.bluebook` source: the Ruby DSL (`lib/hecks/dsl/`) and the Rust `hecks-life` runtime. A parity suite (`spec/parity/`) holds both to the same canonical IR shape.
+
+```
+ruby -Ilib spec/parity/parity_test.rb
+# 215/215 match
+```
+
+The suite runs every fixture in `spec/parity/bluebooks/` and every real bluebook in `hecks_conception/` through both parsers, converts each output to the canonical shape declared in `hecks_life/src/dump.rs` and `spec/parity/canonical_ir.rb`, and diffs. Known semantic gaps live in `spec/parity/known_drift.txt` — they don't block.
+
+After cloning, install the git hooks so drift can't land:
+
+```
+bin/install-hooks
+```
+
+The pre-commit gate runs in ~1 second and blocks only on **unexpected** drift.
+
+## Behavioral Tests
+
+Every bluebook gets behavioral tests for free. The conceiver walks the source IR and emits a `_behavioral_tests.bluebook` companion; the runner executes each test in pure memory (`Runtime::boot`, no `data_dir`, no hecksagon).
+
+```bash
+hecks-life conceive-behaviors path/to/source.bluebook   # generate
+hecks-life behaviors          path/to/source_behavioral_tests.bluebook  # run
+```
+
+The test DSL is itself a bluebook — sibling to `Hecks.bluebook`, parity-locked the same way:
+
+```ruby
+Hecks.behaviors "Pizzas" do
+  test "AddTopping appends to toppings" do
+    setup  "CreatePizza", name: "Margherita", description: "Classic"
+    tests  "AddTopping", on: "Pizza"
+    input  name: "basil", amount: 5
+    expect toppings_size: 1
+  end
+end
+```
+
+No IDs in the test source — references resolve from in-scope. The cascade-aware planner follows policy chains (emit → trigger) so tests assert on the final cascaded state.
+
+Three validators stack on the parity contract:
+
+```bash
+hecks-life check-lifecycle <bluebook>     # unreachable transitions, givens, mutation refs
+hecks-life check-io        <bluebook>     # bluebook stays in-memory
+hecks-life check-all       <bluebook>     # both at once
+```
+
+The lifecycle validator catches transitions whose `from:` is unreachable, givens that no command can satisfy, mutation references to undefined symbols, and Clock anti-patterns (`then_set :ts, to: :now` — domain shouldn't grab time, inject it). The IO validator confirms every command in the bluebook runs in pure memory without reaching into infrastructure. See `docs/usage/behavioral_tests.md` for the full pipeline.
+
 ## Why Not Just AI?
 
 AI is good at writing code. It's bad at maintaining constraints across a codebase over time.

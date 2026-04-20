@@ -1,0 +1,150 @@
+Hecks.behaviors "Heki" do
+  vision "Behavioral tests for the Heki domain — exercises every command and query in memory"
+
+  # ── Store aggregate ──────────────────────────────────────────
+
+  test "OpenStore sets name + path" do
+    tests "OpenStore", on: "Store"
+    input  name: "sample", path: "sample"
+    expect name: "sample", path: "sample", record_count: 0, version: 2, status: "empty"
+  end
+
+  test "AppendRecord sets attrs" do
+    tests "AppendRecord", on: "Store"
+    setup  "OpenStore", name: "sample", path: "sample"
+    input  attrs: "sample"
+    expect status: "active"
+  end
+
+  test "UpsertSingleton sets attrs" do
+    tests "UpsertSingleton", on: "Store"
+    setup  "OpenStore", name: "sample", path: "sample"
+    input  attrs: "sample"
+    expect status: "active"
+  end
+
+
+  # ── Record aggregate ──────────────────────────────────────────
+
+  test "WriteRecord cascades through policy chain" do
+    tests "WriteRecord", on: "Record", kind: :cascade
+    setup  "Compress", records: "sample"
+    setup  "ComputeChecksum", store_name: "sample", payload: "sample"
+    input  store_name: "sample", payload: "sample"
+    expect emits: ["RecordWritten", "Compressed", "ChecksumComputed", "AtomicWriteCompleted"]
+  end
+
+  test "ReadRecord sets store_name" do
+    tests "ReadRecord", on: "Record"
+    setup  "WriteRecord", store_name: "sample", payload: "sample"
+    input  store_name: "sample"
+    expect ok: "true"
+  end
+
+  test "ForgetRecord runs" do
+    tests "ForgetRecord", on: "Record"
+    setup  "WriteRecord", store_name: "sample", payload: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Schema aggregate ──────────────────────────────────────────
+
+  test "DefineSchema sets store_name + required_fields" do
+    tests "DefineSchema", on: "Schema"
+    input  store_name: "sample", fields: "sample_fielddef", required_fields: "sample"
+    expect store_name: "sample", fields: "sample_fielddef", required_fields: "sample"
+  end
+
+  test "ValidateRecord sets record" do
+    tests "ValidateRecord", on: "Schema"
+    setup  "DefineSchema", store_name: "sample", fields: "sample_fielddef", required_fields: "sample"
+    input  record: "sample"
+    expect ok: "true"
+  end
+
+  test "RejectRecord sets reason" do
+    tests "RejectRecord", on: "Schema"
+    setup  "DefineSchema", store_name: "sample", fields: "sample_fielddef", required_fields: "sample"
+    input  reason: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Integrity aggregate ──────────────────────────────────────────
+
+  test "ComputeChecksum sets store_name + payload" do
+    tests "ComputeChecksum", on: "Integrity"
+    input  store_name: "sample", payload: "sample"
+    expect store_name: "sample", algorithm: "crc32"
+  end
+
+  test "ComputeChecksum cascades through policy chain" do
+    tests "ComputeChecksum", on: "Integrity", kind: :cascade
+    setup  "Compress", records: "sample"
+    input  store_name: "sample", payload: "sample"
+    expect emits: ["ChecksumComputed", "AtomicWriteCompleted"]
+  end
+
+  test "VerifyChecksum runs" do
+    tests "VerifyChecksum", on: "Integrity"
+    setup  "ComputeChecksum", store_name: "sample", payload: "sample"
+    expect verified: "true"
+  end
+
+  test "VerifyChecksum cascades through policy chain" do
+    tests "VerifyChecksum", on: "Integrity", kind: :cascade
+    setup  "ComputeChecksum", store_name: "sample", payload: "sample"
+    setup  "DefineSchema", store_name: "sample", fields: "sample_fielddef", required_fields: "sample"
+    expect emits: ["ChecksumVerified", "RecordValidated"]
+  end
+
+  test "ReportCorruption runs" do
+    tests "ReportCorruption", on: "Integrity"
+    setup  "ComputeChecksum", store_name: "sample", payload: "sample"
+    expect verified: "false"
+  end
+
+  test "ReportCorruption cascades through policy chain" do
+    tests "ReportCorruption", on: "Integrity", kind: :cascade
+    setup  "ComputeChecksum", store_name: "sample", payload: "sample"
+    expect emits: ["CorruptionDetected", "CorruptionDetected"]
+  end
+
+
+  # ── Codec aggregate ──────────────────────────────────────────
+
+  test "Compress sets records" do
+    tests "Compress", on: "Codec"
+    input  records: "sample"
+    expect format: "json+zlib+crc32"
+  end
+
+  test "Compress cascades through policy chain" do
+    tests "Compress", on: "Codec", kind: :cascade
+    setup  "ComputeChecksum", store_name: "sample", payload: "sample"
+    input  records: "sample"
+    expect emits: ["Compressed", "ChecksumComputed", "AtomicWriteCompleted"]
+  end
+
+  test "Decompress sets data" do
+    tests "Decompress", on: "Codec"
+    input  data: "sample"
+    expect ok: "true"
+  end
+
+  test "Decompress cascades through policy chain" do
+    tests "Decompress", on: "Codec", kind: :cascade
+    setup  "ComputeChecksum", store_name: "sample", payload: "sample"
+    setup  "DefineSchema", store_name: "sample", fields: "sample_fielddef", required_fields: "sample"
+    input  data: "sample"
+    expect emits: ["Decompressed", "ChecksumVerified", "RecordValidated"]
+  end
+
+  test "WriteAtomically sets path + data" do
+    tests "WriteAtomically", on: "Codec"
+    input  path: "sample", data: "sample"
+    expect ok: "true"
+  end
+
+end

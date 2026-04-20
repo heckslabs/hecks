@@ -1,0 +1,541 @@
+Hecks.behaviors "Biology" do
+  vision "Behavioral tests for the Biology domain — exercises every command and query in memory"
+
+  # ── Cell aggregate ──────────────────────────────────────────
+
+  test "CultureCell sets name + organism_type" do
+    tests "CultureCell", on: "Cell"
+    input  name: "sample", organism_type: "sample"
+    expect cell_type: "stem", name: "sample", organism_type: "sample", membrane_integrity: 1.0, energy_level: 100.0, phase: "interphase"
+  end
+
+  test "Divide cascades through policy chain" do
+    tests "Divide", on: "Cell", kind: :cascade
+    setup  "CultureCell", name: "sample", organism_type: "sample"
+    input  division_type: "sample"
+    expect emits: ["CellDivided", "CellMetabolized"]
+  end
+
+  test "Differentiate sets target_type + signals" do
+    tests "Differentiate", on: "Cell"
+    setup  "CultureCell", name: "sample", organism_type: "sample"
+    input  target_type: "sample", signals: "sample"
+    expect differentiation_state: "sample", cell_type: "sample"
+  end
+
+  test "Metabolize sets pathway + substrate" do
+    tests "Metabolize", on: "Cell"
+    setup  "CultureCell", name: "sample", organism_type: "sample"
+    input  pathway: "sample", substrate: "sample"
+    expect ok: "true"
+  end
+
+  test "TriggerApoptosis runs" do
+    tests "TriggerApoptosis", on: "Cell"
+    setup  "CultureCell", name: "sample", organism_type: "sample"
+    expect membrane_integrity: 0.0, phase: "apoptotic"
+  end
+
+  test "EnterPhase runs" do
+    tests "EnterPhase", on: "Cell"
+    setup  "CultureCell", name: "sample", organism_type: "sample"
+    expect phase: "G1"
+  end
+
+  test "RepairMembrane sets integrity" do
+    tests "RepairMembrane", on: "Cell"
+    setup  "CultureCell", name: "sample", organism_type: "sample"
+    input  integrity: 1.0
+    expect membrane_integrity: 1.0
+  end
+
+
+  # ── DNA aggregate ──────────────────────────────────────────
+
+  test "SequenceDNA sets sequence + organism + strand_type" do
+    tests "SequenceDNA", on: "DNA"
+    input  sequence: "sample", organism: "sample", strand_type: "sample"
+    expect sequence: "sample", organism: "sample", strand_type: "sample", integrity: 1.0
+  end
+
+  test "Transcribe sets gene_name + promoter" do
+    tests "Transcribe", on: "DNA"
+    setup  "SequenceDNA", sequence: "sample", organism: "sample", strand_type: "sample"
+    input  gene_name: "sample", promoter: "sample"
+    expect ok: "true"
+  end
+
+  test "Mutate sets mutation_type + position + original_base + new_base" do
+    tests "Mutate", on: "DNA"
+    setup  "SequenceDNA", sequence: "sample", organism: "sample", strand_type: "sample"
+    input  mutation_type: "sample", position: 1, original_base: "sample", new_base: "sample"
+    expect ok: "true"
+  end
+
+  test "Mutate cascades through policy chain" do
+    tests "Mutate", on: "DNA", kind: :cascade
+    setup  "SequenceDNA", sequence: "sample", organism: "sample", strand_type: "sample"
+    input  mutation_type: "sample", position: 1, original_base: "sample", new_base: "sample"
+    expect emits: ["DNAMutated", "DNARepaired"]
+  end
+
+  test "RepairDNA sets repair_mechanism + damage_site" do
+    tests "RepairDNA", on: "DNA"
+    setup  "SequenceDNA", sequence: "sample", organism: "sample", strand_type: "sample"
+    input  repair_mechanism: "sample", damage_site: 1
+    expect integrity: 1.0
+  end
+
+  test "Methylate sets gene_name + methylation_pattern" do
+    tests "Methylate", on: "DNA"
+    setup  "SequenceDNA", sequence: "sample", organism: "sample", strand_type: "sample"
+    input  gene_name: "sample", methylation_pattern: "sample"
+    expect ok: "true"
+  end
+
+  test "Splice sets gene_name + exons_retained" do
+    tests "Splice", on: "DNA"
+    setup  "SequenceDNA", sequence: "sample", organism: "sample", strand_type: "sample"
+    input  gene_name: "sample", exons_retained: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Protein aggregate ──────────────────────────────────────────
+
+  test "Synthesize sets name + sequence" do
+    tests "Synthesize", on: "Protein"
+    input  name: "sample", sequence: "sample"
+    expect name: "sample", sequence: "sample", function: "enzyme", active: "false", folding_state: "unfolded"
+  end
+
+  test "Fold sets secondary_structure + tertiary_structure" do
+    tests "Fold", on: "Protein"
+    setup  "Synthesize", name: "sample", sequence: "sample"
+    input  secondary_structure: "sample", tertiary_structure: "sample"
+    expect secondary_structure: "sample", tertiary_structure: "sample", active: "true", folding_state: "folded"
+  end
+
+  test "Denature sets cause" do
+    tests "Denature", on: "Protein"
+    setup  "Synthesize", name: "sample", sequence: "sample"
+    setup  "Fold", secondary_structure: "sample", tertiary_structure: "sample"
+    input  cause: "sample"
+    expect active: "false", folding_state: "denatured"
+  end
+
+  test "Catalyze sets substrate + product" do
+    tests "Catalyze", on: "Protein"
+    setup  "Synthesize", name: "sample", sequence: "sample"
+    setup  "Fold", secondary_structure: "sample", tertiary_structure: "sample"
+    input  substrate: "sample", product: "sample"
+    expect ok: "true"
+  end
+
+  test "Phosphorylate sets site + kinase" do
+    tests "Phosphorylate", on: "Protein"
+    setup  "Synthesize", name: "sample", sequence: "sample"
+    input  site: "sample", kinase: "sample"
+    expect ok: "true"
+  end
+
+  test "Bind sets target + binding_affinity" do
+    tests "Bind", on: "Protein"
+    setup  "Synthesize", name: "sample", sequence: "sample"
+    input  target: "sample", binding_affinity: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── Organism aggregate ──────────────────────────────────────────
+
+  test "Classify sets species_name + common_name + domain + kingdom + phylum" do
+    tests "Classify", on: "Organism"
+    input  species_name: "sample", common_name: "sample", domain: "sample", kingdom: "sample", phylum: "sample"
+    expect species_name: "sample", common_name: "sample", domain: "sample", kingdom: "sample", phylum: "sample", alive: "true", generation: 1
+  end
+
+  test "Evolve sets trait_name + new_value + mechanism" do
+    tests "Evolve", on: "Organism"
+    setup  "Classify", species_name: "sample", common_name: "sample", domain: "sample", kingdom: "sample", phylum: "sample"
+    input  trait_name: "sample", new_value: "sample", mechanism: "sample"
+    expect ok: "true"
+  end
+
+  test "Adapt sets pressure + adaptation" do
+    tests "Adapt", on: "Organism"
+    setup  "Classify", species_name: "sample", common_name: "sample", domain: "sample", kingdom: "sample", phylum: "sample"
+    input  pressure: "sample", adaptation: "sample"
+    expect ok: "true"
+  end
+
+  test "Reproduce sets reproduction_type + mate_id" do
+    tests "Reproduce", on: "Organism"
+    setup  "Classify", species_name: "sample", common_name: "sample", domain: "sample", kingdom: "sample", phylum: "sample"
+    input  reproduction_type: "sample", mate_id: "sample"
+    expect ok: "true"
+  end
+
+  test "Kill sets cause" do
+    tests "Kill", on: "Organism"
+    setup  "Classify", species_name: "sample", common_name: "sample", domain: "sample", kingdom: "sample", phylum: "sample"
+    input  cause: "sample"
+    expect alive: "false"
+  end
+
+
+  # ── Ecosystem aggregate ──────────────────────────────────────────
+
+  test "EstablishEcosystem sets name + biome + area + energy_input" do
+    tests "EstablishEcosystem", on: "Ecosystem"
+    input  name: "sample", biome: "sample", area: 1.0, energy_input: 1.0
+    expect name: "sample", biome: "sample", area: 1.0, energy_input: 1.0, status: "nascent"
+  end
+
+  test "AddSpecies sets species_name + initial_count + trophic_level" do
+    tests "AddSpecies", on: "Ecosystem"
+    setup  "EstablishEcosystem", name: "sample", biome: "sample", area: 1.0, energy_input: 1.0
+    input  species_name: "sample", initial_count: 1, trophic_level: "sample"
+    expect status: "developing"
+  end
+
+  test "AddSpecies cascades through policy chain" do
+    tests "AddSpecies", on: "Ecosystem", kind: :cascade
+    setup  "EstablishEcosystem", name: "sample", biome: "sample", area: 1.0, energy_input: 1.0
+    input  species_name: "sample", initial_count: 1, trophic_level: "sample"
+    expect emits: ["SpeciesAdded", "FoodWebModeled"]
+  end
+
+  test "TrackPopulation sets species_name + new_count + growth_rate" do
+    tests "TrackPopulation", on: "Ecosystem"
+    setup  "EstablishEcosystem", name: "sample", biome: "sample", area: 1.0, energy_input: 1.0
+    input  species_name: "sample", new_count: 1, growth_rate: 1.0
+    expect ok: "true"
+  end
+
+  test "ModelFoodWeb runs" do
+    tests "ModelFoodWeb", on: "Ecosystem"
+    setup  "EstablishEcosystem", name: "sample", biome: "sample", area: 1.0, energy_input: 1.0
+    setup  "AddSpecies", species_name: "sample", initial_count: 1, trophic_level: "sample"
+    expect status: "stable"
+  end
+
+  test "MeasureBiodiversity sets biodiversity_index" do
+    tests "MeasureBiodiversity", on: "Ecosystem"
+    setup  "EstablishEcosystem", name: "sample", biome: "sample", area: 1.0, energy_input: 1.0
+    input  biodiversity_index: 1.0
+    expect biodiversity_index: 1.0
+  end
+
+  test "RemoveSpecies sets species_name + cause" do
+    tests "RemoveSpecies", on: "Ecosystem"
+    setup  "EstablishEcosystem", name: "sample", biome: "sample", area: 1.0, energy_input: 1.0
+    setup  "AddSpecies", species_name: "sample", initial_count: 1, trophic_level: "sample"
+    setup  "ModelFoodWeb"
+    input  species_name: "sample", cause: "sample"
+    expect status: "disturbed"
+  end
+
+  test "RemoveSpecies cascades through policy chain" do
+    tests "RemoveSpecies", on: "Ecosystem", kind: :cascade
+    setup  "EstablishEcosystem", name: "sample", biome: "sample", area: 1.0, energy_input: 1.0
+    setup  "AddSpecies", species_name: "sample", initial_count: 1, trophic_level: "sample"
+    setup  "ModelFoodWeb"
+    input  species_name: "sample", cause: "sample"
+    expect emits: ["SpeciesRemoved", "BiodiversityMeasured"]
+  end
+
+
+  # ── Genetics aggregate ──────────────────────────────────────────
+
+  test "DefineGenotype sets organism_name + genotype + ploidy" do
+    tests "DefineGenotype", on: "Genetics"
+    input  organism_name: "sample", genotype: "sample", ploidy: "sample"
+    expect organism_name: "sample", genotype: "sample", ploidy: "sample", genome_mapped: "false"
+  end
+
+  test "CrossBreed sets mate_genotype + cross_type" do
+    tests "CrossBreed", on: "Genetics"
+    setup  "DefineGenotype", organism_name: "sample", genotype: "sample", ploidy: "sample"
+    input  mate_genotype: "sample", cross_type: "sample"
+    expect ok: "true"
+  end
+
+  test "ExpressGene sets gene_name + phenotype" do
+    tests "ExpressGene", on: "Genetics"
+    setup  "DefineGenotype", organism_name: "sample", genotype: "sample", ploidy: "sample"
+    input  gene_name: "sample", phenotype: "sample"
+    expect phenotype: "sample"
+  end
+
+  test "MapGenome sets chromosome_count" do
+    tests "MapGenome", on: "Genetics"
+    setup  "DefineGenotype", organism_name: "sample", genotype: "sample", ploidy: "sample"
+    input  chromosome_count: 1
+    expect chromosome_count: 1, genome_mapped: "true"
+  end
+
+  test "IdentifyTrait sets trait_name + allele_combination" do
+    tests "IdentifyTrait", on: "Genetics"
+    setup  "DefineGenotype", organism_name: "sample", genotype: "sample", ploidy: "sample"
+    input  trait_name: "sample", allele_combination: "sample"
+    expect ok: "true"
+  end
+
+  test "DetectMutation sets gene_name + mutation_type + effect" do
+    tests "DetectMutation", on: "Genetics"
+    setup  "DefineGenotype", organism_name: "sample", genotype: "sample", ploidy: "sample"
+    input  gene_name: "sample", mutation_type: "sample", effect: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Evolution aggregate ──────────────────────────────────────────
+
+  test "TrackLineage sets lineage_name + selection_pressure" do
+    tests "TrackLineage", on: "Evolution"
+    input  lineage_name: "sample", selection_pressure: "sample"
+    expect lineage_name: "sample", selection_pressure: "sample", generation_count: 1, speciation_events: 0
+  end
+
+  test "SelectFittest sets trait_favored + survivors_fraction" do
+    tests "SelectFittest", on: "Evolution"
+    setup  "TrackLineage", lineage_name: "sample", selection_pressure: "sample"
+    input  trait_favored: "sample", survivors_fraction: 1.0
+    expect ok: "true"
+  end
+
+  test "SelectFittest cascades through policy chain" do
+    tests "SelectFittest", on: "Evolution", kind: :cascade
+    setup  "TrackLineage", lineage_name: "sample", selection_pressure: "sample"
+    input  trait_favored: "sample", survivors_fraction: 1.0
+    expect emits: ["FittestSelected", "AdaptationTracked"]
+  end
+
+  test "Speciate sets mechanism + new_species_name + barrier" do
+    tests "Speciate", on: "Evolution"
+    setup  "TrackLineage", lineage_name: "sample", selection_pressure: "sample"
+    input  mechanism: "sample", new_species_name: "sample", barrier: "sample"
+    expect ok: "true"
+  end
+
+  test "TrackAdaptation sets trait + pressure + fitness_delta" do
+    tests "TrackAdaptation", on: "Evolution"
+    setup  "TrackLineage", lineage_name: "sample", selection_pressure: "sample"
+    input  trait: "sample", pressure: "sample", fitness_delta: 1.0
+    expect ok: "true"
+  end
+
+  test "DateDivergence sets sister_lineage + divergence_time + method" do
+    tests "DateDivergence", on: "Evolution"
+    setup  "TrackLineage", lineage_name: "sample", selection_pressure: "sample"
+    input  sister_lineage: "sample", divergence_time: 1.0, method: "sample"
+    expect divergence_time: 1.0
+  end
+
+  test "MeasureDrift sets population_size + allele + frequency_change" do
+    tests "MeasureDrift", on: "Evolution"
+    setup  "TrackLineage", lineage_name: "sample", selection_pressure: "sample"
+    input  population_size: 1, allele: "sample", frequency_change: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── Neuron aggregate ──────────────────────────────────────────
+
+  test "DefineNeuron sets neuron_type + name + resting_potential + threshold + neurotransmitter" do
+    tests "DefineNeuron", on: "Neuron"
+    input  neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
+    expect neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample", current_potential: 1.0, state: "resting"
+  end
+
+  test "FireNeuron sets stimulus_strength" do
+    tests "FireNeuron", on: "Neuron"
+    setup  "DefineNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
+    input  stimulus_strength: 1.0
+    expect state: "firing"
+  end
+
+  test "FireNeuron cascades through policy chain" do
+    tests "FireNeuron", on: "Neuron", kind: :cascade
+    setup  "DefineNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
+    input  stimulus_strength: 1.0
+    expect emits: ["NeuronFired", "SynapseReleased", "SignalPropagated", "NeuronRepolarized"]
+  end
+
+  test "Depolarize sets potential_change" do
+    tests "Depolarize", on: "Neuron"
+    setup  "DefineNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
+    setup  "FireNeuron", stimulus_strength: 1.0
+    setup  "Repolarize"
+    input  potential_change: 1.0
+    expect state: "resting"
+  end
+
+  test "Repolarize runs" do
+    tests "Repolarize", on: "Neuron"
+    setup  "DefineNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
+    setup  "FireNeuron", stimulus_strength: 1.0
+    expect state: "refractory"
+  end
+
+  test "ReleaseSynapse sets target_neuron + amount" do
+    tests "ReleaseSynapse", on: "Neuron"
+    setup  "DefineNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
+    setup  "FireNeuron", stimulus_strength: 1.0
+    input  target_neuron: "sample", amount: 1.0
+    expect ok: "true"
+  end
+
+  test "PropagateSignal sets conduction_type + velocity" do
+    tests "PropagateSignal", on: "Neuron"
+    setup  "DefineNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
+    setup  "FireNeuron", stimulus_strength: 1.0
+    input  conduction_type: "sample", velocity: 1.0
+    expect ok: "true"
+  end
+
+  test "PropagateSignal cascades through policy chain" do
+    tests "PropagateSignal", on: "Neuron", kind: :cascade
+    setup  "DefineNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
+    setup  "FireNeuron", stimulus_strength: 1.0
+    input  conduction_type: "sample", velocity: 1.0
+    expect emits: ["SignalPropagated", "NeuronRepolarized"]
+  end
+
+  test "FormMemory sets synapse_target + strength_increase" do
+    tests "FormMemory", on: "Neuron"
+    setup  "DefineNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
+    input  synapse_target: "sample", strength_increase: 1.0
+    expect ok: "true"
+  end
+
+  test "Inhibit sets inhibitor" do
+    tests "Inhibit", on: "Neuron"
+    setup  "DefineNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
+    input  inhibitor: "sample"
+    expect state: "inhibited"
+  end
+
+
+  # ── ImmuneResponse aggregate ──────────────────────────────────────────
+
+  test "DetectPathogen sets pathogen_name + pathogen_type + severity" do
+    tests "DetectPathogen", on: "ImmuneResponse"
+    input  pathogen_name: "sample", pathogen_type: "sample", severity: "sample"
+    expect pathogen_name: "sample", pathogen_type: "sample", severity: "sample", memory_formed: "false", status: "detected"
+  end
+
+  test "DetectPathogen cascades through policy chain" do
+    tests "DetectPathogen", on: "ImmuneResponse", kind: :cascade
+    input  pathogen_name: "sample", pathogen_type: "sample", severity: "sample"
+    expect emits: ["PathogenDetected", "ResponseMounted", "AntibodyGenerated"]
+  end
+
+  test "MountResponse runs" do
+    tests "MountResponse", on: "ImmuneResponse"
+    setup  "DetectPathogen", pathogen_name: "sample", pathogen_type: "sample", severity: "sample"
+    expect response_type: "adaptive", status: "active"
+  end
+
+  test "MountResponse cascades through policy chain" do
+    tests "MountResponse", on: "ImmuneResponse", kind: :cascade
+    setup  "DetectPathogen", pathogen_name: "sample", pathogen_type: "sample", severity: "sample"
+    expect emits: ["ResponseMounted", "AntibodyGenerated"]
+  end
+
+  test "GenerateAntibody sets antibody_name + isotype" do
+    tests "GenerateAntibody", on: "ImmuneResponse"
+    setup  "DetectPathogen", pathogen_name: "sample", pathogen_type: "sample", severity: "sample"
+    setup  "MountResponse"
+    input  antibody_name: "sample", isotype: "sample"
+    expect antibody_generated: "sample"
+  end
+
+  test "RememberPathogen runs" do
+    tests "RememberPathogen", on: "ImmuneResponse"
+    setup  "DetectPathogen", pathogen_name: "sample", pathogen_type: "sample", severity: "sample"
+    setup  "MountResponse"
+    setup  "ResolveInfection"
+    expect memory_formed: "true", status: "immune"
+  end
+
+  test "Engulf sets cell_type + target" do
+    tests "Engulf", on: "ImmuneResponse"
+    setup  "DetectPathogen", pathogen_name: "sample", pathogen_type: "sample", severity: "sample"
+    input  cell_type: "sample", target: "sample"
+    expect ok: "true"
+  end
+
+  test "ResolveInfection runs" do
+    tests "ResolveInfection", on: "ImmuneResponse"
+    setup  "DetectPathogen", pathogen_name: "sample", pathogen_type: "sample", severity: "sample"
+    setup  "MountResponse"
+    expect status: "resolved"
+  end
+
+  test "ResolveInfection cascades through policy chain" do
+    tests "ResolveInfection", on: "ImmuneResponse", kind: :cascade
+    setup  "DetectPathogen", pathogen_name: "sample", pathogen_type: "sample", severity: "sample"
+    setup  "MountResponse"
+    expect emits: ["InfectionResolved", "PathogenRemembered"]
+  end
+
+
+  # ── Metabolism aggregate ──────────────────────────────────────────
+
+  test "InitiatePathway sets organism_name + pathway_name + pathway_type" do
+    tests "InitiatePathway", on: "Metabolism"
+    input  organism_name: "sample", pathway_name: "sample", pathway_type: "sample"
+    expect organism_name: "sample", pathway_name: "sample", pathway_type: "sample", atp_produced: 0.0, atp_consumed: 0.0, status: "active"
+  end
+
+  test "CatalyzeReaction sets enzyme_name + substrate + product" do
+    tests "CatalyzeReaction", on: "Metabolism"
+    setup  "InitiatePathway", organism_name: "sample", pathway_name: "sample", pathway_type: "sample"
+    input  enzyme_name: "sample", substrate: "sample", product: "sample"
+    expect ok: "true"
+  end
+
+  test "CatalyzeReaction cascades through policy chain" do
+    tests "CatalyzeReaction", on: "Metabolism", kind: :cascade
+    setup  "InitiatePathway", organism_name: "sample", pathway_name: "sample", pathway_type: "sample"
+    input  enzyme_name: "sample", substrate: "sample", product: "sample"
+    expect emits: ["ReactionCatalyzed", "ATPProduced"]
+  end
+
+  test "ProduceATP sets amount + mechanism" do
+    tests "ProduceATP", on: "Metabolism"
+    setup  "InitiatePathway", organism_name: "sample", pathway_name: "sample", pathway_type: "sample"
+    input  amount: 1.0, mechanism: "sample"
+    expect ok: "true"
+  end
+
+  test "RegulatePathway sets regulator + effect + target_enzyme" do
+    tests "RegulatePathway", on: "Metabolism"
+    setup  "InitiatePathway", organism_name: "sample", pathway_name: "sample", pathway_type: "sample"
+    input  regulator: "sample", effect: "sample", target_enzyme: "sample"
+    expect regulated: "true", status: "regulated"
+  end
+
+  test "FermentGlucose sets fermentation_type + atp_yield" do
+    tests "FermentGlucose", on: "Metabolism"
+    setup  "InitiatePathway", organism_name: "sample", pathway_name: "sample", pathway_type: "sample"
+    input  fermentation_type: "sample", atp_yield: 1.0
+    expect ok: "true"
+  end
+
+  test "Oxidize sets substrate + electron_carrier" do
+    tests "Oxidize", on: "Metabolism"
+    setup  "InitiatePathway", organism_name: "sample", pathway_name: "sample", pathway_type: "sample"
+    input  substrate: "sample", electron_carrier: "sample"
+    expect ok: "true"
+  end
+
+  test "CompletePathway runs" do
+    tests "CompletePathway", on: "Metabolism"
+    setup  "InitiatePathway", organism_name: "sample", pathway_name: "sample", pathway_type: "sample"
+    expect status: "complete"
+  end
+
+end

@@ -1,0 +1,22 @@
+Hecks.fixtures "BookstoreInventory" do
+  aggregate "Book" do
+    fixture "To_Kill_a_Mockingbird_", isbn: "978-0-06-112008-4", title: "To Kill a Mockingbird", author_name: "Harper Lee", genre: "Classic Fiction", price: 18.99, quantity_on_hand: 12, status: "in_stock"
+    fixture "1984_", isbn: "978-0-7432-7356-5", title: "1984", author_name: "George Orwell", genre: "Dystopian", price: 16.99, quantity_on_hand: 3, status: "in_stock"
+  end
+  aggregate "Author" do
+    fixture "Harper_Lee_", name: "Harper Lee", biography: "Pulitzer Prize winner known for To Kill a Mockingbird, published in 1960"
+    fixture "George_Orwell_", name: "George Orwell", biography: "English author and political critic, best known for 1984 and Animal Farm"
+  end
+  aggregate "Shelf" do
+    fixture "Shelf1", section: "Fiction", label: "Classic Literature", capacity: 50, current_count: 25
+    fixture "Shelf2", section: "Science Fiction", label: "Dystopian Futures", capacity: 40, current_count: 38
+  end
+  aggregate "Order" do
+    fixture "Order1", order_number: "ORD-2026-04-001", customer_name: "Robert Thompson", total: 45.97, status: "placed"
+    fixture "Order2", order_number: "ORD-2026-04-002", customer_name: "Lisa Anderson", total: 58.50, status: "fulfilled"
+  end
+  aggregate "Return" do
+    fixture "Return1", return_id: "RET-2026-04-001", order_number: "ORD-2026-04-001", isbn: "978-0-06-112008-4", reason: "damaged pages", condition: "poor"
+    fixture "Return2", return_id: "RET-2026-04-002", order_number: "ORD-2026-04-002", isbn: "978-0-7432-7356-5", reason: "changed mind", condition: "like new"
+  end
+end

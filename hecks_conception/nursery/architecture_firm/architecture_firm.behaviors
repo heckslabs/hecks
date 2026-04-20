@@ -1,0 +1,167 @@
+Hecks.behaviors "ArchitectureFirm" do
+  vision "Behavioral tests for the ArchitectureFirm domain — exercises every command and query in memory"
+
+  # ── ArchProject aggregate ──────────────────────────────────────────
+
+  test "AcceptProject sets name + building_type + square_footage + budget" do
+    tests "AcceptProject", on: "ArchProject"
+    input  name: "sample", building_type: "sample", square_footage: 1.0, budget: 1.0
+    expect ok: "true"
+  end
+
+  test "AcceptProject cascades through policy chain" do
+    tests "AcceptProject", on: "ArchProject", kind: :cascade
+    setup  "ProduceDrawing", title: "sample", drawing_type: "sample", scale: "sample"
+    setup  "RequestRevision", reviewer_name: "sample", comments: "sample"
+    setup  "SubmitPermit", permit_type: "sample", jurisdiction: "sample"
+    input  name: "sample", building_type: "sample", square_footage: 1.0, budget: 1.0
+    expect emits: ["ProjectCommissioned", "DrawingProduced", "DrawingIssuedForReview", "RevisionRequested", "RevisionApproved", "PhaseAdvanced", "PermitSubmitted"]
+  end
+
+  test "AdvancePhase sets next_phase" do
+    tests "AdvancePhase", on: "ArchProject"
+    setup  "AcceptProject", name: "sample", building_type: "sample", square_footage: 1.0, budget: 1.0
+    input  next_phase: "sample"
+    expect phase: "sample"
+  end
+
+  test "AdvancePhase cascades through policy chain" do
+    tests "AdvancePhase", on: "ArchProject", kind: :cascade
+    setup  "AcceptProject", name: "sample", building_type: "sample", square_footage: 1.0, budget: 1.0
+    setup  "SubmitPermit", permit_type: "sample", jurisdiction: "sample"
+    input  next_phase: "sample"
+    expect emits: ["PhaseAdvanced", "PermitSubmitted"]
+  end
+
+  test "CloseOutProject runs" do
+    tests "CloseOutProject", on: "ArchProject"
+    setup  "AcceptProject", name: "sample", building_type: "sample", square_footage: 1.0, budget: 1.0
+    expect phase: "closed"
+  end
+
+
+  # ── Drawing aggregate ──────────────────────────────────────────
+
+  test "ProduceDrawing sets title + drawing_type + scale" do
+    tests "ProduceDrawing", on: "Drawing"
+    setup  "AcceptProject", name: "sample", building_type: "sample", square_footage: 1.0, budget: 1.0
+    input  title: "sample", drawing_type: "sample", scale: "sample"
+    expect status: "draft"
+  end
+
+  test "ProduceDrawing cascades through policy chain" do
+    tests "ProduceDrawing", on: "Drawing", kind: :cascade
+    setup  "AcceptProject", name: "sample", building_type: "sample", square_footage: 1.0, budget: 1.0
+    setup  "RequestRevision", reviewer_name: "sample", comments: "sample"
+    setup  "SubmitPermit", permit_type: "sample", jurisdiction: "sample"
+    input  title: "sample", drawing_type: "sample", scale: "sample"
+    expect emits: ["DrawingProduced", "DrawingIssuedForReview", "RevisionRequested", "RevisionApproved", "PhaseAdvanced", "PermitSubmitted"]
+  end
+
+  test "ReviseDrawing sets revision_notes" do
+    tests "ReviseDrawing", on: "Drawing"
+    setup  "ProduceDrawing", title: "sample", drawing_type: "sample", scale: "sample"
+    input  revision_notes: "sample"
+    expect ok: "true"
+  end
+
+  test "IssueForReview runs" do
+    tests "IssueForReview", on: "Drawing"
+    setup  "ProduceDrawing", title: "sample", drawing_type: "sample", scale: "sample"
+    expect status: "under_review"
+  end
+
+  test "IssueForReview cascades through policy chain" do
+    tests "IssueForReview", on: "Drawing", kind: :cascade
+    setup  "ProduceDrawing", title: "sample", drawing_type: "sample", scale: "sample"
+    setup  "RequestRevision", reviewer_name: "sample", comments: "sample"
+    setup  "AcceptProject", name: "sample", building_type: "sample", square_footage: 1.0, budget: 1.0
+    setup  "SubmitPermit", permit_type: "sample", jurisdiction: "sample"
+    expect emits: ["DrawingIssuedForReview", "RevisionRequested", "RevisionApproved", "PhaseAdvanced", "PermitSubmitted"]
+  end
+
+
+  # ── Revision aggregate ──────────────────────────────────────────
+
+  test "RequestRevision sets reviewer_name + comments" do
+    tests "RequestRevision", on: "Revision"
+    setup  "ProduceDrawing", title: "sample", drawing_type: "sample", scale: "sample"
+    input  reviewer_name: "sample", comments: "sample"
+    expect status: "pending"
+  end
+
+  test "RequestRevision cascades through policy chain" do
+    tests "RequestRevision", on: "Revision", kind: :cascade
+    setup  "ProduceDrawing", title: "sample", drawing_type: "sample", scale: "sample"
+    setup  "AcceptProject", name: "sample", building_type: "sample", square_footage: 1.0, budget: 1.0
+    setup  "SubmitPermit", permit_type: "sample", jurisdiction: "sample"
+    input  reviewer_name: "sample", comments: "sample"
+    expect emits: ["RevisionRequested", "RevisionApproved", "PhaseAdvanced", "PermitSubmitted"]
+  end
+
+  test "ApproveRevision runs" do
+    tests "ApproveRevision", on: "Revision"
+    setup  "RequestRevision", reviewer_name: "sample", comments: "sample"
+    expect status: "approved"
+  end
+
+  test "ApproveRevision cascades through policy chain" do
+    tests "ApproveRevision", on: "Revision", kind: :cascade
+    setup  "RequestRevision", reviewer_name: "sample", comments: "sample"
+    setup  "AcceptProject", name: "sample", building_type: "sample", square_footage: 1.0, budget: 1.0
+    setup  "SubmitPermit", permit_type: "sample", jurisdiction: "sample"
+    expect emits: ["RevisionApproved", "PhaseAdvanced", "PermitSubmitted"]
+  end
+
+
+  # ── Permit aggregate ──────────────────────────────────────────
+
+  test "SubmitPermit sets permit_type + jurisdiction" do
+    tests "SubmitPermit", on: "Permit"
+    setup  "AcceptProject", name: "sample", building_type: "sample", square_footage: 1.0, budget: 1.0
+    input  permit_type: "sample", jurisdiction: "sample"
+    expect status: "submitted"
+  end
+
+  test "ReceiveApproval sets permit_number" do
+    tests "ReceiveApproval", on: "Permit"
+    setup  "SubmitPermit", permit_type: "sample", jurisdiction: "sample"
+    input  permit_number: "sample"
+    expect status: "approved", permit_number: "sample"
+  end
+
+  test "ReceiveApproval cascades through policy chain" do
+    tests "ReceiveApproval", on: "Permit", kind: :cascade
+    setup  "ScheduleVisit", date: "sample", inspector_name: "sample"
+    setup  "AcceptProject", name: "sample", building_type: "sample", square_footage: 1.0, budget: 1.0
+    setup  "SubmitPermit", permit_type: "sample", jurisdiction: "sample"
+    input  permit_number: "sample"
+    expect emits: ["PermitApproved", "VisitScheduled"]
+  end
+
+
+  # ── SiteVisit aggregate ──────────────────────────────────────────
+
+  test "ScheduleVisit sets date + inspector_name" do
+    tests "ScheduleVisit", on: "SiteVisit"
+    setup  "AcceptProject", name: "sample", building_type: "sample", square_footage: 1.0, budget: 1.0
+    input  date: "sample", inspector_name: "sample"
+    expect status: "scheduled"
+  end
+
+  test "RecordObservations sets notes + weather_conditions" do
+    tests "RecordObservations", on: "SiteVisit"
+    setup  "ScheduleVisit", date: "sample", inspector_name: "sample"
+    input  notes: "sample", weather_conditions: "sample"
+    expect status: "completed", notes: "sample"
+  end
+
+  test "RecordObservations cascades through policy chain" do
+    tests "RecordObservations", on: "SiteVisit", kind: :cascade
+    setup  "ScheduleVisit", date: "sample", inspector_name: "sample"
+    setup  "AcceptProject", name: "sample", building_type: "sample", square_footage: 1.0, budget: 1.0
+    input  notes: "sample", weather_conditions: "sample"
+    expect emits: ["ObservationsRecorded", "ProjectClosedOut"]
+  end
+
+end

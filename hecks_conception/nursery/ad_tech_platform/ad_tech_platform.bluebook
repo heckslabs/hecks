@@ -27,6 +27,7 @@ Hecks.bluebook "AdTechPlatform", version: "2026.04.13.1" do
       String :target_audience
       Float :daily_budget
       Float :total_budget
+      then_set :status, to: "running"
       emits "CampaignLaunched"
     end
 
@@ -145,6 +146,7 @@ Hecks.bluebook "AdTechPlatform", version: "2026.04.13.1" do
       Float :value
       String :attribution_model
       reference_to(Click)
+      then_set :status, to: "confirmed"
       emits "ConversionTracked"
     end
 
@@ -264,18 +266,4 @@ Hecks.bluebook "AdTechPlatform", version: "2026.04.13.1" do
     trigger "MarkViewable"
   end
 
-  fixture "Campaign", campaign_id: "camp_001", advertiser_name: "TechCorp Inc", objective: "awareness", target_audience: "25-34, tech_interests", daily_budget: 500.0, total_budget: 15000.0, status: "running", targeting_rules: []
-  fixture "Campaign", campaign_id: "camp_002", advertiser_name: "FashionBrand Co", objective: "conversions", target_audience: "18-45, female", daily_budget: 750.0, total_budget: 22500.0, status: "paused", targeting_rules: []
-
-  fixture "Impression", impression_id: "imp_001", placement_id: "place_news_001", creative_id: "creat_banner_1", user_segment: "tech_enthusiast", bid_price: 2.50, status: "served", campaign_id: "camp_001"
-  fixture "Impression", impression_id: "imp_002", placement_id: "place_social_002", creative_id: "creat_video_1", user_segment: "fashion_buyer", bid_price: 3.75, status: "viewable", campaign_id: "camp_002"
-
-  fixture "Click", click_id: "click_001", landing_url: "https://techcorp.com/product", referrer: "news.example.com", cost: 1.25, status: "valid", impression_id: "imp_001"
-  fixture "Click", click_id: "click_002", landing_url: "https://fashionbrand.com/sale", referrer: "social.example.com", cost: 2.10, status: "disputed", impression_id: "imp_002"
-
-  fixture "Conversion", conversion_id: "conv_001", conversion_type: "purchase", value: 89.99, attribution_model: "last_click", status: "confirmed", click_id: "click_001"
-  fixture "Conversion", conversion_id: "conv_002", conversion_type: "add_to_cart", value: 45.50, attribution_model: "linear", status: "pending", click_id: "click_002"
-
-  fixture "Budget", budget_id: "bud_001", allocated_amount: 15000.0, spent_amount: 7250.50, remaining_amount: 7749.50, period: "monthly", status: "active", campaign_id: "camp_001"
-  fixture "Budget", budget_id: "bud_002", allocated_amount: 22500.0, spent_amount: 22450.75, remaining_amount: 49.25, period: "monthly", status: "nearly_exhausted", campaign_id: "camp_002"
 end

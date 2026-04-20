@@ -47,11 +47,6 @@ Hecks.bluebook "PoolChemistry", version: "2026.04.13.1" do
       emits "ChemistryAnalyzed"
       then_set :status, to: "analyzed"
     end
-
-    lifecycle :status, default: "pending" do
-      transition "RecordWaterTest" => "recorded", from: "pending"
-      transition "AnalyzeChemistry" => "analyzed", from: "recorded"
-    end
   end
 
   aggregate "ChemicalReaction", "A chemical reaction in pool water — reagents, products, equilibrium" do
@@ -123,7 +118,7 @@ Hecks.bluebook "PoolChemistry", version: "2026.04.13.1" do
       String :timing
     end
 
-    CreateDosingPlan do
+    PrescribeDose do
       role "Technician"
       description "Create a dosing plan to bring pool chemistry to target levels"
       String :pool_name
@@ -158,12 +153,6 @@ Hecks.bluebook "PoolChemistry", version: "2026.04.13.1" do
       given { status == "executed" }
       emits "DosingVerified"
       then_set :status, to: "verified"
-    end
-
-    lifecycle :status, default: "pending" do
-      transition "CreateDosingPlan" => "created", from: "pending"
-      transition "ExecuteDosing" => "executed", from: "created"
-      transition "VerifyDosing" => "verified", from: "executed"
     end
   end
 
@@ -228,11 +217,6 @@ Hecks.bluebook "PoolChemistry", version: "2026.04.13.1" do
     trigger "AnalyzeChemistry"
   end
 
-  policy "DoseOnAnalysis" do
-    on "ChemistryAnalyzed"
-    trigger "CreateDosingPlan"
-  end
-
   policy "ExecuteOnDosePlan" do
     on "DosingPlanCreated"
     trigger "ExecuteDosing"
@@ -253,15 +237,4 @@ Hecks.bluebook "PoolChemistry", version: "2026.04.13.1" do
     trigger "CalculateEquilibrium"
   end
 
-  fixture "WaterTest", test_id: "WT-001", pool_name: "Main Pool", ph: 7.2, free_chlorine_ppm: 1.8, total_alkalinity_ppm: 90.0, temperature_c: 27.5, timestamp: "2026-04-14T10:30:00Z", status: "recorded"
-  fixture "WaterTest", test_id: "WT-002", pool_name: "Spa", ph: 7.5, free_chlorine_ppm: 2.5, total_alkalinity_ppm: 100.0, temperature_c: 38.0, timestamp: "2026-04-14T11:00:00Z", status: "analyzed"
-
-  fixture "ChemicalReaction", reaction_name: "Hypochlorous Acid Equilibrium", reagent_a: "Cl2", reagent_b: "H2O", product: "HClO", equilibrium_constant: 3.0e-4, rate_constant: 1.2e-3, status: "defined"
-  fixture "ChemicalReaction", reaction_name: "Chlorine Hydrolysis", reagent_a: "Cl2", reagent_b: "H2O", product: "HCl + HClO", equilibrium_constant: 1.5e-4, rate_constant: 0.8e-3, status: "defined"
-
-  fixture "DosingPlan", pool_name: "Main Pool", chemical_name: "Calcium Hypochlorite", current_level: 1.5, target_level: 2.5, dose_amount_ml: 250.0, dosing_method: "chemical feeder", status: "created"
-  fixture "DosingPlan", pool_name: "Lap Pool", chemical_name: "Muriatic Acid", current_level: 7.8, target_level: 7.4, dose_amount_ml: 50.0, dosing_method: "manual addition", status: "executed"
-
-  fixture "AlgaeIncident", pool_name: "Main Pool", algae_type: "Green Algae", severity: "moderate", cause: "low chlorine", treatment_applied: "brush and shock", status: "reported"
-  fixture "AlgaeIncident", pool_name: "Shallow Pool", algae_type: "Black Algae", severity: "severe", cause: "filtration failure", treatment_applied: "acid wash and algaecide", status: "treated"
 end

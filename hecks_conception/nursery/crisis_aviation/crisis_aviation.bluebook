@@ -58,7 +58,7 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
     Integer :patient_capacity
     Integer :range_nm
     String :status
-    reference_to(CrisisEvent) :assigned_crisis
+    reference_to(CrisisEvent, as: :assigned_crisis)
     list_of(MissionLog) :missions
     value_object "MissionLog" do
       String :mission_type
@@ -74,14 +74,13 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
       String :base_location
       Integer :patient_capacity
       Integer :range_nm
-      reference_to(CrisisEvent) :assigned_crisis
+      reference_to(CrisisEvent, as: :assigned_crisis)
       emits "AssetActivated"
       then_set :callsign, to: :callsign
       then_set :aircraft_type, to: :aircraft_type
       then_set :base_location, to: :base_location
       then_set :patient_capacity, to: :patient_capacity
       then_set :range_nm, to: :range_nm
-      then_set :assigned_crisis, to: :assigned_crisis
       then_set :status, to: "ready"
     end
     DispatchMission do
@@ -136,12 +135,12 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
       then_set :accessibility, to: :accessibility
       then_set :status, to: "reported"
     end
-    UpdatePowerStatus do
+    ReportPowerStatus do
       role "System"
-      description "Update hospital power status from grid telemetry"
+      description "Report hospital power status from grid telemetry"
       reference_to(HospitalStatus)
       String :power_status
-      emits "PowerStatusUpdated"
+      emits "PowerStatusReported"
       then_set :power_status, to: :power_status
     end
     MarkInaccessible do
@@ -202,9 +201,9 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
 
   aggregate "AirspaceDecision", "Airspace routing decision — balances hospital power, bed capacity, and flight range" do
     String :decision_id
-    reference_to(CrisisEvent) :crisis
-    reference_to(FlightAsset) :aircraft
-    reference_to(HospitalStatus) :target_hospital
+    reference_to(CrisisEvent, as: :crisis)
+    reference_to(FlightAsset, as: :aircraft)
+    reference_to(HospitalStatus, as: :target_hospital)
     String :rationale
     String :status
     list_of(ScoringFactor) :factors
@@ -217,15 +216,12 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
       role "System"
       description "Compute optimal hospital-aircraft pairing based on power, beds, and range"
       String :decision_id
-      reference_to(CrisisEvent) :crisis
-      reference_to(FlightAsset) :aircraft
-      reference_to(HospitalStatus) :target_hospital
+      reference_to(CrisisEvent, as: :crisis)
+      reference_to(FlightAsset, as: :aircraft)
+      reference_to(HospitalStatus, as: :target_hospital)
       String :rationale
       emits "DecisionComputed"
       then_set :decision_id, to: :decision_id
-      then_set :crisis, to: :crisis
-      then_set :aircraft, to: :aircraft
-      then_set :target_hospital, to: :target_hospital
       then_set :rationale, to: :rationale
       then_set :status, to: "computed"
     end
@@ -243,7 +239,7 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
 
   aggregate "PatientPriority", "Patient transport priority queue — who flies first based on acuity and hospital match" do
     String :queue_id
-    reference_to(CrisisEvent) :crisis
+    reference_to(CrisisEvent, as: :crisis)
     String :status
     list_of(PriorityEntry) :entries
     value_object "PriorityEntry" do
@@ -257,10 +253,9 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
       role "System"
       description "Open patient priority queue for crisis transport coordination"
       String :queue_id
-      reference_to(CrisisEvent) :crisis
+      reference_to(CrisisEvent, as: :crisis)
       emits "QueueOpened"
       then_set :queue_id, to: :queue_id
-      then_set :crisis, to: :crisis
       then_set :status, to: "active"
     end
     AddPatient do
@@ -299,7 +294,7 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
   end
   policy "UpdateHospitalPowerOnGrid" do
     on "GridStatusReported"
-    trigger "UpdatePowerStatus"
+    trigger "ReportPowerStatus"
   end
   policy "ComputeDecisionOnStatus" do
     on "HospitalStatusReported"
@@ -314,21 +309,4 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
     trigger "DeployGenerator"
   end
 
-  fixture "CrisisEvent", event_id: "CRISIS-2024-001", crisis_type: "earthquake", affected_region: "Pacific Northwest", severity: "high", status: "active"
-  fixture "CrisisEvent", event_id: "CRISIS-2024-002", crisis_type: "hurricane", affected_region: "Gulf Coast", severity: "critical", status: "active"
-
-  fixture "FlightAsset", callsign: "MEDEVAC-01", aircraft_type: "Sikorsky S-76", base_location: "Seattle-Tacoma Int'l", patient_capacity: 6, range_nm: 600, status: "ready"
-  fixture "FlightAsset", callsign: "SUPPLY-02", aircraft_type: "Hercules C-130", base_location: "Joint Base Lewis-McChord", patient_capacity: 0, range_nm: 2500, status: "airborne"
-
-  fixture "HospitalStatus", hospital_name: "Seattle Medical Center", region: "Pacific Northwest", total_beds: 350, available_beds: 47, power_status: "generator", accessibility: "road_and_air", status: "reported"
-  fixture "HospitalStatus", hospital_name: "Offshore Clinic", region: "Gulf Coast", total_beds: 50, available_beds: 12, power_status: "backup", accessibility: "air_only", status: "reported"
-
-  fixture "PowerStatus", sector_id: "SEA-NORTH-01", region: "Seattle North", substations_online: 4, substations_total: 7, grid_status: "degraded"
-  fixture "PowerStatus", sector_id: "GC-SOUTH-02", region: "Gulf South", substations_online: 1, substations_total: 8, grid_status: "critical"
-
-  fixture "AirspaceDecision", decision_id: "DEC-001", rationale: "Helicopter has medical ICU capability and 200nm range to target", status: "computed"
-  fixture "AirspaceDecision", decision_id: "DEC-002", rationale: "C-130 carries 15 tons of generator fuel for hospital deployment", status: "approved"
-
-  fixture "PatientPriority", queue_id: "QUEUE-2024-001", status: "active"
-  fixture "PatientPriority", queue_id: "QUEUE-2024-002", status: "active"
 end

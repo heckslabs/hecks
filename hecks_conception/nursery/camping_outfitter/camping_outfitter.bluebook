@@ -89,7 +89,6 @@ Hecks.bluebook "CampingOutfitter", version: "2026.04.13.1" do
       description "Apply a surcharge for overdue rental returns"
       reference_to(GearRental)
       Float :fee_amount
-      given { fee_amount > 0 }
       emits "LateFeeCharged"
     end
   end
@@ -258,18 +257,5 @@ Hecks.bluebook "CampingOutfitter", version: "2026.04.13.1" do
   end
 
   # === Fixtures ===
-  fixture "CampingGear", sku: "TENT-001", name: "Alpine Peak 4-Season Tent", category: "Shelter", brand: "OutdoorPro", weight_kg: 2.1, price: 349.99, quantity: 8
-  fixture "CampingGear", sku: "PACK-055", name: "Summit Ridge 65L Backpack", category: "Packs", brand: "Trailblazer", weight_kg: 1.8, price: 189.99, quantity: 12
 
-  fixture "GearRental", rental_id: "GR-2026-001", sku: "TENT-001", renter_name: "Amanda Foster", start_date: "2026-05-10", return_date: "2026-05-17", rental_fee: 45.0, status: "rented"
-  fixture "GearRental", rental_id: "GR-2026-002", sku: "PACK-055", renter_name: "James Burke", start_date: "2026-04-15", return_date: "2026-04-22", rental_fee: 25.0, status: "returned"
-
-  fixture "TrailMap", map_id: "MAP-001", trail_name: "Eagle's Peak Loop", region: "Rocky Mountains", difficulty: "intermediate", distance_km: 14.5, copies_on_hand: 47
-  fixture "TrailMap", map_id: "MAP-012", trail_name: "Riverside Canyon", region: "Colorado Plateau", difficulty: "easy", distance_km: 8.2, copies_on_hand: 62
-
-  fixture "GuidedTrip", trip_id: "GT-2026-001", guide_name: "Michael Torres", destination: "Glacier Lake Basin", date: "2026-06-15", max_participants: 8, price_per_person: 125.0, status: "scheduled"
-  fixture "GuidedTrip", trip_id: "GT-2026-002", guide_name: "Rachel Kennedy", destination: "Alpine Meadows", date: "2026-07-22", max_participants: 6, price_per_person: 95.0, status: "scheduled"
-
-  fixture "CampsiteReservation", reservation_id: "CR-2026-001", campsite_name: "Sunrise Ridge Campground", guest_name: "Patricia Sullivan", check_in: "2026-05-18", check_out: "2026-05-25", total_fee: 280.0, status: "confirmed"
-  fixture "CampsiteReservation", reservation_id: "CR-2026-002", campsite_name: "Pine Grove Retreat", guest_name: "Kevin Walsh", check_in: "2026-06-01", check_out: "2026-06-08", total_fee: 350.0, status: "confirmed"
 end

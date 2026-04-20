@@ -5,31 +5,31 @@ Hecks.bluebook "WebApplicationCreation", version: "2026.04.11.1" do
   # === Domain Mapping ===
 
   aggregate "DomainTag", "HTML accessibility attributes that map every element to the domain" do
-    String :tag_prefix
-    list_of(TagConvention) :conventions
+    attribute :tag_prefix, String
+    attribute :conventions, list_of(TagConvention)
 
     value_object "TagConvention" do
-      String :element_type
-      String :attribute_name
-      String :maps_to
-      String :example
+      attribute :element_type, String
+      attribute :attribute_name, String
+      attribute :maps_to, String
+      attribute :example, String
     end
 
-    DefineTagPrefix do
+    command "DefineTagPrefix" do
       role "System"
       description "Set the data attribute prefix — e.g. data-domain, data-bluebook"
-      String :tag_prefix
+      attribute :tag_prefix, String
       emits "TagPrefixDefined"
       then_set :tag_prefix, to: :tag_prefix
     end
 
-    RegisterConvention do
+    command "RegisterConvention" do
       role "System"
       description "Map an HTML element type to a domain concept"
       reference_to(DomainTag)
-      String :element_type
-      String :attribute_name
-      String :maps_to
+      attribute :element_type, String
+      attribute :attribute_name, String
+      attribute :maps_to, String
       emits "ConventionRegistered"
     end
   end
@@ -46,37 +46,35 @@ Hecks.bluebook "WebApplicationCreation", version: "2026.04.11.1" do
   #
   # aria-label derives from aggregate/command descriptions in the bluebook
 
-  fixture "DomainTag", tag_prefix: "data-domain", conventions: []
-
   # === Validation ===
 
   aggregate "DomainCompliance", "Validate that the web app follows its bluebook — no orphan elements" do
-    String :app_path
-    String :bluebook_path
-    Integer :total_elements
-    Integer :tagged_elements
-    Integer :orphan_elements
-    list_of(String) :missing_commands
-    Float :compliance_score
+    attribute :app_path, String
+    attribute :bluebook_path, String
+    attribute :total_elements, Integer
+    attribute :tagged_elements, Integer
+    attribute :orphan_elements, Integer
+    attribute :missing_commands, list_of(String)
+    attribute :compliance_score, Float
 
-    ScanApp do
+    command "ScanApp" do
       role "System"
       description "Parse every HTML element, extract domain tags, compare against bluebook"
-      String :app_path
-      String :bluebook_path
+      attribute :app_path, String
+      attribute :bluebook_path, String
       emits "AppScanned"
       then_set :app_path, to: :app_path
       then_set :bluebook_path, to: :bluebook_path
     end
 
-    ReportCompliance do
+    command "ReportCompliance" do
       role "System"
       description "Calculate compliance score — tagged elements / total elements"
       reference_to(DomainCompliance)
-      Integer :total_elements
-      Integer :tagged_elements
-      Integer :orphan_elements
-      list_of(String) :missing_commands
+      attribute :total_elements, Integer
+      attribute :tagged_elements, Integer
+      attribute :orphan_elements, Integer
+      attribute :missing_commands, list_of(String)
       emits "ComplianceReported"
       then_set :total_elements, to: :total_elements
       then_set :tagged_elements, to: :tagged_elements
@@ -84,20 +82,20 @@ Hecks.bluebook "WebApplicationCreation", version: "2026.04.11.1" do
       then_set :missing_commands, to: :missing_commands
     end
 
-    FlagOrphan do
+    command "FlagOrphan" do
       role "System"
       description "An HTML element has no domain tag — it's outside the spec"
       reference_to(DomainCompliance)
-      String :element
-      String :location
+      attribute :element, String
+      attribute :location, String
       emits "OrphanFlagged"
     end
 
-    FlagMissingCommand do
+    command "FlagMissingCommand" do
       role "System"
       description "A command exists in the bluebook but has no form in the app"
       reference_to(DomainCompliance)
-      String :command_name
+      attribute :command_name, String
       emits "MissingCommandFlagged"
     end
   end
@@ -105,65 +103,65 @@ Hecks.bluebook "WebApplicationCreation", version: "2026.04.11.1" do
   # === Style Guide ===
 
   aggregate "StyleGuide", "Design system — colors, typography, spacing, components. Yours to customize." do
-    String :name
-    list_of(Color) :palette
-    list_of(TypeScale) :typography
-    Integer :spacing_unit
-    String :border_radius
-    String :shadow_style
-    String :animation_style
-    String :density
+    attribute :name, String
+    attribute :palette, list_of(Color)
+    attribute :typography, list_of(TypeScale)
+    attribute :spacing_unit, Integer
+    attribute :border_radius, String
+    attribute :shadow_style, String
+    attribute :animation_style, String
+    attribute :density, String
 
     value_object "Color" do
-      String :name
-      String :hex
-      String :role
-      String :usage
+      attribute :name, String
+      attribute :hex, String
+      attribute :role, String
+      attribute :usage, String
     end
 
     value_object "TypeScale" do
-      String :name
-      String :font_family
-      String :size
-      String :weight
-      String :line_height
-      String :usage
+      attribute :name, String
+      attribute :font_family, String
+      attribute :size, String
+      attribute :weight, String
+      attribute :line_height, String
+      attribute :usage, String
     end
 
-    CreateStyleGuide do
+    command "DraftStyleGuide" do
       role "Designer"
-      description "Define the visual language — not AI-generic, distinctly yours"
-      String :name
-      Integer :spacing_unit
-      String :border_radius
-      String :density
-      emits "StyleGuideCreated"
+      description "Draft the visual language — not AI-generic, distinctly yours"
+      attribute :name, String
+      attribute :spacing_unit, Integer
+      attribute :border_radius, String
+      attribute :density, String
+      emits "StyleGuideDrafted"
       then_set :name, to: :name
       then_set :spacing_unit, to: :spacing_unit
       then_set :border_radius, to: :border_radius
       then_set :density, to: :density
     end
 
-    SetPalette do
+    command "SetPalette" do
       role "Designer"
       description "Define the color palette — primary, secondary, accent, surface, error"
       reference_to(StyleGuide)
       emits "PaletteSet"
     end
 
-    SetTypography do
+    command "SetTypography" do
       role "Designer"
       description "Define the type scale — display, heading, body, caption, code"
       reference_to(StyleGuide)
       emits "TypographySet"
     end
 
-    TweakStyle do
+    command "TweakStyle" do
       role "Designer"
       description "Override any style token — make it extraordinary"
       reference_to(StyleGuide)
-      String :token_name
-      String :token_value
+      attribute :token_name, String
+      attribute :token_value, String
       emits "StyleTweaked"
     end
   end
@@ -171,20 +169,20 @@ Hecks.bluebook "WebApplicationCreation", version: "2026.04.11.1" do
   # === Page Generation ===
 
   aggregate "Page", "A generated page — one per aggregate or dashboard" do
-    String :name
-    String :page_type
-    String :aggregate_name
-    String :route
-    list_of(String) :components
-    String :status
+    attribute :name, String
+    attribute :page_type, String
+    attribute :aggregate_name, String
+    attribute :route, String
+    attribute :components, list_of(String)
+    attribute :status, String
 
-    GeneratePage do
+    command "GeneratePage" do
       role "System"
       description "Create a page from an aggregate — index, show, form, dashboard"
-      String :name
-      String :page_type
-      String :aggregate_name
-      String :route
+      attribute :name, String
+      attribute :page_type, String
+      attribute :aggregate_name, String
+      attribute :route, String
       emits "PageGenerated"
       then_set :name, to: :name
       then_set :page_type, to: :page_type
@@ -193,7 +191,7 @@ Hecks.bluebook "WebApplicationCreation", version: "2026.04.11.1" do
       then_set :status, to: "generated"
     end
 
-    CustomizePage do
+    command "CustomizePage" do
       role "Designer"
       description "Override the generated layout — slot in custom components"
       reference_to(Page)
@@ -201,7 +199,7 @@ Hecks.bluebook "WebApplicationCreation", version: "2026.04.11.1" do
       then_set :status, to: "customized"
     end
 
-    ValidatePage do
+    command "ValidatePage" do
       role "System"
       description "Check all domain tags, ensure every element maps to the bluebook"
       reference_to(Page)
@@ -220,25 +218,25 @@ Hecks.bluebook "WebApplicationCreation", version: "2026.04.11.1" do
   # === Component Library ===
 
   aggregate "Component", "A reusable UI component — domain-tagged, accessible, stylable" do
-    String :name
-    String :component_type
-    String :maps_to
-    list_of(Prop) :props
-    String :accessible
+    attribute :name, String
+    attribute :component_type, String
+    attribute :maps_to, String
+    attribute :props, list_of(Prop)
+    attribute :accessible, String
 
     value_object "Prop" do
-      String :name
-      String :prop_type
-      String :domain_attribute
-      String :required
+      attribute :name, String
+      attribute :prop_type, String
+      attribute :domain_attribute, String
+      attribute :required, String
     end
 
-    DefineComponent do
+    command "DefineComponent" do
       role "System"
       description "Create a component — form field, data table, card, lifecycle badge, action button"
-      String :name
-      String :component_type
-      String :maps_to
+      attribute :name, String
+      attribute :component_type, String
+      attribute :maps_to, String
       emits "ComponentDefined"
       then_set :name, to: :name
       then_set :component_type, to: :component_type
@@ -246,7 +244,7 @@ Hecks.bluebook "WebApplicationCreation", version: "2026.04.11.1" do
       then_set :accessible, to: "true"
     end
 
-    CustomizeComponent do
+    command "CustomizeComponent" do
       role "Designer"
       description "Override a component's appearance — your design, not AI default"
       reference_to(Component)
@@ -257,40 +255,40 @@ Hecks.bluebook "WebApplicationCreation", version: "2026.04.11.1" do
   # === Application Shell ===
 
   aggregate "AppShell", "The overall application frame — navigation, layout, theme" do
-    String :app_name
-    list_of(NavItem) :navigation
-    String :layout_type
-    String :theme
+    attribute :app_name, String
+    attribute :navigation, list_of(NavItem)
+    attribute :layout_type, String
+    attribute :theme, String
 
     value_object "NavItem" do
-      String :label
-      String :route
-      String :icon
-      String :aggregate_name
+      attribute :label, String
+      attribute :route, String
+      attribute :icon, String
+      attribute :aggregate_name, String
     end
 
-    GenerateShell do
+    command "GenerateShell" do
       role "System"
       description "Create the app shell — nav from aggregates, layout from domain structure"
-      String :app_name
-      String :layout_type
+      attribute :app_name, String
+      attribute :layout_type, String
       emits "ShellGenerated"
       then_set :app_name, to: :app_name
       then_set :layout_type, to: :layout_type
     end
 
-    BuildNavigation do
+    command "BuildNavigation" do
       role "System"
       description "Generate navigation from aggregates — each aggregate gets a nav item"
       reference_to(AppShell)
       emits "NavigationBuilt"
     end
 
-    ApplyTheme do
+    command "ApplyTheme" do
       role "Designer"
       description "Apply the style guide to the shell — colors, fonts, spacing"
       reference_to(AppShell)
-      String :theme
+      attribute :theme, String
       emits "ThemeApplied"
       then_set :theme, to: :theme
     end
@@ -301,20 +299,20 @@ Hecks.bluebook "WebApplicationCreation", version: "2026.04.11.1" do
   # A validator walks the generated HTML and applies every rule. No interpretation needed.
 
   aggregate "RenderingRule", "A deterministic check the generator must pass — not guidance, a gate" do
-    String :name
-    String :scope
-    String :check
-    String :violation
-    String :origin
+    attribute :name, String
+    attribute :scope, String
+    attribute :check, String
+    attribute :violation, String
+    attribute :origin, String
 
-    AddRule do
+    command "AddRule" do
       role "System"
       description "Register a rendering rule that the generator must satisfy"
-      String :name
-      String :scope
-      String :check
-      String :violation
-      String :origin
+      attribute :name, String
+      attribute :scope, String
+      attribute :check, String
+      attribute :violation, String
+      attribute :origin, String
       emits "RuleAdded"
       then_set :name, to: :name
       then_set :scope, to: :scope
@@ -350,76 +348,28 @@ Hecks.bluebook "WebApplicationCreation", version: "2026.04.11.1" do
   # ============================================================
 
   # --- CSS & Framework ---
-  fixture "RenderingRule", name: "tailwind_only", scope: "document", check: "no <link rel=stylesheet> except tailwind CDN", violation: "custom CSS file detected", origin: "winter"
-  fixture "RenderingRule", name: "single_process", scope: "server", check: "HTML and API served from one port", violation: "separate frontend process detected", origin: "winter"
 
   # --- Color System ---
-  fixture "RenderingRule", name: "dark_surface_bg", scope: "body", check: "background-color in surface-0 range (#0d-#14)", violation: "body background too light", origin: "winter"
-  fixture "RenderingRule", name: "brand_color_from_client", scope: "tailwind.config", check: "brand.DEFAULT sourced from client website or world.hec", violation: "hardcoded brand color", origin: "alan"
-  fixture "RenderingRule", name: "no_default_blue_buttons", scope: "button", check: "no bg-blue-500 or bg-blue-600 classes", violation: "default blue button found", origin: "alan"
-  fixture "RenderingRule", name: "status_traffic_light", scope: "[data-domain-lifecycle]", check: "green=active/pass amber=pending/warning red=error/fail", violation: "status color does not match semantic", origin: "winter"
 
   # --- Typography ---
-  fixture "RenderingRule", name: "heading_font_distinct", scope: "h1,h2,h3", check: "font-family differs from body font-family", violation: "headings use same font as body", origin: "winter"
-  fixture "RenderingRule", name: "three_level_hierarchy", scope: "page", check: "at least 3 distinct font-size values used", violation: "fewer than 3 type sizes", origin: "winter"
 
   # --- Layout ---
-  fixture "RenderingRule", name: "sidebar_client_name", scope: "#sidebar h1", check: "text content matches client name from hecksagon.hec", violation: "sidebar shows Hecks instead of client name", origin: "alan"
-  fixture "RenderingRule", name: "sidebar_grouped", scope: "#sidebar nav", check: "links nested under category heading elements", violation: "flat sidebar without grouping", origin: "alan"
-  fixture "RenderingRule", name: "sidebar_no_counts", scope: "#sidebar a", check: "no numeric badge or count suffix", violation: "count shown in sidebar link", origin: "alan"
-  fixture "RenderingRule", name: "footer_sidebar_only", scope: "footer", check: "Hecks attribution only inside #sidebar", violation: "Hecks branding in main content area", origin: "alan"
-  fixture "RenderingRule", name: "kpi_row_per_domain", scope: "[data-domain-page]", check: "first child is grid with 3-4 metric cards", violation: "domain page missing KPI header row", origin: "alan"
-  fixture "RenderingRule", name: "f_pattern_kpi", scope: ".kpi-grid", check: "primary metric is first child (top-left)", violation: "primary KPI not in top-left position", origin: "winter"
 
   # --- Tables ---
-  fixture "RenderingRule", name: "per_module_tables", scope: "[data-domain-aggregate]", check: "table is child of its aggregate panel, not shared", violation: "records table outside its module panel", origin: "alan"
-  fixture "RenderingRule", name: "row_count_above", scope: "table", check: "preceding sibling contains record count text", violation: "table has no row count header", origin: "winter"
-  fixture "RenderingRule", name: "sticky_thead", scope: "thead", check: "has class sticky and top-0", violation: "table header not sticky", origin: "winter"
-  fixture "RenderingRule", name: "numbers_right_aligned", scope: "td[data-type=number]", check: "has class text-right", violation: "numeric cell not right-aligned", origin: "winter"
-  fixture "RenderingRule", name: "zebra_rows", scope: "tbody tr", check: "alternating background via even: or odd: class", violation: "no zebra striping on table rows", origin: "winter"
-  fixture "RenderingRule", name: "sortable_headers", scope: "th", check: "click handler or data-sort attribute present", violation: "column header not sortable", origin: "winter"
-  fixture "RenderingRule", name: "empty_state_message", scope: "tbody:empty", check: "sibling or child shows guidance text", violation: "empty table with no message", origin: "winter"
 
   # --- Commands ---
-  fixture "RenderingRule", name: "create_renders_wizard", scope: "command[no reference_to]", check: "opens modal wizard, not inline form", violation: "create command rendered as inline form", origin: "alan"
-  fixture "RenderingRule", name: "update_renders_row_action", scope: "command[has reference_to]", check: "rendered as button on aggregate row", violation: "update command rendered as standalone form", origin: "alan"
-  fixture "RenderingRule", name: "wizard_auto_close", scope: ".wizard-overlay", check: "closes 1500ms after success", violation: "wizard stays open after success", origin: "alan"
-  fixture "RenderingRule", name: "button_shows_verb", scope: "button[data-domain-command]", check: "text content starts with command verb, not 'Submit' or 'Execute'", violation: "button label is generic", origin: "winter"
-  fixture "RenderingRule", name: "space_bar_safe", scope: "document", check: "space keydown prevented when focus not in input/textarea/select", violation: "space bar submits outside input", origin: "alan"
-  fixture "RenderingRule", name: "given_renders_precondition", scope: "command[has given]", check: "displays human-readable precondition text", violation: "given expression shown as raw code", origin: "alan"
-  fixture "RenderingRule", name: "dimmed_when_invalid", scope: "command[given not met]", check: "button has opacity < 1 or disabled attribute", violation: "invalid command button fully active", origin: "alan"
 
   # --- Fields ---
-  fixture "RenderingRule", name: "enum_renders_select", scope: "attribute[values known]", check: "rendered as <select> not <input type=text>", violation: "enum field rendered as text input", origin: "alan"
-  fixture "RenderingRule", name: "reference_renders_select", scope: "attribute[reference_to]", check: "rendered as <select> populated from existing records", violation: "reference field rendered as text input", origin: "alan"
-  fixture "RenderingRule", name: "snake_case_cleaned", scope: "td,option", check: "underscores replaced with spaces, words capitalized", violation: "raw snake_case shown to user", origin: "alan"
 
   # --- Lifecycle ---
-  fixture "RenderingRule", name: "lifecycle_renders_pipeline", scope: "aggregate[has lifecycle]", check: "steps rendered left-to-right with current step highlighted", violation: "lifecycle not rendered as visual pipeline", origin: "alan"
-  fixture "RenderingRule", name: "step_counts_shown", scope: ".workflow-step", check: "badge shows count of records at this stage", violation: "workflow step missing count badge", origin: "winter"
 
   # --- Events ---
-  fixture "RenderingRule", name: "event_name_humanized", scope: "[data-domain-emit]", check: "PascalCase split into space-separated words", violation: "event name shown as PascalCase", origin: "winter"
-  fixture "RenderingRule", name: "success_banner_on_dispatch", scope: "dispatch result[ok]", check: "green banner visible for >= 1500ms", violation: "no visible success feedback", origin: "winter"
 
   # --- Terminology ---
-  fixture "RenderingRule", name: "no_hecks_terminology", scope: "visible text", check: "none of: aggregate, command, domain, bluebook, fixture, policy, lifecycle", violation: "internal terminology exposed to user", origin: "alan"
-  fixture "RenderingRule", name: "modules_not_aggregates", scope: "heading,label,nav", check: "says 'modules' not 'aggregates'", violation: "word 'aggregate' shown to user", origin: "alan"
-  fixture "RenderingRule", name: "records_not_fixtures", scope: "heading,label,tab", check: "says 'records' not 'fixtures' or 'seed data'", violation: "word 'fixture' shown to user", origin: "alan"
 
   # --- Panels ---
-  fixture "RenderingRule", name: "collapsible_panels", scope: "[data-domain-aggregate]", check: "wrapped in <details> element", violation: "module panel not collapsible", origin: "winter"
-  fixture "RenderingRule", name: "first_panel_open", scope: "[data-domain-aggregate]:first-child", check: "has open attribute", violation: "first module panel starts collapsed", origin: "winter"
-  fixture "RenderingRule", name: "panel_slide_animation", scope: "details[open] > div", check: "has CSS animation on opacity and transform", violation: "panel opens without animation", origin: "winter"
-  fixture "RenderingRule", name: "module_icon_unique", scope: "[data-domain-aggregate] summary svg", check: "icon differs per module, selected by keyword", violation: "same icon used for multiple modules", origin: "winter"
-  fixture "RenderingRule", name: "details_marker_hidden", scope: "details > summary", check: "list-style:none and ::-webkit-details-marker hidden", violation: "browser default arrow shown", origin: "winter"
-  fixture "RenderingRule", name: "text_selectable", scope: "[data-domain-aggregate]", check: "no select-none class on content", violation: "text not selectable in panel", origin: "winter"
 
   # --- Touch & Accessibility ---
-  fixture "RenderingRule", name: "touch_target_44px", scope: "button,a[href]", check: "min-width >= 44px and min-height >= 44px", violation: "click target smaller than 44px", origin: "winter"
-  fixture "RenderingRule", name: "sidebar_link_title", scope: "#sidebar a", check: "has title attribute with description", violation: "sidebar link missing title", origin: "winter"
 
   # --- Data ---
-  fixture "RenderingRule", name: "data_persists", scope: "server", check: "dispatched state saved to .heki, survives refresh", violation: "data lost on page reload", origin: "winter"
-  fixture "RenderingRule", name: "heki_named_per_client", scope: "data/*.heki", check: "filename derived from hecksagon name, not hardcoded", violation: "hardcoded heki filename", origin: "winter"
 end

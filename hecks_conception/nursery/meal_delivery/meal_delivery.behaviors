@@ -1,0 +1,87 @@
+Hecks.behaviors "MealDelivery" do
+  vision "Behavioral tests for the MealDelivery domain — exercises every command and query in memory"
+
+  # ── FoodItem aggregate ──────────────────────────────────────────
+
+  test "StockItem sets item_id + name + category + quantity + expiry_date + dietary_tags" do
+    tests "StockItem", on: "FoodItem"
+    input  item_id: "sample", name: "sample", category: "sample", quantity: 1, expiry_date: "sample", dietary_tags: "sample"
+    expect item_id: "sample", name: "sample", category: "sample", quantity: 1, expiry_date: "sample", dietary_tags: "sample"
+  end
+
+  test "DepletItem sets quantity" do
+    tests "DepletItem", on: "FoodItem"
+    setup  "StockItem", item_id: "sample", name: "sample", category: "sample", quantity: 1, expiry_date: "sample", dietary_tags: "sample"
+    input  quantity: 1
+    expect quantity: 1
+  end
+
+
+  # ── MealPackage aggregate ──────────────────────────────────────────
+
+  test "AssembleMeal sets package_id + recipient_id + dietary_type" do
+    tests "AssembleMeal", on: "MealPackage"
+    input  package_id: "sample", recipient_id: "sample", dietary_type: "sample"
+    expect package_id: "sample", recipient_id: "sample", dietary_type: "sample", status: "assembled"
+  end
+
+  test "AssembleMeal cascades through policy chain" do
+    tests "AssembleMeal", on: "MealPackage", kind: :cascade
+    setup  "PlanRun", run_id: "sample", courier_name: "sample", date: "sample", total_miles: 1.0
+    input  package_id: "sample", recipient_id: "sample", dietary_type: "sample"
+    expect emits: ["MealAssembled", "RunPlanned"]
+  end
+
+  test "MarkDelivered runs" do
+    tests "MarkDelivered", on: "MealPackage"
+    setup  "AssembleMeal", package_id: "sample", recipient_id: "sample", dietary_type: "sample"
+    expect status: "delivered"
+  end
+
+
+  # ── DeliveryRun aggregate ──────────────────────────────────────────
+
+  test "PlanRun sets run_id + courier_name + date + total_miles" do
+    tests "PlanRun", on: "DeliveryRun"
+    input  run_id: "sample", courier_name: "sample", date: "sample", total_miles: 1.0
+    expect run_id: "sample", courier_name: "sample", date: "sample", total_miles: 1.0, status: "planned"
+  end
+
+  test "StartRun runs" do
+    tests "StartRun", on: "DeliveryRun"
+    setup  "PlanRun", run_id: "sample", courier_name: "sample", date: "sample", total_miles: 1.0
+    expect status: "in_progress"
+  end
+
+  test "FinishRun runs" do
+    tests "FinishRun", on: "DeliveryRun"
+    setup  "PlanRun", run_id: "sample", courier_name: "sample", date: "sample", total_miles: 1.0
+    setup  "StartRun"
+    expect status: "finished"
+  end
+
+
+  # ── Recipient aggregate ──────────────────────────────────────────
+
+  test "RegisterRecipient sets recipient_id + name + address + dietary_restriction + household_size" do
+    tests "RegisterRecipient", on: "Recipient"
+    input  recipient_id: "sample", name: "sample", address: "sample", dietary_restriction: "sample", household_size: 1
+    expect recipient_id: "sample", name: "sample", address: "sample", dietary_restriction: "sample", household_size: 1, status: "active"
+  end
+
+  test "RegisterRecipient cascades through policy chain" do
+    tests "RegisterRecipient", on: "Recipient", kind: :cascade
+    setup  "AssembleMeal", package_id: "sample", recipient_id: "sample", dietary_type: "sample"
+    setup  "PlanRun", run_id: "sample", courier_name: "sample", date: "sample", total_miles: 1.0
+    input  recipient_id: "sample", name: "sample", address: "sample", dietary_restriction: "sample", household_size: 1
+    expect emits: ["RecipientRegistered", "MealAssembled", "RunPlanned"]
+  end
+
+  test "ReviseDiet sets dietary_restriction" do
+    tests "ReviseDiet", on: "Recipient"
+    setup  "RegisterRecipient", recipient_id: "sample", name: "sample", address: "sample", dietary_restriction: "sample", household_size: 1
+    input  dietary_restriction: "sample"
+    expect dietary_restriction: "sample"
+  end
+
+end

@@ -1,0 +1,145 @@
+Hecks.behaviors "PestControl" do
+  vision "Behavioral tests for the PestControl domain — exercises every command and query in memory"
+
+  # ── ServiceAccount aggregate ──────────────────────────────────────────
+
+  test "OpenAccount sets customer_name + phone + email + service_address + property_type" do
+    tests "OpenAccount", on: "ServiceAccount"
+    input  customer_name: "sample", phone: "sample", email: "sample", service_address: "sample", property_type: "sample"
+    expect customer_name: "sample", phone: "sample", email: "sample", service_address: "sample", property_type: "sample", status: "active"
+  end
+
+  test "OpenAccount cascades through policy chain" do
+    tests "OpenAccount", on: "ServiceAccount", kind: :cascade
+    setup  "ConductInspection", inspection_date: "sample", pest_type: "sample", severity: "sample", entry_points: "sample", recommendations: "sample"
+    setup  "ApplyTreatment", treatment_type: "sample", target_pest: "sample", application_method: "sample", areas_treated: "sample"
+    setup  "ScheduleFollowUp", visit_date: "sample", purpose: "sample"
+    setup  "StockChemical", product_name: "sample", epa_registration: "sample", active_ingredient: "sample", quantity_on_hand: 1.0, unit: "sample", expiration_date: "sample"
+    input  customer_name: "sample", phone: "sample", email: "sample", service_address: "sample", property_type: "sample"
+    expect emits: ["AccountOpened", "InspectionConducted", "TreatmentApplied", "ReentryTimeRecorded", "FollowUpScheduled", "ChemicalUsed", "InspectionConducted", "TreatmentApplied", "ReentryTimeRecorded", "FollowUpScheduled", "ChemicalUsed"]
+  end
+
+  test "SuspendAccount runs" do
+    tests "SuspendAccount", on: "ServiceAccount"
+    setup  "OpenAccount", customer_name: "sample", phone: "sample", email: "sample", service_address: "sample", property_type: "sample"
+    expect status: "suspended"
+  end
+
+  test "CloseAccount runs" do
+    tests "CloseAccount", on: "ServiceAccount"
+    setup  "OpenAccount", customer_name: "sample", phone: "sample", email: "sample", service_address: "sample", property_type: "sample"
+    expect status: "closed"
+  end
+
+
+  # ── InspectionReport aggregate ──────────────────────────────────────────
+
+  test "ConductInspection sets inspection_date + pest_type + severity + entry_points + recommendations" do
+    tests "ConductInspection", on: "InspectionReport"
+    setup  "OpenAccount", customer_name: "sample", phone: "sample", email: "sample", service_address: "sample", property_type: "sample"
+    input  inspection_date: "sample", pest_type: "sample", severity: "sample", entry_points: "sample", recommendations: "sample"
+    expect inspection_date: "sample", pest_type: "sample", severity: "sample", entry_points: "sample", recommendations: "sample", status: "completed"
+  end
+
+  test "ConductInspection cascades through policy chain" do
+    tests "ConductInspection", on: "InspectionReport", kind: :cascade
+    setup  "OpenAccount", customer_name: "sample", phone: "sample", email: "sample", service_address: "sample", property_type: "sample"
+    setup  "ApplyTreatment", treatment_type: "sample", target_pest: "sample", application_method: "sample", areas_treated: "sample"
+    setup  "ScheduleFollowUp", visit_date: "sample", purpose: "sample"
+    setup  "StockChemical", product_name: "sample", epa_registration: "sample", active_ingredient: "sample", quantity_on_hand: 1.0, unit: "sample", expiration_date: "sample"
+    input  inspection_date: "sample", pest_type: "sample", severity: "sample", entry_points: "sample", recommendations: "sample"
+    expect emits: ["InspectionConducted", "TreatmentApplied", "ReentryTimeRecorded", "FollowUpScheduled", "ChemicalUsed"]
+  end
+
+  test "FlagReinfestation runs" do
+    tests "FlagReinfestation", on: "InspectionReport"
+    setup  "ConductInspection", inspection_date: "sample", pest_type: "sample", severity: "sample", entry_points: "sample", recommendations: "sample"
+    expect status: "reinfestation"
+  end
+
+  test "FlagReinfestation cascades through policy chain" do
+    tests "FlagReinfestation", on: "InspectionReport", kind: :cascade
+    setup  "OpenAccount", customer_name: "sample", phone: "sample", email: "sample", service_address: "sample", property_type: "sample"
+    setup  "ApplyTreatment", treatment_type: "sample", target_pest: "sample", application_method: "sample", areas_treated: "sample"
+    setup  "ScheduleFollowUp", visit_date: "sample", purpose: "sample"
+    setup  "StockChemical", product_name: "sample", epa_registration: "sample", active_ingredient: "sample", quantity_on_hand: 1.0, unit: "sample", expiration_date: "sample"
+    setup  "ConductInspection", inspection_date: "sample", pest_type: "sample", severity: "sample", entry_points: "sample", recommendations: "sample"
+    expect emits: ["ReinfestationFlagged", "InspectionConducted", "TreatmentApplied", "ReentryTimeRecorded", "FollowUpScheduled", "ChemicalUsed"]
+  end
+
+
+  # ── TreatmentApplication aggregate ──────────────────────────────────────────
+
+  test "ApplyTreatment sets treatment_type + target_pest + application_method + areas_treated" do
+    tests "ApplyTreatment", on: "TreatmentApplication"
+    setup  "ConductInspection", inspection_date: "sample", pest_type: "sample", severity: "sample", entry_points: "sample", recommendations: "sample"
+    setup  "OpenAccount", customer_name: "sample", phone: "sample", email: "sample", service_address: "sample", property_type: "sample"
+    input  treatment_type: "sample", target_pest: "sample", application_method: "sample", areas_treated: "sample"
+    expect treatment_type: "sample", target_pest: "sample", application_method: "sample", areas_treated: "sample", status: "applied"
+  end
+
+  test "ApplyTreatment cascades through policy chain" do
+    tests "ApplyTreatment", on: "TreatmentApplication", kind: :cascade
+    setup  "OpenAccount", customer_name: "sample", phone: "sample", email: "sample", service_address: "sample", property_type: "sample"
+    setup  "ConductInspection", inspection_date: "sample", pest_type: "sample", severity: "sample", entry_points: "sample", recommendations: "sample"
+    setup  "ScheduleFollowUp", visit_date: "sample", purpose: "sample"
+    setup  "StockChemical", product_name: "sample", epa_registration: "sample", active_ingredient: "sample", quantity_on_hand: 1.0, unit: "sample", expiration_date: "sample"
+    input  treatment_type: "sample", target_pest: "sample", application_method: "sample", areas_treated: "sample"
+    expect emits: ["TreatmentApplied", "ReentryTimeRecorded", "FollowUpScheduled", "ChemicalUsed"]
+  end
+
+  test "RecordReentryTime sets reentry_hours" do
+    tests "RecordReentryTime", on: "TreatmentApplication"
+    setup  "ApplyTreatment", treatment_type: "sample", target_pest: "sample", application_method: "sample", areas_treated: "sample"
+    input  reentry_hours: "sample"
+    expect ok: "true"
+  end
+
+  test "VerifyEffectiveness runs" do
+    tests "VerifyEffectiveness", on: "TreatmentApplication"
+    setup  "ApplyTreatment", treatment_type: "sample", target_pest: "sample", application_method: "sample", areas_treated: "sample"
+    expect status: "effective"
+  end
+
+
+  # ── ChemicalInventory aggregate ──────────────────────────────────────────
+
+  test "StockChemical sets product_name + epa_registration + active_ingredient + quantity_on_hand + unit + expiration_date" do
+    tests "StockChemical", on: "ChemicalInventory"
+    input  product_name: "sample", epa_registration: "sample", active_ingredient: "sample", quantity_on_hand: 1.0, unit: "sample", expiration_date: "sample"
+    expect product_name: "sample", epa_registration: "sample", active_ingredient: "sample", quantity_on_hand: 1.0, unit: "sample", expiration_date: "sample"
+  end
+
+  test "DisposeExpired runs" do
+    tests "DisposeExpired", on: "ChemicalInventory"
+    setup  "StockChemical", product_name: "sample", epa_registration: "sample", active_ingredient: "sample", quantity_on_hand: 1.0, unit: "sample", expiration_date: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── FollowUpVisit aggregate ──────────────────────────────────────────
+
+  test "ScheduleFollowUp sets visit_date + purpose" do
+    tests "ScheduleFollowUp", on: "FollowUpVisit"
+    setup  "ApplyTreatment", treatment_type: "sample", target_pest: "sample", application_method: "sample", areas_treated: "sample"
+    setup  "OpenAccount", customer_name: "sample", phone: "sample", email: "sample", service_address: "sample", property_type: "sample"
+    input  visit_date: "sample", purpose: "sample"
+    expect visit_date: "sample", purpose: "sample", status: "scheduled"
+  end
+
+  test "CompleteFollowUp sets findings" do
+    tests "CompleteFollowUp", on: "FollowUpVisit"
+    setup  "ScheduleFollowUp", visit_date: "sample", purpose: "sample"
+    input  findings: "sample"
+    expect findings: "sample", status: "completed"
+  end
+
+  test "CompleteFollowUp cascades through policy chain" do
+    tests "CompleteFollowUp", on: "FollowUpVisit", kind: :cascade
+    setup  "ApplyTreatment", treatment_type: "sample", target_pest: "sample", application_method: "sample", areas_treated: "sample"
+    setup  "ScheduleFollowUp", visit_date: "sample", purpose: "sample"
+    input  findings: "sample"
+    expect emits: ["FollowUpCompleted", "EffectivenessVerified"]
+  end
+
+end

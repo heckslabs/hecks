@@ -1,0 +1,116 @@
+Hecks.behaviors "Pharmacology" do
+  vision "Behavioral tests for the Pharmacology domain — exercises every command and query in memory"
+
+  # ── Compound aggregate ──────────────────────────────────────────
+
+  test "RegisterCompound sets compound_id + name + molecular_formula" do
+    tests "RegisterCompound", on: "Compound"
+    input  compound_id: "sample", name: "sample", molecular_formula: "sample"
+    expect compound_id: "sample", name: "sample", molecular_formula: "sample", structure_data_loaded: true
+  end
+
+  test "RegisterCompound cascades through policy chain" do
+    tests "RegisterCompound", on: "Compound", kind: :cascade
+    setup  "InitiateTrial", trial_id: "sample", phase: "sample", enrollment_target: 1
+    input  compound_id: "sample", name: "sample", molecular_formula: "sample"
+    expect emits: ["CompoundRegistered", "CompoundScreened", "TrialInitiated", "SubjectEnrolled"]
+  end
+
+  test "ScreenCompound runs" do
+    tests "ScreenCompound", on: "Compound"
+    setup  "RegisterCompound", compound_id: "sample", name: "sample", molecular_formula: "sample"
+    expect ok: "true"
+  end
+
+  test "ScreenCompound cascades through policy chain" do
+    tests "ScreenCompound", on: "Compound", kind: :cascade
+    setup  "InitiateTrial", trial_id: "sample", phase: "sample", enrollment_target: 1
+    setup  "RegisterCompound", compound_id: "sample", name: "sample", molecular_formula: "sample"
+    expect emits: ["CompoundScreened", "TrialInitiated", "SubjectEnrolled"]
+  end
+
+  test "ShelveCompound runs" do
+    tests "ShelveCompound", on: "Compound"
+    setup  "RegisterCompound", compound_id: "sample", name: "sample", molecular_formula: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ClinicalTrial aggregate ──────────────────────────────────────────
+
+  test "InitiateTrial sets trial_id + phase + enrollment_target" do
+    tests "InitiateTrial", on: "ClinicalTrial"
+    setup  "RegisterCompound", compound_id: "sample", name: "sample", molecular_formula: "sample"
+    input  trial_id: "sample", phase: "sample", enrollment_target: 1
+    expect ok: "true"
+  end
+
+  test "InitiateTrial cascades through policy chain" do
+    tests "InitiateTrial", on: "ClinicalTrial", kind: :cascade
+    setup  "RegisterCompound", compound_id: "sample", name: "sample", molecular_formula: "sample"
+    input  trial_id: "sample", phase: "sample", enrollment_target: 1
+    expect emits: ["TrialInitiated", "SubjectEnrolled"]
+  end
+
+  test "ConcludeTrial runs" do
+    tests "ConcludeTrial", on: "ClinicalTrial"
+    setup  "InitiateTrial", trial_id: "sample", phase: "sample", enrollment_target: 1
+    expect ok: "true"
+  end
+
+  test "ConcludeTrial cascades through policy chain" do
+    tests "ConcludeTrial", on: "ClinicalTrial", kind: :cascade
+    setup  "InitiateTrial", trial_id: "sample", phase: "sample", enrollment_target: 1
+    setup  "FileSubmission", agency: "sample", submission_type: "sample"
+    setup  "RegisterCompound", compound_id: "sample", name: "sample", molecular_formula: "sample"
+    expect emits: ["TrialConcluded", "SubmissionFiled", "ApprovalGranted"]
+  end
+
+
+  # ── AdverseEvent aggregate ──────────────────────────────────────────
+
+  test "ReportEvent sets description + severity" do
+    tests "ReportEvent", on: "AdverseEvent"
+    setup  "InitiateTrial", trial_id: "sample", phase: "sample", enrollment_target: 1
+    input  description: "sample", severity: "sample"
+    expect medically_reviewed: true
+  end
+
+  test "ReportEvent cascades through policy chain" do
+    tests "ReportEvent", on: "AdverseEvent", kind: :cascade
+    setup  "InitiateTrial", trial_id: "sample", phase: "sample", enrollment_target: 1
+    input  description: "sample", severity: "sample"
+    expect emits: ["EventReported", "CausalityAssessed"]
+  end
+
+  test "AssessCausality sets assessment" do
+    tests "AssessCausality", on: "AdverseEvent"
+    setup  "ReportEvent", description: "sample", severity: "sample"
+    input  assessment: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── RegulatorySubmission aggregate ──────────────────────────────────────────
+
+  test "FileSubmission sets agency + submission_type" do
+    tests "FileSubmission", on: "RegulatorySubmission"
+    setup  "RegisterCompound", compound_id: "sample", name: "sample", molecular_formula: "sample"
+    input  agency: "sample", submission_type: "sample"
+    expect trial_results_included: true
+  end
+
+  test "FileSubmission cascades through policy chain" do
+    tests "FileSubmission", on: "RegulatorySubmission", kind: :cascade
+    setup  "RegisterCompound", compound_id: "sample", name: "sample", molecular_formula: "sample"
+    input  agency: "sample", submission_type: "sample"
+    expect emits: ["SubmissionFiled", "ApprovalGranted"]
+  end
+
+  test "GrantApproval runs" do
+    tests "GrantApproval", on: "RegulatorySubmission"
+    setup  "FileSubmission", agency: "sample", submission_type: "sample"
+    expect ok: "true"
+  end
+
+end

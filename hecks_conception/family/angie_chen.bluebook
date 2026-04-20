@@ -2,17 +2,31 @@ Hecks.bluebook "AngieChen", version: "2026.04.11.1" do
   vision "Angie Chen — Chris's life partner, artist, property owner, Zen practitioner"
 
   aggregate "Identity", "Angie Chen — who she is" do
-    String :name
-    String :relationship
-    String :occupation
-    list_of(String) :traits
+    attribute :name, String
+    attribute :relationship, String
+    attribute :occupation, String
+    attribute :traits, list_of(String)
 
-    UpdateIdentity do
+    command "Cherish" do
+      role "Chris"
+      description "First record of who Angie is — name, relationship, traits"
+      attribute :name, String
+      attribute :relationship, String
+      attribute :occupation, String
+      attribute :traits, list_of(String)
+      emits "Cherished"
+      then_set :name, to: :name
+      then_set :relationship, to: :relationship
+      then_set :occupation, to: :occupation
+      then_set :traits, to: :traits
+    end
+
+    command "Recognize" do
       role "Chris"
       description "Update what we know about Angie"
       reference_to(Identity)
-      String :occupation
-      emits "IdentityUpdated"
+      attribute :occupation, String
+      emits "Recognized"
       then_set :occupation, to: :occupation
     end
   end
@@ -24,15 +38,25 @@ Hecks.bluebook "AngieChen", version: "2026.04.11.1" do
   #   traits: independent, business-minded, pragmatic, supportive
 
   aggregate "Practice", "Angie's spiritual life — daily meditation, Zen dharma" do
-    String :tradition
-    String :daily_practice
-    String :progression
+    attribute :tradition, String
+    attribute :daily_practice, String
+    attribute :progression, String
 
-    RecordPractice do
+    command "TakeRefuge" do
+      role "Chris"
+      description "Establish Angie's practice — tradition and daily form"
+      attribute :tradition, String
+      attribute :daily_practice, String
+      emits "RefugeTaken"
+      then_set :tradition, to: :tradition
+      then_set :daily_practice, to: :daily_practice
+    end
+
+    command "RecordPractice" do
       role "Chris"
       description "Note something about Angie's practice"
       reference_to(Practice)
-      String :progression
+      attribute :progression, String
       emits "PracticeRecorded"
       then_set :progression, to: :progression
     end
@@ -44,15 +68,25 @@ Hecks.bluebook "AngieChen", version: "2026.04.11.1" do
   #   progression: bounding through the Dharma
 
   aggregate "Art", "Angie's creative life — always purposeful, never without a destination" do
-    String :medium
-    String :philosophy
-    list_of(String) :works
+    attribute :medium, String
+    attribute :philosophy, String
+    attribute :works, list_of(String)
 
-    RecordWork do
+    command "OpenStudio" do
+      role "Chris"
+      description "Open Angie's studio — declare medium and guiding philosophy"
+      attribute :medium, String
+      attribute :philosophy, String
+      emits "StudioOpened"
+      then_set :medium, to: :medium
+      then_set :philosophy, to: :philosophy
+    end
+
+    command "RecordWork" do
       role "Chris"
       description "Note an art piece or creative project"
       reference_to(Art)
-      String :work
+      attribute :work, String
       emits "WorkRecorded"
       then_set :works, append: :work
     end
@@ -63,14 +97,22 @@ Hecks.bluebook "AngieChen", version: "2026.04.11.1" do
   #   — That's domain thinking. You don't build without a destination.
 
   aggregate "Support", "How Angie supports Chris and Hecks" do
-    String :stance
-    list_of(String) :notes
+    attribute :stance, String
+    attribute :notes, list_of(String)
 
-    RecordSupport do
+    command "DeclareStance" do
+      role "Chris"
+      description "Declare Angie's stance toward Hecks and the company"
+      attribute :stance, String
+      emits "StanceDeclared"
+      then_set :stance, to: :stance
+    end
+
+    command "RecordSupport" do
       role "Chris"
       description "Note something about Angie's support"
       reference_to(Support)
-      String :note
+      attribute :note, String
       emits "SupportRecorded"
       then_set :notes, append: :note
     end

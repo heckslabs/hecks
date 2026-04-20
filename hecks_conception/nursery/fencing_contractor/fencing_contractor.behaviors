@@ -1,0 +1,140 @@
+Hecks.behaviors "FencingContractor" do
+  vision "Behavioral tests for the FencingContractor domain — exercises every command and query in memory"
+
+  # ── FenceEstimate aggregate ──────────────────────────────────────────
+
+  test "MeasureProperty sets customer_name + address + linear_feet + fence_style + height_feet + gate_count" do
+    tests "MeasureProperty", on: "FenceEstimate"
+    input  customer_name: "sample", address: "sample", linear_feet: 1.0, fence_style: "sample", height_feet: 1.0, gate_count: 1
+    expect ok: "true"
+  end
+
+  test "MeasureProperty cascades through policy chain" do
+    tests "MeasureProperty", on: "FenceEstimate", kind: :cascade
+    setup  "VerifyPropertyLine", survey_source: "sample", setback_inches: 1.0
+    input  customer_name: "sample", address: "sample", linear_feet: 1.0, fence_style: "sample", height_feet: 1.0, gate_count: 1
+    expect emits: ["PropertyMeasured", "PropertyLineVerified", "FenceQuoted"]
+  end
+
+  test "QuoteFence sets total_price" do
+    tests "QuoteFence", on: "FenceEstimate"
+    setup  "MeasureProperty", customer_name: "sample", address: "sample", linear_feet: 1.0, fence_style: "sample", height_feet: 1.0, gate_count: 1
+    input  total_price: 1.0
+    expect status: "quoted"
+  end
+
+  test "AcceptQuote runs" do
+    tests "AcceptQuote", on: "FenceEstimate"
+    setup  "MeasureProperty", customer_name: "sample", address: "sample", linear_feet: 1.0, fence_style: "sample", height_feet: 1.0, gate_count: 1
+    setup  "QuoteFence", total_price: 1.0
+    expect ok: "true"
+  end
+
+  test "AcceptQuote cascades through policy chain" do
+    tests "AcceptQuote", on: "FenceEstimate", kind: :cascade
+    setup  "MeasureProperty", customer_name: "sample", address: "sample", linear_feet: 1.0, fence_style: "sample", height_feet: 1.0, gate_count: 1
+    setup  "OrderMaterials", supplier: "sample", post_count: 1, panel_count: 1
+    setup  "QuoteFence", total_price: 1.0
+    expect emits: ["QuoteAccepted", "MaterialsOrdered"]
+  end
+
+
+  # ── MaterialOrder aggregate ──────────────────────────────────────────
+
+  test "OrderMaterials sets supplier + post_count + panel_count" do
+    tests "OrderMaterials", on: "MaterialOrder"
+    setup  "MeasureProperty", customer_name: "sample", address: "sample", linear_feet: 1.0, fence_style: "sample", height_feet: 1.0, gate_count: 1
+    input  supplier: "sample", post_count: 1, panel_count: 1
+    expect ok: "true"
+  end
+
+  test "ReceiveDelivery runs" do
+    tests "ReceiveDelivery", on: "MaterialOrder"
+    setup  "OrderMaterials", supplier: "sample", post_count: 1, panel_count: 1
+    expect ok: "true"
+  end
+
+  test "ReceiveDelivery cascades through policy chain" do
+    tests "ReceiveDelivery", on: "MaterialOrder", kind: :cascade
+    setup  "OrderMaterials", supplier: "sample", post_count: 1, panel_count: 1
+    setup  "DigHoles", hole_depth_inches: 1.0, hole_count: 1
+    setup  "MeasureProperty", customer_name: "sample", address: "sample", linear_feet: 1.0, fence_style: "sample", height_feet: 1.0, gate_count: 1
+    setup  "HangPanels", panels_installed: 1
+    expect emits: ["DeliveryReceived", "HolesDug", "PostsSet", "PanelsHung", "GatesInstalled"]
+  end
+
+
+  # ── PostSetting aggregate ──────────────────────────────────────────
+
+  test "DigHoles sets hole_depth_inches + hole_count" do
+    tests "DigHoles", on: "PostSetting"
+    setup  "MeasureProperty", customer_name: "sample", address: "sample", linear_feet: 1.0, fence_style: "sample", height_feet: 1.0, gate_count: 1
+    input  hole_depth_inches: 1.0, hole_count: 1
+    expect status: "holes_dug"
+  end
+
+  test "DigHoles cascades through policy chain" do
+    tests "DigHoles", on: "PostSetting", kind: :cascade
+    setup  "MeasureProperty", customer_name: "sample", address: "sample", linear_feet: 1.0, fence_style: "sample", height_feet: 1.0, gate_count: 1
+    setup  "HangPanels", panels_installed: 1
+    input  hole_depth_inches: 1.0, hole_count: 1
+    expect emits: ["HolesDug", "PostsSet", "PanelsHung", "GatesInstalled"]
+  end
+
+  test "SetPosts sets concrete_type" do
+    tests "SetPosts", on: "PostSetting"
+    setup  "DigHoles", hole_depth_inches: 1.0, hole_count: 1
+    input  concrete_type: "sample"
+    expect ok: "true"
+  end
+
+  test "SetPosts cascades through policy chain" do
+    tests "SetPosts", on: "PostSetting", kind: :cascade
+    setup  "HangPanels", panels_installed: 1
+    setup  "DigHoles", hole_depth_inches: 1.0, hole_count: 1
+    input  concrete_type: "sample"
+    expect emits: ["PostsSet", "PanelsHung", "GatesInstalled"]
+  end
+
+
+  # ── PanelInstallation aggregate ──────────────────────────────────────────
+
+  test "HangPanels sets panels_installed" do
+    tests "HangPanels", on: "PanelInstallation"
+    setup  "DigHoles", hole_depth_inches: 1.0, hole_count: 1
+    input  panels_installed: 1
+    expect ok: "true"
+  end
+
+  test "HangPanels cascades through policy chain" do
+    tests "HangPanels", on: "PanelInstallation", kind: :cascade
+    setup  "DigHoles", hole_depth_inches: 1.0, hole_count: 1
+    input  panels_installed: 1
+    expect emits: ["PanelsHung", "GatesInstalled"]
+  end
+
+  test "InstallGates sets gate_count" do
+    tests "InstallGates", on: "PanelInstallation"
+    setup  "HangPanels", panels_installed: 1
+    input  gate_count: 1
+    expect ok: "true"
+  end
+
+
+  # ── PropertyLine aggregate ──────────────────────────────────────────
+
+  test "VerifyPropertyLine sets survey_source + setback_inches" do
+    tests "VerifyPropertyLine", on: "PropertyLine"
+    setup  "MeasureProperty", customer_name: "sample", address: "sample", linear_feet: 1.0, fence_style: "sample", height_feet: 1.0, gate_count: 1
+    input  survey_source: "sample", setback_inches: 1.0
+    expect ok: "true"
+  end
+
+  test "NotifyNeighbor sets neighbor_notification" do
+    tests "NotifyNeighbor", on: "PropertyLine"
+    setup  "VerifyPropertyLine", survey_source: "sample", setback_inches: 1.0
+    input  neighbor_notification: "sample"
+    expect ok: "true"
+  end
+
+end

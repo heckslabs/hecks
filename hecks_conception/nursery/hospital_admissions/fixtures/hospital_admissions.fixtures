@@ -1,0 +1,18 @@
+Hecks.fixtures "HospitalAdmissions" do
+  aggregate "Patient" do
+    fixture "Susan_O_Brien_", name: "Susan O'Brien", date_of_birth: "1965-03-22", insurance_id: "BC123456789", emergency_contact: "Michael O'Brien 555-0171", chief_complaint: "Chest pain", triage_level: "2"
+    fixture "David_Kumar_", name: "David Kumar", date_of_birth: "1958-07-15", insurance_id: "UCSB987654321", emergency_contact: "Priya Kumar 555-0172", chief_complaint: "Severe headache", triage_level: "3"
+  end
+  aggregate "Bed" do
+    fixture "Bed1", ward: "ICU", room_number: "405", bed_type: "Critical care", status: "available", assigned_patient: ""
+    fixture "Bed2", ward: "Med-Surg", room_number: "210B", bed_type: "Standard", status: "available", assigned_patient: ""
+  end
+  aggregate "Diagnosis" do
+    fixture "Diagnosis1", patient_name: "Susan O'Brien", icd_code: "I10", description: "Essential hypertension", diagnosing_physician: "Dr. Robert Hayes", diagnosed_at: "2026-04-14"
+    fixture "Diagnosis2", patient_name: "David Kumar", icd_code: "G89.29", description: "Other chronic pain", diagnosing_physician: "Dr. Angela Mitchell", diagnosed_at: "2026-04-14"
+  end
+  aggregate "DischargeePlan" do
+    fixture "DischargeePlan1", patient_name: "Susan O'Brien", discharge_date: "2026-04-17", status: "created"
+    fixture "DischargeePlan2", patient_name: "David Kumar", discharge_date: "2026-04-16", status: "created"
+  end
+end

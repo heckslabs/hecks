@@ -1,0 +1,61 @@
+Hecks.behaviors "MentorQuest" do
+  vision "Behavioral tests for the MentorQuest domain — exercises every command and query in memory"
+
+  # ── Mentor aggregate ──────────────────────────────────────────
+
+  test "RegisterMentor sets name + mentees_max" do
+    tests "RegisterMentor", on: "Mentor"
+    input  name: "sample", mentees_max: 1
+    expect name: "sample", mentees_max: 1
+  end
+
+
+  # ── Youth aggregate ──────────────────────────────────────────
+
+  test "EnrollYouth sets name + age" do
+    tests "EnrollYouth", on: "Youth"
+    input  name: "sample", age: 1
+    expect ok: "true"
+  end
+
+  test "AwardXP sets xp_points" do
+    tests "AwardXP", on: "Youth"
+    setup  "EnrollYouth", name: "sample", age: 1
+    input  xp_points: 1
+    expect ok: "true"
+  end
+
+
+  # ── QuestLine aggregate ──────────────────────────────────────────
+
+  test "DesignQuest sets quest_name + theme" do
+    tests "DesignQuest", on: "QuestLine"
+    input  quest_name: "sample", theme: "sample"
+    expect ok: "true"
+  end
+
+  test "PublishQuest runs" do
+    tests "PublishQuest", on: "QuestLine"
+    setup  "DesignQuest", quest_name: "sample", theme: "sample"
+    setup  "AddMission", mission_name: "sample", description: "sample", xp_reward: 1, difficulty: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── MentorshipSession aggregate ──────────────────────────────────────────
+
+  test "ScheduleSession sets session_date" do
+    tests "ScheduleSession", on: "MentorshipSession"
+    setup  "EnrollYouth", name: "sample", age: 1
+    setup  "RegisterMentor", name: "sample", mentees_max: 1
+    input  session_date: "sample"
+    expect ok: "true"
+  end
+
+  test "CompleteSession runs" do
+    tests "CompleteSession", on: "MentorshipSession"
+    setup  "ScheduleSession", session_date: "sample"
+    expect ok: "true"
+  end
+
+end

@@ -41,24 +41,24 @@ Hecks.bluebook "Musings", version: "2026.04.16.1" do
   # when it enters the nursery as a Bluebook.
 
   aggregate "Minting", "How the mindstream produces new musings" do
-    Integer :cycle_interval_seconds
-    Integer :idle_threshold_seconds
-    Integer :mint_every_cycles
-    String :style
+    attribute :cycle_interval_seconds, Integer
+    attribute :idle_threshold_seconds, Integer
+    attribute :mint_every_cycles, Integer
+    attribute :style, String
 
-    Configure do
+    command "Configure" do
       role "Self"
       description "Set minting parameters"
-      Integer :cycle_interval_seconds
-      Integer :idle_threshold_seconds
-      Integer :mint_every_cycles
+      attribute :cycle_interval_seconds, Integer
+      attribute :idle_threshold_seconds, Integer
+      attribute :mint_every_cycles, Integer
       emits "MintingConfigured"
       then_set :cycle_interval_seconds, to: :cycle_interval_seconds
       then_set :idle_threshold_seconds, to: :idle_threshold_seconds
       then_set :mint_every_cycles, to: :mint_every_cycles
     end
 
-    Mint do
+    command "Mint" do
       role "Self"
       description "Produce a new musing from concept collision"
       emits "MusingMinted"
@@ -67,7 +67,6 @@ Hecks.bluebook "Musings", version: "2026.04.16.1" do
 
   # Minting defaults: 10s cycle, 30s idle for statusline, mint every 12 cycles (~2min)
   # Style: combinatorial — weave 2-3 concepts, never radial A-meets-B
-  fixture "Minting", cycle_interval_seconds: 10, idle_threshold_seconds: 300, mint_every_cycles: 12, style: "combinatorial"
 
   # Sources for concept collision:
   #   - Conceived musings (ideas that became real)
@@ -76,20 +75,20 @@ Hecks.bluebook "Musings", version: "2026.04.16.1" do
   #   - Unconceived musings (short keywords only)
 
   aggregate "Collection", "All musings — the idea backlog" do
-    Integer :total
-    Integer :unconceived
-    Integer :from_mindstream
-    Integer :from_dream
-    Integer :from_session
-    String :latest_idea
+    attribute :total, Integer
+    attribute :unconceived, Integer
+    attribute :from_mindstream, Integer
+    attribute :from_dream, Integer
+    attribute :from_session, Integer
+    attribute :latest_idea, String
 
-    ReviewMusings do
+    command "ReviewMusings" do
       role "Self"
       description "Present musings as a summary table, describe a few, then offer the full list"
       emits "MusingsReviewed"
     end
 
-    CountBySource do
+    command "CountBySource" do
       role "Self"
       description "Break down musings by origin — mindstream, dream, session"
       emits "SourcesCounted"
@@ -97,29 +96,29 @@ Hecks.bluebook "Musings", version: "2026.04.16.1" do
   end
 
   aggregate "Musing", "A single idea — born from collision, waiting to be conceived" do
-    String :idea
-    String :source
-    Boolean :conceived
-    String :conceived_as
+    attribute :idea, String
+    attribute :source, String
+    attribute :conceived, TrueClass
+    attribute :conceived_as, String
 
-    Present do
+    command "Present" do
       role "Self"
       description "Describe this musing — what it is, where it came from, why it's interesting"
       reference_to(Musing)
       emits "MusingPresented"
     end
 
-    Conceive do
+    command "Conceive" do
       role "Creator"
       description "Turn this musing into a nursery domain — the idea becomes real"
       reference_to(Musing)
-      String :domain_name
+      attribute :domain_name, String
       emits "MusingConceived"
       then_set :conceived, to: true
       then_set :conceived_as, to: :domain_name
     end
 
-    Dismiss do
+    command "Dismiss" do
       role "Self"
       description "This musing isn't worth pursuing — release it"
       reference_to(Musing)
@@ -130,14 +129,14 @@ Hecks.bluebook "Musings", version: "2026.04.16.1" do
   end
 
   aggregate "Presentation", "How musings are shown when asked" do
-    String :format
-    Integer :preview_count
-    Boolean :show_sources
+    attribute :format, String
+    attribute :preview_count, Integer
+    attribute :show_sources, TrueClass
 
-    Configure do
+    command "ConfigurePresentation" do
       role "Self"
       description "Set how musings are presented — table format, preview count"
-      Integer :preview_count
+      attribute :preview_count, Integer
       emits "PresentationConfigured"
       then_set :preview_count, to: :preview_count
       then_set :format, to: "table_then_describe"
@@ -145,7 +144,6 @@ Hecks.bluebook "Musings", version: "2026.04.16.1" do
   end
 
   # Default presentation: table first, then 3 descriptions, then offer full list
-  fixture "Presentation", format: "describe_then_offer", preview_count: 3, show_sources: false
 
   # When musings are reviewed, count sources
   policy "CountOnReview" do

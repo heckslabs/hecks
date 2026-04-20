@@ -1,0 +1,85 @@
+Hecks.behaviors "VetHousing" do
+  vision "Behavioral tests for the VetHousing domain — exercises every command and query in memory"
+
+  # ── VeteranApplicant aggregate ──────────────────────────────────────────
+
+  test "ApplyForHousing sets veteran_id + name + branch + disability_rating + income_level" do
+    tests "ApplyForHousing", on: "VeteranApplicant"
+    input  veteran_id: "sample", name: "sample", branch: "sample", disability_rating: "sample", income_level: "sample"
+    expect veteran_id: "sample", name: "sample", branch: "sample", disability_rating: "sample", income_level: "sample", status: "applied"
+  end
+
+  test "ApproveApplication runs" do
+    tests "ApproveApplication", on: "VeteranApplicant"
+    setup  "ApplyForHousing", veteran_id: "sample", name: "sample", branch: "sample", disability_rating: "sample", income_level: "sample"
+    expect status: "approved"
+  end
+
+  test "ApproveApplication cascades through policy chain" do
+    tests "ApproveApplication", on: "VeteranApplicant", kind: :cascade
+    setup  "ListUnit", unit_id: "sample", address: "sample", bedrooms: 1, monthly_rent: 1.0
+    setup  "GrantSubsidy", subsidy_id: "sample", veteran_id: "sample", unit_id: "sample", monthly_amount: 1.0, funding_source: "sample"
+    setup  "ApplyForHousing", veteran_id: "sample", name: "sample", branch: "sample", disability_rating: "sample", income_level: "sample"
+    expect emits: ["ApplicationApproved", "UnitAssigned", "SubsidyGranted"]
+  end
+
+
+  # ── HousingUnit aggregate ──────────────────────────────────────────
+
+  test "ListUnit sets unit_id + address + bedrooms + monthly_rent" do
+    tests "ListUnit", on: "HousingUnit"
+    input  unit_id: "sample", address: "sample", bedrooms: 1, monthly_rent: 1.0
+    expect unit_id: "sample", address: "sample", bedrooms: 1, monthly_rent: 1.0, status: "available"
+  end
+
+  test "AssignUnit runs" do
+    tests "AssignUnit", on: "HousingUnit"
+    setup  "ListUnit", unit_id: "sample", address: "sample", bedrooms: 1, monthly_rent: 1.0
+    expect status: "occupied"
+  end
+
+  test "AssignUnit cascades through policy chain" do
+    tests "AssignUnit", on: "HousingUnit", kind: :cascade
+    setup  "GrantSubsidy", subsidy_id: "sample", veteran_id: "sample", unit_id: "sample", monthly_amount: 1.0, funding_source: "sample"
+    setup  "ListUnit", unit_id: "sample", address: "sample", bedrooms: 1, monthly_rent: 1.0
+    expect emits: ["UnitAssigned", "SubsidyGranted"]
+  end
+
+  test "VacateUnit runs" do
+    tests "VacateUnit", on: "HousingUnit"
+    setup  "ListUnit", unit_id: "sample", address: "sample", bedrooms: 1, monthly_rent: 1.0
+    setup  "AssignUnit"
+    expect status: "available"
+  end
+
+
+  # ── RentalSubsidy aggregate ──────────────────────────────────────────
+
+  test "GrantSubsidy sets subsidy_id + veteran_id + unit_id + monthly_amount + funding_source" do
+    tests "GrantSubsidy", on: "RentalSubsidy"
+    input  subsidy_id: "sample", veteran_id: "sample", unit_id: "sample", monthly_amount: 1.0, funding_source: "sample"
+    expect subsidy_id: "sample", veteran_id: "sample", unit_id: "sample", monthly_amount: 1.0, funding_source: "sample", status: "active"
+  end
+
+  test "EndSubsidy runs" do
+    tests "EndSubsidy", on: "RentalSubsidy"
+    setup  "GrantSubsidy", subsidy_id: "sample", veteran_id: "sample", unit_id: "sample", monthly_amount: 1.0, funding_source: "sample"
+    expect status: "ended"
+  end
+
+
+  # ── MaintenanceTicket aggregate ──────────────────────────────────────────
+
+  test "SubmitTicket sets ticket_id + unit_id + issue_type + description_text + priority" do
+    tests "SubmitTicket", on: "MaintenanceTicket"
+    input  ticket_id: "sample", unit_id: "sample", issue_type: "sample", description_text: "sample", priority: "sample"
+    expect ticket_id: "sample", unit_id: "sample", issue_type: "sample", description_text: "sample", priority: "sample", status: "open"
+  end
+
+  test "ResolveTicket runs" do
+    tests "ResolveTicket", on: "MaintenanceTicket"
+    setup  "SubmitTicket", ticket_id: "sample", unit_id: "sample", issue_type: "sample", description_text: "sample", priority: "sample"
+    expect status: "resolved"
+  end
+
+end

@@ -1,0 +1,49 @@
+Hecks.behaviors "Discovery" do
+  vision "Behavioral tests for the Discovery domain — exercises every command and query in memory"
+
+  # ── DomainCluster aggregate ──────────────────────────────────────────
+
+  test "DiscoverClusters sets cluster_name + pattern_signature + cohesion_score" do
+    tests "DiscoverClusters", on: "DomainCluster"
+    input  cluster_name: "sample", pattern_signature: "sample", cohesion_score: 1.0
+    expect cluster_name: "sample", pattern_signature: "sample", cohesion_score: 1.0, member_count: 0
+  end
+
+  test "AddMember sets domain_name" do
+    tests "AddMember", on: "DomainCluster"
+    setup  "DiscoverClusters", cluster_name: "sample", pattern_signature: "sample", cohesion_score: 1.0
+    input  domain_name: "sample"
+    expect member_domains_size: 1
+  end
+
+  test "RecalculateCohesion sets cohesion_score" do
+    tests "RecalculateCohesion", on: "DomainCluster"
+    setup  "DiscoverClusters", cluster_name: "sample", pattern_signature: "sample", cohesion_score: 1.0
+    input  cohesion_score: 1.0
+    expect cohesion_score: 1.0
+  end
+
+
+  # ── PrimitivePattern aggregate ──────────────────────────────────────────
+
+  test "ExtractPrimitive sets pattern_name + description + structural_signature" do
+    tests "ExtractPrimitive", on: "PrimitivePattern"
+    input  pattern_name: "sample", description: "sample", structural_signature: "sample"
+    expect pattern_name: "sample", description: "sample", structural_signature: "sample", occurrence_count: 0, aggregate_template_count: 0, command_template_count: 0
+  end
+
+  test "RecordOccurrence sets domain_name" do
+    tests "RecordOccurrence", on: "PrimitivePattern"
+    setup  "ExtractPrimitive", pattern_name: "sample", description: "sample", structural_signature: "sample"
+    input  domain_name: "sample"
+    expect example_domains_size: 1
+  end
+
+  test "RefineSignature sets structural_signature + aggregate_template_count + command_template_count" do
+    tests "RefineSignature", on: "PrimitivePattern"
+    setup  "ExtractPrimitive", pattern_name: "sample", description: "sample", structural_signature: "sample"
+    input  structural_signature: "sample", aggregate_template_count: 1, command_template_count: 1
+    expect structural_signature: "sample", aggregate_template_count: 1, command_template_count: 1
+  end
+
+end

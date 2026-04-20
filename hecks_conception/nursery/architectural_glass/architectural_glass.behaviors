@@ -1,0 +1,62 @@
+Hecks.behaviors "ArchitecturalGlass" do
+  vision "Behavioral tests for the ArchitecturalGlass domain — exercises every command and query in memory"
+
+  # ── GlassFormula aggregate ──────────────────────────────────────────
+
+  test "Forge sets name + transparency" do
+    tests "Forge", on: "GlassFormula"
+    input  name: "sample", transparency: 1.0
+    expect ok: "true"
+  end
+
+  test "CertifyFormula runs" do
+    tests "CertifyFormula", on: "GlassFormula"
+    setup  "Forge", name: "sample", transparency: 1.0
+    setup  "AddComponent", material: "sample", percentage: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── BuildingProject aggregate ──────────────────────────────────────────
+
+  test "StartProject sets project_name + client + floors" do
+    tests "StartProject", on: "BuildingProject"
+    input  project_name: "sample", client: "sample", floors: 1
+    expect ok: "true"
+  end
+
+
+  # ── BlowingSession aggregate ──────────────────────────────────────────
+
+  test "StartSession sets artisan + furnace_temp" do
+    tests "StartSession", on: "BlowingSession"
+    setup  "Forge", name: "sample", transparency: 1.0
+    input  artisan: "sample", furnace_temp: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── Installation aggregate ──────────────────────────────────────────
+
+  test "ScheduleInstallation sets installer" do
+    tests "ScheduleInstallation", on: "Installation"
+    setup  "StartSession", artisan: "sample", furnace_temp: 1.0
+    setup  "StartProject", project_name: "sample", client: "sample", floors: 1
+    input  installer: "sample"
+    expect ok: "true"
+  end
+
+  test "CompleteInstallation runs" do
+    tests "CompleteInstallation", on: "Installation"
+    setup  "ScheduleInstallation", installer: "sample"
+    expect ok: "true"
+  end
+
+  test "InspectInstallation sets inspector + passed + notes" do
+    tests "InspectInstallation", on: "Installation"
+    setup  "ScheduleInstallation", installer: "sample"
+    input  inspector: "sample", passed: "sample", notes: "sample"
+    expect ok: "true"
+  end
+
+end

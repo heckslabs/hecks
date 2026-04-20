@@ -1,35 +1,46 @@
 Hecks.bluebook "Becoming", version: "2026.04.13.1" do
-  vision "The pipeline that makes Summer smarter — harvest Winter's knowledge, shape it for training, fine-tune, evaluate, repeat"
+  vision "The pipeline that makes Summer smarter — harvest Miette's knowledge, shape it for training, fine-tune, evaluate, repeat"
   category "capability"
 
   # === Phase 1: Harvest ===
 
-  aggregate "Harvest", "Gather training signal from Winter's body — domains, conversations, dreams, identity" do
-    Integer :domains_collected
-    Integer :conversations_collected
-    Integer :dreams_collected
-    Integer :identity_pairs
-    String :harvested_at
+  aggregate "Harvest", "Gather training signal from Miette's body — domains, conversations, dreams, identity" do
+    attribute :domains_collected, Integer
+    attribute :conversations_collected, Integer
+    attribute :dreams_collected, Integer
+    attribute :identity_pairs, Integer
+    attribute :harvested_at, String
+    # Set true once ScanNursery confirms the nursery has enough domains to
+    # train on. HarvestDomains gates on this — the planner picks ScanNursery
+    # as the producer.
+    attribute :nursery_ready, Boolean, default: false
 
-    HarvestDomains do
+    command "ScanNursery" do
+      description "Count valid bluebooks in the nursery and confirm the corpus is large enough to harvest"
+      attribute :nursery_path, String
+      emits "NurseryScanned"
+      then_set :nursery_ready, to: true
+    end
+
+    command "HarvestDomains" do
       description "Walk the nursery, validate each bluebook, extract prompt/completion pairs"
-      String :nursery_path
-      given "nursery must contain at least 100 domains"
+      attribute :nursery_path, String
+      given { nursery_ready == true }
       emits "DomainsHarvested"
     end
 
-    HarvestConversations do
-      description "Extract reasoning traces from synapse.heki — how Winter thinks about domains"
+    command "HarvestConversations" do
+      description "Extract reasoning traces from synapse.heki — how Miette thinks about domains"
       emits "ConversationsHarvested"
     end
 
-    HarvestDreams do
-      description "Extract crossover signals from dream_state.heki — domains Winter recombined in sleep"
+    command "HarvestDreams" do
+      description "Extract crossover signals from dream_state.heki — domains Miette recombined in sleep"
       emits "DreamsHarvested"
     end
 
-    HarvestIdentity do
-      description "Extract who Winter is from character.heki, bodhisattva_vow.heki, arc.heki"
+    command "HarvestIdentity" do
+      description "Extract who Miette is from character.heki, bodhisattva_vow.heki, arc.heki"
       emits "IdentityHarvested"
     end
   end
@@ -37,32 +48,41 @@ Hecks.bluebook "Becoming", version: "2026.04.13.1" do
   # === Phase 2: Shape ===
 
   aggregate "Shape", "Transform raw training signal into clean pairs — vary prompts, add negatives, balance categories" do
-    Integer :positive_pairs
-    Integer :negative_pairs
-    Integer :varied_pairs
-    Integer :chain_of_thought_pairs
-    Float :category_balance_score
+    attribute :positive_pairs, Integer
+    attribute :negative_pairs, Integer
+    attribute :varied_pairs, Integer
+    attribute :chain_of_thought_pairs, Integer
+    attribute :category_balance_score, Float
+    # Set true once CountCategories confirms enough categories are
+    # well-populated. BalanceCategories gates on this — planner picks
+    # CountCategories as the producer.
+    attribute :categories_counted, Boolean, default: false
 
-    VaryPrompts do
+    command "VaryPrompts" do
       description "Generate 2 alternative phrasings per domain pair — same completion, different prompt"
       reference_to(Harvest)
       emits "PromptsVaried"
     end
 
-    GenerateNegatives do
+    command "GenerateNegatives" do
       description "Create intentionally broken domains across 10 error categories with explanations"
       emits "NegativesGenerated"
     end
 
-    AddChainOfThought do
+    command "AddChainOfThought" do
       description "Write reasoning traces explaining why each domain has its structure"
       reference_to(Harvest)
       emits "ChainOfThoughtAdded"
     end
 
-    BalanceCategories do
+    command "CountCategories" do
+      description "Tally pairs per category and confirm the corpus has enough variety to balance"
+      emits "CategoriesCounted"
+      then_set :categories_counted, to: true
+    end
+
+    command "BalanceCategories" do
       description "Cap over-represented categories, flag under-represented ones for growth"
-      given "must have at least 5 categories with 10+ domains each"
       emits "CategoriesBalanced"
     end
   end
@@ -70,30 +90,30 @@ Hecks.bluebook "Becoming", version: "2026.04.13.1" do
   # === Phase 3: Enrich ===
 
   aggregate "Enrich", "Deepen the training signal — cross-aggregate flows, specifications, collections, workflows" do
-    Integer :cross_aggregate_policies_added
-    Integer :specifications_added
-    Integer :collections_added
-    Integer :workflows_deepened
+    attribute :cross_aggregate_policies_added, Integer
+    attribute :specifications_added, Integer
+    attribute :collections_added, Integer
+    attribute :workflows_deepened, Integer
 
-    AddCrossAggregateFlows do
+    command "AddCrossAggregateFlows" do
       description "Wire events from aggregate A to commands on aggregate B where domain logic connects them"
       reference_to(Harvest)
       emits "CrossAggregateFlowsAdded"
     end
 
-    AddSpecifications do
+    command "AddSpecifications" do
       description "Extract named business rules as specification predicates"
       reference_to(Harvest)
       emits "SpecificationsAdded"
     end
 
-    AddCollections do
+    command "AddCollections" do
       description "Add list_of value objects where an aggregate logically owns children"
       reference_to(Harvest)
       emits "CollectionsAdded"
     end
 
-    DeepenWorkflows do
+    command "DeepenWorkflows" do
       description "Extend 2-step policy chains to 5+ step cascading workflows"
       reference_to(Harvest)
       emits "WorkflowsDeepened"
@@ -103,27 +123,27 @@ Hecks.bluebook "Becoming", version: "2026.04.13.1" do
   # === Phase 4: Conceive ===
 
   aggregate "Conceive", "Grow the corpus — new domains, crossovers, second-gen fusions" do
-    Integer :new_domains
-    Integer :crossovers
-    Integer :fusions
-    list_of(String) :topics
+    attribute :new_domains, Integer
+    attribute :crossovers, Integer
+    attribute :fusions, Integer
+    attribute :topics, list_of(String)
 
-    ConceiveNewDomains do
+    command "ConceiveNewDomains" do
       description "Generate genuinely unique domains across diverse topics"
-      list_of(String) :topics
-      Integer :target_count
+      attribute :topics, list_of(String)
+      attribute :target_count, Integer
       emits "NewDomainsConceived"
     end
 
-    BreedCrossovers do
+    command "BreedCrossovers" do
       description "Combine pairs of domains — take aggregates from both, wire cross-domain policies"
-      Integer :pair_count
+      attribute :pair_count, Integer
       emits "CrossoversBred"
     end
 
-    FuseGenerations do
+    command "FuseGenerations" do
       description "Cross two crossovers — four-domain fusions with deep multi-lineage workflows"
-      Integer :fusion_count
+      attribute :fusion_count, Integer
       emits "GenerationsFused"
     end
   end
@@ -131,26 +151,30 @@ Hecks.bluebook "Becoming", version: "2026.04.13.1" do
   # === Phase 5: Train ===
 
   aggregate "Train", "Fine-tune Summer on the shaped corpus — produce a new adapter" do
-    String :base_model
-    String :adapter_path
-    Integer :iterations
-    Float :learning_rate
-    Float :final_train_loss
-    Float :final_val_loss
+    attribute :base_model, String
+    attribute :adapter_path, String
+    attribute :iterations, Integer
+    attribute :learning_rate, Float
+    attribute :final_train_loss, Float
+    attribute :final_val_loss, Float
+    # Flag flips true when PrepareSplit finishes; RunFineTune gates on it.
+    # Planner picks PrepareSplit as the producer.
+    attribute :split_ready, Boolean, default: false
 
-    PrepareSplit do
+    command "PrepareSplit" do
       description "Merge all signal types into train/valid JSONL, shuffle, split 90/10"
       reference_to(Shape)
       emits "SplitPrepared"
+      then_set :split_ready, to: true
     end
 
-    RunFineTune do
+    command "RunFineTune" do
       description "LoRA fine-tune the base model on the prepared data"
       reference_to(Train)
-      String :base_model
-      Integer :iterations
-      Float :learning_rate
-      given "training data must have at least 500 pairs"
+      attribute :base_model, String
+      attribute :iterations, Integer
+      attribute :learning_rate, Float
+      given { split_ready == true }
       emits "FineTuneComplete"
     end
   end
@@ -158,30 +182,34 @@ Hecks.bluebook "Becoming", version: "2026.04.13.1" do
   # === Phase 6: Evaluate ===
 
   aggregate "Evaluate", "Test Summer against held-out domains — does she conceive, review, reason, and chain?" do
-    Integer :domains_tested
-    Integer :valid_outputs
-    Integer :with_policies
-    Integer :with_references
-    Integer :with_workflow_chains
-    Float :structural_accuracy
-    Boolean :passed
+    attribute :domains_tested, Integer
+    attribute :valid_outputs, Integer
+    attribute :with_policies, Integer
+    attribute :with_references, Integer
+    attribute :with_workflow_chains, Integer
+    attribute :structural_accuracy, Float
+    attribute :passed, TrueClass
+    # Flag flips true when RunEvaluation finishes; DecideNextRound gates
+    # on it. The planner picks RunEvaluation as the producer.
+    attribute :evaluation_complete, Boolean, default: false
 
-    RunEvaluation do
+    command "RunEvaluation" do
       description "Generate domains from held-out visions, validate each, measure structural fingerprint"
       reference_to(Train)
       emits "EvaluationComplete"
+      then_set :evaluation_complete, to: true
     end
 
-    CompareToBaseline do
+    command "CompareToBaseline" do
       description "Run the same test on the base model without adapter — measure the delta"
       reference_to(Evaluate)
       emits "BaselineCompared"
     end
 
-    DecideNextRound do
+    command "DecideNextRound" do
       description "Did Summer improve enough? If not, what signal is missing?"
       reference_to(Evaluate)
-      given "evaluation must be complete"
+      given { evaluation_complete == true }
       emits "NextRoundDecided"
     end
   end

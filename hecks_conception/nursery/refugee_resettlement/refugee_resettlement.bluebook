@@ -26,12 +26,12 @@ Hecks.bluebook "RefugeeResettlement" do
       then_set :status, to: "active"
     end
 
-    UpdateCaseStatus do
+    AdvanceCase do
       role "CaseWorker"
       description "Advance the case through resettlement phases"
       reference_to(ResettlementCase)
       String :status
-      emits "CaseStatusUpdated"
+      emits "CaseAdvanced"
       then_set :status, to: :status
     end
 
@@ -73,12 +73,12 @@ Hecks.bluebook "RefugeeResettlement" do
       then_set :case_number, to: :case_number
     end
 
-    UpdateMedicalNeeds do
+    ReviseMedicalNeeds do
       role "CaseWorker"
       description "Record new or changed medical needs for the family member"
       reference_to(FamilyMember)
       String :medical_needs
-      emits "MedicalNeedsUpdated"
+      emits "MedicalNeedsRevised"
       then_set :medical_needs, to: :medical_needs
     end
   end
@@ -267,18 +267,4 @@ Hecks.bluebook "RefugeeResettlement" do
     trigger "CloseCase"
   end
 
-  fixture "ResettlementCase", case_number: "RSC-2025-0451", country_of_origin: "Afghanistan", arrival_date: "2025-02-14", assigned_agency: "International Rescue Committee", status: "active", family_size: 5
-  fixture "ResettlementCase", case_number: "RSC-2025-0452", country_of_origin: "Ukraine", arrival_date: "2025-01-30", assigned_agency: "Lutheran Immigration Services", status: "active", family_size: 3
-
-  fixture "FamilyMember", name: "Rashid Khan", date_of_birth: "1988-05-10", relationship: "head of household", language_spoken: "Dari", medical_needs: "none", case_number: "RSC-2025-0451"
-  fixture "FamilyMember", name: "Mariya Petrov", date_of_birth: "1990-09-22", relationship: "spouse", language_spoken: "Ukrainian, Russian", medical_needs: "ongoing therapy", case_number: "RSC-2025-0452"
-
-  fixture "ResettlementService", service_name: "English Language Classes", service_category: "education", provider: "Community Education Center", case_number: "RSC-2025-0451", scheduled_date: "2025-04-15", status: "delivered"
-  fixture "ResettlementService", service_name: "Job Skills Workshop", service_category: "employment", provider: "Workforce Development Board", case_number: "RSC-2025-0452", scheduled_date: "2025-04-20", status: "scheduled"
-
-  fixture "HousingPlacement", case_number: "RSC-2025-0451", address: "4521 Riverside Apartments, Unit 204", housing_type: "transitional", lease_start_date: "2025-02-20", monthly_rent: "850.00", subsidy_source: "REFUGEE_FUND", status: "active"
-  fixture "HousingPlacement", case_number: "RSC-2025-0452", address: "1832 Oak Street", housing_type: "permanent", lease_start_date: "2025-03-01", monthly_rent: "1200.00", subsidy_source: "HUD", status: "active"
-
-  fixture "EmploymentAssistance", family_member_name: "Rashid Khan", desired_field: "construction", language_proficiency: "intermediate", resume_status: "complete", placement_status: "placed", employer_name: "BuildRight Construction"
-  fixture "EmploymentAssistance", family_member_name: "Mariya Petrov", desired_field: "nursing assistant", language_proficiency: "advanced", resume_status: "complete", placement_status: "searching", employer_name: ""
 end

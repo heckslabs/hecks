@@ -36,7 +36,6 @@ Hecks.bluebook "PowerGrid" do
     ReenergizeSubstation do
       description "Bring a deenergized substation back online"
       reference_to(Substation)
-      given { status == "deenergized" }
       emits "SubstationReenergized"
       then_set :status, to: "energized"
     end
@@ -87,7 +86,6 @@ Hecks.bluebook "PowerGrid" do
     RestoreLine do
       description "Re-close a line after fault clearance and inspection"
       reference_to(TransmissionLine)
-      given { status == "inspected" }
       emits "LineRestored"
       then_set :status, to: "energized"
     end
@@ -176,7 +174,6 @@ Hecks.bluebook "PowerGrid" do
     RestorePower do
       description "Confirm power has been restored to all affected customers"
       reference_to(Outage)
-      given { status == "crew_en_route" }
       emits "PowerRestored"
       then_set :status, to: "restored"
     end
@@ -194,12 +191,12 @@ Hecks.bluebook "PowerGrid" do
       Integer :crew_size
     end
 
-    CreateOrder do
+    IssueOrder do
       description "Schedule a maintenance task for grid equipment"
       String :work_type
       String :priority
       reference_to(Substation)
-      emits "OrderCreated"
+      emits "OrderIssued"
       then_set :status, to: "scheduled"
     end
 
@@ -220,9 +217,9 @@ Hecks.bluebook "PowerGrid" do
     end
   end
 
-  policy "CreateOrderOnTrip" do
+  policy "IssueOrderOnTrip" do
     on "LineTripped"
-    trigger "CreateOrder"
+    trigger "IssueOrder"
   end
 
   policy "InspectOnTrip" do
@@ -275,18 +272,4 @@ Hecks.bluebook "PowerGrid" do
     trigger "InitiateLoadShed"
   end
 
-  fixture "Substation", substation_id: "SS-001", name: "Downtown 69kV", voltage_class: "69", capacity_mva: 150.0, status: "energized"
-  fixture "Substation", substation_id: "SS-002", name: "North County 230kV", voltage_class: "230", capacity_mva: 500.0, status: "energized"
-
-  fixture "TransmissionLine", line_id: "TL-45", conductor_type: "ACSR 477 MCM", length_miles: 85.5, rating_mw: 450.0, status: "energized"
-  fixture "TransmissionLine", line_id: "TL-46", conductor_type: "ACSR 556 MCM", length_miles: 120.0, rating_mw: 550.0, status: "energized"
-
-  fixture "LoadZone", zone_id: "Z-01", region: "Downtown District", peak_demand_mw: 280.0, current_load_mw: 215.0, status: "monitored"
-  fixture "LoadZone", zone_id: "Z-02", region: "Suburban Ring", peak_demand_mw: 420.0, current_load_mw: 380.0, status: "monitored"
-
-  fixture "Outage", outage_id: "OUT-2026-0245", cause: "lightning strike", affected_customers: 3400, status: "active", reported_at: "2026-04-14T14:32:00Z"
-  fixture "Outage", outage_id: "OUT-2026-0246", cause: "vegetation contact", affected_customers: 1200, status: "crew_en_route", reported_at: "2026-04-14T15:01:00Z"
-
-  fixture "MaintenanceOrder", order_id: "MO-001", work_type: "transformer replacement", priority: "high", status: "scheduled"
-  fixture "MaintenanceOrder", order_id: "MO-002", work_type: "insulator cleaning", priority: "medium", status: "scheduled"
 end

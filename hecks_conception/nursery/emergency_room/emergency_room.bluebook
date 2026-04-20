@@ -22,7 +22,7 @@ Hecks.bluebook "EmergencyRoom" do
       String :date_of_birth
       String :chief_complaint
       emits "PatientRegistered"
-      then_set :status, to: "waiting"
+      then_set :status, to: "triaged"
     end
 
     AdmitPatient do
@@ -181,16 +181,6 @@ Hecks.bluebook "EmergencyRoom" do
     trigger "PerformTriage"
   end
 
-  policy "AdmitOnTriage" do
-    on "TriageCompleted"
-    trigger "AdmitPatient"
-  end
-
-  policy "OccupyBedOnAdmit" do
-    on "PatientAdmitted"
-    trigger "OccupyBed"
-  end
-
   policy "BeginTreatmentOnAdmit" do
     on "PatientAdmitted"
     trigger "BeginTreatment"
@@ -199,21 +189,6 @@ Hecks.bluebook "EmergencyRoom" do
   policy "OrderProcedureOnTreatment" do
     on "TreatmentBegun"
     trigger "OrderProcedure"
-  end
-
-  policy "StabilizeOnProcedure" do
-    on "ProcedurePerformed"
-    trigger "StabilizePatient"
-  end
-
-  policy "CleanBedOnDischarge" do
-    on "PatientDischarged"
-    trigger "CleanBed"
-  end
-
-  policy "DischargeOnStabilized" do
-    on "PatientStabilized"
-    trigger "DischargePatient"
   end
 
   policy "TransferOnStabilized" do
@@ -226,15 +201,4 @@ Hecks.bluebook "EmergencyRoom" do
     trigger "PrepareBed"
   end
 
-  fixture "Patient", patient_id: "P-2026-001", name: "Robert Wilson", date_of_birth: "1960-05-22", chief_complaint: "acute abdominal pain", status: "waiting", arrival_time: "2026-04-14T09:15:00Z"
-  fixture "Patient", patient_id: "P-2026-002", name: "Jessica Martinez", date_of_birth: "1975-08-10", chief_complaint: "migraine with aura", status: "treated", arrival_time: "2026-04-14T10:45:00Z"
-
-  fixture "Bed", bed_id: "BED-A01", zone: "Trauma A", status: "available", equipment_level: "full"
-  fixture "Bed", bed_id: "BED-C03", zone: "Observation", status: "occupied", equipment_level: "standard"
-
-  fixture "TriageAssessment", assessment_id: "TA-001", acuity_level: 3, vital_signs_summary: "HR 88, BP 128/82, RR 16, Temp 98.6F", status: "completed", patient_id: "P-2026-001"
-  fixture "TriageAssessment", assessment_id: "TA-002", acuity_level: 2, vital_signs_summary: "HR 102, BP 135/88, RR 18, Temp 99.1F", status: "completed", patient_id: "P-2026-002"
-
-  fixture "Procedure", procedure_id: "PR-001", procedure_name: "CT scan abdomen", physician: "Dr. Elizabeth Foster", status: "completed", notes: "no acute findings", patient_id: "P-2026-001"
-  fixture "Procedure", procedure_id: "PR-002", procedure_name: "IV fluids and antiemetic", physician: "Dr. James Park", status: "ordered", notes: "pending", patient_id: "P-2026-002"
 end

@@ -323,6 +323,35 @@ given { toppings.size < 10 }
 given("must be pending") { status == "pending" }
 ```
 
+The behavioral test generator's chain planner reasons about a fixed
+set of given shapes — express preconditions in one of these forms so
+auto-generated tests can satisfy them automatically:
+
+| Pattern | Example |
+|---------|---------|
+| Equality | `given { status == "pending" }` |
+| Boolean | `given { active == true }` |
+| Integer ineq. | `given { quantity > 0 }`, `>= N`, `< N` |
+| Float ineq. | `given { moisture_percent < 20.0 }` |
+| List size | `given { items.size > 0 }`, `.any?`, `.empty?` |
+| Cross-attr | `given { current_intake >= recommended_intake }` |
+
+Opaque English-prose givens (`given "must be approved by review board"`)
+generate skipped tests — the planner can't satisfy them. Rework as a
+boolean attr + producing command:
+
+```ruby
+attribute :approved, TrueClass, default: false
+command "Approve" do
+  reference_to(Proposal)
+  then_set :approved, to: true
+end
+command "Publish" do
+  reference_to(Proposal)
+  given { approved == true }     # ← planner can satisfy via Approve
+end
+```
+
 **`then_set`** — Declarative state mutation applied after preconditions pass.
 
 | Operation | Syntax | Effect |
@@ -355,10 +384,14 @@ When `given`/`then_set` are present, the runtime uses `HecksalInterpreter` inste
 Aggregates reference each other by identity, not containment.
 
 ```ruby
-reference_to "Pizza"                           # role defaults to :pizza
-reference_to "Team", role: "home_team"         # explicit role
+reference_to "Pizza"                           # name defaults to :pizza
+reference_to "Team", as: :home_team            # explicit alias (canonical)
 reference_to "Billing::Invoice"                # cross-domain
 ```
+
+The `as:` kwarg is the canonical alias form. Legacy `role: :name` and
+the trailing-symbol shorthand `reference_to(X) :name` are also accepted
+by both parsers, but `as:` is preferred for new bluebooks.
 
 See [Cross-Domain References](cross_domain_references.md).
 

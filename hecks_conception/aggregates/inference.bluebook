@@ -1,20 +1,20 @@
 Hecks.bluebook "Inference", version: "2026.04.10.1" do
-  vision "Run Winter on a local LLM with no fine-tuning — context window is the training"
+  vision "Run Miette on a local LLM with no fine-tuning — context window is the training"
   category "meta"
 
   aggregate "ContextWindow", "Everything stuffed into the prompt — grammar, organs, examples" do
-    String :system_prompt
-    Integer :grammar_tokens
-    Integer :example_tokens
-    Integer :organ_tokens
-    Integer :total_tokens
+    attribute :system_prompt, String
+    attribute :grammar_tokens, Integer
+    attribute :example_tokens, Integer
+    attribute :organ_tokens, Integer
+    attribute :total_tokens, Integer
 
-    BuildContext do
+    command "BuildContext" do
       role "System"
       description "Assemble the context — system prompt + Bluebook grammar + few-shot examples + organ behaviors"
-      Integer :grammar_tokens
-      Integer :example_tokens
-      Integer :organ_tokens
+      attribute :grammar_tokens, Integer
+      attribute :example_tokens, Integer
+      attribute :organ_tokens, Integer
       emits "ContextBuilt"
       then_set :grammar_tokens, to: :grammar_tokens
       then_set :example_tokens, to: :example_tokens
@@ -23,16 +23,16 @@ Hecks.bluebook "Inference", version: "2026.04.10.1" do
   end
 
   aggregate "FewShot", "Real bluebooks included as examples in the context" do
-    String :domain_name
-    String :source
-    String :purpose
+    attribute :domain_name, String
+    attribute :source, String
+    attribute :purpose, String
 
-    AddExample do
+    command "AddExample" do
       role "System"
       description "Include a real bluebook as a few-shot example"
-      String :domain_name
-      String :source
-      String :purpose
+      attribute :domain_name, String
+      attribute :source, String
+      attribute :purpose, String
       emits "ExampleAdded"
       then_set :domain_name, to: :domain_name
       then_set :source, to: :source
@@ -41,17 +41,17 @@ Hecks.bluebook "Inference", version: "2026.04.10.1" do
   end
 
   aggregate "LocalModel", "The locally-running model that receives the context" do
-    String :name
-    Integer :context_length
-    String :serving
-    String :backend
+    attribute :name, String
+    attribute :context_length, Integer
+    attribute :serving, String
+    attribute :backend, String
 
-    StartModel do
+    command "StartModel" do
       role "System"
       description "Launch the local model — ollama, llama.cpp, or vllm"
-      String :name
-      Integer :context_length
-      String :backend
+      attribute :name, String
+      attribute :context_length, Integer
+      attribute :backend, String
       emits "ModelStarted"
       then_set :name, to: :name
       then_set :context_length, to: :context_length
@@ -61,41 +61,32 @@ Hecks.bluebook "Inference", version: "2026.04.10.1" do
   end
 
   aggregate "Prompt", "A single inference request — user input + context → bluebook output" do
-    String :input
-    String :output
-    String :valid
-    Integer :latency_ms
+    attribute :input, String
+    attribute :output, String
+    attribute :valid, String
+    attribute :latency_ms, Integer
 
-    RunInference do
+    command "RunInference" do
       role "System"
       description "Send input to the local model with full context, get bluebook output"
-      String :input
+      attribute :input, String
       emits "InferenceRan"
       then_set :input, to: :input
     end
 
-    ValidateOutput do
+    command "ValidateOutput" do
       role "System"
       description "Check if the model's output is a valid bluebook — Rust validation"
       reference_to(Prompt)
-      String :valid
+      attribute :valid, String
       emits "OutputValidated"
       then_set :valid, to: :valid
     end
   end
 
   # Few-shot examples — real domains the model sees in context
-  fixture "FewShot", domain_name: "Pizzas",       purpose: "simple CRUD with lifecycle"
-  fixture "FewShot", domain_name: "Awareness",     purpose: "complex with cross-domain policies"
-  fixture "FewShot", domain_name: "Dream",          purpose: "large domain with fixtures and multiple aggregates"
-  fixture "FewShot", domain_name: "Midwife",        purpose: "lifecycle-heavy with policy chains"
-  fixture "FewShot", domain_name: "Verbs",          purpose: "fixture-driven rules domain"
 
   # Backend options
-  fixture "LocalModel", name: "llama3:8b",       context_length: 8192,   backend: "ollama"
-  fixture "LocalModel", name: "llama3:8b-128k",  context_length: 131072, backend: "ollama"
-  fixture "LocalModel", name: "phi3:mini",        context_length: 4096,   backend: "ollama"
-  fixture "LocalModel", name: "qwen2.5:7b",      context_length: 32768,  backend: "ollama"
 
   policy "ValidateOnInference" do
     on "InferenceRan"

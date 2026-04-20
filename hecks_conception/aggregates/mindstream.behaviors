@@ -1,0 +1,76 @@
+Hecks.behaviors "Mindstream" do
+  vision "Behavioral tests for the Mindstream domain — exercises every command and query in memory"
+
+  # ── Tick aggregate ──────────────────────────────────────────
+
+  test "MindstreamTick runs" do
+    tests "MindstreamTick", on: "Tick"
+    expect ok: "true"
+  end
+
+  test "MindstreamTick cascades through policy chain" do
+    tests "MindstreamTick", on: "Tick", kind: :cascade
+    expect emits: ["Ticked", "SignalsConsolidated", "SynapsesPruned", "DisplayUpdated", "MusingsPruned"]
+  end
+
+
+  # ── Display aggregate ──────────────────────────────────────────
+
+  test "RefreshDisplay sets current_thought + ideas_available" do
+    tests "RefreshDisplay", on: "Display"
+    input  current_thought: "sample", ideas_available: 1
+    expect current_thought: "sample", ideas_available: 1
+  end
+
+
+  # ── MusingMint aggregate ──────────────────────────────────────────
+
+  test "MintMusing sets idea" do
+    tests "MintMusing", on: "MusingMint"
+    input  idea: "sample"
+    expect last_minted: "sample"
+  end
+
+  test "MintMusing records source" do
+    tests "MintMusing", on: "MusingMint"
+    input  idea: "sample", source: "dream"
+    expect last_minted: "sample", last_source: "dream"
+  end
+
+  test "PruneMusings runs" do
+    tests "PruneMusings", on: "MusingMint"
+    expect ok: "true"
+  end
+
+
+  # ── ClaudeAssist aggregate ──────────────────────────────────────────
+
+  test "UseClaudeProvider runs" do
+    tests "UseClaudeProvider", on: "ClaudeAssist"
+    expect provider: "claude"
+  end
+
+  test "UseLocalProvider runs" do
+    tests "UseLocalProvider", on: "ClaudeAssist"
+    expect provider: "local"
+  end
+
+  test "DisableMinting runs" do
+    tests "DisableMinting", on: "ClaudeAssist"
+    expect provider: "off"
+  end
+
+
+  # ── SignalConsolidation aggregate ──────────────────────────────────────────
+
+  test "ConsolidateSignals runs" do
+    tests "ConsolidateSignals", on: "SignalConsolidation"
+    expect ok: "true"
+  end
+
+  test "PruneSynapses runs" do
+    tests "PruneSynapses", on: "SignalConsolidation"
+    expect ok: "true"
+  end
+
+end

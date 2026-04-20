@@ -1,0 +1,85 @@
+Hecks.behaviors "HomeHealthApp" do
+  vision "Behavioral tests for the HomeHealthApp domain — exercises every command and query in memory"
+
+  # ── HomeVisit aggregate ──────────────────────────────────────────
+
+  test "ScheduleVisit sets visit_id + patient_name + caregiver_name + visit_type + scheduled_date" do
+    tests "ScheduleVisit", on: "HomeVisit"
+    input  visit_id: "sample", patient_name: "sample", caregiver_name: "sample", visit_type: "sample", scheduled_date: "sample"
+    expect visit_id: "sample", patient_name: "sample", caregiver_name: "sample", visit_type: "sample", scheduled_date: "sample", status: "scheduled"
+  end
+
+  test "CheckIn runs" do
+    tests "CheckIn", on: "HomeVisit"
+    setup  "ScheduleVisit", visit_id: "sample", patient_name: "sample", caregiver_name: "sample", visit_type: "sample", scheduled_date: "sample"
+    expect status: "in_progress"
+  end
+
+  test "CheckIn cascades through policy chain" do
+    tests "CheckIn", on: "HomeVisit", kind: :cascade
+    setup  "RecordVitals", reading_id: "sample", visit_id: "sample", heart_rate: 1.0, blood_pressure_sys: 1.0, blood_pressure_dia: 1.0, temperature: 1.0, oxygen_sat: 1.0
+    setup  "ScheduleVisit", visit_id: "sample", patient_name: "sample", caregiver_name: "sample", visit_type: "sample", scheduled_date: "sample"
+    expect emits: ["CaregiverCheckedIn", "VitalsRecorded"]
+  end
+
+  test "CompleteVisit runs" do
+    tests "CompleteVisit", on: "HomeVisit"
+    setup  "ScheduleVisit", visit_id: "sample", patient_name: "sample", caregiver_name: "sample", visit_type: "sample", scheduled_date: "sample"
+    setup  "CheckIn"
+    expect status: "completed"
+  end
+
+
+  # ── VitalSign aggregate ──────────────────────────────────────────
+
+  test "RecordVitals sets reading_id + visit_id + heart_rate + blood_pressure_sys + blood_pressure_dia + temperature + oxygen_sat" do
+    tests "RecordVitals", on: "VitalSign"
+    input  reading_id: "sample", visit_id: "sample", heart_rate: 1.0, blood_pressure_sys: 1.0, blood_pressure_dia: 1.0, temperature: 1.0, oxygen_sat: 1.0
+    expect reading_id: "sample", visit_id: "sample", heart_rate: 1.0, blood_pressure_sys: 1.0, blood_pressure_dia: 1.0, temperature: 1.0, oxygen_sat: 1.0
+  end
+
+  test "FlagAbnormal runs" do
+    tests "FlagAbnormal", on: "VitalSign"
+    setup  "RecordVitals", reading_id: "sample", visit_id: "sample", heart_rate: 1.0, blood_pressure_sys: 1.0, blood_pressure_dia: 1.0, temperature: 1.0, oxygen_sat: 1.0
+    expect ok: "true"
+  end
+
+  test "FlagAbnormal cascades through policy chain" do
+    tests "FlagAbnormal", on: "VitalSign", kind: :cascade
+    setup  "RecordVitals", reading_id: "sample", visit_id: "sample", heart_rate: 1.0, blood_pressure_sys: 1.0, blood_pressure_dia: 1.0, temperature: 1.0, oxygen_sat: 1.0
+    setup  "SendAlert", alert_id: "sample", patient_name: "sample", alert_type: "sample", message: "sample"
+    expect emits: ["AbnormalFlagged", "AlertSent"]
+  end
+
+
+  # ── CaregiverProfile aggregate ──────────────────────────────────────────
+
+  test "EnrollCaregiver sets caregiver_id + name + license_type" do
+    tests "EnrollCaregiver", on: "CaregiverProfile"
+    input  caregiver_id: "sample", name: "sample", license_type: "sample"
+    expect caregiver_id: "sample", name: "sample", license_type: "sample", status: "active"
+  end
+
+  test "RateCaregiver sets rating" do
+    tests "RateCaregiver", on: "CaregiverProfile"
+    setup  "EnrollCaregiver", caregiver_id: "sample", name: "sample", license_type: "sample"
+    input  rating: 1.0
+    expect rating: 1.0
+  end
+
+
+  # ── PatientAlert aggregate ──────────────────────────────────────────
+
+  test "SendAlert sets alert_id + patient_name + alert_type + message" do
+    tests "SendAlert", on: "PatientAlert"
+    input  alert_id: "sample", patient_name: "sample", alert_type: "sample", message: "sample"
+    expect alert_id: "sample", patient_name: "sample", alert_type: "sample", message: "sample", status: "sent"
+  end
+
+  test "DismissAlert runs" do
+    tests "DismissAlert", on: "PatientAlert"
+    setup  "SendAlert", alert_id: "sample", patient_name: "sample", alert_type: "sample", message: "sample"
+    expect status: "dismissed"
+  end
+
+end

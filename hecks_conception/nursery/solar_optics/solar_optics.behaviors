@@ -1,0 +1,118 @@
+Hecks.behaviors "SolarOptics" do
+  vision "Behavioral tests for the SolarOptics domain — exercises every command and query in memory"
+
+  # ── SolarPosition aggregate ──────────────────────────────────────────
+
+  test "CalculateSolarPosition sets location_name + latitude + longitude + date_time" do
+    tests "CalculateSolarPosition", on: "SolarPosition"
+    input  location_name: "sample", latitude: 1.0, longitude: 1.0, date_time: "sample"
+    expect location_name: "sample", latitude: 1.0, longitude: 1.0, date_time: "sample", status: "calculated"
+  end
+
+  test "CalculateSolarPosition cascades through policy chain" do
+    tests "CalculateSolarPosition", on: "SolarPosition", kind: :cascade
+    input  location_name: "sample", latitude: 1.0, longitude: 1.0, date_time: "sample"
+    expect emits: ["SolarPositionCalculated", "SunPathComputed"]
+  end
+
+  test "ComputeSunPath sets solar_altitude_deg + solar_azimuth_deg" do
+    tests "ComputeSunPath", on: "SolarPosition"
+    setup  "CalculateSolarPosition", location_name: "sample", latitude: 1.0, longitude: 1.0, date_time: "sample"
+    input  solar_altitude_deg: 1.0, solar_azimuth_deg: 1.0
+    expect solar_altitude_deg: 1.0, solar_azimuth_deg: 1.0
+  end
+
+
+  # ── SolarPanel aggregate ──────────────────────────────────────────
+
+  test "InstallPanel sets panel_id + tilt_degrees + azimuth_degrees + area_m2 + efficiency_pct + peak_power_watts" do
+    tests "InstallPanel", on: "SolarPanel"
+    input  panel_id: "sample", tilt_degrees: 1.0, azimuth_degrees: 1.0, area_m2: 1.0, efficiency_pct: 1.0, peak_power_watts: 1.0
+    expect panel_id: "sample", tilt_degrees: 1.0, azimuth_degrees: 1.0, area_m2: 1.0, efficiency_pct: 1.0, peak_power_watts: 1.0, status: "installed"
+  end
+
+  test "InstallPanel cascades through policy chain" do
+    tests "InstallPanel", on: "SolarPanel", kind: :cascade
+    input  panel_id: "sample", tilt_degrees: 1.0, azimuth_degrees: 1.0, area_m2: 1.0, efficiency_pct: 1.0, peak_power_watts: 1.0
+    expect emits: ["PanelInstalled", "TiltOptimized", "PanelAdjusted"]
+  end
+
+  test "OptimizeTilt sets tilt_degrees" do
+    tests "OptimizeTilt", on: "SolarPanel"
+    setup  "InstallPanel", panel_id: "sample", tilt_degrees: 1.0, azimuth_degrees: 1.0, area_m2: 1.0, efficiency_pct: 1.0, peak_power_watts: 1.0
+    input  tilt_degrees: 1.0
+    expect tilt_degrees: 1.0
+  end
+
+  test "OptimizeTilt cascades through policy chain" do
+    tests "OptimizeTilt", on: "SolarPanel", kind: :cascade
+    setup  "InstallPanel", panel_id: "sample", tilt_degrees: 1.0, azimuth_degrees: 1.0, area_m2: 1.0, efficiency_pct: 1.0, peak_power_watts: 1.0
+    input  tilt_degrees: 1.0
+    expect emits: ["TiltOptimized", "PanelAdjusted"]
+  end
+
+  test "AdjustPanel runs" do
+    tests "AdjustPanel", on: "SolarPanel"
+    setup  "InstallPanel", panel_id: "sample", tilt_degrees: 1.0, azimuth_degrees: 1.0, area_m2: 1.0, efficiency_pct: 1.0, peak_power_watts: 1.0
+    expect status: "optimized"
+  end
+
+
+  # ── ShadingAnalysis aggregate ──────────────────────────────────────────
+
+  test "AnalyzeShading sets site_name + obstruction_type + obstruction_height_m + obstruction_distance_m" do
+    tests "AnalyzeShading", on: "ShadingAnalysis"
+    input  site_name: "sample", obstruction_type: "sample", obstruction_height_m: 1.0, obstruction_distance_m: 1.0
+    expect site_name: "sample", obstruction_type: "sample", obstruction_height_m: 1.0, obstruction_distance_m: 1.0, status: "analyzed"
+  end
+
+  test "AnalyzeShading cascades through policy chain" do
+    tests "AnalyzeShading", on: "ShadingAnalysis", kind: :cascade
+    input  site_name: "sample", obstruction_type: "sample", obstruction_height_m: 1.0, obstruction_distance_m: 1.0
+    expect emits: ["ShadingAnalyzed", "ShadeHoursCalculated", "EnergyLossEstimated"]
+  end
+
+  test "CalculateShadeHours sets shade_hours_per_day" do
+    tests "CalculateShadeHours", on: "ShadingAnalysis"
+    setup  "AnalyzeShading", site_name: "sample", obstruction_type: "sample", obstruction_height_m: 1.0, obstruction_distance_m: 1.0
+    input  shade_hours_per_day: 1.0
+    expect shade_hours_per_day: 1.0
+  end
+
+  test "CalculateShadeHours cascades through policy chain" do
+    tests "CalculateShadeHours", on: "ShadingAnalysis", kind: :cascade
+    setup  "AnalyzeShading", site_name: "sample", obstruction_type: "sample", obstruction_height_m: 1.0, obstruction_distance_m: 1.0
+    input  shade_hours_per_day: 1.0
+    expect emits: ["ShadeHoursCalculated", "EnergyLossEstimated"]
+  end
+
+  test "EstimateEnergyLoss sets energy_loss_pct" do
+    tests "EstimateEnergyLoss", on: "ShadingAnalysis"
+    setup  "AnalyzeShading", site_name: "sample", obstruction_type: "sample", obstruction_height_m: 1.0, obstruction_distance_m: 1.0
+    input  energy_loss_pct: 1.0
+    expect energy_loss_pct: 1.0, status: "quantified"
+  end
+
+
+  # ── OutputForecast aggregate ──────────────────────────────────────────
+
+  test "ForecastOutput sets site_name + global_irradiance_kwh_m2 + temperature_derating_pct + shade_derating_pct + forecast_period" do
+    tests "ForecastOutput", on: "OutputForecast"
+    input  site_name: "sample", global_irradiance_kwh_m2: 1.0, temperature_derating_pct: 1.0, shade_derating_pct: 1.0, forecast_period: "sample"
+    expect site_name: "sample", global_irradiance_kwh_m2: 1.0, temperature_derating_pct: 1.0, shade_derating_pct: 1.0, forecast_period: "sample", status: "forecasted"
+  end
+
+  test "ForecastOutput cascades through policy chain" do
+    tests "ForecastOutput", on: "OutputForecast", kind: :cascade
+    input  site_name: "sample", global_irradiance_kwh_m2: 1.0, temperature_derating_pct: 1.0, shade_derating_pct: 1.0, forecast_period: "sample"
+    expect emits: ["OutputForecasted", "YieldCalculated"]
+  end
+
+  test "CalculateYield sets estimated_yield_kwh" do
+    tests "CalculateYield", on: "OutputForecast"
+    setup  "ForecastOutput", site_name: "sample", global_irradiance_kwh_m2: 1.0, temperature_derating_pct: 1.0, shade_derating_pct: 1.0, forecast_period: "sample"
+    input  estimated_yield_kwh: 1.0
+    expect estimated_yield_kwh: 1.0, status: "finalized"
+  end
+
+end

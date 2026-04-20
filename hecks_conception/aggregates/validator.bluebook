@@ -1,0 +1,64 @@
+Hecks.bluebook "Validator", version: "2026.04.17.1" do
+  vision "Domain validation rules — the immune system as a bluebook"
+  category "body"
+
+  # ============================================================
+  # VALIDATOR
+  # ============================================================
+  #
+  # Each rule is a fixture. The runtime reads these fixtures
+  # and applies them when validating a domain. No Rust hardcoding.
+  #
+  # Innate rules: structural (always apply)
+  # Adaptive rules: learned from corrections (antibodies)
+
+  aggregate "Rule", "One validation rule — innate or adaptive" do
+    attribute :name, String
+    attribute :category, String
+    attribute :description, String
+    attribute :severity, String
+
+    command "RegisterRule" do
+      description "Register a validation rule"
+      attribute :name, String
+      attribute :category, String
+      attribute :description, String
+      attribute :severity, String
+      emits "RuleRegistered"
+      then_set :name, to: :name
+      then_set :category, to: :category
+      then_set :description, to: :description
+      then_set :severity, to: :severity
+    end
+
+    query ListRules do
+      description "What rules do I enforce?"
+    end
+  end
+
+  aggregate "Violation", "A detected rule violation" do
+    attribute :rule_name, String
+    attribute :message, String
+    attribute :aggregate_name, String
+    attribute :command_name, String
+
+    command "DetectViolation" do
+      description "A rule was broken"
+      attribute :rule_name, String
+      attribute :message, String
+      emits "ViolationDetected"
+      then_set :rule_name, to: :rule_name
+      then_set :message, to: :message
+    end
+
+    query ListViolations do
+      description "What's wrong with this domain?"
+    end
+  end
+
+  # Innate rules — structural validation
+
+  # Warnings — soft rules
+
+  # Verb detection — noun/adjective suffixes (from the Verbs domain)
+end

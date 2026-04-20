@@ -1,0 +1,71 @@
+Hecks.behaviors "MentorEvents" do
+  vision "Behavioral tests for the MentorEvents domain — exercises every command and query in memory"
+
+  # ── MentorMatch aggregate ──────────────────────────────────────────
+
+  test "MakeMatch sets match_id + mentor_name + mentee_name + focus_area + start_date" do
+    tests "MakeMatch", on: "MentorMatch"
+    input  match_id: "sample", mentor_name: "sample", mentee_name: "sample", focus_area: "sample", start_date: "sample"
+    expect match_id: "sample", mentor_name: "sample", mentee_name: "sample", focus_area: "sample", start_date: "sample", status: "active"
+  end
+
+  test "CloseMatch runs" do
+    tests "CloseMatch", on: "MentorMatch"
+    setup  "MakeMatch", match_id: "sample", mentor_name: "sample", mentee_name: "sample", focus_area: "sample", start_date: "sample"
+    expect status: "closed"
+  end
+
+  test "CloseMatch cascades through policy chain" do
+    tests "CloseMatch", on: "MentorMatch", kind: :cascade
+    setup  "MeasureImpact", report_id: "sample", match_id: "sample", academic_improvement: 1.0, confidence_score: 1.0, period: "sample"
+    setup  "MakeMatch", match_id: "sample", mentor_name: "sample", mentee_name: "sample", focus_area: "sample", start_date: "sample"
+    expect emits: ["MatchClosed", "ImpactMeasured"]
+  end
+
+
+  # ── GroupEvent aggregate ──────────────────────────────────────────
+
+  test "PlanEvent sets event_id + event_name + venue + date + capacity" do
+    tests "PlanEvent", on: "GroupEvent"
+    input  event_id: "sample", event_name: "sample", venue: "sample", date: "sample", capacity: 1
+    expect event_id: "sample", event_name: "sample", venue: "sample", date: "sample", capacity: 1, status: "planned"
+  end
+
+  test "PlanEvent cascades through policy chain" do
+    tests "PlanEvent", on: "GroupEvent", kind: :cascade
+    setup  "RecordAttendance", attendance_id: "sample", event_id: "sample", participant_name: "sample", role_type: "sample", check_in_time: "sample"
+    input  event_id: "sample", event_name: "sample", venue: "sample", date: "sample", capacity: 1
+    expect emits: ["EventPlanned", "AttendanceRecorded"]
+  end
+
+  test "CancelEvent runs" do
+    tests "CancelEvent", on: "GroupEvent"
+    setup  "PlanEvent", event_id: "sample", event_name: "sample", venue: "sample", date: "sample", capacity: 1
+    expect status: "cancelled"
+  end
+
+
+  # ── AttendanceRecord aggregate ──────────────────────────────────────────
+
+  test "RecordAttendance sets attendance_id + event_id + participant_name + role_type + check_in_time" do
+    tests "RecordAttendance", on: "AttendanceRecord"
+    input  attendance_id: "sample", event_id: "sample", participant_name: "sample", role_type: "sample", check_in_time: "sample"
+    expect attendance_id: "sample", event_id: "sample", participant_name: "sample", role_type: "sample", check_in_time: "sample"
+  end
+
+
+  # ── ImpactReport aggregate ──────────────────────────────────────────
+
+  test "MeasureImpact sets report_id + match_id + academic_improvement + confidence_score + period" do
+    tests "MeasureImpact", on: "ImpactReport"
+    input  report_id: "sample", match_id: "sample", academic_improvement: 1.0, confidence_score: 1.0, period: "sample"
+    expect report_id: "sample", match_id: "sample", academic_improvement: 1.0, confidence_score: 1.0, period: "sample", status: "measured"
+  end
+
+  test "PublishImpact runs" do
+    tests "PublishImpact", on: "ImpactReport"
+    setup  "MeasureImpact", report_id: "sample", match_id: "sample", academic_improvement: 1.0, confidence_score: 1.0, period: "sample"
+    expect status: "published"
+  end
+
+end

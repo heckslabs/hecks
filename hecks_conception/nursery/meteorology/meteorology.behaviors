@@ -1,0 +1,173 @@
+Hecks.behaviors "Meteorology" do
+  vision "Behavioral tests for the Meteorology domain — exercises every command and query in memory"
+
+  # ── WeatherStation aggregate ──────────────────────────────────────────
+
+  test "InstallStation sets station_id + name + latitude + longitude" do
+    tests "InstallStation", on: "WeatherStation"
+    input  station_id: "sample", name: "sample", latitude: 1.0, longitude: 1.0
+    expect ok: "true"
+  end
+
+  test "InstallStation cascades through policy chain" do
+    tests "InstallStation", on: "WeatherStation", kind: :cascade
+    setup  "RecordObservation", timestamp: "sample", temperature_c: 1.0, pressure_hpa: 1.0
+    setup  "TrackSystem", system_type: "sample", central_pressure_hpa: 1.0
+    setup  "IssueForecast", region: "sample", synopsis: "sample", valid_from: "sample", valid_to: "sample"
+    setup  "IssueAlert", alert_type: "sample", severity: "sample", region: "sample"
+    input  station_id: "sample", name: "sample", latitude: 1.0, longitude: 1.0
+    expect emits: ["StationInstalled", "InstrumentsCalibrated", "ObservationRecorded", "ObservationValidated", "SystemTracked", "ForecastIssued", "AlertIssued", "ForecastVerified"]
+  end
+
+  test "CalibrateInstruments runs" do
+    tests "CalibrateInstruments", on: "WeatherStation"
+    setup  "InstallStation", station_id: "sample", name: "sample", latitude: 1.0, longitude: 1.0
+    expect ok: "true"
+  end
+
+  test "CalibrateInstruments cascades through policy chain" do
+    tests "CalibrateInstruments", on: "WeatherStation", kind: :cascade
+    setup  "InstallStation", station_id: "sample", name: "sample", latitude: 1.0, longitude: 1.0
+    setup  "RecordObservation", timestamp: "sample", temperature_c: 1.0, pressure_hpa: 1.0
+    setup  "TrackSystem", system_type: "sample", central_pressure_hpa: 1.0
+    setup  "IssueForecast", region: "sample", synopsis: "sample", valid_from: "sample", valid_to: "sample"
+    setup  "IssueAlert", alert_type: "sample", severity: "sample", region: "sample"
+    expect emits: ["InstrumentsCalibrated", "ObservationRecorded", "ObservationValidated", "SystemTracked", "ForecastIssued", "AlertIssued", "ForecastVerified"]
+  end
+
+  test "ClearPendingAlerts runs" do
+    tests "ClearPendingAlerts", on: "WeatherStation"
+    setup  "InstallStation", station_id: "sample", name: "sample", latitude: 1.0, longitude: 1.0
+    expect alerts_cleared: true
+  end
+
+  test "DeactivateStation runs" do
+    tests "DeactivateStation", on: "WeatherStation"
+    setup  "InstallStation", station_id: "sample", name: "sample", latitude: 1.0, longitude: 1.0
+    setup  "ClearPendingAlerts"
+    expect ok: "true"
+  end
+
+
+  # ── SurfaceObservation aggregate ──────────────────────────────────────────
+
+  test "RecordObservation sets timestamp + temperature_c + pressure_hpa" do
+    tests "RecordObservation", on: "SurfaceObservation"
+    setup  "InstallStation", station_id: "sample", name: "sample", latitude: 1.0, longitude: 1.0
+    input  timestamp: "sample", temperature_c: 1.0, pressure_hpa: 1.0
+    expect fields_complete: true
+  end
+
+  test "RecordObservation cascades through policy chain" do
+    tests "RecordObservation", on: "SurfaceObservation", kind: :cascade
+    setup  "InstallStation", station_id: "sample", name: "sample", latitude: 1.0, longitude: 1.0
+    setup  "TrackSystem", system_type: "sample", central_pressure_hpa: 1.0
+    setup  "IssueForecast", region: "sample", synopsis: "sample", valid_from: "sample", valid_to: "sample"
+    setup  "IssueAlert", alert_type: "sample", severity: "sample", region: "sample"
+    input  timestamp: "sample", temperature_c: 1.0, pressure_hpa: 1.0
+    expect emits: ["ObservationRecorded", "ObservationValidated", "SystemTracked", "ForecastIssued", "AlertIssued", "ForecastVerified"]
+  end
+
+  test "CompleteObservation runs" do
+    tests "CompleteObservation", on: "SurfaceObservation"
+    setup  "RecordObservation", timestamp: "sample", temperature_c: 1.0, pressure_hpa: 1.0
+    expect fields_complete: true
+  end
+
+  test "ValidateObservation runs" do
+    tests "ValidateObservation", on: "SurfaceObservation"
+    setup  "RecordObservation", timestamp: "sample", temperature_c: 1.0, pressure_hpa: 1.0
+    expect ok: "true"
+  end
+
+  test "ValidateObservation cascades through policy chain" do
+    tests "ValidateObservation", on: "SurfaceObservation", kind: :cascade
+    setup  "TrackSystem", system_type: "sample", central_pressure_hpa: 1.0
+    setup  "IssueForecast", region: "sample", synopsis: "sample", valid_from: "sample", valid_to: "sample"
+    setup  "IssueAlert", alert_type: "sample", severity: "sample", region: "sample"
+    setup  "RecordObservation", timestamp: "sample", temperature_c: 1.0, pressure_hpa: 1.0
+    expect emits: ["ObservationValidated", "SystemTracked", "ForecastIssued", "AlertIssued", "ForecastVerified"]
+  end
+
+
+  # ── Forecast aggregate ──────────────────────────────────────────
+
+  test "IssueForecast sets region + synopsis + valid_from + valid_to" do
+    tests "IssueForecast", on: "Forecast"
+    input  region: "sample", synopsis: "sample", valid_from: "sample", valid_to: "sample"
+    expect valid_period_elapsed: true
+  end
+
+  test "IssueForecast cascades through policy chain" do
+    tests "IssueForecast", on: "Forecast", kind: :cascade
+    setup  "IssueAlert", alert_type: "sample", severity: "sample", region: "sample"
+    input  region: "sample", synopsis: "sample", valid_from: "sample", valid_to: "sample"
+    expect emits: ["ForecastIssued", "AlertIssued", "ForecastVerified"]
+  end
+
+  test "AmendForecast sets amendment" do
+    tests "AmendForecast", on: "Forecast"
+    setup  "IssueForecast", region: "sample", synopsis: "sample", valid_from: "sample", valid_to: "sample"
+    input  amendment: "sample"
+    expect ok: "true"
+  end
+
+  test "MarkForecastExpired runs" do
+    tests "MarkForecastExpired", on: "Forecast"
+    setup  "IssueForecast", region: "sample", synopsis: "sample", valid_from: "sample", valid_to: "sample"
+    expect valid_period_elapsed: true
+  end
+
+  test "VerifyForecast runs" do
+    tests "VerifyForecast", on: "Forecast"
+    setup  "IssueForecast", region: "sample", synopsis: "sample", valid_from: "sample", valid_to: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── PressureSystem aggregate ──────────────────────────────────────────
+
+  test "TrackSystem sets system_type + central_pressure_hpa" do
+    tests "TrackSystem", on: "PressureSystem"
+    input  system_type: "sample", central_pressure_hpa: 1.0
+    expect ok: "true"
+  end
+
+  test "TrackSystem cascades through policy chain" do
+    tests "TrackSystem", on: "PressureSystem", kind: :cascade
+    setup  "IssueForecast", region: "sample", synopsis: "sample", valid_from: "sample", valid_to: "sample"
+    setup  "IssueAlert", alert_type: "sample", severity: "sample", region: "sample"
+    input  system_type: "sample", central_pressure_hpa: 1.0
+    expect emits: ["SystemTracked", "ForecastIssued", "AlertIssued", "ForecastVerified"]
+  end
+
+  test "Reposition sets latitude + longitude" do
+    tests "Reposition", on: "PressureSystem"
+    setup  "TrackSystem", system_type: "sample", central_pressure_hpa: 1.0
+    input  latitude: 1.0, longitude: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── WeatherAlert aggregate ──────────────────────────────────────────
+
+  test "IssueAlert sets alert_type + severity + region" do
+    tests "IssueAlert", on: "WeatherAlert"
+    input  alert_type: "sample", severity: "sample", region: "sample"
+    expect alert_active: true
+  end
+
+  test "IssueAlert cascades through policy chain" do
+    tests "IssueAlert", on: "WeatherAlert", kind: :cascade
+    setup  "IssueForecast", region: "sample", synopsis: "sample", valid_from: "sample", valid_to: "sample"
+    input  alert_type: "sample", severity: "sample", region: "sample"
+    expect emits: ["AlertIssued", "ForecastVerified"]
+  end
+
+  test "CancelAlert runs" do
+    tests "CancelAlert", on: "WeatherAlert"
+    setup  "IssueAlert", alert_type: "sample", severity: "sample", region: "sample"
+    expect ok: "true"
+  end
+
+end

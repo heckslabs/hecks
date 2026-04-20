@@ -1,0 +1,10 @@
+Hecks.world "Miette" do
+  heki do
+    dir "information"
+  end
+
+  ollama do
+    model "bluebook-architect"
+    url "http://localhost:11434"
+  end
+end

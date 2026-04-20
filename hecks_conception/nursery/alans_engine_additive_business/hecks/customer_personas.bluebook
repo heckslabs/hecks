@@ -113,10 +113,8 @@ Hecks.bluebook "CustomerPersonas", version: "2026.04.11.1" do
       role "Owner"
       description "Map the buying journey for a persona"
       String :persona_name
-      String :stage
       emits "JourneyMapped"
       then_set :persona_name, to: :persona_name
-      then_set :stage, to: :stage
     end
 
     AddTouchpoint do
@@ -154,11 +152,6 @@ Hecks.bluebook "CustomerPersonas", version: "2026.04.11.1" do
     end
 
     lifecycle :stage, default: "unaware" do
-      transition "MapJourney" => "aware", from: "unaware"
-      transition "MapJourney" => "considering", from: "aware"
-      transition "MapJourney" => "purchasing", from: "considering"
-      transition "MapJourney" => "using", from: "purchasing"
-      transition "MapJourney" => "advocating", from: "using"
     end
   end
 
@@ -310,10 +303,4 @@ Hecks.bluebook "CustomerPersonas", version: "2026.04.11.1" do
     trigger "RecommendProducts"
   end
 
-  fixture "Persona", name: "Weekend Warrior", segment: "DIY Enthusiast", description: "DIY car enthusiast who does own oil changes, trusts YouTube reviews, buys at AutoZone/O'Reilly", age_range: "25-45", income_range: "40K-80K", vehicle_type: "truck/muscle car", vehicle_age: "5-15 years", annual_mileage: "12K-18K", brand_affinity: "low", price_sensitivity: "high", trust_source: "YouTube reviews"
-  fixture "Persona", name: "Fleet Manager", segment: "Commercial B2B", description: "Manages 50+ vehicles, needs bulk pricing, cares about TCO, wants data and proof, buys direct", age_range: "35-55", income_range: "company budget", vehicle_type: "mixed fleet", vehicle_age: "1-10 years", annual_mileage: "30K+ per vehicle", brand_affinity: "medium", price_sensitivity: "medium", trust_source: "ASTM data and field trials"
-  fixture "Persona", name: "High-Mileage Hero", segment: "Maintenance Buyer", description: "Older vehicle with 150K+ miles, worried about engine longevity, buys additives as insurance, shops at Walmart/Amazon", age_range: "35-65", income_range: "30K-60K", vehicle_type: "sedan/SUV", vehicle_age: "10-20 years", annual_mileage: "10K-15K", brand_affinity: "low", price_sensitivity: "high", trust_source: "Amazon reviews and word of mouth"
-  fixture "Persona", name: "Performance Junkie", segment: "Enthusiast", description: "Modified vehicles, track days, wants maximum HP, trusts dyno results, shops specialty retailers", age_range: "20-40", income_range: "60K-120K", vehicle_type: "sports car/modified", vehicle_age: "1-10 years", annual_mileage: "8K-15K", brand_affinity: "high", price_sensitivity: "low", trust_source: "dyno results and forums"
-  fixture "Persona", name: "Worried Parent", segment: "Mainstream Consumer", description: "Family car, doesn't know engines, wants simple solution, trusts brand name, shops at Walmart", age_range: "30-50", income_range: "40K-80K", vehicle_type: "minivan/SUV", vehicle_age: "3-10 years", annual_mileage: "12K-18K", brand_affinity: "high", price_sensitivity: "medium", trust_source: "brand name and shelf presence"
-  fixture "Persona", name: "Professional Mechanic", segment: "Trade Professional", description: "Recommends to customers, wants proven products with COA, buys wholesale, trusts ASTM data", age_range: "25-60", income_range: "45K-90K", vehicle_type: "customer vehicles", vehicle_age: "all ages", annual_mileage: "N/A", brand_affinity: "medium", price_sensitivity: "medium", trust_source: "ASTM data and COA"
 end

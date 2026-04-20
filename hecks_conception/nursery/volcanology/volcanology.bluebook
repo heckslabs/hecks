@@ -9,6 +9,9 @@ Hecks.bluebook "Volcanology" do
     Float :latitude
     Float :longitude
     String :alert_level
+    Float :seismic_activity, default: 0.0
+    Float :background_seismic, default: 1.0
+    Integer :alert_rank, default: 0
 
     command "RegisterVolcano" do
       description "Add a volcano to the monitoring network"
@@ -16,6 +19,7 @@ Hecks.bluebook "Volcanology" do
       String :name
       String :volcano_type
       Float :summit_elevation_m
+      then_set :seismic_activity, 5.0
     end
 
     command "RaiseAlertLevel" do
@@ -23,7 +27,8 @@ Hecks.bluebook "Volcanology" do
       emits "AlertLevelRaised"
       reference_to Volcano
       String :new_level
-      given "seismic activity must exceed background"
+      given { seismic_activity > background_seismic }
+      then_set :alert_rank, 3
     end
 
     command "LowerAlertLevel" do
@@ -41,6 +46,7 @@ Hecks.bluebook "Volcanology" do
     String :end_date
     Integer :vei
     String :eruption_type
+    Integer :hours_without_tremor, default: 0
     reference_to Volcano
 
     value_object "EruptionMetrics" do
@@ -57,18 +63,19 @@ Hecks.bluebook "Volcanology" do
       String :eruption_type
     end
 
-    command "UpdateMetrics" do
+    command "Refine" do
       description "Revise eruption parameters as new data arrives"
-      emits "MetricsUpdated"
+      emits "MetricsRefined"
       reference_to Eruption
       Float :plume_height_km
+      then_set :hours_without_tremor, 48
     end
 
     command "ConcludeEruption" do
       description "Mark the eruption as ended"
       emits "EruptionConcluded"
       reference_to Eruption
-      given "no tremor detected for 48 hours"
+      given { hours_without_tremor >= 48 }
     end
   end
 
@@ -79,6 +86,7 @@ Hecks.bluebook "Volcanology" do
     Float :magnitude
     Float :depth_km
     String :event_type
+    Integer :stations_with_detection, default: 0
     reference_to Volcano
 
     command "RecordSeismicEvent" do
@@ -88,13 +96,14 @@ Hecks.bluebook "Volcanology" do
       String :station_id
       Float :magnitude
       Float :depth_km
+      then_set :stations_with_detection, 3
     end
 
     command "LocateHypocenter" do
       description "Triangulate the earthquake source location"
       emits "HypocenterLocated"
       reference_to SeismicReading
-      given "at least three stations must have detections"
+      given { stations_with_detection >= 3 }
     end
 
     command "ClassifyEvent" do
@@ -111,6 +120,7 @@ Hecks.bluebook "Volcanology" do
     Float :flux_tons_per_day
     String :measurement_date
     String :method
+    Boolean :baseline_recorded, default: false
     reference_to Volcano
 
     command "MeasureEmission" do
@@ -119,13 +129,14 @@ Hecks.bluebook "Volcanology" do
       reference_to Volcano
       String :gas_type
       Float :flux_tons_per_day
+      then_set :baseline_recorded, true
     end
 
     command "DetectAnomaly" do
       description "Flag an unusual change in gas composition"
       emits "AnomalyDetected"
       reference_to GasEmission
-      given "baseline measurements must exist"
+      given { baseline_recorded == true }
     end
   end
 
@@ -135,6 +146,7 @@ Hecks.bluebook "Volcanology" do
     String :hazard_type
     String :risk_level
     String :boundary_wkt
+    Integer :alert_rank, default: 0
     reference_to Volcano
 
     command "DelineateZone" do
@@ -143,13 +155,14 @@ Hecks.bluebook "Volcanology" do
       reference_to Volcano
       String :zone_name
       String :hazard_type
+      then_set :alert_rank, 3
     end
 
     command "EvacuateZone" do
       description "Issue an evacuation order for the zone"
       emits "ZoneEvacuated"
       reference_to HazardZone
-      given "alert level must be at warning or higher"
+      given { alert_rank >= 3 }
     end
   end
 
@@ -202,18 +215,4 @@ Hecks.bluebook "Volcanology" do
     trigger "EvacuateZone"
   end
 
-  fixture "Volcano", name: "Mount Merapi", volcano_type: "Stratovolcano", summit_elevation_m: 2968.0, latitude: -7.542, longitude: 110.442, alert_level: "green"
-  fixture "Volcano", name: "Mount Kilimanjaro", volcano_type: "Dormant Volcano", summit_elevation_m: 5895.0, latitude: -3.065, longitude: 37.353, alert_level: "green"
-
-  fixture "Eruption", eruption_id: "ERU-2026-0147", start_date: "2026-03-15", end_date: "2026-03-22", vei: 2, eruption_type: "Phreatomagmatic"
-  fixture "Eruption", eruption_id: "ERU-2026-0148", start_date: "2026-04-01", end_date: "", vei: 1, eruption_type: "Lava fountain"
-
-  fixture "SeismicReading", station_id: "STA-01", timestamp: "2026-04-10T14:32:00Z", magnitude: 3.8, depth_km: 8.5, event_type: "Volcanic tremor"
-  fixture "SeismicReading", station_id: "STA-02", timestamp: "2026-04-10T14:35:15Z", magnitude: 4.2, depth_km: 7.2, event_type: "Long-period event"
-
-  fixture "GasEmission", gas_type: "SO2", flux_tons_per_day: 850.5, measurement_date: "2026-04-09", method: "DOAS spectroscopy"
-  fixture "GasEmission", gas_type: "CO2", flux_tons_per_day: 2100.0, measurement_date: "2026-04-09", method: "Gravimetric analysis"
-
-  fixture "HazardZone", zone_name: "Primary Lava Flow Zone", hazard_type: "Lava flows", risk_level: "high", boundary_wkt: "POLYGON((-7.5 110.4, -7.6 110.5, -7.4 110.6, -7.5 110.4))"
-  fixture "HazardZone", zone_name: "Pyroclastic Flow Zone", hazard_type: "Pyroclastic flows", risk_level: "extreme", boundary_wkt: "POLYGON((-7.45 110.35, -7.65 110.45, -7.55 110.55, -7.45 110.35))"
 end

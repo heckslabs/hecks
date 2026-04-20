@@ -1,0 +1,172 @@
+Hecks.behaviors "CrisisAviation" do
+  vision "Behavioral tests for the CrisisAviation domain — exercises every command and query in memory"
+
+  # ── CrisisEvent aggregate ──────────────────────────────────────────
+
+  test "DeclareCrisis sets event_id + crisis_type + affected_region + severity" do
+    tests "DeclareCrisis", on: "CrisisEvent"
+    input  event_id: "sample", crisis_type: "sample", affected_region: "sample", severity: "sample"
+    expect event_id: "sample", crisis_type: "sample", affected_region: "sample", severity: "sample", status: "active"
+  end
+
+  test "DeclareCrisis cascades through policy chain" do
+    tests "DeclareCrisis", on: "CrisisEvent", kind: :cascade
+    setup  "ActivateAsset", callsign: "sample", aircraft_type: "sample", base_location: "sample", patient_capacity: 1, range_nm: 1
+    setup  "ReportStatus", hospital_name: "sample", region: "sample", total_beds: 1, available_beds: 1, power_status: "sample", accessibility: "sample"
+    setup  "ComputeDecision", decision_id: "sample", rationale: "sample"
+    setup  "ReportGridStatus", sector_id: "sample", region: "sample", substations_online: 1, substations_total: 1
+    setup  "OpenQueue", queue_id: "sample"
+    input  event_id: "sample", crisis_type: "sample", affected_region: "sample", severity: "sample"
+    expect emits: ["CrisisDeclared", "AssetActivated", "HospitalStatusReported", "DecisionComputed", "GridStatusReported", "PowerStatusReported", "QueueOpened"]
+  end
+
+  test "EscalateCrisis sets severity" do
+    tests "EscalateCrisis", on: "CrisisEvent"
+    setup  "DeclareCrisis", event_id: "sample", crisis_type: "sample", affected_region: "sample", severity: "sample"
+    input  severity: "sample"
+    expect severity: "sample"
+  end
+
+  test "ResolveCrisis runs" do
+    tests "ResolveCrisis", on: "CrisisEvent"
+    setup  "DeclareCrisis", event_id: "sample", crisis_type: "sample", affected_region: "sample", severity: "sample"
+    expect status: "resolved"
+  end
+
+
+  # ── FlightAsset aggregate ──────────────────────────────────────────
+
+  test "ActivateAsset sets callsign + aircraft_type + base_location + patient_capacity + range_nm" do
+    tests "ActivateAsset", on: "FlightAsset"
+    setup  "DeclareCrisis", event_id: "sample", crisis_type: "sample", affected_region: "sample", severity: "sample"
+    input  callsign: "sample", aircraft_type: "sample", base_location: "sample", patient_capacity: 1, range_nm: 1
+    expect callsign: "sample", aircraft_type: "sample", base_location: "sample", patient_capacity: 1, range_nm: 1, status: "ready"
+  end
+
+  test "DispatchMission runs" do
+    tests "DispatchMission", on: "FlightAsset"
+    setup  "ActivateAsset", callsign: "sample", aircraft_type: "sample", base_location: "sample", patient_capacity: 1, range_nm: 1
+    expect status: "airborne"
+  end
+
+  test "CompleteMission runs" do
+    tests "CompleteMission", on: "FlightAsset"
+    setup  "ActivateAsset", callsign: "sample", aircraft_type: "sample", base_location: "sample", patient_capacity: 1, range_nm: 1
+    setup  "DispatchMission"
+    expect status: "ready"
+  end
+
+
+  # ── HospitalStatus aggregate ──────────────────────────────────────────
+
+  test "ReportStatus sets hospital_name + region + total_beds + available_beds + power_status + accessibility" do
+    tests "ReportStatus", on: "HospitalStatus"
+    input  hospital_name: "sample", region: "sample", total_beds: 1, available_beds: 1, power_status: "sample", accessibility: "sample"
+    expect hospital_name: "sample", region: "sample", total_beds: 1, available_beds: 1, power_status: "sample", accessibility: "sample", status: "reported"
+  end
+
+  test "ReportStatus cascades through policy chain" do
+    tests "ReportStatus", on: "HospitalStatus", kind: :cascade
+    setup  "ComputeDecision", decision_id: "sample", rationale: "sample"
+    setup  "DeclareCrisis", event_id: "sample", crisis_type: "sample", affected_region: "sample", severity: "sample"
+    setup  "ActivateAsset", callsign: "sample", aircraft_type: "sample", base_location: "sample", patient_capacity: 1, range_nm: 1
+    input  hospital_name: "sample", region: "sample", total_beds: 1, available_beds: 1, power_status: "sample", accessibility: "sample"
+    expect emits: ["HospitalStatusReported", "DecisionComputed"]
+  end
+
+  test "ReportPowerStatus sets power_status" do
+    tests "ReportPowerStatus", on: "HospitalStatus"
+    setup  "ReportStatus", hospital_name: "sample", region: "sample", total_beds: 1, available_beds: 1, power_status: "sample", accessibility: "sample"
+    input  power_status: "sample"
+    expect power_status: "sample"
+  end
+
+  test "MarkInaccessible runs" do
+    tests "MarkInaccessible", on: "HospitalStatus"
+    setup  "ReportStatus", hospital_name: "sample", region: "sample", total_beds: 1, available_beds: 1, power_status: "sample", accessibility: "sample"
+    expect accessibility: "air_only"
+  end
+
+  test "MarkInaccessible cascades through policy chain" do
+    tests "MarkInaccessible", on: "HospitalStatus", kind: :cascade
+    setup  "ReportStatus", hospital_name: "sample", region: "sample", total_beds: 1, available_beds: 1, power_status: "sample", accessibility: "sample"
+    setup  "ReportGridStatus", sector_id: "sample", region: "sample", substations_online: 1, substations_total: 1
+    expect emits: ["HospitalInaccessible", "GeneratorDeployed"]
+  end
+
+
+  # ── PowerStatus aggregate ──────────────────────────────────────────
+
+  test "ReportGridStatus sets sector_id + region + substations_online + substations_total" do
+    tests "ReportGridStatus", on: "PowerStatus"
+    input  sector_id: "sample", region: "sample", substations_online: 1, substations_total: 1
+    expect sector_id: "sample", region: "sample", substations_online: 1, substations_total: 1, grid_status: "degraded"
+  end
+
+  test "ReportGridStatus cascades through policy chain" do
+    tests "ReportGridStatus", on: "PowerStatus", kind: :cascade
+    setup  "ReportStatus", hospital_name: "sample", region: "sample", total_beds: 1, available_beds: 1, power_status: "sample", accessibility: "sample"
+    input  sector_id: "sample", region: "sample", substations_online: 1, substations_total: 1
+    expect emits: ["GridStatusReported", "PowerStatusReported"]
+  end
+
+  test "DeployGenerator runs" do
+    tests "DeployGenerator", on: "PowerStatus"
+    setup  "ReportGridStatus", sector_id: "sample", region: "sample", substations_online: 1, substations_total: 1
+    expect ok: "true"
+  end
+
+  test "RestoreSector runs" do
+    tests "RestoreSector", on: "PowerStatus"
+    setup  "ReportGridStatus", sector_id: "sample", region: "sample", substations_online: 1, substations_total: 1
+    expect grid_status: "restored"
+  end
+
+
+  # ── AirspaceDecision aggregate ──────────────────────────────────────────
+
+  test "ComputeDecision sets decision_id + rationale" do
+    tests "ComputeDecision", on: "AirspaceDecision"
+    setup  "ReportStatus", hospital_name: "sample", region: "sample", total_beds: 1, available_beds: 1, power_status: "sample", accessibility: "sample"
+    setup  "ActivateAsset", callsign: "sample", aircraft_type: "sample", base_location: "sample", patient_capacity: 1, range_nm: 1
+    setup  "DeclareCrisis", event_id: "sample", crisis_type: "sample", affected_region: "sample", severity: "sample"
+    input  decision_id: "sample", rationale: "sample"
+    expect decision_id: "sample", rationale: "sample", status: "computed"
+  end
+
+  test "ApproveDecision runs" do
+    tests "ApproveDecision", on: "AirspaceDecision"
+    setup  "ComputeDecision", decision_id: "sample", rationale: "sample"
+    expect status: "approved"
+  end
+
+  test "ApproveDecision cascades through policy chain" do
+    tests "ApproveDecision", on: "AirspaceDecision", kind: :cascade
+    setup  "ActivateAsset", callsign: "sample", aircraft_type: "sample", base_location: "sample", patient_capacity: 1, range_nm: 1
+    setup  "ComputeDecision", decision_id: "sample", rationale: "sample"
+    expect emits: ["DecisionApproved", "MissionDispatched"]
+  end
+
+
+  # ── PatientPriority aggregate ──────────────────────────────────────────
+
+  test "OpenQueue sets queue_id" do
+    tests "OpenQueue", on: "PatientPriority"
+    setup  "DeclareCrisis", event_id: "sample", crisis_type: "sample", affected_region: "sample", severity: "sample"
+    input  queue_id: "sample"
+    expect queue_id: "sample", status: "active"
+  end
+
+  test "AddPatient runs" do
+    tests "AddPatient", on: "PatientPriority"
+    setup  "OpenQueue", queue_id: "sample"
+    expect ok: "true"
+  end
+
+  test "DispatchTransport runs" do
+    tests "DispatchTransport", on: "PatientPriority"
+    setup  "OpenQueue", queue_id: "sample"
+    expect ok: "true"
+  end
+
+end

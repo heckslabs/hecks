@@ -1,0 +1,22 @@
+Hecks.fixtures "IoTPlatform" do
+  aggregate "Device" do
+    fixture "Device1", device_id: "DEV-TH-0821", device_type: "temperature-humidity-sensor", firmware_version: "2.1.4", location: "Building-A-Floor-3", last_heartbeat: "2026-04-14T14:32:00Z", status: "active"
+    fixture "Device2", device_id: "DEV-PIR-0445", device_type: "motion-detector", firmware_version: "1.8.2", location: "Building-B-Parking-Lot", last_heartbeat: "2026-04-14T14:29:15Z", status: "active"
+  end
+  aggregate "Sensor" do
+    fixture "Sensor1", sensor_id: "SNR-TH-0821-01", sensor_type: "temperature", unit: "celsius", min_range: -20.0, max_range: 60.0, status: "active"
+    fixture "Sensor2", sensor_id: "SNR-HUM-0821-02", sensor_type: "humidity", unit: "percent", min_range: 0.0, max_range: 100.0, status: "active"
+  end
+  aggregate "Reading" do
+    fixture "Reading1", reading_id: "RDG-2026-04-14-001847", value: 22.5, timestamp: "2026-04-14T14:32:00Z", quality: "excellent", status: "ingested"
+    fixture "Reading2", reading_id: "RDG-2026-04-14-001848", value: 58.3, timestamp: "2026-04-14T14:32:15Z", quality: "excellent", status: "validated"
+  end
+  aggregate "Alert" do
+    fixture "Alert1", alert_id: "ALT-2026-0612", severity: "critical", condition: "temperature_above_35", message: "Temperature exceeded safe operating limit on Floor-3", status: "raised"
+    fixture "Alert2", alert_id: "ALT-2026-0613", severity: "warning", condition: "humidity_below_30", message: "Low humidity detected in Building-B", status: "acknowledged"
+  end
+  aggregate "FirmwareUpdate" do
+    fixture "FirmwareUpdate1", update_id: "FW-2026-04-15-001", version: "2.2.0", target_device_type: "temperature-humidity-sensor", package_size_kb: 512, release_notes: "Improved sensor calibration, bug fixes for edge cases", status: "published"
+    fixture "FirmwareUpdate2", update_id: "FW-2026-04-01-015", version: "1.9.1", target_device_type: "motion-detector", package_size_kb: 384, release_notes: "Enhanced motion detection sensitivity, power optimization", status: "applied"
+  end
+end

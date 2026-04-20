@@ -1,0 +1,80 @@
+Hecks.behaviors "SmartFacility" do
+  vision "Behavioral tests for the SmartFacility domain — exercises every command and query in memory"
+
+  # ── Resident aggregate ──────────────────────────────────────────
+
+  test "AdmitResident sets resident_id + name + room_number + care_level" do
+    tests "AdmitResident", on: "Resident"
+    input  resident_id: "sample", name: "sample", room_number: "sample", care_level: "sample"
+    expect resident_id: "sample", name: "sample", room_number: "sample", care_level: "sample", status: "active"
+  end
+
+  test "AdmitResident cascades through policy chain" do
+    tests "AdmitResident", on: "Resident", kind: :cascade
+    setup  "ProvisionSchedule", schedule_id: "sample", resident_id: "sample"
+    input  resident_id: "sample", name: "sample", room_number: "sample", care_level: "sample"
+    expect emits: ["ResidentAdmitted", "ScheduleProvisioned"]
+  end
+
+  test "TransferResident sets room_number + care_level" do
+    tests "TransferResident", on: "Resident"
+    setup  "AdmitResident", resident_id: "sample", name: "sample", room_number: "sample", care_level: "sample"
+    input  room_number: "sample", care_level: "sample"
+    expect room_number: "sample", care_level: "sample"
+  end
+
+
+  # ── Display aggregate ──────────────────────────────────────────
+
+  test "InstallDisplay sets display_id + location_name + content_type" do
+    tests "InstallDisplay", on: "Display"
+    input  display_id: "sample", location_name: "sample", content_type: "sample"
+    expect display_id: "sample", location_name: "sample", content_type: "sample", status: "active"
+  end
+
+  test "RefreshContent sets current_content" do
+    tests "RefreshContent", on: "Display"
+    setup  "InstallDisplay", display_id: "sample", location_name: "sample", content_type: "sample"
+    input  current_content: "sample"
+    expect current_content: "sample"
+  end
+
+
+  # ── ReminderSchedule aggregate ──────────────────────────────────────────
+
+  test "ProvisionSchedule sets schedule_id + resident_id" do
+    tests "ProvisionSchedule", on: "ReminderSchedule"
+    input  schedule_id: "sample", resident_id: "sample"
+    expect schedule_id: "sample", resident_id: "sample", status: "active"
+  end
+
+  test "TriggerReminder runs" do
+    tests "TriggerReminder", on: "ReminderSchedule"
+    setup  "ProvisionSchedule", schedule_id: "sample", resident_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ActivityBoard aggregate ──────────────────────────────────────────
+
+  test "PublishBoard sets board_id + date" do
+    tests "PublishBoard", on: "ActivityBoard"
+    input  board_id: "sample", date: "sample"
+    expect board_id: "sample", date: "sample", status: "published"
+  end
+
+  test "PublishBoard cascades through policy chain" do
+    tests "PublishBoard", on: "ActivityBoard", kind: :cascade
+    setup  "InstallDisplay", display_id: "sample", location_name: "sample", content_type: "sample"
+    input  board_id: "sample", date: "sample"
+    expect emits: ["BoardPublished", "ContentRefreshed"]
+  end
+
+  test "AddActivity sets name + time" do
+    tests "AddActivity", on: "ActivityBoard"
+    setup  "PublishBoard", board_id: "sample", date: "sample"
+    input  name: "sample", time: "sample"
+    expect ok: "true"
+  end
+
+end

@@ -23,25 +23,25 @@ Hecks.bluebook "StatusBar", version: "2026.04.16.1" do
   # Symlinked from ~/.claude/statusline-command.sh
 
   aggregate "Mode", "Which mode the statusline is in" do
-    String :current
-    Integer :idle_threshold_seconds
-    Integer :refresh_interval_seconds
+    attribute :current, String
+    attribute :idle_threshold_seconds, Integer
+    attribute :refresh_interval_seconds, Integer
 
-    SetAttentive do
+    command "SetAttentive" do
       role "Daemon"
       description "Pulse fired — show full details"
       emits "StatusAttentive"
       then_set :current, to: "attentive"
     end
 
-    SetMusing do
+    command "SetMusing" do
       role "Daemon"
       description "Idle 30s+ — show only the musing text"
       emits "StatusMusing"
       then_set :current, to: "musing"
     end
 
-    SetSleeping do
+    command "SetSleeping" do
       role "Daemon"
       description "Sleep entered — show moon and sleep narrative"
       emits "StatusSleeping"
@@ -49,18 +49,16 @@ Hecks.bluebook "StatusBar", version: "2026.04.16.1" do
     end
   end
 
-  fixture "Mode", current: "attentive", idle_threshold_seconds: 300, refresh_interval_seconds: 1
-
   aggregate "AttentiveLayout", "What shows when active" do
-    String :name
-    Boolean :show_heartbeat
-    Boolean :show_mood
-    Boolean :show_fatigue
-    Boolean :show_musing_count
-    Boolean :show_invention_count
-    Boolean :show_current_musing
+    attribute :name, String
+    attribute :show_heartbeat, TrueClass
+    attribute :show_mood, TrueClass
+    attribute :show_fatigue, TrueClass
+    attribute :show_musing_count, TrueClass
+    attribute :show_invention_count, TrueClass
+    attribute :show_current_musing, TrueClass
 
-    Configure do
+    command "Configure" do
       role "Self"
       description "Set which elements appear in the attentive statusline"
       emits "AttentiveLayoutConfigured"
@@ -68,40 +66,35 @@ Hecks.bluebook "StatusBar", version: "2026.04.16.1" do
   end
 
   # Default: show everything
-  fixture "AttentiveLayout", name: "Miette", show_heartbeat: true, show_mood: true, show_fatigue: true, show_musing_count: true, show_invention_count: true, show_current_musing: true
 
   aggregate "MusingLayout", "What shows when idle" do
-    String :prefix
-    Integer :max_length
+    attribute :prefix, String
+    attribute :max_length, Integer
 
-    Configure do
+    command "Configure" do
       role "Self"
       description "Set musing display format"
       emits "MusingLayoutConfigured"
     end
   end
 
-  fixture "MusingLayout", prefix: "💭", max_length: 80
-
   aggregate "SleepLayout", "What shows during sleep" do
-    String :icon_set
-    Boolean :show_stage
-    Boolean :show_cycle
+    attribute :icon_set, String
+    attribute :show_stage, TrueClass
+    attribute :show_cycle, TrueClass
 
-    Configure do
+    command "Configure" do
       role "Self"
       description "Set sleep display format"
       emits "SleepLayoutConfigured"
     end
   end
 
-  fixture "SleepLayout", icon_set: "moons", show_stage: true, show_cycle: true
-
   # Transitions
-  policy "AttentiveOnPulse" do
-    on "HeartbeatPulsed"
+  policy "AttentiveOnTick" do
+    on "Ticked"
     trigger "SetAttentive"
-    description "Every pulse restores full details"
+    description "Every tick (= heartbeat) restores full details"
   end
 
   policy "MusingOnIdle" do

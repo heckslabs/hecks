@@ -1,0 +1,185 @@
+Hecks.behaviors "Robotics" do
+  vision "Behavioral tests for the Robotics domain — exercises every command and query in memory"
+
+  # ── Robot aggregate ──────────────────────────────────────────
+
+  test "ActivateRobot sets robot_id + name + platform_type" do
+    tests "ActivateRobot", on: "Robot"
+    input  robot_id: "sample", name: "sample", platform_type: "sample"
+    expect in_standby: true
+  end
+
+  test "ActivateRobot cascades through policy chain" do
+    tests "ActivateRobot", on: "Robot", kind: :cascade
+    setup  "MountSensor", sensor_id: "sample", sensor_type: "sample"
+    setup  "PlanMission", mission_id: "sample", objective: "sample"
+    setup  "StartStream", stream_id: "sample", data_type: "sample"
+    setup  "GenerateReport", summary: "sample"
+    input  robot_id: "sample", name: "sample", platform_type: "sample"
+    expect emits: ["RobotActivated", "SensorMounted", "SensorCalibrated", "MissionPlanned", "MissionLaunched", "StreamStarted", "TelemetryAnalyzed", "ReportGenerated"]
+  end
+
+  test "FlashFirmware sets new_version" do
+    tests "FlashFirmware", on: "Robot"
+    setup  "ActivateRobot", robot_id: "sample", name: "sample", platform_type: "sample"
+    input  new_version: "sample"
+    expect ok: "true"
+  end
+
+  test "RetireRobot runs" do
+    tests "RetireRobot", on: "Robot"
+    setup  "ActivateRobot", robot_id: "sample", name: "sample", platform_type: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Sensor aggregate ──────────────────────────────────────────
+
+  test "MountSensor sets sensor_id + sensor_type" do
+    tests "MountSensor", on: "Sensor"
+    setup  "ActivateRobot", robot_id: "sample", name: "sample", platform_type: "sample"
+    input  sensor_id: "sample", sensor_type: "sample"
+    expect mounted_and_powered: true
+  end
+
+  test "MountSensor cascades through policy chain" do
+    tests "MountSensor", on: "Sensor", kind: :cascade
+    setup  "ActivateRobot", robot_id: "sample", name: "sample", platform_type: "sample"
+    setup  "PlanMission", mission_id: "sample", objective: "sample"
+    setup  "StartStream", stream_id: "sample", data_type: "sample"
+    setup  "GenerateReport", summary: "sample"
+    input  sensor_id: "sample", sensor_type: "sample"
+    expect emits: ["SensorMounted", "SensorCalibrated", "MissionPlanned", "MissionLaunched", "StreamStarted", "TelemetryAnalyzed", "ReportGenerated"]
+  end
+
+  test "CalibrateSensor runs" do
+    tests "CalibrateSensor", on: "Sensor"
+    setup  "MountSensor", sensor_id: "sample", sensor_type: "sample"
+    expect ok: "true"
+  end
+
+  test "CalibrateSensor cascades through policy chain" do
+    tests "CalibrateSensor", on: "Sensor", kind: :cascade
+    setup  "PlanMission", mission_id: "sample", objective: "sample"
+    setup  "ActivateRobot", robot_id: "sample", name: "sample", platform_type: "sample"
+    setup  "StartStream", stream_id: "sample", data_type: "sample"
+    setup  "GenerateReport", summary: "sample"
+    setup  "MountSensor", sensor_id: "sample", sensor_type: "sample"
+    expect emits: ["SensorCalibrated", "MissionPlanned", "MissionLaunched", "StreamStarted", "TelemetryAnalyzed", "ReportGenerated"]
+  end
+
+  test "ReplaceSensor runs" do
+    tests "ReplaceSensor", on: "Sensor"
+    setup  "MountSensor", sensor_id: "sample", sensor_type: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Actuator aggregate ──────────────────────────────────────────
+
+  test "InstallActuator sets actuator_id + actuator_type" do
+    tests "InstallActuator", on: "Actuator"
+    setup  "ActivateRobot", robot_id: "sample", name: "sample", platform_type: "sample"
+    input  actuator_id: "sample", actuator_type: "sample"
+    expect ok: "true"
+  end
+
+  test "TuneController sets kp + ki + kd" do
+    tests "TuneController", on: "Actuator"
+    setup  "InstallActuator", actuator_id: "sample", actuator_type: "sample"
+    input  kp: 1.0, ki: 1.0, kd: 1.0
+    expect fault_detected: true
+  end
+
+  test "HaltActuator runs" do
+    tests "HaltActuator", on: "Actuator"
+    setup  "InstallActuator", actuator_id: "sample", actuator_type: "sample"
+    setup  "TuneController", kp: 1.0, ki: 1.0, kd: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── Mission aggregate ──────────────────────────────────────────
+
+  test "PlanMission sets mission_id + objective" do
+    tests "PlanMission", on: "Mission"
+    setup  "ActivateRobot", robot_id: "sample", name: "sample", platform_type: "sample"
+    input  mission_id: "sample", objective: "sample"
+    expect preflight_passed: true
+  end
+
+  test "PlanMission cascades through policy chain" do
+    tests "PlanMission", on: "Mission", kind: :cascade
+    setup  "ActivateRobot", robot_id: "sample", name: "sample", platform_type: "sample"
+    setup  "StartStream", stream_id: "sample", data_type: "sample"
+    setup  "GenerateReport", summary: "sample"
+    input  mission_id: "sample", objective: "sample"
+    expect emits: ["MissionPlanned", "MissionLaunched", "StreamStarted", "TelemetryAnalyzed", "ReportGenerated"]
+  end
+
+  test "LaunchMission runs" do
+    tests "LaunchMission", on: "Mission"
+    setup  "PlanMission", mission_id: "sample", objective: "sample"
+    expect ok: "true"
+  end
+
+  test "LaunchMission cascades through policy chain" do
+    tests "LaunchMission", on: "Mission", kind: :cascade
+    setup  "StartStream", stream_id: "sample", data_type: "sample"
+    setup  "ActivateRobot", robot_id: "sample", name: "sample", platform_type: "sample"
+    setup  "GenerateReport", summary: "sample"
+    setup  "PlanMission", mission_id: "sample", objective: "sample"
+    expect emits: ["MissionLaunched", "StreamStarted", "TelemetryAnalyzed", "ReportGenerated"]
+  end
+
+  test "AbortMission sets abort_reason" do
+    tests "AbortMission", on: "Mission"
+    setup  "PlanMission", mission_id: "sample", objective: "sample"
+    input  abort_reason: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── TelemetryStream aggregate ──────────────────────────────────────────
+
+  test "StartStream sets stream_id + data_type" do
+    tests "StartStream", on: "TelemetryStream"
+    setup  "ActivateRobot", robot_id: "sample", name: "sample", platform_type: "sample"
+    input  stream_id: "sample", data_type: "sample"
+    expect seconds_recorded: 90.0
+  end
+
+  test "StartStream cascades through policy chain" do
+    tests "StartStream", on: "TelemetryStream", kind: :cascade
+    setup  "ActivateRobot", robot_id: "sample", name: "sample", platform_type: "sample"
+    setup  "GenerateReport", summary: "sample"
+    setup  "PlanMission", mission_id: "sample", objective: "sample"
+    input  stream_id: "sample", data_type: "sample"
+    expect emits: ["StreamStarted", "TelemetryAnalyzed", "ReportGenerated"]
+  end
+
+  test "PauseStream runs" do
+    tests "PauseStream", on: "TelemetryStream"
+    setup  "StartStream", stream_id: "sample", data_type: "sample"
+    expect ok: "true"
+  end
+
+  test "AnalyzeTelemetry cascades through policy chain" do
+    tests "AnalyzeTelemetry", on: "TelemetryStream", kind: :cascade
+    setup  "StartStream", stream_id: "sample", data_type: "sample"
+    setup  "GenerateReport", summary: "sample"
+    setup  "PlanMission", mission_id: "sample", objective: "sample"
+    expect emits: ["TelemetryAnalyzed", "ReportGenerated"]
+  end
+
+
+  # ── MissionReport aggregate ──────────────────────────────────────────
+
+  test "GenerateReport sets summary" do
+    tests "GenerateReport", on: "MissionReport"
+    setup  "PlanMission", mission_id: "sample", objective: "sample"
+    input  summary: "sample"
+    expect ok: "true"
+  end
+
+end

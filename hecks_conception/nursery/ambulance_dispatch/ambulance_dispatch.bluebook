@@ -44,7 +44,6 @@ Hecks.bluebook "AmbulanceDispatch" do
       role "FleetManager"
       description "Restore a unit to available status after maintenance"
       reference_to(AmbulanceUnit)
-      given { status == "out_of_service" }
       emits "UnitReturnedToService"
       then_set :status, to: "available"
     end
@@ -255,33 +254,4 @@ Hecks.bluebook "AmbulanceDispatch" do
     trigger "MarkOutOfService"
   end
 
-  policy "ArriveAfterDispatch" do
-    on "UnitDispatched"
-    trigger "ArriveOnScene"
-  end
-
-  policy "TransportOnScene" do
-    on "ArrivedOnScene"
-    trigger "TransportPatient"
-  end
-
-  policy "ReturnAfterTransport" do
-    on "PatientTransportStarted"
-    trigger "ReturnToService"
-  end
-
-  fixture "AmbulanceUnit", unit_number: "A-101", station: "Downtown Station", equipment_level: "Advanced Life Support", status: "available", mileage: 45230
-  fixture "AmbulanceUnit", unit_number: "A-205", station: "Midtown Station", equipment_level: "Basic Life Support", status: "out_of_service", mileage: 82450
-
-  fixture "EmergencyCall", caller_name: "Michael Torres", caller_phone: "555-0147", location: "Oak Street & 5th Ave", nature_of_emergency: "chest pain", triage_priority: "1", received_at: "2026-04-14T14:23:00Z", status: "triaged"
-  fixture "EmergencyCall", caller_name: "Sarah Chen", caller_phone: "555-0289", location: "123 Maple Drive", nature_of_emergency: "difficulty breathing", triage_priority: "2", received_at: "2026-04-14T14:35:00Z", status: "triaged"
-
-  fixture "CrewAssignment", paramedic_lead: "David Kumar", emt_partner: "Lisa Anderson", shift_start: "2026-04-14T08:00:00Z", shift_end: "2026-04-14T20:00:00Z", status: "on_duty", unit_number: "A-101"
-  fixture "CrewAssignment", paramedic_lead: "James Martinez", emt_partner: "Patricia O'Connor", shift_start: "2026-04-14T20:00:00Z", shift_end: "2026-04-15T08:00:00Z", status: "off_duty", unit_number: "A-205"
-
-  fixture "DispatchRecord", dispatched_at: "2026-04-14T14:24:00Z", en_route_at: "2026-04-14T14:24:30Z", on_scene_at: "2026-04-14T14:31:00Z", transport_started_at: "2026-04-14T14:38:00Z", status: "transporting", caller_name: "Michael Torres", unit_number: "A-101"
-  fixture "DispatchRecord", dispatched_at: "2026-04-14T14:36:00Z", en_route_at: "2026-04-14T14:36:15Z", on_scene_at: nil, transport_started_at: nil, status: "dispatched", caller_name: "Sarah Chen", unit_number: "A-205"
-
-  fixture "HospitalDestination", hospital_name: "Central Medical Center", address: "500 Hospital Blvd", ed_beds_available: 8, trauma_level: "Level 1", diversion_status: "open"
-  fixture "HospitalDestination", hospital_name: "Riverside General", address: "1200 River Road", ed_beds_available: 0, trauma_level: "Level 2", diversion_status: "on_diversion"
 end

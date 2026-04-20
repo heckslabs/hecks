@@ -3,38 +3,35 @@ Hecks.bluebook "Applications", version: "2026.04.11.1" do
   category "meta"
 
   aggregate "Application", "A domain that became viable — it has an app, it runs, it serves" do
-    String :name
-    String :domain_path
-    list_of(String) :app_types
-    String :version
-    String :viable_at
-    String :status
+    attribute :name, String
+    attribute :domain_path, String
+    attribute :app_types, list_of(String)
+    attribute :version, String
+    attribute :viable_at, String
+    attribute :status, String
 
-    RegisterApplication do
-      role "Winter"
+    command "RegisterApplication" do
+      role "Miette"
       description "A born domain becomes viable — it has at least one running app"
-      String :name
-      String :domain_path
-      list_of(String) :app_types
-      String :version
+      attribute :name, String
+      attribute :domain_path, String
+      attribute :version, String
       emits "ApplicationRegistered"
       then_set :name, to: :name
       then_set :domain_path, to: :domain_path
-      then_set :app_types, to: :app_types
       then_set :version, to: :version
-      then_set :status, to: "viable"
     end
 
-    AddApp do
-      role "Winter"
+    command "AddApp" do
+      role "Miette"
       description "Add another app type — web, cli, mobile, api"
       reference_to(Application)
-      String :app_type
+      attribute :app_type, String
       emits "AppAdded"
       then_set :app_types, append: :app_type
     end
 
-    DeployApp do
+    command "DeployApp" do
       role "Owner"
       description "Deploy the app to production — it's alive in the world"
       reference_to(Application)
@@ -42,7 +39,7 @@ Hecks.bluebook "Applications", version: "2026.04.11.1" do
       then_set :status, to: "deployed"
     end
 
-    RetireApplication do
+    command "RetireApplication" do
       role "Owner"
       description "Application is no longer running — domain returns to catalog"
       reference_to(Application)
@@ -50,53 +47,52 @@ Hecks.bluebook "Applications", version: "2026.04.11.1" do
       then_set :status, to: "retired"
     end
 
-    lifecycle :status, default: "viable" do
-      transition "RegisterApplication" => "viable", from: "pending"
-      transition "DeployApp" => "deployed", from: "viable"
+    lifecycle :status, default: "pending" do
+      transition "DeployApp" => "deployed", from: "pending"
       transition "RetireApplication" => "retired", from: "deployed"
-      transition "RetireApplication" => "retired", from: "viable"
+      transition "RetireApplication" => "retired", from: "pending"
     end
   end
 
   aggregate "DomainLifecycle", "The three stages of domain life — gestating, born, viable" do
-    String :domain_name
-    String :stage
-    String :nursery_path
-    String :catalog_path
-    String :application_path
+    attribute :domain_name, String
+    attribute :stage, String
+    attribute :nursery_path, String
+    attribute :catalog_path, String
+    attribute :application_path, String
 
-    TrackGestation do
+    command "TrackGestation" do
       role "System"
       description "Domain enters nursery — gestating"
-      String :domain_name
-      String :nursery_path
+      attribute :domain_name, String
+      attribute :nursery_path, String
       emits "GestationTracked"
       then_set :domain_name, to: :domain_name
       then_set :nursery_path, to: :nursery_path
       then_set :stage, to: "gestating"
     end
 
-    TrackBirth do
+    command "TrackBirth" do
       role "System"
       description "Domain moves to catalog — born, validated, versioned"
       reference_to(DomainLifecycle)
-      String :catalog_path
+      attribute :catalog_path, String
       emits "BirthTracked"
       then_set :catalog_path, to: :catalog_path
       then_set :stage, to: "born"
     end
 
-    TrackViability do
+    command "TrackViability" do
       role "System"
       description "Domain moves to applications — viable, has a running app"
       reference_to(DomainLifecycle)
-      String :application_path
+      attribute :application_path, String
       emits "ViabilityTracked"
       then_set :application_path, to: :application_path
       then_set :stage, to: "viable"
     end
 
-    lifecycle :stage, default: "gestating" do
+    lifecycle :stage, default: "pending" do
       transition "TrackGestation" => "gestating", from: "pending"
       transition "TrackBirth" => "born", from: "gestating"
       transition "TrackViability" => "viable", from: "born"
@@ -104,18 +100,18 @@ Hecks.bluebook "Applications", version: "2026.04.11.1" do
   end
 
   aggregate "AppRegistry", "Index of all viable applications" do
-    Integer :total_applications
-    Integer :total_web
-    Integer :total_cli
-    Integer :total_api
+    attribute :total_applications, Integer
+    attribute :total_web, Integer
+    attribute :total_cli, Integer
+    attribute :total_api, Integer
 
-    IndexRegistry do
+    command "IndexRegistry" do
       role "System"
       description "Scan applications folder, recount everything"
-      Integer :total_applications
-      Integer :total_web
-      Integer :total_cli
-      Integer :total_api
+      attribute :total_applications, Integer
+      attribute :total_web, Integer
+      attribute :total_cli, Integer
+      attribute :total_api, Integer
       emits "RegistryRebuilt"
       then_set :total_applications, to: :total_applications
       then_set :total_web, to: :total_web

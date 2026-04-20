@@ -1,0 +1,36 @@
+Hecks.fixtures "Biology" do
+  aggregate "Cell" do
+    fixture "Human_Epithelial_Cell_", cell_type: "eukaryotic", name: "Human Epithelial Cell", organism_type: "Homo sapiens", phase: "interphase", energy_level: 100.0, membrane_integrity: 1.0
+    fixture "E__coli_", cell_type: "prokaryotic", name: "E. coli", organism_type: "Escherichia coli", phase: "interphase", energy_level: 80.0, membrane_integrity: 1.0
+    fixture "Hematopoietic_Stem_Cell_", cell_type: "stem", name: "Hematopoietic Stem Cell", organism_type: "Homo sapiens", phase: "interphase", energy_level: 100.0, membrane_integrity: 1.0
+  end
+  aggregate "DNA" do
+    fixture "DNA1", sequence: "ATGCGATCGATCG", strand_type: "double", organism: "Homo sapiens", integrity: 1.0
+    fixture "DNA2", sequence: "ATGAAAGGGCCC", strand_type: "double", organism: "Escherichia coli", integrity: 1.0
+  end
+  aggregate "Protein" do
+    fixture "Hemoglobin_", name: "Hemoglobin", sequence: "MVLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHFDLSH", function: "oxygen_transport", folding_state: "folded", active: "true"
+    fixture "Insulin_", name: "Insulin", sequence: "MALWMRLLPLLALLALWGPDPAAAFVNQHLCGSHLVEALYLVCGERGFFYTPKT", function: "hormone", folding_state: "folded", active: "true"
+    fixture "Lysozyme_", name: "Lysozyme", sequence: "MKALIVLGLVLLSVTVQGKVFGRCELAA", function: "enzyme", folding_state: "folded", active: "true"
+  end
+  aggregate "Organism" do
+    fixture "Organism1", species_name: "Homo sapiens", common_name: "Human", domain: "Eukarya", kingdom: "Animalia", phylum: "Chordata", alive: "true", generation: 1
+    fixture "Organism2", species_name: "Escherichia coli", common_name: "E. coli", domain: "Bacteria", kingdom: "Eubacteria", phylum: "Proteobacteria", alive: "true", generation: 1
+    fixture "Organism3", species_name: "Arabidopsis thaliana", common_name: "Thale cress", domain: "Eukarya", kingdom: "Plantae", phylum: "Magnoliophyta", alive: "true", generation: 1
+    fixture "Organism4", species_name: "Drosophila melanogaster", common_name: "Fruit fly", domain: "Eukarya", kingdom: "Animalia", phylum: "Arthropoda", alive: "true", generation: 1
+  end
+  aggregate "Ecosystem" do
+    fixture "Amazon_Rainforest_", name: "Amazon Rainforest", biome: "tropical_rainforest", area: 5500000.0, energy_input: 2200.0, status: "stable"
+    fixture "Great_Barrier_Reef_", name: "Great Barrier Reef", biome: "coral_reef", area: 344400.0, energy_input: 1800.0, status: "stable"
+  end
+  aggregate "Neuron" do
+    fixture "Alpha_Motor_Neuron_", neuron_type: "motor", name: "Alpha Motor Neuron", resting_potential: -70.0, threshold: -55.0, current_potential: -70.0, state: "resting", neurotransmitter: "acetylcholine"
+    fixture "Dorsal_Root_Ganglion_", neuron_type: "sensory", name: "Dorsal Root Ganglion", resting_potential: -65.0, threshold: -50.0, current_potential: -65.0, state: "resting", neurotransmitter: "glutamate"
+    fixture "Purkinje_Cell_", neuron_type: "interneuron", name: "Purkinje Cell", resting_potential: -68.0, threshold: -52.0, current_potential: -68.0, state: "resting", neurotransmitter: "GABA"
+  end
+  aggregate "Metabolism" do
+    fixture "Metabolism1", organism_name: "Homo sapiens", pathway_name: "Glycolysis", pathway_type: "catabolic", atp_produced: 2.0, atp_consumed: 2.0, net_atp: 2.0, status: "active"
+    fixture "Metabolism2", organism_name: "Homo sapiens", pathway_name: "Krebs Cycle", pathway_type: "catabolic", atp_produced: 2.0, atp_consumed: 0.0, net_atp: 2.0, status: "active"
+    fixture "Metabolism3", organism_name: "Saccharomyces cerevisiae", pathway_name: "Alcoholic Fermentation", pathway_type: "catabolic", atp_produced: 2.0, atp_consumed: 2.0, net_atp: 2.0, status: "active"
+  end
+end

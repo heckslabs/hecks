@@ -102,7 +102,6 @@ Hecks.bluebook "SpaAndWellness", version: "2026.04.13.1" do
       role "Therapist"
       description "Begin using the room for a treatment session"
       reference_to(SpaRoom)
-      given { status == "ready" }
       emits "RoomOccupied"
       then_set :status, to: "occupied"
     end
@@ -111,7 +110,6 @@ Hecks.bluebook "SpaAndWellness", version: "2026.04.13.1" do
       role "Therapist"
       description "Mark the room as available after the session ends"
       reference_to(SpaRoom)
-      given { status == "occupied" }
       emits "RoomReleased"
       then_set :status, to: "available"
     end
@@ -145,7 +143,6 @@ Hecks.bluebook "SpaAndWellness", version: "2026.04.13.1" do
       description "Ring up a retail product purchase for a guest"
       reference_to(RetailProduct)
       Integer :quantity_sold
-      given { quantity_sold > 0 }
       emits "ProductSold"
     end
   end
@@ -162,13 +159,13 @@ Hecks.bluebook "SpaAndWellness", version: "2026.04.13.1" do
       Integer :sessions
     end
 
-    CreatePackage do
+    BundlePackage do
       role "SpaDirector"
       description "Bundle treatments into a discounted wellness package"
       String :package_id
       String :name
       Float :package_price
-      emits "PackageCreated"
+      emits "PackageBundled"
       then_set :package_id, to: :package_id
       then_set :name, to: :name
       then_set :package_price, to: :package_price
@@ -179,7 +176,6 @@ Hecks.bluebook "SpaAndWellness", version: "2026.04.13.1" do
       role "Guest"
       description "Use one session from a purchased package"
       reference_to(WellnessPackage)
-      given { status == "active" }
       String :treatment_name
       emits "SessionRedeemed"
     end
@@ -203,7 +199,7 @@ Hecks.bluebook "SpaAndWellness", version: "2026.04.13.1" do
 
   policy "PackageOnOnboard" do
     on "TherapistOnboarded"
-    trigger "CreatePackage"
+    trigger "BundlePackage"
   end
 
   policy "PrepareRoomOnRedeem" do
@@ -232,22 +228,8 @@ Hecks.bluebook "SpaAndWellness", version: "2026.04.13.1" do
   end
 
   policy "RedeemOnPackageCreate" do
-    on "PackageCreated"
+    on "PackageBundled"
     trigger "RedeemSession"
   end
 
-  fixture "Treatment", treatment_id: "TREAT-001", name: "Swedish Massage", category: "Massage", duration_minutes: 60, price: 120.0, description: "Classic full-body massage", contraindications: [{ condition: "Fever", severity: "High", recommendation: "Reschedule" }]
-  fixture "Treatment", treatment_id: "TREAT-002", name: "Facial Rejuvenation", category: "Skincare", duration_minutes: 45, price: 95.0, description: "Anti-aging facial with serums", contraindications: [{ condition: "Active Acne", severity: "Medium", recommendation: "Consult aesthetician" }]
-
-  fixture "Therapist", therapist_id: "THER-001", name: "Elena Rossi", license_number: "LMT-2024-001", specialties: [{ treatment_type: "Swedish Massage", certification_date: "2022-06-15", level: "Master" }]
-  fixture "Therapist", therapist_id: "THER-002", name: "Kenji Tanaka", license_number: "LMT-2024-002", specialties: [{ treatment_type: "Deep Tissue", certification_date: "2023-01-20", level: "Professional" }]
-
-  fixture "SpaRoom", room_id: "ROOM-001", name: "Serenity Suite", room_type: "Massage", capacity: 1, status: "ready"
-  fixture "SpaRoom", room_id: "ROOM-002", name: "Botanical Facial Room", room_type: "Skincare", capacity: 1, status: "ready"
-
-  fixture "RetailProduct", product_id: "PROD-001", name: "Lavender Massage Oil", brand: "Dermalogica", price: 45.0, quantity: 12
-  fixture "RetailProduct", product_id: "PROD-002", name: "Organic Face Moisturizer", brand: "Eminence", price: 68.0, quantity: 8
-
-  fixture "WellnessPackage", package_id: "PKG-001", name: "Ultimate Relaxation", treatments: [{ treatment_name: "Swedish Massage", sessions: 4 }], package_price: 420.0, status: "active"
-  fixture "WellnessPackage", package_id: "PKG-002", name: "Glow & Groom", treatments: [{ treatment_name: "Facial Rejuvenation", sessions: 3 }], package_price: 250.0, status: "active"
 end

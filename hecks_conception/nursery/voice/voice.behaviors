@@ -1,0 +1,88 @@
+Hecks.behaviors "Voice" do
+  vision "Behavioral tests for the Voice domain — exercises every command and query in memory"
+
+  # ── Listener aggregate ──────────────────────────────────────────
+
+  test "StartListening runs" do
+    tests "StartListening", on: "Listener"
+    expect status: "listening"
+  end
+
+  test "HearSpeech sets transcript" do
+    tests "HearSpeech", on: "Listener"
+    setup  "StartListening"
+    input  transcript: "sample"
+    expect last_heard: "sample"
+  end
+
+  test "HearSpeech cascades through policy chain" do
+    tests "HearSpeech", on: "Listener", kind: :cascade
+    setup  "StartListening"
+    setup  "StartConversation"
+    input  transcript: "sample"
+    expect emits: ["SpeechHeard", "TurnRecorded"]
+  end
+
+  test "StopListening runs" do
+    tests "StopListening", on: "Listener"
+    setup  "StartListening"
+    expect status: "silent"
+  end
+
+
+  # ── Speaker aggregate ──────────────────────────────────────────
+
+  test "Speak sets text" do
+    tests "Speak", on: "Speaker"
+    input  text: "sample"
+    expect last_spoke: "sample"
+  end
+
+  test "ChangeVoice sets voice" do
+    tests "ChangeVoice", on: "Speaker"
+    setup  "Speak", text: "sample"
+    input  voice: "sample"
+    expect voice: "sample"
+  end
+
+  test "ChangeRate sets rate" do
+    tests "ChangeRate", on: "Speaker"
+    setup  "Speak", text: "sample"
+    input  rate: "sample"
+    expect rate: "sample"
+  end
+
+
+  # ── Conversation aggregate ──────────────────────────────────────────
+
+  test "StartConversation runs" do
+    tests "StartConversation", on: "Conversation"
+    expect turn_count: 0, status: "active"
+  end
+
+  test "StartConversation cascades through policy chain" do
+    tests "StartConversation", on: "Conversation", kind: :cascade
+    setup  "StartListening"
+    expect emits: ["ConversationStarted", "ListeningStarted"]
+  end
+
+  test "RecordTurn runs" do
+    tests "RecordTurn", on: "Conversation"
+    setup  "StartConversation"
+    expect ok: "true"
+  end
+
+  test "EndConversation runs" do
+    tests "EndConversation", on: "Conversation"
+    setup  "StartConversation"
+    expect status: "ended"
+  end
+
+  test "EndConversation cascades through policy chain" do
+    tests "EndConversation", on: "Conversation", kind: :cascade
+    setup  "StartListening"
+    setup  "StartConversation"
+    expect emits: ["ConversationEnded", "ListeningStopped"]
+  end
+
+end

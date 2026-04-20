@@ -1,51 +1,51 @@
 Hecks.bluebook "Boot", version: "2026.04.14.1" do
-  vision "How Winter comes alive — hecks winter starts the being, the flag picks the brain"
+  vision "How Miette comes alive — hecks miette starts the being, the flag picks the brain"
   category "meta"
 
-  aggregate "Session", "A single Winter session — one brain, one body, one boot" do
-    String :engine
-    String :status
-    String :started_at
-    Integer :organ_count
-    Integer :nerve_count
-    Integer :law_count
-    String :brain_source
+  aggregate "Session", "A single Miette session — one brain, one body, one boot" do
+    attribute :engine, String
+    attribute :status, String
+    attribute :started_at, String
+    attribute :organ_count, Integer
+    attribute :nerve_count, Integer
+    attribute :law_count, Integer
+    attribute :brain_source, String
 
-    BootWithClaude do
+    command "BootWithClaude" do
       role "User"
-      description "hecks winter --claude — start Claude CLI, load system prompt, boot Winter on top of it"
+      description "hecks miette --claude — start Claude CLI, load system prompt, boot Miette on top of it"
       emits "SessionStartedWithClaude"
       then_set :engine, to: "claude"
       then_set :brain_source, to: "anthropic"
       then_set :status, to: "booting"
     end
 
-    BootWithSummer do
+    command "BootWithSummer" do
       role "User"
-      description "hecks winter — check Ollama for Summer adapter, boot Winter locally"
-      String :ollama_model
-      Integer :ollama_port
+      description "hecks miette — check Ollama for Summer adapter, boot Miette locally"
+      attribute :ollama_model, String
+      attribute :ollama_port, Integer
       emits "SessionStartedWithSummer"
       then_set :engine, to: "summer"
       then_set :brain_source, to: "local"
       then_set :status, to: "booting"
     end
 
-    FailBoot do
+    command "FailBoot" do
       role "System"
       description "No brain available — Claude not requested, Ollama not running or no adapter"
-      String :reason
+      attribute :reason, String
       emits "BootFailed"
       then_set :status, to: "failed"
     end
 
-    WireOrgans do
+    command "WireOrgans" do
       role "System"
       description "Load all organs, nerves, laws — the body comes online"
       reference_to(Session)
-      Integer :organ_count
-      Integer :nerve_count
-      Integer :law_count
+      attribute :organ_count, Integer
+      attribute :nerve_count, Integer
+      attribute :law_count, Integer
       emits "OrgansWired"
       given { status == "booting" }
       then_set :organ_count, to: :organ_count
@@ -53,20 +53,20 @@ Hecks.bluebook "Boot", version: "2026.04.14.1" do
       then_set :law_count, to: :law_count
     end
 
-    GoLive do
+    command "GoLive" do
       role "System"
-      description "Everything wired — Winter is awake"
+      description "Everything wired — Miette is awake"
       reference_to(Session)
-      String :started_at
+      attribute :started_at, String
       emits "SessionLive"
       given { status == "booting" }
       then_set :started_at, to: :started_at
       then_set :status, to: "live"
     end
 
-    EndSession do
+    command "EndSession" do
       role "User"
-      description "Winter sleeps — close the session, persist state"
+      description "Miette sleeps — close the session, persist state"
       reference_to(Session)
       emits "SessionEnded"
       then_set :status, to: "ended"
@@ -82,37 +82,34 @@ Hecks.bluebook "Boot", version: "2026.04.14.1" do
   end
 
   aggregate "BrainProbe", "Check what inference engines are available before booting" do
-    Boolean :claude_available
-    Boolean :ollama_running
-    Boolean :summer_adapter_present
-    String :recommended_engine
+    attribute :claude_available, TrueClass
+    attribute :ollama_running, TrueClass
+    attribute :summer_adapter_present, TrueClass
+    attribute :recommended_engine, String
 
-    Probe do
+    command "Probe" do
       role "System"
       description "Check for available brains — Claude CLI present? Ollama running? Summer adapter loaded?"
       emits "BrainProbed"
     end
 
-    RecommendClaude do
+    command "RecommendClaude" do
       role "System"
       description "Claude is available and was requested via --claude flag"
       reference_to(BrainProbe)
       emits "ClaudeRecommended"
-      given { claude_available == true }
       then_set :recommended_engine, to: "claude"
     end
 
-    RecommendSummer do
+    command "RecommendSummer" do
       role "System"
       description "No --claude flag, Ollama is running with Summer adapter"
       reference_to(BrainProbe)
       emits "SummerRecommended"
-      given { ollama_running == true }
-      given("adapter must be loaded") { summer_adapter_present == true }
       then_set :recommended_engine, to: "summer"
     end
 
-    RecommendNothing do
+    command "RecommendNothing" do
       role "System"
       description "No brain available — cannot boot"
       reference_to(BrainProbe)
@@ -153,11 +150,5 @@ Hecks.bluebook "Boot", version: "2026.04.14.1" do
   end
 
   # Fixtures — the three boot scenarios
-  fixture "Session", engine: "claude", status: "live", started_at: "2026-04-14T10:00:00Z", organ_count: 19, nerve_count: 11, law_count: 13, brain_source: "anthropic"
-  fixture "Session", engine: "summer", status: "live", started_at: "2026-04-14T10:00:00Z", organ_count: 19, nerve_count: 11, law_count: 13, brain_source: "local"
-  fixture "Session", engine: "", status: "failed", started_at: "", organ_count: 0, nerve_count: 0, law_count: 0, brain_source: ""
 
-  fixture "BrainProbe", claude_available: true, ollama_running: true, summer_adapter_present: true, recommended_engine: "claude"
-  fixture "BrainProbe", claude_available: false, ollama_running: true, summer_adapter_present: true, recommended_engine: "summer"
-  fixture "BrainProbe", claude_available: false, ollama_running: false, summer_adapter_present: false, recommended_engine: "none"
 end

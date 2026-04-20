@@ -1,0 +1,159 @@
+Hecks.behaviors "MarinaManagement" do
+  vision "Behavioral tests for the MarinaManagement domain — exercises every command and query in memory"
+
+  # ── Slip aggregate ──────────────────────────────────────────
+
+  test "OpenSlip sets slip_number + length_feet + beam_feet + dock_section + power_hookup + monthly_rate" do
+    tests "OpenSlip", on: "Slip"
+    input  slip_number: "sample", length_feet: 1.0, beam_feet: 1.0, dock_section: "sample", power_hookup: "sample", monthly_rate: 1.0
+    expect slip_number: "sample", length_feet: 1.0, beam_feet: 1.0, dock_section: "sample", power_hookup: "sample", monthly_rate: 1.0, status: "available"
+  end
+
+  test "ReserveSlip runs" do
+    tests "ReserveSlip", on: "Slip"
+    setup  "OpenSlip", slip_number: "sample", length_feet: 1.0, beam_feet: 1.0, dock_section: "sample", power_hookup: "sample", monthly_rate: 1.0
+    expect status: "reserved"
+  end
+
+  test "ReserveSlip cascades through policy chain" do
+    tests "ReserveSlip", on: "Slip", kind: :cascade
+    setup  "RegisterVessel", vessel_name: "sample", registration_number: "sample", vessel_type: "sample", length_overall: 1.0, draft_feet: 1.0, owner_name: "sample", owner_phone: "sample"
+    setup  "DispenseFuel", fuel_type: "sample", gallons: 1.0, price_per_gallon: 1.0
+    setup  "ScheduleMaintenance", job_type: "sample", description: "sample", scheduled_date: "sample", estimated_cost: 1.0
+    setup  "OpenSlip", slip_number: "sample", length_feet: 1.0, beam_feet: 1.0, dock_section: "sample", power_hookup: "sample", monthly_rate: 1.0
+    expect emits: ["SlipReserved", "VesselDocked", "FuelDispensed", "MaintenanceScheduled"]
+  end
+
+  test "OccupySlip runs" do
+    tests "OccupySlip", on: "Slip"
+    setup  "OpenSlip", slip_number: "sample", length_feet: 1.0, beam_feet: 1.0, dock_section: "sample", power_hookup: "sample", monthly_rate: 1.0
+    setup  "ReserveSlip"
+    expect status: "occupied"
+  end
+
+  test "VacateSlip runs" do
+    tests "VacateSlip", on: "Slip"
+    setup  "OpenSlip", slip_number: "sample", length_feet: 1.0, beam_feet: 1.0, dock_section: "sample", power_hookup: "sample", monthly_rate: 1.0
+    expect status: "available"
+  end
+
+
+  # ── Vessel aggregate ──────────────────────────────────────────
+
+  test "RegisterVessel sets vessel_name + registration_number + vessel_type + length_overall + draft_feet + owner_name + owner_phone" do
+    tests "RegisterVessel", on: "Vessel"
+    input  vessel_name: "sample", registration_number: "sample", vessel_type: "sample", length_overall: 1.0, draft_feet: 1.0, owner_name: "sample", owner_phone: "sample"
+    expect draft_feet: 1.0, owner_phone: "sample", vessel_name: "sample", registration_number: "sample", vessel_type: "sample", length_overall: 1.0, owner_name: "sample", status: "active"
+  end
+
+  test "RegisterVessel cascades through policy chain" do
+    tests "RegisterVessel", on: "Vessel", kind: :cascade
+    setup  "OpenSlip", slip_number: "sample", length_feet: 1.0, beam_feet: 1.0, dock_section: "sample", power_hookup: "sample", monthly_rate: 1.0
+    setup  "DispenseFuel", fuel_type: "sample", gallons: 1.0, price_per_gallon: 1.0
+    setup  "ScheduleMaintenance", job_type: "sample", description: "sample", scheduled_date: "sample", estimated_cost: 1.0
+    input  vessel_name: "sample", registration_number: "sample", vessel_type: "sample", length_overall: 1.0, draft_feet: 1.0, owner_name: "sample", owner_phone: "sample"
+    expect emits: ["VesselRegistered", "SlipReserved", "VesselDocked", "FuelDispensed", "MaintenanceScheduled"]
+  end
+
+  test "AssignToSlip runs" do
+    tests "AssignToSlip", on: "Vessel"
+    setup  "OpenSlip", slip_number: "sample", length_feet: 1.0, beam_feet: 1.0, dock_section: "sample", power_hookup: "sample", monthly_rate: 1.0
+    setup  "RegisterVessel", vessel_name: "sample", registration_number: "sample", vessel_type: "sample", length_overall: 1.0, draft_feet: 1.0, owner_name: "sample", owner_phone: "sample"
+    expect status: "docked"
+  end
+
+  test "AssignToSlip cascades through policy chain" do
+    tests "AssignToSlip", on: "Vessel", kind: :cascade
+    setup  "RegisterVessel", vessel_name: "sample", registration_number: "sample", vessel_type: "sample", length_overall: 1.0, draft_feet: 1.0, owner_name: "sample", owner_phone: "sample"
+    setup  "OpenSlip", slip_number: "sample", length_feet: 1.0, beam_feet: 1.0, dock_section: "sample", power_hookup: "sample", monthly_rate: 1.0
+    setup  "DispenseFuel", fuel_type: "sample", gallons: 1.0, price_per_gallon: 1.0
+    setup  "ScheduleMaintenance", job_type: "sample", description: "sample", scheduled_date: "sample", estimated_cost: 1.0
+    expect emits: ["VesselDocked", "FuelDispensed", "MaintenanceScheduled"]
+  end
+
+  test "RecordDeparture runs" do
+    tests "RecordDeparture", on: "Vessel"
+    setup  "RegisterVessel", vessel_name: "sample", registration_number: "sample", vessel_type: "sample", length_overall: 1.0, draft_feet: 1.0, owner_name: "sample", owner_phone: "sample"
+    setup  "AssignToSlip"
+    expect status: "at_sea"
+  end
+
+  test "RecordDeparture cascades through policy chain" do
+    tests "RecordDeparture", on: "Vessel", kind: :cascade
+    setup  "RegisterVessel", vessel_name: "sample", registration_number: "sample", vessel_type: "sample", length_overall: 1.0, draft_feet: 1.0, owner_name: "sample", owner_phone: "sample"
+    setup  "OpenSlip", slip_number: "sample", length_feet: 1.0, beam_feet: 1.0, dock_section: "sample", power_hookup: "sample", monthly_rate: 1.0
+    setup  "AssignToSlip"
+    expect emits: ["VesselDeparted", "SlipVacated"]
+  end
+
+
+  # ── MaintenanceJob aggregate ──────────────────────────────────────────
+
+  test "ScheduleMaintenance sets job_type + description + scheduled_date + estimated_cost" do
+    tests "ScheduleMaintenance", on: "MaintenanceJob"
+    setup  "RegisterVessel", vessel_name: "sample", registration_number: "sample", vessel_type: "sample", length_overall: 1.0, draft_feet: 1.0, owner_name: "sample", owner_phone: "sample"
+    input  job_type: "sample", description: "sample", scheduled_date: "sample", estimated_cost: 1.0
+    expect job_type: "sample", description: "sample", scheduled_date: "sample", estimated_cost: 1.0, status: "scheduled"
+  end
+
+  test "CompleteMaintenance runs" do
+    tests "CompleteMaintenance", on: "MaintenanceJob"
+    setup  "ScheduleMaintenance", job_type: "sample", description: "sample", scheduled_date: "sample", estimated_cost: 1.0
+    expect status: "completed"
+  end
+
+  test "CancelMaintenance runs" do
+    tests "CancelMaintenance", on: "MaintenanceJob"
+    setup  "ScheduleMaintenance", job_type: "sample", description: "sample", scheduled_date: "sample", estimated_cost: 1.0
+    expect status: "cancelled"
+  end
+
+
+  # ── FuelDispensing aggregate ──────────────────────────────────────────
+
+  test "DispenseFuel sets fuel_type + gallons + price_per_gallon" do
+    tests "DispenseFuel", on: "FuelDispensing"
+    setup  "RegisterVessel", vessel_name: "sample", registration_number: "sample", vessel_type: "sample", length_overall: 1.0, draft_feet: 1.0, owner_name: "sample", owner_phone: "sample"
+    input  fuel_type: "sample", gallons: 1.0, price_per_gallon: 1.0
+    expect fuel_type: "sample", gallons: 1.0, price_per_gallon: 1.0
+  end
+
+  test "VoidTransaction sets reason" do
+    tests "VoidTransaction", on: "FuelDispensing"
+    setup  "DispenseFuel", fuel_type: "sample", gallons: 1.0, price_per_gallon: 1.0
+    input  reason: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── WeatherAlert aggregate ──────────────────────────────────────────
+
+  test "IssueAlert sets alert_type + severity + description + effective_from + effective_until" do
+    tests "IssueAlert", on: "WeatherAlert"
+    input  alert_type: "sample", severity: "sample", description: "sample", effective_from: "sample", effective_until: "sample"
+    expect alert_type: "sample", severity: "sample", description: "sample", effective_from: "sample", effective_until: "sample", status: "active"
+  end
+
+  test "EscalateAlert sets new_severity" do
+    tests "EscalateAlert", on: "WeatherAlert"
+    setup  "IssueAlert", alert_type: "sample", severity: "sample", description: "sample", effective_from: "sample", effective_until: "sample"
+    input  new_severity: "sample"
+    expect severity: "sample"
+  end
+
+  test "EscalateAlert cascades through policy chain" do
+    tests "EscalateAlert", on: "WeatherAlert", kind: :cascade
+    setup  "ScheduleMaintenance", job_type: "sample", description: "sample", scheduled_date: "sample", estimated_cost: 1.0
+    setup  "RegisterVessel", vessel_name: "sample", registration_number: "sample", vessel_type: "sample", length_overall: 1.0, draft_feet: 1.0, owner_name: "sample", owner_phone: "sample"
+    setup  "IssueAlert", alert_type: "sample", severity: "sample", description: "sample", effective_from: "sample", effective_until: "sample"
+    input  new_severity: "sample"
+    expect emits: ["AlertEscalated", "MaintenanceScheduled"]
+  end
+
+  test "LiftAlert runs" do
+    tests "LiftAlert", on: "WeatherAlert"
+    setup  "IssueAlert", alert_type: "sample", severity: "sample", description: "sample", effective_from: "sample", effective_until: "sample"
+    expect status: "lifted"
+  end
+
+end

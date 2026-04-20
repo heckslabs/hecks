@@ -1,0 +1,81 @@
+Hecks.behaviors "Scale" do
+  vision "Behavioral tests for the Scale domain — exercises every command and query in memory"
+
+  # ── ChangeTracker aggregate ──────────────────────────────────────────
+
+  test "ScanForChanges sets tracked_files + changed_since_last" do
+    tests "ScanForChanges", on: "ChangeTracker"
+    input  tracked_files: 1, changed_since_last: 1
+    expect tracked_files: 1, changed_since_last: 1
+  end
+
+  test "ScanForChanges cascades through policy chain" do
+    tests "ScanForChanges", on: "ChangeTracker", kind: :cascade
+    setup  "RunBatch", operation: "sample", file_count: 1
+    input  tracked_files: 1, changed_since_last: 1
+    expect emits: ["ChangesScanned", "BatchCompleted", "ChangesProcessed"]
+  end
+
+  test "MarkProcessed runs" do
+    tests "MarkProcessed", on: "ChangeTracker"
+    setup  "ScanForChanges", tracked_files: 1, changed_since_last: 1
+    expect changed_since_last: 0
+  end
+
+
+  # ── Shard aggregate ──────────────────────────────────────────
+
+  test "CarveShard sets sector + path" do
+    tests "CarveShard", on: "Shard"
+    input  sector: "sample", path: "sample"
+    expect sector: "sample", path: "sample", domain_count: 0
+  end
+
+  test "RecountShard sets domain_count" do
+    tests "RecountShard", on: "Shard"
+    setup  "CarveShard", sector: "sample", path: "sample"
+    input  domain_count: 1
+    expect domain_count: 1
+  end
+
+
+  # ── BatchOperation aggregate ──────────────────────────────────────────
+
+  test "RunBatch sets operation + file_count" do
+    tests "RunBatch", on: "BatchOperation"
+    input  operation: "sample", file_count: 1
+    expect operation: "sample", file_count: 1
+  end
+
+  test "RunBatch cascades through policy chain" do
+    tests "RunBatch", on: "BatchOperation", kind: :cascade
+    setup  "ScanForChanges", tracked_files: 1, changed_since_last: 1
+    input  operation: "sample", file_count: 1
+    expect emits: ["BatchCompleted", "ChangesProcessed"]
+  end
+
+
+  # ── LazyIndex aggregate ──────────────────────────────────────────
+
+  test "QueryIndex sets loaded_in_memory" do
+    tests "QueryIndex", on: "LazyIndex"
+    input  loaded_in_memory: 1
+    expect loaded_in_memory: 1
+  end
+
+  test "EvictCache runs" do
+    tests "EvictCache", on: "LazyIndex"
+    setup  "QueryIndex", loaded_in_memory: 1
+    expect ok: "true"
+  end
+
+
+  # ── WorkerPool aggregate ──────────────────────────────────────────
+
+  test "ScaleWorkers sets core_count + worker_count" do
+    tests "ScaleWorkers", on: "WorkerPool"
+    input  core_count: 1, worker_count: 1
+    expect core_count: 1, worker_count: 1
+  end
+
+end

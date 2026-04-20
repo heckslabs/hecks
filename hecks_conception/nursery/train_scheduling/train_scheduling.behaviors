@@ -1,0 +1,152 @@
+Hecks.behaviors "TrainScheduling" do
+  vision "Behavioral tests for the TrainScheduling domain — exercises every command and query in memory"
+
+  # ── Train aggregate ──────────────────────────────────────────
+
+  test "ActivateTrain sets train_number + service_type + car_count + seat_capacity" do
+    tests "ActivateTrain", on: "Train"
+    input  train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
+    expect status: "active"
+  end
+
+  test "ActivateTrain cascades through policy chain" do
+    tests "ActivateTrain", on: "Train", kind: :cascade
+    setup  "DefineRoute", route_code: "sample", origin_station: "sample", destination_station: "sample", stop_count: 1, distance_km: 1.0
+    input  train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
+    expect emits: ["TrainActivated", "TrainAssignedToRoute", "TrainPrepared", "TrainDispatched"]
+  end
+
+  test "PrepareForService runs" do
+    tests "PrepareForService", on: "Train"
+    setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
+    expect status: "prepared"
+  end
+
+  test "PrepareForService cascades through policy chain" do
+    tests "PrepareForService", on: "Train", kind: :cascade
+    setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
+    expect emits: ["TrainPrepared", "TrainDispatched"]
+  end
+
+  test "DispatchTrain runs" do
+    tests "DispatchTrain", on: "Train"
+    setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
+    expect status: "running"
+  end
+
+  test "ArriveAtStation runs" do
+    tests "ArriveAtStation", on: "Train"
+    setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
+    setup  "DispatchTrain"
+    expect status: "at_station"
+  end
+
+  test "ArriveAtStation cascades through policy chain" do
+    tests "ArriveAtStation", on: "Train", kind: :cascade
+    setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
+    setup  "OpenPlatform", station_name: "sample", platform_number: 1, length_meters: 1.0
+    setup  "DispatchTrain"
+    expect emits: ["TrainArrived", "PlatformAllocated"]
+  end
+
+  test "DepartStation runs" do
+    tests "DepartStation", on: "Train"
+    setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
+    setup  "DispatchTrain"
+    setup  "ArriveAtStation"
+    expect status: "running"
+  end
+
+  test "DepartStation cascades through policy chain" do
+    tests "DepartStation", on: "Train", kind: :cascade
+    setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
+    setup  "OpenPlatform", station_name: "sample", platform_number: 1, length_meters: 1.0
+    setup  "DispatchTrain"
+    setup  "ArriveAtStation"
+    expect emits: ["TrainDeparted", "PlatformReleased"]
+  end
+
+  test "TerminateService runs" do
+    tests "TerminateService", on: "Train"
+    setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
+    setup  "DispatchTrain"
+    setup  "ArriveAtStation"
+    expect status: "terminated"
+  end
+
+  test "WithdrawTrain sets reason" do
+    tests "WithdrawTrain", on: "Train"
+    setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
+    input  reason: "sample"
+    expect status: "withdrawn"
+  end
+
+
+  # ── Route aggregate ──────────────────────────────────────────
+
+  test "DefineRoute sets route_code + origin_station + destination_station + stop_count + distance_km" do
+    tests "DefineRoute", on: "Route"
+    input  route_code: "sample", origin_station: "sample", destination_station: "sample", stop_count: 1, distance_km: 1.0
+    expect ok: "true"
+  end
+
+  test "AssignTrainToRoute runs" do
+    tests "AssignTrainToRoute", on: "Route"
+    setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
+    setup  "DefineRoute", route_code: "sample", origin_station: "sample", destination_station: "sample", stop_count: 1, distance_km: 1.0
+    expect ok: "true"
+  end
+
+  test "AssignTrainToRoute cascades through policy chain" do
+    tests "AssignTrainToRoute", on: "Route", kind: :cascade
+    setup  "DefineRoute", route_code: "sample", origin_station: "sample", destination_station: "sample", stop_count: 1, distance_km: 1.0
+    setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
+    expect emits: ["TrainAssignedToRoute", "TrainPrepared", "TrainDispatched"]
+  end
+
+
+  # ── Platform aggregate ──────────────────────────────────────────
+
+  test "OpenPlatform sets station_name + platform_number + length_meters" do
+    tests "OpenPlatform", on: "Platform"
+    input  station_name: "sample", platform_number: 1, length_meters: 1.0
+    expect station_name: "sample", platform_number: 1, length_meters: 1.0, status: "available"
+  end
+
+  test "AllocatePlatform runs" do
+    tests "AllocatePlatform", on: "Platform"
+    setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
+    setup  "OpenPlatform", station_name: "sample", platform_number: 1, length_meters: 1.0
+    expect status: "occupied"
+  end
+
+  test "ReleasePlatform runs" do
+    tests "ReleasePlatform", on: "Platform"
+    setup  "OpenPlatform", station_name: "sample", platform_number: 1, length_meters: 1.0
+    expect status: "available"
+  end
+
+
+  # ── Delay aggregate ──────────────────────────────────────────
+
+  test "ReportDelay sets cause + delay_minutes" do
+    tests "ReportDelay", on: "Delay"
+    setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
+    input  cause: "sample", delay_minutes: 1
+    expect status: "active"
+  end
+
+  test "ReportDelay cascades through policy chain" do
+    tests "ReportDelay", on: "Delay", kind: :cascade
+    setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
+    input  cause: "sample", delay_minutes: 1
+    expect emits: ["DelayReported", "TrainWithdrawn"]
+  end
+
+  test "ResolveDelay runs" do
+    tests "ResolveDelay", on: "Delay"
+    setup  "ReportDelay", cause: "sample", delay_minutes: 1
+    expect status: "resolved"
+  end
+
+end

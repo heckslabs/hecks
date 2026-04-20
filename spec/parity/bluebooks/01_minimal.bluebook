@@ -1,0 +1,14 @@
+Hecks.bluebook "Minimal", version: "2026.04.18.1" do
+  vision "Smallest possible bluebook — one aggregate, one command, one event"
+
+  aggregate "Note", "A short text note" do
+    attribute :body, String
+
+    command "Write" do
+      role "Author"
+      description "Write a new note"
+      attribute :body, String
+      emits "Wrote"
+    end
+  end
+end

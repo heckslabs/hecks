@@ -24,6 +24,7 @@ Hecks.bluebook "CarpentryShop" do
       String :project_type
       String :description
       Float :quoted_price
+      then_set :status, to: "materials_ready"
       emits "ProjectCommissioned"
     end
 
@@ -72,6 +73,7 @@ Hecks.bluebook "CarpentryShop" do
       description "Verify board feet, grade, and moisture content"
       reference_to(LumberOrder)
       Float :moisture_pct
+      then_set :status, to: "received"
       emits "LumberReceived"
     end
 
@@ -213,18 +215,4 @@ Hecks.bluebook "CarpentryShop" do
     trigger "DeliverProject"
   end
 
-  fixture "Project", client_name: "Sarah Martinez", project_type: "kitchen cabinets", description: "Custom walnut cabinetry with soft-close doors and internal organization", quoted_price: 4500.00, status: "commissioned"
-  fixture "Project", client_name: "James Patterson", project_type: "dining table", description: "Live-edge oak table with butterfly joints and polyurethane finish", quoted_price: 2800.00, status: "materials_ready"
-
-  fixture "LumberOrder", species: "walnut", grade: "FAS", board_feet: 45.0, supplier: "Hardwood Lumber Co", status: "received"
-  fixture "LumberOrder", species: "oak", grade: "Select", board_feet: 32.5, supplier: "Midwest Timber", status: "ordered"
-
-  fixture "JointAssembly", joint_type: "mortise and tenon", location_in_piece: "table leg to apron", wood_species: "oak", adhesive: "titebond III"
-  fixture "JointAssembly", joint_type: "dovetail", location_in_piece: "drawer sides", wood_species: "walnut", adhesive: "hide glue"
-
-  fixture "Finish", finish_type: "polyurethane", color: "natural", coats_applied: 3, dry_hours_per_coat: 8
-  fixture "Finish", finish_type: "stain and lacquer", color: "dark walnut", coats_applied: 2, dry_hours_per_coat: 12
-
-  fixture "ClientApproval", milestone: "design and materials selection", client_feedback: "Love the wood choices and joint details", approval_status: "approved"
-  fixture "ClientApproval", milestone: "finish sample", client_feedback: "Slightly lighter than expected, but acceptable", approval_status: "approved_with_notes"
 end

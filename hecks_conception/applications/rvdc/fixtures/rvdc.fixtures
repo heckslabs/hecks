@@ -1,0 +1,5 @@
+Hecks.fixtures "RVDC" do
+  aggregate "App" do
+    fixture "RVDC_", name: "RVDC", status: "viable", domains: ["Electrical", "RVPower", "RVCircuits", "RVWiringSheet"]
+  end
+end

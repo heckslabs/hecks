@@ -1,0 +1,366 @@
+//! Lifecycle validator tests
+//!
+//! Locks the contract: a transition's from_state must be reachable
+//! from the lifecycle default; otherwise it's dead and the validator
+//! flags it. Stuck-default warns.
+
+use hecks_life::lifecycle_validator::{check, Severity};
+use hecks_life::parser;
+
+#[test]
+fn flags_unreachable_from_state() {
+    // Classic bug: default is "active", but a transition wants "none"
+    // as from_state. Nothing transitions to "none" → dead.
+    let source = r#"Hecks.bluebook "Buggy" do
+  aggregate "Record" do
+    attribute :status, String
+    command "OpenRecord" do
+      attribute :name, String
+      emits "RecordOpened"
+    end
+    lifecycle :status, default: "active" do
+      transition "OpenRecord" => "active", from: "none"
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let report = check(&domain);
+    assert_eq!(report.errors(), 1, "expected one unreachable-from error");
+    assert!(report.findings[0].location.contains("OpenRecord"));
+    assert!(report.findings[0].message.contains("unreachable"));
+}
+
+#[test]
+fn pass_when_from_state_is_default() {
+    // The simplest valid lifecycle: from_state matches the default.
+    let source = r#"Hecks.bluebook "OK" do
+  aggregate "Order" do
+    attribute :status, String
+    command "PlaceOrder" do
+      emits "OrderPlaced"
+    end
+    command "CancelOrder" do
+      reference_to(Order)
+      emits "OrderCancelled"
+    end
+    lifecycle :status, default: "pending" do
+      transition "CancelOrder" => "cancelled", from: "pending"
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let report = check(&domain);
+    assert_eq!(report.errors(), 0, "expected no errors: {:?}",
+        report.findings.iter().map(|f| &f.message).collect::<Vec<_>>());
+}
+
+#[test]
+fn pass_when_from_state_is_other_to_state() {
+    // Multi-step: the from_state of step 2 is the to_state of step 1.
+    let source = r#"Hecks.bluebook "Multi" do
+  aggregate "Action" do
+    attribute :status, String
+    command "Plan" do
+      emits "Planned"
+      then_set :status, to: "planned"
+    end
+    command "Execute" do
+      reference_to(Action)
+      emits "Executed"
+    end
+    command "Verify" do
+      reference_to(Action)
+      emits "Verified"
+    end
+    lifecycle :status, default: "draft" do
+      transition "Plan" => "planned", from: "draft"
+      transition "Execute" => "executed", from: "planned"
+      transition "Verify" => "verified", from: "executed"
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let report = check(&domain);
+    assert_eq!(report.errors(), 0, "all from_states are reachable");
+}
+
+#[test]
+fn warns_on_stuck_default() {
+    // Lifecycle has transitions but none can fire from default.
+    let source = r#"Hecks.bluebook "Stuck" do
+  aggregate "Account" do
+    attribute :status, String
+    command "Activate" do
+      reference_to(Account)
+      emits "Activated"
+    end
+    lifecycle :status, default: "active" do
+      transition "Activate" => "frozen", from: "frozen"
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let report = check(&domain);
+    // The unreachable-from check fires AND the stuck-default warning.
+    let stuck = report.findings.iter()
+        .any(|f| f.severity == Severity::Warning && f.message.contains("stuck"));
+    assert!(stuck, "expected stuck-default warning: {:?}",
+        report.findings.iter().map(|f| (&f.severity, &f.message)).collect::<Vec<_>>());
+}
+
+#[test]
+fn no_warning_when_default_has_no_transitions_at_all() {
+    // Lifecycle with zero transitions — degenerate but not a bug.
+    let source = r#"Hecks.bluebook "Empty" do
+  aggregate "Thing" do
+    attribute :status, String
+    command "DoIt" do
+      emits "Done"
+    end
+    lifecycle :status, default: "active" do
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let report = check(&domain);
+    assert_eq!(report.errors(), 0);
+    assert_eq!(report.warnings(), 0,
+        "no transitions = no stuck warning (the field just stays at default)");
+}
+
+#[test]
+fn flags_unreachable_given_clause() {
+    // ScheduleVisit forgets to `then_set :status, to: "scheduled"`.
+    // RecordObservations requires status == "scheduled". No producer.
+    let source = r#"Hecks.bluebook "Studio" do
+  aggregate "SiteVisit" do
+    attribute :status, String
+    command "ScheduleVisit" do
+      attribute :date, String
+      emits "VisitScheduled"
+    end
+    command "RecordObservations" do
+      reference_to(SiteVisit)
+      attribute :notes, String
+      given { status == "scheduled" }
+      emits "ObservationsRecorded"
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let report = check(&domain);
+    assert_eq!(report.errors(), 1);
+    assert!(report.findings[0].location.contains("RecordObservations"));
+    assert!(report.findings[0].message.contains("unreachable"));
+    assert!(report.findings[0].message.contains("status"));
+    assert!(report.findings[0].message.contains("scheduled"));
+}
+
+#[test]
+fn given_satisfied_by_then_set() {
+    // Same shape as above, but ScheduleVisit DOES set status.
+    let source = r#"Hecks.bluebook "Studio" do
+  aggregate "SiteVisit" do
+    attribute :status, String
+    command "ScheduleVisit" do
+      attribute :date, String
+      emits "VisitScheduled"
+      then_set :status, to: "scheduled"
+    end
+    command "RecordObservations" do
+      reference_to(SiteVisit)
+      given { status == "scheduled" }
+      emits "ObservationsRecorded"
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let report = check(&domain);
+    assert_eq!(report.errors(), 0,
+        "given is reachable via ScheduleVisit's then_set: {:?}",
+        report.findings.iter().map(|f| &f.message).collect::<Vec<_>>());
+}
+
+#[test]
+fn given_satisfied_by_lifecycle_default() {
+    // No producer needed when the required value IS the lifecycle default.
+    let source = r#"Hecks.bluebook "Studio" do
+  aggregate "Order" do
+    attribute :status, String
+    command "Process" do
+      reference_to(Order)
+      given { status == "pending" }
+      emits "Processed"
+    end
+    lifecycle :status, default: "pending" do
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let report = check(&domain);
+    assert_eq!(report.errors(), 0);
+}
+
+#[test]
+fn flags_then_set_referencing_undefined_symbol() {
+    // The bluebook author wrote `then_set :event, to: :event` but
+    // the command has no `:event` attribute or reference — at runtime
+    // the field stays null. Validator catches this.
+    let source = r#"Hecks.bluebook "Buggy" do
+  aggregate "Fleet" do
+    attribute :event, String
+    command "Deploy" do
+      attribute :fleet_id, String
+      reference_to(DisasterEvent)
+      emits "Deployed"
+      then_set :event, to: :event
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let report = check(&domain);
+    let mutation_err = report.findings.iter()
+        .find(|f| f.message.contains("then_set :event references :event"));
+    assert!(mutation_err.is_some(),
+        "expected mutation-reference error: {:?}",
+        report.findings.iter().map(|f| &f.message).collect::<Vec<_>>());
+}
+
+#[test]
+fn then_set_referencing_attribute_passes() {
+    let source = r#"Hecks.bluebook "OK" do
+  aggregate "Order" do
+    attribute :status, String
+    command "Process" do
+      attribute :status, String
+      emits "Processed"
+      then_set :status, to: :status
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let report = check(&domain);
+    assert!(!report.findings.iter().any(|f| f.message.contains("then_set")),
+        "no mutation-reference errors expected");
+}
+
+#[test]
+fn then_set_referencing_reference_passes() {
+    let source = r#"Hecks.bluebook "OK" do
+  aggregate "Order" do
+    attribute :pizza_id, String
+    command "PlaceOrder" do
+      reference_to(Pizza)
+      emits "OrderPlaced"
+      then_set :pizza_id, to: :pizza
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let report = check(&domain);
+    assert!(!report.findings.iter().any(|f| f.message.contains("then_set")),
+        ":pizza is the reference name; should resolve cleanly");
+}
+
+#[test]
+fn flags_clock_anti_pattern_now() {
+    // Domain shouldn't reach for the clock — time is infrastructure
+    // (DDD Clock port). Validator flags `:now` with a Clock-injection hint.
+    let source = r#"Hecks.bluebook "Heart" do
+  aggregate "Heart" do
+    attribute :last_beat_at, String
+    command "Beat" do
+      reference_to(Heart)
+      then_set :last_beat_at, to: :now
+      emits "HeartBeat"
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let report = check(&domain);
+    let clock_err = report.findings.iter()
+        .find(|f| f.message.contains("system clock") && f.message.contains(":now"));
+    assert!(clock_err.is_some(),
+        "expected :now anti-pattern error: {:?}",
+        report.findings.iter().map(|f| &f.message).collect::<Vec<_>>());
+}
+
+#[test]
+fn flags_clock_anti_pattern_seconds_since() {
+    let source = r#"Hecks.bluebook "Heart" do
+  aggregate "Heart" do
+    attribute :since_beat, Integer
+    attribute :last_beat_at, String
+    command "Pulse" do
+      reference_to(Heart)
+      then_set :since_beat, to: seconds_since(:last_beat_at)
+      emits "HeartPulsed"
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let report = check(&domain);
+    let elapsed_err = report.findings.iter()
+        .find(|f| f.message.contains("seconds_since"));
+    assert!(elapsed_err.is_some(),
+        "expected seconds_since anti-pattern error: {:?}",
+        report.findings.iter().map(|f| &f.message).collect::<Vec<_>>());
+}
+
+#[test]
+fn injected_timestamp_passes() {
+    // The DDD-correct version: timestamp is a command attribute the
+    // caller provides. Validator passes.
+    let source = r#"Hecks.bluebook "Heart" do
+  aggregate "Heart" do
+    attribute :last_beat_at, String
+    command "Beat" do
+      reference_to(Heart)
+      attribute :beat_at, String
+      then_set :last_beat_at, to: :beat_at
+      emits "HeartBeat"
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let report = check(&domain);
+    assert_eq!(report.errors(), 0,
+        "Clock-injected pattern should pass: {:?}",
+        report.findings.iter().map(|f| &f.message).collect::<Vec<_>>());
+}
+
+#[test]
+fn unconstrained_transition_satisfies_default() {
+    // A transition with no from: clause fires from any state, including
+    // default. So it counts for the stuck-default check.
+    let source = r#"Hecks.bluebook "Open" do
+  aggregate "Door" do
+    attribute :status, String
+    command "Knock" do
+      reference_to(Door)
+      emits "Knocked"
+    end
+    lifecycle :status, default: "closed" do
+      transition "Knock" => "knocked"
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let report = check(&domain);
+    assert_eq!(report.warnings(), 0, "no from: means fires from default too");
+}

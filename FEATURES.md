@@ -168,9 +168,18 @@
 - CRUD capability auto-enabled in Workshop play mode and Rails (`Hecks.configure`)
 - `hecks new` app.rb scaffold includes `app.capability(:crud)` by default
 
-### Bluebook Capabilities (Winter)
-- **ProjectManagement** — replaces Linear for tracking features, sprints, priorities, dependencies, milestones, and work logs. Features are domain-aware via DomainLink — every feature links to a bluebook domain. Stored in heki, queryable by Winter. 7 aggregates, 3 policies, seeded with current Linear issues.
+### Bluebook Capabilities (Miette)
+- **ProjectManagement** — replaces Linear for tracking features, sprints, priorities, dependencies, milestones, and work logs. Features are domain-aware via DomainLink — every feature links to a bluebook domain. Stored in heki, queryable by Miette. 7 aggregates, 3 policies, seeded with current Linear issues.
 - **DLMState** — the DLM tracks itself in Heki. SessionState, GrowthTracker, HonestyTracker, DreamLog, PerformanceMetric, SynapseHistory — 6 aggregates, 18 commands, 5 cross-domain policies. Acceleration rate measures domains conceived per session. Persists across sleep cycles.
+
+### Parity Suite
+- **Ruby ↔ Rust IR conformance** — `spec/parity/parity_test.rb` runs every fixture through both parsers (Ruby DSL + hecks-life), converts each output to a canonical JSON shape, and diffs. 43/43 baseline (13 synthetic fixtures + 30 real bluebooks).
+- **Canonical shape contract** — hand-written on both sides (`hecks_life/src/dump.rs` + `spec/parity/canonical_ir.rb`). The JSON shape IS the contract, not auto-derived.
+- **`hecks-life dump <file.bluebook>`** — emits canonical JSON IR. Same shape the Ruby canonicalizer produces.
+- **Known-drift list** — `spec/parity/known_drift.txt` documents expected disagreements (currently empty). Fixtures listed here report ⚠ instead of blocking; if a known-drift file starts passing, the suite reports ⚑ and tells you to remove the line.
+- **Pre-commit gate** — `bin/git-hooks/pre-commit` blocks unexpected drift in ~1 second. Install with `bin/install-hooks`.
+- **CI gate** — `.github/workflows/parity.yml` runs the suite on every PR.
+- **Self-description** — `aggregates/bluebook.bluebook` declares the IR shape both parsers must produce (13 aggregates, one per IR concept: Domain, Aggregate, Attribute, ValueObject, Reference, Command, Query, Given, Mutation, Lifecycle, Transition, Policy, Fixture).
 
 ## Runtime API
 - `Hecks.boot(__dir__)` — find domain file, validate, build, load, and wire in one call
@@ -399,6 +408,37 @@
 - Validator collects non-blocking warnings alongside blocking errors
 - **Fat bluebook warning** — if a domain has more than 7 aggregates, `hecks-life validate` emits a soft WARNING suggesting bounded context splitting (domain still passes as VALID)
 - **Mixed concerns warning** — if a domain with 5+ aggregates has disconnected aggregate clusters (no references or policies connecting them), `hecks-life validate` warns they may belong in separate bounded contexts
+
+### Lifecycle Validator (`hecks-life check-lifecycle`)
+- **Unreachable from_state** — flags transitions whose `from:` value is neither the lifecycle default nor any other transition's to_state (dead transition)
+- **Stuck default** — warns when no transition can fire from the default state (aggregate stuck forever)
+- **Unreachable given** — flags `given { field == "X" }` predicates where no command sets `field` to `X` (the gate can never open)
+- **Mutation reference check** — flags `then_set :event, to: :event` where `:event` matches no command attribute or reference (field stays null at runtime)
+- **Clock anti-pattern check** — flags `then_set :ts, to: :now` and `seconds_since(:field)` patterns where the domain reaches into the system clock. Hint: inject time as a command attribute (DDD Clock port) so the caller (test, hecksagon adapter, app) supplies the timestamp.
+- `--strict` promotes warnings to errors; pre-commit hook blocks on errors
+
+### IO Validator (`hecks-life check-io`)
+- Asserts the bluebook is pure-memory by default — no IO leaks above the hecksagon adapter layer
+- **Static IR scan**: flags IO-suggestive command names (`Deploy`, `Send`, `Push`, `Publish`, `Fetch`, `Sync`), past-tense external event names (`Deployed`, `Sent`), and pure-side-effect commands (emits but no state change, not Create or lifecycle)
+- **Runtime smoke**: boots `Runtime::boot(domain)` (pure-memory, no `data_dir`, no hecksagon) and dispatches every dispatchable command — anything that panics or attempts IO is a hard error
+- `hecks-life check-all` runs lifecycle + IO together
+
+### Behavioral Tests (`hecks-life conceive-behaviors` + `behaviors`)
+- New first-class DSL: `Hecks.behaviors "Pizzas" do ... end` — sibling to `Hecks.bluebook`, separate IR, separate parser, separate parity contract
+- Test surface: `tests`, `setup`, `input`, `expect` — no IDs in the test bluebook (runner translates references↔ids internally)
+- `conceive-behaviors` auto-generates `_behavioral_tests.bluebook` from any source bluebook by walking IR (every command, query, lifecycle transition, given clause)
+- `behaviors` runner uses `Runtime::boot(domain)` — pure-memory, no hecksagon, no adapters
+- Cascade-aware test generation: detects policy chains (emit→trigger), asserts on cascaded final state, skips redundant mid-chain tests
+- Skips tests for non-equality givens that the chain planner can't auto-satisfy
+- Conceiver parity test (`tests/conceiver_parity_test.rs`) keeps the bluebook conceiver and behaviors conceiver from drifting (shared `Conceiver` trait + shared `conceiver_common.rs` infrastructure)
+- **VCR-style cascade lockdown** — for every command whose emit fires a policy chain, the conceiver emits a `kind: :cascade` test asserting the exact ordered list of events the runtime will publish (`expect emits: [E1, E2, ...]`). Drift in the policy graph (added or removed policy, retargeted trigger) breaks the test immediately.
+- **Static cascade walker** (`hecks_life/src/cascade.rs`) — extracts the predicted event list from emit→policy→trigger graph; mirrors runtime `PolicyEngine` cycle detection (a policy is blocked while on the recursion stack, allowing diamond fan-in)
+- **Cross-aggregate cascade setups** — generator walks `aggregates_touched_by_cascade` and emits a `Create` setup for every aggregate the cascade hops through, so triggered cross-aggregate commands find their target records
+- **Two dispatch modes in the runner** — `dispatch` cascades policies (used by `kind: :cascade` tests), `dispatch_isolated` skips policy drain (used by setups so they don't overshoot the precondition state being tested)
+- **`as:` reference alias kwarg** — canonical: `reference_to(Order, as: :recent_purchase)`. Five forms accepted: bare, `as:`, `role:` (legacy), `.as(:foo)` suffix, trailing-symbol shorthand
+- **Clock anti-pattern check** — `lifecycle_validator` flags `:now` and `seconds_since(:field)` in mutations and givens. Time is infrastructure; the caller (test, hecksagon adapter, app) provides timestamps as command attributes.
+- **Compound boolean givens** — interpreter supports `||` and `&&` (top-level split, `&&` binds tighter), plus `==`, `!=`, `>=`, `<=`, `>`, `<`, `field.any?`, `field.empty?`
+- **List literal mutations** — `then_set :items, to: []` resolves to `Value::List(vec![])` (not `Str("[]")`); `then_set :items, to: [a, b]` resolves each element through the same value resolver
 
 ## Domain Interface Versioning
 - `hecks version_tag <version>` — snapshot current domain DSL to `db/hecks_versions/<version>.rb` with metadata header

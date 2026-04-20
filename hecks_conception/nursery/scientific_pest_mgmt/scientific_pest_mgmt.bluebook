@@ -40,7 +40,6 @@ Hecks.bluebook "ScientificPestMgmt", version: "2026.04.13.1" do
       role "Entomologist"
       description "Document the complete life cycle and vulnerable stages"
       reference_to(PestSpecies)
-      given { status == "identified" }
       emits "LifeCycleDocumented"
       then_set :status, to: "documented"
     end
@@ -92,7 +91,6 @@ Hecks.bluebook "ScientificPestMgmt", version: "2026.04.13.1" do
       role "Entomologist"
       description "Assess infestation scope and determine treatment approach"
       reference_to(Infestation)
-      given { status == "reported" }
       emits "InfestationAssessed"
       then_set :status, to: "assessed"
     end
@@ -149,7 +147,6 @@ Hecks.bluebook "ScientificPestMgmt", version: "2026.04.13.1" do
       role "Technician"
       description "Apply the prescribed treatment at the site"
       reference_to(Treatment)
-      given { status == "prescribed" }
       emits "TreatmentApplied"
       then_set :status, to: "applied"
     end
@@ -159,16 +156,15 @@ Hecks.bluebook "ScientificPestMgmt", version: "2026.04.13.1" do
       description "Evaluate treatment effectiveness after application period"
       reference_to(Treatment)
       Float :effectiveness_pct
-      given { status == "applied" }
       emits "EffectivenessEvaluated"
       then_set :effectiveness_pct, to: :effectiveness_pct
       then_set :status, to: "evaluated"
     end
 
     lifecycle :status, default: "pending" do
-      transition "PrescribeTreatment" => "prescribed", from: "pending"
-      transition "ApplyTreatment" => "applied", from: "prescribed"
-      transition "EvaluateEffectiveness" => "evaluated", from: "applied"
+      transition "PrescribeTreatment" => "prescribed", from: ["pending", "prescribed"]
+      transition "ApplyTreatment" => "applied", from: ["prescribed", "applied"]
+      transition "EvaluateEffectiveness" => "evaluated", from: ["applied", "evaluated"]
     end
   end
 
@@ -207,7 +203,6 @@ Hecks.bluebook "ScientificPestMgmt", version: "2026.04.13.1" do
       role "Entomologist"
       description "Recommend treatment rotation to prevent resistance buildup"
       reference_to(ResistanceProfile)
-      given { status == "recorded" }
       emits "RotationRecommended"
       then_set :status, to: "rotation_advised"
     end
@@ -238,14 +233,14 @@ Hecks.bluebook "ScientificPestMgmt", version: "2026.04.13.1" do
       String :responsible_party
     end
 
-    CreateIPMPlan do
+    ScoutIPMPlan do
       role "Entomologist"
       description "Create an integrated pest management plan with prevention and monitoring"
       String :site_address
       String :target_pest
       String :prevention_measures
       String :monitoring_method
-      emits "IPMPlanCreated"
+      emits "IPMPlanScouted"
       then_set :site_address, to: :site_address
       then_set :target_pest, to: :target_pest
       then_set :prevention_measures, to: :prevention_measures
@@ -273,7 +268,7 @@ Hecks.bluebook "ScientificPestMgmt", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "draft" do
-      transition "CreateIPMPlan" => "active", from: "draft"
+      transition "ScoutIPMPlan" => "active", from: "draft"
     end
   end
 
@@ -292,11 +287,6 @@ Hecks.bluebook "ScientificPestMgmt", version: "2026.04.13.1" do
     trigger "PrescribeTreatment"
   end
 
-  policy "ApplyOnPrescribe" do
-    on "TreatmentPrescribed"
-    trigger "ApplyTreatment"
-  end
-
   policy "EvaluateOnApply" do
     on "TreatmentApplied"
     trigger "EvaluateEffectiveness"
@@ -307,18 +297,4 @@ Hecks.bluebook "ScientificPestMgmt", version: "2026.04.13.1" do
     trigger "RecommendRotation"
   end
 
-  fixture "PestSpecies", scientific_name: "Blattella germanica", common_name: "German Cockroach", order: "Blattodea", family: "Blattellidae", life_cycle_days: 40, habitat_preference: "warm moist", status: "documented"
-  fixture "PestSpecies", scientific_name: "Acrobasis nuxvorella", common_name: "Black Walnut Husk Fly", order: "Lepidoptera", family: "Tortricidae", life_cycle_days: 35, habitat_preference: "tree canopy", status: "identified"
-
-  fixture "Infestation", site_address: "123 Industrial Blvd, Chicago IL", pest_species: "German Cockroach", severity: "high", estimated_population: 5000, affected_area: "storage_area", status: "assessed"
-  fixture "Infestation", site_address: "456 Walnut Farm, Oregon", pest_species: "Black Walnut Husk Fly", severity: "medium", estimated_population: 2000, affected_area: "orchard", status: "reported"
-
-  fixture "Treatment", treatment_name: "Neem Oil Spray", method: "spray", active_ingredient: "azadirachtin", concentration_pct: 3.0, target_life_stage: "nymph", effectiveness_pct: 78.0, status: "evaluated"
-  fixture "Treatment", treatment_name: "Spinosad Dust", method: "dust", active_ingredient: "spinosad", concentration_pct: 2.0, target_life_stage: "adult", effectiveness_pct: 85.0, status: "applied"
-
-  fixture "ResistanceProfile", pest_species: "German Cockroach", active_ingredient: "pyrethroids", resistance_mechanism: "target_site_mutation", resistance_level_pct: 45.0, first_detected: "2024-06-15", status: "rotation_advised"
-  fixture "ResistanceProfile", pest_species: "German Cockroach", active_ingredient: "organophosphates", resistance_mechanism: "metabolic_enzyme", resistance_level_pct: 62.0, first_detected: "2023-11-20", status: "recorded"
-
-  fixture "IPMPlan", site_address: "123 Industrial Blvd, Chicago IL", target_pest: "German Cockroach", prevention_measures: "Seal cracks, Remove food sources, Reduce humidity", monitoring_method: "Monthly trapping", intervention_tier: "monitoring", status: "active"
-  fixture "IPMPlan", site_address: "456 Walnut Farm, Oregon", target_pest: "Black Walnut Husk Fly", prevention_measures: "Remove dropped fruit, Prune damaged limbs", monitoring_method: "Weekly visual inspection", intervention_tier: "prevention", status: "active"
 end

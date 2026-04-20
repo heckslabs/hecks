@@ -29,6 +29,7 @@ Hecks.bluebook "CyberSecurity", version: "2026.04.13.1" do
       String :category
       String :severity
       String :source_feed
+      then_set :status, to: "active"
       emits "ThreatIdentified"
     end
 
@@ -79,6 +80,7 @@ Hecks.bluebook "CyberSecurity", version: "2026.04.13.1" do
       description "Route the incident to a specialized response team"
       reference_to(SecurityIncident)
       String :assigned_team
+      then_set :status, to: "in_progress"
       emits "ResponseTeamAssigned"
     end
 
@@ -119,6 +121,7 @@ Hecks.bluebook "CyberSecurity", version: "2026.04.13.1" do
       description "Push a patch to a specific host or host group"
       reference_to(Patch)
       String :host
+      then_set :status, to: "deployed"
       emits "PatchDeployed"
     end
 
@@ -152,6 +155,7 @@ Hecks.bluebook "CyberSecurity", version: "2026.04.13.1" do
       String :scope
       String :framework
       String :auditor
+      then_set :status, to: "in_progress"
       emits "AuditInitiated"
     end
 
@@ -185,7 +189,7 @@ Hecks.bluebook "CyberSecurity", version: "2026.04.13.1" do
       String :granted_at
     end
 
-    CreateAccessPolicy do
+    EstablishAccessPolicy do
       role "SecurityAdmin"
       description "Define a new access control policy for a resource scope"
       String :policy_name
@@ -262,19 +266,9 @@ Hecks.bluebook "CyberSecurity", version: "2026.04.13.1" do
     trigger "NeutralizeThreat"
   end
 
-  policy "CreatePolicyOnAudit" do
+  policy "EstablishPolicyOnAudit" do
     on "AuditCompleted"
-    trigger "CreateAccessPolicy"
+    trigger "EstablishAccessPolicy"
   end
 
-  fixture "Threat", threat_id: "threat-2026-0401", name: "APT-28 Spear Phishing Campaign", category: "social-engineering", severity: "high", source_feed: "threat-intel-feed-01", status: "active", indicators: []
-  fixture "Threat", threat_id: "threat-2026-0402", name: "Log4Shell RCE Exploitation", category: "code-injection", severity: "critical", source_feed: "cve-tracker", status: "mitigated", indicators: []
-  fixture "SecurityIncident", incident_id: "inc-2026-0414-001", title: "Unauthorized Access to Customer Database", severity: "critical", attack_vector: "sql-injection", assigned_team: "Database Security Team", status: "open", threat_id: "threat-2026-0401", actions: []
-  fixture "SecurityIncident", incident_id: "inc-2026-0414-002", title: "Malware Detected on Workstation", severity: "high", attack_vector: "email-attachment", assigned_team: "Endpoint Security Team", status: "in_progress", threat_id: "threat-2026-0402", actions: []
-  fixture "Patch", patch_id: "patch-cve-2026-1234", cve_id: "CVE-2026-1234", target_system: "apache-web-server", urgency: "critical", status: "released", deployments: []
-  fixture "Patch", patch_id: "patch-cve-2026-5678", cve_id: "CVE-2026-5678", target_system: "openssl", urgency: "high", status: "deployed", deployments: []
-  fixture "SecurityAudit", audit_id: "audit-2026-q2", scope: "Production Infrastructure", framework: "ISO-27001", auditor: "external-audit-firm", status: "completed", findings: []
-  fixture "SecurityAudit", audit_id: "audit-2026-compliance", scope: "Data Processing", framework: "GDPR", auditor: "compliance-officer", status: "in_progress", findings: []
-  fixture "AccessPolicy", policy_name: "Production Database Access", resource_scope: "prod-db-cluster", permission_level: "read-write", status: "active", role_bindings: []
-  fixture "AccessPolicy", policy_name: "Admin Console Access", resource_scope: "admin-panel", permission_level: "full-control", status: "active", role_bindings: []
 end

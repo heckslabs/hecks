@@ -1,0 +1,29 @@
+Hecks.bluebook "LifecycleMulti", version: "2026.04.18.1" do
+  vision "Multiple transitions per command — locks the Hash→Vec fix"
+
+  aggregate "Fatigue", "Advances through progressive states via one command" do
+    attribute :level, Integer
+
+    command "Accumulate" do
+      role "System"
+      attribute :level, Integer
+      then_set :level, increment: 1
+      emits "Accumulated"
+    end
+
+    command "Reset" do
+      role "System"
+      then_set :level, to: 0
+      emits "Reset"
+    end
+
+    lifecycle :state, default: "alert" do
+      transition "Accumulate" => "focused",   from: "alert"
+      transition "Accumulate" => "normal",    from: "focused"
+      transition "Accumulate" => "tired",     from: "normal"
+      transition "Accumulate" => "exhausted", from: "tired"
+      transition "Reset"      => "alert",     from: "tired"
+      transition "Reset"      => "alert",     from: "exhausted"
+    end
+  end
+end

@@ -1,0 +1,131 @@
+Hecks.behaviors "LocksmithService" do
+  vision "Behavioral tests for the LocksmithService domain — exercises every command and query in memory"
+
+  # ── ServiceCall aggregate ──────────────────────────────────────────
+
+  test "DispatchLocksmith sets customer_name + address + service_type + urgency" do
+    tests "DispatchLocksmith", on: "ServiceCall"
+    input  customer_name: "sample", address: "sample", service_type: "sample", urgency: "sample"
+    expect status: "dispatched"
+  end
+
+  test "DispatchLocksmith cascades through policy chain" do
+    tests "DispatchLocksmith", on: "ServiceCall", kind: :cascade
+    setup  "InstallLock", lock_type: "sample", brand: "sample", grade: "sample", location: "sample"
+    setup  "CutKeys", key_type: "sample", quantity: 1, blank_code: "sample"
+    setup  "ProgramCode", code_name: "sample", code_value: "sample", access_level: "sample"
+    input  customer_name: "sample", address: "sample", service_type: "sample", urgency: "sample"
+    expect emits: ["LocksmithDispatched", "ArrivedOnSite", "LockInstalled", "KeysCut", "ServiceCompleted", "LockRekeyed", "CodeProgrammed"]
+  end
+
+  test "ArriveOnSite runs" do
+    tests "ArriveOnSite", on: "ServiceCall"
+    setup  "DispatchLocksmith", customer_name: "sample", address: "sample", service_type: "sample", urgency: "sample"
+    expect ok: "true"
+  end
+
+  test "ArriveOnSite cascades through policy chain" do
+    tests "ArriveOnSite", on: "ServiceCall", kind: :cascade
+    setup  "InstallLock", lock_type: "sample", brand: "sample", grade: "sample", location: "sample"
+    setup  "CutKeys", key_type: "sample", quantity: 1, blank_code: "sample"
+    setup  "ProgramCode", code_name: "sample", code_value: "sample", access_level: "sample"
+    setup  "DispatchLocksmith", customer_name: "sample", address: "sample", service_type: "sample", urgency: "sample"
+    expect emits: ["ArrivedOnSite", "LockInstalled", "KeysCut", "ServiceCompleted", "LockRekeyed", "CodeProgrammed"]
+  end
+
+  test "CompleteService sets total_charge" do
+    tests "CompleteService", on: "ServiceCall"
+    setup  "DispatchLocksmith", customer_name: "sample", address: "sample", service_type: "sample", urgency: "sample"
+    input  total_charge: 1.0
+    expect ok: "true"
+  end
+
+  test "CompleteService cascades through policy chain" do
+    tests "CompleteService", on: "ServiceCall", kind: :cascade
+    setup  "DispatchLocksmith", customer_name: "sample", address: "sample", service_type: "sample", urgency: "sample"
+    setup  "InstallLock", lock_type: "sample", brand: "sample", grade: "sample", location: "sample"
+    input  total_charge: 1.0
+    expect emits: ["ServiceCompleted", "LockRekeyed"]
+  end
+
+
+  # ── Lock aggregate ──────────────────────────────────────────
+
+  test "InstallLock sets lock_type + brand + grade + location" do
+    tests "InstallLock", on: "Lock"
+    setup  "DispatchLocksmith", customer_name: "sample", address: "sample", service_type: "sample", urgency: "sample"
+    input  lock_type: "sample", brand: "sample", grade: "sample", location: "sample"
+    expect ok: "true"
+  end
+
+  test "InstallLock cascades through policy chain" do
+    tests "InstallLock", on: "Lock", kind: :cascade
+    setup  "DispatchLocksmith", customer_name: "sample", address: "sample", service_type: "sample", urgency: "sample"
+    setup  "CutKeys", key_type: "sample", quantity: 1, blank_code: "sample"
+    setup  "ProgramCode", code_name: "sample", code_value: "sample", access_level: "sample"
+    input  lock_type: "sample", brand: "sample", grade: "sample", location: "sample"
+    expect emits: ["LockInstalled", "KeysCut", "ServiceCompleted", "LockRekeyed", "CodeProgrammed"]
+  end
+
+  test "RekeyLock runs" do
+    tests "RekeyLock", on: "Lock"
+    setup  "InstallLock", lock_type: "sample", brand: "sample", grade: "sample", location: "sample"
+    expect ok: "true"
+  end
+
+  test "ReplaceLock sets new_brand + new_grade" do
+    tests "ReplaceLock", on: "Lock"
+    setup  "InstallLock", lock_type: "sample", brand: "sample", grade: "sample", location: "sample"
+    input  new_brand: "sample", new_grade: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── KeyOrder aggregate ──────────────────────────────────────────
+
+  test "CutKeys sets key_type + quantity + blank_code" do
+    tests "CutKeys", on: "KeyOrder"
+    setup  "InstallLock", lock_type: "sample", brand: "sample", grade: "sample", location: "sample"
+    input  key_type: "sample", quantity: 1, blank_code: "sample"
+    expect key_type: "sample"
+  end
+
+  test "CutKeys cascades through policy chain" do
+    tests "CutKeys", on: "KeyOrder", kind: :cascade
+    setup  "InstallLock", lock_type: "sample", brand: "sample", grade: "sample", location: "sample"
+    setup  "DispatchLocksmith", customer_name: "sample", address: "sample", service_type: "sample", urgency: "sample"
+    input  key_type: "sample", quantity: 1, blank_code: "sample"
+    expect emits: ["KeysCut", "ServiceCompleted", "LockRekeyed"]
+  end
+
+  test "CutTransponderBlank sets quantity + blank_code" do
+    tests "CutTransponderBlank", on: "KeyOrder"
+    setup  "InstallLock", lock_type: "sample", brand: "sample", grade: "sample", location: "sample"
+    input  quantity: 1, blank_code: "sample"
+    expect key_type: "transponder"
+  end
+
+  test "ProgramTransponder sets vehicle_make + vehicle_year" do
+    tests "ProgramTransponder", on: "KeyOrder"
+    setup  "CutTransponderBlank", quantity: 1, blank_code: "sample"
+    input  vehicle_make: "sample", vehicle_year: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── AccessCode aggregate ──────────────────────────────────────────
+
+  test "ProgramCode sets code_name + code_value + access_level" do
+    tests "ProgramCode", on: "AccessCode"
+    setup  "InstallLock", lock_type: "sample", brand: "sample", grade: "sample", location: "sample"
+    input  code_name: "sample", code_value: "sample", access_level: "sample"
+    expect ok: "true"
+  end
+
+  test "RevokeCode runs" do
+    tests "RevokeCode", on: "AccessCode"
+    setup  "ProgramCode", code_name: "sample", code_value: "sample", access_level: "sample"
+    expect ok: "true"
+  end
+
+end

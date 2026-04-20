@@ -1,0 +1,172 @@
+Hecks.behaviors "BrewingForVeterans" do
+  vision "Behavioral tests for the BrewingForVeterans domain — exercises every command and query in memory"
+
+  # ── VeteranApprentice aggregate ──────────────────────────────────────────
+
+  test "EnrollApprentice sets apprentice_id + name + branch_of_service + discharge_type + housing_status" do
+    tests "EnrollApprentice", on: "VeteranApprentice"
+    input  apprentice_id: "sample", name: "sample", branch_of_service: "sample", discharge_type: "sample", housing_status: "sample"
+    expect apprentice_id: "sample", name: "sample", branch_of_service: "sample", discharge_type: "sample", housing_status: "sample", status: "enrolled"
+  end
+
+  test "EnrollApprentice cascades through policy chain" do
+    tests "EnrollApprentice", on: "VeteranApprentice", kind: :cascade
+    setup  "FormCohort", cohort_id: "sample", cohort_name: "sample", start_date: "sample", brew_master: "sample"
+    setup  "PrepareUnit", unit_id: "sample", address: "sample", capacity: 1, funding_source: "sample"
+    input  apprentice_id: "sample", name: "sample", branch_of_service: "sample", discharge_type: "sample", housing_status: "sample"
+    expect emits: ["ApprenticeEnrolled", "CohortFormed", "ResidentAssigned"]
+  end
+
+  test "AdvanceApprentice runs" do
+    tests "AdvanceApprentice", on: "VeteranApprentice"
+    setup  "EnrollApprentice", apprentice_id: "sample", name: "sample", branch_of_service: "sample", discharge_type: "sample", housing_status: "sample"
+    expect ok: "true"
+  end
+
+  test "GraduateApprentice runs" do
+    tests "GraduateApprentice", on: "VeteranApprentice"
+    setup  "EnrollApprentice", apprentice_id: "sample", name: "sample", branch_of_service: "sample", discharge_type: "sample", housing_status: "sample"
+    expect status: "graduated"
+  end
+
+  test "GraduateApprentice cascades through policy chain" do
+    tests "GraduateApprentice", on: "VeteranApprentice", kind: :cascade
+    setup  "ChartPath", path_id: "sample", employment_goal: "sample", housing_transition: "sample", mentor_name: "sample"
+    setup  "PrepareUnit", unit_id: "sample", address: "sample", capacity: 1, funding_source: "sample"
+    setup  "EnrollApprentice", apprentice_id: "sample", name: "sample", branch_of_service: "sample", discharge_type: "sample", housing_status: "sample"
+    expect emits: ["ApprenticeGraduated", "PathCharted", "UnitReleased"]
+  end
+
+
+  # ── BrewingCohort aggregate ──────────────────────────────────────────
+
+  test "FormCohort sets cohort_id + cohort_name + start_date + brew_master" do
+    tests "FormCohort", on: "BrewingCohort"
+    input  cohort_id: "sample", cohort_name: "sample", start_date: "sample", brew_master: "sample"
+    expect cohort_id: "sample", cohort_name: "sample", start_date: "sample", brew_master: "sample", status: "active"
+  end
+
+  test "CompleteBrew runs" do
+    tests "CompleteBrew", on: "BrewingCohort"
+    setup  "FormCohort", cohort_id: "sample", cohort_name: "sample", start_date: "sample", brew_master: "sample"
+    expect ok: "true"
+  end
+
+  test "CompleteBrew cascades through policy chain" do
+    tests "CompleteBrew", on: "BrewingCohort", kind: :cascade
+    setup  "LaunchProduct", product_id: "sample", product_name: "sample", style: "sample", batch_number: "sample"
+    setup  "EnrollApprentice", apprentice_id: "sample", name: "sample", branch_of_service: "sample", discharge_type: "sample", housing_status: "sample"
+    setup  "FormCohort", cohort_id: "sample", cohort_name: "sample", start_date: "sample", brew_master: "sample"
+    expect emits: ["BrewCompleted", "ProductLaunched", "ApprenticeAdvanced"]
+  end
+
+  test "GraduateCohort runs" do
+    tests "GraduateCohort", on: "BrewingCohort"
+    setup  "FormCohort", cohort_id: "sample", cohort_name: "sample", start_date: "sample", brew_master: "sample"
+    expect status: "graduated"
+  end
+
+
+  # ── ProductLine aggregate ──────────────────────────────────────────
+
+  test "LaunchProduct sets product_id + product_name + style + batch_number" do
+    tests "LaunchProduct", on: "ProductLine"
+    setup  "FormCohort", cohort_id: "sample", cohort_name: "sample", start_date: "sample", brew_master: "sample"
+    input  product_id: "sample", product_name: "sample", style: "sample", batch_number: "sample"
+    expect product_id: "sample", product_name: "sample", style: "sample", batch_number: "sample", status: "available"
+  end
+
+  test "SellProduct runs" do
+    tests "SellProduct", on: "ProductLine"
+    setup  "LaunchProduct", product_id: "sample", product_name: "sample", style: "sample", batch_number: "sample"
+    expect ok: "true"
+  end
+
+  test "SellProduct cascades through policy chain" do
+    tests "SellProduct", on: "ProductLine", kind: :cascade
+    setup  "OpenPeriod", period: "sample"
+    setup  "LaunchProduct", product_id: "sample", product_name: "sample", style: "sample", batch_number: "sample"
+    expect emits: ["ProductSold", "SaleRecorded", "RevenueAllocated"]
+  end
+
+  test "RetireProduct runs" do
+    tests "RetireProduct", on: "ProductLine"
+    setup  "LaunchProduct", product_id: "sample", product_name: "sample", style: "sample", batch_number: "sample"
+    expect status: "retired"
+  end
+
+
+  # ── SalesRevenue aggregate ──────────────────────────────────────────
+
+  test "OpenPeriod sets period" do
+    tests "OpenPeriod", on: "SalesRevenue"
+    input  period: "sample"
+    expect period: "sample", total_revenue: 0.0, housing_allocation: 0.0, education_allocation: 0.0, operations_allocation: 0.0, status: "open"
+  end
+
+  test "RecordSale sets total_revenue" do
+    tests "RecordSale", on: "SalesRevenue"
+    setup  "OpenPeriod", period: "sample"
+    input  total_revenue: 1.0
+    expect total_revenue: 1.0
+  end
+
+  test "RecordSale cascades through policy chain" do
+    tests "RecordSale", on: "SalesRevenue", kind: :cascade
+    setup  "OpenPeriod", period: "sample"
+    input  total_revenue: 1.0
+    expect emits: ["SaleRecorded", "RevenueAllocated"]
+  end
+
+  test "AllocateRevenue sets housing_allocation + education_allocation + operations_allocation" do
+    tests "AllocateRevenue", on: "SalesRevenue"
+    setup  "OpenPeriod", period: "sample"
+    input  housing_allocation: 1.0, education_allocation: 1.0, operations_allocation: 1.0
+    expect housing_allocation: 1.0, education_allocation: 1.0, operations_allocation: 1.0, status: "allocated"
+  end
+
+
+  # ── HousingUnit aggregate ──────────────────────────────────────────
+
+  test "PrepareUnit sets unit_id + address + capacity + funding_source" do
+    tests "PrepareUnit", on: "HousingUnit"
+    input  unit_id: "sample", address: "sample", capacity: 1, funding_source: "sample"
+    expect unit_id: "sample", address: "sample", capacity: 1, funding_source: "sample", status: "available"
+  end
+
+  test "AssignResident runs" do
+    tests "AssignResident", on: "HousingUnit"
+    setup  "EnrollApprentice", apprentice_id: "sample", name: "sample", branch_of_service: "sample", discharge_type: "sample", housing_status: "sample"
+    setup  "PrepareUnit", unit_id: "sample", address: "sample", capacity: 1, funding_source: "sample"
+    expect status: "occupied"
+  end
+
+  test "ReleaseUnit runs" do
+    tests "ReleaseUnit", on: "HousingUnit"
+    setup  "PrepareUnit", unit_id: "sample", address: "sample", capacity: 1, funding_source: "sample"
+    expect status: "available"
+  end
+
+
+  # ── GraduationPath aggregate ──────────────────────────────────────────
+
+  test "ChartPath sets path_id + employment_goal + housing_transition + mentor_name" do
+    tests "ChartPath", on: "GraduationPath"
+    setup  "EnrollApprentice", apprentice_id: "sample", name: "sample", branch_of_service: "sample", discharge_type: "sample", housing_status: "sample"
+    input  path_id: "sample", employment_goal: "sample", housing_transition: "sample", mentor_name: "sample"
+    expect path_id: "sample", employment_goal: "sample", housing_transition: "sample", mentor_name: "sample", status: "active"
+  end
+
+  test "AchieveMilestone runs" do
+    tests "AchieveMilestone", on: "GraduationPath"
+    setup  "ChartPath", path_id: "sample", employment_goal: "sample", housing_transition: "sample", mentor_name: "sample"
+    expect ok: "true"
+  end
+
+  test "CompletePath runs" do
+    tests "CompletePath", on: "GraduationPath"
+    setup  "ChartPath", path_id: "sample", employment_goal: "sample", housing_transition: "sample", mentor_name: "sample"
+    expect status: "completed"
+  end
+
+end

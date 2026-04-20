@@ -1,0 +1,130 @@
+Hecks.behaviors "ThermalComfort" do
+  vision "Behavioral tests for the ThermalComfort domain — exercises every command and query in memory"
+
+  # ── ThermalZone aggregate ──────────────────────────────────────────
+
+  test "DefineZone sets zone_name + volume_m3 + insulation_r_value + heat_load_watts + setpoint_temp_c" do
+    tests "DefineZone", on: "ThermalZone"
+    input  zone_name: "sample", volume_m3: 1.0, insulation_r_value: 1.0, heat_load_watts: 1.0, setpoint_temp_c: 1.0
+    expect zone_name: "sample", volume_m3: 1.0, insulation_r_value: 1.0, heat_load_watts: 1.0, setpoint_temp_c: 1.0, status: "defined"
+  end
+
+  test "MeasureTemperature sets current_temp_c" do
+    tests "MeasureTemperature", on: "ThermalZone"
+    setup  "DefineZone", zone_name: "sample", volume_m3: 1.0, insulation_r_value: 1.0, heat_load_watts: 1.0, setpoint_temp_c: 1.0
+    input  current_temp_c: 1.0
+    expect current_temp_c: 1.0
+  end
+
+  test "MeasureTemperature cascades through policy chain" do
+    tests "MeasureTemperature", on: "ThermalZone", kind: :cascade
+    setup  "DefineZone", zone_name: "sample", volume_m3: 1.0, insulation_r_value: 1.0, heat_load_watts: 1.0, setpoint_temp_c: 1.0
+    input  current_temp_c: 1.0
+    expect emits: ["TemperatureMeasured", "HeatLossCalculated"]
+  end
+
+  test "CalculateHeatLoss sets heat_load_watts" do
+    tests "CalculateHeatLoss", on: "ThermalZone"
+    setup  "DefineZone", zone_name: "sample", volume_m3: 1.0, insulation_r_value: 1.0, heat_load_watts: 1.0, setpoint_temp_c: 1.0
+    input  heat_load_watts: 1.0
+    expect heat_load_watts: 1.0
+  end
+
+
+  # ── HVACEquipment aggregate ──────────────────────────────────────────
+
+  test "InstallEquipment sets equipment_id + equipment_type + capacity_kw + efficiency_rating + serving_zone" do
+    tests "InstallEquipment", on: "HVACEquipment"
+    input  equipment_id: "sample", equipment_type: "sample", capacity_kw: 1.0, efficiency_rating: 1.0, serving_zone: "sample"
+    expect equipment_id: "sample", equipment_type: "sample", capacity_kw: 1.0, efficiency_rating: 1.0, runtime_hours: 0.0, serving_zone: "sample", status: "installed"
+  end
+
+  test "ActivateEquipment runs" do
+    tests "ActivateEquipment", on: "HVACEquipment"
+    setup  "InstallEquipment", equipment_id: "sample", equipment_type: "sample", capacity_kw: 1.0, efficiency_rating: 1.0, serving_zone: "sample"
+    expect status: "running"
+  end
+
+  test "ServiceEquipment runs" do
+    tests "ServiceEquipment", on: "HVACEquipment"
+    setup  "InstallEquipment", equipment_id: "sample", equipment_type: "sample", capacity_kw: 1.0, efficiency_rating: 1.0, serving_zone: "sample"
+    setup  "ActivateEquipment"
+    expect status: "installed"
+  end
+
+
+  # ── ComfortAssessment aggregate ──────────────────────────────────────────
+
+  test "AssessComfort sets zone_name + air_temp_c + mean_radiant_temp_c + relative_humidity_pct + air_velocity_ms" do
+    tests "AssessComfort", on: "ComfortAssessment"
+    input  zone_name: "sample", air_temp_c: 1.0, mean_radiant_temp_c: 1.0, relative_humidity_pct: 1.0, air_velocity_ms: 1.0
+    expect zone_name: "sample", air_temp_c: 1.0, mean_radiant_temp_c: 1.0, relative_humidity_pct: 1.0, air_velocity_ms: 1.0, status: "assessed"
+  end
+
+  test "AssessComfort cascades through policy chain" do
+    tests "AssessComfort", on: "ComfortAssessment", kind: :cascade
+    setup  "InstallEquipment", equipment_id: "sample", equipment_type: "sample", capacity_kw: 1.0, efficiency_rating: 1.0, serving_zone: "sample"
+    input  zone_name: "sample", air_temp_c: 1.0, mean_radiant_temp_c: 1.0, relative_humidity_pct: 1.0, air_velocity_ms: 1.0
+    expect emits: ["ComfortAssessed", "PMVCalculated", "DiscomfortFlagged", "EquipmentActivated"]
+  end
+
+  test "CalculatePMV sets pmv_index + ppd_pct" do
+    tests "CalculatePMV", on: "ComfortAssessment"
+    setup  "AssessComfort", zone_name: "sample", air_temp_c: 1.0, mean_radiant_temp_c: 1.0, relative_humidity_pct: 1.0, air_velocity_ms: 1.0
+    input  pmv_index: 1.0, ppd_pct: 1.0
+    expect pmv_index: 1.0, ppd_pct: 1.0, status: "calculated"
+  end
+
+  test "CalculatePMV cascades through policy chain" do
+    tests "CalculatePMV", on: "ComfortAssessment", kind: :cascade
+    setup  "InstallEquipment", equipment_id: "sample", equipment_type: "sample", capacity_kw: 1.0, efficiency_rating: 1.0, serving_zone: "sample"
+    setup  "AssessComfort", zone_name: "sample", air_temp_c: 1.0, mean_radiant_temp_c: 1.0, relative_humidity_pct: 1.0, air_velocity_ms: 1.0
+    input  pmv_index: 1.0, ppd_pct: 1.0
+    expect emits: ["PMVCalculated", "DiscomfortFlagged", "EquipmentActivated"]
+  end
+
+  test "FlagDiscomfort runs" do
+    tests "FlagDiscomfort", on: "ComfortAssessment"
+    setup  "AssessComfort", zone_name: "sample", air_temp_c: 1.0, mean_radiant_temp_c: 1.0, relative_humidity_pct: 1.0, air_velocity_ms: 1.0
+    setup  "CalculatePMV", pmv_index: 1.0, ppd_pct: 1.0
+    expect status: "flagged"
+  end
+
+  test "FlagDiscomfort cascades through policy chain" do
+    tests "FlagDiscomfort", on: "ComfortAssessment", kind: :cascade
+    setup  "InstallEquipment", equipment_id: "sample", equipment_type: "sample", capacity_kw: 1.0, efficiency_rating: 1.0, serving_zone: "sample"
+    setup  "AssessComfort", zone_name: "sample", air_temp_c: 1.0, mean_radiant_temp_c: 1.0, relative_humidity_pct: 1.0, air_velocity_ms: 1.0
+    setup  "CalculatePMV", pmv_index: 1.0, ppd_pct: 1.0
+    expect emits: ["DiscomfortFlagged", "EquipmentActivated"]
+  end
+
+
+  # ── EnergyAudit aggregate ──────────────────────────────────────────
+
+  test "ConductEnergyAudit sets building_name + total_consumption_kwh + hvac_consumption_kwh + audit_date" do
+    tests "ConductEnergyAudit", on: "EnergyAudit"
+    input  building_name: "sample", total_consumption_kwh: 1.0, hvac_consumption_kwh: 1.0, audit_date: "sample"
+    expect building_name: "sample", total_consumption_kwh: 1.0, hvac_consumption_kwh: 1.0, audit_date: "sample", status: "conducted"
+  end
+
+  test "ConductEnergyAudit cascades through policy chain" do
+    tests "ConductEnergyAudit", on: "EnergyAudit", kind: :cascade
+    input  building_name: "sample", total_consumption_kwh: 1.0, hvac_consumption_kwh: 1.0, audit_date: "sample"
+    expect emits: ["EnergyAuditConducted", "EfficiencyCalculated"]
+  end
+
+  test "CalculateEfficiency sets efficiency_pct" do
+    tests "CalculateEfficiency", on: "EnergyAudit"
+    setup  "ConductEnergyAudit", building_name: "sample", total_consumption_kwh: 1.0, hvac_consumption_kwh: 1.0, audit_date: "sample"
+    input  efficiency_pct: 1.0
+    expect efficiency_pct: 1.0, status: "calculated"
+  end
+
+  test "GenerateRecommendations runs" do
+    tests "GenerateRecommendations", on: "EnergyAudit"
+    setup  "ConductEnergyAudit", building_name: "sample", total_consumption_kwh: 1.0, hvac_consumption_kwh: 1.0, audit_date: "sample"
+    setup  "CalculateEfficiency", efficiency_pct: 1.0
+    expect status: "reported"
+  end
+
+end

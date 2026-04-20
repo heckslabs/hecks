@@ -31,7 +31,7 @@ module Hecks
       def initialize(field, default:)
         @field = field
         @default = default
-        @transitions = {}
+        @transitions = []  # Array of [command_name_string, StateTransition]
       end
 
       # Map a command name to a target state, with an optional :from constraint.
@@ -57,9 +57,9 @@ module Hecks
       def transition(mapping)
         from = mapping.delete(:from)
         mapping.each do |command_name, target_state|
-          @transitions[command_name.to_s] = Structure::StateTransition.new(
+          @transitions << [command_name.to_s, Structure::StateTransition.new(
             target: target_state.to_s, from: from
-          )
+          )]
         end
       end
 

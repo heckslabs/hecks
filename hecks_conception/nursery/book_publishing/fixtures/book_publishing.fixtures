@@ -1,0 +1,22 @@
+Hecks.fixtures "BookPublishing" do
+  aggregate "Manuscript" do
+    fixture "The_Midnight_Library_", title: "The Midnight Library", genre: "Science Fiction", author_name: "Sarah Mitchell", word_count: 92000, status: "submitted"
+    fixture "Garden_of_Thorns_", title: "Garden of Thorns", genre: "Fantasy", author_name: "Elena Rodriguez", word_count: 115000, status: "accepted"
+  end
+  aggregate "EditorialPass" do
+    fixture "EditorialPass1", pass_type: "developmental", editor_name: "David Brooks", status: "assigned", change_count: 0, manuscript_id: "M001"
+    fixture "EditorialPass2", pass_type: "copy edit", editor_name: "Jennifer Walsh", status: "completed", change_count: 247, manuscript_id: "M002"
+  end
+  aggregate "CoverDesign" do
+    fixture "CoverDesign1", designer_name: "Marcus Chen", art_style: "minimalist", status: "briefed", revision_number: 0, manuscript_id: "M001"
+    fixture "CoverDesign2", designer_name: "Yuki Tanaka", art_style: "photorealistic", status: "approved", revision_number: 2, manuscript_id: "M002"
+  end
+  aggregate "PrintRun" do
+    fixture "PrintRun1", quantity: 5000, binding_type: "hardcover", paper_stock: "cream 80gsm", status: "ordered", manuscript_id: "M001"
+    fixture "PrintRun2", quantity: 10000, binding_type: "paperback", paper_stock: "white 70gsm", status: "received", manuscript_id: "M002"
+  end
+  aggregate "RoyaltyAccount" do
+    fixture "RoyaltyAccount1", advance_paid: 15000.0, earned_royalties: 2350.0, royalty_rate: 0.10, status: "unearned", manuscript_id: "M001"
+    fixture "RoyaltyAccount2", advance_paid: 25000.0, earned_royalties: 8900.0, royalty_rate: 0.12, status: "unearned", manuscript_id: "M002"
+  end
+end

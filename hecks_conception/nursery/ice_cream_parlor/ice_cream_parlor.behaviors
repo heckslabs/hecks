@@ -1,0 +1,127 @@
+Hecks.behaviors "IceCreamParlor" do
+  vision "Behavioral tests for the IceCreamParlor domain — exercises every command and query in memory"
+
+  # ── Flavor aggregate ──────────────────────────────────────────
+
+  test "ConcoctFlavor sets flavor_id + name + base + description + dairy_free" do
+    tests "ConcoctFlavor", on: "Flavor"
+    input  flavor_id: "sample", name: "sample", base: "sample", description: "sample", dairy_free: "sample"
+    expect flavor_id: "sample", name: "sample", base: "sample", description: "sample", dairy_free: "sample", available: "true"
+  end
+
+  test "ConcoctFlavor cascades through policy chain" do
+    tests "ConcoctFlavor", on: "Flavor", kind: :cascade
+    setup  "ChurnBatch", batch_id: "sample", flavor_id: "sample", volume_liters: 1.0, churned_date: "sample", expiration_date: "sample"
+    setup  "AnnounceDailySpecial", special_id: "sample", flavor_id: "sample", promotion_text: "sample", discount_percent: 1.0, date: "sample"
+    setup  "PrepareServing", serving_id: "sample", cone_type: "sample", scoops: 1
+    setup  "StockTopping", topping_id: "sample", name: "sample", category: "sample", price_per_serving: 1.0, quantity_on_hand: 1
+    input  flavor_id: "sample", name: "sample", base: "sample", description: "sample", dairy_free: "sample"
+    expect emits: ["FlavorConcocted", "BatchChurned", "DailySpecialAnnounced", "ServingPrepared", "ServingHandedOff", "ToppingStocked"]
+  end
+
+  test "RetireFlavor runs" do
+    tests "RetireFlavor", on: "Flavor"
+    setup  "ConcoctFlavor", flavor_id: "sample", name: "sample", base: "sample", description: "sample", dairy_free: "sample"
+    expect available: "false"
+  end
+
+
+  # ── Batch aggregate ──────────────────────────────────────────
+
+  test "ChurnBatch sets batch_id + flavor_id + volume_liters + churned_date + expiration_date" do
+    tests "ChurnBatch", on: "Batch"
+    input  batch_id: "sample", flavor_id: "sample", volume_liters: 1.0, churned_date: "sample", expiration_date: "sample"
+    expect batch_id: "sample", flavor_id: "sample", volume_liters: 1.0, churned_date: "sample", expiration_date: "sample", status: "fresh"
+  end
+
+  test "ChurnBatch cascades through policy chain" do
+    tests "ChurnBatch", on: "Batch", kind: :cascade
+    setup  "AnnounceDailySpecial", special_id: "sample", flavor_id: "sample", promotion_text: "sample", discount_percent: 1.0, date: "sample"
+    setup  "PrepareServing", serving_id: "sample", cone_type: "sample", scoops: 1
+    setup  "StockTopping", topping_id: "sample", name: "sample", category: "sample", price_per_serving: 1.0, quantity_on_hand: 1
+    input  batch_id: "sample", flavor_id: "sample", volume_liters: 1.0, churned_date: "sample", expiration_date: "sample"
+    expect emits: ["BatchChurned", "DailySpecialAnnounced", "ServingPrepared", "ServingHandedOff", "ToppingStocked"]
+  end
+
+  test "DepleteBatch runs" do
+    tests "DepleteBatch", on: "Batch"
+    setup  "ChurnBatch", batch_id: "sample", flavor_id: "sample", volume_liters: 1.0, churned_date: "sample", expiration_date: "sample"
+    expect status: "depleted"
+  end
+
+  test "DepleteBatch cascades through policy chain" do
+    tests "DepleteBatch", on: "Batch", kind: :cascade
+    setup  "AnnounceDailySpecial", special_id: "sample", flavor_id: "sample", promotion_text: "sample", discount_percent: 1.0, date: "sample"
+    setup  "PrepareServing", serving_id: "sample", cone_type: "sample", scoops: 1
+    setup  "StockTopping", topping_id: "sample", name: "sample", category: "sample", price_per_serving: 1.0, quantity_on_hand: 1
+    setup  "ChurnBatch", batch_id: "sample", flavor_id: "sample", volume_liters: 1.0, churned_date: "sample", expiration_date: "sample"
+    expect emits: ["BatchDepleted", "BatchChurned", "DailySpecialAnnounced", "ServingPrepared", "ServingHandedOff", "ToppingStocked"]
+  end
+
+  test "DiscardBatch runs" do
+    tests "DiscardBatch", on: "Batch"
+    setup  "ChurnBatch", batch_id: "sample", flavor_id: "sample", volume_liters: 1.0, churned_date: "sample", expiration_date: "sample"
+    expect status: "discarded"
+  end
+
+  test "DiscardBatch cascades through policy chain" do
+    tests "DiscardBatch", on: "Batch", kind: :cascade
+    setup  "ChurnBatch", batch_id: "sample", flavor_id: "sample", volume_liters: 1.0, churned_date: "sample", expiration_date: "sample"
+    setup  "ConcoctFlavor", flavor_id: "sample", name: "sample", base: "sample", description: "sample", dairy_free: "sample"
+    expect emits: ["BatchDiscarded", "FlavorRetired"]
+  end
+
+
+  # ── Topping aggregate ──────────────────────────────────────────
+
+  test "StockTopping sets topping_id + name + category + price_per_serving + quantity_on_hand" do
+    tests "StockTopping", on: "Topping"
+    input  topping_id: "sample", name: "sample", category: "sample", price_per_serving: 1.0, quantity_on_hand: 1
+    expect topping_id: "sample", name: "sample", category: "sample", price_per_serving: 1.0, quantity_on_hand: 1
+  end
+
+  test "ReorderTopping sets reorder_amount" do
+    tests "ReorderTopping", on: "Topping"
+    setup  "StockTopping", topping_id: "sample", name: "sample", category: "sample", price_per_serving: 1.0, quantity_on_hand: 1
+    input  reorder_amount: 1
+    expect ok: "true"
+  end
+
+
+  # ── Serving aggregate ──────────────────────────────────────────
+
+  test "PrepareServing sets serving_id + cone_type + scoops" do
+    tests "PrepareServing", on: "Serving"
+    input  serving_id: "sample", cone_type: "sample", scoops: 1
+    expect serving_id: "sample", cone_type: "sample", scoops: 1, status: "prepared"
+  end
+
+  test "PrepareServing cascades through policy chain" do
+    tests "PrepareServing", on: "Serving", kind: :cascade
+    input  serving_id: "sample", cone_type: "sample", scoops: 1
+    expect emits: ["ServingPrepared", "ServingHandedOff"]
+  end
+
+  test "HandOffServing runs" do
+    tests "HandOffServing", on: "Serving"
+    setup  "PrepareServing", serving_id: "sample", cone_type: "sample", scoops: 1
+    expect status: "served"
+  end
+
+
+  # ── DailySpecial aggregate ──────────────────────────────────────────
+
+  test "AnnounceDailySpecial sets special_id + flavor_id + promotion_text + discount_percent + date" do
+    tests "AnnounceDailySpecial", on: "DailySpecial"
+    input  special_id: "sample", flavor_id: "sample", promotion_text: "sample", discount_percent: 1.0, date: "sample"
+    expect special_id: "sample", flavor_id: "sample", promotion_text: "sample", discount_percent: 1.0, date: "sample"
+  end
+
+  test "AnnounceDailySpecial cascades through policy chain" do
+    tests "AnnounceDailySpecial", on: "DailySpecial", kind: :cascade
+    setup  "PrepareServing", serving_id: "sample", cone_type: "sample", scoops: 1
+    input  special_id: "sample", flavor_id: "sample", promotion_text: "sample", discount_percent: 1.0, date: "sample"
+    expect emits: ["DailySpecialAnnounced", "ServingPrepared", "ServingHandedOff"]
+  end
+
+end

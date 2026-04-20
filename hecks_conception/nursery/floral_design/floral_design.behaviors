@@ -1,0 +1,135 @@
+Hecks.behaviors "FloralDesign" do
+  vision "Behavioral tests for the FloralDesign domain — exercises every command and query in memory"
+
+  # ── Arrangement aggregate ──────────────────────────────────────────
+
+  test "DesignArrangement sets name + style + vessel_type + stem_count" do
+    tests "DesignArrangement", on: "Arrangement"
+    input  name: "sample", style: "sample", vessel_type: "sample", stem_count: 1
+    expect status: "designed"
+  end
+
+  test "AssembleArrangement runs" do
+    tests "AssembleArrangement", on: "Arrangement"
+    setup  "DesignArrangement", name: "sample", style: "sample", vessel_type: "sample", stem_count: 1
+    expect status: "assembled"
+  end
+
+  test "ConditionArrangement runs" do
+    tests "ConditionArrangement", on: "Arrangement"
+    setup  "DesignArrangement", name: "sample", style: "sample", vessel_type: "sample", stem_count: 1
+    setup  "AssembleArrangement"
+    expect status: "conditioned"
+  end
+
+  test "ConditionArrangement cascades through policy chain" do
+    tests "ConditionArrangement", on: "Arrangement", kind: :cascade
+    setup  "DesignArrangement", name: "sample", style: "sample", vessel_type: "sample", stem_count: 1
+    setup  "ScheduleDelivery", address: "sample", delivery_date: "sample", time_window: "sample", driver_name: "sample"
+    setup  "PlanInstallation", location: "sample", design_theme: "sample", crew_size: 1
+    setup  "BookEvent", event_name: "sample", venue: "sample", date: "sample", arrangement_count: 1
+    setup  "AssembleArrangement"
+    expect emits: ["ArrangementConditioned", "DeliveryScheduled", "DeliveryConfirmed", "InstallationPlanned"]
+  end
+
+
+  # ── FlowerStock aggregate ──────────────────────────────────────────
+
+  test "ReceiveShipment sets variety + color + stem_quantity + vase_life_days" do
+    tests "ReceiveShipment", on: "FlowerStock"
+    input  variety: "sample", color: "sample", stem_quantity: 1, vase_life_days: 1
+    expect freshness: "fresh"
+  end
+
+  test "MarkWilted runs" do
+    tests "MarkWilted", on: "FlowerStock"
+    setup  "ReceiveShipment", variety: "sample", color: "sample", stem_quantity: 1, vase_life_days: 1
+    expect freshness: "wilted"
+  end
+
+
+  # ── FloralEvent aggregate ──────────────────────────────────────────
+
+  test "BookEvent sets event_name + venue + date + arrangement_count" do
+    tests "BookEvent", on: "FloralEvent"
+    input  event_name: "sample", venue: "sample", date: "sample", arrangement_count: 1
+    expect status: "consulted"
+  end
+
+  test "BookEvent cascades through policy chain" do
+    tests "BookEvent", on: "FloralEvent", kind: :cascade
+    setup  "DesignArrangement", name: "sample", style: "sample", vessel_type: "sample", stem_count: 1
+    input  event_name: "sample", venue: "sample", date: "sample", arrangement_count: 1
+    expect emits: ["EventBooked", "ProposalFinalized", "ArrangementDesigned"]
+  end
+
+  test "FinalizeProposal runs" do
+    tests "FinalizeProposal", on: "FloralEvent"
+    setup  "BookEvent", event_name: "sample", venue: "sample", date: "sample", arrangement_count: 1
+    expect status: "confirmed"
+  end
+
+  test "FinalizeProposal cascades through policy chain" do
+    tests "FinalizeProposal", on: "FloralEvent", kind: :cascade
+    setup  "BookEvent", event_name: "sample", venue: "sample", date: "sample", arrangement_count: 1
+    setup  "DesignArrangement", name: "sample", style: "sample", vessel_type: "sample", stem_count: 1
+    expect emits: ["ProposalFinalized", "ArrangementDesigned"]
+  end
+
+
+  # ── Delivery aggregate ──────────────────────────────────────────
+
+  test "ScheduleDelivery sets address + delivery_date + time_window + driver_name" do
+    tests "ScheduleDelivery", on: "Delivery"
+    setup  "DesignArrangement", name: "sample", style: "sample", vessel_type: "sample", stem_count: 1
+    input  address: "sample", delivery_date: "sample", time_window: "sample", driver_name: "sample"
+    expect status: "scheduled"
+  end
+
+  test "ScheduleDelivery cascades through policy chain" do
+    tests "ScheduleDelivery", on: "Delivery", kind: :cascade
+    setup  "DesignArrangement", name: "sample", style: "sample", vessel_type: "sample", stem_count: 1
+    setup  "PlanInstallation", location: "sample", design_theme: "sample", crew_size: 1
+    setup  "BookEvent", event_name: "sample", venue: "sample", date: "sample", arrangement_count: 1
+    input  address: "sample", delivery_date: "sample", time_window: "sample", driver_name: "sample"
+    expect emits: ["DeliveryScheduled", "DeliveryConfirmed", "InstallationPlanned"]
+  end
+
+  test "ConfirmDelivery runs" do
+    tests "ConfirmDelivery", on: "Delivery"
+    setup  "ScheduleDelivery", address: "sample", delivery_date: "sample", time_window: "sample", driver_name: "sample"
+    expect status: "delivered"
+  end
+
+  test "ConfirmDelivery cascades through policy chain" do
+    tests "ConfirmDelivery", on: "Delivery", kind: :cascade
+    setup  "ScheduleDelivery", address: "sample", delivery_date: "sample", time_window: "sample", driver_name: "sample"
+    setup  "PlanInstallation", location: "sample", design_theme: "sample", crew_size: 1
+    setup  "BookEvent", event_name: "sample", venue: "sample", date: "sample", arrangement_count: 1
+    expect emits: ["DeliveryConfirmed", "InstallationPlanned"]
+  end
+
+
+  # ── FloralInstallation aggregate ──────────────────────────────────────────
+
+  test "PlanInstallation sets location + design_theme + crew_size" do
+    tests "PlanInstallation", on: "FloralInstallation"
+    setup  "BookEvent", event_name: "sample", venue: "sample", date: "sample", arrangement_count: 1
+    input  location: "sample", design_theme: "sample", crew_size: 1
+    expect status: "planned"
+  end
+
+  test "ExecuteInstallation runs" do
+    tests "ExecuteInstallation", on: "FloralInstallation"
+    setup  "PlanInstallation", location: "sample", design_theme: "sample", crew_size: 1
+    expect status: "installed"
+  end
+
+  test "StrikeInstallation runs" do
+    tests "StrikeInstallation", on: "FloralInstallation"
+    setup  "PlanInstallation", location: "sample", design_theme: "sample", crew_size: 1
+    setup  "ExecuteInstallation"
+    expect status: "struck"
+  end
+
+end

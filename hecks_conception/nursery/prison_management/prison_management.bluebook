@@ -42,7 +42,6 @@ Hecks.bluebook "PrisonManagement" do
       description "Place a classified inmate into general population housing"
       reference_to(Inmate)
       reference_to(Cell)
-      given { status == "classified" }
       emits "InmateHoused"
       then_set :status, to: "housed"
     end
@@ -51,7 +50,6 @@ Hecks.bluebook "PrisonManagement" do
       description "Change an inmate's security classification based on behavior"
       reference_to(Inmate)
       String :new_classification
-      given { status == "housed" }
       emits "InmateReclassified"
     end
 
@@ -126,7 +124,6 @@ Hecks.bluebook "PrisonManagement" do
     LiftLockdown do
       description "Return a locked-down cell to normal status"
       reference_to(Cell)
-      given { status == "lockdown" }
       emits "LockdownLifted"
       then_set :status, to: "available"
     end
@@ -146,12 +143,12 @@ Hecks.bluebook "PrisonManagement" do
       String :end_time
     end
 
-    CreateProgram do
+    LaunchProgram do
       description "Establish a new rehabilitation program"
       String :program_name
       String :program_type
       Integer :capacity
-      emits "ProgramCreated"
+      emits "ProgramLaunched"
       then_set :status, to: "active"
       then_set :enrolled_count, to: 0
     end
@@ -268,11 +265,6 @@ Hecks.bluebook "PrisonManagement" do
     trigger "EnrollInmate"
   end
 
-  policy "LockdownOnIncident" do
-    on "IncidentFiled"
-    trigger "LockdownCell"
-  end
-
   policy "InvestigateOnIncident" do
     on "IncidentFiled"
     trigger "InvestigateIncident"
@@ -288,18 +280,4 @@ Hecks.bluebook "PrisonManagement" do
     trigger "LiftLockdown"
   end
 
-  fixture "Inmate", inmate_id: "IN-001254", name: "Robert Martinez", classification: "medium", status: "housed", admission_date: "2023-06-15", release_date: "2028-12-20"
-  fixture "Inmate", inmate_id: "IN-002847", name: "James Wilson", classification: "maximum", status: "preparing_release", admission_date: "2019-03-10", release_date: "2026-09-30"
-
-  fixture "Cell", cell_id: "A-101", block: "A", max_occupancy: 2, current_occupancy: 1, status: "available", security_level: "medium"
-  fixture "Cell", cell_id: "D-045", block: "D", max_occupancy: 1, current_occupancy: 1, status: "lockdown", security_level: "maximum"
-
-  fixture "Program", program_id: "PROG-101", program_name: "GED Preparation", program_type: "education", capacity: 20, enrolled_count: 18, status: "active"
-  fixture "Program", program_id: "PROG-205", program_name: "Vocational Welding", program_type: "vocational", capacity: 12, enrolled_count: 12, status: "active"
-
-  fixture "Incident", incident_id: "INC-5521", incident_type: "contraband_found", severity: "medium", description: "Unauthorized cell phone discovered during cell search", status: "investigating"
-  fixture "Incident", incident_id: "INC-5618", incident_type: "assault", severity: "high", description: "Inmate-on-inmate altercation in yard", status: "resolved"
-
-  fixture "Visit", visit_id: "VIS-8834", visitor_name: "Maria Martinez", visit_type: "family", scheduled_date: "2026-04-15", status: "scheduled"
-  fixture "Visit", visit_id: "VIS-8901", visitor_name: "Thomas Wilson", visit_type: "legal", scheduled_date: "2026-04-12", status: "completed"
 end

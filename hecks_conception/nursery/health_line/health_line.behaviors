@@ -1,0 +1,86 @@
+Hecks.behaviors "HealthLine" do
+  vision "Behavioral tests for the HealthLine domain — exercises every command and query in memory"
+
+  # ── IncomingCall aggregate ──────────────────────────────────────────
+
+  test "ReceiveCall sets call_id + caller_name + phone_number + chief_complaint" do
+    tests "ReceiveCall", on: "IncomingCall"
+    input  call_id: "sample", caller_name: "sample", phone_number: "sample", chief_complaint: "sample"
+    expect call_id: "sample", caller_name: "sample", phone_number: "sample", chief_complaint: "sample", status: "queued"
+  end
+
+  test "AssignToNurse runs" do
+    tests "AssignToNurse", on: "IncomingCall"
+    setup  "ReceiveCall", call_id: "sample", caller_name: "sample", phone_number: "sample", chief_complaint: "sample"
+    expect status: "assigned"
+  end
+
+  test "AssignToNurse cascades through policy chain" do
+    tests "AssignToNurse", on: "IncomingCall", kind: :cascade
+    setup  "PerformAssessment", assessment_id: "sample", call_id: "sample", protocol_id: "sample"
+    setup  "ReceiveCall", call_id: "sample", caller_name: "sample", phone_number: "sample", chief_complaint: "sample"
+    expect emits: ["CallAssigned", "AssessmentPerformed"]
+  end
+
+  test "EndCall runs" do
+    tests "EndCall", on: "IncomingCall"
+    setup  "ReceiveCall", call_id: "sample", caller_name: "sample", phone_number: "sample", chief_complaint: "sample"
+    setup  "AssignToNurse"
+    expect status: "ended"
+  end
+
+
+  # ── TriageProtocol aggregate ──────────────────────────────────────────
+
+  test "DefineProtocol sets protocol_id + symptom_category" do
+    tests "DefineProtocol", on: "TriageProtocol"
+    input  protocol_id: "sample", symptom_category: "sample"
+    expect protocol_id: "sample", symptom_category: "sample", status: "active"
+  end
+
+  test "RetireProtocol runs" do
+    tests "RetireProtocol", on: "TriageProtocol"
+    setup  "DefineProtocol", protocol_id: "sample", symptom_category: "sample"
+    expect status: "retired"
+  end
+
+
+  # ── TriageAssessment aggregate ──────────────────────────────────────────
+
+  test "PerformAssessment sets assessment_id + call_id + protocol_id" do
+    tests "PerformAssessment", on: "TriageAssessment"
+    input  assessment_id: "sample", call_id: "sample", protocol_id: "sample"
+    expect assessment_id: "sample", call_id: "sample", protocol_id: "sample", status: "in_progress"
+  end
+
+  test "FinalizeAssessment sets severity + recommendation" do
+    tests "FinalizeAssessment", on: "TriageAssessment"
+    setup  "PerformAssessment", assessment_id: "sample", call_id: "sample", protocol_id: "sample"
+    input  severity: "sample", recommendation: "sample"
+    expect severity: "sample", recommendation: "sample", status: "finalized"
+  end
+
+  test "FinalizeAssessment cascades through policy chain" do
+    tests "FinalizeAssessment", on: "TriageAssessment", kind: :cascade
+    setup  "EscalateCall", escalation_id: "sample", call_id: "sample", target_service: "sample", reason: "sample"
+    setup  "PerformAssessment", assessment_id: "sample", call_id: "sample", protocol_id: "sample"
+    input  severity: "sample", recommendation: "sample"
+    expect emits: ["AssessmentFinalized", "CallEscalated"]
+  end
+
+
+  # ── Escalation aggregate ──────────────────────────────────────────
+
+  test "EscalateCall sets escalation_id + call_id + target_service + reason" do
+    tests "EscalateCall", on: "Escalation"
+    input  escalation_id: "sample", call_id: "sample", target_service: "sample", reason: "sample"
+    expect escalation_id: "sample", call_id: "sample", target_service: "sample", reason: "sample", status: "escalated"
+  end
+
+  test "ResolveEscalation runs" do
+    tests "ResolveEscalation", on: "Escalation"
+    setup  "EscalateCall", escalation_id: "sample", call_id: "sample", target_service: "sample", reason: "sample"
+    expect status: "resolved"
+  end
+
+end

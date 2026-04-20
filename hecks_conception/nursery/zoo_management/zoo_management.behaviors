@@ -1,0 +1,197 @@
+Hecks.behaviors "ZooManagement" do
+  vision "Behavioral tests for the ZooManagement domain — exercises every command and query in memory"
+
+  # ── Animal aggregate ──────────────────────────────────────────
+
+  test "RegisterAnimal sets common_name + species + sex + date_of_birth" do
+    tests "RegisterAnimal", on: "Animal"
+    input  common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample"
+    expect common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample", status: "quarantine"
+  end
+
+  test "RegisterAnimal cascades through policy chain" do
+    tests "RegisterAnimal", on: "Animal", kind: :cascade
+    setup  "ScheduleExam", exam_type: "sample", veterinarian: "sample"
+    input  common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample"
+    expect emits: ["AnimalRegistered", "ExamScheduled"]
+  end
+
+  test "ClearQuarantine runs" do
+    tests "ClearQuarantine", on: "Animal"
+    setup  "RegisterAnimal", common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample"
+    expect status: "cleared"
+  end
+
+  test "ClearQuarantine cascades through policy chain" do
+    tests "ClearQuarantine", on: "Animal", kind: :cascade
+    setup  "BuildHabitat", name: "sample", biome_type: "sample", area_sqft: 1.0, max_capacity: 1
+    setup  "PlanFeeding", diet_type: "sample", feeding_time: "sample", portion_kg: 1.0
+    setup  "ScheduleExam", exam_type: "sample", veterinarian: "sample"
+    setup  "RegisterAnimal", common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample"
+    expect emits: ["QuarantineCleared", "AnimalPlacedOnExhibit", "FeedingPlanned", "FeedingRecorded", "ExamScheduled"]
+  end
+
+  test "PlaceOnExhibit runs" do
+    tests "PlaceOnExhibit", on: "Animal"
+    setup  "BuildHabitat", name: "sample", biome_type: "sample", area_sqft: 1.0, max_capacity: 1
+    setup  "RegisterAnimal", common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample"
+    setup  "ClearQuarantine"
+    expect status: "on_exhibit"
+  end
+
+  test "PlaceOnExhibit cascades through policy chain" do
+    tests "PlaceOnExhibit", on: "Animal", kind: :cascade
+    setup  "BuildHabitat", name: "sample", biome_type: "sample", area_sqft: 1.0, max_capacity: 1
+    setup  "PlanFeeding", diet_type: "sample", feeding_time: "sample", portion_kg: 1.0
+    setup  "ScheduleExam", exam_type: "sample", veterinarian: "sample"
+    setup  "RegisterAnimal", common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample"
+    setup  "ClearQuarantine"
+    expect emits: ["AnimalPlacedOnExhibit", "FeedingPlanned", "FeedingRecorded", "ExamScheduled"]
+  end
+
+  test "MoveOffExhibit sets reason" do
+    tests "MoveOffExhibit", on: "Animal"
+    setup  "RegisterAnimal", common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample"
+    setup  "ClearQuarantine"
+    setup  "PlaceOnExhibit"
+    input  reason: "sample"
+    expect status: "off_exhibit"
+  end
+
+  test "TransferAnimal sets destination_zoo" do
+    tests "TransferAnimal", on: "Animal"
+    setup  "RegisterAnimal", common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample"
+    setup  "ClearQuarantine"
+    setup  "PlaceOnExhibit"
+    input  destination_zoo: "sample"
+    expect status: "transferred"
+  end
+
+
+  # ── Habitat aggregate ──────────────────────────────────────────
+
+  test "BuildHabitat sets name + biome_type + area_sqft + max_capacity" do
+    tests "BuildHabitat", on: "Habitat"
+    input  name: "sample", biome_type: "sample", area_sqft: 1.0, max_capacity: 1
+    expect status: "built", current_occupancy: 0
+  end
+
+  test "BuildHabitat cascades through policy chain" do
+    tests "BuildHabitat", on: "Habitat", kind: :cascade
+    setup  "RegisterAnimal", common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample"
+    input  name: "sample", biome_type: "sample", area_sqft: 1.0, max_capacity: 1
+    expect emits: ["HabitatBuilt", "HabitatInspected", "AnimalAssignedToHabitat"]
+  end
+
+  test "InspectHabitat runs" do
+    tests "InspectHabitat", on: "Habitat"
+    setup  "BuildHabitat", name: "sample", biome_type: "sample", area_sqft: 1.0, max_capacity: 1
+    expect status: "active"
+  end
+
+  test "InspectHabitat cascades through policy chain" do
+    tests "InspectHabitat", on: "Habitat", kind: :cascade
+    setup  "RegisterAnimal", common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample"
+    setup  "BuildHabitat", name: "sample", biome_type: "sample", area_sqft: 1.0, max_capacity: 1
+    expect emits: ["HabitatInspected", "AnimalAssignedToHabitat"]
+  end
+
+  test "CloseHabitat sets reason" do
+    tests "CloseHabitat", on: "Habitat"
+    setup  "BuildHabitat", name: "sample", biome_type: "sample", area_sqft: 1.0, max_capacity: 1
+    setup  "InspectHabitat"
+    input  reason: "sample"
+    expect status: "closed"
+  end
+
+  test "ReopenHabitat runs" do
+    tests "ReopenHabitat", on: "Habitat"
+    setup  "BuildHabitat", name: "sample", biome_type: "sample", area_sqft: 1.0, max_capacity: 1
+    setup  "InspectHabitat"
+    setup  "CloseHabitat", reason: "sample"
+    expect status: "active"
+  end
+
+
+  # ── FeedingSchedule aggregate ──────────────────────────────────────────
+
+  test "PlanFeeding sets diet_type + feeding_time + portion_kg" do
+    tests "PlanFeeding", on: "FeedingSchedule"
+    setup  "RegisterAnimal", common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample"
+    input  diet_type: "sample", feeding_time: "sample", portion_kg: 1.0
+    expect status: "active"
+  end
+
+  test "PlanFeeding cascades through policy chain" do
+    tests "PlanFeeding", on: "FeedingSchedule", kind: :cascade
+    setup  "RegisterAnimal", common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample"
+    input  diet_type: "sample", feeding_time: "sample", portion_kg: 1.0
+    expect emits: ["FeedingPlanned", "FeedingRecorded"]
+  end
+
+  test "RecordFeeding sets fed_by" do
+    tests "RecordFeeding", on: "FeedingSchedule"
+    setup  "PlanFeeding", diet_type: "sample", feeding_time: "sample", portion_kg: 1.0
+    input  fed_by: "sample"
+    expect ok: "true"
+  end
+
+  test "AdjustDiet sets new_diet_type + new_portion_kg" do
+    tests "AdjustDiet", on: "FeedingSchedule"
+    setup  "PlanFeeding", diet_type: "sample", feeding_time: "sample", portion_kg: 1.0
+    input  new_diet_type: "sample", new_portion_kg: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── VeterinaryExam aggregate ──────────────────────────────────────────
+
+  test "ScheduleExam sets exam_type + veterinarian" do
+    tests "ScheduleExam", on: "VeterinaryExam"
+    setup  "RegisterAnimal", common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample"
+    input  exam_type: "sample", veterinarian: "sample"
+    expect status: "scheduled"
+  end
+
+  test "PerformExam sets findings" do
+    tests "PerformExam", on: "VeterinaryExam"
+    setup  "ScheduleExam", exam_type: "sample", veterinarian: "sample"
+    input  findings: "sample"
+    expect status: "completed"
+  end
+
+  test "PerformExam cascades through policy chain" do
+    tests "PerformExam", on: "VeterinaryExam", kind: :cascade
+    setup  "PlanFeeding", diet_type: "sample", feeding_time: "sample", portion_kg: 1.0
+    setup  "ScheduleExam", exam_type: "sample", veterinarian: "sample"
+    input  findings: "sample"
+    expect emits: ["ExamPerformed", "DietAdjusted"]
+  end
+
+
+  # ── BreedingProgram aggregate ──────────────────────────────────────────
+
+  test "InitiateBreeding sets species + target_offspring" do
+    tests "InitiateBreeding", on: "BreedingProgram"
+    setup  "RegisterAnimal", common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample"
+    input  species: "sample", target_offspring: 1
+    expect status: "active"
+  end
+
+  test "RecordBirth sets offspring_name" do
+    tests "RecordBirth", on: "BreedingProgram"
+    setup  "InitiateBreeding", species: "sample", target_offspring: 1
+    input  offspring_name: "sample"
+    expect ok: "true"
+  end
+
+  test "RecordBirth cascades through policy chain" do
+    tests "RecordBirth", on: "BreedingProgram", kind: :cascade
+    setup  "RegisterAnimal", common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample"
+    setup  "ScheduleExam", exam_type: "sample", veterinarian: "sample"
+    setup  "InitiateBreeding", species: "sample", target_offspring: 1
+    input  offspring_name: "sample"
+    expect emits: ["BirthRecorded", "AnimalRegistered", "ExamScheduled"]
+  end
+
+end

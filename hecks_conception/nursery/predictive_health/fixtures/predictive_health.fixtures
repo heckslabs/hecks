@@ -1,0 +1,18 @@
+Hecks.fixtures "PredictiveHealth" do
+  aggregate "GeneticProfile" do
+    fixture "GeneticProfile1", patient_id: "P-10001", ethnicity: "European", markers: [], status: "sequencing"
+    fixture "GeneticProfile2", patient_id: "P-10002", ethnicity: "African", markers: [], status: "completed"
+  end
+  aggregate "RiskModel" do
+    fixture "RiskModel1", model_name: "CardiacRisk-v3", conditions: [], accuracy: 0.0, status: "training"
+    fixture "RiskModel2", model_name: "DiabetesRisk-v2", conditions: [], accuracy: 0.87, status: "production"
+  end
+  aggregate "InsuranceClaim" do
+    fixture "InsuranceClaim1", claimant_name: "Jane Doe", diagnosis: "Myocardial Infarction", amount_cents: 500000, documents: [], status: "submitted"
+    fixture "InsuranceClaim2", claimant_name: "John Smith", diagnosis: "Type 2 Diabetes", amount_cents: 250000, documents: [], status: "approved"
+  end
+  aggregate "PolicyPricing" do
+    fixture "PolicyPricing1", premium_cents: 125000, risk_score: 0.45, adjustments: [], status: "calculating"
+    fixture "PolicyPricing2", premium_cents: 95000, risk_score: 0.28, adjustments: [], status: "approved"
+  end
+end

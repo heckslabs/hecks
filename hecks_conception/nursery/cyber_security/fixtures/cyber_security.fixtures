@@ -1,0 +1,22 @@
+Hecks.fixtures "CyberSecurity" do
+  aggregate "Threat" do
+    fixture "APT_28_Spear_Phishing_Campaign_", threat_id: "threat-2026-0401", name: "APT-28 Spear Phishing Campaign", category: "social-engineering", severity: "high", source_feed: "threat-intel-feed-01", status: "active", indicators: []
+    fixture "Log4Shell_RCE_Exploitation_", threat_id: "threat-2026-0402", name: "Log4Shell RCE Exploitation", category: "code-injection", severity: "critical", source_feed: "cve-tracker", status: "mitigated", indicators: []
+  end
+  aggregate "SecurityIncident" do
+    fixture "Unauthorized_Access_to_Customer_Database_", incident_id: "inc-2026-0414-001", title: "Unauthorized Access to Customer Database", severity: "critical", attack_vector: "sql-injection", assigned_team: "Database Security Team", status: "open", threat_id: "threat-2026-0401", actions: []
+    fixture "Malware_Detected_on_Workstation_", incident_id: "inc-2026-0414-002", title: "Malware Detected on Workstation", severity: "high", attack_vector: "email-attachment", assigned_team: "Endpoint Security Team", status: "in_progress", threat_id: "threat-2026-0402", actions: []
+  end
+  aggregate "Patch" do
+    fixture "Patch1", patch_id: "patch-cve-2026-1234", cve_id: "CVE-2026-1234", target_system: "apache-web-server", urgency: "critical", status: "released", deployments: []
+    fixture "Patch2", patch_id: "patch-cve-2026-5678", cve_id: "CVE-2026-5678", target_system: "openssl", urgency: "high", status: "deployed", deployments: []
+  end
+  aggregate "SecurityAudit" do
+    fixture "SecurityAudit1", audit_id: "audit-2026-q2", scope: "Production Infrastructure", framework: "ISO-27001", auditor: "external-audit-firm", status: "completed", findings: []
+    fixture "SecurityAudit2", audit_id: "audit-2026-compliance", scope: "Data Processing", framework: "GDPR", auditor: "compliance-officer", status: "in_progress", findings: []
+  end
+  aggregate "AccessPolicy" do
+    fixture "AccessPolicy1", policy_name: "Production Database Access", resource_scope: "prod-db-cluster", permission_level: "read-write", status: "active", role_bindings: []
+    fixture "AccessPolicy2", policy_name: "Admin Console Access", resource_scope: "admin-panel", permission_level: "full-control", status: "active", role_bindings: []
+  end
+end

@@ -3,17 +3,17 @@ Hecks.bluebook "BulkGenerator", version: "2026.04.10.1" do
   category "meta"
 
   aggregate "TopicSource", "Where domain ideas come from — industry × activity combinations" do
-    list_of(String) :industries
-    list_of(String) :activities
-    list_of(String) :modifiers
-    Integer :total_combinations
+    attribute :industries, list_of(String)
+    attribute :activities, list_of(String)
+    attribute :modifiers, list_of(String)
+    attribute :total_combinations, Integer
 
-    LoadTopics do
+    command "LoadTopics" do
       role "System"
       description "Load industry, activity, and modifier word lists"
-      list_of(String) :industries
-      list_of(String) :activities
-      list_of(String) :modifiers
+      attribute :industries, list_of(String)
+      attribute :activities, list_of(String)
+      attribute :modifiers, list_of(String)
       emits "TopicsLoaded"
       then_set :industries, to: :industries
       then_set :activities, to: :activities
@@ -22,16 +22,16 @@ Hecks.bluebook "BulkGenerator", version: "2026.04.10.1" do
   end
 
   aggregate "Template", "A bluebook template that generates valid domains from topics" do
-    list_of(String) :aggregate_patterns
-    list_of(String) :command_patterns
-    list_of(String) :policy_patterns
+    attribute :aggregate_patterns, list_of(String)
+    attribute :command_patterns, list_of(String)
+    attribute :policy_patterns, list_of(String)
 
-    DefineTemplate do
+    command "DefineTemplate" do
       role "System"
       description "Set the patterns used to generate aggregates, commands, and policies"
-      list_of(String) :aggregate_patterns
-      list_of(String) :command_patterns
-      list_of(String) :policy_patterns
+      attribute :aggregate_patterns, list_of(String)
+      attribute :command_patterns, list_of(String)
+      attribute :policy_patterns, list_of(String)
       emits "TemplateDefined"
       then_set :aggregate_patterns, to: :aggregate_patterns
       then_set :command_patterns, to: :command_patterns
@@ -40,17 +40,17 @@ Hecks.bluebook "BulkGenerator", version: "2026.04.10.1" do
   end
 
   aggregate "Generation", "A batch generation run — produces N domains" do
-    Integer :target_count
-    Integer :generated
-    Integer :valid
-    Integer :invalid
-    Integer :duration_seconds
-    String :status
+    attribute :target_count, Integer
+    attribute :generated, Integer
+    attribute :valid, Integer
+    attribute :invalid, Integer
+    attribute :duration_seconds, Integer
+    attribute :status, String
 
-    StartGeneration do
+    command "StartGeneration" do
       role "Creator"
       description "Begin generating domains in bulk"
-      Integer :target_count
+      attribute :target_count, Integer
       emits "GenerationStarted"
       then_set :target_count, to: :target_count
       then_set :generated, to: 0
@@ -59,24 +59,24 @@ Hecks.bluebook "BulkGenerator", version: "2026.04.10.1" do
       then_set :status, to: "running"
     end
 
-    RecordProgress do
+    command "RecordProgress" do
       role "System"
       description "Update generation progress"
       reference_to(Generation)
-      Integer :generated
-      Integer :valid
-      Integer :invalid
+      attribute :generated, Integer
+      attribute :valid, Integer
+      attribute :invalid, Integer
       emits "ProgressRecorded"
       then_set :generated, to: :generated
       then_set :valid, to: :valid
       then_set :invalid, to: :invalid
     end
 
-    CompleteGeneration do
+    command "CompleteGeneration" do
       role "System"
       description "All domains generated and validated"
       reference_to(Generation)
-      Integer :duration_seconds
+      attribute :duration_seconds, Integer
       emits "GenerationCompleted"
       then_set :duration_seconds, to: :duration_seconds
       then_set :status, to: "complete"
@@ -89,13 +89,13 @@ Hecks.bluebook "BulkGenerator", version: "2026.04.10.1" do
   end
 
   aggregate "Deduplication", "Skip domains that already exist in the nursery" do
-    Integer :existing
-    Integer :skipped
+    attribute :existing, Integer
+    attribute :skipped, Integer
 
-    CheckExisting do
+    command "CheckExisting" do
       role "System"
       description "Scan nursery for existing domain names to avoid duplicates"
-      Integer :existing
+      attribute :existing, Integer
       emits "ExistingChecked"
       then_set :existing, to: :existing
     end

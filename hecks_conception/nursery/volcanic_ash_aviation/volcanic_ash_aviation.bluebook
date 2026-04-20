@@ -36,13 +36,13 @@ Hecks.bluebook "VolcanicAshAviation", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    UpdateAshColumn do
+    RefreshAshColumn do
       role "Volcanologist"
-      description "Update ash column height as eruption evolves"
+      description "Refresh ash column height as eruption evolves"
       reference_to(Eruption)
       Float :ash_column_height_km
       given { status == "active" }
-      emits "AshColumnUpdated"
+      emits "AshColumnRefreshed"
       then_set :ash_column_height_km, to: :ash_column_height_km
     end
 
@@ -55,10 +55,6 @@ Hecks.bluebook "VolcanicAshAviation", version: "2026.04.13.1" do
       then_set :status, to: "ended"
     end
 
-    lifecycle :status, default: "dormant" do
-      transition "ReportEruption" => "active", from: "dormant"
-      transition "DeclareEruptionOver" => "ended", from: "active"
-    end
   end
 
   aggregate "AshCloud", "A tracked volcanic ash cloud — extent, concentration, altitude, trajectory" do
@@ -106,7 +102,6 @@ Hecks.bluebook "VolcanicAshAviation", version: "2026.04.13.1" do
       role "System"
       description "Forecast ash cloud movement and dispersion over time"
       reference_to(AshCloud)
-      given { status == "tracked" }
       emits "DispersionForecasted"
       then_set :status, to: "forecasted"
     end
@@ -220,10 +215,8 @@ Hecks.bluebook "VolcanicAshAviation", version: "2026.04.13.1" do
     RerouteAroundAsh do
       role "Dispatcher"
       description "Reroute cargo flight to avoid volcanic ash cloud"
-      reference_to(CargoFlight)
       String :rerouted_via
       Float :additional_fuel_kg
-      given { status == "filed" }
       emits "FlightRerouted"
       then_set :rerouted_via, to: :rerouted_via
       then_set :additional_fuel_kg, to: :additional_fuel_kg
@@ -242,38 +235,21 @@ Hecks.bluebook "VolcanicAshAviation", version: "2026.04.13.1" do
     ClearFlight do
       role "Dispatcher"
       description "Clear flight for departure when ash restriction lifts"
-      reference_to(CargoFlight)
-      given { status == "rerouted" }
       emits "FlightCleared"
       then_set :status, to: "cleared"
     end
 
     lifecycle :status, default: "pending" do
-      transition "FileCargoFlight" => "filed", from: "pending"
-      transition "RerouteAroundAsh" => "rerouted", from: "filed"
+      transition "FileCargoFlight" => "filed", from: ["pending", "filed", "rerouted"]
+      transition "RerouteAroundAsh" => "rerouted", from: ["pending", "filed"]
       transition "CancelFlight" => "cancelled", from: "filed"
-      transition "ClearFlight" => "cleared", from: "rerouted"
+      transition "ClearFlight" => "cleared", from: ["pending", "filed", "rerouted"]
     end
-  end
-
-  policy "TrackAshOnEruption" do
-    on "EruptionReported"
-    trigger "TrackAshCloud"
   end
 
   policy "ForecastOnTrack" do
     on "AshCloudTracked"
     trigger "ForecastDispersion"
-  end
-
-  policy "RestrictOnForecast" do
-    on "DispersionForecasted"
-    trigger "IssueRestriction"
-  end
-
-  policy "RerouteOnRestriction" do
-    on "RestrictionIssued"
-    trigger "RerouteAroundAsh"
   end
 
   policy "LiftOnDissipation" do
@@ -286,15 +262,4 @@ Hecks.bluebook "VolcanicAshAviation", version: "2026.04.13.1" do
     trigger "ClearFlight"
   end
 
-  fixture "Eruption", volcano_name: "Mount Piton", latitude: -14.235, longitude: -169.432, ash_column_height_km: 12.5, eruption_type: "Strombolian", vei_level: "3", status: "active"
-  fixture "Eruption", volcano_name: "Mount Yasur", latitude: -19.520, longitude: 169.442, ash_column_height_km: 8.3, eruption_type: "Hawaiian", vei_level: "2", status: "ended"
-
-  fixture "AshCloud", cloud_id: "AC-2026-0847", volcano_source: "Mount Piton", concentration_mg_m3: 4250.5, altitude_min_ft: 25000.0, altitude_max_ft: 42000.0, area_sq_km: 1850.0, status: "forecasted"
-  fixture "AshCloud", cloud_id: "AC-2026-0846", volcano_source: "Mount Yasur", concentration_mg_m3: 2100.0, altitude_min_ft: 18000.0, altitude_max_ft: 35000.0, area_sq_km: 950.0, status: "dissipated"
-
-  fixture "AirspaceRestriction", notam_id: "NOTAM-2026-1542", fir_name: "Nadi FIR", altitude_floor_ft: 24500.0, altitude_ceiling_ft: 45000.0, effective_from: "2026-04-10T06:00Z", effective_until: "2026-04-12T18:00Z", status: "active"
-  fixture "AirspaceRestriction", notam_id: "NOTAM-2026-1541", fir_name: "Vanuatu FIR", altitude_floor_ft: 20000.0, altitude_ceiling_ft: 40000.0, effective_from: "2026-04-08T12:00Z", effective_until: "2026-04-10T06:00Z", status: "lifted"
-
-  fixture "CargoFlight", flight_number: "FDX-847", origin: "Auckland", destination: "Sydney", original_route: "Direct VIA1", rerouted_via: "Western route via Qantas corridor", additional_fuel_kg: 2150.0, status: "rerouted"
-  fixture "CargoFlight", flight_number: "QFA-521", origin: "Melbourne", destination: "Honolulu", original_route: "Direct VIA2", rerouted_via: "Southern Pacific routing", additional_fuel_kg: 3500.0, status: "cleared"
 end

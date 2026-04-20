@@ -1,0 +1,74 @@
+Hecks.behaviors "SmartOT" do
+  vision "Behavioral tests for the SmartOT domain — exercises every command and query in memory"
+
+  # ── TherapyGoal aggregate ──────────────────────────────────────────
+
+  test "SetGoal sets goal_id + client_name + goal_area + target_outcome" do
+    tests "SetGoal", on: "TherapyGoal"
+    input  goal_id: "sample", client_name: "sample", goal_area: "sample", target_outcome: "sample"
+    expect goal_id: "sample", client_name: "sample", goal_area: "sample", target_outcome: "sample", progress_pct: 0.0, status: "active"
+  end
+
+  test "LogProgress sets progress_pct" do
+    tests "LogProgress", on: "TherapyGoal"
+    setup  "SetGoal", goal_id: "sample", client_name: "sample", goal_area: "sample", target_outcome: "sample"
+    input  progress_pct: 1.0
+    expect progress_pct: 1.0
+  end
+
+  test "LogProgress cascades through policy chain" do
+    tests "LogProgress", on: "TherapyGoal", kind: :cascade
+    setup  "SetGoal", goal_id: "sample", client_name: "sample", goal_area: "sample", target_outcome: "sample"
+    setup  "RunAssessment", assessment_id: "sample", client_name: "sample", device_id: "sample", before_score: 1.0, after_score: 1.0
+    input  progress_pct: 1.0
+    expect emits: ["ProgressLogged", "AssessmentRun"]
+  end
+
+
+  # ── SmartDevice aggregate ──────────────────────────────────────────
+
+  test "PairDevice sets device_id + device_type + location_room + client_name" do
+    tests "PairDevice", on: "SmartDevice"
+    input  device_id: "sample", device_type: "sample", location_room: "sample", client_name: "sample"
+    expect device_id: "sample", device_type: "sample", location_room: "sample", client_name: "sample", status: "paired"
+  end
+
+  test "PairDevice cascades through policy chain" do
+    tests "PairDevice", on: "SmartDevice", kind: :cascade
+    setup  "LogActivity", log_id: "sample", client_name: "sample", activity: "sample", device_id: "sample", duration_minutes: 1.0, independence_level: "sample"
+    input  device_id: "sample", device_type: "sample", location_room: "sample", client_name: "sample"
+    expect emits: ["DevicePaired", "ActivityLogged"]
+  end
+
+  test "AdjustDevice runs" do
+    tests "AdjustDevice", on: "SmartDevice"
+    setup  "PairDevice", device_id: "sample", device_type: "sample", location_room: "sample", client_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ActivityLog aggregate ──────────────────────────────────────────
+
+  test "LogActivity sets log_id + client_name + activity + device_id + duration_minutes + independence_level" do
+    tests "LogActivity", on: "ActivityLog"
+    input  log_id: "sample", client_name: "sample", activity: "sample", device_id: "sample", duration_minutes: 1.0, independence_level: "sample"
+    expect log_id: "sample", client_name: "sample", activity: "sample", device_id: "sample", duration_minutes: 1.0, independence_level: "sample"
+  end
+
+
+  # ── AdaptiveAssessment aggregate ──────────────────────────────────────────
+
+  test "RunAssessment sets assessment_id + client_name + device_id + before_score + after_score" do
+    tests "RunAssessment", on: "AdaptiveAssessment"
+    input  assessment_id: "sample", client_name: "sample", device_id: "sample", before_score: 1.0, after_score: 1.0
+    expect assessment_id: "sample", client_name: "sample", device_id: "sample", before_score: 1.0, after_score: 1.0
+  end
+
+  test "WriteRecommendation sets recommendation" do
+    tests "WriteRecommendation", on: "AdaptiveAssessment"
+    setup  "RunAssessment", assessment_id: "sample", client_name: "sample", device_id: "sample", before_score: 1.0, after_score: 1.0
+    input  recommendation: "sample"
+    expect recommendation: "sample"
+  end
+
+end

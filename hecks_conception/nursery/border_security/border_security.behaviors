@@ -1,0 +1,66 @@
+Hecks.behaviors "BorderSecurity" do
+  vision "Behavioral tests for the BorderSecurity domain — exercises every command and query in memory"
+
+  # ── ForensicSample aggregate ──────────────────────────────────────────
+
+  test "CollectSample sets sample_id + sample_type + collector" do
+    tests "CollectSample", on: "ForensicSample"
+    input  sample_id: "sample", sample_type: "sample", collector: "sample"
+    expect ok: "true"
+  end
+
+  test "FinalizeReport runs" do
+    tests "FinalizeReport", on: "ForensicSample"
+    setup  "CollectSample", sample_id: "sample", sample_type: "sample", collector: "sample"
+    setup  "RunAnalysis", test_type: "sample", result: "sample", confidence: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── Shipment aggregate ──────────────────────────────────────────
+
+  test "DeclareShipment sets tracking_number + origin_country + destination_country" do
+    tests "DeclareShipment", on: "Shipment"
+    input  tracking_number: "sample", origin_country: "sample", destination_country: "sample"
+    expect ok: "true"
+  end
+
+  test "ClearShipment runs" do
+    tests "ClearShipment", on: "Shipment"
+    setup  "DeclareShipment", tracking_number: "sample", origin_country: "sample", destination_country: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── RiskAlert aggregate ──────────────────────────────────────────
+
+  test "RaiseAlert sets alert_level + reason" do
+    tests "RaiseAlert", on: "RiskAlert"
+    setup  "DeclareShipment", tracking_number: "sample", origin_country: "sample", destination_country: "sample"
+    input  alert_level: "sample", reason: "sample"
+    expect ok: "true"
+  end
+
+  test "ResolveAlert runs" do
+    tests "ResolveAlert", on: "RiskAlert"
+    setup  "RaiseAlert", alert_level: "sample", reason: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Inspection aggregate ──────────────────────────────────────────
+
+  test "ScheduleInspection sets inspector" do
+    tests "ScheduleInspection", on: "Inspection"
+    setup  "DeclareShipment", tracking_number: "sample", origin_country: "sample", destination_country: "sample"
+    input  inspector: "sample"
+    expect ok: "true"
+  end
+
+  test "CompleteInspection runs" do
+    tests "CompleteInspection", on: "Inspection"
+    setup  "ScheduleInspection", inspector: "sample"
+    expect ok: "true"
+  end
+
+end

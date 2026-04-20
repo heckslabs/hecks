@@ -1,0 +1,109 @@
+Hecks.behaviors "AnimalGenetics" do
+  vision "Behavioral tests for the AnimalGenetics domain — exercises every command and query in memory"
+
+  # ── AnimalProfile aggregate ──────────────────────────────────────────
+
+  test "IntakeAnimal sets name + species + primary_breed + age_years + temperament" do
+    tests "IntakeAnimal", on: "AnimalProfile"
+    input  name: "sample", species: "sample", primary_breed: "sample", age_years: 1.0, temperament: "sample"
+    expect name: "sample", species: "sample", primary_breed: "sample", age_years: 1.0, temperament: "sample", status: "intake"
+  end
+
+  test "OrderDNATest runs" do
+    tests "OrderDNATest", on: "AnimalProfile"
+    setup  "IntakeAnimal", name: "sample", species: "sample", primary_breed: "sample", age_years: 1.0, temperament: "sample"
+    expect status: "testing"
+  end
+
+  test "OrderDNATest cascades through policy chain" do
+    tests "OrderDNATest", on: "AnimalProfile", kind: :cascade
+    setup  "ProcessDNASample", animal_name: "sample", sample_id: "sample"
+    setup  "ScreenForConditions", animal_name: "sample", condition_name: "sample", risk_probability: 1.0, severity: "sample"
+    setup  "IntakeAnimal", name: "sample", species: "sample", primary_breed: "sample", age_years: 1.0, temperament: "sample"
+    expect emits: ["DNATestOrdered", "DNASampleProcessed", "BreedsIdentified", "ConditionsScreened", "PreventionRecommended"]
+  end
+
+  test "MakeAvailable runs" do
+    tests "MakeAvailable", on: "AnimalProfile"
+    setup  "IntakeAnimal", name: "sample", species: "sample", primary_breed: "sample", age_years: 1.0, temperament: "sample"
+    setup  "OrderDNATest"
+    expect status: "available"
+  end
+
+  test "AdoptAnimal runs" do
+    tests "AdoptAnimal", on: "AnimalProfile"
+    setup  "IntakeAnimal", name: "sample", species: "sample", primary_breed: "sample", age_years: 1.0, temperament: "sample"
+    setup  "OrderDNATest"
+    setup  "MakeAvailable"
+    expect status: "adopted"
+  end
+
+
+  # ── DNAProfile aggregate ──────────────────────────────────────────
+
+  test "ProcessDNASample sets animal_name + sample_id" do
+    tests "ProcessDNASample", on: "DNAProfile"
+    input  animal_name: "sample", sample_id: "sample"
+    expect animal_name: "sample", sample_id: "sample", status: "processed"
+  end
+
+  test "ProcessDNASample cascades through policy chain" do
+    tests "ProcessDNASample", on: "DNAProfile", kind: :cascade
+    setup  "ScreenForConditions", animal_name: "sample", condition_name: "sample", risk_probability: 1.0, severity: "sample"
+    input  animal_name: "sample", sample_id: "sample"
+    expect emits: ["DNASampleProcessed", "BreedsIdentified", "ConditionsScreened", "PreventionRecommended"]
+  end
+
+  test "IdentifyBreeds sets primary_breed_result + secondary_breed_result + breed_confidence_pct" do
+    tests "IdentifyBreeds", on: "DNAProfile"
+    setup  "ProcessDNASample", animal_name: "sample", sample_id: "sample"
+    input  primary_breed_result: "sample", secondary_breed_result: "sample", breed_confidence_pct: 1.0
+    expect primary_breed_result: "sample", secondary_breed_result: "sample", breed_confidence_pct: 1.0, status: "identified"
+  end
+
+  test "IdentifyBreeds cascades through policy chain" do
+    tests "IdentifyBreeds", on: "DNAProfile", kind: :cascade
+    setup  "ScreenForConditions", animal_name: "sample", condition_name: "sample", risk_probability: 1.0, severity: "sample"
+    setup  "ProcessDNASample", animal_name: "sample", sample_id: "sample"
+    input  primary_breed_result: "sample", secondary_breed_result: "sample", breed_confidence_pct: 1.0
+    expect emits: ["BreedsIdentified", "ConditionsScreened", "PreventionRecommended"]
+  end
+
+
+  # ── HealthPredisposition aggregate ──────────────────────────────────────────
+
+  test "ScreenForConditions sets animal_name + condition_name + risk_probability + severity" do
+    tests "ScreenForConditions", on: "HealthPredisposition"
+    input  animal_name: "sample", condition_name: "sample", risk_probability: 1.0, severity: "sample"
+    expect animal_name: "sample", condition_name: "sample", risk_probability: 1.0, severity: "sample", status: "screened"
+  end
+
+  test "ScreenForConditions cascades through policy chain" do
+    tests "ScreenForConditions", on: "HealthPredisposition", kind: :cascade
+    input  animal_name: "sample", condition_name: "sample", risk_probability: 1.0, severity: "sample"
+    expect emits: ["ConditionsScreened", "PreventionRecommended"]
+  end
+
+  test "RecommendPrevention sets preventive_action" do
+    tests "RecommendPrevention", on: "HealthPredisposition"
+    setup  "ScreenForConditions", animal_name: "sample", condition_name: "sample", risk_probability: 1.0, severity: "sample"
+    input  preventive_action: "sample"
+    expect preventive_action: "sample", status: "recommended"
+  end
+
+
+  # ── AdoptionMatch aggregate ──────────────────────────────────────────
+
+  test "GenerateMatch sets animal_name + adopter_name + compatibility_score + match_factors" do
+    tests "GenerateMatch", on: "AdoptionMatch"
+    input  animal_name: "sample", adopter_name: "sample", compatibility_score: 1.0, match_factors: "sample"
+    expect animal_name: "sample", adopter_name: "sample", compatibility_score: 1.0, match_factors: "sample", status: "generated"
+  end
+
+  test "ApproveMatch runs" do
+    tests "ApproveMatch", on: "AdoptionMatch"
+    setup  "GenerateMatch", animal_name: "sample", adopter_name: "sample", compatibility_score: 1.0, match_factors: "sample"
+    expect status: "approved"
+  end
+
+end

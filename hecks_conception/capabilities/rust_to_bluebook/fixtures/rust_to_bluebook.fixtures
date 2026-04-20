@@ -1,0 +1,15 @@
+Hecks.fixtures "RustToBluebook" do
+  aggregate "RustFile" do
+    fixture "RustFile1", path: "daemon/daydream.rs", module_name: "daydream", line_count: 211, status: "deleted"
+    fixture "RustFile2", path: "daemon/pulse_organs.rs", module_name: "pulse_organs", line_count: 183, status: "deleted"
+    fixture "RustFile3", path: "daemon/dream_interpret.rs", module_name: "dream_interpret", line_count: 97, status: "deleted"
+    fixture "RustFile4", path: "daemon/pulse.rs", module_name: "pulse", line_count: 133, status: "deleted"
+    fixture "RustFile5", path: "daemon/mindstream.rs", module_name: "mindstream", line_count: 400, status: "pending"
+    fixture "RustFile6", path: "daemon/sleep.rs", module_name: "sleep", line_count: 620, status: "pending"
+    fixture "RustFile7", path: "daemon/greeting.rs", module_name: "greeting", line_count: 87, status: "deleted"
+    fixture "RustFile8", path: "runtime/persistence.rs", module_name: "persistence", line_count: 204, status: "deleted"
+  end
+  aggregate "Conversion" do
+    fixture "Conversion1", files_total: 7, files_converted: 6, lines_deleted: 915
+  end
+end

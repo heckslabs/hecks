@@ -21,6 +21,7 @@ Hecks.bluebook "CakeDecorating" do
       Integer :tier_count
       Integer :servings
       String :delivery_date
+      then_set :status, to: "inquiry"
       emits "OrderPlaced"
     end
 
@@ -35,7 +36,6 @@ Hecks.bluebook "CakeDecorating" do
     StartBaking do
       description "Begin baking the cake layers and components"
       reference_to(CakeOrder)
-      given { status == "confirmed" }
       emits "BakingStarted"
       then_set :status, to: "baking"
     end
@@ -43,7 +43,6 @@ Hecks.bluebook "CakeDecorating" do
     CompleteOrder do
       description "Mark the cake as finished and ready for pickup or delivery"
       reference_to(CakeOrder)
-      given { status == "baking" }
       emits "OrderCompleted"
       then_set :status, to: "completed"
     end
@@ -68,6 +67,7 @@ Hecks.bluebook "CakeDecorating" do
       String :cake_flavor
       String :filling
       String :frosting
+      then_set :status, to: "proposed"
       emits "FlavorProposed"
     end
 
@@ -93,6 +93,7 @@ Hecks.bluebook "CakeDecorating" do
       String :date
       String :client_name
       Integer :sample_count
+      then_set :status, to: "scheduled"
       emits "TastingScheduled"
     end
 
@@ -151,6 +152,7 @@ Hecks.bluebook "CakeDecorating" do
       String :delivery_date
       String :time_window
       String :handler_name
+      then_set :status, to: "scheduled"
       emits "CakeDeliveryScheduled"
     end
 
@@ -214,18 +216,5 @@ Hecks.bluebook "CakeDecorating" do
   end
 
   # === Fixtures ===
-  fixture "CakeOrder", client_name: "Emma Wilson", occasion: "Wedding Reception", status: "inquiry", tier_count: 4, servings: 150, delivery_date: "2026-06-15"
-  fixture "CakeOrder", client_name: "Robert Martinez", occasion: "50th Birthday", status: "inquiry", tier_count: 3, servings: 80, delivery_date: "2026-05-22"
 
-  fixture "FlavorProfile", cake_flavor: "Vanilla Bean", filling: "Raspberry Buttercream", frosting: "Swiss Meringue", status: "proposed"
-  fixture "FlavorProfile", cake_flavor: "Dark Chocolate", filling: "Salted Caramel", frosting: "Chocolate Ganache", status: "approved"
-
-  fixture "Tasting", date: "2026-04-20", client_name: "Emma Wilson", sample_count: 5, status: "scheduled"
-  fixture "Tasting", date: "2026-04-18", client_name: "Robert Martinez", sample_count: 3, status: "completed"
-
-  fixture "IngredientStock", ingredient_name: "All-Purpose Flour", category: "Dry Goods", quantity_on_hand: 25.5, unit: "lbs", reorder_threshold: 10.0
-  fixture "IngredientStock", ingredient_name: "Madagascar Vanilla Extract", category: "Flavorings", quantity_on_hand: 2.3, unit: "cups", reorder_threshold: 1.0
-
-  fixture "CakeDelivery", address: "4521 Oak Avenue, Springfield IL", delivery_date: "2026-06-15", time_window: "10am-12pm", status: "scheduled", handler_name: "Marcus Thompson"
-  fixture "CakeDelivery", address: "892 Elm Street, Springfield IL", delivery_date: "2026-05-22", time_window: "2pm-4pm", status: "delivered", handler_name: "Sofia Reyes"
 end

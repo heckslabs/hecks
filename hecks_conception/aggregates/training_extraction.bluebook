@@ -1,0 +1,28 @@
+Hecks.bluebook "TrainingExtraction", version: "2026.04.16.1" do
+  vision "Turn a bluebook into a training pair — vision is the prompt, structure is the completion"
+  category "meta"
+
+  aggregate "TrainingPair", "One JSONL line — prompt + completion from a domain" do
+    attribute :domain_name, String
+    attribute :vision, String
+    attribute :prompt, String
+    attribute :completion, String
+    attribute :aggregates, Integer
+    attribute :commands, Integer
+    attribute :policies, Integer
+
+    command "ExtractPair" do
+      description "Parse a domain and produce the training pair"
+      attribute :domain_name, String
+      attribute :vision, String
+      emits "PairExtracted"
+      then_set :domain_name, to: :domain_name
+      then_set :vision, to: :vision
+      then_set :prompt, to: :vision
+    end
+
+    query ReadPair do
+      description "Get the extracted training pair"
+    end
+  end
+end

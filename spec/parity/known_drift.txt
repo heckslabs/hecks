@@ -1,0 +1,14 @@
+# Parity Suite — known drift list
+#
+# Fixtures listed here are EXPECTED to disagree between the Ruby DSL parser
+# and the Rust hecks-life parser. The pre-commit hook reports them as ⚠
+# (warning, not error). Adding to this list is an antibody failure — do it
+# only when the divergence is documented and accepted as a real semantic gap.
+#
+# When you fix a divergence, REMOVE its line. If a known-drift fixture
+# accidentally starts passing, the suite will tell you to celebrate and
+# remove it from this list.
+#
+# Format: <relative-path>  # reason
+
+# (empty — full parity 113/113 as of 2026-04-18)

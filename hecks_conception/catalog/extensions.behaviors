@@ -1,0 +1,546 @@
+Hecks.behaviors "Extensions" do
+  vision "Behavioral tests for the Extensions domain — exercises every command and query in memory"
+
+  # ── Logging aggregate ──────────────────────────────────────────
+
+  test "Log sets message" do
+    tests "Log", on: "Logging"
+    input  message: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Metrics aggregate ──────────────────────────────────────────
+
+  test "Record sets metric_name + value" do
+    tests "Record", on: "Metrics"
+    input  metric_name: "sample", value: 1
+    expect ok: "true"
+  end
+
+
+  # ── Bubble aggregate ──────────────────────────────────────────
+
+  test "TranslateInbound sets legacy_data" do
+    tests "TranslateInbound", on: "Bubble"
+    input  legacy_data: "sample"
+    expect ok: "true"
+  end
+
+  test "TranslateOutbound sets domain_data" do
+    tests "TranslateOutbound", on: "Bubble"
+    input  domain_data: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Tenancy aggregate ──────────────────────────────────────────
+
+  test "SetTenant sets tenant_id" do
+    tests "SetTenant", on: "Tenancy"
+    input  tenant_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── RetryPolicy aggregate ──────────────────────────────────────────
+
+  test "RetryCommand sets command_name + max_retries" do
+    tests "RetryCommand", on: "RetryPolicy"
+    input  command_name: "sample", max_retries: 1
+    expect ok: "true"
+  end
+
+
+  # ── WebExplorer aggregate ──────────────────────────────────────────
+
+  test "Browse sets domain_name" do
+    tests "Browse", on: "WebExplorer"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+  test "RenderView sets template" do
+    tests "RenderView", on: "WebExplorer"
+    input  template: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ReadmeWriter aggregate ──────────────────────────────────────────
+
+  test "Generate sets root" do
+    tests "Generate", on: "ReadmeWriter"
+    input  root: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── IRIntrospector aggregate ──────────────────────────────────────────
+
+  test "Introspect sets domain_name" do
+    tests "Introspect", on: "IRIntrospector"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+  test "FindCommand sets aggregate_name + command_name" do
+    tests "FindCommand", on: "IRIntrospector"
+    input  aggregate_name: "sample", command_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── EventIntrospector aggregate ──────────────────────────────────────────
+
+  test "ListEvents sets type_filter + aggregate_filter" do
+    tests "ListEvents", on: "EventIntrospector"
+    input  type_filter: "sample", aggregate_filter: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Paginator aggregate ──────────────────────────────────────────
+
+  test "Paginate sets page + per_page" do
+    tests "Paginate", on: "Paginator"
+    input  page: 1, per_page: 1
+    expect ok: "true"
+  end
+
+
+  # ── Renderer aggregate ──────────────────────────────────────────
+
+  test "Render sets template_name" do
+    tests "Render", on: "Renderer"
+    input  template_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── RuntimeBridge aggregate ──────────────────────────────────────────
+
+  test "FindAll sets aggregate_name" do
+    tests "FindAll", on: "RuntimeBridge"
+    input  aggregate_name: "sample"
+    expect ok: "true"
+  end
+
+  test "ExecuteCommand sets aggregate_name + method_name" do
+    tests "ExecuteCommand", on: "RuntimeBridge"
+    input  aggregate_name: "sample", method_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── WebExplorerTemplateBinding aggregate ──────────────────────────────────────────
+
+  test "Bind sets template_name" do
+    tests "Bind", on: "WebExplorerTemplateBinding"
+    input  template_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Slack aggregate ──────────────────────────────────────────
+
+  test "Notify sets channel + message" do
+    tests "Notify", on: "Slack"
+    input  channel: "sample", message: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── OutboxExtension aggregate ──────────────────────────────────────────
+
+  test "Enqueue sets message" do
+    tests "Enqueue", on: "OutboxExtension"
+    input  message: "sample"
+    expect ok: "true"
+  end
+
+  test "Poll sets batch_size" do
+    tests "Poll", on: "OutboxExtension"
+    input  batch_size: 1
+    expect ok: "true"
+  end
+
+
+  # ── FilesystemRepository aggregate ──────────────────────────────────────────
+
+  test "Save sets aggregate_name + data" do
+    tests "Save", on: "FilesystemRepository"
+    input  aggregate_name: "sample", data: "sample"
+    expect ok: "true"
+  end
+
+  test "Load sets aggregate_name + id" do
+    tests "Load", on: "FilesystemRepository"
+    input  aggregate_name: "sample", id: "sample"
+    expect ok: "true"
+  end
+
+  test "Forget sets id" do
+    tests "Forget", on: "FilesystemRepository"
+    input  id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── FileAdapter aggregate ──────────────────────────────────────────
+
+  test "Write sets path + content" do
+    tests "Write", on: "FileAdapter"
+    input  path: "sample", content: "sample"
+    expect ok: "true"
+  end
+
+  test "Read sets path" do
+    tests "Read", on: "FileAdapter"
+    input  path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── RabbitMqAdapter aggregate ──────────────────────────────────────────
+
+  test "Publish sets routing_key + payload" do
+    tests "Publish", on: "RabbitMqAdapter"
+    input  routing_key: "sample", payload: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DomainServer aggregate ──────────────────────────────────────────
+
+  test "Start sets port" do
+    tests "Start", on: "DomainServer"
+    input  port: 1
+    expect ok: "true"
+  end
+
+  test "Stop sets reason" do
+    tests "Stop", on: "DomainServer"
+    input  reason: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── MultiDomainServer aggregate ──────────────────────────────────────────
+
+  test "Start sets port" do
+    tests "Start", on: "MultiDomainServer"
+    input  port: 1
+    expect ok: "true"
+  end
+
+
+  # ── RpcServer aggregate ──────────────────────────────────────────
+
+  test "HandleRequest sets method + params" do
+    tests "HandleRequest", on: "RpcServer"
+    input  method: "sample", params: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── RouteBuilder aggregate ──────────────────────────────────────────
+
+  test "BuildRoutes sets domain_name" do
+    tests "BuildRoutes", on: "RouteBuilder"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── CommandBusPort aggregate ──────────────────────────────────────────
+
+  test "Dispatch sets command_name + params" do
+    tests "Dispatch", on: "CommandBusPort"
+    input  command_name: "sample", params: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Connection aggregate ──────────────────────────────────────────
+
+  test "Connect sets host + port" do
+    tests "Connect", on: "Connection"
+    input  host: "sample", port: 1
+    expect ok: "true"
+  end
+
+
+  # ── DomainWatcher aggregate ──────────────────────────────────────────
+
+  test "Watch sets domain_path" do
+    tests "Watch", on: "DomainWatcher"
+    input  domain_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── RequestWrapper aggregate ──────────────────────────────────────────
+
+  test "Wrap sets path + method" do
+    tests "Wrap", on: "RequestWrapper"
+    input  path: "sample", method: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── CorsHeaders aggregate ──────────────────────────────────────────
+
+  test "ApplyOrigin sets origin" do
+    tests "ApplyOrigin", on: "CorsHeaders"
+    input  origin: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── CsrfHelpers aggregate ──────────────────────────────────────────
+
+  test "Validate sets cookie_token + header_token" do
+    tests "Validate", on: "CsrfHelpers"
+    input  cookie_token: "sample", header_token: "sample"
+    expect ok: "true"
+  end
+
+  test "EnsureCookie sets request_id" do
+    tests "EnsureCookie", on: "CsrfHelpers"
+    input  request_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── RouteDispatcher aggregate ──────────────────────────────────────────
+
+  test "Dispatch sets path + method" do
+    tests "Dispatch", on: "RouteDispatcher"
+    input  path: "sample", method: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── IndexRoute aggregate ──────────────────────────────────────────
+
+  test "ServeIndex sets aggregate_name" do
+    tests "ServeIndex", on: "IndexRoute"
+    input  aggregate_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ShowRoute aggregate ──────────────────────────────────────────
+
+  test "ServeShow sets aggregate_name + id" do
+    tests "ServeShow", on: "ShowRoute"
+    input  aggregate_name: "sample", id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── FormRoute aggregate ──────────────────────────────────────────
+
+  test "ServeForm sets command_name" do
+    tests "ServeForm", on: "FormRoute"
+    input  command_name: "sample"
+    expect ok: "true"
+  end
+
+  test "ServeSubmit sets command_name + params" do
+    tests "ServeSubmit", on: "FormRoute"
+    input  command_name: "sample", params: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── EventRoutes aggregate ──────────────────────────────────────────
+
+  test "ServeEvents sets type_filter" do
+    tests "ServeEvents", on: "EventRoutes"
+    input  type_filter: "sample"
+    expect ok: "true"
+  end
+
+  test "ServeEventsJson sets format" do
+    tests "ServeEventsJson", on: "EventRoutes"
+    input  format: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── UIRoutes aggregate ──────────────────────────────────────────
+
+  test "Mount sets domain_slug" do
+    tests "Mount", on: "UIRoutes"
+    input  domain_slug: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── HttpConnection aggregate ──────────────────────────────────────────
+
+  test "Connect sets host + port" do
+    tests "Connect", on: "HttpConnection"
+    input  host: "sample", port: 1
+    expect ok: "true"
+  end
+
+  test "Start sets reason" do
+    tests "Start", on: "HttpConnection"
+    input  reason: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ScreenRoutes aggregate ──────────────────────────────────────────
+
+  test "HandleAuthRoute sets path + method" do
+    tests "HandleAuthRoute", on: "ScreenRoutes"
+    input  path: "sample", method: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SessionStore aggregate ──────────────────────────────────────────
+
+  test "SetSession sets email + role" do
+    tests "SetSession", on: "SessionStore"
+    input  email: "sample", role: "sample"
+    expect ok: "true"
+  end
+
+  test "RestoreSession sets cookie" do
+    tests "RestoreSession", on: "SessionStore"
+    input  cookie: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── TemplateBinding aggregate ──────────────────────────────────────────
+
+  test "Bind sets template_name" do
+    tests "Bind", on: "TemplateBinding"
+    input  template_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Auth aggregate ──────────────────────────────────────────
+
+  test "Authenticate sets actor" do
+    tests "Authenticate", on: "Auth"
+    input  actor: "sample"
+    expect ok: "true"
+  end
+
+  test "Authorize sets command_name + role" do
+    tests "Authorize", on: "Auth"
+    input  command_name: "sample", role: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Audit aggregate ──────────────────────────────────────────
+
+  test "Record sets command_name + actor" do
+    tests "Record", on: "Audit"
+    input  command_name: "sample", actor: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── PII aggregate ──────────────────────────────────────────
+
+  test "MarkPII sets field" do
+    tests "MarkPII", on: "PII"
+    input  field: "sample"
+    expect ok: "true"
+  end
+
+  test "Erase sets aggregate_id" do
+    tests "Erase", on: "PII"
+    input  aggregate_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── RateLimit aggregate ──────────────────────────────────────────
+
+  test "Check sets command_name + actor" do
+    tests "Check", on: "RateLimit"
+    input  command_name: "sample", actor: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Idempotency aggregate ──────────────────────────────────────────
+
+  test "Check sets idempotency_key" do
+    tests "Check", on: "Idempotency"
+    input  idempotency_key: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── AggregateMapper aggregate ──────────────────────────────────────────
+
+  test "TranslateLegacy sets action + data" do
+    tests "TranslateLegacy", on: "AggregateMapper"
+    input  action: "sample", data: "sample"
+    expect ok: "true"
+  end
+
+  test "ReverseTranslate sets action + data" do
+    tests "ReverseTranslate", on: "AggregateMapper"
+    input  action: "sample", data: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Context aggregate ──────────────────────────────────────────
+
+  test "MapAggregate sets aggregate_name" do
+    tests "MapAggregate", on: "Context"
+    input  aggregate_name: "sample"
+    expect ok: "true"
+  end
+
+  test "Translate sets aggregate_name + action" do
+    tests "Translate", on: "Context"
+    input  aggregate_name: "sample", action: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── OwnershipScopedRepository aggregate ──────────────────────────────────────────
+
+  test "ScopeToOwner sets owner_id" do
+    tests "ScopeToOwner", on: "OwnershipScopedRepository"
+    input  owner_id: "sample"
+    expect ok: "true"
+  end
+
+  test "VerifyOwnership sets record_id" do
+    tests "VerifyOwnership", on: "OwnershipScopedRepository"
+    input  record_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── TenantScopedRepository aggregate ──────────────────────────────────────────
+
+  test "ScopeToTenant sets tenant_id" do
+    tests "ScopeToTenant", on: "TenantScopedRepository"
+    input  tenant_id: "sample"
+    expect ok: "true"
+  end
+
+  test "ForTenant sets tenant_id" do
+    tests "ForTenant", on: "TenantScopedRepository"
+    input  tenant_id: "sample"
+    expect ok: "true"
+  end
+
+end

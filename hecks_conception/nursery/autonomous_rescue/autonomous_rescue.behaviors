@@ -1,0 +1,171 @@
+Hecks.behaviors "AutonomousRescue" do
+  vision "Behavioral tests for the AutonomousRescue domain — exercises every command and query in memory"
+
+  # ── RescueMission aggregate ──────────────────────────────────────────
+
+  test "LaunchMission sets incident_name + incident_type + location" do
+    tests "LaunchMission", on: "RescueMission"
+    input  incident_name: "sample", incident_type: "sample", location: "sample"
+    expect incident_name: "sample", incident_type: "sample", location: "sample", survivors_found: 0, status: "active"
+  end
+
+  test "EscalateMission runs" do
+    tests "EscalateMission", on: "RescueMission"
+    setup  "LaunchMission", incident_name: "sample", incident_type: "sample", location: "sample"
+    expect ok: "true"
+  end
+
+  test "ConcludeMission runs" do
+    tests "ConcludeMission", on: "RescueMission"
+    setup  "LaunchMission", incident_name: "sample", incident_type: "sample", location: "sample"
+    expect status: "concluded"
+  end
+
+
+  # ── SearchDrone aggregate ──────────────────────────────────────────
+
+  test "DeployDrone sets drone_id + mission" do
+    tests "DeployDrone", on: "SearchDrone"
+    input  drone_id: "sample", mission: "sample"
+    expect drone_id: "sample", mission: "sample", battery_percent: 100.0, status: "searching"
+  end
+
+  test "DeployDrone cascades through policy chain" do
+    tests "DeployDrone", on: "SearchDrone", kind: :cascade
+    setup  "InitializeMap", mission: "sample"
+    input  drone_id: "sample", mission: "sample"
+    expect emits: ["DroneDeployed", "MapInitialized"]
+  end
+
+  test "DetectSurvivor sets latitude + longitude + confidence" do
+    tests "DetectSurvivor", on: "SearchDrone"
+    setup  "DeployDrone", drone_id: "sample", mission: "sample"
+    input  latitude: 1.0, longitude: 1.0, confidence: "sample"
+    expect ok: "true"
+  end
+
+  test "DetectSurvivor cascades through policy chain" do
+    tests "DetectSurvivor", on: "SearchDrone", kind: :cascade
+    setup  "DeploySupplyBot", bot_id: "sample", payload_type: "sample", target_beacon: "sample"
+    setup  "MarkBeacon", latitude: 1.0, longitude: 1.0, detection_method: "sample", rescue_priority: "sample", mission: "sample"
+    setup  "InitializeMap", mission: "sample"
+    setup  "DeployDrone", drone_id: "sample", mission: "sample"
+    input  latitude: 1.0, longitude: 1.0, confidence: "sample"
+    expect emits: ["SurvivorDetected", "SupplyBotDeployed", "BeaconCreated", "MapRefreshed"]
+  end
+
+  test "ReportBatteryLow runs" do
+    tests "ReportBatteryLow", on: "SearchDrone"
+    setup  "DeployDrone", drone_id: "sample", mission: "sample"
+    expect status: "returning"
+  end
+
+  test "ReportBatteryLow cascades through policy chain" do
+    tests "ReportBatteryLow", on: "SearchDrone", kind: :cascade
+    setup  "DeployStation", station_id: "sample", location: "sample", charging_slots: 1
+    setup  "DeployDrone", drone_id: "sample", mission: "sample"
+    expect emits: ["DroneBatteryLow", "UnitRoutedToCharger"]
+  end
+
+  test "RecallDrone runs" do
+    tests "RecallDrone", on: "SearchDrone"
+    setup  "DeployDrone", drone_id: "sample", mission: "sample"
+    expect status: "returning"
+  end
+
+
+  # ── SupplyBot aggregate ──────────────────────────────────────────
+
+  test "DeploySupplyBot sets bot_id + payload_type + target_beacon" do
+    tests "DeploySupplyBot", on: "SupplyBot"
+    input  bot_id: "sample", payload_type: "sample", target_beacon: "sample"
+    expect bot_id: "sample", payload_type: "sample", target_beacon: "sample", battery_percent: 100.0, status: "en_route"
+  end
+
+  test "DeliverSupplies runs" do
+    tests "DeliverSupplies", on: "SupplyBot"
+    setup  "DeploySupplyBot", bot_id: "sample", payload_type: "sample", target_beacon: "sample"
+    expect status: "delivered"
+  end
+
+  test "ReportBotBatteryLow runs" do
+    tests "ReportBotBatteryLow", on: "SupplyBot"
+    setup  "DeploySupplyBot", bot_id: "sample", payload_type: "sample", target_beacon: "sample"
+    expect status: "returning"
+  end
+
+  test "ReportBotBatteryLow cascades through policy chain" do
+    tests "ReportBotBatteryLow", on: "SupplyBot", kind: :cascade
+    setup  "DeployStation", station_id: "sample", location: "sample", charging_slots: 1
+    setup  "DeploySupplyBot", bot_id: "sample", payload_type: "sample", target_beacon: "sample"
+    expect emits: ["BotBatteryLow", "UnitRoutedToCharger"]
+  end
+
+  test "ReturnToBase runs" do
+    tests "ReturnToBase", on: "SupplyBot"
+    setup  "DeploySupplyBot", bot_id: "sample", payload_type: "sample", target_beacon: "sample"
+    setup  "ReportBotBatteryLow"
+    expect status: "at_base"
+  end
+
+
+  # ── SurvivorBeacon aggregate ──────────────────────────────────────────
+
+  test "MarkBeacon sets latitude + longitude + detection_method + rescue_priority + mission" do
+    tests "MarkBeacon", on: "SurvivorBeacon"
+    input  latitude: 1.0, longitude: 1.0, detection_method: "sample", rescue_priority: "sample", mission: "sample"
+    expect latitude: 1.0, longitude: 1.0, detection_method: "sample", rescue_priority: "sample", mission: "sample", status: "active"
+  end
+
+  test "ConfirmSurvivor runs" do
+    tests "ConfirmSurvivor", on: "SurvivorBeacon"
+    setup  "MarkBeacon", latitude: 1.0, longitude: 1.0, detection_method: "sample", rescue_priority: "sample", mission: "sample"
+    expect status: "confirmed"
+  end
+
+  test "ExtractSurvivor runs" do
+    tests "ExtractSurvivor", on: "SurvivorBeacon"
+    setup  "MarkBeacon", latitude: 1.0, longitude: 1.0, detection_method: "sample", rescue_priority: "sample", mission: "sample"
+    setup  "ConfirmSurvivor"
+    expect status: "extracted"
+  end
+
+
+  # ── ChargingStation aggregate ──────────────────────────────────────────
+
+  test "DeployStation sets station_id + location + charging_slots" do
+    tests "DeployStation", on: "ChargingStation"
+    input  station_id: "sample", location: "sample", charging_slots: 1
+    expect station_id: "sample", location: "sample", charging_slots: 1, slots_available: 1, status: "operational"
+  end
+
+  test "CompleteCharge runs" do
+    tests "CompleteCharge", on: "ChargingStation"
+    setup  "DeployStation", station_id: "sample", location: "sample", charging_slots: 1
+    expect status: "operational"
+  end
+
+
+  # ── DebrisMap aggregate ──────────────────────────────────────────
+
+  test "InitializeMap sets mission" do
+    tests "InitializeMap", on: "DebrisMap"
+    input  mission: "sample"
+    expect mission: "sample", map_version: "1", sectors_mapped: 0, status: "active"
+  end
+
+  test "RefreshMap sets sectors_mapped" do
+    tests "RefreshMap", on: "DebrisMap"
+    setup  "InitializeMap", mission: "sample"
+    input  sectors_mapped: 1
+    expect sectors_mapped: 1
+  end
+
+  test "FlagUnstableSector sets sector_id" do
+    tests "FlagUnstableSector", on: "DebrisMap"
+    setup  "InitializeMap", mission: "sample"
+    input  sector_id: "sample"
+    expect ok: "true"
+  end
+
+end

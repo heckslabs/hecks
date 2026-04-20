@@ -1,0 +1,266 @@
+Hecks.behaviors "Becoming" do
+  vision "Behavioral tests for the Becoming domain — exercises every command and query in memory"
+
+  # ── Harvest aggregate ──────────────────────────────────────────
+
+  test "ScanNursery sets nursery_path" do
+    tests "ScanNursery", on: "Harvest"
+    input  nursery_path: "sample"
+    expect nursery_ready: true
+  end
+
+  test "HarvestDomains sets nursery_path" do
+    tests "HarvestDomains", on: "Harvest"
+    setup  "ScanNursery", nursery_path: "sample"
+    input  nursery_path: "sample"
+    expect ok: "true"
+  end
+
+  test "HarvestDomains cascades through policy chain" do
+    tests "HarvestDomains", on: "Harvest", kind: :cascade
+    setup  "VaryPrompts"
+    setup  "AddCrossAggregateFlows"
+    setup  "ConceiveNewDomains", topics: "sample", target_count: 1
+    setup  "PrepareSplit"
+    setup  "RunEvaluation"
+    setup  "ScanNursery", nursery_path: "sample"
+    input  nursery_path: "sample"
+    expect emits: ["DomainsHarvested", "PromptsVaried", "NegativesGenerated", "ChainOfThoughtAdded", "CategoriesBalanced", "CrossAggregateFlowsAdded", "WorkflowsDeepened", "NewDomainsConceived", "CrossoversBred", "SplitPrepared", "FineTuneComplete", "EvaluationComplete", "BaselineCompared", "NextRoundDecided"]
+  end
+
+  test "HarvestConversations runs" do
+    tests "HarvestConversations", on: "Harvest"
+    expect ok: "true"
+  end
+
+  test "HarvestDreams runs" do
+    tests "HarvestDreams", on: "Harvest"
+    expect ok: "true"
+  end
+
+  test "HarvestIdentity runs" do
+    tests "HarvestIdentity", on: "Harvest"
+    expect ok: "true"
+  end
+
+
+  # ── Shape aggregate ──────────────────────────────────────────
+
+  test "VaryPrompts runs" do
+    tests "VaryPrompts", on: "Shape"
+    setup  "ScanNursery", nursery_path: "sample"
+    expect ok: "true"
+  end
+
+  test "VaryPrompts cascades through policy chain" do
+    tests "VaryPrompts", on: "Shape", kind: :cascade
+    setup  "ScanNursery", nursery_path: "sample"
+    setup  "AddCrossAggregateFlows"
+    setup  "ConceiveNewDomains", topics: "sample", target_count: 1
+    setup  "PrepareSplit"
+    setup  "RunEvaluation"
+    expect emits: ["PromptsVaried", "NegativesGenerated", "ChainOfThoughtAdded", "CategoriesBalanced", "CrossAggregateFlowsAdded", "WorkflowsDeepened", "NewDomainsConceived", "CrossoversBred", "SplitPrepared", "FineTuneComplete", "EvaluationComplete", "BaselineCompared", "NextRoundDecided"]
+  end
+
+  test "GenerateNegatives runs" do
+    tests "GenerateNegatives", on: "Shape"
+    expect ok: "true"
+  end
+
+  test "GenerateNegatives cascades through policy chain" do
+    tests "GenerateNegatives", on: "Shape", kind: :cascade
+    setup  "ScanNursery", nursery_path: "sample"
+    setup  "AddCrossAggregateFlows"
+    setup  "ConceiveNewDomains", topics: "sample", target_count: 1
+    setup  "PrepareSplit"
+    setup  "RunEvaluation"
+    expect emits: ["NegativesGenerated", "ChainOfThoughtAdded", "CategoriesBalanced", "CrossAggregateFlowsAdded", "WorkflowsDeepened", "NewDomainsConceived", "CrossoversBred", "SplitPrepared", "FineTuneComplete", "EvaluationComplete", "BaselineCompared", "NextRoundDecided"]
+  end
+
+  test "AddChainOfThought runs" do
+    tests "AddChainOfThought", on: "Shape"
+    setup  "ScanNursery", nursery_path: "sample"
+    expect ok: "true"
+  end
+
+  test "AddChainOfThought cascades through policy chain" do
+    tests "AddChainOfThought", on: "Shape", kind: :cascade
+    setup  "ScanNursery", nursery_path: "sample"
+    setup  "AddCrossAggregateFlows"
+    setup  "ConceiveNewDomains", topics: "sample", target_count: 1
+    setup  "PrepareSplit"
+    setup  "RunEvaluation"
+    expect emits: ["ChainOfThoughtAdded", "CategoriesBalanced", "CrossAggregateFlowsAdded", "WorkflowsDeepened", "NewDomainsConceived", "CrossoversBred", "SplitPrepared", "FineTuneComplete", "EvaluationComplete", "BaselineCompared", "NextRoundDecided"]
+  end
+
+  test "CountCategories runs" do
+    tests "CountCategories", on: "Shape"
+    expect categories_counted: true
+  end
+
+  test "BalanceCategories runs" do
+    tests "BalanceCategories", on: "Shape"
+    expect ok: "true"
+  end
+
+  test "BalanceCategories cascades through policy chain" do
+    tests "BalanceCategories", on: "Shape", kind: :cascade
+    setup  "AddCrossAggregateFlows"
+    setup  "ScanNursery", nursery_path: "sample"
+    setup  "ConceiveNewDomains", topics: "sample", target_count: 1
+    setup  "PrepareSplit"
+    setup  "RunEvaluation"
+    expect emits: ["CategoriesBalanced", "CrossAggregateFlowsAdded", "WorkflowsDeepened", "NewDomainsConceived", "CrossoversBred", "SplitPrepared", "FineTuneComplete", "EvaluationComplete", "BaselineCompared", "NextRoundDecided"]
+  end
+
+
+  # ── Enrich aggregate ──────────────────────────────────────────
+
+  test "AddCrossAggregateFlows runs" do
+    tests "AddCrossAggregateFlows", on: "Enrich"
+    setup  "ScanNursery", nursery_path: "sample"
+    expect ok: "true"
+  end
+
+  test "AddCrossAggregateFlows cascades through policy chain" do
+    tests "AddCrossAggregateFlows", on: "Enrich", kind: :cascade
+    setup  "ScanNursery", nursery_path: "sample"
+    setup  "ConceiveNewDomains", topics: "sample", target_count: 1
+    setup  "PrepareSplit"
+    setup  "VaryPrompts"
+    setup  "RunEvaluation"
+    expect emits: ["CrossAggregateFlowsAdded", "WorkflowsDeepened", "NewDomainsConceived", "CrossoversBred", "SplitPrepared", "FineTuneComplete", "EvaluationComplete", "BaselineCompared", "NextRoundDecided"]
+  end
+
+  test "AddSpecifications runs" do
+    tests "AddSpecifications", on: "Enrich"
+    setup  "ScanNursery", nursery_path: "sample"
+    expect ok: "true"
+  end
+
+  test "AddCollections runs" do
+    tests "AddCollections", on: "Enrich"
+    setup  "ScanNursery", nursery_path: "sample"
+    expect ok: "true"
+  end
+
+  test "DeepenWorkflows runs" do
+    tests "DeepenWorkflows", on: "Enrich"
+    setup  "ScanNursery", nursery_path: "sample"
+    expect ok: "true"
+  end
+
+  test "DeepenWorkflows cascades through policy chain" do
+    tests "DeepenWorkflows", on: "Enrich", kind: :cascade
+    setup  "ScanNursery", nursery_path: "sample"
+    setup  "ConceiveNewDomains", topics: "sample", target_count: 1
+    setup  "PrepareSplit"
+    setup  "VaryPrompts"
+    setup  "RunEvaluation"
+    expect emits: ["WorkflowsDeepened", "NewDomainsConceived", "CrossoversBred", "SplitPrepared", "FineTuneComplete", "EvaluationComplete", "BaselineCompared", "NextRoundDecided"]
+  end
+
+
+  # ── Conceive aggregate ──────────────────────────────────────────
+
+  test "ConceiveNewDomains sets topics + target_count" do
+    tests "ConceiveNewDomains", on: "Conceive"
+    input  topics: "sample", target_count: 1
+    expect ok: "true"
+  end
+
+  test "ConceiveNewDomains cascades through policy chain" do
+    tests "ConceiveNewDomains", on: "Conceive", kind: :cascade
+    setup  "PrepareSplit"
+    setup  "VaryPrompts"
+    setup  "RunEvaluation"
+    input  topics: "sample", target_count: 1
+    expect emits: ["NewDomainsConceived", "CrossoversBred", "SplitPrepared", "FineTuneComplete", "EvaluationComplete", "BaselineCompared", "NextRoundDecided"]
+  end
+
+  test "BreedCrossovers sets pair_count" do
+    tests "BreedCrossovers", on: "Conceive"
+    input  pair_count: 1
+    expect ok: "true"
+  end
+
+  test "BreedCrossovers cascades through policy chain" do
+    tests "BreedCrossovers", on: "Conceive", kind: :cascade
+    setup  "PrepareSplit"
+    setup  "VaryPrompts"
+    setup  "RunEvaluation"
+    input  pair_count: 1
+    expect emits: ["CrossoversBred", "SplitPrepared", "FineTuneComplete", "EvaluationComplete", "BaselineCompared", "NextRoundDecided"]
+  end
+
+  test "FuseGenerations sets fusion_count" do
+    tests "FuseGenerations", on: "Conceive"
+    input  fusion_count: 1
+    expect ok: "true"
+  end
+
+
+  # ── Train aggregate ──────────────────────────────────────────
+
+  test "PrepareSplit runs" do
+    tests "PrepareSplit", on: "Train"
+    setup  "VaryPrompts"
+    expect split_ready: true
+  end
+
+  test "PrepareSplit cascades through policy chain" do
+    tests "PrepareSplit", on: "Train", kind: :cascade
+    setup  "VaryPrompts"
+    setup  "RunEvaluation"
+    expect emits: ["SplitPrepared", "FineTuneComplete", "EvaluationComplete", "BaselineCompared", "NextRoundDecided"]
+  end
+
+  test "RunFineTune sets base_model + iterations + learning_rate" do
+    tests "RunFineTune", on: "Train"
+    setup  "PrepareSplit"
+    input  base_model: "sample", iterations: 1, learning_rate: 1.0
+    expect ok: "true"
+  end
+
+  test "RunFineTune cascades through policy chain" do
+    tests "RunFineTune", on: "Train", kind: :cascade
+    setup  "RunEvaluation"
+    setup  "PrepareSplit"
+    input  base_model: "sample", iterations: 1, learning_rate: 1.0
+    expect emits: ["FineTuneComplete", "EvaluationComplete", "BaselineCompared", "NextRoundDecided"]
+  end
+
+
+  # ── Evaluate aggregate ──────────────────────────────────────────
+
+  test "RunEvaluation runs" do
+    tests "RunEvaluation", on: "Evaluate"
+    setup  "PrepareSplit"
+    expect evaluation_complete: true
+  end
+
+  test "RunEvaluation cascades through policy chain" do
+    tests "RunEvaluation", on: "Evaluate", kind: :cascade
+    setup  "PrepareSplit"
+    expect emits: ["EvaluationComplete", "BaselineCompared", "NextRoundDecided"]
+  end
+
+  test "CompareToBaseline runs" do
+    tests "CompareToBaseline", on: "Evaluate"
+    setup  "RunEvaluation"
+    expect ok: "true"
+  end
+
+  test "CompareToBaseline cascades through policy chain" do
+    tests "CompareToBaseline", on: "Evaluate", kind: :cascade
+    setup  "RunEvaluation"
+    expect emits: ["BaselineCompared", "NextRoundDecided"]
+  end
+
+  test "DecideNextRound runs" do
+    tests "DecideNextRound", on: "Evaluate"
+    setup  "RunEvaluation"
+    expect ok: "true"
+  end
+
+end

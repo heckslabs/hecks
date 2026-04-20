@@ -1,0 +1,72 @@
+Hecks.behaviors "TrainingCorpus" do
+  vision "Behavioral tests for the TrainingCorpus domain — exercises every command and query in memory"
+
+  # ── Corpus aggregate ──────────────────────────────────────────
+
+  test "BuildCorpus sets total_domains + format" do
+    tests "BuildCorpus", on: "Corpus"
+    input  total_domains: 1, format: "sample"
+    expect total_domains: 1, format: "sample"
+  end
+
+  test "BuildCorpus cascades through policy chain" do
+    tests "BuildCorpus", on: "Corpus", kind: :cascade
+    input  total_domains: 1, format: "sample"
+    expect emits: ["CorpusBuilt", "DomainsEnriched"]
+  end
+
+
+  # ── QualityTier aggregate ──────────────────────────────────────────
+
+  test "DefineTier sets name + source + description" do
+    tests "DefineTier", on: "QualityTier"
+    input  name: "sample", source: "sample", description: "sample"
+    expect name: "sample", source: "sample", description: "sample"
+  end
+
+
+  # ── TrainingPair aggregate ──────────────────────────────────────────
+
+  test "MintPair sets bluebook_source + ir_json + valid + tier" do
+    tests "MintPair", on: "TrainingPair"
+    input  bluebook_source: "sample", ir_json: "sample", valid: "sample", tier: "sample"
+    expect bluebook_source: "sample", ir_json: "sample", valid: "sample", tier: "sample"
+  end
+
+
+  # ── Enrichment aggregate ──────────────────────────────────────────
+
+  test "EnrichDomains sets strategy + domains_enriched" do
+    tests "EnrichDomains", on: "Enrichment"
+    input  strategy: "sample", domains_enriched: 1
+    expect strategy: "sample", domains_enriched: 1
+  end
+
+
+  # ── ModelSpec aggregate ──────────────────────────────────────────
+
+  test "DefineModel sets name + capabilities + input_format + output_format" do
+    tests "DefineModel", on: "ModelSpec"
+    input  name: "sample", capabilities: "sample", input_format: "sample", output_format: "sample"
+    expect name: "sample", capabilities: "sample", input_format: "sample", output_format: "sample"
+  end
+
+
+  # ── ConversationTranscript aggregate ──────────────────────────────────────────
+
+  test "RecordTranscript sets person + turns + domains_conceived" do
+    tests "RecordTranscript", on: "ConversationTranscript"
+    input  person: "sample", turns: 1, domains_conceived: 1
+    expect person: "sample", turns: 1, domains_conceived: 1
+  end
+
+
+  # ── BehaviorExample aggregate ──────────────────────────────────────────
+
+  test "RecordBehavior sets behavior + organ_name + trigger + example_input + example_output" do
+    tests "RecordBehavior", on: "BehaviorExample"
+    input  behavior: "sample", organ_name: "sample", trigger: "sample", example_input: "sample", example_output: "sample"
+    expect behavior: "sample", organ_name: "sample", trigger: "sample", example_input: "sample", example_output: "sample"
+  end
+
+end

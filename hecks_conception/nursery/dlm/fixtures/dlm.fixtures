@@ -1,0 +1,11 @@
+Hecks.fixtures "DLM" do
+  aggregate "Model" do
+    fixture "Miette_", name: "Miette", corpus_size: 0, aggregate_count: 0, heartbeat: 0, mode: "cold"
+  end
+  aggregate "Honesty" do
+    fixture "Honesty1", total_operations: 0, total_refusals: 0, honesty_rate: 1.0
+  end
+  aggregate "Growth" do
+    fixture "Growth1", sessions_lived: 0, domains_conceived: 0, corpus_at_birth: 0, corpus_now: 0
+  end
+end

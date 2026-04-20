@@ -8,6 +8,7 @@ Hecks.bluebook "Forensics" do
     String :lead_investigator
     String :opened_date
     String :jurisdiction
+    Boolean :all_evidence_analyzed, default: false
 
     command "OpenCase" do
       description "Initiate a new forensic investigation"
@@ -17,11 +18,18 @@ Hecks.bluebook "Forensics" do
       String :lead_investigator
     end
 
+    command "MarkAllEvidenceAnalyzed" do
+      description "Confirm every evidence item for the case has lab results"
+      emits "AllEvidenceAnalyzed"
+      reference_to CriminalCase
+      then_set :all_evidence_analyzed, to: true
+    end
+
     command "CloseCase" do
       description "Conclude the investigation and archive"
       emits "CaseClosed"
       reference_to CriminalCase
-      given "all evidence must be analyzed"
+      given { all_evidence_analyzed == true }
     end
 
     command "ReassignInvestigator" do
@@ -39,6 +47,7 @@ Hecks.bluebook "Forensics" do
     String :evidence_type
     String :collection_location
     String :collected_by
+    Boolean :custody_chain_intact, default: true
     reference_to CriminalCase
 
     value_object "StorageCondition" do
@@ -56,12 +65,18 @@ Hecks.bluebook "Forensics" do
       String :evidence_type
     end
 
+    command "BreakCustodyChain" do
+      description "Record that the chain of custody for this evidence is broken"
+      emits "CustodyChainBroken"
+      reference_to EvidenceItem
+    end
+
     command "TransferCustody" do
       description "Hand evidence to another custodian"
       emits "CustodyTransferred"
       reference_to EvidenceItem
       String :receiving_custodian
-      given "chain of custody must be unbroken"
+      given { custody_chain_intact == true }
     end
 
     command "SealEvidence" do
@@ -77,6 +92,8 @@ Hecks.bluebook "Forensics" do
     String :analyst_name
     String :method
     String :findings
+    Boolean :findings_documented, default: false
+    Boolean :peer_reviewed, default: false
     reference_to EvidenceItem
 
     command "SubmitForAnalysis" do
@@ -92,13 +109,22 @@ Hecks.bluebook "Forensics" do
       emits "FindingsRecorded"
       reference_to LabAnalysis
       String :findings
+      then_set :findings, to: :findings
+      then_set :findings_documented, to: true
+    end
+
+    command "MarkFindingsDocumented" do
+      description "Flag the analysis findings as documented and ready for review"
+      emits "FindingsDocumented"
+      reference_to LabAnalysis
+      then_set :findings_documented, to: true
     end
 
     command "PeerReviewAnalysis" do
       description "Have another analyst verify the results"
       emits "AnalysisPeerReviewed"
       reference_to LabAnalysis
-      given "findings must be documented"
+      given { findings_documented == true }
     end
   end
 
@@ -107,6 +133,7 @@ Hecks.bluebook "Forensics" do
     String :report_number
     String :expert_name
     String :conclusion
+    Boolean :peer_reviewed, default: false
     reference_to LabAnalysis
     reference_to CriminalCase
 
@@ -117,11 +144,18 @@ Hecks.bluebook "Forensics" do
       String :expert_name
     end
 
+    command "MarkReportPeerReviewed" do
+      description "Record that the report has been peer-reviewed by another expert"
+      emits "ReportPeerReviewed"
+      reference_to ExpertReport
+      then_set :peer_reviewed, to: true
+    end
+
     command "FinalizeReport" do
       description "Lock the report for submission to court"
       emits "ReportFinalized"
       reference_to ExpertReport
-      given "report must be peer-reviewed"
+      given { peer_reviewed == true }
     end
   end
 
@@ -193,18 +227,4 @@ Hecks.bluebook "Forensics" do
 
   # === Fixtures ===
 
-  fixture "CriminalCase", case_number: "2026-0847-FEL", case_type: "Homicide", lead_investigator: "Detective James Wright", opened_date: "2026-03-15", jurisdiction: "Cook County"
-  fixture "CriminalCase", case_number: "2026-1203-FEL", case_type: "Robbery", lead_investigator: "Detective Maria Gonzalez", opened_date: "2026-04-01", jurisdiction: "Cook County"
-
-  fixture "EvidenceItem", item_number: "EV-2026-0847-001", description: "Knife recovered from crime scene", evidence_type: "physical", collection_location: "3421 N Clark St, Chicago", collected_by: "Officer Patterson"
-  fixture "EvidenceItem", item_number: "EV-2026-0847-002", description: "Blood sample from victim", evidence_type: "biological", collection_location: "Hospital trauma unit", collected_by: "Nurse Rodriguez"
-
-  fixture "LabAnalysis", analysis_type: "DNA Sequencing", analyst_name: "Dr. Jennifer Lee", method: "PCR amplification", findings: "Match probability 99.8%"
-  fixture "LabAnalysis", analysis_type: "Trace Evidence", analyst_name: "Dr. Robert Kowalski", method: "Scanning electron microscopy", findings: "Fibers consistent with suspect vehicle carpet"
-
-  fixture "ExpertReport", report_number: "EXP-2026-0847-DNA", expert_name: "Dr. Jennifer Lee", conclusion: "DNA evidence matches defendant with high confidence"
-  fixture "ExpertReport", report_number: "EXP-2026-0847-TRACE", expert_name: "Dr. Robert Kowalski", conclusion: "Trace evidence indicates defendant presence at scene"
-
-  fixture "CourtTestimony", testimony_id: "CT-2026-0847-001", court_name: "Superior Court, Criminal Division", hearing_date: "2026-06-15", expert_name: "Dr. Jennifer Lee"
-  fixture "CourtTestimony", testimony_id: "CT-2026-0847-002", court_name: "Superior Court, Criminal Division", hearing_date: "2026-06-20", expert_name: "Dr. Robert Kowalski"
 end

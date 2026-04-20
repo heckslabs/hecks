@@ -93,9 +93,7 @@ Hecks.bluebook "WaterTreatment" do
 
     BypassProcess do
       description "Temporarily route water around a failed treatment stage"
-      reference_to(TreatmentProcess)
       String :reason
-      given { status == "active" }
       emits "ProcessBypassed"
       then_set :status, to: "bypassed"
     end
@@ -136,8 +134,6 @@ Hecks.bluebook "WaterTreatment" do
 
     AnalyzeSample do
       description "Run lab tests on a collected sample"
-      reference_to(WaterSample)
-      given { status == "collected" }
       emits "SampleAnalyzed"
       then_set :status, to: "analyzed"
     end

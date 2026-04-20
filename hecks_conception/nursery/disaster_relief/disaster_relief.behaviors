@@ -1,0 +1,156 @@
+Hecks.behaviors "DisasterRelief" do
+  vision "Behavioral tests for the DisasterRelief domain — exercises every command and query in memory"
+
+  # ── Incident aggregate ──────────────────────────────────────────
+
+  test "DeclareIncident sets incident_name + incident_type + declared_date + affected_area + severity_level" do
+    tests "DeclareIncident", on: "Incident"
+    input  incident_name: "sample", incident_type: "sample", declared_date: "sample", affected_area: "sample", severity_level: "sample"
+    expect incident_name: "sample", incident_type: "sample", declared_date: "sample", affected_area: "sample", severity_level: "sample", status: "active"
+  end
+
+  test "DeclareIncident cascades through policy chain" do
+    tests "DeclareIncident", on: "Incident", kind: :cascade
+    setup  "OrderEvacuation", evacuation_zone: "sample", order_date: "sample", transport_method: "sample", destination: "sample"
+    setup  "OpenShelter", shelter_name: "sample", address: "sample", capacity: 1
+    setup  "RegisterVolunteer", name: "sample", skills: "sample", phone: "sample"
+    setup  "ReceiveSupply", supply_name: "sample", category: "sample", quantity: 1, warehouse_location: "sample"
+    input  incident_name: "sample", incident_type: "sample", declared_date: "sample", affected_area: "sample", severity_level: "sample"
+    expect emits: ["IncidentDeclared", "EvacuationOrdered", "ShelterOpened", "VolunteerDeployed", "SupplyDispatched", "SupplyReceived", "VolunteerRegistered"]
+  end
+
+  test "EscalateIncident sets severity_level" do
+    tests "EscalateIncident", on: "Incident"
+    setup  "DeclareIncident", incident_name: "sample", incident_type: "sample", declared_date: "sample", affected_area: "sample", severity_level: "sample"
+    input  severity_level: "sample"
+    expect severity_level: "sample"
+  end
+
+  test "CloseIncident runs" do
+    tests "CloseIncident", on: "Incident"
+    setup  "DeclareIncident", incident_name: "sample", incident_type: "sample", declared_date: "sample", affected_area: "sample", severity_level: "sample"
+    expect status: "closed"
+  end
+
+  test "CloseIncident cascades through policy chain" do
+    tests "CloseIncident", on: "Incident", kind: :cascade
+    setup  "OpenShelter", shelter_name: "sample", address: "sample", capacity: 1
+    setup  "RegisterVolunteer", name: "sample", skills: "sample", phone: "sample"
+    setup  "DeclareIncident", incident_name: "sample", incident_type: "sample", declared_date: "sample", affected_area: "sample", severity_level: "sample"
+    expect emits: ["IncidentClosed", "ShelterClosed", "VolunteerReleased"]
+  end
+
+
+  # ── Shelter aggregate ──────────────────────────────────────────
+
+  test "OpenShelter sets shelter_name + address + capacity" do
+    tests "OpenShelter", on: "Shelter"
+    setup  "DeclareIncident", incident_name: "sample", incident_type: "sample", declared_date: "sample", affected_area: "sample", severity_level: "sample"
+    input  shelter_name: "sample", address: "sample", capacity: 1
+    expect shelter_name: "sample", address: "sample", capacity: 1, current_occupancy: 0, status: "open"
+  end
+
+  test "OpenShelter cascades through policy chain" do
+    tests "OpenShelter", on: "Shelter", kind: :cascade
+    setup  "DeclareIncident", incident_name: "sample", incident_type: "sample", declared_date: "sample", affected_area: "sample", severity_level: "sample"
+    setup  "RegisterVolunteer", name: "sample", skills: "sample", phone: "sample"
+    setup  "ReceiveSupply", supply_name: "sample", category: "sample", quantity: 1, warehouse_location: "sample"
+    input  shelter_name: "sample", address: "sample", capacity: 1
+    expect emits: ["ShelterOpened", "VolunteerDeployed", "SupplyDispatched"]
+  end
+
+  test "RegisterEvacuee runs" do
+    tests "RegisterEvacuee", on: "Shelter"
+    setup  "OpenShelter", shelter_name: "sample", address: "sample", capacity: 1
+    expect ok: "true"
+  end
+
+  test "CloseShelter runs" do
+    tests "CloseShelter", on: "Shelter"
+    setup  "OpenShelter", shelter_name: "sample", address: "sample", capacity: 1
+    expect status: "closed"
+  end
+
+  test "CloseShelter cascades through policy chain" do
+    tests "CloseShelter", on: "Shelter", kind: :cascade
+    setup  "OpenShelter", shelter_name: "sample", address: "sample", capacity: 1
+    setup  "RegisterVolunteer", name: "sample", skills: "sample", phone: "sample"
+    expect emits: ["ShelterClosed", "VolunteerReleased"]
+  end
+
+
+  # ── ReliefVolunteer aggregate ──────────────────────────────────────────
+
+  test "RegisterVolunteer sets name + skills + phone" do
+    tests "RegisterVolunteer", on: "ReliefVolunteer"
+    input  name: "sample", skills: "sample", phone: "sample"
+    expect name: "sample", skills: "sample", phone: "sample", deployment_status: "available"
+  end
+
+  test "DeployVolunteer sets assigned_location" do
+    tests "DeployVolunteer", on: "ReliefVolunteer"
+    setup  "RegisterVolunteer", name: "sample", skills: "sample", phone: "sample"
+    input  assigned_location: "sample"
+    expect assigned_location: "sample", deployment_status: "deployed"
+  end
+
+  test "ReleaseVolunteer runs" do
+    tests "ReleaseVolunteer", on: "ReliefVolunteer"
+    setup  "RegisterVolunteer", name: "sample", skills: "sample", phone: "sample"
+    expect deployment_status: "available", assigned_location: ""
+  end
+
+
+  # ── ReliefSupply aggregate ──────────────────────────────────────────
+
+  test "ReceiveSupply sets supply_name + category + quantity + warehouse_location" do
+    tests "ReceiveSupply", on: "ReliefSupply"
+    input  supply_name: "sample", category: "sample", quantity: 1, warehouse_location: "sample"
+    expect supply_name: "sample", category: "sample", quantity: 1, warehouse_location: "sample", status: "in_stock"
+  end
+
+  test "DispatchSupply sets destination + quantity_shipped" do
+    tests "DispatchSupply", on: "ReliefSupply"
+    setup  "ReceiveSupply", supply_name: "sample", category: "sample", quantity: 1, warehouse_location: "sample"
+    input  destination: "sample", quantity_shipped: 1
+    expect ok: "true"
+  end
+
+  test "RequestResupply runs" do
+    tests "RequestResupply", on: "ReliefSupply"
+    setup  "ReceiveSupply", supply_name: "sample", category: "sample", quantity: 1, warehouse_location: "sample"
+    expect ok: "true"
+  end
+
+  test "RequestResupply cascades through policy chain" do
+    tests "RequestResupply", on: "ReliefSupply", kind: :cascade
+    setup  "ReceiveSupply", supply_name: "sample", category: "sample", quantity: 1, warehouse_location: "sample"
+    expect emits: ["ResupplyRequested", "SupplyDispatched"]
+  end
+
+
+  # ── Evacuation aggregate ──────────────────────────────────────────
+
+  test "OrderEvacuation sets evacuation_zone + order_date + transport_method + destination" do
+    tests "OrderEvacuation", on: "Evacuation"
+    setup  "DeclareIncident", incident_name: "sample", incident_type: "sample", declared_date: "sample", affected_area: "sample", severity_level: "sample"
+    input  evacuation_zone: "sample", order_date: "sample", transport_method: "sample", destination: "sample"
+    expect evacuation_zone: "sample", order_date: "sample", transport_method: "sample", destination: "sample", status: "ordered", people_evacuated: 0
+  end
+
+  test "ExecuteEvacuation sets people_evacuated" do
+    tests "ExecuteEvacuation", on: "Evacuation"
+    setup  "OrderEvacuation", evacuation_zone: "sample", order_date: "sample", transport_method: "sample", destination: "sample"
+    input  people_evacuated: 1
+    expect people_evacuated: 1, status: "completed"
+  end
+
+  test "ExecuteEvacuation cascades through policy chain" do
+    tests "ExecuteEvacuation", on: "Evacuation", kind: :cascade
+    setup  "OpenShelter", shelter_name: "sample", address: "sample", capacity: 1
+    setup  "OrderEvacuation", evacuation_zone: "sample", order_date: "sample", transport_method: "sample", destination: "sample"
+    input  people_evacuated: 1
+    expect emits: ["EvacuationExecuted", "EvacueeRegistered"]
+  end
+
+end

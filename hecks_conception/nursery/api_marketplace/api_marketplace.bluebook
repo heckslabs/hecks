@@ -32,6 +32,7 @@ Hecks.bluebook "APIMarketplace", version: "2026.04.13.1" do
       description "Mark an API version as deprecated with a sunset date"
       reference_to(APIProduct)
       String :sunset_date
+      then_set :status, to: "deprecated"
       emits "APIDeprecated"
     end
 
@@ -64,6 +65,7 @@ Hecks.bluebook "APIMarketplace", version: "2026.04.13.1" do
       String :email
       String :organization
       String :plan
+      then_set :status, to: "active"
       emits "ConsumerRegistered"
     end
 
@@ -106,6 +108,7 @@ Hecks.bluebook "APIMarketplace", version: "2026.04.13.1" do
       String :scope
       String :expires_at
       reference_to(Consumer)
+      then_set :status, to: "active"
       emits "KeyIssued"
     end
 
@@ -187,6 +190,7 @@ Hecks.bluebook "APIMarketplace", version: "2026.04.13.1" do
       Integer :total_calls
       String :billing_period
       reference_to(Consumer)
+      then_set :status, to: "unpaid"
       emits "BillGenerated"
     end
 
@@ -256,77 +260,4 @@ Hecks.bluebook "APIMarketplace", version: "2026.04.13.1" do
     trigger "RotateKey"
   end
 
-  fixture "APIProduct",
-    api_name: "Weather Data API",
-    version: "2.1.0",
-    description: "Real-time weather conditions and forecasts",
-    base_url: "https://api.weather.example.com",
-    auth_method: "Bearer Token",
-    status: "published"
-
-  fixture "APIProduct",
-    api_name: "Payment Processing API",
-    version: "3.0.0",
-    description: "PCI-compliant payment processing",
-    base_url: "https://api.payments.example.com",
-    auth_method: "OAuth 2.0",
-    status: "published"
-
-  fixture "Consumer",
-    consumer_name: "TechStart Labs",
-    email: "dev@techstart.local",
-    organization: "TechStart Labs Inc",
-    plan: "enterprise",
-    status: "active"
-
-  fixture "Consumer",
-    consumer_name: "Mobile Devs Studio",
-    email: "engineering@mobiledevs.local",
-    organization: "Mobile Devs Studio",
-    plan: "pro",
-    status: "active"
-
-  fixture "APIKey",
-    key_id: "key_prod_abc123xyz",
-    key_hash: "sha256$abcd1234",
-    label: "Production Key",
-    scope: "read:weather write:cache",
-    expires_at: "2027-04-14",
-    status: "active"
-
-  fixture "APIKey",
-    key_id: "key_dev_test999",
-    key_hash: "sha256$zxcv9876",
-    label: "Development Key",
-    scope: "read:payments",
-    expires_at: "2026-06-14",
-    status: "active"
-
-  fixture "RateLimitPolicy",
-    policy_name: "Standard API Rate Limit",
-    requests_per_minute: 120,
-    requests_per_day: 50000,
-    burst_limit: 200,
-    status: "active"
-
-  fixture "RateLimitPolicy",
-    policy_name: "Enterprise API Rate Limit",
-    requests_per_minute: 1000,
-    requests_per_day: 500000,
-    burst_limit: 2000,
-    status: "active"
-
-  fixture "UsageBill",
-    bill_id: "bill_2026_04_001",
-    amount: 450.75,
-    total_calls: 125000,
-    billing_period: "2026-03-01 to 2026-03-31",
-    status: "unpaid"
-
-  fixture "UsageBill",
-    bill_id: "bill_2026_04_002",
-    amount: 1200.50,
-    total_calls: 350000,
-    billing_period: "2026-03-01 to 2026-03-31",
-    status: "paid"
 end

@@ -17,7 +17,7 @@ Hecks.bluebook "ELearning", version: "2026.04.13.1" do
       Integer :lesson_count
     end
 
-    CreateCourse do
+    AuthorCourse do
       role "Instructor"
       description "Author a new course with subject matter and difficulty"
       String :course_title
@@ -25,7 +25,8 @@ Hecks.bluebook "ELearning", version: "2026.04.13.1" do
       String :subject_area
       String :difficulty_level
       Integer :estimated_hours
-      emits "CourseCreated"
+      then_set :status, to: "draft"
+      emits "CourseAuthored"
     end
 
     PublishCourse do
@@ -62,14 +63,15 @@ Hecks.bluebook "ELearning", version: "2026.04.13.1" do
       String :enrollment_id
       String :student_email
       reference_to(Course)
+      then_set :status, to: "active"
       emits "StudentEnrolled"
     end
 
-    UpdateProgress do
+    RecordProgress do
       description "Record advancement through course material"
       reference_to(Enrollment)
       Float :progress_pct
-      emits "ProgressUpdated"
+      emits "ProgressRecorded"
     end
 
     WithdrawEnrollment do
@@ -104,14 +106,15 @@ Hecks.bluebook "ELearning", version: "2026.04.13.1" do
       Integer :duration_minutes
       Integer :sequence_order
       reference_to(Course)
+      then_set :status, to: "published"
       emits "LessonAuthored"
     end
 
-    UpdateLesson do
+    ReviseLesson do
       description "Revise the content of an existing lesson"
       reference_to(Lesson)
       String :body
-      emits "LessonUpdated"
+      emits "LessonRevised"
     end
 
     ArchiveLesson do
@@ -137,7 +140,7 @@ Hecks.bluebook "ELearning", version: "2026.04.13.1" do
       Integer :points
     end
 
-    CreateQuiz do
+    AuthorQuiz do
       role "Instructor"
       description "Design a quiz with questions and passing criteria"
       String :quiz_title
@@ -145,7 +148,8 @@ Hecks.bluebook "ELearning", version: "2026.04.13.1" do
       Integer :time_limit_minutes
       Integer :max_attempts
       reference_to(Lesson)
-      emits "QuizCreated"
+      then_set :status, to: "active"
+      emits "QuizAuthored"
     end
 
     SubmitAttempt do
@@ -187,6 +191,7 @@ Hecks.bluebook "ELearning", version: "2026.04.13.1" do
       String :course_title
       String :verification_code
       reference_to(Enrollment)
+      then_set :status, to: "valid"
       emits "CertificateIssued"
     end
 
@@ -214,35 +219,30 @@ Hecks.bluebook "ELearning", version: "2026.04.13.1" do
     state "certified"
 
     transition from: "enrolled", to: "in_progress", on: "StudentEnrolled"
-    transition from: "in_progress", to: "lesson_complete", on: "ProgressUpdated"
+    transition from: "in_progress", to: "lesson_complete", on: "ProgressRecorded"
     transition from: "lesson_complete", to: "quiz_submitted", on: "AttemptSubmitted"
     transition from: "quiz_submitted", to: "graded", on: "AttemptSubmitted"
     transition from: "graded", to: "certified", on: "CertificateIssued"
   end
 
-  policy "StudentEnrolledUpdateProgress" do
+  policy "StudentEnrolledRecordProgress" do
     on "StudentEnrolled"
-    trigger "UpdateProgress"
+    trigger "RecordProgress"
   end
 
-  policy "LessonAuthoredCreateQuiz" do
+  policy "LessonAuthoredAuthorQuiz" do
     on "LessonAuthored"
-    trigger "CreateQuiz"
+    trigger "AuthorQuiz"
   end
 
-  policy "ProgressUpdatedSubmitAttempt" do
-    on "ProgressUpdated"
+  policy "ProgressRecordedSubmitAttempt" do
+    on "ProgressRecorded"
     trigger "SubmitAttempt"
   end
 
   policy "AttemptSubmittedGrade" do
     on "AttemptSubmitted"
-    trigger "UpdateProgress"
-  end
-
-  policy "CourseCompletedIssueCertificate" do
-    on "ProgressUpdated"
-    trigger "IssueCertificate"
+    trigger "RecordProgress"
   end
 
   policy "CertificateIssuedVerify" do
@@ -255,18 +255,4 @@ Hecks.bluebook "ELearning", version: "2026.04.13.1" do
     trigger "PublishCourse"
   end
 
-  fixture "Course", course_title: "Introduction to Python Programming", instructor: "Dr. Alice Wang", subject_area: "Computer Science", difficulty_level: "beginner", estimated_hours: 40, status: "published"
-  fixture "Course", course_title: "Advanced Data Science with R", instructor: "Prof. David Martinez", subject_area: "Data Analytics", difficulty_level: "advanced", estimated_hours: 60, status: "draft"
-
-  fixture "Enrollment", enrollment_id: "ENR-2026-001", student_email: "john.doe@example.com", enrolled_at: "2026-03-15", progress_pct: 45.5, status: "active"
-  fixture "Enrollment", enrollment_id: "ENR-2026-002", student_email: "jane.smith@example.com", enrolled_at: "2026-02-01", progress_pct: 100.0, status: "completed"
-
-  fixture "Lesson", lesson_title: "Variables and Data Types", content_type: "video", body: "Learn about Python variables, integers, strings, and lists", duration_minutes: 30, sequence_order: 1, status: "published"
-  fixture "Lesson", lesson_title: "Functions and Modules", content_type: "interactive", body: "Master function definition, parameters, and module imports", duration_minutes: 45, sequence_order: 2, status: "published"
-
-  fixture "Quiz", quiz_title: "Python Basics Checkpoint", passing_score: 70, time_limit_minutes: 30, max_attempts: 3, status: "active"
-  fixture "Quiz", quiz_title: "Final Examination", passing_score: 80, time_limit_minutes: 90, max_attempts: 2, status: "suspended"
-
-  fixture "Certificate", certificate_id: "CERT-2026-001", student_email: "jane.smith@example.com", course_title: "Introduction to Python Programming", issued_at: "2026-04-10", verification_code: "PYTHON-2026-ABC123", status: "valid"
-  fixture "Certificate", certificate_id: "CERT-2026-002", student_email: "michael.brown@example.com", course_title: "Web Development Fundamentals", issued_at: "2026-03-25", verification_code: "WEBDEV-2026-XYZ789", status: "valid"
 end

@@ -1,0 +1,28 @@
+Hecks.bluebook "WithPolicy", version: "2026.04.18.1" do
+  vision "Cross-aggregate policy — event in one, command in another"
+
+  aggregate "Order", "An order placed by a customer" do
+    attribute :total, Integer
+
+    command "Place" do
+      role "Customer"
+      attribute :total, Integer
+      emits "Placed"
+    end
+  end
+
+  aggregate "Inventory", "Tracks stock decrements" do
+    attribute :remaining, Integer
+
+    command "Decrement" do
+      role "System"
+      attribute :amount, Integer
+      emits "Decremented"
+    end
+  end
+
+  policy "DecrementOnPlace" do
+    on "Placed"
+    trigger "Decrement"
+  end
+end

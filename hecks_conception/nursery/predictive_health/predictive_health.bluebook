@@ -60,9 +60,9 @@ Hecks.bluebook "PredictiveHealth" do
       end
     end
 
-    command "CreateModel" do
+    command "Train" do
       role "DataScientist"
-      goal "Create a new predictive risk model"
+      goal "Train a new predictive risk model"
       attribute :model_name
     end
 
@@ -196,15 +196,4 @@ Hecks.bluebook "PredictiveHealth" do
     map policy_pricing_id: :pricing_id, reason: :diagnosis
   end
 
-  fixture "GeneticProfile", patient_id: "P-10001", ethnicity: "European", markers: [], status: "sequencing"
-  fixture "GeneticProfile", patient_id: "P-10002", ethnicity: "African", markers: [], status: "completed"
-
-  fixture "RiskModel", model_name: "CardiacRisk-v3", conditions: [], accuracy: 0.0, status: "training"
-  fixture "RiskModel", model_name: "DiabetesRisk-v2", conditions: [], accuracy: 0.87, status: "production"
-
-  fixture "InsuranceClaim", claimant_name: "Jane Doe", diagnosis: "Myocardial Infarction", amount_cents: 500000, documents: [], status: "submitted"
-  fixture "InsuranceClaim", claimant_name: "John Smith", diagnosis: "Type 2 Diabetes", amount_cents: 250000, documents: [], status: "approved"
-
-  fixture "PolicyPricing", premium_cents: 125000, risk_score: 0.45, adjustments: [], status: "calculating"
-  fixture "PolicyPricing", premium_cents: 95000, risk_score: 0.28, adjustments: [], status: "approved"
 end

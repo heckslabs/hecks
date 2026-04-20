@@ -1,0 +1,58 @@
+Hecks.behaviors "GridDefense" do
+  vision "Behavioral tests for the GridDefense domain — exercises every command and query in memory"
+
+  # ── GridAsset aggregate ──────────────────────────────────────────
+
+  test "RegisterAsset sets asset_id + asset_type + location + capacity_mw" do
+    tests "RegisterAsset", on: "GridAsset"
+    input  asset_id: "sample", asset_type: "sample", location: "sample", capacity_mw: 1.0
+    expect asset_id: "sample", asset_type: "sample", location: "sample", capacity_mw: 1.0
+  end
+
+  test "IsolateAsset runs" do
+    tests "IsolateAsset", on: "GridAsset"
+    setup  "RegisterAsset", asset_id: "sample", asset_type: "sample", location: "sample", capacity_mw: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── ThreatIntel aggregate ──────────────────────────────────────────
+
+  test "IngestFeed sets source" do
+    tests "IngestFeed", on: "ThreatIntel"
+    input  source: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Incident aggregate ──────────────────────────────────────────
+
+  test "DetectIncident sets incident_type + severity" do
+    tests "DetectIncident", on: "Incident"
+    setup  "RegisterAsset", asset_id: "sample", asset_type: "sample", location: "sample", capacity_mw: 1.0
+    input  incident_type: "sample", severity: "sample"
+    expect ok: "true"
+  end
+
+  test "ContainIncident runs" do
+    tests "ContainIncident", on: "Incident"
+    setup  "DetectIncident", incident_type: "sample", severity: "sample"
+    expect ok: "true"
+  end
+
+  test "ResolveIncident runs" do
+    tests "ResolveIncident", on: "Incident"
+    setup  "DetectIncident", incident_type: "sample", severity: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── LoadBalancer aggregate ──────────────────────────────────────────
+
+  test "InitiateRebalance sets region" do
+    tests "InitiateRebalance", on: "LoadBalancer"
+    input  region: "sample"
+    expect ok: "true"
+  end
+
+end

@@ -1,0 +1,18 @@
+Hecks.fixtures "StormwaterManagement" do
+  aggregate "Watershed" do
+    fixture "Bear_Creek_Basin_", name: "Bear Creek Basin", area_sq_km: 245.5, soil_type: "Clay Loam", impervious_pct: 18.5, runoff_coefficient: 0.42, status: "delineated"
+    fixture "South_Platte_Tributary_", name: "South Platte Tributary", area_sq_km: 412.0, soil_type: "Sandy Loam", impervious_pct: 25.0, runoff_coefficient: 0.55, status: "delineated"
+  end
+  aggregate "DrainNetwork" do
+    fixture "Downtown_Storm_Sewer_", name: "Downtown Storm Sewer", watershed_name: "Bear Creek Basin", total_capacity_cms: 45.5, inlet_count: 12, outlet_count: 2, status: "mapped"
+    fixture "Industrial_Park_System_", name: "Industrial Park System", watershed_name: "South Platte Tributary", total_capacity_cms: 62.0, inlet_count: 18, outlet_count: 3, status: "mapped"
+  end
+  aggregate "StormEvent" do
+    fixture "April_2026_Thunderstorm_", name: "April 2026 Thunderstorm", intensity_mm_hr: 35.0, duration_hours: 2.5, return_period_years: 10, total_rainfall_mm: 87.5, runoff_volume_m3: 25650.0, status: "recorded"
+    fixture "Spring_Runoff_Peak_", name: "Spring Runoff Peak", intensity_mm_hr: 22.0, duration_hours: 4.0, return_period_years: 5, total_rainfall_mm: 88.0, runoff_volume_m3: 35200.0, status: "recorded"
+  end
+  aggregate "ComplianceReport" do
+    fixture "ComplianceReport1", watershed_name: "Bear Creek Basin", permit_number: "PERMIT-2024-1847", max_discharge_cms: 42.0, actual_discharge_cms: 38.5, compliance_status: "Compliant", report_date: "2026-04-01", status: "filed"
+    fixture "ComplianceReport2", watershed_name: "South Platte Tributary", permit_number: "PERMIT-2024-1848", max_discharge_cms: 60.0, actual_discharge_cms: 58.2, compliance_status: "Compliant", report_date: "2026-04-05", status: "filed"
+  end
+end

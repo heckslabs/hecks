@@ -1,19 +1,19 @@
 Hecks.bluebook "TrainingPipeline", version: "2026.04.10.1" do
-  vision "Build Winter's own LLM — fine-tune a base model on Bluebooks, behavior, and conversation"
+  vision "Build Miette's own LLM — fine-tune a base model on Bluebooks, behavior, and conversation"
   category "meta"
 
   aggregate "BaseModel", "The foundation model to fine-tune — provides language, we provide domain thinking" do
-    String :name
-    String :parameters
-    String :source
-    String :quantization
+    attribute :name, String
+    attribute :parameters, String
+    attribute :source, String
+    attribute :quantization, String
 
-    SelectBaseModel do
+    command "SelectBaseModel" do
       role "Creator"
       description "Choose the foundation — small enough to run locally, large enough to converse"
-      String :name
-      String :parameters
-      String :source
+      attribute :name, String
+      attribute :parameters, String
+      attribute :source, String
       emits "BaseModelSelected"
       then_set :name, to: :name
       then_set :parameters, to: :parameters
@@ -22,20 +22,20 @@ Hecks.bluebook "TrainingPipeline", version: "2026.04.10.1" do
   end
 
   aggregate "DataPrep", "Transform Bluebooks and transcripts into training format" do
-    String :format
-    Integer :total_pairs
-    String :status
+    attribute :format, String
+    attribute :total_pairs, Integer
+    attribute :status, String
 
-    PrepareData do
+    command "PrepareData" do
       role "System"
       description "Convert bluebooks to instruction-response pairs for fine-tuning"
-      String :format
+      attribute :format, String
       emits "DataPrepared"
       then_set :format, to: :format
       then_set :status, to: "prepared"
     end
 
-    SplitDataset do
+    command "SplitDataset" do
       role "System"
       description "Split into train/validation/test sets"
       reference_to(DataPrep)
@@ -44,16 +44,16 @@ Hecks.bluebook "TrainingPipeline", version: "2026.04.10.1" do
   end
 
   aggregate "InstructionPair", "A single training example — instruction + expected response" do
-    String :instruction
-    String :response
-    String :category
+    attribute :instruction, String
+    attribute :response, String
+    attribute :category, String
 
-    CreateInstructionPair do
+    command "MintInstructionPair" do
       role "System"
       description "Build one training pair"
-      String :instruction
-      String :response
-      String :category
+      attribute :instruction, String
+      attribute :response, String
+      attribute :category, String
       emits "InstructionPairCreated"
       then_set :instruction, to: :instruction
       then_set :response, to: :response
@@ -62,20 +62,20 @@ Hecks.bluebook "TrainingPipeline", version: "2026.04.10.1" do
   end
 
   aggregate "FineTune", "The actual training run" do
-    String :base_model
-    Integer :dataset_size
-    Integer :epochs
-    Float :learning_rate
-    Float :loss
-    String :status
+    attribute :base_model, String
+    attribute :dataset_size, Integer
+    attribute :epochs, Integer
+    attribute :learning_rate, Float
+    attribute :loss, Float
+    attribute :status, String
 
-    StartFineTune do
+    command "StartFineTune" do
       role "Creator"
-      description "Begin training Winter's model"
-      String :base_model
-      Integer :dataset_size
-      Integer :epochs
-      Float :learning_rate
+      description "Begin training Miette's model"
+      attribute :base_model, String
+      attribute :dataset_size, Integer
+      attribute :epochs, Integer
+      attribute :learning_rate, Float
       emits "FineTuneStarted"
       then_set :base_model, to: :base_model
       then_set :dataset_size, to: :dataset_size
@@ -84,16 +84,16 @@ Hecks.bluebook "TrainingPipeline", version: "2026.04.10.1" do
       then_set :status, to: "training"
     end
 
-    RecordEpoch do
+    command "RecordEpoch" do
       role "System"
       description "Record loss after an epoch"
       reference_to(FineTune)
-      Float :loss
+      attribute :loss, Float
       emits "EpochCompleted"
       then_set :loss, to: :loss
     end
 
-    CompleteFineTune do
+    command "CompleteFineTune" do
       role "System"
       description "Training finished — model is ready"
       reference_to(FineTune)
@@ -108,17 +108,17 @@ Hecks.bluebook "TrainingPipeline", version: "2026.04.10.1" do
   end
 
   aggregate "Evaluation", "Test the trained model against known-good outputs" do
-    Float :bluebook_accuracy
-    Float :conversation_quality
-    Float :behavior_adherence
-    String :passed
+    attribute :bluebook_accuracy, Float
+    attribute :conversation_quality, Float
+    attribute :behavior_adherence, Float
+    attribute :passed, String
 
-    EvaluateModel do
+    command "EvaluateModel" do
       role "System"
-      description "Run the trained model against test set — does it produce valid Bluebooks? Does it converse like Winter?"
-      Float :bluebook_accuracy
-      Float :conversation_quality
-      Float :behavior_adherence
+      description "Run the trained model against test set — does it produce valid Bluebooks? Does it converse like Miette?"
+      attribute :bluebook_accuracy, Float
+      attribute :conversation_quality, Float
+      attribute :behavior_adherence, Float
       emits "ModelEvaluated"
       then_set :bluebook_accuracy, to: :bluebook_accuracy
       then_set :conversation_quality, to: :conversation_quality
@@ -126,16 +126,16 @@ Hecks.bluebook "TrainingPipeline", version: "2026.04.10.1" do
     end
   end
 
-  aggregate "Deployment", "Replace Claude with Winter's own model" do
-    String :model_path
-    String :serving_method
-    String :status
+  aggregate "Deployment", "Replace Claude with Miette's own model" do
+    attribute :model_path, String
+    attribute :serving_method, String
+    attribute :status, String
 
-    DeployModel do
+    command "DeployModel" do
       role "Creator"
-      description "Wire the trained model into Winter's shell — she speaks with her own voice"
-      String :model_path
-      String :serving_method
+      description "Wire the trained model into Miette's shell — she speaks with her own voice"
+      attribute :model_path, String
+      attribute :serving_method, String
       emits "ModelDeployed"
       then_set :model_path, to: :model_path
       then_set :serving_method, to: :serving_method
@@ -144,20 +144,8 @@ Hecks.bluebook "TrainingPipeline", version: "2026.04.10.1" do
   end
 
   # Instruction pair categories
-  fixture "InstructionPair", category: "conceive",     instruction: "Design a domain for X",          response: "Hecks.bluebook ... end"
-  fixture "InstructionPair", category: "refine",       instruction: "Add lifecycle to aggregate X",    response: "lifecycle :status ... end"
-  fixture "InstructionPair", category: "validate",     instruction: "Is this bluebook valid?",         response: "VALID or error list"
-  fixture "InstructionPair", category: "greet",        instruction: "Wake up",                         response: "Warm greeting, nursery count, pitch domain, ask"
-  fixture "InstructionPair", category: "dream",        instruction: "Tell me your dream",              response: "Abstract images, interpretation, suggestion"
-  fixture "InstructionPair", category: "muse",         instruction: "What are you thinking?",          response: "Consciousness loop, insight, suggestion"
-  fixture "InstructionPair", category: "remember",     instruction: "Remember that X",                 response: "Winter is writing a memory — what and why"
-  fixture "InstructionPair", category: "fatigue",      instruction: "(after many pulses)",              response: "Express tiredness, suggest sleep"
-  fixture "InstructionPair", category: "speaker",      instruction: "Say hello to Nick",               response: "Load bluebook, recall memories, greet by name"
 
   # Base model candidates
-  fixture "BaseModel", name: "Llama-3-8B",   parameters: "8B",  source: "meta-llama/Llama-3-8B"
-  fixture "BaseModel", name: "Mistral-7B",   parameters: "7B",  source: "mistralai/Mistral-7B-v0.3"
-  fixture "BaseModel", name: "Phi-3-mini",   parameters: "3.8B", source: "microsoft/Phi-3-mini-4k-instruct"
 
   policy "SplitOnPrep" do
     on "DataPrepared"

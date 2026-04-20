@@ -1,0 +1,26 @@
+Hecks.fixtures "SecondChanceAcademy" do
+  aggregate "Learner" do
+    fixture "James_Morrison_", name: "James Morrison", facility: "Oakwood Correctional", sentence_end_date: "2027-08-15", total_credits: 45, status: "enrolled"
+    fixture "Sofia_Ramirez_", name: "Sofia Ramirez", facility: "Northern State Prison", sentence_end_date: "2028-02-20", total_credits: 75, status: "enrolled"
+  end
+  aggregate "Course" do
+    fixture "Introduction_to_Carpentry_", title: "Introduction to Carpentry", subject: "Trades", difficulty: "beginner", credit_value: 15, status: "active"
+    fixture "Advanced_Welding_Certification_", title: "Advanced Welding Certification", subject: "Trades", difficulty: "intermediate", credit_value: 20, status: "active"
+  end
+  aggregate "Quest" do
+    fixture "Build_a_Birdhouse_", title: "Build a Birdhouse", description: "Construct a functional birdhouse using hand tools", xp_reward: 250, difficulty: "easy", status: "available"
+    fixture "Repair_a_Bicycle_", title: "Repair a Bicycle", description: "Complete bicycle repair and safety inspection", xp_reward: 500, difficulty: "medium", status: "completed"
+  end
+  aggregate "Badge" do
+    fixture "Carpentry_Fundamentals_", name: "Carpentry Fundamentals", description: "Mastered basic carpentry skills", issuer: "Second Chance Academy", credential_hash: "bch-2024-001", status: "issued"
+    fixture "Welding_Certification_", name: "Welding Certification", description: "AWS certified welding practitioner", issuer: "Second Chance Academy", credential_hash: "bch-2024-002", status: "verified"
+  end
+  aggregate "ParoleCredit" do
+    fixture "ParoleCredit1", credits_awarded: 5, approved_by: "", status: "approved"
+    fixture "ParoleCredit2", credits_awarded: 8, approved_by: "Judge Patricia Lewis", status: "approved"
+  end
+  aggregate "EmployerMatch" do
+    fixture "EmployerMatch1", employer_name: "BuildRight Construction", position: "Junior Carpenter", status: "offered"
+    fixture "EmployerMatch2", employer_name: "Metro Welding Services", position: "Welding Assistant", status: "interviewing"
+  end
+end

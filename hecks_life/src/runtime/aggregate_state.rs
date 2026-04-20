@@ -60,6 +60,27 @@ impl AggregateState {
             .insert(field.to_string(), Value::Int(current - amount));
     }
 
+    /// Float-aware increment. The Bluebook DSL allows fractional
+    /// increments (`then_set :fatigue, increment: 0.01`); the int-only
+    /// `increment()` would silently round 0.01 to 1 (after the
+    /// `unwrap_or(1)` fallback in the interpreter), so fatigue would
+    /// track beats one-to-one instead of accumulating slowly. This
+    /// path stores the result as a `Str` representation of the float
+    /// so it round-trips through the DSL's numeric coercion.
+    pub fn increment_float(&mut self, field: &str, amount: f64) {
+        let current = current_numeric(self.fields.get(field));
+        let new_val = current + amount;
+        self.fields
+            .insert(field.to_string(), Value::Str(format_numeric(new_val)));
+    }
+
+    pub fn decrement_float(&mut self, field: &str, amount: f64) {
+        let current = current_numeric(self.fields.get(field));
+        let new_val = current - amount;
+        self.fields
+            .insert(field.to_string(), Value::Str(format_numeric(new_val)));
+    }
+
     pub fn toggle(&mut self, field: &str) {
         let current = match self.fields.get(field) {
             Some(Value::Bool(b)) => *b,
@@ -67,5 +88,24 @@ impl AggregateState {
         };
         self.fields
             .insert(field.to_string(), Value::Bool(!current));
+    }
+}
+
+fn current_numeric(v: Option<&Value>) -> f64 {
+    match v {
+        Some(Value::Int(n)) => *n as f64,
+        Some(Value::Str(s)) => s.parse::<f64>().unwrap_or(0.0),
+        _ => 0.0,
+    }
+}
+
+/// Format a numeric value for storage. Whole-valued floats stringify
+/// as "3" (not "3.0") so they keep parity with Int(3) for downstream
+/// equality comparisons; fractional values keep their decimal form.
+fn format_numeric(n: f64) -> String {
+    if n == n.trunc() && n.abs() < 1e15 {
+        format!("{}", n as i64)
+    } else {
+        format!("{}", n)
     }
 }

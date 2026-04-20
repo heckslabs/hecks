@@ -1,0 +1,155 @@
+Hecks.behaviors "ELearning" do
+  vision "Behavioral tests for the ELearning domain — exercises every command and query in memory"
+
+  # ── Course aggregate ──────────────────────────────────────────
+
+  test "AuthorCourse sets course_title + instructor + subject_area + difficulty_level + estimated_hours" do
+    tests "AuthorCourse", on: "Course"
+    input  course_title: "sample", instructor: "sample", subject_area: "sample", difficulty_level: "sample", estimated_hours: 1
+    expect status: "draft"
+  end
+
+  test "PublishCourse runs" do
+    tests "PublishCourse", on: "Course"
+    setup  "AuthorCourse", course_title: "sample", instructor: "sample", subject_area: "sample", difficulty_level: "sample", estimated_hours: 1
+    expect ok: "true"
+  end
+
+  test "RetireCourse runs" do
+    tests "RetireCourse", on: "Course"
+    setup  "AuthorCourse", course_title: "sample", instructor: "sample", subject_area: "sample", difficulty_level: "sample", estimated_hours: 1
+    expect ok: "true"
+  end
+
+
+  # ── Enrollment aggregate ──────────────────────────────────────────
+
+  test "EnrollStudent sets enrollment_id + student_email" do
+    tests "EnrollStudent", on: "Enrollment"
+    setup  "AuthorCourse", course_title: "sample", instructor: "sample", subject_area: "sample", difficulty_level: "sample", estimated_hours: 1
+    input  enrollment_id: "sample", student_email: "sample"
+    expect status: "active"
+  end
+
+  test "EnrollStudent cascades through policy chain" do
+    tests "EnrollStudent", on: "Enrollment", kind: :cascade
+    setup  "AuthorCourse", course_title: "sample", instructor: "sample", subject_area: "sample", difficulty_level: "sample", estimated_hours: 1
+    setup  "AuthorQuiz", quiz_title: "sample", passing_score: 1, time_limit_minutes: 1, max_attempts: 1
+    input  enrollment_id: "sample", student_email: "sample"
+    expect emits: ["StudentEnrolled", "ProgressRecorded", "AttemptSubmitted", "ProgressRecorded"]
+  end
+
+  test "RecordProgress sets progress_pct" do
+    tests "RecordProgress", on: "Enrollment"
+    setup  "EnrollStudent", enrollment_id: "sample", student_email: "sample"
+    input  progress_pct: 1.0
+    expect ok: "true"
+  end
+
+  test "RecordProgress cascades through policy chain" do
+    tests "RecordProgress", on: "Enrollment", kind: :cascade
+    setup  "EnrollStudent", enrollment_id: "sample", student_email: "sample"
+    setup  "AuthorQuiz", quiz_title: "sample", passing_score: 1, time_limit_minutes: 1, max_attempts: 1
+    input  progress_pct: 1.0
+    expect emits: ["ProgressRecorded", "AttemptSubmitted", "ProgressRecorded"]
+  end
+
+  test "WithdrawEnrollment runs" do
+    tests "WithdrawEnrollment", on: "Enrollment"
+    setup  "EnrollStudent", enrollment_id: "sample", student_email: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Lesson aggregate ──────────────────────────────────────────
+
+  test "AuthorLesson sets lesson_title + content_type + body + duration_minutes + sequence_order" do
+    tests "AuthorLesson", on: "Lesson"
+    setup  "AuthorCourse", course_title: "sample", instructor: "sample", subject_area: "sample", difficulty_level: "sample", estimated_hours: 1
+    input  lesson_title: "sample", content_type: "sample", body: "sample", duration_minutes: 1, sequence_order: 1
+    expect status: "published"
+  end
+
+  test "AuthorLesson cascades through policy chain" do
+    tests "AuthorLesson", on: "Lesson", kind: :cascade
+    setup  "AuthorCourse", course_title: "sample", instructor: "sample", subject_area: "sample", difficulty_level: "sample", estimated_hours: 1
+    setup  "AuthorQuiz", quiz_title: "sample", passing_score: 1, time_limit_minutes: 1, max_attempts: 1
+    input  lesson_title: "sample", content_type: "sample", body: "sample", duration_minutes: 1, sequence_order: 1
+    expect emits: ["LessonAuthored", "QuizAuthored", "CoursePublished"]
+  end
+
+  test "ReviseLesson sets body" do
+    tests "ReviseLesson", on: "Lesson"
+    setup  "AuthorLesson", lesson_title: "sample", content_type: "sample", body: "sample", duration_minutes: 1, sequence_order: 1
+    input  body: "sample"
+    expect ok: "true"
+  end
+
+  test "ArchiveLesson runs" do
+    tests "ArchiveLesson", on: "Lesson"
+    setup  "AuthorLesson", lesson_title: "sample", content_type: "sample", body: "sample", duration_minutes: 1, sequence_order: 1
+    expect ok: "true"
+  end
+
+
+  # ── Quiz aggregate ──────────────────────────────────────────
+
+  test "AuthorQuiz sets quiz_title + passing_score + time_limit_minutes + max_attempts" do
+    tests "AuthorQuiz", on: "Quiz"
+    setup  "AuthorLesson", lesson_title: "sample", content_type: "sample", body: "sample", duration_minutes: 1, sequence_order: 1
+    input  quiz_title: "sample", passing_score: 1, time_limit_minutes: 1, max_attempts: 1
+    expect status: "active"
+  end
+
+  test "SubmitAttempt sets student_email + score" do
+    tests "SubmitAttempt", on: "Quiz"
+    setup  "AuthorQuiz", quiz_title: "sample", passing_score: 1, time_limit_minutes: 1, max_attempts: 1
+    input  student_email: "sample", score: 1
+    expect ok: "true"
+  end
+
+  test "SubmitAttempt cascades through policy chain" do
+    tests "SubmitAttempt", on: "Quiz", kind: :cascade
+    setup  "AuthorQuiz", quiz_title: "sample", passing_score: 1, time_limit_minutes: 1, max_attempts: 1
+    setup  "EnrollStudent", enrollment_id: "sample", student_email: "sample"
+    input  student_email: "sample", score: 1
+    expect emits: ["AttemptSubmitted", "ProgressRecorded", "AttemptSubmitted"]
+  end
+
+  test "SuspendQuiz runs" do
+    tests "SuspendQuiz", on: "Quiz"
+    setup  "AuthorQuiz", quiz_title: "sample", passing_score: 1, time_limit_minutes: 1, max_attempts: 1
+    expect ok: "true"
+  end
+
+
+  # ── Certificate aggregate ──────────────────────────────────────────
+
+  test "IssueCertificate sets certificate_id + student_email + course_title + verification_code" do
+    tests "IssueCertificate", on: "Certificate"
+    setup  "EnrollStudent", enrollment_id: "sample", student_email: "sample"
+    input  certificate_id: "sample", student_email: "sample", course_title: "sample", verification_code: "sample"
+    expect status: "valid"
+  end
+
+  test "IssueCertificate cascades through policy chain" do
+    tests "IssueCertificate", on: "Certificate", kind: :cascade
+    setup  "EnrollStudent", enrollment_id: "sample", student_email: "sample"
+    input  certificate_id: "sample", student_email: "sample", course_title: "sample", verification_code: "sample"
+    expect emits: ["CertificateIssued", "CertificateVerified"]
+  end
+
+  test "VerifyCertificate sets verification_code" do
+    tests "VerifyCertificate", on: "Certificate"
+    setup  "IssueCertificate", certificate_id: "sample", student_email: "sample", course_title: "sample", verification_code: "sample"
+    input  verification_code: "sample"
+    expect ok: "true"
+  end
+
+  test "RevokeCertificate runs" do
+    tests "RevokeCertificate", on: "Certificate"
+    setup  "IssueCertificate", certificate_id: "sample", student_email: "sample", course_title: "sample", verification_code: "sample"
+    expect ok: "true"
+  end
+
+end

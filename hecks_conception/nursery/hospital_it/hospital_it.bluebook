@@ -16,13 +16,13 @@ Hecks.bluebook "HospitalIT", version: "2026.04.13.1" do
       String :timestamp
     end
 
-    CreateRecord do
+    OpenRecord do
       role "Registrar"
       description "Register a new patient record in the electronic health system"
       String :medical_record_number
       String :patient_name
       String :department
-      emits "RecordCreated"
+      emits "RecordOpened"
       then_set :medical_record_number, to: :medical_record_number
       then_set :patient_name, to: :patient_name
       then_set :department, to: :department
@@ -178,15 +178,4 @@ Hecks.bluebook "HospitalIT", version: "2026.04.13.1" do
     trigger "CheckHealth"
   end
 
-  fixture "PatientRecord", medical_record_number: "MRN-2024-001", patient_name: "Jane Smith", department: "Cardiology", record_status: "active"
-  fixture "PatientRecord", medical_record_number: "MRN-2024-002", patient_name: "Robert Johnson", department: "Oncology", record_status: "active"
-
-  fixture "Server", hostname: "web-prod-01", role: "web", cpu_pct: 45.2, memory_pct: 62.8, status: "running"
-  fixture "Server", hostname: "db-primary-01", role: "database", cpu_pct: 72.1, memory_pct: 88.5, status: "running"
-
-  fixture "Backup", backup_id: "BKP-2024-04-001", source_server: "db-primary-01", backup_type: "full", storage_path: "/vault/backups/2024/04", status: "completed", size_gb: 850.5
-  fixture "Backup", backup_id: "BKP-2024-04-002", source_server: "web-prod-01", backup_type: "incremental", storage_path: "/vault/backups/2024/04/inc", status: "completed", size_gb: 120.3
-
-  fixture "RecoveryPlan", plan_name: "Hospital Tier-1 Recovery", tier: "critical", rto_hours: 4.0, rpo_hours: 1.0, status: "draft"
-  fixture "RecoveryPlan", plan_name: "General IT Services Recovery", tier: "standard", rto_hours: 24.0, rpo_hours: 6.0, status: "draft"
 end

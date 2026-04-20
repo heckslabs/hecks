@@ -1,0 +1,18 @@
+Hecks.fixtures "Nutrition" do
+  aggregate "FoodItem" do
+    fixture "Salmon_", name: "Salmon", food_group: "Protein", serving_size_g: 100.0, calories_kcal: 208.0
+    fixture "Spinach_", name: "Spinach", food_group: "Vegetables", serving_size_g: 30.0, calories_kcal: 8.0
+  end
+  aggregate "MealPlan" do
+    fixture "MealPlan1", plan_name: "Weekly Balanced Diet", start_date: "2026-04-14", duration_days: 7, target_calories: 2000.0
+    fixture "MealPlan2", plan_name: "Low-Carb Protocol", start_date: "2026-04-21", duration_days: 14, target_calories: 1800.0
+  end
+  aggregate "DietaryGoal" do
+    fixture "DietaryGoal1", goal_type: "daily-minimum", nutrient: "protein", target_value: 100.0, unit: "g"
+    fixture "DietaryGoal2", goal_type: "daily-maximum", nutrient: "sodium", target_value: 2300.0, unit: "mg"
+  end
+  aggregate "Deficiency" do
+    fixture "Deficiency1", nutrient: "iron", severity: "mild", current_intake: 6.5, recommended_intake: 18.0
+    fixture "Deficiency2", nutrient: "vitamin-B12", severity: "moderate", current_intake: 1.2, recommended_intake: 2.4
+  end
+end

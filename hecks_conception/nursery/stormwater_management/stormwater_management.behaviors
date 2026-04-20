@@ -1,0 +1,132 @@
+Hecks.behaviors "StormwaterManagement" do
+  vision "Behavioral tests for the StormwaterManagement domain — exercises every command and query in memory"
+
+  # ── Watershed aggregate ──────────────────────────────────────────
+
+  test "DelineateWatershed sets name + area_sq_km + soil_type + impervious_pct" do
+    tests "DelineateWatershed", on: "Watershed"
+    input  name: "sample", area_sq_km: 1.0, soil_type: "sample", impervious_pct: 1.0
+    expect name: "sample", area_sq_km: 1.0, soil_type: "sample", impervious_pct: 1.0, status: "delineated"
+  end
+
+  test "DelineateWatershed cascades through policy chain" do
+    tests "DelineateWatershed", on: "Watershed", kind: :cascade
+    input  name: "sample", area_sq_km: 1.0, soil_type: "sample", impervious_pct: 1.0
+    expect emits: ["WatershedDelineated", "RunoffCoefficientCalculated"]
+  end
+
+  test "CalculateRunoffCoefficient sets runoff_coefficient" do
+    tests "CalculateRunoffCoefficient", on: "Watershed"
+    setup  "DelineateWatershed", name: "sample", area_sq_km: 1.0, soil_type: "sample", impervious_pct: 1.0
+    input  runoff_coefficient: 1.0
+    expect runoff_coefficient: 1.0
+  end
+
+  test "ResurveyImperviousness sets impervious_pct" do
+    tests "ResurveyImperviousness", on: "Watershed"
+    setup  "DelineateWatershed", name: "sample", area_sq_km: 1.0, soil_type: "sample", impervious_pct: 1.0
+    input  impervious_pct: 1.0
+    expect impervious_pct: 1.0
+  end
+
+
+  # ── DrainNetwork aggregate ──────────────────────────────────────────
+
+  test "MapDrainNetwork sets name + watershed_name + total_capacity_cms + inlet_count + outlet_count" do
+    tests "MapDrainNetwork", on: "DrainNetwork"
+    input  name: "sample", watershed_name: "sample", total_capacity_cms: 1.0, inlet_count: 1, outlet_count: 1
+    expect name: "sample", watershed_name: "sample", total_capacity_cms: 1.0, inlet_count: 1, outlet_count: 1, status: "mapped"
+  end
+
+  test "AssessCapacity runs" do
+    tests "AssessCapacity", on: "DrainNetwork"
+    setup  "MapDrainNetwork", name: "sample", watershed_name: "sample", total_capacity_cms: 1.0, inlet_count: 1, outlet_count: 1
+    expect ok: "true"
+  end
+
+  test "AssessCapacity cascades through policy chain" do
+    tests "AssessCapacity", on: "DrainNetwork", kind: :cascade
+    setup  "MapDrainNetwork", name: "sample", watershed_name: "sample", total_capacity_cms: 1.0, inlet_count: 1, outlet_count: 1
+    expect emits: ["CapacityAssessed", "OverflowFlagged"]
+  end
+
+  test "FlagOverflow runs" do
+    tests "FlagOverflow", on: "DrainNetwork"
+    setup  "MapDrainNetwork", name: "sample", watershed_name: "sample", total_capacity_cms: 1.0, inlet_count: 1, outlet_count: 1
+    expect status: "at_risk"
+  end
+
+
+  # ── StormEvent aggregate ──────────────────────────────────────────
+
+  test "RecordStormEvent sets name + intensity_mm_hr + duration_hours + return_period_years" do
+    tests "RecordStormEvent", on: "StormEvent"
+    input  name: "sample", intensity_mm_hr: 1.0, duration_hours: 1.0, return_period_years: 1
+    expect name: "sample", intensity_mm_hr: 1.0, duration_hours: 1.0, return_period_years: 1, status: "recorded"
+  end
+
+  test "RecordStormEvent cascades through policy chain" do
+    tests "RecordStormEvent", on: "StormEvent", kind: :cascade
+    setup  "MapDrainNetwork", name: "sample", watershed_name: "sample", total_capacity_cms: 1.0, inlet_count: 1, outlet_count: 1
+    input  name: "sample", intensity_mm_hr: 1.0, duration_hours: 1.0, return_period_years: 1
+    expect emits: ["StormEventRecorded", "RunoffModeled", "HydrographGenerated", "CapacityAssessed", "OverflowFlagged"]
+  end
+
+  test "ModelRunoff sets runoff_volume_m3" do
+    tests "ModelRunoff", on: "StormEvent"
+    setup  "RecordStormEvent", name: "sample", intensity_mm_hr: 1.0, duration_hours: 1.0, return_period_years: 1
+    input  runoff_volume_m3: 1.0
+    expect runoff_volume_m3: 1.0
+  end
+
+  test "ModelRunoff cascades through policy chain" do
+    tests "ModelRunoff", on: "StormEvent", kind: :cascade
+    setup  "MapDrainNetwork", name: "sample", watershed_name: "sample", total_capacity_cms: 1.0, inlet_count: 1, outlet_count: 1
+    setup  "RecordStormEvent", name: "sample", intensity_mm_hr: 1.0, duration_hours: 1.0, return_period_years: 1
+    input  runoff_volume_m3: 1.0
+    expect emits: ["RunoffModeled", "HydrographGenerated", "CapacityAssessed", "OverflowFlagged"]
+  end
+
+  test "GenerateHydrograph runs" do
+    tests "GenerateHydrograph", on: "StormEvent"
+    setup  "RecordStormEvent", name: "sample", intensity_mm_hr: 1.0, duration_hours: 1.0, return_period_years: 1
+    expect status: "analyzed"
+  end
+
+  test "GenerateHydrograph cascades through policy chain" do
+    tests "GenerateHydrograph", on: "StormEvent", kind: :cascade
+    setup  "MapDrainNetwork", name: "sample", watershed_name: "sample", total_capacity_cms: 1.0, inlet_count: 1, outlet_count: 1
+    setup  "RecordStormEvent", name: "sample", intensity_mm_hr: 1.0, duration_hours: 1.0, return_period_years: 1
+    expect emits: ["HydrographGenerated", "CapacityAssessed", "OverflowFlagged"]
+  end
+
+
+  # ── ComplianceReport aggregate ──────────────────────────────────────────
+
+  test "FileComplianceReport sets watershed_name + permit_number + max_discharge_cms + actual_discharge_cms + report_date" do
+    tests "FileComplianceReport", on: "ComplianceReport"
+    input  watershed_name: "sample", permit_number: "sample", max_discharge_cms: 1.0, actual_discharge_cms: 1.0, report_date: "sample"
+    expect watershed_name: "sample", permit_number: "sample", max_discharge_cms: 1.0, actual_discharge_cms: 1.0, report_date: "sample", status: "filed"
+  end
+
+  test "FileComplianceReport cascades through policy chain" do
+    tests "FileComplianceReport", on: "ComplianceReport", kind: :cascade
+    input  watershed_name: "sample", permit_number: "sample", max_discharge_cms: 1.0, actual_discharge_cms: 1.0, report_date: "sample"
+    expect emits: ["ComplianceReportFiled", "ComplianceEvaluated"]
+  end
+
+  test "EvaluateCompliance sets compliance_status" do
+    tests "EvaluateCompliance", on: "ComplianceReport"
+    setup  "FileComplianceReport", watershed_name: "sample", permit_number: "sample", max_discharge_cms: 1.0, actual_discharge_cms: 1.0, report_date: "sample"
+    input  compliance_status: "sample"
+    expect compliance_status: "sample", status: "evaluated"
+  end
+
+  test "IssueViolation runs" do
+    tests "IssueViolation", on: "ComplianceReport"
+    setup  "FileComplianceReport", watershed_name: "sample", permit_number: "sample", max_discharge_cms: 1.0, actual_discharge_cms: 1.0, report_date: "sample"
+    setup  "EvaluateCompliance", compliance_status: "sample"
+    expect status: "violation"
+  end
+
+end

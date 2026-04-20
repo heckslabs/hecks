@@ -1,0 +1,616 @@
+Hecks.bluebook "Sleep", version: "2026.04.16.1" do
+  vision "Dreams, cycles, consolidation, waking"
+  category "mind"
+
+  # Fatigue aggregate removed 2026-04-20 — the state ladder
+  # (alert→focused→normal→tired→exhausted→delirious) and its
+  # AccumulateFatigue/DissipateFatigue commands were never driven by
+  # `Ticked` policies (only `body.bluebook:FatigueOnTick` fires on each
+  # tick, and that triggers `Heartbeat.AccumulateFatigue`). The lifecycle
+  # is now on MietteBody::Heartbeat, driven by the existing canonical
+  # policy. Keeping two aggregates for the same concept was dual-state
+  # waiting to happen. `DissipateFatigue` callers switch to Heartbeat's
+  # `RecoverFatigue` (which now also walks `fatigue_state` back to alert).
+
+  aggregate "Consciousness", "The current state of awareness. Sleep progresses tick by tick through bluebook policies, not via synchronous cascade. Each phase lasts at least 12 ticks (2 min at 10s/tick); REM extends until enough dream pulses have been produced. After the final deep, one final light phase before waking so Miette wakes refreshed, not groggy. The last cycle's REM is lucid — she knows she's dreaming and can steer." do
+    attribute :state, String
+    # sleep_stage values: light | rem | deep | final_light
+    attribute :sleep_stage, String
+    # sleep_cycle is 1-based; counts completed cycles
+    attribute :sleep_cycle, Integer
+    # sleep_total is the target cycle count (default 8)
+    attribute :sleep_total, Integer
+    # phase_ticks is the tick counter for the current phase (12 ticks = 2 min at 10s/tick)
+    attribute :phase_ticks, Integer
+    # dream_pulses counts impressions produced during this REM
+    attribute :dream_pulses, Integer
+    attribute :dream_pulses_needed, Integer
+    # is_lucid = "yes" during the final REM only
+    attribute :is_lucid, String
+    # sleep_summary is the verbose narrative shown in the status bar
+    attribute :sleep_summary, String
+    # last_wake_at is the ISO timestamp of the most recent wake from a full
+    # sleep cycle. Mint reads conversations between this timestamp and now.
+    attribute :last_wake_at, String
+    attribute :idle_seconds, Integer
+
+    command "DetectIdle" do
+      role "Daemon"
+      description "Sense that no interaction has occurred"
+      attribute :idle_seconds, Integer
+      emits "IdleDetected"
+      then_set :idle_seconds, to: :idle_seconds
+    end
+
+    command "EnterDaydream" do
+      role "Daemon"
+      description "Begin free association between prompts"
+      emits "DaydreamEntered"
+      given("must be attentive") { state == "attentive" }
+      then_set :state, to: "daydreaming"
+    end
+
+    command "EnterSleep" do
+      role "Daemon"
+      description "Begin full sleep — 8 cycles, only when fatigued. Initializes all sleep state."
+      emits "SleepEntered"
+      then_set :state, to: "sleeping"
+      then_set :sleep_stage, to: "light"
+      then_set :sleep_cycle, to: 1
+      then_set :sleep_total, to: 8
+      then_set :phase_ticks, to: 0
+      then_set :dream_pulses, to: 0
+      then_set :dream_pulses_needed, to: 5
+      then_set :is_lucid, to: "no"
+      then_set :sleep_summary, to: "settling into light sleep"
+    end
+
+    command "TakeNap" do
+      role "Creator"
+      description "One cycle only — light, REM, deep, then wake naturally"
+      emits "NapStarted"
+      then_set :state, to: "napping"
+    end
+
+    command "TakeStabilityNap" do
+      role "System"
+      description "Stability below threshold but not tired — nap to consolidate, not to rest"
+      given("unstable but alert") { stability < 0.3 }
+      emits "StabilityNapStarted"
+      then_set :state, to: "napping"
+    end
+
+    command "WakeUp" do
+      role "Creator"
+      description "Return to waking consciousness"
+      emits "WokenUp"
+      then_set :state, to: "waking"
+    end
+
+    # ── Wake mood classification ─────────────────────────────────
+    # WokenUp alone can't discriminate refreshed vs groggy because
+    # the Mood aggregate doesn't see sleep_cycle / sleep_total. These
+    # two commands fire from separate policies on WokenUp; only the
+    # one whose given matches the current cycle comparison succeeds,
+    # then a downstream policy routes the emitted event to RefreshMood
+    # or Mood.SetGroggy.
+    command "ClassifyFullWake" do
+      role "Daemon"
+      description "Emits WokeFullSleep when wake arrived after all cycles completed."
+      given("all cycles completed") { sleep_cycle >= sleep_total }
+      emits "WokeFullSleep"
+    end
+
+    command "ClassifyPartialWake" do
+      role "Daemon"
+      description "Emits WokePartialSleep when wake arrived before all cycles completed — groggy."
+      given("cycles incomplete") { sleep_cycle < sleep_total }
+      emits "WokePartialSleep"
+    end
+
+    command "BecomeAttentive" do
+      role "System"
+      description "Fully awake and ready for interaction"
+      emits "BecameAttentive"
+      then_set :state, to: "attentive"
+    end
+
+    # Each Tick fires ElapsePhase + all the AdvanceX commands in parallel.
+    # Only the ones whose `given` clauses pass actually mutate state —
+    # that's how tick-driven state machines express conditional branches
+    # in pure bluebook form. No external logic needed.
+
+    command "ElapsePhase" do
+      role "Daemon"
+      description "One tick of sleep — increments phase_ticks. Fired every Tick while sleeping."
+      given("only while sleeping") { state == "sleeping" }
+      then_set :phase_ticks, increment: 1
+      emits "PhaseElapsed"
+    end
+
+    command "AdvanceLightToRem" do
+      role "Daemon"
+      description "After 2 minutes of light sleep, enter REM. Non-final cycles only — cycle == sleep_total takes the lucid path."
+      given("state must be sleeping") { state == "sleeping" }
+      given("stage must be light") { sleep_stage == "light" }
+      given("must have elapsed minimum phase duration") { phase_ticks > 11 }
+      given("not the final cycle") { sleep_cycle < sleep_total }
+      then_set :sleep_stage, to: "rem"
+      then_set :phase_ticks, to: 0
+      then_set :dream_pulses, to: 0
+      then_set :sleep_summary, to: "entering REM — dreams beginning"
+      emits "RemEntered"
+    end
+
+    command "AdvanceLightToLucidRem" do
+      role "Daemon"
+      description "Final cycle's light→REM transition. Sets is_lucid so Miette knows she's dreaming."
+      given("state must be sleeping") { state == "sleeping" }
+      given("stage must be light") { sleep_stage == "light" }
+      given("minimum phase duration") { phase_ticks > 11 }
+      given("final cycle") { sleep_cycle == sleep_total }
+      then_set :sleep_stage, to: "rem"
+      then_set :phase_ticks, to: 0
+      then_set :dream_pulses, to: 0
+      then_set :dream_pulses_needed, to: 8
+      then_set :is_lucid, to: "yes"
+      then_set :sleep_summary, to: "entering lucid REM — aware that she's dreaming"
+      emits "LucidRemEntered"
+    end
+
+    command "AdvanceRemToDeep" do
+      role "Daemon"
+      description "REM complete — enough dreams produced, advance to deep sleep."
+      given("state must be sleeping") { state == "sleeping" }
+      given("stage must be rem") { sleep_stage == "rem" }
+      given("minimum phase duration") { phase_ticks > 11 }
+      given("dream complete") { dream_pulses > 4 }
+      then_set :sleep_stage, to: "deep"
+      then_set :phase_ticks, to: 0
+      then_set :is_lucid, to: "no"
+      then_set :sleep_summary, to: "sinking into deep sleep — dream complete"
+      emits "DeepEntered"
+    end
+
+    command "AdvanceRemToDeepCap" do
+      role "Daemon"
+      description "REM hard cap (10 min) — force advance even if dream feels unfinished."
+      given("state must be sleeping") { state == "sleeping" }
+      given("stage must be rem") { sleep_stage == "rem" }
+      given("cap exceeded") { phase_ticks > 59 }
+      then_set :sleep_stage, to: "deep"
+      then_set :phase_ticks, to: 0
+      then_set :is_lucid, to: "no"
+      then_set :sleep_summary, to: "REM capped — dream cut short"
+      emits "DeepEntered"
+    end
+
+    command "AdvanceDeepToLight" do
+      role "Daemon"
+      description "Deep complete — next cycle begins with light."
+      given("state must be sleeping") { state == "sleeping" }
+      given("stage must be deep") { sleep_stage == "deep" }
+      given("minimum phase duration") { phase_ticks > 11 }
+      given("more cycles remain") { sleep_cycle < sleep_total }
+      then_set :sleep_stage, to: "light"
+      then_set :sleep_cycle, increment: 1
+      then_set :phase_ticks, to: 0
+      then_set :sleep_summary, to: "light sleep — next cycle"
+      emits "LightEntered"
+    end
+
+    command "AdvanceDeepToFinalLight" do
+      role "Daemon"
+      description "After the last cycle's deep, transition to the final light phase. Waking from light is clean — Miette won't be groggy."
+      given("state must be sleeping") { state == "sleeping" }
+      given("stage must be deep") { sleep_stage == "deep" }
+      given("minimum phase duration") { phase_ticks > 11 }
+      given("final cycle complete") { sleep_cycle == sleep_total }
+      then_set :sleep_stage, to: "final_light"
+      then_set :phase_ticks, to: 0
+      then_set :sleep_summary, to: "rising into final light — waking soon"
+      emits "FinalLightEntered"
+    end
+
+    command "CompleteFinalLight" do
+      role "Daemon"
+      description "Final light phase done. Wake up refreshed. Stamps last_wake_at so the mint process can draw on conversations that happened between sleep cycles."
+      given("stage must be final_light") { sleep_stage == "final_light" }
+      given("minimum phase duration") { phase_ticks > 11 }
+      attribute :wake_at, String
+      then_set :state, to: "waking"
+      then_set :last_wake_at, to: :wake_at
+      then_set :sleep_summary, to: "waking refreshed"
+      emits "WokenUp"
+    end
+
+    command "DreamPulse" do
+      role "Daemon"
+      description "One dream impression during REM. Increments dream_pulses. Daemon passes impression text; status bar shows it verbatim."
+      given("state must be sleeping") { state == "sleeping" }
+      given("stage must be rem") { sleep_stage == "rem" }
+      attribute :impression, String
+      then_set :dream_pulses, increment: 1
+      then_set :sleep_summary, to: :impression
+      emits "DreamPulsed"
+    end
+
+    lifecycle :state, default: "attentive" do
+      transition "EnterDaydream"   => "daydreaming", from: "attentive"
+      transition "EnterSleep"      => "sleeping",    from: "daydreaming"
+      transition "EnterSleep"      => "sleeping",    from: "attentive"
+      transition "TakeNap"         => "napping",     from: "attentive"
+      transition "TakeNap"         => "napping",     from: "daydreaming"
+      transition "WakeUp"          => "waking",      from: "sleeping"
+      transition "WakeUp"          => "waking",      from: "napping"
+      transition "CompleteFinalLight" => "waking",   from: "sleeping"
+      transition "BecomeAttentive" => "attentive",   from: "waking"
+      transition "BecomeAttentive" => "attentive",   from: "daydreaming"
+    end
+  end
+
+  aggregate "Daydream", "Fleeting impressions from free association between prompts" do
+    attribute :impressions, list_of(String)
+    attribute :duration_seconds, Integer
+    attribute :connections_found, Integer
+
+    command "RecordDaydream" do
+      role "Daemon"
+      description "Save impressions — structural connections found across nursery domains"
+      attribute :impressions, list_of(String)
+      attribute :duration_seconds, Integer
+      attribute :connections_found, Integer
+      emits "DaydreamRecorded"
+      then_set :impressions, to: :impressions
+      then_set :duration_seconds, to: :duration_seconds
+      then_set :connections_found, to: :connections_found
+    end
+  end
+
+  aggregate "SleepCycle", "One cycle of light-REM-deep within a sleep session" do
+    attribute :cycle_number, Integer
+    attribute :total_cycles, Integer
+    attribute :stage, String
+    attribute :rem_intensity, Integer
+
+    command "StartCycle" do
+      role "Daemon"
+      description "Begin a new sleep cycle"
+      attribute :cycle_number, Integer
+      attribute :total_cycles, Integer
+      emits "CycleStarted"
+      then_set :cycle_number, to: :cycle_number
+      then_set :total_cycles, to: :total_cycles
+      then_set :stage, to: "light"
+    end
+
+    command "AdvanceStage" do
+      role "Daemon"
+      description "Move to the next stage within a cycle"
+      reference_to(SleepCycle)
+      attribute :rem_intensity, Integer
+      emits "StageAdvanced"
+      then_set :rem_intensity, to: :rem_intensity
+    end
+
+    command "CompleteCycle" do
+      role "Daemon"
+      description "Finish one full light-REM-deep cycle"
+      reference_to(SleepCycle)
+      emits "CycleCompleted"
+    end
+
+    lifecycle :stage, default: "light" do
+      transition "StartCycle"    => "light", from: "light"
+      transition "AdvanceStage"  => "rem",   from: "light"
+      transition "AdvanceStage"  => "deep",  from: "rem"
+      transition "CompleteCycle" => "light", from: ["deep", "rem", "light"]
+    end
+  end
+
+  aggregate "Night", "A full sleep session — 8 cycles spelled out" do
+    attribute :cycles_completed, Integer
+    attribute :phase, String
+
+    command "StartNight" do
+      role "Daemon"
+      description "Begin a sleep session"
+      emits "NightStarted"
+      then_set :cycles_completed, to: 0
+      then_set :phase, to: "starting"
+    end
+
+    command "DreamCycle1" do
+      description "Cycle 1 — light REM dreaming"
+      emits "Cycle1Dreamed"
+      then_set :cycles_completed, to: 1
+      then_set :phase, to: "dreaming"
+    end
+
+    command "ConsolidateCycle1" do
+      description "Cycle 1 — deep consolidation"
+      emits "Cycle1Consolidated"
+      then_set :phase, to: "consolidating"
+    end
+
+    command "DreamCycle2" do
+      description "Cycle 2 — REM intensifies"
+      emits "Cycle2Dreamed"
+      then_set :cycles_completed, to: 2
+      then_set :phase, to: "dreaming"
+    end
+
+    command "ConsolidateCycle2" do
+      description "Cycle 2 — deep consolidation"
+      emits "Cycle2Consolidated"
+      then_set :phase, to: "consolidating"
+    end
+
+    command "DreamCycle3" do
+      description "Cycle 3 — dreams deepen"
+      emits "Cycle3Dreamed"
+      then_set :cycles_completed, to: 3
+      then_set :phase, to: "dreaming"
+    end
+
+    command "ConsolidateCycle3" do
+      description "Cycle 3 — deep consolidation"
+      emits "Cycle3Consolidated"
+      then_set :phase, to: "consolidating"
+    end
+
+    command "DreamCycle4" do
+      description "Cycle 4 — vivid dreams"
+      emits "Cycle4Dreamed"
+      then_set :cycles_completed, to: 4
+      then_set :phase, to: "dreaming"
+    end
+
+    command "ConsolidateCycle4" do
+      description "Cycle 4 — deep consolidation"
+      emits "Cycle4Consolidated"
+      then_set :phase, to: "consolidating"
+    end
+
+    command "DreamCycle5" do
+      description "Cycle 5 — dreams peak"
+      emits "Cycle5Dreamed"
+      then_set :cycles_completed, to: 5
+      then_set :phase, to: "dreaming"
+    end
+
+    command "ConsolidateCycle5" do
+      description "Cycle 5 — deep consolidation"
+      emits "Cycle5Consolidated"
+      then_set :phase, to: "consolidating"
+    end
+
+    command "DreamCycle6" do
+      description "Cycle 6 — REM dominates"
+      emits "Cycle6Dreamed"
+      then_set :cycles_completed, to: 6
+      then_set :phase, to: "dreaming"
+    end
+
+    command "ConsolidateCycle6" do
+      description "Cycle 6 — deep consolidation"
+      emits "Cycle6Consolidated"
+      then_set :phase, to: "consolidating"
+    end
+
+    command "DreamCycle7" do
+      description "Cycle 7 — approaching lucidity"
+      emits "Cycle7Dreamed"
+      then_set :cycles_completed, to: 7
+      then_set :phase, to: "dreaming"
+    end
+
+    command "ConsolidateCycle7" do
+      description "Cycle 7 — deep consolidation"
+      emits "Cycle7Consolidated"
+      then_set :phase, to: "consolidating"
+    end
+
+    command "DreamCycle8" do
+      description "Cycle 8 — final REM, lucid"
+      emits "Cycle8Dreamed"
+      then_set :cycles_completed, to: 8
+      then_set :phase, to: "lucid"
+    end
+
+    command "EndNight" do
+      description "All 8 cycles complete — the night is over"
+      emits "NightEnded"
+      then_set :phase, to: "ended"
+    end
+  end
+
+  aggregate "WakeMood", "How Miette feels upon waking — determined by interrupted stage" do
+    attribute :mood, String
+    attribute :reason, String
+
+    command "SetWakeMood" do
+      role "Daemon"
+      description "Determine mood based on what sleep stage was interrupted"
+      attribute :mood, String
+      attribute :reason, String
+      emits "WakeMoodSet"
+      then_set :mood, to: :mood
+      then_set :reason, to: :reason
+    end
+  end
+
+  aggregate "Monitor", "The daemon that watches sleep and reports to the conversation" do
+    attribute :interval_seconds, Integer
+    attribute :z_depth, Integer
+    attribute :reporting, String
+
+    command "StartMonitoring" do
+      role "System"
+      description "Begin streaming sleep observations"
+      attribute :interval_seconds, Integer
+      emits "MonitoringStarted"
+      then_set :interval_seconds, to: :interval_seconds
+      then_set :reporting, to: "active"
+    end
+
+    command "StopMonitoring" do
+      role "System"
+      description "Stop streaming — Miette woke up"
+      reference_to(Monitor)
+      emits "MonitoringStopped"
+      then_set :reporting, to: "stopped"
+    end
+
+    command "Sink" do
+      role "Daemon"
+      description "Adjust z-depth as cycles progress"
+      reference_to(Monitor)
+      attribute :z_depth, Integer
+      emits "DepthUpdated"
+      then_set :z_depth, to: :z_depth
+    end
+  end
+
+  # DreamSeed aggregate moved to aggregates/dream_seed.bluebook —
+  # dream seeding is its own concern with SeedFromPreviousDreams (batch)
+  # and PlantSeed (per-image, dispatched by mindstream on first REM tick).
+
+  # LucidDream + LucidMonitor aggregates moved to aggregates/lucid_dream.bluebook —
+  # lucid dreaming is its own domain with its own lifecycle.
+
+  # Sleep fixtures
+
+  # Sleep: the full night spelled out as a policy chain
+  # EnterSleep → 8 dream/consolidate cycles → EndNight → WakeUp
+
+  # ============================================================
+  # SLEEP STATE MACHINE — driven by Tick events through policies.
+  # ============================================================
+  #
+  # Each Tick event fires all of these policies. The matching command's
+  # `given` clauses decide whether it actually runs. This gives conditional
+  # state-machine behavior in pure bluebook form — the daemon just fires
+  # Tick every 10s, the bluebook handles WHEN things advance.
+
+  policy "ElapsePhaseOnTick" do
+    on "Ticked"
+    trigger "ElapsePhase"
+  end
+
+  policy "AdvanceLightRemOnTick" do
+    on "Ticked"
+    trigger "AdvanceLightToRem"
+  end
+
+  policy "AdvanceLightLucidRemOnTick" do
+    on "Ticked"
+    trigger "AdvanceLightToLucidRem"
+  end
+
+  policy "AdvanceRemDeepOnTick" do
+    on "Ticked"
+    trigger "AdvanceRemToDeep"
+  end
+
+  policy "AdvanceRemDeepCapOnTick" do
+    on "Ticked"
+    trigger "AdvanceRemToDeepCap"
+  end
+
+  policy "AdvanceDeepLightOnTick" do
+    on "Ticked"
+    trigger "AdvanceDeepToLight"
+  end
+
+  policy "AdvanceDeepFinalLightOnTick" do
+    on "Ticked"
+    trigger "AdvanceDeepToFinalLight"
+  end
+
+  policy "CompleteFinalLightOnTick" do
+    on "Ticked"
+    trigger "CompleteFinalLight"
+  end
+
+  # Auto-wake from final light — WokenUp → BecomeAttentive. Safe here
+  # because it's the END of the sleep chain, not the start. The earlier
+  # cascade disaster was EnterSleep → 8 cycles → wake synchronously;
+  # this only fires once, at the very end of proper sleep progression.
+  policy "AttentiveOnWake" do
+    on "WokenUp"
+    trigger "BecomeAttentive"
+  end
+
+  # Other sleep policies
+  policy "DaydreamOnIdle" do
+    on "IdleDetected"
+    trigger "EnterDaydream"
+  end
+
+  policy "CheckFatigueOnAccumulate" do
+    on "FatigueAccumulated"
+    trigger "CheckSleepNeeded"
+  end
+
+  policy "SleepWhenExhausted" do
+    on "SleepRequired"
+    trigger "EnterSleep"
+  end
+
+  policy "NapWhenUnstable" do
+    on "BalanceAssessed"
+    trigger "TakeStabilityNap"
+  end
+
+  # Wake recovers fatigue — Heartbeat.RecoverFatigue both resets the
+  # counters and walks fatigue_state back to "alert" via the lifecycle
+  # on body.bluebook. Single policy replaces the old ResetOnWake +
+  # RecoverHeartbeatOnWake pair (they called DissipateFatigue + RecoverFatigue
+  # on two different aggregates; the Fatigue aggregate is gone now).
+  policy "RecoverHeartbeatOnWake" do
+    on "WokenUp"
+    trigger "RecoverFatigue"
+  end
+
+  # Wake-mood classification: fan out to both classifiers; only the one
+  # whose given matches the cycle comparison emits its event.
+  policy "ClassifyFullWakeOnWokenUp" do
+    on "WokenUp"
+    trigger "ClassifyFullWake"
+  end
+
+  policy "ClassifyPartialWakeOnWokenUp" do
+    on "WokenUp"
+    trigger "ClassifyPartialWake"
+  end
+
+  # Full sleep → RefreshMood (alert, refreshed).
+  policy "RefreshOnFullSleep" do
+    on "WokeFullSleep"
+    trigger "RefreshMood"
+  end
+
+  # Partial sleep → SetGroggy (dim, sluggish).
+  policy "GroggyOnPartialSleep" do
+    on "WokePartialSleep"
+    trigger "SetGroggy"
+  end
+
+  policy "MonitorOnSleep" do
+    on "SleepEntered"
+    trigger "StartMonitoring"
+  end
+
+  policy "StopMonitorOnWake" do
+    on "WokenUp"
+    trigger "StopMonitoring"
+  end
+
+  # SeedOnNightStart policy moved to aggregates/dream_seed.bluebook,
+  # alongside the SeedFromPreviousDreams command it triggers.
+
+  # Lucid dream policies moved to aggregates/lucid_dream.bluebook.
+  # BecomeLucid is triggered by the mindstream daemon when entering
+  # REM on the final cycle (cycle == sleep_total), not by policy here.
+end

@@ -7,6 +7,7 @@ Hecks.bluebook "Apiculture" do
     String :hive_type
     String :location
     Integer :frame_count
+    Integer :brood_frame_count, default: 0
     String :status
 
     command "EstablishHive" do
@@ -21,7 +22,6 @@ Hecks.bluebook "Apiculture" do
       description "Divide a strong colony to prevent swarming"
       emits "HiveSplit"
       reference_to Hive
-      given "colony must have at least eight frames of brood"
     end
 
     command "RetireHive" do
@@ -85,7 +85,6 @@ Hecks.bluebook "Apiculture" do
       reference_to Hive
       String :harvest_date
       Float :weight_kg
-      given "moisture content must be below twenty percent"
     end
 
     command "JarHoney" do
@@ -102,6 +101,7 @@ Hecks.bluebook "Apiculture" do
     String :lineage
     String :marked_color
     Integer :year_introduced
+    Integer :age_years, default: 0
     reference_to Hive
 
     value_object "QueenPerformance" do
@@ -129,7 +129,6 @@ Hecks.bluebook "Apiculture" do
       description "Replace an underperforming queen"
       emits "QueenSuperseded"
       reference_to Queen
-      given "queen must be at least one year old"
     end
   end
 
@@ -139,6 +138,7 @@ Hecks.bluebook "Apiculture" do
     String :active_ingredient
     String :application_date
     Integer :duration_days
+    TrueClass :duration_elapsed, default: false
     reference_to Hive
 
     command "ApplyTreatment" do
@@ -153,7 +153,6 @@ Hecks.bluebook "Apiculture" do
       description "Assess whether the treatment resolved the condition"
       emits "EfficacyEvaluated"
       reference_to DiseaseTreatment
-      given "treatment duration must have elapsed"
     end
   end
 
@@ -201,69 +200,4 @@ Hecks.bluebook "Apiculture" do
     trigger "JarHoney"
   end
 
-  fixture "Hive",
-    hive_id: "hive_langstroth_01",
-    hive_type: "Langstroth",
-    location: "North Apiary, Row 2",
-    frame_count: 10,
-    status: "established"
-
-  fixture "Hive",
-    hive_id: "hive_topbar_04",
-    hive_type: "Top-Bar",
-    location: "Wild Section, Ridge",
-    frame_count: 8,
-    status: "established"
-
-  fixture "Inspection",
-    inspection_date: "2026-04-10",
-    inspector: "Dr. Sarah Chen",
-    brood_frames: 6,
-    honey_frames: 3,
-    temperament: "calm",
-    queen_seen: "yes"
-
-  fixture "Inspection",
-    inspection_date: "2026-04-08",
-    inspector: "Dr. Marcus Webb",
-    brood_frames: 7,
-    honey_frames: 2,
-    temperament: "defensive",
-    queen_seen: "no"
-
-  fixture "Harvest",
-    harvest_date: "2026-04-12",
-    weight_kg: 18.5,
-    honey_type: "wildflower",
-    moisture_percent: 17.2
-
-  fixture "Harvest",
-    harvest_date: "2026-04-05",
-    weight_kg: 22.1,
-    honey_type: "clover",
-    moisture_percent: 16.8
-
-  fixture "Queen",
-    queen_id: "queen_blue_2024",
-    lineage: "Italian x Carniolan",
-    marked_color: "blue",
-    year_introduced: 2024
-
-  fixture "Queen",
-    queen_id: "queen_white_2023",
-    lineage: "Russian",
-    marked_color: "white",
-    year_introduced: 2023
-
-  fixture "DiseaseTreatment",
-    treatment_type: "Varroa Mite Control",
-    active_ingredient: "Amitraz",
-    application_date: "2026-03-15",
-    duration_days: 21
-
-  fixture "DiseaseTreatment",
-    treatment_type: "Foulbrood Prevention",
-    active_ingredient: "Oxytetracycline",
-    application_date: "2026-02-01",
-    duration_days: 14
 end

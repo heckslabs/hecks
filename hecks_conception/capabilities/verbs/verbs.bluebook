@@ -3,14 +3,14 @@ Hecks.bluebook "Verbs", version: "2026.04.10.4" do
   category "infrastructure"
 
   aggregate "NonVerbSuffix", "A word ending that signals noun or adjective, not a verb" do
-    String :suffix
-    String :part_of_speech
+    attribute :suffix, String
+    attribute :part_of_speech, String
 
-    RegisterSuffix do
+    command "RegisterSuffix" do
       role "Linguist"
       description "Add a suffix pattern that identifies non-verbs"
-      String :suffix
-      String :part_of_speech
+      attribute :suffix, String
+      attribute :part_of_speech, String
       emits "SuffixRegistered"
       then_set :suffix, to: :suffix
       then_set :part_of_speech, to: :part_of_speech
@@ -18,26 +18,26 @@ Hecks.bluebook "Verbs", version: "2026.04.10.4" do
   end
 
   aggregate "DualWord", "A word that is both noun and verb — exempt from suffix rejection" do
-    String :word
+    attribute :word, String
 
-    RegisterDualWord do
+    command "RegisterDualWord" do
       role "Linguist"
       description "Mark a word as valid despite matching a non-verb suffix"
-      String :word
+      attribute :word, String
       emits "DualWordRegistered"
       then_set :word, to: :word
     end
   end
 
   aggregate "Prefix", "A productive prefix that derives new verbs from existing words" do
-    String :prefix
-    String :meaning
+    attribute :prefix, String
+    attribute :meaning, String
 
-    RegisterPrefix do
+    command "RegisterPrefix" do
       role "Linguist"
       description "Add a productive prefix derivation rule"
-      String :prefix
-      String :meaning
+      attribute :prefix, String
+      attribute :meaning, String
       emits "PrefixRegistered"
       then_set :prefix, to: :prefix
       then_set :meaning, to: :meaning
@@ -47,82 +47,16 @@ Hecks.bluebook "Verbs", version: "2026.04.10.4" do
   # ============================================================
   # NOUN SUFFIXES — words ending in these are not verbs
   # ============================================================
-  fixture "NonVerbSuffix", suffix: "ment",  part_of_speech: "noun"
-  fixture "NonVerbSuffix", suffix: "tion",  part_of_speech: "noun"
-  fixture "NonVerbSuffix", suffix: "sion",  part_of_speech: "noun"
-  fixture "NonVerbSuffix", suffix: "ness",  part_of_speech: "noun"
-  fixture "NonVerbSuffix", suffix: "ance",  part_of_speech: "noun"
-  fixture "NonVerbSuffix", suffix: "ence",  part_of_speech: "noun"
-  fixture "NonVerbSuffix", suffix: "ity",   part_of_speech: "noun"
-  fixture "NonVerbSuffix", suffix: "ety",   part_of_speech: "noun"
-  fixture "NonVerbSuffix", suffix: "ism",   part_of_speech: "noun"
-  fixture "NonVerbSuffix", suffix: "ist",   part_of_speech: "noun"
-  fixture "NonVerbSuffix", suffix: "dom",   part_of_speech: "noun"
-  fixture "NonVerbSuffix", suffix: "ship",  part_of_speech: "noun"
-  fixture "NonVerbSuffix", suffix: "hood",  part_of_speech: "noun"
-  fixture "NonVerbSuffix", suffix: "ology", part_of_speech: "noun"
 
   # ============================================================
   # ADJECTIVE SUFFIXES — words ending in these are not verbs
   # ============================================================
-  fixture "NonVerbSuffix", suffix: "able",  part_of_speech: "adjective"
-  fixture "NonVerbSuffix", suffix: "ible",  part_of_speech: "adjective"
-  fixture "NonVerbSuffix", suffix: "ous",   part_of_speech: "adjective"
-  fixture "NonVerbSuffix", suffix: "ious",  part_of_speech: "adjective"
-  fixture "NonVerbSuffix", suffix: "ful",   part_of_speech: "adjective"
-  fixture "NonVerbSuffix", suffix: "less",  part_of_speech: "adjective"
-  fixture "NonVerbSuffix", suffix: "ary",   part_of_speech: "adjective"
-  fixture "NonVerbSuffix", suffix: "ory",   part_of_speech: "adjective"
-  fixture "NonVerbSuffix", suffix: "ical",  part_of_speech: "adjective"
 
   # ============================================================
   # DUAL WORDS — nouns that are also verbs (exempt from rejection)
   # ============================================================
-  fixture "DualWord", word: "Augment"
-  fixture "DualWord", word: "Commission"
-  fixture "DualWord", word: "Decommission"
-  fixture "DualWord", word: "Document"
-  fixture "DualWord", word: "Implement"
-  fixture "DualWord", word: "Position"
-  fixture "DualWord", word: "Transition"
-  fixture "DualWord", word: "Commence"
-  fixture "DualWord", word: "Accession"
-  fixture "DualWord", word: "Advance"
-  fixture "DualWord", word: "Enlist"
-  fixture "DualWord", word: "Delist"
-  fixture "DualWord", word: "Capture"
-  fixture "DualWord", word: "Configure"
-  fixture "DualWord", word: "Manufacture"
-  fixture "DualWord", word: "Measure"
-  fixture "DualWord", word: "Secure"
-  fixture "DualWord", word: "Feature"
-  fixture "DualWord", word: "Venture"
-  fixture "DualWord", word: "Nurture"
-  fixture "DualWord", word: "Culture"
-  fixture "DualWord", word: "Fracture"
-  fixture "DualWord", word: "Structure"
-  fixture "DualWord", word: "Surface"
-  fixture "DualWord", word: "Service"
-  fixture "DualWord", word: "Practice"
-  fixture "DualWord", word: "Notice"
-  fixture "DualWord", word: "Reference"
-  fixture "DualWord", word: "Influence"
-  fixture "DualWord", word: "Experience"
-  fixture "DualWord", word: "License"
-  fixture "DualWord", word: "Balance"
-  fixture "DualWord", word: "Finance"
-  fixture "DualWord", word: "Embrace"
-  fixture "DualWord", word: "Place"
-  fixture "DualWord", word: "Trace"
-  fixture "DualWord", word: "Grace"
-  fixture "DualWord", word: "Inventory"
-  fixture "DualWord", word: "Query"
 
   # ============================================================
   # PRODUCTIVE PREFIXES — derive new verbs from existing words
   # ============================================================
-  fixture "Prefix", prefix: "Re",  meaning: "do again"
-  fixture "Prefix", prefix: "Un",  meaning: "reverse"
-  fixture "Prefix", prefix: "De",  meaning: "remove or reverse"
-  fixture "Prefix", prefix: "Dis", meaning: "negate or undo"
 end

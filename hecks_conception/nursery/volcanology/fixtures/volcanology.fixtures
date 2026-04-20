@@ -1,0 +1,22 @@
+Hecks.fixtures "Volcanology" do
+  aggregate "Volcano" do
+    fixture "Mount_Merapi_", name: "Mount Merapi", volcano_type: "Stratovolcano", summit_elevation_m: 2968.0, latitude: -7.542, longitude: 110.442, alert_level: "green"
+    fixture "Mount_Kilimanjaro_", name: "Mount Kilimanjaro", volcano_type: "Dormant Volcano", summit_elevation_m: 5895.0, latitude: -3.065, longitude: 37.353, alert_level: "green"
+  end
+  aggregate "Eruption" do
+    fixture "Eruption1", eruption_id: "ERU-2026-0147", start_date: "2026-03-15", end_date: "2026-03-22", vei: 2, eruption_type: "Phreatomagmatic"
+    fixture "Eruption2", eruption_id: "ERU-2026-0148", start_date: "2026-04-01", end_date: "", vei: 1, eruption_type: "Lava fountain"
+  end
+  aggregate "SeismicReading" do
+    fixture "SeismicReading1", station_id: "STA-01", timestamp: "2026-04-10T14:32:00Z", magnitude: 3.8, depth_km: 8.5, event_type: "Volcanic tremor"
+    fixture "SeismicReading2", station_id: "STA-02", timestamp: "2026-04-10T14:35:15Z", magnitude: 4.2, depth_km: 7.2, event_type: "Long-period event"
+  end
+  aggregate "GasEmission" do
+    fixture "GasEmission1", gas_type: "SO2", flux_tons_per_day: 850.5, measurement_date: "2026-04-09", method: "DOAS spectroscopy"
+    fixture "GasEmission2", gas_type: "CO2", flux_tons_per_day: 2100.0, measurement_date: "2026-04-09", method: "Gravimetric analysis"
+  end
+  aggregate "HazardZone" do
+    fixture "HazardZone1", zone_name: "Primary Lava Flow Zone", hazard_type: "Lava flows", risk_level: "high", boundary_wkt: "POLYGON((-7.5 110.4, -7.6 110.5, -7.4 110.6, -7.5 110.4))"
+    fixture "HazardZone2", zone_name: "Pyroclastic Flow Zone", hazard_type: "Pyroclastic flows", risk_level: "extreme", boundary_wkt: "POLYGON((-7.45 110.35, -7.65 110.45, -7.55 110.55, -7.45 110.35))"
+  end
+end

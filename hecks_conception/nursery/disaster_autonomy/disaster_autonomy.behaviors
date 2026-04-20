@@ -1,0 +1,156 @@
+Hecks.behaviors "DisasterAutonomy" do
+  vision "Behavioral tests for the DisasterAutonomy domain — exercises every command and query in memory"
+
+  # ── DisasterEvent aggregate ──────────────────────────────────────────
+
+  test "DeclareDisaster sets event_id + disaster_type + affected_region + severity + estimated_affected" do
+    tests "DeclareDisaster", on: "DisasterEvent"
+    input  event_id: "sample", disaster_type: "sample", affected_region: "sample", severity: "sample", estimated_affected: 1
+    expect event_id: "sample", disaster_type: "sample", affected_region: "sample", severity: "sample", estimated_affected: 1, status: "active"
+  end
+
+  test "DeclareDisaster cascades through policy chain" do
+    tests "DeclareDisaster", on: "DisasterEvent", kind: :cascade
+    setup  "DeployFleet", fleet_id: "sample", drone_count: 1, deployment_zone: "sample"
+    setup  "ActivateGridResponse", response_id: "sample", grid_sector: "sample", affected_substations: 1
+    setup  "DeclareRestriction", control_id: "sample", restricted_zone: "sample"
+    setup  "OpenRegistry", registry_id: "sample"
+    input  event_id: "sample", disaster_type: "sample", affected_region: "sample", severity: "sample", estimated_affected: 1
+    expect emits: ["DisasterDeclared", "FleetDeployed", "GridResponseActivated", "PowerRerouted", "AirspaceRestricted", "FleetAuthorized", "RegistryOpened"]
+  end
+
+  test "EscalateDisaster sets severity" do
+    tests "EscalateDisaster", on: "DisasterEvent"
+    setup  "DeclareDisaster", event_id: "sample", disaster_type: "sample", affected_region: "sample", severity: "sample", estimated_affected: 1
+    input  severity: "sample"
+    expect severity: "sample"
+  end
+
+
+  # ── SearchFleet aggregate ──────────────────────────────────────────
+
+  test "DeployFleet sets fleet_id + drone_count + deployment_zone" do
+    tests "DeployFleet", on: "SearchFleet"
+    setup  "DeclareDisaster", event_id: "sample", disaster_type: "sample", affected_region: "sample", severity: "sample", estimated_affected: 1
+    input  fleet_id: "sample", drone_count: 1, deployment_zone: "sample"
+    expect fleet_id: "sample", drone_count: 1, deployment_zone: "sample", status: "deployed"
+  end
+
+  test "ReportSurvivorFound runs" do
+    tests "ReportSurvivorFound", on: "SearchFleet"
+    setup  "DeployFleet", fleet_id: "sample", drone_count: 1, deployment_zone: "sample"
+    expect ok: "true"
+  end
+
+  test "ReportSurvivorFound cascades through policy chain" do
+    tests "ReportSurvivorFound", on: "SearchFleet", kind: :cascade
+    setup  "OpenRegistry", registry_id: "sample"
+    setup  "PlanDrop", drop_id: "sample", supply_type: "sample", target_location: "sample", delivery_method: "sample"
+    setup  "DeclareDisaster", event_id: "sample", disaster_type: "sample", affected_region: "sample", severity: "sample", estimated_affected: 1
+    setup  "DeployFleet", fleet_id: "sample", drone_count: 1, deployment_zone: "sample"
+    expect emits: ["SurvivorDetected", "SurvivorRegistered", "DropPlanned"]
+  end
+
+  test "RecallFleet runs" do
+    tests "RecallFleet", on: "SearchFleet"
+    setup  "DeployFleet", fleet_id: "sample", drone_count: 1, deployment_zone: "sample"
+    expect status: "recalled"
+  end
+
+
+  # ── SupplyDrop aggregate ──────────────────────────────────────────
+
+  test "PlanDrop sets drop_id + supply_type + target_location + delivery_method" do
+    tests "PlanDrop", on: "SupplyDrop"
+    setup  "DeclareDisaster", event_id: "sample", disaster_type: "sample", affected_region: "sample", severity: "sample", estimated_affected: 1
+    input  drop_id: "sample", supply_type: "sample", target_location: "sample", delivery_method: "sample"
+    expect drop_id: "sample", supply_type: "sample", target_location: "sample", delivery_method: "sample", status: "planned"
+  end
+
+  test "ExecuteDrop runs" do
+    tests "ExecuteDrop", on: "SupplyDrop"
+    setup  "PlanDrop", drop_id: "sample", supply_type: "sample", target_location: "sample", delivery_method: "sample"
+    expect status: "delivered"
+  end
+
+
+  # ── GridResponse aggregate ──────────────────────────────────────────
+
+  test "ActivateGridResponse sets response_id + grid_sector + affected_substations" do
+    tests "ActivateGridResponse", on: "GridResponse"
+    setup  "DeclareDisaster", event_id: "sample", disaster_type: "sample", affected_region: "sample", severity: "sample", estimated_affected: 1
+    input  response_id: "sample", grid_sector: "sample", affected_substations: 1
+    expect response_id: "sample", grid_sector: "sample", affected_substations: 1, status: "active"
+  end
+
+  test "ActivateGridResponse cascades through policy chain" do
+    tests "ActivateGridResponse", on: "GridResponse", kind: :cascade
+    setup  "DeclareDisaster", event_id: "sample", disaster_type: "sample", affected_region: "sample", severity: "sample", estimated_affected: 1
+    input  response_id: "sample", grid_sector: "sample", affected_substations: 1
+    expect emits: ["GridResponseActivated", "PowerRerouted"]
+  end
+
+  test "ReroutePower runs" do
+    tests "ReroutePower", on: "GridResponse"
+    setup  "ActivateGridResponse", response_id: "sample", grid_sector: "sample", affected_substations: 1
+    expect ok: "true"
+  end
+
+  test "RestoreGrid runs" do
+    tests "RestoreGrid", on: "GridResponse"
+    setup  "ActivateGridResponse", response_id: "sample", grid_sector: "sample", affected_substations: 1
+    expect status: "restored"
+  end
+
+
+  # ── AirspaceControl aggregate ──────────────────────────────────────────
+
+  test "DeclareRestriction sets control_id + restricted_zone" do
+    tests "DeclareRestriction", on: "AirspaceControl"
+    setup  "DeclareDisaster", event_id: "sample", disaster_type: "sample", affected_region: "sample", severity: "sample", estimated_affected: 1
+    input  control_id: "sample", restricted_zone: "sample"
+    expect control_id: "sample", restricted_zone: "sample", status: "restricted"
+  end
+
+  test "DeclareRestriction cascades through policy chain" do
+    tests "DeclareRestriction", on: "AirspaceControl", kind: :cascade
+    setup  "DeclareDisaster", event_id: "sample", disaster_type: "sample", affected_region: "sample", severity: "sample", estimated_affected: 1
+    input  control_id: "sample", restricted_zone: "sample"
+    expect emits: ["AirspaceRestricted", "FleetAuthorized"]
+  end
+
+  test "AuthorizeDroneFleet runs" do
+    tests "AuthorizeDroneFleet", on: "AirspaceControl"
+    setup  "DeclareRestriction", control_id: "sample", restricted_zone: "sample"
+    expect ok: "true"
+  end
+
+  test "LiftRestriction runs" do
+    tests "LiftRestriction", on: "AirspaceControl"
+    setup  "DeclareRestriction", control_id: "sample", restricted_zone: "sample"
+    expect status: "open"
+  end
+
+
+  # ── SurvivorRegistry aggregate ──────────────────────────────────────────
+
+  test "OpenRegistry sets registry_id" do
+    tests "OpenRegistry", on: "SurvivorRegistry"
+    setup  "DeclareDisaster", event_id: "sample", disaster_type: "sample", affected_region: "sample", severity: "sample", estimated_affected: 1
+    input  registry_id: "sample"
+    expect registry_id: "sample", total_found: 0, status: "active"
+  end
+
+  test "RegisterSurvivor runs" do
+    tests "RegisterSurvivor", on: "SurvivorRegistry"
+    setup  "OpenRegistry", registry_id: "sample"
+    expect ok: "true"
+  end
+
+  test "MarkRescued runs" do
+    tests "MarkRescued", on: "SurvivorRegistry"
+    setup  "OpenRegistry", registry_id: "sample"
+    expect ok: "true"
+  end
+
+end

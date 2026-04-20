@@ -1,0 +1,92 @@
+Hecks.behaviors "TeletherapyPlatform" do
+  vision "Behavioral tests for the TeletherapyPlatform domain — exercises every command and query in memory"
+
+  # ── TherapySession aggregate ──────────────────────────────────────────
+
+  test "ScheduleSession sets session_id + client_name + therapist_name + session_type + scheduled_time" do
+    tests "ScheduleSession", on: "TherapySession"
+    input  session_id: "sample", client_name: "sample", therapist_name: "sample", session_type: "sample", scheduled_time: "sample"
+    expect session_id: "sample", client_name: "sample", therapist_name: "sample", session_type: "sample", scheduled_time: "sample", status: "scheduled"
+  end
+
+  test "ScheduleSession cascades through policy chain" do
+    tests "ScheduleSession", on: "TherapySession", kind: :cascade
+    setup  "ProvisionRoom", room_id: "sample", session_id: "sample", stream_url: "sample"
+    input  session_id: "sample", client_name: "sample", therapist_name: "sample", session_type: "sample", scheduled_time: "sample"
+    expect emits: ["SessionScheduled", "RoomProvisioned"]
+  end
+
+  test "StartSession runs" do
+    tests "StartSession", on: "TherapySession"
+    setup  "ScheduleSession", session_id: "sample", client_name: "sample", therapist_name: "sample", session_type: "sample", scheduled_time: "sample"
+    expect status: "in_progress"
+  end
+
+  test "EndSession runs" do
+    tests "EndSession", on: "TherapySession"
+    setup  "ScheduleSession", session_id: "sample", client_name: "sample", therapist_name: "sample", session_type: "sample", scheduled_time: "sample"
+    setup  "StartSession"
+    expect status: "completed"
+  end
+
+  test "EndSession cascades through policy chain" do
+    tests "EndSession", on: "TherapySession", kind: :cascade
+    setup  "IssueInvoice", invoice_id: "sample", session_id: "sample", client_id: "sample", amount: 1.0
+    setup  "ProvisionRoom", room_id: "sample", session_id: "sample", stream_url: "sample"
+    setup  "ScheduleSession", session_id: "sample", client_name: "sample", therapist_name: "sample", session_type: "sample", scheduled_time: "sample"
+    setup  "StartSession"
+    expect emits: ["SessionEnded", "InvoiceIssued", "RoomClosed"]
+  end
+
+
+  # ── VideoRoom aggregate ──────────────────────────────────────────
+
+  test "ProvisionRoom sets room_id + session_id + stream_url" do
+    tests "ProvisionRoom", on: "VideoRoom"
+    input  room_id: "sample", session_id: "sample", stream_url: "sample"
+    expect room_id: "sample", session_id: "sample", stream_url: "sample", status: "ready", recording_status: "off"
+  end
+
+  test "StartRecording runs" do
+    tests "StartRecording", on: "VideoRoom"
+    setup  "ProvisionRoom", room_id: "sample", session_id: "sample", stream_url: "sample"
+    expect recording_status: "recording"
+  end
+
+  test "CloseRoom runs" do
+    tests "CloseRoom", on: "VideoRoom"
+    setup  "ProvisionRoom", room_id: "sample", session_id: "sample", stream_url: "sample"
+    expect status: "closed"
+  end
+
+
+  # ── ClientAccount aggregate ──────────────────────────────────────────
+
+  test "RegisterClient sets client_id + name + insurance_provider" do
+    tests "RegisterClient", on: "ClientAccount"
+    input  client_id: "sample", name: "sample", insurance_provider: "sample"
+    expect client_id: "sample", name: "sample", insurance_provider: "sample", status: "active"
+  end
+
+  test "DeactivateClient runs" do
+    tests "DeactivateClient", on: "ClientAccount"
+    setup  "RegisterClient", client_id: "sample", name: "sample", insurance_provider: "sample"
+    expect status: "inactive"
+  end
+
+
+  # ── BillingRecord aggregate ──────────────────────────────────────────
+
+  test "IssueInvoice sets invoice_id + session_id + client_id + amount" do
+    tests "IssueInvoice", on: "BillingRecord"
+    input  invoice_id: "sample", session_id: "sample", client_id: "sample", amount: 1.0
+    expect invoice_id: "sample", session_id: "sample", client_id: "sample", amount: 1.0, status: "pending"
+  end
+
+  test "MarkPaid runs" do
+    tests "MarkPaid", on: "BillingRecord"
+    setup  "IssueInvoice", invoice_id: "sample", session_id: "sample", client_id: "sample", amount: 1.0
+    expect status: "paid"
+  end
+
+end

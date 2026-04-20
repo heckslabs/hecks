@@ -23,6 +23,7 @@ Hecks.bluebook "Inventory", version: "2026.04.11.1" do
       then_set :sku, to: :sku
       then_set :warehouse, to: :warehouse
       then_set :quantity_on_hand, increment: :quantity
+      then_set :quantity_available, increment: :quantity
     end
 
     ReserveStock do
@@ -43,6 +44,7 @@ Hecks.bluebook "Inventory", version: "2026.04.11.1" do
       emits "StockShipped"
       then_set :quantity_on_hand, decrement: :quantity
       then_set :quantity_reserved, decrement: :quantity
+      then_set :quantity_available, decrement: :quantity
     end
 
     AdjustInventory do
@@ -62,13 +64,6 @@ Hecks.bluebook "Inventory", version: "2026.04.11.1" do
       emits "ReorderTriggered"
     end
   end
-
-  fixture "Inventory", sku: "DL-ET-32OZ", warehouse: "Dallas Distribution Center", quantity_on_hand: 4200, quantity_reserved: 350, reorder_point: 1000, safety_stock: 500, weeks_of_supply: 8.0, bin_location: "A-12-03"
-  fixture "Inventory", sku: "DL-ET-16OZ", warehouse: "Dallas Distribution Center", quantity_on_hand: 3100, quantity_reserved: 180, reorder_point: 800, safety_stock: 400, weeks_of_supply: 7.0, bin_location: "A-12-04"
-  fixture "Inventory", sku: "MK-HL-16OZ", warehouse: "Dallas Distribution Center", quantity_on_hand: 2800, quantity_reserved: 200, reorder_point: 600, safety_stock: 400, weeks_of_supply: 6.0, bin_location: "B-04-01"
-  fixture "Inventory", sku: "MK-HL-8OZ", warehouse: "Dallas Distribution Center", quantity_on_hand: 1500, quantity_reserved: 100, reorder_point: 400, safety_stock: 200, weeks_of_supply: 5.0, bin_location: "B-04-02"
-  fixture "Inventory", sku: "S50-RE-32OZ", warehouse: "Dallas Distribution Center", quantity_on_hand: 6100, quantity_reserved: 800, reorder_point: 1500, safety_stock: 600, weeks_of_supply: 12.0, bin_location: "C-08-01"
-  fixture "Inventory", sku: "S50-RE-16OZ", warehouse: "Dallas Distribution Center", quantity_on_hand: 4800, quantity_reserved: 420, reorder_point: 1200, safety_stock: 500, weeks_of_supply: 10.0, bin_location: "C-08-02"
 
   policy "ReorderOnLowStock" do
     on "StockShipped"

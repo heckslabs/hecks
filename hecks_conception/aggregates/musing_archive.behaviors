@@ -1,0 +1,11 @@
+Hecks.behaviors "MusingArchive" do
+  vision "Behavioral tests for the MusingArchive domain — archive old duplicate-concept musings."
+
+  test "Archive sets idea + source + concept + archived_reason + archived_at" do
+    tests "Archive", on: "MusingArchive"
+    input  idea: "a sample musing", source: "mindstream", concept: "wandering",
+           archived_reason: "duplicate_concept", archived_at: "now"
+    expect idea: "a sample musing", source: "mindstream", concept: "wandering",
+           archived_reason: "duplicate_concept", archived_at: "now"
+  end
+end

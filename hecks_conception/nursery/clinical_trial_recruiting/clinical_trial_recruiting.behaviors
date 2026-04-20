@@ -1,0 +1,62 @@
+Hecks.behaviors "ClinicalTrialRecruiting" do
+  vision "Behavioral tests for the ClinicalTrialRecruiting domain — exercises every command and query in memory"
+
+  # ── DrugCandidate aggregate ──────────────────────────────────────────
+
+  test "RegisterCompound sets compound_name + indication + phase" do
+    tests "RegisterCompound", on: "DrugCandidate"
+    input  compound_name: "sample", indication: "sample", phase: "sample"
+    expect compound_name: "sample", indication: "sample", phase: "sample"
+  end
+
+  test "AdvancePhase runs" do
+    tests "AdvancePhase", on: "DrugCandidate"
+    setup  "RegisterCompound", compound_name: "sample", indication: "sample", phase: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── TrialProtocol aggregate ──────────────────────────────────────────
+
+  test "DraftProtocol sets protocol_name + target_enrollment" do
+    tests "DraftProtocol", on: "TrialProtocol"
+    setup  "RegisterCompound", compound_name: "sample", indication: "sample", phase: "sample"
+    input  protocol_name: "sample", target_enrollment: 1
+    expect ok: "true"
+  end
+
+  test "ApproveProtocol runs" do
+    tests "ApproveProtocol", on: "TrialProtocol"
+    setup  "DraftProtocol", protocol_name: "sample", target_enrollment: 1
+    setup  "AddCriterion", criterion_type: "sample", description: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── FreelanceParticipant aggregate ──────────────────────────────────────────
+
+  test "RegisterParticipant sets participant_name + age + availability" do
+    tests "RegisterParticipant", on: "FreelanceParticipant"
+    input  participant_name: "sample", age: 1, availability: "sample"
+    expect participant_name: "sample", age: 1, availability: "sample"
+  end
+
+
+  # ── MatchResult aggregate ──────────────────────────────────────────
+
+  test "MatchParticipant sets match_score" do
+    tests "MatchParticipant", on: "MatchResult"
+    setup  "DraftProtocol", protocol_name: "sample", target_enrollment: 1
+    setup  "RegisterParticipant", participant_name: "sample", age: 1, availability: "sample"
+    input  match_score: 1.0
+    expect ok: "true"
+  end
+
+  test "EnrollParticipant runs" do
+    tests "EnrollParticipant", on: "MatchResult"
+    setup  "MatchParticipant", match_score: 1.0
+    setup  "ScreenParticipant", criterion_type: "sample", passed: "sample", notes: "sample"
+    expect ok: "true"
+  end
+
+end

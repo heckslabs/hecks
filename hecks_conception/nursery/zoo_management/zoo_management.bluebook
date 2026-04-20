@@ -145,13 +145,13 @@ Hecks.bluebook "ZooManagement" do
     fixture "Lion Carnivore Diet", schedule_id: "FEED-FELID-001", diet_type: "Carnivore - Raw Meat", feeding_time: "09:00", portion_kg: 8.5, status: "active"
     fixture "Zebra Herbivore Diet", schedule_id: "FEED-EQUID-001", diet_type: "Herbivore - Hay & Graze", feeding_time: "08:30", portion_kg: 12.0, status: "active"
 
-    CreateFeedingSchedule do
-      description "Set up a feeding plan for an animal"
+    PlanFeeding do
+      description "Plan a feeding schedule for an animal"
       String :diet_type
       String :feeding_time
       Float :portion_kg
       reference_to(Animal)
-      emits "FeedingScheduleCreated"
+      emits "FeedingPlanned"
       then_set :status, to: "active"
     end
 
@@ -245,19 +245,14 @@ Hecks.bluebook "ZooManagement" do
     trigger "ScheduleExam"
   end
 
-  policy "ClearQuarantineOnExam" do
-    on "ExamPerformed"
-    trigger "ClearQuarantine"
-  end
-
   policy "PlaceOnExhibitOnClear" do
     on "QuarantineCleared"
     trigger "PlaceOnExhibit"
   end
 
-  policy "CreateFeedingOnExhibit" do
+  policy "PlanFeedingOnExhibit" do
     on "AnimalPlacedOnExhibit"
-    trigger "CreateFeedingSchedule"
+    trigger "PlanFeeding"
   end
 
   policy "AdjustDietOnExam" do
@@ -280,8 +275,8 @@ Hecks.bluebook "ZooManagement" do
     trigger "AssignAnimalToHabitat"
   end
 
-  policy "FeedOnScheduleCreated" do
-    on "FeedingScheduleCreated"
+  policy "FeedOnSchedulePlanned" do
+    on "FeedingPlanned"
     trigger "RecordFeeding"
   end
 

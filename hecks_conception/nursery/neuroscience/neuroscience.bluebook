@@ -8,6 +8,12 @@ Hecks.bluebook "Neuroscience" do
     String :handedness
     String :consent_date
     String :exclusion_criteria
+    # Gate flag — flips true once SignConsent records IRB consent.
+    # ScreenSubject is gated on it so we never screen without consent.
+    attribute :consent_signed, Boolean, default: false
+    # Set true on a passing ScreenSubject; gates StartSession in the
+    # ImagingSession aggregate.
+    attribute :screening_passed, Boolean, default: false
 
     command "EnrollSubject" do
       description "Register a new participant in the study"
@@ -24,11 +30,19 @@ Hecks.bluebook "Neuroscience" do
       String :reason
     end
 
+    command "SignConsent" do
+      description "Record that the subject has signed IRB consent"
+      emits "ConsentSigned"
+      reference_to Subject
+      then_set :consent_signed, to: true
+    end
+
     command "ScreenSubject" do
       description "Run eligibility screening for the participant"
       emits "SubjectScreened"
       reference_to Subject
-      given "consent must be signed"
+      given { consent_signed == true }
+      then_set :screening_passed, to: true
     end
   end
 
@@ -38,6 +52,10 @@ Hecks.bluebook "Neuroscience" do
     String :modality
     String :timestamp
     Integer :duration_minutes
+    # Gate flag — flips true after ConfirmScreeningPassed mirrors the
+    # subject's screening status onto this session. StartSession is
+    # gated on it so a session cannot begin until screening is verified.
+    attribute :subject_screening_confirmed, Boolean, default: false
     reference_to Subject
 
     value_object "ScanParameters" do
@@ -47,12 +65,18 @@ Hecks.bluebook "Neuroscience" do
       Integer :slice_count
     end
 
+    command "ConfirmScreeningPassed" do
+      description "Mirror the subject's passing screening result onto the session"
+      emits "ScreeningPassedConfirmed"
+      reference_to Subject
+      then_set :subject_screening_confirmed, to: true
+    end
+
     command "StartSession" do
       description "Begin a brain imaging acquisition"
       emits "SessionStarted"
       reference_to Subject
       String :modality
-      given "subject must have passed screening"
     end
 
     command "CompleteSession" do
@@ -75,6 +99,9 @@ Hecks.bluebook "Neuroscience" do
     String :brain_region
     Float :sampling_rate_hz
     Integer :channel_count
+    # Gate flag — flips true once LoadRawData stages the raw recording in
+    # memory. FilterNoise is gated on it.
+    attribute :raw_data_loaded, Boolean, default: false
     reference_to ImagingSession
 
     command "ExtractSignal" do
@@ -83,13 +110,21 @@ Hecks.bluebook "Neuroscience" do
       reference_to ImagingSession
       String :signal_type
       String :brain_region
+      then_set :raw_data_loaded, to: true
+    end
+
+    command "LoadRawData" do
+      description "Stage the raw signal recording into memory for processing"
+      emits "RawDataLoaded"
+      reference_to NeuralSignal
+      then_set :raw_data_loaded, to: true
     end
 
     command "FilterNoise" do
       description "Apply bandpass and artifact rejection filters"
       emits "NoiseFiltered"
       reference_to NeuralSignal
-      given "signal must have raw data loaded"
+      given { raw_data_loaded == true }
     end
 
     command "ComputeConnectivity" do
@@ -104,6 +139,7 @@ Hecks.bluebook "Neuroscience" do
     String :protocol_name
     String :stimulus_type
     Integer :trial_count
+    Integer :trial_block_count
     Float :inter_stimulus_interval_ms
 
     value_object "TrialBlock" do
@@ -120,6 +156,14 @@ Hecks.bluebook "Neuroscience" do
       Integer :trial_count
     end
 
+    command "AddTrialBlock" do
+      description "Append a trial block and update the block count"
+      emits "TrialBlockAdded"
+      reference_to StimulusProtocol
+      Integer :new_block_count
+      then_set :trial_block_count, to: :new_block_count
+    end
+
     command "RandomizeTrials" do
       description "Shuffle trial order for counterbalancing"
       emits "TrialsRandomized"
@@ -130,7 +174,7 @@ Hecks.bluebook "Neuroscience" do
       description "Check that stimulus timings meet TR alignment"
       emits "TimingsValidated"
       reference_to StimulusProtocol
-      given "protocol must have at least one trial block"
+      given { trial_block_count >= 1 }
     end
   end
 
@@ -200,18 +244,4 @@ Hecks.bluebook "Neuroscience" do
     trigger "RandomizeTrials"
   end
 
-  fixture "Subject", subject_id: "S-001", age: 28, handedness: "right", consent_date: "2026-03-15", exclusion_criteria: "none"
-  fixture "Subject", subject_id: "S-002", age: 35, handedness: "left", consent_date: "2026-04-01", exclusion_criteria: "metal implants"
-
-  fixture "ImagingSession", session_id: "sess-001", modality: "fMRI", timestamp: "2026-04-10T10:30:00Z", duration_minutes: 45
-  fixture "ImagingSession", session_id: "sess-002", modality: "EEG", timestamp: "2026-04-11T14:15:00Z", duration_minutes: 60
-
-  fixture "NeuralSignal", signal_type: "BOLD", brain_region: "prefrontal-cortex", sampling_rate_hz: 2.0, channel_count: 1
-  fixture "NeuralSignal", signal_type: "power-spectrum", brain_region: "visual-cortex", sampling_rate_hz: 250.0, channel_count: 32
-
-  fixture "StimulusProtocol", protocol_name: "FacePerception", stimulus_type: "visual-faces", trial_count: 40, inter_stimulus_interval_ms: 2000.0
-  fixture "StimulusProtocol", protocol_name: "MotorImagery", stimulus_type: "kinesthetic-cues", trial_count: 30, inter_stimulus_interval_ms: 3000.0
-
-  fixture "ResearchPaper", paper_id: "paper-001", title: "Neural correlates of face recognition in healthy subjects", target_journal: "NeuroImage", status: "drafted"
-  fixture "ResearchPaper", paper_id: "paper-002", title: "Functional connectivity changes during motor imagery tasks", target_journal: "Cerebral Cortex", status: "drafted"
 end

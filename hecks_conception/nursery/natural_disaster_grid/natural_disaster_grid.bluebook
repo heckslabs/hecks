@@ -128,7 +128,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
       transition "RegisterSegment" => "online", from: "offline"
       transition "RerouteGrid" => "rerouted", from: "online"
       transition "FailSegment" => "failed", from: "online"
-      transition "RestoreSegment" => "online", from: "rerouted"
+      transition "RestoreSegment" => "online", from: "online"
     end
   end
 
@@ -205,7 +205,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
     String :protocol_type
     String :trigger_condition
     String :status
-    reference_to(DisasterEvent) :disaster
+    reference_to(DisasterEvent, as: :disaster)
     list_of(ProtocolStep) :steps
 
     value_object "ProtocolStep" do
@@ -222,7 +222,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
       String :protocol_name
       String :protocol_type
       String :trigger_condition
-      reference_to(DisasterEvent) :disaster
+      reference_to(DisasterEvent, as: :disaster)
       emits "ProtocolActivated"
       then_set :protocol_name, to: :protocol_name
       then_set :protocol_type, to: :protocol_type
@@ -249,7 +249,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "standby" do
-      transition "ActivateEmergencyProtocol" => "active", from: "standby"
+      transition "ActivateEmergencyProtocol" => "active", from: ["standby", "active", "completed"]
       transition "CompleteProtocol" => "completed", from: "active"
     end
   end
@@ -257,7 +257,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
   # === CascadeChain ===
 
   aggregate "CascadeChain", "A chain of infrastructure failures — one failure triggers the next in sequence" do
-    reference_to(DisasterEvent) :disaster
+    reference_to(DisasterEvent, as: :disaster)
     String :chain_name
     Integer :cascade_depth
     String :status
@@ -273,7 +273,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
     StartCascade do
       role "System"
       description "Initialize a cascade chain when disaster impacts first infrastructure"
-      reference_to(DisasterEvent) :disaster
+      reference_to(DisasterEvent, as: :disaster)
       String :chain_name
       emits "CascadeStarted"
       then_set :disaster, to: :disaster
@@ -302,7 +302,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "dormant" do
-      transition "StartCascade" => "cascading", from: "dormant"
+      transition "StartCascade" => "cascading", from: ["dormant", "cascading", "contained"]
       transition "ContainCascade" => "contained", from: "cascading"
     end
   end
@@ -310,7 +310,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
   # === RecoveryPlan ===
 
   aggregate "RecoveryPlan", "A structured recovery plan — prioritized restoration of infrastructure after disaster" do
-    reference_to(DisasterEvent) :disaster
+    reference_to(DisasterEvent, as: :disaster)
     String :plan_name
     String :status
     Integer :priority_level
@@ -324,13 +324,13 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
       Integer :estimated_hours
     end
 
-    CreateRecoveryPlan do
+    DraftRecoveryPlan do
       role "EmergencyManager"
       description "Create a prioritized recovery plan after disaster is resolved"
-      reference_to(DisasterEvent) :disaster
+      reference_to(DisasterEvent, as: :disaster)
       String :plan_name
       Integer :priority_level
-      emits "RecoveryPlanCreated"
+      emits "RecoveryPlanDrafted"
       then_set :disaster, to: :disaster
       then_set :plan_name, to: :plan_name
       then_set :priority_level, to: :priority_level
@@ -356,7 +356,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "pending" do
-      transition "CreateRecoveryPlan" => "created", from: "pending"
+      transition "DraftRecoveryPlan" => "created", from: ["pending", "created", "executing", "completed"]
       transition "ExecuteRecovery" => "executing", from: "created"
       transition "CompleteRecovery" => "completed", from: "executing"
     end
@@ -391,7 +391,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
 
   policy "RecoveryOnResolution" do
     on "DisasterResolved"
-    trigger "CreateRecoveryPlan"
+    trigger "DraftRecoveryPlan"
   end
 
   policy "RestoreOnRecovery" do
@@ -399,21 +399,4 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
     trigger "RestoreSegment"
   end
 
-  fixture "DisasterEvent", event_type: "earthquake", location: "Pacific Coast Region", severity: "major", status: "active", declared_at: "2026-04-14T08:15:00Z"
-  fixture "DisasterEvent", event_type: "volcanic_ash", location: "Northern Airspace", severity: "moderate", status: "resolved", declared_at: "2026-04-10T14:22:00Z"
-
-  fixture "GridSegment", segment_id: "gs-coastal-north", region: "Coastal North", capacity_mw: 850.0, current_load_mw: 720.5, status: "online"
-  fixture "GridSegment", segment_id: "gs-central-hub", region: "Central Hub", capacity_mw: 1200.0, current_load_mw: 1050.3, status: "rerouted"
-
-  fixture "AirspaceZone", zone_id: "az-volcanic-01", region: "Pacific Northwest", status: "closed", closure_reason: "Volcanic ash at 35,000 ft", affected_flights: 127
-  fixture "AirspaceZone", zone_id: "az-coastal-02", region: "Coastal Approaches", status: "open", closure_reason: "", affected_flights: 0
-
-  fixture "EmergencyProtocol", protocol_name: "Grid Failure Emergency Response", protocol_type: "power_grid", trigger_condition: "GridFailed", status: "active", reference_to: "earthquake"
-  fixture "EmergencyProtocol", protocol_name: "Airspace Closure Protocol", protocol_type: "aviation", trigger_condition: "AshDetected", status: "completed", reference_to: "volcanic_ash"
-
-  fixture "CascadeChain", disaster: "earthquake", chain_name: "Pacific Quake Cascade", cascade_depth: 3, status: "cascading"
-  fixture "CascadeChain", disaster: "volcanic_ash", chain_name: "Volcanic Ash Cascade", cascade_depth: 2, status: "contained"
-
-  fixture "RecoveryPlan", disaster: "earthquake", plan_name: "Coastal Region Recovery Plan", status: "executing", priority_level: 1
-  fixture "RecoveryPlan", disaster: "volcanic_ash", plan_name: "Aviation System Recovery", status: "completed", priority_level: 2
 end

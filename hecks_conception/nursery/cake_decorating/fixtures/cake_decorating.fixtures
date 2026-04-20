@@ -1,0 +1,22 @@
+Hecks.fixtures "CakeDecorating" do
+  aggregate "CakeOrder" do
+    fixture "CakeOrder1", client_name: "Emma Wilson", occasion: "Wedding Reception", status: "inquiry", tier_count: 4, servings: 150, delivery_date: "2026-06-15"
+    fixture "CakeOrder2", client_name: "Robert Martinez", occasion: "50th Birthday", status: "inquiry", tier_count: 3, servings: 80, delivery_date: "2026-05-22"
+  end
+  aggregate "FlavorProfile" do
+    fixture "FlavorProfile1", cake_flavor: "Vanilla Bean", filling: "Raspberry Buttercream", frosting: "Swiss Meringue", status: "proposed"
+    fixture "FlavorProfile2", cake_flavor: "Dark Chocolate", filling: "Salted Caramel", frosting: "Chocolate Ganache", status: "approved"
+  end
+  aggregate "Tasting" do
+    fixture "Tasting1", date: "2026-04-20", client_name: "Emma Wilson", sample_count: 5, status: "scheduled"
+    fixture "Tasting2", date: "2026-04-18", client_name: "Robert Martinez", sample_count: 3, status: "completed"
+  end
+  aggregate "IngredientStock" do
+    fixture "IngredientStock1", ingredient_name: "All-Purpose Flour", category: "Dry Goods", quantity_on_hand: 25.5, unit: "lbs", reorder_threshold: 10.0
+    fixture "IngredientStock2", ingredient_name: "Madagascar Vanilla Extract", category: "Flavorings", quantity_on_hand: 2.3, unit: "cups", reorder_threshold: 1.0
+  end
+  aggregate "CakeDelivery" do
+    fixture "CakeDelivery1", address: "4521 Oak Avenue, Springfield IL", delivery_date: "2026-06-15", time_window: "10am-12pm", status: "scheduled", handler_name: "Marcus Thompson"
+    fixture "CakeDelivery2", address: "892 Elm Street, Springfield IL", delivery_date: "2026-05-22", time_window: "2pm-4pm", status: "delivered", handler_name: "Sofia Reyes"
+  end
+end

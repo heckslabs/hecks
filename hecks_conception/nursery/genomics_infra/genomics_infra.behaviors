@@ -1,0 +1,78 @@
+Hecks.behaviors "GenomicsInfra" do
+  vision "Behavioral tests for the GenomicsInfra domain — exercises every command and query in memory"
+
+  # ── GenomeSample aggregate ──────────────────────────────────────────
+
+  test "SubmitSample sets sample_id + patient_id + sample_type + collection_date" do
+    tests "SubmitSample", on: "GenomeSample"
+    input  sample_id: "sample", patient_id: "sample", sample_type: "sample", collection_date: "sample"
+    expect sample_id: "sample", patient_id: "sample", sample_type: "sample", collection_date: "sample", status: "submitted"
+  end
+
+  test "SequenceSample runs" do
+    tests "SequenceSample", on: "GenomeSample"
+    setup  "SubmitSample", sample_id: "sample", patient_id: "sample", sample_type: "sample", collection_date: "sample"
+    expect status: "sequenced"
+  end
+
+  test "SequenceSample cascades through policy chain" do
+    tests "SequenceSample", on: "GenomeSample", kind: :cascade
+    setup  "LaunchPipeline", pipeline_id: "sample", sample_id: "sample", pipeline_type: "sample"
+    setup  "SubmitSample", sample_id: "sample", patient_id: "sample", sample_type: "sample", collection_date: "sample"
+    expect emits: ["SampleSequenced", "PipelineLaunched"]
+  end
+
+
+  # ── ComputeCluster aggregate ──────────────────────────────────────────
+
+  test "DeployCluster sets cluster_id + region + node_count + cpu_cores_total + memory_tb" do
+    tests "DeployCluster", on: "ComputeCluster"
+    input  cluster_id: "sample", region: "sample", node_count: 1, cpu_cores_total: 1.0, memory_tb: 1.0
+    expect cluster_id: "sample", region: "sample", node_count: 1, cpu_cores_total: 1.0, memory_tb: 1.0, status: "running"
+  end
+
+  test "ScaleCluster sets node_count" do
+    tests "ScaleCluster", on: "ComputeCluster"
+    setup  "DeployCluster", cluster_id: "sample", region: "sample", node_count: 1, cpu_cores_total: 1.0, memory_tb: 1.0
+    input  node_count: 1
+    expect node_count: 1
+  end
+
+
+  # ── SequenceStore aggregate ──────────────────────────────────────────
+
+  test "ProvisionStore sets store_id + cluster_id + quota_tb" do
+    tests "ProvisionStore", on: "SequenceStore"
+    input  store_id: "sample", cluster_id: "sample", quota_tb: 1.0
+    expect store_id: "sample", cluster_id: "sample", quota_tb: 1.0, used_tb: 0.0, status: "active"
+  end
+
+  test "ArchiveData runs" do
+    tests "ArchiveData", on: "SequenceStore"
+    setup  "ProvisionStore", store_id: "sample", cluster_id: "sample", quota_tb: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── AnalysisPipeline aggregate ──────────────────────────────────────────
+
+  test "LaunchPipeline sets pipeline_id + sample_id + pipeline_type" do
+    tests "LaunchPipeline", on: "AnalysisPipeline"
+    input  pipeline_id: "sample", sample_id: "sample", pipeline_type: "sample"
+    expect pipeline_id: "sample", sample_id: "sample", pipeline_type: "sample", status: "running"
+  end
+
+  test "CompletePipeline runs" do
+    tests "CompletePipeline", on: "AnalysisPipeline"
+    setup  "LaunchPipeline", pipeline_id: "sample", sample_id: "sample", pipeline_type: "sample"
+    expect status: "completed"
+  end
+
+  test "CompletePipeline cascades through policy chain" do
+    tests "CompletePipeline", on: "AnalysisPipeline", kind: :cascade
+    setup  "ProvisionStore", store_id: "sample", cluster_id: "sample", quota_tb: 1.0
+    setup  "LaunchPipeline", pipeline_id: "sample", sample_id: "sample", pipeline_type: "sample"
+    expect emits: ["PipelineCompleted", "DataArchived"]
+  end
+
+end

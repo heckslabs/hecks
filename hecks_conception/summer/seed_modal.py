@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Seed Autumn's body — copy the full hecks_conception to Modal volume.
 
-Same repo, same structure, same hecks-life. Autumn is a clone of Winter's
+Same repo, same structure, same hecks-life. Autumn is a clone of Miette's
 body running in the cloud.
 
 Usage:

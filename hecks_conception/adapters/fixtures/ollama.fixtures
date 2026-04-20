@@ -1,0 +1,5 @@
+Hecks.fixtures "OllamaAdapter" do
+  aggregate "Connection" do
+    fixture "Connection1", url: "http://localhost:11434", model: "bluebook-architect", status: "ready"
+  end
+end

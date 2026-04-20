@@ -152,15 +152,4 @@ Hecks.bluebook "DrugProcurement", version: "2026.04.13.1" do
     trigger "OpenBidRound"
   end
 
-  fixture "Compound", compound_id: "COMP-001", name: "Metformin HCl", formula: "C₄H₁₁N₅", therapeutic_class: "antidiabetic", regulatory_status: "pending"
-  fixture "Compound", compound_id: "COMP-002", name: "Amoxicillin Trihydrate", formula: "C₁₆H₁₉N₃O₅S·3H₂O", therapeutic_class: "antibiotic", regulatory_status: "cleared"
-
-  fixture "BidRound", round_id: "ROUND-001", compound_id: "COMP-001", reserve_price: 1500.0, status: "open"
-  fixture "BidRound", round_id: "ROUND-002", compound_id: "COMP-002", reserve_price: 2200.0, status: "closed"
-
-  fixture "SupplierProfile", supplier_id: "SUP-001", company_name: "Pharma Global Ltd", country: "India", gmp_certified: "true", quality_score: 0.95, status: "qualified"
-  fixture "SupplierProfile", supplier_id: "SUP-002", company_name: "ChemWorks International", country: "China", gmp_certified: "true", quality_score: 0.88, status: "qualified"
-
-  fixture "PurchaseOrder", order_id: "PO-2026-001", round_id: "ROUND-001", supplier_id: "SUP-001", quantity: 50000.0, total_price: 75000.0, status: "awarded"
-  fixture "PurchaseOrder", order_id: "PO-2026-002", round_id: "ROUND-002", supplier_id: "SUP-002", quantity: 100000.0, total_price: 220000.0, status: "delivered"
 end

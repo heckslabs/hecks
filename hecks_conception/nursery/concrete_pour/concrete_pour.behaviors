@@ -1,0 +1,145 @@
+Hecks.behaviors "ConcretePour" do
+  vision "Behavioral tests for the ConcretePour domain — exercises every command and query in memory"
+
+  # ── PourSchedule aggregate ──────────────────────────────────────────
+
+  test "SchedulePour sets project_name + pour_location + cubic_yards + pour_date + crew_size" do
+    tests "SchedulePour", on: "PourSchedule"
+    input  project_name: "sample", pour_location: "sample", cubic_yards: 1.0, pour_date: "sample", crew_size: 1
+    expect status: "in_progress"
+  end
+
+  test "SchedulePour cascades through policy chain" do
+    tests "SchedulePour", on: "PourSchedule", kind: :cascade
+    setup  "SpecifyMix", mix_number: "sample", target_psi: 1.0, water_cement_ratio: 1.0, aggregate_size: "sample", slump_inches: 1.0
+    setup  "PlaceRebar", rebar_size: "sample", spacing: "sample", coverage_inches: 1.0
+    setup  "BeginCuring", curing_method: "sample", cure_days: 1, min_temp_f: 1.0
+    setup  "BreakCylinder", test_day: 1
+    input  project_name: "sample", pour_location: "sample", cubic_yards: 1.0, pour_date: "sample", crew_size: 1
+    expect emits: ["PourScheduled", "MixSpecified", "RebarPlaced", "ReinforcementInspected", "PourCompleted", "CuringBegun", "TemperatureMonitored", "CylinderBroken"]
+  end
+
+  test "PostponePour sets reason" do
+    tests "PostponePour", on: "PourSchedule"
+    setup  "SchedulePour", project_name: "sample", pour_location: "sample", cubic_yards: 1.0, pour_date: "sample", crew_size: 1
+    input  reason: "sample"
+    expect ok: "true"
+  end
+
+  test "CompletePour runs" do
+    tests "CompletePour", on: "PourSchedule"
+    setup  "SchedulePour", project_name: "sample", pour_location: "sample", cubic_yards: 1.0, pour_date: "sample", crew_size: 1
+    expect ok: "true"
+  end
+
+  test "CompletePour cascades through policy chain" do
+    tests "CompletePour", on: "PourSchedule", kind: :cascade
+    setup  "BeginCuring", curing_method: "sample", cure_days: 1, min_temp_f: 1.0
+    setup  "BreakCylinder", test_day: 1
+    setup  "SpecifyMix", mix_number: "sample", target_psi: 1.0, water_cement_ratio: 1.0, aggregate_size: "sample", slump_inches: 1.0
+    setup  "SchedulePour", project_name: "sample", pour_location: "sample", cubic_yards: 1.0, pour_date: "sample", crew_size: 1
+    expect emits: ["PourCompleted", "CuringBegun", "TemperatureMonitored", "CylinderBroken"]
+  end
+
+
+  # ── MixDesign aggregate ──────────────────────────────────────────
+
+  test "SpecifyMix sets mix_number + target_psi + water_cement_ratio + aggregate_size + slump_inches" do
+    tests "SpecifyMix", on: "MixDesign"
+    setup  "SchedulePour", project_name: "sample", pour_location: "sample", cubic_yards: 1.0, pour_date: "sample", crew_size: 1
+    input  mix_number: "sample", target_psi: 1.0, water_cement_ratio: 1.0, aggregate_size: "sample", slump_inches: 1.0
+    expect ok: "true"
+  end
+
+  test "SpecifyMix cascades through policy chain" do
+    tests "SpecifyMix", on: "MixDesign", kind: :cascade
+    setup  "SchedulePour", project_name: "sample", pour_location: "sample", cubic_yards: 1.0, pour_date: "sample", crew_size: 1
+    setup  "PlaceRebar", rebar_size: "sample", spacing: "sample", coverage_inches: 1.0
+    setup  "BeginCuring", curing_method: "sample", cure_days: 1, min_temp_f: 1.0
+    setup  "BreakCylinder", test_day: 1
+    input  mix_number: "sample", target_psi: 1.0, water_cement_ratio: 1.0, aggregate_size: "sample", slump_inches: 1.0
+    expect emits: ["MixSpecified", "RebarPlaced", "ReinforcementInspected", "PourCompleted", "CuringBegun", "TemperatureMonitored", "CylinderBroken"]
+  end
+
+
+  # ── Reinforcement aggregate ──────────────────────────────────────────
+
+  test "PlaceRebar sets rebar_size + spacing + coverage_inches" do
+    tests "PlaceRebar", on: "Reinforcement"
+    setup  "SchedulePour", project_name: "sample", pour_location: "sample", cubic_yards: 1.0, pour_date: "sample", crew_size: 1
+    input  rebar_size: "sample", spacing: "sample", coverage_inches: 1.0
+    expect rebar_size: "sample", spacing: "sample", coverage_inches: 1.0
+  end
+
+  test "PlaceRebar cascades through policy chain" do
+    tests "PlaceRebar", on: "Reinforcement", kind: :cascade
+    setup  "SchedulePour", project_name: "sample", pour_location: "sample", cubic_yards: 1.0, pour_date: "sample", crew_size: 1
+    setup  "BeginCuring", curing_method: "sample", cure_days: 1, min_temp_f: 1.0
+    setup  "BreakCylinder", test_day: 1
+    setup  "SpecifyMix", mix_number: "sample", target_psi: 1.0, water_cement_ratio: 1.0, aggregate_size: "sample", slump_inches: 1.0
+    input  rebar_size: "sample", spacing: "sample", coverage_inches: 1.0
+    expect emits: ["RebarPlaced", "ReinforcementInspected", "PourCompleted", "CuringBegun", "TemperatureMonitored", "CylinderBroken"]
+  end
+
+  test "InspectReinforcement sets inspection_result" do
+    tests "InspectReinforcement", on: "Reinforcement"
+    setup  "PlaceRebar", rebar_size: "sample", spacing: "sample", coverage_inches: 1.0
+    input  inspection_result: "sample"
+    expect ok: "true"
+  end
+
+  test "InspectReinforcement cascades through policy chain" do
+    tests "InspectReinforcement", on: "Reinforcement", kind: :cascade
+    setup  "PlaceRebar", rebar_size: "sample", spacing: "sample", coverage_inches: 1.0
+    setup  "SchedulePour", project_name: "sample", pour_location: "sample", cubic_yards: 1.0, pour_date: "sample", crew_size: 1
+    setup  "BeginCuring", curing_method: "sample", cure_days: 1, min_temp_f: 1.0
+    setup  "BreakCylinder", test_day: 1
+    setup  "SpecifyMix", mix_number: "sample", target_psi: 1.0, water_cement_ratio: 1.0, aggregate_size: "sample", slump_inches: 1.0
+    input  inspection_result: "sample"
+    expect emits: ["ReinforcementInspected", "PourCompleted", "CuringBegun", "TemperatureMonitored", "CylinderBroken"]
+  end
+
+
+  # ── CuringProtocol aggregate ──────────────────────────────────────────
+
+  test "BeginCuring sets curing_method + cure_days + min_temp_f" do
+    tests "BeginCuring", on: "CuringProtocol"
+    setup  "SchedulePour", project_name: "sample", pour_location: "sample", cubic_yards: 1.0, pour_date: "sample", crew_size: 1
+    input  curing_method: "sample", cure_days: 1, min_temp_f: 1.0
+    expect ok: "true"
+  end
+
+  test "BeginCuring cascades through policy chain" do
+    tests "BeginCuring", on: "CuringProtocol", kind: :cascade
+    setup  "SchedulePour", project_name: "sample", pour_location: "sample", cubic_yards: 1.0, pour_date: "sample", crew_size: 1
+    setup  "BreakCylinder", test_day: 1
+    setup  "SpecifyMix", mix_number: "sample", target_psi: 1.0, water_cement_ratio: 1.0, aggregate_size: "sample", slump_inches: 1.0
+    input  curing_method: "sample", cure_days: 1, min_temp_f: 1.0
+    expect emits: ["CuringBegun", "TemperatureMonitored", "CylinderBroken"]
+  end
+
+  test "MonitorTemperature sets measured_temp_f" do
+    tests "MonitorTemperature", on: "CuringProtocol"
+    setup  "BeginCuring", curing_method: "sample", cure_days: 1, min_temp_f: 1.0
+    input  measured_temp_f: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── StrengthTest aggregate ──────────────────────────────────────────
+
+  test "BreakCylinder sets test_day" do
+    tests "BreakCylinder", on: "StrengthTest"
+    setup  "SpecifyMix", mix_number: "sample", target_psi: 1.0, water_cement_ratio: 1.0, aggregate_size: "sample", slump_inches: 1.0
+    input  test_day: 1
+    expect ok: "true"
+  end
+
+  test "RecordStrength sets break_psi + result" do
+    tests "RecordStrength", on: "StrengthTest"
+    setup  "BreakCylinder", test_day: 1
+    input  break_psi: 1.0, result: "sample"
+    expect ok: "true"
+  end
+
+end

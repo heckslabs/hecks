@@ -82,11 +82,11 @@ Hecks.bluebook "GroceryStore", version: "2026.04.13.1" do
       then_set :shelf_count, to: :shelf_count
     end
 
-    UpdatePlanogram do
+    RevisePlanogram do
       role "Manager"
       description "Rearrange product placement within the aisle"
       reference_to(Aisle)
-      emits "PlanogramUpdated"
+      emits "PlanogramRevised"
     end
   end
 
@@ -121,7 +121,6 @@ Hecks.bluebook "GroceryStore", version: "2026.04.13.1" do
       reference_to(Supplier)
       String :sku
       Integer :quantity
-      given { quantity > 0 }
       emits "ReorderPlaced"
     end
   end
@@ -203,7 +202,7 @@ Hecks.bluebook "GroceryStore", version: "2026.04.13.1" do
 
   policy "PlanogramOnStock" do
     on "ProductStocked"
-    trigger "UpdatePlanogram"
+    trigger "RevisePlanogram"
   end
 
   policy "PromoteOnStock" do
@@ -241,18 +240,4 @@ Hecks.bluebook "GroceryStore", version: "2026.04.13.1" do
     trigger "StockProduct"
   end
 
-  fixture "Product", sku: "PROD-001", name: "Organic Whole Milk", category: "dairy", price: 4.99, quantity: 48, expiration_date: "2026-04-28", status: "available"
-  fixture "Product", sku: "PROD-002", name: "Sourdough Bread", category: "bakery", price: 3.49, quantity: 24, expiration_date: "2026-04-17", status: "available"
-
-  fixture "Aisle", aisle_number: "A-01", category: "dairy", shelf_count: 5
-  fixture "Aisle", aisle_number: "A-07", category: "produce", shelf_count: 6
-
-  fixture "Supplier", name: "Golden Valley Dairy", contact_email: "orders@goldenvalley.com", delivery_schedule: "mon_wed_fri"
-  fixture "Supplier", name: "Fresh Harvest Co", contact_email: "procurement@freshharv.com", delivery_schedule: "daily"
-
-  fixture "Promotion", promo_code: "SPRING20", description: "Spring produce sale 20% off", start_date: "2026-04-15", end_date: "2026-04-30", discount_percent: 20.0, status: "active"
-  fixture "Promotion", promo_code: "DAIRY15", description: "Dairy products 15% off", start_date: "2026-04-10", end_date: "2026-04-17", discount_percent: 15.0, status: "ended"
-
-  fixture "ShrinkageReport", report_id: "SHRINK-001", sku: "PROD-015", units_lost: 12, cause: "theft", reported_date: "2026-04-14", estimated_loss: 89.88
-  fixture "ShrinkageReport", report_id: "SHRINK-002", sku: "PROD-032", units_lost: 8, cause: "spoilage", reported_date: "2026-04-13", estimated_loss: 124.32
 end

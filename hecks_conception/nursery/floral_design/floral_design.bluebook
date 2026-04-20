@@ -20,6 +20,7 @@ Hecks.bluebook "FloralDesign" do
       String :vessel_type
       Integer :stem_count
       emits "ArrangementDesigned"
+      then_set :status, to: "designed"
     end
 
     AssembleArrangement do
@@ -60,6 +61,7 @@ Hecks.bluebook "FloralDesign" do
       Integer :stem_quantity
       Integer :vase_life_days
       emits "ShipmentReceived"
+      then_set :freshness, to: "fresh"
     end
 
     MarkWilted do
@@ -86,6 +88,7 @@ Hecks.bluebook "FloralDesign" do
       String :date
       Integer :arrangement_count
       emits "EventBooked"
+      then_set :status, to: "consulted"
     end
 
     FinalizeProposal do
@@ -113,6 +116,7 @@ Hecks.bluebook "FloralDesign" do
       String :time_window
       String :driver_name
       emits "DeliveryScheduled"
+      then_set :status, to: "scheduled"
     end
 
     ConfirmDelivery do
@@ -138,12 +142,12 @@ Hecks.bluebook "FloralDesign" do
       String :design_theme
       Integer :crew_size
       emits "InstallationPlanned"
+      then_set :status, to: "planned"
     end
 
     ExecuteInstallation do
       description "Build the installation on-site at the venue"
       reference_to(FloralInstallation)
-      given { status == "planned" }
       emits "InstallationExecuted"
       then_set :status, to: "installed"
     end
@@ -167,16 +171,6 @@ Hecks.bluebook "FloralDesign" do
     trigger "DesignArrangement"
   end
 
-  policy "AssembleOnDesign" do
-    on "ArrangementDesigned"
-    trigger "AssembleArrangement"
-  end
-
-  policy "ConditionOnAssembly" do
-    on "ArrangementAssembled"
-    trigger "ConditionArrangement"
-  end
-
   policy "DeliverOnCondition" do
     on "ArrangementConditioned"
     trigger "ScheduleDelivery"
@@ -192,28 +186,4 @@ Hecks.bluebook "FloralDesign" do
     trigger "PlanInstallation"
   end
 
-  policy "ExecuteOnPlan" do
-    on "InstallationPlanned"
-    trigger "ExecuteInstallation"
-  end
-
-  policy "StrikeAfterEvent" do
-    on "InstallationExecuted"
-    trigger "StrikeInstallation"
-  end
-
-  fixture "Arrangement", name: "Romantic Sunset", style: "garden", vessel_type: "glass_vase", status: "designed", stem_count: 24
-  fixture "Arrangement", name: "Tropical Paradise", style: "modern", vessel_type: "ceramic_urn", status: "designed", stem_count: 35
-
-  fixture "FlowerStock", variety: "roses", color: "red", stem_quantity: 150, freshness: "fresh", vase_life_days: 12
-  fixture "FlowerStock", variety: "eucalyptus", color: "green", stem_quantity: 200, freshness: "fresh", vase_life_days: 18
-
-  fixture "FloralEvent", event_name: "Morrison-Garcia Wedding", venue: "Grandview Ballroom", date: "2026-05-15", status: "consulted", arrangement_count: 8, reference_to(Arrangement)
-  fixture "FloralEvent", event_name: "Corporate Gala 2026", venue: "Downtown Convention Center", date: "2026-06-22", status: "consulted", arrangement_count: 15, reference_to(Arrangement)
-
-  fixture "Delivery", address: "Grandview Ballroom, 500 Park Drive", delivery_date: "2026-05-15", time_window: "2pm-4pm", status: "scheduled", driver_name: "Marcus Johnson", reference_to(Arrangement)
-  fixture "Delivery", address: "Downtown Convention Center, 100 Civic Plaza", delivery_date: "2026-06-22", time_window: "10am-12pm", status: "scheduled", driver_name: "Elena Rodriguez", reference_to(Arrangement)
-
-  fixture "FloralInstallation", location: "Grand Ballroom - Entrance Arch", design_theme: "Spring Romance", crew_size: 4, status: "planned", reference_to(FloralEvent)
-  fixture "FloralInstallation", location: "Convention Center - Main Foyer", design_theme: "Modern Elegance", crew_size: 6, status: "planned", reference_to(FloralEvent)
 end

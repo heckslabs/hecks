@@ -49,13 +49,13 @@ Hecks.bluebook "TeletherapyPlatform", version: "2026.04.13.1" do
     String :stream_url
     String :recording_status
     String :status
-    CreateRoom do
+    ProvisionRoom do
       role "System"
-      description "Create a video room and generate stream URL for a session"
+      description "Provision a video room and generate stream URL for a session"
       String :room_id
       String :session_id
       String :stream_url
-      emits "RoomCreated"
+      emits "RoomProvisioned"
       then_set :room_id, to: :room_id
       then_set :session_id, to: :session_id
       then_set :stream_url, to: :stream_url
@@ -118,14 +118,14 @@ Hecks.bluebook "TeletherapyPlatform", version: "2026.04.13.1" do
     String :client_id
     Float :amount
     String :status
-    CreateInvoice do
+    IssueInvoice do
       role "System"
-      description "Generate an invoice for a completed therapy session"
+      description "Issue an invoice for a completed therapy session"
       String :invoice_id
       String :session_id
       String :client_id
       Float :amount
-      emits "InvoiceCreated"
+      emits "InvoiceIssued"
       then_set :invoice_id, to: :invoice_id
       then_set :session_id, to: :session_id
       then_set :client_id, to: :client_id
@@ -142,28 +142,17 @@ Hecks.bluebook "TeletherapyPlatform", version: "2026.04.13.1" do
     end
   end
 
-  policy "CreateRoomOnSchedule" do
+  policy "ProvisionRoomOnSchedule" do
     on "SessionScheduled"
-    trigger "CreateRoom"
+    trigger "ProvisionRoom"
   end
   policy "InvoiceOnEnd" do
     on "SessionEnded"
-    trigger "CreateInvoice"
+    trigger "IssueInvoice"
   end
   policy "CloseRoomOnEnd" do
     on "SessionEnded"
     trigger "CloseRoom"
   end
 
-  fixture "TherapySession", session_id: "ts001", client_name: "Alex Green", therapist_name: "Dr. Lisa Chen", session_type: "cognitive_behavioral_therapy", scheduled_time: "2026-04-15 10:00", status: "scheduled"
-  fixture "TherapySession", session_id: "ts002", client_name: "Jordan Smith", therapist_name: "Dr. Mark Williams", session_type: "dialectical_behavior_therapy", scheduled_time: "2026-04-15 14:00", status: "scheduled"
-
-  fixture "VideoRoom", room_id: "room001", session_id: "ts001", stream_url: "https://stream.teletherapy.local/room/room001", recording_status: "off", status: "ready"
-  fixture "VideoRoom", room_id: "room002", session_id: "ts002", stream_url: "https://stream.teletherapy.local/room/room002", recording_status: "off", status: "ready"
-
-  fixture "ClientAccount", client_id: "ca001", name: "Alex Green", insurance_provider: "Blue Cross Blue Shield", copay_amount: "35.00", status: "active"
-  fixture "ClientAccount", client_id: "ca002", name: "Jordan Smith", insurance_provider: "United Health", copay_amount: "40.00", status: "active"
-
-  fixture "BillingRecord", invoice_id: "inv001", session_id: "ts001", client_id: "ca001", amount: 150.0, status: "pending"
-  fixture "BillingRecord", invoice_id: "inv002", session_id: "ts002", client_id: "ca002", amount: 175.0, status: "pending"
 end

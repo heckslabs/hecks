@@ -1,7 +1,7 @@
 Hecks.bluebook "Inbox", version: "2026.04.11.1" do
-  vision "Chris writes while Winter works — nothing lost, nothing interrupted"
+  vision "Chris writes while Miette works — nothing lost, nothing interrupted"
 
-  aggregate "Message", "A queued note from Chris that Winter has not yet processed" do
+  aggregate "Message", "A queued note from Chris that Miette has not yet processed" do
     String :body
     String :priority
     String :posted_at
@@ -9,7 +9,7 @@ Hecks.bluebook "Inbox", version: "2026.04.11.1" do
 
     PostMessage do
       role "Chris"
-      description "Drop a message into Winter's inbox"
+      description "Drop a message into Miette's inbox"
       String :body
       String :priority
       emits "MessagePosted"
@@ -19,7 +19,7 @@ Hecks.bluebook "Inbox", version: "2026.04.11.1" do
     end
 
     AcknowledgeMessage do
-      role "Winter"
+      role "Miette"
       description "Mark a message as seen and understood"
       reference_to(Message)
       given { status == "queued" }
@@ -28,7 +28,7 @@ Hecks.bluebook "Inbox", version: "2026.04.11.1" do
     end
 
     ActOnMessage do
-      role "Winter"
+      role "Miette"
       description "Mark a message as done — the work it requested is complete"
       reference_to(Message)
       given { status == "acknowledged" }
@@ -37,7 +37,7 @@ Hecks.bluebook "Inbox", version: "2026.04.11.1" do
     end
 
     DeferMessage do
-      role "Winter"
+      role "Miette"
       description "Push a message to the next session — not forgotten, just not now"
       reference_to(Message)
       given { status == "queued" }
@@ -57,20 +57,30 @@ Hecks.bluebook "Inbox", version: "2026.04.11.1" do
     Integer :queued_count
     String :oldest_priority
 
+    OpenInbox do
+      role "System"
+      description "Bring the inbox into existence so messages have a home"
+      Integer :queued_count
+      String :oldest_priority
+      emits "InboxOpened"
+      then_set :queued_count, to: :queued_count
+      then_set :oldest_priority, to: :oldest_priority
+    end
+
     DrainInbox do
-      role "Winter"
+      role "Miette"
       description "Process all queued messages in priority order"
       reference_to(Inbox)
       emits "InboxDrained"
     end
 
-    UpdateCounts do
+    Tally do
       role "System"
       description "Recalculate queued count and oldest priority"
       reference_to(Inbox)
       Integer :queued_count
       String :oldest_priority
-      emits "CountsUpdated"
+      emits "Tallied"
       then_set :queued_count, to: :queued_count
       then_set :oldest_priority, to: :oldest_priority
     end
@@ -78,22 +88,17 @@ Hecks.bluebook "Inbox", version: "2026.04.11.1" do
 
   policy "CountOnPost" do
     on "MessagePosted"
-    trigger "UpdateCounts"
+    trigger "Tally"
   end
 
   policy "CountOnAcknowledge" do
     on "MessageAcknowledged"
-    trigger "UpdateCounts"
+    trigger "Tally"
   end
 
   policy "CountOnDone" do
     on "MessageActedOn"
-    trigger "UpdateCounts"
+    trigger "Tally"
   end
 
-  fixture "Message", body: "Review new domain design for Autumn", priority: "high", posted_at: "2026-04-14T09:15:00Z", status: "queued"
-  fixture "Message", body: "Merge PR #42 when CI passes", priority: "medium", posted_at: "2026-04-14T08:30:00Z", status: "acknowledged"
-
-  fixture "Inbox", queued_count: 3, oldest_priority: "high"
-  fixture "Inbox", queued_count: 0, oldest_priority: "none"
 end

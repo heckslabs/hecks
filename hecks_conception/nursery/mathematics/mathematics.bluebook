@@ -223,6 +223,7 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
       description "Determine injectivity, surjectivity, bijectivity"
       reference_to(MathFunction)
       emits "FunctionClassified"
+      then_set :invertible, to: "true"
     end
   end
 
@@ -323,7 +324,7 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
       then_set :status, to: "verified"
     end
 
-    lifecycle :status, default: "unsolved" do
+    lifecycle :status, default: "pending" do
       transition "DefineEquation" => "unsolved", from: "pending"
       transition "SolveEquation" => "solved", from: "unsolved"
       transition "VerifyEquation" => "verified", from: "solved"
@@ -588,6 +589,21 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
       then_set :integral_type, to: :integral_type
     end
 
+    IntegrateDefinite do
+      role "Mathematician"
+      description "Set up a definite integral with explicit bounds"
+      String :function_name
+      String :variable
+      String :lower_bound
+      String :upper_bound
+      emits "DefiniteIntegralPrepared"
+      then_set :function_name, to: :function_name
+      then_set :variable, to: :variable
+      then_set :lower_bound, to: :lower_bound
+      then_set :upper_bound, to: :upper_bound
+      then_set :integral_type, to: "definite"
+    end
+
     ApplySubstitution do
       role "Mathematician"
       description "Change variables to simplify the integral — u-substitution"
@@ -632,6 +648,7 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
       reference_to(Series)
       String :test_method
       emits "ConvergenceTested"
+      then_set :converges, to: "true"
     end
 
     ComputeSum do
@@ -688,6 +705,7 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
       description "Compute the determinant — expansion by cofactors or row reduction"
       reference_to(Matrix)
       emits "DeterminantFound"
+      then_set :invertible, to: "true"
     end
 
     SolveSystem do
@@ -767,7 +785,6 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
       role "Mathematician"
       description "Compute the cross product — perpendicular vector in three dimensions"
       reference_to(Vector)
-      given { dimension == 3 }
       String :other_vector
       emits "CrossProductComputed"
     end
@@ -946,14 +963,12 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
       emits "ProofConstructed"
       then_set :theorem, to: :theorem
       then_set :proof_method, to: :proof_method
-      then_set :status, to: "in_progress"
     end
 
     AddProofStep do
       role "Mathematician"
       description "Add a step to the proof — statement with justification"
       reference_to(Proof)
-      given { status == "in_progress" }
       String :statement
       String :justification
       emits "ProofStepAdded"
@@ -963,7 +978,6 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
       role "Mathematician"
       description "Mark the proof as complete — QED"
       reference_to(Proof)
-      given { status == "in_progress" }
       emits "ProofCompleted"
       then_set :status, to: "complete"
     end
@@ -977,9 +991,8 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
       then_set :status, to: "verified"
     end
 
-    lifecycle :status, default: "in_progress" do
-      transition "ConstructProof" => "in_progress", from: "pending"
-      transition "CompleteProof" => "complete", from: "in_progress"
+    lifecycle :status, default: "pending" do
+      transition "CompleteProof" => "complete", from: "pending"
       transition "VerifyProof" => "verified", from: "complete"
     end
   end
@@ -1155,11 +1168,4 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
   end
 
   # Fixtures — fundamental mathematical constants
-  fixture "Number", value: "3.14159265358979", number_type: "real", real_part: 3.14159265358979, imaginary_part: 0.0, prime: "false", parity: "none", representation: "pi"
-  fixture "Number", value: "2.71828182845905", number_type: "real", real_part: 2.71828182845905, imaginary_part: 0.0, prime: "false", parity: "none", representation: "e"
-  fixture "Number", value: "0+1i", number_type: "complex", real_part: 0.0, imaginary_part: 1.0, prime: "false", parity: "none", representation: "i"
-  fixture "Number", value: "1.61803398874989", number_type: "real", real_part: 1.61803398874989, imaginary_part: 0.0, prime: "false", parity: "none", representation: "phi"
-  fixture "Number", value: "0", number_type: "natural", real_part: 0.0, imaginary_part: 0.0, prime: "false", parity: "even", representation: "zero"
-  fixture "Number", value: "1", number_type: "natural", real_part: 1.0, imaginary_part: 0.0, prime: "false", parity: "odd", representation: "one"
-  fixture "Number", value: "infinity", number_type: "real", real_part: 0.0, imaginary_part: 0.0, prime: "false", parity: "none", representation: "infinity"
 end

@@ -1,0 +1,88 @@
+Hecks.behaviors "UrbanFarm" do
+  vision "Behavioral tests for the UrbanFarm domain — exercises every command and query in memory"
+
+  # ── FarmPlot aggregate ──────────────────────────────────────────
+
+  test "AssignPlot sets plot_id + assigned_to + area_sqft + soil_type" do
+    tests "AssignPlot", on: "FarmPlot"
+    input  plot_id: "sample", assigned_to: "sample", area_sqft: 1.0, soil_type: "sample"
+    expect plot_id: "sample", assigned_to: "sample", area_sqft: 1.0, soil_type: "sample", status: "active"
+  end
+
+  test "ReclaimPlot runs" do
+    tests "ReclaimPlot", on: "FarmPlot"
+    setup  "AssignPlot", plot_id: "sample", assigned_to: "sample", area_sqft: 1.0, soil_type: "sample"
+    expect status: "available"
+  end
+
+
+  # ── CropCycle aggregate ──────────────────────────────────────────
+
+  test "PlantCrop sets cycle_id + plot_id + crop_name + planted_date + expected_harvest" do
+    tests "PlantCrop", on: "CropCycle"
+    input  cycle_id: "sample", plot_id: "sample", crop_name: "sample", planted_date: "sample", expected_harvest: "sample"
+    expect cycle_id: "sample", plot_id: "sample", crop_name: "sample", planted_date: "sample", expected_harvest: "sample", status: "growing"
+  end
+
+  test "PlantCrop cascades through policy chain" do
+    tests "PlantCrop", on: "CropCycle", kind: :cascade
+    setup  "ConfigureIrrigation", system_id: "sample", zone_name: "sample", irrigation_type: "sample", flow_rate_gpm: 1.0, schedule: "sample"
+    input  cycle_id: "sample", plot_id: "sample", crop_name: "sample", planted_date: "sample", expected_harvest: "sample"
+    expect emits: ["CropPlanted", "IrrigationRun"]
+  end
+
+  test "HarvestCrop sets yield_lbs" do
+    tests "HarvestCrop", on: "CropCycle"
+    setup  "PlantCrop", cycle_id: "sample", plot_id: "sample", crop_name: "sample", planted_date: "sample", expected_harvest: "sample"
+    input  yield_lbs: 1.0
+    expect yield_lbs: 1.0, status: "harvested"
+  end
+
+  test "HarvestCrop cascades through policy chain" do
+    tests "HarvestCrop", on: "CropCycle", kind: :cascade
+    setup  "DistributeHarvest", distribution_id: "sample", cycle_id: "sample", distributed_lbs: 1.0, recipient: "sample", date: "sample"
+    setup  "PlantCrop", cycle_id: "sample", plot_id: "sample", crop_name: "sample", planted_date: "sample", expected_harvest: "sample"
+    input  yield_lbs: 1.0
+    expect emits: ["CropHarvested", "HarvestDistributed"]
+  end
+
+
+  # ── IrrigationSystem aggregate ──────────────────────────────────────────
+
+  test "ConfigureIrrigation sets system_id + zone_name + irrigation_type + flow_rate_gpm + schedule" do
+    tests "ConfigureIrrigation", on: "IrrigationSystem"
+    input  system_id: "sample", zone_name: "sample", irrigation_type: "sample", flow_rate_gpm: 1.0, schedule: "sample"
+    expect system_id: "sample", zone_name: "sample", irrigation_type: "sample", flow_rate_gpm: 1.0, schedule: "sample", status: "active"
+  end
+
+  test "RunIrrigation runs" do
+    tests "RunIrrigation", on: "IrrigationSystem"
+    setup  "ConfigureIrrigation", system_id: "sample", zone_name: "sample", irrigation_type: "sample", flow_rate_gpm: 1.0, schedule: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── HarvestDistribution aggregate ──────────────────────────────────────────
+
+  test "DistributeHarvest sets distribution_id + cycle_id + distributed_lbs + recipient + date" do
+    tests "DistributeHarvest", on: "HarvestDistribution"
+    input  distribution_id: "sample", cycle_id: "sample", distributed_lbs: 1.0, recipient: "sample", date: "sample"
+    expect distribution_id: "sample", cycle_id: "sample", distributed_lbs: 1.0, recipient: "sample", date: "sample"
+  end
+
+
+  # ── EducationWorkshop aggregate ──────────────────────────────────────────
+
+  test "ScheduleWorkshop sets workshop_id + topic + instructor + date + max_participants" do
+    tests "ScheduleWorkshop", on: "EducationWorkshop"
+    input  workshop_id: "sample", topic: "sample", instructor: "sample", date: "sample", max_participants: 1
+    expect workshop_id: "sample", topic: "sample", instructor: "sample", date: "sample", max_participants: 1, status: "scheduled"
+  end
+
+  test "ConductWorkshop runs" do
+    tests "ConductWorkshop", on: "EducationWorkshop"
+    setup  "ScheduleWorkshop", workshop_id: "sample", topic: "sample", instructor: "sample", date: "sample", max_participants: 1
+    expect status: "conducted"
+  end
+
+end

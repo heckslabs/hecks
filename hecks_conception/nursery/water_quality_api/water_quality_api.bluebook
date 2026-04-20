@@ -93,9 +93,9 @@ Hecks.bluebook "WaterQualityAPI" do
       attribute :tier
     end
 
-    command "CreateEndpoint" do
+    command "Draft" do
       role "APIDeveloper"
-      goal "Create a new API endpoint"
+      goal "Draft a new API endpoint"
       attribute :endpoint_path
       attribute :description
       attribute :rate_limit, Integer
@@ -193,15 +193,4 @@ Hecks.bluebook "WaterQualityAPI" do
     map api_endpoint_id: :endpoint_id
   end
 
-  fixture "TreatmentPlant", plant_name: "Springfield Regional WTP", capacity_gallons: 50000000.0, status: "operational"
-  fixture "TreatmentPlant", plant_name: "Riverside Municipal WTP", capacity_gallons: 75000000.0, status: "operational"
-
-  fixture "WaterSample", sample_point: "Post-treatment tank", collected_at: "2026-04-10T08:00:00Z", status: "collected"
-  fixture "WaterSample", sample_point: "Distribution main", collected_at: "2026-04-10T12:00:00Z", status: "collected"
-
-  fixture "APIEndpoint", endpoint_path: "/api/v1/water-quality", description: "Real-time water quality metrics", rate_limit: 10000, status: "draft"
-  fixture "APIEndpoint", endpoint_path: "/api/v1/treatment-status", description: "Treatment plant operational status", rate_limit: 5000, status: "draft"
-
-  fixture "DataFeed", feed_name: "Quality to API", frequency_seconds: 300, status: "configured"
-  fixture "DataFeed", feed_name: "Plant metrics to API", frequency_seconds: 600, status: "configured"
 end

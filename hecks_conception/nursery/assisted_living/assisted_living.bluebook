@@ -107,7 +107,7 @@ Hecks.bluebook "AssistedLiving" do
       String :time_of_day
     end
 
-    CreateCarePlan do
+    DraftCarePlan do
       role "Nurse"
       description "Establish a personalized care plan for a resident"
       reference_to(Resident)
@@ -191,7 +191,7 @@ Hecks.bluebook "AssistedLiving" do
       String :administered
     end
 
-    CreateMedicationSchedule do
+    PrescribeMedication do
       role "Nurse"
       description "Set up a daily medication schedule for a resident"
       reference_to(Resident)
@@ -227,12 +227,12 @@ Hecks.bluebook "AssistedLiving" do
 
   policy "CreateCarePlanOnAdmission" do
     on "ResidentAdmitted"
-    trigger "CreateCarePlan"
+    trigger "DraftCarePlan"
   end
 
   policy "CreateMedScheduleOnCarePlan" do
     on "CarePlanCreated"
-    trigger "CreateMedicationSchedule"
+    trigger "PrescribeMedication"
   end
 
   policy "ActivateOnRoomAssigned" do
@@ -265,18 +265,4 @@ Hecks.bluebook "AssistedLiving" do
     trigger "AddScheduledDose"
   end
 
-  fixture "Resident", name: "Margaret Johnson", date_of_birth: "1942-05-15", emergency_contact: "John Johnson", medical_conditions: "Hypertension, Osteoporosis", mobility_level: "assisted_walking", status: "active"
-  fixture "Resident", name: "Robert Chen", date_of_birth: "1938-11-22", emergency_contact: "Lisa Chen", medical_conditions: "Diabetes, Arthritis", mobility_level: "wheelchair", status: "active"
-
-  fixture "Room", room_number: "101", floor: "1", room_type: "private", occupant_name: "Margaret Johnson", status: "occupied"
-  fixture "Room", room_number: "205", floor: "2", room_type: "semi_private", occupant_name: "Robert Chen", status: "occupied"
-
-  fixture "CarePlan", resident_name: "Margaret Johnson", created_date: "2026-03-15", dietary_needs: "low_sodium, diabetic", status: "active"
-  fixture "CarePlan", resident_name: "Robert Chen", created_date: "2026-03-20", dietary_needs: "pureed_foods, high_protein", status: "active"
-
-  fixture "Activity", name: "Morning Tai Chi", activity_type: "exercise", scheduled_time: "09:00", location: "Garden Room", capacity: 12
-  fixture "Activity", name: "Bingo Night", activity_type: "recreation", scheduled_time: "18:30", location: "Common Room", capacity: 20
-
-  fixture "MedicationSchedule", resident_name: "Margaret Johnson", status: "active"
-  fixture "MedicationSchedule", resident_name: "Robert Chen", status: "active"
 end

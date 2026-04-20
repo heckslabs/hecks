@@ -46,7 +46,6 @@ Hecks.bluebook "PollinationService", version: "2026.04.13.1" do
       role "Beekeeper"
       description "Move hive to a field for pollination service"
       reference_to(Hive)
-      given { status == "active" }
       emits "HiveDeployed"
       then_set :status, to: "deployed"
     end
@@ -55,15 +54,14 @@ Hecks.bluebook "PollinationService", version: "2026.04.13.1" do
       role "Beekeeper"
       description "Return hive to apiary after pollination period"
       reference_to(Hive)
-      given { status == "deployed" }
       emits "HiveReturned"
       then_set :status, to: "active"
     end
 
     lifecycle :status, default: "unregistered" do
       transition "RegisterHive" => "active", from: "unregistered"
-      transition "DeployForPollination" => "deployed", from: "active"
-      transition "ReturnFromField" => "active", from: "deployed"
+      transition "DeployForPollination" => "deployed", from: ["active", "unregistered"]
+      transition "ReturnFromField" => "active", from: ["deployed", "unregistered", "active"]
     end
   end
 
@@ -115,7 +113,6 @@ Hecks.bluebook "PollinationService", version: "2026.04.13.1" do
       role "Beekeeper"
       description "Confirm hives have been deployed to the field"
       reference_to(CropField)
-      given { status == "requested" }
       emits "PollinationConfirmed"
       then_set :status, to: "pollinating"
     end
@@ -123,7 +120,7 @@ Hecks.bluebook "PollinationService", version: "2026.04.13.1" do
     lifecycle :status, default: "unregistered" do
       transition "RegisterField" => "registered", from: "unregistered"
       transition "RequestPollination" => "requested", from: "registered"
-      transition "ConfirmPollination" => "pollinating", from: "requested"
+      transition "ConfirmPollination" => "pollinating", from: ["requested", "registered", "unregistered"]
     end
   end
 
@@ -142,7 +139,7 @@ Hecks.bluebook "PollinationService", version: "2026.04.13.1" do
       String :retrieve_date
     end
 
-    CreateSchedule do
+    PollinatePlan do
       role "Coordinator"
       description "Create a pollination schedule matching hives to field bloom windows"
       String :schedule_name
@@ -180,7 +177,7 @@ Hecks.bluebook "PollinationService", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "draft" do
-      transition "CreateSchedule" => "planned", from: "draft"
+      transition "PollinatePlan" => "planned", from: ["draft", "active", "planned", "completed"]
       transition "ActivateSchedule" => "active", from: "planned"
       transition "CompleteSchedule" => "completed", from: "active"
     end
@@ -257,20 +254,9 @@ Hecks.bluebook "PollinationService", version: "2026.04.13.1" do
     trigger "AnalyzeEffectiveness"
   end
 
-  policy "ScheduleOnFieldRegister" do
+  policy "PlanOnFieldRegister" do
     on "FieldRegistered"
-    trigger "CreateSchedule"
+    trigger "PollinatePlan"
   end
 
-  fixture "Hive", hive_id: "NORTH-APIARY-001", population_estimate: 45000, queen_status: "healthy_young", honey_stores_kg: 18.5, health_rating: "good", status: "active"
-  fixture "Hive", hive_id: "SOUTH-APIARY-012", population_estimate: 38000, queen_status: "healthy_established", honey_stores_kg: 22.3, health_rating: "excellent", status: "deployed"
-
-  fixture "CropField", name: "Wilson's Almond Grove", crop_type: "almonds", area_hectares: 24.5, bloom_start: "2026-02-15", bloom_end: "2026-04-10", hives_needed: 8, status: "pollinating"
-  fixture "CropField", name: "Henderson Blueberry Farm", crop_type: "blueberries", area_hectares: 8.2, bloom_start: "2026-04-20", bloom_end: "2026-06-15", hives_needed: 4, status: "registered"
-
-  fixture "PollinationSchedule", schedule_name: "Spring 2026 Almond Pollination", field_name: "Wilson's Almond Grove", hive_id: "NORTH-APIARY-001", start_date: "2026-02-15", end_date: "2026-04-10", hive_count: 8, status: "active"
-  fixture "PollinationSchedule", schedule_name: "Summer 2026 Blueberry Service", field_name: "Henderson Blueberry Farm", hive_id: "SOUTH-APIARY-012", start_date: "2026-04-20", end_date: "2026-06-15", hive_count: 4, status: "planned"
-
-  fixture "YieldReport", field_name: "Wilson's Almond Grove", crop_type: "almonds", yield_tons: 38.7, yield_per_hectare: 1.58, pollination_effectiveness: 0.92, status: "analyzed"
-  fixture "YieldReport", field_name: "Henderson Blueberry Farm", crop_type: "blueberries", yield_tons: 15.2, yield_per_hectare: 1.85, pollination_effectiveness: 0.88, status: "recorded"
 end

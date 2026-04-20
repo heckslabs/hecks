@@ -1,0 +1,173 @@
+Hecks.behaviors "VeteranRestart" do
+  vision "Behavioral tests for the VeteranRestart domain — exercises every command and query in memory"
+
+  # ── Veteran aggregate ──────────────────────────────────────────
+
+  test "EnrollVeteran sets name + service_branch + discharge_type" do
+    tests "EnrollVeteran", on: "Veteran"
+    input  name: "sample", service_branch: "sample", discharge_type: "sample"
+    expect name: "sample", service_branch: "sample", discharge_type: "sample", status: "enrolled"
+  end
+
+  test "AssessNeeds runs" do
+    tests "AssessNeeds", on: "Veteran"
+    setup  "EnrollVeteran", name: "sample", service_branch: "sample", discharge_type: "sample"
+    expect status: "assessed"
+  end
+
+  test "GraduateProgram runs" do
+    tests "GraduateProgram", on: "Veteran"
+    setup  "EnrollVeteran", name: "sample", service_branch: "sample", discharge_type: "sample"
+    setup  "AssessNeeds"
+    expect status: "graduated"
+  end
+
+
+  # ── HousingApplication aggregate ──────────────────────────────────────────
+
+  test "MatchHousing sets housing_type + location_preference + budget" do
+    tests "MatchHousing", on: "HousingApplication"
+    setup  "EnrollVeteran", name: "sample", service_branch: "sample", discharge_type: "sample"
+    input  housing_type: "sample", location_preference: "sample", budget: 1.0
+    expect veteran: 1, housing_type: "sample", location_preference: "sample", budget: 1.0, status: "matched"
+  end
+
+  test "SubmitApplication runs" do
+    tests "SubmitApplication", on: "HousingApplication"
+    setup  "MatchHousing", housing_type: "sample", location_preference: "sample", budget: 1.0
+    expect status: "submitted"
+  end
+
+  test "ApproveApplication runs" do
+    tests "ApproveApplication", on: "HousingApplication"
+    setup  "MatchHousing", housing_type: "sample", location_preference: "sample", budget: 1.0
+    setup  "SubmitApplication"
+    expect status: "approved"
+  end
+
+  test "SignLease runs" do
+    tests "SignLease", on: "HousingApplication"
+    setup  "MatchHousing", housing_type: "sample", location_preference: "sample", budget: 1.0
+    setup  "SubmitApplication"
+    setup  "ApproveApplication"
+    expect status: "leased"
+  end
+
+  test "SignLease cascades through policy chain" do
+    tests "SignLease", on: "HousingApplication", kind: :cascade
+    setup  "StartFinancialPlan", monthly_income: 1.0
+    setup  "EnrollVeteran", name: "sample", service_branch: "sample", discharge_type: "sample"
+    setup  "SetMilestone", milestone_type: "sample", description: "sample", target_date: "sample"
+    setup  "MatchHousing", housing_type: "sample", location_preference: "sample", budget: 1.0
+    setup  "SubmitApplication"
+    setup  "ApproveApplication"
+    expect emits: ["LeasesSigned", "FinancialPlanStarted", "MilestoneAchieved"]
+  end
+
+
+  # ── BenefitsClaim aggregate ──────────────────────────────────────────
+
+  test "FileClaim sets benefit_type + description" do
+    tests "FileClaim", on: "BenefitsClaim"
+    setup  "EnrollVeteran", name: "sample", service_branch: "sample", discharge_type: "sample"
+    input  benefit_type: "sample", description: "sample"
+    expect veteran: 1, benefit_type: "sample", description: "sample", status: "filed"
+  end
+
+  test "ApproveBenefits sets monthly_amount" do
+    tests "ApproveBenefits", on: "BenefitsClaim"
+    setup  "FileClaim", benefit_type: "sample", description: "sample"
+    input  monthly_amount: 1.0
+    expect monthly_amount: 1.0, status: "approved"
+  end
+
+  test "ApproveBenefits cascades through policy chain" do
+    tests "ApproveBenefits", on: "BenefitsClaim", kind: :cascade
+    setup  "SetMilestone", milestone_type: "sample", description: "sample", target_date: "sample"
+    setup  "FileClaim", benefit_type: "sample", description: "sample"
+    input  monthly_amount: 1.0
+    expect emits: ["BenefitsApproved", "MilestoneAchieved"]
+  end
+
+  test "DenyClaim runs" do
+    tests "DenyClaim", on: "BenefitsClaim"
+    setup  "FileClaim", benefit_type: "sample", description: "sample"
+    expect status: "denied"
+  end
+
+  test "AppealClaim runs" do
+    tests "AppealClaim", on: "BenefitsClaim"
+    setup  "FileClaim", benefit_type: "sample", description: "sample"
+    setup  "DenyClaim"
+    expect status: "appealed"
+  end
+
+
+  # ── FinancialPlan aggregate ──────────────────────────────────────────
+
+  test "StartFinancialPlan sets monthly_income" do
+    tests "StartFinancialPlan", on: "FinancialPlan"
+    setup  "EnrollVeteran", name: "sample", service_branch: "sample", discharge_type: "sample"
+    input  monthly_income: 1.0
+    expect veteran: 1, monthly_income: 1.0, status: "active"
+  end
+
+  test "SetBudget sets monthly_expenses + savings_target" do
+    tests "SetBudget", on: "FinancialPlan"
+    setup  "StartFinancialPlan", monthly_income: 1.0
+    input  monthly_expenses: 1.0, savings_target: 1.0
+    expect monthly_expenses: 1.0, savings_target: 1.0
+  end
+
+  test "ReviewProgress runs" do
+    tests "ReviewProgress", on: "FinancialPlan"
+    setup  "StartFinancialPlan", monthly_income: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── LegalCase aggregate ──────────────────────────────────────────
+
+  test "OpenCase sets case_type + description + assigned_attorney" do
+    tests "OpenCase", on: "LegalCase"
+    setup  "EnrollVeteran", name: "sample", service_branch: "sample", discharge_type: "sample"
+    input  case_type: "sample", description: "sample", assigned_attorney: "sample"
+    expect veteran: 1, case_type: "sample", description: "sample", assigned_attorney: "sample", status: "open"
+  end
+
+  test "ResolveCase runs" do
+    tests "ResolveCase", on: "LegalCase"
+    setup  "OpenCase", case_type: "sample", description: "sample", assigned_attorney: "sample"
+    expect status: "resolved"
+  end
+
+  test "ResolveCase cascades through policy chain" do
+    tests "ResolveCase", on: "LegalCase", kind: :cascade
+    setup  "SetMilestone", milestone_type: "sample", description: "sample", target_date: "sample"
+    setup  "OpenCase", case_type: "sample", description: "sample", assigned_attorney: "sample"
+    expect emits: ["LegalCaseResolved", "MilestoneAchieved"]
+  end
+
+  test "EscalateCase runs" do
+    tests "EscalateCase", on: "LegalCase"
+    setup  "OpenCase", case_type: "sample", description: "sample", assigned_attorney: "sample"
+    expect status: "escalated"
+  end
+
+
+  # ── Milestone aggregate ──────────────────────────────────────────
+
+  test "SetMilestone sets milestone_type + description + target_date" do
+    tests "SetMilestone", on: "Milestone"
+    setup  "EnrollVeteran", name: "sample", service_branch: "sample", discharge_type: "sample"
+    input  milestone_type: "sample", description: "sample", target_date: "sample"
+    expect veteran: 1, milestone_type: "sample", description: "sample", target_date: "sample", status: "pending"
+  end
+
+  test "AchieveMilestone runs" do
+    tests "AchieveMilestone", on: "Milestone"
+    setup  "SetMilestone", milestone_type: "sample", description: "sample", target_date: "sample"
+    expect status: "achieved"
+  end
+
+end

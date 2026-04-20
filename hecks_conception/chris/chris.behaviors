@@ -1,0 +1,78 @@
+Hecks.behaviors "Chris" do
+  vision "Behavioral tests for the Chris domain — exercises every command and query in memory"
+
+  # ── Identity aggregate ──────────────────────────────────────────
+
+  test "Introduce sets name + role + company + tagline" do
+    tests "Introduce", on: "Identity"
+    input  name: "sample", role: "sample", company: "sample", tagline: "sample"
+    expect name: "sample", role: "sample", company: "sample", tagline: "sample"
+  end
+
+  test "ShiftRole sets role" do
+    tests "ShiftRole", on: "Identity"
+    setup  "Introduce", name: "sample", role: "sample", company: "sample", tagline: "sample"
+    input  role: "sample"
+    expect role: "sample"
+  end
+
+
+  # ── Workflow aggregate ──────────────────────────────────────────
+
+  test "SetPreference sets name + rule + why" do
+    tests "SetPreference", on: "Workflow"
+    input  name: "sample", rule: "sample", why: "sample"
+    expect preferences_size: 1
+  end
+
+
+  # ── Convention aggregate ──────────────────────────────────────────
+
+  test "EnshrineConvention sets name + rule + why + applies_to" do
+    tests "EnshrineConvention", on: "Convention"
+    input  name: "sample", rule: "sample", why: "sample", applies_to: "sample"
+    expect name: "sample", rule: "sample", why: "sample", applies_to: "sample"
+  end
+
+
+  # ── AntiPattern aggregate ──────────────────────────────────────────
+
+  test "RecordAntiPattern sets name + what_happened + why_it_was_wrong + correct_approach" do
+    tests "RecordAntiPattern", on: "AntiPattern"
+    input  name: "sample", what_happened: "sample", why_it_was_wrong: "sample", correct_approach: "sample"
+    expect name: "sample", what_happened: "sample", why_it_was_wrong: "sample", correct_approach: "sample"
+  end
+
+
+  # ── Person aggregate ──────────────────────────────────────────
+
+  test "MeetPerson sets name + relationship + context" do
+    tests "MeetPerson", on: "Person"
+    input  name: "sample", relationship: "sample", context: "sample"
+    expect name: "sample", relationship: "sample", context: "sample"
+  end
+
+  test "AnnotatePerson sets note" do
+    tests "AnnotatePerson", on: "Person"
+    setup  "MeetPerson", name: "sample", relationship: "sample", context: "sample"
+    input  note: "sample"
+    expect notes_size: 1
+  end
+
+
+  # ── Embryonaut aggregate ──────────────────────────────────────────
+
+  test "Found sets status + product_vision + seed_target + cofounder_profile" do
+    tests "Found", on: "Embryonaut"
+    input  status: "sample", product_vision: "sample", seed_target: "sample", cofounder_profile: "sample"
+    expect status: "sample", product_vision: "sample", seed_target: "sample", cofounder_profile: "sample"
+  end
+
+  test "RecordMilestone sets name + date + status" do
+    tests "RecordMilestone", on: "Embryonaut"
+    setup  "Found", status: "sample", product_vision: "sample", seed_target: "sample", cofounder_profile: "sample"
+    input  name: "sample", date: "sample", status: "sample"
+    expect milestones_size: 1
+  end
+
+end

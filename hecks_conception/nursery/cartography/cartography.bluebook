@@ -7,22 +7,30 @@ Hecks.bluebook "Cartography" do
     String :title
     String :scale
     String :edition
+    Integer :feature_layer_count, default: 0
     reference_to Datum
     reference_to Projection
 
-    command "CreateSheet" do
+    command "Plate" do
       description "Define a new map sheet with its coverage area"
-      emits "SheetCreated"
+      emits "SheetPlated"
       String :sheet_id
       String :title
       String :scale
+      then_set :feature_layer_count, to: 1
+    end
+
+    command "AddFeatureLayer" do
+      description "Attach a feature layer to the map sheet"
+      emits "FeatureLayerAdded"
+      reference_to MapSheet
     end
 
     command "PublishSheet" do
       description "Release the map sheet for distribution"
       emits "SheetPublished"
       reference_to MapSheet
-      given "sheet must have at least one feature layer"
+      given { feature_layer_count > 0 }
     end
 
     command "RetireSheet" do
@@ -68,6 +76,7 @@ Hecks.bluebook "Cartography" do
     String :feature_type
     String :name
     String :geometry_wkt
+    Integer :referencing_feature_count, default: 0
     reference_to MapSheet
 
     command "DigitizeFeature" do
@@ -87,11 +96,11 @@ Hecks.bluebook "Cartography" do
       String :attribute_value
     end
 
-    command "DeleteFeature" do
+    command "Erase" do
       description "Remove an erroneous feature from the map"
-      emits "FeatureDeleted"
+      emits "FeatureErased"
       reference_to GeographicFeature
-      given "feature must not be referenced by other features"
+      given { referencing_feature_count == 0 }
     end
   end
 
@@ -101,6 +110,7 @@ Hecks.bluebook "Cartography" do
     String :ellipsoid
     Float :semi_major_axis_m
     Float :inverse_flattening
+    Boolean :target_datum_registered, default: false
 
     command "RegisterDatum" do
       description "Add a new geodetic datum to the registry"
@@ -108,6 +118,13 @@ Hecks.bluebook "Cartography" do
       String :name
       String :ellipsoid
       Float :semi_major_axis_m
+      then_set :target_datum_registered, to: true
+    end
+
+    command "RegisterTargetDatum" do
+      description "Mark the target datum as registered for cross-datum transforms"
+      emits "TargetDatumRegistered"
+      reference_to Datum
     end
 
     command "TransformCoordinates" do
@@ -116,7 +133,7 @@ Hecks.bluebook "Cartography" do
       reference_to Datum
       Float :source_lat
       Float :source_lon
-      given "target datum must also be registered"
+      given { target_datum_registered == true }
     end
   end
 
@@ -126,6 +143,7 @@ Hecks.bluebook "Cartography" do
     String :revision_date
     String :change_description
     String :reviewer
+    Boolean :field_verified, default: false
     reference_to MapSheet
 
     command "SubmitRevision" do
@@ -133,6 +151,13 @@ Hecks.bluebook "Cartography" do
       emits "RevisionSubmitted"
       reference_to MapSheet
       String :change_description
+      then_set :field_verified, to: true
+    end
+
+    command "FieldVerifyRevision" do
+      description "Mark the revision as confirmed by field survey"
+      emits "RevisionFieldVerified"
+      reference_to MapRevision
     end
 
     command "ApproveRevision" do
@@ -140,7 +165,7 @@ Hecks.bluebook "Cartography" do
       emits "RevisionApproved"
       reference_to MapRevision
       String :reviewer
-      given "revision must be field-verified"
+      given { field_verified == true }
     end
   end
 
@@ -163,13 +188,13 @@ Hecks.bluebook "Cartography" do
     trigger "DefineProjection"
   end
 
-  policy "CreateSheetAfterProjection" do
+  policy "PlateSheetAfterProjection" do
     on "ProjectionDefined"
-    trigger "CreateSheet"
+    trigger "Plate"
   end
 
-  policy "DigitizeAfterSheetCreated" do
-    on "SheetCreated"
+  policy "DigitizeAfterSheetPlated" do
+    on "SheetPlated"
     trigger "DigitizeFeature"
   end
 
@@ -188,18 +213,4 @@ Hecks.bluebook "Cartography" do
     trigger "PublishSheet"
   end
 
-  fixture "MapSheet", sheet_id: "USGS-NV-123-A", title: "Lake Tahoe Basin Topographic Map", scale: "1:24000", edition: "2026 Edition 1"
-  fixture "MapSheet", sheet_id: "USGS-CA-456-B", title: "San Francisco Bay Area Urban Areas", scale: "1:100000", edition: "2025 Edition 2"
-
-  fixture "Projection", name: "Universal Transverse Mercator Zone 11N", projection_type: "UTM", central_meridian: -117.0, standard_parallel: 0.0
-  fixture "Projection", name: "State Plane - Nevada Central", projection_type: "Lambert Conformal Conic", central_meridian: -116.4, standard_parallel: 39.0
-
-  fixture "GeographicFeature", feature_id: "SF-BAY-FEATURE-001", feature_type: "waterbody", name: "San Francisco Bay", geometry_wkt: "POLYGON((-122.5 37.8, -122.3 37.8, -122.3 37.5, -122.5 37.5, -122.5 37.8))"
-  fixture "GeographicFeature", feature_id: "SIERRA-FEATURE-002", feature_type: "mountain_range", name: "Sierra Nevada", geometry_wkt: "LINESTRING(-120.5 39.0, -120.0 38.5, -119.5 38.0)"
-
-  fixture "Datum", name: "WGS 84", ellipsoid: "WGS 84", semi_major_axis_m: 6378137.0, inverse_flattening: 298.257223563
-  fixture "Datum", name: "NAD 83", ellipsoid: "GRS 1980", semi_major_axis_m: 6378137.0, inverse_flattening: 298.257222101
-
-  fixture "MapRevision", revision_id: "SF-BAY-REV-2026-001", revision_date: "2026-03-15", change_description: "Updated shoreline after wetland restoration project", reviewer: "Dr. Patricia Chen"
-  fixture "MapRevision", revision_id: "TAHOE-REV-2026-002", revision_date: "2026-04-01", change_description: "Added new hiking trails from 2025 survey data", reviewer: "Marcus Johnson"
 end

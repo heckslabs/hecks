@@ -1,0 +1,157 @@
+Hecks.behaviors "PhotographyStudio" do
+  vision "Behavioral tests for the PhotographyStudio domain — exercises every command and query in memory"
+
+  # ── Shoot aggregate ──────────────────────────────────────────
+
+  test "ScheduleShoot sets title + location + shoot_type" do
+    tests "ScheduleShoot", on: "Shoot"
+    setup  "RegisterClient", name: "sample", email: "sample", phone: "sample"
+    input  title: "sample", location: "sample", shoot_type: "sample"
+    expect status: "scheduled"
+  end
+
+  test "StartShoot runs" do
+    tests "StartShoot", on: "Shoot"
+    setup  "ScheduleShoot", title: "sample", location: "sample", shoot_type: "sample"
+    expect status: "in_progress"
+  end
+
+  test "WrapShoot sets final_frame_count" do
+    tests "WrapShoot", on: "Shoot"
+    setup  "ScheduleShoot", title: "sample", location: "sample", shoot_type: "sample"
+    setup  "StartShoot"
+    input  final_frame_count: 1
+    expect status: "wrapped", frame_count: 1
+  end
+
+  test "WrapShoot cascades through policy chain" do
+    tests "WrapShoot", on: "Shoot", kind: :cascade
+    setup  "ScheduleShoot", title: "sample", location: "sample", shoot_type: "sample"
+    setup  "CullSelects", selects_count: 1
+    setup  "PlacePrintOrder", paper_stock: "sample", finish: "sample", quantity: 1
+    setup  "RegisterClient", name: "sample", email: "sample", phone: "sample"
+    setup  "StartShoot"
+    input  final_frame_count: 1
+    expect emits: ["ShootWrapped", "SelectsCulled", "SelectsRetouched", "FinalsDelivered", "GalleryPublished", "PrintOrderPlaced", "PrintOrderFulfilled", "ClientTierUpgraded"]
+  end
+
+
+  # ── Client aggregate ──────────────────────────────────────────
+
+  test "RegisterClient sets name + email + phone" do
+    tests "RegisterClient", on: "Client"
+    input  name: "sample", email: "sample", phone: "sample"
+    expect name: "sample", email: "sample", phone: "sample"
+  end
+
+  test "UpgradeTier sets new_tier" do
+    tests "UpgradeTier", on: "Client"
+    setup  "RegisterClient", name: "sample", email: "sample", phone: "sample"
+    input  new_tier: "sample"
+    expect tier: "sample"
+  end
+
+
+  # ── EditSession aggregate ──────────────────────────────────────────
+
+  test "CullSelects sets selects_count" do
+    tests "CullSelects", on: "EditSession"
+    setup  "ScheduleShoot", title: "sample", location: "sample", shoot_type: "sample"
+    input  selects_count: 1
+    expect selects_count: 1, status: "culling"
+  end
+
+  test "CullSelects cascades through policy chain" do
+    tests "CullSelects", on: "EditSession", kind: :cascade
+    setup  "ScheduleShoot", title: "sample", location: "sample", shoot_type: "sample"
+    setup  "PlacePrintOrder", paper_stock: "sample", finish: "sample", quantity: 1
+    setup  "RegisterClient", name: "sample", email: "sample", phone: "sample"
+    input  selects_count: 1
+    expect emits: ["SelectsCulled", "SelectsRetouched", "FinalsDelivered", "GalleryPublished", "PrintOrderPlaced", "PrintOrderFulfilled", "ClientTierUpgraded"]
+  end
+
+  test "RetouchSelects sets preset_name" do
+    tests "RetouchSelects", on: "EditSession"
+    setup  "CullSelects", selects_count: 1
+    input  preset_name: "sample"
+    expect status: "retouched"
+  end
+
+  test "RetouchSelects cascades through policy chain" do
+    tests "RetouchSelects", on: "EditSession", kind: :cascade
+    setup  "CullSelects", selects_count: 1
+    setup  "PlacePrintOrder", paper_stock: "sample", finish: "sample", quantity: 1
+    setup  "RegisterClient", name: "sample", email: "sample", phone: "sample"
+    input  preset_name: "sample"
+    expect emits: ["SelectsRetouched", "FinalsDelivered", "GalleryPublished", "PrintOrderPlaced", "PrintOrderFulfilled", "ClientTierUpgraded"]
+  end
+
+  test "DeliverFinals sets finals_count" do
+    tests "DeliverFinals", on: "EditSession"
+    setup  "CullSelects", selects_count: 1
+    input  finals_count: 1
+    expect finals_count: 1, status: "delivered"
+  end
+
+  test "DeliverFinals cascades through policy chain" do
+    tests "DeliverFinals", on: "EditSession", kind: :cascade
+    setup  "CullSelects", selects_count: 1
+    setup  "PlacePrintOrder", paper_stock: "sample", finish: "sample", quantity: 1
+    setup  "RegisterClient", name: "sample", email: "sample", phone: "sample"
+    input  finals_count: 1
+    expect emits: ["FinalsDelivered", "GalleryPublished", "PrintOrderPlaced", "PrintOrderFulfilled", "ClientTierUpgraded"]
+  end
+
+
+  # ── Gallery aggregate ──────────────────────────────────────────
+
+  test "PublishGallery sets title + access_code + image_count" do
+    tests "PublishGallery", on: "Gallery"
+    input  title: "sample", access_code: "sample", image_count: 1
+    expect status: "published"
+  end
+
+  test "PublishGallery cascades through policy chain" do
+    tests "PublishGallery", on: "Gallery", kind: :cascade
+    setup  "PlacePrintOrder", paper_stock: "sample", finish: "sample", quantity: 1
+    setup  "RegisterClient", name: "sample", email: "sample", phone: "sample"
+    input  title: "sample", access_code: "sample", image_count: 1
+    expect emits: ["GalleryPublished", "PrintOrderPlaced", "PrintOrderFulfilled", "ClientTierUpgraded"]
+  end
+
+  test "ExpireGallery runs" do
+    tests "ExpireGallery", on: "Gallery"
+    setup  "PublishGallery", title: "sample", access_code: "sample", image_count: 1
+    expect status: "expired"
+  end
+
+
+  # ── PrintOrder aggregate ──────────────────────────────────────────
+
+  test "PlacePrintOrder sets paper_stock + finish + quantity" do
+    tests "PlacePrintOrder", on: "PrintOrder"
+    input  paper_stock: "sample", finish: "sample", quantity: 1
+    expect paper_stock: "sample", finish: "sample", quantity: 1, status: "pending"
+  end
+
+  test "PlacePrintOrder cascades through policy chain" do
+    tests "PlacePrintOrder", on: "PrintOrder", kind: :cascade
+    setup  "RegisterClient", name: "sample", email: "sample", phone: "sample"
+    input  paper_stock: "sample", finish: "sample", quantity: 1
+    expect emits: ["PrintOrderPlaced", "PrintOrderFulfilled", "ClientTierUpgraded"]
+  end
+
+  test "FulfillPrintOrder runs" do
+    tests "FulfillPrintOrder", on: "PrintOrder"
+    setup  "PlacePrintOrder", paper_stock: "sample", finish: "sample", quantity: 1
+    expect status: "fulfilled"
+  end
+
+  test "FulfillPrintOrder cascades through policy chain" do
+    tests "FulfillPrintOrder", on: "PrintOrder", kind: :cascade
+    setup  "PlacePrintOrder", paper_stock: "sample", finish: "sample", quantity: 1
+    setup  "RegisterClient", name: "sample", email: "sample", phone: "sample"
+    expect emits: ["PrintOrderFulfilled", "ClientTierUpgraded"]
+  end
+
+end

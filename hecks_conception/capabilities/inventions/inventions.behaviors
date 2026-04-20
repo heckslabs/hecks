@@ -1,0 +1,52 @@
+Hecks.behaviors "Inventions" do
+  vision "Behavioral tests for the Inventions domain — exercises every command and query in memory"
+
+  # ── Invention aggregate ──────────────────────────────────────────
+
+  test "Propose sets title + description + novelty" do
+    tests "Propose", on: "Invention"
+    input  title: "sample", description: "sample", novelty: "sample"
+    expect title: "sample", description: "sample", novelty: "sample", status: "proposed"
+  end
+
+  test "PromoteFromMusing sets title + description + novelty + source_musing_id" do
+    tests "PromoteFromMusing", on: "Invention"
+    input  title: "sample", description: "sample", novelty: "sample", source_musing_id: "sample"
+    expect title: "sample", description: "sample", novelty: "sample", source_musing_id: "sample", status: "proposed"
+  end
+
+  test "Develop sets prior_art" do
+    tests "Develop", on: "Invention"
+    setup  "Propose", title: "sample", description: "sample", novelty: "sample"
+    input  prior_art: "sample"
+    expect prior_art: "sample", status: "developed"
+  end
+
+  test "File sets filed_date" do
+    tests "File", on: "Invention"
+    setup  "Propose", title: "sample", description: "sample", novelty: "sample"
+    input  filed_date: "sample"
+    expect filed_date: "sample", status: "filed"
+  end
+
+  test "Dismiss runs" do
+    tests "Dismiss", on: "Invention"
+    setup  "Propose", title: "sample", description: "sample", novelty: "sample"
+    expect status: "dismissed"
+  end
+
+
+  # ── Grooming aggregate ──────────────────────────────────────────
+
+  test "StartGrooming runs" do
+    tests "StartGrooming", on: "Grooming"
+    expect batch_size: 5, status: "active"
+  end
+
+  test "FinishGrooming runs" do
+    tests "FinishGrooming", on: "Grooming"
+    setup  "StartGrooming"
+    expect status: "complete"
+  end
+
+end

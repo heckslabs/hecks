@@ -1,0 +1,163 @@
+Hecks.behaviors "PodcastProduction" do
+  vision "Behavioral tests for the PodcastProduction domain — exercises every command and query in memory"
+
+  # ── Show aggregate ──────────────────────────────────────────
+
+  test "LaunchShow sets title + category + format" do
+    tests "LaunchShow", on: "Show"
+    input  title: "sample", category: "sample", format: "sample"
+    expect status: "planning"
+  end
+
+  test "PublishShow runs" do
+    tests "PublishShow", on: "Show"
+    setup  "LaunchShow", title: "sample", category: "sample", format: "sample"
+    expect status: "published"
+  end
+
+  test "PublishShow cascades through policy chain" do
+    tests "PublishShow", on: "Show", kind: :cascade
+    setup  "LaunchShow", title: "sample", category: "sample", format: "sample"
+    setup  "OutlineEpisode", title: "sample", episode_number: 1
+    setup  "InviteGuest", name: "sample", expertise: "sample", bio: "sample"
+    expect emits: ["ShowPublished", "EpisodeOutlined", "GuestInvited"]
+  end
+
+  test "HiatusShow runs" do
+    tests "HiatusShow", on: "Show"
+    setup  "LaunchShow", title: "sample", category: "sample", format: "sample"
+    setup  "PublishShow"
+    expect status: "hiatus"
+  end
+
+
+  # ── Episode aggregate ──────────────────────────────────────────
+
+  test "OutlineEpisode sets title + episode_number" do
+    tests "OutlineEpisode", on: "Episode"
+    setup  "LaunchShow", title: "sample", category: "sample", format: "sample"
+    input  title: "sample", episode_number: 1
+    expect status: "outlined"
+  end
+
+  test "OutlineEpisode cascades through policy chain" do
+    tests "OutlineEpisode", on: "Episode", kind: :cascade
+    setup  "LaunchShow", title: "sample", category: "sample", format: "sample"
+    setup  "InviteGuest", name: "sample", expertise: "sample", bio: "sample"
+    input  title: "sample", episode_number: 1
+    expect emits: ["EpisodeOutlined", "GuestInvited"]
+  end
+
+  test "RecordEpisode sets duration_seconds" do
+    tests "RecordEpisode", on: "Episode"
+    setup  "OutlineEpisode", title: "sample", episode_number: 1
+    input  duration_seconds: 1
+    expect status: "recorded", duration_seconds: 1
+  end
+
+  test "RecordEpisode cascades through policy chain" do
+    tests "RecordEpisode", on: "Episode", kind: :cascade
+    setup  "OutlineEpisode", title: "sample", episode_number: 1
+    setup  "StartEditing", editor_name: "sample"
+    input  duration_seconds: 1
+    expect emits: ["EpisodeRecorded", "EditingStarted", "EditFinalized"]
+  end
+
+  test "MarkEdited runs" do
+    tests "MarkEdited", on: "Episode"
+    setup  "OutlineEpisode", title: "sample", episode_number: 1
+    expect status: "edited"
+  end
+
+  test "MarkEdited cascades through policy chain" do
+    tests "MarkEdited", on: "Episode", kind: :cascade
+    setup  "OutlineEpisode", title: "sample", episode_number: 1
+    setup  "RecordDownloads", download_count: 1, unique_listeners: 1, completion_rate: 1.0, period: "sample"
+    expect emits: ["EpisodeEdited", "EpisodeReleased", "DownloadsRecorded", "ReportGenerated"]
+  end
+
+  test "ReleaseEpisode runs" do
+    tests "ReleaseEpisode", on: "Episode"
+    setup  "OutlineEpisode", title: "sample", episode_number: 1
+    expect status: "released"
+  end
+
+  test "ReleaseEpisode cascades through policy chain" do
+    tests "ReleaseEpisode", on: "Episode", kind: :cascade
+    setup  "OutlineEpisode", title: "sample", episode_number: 1
+    setup  "RecordDownloads", download_count: 1, unique_listeners: 1, completion_rate: 1.0, period: "sample"
+    expect emits: ["EpisodeReleased", "DownloadsRecorded", "ReportGenerated"]
+  end
+
+
+  # ── Guest aggregate ──────────────────────────────────────────
+
+  test "InviteGuest sets name + expertise + bio" do
+    tests "InviteGuest", on: "Guest"
+    setup  "OutlineEpisode", title: "sample", episode_number: 1
+    input  name: "sample", expertise: "sample", bio: "sample"
+    expect status: "invited"
+  end
+
+  test "ConfirmGuest runs" do
+    tests "ConfirmGuest", on: "Guest"
+    setup  "InviteGuest", name: "sample", expertise: "sample", bio: "sample"
+    expect status: "confirmed"
+  end
+
+  test "ConfirmGuest cascades through policy chain" do
+    tests "ConfirmGuest", on: "Guest", kind: :cascade
+    setup  "InviteGuest", name: "sample", expertise: "sample", bio: "sample"
+    setup  "OutlineEpisode", title: "sample", episode_number: 1
+    setup  "StartEditing", editor_name: "sample"
+    expect emits: ["GuestConfirmed", "EpisodeRecorded", "EditingStarted", "EditFinalized"]
+  end
+
+
+  # ── EditingSession aggregate ──────────────────────────────────────────
+
+  test "StartEditing sets editor_name" do
+    tests "StartEditing", on: "EditingSession"
+    setup  "OutlineEpisode", title: "sample", episode_number: 1
+    input  editor_name: "sample"
+    expect status: "pending"
+  end
+
+  test "StartEditing cascades through policy chain" do
+    tests "StartEditing", on: "EditingSession", kind: :cascade
+    setup  "OutlineEpisode", title: "sample", episode_number: 1
+    input  editor_name: "sample"
+    expect emits: ["EditingStarted", "EditFinalized"]
+  end
+
+  test "FinalizeEdit sets cuts_made" do
+    tests "FinalizeEdit", on: "EditingSession"
+    setup  "StartEditing", editor_name: "sample"
+    input  cuts_made: 1
+    expect status: "finalized", cuts_made: 1
+  end
+
+
+  # ── DownloadMetric aggregate ──────────────────────────────────────────
+
+  test "RecordDownloads sets download_count + unique_listeners + completion_rate + period" do
+    tests "RecordDownloads", on: "DownloadMetric"
+    setup  "OutlineEpisode", title: "sample", episode_number: 1
+    input  download_count: 1, unique_listeners: 1, completion_rate: 1.0, period: "sample"
+    expect ok: "true"
+  end
+
+  test "RecordDownloads cascades through policy chain" do
+    tests "RecordDownloads", on: "DownloadMetric", kind: :cascade
+    setup  "OutlineEpisode", title: "sample", episode_number: 1
+    input  download_count: 1, unique_listeners: 1, completion_rate: 1.0, period: "sample"
+    expect emits: ["DownloadsRecorded", "ReportGenerated"]
+  end
+
+  test "GenerateReport runs" do
+    tests "GenerateReport", on: "DownloadMetric"
+    setup  "RecordDownloads", download_count: 1, unique_listeners: 1, completion_rate: 1.0, period: "sample"
+    expect ok: "true"
+  end
+
+end

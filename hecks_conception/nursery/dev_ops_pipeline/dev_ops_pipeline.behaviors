@@ -1,0 +1,180 @@
+Hecks.behaviors "DevOpsPipeline" do
+  vision "Behavioral tests for the DevOpsPipeline domain — exercises every command and query in memory"
+
+  # ── Repository aggregate ──────────────────────────────────────────
+
+  test "RegisterRepository sets repo_name + clone_url + default_branch + language" do
+    tests "RegisterRepository", on: "Repository"
+    input  repo_name: "sample", clone_url: "sample", default_branch: "sample", language: "sample"
+    expect repo_name: "sample", clone_url: "sample", default_branch: "sample", language: "sample", status: "idle"
+  end
+
+  test "RegisterRepository cascades through policy chain" do
+    tests "RegisterRepository", on: "Repository", kind: :cascade
+    setup  "TriggerBuild", build_number: "sample", commit_sha: "sample"
+    input  repo_name: "sample", clone_url: "sample", default_branch: "sample", language: "sample"
+    expect emits: ["RepositoryRegistered", "BuildTriggered"]
+  end
+
+  test "RetargetBranch sets default_branch" do
+    tests "RetargetBranch", on: "Repository"
+    setup  "RegisterRepository", repo_name: "sample", clone_url: "sample", default_branch: "sample", language: "sample"
+    input  default_branch: "sample"
+    expect ok: "true"
+  end
+
+  test "DisconnectRepository runs" do
+    tests "DisconnectRepository", on: "Repository"
+    setup  "RegisterRepository", repo_name: "sample", clone_url: "sample", default_branch: "sample", language: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Build aggregate ──────────────────────────────────────────
+
+  test "TriggerBuild sets build_number + commit_sha" do
+    tests "TriggerBuild", on: "Build"
+    setup  "RegisterRepository", repo_name: "sample", clone_url: "sample", default_branch: "sample", language: "sample"
+    input  build_number: "sample", commit_sha: "sample"
+    expect ok: "true"
+  end
+
+  test "CompleteBuild sets artifact_url + duration_seconds" do
+    tests "CompleteBuild", on: "Build"
+    setup  "TriggerBuild", build_number: "sample", commit_sha: "sample"
+    input  artifact_url: "sample", duration_seconds: 1
+    expect ok: "true"
+  end
+
+  test "CompleteBuild cascades through policy chain" do
+    tests "CompleteBuild", on: "Build", kind: :cascade
+    setup  "TriggerBuild", build_number: "sample", commit_sha: "sample"
+    setup  "DeployArtifact", deploy_id: "sample", environment: "sample", strategy: "sample", deployed_by: "sample"
+    setup  "RecordMetric", metric_name: "sample", value: 1.0, unit: "sample", period: "sample"
+    setup  "RegisterRepository", repo_name: "sample", clone_url: "sample", default_branch: "sample", language: "sample"
+    input  artifact_url: "sample", duration_seconds: 1
+    expect emits: ["BuildCompleted", "ArtifactDeployed", "DeploymentPromoted", "MetricRecorded", "ThresholdBreached"]
+  end
+
+  test "FailBuild sets error_message" do
+    tests "FailBuild", on: "Build"
+    setup  "TriggerBuild", build_number: "sample", commit_sha: "sample"
+    input  error_message: "sample"
+    expect ok: "true"
+  end
+
+  test "FailBuild cascades through policy chain" do
+    tests "FailBuild", on: "Build", kind: :cascade
+    setup  "TriggerBuild", build_number: "sample", commit_sha: "sample"
+    setup  "RegisterRepository", repo_name: "sample", clone_url: "sample", default_branch: "sample", language: "sample"
+    input  error_message: "sample"
+    expect emits: ["BuildFailed", "BuildTriggered"]
+  end
+
+
+  # ── Deployment aggregate ──────────────────────────────────────────
+
+  test "DeployArtifact sets deploy_id + environment + strategy + deployed_by" do
+    tests "DeployArtifact", on: "Deployment"
+    setup  "TriggerBuild", build_number: "sample", commit_sha: "sample"
+    input  deploy_id: "sample", environment: "sample", strategy: "sample", deployed_by: "sample"
+    expect status: "healthy"
+  end
+
+  test "DeployArtifact cascades through policy chain" do
+    tests "DeployArtifact", on: "Deployment", kind: :cascade
+    setup  "TriggerBuild", build_number: "sample", commit_sha: "sample"
+    setup  "RecordMetric", metric_name: "sample", value: 1.0, unit: "sample", period: "sample"
+    setup  "RegisterRepository", repo_name: "sample", clone_url: "sample", default_branch: "sample", language: "sample"
+    input  deploy_id: "sample", environment: "sample", strategy: "sample", deployed_by: "sample"
+    expect emits: ["ArtifactDeployed", "DeploymentPromoted", "MetricRecorded", "ThresholdBreached"]
+  end
+
+  test "PromoteDeployment runs" do
+    tests "PromoteDeployment", on: "Deployment"
+    setup  "DeployArtifact", deploy_id: "sample", environment: "sample", strategy: "sample", deployed_by: "sample"
+    expect ok: "true"
+  end
+
+  test "PromoteDeployment cascades through policy chain" do
+    tests "PromoteDeployment", on: "Deployment", kind: :cascade
+    setup  "RecordMetric", metric_name: "sample", value: 1.0, unit: "sample", period: "sample"
+    setup  "RegisterRepository", repo_name: "sample", clone_url: "sample", default_branch: "sample", language: "sample"
+    setup  "DeployArtifact", deploy_id: "sample", environment: "sample", strategy: "sample", deployed_by: "sample"
+    expect emits: ["DeploymentPromoted", "MetricRecorded", "ThresholdBreached"]
+  end
+
+  test "AbortDeployment runs" do
+    tests "AbortDeployment", on: "Deployment"
+    setup  "DeployArtifact", deploy_id: "sample", environment: "sample", strategy: "sample", deployed_by: "sample"
+    expect ok: "true"
+  end
+
+  test "AbortDeployment cascades through policy chain" do
+    tests "AbortDeployment", on: "Deployment", kind: :cascade
+    setup  "DeployArtifact", deploy_id: "sample", environment: "sample", strategy: "sample", deployed_by: "sample"
+    setup  "InitiateRollback", rollback_id: "sample", reason: "sample", target_version: "sample", initiated_by: "sample"
+    expect emits: ["DeploymentAborted", "RollbackInitiated"]
+  end
+
+
+  # ── Rollback aggregate ──────────────────────────────────────────
+
+  test "InitiateRollback sets rollback_id + reason + target_version + initiated_by" do
+    tests "InitiateRollback", on: "Rollback"
+    setup  "DeployArtifact", deploy_id: "sample", environment: "sample", strategy: "sample", deployed_by: "sample"
+    input  rollback_id: "sample", reason: "sample", target_version: "sample", initiated_by: "sample"
+    expect status: "in_progress"
+  end
+
+  test "CompleteRollback runs" do
+    tests "CompleteRollback", on: "Rollback"
+    setup  "InitiateRollback", rollback_id: "sample", reason: "sample", target_version: "sample", initiated_by: "sample"
+    expect ok: "true"
+  end
+
+  test "CompleteRollback cascades through policy chain" do
+    tests "CompleteRollback", on: "Rollback", kind: :cascade
+    setup  "RecordMetric", metric_name: "sample", value: 1.0, unit: "sample", period: "sample"
+    setup  "RegisterRepository", repo_name: "sample", clone_url: "sample", default_branch: "sample", language: "sample"
+    setup  "InitiateRollback", rollback_id: "sample", reason: "sample", target_version: "sample", initiated_by: "sample"
+    expect emits: ["RollbackCompleted", "MetricRecorded", "ThresholdBreached"]
+  end
+
+  test "AbandonRollback runs" do
+    tests "AbandonRollback", on: "Rollback"
+    setup  "InitiateRollback", rollback_id: "sample", reason: "sample", target_version: "sample", initiated_by: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── PipelineMetric aggregate ──────────────────────────────────────────
+
+  test "RecordMetric sets metric_name + value + unit + period" do
+    tests "RecordMetric", on: "PipelineMetric"
+    setup  "RegisterRepository", repo_name: "sample", clone_url: "sample", default_branch: "sample", language: "sample"
+    input  metric_name: "sample", value: 1.0, unit: "sample", period: "sample"
+    expect ok: "true"
+  end
+
+  test "RecordMetric cascades through policy chain" do
+    tests "RecordMetric", on: "PipelineMetric", kind: :cascade
+    setup  "RegisterRepository", repo_name: "sample", clone_url: "sample", default_branch: "sample", language: "sample"
+    input  metric_name: "sample", value: 1.0, unit: "sample", period: "sample"
+    expect emits: ["MetricRecorded", "ThresholdBreached"]
+  end
+
+  test "SetThreshold sets warning_level + critical_level" do
+    tests "SetThreshold", on: "PipelineMetric"
+    setup  "RecordMetric", metric_name: "sample", value: 1.0, unit: "sample", period: "sample"
+    input  warning_level: 1.0, critical_level: 1.0
+    expect ok: "true"
+  end
+
+  test "AlertOnBreach runs" do
+    tests "AlertOnBreach", on: "PipelineMetric"
+    setup  "RecordMetric", metric_name: "sample", value: 1.0, unit: "sample", period: "sample"
+    expect ok: "true"
+  end
+
+end

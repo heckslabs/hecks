@@ -1,0 +1,114 @@
+Hecks.behaviors "PetStore" do
+  vision "Behavioral tests for the PetStore domain — exercises every command and query in memory"
+
+  # ── Animal aggregate ──────────────────────────────────────────
+
+  test "IntakeAnimal sets animal_id + species + breed + name + age_months + price" do
+    tests "IntakeAnimal", on: "Animal"
+    input  animal_id: "sample", species: "sample", breed: "sample", name: "sample", age_months: 1, price: 1.0
+    expect animal_id: "sample", species: "sample", breed: "sample", name: "sample", age_months: 1, price: 1.0, status: "available"
+  end
+
+  test "IntakeAnimal cascades through policy chain" do
+    tests "IntakeAnimal", on: "Animal", kind: :cascade
+    setup  "StockSupply", sku: "sample", name: "sample", category: "sample", price: 1.0, quantity: 1, pet_type: "sample"
+    input  animal_id: "sample", species: "sample", breed: "sample", name: "sample", age_months: 1, price: 1.0
+    expect emits: ["AnimalIntaken", "AnimalVaccinated", "SupplyStocked"]
+  end
+
+  test "VaccinateAnimal sets vaccine_name" do
+    tests "VaccinateAnimal", on: "Animal"
+    setup  "IntakeAnimal", animal_id: "sample", species: "sample", breed: "sample", name: "sample", age_months: 1, price: 1.0
+    input  vaccine_name: "sample"
+    expect ok: "true"
+  end
+
+  test "QuarantineAnimal runs" do
+    tests "QuarantineAnimal", on: "Animal"
+    setup  "IntakeAnimal", animal_id: "sample", species: "sample", breed: "sample", name: "sample", age_months: 1, price: 1.0
+    expect status: "quarantined"
+  end
+
+
+  # ── Supply aggregate ──────────────────────────────────────────
+
+  test "StockSupply sets sku + name + category + price + quantity + pet_type" do
+    tests "StockSupply", on: "Supply"
+    input  sku: "sample", name: "sample", category: "sample", price: 1.0, quantity: 1, pet_type: "sample"
+    expect sku: "sample", name: "sample", category: "sample", price: 1.0, quantity: 1, pet_type: "sample"
+  end
+
+  test "ReorderSupply sets reorder_quantity" do
+    tests "ReorderSupply", on: "Supply"
+    setup  "StockSupply", sku: "sample", name: "sample", category: "sample", price: 1.0, quantity: 1, pet_type: "sample"
+    input  reorder_quantity: 1
+    expect ok: "true"
+  end
+
+
+  # ── Adoption aggregate ──────────────────────────────────────────
+
+  test "SubmitAdoptionApplication sets adoption_id + animal_id + adopter_name + adopter_phone + adoption_fee" do
+    tests "SubmitAdoptionApplication", on: "Adoption"
+    input  adoption_id: "sample", animal_id: "sample", adopter_name: "sample", adopter_phone: "sample", adoption_fee: 1.0
+    expect adoption_id: "sample", animal_id: "sample", adopter_name: "sample", adopter_phone: "sample", adoption_fee: 1.0, status: "pending"
+  end
+
+  test "SubmitAdoptionApplication cascades through policy chain" do
+    tests "SubmitAdoptionApplication", on: "Adoption", kind: :cascade
+    setup  "BookGrooming", appointment_id: "sample", pet_name: "sample", owner_name: "sample", service_type: "sample", scheduled_time: "sample", price: 1.0
+    input  adoption_id: "sample", animal_id: "sample", adopter_name: "sample", adopter_phone: "sample", adoption_fee: 1.0
+    expect emits: ["AdoptionApplicationSubmitted", "AdoptionApproved", "GroomingBooked"]
+  end
+
+  test "ApproveAdoption runs" do
+    tests "ApproveAdoption", on: "Adoption"
+    setup  "SubmitAdoptionApplication", adoption_id: "sample", animal_id: "sample", adopter_name: "sample", adopter_phone: "sample", adoption_fee: 1.0
+    expect status: "approved"
+  end
+
+  test "ApproveAdoption cascades through policy chain" do
+    tests "ApproveAdoption", on: "Adoption", kind: :cascade
+    setup  "BookGrooming", appointment_id: "sample", pet_name: "sample", owner_name: "sample", service_type: "sample", scheduled_time: "sample", price: 1.0
+    setup  "SubmitAdoptionApplication", adoption_id: "sample", animal_id: "sample", adopter_name: "sample", adopter_phone: "sample", adoption_fee: 1.0
+    expect emits: ["AdoptionApproved", "GroomingBooked"]
+  end
+
+  test "FinalizeAdoption runs" do
+    tests "FinalizeAdoption", on: "Adoption"
+    setup  "SubmitAdoptionApplication", adoption_id: "sample", animal_id: "sample", adopter_name: "sample", adopter_phone: "sample", adoption_fee: 1.0
+    expect status: "finalized"
+  end
+
+  test "FinalizeAdoption cascades through policy chain" do
+    tests "FinalizeAdoption", on: "Adoption", kind: :cascade
+    setup  "SubmitAdoptionApplication", adoption_id: "sample", animal_id: "sample", adopter_name: "sample", adopter_phone: "sample", adoption_fee: 1.0
+    setup  "StockSupply", sku: "sample", name: "sample", category: "sample", price: 1.0, quantity: 1, pet_type: "sample"
+    expect emits: ["AdoptionFinalized", "SupplyReordered"]
+  end
+
+
+  # ── GroomingAppointment aggregate ──────────────────────────────────────────
+
+  test "BookGrooming sets appointment_id + pet_name + owner_name + service_type + scheduled_time + price" do
+    tests "BookGrooming", on: "GroomingAppointment"
+    input  appointment_id: "sample", pet_name: "sample", owner_name: "sample", service_type: "sample", scheduled_time: "sample", price: 1.0
+    expect appointment_id: "sample", pet_name: "sample", owner_name: "sample", service_type: "sample", scheduled_time: "sample", price: 1.0, status: "booked"
+  end
+
+  test "CompleteGrooming runs" do
+    tests "CompleteGrooming", on: "GroomingAppointment"
+    setup  "BookGrooming", appointment_id: "sample", pet_name: "sample", owner_name: "sample", service_type: "sample", scheduled_time: "sample", price: 1.0
+    expect status: "completed"
+  end
+
+  test "CompleteGrooming cascades through policy chain" do
+    tests "CompleteGrooming", on: "GroomingAppointment", kind: :cascade
+    setup  "SubmitAdoptionApplication", adoption_id: "sample", animal_id: "sample", adopter_name: "sample", adopter_phone: "sample", adoption_fee: 1.0
+    setup  "StockSupply", sku: "sample", name: "sample", category: "sample", price: 1.0, quantity: 1, pet_type: "sample"
+    setup  "IntakeAnimal", animal_id: "sample", species: "sample", breed: "sample", name: "sample", age_months: 1, price: 1.0
+    setup  "BookGrooming", appointment_id: "sample", pet_name: "sample", owner_name: "sample", service_type: "sample", scheduled_time: "sample", price: 1.0
+    expect emits: ["GroomingCompleted", "AdoptionFinalized", "SupplyReordered", "AnimalVaccinated"]
+  end
+
+end

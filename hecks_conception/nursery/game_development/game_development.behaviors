@@ -1,0 +1,168 @@
+Hecks.behaviors "GameDevelopment" do
+  vision "Behavioral tests for the GameDevelopment domain — exercises every command and query in memory"
+
+  # ── GameProject aggregate ──────────────────────────────────────────
+
+  test "KickOffProject sets title + engine + genre + target_platform" do
+    tests "KickOffProject", on: "GameProject"
+    input  title: "sample", engine: "sample", genre: "sample", target_platform: "sample"
+    expect status: "pre_production"
+  end
+
+  test "KickOffProject cascades through policy chain" do
+    tests "KickOffProject", on: "GameProject", kind: :cascade
+    setup  "PlanSprint", name: "sample", duration_days: 1, story_points: 1
+    input  title: "sample", engine: "sample", genre: "sample", target_platform: "sample"
+    expect emits: ["ProjectKickedOff", "SprintPlanned", "SprintStarted", "ProductionEntered"]
+  end
+
+  test "EnterProduction runs" do
+    tests "EnterProduction", on: "GameProject"
+    setup  "KickOffProject", title: "sample", engine: "sample", genre: "sample", target_platform: "sample"
+    expect status: "production"
+  end
+
+  test "ShipGold runs" do
+    tests "ShipGold", on: "GameProject"
+    setup  "KickOffProject", title: "sample", engine: "sample", genre: "sample", target_platform: "sample"
+    expect status: "gold"
+  end
+
+
+  # ── Sprint aggregate ──────────────────────────────────────────
+
+  test "PlanSprint sets name + duration_days + story_points" do
+    tests "PlanSprint", on: "Sprint"
+    setup  "KickOffProject", title: "sample", engine: "sample", genre: "sample", target_platform: "sample"
+    input  name: "sample", duration_days: 1, story_points: 1
+    expect status: "planning"
+  end
+
+  test "PlanSprint cascades through policy chain" do
+    tests "PlanSprint", on: "Sprint", kind: :cascade
+    setup  "KickOffProject", title: "sample", engine: "sample", genre: "sample", target_platform: "sample"
+    input  name: "sample", duration_days: 1, story_points: 1
+    expect emits: ["SprintPlanned", "SprintStarted"]
+  end
+
+  test "StartSprint runs" do
+    tests "StartSprint", on: "Sprint"
+    setup  "PlanSprint", name: "sample", duration_days: 1, story_points: 1
+    expect status: "active"
+  end
+
+  test "CloseSprint sets completed_points" do
+    tests "CloseSprint", on: "Sprint"
+    setup  "PlanSprint", name: "sample", duration_days: 1, story_points: 1
+    setup  "StartSprint"
+    input  completed_points: 1
+    expect status: "closed"
+  end
+
+  test "CloseSprint cascades through policy chain" do
+    tests "CloseSprint", on: "Sprint", kind: :cascade
+    setup  "PlanSprint", name: "sample", duration_days: 1, story_points: 1
+    setup  "TriggerBuild", version: "sample", platform: "sample", build_config: "sample"
+    setup  "KickOffProject", title: "sample", engine: "sample", genre: "sample", target_platform: "sample"
+    setup  "StartSprint"
+    input  completed_points: 1
+    expect emits: ["SprintClosed", "BuildTriggered", "BuildCertified"]
+  end
+
+
+  # ── Build aggregate ──────────────────────────────────────────
+
+  test "TriggerBuild sets version + platform + build_config" do
+    tests "TriggerBuild", on: "Build"
+    setup  "KickOffProject", title: "sample", engine: "sample", genre: "sample", target_platform: "sample"
+    input  version: "sample", platform: "sample", build_config: "sample"
+    expect status: "building"
+  end
+
+  test "TriggerBuild cascades through policy chain" do
+    tests "TriggerBuild", on: "Build", kind: :cascade
+    setup  "KickOffProject", title: "sample", engine: "sample", genre: "sample", target_platform: "sample"
+    input  version: "sample", platform: "sample", build_config: "sample"
+    expect emits: ["BuildTriggered", "BuildCertified"]
+  end
+
+  test "CertifyBuild runs" do
+    tests "CertifyBuild", on: "Build"
+    setup  "TriggerBuild", version: "sample", platform: "sample", build_config: "sample"
+    expect status: "certified"
+  end
+
+
+  # ── Playtest aggregate ──────────────────────────────────────────
+
+  test "SchedulePlaytest sets session_name + tester_count" do
+    tests "SchedulePlaytest", on: "Playtest"
+    setup  "TriggerBuild", version: "sample", platform: "sample", build_config: "sample"
+    input  session_name: "sample", tester_count: 1
+    expect status: "scheduled"
+  end
+
+  test "SchedulePlaytest cascades through policy chain" do
+    tests "SchedulePlaytest", on: "Playtest", kind: :cascade
+    setup  "TriggerBuild", version: "sample", platform: "sample", build_config: "sample"
+    setup  "FileBug", title: "sample", severity: "sample", repro_steps: "sample"
+    input  session_name: "sample", tester_count: 1
+    expect emits: ["PlaytestScheduled", "PlaytestConducted", "ResultsAnalyzed", "BugFiled"]
+  end
+
+  test "ConductPlaytest runs" do
+    tests "ConductPlaytest", on: "Playtest"
+    setup  "SchedulePlaytest", session_name: "sample", tester_count: 1
+    expect status: "completed"
+  end
+
+  test "ConductPlaytest cascades through policy chain" do
+    tests "ConductPlaytest", on: "Playtest", kind: :cascade
+    setup  "SchedulePlaytest", session_name: "sample", tester_count: 1
+    setup  "FileBug", title: "sample", severity: "sample", repro_steps: "sample"
+    setup  "TriggerBuild", version: "sample", platform: "sample", build_config: "sample"
+    expect emits: ["PlaytestConducted", "ResultsAnalyzed", "BugFiled"]
+  end
+
+  test "AnalyzeResults runs" do
+    tests "AnalyzeResults", on: "Playtest"
+    setup  "SchedulePlaytest", session_name: "sample", tester_count: 1
+    setup  "ConductPlaytest"
+    expect ok: "true"
+  end
+
+  test "AnalyzeResults cascades through policy chain" do
+    tests "AnalyzeResults", on: "Playtest", kind: :cascade
+    setup  "SchedulePlaytest", session_name: "sample", tester_count: 1
+    setup  "FileBug", title: "sample", severity: "sample", repro_steps: "sample"
+    setup  "TriggerBuild", version: "sample", platform: "sample", build_config: "sample"
+    setup  "ConductPlaytest"
+    expect emits: ["ResultsAnalyzed", "BugFiled"]
+  end
+
+
+  # ── BugReport aggregate ──────────────────────────────────────────
+
+  test "FileBug sets title + severity + repro_steps" do
+    tests "FileBug", on: "BugReport"
+    setup  "TriggerBuild", version: "sample", platform: "sample", build_config: "sample"
+    input  title: "sample", severity: "sample", repro_steps: "sample"
+    expect status: "open"
+  end
+
+  test "ResolveBug sets resolution" do
+    tests "ResolveBug", on: "BugReport"
+    setup  "FileBug", title: "sample", severity: "sample", repro_steps: "sample"
+    input  resolution: "sample"
+    expect status: "resolved"
+  end
+
+  test "ResolveBug cascades through policy chain" do
+    tests "ResolveBug", on: "BugReport", kind: :cascade
+    setup  "FileBug", title: "sample", severity: "sample", repro_steps: "sample"
+    setup  "KickOffProject", title: "sample", engine: "sample", genre: "sample", target_platform: "sample"
+    input  resolution: "sample"
+    expect emits: ["BugResolved", "GoneGold"]
+  end
+
+end

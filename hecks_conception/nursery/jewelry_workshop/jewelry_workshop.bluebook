@@ -19,21 +19,27 @@ Hecks.bluebook "JewelryWorkshop" do
       String :piece_type
       String :metal
       emits "PieceDesigned"
+      then_set :status, to: "designed"
     end
 
     CastPiece do
       description "Cast the piece using lost wax or direct casting"
       reference_to(JewelryPiece)
       String :casting_method
-      given { status == "designed" }
       emits "PieceCast"
       then_set :status, to: "cast"
+    end
+
+    SetStones do
+      description "Mount the gemstones into the cast piece"
+      reference_to(JewelryPiece)
+      emits "StonesSetOnPiece"
+      then_set :status, to: "set"
     end
 
     PolishPiece do
       description "Polish and finish the piece to final luster"
       reference_to(JewelryPiece)
-      given { status == "set" }
       emits "PiecePolished"
       then_set :status, to: "finished"
     end
@@ -86,13 +92,13 @@ Hecks.bluebook "JewelryWorkshop" do
       String :setting_type
       String :metal
       emits "SettingPrepared"
+      then_set :status, to: "prepared"
     end
 
     SetStone do
       description "Secure the gemstone into its setting"
       reference_to(Setting)
       reference_to(Gemstone)
-      given { status == "prepared" }
       emits "StoneSet"
       then_set :status, to: "set"
     end
@@ -114,11 +120,11 @@ Hecks.bluebook "JewelryWorkshop" do
       emits "PieceAppraised"
     end
 
-    UpdateAppraisal do
+    ReviseAppraisal do
       description "Revise the appraised value based on market changes"
       reference_to(Appraisal)
       Float :new_value
-      emits "AppraisalUpdated"
+      emits "AppraisalRevised"
       then_set :appraised_value, to: :new_value
     end
   end
@@ -138,12 +144,12 @@ Hecks.bluebook "JewelryWorkshop" do
       Float :quoted_price
       String :deadline
       emits "CommissionQuoted"
+      then_set :status, to: "quoted"
     end
 
     AcceptCommission do
       description "Client accepts the quote and work begins"
       reference_to(Commission)
-      given { status == "quoted" }
       emits "CommissionAccepted"
       then_set :status, to: "in_progress"
     end
@@ -151,7 +157,6 @@ Hecks.bluebook "JewelryWorkshop" do
     DeliverCommission do
       description "Hand over the finished custom piece to the client"
       reference_to(Commission)
-      given { status == "in_progress" }
       emits "CommissionDelivered"
       then_set :status, to: "delivered"
     end
@@ -192,18 +197,4 @@ Hecks.bluebook "JewelryWorkshop" do
     trigger "DeliverCommission"
   end
 
-  fixture "JewelryPiece", name: "Sapphire Engagement Ring", piece_type: "ring", metal: "18k white gold", status: "finished", weight_grams: 4.2
-  fixture "JewelryPiece", name: "Pearl Pendant", piece_type: "pendant", metal: "14k yellow gold", status: "designed", weight_grams: 2.8
-
-  fixture "Gemstone", stone_type: "sapphire", carat_weight: 1.5, cut: "cushion", clarity: "VS1", color_grade: "deep blue", status: "loose"
-  fixture "Gemstone", stone_type: "diamond", carat_weight: 0.75, cut: "round brilliant", clarity: "VVS2", color_grade: "D", status: "certified"
-
-  fixture "Setting", setting_type: "solitaire prong", prong_count: "6", metal: "18k white gold", status: "set"
-  fixture "Setting", setting_type: "three-stone", prong_count: "9", metal: "14k yellow gold", status: "prepared"
-
-  fixture "Appraisal", appraised_value: 4250.00, appraiser_name: "Sarah Mitchell", date: "2026-04-10", purpose: "insurance"
-  fixture "Appraisal", appraised_value: 1800.50, appraiser_name: "James Chen", date: "2026-04-12", purpose: "sale"
-
-  fixture "Commission", client_name: "Rebecca Martinez", description: "Custom wedding band with scattered diamonds", quoted_price: 2500.00, status: "in_progress", deadline: "2026-05-15"
-  fixture "Commission", client_name: "David Thompson", description: "Heirloom brooch restoration and redesign", quoted_price: 1200.00, status: "quoted", deadline: "2026-06-01"
 end

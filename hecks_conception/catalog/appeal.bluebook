@@ -4,37 +4,37 @@ Hecks.bluebook "Appeal", version: "2026.04.11.1" do
 
   aggregate "Project" do
   description "A domain project workspace. Loads, creates, and manages domain directories."
-  String :name
-  String :path
-  String :status
+  attribute :name, String
+  attribute :path, String
+  attribute :status, String
 
-  OpenProject do
+  command "OpenProject" do
     description "Load an existing domain from a directory"
-    String :path
+    attribute :path, String
     emits "ProjectOpened"
   end
 
-  CreateProject do
+  command "InitProject" do
     description "Initialize a new domain with a name"
-    String :name
-    String :path
-    emits "ProjectCreated"
+    attribute :name, String
+    attribute :path, String
+    emits "ProjectInitialized"
   end
 
-  CloseProject do
+  command "CloseProject" do
     description "Close the current project and release resources"
     emits "ProjectClosed"
   end
 
-  DiscoverProjects do
+  command "DiscoverProjects" do
     description "Scan a directory for hecks apps -- looks for hecks/*.bluebook"
-    String :search_path
+    attribute :search_path, String
     emits "ProjectsDiscovered"
   end
 
-  LoadProjects do
+  command "LoadProjects" do
     description "Discover and open all projects in a directory"
-    String :search_path
+    attribute :search_path, String
     emits "ProjectsLoaded"
   end
 
@@ -44,54 +44,54 @@ end
 
   aggregate "Explorer" do
   description "Browse and inspect parsed domain structure -- aggregates, commands, references."
-  String :domain_name
-  list_of(ExplorerEntry) :aggregate_names
-  String :last_opened_path
-  String :last_opened_domain
+  attribute :domain_name, String
+  attribute :aggregate_names, list_of(ExplorerEntry)
+  attribute :last_opened_path, String
+  attribute :last_opened_domain, String
 
   value_object "ExplorerEntry" do
     description "A named item in the domain structure"
-    String :name
-    String :kind
+    attribute :name, String
+    attribute :kind, String
   end
 
   reference_to(Project)
 
-  LoadDomain do
+  command "LoadDomain" do
     description "Parse the project domain and populate the explorer tree"
     reference_to(Project)
     emits "DomainLoaded"
   end
 
-  InspectAggregate do
+  command "InspectAggregate" do
     description "Show details of an aggregate"
-    String :aggregate_name
+    attribute :aggregate_name, String
     emits "AggregateInspected"
   end
 
-  InspectCommand do
+  command "InspectCommand" do
     description "Show details of a command"
-    String :aggregate_name
-    String :command_name
+    attribute :aggregate_name, String
+    attribute :command_name, String
     emits "CommandInspected"
   end
 
-  OpenFile do
+  command "OpenFile" do
     description "Open a file from the project tree and record it as the last opened"
     reference_to(Project)
-    String :path
-    String :domain
+    attribute :path, String
+    attribute :domain, String
     emits "FileOpened"
   end
 
-  GetLastOpened do
+  command "GetLastOpened" do
     description "Return the last opened file path and domain"
     emits "LastOpenedReturned"
   end
 
-  ExportBluebook do
+  command "ExportBluebook" do
     description "Export the current domain as a .bluebook file"
-    String :format
+    attribute :format, String
     emits "BluebookExported"
   end
 
@@ -102,40 +102,40 @@ end
 
   aggregate "Document" do
   description "A source file open for editing. Tracks content, parse state, and dirty status."
-  String :filename
-  String :content
-  String :dirty
-  list_of(Diagnostic) :diagnostics
+  attribute :filename, String
+  attribute :content, String
+  attribute :dirty, String
+  attribute :diagnostics, list_of(Diagnostic)
 
   value_object "Diagnostic" do
     description "A validation finding at a source location"
-    Integer :line
-    Integer :column
-    String :severity
-    String :message
+    attribute :line, Integer
+    attribute :column, Integer
+    attribute :severity, String
+    attribute :message, String
   end
 
   reference_to(Project)
 
-  OpenDocument do
+  command "OpenDocument" do
     description "Load a .hec file into the editor"
     reference_to(Project)
-    String :filename
+    attribute :filename, String
     emits "DocumentOpened"
   end
 
-  EditDocument do
+  command "EditDocument" do
     description "Apply a text change to the document"
-    String :content
+    attribute :content, String
     emits "DocumentEdited"
   end
 
-  SaveDocument do
+  command "SaveDocument" do
     description "Persist the document back to disk"
     emits "DocumentSaved"
   end
 
-  ValidateDocument do
+  command "ValidateDocument" do
     description "Parse and validate the document, producing diagnostics"
     emits "DocumentValidated"
   end
@@ -145,68 +145,68 @@ end
 
   aggregate "Timeline" do
   description "Edit history with undo/redo. Tracks document changes as a linear sequence."
-  list_of(TimelineEntry) :entries
-  Integer :cursor
+  attribute :entries, list_of(TimelineEntry)
+  attribute :cursor, Integer
 
   value_object "TimelineEntry" do
     description "A recorded change with before/after content"
-    String :action
-    String :detail
-    String :timestamp
+    attribute :action, String
+    attribute :detail, String
+    attribute :timestamp, String
   end
 
   reference_to(Document)
 
-  RecordChange do
+  command "RecordChange" do
     description "Append a change to the timeline"
     reference_to(Document)
-    String :action
-    String :detail
+    attribute :action, String
+    attribute :detail, String
   end
 
-  Undo do
+  command "Undo" do
     description "Move the cursor back one step and revert the change"
     end
 
-  Redo do
+  command "Redo" do
     description "Move the cursor forward and reapply the change"
     end
 end
 
   aggregate "Generator" do
   description "Build domain code for a target language. Preview output, diff against existing."
-  String :target
-  String :status
-  String :output_path
-  list_of(Artifact) :artifacts
+  attribute :target, String
+  attribute :status, String
+  attribute :output_path, String
+  attribute :artifacts, list_of(Artifact)
 
   value_object "Artifact" do
     description "A generated file with its content and diff status"
-    String :filename
-    String :content
-    String :changed
+    attribute :filename, String
+    attribute :content, String
+    attribute :changed, String
   end
 
   reference_to(Project)
 
-  SelectTarget do
+  command "SelectTarget" do
     description "Choose a build target -- ruby, go, rails, sinatra"
     reference_to(Project)
-    String :target
+    attribute :target, String
   end
 
-  BuildTarget do
+  command "BuildTarget" do
     description "Generate all code for the selected target"
     end
 
-  PreviewArtifact do
+  command "PreviewArtifact" do
     description "Show the content of a single generated file"
-    String :filename
+    attribute :filename, String
   end
 
-  CompareArtifact do
+  command "CompareArtifact" do
     description "Compare generated output against existing file on disk"
-    String :filename
+    attribute :filename, String
   end
 
   validation :target, presence: true
@@ -214,37 +214,37 @@ end
 
   aggregate "Pattern" do
   description "Reusable domain pattern library -- CRUD, event-sourced, saga, process manager."
-  String :name
-  String :category
-  String :template
-  list_of(PatternParameter) :parameters
+  attribute :name, String
+  attribute :category, String
+  attribute :template, String
+  attribute :parameters, list_of(PatternParameter)
 
   value_object "PatternParameter" do
     description "A configurable parameter when applying a pattern"
-    String :name
-    String :param_type
-    String :default_value
-    String :required
+    attribute :name, String
+    attribute :param_type, String
+    attribute :default_value, String
+    attribute :required, String
   end
 
-  CreatePattern do
+  command "CoinPattern" do
     description "Define a new reusable pattern from an existing aggregate shape"
-    String :name
-    String :category
-    String :template
+    attribute :name, String
+    attribute :category, String
+    attribute :template, String
   end
 
-  ApplyPattern do
+  command "ApplyPattern" do
     description "Scaffold an aggregate by applying a pattern with parameters"
     reference_to(Project)
-    String :pattern_name
-    String :aggregate_name
-    String :parameters
+    attribute :pattern_name, String
+    attribute :aggregate_name, String
+    attribute :parameters, String
   end
 
-  ListPatterns do
+  command "ListPatterns" do
     description "Show all available patterns, optionally filtered by category"
-    String :category
+    attribute :category, String
   end
 
   validation :name, presence: true
@@ -252,54 +252,54 @@ end
 
   aggregate "Feature" do
   description "A feature to build. Decomposes into domain additions tracked against the live IR."
-  String :title
-  String :description
-  String :status
-  list_of(DomainAddition) :additions
-  Integer :total_additions
-  Integer :completed_additions
+  attribute :title, String
+  attribute :description, String
+  attribute :status, String
+  attribute :additions, list_of(DomainAddition)
+  attribute :total_additions, Integer
+  attribute :completed_additions, Integer
 
   value_object "DomainAddition" do
     description "A planned domain change — aggregate, command, event, attribute, or policy"
-    String :kind
-    String :name
-    String :parent
-    String :description
-    String :exists_in_domain
+    attribute :kind, String
+    attribute :name, String
+    attribute :parent, String
+    attribute :description, String
+    attribute :exists_in_domain, String
   end
 
-  CreateFeature do
+  command "DraftFeature" do
     description "Define a new feature with a title and description"
-    String :title
-    String :description
-    emits "FeatureCreated"
+    attribute :title, String
+    attribute :description, String
+    emits "FeatureDrafted"
   end
 
-  PlanFeature do
+  command "PlanFeature" do
     description "Ask the AI agent to plan all domain additions for this feature"
     emits "FeaturePlanned"
   end
 
-  AddDomainAddition do
+  command "AddDomainAddition" do
     description "Manually add a planned domain change to the feature"
-    String :kind
-    String :name
-    String :parent
-    String :description
+    attribute :kind, String
+    attribute :name, String
+    attribute :parent, String
+    attribute :description, String
     emits "DomainAdditionAdded"
   end
 
-  VerifyAdditions do
+  command "VerifyAdditions" do
     description "Check the live domain IR for each planned addition"
     emits "AdditionsVerified"
   end
 
-  BuildFeature do
+  command "BuildFeature" do
     description "Ask the AI agent to implement all remaining additions"
     emits "FeatureBuildStarted"
   end
 
-  CompleteFeature do
+  command "CompleteFeature" do
     description "Mark the feature as done — all additions verified"
     emits "FeatureCompleted"
   end
@@ -316,30 +316,30 @@ end
 
   aggregate "Backlog" do
   description "Ordered collection of features. Tracks progress."
-  String :name
-  list_of(BacklogEntry) :features
+  attribute :name, String
+  attribute :features, list_of(BacklogEntry)
 
   value_object "BacklogEntry" do
     description "A feature in the backlog with its position"
-    String :feature_title
-    Integer :position
-    String :status
+    attribute :feature_title, String
+    attribute :position, Integer
+    attribute :status, String
   end
 
-  AddToBacklog do
+  command "AddToBacklog" do
     description "Add a feature to the backlog"
-    String :feature_title
+    attribute :feature_title, String
     emits "AddedToBacklog"
   end
 
-  Prioritize do
+  command "Prioritize" do
     description "Reorder a feature within the backlog"
-    String :feature_title
-    Integer :position
+    attribute :feature_title, String
+    attribute :position, Integer
     emits "Reprioritized"
   end
 
-  TrackProgress do
+  command "TrackProgress" do
     description "Recalculate completion across all features"
     emits "ProgressTracked"
   end
@@ -349,53 +349,53 @@ end
 
   aggregate "ProductExecutor" do
   description "Eight-agent product team: plan, build domain, build app, UX, UI, product owner, scrum master, event storming"
-  String :active_agent
-  list_of(AgentConversation) :conversations
+  attribute :active_agent, String
+  attribute :conversations, list_of(AgentConversation)
 
   value_object "AgentConversation" do
     description "A named agent's chat history"
-    String :agent_name
-    list_of(String) :messages
+    attribute :agent_name, String
+    attribute :messages, list_of(String)
   end
 
-  SendToAgent do
+  command "SendToAgent" do
     description "Send a message to a named agent"
-    String :agent_name
-    String :content
+    attribute :agent_name, String
+    attribute :content, String
     emits "AgentMessageSent"
   end
 
-  SwitchAgent do
+  command "SwitchAgent" do
     description "Switch the active agent tab"
-    String :agent_name
+    attribute :agent_name, String
     emits "AgentSwitched"
   end
 
-  ClearAgent do
+  command "ClearAgent" do
     description "Clear an agent's conversation"
-    String :agent_name
+    attribute :agent_name, String
     emits "AgentCleared"
   end
 end
 
   aggregate "FeatureFlag" do
   description "Runtime toggle for shipped features. Enabled on ship, removed on acceptance."
-  String :feature_title
-  String :enabled
-  String :permanent
+  attribute :feature_title, String
+  attribute :enabled, String
+  attribute :permanent, String
 
-  CreateFlag do
-    description "Create a feature flag when a feature ships"
-    String :feature_title
-    emits "FlagCreated"
+  command "RaiseFlag" do
+    description "Raise a feature flag when a feature ships"
+    attribute :feature_title, String
+    emits "FlagRaised"
   end
 
-  ToggleFlag do
+  command "ToggleFlag" do
     description "Enable or disable a feature flag at runtime"
     emits "FlagToggled"
   end
 
-  RemoveFlag do
+  command "RemoveFlag" do
     description "Remove the flag — feature becomes permanent"
     emits "FlagRemoved"
   end
@@ -403,43 +403,43 @@ end
 
   aggregate "Review" do
   description "Domain change review workflow -- propose changes, discuss, approve or reject."
-  String :title
-  String :status
-  String :author
-  String :changes_summary
-  list_of(ReviewComment) :comments
+  attribute :title, String
+  attribute :status, String
+  attribute :author, String
+  attribute :changes_summary, String
+  attribute :comments, list_of(ReviewComment)
 
   value_object "ReviewComment" do
     description "A comment on a proposed domain change"
-    String :author
-    String :body
-    String :element_name
-    String :timestamp
+    attribute :author, String
+    attribute :body, String
+    attribute :element_name, String
+    attribute :timestamp, String
   end
 
-  ProposeChange do
+  command "ProposeChange" do
     description "Open a review for a set of domain changes"
-    String :title
-    String :author
-    String :changes_summary
+    attribute :title, String
+    attribute :author, String
+    attribute :changes_summary, String
   end
 
-  AddComment do
+  command "AddComment" do
     description "Comment on the proposed changes"
-    String :author
-    String :body
-    String :element_name
+    attribute :author, String
+    attribute :body, String
+    attribute :element_name, String
   end
 
-  ApproveReview do
+  command "ApproveReview" do
     description "Approve the proposed domain changes"
-    String :author
+    attribute :author, String
   end
 
-  RejectReview do
+  command "RejectReview" do
     description "Reject the proposed changes with a reason"
-    String :author
-    String :reason
+    attribute :author, String
+    attribute :reason, String
   end
 
   validation :title, presence: true
@@ -447,34 +447,34 @@ end
 
   aggregate "Annotation" do
   description "Comments and notes attached to specific domain elements."
-  String :element_type
-  String :element_name
-  String :body
-  String :resolved
-  list_of(Reply) :replies
+  attribute :element_type, String
+  attribute :element_name, String
+  attribute :body, String
+  attribute :resolved, String
+  attribute :replies, list_of(Reply)
 
   value_object "Reply" do
     description "A threaded reply to an annotation"
-    String :author
-    String :body
-    String :timestamp
+    attribute :author, String
+    attribute :body, String
+    attribute :timestamp, String
   end
 
-  Annotate do
+  command "Annotate" do
     description "Attach a comment to a domain element"
-    String :element_type
-    String :element_name
-    String :body
+    attribute :element_type, String
+    attribute :element_name, String
+    attribute :body, String
   end
 
-  ResolveAnnotation do
+  command "ResolveAnnotation" do
     description "Mark an annotation as resolved"
     end
 
-  ReplyToAnnotation do
+  command "ReplyToAnnotation" do
     description "Add a threaded reply to an existing annotation"
-    String :author
-    String :body
+    attribute :author, String
+    attribute :body, String
   end
 
   query "Unresolved" do
@@ -484,58 +484,58 @@ end
 
   aggregate "Agent" do
   description "AI assistant for domain modeling. Ask questions, get suggestions, apply changes."
-  String :adapter_mode
-  String :thinking
-  list_of(Message) :messages
-  list_of(Suggestion) :suggestions
-  String :loaded_domain
+  attribute :adapter_mode, String
+  attribute :thinking, String
+  attribute :messages, list_of(Message)
+  attribute :suggestions, list_of(Suggestion)
+  attribute :loaded_domain, String
 
   value_object "Message" do
     description "A conversation message -- user or assistant"
-    String :role
-    String :content
-    String :timestamp
+    attribute :role, String
+    attribute :content, String
+    attribute :timestamp, String
   end
 
   value_object "Suggestion" do
     description "A proposed domain change with rationale and diff preview"
-    String :title
-    String :rationale
-    String :diff_preview
-    String :status
+    attribute :title, String
+    attribute :rationale, String
+    attribute :diff_preview, String
+    attribute :status, String
   end
 
-  SendMessage do
+  command "SendMessage" do
     description "Send a message to the AI assistant about the domain"
-    String :content
+    attribute :content, String
     emits "MessageReceived"
   end
 
-  ToggleAdapter do
+  command "ToggleAdapter" do
     description "Switch between memory and live LLM adapter"
-    String :mode
+    attribute :mode, String
     emits "AdapterChanged"
   end
 
-  ClearConversation do
+  command "ClearConversation" do
     description "Reset the conversation history"
     emits "ConversationCleared"
   end
 
-  ApplySuggestion do
+  command "ApplySuggestion" do
     description "Accept and apply a suggested domain change"
-    String :title
+    attribute :title, String
     emits "SuggestionApplied"
   end
 
-  RequestReview do
+  command "RequestReview" do
     description "Ask the AI to review the current domain"
     emits "ReviewRequested"
   end
 
-  LoadDomainContext do
+  command "LoadDomainContext" do
     description "Set which domain the agent introspects for tools and system prompt"
-    String :domain_name
+    attribute :domain_name, String
     emits "DomainContextLoaded"
   end
 
@@ -552,88 +552,88 @@ end
 
   aggregate "Insight" do
   description "Domain health analysis -- coupling metrics, design smells, completeness checks."
-  list_of(Finding) :findings
-  Integer :score
+  attribute :findings, list_of(Finding)
+  attribute :score, Integer
 
   value_object "Finding" do
     description "A single analysis finding with severity and recommendation"
-    String :rule
-    String :severity
-    String :element_name
-    String :message
-    String :recommendation
+    attribute :rule, String
+    attribute :severity, String
+    attribute :element_name, String
+    attribute :message, String
+    attribute :recommendation, String
   end
 
-  AnalyzeDomain do
+  command "AnalyzeDomain" do
     description "Run all analysis rules against the current domain"
-    String :scope
+    attribute :scope, String
   end
 
-  DismissInsight do
+  command "DismissInsight" do
     description "Acknowledge and hide a specific finding"
-    String :rule
-    String :element_name
+    attribute :rule, String
+    attribute :element_name, String
   end
 
-  ConfigureRules do
+  command "ConfigureRules" do
     description "Enable or disable specific analysis rules"
-    String :rule
-    String :enabled
+    attribute :rule, String
+    attribute :enabled, String
   end
 end
 
   aggregate "Migration" do
   description "Breaking change detection and migration path generation."
-  String :from_version
-  String :to_version
-  String :status
-  list_of(DomainChange) :changes
+  attribute :from_version, String
+  attribute :to_version, String
+  attribute :status, String
+  attribute :changes, list_of(DomainChange)
 
   value_object "DomainChange" do
     description "A detected change -- added, removed, renamed, or modified element"
-    String :kind
-    String :element_type
-    String :element_name
-    String :detail
+    attribute :kind, String
+    attribute :element_type, String
+    attribute :element_name, String
+    attribute :detail, String
   end
 
-  DetectChanges do
+  command "DetectChanges" do
     description "Compare current bluebook against a previous version"
-    String :from_version
+    attribute :from_version, String
   end
 
-  GenerateMigration do
+  command "GenerateMigration" do
     description "Produce a migration script for the detected changes"
     end
 
-  ApplyMigration do
+  command "ApplyMigration" do
     description "Execute the migration against a target environment"
     end
 end
 
   aggregate "Comparison" do
   description "Side-by-side diff of two domain versions."
-  String :left_version
-  String :right_version
-  list_of(Difference) :differences
+  attribute :left_version, String
+  attribute :right_version, String
+  attribute :differences, list_of(Difference)
 
   value_object "Difference" do
     description "A single difference between two domain versions"
-    String :element_type
-    String :element_name
-    String :change_kind
-    String :left_value
-    String :right_value
-    String :breaking
+    attribute :element_type, String
+    attribute :element_name, String
+    attribute :change_kind, String
+    attribute :left_value, String
+    attribute :right_value, String
+    attribute :breaking, String
   end
 
-  CompareVersions do
+  command "CompareVersions" do
     description "Diff two versions of the domain"
-    String :left_version
-    String :right_version
+    attribute :left_version, String
+    attribute :right_version, String
   end
 
-  HighlightBreaking do
+  command "HighlightBreaking" do
     description "Filter the comparison to show only breaking changes"
     end
 end
@@ -650,51 +650,51 @@ end
 
   aggregate "Diagram" do
   description "Generated domain visualizations -- aggregate maps, event flows, command graphs."
-  String :view_type
-  list_of(DiagramNode) :nodes
-  list_of(DiagramEdge) :edges
+  attribute :view_type, String
+  attribute :nodes, list_of(DiagramNode)
+  attribute :edges, list_of(DiagramEdge)
 
   value_object "DiagramNode" do
     description "An element in the diagram -- aggregate, command, event, or value object"
-    String :name
-    String :kind
-    String :metadata
+    attribute :name, String
+    attribute :kind, String
+    attribute :metadata, String
   end
 
   value_object "DiagramEdge" do
     description "A relationship between two nodes"
-    String :from_node
-    String :to_node
-    String :relationship
+    attribute :from_node, String
+    attribute :to_node, String
+    attribute :relationship, String
   end
 
-  GenerateDiagram do
+  command "GenerateDiagram" do
     description "Build a diagram for a file. Uses Explorer.last_opened_path when path is not provided."
-    String :view_type
-    String :path
-    String :domain
+    attribute :view_type, String
+    attribute :path, String
+    attribute :domain, String
     emits "DiagramGenerated"
   end
 
-  GenerateOverview do
+  command "GenerateOverview" do
     description "Build a cross-domain relationship diagram showing all domains and their connections"
-    String :scope
+    attribute :scope, String
     emits "OverviewGenerated"
   end
 
-  SelectView do
+  command "SelectView" do
     description "Switch between aggregate map, event flow, or command graph"
-    String :view_type
+    attribute :view_type, String
     emits "ViewSelected"
   end
 
-  FilterByAggregate do
+  command "FilterByAggregate" do
     description "Show only nodes related to a specific aggregate"
-    String :aggregate_name
+    attribute :aggregate_name, String
     emits "DiagramFiltered"
   end
 
-  RunAnalysis do
+  command "RunAnalysis" do
     description "Analyze domain patterns — coupling, cohesion, naming issues"
     emits "AnalysisCompleted"
   end
@@ -702,39 +702,39 @@ end
 
   aggregate "EventStorm" do
   description "Interactive event storming session. Stickies represent domain concepts."
-  String :name
-  String :status
-  list_of(Sticky) :stickies
+  attribute :name, String
+  attribute :status, String
+  attribute :stickies, list_of(Sticky)
 
   value_object "Sticky" do
     description "A virtual sticky note -- event, command, policy, hotspot, or external system"
-    String :label
-    String :kind
-    String :color
-    Integer :position_x
-    Integer :position_y
-    String :notes
+    attribute :label, String
+    attribute :kind, String
+    attribute :color, String
+    attribute :position_x, Integer
+    attribute :position_y, Integer
+    attribute :notes, String
   end
 
-  StartStorm do
+  command "StartStorm" do
     description "Begin a new event storming session"
-    String :name
+    attribute :name, String
   end
 
-  AddSticky do
+  command "AddSticky" do
     description "Place a new sticky note on the board"
-    String :label
-    String :kind
+    attribute :label, String
+    attribute :kind, String
   end
 
-  MoveSticky do
+  command "MoveSticky" do
     description "Reposition a sticky on the board"
-    String :label
-    Integer :position_x
-    Integer :position_y
+    attribute :label, String
+    attribute :position_x, Integer
+    attribute :position_y, Integer
   end
 
-  ConvertToDomain do
+  command "ConvertToDomain" do
     description "Transform stickies into Bluebook DSL aggregates, commands, and events"
     end
 
@@ -743,92 +743,92 @@ end
 
   aggregate "Glossary" do
   description "Ubiquitous language dictionary. Defines terms, enforces naming consistency."
-  list_of(Term) :terms
+  attribute :terms, list_of(Term)
 
   value_object "Term" do
     description "A domain term with its definition and category"
-    String :name
-    String :definition
-    String :category
-    String :aliases
+    attribute :name, String
+    attribute :definition, String
+    attribute :category, String
+    attribute :aliases, String
   end
 
-  ShowGlossary do
+  command "ShowGlossary" do
     description "Display the full glossary of domain terms"
     emits "GlossaryShown"
   end
 
-  DefineTerm do
+  command "DefineTerm" do
     description "Add a new term to the glossary"
-    String :name
-    String :definition
-    String :category
+    attribute :name, String
+    attribute :definition, String
+    attribute :category, String
   end
 
-  RenameTerm do
+  command "RenameTerm" do
     description "Rename a term and update all references"
-    String :old_name
-    String :new_name
+    attribute :old_name, String
+    attribute :new_name, String
   end
 
-  FlagAmbiguity do
+  command "FlagAmbiguity" do
     description "Mark a term as ambiguous -- needs clarification"
-    String :term_name
-    String :reason
+    attribute :term_name, String
+    attribute :reason, String
   end
 
-  LinkTerms do
+  command "LinkTerms" do
     description "Declare a relationship between two terms"
-    String :from_term
-    String :to_term
-    String :relationship
+    attribute :from_term, String
+    attribute :to_term, String
+    attribute :relationship, String
   end
 end
 
   aggregate "Console" do
   description "Interactive command runner GUI. Select aggregate and command, fill form, execute."
-  String :selected_aggregate
-  String :selected_command
-  String :status
-  String :last_result
-  list_of(ConsoleEvent) :event_log
-  list_of(FormField) :form
+  attribute :selected_aggregate, String
+  attribute :selected_command, String
+  attribute :status, String
+  attribute :last_result, String
+  attribute :event_log, list_of(ConsoleEvent)
+  attribute :form, list_of(FormField)
 
   value_object "FormField" do
     description "A generated input field from a command attribute"
-    String :name
-    String :field_type
-    String :required
-    String :input_value
-    String :error
+    attribute :name, String
+    attribute :field_type, String
+    attribute :required, String
+    attribute :input_value, String
+    attribute :error, String
   end
 
   value_object "ConsoleEvent" do
     description "An event recorded from command execution in the console"
-    String :event_name
-    String :payload
-    String :timestamp
+    attribute :event_name, String
+    attribute :payload, String
+    attribute :timestamp, String
   end
 
-  OpenConsole do
+  command "OpenConsole" do
     description "Open the console -- loads available aggregates and commands"
     emits "ConsoleOpened"
   end
 
-  SelectCommand do
+  command "SelectCommand" do
     description "Pick an aggregate and command -- generates the input form"
-    String :aggregate_name
-    String :command_name
+    attribute :aggregate_name, String
+    attribute :command_name, String
     emits "CommandSelected"
   end
 
-  SubmitForm do
+  command "SubmitForm" do
     description "Execute the selected command with the filled form values"
-    String :values
+    attribute :values, String
     emits "CommandExecuted"
   end
 
-  ViewResult do
+  command "ViewResult" do
     description "Display the result of the last command execution"
     emits "ResultViewed"
   end
@@ -836,34 +836,34 @@ end
 
   aggregate "AcceptanceTest" do
   description "Automated test runner. Dispatches every domain command and validates the event log."
-  String :status
-  list_of(TestResult) :results
-  Integer :passed
-  Integer :failed
-  Integer :total
+  attribute :status, String
+  attribute :results, list_of(TestResult)
+  attribute :passed, Integer
+  attribute :failed, Integer
+  attribute :total, Integer
 
   value_object "TestResult" do
     description "Result of a single command dispatch test"
-    String :command_name
-    String :aggregate_name
-    String :status
-    String :event_name
-    String :error
+    attribute :command_name, String
+    attribute :aggregate_name, String
+    attribute :status, String
+    attribute :event_name, String
+    attribute :error, String
   end
 
-  RunAll do
+  command "RunAll" do
     description "Dispatch every command and validate events are emitted"
     emits "AllTestsCompleted"
   end
 
-  RunCommand do
+  command "RunCommand" do
     description "Test a single command dispatch"
-    String :aggregate_name
-    String :command_name
+    attribute :aggregate_name, String
+    attribute :command_name, String
     emits "CommandTested"
   end
 
-  Reset do
+  command "Reset" do
     description "Clear all test results"
     emits "TestsReset"
   end
@@ -877,98 +877,98 @@ end
 
   aggregate "EventStream" do
   description "Live event feed. Subscribes to domain events and streams them to the UI."
-  String :status
-  list_of(StreamEvent) :events
-  String :filter_aggregate
-  String :filter_event_type
+  attribute :status, String
+  attribute :events, list_of(StreamEvent)
+  attribute :filter_aggregate, String
+  attribute :filter_event_type, String
 
   value_object "StreamEvent" do
     description "A domain event captured from any running aggregate"
-    String :event_name
-    String :aggregate_name
-    String :aggregate_id
-    String :payload
-    String :timestamp
-    String :source_command
-    String :source_policy
+    attribute :event_name, String
+    attribute :aggregate_name, String
+    attribute :aggregate_id, String
+    attribute :payload, String
+    attribute :timestamp, String
+    attribute :source_command, String
+    attribute :source_policy, String
   end
 
-  SubscribeToEvents do
+  command "SubscribeToEvents" do
     description "Start streaming events from a project's domains"
     emits "EventsSubscribed"
   end
 
-  StopStreaming do
+  command "StopStreaming" do
     description "Stop streaming events"
     emits "StreamingStopped"
   end
 
-  PauseStream do
+  command "PauseStream" do
     description "Temporarily pause the event stream without disconnecting"
     emits "StreamPaused"
   end
 
-  ResumeStream do
+  command "ResumeStream" do
     description "Resume a paused event stream"
     emits "StreamResumed"
   end
 
-  ClearEvents do
+  command "ClearEvents" do
     description "Remove all events from the stream display"
     emits "EventsCleared"
   end
 
-  FilterEvents do
+  command "FilterEvents" do
     description "Filter the stream by aggregate name or event type"
-    String :aggregate_name
-    String :event_type
+    attribute :aggregate_name, String
+    attribute :event_type, String
     emits "EventsFiltered"
   end
 
-  InspectEvent do
+  command "InspectEvent" do
     description "Expand an event row to show its full payload data"
-    String :event_name
-    String :timestamp
+    attribute :event_name, String
+    attribute :timestamp, String
     emits "EventInspected"
   end
 end
 
   aggregate "Scenario" do
   description "Executable given/when/then specification. Tests domain commands without implementation."
-  String :name
-  String :status
-  list_of(Step) :steps
-  String :result
+  attribute :name, String
+  attribute :status, String
+  attribute :steps, list_of(Step)
+  attribute :result, String
 
   value_object "Step" do
     description "A single step in a scenario -- given, when, or then"
-    String :phase
-    String :aggregate_name
-    String :command_name
-    String :attributes
-    String :expectation
+    attribute :phase, String
+    attribute :aggregate_name, String
+    attribute :command_name, String
+    attribute :attributes, String
+    attribute :expectation, String
   end
 
-  CreateScenario do
+  command "DraftScenario" do
     description "Define a new scenario with a name"
-    String :name
+    attribute :name, String
   end
 
-  AddStep do
+  command "AddStep" do
     description "Append a given/when/then step to the scenario"
-    String :phase
-    String :aggregate_name
-    String :command_name
-    String :attributes
+    attribute :phase, String
+    attribute :aggregate_name, String
+    attribute :command_name, String
+    attribute :attributes, String
   end
 
-  RunScenario do
+  command "RunScenario" do
     description "Execute all steps and record pass/fail"
     end
 
-  RecordResult do
+  command "RecordResult" do
     description "Store the outcome of a scenario run"
-    String :result
+    attribute :result, String
   end
 
   validation :name, presence: true
@@ -976,27 +976,27 @@ end
 
   aggregate "Fixture" do
   description "Reusable data set for populating scenarios with known state."
-  String :name
-  list_of(FixtureEntry) :entries
+  attribute :name, String
+  attribute :entries, list_of(FixtureEntry)
 
   value_object "FixtureEntry" do
     description "A single data record -- aggregate name, attribute values"
-    String :aggregate_name
-    String :attributes
+    attribute :aggregate_name, String
+    attribute :attributes, String
   end
 
-  CreateFixture do
+  command "ComposeFixture" do
     description "Define a new fixture set"
-    String :name
+    attribute :name, String
   end
 
-  AddEntry do
+  command "AddEntry" do
     description "Add a data record to the fixture"
-    String :aggregate_name
-    String :attributes
+    attribute :aggregate_name, String
+    attribute :attributes, String
   end
 
-  ApplyToScenario do
+  command "ApplyToScenario" do
     description "Load this fixture as the given state for a scenario"
     reference_to(Scenario)
   end
@@ -1006,29 +1006,29 @@ end
 
   aggregate "Playground" do
   description "Interactive sandbox for running domain commands and inspecting state."
-  list_of(PlaygroundEvent) :events
-  String :state_snapshot
+  attribute :events, list_of(PlaygroundEvent)
+  attribute :state_snapshot, String
 
   value_object "PlaygroundEvent" do
     description "A recorded event from command execution"
-    String :name
-    String :payload
-    String :timestamp
+    attribute :name, String
+    attribute :payload, String
+    attribute :timestamp, String
   end
 
-  ExecuteCommand do
+  command "ExecuteCommand" do
     description "Run a domain command in the sandbox"
-    String :aggregate_name
-    String :command_name
-    String :attributes
+    attribute :aggregate_name, String
+    attribute :command_name, String
+    attribute :attributes, String
   end
 
-  InspectState do
+  command "InspectState" do
     description "View current aggregate state in the sandbox"
-    String :aggregate_name
+    attribute :aggregate_name, String
   end
 
-  ResetPlayground do
+  command "ResetPlayground" do
     description "Clear all sandbox state and events"
     end
 
@@ -1039,47 +1039,47 @@ end
 
   aggregate "Workbench" do
   description "Live domain interaction. Select a project, execute commands, inspect state."
-  String :active_project
-  String :active_aggregate
+  attribute :active_project, String
+  attribute :active_aggregate, String
 
-  ShowWorkbench do
+  command "ShowWorkbench" do
     description "Open the workbench REPL for this domain"
     emits "WorkbenchShown"
   end
 
-  SelectProject do
+  command "SelectProject" do
     description "Set the active project for command dispatch"
-    String :project_name
+    attribute :project_name, String
     emits "ProjectSelected"
   end
 
-  SelectAggregate do
+  command "SelectAggregate" do
     description "Set the active aggregate for inspection"
-    String :aggregate_name
+    attribute :aggregate_name, String
     emits "AggregateSelected"
   end
 
-  ExecuteCommand do
+  command "ExecuteCommand" do
     description "Dispatch a command against the active project's runtime"
-    String :command_name
-    String :args
+    attribute :command_name, String
+    attribute :args, String
     emits "CommandExecuted"
   end
 
-  InspectRepository do
+  command "InspectRepository" do
     description "List all records in an aggregate's repository"
-    String :aggregate_name
+    attribute :aggregate_name, String
     emits "RepositoryInspected"
   end
 
-  FindRecord do
+  command "FindRecord" do
     description "Find a single record by ID"
-    String :aggregate_name
-    String :record_id
+    attribute :aggregate_name, String
+    attribute :record_id, String
     emits "RecordFound"
   end
 
-  ShowEventHistory do
+  command "ShowEventHistory" do
     description "Show all events for the active project"
     emits "EventHistoryShown"
   end
@@ -1087,30 +1087,30 @@ end
 
   aggregate "Session" do
   description "IDE session with sketch/play modes and WebSocket connection state."
-  String :mode
-  String :connection_status
+  attribute :mode, String
+  attribute :connection_status, String
 
-  EnterSketch do
+  command "EnterSketch" do
     description "Switch to sketch mode for editing domain structure"
     emits "SketchEntered"
   end
 
-  EnterPlay do
+  command "EnterPlay" do
     description "Switch to play mode for executing domain commands"
     emits "PlayEntered"
   end
 
-  Connect do
+  command "Connect" do
     description "Establish WebSocket connection to the IDE server"
     emits "Connected"
   end
 
-  Disconnect do
+  command "Disconnect" do
     description "Close the WebSocket connection"
     emits "Disconnected"
   end
 
-  RestoreConnection do
+  command "RestoreConnection" do
     description "Drop and re-establish the WebSocket connection"
     emits "ConnectionRestored"
   end
@@ -1118,63 +1118,63 @@ end
 
   aggregate "Layout" do
   description "IDE panel and tab state. Tracks which panels are open, active tabs, sizes, and arrangement."
-  list_of(PanelState) :panels
-  String :active_tab
-  String :sidebar_collapsed
-  String :events_panel_collapsed
+  attribute :panels, list_of(PanelState)
+  attribute :active_tab, String
+  attribute :sidebar_collapsed, String
+  attribute :events_panel_collapsed, String
 
   value_object "PanelState" do
     description "State of a single IDE panel -- name, visibility, dimensions"
-    String :name
-    String :open
-    Integer :width
-    Integer :height
-    String :position
+    attribute :name, String
+    attribute :open, String
+    attribute :width, Integer
+    attribute :height, Integer
+    attribute :position, String
   end
 
 
-  OpenPanel do
+  command "OpenPanel" do
     description "Show a hidden panel"
-    String :panel_name
+    attribute :panel_name, String
     emits "PanelOpened"
   end
 
-  ClosePanel do
+  command "ClosePanel" do
     description "Hide a panel"
-    String :panel_name
+    attribute :panel_name, String
     emits "PanelClosed"
   end
 
-  SelectTab do
+  command "SelectTab" do
     description "Switch the active tab in the main area"
-    String :tab_name
+    attribute :tab_name, String
     emits "TabSelected"
   end
 
-  ResizePanel do
+  command "ResizePanel" do
     description "Change a panel's dimensions"
-    String :panel_name
-    Integer :width
-    Integer :height
+    attribute :panel_name, String
+    attribute :width, Integer
+    attribute :height, Integer
     emits "PanelResized"
   end
 
-  ToggleSidebar do
+  command "ToggleSidebar" do
     description "Collapse or expand the sidebar"
     emits "SidebarToggled"
   end
 
-  ToggleEventsPanel do
+  command "ToggleEventsPanel" do
     description "Collapse or expand the bottom events panel"
     emits "EventsPanelToggled"
   end
 
-  HideProjects do
+  command "HideProjects" do
     description "Hide the projects sidebar panel"
     emits "ProjectsHidden"
   end
 
-  ShowProjects do
+  command "ShowProjects" do
     description "Show the projects sidebar panel"
     emits "ProjectsShown"
   end
@@ -1183,22 +1183,22 @@ end
 
   aggregate "LayoutState" do
   description "Persisted layout preferences — current file, saved panel arrangement."
-  String :current_file
-  String :current_domain
+  attribute :current_file, String
+  attribute :current_domain, String
 
-  TrackCurrentFile do
+  command "TrackCurrentFile" do
     description "Record the currently open file and domain for context"
-    String :path
-    String :domain
+    attribute :path, String
+    attribute :domain, String
     emits "CurrentFileTracked"
   end
 
-  SaveState do
+  command "SaveState" do
     description "Persist the current layout state to disk"
     emits "StateSaved"
   end
 
-  RestoreState do
+  command "RestoreState" do
     description "Load persisted layout state from disk"
     emits "StateRestored"
   end
@@ -1206,77 +1206,77 @@ end
 
   aggregate "Menu" do
   description "IDE menu bar with File, View, and Domain menus."
-  String :open_menu
-  list_of(MenuItem) :items
+  attribute :open_menu, String
+  attribute :items, list_of(MenuItem)
 
   value_object "MenuItem" do
     description "A single menu entry -- label, action, keyboard shortcut, enabled state"
-    String :label
-    String :action
-    String :shortcut
-    String :enabled
-    String :separator
+    attribute :label, String
+    attribute :action, String
+    attribute :shortcut, String
+    attribute :enabled, String
+    attribute :separator, String
   end
 
-  OpenMenu do
+  command "OpenMenu" do
     description "Open a menu dropdown -- File, View, or Domain"
-    String :menu_name
+    attribute :menu_name, String
     emits "MenuOpened"
   end
 
-  CloseMenu do
+  command "CloseMenu" do
     description "Close any open menu dropdown"
     emits "MenuClosed"
   end
 
-  SelectMenuItem do
+  command "SelectMenuItem" do
     description "Execute a menu item action"
-    String :menu_name
-    String :action
+    attribute :menu_name, String
+    attribute :action, String
     emits "MenuItemSelected"
   end
 end
 
   aggregate "KeyboardShortcut" do
   description "Keyboard shortcut binding. Maps key combinations to domain commands."
-  String :key
-  String :modifiers
-  String :command_aggregate
-  String :command_name
+  attribute :key, String
+  attribute :modifiers, String
+  attribute :command_aggregate, String
+  attribute :command_name, String
 
-  BindShortcut do
+  command "BindShortcut" do
     description "Register a keyboard shortcut for a command"
-    String :key
-    String :modifiers
-    String :command_aggregate
-    String :command_name
+    attribute :key, String
+    attribute :modifiers, String
+    attribute :command_aggregate, String
+    attribute :command_name, String
     emits "ShortcutBound"
   end
 
-  TriggerShortcut do
+  command "TriggerShortcut" do
     description "Fire the command associated with a key combination"
-    String :key
-    String :modifiers
+    attribute :key, String
+    attribute :modifiers, String
     emits "ShortcutTriggered"
   end
 end
 
   aggregate "Notification" do
   description "Feedback messages -- errors, warnings, success confirmations, progress updates."
-  String :severity
-  String :message
-  String :context
-  String :dismissed
+  attribute :severity, String
+  attribute :message, String
+  attribute :context, String
+  attribute :dismissed, String
 
-  Notify do
+  command "Notify" do
     description "Create a notification for the user"
-    String :severity
-    String :message
-    String :context
+    attribute :severity, String
+    attribute :message, String
+    attribute :context, String
     emits "Notified"
   end
 
-  DismissNotification do
+  command "DismissNotification" do
     description "Mark a notification as seen"
     emits "NotificationDismissed"
   end
@@ -1288,23 +1288,23 @@ end
 
   aggregate "Screenshot" do
   description "Rolling buffer of browser screenshots for visual debugging."
-  Integer :buffer_size
-  Integer :capture_interval
-  String :status
+  attribute :buffer_size, Integer
+  attribute :capture_interval, Integer
+  attribute :status, String
 
-  CaptureScreen do
+  command "CaptureScreen" do
     description "Save a screenshot frame from the browser"
-    String :frame_data
-    String :timestamp
+    attribute :frame_data, String
+    attribute :timestamp, String
     emits "ScreenshotCaptured"
   end
 
-  PauseCapture do
+  command "PauseCapture" do
     description "Stop capturing screenshots"
     emits "CapturePaused"
   end
 
-  ResumeCapture do
+  command "ResumeCapture" do
     description "Resume capturing screenshots"
     emits "CaptureResumed"
   end
@@ -1312,33 +1312,33 @@ end
 
   aggregate "Search" do
   description "Full-text search across domains, aggregates, commands, and attributes."
-  String :query_text
-  list_of(SearchResult) :results
-  Integer :result_count
+  attribute :query_text, String
+  attribute :results, list_of(SearchResult)
+  attribute :result_count, Integer
 
   value_object "SearchResult" do
     description "A single search match with context"
-    String :element_type
-    String :element_name
-    String :domain_name
-    String :context
-    Integer :relevance
+    attribute :element_type, String
+    attribute :element_name, String
+    attribute :domain_name, String
+    attribute :context, String
+    attribute :relevance, Integer
   end
 
-  SearchDomain do
+  command "SearchDomain" do
     description "Search across all domain elements for a query string"
-    String :query_text
+    attribute :query_text, String
     emits "SearchCompleted"
   end
 
-  ClearSearch do
+  command "ClearSearch" do
     description "Reset search results"
     emits "SearchCleared"
   end
 
-  FilterSearchResults do
+  command "FilterSearchResults" do
     description "Narrow results by element type"
-    String :element_type
+    attribute :element_type, String
     emits "SearchResultsFiltered"
   end
 end

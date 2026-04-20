@@ -1,0 +1,157 @@
+Hecks.behaviors "ZeroWasteFarm" do
+  vision "Behavioral tests for the ZeroWasteFarm domain — exercises every command and query in memory"
+
+  # ── Field aggregate ──────────────────────────────────────────
+
+  test "RegisterField sets name + crop_type + acreage + soil_type" do
+    tests "RegisterField", on: "Field"
+    input  name: "sample", crop_type: "sample", acreage: 1.0, soil_type: "sample"
+    expect name: "sample", crop_type: "sample", acreage: 1.0, soil_type: "sample", status: "planted"
+  end
+
+  test "RecordWeather sets temperature + rainfall_mm" do
+    tests "RecordWeather", on: "Field"
+    setup  "RegisterField", name: "sample", crop_type: "sample", acreage: 1.0, soil_type: "sample"
+    input  temperature: 1.0, rainfall_mm: 1.0
+    expect ok: "true"
+  end
+
+  test "DeclareHarvestReady runs" do
+    tests "DeclareHarvestReady", on: "Field"
+    setup  "RegisterField", name: "sample", crop_type: "sample", acreage: 1.0, soil_type: "sample"
+    expect status: "harvest_ready"
+  end
+
+  test "CompleteHarvest runs" do
+    tests "CompleteHarvest", on: "Field"
+    setup  "RegisterField", name: "sample", crop_type: "sample", acreage: 1.0, soil_type: "sample"
+    setup  "DeclareHarvestReady"
+    expect status: "harvested"
+  end
+
+
+  # ── Harvest aggregate ──────────────────────────────────────────
+
+  test "RecordHarvest sets crop_type + weight_kg + grade" do
+    tests "RecordHarvest", on: "Harvest"
+    setup  "RegisterField", name: "sample", crop_type: "sample", acreage: 1.0, soil_type: "sample"
+    input  crop_type: "sample", weight_kg: 1.0, grade: "sample"
+    expect field: 1, crop_type: "sample", weight_kg: 1.0, grade: "sample", status: "recorded"
+  end
+
+  test "RouteToMarket runs" do
+    tests "RouteToMarket", on: "Harvest"
+    setup  "RecordHarvest", crop_type: "sample", weight_kg: 1.0, grade: "sample"
+    expect destination: "market", status: "routed"
+  end
+
+  test "RouteToFoodBank runs" do
+    tests "RouteToFoodBank", on: "Harvest"
+    setup  "RecordHarvest", crop_type: "sample", weight_kg: 1.0, grade: "sample"
+    expect destination: "food_bank", status: "routed"
+  end
+
+
+  # ── MarketPrice aggregate ──────────────────────────────────────────
+
+  test "SetPrice sets crop_type + current_price + threshold_price" do
+    tests "SetPrice", on: "MarketPrice"
+    input  crop_type: "sample", current_price: 1.0, threshold_price: 1.0
+    expect crop_type: "sample", current_price: 1.0, threshold_price: 1.0, status: "active"
+  end
+
+  test "SetPrice cascades through policy chain" do
+    tests "SetPrice", on: "MarketPrice", kind: :cascade
+    input  crop_type: "sample", current_price: 1.0, threshold_price: 1.0
+    expect emits: ["PriceUpdated", "PriceBelowThreshold"]
+  end
+
+  test "DetectPriceDrop runs" do
+    tests "DetectPriceDrop", on: "MarketPrice"
+    setup  "SetPrice", crop_type: "sample", current_price: 1.0, threshold_price: 1.0
+    expect status: "below_threshold"
+  end
+
+  test "RecoverPrice runs" do
+    tests "RecoverPrice", on: "MarketPrice"
+    setup  "SetPrice", crop_type: "sample", current_price: 1.0, threshold_price: 1.0
+    setup  "DetectPriceDrop"
+    expect status: "active"
+  end
+
+
+  # ── FoodBankAllocation aggregate ──────────────────────────────────────────
+
+  test "AllocateToFoodBank sets food_bank_name + region + allocated_kg" do
+    tests "AllocateToFoodBank", on: "FoodBankAllocation"
+    setup  "RecordHarvest", crop_type: "sample", weight_kg: 1.0, grade: "sample"
+    input  food_bank_name: "sample", region: "sample", allocated_kg: 1.0
+    expect food_bank_name: "sample", region: "sample", harvest: 1, allocated_kg: 1.0, status: "allocated"
+  end
+
+  test "AllocateToFoodBank cascades through policy chain" do
+    tests "AllocateToFoodBank", on: "FoodBankAllocation", kind: :cascade
+    setup  "RecordHarvest", crop_type: "sample", weight_kg: 1.0, grade: "sample"
+    input  food_bank_name: "sample", region: "sample", allocated_kg: 1.0
+    expect emits: ["FoodBankAllocated", "HarvestRoutedToFoodBank"]
+  end
+
+  test "ConfirmReceipt runs" do
+    tests "ConfirmReceipt", on: "FoodBankAllocation"
+    setup  "AllocateToFoodBank", food_bank_name: "sample", region: "sample", allocated_kg: 1.0
+    expect status: "received"
+  end
+
+  test "DistributeToFamilies runs" do
+    tests "DistributeToFamilies", on: "FoodBankAllocation"
+    setup  "AllocateToFoodBank", food_bank_name: "sample", region: "sample", allocated_kg: 1.0
+    setup  "ConfirmReceipt"
+    expect status: "distributed"
+  end
+
+
+  # ── ColdRoute aggregate ──────────────────────────────────────────
+
+  test "ScheduleColdPickup sets driver_id" do
+    tests "ScheduleColdPickup", on: "ColdRoute"
+    setup  "RecordHarvest", crop_type: "sample", weight_kg: 1.0, grade: "sample"
+    input  driver_id: "sample"
+    expect harvest: 1, driver_id: "sample", status: "scheduled"
+  end
+
+  test "ScheduleColdPickup cascades through policy chain" do
+    tests "ScheduleColdPickup", on: "ColdRoute", kind: :cascade
+    setup  "RecordHarvest", crop_type: "sample", weight_kg: 1.0, grade: "sample"
+    input  driver_id: "sample"
+    expect emits: ["ColdPickupScheduled", "ColdTransportStarted"]
+  end
+
+  test "BeginTransport runs" do
+    tests "BeginTransport", on: "ColdRoute"
+    setup  "ScheduleColdPickup", driver_id: "sample"
+    expect status: "in_transit"
+  end
+
+  test "RecordTemperature sets temperature" do
+    tests "RecordTemperature", on: "ColdRoute"
+    setup  "ScheduleColdPickup", driver_id: "sample"
+    input  temperature: 1.0
+    expect temperature: 1.0
+  end
+
+  test "CompleteDelivery runs" do
+    tests "CompleteDelivery", on: "ColdRoute"
+    setup  "ScheduleColdPickup", driver_id: "sample"
+    setup  "BeginTransport"
+    expect status: "delivered"
+  end
+
+  test "CompleteDelivery cascades through policy chain" do
+    tests "CompleteDelivery", on: "ColdRoute", kind: :cascade
+    setup  "AllocateToFoodBank", food_bank_name: "sample", region: "sample", allocated_kg: 1.0
+    setup  "ScheduleColdPickup", driver_id: "sample"
+    setup  "BeginTransport"
+    expect emits: ["ColdDeliveryCompleted", "DonationReceived"]
+  end
+
+end

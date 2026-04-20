@@ -1,0 +1,233 @@
+Hecks.behaviors "Conception" do
+  vision "Behavioral tests for the Conception domain — exercises every command and query in memory"
+
+  # ── Conception aggregate ──────────────────────────────────────────
+
+  test "ConceiveDomain sets name + vision + requested_by + source + category + bounded_contexts" do
+    tests "ConceiveDomain", on: "Conception"
+    input  name: "sample", vision: "sample", requested_by: "sample", source: "sample", category: "sample", bounded_contexts: "sample"
+    expect name: "sample", vision: "sample", requested_by: "sample", source: "sample", category: "sample", bounded_contexts: "sample", status: "conceived"
+  end
+
+  test "ConceiveDomain cascades through policy chain" do
+    tests "ConceiveDomain", on: "Conception", kind: :cascade
+    setup  "IndexDomain", domain_name: "sample", vector: 1.0
+    setup  "StartGestation", project_name: "sample", nursery_path: "sample", bounded_contexts: "sample"
+    input  name: "sample", vision: "sample", requested_by: "sample", source: "sample", category: "sample", bounded_contexts: "sample"
+    expect emits: ["DomainConceived", "NearestFound", "GestationStarted"]
+  end
+
+
+  # ── Gestation aggregate ──────────────────────────────────────────
+
+  test "StartGestation sets project_name + nursery_path + bounded_contexts" do
+    tests "StartGestation", on: "Gestation"
+    input  project_name: "sample", nursery_path: "sample", bounded_contexts: "sample"
+    expect project_name: "sample", nursery_path: "sample", bounded_contexts: "sample", contractions: 0
+  end
+
+  test "FormAggregate sets aggregate_name" do
+    tests "FormAggregate", on: "Gestation"
+    setup  "StartGestation", project_name: "sample", nursery_path: "sample", bounded_contexts: "sample"
+    input  aggregate_name: "sample"
+    expect aggregates_size: 1
+  end
+
+  test "FormCommand sets command_name" do
+    tests "FormCommand", on: "Gestation"
+    setup  "StartGestation", project_name: "sample", nursery_path: "sample", bounded_contexts: "sample"
+    input  command_name: "sample"
+    expect commands_size: 1
+  end
+
+  test "FormPolicy sets policy_name" do
+    tests "FormPolicy", on: "Gestation"
+    setup  "StartGestation", project_name: "sample", nursery_path: "sample", bounded_contexts: "sample"
+    input  policy_name: "sample"
+    expect policies_size: 1
+  end
+
+  test "Contract runs" do
+    tests "Contract", on: "Gestation"
+    setup  "StartGestation", project_name: "sample", nursery_path: "sample", bounded_contexts: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Labor aggregate ──────────────────────────────────────────
+
+  test "ValidateBluebook sets domain_name + bluebook_source" do
+    tests "ValidateBluebook", on: "Labor"
+    input  domain_name: "sample", bluebook_source: "sample"
+    expect domain_name: "sample", bluebook_source: "sample", valid: "checking"
+  end
+
+  test "ValidateBluebook cascades through policy chain" do
+    tests "ValidateBluebook", on: "Labor", kind: :cascade
+    input  domain_name: "sample", bluebook_source: "sample"
+    expect emits: ["BluebookValidated", "ParityChecked"]
+  end
+
+  test "CheckParity sets parity" do
+    tests "CheckParity", on: "Labor"
+    setup  "ValidateBluebook", domain_name: "sample", bluebook_source: "sample"
+    input  parity: "sample"
+    expect parity: "sample"
+  end
+
+  test "PassLabor runs" do
+    tests "PassLabor", on: "Labor"
+    setup  "ValidateBluebook", domain_name: "sample", bluebook_source: "sample"
+    expect valid: "yes"
+  end
+
+  test "PassLabor cascades through policy chain" do
+    tests "PassLabor", on: "Labor", kind: :cascade
+    setup  "DeliverDomain", domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
+    setup  "IndexDomain", domain_name: "sample", vector: 1.0
+    setup  "CheckHealth", domain_name: "sample"
+    setup  "ValidateBluebook", domain_name: "sample", bluebook_source: "sample"
+    expect emits: ["LaborPassed", "DomainDelivered", "BirthRegistered", "DomainIndexed", "HealthChecked"]
+  end
+
+  test "FailLabor sets errors" do
+    tests "FailLabor", on: "Labor"
+    setup  "ValidateBluebook", domain_name: "sample", bluebook_source: "sample"
+    input  errors: "sample"
+    expect errors: "sample", valid: "no"
+  end
+
+
+  # ── Delivery aggregate ──────────────────────────────────────────
+
+  test "DeliverDomain sets domain_name + path + aggregate_count + command_count + fixture_count" do
+    tests "DeliverDomain", on: "Delivery"
+    input  domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
+    expect domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
+  end
+
+  test "DeliverDomain cascades through policy chain" do
+    tests "DeliverDomain", on: "Delivery", kind: :cascade
+    setup  "IndexDomain", domain_name: "sample", vector: 1.0
+    setup  "CheckHealth", domain_name: "sample"
+    input  domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
+    expect emits: ["DomainDelivered", "BirthRegistered", "DomainIndexed", "HealthChecked"]
+  end
+
+  test "RegisterBirth runs" do
+    tests "RegisterBirth", on: "Delivery"
+    setup  "DeliverDomain", domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
+    expect ok: "true"
+  end
+
+  test "RegisterBirth cascades through policy chain" do
+    tests "RegisterBirth", on: "Delivery", kind: :cascade
+    setup  "DeliverDomain", domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
+    setup  "IndexDomain", domain_name: "sample", vector: 1.0
+    setup  "CheckHealth", domain_name: "sample"
+    expect emits: ["BirthRegistered", "DomainIndexed", "HealthChecked"]
+  end
+
+  test "IndexInNursery runs" do
+    tests "IndexInNursery", on: "Delivery"
+    setup  "DeliverDomain", domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
+    expect indexed: "yes"
+  end
+
+
+  # ── Postpartum aggregate ──────────────────────────────────────────
+
+  test "CheckHealth sets domain_name" do
+    tests "CheckHealth", on: "Postpartum"
+    input  domain_name: "sample"
+    expect domain_name: "sample"
+  end
+
+  test "DeclareHealthy runs" do
+    tests "DeclareHealthy", on: "Postpartum"
+    setup  "CheckHealth", domain_name: "sample"
+    expect healthy: "yes"
+  end
+
+  test "FlagConcern sets concern" do
+    tests "FlagConcern", on: "Postpartum"
+    setup  "CheckHealth", domain_name: "sample"
+    input  concern: "sample"
+    expect healthy: "concern"
+  end
+
+
+  # ── Development aggregate ──────────────────────────────────────────
+
+  test "ComputeVector sets domain_name" do
+    tests "ComputeVector", on: "Development"
+    input  domain_name: "sample"
+    expect domain_name: "sample", status: "vectorized"
+  end
+
+  test "ComputeVector cascades through policy chain" do
+    tests "ComputeVector", on: "Development", kind: :cascade
+    input  domain_name: "sample"
+    expect emits: ["VectorComputed", "ArchetypeFound"]
+  end
+
+  test "FindArchetype runs" do
+    tests "FindArchetype", on: "Development"
+    setup  "ComputeVector", domain_name: "sample"
+    expect status: "matched"
+  end
+
+  test "PlanDevelopment sets target_vector" do
+    tests "PlanDevelopment", on: "Development"
+    setup  "ComputeVector", domain_name: "sample"
+    setup  "FindArchetype"
+    input  target_vector: 1.0
+    expect target_vector: 1.0, status: "planned"
+  end
+
+  test "DevelopDomain runs" do
+    tests "DevelopDomain", on: "Development"
+    setup  "ComputeVector", domain_name: "sample"
+    setup  "FindArchetype"
+    setup  "PlanDevelopment", target_vector: 1.0
+    expect status: "developed"
+  end
+
+  test "DevelopDomain cascades through policy chain" do
+    tests "DevelopDomain", on: "Development", kind: :cascade
+    setup  "IndexDomain", domain_name: "sample", vector: 1.0
+    setup  "ComputeVector", domain_name: "sample"
+    setup  "FindArchetype"
+    setup  "PlanDevelopment", target_vector: 1.0
+    expect emits: ["DomainDeveloped", "DomainIndexed"]
+  end
+
+  test "RejectDevelopment runs" do
+    tests "RejectDevelopment", on: "Development"
+    setup  "ComputeVector", domain_name: "sample"
+    setup  "FindArchetype"
+    setup  "PlanDevelopment", target_vector: 1.0
+    expect status: "rejected"
+  end
+
+
+  # ── Corpus aggregate ──────────────────────────────────────────
+
+  test "IndexDomain sets domain_name + vector" do
+    tests "IndexDomain", on: "Corpus"
+    input  domain_name: "sample", vector: 1.0
+    expect ok: "true"
+  end
+
+  test "QueryNearest sets target_vector + k" do
+    tests "QueryNearest", on: "Corpus"
+    input  target_vector: 1.0, k: 1
+    expect ok: "true"
+  end
+
+  test "RebuildCorpus runs" do
+    tests "RebuildCorpus", on: "Corpus"
+    expect ok: "true"
+  end
+
+end

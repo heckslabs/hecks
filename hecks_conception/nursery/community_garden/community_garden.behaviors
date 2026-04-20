@@ -1,0 +1,155 @@
+Hecks.behaviors "CommunityGarden" do
+  vision "Behavioral tests for the CommunityGarden domain — exercises every command and query in memory"
+
+  # ── Plot aggregate ──────────────────────────────────────────
+
+  test "EstablishPlot sets plot_number + size + soil_type + sun_exposure" do
+    tests "EstablishPlot", on: "Plot"
+    input  plot_number: "sample", size: "sample", soil_type: "sample", sun_exposure: "sample"
+    expect plot_number: "sample", size: "sample", soil_type: "sample", sun_exposure: "sample", status: "available"
+  end
+
+  test "AssignPlot sets assigned_gardener" do
+    tests "AssignPlot", on: "Plot"
+    setup  "EstablishPlot", plot_number: "sample", size: "sample", soil_type: "sample", sun_exposure: "sample"
+    input  assigned_gardener: "sample"
+    expect assigned_gardener: "sample", status: "assigned"
+  end
+
+  test "AssignPlot cascades through policy chain" do
+    tests "AssignPlot", on: "Plot", kind: :cascade
+    setup  "AddTool", tool_name: "sample", condition: "sample", quantity: 1, storage_location: "sample"
+    setup  "EstablishPlot", plot_number: "sample", size: "sample", soil_type: "sample", sun_exposure: "sample"
+    input  assigned_gardener: "sample"
+    expect emits: ["PlotAssigned", "ToolCheckedOut"]
+  end
+
+  test "ReleasePlot runs" do
+    tests "ReleasePlot", on: "Plot"
+    setup  "EstablishPlot", plot_number: "sample", size: "sample", soil_type: "sample", sun_exposure: "sample"
+    expect assigned_gardener: "", status: "available"
+  end
+
+
+  # ── Gardener aggregate ──────────────────────────────────────────
+
+  test "RegisterGardener sets name + email + phone + experience_level + membership_date" do
+    tests "RegisterGardener", on: "Gardener"
+    input  name: "sample", email: "sample", phone: "sample", experience_level: "sample", membership_date: "sample"
+    expect name: "sample", email: "sample", phone: "sample", experience_level: "sample", membership_date: "sample", status: "active"
+  end
+
+  test "RegisterGardener cascades through policy chain" do
+    tests "RegisterGardener", on: "Gardener", kind: :cascade
+    setup  "EstablishPlot", plot_number: "sample", size: "sample", soil_type: "sample", sun_exposure: "sample"
+    setup  "AddTool", tool_name: "sample", condition: "sample", quantity: 1, storage_location: "sample"
+    input  name: "sample", email: "sample", phone: "sample", experience_level: "sample", membership_date: "sample"
+    expect emits: ["GardenerRegistered", "PlotAssigned", "ToolCheckedOut"]
+  end
+
+  test "RenewMembership sets membership_date" do
+    tests "RenewMembership", on: "Gardener"
+    setup  "RegisterGardener", name: "sample", email: "sample", phone: "sample", experience_level: "sample", membership_date: "sample"
+    input  membership_date: "sample"
+    expect membership_date: "sample"
+  end
+
+  test "SuspendGardener runs" do
+    tests "SuspendGardener", on: "Gardener"
+    setup  "RegisterGardener", name: "sample", email: "sample", phone: "sample", experience_level: "sample", membership_date: "sample"
+    expect status: "suspended"
+  end
+
+  test "SuspendGardener cascades through policy chain" do
+    tests "SuspendGardener", on: "Gardener", kind: :cascade
+    setup  "EstablishPlot", plot_number: "sample", size: "sample", soil_type: "sample", sun_exposure: "sample"
+    setup  "RegisterGardener", name: "sample", email: "sample", phone: "sample", experience_level: "sample", membership_date: "sample"
+    expect emits: ["GardenerSuspended", "PlotReleased"]
+  end
+
+
+  # ── ToolInventory aggregate ──────────────────────────────────────────
+
+  test "AddTool sets tool_name + condition + quantity + storage_location" do
+    tests "AddTool", on: "ToolInventory"
+    input  tool_name: "sample", condition: "sample", quantity: 1, storage_location: "sample"
+    expect tool_name: "sample", condition: "sample", quantity: 1, storage_location: "sample", status: "available"
+  end
+
+  test "CheckoutTool sets borrower_name" do
+    tests "CheckoutTool", on: "ToolInventory"
+    setup  "AddTool", tool_name: "sample", condition: "sample", quantity: 1, storage_location: "sample"
+    input  borrower_name: "sample"
+    expect ok: "true"
+  end
+
+  test "ReturnTool sets condition_on_return" do
+    tests "ReturnTool", on: "ToolInventory"
+    setup  "AddTool", tool_name: "sample", condition: "sample", quantity: 1, storage_location: "sample"
+    input  condition_on_return: "sample"
+    expect condition: "sample", status: "available"
+  end
+
+
+  # ── Harvest aggregate ──────────────────────────────────────────
+
+  test "LogHarvest sets gardener_name + plot_number + crop_name + weight_pounds + harvest_date + destination" do
+    tests "LogHarvest", on: "Harvest"
+    setup  "RegisterGardener", name: "sample", email: "sample", phone: "sample", experience_level: "sample", membership_date: "sample"
+    setup  "EstablishPlot", plot_number: "sample", size: "sample", soil_type: "sample", sun_exposure: "sample"
+    input  gardener_name: "sample", plot_number: "sample", crop_name: "sample", weight_pounds: 1.0, harvest_date: "sample", destination: "sample"
+    expect gardener_name: "sample", plot_number: "sample", crop_name: "sample", weight_pounds: 1.0, harvest_date: "sample", destination: "sample"
+  end
+
+  test "LogHarvest cascades through policy chain" do
+    tests "LogHarvest", on: "Harvest", kind: :cascade
+    setup  "EstablishPlot", plot_number: "sample", size: "sample", soil_type: "sample", sun_exposure: "sample"
+    setup  "RegisterGardener", name: "sample", email: "sample", phone: "sample", experience_level: "sample", membership_date: "sample"
+    setup  "PlanEvent", event_name: "sample", event_date: "sample", event_type: "sample", organizer: "sample", expected_attendees: 1
+    setup  "AddTool", tool_name: "sample", condition: "sample", quantity: 1, storage_location: "sample"
+    input  gardener_name: "sample", plot_number: "sample", crop_name: "sample", weight_pounds: 1.0, harvest_date: "sample", destination: "sample"
+    expect emits: ["HarvestLogged", "HarvestDonated", "EventPlanned", "ToolReturned"]
+  end
+
+  test "DonateHarvest runs" do
+    tests "DonateHarvest", on: "Harvest"
+    setup  "LogHarvest", gardener_name: "sample", plot_number: "sample", crop_name: "sample", weight_pounds: 1.0, harvest_date: "sample", destination: "sample"
+    expect destination: "food_bank"
+  end
+
+  test "DonateHarvest cascades through policy chain" do
+    tests "DonateHarvest", on: "Harvest", kind: :cascade
+    setup  "LogHarvest", gardener_name: "sample", plot_number: "sample", crop_name: "sample", weight_pounds: 1.0, harvest_date: "sample", destination: "sample"
+    setup  "PlanEvent", event_name: "sample", event_date: "sample", event_type: "sample", organizer: "sample", expected_attendees: 1
+    expect emits: ["HarvestDonated", "EventPlanned"]
+  end
+
+
+  # ── GardenEvent aggregate ──────────────────────────────────────────
+
+  test "PlanEvent sets event_name + event_date + event_type + organizer + expected_attendees" do
+    tests "PlanEvent", on: "GardenEvent"
+    input  event_name: "sample", event_date: "sample", event_type: "sample", organizer: "sample", expected_attendees: 1
+    expect event_name: "sample", event_date: "sample", event_type: "sample", organizer: "sample", expected_attendees: 1, status: "planned"
+  end
+
+  test "HoldEvent runs" do
+    tests "HoldEvent", on: "GardenEvent"
+    setup  "PlanEvent", event_name: "sample", event_date: "sample", event_type: "sample", organizer: "sample", expected_attendees: 1
+    expect status: "completed"
+  end
+
+  test "HoldEvent cascades through policy chain" do
+    tests "HoldEvent", on: "GardenEvent", kind: :cascade
+    setup  "RegisterGardener", name: "sample", email: "sample", phone: "sample", experience_level: "sample", membership_date: "sample"
+    setup  "PlanEvent", event_name: "sample", event_date: "sample", event_type: "sample", organizer: "sample", expected_attendees: 1
+    expect emits: ["EventHeld", "MembershipRenewed"]
+  end
+
+  test "CancelEvent runs" do
+    tests "CancelEvent", on: "GardenEvent"
+    setup  "PlanEvent", event_name: "sample", event_date: "sample", event_type: "sample", organizer: "sample", expected_attendees: 1
+    expect status: "cancelled"
+  end
+
+end

@@ -1,0 +1,132 @@
+Hecks.behaviors "ScientificPestMgmt" do
+  vision "Behavioral tests for the ScientificPestMgmt domain — exercises every command and query in memory"
+
+  # ── PestSpecies aggregate ──────────────────────────────────────────
+
+  test "IdentifySpecies sets scientific_name + common_name + order + family + life_cycle_days + habitat_preference" do
+    tests "IdentifySpecies", on: "PestSpecies"
+    input  scientific_name: "sample", common_name: "sample", order: "sample", family: "sample", life_cycle_days: 1, habitat_preference: "sample"
+    expect scientific_name: "sample", common_name: "sample", order: "sample", family: "sample", life_cycle_days: 1, habitat_preference: "sample", status: "identified"
+  end
+
+  test "IdentifySpecies cascades through policy chain" do
+    tests "IdentifySpecies", on: "PestSpecies", kind: :cascade
+    input  scientific_name: "sample", common_name: "sample", order: "sample", family: "sample", life_cycle_days: 1, habitat_preference: "sample"
+    expect emits: ["PestSpeciesIdentified", "LifeCycleDocumented"]
+  end
+
+  test "DocumentLifeCycle runs" do
+    tests "DocumentLifeCycle", on: "PestSpecies"
+    setup  "IdentifySpecies", scientific_name: "sample", common_name: "sample", order: "sample", family: "sample", life_cycle_days: 1, habitat_preference: "sample"
+    expect status: "documented"
+  end
+
+
+  # ── Infestation aggregate ──────────────────────────────────────────
+
+  test "ReportInfestation sets site_address + pest_species + severity + estimated_population + affected_area" do
+    tests "ReportInfestation", on: "Infestation"
+    input  site_address: "sample", pest_species: "sample", severity: "sample", estimated_population: 1, affected_area: "sample"
+    expect site_address: "sample", pest_species: "sample", severity: "sample", estimated_population: 1, affected_area: "sample", status: "reported"
+  end
+
+  test "ReportInfestation cascades through policy chain" do
+    tests "ReportInfestation", on: "Infestation", kind: :cascade
+    setup  "PrescribeTreatment", treatment_name: "sample", method: "sample", active_ingredient: "sample", concentration_pct: 1.0, target_life_stage: "sample"
+    input  site_address: "sample", pest_species: "sample", severity: "sample", estimated_population: 1, affected_area: "sample"
+    expect emits: ["InfestationReported", "InfestationAssessed", "TreatmentPrescribed"]
+  end
+
+  test "AssessInfestation runs" do
+    tests "AssessInfestation", on: "Infestation"
+    setup  "ReportInfestation", site_address: "sample", pest_species: "sample", severity: "sample", estimated_population: 1, affected_area: "sample"
+    expect status: "assessed"
+  end
+
+  test "AssessInfestation cascades through policy chain" do
+    tests "AssessInfestation", on: "Infestation", kind: :cascade
+    setup  "PrescribeTreatment", treatment_name: "sample", method: "sample", active_ingredient: "sample", concentration_pct: 1.0, target_life_stage: "sample"
+    setup  "ReportInfestation", site_address: "sample", pest_species: "sample", severity: "sample", estimated_population: 1, affected_area: "sample"
+    expect emits: ["InfestationAssessed", "TreatmentPrescribed"]
+  end
+
+  test "ResolveInfestation runs" do
+    tests "ResolveInfestation", on: "Infestation"
+    setup  "ReportInfestation", site_address: "sample", pest_species: "sample", severity: "sample", estimated_population: 1, affected_area: "sample"
+    setup  "AssessInfestation"
+    expect status: "resolved"
+  end
+
+
+  # ── Treatment aggregate ──────────────────────────────────────────
+
+  test "PrescribeTreatment sets treatment_name + method + active_ingredient + concentration_pct + target_life_stage" do
+    tests "PrescribeTreatment", on: "Treatment"
+    input  treatment_name: "sample", method: "sample", active_ingredient: "sample", concentration_pct: 1.0, target_life_stage: "sample"
+    expect treatment_name: "sample", method: "sample", active_ingredient: "sample", concentration_pct: 1.0, target_life_stage: "sample", status: "prescribed"
+  end
+
+  test "ApplyTreatment runs" do
+    tests "ApplyTreatment", on: "Treatment"
+    setup  "PrescribeTreatment", treatment_name: "sample", method: "sample", active_ingredient: "sample", concentration_pct: 1.0, target_life_stage: "sample"
+    expect status: "applied"
+  end
+
+  test "ApplyTreatment cascades through policy chain" do
+    tests "ApplyTreatment", on: "Treatment", kind: :cascade
+    setup  "PrescribeTreatment", treatment_name: "sample", method: "sample", active_ingredient: "sample", concentration_pct: 1.0, target_life_stage: "sample"
+    expect emits: ["TreatmentApplied", "EffectivenessEvaluated"]
+  end
+
+  test "EvaluateEffectiveness sets effectiveness_pct" do
+    tests "EvaluateEffectiveness", on: "Treatment"
+    setup  "PrescribeTreatment", treatment_name: "sample", method: "sample", active_ingredient: "sample", concentration_pct: 1.0, target_life_stage: "sample"
+    setup  "ApplyTreatment"
+    input  effectiveness_pct: 1.0
+    expect effectiveness_pct: 1.0, status: "evaluated"
+  end
+
+
+  # ── ResistanceProfile aggregate ──────────────────────────────────────────
+
+  test "RecordResistance sets pest_species + active_ingredient + resistance_mechanism + resistance_level_pct + first_detected" do
+    tests "RecordResistance", on: "ResistanceProfile"
+    input  pest_species: "sample", active_ingredient: "sample", resistance_mechanism: "sample", resistance_level_pct: 1.0, first_detected: "sample"
+    expect pest_species: "sample", active_ingredient: "sample", resistance_mechanism: "sample", resistance_level_pct: 1.0, first_detected: "sample", status: "recorded"
+  end
+
+  test "RecordResistance cascades through policy chain" do
+    tests "RecordResistance", on: "ResistanceProfile", kind: :cascade
+    input  pest_species: "sample", active_ingredient: "sample", resistance_mechanism: "sample", resistance_level_pct: 1.0, first_detected: "sample"
+    expect emits: ["ResistanceRecorded", "RotationRecommended"]
+  end
+
+  test "RecommendRotation runs" do
+    tests "RecommendRotation", on: "ResistanceProfile"
+    setup  "RecordResistance", pest_species: "sample", active_ingredient: "sample", resistance_mechanism: "sample", resistance_level_pct: 1.0, first_detected: "sample"
+    expect status: "rotation_advised"
+  end
+
+
+  # ── IPMPlan aggregate ──────────────────────────────────────────
+
+  test "ScoutIPMPlan sets site_address + target_pest + prevention_measures + monitoring_method" do
+    tests "ScoutIPMPlan", on: "IPMPlan"
+    input  site_address: "sample", target_pest: "sample", prevention_measures: "sample", monitoring_method: "sample"
+    expect site_address: "sample", target_pest: "sample", prevention_measures: "sample", monitoring_method: "sample", intervention_tier: "prevention", status: "active"
+  end
+
+  test "EscalateTier sets intervention_tier" do
+    tests "EscalateTier", on: "IPMPlan"
+    setup  "ScoutIPMPlan", site_address: "sample", target_pest: "sample", prevention_measures: "sample", monitoring_method: "sample"
+    input  intervention_tier: "sample"
+    expect intervention_tier: "sample"
+  end
+
+  test "ReviewIPMPlan runs" do
+    tests "ReviewIPMPlan", on: "IPMPlan"
+    setup  "ScoutIPMPlan", site_address: "sample", target_pest: "sample", prevention_measures: "sample", monitoring_method: "sample"
+    expect ok: "true"
+  end
+
+end

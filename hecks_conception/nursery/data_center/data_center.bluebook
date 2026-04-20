@@ -75,6 +75,7 @@ Hecks.bluebook "DataCenter", version: "2026.04.13.1" do
       Integer :ram_gb
       String :os_version
       reference_to(Rack)
+      then_set :status, to: "powered_off"
       emits "ServerSetUp"
     end
 
@@ -191,6 +192,7 @@ Hecks.bluebook "DataCenter", version: "2026.04.13.1" do
       String :summary
       String :affected_zone
       reference_to(Server)
+      then_set :status, to: "open"
       emits "IncidentReported"
     end
 
@@ -274,14 +276,4 @@ Hecks.bluebook "DataCenter", version: "2026.04.13.1" do
     trigger "RebootServer"
   end
 
-  fixture "Rack", rack_id: "rack-a-01", location_aisle: "Aisle A, Row 1", unit_capacity: 42, units_used: 28, power_zone: "zone-a1", status: "operational", mounted_devices: []
-  fixture "Rack", rack_id: "rack-b-03", location_aisle: "Aisle B, Row 3", unit_capacity: 42, units_used: 15, power_zone: "zone-b3", status: "operational", mounted_devices: []
-  fixture "Server", hostname: "prod-app-01.example.com", ip_address: "10.1.2.45", cpu_cores: 32, ram_gb: 128, os_version: "Ubuntu 22.04 LTS", status: "online", rack_id: "rack-a-01"
-  fixture "Server", hostname: "prod-db-primary.example.com", ip_address: "10.1.2.50", cpu_cores: 48, ram_gb: 256, os_version: "CentOS 8.5", status: "online", rack_id: "rack-b-03"
-  fixture "CoolingUnit", unit_id: "cooling-a-01", zone: "zone-a1", target_temp_c: 22.0, current_temp_c: 21.8, coolant_type: "water-glycol", status: "operational"
-  fixture "CoolingUnit", unit_id: "cooling-b-01", zone: "zone-b3", target_temp_c: 22.0, current_temp_c: 23.2, coolant_type: "liquid-cooling", status: "operational"
-  fixture "PowerCircuit", circuit_id: "circuit-a1-feed1", capacity_kw: 20.0, current_load_kw: 15.3, redundancy_level: "N+1", status: "energized", load_history: []
-  fixture "PowerCircuit", circuit_id: "circuit-b3-feed1", capacity_kw: 15.0, current_load_kw: 11.7, redundancy_level: "N", status: "energized", load_history: []
-  fixture "Incident", incident_number: "inc-20260414-001", severity: "high", summary: "Elevated CPU usage on prod-app-01", affected_zone: "zone-a1", assigned_to: "on-call-engineer-01", status: "open", server_id: "prod-app-01.example.com", timeline: []
-  fixture "Incident", incident_number: "inc-20260414-002", severity: "critical", summary: "Temperature threshold exceeded in cooling unit cooling-b-01", affected_zone: "zone-b3", assigned_to: "senior-engineer", status: "resolved", server_id: "prod-db-primary.example.com", timeline: []
 end

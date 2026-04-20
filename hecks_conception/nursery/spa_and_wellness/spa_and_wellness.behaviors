@@ -1,0 +1,150 @@
+Hecks.behaviors "SpaAndWellness" do
+  vision "Behavioral tests for the SpaAndWellness domain — exercises every command and query in memory"
+
+  # ── Treatment aggregate ──────────────────────────────────────────
+
+  test "DefineTreatment sets treatment_id + name + category + duration_minutes + price + description" do
+    tests "DefineTreatment", on: "Treatment"
+    input  treatment_id: "sample", name: "sample", category: "sample", duration_minutes: 1, price: 1.0, description: "sample"
+    expect treatment_id: "sample", name: "sample", category: "sample", duration_minutes: 1, price: 1.0, description: "sample"
+  end
+
+  test "DefineTreatment cascades through policy chain" do
+    tests "DefineTreatment", on: "Treatment", kind: :cascade
+    setup  "OnboardTherapist", therapist_id: "sample", name: "sample", license_number: "sample"
+    setup  "BundlePackage", package_id: "sample", name: "sample", package_price: 1.0
+    setup  "PrepareRoom", room_id: "sample", name: "sample", room_type: "sample", capacity: 1
+    setup  "StockProduct", product_id: "sample", name: "sample", brand: "sample", price: 1.0, quantity: 1
+    input  treatment_id: "sample", name: "sample", category: "sample", duration_minutes: 1, price: 1.0, description: "sample"
+    expect emits: ["TreatmentDefined", "TherapistOnboarded", "PackageBundled", "SessionRedeemed", "RoomPrepared", "RoomOccupied", "RoomReleased", "ProductSold", "SpecialtyAdded"]
+  end
+
+  test "RetireTreatment runs" do
+    tests "RetireTreatment", on: "Treatment"
+    setup  "DefineTreatment", treatment_id: "sample", name: "sample", category: "sample", duration_minutes: 1, price: 1.0, description: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Therapist aggregate ──────────────────────────────────────────
+
+  test "OnboardTherapist sets therapist_id + name + license_number" do
+    tests "OnboardTherapist", on: "Therapist"
+    input  therapist_id: "sample", name: "sample", license_number: "sample"
+    expect therapist_id: "sample", name: "sample", license_number: "sample"
+  end
+
+  test "OnboardTherapist cascades through policy chain" do
+    tests "OnboardTherapist", on: "Therapist", kind: :cascade
+    setup  "BundlePackage", package_id: "sample", name: "sample", package_price: 1.0
+    setup  "PrepareRoom", room_id: "sample", name: "sample", room_type: "sample", capacity: 1
+    setup  "StockProduct", product_id: "sample", name: "sample", brand: "sample", price: 1.0, quantity: 1
+    input  therapist_id: "sample", name: "sample", license_number: "sample"
+    expect emits: ["TherapistOnboarded", "PackageBundled", "SessionRedeemed", "RoomPrepared", "RoomOccupied", "RoomReleased", "ProductSold"]
+  end
+
+  test "AddSpecialty sets treatment_type" do
+    tests "AddSpecialty", on: "Therapist"
+    setup  "OnboardTherapist", therapist_id: "sample", name: "sample", license_number: "sample"
+    input  treatment_type: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── SpaRoom aggregate ──────────────────────────────────────────
+
+  test "PrepareRoom sets room_id + name + room_type + capacity" do
+    tests "PrepareRoom", on: "SpaRoom"
+    input  room_id: "sample", name: "sample", room_type: "sample", capacity: 1
+    expect room_id: "sample", name: "sample", room_type: "sample", capacity: 1, status: "ready"
+  end
+
+  test "PrepareRoom cascades through policy chain" do
+    tests "PrepareRoom", on: "SpaRoom", kind: :cascade
+    setup  "StockProduct", product_id: "sample", name: "sample", brand: "sample", price: 1.0, quantity: 1
+    input  room_id: "sample", name: "sample", room_type: "sample", capacity: 1
+    expect emits: ["RoomPrepared", "RoomOccupied", "RoomReleased", "ProductSold"]
+  end
+
+  test "OccupyRoom runs" do
+    tests "OccupyRoom", on: "SpaRoom"
+    setup  "PrepareRoom", room_id: "sample", name: "sample", room_type: "sample", capacity: 1
+    expect status: "occupied"
+  end
+
+  test "OccupyRoom cascades through policy chain" do
+    tests "OccupyRoom", on: "SpaRoom", kind: :cascade
+    setup  "PrepareRoom", room_id: "sample", name: "sample", room_type: "sample", capacity: 1
+    setup  "StockProduct", product_id: "sample", name: "sample", brand: "sample", price: 1.0, quantity: 1
+    expect emits: ["RoomOccupied", "RoomReleased", "ProductSold"]
+  end
+
+  test "ReleaseRoom runs" do
+    tests "ReleaseRoom", on: "SpaRoom"
+    setup  "PrepareRoom", room_id: "sample", name: "sample", room_type: "sample", capacity: 1
+    expect status: "available"
+  end
+
+  test "ReleaseRoom cascades through policy chain" do
+    tests "ReleaseRoom", on: "SpaRoom", kind: :cascade
+    setup  "PrepareRoom", room_id: "sample", name: "sample", room_type: "sample", capacity: 1
+    setup  "StockProduct", product_id: "sample", name: "sample", brand: "sample", price: 1.0, quantity: 1
+    expect emits: ["RoomReleased", "ProductSold"]
+  end
+
+
+  # ── RetailProduct aggregate ──────────────────────────────────────────
+
+  test "StockProduct sets product_id + name + brand + price + quantity" do
+    tests "StockProduct", on: "RetailProduct"
+    input  product_id: "sample", name: "sample", brand: "sample", price: 1.0, quantity: 1
+    expect product_id: "sample", name: "sample", brand: "sample", price: 1.0, quantity: 1
+  end
+
+  test "SellProduct sets quantity_sold" do
+    tests "SellProduct", on: "RetailProduct"
+    setup  "StockProduct", product_id: "sample", name: "sample", brand: "sample", price: 1.0, quantity: 1
+    input  quantity_sold: 1
+    expect ok: "true"
+  end
+
+
+  # ── WellnessPackage aggregate ──────────────────────────────────────────
+
+  test "BundlePackage sets package_id + name + package_price" do
+    tests "BundlePackage", on: "WellnessPackage"
+    input  package_id: "sample", name: "sample", package_price: 1.0
+    expect package_id: "sample", name: "sample", package_price: 1.0, status: "active"
+  end
+
+  test "BundlePackage cascades through policy chain" do
+    tests "BundlePackage", on: "WellnessPackage", kind: :cascade
+    setup  "PrepareRoom", room_id: "sample", name: "sample", room_type: "sample", capacity: 1
+    setup  "StockProduct", product_id: "sample", name: "sample", brand: "sample", price: 1.0, quantity: 1
+    input  package_id: "sample", name: "sample", package_price: 1.0
+    expect emits: ["PackageBundled", "SessionRedeemed", "RoomPrepared", "RoomOccupied", "RoomReleased", "ProductSold"]
+  end
+
+  test "RedeemSession sets treatment_name" do
+    tests "RedeemSession", on: "WellnessPackage"
+    setup  "BundlePackage", package_id: "sample", name: "sample", package_price: 1.0
+    input  treatment_name: "sample"
+    expect ok: "true"
+  end
+
+  test "RedeemSession cascades through policy chain" do
+    tests "RedeemSession", on: "WellnessPackage", kind: :cascade
+    setup  "BundlePackage", package_id: "sample", name: "sample", package_price: 1.0
+    setup  "PrepareRoom", room_id: "sample", name: "sample", room_type: "sample", capacity: 1
+    setup  "StockProduct", product_id: "sample", name: "sample", brand: "sample", price: 1.0, quantity: 1
+    input  treatment_name: "sample"
+    expect emits: ["SessionRedeemed", "RoomPrepared", "RoomOccupied", "RoomReleased", "ProductSold"]
+  end
+
+  test "ExpirePackage runs" do
+    tests "ExpirePackage", on: "WellnessPackage"
+    setup  "BundlePackage", package_id: "sample", name: "sample", package_price: 1.0
+    expect status: "expired"
+  end
+
+end

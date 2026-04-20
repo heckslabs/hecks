@@ -4,40 +4,40 @@ Hecks.bluebook "Pizzas" do
 
   aggregate "Pizza" do
     description "A pizza with toppings, pricing, and menu visibility"
-    String :name
-    String :description
-    Topping :toppings
+    attribute :name, String
+    attribute :description, String
+    attribute :toppings, list_of(Topping)
 
     value_object "Topping" do
-      String :name
-      Integer :amount
+      attribute :name, String
+      attribute :amount, Integer
       invariant "amount must be positive" do
         amount > 0
       end
     end
 
     value_object "Price" do
-      Integer :cents
+      attribute :cents, Integer
       attribute :currency, default: "USD"
       invariant "must be non-negative" do
         cents >= 0
       end
     end
 
-    CreatePizza do
+    command "CreatePizza" do
       role "Chef"
       goal "Add a new pizza to the menu"
-      String :name
-      String :description
+      attribute :name, String
+      attribute :description, String
       emits "PizzaCreated"
     end
 
-    AddTopping do
+    command "AddTopping" do
       role "Chef"
       goal "Customize a pizza with ingredients"
       reference_to(Pizza)
-      String :name
-      Integer :amount
+      attribute :name, String
+      attribute :amount, Integer
 
       given("max 10 toppings") { toppings.size < 10 }
       then_set :toppings, append: { name: :name, amount: :amount }
@@ -51,12 +51,12 @@ Hecks.bluebook "Pizzas" do
 
   aggregate "Order" do
     description "A customer order referencing a pizza with status tracking"
-    String :customer_name
-    OrderItem :items
+    attribute :customer_name, String
+    attribute :items, list_of(OrderItem)
     reference_to(Pizza)
 
     value_object "OrderItem" do
-      Integer :quantity
+      attribute :quantity, Integer
       invariant "quantity must be positive" do
         quantity > 0
       end
@@ -66,20 +66,21 @@ Hecks.bluebook "Pizzas" do
       attribute :status_label, default: "pending"
     end
 
-    attribute :status, default: "pending" do
+    attribute :status, String, default: "pending"
+    lifecycle :status, default: "pending" do
       transition "CancelOrder" => "cancelled"
     end
 
-    PlaceOrder do
+    command "PlaceOrder" do
       role "Customer"
       goal "Order a pizza for delivery or pickup"
       reference_to(Pizza)
-      String :customer_name
-      Integer :quantity
+      attribute :customer_name, String
+      attribute :quantity, Integer
       emits "OrderPlaced"
     end
 
-    CancelOrder do
+    command "CancelOrder" do
       role "Customer"
       goal "Cancel a pending order before preparation starts"
       reference_to(Order)

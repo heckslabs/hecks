@@ -1,0 +1,155 @@
+Hecks.behaviors "ApplianceRepair" do
+  vision "Behavioral tests for the ApplianceRepair domain — exercises every command and query in memory"
+
+  # ── RepairTicket aggregate ──────────────────────────────────────────
+
+  test "ScheduleRepair sets customer_name + address + appliance_type + symptom + scheduled_date" do
+    tests "ScheduleRepair", on: "RepairTicket"
+    input  customer_name: "sample", address: "sample", appliance_type: "sample", symptom: "sample", scheduled_date: "sample"
+    expect ok: "true"
+  end
+
+  test "ScheduleRepair cascades through policy chain" do
+    tests "ScheduleRepair", on: "RepairTicket", kind: :cascade
+    setup  "RegisterAppliance", brand: "sample", model: "sample", serial_number: "sample", age_years: 1, appliance_type: "sample"
+    setup  "RunDiagnostic", test_performed: "sample"
+    setup  "OrderPart", part_number: "sample", part_name: "sample", vendor: "sample", cost: 1.0
+    input  customer_name: "sample", address: "sample", appliance_type: "sample", symptom: "sample", scheduled_date: "sample"
+    expect emits: ["RepairScheduled", "ApplianceRegistered", "DiagnosticRun", "FaultCodeRecorded", "PartOrdered"]
+  end
+
+  test "RescheduleRepair sets new_date" do
+    tests "RescheduleRepair", on: "RepairTicket"
+    setup  "ScheduleRepair", customer_name: "sample", address: "sample", appliance_type: "sample", symptom: "sample", scheduled_date: "sample"
+    input  new_date: "sample"
+    expect ok: "true"
+  end
+
+  test "CloseTicket runs" do
+    tests "CloseTicket", on: "RepairTicket"
+    setup  "ScheduleRepair", customer_name: "sample", address: "sample", appliance_type: "sample", symptom: "sample", scheduled_date: "sample"
+    expect status: "closed"
+  end
+
+  test "CloseTicket cascades through policy chain" do
+    tests "CloseTicket", on: "RepairTicket", kind: :cascade
+    setup  "ScheduleRepair", customer_name: "sample", address: "sample", appliance_type: "sample", symptom: "sample", scheduled_date: "sample"
+    setup  "IssueWarranty", duration_days: 1, coverage_type: "sample"
+    expect emits: ["TicketClosed", "WarrantyIssued"]
+  end
+
+
+  # ── Appliance aggregate ──────────────────────────────────────────
+
+  test "RegisterAppliance sets brand + model + serial_number + age_years + appliance_type" do
+    tests "RegisterAppliance", on: "Appliance"
+    setup  "ScheduleRepair", customer_name: "sample", address: "sample", appliance_type: "sample", symptom: "sample", scheduled_date: "sample"
+    input  brand: "sample", model: "sample", serial_number: "sample", age_years: 1, appliance_type: "sample"
+    expect brand: "sample", model: "sample", serial_number: "sample", age_years: 1, appliance_type: "sample"
+  end
+
+  test "RegisterAppliance cascades through policy chain" do
+    tests "RegisterAppliance", on: "Appliance", kind: :cascade
+    setup  "ScheduleRepair", customer_name: "sample", address: "sample", appliance_type: "sample", symptom: "sample", scheduled_date: "sample"
+    setup  "RunDiagnostic", test_performed: "sample"
+    setup  "OrderPart", part_number: "sample", part_name: "sample", vendor: "sample", cost: 1.0
+    input  brand: "sample", model: "sample", serial_number: "sample", age_years: 1, appliance_type: "sample"
+    expect emits: ["ApplianceRegistered", "DiagnosticRun", "FaultCodeRecorded", "PartOrdered"]
+  end
+
+  test "RecommendReplacement sets estimated_repair_cost + replacement_cost" do
+    tests "RecommendReplacement", on: "Appliance"
+    setup  "RegisterAppliance", brand: "sample", model: "sample", serial_number: "sample", age_years: 1, appliance_type: "sample"
+    input  estimated_repair_cost: 1.0, replacement_cost: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── Diagnostic aggregate ──────────────────────────────────────────
+
+  test "RunDiagnostic sets test_performed" do
+    tests "RunDiagnostic", on: "Diagnostic"
+    setup  "RegisterAppliance", brand: "sample", model: "sample", serial_number: "sample", age_years: 1, appliance_type: "sample"
+    input  test_performed: "sample"
+    expect ok: "true"
+  end
+
+  test "RunDiagnostic cascades through policy chain" do
+    tests "RunDiagnostic", on: "Diagnostic", kind: :cascade
+    setup  "RegisterAppliance", brand: "sample", model: "sample", serial_number: "sample", age_years: 1, appliance_type: "sample"
+    setup  "OrderPart", part_number: "sample", part_name: "sample", vendor: "sample", cost: 1.0
+    input  test_performed: "sample"
+    expect emits: ["DiagnosticRun", "FaultCodeRecorded", "PartOrdered"]
+  end
+
+  test "RecordFaultCode sets fault_code + root_cause" do
+    tests "RecordFaultCode", on: "Diagnostic"
+    setup  "RunDiagnostic", test_performed: "sample"
+    input  fault_code: "sample", root_cause: "sample"
+    expect ok: "true"
+  end
+
+  test "RecordFaultCode cascades through policy chain" do
+    tests "RecordFaultCode", on: "Diagnostic", kind: :cascade
+    setup  "RunDiagnostic", test_performed: "sample"
+    setup  "OrderPart", part_number: "sample", part_name: "sample", vendor: "sample", cost: 1.0
+    input  fault_code: "sample", root_cause: "sample"
+    expect emits: ["FaultCodeRecorded", "PartOrdered"]
+  end
+
+
+  # ── PartsOrder aggregate ──────────────────────────────────────────
+
+  test "OrderPart sets part_number + part_name + vendor + cost" do
+    tests "OrderPart", on: "PartsOrder"
+    setup  "RunDiagnostic", test_performed: "sample"
+    input  part_number: "sample", part_name: "sample", vendor: "sample", cost: 1.0
+    expect status: "ordered"
+  end
+
+  test "ReceivePart runs" do
+    tests "ReceivePart", on: "PartsOrder"
+    setup  "OrderPart", part_number: "sample", part_name: "sample", vendor: "sample", cost: 1.0
+    expect ok: "true"
+  end
+
+  test "ReceivePart cascades through policy chain" do
+    tests "ReceivePart", on: "PartsOrder", kind: :cascade
+    setup  "ScheduleRepair", customer_name: "sample", address: "sample", appliance_type: "sample", symptom: "sample", scheduled_date: "sample"
+    setup  "IssueWarranty", duration_days: 1, coverage_type: "sample"
+    setup  "OrderPart", part_number: "sample", part_name: "sample", vendor: "sample", cost: 1.0
+    expect emits: ["PartReceived", "PartInstalled", "TicketClosed", "WarrantyIssued"]
+  end
+
+  test "InstallPart runs" do
+    tests "InstallPart", on: "PartsOrder"
+    setup  "OrderPart", part_number: "sample", part_name: "sample", vendor: "sample", cost: 1.0
+    expect ok: "true"
+  end
+
+  test "InstallPart cascades through policy chain" do
+    tests "InstallPart", on: "PartsOrder", kind: :cascade
+    setup  "OrderPart", part_number: "sample", part_name: "sample", vendor: "sample", cost: 1.0
+    setup  "ScheduleRepair", customer_name: "sample", address: "sample", appliance_type: "sample", symptom: "sample", scheduled_date: "sample"
+    setup  "IssueWarranty", duration_days: 1, coverage_type: "sample"
+    expect emits: ["PartInstalled", "TicketClosed", "WarrantyIssued"]
+  end
+
+
+  # ── RepairWarranty aggregate ──────────────────────────────────────────
+
+  test "IssueWarranty sets duration_days + coverage_type" do
+    tests "IssueWarranty", on: "RepairWarranty"
+    setup  "ScheduleRepair", customer_name: "sample", address: "sample", appliance_type: "sample", symptom: "sample", scheduled_date: "sample"
+    input  duration_days: 1, coverage_type: "sample"
+    expect ok: "true"
+  end
+
+  test "FileWarrantyClaim sets recurrence_description" do
+    tests "FileWarrantyClaim", on: "RepairWarranty"
+    setup  "IssueWarranty", duration_days: 1, coverage_type: "sample"
+    input  recurrence_description: "sample"
+    expect ok: "true"
+  end
+
+end

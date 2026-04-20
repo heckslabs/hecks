@@ -25,6 +25,7 @@ Hecks.bluebook "GlassInstaller" do
       String :application
       Integer :quantity
       emits "OrderPlaced"
+      then_set :status, to: "measured"
     end
 
     ConfirmOrder do
@@ -180,15 +181,4 @@ Hecks.bluebook "GlassInstaller" do
     trigger "PlaceOrder"
   end
 
-  fixture "GlassOrder", customer_name: "Acme Corp Downtown Office", glass_type: "tempered clear", application: "storefront", quantity: 8, status: "confirmed"
-  fixture "GlassOrder", customer_name: "Westfield Residence", glass_type: "double-pane low-e", application: "replacement windows", quantity: 6, status: "measured"
-
-  fixture "FieldMeasurement", width_inches: 36.0, height_inches: 48.0, depth_inches: 1.125, opening_type: "standard rectangular", notes: "slight frame deviation on left side"
-  fixture "FieldMeasurement", width_inches: 28.5, height_inches: 60.0, depth_inches: 1.0, opening_type: "tall narrow window", notes: "cosmetic frame damage, no impact on fit"
-
-  fixture "Installation", installer_name: "Marcus Rodriguez", install_date: "2026-04-20", sealant_type: "silicone polyurethane", status: "scheduled"
-  fixture "Installation", installer_name: "Janet Wu", install_date: "2026-04-18", sealant_type: "polyurethane", status: "completed"
-
-  fixture "GlassWarranty", warranty_type: "comprehensive", duration_years: 5, coverage: "seal failure, defects, normal breakage"
-  fixture "GlassWarranty", warranty_type: "standard", duration_years: 2, coverage: "manufacturing defects only"
 end

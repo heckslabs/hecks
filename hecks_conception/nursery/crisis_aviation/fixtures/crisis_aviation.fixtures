@@ -1,0 +1,26 @@
+Hecks.fixtures "CrisisAviation" do
+  aggregate "CrisisEvent" do
+    fixture "CrisisEvent1", event_id: "CRISIS-2024-001", crisis_type: "earthquake", affected_region: "Pacific Northwest", severity: "high", status: "active"
+    fixture "CrisisEvent2", event_id: "CRISIS-2024-002", crisis_type: "hurricane", affected_region: "Gulf Coast", severity: "critical", status: "active"
+  end
+  aggregate "FlightAsset" do
+    fixture "FlightAsset1", callsign: "MEDEVAC-01", aircraft_type: "Sikorsky S-76", base_location: "Seattle-Tacoma Int'l", patient_capacity: 6, range_nm: 600, status: "ready"
+    fixture "FlightAsset2", callsign: "SUPPLY-02", aircraft_type: "Hercules C-130", base_location: "Joint Base Lewis-McChord", patient_capacity: 0, range_nm: 2500, status: "airborne"
+  end
+  aggregate "HospitalStatus" do
+    fixture "HospitalStatus1", hospital_name: "Seattle Medical Center", region: "Pacific Northwest", total_beds: 350, available_beds: 47, power_status: "generator", accessibility: "road_and_air", status: "reported"
+    fixture "HospitalStatus2", hospital_name: "Offshore Clinic", region: "Gulf Coast", total_beds: 50, available_beds: 12, power_status: "backup", accessibility: "air_only", status: "reported"
+  end
+  aggregate "PowerStatus" do
+    fixture "PowerStatus1", sector_id: "SEA-NORTH-01", region: "Seattle North", substations_online: 4, substations_total: 7, grid_status: "degraded"
+    fixture "PowerStatus2", sector_id: "GC-SOUTH-02", region: "Gulf South", substations_online: 1, substations_total: 8, grid_status: "critical"
+  end
+  aggregate "AirspaceDecision" do
+    fixture "AirspaceDecision1", decision_id: "DEC-001", rationale: "Helicopter has medical ICU capability and 200nm range to target", status: "computed"
+    fixture "AirspaceDecision2", decision_id: "DEC-002", rationale: "C-130 carries 15 tons of generator fuel for hospital deployment", status: "approved"
+  end
+  aggregate "PatientPriority" do
+    fixture "PatientPriority1", queue_id: "QUEUE-2024-001", status: "active"
+    fixture "PatientPriority2", queue_id: "QUEUE-2024-002", status: "active"
+  end
+end

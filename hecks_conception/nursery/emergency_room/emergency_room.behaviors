@@ -1,0 +1,148 @@
+Hecks.behaviors "EmergencyRoom" do
+  vision "Behavioral tests for the EmergencyRoom domain — exercises every command and query in memory"
+
+  # ── Patient aggregate ──────────────────────────────────────────
+
+  test "RegisterPatient sets name + date_of_birth + chief_complaint" do
+    tests "RegisterPatient", on: "Patient"
+    input  name: "sample", date_of_birth: "sample", chief_complaint: "sample"
+    expect name: "sample", date_of_birth: "sample", chief_complaint: "sample", status: "triaged"
+  end
+
+  test "RegisterPatient cascades through policy chain" do
+    tests "RegisterPatient", on: "Patient", kind: :cascade
+    setup  "PerformTriage", acuity_level: 1, vital_signs_summary: "sample"
+    input  name: "sample", date_of_birth: "sample", chief_complaint: "sample"
+    expect emits: ["PatientRegistered", "TriageCompleted"]
+  end
+
+  test "AdmitPatient runs" do
+    tests "AdmitPatient", on: "Patient"
+    setup  "PrepareBed", bed_id: "sample", zone: "sample", equipment_level: "sample"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
+    expect status: "admitted"
+  end
+
+  test "AdmitPatient cascades through policy chain" do
+    tests "AdmitPatient", on: "Patient", kind: :cascade
+    setup  "PrepareBed", bed_id: "sample", zone: "sample", equipment_level: "sample"
+    setup  "OrderProcedure", procedure_name: "sample", physician: "sample"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
+    expect emits: ["PatientAdmitted", "TreatmentBegun", "ProcedureOrdered"]
+  end
+
+  test "BeginTreatment runs" do
+    tests "BeginTreatment", on: "Patient"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
+    setup  "AdmitPatient"
+    expect status: "treating"
+  end
+
+  test "BeginTreatment cascades through policy chain" do
+    tests "BeginTreatment", on: "Patient", kind: :cascade
+    setup  "OrderProcedure", procedure_name: "sample", physician: "sample"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
+    setup  "AdmitPatient"
+    expect emits: ["TreatmentBegun", "ProcedureOrdered"]
+  end
+
+  test "StabilizePatient runs" do
+    tests "StabilizePatient", on: "Patient"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
+    setup  "AdmitPatient"
+    setup  "BeginTreatment"
+    expect status: "stabilized"
+  end
+
+  test "StabilizePatient cascades through policy chain" do
+    tests "StabilizePatient", on: "Patient", kind: :cascade
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
+    setup  "AdmitPatient"
+    setup  "BeginTreatment"
+    expect emits: ["PatientStabilized", "PatientTransferred"]
+  end
+
+  test "DischargePatient sets discharge_instructions" do
+    tests "DischargePatient", on: "Patient"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
+    setup  "AdmitPatient"
+    setup  "BeginTreatment"
+    setup  "StabilizePatient"
+    input  discharge_instructions: "sample"
+    expect status: "discharged"
+  end
+
+  test "TransferToInpatient sets ward" do
+    tests "TransferToInpatient", on: "Patient"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
+    setup  "AdmitPatient"
+    setup  "BeginTreatment"
+    setup  "StabilizePatient"
+    input  ward: "sample"
+    expect status: "transferred"
+  end
+
+
+  # ── Bed aggregate ──────────────────────────────────────────
+
+  test "PrepareBed sets bed_id + zone + equipment_level" do
+    tests "PrepareBed", on: "Bed"
+    input  bed_id: "sample", zone: "sample", equipment_level: "sample"
+    expect status: "available"
+  end
+
+  test "OccupyBed runs" do
+    tests "OccupyBed", on: "Bed"
+    setup  "PrepareBed", bed_id: "sample", zone: "sample", equipment_level: "sample"
+    expect status: "occupied"
+  end
+
+  test "CleanBed runs" do
+    tests "CleanBed", on: "Bed"
+    setup  "PrepareBed", bed_id: "sample", zone: "sample", equipment_level: "sample"
+    setup  "OccupyBed"
+    expect status: "available"
+  end
+
+  test "CleanBed cascades through policy chain" do
+    tests "CleanBed", on: "Bed", kind: :cascade
+    setup  "PrepareBed", bed_id: "sample", zone: "sample", equipment_level: "sample"
+    setup  "OccupyBed"
+    expect emits: ["BedCleaned", "BedPrepared"]
+  end
+
+
+  # ── TriageAssessment aggregate ──────────────────────────────────────────
+
+  test "PerformTriage sets acuity_level + vital_signs_summary" do
+    tests "PerformTriage", on: "TriageAssessment"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
+    input  acuity_level: 1, vital_signs_summary: "sample"
+    expect status: "completed"
+  end
+
+  test "EscalateTriage sets new_acuity_level" do
+    tests "EscalateTriage", on: "TriageAssessment"
+    setup  "PerformTriage", acuity_level: 1, vital_signs_summary: "sample"
+    input  new_acuity_level: 1
+    expect ok: "true"
+  end
+
+
+  # ── Procedure aggregate ──────────────────────────────────────────
+
+  test "OrderProcedure sets procedure_name + physician" do
+    tests "OrderProcedure", on: "Procedure"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
+    input  procedure_name: "sample", physician: "sample"
+    expect status: "ordered"
+  end
+
+  test "PerformProcedure sets notes" do
+    tests "PerformProcedure", on: "Procedure"
+    setup  "OrderProcedure", procedure_name: "sample", physician: "sample"
+    input  notes: "sample"
+    expect status: "completed"
+  end
+
+end

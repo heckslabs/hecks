@@ -32,6 +32,7 @@ Hecks.bluebook "PaymentGateway", version: "2026.04.13.1" do
       String :card_last_four
       reference_to(Merchant)
       emits "TransactionAuthorized"
+      then_set :status, to: "authorized"
     end
 
     CaptureTransaction do
@@ -79,6 +80,7 @@ Hecks.bluebook "PaymentGateway", version: "2026.04.13.1" do
       description "Freeze a merchant account due to risk concerns"
       reference_to(Merchant)
       emits "MerchantSuspended"
+      then_set :status, to: "suspended"
     end
 
     ReinstateMerchant do
@@ -105,7 +107,7 @@ Hecks.bluebook "PaymentGateway", version: "2026.04.13.1" do
       Float :fee
     end
 
-    CreateSettlement do
+    BatchSettlement do
       role "SettlementEngine"
       description "Batch captured transactions into a settlement for payout"
       String :settlement_id
@@ -113,7 +115,8 @@ Hecks.bluebook "PaymentGateway", version: "2026.04.13.1" do
       Float :fees
       String :period
       reference_to(Merchant)
-      emits "SettlementCreated"
+      emits "SettlementBatched"
+      then_set :status, to: "pending"
     end
 
     DisburseSettlement do
@@ -154,6 +157,7 @@ Hecks.bluebook "PaymentGateway", version: "2026.04.13.1" do
       String :evidence_due_date
       reference_to(Transaction)
       emits "ChargebackFiled"
+      then_set :status, to: "open"
     end
 
     SubmitEvidence do
@@ -195,6 +199,7 @@ Hecks.bluebook "PaymentGateway", version: "2026.04.13.1" do
       String :scope
       reference_to(Merchant)
       emits "ComplianceCheckRun"
+      then_set :status, to: "pending"
     end
 
     PassCheck do
@@ -223,7 +228,7 @@ Hecks.bluebook "PaymentGateway", version: "2026.04.13.1" do
 
     transition from: "received", to: "authorized", on: "TransactionAuthorized"
     transition from: "authorized", to: "captured", on: "TransactionCaptured"
-    transition from: "captured", to: "settled", on: "SettlementCreated"
+    transition from: "captured", to: "settled", on: "SettlementBatched"
     transition from: "settled", to: "disbursed", on: "SettlementDisbursed"
     transition from: "disbursed", to: "chargebacked", on: "ChargebackFiled"
     transition from: "authorized", to: "voided", on: "TransactionVoided"
@@ -239,13 +244,13 @@ Hecks.bluebook "PaymentGateway", version: "2026.04.13.1" do
     trigger "RunComplianceCheck"
   end
 
-  policy "CheckPassedCreateSettlement" do
+  policy "CheckPassedBatchSettlement" do
     on "CheckPassed"
-    trigger "CreateSettlement"
+    trigger "BatchSettlement"
   end
 
-  policy "SettlementCreatedDisburse" do
-    on "SettlementCreated"
+  policy "SettlementBatchedDisburse" do
+    on "SettlementBatched"
     trigger "DisburseSettlement"
   end
 
@@ -271,18 +276,4 @@ Hecks.bluebook "PaymentGateway", version: "2026.04.13.1" do
 
   # === Fixtures ===
 
-  fixture "Transaction", transaction_id: "txn_mer_20240414_001", amount: 5000.00, currency: "USD", card_last_four: "4242", auth_code: "AUTH123456", status: "settled"
-  fixture "Transaction", transaction_id: "txn_mer_20240414_002", amount: 15500.00, currency: "USD", card_last_four: "5555", auth_code: "AUTH789012", status: "settled"
-
-  fixture "Merchant", merchant_id: "mer_coffee_roastery", business_name: "Mountain Peak Coffee Roastery", mcc_code: "5963", contact_email: "admin@peakcoffee.com", processing_rate: 2.9, status: "active"
-  fixture "Merchant", merchant_id: "mer_tech_consulting", business_name: "TechVision Consulting LLC", mcc_code: "7373", contact_email: "billing@techvision.io", processing_rate: 3.5, status: "active"
-
-  fixture "Settlement", settlement_id: "settle_20240414_001", gross_amount: 25000.00, fees: 725.00, net_amount: 24275.00, period: "2024-04-08_to_2024-04-14", status: "disbursed"
-  fixture "Settlement", settlement_id: "settle_20240415_001", gross_amount: 18500.00, fees: 572.50, net_amount: 17927.50, period: "2024-04-09_to_2024-04-15", status: "disbursed"
-
-  fixture "Chargeback", chargeback_id: "chg_20240414_001", reason_code: "4855", amount: 250.00, evidence_due_date: "2024-04-21", status: "resolved"
-  fixture "Chargeback", chargeback_id: "chg_20240414_002", reason_code: "4863", amount: 89.99, evidence_due_date: "2024-04-22", status: "resolved"
-
-  fixture "ComplianceCheck", check_id: "comp_20240414_001", check_type: "kyc_verification", scope: "merchant_registration", result: "passed", status: "completed"
-  fixture "ComplianceCheck", check_id: "comp_20240414_002", check_type: "aml_screening", scope: "transaction_monitoring", result: "passed", status: "completed"
 end

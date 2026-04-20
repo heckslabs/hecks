@@ -1,0 +1,189 @@
+Hecks.behaviors "SchoolDistrict" do
+  vision "Behavioral tests for the SchoolDistrict domain — exercises every command and query in memory"
+
+  # ── School aggregate ──────────────────────────────────────────
+
+  test "OpenSchool sets school_code + name + level + capacity" do
+    tests "OpenSchool", on: "School"
+    input  school_code: "sample", name: "sample", level: "sample", capacity: 1
+    expect school_code: "sample", name: "sample", level: "sample", capacity: 1, status: "active", enrollment: 0
+  end
+
+  test "AccreditSchool runs" do
+    tests "AccreditSchool", on: "School"
+    setup  "OpenSchool", school_code: "sample", name: "sample", level: "sample", capacity: 1
+    expect status: "accredited"
+  end
+
+  test "CloseSchool runs" do
+    tests "CloseSchool", on: "School"
+    setup  "OpenSchool", school_code: "sample", name: "sample", level: "sample", capacity: 1
+    setup  "AccreditSchool"
+    expect status: "closed"
+  end
+
+  test "CloseSchool cascades through policy chain" do
+    tests "CloseSchool", on: "School", kind: :cascade
+    setup  "RegisterStudent", name: "sample", grade_level: "sample"
+    setup  "OpenSchool", school_code: "sample", name: "sample", level: "sample", capacity: 1
+    setup  "AccreditSchool"
+    expect emits: ["SchoolClosed", "StudentTransferred"]
+  end
+
+
+  # ── Student aggregate ──────────────────────────────────────────
+
+  test "RegisterStudent sets name + grade_level" do
+    tests "RegisterStudent", on: "Student"
+    input  name: "sample", grade_level: "sample"
+    expect name: "sample", grade_level: "sample", status: "registered"
+  end
+
+  test "RegisterStudent cascades through policy chain" do
+    tests "RegisterStudent", on: "Student", kind: :cascade
+    setup  "OpenSchool", school_code: "sample", name: "sample", level: "sample", capacity: 1
+    setup  "OfferCourse", course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
+    input  name: "sample", grade_level: "sample"
+    expect emits: ["StudentRegistered", "StudentEnrolled", "StudentEnrolledInCourse"]
+  end
+
+  test "EnrollStudent runs" do
+    tests "EnrollStudent", on: "Student"
+    setup  "OpenSchool", school_code: "sample", name: "sample", level: "sample", capacity: 1
+    setup  "RegisterStudent", name: "sample", grade_level: "sample"
+    expect status: "enrolled"
+  end
+
+  test "EnrollStudent cascades through policy chain" do
+    tests "EnrollStudent", on: "Student", kind: :cascade
+    setup  "OpenSchool", school_code: "sample", name: "sample", level: "sample", capacity: 1
+    setup  "OfferCourse", course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
+    setup  "RegisterStudent", name: "sample", grade_level: "sample"
+    expect emits: ["StudentEnrolled", "StudentEnrolledInCourse"]
+  end
+
+  test "PromoteStudent sets new_grade_level" do
+    tests "PromoteStudent", on: "Student"
+    setup  "RegisterStudent", name: "sample", grade_level: "sample"
+    input  new_grade_level: "sample"
+    expect ok: "true"
+  end
+
+  test "TransferStudent runs" do
+    tests "TransferStudent", on: "Student"
+    setup  "OpenSchool", school_code: "sample", name: "sample", level: "sample", capacity: 1
+    setup  "RegisterStudent", name: "sample", grade_level: "sample"
+    expect ok: "true"
+  end
+
+  test "GraduateStudent runs" do
+    tests "GraduateStudent", on: "Student"
+    setup  "RegisterStudent", name: "sample", grade_level: "sample"
+    setup  "EnrollStudent"
+    expect status: "graduated"
+  end
+
+  test "WithdrawStudent sets reason" do
+    tests "WithdrawStudent", on: "Student"
+    setup  "RegisterStudent", name: "sample", grade_level: "sample"
+    setup  "EnrollStudent"
+    input  reason: "sample"
+    expect status: "withdrawn"
+  end
+
+
+  # ── Teacher aggregate ──────────────────────────────────────────
+
+  test "HireTeacher sets name + certification_area" do
+    tests "HireTeacher", on: "Teacher"
+    setup  "OpenSchool", school_code: "sample", name: "sample", level: "sample", capacity: 1
+    input  name: "sample", certification_area: "sample"
+    expect status: "active"
+  end
+
+  test "AssignTeacher runs" do
+    tests "AssignTeacher", on: "Teacher"
+    setup  "OfferCourse", course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
+    setup  "HireTeacher", name: "sample", certification_area: "sample"
+    expect ok: "true"
+  end
+
+  test "PlaceOnLeave sets reason" do
+    tests "PlaceOnLeave", on: "Teacher"
+    setup  "HireTeacher", name: "sample", certification_area: "sample"
+    input  reason: "sample"
+    expect status: "on_leave"
+  end
+
+
+  # ── Course aggregate ──────────────────────────────────────────
+
+  test "OfferCourse sets course_code + title + subject + max_enrollment" do
+    tests "OfferCourse", on: "Course"
+    setup  "OpenSchool", school_code: "sample", name: "sample", level: "sample", capacity: 1
+    input  course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
+    expect status: "active", current_enrollment: 0
+  end
+
+  test "OfferCourse cascades through policy chain" do
+    tests "OfferCourse", on: "Course", kind: :cascade
+    setup  "OpenSchool", school_code: "sample", name: "sample", level: "sample", capacity: 1
+    setup  "HireTeacher", name: "sample", certification_area: "sample"
+    input  course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
+    expect emits: ["CourseOffered", "TeacherAssigned"]
+  end
+
+  test "CompleteCourse runs" do
+    tests "CompleteCourse", on: "Course"
+    setup  "OfferCourse", course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
+    expect status: "completed"
+  end
+
+  test "CompleteCourse cascades through policy chain" do
+    tests "CompleteCourse", on: "Course", kind: :cascade
+    setup  "RecordGrade", letter_grade: "sample", numeric_score: 1.0, semester: "sample"
+    setup  "RegisterStudent", name: "sample", grade_level: "sample"
+    setup  "OfferCourse", course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
+    expect emits: ["CourseCompleted", "GradeRecorded", "GradeFinalized", "StudentPromoted"]
+  end
+
+
+  # ── GradeRecord aggregate ──────────────────────────────────────────
+
+  test "RecordGrade sets letter_grade + numeric_score + semester" do
+    tests "RecordGrade", on: "GradeRecord"
+    setup  "OfferCourse", course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
+    setup  "RegisterStudent", name: "sample", grade_level: "sample"
+    input  letter_grade: "sample", numeric_score: 1.0, semester: "sample"
+    expect status: "posted"
+  end
+
+  test "RecordGrade cascades through policy chain" do
+    tests "RecordGrade", on: "GradeRecord", kind: :cascade
+    setup  "RegisterStudent", name: "sample", grade_level: "sample"
+    setup  "OfferCourse", course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
+    input  letter_grade: "sample", numeric_score: 1.0, semester: "sample"
+    expect emits: ["GradeRecorded", "GradeFinalized", "StudentPromoted"]
+  end
+
+  test "AppealGrade sets reason" do
+    tests "AppealGrade", on: "GradeRecord"
+    setup  "RecordGrade", letter_grade: "sample", numeric_score: 1.0, semester: "sample"
+    input  reason: "sample"
+    expect status: "under_review"
+  end
+
+  test "FinalizeGrade runs" do
+    tests "FinalizeGrade", on: "GradeRecord"
+    setup  "RecordGrade", letter_grade: "sample", numeric_score: 1.0, semester: "sample"
+    expect status: "finalized"
+  end
+
+  test "FinalizeGrade cascades through policy chain" do
+    tests "FinalizeGrade", on: "GradeRecord", kind: :cascade
+    setup  "RegisterStudent", name: "sample", grade_level: "sample"
+    setup  "RecordGrade", letter_grade: "sample", numeric_score: 1.0, semester: "sample"
+    expect emits: ["GradeFinalized", "StudentPromoted"]
+  end
+
+end

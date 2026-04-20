@@ -1,0 +1,161 @@
+Hecks.behaviors "CourierDelivery" do
+  vision "Behavioral tests for the CourierDelivery domain — exercises every command and query in memory"
+
+  # ── Parcel aggregate ──────────────────────────────────────────
+
+  test "AcceptParcel sets tracking_code + sender_address + recipient_address + weight_kg" do
+    tests "AcceptParcel", on: "Parcel"
+    input  tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
+    expect status: "accepted"
+  end
+
+  test "AcceptParcel cascades through policy chain" do
+    tests "AcceptParcel", on: "Parcel", kind: :cascade
+    setup  "PlanRoute", zone: "sample", stop_count: 1
+    input  tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
+    expect emits: ["ParcelAccepted", "ParcelSorted", "ParcelLoaded", "RouteStarted", "ParcelDispatched"]
+  end
+
+  test "SortParcel sets hub_code" do
+    tests "SortParcel", on: "Parcel"
+    setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
+    input  hub_code: "sample"
+    expect status: "sorted"
+  end
+
+  test "SortParcel cascades through policy chain" do
+    tests "SortParcel", on: "Parcel", kind: :cascade
+    setup  "PlanRoute", zone: "sample", stop_count: 1
+    setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
+    input  hub_code: "sample"
+    expect emits: ["ParcelSorted", "ParcelLoaded", "RouteStarted", "ParcelDispatched"]
+  end
+
+  test "LoadParcel runs" do
+    tests "LoadParcel", on: "Parcel"
+    setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
+    setup  "SortParcel", hub_code: "sample"
+    expect status: "loaded"
+  end
+
+  test "LoadParcel cascades through policy chain" do
+    tests "LoadParcel", on: "Parcel", kind: :cascade
+    setup  "PlanRoute", zone: "sample", stop_count: 1
+    setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
+    setup  "SortParcel", hub_code: "sample"
+    expect emits: ["ParcelLoaded", "RouteStarted", "ParcelDispatched"]
+  end
+
+  test "DispatchParcel runs" do
+    tests "DispatchParcel", on: "Parcel"
+    setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
+    expect status: "in_transit"
+  end
+
+  test "AttemptDelivery runs" do
+    tests "AttemptDelivery", on: "Parcel"
+    setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
+    setup  "DispatchParcel"
+    expect status: "attempted"
+  end
+
+  test "MarkDelivered runs" do
+    tests "MarkDelivered", on: "Parcel"
+    setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
+    setup  "DispatchParcel"
+    expect status: "delivered"
+  end
+
+  test "MarkDelivered cascades through policy chain" do
+    tests "MarkDelivered", on: "Parcel", kind: :cascade
+    setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
+    setup  "CaptureProof", signature_data: "sample", photo_url: "sample"
+    setup  "PlanRoute", zone: "sample", stop_count: 1
+    setup  "RegisterDriver", employee_id: "sample", name: "sample", license_class: "sample"
+    setup  "DispatchParcel"
+    expect emits: ["ParcelDelivered", "ProofCaptured", "RouteCompleted", "DriverCheckedOut"]
+  end
+
+  test "ReturnToSender sets reason" do
+    tests "ReturnToSender", on: "Parcel"
+    setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
+    setup  "DispatchParcel"
+    setup  "AttemptDelivery"
+    input  reason: "sample"
+    expect status: "returned"
+  end
+
+
+  # ── Route aggregate ──────────────────────────────────────────
+
+  test "PlanRoute sets zone + stop_count" do
+    tests "PlanRoute", on: "Route"
+    input  zone: "sample", stop_count: 1
+    expect status: "planned"
+  end
+
+  test "StartRoute runs" do
+    tests "StartRoute", on: "Route"
+    setup  "PlanRoute", zone: "sample", stop_count: 1
+    expect status: "active"
+  end
+
+  test "StartRoute cascades through policy chain" do
+    tests "StartRoute", on: "Route", kind: :cascade
+    setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
+    setup  "PlanRoute", zone: "sample", stop_count: 1
+    expect emits: ["RouteStarted", "ParcelDispatched"]
+  end
+
+  test "CompleteRoute runs" do
+    tests "CompleteRoute", on: "Route"
+    setup  "PlanRoute", zone: "sample", stop_count: 1
+    expect status: "completed"
+  end
+
+  test "CompleteRoute cascades through policy chain" do
+    tests "CompleteRoute", on: "Route", kind: :cascade
+    setup  "PlanRoute", zone: "sample", stop_count: 1
+    setup  "RegisterDriver", employee_id: "sample", name: "sample", license_class: "sample"
+    expect emits: ["RouteCompleted", "DriverCheckedOut"]
+  end
+
+
+  # ── Driver aggregate ──────────────────────────────────────────
+
+  test "RegisterDriver sets employee_id + name + license_class" do
+    tests "RegisterDriver", on: "Driver"
+    input  employee_id: "sample", name: "sample", license_class: "sample"
+    expect employee_id: "sample", name: "sample", license_class: "sample", status: "available", hours_today: 0.0
+  end
+
+  test "CheckInDriver runs" do
+    tests "CheckInDriver", on: "Driver"
+    setup  "RegisterDriver", employee_id: "sample", name: "sample", license_class: "sample"
+    expect status: "on_duty"
+  end
+
+  test "CheckOutDriver runs" do
+    tests "CheckOutDriver", on: "Driver"
+    setup  "RegisterDriver", employee_id: "sample", name: "sample", license_class: "sample"
+    expect status: "available"
+  end
+
+
+  # ── ProofOfDelivery aggregate ──────────────────────────────────────────
+
+  test "CaptureProof sets signature_data + photo_url" do
+    tests "CaptureProof", on: "ProofOfDelivery"
+    setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
+    input  signature_data: "sample", photo_url: "sample"
+    expect ok: "true"
+  end
+
+  test "DisputeProof sets reason" do
+    tests "DisputeProof", on: "ProofOfDelivery"
+    setup  "CaptureProof", signature_data: "sample", photo_url: "sample"
+    input  reason: "sample"
+    expect ok: "true"
+  end
+
+end

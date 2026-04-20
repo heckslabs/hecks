@@ -1,0 +1,18 @@
+Hecks.fixtures "PharmacyOutreach" do
+  aggregate "Prescription" do
+    fixture "Prescription1", rx_number: "RX-2026-001", patient_name: "Robert Greene", drug_name: "Lisinopril 10mg", refills_remaining: 11, status: "active"
+    fixture "Prescription2", rx_number: "RX-2026-002", patient_name: "Angela Davis", drug_name: "Metformin 500mg", refills_remaining: 5, status: "refilled"
+  end
+  aggregate "Reminder" do
+    fixture "Reminder1", reminder_id: "REM-2026-001", rx_number: "RX-2026-001", channel: "SMS", scheduled_date: "2026-05-10", status: "pending"
+    fixture "Reminder2", reminder_id: "REM-2026-002", rx_number: "RX-2026-002", channel: "email", scheduled_date: "2026-04-20", status: "sent"
+  end
+  aggregate "Campaign" do
+    fixture "Campaign1", campaign_name: "Spring Wellness Check-In", target_segment: "patients over 55", audience_size: 8500, status: "active"
+    fixture "Campaign2", campaign_name: "Diabetes Management Program", target_segment: "Type 2 diabetic patients", audience_size: 3200, status: "paused"
+  end
+  aggregate "Engagement" do
+    fixture "Engagement1", patient_id: "PAT-2026-001", campaign_name: "Spring Wellness Check-In", action_type: "email_opened", timestamp: "2026-04-14T09:30:00Z"
+    fixture "Engagement2", patient_id: "PAT-2026-002", campaign_name: "Diabetes Management Program", action_type: "refill_triggered", timestamp: "2026-04-13T14:15:00Z"
+  end
+end

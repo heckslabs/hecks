@@ -1,0 +1,209 @@
+Hecks.behaviors "AirlineOperations" do
+  vision "Behavioral tests for the AirlineOperations domain — exercises every command and query in memory"
+
+  # ── Flight aggregate ──────────────────────────────────────────
+
+  test "ScheduleFlight sets flight_number + origin + destination + scheduled_departure" do
+    tests "ScheduleFlight", on: "Flight"
+    input  flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    expect status: "scheduled"
+  end
+
+  test "ScheduleFlight cascades through policy chain" do
+    tests "ScheduleFlight", on: "Flight", kind: :cascade
+    setup  "AssembleCrew", captain_name: "sample", member_count: 1
+    setup  "RegisterAircraft", tail_number: "sample", model: "sample", seat_count: 1
+    input  flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    expect emits: ["FlightScheduled", "CrewAssigned", "AircraftPrepared", "BoardingOpened"]
+  end
+
+  test "AssignAircraft runs" do
+    tests "AssignAircraft", on: "Flight"
+    setup  "RegisterAircraft", tail_number: "sample", model: "sample", seat_count: 1
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    expect ok: "true"
+  end
+
+  test "AssignCrew runs" do
+    tests "AssignCrew", on: "Flight"
+    setup  "AssembleCrew", captain_name: "sample", member_count: 1
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    expect ok: "true"
+  end
+
+  test "AssignCrew cascades through policy chain" do
+    tests "AssignCrew", on: "Flight", kind: :cascade
+    setup  "AssembleCrew", captain_name: "sample", member_count: 1
+    setup  "RegisterAircraft", tail_number: "sample", model: "sample", seat_count: 1
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    expect emits: ["CrewAssigned", "AircraftPrepared", "BoardingOpened"]
+  end
+
+  test "OpenBoarding runs" do
+    tests "OpenBoarding", on: "Flight"
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    expect status: "boarding"
+  end
+
+  test "CloseBoarding runs" do
+    tests "CloseBoarding", on: "Flight"
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    setup  "OpenBoarding"
+    expect status: "boarded"
+  end
+
+  test "CloseBoarding cascades through policy chain" do
+    tests "CloseBoarding", on: "Flight", kind: :cascade
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    setup  "OpenBoarding"
+    expect emits: ["BoardingClosed", "DepartureCleared", "GateReleased"]
+  end
+
+  test "ClearForDeparture runs" do
+    tests "ClearForDeparture", on: "Flight"
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    setup  "OpenBoarding"
+    setup  "CloseBoarding"
+    expect status: "departed"
+  end
+
+  test "ClearForDeparture cascades through policy chain" do
+    tests "ClearForDeparture", on: "Flight", kind: :cascade
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    setup  "OpenBoarding"
+    setup  "CloseBoarding"
+    expect emits: ["DepartureCleared", "GateReleased"]
+  end
+
+  test "MarkAirborne runs" do
+    tests "MarkAirborne", on: "Flight"
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    setup  "OpenBoarding"
+    setup  "CloseBoarding"
+    setup  "ClearForDeparture"
+    expect status: "in_flight"
+  end
+
+  test "RecordLanding runs" do
+    tests "RecordLanding", on: "Flight"
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    setup  "OpenBoarding"
+    setup  "CloseBoarding"
+    setup  "ClearForDeparture"
+    setup  "MarkAirborne"
+    expect status: "landed"
+  end
+
+  test "RecordLanding cascades through policy chain" do
+    tests "RecordLanding", on: "Flight", kind: :cascade
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    setup  "OpenBoarding"
+    setup  "CloseBoarding"
+    setup  "ClearForDeparture"
+    setup  "MarkAirborne"
+    expect emits: ["FlightLanded", "GateAssigned"]
+  end
+
+  test "ArriveAtGate runs" do
+    tests "ArriveAtGate", on: "Flight"
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    setup  "OpenBoarding"
+    setup  "CloseBoarding"
+    setup  "ClearForDeparture"
+    setup  "MarkAirborne"
+    setup  "RecordLanding"
+    expect status: "at_gate"
+  end
+
+  test "ArriveAtGate cascades through policy chain" do
+    tests "ArriveAtGate", on: "Flight", kind: :cascade
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    setup  "AssembleCrew", captain_name: "sample", member_count: 1
+    setup  "OpenBoarding"
+    setup  "CloseBoarding"
+    setup  "ClearForDeparture"
+    setup  "MarkAirborne"
+    setup  "RecordLanding"
+    expect emits: ["ArrivedAtGate", "DutyHoursLogged"]
+  end
+
+  test "DelayFlight cascades through policy chain" do
+    tests "DelayFlight", on: "Flight", kind: :cascade
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    input  reason: "sample", new_departure: "sample"
+    expect emits: ["FlightDelayed", "GateReleased"]
+  end
+
+
+  # ── Gate aggregate ──────────────────────────────────────────
+
+  test "AssignGate runs" do
+    tests "AssignGate", on: "Gate"
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    expect status: "occupied"
+  end
+
+  test "ReleaseGate runs" do
+    tests "ReleaseGate", on: "Gate"
+    expect status: "available"
+  end
+
+
+  # ── Crew aggregate ──────────────────────────────────────────
+
+  test "AssembleCrew sets captain_name + member_count" do
+    tests "AssembleCrew", on: "Crew"
+    input  captain_name: "sample", member_count: 1
+    expect status: "available", duty_hours: 0.0
+  end
+
+  test "LogDutyHours sets hours" do
+    tests "LogDutyHours", on: "Crew"
+    setup  "AssembleCrew", captain_name: "sample", member_count: 1
+    input  hours: 1.0
+    expect ok: "true"
+  end
+
+  test "ReleaseCrew runs" do
+    tests "ReleaseCrew", on: "Crew"
+    setup  "AssembleCrew", captain_name: "sample", member_count: 1
+    expect status: "off_duty"
+  end
+
+
+  # ── Aircraft aggregate ──────────────────────────────────────────
+
+  test "RegisterAircraft sets tail_number + model + seat_count" do
+    tests "RegisterAircraft", on: "Aircraft"
+    input  tail_number: "sample", model: "sample", seat_count: 1
+    expect tail_number: "sample", model: "sample", seat_count: 1, maintenance_status: "serviceable"
+  end
+
+  test "PrepareAircraft runs" do
+    tests "PrepareAircraft", on: "Aircraft"
+    setup  "RegisterAircraft", tail_number: "sample", model: "sample", seat_count: 1
+    expect maintenance_status: "flight_ready"
+  end
+
+  test "PrepareAircraft cascades through policy chain" do
+    tests "PrepareAircraft", on: "Aircraft", kind: :cascade
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    setup  "RegisterAircraft", tail_number: "sample", model: "sample", seat_count: 1
+    expect emits: ["AircraftPrepared", "BoardingOpened"]
+  end
+
+  test "GroundAircraft sets reason" do
+    tests "GroundAircraft", on: "Aircraft"
+    setup  "RegisterAircraft", tail_number: "sample", model: "sample", seat_count: 1
+    input  reason: "sample"
+    expect maintenance_status: "grounded"
+  end
+
+  test "RefuelAircraft sets gallons" do
+    tests "RefuelAircraft", on: "Aircraft"
+    setup  "RegisterAircraft", tail_number: "sample", model: "sample", seat_count: 1
+    input  gallons: 1.0
+    expect ok: "true"
+  end
+
+end

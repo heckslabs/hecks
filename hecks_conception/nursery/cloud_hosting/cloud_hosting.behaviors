@@ -1,0 +1,173 @@
+Hecks.behaviors "CloudHosting" do
+  vision "Behavioral tests for the CloudHosting domain — exercises every command and query in memory"
+
+  # ── Instance aggregate ──────────────────────────────────────────
+
+  test "LaunchInstance sets instance_id + region + machine_type + vcpus + memory_gb + image_id" do
+    tests "LaunchInstance", on: "Instance"
+    setup  "RegisterTenant", tenant_name: "sample", billing_email: "sample", plan_tier: "sample"
+    input  instance_id: "sample", region: "sample", machine_type: "sample", vcpus: 1, memory_gb: 1, image_id: "sample"
+    expect ok: "true"
+  end
+
+  test "LaunchInstance cascades through policy chain" do
+    tests "LaunchInstance", on: "Instance", kind: :cascade
+    setup  "RegisterTenant", tenant_name: "sample", billing_email: "sample", plan_tier: "sample"
+    setup  "ShipRelease", deploy_id: "sample", artifact_url: "sample", version_tag: "sample", strategy: "sample"
+    setup  "DefineScalingRule", rule_name: "sample", metric_name: "sample", threshold: 1.0, min_instances: 1, max_instances: 1, cooldown_seconds: 1
+    input  instance_id: "sample", region: "sample", machine_type: "sample", vcpus: 1, memory_gb: 1, image_id: "sample"
+    expect emits: ["InstanceLaunched", "DeploymentCreated", "ScalingRuleDefined"]
+  end
+
+  test "TerminateInstance runs" do
+    tests "TerminateInstance", on: "Instance"
+    setup  "LaunchInstance", instance_id: "sample", region: "sample", machine_type: "sample", vcpus: 1, memory_gb: 1, image_id: "sample"
+    expect status: "stopped"
+  end
+
+  test "ResizeInstance sets machine_type + vcpus + memory_gb" do
+    tests "ResizeInstance", on: "Instance"
+    setup  "LaunchInstance", instance_id: "sample", region: "sample", machine_type: "sample", vcpus: 1, memory_gb: 1, image_id: "sample"
+    setup  "TerminateInstance"
+    input  machine_type: "sample", vcpus: 1, memory_gb: 1
+    expect ok: "true"
+  end
+
+
+  # ── Deployment aggregate ──────────────────────────────────────────
+
+  test "ShipRelease sets deploy_id + artifact_url + version_tag + strategy" do
+    tests "ShipRelease", on: "Deployment"
+    setup  "LaunchInstance", instance_id: "sample", region: "sample", machine_type: "sample", vcpus: 1, memory_gb: 1, image_id: "sample"
+    input  deploy_id: "sample", artifact_url: "sample", version_tag: "sample", strategy: "sample"
+    expect status: "active"
+  end
+
+  test "ShipRelease cascades through policy chain" do
+    tests "ShipRelease", on: "Deployment", kind: :cascade
+    setup  "LaunchInstance", instance_id: "sample", region: "sample", machine_type: "sample", vcpus: 1, memory_gb: 1, image_id: "sample"
+    setup  "DefineScalingRule", rule_name: "sample", metric_name: "sample", threshold: 1.0, min_instances: 1, max_instances: 1, cooldown_seconds: 1
+    setup  "RegisterTenant", tenant_name: "sample", billing_email: "sample", plan_tier: "sample"
+    input  deploy_id: "sample", artifact_url: "sample", version_tag: "sample", strategy: "sample"
+    expect emits: ["DeploymentCreated", "ScalingRuleDefined"]
+  end
+
+  test "RollbackDeployment runs" do
+    tests "RollbackDeployment", on: "Deployment"
+    setup  "ShipRelease", deploy_id: "sample", artifact_url: "sample", version_tag: "sample", strategy: "sample"
+    expect ok: "true"
+  end
+
+  test "FinalizeDeployment runs" do
+    tests "FinalizeDeployment", on: "Deployment"
+    setup  "ShipRelease", deploy_id: "sample", artifact_url: "sample", version_tag: "sample", strategy: "sample"
+    expect ok: "true"
+  end
+
+  test "FinalizeDeployment cascades through policy chain" do
+    tests "FinalizeDeployment", on: "Deployment", kind: :cascade
+    setup  "ShipRelease", deploy_id: "sample", artifact_url: "sample", version_tag: "sample", strategy: "sample"
+    setup  "RegisterTenant", tenant_name: "sample", billing_email: "sample", plan_tier: "sample"
+    setup  "LaunchInstance", instance_id: "sample", region: "sample", machine_type: "sample", vcpus: 1, memory_gb: 1, image_id: "sample"
+    expect emits: ["DeploymentFinalized", "BillIssued", "TenantSuspended", "InstanceTerminated"]
+  end
+
+
+  # ── ScalingRule aggregate ──────────────────────────────────────────
+
+  test "DefineScalingRule sets rule_name + metric_name + threshold + min_instances + max_instances + cooldown_seconds" do
+    tests "DefineScalingRule", on: "ScalingRule"
+    setup  "RegisterTenant", tenant_name: "sample", billing_email: "sample", plan_tier: "sample"
+    input  rule_name: "sample", metric_name: "sample", threshold: 1.0, min_instances: 1, max_instances: 1, cooldown_seconds: 1
+    expect ok: "true"
+  end
+
+  test "TriggerScaleOut sets additional_count" do
+    tests "TriggerScaleOut", on: "ScalingRule"
+    setup  "DefineScalingRule", rule_name: "sample", metric_name: "sample", threshold: 1.0, min_instances: 1, max_instances: 1, cooldown_seconds: 1
+    input  additional_count: 1
+    expect ok: "true"
+  end
+
+  test "SuspendScalingRule runs" do
+    tests "SuspendScalingRule", on: "ScalingRule"
+    setup  "DefineScalingRule", rule_name: "sample", metric_name: "sample", threshold: 1.0, min_instances: 1, max_instances: 1, cooldown_seconds: 1
+    expect ok: "true"
+  end
+
+
+  # ── Tenant aggregate ──────────────────────────────────────────
+
+  test "RegisterTenant sets tenant_name + billing_email + plan_tier" do
+    tests "RegisterTenant", on: "Tenant"
+    input  tenant_name: "sample", billing_email: "sample", plan_tier: "sample"
+    expect tenant_name: "sample", billing_email: "sample", plan_tier: "sample"
+  end
+
+  test "IssueBill sets amount + period" do
+    tests "IssueBill", on: "Tenant"
+    setup  "RegisterTenant", tenant_name: "sample", billing_email: "sample", plan_tier: "sample"
+    input  amount: 1.0, period: "sample"
+    expect ok: "true"
+  end
+
+  test "IssueBill cascades through policy chain" do
+    tests "IssueBill", on: "Tenant", kind: :cascade
+    setup  "RegisterTenant", tenant_name: "sample", billing_email: "sample", plan_tier: "sample"
+    setup  "LaunchInstance", instance_id: "sample", region: "sample", machine_type: "sample", vcpus: 1, memory_gb: 1, image_id: "sample"
+    input  amount: 1.0, period: "sample"
+    expect emits: ["BillIssued", "TenantSuspended", "InstanceTerminated"]
+  end
+
+  test "SuspendTenant runs" do
+    tests "SuspendTenant", on: "Tenant"
+    setup  "RegisterTenant", tenant_name: "sample", billing_email: "sample", plan_tier: "sample"
+    expect ok: "true"
+  end
+
+  test "SuspendTenant cascades through policy chain" do
+    tests "SuspendTenant", on: "Tenant", kind: :cascade
+    setup  "RegisterTenant", tenant_name: "sample", billing_email: "sample", plan_tier: "sample"
+    setup  "LaunchInstance", instance_id: "sample", region: "sample", machine_type: "sample", vcpus: 1, memory_gb: 1, image_id: "sample"
+    expect emits: ["TenantSuspended", "InstanceTerminated"]
+  end
+
+
+  # ── Alert aggregate ──────────────────────────────────────────
+
+  test "RaiseAlert sets alert_id + severity + message + source_metric" do
+    tests "RaiseAlert", on: "Alert"
+    setup  "LaunchInstance", instance_id: "sample", region: "sample", machine_type: "sample", vcpus: 1, memory_gb: 1, image_id: "sample"
+    input  alert_id: "sample", severity: "sample", message: "sample", source_metric: "sample"
+    expect ok: "true"
+  end
+
+  test "RaiseAlert cascades through policy chain" do
+    tests "RaiseAlert", on: "Alert", kind: :cascade
+    setup  "LaunchInstance", instance_id: "sample", region: "sample", machine_type: "sample", vcpus: 1, memory_gb: 1, image_id: "sample"
+    setup  "DefineScalingRule", rule_name: "sample", metric_name: "sample", threshold: 1.0, min_instances: 1, max_instances: 1, cooldown_seconds: 1
+    setup  "ShipRelease", deploy_id: "sample", artifact_url: "sample", version_tag: "sample", strategy: "sample"
+    input  alert_id: "sample", severity: "sample", message: "sample", source_metric: "sample"
+    expect emits: ["AlertRaised", "ScaledOut", "DeploymentRolledBack"]
+  end
+
+  test "AcknowledgeAlert runs" do
+    tests "AcknowledgeAlert", on: "Alert"
+    setup  "RaiseAlert", alert_id: "sample", severity: "sample", message: "sample", source_metric: "sample"
+    expect status: "acknowledged"
+  end
+
+  test "AcknowledgeAlert cascades through policy chain" do
+    tests "AcknowledgeAlert", on: "Alert", kind: :cascade
+    setup  "RaiseAlert", alert_id: "sample", severity: "sample", message: "sample", source_metric: "sample"
+    expect emits: ["AlertAcknowledged", "AlertResolved"]
+  end
+
+  test "ResolveAlert runs" do
+    tests "ResolveAlert", on: "Alert"
+    setup  "RaiseAlert", alert_id: "sample", severity: "sample", message: "sample", source_metric: "sample"
+    setup  "AcknowledgeAlert"
+    expect ok: "true"
+  end
+
+end

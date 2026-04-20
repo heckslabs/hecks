@@ -1,0 +1,18 @@
+Hecks.fixtures "WarehouseRobotics" do
+  aggregate "Robot" do
+    fixture "Robot1", robot_id: "BOT-001", robot_type: "Mobile picker", battery_pct: 85.5, max_payload_kg: 50.0, current_zone: "Zone A", status: "idle"
+    fixture "Robot2", robot_id: "BOT-002", robot_type: "Mobile picker", battery_pct: 42.0, max_payload_kg: 50.0, current_zone: "Zone B", status: "working"
+  end
+  aggregate "PickList" do
+    fixture "PickList1", list_id: "PL-2026-RO-0847", order_id: "ORD-2026-5521", item_count: 8, priority: "high", assigned_robot: "BOT-001", status: "assigned"
+    fixture "PickList2", list_id: "PL-2026-RO-0848", order_id: "ORD-2026-5522", item_count: 5, priority: "standard", assigned_robot: "BOT-002", status: "completed"
+  end
+  aggregate "NavigationPath" do
+    fixture "NavigationPath1", path_id: "PATH-2026-847", robot_id: "BOT-001", from_zone: "Zone A", to_zone: "Dock 1", distance_m: 145.5, estimated_seconds: 78.0, status: "executed"
+    fixture "NavigationPath2", path_id: "PATH-2026-848", robot_id: "BOT-002", from_zone: "Zone C", to_zone: "Charger 1", distance_m: 82.0, estimated_seconds: 45.0, status: "computed"
+  end
+  aggregate "ThroughputMetric" do
+    fixture "ThroughputMetric1", metric_id: "THRU-2026-0147", period: "2026-04-10", total_picks: 2450, picks_per_hour: 306.25, robot_utilization_pct: 87.5, status: "analyzed"
+    fixture "ThroughputMetric2", metric_id: "THRU-2026-0146", period: "2026-04-09", total_picks: 2180, picks_per_hour: 272.5, robot_utilization_pct: 78.0, status: "recorded"
+  end
+end

@@ -1,0 +1,162 @@
+Hecks.behaviors "WebApplicationCreation" do
+  vision "Behavioral tests for the WebApplicationCreation domain — exercises every command and query in memory"
+
+  # ── DomainTag aggregate ──────────────────────────────────────────
+
+  test "DefineTagPrefix sets tag_prefix" do
+    tests "DefineTagPrefix", on: "DomainTag"
+    input  tag_prefix: "sample"
+    expect tag_prefix: "sample"
+  end
+
+  test "RegisterConvention sets element_type + attribute_name + maps_to" do
+    tests "RegisterConvention", on: "DomainTag"
+    setup  "DefineTagPrefix", tag_prefix: "sample"
+    input  element_type: "sample", attribute_name: "sample", maps_to: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DomainCompliance aggregate ──────────────────────────────────────────
+
+  test "ScanApp sets app_path + bluebook_path" do
+    tests "ScanApp", on: "DomainCompliance"
+    input  app_path: "sample", bluebook_path: "sample"
+    expect app_path: "sample", bluebook_path: "sample"
+  end
+
+  test "ScanApp cascades through policy chain" do
+    tests "ScanApp", on: "DomainCompliance", kind: :cascade
+    input  app_path: "sample", bluebook_path: "sample"
+    expect emits: ["AppScanned", "ComplianceReported"]
+  end
+
+  test "ReportCompliance sets total_elements + tagged_elements + orphan_elements + missing_commands" do
+    tests "ReportCompliance", on: "DomainCompliance"
+    setup  "ScanApp", app_path: "sample", bluebook_path: "sample"
+    input  total_elements: 1, tagged_elements: 1, orphan_elements: 1, missing_commands: "sample"
+    expect total_elements: 1, tagged_elements: 1, orphan_elements: 1, missing_commands: "sample"
+  end
+
+  test "FlagOrphan sets element + location" do
+    tests "FlagOrphan", on: "DomainCompliance"
+    setup  "ScanApp", app_path: "sample", bluebook_path: "sample"
+    input  element: "sample", location: "sample"
+    expect ok: "true"
+  end
+
+  test "FlagMissingCommand sets command_name" do
+    tests "FlagMissingCommand", on: "DomainCompliance"
+    setup  "ScanApp", app_path: "sample", bluebook_path: "sample"
+    input  command_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── StyleGuide aggregate ──────────────────────────────────────────
+
+  test "DraftStyleGuide sets name + spacing_unit + border_radius + density" do
+    tests "DraftStyleGuide", on: "StyleGuide"
+    input  name: "sample", spacing_unit: 1, border_radius: "sample", density: "sample"
+    expect name: "sample", spacing_unit: 1, border_radius: "sample", density: "sample"
+  end
+
+  test "SetPalette runs" do
+    tests "SetPalette", on: "StyleGuide"
+    setup  "DraftStyleGuide", name: "sample", spacing_unit: 1, border_radius: "sample", density: "sample"
+    expect ok: "true"
+  end
+
+  test "SetTypography runs" do
+    tests "SetTypography", on: "StyleGuide"
+    setup  "DraftStyleGuide", name: "sample", spacing_unit: 1, border_radius: "sample", density: "sample"
+    expect ok: "true"
+  end
+
+  test "TweakStyle sets token_name + token_value" do
+    tests "TweakStyle", on: "StyleGuide"
+    setup  "DraftStyleGuide", name: "sample", spacing_unit: 1, border_radius: "sample", density: "sample"
+    input  token_name: "sample", token_value: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Page aggregate ──────────────────────────────────────────
+
+  test "GeneratePage sets name + page_type + aggregate_name + route" do
+    tests "GeneratePage", on: "Page"
+    input  name: "sample", page_type: "sample", aggregate_name: "sample", route: "sample"
+    expect name: "sample", page_type: "sample", aggregate_name: "sample", route: "sample", status: "generated"
+  end
+
+  test "GeneratePage cascades through policy chain" do
+    tests "GeneratePage", on: "Page", kind: :cascade
+    input  name: "sample", page_type: "sample", aggregate_name: "sample", route: "sample"
+    expect emits: ["PageGenerated", "AppScanned", "ComplianceReported"]
+  end
+
+  test "CustomizePage runs" do
+    tests "CustomizePage", on: "Page"
+    setup  "GeneratePage", name: "sample", page_type: "sample", aggregate_name: "sample", route: "sample"
+    expect status: "customized"
+  end
+
+  test "ValidatePage runs" do
+    tests "ValidatePage", on: "Page"
+    setup  "GeneratePage", name: "sample", page_type: "sample", aggregate_name: "sample", route: "sample"
+    expect status: "validated"
+  end
+
+
+  # ── Component aggregate ──────────────────────────────────────────
+
+  test "DefineComponent sets name + component_type + maps_to" do
+    tests "DefineComponent", on: "Component"
+    input  name: "sample", component_type: "sample", maps_to: "sample"
+    expect name: "sample", component_type: "sample", maps_to: "sample", accessible: "true"
+  end
+
+  test "CustomizeComponent runs" do
+    tests "CustomizeComponent", on: "Component"
+    setup  "DefineComponent", name: "sample", component_type: "sample", maps_to: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── AppShell aggregate ──────────────────────────────────────────
+
+  test "GenerateShell sets app_name + layout_type" do
+    tests "GenerateShell", on: "AppShell"
+    input  app_name: "sample", layout_type: "sample"
+    expect app_name: "sample", layout_type: "sample"
+  end
+
+  test "GenerateShell cascades through policy chain" do
+    tests "GenerateShell", on: "AppShell", kind: :cascade
+    input  app_name: "sample", layout_type: "sample"
+    expect emits: ["ShellGenerated", "NavigationBuilt"]
+  end
+
+  test "BuildNavigation runs" do
+    tests "BuildNavigation", on: "AppShell"
+    setup  "GenerateShell", app_name: "sample", layout_type: "sample"
+    expect ok: "true"
+  end
+
+  test "ApplyTheme sets theme" do
+    tests "ApplyTheme", on: "AppShell"
+    setup  "GenerateShell", app_name: "sample", layout_type: "sample"
+    input  theme: "sample"
+    expect theme: "sample"
+  end
+
+
+  # ── RenderingRule aggregate ──────────────────────────────────────────
+
+  test "AddRule sets name + scope + check + violation + origin" do
+    tests "AddRule", on: "RenderingRule"
+    input  name: "sample", scope: "sample", check: "sample", violation: "sample", origin: "sample"
+    expect name: "sample", scope: "sample", check: "sample", violation: "sample", origin: "sample"
+  end
+
+end

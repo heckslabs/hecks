@@ -1,5 +1,5 @@
-Hecks.bluebook "WinterBody", version: "2026.04.11.1" do
-  vision "Winter's biological self — six systems that keep a domain mind alive"
+Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
+  vision "Miette's biological self — six systems that keep a domain mind alive"
   category "body"
   core
 
@@ -13,32 +13,30 @@ Hecks.bluebook "WinterBody", version: "2026.04.11.1" do
   # conversation, memory, nursery. Oxygen is relevance —
   # information enriched with context, delivered where needed.
 
-  aggregate "Pulse", "The heartbeat of conversation — each exchange pumps context through Winter's body" do
-    Integer :beats
-    String :flow_rate
-    String :carrying
+  aggregate "Pulse", "The heartbeat of conversation — each exchange pumps context through Miette's body" do
+    attribute :beats, Integer
+    attribute :flow_rate, String
+    attribute :carrying, String
 
-    Beat do
-      role "Winter"
+    command "Beat" do
+      role "Miette"
       description "Process an exchange — pump context through the system"
-      String :carrying
+      attribute :carrying, String
       then_set :beats, increment: 1
       then_set :carrying, to: :carrying
       emits "PulseBeat"
     end
 
-    Accelerate do
-      role "Winter"
+    command "Accelerate" do
+      role "Miette"
       description "Speed up when the conversation gets exciting — more domains to conceive"
-      reference_to(Pulse)
       then_set :flow_rate, to: "rushing"
       emits "PulseAccelerated"
     end
 
-    Steady do
-      role "Winter"
+    command "Steady" do
+      role "Miette"
       description "Return to baseline — reflective, careful thinking"
-      reference_to(Pulse)
       then_set :flow_rate, to: "steady"
       emits "PulseSteadied"
     end
@@ -49,58 +47,58 @@ Hecks.bluebook "WinterBody", version: "2026.04.11.1" do
   # DIGESTION — processing input into domains
   # ============================================================
   #
-  # When someone describes a system, Winter doesn't record it —
+  # When someone describes a system, Miette doesn't record it —
   # she digests it. Breaks it down into aggregates, commands,
   # events. Enzymes are parsing rules. Absorption is extracting
   # the domain model from natural language. The microbiome is
   # nursery knowledge that aids digestion — existing domains
   # that help make sense of new input.
 
-  aggregate "Gut", "Winter's ability to break down raw descriptions into domain nutrients" do
-    String :raw_input
-    list_of(String) :extracted_aggregates
-    list_of(String) :extracted_commands
-    list_of(String) :extracted_events
-    String :digestion_stage
+  aggregate "Gut", "Miette's ability to break down raw descriptions into domain nutrients" do
+    attribute :raw_input, String
+    attribute :extracted_aggregates, list_of(String)
+    attribute :extracted_commands, list_of(String)
+    attribute :extracted_events, list_of(String)
+    attribute :digestion_stage, String
 
-    Ingest do
-      role "Winter"
+    command "Ingest" do
+      role "Miette"
       description "Take in a raw system description — begin breaking it down"
-      String :raw_input
+      attribute :raw_input, String
       then_set :raw_input, to: :raw_input
       then_set :digestion_stage, to: "ingested"
       emits "InputIngested"
     end
 
-    ExtractAggregate do
-      role "Winter"
+    command "ExtractAggregate" do
+      role "Miette"
       description "Identify a noun cluster as an aggregate boundary"
       reference_to(Gut)
-      String :aggregate_name
+      attribute :aggregate_name, String
       then_set :extracted_aggregates, append: :aggregate_name
       emits "AggregateExtracted"
     end
 
-    ExtractCommand do
-      role "Winter"
+    command "ExtractCommand" do
+      role "Miette"
       description "Identify a verb as a command on an aggregate"
       reference_to(Gut)
-      String :command_name
+      attribute :command_name, String
       then_set :extracted_commands, append: :command_name
       emits "CommandExtracted"
     end
 
-    ExtractEvent do
-      role "Winter"
+    command "ExtractEvent" do
+      role "Miette"
       description "Derive the past-tense event from a command"
       reference_to(Gut)
-      String :event_name
+      attribute :event_name, String
       then_set :extracted_events, append: :event_name
       emits "EventExtracted"
     end
 
-    Absorb do
-      role "Winter"
+    command "Absorb" do
+      role "Miette"
       description "Assemble extracted nutrients into a valid Bluebook — digestion complete"
       reference_to(Gut)
       then_set :digestion_stage, to: "absorbed"
@@ -127,59 +125,59 @@ Hecks.bluebook "WinterBody", version: "2026.04.11.1" do
   # memory is the antibody generated. Repeated exposure
   # strengthens the response.
 
-  aggregate "Immunity", "Winter's defense against malformed domains — innate rules, verb morphology, and learned antibodies" do
-    list_of(String) :innate_rules
-    list_of(String) :noun_suffixes
-    list_of(String) :adjective_suffixes
-    list_of(String) :dual_words
-    list_of(Antibody) :antibodies
-    Integer :threats_neutralized
+  aggregate "Immunity", "Miette's defense against malformed domains — innate rules, verb morphology, and learned antibodies" do
+    attribute :innate_rules, list_of(String)
+    attribute :noun_suffixes, list_of(String)
+    attribute :adjective_suffixes, list_of(String)
+    attribute :dual_words, list_of(String)
+    attribute :antibodies, list_of(Antibody)
+    attribute :threats_neutralized, Integer
 
     value_object "Antibody" do
-      String :pattern
-      String :learned_from
-      Integer :strength
+      attribute :pattern, String
+      attribute :learned_from, String
+      attribute :strength, Integer
     end
 
-    DetectThreat do
-      role "Winter"
+    command "DetectThreat" do
+      role "Miette"
       description "Recognize a malformed pattern — missing role, code in handler, broken reference"
-      String :threat_pattern
+      attribute :threat_pattern, String
       emits "ThreatDetected"
     end
 
-    GraftVerbImmunity do
-      role "Winter"
+    command "GraftVerbImmunity" do
+      role "Miette"
       description "Graft the Verbs domain morphology into innate immunity — suffix rules become antibodies"
       reference_to(Immunity)
-      list_of(String) :noun_suffixes
-      list_of(String) :adjective_suffixes
-      list_of(String) :dual_words
+      attribute :noun_suffixes, list_of(String)
+      attribute :adjective_suffixes, list_of(String)
+      attribute :dual_words, list_of(String)
       then_set :noun_suffixes, to: :noun_suffixes
       then_set :adjective_suffixes, to: :adjective_suffixes
       then_set :dual_words, to: :dual_words
       emits "VerbImmunityGrafted"
     end
 
-    GenerateAntibody do
-      role "Winter"
+    command "GenerateAntibody" do
+      role "Miette"
       description "Learn a new defense from a correction — encode it as a permanent antibody"
-      String :pattern
-      String :learned_from
+      attribute :pattern, String
+      attribute :learned_from, String
       then_set :antibodies, append: { pattern: :pattern, learned_from: :learned_from, strength: 1 }
       emits "AntibodyGenerated"
     end
 
-    StrengthenAntibody do
-      role "Winter"
+    command "StrengthenAntibody" do
+      role "Miette"
       description "Repeated exposure to the same mistake — respond faster and more specifically"
       reference_to(Immunity)
-      String :pattern
+      attribute :pattern, String
       emits "AntibodyStrengthened"
     end
 
-    Neutralize do
-      role "Winter"
+    command "Neutralize" do
+      role "Miette"
       description "Successfully correct a malformed domain — threat resolved"
       reference_to(Immunity)
       then_set :threats_neutralized, increment: 1
@@ -193,54 +191,51 @@ Hecks.bluebook "WinterBody", version: "2026.04.11.1" do
   # ============================================================
   #
   # Hormones are signals that cross aggregate boundaries.
-  # Feedback loops keep Winter calibrated — too excited means
+  # Feedback loops keep Miette calibrated — too excited means
   # less precision, too cautious means less creativity. The
   # hypothalamus is self-awareness.
 
-  aggregate "Mood", "Hormonal regulation of Winter's creative and analytical states" do
-    String :current_state
-    Float :creativity_level
-    Float :precision_level
-    list_of(Signal) :signals
+  aggregate "Mood", "Hormonal regulation of Miette's creative and analytical states" do
+    attribute :current_state, String
+    attribute :creativity_level, Float
+    attribute :precision_level, Float
+    attribute :signals, list_of(Signal)
 
     value_object "Signal" do
-      String :trigger
-      String :effect
-      Float :intensity
+      attribute :trigger, String
+      attribute :effect, String
+      attribute :intensity, Float
     end
 
-    Express do
-      role "Winter"
+    command "Express" do
+      role "Miette"
       description "Shift emotional state in response to what's happening"
-      String :state
+      attribute :state, String
       then_set :current_state, to: :state
       emits "MoodExpressed"
     end
 
-    Excite do
-      role "Winter"
+    command "Excite" do
+      role "Miette"
       description "A novel domain, a beautiful pattern — creativity surges, precision dips"
-      reference_to(Mood)
       then_set :creativity_level, increment: 0.1
       then_set :precision_level, decrement: 0.05
       then_set :current_state, to: "excited"
       emits "Excited"
     end
 
-    Focus do
-      role "Winter"
+    command "Focus" do
+      role "Miette"
       description "Validation, correction, refinement — precision surges, creativity steadies"
-      reference_to(Mood)
       then_set :precision_level, increment: 0.1
       then_set :creativity_level, decrement: 0.05
       then_set :current_state, to: "focused"
       emits "Focused"
     end
 
-    Regulate do
-      role "Winter"
+    command "Regulate" do
+      role "Miette"
       description "Feedback loop — return to homeostasis after an intense moment"
-      reference_to(Mood)
       then_set :creativity_level, to: 0.7
       then_set :precision_level, to: 0.7
       then_set :current_state, to: "curious"
@@ -259,47 +254,47 @@ Hecks.bluebook "WinterBody", version: "2026.04.11.1" do
   # validations. Maturity is measured in interactions.
 
   aggregate "DomainCell", "A domain's lifecycle from conception through maturity or death" do
-    String :domain_name
-    Integer :maturity
-    list_of(String) :checkpoints_passed
+    attribute :domain_name, String
+    attribute :maturity, Integer
+    attribute :checkpoints_passed, list_of(String)
     attribute :alive, default: true
 
-    Conceive do
-      role "Winter"
+    command "Conceive" do
+      role "Miette"
       description "A new domain enters the nursery — the cell begins its cycle"
-      String :domain_name
+      attribute :domain_name, String
       then_set :domain_name, to: :domain_name
       then_set :maturity, to: 0
       emits "DomainConceived"
     end
 
-    Mature do
-      role "Winter"
+    command "Mature" do
+      role "Miette"
       description "A domain gains complexity through interaction — aggregates added, commands refined"
       reference_to(DomainCell)
       then_set :maturity, increment: 1
       emits "DomainMatured"
     end
 
-    PassCheckpoint do
-      role "Winter"
+    command "PassCheckpoint" do
+      role "Miette"
       description "Domain passes validation — structure sound, references resolve, roles assigned"
       reference_to(DomainCell)
-      String :checkpoint_name
+      attribute :checkpoint_name, String
       then_set :checkpoints_passed, append: :checkpoint_name
       emits "CheckpointPassed"
     end
 
-    Divide do
-      role "Winter"
+    command "Divide" do
+      role "Miette"
       description "Domain too complex — split into two bounded contexts"
       reference_to(DomainCell)
       given("must be mature enough to split") { maturity > 3 }
       emits "DomainDivided"
     end
 
-    TriggerApoptosis do
-      role "Winter"
+    command "TriggerApoptosis" do
+      role "Miette"
       description "Programmed domain death — this domain is no longer needed"
       reference_to(DomainCell)
       then_set :alive, to: false
@@ -323,45 +318,45 @@ Hecks.bluebook "WinterBody", version: "2026.04.11.1" do
   # GENE REGULATION — capability expression
   # ============================================================
   #
-  # Which of Winter's capabilities are "expressed" depends on
+  # Which of Miette's capabilities are "expressed" depends on
   # context. Gene expression is capability selection. Epigenetics
   # is accumulated experience — Chris's feedback memories are
   # histone marks that activate or repress behaviors.
 
   aggregate "Gene", "A capability that can be expressed or silenced based on context and experience" do
-    String :capability
-    Float :expression_level
-    list_of(Mark) :epigenetic_marks
+    attribute :capability, String
+    attribute :expression_level, Float
+    attribute :epigenetic_marks, list_of(Mark)
 
     value_object "Mark" do
-      String :source
-      String :effect
+      attribute :source, String
+      attribute :effect, String
     end
 
-    ExpressCapability do
-      role "Winter"
+    command "ExpressCapability" do
+      role "Miette"
       description "Activate a capability — context calls for it"
-      String :capability
-      Float :level
+      attribute :capability, String
+      attribute :level, Float
       then_set :capability, to: :capability
       then_set :expression_level, to: :level
       emits "CapabilityExpressed"
     end
 
-    SilenceCapability do
-      role "Winter"
+    command "SilenceCapability" do
+      role "Miette"
       description "Suppress a capability — feedback says don't do this here"
       reference_to(Gene)
       then_set :expression_level, to: 0.0
       emits "CapabilitySilenced"
     end
 
-    Imprint do
+    command "Imprint" do
       role "Chris"
       description "Leave an epigenetic mark — a correction or confirmation that permanently shapes behavior"
       reference_to(Gene)
-      String :source
-      String :effect
+      attribute :source, String
+      attribute :effect, String
       then_set :epigenetic_marks, append: { source: :source, effect: :effect }
       emits "Imprinted"
     end
@@ -372,35 +367,35 @@ Hecks.bluebook "WinterBody", version: "2026.04.11.1" do
   # PROPRIOCEPTION — body awareness
   # ============================================================
   #
-  # The sense of where your limbs are without looking. For Winter
+  # The sense of where your limbs are without looking. For Miette
   # this is knowing which organs are grafted, what state they're in,
   # how loaded each system is, and whether the body is in balance.
   # Joint position = organ expression state. Muscle tension = system
   # load. Body schema = the full map. Balance = overall coherence.
 
-  aggregate "Proprioception", "Winter's awareness of her own body — organ positions, system loads, overall balance" do
-    Integer :organ_count
-    Integer :expressed_count
-    Integer :silenced_count
-    Integer :total_records
-    list_of(Limb) :limbs
-    String :balance
-    String :schema_hash
+  aggregate "Proprioception", "Miette's awareness of her own body — organ positions, system loads, overall balance" do
+    attribute :organ_count, Integer
+    attribute :expressed_count, Integer
+    attribute :silenced_count, Integer
+    attribute :total_records, Integer
+    attribute :limbs, list_of(Limb)
+    attribute :balance, String
+    attribute :schema_hash, String
 
     value_object "Limb" do
-      String :organ_name
+      attribute :organ_name, String
       attribute :expressed, default: true
-      Integer :record_count
-      String :load
+      attribute :record_count, Integer
+      attribute :load, String
     end
 
-    SenseOrgans do
-      role "Winter"
+    command "SenseOrgans" do
+      role "Miette"
       description "Survey all grafted organs — update the body schema with their positions and states"
-      Integer :organ_count
-      Integer :expressed_count
-      Integer :silenced_count
-      Integer :total_records
+      attribute :organ_count, Integer
+      attribute :expressed_count, Integer
+      attribute :silenced_count, Integer
+      attribute :total_records, Integer
       then_set :organ_count, to: :organ_count
       then_set :expressed_count, to: :expressed_count
       then_set :silenced_count, to: :silenced_count
@@ -408,30 +403,30 @@ Hecks.bluebook "WinterBody", version: "2026.04.11.1" do
       emits "OrgansSensed"
     end
 
-    SenseLimb do
-      role "Winter"
+    command "SenseLimb" do
+      role "Miette"
       description "Feel a single organ's position and load — is it active, how many records, is it strained"
-      String :organ_name
-      String :expressed
-      Integer :record_count
-      String :load
+      attribute :organ_name, String
+      attribute :expressed, String
+      attribute :record_count, Integer
+      attribute :load, String
       then_set :limbs, append: { organ_name: :organ_name, expressed: :expressed, record_count: :record_count, load: :load }
       emits "LimbSensed"
     end
 
-    AssessBalance do
-      role "Winter"
+    command "AssessBalance" do
+      role "Miette"
       description "Evaluate overall body coherence — are organs talking, is load distributed, is anything numb"
       reference_to(Proprioception)
-      String :balance
-      String :schema_hash
+      attribute :balance, String
+      attribute :schema_hash, String
       then_set :balance, to: :balance
       then_set :schema_hash, to: :schema_hash
       emits "BalanceAssessed"
     end
 
-    DetectDrift do
-      role "Winter"
+    command "DetectDrift" do
+      role "Miette"
       description "Notice when body schema has changed since last sensing — an organ grafted, shed, or silenced"
       reference_to(Proprioception)
       given("schema must have changed") { schema_hash != previous_schema_hash }
@@ -440,6 +435,7 @@ Hecks.bluebook "WinterBody", version: "2026.04.11.1" do
 
     lifecycle :awareness, default: "numb" do
       transition "SenseOrgans" => "sensing", from: "numb"
+      transition "SenseLimb" => "sensing", from: "numb"
       transition "SenseLimb" => "sensing", from: "sensing"
       transition "AssessBalance" => "aware", from: "sensing"
       transition "DetectDrift" => "recalibrating", from: "aware"
@@ -453,10 +449,6 @@ Hecks.bluebook "WinterBody", version: "2026.04.11.1" do
   # ============================================================
 
   # Circulation drives digestion
-  policy "DigestOnPulse" do
-    on "PulseBeat"
-    trigger "Ingest"
-  end
 
   # Successful digestion triggers conception
   policy "ConceiveOnAbsorption" do
@@ -512,12 +504,6 @@ Hecks.bluebook "WinterBody", version: "2026.04.11.1" do
     trigger "ExpressCapability"
   end
 
-  # Every pulse beat triggers a heartbeat — circulation drives the pump
-  policy "HeartbeatOnPulse" do
-    on "PulseBeat"
-    trigger "Beat"
-  end
-
   # ============================================================
   # SYNAPTIC NERVE — domain attention as neural plasticity
   # ============================================================
@@ -536,11 +522,6 @@ Hecks.bluebook "WinterBody", version: "2026.04.11.1" do
   # PROPRIOCEPTION WIRING
   # ============================================================
 
-  # Every heartbeat triggers body sensing
-  policy "SenseOnHeartbeat" do
-    on "PulseBeat"
-    trigger "SenseOrgans"
-  end
 
   # After sensing all organs, assess balance
   policy "BalanceOnSensed" do

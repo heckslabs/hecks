@@ -141,15 +141,4 @@ Hecks.bluebook "GreenFacility", version: "2026.04.13.1" do
     trigger "GenerateSavingsReport"
   end
 
-  fixture "FacilityResident", resident_id: "RES-001", name: "Helen Rodriguez", unit_number: "204", care_plan: "assisted_living", status: "active"
-  fixture "FacilityResident", resident_id: "RES-002", name: "George Thompson", unit_number: "108", care_plan: "memory_care", status: "active"
-
-  fixture "WindTurbine", turbine_id: "WT-001", model: "GE 2.85 MW", rated_kw: 2850.0, current_output_kw: 2340.5, status: "online"
-  fixture "WindTurbine", turbine_id: "WT-002", model: "Vestas V150 4.2 MW", rated_kw: 4200.0, current_output_kw: 0.0, status: "offline"
-
-  fixture "EnergyLedger", ledger_id: "EL-2026-03", month: "2026-03", produced_kwh: 185600.0, consumed_kwh: 142300.0, grid_offset_kwh: 43300.0
-  fixture "EnergyLedger", ledger_id: "EL-2026-04", month: "2026-04", produced_kwh: 198500.0, consumed_kwh: 155200.0, grid_offset_kwh: 43300.0
-
-  fixture "CostSavingsReport", report_id: "REPORT-2026-Q1", period: "Q1 2026", energy_savings_usd: 12840.0, carbon_offset_tons: 87.5, status: "generated"
-  fixture "CostSavingsReport", report_id: "REPORT-2026-MAR", period: "March 2026", energy_savings_usd: 4280.0, carbon_offset_tons: 29.2, status: "shared"
 end

@@ -24,6 +24,7 @@ Hecks.bluebook "Woodworking" do
       String :wood_species
       Float :estimated_hours
       emits "ProjectPlanned"
+      then_set :status, to: "designed"
     end
 
     StartMilling do
@@ -37,7 +38,6 @@ Hecks.bluebook "Woodworking" do
     AssembleProject do
       description "Glue up and clamp the jointed components"
       reference_to(WoodProject)
-      given { status == "milling" }
       emits "ProjectAssembled"
       then_set :status, to: "assembled"
     end
@@ -46,7 +46,6 @@ Hecks.bluebook "Woodworking" do
       description "Apply the final finish coat to the assembled piece"
       reference_to(WoodProject)
       String :finish_type
-      given { status == "assembled" }
       emits "FinishApplied"
       then_set :status, to: "finished"
     end
@@ -103,6 +102,7 @@ Hecks.bluebook "Woodworking" do
       String :part_a
       String :part_b
       emits "JointLaidOut"
+      then_set :status, to: "laid_out"
     end
 
     CutJoint do
@@ -116,7 +116,6 @@ Hecks.bluebook "Woodworking" do
     FitJoint do
       description "Test fit and pare the joint for a tight fit"
       reference_to(Joinery)
-      given { status == "cut" }
       emits "JointFitted"
       then_set :status, to: "fitted"
     end
@@ -173,6 +172,7 @@ Hecks.bluebook "Woodworking" do
       Float :quoted_price
       String :deadline
       emits "CommissionQuoted"
+      then_set :status, to: "quoted"
     end
 
     AcceptCommission do
@@ -186,7 +186,6 @@ Hecks.bluebook "Woodworking" do
     DeliverCommission do
       description "Hand over the finished piece to the client"
       reference_to(WoodCommission)
-      given { status == "in_progress" }
       emits "CommissionDelivered"
       then_set :status, to: "delivered"
     end

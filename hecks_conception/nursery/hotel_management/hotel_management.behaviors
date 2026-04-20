@@ -1,0 +1,133 @@
+Hecks.behaviors "HotelManagement" do
+  vision "Behavioral tests for the HotelManagement domain — exercises every command and query in memory"
+
+  # ── Room aggregate ──────────────────────────────────────────
+
+  test "AddRoom sets room_number + room_type + floor + nightly_rate + max_occupancy" do
+    tests "AddRoom", on: "Room"
+    input  room_number: "sample", room_type: "sample", floor: 1, nightly_rate: 1.0, max_occupancy: 1
+    expect max_occupancy: 1, room_number: "sample", room_type: "sample", floor: 1, nightly_rate: 1.0, status: "available"
+  end
+
+  test "BlockRoom runs" do
+    tests "BlockRoom", on: "Room"
+    setup  "AddRoom", room_number: "sample", room_type: "sample", floor: 1, nightly_rate: 1.0, max_occupancy: 1
+    expect status: "blocked"
+  end
+
+  test "ReleaseRoom runs" do
+    tests "ReleaseRoom", on: "Room"
+    setup  "AddRoom", room_number: "sample", room_type: "sample", floor: 1, nightly_rate: 1.0, max_occupancy: 1
+    expect status: "available"
+  end
+
+
+  # ── GuestStay aggregate ──────────────────────────────────────────
+
+  test "CheckInGuest sets guest_name + email + check_in_date + check_out_date + nights" do
+    tests "CheckInGuest", on: "GuestStay"
+    setup  "AddRoom", room_number: "sample", room_type: "sample", floor: 1, nightly_rate: 1.0, max_occupancy: 1
+    input  guest_name: "sample", email: "sample", check_in_date: "sample", check_out_date: "sample", nights: 1
+    expect guest_name: "sample", email: "sample", check_in_date: "sample", check_out_date: "sample", nights: 1, status: "checked_in"
+  end
+
+  test "CheckInGuest cascades through policy chain" do
+    tests "CheckInGuest", on: "GuestStay", kind: :cascade
+    setup  "AddRoom", room_number: "sample", room_type: "sample", floor: 1, nightly_rate: 1.0, max_occupancy: 1
+    setup  "OpenFolio"
+    setup  "AssignHousekeeping", task_type: "sample", priority: "sample", assigned_to: "sample"
+    input  guest_name: "sample", email: "sample", check_in_date: "sample", check_out_date: "sample", nights: 1
+    expect emits: ["GuestCheckedIn", "FolioOpened", "HousekeepingAssigned"]
+  end
+
+  test "ExtendStay sets additional_nights" do
+    tests "ExtendStay", on: "GuestStay"
+    setup  "CheckInGuest", guest_name: "sample", email: "sample", check_in_date: "sample", check_out_date: "sample", nights: 1
+    input  additional_nights: 1
+    expect ok: "true"
+  end
+
+  test "ExtendStay cascades through policy chain" do
+    tests "ExtendStay", on: "GuestStay", kind: :cascade
+    setup  "OpenFolio"
+    setup  "CheckInGuest", guest_name: "sample", email: "sample", check_in_date: "sample", check_out_date: "sample", nights: 1
+    input  additional_nights: 1
+    expect emits: ["StayExtended", "ChargePosted"]
+  end
+
+  test "CheckOutGuest runs" do
+    tests "CheckOutGuest", on: "GuestStay"
+    setup  "CheckInGuest", guest_name: "sample", email: "sample", check_in_date: "sample", check_out_date: "sample", nights: 1
+    expect status: "checked_out"
+  end
+
+  test "CheckOutGuest cascades through policy chain" do
+    tests "CheckOutGuest", on: "GuestStay", kind: :cascade
+    setup  "OpenFolio"
+    setup  "AssignHousekeeping", task_type: "sample", priority: "sample", assigned_to: "sample"
+    setup  "AddRoom", room_number: "sample", room_type: "sample", floor: 1, nightly_rate: 1.0, max_occupancy: 1
+    setup  "CheckInGuest", guest_name: "sample", email: "sample", check_in_date: "sample", check_out_date: "sample", nights: 1
+    expect emits: ["GuestCheckedOut", "FolioSettled", "HousekeepingAssigned"]
+  end
+
+
+  # ── HousekeepingTask aggregate ──────────────────────────────────────────
+
+  test "AssignHousekeeping sets task_type + priority + assigned_to" do
+    tests "AssignHousekeeping", on: "HousekeepingTask"
+    setup  "AddRoom", room_number: "sample", room_type: "sample", floor: 1, nightly_rate: 1.0, max_occupancy: 1
+    input  task_type: "sample", priority: "sample", assigned_to: "sample"
+    expect task_type: "sample", priority: "sample", assigned_to: "sample", status: "assigned"
+  end
+
+  test "CompleteHousekeeping runs" do
+    tests "CompleteHousekeeping", on: "HousekeepingTask"
+    setup  "AssignHousekeeping", task_type: "sample", priority: "sample", assigned_to: "sample"
+    expect status: "completed"
+  end
+
+  test "CompleteHousekeeping cascades through policy chain" do
+    tests "CompleteHousekeeping", on: "HousekeepingTask", kind: :cascade
+    setup  "AddRoom", room_number: "sample", room_type: "sample", floor: 1, nightly_rate: 1.0, max_occupancy: 1
+    setup  "AssignHousekeeping", task_type: "sample", priority: "sample", assigned_to: "sample"
+    expect emits: ["HousekeepingCompleted", "RoomInspected", "RoomReleased"]
+  end
+
+  test "InspectRoom runs" do
+    tests "InspectRoom", on: "HousekeepingTask"
+    setup  "AssignHousekeeping", task_type: "sample", priority: "sample", assigned_to: "sample"
+    setup  "CompleteHousekeeping"
+    expect status: "inspected"
+  end
+
+  test "InspectRoom cascades through policy chain" do
+    tests "InspectRoom", on: "HousekeepingTask", kind: :cascade
+    setup  "AddRoom", room_number: "sample", room_type: "sample", floor: 1, nightly_rate: 1.0, max_occupancy: 1
+    setup  "AssignHousekeeping", task_type: "sample", priority: "sample", assigned_to: "sample"
+    setup  "CompleteHousekeeping"
+    expect emits: ["RoomInspected", "RoomReleased"]
+  end
+
+
+  # ── Folio aggregate ──────────────────────────────────────────
+
+  test "OpenFolio runs" do
+    tests "OpenFolio", on: "Folio"
+    setup  "CheckInGuest", guest_name: "sample", email: "sample", check_in_date: "sample", check_out_date: "sample", nights: 1
+    expect running_total: 0.0, status: "open"
+  end
+
+  test "PostCharge sets description + amount + category" do
+    tests "PostCharge", on: "Folio"
+    setup  "OpenFolio"
+    input  description: "sample", amount: 1.0, category: "sample"
+    expect ok: "true"
+  end
+
+  test "SettleFolio runs" do
+    tests "SettleFolio", on: "Folio"
+    setup  "OpenFolio"
+    expect status: "settled"
+  end
+
+end

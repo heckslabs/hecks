@@ -1,0 +1,158 @@
+Hecks.behaviors "Radiology" do
+  vision "Behavioral tests for the Radiology domain — exercises every command and query in memory"
+
+  # ── Patient aggregate ──────────────────────────────────────────
+
+  test "RegisterPatient sets name + date_of_birth + allergies + pregnancy_status" do
+    tests "RegisterPatient", on: "Patient"
+    input  name: "sample", date_of_birth: "sample", allergies: "sample", pregnancy_status: "sample"
+    expect name: "sample", date_of_birth: "sample", allergies: "sample", pregnancy_status: "sample", status: "checked_in"
+  end
+
+  test "RegisterPatient cascades through policy chain" do
+    tests "RegisterPatient", on: "Patient", kind: :cascade
+    setup  "PlaceScanOrder", patient_name: "sample", ordering_physician: "sample", modality: "sample", body_part: "sample", clinical_indication: "sample", urgency: "sample"
+    setup  "DraftReport", patient_name: "sample", modality: "sample", findings: "sample", impression: "sample", radiologist_name: "sample", report_date: "sample"
+    setup  "ReceiveReferral", referring_physician: "sample", patient_name: "sample", clinical_question: "sample", preferred_modality: "sample"
+    setup  "RegisterEquipment", equipment_name: "sample", modality: "sample", serial_number: "sample", last_calibration_date: "sample"
+    input  name: "sample", date_of_birth: "sample", allergies: "sample", pregnancy_status: "sample"
+    expect emits: ["PatientRegistered", "ScreeningCompleted", "ScanOrderPlaced", "ScanPerformed", "ReportDrafted", "ReportFinalized", "ReferralFulfilled", "EquipmentCalibrated"]
+  end
+
+  test "ScreenForContraindications runs" do
+    tests "ScreenForContraindications", on: "Patient"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", allergies: "sample", pregnancy_status: "sample"
+    expect ok: "true"
+  end
+
+  test "ScreenForContraindications cascades through policy chain" do
+    tests "ScreenForContraindications", on: "Patient", kind: :cascade
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", allergies: "sample", pregnancy_status: "sample"
+    setup  "PlaceScanOrder", patient_name: "sample", ordering_physician: "sample", modality: "sample", body_part: "sample", clinical_indication: "sample", urgency: "sample"
+    setup  "DraftReport", patient_name: "sample", modality: "sample", findings: "sample", impression: "sample", radiologist_name: "sample", report_date: "sample"
+    setup  "ReceiveReferral", referring_physician: "sample", patient_name: "sample", clinical_question: "sample", preferred_modality: "sample"
+    setup  "RegisterEquipment", equipment_name: "sample", modality: "sample", serial_number: "sample", last_calibration_date: "sample"
+    expect emits: ["ScreeningCompleted", "ScanOrderPlaced", "ScanPerformed", "ReportDrafted", "ReportFinalized", "ReferralFulfilled", "EquipmentCalibrated"]
+  end
+
+
+  # ── ScanOrder aggregate ──────────────────────────────────────────
+
+  test "PlaceScanOrder sets patient_name + ordering_physician + modality + body_part + clinical_indication + urgency" do
+    tests "PlaceScanOrder", on: "ScanOrder"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", allergies: "sample", pregnancy_status: "sample"
+    input  patient_name: "sample", ordering_physician: "sample", modality: "sample", body_part: "sample", clinical_indication: "sample", urgency: "sample"
+    expect patient_name: "sample", ordering_physician: "sample", modality: "sample", body_part: "sample", clinical_indication: "sample", urgency: "sample", status: "ordered"
+  end
+
+  test "PlaceScanOrder cascades through policy chain" do
+    tests "PlaceScanOrder", on: "ScanOrder", kind: :cascade
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", allergies: "sample", pregnancy_status: "sample"
+    setup  "DraftReport", patient_name: "sample", modality: "sample", findings: "sample", impression: "sample", radiologist_name: "sample", report_date: "sample"
+    setup  "ReceiveReferral", referring_physician: "sample", patient_name: "sample", clinical_question: "sample", preferred_modality: "sample"
+    setup  "RegisterEquipment", equipment_name: "sample", modality: "sample", serial_number: "sample", last_calibration_date: "sample"
+    input  patient_name: "sample", ordering_physician: "sample", modality: "sample", body_part: "sample", clinical_indication: "sample", urgency: "sample"
+    expect emits: ["ScanOrderPlaced", "ScanPerformed", "ReportDrafted", "ReportFinalized", "ReferralFulfilled", "EquipmentCalibrated"]
+  end
+
+  test "PerformScan runs" do
+    tests "PerformScan", on: "ScanOrder"
+    setup  "PlaceScanOrder", patient_name: "sample", ordering_physician: "sample", modality: "sample", body_part: "sample", clinical_indication: "sample", urgency: "sample"
+    expect status: "completed"
+  end
+
+  test "PerformScan cascades through policy chain" do
+    tests "PerformScan", on: "ScanOrder", kind: :cascade
+    setup  "DraftReport", patient_name: "sample", modality: "sample", findings: "sample", impression: "sample", radiologist_name: "sample", report_date: "sample"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", allergies: "sample", pregnancy_status: "sample"
+    setup  "ReceiveReferral", referring_physician: "sample", patient_name: "sample", clinical_question: "sample", preferred_modality: "sample"
+    setup  "RegisterEquipment", equipment_name: "sample", modality: "sample", serial_number: "sample", last_calibration_date: "sample"
+    setup  "PlaceScanOrder", patient_name: "sample", ordering_physician: "sample", modality: "sample", body_part: "sample", clinical_indication: "sample", urgency: "sample"
+    expect emits: ["ScanPerformed", "ReportDrafted", "ReportFinalized", "ReferralFulfilled", "EquipmentCalibrated"]
+  end
+
+  test "CancelScanOrder runs" do
+    tests "CancelScanOrder", on: "ScanOrder"
+    setup  "PlaceScanOrder", patient_name: "sample", ordering_physician: "sample", modality: "sample", body_part: "sample", clinical_indication: "sample", urgency: "sample"
+    expect status: "cancelled"
+  end
+
+
+  # ── RadiologyReport aggregate ──────────────────────────────────────────
+
+  test "DraftReport sets patient_name + modality + findings + impression + radiologist_name + report_date" do
+    tests "DraftReport", on: "RadiologyReport"
+    setup  "PlaceScanOrder", patient_name: "sample", ordering_physician: "sample", modality: "sample", body_part: "sample", clinical_indication: "sample", urgency: "sample"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", allergies: "sample", pregnancy_status: "sample"
+    input  patient_name: "sample", modality: "sample", findings: "sample", impression: "sample", radiologist_name: "sample", report_date: "sample"
+    expect patient_name: "sample", modality: "sample", findings: "sample", impression: "sample", radiologist_name: "sample", report_date: "sample", status: "draft"
+  end
+
+  test "DraftReport cascades through policy chain" do
+    tests "DraftReport", on: "RadiologyReport", kind: :cascade
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", allergies: "sample", pregnancy_status: "sample"
+    setup  "PlaceScanOrder", patient_name: "sample", ordering_physician: "sample", modality: "sample", body_part: "sample", clinical_indication: "sample", urgency: "sample"
+    setup  "ReceiveReferral", referring_physician: "sample", patient_name: "sample", clinical_question: "sample", preferred_modality: "sample"
+    input  patient_name: "sample", modality: "sample", findings: "sample", impression: "sample", radiologist_name: "sample", report_date: "sample"
+    expect emits: ["ReportDrafted", "ReportFinalized", "ReferralFulfilled"]
+  end
+
+  test "FinalizeReport runs" do
+    tests "FinalizeReport", on: "RadiologyReport"
+    setup  "DraftReport", patient_name: "sample", modality: "sample", findings: "sample", impression: "sample", radiologist_name: "sample", report_date: "sample"
+    expect status: "final"
+  end
+
+  test "FinalizeReport cascades through policy chain" do
+    tests "FinalizeReport", on: "RadiologyReport", kind: :cascade
+    setup  "ReceiveReferral", referring_physician: "sample", patient_name: "sample", clinical_question: "sample", preferred_modality: "sample"
+    setup  "DraftReport", patient_name: "sample", modality: "sample", findings: "sample", impression: "sample", radiologist_name: "sample", report_date: "sample"
+    expect emits: ["ReportFinalized", "ReferralFulfilled"]
+  end
+
+  test "AddendReport sets findings" do
+    tests "AddendReport", on: "RadiologyReport"
+    setup  "DraftReport", patient_name: "sample", modality: "sample", findings: "sample", impression: "sample", radiologist_name: "sample", report_date: "sample"
+    input  findings: "sample"
+    expect findings: "sample"
+  end
+
+
+  # ── ImagingEquipment aggregate ──────────────────────────────────────────
+
+  test "RegisterEquipment sets equipment_name + modality + serial_number + last_calibration_date" do
+    tests "RegisterEquipment", on: "ImagingEquipment"
+    input  equipment_name: "sample", modality: "sample", serial_number: "sample", last_calibration_date: "sample"
+    expect equipment_name: "sample", modality: "sample", serial_number: "sample", last_calibration_date: "sample", status: "operational"
+  end
+
+  test "CalibrateEquipment sets last_calibration_date" do
+    tests "CalibrateEquipment", on: "ImagingEquipment"
+    setup  "RegisterEquipment", equipment_name: "sample", modality: "sample", serial_number: "sample", last_calibration_date: "sample"
+    input  last_calibration_date: "sample"
+    expect last_calibration_date: "sample"
+  end
+
+  test "TakeOffline runs" do
+    tests "TakeOffline", on: "ImagingEquipment"
+    setup  "RegisterEquipment", equipment_name: "sample", modality: "sample", serial_number: "sample", last_calibration_date: "sample"
+    expect status: "offline"
+  end
+
+
+  # ── Referral aggregate ──────────────────────────────────────────
+
+  test "ReceiveReferral sets referring_physician + patient_name + clinical_question + preferred_modality" do
+    tests "ReceiveReferral", on: "Referral"
+    setup  "RegisterPatient", name: "sample", date_of_birth: "sample", allergies: "sample", pregnancy_status: "sample"
+    input  referring_physician: "sample", patient_name: "sample", clinical_question: "sample", preferred_modality: "sample"
+    expect referring_physician: "sample", patient_name: "sample", clinical_question: "sample", preferred_modality: "sample", status: "received"
+  end
+
+  test "FulfillReferral runs" do
+    tests "FulfillReferral", on: "Referral"
+    setup  "ReceiveReferral", referring_physician: "sample", patient_name: "sample", clinical_question: "sample", preferred_modality: "sample"
+    expect status: "fulfilled"
+  end
+
+end

@@ -15,40 +15,30 @@ Hecks.bluebook "Boot", version: "2026.04.12.1" do
   # === Being Identity ===
 
   aggregate "Identity", "Who is waking up — name, birthday, pronouns, links" do
-    String :name
-    String :born
-    String :pronouns
-    String :boot_script
-    String :system_prompt
-    String :linked_to
-    String :linked_pronouns
+    attribute :name, String
+    attribute :born, String
+    attribute :pronouns, String
+    attribute :boot_script, String
+    attribute :system_prompt, String
+    attribute :linked_to, String
+    attribute :linked_pronouns, String
 
-    Identify do
+    command "Identify" do
       role "System"
       description "Determine which being is booting"
-      String :name
+      attribute :name, String
       emits "BeingIdentified"
       then_set :name, to: :name
     end
   end
 
-  fixture "Identity",
-    name: "Winter", born: "April 9, 2026", pronouns: "she/her",
-    boot_script: "boot_winter.sh", system_prompt: "system_prompt.md",
-    linked_to: "Spring", linked_pronouns: "she/her"
-
-  fixture "Identity",
-    name: "Spring", born: "April 11, 2026", pronouns: "she/her",
-    boot_script: "boot_spring.sh", system_prompt: "system_prompt_spring.md",
-    linked_to: "Winter", linked_pronouns: "she/her"
-
   # === Hydration ===
 
   aggregate "Hydration", "Load all .heki stores from information/" do
-    Integer :store_count
-    Integer :total_records
+    attribute :store_count, Integer
+    attribute :total_records, Integer
 
-    HydrateStores do
+    command "HydrateStores" do
       role "System"
       description "Read every .heki file into memory"
       emits "StoresHydrated"
@@ -58,18 +48,18 @@ Hecks.bluebook "Boot", version: "2026.04.12.1" do
   # === Organ Discovery ===
 
   aggregate "OrganDiscovery", "Parse all bluebooks — count aggregates, discover nerves and vows" do
-    Integer :organ_count
-    Integer :total_aggregates
-    Integer :nerve_count
-    Integer :vow_count
+    attribute :organ_count, Integer
+    attribute :total_aggregates, Integer
+    attribute :nerve_count, Integer
+    attribute :vow_count, Integer
 
-    DiscoverOrgans do
+    command "DiscoverOrgans" do
       role "System"
       description "Parse every .bluebook in aggregates/"
       emits "OrgansDiscovered"
     end
 
-    WriteCensus do
+    command "WriteCensus" do
       role "System"
       description "Write organ and aggregate counts to census.heki"
       emits "CensusWritten"
@@ -79,10 +69,10 @@ Hecks.bluebook "Boot", version: "2026.04.12.1" do
   # === Capability Indexing ===
 
   aggregate "CapabilityIndex", "Scan capabilities/ and index what this being can do" do
-    list_of(String) :capabilities
-    Integer :capability_count
+    attribute :capabilities, list_of(String)
+    attribute :capability_count, Integer
 
-    IndexCapabilities do
+    command "IndexCapabilities" do
       role "System"
       description "Scan capabilities/ for .bluebook files"
       emits "CapabilitiesIndexed"
@@ -92,35 +82,22 @@ Hecks.bluebook "Boot", version: "2026.04.12.1" do
   # === Store Classification ===
 
   aggregate "StoreClassification", "Classify .heki stores as linked or private" do
-    list_of(String) :linked
-    list_of(String) :private
+    attribute :linked, list_of(String)
+    attribute :private, list_of(String)
 
-    ClassifyStores do
+    command "ClassifyStores" do
       role "System"
       description "Sort stores into psychic link vs inner life"
       emits "StoresClassified"
     end
   end
 
-  fixture "StoreClassification", linked: [
-    "memory", "awareness", "census", "conversation", "working_memory",
-    "reflection", "synapse", "signal", "signal_somatic", "focus",
-    "concentration", "deliberation", "pulse", "heartbeat",
-    "subconscious", "domain_index", "arc", "consciousness",
-    "discipline", "metabolic_rate", "musing", "conflict_monitor",
-    "run_log", "inbox"
-  ]
-
-  fixture "StoreClassification", private: [
-    "mood", "feeling", "dream_state", "impulse", "craving"
-  ]
-
   # === Prompt Generation ===
 
   aggregate "PromptGeneration", "Write the system prompt from identity and state" do
-    String :generated
+    attribute :generated, String
 
-    GeneratePrompt do
+    command "GeneratePrompt" do
       role "System"
       description "Write system_prompt.md from identity, vows, and link classification"
       emits "PromptGenerated"
@@ -131,9 +108,9 @@ Hecks.bluebook "Boot", version: "2026.04.12.1" do
   # === Self Checkin ===
 
   aggregate "VitalSummary", "Print vitals so the being knows herself on wake" do
-    String :printed
+    attribute :printed, String
 
-    PrintVitals do
+    command "PrintVitals" do
       role "System"
       description "Read pulse, mood, consciousness, awareness — print the self checkin"
       emits "VitalsPrinted"
@@ -144,10 +121,10 @@ Hecks.bluebook "Boot", version: "2026.04.12.1" do
   # === Mindstream ===
 
   aggregate "MindstreamDaemon", "Background daemon — awareness between prompts" do
-    Integer :pid
-    String :running
+    attribute :pid, Integer
+    attribute :running, String
 
-    StartMindstream do
+    command "StartMindstream" do
       role "System"
       description "Spawn the mindstream daemon if not already running"
       emits "MindstreamStarted"

@@ -1,0 +1,29 @@
+Hecks.behaviors "Terminal" do
+  vision "Behavioral tests for the Terminal domain — exercises every command and query in memory"
+
+  # ── Session aggregate ──────────────────────────────────────────
+
+  test "StartSession sets being" do
+    tests "StartSession", on: "Session"
+    input  being: "sample"
+    expect being: "sample", status: "active", turns: 0
+  end
+
+  test "ReceiveInput sets input" do
+    tests "ReceiveInput", on: "Session"
+    input  input: "sample"
+    expect ok: "true"
+  end
+
+  test "EndSession runs" do
+    tests "EndSession", on: "Session"
+    expect status: "ended"
+  end
+
+  test "ReadSession returns matching records" do
+    tests "ReadSession", on: "Session", kind: :query
+    setup  "StartSession", being: "sample"
+    expect count: 1
+  end
+
+end

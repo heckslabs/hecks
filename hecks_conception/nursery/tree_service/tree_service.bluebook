@@ -157,6 +157,7 @@ Hecks.bluebook "TreeService" do
       String :tree_species
       reference_to(TreeAssessment)
       emits "PermitApplied"
+      then_set :status, to: "pending"
     end
 
     ReceivePermit do

@@ -1,0 +1,22 @@
+Hecks.fixtures "ElevatorMaintenance" do
+  aggregate "ElevatorUnit" do
+    fixture "ElevatorUnit1", building_name: "Westlake Tower", unit_number: "A1", elevator_type: "traction", floors_served: 24, capacity_lbs: 2500, install_year: 2005, status: "in_service"
+    fixture "ElevatorUnit2", building_name: "Commerce Center", unit_number: "B2", elevator_type: "hydraulic", floors_served: 8, capacity_lbs: 1250, install_year: 1998, status: "in_service"
+  end
+  aggregate "MaintenanceVisit" do
+    fixture "MaintenanceVisit1", mechanic_name: "Carlos Rodriguez", visit_date: "2026-04-12", tasks_performed: "lubrication, brake_adjustment, cable_inspection", findings: "minor_wear_on_door_operator"
+    fixture "MaintenanceVisit2", mechanic_name: "Sarah Lee", visit_date: "2026-04-11", tasks_performed: "safety_device_test, floor_leveling_check", findings: "none"
+  end
+  aggregate "PartReplacement" do
+    fixture "PartReplacement1", part_name: "Door Operator", part_number: "DO-2500-V3", vendor: "Schindler Parts", cost: 1850.00, status: "ordered"
+    fixture "PartReplacement2", part_name: "Suspension Cable", part_number: "CAB-6x19-8mm", vendor: "Wire Rope Industries", cost: 2400.00, status: "received"
+  end
+  aggregate "ElevatorInspection" do
+    fixture "ElevatorInspection1", inspector_name: "Inspector James Kim", inspection_type: "annual", result: "passed", violations: "none", inspection_date: "2026-03-28"
+    fixture "ElevatorInspection2", inspector_name: "Inspector Patricia Young", inspection_type: "annual", result: "passed_with_corrections", violations: "adjust_door_sensors", inspection_date: "2026-04-05"
+  end
+  aggregate "EmergencyCall" do
+    fixture "EmergencyCall1", building_name: "Westlake Tower", unit_number: "A1", call_type: "entrapment", status: "resolved", response_time: "12_minutes"
+    fixture "EmergencyCall2", building_name: "Commerce Center", unit_number: "B2", call_type: "breakdown", status: "resolved", response_time: "18_minutes"
+  end
+end

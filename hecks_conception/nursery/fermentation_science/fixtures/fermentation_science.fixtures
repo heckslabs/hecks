@@ -1,0 +1,18 @@
+Hecks.fixtures "FermentationScience" do
+  aggregate "YeastStrain" do
+    fixture "YeastStrain1", strain_name: "Wyeast 1056", species: "Saccharomyces cerevisiae", status: "cataloged"
+    fixture "YeastStrain2", strain_name: "Lalvin K1V-1116", species: "Saccharomyces cerevisiae", status: "cataloged"
+  end
+  aggregate "BeerRecipe" do
+    fixture "BeerRecipe1", recipe_name: "Golden Ale", style: "pale ale", target_abv: 5.2, status: "formulating"
+    fixture "BeerRecipe2", recipe_name: "Imperial Stout", style: "stout", target_abv: 9.5, status: "formulating"
+  end
+  aggregate "FermentationTrial" do
+    fixture "FermentationTrial1", trial_number: 1, status: "inoculated"
+    fixture "FermentationTrial2", trial_number: 2, status: "inoculated"
+  end
+  aggregate "GeneEdit" do
+    fixture "GeneEdit1", target_gene: "atf1", edit_type: "knockout", status: "designed"
+    fixture "GeneEdit2", target_gene: "gal1", edit_type: "overexpression", status: "designed"
+  end
+end

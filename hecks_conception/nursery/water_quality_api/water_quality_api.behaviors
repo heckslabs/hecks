@@ -1,0 +1,62 @@
+Hecks.behaviors "WaterQualityAPI" do
+  vision "Behavioral tests for the WaterQualityAPI domain — exercises every command and query in memory"
+
+  # ── TreatmentPlant aggregate ──────────────────────────────────────────
+
+  test "RegisterPlant sets plant_name + capacity_gallons" do
+    tests "RegisterPlant", on: "TreatmentPlant"
+    input  plant_name: "sample", capacity_gallons: 1.0
+    expect plant_name: "sample", capacity_gallons: 1.0
+  end
+
+
+  # ── WaterSample aggregate ──────────────────────────────────────────
+
+  test "CollectSample sets sample_point + collected_at" do
+    tests "CollectSample", on: "WaterSample"
+    setup  "RegisterPlant", plant_name: "sample", capacity_gallons: 1.0
+    input  sample_point: "sample", collected_at: "sample"
+    expect ok: "true"
+  end
+
+  test "CertifySample runs" do
+    tests "CertifySample", on: "WaterSample"
+    setup  "CollectSample", sample_point: "sample", collected_at: "sample"
+    setup  "RecordResult", parameter: "sample", value: 1.0, unit: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── APIEndpoint aggregate ──────────────────────────────────────────
+
+  test "Draft sets endpoint_path + description + rate_limit" do
+    tests "Draft", on: "APIEndpoint"
+    input  endpoint_path: "sample", description: "sample", rate_limit: 1
+    expect ok: "true"
+  end
+
+  test "PublishEndpoint runs" do
+    tests "PublishEndpoint", on: "APIEndpoint"
+    setup  "Draft", endpoint_path: "sample", description: "sample", rate_limit: 1
+    expect ok: "true"
+  end
+
+
+  # ── DataFeed aggregate ──────────────────────────────────────────
+
+  test "ConfigureFeed sets feed_name + frequency_seconds" do
+    tests "ConfigureFeed", on: "DataFeed"
+    setup  "Draft", endpoint_path: "sample", description: "sample", rate_limit: 1
+    setup  "RegisterPlant", plant_name: "sample", capacity_gallons: 1.0
+    input  feed_name: "sample", frequency_seconds: 1
+    expect ok: "true"
+  end
+
+  test "ActivateFeed runs" do
+    tests "ActivateFeed", on: "DataFeed"
+    setup  "ConfigureFeed", feed_name: "sample", frequency_seconds: 1
+    setup  "AddTransform", source_field: "sample", target_field: "sample", transform_type: "sample"
+    expect ok: "true"
+  end
+
+end

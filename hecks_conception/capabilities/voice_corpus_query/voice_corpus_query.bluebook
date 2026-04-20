@@ -3,64 +3,64 @@ Hecks.bluebook "VoiceCorpusQuery", version: "2026.04.11.1" do
   category "infrastructure"
 
   aggregate "VoiceQuery", "A spoken question about the corpus" do
-    String :transcript
-    String :intent
-    list_of(DomainMatch) :matched_domains
-    String :answer
-    String :spoken_at
-    String :status
+    attribute :transcript, String
+    attribute :intent, String
+    attribute :matched_domains, list_of(DomainMatch)
+    attribute :answer, String
+    attribute :spoken_at, String
+    attribute :status, String
 
     value_object "DomainMatch" do
-      String :domain_name
-      String :aggregate_name
-      Float :relevance
-      String :reason
+      attribute :domain_name, String
+      attribute :aggregate_name, String
+      attribute :relevance, Float
+      attribute :reason, String
     end
 
-    ReceiveQuery do
+    command "ReceiveQuery" do
       role "System"
       description "Receive a spoken query from Almond clipboard transcription"
-      String :transcript
+      attribute :transcript, String
       emits "QueryReceived"
       then_set :transcript, to: :transcript
       then_set :status, to: "received"
     end
 
-    ParseIntent do
+    command "ParseIntent" do
       role "System"
       description "Extract the intent from the spoken transcript"
       reference_to(VoiceQuery)
-      String :intent
+      attribute :intent, String
       emits "IntentParsed"
       then_set :intent, to: :intent
       then_set :status, to: "parsed"
     end
 
-    SearchCorpus do
+    command "SearchCorpus" do
       role "System"
       description "Search indexed domains for matches against the parsed intent"
       reference_to(VoiceQuery)
-      list_of(DomainMatch) :matched_domains
+      attribute :matched_domains, list_of(DomainMatch)
       emits "CorpusSearched"
       then_set :matched_domains, to: :matched_domains
       then_set :status, to: "searched"
     end
 
-    FormulateAnswer do
+    command "FormulateAnswer" do
       role "System"
       description "Compose a concise spoken answer from corpus search results"
       reference_to(VoiceQuery)
-      String :answer
+      attribute :answer, String
       emits "AnswerFormulated"
       then_set :answer, to: :answer
       then_set :status, to: "answered"
     end
 
-    SpeakAnswer do
+    command "SpeakAnswer" do
       role "System"
       description "Deliver the answer via edge-tts Aria — cross-domain to Voice"
       reference_to(VoiceQuery)
-      String :spoken_at
+      attribute :spoken_at, String
       emits "AnswerSpoken"
       then_set :spoken_at, to: :spoken_at
       then_set :status, to: "spoken"
@@ -76,19 +76,19 @@ Hecks.bluebook "VoiceCorpusQuery", version: "2026.04.11.1" do
   end
 
   aggregate "QueryIntent", "What the user is actually asking — classified intent with confidence" do
-    String :raw_query
-    String :intent_type
-    String :target
-    Float :confidence
-    String :status
+    attribute :raw_query, String
+    attribute :intent_type, String
+    attribute :target, String
+    attribute :confidence, Float
+    attribute :status, String
 
-    ClassifyIntent do
+    command "ClassifyIntent" do
       role "System"
       description "Classify the raw query into an intent type and target"
-      String :raw_query
-      String :intent_type
-      String :target
-      Float :confidence
+      attribute :raw_query, String
+      attribute :intent_type, String
+      attribute :target, String
+      attribute :confidence, Float
       emits "IntentClassified"
       then_set :raw_query, to: :raw_query
       then_set :intent_type, to: :intent_type
@@ -97,13 +97,13 @@ Hecks.bluebook "VoiceCorpusQuery", version: "2026.04.11.1" do
       then_set :status, to: "classified"
     end
 
-    RefineIntent do
+    command "RefineIntent" do
       role "System"
       description "Narrow an ambiguous intent with additional context"
       reference_to(QueryIntent)
-      String :intent_type
-      String :target
-      Float :confidence
+      attribute :intent_type, String
+      attribute :target, String
+      attribute :confidence, Float
       emits "IntentRefined"
       then_set :intent_type, to: :intent_type
       then_set :target, to: :target
@@ -111,7 +111,7 @@ Hecks.bluebook "VoiceCorpusQuery", version: "2026.04.11.1" do
       then_set :status, to: "refined"
     end
 
-    RejectAmbiguous do
+    command "RejectAmbiguous" do
       role "System"
       description "Confidence too low — ask the speaker to rephrase"
       reference_to(QueryIntent)
@@ -127,48 +127,45 @@ Hecks.bluebook "VoiceCorpusQuery", version: "2026.04.11.1" do
   end
 
   aggregate "CorpusAnswer", "The response formulated from domain data — concise for speech" do
-    String :query_id
-    String :answer_text
-    list_of(String) :sources
-    Float :confidence
-    String :spoken
-    String :status
+    attribute :query_id, String
+    attribute :answer_text, String
+    attribute :sources, list_of(String)
+    attribute :confidence, Float
+    attribute :spoken, String
+    attribute :status, String
 
-    ComposeAnswer do
+    command "ComposeAnswer" do
       role "System"
       description "Build a concise spoken answer from search results and sources"
-      String :query_id
-      String :answer_text
-      list_of(String) :sources
-      Float :confidence
+      attribute :query_id, String
+      attribute :answer_text, String
+      attribute :confidence, Float
       emits "AnswerComposed"
       then_set :query_id, to: :query_id
       then_set :answer_text, to: :answer_text
-      then_set :sources, to: :sources
       then_set :confidence, to: :confidence
-      then_set :status, to: "composed"
     end
 
-    AddSource do
+    command "AddSource" do
       role "System"
       description "Append an additional source to the answer"
       reference_to(CorpusAnswer)
-      String :source
+      attribute :source, String
       emits "SourceAdded"
       then_set :sources, append: :source
     end
 
-    SimplifyForSpeech do
+    command "SimplifyForSpeech" do
       role "System"
       description "Trim the answer for spoken delivery — no paragraphs, clear summaries"
       reference_to(CorpusAnswer)
-      String :answer_text
+      attribute :answer_text, String
       emits "AnswerSimplified"
       then_set :answer_text, to: :answer_text
       then_set :status, to: "simplified"
     end
 
-    DeliverAnswer do
+    command "DeliverAnswer" do
       role "System"
       description "Mark the answer as delivered to the speaker"
       reference_to(CorpusAnswer)
@@ -178,72 +175,49 @@ Hecks.bluebook "VoiceCorpusQuery", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "pending" do
-      transition "ComposeAnswer" => "composed", from: "pending"
-      transition "SimplifyForSpeech" => "simplified", from: "composed"
-      transition "DeliverAnswer" => "delivered", from: "simplified"
-      transition "DeliverAnswer" => "delivered", from: "composed"
+      transition "SimplifyForSpeech" => "simplified", from: "pending"
+      transition "DeliverAnswer" => "delivered", from: ["pending", "simplified"]
     end
   end
 
   aggregate "QueryHistory", "Track what was asked — learn what domains are most queried" do
-    list_of(QueryRecord) :queries
-    Integer :total_queries
-    String :most_queried_domain
+    attribute :queries, list_of(QueryRecord)
+    attribute :total_queries, Integer
+    attribute :most_queried_domain, String
 
     value_object "QueryRecord" do
-      String :query
-      String :intent_type
-      String :matched_domain
-      String :answered_at
+      attribute :query, String
+      attribute :intent_type, String
+      attribute :matched_domain, String
+      attribute :answered_at, String
     end
 
-    RecordQuery do
+    command "RecordQuery" do
       role "System"
       description "Log a completed query for pattern analysis"
-      String :query
-      String :intent_type
-      String :matched_domain
-      String :answered_at
+      attribute :query, String
+      attribute :intent_type, String
+      attribute :matched_domain, String
+      attribute :answered_at, String
       emits "QueryRecorded"
       then_set :total_queries, increment: 1
     end
 
-    AnalyzePatterns do
+    command "AnalyzePatterns" do
       role "System"
       description "Review query history to find trends and most-queried domains"
       reference_to(QueryHistory)
-      String :most_queried_domain
+      attribute :most_queried_domain, String
       emits "PatternsAnalyzed"
       then_set :most_queried_domain, to: :most_queried_domain
     end
 
-    IdentifyGaps do
+    command "IdentifyGaps" do
       role "System"
       description "Find queries that had no good answers — corpus gaps"
       reference_to(QueryHistory)
       emits "GapsIdentified"
     end
-  end
-
-  policy "ParseOnReceive" do
-    on "QueryReceived"
-    trigger "ClassifyIntent"
-  end
-
-  policy "SearchOnParse" do
-    on "IntentClassified"
-    trigger "SearchCorpus"
-  end
-
-  policy "AnswerOnSearch" do
-    on "CorpusSearched"
-    trigger "ComposeAnswer"
-  end
-
-  policy "SpeakOnAnswer" do
-    on "AnswerComposed"
-    trigger "SpeakAnswer"
-    across "Voice"
   end
 
   policy "LogOnAnswer" do

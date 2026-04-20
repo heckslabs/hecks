@@ -147,15 +147,4 @@ Hecks.bluebook "TherapeuticHorticulture", version: "2026.04.13.1" do
     trigger "GenerateTherapyReport"
   end
 
-  fixture "TherapyClient", client_id: "tc001", name: "Emma Wilson", diagnosis: "major_depressive_disorder", therapist_name: "Dr. Susan Martinez", status: "enrolled"
-  fixture "TherapyClient", client_id: "tc002", name: "Lucas Park", diagnosis: "anxiety_disorder", therapist_name: "Dr. James O'Brien", status: "enrolled"
-
-  fixture "GardenPlot", plot_id: "gp001", client_id: "tc001", plant_type: "tomato_herbs", season: "spring", status: "active"
-  fixture "GardenPlot", plot_id: "gp002", client_id: "tc002", plant_type: "sunflower_cosmos", season: "spring", status: "active"
-
-  fixture "MoodEntry", entry_id: "me001", client_id: "tc001", date: "2026-04-14", mood_before: 4, mood_after: 7, notes: "Felt much calmer after tending plants"
-  fixture "MoodEntry", entry_id: "me002", client_id: "tc002", date: "2026-04-13", mood_before: 3, mood_after: 6, notes: "Enjoyed the physical work and nature"
-
-  fixture "TherapyReport", report_id: "tr001", client_id: "tc001", avg_mood_change: 3.2, sessions_attended: 12, status: "draft"
-  fixture "TherapyReport", report_id: "tr002", client_id: "tc002", avg_mood_change: 2.8, sessions_attended: 10, status: "draft"
 end

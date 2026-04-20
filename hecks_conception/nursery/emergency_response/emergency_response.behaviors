@@ -1,0 +1,85 @@
+Hecks.behaviors "EmergencyResponse" do
+  vision "Behavioral tests for the EmergencyResponse domain — exercises every command and query in memory"
+
+  # ── TriageCase aggregate ──────────────────────────────────────────
+
+  test "TriagePatient sets case_id + patient_name + chief_complaint + acuity_level" do
+    tests "TriagePatient", on: "TriageCase"
+    input  case_id: "sample", patient_name: "sample", chief_complaint: "sample", acuity_level: 1
+    expect case_id: "sample", patient_name: "sample", chief_complaint: "sample", acuity_level: 1, status: "triaged"
+  end
+
+  test "AdmitPatient runs" do
+    tests "AdmitPatient", on: "TriageCase"
+    setup  "TriagePatient", case_id: "sample", patient_name: "sample", chief_complaint: "sample", acuity_level: 1
+    expect status: "admitted"
+  end
+
+
+  # ── Ambulance aggregate ──────────────────────────────────────────
+
+  test "RegisterUnit sets unit_id + crew_lead + location_name" do
+    tests "RegisterUnit", on: "Ambulance"
+    input  unit_id: "sample", crew_lead: "sample", location_name: "sample"
+    expect unit_id: "sample", crew_lead: "sample", location_name: "sample", status: "available"
+  end
+
+  test "DispatchUnit runs" do
+    tests "DispatchUnit", on: "Ambulance"
+    setup  "RegisterUnit", unit_id: "sample", crew_lead: "sample", location_name: "sample"
+    expect status: "dispatched"
+  end
+
+  test "DispatchUnit cascades through policy chain" do
+    tests "DispatchUnit", on: "Ambulance", kind: :cascade
+    setup  "CalculateRoute", route_id: "sample", unit_id: "sample", origin_address: "sample", scene_address: "sample", hospital_name: "sample"
+    setup  "RegisterUnit", unit_id: "sample", crew_lead: "sample", location_name: "sample"
+    expect emits: ["UnitDispatched", "RouteCalculated"]
+  end
+
+  test "ClearUnit runs" do
+    tests "ClearUnit", on: "Ambulance"
+    setup  "RegisterUnit", unit_id: "sample", crew_lead: "sample", location_name: "sample"
+    setup  "DispatchUnit"
+    expect status: "available"
+  end
+
+
+  # ── Route aggregate ──────────────────────────────────────────
+
+  test "CalculateRoute sets route_id + unit_id + origin_address + scene_address + hospital_name" do
+    tests "CalculateRoute", on: "Route"
+    input  route_id: "sample", unit_id: "sample", origin_address: "sample", scene_address: "sample", hospital_name: "sample"
+    expect route_id: "sample", unit_id: "sample", origin_address: "sample", scene_address: "sample", hospital_name: "sample"
+  end
+
+  test "ReviseETA sets eta_minutes" do
+    tests "ReviseETA", on: "Route"
+    setup  "CalculateRoute", route_id: "sample", unit_id: "sample", origin_address: "sample", scene_address: "sample", hospital_name: "sample"
+    input  eta_minutes: 1.0
+    expect eta_minutes: 1.0
+  end
+
+
+  # ── Handoff aggregate ──────────────────────────────────────────
+
+  test "InitiateHandoff sets handoff_id + case_id + unit_id + receiving_nurse" do
+    tests "InitiateHandoff", on: "Handoff"
+    input  handoff_id: "sample", case_id: "sample", unit_id: "sample", receiving_nurse: "sample"
+    expect handoff_id: "sample", case_id: "sample", unit_id: "sample", receiving_nurse: "sample", status: "in_progress"
+  end
+
+  test "CompleteHandoff runs" do
+    tests "CompleteHandoff", on: "Handoff"
+    setup  "InitiateHandoff", handoff_id: "sample", case_id: "sample", unit_id: "sample", receiving_nurse: "sample"
+    expect status: "completed"
+  end
+
+  test "CompleteHandoff cascades through policy chain" do
+    tests "CompleteHandoff", on: "Handoff", kind: :cascade
+    setup  "TriagePatient", case_id: "sample", patient_name: "sample", chief_complaint: "sample", acuity_level: 1
+    setup  "InitiateHandoff", handoff_id: "sample", case_id: "sample", unit_id: "sample", receiving_nurse: "sample"
+    expect emits: ["HandoffCompleted", "PatientTriaged"]
+  end
+
+end

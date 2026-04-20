@@ -150,7 +150,7 @@ module Hecks
             command("Check") {}
           end
 
-          b.aggregate "WinterCommand", "Wake Winter — living domain organism" do
+          b.aggregate "MietteCommand", "Wake Miette — living domain organism" do
             command("Wake") { attribute :action, String; attribute :domain, String }
           end
 

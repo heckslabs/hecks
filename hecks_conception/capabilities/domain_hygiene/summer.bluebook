@@ -1,31 +1,38 @@
 Hecks.bluebook "Summer", version: "2026.04.13.1" do
-  vision "Winter's local mind — a fine-tuned model that drafts domains, reviews structure, and runs on the laptop — a fine-tuned model that drafts domains, reviews structure, and runs offline"
+  vision "Miette's local mind — a fine-tuned model that drafts domains, reviews structure, and runs on the laptop — a fine-tuned model that drafts domains, reviews structure, and runs offline"
   category "organ"
 
   aggregate "Model", "The fine-tuned model with adapter weights — what Autumn knows" do
-    String :base_model
-    String :adapter_path
-    Integer :training_pairs
-    Integer :training_iterations
-    String :trained_at
-    Float :final_loss
-    list_of(TrainingLayer) :layers
+    attribute :base_model, String
+    attribute :adapter_path, String
+    attribute :training_pairs, Integer
+    attribute :training_iterations, Integer
+    attribute :trained_at, String
+    attribute :final_loss, Float
+    attribute :layers, list_of(TrainingLayer)
 
     value_object "TrainingLayer" do
-      String :layer_type
-      Integer :pair_count
+      attribute :layer_type, String
+      attribute :pair_count, Integer
     end
 
-    TrainModel do
+    command "CountTrainingPairs" do
+      description "Read the training data and record how many pairs are available — required before training"
+      attribute :data_path, String
+      attribute :training_pairs, Integer
+      emits "TrainingPairsCounted"
+      then_set :training_pairs, to: :training_pairs
+    end
+
+    command "TrainModel" do
       description "Fine-tune the base model on the current corpus — produces a new adapter"
-      String :base_model
-      String :data_path
-      Integer :iterations
-      given "training data must have at least 100 pairs"
+      attribute :base_model, String
+      attribute :data_path, String
+      attribute :iterations, Integer
       emits "ModelTrained"
     end
 
-    EvaluateModel do
+    command "EvaluateModel" do
       description "Test the trained model against held-out domains — measure structural accuracy"
       reference_to(Model)
       emits "ModelEvaluated"
@@ -33,78 +40,83 @@ Hecks.bluebook "Summer", version: "2026.04.13.1" do
   end
 
   aggregate "Draft", "A domain structure drafted by Autumn — fast, cheap, needs review" do
-    String :vision
-    String :bluebook_output
-    Float :generation_seconds
-    Boolean :valid
-    Boolean :reviewed
-    String :review_notes
+    attribute :vision, String
+    attribute :bluebook_output, String
+    attribute :generation_seconds, Float
+    attribute :valid, TrueClass
+    attribute :reviewed, TrueClass
+    attribute :review_notes, String
+    # Booleans the planner gates on. validated flips when ValidateDraft
+    # finishes; review_done flips when ReviewDraft finishes.
+    attribute :validated, Boolean, default: false
+    attribute :review_done, Boolean, default: false
 
-    GenerateDraft do
+    command "GenerateDraft" do
       description "Feed a vision to Autumn, get back a bluebook structure in seconds"
-      String :vision
+      attribute :vision, String
       emits "DraftGenerated"
     end
 
-    ValidateDraft do
+    command "ValidateDraft" do
       description "Parse and validate the draft through the Rust validator"
       reference_to(Draft)
       emits "DraftValidated"
+      then_set :validated, to: true
     end
 
-    ReviewDraft do
-      description "Winter reviews the draft — enriches, corrects, approves or rejects"
+    command "ReviewDraft" do
+      description "Miette reviews the draft — enriches, corrects, approves or rejects"
       reference_to(Draft)
-      given "draft must be validated first"
+      given { validated == true }
       emits "DraftReviewed"
+      then_set :review_done, to: true
     end
 
-    AcceptDraft do
+    command "AcceptDraft" do
       description "Move the reviewed draft into the nursery as a real domain"
       reference_to(Draft)
-      given "draft must be reviewed"
+      given { review_done == true }
       emits "DraftAccepted"
     end
   end
 
   aggregate "Critique", "Autumn reviews an existing domain and suggests improvements" do
-    String :domain_name
-    list_of(Issue) :issues
-    list_of(String) :suggestions
+    attribute :domain_name, String
+    attribute :issues, list_of(Issue)
+    attribute :suggestions, list_of(String)
 
     value_object "Issue" do
-      String :issue_type
-      String :description
-      String :severity
+      attribute :issue_type, String
+      attribute :description, String
+      attribute :severity, String
     end
 
-    CritiqueDomain do
+    command "CritiqueDomain" do
       description "Analyze a domain for structural weaknesses — missing policies, shallow workflows, generic names"
-      String :domain_name
+      attribute :domain_name, String
       emits "DomainCritiqued"
     end
 
-    ApplySuggestions do
+    command "ApplySuggestions" do
       description "Automatically apply Autumn's suggested improvements"
       reference_to(Critique)
-      given "at least one suggestion must exist"
       emits "SuggestionsApplied"
     end
   end
 
   aggregate "Daemon", "Autumn running as a background process — always available for drafts" do
-    String :status
-    Integer :port
-    Integer :drafts_served
-    Float :avg_generation_seconds
+    attribute :status, String
+    attribute :port, Integer
+    attribute :drafts_served, Integer
+    attribute :avg_generation_seconds, Float
 
-    StartDaemon do
+    command "StartDaemon" do
       description "Launch Autumn as a local HTTP service for draft generation"
-      Integer :port
+      attribute :port, Integer
       emits "DaemonStarted"
     end
 
-    StopDaemon do
+    command "StopDaemon" do
       description "Shut down the Autumn daemon"
       reference_to(Daemon)
       emits "DaemonStopped"

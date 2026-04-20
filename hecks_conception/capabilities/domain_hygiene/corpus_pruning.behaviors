@@ -1,0 +1,94 @@
+Hecks.behaviors "CorpusPruning" do
+  vision "Behavioral tests for the CorpusPruning domain — exercises every command and query in memory"
+
+  # ── MonsterSplit aggregate ──────────────────────────────────────────
+
+  test "MeasureDomain sets source_domain + original_size" do
+    tests "MeasureDomain", on: "MonsterSplit"
+    input  source_domain: "sample", original_size: 1
+    expect original_size: 1, measured: true
+  end
+
+
+  # ── FeatureEnrichment aggregate ──────────────────────────────────────────
+
+  test "AddReferences sets domain_name" do
+    tests "AddReferences", on: "FeatureEnrichment"
+    input  domain_name: "sample"
+    expect domain_name: "sample"
+  end
+
+  test "AddReferences cascades through policy chain" do
+    tests "AddReferences", on: "FeatureEnrichment", kind: :cascade
+    input  domain_name: "sample"
+    expect emits: ["ReferencesAdded", "EnrichmentValidated"]
+  end
+
+  test "AddCollections sets domain_name" do
+    tests "AddCollections", on: "FeatureEnrichment"
+    input  domain_name: "sample"
+    expect domain_name: "sample"
+  end
+
+  test "AddCollections cascades through policy chain" do
+    tests "AddCollections", on: "FeatureEnrichment", kind: :cascade
+    input  domain_name: "sample"
+    expect emits: ["CollectionsAdded", "EnrichmentValidated"]
+  end
+
+  test "AddGivens sets domain_name" do
+    tests "AddGivens", on: "FeatureEnrichment"
+    input  domain_name: "sample"
+    expect domain_name: "sample"
+  end
+
+  test "Revalidate runs" do
+    tests "Revalidate", on: "FeatureEnrichment"
+    setup  "AddReferences", domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Deduplicator aggregate ──────────────────────────────────────────
+
+  test "FindDuplicates sets jsonl_path + similarity_threshold" do
+    tests "FindDuplicates", on: "Deduplicator"
+    input  jsonl_path: "sample", similarity_threshold: 1.0
+    expect ok: "true"
+  end
+
+  test "FindDuplicates cascades through policy chain" do
+    tests "FindDuplicates", on: "Deduplicator", kind: :cascade
+    input  jsonl_path: "sample", similarity_threshold: 1.0
+    expect emits: ["DuplicatesFound", "DuplicatesMerged"]
+  end
+
+  test "MergeDuplicates runs" do
+    tests "MergeDuplicates", on: "Deduplicator"
+    setup  "FindDuplicates", jsonl_path: "sample", similarity_threshold: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── CategoryBalancer aggregate ──────────────────────────────────────────
+
+  test "AssessBalance sets jsonl_path" do
+    tests "AssessBalance", on: "CategoryBalancer"
+    input  jsonl_path: "sample"
+    expect ok: "true"
+  end
+
+  test "AssessBalance cascades through policy chain" do
+    tests "AssessBalance", on: "CategoryBalancer", kind: :cascade
+    input  jsonl_path: "sample"
+    expect emits: ["BalanceAssessed", "CategoryCapped"]
+  end
+
+  test "CapCategory sets category + max_count" do
+    tests "CapCategory", on: "CategoryBalancer"
+    setup  "AssessBalance", jsonl_path: "sample"
+    input  category: "sample", max_count: 1
+    expect ok: "true"
+  end
+
+end

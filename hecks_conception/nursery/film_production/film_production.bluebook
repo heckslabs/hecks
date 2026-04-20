@@ -19,13 +19,13 @@ Hecks.bluebook "FilmProduction" do
       String :genre
       Float :total_budget
       emits "ProductionGreenLit"
+      then_set :status, to: "development"
     end
 
     StartPrincipalPhotography do
       description "Begin shooting on the production"
       reference_to(Production)
       String :start_date
-      given { status == "development" }
       emits "PrincipalPhotographyStarted"
       then_set :status, to: "shooting"
       then_set :start_date, to: :start_date
@@ -34,7 +34,6 @@ Hecks.bluebook "FilmProduction" do
     WrapProduction do
       description "Complete all principal photography"
       reference_to(Production)
-      given { status == "shooting" }
       emits "ProductionWrapped"
       then_set :status, to: "post_production"
     end
@@ -55,13 +54,13 @@ Hecks.bluebook "FilmProduction" do
       String :location
       String :time_of_day
       emits "SceneSlated"
+      then_set :status, to: "scheduled"
     end
 
     PrintScene do
       description "Record a completed take for a scene"
       reference_to(Scene)
       Integer :take_number
-      given { status == "scheduled" }
       emits "ScenePrinted"
       then_set :status, to: "in_progress"
     end
@@ -70,7 +69,6 @@ Hecks.bluebook "FilmProduction" do
       description "Lock a scene as final — no more takes needed"
       reference_to(Scene)
       Integer :final_take
-      given { status == "in_progress" }
       emits "SceneFinalized"
       then_set :status, to: "finalized"
     end
@@ -107,6 +105,7 @@ Hecks.bluebook "FilmProduction" do
     String :category
     String :serial_number
     String :status, default: "available"
+    String :checked_out_by
 
     value_object "MaintenanceRecord" do
       String :date
@@ -115,19 +114,30 @@ Hecks.bluebook "FilmProduction" do
       String :resolution
     end
 
+    RegisterEquipment do
+      description "Register a piece of equipment in the inventory"
+      String :name
+      String :category
+      String :serial_number
+      emits "EquipmentRegistered"
+      then_set :name, to: :name
+      then_set :category, to: :category
+      then_set :serial_number, to: :serial_number
+      then_set :status, to: "available"
+    end
+
     CheckOutEquipment do
       description "Reserve equipment for a shooting day"
       reference_to(Equipment)
       String :checked_out_by
-      given { status == "available" }
       emits "EquipmentCheckedOut"
+      then_set :checked_out_by, to: :checked_out_by
       then_set :status, to: "in_use"
     end
 
     ReturnEquipment do
       description "Return equipment after a shoot day"
       reference_to(Equipment)
-      given { status == "in_use" }
       emits "EquipmentReturned"
       then_set :status, to: "available"
     end
@@ -203,18 +213,4 @@ Hecks.bluebook "FilmProduction" do
     trigger "StartPrincipalPhotography"
   end
 
-  fixture "Production", title: "Desert Road", genre: "thriller", status: "development", total_budget: 2500000.0, start_date: "2026-06-01"
-  fixture "Production", title: "City Stories", genre: "drama", status: "shooting", total_budget: 5000000.0, start_date: "2026-05-15"
-
-  fixture "Scene", scene_number: 1, location: "desert highway", time_of_day: "sunrise", status: "scheduled", take_count: 0
-  fixture "Scene", scene_number: 45, location: "downtown loft", time_of_day: "evening", status: "finalized", take_count: 7
-
-  fixture "CrewMember", name: "Alice Johnson", role: "cinematographer", department: "camera", day_rate: 800.0
-  fixture "CrewMember", name: "Marcus Lee", role: "key grip", department: "grip", day_rate: 650.0
-
-  fixture "Equipment", name: "RED Komodo", category: "camera", serial_number: "RED-2025-001", status: "available"
-  fixture "Equipment", name: "HMI 2.5K", category: "lighting", serial_number: "HMI-LT-042", status: "in_use"
-
-  fixture "BudgetLine", department: "camera", category: "rentals", allocated: 450000.0, spent: 125000.0
-  fixture "BudgetLine", department: "catering", category: "meals", allocated: 180000.0, spent: 89500.0
 end

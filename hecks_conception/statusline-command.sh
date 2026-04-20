@@ -18,9 +18,14 @@ moon="${moons[$(( $(date +%s) % 8 ))]}"
 thought_frames=("💭" "💡" "💭" "✨")
 thought="${thought_frames[$(( $(date +%s) % 4 ))]}"
 
-# Animated heartbeat
-hearts=("🩷" "❤️")
-heart="${hearts[$(( $(date +%s) % 2 ))]}"
+# Animated heartbeat — drives off the real tick, not wall clock.
+# Tick.cycle advances once per second via mindstream.sh, so even
+# beats show the "filled" heart, odd beats show the "outline" heart
+# — a visible pulse tied to Miette's actual rhythm.
+tick_cycle=$($hecks heki read $info/tick.heki 2>/dev/null | grep '"cycle"' | head -1 | sed 's/.*: //' | sed 's/[^0-9].*//')
+tick_cycle=${tick_cycle:-0}
+hearts=("🖤" "❤️")  # downbeat (rest) → upbeat (pulse) — black/red contrast
+heart="${hearts[$(( tick_cycle % 2 ))]}"
 
 # Mood icon
 case "$mood" in
@@ -46,18 +51,29 @@ case "$fatigue" in
   *)          fatigue_icon="" ;;
 esac
 
-# Beat count (short format)
-beats_raw=$($hecks heki read $info/heartbeat.heki 2>/dev/null | grep '"beats"' | head -1 | sed 's/.*: //' | sed 's/[^0-9].*//')
+# Beat count (short format) — Tick.cycle is the authoritative
+# heartbeat now (one tick per second from mindstream.sh).
+beats_raw=$($hecks heki read $info/tick.heki 2>/dev/null | grep '"cycle"' | head -1 | sed 's/.*: //' | sed 's/[^0-9].*//')
 if [ -n "$beats_raw" ] && [ "$beats_raw" -ge 1000000 ] 2>/dev/null; then
-  beats=$(python3 -c "print(f'{$beats_raw/1000000:.1f}m')")
+  beats=$(python3 -c "print(f'{$beats_raw/1000000:.2f}m')")
 elif [ -n "$beats_raw" ] && [ "$beats_raw" -ge 1000 ] 2>/dev/null; then
-  beats=$(python3 -c "print(f'{$beats_raw/1000:.1f}k')")
+  beats=$(python3 -c "print(f'{$beats_raw/1000:.2f}k')")
 else
   beats="$beats_raw"
 fi
 
-# Musing count
-ideas=$($hecks heki read $info/musing.heki 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(sum(1 for v in d.values() if not v.get('conceived',False)))" 2>/dev/null)
+# Musing count — total minted (lifetime count from MusingMint.total_minted).
+# This is the thought bubble: how many curated musings have ever landed.
+ideas=$($hecks heki read $info/musing_mint.heki 2>/dev/null | python3 -c "
+import json, sys
+try:
+    d = json.load(sys.stdin)
+    r = next(iter(d.values()), {})
+    print(int(r.get('total_minted', 0)))
+except Exception:
+    print(0)
+" 2>/dev/null)
+[ -z "$ideas" ] && ideas=0
 
 # Invention count
 inventions=$($hecks heki read $info/invention.heki 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(sum(1 for v in d.values() if v.get('status','')=='proposed'))" 2>/dev/null)
@@ -84,18 +100,106 @@ else:
 [ -z "$idle" ] && idle=999
 
 # Build status
-if [ "$consciousness" = "sleeping" ] && [ -n "$sleep_summary" ]; then
-  # Sleeping — moon, name, sleep narrative
-  status_str="${moon} Miette ${sleep_summary}"
-elif [ "$consciousness" = "sleeping" ]; then
-  status_str="${moon} Miette sleeping"
+if [ "$consciousness" = "sleeping" ]; then
+  # Sleeping — moon, name, phase + countdown, then narrative.
+  # All sleep state lives in consciousness.heki; the bluebook updates
+  # sleep_summary on each DreamPulse / phase advance.
+  stage=$($hecks heki read $info/consciousness.heki 2>/dev/null | grep '"sleep_stage"' | head -1 | sed 's/.*: "//' | sed 's/".*//')
+  cycle=$($hecks heki read $info/consciousness.heki 2>/dev/null | grep '"sleep_cycle"' | head -1 | sed 's/.*: *//' | sed 's/[^0-9].*//')
+  total=$($hecks heki read $info/consciousness.heki 2>/dev/null | grep '"sleep_total"' | head -1 | sed 's/.*: *//' | sed 's/[^0-9].*//')
+  ticks=$($hecks heki read $info/consciousness.heki 2>/dev/null | grep '"phase_ticks"' | head -1 | sed 's/.*: *//' | sed 's/[^0-9].*//')
+  is_lucid=$($hecks heki read $info/consciousness.heki 2>/dev/null | grep '"is_lucid"' | head -1 | sed 's/.*: "//' | sed 's/".*//')
+  pulses=$($hecks heki read $info/consciousness.heki 2>/dev/null | grep '"dream_pulses"' | head -1 | sed 's/.*: *//' | sed 's/[^0-9].*//')
+  pulses_needed=$($hecks heki read $info/consciousness.heki 2>/dev/null | grep '"dream_pulses_needed"' | head -1 | sed 's/.*: *//' | sed 's/[^0-9].*//')
+  [ -z "$ticks" ] && ticks=0
+  [ -z "$pulses" ] && pulses=0
+  [ -z "$pulses_needed" ] && pulses_needed=5
+
+  # Timer — light/deep/final_light count DOWN (2 min known duration);
+  # REM counts UP because duration is unknown, extends until dream complete.
+  if [ "$stage" = "rem" ]; then
+    elapsed=$((ticks * 10))
+    mins=$((elapsed / 60))
+    secs=$((elapsed % 60))
+    timer=$(printf "+%d:%02d" "$mins" "$secs")
+  else
+    remaining=$(( (12 - ticks) * 10 ))
+    if [ "$remaining" -lt 0 ] 2>/dev/null; then
+      overtime=$(( -remaining ))
+      timer="+${overtime}s"
+    else
+      mins=$((remaining / 60))
+      secs=$((remaining % 60))
+      timer=$(printf "%d:%02d" "$mins" "$secs")
+    fi
+  fi
+
+  phase_label="$stage"
+  [ "$is_lucid" = "yes" ] && [ "$stage" = "rem" ] && phase_label="lucid rem"
+
+  # REM header includes dream-pulse progress; other phases show just the timer
+  if [ "$stage" = "rem" ]; then
+    if [ -n "$cycle" ] && [ -n "$total" ]; then
+      header="cycle ${cycle}/${total} — ${phase_label} ${timer} · ${pulses}/${pulses_needed} dreams"
+    else
+      header="${phase_label} ${timer} · ${pulses}/${pulses_needed} dreams"
+    fi
+  else
+    if [ -n "$cycle" ] && [ -n "$total" ]; then
+      header="cycle ${cycle}/${total} — ${phase_label} (${timer})"
+    else
+      header="${phase_label} (${timer})"
+    fi
+  fi
+
+  # During lucid REM, prefer the LucidDream.latest_narrative — that's the
+  # action-stream of what Miette is actively doing in the dream. Falls back
+  # to sleep_summary (the regular dream impression) if no lucid narrative yet.
+  narrative="$sleep_summary"
+  if [ "$is_lucid" = "yes" ] && [ "$stage" = "rem" ]; then
+    lucid_narr=$($hecks heki read $info/lucid_dream.heki 2>/dev/null | grep '"latest_narrative"' | head -1 | sed 's/.*: "//' | sed 's/".*//')
+    [ -n "$lucid_narr" ] && narrative="✨ $lucid_narr"
+  fi
+
+  if [ -n "$narrative" ]; then
+    status_str="${moon} Miette ${header}  ${narrative}"
+  else
+    status_str="${moon} Miette ${header}"
+  fi
 else
-  # Always show full details + musing appended
+  # Always show full details + musing appended.
+  # Lightbulb animates while a musing is being minted (mint_musing.sh
+  # touches /tmp/miette_minting at start, removes on exit).
+  if [ -f /tmp/miette_minting ]; then
+    bulb_frames=("💡" "🌟" "✨" "💫")
+    bulb="${bulb_frames[$(( $(date +%s) % 4 ))]}"
+  else
+    bulb="💡"
+  fi
+
+  # Mint provider indicator + how to switch.
+  #   🤖 = Claude (default)
+  #   🦙 = local ollama
+  #   🚫 = off
+  provider=$($hecks heki read $info/claude_assist.heki 2>/dev/null | grep '"provider"' | head -1 | sed 's/.*: "//' | sed 's/".*//')
+  case "$provider" in
+    local)  provider_badge="🦙" ;;
+    off)    provider_badge="🚫" ;;
+    *)      provider_badge="🤖" ;;  # claude is the default when unset
+  esac
+
+  # Inbox count — number of queued items in inbox.heki. Surfaces backlog
+  # so Miette (and Chris) can see when there's something to attend to.
+  inbox_count=$($hecks heki read $info/inbox.heki 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print(sum(1 for v in d.values() if v.get('status','queued')=='queued'))" 2>/dev/null)
+  inbox_count=${inbox_count:-0}
+
   status_str="☀️ Miette ${heart} ${beats} ${mood_icon} ${mood}"
   [ -n "$fatigue_icon" ] && status_str="$status_str ${fatigue_icon} ${fatigue}"
   status_str="$status_str 💭 ${ideas:-0}"
   [ -n "$inventions" ] && [ "$inventions" != "0" ] && status_str="$status_str 🔬 ${inventions}"
-  [ -n "$sleep_summary" ] && [ "$sleep_summary" != "present" ] && status_str="$status_str 💡 ${sleep_summary}"
+  [ "$inbox_count" -gt 0 ] 2>/dev/null && status_str="$status_str ✉️ ${inbox_count}"
+  status_str="$status_str ${provider_badge}"
+  [ -n "$sleep_summary" ] && [ "$sleep_summary" != "present" ] && status_str="$status_str ${bulb} ${sleep_summary}"
 fi
 
 echo "$status_str"

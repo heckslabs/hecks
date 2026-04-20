@@ -1,0 +1,80 @@
+Hecks.behaviors "Claims" do
+  vision "Behavioral tests for the Claims domain — exercises every command and query in memory"
+
+  # ── WarrantyClaim aggregate ──────────────────────────────────────────
+
+  test "FileWarrantyClaim sets claim_number + sku + lot_number + customer + complaint_description" do
+    tests "FileWarrantyClaim", on: "WarrantyClaim"
+    input  claim_number: "sample", sku: "sample", lot_number: "sample", customer: "sample", complaint_description: "sample"
+    expect claim_number: "sample", sku: "sample", lot_number: "sample", customer: "sample", complaint_description: "sample", status: "open"
+  end
+
+  test "FileWarrantyClaim cascades through policy chain" do
+    tests "FileWarrantyClaim", on: "WarrantyClaim", kind: :cascade
+    setup  "LogComplaint", complaint_number: "sample", customer: "sample", sku: "sample", lot_number: "sample", description: "sample"
+    input  claim_number: "sample", sku: "sample", lot_number: "sample", customer: "sample", complaint_description: "sample"
+    expect emits: ["WarrantyClaimFiled", "ComplaintLogged"]
+  end
+
+  test "InvestigateClaim sets investigation_notes + root_cause" do
+    tests "InvestigateClaim", on: "WarrantyClaim"
+    setup  "FileWarrantyClaim", claim_number: "sample", sku: "sample", lot_number: "sample", customer: "sample", complaint_description: "sample"
+    input  investigation_notes: "sample", root_cause: "sample"
+    expect investigation_notes: "sample", root_cause: "sample", status: "investigated"
+  end
+
+  test "ResolveClaim sets resolution" do
+    tests "ResolveClaim", on: "WarrantyClaim"
+    setup  "FileWarrantyClaim", claim_number: "sample", sku: "sample", lot_number: "sample", customer: "sample", complaint_description: "sample"
+    setup  "InvestigateClaim", investigation_notes: "sample", root_cause: "sample"
+    input  resolution: "sample"
+    expect resolution: "sample", status: "resolved"
+  end
+
+
+  # ── ReturnAuthorization aggregate ──────────────────────────────────────────
+
+  test "IssueReturnAuthorization sets rma_number + sku + lot_number + customer + return_reason_code" do
+    tests "IssueReturnAuthorization", on: "ReturnAuthorization"
+    input  rma_number: "sample", sku: "sample", lot_number: "sample", customer: "sample", return_reason_code: "sample"
+    expect rma_number: "sample", sku: "sample", lot_number: "sample", customer: "sample", return_reason_code: "sample", status: "issued"
+  end
+
+  test "ReceiveReturn sets disposition" do
+    tests "ReceiveReturn", on: "ReturnAuthorization"
+    setup  "IssueReturnAuthorization", rma_number: "sample", sku: "sample", lot_number: "sample", customer: "sample", return_reason_code: "sample"
+    input  disposition: "sample"
+    expect disposition: "sample", status: "received"
+  end
+
+  test "CloseReturnAuthorization runs" do
+    tests "CloseReturnAuthorization", on: "ReturnAuthorization"
+    setup  "IssueReturnAuthorization", rma_number: "sample", sku: "sample", lot_number: "sample", customer: "sample", return_reason_code: "sample"
+    setup  "ReceiveReturn", disposition: "sample"
+    expect status: "closed"
+  end
+
+
+  # ── CustomerComplaint aggregate ──────────────────────────────────────────
+
+  test "LogComplaint sets complaint_number + customer + sku + lot_number + description" do
+    tests "LogComplaint", on: "CustomerComplaint"
+    input  complaint_number: "sample", customer: "sample", sku: "sample", lot_number: "sample", description: "sample"
+    expect complaint_number: "sample", customer: "sample", sku: "sample", lot_number: "sample", description: "sample", status: "open"
+  end
+
+  test "InvestigateComplaint sets root_cause + capa_reference + eight_d_report" do
+    tests "InvestigateComplaint", on: "CustomerComplaint"
+    setup  "LogComplaint", complaint_number: "sample", customer: "sample", sku: "sample", lot_number: "sample", description: "sample"
+    input  root_cause: "sample", capa_reference: "sample", eight_d_report: "sample"
+    expect root_cause: "sample", capa_reference: "sample", eight_d_report: "sample", status: "investigated"
+  end
+
+  test "CloseComplaint runs" do
+    tests "CloseComplaint", on: "CustomerComplaint"
+    setup  "LogComplaint", complaint_number: "sample", customer: "sample", sku: "sample", lot_number: "sample", description: "sample"
+    setup  "InvestigateComplaint", root_cause: "sample", capa_reference: "sample", eight_d_report: "sample"
+    expect status: "closed"
+  end
+
+end

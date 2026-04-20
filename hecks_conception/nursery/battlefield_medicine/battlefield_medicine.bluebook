@@ -62,7 +62,7 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
     String :mission_type
     String :current_location
     String :status
-    reference_to(CasualtyReport) :assigned_casualty
+    reference_to(CasualtyReport, as: :assigned_casualty)
     Integer :battery_pct
     list_of(SensorReading) :sensor_log
     value_object "SensorReading" do
@@ -87,7 +87,7 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
       role "System"
       description "Assign drone to a specific casualty for evacuation or blood delivery"
       reference_to(MedDrone)
-      reference_to(CasualtyReport) :assigned_casualty
+      attribute :assigned_casualty, String
       given { status == "airborne" }
       emits "DroneAssigned"
       then_set :assigned_casualty, to: :assigned_casualty
@@ -107,8 +107,8 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
 
   aggregate "BloodDrop", "A blood product drop package — matched to casualty blood type, cold chain maintained" do
     String :drop_id
-    reference_to(CasualtyReport) :target_casualty
-    reference_to(MedDrone) :carrier_drone
+    reference_to(CasualtyReport, as: :target_casualty)
+    reference_to(MedDrone, as: :carrier_drone)
     String :blood_type
     Integer :units
     String :cold_chain_status
@@ -123,7 +123,7 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
       role "BloodBankTech"
       description "Prepare blood products matched to casualty for drone delivery"
       String :drop_id
-      reference_to(CasualtyReport) :target_casualty
+      attribute :target_casualty, String
       String :blood_type
       Integer :units
       emits "BloodDropPrepared"
@@ -138,7 +138,7 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
       role "System"
       description "Load blood package onto assigned medical drone"
       reference_to(BloodDrop)
-      reference_to(MedDrone) :carrier_drone
+      attribute :carrier_drone, String
       given { status == "prepared" }
       emits "BloodLoaded"
       then_set :carrier_drone, to: :carrier_drone
@@ -158,8 +158,8 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
 
   aggregate "EvacRoute", "A computed evacuation route — avoids active combat, optimizes for casualty urgency" do
     String :route_id
-    reference_to(CasualtyReport) :casualty
-    reference_to(FieldHospital) :destination
+    reference_to(CasualtyReport, as: :casualty)
+    reference_to(FieldHospital, as: :destination)
     String :threat_level
     Integer :distance_km
     Integer :eta_minutes
@@ -174,8 +174,8 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
       role "System"
       description "Compute optimal evacuation route avoiding active threats"
       String :route_id
-      reference_to(CasualtyReport) :casualty
-      reference_to(FieldHospital) :destination
+      attribute :casualty, String
+      attribute :destination, String
       String :threat_level
       Integer :distance_km
       Integer :eta_minutes
@@ -272,12 +272,12 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
       then_set :drones_active, to: 0
       then_set :status, to: "active"
     end
-    UpdateEntry do
+    AmendEntry do
       role "System"
       description "Update a status entry on the operational board"
       reference_to(StatusBoard)
       given { status == "active" }
-      emits "EntryUpdated"
+      emits "EntryAmended"
     end
   end
 
@@ -313,25 +313,7 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
   end
   policy "UpdateBoardOnAll" do
     on "CasualtyReported"
-    trigger "UpdateEntry"
+    trigger "AmendEntry"
   end
 
-  fixture "CasualtyReport", report_id: "CAS-001", casualty_name: "LCpl Maria Gonzalez", location_grid: "D7-42", injury_type: "blast_trauma", urgency: "critical", blood_type: "O+", status: "reported"
-  fixture "CasualtyReport", report_id: "CAS-002", casualty_name: "PFC James Sullivan", location_grid: "E9-18", injury_type: "gunshot_wound", urgency: "urgent", blood_type: "AB+", status: "reported"
-  fixture "CasualtyReport", report_id: "CAS-003", casualty_name: "SSG Ahmed Hassan", location_grid: "C5-33", injury_type: "shrapnel", urgency: "high", blood_type: "A+", status: "evacuated"
-
-  fixture "MedDrone", drone_id: "MD-001", mission_type: "evacuation", current_location: "D7-40", status: "en_route", assigned_casualty: "ref:CasualtyReport:CAS-001", battery_pct: 78
-  fixture "MedDrone", drone_id: "MD-002", mission_type: "supply_delivery", current_location: "E9-15", status: "returning", assigned_casualty: "ref:CasualtyReport:CAS-002", battery_pct: 42
-
-  fixture "BloodDrop", drop_id: "BD-047", target_casualty: "ref:CasualtyReport:CAS-001", carrier_drone: "ref:MedDrone:MD-001", blood_type: "O+", units: 2, cold_chain_status: "sealed", status: "in_transit"
-  fixture "BloodDrop", drop_id: "BD-048", target_casualty: "ref:CasualtyReport:CAS-002", carrier_drone: "ref:MedDrone:MD-002", blood_type: "AB+", units: 1, cold_chain_status: "sealed", status: "prepared"
-
-  fixture "EvacRoute", route_id: "ROUTE-001", casualty: "ref:CasualtyReport:CAS-001", destination: "ref:FieldHospital:FH-ALPHA", threat_level: "moderate", distance_km: 12, eta_minutes: 18, status: "active"
-  fixture "EvacRoute", route_id: "ROUTE-002", casualty: "ref:CasualtyReport:CAS-002", destination: "ref:FieldHospital:FH-BRAVO", threat_level: "high", distance_km: 8, eta_minutes: 12, status: "active"
-
-  fixture "FieldHospital", hospital_id: "FH-ALPHA", location_grid: "F2-50", surgical_bays: 4, available_bays: 1, status: "operational"
-  fixture "FieldHospital", hospital_id: "FH-BRAVO", location_grid: "G8-25", surgical_bays: 6, available_bays: 3, status: "operational"
-
-  fixture "StatusBoard", board_id: "OPBOARD-1", operation_name: "Desert Storm Relief", total_casualties: 15, evacuated_count: 7, drones_active: 4, status: "active"
-  fixture "StatusBoard", board_id: "OPBOARD-2", operation_name: "Mountain Rescue", total_casualties: 23, evacuated_count: 19, drones_active: 6, status: "active"
 end

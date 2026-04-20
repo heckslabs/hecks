@@ -1,0 +1,73 @@
+Hecks.behaviors "PrecisionAgriculture" do
+  vision "Behavioral tests for the PrecisionAgriculture domain — exercises every command and query in memory"
+
+  # ── WeatherStation aggregate ──────────────────────────────────────────
+
+  test "DeployStation sets station_id + latitude + longitude" do
+    tests "DeployStation", on: "WeatherStation"
+    input  station_id: "sample", latitude: 1.0, longitude: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── Forecast aggregate ──────────────────────────────────────────
+
+  test "GenerateForecast sets forecast_date" do
+    tests "GenerateForecast", on: "Forecast"
+    setup  "DeployStation", station_id: "sample", latitude: 1.0, longitude: 1.0
+    input  forecast_date: "sample"
+    expect ok: "true"
+  end
+
+  test "PublishForecast runs" do
+    tests "PublishForecast", on: "Forecast"
+    setup  "GenerateForecast", forecast_date: "sample"
+    setup  "AddPrediction", hour: "sample", temp_c: 1.0, precip_mm: 1.0, wind_kph: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── CropField aggregate ──────────────────────────────────────────
+
+  test "PlantField sets field_name + crop + acres" do
+    tests "PlantField", on: "CropField"
+    input  field_name: "sample", crop: "sample", acres: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── IrrigationPlan aggregate ──────────────────────────────────────────
+
+  test "DraftPlan sets water_gallons" do
+    tests "DraftPlan", on: "IrrigationPlan"
+    setup  "GenerateForecast", forecast_date: "sample"
+    setup  "PlantField", field_name: "sample", crop: "sample", acres: 1.0
+    input  water_gallons: 1.0
+    expect ok: "true"
+  end
+
+  test "ActivatePlan runs" do
+    tests "ActivatePlan", on: "IrrigationPlan"
+    setup  "DraftPlan", water_gallons: 1.0
+    setup  "AddZone", zone_name: "sample", gallons_per_day: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── HarvestSchedule aggregate ──────────────────────────────────────────
+
+  test "PlanHarvest sets target_date + crew_size" do
+    tests "PlanHarvest", on: "HarvestSchedule"
+    setup  "GenerateForecast", forecast_date: "sample"
+    setup  "PlantField", field_name: "sample", crop: "sample", acres: 1.0
+    input  target_date: "sample", crew_size: 1
+    expect ok: "true"
+  end
+
+  test "ExecuteHarvest runs" do
+    tests "ExecuteHarvest", on: "HarvestSchedule"
+    setup  "PlanHarvest", target_date: "sample", crew_size: 1
+    expect ok: "true"
+  end
+
+end

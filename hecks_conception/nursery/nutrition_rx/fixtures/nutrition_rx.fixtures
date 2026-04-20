@@ -1,0 +1,22 @@
+Hecks.fixtures "NutritionRx" do
+  aggregate "Patient" do
+    fixture "Carol_Williams_", name: "Carol Williams", date_of_birth: "1975-06-20", dietary_restriction: "gluten-free", status: "active"
+    fixture "David_Brown_", name: "David Brown", date_of_birth: "1982-11-08", dietary_restriction: "vegan", status: "active"
+  end
+  aggregate "Prescription" do
+    fixture "Prescription1", medication: "Metformin", dosage: "500mg", frequency: "twice daily", status: "written"
+    fixture "Prescription2", medication: "Lisinopril", dosage: "10mg", frequency: "once daily", status: "filled"
+  end
+  aggregate "MealPlan" do
+    fixture "MealPlan1", goal: "diabetes-management", daily_calories: 2000, status: "draft"
+    fixture "MealPlan2", goal: "cardiovascular-health", daily_calories: 1900, status: "approved"
+  end
+  aggregate "GroceryList" do
+    fixture "GroceryList1", status: "generated", estimated_cost: 85.50
+    fixture "GroceryList2", status: "fulfilled", estimated_cost: 92.00
+  end
+  aggregate "NutrientTarget" do
+    fixture "NutrientTarget1", nutrient: "vitamin-D", target_amount: 1000.0, unit: "IU", current_intake: 0.0, status: "tracking"
+    fixture "NutrientTarget2", nutrient: "sodium", target_amount: 2300.0, unit: "mg", current_intake: 0.0, status: "tracking"
+  end
+end

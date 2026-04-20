@@ -1,0 +1,35 @@
+Hecks.behaviors "SharedKnowledge" do
+  vision "Behavioral tests for the SharedKnowledge domain — exercises every command and query in memory"
+
+  # ── KnowledgeStore aggregate ──────────────────────────────────────────
+
+  test "RegisterStore sets store_name" do
+    tests "RegisterStore", on: "KnowledgeStore"
+    input  store_name: "sample"
+    expect store_name: "sample", record_count: 0
+  end
+
+  test "WriteToStore sets being_name" do
+    tests "WriteToStore", on: "KnowledgeStore"
+    setup  "RegisterStore", store_name: "sample"
+    input  being_name: "sample"
+    expect last_written_by: "sample"
+  end
+
+
+  # ── InnerLife aggregate ──────────────────────────────────────────
+
+  test "Feel sets being_name + organ + state" do
+    tests "Feel", on: "InnerLife"
+    input  being_name: "sample", organ: "sample", state: "sample"
+    expect being_name: "sample", organ: "sample", state: "sample"
+  end
+
+  test "ResetOnWake sets default_state" do
+    tests "ResetOnWake", on: "InnerLife"
+    setup  "Feel", being_name: "sample", organ: "sample", state: "sample"
+    input  default_state: "sample"
+    expect state: "sample"
+  end
+
+end

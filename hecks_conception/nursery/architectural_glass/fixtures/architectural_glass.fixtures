@@ -1,0 +1,18 @@
+Hecks.fixtures "ArchitecturalGlass" do
+  aggregate "GlassFormula" do
+    fixture "ClearFloat2024_", name: "ClearFloat2024", transparency: 0.92, strength_mpa: 80.5, status: "certified"
+    fixture "TintedBronze_", name: "TintedBronze", transparency: 0.68, strength_mpa: 75.2, status: "certified"
+  end
+  aggregate "BuildingProject" do
+    fixture "BuildingProject1", project_name: "SkyTower Headquarters", client: "SkyTower Inc.", floors: 45, status: "design"
+    fixture "BuildingProject2", project_name: "MidCentury Plaza", client: "Westbrook Development", floors: 28, status: "construction"
+  end
+  aggregate "BlowingSession" do
+    fixture "BlowingSession1", artisan: "Marcus Chen", furnace_temp: 1680.0, status: "cooling"
+    fixture "BlowingSession2", artisan: "Elena Rodriguez", furnace_temp: 1700.0, status: "heating"
+  end
+  aggregate "Installation" do
+    fixture "Installation1", installer: "Glass Pro Installations", status: "completed"
+    fixture "Installation2", installer: "Precision Glass Services", status: "scheduled"
+  end
+end

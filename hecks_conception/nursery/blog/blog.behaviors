@@ -1,0 +1,85 @@
+Hecks.behaviors "Blog" do
+  vision "Behavioral tests for the Blog domain — exercises every command and query in memory"
+
+  # ── Post aggregate ──────────────────────────────────────────
+
+  test "DraftPost sets title + body + author_name + tags" do
+    tests "DraftPost", on: "Post"
+    input  title: "sample", body: "sample", author_name: "sample", tags: "sample"
+    expect title: "sample", body: "sample", author_name: "sample", tags: "sample", status: "draft"
+  end
+
+  test "EditPost sets title + body + tags" do
+    tests "EditPost", on: "Post"
+    setup  "DraftPost", title: "sample", body: "sample", author_name: "sample", tags: "sample"
+    input  title: "sample", body: "sample", tags: "sample"
+    expect title: "sample", body: "sample", tags: "sample"
+  end
+
+  test "PublishPost runs" do
+    tests "PublishPost", on: "Post"
+    setup  "DraftPost", title: "sample", body: "sample", author_name: "sample", tags: "sample"
+    expect status: "published"
+  end
+
+  test "UnpublishPost runs" do
+    tests "UnpublishPost", on: "Post"
+    setup  "DraftPost", title: "sample", body: "sample", author_name: "sample", tags: "sample"
+    setup  "PublishPost"
+    expect status: "draft"
+  end
+
+  test "ArchivePost runs" do
+    tests "ArchivePost", on: "Post"
+    setup  "DraftPost", title: "sample", body: "sample", author_name: "sample", tags: "sample"
+    setup  "PublishPost"
+    expect status: "archived"
+  end
+
+
+  # ── Comment aggregate ──────────────────────────────────────────
+
+  test "LeaveComment sets post_slug + author_name + body" do
+    tests "LeaveComment", on: "Comment"
+    input  post_slug: "sample", author_name: "sample", body: "sample"
+    expect post_slug: "sample", author_name: "sample", body: "sample", status: "visible"
+  end
+
+  test "HideComment runs" do
+    tests "HideComment", on: "Comment"
+    setup  "LeaveComment", post_slug: "sample", author_name: "sample", body: "sample"
+    expect status: "hidden"
+  end
+
+  test "RestoreComment runs" do
+    tests "RestoreComment", on: "Comment"
+    setup  "LeaveComment", post_slug: "sample", author_name: "sample", body: "sample"
+    setup  "HideComment"
+    expect status: "visible"
+  end
+
+
+  # ── Author aggregate ──────────────────────────────────────────
+
+  test "RegisterAuthor sets name + bio" do
+    tests "RegisterAuthor", on: "Author"
+    input  name: "sample", bio: "sample"
+    expect name: "sample", bio: "sample", post_count: 0, status: "active"
+  end
+
+  test "DeactivateAuthor runs" do
+    tests "DeactivateAuthor", on: "Author"
+    setup  "RegisterAuthor", name: "sample", bio: "sample"
+    expect status: "inactive"
+  end
+
+
+  # ── Tag aggregate ──────────────────────────────────────────
+
+  test "DefineTag sets name" do
+    tests "DefineTag", on: "Tag"
+    input  name: "sample"
+    expect name: "sample", post_count: 0
+  end
+
+end

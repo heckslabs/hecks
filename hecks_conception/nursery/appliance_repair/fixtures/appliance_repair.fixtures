@@ -1,0 +1,22 @@
+Hecks.fixtures "ApplianceRepair" do
+  aggregate "RepairTicket" do
+    fixture "RepairTicket1", customer_name: "Jane Mitchell", address: "422 Oak Street, Portland OR 97214", appliance_type: "Washing Machine", symptom: "Won't spin, error code E5", status: "scheduled", scheduled_date: "2026-04-16"
+    fixture "RepairTicket2", customer_name: "Robert Chen", address: "1847 Maple Ave, Seattle WA 98101", appliance_type: "Refrigerator", symptom: "Ice maker leaking water", status: "scheduled", scheduled_date: "2026-04-17"
+  end
+  aggregate "Appliance" do
+    fixture "Appliance1", brand: "LG", model: "WM4000CW", serial_number: "SN20240815A123", age_years: 5, appliance_type: "Washing Machine"
+    fixture "Appliance2", brand: "Samsung", model: "RF28R7201SR", serial_number: "SN20190612B456", age_years: 7, appliance_type: "Refrigerator"
+  end
+  aggregate "Diagnostic" do
+    fixture "Diagnostic1", fault_code: "E5", root_cause: "Failed motor capacitor", test_performed: "Continuity test on motor circuits", tech_notes: "Capacitor reading 12uF, should be 25uF"
+    fixture "Diagnostic2", fault_code: "IF02", root_cause: "Water inlet valve stuck open", test_performed: "Visual inspection and valve actuation test", tech_notes: "Valve solenoid energized but plunger frozen"
+  end
+  aggregate "PartsOrder" do
+    fixture "PartsOrder1", part_number: "6501EL1003A", part_name: "Motor Run Capacitor", vendor: "SupplyHouse.com", cost: 34.99, status: "ordered"
+    fixture "PartsOrder2", part_number: "DA6200127A", part_name: "Water Inlet Valve", vendor: "ApplianceParts.net", cost: 89.50, status: "ordered"
+  end
+  aggregate "RepairWarranty" do
+    fixture "RepairWarranty1", duration_days: 365, coverage_type: "Parts and Labor", status: "active"
+    fixture "RepairWarranty2", duration_days: 90, coverage_type: "Parts Only", status: "active"
+  end
+end

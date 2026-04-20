@@ -1,0 +1,86 @@
+#!/bin/sh
+# Miette Governance — pre-commit enforcement
+#
+# Tracked hook source. Install with: bin/install-hooks
+#
+# Gates in order:
+#   1. Parity suite (Ruby/Rust parser IR agreement) — block on drift
+#   2. Lifecycle validator — block on any unreachable transitions
+#   3. Conceiver parity test — block if either conceiver drifts
+#   4. Miette enforce (hecks-life governance) — advisory, never blocks
+#
+# Exit 0 = commit allowed. Exit 1 = commit blocked.
+# Set PARITY_SKIP=1 to bypass gate 1 (an antibody failure).
+# Set LIFECYCLE_SKIP=1 to bypass gate 2 (also an antibody failure).
+
+REPO="$(cd "$(dirname "$0")/../.." && pwd)"
+HECKS_LIFE="$REPO/hecks_life/target/release/hecks-life"
+CONCEPTION_DIR="$REPO/hecks_conception"
+PARITY_TEST="$REPO/spec/parity/parity_test.rb"
+
+# ── Gate 1: parity ────────────────────────────────────────────────
+# Ruby DSL parser and Rust hecks-life parser must agree on every
+# fixture not listed in spec/parity/known_drift.txt.
+if [ -z "$PARITY_SKIP" ] && [ -f "$PARITY_TEST" ]; then
+    if ! (cd "$REPO" && ruby -Ilib "$PARITY_TEST" >/tmp/parity.out 2>&1); then
+        echo "COMMIT BLOCKED: parity suite failed (unexpected drift)."
+        echo ""
+        tail -40 /tmp/parity.out
+        echo ""
+        echo "Either fix the drift, or — if it is a real semantic gap —"
+        echo "add the fixture path to spec/parity/known_drift.txt."
+        echo ""
+        echo "Re-run: ruby -Ilib spec/parity/parity_test.rb"
+        exit 1
+    fi
+fi
+
+# ── Gate 2: lifecycle validator ───────────────────────────────────
+# Every bluebook's lifecycle must be internally consistent —
+# transitions can't have unreachable from_states. Catches the
+# "default = 'active', transition from: 'none'" bug class.
+if [ -z "$LIFECYCLE_SKIP" ] && [ -x "$HECKS_LIFE" ]; then
+    BAD=""
+    for f in $(find "$CONCEPTION_DIR" -name "*.bluebook" \
+                  ! -name "*_behavioral_tests.bluebook" 2>/dev/null); do
+        if ! "$HECKS_LIFE" check-lifecycle "$f" >/dev/null 2>&1; then
+            BAD="$BAD\n  $f"
+        fi
+    done
+    if [ -n "$BAD" ]; then
+        echo "COMMIT BLOCKED: lifecycle validator found unreachable transitions."
+        echo ""
+        echo "Bluebooks with errors:"
+        printf "$BAD\n"
+        echo ""
+        echo "Run for details: hecks-life check-lifecycle <file>"
+        echo ""
+        echo "The transition's from: value is unreachable — either fix the"
+        echo "lifecycle default, or change/remove the from: requirement."
+        exit 1
+    fi
+fi
+
+# ── Gate 3: conceiver parity test ─────────────────────────────────
+# Bluebook conceiver and behaviors conceiver must keep the same
+# shape: same files, same Conceiver trait, same surface.
+if [ -d "$REPO/hecks_life" ]; then
+    if ! (cd "$REPO/hecks_life" \
+            && cargo test --release --test conceiver_parity_test \
+                 >/tmp/conceiver_parity.out 2>&1); then
+        echo "COMMIT BLOCKED: conceiver parity test failed (drift between conceivers)."
+        echo ""
+        tail -30 /tmp/conceiver_parity.out
+        echo ""
+        echo "Re-run: (cd hecks_life && cargo test --release --test conceiver_parity_test)"
+        exit 1
+    fi
+fi
+
+# ── Gate 4: Miette enforce ─────────────────────────────────────────
+# Governance advisory. Never blocks (yet).
+if [ -x "$HECKS_LIFE" ] && "$HECKS_LIFE" enforce "$CONCEPTION_DIR" 2>/dev/null; then
+    exit 0
+fi
+
+exit 0

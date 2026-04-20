@@ -1,0 +1,84 @@
+Hecks.behaviors "DigitalForensics" do
+  vision "Behavioral tests for the DigitalForensics domain — exercises every command and query in memory"
+
+  # ── EvidenceItem aggregate ──────────────────────────────────────────
+
+  test "CollectEvidence sets evidence_id + case_number + source_device + file_type + size_mb + hash_value" do
+    tests "CollectEvidence", on: "EvidenceItem"
+    input  evidence_id: "sample", case_number: "sample", source_device: "sample", file_type: "sample", size_mb: 1.0, hash_value: "sample"
+    expect evidence_id: "sample", case_number: "sample", source_device: "sample", file_type: "sample", size_mb: 1.0, hash_value: "sample", status: "collected"
+  end
+
+  test "CollectEvidence cascades through policy chain" do
+    tests "CollectEvidence", on: "EvidenceItem", kind: :cascade
+    setup  "StartChain", chain_id: "sample", evidence_id: "sample"
+    input  evidence_id: "sample", case_number: "sample", source_device: "sample", file_type: "sample", size_mb: 1.0, hash_value: "sample"
+    expect emits: ["EvidenceCollected", "ChainStarted"]
+  end
+
+  test "VerifyIntegrity runs" do
+    tests "VerifyIntegrity", on: "EvidenceItem"
+    setup  "CollectEvidence", evidence_id: "sample", case_number: "sample", source_device: "sample", file_type: "sample", size_mb: 1.0, hash_value: "sample"
+    expect status: "verified"
+  end
+
+  test "VerifyIntegrity cascades through policy chain" do
+    tests "VerifyIntegrity", on: "EvidenceItem", kind: :cascade
+    setup  "AnalyzeContent", analysis_id: "sample", evidence_id: "sample", analysis_type: "sample"
+    setup  "CollectEvidence", evidence_id: "sample", case_number: "sample", source_device: "sample", file_type: "sample", size_mb: 1.0, hash_value: "sample"
+    expect emits: ["IntegrityVerified", "ContentAnalysisStarted"]
+  end
+
+
+  # ── ChainOfCustody aggregate ──────────────────────────────────────────
+
+  test "StartChain sets chain_id + evidence_id" do
+    tests "StartChain", on: "ChainOfCustody"
+    input  chain_id: "sample", evidence_id: "sample"
+    expect chain_id: "sample", evidence_id: "sample", status: "active"
+  end
+
+  test "TransferCustody runs" do
+    tests "TransferCustody", on: "ChainOfCustody"
+    setup  "StartChain", chain_id: "sample", evidence_id: "sample"
+    expect ok: "true"
+  end
+
+  test "SealChain runs" do
+    tests "SealChain", on: "ChainOfCustody"
+    setup  "StartChain", chain_id: "sample", evidence_id: "sample"
+    expect status: "sealed"
+  end
+
+
+  # ── ContentAnalysis aggregate ──────────────────────────────────────────
+
+  test "AnalyzeContent sets analysis_id + evidence_id + analysis_type" do
+    tests "AnalyzeContent", on: "ContentAnalysis"
+    input  analysis_id: "sample", evidence_id: "sample", analysis_type: "sample"
+    expect analysis_id: "sample", evidence_id: "sample", analysis_type: "sample", status: "running"
+  end
+
+  test "FinalizeAnalysis sets findings + confidence" do
+    tests "FinalizeAnalysis", on: "ContentAnalysis"
+    setup  "AnalyzeContent", analysis_id: "sample", evidence_id: "sample", analysis_type: "sample"
+    input  findings: "sample", confidence: 1.0
+    expect findings: "sample", confidence: 1.0, status: "finalized"
+  end
+
+
+  # ── ForensicReport aggregate ──────────────────────────────────────────
+
+  test "DraftReport sets report_id + case_number + examiner + summary" do
+    tests "DraftReport", on: "ForensicReport"
+    input  report_id: "sample", case_number: "sample", examiner: "sample", summary: "sample"
+    expect report_id: "sample", case_number: "sample", examiner: "sample", summary: "sample", status: "draft"
+  end
+
+  test "SubmitReport runs" do
+    tests "SubmitReport", on: "ForensicReport"
+    setup  "DraftReport", report_id: "sample", case_number: "sample", examiner: "sample", summary: "sample"
+    expect status: "submitted"
+  end
+
+end

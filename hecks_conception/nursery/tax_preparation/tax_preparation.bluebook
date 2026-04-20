@@ -36,12 +36,12 @@ Hecks.bluebook "TaxPreparation" do
       then_set :status, to: "active"
     end
 
-    UpdateFilingStatus do
+    AmendFilingStatus do
       role "TaxPreparer"
       description "Change the client's filing status for the current tax year"
       reference_to(TaxClient)
       String :filing_status
-      emits "FilingStatusUpdated"
+      emits "FilingStatusAmended"
       then_set :filing_status, to: :filing_status
     end
 
@@ -270,18 +270,4 @@ Hecks.bluebook "TaxPreparation" do
     trigger "StartReturn"
   end
 
-  fixture "TaxClient", first_name: "Robert", last_name: "Anderson", ssn_last_four: "4567", filing_status: "married_filing_jointly", phone: "555-0101", email: "robert.anderson@example.com", status: "active"
-  fixture "TaxClient", first_name: "Jennifer", last_name: "Lopez", ssn_last_four: "8901", filing_status: "single", phone: "555-0102", email: "jennifer.lopez@example.com", status: "active"
-
-  fixture "TaxReturn", tax_year: "2025", return_type: "1040", gross_income: 125000.0, adjusted_gross_income: 115000.0, taxable_income: 95000.0, tax_owed: 18500.0, refund_amount: 0.0, status: "finalized"
-  fixture "TaxReturn", tax_year: "2025", return_type: "1040-SR", gross_income: 75000.0, adjusted_gross_income: 72000.0, taxable_income: 58000.0, tax_owed: 6200.0, refund_amount: 2100.0, status: "finalized"
-
-  fixture "TaxDocument", document_type: "W-2", issuer: "Acme Corp", tax_year: "2025", received_date: "2026-02-15", status: "verified"
-  fixture "TaxDocument", document_type: "1099-INT", issuer: "First National Bank", tax_year: "2025", received_date: "2026-03-01", status: "verified"
-
-  fixture "Deduction", deduction_type: "mortgage_interest", category: "itemized", amount: 12500.0, documentation_status: "substantiated"
-  fixture "Deduction", deduction_type: "charitable_contributions", category: "itemized", amount: 3200.0, documentation_status: "substantiated"
-
-  fixture "ElectronicFiling", confirmation_number: "EF-2026-001234", filed_date: "2026-04-12", accepted_date: "2026-04-12", status: "accepted"
-  fixture "ElectronicFiling", confirmation_number: "EF-2026-001235", filed_date: "2026-04-13", accepted_date: "2026-04-13", status: "accepted"
 end

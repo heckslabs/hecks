@@ -1,0 +1,180 @@
+Hecks.behaviors "Pathology" do
+  vision "Behavioral tests for the Pathology domain — exercises every command and query in memory"
+
+  # ── Specimen aggregate ──────────────────────────────────────────
+
+  test "ReceiveSpecimen sets accession_number + patient_name + specimen_type + collection_date + collected_by" do
+    tests "ReceiveSpecimen", on: "Specimen"
+    input  accession_number: "sample", patient_name: "sample", specimen_type: "sample", collection_date: "sample", collected_by: "sample"
+    expect accession_number: "sample", patient_name: "sample", specimen_type: "sample", collection_date: "sample", collected_by: "sample", status: "received"
+  end
+
+  test "ReceiveSpecimen cascades through policy chain" do
+    tests "ReceiveSpecimen", on: "Specimen", kind: :cascade
+    setup  "OrderTest", test_name: "sample", test_code: "sample", methodology: "sample", specimen_accession: "sample", ordered_by: "sample"
+    setup  "RunQualityControl", instrument_name: "sample", control_material: "sample", expected_value: "sample", observed_value: "sample", run_date: "sample"
+    input  accession_number: "sample", patient_name: "sample", specimen_type: "sample", collection_date: "sample", collected_by: "sample"
+    expect emits: ["SpecimenAccessioned", "SpecimenProcessed", "TestOrdered", "QualityControlRun"]
+  end
+
+  test "ProcessSpecimen runs" do
+    tests "ProcessSpecimen", on: "Specimen"
+    setup  "ReceiveSpecimen", accession_number: "sample", patient_name: "sample", specimen_type: "sample", collection_date: "sample", collected_by: "sample"
+    expect status: "processed"
+  end
+
+  test "ProcessSpecimen cascades through policy chain" do
+    tests "ProcessSpecimen", on: "Specimen", kind: :cascade
+    setup  "OrderTest", test_name: "sample", test_code: "sample", methodology: "sample", specimen_accession: "sample", ordered_by: "sample"
+    setup  "RunQualityControl", instrument_name: "sample", control_material: "sample", expected_value: "sample", observed_value: "sample", run_date: "sample"
+    setup  "ReceiveSpecimen", accession_number: "sample", patient_name: "sample", specimen_type: "sample", collection_date: "sample", collected_by: "sample"
+    expect emits: ["SpecimenProcessed", "TestOrdered", "QualityControlRun"]
+  end
+
+  test "RejectSpecimen runs" do
+    tests "RejectSpecimen", on: "Specimen"
+    setup  "ReceiveSpecimen", accession_number: "sample", patient_name: "sample", specimen_type: "sample", collection_date: "sample", collected_by: "sample"
+    expect status: "rejected"
+  end
+
+
+  # ── LabTest aggregate ──────────────────────────────────────────
+
+  test "OrderTest sets test_name + test_code + methodology + specimen_accession + ordered_by" do
+    tests "OrderTest", on: "LabTest"
+    setup  "ReceiveSpecimen", accession_number: "sample", patient_name: "sample", specimen_type: "sample", collection_date: "sample", collected_by: "sample"
+    input  test_name: "sample", test_code: "sample", methodology: "sample", specimen_accession: "sample", ordered_by: "sample"
+    expect test_name: "sample", test_code: "sample", methodology: "sample", specimen_accession: "sample", ordered_by: "sample", status: "ordered"
+  end
+
+  test "OrderTest cascades through policy chain" do
+    tests "OrderTest", on: "LabTest", kind: :cascade
+    setup  "ReceiveSpecimen", accession_number: "sample", patient_name: "sample", specimen_type: "sample", collection_date: "sample", collected_by: "sample"
+    setup  "RunQualityControl", instrument_name: "sample", control_material: "sample", expected_value: "sample", observed_value: "sample", run_date: "sample"
+    input  test_name: "sample", test_code: "sample", methodology: "sample", specimen_accession: "sample", ordered_by: "sample"
+    expect emits: ["TestOrdered", "QualityControlRun"]
+  end
+
+  test "RunTest runs" do
+    tests "RunTest", on: "LabTest"
+    setup  "OrderTest", test_name: "sample", test_code: "sample", methodology: "sample", specimen_accession: "sample", ordered_by: "sample"
+    expect status: "completed"
+  end
+
+  test "RunTest cascades through policy chain" do
+    tests "RunTest", on: "LabTest", kind: :cascade
+    setup  "RecordResult", test_name: "sample", result_value: "sample", unit: "sample", reference_range: "sample", interpretation: "sample", resulted_by: "sample", result_date: "sample"
+    setup  "DraftPathologyReport", patient_name: "sample", specimen_accession: "sample", gross_description: "sample", microscopic_findings: "sample", diagnosis: "sample", pathologist_name: "sample", report_date: "sample"
+    setup  "ReceiveSpecimen", accession_number: "sample", patient_name: "sample", specimen_type: "sample", collection_date: "sample", collected_by: "sample"
+    setup  "OrderTest", test_name: "sample", test_code: "sample", methodology: "sample", specimen_accession: "sample", ordered_by: "sample"
+    expect emits: ["TestRun", "ResultRecorded", "ResultVerified", "PathologyReportDrafted", "PathologyReportSignedOut"]
+  end
+
+  test "RepeatTest runs" do
+    tests "RepeatTest", on: "LabTest"
+    setup  "OrderTest", test_name: "sample", test_code: "sample", methodology: "sample", specimen_accession: "sample", ordered_by: "sample"
+    expect status: "ordered"
+  end
+
+
+  # ── TestResult aggregate ──────────────────────────────────────────
+
+  test "RecordResult sets test_name + result_value + unit + reference_range + interpretation + resulted_by + result_date" do
+    tests "RecordResult", on: "TestResult"
+    setup  "OrderTest", test_name: "sample", test_code: "sample", methodology: "sample", specimen_accession: "sample", ordered_by: "sample"
+    input  test_name: "sample", result_value: "sample", unit: "sample", reference_range: "sample", interpretation: "sample", resulted_by: "sample", result_date: "sample"
+    expect test_name: "sample", result_value: "sample", unit: "sample", reference_range: "sample", interpretation: "sample", resulted_by: "sample", result_date: "sample", status: "preliminary"
+  end
+
+  test "RecordResult cascades through policy chain" do
+    tests "RecordResult", on: "TestResult", kind: :cascade
+    setup  "OrderTest", test_name: "sample", test_code: "sample", methodology: "sample", specimen_accession: "sample", ordered_by: "sample"
+    setup  "DraftPathologyReport", patient_name: "sample", specimen_accession: "sample", gross_description: "sample", microscopic_findings: "sample", diagnosis: "sample", pathologist_name: "sample", report_date: "sample"
+    setup  "ReceiveSpecimen", accession_number: "sample", patient_name: "sample", specimen_type: "sample", collection_date: "sample", collected_by: "sample"
+    input  test_name: "sample", result_value: "sample", unit: "sample", reference_range: "sample", interpretation: "sample", resulted_by: "sample", result_date: "sample"
+    expect emits: ["ResultRecorded", "ResultVerified", "PathologyReportDrafted", "PathologyReportSignedOut"]
+  end
+
+  test "VerifyResult runs" do
+    tests "VerifyResult", on: "TestResult"
+    setup  "RecordResult", test_name: "sample", result_value: "sample", unit: "sample", reference_range: "sample", interpretation: "sample", resulted_by: "sample", result_date: "sample"
+    expect status: "verified"
+  end
+
+  test "VerifyResult cascades through policy chain" do
+    tests "VerifyResult", on: "TestResult", kind: :cascade
+    setup  "DraftPathologyReport", patient_name: "sample", specimen_accession: "sample", gross_description: "sample", microscopic_findings: "sample", diagnosis: "sample", pathologist_name: "sample", report_date: "sample"
+    setup  "ReceiveSpecimen", accession_number: "sample", patient_name: "sample", specimen_type: "sample", collection_date: "sample", collected_by: "sample"
+    setup  "RecordResult", test_name: "sample", result_value: "sample", unit: "sample", reference_range: "sample", interpretation: "sample", resulted_by: "sample", result_date: "sample"
+    expect emits: ["ResultVerified", "PathologyReportDrafted", "PathologyReportSignedOut"]
+  end
+
+  test "AmendResult sets result_value + interpretation" do
+    tests "AmendResult", on: "TestResult"
+    setup  "RecordResult", test_name: "sample", result_value: "sample", unit: "sample", reference_range: "sample", interpretation: "sample", resulted_by: "sample", result_date: "sample"
+    input  result_value: "sample", interpretation: "sample"
+    expect result_value: "sample", interpretation: "sample"
+  end
+
+
+  # ── QualityControl aggregate ──────────────────────────────────────────
+
+  test "RunQualityControl sets instrument_name + control_material + expected_value + observed_value + run_date" do
+    tests "RunQualityControl", on: "QualityControl"
+    input  instrument_name: "sample", control_material: "sample", expected_value: "sample", observed_value: "sample", run_date: "sample"
+    expect instrument_name: "sample", control_material: "sample", expected_value: "sample", observed_value: "sample", run_date: "sample", status: "pending_review"
+  end
+
+  test "ApproveQualityControl runs" do
+    tests "ApproveQualityControl", on: "QualityControl"
+    setup  "RunQualityControl", instrument_name: "sample", control_material: "sample", expected_value: "sample", observed_value: "sample", run_date: "sample"
+    expect status: "approved"
+  end
+
+  test "ApproveQualityControl cascades through policy chain" do
+    tests "ApproveQualityControl", on: "QualityControl", kind: :cascade
+    setup  "OrderTest", test_name: "sample", test_code: "sample", methodology: "sample", specimen_accession: "sample", ordered_by: "sample"
+    setup  "RecordResult", test_name: "sample", result_value: "sample", unit: "sample", reference_range: "sample", interpretation: "sample", resulted_by: "sample", result_date: "sample"
+    setup  "DraftPathologyReport", patient_name: "sample", specimen_accession: "sample", gross_description: "sample", microscopic_findings: "sample", diagnosis: "sample", pathologist_name: "sample", report_date: "sample"
+    setup  "ReceiveSpecimen", accession_number: "sample", patient_name: "sample", specimen_type: "sample", collection_date: "sample", collected_by: "sample"
+    setup  "RunQualityControl", instrument_name: "sample", control_material: "sample", expected_value: "sample", observed_value: "sample", run_date: "sample"
+    expect emits: ["QualityControlApproved", "TestRun", "ResultRecorded", "ResultVerified", "PathologyReportDrafted", "PathologyReportSignedOut"]
+  end
+
+  test "FailQualityControl runs" do
+    tests "FailQualityControl", on: "QualityControl"
+    setup  "RunQualityControl", instrument_name: "sample", control_material: "sample", expected_value: "sample", observed_value: "sample", run_date: "sample"
+    expect status: "failed"
+  end
+
+  test "FailQualityControl cascades through policy chain" do
+    tests "FailQualityControl", on: "QualityControl", kind: :cascade
+    setup  "RunQualityControl", instrument_name: "sample", control_material: "sample", expected_value: "sample", observed_value: "sample", run_date: "sample"
+    setup  "OrderTest", test_name: "sample", test_code: "sample", methodology: "sample", specimen_accession: "sample", ordered_by: "sample"
+    expect emits: ["QualityControlFailed", "TestRepeated"]
+  end
+
+
+  # ── PathologyReport aggregate ──────────────────────────────────────────
+
+  test "DraftPathologyReport sets patient_name + specimen_accession + gross_description + microscopic_findings + diagnosis + pathologist_name + report_date" do
+    tests "DraftPathologyReport", on: "PathologyReport"
+    setup  "ReceiveSpecimen", accession_number: "sample", patient_name: "sample", specimen_type: "sample", collection_date: "sample", collected_by: "sample"
+    input  patient_name: "sample", specimen_accession: "sample", gross_description: "sample", microscopic_findings: "sample", diagnosis: "sample", pathologist_name: "sample", report_date: "sample"
+    expect patient_name: "sample", specimen_accession: "sample", gross_description: "sample", microscopic_findings: "sample", diagnosis: "sample", pathologist_name: "sample", report_date: "sample", status: "draft"
+  end
+
+  test "DraftPathologyReport cascades through policy chain" do
+    tests "DraftPathologyReport", on: "PathologyReport", kind: :cascade
+    setup  "ReceiveSpecimen", accession_number: "sample", patient_name: "sample", specimen_type: "sample", collection_date: "sample", collected_by: "sample"
+    input  patient_name: "sample", specimen_accession: "sample", gross_description: "sample", microscopic_findings: "sample", diagnosis: "sample", pathologist_name: "sample", report_date: "sample"
+    expect emits: ["PathologyReportDrafted", "PathologyReportSignedOut"]
+  end
+
+  test "SignOutReport runs" do
+    tests "SignOutReport", on: "PathologyReport"
+    setup  "DraftPathologyReport", patient_name: "sample", specimen_accession: "sample", gross_description: "sample", microscopic_findings: "sample", diagnosis: "sample", pathologist_name: "sample", report_date: "sample"
+    expect status: "final"
+  end
+
+end

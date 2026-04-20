@@ -30,7 +30,6 @@ Hecks.bluebook "PublicLibrary" do
       description "Assign classification and shelving location"
       reference_to(Book)
       String :dewey_decimal
-      given { status == "acquired" }
       emits "BookCataloged"
       then_set :status, to: "cataloged"
     end
@@ -38,7 +37,6 @@ Hecks.bluebook "PublicLibrary" do
     ShelveBook do
       description "Place a cataloged book on its assigned shelf"
       reference_to(Book)
-      given { status == "cataloged" }
       emits "BookShelved"
       then_set :status, to: "available"
     end
@@ -80,7 +78,6 @@ Hecks.bluebook "PublicLibrary" do
     SuspendPatron do
       description "Suspend borrowing privileges for overdue fines"
       reference_to(Patron)
-      given { status == "active" }
       emits "PatronSuspended"
       then_set :status, to: "suspended"
     end
@@ -88,7 +85,6 @@ Hecks.bluebook "PublicLibrary" do
     ReinstatePatron do
       description "Restore privileges after fines are paid"
       reference_to(Patron)
-      given { status == "suspended" }
       emits "PatronReinstated"
       then_set :status, to: "active"
     end
@@ -166,7 +162,6 @@ Hecks.bluebook "PublicLibrary" do
     FulfillHold do
       description "Notify patron that their held book is ready for pickup"
       reference_to(Hold)
-      given { status == "pending" }
       emits "HoldFulfilled"
       then_set :status, to: "ready"
     end
@@ -222,11 +217,6 @@ Hecks.bluebook "PublicLibrary" do
     end
   end
 
-  policy "CatalogOnAcquire" do
-    on "BookAcquired"
-    trigger "CatalogBook"
-  end
-
   policy "ShelveOnCatalog" do
     on "BookCataloged"
     trigger "ShelveBook"
@@ -247,28 +237,9 @@ Hecks.bluebook "PublicLibrary" do
     trigger "AssessFine"
   end
 
-  policy "SuspendOnFineAssessed" do
-    on "FineAssessed"
-    trigger "SuspendPatron"
-  end
-
   policy "ReinstateOnFinePaid" do
     on "FinePaid"
     trigger "ReinstatePatron"
   end
 
-  fixture "Book", isbn: "978-0-06-112008-4", title: "To Kill a Mockingbird", author: "Harper Lee", genre: "Classic Fiction", copies_available: 3, status: "available"
-  fixture "Book", isbn: "978-0-7432-7356-5", title: "1984", author: "George Orwell", genre: "Dystopian", copies_available: 5, status: "available"
-
-  fixture "Patron", library_card: "PL-2026-0001", name: "Sarah Mitchell", email: "sarah.mitchell@email.com", membership_type: "standard", status: "active", items_checked_out: 2
-  fixture "Patron", library_card: "PL-2026-0002", name: "James Chen", email: "james.chen@email.com", membership_type: "premium", status: "active", items_checked_out: 0
-
-  fixture "Loan", loan_id: "LOAN-2026-0001", checkout_date: "2026-04-01", due_date: "2026-04-15", return_date: nil, status: "active"
-  fixture "Loan", loan_id: "LOAN-2026-0002", checkout_date: "2026-03-28", due_date: "2026-04-11", return_date: "2026-04-09", status: "returned"
-
-  fixture "Hold", hold_id: "HOLD-2026-0001", placed_date: "2026-04-10", queue_position: 1, status: "pending"
-  fixture "Hold", hold_id: "HOLD-2026-0002", placed_date: "2026-04-05", queue_position: 2, status: "ready"
-
-  fixture "Fine", fine_id: "FINE-2026-0001", amount_cents: 2500, reason: "Overdue book", status: "outstanding"
-  fixture "Fine", fine_id: "FINE-2026-0002", amount_cents: 1000, reason: "Overdue book", status: "paid"
 end

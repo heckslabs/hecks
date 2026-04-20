@@ -2,78 +2,78 @@ Hecks.bluebook "Persist", version: "2026.04.11.1" do
   category "framework"
   aggregate "DatabaseConnection", definition: "Connects to databases via Sequel, supports MySQL/Postgres/SQLite and Rails auto-detection" do
 
-    Connect do
-      String :url
+    command "Connect" do
+      attribute :url, String
     end
 
-    ConnectByType do
-      String :database
-      String :host
+    command "ConnectByType" do
+      attribute :database, String
+      attribute :host, String
     end
 
-    ConnectFromRails do
+    command "ConnectFromRails" do
     end
   end
 
   aggregate "SqlAdapterGenerator", definition: "Generates Sequel-based repository adapter classes from aggregate IR" do
 
-    Generate do
-      String :aggregate_name
-      String :domain_module
+    command "Generate" do
+      attribute :aggregate_name, String
+      attribute :domain_module, String
     end
   end
 
   aggregate "SqlBuilder", definition: "Mixin with Sequel-based generation helpers for insert, update, build, and delete methods" do
 
-    InsertLines do
+    command "InsertLines" do
     end
 
-    UpdateLines do
+    command "UpdateLines" do
     end
 
-    BuildLines do
+    command "BuildLines" do
     end
 
-    DeleteLines do
+    command "DeleteLines" do
     end
   end
 
   aggregate "SqlMigrationGenerator", definition: "Generates CREATE TABLE SQL statements from a domain model" do
 
-    Generate do
-      String :domain_name
+    command "Generate" do
+      attribute :domain_name, String
     end
   end
 
   aggregate "SqlStrategy", definition: "Generates SQL migration files from domain changes with ALTER TABLE and CREATE TABLE" do
 
-    Generate do
-      String :changes
+    command "Generate" do
+      attribute :changes, String
     end
   end
 
   aggregate "SqlHelpers", definition: "Shared helpers for SQL type mapping, naming conventions, and literal quoting" do
 
-    SqlType do
-      String :attribute_type
+    command "SqlType" do
+      attribute :attribute_type, String
     end
 
-    TableName do
-      String :aggregate_name
+    command "TableName" do
+      attribute :aggregate_name, String
     end
   end
 
   aggregate "SqlBoot", definition: "Handles SQL adapter lifecycle: connect, generate adapters, create tables at boot" do
 
-    Boot do
-      String :domain_name
+    command "Boot" do
+      attribute :domain_name, String
     end
   end
 
   aggregate "SqlSetup", definition: "Generates and evals SQL adapter classes for each aggregate during Hecks.configure" do
 
-    Setup do
-      String :domain_name
+    command "Setup" do
+      attribute :domain_name, String
     end
   end
 end

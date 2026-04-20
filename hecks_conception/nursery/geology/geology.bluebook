@@ -1,190 +1,88 @@
-Hecks.bluebook "Geology" do
-  vision "Manage rock samples, geological formations, drill cores, and mineral assays"
+Hecks.bluebook "Geology", version: "2026.04.11.1" do
+  vision "science of earth materials"
+  category "meta"
 
-  aggregate "RockSample" do
-    description "A physical specimen collected from a geological site"
-    String :sample_id
-    String :rock_type
-    String :collection_date
-    Float :weight_kg
-    reference_to Formation
-
-    value_object "GpsLocation" do
-      Float :latitude
-      Float :longitude
-      Float :elevation_m
+  aggregate "Aggregate1", "TODO" do
+    attribute :field_1, String
+    attribute :field_2, String
+    attribute :field_3, String
+    attribute :field_4, String
+    attribute :field_5, String
+    attribute :field_6, String
+    attribute :field_7, String
+    attribute :field_8, String
+    command "DoThing1" do
+      role "User"
+      description "TODO"
+      emits "Thing1Done"
     end
-
-    command "CollectSample" do
-      description "Register a new rock sample from the field"
-      emits "SampleCollected"
-      String :sample_id
-      String :rock_type
-      Float :weight_kg
-      reference_to Formation
+    command "DoThing2" do
+      role "User"
+      description "TODO"
+      emits "Thing2Done"
     end
-
-    command "AnalyzeMineralogy" do
-      description "Run thin-section analysis on the sample"
-      emits "MineralogyAnalyzed"
-      reference_to RockSample
-      given "sample must be logged in inventory"
+    command "DoThing3" do
+      role "User"
+      description "TODO"
+      emits "Thing3Done"
     end
-
-    command "ArchiveSample" do
-      description "Move sample to long-term storage"
-      emits "SampleArchived"
-      reference_to RockSample
+    lifecycle :status, default: "initial" do
+      # TODO: add transitions
     end
   end
 
-  aggregate "Formation" do
-    description "A mappable geological unit with distinct lithology"
-    String :name
-    String :period
-    String :lithology
-    Float :thickness_m
-
-    command "MapFormation" do
-      description "Define a new geological formation on the field map"
-      emits "FormationMapped"
-      String :name
-      String :period
-      String :lithology
+  aggregate "Aggregate2", "TODO" do
+    attribute :field_1, String
+    attribute :field_2, String
+    attribute :field_3, String
+    attribute :field_4, String
+    attribute :field_5, String
+    attribute :field_6, String
+    attribute :field_7, String
+    attribute :field_8, String
+    command "DoThing1" do
+      role "User"
+      description "TODO"
+      emits "Thing1Done"
     end
-
-    command "ReviseStratigraphy" do
-      description "Update the stratigraphic position of a formation"
-      emits "StratigraphyRevised"
-      reference_to Formation
-      String :new_period
-    end
-
-    command "MergeFormations" do
-      description "Combine two formations that are actually one unit"
-      emits "FormationsMerged"
-      reference_to Formation
-      String :absorbed_formation_name
-      given "formations must share lithology"
+    command "DoThing2" do
+      role "User"
+      description "TODO"
+      emits "Thing2Done"
     end
   end
 
-  aggregate "DrillCore" do
-    description "A cylindrical sample extracted by rotary drilling"
-    String :borehole_id
-    Float :depth_from_m
-    Float :depth_to_m
-    String :recovery_percent
-    reference_to Formation
-
-    command "LogCore" do
-      description "Record a new drill core section"
-      emits "CoreLogged"
-      String :borehole_id
-      Float :depth_from_m
-      Float :depth_to_m
+  aggregate "Aggregate3", "TODO" do
+    attribute :field_1, String
+    attribute :field_2, String
+    attribute :field_3, String
+    command "DoThing1" do
+      role "User"
+      description "TODO"
+      emits "Thing1Done"
     end
-
-    command "SplitCore" do
-      description "Cut the core longitudinally for analysis"
-      emits "CoreSplit"
-      reference_to DrillCore
-      given "core must be intact"
-    end
-
-    command "PhotographCore" do
-      description "Capture high-resolution imagery of the core"
-      emits "CorePhotographed"
-      reference_to DrillCore
+    command "DoThing2" do
+      role "User"
+      description "TODO"
+      emits "Thing2Done"
     end
   end
 
-  aggregate "MineralAssay" do
-    description "Quantitative chemical analysis of a rock sample"
-    String :method
-    String :element
-    Float :concentration_ppm
-    reference_to RockSample
-
-    command "RunAssay" do
-      description "Perform geochemical analysis on a sample"
-      emits "AssayCompleted"
-      reference_to RockSample
-      String :method
-      String :element
-    end
-
-    command "ValidateAssay" do
-      description "Cross-check assay results with standards"
-      emits "AssayValidated"
-      reference_to MineralAssay
-      given "assay must have raw results"
+  aggregate "Aggregate4", "TODO" do
+    attribute :field_1, String
+    attribute :field_2, String
+    attribute :field_3, String
+    attribute :field_4, String
+    command "DoThing1" do
+      role "User"
+      description "TODO"
+      emits "Thing1Done"
     end
   end
 
-  lifecycle "FieldStudy" do
-    state "surveying"
-    state "sampling"
-    state "analyzing"
-    state "correlating"
-    state "mapping"
-    state "published"
-    transition from: "surveying", to: "sampling", on: "FormationMapped"
-    transition from: "sampling", to: "analyzing", on: "SampleCollected"
-    transition from: "analyzing", to: "correlating", on: "AssayCompleted"
-    transition from: "correlating", to: "mapping", on: "AssayValidated"
-    transition from: "mapping", to: "published", on: "StratigraphyRevised"
-  end
-
-  policy "CollectAfterMapping" do
-    on "FormationMapped"
-    trigger "CollectSample"
-  end
-
-  policy "AssayAfterCollection" do
-    on "SampleCollected"
-    trigger "RunAssay"
-  end
-
-  policy "ValidateAfterAssay" do
-    on "AssayCompleted"
-    trigger "ValidateAssay"
-  end
-
-  policy "AnalyzeMineralogyAfterValidation" do
-    on "AssayValidated"
-    trigger "AnalyzeMineralogy"
-  end
-
-  policy "ArchiveAfterMineralogy" do
-    on "MineralogyAnalyzed"
-    trigger "ArchiveSample"
-  end
-
-  policy "PhotographAfterSplit" do
-    on "CoreSplit"
-    trigger "PhotographCore"
-  end
-
-  policy "MapFormationOnSampleCollected" do
-    on "SampleCollected"
-    trigger "MapFormation"
-  end
-
-  policy "LogCoreOnFormationMapped" do
-    on "FormationMapped"
-    trigger "LogCore"
-  end
-
-  fixture "RockSample", sample_id: "RS-2026-0401", rock_type: "basalt", collection_date: "2026-04-01", weight_kg: 2.4
-  fixture "RockSample", sample_id: "RS-2026-0402", rock_type: "limestone", collection_date: "2026-04-02", weight_kg: 1.8
-
-  fixture "Formation", name: "Mt. Shasta Volcanics", period: "Pleistocene", lithology: "andesite, basalt", thickness_m: 1200.0
-  fixture "Formation", name: "Klamath Lake Sediments", period: "Pliocene", lithology: "clay, silt, sand", thickness_m: 600.0
-
-  fixture "DrillCore", borehole_id: "BH-2026-MT-001", depth_from_m: 0.0, depth_to_m: 150.0, recovery_percent: "95%"
-  fixture "DrillCore", borehole_id: "BH-2026-MT-002", depth_from_m: 150.0, depth_to_m: 300.0, recovery_percent: "92%"
-
-  fixture "MineralAssay", method: "ICP-MS", element: "copper", concentration_ppm: 45.0
-  fixture "MineralAssay", method: "XRF", element: "zinc", concentration_ppm: 120.0
+  # policy 1 — TODO: wire events to commands
+  # policy 2 — TODO: wire events to commands
+  # policy 3 — TODO: wire events to commands
+  # policy 4 — TODO: wire events to commands
+  # policy 5 — TODO: wire events to commands
 end

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# TerminalBreathe — subtle background gradient while Winter thinks
+# TerminalBreathe — subtle background gradient while Miette thinks
 # Cycles through deep navy shades using OSC 11 escape sequences
 # Usage: terminal-breathe start | stop
 
-PIDFILE="/tmp/winter-breathe.pid"
+PIDFILE="/tmp/miette-breathe.pid"
 
 start_breathing() {
   stop_breathing 2>/dev/null

@@ -237,6 +237,7 @@ end"#);
         let domain = Domain {
             name: "T".into(),
             category: None,
+            vision: None,
             aggregates: vec![
                 crate::ir::Aggregate {
                     name: "Pizza".into(),
@@ -255,6 +256,7 @@ end"#);
                     value_objects: vec![],
                     references: vec![],
                     lifecycle: None,
+                    queries: vec![],
                 },
                 crate::ir::Aggregate {
                     name: "Pizza".into(),
@@ -273,6 +275,7 @@ end"#);
                     value_objects: vec![],
                     references: vec![],
                     lifecycle: None,
+                    queries: vec![],
                 },
             ],
             policies: vec![],
@@ -287,6 +290,7 @@ end"#);
         let domain = Domain {
             name: "T".into(),
             category: None,
+            vision: None,
             aggregates: vec![crate::ir::Aggregate {
                 name: "Orphan".into(),
                 description: None,
@@ -295,6 +299,7 @@ end"#);
                 value_objects: vec![],
                 references: vec![],
                 lifecycle: None,
+                queries: vec![],
             }],
             policies: vec![],
             fixtures: vec![],
@@ -308,12 +313,15 @@ end"#);
         let domain = Domain {
             name: "T".into(),
             category: None,
+            vision: None,
             aggregates: vec![crate::ir::Aggregate {
                 name: "Pizza".into(),
                 description: None,
                 attributes: vec![],
+                // First-word noun: validator's noun-suffix detector flags
+                // the leading word ("Configuration"), not the trailing one.
                 commands: vec![crate::ir::Command {
-                    name: "PizzaStuff".into(),
+                    name: "ConfigurationPizza".into(),
                     description: None,
                     role: None,
                     attributes: vec![],
@@ -325,12 +333,13 @@ end"#);
                 value_objects: vec![],
                 references: vec![],
                 lifecycle: None,
+                queries: vec![],
             }],
             policies: vec![],
             fixtures: vec![],
         };
         let errors = validate(&domain);
-        assert!(errors.iter().any(|e| e.contains("doesn't start with a verb")));
+        assert!(errors.iter().any(|e| e.contains("commands should start with a verb")));
     }
 
     #[test]
@@ -353,6 +362,7 @@ end"#);
         let domain = Domain {
             name: "T".into(),
             category: None,
+            vision: None,
             aggregates: vec![crate::ir::Aggregate {
                 name: "Order".into(),
                 description: None,
@@ -370,6 +380,7 @@ end"#);
                 value_objects: vec![],
                 references: vec![],
                 lifecycle: None,
+                queries: vec![],
             }],
             policies: vec![crate::ir::Policy {
                 name: "NotifyOnOrder".into(),

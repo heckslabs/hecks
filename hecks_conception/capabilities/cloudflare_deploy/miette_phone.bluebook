@@ -1,0 +1,212 @@
+Hecks.bluebook "MiettePhone", version: "2026.04.13.1" do
+  vision "Talk to Miette from your phone — chat UI on Cloudflare Pages, inference proxied to Summer, password-gated"
+  category "capability"
+
+  # ============================================================
+  # MIETTE PHONE
+  # ============================================================
+  #
+  # A mobile chat interface to Miette, deployed on the edge:
+  #
+  #   Pages  — responsive chat UI, works on any phone browser
+  #   Worker — authenticates, proxies to Summer, streams responses
+  #   KV     — session tokens + conversation history
+  #
+  # The password is simple and intentional — this is a family tool.
+  # One person uses it. No accounts, no OAuth, no email.
+  # Type the pin, talk to Miette.
+
+  # === Authentication — pin gate ===
+
+  aggregate "Gate", "Simple password gate — type the pin, get a session" do
+    attribute :pin_hash, String
+    attribute :session_token, String
+    attribute :expires_at, String
+    attribute :locked, TrueClass
+
+    command "Authenticate" do
+      description "Check the pin, issue a session token stored in KV"
+      attribute :pin, String
+      # planner-reasonable: Authenticate is callable only when the gate
+      # is locked (default). Successful auth flips locked → false; that
+      # transition itself encodes the "pin matched" check by being the
+      # only path to unlock.
+      given { locked == true }
+      emits "SessionGranted"
+      then_set :locked, to: false
+    end
+
+    command "RevokeSession" do
+      description "Kill an active session — logout from the phone"
+      reference_to(Gate)
+      emits "SessionRevoked"
+      then_set :locked, to: true
+    end
+
+    lifecycle :locked, default: true do
+      transition "Authenticate"   => false, from: true
+      transition "RevokeSession"  => true,  from: false
+    end
+  end
+
+  # === Conversation — chat history ===
+
+  aggregate "Conversation", "A chat thread between the user and Miette" do
+    attribute :turns, list_of(Turn)
+    attribute :started_at, String
+    attribute :last_active, String
+    attribute :turn_count, Integer
+    # session_active flips true when the gate is unlocked; both
+    # StartConversation and SendMessage gate on it. Default false so
+    # tests must walk through ActivateSession first (the planner picks
+    # ActivateSession as the producer).
+    attribute :session_active, Boolean, default: false
+
+    value_object "Turn" do
+      attribute :role, String
+      attribute :content, String
+      attribute :timestamp, String
+    end
+
+    command "ActivateSession" do
+      description "Mark the conversation's session as active — fired after Authenticate"
+      reference_to(Conversation)
+      emits "SessionActivated"
+      then_set :session_active, to: true
+    end
+
+    command "StartConversation" do
+      description "Begin a new chat thread"
+      reference_to(Conversation)
+      emits "ConversationStarted"
+    end
+
+    command "SendMessage" do
+      description "User sends a message — routed to Summer for inference"
+      reference_to(Conversation)
+      attribute :content, String
+      given { session_active == true }
+      emits "MessageSent"
+    end
+
+    command "ReceiveReply" do
+      description "Summer's response arrives — appended to the thread"
+      reference_to(Conversation)
+      attribute :content, String
+      attribute :latency_ms, Integer
+      emits "ReplyReceived"
+    end
+  end
+
+  # === Inference Proxy — bridges the edge to Summer ===
+
+  aggregate "InferenceProxy", "Worker-side proxy that calls Summer's serve.py" do
+    attribute :summer_origin, String
+    attribute :status, String
+    attribute :timeout_ms, Integer
+
+    command "ConfigureProxy" do
+      description "Set the Summer endpoint — local tunnel or cloud URL"
+      attribute :summer_origin, String
+      attribute :timeout_ms, Integer
+      emits "ProxyConfigured"
+      then_set :summer_origin, to: :summer_origin
+      then_set :timeout_ms, to: :timeout_ms
+    end
+
+    command "RelayMessage" do
+      description "Forward user message to Summer /conceive, stream response back"
+      reference_to(Conversation)
+      attribute :content, String
+      emits "MessageRelayed"
+    end
+
+    command "CheckHealth" do
+      description "Ping Summer /health — verify the model is up"
+      emits "HealthChecked"
+    end
+  end
+
+  # === Phone UI — the chat screen ===
+
+  aggregate "ChatScreen", "Responsive mobile-first chat interface on Pages" do
+    attribute :theme, String
+    attribute :dark_mode, TrueClass
+    attribute :streaming, TrueClass
+
+    command "RenderChat" do
+      description "Build the chat HTML — message bubbles, input bar, send button"
+      reference_to(Conversation)
+      emits "ChatRendered"
+    end
+
+    command "StreamResponse" do
+      description "Show tokens as they arrive via SSE — feels alive"
+      reference_to(Conversation)
+      emits "StreamStarted"
+    end
+
+    command "ToggleTheme" do
+      description "Switch between light and dark mode"
+      emits "ThemeToggled"
+    end
+  end
+
+  # ============================================================
+  # DEPLOYMENT — edge-native, no server needed
+  # ============================================================
+  #
+  #   Worker  — handles /api/auth, /api/chat, /api/health
+  #   Pages   — serves the chat UI (static HTML + JS)
+  #   KV      — stores sessions (TTL 24h) and conversation history
+  #   Tunnel  — cloudflared tunnel to Summer on the laptop
+  #             (or Summer runs on Modal/Fly when laptop is off)
+  #
+  #   Phone → Pages → Worker → Tunnel → Summer → response
+  #                                                  ↓
+  #                            SSE stream ← ← ← ← ←
+
+  # ============================================================
+  # POLICIES
+  # ============================================================
+
+  policy "StartChatOnAuth" do
+    on "SessionGranted"
+    trigger "StartConversation"
+  end
+
+  policy "RelayOnSend" do
+    on "MessageSent"
+    trigger "RelayMessage"
+  end
+
+  policy "ReplyOnRelay" do
+    on "MessageRelayed"
+    trigger "ReceiveReply"
+  end
+
+  policy "RenderOnReply" do
+    on "ReplyReceived"
+    trigger "RenderChat"
+  end
+
+  policy "StreamOnSend" do
+    on "MessageSent"
+    trigger "StreamResponse"
+  end
+
+  # ============================================================
+  # GLOSSARY
+  # ============================================================
+
+  glossary do
+    define "gate", as: "Simple pin-based auth — no accounts, no OAuth"
+    define "turn", as: "One user message + one Miette reply"
+    define "tunnel", as: "cloudflared tunnel bridging edge to laptop"
+    define "proxy", as: "Worker that forwards chat to Summer's HTTP API"
+    define "stream", as: "Server-sent events for token-by-token display"
+    prefer "pin", not: ["password", "passcode", "code"]
+    prefer "gate", not: ["login", "auth wall", "sign in"]
+    prefer "turn", not: ["message pair", "exchange"]
+  end
+end

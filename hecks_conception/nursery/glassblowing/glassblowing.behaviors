@@ -1,0 +1,175 @@
+Hecks.behaviors "Glassblowing" do
+  vision "Behavioral tests for the Glassblowing domain — exercises every command and query in memory"
+
+  # ── GlassPiece aggregate ──────────────────────────────────────────
+
+  test "GatherGlass sets name + form + technique" do
+    tests "GatherGlass", on: "GlassPiece"
+    input  name: "sample", form: "sample", technique: "sample"
+    expect status: "gathered"
+  end
+
+  test "GatherGlass cascades through policy chain" do
+    tests "GatherGlass", on: "GlassPiece", kind: :cascade
+    setup  "LoadAnnealer", hold_temp_f: 1, ramp_rate_per_hour: 1, total_hours: 1
+    setup  "CurateExhibition", title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
+    setup  "StartCycle"
+    input  name: "sample", form: "sample", technique: "sample"
+    expect emits: ["GlassGathered", "PieceBlown", "TransferredToAnnealer", "AnnealerLoaded", "CycleStarted", "CycleCompleted", "ExhibitionCurated", "ExhibitionOpened"]
+  end
+
+  test "BlowPiece runs" do
+    tests "BlowPiece", on: "GlassPiece"
+    setup  "GatherGlass", name: "sample", form: "sample", technique: "sample"
+    expect status: "blown"
+  end
+
+  test "BlowPiece cascades through policy chain" do
+    tests "BlowPiece", on: "GlassPiece", kind: :cascade
+    setup  "GatherGlass", name: "sample", form: "sample", technique: "sample"
+    setup  "LoadAnnealer", hold_temp_f: 1, ramp_rate_per_hour: 1, total_hours: 1
+    setup  "CurateExhibition", title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
+    setup  "StartCycle"
+    expect emits: ["PieceBlown", "TransferredToAnnealer", "AnnealerLoaded", "CycleStarted", "CycleCompleted", "ExhibitionCurated", "ExhibitionOpened"]
+  end
+
+  test "TransferToAnnealer runs" do
+    tests "TransferToAnnealer", on: "GlassPiece"
+    setup  "GatherGlass", name: "sample", form: "sample", technique: "sample"
+    setup  "BlowPiece"
+    expect status: "annealing"
+  end
+
+  test "TransferToAnnealer cascades through policy chain" do
+    tests "TransferToAnnealer", on: "GlassPiece", kind: :cascade
+    setup  "GatherGlass", name: "sample", form: "sample", technique: "sample"
+    setup  "LoadAnnealer", hold_temp_f: 1, ramp_rate_per_hour: 1, total_hours: 1
+    setup  "CurateExhibition", title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
+    setup  "StartCycle"
+    setup  "BlowPiece"
+    expect emits: ["TransferredToAnnealer", "AnnealerLoaded", "CycleStarted", "CycleCompleted", "ExhibitionCurated", "ExhibitionOpened"]
+  end
+
+
+  # ── Furnace aggregate ──────────────────────────────────────────
+
+  test "LightFurnace sets name + fuel_type + capacity_lbs + target_temperature" do
+    tests "LightFurnace", on: "Furnace"
+    input  name: "sample", fuel_type: "sample", capacity_lbs: 1, target_temperature: 1
+    expect status: "heating"
+  end
+
+  test "ReachWorkingTemp runs" do
+    tests "ReachWorkingTemp", on: "Furnace"
+    setup  "LightFurnace", name: "sample", fuel_type: "sample", capacity_lbs: 1, target_temperature: 1
+    expect status: "ready"
+  end
+
+  test "ReachWorkingTemp cascades through policy chain" do
+    tests "ReachWorkingTemp", on: "Furnace", kind: :cascade
+    setup  "GatherGlass", name: "sample", form: "sample", technique: "sample"
+    setup  "LoadAnnealer", hold_temp_f: 1, ramp_rate_per_hour: 1, total_hours: 1
+    setup  "CurateExhibition", title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
+    setup  "BlowPiece"
+    setup  "StartCycle"
+    setup  "LightFurnace", name: "sample", fuel_type: "sample", capacity_lbs: 1, target_temperature: 1
+    expect emits: ["WorkingTempReached", "GlassGathered", "PieceBlown", "TransferredToAnnealer", "AnnealerLoaded", "CycleStarted", "CycleCompleted", "ExhibitionCurated", "ExhibitionOpened"]
+  end
+
+  test "ShutDownFurnace runs" do
+    tests "ShutDownFurnace", on: "Furnace"
+    setup  "LightFurnace", name: "sample", fuel_type: "sample", capacity_lbs: 1, target_temperature: 1
+    expect status: "cooling"
+  end
+
+
+  # ── ColorBar aggregate ──────────────────────────────────────────
+
+  test "StockColor sets color_name + color_type + manufacturer + quantity_lbs + working_temp_f" do
+    tests "StockColor", on: "ColorBar"
+    input  color_name: "sample", color_type: "sample", manufacturer: "sample", quantity_lbs: 1.0, working_temp_f: 1
+    expect ok: "true"
+  end
+
+  test "ConsumeColor sets amount_used" do
+    tests "ConsumeColor", on: "ColorBar"
+    setup  "StockColor", color_name: "sample", color_type: "sample", manufacturer: "sample", quantity_lbs: 1.0, working_temp_f: 1
+    input  amount_used: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── AnnealingCycle aggregate ──────────────────────────────────────────
+
+  test "LoadAnnealer sets hold_temp_f + ramp_rate_per_hour + total_hours" do
+    tests "LoadAnnealer", on: "AnnealingCycle"
+    setup  "GatherGlass", name: "sample", form: "sample", technique: "sample"
+    input  hold_temp_f: 1, ramp_rate_per_hour: 1, total_hours: 1
+    expect status: "loading"
+  end
+
+  test "LoadAnnealer cascades through policy chain" do
+    tests "LoadAnnealer", on: "AnnealingCycle", kind: :cascade
+    setup  "GatherGlass", name: "sample", form: "sample", technique: "sample"
+    setup  "CurateExhibition", title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
+    input  hold_temp_f: 1, ramp_rate_per_hour: 1, total_hours: 1
+    expect emits: ["AnnealerLoaded", "CycleStarted", "CycleCompleted", "ExhibitionCurated", "ExhibitionOpened"]
+  end
+
+  test "StartCycle runs" do
+    tests "StartCycle", on: "AnnealingCycle"
+    setup  "LoadAnnealer", hold_temp_f: 1, ramp_rate_per_hour: 1, total_hours: 1
+    expect status: "annealing"
+  end
+
+  test "StartCycle cascades through policy chain" do
+    tests "StartCycle", on: "AnnealingCycle", kind: :cascade
+    setup  "LoadAnnealer", hold_temp_f: 1, ramp_rate_per_hour: 1, total_hours: 1
+    setup  "CurateExhibition", title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
+    expect emits: ["CycleStarted", "CycleCompleted", "ExhibitionCurated", "ExhibitionOpened"]
+  end
+
+  test "CompleteCycle runs" do
+    tests "CompleteCycle", on: "AnnealingCycle"
+    setup  "LoadAnnealer", hold_temp_f: 1, ramp_rate_per_hour: 1, total_hours: 1
+    setup  "StartCycle"
+    expect status: "completed"
+  end
+
+  test "CompleteCycle cascades through policy chain" do
+    tests "CompleteCycle", on: "AnnealingCycle", kind: :cascade
+    setup  "LoadAnnealer", hold_temp_f: 1, ramp_rate_per_hour: 1, total_hours: 1
+    setup  "CurateExhibition", title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
+    setup  "StartCycle"
+    expect emits: ["CycleCompleted", "ExhibitionCurated", "ExhibitionOpened"]
+  end
+
+
+  # ── GlassExhibition aggregate ──────────────────────────────────────────
+
+  test "CurateExhibition sets title + venue + opening_date + piece_count" do
+    tests "CurateExhibition", on: "GlassExhibition"
+    input  title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
+    expect status: "planning"
+  end
+
+  test "CurateExhibition cascades through policy chain" do
+    tests "CurateExhibition", on: "GlassExhibition", kind: :cascade
+    input  title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
+    expect emits: ["ExhibitionCurated", "ExhibitionOpened"]
+  end
+
+  test "OpenExhibition runs" do
+    tests "OpenExhibition", on: "GlassExhibition"
+    setup  "CurateExhibition", title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
+    expect status: "open"
+  end
+
+  test "CloseExhibition runs" do
+    tests "CloseExhibition", on: "GlassExhibition"
+    setup  "CurateExhibition", title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
+    setup  "OpenExhibition"
+    expect status: "closed"
+  end
+
+end

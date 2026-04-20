@@ -1,0 +1,48 @@
+Hecks.behaviors "Projection" do
+  vision "Behavioral tests for the Projection domain — exercises every command and query in memory"
+
+  # ── Target aggregate ──────────────────────────────────────────
+
+  test "RegisterTarget sets name + language + output_path" do
+    tests "RegisterTarget", on: "Target"
+    input  name: "sample", language: "sample", output_path: "sample"
+    expect name: "sample", language: "sample", output_path: "sample"
+  end
+
+
+  # ── ProjectedScript aggregate ──────────────────────────────────────────
+
+  test "RegisterProjection sets domain_name + aggregate_name + target + script_path" do
+    tests "RegisterProjection", on: "ProjectedScript"
+    input  domain_name: "sample", aggregate_name: "sample", target: "sample", script_path: "sample"
+    expect domain_name: "sample", aggregate_name: "sample", target: "sample", script_path: "sample", projects_from: "sample", stale: "no"
+  end
+
+  test "MarkStale runs" do
+    tests "MarkStale", on: "ProjectedScript"
+    setup  "RegisterProjection", domain_name: "sample", aggregate_name: "sample", target: "sample", script_path: "sample"
+    expect stale: "yes"
+  end
+
+  test "MarkStale cascades through policy chain" do
+    tests "MarkStale", on: "ProjectedScript", kind: :cascade
+    setup  "RegisterProjection", domain_name: "sample", aggregate_name: "sample", target: "sample", script_path: "sample"
+    expect emits: ["ProjectionStale", "ParityChecked"]
+  end
+
+  test "MarkFresh runs" do
+    tests "MarkFresh", on: "ProjectedScript"
+    setup  "RegisterProjection", domain_name: "sample", aggregate_name: "sample", target: "sample", script_path: "sample"
+    expect stale: "no"
+  end
+
+
+  # ── Parity aggregate ──────────────────────────────────────────
+
+  test "CheckParity sets domain_name + targets_checked + all_match" do
+    tests "CheckParity", on: "Parity"
+    input  domain_name: "sample", targets_checked: 1, all_match: "sample"
+    expect domain_name: "sample", targets_checked: 1, all_match: "sample"
+  end
+
+end

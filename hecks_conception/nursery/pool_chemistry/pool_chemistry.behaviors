@@ -1,0 +1,108 @@
+Hecks.behaviors "PoolChemistry" do
+  vision "Behavioral tests for the PoolChemistry domain — exercises every command and query in memory"
+
+  # ── WaterTest aggregate ──────────────────────────────────────────
+
+  test "RecordWaterTest sets test_id + pool_name + ph + free_chlorine_ppm + total_alkalinity_ppm + temperature_c + timestamp" do
+    tests "RecordWaterTest", on: "WaterTest"
+    input  test_id: "sample", pool_name: "sample", ph: 1.0, free_chlorine_ppm: 1.0, total_alkalinity_ppm: 1.0, temperature_c: 1.0, timestamp: "sample"
+    expect test_id: "sample", pool_name: "sample", ph: 1.0, free_chlorine_ppm: 1.0, total_alkalinity_ppm: 1.0, temperature_c: 1.0, timestamp: "sample", status: "recorded"
+  end
+
+  test "RecordWaterTest cascades through policy chain" do
+    tests "RecordWaterTest", on: "WaterTest", kind: :cascade
+    input  test_id: "sample", pool_name: "sample", ph: 1.0, free_chlorine_ppm: 1.0, total_alkalinity_ppm: 1.0, temperature_c: 1.0, timestamp: "sample"
+    expect emits: ["WaterTestRecorded", "ChemistryAnalyzed"]
+  end
+
+  test "AnalyzeChemistry runs" do
+    tests "AnalyzeChemistry", on: "WaterTest"
+    setup  "RecordWaterTest", test_id: "sample", pool_name: "sample", ph: 1.0, free_chlorine_ppm: 1.0, total_alkalinity_ppm: 1.0, temperature_c: 1.0, timestamp: "sample"
+    expect status: "analyzed"
+  end
+
+
+  # ── ChemicalReaction aggregate ──────────────────────────────────────────
+
+  test "DefineReaction sets reaction_name + reagent_a + reagent_b + product + equilibrium_constant + rate_constant" do
+    tests "DefineReaction", on: "ChemicalReaction"
+    input  reaction_name: "sample", reagent_a: "sample", reagent_b: "sample", product: "sample", equilibrium_constant: 1.0, rate_constant: 1.0
+    expect reaction_name: "sample", reagent_a: "sample", reagent_b: "sample", product: "sample", equilibrium_constant: 1.0, rate_constant: 1.0, status: "defined"
+  end
+
+  test "DefineReaction cascades through policy chain" do
+    tests "DefineReaction", on: "ChemicalReaction", kind: :cascade
+    input  reaction_name: "sample", reagent_a: "sample", reagent_b: "sample", product: "sample", equilibrium_constant: 1.0, rate_constant: 1.0
+    expect emits: ["ReactionDefined", "EquilibriumCalculated"]
+  end
+
+  test "CalculateEquilibrium runs" do
+    tests "CalculateEquilibrium", on: "ChemicalReaction"
+    setup  "DefineReaction", reaction_name: "sample", reagent_a: "sample", reagent_b: "sample", product: "sample", equilibrium_constant: 1.0, rate_constant: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── DosingPlan aggregate ──────────────────────────────────────────
+
+  test "PrescribeDose sets pool_name + chemical_name + current_level + target_level + dose_amount_ml + dosing_method" do
+    tests "PrescribeDose", on: "DosingPlan"
+    input  pool_name: "sample", chemical_name: "sample", current_level: 1.0, target_level: 1.0, dose_amount_ml: 1.0, dosing_method: "sample"
+    expect pool_name: "sample", chemical_name: "sample", current_level: 1.0, target_level: 1.0, dose_amount_ml: 1.0, dosing_method: "sample", status: "created"
+  end
+
+  test "PrescribeDose cascades through policy chain" do
+    tests "PrescribeDose", on: "DosingPlan", kind: :cascade
+    input  pool_name: "sample", chemical_name: "sample", current_level: 1.0, target_level: 1.0, dose_amount_ml: 1.0, dosing_method: "sample"
+    expect emits: ["DosingPlanCreated", "DosingExecuted", "DosingVerified"]
+  end
+
+  test "ExecuteDosing runs" do
+    tests "ExecuteDosing", on: "DosingPlan"
+    setup  "PrescribeDose", pool_name: "sample", chemical_name: "sample", current_level: 1.0, target_level: 1.0, dose_amount_ml: 1.0, dosing_method: "sample"
+    expect status: "executed"
+  end
+
+  test "ExecuteDosing cascades through policy chain" do
+    tests "ExecuteDosing", on: "DosingPlan", kind: :cascade
+    setup  "PrescribeDose", pool_name: "sample", chemical_name: "sample", current_level: 1.0, target_level: 1.0, dose_amount_ml: 1.0, dosing_method: "sample"
+    expect emits: ["DosingExecuted", "DosingVerified"]
+  end
+
+  test "VerifyDosing runs" do
+    tests "VerifyDosing", on: "DosingPlan"
+    setup  "PrescribeDose", pool_name: "sample", chemical_name: "sample", current_level: 1.0, target_level: 1.0, dose_amount_ml: 1.0, dosing_method: "sample"
+    setup  "ExecuteDosing"
+    expect status: "verified"
+  end
+
+
+  # ── AlgaeIncident aggregate ──────────────────────────────────────────
+
+  test "ReportAlgae sets pool_name + algae_type + severity + cause" do
+    tests "ReportAlgae", on: "AlgaeIncident"
+    input  pool_name: "sample", algae_type: "sample", severity: "sample", cause: "sample"
+    expect pool_name: "sample", algae_type: "sample", severity: "sample", cause: "sample", status: "reported"
+  end
+
+  test "ReportAlgae cascades through policy chain" do
+    tests "ReportAlgae", on: "AlgaeIncident", kind: :cascade
+    input  pool_name: "sample", algae_type: "sample", severity: "sample", cause: "sample"
+    expect emits: ["AlgaeReported", "AlgaeTreated"]
+  end
+
+  test "TreatAlgae sets treatment_applied" do
+    tests "TreatAlgae", on: "AlgaeIncident"
+    setup  "ReportAlgae", pool_name: "sample", algae_type: "sample", severity: "sample", cause: "sample"
+    input  treatment_applied: "sample"
+    expect treatment_applied: "sample", status: "treated"
+  end
+
+  test "ClearAlgae runs" do
+    tests "ClearAlgae", on: "AlgaeIncident"
+    setup  "ReportAlgae", pool_name: "sample", algae_type: "sample", severity: "sample", cause: "sample"
+    setup  "TreatAlgae", treatment_applied: "sample"
+    expect status: "cleared"
+  end
+
+end

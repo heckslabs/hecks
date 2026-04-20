@@ -1,0 +1,373 @@
+Hecks.behaviors "Cosmology" do
+  vision "Behavioral tests for the Cosmology domain — exercises every command and query in memory"
+
+  # ── Universe aggregate ──────────────────────────────────────────
+
+  test "MeasureAge sets name + age + radius" do
+    tests "MeasureAge", on: "Universe"
+    input  name: "sample", age: 1.0, radius: 1.0
+    expect name: "sample", age: 1.0, radius: 1.0
+  end
+
+  test "DetermineGeometry sets curvature + geometry" do
+    tests "DetermineGeometry", on: "Universe"
+    setup  "MeasureAge", name: "sample", age: 1.0, radius: 1.0
+    input  curvature: 1.0, geometry: "sample"
+    expect curvature: 1.0, geometry: "sample"
+  end
+
+  test "CalculateExpansionRate sets expansion_rate" do
+    tests "CalculateExpansionRate", on: "Universe"
+    setup  "MeasureAge", name: "sample", age: 1.0, radius: 1.0
+    input  expansion_rate: 1.0
+    expect expansion_rate: 1.0
+  end
+
+  test "EstimateMass sets total_mass" do
+    tests "EstimateMass", on: "Universe"
+    setup  "MeasureAge", name: "sample", age: 1.0, radius: 1.0
+    input  total_mass: 1.0
+    expect total_mass: 1.0
+  end
+
+
+  # ── Galaxy aggregate ──────────────────────────────────────────
+
+  test "ClassifyGalaxy sets name + morphology + distance" do
+    tests "ClassifyGalaxy", on: "Galaxy"
+    input  name: "sample", morphology: "sample", distance: 1.0
+    expect name: "sample", morphology: "sample", distance: 1.0, status: "observed"
+  end
+
+  test "MeasureRedshift sets redshift" do
+    tests "MeasureRedshift", on: "Galaxy"
+    setup  "ClassifyGalaxy", name: "sample", morphology: "sample", distance: 1.0
+    input  redshift: 1.0
+    expect redshift: 1.0
+  end
+
+  test "MapRotationCurve sets rotation_velocity" do
+    tests "MapRotationCurve", on: "Galaxy"
+    setup  "ClassifyGalaxy", name: "sample", morphology: "sample", distance: 1.0
+    input  rotation_velocity: 1.0
+    expect ok: "true"
+  end
+
+  test "EstimateGalaxyMass sets mass" do
+    tests "EstimateGalaxyMass", on: "Galaxy"
+    setup  "ClassifyGalaxy", name: "sample", morphology: "sample", distance: 1.0
+    input  mass: 1.0
+    expect mass: 1.0
+  end
+
+  test "DetectMerger sets companion_name" do
+    tests "DetectMerger", on: "Galaxy"
+    setup  "ClassifyGalaxy", name: "sample", morphology: "sample", distance: 1.0
+    input  companion_name: "sample"
+    expect status: "merging"
+  end
+
+
+  # ── Star aggregate ──────────────────────────────────────────
+
+  test "FormStar sets name + mass + temperature" do
+    tests "FormStar", on: "Star"
+    input  name: "sample", mass: 1.0, temperature: 1.0
+    expect name: "sample", mass: 1.0, temperature: 1.0, fuel_remaining: 1.0, status: "protostar"
+  end
+
+  test "IgniteFusion sets luminosity + spectral_class" do
+    tests "IgniteFusion", on: "Star"
+    setup  "FormStar", name: "sample", mass: 1.0, temperature: 1.0
+    input  luminosity: 1.0, spectral_class: "sample"
+    expect luminosity: 1.0, spectral_class: "sample", status: "main_sequence"
+  end
+
+  test "EvolveStar runs" do
+    tests "EvolveStar", on: "Star"
+    setup  "FormStar", name: "sample", mass: 1.0, temperature: 1.0
+    setup  "IgniteFusion", luminosity: 1.0, spectral_class: "sample"
+    expect status: "giant"
+  end
+
+  test "ExhaustFuel runs" do
+    tests "ExhaustFuel", on: "Star"
+    setup  "FormStar", name: "sample", mass: 1.0, temperature: 1.0
+    setup  "IgniteFusion", luminosity: 1.0, spectral_class: "sample"
+    setup  "EvolveStar"
+    expect fuel_remaining: 0.0, status: "exhausted"
+  end
+
+  test "ExhaustFuel cascades through policy chain" do
+    tests "ExhaustFuel", on: "Star", kind: :cascade
+    setup  "FormStar", name: "sample", mass: 1.0, temperature: 1.0
+    setup  "IgniteFusion", luminosity: 1.0, spectral_class: "sample"
+    setup  "EvolveStar"
+    expect emits: ["FuelExhausted", "StarCollapsed"]
+  end
+
+  test "CollapseStar runs" do
+    tests "CollapseStar", on: "Star"
+    setup  "FormStar", name: "sample", mass: 1.0, temperature: 1.0
+    setup  "IgniteFusion", luminosity: 1.0, spectral_class: "sample"
+    setup  "EvolveStar"
+    setup  "ExhaustFuel"
+    expect status: "collapsed"
+  end
+
+  test "GoSupernova runs" do
+    tests "GoSupernova", on: "Star"
+    setup  "FormStar", name: "sample", mass: 1.0, temperature: 1.0
+    setup  "IgniteFusion", luminosity: 1.0, spectral_class: "sample"
+    setup  "EvolveStar"
+    setup  "ExhaustFuel"
+    setup  "CollapseStar"
+    expect status: "remnant"
+  end
+
+
+  # ── BlackHole aggregate ──────────────────────────────────────────
+
+  test "FormBlackHole sets name + mass + spin + charge" do
+    tests "FormBlackHole", on: "BlackHole"
+    input  name: "sample", mass: 1.0, spin: 1.0, charge: 1.0
+    expect name: "sample", mass: 1.0, spin: 1.0, charge: 1.0, status: "active"
+  end
+
+  test "CalculateSchwarzschildRadius sets schwarzschild_radius" do
+    tests "CalculateSchwarzschildRadius", on: "BlackHole"
+    setup  "FormBlackHole", name: "sample", mass: 1.0, spin: 1.0, charge: 1.0
+    input  schwarzschild_radius: 1.0
+    expect schwarzschild_radius: 1.0
+  end
+
+  test "AccreteMatter sets accreted_mass" do
+    tests "AccreteMatter", on: "BlackHole"
+    setup  "FormBlackHole", name: "sample", mass: 1.0, spin: 1.0, charge: 1.0
+    input  accreted_mass: 1.0
+    expect ok: "true"
+  end
+
+  test "AccreteMatter cascades through policy chain" do
+    tests "AccreteMatter", on: "BlackHole", kind: :cascade
+    setup  "FormBlackHole", name: "sample", mass: 1.0, spin: 1.0, charge: 1.0
+    input  accreted_mass: 1.0
+    expect emits: ["MatterAccreted", "HawkingRadiationEmitted"]
+  end
+
+  test "EmitHawkingRadiation sets temperature" do
+    tests "EmitHawkingRadiation", on: "BlackHole"
+    setup  "FormBlackHole", name: "sample", mass: 1.0, spin: 1.0, charge: 1.0
+    input  temperature: 1.0
+    expect temperature: 1.0
+  end
+
+  test "MergeBlackHoles sets companion_mass" do
+    tests "MergeBlackHoles", on: "BlackHole"
+    setup  "FormBlackHole", name: "sample", mass: 1.0, spin: 1.0, charge: 1.0
+    input  companion_mass: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── DarkMatter aggregate ──────────────────────────────────────────
+
+  test "DetectDarkMatter sets name + halo_mass + candidate_type" do
+    tests "DetectDarkMatter", on: "DarkMatter"
+    input  name: "sample", halo_mass: 1.0, candidate_type: "sample"
+    expect name: "sample", halo_mass: 1.0, candidate_type: "sample"
+  end
+
+  test "DetectDarkMatter cascades through policy chain" do
+    tests "DetectDarkMatter", on: "DarkMatter", kind: :cascade
+    input  name: "sample", halo_mass: 1.0, candidate_type: "sample"
+    expect emits: ["DarkMatterDetected", "GravitationalLensingMeasured"]
+  end
+
+  test "MapDistribution sets distribution + density" do
+    tests "MapDistribution", on: "DarkMatter"
+    setup  "DetectDarkMatter", name: "sample", halo_mass: 1.0, candidate_type: "sample"
+    input  distribution: "sample", density: 1.0
+    expect distribution: "sample", density: 1.0
+  end
+
+  test "MeasureGravitationalLensing sets lensing_strength" do
+    tests "MeasureGravitationalLensing", on: "DarkMatter"
+    setup  "DetectDarkMatter", name: "sample", halo_mass: 1.0, candidate_type: "sample"
+    input  lensing_strength: 1.0
+    expect lensing_strength: 1.0
+  end
+
+  test "ModelHalo sets profile_type + scale_radius" do
+    tests "ModelHalo", on: "DarkMatter"
+    setup  "DetectDarkMatter", name: "sample", halo_mass: 1.0, candidate_type: "sample"
+    input  profile_type: "sample", scale_radius: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── DarkEnergy aggregate ──────────────────────────────────────────
+
+  test "MeasureAcceleration sets name + acceleration_rate + energy_density" do
+    tests "MeasureAcceleration", on: "DarkEnergy"
+    input  name: "sample", acceleration_rate: 1.0, energy_density: 1.0
+    expect name: "sample", acceleration_rate: 1.0, energy_density: 1.0
+  end
+
+  test "ConstrainEquationOfState sets equation_of_state" do
+    tests "ConstrainEquationOfState", on: "DarkEnergy"
+    setup  "MeasureAcceleration", name: "sample", acceleration_rate: 1.0, energy_density: 1.0
+    input  equation_of_state: 1.0
+    expect equation_of_state: 1.0
+  end
+
+  test "ModelExpansionHistory sets cosmological_constant" do
+    tests "ModelExpansionHistory", on: "DarkEnergy"
+    setup  "MeasureAcceleration", name: "sample", acceleration_rate: 1.0, energy_density: 1.0
+    input  cosmological_constant: 1.0
+    expect cosmological_constant: 1.0
+  end
+
+
+  # ── CosmicMicrowaveBackground aggregate ──────────────────────────────────────────
+
+  test "MapCMB sets name + redshift" do
+    tests "MapCMB", on: "CosmicMicrowaveBackground"
+    input  name: "sample", redshift: 1.0
+    expect name: "sample", redshift: 1.0
+  end
+
+  test "MeasureCMBTemperature sets temperature" do
+    tests "MeasureCMBTemperature", on: "CosmicMicrowaveBackground"
+    setup  "MapCMB", name: "sample", redshift: 1.0
+    input  temperature: 1.0
+    expect temperature: 1.0
+  end
+
+  test "AnalyzeAnisotropy sets anisotropy_amplitude + angular_power_spectrum" do
+    tests "AnalyzeAnisotropy", on: "CosmicMicrowaveBackground"
+    setup  "MapCMB", name: "sample", redshift: 1.0
+    input  anisotropy_amplitude: 1.0, angular_power_spectrum: "sample"
+    expect anisotropy_amplitude: 1.0, angular_power_spectrum: "sample"
+  end
+
+  test "DetectPolarization sets polarization_mode" do
+    tests "DetectPolarization", on: "CosmicMicrowaveBackground"
+    setup  "MapCMB", name: "sample", redshift: 1.0
+    input  polarization_mode: "sample"
+    expect polarization_mode: "sample"
+  end
+
+
+  # ── BigBang aggregate ──────────────────────────────────────────
+
+  test "ModelInflation sets name + inflation_duration" do
+    tests "ModelInflation", on: "BigBang"
+    input  name: "sample", inflation_duration: 1.0
+    expect name: "sample", inflation_duration: 1.0, status: "inflation"
+  end
+
+  test "SimulateNucleosynthesis sets nucleosynthesis_temperature + helium_fraction" do
+    tests "SimulateNucleosynthesis", on: "BigBang"
+    setup  "ModelInflation", name: "sample", inflation_duration: 1.0
+    input  nucleosynthesis_temperature: 1.0, helium_fraction: 1.0
+    expect nucleosynthesis_temperature: 1.0, helium_fraction: 1.0, status: "nucleosynthesis"
+  end
+
+  test "CalculateRecombination sets recombination_redshift" do
+    tests "CalculateRecombination", on: "BigBang"
+    setup  "ModelInflation", name: "sample", inflation_duration: 1.0
+    setup  "SimulateNucleosynthesis", nucleosynthesis_temperature: 1.0, helium_fraction: 1.0
+    input  recombination_redshift: 1.0
+    expect recombination_redshift: 1.0, status: "recombination"
+  end
+
+  test "CalculateRecombination cascades through policy chain" do
+    tests "CalculateRecombination", on: "BigBang", kind: :cascade
+    setup  "ModelInflation", name: "sample", inflation_duration: 1.0
+    setup  "SimulateNucleosynthesis", nucleosynthesis_temperature: 1.0, helium_fraction: 1.0
+    input  recombination_redshift: 1.0
+    expect emits: ["RecombinationCalculated", "StructureFormationTraced"]
+  end
+
+  test "TraceStructureFormation runs" do
+    tests "TraceStructureFormation", on: "BigBang"
+    setup  "ModelInflation", name: "sample", inflation_duration: 1.0
+    setup  "SimulateNucleosynthesis", nucleosynthesis_temperature: 1.0, helium_fraction: 1.0
+    setup  "CalculateRecombination", recombination_redshift: 1.0
+    expect status: "structure_formation"
+  end
+
+
+  # ── Spacetime aggregate ──────────────────────────────────────────
+
+  test "CurveSpacetime sets name + curvature + metric_type" do
+    tests "CurveSpacetime", on: "Spacetime"
+    input  name: "sample", curvature: 1.0, metric_type: "sample"
+    expect name: "sample", curvature: 1.0, metric_type: "sample"
+  end
+
+  test "CalculateMetric sets dimension" do
+    tests "CalculateMetric", on: "Spacetime"
+    setup  "CurveSpacetime", name: "sample", curvature: 1.0, metric_type: "sample"
+    input  dimension: 1
+    expect dimension: 1
+  end
+
+  test "TraceGeodesic runs" do
+    tests "TraceGeodesic", on: "Spacetime"
+    setup  "CurveSpacetime", name: "sample", curvature: 1.0, metric_type: "sample"
+    expect ok: "true"
+  end
+
+  test "DetectGravitationalWave sets gravitational_wave_strain" do
+    tests "DetectGravitationalWave", on: "Spacetime"
+    setup  "CurveSpacetime", name: "sample", curvature: 1.0, metric_type: "sample"
+    input  gravitational_wave_strain: 1.0
+    expect gravitational_wave_strain: 1.0
+  end
+
+  test "MeasureCurvature sets curvature" do
+    tests "MeasureCurvature", on: "Spacetime"
+    setup  "CurveSpacetime", name: "sample", curvature: 1.0, metric_type: "sample"
+    input  curvature: 1.0
+    expect curvature: 1.0
+  end
+
+
+  # ── CosmicStructure aggregate ──────────────────────────────────────────
+
+  test "MapFilament sets name + scale" do
+    tests "MapFilament", on: "CosmicStructure"
+    input  name: "sample", scale: 1.0
+    expect name: "sample", structure_type: "filament", scale: 1.0
+  end
+
+  test "IdentifyVoid sets density_contrast" do
+    tests "IdentifyVoid", on: "CosmicStructure"
+    setup  "MapFilament", name: "sample", scale: 1.0
+    input  density_contrast: 1.0
+    expect density_contrast: 1.0
+  end
+
+  test "DetectCluster sets mass" do
+    tests "DetectCluster", on: "CosmicStructure"
+    setup  "MapFilament", name: "sample", scale: 1.0
+    input  mass: 1.0
+    expect mass: 1.0
+  end
+
+  test "SimulateStructureFormation runs" do
+    tests "SimulateStructureFormation", on: "CosmicStructure"
+    setup  "MapFilament", name: "sample", scale: 1.0
+    expect ok: "true"
+  end
+
+  test "MeasureCorrelation sets correlation_length" do
+    tests "MeasureCorrelation", on: "CosmicStructure"
+    setup  "MapFilament", name: "sample", scale: 1.0
+    input  correlation_length: 1.0
+    expect correlation_length: 1.0
+  end
+
+end

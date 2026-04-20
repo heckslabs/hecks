@@ -1,0 +1,45 @@
+Hecks.behaviors "Formulation" do
+  vision "Behavioral tests for the Formulation domain — exercises every command and query in memory"
+
+  # ── Formula aggregate ──────────────────────────────────────────
+
+  test "DraftFormula sets name + brand + product_type" do
+    tests "DraftFormula", on: "Formula"
+    input  name: "sample", brand: "sample", product_type: "sample"
+    expect name: "sample", brand: "sample", product_type: "sample", status: "draft"
+  end
+
+  test "AddIngredient sets chemical_name + cas_number + percentage + function + supplier" do
+    tests "AddIngredient", on: "Formula"
+    setup  "DraftFormula", name: "sample", brand: "sample", product_type: "sample"
+    input  chemical_name: "sample", cas_number: "sample", percentage: 1.0, function: "sample", supplier: "sample"
+    expect status: "draft"
+  end
+
+  test "AddIngredient cascades through policy chain" do
+    tests "AddIngredient", on: "Formula", kind: :cascade
+    setup  "DraftFormula", name: "sample", brand: "sample", product_type: "sample"
+    input  chemical_name: "sample", cas_number: "sample", percentage: 1.0, function: "sample", supplier: "sample"
+    expect emits: ["IngredientAdded", "FormulaRevised"]
+  end
+
+  test "FinalizeFormula runs" do
+    tests "FinalizeFormula", on: "Formula"
+    setup  "DraftFormula", name: "sample", brand: "sample", product_type: "sample"
+    expect status: "finalized"
+  end
+
+  test "ReviseFormula runs" do
+    tests "ReviseFormula", on: "Formula"
+    setup  "DraftFormula", name: "sample", brand: "sample", product_type: "sample"
+    expect status: "draft"
+  end
+
+  test "RetireFormula runs" do
+    tests "RetireFormula", on: "Formula"
+    setup  "DraftFormula", name: "sample", brand: "sample", product_type: "sample"
+    setup  "FinalizeFormula"
+    expect status: "retired"
+  end
+
+end

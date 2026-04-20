@@ -154,18 +154,6 @@ Hecks.bluebook "Chemistry", version: "2026.04.16.1" do
   end
 
   # Fixtures — the periodic table seeds
-  fixture "Element", symbol: "H",  name: "Hydrogen",  atomic_number: 1,  state: "gas"
-  fixture "Element", symbol: "He", name: "Helium",    atomic_number: 2,  state: "gas"
-  fixture "Element", symbol: "C",  name: "Carbon",    atomic_number: 6,  state: "solid"
-  fixture "Element", symbol: "N",  name: "Nitrogen",  atomic_number: 7,  state: "gas"
-  fixture "Element", symbol: "O",  name: "Oxygen",    atomic_number: 8,  state: "gas"
-  fixture "Element", symbol: "Na", name: "Sodium",    atomic_number: 11, state: "solid"
-  fixture "Element", symbol: "Cl", name: "Chlorine",  atomic_number: 17, state: "gas"
-  fixture "Element", symbol: "Fe", name: "Iron",      atomic_number: 26, state: "solid"
-
-  fixture "Compound", formula: "H2O",  name: "Water",       elements: ["H", "H", "O"],  state: "liquid"
-  fixture "Compound", formula: "NaCl", name: "Salt",        elements: ["Na", "Cl"],      state: "solid"
-  fixture "Compound", formula: "CO2",  name: "Carbon Dioxide", elements: ["C", "O", "O"], state: "gas"
 
   # Policies — when bonds break, compounds decompose
   policy "DecomposeOnBreak" do

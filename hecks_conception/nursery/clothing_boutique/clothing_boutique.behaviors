@@ -1,0 +1,131 @@
+Hecks.behaviors "ClothingBoutique" do
+  vision "Behavioral tests for the ClothingBoutique domain — exercises every command and query in memory"
+
+  # ── Garment aggregate ──────────────────────────────────────────
+
+  test "ReceiveGarment sets style_number + name + designer + fabric + retail_price + season" do
+    tests "ReceiveGarment", on: "Garment"
+    input  style_number: "sample", name: "sample", designer: "sample", fabric: "sample", retail_price: 1.0, season: "sample"
+    expect style_number: "sample", name: "sample", designer: "sample", fabric: "sample", retail_price: 1.0, season: "sample", status: "in_stock"
+  end
+
+  test "ReceiveGarment cascades through policy chain" do
+    tests "ReceiveGarment", on: "Garment", kind: :cascade
+    setup  "RequestAlteration", ticket_number: "sample", style_number: "sample", customer_name: "sample", alteration_type: "sample", due_date: "sample", charge: 1.0
+    input  style_number: "sample", name: "sample", designer: "sample", fabric: "sample", retail_price: 1.0, season: "sample"
+    expect emits: ["GarmentReceived", "AlterationRequested", "AlterationCompleted"]
+  end
+
+  test "MarkdownGarment sets sale_price" do
+    tests "MarkdownGarment", on: "Garment"
+    setup  "ReceiveGarment", style_number: "sample", name: "sample", designer: "sample", fabric: "sample", retail_price: 1.0, season: "sample"
+    input  sale_price: 1.0
+    expect retail_price: 1.0
+  end
+
+  test "MarkdownGarment cascades through policy chain" do
+    tests "MarkdownGarment", on: "Garment", kind: :cascade
+    setup  "ReceiveGarment", style_number: "sample", name: "sample", designer: "sample", fabric: "sample", retail_price: 1.0, season: "sample"
+    setup  "StyleDisplay", display_name: "sample", theme: "sample", location: "sample"
+    input  sale_price: 1.0
+    expect emits: ["GarmentMarkedDown", "DisplayDismantled"]
+  end
+
+  test "RetireGarment runs" do
+    tests "RetireGarment", on: "Garment"
+    setup  "ReceiveGarment", style_number: "sample", name: "sample", designer: "sample", fabric: "sample", retail_price: 1.0, season: "sample"
+    expect status: "retired"
+  end
+
+
+  # ── Display aggregate ──────────────────────────────────────────
+
+  test "StyleDisplay sets display_name + theme + location" do
+    tests "StyleDisplay", on: "Display"
+    input  display_name: "sample", theme: "sample", location: "sample"
+    expect display_name: "sample", theme: "sample", location: "sample", status: "active"
+  end
+
+  test "RefreshDisplay runs" do
+    tests "RefreshDisplay", on: "Display"
+    setup  "StyleDisplay", display_name: "sample", theme: "sample", location: "sample"
+    expect ok: "true"
+  end
+
+  test "DismantleDisplay runs" do
+    tests "DismantleDisplay", on: "Display"
+    setup  "StyleDisplay", display_name: "sample", theme: "sample", location: "sample"
+    expect status: "dismantled"
+  end
+
+
+  # ── Alteration aggregate ──────────────────────────────────────────
+
+  test "RequestAlteration sets ticket_number + style_number + customer_name + alteration_type + due_date + charge" do
+    tests "RequestAlteration", on: "Alteration"
+    input  ticket_number: "sample", style_number: "sample", customer_name: "sample", alteration_type: "sample", due_date: "sample", charge: 1.0
+    expect ticket_number: "sample", style_number: "sample", customer_name: "sample", alteration_type: "sample", due_date: "sample", charge: 1.0, status: "pending"
+  end
+
+  test "RequestAlteration cascades through policy chain" do
+    tests "RequestAlteration", on: "Alteration", kind: :cascade
+    input  ticket_number: "sample", style_number: "sample", customer_name: "sample", alteration_type: "sample", due_date: "sample", charge: 1.0
+    expect emits: ["AlterationRequested", "AlterationCompleted"]
+  end
+
+  test "CompleteAlteration runs" do
+    tests "CompleteAlteration", on: "Alteration"
+    setup  "RequestAlteration", ticket_number: "sample", style_number: "sample", customer_name: "sample", alteration_type: "sample", due_date: "sample", charge: 1.0
+    expect status: "completed"
+  end
+
+
+  # ── SeasonalCollection aggregate ──────────────────────────────────────────
+
+  test "PlanCollection sets season_name + year + theme" do
+    tests "PlanCollection", on: "SeasonalCollection"
+    input  season_name: "sample", year: "sample", theme: "sample"
+    expect season_name: "sample", year: "sample", theme: "sample", status: "planned"
+  end
+
+  test "PlanCollection cascades through policy chain" do
+    tests "PlanCollection", on: "SeasonalCollection", kind: :cascade
+    setup  "StyleDisplay", display_name: "sample", theme: "sample", location: "sample"
+    setup  "ReceiveGarment", style_number: "sample", name: "sample", designer: "sample", fabric: "sample", retail_price: 1.0, season: "sample"
+    setup  "RequestAlteration", ticket_number: "sample", style_number: "sample", customer_name: "sample", alteration_type: "sample", due_date: "sample", charge: 1.0
+    input  season_name: "sample", year: "sample", theme: "sample"
+    expect emits: ["CollectionPlanned", "CollectionLaunched", "DisplayCreated", "DisplayRefreshed", "GarmentReceived", "AlterationRequested", "AlterationCompleted"]
+  end
+
+  test "LaunchCollection runs" do
+    tests "LaunchCollection", on: "SeasonalCollection"
+    setup  "PlanCollection", season_name: "sample", year: "sample", theme: "sample"
+    expect status: "active"
+  end
+
+  test "LaunchCollection cascades through policy chain" do
+    tests "LaunchCollection", on: "SeasonalCollection", kind: :cascade
+    setup  "StyleDisplay", display_name: "sample", theme: "sample", location: "sample"
+    setup  "ReceiveGarment", style_number: "sample", name: "sample", designer: "sample", fabric: "sample", retail_price: 1.0, season: "sample"
+    setup  "RequestAlteration", ticket_number: "sample", style_number: "sample", customer_name: "sample", alteration_type: "sample", due_date: "sample", charge: 1.0
+    setup  "PlanCollection", season_name: "sample", year: "sample", theme: "sample"
+    expect emits: ["CollectionLaunched", "DisplayCreated", "DisplayRefreshed", "GarmentReceived", "AlterationRequested", "AlterationCompleted"]
+  end
+
+  test "CloseOutCollection runs" do
+    tests "CloseOutCollection", on: "SeasonalCollection"
+    setup  "PlanCollection", season_name: "sample", year: "sample", theme: "sample"
+    setup  "LaunchCollection"
+    expect status: "closed"
+  end
+
+  test "CloseOutCollection cascades through policy chain" do
+    tests "CloseOutCollection", on: "SeasonalCollection", kind: :cascade
+    setup  "ReceiveGarment", style_number: "sample", name: "sample", designer: "sample", fabric: "sample", retail_price: 1.0, season: "sample"
+    setup  "StyleDisplay", display_name: "sample", theme: "sample", location: "sample"
+    setup  "PlanCollection", season_name: "sample", year: "sample", theme: "sample"
+    setup  "LaunchCollection"
+    expect emits: ["CollectionClosedOut", "GarmentMarkedDown", "DisplayDismantled", "GarmentRetired"]
+  end
+
+end

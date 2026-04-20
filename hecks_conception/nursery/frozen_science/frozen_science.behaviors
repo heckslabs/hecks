@@ -1,0 +1,60 @@
+Hecks.behaviors "FrozenScience" do
+  vision "Behavioral tests for the FrozenScience domain — exercises every command and query in memory"
+
+  # ── BaseIngredient aggregate ──────────────────────────────────────────
+
+  test "CatalogIngredient sets name + category" do
+    tests "CatalogIngredient", on: "BaseIngredient"
+    input  name: "sample", category: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── FlavorFormula aggregate ──────────────────────────────────────────
+
+  test "Formulate sets flavor_name + target_temp_c" do
+    tests "Formulate", on: "FlavorFormula"
+    input  flavor_name: "sample", target_temp_c: 1.0
+    expect ok: "true"
+  end
+
+  test "ApproveFormula runs" do
+    tests "ApproveFormula", on: "FlavorFormula"
+    setup  "Formulate", flavor_name: "sample", target_temp_c: 1.0
+    setup  "AddComponent", ingredient_name: "sample", ratio_pct: 1.0, phase: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── FreezingCycle aggregate ──────────────────────────────────────────
+
+  test "StartCycle sets batch_id" do
+    tests "StartCycle", on: "FreezingCycle"
+    setup  "Formulate", flavor_name: "sample", target_temp_c: 1.0
+    input  batch_id: "sample"
+    expect ok: "true"
+  end
+
+  test "CompleteCycle runs" do
+    tests "CompleteCycle", on: "FreezingCycle"
+    setup  "StartCycle", batch_id: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ParlorMenu aggregate ──────────────────────────────────────────
+
+  test "Compose sets menu_name + season" do
+    tests "Compose", on: "ParlorMenu"
+    input  menu_name: "sample", season: "sample"
+    expect ok: "true"
+  end
+
+  test "LaunchMenu runs" do
+    tests "LaunchMenu", on: "ParlorMenu"
+    setup  "Compose", menu_name: "sample", season: "sample"
+    setup  "AddOffering", flavor_name: "sample", price_cents: 1, serving_temp_c: 1.0
+    expect ok: "true"
+  end
+
+end

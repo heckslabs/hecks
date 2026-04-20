@@ -39,7 +39,7 @@ Hecks.bluebook "ComplianceMentalHealth" do
     String :primary_goal
     String :status
     reference_to(Patient)
-    CreateTreatmentPlan do
+    DraftTreatmentPlan do
       role "Clinician"
       description "Draft a treatment plan tied to a diagnosis and modality"
       reference_to(Patient)
@@ -63,7 +63,6 @@ Hecks.bluebook "ComplianceMentalHealth" do
       description "Periodic review and goal update"
       reference_to(TreatmentPlan)
       String :updated_goal
-      given { status == "active" }
       emits "TreatmentPlanReviewed"
       then_set :primary_goal, to: :updated_goal
     end
@@ -157,7 +156,7 @@ Hecks.bluebook "ComplianceMentalHealth" do
       reference_to(InsuranceClaim)
       given { status == "submitted" }
       emits "ClaimAdjudicated"
-      then_set :status, to: "adjudicated"
+      then_set :status, to: "denied"
     end
     AppealDenial do
       role "BillingSpecialist"
@@ -188,10 +187,4 @@ Hecks.bluebook "ComplianceMentalHealth" do
     on "SessionNoteAmended"
     trigger "ElevateRiskLevel"
   end
-  fixture "Patient", mrn: "MRN-0001", full_name: "Elena Vasquez", risk_level: "standard", status: "active"
-  fixture "Patient", mrn: "MRN-0002", full_name: "James Okoro", risk_level: "high", status: "active"
-  fixture "TreatmentPlan", diagnosis_code: "F33.1", primary_goal: "Reduce depressive episodes below two per month", status: "active"
-  fixture "SessionNote", content_summary: "Explored cognitive distortions around workplace conflict", clinician_name: "Dr. Amara Singh", status: "finalized"
-  fixture "Prescription", medication_name: "Sertraline", status: "active", refills_remaining: 3
-  fixture "InsuranceClaim", billed_amount: 175.0, status: "adjudicated"
 end

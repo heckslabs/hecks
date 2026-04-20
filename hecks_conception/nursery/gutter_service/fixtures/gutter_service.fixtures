@@ -1,0 +1,22 @@
+Hecks.fixtures "GutterService" do
+  aggregate "GutterProperty" do
+    fixture "GutterProperty1", owner_name: "John Smith", address: "1247 Oak Street", roofline_feet: 156.0, existing_gutter_condition: "clogged", fascia_condition: "good"
+    fixture "GutterProperty2", owner_name: "Sarah Johnson", address: "892 Maple Avenue", roofline_feet: 198.5, existing_gutter_condition: "sagging", fascia_condition: "needs repair"
+  end
+  aggregate "GutterMeasurement" do
+    fixture "GutterMeasurement1", run_length_feet: 48.0, drop_per_foot: 0.125, miter_count: 4, end_cap_count: 2, gutter_profile: "5-inch K-style"
+    fixture "GutterMeasurement2", run_length_feet: 76.5, drop_per_foot: 0.1, miter_count: 6, end_cap_count: 2, gutter_profile: "6-inch seamless"
+  end
+  aggregate "GutterMaterial" do
+    fixture "GutterMaterial1", material_type: "aluminum", gauge: "26", color: "white", coil_footage: 200.0, status: "delivered"
+    fixture "GutterMaterial2", material_type: "copper", gauge: "24", color: "patina", coil_footage: 150.0, status: "ordered"
+  end
+  aggregate "GutterInstallation" do
+    fixture "GutterInstallation1", installer_name: "Mike Reynolds", install_date: "2026-04-20", status: "scheduled", hangers_used: 32
+    fixture "GutterInstallation2", installer_name: "Tom Bradley", install_date: "2026-04-25", status: "completed", hangers_used: 48
+  end
+  aggregate "GutterCleaning" do
+    fixture "GutterCleaning1", service_date: "2026-04-15", debris_type: "leaves and twigs", condition_notes: "some rust spots found", status: "scheduled"
+    fixture "GutterCleaning2", service_date: "2026-05-01", debris_type: "moss buildup", condition_notes: "gutters flowing well after cleaning", status: "completed"
+  end
+end

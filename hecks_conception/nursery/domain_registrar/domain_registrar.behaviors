@@ -1,0 +1,145 @@
+Hecks.behaviors "DomainRegistrar" do
+  vision "Behavioral tests for the DomainRegistrar domain — exercises every command and query in memory"
+
+  # ── DomainName aggregate ──────────────────────────────────────────
+
+  test "RegisterDomain sets domain + tld + registrant_email + registration_years" do
+    tests "RegisterDomain", on: "DomainName"
+    input  domain: "sample", tld: "sample", registrant_email: "sample", registration_years: 1
+    expect domain: "sample", tld: "sample", registrant_email: "sample", status: "active"
+  end
+
+  test "RegisterDomain cascades through policy chain" do
+    tests "RegisterDomain", on: "DomainName", kind: :cascade
+    setup  "RenewDomain", renewal_id: "sample", years: 1, price: 1.0
+    setup  "ActivatePrivacy", privacy_id: "sample", proxy_email: "sample", proxy_name: "sample"
+    setup  "PublishDNSRecord", record_id: "sample", record_type: "sample", hostname: "sample", value: "sample", ttl: 1
+    input  domain: "sample", tld: "sample", registrant_email: "sample", registration_years: 1
+    expect emits: ["DomainRegistered", "DomainLocked", "DomainAutoRenewed", "PrivacyActivated", "DNSRecordPublished"]
+  end
+
+  test "LockDomain runs" do
+    tests "LockDomain", on: "DomainName"
+    setup  "RegisterDomain", domain: "sample", tld: "sample", registrant_email: "sample", registration_years: 1
+    expect ok: "true"
+  end
+
+  test "LockDomain cascades through policy chain" do
+    tests "LockDomain", on: "DomainName", kind: :cascade
+    setup  "RegisterDomain", domain: "sample", tld: "sample", registrant_email: "sample", registration_years: 1
+    setup  "RenewDomain", renewal_id: "sample", years: 1, price: 1.0
+    expect emits: ["DomainLocked", "DomainAutoRenewed"]
+  end
+
+  test "SuspendDomain runs" do
+    tests "SuspendDomain", on: "DomainName"
+    setup  "RegisterDomain", domain: "sample", tld: "sample", registrant_email: "sample", registration_years: 1
+    expect ok: "true"
+  end
+
+
+  # ── Renewal aggregate ──────────────────────────────────────────
+
+  test "RenewDomain sets renewal_id + years + price" do
+    tests "RenewDomain", on: "Renewal"
+    setup  "RegisterDomain", domain: "sample", tld: "sample", registrant_email: "sample", registration_years: 1
+    input  renewal_id: "sample", years: 1, price: 1.0
+    expect status: "pending"
+  end
+
+  test "AutoRenew runs" do
+    tests "AutoRenew", on: "Renewal"
+    setup  "RenewDomain", renewal_id: "sample", years: 1, price: 1.0
+    expect ok: "true"
+  end
+
+  test "CancelRenewal runs" do
+    tests "CancelRenewal", on: "Renewal"
+    setup  "RenewDomain", renewal_id: "sample", years: 1, price: 1.0
+    expect ok: "true"
+  end
+
+  test "CancelRenewal cascades through policy chain" do
+    tests "CancelRenewal", on: "Renewal", kind: :cascade
+    setup  "RegisterDomain", domain: "sample", tld: "sample", registrant_email: "sample", registration_years: 1
+    setup  "RenewDomain", renewal_id: "sample", years: 1, price: 1.0
+    expect emits: ["RenewalCanceled", "DomainSuspended"]
+  end
+
+
+  # ── Transfer aggregate ──────────────────────────────────────────
+
+  test "InitiateTransfer sets transfer_id + auth_code + gaining_registrar" do
+    tests "InitiateTransfer", on: "Transfer"
+    setup  "RegisterDomain", domain: "sample", tld: "sample", registrant_email: "sample", registration_years: 1
+    input  transfer_id: "sample", auth_code: "sample", gaining_registrar: "sample"
+    expect status: "pending_approval"
+  end
+
+  test "ApproveTransfer runs" do
+    tests "ApproveTransfer", on: "Transfer"
+    setup  "InitiateTransfer", transfer_id: "sample", auth_code: "sample", gaining_registrar: "sample"
+    expect ok: "true"
+  end
+
+  test "ApproveTransfer cascades through policy chain" do
+    tests "ApproveTransfer", on: "Transfer", kind: :cascade
+    setup  "ActivatePrivacy", privacy_id: "sample", proxy_email: "sample", proxy_name: "sample"
+    setup  "InitiateTransfer", transfer_id: "sample", auth_code: "sample", gaining_registrar: "sample"
+    expect emits: ["TransferApproved", "ProxyRefreshed"]
+  end
+
+  test "RejectTransfer sets rejection_reason" do
+    tests "RejectTransfer", on: "Transfer"
+    setup  "InitiateTransfer", transfer_id: "sample", auth_code: "sample", gaining_registrar: "sample"
+    input  rejection_reason: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── DNSRecord aggregate ──────────────────────────────────────────
+
+  test "PublishDNSRecord sets record_id + record_type + hostname + value + ttl" do
+    tests "PublishDNSRecord", on: "DNSRecord"
+    setup  "RegisterDomain", domain: "sample", tld: "sample", registrant_email: "sample", registration_years: 1
+    input  record_id: "sample", record_type: "sample", hostname: "sample", value: "sample", ttl: 1
+    expect status: "active"
+  end
+
+  test "ReviseDNSRecord sets value + ttl" do
+    tests "ReviseDNSRecord", on: "DNSRecord"
+    setup  "PublishDNSRecord", record_id: "sample", record_type: "sample", hostname: "sample", value: "sample", ttl: 1
+    input  value: "sample", ttl: 1
+    expect ok: "true"
+  end
+
+  test "RetireDNSRecord runs" do
+    tests "RetireDNSRecord", on: "DNSRecord"
+    setup  "PublishDNSRecord", record_id: "sample", record_type: "sample", hostname: "sample", value: "sample", ttl: 1
+    expect ok: "true"
+  end
+
+
+  # ── WHOISPrivacy aggregate ──────────────────────────────────────────
+
+  test "ActivatePrivacy sets privacy_id + proxy_email + proxy_name" do
+    tests "ActivatePrivacy", on: "WHOISPrivacy"
+    setup  "RegisterDomain", domain: "sample", tld: "sample", registrant_email: "sample", registration_years: 1
+    input  privacy_id: "sample", proxy_email: "sample", proxy_name: "sample"
+    expect status: "active"
+  end
+
+  test "DeactivatePrivacy runs" do
+    tests "DeactivatePrivacy", on: "WHOISPrivacy"
+    setup  "ActivatePrivacy", privacy_id: "sample", proxy_email: "sample", proxy_name: "sample"
+    expect ok: "true"
+  end
+
+  test "RefreshProxy sets proxy_email" do
+    tests "RefreshProxy", on: "WHOISPrivacy"
+    setup  "ActivatePrivacy", privacy_id: "sample", proxy_email: "sample", proxy_name: "sample"
+    input  proxy_email: "sample"
+    expect ok: "true"
+  end
+
+end

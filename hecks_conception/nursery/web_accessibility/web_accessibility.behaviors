@@ -1,0 +1,174 @@
+Hecks.behaviors "WebAccessibility" do
+  vision "Behavioral tests for the WebAccessibility domain — exercises every command and query in memory"
+
+  # ── AccessibilityAudit aggregate ──────────────────────────────────────────
+
+  test "LaunchAudit sets audit_id + site_url + wcag_level + auditor" do
+    tests "LaunchAudit", on: "AccessibilityAudit"
+    input  audit_id: "sample", site_url: "sample", wcag_level: "sample", auditor: "sample"
+    expect status: "running"
+  end
+
+  test "LaunchAudit cascades through policy chain" do
+    tests "LaunchAudit", on: "AccessibilityAudit", kind: :cascade
+    setup  "CrawlPage", page_url: "sample", title: "sample", content_type: "sample", dom_elements: 1
+    setup  "ReportViolation", violation_id: "sample", rule_id: "sample", severity: "sample", element_selector: "sample", description: "sample"
+    setup  "AssignRemediation", remediation_id: "sample", fix_description: "sample", assigned_to: "sample", priority: "sample"
+    input  audit_id: "sample", site_url: "sample", wcag_level: "sample", auditor: "sample"
+    expect emits: ["AuditLaunched", "PageCrawled", "ViolationReported", "ViolationConfirmed", "RemediationAssigned"]
+  end
+
+  test "CompleteAudit sets pages_scanned" do
+    tests "CompleteAudit", on: "AccessibilityAudit"
+    setup  "LaunchAudit", audit_id: "sample", site_url: "sample", wcag_level: "sample", auditor: "sample"
+    input  pages_scanned: 1
+    expect ok: "true"
+  end
+
+  test "CompleteAudit cascades through policy chain" do
+    tests "CompleteAudit", on: "AccessibilityAudit", kind: :cascade
+    setup  "IssueCertificate", certificate_id: "sample", wcag_level: "sample", issued_by: "sample", valid_until: "sample"
+    setup  "LaunchAudit", audit_id: "sample", site_url: "sample", wcag_level: "sample", auditor: "sample"
+    input  pages_scanned: 1
+    expect emits: ["AuditCompleted", "CertificateIssued"]
+  end
+
+  test "ReopenAudit runs" do
+    tests "ReopenAudit", on: "AccessibilityAudit"
+    setup  "LaunchAudit", audit_id: "sample", site_url: "sample", wcag_level: "sample", auditor: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Page aggregate ──────────────────────────────────────────
+
+  test "CrawlPage sets page_url + title + content_type + dom_elements" do
+    tests "CrawlPage", on: "Page"
+    setup  "LaunchAudit", audit_id: "sample", site_url: "sample", wcag_level: "sample", auditor: "sample"
+    input  page_url: "sample", title: "sample", content_type: "sample", dom_elements: 1
+    expect status: "pending"
+  end
+
+  test "CrawlPage cascades through policy chain" do
+    tests "CrawlPage", on: "Page", kind: :cascade
+    setup  "LaunchAudit", audit_id: "sample", site_url: "sample", wcag_level: "sample", auditor: "sample"
+    setup  "ReportViolation", violation_id: "sample", rule_id: "sample", severity: "sample", element_selector: "sample", description: "sample"
+    setup  "AssignRemediation", remediation_id: "sample", fix_description: "sample", assigned_to: "sample", priority: "sample"
+    input  page_url: "sample", title: "sample", content_type: "sample", dom_elements: 1
+    expect emits: ["PageCrawled", "ViolationReported", "ViolationConfirmed", "RemediationAssigned"]
+  end
+
+  test "MarkReviewed runs" do
+    tests "MarkReviewed", on: "Page"
+    setup  "CrawlPage", page_url: "sample", title: "sample", content_type: "sample", dom_elements: 1
+    expect ok: "true"
+  end
+
+  test "ExcludePage runs" do
+    tests "ExcludePage", on: "Page"
+    setup  "CrawlPage", page_url: "sample", title: "sample", content_type: "sample", dom_elements: 1
+    expect ok: "true"
+  end
+
+
+  # ── Violation aggregate ──────────────────────────────────────────
+
+  test "ReportViolation sets violation_id + rule_id + severity + element_selector + description" do
+    tests "ReportViolation", on: "Violation"
+    setup  "CrawlPage", page_url: "sample", title: "sample", content_type: "sample", dom_elements: 1
+    input  violation_id: "sample", rule_id: "sample", severity: "sample", element_selector: "sample", description: "sample"
+    expect status: "reported"
+  end
+
+  test "ReportViolation cascades through policy chain" do
+    tests "ReportViolation", on: "Violation", kind: :cascade
+    setup  "CrawlPage", page_url: "sample", title: "sample", content_type: "sample", dom_elements: 1
+    setup  "AssignRemediation", remediation_id: "sample", fix_description: "sample", assigned_to: "sample", priority: "sample"
+    input  violation_id: "sample", rule_id: "sample", severity: "sample", element_selector: "sample", description: "sample"
+    expect emits: ["ViolationReported", "ViolationConfirmed", "RemediationAssigned"]
+  end
+
+  test "ConfirmViolation runs" do
+    tests "ConfirmViolation", on: "Violation"
+    setup  "ReportViolation", violation_id: "sample", rule_id: "sample", severity: "sample", element_selector: "sample", description: "sample"
+    expect ok: "true"
+  end
+
+  test "ConfirmViolation cascades through policy chain" do
+    tests "ConfirmViolation", on: "Violation", kind: :cascade
+    setup  "ReportViolation", violation_id: "sample", rule_id: "sample", severity: "sample", element_selector: "sample", description: "sample"
+    setup  "AssignRemediation", remediation_id: "sample", fix_description: "sample", assigned_to: "sample", priority: "sample"
+    expect emits: ["ViolationConfirmed", "RemediationAssigned"]
+  end
+
+  test "DismissViolation sets dismissal_reason" do
+    tests "DismissViolation", on: "Violation"
+    setup  "ReportViolation", violation_id: "sample", rule_id: "sample", severity: "sample", element_selector: "sample", description: "sample"
+    input  dismissal_reason: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Remediation aggregate ──────────────────────────────────────────
+
+  test "AssignRemediation sets remediation_id + fix_description + assigned_to + priority" do
+    tests "AssignRemediation", on: "Remediation"
+    setup  "ReportViolation", violation_id: "sample", rule_id: "sample", severity: "sample", element_selector: "sample", description: "sample"
+    input  remediation_id: "sample", fix_description: "sample", assigned_to: "sample", priority: "sample"
+    expect status: "in_progress"
+  end
+
+  test "CompleteRemediation runs" do
+    tests "CompleteRemediation", on: "Remediation"
+    setup  "AssignRemediation", remediation_id: "sample", fix_description: "sample", assigned_to: "sample", priority: "sample"
+    expect ok: "true"
+  end
+
+  test "CompleteRemediation cascades through policy chain" do
+    tests "CompleteRemediation", on: "Remediation", kind: :cascade
+    setup  "LaunchAudit", audit_id: "sample", site_url: "sample", wcag_level: "sample", auditor: "sample"
+    setup  "IssueCertificate", certificate_id: "sample", wcag_level: "sample", issued_by: "sample", valid_until: "sample"
+    setup  "CrawlPage", page_url: "sample", title: "sample", content_type: "sample", dom_elements: 1
+    setup  "AssignRemediation", remediation_id: "sample", fix_description: "sample", assigned_to: "sample", priority: "sample"
+    expect emits: ["RemediationCompleted", "AuditCompleted", "CertificateIssued", "PageReviewed"]
+  end
+
+  test "RejectRemediation sets rejection_reason" do
+    tests "RejectRemediation", on: "Remediation"
+    setup  "AssignRemediation", remediation_id: "sample", fix_description: "sample", assigned_to: "sample", priority: "sample"
+    input  rejection_reason: "sample"
+    expect ok: "true"
+  end
+
+  test "RejectRemediation cascades through policy chain" do
+    tests "RejectRemediation", on: "Remediation", kind: :cascade
+    setup  "AssignRemediation", remediation_id: "sample", fix_description: "sample", assigned_to: "sample", priority: "sample"
+    setup  "LaunchAudit", audit_id: "sample", site_url: "sample", wcag_level: "sample", auditor: "sample"
+    input  rejection_reason: "sample"
+    expect emits: ["RemediationRejected", "AuditReopened"]
+  end
+
+
+  # ── ComplianceCertificate aggregate ──────────────────────────────────────────
+
+  test "IssueCertificate sets certificate_id + wcag_level + issued_by + valid_until" do
+    tests "IssueCertificate", on: "ComplianceCertificate"
+    setup  "LaunchAudit", audit_id: "sample", site_url: "sample", wcag_level: "sample", auditor: "sample"
+    input  certificate_id: "sample", wcag_level: "sample", issued_by: "sample", valid_until: "sample"
+    expect status: "valid"
+  end
+
+  test "RevokeCertificate runs" do
+    tests "RevokeCertificate", on: "ComplianceCertificate"
+    setup  "IssueCertificate", certificate_id: "sample", wcag_level: "sample", issued_by: "sample", valid_until: "sample"
+    expect ok: "true"
+  end
+
+  test "RenewCertificate sets valid_until" do
+    tests "RenewCertificate", on: "ComplianceCertificate"
+    setup  "IssueCertificate", certificate_id: "sample", wcag_level: "sample", issued_by: "sample", valid_until: "sample"
+    input  valid_until: "sample"
+    expect ok: "true"
+  end
+
+end

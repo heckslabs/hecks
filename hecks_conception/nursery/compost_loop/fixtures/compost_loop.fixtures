@@ -1,0 +1,18 @@
+Hecks.fixtures "CompostLoop" do
+  aggregate "GardenPlot" do
+    fixture "GardenPlot1", plot_id: "GP-001", gardener: "Alice Chen", soil_health: 7.5, status: "active", crops: []
+    fixture "GardenPlot2", plot_id: "GP-002", gardener: "Bob Martinez", soil_health: 6.2, status: "active", crops: [{ crop_name: "Tomato", planted_date: "2026-03-15", nutrient_needs: "NPK" }]
+  end
+  aggregate "WasteStream" do
+    fixture "WasteStream1", source: "Downtown Food Market", waste_type: "organic_kitchen", collections: [], status: "active"
+    fixture "WasteStream2", source: "Green Acres Farm", waste_type: "yard_debris", collections: [{ date: "2026-04-01", weight_kg: 45.5, contamination_pct: 0.5 }], status: "active"
+  end
+  aggregate "CompostBatch" do
+    fixture "CompostBatch1", batch_id: "CB-2026-001", readings: [], status: "building"
+    fixture "CompostBatch2", batch_id: "CB-2026-002", readings: [{ day: 14, temperature_c: 55.0, moisture_pct: 65.0, carbon_nitrogen_ratio: 25.0 }], status: "building"
+  end
+  aggregate "SoilAmendment" do
+    fixture "SoilAmendment1", application_date: "2026-04-10", volume_liters: 25.0, nutrients: [], status: "pending"
+    fixture "SoilAmendment2", application_date: "2026-04-08", volume_liters: 30.0, nutrients: [{ nutrient: "Nitrogen", concentration_ppm: 120.0 }], status: "pending"
+  end
+end

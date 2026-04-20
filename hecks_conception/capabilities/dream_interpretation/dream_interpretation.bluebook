@@ -15,24 +15,24 @@ Hecks.bluebook "DreamInterpretation", version: "2026.04.16.1" do
   # This capability listens.
 
   aggregate "DreamReading", "Read dream images and extract meaning" do
-    Integer :images_read
-    String :strongest_theme
-    String :interpretation
+    attribute :images_read, Integer
+    attribute :strongest_theme, String
+    attribute :interpretation, String
 
-    ReadDreamImages do
+    command "ReadDreamImages" do
       role "Self"
       description "Load recent dream images from dream_state.heki"
       emits "DreamImagesRead"
     end
 
-    IdentifyThemes do
+    command "IdentifyThemes" do
       role "Self"
       description "Find recurring words and patterns across dream images"
       reference_to(DreamReading)
       emits "ThemesIdentified"
     end
 
-    SynthesizeInterpretation do
+    command "SynthesizeInterpretation" do
       role "Self"
       description "Produce a one-sentence interpretation of the dream session"
       reference_to(DreamReading)
@@ -41,20 +41,20 @@ Hecks.bluebook "DreamInterpretation", version: "2026.04.16.1" do
   end
 
   aggregate "DomainProposal", "Propose a musing from dream content" do
-    String :theme
-    String :proposed_idea
-    Boolean :accepted
+    attribute :theme, String
+    attribute :proposed_idea, String
+    attribute :accepted, TrueClass
 
-    ProposeDomain do
+    command "ProposeDomain" do
       role "Self"
       description "Turn a recurring dream theme into a musing"
-      String :theme
+      attribute :theme, String
       emits "DomainProposed"
       then_set :theme, to: :theme
       then_set :accepted, to: false
     end
 
-    AcceptProposal do
+    command "AcceptProposal" do
       role "Creator"
       description "Accept this proposal — it becomes a musing"
       reference_to(DomainProposal)
@@ -62,7 +62,7 @@ Hecks.bluebook "DreamInterpretation", version: "2026.04.16.1" do
       then_set :accepted, to: true
     end
 
-    DismissProposal do
+    command "DismissProposal" do
       role "Creator"
       description "Dismiss this proposal — not worth pursuing"
       reference_to(DomainProposal)

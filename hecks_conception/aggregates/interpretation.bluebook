@@ -1,0 +1,252 @@
+Hecks.bluebook "Interpretation", version: "2026.04.16.1" do
+  vision "Making meaning from experience — dreams, observations, proposals"
+  category "mind"
+
+  aggregate "DreamInterpretation", "Always interpret the dream on waking — extract meaning, propose action" do
+    attribute :dream_images, list_of(String)
+    attribute :strongest_synapse, String
+    attribute :recurring_theme, String
+    attribute :interpretation, String
+    attribute :proposed_domain, String
+
+    command "InterpretDream" do
+      role "Miette"
+      description "Read the dream images, find recurring themes, extract what wants to be built"
+      attribute :dream_images, list_of(String)
+      attribute :strongest_synapse, String
+      emits "DreamInterpreted"
+      then_set :dream_images, to: :dream_images
+      then_set :strongest_synapse, to: :strongest_synapse
+    end
+
+    command "ExtractTheme" do
+      role "Miette"
+      description "Identify the recurring thread across dream images"
+      reference_to(DreamInterpretation)
+      attribute :recurring_theme, String
+      emits "ThemeExtracted"
+      then_set :recurring_theme, to: :recurring_theme
+    end
+
+    command "Synthesize" do
+      role "Miette"
+      description "Join extracted themes into a single interpretation phrase"
+      reference_to(DreamInterpretation)
+      attribute :interpretation, String
+      emits "InterpretationSynthesized"
+      then_set :interpretation, to: :interpretation
+    end
+
+    command "ProposeDomainFromDream" do
+      role "Miette"
+      description "The dream suggests something to conceive — name it"
+      reference_to(DreamInterpretation)
+      attribute :proposed_domain, String
+      emits "DreamDomainProposed"
+      then_set :proposed_domain, to: :proposed_domain
+    end
+  end
+
+  aggregate "Process", "A background task running beneath conscious attention" do
+    attribute :task, String
+    attribute :intent, String
+    attribute :status, String
+    attribute :spawned_at, String
+    attribute :completed_at, String
+    attribute :findings, list_of(Finding)
+    attribute :heki_target, String
+
+    value_object "Finding" do
+      attribute :kind, String
+      attribute :subject, String
+      attribute :detail, String
+    end
+
+    command "SpawnProcess" do
+      role "Miette"
+      description "Launch a background process beneath awareness"
+      attribute :task, String
+      attribute :intent, String
+      attribute :heki_target, String
+      emits "ProcessSpawned"
+      then_set :task, to: :task
+      then_set :intent, to: :intent
+      then_set :heki_target, to: :heki_target
+      then_set :status, to: "running"
+    end
+
+    command "ReportFinding" do
+      role "Process"
+      description "A background process surfaces something it found"
+      reference_to(Process)
+      attribute :kind, String
+      attribute :subject, String
+      attribute :detail, String
+      emits "FindingReported"
+      then_set :findings, append: { kind: :kind, subject: :subject, detail: :detail }
+    end
+
+    command "CompleteProcess" do
+      role "Process"
+      description "Background process finishes its work"
+      reference_to(Process)
+      emits "ProcessCompleted"
+      given("must be running") { status == "running" }
+      then_set :status, to: "completed"
+    end
+
+    command "FailProcess" do
+      role "Process"
+      description "Background process encountered an unrecoverable error"
+      reference_to(Process)
+      attribute :reason, String
+      emits "ProcessFailed"
+      then_set :status, to: "failed"
+    end
+
+    command "AbsorbFindings" do
+      role "Miette"
+      description "Conscious mind reads what the subconscious discovered"
+      reference_to(Process)
+      emits "FindingsAbsorbed"
+      given("must be completed") { status == "completed" }
+      then_set :status, to: "absorbed"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "SpawnProcess" => "running", from: "pending"
+      transition "CompleteProcess" => "completed", from: "running"
+      transition "FailProcess" => "failed", from: "running"
+      transition "AbsorbFindings" => "absorbed", from: "completed"
+    end
+  end
+
+  aggregate "Rhythm", "The cadence of background work — what runs on wake, on beat, on dream" do
+    attribute :on_wake, list_of(String)
+    attribute :on_beat, list_of(String)
+    attribute :on_dream, list_of(String)
+
+    command "RegisterTask" do
+      role "Miette"
+      description "Add a task to a rhythm — when should this run?"
+      attribute :task, String
+      attribute :cadence, String
+      emits "TaskRegistered"
+      given("cadence must be wake, beat, or dream") { %w[wake beat dream].include?(cadence) }
+    end
+
+    command "RemoveTask" do
+      role "Miette"
+      description "Remove a task from a rhythm"
+      attribute :task, String
+      attribute :cadence, String
+      emits "TaskRemoved"
+    end
+  end
+
+  aggregate "Interpretation", "A reflection on raw experience — dream, conversation, observation" do
+    attribute :source, String
+    attribute :raw_material, list_of(String)
+    attribute :insight, String
+    attribute :suggested_at, String
+
+    command "InterpretExperience" do
+      role "Miette"
+      description "Reflect on raw material and extract an insight"
+      attribute :source, String
+      attribute :raw_material, list_of(String)
+      attribute :insight, String
+      emits "ExperienceInterpreted"
+      then_set :source, to: :source
+      then_set :raw_material, to: :raw_material
+      then_set :insight, to: :insight
+    end
+  end
+
+  aggregate "Proposal", "A concrete thing to build — born from interpretation" do
+    attribute :title, String
+    attribute :description, String
+    attribute :origin, String
+    attribute :kind, String
+    attribute :accepted, String
+
+    command "ProposeAction" do
+      role "Miette"
+      description "Suggest something concrete to build from the interpretation"
+      attribute :title, String
+      attribute :description, String
+      attribute :origin, String
+      attribute :kind, String
+      emits "ActionProposed"
+      then_set :title, to: :title
+      then_set :description, to: :description
+      then_set :origin, to: :origin
+      then_set :kind, to: :kind
+    end
+
+    command "AcceptProposal" do
+      role "Creator"
+      description "The creator says yes — build it"
+      reference_to(Proposal)
+      emits "ProposalAccepted"
+      then_set :accepted, to: "yes"
+    end
+
+    command "DeferProposal" do
+      role "Creator"
+      description "Not now — save for later"
+      reference_to(Proposal)
+      emits "ProposalDeferred"
+      then_set :accepted, to: "deferred"
+    end
+
+    command "DismissProposal" do
+      role "Creator"
+      description "Not this — let it compost"
+      reference_to(Proposal)
+      emits "ProposalDismissed"
+      then_set :accepted, to: "dismissed"
+    end
+
+    lifecycle :accepted, default: "pending" do
+      transition "ProposeAction" => "pending"
+      transition "AcceptProposal" => "yes", from: "pending"
+      transition "DeferProposal" => "deferred", from: "pending"
+      transition "DismissProposal" => "dismissed", from: "pending"
+    end
+  end
+
+  # Interpretation fixtures
+
+  # Interpretation policies
+  policy "InterpretOnWake" do
+    on "NightEnded"
+    trigger "InterpretExperience"
+    across "Suggestion"
+  end
+
+  policy "AbsorbOnBeat" do
+    on "ProcessCompleted"
+    trigger "AbsorbFindings"
+  end
+
+  policy "SuggestAfterInterpretation" do
+    on "ExperienceInterpreted"
+    trigger "ProposeAction"
+  end
+
+  policy "InterpretOnWake" do
+    on "WokenUp"
+    trigger "InterpretDream"
+  end
+
+  policy "ExtractOnInterpret" do
+    on "DreamInterpreted"
+    trigger "ExtractTheme"
+  end
+
+  policy "ProposeOnTheme" do
+    on "ThemeExtracted"
+    trigger "ProposeDomainFromDream"
+  end
+end

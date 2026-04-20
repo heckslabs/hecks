@@ -77,12 +77,12 @@ Hecks.bluebook "SubstanceRecovery" do
       emits "ClientEnrolledInProgram"
     end
 
-    UpdateCapacity do
+    AdjustCapacity do
       role "ClinicalDirector"
       description "Adjust the program's enrollment capacity"
       reference_to(TreatmentProgram)
       Integer :capacity
-      emits "CapacityUpdated"
+      emits "CapacityAdjusted"
       then_set :capacity, to: :capacity
     end
   end
@@ -170,7 +170,7 @@ Hecks.bluebook "SubstanceRecovery" do
       String :attendance_status
     end
 
-    CreateSupportGroup do
+    ConveneSupportGroup do
       role "Counselor"
       description "Start a new peer support group with schedule and facilitator"
       reference_to(Counselor)
@@ -179,7 +179,7 @@ Hecks.bluebook "SubstanceRecovery" do
       String :meeting_time
       String :facilitator_name
       Integer :max_members
-      emits "SupportGroupCreated"
+      emits "SupportGroupConvened"
       then_set :group_name, to: :group_name
       then_set :meeting_day, to: :meeting_day
       then_set :meeting_time, to: :meeting_time
@@ -240,9 +240,9 @@ Hecks.bluebook "SubstanceRecovery" do
     trigger "DischargeClient"
   end
 
-  policy "CreateGroupOnProgram" do
+  policy "ConveneGroupOnProgram" do
     on "ProgramEstablished"
-    trigger "CreateSupportGroup"
+    trigger "ConveneSupportGroup"
   end
 
   policy "RecordAttendanceOnGroupMember" do
@@ -250,18 +250,4 @@ Hecks.bluebook "SubstanceRecovery" do
     trigger "RecordAttendance"
   end
 
-  fixture "Client", name: "James Mitchell", date_of_birth: "1985-06-15", primary_substance: "alcohol", intake_date: "2026-03-01", insurance_id: "INS-98765", status: "active"
-  fixture "Client", name: "Sarah Coleman", date_of_birth: "1992-11-22", primary_substance: "opioid", intake_date: "2026-03-15", insurance_id: "INS-54321", status: "active"
-
-  fixture "TreatmentProgram", program_name: "Intensive Outpatient Program", treatment_level: "IOP", duration_days: 90, modality: "group_counseling", capacity: 20, current_enrollment: 18
-  fixture "TreatmentProgram", program_name: "Residential Treatment", treatment_level: "inpatient", duration_days: 28, modality: "comprehensive", capacity: 12, current_enrollment: 10
-
-  fixture "RecoveryMilestone", client_name: "James Mitchell", milestone_type: "30_days_sober", description: "First month without use", achieved_date: "2026-04-01", days_sober: 31, verified_by: "Dr. Patricia Reyes"
-  fixture "RecoveryMilestone", client_name: "Sarah Coleman", milestone_type: "90_days_sober", description: "Three months sober milestone", achieved_date: "2026-06-15", days_sober: 92, verified_by: "Dr. Michael Torres"
-
-  fixture "Counselor", name: "Dr. Patricia Reyes", license_type: "LCSW", license_number: "LCSW-45892", specialty: "substance_use_disorder", caseload: 8, status: "active"
-  fixture "Counselor", name: "Dr. Michael Torres", license_type: "licensed_counselor", license_number: "LC-38901", specialty: "trauma_informed_care", caseload: 10, status: "active"
-
-  fixture "SupportGroup", group_name: "Monday Evening AA", meeting_day: "Monday", meeting_time: "7:00 PM", facilitator_name: "Robert Chen", max_members: 15
-  fixture "SupportGroup", group_name: "Wednesday Narcotics Anonymous", meeting_day: "Wednesday", meeting_time: "6:30 PM", facilitator_name: "Maria Garcia", max_members: 12
 end

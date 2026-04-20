@@ -1,0 +1,89 @@
+Hecks.behaviors "GymReservations" do
+  vision "Behavioral tests for the GymReservations domain — exercises every command and query in memory"
+
+  # ── ClassSchedule aggregate ──────────────────────────────────────────
+
+  test "ScheduleClass sets class_name + day_of_week + time_slot + trainer_name + room + capacity" do
+    tests "ScheduleClass", on: "ClassSchedule"
+    input  class_name: "sample", day_of_week: "sample", time_slot: "sample", trainer_name: "sample", room: "sample", capacity: 1
+    expect ok: "true"
+  end
+
+  test "CancelClass runs" do
+    tests "CancelClass", on: "ClassSchedule"
+    setup  "ScheduleClass", class_name: "sample", day_of_week: "sample", time_slot: "sample", trainer_name: "sample", room: "sample", capacity: 1
+    expect ok: "true"
+  end
+
+
+  # ── Booking aggregate ──────────────────────────────────────────
+
+  test "ConfirmCapacity runs" do
+    tests "ConfirmCapacity", on: "Booking"
+    expect capacity_confirmed: true
+  end
+
+  test "ReserveSpot sets member_name + class_name + session_date" do
+    tests "ReserveSpot", on: "Booking"
+    input  member_name: "sample", class_name: "sample", session_date: "sample"
+    expect ok: "true"
+  end
+
+  test "ReserveSpot cascades through policy chain" do
+    tests "ReserveSpot", on: "Booking", kind: :cascade
+    setup  "RegisterTrainer", name: "sample", specialization: "sample"
+    input  member_name: "sample", class_name: "sample", session_date: "sample"
+    expect emits: ["SpotReserved", "AvailabilityPublished"]
+  end
+
+  test "CancelBooking runs" do
+    tests "CancelBooking", on: "Booking"
+    setup  "ConfirmCapacity"
+    expect ok: "true"
+  end
+
+  test "CancelBooking cascades through policy chain" do
+    tests "CancelBooking", on: "Booking", kind: :cascade
+    setup  "ConfirmCapacity"
+    setup  "JoinWaitList", member_name: "sample", class_name: "sample", requested_date: "sample"
+    expect emits: ["BookingCancelled", "WaitListPromoted"]
+  end
+
+  test "MarkAttended runs" do
+    tests "MarkAttended", on: "Booking"
+    setup  "ConfirmCapacity"
+    expect ok: "true"
+  end
+
+
+  # ── Trainer aggregate ──────────────────────────────────────────
+
+  test "RegisterTrainer sets name + specialization" do
+    tests "RegisterTrainer", on: "Trainer"
+    input  name: "sample", specialization: "sample"
+    expect name: "sample", specialization: "sample"
+  end
+
+  test "PublishAvailability sets available_days" do
+    tests "PublishAvailability", on: "Trainer"
+    setup  "RegisterTrainer", name: "sample", specialization: "sample"
+    input  available_days: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── WaitList aggregate ──────────────────────────────────────────
+
+  test "JoinWaitList sets member_name + class_name + requested_date" do
+    tests "JoinWaitList", on: "WaitList"
+    input  member_name: "sample", class_name: "sample", requested_date: "sample"
+    expect ok: "true"
+  end
+
+  test "PromoteFromWaitList runs" do
+    tests "PromoteFromWaitList", on: "WaitList"
+    setup  "JoinWaitList", member_name: "sample", class_name: "sample", requested_date: "sample"
+    expect ok: "true"
+  end
+
+end

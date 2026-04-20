@@ -1,0 +1,88 @@
+Hecks.behaviors "FoodDistribution" do
+  vision "Behavioral tests for the FoodDistribution domain — exercises every command and query in memory"
+
+  # ── FoodDonation aggregate ──────────────────────────────────────────
+
+  test "ReceiveDonation sets donation_id + donor_name + food_type + weight_lbs + expiry_date" do
+    tests "ReceiveDonation", on: "FoodDonation"
+    input  donation_id: "sample", donor_name: "sample", food_type: "sample", weight_lbs: 1.0, expiry_date: "sample"
+    expect donation_id: "sample", donor_name: "sample", food_type: "sample", weight_lbs: 1.0, expiry_date: "sample", status: "received"
+  end
+
+  test "SortDonation runs" do
+    tests "SortDonation", on: "FoodDonation"
+    setup  "ReceiveDonation", donation_id: "sample", donor_name: "sample", food_type: "sample", weight_lbs: 1.0, expiry_date: "sample"
+    expect status: "sorted"
+  end
+
+  test "SortDonation cascades through policy chain" do
+    tests "SortDonation", on: "FoodDonation", kind: :cascade
+    setup  "SetupZone", zone_id: "sample", zone_type: "sample", temperature_f: 1.0, capacity_pallets: 1
+    setup  "PlanRoute", route_id: "sample", driver_name: "sample", total_miles: 1.0
+    setup  "ReceiveDonation", donation_id: "sample", donor_name: "sample", food_type: "sample", weight_lbs: 1.0, expiry_date: "sample"
+    expect emits: ["DonationSorted", "ZoneStocked", "RoutePlanned"]
+  end
+
+
+  # ── WarehouseZone aggregate ──────────────────────────────────────────
+
+  test "SetupZone sets zone_id + zone_type + temperature_f + capacity_pallets" do
+    tests "SetupZone", on: "WarehouseZone"
+    input  zone_id: "sample", zone_type: "sample", temperature_f: 1.0, capacity_pallets: 1
+    expect zone_id: "sample", zone_type: "sample", temperature_f: 1.0, capacity_pallets: 1, used_pallets: 0, status: "active"
+  end
+
+  test "StockZone sets pallets_added" do
+    tests "StockZone", on: "WarehouseZone"
+    setup  "SetupZone", zone_id: "sample", zone_type: "sample", temperature_f: 1.0, capacity_pallets: 1
+    input  pallets_added: 1
+    expect ok: "true"
+  end
+
+  test "StockZone cascades through policy chain" do
+    tests "StockZone", on: "WarehouseZone", kind: :cascade
+    setup  "SetupZone", zone_id: "sample", zone_type: "sample", temperature_f: 1.0, capacity_pallets: 1
+    setup  "PlanRoute", route_id: "sample", driver_name: "sample", total_miles: 1.0
+    input  pallets_added: 1
+    expect emits: ["ZoneStocked", "RoutePlanned"]
+  end
+
+
+  # ── DeliveryRoute aggregate ──────────────────────────────────────────
+
+  test "PlanRoute sets route_id + driver_name + total_miles" do
+    tests "PlanRoute", on: "DeliveryRoute"
+    input  route_id: "sample", driver_name: "sample", total_miles: 1.0
+    expect route_id: "sample", driver_name: "sample", total_miles: 1.0, status: "planned"
+  end
+
+  test "StartDelivery runs" do
+    tests "StartDelivery", on: "DeliveryRoute"
+    setup  "PlanRoute", route_id: "sample", driver_name: "sample", total_miles: 1.0
+    expect status: "in_transit"
+  end
+
+  test "CompleteDelivery runs" do
+    tests "CompleteDelivery", on: "DeliveryRoute"
+    setup  "PlanRoute", route_id: "sample", driver_name: "sample", total_miles: 1.0
+    setup  "StartDelivery"
+    expect status: "completed"
+  end
+
+
+  # ── RecipientAgency aggregate ──────────────────────────────────────────
+
+  test "RegisterAgency sets agency_id + name + address + families_served" do
+    tests "RegisterAgency", on: "RecipientAgency"
+    input  agency_id: "sample", name: "sample", address: "sample", families_served: 1
+    expect agency_id: "sample", name: "sample", address: "sample", families_served: 1, status: "active"
+  end
+
+  test "RecordServed sets families_served" do
+    tests "RecordServed", on: "RecipientAgency"
+    setup  "RegisterAgency", agency_id: "sample", name: "sample", address: "sample", families_served: 1
+    input  families_served: 1
+    expect families_served: 1
+  end
+
+end

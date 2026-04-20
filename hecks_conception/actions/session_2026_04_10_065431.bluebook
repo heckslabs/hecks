@@ -3,12 +3,12 @@ Hecks.bluebook "session_2026_04_10_065431", version: "2026.04.15.1" do
   category "session"
 
   aggregate "Session", "This session" do
-    String :session_id
-    String :engine
-    String :started_at
-    String :status
+    attribute :session_id, String
+    attribute :engine, String
+    attribute :started_at, String
+    attribute :status, String
 
-    Start do
+    command "Start" do
       role "Bootloader"
       emits "SessionStarted"
       then_set :session_id, to: "session_2026_04_10_065431"
@@ -21,5 +21,4 @@ Hecks.bluebook "session_2026_04_10_065431", version: "2026.04.15.1" do
     end
   end
 
-  fixture "Session", session_id: "session_2026_04_10_065431", engine: "claude", started_at: "2026_04_10_065431", status: "active"
 end

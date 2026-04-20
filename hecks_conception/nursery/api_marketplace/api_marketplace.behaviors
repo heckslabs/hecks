@@ -1,0 +1,161 @@
+Hecks.behaviors "APIMarketplace" do
+  vision "Behavioral tests for the APIMarketplace domain — exercises every command and query in memory"
+
+  # ── APIProduct aggregate ──────────────────────────────────────────
+
+  test "PublishAPI sets api_name + version + description + base_url + auth_method" do
+    tests "PublishAPI", on: "APIProduct"
+    input  api_name: "sample", version: "sample", description: "sample", base_url: "sample", auth_method: "sample"
+    expect ok: "true"
+  end
+
+  test "DeprecateAPI sets sunset_date" do
+    tests "DeprecateAPI", on: "APIProduct"
+    setup  "PublishAPI", api_name: "sample", version: "sample", description: "sample", base_url: "sample", auth_method: "sample"
+    input  sunset_date: "sample"
+    expect status: "deprecated"
+  end
+
+  test "RetireAPI runs" do
+    tests "RetireAPI", on: "APIProduct"
+    setup  "PublishAPI", api_name: "sample", version: "sample", description: "sample", base_url: "sample", auth_method: "sample"
+    setup  "DeprecateAPI", sunset_date: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Consumer aggregate ──────────────────────────────────────────
+
+  test "RegisterConsumer sets consumer_name + email + organization + plan" do
+    tests "RegisterConsumer", on: "Consumer"
+    input  consumer_name: "sample", email: "sample", organization: "sample", plan: "sample"
+    expect consumer_name: "sample", email: "sample", organization: "sample", plan: "sample", status: "active"
+  end
+
+  test "RegisterConsumer cascades through policy chain" do
+    tests "RegisterConsumer", on: "Consumer", kind: :cascade
+    setup  "IssueKey", key_id: "sample", label: "sample", scope: "sample", expires_at: "sample"
+    setup  "DefineRateLimit", policy_name: "sample", requests_per_minute: 1, requests_per_day: 1, burst_limit: 1
+    setup  "PublishAPI", api_name: "sample", version: "sample", description: "sample", base_url: "sample", auth_method: "sample"
+    input  consumer_name: "sample", email: "sample", organization: "sample", plan: "sample"
+    expect emits: ["ConsumerRegistered", "KeyIssued", "ConsumerSubscribed", "RateLimitDefined", "KeyRotated"]
+  end
+
+  test "SubscribeToAPI sets api_name + tier" do
+    tests "SubscribeToAPI", on: "Consumer"
+    setup  "RegisterConsumer", consumer_name: "sample", email: "sample", organization: "sample", plan: "sample"
+    input  api_name: "sample", tier: "sample"
+    expect ok: "true"
+  end
+
+  test "SubscribeToAPI cascades through policy chain" do
+    tests "SubscribeToAPI", on: "Consumer", kind: :cascade
+    setup  "RegisterConsumer", consumer_name: "sample", email: "sample", organization: "sample", plan: "sample"
+    setup  "DefineRateLimit", policy_name: "sample", requests_per_minute: 1, requests_per_day: 1, burst_limit: 1
+    setup  "PublishAPI", api_name: "sample", version: "sample", description: "sample", base_url: "sample", auth_method: "sample"
+    setup  "IssueKey", key_id: "sample", label: "sample", scope: "sample", expires_at: "sample"
+    input  api_name: "sample", tier: "sample"
+    expect emits: ["ConsumerSubscribed", "RateLimitDefined", "KeyRotated"]
+  end
+
+  test "SuspendConsumer runs" do
+    tests "SuspendConsumer", on: "Consumer"
+    setup  "RegisterConsumer", consumer_name: "sample", email: "sample", organization: "sample", plan: "sample"
+    expect ok: "true"
+  end
+
+  test "SuspendConsumer cascades through policy chain" do
+    tests "SuspendConsumer", on: "Consumer", kind: :cascade
+    setup  "IssueKey", key_id: "sample", label: "sample", scope: "sample", expires_at: "sample"
+    setup  "RegisterConsumer", consumer_name: "sample", email: "sample", organization: "sample", plan: "sample"
+    expect emits: ["ConsumerSuspended", "KeyRevoked"]
+  end
+
+
+  # ── APIKey aggregate ──────────────────────────────────────────
+
+  test "IssueKey sets key_id + label + scope + expires_at" do
+    tests "IssueKey", on: "APIKey"
+    setup  "RegisterConsumer", consumer_name: "sample", email: "sample", organization: "sample", plan: "sample"
+    input  key_id: "sample", label: "sample", scope: "sample", expires_at: "sample"
+    expect status: "active"
+  end
+
+  test "RevokeKey runs" do
+    tests "RevokeKey", on: "APIKey"
+    setup  "IssueKey", key_id: "sample", label: "sample", scope: "sample", expires_at: "sample"
+    expect ok: "true"
+  end
+
+  test "RotateKey runs" do
+    tests "RotateKey", on: "APIKey"
+    setup  "IssueKey", key_id: "sample", label: "sample", scope: "sample", expires_at: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── RateLimitPolicy aggregate ──────────────────────────────────────────
+
+  test "DefineRateLimit sets policy_name + requests_per_minute + requests_per_day + burst_limit" do
+    tests "DefineRateLimit", on: "RateLimitPolicy"
+    setup  "PublishAPI", api_name: "sample", version: "sample", description: "sample", base_url: "sample", auth_method: "sample"
+    input  policy_name: "sample", requests_per_minute: 1, requests_per_day: 1, burst_limit: 1
+    expect ok: "true"
+  end
+
+  test "AdjustLimit sets requests_per_minute + requests_per_day" do
+    tests "AdjustLimit", on: "RateLimitPolicy"
+    setup  "DefineRateLimit", policy_name: "sample", requests_per_minute: 1, requests_per_day: 1, burst_limit: 1
+    input  requests_per_minute: 1, requests_per_day: 1
+    expect ok: "true"
+  end
+
+  test "EnforceThrottle sets consumer_id" do
+    tests "EnforceThrottle", on: "RateLimitPolicy"
+    setup  "DefineRateLimit", policy_name: "sample", requests_per_minute: 1, requests_per_day: 1, burst_limit: 1
+    input  consumer_id: "sample"
+    expect ok: "true"
+  end
+
+  test "EnforceThrottle cascades through policy chain" do
+    tests "EnforceThrottle", on: "RateLimitPolicy", kind: :cascade
+    setup  "DefineRateLimit", policy_name: "sample", requests_per_minute: 1, requests_per_day: 1, burst_limit: 1
+    setup  "GenerateBill", bill_id: "sample", amount: 1.0, total_calls: 1, billing_period: "sample"
+    setup  "RegisterConsumer", consumer_name: "sample", email: "sample", organization: "sample", plan: "sample"
+    setup  "IssueKey", key_id: "sample", label: "sample", scope: "sample", expires_at: "sample"
+    input  consumer_id: "sample"
+    expect emits: ["ConsumerThrottled", "BillGenerated", "PaymentCollected", "ConsumerSuspended", "KeyRevoked"]
+  end
+
+
+  # ── UsageBill aggregate ──────────────────────────────────────────
+
+  test "GenerateBill sets bill_id + amount + total_calls + billing_period" do
+    tests "GenerateBill", on: "UsageBill"
+    setup  "RegisterConsumer", consumer_name: "sample", email: "sample", organization: "sample", plan: "sample"
+    input  bill_id: "sample", amount: 1.0, total_calls: 1, billing_period: "sample"
+    expect status: "unpaid"
+  end
+
+  test "GenerateBill cascades through policy chain" do
+    tests "GenerateBill", on: "UsageBill", kind: :cascade
+    setup  "RegisterConsumer", consumer_name: "sample", email: "sample", organization: "sample", plan: "sample"
+    setup  "IssueKey", key_id: "sample", label: "sample", scope: "sample", expires_at: "sample"
+    input  bill_id: "sample", amount: 1.0, total_calls: 1, billing_period: "sample"
+    expect emits: ["BillGenerated", "PaymentCollected", "ConsumerSuspended", "KeyRevoked"]
+  end
+
+  test "CollectPayment runs" do
+    tests "CollectPayment", on: "UsageBill"
+    setup  "GenerateBill", bill_id: "sample", amount: 1.0, total_calls: 1, billing_period: "sample"
+    expect ok: "true"
+  end
+
+  test "WaiveBill sets waiver_reason" do
+    tests "WaiveBill", on: "UsageBill"
+    setup  "GenerateBill", bill_id: "sample", amount: 1.0, total_calls: 1, billing_period: "sample"
+    input  waiver_reason: "sample"
+    expect ok: "true"
+  end
+
+end

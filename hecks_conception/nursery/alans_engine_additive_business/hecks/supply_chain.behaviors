@@ -1,0 +1,296 @@
+Hecks.behaviors "SupplyChain" do
+  vision "Behavioral tests for the SupplyChain domain — exercises every command and query in memory"
+
+  # ── Supplier aggregate ──────────────────────────────────────────
+
+  test "RegisterSupplier sets name + supplier_type + contact + lead_time_days + payment_terms" do
+    tests "RegisterSupplier", on: "Supplier"
+    input  name: "sample", supplier_type: "sample", contact: "sample", lead_time_days: 1, payment_terms: "sample"
+    expect name: "sample", supplier_type: "sample", contact: "sample", lead_time_days: 1, payment_terms: "sample", approved: "false", status: "pending"
+  end
+
+  test "ApproveSupplier runs" do
+    tests "ApproveSupplier", on: "Supplier"
+    setup  "RegisterSupplier", name: "sample", supplier_type: "sample", contact: "sample", lead_time_days: 1, payment_terms: "sample"
+    expect approved: "true", status: "approved"
+  end
+
+  test "RateSupplier sets quality_rating" do
+    tests "RateSupplier", on: "Supplier"
+    setup  "RegisterSupplier", name: "sample", supplier_type: "sample", contact: "sample", lead_time_days: 1, payment_terms: "sample"
+    input  quality_rating: 1.0
+    expect quality_rating: 1.0
+  end
+
+  test "SuspendSupplier runs" do
+    tests "SuspendSupplier", on: "Supplier"
+    setup  "RegisterSupplier", name: "sample", supplier_type: "sample", contact: "sample", lead_time_days: 1, payment_terms: "sample"
+    setup  "ApproveSupplier"
+    expect approved: "false", status: "suspended"
+  end
+
+  test "RestoreSupplier runs" do
+    tests "RestoreSupplier", on: "Supplier"
+    setup  "RegisterSupplier", name: "sample", supplier_type: "sample", contact: "sample", lead_time_days: 1, payment_terms: "sample"
+    setup  "ApproveSupplier"
+    setup  "SuspendSupplier"
+    expect approved: "true", status: "approved"
+  end
+
+
+  # ── RawMaterial aggregate ──────────────────────────────────────────
+
+  test "SourceMaterial sets chemical_name + cas_number + supplier + grade + unit_cost + unit" do
+    tests "SourceMaterial", on: "RawMaterial"
+    input  chemical_name: "sample", cas_number: "sample", supplier: "sample", grade: "sample", unit_cost: 1.0, unit: "sample"
+    expect chemical_name: "sample", cas_number: "sample", supplier: "sample", grade: "sample", unit_cost: 1.0, unit: "sample", coa_on_file: "false", msds_current: "false", status: "ordered"
+  end
+
+  test "ReceiveMaterial sets lot_number" do
+    tests "ReceiveMaterial", on: "RawMaterial"
+    setup  "SourceMaterial", chemical_name: "sample", cas_number: "sample", supplier: "sample", grade: "sample", unit_cost: 1.0, unit: "sample"
+    input  lot_number: "sample"
+    expect lot_number: "sample", status: "received"
+  end
+
+  test "ReceiveMaterial cascades through policy chain" do
+    tests "ReceiveMaterial", on: "RawMaterial", kind: :cascade
+    setup  "SourceMaterial", chemical_name: "sample", cas_number: "sample", supplier: "sample", grade: "sample", unit_cost: 1.0, unit: "sample"
+    input  lot_number: "sample"
+    expect emits: ["MaterialReceived", "MaterialInspecting", "LotTracked"]
+  end
+
+  test "InspectMaterial runs" do
+    tests "InspectMaterial", on: "RawMaterial"
+    setup  "SourceMaterial", chemical_name: "sample", cas_number: "sample", supplier: "sample", grade: "sample", unit_cost: 1.0, unit: "sample"
+    setup  "ReceiveMaterial", lot_number: "sample"
+    expect status: "inspecting"
+  end
+
+  test "AcceptMaterial sets coa_on_file" do
+    tests "AcceptMaterial", on: "RawMaterial"
+    setup  "SourceMaterial", chemical_name: "sample", cas_number: "sample", supplier: "sample", grade: "sample", unit_cost: 1.0, unit: "sample"
+    setup  "ReceiveMaterial", lot_number: "sample"
+    setup  "InspectMaterial"
+    input  coa_on_file: "sample"
+    expect coa_on_file: "sample", status: "accepted"
+  end
+
+  test "AcceptMaterial cascades through policy chain" do
+    tests "AcceptMaterial", on: "RawMaterial", kind: :cascade
+    setup  "SourceMaterial", chemical_name: "sample", cas_number: "sample", supplier: "sample", grade: "sample", unit_cost: 1.0, unit: "sample"
+    setup  "TrackInboundLot", lot_number: "sample", material_name: "sample", supplier: "sample", received_date: "sample"
+    setup  "ReceiveMaterial", lot_number: "sample"
+    setup  "InspectMaterial"
+    input  coa_on_file: "sample"
+    expect emits: ["MaterialAccepted", "InboundLotTracked"]
+  end
+
+  test "RejectMaterial sets reason" do
+    tests "RejectMaterial", on: "RawMaterial"
+    setup  "SourceMaterial", chemical_name: "sample", cas_number: "sample", supplier: "sample", grade: "sample", unit_cost: 1.0, unit: "sample"
+    setup  "ReceiveMaterial", lot_number: "sample"
+    setup  "InspectMaterial"
+    input  reason: "sample"
+    expect status: "rejected"
+  end
+
+  test "RejectMaterial cascades through policy chain" do
+    tests "RejectMaterial", on: "RawMaterial", kind: :cascade
+    setup  "SourceMaterial", chemical_name: "sample", cas_number: "sample", supplier: "sample", grade: "sample", unit_cost: 1.0, unit: "sample"
+    setup  "ReceiveMaterial", lot_number: "sample"
+    setup  "InspectMaterial"
+    input  reason: "sample"
+    expect emits: ["MaterialRejected", "UnderperformerFlagged"]
+  end
+
+  test "TrackLot runs" do
+    tests "TrackLot", on: "RawMaterial"
+    setup  "SourceMaterial", chemical_name: "sample", cas_number: "sample", supplier: "sample", grade: "sample", unit_cost: 1.0, unit: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── PackagingComponent aggregate ──────────────────────────────────────────
+
+  test "OrderPackaging sets component_type + supplier + specification + unit_cost + moq" do
+    tests "OrderPackaging", on: "PackagingComponent"
+    input  component_type: "sample", supplier: "sample", specification: "sample", unit_cost: 1.0, moq: 1
+    expect component_type: "sample", supplier: "sample", specification: "sample", unit_cost: 1.0, moq: 1, status: "ordered"
+  end
+
+  test "ReceivePackaging sets lot_number" do
+    tests "ReceivePackaging", on: "PackagingComponent"
+    setup  "OrderPackaging", component_type: "sample", supplier: "sample", specification: "sample", unit_cost: 1.0, moq: 1
+    input  lot_number: "sample"
+    expect lot_number: "sample", status: "received"
+  end
+
+  test "InspectPackaging runs" do
+    tests "InspectPackaging", on: "PackagingComponent"
+    setup  "OrderPackaging", component_type: "sample", supplier: "sample", specification: "sample", unit_cost: 1.0, moq: 1
+    setup  "ReceivePackaging", lot_number: "sample"
+    expect status: "inspecting"
+  end
+
+  test "AcceptPackaging runs" do
+    tests "AcceptPackaging", on: "PackagingComponent"
+    setup  "OrderPackaging", component_type: "sample", supplier: "sample", specification: "sample", unit_cost: 1.0, moq: 1
+    setup  "ReceivePackaging", lot_number: "sample"
+    setup  "InspectPackaging"
+    expect status: "accepted"
+  end
+
+  test "RejectPackaging sets reason" do
+    tests "RejectPackaging", on: "PackagingComponent"
+    setup  "OrderPackaging", component_type: "sample", supplier: "sample", specification: "sample", unit_cost: 1.0, moq: 1
+    setup  "ReceivePackaging", lot_number: "sample"
+    setup  "InspectPackaging"
+    input  reason: "sample"
+    expect status: "rejected"
+  end
+
+
+  # ── BillOfMaterials aggregate ──────────────────────────────────────────
+
+  test "DefineBOM sets product_sku + formula_name" do
+    tests "DefineBOM", on: "BillOfMaterials"
+    input  product_sku: "sample", formula_name: "sample"
+    expect product_sku: "sample", formula_name: "sample"
+  end
+
+  test "AddMaterialLine sets chemical_name + supplier + quantity_per_unit + unit + cost_per_unit" do
+    tests "AddMaterialLine", on: "BillOfMaterials"
+    setup  "DefineBOM", product_sku: "sample", formula_name: "sample"
+    input  chemical_name: "sample", supplier: "sample", quantity_per_unit: 1.0, unit: "sample", cost_per_unit: 1.0
+    expect ok: "true"
+  end
+
+  test "AddPackagingLine sets component_type + supplier + quantity_per_unit + cost_per_unit" do
+    tests "AddPackagingLine", on: "BillOfMaterials"
+    setup  "DefineBOM", product_sku: "sample", formula_name: "sample"
+    input  component_type: "sample", supplier: "sample", quantity_per_unit: 1, cost_per_unit: 1.0
+    expect ok: "true"
+  end
+
+  test "CalculateUnitCost runs" do
+    tests "CalculateUnitCost", on: "BillOfMaterials"
+    setup  "DefineBOM", product_sku: "sample", formula_name: "sample"
+    expect ok: "true"
+  end
+
+  test "ReviseBOM runs" do
+    tests "ReviseBOM", on: "BillOfMaterials"
+    setup  "DefineBOM", product_sku: "sample", formula_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── PurchaseOrder aggregate ──────────────────────────────────────────
+
+  test "DraftPurchaseOrder sets po_number + supplier + delivery_date" do
+    tests "DraftPurchaseOrder", on: "PurchaseOrder"
+    input  po_number: "sample", supplier: "sample", delivery_date: "sample"
+    expect po_number: "sample", supplier: "sample", delivery_date: "sample", status: "draft"
+  end
+
+  test "SubmitPurchaseOrder runs" do
+    tests "SubmitPurchaseOrder", on: "PurchaseOrder"
+    setup  "DraftPurchaseOrder", po_number: "sample", supplier: "sample", delivery_date: "sample"
+    expect status: "submitted"
+  end
+
+  test "ConfirmPurchaseOrder runs" do
+    tests "ConfirmPurchaseOrder", on: "PurchaseOrder"
+    setup  "DraftPurchaseOrder", po_number: "sample", supplier: "sample", delivery_date: "sample"
+    setup  "SubmitPurchaseOrder"
+    expect status: "confirmed"
+  end
+
+  test "ReceivePurchaseOrder runs" do
+    tests "ReceivePurchaseOrder", on: "PurchaseOrder"
+    setup  "DraftPurchaseOrder", po_number: "sample", supplier: "sample", delivery_date: "sample"
+    setup  "SubmitPurchaseOrder"
+    setup  "ConfirmPurchaseOrder"
+    expect status: "received"
+  end
+
+  test "ClosePurchaseOrder runs" do
+    tests "ClosePurchaseOrder", on: "PurchaseOrder"
+    setup  "DraftPurchaseOrder", po_number: "sample", supplier: "sample", delivery_date: "sample"
+    setup  "SubmitPurchaseOrder"
+    setup  "ConfirmPurchaseOrder"
+    setup  "ReceivePurchaseOrder"
+    expect status: "closed"
+  end
+
+
+  # ── SupplierQuality aggregate ──────────────────────────────────────────
+
+  test "RecordReceipt runs" do
+    tests "RecordReceipt", on: "SupplierQuality"
+    expect ok: "true"
+  end
+
+  test "RecordReceipt cascades through policy chain" do
+    tests "RecordReceipt", on: "SupplierQuality", kind: :cascade
+    expect emits: ["ReceiptRecorded", "MetricsCalculated"]
+  end
+
+  test "RecordRejection runs" do
+    tests "RecordRejection", on: "SupplierQuality"
+    expect ok: "true"
+  end
+
+  test "CalculateMetrics runs" do
+    tests "CalculateMetrics", on: "SupplierQuality"
+    expect ok: "true"
+  end
+
+  test "FlagUnderperformer runs" do
+    tests "FlagUnderperformer", on: "SupplierQuality"
+    expect ok: "true"
+  end
+
+  test "IssueCorrectiveAction sets reason" do
+    tests "IssueCorrectiveAction", on: "SupplierQuality"
+    input  reason: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── MaterialTraceability aggregate ──────────────────────────────────────────
+
+  test "TrackInboundLot sets lot_number + material_name + supplier + received_date" do
+    tests "TrackInboundLot", on: "MaterialTraceability"
+    input  lot_number: "sample", material_name: "sample", supplier: "sample", received_date: "sample"
+    expect lot_number: "sample", material_name: "sample", supplier: "sample", received_date: "sample"
+  end
+
+  test "LinkToBatch sets batch_id" do
+    tests "LinkToBatch", on: "MaterialTraceability"
+    setup  "TrackInboundLot", lot_number: "sample", material_name: "sample", supplier: "sample", received_date: "sample"
+    input  batch_id: "sample"
+    expect used_in_batches_size: 1
+  end
+
+  test "LinkToProduct sets product_sku" do
+    tests "LinkToProduct", on: "MaterialTraceability"
+    setup  "TrackInboundLot", lot_number: "sample", material_name: "sample", supplier: "sample", received_date: "sample"
+    input  product_sku: "sample"
+    expect used_in_products_size: 1
+  end
+
+  test "TraceForward runs" do
+    tests "TraceForward", on: "MaterialTraceability"
+    setup  "TrackInboundLot", lot_number: "sample", material_name: "sample", supplier: "sample", received_date: "sample"
+    expect ok: "true"
+  end
+
+  test "TraceBackward runs" do
+    tests "TraceBackward", on: "MaterialTraceability"
+    setup  "TrackInboundLot", lot_number: "sample", material_name: "sample", supplier: "sample", received_date: "sample"
+    expect ok: "true"
+  end
+
+end

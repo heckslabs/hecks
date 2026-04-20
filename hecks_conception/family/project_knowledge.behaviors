@@ -1,0 +1,66 @@
+Hecks.behaviors "ChrisProjectKnowledge" do
+  vision "Behavioral tests for the ChrisProjectKnowledge domain — exercises every command and query in memory"
+
+  # ── Architecture aggregate ──────────────────────────────────────────
+
+  test "DocumentArchitecture sets name + purpose" do
+    tests "DocumentArchitecture", on: "Architecture"
+    input  name: "sample", purpose: "sample"
+    expect modules_size: 1
+  end
+
+
+  # ── ContractSystem aggregate ──────────────────────────────────────────
+
+  test "AddContract sets name + purpose" do
+    tests "AddContract", on: "ContractSystem"
+    input  name: "sample", purpose: "sample"
+    expect contracts_size: 1
+  end
+
+
+  # ── CapabilitySystem aggregate ──────────────────────────────────────────
+
+  test "AddCapability sets name + purpose" do
+    tests "AddCapability", on: "CapabilitySystem"
+    input  name: "sample", purpose: "sample"
+    expect capabilities_size: 1
+  end
+
+
+  # ── DesignDecision aggregate ──────────────────────────────────────────
+
+  test "RecordDecision sets name + decision + why + date" do
+    tests "RecordDecision", on: "DesignDecision"
+    input  name: "sample", decision: "sample", why: "sample", date: "sample"
+    expect name: "sample", decision: "sample", why: "sample", date: "sample"
+  end
+
+
+  # ── Rename aggregate ──────────────────────────────────────────
+
+  test "RecordRename sets from_name + to_name + date + scope + files_changed" do
+    tests "RecordRename", on: "Rename"
+    input  from_name: "sample", to_name: "sample", date: "sample", scope: "sample", files_changed: 1
+    expect from_name: "sample", to_name: "sample", date: "sample", scope: "sample", files_changed: 1
+  end
+
+
+  # ── ActiveSystem aggregate ──────────────────────────────────────────
+
+  test "RecordSystem sets name + description + date_built + key_insight" do
+    tests "RecordSystem", on: "ActiveSystem"
+    input  name: "sample", description: "sample", date_built: "sample", key_insight: "sample"
+    expect name: "sample", description: "sample", date_built: "sample", key_insight: "sample"
+  end
+
+
+  # ── FutureWork aggregate ──────────────────────────────────────────
+
+  test "AddFutureWork sets name + description + priority" do
+    tests "AddFutureWork", on: "FutureWork"
+    input  name: "sample", description: "sample", priority: "sample"
+    expect name: "sample", description: "sample", priority: "sample"
+  end
+
+end

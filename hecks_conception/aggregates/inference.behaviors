@@ -1,0 +1,52 @@
+Hecks.behaviors "Inference" do
+  vision "Behavioral tests for the Inference domain — exercises every command and query in memory"
+
+  # ── ContextWindow aggregate ──────────────────────────────────────────
+
+  test "BuildContext sets grammar_tokens + example_tokens + organ_tokens" do
+    tests "BuildContext", on: "ContextWindow"
+    input  grammar_tokens: 1, example_tokens: 1, organ_tokens: 1
+    expect grammar_tokens: 1, example_tokens: 1, organ_tokens: 1
+  end
+
+
+  # ── FewShot aggregate ──────────────────────────────────────────
+
+  test "AddExample sets domain_name + source + purpose" do
+    tests "AddExample", on: "FewShot"
+    input  domain_name: "sample", source: "sample", purpose: "sample"
+    expect domain_name: "sample", source: "sample", purpose: "sample"
+  end
+
+
+  # ── LocalModel aggregate ──────────────────────────────────────────
+
+  test "StartModel sets name + context_length + backend" do
+    tests "StartModel", on: "LocalModel"
+    input  name: "sample", context_length: 1, backend: "sample"
+    expect name: "sample", context_length: 1, backend: "sample", serving: "running"
+  end
+
+
+  # ── Prompt aggregate ──────────────────────────────────────────
+
+  test "RunInference sets input" do
+    tests "RunInference", on: "Prompt"
+    input  input: "sample"
+    expect input: "sample"
+  end
+
+  test "RunInference cascades through policy chain" do
+    tests "RunInference", on: "Prompt", kind: :cascade
+    input  input: "sample"
+    expect emits: ["InferenceRan", "OutputValidated"]
+  end
+
+  test "ValidateOutput sets valid" do
+    tests "ValidateOutput", on: "Prompt"
+    setup  "RunInference", input: "sample"
+    input  valid: "sample"
+    expect valid: "sample"
+  end
+
+end

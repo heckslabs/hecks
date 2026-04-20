@@ -1,0 +1,54 @@
+Hecks.behaviors "InmateEducation" do
+  vision "Behavioral tests for the InmateEducation domain — exercises every command and query in memory"
+
+  # ── Inmate aggregate ──────────────────────────────────────────
+
+  test "EnrollInmate sets inmate_id + name + facility + education_level" do
+    tests "EnrollInmate", on: "Inmate"
+    input  inmate_id: "sample", name: "sample", facility: "sample", education_level: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Course aggregate ──────────────────────────────────────────
+
+  test "Author sets course_name + subject" do
+    tests "Author", on: "Course"
+    input  course_name: "sample", subject: "sample"
+    expect ok: "true"
+  end
+
+  test "PublishCourse runs" do
+    tests "PublishCourse", on: "Course"
+    setup  "Author", course_name: "sample", subject: "sample"
+    setup  "AddModule", module_name: "sample", content_type: "sample", duration_minutes: 1
+    expect ok: "true"
+  end
+
+
+  # ── Enrollment aggregate ──────────────────────────────────────────
+
+  test "RegisterEnrollment runs" do
+    tests "RegisterEnrollment", on: "Enrollment"
+    setup  "Author", course_name: "sample", subject: "sample"
+    setup  "EnrollInmate", inmate_id: "sample", name: "sample", facility: "sample", education_level: "sample"
+    expect ok: "true"
+  end
+
+  test "CompleteEnrollment runs" do
+    tests "CompleteEnrollment", on: "Enrollment"
+    setup  "RegisterEnrollment"
+    setup  "SubmitAssignment", assignment_name: "sample", score: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── BehaviorRecord aggregate ──────────────────────────────────────────
+
+  test "OpenRecord runs" do
+    tests "OpenRecord", on: "BehaviorRecord"
+    setup  "EnrollInmate", inmate_id: "sample", name: "sample", facility: "sample", education_level: "sample"
+    expect ok: "true"
+  end
+
+end

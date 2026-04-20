@@ -1,0 +1,60 @@
+Hecks.behaviors "DomainNarration" do
+  vision "Behavioral tests for the DomainNarration domain — exercises every command and query in memory"
+
+  # ── Workflow aggregate ──────────────────────────────────────────
+
+  test "InferWorkflow sets domain_name" do
+    tests "InferWorkflow", on: "Workflow"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+  test "InferWorkflow cascades through policy chain" do
+    tests "InferWorkflow", on: "Workflow", kind: :cascade
+    setup  "TranslateEvent", event_name: "sample"
+    setup  "TraceChain", command_name: "sample", domain_name: "sample"
+    input  domain_name: "sample"
+    expect emits: ["WorkflowInferred", "EventTranslated", "ChainTraced"]
+  end
+
+
+  # ── Narration aggregate ──────────────────────────────────────────
+
+  test "TranslateEvent sets event_name" do
+    tests "TranslateEvent", on: "Narration"
+    input  event_name: "sample"
+    expect ok: "true"
+  end
+
+  test "TranslateEvent cascades through policy chain" do
+    tests "TranslateEvent", on: "Narration", kind: :cascade
+    setup  "TraceChain", command_name: "sample", domain_name: "sample"
+    input  event_name: "sample"
+    expect emits: ["EventTranslated", "ChainTraced"]
+  end
+
+  test "TranslateCommand sets command_name" do
+    tests "TranslateCommand", on: "Narration"
+    input  command_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── PolicyChain aggregate ──────────────────────────────────────────
+
+  test "TraceChain sets command_name + domain_name" do
+    tests "TraceChain", on: "PolicyChain"
+    input  command_name: "sample", domain_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Rule aggregate ──────────────────────────────────────────
+
+  test "CollectRules sets domain_name" do
+    tests "CollectRules", on: "Rule"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+end

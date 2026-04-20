@@ -3,22 +3,22 @@ Hecks.bluebook "Law", version: "2026.04.14.1" do
   category "meta"
 
   aggregate "Law", "A single enforceable rule — has a check, a severity, and a contract that can be run" do
-    String :name
-    String :description
-    String :domain_scope
-    String :check_expression
-    String :severity
-    String :status
-    Integer :violation_count
+    attribute :name, String
+    attribute :description, String
+    attribute :domain_scope, String
+    attribute :check_expression, String
+    attribute :severity, String
+    attribute :status, String
+    attribute :violation_count, Integer
 
-    Enact do
+    command "Enact" do
       role "Architect"
       description "Create a new law — an enforceable rule with a check expression and severity"
-      String :name
-      String :description
-      String :domain_scope
-      String :check_expression
-      String :severity
+      attribute :name, String
+      attribute :description, String
+      attribute :domain_scope, String
+      attribute :check_expression, String
+      attribute :severity, String
       emits "LawEnacted"
       then_set :name, to: :name
       then_set :description, to: :description
@@ -29,18 +29,18 @@ Hecks.bluebook "Law", version: "2026.04.14.1" do
       then_set :violation_count, to: 0
     end
 
-    Amend do
+    command "Amend" do
       role "Architect"
       description "Change the check or description of an existing law"
       reference_to(Law)
-      String :description
-      String :check_expression
+      attribute :description, String
+      attribute :check_expression, String
       emits "LawAmended"
       then_set :description, to: :description
       then_set :check_expression, to: :check_expression
     end
 
-    Suspend do
+    command "Suspend" do
       role "Architect"
       description "Temporarily disable a law — it still exists but is not enforced"
       reference_to(Law)
@@ -48,7 +48,7 @@ Hecks.bluebook "Law", version: "2026.04.14.1" do
       then_set :status, to: "suspended"
     end
 
-    Reinstate do
+    command "Reinstate" do
       role "Architect"
       description "Re-enable a suspended law"
       reference_to(Law)
@@ -56,7 +56,7 @@ Hecks.bluebook "Law", version: "2026.04.14.1" do
       then_set :status, to: "active"
     end
 
-    RecordViolation do
+    command "RecordViolation" do
       role "Enforcer"
       description "A contract check found this law was violated"
       reference_to(Law)
@@ -72,21 +72,21 @@ Hecks.bluebook "Law", version: "2026.04.14.1" do
   end
 
   aggregate "Violation", "A specific instance of a law being broken — who, where, when, what" do
-    String :law_name
-    String :violator
-    String :location
-    String :detail
-    String :detected_at
-    String :resolution
+    attribute :law_name, String
+    attribute :violator, String
+    attribute :location, String
+    attribute :detail, String
+    attribute :detected_at, String
+    attribute :resolution, String
 
-    Report do
+    command "Report" do
       role "Enforcer"
       description "Report a specific violation — which law, where, what happened"
-      String :law_name
-      String :violator
-      String :location
-      String :detail
-      String :detected_at
+      attribute :law_name, String
+      attribute :violator, String
+      attribute :location, String
+      attribute :detail, String
+      attribute :detected_at, String
       emits "ViolationReported"
       then_set :law_name, to: :law_name
       then_set :violator, to: :violator
@@ -96,13 +96,11 @@ Hecks.bluebook "Law", version: "2026.04.14.1" do
       then_set :resolution, to: "open"
     end
 
-    Resolve do
+    command "Resolve" do
       role "Architect"
       description "Mark a violation as resolved — the offending code or domain was fixed"
       reference_to(Violation)
-      String :resolution
       emits "ViolationResolved"
-      then_set :resolution, to: :resolution
     end
 
     lifecycle :resolution, default: "open" do
@@ -112,17 +110,17 @@ Hecks.bluebook "Law", version: "2026.04.14.1" do
   end
 
   aggregate "Enforcement", "A run of all active laws against a scope — the contract check" do
-    String :scope
-    Integer :laws_checked
-    Integer :laws_passed
-    Integer :laws_violated
-    String :enforced_at
-    String :verdict
+    attribute :scope, String
+    attribute :laws_checked, Integer
+    attribute :laws_passed, Integer
+    attribute :laws_violated, Integer
+    attribute :enforced_at, String
+    attribute :verdict, String
 
-    Enforce do
+    command "Enforce" do
       role "Enforcer"
       description "Run all active laws against a scope — check every contract, report every violation"
-      String :scope
+      attribute :scope, String
       emits "EnforcementStarted"
       then_set :scope, to: :scope
       then_set :laws_checked, to: 0
@@ -131,24 +129,24 @@ Hecks.bluebook "Law", version: "2026.04.14.1" do
       then_set :verdict, to: "running"
     end
 
-    RecordCheck do
+    command "RecordCheck" do
       role "Enforcer"
       description "Record the result of checking one law"
       reference_to(Enforcement)
-      Boolean :passed
+      attribute :passed, TrueClass
       emits "LawChecked"
     end
 
-    Conclude do
+    command "Conclude" do
       role "Enforcer"
       description "All laws checked — render final verdict"
       reference_to(Enforcement)
-      String :enforced_at
+      attribute :enforced_at, String
       emits "EnforcementConcluded"
       then_set :enforced_at, to: :enforced_at
     end
 
-    PassAll do
+    command "PassAll" do
       role "Enforcer"
       description "Every law passed — scope is lawful"
       reference_to(Enforcement)
@@ -157,7 +155,7 @@ Hecks.bluebook "Law", version: "2026.04.14.1" do
       then_set :verdict, to: "lawful"
     end
 
-    FailSome do
+    command "FailSome" do
       role "Enforcer"
       description "One or more laws were violated — scope is unlawful"
       reference_to(Enforcement)
@@ -186,31 +184,14 @@ Hecks.bluebook "Law", version: "2026.04.14.1" do
   # === The Laws ===
 
   # Conception laws
-  fixture "Law", name: "FixturesRequired", description: "Every conceived domain must include fixture data for every aggregate", domain_scope: "conception", check_expression: "fixture_count > 0 for each aggregate", severity: "blocking", status: "active", violation_count: 0
-  fixture "Law", name: "CommandsRequired", description: "Every aggregate must have at least one custom command", domain_scope: "conception", check_expression: "command_count > 0 for each aggregate", severity: "blocking", status: "active", violation_count: 0
-  fixture "Law", name: "VisionRequired", description: "Every domain must have a vision statement", domain_scope: "conception", check_expression: "vision present", severity: "blocking", status: "active", violation_count: 0
-  fixture "Law", name: "DeclarativeBehavior", description: "Commands should use given/then_set to be executable without adapters", domain_scope: "conception", check_expression: "then_set_count > 0 per command", severity: "warning", status: "active", violation_count: 0
-  fixture "Law", name: "AccessGatesRecommended", description: "Domains should define ports and actors for self-protection", domain_scope: "conception", check_expression: "port_count > 0", severity: "recommended", status: "active", violation_count: 0
 
   # Training laws
-  fixture "Law", name: "VerifiedBeforeTraining", description: "Only domains that pass fixture regression enter the training pipeline", domain_scope: "training", check_expression: "all fixtures pass", severity: "blocking", status: "active", violation_count: 0
-  fixture "Law", name: "NoBrokenInCorpus", description: "Broken artifacts must be quarantined — never train on unverified domains", domain_scope: "training", check_expression: "zero broken artifacts in training set", severity: "blocking", status: "active", violation_count: 0
 
   # Code laws
-  fixture "Law", name: "FileSizeLimit", description: "No file over 200 lines of code — doc headers excluded", domain_scope: "code", check_expression: "wc -l < 200 for each lib file", severity: "blocking", status: "active", violation_count: 0
-  fixture "Law", name: "TestSpeed", description: "Test suite must run under 1 second", domain_scope: "code", check_expression: "test duration < 1s", severity: "blocking", status: "active", violation_count: 0
-  fixture "Law", name: "DocHeaders", description: "Every lib file has a doc comment header", domain_scope: "code", check_expression: "first line is comment for each lib file", severity: "blocking", status: "active", violation_count: 0
 
   # Architecture laws
-  fixture "Law", name: "RustRuntime", description: "Always use hecks-life Rust runtime for bluebook parsing and .heki storage", domain_scope: "architecture", check_expression: "no ruby parsers for .heki or .bluebook", severity: "blocking", status: "active", violation_count: 0
-  fixture "Law", name: "BluebookBeforeCode", description: "Always conceive as Bluebook before writing implementation code", domain_scope: "architecture", check_expression: "bluebook exists for each script", severity: "blocking", status: "active", violation_count: 0
-  fixture "Law", name: "BluebookOnly", description: "Winter writes NO code without a Bluebook first. Every feature, script, CLI command, adapter — Bluebook or it doesn't exist.", domain_scope: "architecture", check_expression: "no code file without corresponding bluebook", severity: "blocking", status: "active", violation_count: 0
 
   # Violation examples
-  fixture "Violation", law_name: "FixturesRequired", violator: "Summer", location: "nursery/ambulance_dispatch", detail: "Conceived with 0 fixtures across 3 aggregates", detected_at: "2026-04-14", resolution: "open"
-  fixture "Violation", law_name: "FileSizeLimit", violator: "Winter", location: "lib/hecks/runtime/command_bus.rb", detail: "247 lines of code", detected_at: "2026-04-12", resolution: "resolved"
 
   # Enforcement examples
-  fixture "Enforcement", scope: "nursery", laws_checked: 5, laws_passed: 4, laws_violated: 1, enforced_at: "2026-04-14", verdict: "unlawful"
-  fixture "Enforcement", scope: "code", laws_checked: 3, laws_passed: 3, laws_violated: 0, enforced_at: "2026-04-14", verdict: "lawful"
 end

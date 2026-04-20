@@ -1,0 +1,22 @@
+Hecks.fixtures "QATestLab" do
+  aggregate "TestProject" do
+    fixture "TestProject1", project_name: "Authentication Service", repository_url: "https://github.com/acme/auth-service", team_lead: "Alice Johnson", priority: "high", status: "active"
+    fixture "TestProject2", project_name: "Payment Gateway", repository_url: "https://github.com/acme/payment-gateway", team_lead: "Bob Smith", priority: "critical", status: "active"
+  end
+  aggregate "TestSuite" do
+    fixture "TestSuite1", suite_name: "Login Flow", test_type: "functional", case_count: 12, last_run_result: "passed", status: "active"
+    fixture "TestSuite2", suite_name: "API Integration", test_type: "integration", case_count: 8, last_run_result: "failed", status: "active"
+  end
+  aggregate "Bug" do
+    fixture "Login_fails_with_special_characters_", bug_id: "BUG-2026-0401", title: "Login fails with special characters", description: "Users cannot log in when password contains &, <, >", severity: "high", assigned_to: "dev-team-1", status: "open"
+    fixture "Timeout_on_large_file_upload_", bug_id: "BUG-2026-0402", title: "Timeout on large file upload", description: "Payment processing times out with files over 100MB", severity: "critical", assigned_to: "dev-team-2", status: "in_progress"
+  end
+  aggregate "TestEnvironment" do
+    fixture "TestEnvironment1", env_name: "staging-chrome-win10", platform: "Windows", browser_version: "125.0.6422.112", os_version: "10.0.19045", status: "idle"
+    fixture "TestEnvironment2", env_name: "production-firefox-mac", platform: "macOS", browser_version: "124.0.1", os_version: "14.4", status: "idle"
+  end
+  aggregate "Release" do
+    fixture "Release1", release_version: "2.1.0", branch_name: "release/2.1.0", build_id: "build-2026-0401-001", bugs_open: 0, status: "approved"
+    fixture "Release2", release_version: "2.2.0-beta", branch_name: "release/2.2.0", build_id: "build-2026-0410-005", bugs_open: 3, status: "blocked"
+  end
+end

@@ -1,0 +1,132 @@
+Hecks.behaviors "TreeService" do
+  vision "Behavioral tests for the TreeService domain — exercises every command and query in memory"
+
+  # ── TreeAssessment aggregate ──────────────────────────────────────────
+
+  test "AssessTree sets species + dbh_inches + height_feet + address" do
+    tests "AssessTree", on: "TreeAssessment"
+    input  species: "sample", dbh_inches: 1.0, height_feet: 1.0, address: "sample"
+    expect ok: "true"
+  end
+
+  test "AssessTree cascades through policy chain" do
+    tests "AssessTree", on: "TreeAssessment", kind: :cascade
+    input  species: "sample", dbh_inches: 1.0, height_feet: 1.0, address: "sample"
+    expect emits: ["TreeAssessed", "ActionRecommended"]
+  end
+
+  test "RecommendAction sets recommendation" do
+    tests "RecommendAction", on: "TreeAssessment"
+    setup  "AssessTree", species: "sample", dbh_inches: 1.0, height_feet: 1.0, address: "sample"
+    input  recommendation: "sample"
+    expect ok: "true"
+  end
+
+  test "FlagHazard cascades through policy chain" do
+    tests "FlagHazard", on: "TreeAssessment", kind: :cascade
+    setup  "AssessTree", species: "sample", dbh_inches: 1.0, height_feet: 1.0, address: "sample"
+    setup  "ApplyForPermit", municipality: "sample", tree_species: "sample"
+    expect emits: ["HazardFlagged", "PermitApplied"]
+  end
+
+
+  # ── RemovalJob aggregate ──────────────────────────────────────────
+
+  test "ScheduleRemoval sets rigging_method + crew_size" do
+    tests "ScheduleRemoval", on: "RemovalJob"
+    setup  "AssessTree", species: "sample", dbh_inches: 1.0, height_feet: 1.0, address: "sample"
+    input  rigging_method: "sample", crew_size: 1
+    expect ok: "true"
+  end
+
+  test "ScheduleRemoval cascades through policy chain" do
+    tests "ScheduleRemoval", on: "RemovalJob", kind: :cascade
+    setup  "AssessTree", species: "sample", dbh_inches: 1.0, height_feet: 1.0, address: "sample"
+    setup  "ScheduleGrinding", stump_diameter_inches: 1.0, grind_depth_inches: 1.0
+    input  rigging_method: "sample", crew_size: 1
+    expect emits: ["RemovalScheduled", "RemovalExecuted", "GrindingScheduled", "GrindingCompleted"]
+  end
+
+  test "ExecuteRemoval sets disposal_method" do
+    tests "ExecuteRemoval", on: "RemovalJob"
+    setup  "ScheduleRemoval", rigging_method: "sample", crew_size: 1
+    input  disposal_method: "sample"
+    expect ok: "true"
+  end
+
+  test "ExecuteRemoval cascades through policy chain" do
+    tests "ExecuteRemoval", on: "RemovalJob", kind: :cascade
+    setup  "ScheduleRemoval", rigging_method: "sample", crew_size: 1
+    setup  "ScheduleGrinding", stump_diameter_inches: 1.0, grind_depth_inches: 1.0
+    input  disposal_method: "sample"
+    expect emits: ["RemovalExecuted", "GrindingScheduled", "GrindingCompleted"]
+  end
+
+
+  # ── PruningJob aggregate ──────────────────────────────────────────
+
+  test "SchedulePruning sets prune_type + canopy_reduction_pct" do
+    tests "SchedulePruning", on: "PruningJob"
+    setup  "AssessTree", species: "sample", dbh_inches: 1.0, height_feet: 1.0, address: "sample"
+    input  prune_type: "sample", canopy_reduction_pct: 1.0
+    expect ok: "true"
+  end
+
+  test "CompletePruning runs" do
+    tests "CompletePruning", on: "PruningJob"
+    setup  "SchedulePruning", prune_type: "sample", canopy_reduction_pct: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── StumpGrinding aggregate ──────────────────────────────────────────
+
+  test "ScheduleGrinding sets stump_diameter_inches + grind_depth_inches" do
+    tests "ScheduleGrinding", on: "StumpGrinding"
+    setup  "ScheduleRemoval", rigging_method: "sample", crew_size: 1
+    input  stump_diameter_inches: 1.0, grind_depth_inches: 1.0
+    expect ok: "true"
+  end
+
+  test "ScheduleGrinding cascades through policy chain" do
+    tests "ScheduleGrinding", on: "StumpGrinding", kind: :cascade
+    setup  "ScheduleRemoval", rigging_method: "sample", crew_size: 1
+    input  stump_diameter_inches: 1.0, grind_depth_inches: 1.0
+    expect emits: ["GrindingScheduled", "GrindingCompleted"]
+  end
+
+  test "CompleteGrinding sets backfill_type" do
+    tests "CompleteGrinding", on: "StumpGrinding"
+    setup  "ScheduleGrinding", stump_diameter_inches: 1.0, grind_depth_inches: 1.0
+    input  backfill_type: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── TreePermit aggregate ──────────────────────────────────────────
+
+  test "ApplyForPermit sets municipality + tree_species" do
+    tests "ApplyForPermit", on: "TreePermit"
+    setup  "AssessTree", species: "sample", dbh_inches: 1.0, height_feet: 1.0, address: "sample"
+    input  municipality: "sample", tree_species: "sample"
+    expect status: "pending"
+  end
+
+  test "ReceivePermit sets permit_number" do
+    tests "ReceivePermit", on: "TreePermit"
+    setup  "ApplyForPermit", municipality: "sample", tree_species: "sample"
+    input  permit_number: "sample"
+    expect ok: "true"
+  end
+
+  test "ReceivePermit cascades through policy chain" do
+    tests "ReceivePermit", on: "TreePermit", kind: :cascade
+    setup  "ScheduleRemoval", rigging_method: "sample", crew_size: 1
+    setup  "AssessTree", species: "sample", dbh_inches: 1.0, height_feet: 1.0, address: "sample"
+    setup  "ScheduleGrinding", stump_diameter_inches: 1.0, grind_depth_inches: 1.0
+    setup  "ApplyForPermit", municipality: "sample", tree_species: "sample"
+    input  permit_number: "sample"
+    expect emits: ["PermitReceived", "RemovalScheduled", "RemovalExecuted", "GrindingScheduled", "GrindingCompleted"]
+  end
+
+end

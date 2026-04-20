@@ -94,13 +94,13 @@ Hecks.bluebook "ChiroQuality", version: "2026.04.13.1" do
       then_set :effect_size, to: :effect_size
       then_set :evidence_level, to: :evidence_level
     end
-    UpdateEvidence do
+    AmendEvidence do
       role "Researcher"
-      description "Update evidence with new study data"
+      description "Amend evidence with new study data"
       reference_to(EvidenceRecord)
       Float :effect_size
       Integer :sample_size
-      emits "EvidenceUpdated"
+      emits "EvidenceAmended"
       then_set :effect_size, to: :effect_size
       then_set :sample_size, to: :sample_size
     end
@@ -145,15 +145,4 @@ Hecks.bluebook "ChiroQuality", version: "2026.04.13.1" do
     trigger "CompareBaseline"
   end
 
-  fixture "ChiroVisit", visit_id: "V-2026-0001", patient_name: "Sarah Mitchell", chiropractor: "Dr. James Chen", chief_complaint: "lower back pain", visit_date: "2026-04-10", status: "recorded"
-  fixture "ChiroVisit", visit_id: "V-2026-0002", patient_name: "Marcus Thompson", chiropractor: "Dr. Elena Vasquez", chief_complaint: "cervical tension", visit_date: "2026-04-12", status: "closed"
-
-  fixture "OutcomeMeasure", measure_id: "OM-2026-0001", patient_name: "Sarah Mitchell", instrument: "Oswestry Disability Index", score: 28.5, assessment_date: "2026-04-10"
-  fixture "OutcomeMeasure", measure_id: "OM-2026-0002", patient_name: "Marcus Thompson", instrument: "Neck Disability Index", score: 14.2, assessment_date: "2026-04-12"
-
-  fixture "EvidenceRecord", record_id: "ER-0047", treatment_type: "spinal manipulation", condition: "chronic lower back pain", sample_size: 156, effect_size: 0.68, evidence_level: "moderate"
-  fixture "EvidenceRecord", record_id: "ER-0048", treatment_type: "soft tissue mobilization", condition: "cervical strain", sample_size: 89, effect_size: 0.54, evidence_level: "moderate"
-
-  fixture "QualityReport", report_id: "QR-2026-Q1", period: "Q1 2026", avg_outcome_score: 32.4, total_visits: 287, status: "approved"
-  fixture "QualityReport", report_id: "QR-2026-Q2", period: "Q2 2026", avg_outcome_score: 29.8, total_visits: 312, status: "generated"
 end

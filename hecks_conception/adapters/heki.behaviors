@@ -1,0 +1,21 @@
+Hecks.behaviors "HekiAdapter" do
+  vision "Behavioral tests for the HekiAdapter domain — exercises every command and query in memory"
+
+  # ── Binding aggregate ──────────────────────────────────────────
+
+  test "BindAggregate sets aggregate_name + store_path" do
+    tests "BindAggregate", on: "Binding"
+    input  aggregate_name: "sample", store_path: "sample"
+    expect aggregate_name: "sample", store_path: "sample", id_strategy: "uuid", save_strategy: "upsert"
+  end
+
+
+  # ── Reference aggregate ──────────────────────────────────────────
+
+  test "ResolveReference sets from_aggregate + to_aggregate" do
+    tests "ResolveReference", on: "Reference"
+    input  from_aggregate: "sample", to_aggregate: "sample"
+    expect from_aggregate: "sample", to_aggregate: "sample", resolution: "singleton"
+  end
+
+end

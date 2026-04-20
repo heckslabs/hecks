@@ -31,6 +31,7 @@ Hecks.bluebook "DigitalSignage", version: "2026.04.13.1" do
     RebootDisplay do
       description "Remotely restart a display to apply updates"
       reference_to(Display)
+      then_set :status, to: "offline"
       emits "DisplayRebooted"
     end
 
@@ -56,12 +57,13 @@ Hecks.bluebook "DigitalSignage", version: "2026.04.13.1" do
       Integer :position
     end
 
-    CreatePlaylist do
+    ComposePlaylist do
       role "ContentManager"
       description "Build a new playlist with a loop mode and entries"
       String :playlist_name
       String :description
       String :loop_mode
+      then_set :status, to: "active"
       emits "PlaylistCreated"
     end
 
@@ -102,6 +104,7 @@ Hecks.bluebook "DigitalSignage", version: "2026.04.13.1" do
       String :title
       String :media_type
       Integer :file_size_kb
+      then_set :status, to: "pending_review"
       emits "AssetUploaded"
     end
 
@@ -134,7 +137,7 @@ Hecks.bluebook "DigitalSignage", version: "2026.04.13.1" do
       String :end_time
     end
 
-    CreateSchedule do
+    ProgramSchedule do
       role "ContentManager"
       description "Assign a playlist to a display for a time window"
       String :schedule_id
@@ -143,6 +146,7 @@ Hecks.bluebook "DigitalSignage", version: "2026.04.13.1" do
       String :recurrence
       reference_to(Display)
       reference_to(Playlist)
+      then_set :status, to: "active"
       emits "ScheduleCreated"
     end
 
@@ -153,10 +157,10 @@ Hecks.bluebook "DigitalSignage", version: "2026.04.13.1" do
       emits "SchedulePaused"
     end
 
-    DeleteSchedule do
+    DiscardSchedule do
       description "Permanently remove a schedule"
       reference_to(Schedule)
-      emits "ScheduleDeleted"
+      emits "ScheduleDiscarded"
     end
   end
 
@@ -181,14 +185,15 @@ Hecks.bluebook "DigitalSignage", version: "2026.04.13.1" do
       String :address
       String :location_type
       String :contact_name
+      then_set :status, to: "active"
       emits "LocationRegistered"
     end
 
-    UpdateContact do
+    ReassignContact do
       description "Change the on-site contact for a location"
       reference_to(Location)
       String :contact_name
-      emits "ContactUpdated"
+      emits "ContactReassigned"
     end
 
     DeactivateLocation do
@@ -224,14 +229,14 @@ Hecks.bluebook "DigitalSignage", version: "2026.04.13.1" do
     trigger "AddEntry"
   end
 
-  policy "PlaylistCreatedSchedule" do
+  policy "PlaylistComposedSchedule" do
     on "PlaylistCreated"
-    trigger "CreateSchedule"
+    trigger "ProgramSchedule"
   end
 
   policy "DisplayInstalledAssignSchedule" do
     on "DisplayInstalled"
-    trigger "CreateSchedule"
+    trigger "ProgramSchedule"
   end
 
   policy "LocationDeactivatedPauseSchedule" do
@@ -241,21 +246,7 @@ Hecks.bluebook "DigitalSignage", version: "2026.04.13.1" do
 
   policy "DisplayRebootedRefreshSchedule" do
     on "DisplayRebooted"
-    trigger "CreateSchedule"
+    trigger "ProgramSchedule"
   end
 
-  fixture "Location", location_name: "Downtown Mall Main Concourse", address: "123 Main St, Springfield", location_type: "shopping_mall", display_count: 8, contact_name: "Manager Alex Thompson", status: "active"
-  fixture "Location", location_name: "Transit Station Hub", address: "456 Station Ave, Metropolis", location_type: "transit", display_count: 12, contact_name: "Supervisor Diana Brooks", status: "active"
-
-  fixture "Display", display_id: "DSP-DTM-001", model: "LG 55UH5F", resolution: "3840x2160", orientation: "landscape", status: "online", reference_to: "Location"
-  fixture "Display", display_id: "DSP-TSH-001", model: "Samsung ME55C", resolution: "1920x1080", orientation: "portrait", status: "online", reference_to: "Location"
-
-  fixture "Playlist", playlist_name: "Spring Sales Campaign", description: "Rotating ads for spring clearance event", total_duration_seconds: 240, loop_mode: "continuous", status: "active"
-  fixture "Playlist", playlist_name: "Transit Announcements", description: "Service updates and safety messages", total_duration_seconds: 180, loop_mode: "scheduled", status: "active"
-
-  fixture "ContentAsset", asset_id: "CA-2024-0001", title: "Spring Sale 30% Off", media_type: "video/mp4", file_size_kb: 51200, thumbnail_url: "https://cdn.signage.local/thumbs/spring-sale.jpg", status: "approved"
-  fixture "ContentAsset", asset_id: "CA-2024-0002", title: "Emergency Alert Banner", media_type: "image/png", file_size_kb: 256, thumbnail_url: "https://cdn.signage.local/thumbs/alert.png", status: "approved"
-
-  fixture "Schedule", schedule_id: "SCH-DTM-0001", start_time: "09:00", end_time: "21:00", recurrence: "daily", status: "active", reference_to: "Display", reference_to: "Playlist"
-  fixture "Schedule", schedule_id: "SCH-TSH-0001", start_time: "06:00", end_time: "23:00", recurrence: "daily", status: "active", reference_to: "Display", reference_to: "Playlist"
 end

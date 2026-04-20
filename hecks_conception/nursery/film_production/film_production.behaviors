@@ -1,0 +1,167 @@
+Hecks.behaviors "FilmProduction" do
+  vision "Behavioral tests for the FilmProduction domain — exercises every command and query in memory"
+
+  # ── Production aggregate ──────────────────────────────────────────
+
+  test "GreenLightProduction sets title + genre + total_budget" do
+    tests "GreenLightProduction", on: "Production"
+    input  title: "sample", genre: "sample", total_budget: 1.0
+    expect status: "development"
+  end
+
+  test "GreenLightProduction cascades through policy chain" do
+    tests "GreenLightProduction", on: "Production", kind: :cascade
+    setup  "AllocateBudget", department: "sample", category: "sample", amount: 1.0
+    setup  "HireCrew", name: "sample", role: "sample", department: "sample", day_rate: 1.0
+    setup  "SlateScene", scene_number: 1, location: "sample", time_of_day: "sample"
+    setup  "RegisterEquipment", name: "sample", category: "sample", serial_number: "sample"
+    input  title: "sample", genre: "sample", total_budget: 1.0
+    expect emits: ["ProductionGreenLit", "BudgetAllocated", "CrewHired", "PrincipalPhotographyStarted", "SceneSlated", "EquipmentCheckedOut", "ScenePrinted", "SceneFinalized", "ExpenseRecorded"]
+  end
+
+  test "StartPrincipalPhotography sets start_date" do
+    tests "StartPrincipalPhotography", on: "Production"
+    setup  "GreenLightProduction", title: "sample", genre: "sample", total_budget: 1.0
+    input  start_date: "sample"
+    expect status: "shooting", start_date: "sample"
+  end
+
+  test "StartPrincipalPhotography cascades through policy chain" do
+    tests "StartPrincipalPhotography", on: "Production", kind: :cascade
+    setup  "GreenLightProduction", title: "sample", genre: "sample", total_budget: 1.0
+    setup  "SlateScene", scene_number: 1, location: "sample", time_of_day: "sample"
+    setup  "RegisterEquipment", name: "sample", category: "sample", serial_number: "sample"
+    setup  "AllocateBudget", department: "sample", category: "sample", amount: 1.0
+    input  start_date: "sample"
+    expect emits: ["PrincipalPhotographyStarted", "SceneSlated", "EquipmentCheckedOut", "ScenePrinted", "SceneFinalized", "ExpenseRecorded"]
+  end
+
+  test "WrapProduction runs" do
+    tests "WrapProduction", on: "Production"
+    setup  "GreenLightProduction", title: "sample", genre: "sample", total_budget: 1.0
+    expect status: "post_production"
+  end
+
+  test "WrapProduction cascades through policy chain" do
+    tests "WrapProduction", on: "Production", kind: :cascade
+    setup  "GreenLightProduction", title: "sample", genre: "sample", total_budget: 1.0
+    setup  "RegisterEquipment", name: "sample", category: "sample", serial_number: "sample"
+    expect emits: ["ProductionWrapped", "EquipmentReturned"]
+  end
+
+
+  # ── Scene aggregate ──────────────────────────────────────────
+
+  test "SlateScene sets scene_number + location + time_of_day" do
+    tests "SlateScene", on: "Scene"
+    setup  "GreenLightProduction", title: "sample", genre: "sample", total_budget: 1.0
+    input  scene_number: 1, location: "sample", time_of_day: "sample"
+    expect status: "scheduled"
+  end
+
+  test "SlateScene cascades through policy chain" do
+    tests "SlateScene", on: "Scene", kind: :cascade
+    setup  "GreenLightProduction", title: "sample", genre: "sample", total_budget: 1.0
+    setup  "RegisterEquipment", name: "sample", category: "sample", serial_number: "sample"
+    setup  "AllocateBudget", department: "sample", category: "sample", amount: 1.0
+    input  scene_number: 1, location: "sample", time_of_day: "sample"
+    expect emits: ["SceneSlated", "EquipmentCheckedOut", "ScenePrinted", "SceneFinalized", "ExpenseRecorded"]
+  end
+
+  test "PrintScene sets take_number" do
+    tests "PrintScene", on: "Scene"
+    setup  "SlateScene", scene_number: 1, location: "sample", time_of_day: "sample"
+    input  take_number: 1
+    expect status: "in_progress"
+  end
+
+  test "PrintScene cascades through policy chain" do
+    tests "PrintScene", on: "Scene", kind: :cascade
+    setup  "SlateScene", scene_number: 1, location: "sample", time_of_day: "sample"
+    input  take_number: 1
+    expect emits: ["ScenePrinted", "SceneFinalized"]
+  end
+
+  test "MarkSceneFinal sets final_take" do
+    tests "MarkSceneFinal", on: "Scene"
+    setup  "SlateScene", scene_number: 1, location: "sample", time_of_day: "sample"
+    input  final_take: 1
+    expect status: "finalized"
+  end
+
+
+  # ── CrewMember aggregate ──────────────────────────────────────────
+
+  test "HireCrew sets name + role + department + day_rate" do
+    tests "HireCrew", on: "CrewMember"
+    setup  "GreenLightProduction", title: "sample", genre: "sample", total_budget: 1.0
+    input  name: "sample", role: "sample", department: "sample", day_rate: 1.0
+    expect ok: "true"
+  end
+
+  test "HireCrew cascades through policy chain" do
+    tests "HireCrew", on: "CrewMember", kind: :cascade
+    setup  "GreenLightProduction", title: "sample", genre: "sample", total_budget: 1.0
+    setup  "SlateScene", scene_number: 1, location: "sample", time_of_day: "sample"
+    setup  "RegisterEquipment", name: "sample", category: "sample", serial_number: "sample"
+    setup  "AllocateBudget", department: "sample", category: "sample", amount: 1.0
+    input  name: "sample", role: "sample", department: "sample", day_rate: 1.0
+    expect emits: ["CrewHired", "PrincipalPhotographyStarted", "SceneSlated", "EquipmentCheckedOut", "ScenePrinted", "SceneFinalized", "ExpenseRecorded"]
+  end
+
+  test "ReassignDepartment sets new_department" do
+    tests "ReassignDepartment", on: "CrewMember"
+    setup  "HireCrew", name: "sample", role: "sample", department: "sample", day_rate: 1.0
+    input  new_department: "sample"
+    expect department: "sample"
+  end
+
+
+  # ── Equipment aggregate ──────────────────────────────────────────
+
+  test "RegisterEquipment sets name + category + serial_number" do
+    tests "RegisterEquipment", on: "Equipment"
+    input  name: "sample", category: "sample", serial_number: "sample"
+    expect name: "sample", category: "sample", serial_number: "sample", status: "available"
+  end
+
+  test "CheckOutEquipment sets checked_out_by" do
+    tests "CheckOutEquipment", on: "Equipment"
+    setup  "RegisterEquipment", name: "sample", category: "sample", serial_number: "sample"
+    input  checked_out_by: "sample"
+    expect checked_out_by: "sample", status: "in_use"
+  end
+
+  test "CheckOutEquipment cascades through policy chain" do
+    tests "CheckOutEquipment", on: "Equipment", kind: :cascade
+    setup  "RegisterEquipment", name: "sample", category: "sample", serial_number: "sample"
+    setup  "SlateScene", scene_number: 1, location: "sample", time_of_day: "sample"
+    setup  "AllocateBudget", department: "sample", category: "sample", amount: 1.0
+    input  checked_out_by: "sample"
+    expect emits: ["EquipmentCheckedOut", "ScenePrinted", "SceneFinalized", "ExpenseRecorded"]
+  end
+
+  test "ReturnEquipment runs" do
+    tests "ReturnEquipment", on: "Equipment"
+    setup  "RegisterEquipment", name: "sample", category: "sample", serial_number: "sample"
+    expect status: "available"
+  end
+
+
+  # ── BudgetLine aggregate ──────────────────────────────────────────
+
+  test "AllocateBudget sets department + category + amount" do
+    tests "AllocateBudget", on: "BudgetLine"
+    setup  "GreenLightProduction", title: "sample", genre: "sample", total_budget: 1.0
+    input  department: "sample", category: "sample", amount: 1.0
+    expect ok: "true"
+  end
+
+  test "RecordExpense sets amount + vendor" do
+    tests "RecordExpense", on: "BudgetLine"
+    setup  "AllocateBudget", department: "sample", category: "sample", amount: 1.0
+    input  amount: 1.0, vendor: "sample"
+    expect ok: "true"
+  end
+
+end

@@ -1,0 +1,158 @@
+Hecks.behaviors "UXResearch" do
+  vision "Behavioral tests for the UXResearch domain — exercises every command and query in memory"
+
+  # ── Study aggregate ──────────────────────────────────────────
+
+  test "PlanStudy sets study_name + research_question + methodology + lead_researcher + target_participants" do
+    tests "PlanStudy", on: "Study"
+    input  study_name: "sample", research_question: "sample", methodology: "sample", lead_researcher: "sample", target_participants: 1
+    expect status: "planned"
+  end
+
+  test "PlanStudy cascades through policy chain" do
+    tests "PlanStudy", on: "Study", kind: :cascade
+    setup  "RecruitParticipant", participant_id: "sample", name: "sample", email: "sample", demographic_segment: "sample"
+    input  study_name: "sample", research_question: "sample", methodology: "sample", lead_researcher: "sample", target_participants: 1
+    expect emits: ["StudyPlanned", "StudyLaunched", "ParticipantRecruited"]
+  end
+
+  test "LaunchStudy runs" do
+    tests "LaunchStudy", on: "Study"
+    setup  "PlanStudy", study_name: "sample", research_question: "sample", methodology: "sample", lead_researcher: "sample", target_participants: 1
+    expect ok: "true"
+  end
+
+  test "LaunchStudy cascades through policy chain" do
+    tests "LaunchStudy", on: "Study", kind: :cascade
+    setup  "RecruitParticipant", participant_id: "sample", name: "sample", email: "sample", demographic_segment: "sample"
+    setup  "PlanStudy", study_name: "sample", research_question: "sample", methodology: "sample", lead_researcher: "sample", target_participants: 1
+    expect emits: ["StudyLaunched", "ParticipantRecruited"]
+  end
+
+  test "ConcludeStudy runs" do
+    tests "ConcludeStudy", on: "Study"
+    setup  "PlanStudy", study_name: "sample", research_question: "sample", methodology: "sample", lead_researcher: "sample", target_participants: 1
+    expect ok: "true"
+  end
+
+  test "ConcludeStudy cascades through policy chain" do
+    tests "ConcludeStudy", on: "Study", kind: :cascade
+    setup  "PlanStudy", study_name: "sample", research_question: "sample", methodology: "sample", lead_researcher: "sample", target_participants: 1
+    setup  "DocumentFinding", finding_id: "sample", title: "sample", description: "sample", severity: "sample", evidence_type: "sample"
+    setup  "ProposeRecommendation", recommendation_id: "sample", title: "sample", rationale: "sample", effort_estimate: "sample", priority: "sample"
+    expect emits: ["StudyConcluded", "FindingValidated", "RecommendationProposed"]
+  end
+
+
+  # ── Participant aggregate ──────────────────────────────────────────
+
+  test "RecruitParticipant sets participant_id + name + email + demographic_segment" do
+    tests "RecruitParticipant", on: "Participant"
+    setup  "PlanStudy", study_name: "sample", research_question: "sample", methodology: "sample", lead_researcher: "sample", target_participants: 1
+    input  participant_id: "sample", name: "sample", email: "sample", demographic_segment: "sample"
+    expect screening_status: "screened"
+  end
+
+  test "QualifyParticipant runs" do
+    tests "QualifyParticipant", on: "Participant"
+    setup  "RecruitParticipant", participant_id: "sample", name: "sample", email: "sample", demographic_segment: "sample"
+    expect ok: "true"
+  end
+
+  test "QualifyParticipant cascades through policy chain" do
+    tests "QualifyParticipant", on: "Participant", kind: :cascade
+    setup  "ScheduleSession", session_id: "sample", session_type: "sample", scheduled_at: "sample", duration_minutes: 1, facilitator: "sample"
+    setup  "RecruitParticipant", participant_id: "sample", name: "sample", email: "sample", demographic_segment: "sample"
+    expect emits: ["ParticipantQualified", "SessionScheduled"]
+  end
+
+  test "ExcludeParticipant runs" do
+    tests "ExcludeParticipant", on: "Participant"
+    setup  "RecruitParticipant", participant_id: "sample", name: "sample", email: "sample", demographic_segment: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Session aggregate ──────────────────────────────────────────
+
+  test "ScheduleSession sets session_id + session_type + scheduled_at + duration_minutes + facilitator" do
+    tests "ScheduleSession", on: "Session"
+    setup  "RecruitParticipant", participant_id: "sample", name: "sample", email: "sample", demographic_segment: "sample"
+    input  session_id: "sample", session_type: "sample", scheduled_at: "sample", duration_minutes: 1, facilitator: "sample"
+    expect status: "in_progress"
+  end
+
+  test "CompleteSession runs" do
+    tests "CompleteSession", on: "Session"
+    setup  "ScheduleSession", session_id: "sample", session_type: "sample", scheduled_at: "sample", duration_minutes: 1, facilitator: "sample"
+    expect ok: "true"
+  end
+
+  test "CompleteSession cascades through policy chain" do
+    tests "CompleteSession", on: "Session", kind: :cascade
+    setup  "DocumentFinding", finding_id: "sample", title: "sample", description: "sample", severity: "sample", evidence_type: "sample"
+    setup  "PlanStudy", study_name: "sample", research_question: "sample", methodology: "sample", lead_researcher: "sample", target_participants: 1
+    setup  "ScheduleSession", session_id: "sample", session_type: "sample", scheduled_at: "sample", duration_minutes: 1, facilitator: "sample"
+    expect emits: ["SessionCompleted", "FindingDocumented"]
+  end
+
+  test "CancelSession sets cancellation_reason" do
+    tests "CancelSession", on: "Session"
+    setup  "ScheduleSession", session_id: "sample", session_type: "sample", scheduled_at: "sample", duration_minutes: 1, facilitator: "sample"
+    input  cancellation_reason: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Finding aggregate ──────────────────────────────────────────
+
+  test "DocumentFinding sets finding_id + title + description + severity + evidence_type" do
+    tests "DocumentFinding", on: "Finding"
+    setup  "PlanStudy", study_name: "sample", research_question: "sample", methodology: "sample", lead_researcher: "sample", target_participants: 1
+    input  finding_id: "sample", title: "sample", description: "sample", severity: "sample", evidence_type: "sample"
+    expect ok: "true"
+  end
+
+  test "ValidateFinding runs" do
+    tests "ValidateFinding", on: "Finding"
+    setup  "DocumentFinding", finding_id: "sample", title: "sample", description: "sample", severity: "sample", evidence_type: "sample"
+    expect status: "validated"
+  end
+
+  test "ValidateFinding cascades through policy chain" do
+    tests "ValidateFinding", on: "Finding", kind: :cascade
+    setup  "DocumentFinding", finding_id: "sample", title: "sample", description: "sample", severity: "sample", evidence_type: "sample"
+    setup  "ProposeRecommendation", recommendation_id: "sample", title: "sample", rationale: "sample", effort_estimate: "sample", priority: "sample"
+    expect emits: ["FindingValidated", "RecommendationProposed"]
+  end
+
+  test "ArchiveFinding runs" do
+    tests "ArchiveFinding", on: "Finding"
+    setup  "DocumentFinding", finding_id: "sample", title: "sample", description: "sample", severity: "sample", evidence_type: "sample"
+    setup  "ValidateFinding"
+    expect ok: "true"
+  end
+
+
+  # ── Recommendation aggregate ──────────────────────────────────────────
+
+  test "ProposeRecommendation sets recommendation_id + title + rationale + effort_estimate + priority" do
+    tests "ProposeRecommendation", on: "Recommendation"
+    setup  "DocumentFinding", finding_id: "sample", title: "sample", description: "sample", severity: "sample", evidence_type: "sample"
+    input  recommendation_id: "sample", title: "sample", rationale: "sample", effort_estimate: "sample", priority: "sample"
+    expect status: "proposed"
+  end
+
+  test "AcceptRecommendation runs" do
+    tests "AcceptRecommendation", on: "Recommendation"
+    setup  "ProposeRecommendation", recommendation_id: "sample", title: "sample", rationale: "sample", effort_estimate: "sample", priority: "sample"
+    expect ok: "true"
+  end
+
+  test "DeferRecommendation runs" do
+    tests "DeferRecommendation", on: "Recommendation"
+    setup  "ProposeRecommendation", recommendation_id: "sample", title: "sample", rationale: "sample", effort_estimate: "sample", priority: "sample"
+    expect ok: "true"
+  end
+
+end

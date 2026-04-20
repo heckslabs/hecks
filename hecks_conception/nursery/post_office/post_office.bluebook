@@ -140,7 +140,6 @@ Hecks.bluebook "PostOffice" do
     ReturnCarrier do
       description "Clock a carrier back in after their route"
       reference_to(Carrier)
-      given { status == "delivering" }
       emits "CarrierReturned"
       then_set :status, to: "available"
     end
@@ -214,7 +213,7 @@ Hecks.bluebook "PostOffice" do
       String :verification_date
     end
 
-    CreateForwarding do
+    OrderForwarding do
       description "Set up mail forwarding from old to new address"
       String :old_address
       String :new_address
@@ -263,18 +262,4 @@ Hecks.bluebook "PostOffice" do
     trigger "OutForDelivery"
   end
 
-  fixture "MailPiece", tracking_id: "MP-001", mail_class: "first-class", sender_address: "123 Main St, New York, NY 10001", recipient_address: "456 Oak Ave, Boston, MA 02101", status: "accepted"
-  fixture "MailPiece", tracking_id: "MP-002", mail_class: "priority", sender_address: "789 Pine St, Chicago, IL 60601", recipient_address: "321 Elm Rd, Seattle, WA 98101", status: "sorted"
-
-  fixture "CarrierRoute", route_code: "R-45-001", zip_code: "02101", stop_count: 245, route_type: "foot", status: "active"
-  fixture "CarrierRoute", route_code: "R-45-002", zip_code: "02102", stop_count: 187, route_type: "vehicle", status: "active"
-
-  fixture "Carrier", employee_id: "C-5847", name: "James Miller", carrier_type: "city_carrier", status: "available", hours_worked: 0.0
-  fixture "Carrier", employee_id: "C-5848", name: "Sarah Johnson", carrier_type: "rural_carrier", status: "available", hours_worked: 0.0
-
-  fixture "Package", package_id: "PKG-001", weight_lbs: 2.5, service_level: "priority", status: "accepted", destination: "94102, San Francisco, CA"
-  fixture "Package", package_id: "PKG-002", weight_lbs: 8.0, service_level: "ground", status: "in_transit", destination: "90210, Los Angeles, CA"
-
-  fixture "ForwardingOrder", order_id: "FWD-001", old_address: "100 First Ave, Denver, CO 80202", new_address: "200 Second St, Boulder, CO 80302", start_date: "2026-04-01", end_date: "2026-09-30", status: "active"
-  fixture "ForwardingOrder", order_id: "FWD-002", old_address: "555 Market St, Portland, OR 97201", new_address: "666 Broadway, Portland, OR 97214", start_date: "2026-04-14", end_date: "2026-10-14", status: "active"
 end

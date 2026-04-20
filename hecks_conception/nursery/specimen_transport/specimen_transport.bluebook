@@ -48,7 +48,7 @@ Hecks.bluebook "SpecimenTransport", version: "2026.04.13.1" do
       Float :temp_c
       String :within_range
     end
-    CreateShipment do
+    DispatchShipment do
       role "ShippingCoordinator"
       description "Create a cold chain shipment for specimens"
       String :shipment_id
@@ -56,7 +56,7 @@ Hecks.bluebook "SpecimenTransport", version: "2026.04.13.1" do
       String :origin_lab
       String :dest_lab
       Float :target_temp_c
-      emits "ShipmentCreated"
+      emits "ShipmentDispatched"
       then_set :shipment_id, to: :shipment_id
       then_set :carrier, to: :carrier
       then_set :origin_lab, to: :origin_lab
@@ -155,22 +155,11 @@ Hecks.bluebook "SpecimenTransport", version: "2026.04.13.1" do
 
   policy "ShipOnRelease" do
     on "SpecimenReleased"
-    trigger "CreateShipment"
+    trigger "DispatchShipment"
   end
   policy "CustodyOnRelease" do
     on "SpecimenReleased"
     trigger "StartCustody"
   end
 
-  fixture "LabSpecimen", specimen_id: "SPEC-001", patient_id: "PAT-5678", specimen_type: "Biopsy Tissue", required_temp_c: 4.0, priority: "Stat", status: "prepared"
-  fixture "LabSpecimen", specimen_id: "SPEC-002", patient_id: "PAT-5679", specimen_type: "Serum Sample", required_temp_c: -20.0, priority: "Routine", status: "prepared"
-
-  fixture "ColdShipment", shipment_id: "SHIP-001", carrier: "World Courier", origin_lab: "Memorial Lab Denver", dest_lab: "Reference Lab Chicago", target_temp_c: 4.0, status: "created", temp_logs: [{ timestamp: "2026-04-14 09:00", temp_c: 4.1, within_range: "true" }]
-  fixture "ColdShipment", shipment_id: "SHIP-002", carrier: "Medlabs Express", origin_lab: "Community Hospital", dest_lab: "Mayo Clinic Reference", target_temp_c: -20.0, status: "created", temp_logs: [{ timestamp: "2026-04-14 08:30", temp_c: -19.8, within_range: "true" }]
-
-  fixture "CustodyRecord", record_id: "CUST-001", specimen_id: "SPEC-001", handlers: [{ handler_name: "Jane Smith", role_type: "LabTech", timestamp: "2026-04-14 10:00", action_taken: "Prepared for shipment" }], status: "active"
-  fixture "CustodyRecord", record_id: "CUST-002", specimen_id: "SPEC-002", handlers: [{ handler_name: "Robert Chen", role_type: "LabTech", timestamp: "2026-04-14 09:45", action_taken: "Prepared for shipment" }], status: "active"
-
-  fixture "QualityAudit", audit_id: "AUD-001", shipment_id: "SHIP-001", auditor: "Dr. Patricia Alonso", compliance_score: 98.5, findings: "All temperatures within spec", status: "finalized"
-  fixture "QualityAudit", audit_id: "AUD-002", shipment_id: "SHIP-002", auditor: "Dr. Michael Wong", compliance_score: 99.0, findings: "Excellent handling and documentation", status: "finalized"
 end

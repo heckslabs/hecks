@@ -27,7 +27,6 @@ Hecks.bluebook "Chiropractic" do
       role "Chiropractor"
       description "Move patient to active treatment after imaging and plan creation"
       reference_to(Patient)
-      given("must be intake") { status == "intake" }
       emits "PatientActivated"
       then_set :status, to: "active"
     end
@@ -36,7 +35,6 @@ Hecks.bluebook "Chiropractic" do
       role "Chiropractor"
       description "Mark a patient as inactive after completing treatment"
       reference_to(Patient)
-      given("must be active") { status == "active" }
       emits "PatientDeactivated"
       then_set :status, to: "inactive"
     end
@@ -131,7 +129,7 @@ Hecks.bluebook "Chiropractic" do
     String :status
     reference_to Patient
 
-    CreateTreatmentPlan do
+    PrescribeCourse do
       role "Chiropractor"
       description "Design a treatment plan with visit frequency and goals"
       reference_to(Patient)
@@ -180,7 +178,7 @@ Hecks.bluebook "Chiropractic" do
       Float :amount
     end
 
-    CreateInvoice do
+    IssueInvoice do
       role "BillingClerk"
       description "Generate an invoice for services rendered"
       reference_to(Patient)
@@ -213,20 +211,15 @@ Hecks.bluebook "Chiropractic" do
     end
   end
 
-  # Workflow: Register → OrderImaging → InterpretImaging → CreateTreatmentPlan → Activate → PerformAdjustment → RecordVisit → CreateInvoice → SubmitClaim → ClosePlan → Deactivate
+  # Workflow: Register → OrderImaging → InterpretImaging → PrescribeCourse → Activate → PerformAdjustment → RecordVisit → IssueInvoice → SubmitClaim → ClosePlan → Deactivate
   policy "OrderImagingOnRegistration" do
     on "PatientRegistered"
     trigger "OrderImaging"
   end
 
-  policy "CreatePlanOnImaging" do
+  policy "PrescribePlanOnImaging" do
     on "ImagingInterpreted"
-    trigger "CreateTreatmentPlan"
-  end
-
-  policy "ActivateOnPlanCreation" do
-    on "TreatmentPlanCreated"
-    trigger "ActivatePatient"
+    trigger "PrescribeCourse"
   end
 
   policy "RecordVisitOnAdjustment" do
@@ -234,9 +227,9 @@ Hecks.bluebook "Chiropractic" do
     trigger "RecordCompletedVisit"
   end
 
-  policy "CreateInvoiceOnAdjustment" do
+  policy "IssueInvoiceOnAdjustment" do
     on "PostAdjustmentRecorded"
-    trigger "CreateInvoice"
+    trigger "IssueInvoice"
   end
 
   policy "SubmitClaimOnInvoice" do
@@ -259,18 +252,4 @@ Hecks.bluebook "Chiropractic" do
     trigger "RecordPayment"
   end
 
-  fixture "Patient", name: "Alice Rodriguez", date_of_birth: "1982-03-15", chief_complaint: "lower back pain", insurance_id: "INS-445821-A", status: "intake"
-  fixture "Patient", name: "Robert Williams", date_of_birth: "1975-08-22", chief_complaint: "neck pain and headaches", insurance_id: "INS-662734-B", status: "active"
-
-  fixture "Adjustment", patient_name: "Alice Rodriguez", adjustment_date: "2026-04-10", technique: "Diversified", pain_before: 8, pain_after: 5, notes: "good patient response, scheduled follow-up"
-  fixture "Adjustment", patient_name: "Robert Williams", adjustment_date: "2026-04-11", technique: "Gonstead", pain_before: 7, pain_after: 3, notes: "significant improvement, continue weekly visits"
-
-  fixture "ImagingStudy", patient_name: "Alice Rodriguez", imaging_type: "X-ray", body_region: "lumbar spine", order_date: "2026-04-09", findings: "L4-L5 disc bulge with mild stenosis", status: "interpreted"
-  fixture "ImagingStudy", patient_name: "Robert Williams", imaging_type: "MRI", body_region: "cervical spine", order_date: "2026-04-08", findings: "moderate facet joint osteoarthritis C5-C6", status: "ordered"
-
-  fixture "TreatmentPlan", patient_name: "Alice Rodriguez", diagnosis: "Lumbar disc bulge with radiculopathy", planned_visits: 12, completed_visits: 3, frequency: "2x per week", status: "active"
-  fixture "TreatmentPlan", patient_name: "Robert Williams", diagnosis: "Cervical spondylosis with headaches", planned_visits: 8, completed_visits: 2, frequency: "1x per week", status: "active"
-
-  fixture "Invoice", patient_name: "Alice Rodriguez", service_date: "2026-04-10", total_amount: 125.00, insurance_claim_status: "submitted", payment_status: "paid"
-  fixture "Invoice", patient_name: "Robert Williams", service_date: "2026-04-11", total_amount: 110.00, insurance_claim_status: "pending", payment_status: "unpaid"
 end

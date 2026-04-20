@@ -27,6 +27,7 @@ Hecks.bluebook "MobileAppStore", version: "2026.04.13.1" do
       String :category
       Float :price
       emits "AppSubmitted"
+      then_set :status, to: "pending_review"
     end
 
     ApproveApp do
@@ -74,6 +75,7 @@ Hecks.bluebook "MobileAppStore", version: "2026.04.13.1" do
       reference_to(Review)
       String :reason
       emits "ReviewFlagged"
+      then_set :status, to: "flagged"
     end
 
     RemoveReview do
@@ -107,6 +109,7 @@ Hecks.bluebook "MobileAppStore", version: "2026.04.13.1" do
       String :os_version
       reference_to(App)
       emits "DownloadRecorded"
+      then_set :status, to: "active"
     end
 
     RecordUninstall do
@@ -145,6 +148,7 @@ Hecks.bluebook "MobileAppStore", version: "2026.04.13.1" do
       Integer :size_mb
       reference_to(App)
       emits "UpdateSubmitted"
+      then_set :status, to: "pending"
     end
 
     ApproveUpdate do
@@ -185,6 +189,7 @@ Hecks.bluebook "MobileAppStore", version: "2026.04.13.1" do
       String :period
       reference_to(App)
       emits "SplitCalculated"
+      then_set :status, to: "calculated"
     end
 
     DisburseDeveloperShare do
@@ -253,18 +258,4 @@ Hecks.bluebook "MobileAppStore", version: "2026.04.13.1" do
     trigger "CalculateSplit"
   end
 
-  fixture "App", bundle_id: "com.fitness.tracker", title: "FitTrack Pro", developer_name: "ActiveWorks Ltd", category: "Health & Fitness", price: 9.99, current_version: "2.3.1", status: "published"
-  fixture "App", bundle_id: "com.photo.enhance", title: "PhotoGlow", developer_name: "Pixel Masters", category: "Photography", price: 4.99, current_version: "1.8.0", status: "published"
-
-  fixture "Review", review_id: "rev-001", author_name: "Alice Chen", rating: 5, comment: "Best fitness app I've used", status: "published", reference_to: "com.fitness.tracker"
-  fixture "Review", review_id: "rev-002", author_name: "Bob Smith", rating: 3, comment: "Works but crashes sometimes", status: "published", reference_to: "com.fitness.tracker"
-
-  fixture "Download", download_id: "dl-1001", user_id: "user-4521", device_type: "iPhone 15", os_version: "17.4.1", status: "active", reference_to: "com.fitness.tracker"
-  fixture "Download", download_id: "dl-1002", user_id: "user-5834", device_type: "iPad Pro", os_version: "17.3", status: "active", reference_to: "com.photo.enhance"
-
-  fixture "AppUpdate", update_id: "upd-201", version_number: "2.4.0", release_notes: "Fixed workout sync, added Apple Watch support", size_mb: 45, status: "approved", reference_to: "com.fitness.tracker"
-  fixture "AppUpdate", update_id: "upd-202", version_number: "1.9.0", release_notes: "Performance improvements and UI refresh", size_mb: 32, status: "pending", reference_to: "com.photo.enhance"
-
-  fixture "RevenueSplit", split_id: "split-q1-2026-ft", gross_amount: 4250.50, store_share: 1062.63, developer_share: 3187.87, period: "2026-Q1", status: "disbursed", reference_to: "com.fitness.tracker"
-  fixture "RevenueSplit", split_id: "split-q1-2026-pg", gross_amount: 1895.25, store_share: 473.81, developer_share: 1421.44, period: "2026-Q1", status: "calculated", reference_to: "com.photo.enhance"
 end

@@ -1,0 +1,26 @@
+Hecks.fixtures "NaturalDisasterGrid" do
+  aggregate "DisasterEvent" do
+    fixture "DisasterEvent1", event_type: "earthquake", location: "Pacific Coast Region", severity: "major", status: "active", declared_at: "2026-04-14T08:15:00Z"
+    fixture "DisasterEvent2", event_type: "volcanic_ash", location: "Northern Airspace", severity: "moderate", status: "resolved", declared_at: "2026-04-10T14:22:00Z"
+  end
+  aggregate "GridSegment" do
+    fixture "GridSegment1", segment_id: "gs-coastal-north", region: "Coastal North", capacity_mw: 850.0, current_load_mw: 720.5, status: "online"
+    fixture "GridSegment2", segment_id: "gs-central-hub", region: "Central Hub", capacity_mw: 1200.0, current_load_mw: 1050.3, status: "rerouted"
+  end
+  aggregate "AirspaceZone" do
+    fixture "AirspaceZone1", zone_id: "az-volcanic-01", region: "Pacific Northwest", status: "closed", closure_reason: "Volcanic ash at 35,000 ft", affected_flights: 127
+    fixture "AirspaceZone2", zone_id: "az-coastal-02", region: "Coastal Approaches", status: "open", closure_reason: "", affected_flights: 0
+  end
+  aggregate "EmergencyProtocol" do
+    fixture "EmergencyProtocol1", protocol_name: "Grid Failure Emergency Response", protocol_type: "power_grid", trigger_condition: "GridFailed", status: "active", reference_to: "earthquake"
+    fixture "EmergencyProtocol2", protocol_name: "Airspace Closure Protocol", protocol_type: "aviation", trigger_condition: "AshDetected", status: "completed", reference_to: "volcanic_ash"
+  end
+  aggregate "CascadeChain" do
+    fixture "CascadeChain1", disaster: "earthquake", chain_name: "Pacific Quake Cascade", cascade_depth: 3, status: "cascading"
+    fixture "CascadeChain2", disaster: "volcanic_ash", chain_name: "Volcanic Ash Cascade", cascade_depth: 2, status: "contained"
+  end
+  aggregate "RecoveryPlan" do
+    fixture "RecoveryPlan1", disaster: "earthquake", plan_name: "Coastal Region Recovery Plan", status: "executing", priority_level: 1
+    fixture "RecoveryPlan2", disaster: "volcanic_ash", plan_name: "Aviation System Recovery", status: "completed", priority_level: 2
+  end
+end

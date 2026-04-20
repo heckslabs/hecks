@@ -1,0 +1,85 @@
+Hecks.behaviors "PetPortraits" do
+  vision "Behavioral tests for the PetPortraits domain — exercises every command and query in memory"
+
+  # ── ShelterAnimal aggregate ──────────────────────────────────────────
+
+  test "IntakeAnimal sets animal_id + name + species + breed + personality" do
+    tests "IntakeAnimal", on: "ShelterAnimal"
+    input  animal_id: "sample", name: "sample", species: "sample", breed: "sample", personality: "sample"
+    expect animal_id: "sample", name: "sample", species: "sample", breed: "sample", personality: "sample", status: "available"
+  end
+
+  test "IntakeAnimal cascades through policy chain" do
+    tests "IntakeAnimal", on: "ShelterAnimal", kind: :cascade
+    setup  "BookSession", session_id: "sample", animal_id: "sample", photographer: "sample", date: "sample", backdrop: "sample"
+    input  animal_id: "sample", name: "sample", species: "sample", breed: "sample", personality: "sample"
+    expect emits: ["AnimalIntaked", "SessionBooked"]
+  end
+
+  test "MarkAdopted runs" do
+    tests "MarkAdopted", on: "ShelterAnimal"
+    setup  "IntakeAnimal", animal_id: "sample", name: "sample", species: "sample", breed: "sample", personality: "sample"
+    expect status: "adopted"
+  end
+
+
+  # ── PhotoSession aggregate ──────────────────────────────────────────
+
+  test "BookSession sets session_id + animal_id + photographer + date + backdrop" do
+    tests "BookSession", on: "PhotoSession"
+    input  session_id: "sample", animal_id: "sample", photographer: "sample", date: "sample", backdrop: "sample"
+    expect session_id: "sample", animal_id: "sample", photographer: "sample", date: "sample", backdrop: "sample", status: "booked"
+  end
+
+  test "CompleteSession runs" do
+    tests "CompleteSession", on: "PhotoSession"
+    setup  "BookSession", session_id: "sample", animal_id: "sample", photographer: "sample", date: "sample", backdrop: "sample"
+    expect status: "completed"
+  end
+
+  test "SelectBestPhotos runs" do
+    tests "SelectBestPhotos", on: "PhotoSession"
+    setup  "BookSession", session_id: "sample", animal_id: "sample", photographer: "sample", date: "sample", backdrop: "sample"
+    setup  "CompleteSession"
+    expect status: "selected"
+  end
+
+  test "SelectBestPhotos cascades through policy chain" do
+    tests "SelectBestPhotos", on: "PhotoSession", kind: :cascade
+    setup  "CommissionProfile", profile_id: "sample", animal_id: "sample", headline: "sample", story: "sample"
+    setup  "BookSession", session_id: "sample", animal_id: "sample", photographer: "sample", date: "sample", backdrop: "sample"
+    setup  "CompleteSession"
+    expect emits: ["PhotosSelected", "ProfileCreated"]
+  end
+
+
+  # ── AdoptionProfile aggregate ──────────────────────────────────────────
+
+  test "CommissionProfile sets profile_id + animal_id + headline + story" do
+    tests "CommissionProfile", on: "AdoptionProfile"
+    input  profile_id: "sample", animal_id: "sample", headline: "sample", story: "sample"
+    expect profile_id: "sample", animal_id: "sample", headline: "sample", story: "sample", status: "draft"
+  end
+
+  test "PublishProfile runs" do
+    tests "PublishProfile", on: "AdoptionProfile"
+    setup  "CommissionProfile", profile_id: "sample", animal_id: "sample", headline: "sample", story: "sample"
+    expect status: "published"
+  end
+
+
+  # ── AdoptionInquiry aggregate ──────────────────────────────────────────
+
+  test "SubmitInquiry sets inquiry_id + profile_id + adopter_name + message" do
+    tests "SubmitInquiry", on: "AdoptionInquiry"
+    input  inquiry_id: "sample", profile_id: "sample", adopter_name: "sample", message: "sample"
+    expect inquiry_id: "sample", profile_id: "sample", adopter_name: "sample", message: "sample", status: "pending"
+  end
+
+  test "RespondToInquiry runs" do
+    tests "RespondToInquiry", on: "AdoptionInquiry"
+    setup  "SubmitInquiry", inquiry_id: "sample", profile_id: "sample", adopter_name: "sample", message: "sample"
+    expect status: "responded"
+  end
+
+end

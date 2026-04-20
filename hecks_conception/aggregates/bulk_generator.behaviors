@@ -1,0 +1,60 @@
+Hecks.behaviors "BulkGenerator" do
+  vision "Behavioral tests for the BulkGenerator domain — exercises every command and query in memory"
+
+  # ── TopicSource aggregate ──────────────────────────────────────────
+
+  test "LoadTopics sets industries + activities + modifiers" do
+    tests "LoadTopics", on: "TopicSource"
+    input  industries: "sample", activities: "sample", modifiers: "sample"
+    expect industries: "sample", activities: "sample", modifiers: "sample"
+  end
+
+
+  # ── Template aggregate ──────────────────────────────────────────
+
+  test "DefineTemplate sets aggregate_patterns + command_patterns + policy_patterns" do
+    tests "DefineTemplate", on: "Template"
+    input  aggregate_patterns: "sample", command_patterns: "sample", policy_patterns: "sample"
+    expect aggregate_patterns: "sample", command_patterns: "sample", policy_patterns: "sample"
+  end
+
+
+  # ── Generation aggregate ──────────────────────────────────────────
+
+  test "StartGeneration sets target_count" do
+    tests "StartGeneration", on: "Generation"
+    input  target_count: 1
+    expect target_count: 1, generated: 0, valid: 0, invalid: 0, status: "running"
+  end
+
+  test "RecordProgress sets generated + valid + invalid" do
+    tests "RecordProgress", on: "Generation"
+    setup  "StartGeneration", target_count: 1
+    input  generated: 1, valid: 1, invalid: 1
+    expect generated: 1, valid: 1, invalid: 1
+  end
+
+  test "CompleteGeneration sets duration_seconds" do
+    tests "CompleteGeneration", on: "Generation"
+    setup  "StartGeneration", target_count: 1
+    input  duration_seconds: 1
+    expect duration_seconds: 1, status: "complete"
+  end
+
+  test "CompleteGeneration cascades through policy chain" do
+    tests "CompleteGeneration", on: "Generation", kind: :cascade
+    setup  "StartGeneration", target_count: 1
+    input  duration_seconds: 1
+    expect emits: ["GenerationCompleted", "ExistingChecked"]
+  end
+
+
+  # ── Deduplication aggregate ──────────────────────────────────────────
+
+  test "CheckExisting sets existing" do
+    tests "CheckExisting", on: "Deduplication"
+    input  existing: 1
+    expect existing: 1
+  end
+
+end

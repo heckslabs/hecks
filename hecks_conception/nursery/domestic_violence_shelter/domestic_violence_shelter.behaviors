@@ -1,0 +1,165 @@
+Hecks.behaviors "DomesticViolenceShelter" do
+  vision "Behavioral tests for the DomesticViolenceShelter domain — exercises every command and query in memory"
+
+  # ── Resident aggregate ──────────────────────────────────────────
+
+  test "AdmitResident sets alias_name + intake_date + dependents_count + risk_level" do
+    tests "AdmitResident", on: "Resident"
+    input  alias_name: "sample", intake_date: "sample", dependents_count: 1, risk_level: "sample"
+    expect alias_name: "sample", intake_date: "sample", dependents_count: 1, risk_level: "sample", status: "sheltered"
+  end
+
+  test "AdmitResident cascades through policy chain" do
+    tests "AdmitResident", on: "Resident", kind: :cascade
+    setup  "OnboardAdvocate", name: "sample", role_type: "sample", certification: "sample"
+    setup  "DraftSafetyPlan", resident_alias: "sample", created_date: "sample", emergency_contacts: "sample", escape_route: "sample"
+    setup  "RegisterService", service_name: "sample", service_type: "sample", provider_name: "sample", availability: "sample"
+    setup  "DraftExitPlan", resident_alias: "sample", target_exit_date: "sample", housing_arrangement: "sample", employment_status: "sample"
+    input  alias_name: "sample", intake_date: "sample", dependents_count: 1, risk_level: "sample"
+    expect emits: ["ResidentAdmitted", "ResidentAssigned", "SafetyPlanDrafted", "ResidentReferred", "SafetyPlanReviewed", "RiskReassessed", "ExitPlanDrafted", "ExitTaskCompleted", "AdvocateOnboarded"]
+  end
+
+  test "ReassessRisk sets risk_level" do
+    tests "ReassessRisk", on: "Resident"
+    setup  "AdmitResident", alias_name: "sample", intake_date: "sample", dependents_count: 1, risk_level: "sample"
+    input  risk_level: "sample"
+    expect risk_level: "sample"
+  end
+
+  test "ReassessRisk cascades through policy chain" do
+    tests "ReassessRisk", on: "Resident", kind: :cascade
+    setup  "AdmitResident", alias_name: "sample", intake_date: "sample", dependents_count: 1, risk_level: "sample"
+    setup  "DraftExitPlan", resident_alias: "sample", target_exit_date: "sample", housing_arrangement: "sample", employment_status: "sample"
+    input  risk_level: "sample"
+    expect emits: ["RiskReassessed", "ExitPlanDrafted", "ExitTaskCompleted"]
+  end
+
+  test "TransitionToHousing runs" do
+    tests "TransitionToHousing", on: "Resident"
+    setup  "AdmitResident", alias_name: "sample", intake_date: "sample", dependents_count: 1, risk_level: "sample"
+    expect status: "transitioned"
+  end
+
+
+  # ── SafetyPlan aggregate ──────────────────────────────────────────
+
+  test "DraftSafetyPlan sets resident_alias + created_date + emergency_contacts + escape_route" do
+    tests "DraftSafetyPlan", on: "SafetyPlan"
+    setup  "AdmitResident", alias_name: "sample", intake_date: "sample", dependents_count: 1, risk_level: "sample"
+    input  resident_alias: "sample", created_date: "sample", emergency_contacts: "sample", escape_route: "sample"
+    expect resident_alias: "sample", created_date: "sample", emergency_contacts: "sample", escape_route: "sample", status: "active"
+  end
+
+  test "DraftSafetyPlan cascades through policy chain" do
+    tests "DraftSafetyPlan", on: "SafetyPlan", kind: :cascade
+    setup  "AdmitResident", alias_name: "sample", intake_date: "sample", dependents_count: 1, risk_level: "sample"
+    setup  "RegisterService", service_name: "sample", service_type: "sample", provider_name: "sample", availability: "sample"
+    setup  "DraftExitPlan", resident_alias: "sample", target_exit_date: "sample", housing_arrangement: "sample", employment_status: "sample"
+    input  resident_alias: "sample", created_date: "sample", emergency_contacts: "sample", escape_route: "sample"
+    expect emits: ["SafetyPlanDrafted", "ResidentReferred", "SafetyPlanReviewed", "RiskReassessed", "ExitPlanDrafted", "ExitTaskCompleted"]
+  end
+
+  test "AddSafetyStep sets scenario + action + resources_needed + priority" do
+    tests "AddSafetyStep", on: "SafetyPlan"
+    setup  "DraftSafetyPlan", resident_alias: "sample", created_date: "sample", emergency_contacts: "sample", escape_route: "sample"
+    input  scenario: "sample", action: "sample", resources_needed: "sample", priority: 1
+    expect ok: "true"
+  end
+
+  test "ReviewSafetyPlan runs" do
+    tests "ReviewSafetyPlan", on: "SafetyPlan"
+    setup  "DraftSafetyPlan", resident_alias: "sample", created_date: "sample", emergency_contacts: "sample", escape_route: "sample"
+    expect ok: "true"
+  end
+
+  test "ReviewSafetyPlan cascades through policy chain" do
+    tests "ReviewSafetyPlan", on: "SafetyPlan", kind: :cascade
+    setup  "DraftSafetyPlan", resident_alias: "sample", created_date: "sample", emergency_contacts: "sample", escape_route: "sample"
+    setup  "AdmitResident", alias_name: "sample", intake_date: "sample", dependents_count: 1, risk_level: "sample"
+    setup  "DraftExitPlan", resident_alias: "sample", target_exit_date: "sample", housing_arrangement: "sample", employment_status: "sample"
+    expect emits: ["SafetyPlanReviewed", "RiskReassessed", "ExitPlanDrafted", "ExitTaskCompleted"]
+  end
+
+
+  # ── SupportService aggregate ──────────────────────────────────────────
+
+  test "RegisterService sets service_name + service_type + provider_name + availability" do
+    tests "RegisterService", on: "SupportService"
+    input  service_name: "sample", service_type: "sample", provider_name: "sample", availability: "sample"
+    expect service_name: "sample", service_type: "sample", provider_name: "sample", availability: "sample", status: "active"
+  end
+
+  test "ReferToService runs" do
+    tests "ReferToService", on: "SupportService"
+    setup  "RegisterService", service_name: "sample", service_type: "sample", provider_name: "sample", availability: "sample"
+    expect ok: "true"
+  end
+
+  test "ReferToService cascades through policy chain" do
+    tests "ReferToService", on: "SupportService", kind: :cascade
+    setup  "RegisterService", service_name: "sample", service_type: "sample", provider_name: "sample", availability: "sample"
+    setup  "DraftSafetyPlan", resident_alias: "sample", created_date: "sample", emergency_contacts: "sample", escape_route: "sample"
+    setup  "AdmitResident", alias_name: "sample", intake_date: "sample", dependents_count: 1, risk_level: "sample"
+    setup  "DraftExitPlan", resident_alias: "sample", target_exit_date: "sample", housing_arrangement: "sample", employment_status: "sample"
+    expect emits: ["ResidentReferred", "SafetyPlanReviewed", "RiskReassessed", "ExitPlanDrafted", "ExitTaskCompleted"]
+  end
+
+  test "SuspendService runs" do
+    tests "SuspendService", on: "SupportService"
+    setup  "RegisterService", service_name: "sample", service_type: "sample", provider_name: "sample", availability: "sample"
+    expect status: "suspended"
+  end
+
+
+  # ── Advocate aggregate ──────────────────────────────────────────
+
+  test "OnboardAdvocate sets name + role_type + certification" do
+    tests "OnboardAdvocate", on: "Advocate"
+    input  name: "sample", role_type: "sample", certification: "sample"
+    expect name: "sample", role_type: "sample", certification: "sample", active_cases: 0, status: "active"
+  end
+
+  test "AssignResident runs" do
+    tests "AssignResident", on: "Advocate"
+    setup  "OnboardAdvocate", name: "sample", role_type: "sample", certification: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ExitPlan aggregate ──────────────────────────────────────────
+
+  test "DraftExitPlan sets resident_alias + target_exit_date + housing_arrangement + employment_status" do
+    tests "DraftExitPlan", on: "ExitPlan"
+    setup  "AdmitResident", alias_name: "sample", intake_date: "sample", dependents_count: 1, risk_level: "sample"
+    input  resident_alias: "sample", target_exit_date: "sample", housing_arrangement: "sample", employment_status: "sample"
+    expect resident_alias: "sample", target_exit_date: "sample", housing_arrangement: "sample", employment_status: "sample", status: "in_progress"
+  end
+
+  test "DraftExitPlan cascades through policy chain" do
+    tests "DraftExitPlan", on: "ExitPlan", kind: :cascade
+    setup  "AdmitResident", alias_name: "sample", intake_date: "sample", dependents_count: 1, risk_level: "sample"
+    input  resident_alias: "sample", target_exit_date: "sample", housing_arrangement: "sample", employment_status: "sample"
+    expect emits: ["ExitPlanDrafted", "ExitTaskCompleted"]
+  end
+
+  test "CompleteExitTask sets task_description" do
+    tests "CompleteExitTask", on: "ExitPlan"
+    setup  "DraftExitPlan", resident_alias: "sample", target_exit_date: "sample", housing_arrangement: "sample", employment_status: "sample"
+    input  task_description: "sample"
+    expect ok: "true"
+  end
+
+  test "FinalizeExit runs" do
+    tests "FinalizeExit", on: "ExitPlan"
+    setup  "DraftExitPlan", resident_alias: "sample", target_exit_date: "sample", housing_arrangement: "sample", employment_status: "sample"
+    expect status: "finalized"
+  end
+
+  test "FinalizeExit cascades through policy chain" do
+    tests "FinalizeExit", on: "ExitPlan", kind: :cascade
+    setup  "AdmitResident", alias_name: "sample", intake_date: "sample", dependents_count: 1, risk_level: "sample"
+    setup  "DraftExitPlan", resident_alias: "sample", target_exit_date: "sample", housing_arrangement: "sample", employment_status: "sample"
+    expect emits: ["ExitFinalized", "ResidentTransitioned"]
+  end
+
+end

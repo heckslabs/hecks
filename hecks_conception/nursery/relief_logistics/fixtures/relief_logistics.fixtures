@@ -1,0 +1,18 @@
+Hecks.fixtures "ReliefLogistics" do
+  aggregate "SupplyRequest" do
+    fixture "SupplyRequest1", request_id: "REQ-2025-001", disaster_type: "hurricane", location_name: "Port City, Gulf Region", urgency: "critical", status: "approved"
+    fixture "SupplyRequest2", request_id: "REQ-2025-002", disaster_type: "earthquake", location_name: "Mountain Valley Community", urgency: "high", status: "submitted"
+  end
+  aggregate "ShippingContainer" do
+    fixture "ShippingContainer1", container_id: "CONT-2025-001", request_id: "REQ-2025-001", origin_port: "New Orleans", dest_port: "Puerto Galera", weight_tons: 22.5, status: "received"
+    fixture "ShippingContainer2", container_id: "CONT-2025-002", request_id: "REQ-2025-002", origin_port: "Los Angeles", dest_port: "Guayaquil", weight_tons: 18.0, status: "in_transit"
+  end
+  aggregate "CustomsClearance" do
+    fixture "CustomsClearance1", clearance_id: "CLEAR-2025-001", container_id: "CONT-2025-001", country: "Philippines", documentation_status: "complete", status: "cleared"
+    fixture "CustomsClearance2", clearance_id: "CLEAR-2025-002", container_id: "CONT-2025-002", country: "Ecuador", documentation_status: "pending", status: "filed"
+  end
+  aggregate "FieldDistribution" do
+    fixture "FieldDistribution1", distribution_id: "DIST-2025-001", container_id: "CONT-2025-001", site_name: "Port City Emergency Shelter", beneficiaries: 450, status: "executed"
+    fixture "FieldDistribution2", distribution_id: "DIST-2025-002", container_id: "CONT-2025-002", site_name: "Mountain Valley Relief Hub", beneficiaries: 0, status: "planned"
+  end
+end

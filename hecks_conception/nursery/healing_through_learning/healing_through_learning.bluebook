@@ -89,8 +89,8 @@ Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
 
   aggregate "CookingLab", "A hands-on cooking session — learners practice recipes that address their nutrition targets" do
     String :session_id
-    reference_to(Learner) :learner
-    reference_to(NutritionCurriculum) :curriculum
+    reference_to(Learner, as: :learner)
+    reference_to(NutritionCurriculum, as: :curriculum)
     String :recipe_name
     String :nutrition_focus
     String :status
@@ -104,14 +104,13 @@ Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
       role "Instructor"
       description "Schedule a cooking lab session for a learner"
       String :session_id
-      reference_to(Learner) :learner
-      reference_to(NutritionCurriculum) :curriculum
+      reference_to(Learner, as: :learner)
+      reference_to(NutritionCurriculum, as: :curriculum)
       String :recipe_name
       String :nutrition_focus
       emits "LabScheduled"
       then_set :session_id, to: :session_id
       then_set :learner, to: :learner
-      then_set :curriculum, to: :curriculum
       then_set :recipe_name, to: :recipe_name
       then_set :nutrition_focus, to: :nutrition_focus
       then_set :status, to: "scheduled"
@@ -130,7 +129,7 @@ Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
 
   aggregate "HealthMetric", "Clinical health measurements — the 'grades' in this program are blood work and vitals" do
     String :metric_id
-    reference_to(Learner) :learner
+    reference_to(Learner, as: :learner)
     String :metric_type
     Float :baseline_value
     Float :current_value
@@ -145,7 +144,7 @@ Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
       role "Clinician"
       description "Record baseline health metric at enrollment"
       String :metric_id
-      reference_to(Learner) :learner
+      reference_to(Learner, as: :learner)
       String :metric_type
       Float :baseline_value
       emits "BaselineRecorded"
@@ -164,7 +163,7 @@ Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
       String :trend
       emits "ReadingRecorded"
       then_set :current_value, to: :current_value
-      then_set :trend, to: :trend
+      then_set :trend, to: "improving"
     end
     FlagImprovement do
       role "System"
@@ -179,7 +178,7 @@ Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
 
   aggregate "Credential", "A professional credential earned through the program — food handler, nutrition coach" do
     String :credential_id
-    reference_to(Learner) :learner
+    reference_to(Learner, as: :learner)
     String :credential_type
     String :issuing_body
     String :status
@@ -193,7 +192,7 @@ Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
       role "ProgramDirector"
       description "Begin credential pathway for a learner"
       String :credential_id
-      reference_to(Learner) :learner
+      reference_to(Learner, as: :learner)
       String :credential_type
       String :issuing_body
       emits "CredentialInitiated"
@@ -217,7 +216,7 @@ Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
 
   aggregate "RecoveryMilestone", "Cross-domain milestone — connects cooking skill, health improvement, and credential progress" do
     String :milestone_id
-    reference_to(Learner) :learner
+    reference_to(Learner, as: :learner)
     String :milestone_type
     String :description
     String :achieved_date
@@ -231,7 +230,7 @@ Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
       role "CaseManager"
       description "Record a cross-domain recovery milestone"
       String :milestone_id
-      reference_to(Learner) :learner
+      reference_to(Learner, as: :learner)
       String :milestone_type
       String :description
       String :achieved_date
@@ -275,21 +274,4 @@ Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
     trigger "RecordMilestone"
   end
 
-  fixture "Learner", learner_id: "LN-2026-0105", name: "James Wilson", recovery_stage: "early_recovery", enrollment_date: "2026-03-15", status: "enrolled"
-  fixture "Learner", learner_id: "LN-2026-0106", name: "Christine Martinez", recovery_stage: "sustained_recovery", enrollment_date: "2026-01-20", status: "enrolled"
-
-  fixture "NutritionCurriculum", curriculum_id: "NC-001", title: "Foundation Nutrition and Basic Cooking", difficulty_level: "beginner", status: "published"
-  fixture "NutritionCurriculum", curriculum_id: "NC-002", title: "Advanced Meal Planning and Nutrition Science", difficulty_level: "advanced", status: "published"
-
-  fixture "CookingLab", session_id: "CL-2026-0201", recipe_name: "Grilled Chicken with Roasted Vegetables", nutrition_focus: "balanced macronutrients", status: "completed"
-  fixture "CookingLab", session_id: "CL-2026-0202", recipe_name: "Mediterranean Quinoa Bowl", nutrition_focus: "plant-based protein", status: "scheduled"
-
-  fixture "HealthMetric", metric_id: "HM-2026-0301", metric_type: "blood_glucose", baseline_value: 145.0, current_value: 118.0, trend: "improving"
-  fixture "HealthMetric", metric_id: "HM-2026-0302", metric_type: "body_weight", baseline_value: 215.0, current_value: 198.0, trend: "improving"
-
-  fixture "Credential", credential_id: "CR-2026-0401", credential_type: "food_handler_certification", issuing_body: "State Health Department", status: "awarded"
-  fixture "Credential", credential_id: "CR-2026-0402", credential_type: "nutrition_coach_credential", issuing_body: "International Nutrition Board", status: "in_progress"
-
-  fixture "RecoveryMilestone", milestone_id: "RM-2026-0501", milestone_type: "first_month_sober", description: "Completed first month of recovery and nutrition program", achieved_date: "2026-04-15"
-  fixture "RecoveryMilestone", milestone_id: "RM-2026-0502", milestone_type: "credential_earned", description: "Earned food handler certification", achieved_date: "2026-04-10"
 end

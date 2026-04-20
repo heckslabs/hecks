@@ -1,0 +1,76 @@
+Hecks.behaviors "SpeechMedia" do
+  vision "Behavioral tests for the SpeechMedia domain — exercises every command and query in memory"
+
+  # ── TherapyExercise aggregate ──────────────────────────────────────────
+
+  test "PrescribeExercise sets exercise_id + client_name + exercise_type + target_sound + repetitions" do
+    tests "PrescribeExercise", on: "TherapyExercise"
+    input  exercise_id: "sample", client_name: "sample", exercise_type: "sample", target_sound: "sample", repetitions: 1
+    expect exercise_id: "sample", client_name: "sample", exercise_type: "sample", target_sound: "sample", repetitions: 1, status: "prescribed"
+  end
+
+  test "CompleteExercise runs" do
+    tests "CompleteExercise", on: "TherapyExercise"
+    setup  "PrescribeExercise", exercise_id: "sample", client_name: "sample", exercise_type: "sample", target_sound: "sample", repetitions: 1
+    expect status: "completed"
+  end
+
+  test "CompleteExercise cascades through policy chain" do
+    tests "CompleteExercise", on: "TherapyExercise", kind: :cascade
+    setup  "CaptureProgressClip", clip_id: "sample", client_name: "sample", milestone: "sample", before_path: "sample", after_path: "sample"
+    setup  "PrescribeExercise", exercise_id: "sample", client_name: "sample", exercise_type: "sample", target_sound: "sample", repetitions: 1
+    expect emits: ["ExerciseCompleted", "ProgressClipCaptured"]
+  end
+
+
+  # ── RecordedSession aggregate ──────────────────────────────────────────
+
+  test "RecordSession sets recording_id + client_name + session_date + duration_minutes + file_path" do
+    tests "RecordSession", on: "RecordedSession"
+    input  recording_id: "sample", client_name: "sample", session_date: "sample", duration_minutes: 1.0, file_path: "sample"
+    expect recording_id: "sample", client_name: "sample", session_date: "sample", duration_minutes: 1.0, file_path: "sample", status: "recorded"
+  end
+
+  test "RecordSession cascades through policy chain" do
+    tests "RecordSession", on: "RecordedSession", kind: :cascade
+    input  recording_id: "sample", client_name: "sample", session_date: "sample", duration_minutes: 1.0, file_path: "sample"
+    expect emits: ["SessionRecorded", "RecordingAnalyzed"]
+  end
+
+  test "AnalyzeRecording runs" do
+    tests "AnalyzeRecording", on: "RecordedSession"
+    setup  "RecordSession", recording_id: "sample", client_name: "sample", session_date: "sample", duration_minutes: 1.0, file_path: "sample"
+    expect status: "analyzed"
+  end
+
+
+  # ── ProgressAudio aggregate ──────────────────────────────────────────
+
+  test "CaptureProgressClip sets clip_id + client_name + milestone + before_path + after_path" do
+    tests "CaptureProgressClip", on: "ProgressAudio"
+    input  clip_id: "sample", client_name: "sample", milestone: "sample", before_path: "sample", after_path: "sample"
+    expect clip_id: "sample", client_name: "sample", milestone: "sample", before_path: "sample", after_path: "sample"
+  end
+
+  test "ShareClip runs" do
+    tests "ShareClip", on: "ProgressAudio"
+    setup  "CaptureProgressClip", clip_id: "sample", client_name: "sample", milestone: "sample", before_path: "sample", after_path: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── PodcastEpisode aggregate ──────────────────────────────────────────
+
+  test "ProduceEpisode sets episode_id + title + topic + duration_minutes" do
+    tests "ProduceEpisode", on: "PodcastEpisode"
+    input  episode_id: "sample", title: "sample", topic: "sample", duration_minutes: 1.0
+    expect episode_id: "sample", title: "sample", topic: "sample", duration_minutes: 1.0, status: "produced"
+  end
+
+  test "PublishEpisode runs" do
+    tests "PublishEpisode", on: "PodcastEpisode"
+    setup  "ProduceEpisode", episode_id: "sample", title: "sample", topic: "sample", duration_minutes: 1.0
+    expect status: "published"
+  end
+
+end

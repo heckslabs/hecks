@@ -11,7 +11,7 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
     String :triage_level
     String :status
     list_of(Allergy) :allergies
-    reference_to(Flight) :assigned_flight
+    reference_to(Flight, as: :assigned_flight)
 
     value_object "Allergy" do
       String :substance
@@ -38,7 +38,7 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
       role "Dispatcher"
       description "Assign patient to a specific medevac flight"
       reference_to(Patient)
-      reference_to(Flight) :flight
+      reference_to(Flight, as: :flight)
       given { status == "registered" }
       emits "PatientAssignedToFlight"
       then_set :assigned_flight, to: :flight
@@ -63,7 +63,7 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
       then_set :status, to: "handed_off"
     end
 
-    lifecycle :status, default: "registered" do
+    lifecycle :status, default: "pending" do
       transition "RegisterPatient" => "registered", from: "pending"
       transition "AssignToFlight" => "in_transit", from: "registered"
       transition "TransferToGround" => "handed_off", from: "in_transit"
@@ -129,7 +129,7 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
   # === VitalStream ===
 
   aggregate "VitalStream", "Real-time telemetry from airborne patient monitors — streams vitals to ground" do
-    reference_to(Patient) :patient
+    reference_to(Patient, as: :patient)
     Integer :heart_rate
     Integer :blood_pressure_systolic
     Integer :blood_pressure_diastolic
@@ -148,7 +148,7 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
     StartMonitoring do
       role "FlightMedic"
       description "Begin streaming vitals from airborne patient monitors"
-      reference_to(Patient) :patient
+      reference_to(Patient, as: :patient)
       emits "MonitoringStarted"
       then_set :patient, to: :patient
       then_set :alarm_status, to: "normal"
@@ -182,13 +182,13 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
     String :trauma_level
     Integer :available_beds
     String :status
-    reference_to(Patient) :expected_patient
+    reference_to(Patient, as: :expected_patient)
 
     AssignTraumaBed do
       role "System"
       description "Reserve a trauma bed for incoming medevac patient"
       reference_to(GroundReceiver)
-      reference_to(Patient) :expected_patient
+      attribute :expected_patient, String
       given { available_beds > 0 }
       emits "TraumaBedAssigned"
       then_set :expected_patient, to: :expected_patient
@@ -220,9 +220,9 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
   # === Handoff ===
 
   aggregate "Handoff", "The moment of care transfer — flight medic to ground team, with full vitals history" do
-    reference_to(Patient) :patient
-    reference_to(Flight) :flight
-    reference_to(GroundReceiver) :receiver
+    reference_to(Patient, as: :patient)
+    reference_to(Flight, as: :flight)
+    reference_to(GroundReceiver, as: :receiver)
     String :status
     String :handoff_notes
     list_of(TransferItem) :transfer_checklist
@@ -236,9 +236,9 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
     InitiateHandoff do
       role "FlightMedic"
       description "Begin formal transfer of patient care at landing"
-      reference_to(Patient) :patient
-      reference_to(Flight) :flight
-      reference_to(GroundReceiver) :receiver
+      reference_to(Patient, as: :patient)
+      reference_to(Flight, as: :flight)
+      attribute :receiver, String
       emits "HandoffInitiated"
       then_set :patient, to: :patient
       then_set :flight, to: :flight
@@ -267,7 +267,7 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
     end
 
     lifecycle :status, default: "pending" do
-      transition "InitiateHandoff" => "in_progress", from: "pending"
+      transition "InitiateHandoff" => "in_progress", from: ["pending", "in_progress"]
       transition "VerifyTransfer" => "verified", from: "in_progress"
       transition "CompleteHandoff" => "complete", from: "verified"
     end
@@ -305,18 +305,4 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
     trigger "RecordVitals"
   end
 
-  fixture "Patient", name: "John Doe", blood_type: "O+", injury_classification: "trauma_multi_system", triage_level: "red", status: "registered", allergies: []
-  fixture "Patient", name: "Sarah Martinez", blood_type: "A-", injury_classification: "burns_severe", triage_level: "yellow", status: "in_transit", allergies: []
-
-  fixture "Flight", callsign: "MEDEVAC_01", origin: "Scene 42", destination: "Mercy General Hospital", altitude: 5000, status: "airborne", crew_manifest: "Pilot Johnson, Medic Chen", route: []
-  fixture "Flight", callsign: "MEDEVAC_02", origin: "Mountain Ridge", destination: "Trauma Center West", altitude: 8000, status: "landed", crew_manifest: "Pilot Williams, Medic Rodriguez", route: []
-
-  fixture "VitalStream", patient_id: "pt_001", heart_rate: 92, blood_pressure_systolic: 128, blood_pressure_diastolic: 76, spo2: 98, temperature: 37.2, alarm_status: "normal", readings: []
-  fixture "VitalStream", patient_id: "pt_002", heart_rate: 125, blood_pressure_systolic: 95, blood_pressure_diastolic: 62, spo2: 92, temperature: 36.8, alarm_status: "critical", readings: []
-
-  fixture "GroundReceiver", hospital_name: "Mercy General Hospital", trauma_level: "level_1", available_beds: 3, status: "prepared", expected_patient: "pt_001"
-  fixture "GroundReceiver", hospital_name: "Trauma Center West", trauma_level: "level_1", available_beds: 1, status: "team_activated", expected_patient: "pt_002"
-
-  fixture "Handoff", patient_id: "pt_001", flight_id: "flt_001", receiver_id: "hosp_001", status: "in_progress", handoff_notes: "", transfer_checklist: []
-  fixture "Handoff", patient_id: "pt_002", flight_id: "flt_002", receiver_id: "hosp_002", status: "complete", handoff_notes: "Patient stable, transferred to ICU", transfer_checklist: []
 end

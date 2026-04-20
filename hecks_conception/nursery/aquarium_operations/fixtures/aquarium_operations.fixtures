@@ -1,0 +1,22 @@
+Hecks.fixtures "AquariumOperations" do
+  aggregate "Tank" do
+    fixture "Coral_Reef_Display_", tank_id: "tank_saltwater_01", name: "Coral Reef Display", water_type: "saltwater", volume_gallons: 500.0, max_species: 45, current_species_count: 32, status: "active"
+    fixture "Amazon_Tributary_", tank_id: "tank_freshwater_03", name: "Amazon Tributary", water_type: "freshwater", volume_gallons: 250.0, max_species: 60, current_species_count: 48, status: "active"
+  end
+  aggregate "Species" do
+    fixture "Species1", species_id: "sp_clownfish_01", common_name: "Ocellaris Clownfish", scientific_name: "Amphiprion ocellaris", water_type_requirement: "saltwater", min_temperature_f: 72.0, max_temperature_f: 78.0, population_count: 8
+    fixture "Species2", species_id: "sp_tetra_02", common_name: "Neon Tetra", scientific_name: "Paracheirodon innesi", water_type_requirement: "freshwater", min_temperature_f: 70.0, max_temperature_f: 76.0, population_count: 24
+  end
+  aggregate "WaterQualityReading" do
+    fixture "WaterQualityReading1", reading_id: "reading_2026_04_14_1", temperature_f: 74.5, ph: 8.2, ammonia_ppm: 0.05, nitrate_ppm: 15.2, salinity_ppt: 1.025, status: "approved"
+    fixture "WaterQualityReading2", reading_id: "reading_2026_04_13_2", temperature_f: 72.1, ph: 7.0, ammonia_ppm: 0.02, nitrate_ppm: 8.5, salinity_ppt: 0.0, status: "flagged"
+  end
+  aggregate "FeedingLog" do
+    fixture "FeedingLog1", log_id: "feed_2026_04_14_001", food_type: "Mysis shrimp", quantity_grams: 25.0, fed_by: "Aquarist Mike"
+    fixture "FeedingLog2", log_id: "feed_2026_04_14_002", food_type: "Tropical flake mix", quantity_grams: 40.0, fed_by: "Aquarist Lisa"
+  end
+  aggregate "Exhibit" do
+    fixture "Pacific_Reef_", exhibit_id: "exhibit_coral_01", name: "Pacific Reef", theme: "Tropical Coral Ecosystems", status: "open", tank_count: 4
+    fixture "Rainforest_Rivers_", exhibit_id: "exhibit_river_02", name: "Rainforest Rivers", theme: "Freshwater South America", status: "open", tank_count: 3
+  end
+end

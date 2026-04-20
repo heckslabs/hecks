@@ -1,0 +1,52 @@
+Hecks.behaviors "Census" do
+  vision "Behavioral tests for the Census domain — exercises every command and query in memory"
+
+  # ── NurseryCensus aggregate ──────────────────────────────────────────
+
+  test "TakeCensus sets total_domains + total_aggregates + total_commands + total_policies + sector_count + errors" do
+    tests "TakeCensus", on: "NurseryCensus"
+    input  total_domains: 1, total_aggregates: 1, total_commands: 1, total_policies: 1, sector_count: 1, errors: 1
+    expect total_domains: 1, total_aggregates: 1, total_commands: 1, total_policies: 1, sector_count: 1, errors: 1
+  end
+
+  test "TakeCensus cascades through policy chain" do
+    tests "TakeCensus", on: "NurseryCensus", kind: :cascade
+    input  total_domains: 1, total_aggregates: 1, total_commands: 1, total_policies: 1, sector_count: 1, errors: 1
+    expect emits: ["CensusTaken", "SectorClassified"]
+  end
+
+  test "RecountDomains sets total_domains" do
+    tests "RecountDomains", on: "NurseryCensus"
+    setup  "TakeCensus", total_domains: 1, total_aggregates: 1, total_commands: 1, total_policies: 1, sector_count: 1, errors: 1
+    input  total_domains: 1
+    expect total_domains: 1
+  end
+
+
+  # ── DomainEntry aggregate ──────────────────────────────────────────
+
+  test "IndexDomain sets domain_name + version + sector + aggregate_count + command_count + path" do
+    tests "IndexDomain", on: "DomainEntry"
+    input  domain_name: "sample", version: "sample", sector: "sample", aggregate_count: 1, command_count: 1, path: "sample"
+    expect domain_name: "sample", version: "sample", sector: "sample", aggregate_count: 1, command_count: 1, path: "sample"
+  end
+
+
+  # ── Sector aggregate ──────────────────────────────────────────
+
+  test "ClassifySector sets name + domain_count" do
+    tests "ClassifySector", on: "Sector"
+    input  name: "sample", domain_count: 1
+    expect name: "sample", domain_count: 1
+  end
+
+
+  # ── Compilation aggregate ──────────────────────────────────────────
+
+  test "CompileNursery sets domains_compiled + output_path" do
+    tests "CompileNursery", on: "Compilation"
+    input  domains_compiled: 1, output_path: "sample"
+    expect domains_compiled: 1, output_path: "sample"
+  end
+
+end

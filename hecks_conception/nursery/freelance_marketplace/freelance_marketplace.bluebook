@@ -26,6 +26,7 @@ Hecks.bluebook "FreelanceMarketplace", version: "2026.04.13.1" do
       Float :budget
       String :deadline
       emits "GigPosted"
+      then_set :status, to: "open"
     end
 
     CloseGig do
@@ -66,14 +67,15 @@ Hecks.bluebook "FreelanceMarketplace", version: "2026.04.13.1" do
       String :headline
       Float :hourly_rate
       emits "FreelancerRegistered"
+      then_set :status, to: "active"
     end
 
-    UpdateProfile do
+    ReviseProfile do
       description "Modify headline, rate, or portfolio"
       reference_to(Freelancer)
       String :headline
       Float :hourly_rate
-      emits "ProfileUpdated"
+      emits "ProfileRevised"
     end
 
     SuspendFreelancer do
@@ -109,6 +111,7 @@ Hecks.bluebook "FreelanceMarketplace", version: "2026.04.13.1" do
       reference_to(Gig)
       reference_to(Freelancer)
       emits "ProposalSubmitted"
+      then_set :status, to: "pending"
     end
 
     AcceptProposal do
@@ -143,7 +146,7 @@ Hecks.bluebook "FreelanceMarketplace", version: "2026.04.13.1" do
       String :status
     end
 
-    CreateContract do
+    SignContract do
       role "Client"
       description "Formalize a contract after accepting a proposal"
       String :contract_id
@@ -152,7 +155,8 @@ Hecks.bluebook "FreelanceMarketplace", version: "2026.04.13.1" do
       String :end_date
       reference_to(Gig)
       reference_to(Freelancer)
-      emits "ContractCreated"
+      emits "ContractSigned"
+      then_set :status, to: "active"
     end
 
     CompleteMilestone do
@@ -198,12 +202,12 @@ Hecks.bluebook "FreelanceMarketplace", version: "2026.04.13.1" do
       description "Escrow a payment pending milestone review"
       reference_to(Payment)
       emits "PaymentHeld"
+      then_set :status, to: "held"
     end
 
     RefundPayment do
       description "Return funds to the client after a dispute resolution"
       reference_to(Payment)
-      given("payment is held") { status == "held" }
       emits "PaymentRefunded"
     end
   end
@@ -219,8 +223,8 @@ Hecks.bluebook "FreelanceMarketplace", version: "2026.04.13.1" do
 
     transition from: "posted", to: "bidding", on: "ProposalSubmitted"
     transition from: "bidding", to: "awarded", on: "ProposalAccepted"
-    transition from: "awarded", to: "contracted", on: "ContractCreated"
-    transition from: "contracted", to: "in_progress", on: "ContractCreated"
+    transition from: "awarded", to: "contracted", on: "ContractSigned"
+    transition from: "contracted", to: "in_progress", on: "ContractSigned"
     transition from: "in_progress", to: "milestone_delivered", on: "MilestoneCompleted"
     transition from: "milestone_delivered", to: "paid", on: "PaymentReleased"
   end
@@ -230,13 +234,13 @@ Hecks.bluebook "FreelanceMarketplace", version: "2026.04.13.1" do
     trigger "SubmitProposal"
   end
 
-  policy "ProposalAcceptedCreateContract" do
+  policy "ProposalAcceptedSignContract" do
     on "ProposalAccepted"
-    trigger "CreateContract"
+    trigger "SignContract"
   end
 
-  policy "ContractCreatedHoldPayment" do
-    on "ContractCreated"
+  policy "ContractSignedHoldPayment" do
+    on "ContractSigned"
     trigger "HoldPayment"
   end
 
@@ -257,18 +261,4 @@ Hecks.bluebook "FreelanceMarketplace", version: "2026.04.13.1" do
 
   # === Fixtures ===
 
-  fixture "Gig", gig_title: "Build Next.js E-Commerce Platform", description: "Full-stack storefront with Stripe integration", category: "web_development", budget: 5000.0, deadline: "2026-06-30", status: "open", requirements: []
-  fixture "Gig", gig_title: "Mobile App UI Design", description: "Design iOS/Android fitness tracking app screens", category: "design", budget: 2500.0, deadline: "2026-05-31", status: "open", requirements: []
-
-  fixture "Freelancer", freelancer_id: "FL001", name: "Alex Chen", email: "alex.chen@freelance.io", headline: "Full-stack React & Ruby specialist", hourly_rate: 95.0, status: "active", portfolio: []
-  fixture "Freelancer", freelancer_id: "FL002", name: "Sofia Torres", email: "sofia.design@freelance.io", headline: "Product designer, Figma expert", hourly_rate: 75.0, status: "active", portfolio: []
-
-  fixture "Proposal", proposal_id: "P001", cover_letter: "I have 8 years of Next.js experience", proposed_rate: 90.0, estimated_days: 25, status: "pending"
-  fixture "Proposal", proposal_id: "P002", cover_letter: "Delivered 12+ mobile apps, strong iOS/Android design", proposed_rate: 70.0, estimated_days: 14, status: "pending"
-
-  fixture "Contract", contract_id: "C001", total_amount: 4500.0, start_date: "2026-05-01", end_date: "2026-06-30", status: "active", milestones: []
-  fixture "Contract", contract_id: "C002", total_amount: 2250.0, start_date: "2026-05-05", end_date: "2026-05-31", status: "active", milestones: []
-
-  fixture "Payment", payment_id: "PA001", amount: 1500.0, payment_method: "stripe", status: "held"
-  fixture "Payment", payment_id: "PA002", amount: 750.0, payment_method: "stripe", status: "released"
 end

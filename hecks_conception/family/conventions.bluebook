@@ -8,22 +8,22 @@ Hecks.bluebook "ChrisConventions" do
 
   aggregate "CodeQuality" do
     description "Structural rules for framework code — line limits, extractions, no shortcuts"
-    list_of(QualityRule) :rules
+    attribute :rules, list_of(QualityRule)
 
     value_object "QualityRule" do
-      String :name
-      String :rule
-      String :why
-      String :how_to_apply
+      attribute :name, String
+      attribute :rule, String
+      attribute :why, String
+      attribute :how_to_apply, String
     end
 
-    AddQualityRule do
+    command "AddQualityRule" do
       role "Chris"
       goal "Record a code quality rule"
-      String :name
-      String :rule
-      String :why
-      String :how_to_apply
+      attribute :name, String
+      attribute :rule, String
+      attribute :why, String
+      attribute :how_to_apply, String
       then_set :rules, append: { name: :name, rule: :rule, why: :why, how_to_apply: :how_to_apply }
       emits "QualityRuleAdded"
     end
@@ -71,20 +71,20 @@ Hecks.bluebook "ChrisConventions" do
 
   aggregate "TestingConvention" do
     description "Testing rules — verify speed, browser smoke tests, validators over manual testing"
-    list_of(TestRule) :rules
+    attribute :rules, list_of(TestRule)
 
     value_object "TestRule" do
-      String :name
-      String :rule
-      String :why
+      attribute :name, String
+      attribute :rule, String
+      attribute :why, String
     end
 
-    AddTestRule do
+    command "AddTestRule" do
       role "Chris"
       goal "Record a testing convention"
-      String :name
-      String :rule
-      String :why
+      attribute :name, String
+      attribute :rule, String
+      attribute :why, String
       then_set :rules, append: { name: :name, rule: :rule, why: :why }
       emits "TestRuleAdded"
     end
@@ -114,20 +114,20 @@ Hecks.bluebook "ChrisConventions" do
 
   aggregate "DocConvention" do
     description "Documentation rules — always update before committing, pause and ask"
-    list_of(DocRule) :rules
+    attribute :rules, list_of(DocRule)
 
     value_object "DocRule" do
-      String :name
-      String :rule
-      String :why
+      attribute :name, String
+      attribute :rule, String
+      attribute :why, String
     end
 
-    AddDocRule do
+    command "AddDocRule" do
       role "Chris"
       goal "Record a documentation convention"
-      String :name
-      String :rule
-      String :why
+      attribute :name, String
+      attribute :rule, String
+      attribute :why, String
       then_set :rules, append: { name: :name, rule: :rule, why: :why }
       emits "DocRuleAdded"
     end
@@ -161,20 +161,20 @@ Hecks.bluebook "ChrisConventions" do
 
   aggregate "GeneratorConvention" do
     description "Rules for code generators — diffs, packaging, integration"
-    list_of(GenRule) :rules
+    attribute :rules, list_of(GenRule)
 
     value_object "GenRule" do
-      String :name
-      String :rule
-      String :why
+      attribute :name, String
+      attribute :rule, String
+      attribute :why, String
     end
 
-    AddGenRule do
+    command "AddGenRule" do
       role "Chris"
       goal "Record a generator convention"
-      String :name
-      String :rule
-      String :why
+      attribute :name, String
+      attribute :rule, String
+      attribute :why, String
       then_set :rules, append: { name: :name, rule: :rule, why: :why }
       emits "GenRuleAdded"
     end
@@ -201,20 +201,20 @@ Hecks.bluebook "ChrisConventions" do
 
   aggregate "CapabilityConvention" do
     description "Rules for how capabilities are conceived, wired, and delivered"
-    list_of(CapRule) :rules
+    attribute :rules, list_of(CapRule)
 
     value_object "CapRule" do
-      String :name
-      String :rule
-      String :why
+      attribute :name, String
+      attribute :rule, String
+      attribute :why, String
     end
 
-    AddCapRule do
+    command "AddCapRule" do
       role "Chris"
       goal "Record a capability convention"
-      String :name
-      String :rule
-      String :why
+      attribute :name, String
+      attribute :rule, String
+      attribute :why, String
       then_set :rules, append: { name: :name, rule: :rule, why: :why }
       emits "CapRuleAdded"
     end
@@ -223,7 +223,7 @@ Hecks.bluebook "ChrisConventions" do
   # Instances:
   #
   # ConceiveAndWire:
-  #   rule: When Chris says Winter needs a capability, conceive the domain AND wire it. No gap.
+  #   rule: When Chris says Miette needs a capability, conceive the domain AND wire it. No gap.
   #   why: A bluebook sitting in the nursery unwired is a spec with no life. Conception without wiring is incomplete delivery.
   #
   # BluebookBeforeCode:

@@ -1,49 +1,49 @@
 Hecks.bluebook "DomainHygiene", version: "2026.04.13.1" do
-  vision "Winter keeps her domains healthy — finds gaps, enriches weak domains, tracks training data quality"
+  vision "Miette keeps her domains healthy — finds gaps, enriches weak domains, tracks training data quality"
   category "capability"
 
   aggregate "HealthCheck", "A scan of the full corpus — what boots, what fails, what's missing" do
-    Integer :total_domains
-    Integer :valid_count
-    Integer :invalid_count
-    list_of(ValidationFailure) :failures
-    String :scanned_at
+    attribute :total_domains, Integer
+    attribute :valid_count, Integer
+    attribute :invalid_count, Integer
+    attribute :failures, list_of(ValidationFailure)
+    attribute :scanned_at, String
 
     value_object "ValidationFailure" do
-      String :domain_name
-      String :file_path
-      String :error_message
+      attribute :domain_name, String
+      attribute :file_path, String
+      attribute :error_message, String
     end
 
-    ScanCorpus do
+    command "ScanCorpus" do
       description "Parse and validate every bluebook — report what boots and what breaks"
-      String :root_path
+      attribute :root_path, String
       emits "CorpusScanned"
     end
   end
 
   aggregate "QualityReport", "Training data quality metrics — bias, gaps, coverage" do
-    Integer :total_pairs
-    Integer :unique_domains
-    Integer :with_policies
-    Integer :with_references
-    Integer :duplicates
-    list_of(CategoryCount) :distribution
-    list_of(String) :gaps
+    attribute :total_pairs, Integer
+    attribute :unique_domains, Integer
+    attribute :with_policies, Integer
+    attribute :with_references, Integer
+    attribute :duplicates, Integer
+    attribute :distribution, list_of(CategoryCount)
+    attribute :gaps, list_of(String)
 
     value_object "CategoryCount" do
-      String :category
-      Integer :count
-      Float :percentage
+      attribute :category, String
+      attribute :count, Integer
+      attribute :percentage, Float
     end
 
-    AssessQuality do
+    command "AssessQuality" do
       description "Analyze the training JSONL for bias, missing features, and category balance"
-      String :jsonl_path
+      attribute :jsonl_path, String
       emits "QualityAssessed"
     end
 
-    IdentifyGaps do
+    command "IdentifyGaps" do
       description "Find underrepresented categories and missing structural features"
       reference_to(QualityReport)
       emits "GapsIdentified"
@@ -51,21 +51,31 @@ Hecks.bluebook "DomainHygiene", version: "2026.04.13.1" do
   end
 
   aggregate "Enrichment", "A targeted fix to a weak domain — add policies, events, descriptions, or givens" do
-    String :domain_name
-    String :enrichment_type
-    String :before_state
-    String :after_state
-    Boolean :revalidated
+    attribute :domain_name, String
+    attribute :enrichment_type, String
+    attribute :before_state, String
+    attribute :after_state, String
+    attribute :revalidated, TrueClass
+    # Flipped true by ConfirmBoots; EnrichDomain gates on it. Planner picks
+    # ConfirmBoots as the producer.
+    attribute :boots, TrueClass, default: false
 
-    EnrichDomain do
+    command "ConfirmBoots" do
+      description "Parse the target domain and confirm it boots — required before enrichment"
+      attribute :domain_name, String
+      emits "BootConfirmed"
+      then_set :boots, to: true
+    end
+
+    command "EnrichDomain" do
       description "Add missing policies, events, or descriptions to a domain that lacks them"
-      String :domain_name
-      String :enrichment_type
-      given "domain must already boot before enrichment"
+      attribute :domain_name, String
+      attribute :enrichment_type, String
+      given { boots == true }
       emits "DomainEnriched"
     end
 
-    Revalidate do
+    command "Revalidate" do
       description "Re-parse and validate after enrichment to confirm the domain still boots"
       reference_to(Enrichment)
       emits "EnrichmentValidated"
@@ -73,72 +83,75 @@ Hecks.bluebook "DomainHygiene", version: "2026.04.13.1" do
   end
 
   aggregate "TrainingHarvest", "Extract training pairs from the corpus and track dataset evolution" do
-    String :output_path
-    Integer :pair_count
-    Integer :strong_pairs
-    String :harvested_at
+    attribute :output_path, String
+    attribute :pair_count, Integer
+    attribute :strong_pairs, Integer
+    attribute :harvested_at, String
 
-    HarvestTrainingData do
+    command "HarvestTrainingData" do
       description "Walk all valid bluebooks, extract prompt/completion pairs as JSONL"
-      String :root_path
-      String :output_path
+      attribute :root_path, String
+      attribute :output_path, String
       emits "DataHarvested"
     end
 
-    CompareVersions do
+    command "CompareVersions" do
       description "Diff two training JSONL files to see what improved"
       reference_to(TrainingHarvest)
-      String :previous_path
+      attribute :previous_path, String
       emits "VersionsCompared"
     end
   end
 
   aggregate "CorpusGrowth", "The loop — conceive domains, validate, repair failures, enrich shallow ones, harvest" do
-    Integer :target_count
-    Integer :conceived
-    Integer :valid
-    Integer :repaired
-    Integer :enriched
-    Integer :harvested
-    list_of(GrowthWave) :waves
+    attribute :target_count, Integer
+    attribute :conceived, Integer
+    attribute :valid, Integer
+    attribute :repaired, Integer
+    attribute :enriched, Integer
+    attribute :harvested, Integer
+    attribute :waves, list_of(GrowthWave)
+    # Flipped true once RepairFailures finishes — at that point the wave's
+    # remaining domains are valid and ready for enrichment.
+    attribute :wave_valid, Boolean, default: false
 
     value_object "GrowthWave" do
-      Integer :wave_number
-      Integer :attempted
-      Integer :survived
-      Integer :repaired
-      String :phase
+      attribute :wave_number, Integer
+      attribute :attempted, Integer
+      attribute :survived, Integer
+      attribute :repaired, Integer
+      attribute :phase, String
     end
 
-    GrowCorpus do
+    command "GrowCorpus" do
       description "Launch a growth cycle — conceive N domains across diverse topics"
-      Integer :target_count
-      given "target must be at least 10"
+      attribute :target_count, Integer
       emits "GrowthStarted"
     end
 
-    ConceiveBatch do
+    command "ConceiveBatch" do
       description "Conceive a batch of domains from visions — fan out to parallel agents"
       reference_to(CorpusGrowth)
-      Integer :batch_size
-      list_of(String) :topics
+      attribute :batch_size, Integer
+      attribute :topics, list_of(String)
       emits "BatchConceived"
     end
 
-    RepairFailures do
+    command "RepairFailures" do
       description "Read validation errors, fix the bluebooks, revalidate"
       reference_to(CorpusGrowth)
       emits "FailuresRepaired"
+      then_set :wave_valid, to: true
     end
 
-    EnrichShallow do
+    command "EnrichShallow" do
       description "Add policies, references, and givens to valid but thin domains"
       reference_to(CorpusGrowth)
-      given "domain must be valid before enrichment"
+      given { wave_valid == true }
       emits "ShallowEnriched"
     end
 
-    ReportGrowth do
+    command "ReportGrowth" do
       description "Summarize what survived — count, depth, category distribution"
       reference_to(CorpusGrowth)
       emits "GrowthReported"

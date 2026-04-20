@@ -1,0 +1,162 @@
+Hecks.behaviors "RecyclingCenter" do
+  vision "Behavioral tests for the RecyclingCenter domain — exercises every command and query in memory"
+
+  # ── Material aggregate ──────────────────────────────────────────
+
+  test "RegisterMaterial sets material_code + name + category + market_price_per_ton" do
+    tests "RegisterMaterial", on: "Material"
+    input  material_code: "sample", name: "sample", category: "sample", market_price_per_ton: 1.0
+    expect material_code: "sample", name: "sample", category: "sample", market_price_per_ton: 1.0, status: "active", inventory_tons: 0.0
+  end
+
+  test "ReceiveInbound sets weight_tons" do
+    tests "ReceiveInbound", on: "Material"
+    setup  "RegisterMaterial", material_code: "sample", name: "sample", category: "sample", market_price_per_ton: 1.0
+    input  weight_tons: 1.0
+    expect ok: "true"
+  end
+
+  test "ReceiveInbound cascades through policy chain" do
+    tests "ReceiveInbound", on: "Material", kind: :cascade
+    setup  "RegisterMaterial", material_code: "sample", name: "sample", category: "sample", market_price_per_ton: 1.0
+    setup  "StartLine", line_id: "sample", line_type: "sample", throughput_tons_per_hour: 1.0
+    input  weight_tons: 1.0
+    expect emits: ["InboundReceived", "InboundWeighed", "LineStarted"]
+  end
+
+  test "WeighInbound sets gross_weight_tons + tare_weight_tons" do
+    tests "WeighInbound", on: "Material"
+    setup  "RegisterMaterial", material_code: "sample", name: "sample", category: "sample", market_price_per_ton: 1.0
+    input  gross_weight_tons: 1.0, tare_weight_tons: 1.0
+    expect ok: "true"
+  end
+
+  test "WeighInbound cascades through policy chain" do
+    tests "WeighInbound", on: "Material", kind: :cascade
+    setup  "RegisterMaterial", material_code: "sample", name: "sample", category: "sample", market_price_per_ton: 1.0
+    setup  "StartLine", line_id: "sample", line_type: "sample", throughput_tons_per_hour: 1.0
+    input  gross_weight_tons: 1.0, tare_weight_tons: 1.0
+    expect emits: ["InboundWeighed", "LineStarted"]
+  end
+
+  test "RepriceMaterial sets new_price_per_ton" do
+    tests "RepriceMaterial", on: "Material"
+    setup  "RegisterMaterial", material_code: "sample", name: "sample", category: "sample", market_price_per_ton: 1.0
+    input  new_price_per_ton: 1.0
+    expect ok: "true"
+  end
+
+
+  # ── SortingLine aggregate ──────────────────────────────────────────
+
+  test "StartLine sets line_id + line_type + throughput_tons_per_hour" do
+    tests "StartLine", on: "SortingLine"
+    input  line_id: "sample", line_type: "sample", throughput_tons_per_hour: 1.0
+    expect status: "running"
+  end
+
+  test "CompleteSortRun runs" do
+    tests "CompleteSortRun", on: "SortingLine"
+    setup  "StartLine", line_id: "sample", line_type: "sample", throughput_tons_per_hour: 1.0
+    expect status: "idle"
+  end
+
+  test "CompleteSortRun cascades through policy chain" do
+    tests "CompleteSortRun", on: "SortingLine", kind: :cascade
+    setup  "PressBale", weight_tons: 1.0
+    setup  "RegisterMaterial", material_code: "sample", name: "sample", category: "sample", market_price_per_ton: 1.0
+    setup  "StartLine", line_id: "sample", line_type: "sample", throughput_tons_per_hour: 1.0
+    expect emits: ["SortRunCompleted", "BalePressed"]
+  end
+
+  test "HaltLine sets reason" do
+    tests "HaltLine", on: "SortingLine"
+    setup  "StartLine", line_id: "sample", line_type: "sample", throughput_tons_per_hour: 1.0
+    input  reason: "sample"
+    expect status: "halted"
+  end
+
+  test "RestartLine runs" do
+    tests "RestartLine", on: "SortingLine"
+    setup  "StartLine", line_id: "sample", line_type: "sample", throughput_tons_per_hour: 1.0
+    setup  "HaltLine", reason: "sample"
+    expect status: "running"
+  end
+
+
+  # ── Bale aggregate ──────────────────────────────────────────
+
+  test "PressBale sets weight_tons" do
+    tests "PressBale", on: "Bale"
+    setup  "RegisterMaterial", material_code: "sample", name: "sample", category: "sample", market_price_per_ton: 1.0
+    input  weight_tons: 1.0
+    expect status: "pressed"
+  end
+
+  test "InspectBale runs" do
+    tests "InspectBale", on: "Bale"
+    setup  "PressBale", weight_tons: 1.0
+    expect status: "inspected"
+  end
+
+  test "StageBale runs" do
+    tests "StageBale", on: "Bale"
+    setup  "PressBale", weight_tons: 1.0
+    expect status: "staged"
+  end
+
+  test "ShipBale runs" do
+    tests "ShipBale", on: "Bale"
+    setup  "PressBale", weight_tons: 1.0
+    expect status: "shipped"
+  end
+
+
+  # ── ContaminationReport aggregate ──────────────────────────────────────────
+
+  test "FileContamination sets contaminant_type + contamination_percent" do
+    tests "FileContamination", on: "ContaminationReport"
+    setup  "RegisterMaterial", material_code: "sample", name: "sample", category: "sample", market_price_per_ton: 1.0
+    input  contaminant_type: "sample", contamination_percent: 1.0
+    expect status: "open"
+  end
+
+  test "FileContamination cascades through policy chain" do
+    tests "FileContamination", on: "ContaminationReport", kind: :cascade
+    setup  "RegisterMaterial", material_code: "sample", name: "sample", category: "sample", market_price_per_ton: 1.0
+    setup  "StartLine", line_id: "sample", line_type: "sample", throughput_tons_per_hour: 1.0
+    input  contaminant_type: "sample", contamination_percent: 1.0
+    expect emits: ["ContaminationFiled", "LineHalted"]
+  end
+
+  test "ResolveContamination runs" do
+    tests "ResolveContamination", on: "ContaminationReport"
+    setup  "FileContamination", contaminant_type: "sample", contamination_percent: 1.0
+    expect status: "resolved"
+  end
+
+
+  # ── Buyer aggregate ──────────────────────────────────────────
+
+  test "RegisterBuyer sets buyer_id + company_name + material_interest + contracted_price_per_ton" do
+    tests "RegisterBuyer", on: "Buyer"
+    input  buyer_id: "sample", company_name: "sample", material_interest: "sample", contracted_price_per_ton: 1.0
+    expect buyer_id: "sample", company_name: "sample", material_interest: "sample", contracted_price_per_ton: 1.0, status: "active"
+  end
+
+  test "PlaceOrder sets tons_requested" do
+    tests "PlaceOrder", on: "Buyer"
+    setup  "RegisterBuyer", buyer_id: "sample", company_name: "sample", material_interest: "sample", contracted_price_per_ton: 1.0
+    input  tons_requested: 1.0
+    expect ok: "true"
+  end
+
+  test "PlaceOrder cascades through policy chain" do
+    tests "PlaceOrder", on: "Buyer", kind: :cascade
+    setup  "RegisterBuyer", buyer_id: "sample", company_name: "sample", material_interest: "sample", contracted_price_per_ton: 1.0
+    setup  "PressBale", weight_tons: 1.0
+    input  tons_requested: 1.0
+    expect emits: ["OrderPlaced", "BaleShipped"]
+  end
+
+end

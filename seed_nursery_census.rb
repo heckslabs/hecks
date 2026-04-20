@@ -1,4 +1,4 @@
-# seed_nursery_census.rb — Indexes all nursery domains into Winter's brain
+# seed_nursery_census.rb — Indexes all nursery domains into Miette's brain
 # Scans every .bluebook in nursery/, extracts metadata, classifies by sector,
 # writes domain_entry JSON + .heki files, updates nursery_awareness.heki
 #
@@ -10,7 +10,7 @@ require "zlib"
 require "time"
 
 NURSERY = File.expand_path("hecks_conception/nursery", __dir__)
-INFO    = File.expand_path("hecks_being/winter/information", __dir__)
+INFO    = File.expand_path("hecks_conception/information", __dir__)
 ENTRY_DIR = File.join(INFO, "domain_entry")
 
 SECTOR_KEYWORDS = {

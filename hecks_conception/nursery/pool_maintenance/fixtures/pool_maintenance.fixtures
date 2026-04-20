@@ -1,0 +1,22 @@
+Hecks.fixtures "PoolMaintenance" do
+  aggregate "Pool" do
+    fixture "Pool1", owner_name: "Smith Family", address: "123 Oak Street, Phoenix, AZ 85001", pool_type: "in-ground", gallons: 15000.0, surface_type: "plaster", sanitizer_type: "chlorine"
+    fixture "Pool2", owner_name: "Resort Spa", address: "456 Main Ave, Las Vegas, NV 89101", pool_type: "spa", gallons: 1200.0, surface_type: "fiberglass", sanitizer_type: "saltwater"
+  end
+  aggregate "ChemicalReading" do
+    fixture "ChemicalReading1", ph: 7.3, free_chlorine: 2.0, total_alkalinity: 85.0, calcium_hardness: 200.0, cya: 70.0, reading_date: "2026-04-14", status: "recorded"
+    fixture "ChemicalReading2", ph: 7.6, free_chlorine: 1.8, total_alkalinity: 95.0, calcium_hardness: 220.0, cya: 65.0, reading_date: "2026-04-13", status: "recorded"
+  end
+  aggregate "PoolEquipment" do
+    fixture "PoolEquipment1", equipment_type: "Pump", brand: "Pentair", model: "Superflo VS", status: "running", install_date: "2020-03-15"
+    fixture "PoolEquipment2", equipment_type: "Filter", brand: "Hayward", model: "ProSeries", status: "running", install_date: "2018-06-20"
+  end
+  aggregate "ServiceRoute" do
+    fixture "ServiceRoute1", tech_name: "John Davis", route_day: "Monday", pool_count: 12, status: "active"
+    fixture "ServiceRoute2", tech_name: "Maria Lopez", route_day: "Wednesday", pool_count: 15, status: "active"
+  end
+  aggregate "RepairTicket" do
+    fixture "RepairTicket1", problem_description: "pump leaking at seal", diagnosis: "seal degradation", status: "diagnosed", repair_cost: 250.0
+    fixture "RepairTicket2", problem_description: "filter pressure high", diagnosis: "clogged filter media", status: "diagnosed", repair_cost: 85.0
+  end
+end

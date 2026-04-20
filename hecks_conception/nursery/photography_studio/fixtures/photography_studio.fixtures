@@ -1,0 +1,22 @@
+Hecks.fixtures "PhotographyStudio" do
+  aggregate "Client" do
+    fixture "Emily_Rodriguez_", name: "Emily Rodriguez", email: "emily@example.com", phone: "555-2847", tier: "bronze"
+    fixture "David_Chen_", name: "David Chen", email: "david@example.com", phone: "555-9103", tier: "platinum"
+  end
+  aggregate "Shoot" do
+    fixture "Family_Reunion___Central_Park_", title: "Family Reunion - Central Park", location: "Central Park, NYC", shoot_type: "family", status: "scheduled", frame_count: 0, reference_to: "emily@example.com"
+    fixture "Wedding_Day_Ceremony___Reception_", title: "Wedding Day Ceremony & Reception", location: "Riverside Manor, Boston", shoot_type: "wedding", status: "wrapped", frame_count: 1247, reference_to: "david@example.com"
+  end
+  aggregate "EditSession" do
+    fixture "EditSession1", status: "pending", selects_count: 0, finals_count: 0, reference_to: "family-reunion-shoot"
+    fixture "EditSession2", status: "delivered", selects_count: 450, finals_count: 187, reference_to: "wedding-ceremony-shoot"
+  end
+  aggregate "Gallery" do
+    fixture "Family_Reunion_Proofs_", title: "Family Reunion Proofs", access_code: "FAM2026X7", status: "draft", image_count: 0, reference_to: "emily@example.com"
+    fixture "Chen_Martinez_Wedding_Album_", title: "Chen-Martinez Wedding Album", access_code: "CHE2026MX", status: "published", image_count: 187, reference_to: "david@example.com"
+  end
+  aggregate "PrintOrder" do
+    fixture "PrintOrder1", paper_stock: "Lustre", finish: "matte", quantity: 50, status: "pending", reference_to: "FAM2026X7"
+    fixture "PrintOrder2", paper_stock: "Fine Art", finish: "glossy", quantity: 100, status: "fulfilled", reference_to: "CHE2026MX"
+  end
+end

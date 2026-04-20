@@ -16,7 +16,6 @@ pub fn parse(source: &str) -> Domain {
         aggregates: vec![],
         policies: vec![],
         fixtures: vec![],
-        vows: vec![],
     };
 
     let lines: Vec<&str> = source.lines().collect();
@@ -57,15 +56,23 @@ pub fn parse(source: &str) -> Domain {
             continue;
         }
 
-        if line.starts_with("vow") && !line.starts_with("vow_") {
-            let (vow, consumed) = parse_vow(&lines[i..]);
-            domain.vows.push(vow);
-            i += consumed;
-            continue;
-        }
-
+        // Inline `fixture` keyword in .bluebook is no longer supported.
+        // Fixtures live in their own `.fixtures` files (sibling under
+        // `fixtures/` subdir). Anything starting with `fixture` here
+        // is silently ignored — the migration script extracted them all,
+        // and the lifecycle/io validators will catch stragglers.
         if line.starts_with("fixture") {
-            domain.fixtures.push(parse_fixture(line));
+            // Skip block form's body so we don't pick up nested
+            // `aggregate "X"` lines as new aggregates.
+            if ends_with_do_block(line) {
+                let mut depth = 1;
+                while i + 1 < lines.len() && depth > 0 {
+                    i += 1;
+                    let l = lines[i].trim();
+                    if l == "end" { depth -= 1; }
+                    else if ends_with_do_block(l) { depth += 1; }
+                }
+            }
         }
 
         i += 1;
@@ -74,24 +81,25 @@ pub fn parse(source: &str) -> Domain {
     domain
 }
 
-fn parse_vow(lines: &[&str]) -> (Vow, usize) {
-    let first = lines[0].trim();
-    let name = extract_string(first).unwrap_or_default();
-    let mut text = String::new();
-    let mut i = 1;
-
-    while i < lines.len() {
-        let line = lines[i].trim();
-        if line == "end" { break; }
-        // Vow text is a quoted string on its own line
-        if let Some(s) = extract_string(line) {
-            if !text.is_empty() { text.push(' '); }
-            text.push_str(&s);
+// True if the line is incomplete and the next physical line is a
+// continuation: either trailing comma, or unbalanced brackets/parens/braces
+// (outside string literals).
+fn needs_continuation(s: &str) -> bool {
+    let trimmed = s.trim_end();
+    if trimmed.ends_with(',') { return true; }
+    let mut depth = 0i32;
+    let mut in_str = false;
+    let mut prev = '\0';
+    for c in s.chars() {
+        match c {
+            '"' if prev != '\\' => in_str = !in_str,
+            '[' | '{' | '(' if !in_str => depth += 1,
+            ']' | '}' | ')' if !in_str => depth -= 1,
+            _ => {}
         }
-        i += 1;
+        prev = c;
     }
-
-    (Vow { name, text }, i + 1)
+    depth > 0
 }
 
 fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
@@ -101,7 +109,7 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
 
     let mut agg = Aggregate {
         name, description: desc, attributes: vec![],
-        commands: vec![], value_objects: vec![],
+        commands: vec![], queries: vec![], value_objects: vec![],
         references: vec![], lifecycle: None,
     };
 
@@ -137,7 +145,14 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
             } else if line.starts_with("description") {
                 agg.description = extract_string(line);
             } else if line.starts_with("reference_to") {
-                if let Some(target) = extract_word_after(line, "reference_to") {
+                // Two forms: `reference_to Pizza` (spaced) and `reference_to(Pizza)` /
+                // `reference_to(Pizza, role: :foo)` (paren). Delegate the paren form
+                // to parse_shorthand_reference so we honor `role:` and `.as()`.
+                if line.starts_with("reference_to(") {
+                    if let Some(r) = parse_shorthand_reference(line) {
+                        agg.references.push(r);
+                    }
+                } else if let Some(target) = extract_word_after(line, "reference_to") {
                     let snake = to_snake_case(&target);
                     agg.references.push(Reference { name: snake, target, domain: None });
                 }
@@ -152,7 +167,14 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
                     ShorthandResult::Reference(r) => agg.references.push(r),
                     ShorthandResult::None => {}
                 }
-            } else if line.starts_with("query") || ends_with_do_block(line) {
+            } else if line.starts_with("query") {
+                let name = extract_string(line).unwrap_or_else(|| {
+                    line.split_whitespace().nth(1).unwrap_or("").trim_matches('"').to_string()
+                });
+                let desc = extract_second_string(line);
+                agg.queries.push(Query { name, description: desc });
+                if ends_with_do_block(line) { depth += 1; }
+            } else if ends_with_do_block(line) {
                 depth += 1;
             }
         } else if ends_with_do_block(line) {

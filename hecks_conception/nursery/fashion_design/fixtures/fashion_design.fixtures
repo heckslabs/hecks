@@ -1,0 +1,22 @@
+Hecks.fixtures "FashionDesign" do
+  aggregate "Collection" do
+    fixture "Spring_Garden_", name: "Spring Garden", season: "spring", theme: "botanical prints", piece_count: 12, status: "concept"
+    fixture "Miette_Nights_", name: "Miette Nights", season: "miette", theme: "layered textures", piece_count: 15, status: "finalized"
+  end
+  aggregate "Garment" do
+    fixture "Floral_Dress_", name: "Floral Dress", garment_type: "day dress", fabric: "cotton blend", status: "drafted"
+    fixture "Wool_Coat_", name: "Wool Coat", garment_type: "outerwear", fabric: "merino wool", status: "produced"
+  end
+  aggregate "Pattern" do
+    fixture "Bodice_Block_", name: "Bodice Block", garment_type: "dress", piece_count: 5, status: "draft"
+    fixture "Sleeve_Grade_", name: "Sleeve Grade", garment_type: "sleeve", piece_count: 2, status: "graded"
+  end
+  aggregate "Fitting" do
+    fixture "Fitting1", model_name: "Elena Rodriguez", date: "2026-04-15", status: "scheduled", notes: "check shoulder seam"
+    fixture "Fitting2", model_name: "Sophia Chen", date: "2026-04-20", status: "adjusted", notes: "hemmed 2 inches"
+  end
+  aggregate "RunwayShow" do
+    fixture "RunwayShow1", venue: "Park Avenue Atrium", date: "2026-05-10", look_count: 12, status: "planning"
+    fixture "RunwayShow2", venue: "Metropolitan Museum", date: "2026-06-15", look_count: 15, status: "rehearsed"
+  end
+end

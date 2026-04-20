@@ -1,0 +1,28 @@
+Hecks.fixtures "Tribology" do
+  aggregate "TribologicalTest" do
+    fixture "FourBallWear_", name: "FourBallWear", test_standard: "ASTM D4172", apparatus: "four_ball", status: "standard"
+    fixture "ViscosityIndex_", name: "ViscosityIndex", test_standard: "ASTM D2270", apparatus: "viscometer", status: "standard"
+    fixture "EPLoadCarrying_", name: "EPLoadCarrying", test_standard: "ASTM D2783", apparatus: "four_ball_ep", status: "standard"
+    fixture "ElementalAnalysis_", name: "ElementalAnalysis", test_standard: "ASTM D5185", apparatus: "icp_spectrometer", status: "standard"
+    fixture "HFRR_", name: "HFRR", test_standard: "ASTM D6079", apparatus: "hfrr_rig", status: "standard"
+    fixture "PourPoint_", name: "PourPoint", test_standard: "ASTM D97", apparatus: "pour_point_bath", status: "standard"
+    fixture "FlashPoint_", name: "FlashPoint", test_standard: "ASTM D92", apparatus: "cleveland_open_cup", status: "standard"
+    fixture "TimkenOK_", name: "TimkenOK", test_standard: "ASTM D2782", apparatus: "timken_machine", status: "standard"
+    fixture "FourBallFriction_", name: "FourBallFriction", test_standard: "ASTM D5183", apparatus: "four_ball", status: "standard"
+  end
+  aggregate "Lubricant" do
+    fixture "SAE_0W20_", name: "SAE_0W20", base_oil_type: "group_iii", sae_grade: "0W-20", pour_point_c: -45.0, flash_point_c: 224.0, status: "reference"
+    fixture "SAE_5W30_", name: "SAE_5W30", base_oil_type: "group_iii", sae_grade: "5W-30", pour_point_c: -42.0, flash_point_c: 230.0, status: "reference"
+    fixture "SAE_10W40_", name: "SAE_10W40", base_oil_type: "group_ii", sae_grade: "10W-40", pour_point_c: -36.0, flash_point_c: 235.0, status: "reference"
+    fixture "SAE_15W40_", name: "SAE_15W40", base_oil_type: "group_ii", sae_grade: "15W-40", pour_point_c: -30.0, flash_point_c: 240.0, status: "reference"
+    fixture "SAE_20W50_", name: "SAE_20W50", base_oil_type: "group_i", sae_grade: "20W-50", pour_point_c: -24.0, flash_point_c: 250.0, status: "reference"
+  end
+  aggregate "AdditiveAction" do
+    fixture "ZDDP_AntiWear_", name: "ZDDP_AntiWear", additive_type: "anti_wear", effectiveness: 0.85, synergy_status: "baseline"
+    fixture "MolyFrictionModifier_", name: "MolyFrictionModifier", additive_type: "friction_modifier", effectiveness: 0.78, synergy_status: "baseline"
+    fixture "SulfurEP_", name: "SulfurEP", additive_type: "extreme_pressure", effectiveness: 0.90, synergy_status: "baseline"
+    fixture "CalciumDetergent_", name: "CalciumDetergent", additive_type: "detergent", effectiveness: 0.82, synergy_status: "baseline"
+    fixture "PIBDispersant_", name: "PIBDispersant", additive_type: "dispersant", effectiveness: 0.80, synergy_status: "baseline"
+    fixture "AminicAntioxidant_", name: "AminicAntioxidant", additive_type: "antioxidant", effectiveness: 0.88, synergy_status: "baseline"
+  end
+end

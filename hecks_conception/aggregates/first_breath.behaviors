@@ -1,0 +1,51 @@
+Hecks.behaviors "FirstBreath" do
+  vision "Behavioral tests for the FirstBreath domain — exercises every command and query in memory"
+
+  # ── Identity aggregate ──────────────────────────────────────────
+
+  test "Breathe sets name + born" do
+    tests "Breathe", on: "Identity"
+    input  name: "sample", born: "sample"
+    expect name: "sample", born: "sample"
+  end
+
+
+  # ── Section aggregate ──────────────────────────────────────────
+
+  test "ProjectSection sets organ_name + heading + content + order" do
+    tests "ProjectSection", on: "Section"
+    input  organ_name: "sample", heading: "sample", content: "sample", order: 1
+    expect organ_name: "sample", heading: "sample", content: "sample", order: 1
+  end
+
+
+  # ── Prompt aggregate ──────────────────────────────────────────
+
+  test "AssemblePrompt sets being_name + organ_count" do
+    tests "AssemblePrompt", on: "Prompt"
+    input  being_name: "sample", organ_count: 1
+    expect being_name: "sample", organ_count: 1
+  end
+
+  test "AssemblePrompt cascades through policy chain" do
+    tests "AssemblePrompt", on: "Prompt", kind: :cascade
+    input  being_name: "sample", organ_count: 1
+    expect emits: ["PromptAssembled", "PromptWritten"]
+  end
+
+  test "WritePrompt runs" do
+    tests "WritePrompt", on: "Prompt"
+    setup  "AssemblePrompt", being_name: "sample", organ_count: 1
+    expect ok: "true"
+  end
+
+
+  # ── Voice aggregate ──────────────────────────────────────────
+
+  test "DefineVoice sets tone + rules" do
+    tests "DefineVoice", on: "Voice"
+    input  tone: "sample", rules: "sample"
+    expect tone: "sample", rules: "sample"
+  end
+
+end

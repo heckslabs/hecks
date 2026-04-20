@@ -2,256 +2,256 @@ Hecks.bluebook "Hecksagon", version: "2026.04.11.1" do
   category "framework"
   aggregate "SerializationLines", definition: "Mixin for MongoAdapterGenerator that builds serialize/deserialize method source" do
 
-    SerializeLines do
+    command "SerializeLines" do
     end
 
-    DeserializeLines do
+    command "DeserializeLines" do
     end
   end
 
   aggregate "SqlAdapterGenerator", definition: "Generates Sequel-based repository adapter classes for each aggregate" do
 
-    Generate do
+    command "Generate" do
     end
   end
 
   aggregate "SqlBuilder", definition: "Mixin with Sequel-based generation helpers for insert, update, delete" do
 
-    BuildInsert do
+    command "BuildInsert" do
     end
 
-    BuildUpdate do
+    command "BuildUpdate" do
     end
   end
 
   aggregate "SqlMigrationGenerator", definition: "Generates CREATE TABLE SQL statements from a domain model" do
 
-    Generate do
+    command "Generate" do
     end
   end
 
   aggregate "SqlStrategy", definition: "Generates SQL migration files from domain changes with ALTER TABLE support" do
 
-    GenerateMigration do
+    command "GenerateMigration" do
     end
   end
 
   aggregate "SqlHelpers", definition: "Shared helpers for SQL migration: type mapping, naming, literal quoting" do
 
-    MapType do
-      String :ruby_type
+    command "MapType" do
+      attribute :ruby_type, String
     end
   end
 
   aggregate "SqlSetup", definition: "Generates and evals SQL adapter classes at boot time for Hecks.configure" do
 
-    Setup do
+    command "Setup" do
     end
   end
 
   aggregate "SqlBoot", definition: "SQL adapter lifecycle: connect, generate repos, create tables" do
 
-    Setup do
+    command "Setup" do
     end
   end
 
   aggregate "AggregateCapabilityBuilder", definition: "Fluent builder for per-aggregate capability tags via chained method calls" do
 
-    AddCapability do
-      String :aggregate_name
+    command "AddCapability" do
+      attribute :aggregate_name, String
     end
   end
 
   aggregate "AttributeSelector", definition: "Fluent attribute selector that captures attribute name for capability tagging" do
 
-    SelectAttribute do
-      String :attr_name
+    command "SelectAttribute" do
+      attribute :attr_name, String
     end
   end
 
   aggregate "TagApplier", definition: "Applies a capability tag to a selected attribute via method_missing" do
 
-    ApplyTag do
-      String :tag_name
+    command "ApplyTag" do
+      attribute :tag_name, String
     end
   end
 
   aggregate "HecksagonModule", definition: "Top-level Hecksagon namespace with autoload registry for DSL, Structure, and mixins" do
 
-    Autoload do
-      String :const_name
-      String :path
+    command "Autoload" do
+      attribute :const_name, String
+      attribute :path, String
     end
   end
 
   aggregate "HecksagonBuilder", definition: "DSL builder for hexagonal architecture wiring: gates, adapters, extensions" do
 
-    AddGate do
-      String :aggregate
-      String :role
+    command "AddGate" do
+      attribute :aggregate, String
+      attribute :role, String
     end
 
-    SetAdapter do
-      String :type
+    command "SetAdapter" do
+      attribute :type, String
     end
 
-    Build do
+    command "Build" do
     end
   end
 
   aggregate "GateBuilder", definition: "DSL builder for access control gates on aggregates" do
 
-    Allow do
-      String :methods
+    command "Allow" do
+      attribute :methods, String
     end
 
-    Build do
+    command "Build" do
     end
   end
 
   aggregate "GateDefinition", definition: "Immutable IR structure for a gate (access control on an aggregate)" do
 
-    Create do
-      String :aggregate
-      String :role
+    command "Erect" do
+      attribute :aggregate, String
+      attribute :role, String
     end
   end
 
   aggregate "AclDefinition", definition: "Collects translations for an anti-corruption layer" do
 
-    Translate do
-      String :entity
+    command "Translate" do
+      attribute :entity, String
     end
   end
 
   aggregate "DrivenPortRegistry", definition: "Formalizes adapter registration for driven ports" do
 
-    RegisterAdapter do
-      String :name
-      String :port
+    command "RegisterAdapter" do
+      attribute :name, String
+      attribute :port, String
     end
 
-    LookupAdapter do
-      String :name
+    command "LookupAdapter" do
+      attribute :name, String
     end
   end
 
   aggregate "ContractValidator", definition: "Validates that adapters satisfy their driven port contracts at boot time" do
 
-    Validate do
+    command "Validate" do
     end
   end
 
   aggregate "StrategicDSL", definition: "Mixin for domain builders adding shared kernels, ACLs, published events" do
 
-    SharedKernel do
+    command "SharedKernel" do
     end
 
-    UseKernel do
-      String :name
+    command "UseKernel" do
+      attribute :name, String
     end
 
-    AntiCorruptionLayer do
-      String :name
+    command "AntiCorruptionLayer" do
+      attribute :name, String
     end
   end
 
   aggregate "ExtensionsDSL", definition: "Mixin for domain builders declaring driving and driven ports" do
 
-    DrivingPort do
-      String :name
+    command "DrivingPort" do
+      attribute :name, String
     end
 
-    DrivenPort do
-      String :name
+    command "DrivenPort" do
+      attribute :name, String
     end
   end
 
   aggregate "DomainMixin", definition: "Extends Domain IR objects with hexagonal accessors for ports and kernels" do
 
-    Apply do
+    command "Apply" do
     end
   end
 
   aggregate "DatabaseConnection", definition: "Connects to databases via Sequel: MySQL, Postgres, SQLite, URLs" do
 
-    Connect do
-      String :url
+    command "Connect" do
+      attribute :url, String
     end
   end
 
   aggregate "MongoAdapterGenerator", definition: "Generates MongoDB repository adapter classes for each aggregate" do
 
-    Generate do
+    command "Generate" do
     end
   end
 
   aggregate "MongoBoot", definition: "MongoDB adapter lifecycle: connect, generate repos, return adapters" do
 
-    Setup do
+    command "Setup" do
     end
   end
 
   aggregate "HecksMysql", definition: "MySQL persistence extension, auto-wires SQL adapters via Sequel mysql2" do
 
-    Boot do
+    command "Boot" do
     end
   end
 
   aggregate "HecksPostgres", definition: "PostgreSQL persistence extension, auto-wires SQL adapters via Sequel pg" do
 
-    Boot do
+    command "Boot" do
     end
   end
 
   aggregate "HecksSqlite", definition: "SQLite persistence extension, auto-wires in-memory SQL adapters" do
 
-    Boot do
+    command "Boot" do
     end
   end
 
   aggregate "HecksCqrs", definition: "CQRS support: named persistence connections for read/write separation" do
 
-    Enable do
+    command "Enable" do
     end
   end
 
   aggregate "HecksTransactions", definition: "Command bus middleware wrapping execution in database transactions" do
 
-    Wrap do
+    command "Wrap" do
     end
   end
 
   aggregate "Migrations", definition: "CLI command for generating SQL migrations from domain changes" do
 
-    GenerateMigrations do
+    command "GenerateMigrations" do
     end
   end
 
   aggregate "DomainDeclaration", "A bounded context declared in the hecksagon — the unit of composition" do
-    String :name
-    list_of(String) :listens_to
-    String :expressed
+    attribute :name, String
+    attribute :listens_to, list_of(String)
+    attribute :expressed, String
 
-    DeclareDomain do
+    command "DeclareDomain" do
       role "Architect"
       description "Register a bounded context in the hecksagon"
-      String :name
+      attribute :name, String
       emits "DomainDeclared"
       then_set :name, to: :name
       then_set :expressed, to: "true"
     end
 
-    WireDependency do
+    command "WireDependency" do
       role "Architect"
       description "This domain listens to events from another domain"
       reference_to(DomainDeclaration)
-      String :target_domain
+      attribute :target_domain, String
       emits "DependencyWired"
       then_set :listens_to, append: :target_domain
     end
 
-    SilenceDomain do
+    command "SilenceDomain" do
       role "Architect"
       description "Temporarily disable a domain without removing it"
       reference_to(DomainDeclaration)
@@ -261,15 +261,15 @@ Hecks.bluebook "Hecksagon", version: "2026.04.11.1" do
   end
 
   aggregate "CapabilityDeclaration", "A capability declared in the hecksagon — pluggable behavior" do
-    String :name
-    String :category
-    String :bluebook_path
+    attribute :name, String
+    attribute :category, String
+    attribute :bluebook_path, String
 
-    DeclareCapability do
+    command "DeclareCapability" do
       role "Architect"
       description "Register a capability — security, voice, heki, projection, etc."
-      String :name
-      String :category
+      attribute :name, String
+      attribute :category, String
       emits "CapabilityDeclared"
       then_set :name, to: :name
       then_set :category, to: :category
@@ -277,16 +277,16 @@ Hecks.bluebook "Hecksagon", version: "2026.04.11.1" do
   end
 
   aggregate "WorldConfig", "Runtime configuration — database, API keys, adapter selection" do
-    String :config_key
-    String :config_value
-    String :environment
+    attribute :config_key, String
+    attribute :config_value, String
+    attribute :environment, String
 
-    SetConfig do
+    command "SetConfig" do
       role "Architect"
       description "Set a world configuration value for a specific environment"
-      String :config_key
-      String :config_value
-      String :environment
+      attribute :config_key, String
+      attribute :config_value, String
+      attribute :environment, String
       emits "ConfigSet"
       then_set :config_key, to: :config_key
       then_set :config_value, to: :config_value
@@ -295,16 +295,16 @@ Hecks.bluebook "Hecksagon", version: "2026.04.11.1" do
   end
 
   aggregate "AppOverride", "Per-app hecksagon and world that merge with the parent" do
-    String :app_name
-    String :app_type
-    String :overrides_hecksagon
-    String :overrides_world
+    attribute :app_name, String
+    attribute :app_type, String
+    attribute :overrides_hecksagon, String
+    attribute :overrides_world, String
 
-    RegisterApp do
+    command "RegisterApp" do
       role "Architect"
       description "Register an app variant — web, cli, mobile — that merges its config with the parent"
-      String :app_name
-      String :app_type
+      attribute :app_name, String
+      attribute :app_type, String
       emits "AppRegistered"
       then_set :app_name, to: :app_name
       then_set :app_type, to: :app_type

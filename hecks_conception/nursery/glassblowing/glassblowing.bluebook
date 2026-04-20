@@ -19,6 +19,7 @@ Hecks.bluebook "Glassblowing" do
       String :form
       String :technique
       emits "GlassGathered"
+      then_set :status, to: "gathered"
     end
 
     BlowPiece do
@@ -117,6 +118,7 @@ Hecks.bluebook "Glassblowing" do
       Integer :ramp_rate_per_hour
       Integer :total_hours
       emits "AnnealerLoaded"
+      then_set :status, to: "loading"
     end
 
     StartCycle do
@@ -150,6 +152,7 @@ Hecks.bluebook "Glassblowing" do
       String :opening_date
       Integer :piece_count
       emits "ExhibitionCurated"
+      then_set :status, to: "planning"
     end
 
     OpenExhibition do
@@ -209,18 +212,4 @@ Hecks.bluebook "Glassblowing" do
     trigger "OpenExhibition"
   end
 
-  fixture "GlassPiece", name: "Cobalt Vase", form: "vase", technique: "blown_free_form", status: "gathered", weight_oz: 24.5
-  fixture "GlassPiece", name: "Amber Sphere", form: "sphere", technique: "mold_blown", status: "annealing", weight_oz: 18.3
-
-  fixture "Furnace", name: "Studio Furnace A", fuel_type: "natural_gas", capacity_lbs: 2000, temperature_f: 2150, status: "ready"
-  fixture "Furnace", name: "Studio Furnace B", fuel_type: "propane", capacity_lbs: 1500, temperature_f: 2100, status: "heating"
-
-  fixture "ColorBar", color_name: "Cobalt Blue", color_type: "transparent", manufacturer: "Bullseye Glass", quantity_lbs: 45.0, working_temp_f: 2100
-  fixture "ColorBar", color_name: "Ruby Red", color_type: "opaque", manufacturer: "Schott", quantity_lbs: 25.5, working_temp_f: 2050
-
-  fixture "AnnealingCycle", hold_temp_f: 950, ramp_rate_per_hour: 150, total_hours: 8, status: "annealing"
-  fixture "AnnealingCycle", hold_temp_f: 1050, ramp_rate_per_hour: 100, total_hours: 12, status: "completed"
-
-  fixture "GlassExhibition", title: "Summer Reflections 2026", venue: "Corning Museum", opening_date: "2026-06-15", piece_count: 24, status: "planning"
-  fixture "GlassExhibition", title: "Crystalline Dreams", venue: "Portland Art Center", opening_date: "2026-07-01", piece_count: 18, status: "open"
 end

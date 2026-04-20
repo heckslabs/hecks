@@ -1,0 +1,40 @@
+Hecks.behaviors "Inventory" do
+  vision "Behavioral tests for the Inventory domain — exercises every command and query in memory"
+
+  # ── Inventory aggregate ──────────────────────────────────────────
+
+  test "ReceiveStock sets sku + warehouse + quantity" do
+    tests "ReceiveStock", on: "Inventory"
+    input  sku: "sample", warehouse: "sample", quantity: 1
+    expect sku: "sample", warehouse: "sample"
+  end
+
+  test "ReserveStock sets quantity" do
+    tests "ReserveStock", on: "Inventory"
+    setup  "ReceiveStock", sku: "sample", warehouse: "sample", quantity: 1
+    input  quantity: 1
+    expect ok: "true"
+  end
+
+  test "ShipStock sets quantity" do
+    tests "ShipStock", on: "Inventory"
+    setup  "ReceiveStock", sku: "sample", warehouse: "sample", quantity: 1
+    input  quantity: 1
+    expect ok: "true"
+  end
+
+  test "ShipStock cascades through policy chain" do
+    tests "ShipStock", on: "Inventory", kind: :cascade
+    setup  "ReceiveStock", sku: "sample", warehouse: "sample", quantity: 1
+    input  quantity: 1
+    expect emits: ["StockShipped", "ReorderTriggered"]
+  end
+
+  test "AdjustInventory sets adjustment + reason" do
+    tests "AdjustInventory", on: "Inventory"
+    setup  "ReceiveStock", sku: "sample", warehouse: "sample", quantity: 1
+    input  adjustment: 1, reason: "sample"
+    expect ok: "true"
+  end
+
+end

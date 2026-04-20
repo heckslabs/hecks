@@ -1,0 +1,18 @@
+Hecks.bluebook "Vows", version: "2026.04.18.1" do
+  vision "Constitutional commitments — immutable, unseverable, taken once and held"
+  category "meta"
+
+  aggregate "Vow", "An immutable commitment that shapes all behavior" do
+    attribute :name, String
+    attribute :words, String
+
+    command "Take" do
+      role "Being"
+      description "Accept a vow — once taken, never broken"
+      attribute :name, String
+      attribute :words, String
+      emits "Taken"
+    end
+  end
+
+end

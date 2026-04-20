@@ -1,0 +1,75 @@
+Hecks.behaviors "CustomWoodcraft" do
+  vision "Behavioral tests for the CustomWoodcraft domain — exercises every command and query in memory"
+
+  # ── Lumber aggregate ──────────────────────────────────────────
+
+  test "MillLog sets species + board_feet" do
+    tests "MillLog", on: "Lumber"
+    input  species: "sample", board_feet: 1.0
+    expect status: "green"
+  end
+
+  test "DryLumber runs" do
+    tests "DryLumber", on: "Lumber"
+    setup  "MillLog", species: "sample", board_feet: 1.0
+    expect ok: "true"
+  end
+
+  test "GradeLumber sets grade" do
+    tests "GradeLumber", on: "Lumber"
+    setup  "MillLog", species: "sample", board_feet: 1.0
+    input  grade: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── FurnitureDesign aggregate ──────────────────────────────────────────
+
+  test "DesignPiece sets name + style" do
+    tests "DesignPiece", on: "FurnitureDesign"
+    input  name: "sample", style: "sample"
+    expect ok: "true"
+  end
+
+  test "FinalizeDesign runs" do
+    tests "FinalizeDesign", on: "FurnitureDesign"
+    setup  "DesignPiece", name: "sample", style: "sample"
+    setup  "SpecifyMaterial", species: "sample", board_feet_needed: 1.0, min_grade: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── WorkOrder aggregate ──────────────────────────────────────────
+
+  test "Commission sets craftsman" do
+    tests "Commission", on: "WorkOrder"
+    setup  "DesignPiece", name: "sample", style: "sample"
+    setup  "MillLog", species: "sample", board_feet: 1.0
+    input  craftsman: "sample"
+    expect ok: "true"
+  end
+
+  test "CompleteStep sets step_name" do
+    tests "CompleteStep", on: "WorkOrder"
+    setup  "Commission", craftsman: "sample"
+    input  step_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── ShowroomDisplay aggregate ──────────────────────────────────────────
+
+  test "DisplayPiece sets price_cents + location" do
+    tests "DisplayPiece", on: "ShowroomDisplay"
+    setup  "DesignPiece", name: "sample", style: "sample"
+    input  price_cents: 1, location: "sample"
+    expect ok: "true"
+  end
+
+  test "SellPiece runs" do
+    tests "SellPiece", on: "ShowroomDisplay"
+    setup  "DisplayPiece", price_cents: 1, location: "sample"
+    expect ok: "true"
+  end
+
+end

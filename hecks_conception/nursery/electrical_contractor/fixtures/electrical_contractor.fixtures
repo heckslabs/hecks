@@ -1,0 +1,22 @@
+Hecks.fixtures "ElectricalContractor" do
+  aggregate "Job" do
+    fixture "Job1", property_address: "1247 Maple Drive, Portland OR 97214", scope_of_work: "Full panel upgrade 100A to 200A service", status: "inspected", bid_amount: 4500.0
+    fixture "Job2", property_address: "892 Riverside Ave, Seattle WA 98118", scope_of_work: "New kitchen wiring with dedicated circuits", status: "booked", bid_amount: 2200.0
+  end
+  aggregate "Panel" do
+    fixture "Panel1", label: "Main Panel", rated_amps: 200, total_slots: 42, used_slots: 28, location: "garage_interior_wall"
+    fixture "Panel2", label: "Sub Panel - Workshop", rated_amps: 100, total_slots: 24, used_slots: 18, location: "detached_garage"
+  end
+  aggregate "Circuit" do
+    fixture "Circuit1", label: "Kitchen Outlets 1", amperage: 20, wire_gauge: "12 AWG", circuit_type: "gfci_protected"
+    fixture "Circuit2", label: "Central AC Compressor", amperage: 60, wire_gauge: "6 AWG", circuit_type: "dedicated_load"
+  end
+  aggregate "Permit" do
+    fixture "Permit1", permit_number: "2026-04-00847", jurisdiction: "Portland Building Department", status: "pending", work_description: "Service upgrade 100A to 200A single family dwelling"
+    fixture "Permit2", permit_number: "2026-04-00912", jurisdiction: "Seattle Department of Construction", status: "approved", work_description: "New kitchen circuits and GFCI protection"
+  end
+  aggregate "Inspection" do
+    fixture "Inspection1", inspector_name: "Robert Martinez", result: "pass", notes: "All work meets NEC standards, panel labeling complete", inspection_type: "final"
+    fixture "Inspection2", inspector_name: "David Kim", result: "fail", notes: "Requires junction box covers on three locations, reschedule after correction", inspection_type: "rough"
+  end
+end
