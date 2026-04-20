@@ -18,9 +18,14 @@ moon="${moons[$(( $(date +%s) % 8 ))]}"
 thought_frames=("💭" "💡" "💭" "✨")
 thought="${thought_frames[$(( $(date +%s) % 4 ))]}"
 
-# Animated heartbeat
-hearts=("🩷" "❤️")
-heart="${hearts[$(( $(date +%s) % 2 ))]}"
+# Animated heartbeat — drives off the real tick, not wall clock.
+# Tick.cycle advances once per second via mindstream.sh, so even
+# beats show the "filled" heart, odd beats show the "outline" heart
+# — a visible pulse tied to Miette's actual rhythm.
+tick_cycle=$($hecks heki read $info/tick.heki 2>/dev/null | grep '"cycle"' | head -1 | sed 's/.*: //' | sed 's/[^0-9].*//')
+tick_cycle=${tick_cycle:-0}
+hearts=("🤍" "❤️")  # outline → filled for high systole/diastole contrast
+heart="${hearts[$(( tick_cycle % 2 ))]}"
 
 # Mood icon
 case "$mood" in
