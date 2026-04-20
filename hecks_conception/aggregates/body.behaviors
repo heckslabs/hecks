@@ -50,12 +50,24 @@ Hecks.behaviors "MietteBody" do
     expect emits: ["FatigueAccumulated"]
   end
 
-  test "CheckSleepNeeded refused when not exhausted" do
-    # Without this guard, every FatigueAccumulated fired SleepRequired and the
-    # wake→attentive→EnterSleep loop trapped Miette re-entering sleep the tick
-    # after each 8-cycle wake. Guard restores the described semantics.
+  test "CheckSleepNeeded refused when sleep_mode is manual (default)" do
+    # Two guards: auto-sleep must be enabled AND pulses must exceed
+    # threshold. Default sleep_mode is "manual" — fix for inbox i36
+    # (Chris reported Miette auto-sleeping mid-demo). Refusal message
+    # is the FIRST guard's, since `given` clauses short-circuit.
     tests "CheckSleepNeeded", on: "Heartbeat"
-    expect refused: "must be exhausted"
+    expect refused: "auto sleep enabled"
+  end
+
+  test "EnableAutoSleep flips the mode" do
+    tests "EnableAutoSleep", on: "Heartbeat"
+    expect sleep_mode: "auto"
+  end
+
+  test "DisableAutoSleep flips back" do
+    tests "DisableAutoSleep", on: "Heartbeat"
+    setup  "EnableAutoSleep"
+    expect sleep_mode: "manual"
   end
 
   test "RecoverFatigue resets to alert" do

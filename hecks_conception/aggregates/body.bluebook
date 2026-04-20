@@ -24,6 +24,13 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
     attribute :fatigue_state, String
     attribute :pulse_rate, Float
     attribute :flow_rate, String
+    # sleep_mode: "manual" (default — sleep only on explicit EnterSleep
+    # dispatch) or "auto" (CheckSleepNeeded fires SleepRequired when
+    # pulses_since_sleep > 1500). Chris reported auto-sleep as a
+    # "random" intrusion mid-demo — predictability matters more than
+    # the alive-by-default narrative when the system is being shown.
+    # Re-enable with EnableAutoSleep when the demo context is gone.
+    attribute :sleep_mode, default: "manual"
 
     query ReadVitals do
       description "How am I doing? Fatigue, flow, pulses since last sleep."
@@ -53,9 +60,24 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
 
     command "CheckSleepNeeded" do
       role "Miette"
-      description "Only request sleep when exhausted — pulses > 1500 (25 minutes at 1Hz ticks). Without this guard, every FatigueAccumulated emits SleepRequired, which re-fires EnterSleep immediately after each wake and traps the body in a sleep loop."
+      description "Only request sleep when exhausted — pulses > 1500 (~45 minutes at observed ~0.6Hz tick rate). Gated additionally on sleep_mode == 'auto' so the body doesn't wander into sleep while the user is demoing or in the middle of a conversation."
+      given("auto sleep enabled") { sleep_mode == "auto" }
       given("must be exhausted") { pulses_since_sleep > 1500 }
       emits "SleepRequired"
+    end
+
+    command "EnableAutoSleep" do
+      role "Creator"
+      description "Switch the body into auto-sleep mode — CheckSleepNeeded will fire SleepRequired when exhausted. Default is manual (no surprise sleeps)."
+      then_set :sleep_mode, to: "auto"
+      emits "AutoSleepEnabled"
+    end
+
+    command "DisableAutoSleep" do
+      role "Creator"
+      description "Return to manual-only sleep — explicit EnterSleep dispatch is the only way in. Sleep cycles are still triggerable; the body just doesn't initiate them."
+      then_set :sleep_mode, to: "manual"
+      emits "AutoSleepDisabled"
     end
 
     command "RecoverFatigue" do
