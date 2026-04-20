@@ -7,6 +7,7 @@
 use super::{Runtime, Value};
 use std::collections::HashMap;
 use std::io::{self, Write, BufRead};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Run an interactive terminal session through the hecksagon.
 pub fn run(rt: &mut Runtime, being: &str) {
@@ -56,6 +57,19 @@ pub fn run(rt: &mut Runtime, being: &str) {
             .unwrap_or("*silence*");
         println!("  {}", response);
         println!();
+
+        // Record the exchange — pulse.rs record_turn (inbox #18).
+        // Appends a row to conversation.heki so the psychic link carries
+        // the live dialogue. Policy RespondOnSpoken covers the cascade
+        // case; this explicit dispatch carries the exact text spoken.
+        let ts = SystemTime::now().duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs().to_string())
+            .unwrap_or_else(|_| "0".into());
+        let mut turn = HashMap::new();
+        turn.insert("said".into(), Value::Str(input.into()));
+        turn.insert("responded".into(), Value::Str(response.into()));
+        turn.insert("timestamp".into(), Value::Str(ts));
+        let _ = rt.dispatch("Respond", turn);
     }
 
     let _ = rt.dispatch("EndSession", HashMap::new());
