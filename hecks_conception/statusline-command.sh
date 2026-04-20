@@ -46,8 +46,9 @@ case "$fatigue" in
   *)          fatigue_icon="" ;;
 esac
 
-# Beat count (short format)
-beats_raw=$($hecks heki read $info/heartbeat.heki 2>/dev/null | grep '"beats"' | head -1 | sed 's/.*: //' | sed 's/[^0-9].*//')
+# Beat count (short format) — Tick.cycle is the authoritative
+# heartbeat now (one tick per second from mindstream.sh).
+beats_raw=$($hecks heki read $info/tick.heki 2>/dev/null | grep '"cycle"' | head -1 | sed 's/.*: //' | sed 's/[^0-9].*//')
 if [ -n "$beats_raw" ] && [ "$beats_raw" -ge 1000000 ] 2>/dev/null; then
   beats=$(python3 -c "print(f'{$beats_raw/1000000:.1f}m')")
 elif [ -n "$beats_raw" ] && [ "$beats_raw" -ge 1000 ] 2>/dev/null; then
