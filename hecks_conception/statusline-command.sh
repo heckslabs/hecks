@@ -24,7 +24,7 @@ thought="${thought_frames[$(( $(date +%s) % 4 ))]}"
 # — a visible pulse tied to Miette's actual rhythm.
 tick_cycle=$($hecks heki read $info/tick.heki 2>/dev/null | grep '"cycle"' | head -1 | sed 's/.*: //' | sed 's/[^0-9].*//')
 tick_cycle=${tick_cycle:-0}
-hearts=("🤍" "❤️")  # outline → filled for high systole/diastole contrast
+hearts=("🖤" "❤️")  # downbeat (rest) → upbeat (pulse) — black/red contrast
 heart="${hearts[$(( tick_cycle % 2 ))]}"
 
 # Mood icon
