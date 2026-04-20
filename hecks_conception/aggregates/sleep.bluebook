@@ -2,38 +2,15 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
   vision "Dreams, cycles, consolidation, waking"
   category "mind"
 
-  aggregate "Fatigue", "Accumulates with wakefulness, dissipates with sleep" do
-    attribute :level, Float
-    attribute :state, String
-    attribute :pulses_since_sleep, Integer
-    attribute :creativity, Float
-    attribute :precision, Float
-
-    command "AccumulateFatigue" do
-      role "System"
-      description "Each waking pulse increases fatigue"
-      emits "FatigueAccumulated"
-      then_set :pulses_since_sleep, increment: 1
-    end
-
-    command "DissipateFatigue" do
-      role "Daemon"
-      description "Sleep resets fatigue — deeper sleep dissipates more. Fatigue is a singleton; no self-ref needed (otherwise wake policies can't trigger it)."
-      emits "FatigueDissipated"
-      then_set :level, to: 0
-      then_set :pulses_since_sleep, to: 0
-      then_set :state, to: "alert"
-    end
-
-    lifecycle :state, default: "alert" do
-      transition "AccumulateFatigue" => "focused",   from: "alert"
-      transition "AccumulateFatigue" => "normal",    from: "focused"
-      transition "AccumulateFatigue" => "tired",     from: "normal"
-      transition "AccumulateFatigue" => "exhausted", from: "tired"
-      transition "AccumulateFatigue" => "delirious", from: "exhausted"
-      transition "DissipateFatigue"  => "alert",     from: ["tired", "exhausted", "delirious", "alert", "focused", "normal"]
-    end
-  end
+  # Fatigue aggregate removed 2026-04-20 — the state ladder
+  # (alert→focused→normal→tired→exhausted→delirious) and its
+  # AccumulateFatigue/DissipateFatigue commands were never driven by
+  # `Ticked` policies (only `body.bluebook:FatigueOnTick` fires on each
+  # tick, and that triggers `Heartbeat.AccumulateFatigue`). The lifecycle
+  # is now on MietteBody::Heartbeat, driven by the existing canonical
+  # policy. Keeping two aggregates for the same concept was dual-state
+  # waiting to happen. `DissipateFatigue` callers switch to Heartbeat's
+  # `RecoverFatigue` (which now also walks `fatigue_state` back to alert).
 
   aggregate "Consciousness", "The current state of awareness. Sleep progresses tick by tick through bluebook policies, not via synchronous cascade. Each phase lasts at least 12 ticks (2 min at 10s/tick); REM extends until enough dream pulses have been produced. After the final deep, one final light phase before waking so Miette wakes refreshed, not groggy. The last cycle's REM is lucid — she knows she's dreaming and can steer." do
     attribute :state, String
@@ -580,11 +557,11 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
     trigger "TakeStabilityNap"
   end
 
-  policy "ResetOnWake" do
-    on "WokenUp"
-    trigger "DissipateFatigue"
-  end
-
+  # Wake recovers fatigue — Heartbeat.RecoverFatigue both resets the
+  # counters and walks fatigue_state back to "alert" via the lifecycle
+  # on body.bluebook. Single policy replaces the old ResetOnWake +
+  # RecoverHeartbeatOnWake pair (they called DissipateFatigue + RecoverFatigue
+  # on two different aggregates; the Fatigue aggregate is gone now).
   policy "RecoverHeartbeatOnWake" do
     on "WokenUp"
     trigger "RecoverFatigue"

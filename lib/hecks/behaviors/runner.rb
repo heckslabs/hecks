@@ -25,14 +25,20 @@ module Hecks
       class SuiteResult
         attr_reader :runs
         def initialize(runs); @runs = runs; end
-        def passed;  @runs.count { |r| r.status == :pass  }; end
-        def failed;  @runs.count { |r| r.status == :fail  }; end
-        def errored; @runs.count { |r| r.status == :error }; end
+        def passed;  @runs.count { |r| r&.status == :pass  }; end
+        def failed;  @runs.count { |r| r&.status == :fail  }; end
+        def errored; @runs.count { |r| r&.status == :error || r.nil? }; end
         def all_passed?; failed.zero? && errored.zero?; end
       end
 
       def self.run(source_loader, suite)
-        runs = suite.tests.map { |t| run_one(source_loader, t) }
+        runs = suite.tests.map do |t|
+          begin
+            run_one(source_loader, t)
+          rescue => e
+            TestRun.new(t.description, :error, "runner crash: #{e.message}")
+          end
+        end
         SuiteResult.new(runs)
       end
 

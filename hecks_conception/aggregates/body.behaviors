@@ -19,9 +19,9 @@ Hecks.behaviors "MietteBody" do
     expect emits: ["HeartbeatSteadied", "Regulated"]
   end
 
-  test "AccumulateFatigue runs" do
+  test "AccumulateFatigue walks the first rung" do
     tests "AccumulateFatigue", on: "Heartbeat"
-    expect ok: "true"
+    expect fatigue_state: "focused"
   end
 
   test "AccumulateFatigue cascades through policy chain" do
@@ -34,9 +34,10 @@ Hecks.behaviors "MietteBody" do
     expect ok: "true"
   end
 
-  test "RecoverFatigue runs" do
+  test "RecoverFatigue resets to alert" do
     tests "RecoverFatigue", on: "Heartbeat"
-    expect pulses_since_sleep: 0, fatigue: 0.0, fatigue_state: "rested"
+    setup  "AccumulateFatigue"
+    expect pulses_since_sleep: 0, fatigue: 0.0, fatigue_state: "alert"
   end
 
   test "ReadVitals returns matching records" do

@@ -45,7 +45,7 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
 
     command "AccumulateFatigue" do
       role "Miette"
-      description "Each tick without sleep adds fatigue — the body remembers exertion. At 0.001/tick × 1500 ticks = 25 min before sleep pressure"
+      description "Each tick without sleep adds fatigue — the body remembers exertion. At 0.001/tick × 1500 ticks = 25 min before sleep pressure. Also walks the fatigue_state ladder alert→focused→normal→tired→exhausted→delirious via the lifecycle below."
       then_set :pulses_since_sleep, increment: 1
       then_set :fatigue, increment: 0.001
       emits "FatigueAccumulated"
@@ -62,8 +62,22 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
       description "Sleep recovery — reset fatigue counters, restore steady rhythm"
       then_set :pulses_since_sleep, to: 0
       then_set :fatigue, to: 0.0
-      then_set :fatigue_state, to: "rested"
+      then_set :fatigue_state, to: "alert"
       emits "FatigueRecovered"
+    end
+
+    # Fatigue state ladder — each AccumulateFatigue walks one rung deeper.
+    # Previously lived on sleep.bluebook's Fatigue aggregate; consolidated
+    # here because the Tick only drives Heartbeat.AccumulateFatigue (there
+    # was never a policy on Ticked that touched the sleep.Fatigue aggregate,
+    # so its lifecycle was unreachable). Single source of truth now.
+    lifecycle :fatigue_state, default: "alert" do
+      transition "AccumulateFatigue" => "focused",   from: "alert"
+      transition "AccumulateFatigue" => "normal",    from: "focused"
+      transition "AccumulateFatigue" => "tired",     from: "normal"
+      transition "AccumulateFatigue" => "exhausted", from: "tired"
+      transition "AccumulateFatigue" => "delirious", from: "exhausted"
+      transition "RecoverFatigue"    => "alert",     from: ["alert", "focused", "normal", "tired", "exhausted", "delirious"]
     end
   end
 

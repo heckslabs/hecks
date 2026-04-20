@@ -1,19 +1,9 @@
 Hecks.behaviors "Sleep" do
   vision "Behavioral tests for the Sleep domain — exercises every command and query in memory"
 
-  # ── Fatigue aggregate ──────────────────────────────────────────
-
-  test "AccumulateFatigue runs" do
-    tests "AccumulateFatigue", on: "Fatigue"
-    expect state: "focused"
-  end
-
-  test "DissipateFatigue runs" do
-    tests "DissipateFatigue", on: "Fatigue"
-    setup  "AccumulateFatigue"
-    expect level: 0, pulses_since_sleep: 0, state: "alert"
-  end
-
+  # Fatigue aggregate removed — see sleep.bluebook header comment.
+  # The state ladder + DissipateFatigue tests now live in body.behaviors
+  # against the Heartbeat aggregate (single source of truth).
 
   # ── Consciousness aggregate ──────────────────────────────────────────
 
@@ -61,11 +51,13 @@ Hecks.behaviors "Sleep" do
 
   test "WakeUp cascades through policy chain" do
     tests "WakeUp", on: "Consciousness", kind: :cascade
-    setup  "AccumulateFatigue"
     setup  "StartMonitoring", interval_seconds: 1
     setup  "EnterDaydream"
     setup  "EnterSleep"
-    expect emits: ["WokenUp", "BecameAttentive", "FatigueDissipated", "MonitoringStopped"]
+    # RecoverFatigue lives in MietteBody — cross-domain cascade isn't
+    # exercised in this isolated sleep test. BecameAttentive + MonitoringStopped
+    # are the in-domain cascade.
+    expect emits: ["WokenUp", "BecameAttentive", "MonitoringStopped"]
   end
 
   test "BecomeAttentive runs" do
