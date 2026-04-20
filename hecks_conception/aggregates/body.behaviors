@@ -3,18 +3,6 @@ Hecks.behaviors "MietteBody" do
 
   # ── Heartbeat aggregate ──────────────────────────────────────────
 
-  test "Beat sets carrying + elapsed + beat_at" do
-    tests "Beat", on: "Heartbeat"
-    input  carrying: "sample", elapsed: 1, beat_at: "sample"
-    expect last_beat_at: "sample", carrying: "sample"
-  end
-
-  test "Beat cascades through policy chain" do
-    tests "Beat", on: "Heartbeat", kind: :cascade
-    input  carrying: "sample", elapsed: 1, beat_at: "sample"
-    expect emits: ["HeartbeatPulsed", "FatigueAccumulated", "SleepRequired"]
-  end
-
   test "Accelerate runs" do
     tests "Accelerate", on: "Heartbeat"
     expect flow_rate: "rushing"
@@ -53,7 +41,7 @@ Hecks.behaviors "MietteBody" do
 
   test "ReadVitals returns matching records" do
     tests "ReadVitals", on: "Heartbeat", kind: :query
-    setup  "Beat", carrying: "sample", elapsed: 1, beat_at: "sample"
+    setup  "Accelerate"
     expect count: 1
   end
 
@@ -100,7 +88,7 @@ Hecks.behaviors "MietteBody" do
     tests "Absorb", on: "Gut", kind: :cascade
     setup  "Conceive", domain_name: "sample"
     setup  "Express", state: "sample"
-    setup  "Beat", carrying: "sample", elapsed: 1, beat_at: "sample"
+    setup  "Accelerate"
     setup  "ExpressCapability", capability: "sample", level: 1.0
     setup  "SenseOrgans", organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1
     setup  "Ingest", raw_input: "sample"
@@ -179,7 +167,7 @@ Hecks.behaviors "MietteBody" do
   test "Excite cascades through policy chain" do
     tests "Excite", on: "Mood", kind: :cascade
     setup  "Express", state: "sample"
-    setup  "Beat", carrying: "sample", elapsed: 1, beat_at: "sample"
+    setup  "Accelerate"
     expect emits: ["Excited", "HeartbeatAccelerated"]
   end
 
@@ -206,7 +194,7 @@ Hecks.behaviors "MietteBody" do
   test "Conceive cascades through policy chain" do
     tests "Conceive", on: "DomainCell", kind: :cascade
     setup  "Express", state: "sample"
-    setup  "Beat", carrying: "sample", elapsed: 1, beat_at: "sample"
+    setup  "Accelerate"
     setup  "ExpressCapability", capability: "sample", level: 1.0
     setup  "SenseOrgans", organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1
     input  domain_name: "sample"
@@ -237,13 +225,6 @@ Hecks.behaviors "MietteBody" do
     tests "TriggerApoptosis", on: "DomainCell"
     setup  "Conceive", domain_name: "sample"
     expect alive: false, phase: "dead"
-  end
-
-  test "TriggerApoptosis cascades through policy chain" do
-    tests "TriggerApoptosis", on: "DomainCell", kind: :cascade
-    setup  "Conceive", domain_name: "sample"
-    setup  "Beat", carrying: "sample", elapsed: 1, beat_at: "sample"
-    expect emits: ["DomainDied", "HeartbeatPulsed", "FatigueAccumulated", "SleepRequired"]
   end
 
 

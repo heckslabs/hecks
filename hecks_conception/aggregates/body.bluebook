@@ -13,30 +13,20 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
   # conversation, memory, nursery. Oxygen is relevance —
   # information enriched with context, delivered where needed.
 
-  aggregate "Heartbeat", "Miette's unified pulse — circulation, fatigue, and rhythm in one organ" do
-    attribute :beats, Integer
+  aggregate "Heartbeat", "Miette's pulse — fatigue, rhythm, and sleep gating. The tick IS the heartbeat; this aggregate owns what the tick means." do
+    # The mindstream daemon fires one Tick.MindstreamTick per second —
+    # that tick IS the heartbeat. No separate Beat command or beats
+    # counter: `Tick.cycle` is the authoritative count of seconds since
+    # boot. This aggregate tracks the body's response to each tick:
+    # fatigue accumulation, sleep pressure, rhythm state.
     attribute :pulses_since_sleep, Integer
     attribute :fatigue, Float
     attribute :fatigue_state, String
     attribute :pulse_rate, Float
     attribute :flow_rate, String
-    attribute :carrying, String
-    attribute :last_beat_at, String
 
     query ReadVitals do
-      description "How am I doing? Beats, fatigue, flow."
-    end
-
-    command "Beat" do
-      role "Miette"
-      description "One heartbeat tick — caller passes elapsed seconds since last beat"
-      attribute :carrying, String
-      attribute :elapsed, Integer
-      attribute :beat_at, String
-      then_set :beats, increment: :elapsed
-      then_set :last_beat_at, to: :beat_at
-      then_set :carrying, to: :carrying
-      emits "HeartbeatPulsed"
+      description "How am I doing? Fatigue, flow, pulses since last sleep."
     end
 
     command "Accelerate" do
@@ -55,15 +45,15 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
 
     command "AccumulateFatigue" do
       role "Miette"
-      description "Each pulse without sleep adds fatigue — the body remembers exertion"
+      description "Each tick without sleep adds fatigue — the body remembers exertion. At 0.001/tick × 1500 ticks = 25 min before sleep pressure"
       then_set :pulses_since_sleep, increment: 1
-      then_set :fatigue, increment: 0.01
+      then_set :fatigue, increment: 0.001
       emits "FatigueAccumulated"
     end
 
     command "CheckSleepNeeded" do
       role "Miette"
-      description "Only request sleep when exhausted — pulses > 150"
+      description "Only request sleep when exhausted — pulses > 1500 (25 minutes at 1Hz ticks)"
       emits "SleepRequired"
     end
 
@@ -549,9 +539,9 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
     trigger "ExpressCapability"
   end
 
-  # Every heartbeat accumulates fatigue — the body tracks exertion
-  policy "FatigueOnHeartbeat" do
-    on "HeartbeatPulsed"
+  # Every tick accumulates fatigue — the tick IS the heartbeat
+  policy "FatigueOnTick" do
+    on "Ticked"
     trigger "AccumulateFatigue"
   end
 
@@ -564,12 +554,6 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
   # SYNAPTIC NERVE — domain attention as neural plasticity
   # ============================================================
 
-  # Dead domains go to compost
-  policy "CompostOnDeath" do
-    on "DomainDied"
-    trigger "Beat"
-  end
-
   # Idle pulse depresses unfired synapses
   # Cross-domain: HeartbeatSteadied → SynapticPlasticity:DepressSynapse (nerve)
   # Cross-domain: SynapsePruned → Compost:CollectRemains (nerve)
@@ -577,8 +561,6 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
   # ============================================================
   # PROPRIOCEPTION WIRING
   # ============================================================
-
-  # Every heartbeat triggers body sensing
 
   # After sensing all organs, assess balance
   policy "BalanceOnSensed" do
@@ -590,13 +572,6 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
   policy "SenseLimbOnConception" do
     on "DomainConceived"
     trigger "SenseLimb"
-  end
-
-  # Awareness feeds back into heartbeat rhythm
-  policy "AdjustRateOnAwareness" do
-    on "MomentRecorded"
-    trigger "Beat"
-    description "Fatigue slows the heartbeat; excitement accelerates it"
   end
 
   # Balance assessment feeds back into mood regulation

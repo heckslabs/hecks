@@ -91,10 +91,10 @@ Hecks.bluebook "StatusBar", version: "2026.04.16.1" do
   end
 
   # Transitions
-  policy "AttentiveOnPulse" do
-    on "HeartbeatPulsed"
+  policy "AttentiveOnTick" do
+    on "Ticked"
     trigger "SetAttentive"
-    description "Every pulse restores full details"
+    description "Every tick (= heartbeat) restores full details"
   end
 
   policy "MusingOnIdle" do

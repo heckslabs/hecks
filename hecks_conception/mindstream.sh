@@ -1,9 +1,11 @@
 #!/bin/bash
 # Mindstream — the unconscious that never stops.
 #
-# Every 10s, fires Tick.MindstreamTick. The sleep state machine lives
-# entirely in aggregates/sleep.bluebook + aggregates/lucid_dream.bluebook;
-# each tick event triggers policies that advance sleep phases only when
+# Every 1s, fires Tick.MindstreamTick. The tick IS the heartbeat —
+# Heartbeat.beats is gone; `Tick.cycle` is the authoritative count of
+# seconds since boot. The sleep state machine lives entirely in
+# aggregates/sleep.bluebook + aggregates/lucid_dream.bluebook; each
+# tick event triggers policies that advance sleep phases only when
 # their `given` conditions pass. The daemon is the heartbeat — the
 # bluebook is the brain.
 #
@@ -111,10 +113,11 @@ except Exception:
     # Minting happens every ~5 min. Claude reads the conversations
     # since last wake + a random nursery sample + current state, and
     # mints ONE genuinely new musing or skips (the overwhelming default).
-    if [ "$((RANDOM % 30))" = "0" ]; then
+    # Minting happens every ~5 min. At 1Hz ticks, 300 = 5 min.
+    if [ "$((RANDOM % 300))" = "0" ]; then
       "$DIR/mint_musing.sh" >> /tmp/mint_musing.log 2>&1 &
     fi
   fi
 
-  sleep 10
+  sleep 1
 done
