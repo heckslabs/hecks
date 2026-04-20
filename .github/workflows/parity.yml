@@ -44,6 +44,9 @@ jobs:
       - name: Run behaviors-runner parity suite (Ruby ↔ Rust)
         run: bundle exec ruby -Ilib spec/parity/behaviors_parity_test.rb
 
+      - name: Run fixtures parity suite (Ruby ↔ Rust)
+        run: bundle exec ruby -Ilib spec/parity/fixtures_parity_test.rb
+
       - name: Lifecycle validator across all bluebooks
         run: |
           BAD=""

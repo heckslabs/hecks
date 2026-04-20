@@ -117,6 +117,28 @@ fn main() {
         return;
     }
 
+    if command == "dump-fixtures" {
+        let path = args.get(2).expect("usage: hecks-life dump-fixtures <file.fixtures>");
+        let source = std::fs::read_to_string(path).expect("cannot read");
+        let file = hecks_life::fixtures_parser::parse(&source);
+        let payload = serde_json::json!({
+            "domain": file.domain_name,
+            "fixtures": file.fixtures.iter().map(|f| {
+                let mut attrs = serde_json::Map::new();
+                for (k, v) in &f.attributes {
+                    attrs.insert(k.clone(), serde_json::Value::String(v.clone()));
+                }
+                serde_json::json!({
+                    "aggregate": f.aggregate_name,
+                    "name": f.name.clone().unwrap_or_default(),
+                    "attrs": attrs,
+                })
+            }).collect::<Vec<_>>(),
+        });
+        println!("{}", serde_json::to_string_pretty(&payload).unwrap());
+        return;
+    }
+
     if command == "cascade" {
         let path = args.get(2).expect("usage: hecks-life cascade <bluebook>");
         let source = std::fs::read_to_string(path).expect("cannot read");

@@ -18,11 +18,11 @@ RUBY_RUNNER  = File.expand_path("../../bin/hecks-behaviors", __dir__)
 KNOWN_DRIFT  = File.expand_path("behaviors_known_drift.txt", __dir__)
 
 # A small sample by default so the suite runs in seconds. Pass a glob
-# via ARGV[0] (e.g. "hecks_conception/nursery/*") to widen.
+# via ARGV[0] (e.g. "hecks_conception/nursery/**/*.behaviors") to widen.
 DEFAULT_SAMPLE = %w[
-  hecks_conception/catalog/pizzas_behavioral_tests.bluebook
-  hecks_conception/aggregates/pizzas_behavioral_tests.bluebook
-  hecks_conception/family/conventions_behavioral_tests.bluebook
+  hecks_conception/catalog/pizzas.behaviors
+  hecks_conception/family/conventions.behaviors
+  hecks_conception/family/king_mango.behaviors
 ].select { |p| File.exist?(File.expand_path("../../#{p}", __dir__)) }
 
 abort "hecks-life not built" unless File.executable?(HECKS_LIFE)
