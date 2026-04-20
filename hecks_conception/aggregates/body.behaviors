@@ -19,9 +19,16 @@ Hecks.behaviors "MietteBody" do
     expect emits: ["HeartbeatSteadied", "Regulated"]
   end
 
-  test "AccumulateFatigue walks the first rung" do
+  test "AccumulateFatigue increments but does not walk the ladder" do
+    # Ladder-walking moved to WalkFatigueTo* commands guarded by
+    # pulses_since_sleep thresholds. A single tick from alert must stay alert.
     tests "AccumulateFatigue", on: "Heartbeat"
-    expect fatigue_state: "focused"
+    expect fatigue_state: "alert"
+  end
+
+  test "WalkFatigueToFocused refused before threshold" do
+    tests "WalkFatigueToFocused", on: "Heartbeat"
+    expect refused: "at focused threshold"
   end
 
   test "AccumulateFatigue cascade stops short of sleep when not exhausted" do

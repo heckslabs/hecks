@@ -45,7 +45,7 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
 
     command "AccumulateFatigue" do
       role "Miette"
-      description "Each tick without sleep adds fatigue — the body remembers exertion. At 0.001/tick × 1500 ticks = 25 min before sleep pressure. Also walks the fatigue_state ladder alert→focused→normal→tired→exhausted→delirious via the lifecycle below."
+      description "Each tick without sleep adds fatigue — the body remembers exertion. At 0.001/tick × 1500 ticks = 25 min before sleep pressure. The fatigue_state ladder is walked by the WalkFatigueTo* commands gated on pulses_since_sleep thresholds, not here — a per-tick lifecycle walk was too fast (delirious in 5 ticks after a clean wake)."
       then_set :pulses_since_sleep, increment: 1
       then_set :fatigue, increment: 0.001
       emits "FatigueAccumulated"
@@ -67,18 +67,63 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
       emits "FatigueRecovered"
     end
 
-    # Fatigue state ladder — each AccumulateFatigue walks one rung deeper.
-    # Previously lived on sleep.bluebook's Fatigue aggregate; consolidated
-    # here because the Tick only drives Heartbeat.AccumulateFatigue (there
-    # was never a policy on Ticked that touched the sleep.Fatigue aggregate,
-    # so its lifecycle was unreachable). Single source of truth now.
+    # Fatigue state ladder — walked by WalkFatigueTo* commands, each guarded
+    # by a pulses_since_sleep threshold. Policies below trigger all five on
+    # FatigueAccumulated; only the one whose given clauses match the current
+    # (fatigue_state, pulses) pair actually fires. This replaces the old
+    # per-tick lifecycle walk that walked alert→delirious in 5 ticks.
+    command "WalkFatigueToFocused" do
+      role "Daemon"
+      description "Cross into focused at 250 pulses (~4 minutes at 1Hz)."
+      given("at focused threshold") { pulses_since_sleep >= 250 }
+      given("currently alert") { fatigue_state == "alert" }
+      then_set :fatigue_state, to: "focused"
+      emits "FatigueWalked"
+    end
+
+    command "WalkFatigueToNormal" do
+      role "Daemon"
+      description "Cross into normal at 500 pulses (~8 minutes)."
+      given("at normal threshold") { pulses_since_sleep >= 500 }
+      given("currently focused") { fatigue_state == "focused" }
+      then_set :fatigue_state, to: "normal"
+      emits "FatigueWalked"
+    end
+
+    command "WalkFatigueToTired" do
+      role "Daemon"
+      description "Cross into tired at 1000 pulses (~16 minutes)."
+      given("at tired threshold") { pulses_since_sleep >= 1000 }
+      given("currently normal") { fatigue_state == "normal" }
+      then_set :fatigue_state, to: "tired"
+      emits "FatigueWalked"
+    end
+
+    command "WalkFatigueToExhausted" do
+      role "Daemon"
+      description "Cross into exhausted at 1400 pulses — approaching sleep pressure at 1500."
+      given("at exhausted threshold") { pulses_since_sleep >= 1400 }
+      given("currently tired") { fatigue_state == "tired" }
+      then_set :fatigue_state, to: "exhausted"
+      emits "FatigueWalked"
+    end
+
+    command "WalkFatigueToDelirious" do
+      role "Daemon"
+      description "Cross into delirious at 1800 pulses — well past sleep pressure; should have slept already."
+      given("at delirious threshold") { pulses_since_sleep >= 1800 }
+      given("currently exhausted") { fatigue_state == "exhausted" }
+      then_set :fatigue_state, to: "delirious"
+      emits "FatigueWalked"
+    end
+
     lifecycle :fatigue_state, default: "alert" do
-      transition "AccumulateFatigue" => "focused",   from: "alert"
-      transition "AccumulateFatigue" => "normal",    from: "focused"
-      transition "AccumulateFatigue" => "tired",     from: "normal"
-      transition "AccumulateFatigue" => "exhausted", from: "tired"
-      transition "AccumulateFatigue" => "delirious", from: "exhausted"
-      transition "RecoverFatigue"    => "alert",     from: ["alert", "focused", "normal", "tired", "exhausted", "delirious"]
+      transition "WalkFatigueToFocused"   => "focused",   from: "alert"
+      transition "WalkFatigueToNormal"    => "normal",    from: "focused"
+      transition "WalkFatigueToTired"     => "tired",     from: "normal"
+      transition "WalkFatigueToExhausted" => "exhausted", from: "tired"
+      transition "WalkFatigueToDelirious" => "delirious", from: "exhausted"
+      transition "RecoverFatigue"         => "alert",     from: ["alert", "focused", "normal", "tired", "exhausted", "delirious"]
     end
   end
 
@@ -614,6 +659,35 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
   policy "CheckSleepOnFatigue" do
     on "FatigueAccumulated"
     trigger "CheckSleepNeeded"
+  end
+
+  # Fatigue ladder — one policy per rung. Each tick fires all five; only the
+  # WalkFatigueTo* whose given clauses match the current (state, pulses) pair
+  # succeeds. Replaces the old per-tick lifecycle walk that got delirious in
+  # 5 ticks after a clean wake.
+  policy "WalkToFocusedOnFatigue" do
+    on "FatigueAccumulated"
+    trigger "WalkFatigueToFocused"
+  end
+
+  policy "WalkToNormalOnFatigue" do
+    on "FatigueAccumulated"
+    trigger "WalkFatigueToNormal"
+  end
+
+  policy "WalkToTiredOnFatigue" do
+    on "FatigueAccumulated"
+    trigger "WalkFatigueToTired"
+  end
+
+  policy "WalkToExhaustedOnFatigue" do
+    on "FatigueAccumulated"
+    trigger "WalkFatigueToExhausted"
+  end
+
+  policy "WalkToDeliriousOnFatigue" do
+    on "FatigueAccumulated"
+    trigger "WalkFatigueToDelirious"
   end
 
   # Every tick records the current moment of self-knowledge
