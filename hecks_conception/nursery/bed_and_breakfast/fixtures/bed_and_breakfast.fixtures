@@ -1,0 +1,24 @@
+Hecks.fixtures "BedAndBreakfast" do
+  aggregate "GuestRoom" do
+    fixture "Lavender_Suite_", room_id: "RM-101", name: "Lavender Suite", room_type: "double", max_guests: 2, nightly_rate: 120.0, status: "available"
+    fixture "Cottage_Garden_", room_id: "RM-102", name: "Cottage Garden", room_type: "queen", max_guests: 2, nightly_rate: 95.0, status: "occupied"
+    fixture "Sunrise_Room_", room_id: "RM-201", name: "Sunrise Room", room_type: "twin", max_guests: 2, nightly_rate: 85.0, status: "needs_cleaning"
+    fixture "Mountain_View_", room_id: "RM-202", name: "Mountain View", room_type: "suite", max_guests: 4, nightly_rate: 180.0, status: "available"
+  end
+  aggregate "GuestBooking" do
+    fixture "GuestBooking1", booking_id: "BK-2026-001", guest_name: "Emily Robertson", guest_email: "emily@example.com", room_id: "RM-102", check_in_date: "2026-04-15", check_out_date: "2026-04-18", guests: 2, total_charge: 285.0, status: "confirmed"
+    fixture "GuestBooking2", booking_id: "BK-2026-002", guest_name: "David Chen", guest_email: "david.chen@example.com", room_id: "RM-101", check_in_date: "2026-04-16", check_out_date: "2026-04-17", guests: 2, total_charge: 120.0, status: "confirmed"
+    fixture "GuestBooking3", booking_id: "BK-2026-003", guest_name: "Sarah Williams", guest_email: "swilliams@example.com", room_id: "RM-202", check_in_date: "2026-04-20", check_out_date: "2026-04-22", guests: 4, total_charge: 360.0, status: "confirmed"
+    fixture "GuestBooking4", booking_id: "BK-2026-004", guest_name: "Robert Martinez", guest_email: "rmartinez@example.com", room_id: "RM-201", check_in_date: "2026-04-18", check_out_date: "2026-04-19", guests: 1, total_charge: 85.0, status: "canceled"
+  end
+  aggregate "BreakfastMenu" do
+    fixture "BreakfastMenu1", menu_id: "BF-2026-04-15", date: "2026-04-15", status: "planned"
+    fixture "BreakfastMenu2", menu_id: "BF-2026-04-16", date: "2026-04-16", status: "served"
+    fixture "BreakfastMenu3", menu_id: "BF-2026-04-17", date: "2026-04-17", status: "planned"
+  end
+  aggregate "GuestReview" do
+    fixture "GuestReview1", review_id: "REV-001", guest_name: "Patricia Lee", booking_id: "BK-2026-001", rating: 5, comment: "Beautiful property, excellent breakfast, will return!", review_date: "2026-04-13"
+    fixture "GuestReview2", review_id: "REV-002", guest_name: "Michael Johnson", booking_id: "BK-2026-003", rating: 4, comment: "Great location, very clean rooms. Minor noise issue.", review_date: "2026-04-12"
+    fixture "GuestReview3", review_id: "REV-003", guest_name: "Jennifer Adams", booking_id: "BK-2026-002", rating: 5, comment: "Wonderful stay, staff was very attentive.", review_date: "2026-04-11"
+  end
+end

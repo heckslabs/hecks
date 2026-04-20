@@ -184,31 +184,14 @@ Hecks.bluebook "Law", version: "2026.04.14.1" do
   # === The Laws ===
 
   # Conception laws
-  fixture "Law", name: "FixturesRequired", description: "Every conceived domain must include fixture data for every aggregate", domain_scope: "conception", check_expression: "fixture_count > 0 for each aggregate", severity: "blocking", status: "active", violation_count: 0
-  fixture "Law", name: "CommandsRequired", description: "Every aggregate must have at least one custom command", domain_scope: "conception", check_expression: "command_count > 0 for each aggregate", severity: "blocking", status: "active", violation_count: 0
-  fixture "Law", name: "VisionRequired", description: "Every domain must have a vision statement", domain_scope: "conception", check_expression: "vision present", severity: "blocking", status: "active", violation_count: 0
-  fixture "Law", name: "DeclarativeBehavior", description: "Commands should use given/then_set to be executable without adapters", domain_scope: "conception", check_expression: "then_set_count > 0 per command", severity: "warning", status: "active", violation_count: 0
-  fixture "Law", name: "AccessGatesRecommended", description: "Domains should define ports and actors for self-protection", domain_scope: "conception", check_expression: "port_count > 0", severity: "recommended", status: "active", violation_count: 0
 
   # Training laws
-  fixture "Law", name: "VerifiedBeforeTraining", description: "Only domains that pass fixture regression enter the training pipeline", domain_scope: "training", check_expression: "all fixtures pass", severity: "blocking", status: "active", violation_count: 0
-  fixture "Law", name: "NoBrokenInCorpus", description: "Broken artifacts must be quarantined — never train on unverified domains", domain_scope: "training", check_expression: "zero broken artifacts in training set", severity: "blocking", status: "active", violation_count: 0
 
   # Code laws
-  fixture "Law", name: "FileSizeLimit", description: "No file over 200 lines of code — doc headers excluded", domain_scope: "code", check_expression: "wc -l < 200 for each lib file", severity: "blocking", status: "active", violation_count: 0
-  fixture "Law", name: "TestSpeed", description: "Test suite must run under 1 second", domain_scope: "code", check_expression: "test duration < 1s", severity: "blocking", status: "active", violation_count: 0
-  fixture "Law", name: "DocHeaders", description: "Every lib file has a doc comment header", domain_scope: "code", check_expression: "first line is comment for each lib file", severity: "blocking", status: "active", violation_count: 0
 
   # Architecture laws
-  fixture "Law", name: "RustRuntime", description: "Always use hecks-life Rust runtime for bluebook parsing and .heki storage", domain_scope: "architecture", check_expression: "no ruby parsers for .heki or .bluebook", severity: "blocking", status: "active", violation_count: 0
-  fixture "Law", name: "BluebookBeforeCode", description: "Always conceive as Bluebook before writing implementation code", domain_scope: "architecture", check_expression: "bluebook exists for each script", severity: "blocking", status: "active", violation_count: 0
-  fixture "Law", name: "BluebookOnly", description: "Miette writes NO code without a Bluebook first. Every feature, script, CLI command, adapter — Bluebook or it doesn't exist.", domain_scope: "architecture", check_expression: "no code file without corresponding bluebook", severity: "blocking", status: "active", violation_count: 0
 
   # Violation examples
-  fixture "Violation", law_name: "FixturesRequired", violator: "Summer", location: "nursery/ambulance_dispatch", detail: "Conceived with 0 fixtures across 3 aggregates", detected_at: "2026-04-14", resolution: "open"
-  fixture "Violation", law_name: "FileSizeLimit", violator: "Miette", location: "lib/hecks/runtime/command_bus.rb", detail: "247 lines of code", detected_at: "2026-04-12", resolution: "resolved"
 
   # Enforcement examples
-  fixture "Enforcement", scope: "nursery", laws_checked: 5, laws_passed: 4, laws_violated: 1, enforced_at: "2026-04-14", verdict: "unlawful"
-  fixture "Enforcement", scope: "code", laws_checked: 3, laws_passed: 3, laws_violated: 0, enforced_at: "2026-04-14", verdict: "lawful"
 end

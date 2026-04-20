@@ -1,0 +1,18 @@
+Hecks.fixtures "DialysisNetworkOps" do
+  aggregate "DialysisMachine" do
+    fixture "DialysisMachine1", machine_id: "DM-001-A7", model: "Fresenius 5008TS", center_name: "Downtown Dialysis Center", hours_used: 18500.0, status: "online"
+    fixture "DialysisMachine2", machine_id: "DM-002-B3", model: "Baxter Renibus Pro", center_name: "Riverside Treatment Clinic", hours_used: 12200.0, status: "online"
+  end
+  aggregate "NetworkLink" do
+    fixture "NetworkLink1", link_id: "NL-DTC-001", center_name: "Downtown Dialysis Center", link_type: "MPLS", bandwidth_mbps: 50.0, latency_ms: 12.5, status: "up"
+    fixture "NetworkLink2", link_id: "NL-RTC-001", center_name: "Riverside Treatment Clinic", link_type: "LTE", bandwidth_mbps: 25.0, latency_ms: 45.2, status: "up"
+  end
+  aggregate "RemoteAlert" do
+    fixture "RemoteAlert1", alert_id: "RA-2024-0801", machine_id: "DM-001-A7", alert_type: "pressure_high", severity: "warning", message: "Blood pump pressure exceeding threshold", status: "open"
+    fixture "RemoteAlert2", alert_id: "RA-2024-0802", machine_id: "DM-002-B3", alert_type: "temperature_low", severity: "critical", message: "Dialysate temperature below safe range", status: "open"
+  end
+  aggregate "TelemetryLog" do
+    fixture "TelemetryLog1", log_id: "TL-20240414-001", machine_id: "DM-001-A7", blood_flow_rate: 350.0, dialysate_temp: 37.0, timestamp: "2026-04-14T14:32:00Z"
+    fixture "TelemetryLog2", log_id: "TL-20240414-002", machine_id: "DM-002-B3", blood_flow_rate: 320.0, dialysate_temp: 36.8, timestamp: "2026-04-14T14:33:15Z"
+  end
+end

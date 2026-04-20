@@ -1,0 +1,22 @@
+Hecks.fixtures "CommunityGarden" do
+  aggregate "Plot" do
+    fixture "Plot1", plot_number: "A-01", size: "100_sqft", soil_type: "loamy", sun_exposure: "full_sun", status: "available"
+    fixture "Plot2", plot_number: "B-05", size: "75_sqft", soil_type: "sandy_loam", sun_exposure: "partial_shade", status: "assigned"
+  end
+  aggregate "Gardener" do
+    fixture "Lisa_Thompson_", name: "Lisa Thompson", email: "lisa@example.com", phone: "555-0101", experience_level: "intermediate", membership_date: "2025-03-15", status: "active"
+    fixture "Miguel_Gonzalez_", name: "Miguel Gonzalez", email: "miguel@example.com", phone: "555-0102", experience_level: "beginner", membership_date: "2026-01-10", status: "active"
+  end
+  aggregate "ToolInventory" do
+    fixture "ToolInventory1", tool_name: "Garden Spade", condition: "excellent", quantity: 3, storage_location: "shed_A", status: "available"
+    fixture "ToolInventory2", tool_name: "Hand Trowel", condition: "good", quantity: 8, storage_location: "shed_B", status: "available"
+  end
+  aggregate "Harvest" do
+    fixture "Harvest1", gardener_name: "Lisa Thompson", plot_number: "A-01", crop_name: "Tomatoes", weight_pounds: 12.5, harvest_date: "2026-04-10", destination: "home"
+    fixture "Harvest2", gardener_name: "Miguel Gonzalez", plot_number: "B-05", crop_name: "Lettuce", weight_pounds: 3.2, harvest_date: "2026-04-12", destination: "food_bank"
+  end
+  aggregate "GardenEvent" do
+    fixture "GardenEvent1", event_name: "Spring Planting Day", event_date: "2026-04-20", event_type: "planting_workshop", organizer: "Lisa Thompson", expected_attendees: 15, status: "planned"
+    fixture "GardenEvent2", event_name: "Harvest Festival", event_date: "2026-08-15", event_type: "celebration", organizer: "Miguel Gonzalez", expected_attendees: 50, status: "planned"
+  end
+end

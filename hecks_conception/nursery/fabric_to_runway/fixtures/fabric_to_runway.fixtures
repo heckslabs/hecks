@@ -1,0 +1,18 @@
+Hecks.fixtures "FabricToRunway" do
+  aggregate "Fabric" do
+    fixture "Silk_charmeuse_", name: "Silk charmeuse", fiber_type: "silk", weight_gsm: 95.0, status: "weaving"
+    fixture "Wool_twill_", name: "Wool twill", fiber_type: "wool blend", weight_gsm: 240.0, status: "approved"
+  end
+  aggregate "Collection" do
+    fixture "Spring_Elegance_", name: "Spring Elegance", season: "spring", status: "concept"
+    fixture "Autumn_Traditions_", name: "Autumn Traditions", season: "autumn", status: "runway"
+  end
+  aggregate "Pattern" do
+    fixture "Pattern1", garment_name: "Silk evening gown", size_range: "XS-XXL", status: "drafting"
+    fixture "Pattern2", garment_name: "Wool coat", size_range: "XS-XL", status: "finalized"
+  end
+  aggregate "RunwayShow" do
+    fixture "RunwayShow1", venue: "Metropolitan Fashion Hall", show_date: "2026-05-15", status: "planning"
+    fixture "RunwayShow2", venue: "Rooftop Gallery Downtown", show_date: "2026-09-22", status: "executed"
+  end
+end

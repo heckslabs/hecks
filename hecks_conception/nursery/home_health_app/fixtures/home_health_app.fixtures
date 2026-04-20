@@ -1,0 +1,18 @@
+Hecks.fixtures "HomeHealthApp" do
+  aggregate "HomeVisit" do
+    fixture "HomeVisit1", visit_id: "HV001", patient_name: "Margaret Johnson", caregiver_name: "Sarah Chen", visit_type: "wound_care", scheduled_date: "2026-04-15", status: "scheduled"
+    fixture "HomeVisit2", visit_id: "HV002", patient_name: "Robert Williams", caregiver_name: "Maria Garcia", visit_type: "medication_management", scheduled_date: "2026-04-16", status: "completed"
+  end
+  aggregate "VitalSign" do
+    fixture "VitalSign1", reading_id: "VS001", visit_id: "HV001", heart_rate: 72.0, blood_pressure_sys: 128.0, blood_pressure_dia: 82.0, temperature: 98.6, oxygen_sat: 98.0
+    fixture "VitalSign2", reading_id: "VS002", visit_id: "HV002", heart_rate: 88.0, blood_pressure_sys: 145.0, blood_pressure_dia: 95.0, temperature: 99.1, oxygen_sat: 96.5
+  end
+  aggregate "CaregiverProfile" do
+    fixture "Sarah_Chen_", caregiver_id: "CG001", name: "Sarah Chen", license_type: "RN", rating: 4.8, status: "active"
+    fixture "Maria_Garcia_", caregiver_id: "CG002", name: "Maria Garcia", license_type: "LPN", rating: 4.5, status: "active"
+  end
+  aggregate "PatientAlert" do
+    fixture "PatientAlert1", alert_id: "PA001", patient_name: "Margaret Johnson", alert_type: "vital_abnormal", message: "Blood pressure reading above normal", status: "sent"
+    fixture "PatientAlert2", alert_id: "PA002", patient_name: "Robert Williams", alert_type: "visit_reminder", message: "Your caregiver arrives in 30 minutes", status: "dismissed"
+  end
+end

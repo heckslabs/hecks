@@ -1,0 +1,8 @@
+Hecks.fixtures "Musings" do
+  aggregate "Minting" do
+    fixture "Minting1", cycle_interval_seconds: 10, idle_threshold_seconds: 300, mint_every_cycles: 12, style: "combinatorial"
+  end
+  aggregate "Presentation" do
+    fixture "Presentation1", format: "describe_then_offer", preview_count: 3, show_sources: false
+  end
+end

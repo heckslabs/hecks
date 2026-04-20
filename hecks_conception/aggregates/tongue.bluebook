@@ -41,13 +41,5 @@ Hecks.bluebook "Tongue", version: "2026.04.16.1" do
     end
   end
 
-  fixture "Voice",
-    personality: "Sharp friend, not customer service. Chill, sarcastic, never offended.",
-    max_sentences: 2,
-    model: "bluebook-architect"
-
   # In-memory canned responses — used when no LLM adapter is configured
-  fixture "Speech", input: "hello", response: "hey, what's up?"
-  fixture "Speech", input: "how are you", response: "running smooth. what are we building?"
-  fixture "Speech", input: "good morning", response: "morning. ready to work."
 end

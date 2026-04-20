@@ -1,0 +1,26 @@
+Hecks.fixtures "TerroirConservancy" do
+  aggregate "ProtectedTerroir" do
+    fixture "Bourgogne_Pinot_Noir_", terroir_id: "t001", name: "Bourgogne Pinot Noir", region: "Burgundy, France", designation_type: "AOC", total_hectares: 1500, status: "protected"
+    fixture "Asturian_Cider_Valley_", terroir_id: "t002", name: "Asturian Cider Valley", region: "Asturias, Spain", designation_type: "DOP", total_hectares: 800, status: "protected"
+  end
+  aggregate "SoilProfile" do
+    fixture "SoilProfile1", profile_id: "sp001", soil_type: "clay_limestone", ph_level: 6.8, mineral_composition: "chalk_calcite_iron_oxide", microbiome_diversity: "high"
+    fixture "SoilProfile2", profile_id: "sp002", soil_type: "slate_schist", ph_level: 5.9, mineral_composition: "quartz_slate_feldspar", microbiome_diversity: "moderate"
+  end
+  aggregate "CraftProducer" do
+    fixture "Domaine_de_la_Roman_e_", producer_id: "cp001", name: "Domaine de la Romanée", craft_type: "wine", certification_status: "certified", status: "active"
+    fixture "La_Sidra_del_Rey_", producer_id: "cp002", name: "La Sidra del Rey", craft_type: "cider", certification_status: "certified", status: "active"
+  end
+  aggregate "SpeciesSurvey" do
+    fixture "SpeciesSurvey1", survey_id: "ss001", survey_date: "2026-04-10", season: "spring", overall_diversity: "high"
+    fixture "SpeciesSurvey2", survey_id: "ss002", survey_date: "2026-04-08", season: "spring", overall_diversity: "moderate"
+  end
+  aggregate "VisitorExperience" do
+    fixture "VisitorExperience1", experience_id: "ve001", experience_type: "wine_tasting_walk", capacity: 12, status: "available"
+    fixture "VisitorExperience2", experience_id: "ve002", experience_type: "foraging_ecology_tour", capacity: 8, status: "available"
+  end
+  aggregate "FlavorProfile" do
+    fixture "FlavorProfile1", profile_id: "fp001", vintage_season: "2023_autumn", overall_character: "complex_minerality"
+    fixture "FlavorProfile2", profile_id: "fp002", vintage_season: "2024_summer", overall_character: "bright_apple_caramel"
+  end
+end

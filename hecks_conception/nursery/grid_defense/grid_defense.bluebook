@@ -190,15 +190,4 @@ Hecks.bluebook "GridDefense" do
     map asset_id: :asset_id, asset_type: :asset_type, location: :location
   end
 
-  fixture "GridAsset", asset_id: "SUBSTATION-EAST-01", asset_type: "substation", location: "Eastern Grid Zone", capacity_mw: 500.0, status: "online"
-  fixture "GridAsset", asset_id: "TRANSFORMER-MAIN-03", asset_type: "transformer", location: "Downtown Hub", capacity_mw: 250.0, status: "online"
-
-  fixture "ThreatIntel", source: "CISA-Feed", status: "active"
-  fixture "ThreatIntel", source: "FireEye-Intelligence", status: "active"
-
-  fixture "Incident", incident_type: "unauthorized_access", severity: "high", status: "detected"
-  fixture "Incident", incident_type: "malware_detection", severity: "critical", status: "detected"
-
-  fixture "LoadBalancer", region: "Eastern Grid", status: "normal"
-  fixture "LoadBalancer", region: "Western Grid", status: "normal"
 end

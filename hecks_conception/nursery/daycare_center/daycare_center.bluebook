@@ -263,18 +263,4 @@ Hecks.bluebook "DaycareCenter" do
     trigger "CheckOutChild"
   end
 
-  fixture "Child", first_name: "Emma", last_name: "Rodriguez", date_of_birth: "2020-05-14", allergies: "peanuts, dairy", classroom: "Toddlers A", status: "active"
-  fixture "Child", first_name: "Lucas", last_name: "Chen", date_of_birth: "2021-03-22", allergies: "shellfish", classroom: "Twos", status: "active"
-
-  fixture "Guardian", first_name: "Sarah", last_name: "Rodriguez", phone: "555-0101", email: "sarah@example.com", relationship: "mother", pickup_authorized: "yes"
-  fixture "Guardian", first_name: "James", last_name: "Chen", phone: "555-0102", email: "james@example.com", relationship: "father", pickup_authorized: "yes"
-
-  fixture "DailyAttendance", attendance_date: "2026-04-14", check_in_time: "08:30", check_out_time: "17:00", checked_in_by: "Maria", checked_out_by: "David", status: "departed"
-  fixture "DailyAttendance", attendance_date: "2026-04-14", check_in_time: "09:15", check_out_time: "", checked_in_by: "Maria", checked_out_by: "", status: "present"
-
-  fixture "MealPlan", meal_date: "2026-04-14", breakfast: "oatmeal, berries, toast", lunch: "chicken, rice, broccoli", snack: "applesauce, crackers", classroom: "Toddlers A", dietary_notes: "peanut-free kitchen"
-  fixture "MealPlan", meal_date: "2026-04-15", breakfast: "eggs, toast, banana", lunch: "pasta, turkey meatballs, peas", snack: "yogurt, fruit", classroom: "Twos", dietary_notes: "dairy alternatives available"
-
-  fixture "IncidentReport", incident_date: "2026-04-14", incident_time: "14:30", description: "minor bump on playground, no bleeding", severity: "minor", action_taken: "ice applied, observed for hour", guardian_notified: "no", status: "filed"
-  fixture "IncidentReport", incident_date: "2026-04-13", description: "bit another child during snack", severity: "moderate", action_taken: "redirection, parent conference scheduled", guardian_notified: "yes", status: "closed", incident_time: "10:45"
 end

@@ -1,0 +1,18 @@
+Hecks.fixtures "SmartAircraft" do
+  aggregate "Aircraft" do
+    fixture "Aircraft1", tail_number: "N12345", model: "Boeing 737-800", total_hours: 28500.0, status: "active"
+    fixture "Aircraft2", tail_number: "N67890", model: "Airbus A320", total_hours: 15800.0, status: "active"
+  end
+  aggregate "Flight" do
+    fixture "Flight1", flight_number: "UA-456", origin: "SFO", destination: "LAX", passengers: 145, status: "scheduled"
+    fixture "Flight2", flight_number: "UA-789", origin: "LAX", destination: "ORD", passengers: 168, status: "scheduled"
+  end
+  aggregate "SensorStream" do
+    fixture "SensorStream1", stream_id: "STR-001", status: "streaming"
+    fixture "SensorStream2", stream_id: "STR-002", status: "streaming"
+  end
+  aggregate "MaintenanceAlert" do
+    fixture "MaintenanceAlert1", alert_type: "engine_temperature_high", severity: "critical", status: "open"
+    fixture "MaintenanceAlert2", alert_type: "hydraulic_pressure_low", severity: "warning", status: "open"
+  end
+end

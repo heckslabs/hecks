@@ -1,0 +1,18 @@
+Hecks.fixtures "GreenFacility" do
+  aggregate "FacilityResident" do
+    fixture "Helen_Rodriguez_", resident_id: "RES-001", name: "Helen Rodriguez", unit_number: "204", care_plan: "assisted_living", status: "active"
+    fixture "George_Thompson_", resident_id: "RES-002", name: "George Thompson", unit_number: "108", care_plan: "memory_care", status: "active"
+  end
+  aggregate "WindTurbine" do
+    fixture "WindTurbine1", turbine_id: "WT-001", model: "GE 2.85 MW", rated_kw: 2850.0, current_output_kw: 2340.5, status: "online"
+    fixture "WindTurbine2", turbine_id: "WT-002", model: "Vestas V150 4.2 MW", rated_kw: 4200.0, current_output_kw: 0.0, status: "offline"
+  end
+  aggregate "EnergyLedger" do
+    fixture "EnergyLedger1", ledger_id: "EL-2026-03", month: "2026-03", produced_kwh: 185600.0, consumed_kwh: 142300.0, grid_offset_kwh: 43300.0
+    fixture "EnergyLedger2", ledger_id: "EL-2026-04", month: "2026-04", produced_kwh: 198500.0, consumed_kwh: 155200.0, grid_offset_kwh: 43300.0
+  end
+  aggregate "CostSavingsReport" do
+    fixture "CostSavingsReport1", report_id: "REPORT-2026-Q1", period: "Q1 2026", energy_savings_usd: 12840.0, carbon_offset_tons: 87.5, status: "generated"
+    fixture "CostSavingsReport2", report_id: "REPORT-2026-MAR", period: "March 2026", energy_savings_usd: 4280.0, carbon_offset_tons: 29.2, status: "shared"
+  end
+end

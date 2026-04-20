@@ -248,7 +248,6 @@ Hecks.bluebook "ThermalComfort", version: "2026.04.13.1" do
     trigger "CalculateHeatLoss"
   end
 
-
   policy "CalculatePMVOnAssess" do
     on "ComfortAssessed"
     trigger "CalculatePMV"
@@ -269,15 +268,4 @@ Hecks.bluebook "ThermalComfort", version: "2026.04.13.1" do
     trigger "CalculateEfficiency"
   end
 
-  fixture "ThermalZone", zone_name: "Open Floor East", volume_m3: 850.0, insulation_r_value: 19.0, heat_load_watts: 12500.0, setpoint_temp_c: 22.0, current_temp_c: 21.5, status: "defined"
-  fixture "ThermalZone", zone_name: "Executive Conference", volume_m3: 180.0, insulation_r_value: 23.5, heat_load_watts: 3800.0, setpoint_temp_c: 20.5, current_temp_c: 20.8, status: "defined"
-
-  fixture "HVACEquipment", equipment_id: "AHU-03", equipment_type: "air_handling_unit", capacity_kw: 45.0, efficiency_rating: 0.88, runtime_hours: 2150.0, serving_zone: "Open Floor East", status: "running"
-  fixture "HVACEquipment", equipment_id: "VAV-14", equipment_type: "variable_air_volume", capacity_kw: 8.5, efficiency_rating: 0.92, runtime_hours: 1840.0, serving_zone: "Executive Conference", status: "installed"
-
-  fixture "ComfortAssessment", zone_name: "Open Floor East", air_temp_c: 21.5, mean_radiant_temp_c: 20.8, relative_humidity_pct: 45.0, air_velocity_ms: 0.15, pmv_index: -0.3, ppd_pct: 5.2, status: "calculated"
-  fixture "ComfortAssessment", zone_name: "Executive Conference", air_temp_c: 20.5, mean_radiant_temp_c: 21.2, relative_humidity_pct: 48.5, air_velocity_ms: 0.08, pmv_index: 0.1, ppd_pct: 7.8, status: "flagged"
-
-  fixture "EnergyAudit", building_name: "Commerce Plaza North Tower", total_consumption_kwh: 185000.0, hvac_consumption_kwh: 68500.0, efficiency_pct: 76.5, audit_date: "2026-04-01", status: "reported"
-  fixture "EnergyAudit", building_name: "Tech Campus Building C", total_consumption_kwh: 95000.0, hvac_consumption_kwh: 28500.0, efficiency_pct: 82.3, audit_date: "2026-03-28", status: "conducted"
 end

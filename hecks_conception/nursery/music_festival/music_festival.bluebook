@@ -247,18 +247,4 @@ Hecks.bluebook "MusicFestival" do
     trigger "CloseStage"
   end
 
-  fixture "Stage", stage_name: "Main Stage", capacity: 8000, sound_system: "Meyer Sound", location_on_grounds: "North Field", status: "ready"
-  fixture "Stage", stage_name: "Indie Pavilion", capacity: 2500, sound_system: "L-Acoustics", location_on_grounds: "West Meadow", status: "ready"
-
-  fixture "ArtistBooking", artist_name: "Luna Eclipse", genre: "Indie Rock", booking_fee: 25000.0, set_duration_minutes: 60, status: "confirmed", reference_to: "Main Stage"
-  fixture "ArtistBooking", artist_name: "The Synth Collective", genre: "Electronic", booking_fee: 8500.0, set_duration_minutes: 45, status: "confirmed", reference_to: "Indie Pavilion"
-
-  fixture "PerformanceSchedule", performance_date: "2026-06-15", start_time: "20:00", end_time: "21:00", status: "scheduled", reference_to: "Luna Eclipse", reference_to: "Main Stage"
-  fixture "PerformanceSchedule", performance_date: "2026-06-15", start_time: "17:30", end_time: "18:15", status: "scheduled", reference_to: "The Synth Collective", reference_to: "Indie Pavilion"
-
-  fixture "TicketBatch", tier_name: "General Admission", valid_date: "2026-06-15", price: 85.0, total_quantity: 5000, sold_count: 3847, status: "on_sale"
-  fixture "TicketBatch", tier_name: "VIP Front", valid_date: "2026-06-15", price: 175.0, total_quantity: 800, sold_count: 756, status: "on_sale"
-
-  fixture "FestivalVendor", vendor_name: "Artisan Tacos Co", vendor_type: "Food", booth_location: "C-4", booth_fee: 1500.0, status: "approved"
-  fixture "FestivalVendor", vendor_name: "Cloud Nine Beverages", vendor_type: "Beverage", booth_location: "B-2", booth_fee: 2000.0, status: "approved"
 end

@@ -1,0 +1,22 @@
+Hecks.fixtures "StreamingPlatform" do
+  aggregate "Content" do
+    fixture "The_Witcher_", content_id: "c001", title: "The Witcher", genre: "fantasy", duration_seconds: 3600, content_rating: "TV-MA", status: "published"
+    fixture "Midnight_Sun_", content_id: "c002", title: "Midnight Sun", genre: "sci-fi", duration_seconds: 7200, content_rating: "PG-13", status: "published"
+  end
+  aggregate "Channel" do
+    fixture "Channel1", channel_name: "Dark Fantasy", description: "Mysterious fantasy worlds", curator: "elena_hart", category: "drama", status: "active"
+    fixture "Channel2", channel_name: "Sci-Fi Classics", description: "Timeless science fiction", curator: "david_chen", category: "sci-fi", status: "active"
+  end
+  aggregate "Subscriber" do
+    fixture "Subscriber1", subscriber_id: "sub001", email: "alice@example.com", plan: "premium", payment_method: "visa_4242", status: "active"
+    fixture "Subscriber2", subscriber_id: "sub002", email: "bob@example.com", plan: "basic", payment_method: "amex_3782", status: "active"
+  end
+  aggregate "Recommendation" do
+    fixture "Recommendation1", recommendation_id: "rec001", algorithm: "collaborative_filtering", relevance_score: 0.92, reason: "You watched similar shows", status: "pending"
+    fixture "Recommendation2", recommendation_id: "rec002", algorithm: "content_based", relevance_score: 0.87, reason: "Matches your viewing history", status: "pending"
+  end
+  aggregate "AnalyticsSnapshot" do
+    fixture "AnalyticsSnapshot1", snapshot_id: "snap001", period: "2026-04-07_to_2026-04-13", total_streams: 145000, unique_viewers: 32000, avg_watch_minutes: 47.5, status: "published"
+    fixture "AnalyticsSnapshot2", snapshot_id: "snap002", period: "2026-03-31_to_2026-04-06", total_streams: 138000, unique_viewers: 30500, avg_watch_minutes: 45.2, status: "published"
+  end
+end

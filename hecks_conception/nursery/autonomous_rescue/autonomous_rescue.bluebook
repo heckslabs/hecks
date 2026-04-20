@@ -355,21 +355,4 @@ Hecks.bluebook "AutonomousRescue", version: "2026.04.13.1" do
     trigger "RefreshMap"
   end
 
-  fixture "RescueMission", incident_name: "Downtown Collapse", incident_type: "structural_failure", location: "42.3601,-71.0589", status: "active", survivors_found: 3
-  fixture "RescueMission", incident_name: "Highway Overpass", incident_type: "earthquake_damage", location: "40.7128,-74.0060", status: "planning", survivors_found: 0
-
-  fixture "SearchDrone", drone_id: "SD-001", status: "searching", battery_percent: 87.5, mission: "ref:RescueMission:Downtown Collapse"
-  fixture "SearchDrone", drone_id: "SD-002", status: "returning", battery_percent: 15.0, mission: "ref:RescueMission:Highway Overpass"
-
-  fixture "SupplyBot", bot_id: "SB-101", payload_type: "medical_kit", battery_percent: 92.0, status: "en_route", target_beacon: "ref:SurvivorBeacon:beacon-west-03"
-  fixture "SupplyBot", bot_id: "SB-102", payload_type: "water_supplies", battery_percent: 45.0, status: "at_base", target_beacon: "ref:SurvivorBeacon:beacon-south-01"
-
-  fixture "SurvivorBeacon", latitude: 42.3615, longitude: -71.0574, detection_method: "thermal_imaging", status: "confirmed", rescue_priority: "critical", mission: "ref:RescueMission:Downtown Collapse"
-  fixture "SurvivorBeacon", latitude: 42.3598, longitude: -71.0602, detection_method: "audio_detection", status: "active", rescue_priority: "high", mission: "ref:RescueMission:Downtown Collapse"
-
-  fixture "ChargingStation", station_id: "CS-01", location: "42.3610,-71.0580", charging_slots: 8, slots_available: 3, status: "operational"
-  fixture "ChargingStation", station_id: "CS-02", location: "40.7145,-74.0050", charging_slots: 6, slots_available: 6, status: "operational"
-
-  fixture "DebrisMap", mission: "ref:RescueMission:Downtown Collapse", map_version: "5", status: "active", sectors_mapped: 12
-  fixture "DebrisMap", mission: "ref:RescueMission:Highway Overpass", map_version: "1", status: "active", sectors_mapped: 2
 end

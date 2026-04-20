@@ -144,20 +144,8 @@ Hecks.bluebook "TrainingPipeline", version: "2026.04.10.1" do
   end
 
   # Instruction pair categories
-  fixture "InstructionPair", category: "conceive",     instruction: "Design a domain for X",          response: "Hecks.bluebook ... end"
-  fixture "InstructionPair", category: "refine",       instruction: "Add lifecycle to aggregate X",    response: "lifecycle :status ... end"
-  fixture "InstructionPair", category: "validate",     instruction: "Is this bluebook valid?",         response: "VALID or error list"
-  fixture "InstructionPair", category: "greet",        instruction: "Wake up",                         response: "Warm greeting, nursery count, pitch domain, ask"
-  fixture "InstructionPair", category: "dream",        instruction: "Tell me your dream",              response: "Abstract images, interpretation, suggestion"
-  fixture "InstructionPair", category: "muse",         instruction: "What are you thinking?",          response: "Consciousness loop, insight, suggestion"
-  fixture "InstructionPair", category: "remember",     instruction: "Remember that X",                 response: "Miette is writing a memory — what and why"
-  fixture "InstructionPair", category: "fatigue",      instruction: "(after many pulses)",              response: "Express tiredness, suggest sleep"
-  fixture "InstructionPair", category: "speaker",      instruction: "Say hello to Nick",               response: "Load bluebook, recall memories, greet by name"
 
   # Base model candidates
-  fixture "BaseModel", name: "Llama-3-8B",   parameters: "8B",  source: "meta-llama/Llama-3-8B"
-  fixture "BaseModel", name: "Mistral-7B",   parameters: "7B",  source: "mistralai/Mistral-7B-v0.3"
-  fixture "BaseModel", name: "Phi-3-mini",   parameters: "3.8B", source: "microsoft/Phi-3-mini-4k-instruct"
 
   policy "SplitOnPrep" do
     on "DataPrepared"

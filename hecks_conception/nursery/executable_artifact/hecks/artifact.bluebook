@@ -159,12 +159,4 @@ Hecks.bluebook "Artifact", version: "2026.04.14.1" do
     end
   end
 
-  fixture "Artifact", domain_name: "Pizzas", shape_hash: "sha256:a3f8c1", aggregate_count: 2, command_count: 5, fixture_count: 8, port_count: 1, status: "verified"
-  fixture "Artifact", domain_name: "Catalog", shape_hash: "sha256:7cb1e2", aggregate_count: 2, command_count: 4, fixture_count: 9, port_count: 2, status: "verified"
-
-  fixture "FixtureSet", domain_name: "Pizzas", shape_hash_at_creation: "sha256:a3f8c1", fixture_count: 8, pass_count: 8, fail_count: 0, verdict: "clean"
-  fixture "FixtureSet", domain_name: "Pizzas", shape_hash_at_creation: "sha256:9e2b04", fixture_count: 6, pass_count: 5, fail_count: 1, verdict: "drift"
-
-  fixture "AccessGate", domain_name: "Pizzas", actor_name: "Admin", port_name: "admin", allowed_commands: ["CreatePizza", "AddTopping", "RemoveTopping"]
-  fixture "AccessGate", domain_name: "Pizzas", actor_name: "Customer", port_name: "ordering", allowed_commands: ["PlaceOrder", "CancelOrder"]
 end

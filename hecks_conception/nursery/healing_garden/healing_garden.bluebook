@@ -143,15 +143,4 @@ Hecks.bluebook "HealingGarden", version: "2026.04.13.1" do
     trigger "TendPlan"
   end
 
-  fixture "ComfortPlan", plan_id: "CP-2026-0847", patient_name: "Robert Miller", primary_nurse: "Linda Garcia", status: "active"
-  fixture "ComfortPlan", plan_id: "CP-2026-0848", patient_name: "Margaret Chen", primary_nurse: "James Patterson", status: "active"
-
-  fixture "GardenPlot", plot_id: "GP-001", garden_name: "Rose Garden", plant_type: "lavender", therapeutic_purpose: "calming aromatherapy", season: "spring", status: "growing"
-  fixture "GardenPlot", plot_id: "GP-002", garden_name: "Herb Garden", plant_type: "chamomile", therapeutic_purpose: "sleep support", season: "summer", status: "harvested"
-
-  fixture "GardenVisit", visit_id: "GV-2026-0541", patient_name: "Robert Miller", plot_id: "GP-001", activity: "planting seeds", duration_minutes: 45.0, mood_before: "anxious", mood_after: "calm"
-  fixture "GardenVisit", visit_id: "GV-2026-0542", patient_name: "Margaret Chen", plot_id: "GP-002", activity: "pruning herbs", duration_minutes: 60.0, mood_before: "sad", mood_after: "peaceful"
-
-  fixture "VolunteerShift", shift_id: "VS-2026-0781", volunteer_name: "Susan Blake", garden_name: "Rose Garden", date: "2026-04-14", hours: 4.0, status: "scheduled"
-  fixture "VolunteerShift", shift_id: "VS-2026-0782", volunteer_name: "Henry Rodriguez", garden_name: "Herb Garden", date: "2026-04-13", hours: 3.5, status: "completed"
 end

@@ -1,0 +1,22 @@
+Hecks.fixtures "RecordLabel" do
+  aggregate "RecordingArtist" do
+    fixture "The_Midnight_Echoes_", name: "The Midnight Echoes", genre: "indie rock", contract_status: "active", album_count: 2
+    fixture "Luna_Rising_", name: "Luna Rising", genre: "electronic", contract_status: "active", album_count: 3
+  end
+  aggregate "Album" do
+    fixture "Neon_Horizons_", title: "Neon Horizons", status: "released", release_date: "2025-06-15", track_count: 12, recording_artist_id: "artist_1"
+    fixture "Digital_Dreams_", title: "Digital Dreams", status: "mastered", release_date: "2025-11-20", track_count: 10, recording_artist_id: "artist_2"
+  end
+  aggregate "Track" do
+    fixture "Starlight_", title: "Starlight", duration_seconds: 245, track_number: 1, status: "mixed", album_id: "album_1"
+    fixture "Echo_Chamber_", title: "Echo Chamber", duration_seconds: 312, track_number: 5, status: "recorded", album_id: "album_1"
+  end
+  aggregate "RoyaltyStatement" do
+    fixture "RoyaltyStatement1", period: "2025-Q2", gross_revenue: 15000.50, artist_share: 4500.15, label_share: 10500.35, status: "paid", recording_artist_id: "artist_1"
+    fixture "RoyaltyStatement2", period: "2025-Q3", gross_revenue: 22500.75, artist_share: 6750.23, label_share: 15750.52, status: "approved", recording_artist_id: "artist_2"
+  end
+  aggregate "Distribution" do
+    fixture "Distribution1", channel: "Spotify", format: "streaming", territory: "US", status: "live", album_id: "album_1"
+    fixture "Distribution2", channel: "Apple Music", format: "streaming", territory: "EU", status: "pending", album_id: "album_2"
+  end
+end

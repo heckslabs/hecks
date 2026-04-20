@@ -1,0 +1,11 @@
+Hecks.fixtures "Mathematics" do
+  aggregate "Number" do
+    fixture "Number1", value: "3.14159265358979", number_type: "real", real_part: 3.14159265358979, imaginary_part: 0.0, prime: "false", parity: "none", representation: "pi"
+    fixture "Number2", value: "2.71828182845905", number_type: "real", real_part: 2.71828182845905, imaginary_part: 0.0, prime: "false", parity: "none", representation: "e"
+    fixture "Number3", value: "0+1i", number_type: "complex", real_part: 0.0, imaginary_part: 1.0, prime: "false", parity: "none", representation: "i"
+    fixture "Number4", value: "1.61803398874989", number_type: "real", real_part: 1.61803398874989, imaginary_part: 0.0, prime: "false", parity: "none", representation: "phi"
+    fixture "Number5", value: "0", number_type: "natural", real_part: 0.0, imaginary_part: 0.0, prime: "false", parity: "even", representation: "zero"
+    fixture "Number6", value: "1", number_type: "natural", real_part: 1.0, imaginary_part: 0.0, prime: "false", parity: "odd", representation: "one"
+    fixture "Number7", value: "infinity", number_type: "real", real_part: 0.0, imaginary_part: 0.0, prime: "false", parity: "none", representation: "infinity"
+  end
+end

@@ -1,0 +1,18 @@
+Hecks.fixtures "MentorQuest" do
+  aggregate "Mentor" do
+    fixture "Jordan_Blake_", name: "Jordan Blake", specialties: [], mentees_max: 5, status: "active"
+    fixture "Casey_Rivera_", name: "Casey Rivera", specialties: [], mentees_max: 8, status: "active"
+  end
+  aggregate "Youth" do
+    fixture "Aisha_Patel_", name: "Aisha Patel", age: 14, interests: [], xp_points: 0, status: "enrolled"
+    fixture "Kenji_Yamamoto_", name: "Kenji Yamamoto", age: 15, interests: [], xp_points: 150, status: "enrolled"
+  end
+  aggregate "QuestLine" do
+    fixture "QuestLine1", quest_name: "The Coding Quest", theme: "Web Development", missions: [], status: "design"
+    fixture "QuestLine2", quest_name: "Robotics Challenge", theme: "Engineering", missions: [], status: "design"
+  end
+  aggregate "MentorshipSession" do
+    fixture "MentorshipSession1", session_date: "2026-04-20", achievements: [], status: "scheduled"
+    fixture "MentorshipSession2", session_date: "2026-04-25", achievements: [], status: "scheduled"
+  end
+end

@@ -234,18 +234,4 @@ Hecks.bluebook "GameTheory" do
     trigger "ExportResults"
   end
 
-  fixture "StrategicGame", game_id: "GT-0001", name: "Prisoner's Dilemma", game_type: "simultaneous", player_count: 2, information_structure: "symmetric"
-  fixture "StrategicGame", game_id: "GT-0002", name: "Market Entry Game", game_type: "sequential", player_count: 3, information_structure: "imperfect"
-
-  fixture "Strategy", strategy_id: "STR-001-A", player_id: "P1", strategy_type: "pure", action_sequence: "cooperate"
-  fixture "Strategy", strategy_id: "STR-001-B", player_id: "P2", strategy_type: "mixed", action_sequence: "0.6_defect_0.4_cooperate"
-
-  fixture "PayoffMatrix", matrix_id: "MAT-0001", rows: 2, columns: 2, payoff_data: "[[3,3],[0,5],[5,0],[1,1]]"
-  fixture "PayoffMatrix", matrix_id: "MAT-0002", rows: 3, columns: 3, payoff_data: "[[2,2],[0,3],[3,0],[1,4],[4,1],[2,2],[2,2],[2,2],[3,3]]"
-
-  fixture "Equilibrium", equilibrium_type: "pure_strategy_nash", strategy_profile: "defect_defect", expected_payoff: 1.0
-  fixture "Equilibrium", equilibrium_type: "mixed_strategy_nash", strategy_profile: "0.5_cooperate_0.5_defect", expected_payoff: 2.5
-
-  fixture "Simulation", simulation_id: "SIM-0001", iteration_count: 1000, learning_rule: "fictitious_play", convergence_threshold: 0.01
-  fixture "Simulation", simulation_id: "SIM-0002", iteration_count: 5000, learning_rule: "replicator_dynamics", convergence_threshold: 0.001
 end

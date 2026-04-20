@@ -236,18 +236,4 @@ Hecks.bluebook "FoodHall", version: "2026.04.13.1" do
 
   # === Fixtures ===
 
-  fixture "FoodVendor", vendor_id: "V001", business_name: "Spice Route Thai Kitchen", cuisine_type: "Thai", contact_name: "Priya Sharma", status: "active", certifications: []
-  fixture "FoodVendor", vendor_id: "V002", business_name: "Mama's Pasta House", cuisine_type: "Italian", contact_name: "Marco Rossi", status: "active", certifications: []
-
-  fixture "FoodStall", stall_id: "S001", location: "Northeast Corner", monthly_rent: 2500.0, vendor_id: "V001", status: "leased"
-  fixture "FoodStall", stall_id: "S002", location: "Central Plaza", monthly_rent: 3000.0, vendor_id: "V002", status: "leased"
-
-  fixture "HallMenu", menu_id: "M001", vendor_id: "V001", dishes: [], status: "published"
-  fixture "HallMenu", menu_id: "M002", vendor_id: "V002", dishes: [], status: "published"
-
-  fixture "SeatingArea", area_id: "SA001", name: "Indoor Main Hall", total_seats: 80, available_seats: 45, status: "open"
-  fixture "SeatingArea", area_id: "SA002", name: "Outdoor Patio", total_seats: 40, available_seats: 40, status: "open"
-
-  fixture "CulinaryEvent", event_id: "E001", name: "Thai Cooking Masterclass", event_type: "cooking_demo", date: "2026-05-10", capacity: 50, ticket_price: 35.0, status: "scheduled"
-  fixture "CulinaryEvent", event_id: "E002", name: "Spring Food Festival", event_type: "food_festival", date: "2026-06-01", capacity: 200, ticket_price: 15.0, status: "scheduled"
 end

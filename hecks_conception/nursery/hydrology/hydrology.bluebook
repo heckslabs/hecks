@@ -246,18 +246,4 @@ Hecks.bluebook "Hydrology" do
     trigger "PublishFloodMap"
   end
 
-  fixture "Watershed", watershed_id: "WS-COLORADO-001", name: "North Fork Colorado River", area_km2: 8542.0, outlet_location: "Lake Granby", land_use_dominant: "forest"
-  fixture "Watershed", watershed_id: "WS-SOUTH-PLATTE", name: "South Platte Basin", area_km2: 39445.0, outlet_location: "Confluence with North Platte", land_use_dominant: "mixed"
-
-  fixture "StreamGauge", gauge_id: "SG-GRANBY-01", stream_name: "North Fork Colorado River", latitude: 40.087, longitude: -105.823, datum_elevation: "8.42 m"
-  fixture "StreamGauge", gauge_id: "SG-DENVER-01", stream_name: "South Platte River", latitude: 39.754, longitude: -104.984, datum_elevation: "1.52 m"
-
-  fixture "FlowMeasurement", measurement_date: "2026-04-10", stage_m: 2.15, discharge_cms: 45.3, method: "acoustic_doppler"
-  fixture "FlowMeasurement", measurement_date: "2026-04-11", stage_m: 2.34, discharge_cms: 52.8, method: "acoustic_doppler"
-
-  fixture "FloodModel", model_id: "FM-2026-Q2-001", scenario_name: "Spring Snowmelt Scenario", return_period_years: 100, peak_discharge_cms: 850.0
-  fixture "FloodModel", model_id: "FM-2026-URBAN-01", scenario_name: "Urban Rainfall Event", return_period_years: 50, peak_discharge_cms: 320.0
-
-  fixture "MonitoringWell", well_id: "MW-DENVER-A", depth_m: 85.5, screen_top_m: 75.0, screen_bottom_m: 85.5
-  fixture "MonitoringWell", well_id: "MW-PLAINS-B", depth_m: 120.0, screen_top_m: 110.0, screen_bottom_m: 120.0
 end

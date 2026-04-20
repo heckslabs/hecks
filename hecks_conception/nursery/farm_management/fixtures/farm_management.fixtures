@@ -1,0 +1,22 @@
+Hecks.fixtures "FarmManagement" do
+  aggregate "Field" do
+    fixture "North_Pasture_", name: "North Pasture", acreage: 45.5, soil_type: "loamy", gps_coordinates: "40.7128,-74.0060", current_crop: "corn", status: "planted"
+    fixture "East_Tract_", name: "East Tract", acreage: 32.0, soil_type: "clay", gps_coordinates: "40.7150,-74.0045", current_crop: "", status: "fallow"
+  end
+  aggregate "CropCycle" do
+    fixture "CropCycle1", crop_variety: "Dent corn hybrid DKC42-54", planting_date: "2026-04-01", expected_harvest_date: "2026-10-15", days_to_maturity: 113, growth_stage: "vegetative", status: "growing", field_id: "F-001"
+    fixture "CropCycle2", crop_variety: "Soybean maturity group 2", planting_date: "2026-04-15", expected_harvest_date: "2026-09-30", days_to_maturity: 135, growth_stage: "flowering", status: "growing", field_id: "F-002"
+  end
+  aggregate "IrrigationSchedule" do
+    fixture "IrrigationSchedule1", method: "center pivot", frequency: "every 3 days", volume_gallons: 5000.0, start_date: "2026-04-05", status: "active", field_id: "F-001"
+    fixture "IrrigationSchedule2", method: "drip", frequency: "daily", volume_gallons: 2500.0, start_date: "2026-04-20", status: "suspended", field_id: "F-002"
+  end
+  aggregate "Harvest" do
+    fixture "Harvest1", harvest_date: "2026-10-15", yield_bushels: 180.5, moisture_percent: 15.2, quality_grade: "Premium", storage_location: "Grain bin 3", crop_cycle_id: "CC-001", field_id: "F-001"
+    fixture "Harvest2", harvest_date: "2026-09-28", yield_bushels: 52.3, moisture_percent: 11.8, quality_grade: "Good", storage_location: "Grain bin 1", crop_cycle_id: "CC-002", field_id: "F-002"
+  end
+  aggregate "SoilTest" do
+    fixture "SoilTest1", test_date: "2026-03-20", ph_level: 6.8, nitrogen_ppm: 28.5, phosphorus_ppm: 22.0, potassium_ppm: 185.0, organic_matter_percent: 4.2, recommendations: "Apply 100 lbs/acre N before planting", field_id: "F-001"
+    fixture "SoilTest2", test_date: "2026-03-25", ph_level: 7.1, nitrogen_ppm: 18.2, phosphorus_ppm: 16.5, potassium_ppm: 210.0, organic_matter_percent: 3.8, recommendations: "Add lime to reduce pH, apply balanced NPK", field_id: "F-002"
+  end
+end

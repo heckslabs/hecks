@@ -1,0 +1,9 @@
+Hecks.fixtures "RegulatoryCompliance" do
+  aggregate "Jurisdiction" do
+    fixture "EPA_", name: "EPA", authority: "Environmental Protection Agency", region: "Federal", regulations: [], status: "active"
+    fixture "California_OEHHA_", name: "California OEHHA", authority: "Office of Environmental Health Hazard Assessment", region: "California", regulations: [], status: "active"
+    fixture "California_CARB_", name: "California CARB", authority: "California Air Resources Board", region: "California", regulations: [], status: "active"
+    fixture "DOT_", name: "DOT", authority: "Department of Transportation", region: "Federal", regulations: [], status: "active"
+    fixture "California_DCC_", name: "California DCC", authority: "Department of Cannabis Control", region: "California", regulations: [], status: "active"
+  end
+end

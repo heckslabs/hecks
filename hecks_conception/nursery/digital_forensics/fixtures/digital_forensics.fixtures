@@ -1,0 +1,18 @@
+Hecks.fixtures "DigitalForensics" do
+  aggregate "EvidenceItem" do
+    fixture "EvidenceItem1", evidence_id: "EV-2024-001-A", case_number: "2024-001", source_device: "Samsung Galaxy S21", file_type: "image/jpeg", size_mb: 45.2, hash_value: "sha256:a3f5d8e9c2b1f0d7e4c6a9b2d5e8f1a4c7d0e3f6a9b2c5d8e1f4a7b0c3d6e9", status: "collected"
+    fixture "EvidenceItem2", evidence_id: "EV-2024-001-B", case_number: "2024-001", source_device: "MacBook Pro 16", file_type: "application/pdf", size_mb: 12.8, hash_value: "sha256:f1e2d3c4b5a6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d", status: "collected"
+  end
+  aggregate "ChainOfCustody" do
+    fixture "ChainOfCustody1", chain_id: "COC-2024-001-A", evidence_id: "EV-2024-001-A", status: "active"
+    fixture "ChainOfCustody2", chain_id: "COC-2024-001-B", evidence_id: "EV-2024-001-B", status: "sealed"
+  end
+  aggregate "ContentAnalysis" do
+    fixture "ContentAnalysis1", analysis_id: "CA-2024-001-A", evidence_id: "EV-2024-001-A", analysis_type: "metadata_extraction", findings: "EXIF data shows location GPS coordinates", confidence: 0.95, status: "finalized"
+    fixture "ContentAnalysis2", analysis_id: "CA-2024-001-B", evidence_id: "EV-2024-001-B", analysis_type: "document_forensics", findings: "Document created 2024-03-15, last modified 2024-04-10", confidence: 0.98, status: "finalized"
+  end
+  aggregate "ForensicReport" do
+    fixture "ForensicReport1", report_id: "FR-2024-001", case_number: "2024-001", examiner: "Examiner James Wilson", summary: "Evidence shows device location history corroborates alibi timeline", status: "submitted"
+    fixture "ForensicReport2", report_id: "FR-2024-002", case_number: "2024-002", examiner: "Examiner Lisa Santos", summary: "Metadata analysis reveals document manipulation patterns", status: "draft"
+  end
+end

@@ -1,0 +1,19 @@
+Hecks.fixtures "Conception" do
+  aggregate "ConceptionRule" do
+    fixture "ConceptionRule1", rule_name: "HasFixtures", description: "Every aggregate must have at least one fixture with realistic data", check_type: "fixture_count > 0", severity: "blocking"
+    fixture "ConceptionRule2", rule_name: "HasCommands", description: "Every aggregate must have at least one custom command — no empty shapes", check_type: "command_count > 0", severity: "blocking"
+    fixture "ConceptionRule3", rule_name: "HasDeclarativeBehavior", description: "Commands should use given/then_set so they are executable without adapters", check_type: "then_set_count > 0", severity: "warning"
+    fixture "ConceptionRule4", rule_name: "HasAccessGates", description: "Domain should define ports and actors — who can do what", check_type: "port_count > 0", severity: "recommended"
+    fixture "ConceptionRule5", rule_name: "HasPolicies", description: "Multi-aggregate domains should wire events to commands", check_type: "policy_count > 0 when aggregate_count > 1", severity: "recommended"
+    fixture "ConceptionRule6", rule_name: "HasVision", description: "Every domain needs a vision statement — why it exists", check_type: "vision present", severity: "blocking"
+  end
+  aggregate "ConceptionLog" do
+    fixture "ConceptionLog1", domain_name: "Pizzas", conceived_by: "Miette", conceived_at: "2026-04-01", fixture_count: 8, gap_count: 0, verdict: "viable"
+    fixture "ConceptionLog2", domain_name: "AmbulanceDispatch", conceived_by: "Summer", conceived_at: "2026-04-10", fixture_count: 0, gap_count: 1, verdict: "incomplete"
+    fixture "ConceptionLog3", domain_name: "DomainCompression", conceived_by: "Miette", conceived_at: "2026-04-14", fixture_count: 12, gap_count: 0, verdict: "viable"
+  end
+  aggregate "Blueprint" do
+    fixture "Blueprint1", domain_name: "Pizzas", vision: "Pizza ordering domain", category: "business", aggregate_count: 2, command_count: 5, fixture_count: 8, port_count: 1, actor_count: 2, policy_count: 1, completeness: "sealed", gaps: []
+    fixture "Blueprint2", domain_name: "AmbulanceDispatch", vision: "Emergency dispatch coordination", category: "operations", aggregate_count: 3, command_count: 7, fixture_count: 0, port_count: 0, actor_count: 0, policy_count: 2, completeness: "assessed", gaps: ["no fixtures", "no access gates"]
+  end
+end

@@ -1,0 +1,11 @@
+Hecks.fixtures "Regression" do
+  aggregate "RegressionSuite" do
+    fixture "RegressionSuite1", suite_name: "NurseryFull", blueprint_count: 300, last_pass_count: 298, last_fail_count: 2, last_run_status: "failing", last_run_at: "2026-04-14T09:00:00Z"
+    fixture "RegressionSuite2", suite_name: "CoreDomains", blueprint_count: 15, last_pass_count: 15, last_fail_count: 0, last_run_status: "passing", last_run_at: "2026-04-14T09:00:00Z"
+  end
+  aggregate "FixtureResult" do
+    fixture "FixtureResult1", domain_name: "Pizzas", command_name: "CreatePizza", outcome: "pass", expected_event: "PizzaCreated", actual_event: "PizzaCreated", failure_reason: "", run_at: "2026-04-14T09:00:00Z"
+    fixture "FixtureResult2", domain_name: "Pizzas", command_name: "AddTopping", outcome: "pass", expected_event: "ToppingAdded", actual_event: "ToppingAdded", failure_reason: "", run_at: "2026-04-14T09:00:00Z"
+    fixture "FixtureResult3", domain_name: "AmbulanceDispatch", command_name: "DispatchUnit", outcome: "fail", expected_event: "UnitDispatched", actual_event: "CommandRejected", failure_reason: "Lifecycle transition not found: pending -> dispatched", run_at: "2026-04-14T09:00:00Z"
+  end
+end

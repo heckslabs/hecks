@@ -150,15 +150,4 @@ Hecks.bluebook "EmergencyResponse", version: "2026.04.13.1" do
     trigger "TriagePatient"
   end
 
-  fixture "TriageCase", case_id: "TC-20260414-001", patient_name: "John Smith", chief_complaint: "chest pain", acuity_level: 2, status: "triaged"
-  fixture "TriageCase", case_id: "TC-20260414-002", patient_name: "Maria Garcia", chief_complaint: "shortness of breath", acuity_level: 1, status: "admitted"
-
-  fixture "Ambulance", unit_id: "AMB-47", crew_lead: "David Chen", location_name: "Station 5", status: "available"
-  fixture "Ambulance", unit_id: "AMB-52", crew_lead: "Sarah Johnson", location_name: "Station 3", status: "dispatched"
-
-  fixture "Route", route_id: "RT-001", unit_id: "AMB-47", origin_address: "123 Oak Street, Station", scene_address: "450 Main Street", hospital_name: "County Medical Center", eta_minutes: 12.5
-  fixture "Route", route_id: "RT-002", unit_id: "AMB-52", origin_address: "789 Pine Avenue, Station", scene_address: "1200 Elm Street", hospital_name: "St. Mary's Hospital", eta_minutes: 8.3
-
-  fixture "Handoff", handoff_id: "HO-A47-001", case_id: "TC-20260414-001", unit_id: "AMB-47", receiving_nurse: "Patricia Brown", handoff_time: "2026-04-14T14:32:00Z", status: "completed"
-  fixture "Handoff", handoff_id: "HO-A52-002", case_id: "TC-20260414-002", unit_id: "AMB-52", receiving_nurse: "Michael Torres", handoff_time: "2026-04-14T15:01:00Z", status: "in_progress"
 end

@@ -1,0 +1,18 @@
+Hecks.fixtures "ClothingBoutique" do
+  aggregate "Garment" do
+    fixture "Black_Wool_Coat_", style_number: "CB-2024-001", name: "Black Wool Coat", designer: "Bella Milano", fabric: "100% wool", retail_price: 299.99, season: "miette", status: "in_stock"
+    fixture "Linen_Blouse_", style_number: "CB-2024-002", name: "Linen Blouse", designer: "Coastal Threads", fabric: "100% linen", retail_price: 89.50, season: "summer", status: "in_stock"
+  end
+  aggregate "Display" do
+    fixture "Display1", display_name: "Spring Pastels", theme: "soft_colors", location: "front_window", status: "active"
+    fixture "Display2", display_name: "Denim Showcase", theme: "casual_wear", location: "center_floor", status: "active"
+  end
+  aggregate "Alteration" do
+    fixture "Alteration1", ticket_number: "ALT-001", style_number: "CB-2024-001", customer_name: "Sarah Chen", alteration_type: "hem", due_date: "2026-04-20", charge: 25.00, status: "pending"
+    fixture "Alteration2", ticket_number: "ALT-002", style_number: "CB-2024-002", customer_name: "Marcus Johnson", alteration_type: "taper", due_date: "2026-04-18", charge: 35.00, status: "completed"
+  end
+  aggregate "SeasonalCollection" do
+    fixture "SeasonalCollection1", season_name: "Spring 2026", year: "2026", theme: "floral_revival", status: "planned"
+    fixture "SeasonalCollection2", season_name: "Summer 2026", year: "2026", theme: "bright_minimalism", status: "active"
+  end
+end

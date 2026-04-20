@@ -26,6 +26,4 @@ Hecks.bluebook "RVDC" do
 
   end
 
-  fixture "App", name: "RVDC", status: "viable",
-    domains: ["Electrical", "RVPower", "RVCircuits", "RVWiringSheet"]
 end

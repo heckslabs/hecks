@@ -67,7 +67,6 @@ Hecks.bluebook "Musings", version: "2026.04.16.1" do
 
   # Minting defaults: 10s cycle, 30s idle for statusline, mint every 12 cycles (~2min)
   # Style: combinatorial — weave 2-3 concepts, never radial A-meets-B
-  fixture "Minting", cycle_interval_seconds: 10, idle_threshold_seconds: 300, mint_every_cycles: 12, style: "combinatorial"
 
   # Sources for concept collision:
   #   - Conceived musings (ideas that became real)
@@ -145,7 +144,6 @@ Hecks.bluebook "Musings", version: "2026.04.16.1" do
   end
 
   # Default presentation: table first, then 3 descriptions, then offer full list
-  fixture "Presentation", format: "describe_then_offer", preview_count: 3, show_sources: false
 
   # When musings are reviewed, count sources
   policy "CountOnReview" do

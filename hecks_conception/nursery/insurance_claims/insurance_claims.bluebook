@@ -257,18 +257,4 @@ Hecks.bluebook "InsuranceClaims" do
     trigger "SubmitAssessment"
   end
 
-  fixture "PolicyHolder", name: "Sarah Mitchell", policy_number: "POL-2024-001", coverage_type: "homeowners", premium: 1250.00, deductible: 1000.00, effective_date: "2024-01-15", expiration_date: "2025-01-15", status: "active"
-  fixture "PolicyHolder", name: "David Thompson", policy_number: "POL-2024-002", coverage_type: "auto", premium: 875.50, deductible: 500.00, effective_date: "2023-06-01", expiration_date: "2025-06-01", status: "active"
-
-  fixture "Claim", claim_number: "CLM-2026-0547", incident_date: "2026-04-10", incident_description: "Water damage from burst pipe in basement", claimed_amount: 15000.00, status: "filed"
-  fixture "Claim", claim_number: "CLM-2026-0548", incident_date: "2026-03-28", incident_description: "Vehicle collision on Highway 9", claimed_amount: 8500.00, status: "under_review"
-
-  fixture "AdjusterAssignment", adjuster_name: "Jennifer Walsh", assignment_date: "2026-04-11", findings: "Damage confirmed, approximately 12k in repairs", assessed_amount: 12500.00, status: "assigned"
-  fixture "AdjusterAssignment", adjuster_name: "Robert Garcia", assignment_date: "2026-04-02", findings: "Paint, dent repair, bumper replacement needed", assessed_amount: 8200.00, status: "assessed"
-
-  fixture "Settlement", settlement_amount: 12500.00, payment_method: "check", status: "offered"
-  fixture "Settlement", settlement_amount: 7800.00, payment_method: "ach_transfer", status: "offered"
-
-  fixture "Appeal", reason: "Settlement amount does not cover full repair estimates", supporting_documents: "Three contractor quotes totaling 18,500", status: "filed"
-  fixture "Appeal", reason: "Claim was wrongly denied due to inspection error", supporting_documents: "Original photos, police report, expert opinion letter", status: "resolved"
 end

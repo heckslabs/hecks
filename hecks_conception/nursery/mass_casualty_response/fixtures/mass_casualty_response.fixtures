@@ -1,0 +1,26 @@
+Hecks.fixtures "MassCasualtyResponse" do
+  aggregate "MassIncident" do
+    fixture "MassIncident1", incident_id: "INC-2026-001", location: "Interstate 95 Mile Marker 142", severity: "critical", estimated_casualties: 45, status: "active"
+    fixture "MassIncident2", incident_id: "INC-2026-002", location: "Harbor Terminal Warehouse 7", severity: "severe", estimated_casualties: 28, status: "closed"
+  end
+  aggregate "TriageStation" do
+    fixture "TriageStation1", station_id: "TRIAGE-A", location: "INC-2026-001 Primary Site", capacity: 50, current_count: 23, status: "active"
+    fixture "TriageStation2", station_id: "TRIAGE-B", location: "INC-2026-001 Secondary Site", capacity: 40, current_count: 19, status: "active"
+  end
+  aggregate "AirEvac" do
+    fixture "AirEvac1", callsign: "MEDEVAC-01", origin: "Lakeside Regional Airport", patient_capacity: 8, status: "en_route"
+    fixture "AirEvac2", callsign: "MEDEVAC-02", origin: "County Medical Helipad", patient_capacity: 6, status: "loaded"
+  end
+  aggregate "BloodDispatch" do
+    fixture "BloodDispatch1", dispatch_id: "BLOOD-0001", blood_type: "O-Negative", units_allocated: 6, status: "dispatched"
+    fixture "BloodDispatch2", dispatch_id: "BLOOD-0002", blood_type: "A-Positive", units_allocated: 4, status: "administered"
+  end
+  aggregate "ReceivingHospital" do
+    fixture "ReceivingHospital1", hospital_name: "Metro Trauma Center", trauma_level: "Level 1", available_beds: 12, available_surgeons: 4, status: "available"
+    fixture "ReceivingHospital2", hospital_name: "St. Augustine Medical", trauma_level: "Level 2", available_beds: 8, available_surgeons: 2, status: "receiving"
+  end
+  aggregate "CasualtyTracker" do
+    fixture "CasualtyTracker1", casualty_name: "James Rodriguez", blood_type: "O-Positive", triage_color: "red", current_phase: "airborne"
+    fixture "CasualtyTracker2", casualty_name: "Sarah Chen", blood_type: "A-Negative", triage_color: "yellow", current_phase: "triaged"
+  end
+end

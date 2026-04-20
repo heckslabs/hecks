@@ -187,10 +187,4 @@ Hecks.bluebook "ComplianceMentalHealth" do
     on "SessionNoteAmended"
     trigger "ElevateRiskLevel"
   end
-  fixture "Patient", mrn: "MRN-0001", full_name: "Elena Vasquez", risk_level: "standard", status: "active"
-  fixture "Patient", mrn: "MRN-0002", full_name: "James Okoro", risk_level: "high", status: "active"
-  fixture "TreatmentPlan", diagnosis_code: "F33.1", primary_goal: "Reduce depressive episodes below two per month", status: "active"
-  fixture "SessionNote", content_summary: "Explored cognitive distortions around workplace conflict", clinician_name: "Dr. Amara Singh", status: "finalized"
-  fixture "Prescription", medication_name: "Sertraline", status: "active", refills_remaining: 3
-  fixture "InsuranceClaim", billed_amount: 175.0, status: "adjudicated"
 end

@@ -223,18 +223,4 @@ Hecks.bluebook "RecyclingCenter" do
     trigger "HaltLine"
   end
 
-  fixture "Material", material_code: "AL-001", name: "Aluminum Cans", category: "aluminum", market_price_per_ton: 1850.00, inventory_tons: 45.5, status: "active"
-  fixture "Material", material_code: "PET-002", name: "PET Plastic", category: "plastic", market_price_per_ton: 650.50, inventory_tons: 67.3, status: "active"
-
-  fixture "SortingLine", line_id: "LINE-A", line_type: "optical sorter", throughput_tons_per_hour: 8.5, status: "running"
-  fixture "SortingLine", line_id: "LINE-B", line_type: "magnetic separator", throughput_tons_per_hour: 12.0, status: "idle"
-
-  fixture "Bale", bale_id: "BALE-2025-001", weight_tons: 1.2, material_type: "aluminum", status: "shipped"
-  fixture "Bale", bale_id: "BALE-2025-002", weight_tons: 1.5, material_type: "PET plastic", status: "staged"
-
-  fixture "ContaminationReport", report_id: "CONT-2025-001", contaminant_type: "glass shards", contamination_percent: 2.3, status: "resolved"
-  fixture "ContaminationReport", report_id: "CONT-2025-002", contaminant_type: "plastic film", contamination_percent: 1.8, status: "open"
-
-  fixture "Buyer", buyer_id: "BUY-2025-001", company_name: "Midwest Aluminum Corp", material_interest: "aluminum cans", contracted_price_per_ton: 1750.00, status: "active"
-  fixture "Buyer", buyer_id: "BUY-2025-002", company_name: "Polymer Innovations Inc", material_interest: "PET plastic", contracted_price_per_ton: 600.00, status: "active"
 end

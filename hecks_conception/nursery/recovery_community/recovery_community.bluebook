@@ -150,15 +150,4 @@ Hecks.bluebook "RecoveryCommunity", version: "2026.04.13.1" do
     trigger "AwardMilestone"
   end
 
-  fixture "RecoveryJourney", member_id: "MEM-2025-001", name: "Sarah Martinez", program_type: "AA", days_sober: 127, status: "active"
-  fixture "RecoveryJourney", member_id: "MEM-2025-002", name: "Michael Torres", program_type: "SMART Recovery", days_sober: 89, status: "active"
-
-  fixture "PeerGroup", group_id: "GRP-MONDAY", group_name: "Monday Evening Circle", facilitator: "Dr. Lisa Wong", max_members: 12, meeting_schedule: "Weekly Mondays 7pm", status: "active"
-  fixture "PeerGroup", group_id: "GRP-WEEKEND", group_name: "Weekend Warrior Support", facilitator: "James Patterson", max_members: 15, meeting_schedule: "Saturday 10am, Sunday 6pm", status: "active"
-
-  fixture "CommunityPost", post_id: "POST-445", author_id: "MEM-2025-001", content: "90 days clean! Feeling stronger each day", topic: "milestones", status: "published"
-  fixture "CommunityPost", post_id: "POST-446", author_id: "MEM-2025-002", content: "Found a supportive employer who believes in second chances", topic: "employment", status: "pending_review"
-
-  fixture "SafetyFlag", flag_id: "FLAG-2025-12", post_id: "POST-445", reason: "Mentions specific substance triggers", severity: "high", status: "reviewed"
-  fixture "SafetyFlag", flag_id: "FLAG-2025-13", post_id: "POST-446", reason: "Potential unrealistic expectations", severity: "medium", status: "open"
 end

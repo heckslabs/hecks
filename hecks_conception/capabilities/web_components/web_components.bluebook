@@ -769,10 +769,6 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
   #   wireframe, black, luxury, dracula, cmyk, autumn,
   #   business, acid, lemonade, night, coffee, miette, dim, nord, sunset
 
-  fixture "Theme", name: "default", daisy_theme: "dark"
-  fixture "Theme", name: "light", daisy_theme: "light"
-  fixture "Theme", name: "corporate", daisy_theme: "corporate"
-
   aggregate "ThemeToggle", "Theme switcher — daisy theme-controller" do
     attribute :themes, list_of(String)
     attribute :daisy_class, String

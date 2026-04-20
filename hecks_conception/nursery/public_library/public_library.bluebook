@@ -242,18 +242,4 @@ Hecks.bluebook "PublicLibrary" do
     trigger "ReinstatePatron"
   end
 
-  fixture "Book", isbn: "978-0-06-112008-4", title: "To Kill a Mockingbird", author: "Harper Lee", genre: "Classic Fiction", copies_available: 3, status: "available"
-  fixture "Book", isbn: "978-0-7432-7356-5", title: "1984", author: "George Orwell", genre: "Dystopian", copies_available: 5, status: "available"
-
-  fixture "Patron", library_card: "PL-2026-0001", name: "Sarah Mitchell", email: "sarah.mitchell@email.com", membership_type: "standard", status: "active", items_checked_out: 2
-  fixture "Patron", library_card: "PL-2026-0002", name: "James Chen", email: "james.chen@email.com", membership_type: "premium", status: "active", items_checked_out: 0
-
-  fixture "Loan", loan_id: "LOAN-2026-0001", checkout_date: "2026-04-01", due_date: "2026-04-15", return_date: nil, status: "active"
-  fixture "Loan", loan_id: "LOAN-2026-0002", checkout_date: "2026-03-28", due_date: "2026-04-11", return_date: "2026-04-09", status: "returned"
-
-  fixture "Hold", hold_id: "HOLD-2026-0001", placed_date: "2026-04-10", queue_position: 1, status: "pending"
-  fixture "Hold", hold_id: "HOLD-2026-0002", placed_date: "2026-04-05", queue_position: 2, status: "ready"
-
-  fixture "Fine", fine_id: "FINE-2026-0001", amount_cents: 2500, reason: "Overdue book", status: "outstanding"
-  fixture "Fine", fine_id: "FINE-2026-0002", amount_cents: 1000, reason: "Overdue book", status: "paid"
 end

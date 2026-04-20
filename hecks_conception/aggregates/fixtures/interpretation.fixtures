@@ -1,0 +1,7 @@
+Hecks.fixtures "Interpretation" do
+  aggregate "Interpretation" do
+    fixture "Interpretation1", source: "dream", raw_material: [], insight: "template"
+    fixture "Interpretation2", source: "conversation", raw_material: [], insight: "template"
+    fixture "Interpretation3", source: "observation", raw_material: [], insight: "template"
+  end
+end

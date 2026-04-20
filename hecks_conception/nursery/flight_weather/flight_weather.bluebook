@@ -241,15 +241,4 @@ Hecks.bluebook "FlightWeather", version: "2026.04.13.1" do
     trigger "EscalateDelay"
   end
 
-  fixture "WeatherStation", station_id: "KSFO", airport_code: "SFO", latitude: 37.6213, longitude: -122.3790, elevation_ft: 13.0, status: "active"
-  fixture "WeatherStation", station_id: "KJFK", airport_code: "JFK", latitude: 40.6413, longitude: -73.7781, elevation_ft: 13.0, status: "active"
-
-  fixture "FlightPlan", flight_number: "UAL456", origin: "SFO", destination: "JFK", planned_altitude_ft: 35000.0, fuel_load_kg: 48500.0, estimated_flight_time_hr: 5.25, status: "filed"
-  fixture "FlightPlan", flight_number: "UAL789", origin: "SFO", destination: "LAX", planned_altitude_ft: 25000.0, fuel_load_kg: 12800.0, estimated_flight_time_hr: 1.0, status: "filed"
-
-  fixture "DelayForecast", airport_code: "SFO", delay_probability_pct: 35.0, expected_delay_minutes: 45.0, cause: "thunderstorms", forecast_time: "2026-04-14T14:00:00", status: "predicted"
-  fixture "DelayForecast", airport_code: "JFK", delay_probability_pct: 62.0, expected_delay_minutes: 90.0, cause: "miette_weather", forecast_time: "2026-04-14T12:00:00", status: "predicted"
-
-  fixture "FuelPlan", flight_number: "UAL456", trip_fuel_kg: 42000.0, reserve_fuel_kg: 3500.0, alternate_fuel_kg: 2000.0, contingency_fuel_kg: 1000.0, total_fuel_kg: 48500.0, status: "calculated"
-  fixture "FuelPlan", flight_number: "UAL789", trip_fuel_kg: 11200.0, reserve_fuel_kg: 800.0, alternate_fuel_kg: 400.0, contingency_fuel_kg: 400.0, total_fuel_kg: 12800.0, status: "calculated"
 end

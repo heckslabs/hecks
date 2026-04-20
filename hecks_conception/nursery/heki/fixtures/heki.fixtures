@@ -1,0 +1,22 @@
+Hecks.fixtures "Heki" do
+  aggregate "Store" do
+    fixture "transactions_2024_", name: "transactions_2024", path: "/var/heki/transactions_2024.heki", record_count: 1250, version: 2, status: "active"
+    fixture "users_singleton_", name: "users_singleton", path: "/var/heki/users_singleton.heki", record_count: 1, version: 2, status: "active"
+  end
+  aggregate "Record" do
+    fixture "Record1", record_id: "rec_txn_20240414_001", store_name: "transactions_2024", created_at: "2024-04-14T08:30:00Z", updated_at: "2024-04-14T08:30:00Z", payload: "{\"id\": \"txn_001\", \"amount\": 500.00, \"created_at\": \"2024-04-14T08:30:00Z\", \"updated_at\": \"2024-04-14T08:30:00Z\"}"
+    fixture "Record2", record_id: "rec_txn_20240414_002", store_name: "transactions_2024", created_at: "2024-04-14T09:15:00Z", updated_at: "2024-04-14T09:15:00Z", payload: "{\"id\": \"txn_002\", \"amount\": 1250.50, \"created_at\": \"2024-04-14T09:15:00Z\", \"updated_at\": \"2024-04-14T09:15:00Z\"}"
+  end
+  aggregate "Schema" do
+    fixture "Schema1", store_name: "transactions_2024", fields: [], required_fields: ["id", "amount", "created_at", "updated_at"]
+    fixture "Schema2", store_name: "users_singleton", fields: [], required_fields: ["id", "username", "email", "created_at", "updated_at"]
+  end
+  aggregate "Integrity" do
+    fixture "Integrity1", store_name: "transactions_2024", checksum: "a1b2c3d4", algorithm: "crc32", verified: "true"
+    fixture "Integrity2", store_name: "users_singleton", checksum: "e5f6g7h8", algorithm: "crc32", verified: "true"
+  end
+  aggregate "Codec" do
+    fixture "Codec1", magic: "HEKI", version: 2, compression_level: 6, format: "json+zlib+crc32"
+    fixture "Codec2", magic: "HEKI", version: 2, compression_level: 9, format: "json+zlib+crc32"
+  end
+end

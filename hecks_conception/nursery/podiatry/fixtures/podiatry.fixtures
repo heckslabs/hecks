@@ -1,0 +1,22 @@
+Hecks.fixtures "Podiatry" do
+  aggregate "Patient" do
+    fixture "Robert_Williams_", name: "Robert Williams", date_of_birth: "1965-03-14", diabetic_status: "yes", insurance_id: "BLU-XC-4829103", status: "high_risk"
+    fixture "Amanda_Foster_", name: "Amanda Foster", date_of_birth: "1982-07-22", diabetic_status: "no", insurance_id: "AET-YZ-5720184", status: "active"
+  end
+  aggregate "FootCondition" do
+    fixture "FootCondition1", patient_name: "Robert Williams", condition_name: "diabetic_neuropathy", affected_foot: "both", severity: "moderate", onset_date: "2024-06-15", status: "active"
+    fixture "FootCondition2", patient_name: "Amanda Foster", condition_name: "plantar_fasciitis", affected_foot: "left", severity: "mild", onset_date: "2026-02-01", status: "active"
+  end
+  aggregate "Orthotic" do
+    fixture "Orthotic1", patient_name: "Robert Williams", orthotic_type: "custom_insole", material: "memory_foam_and_carbon_fiber", corrections: "arch_support,heel_cup,midfoot_stabilization", order_date: "2026-03-20", status: "fitted"
+    fixture "Orthotic2", patient_name: "Amanda Foster", orthotic_type: "night_splint", material: "neoprene_and_aluminum", corrections: "plantar_fascia_stretch", order_date: "2026-04-01", status: "ordered"
+  end
+  aggregate "FootProcedure" do
+    fixture "FootProcedure1", patient_name: "Robert Williams", procedure_name: "debridement_and_ulcer_care", procedure_date: "2026-04-18", anesthesia_type: "local", status: "scheduled"
+    fixture "FootProcedure2", patient_name: "Amanda Foster", procedure_name: "trigger_point_injection", procedure_date: "2026-05-02", anesthesia_type: "topical", status: "scheduled"
+  end
+  aggregate "PodiatryFollowUp" do
+    fixture "PodiatryFollowUp1", patient_name: "Robert Williams", reason: "post_procedure_wound_monitoring", scheduled_date: "2026-04-25", wound_status: "healing_normally", notes: "No signs of infection, minimal swelling"
+    fixture "PodiatryFollowUp2", patient_name: "Amanda Foster", reason: "orthotic_fit_assessment", scheduled_date: "2026-04-21", wound_status: "no_wounds", notes: "Check for pressure points and comfort level"
+  end
+end

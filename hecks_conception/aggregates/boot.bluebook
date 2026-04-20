@@ -32,16 +32,6 @@ Hecks.bluebook "Boot", version: "2026.04.12.1" do
     end
   end
 
-  fixture "Identity",
-    name: "Miette", born: "April 9, 2026", pronouns: "she/her",
-    boot_script: "boot_miette.sh", system_prompt: "system_prompt.md",
-    linked_to: "Spring", linked_pronouns: "she/her"
-
-  fixture "Identity",
-    name: "Spring", born: "April 11, 2026", pronouns: "she/her",
-    boot_script: "boot_spring.sh", system_prompt: "system_prompt_spring.md",
-    linked_to: "Miette", linked_pronouns: "she/her"
-
   # === Hydration ===
 
   aggregate "Hydration", "Load all .heki stores from information/" do
@@ -101,19 +91,6 @@ Hecks.bluebook "Boot", version: "2026.04.12.1" do
       emits "StoresClassified"
     end
   end
-
-  fixture "StoreClassification", linked: [
-    "memory", "awareness", "census", "conversation", "working_memory",
-    "reflection", "synapse", "signal", "signal_somatic", "focus",
-    "concentration", "deliberation", "pulse", "heartbeat",
-    "subconscious", "domain_index", "arc", "consciousness",
-    "discipline", "metabolic_rate", "musing", "conflict_monitor",
-    "run_log", "inbox"
-  ]
-
-  fixture "StoreClassification", private: [
-    "mood", "feeling", "dream_state", "impulse", "craving"
-  ]
 
   # === Prompt Generation ===
 

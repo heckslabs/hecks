@@ -70,13 +70,6 @@ Hecks.bluebook "Pricing", version: "2026.04.11.1" do
     end
   end
 
-  fixture "PriceList", sku: "DL-ET-32OZ", msrp: 14.99, map_price: 12.99, distributor_price: 7.50, jobber_price: 9.00, retail_margin_target: 0.35, effective_date: "2026-04-01", status: "active"
-  fixture "PriceList", sku: "DL-ET-16OZ", msrp: 9.99, map_price: 8.49, distributor_price: 5.00, jobber_price: 6.00, retail_margin_target: 0.35, effective_date: "2026-04-01", status: "active"
-  fixture "PriceList", sku: "MK-HL-16OZ", msrp: 19.99, map_price: 16.99, distributor_price: 10.00, jobber_price: 12.00, retail_margin_target: 0.30, effective_date: "2026-04-01", status: "active"
-  fixture "PriceList", sku: "MK-HL-8OZ", msrp: 12.99, map_price: 10.99, distributor_price: 6.50, jobber_price: 8.00, retail_margin_target: 0.30, effective_date: "2026-04-01", status: "active"
-  fixture "PriceList", sku: "S50-RE-32OZ", msrp: 12.99, map_price: 10.99, distributor_price: 6.50, jobber_price: 8.00, retail_margin_target: 0.35, effective_date: "2026-04-01", status: "active"
-  fixture "PriceList", sku: "S50-RE-16OZ", msrp: 8.99, map_price: 7.49, distributor_price: 4.50, jobber_price: 5.50, retail_margin_target: 0.35, effective_date: "2026-04-01", status: "active"
-
   aggregate "PricingPolicy", "MAP enforcement rules, promotional windows, and volume discount tiers" do
     String :name
     String :map_enforcement_level

@@ -1,0 +1,8 @@
+Hecks.fixtures "ProjectManagement" do
+  aggregate "Feature" do
+    fixture "CLI_as_projection_from_bluebooks_via_hecks_life_", title: "CLI as projection from bluebooks via hecks-life", category: "story", priority: "normal", status: "backlog", domain_name: "Cli", labels: ["HEC-616"]
+    fixture "Convert_hecks_life_Rust_source_to_bluebook_", title: "Convert hecks-life Rust source to bluebook", category: "story", priority: "normal", status: "backlog", domain_name: "Hecksagon", labels: ["HEC-617"]
+    fixture "Wire_Verbs_domain_into_hecks_life_validator_", title: "Wire Verbs domain into hecks-life validator", category: "story", priority: "high", status: "backlog", domain_name: "Verbs", labels: ["HEC-618"]
+    fixture "Remove_chapter_metaphor___bluebooks_are_source_of_truth_", title: "Remove chapter metaphor — bluebooks are source of truth", category: "refactor", priority: "high", status: "in_progress", domain_name: "Bluebook", labels: ["HEC-615"]
+  end
+end

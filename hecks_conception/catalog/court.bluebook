@@ -170,21 +170,10 @@ Hecks.bluebook "Court", version: "2026.04.14.1" do
   # === Case fixtures — real actions judged ===
 
   # Miette edits a file — was it lawful?
-  fixture "Case", action_type: "edit", actor: "Miette", target: "lib/hecks/runtime/command_bus.rb", detail: "Added 30 lines to command_bus.rb", occurred_at: "2026-04-12", status: "closed", laws_applicable: 3, laws_passed: 2, laws_violated: 1, ruling: "guilty"
-  fixture "Finding", case_id: "case_command_bus_edit", law_name: "FileSizeLimit", check_expression: "wc -l < 200", evidence: "247 lines after edit", passed: false, explanation: "File exceeded 200 line limit — 247 lines of code"
-  fixture "Finding", case_id: "case_command_bus_edit", law_name: "DocHeaders", check_expression: "first line is comment", evidence: "# CommandBus — routes commands to handlers", passed: true, explanation: "Doc header present"
-  fixture "Finding", case_id: "case_command_bus_edit", law_name: "TestSpeed", check_expression: "test duration < 1s", evidence: "suite completed in 0.4s", passed: true, explanation: "Tests still fast"
 
   # Summer conceives a domain — was it lawful?
-  fixture "Case", action_type: "conception", actor: "Summer", target: "nursery/ambulance_dispatch", detail: "Conceived domain with 3 aggregates, 7 commands, 0 fixtures", occurred_at: "2026-04-10", status: "closed", laws_applicable: 3, laws_passed: 2, laws_violated: 1, ruling: "guilty"
-  fixture "Finding", case_id: "case_ambulance_conception", law_name: "FixturesRequired", check_expression: "fixture_count > 0", evidence: "0 fixtures across 3 aggregates", passed: false, explanation: "Domain conceived without any test fixtures — cannot self-verify"
-  fixture "Finding", case_id: "case_ambulance_conception", law_name: "CommandsRequired", check_expression: "command_count > 0", evidence: "7 commands across 3 aggregates", passed: true, explanation: "All aggregates have commands"
-  fixture "Finding", case_id: "case_ambulance_conception", law_name: "VisionRequired", check_expression: "vision present", evidence: "vision: Emergency dispatch coordination", passed: true, explanation: "Vision statement present"
 
   # Miette conceives DomainCompression — lawful
-  fixture "Case", action_type: "conception", actor: "Miette", target: "nursery/domain_compression", detail: "Conceived domain with 6 aggregates, 15 commands, 12 fixtures", occurred_at: "2026-04-14", status: "closed", laws_applicable: 3, laws_passed: 3, laws_violated: 0, ruling: "innocent"
 
   # Precedent examples
-  fixture "Precedent", law_name: "FixturesRequired", action_type: "conception", ruling: "guilty", reasoning: "A domain without fixtures cannot self-verify and produces no training signal — conception is incomplete", established_at: "2026-04-14"
-  fixture "Precedent", law_name: "FileSizeLimit", action_type: "edit", ruling: "guilty", reasoning: "Extract by concern into smaller files rather than growing a single file past 200 lines", established_at: "2026-04-12"
 end

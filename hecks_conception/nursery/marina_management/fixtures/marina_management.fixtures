@@ -1,0 +1,22 @@
+Hecks.fixtures "MarinaManagement" do
+  aggregate "Slip" do
+    fixture "Slip1", slip_number: "A-15", length_feet: 40.0, beam_feet: 12.5, dock_section: "North Pier", power_hookup: "50A", monthly_rate: 450.0, status: "available"
+    fixture "Slip2", slip_number: "B-22", length_feet: 65.0, beam_feet: 18.0, dock_section: "East Pier", power_hookup: "100A", monthly_rate: 850.0, status: "occupied"
+  end
+  aggregate "Vessel" do
+    fixture "Vessel1", vessel_name: "Sea Dancer", registration_number: "REG-2024-001", vessel_type: "Sailboat", length_overall: 42.0, draft_feet: 6.5, owner_name: "Marcus Webb", owner_phone: "555-0142", status: "docked"
+    fixture "Vessel2", vessel_name: "Pacific Voyager", registration_number: "REG-2024-002", vessel_type: "Motor Yacht", length_overall: 58.0, draft_feet: 8.2, owner_name: "Catherine Lee", owner_phone: "555-0143", status: "at_sea"
+  end
+  aggregate "MaintenanceJob" do
+    fixture "MaintenanceJob1", job_type: "Engine Service", description: "Full engine overhaul and oil change", scheduled_date: "2026-04-20", estimated_cost: 2500.0, status: "scheduled"
+    fixture "MaintenanceJob2", job_type: "Hull Inspection", description: "Annual hull inspection and bottom paint", scheduled_date: "2026-05-10", estimated_cost: 1800.0, status: "completed"
+  end
+  aggregate "FuelDispensing" do
+    fixture "FuelDispensing1", fuel_type: "Diesel", gallons: 250.5, price_per_gallon: 3.45, total_cost: 864.23, dispensed_date: "2026-04-14"
+    fixture "FuelDispensing2", fuel_type: "Gasoline", gallons: 180.0, price_per_gallon: 3.62, total_cost: 651.60, dispensed_date: "2026-04-13"
+  end
+  aggregate "WeatherAlert" do
+    fixture "WeatherAlert1", alert_type: "Wind Advisory", severity: "moderate", description: "Sustained winds 20-30 knots expected with gusts to 40 knots", effective_from: "2026-04-14T18:00:00Z", effective_until: "2026-04-15T06:00:00Z", status: "active"
+    fixture "WeatherAlert2", alert_type: "Small Craft Advisory", severity: "high", description: "Rough seas and strong winds — all small craft should seek shelter", effective_from: "2026-04-15T00:00:00Z", effective_until: "2026-04-16T12:00:00Z", status: "lifted"
+  end
+end

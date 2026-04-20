@@ -236,18 +236,4 @@ Hecks.bluebook "SurfShop", version: "2026.04.13.1" do
     trigger "StockWetsuit"
   end
 
-  fixture "Surfboard", board_id: "sb001", shaper: "Firewire", model: "Mashup", board_type: "shortboard", length_ft: 5.8, volume_liters: 28.5, price: 599.0, status: "available"
-  fixture "Surfboard", board_id: "sb002", shaper: "Wavestorm", model: "Original", board_type: "foam", length_ft: 8.0, volume_liters: 68.0, price: 149.0, status: "available"
-
-  fixture "Wetsuit", wetsuit_id: "ws001", brand: "O'Neill", thickness_mm: "3/2", size: "L", price: 149.99, quantity: 5
-  fixture "Wetsuit", wetsuit_id: "ws002", brand: "Xcel", thickness_mm: "4/3", size: "M", price: 179.99, quantity: 8
-
-  fixture "GearRental", rental_id: "rent001", item_type: "board", item_id: "sb001", renter_name: "Jake Thompson", start_time: "2026-04-14 08:00", end_time: "2026-04-14 17:00", rate: 35.0, status: "rented"
-  fixture "GearRental", rental_id: "rent002", item_type: "wetsuit", item_id: "ws002", renter_name: "Maya Patel", start_time: "2026-04-14 07:00", end_time: "2026-04-14 12:00", rate: 15.0, status: "rented"
-
-  fixture "SurfLesson", lesson_id: "lesson001", instructor_name: "Tommy Carrol", skill_level: "beginner", max_students: 6, scheduled_date: "2026-04-15 09:00", status: "scheduled"
-  fixture "SurfLesson", lesson_id: "lesson002", instructor_name: "Sofia Romero", skill_level: "intermediate", max_students: 4, scheduled_date: "2026-04-15 14:00", status: "scheduled"
-
-  fixture "DingRepair", repair_id: "rep001", board_id: "sb001", damage_type: "delamination", estimated_cost: 85.0, status: "in_progress"
-  fixture "DingRepair", repair_id: "rep002", board_id: "sb002", damage_type: "stress_crack", estimated_cost: 120.0, status: "in_progress"
 end

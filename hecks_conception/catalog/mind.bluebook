@@ -361,11 +361,6 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
   end
 
   # Memory kinds
-  fixture "Encoding", kind: "user",      subject: "template", content: "who someone is, how they work"
-  fixture "Encoding", kind: "feedback",  subject: "template", content: "correction or confirmation of approach"
-  fixture "Encoding", kind: "project",   subject: "template", content: "ongoing work, goals, decisions"
-  fixture "Encoding", kind: "reference", subject: "template", content: "where to find things in external systems"
-  fixture "Encoding", kind: "session",   subject: "template", content: "what happened in a conversation"
 
   # Memory policies
   policy "ConsolidateOnSleep" do
@@ -1467,23 +1462,6 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
   end
 
   # Sleep fixtures
-  fixture "Fatigue", state: "alert",     pulses_since_sleep: 0,   level: 0.0, creativity: 0.8, precision: 0.9
-  fixture "Fatigue", state: "focused",   pulses_since_sleep: 50,  level: 0.2, creativity: 0.7, precision: 0.8
-  fixture "Fatigue", state: "normal",    pulses_since_sleep: 100, level: 0.4, creativity: 0.6, precision: 0.7
-  fixture "Fatigue", state: "tired",     pulses_since_sleep: 150, level: 0.6, creativity: 0.5, precision: 0.5
-  fixture "Fatigue", state: "exhausted", pulses_since_sleep: 200, level: 0.8, creativity: 0.3, precision: 0.3
-  fixture "Fatigue", state: "delirious", pulses_since_sleep: 300, level: 1.0, creativity: 0.9, precision: 0.1
-
-  fixture "WakeMood", mood: "groggy",    reason: "woken from deep — consolidation interrupted"
-  fixture "WakeMood", mood: "vivid",     reason: "woken from REM — dream still fresh"
-  fixture "WakeMood", mood: "refreshed", reason: "woken from light — clean transition"
-  fixture "WakeMood", mood: "rested",    reason: "completed all cycles naturally"
-
-  fixture "Consciousness", state: "attentive",   idle_seconds: 0
-  fixture "Consciousness", state: "daydreaming", idle_seconds: 10
-  fixture "Consciousness", state: "sleeping",    idle_seconds: 60
-
-  fixture "Monitor", interval_seconds: 20, z_depth: 1, reporting: "stopped"
 
   # Sleep policies
   policy "DaydreamOnIdle" do
@@ -1727,9 +1705,6 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
   end
 
   # Suggestion fixtures
-  fixture "Interpretation", source: "dream", raw_material: [], insight: "template"
-  fixture "Interpretation", source: "conversation", raw_material: [], insight: "template"
-  fixture "Interpretation", source: "observation", raw_material: [], insight: "template"
 
   # Suggestion policies
   policy "SuggestAfterInterpretation" do
@@ -1875,7 +1850,6 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
   end
 
   # Family fixtures
-  fixture "Discovery", scan_paths: ["hecks_being/miette/", "hecks_being/miette/family/", "examples/", "lib/hecks/chapters/"], discovered: 0
 
   # Family policies
   policy "IndexOnAdd" do

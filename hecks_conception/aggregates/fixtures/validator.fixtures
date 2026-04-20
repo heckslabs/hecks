@@ -1,0 +1,14 @@
+Hecks.fixtures "Validator" do
+  aggregate "Rule" do
+    fixture "unique_aggregate_names_", name: "unique_aggregate_names", category: "innate", severity: "error", description: "No duplicate aggregate names within a domain"
+    fixture "aggregates_have_commands_", name: "aggregates_have_commands", category: "innate", severity: "error", description: "Every aggregate must have at least one command"
+    fixture "command_naming_", name: "command_naming", category: "innate", severity: "error", description: "Command names must start with a verb"
+    fixture "valid_references_", name: "valid_references", category: "innate", severity: "error", description: "reference_to must point to an existing aggregate"
+    fixture "valid_policy_triggers_", name: "valid_policy_triggers", category: "innate", severity: "error", description: "Policy trigger must name an existing command"
+    fixture "no_duplicate_commands_", name: "no_duplicate_commands", category: "innate", severity: "error", description: "No duplicate command names within an aggregate"
+    fixture "aggregate_count_", name: "aggregate_count", category: "innate", severity: "warning", description: "More than 7 aggregates suggests splitting into bounded contexts"
+    fixture "mixed_concerns_", name: "mixed_concerns", category: "innate", severity: "warning", description: "Aggregates with no references between them may belong in separate domains"
+    fixture "noun_suffixes_", name: "noun_suffixes", category: "morphology", severity: "info", description: "Words ending in -ment, -tion, -ness, -ity, -ence, -ance, -ism, -ist, -ure, -age, -ery are nouns"
+    fixture "adjective_suffixes_", name: "adjective_suffixes", category: "morphology", severity: "info", description: "Words ending in -able, -ible, -ful, -less, -ous, -ive, -al, -ish, -ary are adjectives"
+  end
+end

@@ -1,0 +1,26 @@
+Hecks.fixtures "BrewingForVeterans" do
+  aggregate "VeteranApprentice" do
+    fixture "Marcus_Johnson_", apprentice_id: "VA-2026-001", name: "Marcus Johnson", branch_of_service: "Army", discharge_type: "Honorable", housing_status: "unstable", status: "enrolled"
+    fixture "Sarah_Chen_", apprentice_id: "VA-2026-002", name: "Sarah Chen", branch_of_service: "Navy", discharge_type: "Honorable", housing_status: "secure", status: "enrolled"
+  end
+  aggregate "BrewingCohort" do
+    fixture "BrewingCohort1", cohort_id: "BC-2026-Q1", cohort_name: "Spring Batch 2026", start_date: "2026-04-01", brew_master: "David Mueller", status: "active"
+    fixture "BrewingCohort2", cohort_id: "BC-2026-Q2", cohort_name: "Summer IPA Cohort", start_date: "2026-07-15", brew_master: "Elena Rodriguez", status: "active"
+  end
+  aggregate "ProductLine" do
+    fixture "ProductLine1", product_id: "PL-2026-001", product_name: "Valor IPA", style: "India Pale Ale", producing_cohort: "BC-2026-Q1", batch_number: "BATCH-001-2026", status: "available"
+    fixture "ProductLine2", product_id: "PL-2026-002", product_name: "Honor Stout", style: "Irish Stout", producing_cohort: "BC-2026-Q1", batch_number: "BATCH-002-2026", status: "available"
+  end
+  aggregate "SalesRevenue" do
+    fixture "SalesRevenue1", period: "2026-Q1", total_revenue: 12500.0, housing_allocation: 5000.0, education_allocation: 4500.0, operations_allocation: 3000.0, status: "allocated"
+    fixture "SalesRevenue2", period: "2026-Q2", total_revenue: 18750.0, housing_allocation: 7500.0, education_allocation: 6750.0, operations_allocation: 4500.0, status: "open"
+  end
+  aggregate "HousingUnit" do
+    fixture "HousingUnit1", unit_id: "HU-2026-001", address: "142 Veterans Way, Portland OR", capacity: 1, funding_source: "ProductRevenue", status: "occupied"
+    fixture "HousingUnit2", unit_id: "HU-2026-002", address: "145 Service Street, Portland OR", capacity: 2, funding_source: "Donation", status: "available"
+  end
+  aggregate "GraduationPath" do
+    fixture "GraduationPath1", path_id: "GP-2026-001", graduate: "VA-2026-001", employment_goal: "Head Brewer at Craft Brewery", housing_transition: "Assisted apartment lease", mentor_name: "James Crawford", status: "active"
+    fixture "GraduationPath2", path_id: "GP-2026-002", graduate: "VA-2026-002", employment_goal: "Brewing Consultant", housing_transition: "Homeownership program", mentor_name: "Patricia Wong", status: "active"
+  end
+end

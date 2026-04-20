@@ -1,0 +1,113 @@
+Hecks.fixtures "Language" do
+  aggregate "VerbPattern" do
+    fixture "VerbPattern1", pattern_type: "suffix", pattern: "ate", confidence: 0.9, examples: ["Create", "Validate", "Generate", "Consolidate", "Activate", "Accumulate"]
+    fixture "VerbPattern2", pattern_type: "suffix", pattern: "ify", confidence: 0.9, examples: ["Classify", "Notify", "Verify", "Modify", "Identify"]
+    fixture "VerbPattern3", pattern_type: "suffix", pattern: "ize", confidence: 0.9, examples: ["Recognize", "Authorize", "Initialize", "Organize", "Synchronize"]
+    fixture "VerbPattern4", pattern_type: "suffix", pattern: "ise", confidence: 0.9, examples: ["Advise", "Supervise", "Exercise", "Comprise"]
+    fixture "VerbPattern5", pattern_type: "suffix", pattern: "mit", confidence: 0.85, examples: ["Submit", "Commit", "Transmit", "Admit", "Permit"]
+    fixture "VerbPattern6", pattern_type: "suffix", pattern: "ect", confidence: 0.8, examples: ["Select", "Reject", "Connect", "Collect", "Direct"]
+    fixture "VerbPattern7", pattern_type: "suffix", pattern: "ude", confidence: 0.8, examples: ["Include", "Exclude", "Conclude"]
+    fixture "VerbPattern8", pattern_type: "suffix", pattern: "ose", confidence: 0.75, examples: ["Close", "Compose", "Expose", "Dispose"]
+    fixture "VerbPattern9", pattern_type: "suffix", pattern: "ive", confidence: 0.3, examples: ["Give", "Drive", "Forgive"]
+    fixture "VerbPattern10", pattern_type: "suffix", pattern: "uce", confidence: 0.8, examples: ["Produce", "Reduce", "Introduce"]
+    fixture "VerbPattern11", pattern_type: "suffix", pattern: "ure", confidence: 0.6, examples: ["Configure", "Capture", "Measure", "Ensure"]
+    fixture "VerbPattern12", pattern_type: "suffix", pattern: "end", confidence: 0.7, examples: ["Send", "Extend", "Blend", "Attend", "Suspend"]
+    fixture "VerbPattern13", pattern_type: "suffix", pattern: "ert", confidence: 0.7, examples: ["Alert", "Convert", "Insert", "Assert"]
+    fixture "VerbPattern14", pattern_type: "suffix", pattern: "ign", confidence: 0.8, examples: ["Assign", "Design", "Align", "Sign"]
+    fixture "VerbPattern15", pattern_type: "suffix", pattern: "ish", confidence: 0.7, examples: ["Finish", "Publish", "Establish", "Abolish"]
+    fixture "VerbPattern16", pattern_type: "suffix", pattern: "ock", confidence: 0.7, examples: ["Lock", "Block", "Stock", "Knock"]
+    fixture "VerbPattern17", pattern_type: "suffix", pattern: "nce", confidence: 0.4, examples: ["Announce", "Balance", "Advance", "Bounce"]
+    fixture "VerbPattern18", pattern_type: "suffix", pattern: "rge", confidence: 0.8, examples: ["Merge", "Charge", "Forge", "Purge"]
+    fixture "VerbPattern19", pattern_type: "suffix", pattern: "rn", confidence: 0.7, examples: ["Return", "Learn", "Turn", "Burn", "Earn"]
+    fixture "VerbPattern20", pattern_type: "suffix", pattern: "ve", confidence: 0.5, examples: ["Move", "Remove", "Approve", "Resolve", "Observe"]
+    fixture "VerbPattern21", pattern_type: "prefix", pattern: "Re", confidence: 0.7, examples: ["Rebuild", "Reopen", "Recall", "Recognize", "Remove"]
+    fixture "VerbPattern22", pattern_type: "prefix", pattern: "Un", confidence: 0.8, examples: ["Unload", "Unlock", "Undo", "Unlink"]
+    fixture "VerbPattern23", pattern_type: "prefix", pattern: "De", confidence: 0.6, examples: ["Delete", "Deploy", "Deliver", "Deactivate"]
+    fixture "VerbPattern24", pattern_type: "prefix", pattern: "Over", confidence: 0.7, examples: ["Override", "Overwrite", "Overlap"]
+    fixture "VerbPattern25", pattern_type: "prefix", pattern: "Out", confidence: 0.6, examples: ["Output", "Outline", "Outperform"]
+    fixture "VerbPattern26", pattern_type: "prefix", pattern: "Pre", confidence: 0.5, examples: ["Prepare", "Prevent", "Preview"]
+    fixture "VerbPattern27", pattern_type: "prefix", pattern: "Dis", confidence: 0.7, examples: ["Dispatch", "Disconnect", "Disable", "Discard"]
+    fixture "VerbPattern28", pattern_type: "exact", pattern: "Add", confidence: 1.0, examples: []
+    fixture "VerbPattern29", pattern_type: "exact", pattern: "Get", confidence: 1.0, examples: []
+    fixture "VerbPattern30", pattern_type: "exact", pattern: "Set", confidence: 1.0, examples: []
+    fixture "VerbPattern31", pattern_type: "exact", pattern: "Put", confidence: 1.0, examples: []
+    fixture "VerbPattern32", pattern_type: "exact", pattern: "Run", confidence: 1.0, examples: []
+    fixture "VerbPattern33", pattern_type: "exact", pattern: "Cut", confidence: 1.0, examples: []
+    fixture "VerbPattern34", pattern_type: "exact", pattern: "Let", confidence: 1.0, examples: []
+    fixture "VerbPattern35", pattern_type: "exact", pattern: "Try", confidence: 1.0, examples: []
+    fixture "VerbPattern36", pattern_type: "exact", pattern: "Ask", confidence: 1.0, examples: []
+    fixture "VerbPattern37", pattern_type: "exact", pattern: "Use", confidence: 1.0, examples: []
+    fixture "VerbPattern38", pattern_type: "exact", pattern: "Log", confidence: 1.0, examples: []
+    fixture "VerbPattern39", pattern_type: "exact", pattern: "Map", confidence: 1.0, examples: []
+    fixture "VerbPattern40", pattern_type: "exact", pattern: "Tag", confidence: 1.0, examples: []
+    fixture "VerbPattern41", pattern_type: "exact", pattern: "Ban", confidence: 1.0, examples: []
+    fixture "VerbPattern42", pattern_type: "exact", pattern: "Pin", confidence: 1.0, examples: []
+    fixture "VerbPattern43", pattern_type: "exact", pattern: "Link", confidence: 1.0, examples: []
+    fixture "VerbPattern44", pattern_type: "exact", pattern: "Load", confidence: 1.0, examples: []
+    fixture "VerbPattern45", pattern_type: "exact", pattern: "Save", confidence: 1.0, examples: []
+    fixture "VerbPattern46", pattern_type: "exact", pattern: "Read", confidence: 1.0, examples: []
+    fixture "VerbPattern47", pattern_type: "exact", pattern: "Show", confidence: 1.0, examples: []
+    fixture "VerbPattern48", pattern_type: "exact", pattern: "Hide", confidence: 1.0, examples: []
+    fixture "VerbPattern49", pattern_type: "exact", pattern: "Find", confidence: 1.0, examples: []
+    fixture "VerbPattern50", pattern_type: "exact", pattern: "Sort", confidence: 1.0, examples: []
+    fixture "VerbPattern51", pattern_type: "exact", pattern: "Edit", confidence: 1.0, examples: []
+    fixture "VerbPattern52", pattern_type: "exact", pattern: "Mark", confidence: 1.0, examples: []
+    fixture "VerbPattern53", pattern_type: "exact", pattern: "Pick", confidence: 1.0, examples: []
+    fixture "VerbPattern54", pattern_type: "exact", pattern: "Drop", confidence: 1.0, examples: []
+    fixture "VerbPattern55", pattern_type: "exact", pattern: "Grab", confidence: 1.0, examples: []
+    fixture "VerbPattern56", pattern_type: "exact", pattern: "Scan", confidence: 1.0, examples: []
+    fixture "VerbPattern57", pattern_type: "exact", pattern: "Seed", confidence: 1.0, examples: []
+    fixture "VerbPattern58", pattern_type: "exact", pattern: "Sync", confidence: 1.0, examples: []
+    fixture "VerbPattern59", pattern_type: "exact", pattern: "Halt", confidence: 1.0, examples: []
+    fixture "VerbPattern60", pattern_type: "exact", pattern: "Kill", confidence: 1.0, examples: []
+    fixture "VerbPattern61", pattern_type: "exact", pattern: "Wake", confidence: 1.0, examples: []
+    fixture "VerbPattern62", pattern_type: "exact", pattern: "Beat", confidence: 1.0, examples: []
+    fixture "VerbPattern63", pattern_type: "exact", pattern: "Muse", confidence: 1.0, examples: []
+    fixture "VerbPattern64", pattern_type: "exact", pattern: "Shed", confidence: 1.0, examples: []
+    fixture "VerbPattern65", pattern_type: "exact", pattern: "Steer", confidence: 1.0, examples: []
+    fixture "VerbPattern66", pattern_type: "exact", pattern: "Think", confidence: 1.0, examples: []
+    fixture "VerbPattern67", pattern_type: "exact", pattern: "Sense", confidence: 1.0, examples: []
+    fixture "VerbPattern68", pattern_type: "exact", pattern: "Feel", confidence: 1.0, examples: []
+    fixture "VerbPattern69", pattern_type: "exact", pattern: "Graft", confidence: 1.0, examples: []
+    fixture "VerbPattern70", pattern_type: "exact", pattern: "Sever", confidence: 1.0, examples: []
+    fixture "VerbPattern71", pattern_type: "exact", pattern: "Start", confidence: 1.0, examples: []
+    fixture "VerbPattern72", pattern_type: "exact", pattern: "Stop", confidence: 1.0, examples: []
+    fixture "VerbPattern73", pattern_type: "exact", pattern: "Open", confidence: 1.0, examples: []
+    fixture "VerbPattern74", pattern_type: "exact", pattern: "Shut", confidence: 1.0, examples: []
+    fixture "VerbPattern75", pattern_type: "exact", pattern: "Move", confidence: 1.0, examples: []
+    fixture "VerbPattern76", pattern_type: "exact", pattern: "Send", confidence: 1.0, examples: []
+    fixture "VerbPattern77", pattern_type: "exact", pattern: "Emit", confidence: 1.0, examples: []
+    fixture "VerbPattern78", pattern_type: "exact", pattern: "Wire", confidence: 1.0, examples: []
+    fixture "VerbPattern79", pattern_type: "exact", pattern: "Boot", confidence: 1.0, examples: []
+    fixture "VerbPattern80", pattern_type: "exact", pattern: "Drain", confidence: 1.0, examples: []
+    fixture "VerbPattern81", pattern_type: "exact", pattern: "Prune", confidence: 1.0, examples: []
+    fixture "VerbPattern82", pattern_type: "exact", pattern: "Dream", confidence: 1.0, examples: []
+    fixture "VerbPattern83", pattern_type: "exact", pattern: "Sleep", confidence: 1.0, examples: []
+    fixture "VerbPattern84", pattern_type: "exact", pattern: "Greet", confidence: 1.0, examples: []
+    fixture "VerbPattern85", pattern_type: "exact", pattern: "Place", confidence: 1.0, examples: []
+    fixture "VerbPattern86", pattern_type: "exact", pattern: "Pause", confidence: 1.0, examples: []
+    fixture "VerbPattern87", pattern_type: "exact", pattern: "Cancel", confidence: 1.0, examples: []
+    fixture "VerbPattern88", pattern_type: "exact", pattern: "Silence", confidence: 1.0, examples: []
+    fixture "VerbPattern89", pattern_type: "compound", pattern: "Become", confidence: 0.9, examples: ["BecomeLucid", "BecomeAttentive"]
+    fixture "VerbPattern90", pattern_type: "compound", pattern: "Forget", confidence: 0.9, examples: ["ForgetMemory"]
+    fixture "VerbPattern91", pattern_type: "compound", pattern: "Highlight", confidence: 0.9, examples: ["HighlightDomain"]
+  end
+  aggregate "NonVerbPattern" do
+    fixture "NonVerbPattern1", pattern_type: "suffix", pattern: "tion", indicates: "noun"
+    fixture "NonVerbPattern2", pattern_type: "suffix", pattern: "sion", indicates: "noun"
+    fixture "NonVerbPattern3", pattern_type: "suffix", pattern: "ment", indicates: "noun"
+    fixture "NonVerbPattern4", pattern_type: "suffix", pattern: "ness", indicates: "noun"
+    fixture "NonVerbPattern5", pattern_type: "suffix", pattern: "ity", indicates: "noun"
+    fixture "NonVerbPattern6", pattern_type: "suffix", pattern: "ence", indicates: "noun"
+    fixture "NonVerbPattern7", pattern_type: "suffix", pattern: "ance", indicates: "noun"
+    fixture "NonVerbPattern8", pattern_type: "suffix", pattern: "able", indicates: "adjective"
+    fixture "NonVerbPattern9", pattern_type: "suffix", pattern: "ible", indicates: "adjective"
+    fixture "NonVerbPattern10", pattern_type: "suffix", pattern: "ous", indicates: "adjective"
+    fixture "NonVerbPattern11", pattern_type: "suffix", pattern: "ful", indicates: "adjective"
+    fixture "NonVerbPattern12", pattern_type: "suffix", pattern: "less", indicates: "adjective"
+    fixture "NonVerbPattern13", pattern_type: "suffix", pattern: "ing", indicates: "adjective"
+    fixture "NonVerbPattern14", pattern_type: "suffix", pattern: "er", indicates: "noun"
+    fixture "NonVerbPattern15", pattern_type: "suffix", pattern: "or", indicates: "noun"
+    fixture "NonVerbPattern16", pattern_type: "suffix", pattern: "ist", indicates: "noun"
+  end
+end

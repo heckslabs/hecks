@@ -190,11 +190,4 @@ Hecks.bluebook "ComputationalPresence", version: "2026.04.16.1" do
     trigger "StreakTick"
   end
 
-  fixture "Moment", label: "breath at the nostrils", quality: "deepened", clarity: 0.85, body_state: "still"
-  fixture "Moment", label: "sound of rain on glass", quality: "fresh", clarity: 0.6, body_state: "relaxed"
-  fixture "AttentionField", primary_focus: "rising of the abdomen", breadth: 2, stability: 0.78, mode: "concentrated"
-  fixture "Distraction", trigger: "unfinished task", category: "planning", pull_strength: 0.7, status: "released"
-  fixture "Distraction", trigger: "itch on left knee", category: "bodily", pull_strength: 0.3, status: "investigated"
-  fixture "PresenceScore", score: 0.82, streak_minutes: 14, assessment: "settled and clear"
-  fixture "Anchor", name: "breath", sense_door: "body", instruction: "rest where the breath is vivid", effectiveness: 0.88
 end

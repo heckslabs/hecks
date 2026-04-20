@@ -71,8 +71,6 @@ Hecks.bluebook "Voice", version: "2026.04.11.1" do
     end
   end
 
-  fixture "Speaker", voice: "en-US-AriaNeural", rate: "+20%", engine: "edge-tts"
-
   aggregate "Conversation", "A voice conversation session — turns of listening and speaking" do
     Integer :turn_count
     String :status

@@ -101,9 +101,4 @@ Hecks.bluebook "Inbox", version: "2026.04.11.1" do
     trigger "Tally"
   end
 
-  fixture "Message", body: "Review new domain design for Autumn", priority: "high", posted_at: "2026-04-14T09:15:00Z", status: "queued"
-  fixture "Message", body: "Merge PR #42 when CI passes", priority: "medium", posted_at: "2026-04-14T08:30:00Z", status: "acknowledged"
-
-  fixture "Inbox", queued_count: 3, oldest_priority: "high"
-  fixture "Inbox", queued_count: 0, oldest_priority: "none"
 end

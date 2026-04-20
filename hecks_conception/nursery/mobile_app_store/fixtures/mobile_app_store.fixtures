@@ -1,0 +1,22 @@
+Hecks.fixtures "MobileAppStore" do
+  aggregate "App" do
+    fixture "FitTrack_Pro_", bundle_id: "com.fitness.tracker", title: "FitTrack Pro", developer_name: "ActiveWorks Ltd", category: "Health & Fitness", price: 9.99, current_version: "2.3.1", status: "published"
+    fixture "PhotoGlow_", bundle_id: "com.photo.enhance", title: "PhotoGlow", developer_name: "Pixel Masters", category: "Photography", price: 4.99, current_version: "1.8.0", status: "published"
+  end
+  aggregate "Review" do
+    fixture "Review1", review_id: "rev-001", author_name: "Alice Chen", rating: 5, comment: "Best fitness app I've used", status: "published", reference_to: "com.fitness.tracker"
+    fixture "Review2", review_id: "rev-002", author_name: "Bob Smith", rating: 3, comment: "Works but crashes sometimes", status: "published", reference_to: "com.fitness.tracker"
+  end
+  aggregate "Download" do
+    fixture "Download1", download_id: "dl-1001", user_id: "user-4521", device_type: "iPhone 15", os_version: "17.4.1", status: "active", reference_to: "com.fitness.tracker"
+    fixture "Download2", download_id: "dl-1002", user_id: "user-5834", device_type: "iPad Pro", os_version: "17.3", status: "active", reference_to: "com.photo.enhance"
+  end
+  aggregate "AppUpdate" do
+    fixture "AppUpdate1", update_id: "upd-201", version_number: "2.4.0", release_notes: "Fixed workout sync, added Apple Watch support", size_mb: 45, status: "approved", reference_to: "com.fitness.tracker"
+    fixture "AppUpdate2", update_id: "upd-202", version_number: "1.9.0", release_notes: "Performance improvements and UI refresh", size_mb: 32, status: "pending", reference_to: "com.photo.enhance"
+  end
+  aggregate "RevenueSplit" do
+    fixture "RevenueSplit1", split_id: "split-q1-2026-ft", gross_amount: 4250.50, store_share: 1062.63, developer_share: 3187.87, period: "2026-Q1", status: "disbursed", reference_to: "com.fitness.tracker"
+    fixture "RevenueSplit2", split_id: "split-q1-2026-pg", gross_amount: 1895.25, store_share: 473.81, developer_share: 1421.44, period: "2026-Q1", status: "calculated", reference_to: "com.photo.enhance"
+  end
+end

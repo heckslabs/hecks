@@ -1,0 +1,18 @@
+Hecks.fixtures "Astronomy" do
+  aggregate "CelestialBody" do
+    fixture "CelestialBody1", designation: "M31", body_type: "galaxy", right_ascension: 0.713, declination: 41.27, apparent_magnitude: 3.4
+    fixture "CelestialBody2", designation: "Betelgeuse", body_type: "star", right_ascension: 5.919, declination: 7.407, apparent_magnitude: 0.5
+  end
+  aggregate "Observation" do
+    fixture "Observation1", observer_name: "Dr. Alice Okonkwo", timestamp: "2026-04-12T22:30:00Z", seeing_conditions: "fair", measured_magnitude: 3.42
+    fixture "Observation2", observer_name: "Dr. Michael Torres", timestamp: "2026-04-13T23:15:00Z", seeing_conditions: "excellent", measured_magnitude: 0.48
+  end
+  aggregate "Telescope" do
+    fixture "Dobsonian_12in_", name: "Dobsonian 12in", aperture_mm: 305.0, focal_length_mm: 1500.0, mount_type: "alt_azimuth"
+    fixture "Refractor_80mm_", name: "Refractor 80mm", aperture_mm: 80.0, focal_length_mm: 900.0, mount_type: "equatorial"
+  end
+  aggregate "Catalog" do
+    fixture "Messier_Catalog_", name: "Messier Catalog", authority: "Charles Messier", entry_count: 110
+    fixture "New_General_Catalog_", name: "New General Catalog", authority: "J.L.E. Dreyer", entry_count: 7840
+  end
+end

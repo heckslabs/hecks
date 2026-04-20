@@ -1,0 +1,16 @@
+Hecks.fixtures "FormulationLab" do
+  aggregate "LabTest" do
+    fixture "LabTest1", formula_codename: "EXP-2026-001", test_method: "ASTM D4172 Four-Ball Wear", specification: "Wear scar diameter < 0.45mm at 40kg/1200rpm/75C/60min"
+    fixture "LabTest2", formula_codename: "EXP-2026-001", test_method: "ASTM D2270 Viscosity Index", specification: "VI > 140"
+    fixture "LabTest3", formula_codename: "EXP-2026-001", test_method: "ASTM D97 Pour Point", specification: "Pour point < -35C"
+    fixture "LabTest4", formula_codename: "EXP-2026-001", test_method: "ASTM D92 Cleveland Open Cup Flash Point", specification: "Flash point > 220C"
+    fixture "LabTest5", formula_codename: "EXP-2026-001", test_method: "ASTM D2896 Total Base Number", specification: "TBN > 8.0 mgKOH/g"
+  end
+  aggregate "CompetitiveIntelligence" do
+    fixture "CompetitiveIntelligence1", competitor: "Lucas Oil", product_name: "Lucas Heavy Duty Oil Stabilizer", claimed_technology: "Petroleum-based anti-wear additive", price_point: "$12.99/qt", distribution_channels: "Auto parts retail, Walmart, Amazon"
+    fixture "CompetitiveIntelligence2", competitor: "Royal Purple", product_name: "Royal Purple Max-Boost", claimed_technology: "Synerlec additive technology", price_point: "$18.99/qt", distribution_channels: "Specialty auto, O'Reilly, Amazon"
+    fixture "CompetitiveIntelligence3", competitor: "Liqui Moly", product_name: "Liqui Moly MoS2 Anti-Friction", claimed_technology: "Molybdenum disulfide solid lubricant", price_point: "$15.99/300ml", distribution_channels: "European import, specialty, Amazon"
+    fixture "CompetitiveIntelligence4", competitor: "Sea Foam", product_name: "Sea Foam Motor Treatment", claimed_technology: "Petroleum-based carbon cleaner and stabilizer", price_point: "$9.99/16oz", distribution_channels: "Mass retail, auto parts, hardware stores"
+    fixture "CompetitiveIntelligence5", competitor: "Marvel Mystery Oil", product_name: "Marvel Mystery Oil", claimed_technology: "Mineral oil-based top cylinder lubricant", price_point: "$7.99/qt", distribution_channels: "Auto parts retail, Walmart, hardware stores"
+  end
+end

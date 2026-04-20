@@ -70,15 +70,6 @@ Hecks.bluebook "Transparency", version: "2026.04.16.1" do
   end
 
   # Default narration rules
-  fixture "NarrationRule", act: "conceiving",  template: "conceiving {subject}",  trigger_event: "DomainConceived",  always: true
-  fixture "NarrationRule", act: "remembering", template: "remembering {subject}", trigger_event: "MemoryRecalled",   always: true
-  fixture "NarrationRule", act: "encoding",    template: "encoding {subject}",    trigger_event: "MemoryEncoded",    always: true
-  fixture "NarrationRule", act: "forgetting",  template: "forgetting {subject}",  trigger_event: "MemoryForgotten",  always: true
-  fixture "NarrationRule", act: "dreaming",    template: "dreaming {subject}",    trigger_event: "DreamAccumulated", always: false
-  fixture "NarrationRule", act: "sleeping",    template: "sleeping",              trigger_event: "SleepEntered",     always: true
-  fixture "NarrationRule", act: "waking",      template: "waking up",             trigger_event: "WokenUp",          always: true
-  fixture "NarrationRule", act: "grooming",    template: "grooming {subject}",    trigger_event: "GroomingStarted",  always: true
-  fixture "NarrationRule", act: "interpreting", template: "interpreting {subject}", trigger_event: "InterpretationSynthesized", always: true
 
   # Silence non-essential narrations during sleep
   policy "SuppressDuringSleep" do

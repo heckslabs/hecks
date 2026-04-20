@@ -1,0 +1,18 @@
+Hecks.fixtures "MentorEvents" do
+  aggregate "MentorMatch" do
+    fixture "MentorMatch1", match_id: "MM-2026-001", mentor_name: "Alex Chen", mentee_name: "Destiny Williams", focus_area: "STEM", start_date: "2026-03-15", status: "active"
+    fixture "MentorMatch2", match_id: "MM-2026-002", mentor_name: "Sarah Thompson", mentee_name: "Miguel Rodriguez", focus_area: "Leadership", start_date: "2026-03-20", status: "active"
+  end
+  aggregate "GroupEvent" do
+    fixture "GroupEvent1", event_id: "GE-2026-001", event_name: "Spring STEM Workshop", venue: "Lincoln Community Center", date: "2026-04-22", capacity: 30, status: "planned"
+    fixture "GroupEvent2", event_id: "GE-2026-002", event_name: "Leadership Roundtable", venue: "Downtown Library", date: "2026-05-10", capacity: 25, status: "planned"
+  end
+  aggregate "AttendanceRecord" do
+    fixture "AttendanceRecord1", attendance_id: "AR-2026-001", event_id: "GE-2026-001", participant_name: "Destiny Williams", role_type: "mentee", check_in_time: "2026-04-22T09:15:00Z"
+    fixture "AttendanceRecord2", attendance_id: "AR-2026-002", event_id: "GE-2026-001", participant_name: "Alex Chen", role_type: "mentor", check_in_time: "2026-04-22T09:00:00Z"
+  end
+  aggregate "ImpactReport" do
+    fixture "ImpactReport1", report_id: "IR-2026-001", match_id: "MM-2026-001", academic_improvement: 0.87, confidence_score: 0.92, period: "Q1 2026", status: "measured"
+    fixture "ImpactReport2", report_id: "IR-2026-002", match_id: "MM-2026-002", academic_improvement: 0.79, confidence_score: 0.85, period: "Q1 2026", status: "measured"
+  end
+end

@@ -584,9 +584,4 @@ Hecks.bluebook "RegulatoryCompliance", version: "2026.04.11.1" do
 
   # --- Fixtures ---
 
-  fixture "Jurisdiction", name: "EPA", authority: "Environmental Protection Agency", region: "Federal", regulations: [], status: "active"
-  fixture "Jurisdiction", name: "California OEHHA", authority: "Office of Environmental Health Hazard Assessment", region: "California", regulations: [], status: "active"
-  fixture "Jurisdiction", name: "California CARB", authority: "California Air Resources Board", region: "California", regulations: [], status: "active"
-  fixture "Jurisdiction", name: "DOT", authority: "Department of Transportation", region: "Federal", regulations: [], status: "active"
-  fixture "Jurisdiction", name: "California DCC", authority: "Department of Cannabis Control", region: "California", regulations: [], status: "active"
 end

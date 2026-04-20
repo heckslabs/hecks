@@ -1,0 +1,22 @@
+Hecks.fixtures "Calligraphy" do
+  aggregate "CalligraphyCommission" do
+    fixture "CalligraphyCommission1", client_name: "David Zhang", text_content: "Forever in our hearts", purpose: "Memorial service program", status: "quoted", deadline: "2026-05-10", price: 250.0
+    fixture "CalligraphyCommission2", client_name: "Victoria Parks", text_content: "Love and Forever", purpose: "Wedding invitation suite", status: "accepted", deadline: "2026-06-01", price: 475.0
+  end
+  aggregate "Script" do
+    fixture "Italic_", name: "Italic", historical_period: "Medieval", tool_type: "Broad nib", x_height_mm: 5.0, nib_angle_degrees: 45.0
+    fixture "Copperplate_", name: "Copperplate", historical_period: "18th Century", tool_type: "Pointed nib", x_height_mm: 4.5, nib_angle_degrees: 55.0
+  end
+  aggregate "InkFormulation" do
+    fixture "Midnight_Blue_", name: "Midnight Blue", color: "blue", base_type: "walnut", viscosity: 2.5, status: "formulated"
+    fixture "Gold_Leaf_Ink_", name: "Gold Leaf Ink", color: "gold", base_type: "gum arabic", viscosity: 1.8, status: "formulated"
+  end
+  aggregate "PaperSelection" do
+    fixture "Arches_Hot_Pressed_", name: "Arches Hot Pressed", finish: "smooth", gsm: 300, fiber_content: "100% cotton rag", status: "stocked"
+    fixture "Saunders_Waterford_", name: "Saunders Waterford", finish: "cold pressed", gsm: 425, fiber_content: "100% cotton", status: "stocked"
+  end
+  aggregate "Portfolio" do
+    fixture "Formal_Occasions_", title: "Formal Occasions", theme: "Wedding & Event Design", piece_count: 12, status: "curating"
+    fixture "Timeless_Scripts_", title: "Timeless Scripts", theme: "Historical Calligraphy", piece_count: 18, status: "published"
+  end
+end

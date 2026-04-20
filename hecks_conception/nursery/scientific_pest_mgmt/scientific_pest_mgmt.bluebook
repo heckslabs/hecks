@@ -297,18 +297,4 @@ Hecks.bluebook "ScientificPestMgmt", version: "2026.04.13.1" do
     trigger "RecommendRotation"
   end
 
-  fixture "PestSpecies", scientific_name: "Blattella germanica", common_name: "German Cockroach", order: "Blattodea", family: "Blattellidae", life_cycle_days: 40, habitat_preference: "warm moist", status: "documented"
-  fixture "PestSpecies", scientific_name: "Acrobasis nuxvorella", common_name: "Black Walnut Husk Fly", order: "Lepidoptera", family: "Tortricidae", life_cycle_days: 35, habitat_preference: "tree canopy", status: "identified"
-
-  fixture "Infestation", site_address: "123 Industrial Blvd, Chicago IL", pest_species: "German Cockroach", severity: "high", estimated_population: 5000, affected_area: "storage_area", status: "assessed"
-  fixture "Infestation", site_address: "456 Walnut Farm, Oregon", pest_species: "Black Walnut Husk Fly", severity: "medium", estimated_population: 2000, affected_area: "orchard", status: "reported"
-
-  fixture "Treatment", treatment_name: "Neem Oil Spray", method: "spray", active_ingredient: "azadirachtin", concentration_pct: 3.0, target_life_stage: "nymph", effectiveness_pct: 78.0, status: "evaluated"
-  fixture "Treatment", treatment_name: "Spinosad Dust", method: "dust", active_ingredient: "spinosad", concentration_pct: 2.0, target_life_stage: "adult", effectiveness_pct: 85.0, status: "applied"
-
-  fixture "ResistanceProfile", pest_species: "German Cockroach", active_ingredient: "pyrethroids", resistance_mechanism: "target_site_mutation", resistance_level_pct: 45.0, first_detected: "2024-06-15", status: "rotation_advised"
-  fixture "ResistanceProfile", pest_species: "German Cockroach", active_ingredient: "organophosphates", resistance_mechanism: "metabolic_enzyme", resistance_level_pct: 62.0, first_detected: "2023-11-20", status: "recorded"
-
-  fixture "IPMPlan", site_address: "123 Industrial Blvd, Chicago IL", target_pest: "German Cockroach", prevention_measures: "Seal cracks, Remove food sources, Reduce humidity", monitoring_method: "Monthly trapping", intervention_tier: "monitoring", status: "active"
-  fixture "IPMPlan", site_address: "456 Walnut Farm, Oregon", target_pest: "Black Walnut Husk Fly", prevention_measures: "Remove dropped fruit, Prune damaged limbs", monitoring_method: "Weekly visual inspection", intervention_tier: "prevention", status: "active"
 end

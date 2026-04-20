@@ -279,7 +279,4 @@ Hecks.bluebook "DLMState", version: "2026.04.11.1" do
 
   # === Fixtures ===
 
-  fixture "GrowthTracker", total_sessions: 0, total_domains: 0, total_aggregates: 0, total_commands: 0, corpus_size_at_birth: 0, corpus_size_now: 0, acceleration_rate: 0.0
-  fixture "HonestyTracker", total_operations: 0, corpus_backed: 0, refusals: 0, honesty_rate: 1.0
-  fixture "SynapseHistory", total_formed: 0, total_potentiated: 0, total_pruned: 0, strongest_topic: "none", weakest_topic: "none"
 end

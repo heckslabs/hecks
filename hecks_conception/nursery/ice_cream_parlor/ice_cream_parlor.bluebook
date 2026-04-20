@@ -216,18 +216,4 @@ Hecks.bluebook "IceCreamParlor", version: "2026.04.13.1" do
     trigger "RetireFlavor"
   end
 
-  fixture "Flavor", flavor_id: "FLV-001", name: "Salted Caramel Swirl", base: "vanilla", description: "Rich vanilla with ribbons of caramel and sea salt", dairy_free: "false", available: "true"
-  fixture "Flavor", flavor_id: "FLV-002", name: "Vegan Chocolate", base: "coconut_milk", description: "Smooth dairy-free chocolate made with coconut cream", dairy_free: "true", available: "true"
-
-  fixture "Batch", batch_id: "BTH-001", flavor_id: "FLV-001", volume_liters: 15.0, churned_date: "2026-04-14", expiration_date: "2026-05-14", status: "fresh"
-  fixture "Batch", batch_id: "BTH-002", flavor_id: "FLV-002", volume_liters: 12.5, churned_date: "2026-04-13", expiration_date: "2026-05-13", status: "fresh"
-
-  fixture "Topping", topping_id: "TOP-001", name: "Crushed Oreos", category: "cookie", price_per_serving: 0.75, quantity_on_hand: 48
-  fixture "Topping", topping_id: "TOP-002", name: "Hot Fudge", category: "sauce", price_per_serving: 0.50, quantity_on_hand: 120
-
-  fixture "Serving", serving_id: "SRV-001", cone_type: "sugar_cone", scoops: 2, total_price: 7.50, status: "prepared"
-  fixture "Serving", serving_id: "SRV-002", cone_type: "waffle_cone", scoops: 3, total_price: 9.99, status: "prepared"
-
-  fixture "DailySpecial", special_id: "SPEC-2026-04-14", flavor_id: "FLV-001", promotion_text: "Salted Caramel Monday - 25% off!", discount_percent: 25.0, date: "2026-04-14"
-  fixture "DailySpecial", special_id: "SPEC-2026-04-15", flavor_id: "FLV-002", promotion_text: "Vegan Tuesday - Buy one get one free!", discount_percent: 50.0, date: "2026-04-15"
 end

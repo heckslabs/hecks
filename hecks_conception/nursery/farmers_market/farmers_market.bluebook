@@ -233,18 +233,4 @@ Hecks.bluebook "FarmersMarket", version: "2026.04.13.1" do
     trigger "VacateStall"
   end
 
-  fixture "Vendor", vendor_id: "V-001", farm_name: "Sunrise Farms", contact_name: "Tom Anderson", contact_phone: "555-0102", product_type: "vegetables", status: "active"
-  fixture "Vendor", vendor_id: "V-002", farm_name: "Orchard Ridge", contact_name: "Emma Thompson", contact_phone: "555-0103", product_type: "fruits", status: "active"
-
-  fixture "Stall", stall_id: "S-A1", location: "North row, position 1", size: "10x10", weekly_fee: 50.0, assigned_vendor_id: "V-001", status: "occupied"
-  fixture "Stall", stall_id: "S-B3", location: "South row, position 3", size: "12x12", weekly_fee: 75.0, assigned_vendor_id: "V-002", status: "vacant"
-
-  fixture "MarketPermit", permit_id: "MP-V001-2026", vendor_id: "V-001", permit_type: "produce sales", issue_date: "2026-04-01", expiration_date: "2026-10-31", status: "valid"
-  fixture "MarketPermit", permit_id: "MP-V002-2026", vendor_id: "V-002", permit_type: "produce sales", issue_date: "2026-04-01", expiration_date: "2026-10-31", status: "valid"
-
-  fixture "Inspection", inspection_id: "INS-001", vendor_id: "V-001", inspector_name: "Dr. Patricia Allen", inspection_date: "2026-04-07", result: "pass"
-  fixture "Inspection", inspection_id: "INS-002", vendor_id: "V-002", inspector_name: "Dr. Michael Rodriguez", inspection_date: "2026-04-08", result: "warning"
-
-  fixture "MarketSeason", season_id: "MS-2026-S", name: "Spring 2026", start_date: "2026-04-01", end_date: "2026-05-31", status: "open"
-  fixture "MarketSeason", season_id: "MS-2026-F", name: "Fall 2026", start_date: "2026-08-15", end_date: "2026-11-30", status: "open"
 end

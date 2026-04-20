@@ -275,18 +275,4 @@ Hecks.bluebook "VeteranServices" do
     trigger "ConductSession"
   end
 
-  fixture "Veteran", name: "James Martinez", service_branch: "Army", discharge_status: "Honorable", service_dates: "2010-2015", disability_rating: "30%", status: "active"
-  fixture "Veteran", name: "Sarah Johnson", service_branch: "Navy", discharge_status: "Honorable", service_dates: "2012-2018", disability_rating: "10%", status: "active"
-
-  fixture "BenefitClaim", veteran_name: "James Martinez", benefit_type: "Disability", filing_date: "2026-03-15", description: "Service-connected disability", status: "filed"
-  fixture "BenefitClaim", veteran_name: "James Martinez", benefit_type: "Education", filing_date: "2026-04-01", description: "GI Bill enrollment", status: "approved"
-
-  fixture "VeteranCounselor", name: "Dr. Lisa Chen", specialty: "PTSD Treatment", license_number: "PSY-2024-441", caseload: 12, status: "active"
-  fixture "VeteranCounselor", name: "Robert Wilson", specialty: "Career Counseling", license_number: "COUN-2023-889", caseload: 8, status: "active"
-
-  fixture "ServiceProgram", program_name: "Transition Assistance", program_type: "Career", eligibility_criteria: "Recently separated", capacity: 50, enrolled_count: 32, status: "active"
-  fixture "ServiceProgram", program_name: "Mental Health Support", program_type: "Counseling", eligibility_criteria: "All veterans", capacity: 100, enrolled_count: 67, status: "active"
-
-  fixture "CrisisIntervention", veteran_name: "James Martinez", crisis_type: "Suicidal Ideation", reported_date: "2026-04-10", responder_name: "Officer Kevin Brown", resolution: "Hospitalization arranged", status: "resolved"
-  fixture "CrisisIntervention", veteran_name: "Sarah Johnson", crisis_type: "Substance Abuse", reported_date: "2026-04-08", responder_name: "Counselor Elena Rodriguez", resolution: "Enrolled in rehab", status: "resolved"
 end

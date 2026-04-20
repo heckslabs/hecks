@@ -364,21 +364,4 @@ Hecks.bluebook "CraftBeverageLab", version: "2026.04.13.1" do
     trigger "ConveneSensoryPanel"
   end
 
-  fixture "Experiment", title: "IPA Hop Integration", experiment_type: "fermentation", hypothesis: "Dry-hopping at 60F produces brighter citrus notes", status: "designed", conclusion: ""
-  fixture "Experiment", title: "Ethiopian Yirgacheffe Profile", experiment_type: "roasting", hypothesis: "Light roast at 195C highlights floral undertones", status: "running", conclusion: ""
-
-  fixture "YeastCulture", strain_name: "WLP566", species: "Saccharomyces cerevisiae", viability_percent: 100.0, optimal_temperature: 18.0, status: "active"
-  fixture "YeastCulture", strain_name: "Belle Saison", species: "Saccharomyces cerevisiae", viability_percent: 95.0, optimal_temperature: 22.0, status: "dormant"
-
-  fixture "RoastProfile", bean_origin: "Kenya Nyeri", roast_level: "medium", charge_temperature: 200.0, drop_temperature: 0.0, total_time_seconds: 0, status: "draft"
-  fixture "RoastProfile", bean_origin: "Brazil Santos", roast_level: "dark", charge_temperature: 205.0, drop_temperature: 204.0, total_time_seconds: 540, status: "profiled"
-
-  fixture "FlavorCompound", compound_name: "Limonene", chemical_family: "Terpene", concentration_ppm: 45.2, source: "fermentation", aroma_descriptor: "citrus, lemon"
-  fixture "FlavorCompound", compound_name: "Ethyl Acetate", chemical_family: "Ester", concentration_ppm: 12.7, source: "roasting", aroma_descriptor: "fruity, apple"
-
-  fixture "SensoryPanel", panel_name: "Regional Judges 2024", panelist_count: 5, status: "convened"
-  fixture "SensoryPanel", panel_name: "Blind Cupping Q2", panelist_count: 8, status: "pending"
-
-  fixture "LabEquipment", name: "Conical Fermenter 50L", equipment_type: "fermenter", status: "available", last_calibration: "2024-01-10"
-  fixture "LabEquipment", name: "Bullet Roaster 1kg", equipment_type: "roaster", status: "reserved", last_calibration: "2024-01-08"
 end

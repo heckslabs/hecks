@@ -1,0 +1,22 @@
+Hecks.fixtures "JewelryWorkshop" do
+  aggregate "JewelryPiece" do
+    fixture "Sapphire_Engagement_Ring_", name: "Sapphire Engagement Ring", piece_type: "ring", metal: "18k white gold", status: "finished", weight_grams: 4.2
+    fixture "Pearl_Pendant_", name: "Pearl Pendant", piece_type: "pendant", metal: "14k yellow gold", status: "designed", weight_grams: 2.8
+  end
+  aggregate "Gemstone" do
+    fixture "Gemstone1", stone_type: "sapphire", carat_weight: 1.5, cut: "cushion", clarity: "VS1", color_grade: "deep blue", status: "loose"
+    fixture "Gemstone2", stone_type: "diamond", carat_weight: 0.75, cut: "round brilliant", clarity: "VVS2", color_grade: "D", status: "certified"
+  end
+  aggregate "Setting" do
+    fixture "Setting1", setting_type: "solitaire prong", prong_count: "6", metal: "18k white gold", status: "set"
+    fixture "Setting2", setting_type: "three-stone", prong_count: "9", metal: "14k yellow gold", status: "prepared"
+  end
+  aggregate "Appraisal" do
+    fixture "Appraisal1", appraised_value: 4250.00, appraiser_name: "Sarah Mitchell", date: "2026-04-10", purpose: "insurance"
+    fixture "Appraisal2", appraised_value: 1800.50, appraiser_name: "James Chen", date: "2026-04-12", purpose: "sale"
+  end
+  aggregate "Commission" do
+    fixture "Commission1", client_name: "Rebecca Martinez", description: "Custom wedding band with scattered diamonds", quoted_price: 2500.00, status: "in_progress", deadline: "2026-05-15"
+    fixture "Commission2", client_name: "David Thompson", description: "Heirloom brooch restoration and redesign", quoted_price: 1200.00, status: "quoted", deadline: "2026-06-01"
+  end
+end

@@ -1,0 +1,18 @@
+Hecks.fixtures "GlassInstaller" do
+  aggregate "GlassOrder" do
+    fixture "GlassOrder1", customer_name: "Acme Corp Downtown Office", glass_type: "tempered clear", application: "storefront", quantity: 8, status: "confirmed"
+    fixture "GlassOrder2", customer_name: "Westfield Residence", glass_type: "double-pane low-e", application: "replacement windows", quantity: 6, status: "measured"
+  end
+  aggregate "FieldMeasurement" do
+    fixture "FieldMeasurement1", width_inches: 36.0, height_inches: 48.0, depth_inches: 1.125, opening_type: "standard rectangular", notes: "slight frame deviation on left side"
+    fixture "FieldMeasurement2", width_inches: 28.5, height_inches: 60.0, depth_inches: 1.0, opening_type: "tall narrow window", notes: "cosmetic frame damage, no impact on fit"
+  end
+  aggregate "Installation" do
+    fixture "Installation1", installer_name: "Marcus Rodriguez", install_date: "2026-04-20", sealant_type: "silicone polyurethane", status: "scheduled"
+    fixture "Installation2", installer_name: "Janet Wu", install_date: "2026-04-18", sealant_type: "polyurethane", status: "completed"
+  end
+  aggregate "GlassWarranty" do
+    fixture "GlassWarranty1", warranty_type: "comprehensive", duration_years: 5, coverage: "seal failure, defects, normal breakage"
+    fixture "GlassWarranty2", warranty_type: "standard", duration_years: 2, coverage: "manufacturing defects only"
+  end
+end

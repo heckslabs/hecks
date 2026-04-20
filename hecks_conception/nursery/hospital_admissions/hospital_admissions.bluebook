@@ -180,15 +180,4 @@ Hecks.bluebook "HospitalAdmissions", version: "2026.04.13.1" do
     trigger "ReleaseBed"
   end
 
-  fixture "Patient", name: "Susan O'Brien", date_of_birth: "1965-03-22", insurance_id: "BC123456789", emergency_contact: "Michael O'Brien 555-0171", chief_complaint: "Chest pain", triage_level: "2"
-  fixture "Patient", name: "David Kumar", date_of_birth: "1958-07-15", insurance_id: "UCSB987654321", emergency_contact: "Priya Kumar 555-0172", chief_complaint: "Severe headache", triage_level: "3"
-
-  fixture "Bed", ward: "ICU", room_number: "405", bed_type: "Critical care", status: "available", assigned_patient: ""
-  fixture "Bed", ward: "Med-Surg", room_number: "210B", bed_type: "Standard", status: "available", assigned_patient: ""
-
-  fixture "Diagnosis", patient_name: "Susan O'Brien", icd_code: "I10", description: "Essential hypertension", diagnosing_physician: "Dr. Robert Hayes", diagnosed_at: "2026-04-14"
-  fixture "Diagnosis", patient_name: "David Kumar", icd_code: "G89.29", description: "Other chronic pain", diagnosing_physician: "Dr. Angela Mitchell", diagnosed_at: "2026-04-14"
-
-  fixture "DischargeePlan", patient_name: "Susan O'Brien", discharge_date: "2026-04-17", status: "created"
-  fixture "DischargeePlan", patient_name: "David Kumar", discharge_date: "2026-04-16", status: "created"
 end

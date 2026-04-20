@@ -98,9 +98,4 @@ Hecks.bluebook "Bluebook", version: "2026.04.18.1" do
   # Mutation operation kinds — the only legal `op` values.
   # ============================================================
 
-  fixture "Mutation", field: "example", op: "set",       value: "<expression>"
-  fixture "Mutation", field: "example", op: "append",    value: "<element>"
-  fixture "Mutation", field: "example", op: "increment", value: "<delta>"
-  fixture "Mutation", field: "example", op: "decrement", value: "<delta>"
-  fixture "Mutation", field: "example", op: "toggle",    value: ""
 end

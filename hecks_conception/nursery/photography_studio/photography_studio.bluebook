@@ -198,18 +198,4 @@ Hecks.bluebook "PhotographyStudio" do
     trigger "UpgradeTier"
   end
 
-  fixture "Client", name: "Emily Rodriguez", email: "emily@example.com", phone: "555-2847", tier: "bronze"
-  fixture "Client", name: "David Chen", email: "david@example.com", phone: "555-9103", tier: "platinum"
-
-  fixture "Shoot", title: "Family Reunion - Central Park", location: "Central Park, NYC", shoot_type: "family", status: "scheduled", frame_count: 0, reference_to: "emily@example.com"
-  fixture "Shoot", title: "Wedding Day Ceremony & Reception", location: "Riverside Manor, Boston", shoot_type: "wedding", status: "wrapped", frame_count: 1247, reference_to: "david@example.com"
-
-  fixture "EditSession", status: "pending", selects_count: 0, finals_count: 0, reference_to: "family-reunion-shoot"
-  fixture "EditSession", status: "delivered", selects_count: 450, finals_count: 187, reference_to: "wedding-ceremony-shoot"
-
-  fixture "Gallery", title: "Family Reunion Proofs", access_code: "FAM2026X7", status: "draft", image_count: 0, reference_to: "emily@example.com"
-  fixture "Gallery", title: "Chen-Martinez Wedding Album", access_code: "CHE2026MX", status: "published", image_count: 187, reference_to: "david@example.com"
-
-  fixture "PrintOrder", paper_stock: "Lustre", finish: "matte", quantity: 50, status: "pending", reference_to: "FAM2026X7"
-  fixture "PrintOrder", paper_stock: "Fine Art", finish: "glossy", quantity: 100, status: "fulfilled", reference_to: "CHE2026MX"
 end

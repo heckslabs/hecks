@@ -261,18 +261,4 @@ Hecks.bluebook "GolfCourse", version: "2026.04.13.1" do
     trigger "AwardPrizes"
   end
 
-  fixture "TeeTime", booking_id: "TT-001", player_name: "Alice Chen", date: "2026-04-20", time: "08:00", group_size: 4, green_fee: 85.0, status: "booked"
-  fixture "TeeTime", booking_id: "TT-002", player_name: "Marcus Johnson", date: "2026-04-21", time: "09:30", group_size: 2, green_fee: 85.0, status: "checked_in"
-
-  fixture "GolfCart", cart_id: "CART-101", cart_type: "electric", seating_capacity: 4, rental_fee: 25.0, status: "available"
-  fixture "GolfCart", cart_id: "CART-102", cart_type: "gas", seating_capacity: 2, rental_fee: 20.0, status: "rented"
-
-  fixture "CourseHole", hole_id: "H-001", hole_number: 1, par: 4, yardage: 385, hazard_notes: "water right of green", condition: "good"
-  fixture "CourseHole", hole_id: "H-009", hole_number: 9, par: 5, yardage: 545, hazard_notes: "bunkers left and right", condition: "excellent"
-
-  fixture "GreenskeepingTask", task_id: "TASK-201", task_type: "mowing", area: "fairways", assigned_to: "Bob Martinez", scheduled_date: "2026-04-18", status: "scheduled"
-  fixture "GreenskeepingTask", task_id: "TASK-202", task_type: "irrigation", area: "greens", assigned_to: "Sarah Lee", scheduled_date: "2026-04-19", status: "completed"
-
-  fixture "GolfTournament", tournament_id: "TOURN-2026-A", name: "Spring Member Championship", format: "stroke_play", date: "2026-05-10", max_players: 64, entry_fee: 150.0, status: "open"
-  fixture "GolfTournament", tournament_id: "TOURN-2026-B", name: "Weekend Scramble", format: "scramble", date: "2026-04-25", max_players: 32, entry_fee: 75.0, status: "concluded"
 end

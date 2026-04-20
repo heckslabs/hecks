@@ -299,21 +299,4 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
 
   # === Fixtures ===
 
-  fixture "MassIncident", incident_id: "INC-2026-001", location: "Interstate 95 Mile Marker 142", severity: "critical", estimated_casualties: 45, status: "active"
-  fixture "MassIncident", incident_id: "INC-2026-002", location: "Harbor Terminal Warehouse 7", severity: "severe", estimated_casualties: 28, status: "closed"
-
-  fixture "TriageStation", station_id: "TRIAGE-A", location: "INC-2026-001 Primary Site", capacity: 50, current_count: 23, status: "active"
-  fixture "TriageStation", station_id: "TRIAGE-B", location: "INC-2026-001 Secondary Site", capacity: 40, current_count: 19, status: "active"
-
-  fixture "AirEvac", callsign: "MEDEVAC-01", origin: "Lakeside Regional Airport", patient_capacity: 8, status: "en_route"
-  fixture "AirEvac", callsign: "MEDEVAC-02", origin: "County Medical Helipad", patient_capacity: 6, status: "loaded"
-
-  fixture "BloodDispatch", dispatch_id: "BLOOD-0001", blood_type: "O-Negative", units_allocated: 6, status: "dispatched"
-  fixture "BloodDispatch", dispatch_id: "BLOOD-0002", blood_type: "A-Positive", units_allocated: 4, status: "administered"
-
-  fixture "ReceivingHospital", hospital_name: "Metro Trauma Center", trauma_level: "Level 1", available_beds: 12, available_surgeons: 4, status: "available"
-  fixture "ReceivingHospital", hospital_name: "St. Augustine Medical", trauma_level: "Level 2", available_beds: 8, available_surgeons: 2, status: "receiving"
-
-  fixture "CasualtyTracker", casualty_name: "James Rodriguez", blood_type: "O-Positive", triage_color: "red", current_phase: "airborne"
-  fixture "CasualtyTracker", casualty_name: "Sarah Chen", blood_type: "A-Negative", triage_color: "yellow", current_phase: "triaged"
 end

@@ -1,0 +1,22 @@
+Hecks.fixtures "InteriorDesign" do
+  aggregate "DesignProject" do
+    fixture "Westwood_Penthouse_Redesign_", name: "Westwood Penthouse Redesign", space_type: "residential", style_direction: "contemporary minimalist", status: "consultation", budget: 75000.00
+    fixture "Downtown_Boutique_Law_Offices_", name: "Downtown Boutique Law Offices", space_type: "commercial", style_direction: "professional modern", status: "approved", budget: 125000.00
+  end
+  aggregate "RoomDesign" do
+    fixture "RoomDesign1", room_name: "Master Bedroom", function: "sleeping quarters", square_footage: 280.0, color_palette: "warm grays with navy accents", status: "planning"
+    fixture "RoomDesign2", room_name: "Open Concept Kitchen", function: "cooking and entertaining", square_footage: 450.0, color_palette: "whites, light woods, stainless steel", status: "specified"
+  end
+  aggregate "MaterialSelection" do
+    fixture "MaterialSelection1", material_name: "Italian Porcelain Floor Tile", category: "flooring", supplier: "Emser Tile", unit_cost: 8.50, lead_time_days: 21
+    fixture "MaterialSelection2", material_name: "Custom Walnut Shelving", category: "millwork", supplier: "Architectural Woodworks", unit_cost: 250.00, lead_time_days: 35
+  end
+  aggregate "Vendor" do
+    fixture "Vendor1", company_name: "Studio Lighting Solutions", specialty: "lighting fixtures", contact_name: "Marcus Thompson", phone: "555-0147"
+    fixture "Vendor2", company_name: "Premium Paint & Wallcovering", specialty: "paints and finishes", contact_name: "Elena Rodriguez", phone: "555-0208"
+  end
+  aggregate "Installation" do
+    fixture "Installation1", date: "2026-05-15", crew_lead: "Tommy Castellano", status: "scheduled", punch_list: ""
+    fixture "Installation2", date: "2026-06-02", crew_lead: "Lisa Chen", status: "completed", punch_list: "Touch up wall near outlet, adjust cabinet hinges"
+  end
+end

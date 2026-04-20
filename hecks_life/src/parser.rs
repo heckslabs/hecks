@@ -56,35 +56,22 @@ pub fn parse(source: &str) -> Domain {
             continue;
         }
 
+        // Inline `fixture` keyword in .bluebook is no longer supported.
+        // Fixtures live in their own `.fixtures` files (sibling under
+        // `fixtures/` subdir). Anything starting with `fixture` here
+        // is silently ignored — the migration script extracted them all,
+        // and the lifecycle/io validators will catch stragglers.
         if line.starts_with("fixture") {
-            // Two forms:
-            //   1. inline: `fixture "X", a: 1, b: 2` (may span lines via
-            //      trailing comma or unclosed brackets);
-            //   2. block:  `fixture "X" do ... end` — must consume to the
-            //      matching `end` so inner `aggregate` lines aren't picked
-            //      up as top-level aggregates.
+            // Skip block form's body so we don't pick up nested
+            // `aggregate "X"` lines as new aggregates.
             if ends_with_do_block(line) {
-                // Block form: `fixture "X" do ... end`. The first positional
-                // string is the fixture's logical NAME (an identifier);
-                // `aggregate "Y"` inside the block declares the aggregate
-                // type; every other `key "value"` line becomes an attribute.
-                let name = extract_string(line);
-                let (aggregate_name, attributes, consumed) =
-                    parse_fixture_block_body(&lines[i + 1..]);
-                domain.fixtures.push(crate::ir::Fixture {
-                    name,
-                    aggregate_name,
-                    attributes,
-                });
-                i += consumed;
-            } else {
-                let mut full = line.to_string();
-                while needs_continuation(&full) && i + 1 < lines.len() {
+                let mut depth = 1;
+                while i + 1 < lines.len() && depth > 0 {
                     i += 1;
-                    full.push(' ');
-                    full.push_str(lines[i].trim());
+                    let l = lines[i].trim();
+                    if l == "end" { depth -= 1; }
+                    else if ends_with_do_block(l) { depth += 1; }
                 }
-                domain.fixtures.push(parse_fixture(&full));
             }
         }
 

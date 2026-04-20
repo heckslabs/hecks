@@ -199,18 +199,4 @@ Hecks.bluebook "Taxidermy" do
     trigger "StageDisplay"
   end
 
-  fixture "Specimen", species: "Cervus elaphus", common_name: "Red Deer", weight_lbs: 350.0, status: "received", source_type: "hunting"
-  fixture "Specimen", species: "Accipiter gentilis", common_name: "Northern Goshawk", weight_lbs: 1.2, status: "tanned", source_type: "falconry"
-
-  fixture "Pose", pose_name: "Rearing Stance", position: "hind_legs_extended", expression: "aggressive", status: "selected"
-  fixture "Pose", pose_name: "Perched Hunter", position: "upright_with_base", expression: "alert", status: "altered"
-
-  fixture "TaxidermyMaterial", material_name: "Borax Preserve", category: "tanning_agent", quantity: 25, supplier: "Van Dyke Taxidermy Supply", unit_cost: 12.50
-  fixture "TaxidermyMaterial", material_name: "Glass Eyes 24mm Amber", category: "finishing", quantity: 48, supplier: "Hubbard Taxidermy Eyes", unit_cost: 8.75
-
-  fixture "Preservation", method: "hide_stretch_mount", status: "in_progress", adhesive_type: "archival_hide_glue", drying_days: 14
-  fixture "Preservation", method: "traditional_mount", status: "finished", adhesive_type: "synthetic_adhesive", drying_days: 21
-
-  fixture "Display", location: "North Gallery Wall", display_type: "pedestal_mount", plaque_text: "Red Deer - Highlands 1962", status: "staged"
-  fixture "Display", location: "Hunting Heritage Room", display_type: "habitat_diorama", plaque_text: "Goshawk - European Forest", status: "staged"
 end

@@ -1,0 +1,18 @@
+Hecks.fixtures "CinemaAudio" do
+  aggregate "Auditorium" do
+    fixture "Main_Theatre_", name: "Main Theatre", length_m: 25.5, width_m: 18.2, height_m: 9.8, wall_material: "drywall with fiberglass batts", reverberation_time_sec: 1.8, status: "treated"
+    fixture "Screening_Room_B_", name: "Screening Room B", length_m: 16.0, width_m: 12.0, height_m: 8.5, wall_material: "concrete with acoustic foam panels", reverberation_time_sec: 1.2, status: "measured"
+  end
+  aggregate "Speaker" do
+    fixture "L_Front_", name: "L-Front", speaker_type: "3-way main", x_position: 3.5, y_position: 4.2, z_position: 2.1, power_watts: 500.0, min_frequency_hz: 45.0, max_frequency_hz: 20000.0, status: "active"
+    fixture "Center_Screen_", name: "Center-Screen", speaker_type: "center channel", x_position: 12.75, y_position: 2.5, z_position: 1.8, power_watts: 400.0, min_frequency_hz: 80.0, max_frequency_hz: 18000.0, status: "placed"
+  end
+  aggregate "Calibration" do
+    fixture "Calibration1", auditorium_name: "Main Theatre", calibration_type: "full frequency sweep", target_spl_db: 85.0, measured_spl_db: 84.3, correction_db: -0.7, status: "verified"
+    fixture "Calibration2", auditorium_name: "Screening Room B", calibration_type: "critical listening", target_spl_db: 83.0, measured_spl_db: 82.8, correction_db: -0.2, status: "running"
+  end
+  aggregate "Soundtrack" do
+    fixture "Oppenheimer___Dolby_Atmos_", title: "Oppenheimer - Dolby Atmos", format: "7.1.4 immersive", channel_count: 12, dynamic_range_db: 18.5, peak_level_db: -2.0, status: "playing"
+    fixture "Dune_Part_Two___DTS_X_", title: "Dune Part Two - DTS:X", format: "7.1.2", channel_count: 10, dynamic_range_db: 16.2, peak_level_db: -1.5, status: "mapped"
+  end
+end

@@ -212,15 +212,4 @@ Hecks.bluebook "AntiquesDealer", version: "2026.04.13.1" do
     trigger "PerformAppraisal"
   end
 
-  fixture "AntiquePiece", piece_id: "AQ-2026-001", name: "Victorian Writing Desk", period: "1880-1890", category: "furniture", material: "mahogany", condition: "excellent", asking_price: 2400.0, status: "in_stock"
-  fixture "AntiquePiece", piece_id: "AQ-2026-002", name: "Tiffany Lamp Base", period: "1910-1920", category: "lighting", material: "bronze", condition: "good", asking_price: 1800.0, status: "sold"
-
-  fixture "Appraisal", appraisal_id: "APP-001", piece_id: "AQ-2026-001", appraiser_name: "Margaret Chen", estimated_value: 2400.0, appraisal_date: "2026-04-12", purpose: "insurance"
-  fixture "Appraisal", appraisal_id: "APP-002", piece_id: "AQ-2026-002", appraiser_name: "Robert Ashford", estimated_value: 1650.0, appraisal_date: "2026-03-28", purpose: "estate_valuation"
-
-  fixture "Consignment", consignment_id: "CON-001", piece_id: "AQ-2026-003", consignor_name: "Henry Blackwood", agreed_commission: 0.25, start_date: "2026-04-01", end_date: "2026-07-01", status: "active"
-  fixture "Consignment", consignment_id: "CON-002", piece_id: "AQ-2026-004", consignor_name: "Elizabeth Morton", agreed_commission: 0.30, start_date: "2026-02-15", end_date: "2026-04-14", status: "settled"
-
-  fixture "Restoration", restoration_id: "RES-001", piece_id: "AQ-2026-005", restorer_name: "Giovanni Rossi", work_description: "wood refinishing and joint restoration", cost: 450.0, status: "completed"
-  fixture "Restoration", restoration_id: "RES-002", piece_id: "AQ-2026-006", restorer_name: "Helena Kovacs", work_description: "textile conservation and re-backing", cost: 320.0, status: "in_progress"
 end

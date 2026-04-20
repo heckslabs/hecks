@@ -151,15 +151,4 @@ Hecks.bluebook "HospitalPower", version: "2026.04.13.1" do
     trigger "ActivateShedding"
   end
 
-  fixture "PatientArea", area_id: "ICU-3W", area_name: "Intensive Care Unit - 3rd Floor West", floor: "3", criticality: "critical", power_load_kw: 245.5, status: "active"
-  fixture "PatientArea", area_id: "OR-2C", area_name: "Operating Rooms - 2nd Floor Central", floor: "2", criticality: "critical", power_load_kw: 580.2, status: "active"
-
-  fixture "BackupGenerator", generator_id: "GEN-001", fuel_type: "diesel", capacity_kw: 500.0, fuel_level_pct: 100.0, status: "standby"
-  fixture "BackupGenerator", generator_id: "GEN-002", fuel_type: "diesel", capacity_kw: 750.0, fuel_level_pct: 95.0, status: "standby"
-
-  fixture "TransferSwitch", switch_id: "TS-ICU-3W", area_id: "ICU-3W", generator_id: "GEN-001", current_source: "main", status: "active"
-  fixture "TransferSwitch", switch_id: "TS-OR-2C", area_id: "OR-2C", generator_id: "GEN-002", current_source: "main", status: "active"
-
-  fixture "LoadShedPlan", plan_id: "SHED-PLAN-001", status: "ready"
-  fixture "LoadShedPlan", plan_id: "SHED-PLAN-002", status: "ready"
 end

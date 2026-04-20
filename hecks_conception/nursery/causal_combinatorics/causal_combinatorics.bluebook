@@ -206,18 +206,4 @@ Hecks.bluebook "CausalCombinatorics", version: "2026.04.13.1" do
     trigger "TestLaw"
   end
 
-  fixture "PolicyGraph", name: "ecommerce-inventory-payment", node_count: 42, edge_count: 156, domain_count: 3
-  fixture "PolicyGraph", name: "fintech-settlement", node_count: 67, edge_count: 289, domain_count: 5
-
-  fixture "CascadeAnalysis", trigger_event: "OrderPlaced", cascade_depth: 5, total_activations: 23, has_cycle: false, has_fan_out: true
-  fixture "CascadeAnalysis", trigger_event: "PaymentProcessed", cascade_depth: 8, total_activations: 41, has_cycle: true, has_fan_out: true
-
-  fixture "EmergenceMetric", domains_combined: 3, policies_before: 24, policies_after: 38, novel_cascades: 14, emergence_ratio: 1.58, cross_wire_density: 0.32
-  fixture "EmergenceMetric", domains_combined: 5, policies_before: 68, policies_after: 127, novel_cascades: 59, emergence_ratio: 1.87, cross_wire_density: 0.44
-
-  fixture "GenerativeCapacity", corpus_size: 50, total_policies: 240, total_events: 180, possible_cross_wires: 2840, realized_cross_wires: 892, saturation: 0.314
-  fixture "GenerativeCapacity", corpus_size: 100, total_policies: 580, total_events: 420, possible_cross_wires: 8960, realized_cross_wires: 3284, saturation: 0.366
-
-  fixture "CombinatorialLaw", name: "emergence-scales-with-policy-density", statement: "Emergence ratio = 1 + 0.3 * log(policy_density)", confidence: 0.87, observations: 24
-  fixture "CombinatorialLaw", name: "cycle-probability-threshold", statement: "Cycles emerge when cross_wire_density > 0.4", confidence: 0.92, observations: 31
 end

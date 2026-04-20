@@ -353,18 +353,4 @@ Hecks.bluebook "MarineNavigation", version: "2026.04.13.1" do
 
   # === Fixtures ===
 
-  fixture "OceanCurrent", name: "Gulf Stream North", speed_knots: 2.5, direction_degrees: 45.0, depth_meters: 200.0, season: "spring", status: "active"
-  fixture "OceanCurrent", name: "Kuroshio Current", speed_knots: 3.8, direction_degrees: 210.0, depth_meters: 300.0, season: "summer", status: "stale"
-
-  fixture "WeatherForecast", region: "North Atlantic Shipping Lanes", wind_speed_knots: 18.5, wave_height_meters: 3.2, visibility_nm: 12.0, storm_warning: "none", valid_from: "2026-04-14T00:00:00Z", valid_until: "2026-04-15T00:00:00Z", status: "active"
-  fixture "WeatherForecast", region: "Caribbean Waters", wind_speed_knots: 12.0, wave_height_meters: 2.1, visibility_nm: 15.0, storm_warning: "tropical_depression", valid_from: "2026-04-13T00:00:00Z", valid_until: "2026-04-14T12:00:00Z", status: "expired"
-
-  fixture "Vessel", name: "Queen Elizabeth", vessel_type: "Cruise Ship", length_meters: 294.0, fuel_capacity_tons: 3500.0, current_fuel_tons: 3150.0, max_speed_knots: 21.5, status: "underway"
-  fixture "Vessel", name: "Northern Star", vessel_type: "Cargo Ship", length_meters: 228.0, fuel_capacity_tons: 2000.0, current_fuel_tons: 1200.0, max_speed_knots: 18.0, status: "docked"
-
-  fixture "Route", name: "NYC to Rotterdam", origin_port: "New York", destination_port: "Rotterdam", total_distance_nm: 3100.0, estimated_fuel_tons: 450.0, estimated_hours: 168.0, status: "approved"
-  fixture "Route", name: "Singapore to Shanghai", origin_port: "Singapore", destination_port: "Shanghai", total_distance_nm: 1800.0, estimated_fuel_tons: 280.0, estimated_hours: 96.0, status: "rerouted"
-
-  fixture "FuelLog", vessel_name: "Queen Elizabeth", fuel_burned_tons: 85.5, distance_traveled_nm: 250.0, efficiency_nm_per_ton: 2.92, timestamp: "2026-04-14T08:00:00Z", status: "recorded"
-  fixture "FuelLog", vessel_name: "Northern Star", fuel_burned_tons: 52.0, distance_traveled_nm: 180.0, efficiency_nm_per_ton: 3.46, timestamp: "2026-04-14T06:00:00Z", status: "flagged"
 end

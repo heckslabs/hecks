@@ -205,15 +205,4 @@ Hecks.bluebook "SmartGrocery" do
     map name: :depleted_product
   end
 
-  fixture "Product", name: "Organic Spinach", category: "Produce", price_cents: 299, nutrients: [{ nutrient_name: "Iron", amount: 2.7, unit: "mg", daily_value_pct: 15 }], status: "stocked"
-  fixture "Product", name: "Greek Yogurt", category: "Dairy", price_cents: 599, nutrients: [{ nutrient_name: "Protein", amount: 20.0, unit: "g", daily_value_pct: 40 }], status: "stocked"
-
-  fixture "DietaryProfile", customer_name: "Alice Chen", calorie_target: 2000, restrictions: [{ restriction_type: "Gluten-Free", severity: "High" }], goals: [{ nutrient_name: "Fiber", target_amount: 30.0, unit: "g" }], status: "active"
-  fixture "DietaryProfile", customer_name: "Bob Rodriguez", calorie_target: 2500, restrictions: [], goals: [{ nutrient_name: "Protein", target_amount: 150.0, unit: "g" }], status: "active"
-
-  fixture "MealPlan", week_start: "2026-04-14", meals: [{ day: "Monday", meal_type: "Breakfast", recipe_name: "Oatmeal with Berries", calories: 350 }], status: "draft"
-  fixture "MealPlan", week_start: "2026-04-21", meals: [{ day: "Tuesday", meal_type: "Lunch", recipe_name: "Grilled Chicken Salad", calories: 450 }], status: "draft"
-
-  fixture "ShoppingList", items: [{ product_name: "Chicken Breast", quantity: 2, aisle: "Meat" }], total_cents: 1299, status: "generated"
-  fixture "ShoppingList", items: [{ product_name: "Whole Wheat Bread", quantity: 1, aisle: "Bakery" }, { product_name: "Almond Butter", quantity: 1, aisle: "Condiments" }], total_cents: 749, status: "generated"
 end

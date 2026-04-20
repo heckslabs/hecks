@@ -149,15 +149,4 @@ Hecks.bluebook "OrthoticsFund", version: "2026.04.13.1" do
     trigger "ReleaseFunds"
   end
 
-  fixture "PodiatryPatient", patient_id: "POD-2026-001", name: "Emma Thompson", diagnosis: "severe plantar fasciitis", foot_type: "flat feet", status: "assessed"
-  fixture "PodiatryPatient", patient_id: "POD-2026-002", name: "David Kim", diagnosis: "diabetic neuropathy", foot_type: "high arch", status: "prescribed"
-
-  fixture "CustomDevice", device_id: "DEV-2026-001", patient_id: "POD-2026-001", device_type: "custom insoles", cost: 450.00, status: "designed"
-  fixture "CustomDevice", device_id: "DEV-2026-002", patient_id: "POD-2026-002", device_type: "diabetic shoes with orthotics", cost: 750.00, status: "fabricated"
-
-  fixture "FundingCampaign", campaign_id: "CAMP-2026-001", patient_id: "POD-2026-001", goal_amount: 500.00, raised_amount: 450.00, status: "active"
-  fixture "FundingCampaign", campaign_id: "CAMP-2026-002", patient_id: "POD-2026-002", goal_amount: 800.00, raised_amount: 820.00, status: "closed"
-
-  fixture "Disbursement", disbursement_id: "DISB-2026-001", campaign_id: "CAMP-2026-001", device_id: "DEV-2026-001", amount: 450.00, status: "released"
-  fixture "Disbursement", disbursement_id: "DISB-2026-002", campaign_id: "CAMP-2026-002", device_id: "DEV-2026-002", amount: 750.00, status: "confirmed"
 end

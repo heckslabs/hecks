@@ -1,0 +1,18 @@
+Hecks.fixtures "ClinicalTrialRecruiting" do
+  aggregate "DrugCandidate" do
+    fixture "DrugCandidate1", compound_name: "LT-2847", indication: "Type 2 Diabetes", phase: "Phase 2", status: "phase_1_complete"
+    fixture "DrugCandidate2", compound_name: "MX-5621", indication: "Hypertension", phase: "Phase 3", status: "phase_2_complete"
+  end
+  aggregate "TrialProtocol" do
+    fixture "TrialProtocol1", protocol_name: "LT-2847-EFFICACY-2026", target_enrollment: 480, status: "approved"
+    fixture "TrialProtocol2", protocol_name: "MX-5621-SAFETY-2026", target_enrollment: 320, status: "draft"
+  end
+  aggregate "FreelanceParticipant" do
+    fixture "FreelanceParticipant1", participant_name: "Jennifer Lopez", age: 54, availability: "weekdays 9am-5pm", status: "available"
+    fixture "FreelanceParticipant2", participant_name: "David Chen", age: 48, availability: "flexible", status: "available"
+  end
+  aggregate "MatchResult" do
+    fixture "MatchResult1", match_score: 0.92, status: "enrolled"
+    fixture "MatchResult2", match_score: 0.87, status: "pending"
+  end
+end

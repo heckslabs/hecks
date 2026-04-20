@@ -1,0 +1,18 @@
+Hecks.fixtures "FurnitureShowroom" do
+  aggregate "FurniturePiece" do
+    fixture "Dining_Table__Solid_Oak_", sku: "CNT-OAK-001", name: "Dining Table, Solid Oak", collection: "Craftsman", material: "oak", price: 899.99, status: "on_display"
+    fixture "Office_Chair__Leather_", sku: "CHR-LTH-042", name: "Office Chair, Leather", collection: "Modern", material: "leather", price: 349.99, status: "sold"
+  end
+  aggregate "ShowroomRoom" do
+    fixture "ShowroomRoom1", room_name: "Scandinavian Lounge", style: "scandinavian", status: "active"
+    fixture "ShowroomRoom2", room_name: "Industrial Kitchen", style: "industrial", status: "active"
+  end
+  aggregate "Delivery" do
+    fixture "Delivery1", delivery_id: "DEL-2026-001", sku: "CNT-OAK-001", customer_name: "Sarah Johnson", address: "123 Main St, Portland OR", scheduled_date: "2026-04-20", status: "scheduled"
+    fixture "Delivery2", delivery_id: "DEL-2026-002", sku: "CHR-LTH-042", customer_name: "Michael Chen", address: "456 Oak Ave, Seattle WA", scheduled_date: "2026-04-18", status: "delivered"
+  end
+  aggregate "Warranty" do
+    fixture "Warranty1", warranty_id: "WAR-2026-0891", sku: "CNT-OAK-001", customer_name: "Sarah Johnson", coverage_type: "structural_defects", expiration_date: "2029-04-20", status: "active"
+    fixture "Warranty2", warranty_id: "WAR-2026-0642", sku: "CHR-LTH-042", customer_name: "Michael Chen", coverage_type: "upholstery_damage", expiration_date: "2027-04-18", status: "resolved"
+  end
+end

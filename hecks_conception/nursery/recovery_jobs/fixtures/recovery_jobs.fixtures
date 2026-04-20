@@ -1,0 +1,18 @@
+Hecks.fixtures "RecoveryJobs" do
+  aggregate "RecoveryClient" do
+    fixture "Jessica_Lee_", client_id: "CLI-2025-001", name: "Jessica Lee", recovery_stage: "intermediate", skills_summary: "customer service, retail, basic IT", status: "active"
+    fixture "David_Brown_", client_id: "CLI-2025-002", name: "David Brown", recovery_stage: "early", skills_summary: "construction, landscaping, equipment operation", status: "active"
+  end
+  aggregate "EmployerPartner" do
+    fixture "EmployerPartner1", employer_id: "EMP-2025-001", company_name: "SecondChance Logistics", industry: "transportation", open_positions: 5, recovery_friendly: "yes", status: "active"
+    fixture "EmployerPartner2", employer_id: "EMP-2025-002", company_name: "GreenPath Services", industry: "environmental", open_positions: 3, recovery_friendly: "yes", status: "active"
+  end
+  aggregate "JobMatch" do
+    fixture "JobMatch1", match_id: "MAT-2025-001", client_id: "CLI-2025-001", employer_id: "EMP-2025-001", job_title: "Customer Service Rep", compatibility_score: 0.87, status: "accepted"
+    fixture "JobMatch2", match_id: "MAT-2025-002", client_id: "CLI-2025-002", employer_id: "EMP-2025-002", job_title: "Field Technician", compatibility_score: 0.92, status: "proposed"
+  end
+  aggregate "EmploymentOutcome" do
+    fixture "EmploymentOutcome1", outcome_id: "OUT-2025-001", match_id: "MAT-2025-001", days_employed: 45, retention_status: "strong", supervisor_feedback: "Reliable and punctual, excellent attitude"
+    fixture "EmploymentOutcome2", outcome_id: "OUT-2025-002", match_id: "MAT-2025-002", days_employed: 12, retention_status: "developing", supervisor_feedback: "Still learning systems but showing good effort"
+  end
+end

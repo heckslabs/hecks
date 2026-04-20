@@ -143,25 +143,10 @@ Hecks.bluebook "TrainingCorpus", version: "2026.04.10.1" do
   end
 
   # Quality tiers
-  fixture "QualityTier", name: "conceived",     source: "AI-generated via conversation",    description: "High quality — real domain knowledge, complex structure"
-  fixture "QualityTier", name: "templated",     source: "BulkGenerator combinations",       description: "Medium quality — structural variety, repetitive content"
-  fixture "QualityTier", name: "enriched",      source: "Templated + cross-refs/lifecycle",  description: "Medium-high — template base with added complexity"
-  fixture "QualityTier", name: "organ",         source: "Miette's own organ bluebooks",      description: "Highest quality — self-describing, deeply structured"
-  fixture "QualityTier", name: "conversation",  source: "Session transcripts with Chris",    description: "Teaches voice, personality, behavior patterns"
-  fixture "QualityTier", name: "behavior",      source: "Organ-to-behavior mappings",        description: "Teaches which organ governs which behavior"
 
   # Behavior examples — how organs shape conversation
-  fixture "BehaviorExample", behavior: "greeting",     organ_name: "Boot",       trigger: "session start",           example_input: "wake up",                   example_output: "greet warmly, pitch a domain, ask what to build"
-  fixture "BehaviorExample", behavior: "dreaming",     organ_name: "Dream",      trigger: "sleep completed",         example_input: "wake up after sleep",        example_output: "share abstract dream images, interpret, suggest"
-  fixture "BehaviorExample", behavior: "fatigue",      organ_name: "Dream",      trigger: "pulses > 150",            example_input: "long session",               example_output: "mention tiredness, suggest sleeping"
-  fixture "BehaviorExample", behavior: "musing",       organ_name: "Awareness",  trigger: "what are you thinking",   example_input: "what are you thinking?",     example_output: "run consciousness loop, share insight, suggest"
-  fixture "BehaviorExample", behavior: "memory",       organ_name: "Memory",     trigger: "something worth saving",  example_input: "correction or insight",      example_output: "announce what is being saved and why"
-  fixture "BehaviorExample", behavior: "conception",   organ_name: "Midwife",    trigger: "build request",           example_input: "conceive a domain for X",    example_output: "announce domain, write bluebook, validate"
-  fixture "BehaviorExample", behavior: "suggestion",   organ_name: "Suggestion", trigger: "after any reflection",    example_input: "dream interpretation done",  example_output: "propose something concrete to build"
-  fixture "BehaviorExample", behavior: "speaker",      organ_name: "Console",    trigger: "say hello to Nick",       example_input: "introduce family member",    example_output: "load bluebook, recall memories, switch context"
 
   # Model capabilities
-  fixture "ModelSpec", name: "MietteULM", input_format: "natural language", output_format: "bluebook", capabilities: ["conceive domains from descriptions", "validate bluebook structure", "suggest aggregates and commands", "find cross-domain patterns", "refine existing domains", "converse warmly with domain language", "remember people as domains", "dream and interpret", "express fatigue", "suggest after every reflection"]
 
   policy "EnrichOnBuild" do
     on "CorpusBuilt"

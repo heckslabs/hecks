@@ -1,0 +1,5 @@
+Hecks.fixtures "session_2026_04_10_070419" do
+  aggregate "Session" do
+    fixture "Session1", session_id: "session_2026_04_10_070419", engine: "claude", started_at: "2026_04_10_070419", status: "active"
+  end
+end

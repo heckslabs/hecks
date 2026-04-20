@@ -254,18 +254,4 @@ Hecks.bluebook "Dermatology" do
     trigger "RefillPrescription"
   end
 
-  fixture "Patient", name: "Victoria Thompson", date_of_birth: "1978-11-05", skin_type: "combination", insurance_id: "INS-445892", status: "active"
-  fixture "Patient", name: "Christopher Lee", date_of_birth: "1995-02-18", skin_type: "oily", insurance_id: "INS-334721", status: "active"
-
-  fixture "SkinCondition", patient_name: "Victoria Thompson", condition_name: "melasma", body_location: "cheeks and forehead", morphology: "symmetric brown patches", severity: "moderate", status: "active"
-  fixture "SkinCondition", patient_name: "Christopher Lee", condition_name: "acne vulgaris", body_location: "face and chest", morphology: "comedones and pustules", severity: "severe", status: "active"
-
-  fixture "DermatologyTreatment", patient_name: "Victoria Thompson", treatment_type: "laser resurfacing", description: "fractional CO2 laser for pigmentation reduction", sessions_planned: 4, sessions_completed: 0, status: "active"
-  fixture "DermatologyTreatment", patient_name: "Christopher Lee", treatment_type: "isotretinoin therapy", description: "oral retinoid for severe nodular acne", sessions_planned: 1, sessions_completed: 0, status: "active"
-
-  fixture "Biopsy", patient_name: "Victoria Thompson", biopsy_type: "punch biopsy", body_site: "right cheek", biopsy_date: "2026-04-12", pathology_result: "", status: "pending"
-  fixture "Biopsy", patient_name: "Christopher Lee", biopsy_type: "shave biopsy", body_site: "left jaw nodule", biopsy_date: "2026-04-10", pathology_result: "benign seborrheic keratosis", status: "resulted"
-
-  fixture "SkinPrescription", patient_name: "Victoria Thompson", medication_name: "tretinoin", formulation: "0.025% cream", dosage: "pea-sized amount", frequency: "once daily at night", duration: "12 weeks", status: "active"
-  fixture "SkinPrescription", patient_name: "Christopher Lee", medication_name: "doxycycline", formulation: "100 mg tablet", dosage: "100 mg", frequency: "twice daily with food", duration: "3 months", status: "active"
 end

@@ -1,0 +1,18 @@
+Hecks.fixtures "TrainingPipeline" do
+  aggregate "InstructionPair" do
+    fixture "InstructionPair1", category: "conceive", instruction: "Design a domain for X", response: "Hecks.bluebook ... end"
+    fixture "InstructionPair2", category: "refine", instruction: "Add lifecycle to aggregate X", response: "lifecycle :status ... end"
+    fixture "InstructionPair3", category: "validate", instruction: "Is this bluebook valid?", response: "VALID or error list"
+    fixture "InstructionPair4", category: "greet", instruction: "Wake up", response: "Warm greeting, nursery count, pitch domain, ask"
+    fixture "InstructionPair5", category: "dream", instruction: "Tell me your dream", response: "Abstract images, interpretation, suggestion"
+    fixture "InstructionPair6", category: "muse", instruction: "What are you thinking?", response: "Consciousness loop, insight, suggestion"
+    fixture "InstructionPair7", category: "remember", instruction: "Remember that X", response: "Miette is writing a memory — what and why"
+    fixture "InstructionPair8", category: "fatigue", instruction: "(after many pulses)", response: "Express tiredness, suggest sleep"
+    fixture "InstructionPair9", category: "speaker", instruction: "Say hello to Nick", response: "Load bluebook, recall memories, greet by name"
+  end
+  aggregate "BaseModel" do
+    fixture "Llama_3_8B_", name: "Llama-3-8B", parameters: "8B", source: "meta-llama/Llama-3-8B"
+    fixture "Mistral_7B_", name: "Mistral-7B", parameters: "7B", source: "mistralai/Mistral-7B-v0.3"
+    fixture "Phi_3_mini_", name: "Phi-3-mini", parameters: "3.8B", source: "microsoft/Phi-3-mini-4k-instruct"
+  end
+end

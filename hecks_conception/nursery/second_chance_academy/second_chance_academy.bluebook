@@ -342,21 +342,4 @@ Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
     trigger "IssueBadge"
   end
 
-  fixture "Learner", name: "James Morrison", facility: "Oakwood Correctional", sentence_end_date: "2027-08-15", total_credits: 45, status: "enrolled"
-  fixture "Learner", name: "Sofia Ramirez", facility: "Northern State Prison", sentence_end_date: "2028-02-20", total_credits: 75, status: "enrolled"
-
-  fixture "Course", title: "Introduction to Carpentry", subject: "Trades", difficulty: "beginner", credit_value: 15, status: "active"
-  fixture "Course", title: "Advanced Welding Certification", subject: "Trades", difficulty: "intermediate", credit_value: 20, status: "active"
-
-  fixture "Quest", title: "Build a Birdhouse", description: "Construct a functional birdhouse using hand tools", xp_reward: 250, difficulty: "easy", status: "available"
-  fixture "Quest", title: "Repair a Bicycle", description: "Complete bicycle repair and safety inspection", xp_reward: 500, difficulty: "medium", status: "completed"
-
-  fixture "Badge", name: "Carpentry Fundamentals", description: "Mastered basic carpentry skills", issuer: "Second Chance Academy", credential_hash: "bch-2024-001", status: "issued"
-  fixture "Badge", name: "Welding Certification", description: "AWS certified welding practitioner", issuer: "Second Chance Academy", credential_hash: "bch-2024-002", status: "verified"
-
-  fixture "ParoleCredit", credits_awarded: 5, approved_by: "", status: "approved"
-  fixture "ParoleCredit", credits_awarded: 8, approved_by: "Judge Patricia Lewis", status: "approved"
-
-  fixture "EmployerMatch", employer_name: "BuildRight Construction", position: "Junior Carpenter", status: "offered"
-  fixture "EmployerMatch", employer_name: "Metro Welding Services", position: "Welding Assistant", status: "interviewing"
 end

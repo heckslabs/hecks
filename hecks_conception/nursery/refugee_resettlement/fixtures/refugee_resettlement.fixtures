@@ -1,0 +1,22 @@
+Hecks.fixtures "RefugeeResettlement" do
+  aggregate "ResettlementCase" do
+    fixture "ResettlementCase1", case_number: "RSC-2025-0451", country_of_origin: "Afghanistan", arrival_date: "2025-02-14", assigned_agency: "International Rescue Committee", status: "active", family_size: 5
+    fixture "ResettlementCase2", case_number: "RSC-2025-0452", country_of_origin: "Ukraine", arrival_date: "2025-01-30", assigned_agency: "Lutheran Immigration Services", status: "active", family_size: 3
+  end
+  aggregate "FamilyMember" do
+    fixture "Rashid_Khan_", name: "Rashid Khan", date_of_birth: "1988-05-10", relationship: "head of household", language_spoken: "Dari", medical_needs: "none", case_number: "RSC-2025-0451"
+    fixture "Mariya_Petrov_", name: "Mariya Petrov", date_of_birth: "1990-09-22", relationship: "spouse", language_spoken: "Ukrainian, Russian", medical_needs: "ongoing therapy", case_number: "RSC-2025-0452"
+  end
+  aggregate "ResettlementService" do
+    fixture "ResettlementService1", service_name: "English Language Classes", service_category: "education", provider: "Community Education Center", case_number: "RSC-2025-0451", scheduled_date: "2025-04-15", status: "delivered"
+    fixture "ResettlementService2", service_name: "Job Skills Workshop", service_category: "employment", provider: "Workforce Development Board", case_number: "RSC-2025-0452", scheduled_date: "2025-04-20", status: "scheduled"
+  end
+  aggregate "HousingPlacement" do
+    fixture "HousingPlacement1", case_number: "RSC-2025-0451", address: "4521 Riverside Apartments, Unit 204", housing_type: "transitional", lease_start_date: "2025-02-20", monthly_rent: "850.00", subsidy_source: "REFUGEE_FUND", status: "active"
+    fixture "HousingPlacement2", case_number: "RSC-2025-0452", address: "1832 Oak Street", housing_type: "permanent", lease_start_date: "2025-03-01", monthly_rent: "1200.00", subsidy_source: "HUD", status: "active"
+  end
+  aggregate "EmploymentAssistance" do
+    fixture "EmploymentAssistance1", family_member_name: "Rashid Khan", desired_field: "construction", language_proficiency: "intermediate", resume_status: "complete", placement_status: "placed", employer_name: "BuildRight Construction"
+    fixture "EmploymentAssistance2", family_member_name: "Mariya Petrov", desired_field: "nursing assistant", language_proficiency: "advanced", resume_status: "complete", placement_status: "searching", employer_name: ""
+  end
+end

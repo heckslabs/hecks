@@ -1,0 +1,22 @@
+Hecks.fixtures "Apiculture" do
+  aggregate "Hive" do
+    fixture "Hive1", hive_id: "hive_langstroth_01", hive_type: "Langstroth", location: "North Apiary, Row 2", frame_count: 10, status: "established"
+    fixture "Hive2", hive_id: "hive_topbar_04", hive_type: "Top-Bar", location: "Wild Section, Ridge", frame_count: 8, status: "established"
+  end
+  aggregate "Inspection" do
+    fixture "Inspection1", inspection_date: "2026-04-10", inspector: "Dr. Sarah Chen", brood_frames: 6, honey_frames: 3, temperament: "calm", queen_seen: "yes"
+    fixture "Inspection2", inspection_date: "2026-04-08", inspector: "Dr. Marcus Webb", brood_frames: 7, honey_frames: 2, temperament: "defensive", queen_seen: "no"
+  end
+  aggregate "Harvest" do
+    fixture "Harvest1", harvest_date: "2026-04-12", weight_kg: 18.5, honey_type: "wildflower", moisture_percent: 17.2
+    fixture "Harvest2", harvest_date: "2026-04-05", weight_kg: 22.1, honey_type: "clover", moisture_percent: 16.8
+  end
+  aggregate "Queen" do
+    fixture "Queen1", queen_id: "queen_blue_2024", lineage: "Italian x Carniolan", marked_color: "blue", year_introduced: 2024
+    fixture "Queen2", queen_id: "queen_white_2023", lineage: "Russian", marked_color: "white", year_introduced: 2023
+  end
+  aggregate "DiseaseTreatment" do
+    fixture "DiseaseTreatment1", treatment_type: "Varroa Mite Control", active_ingredient: "Amitraz", application_date: "2026-03-15", duration_days: 21
+    fixture "DiseaseTreatment2", treatment_type: "Foulbrood Prevention", active_ingredient: "Oxytetracycline", application_date: "2026-02-01", duration_days: 14
+  end
+end

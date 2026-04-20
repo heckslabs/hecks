@@ -305,18 +305,4 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
     trigger "RecordVitals"
   end
 
-  fixture "Patient", name: "John Doe", blood_type: "O+", injury_classification: "trauma_multi_system", triage_level: "red", status: "registered", allergies: []
-  fixture "Patient", name: "Sarah Martinez", blood_type: "A-", injury_classification: "burns_severe", triage_level: "yellow", status: "in_transit", allergies: []
-
-  fixture "Flight", callsign: "MEDEVAC_01", origin: "Scene 42", destination: "Mercy General Hospital", altitude: 5000, status: "airborne", crew_manifest: "Pilot Johnson, Medic Chen", route: []
-  fixture "Flight", callsign: "MEDEVAC_02", origin: "Mountain Ridge", destination: "Trauma Center West", altitude: 8000, status: "landed", crew_manifest: "Pilot Williams, Medic Rodriguez", route: []
-
-  fixture "VitalStream", patient_id: "pt_001", heart_rate: 92, blood_pressure_systolic: 128, blood_pressure_diastolic: 76, spo2: 98, temperature: 37.2, alarm_status: "normal", readings: []
-  fixture "VitalStream", patient_id: "pt_002", heart_rate: 125, blood_pressure_systolic: 95, blood_pressure_diastolic: 62, spo2: 92, temperature: 36.8, alarm_status: "critical", readings: []
-
-  fixture "GroundReceiver", hospital_name: "Mercy General Hospital", trauma_level: "level_1", available_beds: 3, status: "prepared", expected_patient: "pt_001"
-  fixture "GroundReceiver", hospital_name: "Trauma Center West", trauma_level: "level_1", available_beds: 1, status: "team_activated", expected_patient: "pt_002"
-
-  fixture "Handoff", patient_id: "pt_001", flight_id: "flt_001", receiver_id: "hosp_001", status: "in_progress", handoff_notes: "", transfer_checklist: []
-  fixture "Handoff", patient_id: "pt_002", flight_id: "flt_002", receiver_id: "hosp_002", status: "complete", handoff_notes: "Patient stable, transferred to ICU", transfer_checklist: []
 end

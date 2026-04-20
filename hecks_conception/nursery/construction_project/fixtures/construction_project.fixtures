@@ -1,0 +1,22 @@
+Hecks.fixtures "ConstructionProject" do
+  aggregate "Site" do
+    fixture "Site1", site_name: "Meridian Tower Office Building", address: "2500 Market Street, San Francisco CA", project_type: "commercial_office", lot_size_sqft: 15000.0, phase: "planning", status: "active"
+    fixture "Site2", site_name: "Riverside Residential Complex", address: "1200 Riverside Drive, Portland OR", project_type: "residential_multi_unit", lot_size_sqft: 22500.0, phase: "excavation", status: "active"
+  end
+  aggregate "BuildingPermit" do
+    fixture "BuildingPermit1", permit_number: "BP-2026-0045", permit_type: "structural", issued_date: "2026-03-15", expiration_date: "2027-03-15", status: "issued"
+    fixture "BuildingPermit2", permit_type: "electrical", issued_date: "", expiration_date: "", status: "applied", permit_number: ""
+  end
+  aggregate "SubcontractorAgreement" do
+    fixture "SubcontractorAgreement1", company_name: "Premier Steel Framing Inc", trade: "structural_steel", contract_value: 450000.0, start_date: "2026-04-15", end_date: "2026-08-30", status: "active"
+    fixture "SubcontractorAgreement2", company_name: "Apex Mechanical Systems", trade: "HVAC", contract_value: 280000.0, start_date: "2026-05-01", end_date: "2026-10-15", status: "active"
+  end
+  aggregate "MaterialOrder" do
+    fixture "MaterialOrder1", supplier: "Westcoast Concrete Products", material_type: "ready_mix_concrete", quantity: 500, unit: "cubic_yards", total_cost: 37500.0, delivery_date: "2026-04-22", status: "ordered"
+    fixture "MaterialOrder2", supplier: "Standard Steel Supply", material_type: "structural_rebar", quantity: 45, unit: "tons", total_cost: 22500.0, delivery_date: "2026-04-25", status: "ordered"
+  end
+  aggregate "SiteInspection" do
+    fixture "SiteInspection1", inspection_type: "foundation", inspection_date: "2026-04-18", inspector_name: "", result: "", deficiencies: "", status: "scheduled"
+    fixture "SiteInspection2", inspection_type: "framing", inspection_date: "2026-05-20", inspector_name: "", result: "", deficiencies: "", status: "scheduled"
+  end
+end

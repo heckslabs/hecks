@@ -99,31 +99,4 @@ Hecks.bluebook "GlassboxTraining", version: "2026.04.11.1" do
     end
   end
 
-  fixture "ScienceExample" do
-    aggregate "TrainingExample"
-    input "A domain for tracking chemical reactions and molecular bonds"
-    output "Hecks.bluebook 'Chemistry' do ... end"
-    category "science"
-  end
-
-  fixture "BusinessExample" do
-    aggregate "TrainingExample"
-    input "A domain for managing customer subscriptions and billing cycles"
-    output "Hecks.bluebook 'Billing' do ... end"
-    category "business"
-  end
-
-  fixture "InfrastructureExample" do
-    aggregate "TrainingExample"
-    input "A domain for managing deployment pipelines and build artifacts"
-    output "Hecks.bluebook 'Deployment' do ... end"
-    category "infrastructure"
-  end
-
-  fixture "MetaExample" do
-    aggregate "TrainingExample"
-    input "A domain for training a model on bluebook definitions"
-    output "Hecks.bluebook 'GlassboxTraining' do ... end"
-    category "meta"
-  end
 end

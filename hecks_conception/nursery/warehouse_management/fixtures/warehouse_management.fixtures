@@ -1,0 +1,18 @@
+Hecks.fixtures "WarehouseManagement" do
+  aggregate "Location" do
+    fixture "Location1", aisle: "A", rack: "02", shelf: "03", zone: "North", capacity: 2000, current_fill: 1200, status: "empty"
+    fixture "Location2", aisle: "B", rack: "05", shelf: "01", zone: "South", capacity: 1500, current_fill: 800, status: "reserved"
+  end
+  aggregate "Pallet" do
+    fixture "Pallet1", pallet_id: "PAL-2026-4521", sku: "SKU-99847", quantity: 500, status: "stowed"
+    fixture "Pallet2", pallet_id: "PAL-2026-4522", sku: "SKU-88521", quantity: 350, status: "picked"
+  end
+  aggregate "PickList" do
+    fixture "PickList1", pick_list_id: "PL-2026-0847", priority: "high", line_count: 12, status: "completed"
+    fixture "PickList2", pick_list_id: "PL-2026-0848", priority: "standard", line_count: 8, status: "pending"
+  end
+  aggregate "Shipment" do
+    fixture "Shipment1", tracking_number: "TRK-2026-001847", carrier: "FedEx", destination: "Los Angeles, CA", status: "dispatched"
+    fixture "Shipment2", tracking_number: "TRK-2026-001848", carrier: "UPS", destination: "Chicago, IL", status: "loaded"
+  end
+end

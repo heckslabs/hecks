@@ -1,0 +1,18 @@
+Hecks.fixtures "HospitalIT" do
+  aggregate "PatientRecord" do
+    fixture "PatientRecord1", medical_record_number: "MRN-2024-001", patient_name: "Jane Smith", department: "Cardiology", record_status: "active"
+    fixture "PatientRecord2", medical_record_number: "MRN-2024-002", patient_name: "Robert Johnson", department: "Oncology", record_status: "active"
+  end
+  aggregate "Server" do
+    fixture "Server1", hostname: "web-prod-01", role: "web", cpu_pct: 45.2, memory_pct: 62.8, status: "running"
+    fixture "Server2", hostname: "db-primary-01", role: "database", cpu_pct: 72.1, memory_pct: 88.5, status: "running"
+  end
+  aggregate "Backup" do
+    fixture "Backup1", backup_id: "BKP-2024-04-001", source_server: "db-primary-01", backup_type: "full", storage_path: "/vault/backups/2024/04", status: "completed", size_gb: 850.5
+    fixture "Backup2", backup_id: "BKP-2024-04-002", source_server: "web-prod-01", backup_type: "incremental", storage_path: "/vault/backups/2024/04/inc", status: "completed", size_gb: 120.3
+  end
+  aggregate "RecoveryPlan" do
+    fixture "RecoveryPlan1", plan_name: "Hospital Tier-1 Recovery", tier: "critical", rto_hours: 4.0, rpo_hours: 1.0, status: "draft"
+    fixture "RecoveryPlan2", plan_name: "General IT Services Recovery", tier: "standard", rto_hours: 24.0, rpo_hours: 6.0, status: "draft"
+  end
+end

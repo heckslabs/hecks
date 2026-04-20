@@ -1,0 +1,18 @@
+Hecks.fixtures "PetPortraits" do
+  aggregate "ShelterAnimal" do
+    fixture "Max_", animal_id: "PA-2026-001", name: "Max", species: "dog", breed: "Labrador Mix", personality: "playful and loyal", status: "available"
+    fixture "Whiskers_", animal_id: "PA-2026-002", name: "Whiskers", species: "cat", breed: "Siamese", personality: "curious and vocal", status: "available"
+  end
+  aggregate "PhotoSession" do
+    fixture "PhotoSession1", session_id: "PS-2026-001", animal_id: "PA-2026-001", photographer: "Emily Wong", date: "2026-04-14", backdrop: "garden green", status: "completed"
+    fixture "PhotoSession2", session_id: "PS-2026-002", animal_id: "PA-2026-002", photographer: "Marcus Lee", date: "2026-04-15", backdrop: "studio white", status: "selected"
+  end
+  aggregate "AdoptionProfile" do
+    fixture "AdoptionProfile1", profile_id: "AP-2026-001", animal_id: "PA-2026-001", headline: "Max: Your Perfect Adventure Buddy", story: "This energetic Labrador mix loves long walks and fetch. Max came from a loving home and is ready for his forever family.", status: "published"
+    fixture "AdoptionProfile2", profile_id: "AP-2026-002", animal_id: "PA-2026-002", headline: "Whiskers: A Elegant Feline Companion", story: "Whiskers is a sophisticated Siamese with big blue eyes and a big personality. She loves interactive play and cozy laps.", status: "draft"
+  end
+  aggregate "AdoptionInquiry" do
+    fixture "AdoptionInquiry1", inquiry_id: "INQ-2026-001", profile_id: "AP-2026-001", adopter_name: "David Thompson", message: "Max looks amazing! We have a large backyard. Can we meet him?", status: "pending"
+    fixture "AdoptionInquiry2", inquiry_id: "INQ-2026-002", profile_id: "AP-2026-002", adopter_name: "Jessica Park", message: "Whiskers seems perfect for my apartment. Please tell me more.", status: "responded"
+  end
+end

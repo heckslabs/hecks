@@ -1,0 +1,22 @@
+Hecks.fixtures "TattooShop" do
+  aggregate "Artist" do
+    fixture "Maya_Reyes_", name: "Maya Reyes", specialty_style: "Japanese_traditional", station_number: "A1", years_experience: 12
+    fixture "Kai_Nakamura_", name: "Kai Nakamura", specialty_style: "geometric", station_number: "B2", years_experience: 8
+  end
+  aggregate "Appointment" do
+    fixture "Appointment1", date: "2026-04-20", time_slot: "14:00-16:00", duration_hours: 2, deposit_amount: 100.0, status: "booked"
+    fixture "Appointment2", date: "2026-04-21", time_slot: "10:00-12:00", duration_hours: 2, deposit_amount: 150.0, status: "booked"
+  end
+  aggregate "Design" do
+    fixture "Phoenix_Rising_", title: "Phoenix Rising", style: "Japanese_traditional", placement: "back_shoulder", size_inches: 6.5, status: "approved"
+    fixture "Sacred_Geometry_", title: "Sacred Geometry", style: "geometric", placement: "forearm", size_inches: 4.0, status: "approved"
+  end
+  aggregate "ConsentForm" do
+    fixture "ConsentForm1", client_name: "Emma Torres", date_signed: "2026-04-14", allergies: "latex", status: "signed"
+    fixture "ConsentForm2", client_name: "Marcus Johnson", date_signed: "2026-04-13", allergies: "none", status: "signed"
+  end
+  aggregate "AftercareKit" do
+    fixture "AftercareKit1", instructions: "Keep clean and moisturized for 2 weeks", ointment_type: "aquaphor", follow_up_days: 14
+    fixture "AftercareKit2", instructions: "Avoid swimming and direct sunlight for 3 weeks", ointment_type: "cetaphil", follow_up_days: 21
+  end
+end

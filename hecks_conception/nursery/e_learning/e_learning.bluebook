@@ -255,18 +255,4 @@ Hecks.bluebook "ELearning", version: "2026.04.13.1" do
     trigger "PublishCourse"
   end
 
-  fixture "Course", course_title: "Introduction to Python Programming", instructor: "Dr. Alice Wang", subject_area: "Computer Science", difficulty_level: "beginner", estimated_hours: 40, status: "published"
-  fixture "Course", course_title: "Advanced Data Science with R", instructor: "Prof. David Martinez", subject_area: "Data Analytics", difficulty_level: "advanced", estimated_hours: 60, status: "draft"
-
-  fixture "Enrollment", enrollment_id: "ENR-2026-001", student_email: "john.doe@example.com", enrolled_at: "2026-03-15", progress_pct: 45.5, status: "active"
-  fixture "Enrollment", enrollment_id: "ENR-2026-002", student_email: "jane.smith@example.com", enrolled_at: "2026-02-01", progress_pct: 100.0, status: "completed"
-
-  fixture "Lesson", lesson_title: "Variables and Data Types", content_type: "video", body: "Learn about Python variables, integers, strings, and lists", duration_minutes: 30, sequence_order: 1, status: "published"
-  fixture "Lesson", lesson_title: "Functions and Modules", content_type: "interactive", body: "Master function definition, parameters, and module imports", duration_minutes: 45, sequence_order: 2, status: "published"
-
-  fixture "Quiz", quiz_title: "Python Basics Checkpoint", passing_score: 70, time_limit_minutes: 30, max_attempts: 3, status: "active"
-  fixture "Quiz", quiz_title: "Final Examination", passing_score: 80, time_limit_minutes: 90, max_attempts: 2, status: "suspended"
-
-  fixture "Certificate", certificate_id: "CERT-2026-001", student_email: "jane.smith@example.com", course_title: "Introduction to Python Programming", issued_at: "2026-04-10", verification_code: "PYTHON-2026-ABC123", status: "valid"
-  fixture "Certificate", certificate_id: "CERT-2026-002", student_email: "michael.brown@example.com", course_title: "Web Development Fundamentals", issued_at: "2026-03-25", verification_code: "WEBDEV-2026-XYZ789", status: "valid"
 end

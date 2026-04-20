@@ -1,0 +1,18 @@
+Hecks.fixtures "BrainTraining" do
+  aggregate "CognitiveExperiment" do
+    fixture "CognitiveExperiment1", experiment_id: "exp_001", researcher: "Dr. Sarah Chen", cognitive_domain: "working_memory", protocol: "N-back task", participant_count: 24, status: "designed"
+    fixture "CognitiveExperiment2", experiment_id: "exp_002", researcher: "Dr. James Miller", cognitive_domain: "attention", protocol: "Flanker task", participant_count: 32, status: "active"
+  end
+  aggregate "BrainGame" do
+    fixture "Memory_Blocks_", game_id: "game_001", name: "Memory Blocks", cognitive_target: "spatial_memory", difficulty: "medium", levels: 15, status: "active"
+    fixture "Speed_Reaction_", game_id: "game_002", name: "Speed Reaction", cognitive_target: "processing_speed", difficulty: "hard", levels: 20, status: "active"
+  end
+  aggregate "CognitiveScore" do
+    fixture "CognitiveScore1", score_id: "score_001", participant_id: "p_101", game_id: "game_001", accuracy: 0.92, reaction_time_ms: 450.0, composite_score: 87.5
+    fixture "CognitiveScore2", score_id: "score_002", participant_id: "p_102", game_id: "game_002", accuracy: 0.88, reaction_time_ms: 380.0, composite_score: 84.2
+  end
+  aggregate "TrainingPlan" do
+    fixture "TrainingPlan1", plan_id: "plan_001", participant_id: "p_101", status: "active"
+    fixture "TrainingPlan2", plan_id: "plan_002", participant_id: "p_103", status: "active"
+  end
+end

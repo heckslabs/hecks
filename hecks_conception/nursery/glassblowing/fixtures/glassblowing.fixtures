@@ -1,0 +1,22 @@
+Hecks.fixtures "Glassblowing" do
+  aggregate "GlassPiece" do
+    fixture "Cobalt_Vase_", name: "Cobalt Vase", form: "vase", technique: "blown_free_form", status: "gathered", weight_oz: 24.5
+    fixture "Amber_Sphere_", name: "Amber Sphere", form: "sphere", technique: "mold_blown", status: "annealing", weight_oz: 18.3
+  end
+  aggregate "Furnace" do
+    fixture "Studio_Furnace_A_", name: "Studio Furnace A", fuel_type: "natural_gas", capacity_lbs: 2000, temperature_f: 2150, status: "ready"
+    fixture "Studio_Furnace_B_", name: "Studio Furnace B", fuel_type: "propane", capacity_lbs: 1500, temperature_f: 2100, status: "heating"
+  end
+  aggregate "ColorBar" do
+    fixture "ColorBar1", color_name: "Cobalt Blue", color_type: "transparent", manufacturer: "Bullseye Glass", quantity_lbs: 45.0, working_temp_f: 2100
+    fixture "ColorBar2", color_name: "Ruby Red", color_type: "opaque", manufacturer: "Schott", quantity_lbs: 25.5, working_temp_f: 2050
+  end
+  aggregate "AnnealingCycle" do
+    fixture "AnnealingCycle1", hold_temp_f: 950, ramp_rate_per_hour: 150, total_hours: 8, status: "annealing"
+    fixture "AnnealingCycle2", hold_temp_f: 1050, ramp_rate_per_hour: 100, total_hours: 12, status: "completed"
+  end
+  aggregate "GlassExhibition" do
+    fixture "Summer_Reflections_2026_", title: "Summer Reflections 2026", venue: "Corning Museum", opening_date: "2026-06-15", piece_count: 24, status: "planning"
+    fixture "Crystalline_Dreams_", title: "Crystalline Dreams", venue: "Portland Art Center", opening_date: "2026-07-01", piece_count: 18, status: "open"
+  end
+end

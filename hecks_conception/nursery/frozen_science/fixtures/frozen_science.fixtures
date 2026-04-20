@@ -1,0 +1,18 @@
+Hecks.fixtures "FrozenScience" do
+  aggregate "BaseIngredient" do
+    fixture "Vanilla_Extract_", name: "Vanilla Extract", category: "flavor", status: "cataloged"
+    fixture "Heavy_Cream_", name: "Heavy Cream", category: "dairy", status: "cataloged"
+  end
+  aggregate "FlavorFormula" do
+    fixture "FlavorFormula1", flavor_name: "Madagascar Vanilla", target_temp_c: -18.5, status: "experimental"
+    fixture "FlavorFormula2", flavor_name: "Belgian Chocolate", target_temp_c: -20.0, status: "approved"
+  end
+  aggregate "FreezingCycle" do
+    fixture "FreezingCycle1", batch_id: "BATCH-2025-001", status: "mixing"
+    fixture "FreezingCycle2", batch_id: "BATCH-2025-002", status: "freezing"
+  end
+  aggregate "ParlorMenu" do
+    fixture "ParlorMenu1", menu_name: "Spring Delights 2025", season: "spring", status: "draft"
+    fixture "ParlorMenu2", menu_name: "Summer Classics 2024", season: "summer", status: "active"
+  end
+end

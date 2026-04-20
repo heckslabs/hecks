@@ -399,21 +399,4 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
     trigger "RestoreSegment"
   end
 
-  fixture "DisasterEvent", event_type: "earthquake", location: "Pacific Coast Region", severity: "major", status: "active", declared_at: "2026-04-14T08:15:00Z"
-  fixture "DisasterEvent", event_type: "volcanic_ash", location: "Northern Airspace", severity: "moderate", status: "resolved", declared_at: "2026-04-10T14:22:00Z"
-
-  fixture "GridSegment", segment_id: "gs-coastal-north", region: "Coastal North", capacity_mw: 850.0, current_load_mw: 720.5, status: "online"
-  fixture "GridSegment", segment_id: "gs-central-hub", region: "Central Hub", capacity_mw: 1200.0, current_load_mw: 1050.3, status: "rerouted"
-
-  fixture "AirspaceZone", zone_id: "az-volcanic-01", region: "Pacific Northwest", status: "closed", closure_reason: "Volcanic ash at 35,000 ft", affected_flights: 127
-  fixture "AirspaceZone", zone_id: "az-coastal-02", region: "Coastal Approaches", status: "open", closure_reason: "", affected_flights: 0
-
-  fixture "EmergencyProtocol", protocol_name: "Grid Failure Emergency Response", protocol_type: "power_grid", trigger_condition: "GridFailed", status: "active", reference_to: "earthquake"
-  fixture "EmergencyProtocol", protocol_name: "Airspace Closure Protocol", protocol_type: "aviation", trigger_condition: "AshDetected", status: "completed", reference_to: "volcanic_ash"
-
-  fixture "CascadeChain", disaster: "earthquake", chain_name: "Pacific Quake Cascade", cascade_depth: 3, status: "cascading"
-  fixture "CascadeChain", disaster: "volcanic_ash", chain_name: "Volcanic Ash Cascade", cascade_depth: 2, status: "contained"
-
-  fixture "RecoveryPlan", disaster: "earthquake", plan_name: "Coastal Region Recovery Plan", status: "executing", priority_level: 1
-  fixture "RecoveryPlan", disaster: "volcanic_ash", plan_name: "Aviation System Recovery", status: "completed", priority_level: 2
 end

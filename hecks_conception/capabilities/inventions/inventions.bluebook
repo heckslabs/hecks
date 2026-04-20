@@ -118,8 +118,6 @@ Hecks.bluebook "Inventions", version: "2026.04.16.1" do
     end
   end
 
-  fixture "Grooming", batch_size: 5, status: "idle"
-
   # Dismissed inventions get archived
   policy "ArchiveOnDismiss" do
     on "InventionDismissed"

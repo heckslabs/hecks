@@ -149,7 +149,4 @@ Hecks.bluebook "BrandStrategy", version: "2026.04.11.1" do
     trigger "DefineBrandPosition"
   end
 
-  fixture "BrandPosition", brand: "DuraLube", owned_word: "durability", target_customer: "DIY car owners who want long-term protection", differentiator: "advanced anti-wear chemistry", competitor: "Lucas", competitor_position: "trusted household name"
-  fixture "BrandPosition", brand: "MotorKote", owned_word: "anti-friction", target_customer: "performance enthusiasts and fleet operators", differentiator: "hyper-lubricant metal treatment", competitor: "Lucas", competitor_position: "trusted household name"
-  fixture "BrandPosition", brand: "Slick 50", owned_word: "PTFE protection", target_customer: "mainstream consumers who want easy engine care", differentiator: "original PTFE engine treatment pioneer", competitor: "Lucas", competitor_position: "trusted household name"
 end

@@ -233,15 +233,4 @@ Hecks.bluebook "AutoRepairShop" do
     trigger "DiagnoseIssue"
   end
 
-  fixture "Vehicle", vin: "1HGCM82633A123456", make: "Honda", model: "Civic", year: 2015, mileage: 87420, license_plate: "ABC1234", owner_name: "Sandra Martinez", owner_phone: "555-0147"
-  fixture "Vehicle", vin: "3VWFE21C04M000001", make: "Volkswagen", model: "Jetta", year: 2016, mileage: 92150, license_plate: "XYZ9876", owner_name: "David Kim", owner_phone: "555-0248"
-
-  fixture "WorkOrder", complaint: "Check engine light, rough idle", diagnosis: "Faulty oxygen sensor", status: "completed", labor_hours: 1.5, total_cost: 385.0
-  fixture "WorkOrder", complaint: "Brake noise and vibration", diagnosis: "Worn brake pads and warped rotor", status: "completed", labor_hours: 3.0, total_cost: 650.0
-
-  fixture "Part", part_number: "O2-SENS-001", name: "Oxygen Sensor", manufacturer: "Bosch", quantity_on_hand: 8, unit_cost: 120.0, reorder_point: 3
-  fixture "Part", part_number: "BRAKE-PAD-002", name: "Ceramic Brake Pad Set", manufacturer: "Wagner", quantity_on_hand: 5, unit_cost: 95.0, reorder_point: 2
-
-  fixture "Estimate", parts_total: 215.0, labor_total: 180.0, tax: 31.53, grand_total: 426.53, status: "approved"
-  fixture "Estimate", parts_total: 425.0, labor_total: 300.0, tax: 58.13, grand_total: 783.13, status: "approved"
 end

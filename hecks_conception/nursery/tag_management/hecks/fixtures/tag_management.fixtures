@@ -1,0 +1,32 @@
+Hecks.fixtures "TagManagement" do
+  aggregate "Container" do
+    fixture "DuraLube_com_", name: "DuraLube.com", domain: "duralube.com", container_id: "GTM-DL001", status: "active"
+    fixture "MotorKote_com_", name: "MotorKote.com", domain: "motorkote.com", container_id: "GTM-MK001", status: "active"
+    fixture "Slick50_com_", name: "Slick50.com", domain: "slick50.com", container_id: "GTM-S5001", status: "active"
+  end
+  aggregate "Tag" do
+    fixture "GA4_Pageview_", name: "GA4 Pageview", tag_type: "google_analytics_4", container_id: "GTM-DL001", trigger_name: "All Pages", template: "ga4_event", status: "draft"
+    fixture "Meta_Pixel_", name: "Meta Pixel", tag_type: "meta_pixel", container_id: "GTM-DL001", trigger_name: "All Pages", template: "meta_pixel", status: "draft"
+    fixture "Google_Ads_Conversion_", name: "Google Ads Conversion", tag_type: "google_ads", container_id: "GTM-DL001", trigger_name: "Purchase Confirmation", template: "google_ads_conversion", status: "draft"
+    fixture "Hotjar_Recording_", name: "Hotjar Recording", tag_type: "custom_html", container_id: "GTM-DL001", trigger_name: "All Pages", template: "custom_html", consent_required: "analytics", status: "draft"
+    fixture "Amazon_Attribution_", name: "Amazon Attribution", tag_type: "custom_image", container_id: "GTM-DL001", trigger_name: "Add To Cart Click", template: "custom_image", status: "draft"
+  end
+  aggregate "Trigger" do
+    fixture "All_Pages_", name: "All Pages", trigger_type: "page_view", container_id: "GTM-DL001", description: "Fires on every page load"
+    fixture "Purchase_Confirmation_", name: "Purchase Confirmation", trigger_type: "page_view", container_id: "GTM-DL001", description: "Fires on /thank-you page"
+    fixture "Add_To_Cart_Click_", name: "Add To Cart Click", trigger_type: "click", container_id: "GTM-DL001", description: "Fires when add-to-cart button is clicked"
+    fixture "Scroll_50_Percent_", name: "Scroll 50 Percent", trigger_type: "scroll_depth", container_id: "GTM-DL001", description: "Fires when visitor scrolls past 50%"
+    fixture "Video_Play_", name: "Video Play", trigger_type: "youtube_video", container_id: "GTM-DL001", description: "Fires when an embedded YouTube video starts"
+    fixture "Timer_30s_", name: "Timer 30s", trigger_type: "timer", container_id: "GTM-DL001", description: "Fires 30 seconds after page load"
+  end
+  aggregate "Variable" do
+    fixture "Page_URL_", name: "Page URL", variable_type: "url", container_id: "GTM-DL001", selector: "page_url"
+    fixture "Page_Path_", name: "Page Path", variable_type: "url", container_id: "GTM-DL001", selector: "page_path"
+    fixture "Click_Text_", name: "Click Text", variable_type: "auto_event", container_id: "GTM-DL001", selector: "gtm.element.innerText"
+    fixture "Product_SKU_", name: "Product SKU", variable_type: "data_layer", container_id: "GTM-DL001", selector: "ecommerce.items.0.item_id"
+    fixture "User_Consent_", name: "User Consent", variable_type: "cookie", container_id: "GTM-DL001", selector: "consent_preferences"
+  end
+  aggregate "Version" do
+    fixture "Version1", container_id: "GTM-DL001", version_number: 1, tag_count: 5, trigger_count: 6, variable_count: 5, description: "Initial setup — GA4, Meta Pixel, Ads conversion", created_by: "Alan", status: "published"
+  end
+end

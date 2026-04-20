@@ -197,19 +197,8 @@ Hecks.bluebook "Vocabulary", version: "2026.04.11.1" do
   # ============================================================
 
   # --- Single sentences ---
-  fixture "Sentence", phrase: "create a pizza", domain: "Pizzas", command: "CreatePizza", aggregate: "Pizza", actor: "Admin", parameters: ["name", "description", "price"]
-  fixture "Sentence", phrase: "place an order", domain: "Pizzas", command: "PlaceOrder", aggregate: "Order", actor: "Customer", parameters: ["customer_name", "pizza", "quantity"]
-  fixture "Sentence", phrase: "cancel an order", domain: "Pizzas", command: "CancelOrder", aggregate: "Order", actor: "Customer", parameters: ["order"]
-  fixture "Sentence", phrase: "fulfill an order", domain: "Pizzas", command: "FulfillOrder", aggregate: "Order", actor: "Admin", parameters: ["order"]
 
   # --- Compositions ---
-  fixture "Composition", phrase: "create a pizza then place an order", from_domain: "Pizzas", from_command: "CreatePizza", to_domain: "Pizzas", to_command: "PlaceOrder", bridge_type: "Pizza", connector: "then"
-  fixture "Composition", phrase: "place an order then fulfill it", from_domain: "Pizzas", from_command: "PlaceOrder", to_domain: "Pizzas", to_command: "FulfillOrder", bridge_type: "Order", connector: "then"
-  fixture "Composition", phrase: "cancel an order then refund payment", from_domain: "Pizzas", from_command: "CancelOrder", to_domain: "Billing", to_command: "RefundPayment", bridge_type: "Order", connector: "then"
 
   # --- ACLs with natural translations ---
-  fixture "Acl", actor: "Customer", canonical_phrase: "place an order", command_path: ["Pizzas::PlaceOrder"]
-  fixture "Acl", actor: "Customer", canonical_phrase: "cancel an order then get a refund", command_path: ["Pizzas::CancelOrder", "Billing::RefundPayment"]
-  fixture "Acl", actor: "Admin", canonical_phrase: "create a pizza", command_path: ["Pizzas::CreatePizza"]
-  fixture "Acl", actor: "Chef", canonical_phrase: "create a pizza then compost it", command_path: ["Pizzas::CreatePizza", "Waste::CompostItem"]
 end

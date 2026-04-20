@@ -1,0 +1,22 @@
+Hecks.fixtures "PropertyManagement" do
+  aggregate "RentalUnit" do
+    fixture "RentalUnit1", unit_number: "A-101", address: "450 Oak Street, Portland, OR 97214", unit_type: "studio", bedrooms: 0, bathrooms: 1, square_footage: 450.0, monthly_rent: 1200.0, status: "available"
+    fixture "RentalUnit2", unit_number: "B-205", address: "450 Oak Street, Portland, OR 97214", unit_type: "two_bed", bedrooms: 2, bathrooms: 1, square_footage: 875.0, monthly_rent: 1950.0, status: "occupied"
+  end
+  aggregate "Tenant" do
+    fixture "Tenant1", first_name: "Sarah", last_name: "Johnson", phone: "555-0142", email: "sarah.j@email.com", employer: "TechCorp Inc", monthly_income: 6500.0, background_check_status: "approved"
+    fixture "Tenant2", first_name: "David", last_name: "Chen", phone: "555-0183", email: "d.chen@email.com", employer: "HealthCare Plus", monthly_income: 5800.0, background_check_status: "pending"
+  end
+  aggregate "Lease" do
+    fixture "Lease1", start_date: "2025-06-01", end_date: "2026-05-31", monthly_rent: 1950.0, security_deposit: 1950.0, status: "active"
+    fixture "Lease2", start_date: "2024-01-15", end_date: "2025-01-14", monthly_rent: 1200.0, security_deposit: 1200.0, status: "terminated"
+  end
+  aggregate "MaintenanceRequest" do
+    fixture "MaintenanceRequest1", description: "Leaky kitchen faucet", category: "plumbing", priority: "medium", assigned_to: "Marco Plumbing", status: "assigned", resolution_notes: ""
+    fixture "MaintenanceRequest2", description: "Broken window latch", category: "carpentry", priority: "low", assigned_to: "Frank's Repairs", status: "resolved", resolution_notes: "Replaced latch mechanism, tested operation"
+  end
+  aggregate "PropertyInspection" do
+    fixture "PropertyInspection1", inspection_date: "2026-04-18", inspection_type: "routine", findings: "", status: "scheduled"
+    fixture "PropertyInspection2", inspection_date: "2026-04-10", inspection_type: "move_out", findings: "Minor scuffs on walls, carpet cleaning needed", status: "completed"
+  end
+end

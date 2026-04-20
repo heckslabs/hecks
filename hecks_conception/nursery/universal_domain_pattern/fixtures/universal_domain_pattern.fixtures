@@ -1,0 +1,23 @@
+Hecks.fixtures "UniversalDomainPattern" do
+  aggregate "DomainShape" do
+    fixture "UniversalShape_", name: "UniversalShape", description: "The shape all domains share"
+  end
+  aggregate "Archetype" do
+    fixture "LifecycleEntity_", name: "LifecycleEntity", description: "Aggregate with status lifecycle, create/update/transition commands", example_domains: "Formula,Batch,Order,Star,Reaction", frequency: 12
+    fixture "GovernanceGate_", name: "GovernanceGate", description: "Aggregate that evaluates rules before allowing action", example_domains: "GovernanceGate,AccessGate,DomainCompliance", frequency: 5
+    fixture "Measurement_", name: "Measurement", description: "Aggregate that observes and records", example_domains: "QualityTest,TribologicalTest,LabTest,DemandSignal", frequency: 8
+    fixture "Classification_", name: "Classification", description: "Aggregate that categorizes", example_domains: "Element,Galaxy,Persona,BrandPosition", frequency: 7
+    fixture "Pipeline_", name: "Pipeline", description: "Lifecycle from conception to completion", example_domains: "ExperimentalFormula,Feature,Batch,Conception", frequency: 6
+    fixture "Index_", name: "Index", description: "Aggregate that counts and catalogs", example_domains: "Corpus,AppRegistry,FamilyIndex,Census", frequency: 4
+    fixture "Traceability_", name: "Traceability", description: "Lot and version tracking through a chain", example_domains: "MaterialTraceability,Version,DomainLifecycle", frequency: 3
+  end
+  aggregate "PatternRule" do
+    fixture "CommandsRequired_", name: "CommandsRequired", rule: "Every aggregate must have at least one command", applies_to: "Aggregate", severity: "error"
+    fixture "VerbCommands_", name: "VerbCommands", rule: "Commands start with verbs", applies_to: "Command", severity: "error"
+    fixture "CommandImpliesEvent_", name: "CommandImpliesEvent", rule: "Every command implies an event", applies_to: "Command", severity: "warning"
+    fixture "ReachableLifecycles_", name: "ReachableLifecycles", rule: "Lifecycles must be reachable — no dead states", applies_to: "Lifecycle", severity: "error"
+    fixture "ExplicitReferences_", name: "ExplicitReferences", rule: "References should be bidirectional or explicitly one-way", applies_to: "Reference", severity: "warning"
+    fixture "SevenAggregateMax_", name: "SevenAggregateMax", rule: "7 aggregates max per bounded context", applies_to: "Domain", severity: "warning"
+    fixture "VisionRequired_", name: "VisionRequired", rule: "Vision must exist — a domain without purpose is a bug", applies_to: "Domain", severity: "error"
+  end
+end

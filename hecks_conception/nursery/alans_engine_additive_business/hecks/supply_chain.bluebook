@@ -486,20 +486,6 @@ Hecks.bluebook "SupplyChain", version: "2026.04.11.1" do
     end
   end
 
-  fixture "Supplier", name: "Afton Chemical", supplier_type: "chemical", contact: "sales@aftonchemical.com", lead_time_days: 14, payment_terms: "Net 30", quality_rating: 0.97, approved: "true", status: "approved"
-  fixture "Supplier", name: "Chevron Base Oils", supplier_type: "chemical", contact: "baseoils@chevron.com", lead_time_days: 21, payment_terms: "Net 45", quality_rating: 0.99, approved: "true", status: "approved"
-  fixture "Supplier", name: "Berry Global", supplier_type: "packaging", contact: "orders@berryglobal.com", lead_time_days: 10, payment_terms: "Net 30", quality_rating: 0.95, approved: "true", status: "approved"
-  fixture "Supplier", name: "Lubrizol Corp", supplier_type: "chemical", contact: "additives@lubrizol.com", lead_time_days: 18, payment_terms: "Net 30", quality_rating: 0.96, approved: "true", status: "approved"
-  fixture "Supplier", name: "Shamrock Technologies", supplier_type: "chemical", contact: "ptfe@shamrocktechnologies.com", lead_time_days: 21, payment_terms: "Net 60", quality_rating: 0.92, approved: "true", status: "approved"
-
-  fixture "RawMaterial", chemical_name: "ZDDP Anti-Wear Additive", cas_number: "68649-42-3", supplier: "Afton Chemical", grade: "Technical", unit_cost: 4.50, unit: "lb", lot_number: "LOT-ZDDP-20260401", coa_on_file: "true", msds_current: "true", shelf_life_days: 730, status: "accepted"
-  fixture "RawMaterial", chemical_name: "Group III Base Oil", cas_number: "64742-65-0", supplier: "Chevron Base Oils", grade: "Premium", unit_cost: 2.10, unit: "gallon", lot_number: "LOT-G3-20260328", coa_on_file: "true", msds_current: "true", shelf_life_days: 365, status: "accepted"
-  fixture "RawMaterial", chemical_name: "PTFE Micropowder", cas_number: "9002-84-0", supplier: "Shamrock Technologies", grade: "SST-3", unit_cost: 18.00, unit: "lb", lot_number: "LOT-PTFE-20260405", coa_on_file: "false", msds_current: "true", shelf_life_days: 1095, status: "received"
-
-  fixture "PurchaseOrder", po_number: "PO-2026-001", supplier: "Afton Chemical", delivery_date: "2026-04-15", status: "confirmed"
-  fixture "PurchaseOrder", po_number: "PO-2026-002", supplier: "Chevron Base Oils", delivery_date: "2026-04-28", status: "submitted"
-  fixture "PurchaseOrder", po_number: "PO-2026-003", supplier: "Berry Global", delivery_date: "2026-04-10", status: "received"
-
   policy "InspectOnReceive" do
     on "MaterialReceived"
     trigger "InspectMaterial"

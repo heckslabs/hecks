@@ -1,0 +1,18 @@
+Hecks.fixtures "BloodBank" do
+  aggregate "Donor" do
+    fixture "Alice_Johnson_", donor_id: "D001", name: "Alice Johnson", blood_type: "O", rh_factor: "positive", eligibility_status: "eligible", last_donation_date: "2026-03-15"
+    fixture "Bob_Smith_", donor_id: "D002", name: "Bob Smith", blood_type: "AB", rh_factor: "negative", eligibility_status: "deferred", last_donation_date: "2025-12-20"
+  end
+  aggregate "Donation" do
+    fixture "Donation1", donation_id: "DON001", collection_date: "2026-04-10", volume_ml: 450.0, status: "collected", donor_id: "D001"
+    fixture "Donation2", donation_id: "DON002", collection_date: "2026-04-12", volume_ml: 420.0, status: "processed", donor_id: "D002"
+  end
+  aggregate "BloodUnit" do
+    fixture "BloodUnit1", unit_id: "BU001", blood_type: "O positive", component: "packed red cells", status: "available", expiry_date: "2026-05-10", donation_id: "DON001"
+    fixture "BloodUnit2", unit_id: "BU002", blood_type: "AB negative", component: "fresh frozen plasma", status: "quarantined", expiry_date: "2026-05-12", donation_id: "DON002"
+  end
+  aggregate "TestResult" do
+    fixture "TestResult1", test_id: "TR001", test_type: "HIV screening", result: "negative", status: "completed", donation_id: "DON001"
+    fixture "TestResult2", test_id: "TR002", test_type: "Hepatitis B", result: "positive", status: "completed", donation_id: "DON002"
+  end
+end

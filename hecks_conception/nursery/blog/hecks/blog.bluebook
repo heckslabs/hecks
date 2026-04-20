@@ -197,17 +197,4 @@ Hecks.bluebook "Blog", version: "2026.04.11.1" do
 
   # --- Fixtures ---
 
-  fixture "Author", name: "Alan", bio: "Engine additive entrepreneur and tribology enthusiast", status: "active"
-  fixture "Author", name: "Chris", bio: "Domain-driven design practitioner", status: "active"
-
-  fixture "Tag", name: "Tribology", post_count: 3
-  fixture "Tag", name: "Business", post_count: 2
-  fixture "Tag", name: "Engineering", post_count: 1
-
-  fixture "Post", title: "Why ZDDP Still Matters", slug: "why-zddp-still-matters", author_name: "Alan", status: "published", tags: "Tribology,Engineering", excerpt: "Zinc dialkyl dithiophosphate has been the workhorse anti-wear additive since the 1940s."
-  fixture "Post", title: "Three Brands One Mission", slug: "three-brands-one-mission", author_name: "Alan", status: "published", tags: "Business", excerpt: "DuraLube, MotorKote, and Slick 50 each own a different word in the customer's mind."
-  fixture "Post", title: "The Four-Ball Wear Test Explained", slug: "four-ball-wear-test", author_name: "Alan", status: "draft", tags: "Tribology", excerpt: "ASTM D4172 is the gold standard for measuring anti-wear performance."
-
-  fixture "Comment", post_slug: "why-zddp-still-matters", author_name: "Mike from Fleet Service", body: "We switched to ZDDP-heavy formulas last year. 30% less engine wear across our fleet.", status: "visible"
-  fixture "Comment", post_slug: "three-brands-one-mission", author_name: "Performance Junkie Dave", body: "MotorKote's dyno results sold me. Anti-friction is the real deal.", status: "visible"
 end

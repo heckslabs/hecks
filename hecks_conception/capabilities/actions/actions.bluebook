@@ -158,6 +158,4 @@ Hecks.bluebook "Actions", version: "2026.04.14.1" do
     map source: "action_reversal", valence: 0.0
   end
 
-  fixture "ActionPlan", name: "CompostSeasonalBeings", description: "Remove Spring, Summer-as-being, and Autumn", rationale: "One being with swappable brain — seasonal beings absorbed", action_bluebook_path: "actions/compost_seasonal_beings.bluebook", status: "conceived", steps_total: 3, steps_completed: 0
-  fixture "ActionLog", action_name: "CompostSeasonalBeings", executed_at: "", engine_used: "claude", ruling: "pending", files_changed: 8, outcome: "pending"
 end

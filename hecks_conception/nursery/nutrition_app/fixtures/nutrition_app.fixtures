@@ -1,0 +1,18 @@
+Hecks.fixtures "NutritionApp" do
+  aggregate "MealPlan" do
+    fixture "MealPlan1", plan_id: "plan-001", user_name: "Alice Johnson", goal: "weight-loss", daily_calories: 1800, status: "active"
+    fixture "MealPlan2", plan_id: "plan-002", user_name: "Bob Smith", goal: "muscle-gain", daily_calories: 2800, status: "active"
+  end
+  aggregate "FoodLog" do
+    fixture "FoodLog1", log_id: "log-001", user_name: "Alice Johnson", date: "2026-04-14", total_calories: 1750
+    fixture "FoodLog2", log_id: "log-002", user_name: "Bob Smith", date: "2026-04-14", total_calories: 2650
+  end
+  aggregate "BarcodeScan" do
+    fixture "BarcodeScan1", scan_id: "scan-001", barcode: "5901234123457", product_name: "Whole Wheat Bread", calories: 220, serving_size_g: 50, status: "resolved"
+    fixture "BarcodeScan2", scan_id: "scan-002", barcode: "5012345678901", product_name: "Greek Yogurt", calories: 130, serving_size_g: 150, status: "resolved"
+  end
+  aggregate "NutrientGoal" do
+    fixture "NutrientGoal1", goal_id: "goal-001", user_name: "Alice Johnson", nutrient: "protein", target_amount: 120.0, unit: "g"
+    fixture "NutrientGoal2", goal_id: "goal-002", user_name: "Bob Smith", nutrient: "fiber", target_amount: 35.0, unit: "g"
+  end
+end

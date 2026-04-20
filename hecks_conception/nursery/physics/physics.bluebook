@@ -842,9 +842,4 @@ Hecks.bluebook "Physics", version: "2026.04.11.1" do
 
   # === Fixtures — Fundamental Constants ===
 
-  fixture "Energy", name: "SpeedOfLight", energy_type: "constant", magnitude: 299792458.0, unit: "m/s", source: "vacuum", status: "fundamental"
-  fixture "Energy", name: "PlanckConstant", energy_type: "constant", magnitude: 6.62607015e-34, unit: "J*s", source: "quantum", status: "fundamental"
-  fixture "Force", name: "GravitationalConstant", force_type: "gravitational", magnitude: 6.6743e-11, direction_x: 0.0, direction_y: 0.0, direction_z: 0.0, source: "universal", target: "universal"
-  fixture "ThermoSystem", name: "BoltzmannConstant", temperature: 1.380649e-23, heat: 0.0, entropy: 0.0, internal_energy: 0.0, pressure: 0.0, volume: 0.0, status: "fundamental"
-  fixture "Particle", name: "ElementaryCharge", mass: 0.0, charge: 1.602176634e-19, spin: 0.0, particle_type: "constant", status: "fundamental"
 end

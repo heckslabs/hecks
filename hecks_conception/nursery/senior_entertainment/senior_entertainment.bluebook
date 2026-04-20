@@ -149,15 +149,4 @@ Hecks.bluebook "SeniorEntertainment", version: "2026.04.13.1" do
     trigger "ReviseNeeds"
   end
 
-  fixture "SeniorResident", resident_id: "RES-001", name: "Dorothy Price", room_number: "205A", mobility_level: "wheelchair", vision_level: "low_vision", hearing_level: "normal", status: "active"
-  fixture "SeniorResident", resident_id: "RES-002", name: "Robert Chen", room_number: "310B", mobility_level: "walker", vision_level: "normal", hearing_level: "hard_of_hearing", status: "active"
-
-  fixture "MovieScreening", screening_id: "SCR-001", movie_title: "Singin' in the Rain", genre: "musical", date: "2026-04-16", venue: "Community Hall A", seats_available: 45, status: "scheduled"
-  fixture "MovieScreening", screening_id: "SCR-002", movie_title: "It's a Wonderful Life", genre: "drama", date: "2026-04-18", venue: "Community Hall B", seats_available: 50, status: "scheduled"
-
-  fixture "RSVP", rsvp_id: "RSV-001", resident_id: "RES-001", screening_id: "SCR-001", accessibility_needs: "wheelchair_space front_row", status: "confirmed"
-  fixture "RSVP", rsvp_id: "RSV-002", resident_id: "RES-002", screening_id: "SCR-002", accessibility_needs: "hearing_loop", status: "confirmed"
-
-  fixture "SocialEvent", event_id: "EVT-001", screening_id: "SCR-001", theme: "Hollywood Golden Age", refreshments: "popcorn lemonade cookies", attendees: 42, status: "completed"
-  fixture "SocialEvent", event_id: "EVT-002", screening_id: "SCR-002", theme: "Christmas Classics", refreshments: "hot_cocoa candy_canes brownies", attendees: 38, status: "planned"
 end

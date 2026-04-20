@@ -1,0 +1,5 @@
+Hecks.fixtures "Being" do
+  aggregate "Discovery" do
+    fixture "Discovery1", scan_paths: ["hecks_being/miette/", "hecks_being/miette/family/", "examples/", "lib/hecks/chapters/"], discovered: 0
+  end
+end

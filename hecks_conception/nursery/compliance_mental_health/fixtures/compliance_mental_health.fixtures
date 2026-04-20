@@ -1,0 +1,18 @@
+Hecks.fixtures "ComplianceMentalHealth" do
+  aggregate "Patient" do
+    fixture "Patient1", mrn: "MRN-0001", full_name: "Elena Vasquez", risk_level: "standard", status: "active"
+    fixture "Patient2", mrn: "MRN-0002", full_name: "James Okoro", risk_level: "high", status: "active"
+  end
+  aggregate "TreatmentPlan" do
+    fixture "TreatmentPlan1", diagnosis_code: "F33.1", primary_goal: "Reduce depressive episodes below two per month", status: "active"
+  end
+  aggregate "SessionNote" do
+    fixture "SessionNote1", content_summary: "Explored cognitive distortions around workplace conflict", clinician_name: "Dr. Amara Singh", status: "finalized"
+  end
+  aggregate "Prescription" do
+    fixture "Prescription1", medication_name: "Sertraline", status: "active", refills_remaining: 3
+  end
+  aggregate "InsuranceClaim" do
+    fixture "InsuranceClaim1", billed_amount: 175.0, status: "adjudicated"
+  end
+end

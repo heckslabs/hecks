@@ -1,0 +1,22 @@
+Hecks.fixtures "Genetics" do
+  aggregate "Specimen" do
+    fixture "Specimen1", specimen_id: "SPEC-2026-001", organism: "Homo sapiens", tissue_type: "blood", collection_date: "2026-04-10", collector: "Dr. Alice Smith"
+    fixture "Specimen2", specimen_id: "SPEC-2026-002", organism: "Drosophila melanogaster", tissue_type: "whole_body", collection_date: "2026-04-12", collector: "Dr. Bob Johnson"
+  end
+  aggregate "DnaSequence" do
+    fixture "DnaSequence1", accession: "NZ_CP012345.1", sequence_data: "ATCGATCGATCG...", length_bp: 1500, sequencing_method: "illumina_wgs"
+    fixture "DnaSequence2", accession: "NZ_CP054321.1", sequence_data: "GCTAGCTAGCTA...", length_bp: 2300, sequencing_method: "pacbio_long_read"
+  end
+  aggregate "Mutation" do
+    fixture "Mutation1", variant_id: "VAR-2026-0156", mutation_type: "snp", position: 45892, reference_allele: "A", alternate_allele: "G"
+    fixture "Mutation2", variant_id: "VAR-2026-0217", mutation_type: "insertion", position: 102150, reference_allele: "T", alternate_allele: "TAAA"
+  end
+  aggregate "Pedigree" do
+    fixture "Pedigree1", family_id: "FAM-2026-055", proband_id: "IND-001", generation_count: 3
+    fixture "Pedigree2", family_id: "FAM-2026-098", proband_id: "IND-042", generation_count: 4
+  end
+  aggregate "Publication" do
+    fixture "Novel_BRCA1_Variant_in_European_Cohort_", publication_id: "PUB-2026-023", title: "Novel BRCA1 Variant in European Cohort", journal: "Nature Genetics", submitted_date: "2026-03-15"
+    fixture "Pathogenic_Mitochondrial_Mutations_in_Early_Onset_Diabetes_", publication_id: "PUB-2026-041", title: "Pathogenic Mitochondrial Mutations in Early-Onset Diabetes", journal: "Human Molecular Genetics", submitted_date: "2026-04-01"
+  end
+end

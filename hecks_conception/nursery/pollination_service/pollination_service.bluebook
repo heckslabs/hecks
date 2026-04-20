@@ -259,15 +259,4 @@ Hecks.bluebook "PollinationService", version: "2026.04.13.1" do
     trigger "PollinatePlan"
   end
 
-  fixture "Hive", hive_id: "NORTH-APIARY-001", population_estimate: 45000, queen_status: "healthy_young", honey_stores_kg: 18.5, health_rating: "good", status: "active"
-  fixture "Hive", hive_id: "SOUTH-APIARY-012", population_estimate: 38000, queen_status: "healthy_established", honey_stores_kg: 22.3, health_rating: "excellent", status: "deployed"
-
-  fixture "CropField", name: "Wilson's Almond Grove", crop_type: "almonds", area_hectares: 24.5, bloom_start: "2026-02-15", bloom_end: "2026-04-10", hives_needed: 8, status: "pollinating"
-  fixture "CropField", name: "Henderson Blueberry Farm", crop_type: "blueberries", area_hectares: 8.2, bloom_start: "2026-04-20", bloom_end: "2026-06-15", hives_needed: 4, status: "registered"
-
-  fixture "PollinationSchedule", schedule_name: "Spring 2026 Almond Pollination", field_name: "Wilson's Almond Grove", hive_id: "NORTH-APIARY-001", start_date: "2026-02-15", end_date: "2026-04-10", hive_count: 8, status: "active"
-  fixture "PollinationSchedule", schedule_name: "Summer 2026 Blueberry Service", field_name: "Henderson Blueberry Farm", hive_id: "SOUTH-APIARY-012", start_date: "2026-04-20", end_date: "2026-06-15", hive_count: 4, status: "planned"
-
-  fixture "YieldReport", field_name: "Wilson's Almond Grove", crop_type: "almonds", yield_tons: 38.7, yield_per_hectare: 1.58, pollination_effectiveness: 0.92, status: "analyzed"
-  fixture "YieldReport", field_name: "Henderson Blueberry Farm", crop_type: "blueberries", yield_tons: 15.2, yield_per_hectare: 1.85, pollination_effectiveness: 0.88, status: "recorded"
 end

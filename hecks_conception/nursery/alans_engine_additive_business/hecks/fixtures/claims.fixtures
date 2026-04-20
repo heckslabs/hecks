@@ -1,0 +1,19 @@
+Hecks.fixtures "Claims" do
+  aggregate "WarrantyClaim" do
+    fixture "WarrantyClaim1", claim_number: "WC-2026-001", sku: "DL-ET-32OZ", lot_number: "LOT-DL-20260411", customer: "AutoZone Store #4521", complaint_description: "Customer reports engine noise after 3000 miles post-treatment", status: "open"
+    fixture "WarrantyClaim2", claim_number: "WC-2026-004", sku: "DL-ET-16OZ", lot_number: "LOT-DL-20260322", customer: "Jane Williams", complaint_description: "Bottle leaked during shipping", status: "open"
+    fixture "WarrantyClaim3", claim_number: "WC-2026-005", sku: "S50-RE-32OZ", lot_number: "LOT-S50-20260403", customer: "Mike Johnson", complaint_description: "Product separated in bottle before use", investigation_notes: "Lot stored above 120F in transit", root_cause: "Thermal degradation during shipping", status: "investigated"
+    fixture "WarrantyClaim4", claim_number: "WC-2026-002", sku: "S50-RE-32OZ", lot_number: "LOT-S50-20260403", customer: "Amazon customer via A-to-Z claim", complaint_description: "Product leaked in shipping, bottle seal broken", investigation_notes: "Packaging supplier issue, not formula defect", root_cause: "Berry Global cap torque below spec", resolution: "Replacement sent, packaging spec updated", status: "resolved"
+    fixture "WarrantyClaim5", claim_number: "WC-2026-003", sku: "MK-HL-16OZ", lot_number: "LOT-MK-20260308", customer: "Bob's Auto Shop", complaint_description: "No noticeable improvement in engine performance", investigation_notes: "Customer applied to worn engine beyond treatment scope", root_cause: "Misapplication", resolution: "No-fault — customer education provided", status: "resolved"
+  end
+  aggregate "ReturnAuthorization" do
+    fixture "ReturnAuthorization1", rma_number: "RMA-2026-001", sku: "MK-HL-16OZ", lot_number: "LOT-MK-20260408", customer: "Performance Auto Parts", return_reason_code: "DAMAGED_IN_TRANSIT", disposition: "restock", status: "received"
+    fixture "ReturnAuthorization2", rma_number: "RMA-2026-002", sku: "S50-RE-32OZ", lot_number: "LOT-S50-20260403", customer: "Mike Johnson", return_reason_code: "DEFECTIVE", status: "issued"
+    fixture "ReturnAuthorization3", rma_number: "RMA-2026-003", sku: "DL-ET-32OZ", lot_number: "LOT-DL-20260310", customer: "O'Reilly Auto Parts", return_reason_code: "OVERSTOCK", disposition: "restock", status: "closed"
+  end
+  aggregate "CustomerComplaint" do
+    fixture "CustomerComplaint1", complaint_number: "CC-2026-001", customer: "AutoZone Store #4521", sku: "DL-ET-32OZ", lot_number: "LOT-DL-20260411", description: "Engine noise returned after treatment", status: "open"
+    fixture "CustomerComplaint2", complaint_number: "CC-2026-002", customer: "Mike Johnson", sku: "S50-RE-32OZ", lot_number: "LOT-S50-20260403", description: "Product separated in bottle", root_cause: "Thermal degradation", capa_reference: "CAPA-2026-001", eight_d_report: "8D-2026-001", status: "investigated"
+    fixture "CustomerComplaint3", complaint_number: "CC-2026-003", customer: "Bob's Auto Shop", sku: "MK-HL-16OZ", lot_number: "LOT-MK-20260308", description: "No improvement in engine performance", root_cause: "Misapplication", capa_reference: "CAPA-2026-002", eight_d_report: "8D-2026-002", status: "closed"
+  end
+end

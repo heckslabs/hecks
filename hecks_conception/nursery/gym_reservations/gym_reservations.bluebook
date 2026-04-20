@@ -122,15 +122,4 @@ Hecks.bluebook "GymReservations", version: "2026.04.13.1" do
     trigger "PublishAvailability"
   end
 
-  fixture "ClassSchedule", class_name: "Morning Yoga", day_of_week: "Monday", time_slot: "6:00 AM", trainer_name: "Emma Wilson", room: "Studio A", capacity: 20, enrolled: 18
-  fixture "ClassSchedule", class_name: "HIIT Bootcamp", day_of_week: "Wednesday", time_slot: "5:30 PM", trainer_name: "Marcus Chen", room: "Studio B", capacity: 15, enrolled: 15
-
-  fixture "Booking", member_name: "Alice Rodriguez", class_name: "Morning Yoga", session_date: "2026-04-14", status: "confirmed"
-  fixture "Booking", member_name: "David Thompson", class_name: "HIIT Bootcamp", session_date: "2026-04-16", status: "attended"
-
-  fixture "Trainer", name: "Emma Wilson", specialization: "yoga and flexibility", available_days: ["Monday", "Wednesday", "Friday"]
-  fixture "Trainer", name: "Marcus Chen", specialization: "strength and conditioning", available_days: ["Tuesday", "Wednesday", "Thursday", "Saturday"]
-
-  fixture "WaitList", member_name: "Patricia Adams", class_name: "HIIT Bootcamp", requested_date: "2026-04-18", position: 1
-  fixture "WaitList", member_name: "Kevin Lopez", class_name: "Morning Yoga", requested_date: "2026-04-16", position: 2
 end

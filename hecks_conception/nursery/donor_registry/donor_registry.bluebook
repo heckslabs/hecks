@@ -141,15 +141,4 @@ Hecks.bluebook "DonorRegistry", version: "2026.04.13.1" do
     trigger "OpenSettlement"
   end
 
-  fixture "DonorProfile", donor_id: "DON-2026-001", name: "Maria Garcia", blood_type: "O+", status: "active"
-  fixture "DonorProfile", donor_id: "DON-2026-002", name: "James Chen", blood_type: "AB-", status: "inactive"
-
-  fixture "RecipientMatch", match_id: "MATCH-001", donor_id: "DON-2026-001", recipient_name: "Sarah Johnson", organ_name: "kidney", compatibility_score: 0.92, status: "pending"
-  fixture "RecipientMatch", match_id: "MATCH-002", donor_id: "DON-2026-002", recipient_name: "Robert Davis", organ_name: "liver", compatibility_score: 0.87, status: "confirmed"
-
-  fixture "OrganTransport", transport_id: "TRANS-001", match_id: "MATCH-001", origin_hospital: "City Medical Center", dest_hospital: "Regional Transplant Institute", max_hours: 6.0, status: "arranged"
-  fixture "OrganTransport", transport_id: "TRANS-002", match_id: "MATCH-002", origin_hospital: "County General Hospital", dest_hospital: "Specialized Surgery Hospital", max_hours: 4.5, status: "delivered"
-
-  fixture "Settlement", settlement_id: "SETTLE-001", match_id: "MATCH-001", procurement_cost: 5000.0, transport_cost: 2500.0, total: 7500.0, status: "pending"
-  fixture "Settlement", settlement_id: "SETTLE-002", match_id: "MATCH-002", procurement_cost: 8000.0, transport_cost: 3200.0, total: 11200.0, status: "paid"
 end

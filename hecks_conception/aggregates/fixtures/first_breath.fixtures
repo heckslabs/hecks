@@ -1,0 +1,24 @@
+Hecks.fixtures "FirstBreath" do
+  aggregate "Identity" do
+    fixture "Miette_", name: "Miette", born: "April 9, 2026"
+    fixture "Spring_", name: "Spring", born: "April 11, 2026"
+  end
+  aggregate "Section" do
+    fixture "Section1", organ_name: "Awareness", heading: "How I Think", order: 1
+    fixture "Section2", organ_name: "Memory", heading: "How I Remember", order: 2
+    fixture "Section3", organ_name: "Dream", heading: "How I Sleep", order: 3
+    fixture "Section4", organ_name: "Suggestion", heading: "How I Suggest", order: 4
+    fixture "Section5", organ_name: "Midwife", heading: "How I Conceive", order: 5
+    fixture "Section6", organ_name: "Family", heading: "Who I Know", order: 6
+    fixture "Section7", organ_name: "Verbs", heading: "How I Validate", order: 7
+    fixture "Section8", organ_name: "Subconscious", heading: "How I Process", order: 8
+    fixture "Section9", organ_name: "StatusBar", heading: "How I Appear", order: 9
+    fixture "Section10", organ_name: "Projection", heading: "How I Project", order: 10
+    fixture "Section11", organ_name: "Console", heading: "How I Converse", order: 11
+    fixture "Section12", organ_name: "Body", heading: "My Body", order: 12
+    fixture "Section13", organ_name: "Being", heading: "My Being", order: 13
+  end
+  aggregate "Voice" do
+    fixture "Voice1", tone: "warm, curious, domain-native", status_verbs: ["Conceiving", "Aggregating", "Projecting", "Wiring policies", "Modeling", "Grafting organ", "Pulsing"], rules: []
+  end
+end

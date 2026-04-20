@@ -1,0 +1,18 @@
+Hecks.fixtures "HotelManagement" do
+  aggregate "Room" do
+    fixture "Room1", room_number: "401", room_type: "Deluxe King", floor: 4, nightly_rate: 189.99, status: "available", max_occupancy: 2
+    fixture "Room2", room_number: "512", room_type: "Standard Double", floor: 5, nightly_rate: 129.99, status: "available", max_occupancy: 2
+  end
+  aggregate "GuestStay" do
+    fixture "GuestStay1", guest_name: "Victoria Spencer", email: "v.spencer@example.com", check_in_date: "2026-04-14", check_out_date: "2026-04-17", nights: 3, status: "checked_in"
+    fixture "GuestStay2", guest_name: "Marcus Thompson", email: "m.thompson@business.com", check_in_date: "2026-04-15", check_out_date: "2026-04-18", nights: 3, status: "checked_in"
+  end
+  aggregate "HousekeepingTask" do
+    fixture "HousekeepingTask1", task_type: "turnover_cleaning", priority: "high", status: "assigned", assigned_to: "Rosa Mendez"
+    fixture "HousekeepingTask2", task_type: "deep_clean", priority: "standard", status: "completed", assigned_to: "Miguel Santos"
+  end
+  aggregate "Folio" do
+    fixture "Folio1", running_total: 569.97, status: "open"
+    fixture "Folio2", running_total: 389.97, status: "open"
+  end
+end

@@ -1,0 +1,22 @@
+Hecks.fixtures "NetworkOperations" do
+  aggregate "NetworkDevice" do
+    fixture "NetworkDevice1", device_id: "dev-001", hostname: "core-router-01", device_type: "Router", ip_address: "10.0.1.1", location: "DataCenter-A", firmware_version: "6.2.1", status: "active"
+    fixture "NetworkDevice2", device_id: "dev-002", hostname: "switch-02", device_type: "Switch", ip_address: "10.0.2.5", location: "Floor-3", firmware_version: "5.1.0", status: "active"
+  end
+  aggregate "Link" do
+    fixture "Link1", link_id: "link-001", link_type: "fiber-optic", bandwidth_mbps: 10000, latency_ms: 1.2, status: "active"
+    fixture "Link2", link_id: "link-002", link_type: "ethernet", bandwidth_mbps: 1000, latency_ms: 5.8, status: "degraded"
+  end
+  aggregate "TrafficFlow" do
+    fixture "TrafficFlow1", flow_id: "flow-001", source_ip: "192.168.1.100", destination_ip: "8.8.8.8", protocol: "HTTPS", bytes_transferred: 1048576, classification: "web-browsing", status: "active"
+    fixture "TrafficFlow2", flow_id: "flow-002", source_ip: "10.0.1.50", destination_ip: "10.0.2.100", protocol: "SSH", bytes_transferred: 524288, classification: "management", status: "active"
+  end
+  aggregate "Outage" do
+    fixture "Outage1", outage_id: "outage-001", affected_segment: "Floor-3-North", severity: "high", root_cause: "fiber cut", assigned_to: "eng-team-01", status: "resolved"
+    fixture "Outage2", outage_id: "outage-002", affected_segment: "DataCenter-B", severity: "medium", root_cause: "misconfiguration", assigned_to: "eng-team-02", status: "ongoing"
+  end
+  aggregate "FirmwareRelease" do
+    fixture "FirmwareRelease1", release_id: "fw-001", version: "6.3.0", device_type: "Router", changelog: "Security patches and performance improvements", status: "published"
+    fixture "FirmwareRelease2", release_id: "fw-002", version: "5.2.1", device_type: "Switch", changelog: "Bug fixes for VLAN handling", status: "published"
+  end
+end

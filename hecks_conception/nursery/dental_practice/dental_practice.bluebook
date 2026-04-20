@@ -248,18 +248,4 @@ Hecks.bluebook "DentalPractice" do
     trigger "ProcessPayment"
   end
 
-  fixture "Patient", first_name: "Sarah", last_name: "Johnson", date_of_birth: "1985-03-15", phone: "555-0142", insurance_provider: "Delta Dental", policy_number: "DD-987654", status: "active"
-  fixture "Patient", first_name: "Michael", last_name: "Chen", date_of_birth: "1992-07-22", phone: "555-0158", insurance_provider: "United Healthcare", policy_number: "UHC-654321", status: "active"
-
-  fixture "DentalProcedure", cdt_code: "D1110", procedure_name: "Prophylaxis - adult", tooth_number: "all", surface: "full mouth", notes: "routine cleaning", performed_date: "2026-04-10", status: "completed"
-  fixture "DentalProcedure", cdt_code: "D2391", procedure_name: "Resin-based composite - one surface, posterior", tooth_number: "30", surface: "occlusal", notes: "small decay in lower molar", performed_date: "2026-04-12", status: "completed"
-
-  fixture "Radiograph", image_type: "periapical", tooth_region: "upper right anterior", findings: "no interproximal decay detected", taken_date: "2026-04-09"
-  fixture "Radiograph", image_type: "panoramic", tooth_region: "full mouth", findings: "mild bone loss in posterior regions", taken_date: "2026-04-11"
-
-  fixture "InsuranceClaim", billed_amount: 650.00, allowed_amount: 520.00, patient_responsibility: 130.00, status: "paid", submitted_date: "2026-04-11"
-  fixture "InsuranceClaim", billed_amount: 1200.00, allowed_amount: 950.00, patient_responsibility: 250.00, status: "submitted", submitted_date: "2026-04-13"
-
-  fixture "DentalAppointment", appointment_date: "2026-04-15", time_slot: "09:00 AM", visit_type: "cleaning", status: "scheduled"
-  fixture "DentalAppointment", appointment_date: "2026-04-18", time_slot: "02:30 PM", visit_type: "consultation", status: "confirmed"
 end

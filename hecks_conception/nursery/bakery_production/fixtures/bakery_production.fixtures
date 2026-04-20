@@ -1,0 +1,26 @@
+Hecks.fixtures "BakeryProduction" do
+  aggregate "Recipe" do
+    fixture "Sourdough_Levain_", name: "Sourdough Levain", category: "bread", yield_count: 8, prep_minutes: 480, bake_minutes: 45, bake_temp_f: 475.0
+    fixture "Chocolate_Croissants_", name: "Chocolate Croissants", category: "pastry", yield_count: 24, prep_minutes: 120, bake_minutes: 22, bake_temp_f: 400.0
+    fixture "Blueberry_Muffins_", name: "Blueberry Muffins", category: "breakfast", yield_count: 12, prep_minutes: 20, bake_minutes: 25, bake_temp_f: 375.0
+    fixture "Focaccia_Rosemary_", name: "Focaccia Rosemary", category: "bread", yield_count: 4, prep_minutes: 90, bake_minutes: 30, bake_temp_f: 450.0
+  end
+  aggregate "Batch" do
+    fixture "Batch1", recipe_name: "Sourdough Levain", production_date: "2026-04-14", quantity: 16, baker: "Thomas Wright", status: "completed", started_at: "04:30", completed_at: "11:00"
+    fixture "Batch2", recipe_name: "Whole Wheat", production_date: "2026-04-14", quantity: 12, baker: "Sophia Martinez", status: "in_progress", started_at: "05:00", completed_at: ""
+    fixture "Batch3", recipe_name: "Blueberry Muffins", production_date: "2026-04-15", quantity: 30, baker: "Marcus Chen", status: "pending", started_at: "", completed_at: ""
+    fixture "Batch4", recipe_name: "Chocolate Croissants", production_date: "2026-04-14", quantity: 20, baker: "Thomas Wright", status: "completed", started_at: "06:00", completed_at: "08:30"
+  end
+  aggregate "IngredientStock" do
+    fixture "IngredientStock1", ingredient_name: "All-Purpose Flour", quantity_on_hand: 450.0, unit: "lbs", par_level: 300.0, supplier: "Premier Grain Mills", cost_per_unit: 0.35
+    fixture "IngredientStock2", ingredient_name: "Sea Salt", quantity_on_hand: 8.0, unit: "lbs", par_level: 15.0, supplier: "Atlantic Salt Co", cost_per_unit: 2.10
+    fixture "IngredientStock3", ingredient_name: "Fresh Blueberries", quantity_on_hand: 25.0, unit: "lbs", par_level: 40.0, supplier: "Mountain Valley Farms", cost_per_unit: 5.50
+    fixture "IngredientStock4", ingredient_name: "Dark Chocolate Chips", quantity_on_hand: 120.0, unit: "lbs", par_level: 100.0, supplier: "Belgian Chocolate Supply", cost_per_unit: 3.75
+  end
+  aggregate "Order" do
+    fixture "Order1", customer_name: "Westside Cafe", order_date: "2026-04-12", pickup_date: "2026-04-15", status: "confirmed"
+    fixture "Order2", customer_name: "Jane Chen Wedding", order_date: "2026-04-10", pickup_date: "2026-04-20", status: "in_production"
+    fixture "Order3", customer_name: "Downtown Hotel", order_date: "2026-04-13", pickup_date: "2026-04-15", status: "confirmed"
+    fixture "Order4", customer_name: "Corporate Breakfast", order_date: "2026-04-14", pickup_date: "2026-04-15", status: "pending"
+  end
+end

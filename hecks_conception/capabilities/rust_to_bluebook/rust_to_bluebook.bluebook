@@ -153,15 +153,6 @@ Hecks.bluebook "RustToBluebook", version: "2026.04.16.1" do
   end
 
   # What we've done and what's left
-  fixture "RustFile", path: "daemon/daydream.rs", module_name: "daydream", line_count: 211, status: "deleted"
-  fixture "RustFile", path: "daemon/pulse_organs.rs", module_name: "pulse_organs", line_count: 183, status: "deleted"
-  fixture "RustFile", path: "daemon/dream_interpret.rs", module_name: "dream_interpret", line_count: 97, status: "deleted"
-  fixture "RustFile", path: "daemon/pulse.rs", module_name: "pulse", line_count: 133, status: "deleted"
-  fixture "RustFile", path: "daemon/mindstream.rs", module_name: "mindstream", line_count: 400, status: "pending"
-  fixture "RustFile", path: "daemon/sleep.rs", module_name: "sleep", line_count: 620, status: "pending"
-  fixture "RustFile", path: "daemon/greeting.rs", module_name: "greeting", line_count: 87, status: "deleted"
-  fixture "RustFile", path: "runtime/persistence.rs", module_name: "persistence", line_count: 204, status: "deleted"
-  fixture "Conversion", files_total: 7, files_converted: 6, lines_deleted: 915
 
   # The chain: analyze → map → generate → verify → delete
   policy "MapOnAnalyze" do

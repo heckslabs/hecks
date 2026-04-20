@@ -1,0 +1,18 @@
+Hecks.fixtures "ConnectedCare" do
+  aggregate "HomePatient" do
+    fixture "Margaret_Thompson_", patient_id: "PT-2024-001", name: "Margaret Thompson", address: "456 Oak Street, Portland OR", condition: "COPD with monitoring", primary_caregiver: "David Thompson", status: "enrolled"
+    fixture "James_Wilson_", patient_id: "PT-2024-002", name: "James Wilson", address: "789 Elm Avenue, Seattle WA", condition: "Diabetes Type 2", primary_caregiver: "Sarah Wilson", status: "enrolled"
+  end
+  aggregate "HomeSensor" do
+    fixture "HomeSensor1", sensor_id: "SN-H001-A", patient_id: "PT-2024-001", sensor_type: "oxygen_monitor", location_room: "Bedroom", battery_pct: 87.0, status: "active"
+    fixture "HomeSensor2", sensor_id: "SN-H001-B", patient_id: "PT-2024-001", sensor_type: "motion_detector", location_room: "Living Room", battery_pct: 92.5, status: "active"
+  end
+  aggregate "CareAlert" do
+    fixture "CareAlert1", alert_id: "AL-2026-001", patient_id: "PT-2024-001", sensor_id: "SN-H001-A", alert_type: "low_oxygen", severity: "high", status: "open"
+    fixture "CareAlert2", alert_id: "AL-2026-002", patient_id: "PT-2024-002", sensor_id: "SN-H001-B", alert_type: "no_movement_12h", severity: "medium", status: "open"
+  end
+  aggregate "CaregiverDispatch" do
+    fixture "CaregiverDispatch1", dispatch_id: "DP-2026-001", alert_id: "AL-2026-001", caregiver_name: "Patricia Johnson", eta: "15 minutes", status: "dispatched"
+    fixture "CaregiverDispatch2", dispatch_id: "DP-2026-002", alert_id: "AL-2026-002", caregiver_name: "Michael Chen", eta: "22 minutes", status: "dispatched"
+  end
+end

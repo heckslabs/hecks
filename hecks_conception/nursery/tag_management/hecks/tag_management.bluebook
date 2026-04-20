@@ -367,28 +367,4 @@ Hecks.bluebook "TagManagement", version: "2026.04.11.1" do
 
   # --- Fixtures ---
 
-  fixture "Container", name: "DuraLube.com", domain: "duralube.com", container_id: "GTM-DL001", status: "active"
-  fixture "Container", name: "MotorKote.com", domain: "motorkote.com", container_id: "GTM-MK001", status: "active"
-  fixture "Container", name: "Slick50.com", domain: "slick50.com", container_id: "GTM-S5001", status: "active"
-
-  fixture "Tag", name: "GA4 Pageview", tag_type: "google_analytics_4", container_id: "GTM-DL001", trigger_name: "All Pages", template: "ga4_event", status: "draft"
-  fixture "Tag", name: "Meta Pixel", tag_type: "meta_pixel", container_id: "GTM-DL001", trigger_name: "All Pages", template: "meta_pixel", status: "draft"
-  fixture "Tag", name: "Google Ads Conversion", tag_type: "google_ads", container_id: "GTM-DL001", trigger_name: "Purchase Confirmation", template: "google_ads_conversion", status: "draft"
-  fixture "Tag", name: "Hotjar Recording", tag_type: "custom_html", container_id: "GTM-DL001", trigger_name: "All Pages", template: "custom_html", consent_required: "analytics", status: "draft"
-  fixture "Tag", name: "Amazon Attribution", tag_type: "custom_image", container_id: "GTM-DL001", trigger_name: "Add To Cart Click", template: "custom_image", status: "draft"
-
-  fixture "Trigger", name: "All Pages", trigger_type: "page_view", container_id: "GTM-DL001", description: "Fires on every page load"
-  fixture "Trigger", name: "Purchase Confirmation", trigger_type: "page_view", container_id: "GTM-DL001", description: "Fires on /thank-you page"
-  fixture "Trigger", name: "Add To Cart Click", trigger_type: "click", container_id: "GTM-DL001", description: "Fires when add-to-cart button is clicked"
-  fixture "Trigger", name: "Scroll 50 Percent", trigger_type: "scroll_depth", container_id: "GTM-DL001", description: "Fires when visitor scrolls past 50%"
-  fixture "Trigger", name: "Video Play", trigger_type: "youtube_video", container_id: "GTM-DL001", description: "Fires when an embedded YouTube video starts"
-  fixture "Trigger", name: "Timer 30s", trigger_type: "timer", container_id: "GTM-DL001", description: "Fires 30 seconds after page load"
-
-  fixture "Variable", name: "Page URL", variable_type: "url", container_id: "GTM-DL001", selector: "page_url"
-  fixture "Variable", name: "Page Path", variable_type: "url", container_id: "GTM-DL001", selector: "page_path"
-  fixture "Variable", name: "Click Text", variable_type: "auto_event", container_id: "GTM-DL001", selector: "gtm.element.innerText"
-  fixture "Variable", name: "Product SKU", variable_type: "data_layer", container_id: "GTM-DL001", selector: "ecommerce.items.0.item_id"
-  fixture "Variable", name: "User Consent", variable_type: "cookie", container_id: "GTM-DL001", selector: "consent_preferences"
-
-  fixture "Version", container_id: "GTM-DL001", version_number: 1, tag_count: 5, trigger_count: 6, variable_count: 5, description: "Initial setup — GA4, Meta Pixel, Ads conversion", created_by: "Alan", status: "published"
 end

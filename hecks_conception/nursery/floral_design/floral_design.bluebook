@@ -186,19 +186,4 @@ Hecks.bluebook "FloralDesign" do
     trigger "PlanInstallation"
   end
 
-
-  fixture "Arrangement", name: "Romantic Sunset", style: "garden", vessel_type: "glass_vase", status: "designed", stem_count: 24
-  fixture "Arrangement", name: "Tropical Paradise", style: "modern", vessel_type: "ceramic_urn", status: "designed", stem_count: 35
-
-  fixture "FlowerStock", variety: "roses", color: "red", stem_quantity: 150, freshness: "fresh", vase_life_days: 12
-  fixture "FlowerStock", variety: "eucalyptus", color: "green", stem_quantity: 200, freshness: "fresh", vase_life_days: 18
-
-  fixture "FloralEvent", event_name: "Morrison-Garcia Wedding", venue: "Grandview Ballroom", date: "2026-05-15", status: "consulted", arrangement_count: 8, reference_to(Arrangement)
-  fixture "FloralEvent", event_name: "Corporate Gala 2026", venue: "Downtown Convention Center", date: "2026-06-22", status: "consulted", arrangement_count: 15, reference_to(Arrangement)
-
-  fixture "Delivery", address: "Grandview Ballroom, 500 Park Drive", delivery_date: "2026-05-15", time_window: "2pm-4pm", status: "scheduled", driver_name: "Marcus Johnson", reference_to(Arrangement)
-  fixture "Delivery", address: "Downtown Convention Center, 100 Civic Plaza", delivery_date: "2026-06-22", time_window: "10am-12pm", status: "scheduled", driver_name: "Elena Rodriguez", reference_to(Arrangement)
-
-  fixture "FloralInstallation", location: "Grand Ballroom - Entrance Arch", design_theme: "Spring Romance", crew_size: 4, status: "planned", reference_to(FloralEvent)
-  fixture "FloralInstallation", location: "Convention Center - Main Foyer", design_theme: "Modern Elegance", crew_size: 6, status: "planned", reference_to(FloralEvent)
 end

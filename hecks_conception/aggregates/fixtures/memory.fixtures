@@ -1,0 +1,9 @@
+Hecks.fixtures "Memory" do
+  aggregate "Encoding" do
+    fixture "Encoding1", kind: "user", subject: "template", content: "who someone is, how they work"
+    fixture "Encoding2", kind: "feedback", subject: "template", content: "correction or confirmation of approach"
+    fixture "Encoding3", kind: "project", subject: "template", content: "ongoing work, goals, decisions"
+    fixture "Encoding4", kind: "reference", subject: "template", content: "where to find things in external systems"
+    fixture "Encoding5", kind: "session", subject: "template", content: "what happened in a conversation"
+  end
+end

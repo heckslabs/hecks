@@ -330,21 +330,6 @@ Hecks.bluebook "ElevatorPhysics", version: "2026.04.13.1" do
     trigger "InspectCable"
   end
 
-  fixture "ElevatorCar", car_id: "WLT-A1-CAR", car_weight_kg: 1200.0, max_load_kg: 2500.0, current_load_kg: 0.0, current_floor: 1, status: "idle"
-  fixture "ElevatorCar", car_id: "CCT-B2-CAR", car_weight_kg: 950.0, max_load_kg: 1500.0, current_load_kg: 0.0, current_floor: 1, status: "idle"
-
-  fixture "CableSystem", cable_id: "MAIN-CABLE-001", material: "steel", diameter_mm: 16.0, breaking_strength_kn: 180.0, safety_factor: 12.0, wear_pct: 2.5, status: "active"
-  fixture "CableSystem", cable_id: "MAIN-CABLE-002", material: "steel", diameter_mm: 13.0, breaking_strength_kn: 125.0, safety_factor: 10.0, wear_pct: 8.3, status: "active"
-
-  fixture "Counterweight", counterweight_id: "CW-WLT-A1", mass_kg: 1400.0, balance_ratio: 0.56, car_weight_kg: 1200.0, status: "configured"
-  fixture "Counterweight", counterweight_id: "CW-CCT-B2", mass_kg: 1100.0, balance_ratio: 0.73, car_weight_kg: 950.0, status: "configured"
-
-  fixture "LoadCalculation", calculation_id: "CALC-WLT-A1-001", total_load_kg: 2250.0, gravity_force_n: 22050.0, cable_tension_n: 11025.0, motor_torque_nm: 850.0, power_required_kw: 8.5, status: "validated"
-  fixture "LoadCalculation", calculation_id: "CALC-CCT-B2-001", total_load_kg: 1600.0, gravity_force_n: 15680.0, cable_tension_n: 7840.0, motor_torque_nm: 580.0, power_required_kw: 5.8, status: "validated"
-
-  fixture "SafetyInspection", inspection_id: "SI-2026-001", elevator_id: "WLT-A1", inspector_name: "James Kim", inspection_date: "2026-04-10", findings: "all_systems_nominal", status: "certified"
-  fixture "SafetyInspection", inspection_id: "SI-2026-002", elevator_id: "CCT-B2", inspector_name: "Patricia Young", inspection_date: "2026-04-08", findings: "minor_door_sensor_drift", status: "certified"
-
   policy "RecordOnConduct" do
     on "InspectionConducted"
     trigger "RecordFindings"

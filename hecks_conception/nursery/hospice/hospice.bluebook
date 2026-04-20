@@ -263,18 +263,4 @@ Hecks.bluebook "Hospice" do
     trigger "AddIntervention"
   end
 
-  fixture "Patient", name: "Eleanor Nash", date_of_birth: "1938-06-12", terminal_diagnosis: "Stage IV pancreatic cancer", prognosis: "2-3 months", advance_directive: "DNR, no intubation", status: "active"
-  fixture "Patient", name: "George Patterson", date_of_birth: "1935-11-28", terminal_diagnosis: "Progressive heart failure", prognosis: "1-2 months", advance_directive: "Comfort care only", status: "active"
-
-  fixture "ComfortPlan", patient_name: "Eleanor Nash", pain_management_approach: "opioid escalation protocol", spiritual_preferences: "Catholic chaplain visits weekly", status: "active"
-  fixture "ComfortPlan", patient_name: "George Patterson", pain_management_approach: "non-opioid palliative", spiritual_preferences: "No religious services", status: "active"
-
-  fixture "FamilySupport", family_contact_name: "James Nash", patient_name: "Eleanor Nash", relationship: "Son", bereavement_status: "pre-loss"
-  fixture "FamilySupport", family_contact_name: "Patricia Patterson", patient_name: "George Patterson", relationship: "Daughter", bereavement_status: "pre-loss"
-
-  fixture "HospiceMedication", patient_name: "Eleanor Nash", drug_name: "Morphine", dosage: "15mg", route: "oral", purpose: "pain relief", status: "active"
-  fixture "HospiceMedication", patient_name: "George Patterson", drug_name: "Lorazepam", dosage: "1mg", route: "sublingual", purpose: "anxiety relief", status: "active"
-
-  fixture "HospiceVisit", patient_name: "Eleanor Nash", visitor_name: "Maria Santos", visitor_role: "Nurse", visit_date: "2026-04-14", pain_score: 6, notes: "Patient resting, pain controlled", status: "completed"
-  fixture "HospiceVisit", patient_name: "George Patterson", visitor_name: "Dr. William Lee", visitor_role: "Physician", visit_date: "2026-04-15", pain_score: 0, notes: "", status: "scheduled"
 end

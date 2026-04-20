@@ -142,15 +142,4 @@ Hecks.bluebook "DermatologyUX", version: "2026.04.13.1" do
     trigger "AggregateFeedback"
   end
 
-  fixture "SkinCondition", condition_id: "SC-001", patient_name: "Emma Davis", diagnosis: "atopic dermatitis", severity: "moderate", body_area: "hands and forearms", status: "diagnosed"
-  fixture "SkinCondition", condition_id: "SC-002", patient_name: "David Martinez", diagnosis: "psoriasis", severity: "mild", body_area: "elbows and knees", status: "treating"
-
-  fixture "PatientSurvey", survey_id: "SURV-001", patient_name: "Emma Davis", condition_id: "SC-001", status: "sent"
-  fixture "PatientSurvey", survey_id: "SURV-002", patient_name: "David Martinez", condition_id: "SC-002", status: "collected"
-
-  fixture "TreatmentFeedback", feedback_id: "FB-001", condition_id: "SC-001", treatment_type: "topical corticosteroid", satisfaction_score: 4.2, effectiveness_score: 4.5, summary: "Effective for acute flare-ups with mild side effects"
-  fixture "TreatmentFeedback", feedback_id: "FB-002", condition_id: "SC-002", treatment_type: "phototherapy", satisfaction_score: 3.8, effectiveness_score: 4.1, summary: "Consistent improvement with weekly sessions"
-
-  fixture "UsabilityTest", test_id: "TEST-001", feature_name: "appointment booking widget", participant_id: "P-017", task_time_seconds: 145.2, error_count: 0.0, status: "completed"
-  fixture "UsabilityTest", test_id: "TEST-002", feature_name: "prescription refill form", participant_id: "P-018", task_time_seconds: 213.5, error_count: 2.0, status: "completed"
 end

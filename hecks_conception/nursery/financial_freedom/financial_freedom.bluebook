@@ -208,15 +208,4 @@ Hecks.bluebook "FinancialFreedom" do
     condition { |event| event.benefit_type == "housing_voucher" }
   end
 
-  fixture "SurvivorCase", case_id: "SC-2026-001", intake_date: "2026-03-15", safety_plan: "contact police, safe house", status: "active"
-  fixture "SurvivorCase", case_id: "SC-2026-002", intake_date: "2026-02-20", safety_plan: "restraining order, secure phone", status: "active"
-
-  fixture "FinancialProfile", annual_income: 18000.0, status: "gathering"
-  fixture "FinancialProfile", annual_income: 24500.0, status: "gathering"
-
-  fixture "TaxReturn", tax_year: 2025, filing_status: "head of household", refund_cents: 285000, status: "preparing"
-  fixture "TaxReturn", tax_year: 2025, filing_status: "single", refund_cents: 150000, status: "preparing"
-
-  fixture "BenefitApplication", benefit_type: "SNAP", status: "draft"
-  fixture "BenefitApplication", benefit_type: "housing_voucher", status: "draft"
 end

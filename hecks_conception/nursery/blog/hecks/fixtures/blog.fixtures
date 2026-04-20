@@ -1,0 +1,20 @@
+Hecks.fixtures "Blog" do
+  aggregate "Author" do
+    fixture "Alan_", name: "Alan", bio: "Engine additive entrepreneur and tribology enthusiast", status: "active"
+    fixture "Chris_", name: "Chris", bio: "Domain-driven design practitioner", status: "active"
+  end
+  aggregate "Tag" do
+    fixture "Tribology_", name: "Tribology", post_count: 3
+    fixture "Business_", name: "Business", post_count: 2
+    fixture "Engineering_", name: "Engineering", post_count: 1
+  end
+  aggregate "Post" do
+    fixture "Why_ZDDP_Still_Matters_", title: "Why ZDDP Still Matters", slug: "why-zddp-still-matters", author_name: "Alan", status: "published", tags: "Tribology,Engineering", excerpt: "Zinc dialkyl dithiophosphate has been the workhorse anti-wear additive since the 1940s."
+    fixture "Three_Brands_One_Mission_", title: "Three Brands One Mission", slug: "three-brands-one-mission", author_name: "Alan", status: "published", tags: "Business", excerpt: "DuraLube, MotorKote, and Slick 50 each own a different word in the customer's mind."
+    fixture "The_Four_Ball_Wear_Test_Explained_", title: "The Four-Ball Wear Test Explained", slug: "four-ball-wear-test", author_name: "Alan", status: "draft", tags: "Tribology", excerpt: "ASTM D4172 is the gold standard for measuring anti-wear performance."
+  end
+  aggregate "Comment" do
+    fixture "Comment1", post_slug: "why-zddp-still-matters", author_name: "Mike from Fleet Service", body: "We switched to ZDDP-heavy formulas last year. 30% less engine wear across our fleet.", status: "visible"
+    fixture "Comment2", post_slug: "three-brands-one-mission", author_name: "Performance Junkie Dave", body: "MotorKote's dyno results sold me. Anti-friction is the real deal.", status: "visible"
+  end
+end

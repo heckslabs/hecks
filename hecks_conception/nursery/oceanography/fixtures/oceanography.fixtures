@@ -1,0 +1,18 @@
+Hecks.fixtures "Oceanography" do
+  aggregate "SamplingStation" do
+    fixture "SamplingStation1", station_id: "WHOI-001", latitude: 41.5256, longitude: -70.4687, water_depth_m: 1520.0, station_type: "mooring"
+    fixture "SamplingStation2", station_id: "OCE-SHELF-02", latitude: 37.8054, longitude: -122.4772, water_depth_m: 85.5, station_type: "fixed"
+  end
+  aggregate "CtdCast" do
+    fixture "CtdCast1", cast_id: "CAST-2026-0412-001", timestamp: "2026-04-12T14:30:00Z", max_depth_m: 1500.0
+    fixture "CtdCast2", cast_id: "CAST-2026-0411-005", timestamp: "2026-04-11T09:15:00Z", max_depth_m: 80.0
+  end
+  aggregate "CurrentMeter" do
+    fixture "CurrentMeter1", instrument_id: "ADCP-07", deployment_depth_m: 450.0, mooring_type: "subsurface"
+    fixture "CurrentMeter2", instrument_id: "AANDERAA-12", deployment_depth_m: 200.0, mooring_type: "mid-water"
+  end
+  aggregate "SpeciesCount" do
+    fixture "SpeciesCount1", species_name: "Calanus finmarchicus", count: 2847, survey_method: "net tow"
+    fixture "SpeciesCount2", species_name: "Euphausia superba", count: 156, survey_method: "visual transect"
+  end
+end

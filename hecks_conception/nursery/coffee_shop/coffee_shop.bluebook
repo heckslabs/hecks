@@ -232,18 +232,5 @@ Hecks.bluebook "CoffeeShop", version: "2026.04.13.1" do
   end
 
   # Fixtures
-  fixture "MenuItem", item_id: "espresso-single", name: "Single Shot Espresso", category: "espresso", price: 3.50, available: "true"
-  fixture "MenuItem", item_id: "latte-grande", name: "Grande Latte", category: "milk_drinks", price: 5.25, available: "true"
 
-  fixture "Barista", employee_id: "BAR-001", name: "Alex Rivera", skill_level: "advanced"
-  fixture "Barista", employee_id: "BAR-002", name: "Jordan Lee", skill_level: "intermediate"
-
-  fixture "DrinkOrder", order_id: "ORD-2026-001", customer_name: "Emily Zhang", total: 15.75, status: "placed"
-  fixture "DrinkOrder", order_id: "ORD-2026-002", customer_name: "David Murphy", total: 11.50, status: "served"
-
-  fixture "BeanSupply", batch_id: "BEANS-001", origin: "Ethiopia Yirgacheffe", roast_level: "medium", roaster: "Counter Culture", weight_kg: 25.0, roast_date: "2026-04-01"
-  fixture "BeanSupply", batch_id: "BEANS-002", origin: "Colombia Geisha", roast_level: "light", roaster: "Blue Bottle", weight_kg: 15.0, roast_date: "2026-04-05"
-
-  fixture "Equipment", equipment_id: "EQP-ESPRESSO-01", name: "Espresso Machine", make: "La Marzocco", model: "Linea Mini", status: "operational"
-  fixture "Equipment", equipment_id: "EQP-GRINDER-01", name: "Burr Grinder", make: "Baratza", model: "Sette 270", status: "operational"
 end

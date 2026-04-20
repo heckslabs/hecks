@@ -21,5 +21,4 @@ Hecks.bluebook "session_2026_04_10_065431", version: "2026.04.15.1" do
     end
   end
 
-  fixture "Session", session_id: "session_2026_04_10_065431", engine: "claude", started_at: "2026_04_10_065431", status: "active"
 end

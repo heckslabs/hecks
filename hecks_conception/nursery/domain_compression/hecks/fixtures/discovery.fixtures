@@ -1,0 +1,12 @@
+Hecks.fixtures "Discovery" do
+  aggregate "DomainCluster" do
+    fixture "DomainCluster1", cluster_name: "ResourceAllocation", pattern_signature: "finite_pool + request + constraint + assignment", cohesion_score: 0.87, member_count: 5, member_domains: ["Pizzas", "HospitalBeds", "AmbulanceDispatch", "ParkingGarage", "ClassroomScheduling"]
+    fixture "DomainCluster2", cluster_name: "SupplyChain", pattern_signature: "source + transform + inventory + distribute", cohesion_score: 0.91, member_count: 4, member_domains: ["AlansEngineAdditive", "Brewery", "Bakery", "PharmaceuticalManufacturing"]
+    fixture "DomainCluster3", cluster_name: "CaseManagement", pattern_signature: "intake + triage + assignment + resolution + review", cohesion_score: 0.83, member_count: 6, member_domains: ["AnimalShelter", "InsuranceClaims", "LegalCaseManagement", "ITServiceDesk", "PatientAdmission", "ComplaintHandling"]
+  end
+  aggregate "PrimitivePattern" do
+    fixture "PrimitivePattern1", pattern_name: "FinitePool", description: "A bounded collection of resources that can be reserved, allocated, and released", structural_signature: "pool{capacity,available} + reserve + allocate + release", aggregate_template_count: 1, command_template_count: 3, occurrence_count: 12, example_domains: ["Pizzas", "HospitalBeds", "ParkingGarage"]
+    fixture "PrimitivePattern2", pattern_name: "Lifecycle", description: "An entity that moves through defined states with guarded transitions", structural_signature: "entity{status} + transition[] + guard[]", aggregate_template_count: 1, command_template_count: 4, occurrence_count: 47, example_domains: ["Order", "Loan", "Ticket"]
+    fixture "PrimitivePattern3", pattern_name: "Ledger", description: "Append-only record of entries with running balance", structural_signature: "account{balance} + entry{amount,type} + post + reconcile", aggregate_template_count: 2, command_template_count: 3, occurrence_count: 9, example_domains: ["Banking", "Accounting", "CarbonCredits"]
+  end
+end

@@ -193,18 +193,5 @@ Hecks.bluebook "Calligraphy" do
   end
 
   # === Fixtures ===
-  fixture "CalligraphyCommission", client_name: "David Zhang", text_content: "Forever in our hearts", purpose: "Memorial service program", status: "quoted", deadline: "2026-05-10", price: 250.0
-  fixture "CalligraphyCommission", client_name: "Victoria Parks", text_content: "Love and Forever", purpose: "Wedding invitation suite", status: "accepted", deadline: "2026-06-01", price: 475.0
 
-  fixture "Script", name: "Italic", historical_period: "Medieval", tool_type: "Broad nib", x_height_mm: 5.0, nib_angle_degrees: 45.0
-  fixture "Script", name: "Copperplate", historical_period: "18th Century", tool_type: "Pointed nib", x_height_mm: 4.5, nib_angle_degrees: 55.0
-
-  fixture "InkFormulation", name: "Midnight Blue", color: "blue", base_type: "walnut", viscosity: 2.5, status: "formulated"
-  fixture "InkFormulation", name: "Gold Leaf Ink", color: "gold", base_type: "gum arabic", viscosity: 1.8, status: "formulated"
-
-  fixture "PaperSelection", name: "Arches Hot Pressed", finish: "smooth", gsm: 300, fiber_content: "100% cotton rag", status: "stocked"
-  fixture "PaperSelection", name: "Saunders Waterford", finish: "cold pressed", gsm: 425, fiber_content: "100% cotton", status: "stocked"
-
-  fixture "Portfolio", title: "Formal Occasions", theme: "Wedding & Event Design", piece_count: 12, status: "curating"
-  fixture "Portfolio", title: "Timeless Scripts", theme: "Historical Calligraphy", piece_count: 18, status: "published"
 end

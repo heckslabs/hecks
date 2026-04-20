@@ -262,18 +262,4 @@ Hecks.bluebook "DevOpsPipeline", version: "2026.04.13.1" do
     trigger "RecordMetric"
   end
 
-  fixture "Repository", repo_name: "user-service", clone_url: "https://github.com/acme/user-service.git", default_branch: "main", language: "Go", status: "idle"
-  fixture "Repository", repo_name: "payment-api", clone_url: "https://github.com/acme/payment-api.git", default_branch: "main", language: "Python", status: "idle"
-
-  fixture "Build", build_number: "1024", commit_sha: "abc123def456", artifact_url: "s3://builds/user-service-1024.tar.gz", duration_seconds: 245, status: "completed", reference_to: "Repository"
-  fixture "Build", build_number: "1025", commit_sha: "xyz789uvw012", artifact_url: "s3://builds/user-service-1025.tar.gz", duration_seconds: 198, status: "completed", reference_to: "Repository"
-
-  fixture "Deployment", deploy_id: "deploy-2024-0401", environment: "staging", strategy: "rolling", deployed_by: "ci-system", status: "healthy", reference_to: "Build"
-  fixture "Deployment", deploy_id: "deploy-2024-0402", environment: "production", strategy: "canary", deployed_by: "release-eng", status: "healthy", reference_to: "Build"
-
-  fixture "Rollback", rollback_id: "rollback-2024-0401", reason: "database connection timeout", target_version: "v1.2.3", initiated_by: "oncall-bob", status: "completed", reference_to: "Deployment"
-  fixture "Rollback", rollback_id: "rollback-2024-0402", reason: "memory leak detected", target_version: "v1.2.2", initiated_by: "oncall-alice", status: "completed", reference_to: "Deployment"
-
-  fixture "PipelineMetric", metric_name: "build_success_rate", value: 98.5, unit: "percent", period: "daily", status: "healthy", reference_to: "Repository"
-  fixture "PipelineMetric", metric_name: "deploy_duration", value: 145.0, unit: "seconds", period: "daily", status: "warning", reference_to: "Repository"
 end

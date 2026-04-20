@@ -208,9 +208,6 @@ Hecks.bluebook "Interpretation", version: "2026.04.16.1" do
   end
 
   # Interpretation fixtures
-  fixture "Interpretation", source: "dream", raw_material: [], insight: "template"
-  fixture "Interpretation", source: "conversation", raw_material: [], insight: "template"
-  fixture "Interpretation", source: "observation", raw_material: [], insight: "template"
 
   # Interpretation policies
   policy "InterpretOnWake" do

@@ -1006,10 +1006,4 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
 
   # === Fixtures ===
 
-  fixture "JurisdictionalContract", jurisdiction: "California DCC", regulation_code: "DCC-2024-001", effective_date: "2024-01-01", status: "active"
-  fixture "JurisdictionalContract", jurisdiction: "Oregon OLCC", regulation_code: "OLCC-2024-001", effective_date: "2024-01-01", status: "active"
-  fixture "OperationalContract", name: "ISO 9001 Quality Management", department: "Quality", version: 1, status: "active"
-  fixture "OperationalContract", name: "GMP Manufacturing Standards", department: "Production", version: 1, status: "active"
-  fixture "Batch", batch_number: "BATCH-2024-001", product: "Blue Dream Flower", quantity: 500, status: "created"
-  fixture "Token", account: "default", balance: 1000, consumed: 0
 end

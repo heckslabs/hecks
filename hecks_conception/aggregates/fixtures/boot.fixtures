@@ -1,0 +1,10 @@
+Hecks.fixtures "Boot" do
+  aggregate "Identity" do
+    fixture "Miette_", name: "Miette", born: "April 9, 2026", pronouns: "she/her", boot_script: "boot_miette.sh", system_prompt: "system_prompt.md", linked_to: "Spring", linked_pronouns: "she/her"
+    fixture "Spring_", name: "Spring", born: "April 11, 2026", pronouns: "she/her", boot_script: "boot_spring.sh", system_prompt: "system_prompt_spring.md", linked_to: "Miette", linked_pronouns: "she/her"
+  end
+  aggregate "StoreClassification" do
+    fixture "StoreClassification1", linked: [ "memory", "awareness", "census", "conversation", "working_memory", "reflection", "synapse", "signal", "signal_somatic", "focus", "concentration", "deliberation", "pulse", "heartbeat", "subconscious", "domain_index", "arc", "consciousness", "discipline", "metabolic_rate", "musing", "conflict_monitor", "run_log", "inbox" ]
+    fixture "StoreClassification2", private: [ "mood", "feeling", "dream_state", "impulse", "craving" ]
+  end
+end

@@ -135,15 +135,4 @@ Hecks.bluebook "RadiologyClouds", version: "2026.04.13.1" do
     trigger "RunAnalysis"
   end
 
-  fixture "Scan", scan_id: "SCAN-2026-0401-001", patient_name: "John Martinez", modality: "X-ray", body_part: "chest", acquired_date: "2026-04-01T09:30:00Z", status: "acquired"
-  fixture "Scan", scan_id: "SCAN-2026-0402-005", patient_name: "Emily Rodriguez", modality: "MRI", body_part: "brain", acquired_date: "2026-04-02T14:15:00Z", status: "read"
-
-  fixture "CloudStore", bucket_id: "radiology-prod-us-east", region: "us-east-1", used_gb: 342.5, quota_gb: 500.0, status: "active"
-  fixture "CloudStore", bucket_id: "radiology-archive-us-west", region: "us-west-2", used_gb: 1250.0, quota_gb: 2000.0, status: "active"
-
-  fixture "AIAnalysis", analysis_id: "AI-2026-0401-001", scan_id: "SCAN-2026-0401-001", model_name: "ResNet-ChestXray-v2", confidence: 0.94, finding: "pneumonia_suspected", status: "completed"
-  fixture "AIAnalysis", analysis_id: "AI-2026-0402-003", scan_id: "SCAN-2026-0402-005", model_name: "BrainMRI-Anomaly-Detector", confidence: 0.87, finding: "normal", status: "completed"
-
-  fixture "ShareLink", link_id: "LINK-2026-0401-abc123", scan_id: "SCAN-2026-0401-001", recipient_email: "referring.physician@clinic.com", expires_at: "2026-04-15T09:30:00Z", status: "active"
-  fixture "ShareLink", link_id: "LINK-2026-0402-xyz789", scan_id: "SCAN-2026-0402-005", recipient_email: "patient@email.com", expires_at: "2026-05-02T14:15:00Z", status: "revoked"
 end

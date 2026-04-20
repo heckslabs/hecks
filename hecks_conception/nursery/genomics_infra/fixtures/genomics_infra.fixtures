@@ -1,0 +1,18 @@
+Hecks.fixtures "GenomicsInfra" do
+  aggregate "GenomeSample" do
+    fixture "GenomeSample1", sample_id: "GS-20260414-001", patient_id: "P-891234", sample_type: "blood", collection_date: "2026-04-14", status: "submitted"
+    fixture "GenomeSample2", sample_id: "GS-20260414-002", patient_id: "P-891235", sample_type: "saliva", collection_date: "2026-04-13", status: "sequenced"
+  end
+  aggregate "ComputeCluster" do
+    fixture "ComputeCluster1", cluster_id: "CLUSTER-WEST-1", region: "us-west-2", node_count: 128, cpu_cores_total: 2048.0, memory_tb: 512.0, status: "running"
+    fixture "ComputeCluster2", cluster_id: "CLUSTER-EAST-1", region: "us-east-1", node_count: 64, cpu_cores_total: 1024.0, memory_tb: 256.0, status: "running"
+  end
+  aggregate "SequenceStore" do
+    fixture "SequenceStore1", store_id: "STORE-SEQ-001", cluster_id: "CLUSTER-WEST-1", used_tb: 250.5, quota_tb: 500.0, status: "active"
+    fixture "SequenceStore2", store_id: "STORE-SEQ-002", cluster_id: "CLUSTER-EAST-1", used_tb: 100.0, quota_tb: 1000.0, status: "active"
+  end
+  aggregate "AnalysisPipeline" do
+    fixture "AnalysisPipeline1", pipeline_id: "PIPE-20260414-001", sample_id: "GS-20260414-002", pipeline_type: "variant_calling", status: "completed"
+    fixture "AnalysisPipeline2", pipeline_id: "PIPE-20260414-002", sample_id: "GS-20260414-001", pipeline_type: "cnv_detection", status: "running"
+  end
+end

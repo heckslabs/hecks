@@ -323,34 +323,21 @@ module Hecks
         @policies << builder.build
       end
 
-      # Declare a fixture — an instance of an aggregate that ships with the domain.
+      # Inline `fixture` is no longer supported inside `Hecks.bluebook`.
+      # Move records to a sibling `fixtures/<domain>.fixtures` file and
+      # use the `Hecks.fixtures` DSL:
       #
-      # Fixtures are the domain's own data, declared inline in the Bluebook.
-      # Both Ruby and Rust runtimes load them as initial state when the domain boots.
+      #   Hecks.fixtures "Pizzas" do
+      #     aggregate "Pizza" do
+      #       fixture "Margherita", name: "Margherita", description: "Classic"
+      #     end
+      #   end
       #
-      # @param aggregate_name [String] which aggregate this is an instance of
-      # @param attributes [Hash] the attribute values for this instance
-      # @return [void]
-      def fixture(first_arg, **attributes, &block)
-        if block
-          # Block form: first positional arg is the fixture's logical NAME
-          # (an identifier for this instance), and `aggregate "X"` inside the
-          # block declares the aggregate type. Other lines collect as attrs.
-          require "hecks/dsl/fixture_builder"
-          builder = FixtureBuilder.new
-          builder.instance_eval(&block)
-          @fixtures << Structure::Fixture.new(
-            name: first_arg.to_s,
-            aggregate_name: builder.aggregate_name.to_s,
-            attributes: builder.attributes.merge(attributes),
-          )
-        else
-          # Inline form: first positional arg IS the aggregate name; kwargs
-          # are attributes. No `name` field — the fixture is anonymous.
-          @fixtures << Structure::Fixture.new(
-            aggregate_name: first_arg, attributes: attributes,
-          )
-        end
+      # Kept as a no-op (rather than raising) so legacy files don't
+      # crash the parser during the corpus migration window. The
+      # io_validator will surface any stragglers.
+      def fixture(*_args, **_kwargs, &_block)
+        # no-op
       end
 
       # Define a read model (view) projected from domain events.

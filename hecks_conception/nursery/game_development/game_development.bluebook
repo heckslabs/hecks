@@ -211,18 +211,4 @@ Hecks.bluebook "GameDevelopment" do
     trigger "ConductPlaytest"
   end
 
-  fixture "GameProject", title: "Echoes of Tomorrow", engine: "Unreal", genre: "action_rpg", status: "production", target_platform: "pc"
-  fixture "GameProject", title: "Pixel Paradise", engine: "Unity", genre: "puzzle_platformer", status: "pre_production", target_platform: "mobile"
-
-  fixture "Sprint", name: "Sprint 1: Core Mechanics", duration_days: 14, status: "planning", story_points: 45
-  fixture "Sprint", name: "Sprint 2: Level Design", duration_days: 14, status: "active", story_points: 52
-
-  fixture "Build", version: "0.3.1", platform: "pc", build_config: "debug", status: "building"
-  fixture "Build", version: "0.2.5", platform: "pc", build_config: "release", status: "certified"
-
-  fixture "Playtest", session_name: "Internal Playtest - Combat", tester_count: 8, build_version: "0.2.5", status: "scheduled"
-  fixture "Playtest", session_name: "Focus Group - Story", tester_count: 12, build_version: "0.2.3", status: "completed"
-
-  fixture "BugReport", title: "Camera clips through wall in Level 3", severity: "high", repro_steps: "Sprint right at corner intersection", status: "open"
-  fixture "BugReport", title: "UI text overflow on French localization", severity: "medium", repro_steps: "Switch language to French", status: "resolved"
 end

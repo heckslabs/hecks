@@ -1,0 +1,22 @@
+Hecks.fixtures "AssistedLiving" do
+  aggregate "Resident" do
+    fixture "Margaret_Johnson_", name: "Margaret Johnson", date_of_birth: "1942-05-15", emergency_contact: "John Johnson", medical_conditions: "Hypertension, Osteoporosis", mobility_level: "assisted_walking", status: "active"
+    fixture "Robert_Chen_", name: "Robert Chen", date_of_birth: "1938-11-22", emergency_contact: "Lisa Chen", medical_conditions: "Diabetes, Arthritis", mobility_level: "wheelchair", status: "active"
+  end
+  aggregate "Room" do
+    fixture "Room1", room_number: "101", floor: "1", room_type: "private", occupant_name: "Margaret Johnson", status: "occupied"
+    fixture "Room2", room_number: "205", floor: "2", room_type: "semi_private", occupant_name: "Robert Chen", status: "occupied"
+  end
+  aggregate "CarePlan" do
+    fixture "CarePlan1", resident_name: "Margaret Johnson", created_date: "2026-03-15", dietary_needs: "low_sodium, diabetic", status: "active"
+    fixture "CarePlan2", resident_name: "Robert Chen", created_date: "2026-03-20", dietary_needs: "pureed_foods, high_protein", status: "active"
+  end
+  aggregate "Activity" do
+    fixture "Morning_Tai_Chi_", name: "Morning Tai Chi", activity_type: "exercise", scheduled_time: "09:00", location: "Garden Room", capacity: 12
+    fixture "Bingo_Night_", name: "Bingo Night", activity_type: "recreation", scheduled_time: "18:30", location: "Common Room", capacity: 20
+  end
+  aggregate "MedicationSchedule" do
+    fixture "MedicationSchedule1", resident_name: "Margaret Johnson", status: "active"
+    fixture "MedicationSchedule2", resident_name: "Robert Chen", status: "active"
+  end
+end

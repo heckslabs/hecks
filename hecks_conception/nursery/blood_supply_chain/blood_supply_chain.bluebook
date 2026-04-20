@@ -155,15 +155,4 @@ Hecks.bluebook "BloodSupplyChain", version: "2026.04.13.1" do
     trigger "AdjustInventory"
   end
 
-  fixture "Donation", donation_id: "DON-2026-04-001", donor_name: "Maria Garcia", blood_type: "O negative", volume_ml: 450.0, collection_date: "2026-04-12", status: "tested"
-  fixture "Donation", donation_id: "DON-2026-04-002", donor_name: "James Chen", blood_type: "A positive", volume_ml: 430.0, collection_date: "2026-04-13", status: "collected"
-
-  fixture "ColdStorage", unit_id: "CS-MAIN-01", location_name: "Main Blood Bank", target_temp_c: 1.0, current_temp_c: 2.0, status: "active"
-  fixture "ColdStorage", unit_id: "CS-REGIONAL-02", location_name: "Regional Hospital", target_temp_c: 1.0, current_temp_c: 4.5, status: "breached"
-
-  fixture "Transport", shipment_id: "SHIP-2026-04-100", origin: "Central Bank", target: "St. Mary Hospital", blood_type: "O negative", quantity_units: 12.0, status: "in_transit"
-  fixture "Transport", shipment_id: "SHIP-2026-04-101", origin: "Central Bank", target: "County Clinic", blood_type: "AB positive", quantity_units: 8.0, status: "delivered"
-
-  fixture "Inventory", facility_name: "St. Mary Hospital", blood_type: "O negative", units_available: 15, oldest_expiry: "2026-04-20"
-  fixture "Inventory", facility_name: "County Clinic", blood_type: "A positive", units_available: 3, oldest_expiry: "2026-04-18"
 end

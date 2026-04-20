@@ -1,0 +1,22 @@
+Hecks.fixtures "DiveShop" do
+  aggregate "DiveEquipment" do
+    fixture "Scubapro_Meridian_BCD_", equipment_id: "EQ-001", name: "Scubapro Meridian BCD", equipment_type: "BCD", brand: "Scubapro", price: 649.99, quantity: 5, status: "available"
+    fixture "Zeagle_Scope_Dual_Lens_Mask_", equipment_id: "EQ-002", name: "Zeagle Scope Dual Lens Mask", equipment_type: "mask", brand: "Zeagle", price: 89.99, quantity: 12, status: "available"
+  end
+  aggregate "DiverCertification" do
+    fixture "DiverCertification1", cert_id: "CERT-101", student_name: "Alice Johnson", course_level: "Open Water", instructor_name: "Mike Chen", pool_sessions: 4, open_water_dives: 4, status: "enrolled"
+    fixture "DiverCertification2", cert_id: "CERT-102", student_name: "Bob Martinez", course_level: "Advanced Open Water", instructor_name: "Sarah Williams", pool_sessions: 2, open_water_dives: 4, status: "certified"
+  end
+  aggregate "DiveTrip" do
+    fixture "DiveTrip1", trip_id: "TRIP-001", destination: "Great Barrier Reef", date: "2026-05-15", divemaster_name: "James Taylor", max_divers: 8, price_per_diver: 199.99, status: "open"
+    fixture "DiveTrip2", trip_id: "TRIP-002", destination: "Palau", date: "2026-06-22", divemaster_name: "Lisa Anderson", max_divers: 6, price_per_diver: 249.99, status: "completed"
+  end
+  aggregate "Tank" do
+    fixture "Tank1", tank_id: "TANK-001", material: "aluminum", volume_liters: 11.1, last_hydro_date: "2025-08-10", next_hydro_date: "2026-08-10", status: "ready"
+    fixture "Tank2", tank_id: "TANK-002", material: "steel", volume_liters: 14.0, last_hydro_date: "2025-12-05", next_hydro_date: "2026-12-05", status: "ready"
+  end
+  aggregate "EquipmentMaintenance" do
+    fixture "EquipmentMaintenance1", maintenance_id: "MAINT-001", equipment_id: "EQ-001", issue_description: "Valve cap loose, cosmetic scuff marks", technician_name: "Tom Wilson", cost: 45.00, status: "open"
+    fixture "EquipmentMaintenance2", maintenance_id: "MAINT-002", equipment_id: "EQ-002", issue_description: "Seal replacement, lens film cleaning", technician_name: "Emma Davis", cost: 35.00, status: "completed"
+  end
+end

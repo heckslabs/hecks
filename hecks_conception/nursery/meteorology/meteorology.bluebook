@@ -232,18 +232,4 @@ Hecks.bluebook "Meteorology" do
     trigger "VerifyForecast"
   end
 
-  fixture "WeatherStation", station_id: "KJFK", name: "JFK International Airport", latitude: 40.6413, longitude: -73.7781, elevation_m: 4.0
-  fixture "WeatherStation", station_id: "KORD", name: "Chicago O'Hare International", latitude: 41.9742, longitude: -87.9073, elevation_m: 205.0
-
-  fixture "SurfaceObservation", timestamp: "2026-04-14T12:00:00Z", temperature_c: 15.3, pressure_hpa: 1013.2, humidity_percent: 65.0, wind_speed_kts: 12.5, wind_direction_deg: 180.0
-  fixture "SurfaceObservation", timestamp: "2026-04-14T13:00:00Z", temperature_c: 16.8, pressure_hpa: 1013.5, humidity_percent: 62.0, wind_speed_kts: 14.2, wind_direction_deg: 185.0
-
-  fixture "Forecast", issued_at: "2026-04-14T06:00:00Z", valid_from: "2026-04-14T18:00:00Z", valid_to: "2026-04-15T18:00:00Z", region: "Northeast Corridor", synopsis: "High pressure system moving east, clear skies expected"
-  fixture "Forecast", issued_at: "2026-04-14T06:30:00Z", valid_from: "2026-04-15T06:00:00Z", valid_to: "2026-04-16T06:00:00Z", region: "Great Lakes", synopsis: "Low pressure system approaching, potential thunderstorms Tuesday"
-
-  fixture "PressureSystem", system_type: "high", central_pressure_hpa: 1025.0, latitude: 42.5, longitude: -75.0, movement_direction: "E"
-  fixture "PressureSystem", system_type: "low", central_pressure_hpa: 998.5, latitude: 38.0, longitude: -90.0, movement_direction: "NE"
-
-  fixture "WeatherAlert", alert_type: "Thunderstorm", severity: "moderate", region: "Chicago Metro", message: "Severe thunderstorms expected between 3-8 PM CDT"
-  fixture "WeatherAlert", alert_type: "Wind", severity: "minor", region: "Upstate New York", message: "Strong gusty winds 25-35 mph expected through evening"
 end

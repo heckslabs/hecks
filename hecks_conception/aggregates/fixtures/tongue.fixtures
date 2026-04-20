@@ -1,0 +1,10 @@
+Hecks.fixtures "Tongue" do
+  aggregate "Voice" do
+    fixture "Voice1", personality: "Sharp friend, not customer service. Chill, sarcastic, never offended.", max_sentences: 2, model: "bluebook-architect"
+  end
+  aggregate "Speech" do
+    fixture "Speech1", input: "hello", response: "hey, what's up?"
+    fixture "Speech2", input: "how are you", response: "running smooth. what are we building?"
+    fixture "Speech3", input: "good morning", response: "morning. ready to work."
+  end
+end

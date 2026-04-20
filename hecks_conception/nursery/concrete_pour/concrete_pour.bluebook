@@ -207,18 +207,4 @@ Hecks.bluebook "ConcretePour" do
     trigger "BreakCylinder"
   end
 
-  fixture "PourSchedule", project_name: "Downtown Office Tower", pour_location: "Foundation Level 1", cubic_yards: 150.0, pour_date: "2026-04-20", status: "scheduled", crew_size: 12
-  fixture "PourSchedule", project_name: "Riverside Mall Expansion", pour_location: "Parking Deck North Wing", cubic_yards: 200.5, pour_date: "2026-05-05", status: "scheduled", crew_size: 15
-
-  fixture "MixDesign", mix_number: "STD-3000-PSI", target_psi: 3000.0, water_cement_ratio: 0.55, aggregate_size: "1 inch", slump_inches: 4.5
-  fixture "MixDesign", mix_number: "HI-STRENGTH-4000", target_psi: 4000.0, water_cement_ratio: 0.45, aggregate_size: "0.75 inch", slump_inches: 3.5
-
-  fixture "Reinforcement", rebar_size: "No. 5", spacing: "12 inches", placement_type: "mat", coverage_inches: 3.0
-  fixture "Reinforcement", rebar_size: "No. 6", spacing: "18 inches", placement_type: "grid", coverage_inches: 2.5
-
-  fixture "CuringProtocol", curing_method: "wet_cure", cure_days: 28, min_temp_f: 50.0, status: "pending"
-  fixture "CuringProtocol", curing_method: "curing_compound", cure_days: 7, min_temp_f: 55.0, status: "pending"
-
-  fixture "StrengthTest", test_day: 28, break_psi: 3150.0, result: "pass"
-  fixture "StrengthTest", test_day: 7, break_psi: 2100.0, result: "pass"
 end

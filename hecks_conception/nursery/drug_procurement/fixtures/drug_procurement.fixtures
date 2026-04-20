@@ -1,0 +1,18 @@
+Hecks.fixtures "DrugProcurement" do
+  aggregate "Compound" do
+    fixture "Metformin_HCl_", compound_id: "COMP-001", name: "Metformin HCl", formula: "C₄H₁₁N₅", therapeutic_class: "antidiabetic", regulatory_status: "pending"
+    fixture "Amoxicillin_Trihydrate_", compound_id: "COMP-002", name: "Amoxicillin Trihydrate", formula: "C₁₆H₁₉N₃O₅S·3H₂O", therapeutic_class: "antibiotic", regulatory_status: "cleared"
+  end
+  aggregate "BidRound" do
+    fixture "BidRound1", round_id: "ROUND-001", compound_id: "COMP-001", reserve_price: 1500.0, status: "open"
+    fixture "BidRound2", round_id: "ROUND-002", compound_id: "COMP-002", reserve_price: 2200.0, status: "closed"
+  end
+  aggregate "SupplierProfile" do
+    fixture "SupplierProfile1", supplier_id: "SUP-001", company_name: "Pharma Global Ltd", country: "India", gmp_certified: "true", quality_score: 0.95, status: "qualified"
+    fixture "SupplierProfile2", supplier_id: "SUP-002", company_name: "ChemWorks International", country: "China", gmp_certified: "true", quality_score: 0.88, status: "qualified"
+  end
+  aggregate "PurchaseOrder" do
+    fixture "PurchaseOrder1", order_id: "PO-2026-001", round_id: "ROUND-001", supplier_id: "SUP-001", quantity: 50000.0, total_price: 75000.0, status: "awarded"
+    fixture "PurchaseOrder2", order_id: "PO-2026-002", round_id: "ROUND-002", supplier_id: "SUP-002", quantity: 100000.0, total_price: 220000.0, status: "delivered"
+  end
+end

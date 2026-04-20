@@ -1,0 +1,15 @@
+Hecks.fixtures "Inference" do
+  aggregate "FewShot" do
+    fixture "FewShot1", domain_name: "Pizzas", purpose: "simple CRUD with lifecycle"
+    fixture "FewShot2", domain_name: "Awareness", purpose: "complex with cross-domain policies"
+    fixture "FewShot3", domain_name: "Dream", purpose: "large domain with fixtures and multiple aggregates"
+    fixture "FewShot4", domain_name: "Midwife", purpose: "lifecycle-heavy with policy chains"
+    fixture "FewShot5", domain_name: "Verbs", purpose: "fixture-driven rules domain"
+  end
+  aggregate "LocalModel" do
+    fixture "llama3_8b_", name: "llama3:8b", context_length: 8192, backend: "ollama"
+    fixture "llama3_8b_128k_", name: "llama3:8b-128k", context_length: 131072, backend: "ollama"
+    fixture "phi3_mini_", name: "phi3:mini", context_length: 4096, backend: "ollama"
+    fixture "qwen2_5_7b_", name: "qwen2.5:7b", context_length: 32768, backend: "ollama"
+  end
+end

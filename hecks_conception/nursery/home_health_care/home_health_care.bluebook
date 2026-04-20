@@ -269,18 +269,4 @@ Hecks.bluebook "HomeHealthCare" do
     trigger "ScheduleVisit"
   end
 
-  fixture "Patient", name: "Dorothy Martinez", address: "742 Oak Lane, Springfield, IL 62701", primary_diagnosis: "Type 2 Diabetes", physician_name: "Dr. James Wilson", status: "enrolled"
-  fixture "Patient", name: "Henry Thompson", address: "315 Elm Street, Chicago, IL 60614", primary_diagnosis: "COPD", physician_name: "Dr. Lisa Chen", status: "active"
-
-  fixture "Caregiver", name: "Michelle Davis", credential: "RN, BSN", phone: "555-0147", availability: "Mon-Fri 8am-5pm", max_visits_per_day: 6
-  fixture "Caregiver", name: "James Rodriguez", credential: "LPN", phone: "555-0148", availability: "Tue-Sat 10am-6pm", max_visits_per_day: 8
-
-  fixture "Visit", patient_name: "Dorothy Martinez", caregiver_name: "Michelle Davis", visit_date: "2026-04-15", visit_type: "diabetes_management", notes: "Blood sugar stable, reviewed diet plan", status: "completed"
-  fixture "Visit", patient_name: "Henry Thompson", caregiver_name: "James Rodriguez", visit_date: "2026-04-16", visit_type: "respiratory_assessment", notes: "", status: "scheduled"
-
-  fixture "Medication", patient_name: "Dorothy Martinez", drug_name: "Metformin", dosage: "500mg", frequency: "twice daily", route: "oral", prescriber: "Dr. James Wilson", status: "active"
-  fixture "Medication", patient_name: "Henry Thompson", drug_name: "Albuterol", dosage: "90mcg", frequency: "as needed", route: "inhaled", prescriber: "Dr. Lisa Chen", status: "active"
-
-  fixture "VitalSign", patient_name: "Dorothy Martinez", measurement_date: "2026-04-14", systolic: 132, diastolic: 85, heart_rate: 68, temperature: 98.2, oxygen_saturation: 97, alert_status: "normal"
-  fixture "VitalSign", patient_name: "Henry Thompson", measurement_date: "2026-04-14", systolic: 148, diastolic: 92, heart_rate: 82, temperature: 98.8, oxygen_saturation: 94, alert_status: "abnormal"
 end

@@ -56,8 +56,4 @@ Hecks.bluebook "OllamaAdapter", version: "2026.04.16.1" do
     end
   end
 
-  fixture "Connection",
-    url: "http://localhost:11434",
-    model: "bluebook-architect",
-    status: "ready"
 end

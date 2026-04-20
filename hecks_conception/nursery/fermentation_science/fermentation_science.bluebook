@@ -199,15 +199,4 @@ Hecks.bluebook "FermentationScience" do
     map gene_edit_id: :edit_id, metric: :gravity
   end
 
-  fixture "YeastStrain", strain_name: "Wyeast 1056", species: "Saccharomyces cerevisiae", status: "cataloged"
-  fixture "YeastStrain", strain_name: "Lalvin K1V-1116", species: "Saccharomyces cerevisiae", status: "cataloged"
-
-  fixture "BeerRecipe", recipe_name: "Golden Ale", style: "pale ale", target_abv: 5.2, status: "formulating"
-  fixture "BeerRecipe", recipe_name: "Imperial Stout", style: "stout", target_abv: 9.5, status: "formulating"
-
-  fixture "FermentationTrial", trial_number: 1, status: "inoculated"
-  fixture "FermentationTrial", trial_number: 2, status: "inoculated"
-
-  fixture "GeneEdit", target_gene: "atf1", edit_type: "knockout", status: "designed"
-  fixture "GeneEdit", target_gene: "gal1", edit_type: "overexpression", status: "designed"
 end

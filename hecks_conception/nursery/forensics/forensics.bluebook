@@ -227,18 +227,4 @@ Hecks.bluebook "Forensics" do
 
   # === Fixtures ===
 
-  fixture "CriminalCase", case_number: "2026-0847-FEL", case_type: "Homicide", lead_investigator: "Detective James Wright", opened_date: "2026-03-15", jurisdiction: "Cook County"
-  fixture "CriminalCase", case_number: "2026-1203-FEL", case_type: "Robbery", lead_investigator: "Detective Maria Gonzalez", opened_date: "2026-04-01", jurisdiction: "Cook County"
-
-  fixture "EvidenceItem", item_number: "EV-2026-0847-001", description: "Knife recovered from crime scene", evidence_type: "physical", collection_location: "3421 N Clark St, Chicago", collected_by: "Officer Patterson"
-  fixture "EvidenceItem", item_number: "EV-2026-0847-002", description: "Blood sample from victim", evidence_type: "biological", collection_location: "Hospital trauma unit", collected_by: "Nurse Rodriguez"
-
-  fixture "LabAnalysis", analysis_type: "DNA Sequencing", analyst_name: "Dr. Jennifer Lee", method: "PCR amplification", findings: "Match probability 99.8%"
-  fixture "LabAnalysis", analysis_type: "Trace Evidence", analyst_name: "Dr. Robert Kowalski", method: "Scanning electron microscopy", findings: "Fibers consistent with suspect vehicle carpet"
-
-  fixture "ExpertReport", report_number: "EXP-2026-0847-DNA", expert_name: "Dr. Jennifer Lee", conclusion: "DNA evidence matches defendant with high confidence"
-  fixture "ExpertReport", report_number: "EXP-2026-0847-TRACE", expert_name: "Dr. Robert Kowalski", conclusion: "Trace evidence indicates defendant presence at scene"
-
-  fixture "CourtTestimony", testimony_id: "CT-2026-0847-001", court_name: "Superior Court, Criminal Division", hearing_date: "2026-06-15", expert_name: "Dr. Jennifer Lee"
-  fixture "CourtTestimony", testimony_id: "CT-2026-0847-002", court_name: "Superior Court, Criminal Division", hearing_date: "2026-06-20", expert_name: "Dr. Robert Kowalski"
 end

@@ -213,15 +213,4 @@ Hecks.bluebook "CourierDelivery" do
     trigger "CheckOutDriver"
   end
 
-  fixture "Parcel", tracking_code: "PKG-2024-001", sender_address: "123 Main St, Springfield, IL", recipient_address: "456 Oak Ave, Shelbyville, IL", status: "accepted", weight_kg: 2.5
-  fixture "Parcel", tracking_code: "PKG-2024-002", sender_address: "789 Elm Rd, Capital City, IL", recipient_address: "321 Pine St, Shelbyville, IL", status: "in_transit", weight_kg: 5.0
-
-  fixture "Route", route_code: "ROUTE-NORTH-001", zone: "North District", stop_count: 18, status: "planned"
-  fixture "Route", route_code: "ROUTE-SOUTH-002", zone: "South District", stop_count: 22, status: "active"
-
-  fixture "Driver", employee_id: "DRV-001", name: "Alice Johnson", license_class: "B", status: "available", hours_today: 0.0
-  fixture "Driver", employee_id: "DRV-002", name: "Bob Martinez", license_class: "B", status: "on_duty", hours_today: 4.5
-
-  fixture "ProofOfDelivery", proof_id: "POD-001", signature_data: "signed", photo_url: "https://courier.example.com/proof/001.jpg", timestamp: "2024-01-15T14:30:00Z"
-  fixture "ProofOfDelivery", proof_id: "POD-002", signature_data: "digital_sig_abc123", photo_url: "https://courier.example.com/proof/002.jpg", timestamp: "2024-01-15T15:45:00Z"
 end

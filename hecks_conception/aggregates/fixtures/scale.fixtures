@@ -1,0 +1,10 @@
+Hecks.fixtures "Scale" do
+  aggregate "ChangeTracker" do
+    fixture "ChangeTracker1", tracked_files: 0, changed_since_last: 0
+  end
+  aggregate "BatchOperation" do
+    fixture "BatchOperation1", operation: "validate", file_count: 0, duration_ms: 0, results: 0
+    fixture "BatchOperation2", operation: "counts", file_count: 0, duration_ms: 0, results: 0
+    fixture "BatchOperation3", operation: "parse", file_count: 0, duration_ms: 0, results: 0
+  end
+end

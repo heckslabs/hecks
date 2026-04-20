@@ -1,0 +1,22 @@
+Hecks.fixtures "DistilleryMedia" do
+  aggregate "Spirit" do
+    fixture "Highland_Heather_Single_Malt_", name: "Highland Heather Single Malt", spirit_type: "Scotch Whisky", abv: 43.5
+    fixture "Bourbon_Barrel_Reserve_", name: "Bourbon Barrel Reserve", spirit_type: "Rye Whiskey", abv: 47.2
+  end
+  aggregate "BarrelAging" do
+    fixture "BarrelAging1", spirit_id: "spirit-001", barrel_type: "American Oak", age_months: 24, status: "filled"
+    fixture "BarrelAging2", spirit_id: "spirit-002", barrel_type: "French Oak", age_months: 36, status: "filled"
+  end
+  aggregate "Episode" do
+    fixture "Single_Malts_of_the_Highlands_", title: "Single Malts of the Highlands", topic: "Scottish distillery traditions", status: "planning"
+    fixture "Bourbon_s_Bold_Journey_", title: "Bourbon's Bold Journey", topic: "American whiskey craft and innovation", status: "planning"
+  end
+  aggregate "TastingSession" do
+    fixture "TastingSession1", spirit_id: "spirit-001", episode_id: "episode-001", host: "Sarah MacLeod", status: "scheduled"
+    fixture "TastingSession2", spirit_id: "spirit-002", episode_id: "episode-002", host: "James Mitchell", status: "scheduled"
+  end
+  aggregate "Sponsorship" do
+    fixture "Sponsorship1", spirit_id: "spirit-001", episode_id: "episode-001", sponsor_name: "Premium Glassware Co", deal_value_cents: 250000, status: "proposed"
+    fixture "Sponsorship2", spirit_id: "spirit-002", episode_id: "episode-002", sponsor_name: "Artisan Decanters Ltd", deal_value_cents: 300000, status: "proposed"
+  end
+end

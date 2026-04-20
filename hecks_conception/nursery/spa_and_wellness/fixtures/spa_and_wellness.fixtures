@@ -1,0 +1,22 @@
+Hecks.fixtures "SpaAndWellness" do
+  aggregate "Treatment" do
+    fixture "Swedish_Massage_", treatment_id: "TREAT-001", name: "Swedish Massage", category: "Massage", duration_minutes: 60, price: 120.0, description: "Classic full-body massage", contraindications: [{ condition: "Fever", severity: "High", recommendation: "Reschedule" }]
+    fixture "Facial_Rejuvenation_", treatment_id: "TREAT-002", name: "Facial Rejuvenation", category: "Skincare", duration_minutes: 45, price: 95.0, description: "Anti-aging facial with serums", contraindications: [{ condition: "Active Acne", severity: "Medium", recommendation: "Consult aesthetician" }]
+  end
+  aggregate "Therapist" do
+    fixture "Elena_Rossi_", therapist_id: "THER-001", name: "Elena Rossi", license_number: "LMT-2024-001", specialties: [{ treatment_type: "Swedish Massage", certification_date: "2022-06-15", level: "Master" }]
+    fixture "Kenji_Tanaka_", therapist_id: "THER-002", name: "Kenji Tanaka", license_number: "LMT-2024-002", specialties: [{ treatment_type: "Deep Tissue", certification_date: "2023-01-20", level: "Professional" }]
+  end
+  aggregate "SpaRoom" do
+    fixture "Serenity_Suite_", room_id: "ROOM-001", name: "Serenity Suite", room_type: "Massage", capacity: 1, status: "ready"
+    fixture "Botanical_Facial_Room_", room_id: "ROOM-002", name: "Botanical Facial Room", room_type: "Skincare", capacity: 1, status: "ready"
+  end
+  aggregate "RetailProduct" do
+    fixture "Lavender_Massage_Oil_", product_id: "PROD-001", name: "Lavender Massage Oil", brand: "Dermalogica", price: 45.0, quantity: 12
+    fixture "Organic_Face_Moisturizer_", product_id: "PROD-002", name: "Organic Face Moisturizer", brand: "Eminence", price: 68.0, quantity: 8
+  end
+  aggregate "WellnessPackage" do
+    fixture "Ultimate_Relaxation_", package_id: "PKG-001", name: "Ultimate Relaxation", treatments: [{ treatment_name: "Swedish Massage", sessions: 4 }], package_price: 420.0, status: "active"
+    fixture "Glow___Groom_", package_id: "PKG-002", name: "Glow & Groom", treatments: [{ treatment_name: "Facial Rejuvenation", sessions: 3 }], package_price: 250.0, status: "active"
+  end
+end

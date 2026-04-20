@@ -220,18 +220,4 @@ Hecks.bluebook "Viticulture" do
     trigger "GradeQuality"
   end
 
-  fixture "Vineyard", name: "Sunrise Estate", appellation: "Napa Valley", total_hectares: 45.5, elevation_m: 275.0, orientation: "South-facing"
-  fixture "Vineyard", name: "Mountain Reserve", appellation: "Sonoma Coast", total_hectares: 32.0, elevation_m: 420.0, orientation: "Southwest-facing"
-
-  fixture "VineBlock", block_id: "BLK-A1", grape_variety: "Cabernet Sauvignon", rootstock: "SO4", plant_year: 2005, vine_spacing_m: 1.2, trellis_system: "Vertical shoot positioning"
-  fixture "VineBlock", block_id: "BLK-A2", grape_variety: "Chardonnay", rootstock: "101-14", plant_year: 2008, vine_spacing_m: 1.5, trellis_system: "Cane pruning"
-
-  fixture "SoilProfile", horizon: "A", texture: "Clay loam", ph: 6.8, organic_matter_percent: 3.2, depth_cm: 35.0
-  fixture "SoilProfile", horizon: "B", texture: "Silt loam", ph: 7.1, organic_matter_percent: 1.5, depth_cm: 65.0
-
-  fixture "CanopyPass", operation_type: "Shoot thinning", date_performed: "2026-06-05", crew_lead: "Miguel Rodriguez"
-  fixture "CanopyPass", operation_type: "Leaf pulling", date_performed: "2026-07-18", crew_lead: "Anna Silva"
-
-  fixture "HarvestRecord", vintage_year: "2025", tons_picked: 18.5, brix_at_harvest: 24.2, ph_at_harvest: 3.65
-  fixture "HarvestRecord", vintage_year: "2024", tons_picked: 22.0, brix_at_harvest: 23.8, ph_at_harvest: 3.58
 end

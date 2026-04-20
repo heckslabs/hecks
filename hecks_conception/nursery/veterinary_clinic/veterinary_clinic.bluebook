@@ -247,18 +247,4 @@ Hecks.bluebook "VeterinaryClinic" do
     trigger "ScheduleAppointment"
   end
 
-  fixture "Pet", name: "Buddy", species: "Dog", breed: "Golden Retriever", weight: 65.5, date_of_birth: "2020-06-15", microchip_id: "987654321012345", status: "active"
-  fixture "Pet", name: "Whiskers", species: "Cat", breed: "Siamese", weight: 8.2, date_of_birth: "2019-03-22", microchip_id: "123456789012345", status: "active"
-
-  fixture "Owner", first_name: "Michael", last_name: "Thompson", phone: "555-0142", email: "michael.t@email.com", address: "742 Oak Street, Springfield"
-  fixture "Owner", first_name: "Rebecca", last_name: "Garcia", phone: "555-0156", email: "rebecca.g@email.com", address: "318 Pine Avenue, Oakville"
-
-  fixture "Appointment", appointment_date: "2026-04-15", time_slot: "10:00 AM", reason: "Annual checkup", status: "scheduled", notes: ""
-  fixture "Appointment", appointment_date: "2026-04-16", time_slot: "2:30 PM", reason: "Ear infection", status: "completed", notes: "Prescribed antibiotic ear drops, follow-up in 2 weeks"
-
-  fixture "Vaccination", vaccine_name: "Rabies", administered_date: "2026-03-20", expiration_date: "2027-03-20", lot_number: "VAC-2026-001", status: "current"
-  fixture "Vaccination", vaccine_name: "DHPP", administered_date: "2026-01-15", expiration_date: "2027-01-15", lot_number: "VAC-2025-045", status: "current"
-
-  fixture "Prescription", medication_name: "Amoxicillin", dosage: "250mg", frequency: "Twice daily", refills_remaining: 2, prescribed_date: "2026-04-08", status: "active"
-  fixture "Prescription", medication_name: "Metacam", dosage: "5mg", frequency: "Once daily", refills_remaining: 0, prescribed_date: "2026-03-25", status: "active"
 end

@@ -1,0 +1,7 @@
+Hecks.fixtures "WebComponents" do
+  aggregate "Theme" do
+    fixture "default_", name: "default", daisy_theme: "dark"
+    fixture "light_", name: "light", daisy_theme: "light"
+    fixture "corporate_", name: "corporate", daisy_theme: "corporate"
+  end
+end

@@ -230,21 +230,6 @@ Hecks.bluebook "ElderCare" do
     end
   end
 
-  fixture "Client", name: "Margaret Johnson", date_of_birth: "1938-05-12", address: "412 Oak Street, Portland OR 97201", primary_need: "mobility_assistance", emergency_contact: "john.johnson@email.com", status: "active"
-  fixture "Client", name: "Robert Chen", date_of_birth: "1935-11-28", address: "2847 Maple Ave, Seattle WA 98101", primary_need: "medication_management", emergency_contact: "sophia.chen@email.com", status: "active"
-
-  fixture "Caregiver", name: "Maria Santos", certification: "CNA", phone: "503-555-0142", years_experience: 7, specialty: "mobility_care", status: "active"
-  fixture "Caregiver", name: "James Wilson", certification: "HHA", phone: "206-555-0198", years_experience: 12, specialty: "dementia_care", status: "active"
-
-  fixture "CareSchedule", client_name: "Margaret Johnson", caregiver_name: "Maria Santos", week_starting: "2026-04-14", status: "active"
-  fixture "CareSchedule", client_name: "Robert Chen", caregiver_name: "James Wilson", week_starting: "2026-04-14", status: "active"
-
-  fixture "ElderMedication", client_name: "Margaret Johnson", medication_name: "Metoprolol", dosage: "50mg", frequency: "twice_daily", prescriber: "Dr. Patricia Moore", status: "active"
-  fixture "ElderMedication", client_name: "Robert Chen", medication_name: "Lisinopril", dosage: "10mg", frequency: "once_daily", prescriber: "Dr. Michael Harris", status: "active"
-
-  fixture "WellnessAssessment", client_name: "Margaret Johnson", assessment_date: "2026-04-10", mobility_score: 65, cognitive_score: 78, nutrition_score: 82, risk_flags: "none", assessor_name: "Lisa Anderson"
-  fixture "WellnessAssessment", client_name: "Robert Chen", assessment_date: "2026-04-10", mobility_score: 52, cognitive_score: 71, nutrition_score: 75, risk_flags: "fall_risk", assessor_name: "Lisa Anderson"
-
   # Workflow: Enroll → AssignCaregiver → CreateSchedule → AddMedication → ConductAssessment → FlagRisks → AdministerMedication → Discharge
   policy "AssignCaregiverOnEnroll" do
     on "ClientEnrolled"

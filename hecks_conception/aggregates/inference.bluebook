@@ -85,17 +85,8 @@ Hecks.bluebook "Inference", version: "2026.04.10.1" do
   end
 
   # Few-shot examples — real domains the model sees in context
-  fixture "FewShot", domain_name: "Pizzas",       purpose: "simple CRUD with lifecycle"
-  fixture "FewShot", domain_name: "Awareness",     purpose: "complex with cross-domain policies"
-  fixture "FewShot", domain_name: "Dream",          purpose: "large domain with fixtures and multiple aggregates"
-  fixture "FewShot", domain_name: "Midwife",        purpose: "lifecycle-heavy with policy chains"
-  fixture "FewShot", domain_name: "Verbs",          purpose: "fixture-driven rules domain"
 
   # Backend options
-  fixture "LocalModel", name: "llama3:8b",       context_length: 8192,   backend: "ollama"
-  fixture "LocalModel", name: "llama3:8b-128k",  context_length: 131072, backend: "ollama"
-  fixture "LocalModel", name: "phi3:mini",        context_length: 4096,   backend: "ollama"
-  fixture "LocalModel", name: "qwen2.5:7b",      context_length: 32768,  backend: "ollama"
 
   policy "ValidateOnInference" do
     on "InferenceRan"

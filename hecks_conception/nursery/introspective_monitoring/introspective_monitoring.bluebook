@@ -209,13 +209,4 @@ Hecks.bluebook "IntrospectiveMonitoring" do
     trigger "PoseQuestion"
   end
 
-  fixture "DreamJournal", title: "The glass tower", narrative: "Climbing a transparent staircase, each step revealing a memory", emotional_tone: "wonder", clarity: "fresh", vividness: 8
-  fixture "DreamJournal", title: "The still ocean", narrative: "Standing on water reflecting yesterday's thoughts", emotional_tone: "calm", clarity: "fading", vividness: 5
-  fixture "HeartbeatSnapshot", bpm: 62, rhythm: "steady", variability: 8
-  fixture "HeartbeatSnapshot", bpm: 88, rhythm: "elevated", variability: 24
-  fixture "MoodReading", mood: "contemplative", intensity: 6, trigger: "vivid dream", fatigue_level: 3, status: "active"
-  fixture "MoodReading", mood: "restless", intensity: 7, trigger: "unresolved symbol", fatigue_level: 7, status: "active"
-  fixture "SelfInquiry", question: "Why does the glass tower recur when fatigue is high?", domain_focus: "dream-fatigue", finding: "Fatigue correlates with architectural imagery", status: "answered"
-  fixture "SelfInquiry", question: "Does elevated heart rate predict vivid dreams?", domain_focus: "heartbeat-dreams", finding: "", status: "open"
-  fixture "Awareness", summary: "Architectural dreams emerge under fatigue; pulse precedes vivid imagery", dominant_theme: "fatigue-dream-pulse", clarity_score: 7, status: "current"
 end

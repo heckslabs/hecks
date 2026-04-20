@@ -1168,11 +1168,4 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
   end
 
   # Fixtures — fundamental mathematical constants
-  fixture "Number", value: "3.14159265358979", number_type: "real", real_part: 3.14159265358979, imaginary_part: 0.0, prime: "false", parity: "none", representation: "pi"
-  fixture "Number", value: "2.71828182845905", number_type: "real", real_part: 2.71828182845905, imaginary_part: 0.0, prime: "false", parity: "none", representation: "e"
-  fixture "Number", value: "0+1i", number_type: "complex", real_part: 0.0, imaginary_part: 1.0, prime: "false", parity: "none", representation: "i"
-  fixture "Number", value: "1.61803398874989", number_type: "real", real_part: 1.61803398874989, imaginary_part: 0.0, prime: "false", parity: "none", representation: "phi"
-  fixture "Number", value: "0", number_type: "natural", real_part: 0.0, imaginary_part: 0.0, prime: "false", parity: "even", representation: "zero"
-  fixture "Number", value: "1", number_type: "natural", real_part: 1.0, imaginary_part: 0.0, prime: "false", parity: "odd", representation: "one"
-  fixture "Number", value: "infinity", number_type: "real", real_part: 0.0, imaginary_part: 0.0, prime: "false", parity: "none", representation: "infinity"
 end

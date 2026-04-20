@@ -1,0 +1,22 @@
+Hecks.fixtures "Cartography" do
+  aggregate "MapSheet" do
+    fixture "Lake_Tahoe_Basin_Topographic_Map_", sheet_id: "USGS-NV-123-A", title: "Lake Tahoe Basin Topographic Map", scale: "1:24000", edition: "2026 Edition 1"
+    fixture "San_Francisco_Bay_Area_Urban_Areas_", sheet_id: "USGS-CA-456-B", title: "San Francisco Bay Area Urban Areas", scale: "1:100000", edition: "2025 Edition 2"
+  end
+  aggregate "Projection" do
+    fixture "Universal_Transverse_Mercator_Zone_11N_", name: "Universal Transverse Mercator Zone 11N", projection_type: "UTM", central_meridian: -117.0, standard_parallel: 0.0
+    fixture "State_Plane___Nevada_Central_", name: "State Plane - Nevada Central", projection_type: "Lambert Conformal Conic", central_meridian: -116.4, standard_parallel: 39.0
+  end
+  aggregate "GeographicFeature" do
+    fixture "San_Francisco_Bay_", feature_id: "SF-BAY-FEATURE-001", feature_type: "waterbody", name: "San Francisco Bay", geometry_wkt: "POLYGON((-122.5 37.8, -122.3 37.8, -122.3 37.5, -122.5 37.5, -122.5 37.8))"
+    fixture "Sierra_Nevada_", feature_id: "SIERRA-FEATURE-002", feature_type: "mountain_range", name: "Sierra Nevada", geometry_wkt: "LINESTRING(-120.5 39.0, -120.0 38.5, -119.5 38.0)"
+  end
+  aggregate "Datum" do
+    fixture "WGS_84_", name: "WGS 84", ellipsoid: "WGS 84", semi_major_axis_m: 6378137.0, inverse_flattening: 298.257223563
+    fixture "NAD_83_", name: "NAD 83", ellipsoid: "GRS 1980", semi_major_axis_m: 6378137.0, inverse_flattening: 298.257222101
+  end
+  aggregate "MapRevision" do
+    fixture "MapRevision1", revision_id: "SF-BAY-REV-2026-001", revision_date: "2026-03-15", change_description: "Updated shoreline after wetland restoration project", reviewer: "Dr. Patricia Chen"
+    fixture "MapRevision2", revision_id: "TAHOE-REV-2026-002", revision_date: "2026-04-01", change_description: "Added new hiking trails from 2025 survey data", reviewer: "Marcus Johnson"
+  end
+end

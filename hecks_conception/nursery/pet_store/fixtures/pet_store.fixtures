@@ -1,0 +1,18 @@
+Hecks.fixtures "PetStore" do
+  aggregate "Animal" do
+    fixture "Buddy_", animal_id: "A001", species: "Dog", breed: "Golden Retriever", name: "Buddy", age_months: 24, price: 450.0, status: "available"
+    fixture "Luna_", animal_id: "A002", species: "Cat", breed: "Siamese", name: "Luna", age_months: 18, price: 200.0, status: "quarantined"
+  end
+  aggregate "Supply" do
+    fixture "Premium_Dog_Food_", sku: "DOG-FOOD-001", name: "Premium Dog Food", category: "food", price: 35.99, quantity: 50, pet_type: "dog"
+    fixture "Feather_Mouse_Toy_", sku: "CAT-TOY-001", name: "Feather Mouse Toy", category: "toys", price: 8.50, quantity: 120, pet_type: "cat"
+  end
+  aggregate "Adoption" do
+    fixture "Adoption1", adoption_id: "ADO001", animal_id: "A001", adopter_name: "John Smith", adopter_phone: "555-1234", adoption_fee: 150.0, status: "pending"
+    fixture "Adoption2", adoption_id: "ADO002", animal_id: "A002", adopter_name: "Maria Garcia", adopter_phone: "555-5678", adoption_fee: 100.0, status: "approved"
+  end
+  aggregate "GroomingAppointment" do
+    fixture "GroomingAppointment1", appointment_id: "GRM001", pet_name: "Buddy", owner_name: "John Smith", service_type: "full_bath_and_cut", scheduled_time: "2026-04-15T14:00:00", price: 75.0, status: "booked"
+    fixture "GroomingAppointment2", appointment_id: "GRM002", pet_name: "Max", owner_name: "Sarah Johnson", service_type: "nail_trim_only", scheduled_time: "2026-04-16T10:00:00", price: 25.0, status: "completed"
+  end
+end

@@ -1,0 +1,22 @@
+Hecks.fixtures "CoffeeShop" do
+  aggregate "MenuItem" do
+    fixture "Single_Shot_Espresso_", item_id: "espresso-single", name: "Single Shot Espresso", category: "espresso", price: 3.50, available: "true"
+    fixture "Grande_Latte_", item_id: "latte-grande", name: "Grande Latte", category: "milk_drinks", price: 5.25, available: "true"
+  end
+  aggregate "Barista" do
+    fixture "Alex_Rivera_", employee_id: "BAR-001", name: "Alex Rivera", skill_level: "advanced"
+    fixture "Jordan_Lee_", employee_id: "BAR-002", name: "Jordan Lee", skill_level: "intermediate"
+  end
+  aggregate "DrinkOrder" do
+    fixture "DrinkOrder1", order_id: "ORD-2026-001", customer_name: "Emily Zhang", total: 15.75, status: "placed"
+    fixture "DrinkOrder2", order_id: "ORD-2026-002", customer_name: "David Murphy", total: 11.50, status: "served"
+  end
+  aggregate "BeanSupply" do
+    fixture "BeanSupply1", batch_id: "BEANS-001", origin: "Ethiopia Yirgacheffe", roast_level: "medium", roaster: "Counter Culture", weight_kg: 25.0, roast_date: "2026-04-01"
+    fixture "BeanSupply2", batch_id: "BEANS-002", origin: "Colombia Geisha", roast_level: "light", roaster: "Blue Bottle", weight_kg: 15.0, roast_date: "2026-04-05"
+  end
+  aggregate "Equipment" do
+    fixture "Espresso_Machine_", equipment_id: "EQP-ESPRESSO-01", name: "Espresso Machine", make: "La Marzocco", model: "Linea Mini", status: "operational"
+    fixture "Burr_Grinder_", equipment_id: "EQP-GRINDER-01", name: "Burr Grinder", make: "Baratza", model: "Sette 270", status: "operational"
+  end
+end

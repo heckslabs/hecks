@@ -1,0 +1,18 @@
+Hecks.fixtures "FireDepartment" do
+  aggregate "Station" do
+    fixture "Station1", station_number: "4", address: "425 Oak Street", district: "North County", bay_count: 4, status: "active"
+    fixture "Station2", station_number: "7", address: "1200 Harbor Avenue", district: "Waterfront", bay_count: 3, status: "active"
+  end
+  aggregate "Apparatus" do
+    fixture "Apparatus1", unit_id: "E-4", apparatus_type: "Engine", water_capacity_gallons: 750.0, fuel_level: 85.5, status: "in_service"
+    fixture "Apparatus2", unit_id: "L-4", apparatus_type: "Ladder Truck", water_capacity_gallons: 500.0, fuel_level: 92.0, status: "in_service"
+  end
+  aggregate "EmergencyCall" do
+    fixture "EmergencyCall1", call_id: "FD-20260414-001", call_type: "Structure Fire", address: "742 Elm Lane", priority: "high", status: "received"
+    fixture "EmergencyCall2", call_id: "FD-20260414-002", call_type: "Medical Assist", address: "100 Main Street", priority: "medium", status: "received"
+  end
+  aggregate "Hydrant" do
+    fixture "Hydrant1", hydrant_id: "HYD-425-01", location: "Oak Street & 4th Avenue", flow_rate_gpm: 1200.0, status: "serviceable", last_inspected: "2026-03-15"
+    fixture "Hydrant2", hydrant_id: "HYD-1200-02", location: "Harbor Avenue & Pier Road", flow_rate_gpm: 1500.0, status: "serviceable", last_inspected: "2026-02-20"
+  end
+end

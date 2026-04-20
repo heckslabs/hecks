@@ -1,0 +1,18 @@
+Hecks.fixtures "TeletherapyPlatform" do
+  aggregate "TherapySession" do
+    fixture "TherapySession1", session_id: "ts001", client_name: "Alex Green", therapist_name: "Dr. Lisa Chen", session_type: "cognitive_behavioral_therapy", scheduled_time: "2026-04-15 10:00", status: "scheduled"
+    fixture "TherapySession2", session_id: "ts002", client_name: "Jordan Smith", therapist_name: "Dr. Mark Williams", session_type: "dialectical_behavior_therapy", scheduled_time: "2026-04-15 14:00", status: "scheduled"
+  end
+  aggregate "VideoRoom" do
+    fixture "VideoRoom1", room_id: "room001", session_id: "ts001", stream_url: "https://stream.teletherapy.local/room/room001", recording_status: "off", status: "ready"
+    fixture "VideoRoom2", room_id: "room002", session_id: "ts002", stream_url: "https://stream.teletherapy.local/room/room002", recording_status: "off", status: "ready"
+  end
+  aggregate "ClientAccount" do
+    fixture "Alex_Green_", client_id: "ca001", name: "Alex Green", insurance_provider: "Blue Cross Blue Shield", copay_amount: "35.00", status: "active"
+    fixture "Jordan_Smith_", client_id: "ca002", name: "Jordan Smith", insurance_provider: "United Health", copay_amount: "40.00", status: "active"
+  end
+  aggregate "BillingRecord" do
+    fixture "BillingRecord1", invoice_id: "inv001", session_id: "ts001", client_id: "ca001", amount: 150.0, status: "pending"
+    fixture "BillingRecord2", invoice_id: "inv002", session_id: "ts002", client_id: "ca002", amount: 175.0, status: "pending"
+  end
+end

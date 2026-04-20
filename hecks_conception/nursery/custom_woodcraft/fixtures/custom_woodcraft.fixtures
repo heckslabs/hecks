@@ -1,0 +1,18 @@
+Hecks.fixtures "CustomWoodcraft" do
+  aggregate "Lumber" do
+    fixture "Lumber1", species: "white-oak", grade: "select", board_feet: 150.5, moisture_pct: 8.2, cuts: [], status: "kiln-dried"
+    fixture "Lumber2", species: "walnut", grade: "premium", board_feet: 85.75, moisture_pct: 7.9, cuts: [], status: "graded"
+  end
+  aggregate "FurnitureDesign" do
+    fixture "Craftsman_Dining_Table_", name: "Craftsman Dining Table", style: "Arts & Crafts", materials: [], status: "concept"
+    fixture "Mid_Century_Bookshelf_", name: "Mid-Century Bookshelf", style: "Modern", materials: [], status: "finalized"
+  end
+  aggregate "WorkOrder" do
+    fixture "WorkOrder1", lumber_id: "lumber-oak-001", furniture_design_id: "design-table-001", craftsman: "James Martinez", status: "in-progress", steps: []
+    fixture "WorkOrder2", lumber_id: "lumber-walnut-001", furniture_design_id: "design-shelf-001", craftsman: "Sarah Chen", status: "queued", steps: []
+  end
+  aggregate "ShowroomDisplay" do
+    fixture "ShowroomDisplay1", furniture_design_id: "design-table-001", price_cents: 349900, location: "North Wall - Main Floor", status: "displayed"
+    fixture "ShowroomDisplay2", furniture_design_id: "design-shelf-001", price_cents: 189500, location: "Center Island - Second Floor", status: "sold"
+  end
+end

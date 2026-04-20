@@ -1,0 +1,18 @@
+Hecks.fixtures "GridDefense" do
+  aggregate "GridAsset" do
+    fixture "GridAsset1", asset_id: "SUBSTATION-EAST-01", asset_type: "substation", location: "Eastern Grid Zone", capacity_mw: 500.0, status: "online"
+    fixture "GridAsset2", asset_id: "TRANSFORMER-MAIN-03", asset_type: "transformer", location: "Downtown Hub", capacity_mw: 250.0, status: "online"
+  end
+  aggregate "ThreatIntel" do
+    fixture "ThreatIntel1", source: "CISA-Feed", status: "active"
+    fixture "ThreatIntel2", source: "FireEye-Intelligence", status: "active"
+  end
+  aggregate "Incident" do
+    fixture "Incident1", incident_type: "unauthorized_access", severity: "high", status: "detected"
+    fixture "Incident2", incident_type: "malware_detection", severity: "critical", status: "detected"
+  end
+  aggregate "LoadBalancer" do
+    fixture "LoadBalancer1", region: "Eastern Grid", status: "normal"
+    fixture "LoadBalancer2", region: "Western Grid", status: "normal"
+  end
+end

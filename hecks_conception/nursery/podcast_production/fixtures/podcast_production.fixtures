@@ -1,0 +1,22 @@
+Hecks.fixtures "PodcastProduction" do
+  aggregate "Show" do
+    fixture "Tech_Conversations_Daily_", title: "Tech Conversations Daily", category: "technology", format: "interview", status: "published", episode_count: 187
+    fixture "Mindful_Mornings_", title: "Mindful Mornings", category: "wellness", format: "solo_narrative", status: "published", episode_count: 92
+  end
+  aggregate "Episode" do
+    fixture "The_Future_of_AI_in_Healthcare_", title: "The Future of AI in Healthcare", episode_number: 45, duration_seconds: 2847, status: "released"
+    fixture "Building_Habits_That_Stick_", title: "Building Habits That Stick", episode_number: 23, duration_seconds: 1524, status: "released"
+  end
+  aggregate "Guest" do
+    fixture "Dr__Elena_Rodriguez_", name: "Dr. Elena Rodriguez", expertise: "machine_learning,healthcare_AI", bio: "Chief researcher at Stanford AI Lab with 15 years in medical technology", status: "confirmed"
+    fixture "Marcus_Thompson_", name: "Marcus Thompson", expertise: "habit_formation,behavior_change", bio: "Clinical psychologist and bestselling author on behavioral science", status: "confirmed"
+  end
+  aggregate "EditingSession" do
+    fixture "EditingSession1", editor_name: "Alex Patel", status: "finalized", cuts_made: 12
+    fixture "EditingSession2", editor_name: "Jordan Lee", status: "finalized", cuts_made: 8
+  end
+  aggregate "DownloadMetric" do
+    fixture "DownloadMetric1", download_count: 15420, unique_listeners: 8930, completion_rate: 0.87, period: "2026-04-01_to_2026-04-07"
+    fixture "DownloadMetric2", download_count: 12850, unique_listeners: 7640, completion_rate: 0.82, period: "2026-03-25_to_2026-03-31"
+  end
+end

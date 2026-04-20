@@ -1,0 +1,18 @@
+Hecks.fixtures "PhoneRepair" do
+  aggregate "Device" do
+    fixture "Device1", device_id: "DEV-001", make: "Apple", model: "iPhone 15 Pro", serial_number: "ABC123XYZ", owner_name: "Alice Johnson", condition: "intake"
+    fixture "Device2", device_id: "DEV-002", make: "Samsung", model: "Galaxy S24", serial_number: "DEF456UVW", owner_name: "Bob Wilson", condition: "diagnosed"
+  end
+  aggregate "RepairTicket" do
+    fixture "RepairTicket1", ticket_id: "TKT-001", device_id: "DEV-001", issue_description: "Cracked screen and battery drain", estimated_cost: 250.0, priority: "high", status: "open"
+    fixture "RepairTicket2", ticket_id: "TKT-002", device_id: "DEV-002", issue_description: "Charging port not recognizing cable", estimated_cost: 85.0, priority: "medium", status: "in_progress"
+  end
+  aggregate "Part" do
+    fixture "iPhone_15_Pro_OLED_Display_", part_number: "SCREEN-IP15P", name: "iPhone 15 Pro OLED Display", compatible_models: "iPhone 15 Pro", cost: 180.0, quantity_in_stock: 12
+    fixture "Samsung_Galaxy_S24_Battery_", part_number: "BATTERY-S24", name: "Samsung Galaxy S24 Battery", compatible_models: "Galaxy S24", cost: 45.0, quantity_in_stock: 25
+  end
+  aggregate "RepairWarranty" do
+    fixture "RepairWarranty1", warranty_id: "WAR-001", ticket_id: "TKT-001", duration_days: 90, expiration_date: "2026-07-13", status: "active"
+    fixture "RepairWarranty2", warranty_id: "WAR-002", ticket_id: "TKT-002", duration_days: 180, expiration_date: "2026-10-13", status: "claimed"
+  end
+end

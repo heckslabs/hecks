@@ -1,0 +1,18 @@
+Hecks.fixtures "FoodDistribution" do
+  aggregate "FoodDonation" do
+    fixture "FoodDonation1", donation_id: "D001", donor_name: "Whole Foods Market", food_type: "Organic Apples", weight_lbs: 150.0, expiry_date: "2026-05-15", status: "received"
+    fixture "FoodDonation2", donation_id: "D002", donor_name: "Local Bakery Co", food_type: "Whole Wheat Bread", weight_lbs: 75.5, expiry_date: "2026-04-20", status: "sorted"
+  end
+  aggregate "WarehouseZone" do
+    fixture "WarehouseZone1", zone_id: "Z001", zone_type: "refrigerated", temperature_f: 38.0, capacity_pallets: 20, used_pallets: 8, status: "active"
+    fixture "WarehouseZone2", zone_id: "Z002", zone_type: "dry_goods", temperature_f: 70.0, capacity_pallets: 30, used_pallets: 15, status: "active"
+  end
+  aggregate "DeliveryRoute" do
+    fixture "DeliveryRoute1", route_id: "R001", driver_name: "Maria Chen", stops: [], total_miles: 24.5, status: "planned"
+    fixture "DeliveryRoute2", route_id: "R002", driver_name: "James Wilson", stops: [], total_miles: 18.0, status: "in_transit"
+  end
+  aggregate "RecipientAgency" do
+    fixture "Community_Kitchen_Downtown_", agency_id: "A001", name: "Community Kitchen Downtown", address: "123 Main St, Springfield, IL", families_served: 250, status: "active"
+    fixture "Meals_on_Wheels_Senior_Center_", agency_id: "A002", name: "Meals on Wheels Senior Center", address: "456 Oak Ave, Springfield, IL", families_served: 180, status: "active"
+  end
+end

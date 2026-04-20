@@ -256,18 +256,4 @@ Hecks.bluebook "SkiResort", version: "2026.04.13.1" do
     trigger "SuspendPass"
   end
 
-  fixture "Lift", lift_id: "LF-001", name: "Summit Express", lift_type: "chairlift", capacity_per_chair: 6, vertical_rise_ft: 3200, status: "running"
-  fixture "Lift", lift_id: "LF-002", name: "Eagle Gondola", lift_type: "gondola", capacity_per_chair: 10, vertical_rise_ft: 4100, status: "running"
-
-  fixture "SkiRun", run_id: "RUN-001", name: "Bunny Slope", difficulty: "beginner", length_km: 1.2, groomed: "true", status: "open"
-  fixture "SkiRun", run_id: "RUN-002", name: "Expert Ridge", difficulty: "expert", length_km: 3.8, groomed: "true", status: "open"
-
-  fixture "LiftPass", pass_id: "PASS-001", holder_name: "Emma Thompson", pass_type: "day_pass", valid_from: "2026-04-14", valid_to: "2026-04-14", price: 89.0, status: "active"
-  fixture "LiftPass", pass_id: "PASS-002", holder_name: "Michael Lopez", pass_type: "season_pass", valid_from: "2025-12-01", valid_to: "2026-04-30", price: 799.0, status: "active"
-
-  fixture "SkiRental", rental_id: "RNT-001", guest_name: "Sarah Kim", equipment_package: "full_package", boot_size: "37", start_date: "2026-04-14", end_date: "2026-04-16", daily_rate: 45.0, status: "rented"
-  fixture "SkiRental", rental_id: "RNT-002", guest_name: "James Rodriguez", equipment_package: "snowboard_only", boot_size: "42", start_date: "2026-04-14", end_date: "2026-04-15", daily_rate: 35.0, status: "returned"
-
-  fixture "SnowCondition", report_id: "SNW-001", date: "2026-04-14", base_depth_cm: 180, new_snow_cm: 12, snow_quality: "packed", wind_speed: "15 mph", temperature: "28°F"
-  fixture "SnowCondition", report_id: "SNW-002", date: "2026-04-13", base_depth_cm: 168, new_snow_cm: 20, snow_quality: "powder", wind_speed: "8 mph", temperature: "25°F"
 end

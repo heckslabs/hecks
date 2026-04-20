@@ -1,0 +1,22 @@
+Hecks.fixtures "Florist" do
+  aggregate "Arrangement" do
+    fixture "Romantic_Rose_Medley_", arrangement_id: "arr-001", name: "Romantic Rose Medley", style: "hand-tied bouquet", price: 75.00, occasion: "anniversary", status: "designed"
+    fixture "Funeral_Wreath_Elegance_", arrangement_id: "arr-002", name: "Funeral Wreath Elegance", style: "standing wreath", price: 120.00, occasion: "funeral", status: "assembled"
+  end
+  aggregate "Flower" do
+    fixture "Flower1", flower_id: "rose-red-01", common_name: "Red Rose", botanical_name: "Rosa damascena", color: "deep red", season: "year-round", vase_life_days: 7, quantity_on_hand: 450
+    fixture "Flower2", flower_id: "tulip-yellow-02", common_name: "Yellow Tulip", botanical_name: "Tulipa gesneriana", color: "golden yellow", season: "spring", vase_life_days: 6, quantity_on_hand: 280
+  end
+  aggregate "EventOrder" do
+    fixture "EventOrder1", order_id: "evt-001", customer_name: "Margaret Chen", event_type: "wedding", event_date: "2026-06-15", budget: 2500.00, status: "placed"
+    fixture "EventOrder2", order_id: "evt-002", customer_name: "Robert Foster", event_type: "corporate_gala", event_date: "2026-05-22", budget: 1800.00, status: "confirmed"
+  end
+  aggregate "FloralDelivery" do
+    fixture "FloralDelivery1", delivery_id: "dlv-001", order_id: "evt-001", address: "Rosewood Manor, 1847 Oak Ridge Dr", delivery_date: "2026-06-15", time_window: "9:00 AM - 12:00 PM", status: "scheduled"
+    fixture "FloralDelivery2", delivery_id: "dlv-002", order_id: "evt-002", address: "Grand Ballroom, 505 Commerce St", delivery_date: "2026-05-22", time_window: "3:00 PM - 5:00 PM", status: "delivered"
+  end
+  aggregate "Subscription" do
+    fixture "Subscription1", subscription_id: "sub-001", customer_name: "Jennifer Williams", frequency: "weekly", arrangement_style: "seasonal mixed", price_per_delivery: 45.00, status: "active"
+    fixture "Subscription2", subscription_id: "sub-002", customer_name: "David Martinez", frequency: "bi-weekly", arrangement_style: "green and white", price_per_delivery: 55.00, status: "active"
+  end
+end

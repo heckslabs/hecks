@@ -269,18 +269,4 @@ Hecks.bluebook "GeriatricPharmacy", version: "2026.04.13.1" do
     trigger "FlagToxicity"
   end
 
-  fixture "Medication", name: "Lisinopril", drug_class: "ACE inhibitor", mechanism_of_action: "angiotensin II inhibition", half_life_hours: 12.0, metabolism_pathway: "hepatic", status: "active"
-  fixture "Medication", name: "Metformin", drug_class: "biguanide", mechanism_of_action: "insulin sensitizer", half_life_hours: 5.0, metabolism_pathway: "renal", status: "active"
-
-  fixture "Resident", name: "Margaret Johnson", age: 82, weight_kg: 65.0, creatinine_clearance_ml_min: 35.0, hepatic_function: "mild_impairment", status: "active"
-  fixture "Resident", name: "Robert Chen", age: 78, weight_kg: 72.0, creatinine_clearance_ml_min: 42.0, hepatic_function: "normal", status: "active"
-
-  fixture "InteractionCheck", medication_a: "Lisinopril", medication_b: "Metformin", interaction_type: "metabolism", severity: "moderate", mechanism: "potential acute kidney injury", recommendation: "monitor renal function", status: "recommended"
-  fixture "InteractionCheck", medication_a: "Warfarin", medication_b: "Aspirin", interaction_type: "bleeding_risk", severity: "severe", mechanism: "increased bleeding potential", recommendation: "avoid combination", status: "screened"
-
-  fixture "DosingRegimen", resident_name: "Margaret Johnson", medication_name: "Lisinopril", standard_dose_mg: 10.0, adjusted_dose_mg: 5.0, frequency: "once daily", adjustment_reason: "renal impairment", status: "approved"
-  fixture "DosingRegimen", resident_name: "Robert Chen", medication_name: "Metformin", standard_dose_mg: 500.0, adjusted_dose_mg: 250.0, frequency: "twice daily", adjustment_reason: "age-related hepatic decline", status: "calculated"
-
-  fixture "MonitoringPlan", resident_name: "Margaret Johnson", medication_name: "Lisinopril", target_trough_ng_ml: 5.0, target_peak_ng_ml: 15.0, toxicity_threshold_ng_ml: 50.0, monitoring_frequency: "monthly", status: "active"
-  fixture "MonitoringPlan", resident_name: "Robert Chen", medication_name: "Metformin", target_trough_ng_ml: 100.0, target_peak_ng_ml: 500.0, toxicity_threshold_ng_ml: 2000.0, monitoring_frequency: "quarterly", status: "active"
 end

@@ -1,0 +1,22 @@
+Hecks.fixtures "GameDevelopment" do
+  aggregate "GameProject" do
+    fixture "Echoes_of_Tomorrow_", title: "Echoes of Tomorrow", engine: "Unreal", genre: "action_rpg", status: "production", target_platform: "pc"
+    fixture "Pixel_Paradise_", title: "Pixel Paradise", engine: "Unity", genre: "puzzle_platformer", status: "pre_production", target_platform: "mobile"
+  end
+  aggregate "Sprint" do
+    fixture "Sprint_1__Core_Mechanics_", name: "Sprint 1: Core Mechanics", duration_days: 14, status: "planning", story_points: 45
+    fixture "Sprint_2__Level_Design_", name: "Sprint 2: Level Design", duration_days: 14, status: "active", story_points: 52
+  end
+  aggregate "Build" do
+    fixture "Build1", version: "0.3.1", platform: "pc", build_config: "debug", status: "building"
+    fixture "Build2", version: "0.2.5", platform: "pc", build_config: "release", status: "certified"
+  end
+  aggregate "Playtest" do
+    fixture "Playtest1", session_name: "Internal Playtest - Combat", tester_count: 8, build_version: "0.2.5", status: "scheduled"
+    fixture "Playtest2", session_name: "Focus Group - Story", tester_count: 12, build_version: "0.2.3", status: "completed"
+  end
+  aggregate "BugReport" do
+    fixture "Camera_clips_through_wall_in_Level_3_", title: "Camera clips through wall in Level 3", severity: "high", repro_steps: "Sprint right at corner intersection", status: "open"
+    fixture "UI_text_overflow_on_French_localization_", title: "UI text overflow on French localization", severity: "medium", repro_steps: "Switch language to French", status: "resolved"
+  end
+end

@@ -150,15 +150,4 @@ Hecks.bluebook "PetAdoption", version: "2026.04.13.1" do
     trigger "ScheduleFollowUp"
   end
 
-  fixture "Animal", animal_id: "SH-2026-001", name: "Buster", species: "dog", breed: "Golden Retriever", age_months: 48, temperament: "friendly and energetic", status: "available"
-  fixture "Animal", animal_id: "SH-2026-002", name: "Luna", species: "cat", breed: "Tabby", age_months: 24, temperament: "calm and affectionate", status: "available"
-
-  fixture "AdoptionCampaign", campaign_id: "CAMP-001", target_audience: "dog lovers 25-45", platform: "Instagram", budget: 5000.0, impressions: 125000, status: "active"
-  fixture "AdoptionCampaign", campaign_id: "CAMP-002", target_audience: "cat enthusiasts", platform: "Facebook", budget: 3000.0, impressions: 87500, status: "active"
-
-  fixture "AdopterProfile", adopter_id: "AD-2026-001", name: "James Chen", preferred_species: "dog", preferred_size: "medium", housing_type: "apartment", status: "active"
-  fixture "AdopterProfile", adopter_id: "AD-2026-002", name: "Maria Rodriguez", preferred_species: "cat", preferred_size: "small", housing_type: "house", status: "active"
-
-  fixture "FollowUp", followup_id: "FU-2026-001", animal_id: "SH-2026-001", adopter_id: "AD-2026-001", scheduled_date: "2026-05-14", status: "scheduled"
-  fixture "FollowUp", followup_id: "FU-2026-002", animal_id: "SH-2026-002", adopter_id: "AD-2026-002", scheduled_date: "2026-05-15", outcome: "excellent adjustment, very happy", status: "completed"
 end
