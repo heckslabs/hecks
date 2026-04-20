@@ -51,10 +51,23 @@ module Hecks
         end
       end
 
+      # Mirrors hecks_life/src/runtime/repository.rs Repository#next_id:
+      # for singleton (no-self-ref) commands the heki adapter REUSES the
+      # existing record's id rather than minting a fresh one. Without
+      # this, every cascade-triggered policy command on a singleton
+      # aggregate would resolve to a brand-new AggregateState with all
+      # defaults, blanking the setup-chain state that downstream guards
+      # depend on. Cascade `given` evaluation against integer fields
+      # (e.g. sleep_cycle < sleep_total) then sees (0, 0) instead of
+      # the actual (1, 8) and routes the wrong branch — Ilya P1 bug.
       def next_id(rt, agg_name)
         repo = rt.repositories[agg_name]
         return "1" if !repo || repo.empty?
-        (repo.size + 1).to_s
+        # Singleton: reuse the first existing key. Repos accumulate
+        # entries only when commands carry a self-ref (Create-style),
+        # so for non-self-ref commands there is at most one record and
+        # this picks it correctly.
+        repo.keys.first
       end
 
       def apply_aggregate_defaults(agg, state)
