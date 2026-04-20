@@ -209,12 +209,10 @@ Hecks.bluebook "Organs", version: "2026.04.20.1" do
   # ============================================================
   # POLICIES
   # ============================================================
-  # When a synapse is composted, record its remains. Cross-aggregate
-  # within the same domain — pulse_organs.sh dispatches Compost and
-  # this policy chains the RecordRemains call.
-
-  policy "RecordRemainsOnCompost" do
-    on "Composted"
-    trigger "RecordRemains"
-  end
+  # Composting and recording remains is coordinated by pulse_organs.sh:
+  # it dispatches Synapse.Compost (to flip state=composted) and then
+  # writes the remains record directly via `heki append` because the
+  # dying values (strength_at_death / firings / from_synapse) need to
+  # be captured from the synapse being composted — a policy trigger
+  # carries no attrs and would write nulls. No policy chain here.
 end

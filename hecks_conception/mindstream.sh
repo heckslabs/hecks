@@ -30,6 +30,10 @@ while true; do
   # Heartbeat: one tick. The bluebook handles everything downstream.
   $HECKS "$AGG" Tick.MindstreamTick 2>/dev/null
 
+  # Body math — synapse/signal/focus/arc/remains. Bluebook owns state;
+  # pulse_organs.sh owns the per-tick math DSL can't express.
+  "$DIR/pulse_organs.sh" 2>/dev/null
+
   # Awareness snapshot — pulse.rs record_moment, restored per inbox #18.
   snap=$(python3 -c "
 import json, time

@@ -29,11 +29,10 @@ Hecks.behaviors "Organs" do
     expect last_fired_at: "now"
   end
 
-  test "Compost cascades to RecordRemains" do
-    tests "Compost", on: "Synapse", kind: :cascade
+  test "Compost flips synapse state to composted" do
+    tests "Compost", on: "Synapse"
     setup  "CreateSynapse", from: "carrying", to: "concept", strength: 0.05
-    setup  "RecordRemains", from_synapse: "carrying", strength_at_death: 0.05, firings: 1, died_at: "now"
-    expect emits: ["Composted", "RemainsRecorded"]
+    expect state: "composted"
   end
 
 
