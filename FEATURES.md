@@ -31,9 +31,7 @@
 - Multi-domain support with shared event bus across domains
 - **Bluebook composes Chapters** — `Hecks.bluebook "Name" { chapter "X" { ... } }` defines a composed system of domains in a single file, with cross-chapter policies and shared event bus via `Hecks.open(book)`
 - **Binding (spine)** — `binding "Name" { ... }` in the BluebookBuilder DSL defines the bootstrap layer that holds chapters together: module wiring, registries, errors, utilities, and cross-chapter event routing
-- **Self-hosting** — Hecks generates itself from its own Bluebook chapters. All 16+ chapters (Bootstrap, Bluebook, Kernel, Runtime, Binding, CLI, Extensions, Targets, Workshop, Hecksagon, AI, Rails, Spec, Templating, Watchers, Persist, Examples) boot as running Hecks applications via `InMemoryLoader` + `Runtime`. 743 aggregates, 932 commands.
-- **Bootstrap chapter** — `Hecks::Chapters::Bootstrap` describes the bootstrap kernel (DSL builders, domain model IR, tokenizer, chapter system) as aggregates. The bridge between Stage 0 (interpreted) and Stage 1 (compiled / Hecks v0).
-- **Kernel chapter** — Descriptive Bluebook chapter covering registries, core utilities, and the chapter system itself.
+- **Self-hosting** — Hecks generates itself from its own Bluebook chapters. Thirteen chapters (AI, Appeal, Binding, Bluebook, CLI, Extensions, Hecksagon, Persist, Rails, Runtime, Spec, Targets, Templating, Workshop) live under `lib/hecks/chapters/` and boot as running Hecks applications via `InMemoryLoader` + `Runtime`.
 - **Self-compile manifest** — `Hecks::SelfCompile` lists all chapters in load order with `summary`, `total_aggregates`, `total_commands`, and `missing_chapters` introspection methods. Proves the Bluebook is a complete specification of Hecks.
 - **Coverage verification** — `CoverageVerifier` walks all `.rb` files in `lib/` and checks each is covered by at least one chapter aggregate. Integrated into `bin/verify` as Phase 4.
 - **Paragraphs** — `paragraph "Ports" { aggregate "EventBus" do ... end }` groups aggregates into named sections within a chapter. Paragraphs are first-class IR nodes (`Structure::Paragraph`) tracked on the domain, enabling organizational splitting without creating separate domains.
@@ -272,14 +270,10 @@
 - Programmatic API via `SelfHostDiff.new(domain, gem_root:, mode: :framework).summary`
 - Hecksagon baseline: 93.3% coverage (28/30 files have partial matches from IR-derived skeletons)
 
-### Chapter CLI Generation
-- `CliGenerator` — generates Thor CLI subcommands from any Bluebook chapter definition
-- Aggregate commands become CLI verbs: `CreatePizza` -> `create_pizza --name X`
-- IR attribute types map to Thor option types (String->:string, Integer->:numeric, etc.)
-- Automatic collision handling: prefixes aggregate name when verbs overlap across aggregates
-- `build_thor_class` — evaluates generated source into a live Thor class for immediate use
-- Works with any chapter — not coupled to a specific domain
-- Optional `namespace:` wraps output in a Ruby module
+### CLI (hecks_cli)
+- `lib/hecks_cli/cli.rb` — Thor-based command-line entry point
+- Aggregate commands become CLI verbs via the runtime command bus (e.g. `hecks pizzas create-pizza --name X`)
+- IR attribute types map to Thor option types (String→:string, Integer→:numeric, etc.)
 
 ### Self-Hosting DSL Extensions
 - `namespace "Hecksagon::DSL"` — declares the module nesting for an aggregate, used by skeleton generator
@@ -624,7 +618,7 @@
 - Custom channels via `HecksLive::Channel` subclass with `subscribe_to`
 
 ## Module Structure (HEC-370)
-- `bluebook/` — grammar, IR nodes (DomainModel), DSL builders, validators, compiler, generators, visualizer, event storm parser
+- `bluebook/` — grammar, IR nodes (`Structure::Domain`, `Structure::Aggregate`, …), DSL builders, validators, compiler, generators, visualizer, event storm parser
 - `hecksties/` — core kernel: registries, errors, autoloads, utilities, version
 - `hecks_templating/` — naming helpers + data contracts (type, view, event, migration, UI label)
 - `hecks_runtime/` — command bus, ports, middleware, extensions, boot
@@ -685,13 +679,11 @@
 
 ### Claude Code Integration
 - `hecks claude` starts background file watchers, then launches Claude Code with `--dangerously-skip-permissions`
-- `hecks_watchers` component: FileSize, CrossRequire, SpecCoverage, DocReminder, PreCommit, Runner, LogReader, Logger
-- Watchers poll every second: file-size (180-line warning), cross-component require_relative, autoload registration
-- `PreCommit` runner consolidates all watchers into a single pre-commit hook call (CrossRequire blocks, rest advisory)
-- `DocReminder` watcher checks staged files for missing FEATURES.md and CHANGELOG updates
-- PostToolUse hook reads `tmp/watcher.log` after every Edit/Write/Bash so Claude sees watcher output inline
+- Watcher scripts in `bin/`: `watch-all`, `watch-autoloads`, `watch-cli`, `watch-cross-require`, `watch-file-size`, `watch-spec-coverage` — poll every second and append to `tmp/watcher.log`
+- `bin/pre-commit` runs the watcher suite as a commit gate (blocking on cross-require failures, advisory on the rest)
+- `PostToolUse` hook (configured in `.claude/settings.json`) reads `tmp/watcher.log` after every Edit/Write/Bash so Claude sees watcher output inline
+- `bin/read-watcher-log` is the script the hook runs
 - Watcher processes are cleaned up automatically when Claude exits
-- Bin scripts are thin wrappers that delegate to `HecksWatchers::*` classes
 
 ### Watcher Agent (hecks_watcher_agent)
 - `hecks fix-watchers` reads watcher log and creates PRs to fix issues
