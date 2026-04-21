@@ -27,6 +27,10 @@ MISC       = (Dir[File.expand_path("../../hecks_conception/family/**/*.bluebook"
               Dir[File.expand_path("../../hecks_conception/applications/**/*.bluebook", __dir__)] +
               Dir[File.expand_path("../../hecks_conception/actions/**/*.bluebook", __dir__)] +
               Dir[File.expand_path("../../hecks_conception/chris/**/*.bluebook", __dir__)]).sort
+# Nursery runs as SOFT coverage — 350 bluebooks, ~302 blocked on the
+# Ruby parser Symbol→Float/Integer bug (inbox i1/i2). Failures report
+# for visibility but do not exit 1 until that bug ships.
+NURSERY    = Dir[File.expand_path("../../hecks_conception/nursery/**/*.bluebook", __dir__)].sort
 KNOWN_DRIFT_FILE = File.expand_path("known_drift.txt", __dir__)
 REPO_ROOT  = File.expand_path("../..", __dir__)
 
@@ -115,9 +119,10 @@ def run_one(path, max_diff_lines: 40)
   [:fail, shown.join("\n")]
 end
 
-def section(title, paths, max_diff_lines:)
+def section(title, paths, max_diff_lines:, soft: false)
   return [0, 0, 0, []] if paths.empty?
-  puts "\n=== #{title} (#{paths.size}) ==="
+  tag = soft ? " [soft — does not block CI]" : ""
+  puts "\n=== #{title} (#{paths.size})#{tag} ==="
   blocking = 0
   expected = 0
   unexpected_passes = []
@@ -153,12 +158,14 @@ r_total, r_block, r_expected, r_unx = section("Real bluebooks (aggregates/)", RE
 c_total, c_block, c_expected, c_unx = section("Capability bluebooks (capabilities/)", CAPS, max_diff_lines: 8)
 k_total, k_block, k_expected, k_unx = section("Catalog bluebooks (catalog/)", CATALOG, max_diff_lines: 8)
 m_total, m_block, m_expected, m_unx = section("Misc bluebooks (family/applications/actions/chris)", MISC, max_diff_lines: 8)
+n_total, n_block, n_expected, n_unx = section("Nursery bluebooks (nursery/)", NURSERY, max_diff_lines: 4, soft: true)
 
-total       = s_total + r_total + c_total + k_total + m_total
+total       = s_total + r_total + c_total + k_total + m_total + n_total
 blocking    = s_block + r_block + c_block + k_block + m_block
-expected    = s_expected + r_expected + c_expected + k_expected + m_expected
-unx_passes  = s_unx + r_unx + c_unx + k_unx + m_unx
-passed      = total - blocking - expected - unx_passes.size
+soft_fail   = n_block
+expected    = s_expected + r_expected + c_expected + k_expected + m_expected + n_expected
+unx_passes  = s_unx + r_unx + c_unx + k_unx + m_unx + n_unx
+passed      = total - blocking - soft_fail - expected - unx_passes.size
 
 puts ""
 puts "#{passed}/#{total} match"
@@ -167,7 +174,9 @@ puts "  real (aggregates) #{r_total - r_block - r_expected}/#{r_total}"
 puts "  capabilities #{c_total - c_block - c_expected}/#{c_total}"
 puts "  catalog #{k_total - k_block - k_expected}/#{k_total}"
 puts "  misc #{m_total - m_block - m_expected}/#{m_total}"
+puts "  nursery (soft) #{n_total - n_block - n_expected}/#{n_total}"
 puts "#{expected} known-drift (allowed)" if expected > 0
+puts "#{soft_fail} soft drift (nursery — blocked on inbox i1/i2 Ruby parser bug; does not fail CI)" if soft_fail > 0
 unless unx_passes.empty?
   puts ""
   puts "⚑ #{unx_passes.size} fixture(s) in known_drift.txt now pass — please remove:"
