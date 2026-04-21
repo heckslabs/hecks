@@ -59,7 +59,6 @@ count_glob() {
 }
 
 mindstream_alive="$(pid_alive "$info/.mindstream.pid")"
-greeting_alive="$(pid_alive "$info/.greeting.pid")"
 
 agg_count="$(count_glob "$here/aggregates/*.bluebook")"
 cap_count=0
@@ -74,4 +73,4 @@ if [ "${1:-}" = "musings" ]; then
 fi
 
 exec python3 "$here/status_format.py" \
-  "$info" "$mindstream_alive" "$greeting_alive" "$agg_count" "$cap_count" "$@"
+  "$info" "$mindstream_alive" "$agg_count" "$cap_count" "$@"

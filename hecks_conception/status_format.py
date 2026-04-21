@@ -2,7 +2,7 @@
 # status_format.py — renders Miette's status report from heki JSON streams.
 #
 # Usage:
-#   python3 status_format.py <info_dir> <mindstream_alive> <greeting_alive> \
+#   python3 status_format.py <info_dir> <mindstream_alive> \
 #                            <aggregates_count> <capabilities_count> [--no-color]
 #
 # Reads each <info_dir>/*.heki via `hecks-life heki read` through subprocess,
@@ -79,7 +79,7 @@ def fmt_section(title, rows, on):
     return "\n".join(lines)
 
 
-def render(info_dir, mindstream_alive, greeting_alive, agg_n, cap_n, on):
+def render(info_dir, mindstream_alive, agg_n, cap_n, on):
     identity = latest(read_heki(info_dir, "identity"))
     consciousness = latest(read_heki(info_dir, "consciousness"))
     heartbeat = latest(read_heki(info_dir, "heartbeat"))
@@ -143,7 +143,6 @@ def render(info_dir, mindstream_alive, greeting_alive, agg_n, cap_n, on):
         ], on),
         fmt_section("Daemons", [
             ("mindstream", "alive" if mindstream_alive == "1" else "down"),
-            ("greeting", "alive" if greeting_alive == "1" else "down"),
         ], on),
     ]
     print("\n".join(sections))
@@ -195,8 +194,8 @@ def main():
         musings_cmd(info_dir, source, color_enabled(no_color))
         return
 
-    info_dir, mindstream, greeting, agg_n, cap_n = argv[:5]
-    render(info_dir, mindstream, greeting, int(agg_n), int(cap_n), color_enabled(no_color))
+    info_dir, mindstream, agg_n, cap_n = argv[:4]
+    render(info_dir, mindstream, int(agg_n), int(cap_n), color_enabled(no_color))
 
 
 if __name__ == "__main__":
