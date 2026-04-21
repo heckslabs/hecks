@@ -28,14 +28,16 @@ jobs:
       # actions/checkout@v4 with fetch-depth: 0 already gets full
       # history including every branch ref, so no extra fetch needed.
 
-      - name: Run antibody (blocking)
+      - name: Run antibody (each commit, blocking)
         run: |
           set -e
           base="origin/${{ github.base_ref }}"
 
-          # Emit GitHub annotations for each flagged file so they surface
-          # directly on the PR as warnings next to the listing.
-          if ! out=$(bin/antibody-check --base "$base" 2>&1); then
+          # --each-commit walks every commit in base..HEAD and validates
+          # each one in isolation: its own message must carry the
+          # [antibody-exempt: …] marker for any non-DSL file IT touches.
+          # This is the only rule that composes cleanly across commits.
+          if ! out=$(bin/antibody-check --base "$base" --each-commit 2>&1); then
             status=1
           else
             status=0
@@ -43,10 +45,12 @@ jobs:
 
           echo "$out"
 
+          # Emit annotations on the files flagged by the per-commit walk
+          # so they surface inline on the PR diff.
           echo "$out" | awk '
-            /^⚠ antibody:/ { flag=1; next }
-            flag && /^    / { path=$1; sub(/^ +/, "", path); print "::warning file=" path "::Non-bluebook file touched — antibody flagged" }
-            /^$/ { flag=0 }
+            /^✗ / { flag=1; next }
+            flag && /^    / { path=$1; sub(/^ +/, "", path); print "::warning file=" path "::Non-bluebook file touched without exemption in the commit that added/modified it" }
+            /^[✓]/ { flag=0 }
           '
 
           exit $status

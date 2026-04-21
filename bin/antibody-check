@@ -102,7 +102,10 @@ def exempt_reasons(message_file)
     text = out if ok
   end
   return reasons unless text
-  text.scan(/\[antibody-exempt:\s*([^\]]+)\]/i).each { |m| reasons << m[0].strip }
+  # Marker must anchor at start of line (leading whitespace allowed).
+  # Prevents slip-through via inline prose like "add [antibody-exempt: X]
+  # to your message" — that was silently treated as a valid exemption.
+  text.scan(/^\s*\[antibody-exempt:\s*([^\]]+)\]/i).each { |m| reasons << m[0].strip }
   reasons
 end
 
@@ -115,12 +118,14 @@ def filter_code_files(paths)
   end
 end
 
-options = { base: "origin/main", staged: false, message_file: nil, list_only: false }
+options = { base: "origin/main", staged: false, message_file: nil,
+            list_only: false, each_commit: false }
 OptionParser.new do |o|
   o.on("--base REF")           { |v| options[:base] = v }
   o.on("--staged")             { options[:staged]   = true }
   o.on("--message-file PATH")  { |v| options[:message_file] = v }
   o.on("--list-only")          { options[:list_only] = true }
+  o.on("--each-commit")        { options[:each_commit] = true }
 end.parse!
 
 # If the base ref doesn't resolve (e.g. shallow clone in CI), fall back
@@ -128,7 +133,55 @@ end.parse!
 _, base_ok = run(["git", "rev-parse", "--verify", options[:base]])
 base_ref = base_ok ? options[:base] : nil
 
-touched = touched_files(base_ref, options[:staged] || base_ref.nil?)
+# --each-commit: walk every commit in base..HEAD and check each one
+# in isolation. Each commit is responsible for files IT touches; its
+# own message must carry the exemption. Used by CI to validate that
+# multi-commit PRs don't lean on one commit to exempt another's work.
+if options[:each_commit]
+  unless base_ref
+    warn "antibody: --each-commit needs a resolvable --base ref"
+    exit 2
+  end
+  shas, ok = run(["git", "log", "--format=%H", "--reverse", "#{base_ref}..HEAD"])
+  unless ok
+    warn "antibody: could not list commits in #{base_ref}..HEAD"
+    exit 2
+  end
+  any_fail = false
+  shas.lines.map(&:strip).reject(&:empty?).each do |sha|
+    files_out, fok = run(["git", "show", "--name-only", "--diff-filter=AM",
+                          "--format=", sha])
+    next unless fok
+    files = files_out.lines.map(&:strip).reject(&:empty?)
+    code  = filter_code_files(files)
+    next if code.empty?
+    msg_out, _ = run(["git", "log", "-1", "--format=%B", sha])
+    reasons = msg_out.to_s
+                     .scan(/^\s*\[antibody-exempt:\s*([^\]]+)\]/i)
+                     .map { |m| m[0].strip }
+    subject, = run(["git", "log", "-1", "--format=%s", sha])
+    if reasons.any?
+      puts "✓ #{sha[0, 7]} #{subject.to_s.slice(0, 60)} — #{reasons.size} exemption(s)"
+    else
+      puts "✗ #{sha[0, 7]} #{subject.to_s.slice(0, 60)}"
+      code.each { |p| puts "    #{p}" }
+      puts "    no exemption in this commit's message"
+      any_fail = true
+    end
+  end
+  exit(any_fail ? 1 : 0)
+end
+
+# Scope split: --staged mode (commit-msg / pre-commit) checks ONLY
+# files this commit contributes, so earlier commits' files stay the
+# earlier commits' responsibility. Branch-diff mode (manual / CI on
+# HEAD) checks the whole PR-against-base range.
+touched =
+  if options[:staged]
+    touched_files(nil, true)
+  else
+    touched_files(base_ref, base_ref.nil?)
+  end
 code    = filter_code_files(touched)
 
 if code.empty?
