@@ -1,0 +1,39 @@
+#!/bin/bash
+#
+# Commit message hook.
+#   Gate A: rejects Co-Authored-By trailers (sole-authorship rule).
+#   Gate B: antibody — if this commit touches non-bluebook files, the
+#           message must carry [antibody-exempt: <reason>]. Strict;
+#           no exemption-leak from earlier commits on the branch.
+#
+
+set -e
+REPO="$(cd "$(dirname "$0")/../.." && pwd)"
+commit_msg_file="$1"
+
+# ── Gate A: Co-Authored-By ───────────────────────────────────────
+if [ -f "$commit_msg_file" ]; then
+  if grep -qi "^co-authored-by:" "$commit_msg_file"; then
+    echo "COMMIT BLOCKED: Co-Authored-By trailers are not allowed."
+    echo "This project enforces sole authorship - remove the Co-Authored-By lines."
+    echo ""
+    echo "See CLAUDE.md for authorship rules."
+    exit 1
+  fi
+fi
+
+# ── Gate B: Antibody — no new non-bluebook code without exemption ─
+if [ -x "$REPO/bin/antibody-check" ]; then
+  if ! "$REPO/bin/antibody-check" --staged --message-file "$commit_msg_file"; then
+    echo ""
+    echo "COMMIT BLOCKED: non-bluebook file(s) touched without exemption."
+    echo ""
+    echo "Either rewrite the touched files as one of"
+    echo "  .bluebook  .hecksagon  .fixtures  .behaviors  .world"
+    echo "or add to your commit message a specific exemption:"
+    echo "  [antibody-exempt: <concrete per-change reason>]"
+    exit 1
+  fi
+fi
+
+exit 0
