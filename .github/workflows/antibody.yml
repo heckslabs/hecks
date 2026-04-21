@@ -19,12 +19,8 @@ jobs:
         with:
           ruby-version: "3.3"
 
-      # Explicitly fetch the base — fetch-depth: 0 should cover it, but
-      # make it non-optional so a shallow checkout can't silently pass.
-      - name: Fetch base branch
-        run: |
-          set -e
-          git fetch origin "${{ github.base_ref }}" --depth=0
+      # actions/checkout@v4 with fetch-depth: 0 already gets full
+      # history including every branch ref, so no extra fetch needed.
 
       - name: Run antibody (blocking)
         run: |
