@@ -1,5 +1,23 @@
 # Hecks Framework — Feature List
 
+> **Reader's guide.** This file is the claim-list — a curated record of
+> features as they were introduced. It is not the source of truth for what
+> is currently verified by tests. Some entries describe shipped + tested
+> behavior; others describe work whose tests have since moved, been
+> rewritten, or lag behind the prose.
+>
+> For **what is actually exercised right now**, run:
+>
+> ```
+> hecks verify
+> ```
+>
+> That walks the contract suite, parity suite, and behavioral tests and
+> reports pass/fail per area. Anything not covered by `hecks verify` should
+> be read as "claimed" until the audit backfills a test link per line.
+>
+> The audit is tracked in the living inbox as a follow-up to this banner.
+
 ## Domain Modeling DSL
 
 ### Core Structure
