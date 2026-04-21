@@ -8,6 +8,9 @@
 #   2. Lifecycle validator — block on any unreachable transitions
 #   3. Conceiver parity test — block if either conceiver drifts
 #   4. Miette enforce (hecks-life governance) — advisory, never blocks
+#   5. Antibody: surface non-bluebook adds/mods (list only — the
+#      commit-msg hook does the actual enforcement, since that's
+#      the only hook that sees the message's exemption marker)
 #
 # Exit 0 = commit allowed. Exit 1 = commit blocked.
 # Set PARITY_SKIP=1 to bypass gate 1 (an antibody failure).
@@ -80,7 +83,16 @@ fi
 # ── Gate 4: Miette enforce ─────────────────────────────────────────
 # Governance advisory. Never blocks (yet).
 if [ -x "$HECKS_LIFE" ] && "$HECKS_LIFE" enforce "$CONCEPTION_DIR" 2>/dev/null; then
-    exit 0
+    :
+fi
+
+# ── Gate 5: Antibody — flag non-bluebook files (informational) ────
+# Actual enforcement happens in the commit-msg hook, which is the only
+# hook that sees the commit message (where exemption markers live).
+# Here we just surface the list so the author can decide before
+# writing their message.
+if [ -x "$REPO/bin/antibody-check" ]; then
+    "$REPO/bin/antibody-check" --staged --list-only || true
 fi
 
 exit 0

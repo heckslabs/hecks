@@ -1,0 +1,50 @@
+name: Antibody
+
+# Runs only on pull_request — push events have no meaningful base to
+# diff against, so checking them invites silent false-greens.
+on:
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  antibody:
+    name: No new non-bluebook code
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      # Explicitly fetch the base — fetch-depth: 0 should cover it, but
+      # make it non-optional so a shallow checkout can't silently pass.
+      - name: Fetch base branch
+        run: |
+          set -e
+          git fetch origin "${{ github.base_ref }}" --depth=0
+
+      - name: Run antibody (blocking)
+        run: |
+          set -e
+          base="origin/${{ github.base_ref }}"
+
+          # Emit GitHub annotations for each flagged file so they surface
+          # directly on the PR as warnings next to the listing.
+          if ! out=$(bin/antibody-check --base "$base" 2>&1); then
+            status=1
+          else
+            status=0
+          fi
+
+          echo "$out"
+
+          echo "$out" | awk '
+            /^⚠ antibody:/ { flag=1; next }
+            flag && /^    / { path=$1; sub(/^ +/, "", path); print "::warning file=" path "::Non-bluebook file touched — antibody flagged" }
+            /^$/ { flag=0 }
+          '
+
+          exit $status
