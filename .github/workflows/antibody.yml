@@ -11,9 +11,15 @@ jobs:
     name: No new non-bluebook code
     runs-on: ubuntu-latest
     steps:
+      # Check out the PR's actual head commit, not the auto-generated
+      # merge commit GitHub creates for pull_request events. Otherwise
+      # HEAD's message is an auto 'Merge A into B' line with no
+      # exemption markers, so real markers in the PR commit are
+      # invisible to bin/antibody-check.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - uses: ruby/setup-ruby@v1
         with:
