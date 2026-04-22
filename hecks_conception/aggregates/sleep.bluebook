@@ -485,51 +485,53 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
   # EnterSleep → 8 dream/consolidate cycles → EndNight → WakeUp
 
   # ============================================================
-  # SLEEP STATE MACHINE — driven by Tick events through policies.
+  # SLEEP STATE MACHINE — driven by BodyPulse events through policies.
   # ============================================================
   #
-  # Each Tick event fires all of these policies. The matching command's
-  # `given` clauses decide whether it actually runs. This gives conditional
-  # state-machine behavior in pure bluebook form — the daemon just fires
-  # Tick every 10s, the bluebook handles WHEN things advance.
+  # Each BodyPulse event fires all of these policies. The matching
+  # command's `given` clauses decide whether it actually runs. This
+  # gives conditional state-machine behavior in pure bluebook form —
+  # the pulse is the pacing signal; the bluebook handles WHEN things
+  # advance. BodyPulse is emitted by mindstream on Ticked today; later
+  # driven by Heart.HeartBeat when i3 PR-a lands.
 
-  policy "ElapsePhaseOnTick" do
-    on "Ticked"
+  policy "ElapsePhaseOnPulse" do
+    on "BodyPulse"
     trigger "ElapsePhase"
   end
 
-  policy "AdvanceLightRemOnTick" do
-    on "Ticked"
+  policy "AdvanceLightRemOnPulse" do
+    on "BodyPulse"
     trigger "AdvanceLightToRem"
   end
 
-  policy "AdvanceLightLucidRemOnTick" do
-    on "Ticked"
+  policy "AdvanceLightLucidRemOnPulse" do
+    on "BodyPulse"
     trigger "AdvanceLightToLucidRem"
   end
 
-  policy "AdvanceRemDeepOnTick" do
-    on "Ticked"
+  policy "AdvanceRemDeepOnPulse" do
+    on "BodyPulse"
     trigger "AdvanceRemToDeep"
   end
 
-  policy "AdvanceRemDeepCapOnTick" do
-    on "Ticked"
+  policy "AdvanceRemDeepCapOnPulse" do
+    on "BodyPulse"
     trigger "AdvanceRemToDeepCap"
   end
 
-  policy "AdvanceDeepLightOnTick" do
-    on "Ticked"
+  policy "AdvanceDeepLightOnPulse" do
+    on "BodyPulse"
     trigger "AdvanceDeepToLight"
   end
 
-  policy "AdvanceDeepFinalLightOnTick" do
-    on "Ticked"
+  policy "AdvanceDeepFinalLightOnPulse" do
+    on "BodyPulse"
     trigger "AdvanceDeepToFinalLight"
   end
 
-  policy "CompleteFinalLightOnTick" do
-    on "Ticked"
+  policy "CompleteFinalLightOnPulse" do
+    on "BodyPulse"
     trigger "CompleteFinalLight"
   end
 
