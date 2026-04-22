@@ -30,6 +30,7 @@ module Hecksagon
     autoload :Hecksagon,      "hecksagon/structure/hecksagon"
     autoload :GateDefinition, "hecksagon/structure/gate_definition"
     autoload :World,          "hecksagon/structure/world"
+    autoload :ShellAdapter,   "hecksagon/structure/shell_adapter"
   end
 
   # Legacy heksagons functionality (merged from heksagons/ gem)
