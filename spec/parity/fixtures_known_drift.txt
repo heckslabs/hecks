@@ -15,3 +15,4 @@ hecks_conception/nursery/specimen_transport/fixtures/specimen_transport.fixtures
 hecks_conception/nursery/speech_media/fixtures/speech_media.fixtures
 hecks_conception/nursery/speech_therapy/fixtures/speech_therapy.fixtures
 hecks_conception/nursery/verbs/fixtures/verbs.fixtures
+hecks_conception/capabilities/antibody/fixtures/antibody.fixtures

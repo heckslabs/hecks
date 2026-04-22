@@ -12,5 +12,3 @@
 # Format: <relative-path>  # reason
 
 # (empty — full parity 113/113 as of 2026-04-18)
-
-hecks_conception/capabilities/antibody/fixtures/antibody.fixtures  # fixture-parser escape-handling drift: Ruby consumes \s \[ \] \n inside "…"; Rust preserves them literally. Real bug in the fixture parser's string-escape path, not a fixture author error. Fix tracked as a separate inbox item; DSL drafts land with this drift explicitly acknowledged.
