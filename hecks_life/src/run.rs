@@ -131,6 +131,14 @@ pub fn run_script(args: &[String]) -> i32 {
         return crate::run_stdin_loop::run(&mut rt, &registry, &entrypoint, attrs);
     }
 
+    // Status-report capability detection: :fs + :stdout adapters plus a
+    // StatusReport aggregate with GenerateReport. The status runner
+    // reads the declared .heki stores, checks the mindstream pidfile,
+    // counts bluebooks, and prints a labeled multi-section report.
+    if crate::run_status::is_status_report_capability(&registry, &rt) {
+        return crate::run_status::run(&mut rt, &registry, &entrypoint, path, extra);
+    }
+
     match rt.dispatch(&entrypoint, attrs) {
         Ok(_) => ExitKind::Ok.code(),
         Err(crate::runtime::RuntimeError::UnknownCommand(_)) => {
