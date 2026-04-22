@@ -15,6 +15,11 @@
 #
 # Usage: rem_branch.sh [loop_count]
 #   loop_count defaults to $(date +%s) so standalone calls always differ.
+#
+# [antibody-exempt: i37 Phase B sweep — replaces inline python3 -c with
+#  native hecks-life heki subcommands per PR #272; retires when shell
+#  wrapper ports to .bluebook shebang form (tracked in
+#  terminal_capability_wiring plan).]
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
 HECKS="${HECKS:-$DIR/../hecks_life/target/release/hecks-life}"
@@ -24,13 +29,17 @@ NURSERY="${NURSERY:-$DIR/nursery}"
 LOOP="${1:-$(date +%s)}"
 
 # ── Read consciousness state ────────────────────────────────────
-state_json=$("$HECKS" heki latest "$INFO/consciousness.heki" 2>/dev/null)
-state=$(echo "$state_json"  | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('state',''))" 2>/dev/null)
-stage=$(echo "$state_json"  | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('sleep_stage',''))" 2>/dev/null)
-lucid=$(echo "$state_json"  | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('is_lucid',''))" 2>/dev/null)
-cycle=$(echo "$state_json"  | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('sleep_cycle',0))" 2>/dev/null)
-pulses=$(echo "$state_json" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('dream_pulses',0))" 2>/dev/null)
-cid=$(echo "$state_json"    | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('id',''))" 2>/dev/null)
+# Single heki latest call, extract all needed fields via jq.
+state_kv=$("$HECKS" heki latest "$INFO/consciousness.heki" 2>/dev/null \
+  | jq -r '[
+      (.state // ""),
+      (.sleep_stage // ""),
+      (.is_lucid // ""),
+      (.sleep_cycle // 0 | tostring),
+      (.dream_pulses // 0 | tostring),
+      (.id // "")
+    ] | @tsv' 2>/dev/null)
+IFS=$'\t' read -r state stage lucid cycle pulses cid <<<"$state_kv"
 
 [ "$state" = "sleeping" ] || exit 0
 [ "$stage" = "rem" ]      || exit 0
@@ -39,22 +48,22 @@ cid=$(echo "$state_json"    | python3 -c "import json,sys; d=json.load(sys.stdin
 SEED_MARKER="$INFO/.dream_seeded"
 if [ "$cycle" = "1" ] && [ "$pulses" = "0" ] && [ ! -f "$SEED_MARKER" ]; then
   # Pick top 5 dream_images from the newest dream_state records.
-  seeds=$("$HECKS" heki read "$INFO/dream_state.heki" 2>/dev/null | python3 -c "
-import json, sys
-try:
-    d = json.load(sys.stdin)
-    rows = sorted(d.values(), key=lambda r: r.get('updated_at',''), reverse=True)
-    seen = set(); out = []
-    for r in rows:
-        for img in r.get('dream_images', []) or []:
-            img = (img or '').strip()
-            if img and img not in seen:
-                seen.add(img); out.append(img)
-        if len(out) >= 5: break
-    for img in out[:5]: print(img)
-except Exception:
-    pass
-" 2>/dev/null)
+  # dream_images may be a scalar string or an array — jq handles both.
+  seeds=$("$HECKS" heki list "$INFO/dream_state.heki" --order updated_at:desc \
+      --format json 2>/dev/null \
+    | jq -r '
+        [ .[]
+          | (.dream_images // [])
+          | (if type == "array" then . else [.] end)
+          | .[]
+          | select(. != null)
+          | tostring
+          | sub("^\\s+"; "") | sub("\\s+$"; "")
+          | select(. != "")
+        ]
+        | reduce .[] as $x ([]; if any(.[]; . == $x) then . else . + [$x] end)
+        | .[0:5]
+        | .[]' 2>/dev/null)
   if [ -n "$seeds" ]; then
     while IFS= read -r seed; do
       [ -z "$seed" ] && continue
@@ -67,17 +76,21 @@ fi
 [ "$state" != "sleeping" ] && rm -f "$SEED_MARKER"
 
 # ── rem_dream — weave carrying + nursery domain + concept ───────────────
-carrying=$("$HECKS" heki latest "$INFO/heartbeat.heki" 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print((d.get('carrying') or 'unformed').strip() or 'unformed')" 2>/dev/null)
+carrying=$("$HECKS" heki latest-field "$INFO/heartbeat.heki" carrying 2>/dev/null)
+# Trim whitespace; fall back to "unformed" for empty/missing/null.
+carrying="${carrying#"${carrying%%[![:space:]]*}"}"
+carrying="${carrying%"${carrying##*[![:space:]]}"}"
+[ -z "$carrying" ] && carrying="unformed"
 domain=$(ls "$NURSERY" 2>/dev/null | shuf | head -1 | tr '_' ' ')
-concept=$("$HECKS" heki read "$INFO/musing.heki" 2>/dev/null | python3 -c "
-import json, sys, random
-try:
-    d = json.load(sys.stdin)
-    ideas = [ (v.get('idea','') or '').strip() for v in d.values() if (v.get('idea') or '').strip() ]
-    print(random.choice(ideas)[:80] if ideas else 'something half-remembered')
-except Exception:
-    print('something half-remembered')
-" 2>/dev/null)
+# Pick a random idea from musing.heki, truncate to 80 chars. jq filters
+# to trimmed, non-empty ideas; shuf -n1 picks uniformly; awk truncates.
+# Using --format json (instead of values) so newline-containing ideas
+# stay intact as one record — jq reads them as JSON strings.
+concept=$("$HECKS" heki list "$INFO/musing.heki" --format json 2>/dev/null \
+  | jq -r '[.[] | (.idea // "") | sub("^\\s+"; "") | sub("\\s+$"; "") | select(. != "")] | .[]' \
+  | shuf -n 1 \
+  | awk '{ if (length($0) > 80) print substr($0, 1, 80); else print $0 }')
+[ -z "$concept" ] && concept="something half-remembered"
 templates=(
   "${carrying} became ${domain}, which ${concept}"
   "${carrying} folded into ${domain}; ${concept}"
