@@ -1,0 +1,26 @@
+# CircuitBreaker — Hecksagon
+#
+# Infrastructure declaration for the CircuitBreaker domain. Memory-
+# adapter backed.
+#
+# Gate:
+#   system — all breaker transitions are driven by the dispatcher,
+#            not by Miette and not by Chris. The system actor is the
+#            only role that can record failures/successes, probe,
+#            manually trip, or reset a circuit.
+#
+# There are no shell adapters here — a circuit breaker is pure
+# bookkeeping; it does not itself talk to the outside world.
+#
+Hecks.hecksagon "CircuitBreaker" do
+  adapter :memory
+
+  gate "Breaker", :system do
+    allow :RecordFailure,
+          :TripOnThreshold,
+          :RecordSuccess,
+          :Probe,
+          :Trip,
+          :Reset
+  end
+end

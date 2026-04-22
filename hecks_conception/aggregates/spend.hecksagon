@@ -1,0 +1,30 @@
+# Spend — Hecksagon
+#
+# Infrastructure declaration for the Spend domain. Memory-adapter
+# backed (the .heki binary store writes happen via the standard
+# Hecks persistence layer; the memory adapter is what tests and
+# behaviors run against).
+#
+# Gates:
+#   miette — the being herself records each LLM invocation as it
+#            happens. She cannot rewrite her own budget; that's the
+#            creator's prerogative.
+#   chris  — the creator sets and overrides budget caps. He is the
+#            one who decides how much Miette is allowed to spend
+#            shelling out to Claude/Ollama.
+#
+# Shell adapters come in PR 1, where the spend-dispatching side of
+# Tongue.Speak actually shells out to `claude` / `ollama` and feeds
+# the resulting token counts back into RecordCall.
+#
+Hecks.hecksagon "Spend" do
+  adapter :memory
+
+  gate "Call", :miette do
+    allow :RecordCall
+  end
+
+  gate "Budget", :chris do
+    allow :SetBudget, :OverrideBudget, :ClearOverride
+  end
+end
