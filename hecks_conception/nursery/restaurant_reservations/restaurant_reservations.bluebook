@@ -3,24 +3,24 @@ Hecks.bluebook "RestaurantReservations" do
   category "hospitality"
 
   aggregate "DiningTable", "A physical table in the restaurant with capacity and location" do
-    String :table_number
-    Integer :seat_capacity
-    String :section
-    String :status
+    attribute :table_number, String
+    attribute :seat_capacity, Integer
+    attribute :section, String
+    attribute :status, String
 
     value_object "TableConfiguration" do
-      String :shape
-      Integer :min_guests
-      Integer :max_guests
-      String :wheelchair_accessible
+      attribute :shape, String
+      attribute :min_guests, Integer
+      attribute :max_guests, Integer
+      attribute :wheelchair_accessible, String
     end
 
-    SetupTable do
+    command "SetupTable" do
       role "HostManager"
       description "Register a new dining table with its capacity and section"
-      String :table_number
-      Integer :seat_capacity
-      String :section
+      attribute :table_number, String
+      attribute :seat_capacity, Integer
+      attribute :section, String
       emits "TableSetup"
       then_set :table_number, to: :table_number
       then_set :seat_capacity, to: :seat_capacity
@@ -28,7 +28,7 @@ Hecks.bluebook "RestaurantReservations" do
       then_set :status, to: "available"
     end
 
-    MarkOccupied do
+    command "MarkOccupied" do
       role "Host"
       description "Mark a table as currently occupied by a seated party"
       reference_to(DiningTable)
@@ -37,7 +37,7 @@ Hecks.bluebook "RestaurantReservations" do
       then_set :status, to: "occupied"
     end
 
-    ClearTable do
+    command "ClearTable" do
       role "Busser"
       description "Clear and reset a table after guests depart"
       reference_to(DiningTable)
@@ -51,30 +51,30 @@ Hecks.bluebook "RestaurantReservations" do
   end
 
   aggregate "Reservation", "A confirmed booking for a party at a specific date and time" do
-    String :guest_name
-    String :phone_number
-    String :reservation_date
-    String :time_slot
-    Integer :party_size
-    String :special_requests
-    String :status
+    attribute :guest_name, String
+    attribute :phone_number, String
+    attribute :reservation_date, String
+    attribute :time_slot, String
+    attribute :party_size, Integer
+    attribute :special_requests, String
+    attribute :status, String
     reference_to(DiningTable)
 
     value_object "ContactInfo" do
-      String :phone
-      String :email
-      String :preferred_contact
+      attribute :phone, String
+      attribute :email, String
+      attribute :preferred_contact, String
     end
 
-    BookReservation do
+    command "BookReservation" do
       role "Host"
       description "Create a new reservation for a guest party"
-      String :guest_name
-      String :phone_number
-      String :reservation_date
-      String :time_slot
-      Integer :party_size
-      String :special_requests
+      attribute :guest_name, String
+      attribute :phone_number, String
+      attribute :reservation_date, String
+      attribute :time_slot, String
+      attribute :party_size, Integer
+      attribute :special_requests, String
       emits "ReservationBooked"
       then_set :guest_name, to: :guest_name
       then_set :phone_number, to: :phone_number
@@ -84,7 +84,7 @@ Hecks.bluebook "RestaurantReservations" do
       then_set :status, to: "confirmed"
     end
 
-    CancelReservation do
+    command "CancelReservation" do
       role "Host"
       description "Cancel an existing reservation before the time slot"
       reference_to(Reservation)
@@ -93,7 +93,7 @@ Hecks.bluebook "RestaurantReservations" do
       then_set :status, to: "cancelled"
     end
 
-    MarkNoShow do
+    command "MarkNoShow" do
       role "Host"
       description "Record that a guest did not arrive for their reservation"
       reference_to(Reservation)
@@ -108,23 +108,23 @@ Hecks.bluebook "RestaurantReservations" do
   end
 
   aggregate "Waitlist", "Queue of walk-in parties waiting for available tables" do
-    String :party_name
-    Integer :party_size
-    String :quoted_wait_time
-    String :status
-    Integer :position
+    attribute :party_name, String
+    attribute :party_size, Integer
+    attribute :quoted_wait_time, String
+    attribute :status, String
+    attribute :position, Integer
 
     value_object "WaitEstimate" do
-      Integer :minutes
-      String :confidence
+      attribute :minutes, Integer
+      attribute :confidence, String
     end
 
-    AddToWaitlist do
+    command "AddToWaitlist" do
       role "Host"
       description "Place a walk-in party on the waitlist with estimated wait time"
-      String :party_name
-      Integer :party_size
-      String :quoted_wait_time
+      attribute :party_name, String
+      attribute :party_size, Integer
+      attribute :quoted_wait_time, String
       emits "PartyWaitlisted"
       then_set :party_name, to: :party_name
       then_set :party_size, to: :party_size
@@ -132,7 +132,7 @@ Hecks.bluebook "RestaurantReservations" do
       then_set :status, to: "waiting"
     end
 
-    NotifyParty do
+    command "NotifyParty" do
       role "Host"
       description "Alert a waiting party that their table is ready"
       reference_to(Waitlist)
@@ -141,7 +141,7 @@ Hecks.bluebook "RestaurantReservations" do
       then_set :status, to: "notified"
     end
 
-    RemoveFromWaitlist do
+    command "RemoveFromWaitlist" do
       role "Host"
       description "Remove a party that left before being seated"
       reference_to(Waitlist)
@@ -155,26 +155,26 @@ Hecks.bluebook "RestaurantReservations" do
   end
 
   aggregate "Seating", "The act of assigning a party to a table and tracking their dining session" do
-    String :server_name
-    String :seated_at
-    String :status
-    Integer :covers
+    attribute :server_name, String
+    attribute :seated_at, String
+    attribute :status, String
+    attribute :covers, Integer
     reference_to(DiningTable)
     reference_to(Reservation)
 
-    SeatParty do
+    command "SeatParty" do
       role "Host"
       description "Assign a party to a specific table and begin their dining session"
       reference_to(DiningTable)
-      String :server_name
-      Integer :covers
+      attribute :server_name, String
+      attribute :covers, Integer
       emits "PartySeated"
       then_set :server_name, to: :server_name
       then_set :covers, to: :covers
       then_set :status, to: "seated"
     end
 
-    CloseSeating do
+    command "CloseSeating" do
       role "Server"
       description "End a dining session after the party departs"
       reference_to(Seating)

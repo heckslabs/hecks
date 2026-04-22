@@ -1,28 +1,28 @@
 Hecks.bluebook "PotteryStudio" do
   aggregate "Piece", "A ceramic piece from throwing through finishing" do
-    String :name
-    String :form
-    String :clay_body
-    String :status, default: "thrown"
-    Float :weight_kg
+    attribute :name, String
+    attribute :form, String
+    attribute :clay_body, String
+    attribute :status, String, default: "thrown"
+    attribute :weight_kg, Float
 
     value_object "Dimensions" do
-      Float :height_cm
-      Float :diameter_cm
-      Float :wall_thickness_mm
+      attribute :height_cm, Float
+      attribute :diameter_cm, Float
+      attribute :wall_thickness_mm, Float
     end
 
-    ThrowPiece do
+    command "ThrowPiece" do
       description "Create a new piece on the pottery wheel"
-      String :name
-      String :form
-      String :clay_body
-      Float :weight_kg
+      attribute :name, String
+      attribute :form, String
+      attribute :clay_body, String
+      attribute :weight_kg, Float
       emits "PieceThrown"
       then_set :status, to: "thrown"
     end
 
-    TrimPiece do
+    command "TrimPiece" do
       description "Trim the foot and refine the form on a leather-hard piece"
       reference_to(Piece)
       given { status == "thrown" }
@@ -30,7 +30,7 @@ Hecks.bluebook "PotteryStudio" do
       then_set :status, to: "trimmed"
     end
 
-    BisqueFire do
+    command "BisqueFire" do
       description "Load piece into kiln for first bisque firing"
       reference_to(Piece)
       given { status == "trimmed" }
@@ -38,16 +38,16 @@ Hecks.bluebook "PotteryStudio" do
       then_set :status, to: "bisqued"
     end
 
-    GlazePiece do
+    command "GlazePiece" do
       description "Apply glaze coating to bisque-fired piece"
       reference_to(Piece)
-      String :glaze_name
+      attribute :glaze_name, String
       given { status == "bisqued" }
       emits "PieceGlazed"
       then_set :status, to: "glazed"
     end
 
-    GlazeFire do
+    command "GlazeFire" do
       description "Fire glazed piece to maturity in the kiln"
       reference_to(Piece)
       given { status == "glazed" }
@@ -57,25 +57,25 @@ Hecks.bluebook "PotteryStudio" do
   end
 
   aggregate "Firing", "A kiln firing cycle with temperature program and load" do
-    String :firing_type
-    Integer :target_cone
-    String :atmosphere
-    String :status, default: "loading"
-    Integer :piece_count
+    attribute :firing_type, String
+    attribute :target_cone, Integer
+    attribute :atmosphere, String
+    attribute :status, String, default: "loading"
+    attribute :piece_count, Integer
     reference_to(Kiln)
 
-    LoadKiln do
+    command "LoadKiln" do
       description "Stack pieces into the kiln for a firing"
       reference_to(Kiln)
-      String :firing_type
-      Integer :target_cone
-      String :atmosphere
-      Integer :piece_count
+      attribute :firing_type, String
+      attribute :target_cone, Integer
+      attribute :atmosphere, String
+      attribute :piece_count, Integer
       emits "KilnLoaded"
       then_set :status, to: "loading"
     end
 
-    StartFiring do
+    command "StartFiring" do
       description "Begin the firing program ramp"
       reference_to(Firing)
       given { status == "loading" }
@@ -83,7 +83,7 @@ Hecks.bluebook "PotteryStudio" do
       then_set :status, to: "firing"
     end
 
-    CompleteFiring do
+    command "CompleteFiring" do
       description "Cool down and unload the kiln after reaching cone"
       reference_to(Firing)
       given { status == "firing" }
@@ -93,78 +93,78 @@ Hecks.bluebook "PotteryStudio" do
   end
 
   aggregate "Glaze", "A glaze recipe with oxide chemistry and firing range" do
-    String :name
-    String :surface_type
-    Integer :cone_low
-    Integer :cone_high
-    String :color_result
+    attribute :name, String
+    attribute :surface_type, String
+    attribute :cone_low, Integer
+    attribute :cone_high, Integer
+    attribute :color_result, String
 
     value_object "GlazeChemistry" do
-      Float :silica
-      Float :alumina
-      Float :flux
-      String :colorant
-      Float :colorant_percentage
+      attribute :silica, Float
+      attribute :alumina, Float
+      attribute :flux, Float
+      attribute :colorant, String
+      attribute :colorant_percentage, Float
     end
 
-    FormulateGlaze do
+    command "FormulateGlaze" do
       description "Develop a new glaze recipe from oxide calculations"
-      String :name
-      String :surface_type
-      Integer :cone_low
-      Integer :cone_high
+      attribute :name, String
+      attribute :surface_type, String
+      attribute :cone_low, Integer
+      attribute :cone_high, Integer
       emits "GlazeFormulated"
     end
 
-    TestGlaze do
+    command "TestGlaze" do
       description "Fire test tiles to evaluate a glaze recipe"
       reference_to(Glaze)
-      Integer :test_cone
+      attribute :test_cone, Integer
       emits "GlazeTested"
     end
   end
 
   aggregate "Kiln", "A ceramic kiln with capacity, fuel type, and maintenance log" do
-    String :name
-    String :fuel_type
-    Float :cubic_feet
-    String :status, default: "idle"
-    Integer :total_firings
+    attribute :name, String
+    attribute :fuel_type, String
+    attribute :cubic_feet, Float
+    attribute :status, String, default: "idle"
+    attribute :total_firings, Integer
 
-    SetUpKiln do
+    command "SetUpKiln" do
       description "Set up a new kiln in the studio"
-      String :name
-      String :fuel_type
-      Float :cubic_feet
+      attribute :name, String
+      attribute :fuel_type, String
+      attribute :cubic_feet, Float
       emits "KilnCommissioned"
     end
 
-    ServiceKiln do
+    command "ServiceKiln" do
       description "Perform maintenance on kiln elements or bricks"
       reference_to(Kiln)
-      String :service_type
+      attribute :service_type, String
       emits "KilnServiced"
     end
   end
 
   aggregate "Exhibition", "A curated show of finished pottery pieces" do
-    String :title
-    String :venue
-    String :opening_date
-    Integer :piece_count
-    String :status, default: "planning"
+    attribute :title, String
+    attribute :venue, String
+    attribute :opening_date, String
+    attribute :piece_count, Integer
+    attribute :status, String, default: "planning"
 
-    CurateExhibition do
+    command "CurateExhibition" do
       description "Select pieces and plan the exhibition layout"
-      String :title
-      String :venue
-      String :opening_date
-      Integer :piece_count
+      attribute :title, String
+      attribute :venue, String
+      attribute :opening_date, String
+      attribute :piece_count, Integer
       emits "ExhibitionCurated"
       then_set :status, to: "planning"
     end
 
-    OpenExhibition do
+    command "OpenExhibition" do
       description "Open the exhibition to the public"
       reference_to(Exhibition)
       given { status == "planning" }

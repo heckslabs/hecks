@@ -3,40 +3,40 @@ Hecks.bluebook "ELearning", version: "2026.04.13.1" do
   category "technology"
 
   aggregate "Course", "A structured learning program with lessons and assessments" do
-    String :course_title
-    String :instructor
-    String :subject_area
-    String :difficulty_level
-    Integer :estimated_hours
-    String :status
+    attribute :course_title, String
+    attribute :instructor, String
+    attribute :subject_area, String
+    attribute :difficulty_level, String
+    attribute :estimated_hours, Integer
+    attribute :status, String
     list_of(Module) :modules
 
     value_object "Module" do
-      String :module_title
-      Integer :sequence_order
-      Integer :lesson_count
+      attribute :module_title, String
+      attribute :sequence_order, Integer
+      attribute :lesson_count, Integer
     end
 
-    AuthorCourse do
+    command "AuthorCourse" do
       role "Instructor"
       description "Author a new course with subject matter and difficulty"
-      String :course_title
-      String :instructor
-      String :subject_area
-      String :difficulty_level
-      Integer :estimated_hours
+      attribute :course_title, String
+      attribute :instructor, String
+      attribute :subject_area, String
+      attribute :difficulty_level, String
+      attribute :estimated_hours, Integer
       then_set :status, to: "draft"
       emits "CourseAuthored"
     end
 
-    PublishCourse do
+    command "PublishCourse" do
       description "Make a course available for enrollment"
       reference_to(Course)
       given("course has modules") { status == "draft" }
       emits "CoursePublished"
     end
 
-    RetireCourse do
+    command "RetireCourse" do
       description "Remove a course from the active catalog"
       reference_to(Course)
       emits "CourseRetired"
@@ -44,37 +44,37 @@ Hecks.bluebook "ELearning", version: "2026.04.13.1" do
   end
 
   aggregate "Enrollment", "A student's registration in a specific course" do
-    String :enrollment_id
-    String :student_email
-    String :enrolled_at
-    Float :progress_pct
-    String :status
+    attribute :enrollment_id, String
+    attribute :student_email, String
+    attribute :enrolled_at, String
+    attribute :progress_pct, Float
+    attribute :status, String
     reference_to Course
 
     value_object "ProgressCheckpoint" do
-      String :module_title
-      Float :completion_pct
-      String :completed_at
+      attribute :module_title, String
+      attribute :completion_pct, Float
+      attribute :completed_at, String
     end
 
-    EnrollStudent do
+    command "EnrollStudent" do
       role "Student"
       description "Register a student for a published course"
-      String :enrollment_id
-      String :student_email
+      attribute :enrollment_id, String
+      attribute :student_email, String
       reference_to(Course)
       then_set :status, to: "active"
       emits "StudentEnrolled"
     end
 
-    RecordProgress do
+    command "RecordProgress" do
       description "Record advancement through course material"
       reference_to(Enrollment)
-      Float :progress_pct
+      attribute :progress_pct, Float
       emits "ProgressRecorded"
     end
 
-    WithdrawEnrollment do
+    command "WithdrawEnrollment" do
       description "Drop a student from a course"
       reference_to(Enrollment)
       given("enrollment is active") { status == "active" }
@@ -83,41 +83,41 @@ Hecks.bluebook "ELearning", version: "2026.04.13.1" do
   end
 
   aggregate "Lesson", "A single unit of instruction within a course module" do
-    String :lesson_title
-    String :content_type
-    String :body
-    Integer :duration_minutes
-    Integer :sequence_order
-    String :status
+    attribute :lesson_title, String
+    attribute :content_type, String
+    attribute :body, String
+    attribute :duration_minutes, Integer
+    attribute :sequence_order, Integer
+    attribute :status, String
     reference_to Course
 
     value_object "Resource" do
-      String :resource_type
-      String :url
-      String :description
+      attribute :resource_type, String
+      attribute :url, String
+      attribute :description, String
     end
 
-    AuthorLesson do
+    command "AuthorLesson" do
       role "Instructor"
       description "Write a new lesson with content and resources"
-      String :lesson_title
-      String :content_type
-      String :body
-      Integer :duration_minutes
-      Integer :sequence_order
+      attribute :lesson_title, String
+      attribute :content_type, String
+      attribute :body, String
+      attribute :duration_minutes, Integer
+      attribute :sequence_order, Integer
       reference_to(Course)
       then_set :status, to: "published"
       emits "LessonAuthored"
     end
 
-    ReviseLesson do
+    command "ReviseLesson" do
       description "Revise the content of an existing lesson"
       reference_to(Lesson)
-      String :body
+      attribute :body, String
       emits "LessonRevised"
     end
 
-    ArchiveLesson do
+    command "ArchiveLesson" do
       description "Remove a lesson from the active curriculum"
       reference_to(Lesson)
       given("lesson is published") { status == "published" }
@@ -126,41 +126,41 @@ Hecks.bluebook "ELearning", version: "2026.04.13.1" do
   end
 
   aggregate "Quiz", "An assessment testing student understanding of lesson material" do
-    String :quiz_title
-    Integer :passing_score
-    Integer :time_limit_minutes
-    Integer :max_attempts
-    String :status
+    attribute :quiz_title, String
+    attribute :passing_score, Integer
+    attribute :time_limit_minutes, Integer
+    attribute :max_attempts, Integer
+    attribute :status, String
     reference_to Lesson
     list_of(Question) :questions
 
     value_object "Question" do
-      String :prompt
-      String :correct_answer
-      Integer :points
+      attribute :prompt, String
+      attribute :correct_answer, String
+      attribute :points, Integer
     end
 
-    AuthorQuiz do
+    command "AuthorQuiz" do
       role "Instructor"
       description "Design a quiz with questions and passing criteria"
-      String :quiz_title
-      Integer :passing_score
-      Integer :time_limit_minutes
-      Integer :max_attempts
+      attribute :quiz_title, String
+      attribute :passing_score, Integer
+      attribute :time_limit_minutes, Integer
+      attribute :max_attempts, Integer
       reference_to(Lesson)
       then_set :status, to: "active"
       emits "QuizAuthored"
     end
 
-    SubmitAttempt do
+    command "SubmitAttempt" do
       description "Record a student's answers for grading"
       reference_to(Quiz)
-      String :student_email
-      Integer :score
+      attribute :student_email, String
+      attribute :score, Integer
       emits "AttemptSubmitted"
     end
 
-    SuspendQuiz do
+    command "SuspendQuiz" do
       description "Take a quiz offline for revision"
       reference_to(Quiz)
       given("quiz is active") { status == "active" }
@@ -169,40 +169,40 @@ Hecks.bluebook "ELearning", version: "2026.04.13.1" do
   end
 
   aggregate "Certificate", "A credential issued upon course completion" do
-    String :certificate_id
-    String :student_email
-    String :course_title
-    String :issued_at
-    String :verification_code
-    String :status
+    attribute :certificate_id, String
+    attribute :student_email, String
+    attribute :course_title, String
+    attribute :issued_at, String
+    attribute :verification_code, String
+    attribute :status, String
     reference_to Enrollment
 
     value_object "CertificateDetail" do
-      String :instructor_name
-      String :completion_date
-      Float :final_grade
+      attribute :instructor_name, String
+      attribute :completion_date, String
+      attribute :final_grade, Float
     end
 
-    IssueCertificate do
+    command "IssueCertificate" do
       role "LearningSystem"
       description "Generate a certificate for a student who completed a course"
-      String :certificate_id
-      String :student_email
-      String :course_title
-      String :verification_code
+      attribute :certificate_id, String
+      attribute :student_email, String
+      attribute :course_title, String
+      attribute :verification_code, String
       reference_to(Enrollment)
       then_set :status, to: "valid"
       emits "CertificateIssued"
     end
 
-    VerifyCertificate do
+    command "VerifyCertificate" do
       description "Validate the authenticity of a certificate"
       reference_to(Certificate)
-      String :verification_code
+      attribute :verification_code, String
       emits "CertificateVerified"
     end
 
-    RevokeCertificate do
+    command "RevokeCertificate" do
       description "Invalidate a certificate due to academic dishonesty"
       reference_to(Certificate)
       given("certificate is valid") { status == "valid" }

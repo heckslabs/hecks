@@ -4,170 +4,170 @@ Hecks.bluebook "HVACService" do
 
   aggregate "Unit" do
     description "An HVAC unit — furnace, air conditioner, heat pump, or mini-split with model and tonnage"
-    String :unit_type
-    String :brand
-    String :model
-    Float :tonnage
-    Float :seer_rating
-    String :location
+    attribute :unit_type, String
+    attribute :brand, String
+    attribute :model, String
+    attribute :tonnage, Float
+    attribute :seer_rating, Float
+    attribute :location, String
     reference_to(ServiceTicket)
 
     value_object "UnitCapacity" do
-      Float :btu_output
-      Float :tonnage
-      Float :seer
+      attribute :btu_output, Float
+      attribute :tonnage, Float
+      attribute :seer, Float
     end
 
-    RegisterUnit do
+    command "RegisterUnit" do
       role "Technician"
       goal "Add an HVAC unit to the customer's equipment profile"
       description "Record make, model, tonnage, and location of the installed unit"
-      String :unit_type
-      String :brand
-      String :model
-      Float :tonnage
-      Float :seer_rating
-      String :location
+      attribute :unit_type, String
+      attribute :brand, String
+      attribute :model, String
+      attribute :tonnage, Float
+      attribute :seer_rating, Float
+      attribute :location, String
       emits "UnitRegistered"
     end
 
-    RetireUnit do
+    command "RetireUnit" do
       role "Technician"
       goal "Remove an old unit from active service"
       description "Mark a unit as retired and record disposal method"
       reference_to(Unit)
-      String :disposal_method
+      attribute :disposal_method, String
       emits "UnitDecommissioned"
     end
 
-    RecordAge do
+    command "RecordAge" do
       role "Technician"
       goal "Log the manufacture date and expected lifespan"
       description "Track unit age for replacement planning"
       reference_to(Unit)
-      String :manufacture_date
-      Integer :expected_lifespan_years
+      attribute :manufacture_date, String
+      attribute :expected_lifespan_years, Integer
       emits "AgeRecorded"
     end
   end
 
   aggregate "ServiceTicket" do
     description "A service call for HVAC repair, maintenance, or emergency breakdown"
-    String :customer_name
-    String :address
-    String :complaint
-    String :diagnosis
-    String :status
+    attribute :customer_name, String
+    attribute :address, String
+    attribute :complaint, String
+    attribute :diagnosis, String
+    attribute :status, String
 
     value_object "Priority" do
-      String :level
-      Integer :max_response_hours
+      attribute :level, String
+      attribute :max_response_hours, Integer
     end
 
-    OpenTicket do
+    command "OpenTicket" do
       role "Dispatcher"
       goal "Create a service ticket for a customer HVAC issue"
       description "Log the complaint and assign priority based on severity"
-      String :customer_name
-      String :address
-      String :complaint
+      attribute :customer_name, String
+      attribute :address, String
+      attribute :complaint, String
       emits "TicketOpened"
       then_set :status, to: "open"
     end
 
-    DiagnoseSystem do
+    command "DiagnoseSystem" do
       role "Technician"
       goal "Identify the root cause of the HVAC malfunction"
       description "Run diagnostics and record findings"
       reference_to(ServiceTicket)
-      String :diagnosis
+      attribute :diagnosis, String
       given("ticket must be open") { status == "open" }
       emits "SystemDiagnosed"
     end
 
-    ResolveTicket do
+    command "ResolveTicket" do
       role "Technician"
       goal "Complete the repair and close the ticket"
       description "Fix the issue and verify system operation"
       reference_to(ServiceTicket)
-      String :resolution
+      attribute :resolution, String
       emits "TicketResolved"
     end
   end
 
   aggregate "RefrigerantLog" do
     description "An EPA-required log of refrigerant added or recovered from HVAC systems"
-    String :refrigerant_type
-    Float :pounds_added
-    Float :pounds_recovered
-    String :technician_epa_cert
+    attribute :refrigerant_type, String
+    attribute :pounds_added, Float
+    attribute :pounds_recovered, Float
+    attribute :technician_epa_cert, String
     reference_to(Unit)
 
-    LogRefrigerantCharge do
+    command "LogRefrigerantCharge" do
       role "Technician"
       goal "Record refrigerant added to a system per EPA Section 608"
       description "Log type, amount, and technician certification"
-      String :refrigerant_type
-      Float :pounds_added
-      String :technician_epa_cert
+      attribute :refrigerant_type, String
+      attribute :pounds_added, Float
+      attribute :technician_epa_cert, String
       reference_to(Unit)
       emits "RefrigerantCharged"
     end
 
-    LogRecovery do
+    command "LogRecovery" do
       role "Technician"
       goal "Record refrigerant recovered during service or decommission"
       description "Document recovered pounds for EPA compliance"
       reference_to(Unit)
-      Float :pounds_recovered
-      String :refrigerant_type
+      attribute :pounds_recovered, Float
+      attribute :refrigerant_type, String
       emits "RefrigerantRecovered"
     end
   end
 
   aggregate "MaintenancePlan" do
     description "A preventive maintenance contract covering scheduled tune-ups and priority service"
-    String :plan_name
-    String :customer_name
-    Integer :visits_per_year
-    Float :annual_price
-    String :status
+    attribute :plan_name, String
+    attribute :customer_name, String
+    attribute :visits_per_year, Integer
+    attribute :annual_price, Float
+    attribute :status, String
     reference_to(Unit)
 
     value_object "PlanBenefits" do
-      Integer :discount_pct
-      Integer :priority_hours
-      String :parts_coverage
+      attribute :discount_pct, Integer
+      attribute :priority_hours, Integer
+      attribute :parts_coverage, String
     end
 
-    EnrollPlan do
+    command "EnrollPlan" do
       role "Sales Rep"
       goal "Sign a customer up for a preventive maintenance plan"
       description "Create a maintenance agreement with visit schedule and pricing"
-      String :plan_name
-      String :customer_name
-      Integer :visits_per_year
-      Float :annual_price
+      attribute :plan_name, String
+      attribute :customer_name, String
+      attribute :visits_per_year, Integer
+      attribute :annual_price, Float
       reference_to(Unit)
       emits "PlanEnrolled"
       then_set :status, to: "active"
     end
 
-    ScheduleTuneUp do
+    command "ScheduleTuneUp" do
       role "Dispatcher"
       goal "Book the next scheduled maintenance visit"
       description "Set the date for the next preventive maintenance appointment"
       reference_to(MaintenancePlan)
-      String :scheduled_date
+      attribute :scheduled_date, String
       emits "TuneUpScheduled"
     end
 
-    RenewPlan do
+    command "RenewPlan" do
       role "Sales Rep"
       goal "Renew an expiring maintenance plan for another year"
       description "Extend the plan with updated pricing"
       reference_to(MaintenancePlan)
-      Float :new_annual_price
+      attribute :new_annual_price, Float
       given("plan must be active") { status == "active" }
       emits "PlanRenewed"
     end

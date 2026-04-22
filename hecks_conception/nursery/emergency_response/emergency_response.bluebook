@@ -3,18 +3,18 @@ Hecks.bluebook "EmergencyResponse", version: "2026.04.13.1" do
   category "healthcare_technology"
 
   aggregate "TriageCase", "A patient case assessed in the emergency room" do
-    String :case_id
-    String :patient_name
-    String :chief_complaint
-    Integer :acuity_level
-    String :status
-    TriagePatient do
+    attribute :case_id, String
+    attribute :patient_name, String
+    attribute :chief_complaint, String
+    attribute :acuity_level, Integer
+    attribute :status, String
+    command "TriagePatient" do
       role "TriageNurse"
       description "Assess a patient and assign an acuity level"
-      String :case_id
-      String :patient_name
-      String :chief_complaint
-      Integer :acuity_level
+      attribute :case_id, String
+      attribute :patient_name, String
+      attribute :chief_complaint, String
+      attribute :acuity_level, Integer
       emits "PatientTriaged"
       then_set :case_id, to: :case_id
       then_set :patient_name, to: :patient_name
@@ -22,7 +22,7 @@ Hecks.bluebook "EmergencyResponse", version: "2026.04.13.1" do
       then_set :acuity_level, to: :acuity_level
       then_set :status, to: "triaged"
     end
-    AdmitPatient do
+    command "AdmitPatient" do
       role "Physician"
       description "Admit a triaged patient for treatment"
       reference_to(TriageCase)
@@ -33,28 +33,28 @@ Hecks.bluebook "EmergencyResponse", version: "2026.04.13.1" do
   end
 
   aggregate "Ambulance", "An ambulance unit available for emergency dispatch" do
-    String :unit_id
-    String :crew_lead
-    String :location_name
-    String :status
+    attribute :unit_id, String
+    attribute :crew_lead, String
+    attribute :location_name, String
+    attribute :status, String
     value_object "CrewMember" do
-      String :name
-      String :certification
-      String :role
+      attribute :name, String
+      attribute :certification, String
+      attribute :role, String
     end
-    RegisterUnit do
+    command "RegisterUnit" do
       role "Dispatcher"
       description "Register an ambulance unit with crew"
-      String :unit_id
-      String :crew_lead
-      String :location_name
+      attribute :unit_id, String
+      attribute :crew_lead, String
+      attribute :location_name, String
       emits "UnitRegistered"
       then_set :unit_id, to: :unit_id
       then_set :crew_lead, to: :crew_lead
       then_set :location_name, to: :location_name
       then_set :status, to: "available"
     end
-    DispatchUnit do
+    command "DispatchUnit" do
       role "Dispatcher"
       description "Dispatch an ambulance to an emergency scene"
       reference_to(Ambulance)
@@ -62,7 +62,7 @@ Hecks.bluebook "EmergencyResponse", version: "2026.04.13.1" do
       emits "UnitDispatched"
       then_set :status, to: "dispatched"
     end
-    ClearUnit do
+    command "ClearUnit" do
       role "Dispatcher"
       description "Mark ambulance as available after completing a run"
       reference_to(Ambulance)
@@ -73,26 +73,26 @@ Hecks.bluebook "EmergencyResponse", version: "2026.04.13.1" do
   end
 
   aggregate "Route", "An optimized route from ambulance to scene to hospital" do
-    String :route_id
-    String :unit_id
-    String :origin_address
-    String :scene_address
-    String :hospital_name
-    Float :eta_minutes
+    attribute :route_id, String
+    attribute :unit_id, String
+    attribute :origin_address, String
+    attribute :scene_address, String
+    attribute :hospital_name, String
+    attribute :eta_minutes, Float
     list_of(Waypoint) :waypoints
     value_object "Waypoint" do
-      String :address
-      Float :lat
-      Float :lng
+      attribute :address, String
+      attribute :lat, Float
+      attribute :lng, Float
     end
-    CalculateRoute do
+    command "CalculateRoute" do
       role "System"
       description "Calculate the optimal route from ambulance to scene to hospital"
-      String :route_id
-      String :unit_id
-      String :origin_address
-      String :scene_address
-      String :hospital_name
+      attribute :route_id, String
+      attribute :unit_id, String
+      attribute :origin_address, String
+      attribute :scene_address, String
+      attribute :hospital_name, String
       emits "RouteCalculated"
       then_set :route_id, to: :route_id
       then_set :unit_id, to: :unit_id
@@ -100,30 +100,30 @@ Hecks.bluebook "EmergencyResponse", version: "2026.04.13.1" do
       then_set :scene_address, to: :scene_address
       then_set :hospital_name, to: :hospital_name
     end
-    ReviseETA do
+    command "ReviseETA" do
       role "System"
       description "Update estimated arrival time based on traffic conditions"
       reference_to(Route)
-      Float :eta_minutes
+      attribute :eta_minutes, Float
       emits "ETARevised"
       then_set :eta_minutes, to: :eta_minutes
     end
   end
 
   aggregate "Handoff", "A patient handoff from ambulance crew to ER staff" do
-    String :handoff_id
-    String :case_id
-    String :unit_id
-    String :receiving_nurse
-    String :handoff_time
-    String :status
-    InitiateHandoff do
+    attribute :handoff_id, String
+    attribute :case_id, String
+    attribute :unit_id, String
+    attribute :receiving_nurse, String
+    attribute :handoff_time, String
+    attribute :status, String
+    command "InitiateHandoff" do
       role "Paramedic"
       description "Begin patient handoff from ambulance to ER team"
-      String :handoff_id
-      String :case_id
-      String :unit_id
-      String :receiving_nurse
+      attribute :handoff_id, String
+      attribute :case_id, String
+      attribute :unit_id, String
+      attribute :receiving_nurse, String
       emits "HandoffInitiated"
       then_set :handoff_id, to: :handoff_id
       then_set :case_id, to: :case_id
@@ -131,7 +131,7 @@ Hecks.bluebook "EmergencyResponse", version: "2026.04.13.1" do
       then_set :receiving_nurse, to: :receiving_nurse
       then_set :status, to: "in_progress"
     end
-    CompleteHandoff do
+    command "CompleteHandoff" do
       role "Nurse"
       description "Confirm patient handoff is complete"
       reference_to(Handoff)

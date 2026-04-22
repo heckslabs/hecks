@@ -5,26 +5,26 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
   # === ProtectedTerroir ===
 
   aggregate "ProtectedTerroir", "A legally protected terroir — specific geography where soil, climate, and species create unique flavor" do
-    String :terroir_id
-    String :name
-    String :region
-    String :designation_type
-    Integer :total_hectares
-    String :status
+    attribute :terroir_id, String
+    attribute :name, String
+    attribute :region, String
+    attribute :designation_type, String
+    attribute :total_hectares, Integer
+    attribute :status, String
     list_of(ProtectionRule) :rules
     value_object "ProtectionRule" do
-      String :rule_type
-      String :description
-      String :enforced_by
+      attribute :rule_type, String
+      attribute :description, String
+      attribute :enforced_by, String
     end
-    DesignateTerroir do
+    command "DesignateTerroir" do
       role "ConservationAuthority"
       description "Designate a protected terroir with geographic and ecological boundaries"
-      String :terroir_id
-      String :name
-      String :region
-      String :designation_type
-      Integer :total_hectares
+      attribute :terroir_id, String
+      attribute :name, String
+      attribute :region, String
+      attribute :designation_type, String
+      attribute :total_hectares, Integer
       emits "TerroirDesignated"
       then_set :terroir_id, to: :terroir_id
       then_set :name, to: :name
@@ -33,7 +33,7 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
       then_set :total_hectares, to: :total_hectares
       then_set :status, to: "protected"
     end
-    AmendProtection do
+    command "AmendProtection" do
       role "ConservationAuthority"
       description "Amend protection rules based on ecological assessment"
       reference_to(ProtectedTerroir)
@@ -45,27 +45,27 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
   # === SoilProfile ===
 
   aggregate "SoilProfile", "Soil characterization within the terroir — minerals, microbiome, moisture, pH that drive flavor" do
-    String :profile_id
+    attribute :profile_id, String
     reference_to(ProtectedTerroir, as: :terroir)
-    String :soil_type
-    Float :ph_level
-    String :mineral_composition
-    String :microbiome_diversity
+    attribute :soil_type, String
+    attribute :ph_level, Float
+    attribute :mineral_composition, String
+    attribute :microbiome_diversity, String
     list_of(SoilSample) :samples
     value_object "SoilSample" do
-      String :sample_date
-      String :depth_cm
-      Float :organic_matter_pct
-      String :texture
+      attribute :sample_date, String
+      attribute :depth_cm, String
+      attribute :organic_matter_pct, Float
+      attribute :texture, String
     end
-    CharacterizeSoil do
+    command "CharacterizeSoil" do
       role "Ecologist"
       description "Characterize soil profile at a specific location within the terroir"
-      String :profile_id
+      attribute :profile_id, String
       reference_to(ProtectedTerroir, as: :terroir)
-      String :soil_type
-      Float :ph_level
-      String :mineral_composition
+      attribute :soil_type, String
+      attribute :ph_level, Float
+      attribute :mineral_composition, String
       emits "SoilCharacterized"
       then_set :profile_id, to: :profile_id
       then_set :terroir, to: :terroir
@@ -74,11 +74,11 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
       then_set :mineral_composition, to: :mineral_composition
       then_set :microbiome_diversity, to: "pending"
     end
-    AssessMicrobiome do
+    command "AssessMicrobiome" do
       role "Ecologist"
       description "Assess soil microbiome diversity — key driver of fermentation character"
       reference_to(SoilProfile)
-      String :microbiome_diversity
+      attribute :microbiome_diversity, String
       emits "MicrobiomeAssessed"
       then_set :microbiome_diversity, to: :microbiome_diversity
     end
@@ -87,25 +87,25 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
   # === CraftProducer ===
 
   aggregate "CraftProducer", "A craft producer operating within the protected terroir — brewer, vintner, cheesemaker" do
-    String :producer_id
-    String :name
-    String :craft_type
+    attribute :producer_id, String
+    attribute :name, String
+    attribute :craft_type, String
     reference_to(ProtectedTerroir, as: :terroir)
-    String :certification_status
-    String :status
+    attribute :certification_status, String
+    attribute :status, String
     list_of(ProductOffering) :products
     value_object "ProductOffering" do
-      String :product_name
-      String :style
-      String :vintage_season
-      String :terroir_claim
+      attribute :product_name, String
+      attribute :style, String
+      attribute :vintage_season, String
+      attribute :terroir_claim, String
     end
-    RegisterProducer do
+    command "RegisterProducer" do
       role "ConservationAuthority"
       description "Register a craft producer within the protected terroir"
-      String :producer_id
-      String :name
-      String :craft_type
+      attribute :producer_id, String
+      attribute :name, String
+      attribute :craft_type, String
       reference_to(ProtectedTerroir, as: :terroir)
       emits "ProducerRegistered"
       then_set :producer_id, to: :producer_id
@@ -115,7 +115,7 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
       then_set :certification_status, to: "pending"
       then_set :status, to: "active"
     end
-    CertifyProducer do
+    command "CertifyProducer" do
       role "ConservationAuthority"
       description "Certify producer meets terroir protection standards"
       reference_to(CraftProducer)
@@ -123,7 +123,7 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
       emits "ProducerCertified"
       then_set :certification_status, to: "certified"
     end
-    SuspendProducer do
+    command "SuspendProducer" do
       role "ConservationAuthority"
       description "Suspend producer certification for ecological violations"
       reference_to(CraftProducer)
@@ -136,25 +136,25 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
   # === SpeciesSurvey ===
 
   aggregate "SpeciesSurvey", "Biodiversity survey of the terroir — wild yeasts, insects, plants that contribute to flavor" do
-    String :survey_id
+    attribute :survey_id, String
     reference_to(ProtectedTerroir, as: :terroir)
-    String :survey_date
-    String :season
-    String :overall_diversity
+    attribute :survey_date, String
+    attribute :season, String
+    attribute :overall_diversity, String
     list_of(SpeciesRecord) :records
     value_object "SpeciesRecord" do
-      String :species_name
-      String :kingdom
-      String :role_in_terroir
-      Integer :abundance
+      attribute :species_name, String
+      attribute :kingdom, String
+      attribute :role_in_terroir, String
+      attribute :abundance, Integer
     end
-    ConductSurvey do
+    command "ConductSurvey" do
       role "Ecologist"
       description "Conduct species survey across the terroir — focus on flavor-contributing organisms"
-      String :survey_id
+      attribute :survey_id, String
       reference_to(ProtectedTerroir, as: :terroir)
-      String :survey_date
-      String :season
+      attribute :survey_date, String
+      attribute :season, String
       emits "SurveyConducted"
       then_set :survey_id, to: :survey_id
       then_set :terroir, to: :terroir
@@ -162,11 +162,11 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
       then_set :season, to: :season
       then_set :overall_diversity, to: "pending"
     end
-    AssessDiversity do
+    command "AssessDiversity" do
       role "Ecologist"
       description "Assess overall biodiversity health of the terroir"
       reference_to(SpeciesSurvey)
-      String :overall_diversity
+      attribute :overall_diversity, String
       emits "DiversityAssessed"
       then_set :overall_diversity, to: :overall_diversity
     end
@@ -175,27 +175,27 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
   # === VisitorExperience ===
 
   aggregate "VisitorExperience", "Eco-tourism experience within the terroir — tasting, foraging, producer visits" do
-    String :experience_id
+    attribute :experience_id, String
     reference_to(ProtectedTerroir, as: :terroir)
     reference_to(CraftProducer, as: :host_producer)
-    String :experience_type
-    Integer :capacity
-    String :status
+    attribute :experience_type, String
+    attribute :capacity, Integer
+    attribute :status, String
     list_of(ItineraryStop) :itinerary
     value_object "ItineraryStop" do
-      String :stop_name
-      String :activity
-      Integer :duration_minutes
-      String :ecological_note
+      attribute :stop_name, String
+      attribute :activity, String
+      attribute :duration_minutes, Integer
+      attribute :ecological_note, String
     end
-    DesignExperience do
+    command "DesignExperience" do
       role "TourismCoordinator"
       description "Design a terroir visitor experience — tasting, foraging, ecology walk"
-      String :experience_id
+      attribute :experience_id, String
       reference_to(ProtectedTerroir, as: :terroir)
       reference_to(CraftProducer, as: :host_producer)
-      String :experience_type
-      Integer :capacity
+      attribute :experience_type, String
+      attribute :capacity, Integer
       emits "ExperienceDesigned"
       then_set :experience_id, to: :experience_id
       then_set :terroir, to: :terroir
@@ -204,14 +204,14 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
       then_set :capacity, to: :capacity
       then_set :status, to: "available"
     end
-    BookExperience do
+    command "BookExperience" do
       role "Visitor"
       description "Book a spot on a terroir experience"
       reference_to(VisitorExperience)
       given { status == "available" }
       emits "ExperienceBooked"
     end
-    CompleteExperience do
+    command "CompleteExperience" do
       role "TourismCoordinator"
       description "Complete the experience and collect visitor feedback"
       reference_to(VisitorExperience)
@@ -224,26 +224,26 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
   # === FlavorProfile ===
 
   aggregate "FlavorProfile", "The sensory fingerprint of the terroir — connects soil, species, and craft into measurable flavor" do
-    String :profile_id
+    attribute :profile_id, String
     reference_to(ProtectedTerroir, as: :terroir)
     reference_to(SoilProfile, as: :soil)
     reference_to(CraftProducer, as: :producer)
-    String :vintage_season
-    String :overall_character
+    attribute :vintage_season, String
+    attribute :overall_character, String
     list_of(FlavorNote) :notes
     value_object "FlavorNote" do
-      String :note_name
-      String :intensity
-      String :source_attribution
+      attribute :note_name, String
+      attribute :intensity, String
+      attribute :source_attribution, String
     end
-    ComposeProfile do
+    command "ComposeProfile" do
       role "SensoryAnalyst"
       description "Compose flavor profile linking terroir soil and species to product character"
-      String :profile_id
+      attribute :profile_id, String
       reference_to(ProtectedTerroir, as: :terroir)
       reference_to(SoilProfile, as: :soil)
       reference_to(CraftProducer, as: :producer)
-      String :vintage_season
+      attribute :vintage_season, String
       emits "ProfileComposed"
       then_set :profile_id, to: :profile_id
       then_set :terroir, to: :terroir
@@ -252,11 +252,11 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
       then_set :vintage_season, to: :vintage_season
       then_set :overall_character, to: "pending"
     end
-    AssessCharacter do
+    command "AssessCharacter" do
       role "SensoryAnalyst"
       description "Assess overall flavor character — the terroir signature in the product"
       reference_to(FlavorProfile)
-      String :overall_character
+      attribute :overall_character, String
       emits "CharacterAssessed"
       then_set :overall_character, to: :overall_character
     end

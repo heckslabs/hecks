@@ -5,25 +5,25 @@ Hecks.bluebook "NutritionRx", version: "2026.04.13.1" do
   # === Patient ===
 
   aggregate "Patient", "A patient at the intersection of pharmacy and nutrition — medical and dietary needs unified" do
-    String :name
-    String :date_of_birth
+    attribute :name, String
+    attribute :date_of_birth, String
     list_of(Condition) :conditions
-    String :dietary_restriction
-    String :status
+    attribute :dietary_restriction, String
+    attribute :status, String
 
     value_object "Condition" do
-      String :name
-      String :severity
-      String :diagnosed_date
-      String :managing_provider
+      attribute :name, String
+      attribute :severity, String
+      attribute :diagnosed_date, String
+      attribute :managing_provider, String
     end
 
-    RegisterPatient do
+    command "RegisterPatient" do
       role "Clinician"
       description "Register a patient into the nutrition-pharmacy system"
-      String :name
-      String :date_of_birth
-      String :dietary_restriction
+      attribute :name, String
+      attribute :date_of_birth, String
+      attribute :dietary_restriction, String
       emits "PatientRegistered"
       then_set :name, to: :name
       then_set :date_of_birth, to: :date_of_birth
@@ -31,21 +31,21 @@ Hecks.bluebook "NutritionRx", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    AddCondition do
+    command "AddCondition" do
       role "Clinician"
       description "Record a medical condition that affects nutritional needs"
       reference_to(Patient)
-      String :condition_name
-      String :severity
+      attribute :condition_name, String
+      attribute :severity, String
       emits "ConditionAdded"
     end
 
-    FlagDeficiency do
+    command "FlagDeficiency" do
       role "Nutritionist"
       description "Identify a nutrient deficiency from bloodwork or dietary analysis"
       reference_to(Patient)
-      String :nutrient
-      String :severity
+      attribute :nutrient, String
+      attribute :severity, String
       emits "DeficiencyDetected"
     end
   end
@@ -54,26 +54,26 @@ Hecks.bluebook "NutritionRx", version: "2026.04.13.1" do
 
   aggregate "Prescription", "A medication order that may interact with food — the pharmacy side of the equation" do
     reference_to(Patient, as: :patient)
-    String :medication
-    String :dosage
-    String :frequency
-    String :status
+    attribute :medication, String
+    attribute :dosage, String
+    attribute :frequency, String
+    attribute :status, String
     list_of(FoodInteraction) :food_interactions
 
     value_object "FoodInteraction" do
-      String :food_item
-      String :interaction_type
-      String :severity
-      String :guidance
+      attribute :food_item, String
+      attribute :interaction_type, String
+      attribute :severity, String
+      attribute :guidance, String
     end
 
-    WritePrescription do
+    command "WritePrescription" do
       role "Physician"
       description "Prescribe a medication with dosage and frequency"
       reference_to(Patient, as: :patient)
-      String :medication
-      String :dosage
-      String :frequency
+      attribute :medication, String
+      attribute :dosage, String
+      attribute :frequency, String
       emits "PrescriptionWritten"
       then_set :patient, to: :patient
       then_set :medication, to: :medication
@@ -82,7 +82,7 @@ Hecks.bluebook "NutritionRx", version: "2026.04.13.1" do
       then_set :status, to: "written"
     end
 
-    FillPrescription do
+    command "FillPrescription" do
       role "Pharmacist"
       description "Dispense medication and check for food interactions"
       reference_to(Prescription)
@@ -91,12 +91,12 @@ Hecks.bluebook "NutritionRx", version: "2026.04.13.1" do
       then_set :status, to: "filled"
     end
 
-    FlagInteraction do
+    command "FlagInteraction" do
       role "Pharmacist"
       description "Flag a food-drug interaction requiring dietary adjustment"
       reference_to(Prescription)
-      String :food_item
-      String :interaction_type
+      attribute :food_item, String
+      attribute :interaction_type, String
       emits "FoodInteractionFlagged"
     end
 
@@ -110,24 +110,24 @@ Hecks.bluebook "NutritionRx", version: "2026.04.13.1" do
 
   aggregate "MealPlan", "A therapeutic meal plan — designed to address deficiencies and respect drug interactions" do
     reference_to(Patient, as: :patient)
-    String :goal
-    Integer :daily_calories
-    String :status
+    attribute :goal, String
+    attribute :daily_calories, Integer
+    attribute :status, String
     list_of(Meal) :meals
 
     value_object "Meal" do
-      String :meal_type
-      String :description
-      Integer :calories
-      String :nutrients_targeted
+      attribute :meal_type, String
+      attribute :description, String
+      attribute :calories, Integer
+      attribute :nutrients_targeted, String
     end
 
-    GenerateMealPlan do
+    command "GenerateMealPlan" do
       role "System"
       description "Auto-generate a meal plan from deficiency data and drug interactions"
       reference_to(Patient, as: :patient)
-      String :goal
-      Integer :daily_calories
+      attribute :goal, String
+      attribute :daily_calories, Integer
       emits "MealPlanGenerated"
       then_set :patient, to: :patient
       then_set :goal, to: :goal
@@ -135,7 +135,7 @@ Hecks.bluebook "NutritionRx", version: "2026.04.13.1" do
       then_set :status, to: "draft"
     end
 
-    ApproveMealPlan do
+    command "ApproveMealPlan" do
       role "Nutritionist"
       description "Nutritionist reviews and approves the generated meal plan"
       reference_to(MealPlan)
@@ -144,12 +144,12 @@ Hecks.bluebook "NutritionRx", version: "2026.04.13.1" do
       then_set :status, to: "approved"
     end
 
-    AdjustForInteraction do
+    command "AdjustForInteraction" do
       role "System"
       description "Modify meal plan when a new food-drug interaction is discovered"
       reference_to(MealPlan)
-      String :food_item
-      String :replacement
+      attribute :food_item, String
+      attribute :replacement, String
       emits "MealPlanAdjusted"
     end
 
@@ -164,19 +164,19 @@ Hecks.bluebook "NutritionRx", version: "2026.04.13.1" do
   aggregate "GroceryList", "An auto-generated grocery list — derived from the meal plan, respecting budget and availability" do
     reference_to(Patient, as: :patient)
     reference_to(MealPlan, as: :meal_plan)
-    String :status
-    Float :estimated_cost
+    attribute :status, String
+    attribute :estimated_cost, Float
     list_of(GroceryItem) :items
 
     value_object "GroceryItem" do
-      String :name
-      Float :quantity
-      String :unit
-      String :category
-      String :substitution_allowed
+      attribute :name, String
+      attribute :quantity, Float
+      attribute :unit, String
+      attribute :category, String
+      attribute :substitution_allowed, String
     end
 
-    GenerateGroceryList do
+    command "GenerateGroceryList" do
       role "System"
       description "Build a grocery list from an approved meal plan"
       reference_to(Patient, as: :patient)
@@ -187,7 +187,7 @@ Hecks.bluebook "NutritionRx", version: "2026.04.13.1" do
       then_set :status, to: "generated"
     end
 
-    ReviseGroceryList do
+    command "ReviseGroceryList" do
       role "System"
       description "Update the grocery list when prescriptions change"
       reference_to(GroceryList)
@@ -195,7 +195,7 @@ Hecks.bluebook "NutritionRx", version: "2026.04.13.1" do
       then_set :status, to: "updated"
     end
 
-    FulfillGroceryList do
+    command "FulfillGroceryList" do
       role "Patient"
       description "Mark grocery list as purchased and fulfilled"
       reference_to(GroceryList)
@@ -215,19 +215,19 @@ Hecks.bluebook "NutritionRx", version: "2026.04.13.1" do
 
   aggregate "NutrientTarget", "A specific nutrient goal for a patient — tracks intake against recommended levels" do
     reference_to(Patient, as: :patient)
-    String :nutrient
-    Float :target_amount
-    String :unit
-    Float :current_intake
-    String :status
+    attribute :nutrient, String
+    attribute :target_amount, Float
+    attribute :unit, String
+    attribute :current_intake, Float
+    attribute :status, String
 
-    SetTarget do
+    command "SetTarget" do
       role "Nutritionist"
       description "Set a daily nutrient target for a specific deficiency"
       reference_to(Patient, as: :patient)
-      String :nutrient
-      Float :target_amount
-      String :unit
+      attribute :nutrient, String
+      attribute :target_amount, Float
+      attribute :unit, String
       emits "NutrientTargetSet"
       then_set :patient, to: :patient
       then_set :nutrient, to: :nutrient
@@ -236,16 +236,16 @@ Hecks.bluebook "NutritionRx", version: "2026.04.13.1" do
       then_set :status, to: "tracking"
     end
 
-    RecordIntake do
+    command "RecordIntake" do
       role "Patient"
       description "Log actual nutrient intake from meals consumed"
       reference_to(NutrientTarget)
-      Float :amount
+      attribute :amount, Float
       emits "IntakeRecorded"
       then_set :current_intake, to: :amount
     end
 
-    AchieveTarget do
+    command "AchieveTarget" do
       role "System"
       description "Patient has met the nutrient target — deficiency resolved"
       reference_to(NutrientTarget)

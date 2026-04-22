@@ -3,25 +3,25 @@ Hecks.bluebook "RouteOptimization", version: "2026.04.13.1" do
   category "crossover"
 
   aggregate "MapRegion", "A mapped delivery region — boundaries, road network, elevation" do
-    String :name
-    Float :area_sq_km
-    Integer :road_count
-    Float :avg_elevation_m
-    String :status
+    attribute :name, String
+    attribute :area_sq_km, Float
+    attribute :road_count, Integer
+    attribute :avg_elevation_m, Float
+    attribute :status, String
 
     value_object "BoundingBox" do
-      Float :north_lat
-      Float :south_lat
-      Float :east_lon
-      Float :west_lon
+      attribute :north_lat, Float
+      attribute :south_lat, Float
+      attribute :east_lon, Float
+      attribute :west_lon, Float
     end
 
-    DefineRegion do
+    command "DefineRegion" do
       role "Cartographer"
       description "Define a delivery region with boundaries and road network"
-      String :name
-      Float :area_sq_km
-      Integer :road_count
+      attribute :name, String
+      attribute :area_sq_km, Float
+      attribute :road_count, Integer
       emits "RegionDefined"
       then_set :name, to: :name
       then_set :area_sq_km, to: :area_sq_km
@@ -29,11 +29,11 @@ Hecks.bluebook "RouteOptimization", version: "2026.04.13.1" do
       then_set :status, to: "defined"
     end
 
-    UpdateRoadNetwork do
+    command "UpdateRoadNetwork" do
       role "Cartographer"
       description "Refresh road data for the region"
       reference_to(MapRegion)
-      Integer :road_count
+      attribute :road_count, Integer
       given { status == "defined" }
       emits "RoadNetworkUpdated"
       then_set :road_count, to: :road_count
@@ -49,27 +49,27 @@ Hecks.bluebook "RouteOptimization", version: "2026.04.13.1" do
   end
 
   aggregate "Parcel", "A delivery parcel — dimensions, weight, priority, destination" do
-    String :tracking_id
-    Float :weight_kg
-    String :destination_address
-    String :priority
-    String :delivery_window
-    String :status
+    attribute :tracking_id, String
+    attribute :weight_kg, Float
+    attribute :destination_address, String
+    attribute :priority, String
+    attribute :delivery_window, String
+    attribute :status, String
 
     value_object "Dimensions" do
-      Float :length_cm
-      Float :width_cm
-      Float :height_cm
+      attribute :length_cm, Float
+      attribute :width_cm, Float
+      attribute :height_cm, Float
     end
 
-    RegisterParcel do
+    command "RegisterParcel" do
       role "Dispatcher"
       description "Register a new parcel for delivery"
-      String :tracking_id
-      Float :weight_kg
-      String :destination_address
-      String :priority
-      String :delivery_window
+      attribute :tracking_id, String
+      attribute :weight_kg, Float
+      attribute :destination_address, String
+      attribute :priority, String
+      attribute :delivery_window, String
       emits "ParcelRegistered"
       then_set :tracking_id, to: :tracking_id
       then_set :weight_kg, to: :weight_kg
@@ -79,7 +79,7 @@ Hecks.bluebook "RouteOptimization", version: "2026.04.13.1" do
       then_set :status, to: "registered"
     end
 
-    AssignToRoute do
+    command "AssignToRoute" do
       role "System"
       description "Assign parcel to an optimized delivery route"
       reference_to(Parcel)
@@ -88,7 +88,7 @@ Hecks.bluebook "RouteOptimization", version: "2026.04.13.1" do
       then_set :status, to: "assigned"
     end
 
-    DeliverParcel do
+    command "DeliverParcel" do
       role "Courier"
       description "Mark parcel as delivered at destination"
       reference_to(Parcel)
@@ -109,26 +109,26 @@ Hecks.bluebook "RouteOptimization", version: "2026.04.13.1" do
   end
 
   aggregate "TrafficCondition", "Real-time traffic data — congestion, speed, incidents" do
-    String :road_segment
-    Float :avg_speed_kmh
-    Float :congestion_level
-    String :incident_type
-    String :timestamp
-    String :status
+    attribute :road_segment, String
+    attribute :avg_speed_kmh, Float
+    attribute :congestion_level, Float
+    attribute :incident_type, String
+    attribute :timestamp, String
+    attribute :status, String
 
     value_object "SpeedReading" do
-      Float :speed_kmh
-      String :timestamp
-      String :source
+      attribute :speed_kmh, Float
+      attribute :timestamp, String
+      attribute :source, String
     end
 
-    ReportTraffic do
+    command "ReportTraffic" do
       role "System"
       description "Ingest real-time traffic data for a road segment"
-      String :road_segment
-      Float :avg_speed_kmh
-      Float :congestion_level
-      String :timestamp
+      attribute :road_segment, String
+      attribute :avg_speed_kmh, Float
+      attribute :congestion_level, Float
+      attribute :timestamp, String
       emits "TrafficReported"
       then_set :road_segment, to: :road_segment
       then_set :avg_speed_kmh, to: :avg_speed_kmh
@@ -137,7 +137,7 @@ Hecks.bluebook "RouteOptimization", version: "2026.04.13.1" do
       then_set :status, to: "current"
     end
 
-    DetectCongestion do
+    command "DetectCongestion" do
       role "System"
       description "Flag road segments with severe congestion"
       reference_to(TrafficCondition)
@@ -157,34 +157,34 @@ Hecks.bluebook "RouteOptimization", version: "2026.04.13.1" do
   end
 
   aggregate "DeliveryRoute", "An optimized delivery route — stops, sequence, time estimates" do
-    String :name
-    String :courier_name
-    Integer :stop_count
-    Float :total_distance_km
-    Float :estimated_hours
-    String :status
+    attribute :name, String
+    attribute :courier_name, String
+    attribute :stop_count, Integer
+    attribute :total_distance_km, Float
+    attribute :estimated_hours, Float
+    attribute :status, String
 
     list_of "RouteStop" do
-      Integer :sequence
-      String :address
-      String :parcel_tracking_id
-      Float :eta_minutes
+      attribute :sequence, Integer
+      attribute :address, String
+      attribute :parcel_tracking_id, String
+      attribute :eta_minutes, Float
     end
 
     value_object "RouteMetrics" do
-      Float :fuel_cost
-      Float :time_efficiency
-      Integer :on_time_count
+      attribute :fuel_cost, Float
+      attribute :time_efficiency, Float
+      attribute :on_time_count, Integer
     end
 
-    OptimizeRoute do
+    command "OptimizeRoute" do
       role "System"
       description "Calculate optimal stop sequence minimizing distance and respecting windows"
-      String :name
-      String :courier_name
-      Integer :stop_count
-      Float :total_distance_km
-      Float :estimated_hours
+      attribute :name, String
+      attribute :courier_name, String
+      attribute :stop_count, Integer
+      attribute :total_distance_km, Float
+      attribute :estimated_hours, Float
       emits "RouteOptimized"
       then_set :name, to: :name
       then_set :courier_name, to: :courier_name
@@ -194,7 +194,7 @@ Hecks.bluebook "RouteOptimization", version: "2026.04.13.1" do
       then_set :status, to: "optimized"
     end
 
-    AdjustForTraffic do
+    command "AdjustForTraffic" do
       role "System"
       description "Resequence route stops based on real-time traffic conditions"
       reference_to(DeliveryRoute)
@@ -202,7 +202,7 @@ Hecks.bluebook "RouteOptimization", version: "2026.04.13.1" do
       emits "RouteAdjustedForTraffic"
     end
 
-    DispatchRoute do
+    command "DispatchRoute" do
       role "Dispatcher"
       description "Send optimized route to courier for execution"
       reference_to(DeliveryRoute)
@@ -211,7 +211,7 @@ Hecks.bluebook "RouteOptimization", version: "2026.04.13.1" do
       then_set :status, to: "dispatched"
     end
 
-    CompleteRoute do
+    command "CompleteRoute" do
       role "Courier"
       description "Mark route as completed — all parcels delivered"
       reference_to(DeliveryRoute)

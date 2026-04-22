@@ -2,28 +2,28 @@ Hecks.bluebook "PostOffice" do
   vision "Process mail, manage routes, assign carriers, handle packages, and forward addresses"
 
   aggregate "MailPiece", "A letter or flat moving through the postal system" do
-    String :tracking_id
-    String :mail_class
-    String :sender_address
-    String :recipient_address
-    String :status
+    attribute :tracking_id, String
+    attribute :mail_class, String
+    attribute :sender_address, String
+    attribute :recipient_address, String
+    attribute :status, String
     reference_to(CarrierRoute)
 
     value_object "Postmark" do
-      String :office_of_origin
-      String :date_stamped
+      attribute :office_of_origin, String
+      attribute :date_stamped, String
     end
 
-    AcceptMail do
+    command "AcceptMail" do
       description "Receive a mail piece at the counter or collection box"
-      String :mail_class
-      String :sender_address
-      String :recipient_address
+      attribute :mail_class, String
+      attribute :sender_address, String
+      attribute :recipient_address, String
       emits "MailAccepted"
       then_set :status, to: "accepted"
     end
 
-    CancelMail do
+    command "CancelMail" do
       description "Apply postmark cancellation to the stamp"
       reference_to(MailPiece)
       given { status == "accepted" }
@@ -31,7 +31,7 @@ Hecks.bluebook "PostOffice" do
       then_set :status, to: "cancelled_stamp"
     end
 
-    SortMail do
+    command "SortMail" do
       description "Route mail to the correct carrier route"
       reference_to(MailPiece)
       reference_to(CarrierRoute)
@@ -40,7 +40,7 @@ Hecks.bluebook "PostOffice" do
       then_set :status, to: "sorted"
     end
 
-    SequenceMail do
+    command "SequenceMail" do
       description "Order sorted mail by walk sequence for the carrier"
       reference_to(MailPiece)
       given { status == "sorted" }
@@ -48,7 +48,7 @@ Hecks.bluebook "PostOffice" do
       then_set :status, to: "sequenced"
     end
 
-    DeliverMail do
+    command "DeliverMail" do
       description "Place mail in the recipient's mailbox"
       reference_to(MailPiece)
       given { status == "sequenced" }
@@ -56,10 +56,10 @@ Hecks.bluebook "PostOffice" do
       then_set :status, to: "delivered"
     end
 
-    ReturnUndeliverable do
+    command "ReturnUndeliverable" do
       description "Send undeliverable mail back to sender"
       reference_to(MailPiece)
-      String :reason
+      attribute :reason, String
       given { status == "sequenced" }
       emits "MailReturnedUndeliverable"
       then_set :status, to: "returned"
@@ -67,38 +67,38 @@ Hecks.bluebook "PostOffice" do
   end
 
   aggregate "CarrierRoute", "A delivery route walked or driven by a mail carrier" do
-    String :route_code
-    String :zip_code
-    Integer :stop_count
-    String :route_type
-    String :status
+    attribute :route_code, String
+    attribute :zip_code, String
+    attribute :stop_count, Integer
+    attribute :route_type, String
+    attribute :status, String
     reference_to(Carrier)
 
     value_object "RouteMetrics" do
-      Float :distance_miles
-      Integer :avg_delivery_minutes
+      attribute :distance_miles, Float
+      attribute :avg_delivery_minutes, Integer
     end
 
-    DefineRoute do
+    command "DefineRoute" do
       description "Create a new carrier delivery route"
-      String :route_code
-      String :zip_code
-      Integer :stop_count
-      String :route_type
+      attribute :route_code, String
+      attribute :zip_code, String
+      attribute :stop_count, Integer
+      attribute :route_type, String
       emits "RouteDefined"
       then_set :status, to: "active"
     end
 
-    SuspendRoute do
+    command "SuspendRoute" do
       description "Temporarily halt deliveries on a route due to weather"
       reference_to(CarrierRoute)
-      String :reason
+      attribute :reason, String
       given { status == "active" }
       emits "RouteSuspended"
       then_set :status, to: "suspended"
     end
 
-    ResumeRoute do
+    command "ResumeRoute" do
       description "Reactivate a suspended route"
       reference_to(CarrierRoute)
       given { status == "suspended" }
@@ -108,28 +108,28 @@ Hecks.bluebook "PostOffice" do
   end
 
   aggregate "Carrier", "A postal worker assigned to deliver mail on a route" do
-    String :employee_id
-    String :name
-    String :carrier_type
-    String :status
-    Float :hours_worked
+    attribute :employee_id, String
+    attribute :name, String
+    attribute :carrier_type, String
+    attribute :status, String
+    attribute :hours_worked, Float
 
     value_object "Uniform" do
-      String :size
-      String :issued_date
+      attribute :size, String
+      attribute :issued_date, String
     end
 
-    HireCarrier do
+    command "HireCarrier" do
       description "Onboard a new mail carrier"
-      String :employee_id
-      String :name
-      String :carrier_type
+      attribute :employee_id, String
+      attribute :name, String
+      attribute :carrier_type, String
       emits "CarrierHired"
       then_set :status, to: "available"
       then_set :hours_worked, to: 0.0
     end
 
-    DispatchCarrier do
+    command "DispatchCarrier" do
       description "Send a carrier out on their delivery route"
       reference_to(Carrier)
       given { status == "available" }
@@ -137,7 +137,7 @@ Hecks.bluebook "PostOffice" do
       then_set :status, to: "delivering"
     end
 
-    ReturnCarrier do
+    command "ReturnCarrier" do
       description "Clock a carrier back in after their route"
       reference_to(Carrier)
       emits "CarrierReturned"
@@ -146,36 +146,36 @@ Hecks.bluebook "PostOffice" do
   end
 
   aggregate "Package", "A parcel requiring tracking, scanning, and signature" do
-    String :package_id
-    Float :weight_lbs
-    String :service_level
-    String :status
-    String :destination
+    attribute :package_id, String
+    attribute :weight_lbs, Float
+    attribute :service_level, String
+    attribute :status, String
+    attribute :destination, String
     reference_to(Carrier)
 
     value_object "InsuranceInfo" do
-      Float :declared_value
-      Float :premium_cents
+      attribute :declared_value, Float
+      attribute :premium_cents, Float
     end
 
-    AcceptPackage do
+    command "AcceptPackage" do
       description "Receive a package at the postal counter"
-      Float :weight_lbs
-      String :service_level
-      String :destination
+      attribute :weight_lbs, Float
+      attribute :service_level, String
+      attribute :destination, String
       emits "PackageAccepted"
       then_set :status, to: "accepted"
     end
 
-    ScanPackage do
+    command "ScanPackage" do
       description "Record a package scan at a processing facility"
       reference_to(Package)
-      String :facility_code
+      attribute :facility_code, String
       emits "PackageScanned"
       then_set :status, to: "in_transit"
     end
 
-    OutForDelivery do
+    command "OutForDelivery" do
       description "Load package onto carrier vehicle for final delivery"
       reference_to(Package)
       given { status == "in_transit" }
@@ -183,7 +183,7 @@ Hecks.bluebook "PostOffice" do
       then_set :status, to: "out_for_delivery"
     end
 
-    DeliverPackage do
+    command "DeliverPackage" do
       description "Complete package delivery with signature if required"
       reference_to(Package)
       given { status == "out_for_delivery" }
@@ -191,7 +191,7 @@ Hecks.bluebook "PostOffice" do
       then_set :status, to: "delivered"
     end
 
-    HoldForPickup do
+    command "HoldForPickup" do
       description "Hold an undeliverable package at the post office for customer pickup"
       reference_to(Package)
       given { status == "out_for_delivery" }
@@ -201,29 +201,29 @@ Hecks.bluebook "PostOffice" do
   end
 
   aggregate "ForwardingOrder", "A request to redirect mail to a new address" do
-    String :order_id
-    String :old_address
-    String :new_address
-    String :start_date
-    String :end_date
-    String :status
+    attribute :order_id, String
+    attribute :old_address, String
+    attribute :new_address, String
+    attribute :start_date, String
+    attribute :end_date, String
+    attribute :status, String
 
     value_object "Verification" do
-      String :verified_by
-      String :verification_date
+      attribute :verified_by, String
+      attribute :verification_date, String
     end
 
-    OrderForwarding do
+    command "OrderForwarding" do
       description "Set up mail forwarding from old to new address"
-      String :old_address
-      String :new_address
-      String :start_date
-      String :end_date
+      attribute :old_address, String
+      attribute :new_address, String
+      attribute :start_date, String
+      attribute :end_date, String
       emits "ForwardingCreated"
       then_set :status, to: "active"
     end
 
-    CancelForwarding do
+    command "CancelForwarding" do
       description "Stop forwarding mail before the end date"
       reference_to(ForwardingOrder)
       given { status == "active" }

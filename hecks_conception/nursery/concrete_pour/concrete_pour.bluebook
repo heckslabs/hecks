@@ -4,42 +4,42 @@ Hecks.bluebook "ConcretePour" do
 
   aggregate "PourSchedule" do
     description "A scheduled concrete pour with volume, location, and crew requirements"
-    String :project_name
-    String :pour_location
-    Float :cubic_yards
-    String :pour_date
-    String :status
-    Integer :crew_size
+    attribute :project_name, String
+    attribute :pour_location, String
+    attribute :cubic_yards, Float
+    attribute :pour_date, String
+    attribute :status, String
+    attribute :crew_size, Integer
 
     value_object "PourWindow" do
-      String :start_time
-      String :end_time
-      Float :ambient_temp_f
+      attribute :start_time, String
+      attribute :end_time, String
+      attribute :ambient_temp_f, Float
     end
 
-    SchedulePour do
+    command "SchedulePour" do
       role "Project Manager"
       goal "Book the pour date with plant, pump, and crew"
       description "Coordinate concrete delivery, pump truck, and finishing crew"
-      String :project_name
-      String :pour_location
-      Float :cubic_yards
-      String :pour_date
-      Integer :crew_size
+      attribute :project_name, String
+      attribute :pour_location, String
+      attribute :cubic_yards, Float
+      attribute :pour_date, String
+      attribute :crew_size, Integer
       then_set :status, to: "in_progress"
       emits "PourScheduled"
     end
 
-    PostponePour do
+    command "PostponePour" do
       role "Project Manager"
       goal "Delay the pour due to weather or site readiness"
       description "Reschedule when conditions are unsuitable for placement"
       reference_to(PourSchedule)
-      String :reason
+      attribute :reason, String
       emits "PourPostponed"
     end
 
-    CompletePour do
+    command "CompletePour" do
       role "Foreman"
       goal "Record the pour as successfully placed and finished"
       description "Mark the pour complete after finishing and initial set"
@@ -51,37 +51,37 @@ Hecks.bluebook "ConcretePour" do
 
   aggregate "MixDesign" do
     description "A concrete mix design specifying cement, water ratio, aggregates, admixtures, and target strength"
-    String :mix_number
-    Float :target_psi
-    Float :water_cement_ratio
-    String :aggregate_size
-    Float :slump_inches
+    attribute :mix_number, String
+    attribute :target_psi, Float
+    attribute :water_cement_ratio, Float
+    attribute :aggregate_size, String
+    attribute :slump_inches, Float
     reference_to(PourSchedule)
 
     value_object "Admixture" do
-      String :admixture_type
-      Float :dosage_oz_per_yard
+      attribute :admixture_type, String
+      attribute :dosage_oz_per_yard, Float
     end
 
-    SpecifyMix do
+    command "SpecifyMix" do
       role "Engineer"
       goal "Define the concrete mix design for the structural requirements"
       description "Set target PSI, water-cement ratio, aggregate size, and admixtures"
-      String :mix_number
-      Float :target_psi
-      Float :water_cement_ratio
-      String :aggregate_size
-      Float :slump_inches
+      attribute :mix_number, String
+      attribute :target_psi, Float
+      attribute :water_cement_ratio, Float
+      attribute :aggregate_size, String
+      attribute :slump_inches, Float
       reference_to(PourSchedule)
       emits "MixSpecified"
     end
 
-    AdjustSlump do
+    command "AdjustSlump" do
       role "Quality Tech"
       goal "Adjust the slump on-site if the delivered concrete is too stiff or wet"
       description "Add water or admixture within allowable limits"
       reference_to(MixDesign)
-      Float :new_slump_inches
+      attribute :new_slump_inches, Float
       given("slump must be out of spec") { slump_inches < 3.0 }
       emits "SlumpAdjusted"
     end
@@ -89,85 +89,85 @@ Hecks.bluebook "ConcretePour" do
 
   aggregate "Reinforcement" do
     description "Steel reinforcement — rebar, wire mesh, or fiber — placed before the pour"
-    String :rebar_size
-    String :spacing
-    String :placement_type
-    Float :coverage_inches
+    attribute :rebar_size, String
+    attribute :spacing, String
+    attribute :placement_type, String
+    attribute :coverage_inches, Float
     reference_to(PourSchedule)
 
-    PlaceRebar do
+    command "PlaceRebar" do
       role "Ironworker"
       goal "Tie and position rebar per the structural drawings"
       description "Set rebar on chairs at the specified spacing and coverage"
-      String :rebar_size
-      String :spacing
-      Float :coverage_inches
+      attribute :rebar_size, String
+      attribute :spacing, String
+      attribute :coverage_inches, Float
       reference_to(PourSchedule)
       emits "RebarPlaced"
     end
 
-    InspectReinforcement do
+    command "InspectReinforcement" do
       role "Inspector"
       goal "Verify rebar placement before the pour"
       description "Check size, spacing, coverage, and tie-downs against the drawings"
       reference_to(Reinforcement)
-      String :inspection_result
+      attribute :inspection_result, String
       emits "ReinforcementInspected"
     end
   end
 
   aggregate "CuringProtocol" do
     description "The curing regimen — wet cure, curing compound, or blankets — with duration and temperature monitoring"
-    String :curing_method
-    Integer :cure_days
-    Float :min_temp_f
-    String :status
+    attribute :curing_method, String
+    attribute :cure_days, Integer
+    attribute :min_temp_f, Float
+    attribute :status, String
     reference_to(PourSchedule)
 
-    BeginCuring do
+    command "BeginCuring" do
       role "Foreman"
       goal "Start the curing protocol after the pour is finished"
       description "Apply curing compound, wet burlap, or insulated blankets"
-      String :curing_method
-      Integer :cure_days
-      Float :min_temp_f
+      attribute :curing_method, String
+      attribute :cure_days, Integer
+      attribute :min_temp_f, Float
       reference_to(PourSchedule)
       emits "CuringBegun"
     end
 
-    MonitorTemperature do
+    command "MonitorTemperature" do
       role "Quality Tech"
       goal "Record concrete temperature during curing"
       description "Check that concrete stays above minimum curing temperature"
       reference_to(CuringProtocol)
-      Float :measured_temp_f
+      attribute :measured_temp_f, Float
       emits "TemperatureMonitored"
     end
   end
 
   aggregate "StrengthTest" do
     description "A compressive strength test on cured cylinder specimens"
-    Integer :test_day
-    Float :break_psi
-    String :result
+    attribute :test_day, Integer
+    attribute :break_psi, Float
+    attribute :result, String
     reference_to(MixDesign)
 
-    BreakCylinder do
+    command "BreakCylinder" do
       role "Lab Tech"
       goal "Crush a test cylinder and record the compressive strength"
       description "Break 7-day or 28-day cylinders per ASTM C39"
-      Integer :test_day
+      attribute :test_day, Integer
       reference_to(MixDesign)
       emits "CylinderBroken"
     end
 
-    RecordStrength do
+    command "RecordStrength" do
       role "Lab Tech"
       goal "Log the break result and compare to target PSI"
       description "Record actual PSI and pass/fail against the mix design target"
       reference_to(StrengthTest)
-      Float :break_psi
-      String :result
+      attribute :break_psi, Float
+      attribute :result, String
       emits "StrengthRecorded"
     end
   end

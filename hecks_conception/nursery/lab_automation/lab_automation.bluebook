@@ -3,23 +3,23 @@ Hecks.bluebook "LabAutomation", version: "2026.04.13.1" do
   category "healthcare_technology"
 
   aggregate "Specimen", "A pathology specimen collected for laboratory analysis" do
-    String :specimen_id
-    String :patient_name
-    String :specimen_type
-    String :collection_date
-    String :status
+    attribute :specimen_id, String
+    attribute :patient_name, String
+    attribute :specimen_type, String
+    attribute :collection_date, String
+    attribute :status, String
     value_object "CollectionDetail" do
-      String :site
-      String :method
-      String :collector
+      attribute :site, String
+      attribute :method, String
+      attribute :collector, String
     end
-    CollectSpecimen do
+    command "CollectSpecimen" do
       role "Phlebotomist"
       description "Collect a specimen from a patient for lab analysis"
-      String :specimen_id
-      String :patient_name
-      String :specimen_type
-      String :collection_date
+      attribute :specimen_id, String
+      attribute :patient_name, String
+      attribute :specimen_type, String
+      attribute :collection_date, String
       emits "SpecimenCollected"
       then_set :specimen_id, to: :specimen_id
       then_set :patient_name, to: :patient_name
@@ -27,7 +27,7 @@ Hecks.bluebook "LabAutomation", version: "2026.04.13.1" do
       then_set :collection_date, to: :collection_date
       then_set :status, to: "collected"
     end
-    AcceptSpecimen do
+    command "AcceptSpecimen" do
       role "LabTech"
       description "Accept specimen into the laboratory for processing"
       reference_to(Specimen)
@@ -38,37 +38,37 @@ Hecks.bluebook "LabAutomation", version: "2026.04.13.1" do
   end
 
   aggregate "TestPipeline", "An automated testing pipeline that processes specimens through analysis stages" do
-    String :pipeline_id
-    String :specimen_id
-    String :test_type
+    attribute :pipeline_id, String
+    attribute :specimen_id, String
+    attribute :test_type, String
     list_of(Stage) :stages
-    String :status
+    attribute :status, String
     value_object "Stage" do
-      String :name
-      Integer :sequence
-      String :status
-      String :result
+      attribute :name, String
+      attribute :sequence, Integer
+      attribute :status, String
+      attribute :result, String
     end
-    TriggerPipeline do
+    command "TriggerPipeline" do
       role "System"
       description "Trigger the automated test pipeline for a specimen"
-      String :pipeline_id
-      String :specimen_id
-      String :test_type
+      attribute :pipeline_id, String
+      attribute :specimen_id, String
+      attribute :test_type, String
       emits "PipelineTriggered"
       then_set :pipeline_id, to: :pipeline_id
       then_set :specimen_id, to: :specimen_id
       then_set :test_type, to: :test_type
       then_set :status, to: "running"
     end
-    AdvanceStage do
+    command "AdvanceStage" do
       role "System"
       description "Move pipeline to next analysis stage"
       reference_to(TestPipeline)
       given { status == "running" }
       emits "StageAdvanced"
     end
-    FinishPipeline do
+    command "FinishPipeline" do
       role "System"
       description "Mark pipeline as complete with all stages passed"
       reference_to(TestPipeline)
@@ -79,22 +79,22 @@ Hecks.bluebook "LabAutomation", version: "2026.04.13.1" do
   end
 
   aggregate "LabResult", "A finalized laboratory result from the pipeline" do
-    String :result_id
-    String :specimen_id
-    String :test_type
-    String :value
-    String :reference_range
-    String :interpretation
-    String :status
-    PublishResult do
+    attribute :result_id, String
+    attribute :specimen_id, String
+    attribute :test_type, String
+    attribute :value, String
+    attribute :reference_range, String
+    attribute :interpretation, String
+    attribute :status, String
+    command "PublishResult" do
       role "Pathologist"
       description "Publish a finalized lab result for clinical review"
-      String :result_id
-      String :specimen_id
-      String :test_type
-      String :value
-      String :reference_range
-      String :interpretation
+      attribute :result_id, String
+      attribute :specimen_id, String
+      attribute :test_type, String
+      attribute :value, String
+      attribute :reference_range, String
+      attribute :interpretation, String
       emits "ResultPublished"
       then_set :result_id, to: :result_id
       then_set :specimen_id, to: :specimen_id
@@ -104,12 +104,12 @@ Hecks.bluebook "LabAutomation", version: "2026.04.13.1" do
       then_set :interpretation, to: :interpretation
       then_set :status, to: "published"
     end
-    AmendResult do
+    command "AmendResult" do
       role "Pathologist"
       description "Amend a published result with corrected values"
       reference_to(LabResult)
-      String :value
-      String :interpretation
+      attribute :value, String
+      attribute :interpretation, String
       emits "ResultAmended"
       then_set :value, to: :value
       then_set :interpretation, to: :interpretation
@@ -117,24 +117,24 @@ Hecks.bluebook "LabAutomation", version: "2026.04.13.1" do
   end
 
   aggregate "QualityCheck", "A quality assurance check on lab equipment and reagents" do
-    String :check_id
-    String :equipment_name
-    String :check_type
-    String :result
-    String :status
-    RunQualityCheck do
+    attribute :check_id, String
+    attribute :equipment_name, String
+    attribute :check_type, String
+    attribute :result, String
+    attribute :status, String
+    command "RunQualityCheck" do
       role "LabTech"
       description "Run a quality control check on lab equipment"
-      String :check_id
-      String :equipment_name
-      String :check_type
+      attribute :check_id, String
+      attribute :equipment_name, String
+      attribute :check_type, String
       emits "QualityCheckRun"
       then_set :check_id, to: :check_id
       then_set :equipment_name, to: :equipment_name
       then_set :check_type, to: :check_type
       then_set :status, to: "pending"
     end
-    PassCheck do
+    command "PassCheck" do
       role "LabTech"
       description "Record that quality check passed within acceptable range"
       reference_to(QualityCheck)

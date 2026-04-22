@@ -3,22 +3,22 @@ Hecks.bluebook "DigitalForensics", version: "2026.04.13.1" do
   category "healthcare_technology"
 
   aggregate "EvidenceItem", "A digital evidence item collected from a device or service" do
-    String :evidence_id
-    String :case_number
-    String :source_device
-    String :file_type
-    Float :size_mb
-    String :hash_value
-    String :status
-    CollectEvidence do
+    attribute :evidence_id, String
+    attribute :case_number, String
+    attribute :source_device, String
+    attribute :file_type, String
+    attribute :size_mb, Float
+    attribute :hash_value, String
+    attribute :status, String
+    command "CollectEvidence" do
       role "Examiner"
       description "Collect a piece of digital evidence and compute its hash"
-      String :evidence_id
-      String :case_number
-      String :source_device
-      String :file_type
-      Float :size_mb
-      String :hash_value
+      attribute :evidence_id, String
+      attribute :case_number, String
+      attribute :source_device, String
+      attribute :file_type, String
+      attribute :size_mb, Float
+      attribute :hash_value, String
       emits "EvidenceCollected"
       then_set :evidence_id, to: :evidence_id
       then_set :case_number, to: :case_number
@@ -28,7 +28,7 @@ Hecks.bluebook "DigitalForensics", version: "2026.04.13.1" do
       then_set :hash_value, to: :hash_value
       then_set :status, to: "collected"
     end
-    VerifyIntegrity do
+    command "VerifyIntegrity" do
       role "Examiner"
       description "Verify evidence integrity by recomputing hash"
       reference_to(EvidenceItem)
@@ -39,34 +39,34 @@ Hecks.bluebook "DigitalForensics", version: "2026.04.13.1" do
   end
 
   aggregate "ChainOfCustody", "A tamper-evident chain of custody log for evidence" do
-    String :chain_id
-    String :evidence_id
+    attribute :chain_id, String
+    attribute :evidence_id, String
     list_of(CustodyEntry) :entries
-    String :status
+    attribute :status, String
     value_object "CustodyEntry" do
-      String :handler_name
-      String :action_type
-      String :timestamp
-      String :location_name
+      attribute :handler_name, String
+      attribute :action_type, String
+      attribute :timestamp, String
+      attribute :location_name, String
     end
-    StartChain do
+    command "StartChain" do
       role "Examiner"
       description "Start a chain of custody record for evidence"
-      String :chain_id
-      String :evidence_id
+      attribute :chain_id, String
+      attribute :evidence_id, String
       emits "ChainStarted"
       then_set :chain_id, to: :chain_id
       then_set :evidence_id, to: :evidence_id
       then_set :status, to: "active"
     end
-    TransferCustody do
+    command "TransferCustody" do
       role "Examiner"
       description "Record a custody transfer between handlers"
       reference_to(ChainOfCustody)
       given { status == "active" }
       emits "CustodyTransferred"
     end
-    SealChain do
+    command "SealChain" do
       role "Examiner"
       description "Seal the chain of custody when case is closed"
       reference_to(ChainOfCustody)
@@ -77,30 +77,30 @@ Hecks.bluebook "DigitalForensics", version: "2026.04.13.1" do
   end
 
   aggregate "ContentAnalysis", "An analysis of digital content for forensic relevance" do
-    String :analysis_id
-    String :evidence_id
-    String :analysis_type
-    String :findings
-    Float :confidence
-    String :status
-    AnalyzeContent do
+    attribute :analysis_id, String
+    attribute :evidence_id, String
+    attribute :analysis_type, String
+    attribute :findings, String
+    attribute :confidence, Float
+    attribute :status, String
+    command "AnalyzeContent" do
       role "Analyst"
       description "Run forensic content analysis on evidence"
-      String :analysis_id
-      String :evidence_id
-      String :analysis_type
+      attribute :analysis_id, String
+      attribute :evidence_id, String
+      attribute :analysis_type, String
       emits "ContentAnalysisStarted"
       then_set :analysis_id, to: :analysis_id
       then_set :evidence_id, to: :evidence_id
       then_set :analysis_type, to: :analysis_type
       then_set :status, to: "running"
     end
-    FinalizeAnalysis do
+    command "FinalizeAnalysis" do
       role "Analyst"
       description "Finalize analysis with findings and confidence score"
       reference_to(ContentAnalysis)
-      String :findings
-      Float :confidence
+      attribute :findings, String
+      attribute :confidence, Float
       given { status == "running" }
       emits "AnalysisFinalized"
       then_set :findings, to: :findings
@@ -110,18 +110,18 @@ Hecks.bluebook "DigitalForensics", version: "2026.04.13.1" do
   end
 
   aggregate "ForensicReport", "A forensic investigation report summarizing findings" do
-    String :report_id
-    String :case_number
-    String :examiner
-    String :summary
-    String :status
-    DraftReport do
+    attribute :report_id, String
+    attribute :case_number, String
+    attribute :examiner, String
+    attribute :summary, String
+    attribute :status, String
+    command "DraftReport" do
       role "Examiner"
       description "Draft a forensic investigation report"
-      String :report_id
-      String :case_number
-      String :examiner
-      String :summary
+      attribute :report_id, String
+      attribute :case_number, String
+      attribute :examiner, String
+      attribute :summary, String
       emits "ReportDrafted"
       then_set :report_id, to: :report_id
       then_set :case_number, to: :case_number
@@ -129,7 +129,7 @@ Hecks.bluebook "DigitalForensics", version: "2026.04.13.1" do
       then_set :summary, to: :summary
       then_set :status, to: "draft"
     end
-    SubmitReport do
+    command "SubmitReport" do
       role "Examiner"
       description "Submit the finalized report for the case"
       reference_to(ForensicReport)

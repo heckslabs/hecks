@@ -1,37 +1,37 @@
 Hecks.bluebook "FilmProduction" do
   aggregate "Production", "A film or series production with budget and timeline" do
-    String :title
-    String :genre
-    String :status, default: "development"
-    Float :total_budget
-    String :start_date
+    attribute :title, String
+    attribute :genre, String
+    attribute :status, String, default: "development"
+    attribute :total_budget, Float
+    attribute :start_date, String
 
     value_object "ProductionSchedule" do
-      String :pre_production_end
-      String :principal_photography_start
-      String :wrap_date
-      String :post_production_end
+      attribute :pre_production_end, String
+      attribute :principal_photography_start, String
+      attribute :wrap_date, String
+      attribute :post_production_end, String
     end
 
-    GreenLightProduction do
+    command "GreenLightProduction" do
       description "Approve a production for principal photography"
-      String :title
-      String :genre
-      Float :total_budget
+      attribute :title, String
+      attribute :genre, String
+      attribute :total_budget, Float
       emits "ProductionGreenLit"
       then_set :status, to: "development"
     end
 
-    StartPrincipalPhotography do
+    command "StartPrincipalPhotography" do
       description "Begin shooting on the production"
       reference_to(Production)
-      String :start_date
+      attribute :start_date, String
       emits "PrincipalPhotographyStarted"
       then_set :status, to: "shooting"
       then_set :start_date, to: :start_date
     end
 
-    WrapProduction do
+    command "WrapProduction" do
       description "Complete all principal photography"
       reference_to(Production)
       emits "ProductionWrapped"
@@ -40,85 +40,85 @@ Hecks.bluebook "FilmProduction" do
   end
 
   aggregate "Scene", "A numbered scene in the shooting script with location and cast" do
-    Integer :scene_number
-    String :location
-    String :time_of_day
-    String :status, default: "scheduled"
-    Integer :take_count
+    attribute :scene_number, Integer
+    attribute :location, String
+    attribute :time_of_day, String
+    attribute :status, String, default: "scheduled"
+    attribute :take_count, Integer
     reference_to(Production)
 
-    SlateScene do
+    command "SlateScene" do
       description "Mark a scene as ready to shoot with slate info"
       reference_to(Production)
-      Integer :scene_number
-      String :location
-      String :time_of_day
+      attribute :scene_number, Integer
+      attribute :location, String
+      attribute :time_of_day, String
       emits "SceneSlated"
       then_set :status, to: "scheduled"
     end
 
-    PrintScene do
+    command "PrintScene" do
       description "Record a completed take for a scene"
       reference_to(Scene)
-      Integer :take_number
+      attribute :take_number, Integer
       emits "ScenePrinted"
       then_set :status, to: "in_progress"
     end
 
-    MarkSceneFinal do
+    command "MarkSceneFinal" do
       description "Lock a scene as final — no more takes needed"
       reference_to(Scene)
-      Integer :final_take
+      attribute :final_take, Integer
       emits "SceneFinalized"
       then_set :status, to: "finalized"
     end
   end
 
   aggregate "CrewMember", "A crew member assigned to a department on the production" do
-    String :name
-    String :role
-    String :department
-    Float :day_rate
+    attribute :name, String
+    attribute :role, String
+    attribute :department, String
+    attribute :day_rate, Float
     reference_to(Production)
 
-    HireCrew do
+    command "HireCrew" do
       description "Add a crew member to a production department"
       reference_to(Production)
-      String :name
-      String :role
-      String :department
-      Float :day_rate
+      attribute :name, String
+      attribute :role, String
+      attribute :department, String
+      attribute :day_rate, Float
       emits "CrewHired"
     end
 
-    ReassignDepartment do
+    command "ReassignDepartment" do
       description "Move a crew member to a different department"
       reference_to(CrewMember)
-      String :new_department
+      attribute :new_department, String
       emits "CrewReassigned"
       then_set :department, to: :new_department
     end
   end
 
   aggregate "Equipment", "Camera, lighting, and grip equipment checked out for shoots" do
-    String :name
-    String :category
-    String :serial_number
-    String :status, default: "available"
-    String :checked_out_by
+    attribute :name, String
+    attribute :category, String
+    attribute :serial_number, String
+    attribute :status, String, default: "available"
+    attribute :checked_out_by, String
 
     value_object "MaintenanceRecord" do
-      String :date
-      String :technician
-      String :issue
-      String :resolution
+      attribute :date, String
+      attribute :technician, String
+      attribute :issue, String
+      attribute :resolution, String
     end
 
-    RegisterEquipment do
+    command "RegisterEquipment" do
       description "Register a piece of equipment in the inventory"
-      String :name
-      String :category
-      String :serial_number
+      attribute :name, String
+      attribute :category, String
+      attribute :serial_number, String
       emits "EquipmentRegistered"
       then_set :name, to: :name
       then_set :category, to: :category
@@ -126,16 +126,16 @@ Hecks.bluebook "FilmProduction" do
       then_set :status, to: "available"
     end
 
-    CheckOutEquipment do
+    command "CheckOutEquipment" do
       description "Reserve equipment for a shooting day"
       reference_to(Equipment)
-      String :checked_out_by
+      attribute :checked_out_by, String
       emits "EquipmentCheckedOut"
       then_set :checked_out_by, to: :checked_out_by
       then_set :status, to: "in_use"
     end
 
-    ReturnEquipment do
+    command "ReturnEquipment" do
       description "Return equipment after a shoot day"
       reference_to(Equipment)
       emits "EquipmentReturned"
@@ -144,26 +144,26 @@ Hecks.bluebook "FilmProduction" do
   end
 
   aggregate "BudgetLine", "A line item in the production budget by department" do
-    String :department
-    String :category
-    Float :allocated
-    Float :spent
+    attribute :department, String
+    attribute :category, String
+    attribute :allocated, Float
+    attribute :spent, Float
     reference_to(Production)
 
-    AllocateBudget do
+    command "AllocateBudget" do
       description "Set a budget allocation for a department category"
       reference_to(Production)
-      String :department
-      String :category
-      Float :amount
+      attribute :department, String
+      attribute :category, String
+      attribute :amount, Float
       emits "BudgetAllocated"
     end
 
-    RecordExpense do
+    command "RecordExpense" do
       description "Log an actual expense against a budget line"
       reference_to(BudgetLine)
-      Float :amount
-      String :vendor
+      attribute :amount, Float
+      attribute :vendor, String
       emits "ExpenseRecorded"
     end
   end

@@ -3,29 +3,29 @@ Hecks.bluebook "SpaAndWellness", version: "2026.04.13.1" do
   category "hospitality"
 
   aggregate "Treatment", "A spa service offered to guests" do
-    String :treatment_id
-    String :name
-    String :category
-    Integer :duration_minutes
-    Float :price
-    String :description
+    attribute :treatment_id, String
+    attribute :name, String
+    attribute :category, String
+    attribute :duration_minutes, Integer
+    attribute :price, Float
+    attribute :description, String
     list_of(Contraindication) :contraindications
 
     value_object "Contraindication" do
-      String :condition
-      String :severity
-      String :recommendation
+      attribute :condition, String
+      attribute :severity, String
+      attribute :recommendation, String
     end
 
-    DefineTreatment do
+    command "DefineTreatment" do
       role "SpaDirector"
       description "Add a new treatment to the service menu"
-      String :treatment_id
-      String :name
-      String :category
-      Integer :duration_minutes
-      Float :price
-      String :description
+      attribute :treatment_id, String
+      attribute :name, String
+      attribute :category, String
+      attribute :duration_minutes, Integer
+      attribute :price, Float
+      attribute :description, String
       emits "TreatmentDefined"
       then_set :treatment_id, to: :treatment_id
       then_set :name, to: :name
@@ -35,7 +35,7 @@ Hecks.bluebook "SpaAndWellness", version: "2026.04.13.1" do
       then_set :description, to: :description
     end
 
-    RetireTreatment do
+    command "RetireTreatment" do
       role "SpaDirector"
       description "Remove a treatment from the active menu"
       reference_to(Treatment)
@@ -44,52 +44,52 @@ Hecks.bluebook "SpaAndWellness", version: "2026.04.13.1" do
   end
 
   aggregate "Therapist", "A licensed practitioner who performs treatments" do
-    String :therapist_id
-    String :name
-    String :license_number
+    attribute :therapist_id, String
+    attribute :name, String
+    attribute :license_number, String
     list_of(Specialty) :specialties
 
     value_object "Specialty" do
-      String :treatment_type
-      String :certification_date
-      String :level
+      attribute :treatment_type, String
+      attribute :certification_date, String
+      attribute :level, String
     end
 
-    OnboardTherapist do
+    command "OnboardTherapist" do
       role "SpaDirector"
       description "Hire and register a new therapist with their credentials"
-      String :therapist_id
-      String :name
-      String :license_number
+      attribute :therapist_id, String
+      attribute :name, String
+      attribute :license_number, String
       emits "TherapistOnboarded"
       then_set :therapist_id, to: :therapist_id
       then_set :name, to: :name
       then_set :license_number, to: :license_number
     end
 
-    AddSpecialty do
+    command "AddSpecialty" do
       role "SpaDirector"
       description "Record an additional treatment certification for the therapist"
       reference_to(Therapist)
-      String :treatment_type
+      attribute :treatment_type, String
       emits "SpecialtyAdded"
     end
   end
 
   aggregate "SpaRoom", "A private treatment room with specific amenities" do
-    String :room_id
-    String :name
-    String :room_type
-    Integer :capacity
-    String :status
+    attribute :room_id, String
+    attribute :name, String
+    attribute :room_type, String
+    attribute :capacity, Integer
+    attribute :status, String
 
-    PrepareRoom do
+    command "PrepareRoom" do
       role "Attendant"
       description "Set up a room with linens, oils, and ambiance for the next guest"
-      String :room_id
-      String :name
-      String :room_type
-      Integer :capacity
+      attribute :room_id, String
+      attribute :name, String
+      attribute :room_type, String
+      attribute :capacity, Integer
       emits "RoomPrepared"
       then_set :room_id, to: :room_id
       then_set :name, to: :name
@@ -98,7 +98,7 @@ Hecks.bluebook "SpaAndWellness", version: "2026.04.13.1" do
       then_set :status, to: "ready"
     end
 
-    OccupyRoom do
+    command "OccupyRoom" do
       role "Therapist"
       description "Begin using the room for a treatment session"
       reference_to(SpaRoom)
@@ -106,7 +106,7 @@ Hecks.bluebook "SpaAndWellness", version: "2026.04.13.1" do
       then_set :status, to: "occupied"
     end
 
-    ReleaseRoom do
+    command "ReleaseRoom" do
       role "Therapist"
       description "Mark the room as available after the session ends"
       reference_to(SpaRoom)
@@ -116,20 +116,20 @@ Hecks.bluebook "SpaAndWellness", version: "2026.04.13.1" do
   end
 
   aggregate "RetailProduct", "A skincare or wellness product sold at the spa" do
-    String :product_id
-    String :name
-    String :brand
-    Float :price
-    Integer :quantity
+    attribute :product_id, String
+    attribute :name, String
+    attribute :brand, String
+    attribute :price, Float
+    attribute :quantity, Integer
 
-    StockProduct do
+    command "StockProduct" do
       role "Manager"
       description "Add a retail product to the spa shop"
-      String :product_id
-      String :name
-      String :brand
-      Float :price
-      Integer :quantity
+      attribute :product_id, String
+      attribute :name, String
+      attribute :brand, String
+      attribute :price, Float
+      attribute :quantity, Integer
       emits "ProductStocked"
       then_set :product_id, to: :product_id
       then_set :name, to: :name
@@ -138,33 +138,33 @@ Hecks.bluebook "SpaAndWellness", version: "2026.04.13.1" do
       then_set :quantity, to: :quantity
     end
 
-    SellProduct do
+    command "SellProduct" do
       role "Receptionist"
       description "Ring up a retail product purchase for a guest"
       reference_to(RetailProduct)
-      Integer :quantity_sold
+      attribute :quantity_sold, Integer
       emits "ProductSold"
     end
   end
 
   aggregate "WellnessPackage", "A bundled set of treatments sold at a discount" do
-    String :package_id
-    String :name
+    attribute :package_id, String
+    attribute :name, String
     list_of(IncludedTreatment) :treatments
-    Float :package_price
-    String :status
+    attribute :package_price, Float
+    attribute :status, String
 
     value_object "IncludedTreatment" do
-      String :treatment_name
-      Integer :sessions
+      attribute :treatment_name, String
+      attribute :sessions, Integer
     end
 
-    BundlePackage do
+    command "BundlePackage" do
       role "SpaDirector"
       description "Bundle treatments into a discounted wellness package"
-      String :package_id
-      String :name
-      Float :package_price
+      attribute :package_id, String
+      attribute :name, String
+      attribute :package_price, Float
       emits "PackageBundled"
       then_set :package_id, to: :package_id
       then_set :name, to: :name
@@ -172,15 +172,15 @@ Hecks.bluebook "SpaAndWellness", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    RedeemSession do
+    command "RedeemSession" do
       role "Guest"
       description "Use one session from a purchased package"
       reference_to(WellnessPackage)
-      String :treatment_name
+      attribute :treatment_name, String
       emits "SessionRedeemed"
     end
 
-    ExpirePackage do
+    command "ExpirePackage" do
       role "System"
       description "Expire a package that has passed its validity date"
       reference_to(WellnessPackage)

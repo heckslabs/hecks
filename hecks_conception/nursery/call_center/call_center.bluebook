@@ -2,31 +2,31 @@ Hecks.bluebook "CallCenter" do
   vision "Manage queues, agents, tickets, escalations, and SLA tracking for a customer support center"
 
   aggregate "Ticket", "A customer support request tracked from creation to resolution" do
-    String :ticket_number
-    String :subject
-    String :description
-    String :priority
-    String :status
-    String :channel
+    attribute :ticket_number, String
+    attribute :subject, String
+    attribute :description, String
+    attribute :priority, String
+    attribute :status, String
+    attribute :channel, String
     reference_to(Agent)
 
     value_object "ContactInfo" do
-      String :caller_name
-      String :phone
-      String :email
+      attribute :caller_name, String
+      attribute :phone, String
+      attribute :email, String
     end
 
-    OpenTicket do
+    command "OpenTicket" do
       description "Create a new support ticket from an inbound call or message"
-      String :subject
-      String :description
-      String :priority
-      String :channel
+      attribute :subject, String
+      attribute :description, String
+      attribute :priority, String
+      attribute :channel, String
       emits "TicketOpened"
       then_set :status, to: "queued"
     end
 
-    AssignToAgent do
+    command "AssignToAgent" do
       description "Route a ticket to a specific agent for handling"
       reference_to(Ticket)
       reference_to(Agent)
@@ -35,7 +35,7 @@ Hecks.bluebook "CallCenter" do
       then_set :status, to: "assigned"
     end
 
-    BeginWork do
+    command "BeginWork" do
       description "Agent starts actively working on the ticket"
       reference_to(Ticket)
       given { status == "assigned" }
@@ -43,16 +43,16 @@ Hecks.bluebook "CallCenter" do
       then_set :status, to: "in_progress"
     end
 
-    ResolveTicket do
+    command "ResolveTicket" do
       description "Mark a ticket as resolved with a resolution note"
       reference_to(Ticket)
-      String :resolution_note
+      attribute :resolution_note, String
       given { status == "in_progress" }
       emits "TicketResolved"
       then_set :status, to: "resolved"
     end
 
-    CloseTicket do
+    command "CloseTicket" do
       description "Close a resolved ticket after customer confirmation"
       reference_to(Ticket)
       given { status == "resolved" }
@@ -60,47 +60,47 @@ Hecks.bluebook "CallCenter" do
       then_set :status, to: "closed"
     end
 
-    ReopenTicket do
+    command "ReopenTicket" do
       description "Reopen a ticket when the customer reports the issue persists"
       reference_to(Ticket)
-      String :reason
+      attribute :reason, String
       given { status == "resolved" }
       emits "TicketReopened"
       then_set :status, to: "open"
     end
 
-    EscalateTicket do
+    command "EscalateTicket" do
       description "Push a ticket to a higher-tier agent or supervisor"
       reference_to(Ticket)
-      String :reason
+      attribute :reason, String
       emits "TicketEscalated"
       then_set :priority, to: "urgent"
     end
   end
 
   aggregate "Agent", "A support representative handling customer tickets" do
-    String :agent_id
-    String :name
-    String :skill_level
-    Integer :active_tickets
-    String :status
+    attribute :agent_id, String
+    attribute :name, String
+    attribute :skill_level, String
+    attribute :active_tickets, Integer
+    attribute :status, String
 
     value_object "ShiftSchedule" do
-      String :start_time
-      String :end_time
-      String :timezone
+      attribute :start_time, String
+      attribute :end_time, String
+      attribute :timezone, String
     end
 
-    HireAgent do
+    command "HireAgent" do
       description "Onboard a new support agent"
-      String :name
-      String :skill_level
+      attribute :name, String
+      attribute :skill_level, String
       emits "AgentHired"
       then_set :status, to: "available"
       then_set :active_tickets, to: 0
     end
 
-    AssignTicket do
+    command "AssignTicket" do
       description "Route a ticket to an available agent based on skill"
       reference_to(Agent)
       reference_to(Ticket)
@@ -108,7 +108,7 @@ Hecks.bluebook "CallCenter" do
       emits "TicketAssigned"
     end
 
-    SetAgentBreak do
+    command "SetAgentBreak" do
       description "Put an agent on break so they receive no new tickets"
       reference_to(Agent)
       given { status == "available" }
@@ -116,7 +116,7 @@ Hecks.bluebook "CallCenter" do
       then_set :status, to: "on_break"
     end
 
-    ReturnFromBreak do
+    command "ReturnFromBreak" do
       description "Bring an agent back to available status after break"
       reference_to(Agent)
       given { status == "on_break" }
@@ -126,28 +126,28 @@ Hecks.bluebook "CallCenter" do
   end
 
   aggregate "Queue", "A waiting line for tickets organized by priority or skill group" do
-    String :queue_name
-    String :skill_group
-    Integer :depth
-    Integer :max_wait_seconds
-    String :status
+    attribute :queue_name, String
+    attribute :skill_group, String
+    attribute :depth, Integer
+    attribute :max_wait_seconds, Integer
+    attribute :status, String
 
     value_object "QueueMetrics" do
-      Float :avg_wait_seconds
-      Float :abandonment_rate
+      attribute :avg_wait_seconds, Float
+      attribute :abandonment_rate, Float
     end
 
-    OpenQueue do
+    command "OpenQueue" do
       description "Set up a new queue for a skill group"
-      String :queue_name
-      String :skill_group
-      Integer :max_wait_seconds
+      attribute :queue_name, String
+      attribute :skill_group, String
+      attribute :max_wait_seconds, Integer
       emits "QueueCreated"
       then_set :status, to: "active"
       then_set :depth, to: 0
     end
 
-    EnqueueTicket do
+    command "EnqueueTicket" do
       description "Add a ticket to the back of the queue"
       reference_to(Queue)
       reference_to(Ticket)
@@ -155,7 +155,7 @@ Hecks.bluebook "CallCenter" do
       then_set :depth, to: 1
     end
 
-    DequeueTicket do
+    command "DequeueTicket" do
       description "Pull the next ticket from the queue for assignment"
       reference_to(Queue)
       emits "TicketDequeued"
@@ -163,33 +163,33 @@ Hecks.bluebook "CallCenter" do
   end
 
   aggregate "SlaPolicy", "A service-level agreement defining response and resolution targets" do
-    String :policy_name
-    String :priority
-    Integer :response_minutes
-    Integer :resolution_minutes
-    String :status
+    attribute :policy_name, String
+    attribute :priority, String
+    attribute :response_minutes, Integer
+    attribute :resolution_minutes, Integer
+    attribute :status, String
 
     value_object "Breach" do
-      String :ticket_id
-      String :breach_type
-      String :breached_at
+      attribute :ticket_id, String
+      attribute :breach_type, String
+      attribute :breached_at, String
     end
 
-    DefineSla do
+    command "DefineSla" do
       description "Create a new SLA policy with time targets"
-      String :policy_name
-      String :priority
-      Integer :response_minutes
-      Integer :resolution_minutes
+      attribute :policy_name, String
+      attribute :priority, String
+      attribute :response_minutes, Integer
+      attribute :resolution_minutes, Integer
       emits "SlaDefined"
       then_set :status, to: "active"
     end
 
-    BreachSla do
+    command "BreachSla" do
       description "Record that a ticket has violated its SLA target"
       reference_to(SlaPolicy)
-      String :ticket_id
-      String :breach_type
+      attribute :ticket_id, String
+      attribute :breach_type, String
       emits "SlaBreached"
     end
   end

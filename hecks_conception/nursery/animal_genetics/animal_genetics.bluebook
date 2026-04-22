@@ -3,28 +3,28 @@ Hecks.bluebook "AnimalGenetics", version: "2026.04.13.1" do
   category "crossover"
 
   aggregate "AnimalProfile", "A shelter animal — species, breed mix, age, temperament" do
-    String :name
-    String :species
-    String :primary_breed
-    Float :age_years
-    String :temperament
-    String :status
+    attribute :name, String
+    attribute :species, String
+    attribute :primary_breed, String
+    attribute :age_years, Float
+    attribute :temperament, String
+    attribute :status, String
 
     value_object "PhysicalTraits" do
-      Float :weight_kg
-      String :coat_color
-      String :coat_type
-      String :size_category
+      attribute :weight_kg, Float
+      attribute :coat_color, String
+      attribute :coat_type, String
+      attribute :size_category, String
     end
 
-    IntakeAnimal do
+    command "IntakeAnimal" do
       role "ShelterStaff"
       description "Register a new animal at the shelter with basic information"
-      String :name
-      String :species
-      String :primary_breed
-      Float :age_years
-      String :temperament
+      attribute :name, String
+      attribute :species, String
+      attribute :primary_breed, String
+      attribute :age_years, Float
+      attribute :temperament, String
       emits "AnimalIntaken"
       then_set :name, to: :name
       then_set :species, to: :species
@@ -34,7 +34,7 @@ Hecks.bluebook "AnimalGenetics", version: "2026.04.13.1" do
       then_set :status, to: "intake"
     end
 
-    OrderDNATest do
+    command "OrderDNATest" do
       role "Veterinarian"
       description "Order a DNA test for breed identification and health screening"
       reference_to(AnimalProfile)
@@ -43,7 +43,7 @@ Hecks.bluebook "AnimalGenetics", version: "2026.04.13.1" do
       then_set :status, to: "testing"
     end
 
-    MakeAvailable do
+    command "MakeAvailable" do
       role "ShelterStaff"
       description "Make animal available for adoption after health clearance"
       reference_to(AnimalProfile)
@@ -52,7 +52,7 @@ Hecks.bluebook "AnimalGenetics", version: "2026.04.13.1" do
       then_set :status, to: "available"
     end
 
-    AdoptAnimal do
+    command "AdoptAnimal" do
       role "Adopter"
       description "Complete adoption of the animal"
       reference_to(AnimalProfile)
@@ -64,44 +64,44 @@ Hecks.bluebook "AnimalGenetics", version: "2026.04.13.1" do
   end
 
   aggregate "DNAProfile", "A genetic profile — markers, breed composition, health genes" do
-    String :animal_name
-    String :sample_id
-    Float :breed_confidence_pct
-    String :primary_breed_result
-    String :secondary_breed_result
-    String :status
+    attribute :animal_name, String
+    attribute :sample_id, String
+    attribute :breed_confidence_pct, Float
+    attribute :primary_breed_result, String
+    attribute :secondary_breed_result, String
+    attribute :status, String
 
     value_object "GeneticMarker" do
-      String :marker_name
-      String :allele_1
-      String :allele_2
-      String :associated_trait
+      attribute :marker_name, String
+      attribute :allele_1, String
+      attribute :allele_2, String
+      attribute :associated_trait, String
     end
 
     list_of "BreedComponent" do
-      String :breed_name
-      Float :percentage
-      Float :confidence
+      attribute :breed_name, String
+      attribute :percentage, Float
+      attribute :confidence, Float
     end
 
-    ProcessDNASample do
+    command "ProcessDNASample" do
       role "LabTechnician"
       description "Process DNA sample and extract genetic markers"
-      String :animal_name
-      String :sample_id
+      attribute :animal_name, String
+      attribute :sample_id, String
       emits "DNASampleProcessed"
       then_set :animal_name, to: :animal_name
       then_set :sample_id, to: :sample_id
       then_set :status, to: "processed"
     end
 
-    IdentifyBreeds do
+    command "IdentifyBreeds" do
       role "System"
       description "Match genetic markers against breed database"
       reference_to(DNAProfile)
-      String :primary_breed_result
-      String :secondary_breed_result
-      Float :breed_confidence_pct
+      attribute :primary_breed_result, String
+      attribute :secondary_breed_result, String
+      attribute :breed_confidence_pct, Float
       given { status == "processed" }
       emits "BreedsIdentified"
       then_set :primary_breed_result, to: :primary_breed_result
@@ -113,27 +113,27 @@ Hecks.bluebook "AnimalGenetics", version: "2026.04.13.1" do
   end
 
   aggregate "HealthPredisposition", "Genetic health risks — conditions, probabilities, preventive care" do
-    String :animal_name
-    String :condition_name
-    Float :risk_probability
-    String :severity
-    String :preventive_action
-    String :status
+    attribute :animal_name, String
+    attribute :condition_name, String
+    attribute :risk_probability, Float
+    attribute :severity, String
+    attribute :preventive_action, String
+    attribute :status, String
 
     value_object "GeneVariant" do
-      String :gene_name
-      String :variant
-      String :effect
-      Float :penetrance
+      attribute :gene_name, String
+      attribute :variant, String
+      attribute :effect, String
+      attribute :penetrance, Float
     end
 
-    ScreenForConditions do
+    command "ScreenForConditions" do
       role "System"
       description "Screen DNA results for known health predispositions"
-      String :animal_name
-      String :condition_name
-      Float :risk_probability
-      String :severity
+      attribute :animal_name, String
+      attribute :condition_name, String
+      attribute :risk_probability, Float
+      attribute :severity, String
       emits "ConditionsScreened"
       then_set :animal_name, to: :animal_name
       then_set :condition_name, to: :condition_name
@@ -142,11 +142,11 @@ Hecks.bluebook "AnimalGenetics", version: "2026.04.13.1" do
       then_set :status, to: "screened"
     end
 
-    RecommendPrevention do
+    command "RecommendPrevention" do
       role "Veterinarian"
       description "Recommend preventive care based on genetic risks"
       reference_to(HealthPredisposition)
-      String :preventive_action
+      attribute :preventive_action, String
       given { status == "screened" }
       emits "PreventionRecommended"
       then_set :preventive_action, to: :preventive_action
@@ -156,25 +156,25 @@ Hecks.bluebook "AnimalGenetics", version: "2026.04.13.1" do
   end
 
   aggregate "AdoptionMatch", "A compatibility match between animal genetics and adopter preferences" do
-    String :animal_name
-    String :adopter_name
-    Float :compatibility_score
-    String :match_factors
-    String :status
+    attribute :animal_name, String
+    attribute :adopter_name, String
+    attribute :compatibility_score, Float
+    attribute :match_factors, String
+    attribute :status, String
 
     value_object "MatchCriteria" do
-      String :factor_name
-      Float :weight
-      Float :score
+      attribute :factor_name, String
+      attribute :weight, Float
+      attribute :score, Float
     end
 
-    GenerateMatch do
+    command "GenerateMatch" do
       role "System"
       description "Generate adoption match based on genetic traits and adopter preferences"
-      String :animal_name
-      String :adopter_name
-      Float :compatibility_score
-      String :match_factors
+      attribute :animal_name, String
+      attribute :adopter_name, String
+      attribute :compatibility_score, Float
+      attribute :match_factors, String
       emits "MatchGenerated"
       then_set :animal_name, to: :animal_name
       then_set :adopter_name, to: :adopter_name
@@ -183,7 +183,7 @@ Hecks.bluebook "AnimalGenetics", version: "2026.04.13.1" do
       then_set :status, to: "generated"
     end
 
-    ApproveMatch do
+    command "ApproveMatch" do
       role "ShelterStaff"
       description "Approve the adoption match for proceeding"
       reference_to(AdoptionMatch)

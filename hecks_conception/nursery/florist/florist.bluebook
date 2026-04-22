@@ -3,29 +3,29 @@ Hecks.bluebook "Florist", version: "2026.04.13.1" do
   category "retail"
 
   aggregate "Arrangement", "A designed floral piece — bouquet, centerpiece, or display" do
-    String :arrangement_id
-    String :name
-    String :style
-    Float :price
-    String :occasion
-    String :status
+    attribute :arrangement_id, String
+    attribute :name, String
+    attribute :style, String
+    attribute :price, Float
+    attribute :occasion, String
+    attribute :status, String
     list_of(StemSelection) :stems
 
     value_object "StemSelection" do
-      String :flower_name
-      Integer :count
-      String :color
-      String :role_in_design
+      attribute :flower_name, String
+      attribute :count, Integer
+      attribute :color, String
+      attribute :role_in_design, String
     end
 
-    DesignArrangement do
+    command "DesignArrangement" do
       role "Designer"
       description "Compose a new floral arrangement from selected stems"
-      String :arrangement_id
-      String :name
-      String :style
-      Float :price
-      String :occasion
+      attribute :arrangement_id, String
+      attribute :name, String
+      attribute :style, String
+      attribute :price, Float
+      attribute :occasion, String
       emits "ArrangementDesigned"
       then_set :arrangement_id, to: :arrangement_id
       then_set :name, to: :name
@@ -35,7 +35,7 @@ Hecks.bluebook "Florist", version: "2026.04.13.1" do
       then_set :status, to: "designed"
     end
 
-    AssembleArrangement do
+    command "AssembleArrangement" do
       role "Designer"
       description "Physically build the arrangement from the design"
       reference_to(Arrangement)
@@ -46,24 +46,24 @@ Hecks.bluebook "Florist", version: "2026.04.13.1" do
   end
 
   aggregate "Flower", "A type of bloom sourced from growers" do
-    String :flower_id
-    String :common_name
-    String :botanical_name
-    String :color
-    String :season
-    Integer :vase_life_days
-    Integer :quantity_on_hand
+    attribute :flower_id, String
+    attribute :common_name, String
+    attribute :botanical_name, String
+    attribute :color, String
+    attribute :season, String
+    attribute :vase_life_days, Integer
+    attribute :quantity_on_hand, Integer
 
-    ReceiveFlowers do
+    command "ReceiveFlowers" do
       role "Manager"
       description "Accept a shipment of fresh flowers from a grower"
-      String :flower_id
-      String :common_name
-      String :botanical_name
-      String :color
-      String :season
-      Integer :vase_life_days
-      Integer :quantity_on_hand
+      attribute :flower_id, String
+      attribute :common_name, String
+      attribute :botanical_name, String
+      attribute :color, String
+      attribute :season, String
+      attribute :vase_life_days, Integer
+      attribute :quantity_on_hand, Integer
       emits "FlowersReceived"
       then_set :flower_id, to: :flower_id
       then_set :common_name, to: :common_name
@@ -74,38 +74,38 @@ Hecks.bluebook "Florist", version: "2026.04.13.1" do
       then_set :quantity_on_hand, to: :quantity_on_hand
     end
 
-    DiscardWiltedFlowers do
+    command "DiscardWiltedFlowers" do
       role "Staff"
       description "Remove past-prime flowers from inventory"
       reference_to(Flower)
-      Integer :quantity_discarded
+      attribute :quantity_discarded, Integer
       emits "WiltedFlowersDiscarded"
     end
   end
 
   aggregate "EventOrder", "A large floral order for a wedding, funeral, or celebration" do
-    String :order_id
-    String :customer_name
-    String :event_type
-    String :event_date
-    Float :budget
-    String :status
+    attribute :order_id, String
+    attribute :customer_name, String
+    attribute :event_type, String
+    attribute :event_date, String
+    attribute :budget, Float
+    attribute :status, String
     list_of(EventPiece) :pieces
 
     value_object "EventPiece" do
-      String :arrangement_type
-      Integer :quantity
-      String :placement
+      attribute :arrangement_type, String
+      attribute :quantity, Integer
+      attribute :placement, String
     end
 
-    PlaceEventOrder do
+    command "PlaceEventOrder" do
       role "Customer"
       description "Submit a floral order for a specific event"
-      String :order_id
-      String :customer_name
-      String :event_type
-      String :event_date
-      Float :budget
+      attribute :order_id, String
+      attribute :customer_name, String
+      attribute :event_type, String
+      attribute :event_date, String
+      attribute :budget, Float
       emits "EventOrderPlaced"
       then_set :order_id, to: :order_id
       then_set :customer_name, to: :customer_name
@@ -115,7 +115,7 @@ Hecks.bluebook "Florist", version: "2026.04.13.1" do
       then_set :status, to: "placed"
     end
 
-    ConfirmEventOrder do
+    command "ConfirmEventOrder" do
       role "Manager"
       description "Verify flower availability and confirm the order"
       reference_to(EventOrder)
@@ -126,21 +126,21 @@ Hecks.bluebook "Florist", version: "2026.04.13.1" do
   end
 
   aggregate "FloralDelivery", "Transporting arrangements to a customer or venue" do
-    String :delivery_id
-    String :order_id
-    String :address
-    String :delivery_date
-    String :time_window
-    String :status
+    attribute :delivery_id, String
+    attribute :order_id, String
+    attribute :address, String
+    attribute :delivery_date, String
+    attribute :time_window, String
+    attribute :status, String
 
-    ScheduleDelivery do
+    command "ScheduleDelivery" do
       role "Coordinator"
       description "Book a delivery time and assign a driver"
-      String :delivery_id
-      String :order_id
-      String :address
-      String :delivery_date
-      String :time_window
+      attribute :delivery_id, String
+      attribute :order_id, String
+      attribute :address, String
+      attribute :delivery_date, String
+      attribute :time_window, String
       emits "DeliveryScheduled"
       then_set :delivery_id, to: :delivery_id
       then_set :order_id, to: :order_id
@@ -150,7 +150,7 @@ Hecks.bluebook "Florist", version: "2026.04.13.1" do
       then_set :status, to: "scheduled"
     end
 
-    CompleteDelivery do
+    command "CompleteDelivery" do
       role "Driver"
       description "Confirm the arrangement was delivered successfully"
       reference_to(FloralDelivery)
@@ -161,21 +161,21 @@ Hecks.bluebook "Florist", version: "2026.04.13.1" do
   end
 
   aggregate "Subscription", "A recurring flower delivery to a loyal customer" do
-    String :subscription_id
-    String :customer_name
-    String :frequency
-    String :arrangement_style
-    Float :price_per_delivery
-    String :status
+    attribute :subscription_id, String
+    attribute :customer_name, String
+    attribute :frequency, String
+    attribute :arrangement_style, String
+    attribute :price_per_delivery, Float
+    attribute :status, String
 
-    StartSubscription do
+    command "StartSubscription" do
       role "Customer"
       description "Sign up for regular flower deliveries"
-      String :subscription_id
-      String :customer_name
-      String :frequency
-      String :arrangement_style
-      Float :price_per_delivery
+      attribute :subscription_id, String
+      attribute :customer_name, String
+      attribute :frequency, String
+      attribute :arrangement_style, String
+      attribute :price_per_delivery, Float
       emits "SubscriptionStarted"
       then_set :subscription_id, to: :subscription_id
       then_set :customer_name, to: :customer_name
@@ -185,7 +185,7 @@ Hecks.bluebook "Florist", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    PauseSubscription do
+    command "PauseSubscription" do
       role "Customer"
       description "Temporarily halt deliveries without canceling"
       reference_to(Subscription)
@@ -194,7 +194,7 @@ Hecks.bluebook "Florist", version: "2026.04.13.1" do
       then_set :status, to: "paused"
     end
 
-    CancelSubscription do
+    command "CancelSubscription" do
       role "Customer"
       description "Permanently end the subscription"
       reference_to(Subscription)

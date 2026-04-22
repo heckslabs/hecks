@@ -3,33 +3,33 @@ Hecks.bluebook "AntiquesDealer", version: "2026.04.13.1" do
   category "retail"
 
   aggregate "AntiquePiece", "A historical object of value — the core inventory item" do
-    String :piece_id
-    String :name
-    String :period
-    String :category
-    String :material
-    String :condition
-    Float :asking_price
-    String :status
+    attribute :piece_id, String
+    attribute :name, String
+    attribute :period, String
+    attribute :category, String
+    attribute :material, String
+    attribute :condition, String
+    attribute :asking_price, Float
+    attribute :status, String
     list_of(ProvenanceEntry) :provenance
 
     value_object "ProvenanceEntry" do
-      String :owner_name
-      String :date_acquired
-      String :location
-      String :documentation
+      attribute :owner_name, String
+      attribute :date_acquired, String
+      attribute :location, String
+      attribute :documentation, String
     end
 
-    AcquirePiece do
+    command "AcquirePiece" do
       role "Dealer"
       description "Purchase or accept an antique into the collection"
-      String :piece_id
-      String :name
-      String :period
-      String :category
-      String :material
-      String :condition
-      Float :asking_price
+      attribute :piece_id, String
+      attribute :name, String
+      attribute :period, String
+      attribute :category, String
+      attribute :material, String
+      attribute :condition, String
+      attribute :asking_price, Float
       emits "PieceAcquired"
       then_set :piece_id, to: :piece_id
       then_set :name, to: :name
@@ -41,7 +41,7 @@ Hecks.bluebook "AntiquesDealer", version: "2026.04.13.1" do
       then_set :status, to: "in_stock"
     end
 
-    SellPiece do
+    command "SellPiece" do
       role "Dealer"
       description "Complete the sale of an antique to a buyer"
       reference_to(AntiquePiece)
@@ -50,7 +50,7 @@ Hecks.bluebook "AntiquesDealer", version: "2026.04.13.1" do
       then_set :status, to: "sold"
     end
 
-    AuthenticatePiece do
+    command "AuthenticatePiece" do
       role "Expert"
       description "Verify the authenticity and period attribution of the piece"
       reference_to(AntiquePiece)
@@ -59,22 +59,22 @@ Hecks.bluebook "AntiquesDealer", version: "2026.04.13.1" do
   end
 
   aggregate "Appraisal", "A formal valuation of an antique's worth" do
-    String :appraisal_id
-    String :piece_id
-    String :appraiser_name
-    Float :estimated_value
-    String :appraisal_date
-    String :purpose
+    attribute :appraisal_id, String
+    attribute :piece_id, String
+    attribute :appraiser_name, String
+    attribute :estimated_value, Float
+    attribute :appraisal_date, String
+    attribute :purpose, String
 
-    PerformAppraisal do
+    command "PerformAppraisal" do
       role "Appraiser"
       description "Evaluate an antique and assign a fair market value"
-      String :appraisal_id
-      String :piece_id
-      String :appraiser_name
-      Float :estimated_value
-      String :appraisal_date
-      String :purpose
+      attribute :appraisal_id, String
+      attribute :piece_id, String
+      attribute :appraiser_name, String
+      attribute :estimated_value, Float
+      attribute :appraisal_date, String
+      attribute :purpose, String
       emits "AppraisalPerformed"
       then_set :appraisal_id, to: :appraisal_id
       then_set :piece_id, to: :piece_id
@@ -84,7 +84,7 @@ Hecks.bluebook "AntiquesDealer", version: "2026.04.13.1" do
       then_set :purpose, to: :purpose
     end
 
-    ContestAppraisal do
+    command "ContestAppraisal" do
       role "Owner"
       description "Challenge the appraised value and request re-evaluation"
       reference_to(Appraisal)
@@ -93,23 +93,23 @@ Hecks.bluebook "AntiquesDealer", version: "2026.04.13.1" do
   end
 
   aggregate "Consignment", "An arrangement where the owner places a piece for sale through the dealer" do
-    String :consignment_id
-    String :piece_id
-    String :consignor_name
-    Float :agreed_commission
-    String :start_date
-    String :end_date
-    String :status
+    attribute :consignment_id, String
+    attribute :piece_id, String
+    attribute :consignor_name, String
+    attribute :agreed_commission, Float
+    attribute :start_date, String
+    attribute :end_date, String
+    attribute :status, String
 
-    AcceptConsignment do
+    command "AcceptConsignment" do
       role "Dealer"
       description "Take a piece on consignment with agreed commission terms"
-      String :consignment_id
-      String :piece_id
-      String :consignor_name
-      Float :agreed_commission
-      String :start_date
-      String :end_date
+      attribute :consignment_id, String
+      attribute :piece_id, String
+      attribute :consignor_name, String
+      attribute :agreed_commission, Float
+      attribute :start_date, String
+      attribute :end_date, String
       emits "ConsignmentAccepted"
       then_set :consignment_id, to: :consignment_id
       then_set :piece_id, to: :piece_id
@@ -120,7 +120,7 @@ Hecks.bluebook "AntiquesDealer", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    ReturnConsignment do
+    command "ReturnConsignment" do
       role "Dealer"
       description "Return an unsold consigned piece to its owner"
       reference_to(Consignment)
@@ -129,7 +129,7 @@ Hecks.bluebook "AntiquesDealer", version: "2026.04.13.1" do
       then_set :status, to: "returned"
     end
 
-    SettleConsignment do
+    command "SettleConsignment" do
       role "Dealer"
       description "Pay the consignor their share after the piece sells"
       reference_to(Consignment)
@@ -140,21 +140,21 @@ Hecks.bluebook "AntiquesDealer", version: "2026.04.13.1" do
   end
 
   aggregate "Restoration", "Conservation or repair work performed on an antique" do
-    String :restoration_id
-    String :piece_id
-    String :restorer_name
-    String :work_description
-    Float :cost
-    String :status
+    attribute :restoration_id, String
+    attribute :piece_id, String
+    attribute :restorer_name, String
+    attribute :work_description, String
+    attribute :cost, Float
+    attribute :status, String
 
-    OrderRestoration do
+    command "OrderRestoration" do
       role "Dealer"
       description "Send a piece out for professional restoration work"
-      String :restoration_id
-      String :piece_id
-      String :restorer_name
-      String :work_description
-      Float :cost
+      attribute :restoration_id, String
+      attribute :piece_id, String
+      attribute :restorer_name, String
+      attribute :work_description, String
+      attribute :cost, Float
       emits "RestorationOrdered"
       then_set :restoration_id, to: :restoration_id
       then_set :piece_id, to: :piece_id
@@ -164,7 +164,7 @@ Hecks.bluebook "AntiquesDealer", version: "2026.04.13.1" do
       then_set :status, to: "in_progress"
     end
 
-    CompleteRestoration do
+    command "CompleteRestoration" do
       role "Restorer"
       description "Finish the restoration and return the piece"
       reference_to(Restoration)

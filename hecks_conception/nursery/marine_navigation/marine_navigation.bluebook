@@ -3,27 +3,27 @@ Hecks.bluebook "MarineNavigation", version: "2026.04.13.1" do
   category "crossover"
 
   aggregate "OceanCurrent", "A measured ocean current — direction, speed, depth, and seasonal pattern" do
-    String :name
-    Float :speed_knots
-    Float :direction_degrees
-    Float :depth_meters
-    String :season
-    String :status
+    attribute :name, String
+    attribute :speed_knots, Float
+    attribute :direction_degrees, Float
+    attribute :depth_meters, Float
+    attribute :season, String
+    attribute :status, String
 
     value_object "CurrentVector" do
-      Float :north_component
-      Float :east_component
-      Float :magnitude
+      attribute :north_component, Float
+      attribute :east_component, Float
+      attribute :magnitude, Float
     end
 
-    MeasureCurrent do
+    command "MeasureCurrent" do
       role "Oceanographer"
       description "Record ocean current speed and direction at a given depth"
-      String :name
-      Float :speed_knots
-      Float :direction_degrees
-      Float :depth_meters
-      String :season
+      attribute :name, String
+      attribute :speed_knots, Float
+      attribute :direction_degrees, Float
+      attribute :depth_meters, Float
+      attribute :season, String
       emits "CurrentMeasured"
       then_set :name, to: :name
       then_set :speed_knots, to: :speed_knots
@@ -33,19 +33,19 @@ Hecks.bluebook "MarineNavigation", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    RefreshCurrentData do
+    command "RefreshCurrentData" do
       role "Oceanographer"
       description "Refresh current measurement with latest sensor data"
       reference_to(OceanCurrent)
-      Float :speed_knots
-      Float :direction_degrees
+      attribute :speed_knots, Float
+      attribute :direction_degrees, Float
       given { status == "active" }
       emits "CurrentDataRefreshed"
       then_set :speed_knots, to: :speed_knots
       then_set :direction_degrees, to: :direction_degrees
     end
 
-    DeactivateCurrent do
+    command "DeactivateCurrent" do
       role "System"
       description "Mark a current reading as stale or expired"
       reference_to(OceanCurrent)
@@ -61,38 +61,38 @@ Hecks.bluebook "MarineNavigation", version: "2026.04.13.1" do
   end
 
   aggregate "WeatherForecast", "A marine weather forecast — wind, waves, visibility, and storm warnings" do
-    String :region
-    Float :wind_speed_knots
-    Float :wave_height_meters
-    Float :visibility_nm
-    String :storm_warning
-    String :valid_from
-    String :valid_until
-    String :status
+    attribute :region, String
+    attribute :wind_speed_knots, Float
+    attribute :wave_height_meters, Float
+    attribute :visibility_nm, Float
+    attribute :storm_warning, String
+    attribute :valid_from, String
+    attribute :valid_until, String
+    attribute :status, String
 
     value_object "WindProfile" do
-      Float :speed
-      Float :direction
-      Float :gust_factor
+      attribute :speed, Float
+      attribute :direction, Float
+      attribute :gust_factor, Float
     end
 
     list_of "StormAlert" do
-      String :alert_type
-      String :severity
-      String :region
-      String :issued_at
+      attribute :alert_type, String
+      attribute :severity, String
+      attribute :region, String
+      attribute :issued_at, String
     end
 
-    IssueForecast do
+    command "IssueForecast" do
       role "Meteorologist"
       description "Publish a marine weather forecast for a region"
-      String :region
-      Float :wind_speed_knots
-      Float :wave_height_meters
-      Float :visibility_nm
-      String :storm_warning
-      String :valid_from
-      String :valid_until
+      attribute :region, String
+      attribute :wind_speed_knots, Float
+      attribute :wave_height_meters, Float
+      attribute :visibility_nm, Float
+      attribute :storm_warning, String
+      attribute :valid_from, String
+      attribute :valid_until, String
       emits "ForecastIssued"
       then_set :region, to: :region
       then_set :wind_speed_knots, to: :wind_speed_knots
@@ -104,17 +104,17 @@ Hecks.bluebook "MarineNavigation", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    EscalateStormWarning do
+    command "EscalateStormWarning" do
       role "Meteorologist"
       description "Upgrade storm warning severity for a forecast region"
       reference_to(WeatherForecast)
-      String :storm_warning
+      attribute :storm_warning, String
       given { status == "active" }
       emits "StormWarningEscalated"
       then_set :storm_warning, to: :storm_warning
     end
 
-    ExpireForecast do
+    command "ExpireForecast" do
       role "System"
       description "Mark forecast as expired when validity window closes"
       reference_to(WeatherForecast)
@@ -130,28 +130,28 @@ Hecks.bluebook "MarineNavigation", version: "2026.04.13.1" do
   end
 
   aggregate "Vessel", "A cruise ship or cargo vessel — dimensions, fuel capacity, and operational state" do
-    String :name
-    String :vessel_type
-    Float :length_meters
-    Float :fuel_capacity_tons
-    Float :current_fuel_tons
-    Float :max_speed_knots
-    String :status
+    attribute :name, String
+    attribute :vessel_type, String
+    attribute :length_meters, Float
+    attribute :fuel_capacity_tons, Float
+    attribute :current_fuel_tons, Float
+    attribute :max_speed_knots, Float
+    attribute :status, String
 
     value_object "FuelConsumption" do
-      Float :rate_tons_per_hour
-      Float :speed_knots
-      Float :sea_state_factor
+      attribute :rate_tons_per_hour, Float
+      attribute :speed_knots, Float
+      attribute :sea_state_factor, Float
     end
 
-    RegisterVessel do
+    command "RegisterVessel" do
       role "Captain"
       description "Register a vessel with its specifications"
-      String :name
-      String :vessel_type
-      Float :length_meters
-      Float :fuel_capacity_tons
-      Float :max_speed_knots
+      attribute :name, String
+      attribute :vessel_type, String
+      attribute :length_meters, Float
+      attribute :fuel_capacity_tons, Float
+      attribute :max_speed_knots, Float
       emits "VesselRegistered"
       then_set :name, to: :name
       then_set :vessel_type, to: :vessel_type
@@ -162,7 +162,7 @@ Hecks.bluebook "MarineNavigation", version: "2026.04.13.1" do
       then_set :status, to: "docked"
     end
 
-    Depart do
+    command "Depart" do
       role "Captain"
       description "Vessel departs port and begins voyage"
       reference_to(Vessel)
@@ -171,7 +171,7 @@ Hecks.bluebook "MarineNavigation", version: "2026.04.13.1" do
       then_set :status, to: "underway"
     end
 
-    RefuelVessel do
+    command "RefuelVessel" do
       role "PortOperator"
       description "Refuel vessel at port to full capacity"
       reference_to(Vessel)
@@ -179,7 +179,7 @@ Hecks.bluebook "MarineNavigation", version: "2026.04.13.1" do
       emits "VesselRefueled"
     end
 
-    DockVessel do
+    command "DockVessel" do
       role "Captain"
       description "Vessel arrives at port and docks"
       reference_to(Vessel)
@@ -196,35 +196,35 @@ Hecks.bluebook "MarineNavigation", version: "2026.04.13.1" do
   end
 
   aggregate "Route", "A planned navigation route — waypoints, fuel estimates, current adjustments" do
-    String :name
-    String :origin_port
-    String :destination_port
-    Float :total_distance_nm
-    Float :estimated_fuel_tons
-    Float :estimated_hours
-    String :status
+    attribute :name, String
+    attribute :origin_port, String
+    attribute :destination_port, String
+    attribute :total_distance_nm, Float
+    attribute :estimated_fuel_tons, Float
+    attribute :estimated_hours, Float
+    attribute :status, String
 
     value_object "Waypoint" do
-      Float :latitude
-      Float :longitude
-      String :name
-      Float :eta_hours
+      attribute :latitude, Float
+      attribute :longitude, Float
+      attribute :name, String
+      attribute :eta_hours, Float
     end
 
     list_of "RouteSegment" do
-      String :from_waypoint
-      String :to_waypoint
-      Float :distance_nm
-      Float :current_assist_knots
+      attribute :from_waypoint, String
+      attribute :to_waypoint, String
+      attribute :distance_nm, Float
+      attribute :current_assist_knots, Float
     end
 
-    PlanRoute do
+    command "PlanRoute" do
       role "Navigator"
       description "Plan a route from origin to destination incorporating current data"
-      String :name
-      String :origin_port
-      String :destination_port
-      Float :total_distance_nm
+      attribute :name, String
+      attribute :origin_port, String
+      attribute :destination_port, String
+      attribute :total_distance_nm, Float
       emits "RoutePlanned"
       then_set :name, to: :name
       then_set :origin_port, to: :origin_port
@@ -233,19 +233,19 @@ Hecks.bluebook "MarineNavigation", version: "2026.04.13.1" do
       then_set :status, to: "planned"
     end
 
-    CalculateFuelEstimate do
+    command "CalculateFuelEstimate" do
       role "System"
       description "Compute fuel needed based on distance, currents, and weather"
       reference_to(Route)
-      Float :estimated_fuel_tons
-      Float :estimated_hours
+      attribute :estimated_fuel_tons, Float
+      attribute :estimated_hours, Float
       given { status == "planned" }
       emits "FuelEstimated"
       then_set :estimated_fuel_tons, to: :estimated_fuel_tons
       then_set :estimated_hours, to: :estimated_hours
     end
 
-    AdjustForCurrents do
+    command "AdjustForCurrents" do
       role "System"
       description "Modify route segments to exploit favorable currents"
       reference_to(Route)
@@ -253,7 +253,7 @@ Hecks.bluebook "MarineNavigation", version: "2026.04.13.1" do
       emits "RouteAdjustedForCurrents"
     end
 
-    ApproveRoute do
+    command "ApproveRoute" do
       role "Captain"
       description "Captain approves the planned route for departure"
       reference_to(Route)
@@ -262,11 +262,11 @@ Hecks.bluebook "MarineNavigation", version: "2026.04.13.1" do
       then_set :status, to: "approved"
     end
 
-    RerouteForWeather do
+    command "RerouteForWeather" do
       role "Navigator"
       description "Modify route to avoid storm or severe weather"
       reference_to(Route)
-      String :reason
+      attribute :reason, String
       emits "RouteRerouted"
       then_set :status, to: "rerouted"
     end
@@ -279,26 +279,26 @@ Hecks.bluebook "MarineNavigation", version: "2026.04.13.1" do
   end
 
   aggregate "FuelLog", "Fuel consumption tracking — burn rates, efficiency, and bunkering" do
-    String :vessel_name
-    Float :fuel_burned_tons
-    Float :distance_traveled_nm
-    Float :efficiency_nm_per_ton
-    String :timestamp
-    String :status
+    attribute :vessel_name, String
+    attribute :fuel_burned_tons, Float
+    attribute :distance_traveled_nm, Float
+    attribute :efficiency_nm_per_ton, Float
+    attribute :timestamp, String
+    attribute :status, String
 
     value_object "BurnRate" do
-      Float :tons_per_hour
-      Float :speed_knots
-      String :conditions
+      attribute :tons_per_hour, Float
+      attribute :speed_knots, Float
+      attribute :conditions, String
     end
 
-    RecordFuelBurn do
+    command "RecordFuelBurn" do
       role "Engineer"
       description "Log fuel consumption for a voyage segment"
-      String :vessel_name
-      Float :fuel_burned_tons
-      Float :distance_traveled_nm
-      String :timestamp
+      attribute :vessel_name, String
+      attribute :fuel_burned_tons, Float
+      attribute :distance_traveled_nm, Float
+      attribute :timestamp, String
       emits "FuelBurnRecorded"
       then_set :vessel_name, to: :vessel_name
       then_set :fuel_burned_tons, to: :fuel_burned_tons
@@ -307,7 +307,7 @@ Hecks.bluebook "MarineNavigation", version: "2026.04.13.1" do
       then_set :status, to: "recorded"
     end
 
-    CalculateEfficiency do
+    command "CalculateEfficiency" do
       role "System"
       description "Compute fuel efficiency — nautical miles per ton of fuel"
       reference_to(FuelLog)
@@ -315,7 +315,7 @@ Hecks.bluebook "MarineNavigation", version: "2026.04.13.1" do
       emits "EfficiencyCalculated"
     end
 
-    FlagExcessiveBurn do
+    command "FlagExcessiveBurn" do
       role "System"
       description "Alert when fuel burn exceeds expected rate by threshold"
       reference_to(FuelLog)

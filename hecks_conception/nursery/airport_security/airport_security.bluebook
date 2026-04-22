@@ -2,28 +2,28 @@ Hecks.bluebook "AirportSecurity" do
   vision "Manage checkpoints, scanners, officers, incidents, and passenger queues for airport security"
 
   aggregate "Checkpoint", "A security screening point controlling access to the sterile area" do
-    String :checkpoint_id
-    String :terminal
-    Integer :lane_count
-    String :status
-    Integer :throughput_per_hour
+    attribute :checkpoint_id, String
+    attribute :terminal, String
+    attribute :lane_count, Integer
+    attribute :status, String
+    attribute :throughput_per_hour, Integer
 
     value_object "OperatingHours" do
-      String :open_time
-      String :close_time
+      attribute :open_time, String
+      attribute :close_time, String
     end
 
-    OpenCheckpoint do
+    command "OpenCheckpoint" do
       description "Activate a checkpoint for passenger screening"
-      String :checkpoint_id
-      String :terminal
-      Integer :lane_count
-      Integer :throughput_per_hour
+      attribute :checkpoint_id, String
+      attribute :terminal, String
+      attribute :lane_count, Integer
+      attribute :throughput_per_hour, Integer
       emits "CheckpointOpened"
       then_set :status, to: "open"
     end
 
-    CloseCheckpoint do
+    command "CloseCheckpoint" do
       description "Shut down a checkpoint at end of operations"
       reference_to(Checkpoint)
       given { status == "open" }
@@ -31,14 +31,14 @@ Hecks.bluebook "AirportSecurity" do
       then_set :status, to: "closed"
     end
 
-    AddLane do
+    command "AddLane" do
       description "Open an additional screening lane to reduce wait times"
       reference_to(Checkpoint)
       given { status == "open" }
       emits "LaneAdded"
     end
 
-    EscalateToHighAlert do
+    command "EscalateToHighAlert" do
       description "Raise checkpoint security level in response to a threat"
       reference_to(Checkpoint)
       given { status == "open" }
@@ -46,7 +46,7 @@ Hecks.bluebook "AirportSecurity" do
       then_set :status, to: "high_alert"
     end
 
-    StandDown do
+    command "StandDown" do
       description "Return checkpoint from high alert to normal operations"
       reference_to(Checkpoint)
       emits "CheckpointStoodDown"
@@ -55,29 +55,29 @@ Hecks.bluebook "AirportSecurity" do
   end
 
   aggregate "Scanner", "An X-ray or body scanner installed at a checkpoint lane" do
-    String :scanner_id
-    String :scanner_type
-    String :status
-    Integer :scans_today
+    attribute :scanner_id, String
+    attribute :scanner_type, String
+    attribute :status, String
+    attribute :scans_today, Integer
     reference_to(Checkpoint)
 
     value_object "CalibrationRecord" do
-      String :calibrated_on
-      String :technician
-      String :result
+      attribute :calibrated_on, String
+      attribute :technician, String
+      attribute :result, String
     end
 
-    InstallScanner do
+    command "InstallScanner" do
       description "Deploy a new scanner at a checkpoint"
-      String :scanner_id
-      String :scanner_type
+      attribute :scanner_id, String
+      attribute :scanner_type, String
       reference_to(Checkpoint)
       emits "ScannerInstalled"
       then_set :status, to: "installed"
       then_set :scans_today, to: 0
     end
 
-    CalibrateScanner do
+    command "CalibrateScanner" do
       description "Run daily calibration test on a scanner"
       reference_to(Scanner)
       given { status == "installed" }
@@ -85,14 +85,14 @@ Hecks.bluebook "AirportSecurity" do
       then_set :status, to: "operational"
     end
 
-    PerformScan do
+    command "PerformScan" do
       description "Screen a passenger or bag through the scanner"
       reference_to(Scanner)
       given { status == "operational" }
       emits "ScanPerformed"
     end
 
-    FlagMalfunction do
+    command "FlagMalfunction" do
       description "Report a scanner as malfunctioning"
       reference_to(Scanner)
       given { status == "operational" }
@@ -100,7 +100,7 @@ Hecks.bluebook "AirportSecurity" do
       then_set :status, to: "faulty"
     end
 
-    RepairScanner do
+    command "RepairScanner" do
       description "Restore a faulty scanner to service after repair"
       reference_to(Scanner)
       given { status == "faulty" }
@@ -110,28 +110,28 @@ Hecks.bluebook "AirportSecurity" do
   end
 
   aggregate "Officer", "A TSA or security officer staffed at a checkpoint" do
-    String :badge_number
-    String :name
-    String :clearance_level
-    String :status
+    attribute :badge_number, String
+    attribute :name, String
+    attribute :clearance_level, String
+    attribute :status, String
     reference_to(Checkpoint)
 
     value_object "Certification" do
-      String :cert_type
-      String :expiry_date
+      attribute :cert_type, String
+      attribute :expiry_date, String
     end
 
-    DeployOfficer do
+    command "DeployOfficer" do
       description "Assign an officer to a checkpoint for a shift"
-      String :badge_number
-      String :name
-      String :clearance_level
+      attribute :badge_number, String
+      attribute :name, String
+      attribute :clearance_level, String
       reference_to(Checkpoint)
       emits "OfficerDeployed"
       then_set :status, to: "on_duty"
     end
 
-    RelieveOfficer do
+    command "RelieveOfficer" do
       description "End an officer's shift at the checkpoint"
       reference_to(Officer)
       given { status == "on_duty" }
@@ -141,31 +141,31 @@ Hecks.bluebook "AirportSecurity" do
   end
 
   aggregate "Incident", "A security event requiring documentation and response" do
-    String :incident_id
-    String :incident_type
-    String :severity
-    String :description
-    String :status
+    attribute :incident_id, String
+    attribute :incident_type, String
+    attribute :severity, String
+    attribute :description, String
+    attribute :status, String
     reference_to(Checkpoint)
     reference_to(Officer)
 
     value_object "Evidence" do
-      String :photo_url
-      String :notes
+      attribute :photo_url, String
+      attribute :notes, String
     end
 
-    ReportIncident do
+    command "ReportIncident" do
       description "File a new security incident report"
-      String :incident_type
-      String :severity
-      String :description
+      attribute :incident_type, String
+      attribute :severity, String
+      attribute :description, String
       reference_to(Checkpoint)
       reference_to(Officer)
       emits "IncidentReported"
       then_set :status, to: "open"
     end
 
-    InvestigateIncident do
+    command "InvestigateIncident" do
       description "Begin formal investigation of a reported incident"
       reference_to(Incident)
       given { status == "open" }
@@ -173,10 +173,10 @@ Hecks.bluebook "AirportSecurity" do
       then_set :status, to: "investigating"
     end
 
-    ResolveIncident do
+    command "ResolveIncident" do
       description "Close an incident after investigation"
       reference_to(Incident)
-      String :resolution
+      attribute :resolution, String
       given { status == "investigating" }
       emits "IncidentResolved"
       then_set :status, to: "resolved"

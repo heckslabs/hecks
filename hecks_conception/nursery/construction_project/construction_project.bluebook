@@ -3,27 +3,27 @@ Hecks.bluebook "ConstructionProject" do
   category "construction"
 
   aggregate "Site", "A construction site with address, project type, and phase tracking" do
-    String :site_name
-    String :address
-    String :project_type
-    Float :lot_size_sqft
-    String :phase
-    String :status
+    attribute :site_name, String
+    attribute :address, String
+    attribute :project_type, String
+    attribute :lot_size_sqft, Float
+    attribute :phase, String
+    attribute :status, String
 
     value_object "SiteConditions" do
-      String :soil_classification
-      String :flood_zone
-      String :utility_access
-      String :environmental_concerns
+      attribute :soil_classification, String
+      attribute :flood_zone, String
+      attribute :utility_access, String
+      attribute :environmental_concerns, String
     end
 
-    OpenSite do
+    command "OpenSite" do
       role "ProjectManager"
       description "Register a new construction site and begin the planning phase"
-      String :site_name
-      String :address
-      String :project_type
-      Float :lot_size_sqft
+      attribute :site_name, String
+      attribute :address, String
+      attribute :project_type, String
+      attribute :lot_size_sqft, Float
       emits "SiteOpened"
       then_set :site_name, to: :site_name
       then_set :address, to: :address
@@ -33,17 +33,17 @@ Hecks.bluebook "ConstructionProject" do
       then_set :status, to: "active"
     end
 
-    AdvancePhase do
+    command "AdvancePhase" do
       role "ProjectManager"
       description "Move the site to the next construction phase"
       reference_to(Site)
-      String :phase
+      attribute :phase, String
       given { status == "active" }
       emits "PhaseAdvanced"
       then_set :phase, to: :phase
     end
 
-    CloseSite do
+    command "CloseSite" do
       role "ProjectManager"
       description "Close out the construction site after project completion"
       reference_to(Site)
@@ -54,30 +54,30 @@ Hecks.bluebook "ConstructionProject" do
   end
 
   aggregate "BuildingPermit", "A government-issued permit authorizing specific construction work" do
-    String :permit_number
-    String :permit_type
-    String :issued_date
-    String :expiration_date
-    String :status
+    attribute :permit_number, String
+    attribute :permit_type, String
+    attribute :issued_date, String
+    attribute :expiration_date, String
+    attribute :status, String
     reference_to(Site)
 
-    ApplyForPermit do
+    command "ApplyForPermit" do
       role "ProjectManager"
       description "Submit a permit application to the local building department"
       reference_to(Site)
-      String :permit_type
+      attribute :permit_type, String
       emits "PermitApplied"
       then_set :permit_type, to: :permit_type
       then_set :status, to: "applied"
     end
 
-    IssuePermit do
+    command "IssuePermit" do
       role "BuildingDepartment"
       description "Approve and issue the building permit with an expiration date"
       reference_to(BuildingPermit)
-      String :permit_number
-      String :issued_date
-      String :expiration_date
+      attribute :permit_number, String
+      attribute :issued_date, String
+      attribute :expiration_date, String
       given { status == "applied" }
       emits "PermitIssued"
       then_set :permit_number, to: :permit_number
@@ -86,7 +86,7 @@ Hecks.bluebook "ConstructionProject" do
       then_set :status, to: "issued"
     end
 
-    RevokePermit do
+    command "RevokePermit" do
       role "BuildingDepartment"
       description "Revoke a permit due to code violations"
       reference_to(BuildingPermit)
@@ -97,29 +97,29 @@ Hecks.bluebook "ConstructionProject" do
   end
 
   aggregate "SubcontractorAgreement", "A contract with a trade subcontractor for specific scope of work" do
-    String :company_name
-    String :trade
-    Float :contract_value
-    String :start_date
-    String :end_date
-    String :status
+    attribute :company_name, String
+    attribute :trade, String
+    attribute :contract_value, Float
+    attribute :start_date, String
+    attribute :end_date, String
+    attribute :status, String
     reference_to(Site)
 
     value_object "InsuranceCoverage" do
-      String :policy_number
-      Float :liability_limit
-      String :expiration_date
+      attribute :policy_number, String
+      attribute :liability_limit, Float
+      attribute :expiration_date, String
     end
 
-    HireSubcontractor do
+    command "HireSubcontractor" do
       role "ProjectManager"
       description "Contract a subcontractor for a specific trade and scope"
       reference_to(Site)
-      String :company_name
-      String :trade
-      Float :contract_value
-      String :start_date
-      String :end_date
+      attribute :company_name, String
+      attribute :trade, String
+      attribute :contract_value, Float
+      attribute :start_date, String
+      attribute :end_date, String
       emits "SubcontractorHired"
       then_set :company_name, to: :company_name
       then_set :trade, to: :trade
@@ -129,17 +129,17 @@ Hecks.bluebook "ConstructionProject" do
       then_set :status, to: "active"
     end
 
-    IssueChangeOrder do
+    command "IssueChangeOrder" do
       role "ProjectManager"
       description "Modify the scope or value of the subcontractor agreement"
       reference_to(SubcontractorAgreement)
-      Float :adjustment_amount
-      String :change_description
+      attribute :adjustment_amount, Float
+      attribute :change_description, String
       given { status == "active" }
       emits "ChangeOrderIssued"
     end
 
-    TerminateSubcontractor do
+    command "TerminateSubcontractor" do
       role "ProjectManager"
       description "End the subcontractor agreement due to performance or scope change"
       reference_to(SubcontractorAgreement)
@@ -150,24 +150,24 @@ Hecks.bluebook "ConstructionProject" do
   end
 
   aggregate "MaterialOrder", "A purchase order for construction materials with delivery tracking" do
-    String :supplier
-    String :material_type
-    Integer :quantity
-    String :unit
-    Float :total_cost
-    String :delivery_date
-    String :status
+    attribute :supplier, String
+    attribute :material_type, String
+    attribute :quantity, Integer
+    attribute :unit, String
+    attribute :total_cost, Float
+    attribute :delivery_date, String
+    attribute :status, String
     reference_to(Site)
 
-    OrderMaterials do
+    command "OrderMaterials" do
       role "SiteForeman"
       description "Place a purchase order for materials needed at the site"
       reference_to(Site)
-      String :supplier
-      String :material_type
-      Integer :quantity
-      String :unit
-      Float :total_cost
+      attribute :supplier, String
+      attribute :material_type, String
+      attribute :quantity, Integer
+      attribute :unit, String
+      attribute :total_cost, Float
       emits "MaterialsOrdered"
       then_set :supplier, to: :supplier
       then_set :material_type, to: :material_type
@@ -176,7 +176,7 @@ Hecks.bluebook "ConstructionProject" do
       then_set :status, to: "ordered"
     end
 
-    ReceiveMaterials do
+    command "ReceiveMaterials" do
       role "SiteForeman"
       description "Confirm delivery and inspect materials for quality"
       reference_to(MaterialOrder)
@@ -185,7 +185,7 @@ Hecks.bluebook "ConstructionProject" do
       then_set :status, to: "received"
     end
 
-    RejectDelivery do
+    command "RejectDelivery" do
       role "SiteForeman"
       description "Refuse a delivery due to damage or wrong specification"
       reference_to(MaterialOrder)
@@ -196,35 +196,35 @@ Hecks.bluebook "ConstructionProject" do
   end
 
   aggregate "SiteInspection", "A code compliance inspection at a construction milestone" do
-    String :inspection_type
-    String :inspection_date
-    String :inspector_name
-    String :result
-    String :deficiencies
-    String :status
+    attribute :inspection_type, String
+    attribute :inspection_date, String
+    attribute :inspector_name, String
+    attribute :result, String
+    attribute :deficiencies, String
+    attribute :status, String
     reference_to(Site)
     reference_to(BuildingPermit)
 
-    ScheduleInspection do
+    command "ScheduleInspection" do
       role "ProjectManager"
       description "Request an inspection for a specific construction milestone"
       reference_to(Site)
       reference_to(BuildingPermit)
-      String :inspection_type
-      String :inspection_date
+      attribute :inspection_type, String
+      attribute :inspection_date, String
       emits "InspectionScheduled"
       then_set :inspection_type, to: :inspection_type
       then_set :inspection_date, to: :inspection_date
       then_set :status, to: "scheduled"
     end
 
-    RecordResult do
+    command "RecordResult" do
       role "Inspector"
       description "Document the inspection outcome and any code deficiencies"
       reference_to(SiteInspection)
-      String :inspector_name
-      String :result
-      String :deficiencies
+      attribute :inspector_name, String
+      attribute :result, String
+      attribute :deficiencies, String
       given { status == "scheduled" }
       emits "ResultRecorded"
       then_set :inspector_name, to: :inspector_name

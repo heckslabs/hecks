@@ -3,26 +3,26 @@ Hecks.bluebook "AmbulanceDispatch" do
   category "emergency_services"
 
   aggregate "AmbulanceUnit", "An emergency vehicle with equipment level, crew, and availability status" do
-    String :unit_number
-    String :station
-    String :equipment_level
-    String :status
-    Integer :mileage
+    attribute :unit_number, String
+    attribute :station, String
+    attribute :equipment_level, String
+    attribute :status, String
+    attribute :mileage, Integer
 
     value_object "VehicleEquipment" do
-      String :defibrillator
-      String :oxygen_supply
-      String :stretcher_type
-      String :medication_kit
+      attribute :defibrillator, String
+      attribute :oxygen_supply, String
+      attribute :stretcher_type, String
+      attribute :medication_kit, String
     end
 
-    ActivateUnit do
+    command "ActivateUnit" do
       role "FleetManager"
       description "Add a new ambulance to the fleet with equipment classification"
-      String :unit_number
-      String :station
-      String :equipment_level
-      Integer :mileage
+      attribute :unit_number, String
+      attribute :station, String
+      attribute :equipment_level, String
+      attribute :mileage, Integer
       emits "UnitActivated"
       then_set :unit_number, to: :unit_number
       then_set :station, to: :station
@@ -31,7 +31,7 @@ Hecks.bluebook "AmbulanceDispatch" do
       then_set :status, to: "available"
     end
 
-    MarkOutOfService do
+    command "MarkOutOfService" do
       role "FleetManager"
       description "Take a unit offline for maintenance or mechanical issues"
       reference_to(AmbulanceUnit)
@@ -40,7 +40,7 @@ Hecks.bluebook "AmbulanceDispatch" do
       then_set :status, to: "out_of_service"
     end
 
-    ReturnToService do
+    command "ReturnToService" do
       role "FleetManager"
       description "Restore a unit to available status after maintenance"
       reference_to(AmbulanceUnit)
@@ -50,33 +50,33 @@ Hecks.bluebook "AmbulanceDispatch" do
   end
 
   aggregate "EmergencyCall", "A 911 call with caller info, location, nature of emergency, and triage priority" do
-    String :caller_name
-    String :caller_phone
-    String :location
-    String :nature_of_emergency
-    String :triage_priority
-    String :received_at
-    String :status
+    attribute :caller_name, String
+    attribute :caller_phone, String
+    attribute :location, String
+    attribute :nature_of_emergency, String
+    attribute :triage_priority, String
+    attribute :received_at, String
+    attribute :status, String
 
     specification "LifeThreatening" do
       satisfied_by { triage_priority == "1" }
     end
 
     value_object "CallerLocation" do
-      Float :latitude
-      Float :longitude
-      String :address
-      String :cross_street
+      attribute :latitude, Float
+      attribute :longitude, Float
+      attribute :address, String
+      attribute :cross_street, String
     end
 
-    ReceiveCall do
+    command "ReceiveCall" do
       role "Dispatcher"
       description "Log an incoming emergency call with location and nature"
-      String :caller_name
-      String :caller_phone
-      String :location
-      String :nature_of_emergency
-      String :received_at
+      attribute :caller_name, String
+      attribute :caller_phone, String
+      attribute :location, String
+      attribute :nature_of_emergency, String
+      attribute :received_at, String
       emits "CallReceived"
       then_set :caller_name, to: :caller_name
       then_set :caller_phone, to: :caller_phone
@@ -86,18 +86,18 @@ Hecks.bluebook "AmbulanceDispatch" do
       then_set :status, to: "received"
     end
 
-    TriageCall do
+    command "TriageCall" do
       role "Dispatcher"
       description "Assess severity and assign a priority level to the call"
       reference_to(EmergencyCall)
-      String :triage_priority
+      attribute :triage_priority, String
       given { status == "received" }
       emits "CallTriaged"
       then_set :triage_priority, to: :triage_priority
       then_set :status, to: "triaged"
     end
 
-    CancelCall do
+    command "CancelCall" do
       role "Dispatcher"
       description "Cancel the dispatch if the caller reports the emergency resolved"
       reference_to(EmergencyCall)
@@ -108,21 +108,21 @@ Hecks.bluebook "AmbulanceDispatch" do
   end
 
   aggregate "CrewAssignment", "A paramedic crew assigned to a specific ambulance unit for a shift" do
-    String :paramedic_lead
-    String :emt_partner
-    String :shift_start
-    String :shift_end
-    String :status
+    attribute :paramedic_lead, String
+    attribute :emt_partner, String
+    attribute :shift_start, String
+    attribute :shift_end, String
+    attribute :status, String
     reference_to(AmbulanceUnit)
 
-    AssignCrew do
+    command "AssignCrew" do
       role "ShiftSupervisor"
       description "Pair a paramedic and EMT to an ambulance unit for a shift"
       reference_to(AmbulanceUnit)
-      String :paramedic_lead
-      String :emt_partner
-      String :shift_start
-      String :shift_end
+      attribute :paramedic_lead, String
+      attribute :emt_partner, String
+      attribute :shift_start, String
+      attribute :shift_end, String
       emits "CrewAssigned"
       then_set :paramedic_lead, to: :paramedic_lead
       then_set :emt_partner, to: :emt_partner
@@ -131,7 +131,7 @@ Hecks.bluebook "AmbulanceDispatch" do
       then_set :status, to: "on_duty"
     end
 
-    EndShift do
+    command "EndShift" do
       role "ShiftSupervisor"
       description "Clock out the crew at the end of their shift"
       reference_to(CrewAssignment)
@@ -142,48 +142,48 @@ Hecks.bluebook "AmbulanceDispatch" do
   end
 
   aggregate "DispatchRecord", "A dispatch linking an emergency call to an ambulance unit" do
-    String :dispatched_at
-    String :en_route_at
-    String :on_scene_at
-    String :transport_started_at
-    String :status
+    attribute :dispatched_at, String
+    attribute :en_route_at, String
+    attribute :on_scene_at, String
+    attribute :transport_started_at, String
+    attribute :status, String
     reference_to(EmergencyCall)
     reference_to(AmbulanceUnit)
 
     value_object "ResponseMetrics" do
-      Integer :dispatch_to_enroute_seconds
-      Integer :enroute_to_scene_seconds
-      Integer :scene_to_hospital_seconds
-      Integer :total_response_seconds
+      attribute :dispatch_to_enroute_seconds, Integer
+      attribute :enroute_to_scene_seconds, Integer
+      attribute :scene_to_hospital_seconds, Integer
+      attribute :total_response_seconds, Integer
     end
 
-    DispatchUnit do
+    command "DispatchUnit" do
       role "Dispatcher"
       description "Send the nearest available ambulance to the emergency location"
       reference_to(EmergencyCall)
       reference_to(AmbulanceUnit)
-      String :dispatched_at
+      attribute :dispatched_at, String
       emits "UnitDispatched"
       then_set :dispatched_at, to: :dispatched_at
       then_set :status, to: "dispatched"
     end
 
-    ArriveOnScene do
+    command "ArriveOnScene" do
       role "Paramedic"
       description "Record the ambulance arrival at the emergency location"
       reference_to(DispatchRecord)
-      String :on_scene_at
+      attribute :on_scene_at, String
       given { status == "dispatched" }
       emits "ArrivedOnScene"
       then_set :on_scene_at, to: :on_scene_at
       then_set :status, to: "on_scene"
     end
 
-    TransportPatient do
+    command "TransportPatient" do
       role "Paramedic"
       description "Begin transporting the patient to the receiving hospital"
       reference_to(DispatchRecord)
-      String :transport_started_at
+      attribute :transport_started_at, String
       given { status == "on_scene" }
       emits "PatientTransportStarted"
       then_set :transport_started_at, to: :transport_started_at
@@ -192,26 +192,26 @@ Hecks.bluebook "AmbulanceDispatch" do
   end
 
   aggregate "HospitalDestination", "A receiving hospital with ED capacity and diversion status" do
-    String :hospital_name
-    String :address
-    Integer :ed_beds_available
-    String :trauma_level
-    String :diversion_status
+    attribute :hospital_name, String
+    attribute :address, String
+    attribute :ed_beds_available, Integer
+    attribute :trauma_level, String
+    attribute :diversion_status, String
 
     value_object "Capability" do
-      String :cardiac_cath_lab
-      String :stroke_center
-      String :burn_center
-      String :pediatric_ed
+      attribute :cardiac_cath_lab, String
+      attribute :stroke_center, String
+      attribute :burn_center, String
+      attribute :pediatric_ed, String
     end
 
-    RegisterHospital do
+    command "RegisterHospital" do
       role "SystemAdmin"
       description "Add a hospital to the destination roster with trauma level info"
-      String :hospital_name
-      String :address
-      Integer :ed_beds_available
-      String :trauma_level
+      attribute :hospital_name, String
+      attribute :address, String
+      attribute :ed_beds_available, Integer
+      attribute :trauma_level, String
       emits "HospitalRegistered"
       then_set :hospital_name, to: :hospital_name
       then_set :address, to: :address
@@ -220,7 +220,7 @@ Hecks.bluebook "AmbulanceDispatch" do
       then_set :diversion_status, to: "open"
     end
 
-    DeclareDiversion do
+    command "DeclareDiversion" do
       role "HospitalLiaison"
       description "Put the hospital on diversion when the ED is at capacity"
       reference_to(HospitalDestination)
@@ -229,7 +229,7 @@ Hecks.bluebook "AmbulanceDispatch" do
       then_set :diversion_status, to: "on_diversion"
     end
 
-    LiftDiversion do
+    command "LiftDiversion" do
       role "HospitalLiaison"
       description "Reopen the hospital to ambulance traffic"
       reference_to(HospitalDestination)

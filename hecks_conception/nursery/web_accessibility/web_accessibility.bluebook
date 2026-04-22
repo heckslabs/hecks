@@ -3,44 +3,44 @@ Hecks.bluebook "WebAccessibility", version: "2026.04.13.1" do
   category "technology"
 
   aggregate "AccessibilityAudit", "A systematic review of a website against WCAG guidelines" do
-    String :audit_id
-    String :site_url
-    String :wcag_level
-    String :auditor
-    Integer :pages_scanned
-    String :status
+    attribute :audit_id, String
+    attribute :site_url, String
+    attribute :wcag_level, String
+    attribute :auditor, String
+    attribute :pages_scanned, Integer
+    attribute :status, String
     list_of(ScanResult) :scan_results
 
     value_object "ScanResult" do
-      String :page_url
-      Integer :violations_count
-      Integer :warnings_count
-      String :scanned_at
+      attribute :page_url, String
+      attribute :violations_count, Integer
+      attribute :warnings_count, Integer
+      attribute :scanned_at, String
     end
 
     fixture "Blog Audit 2026", audit_id: "AUDIT-001", site_url: "https://example-blog.com", wcag_level: "AA", auditor: "Alice Chen", pages_scanned: 45, status: "running"
     fixture "Government Site", audit_id: "AUDIT-002", site_url: "https://gov-agency.gov", wcag_level: "AAA", auditor: "Bob Smith", pages_scanned: 120, status: "completed"
 
-    LaunchAudit do
+    command "LaunchAudit" do
       role "AccessibilityLead"
       description "Start an accessibility audit of a website"
-      String :audit_id
-      String :site_url
-      String :wcag_level
-      String :auditor
+      attribute :audit_id, String
+      attribute :site_url, String
+      attribute :wcag_level, String
+      attribute :auditor, String
       emits "AuditLaunched"
       then_set :status, to: "running"
     end
 
-    CompleteAudit do
+    command "CompleteAudit" do
       description "Finalize an audit after all pages are scanned"
       reference_to(AccessibilityAudit)
-      Integer :pages_scanned
+      attribute :pages_scanned, Integer
       given("audit is running") { status == "running" }
       emits "AuditCompleted"
     end
 
-    ReopenAudit do
+    command "ReopenAudit" do
       description "Reopen a completed audit for additional scanning"
       reference_to(AccessibilityAudit)
       emits "AuditReopened"
@@ -48,41 +48,41 @@ Hecks.bluebook "WebAccessibility", version: "2026.04.13.1" do
   end
 
   aggregate "Page", "A web page being evaluated for accessibility" do
-    String :page_url
-    String :title
-    String :content_type
-    Integer :dom_elements
-    String :status
+    attribute :page_url, String
+    attribute :title, String
+    attribute :content_type, String
+    attribute :dom_elements, Integer
+    attribute :status, String
     reference_to AccessibilityAudit
 
     value_object "PageMetadata" do
-      String :language
-      String :charset
-      String :viewport
+      attribute :language, String
+      attribute :charset, String
+      attribute :viewport, String
     end
 
     fixture "Homepage", page_url: "https://example.com", title: "Home", content_type: "text/html", dom_elements: 342, status: "crawled"
     fixture "Contact Page", page_url: "https://example.com/contact", title: "Contact Us", content_type: "text/html", dom_elements: 198, status: "reviewed"
 
-    CrawlPage do
+    command "CrawlPage" do
       role "Scanner"
       description "Fetch and analyze a page's DOM for accessibility"
-      String :page_url
-      String :title
-      String :content_type
-      Integer :dom_elements
+      attribute :page_url, String
+      attribute :title, String
+      attribute :content_type, String
+      attribute :dom_elements, Integer
       reference_to(AccessibilityAudit)
       emits "PageCrawled"
       then_set :status, to: "pending"
     end
 
-    MarkReviewed do
+    command "MarkReviewed" do
       description "Flag a page as manually reviewed by a human auditor"
       reference_to(Page)
       emits "PageReviewed"
     end
 
-    ExcludePage do
+    command "ExcludePage" do
       description "Remove a page from audit scope"
       reference_to(Page)
       given("page is pending") { status == "pending" }
@@ -91,135 +91,135 @@ Hecks.bluebook "WebAccessibility", version: "2026.04.13.1" do
   end
 
   aggregate "Violation", "An accessibility rule failure detected on a page" do
-    String :violation_id
-    String :rule_id
-    String :severity
-    String :element_selector
-    String :description
-    String :status
+    attribute :violation_id, String
+    attribute :rule_id, String
+    attribute :severity, String
+    attribute :element_selector, String
+    attribute :description, String
+    attribute :status, String
     reference_to Page
 
     value_object "WCAGReference" do
-      String :criterion
-      String :level
-      String :technique
+      attribute :criterion, String
+      attribute :level, String
+      attribute :technique, String
     end
 
     fixture "Missing Alt Text", violation_id: "VIO-001", rule_id: "img-alt", severity: "critical", element_selector: "img.hero", description: "Image missing alt text", status: "reported"
     fixture "Low Contrast Link", violation_id: "VIO-002", rule_id: "color-contrast", severity: "serious", element_selector: "a.secondary", description: "Link color contrast below WCAG AA", status: "confirmed"
 
-    ReportViolation do
+    command "ReportViolation" do
       role "Scanner"
       description "Log an accessibility violation found on a page"
-      String :violation_id
-      String :rule_id
-      String :severity
-      String :element_selector
-      String :description
+      attribute :violation_id, String
+      attribute :rule_id, String
+      attribute :severity, String
+      attribute :element_selector, String
+      attribute :description, String
       reference_to(Page)
       emits "ViolationReported"
       then_set :status, to: "reported"
     end
 
-    ConfirmViolation do
+    command "ConfirmViolation" do
       description "Verify a violation is genuine after manual review"
       reference_to(Violation)
       emits "ViolationConfirmed"
     end
 
-    DismissViolation do
+    command "DismissViolation" do
       description "Mark a violation as false positive"
       reference_to(Violation)
-      String :dismissal_reason
+      attribute :dismissal_reason, String
       given("violation is reported") { status == "reported" }
       emits "ViolationDismissed"
     end
   end
 
   aggregate "Remediation", "A fix applied to resolve an accessibility violation" do
-    String :remediation_id
-    String :fix_description
-    String :assigned_to
-    String :priority
-    String :status
+    attribute :remediation_id, String
+    attribute :fix_description, String
+    attribute :assigned_to, String
+    attribute :priority, String
+    attribute :status, String
     reference_to Violation
 
     value_object "CodeChange" do
-      String :file_path
-      String :before_snippet
-      String :after_snippet
+      attribute :file_path, String
+      attribute :before_snippet, String
+      attribute :after_snippet, String
     end
 
     fixture "Alt Text Fix", remediation_id: "REM-001", fix_description: "Add descriptive alt text to hero image", assigned_to: "dev-team", priority: "high", status: "assigned"
     fixture "Contrast Adjustment", remediation_id: "REM-002", fix_description: "Increase link color contrast to AA standard", assigned_to: "designer", priority: "medium", status: "in_progress"
 
-    AssignRemediation do
+    command "AssignRemediation" do
       role "AccessibilityLead"
       description "Create a remediation task for a confirmed violation"
-      String :remediation_id
-      String :fix_description
-      String :assigned_to
-      String :priority
+      attribute :remediation_id, String
+      attribute :fix_description, String
+      attribute :assigned_to, String
+      attribute :priority, String
       reference_to(Violation)
       emits "RemediationAssigned"
       then_set :status, to: "in_progress"
     end
 
-    CompleteRemediation do
+    command "CompleteRemediation" do
       description "Mark a remediation as implemented and ready for retest"
       reference_to(Remediation)
       given("remediation is in progress") { status == "in_progress" }
       emits "RemediationCompleted"
     end
 
-    RejectRemediation do
+    command "RejectRemediation" do
       description "Send a remediation back for rework after failed retest"
       reference_to(Remediation)
-      String :rejection_reason
+      attribute :rejection_reason, String
       emits "RemediationRejected"
     end
   end
 
   aggregate "ComplianceCertificate", "A formal attestation that a site meets accessibility standards" do
-    String :certificate_id
-    String :wcag_level
-    String :issued_by
-    String :valid_until
-    String :status
+    attribute :certificate_id, String
+    attribute :wcag_level, String
+    attribute :issued_by, String
+    attribute :valid_until, String
+    attribute :status, String
     reference_to AccessibilityAudit
 
     value_object "CertificationScope" do
-      String :site_url
-      Integer :pages_covered
-      String :standard_version
+      attribute :site_url, String
+      attribute :pages_covered, Integer
+      attribute :standard_version, String
     end
 
     fixture "Commerce Site Cert", certificate_id: "CERT-001", wcag_level: "AA", issued_by: "Accessibility Board", valid_until: "2027-04-14", status: "valid"
     fixture "Education Portal Cert", certificate_id: "CERT-002", wcag_level: "AAA", issued_by: "Standards Office", valid_until: "2026-12-31", status: "valid"
 
-    IssueCertificate do
+    command "IssueCertificate" do
       role "ComplianceOfficer"
       description "Grant an accessibility compliance certificate"
-      String :certificate_id
-      String :wcag_level
-      String :issued_by
-      String :valid_until
+      attribute :certificate_id, String
+      attribute :wcag_level, String
+      attribute :issued_by, String
+      attribute :valid_until, String
       reference_to(AccessibilityAudit)
       emits "CertificateIssued"
       then_set :status, to: "valid"
     end
 
-    RevokeCertificate do
+    command "RevokeCertificate" do
       description "Withdraw a certificate after regression is found"
       reference_to(ComplianceCertificate)
       given("certificate is valid") { status == "valid" }
       emits "CertificateRevoked"
     end
 
-    RenewCertificate do
+    command "RenewCertificate" do
       description "Extend a certificate after a passing re-audit"
       reference_to(ComplianceCertificate)
-      String :valid_until
+      attribute :valid_until, String
       emits "CertificateRenewed"
     end
   end

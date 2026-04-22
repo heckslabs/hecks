@@ -3,24 +3,24 @@ Hecks.bluebook "ReliefLogistics", version: "2026.04.13.1" do
   category "healthcare_community"
 
   aggregate "SupplyRequest", "A request for disaster relief supplies" do
-    String :request_id
-    String :disaster_type
-    String :location_name
+    attribute :request_id, String
+    attribute :disaster_type, String
+    attribute :location_name, String
     list_of(SupplyItem) :items
-    String :urgency
-    String :status
+    attribute :urgency, String
+    attribute :status, String
     value_object "SupplyItem" do
-      String :item_name
-      Integer :quantity
-      String :unit
+      attribute :item_name, String
+      attribute :quantity, Integer
+      attribute :unit, String
     end
-    SubmitRequest do
+    command "SubmitRequest" do
       role "FieldCoordinator"
       description "Submit a request for disaster relief supplies"
-      String :request_id
-      String :disaster_type
-      String :location_name
-      String :urgency
+      attribute :request_id, String
+      attribute :disaster_type, String
+      attribute :location_name, String
+      attribute :urgency, String
       emits "RequestSubmitted"
       then_set :request_id, to: :request_id
       then_set :disaster_type, to: :disaster_type
@@ -28,7 +28,7 @@ Hecks.bluebook "ReliefLogistics", version: "2026.04.13.1" do
       then_set :urgency, to: :urgency
       then_set :status, to: "submitted"
     end
-    ApproveRequest do
+    command "ApproveRequest" do
       role "HQCoordinator"
       description "Approve the supply request for shipment"
       reference_to(SupplyRequest)
@@ -39,20 +39,20 @@ Hecks.bluebook "ReliefLogistics", version: "2026.04.13.1" do
   end
 
   aggregate "ShippingContainer", "A shipping container loaded with relief supplies" do
-    String :container_id
-    String :request_id
-    String :origin_port
-    String :dest_port
-    Float :weight_tons
-    String :status
-    LoadContainer do
+    attribute :container_id, String
+    attribute :request_id, String
+    attribute :origin_port, String
+    attribute :dest_port, String
+    attribute :weight_tons, Float
+    attribute :status, String
+    command "LoadContainer" do
       role "WarehouseTeam"
       description "Load relief supplies into a shipping container"
-      String :container_id
-      String :request_id
-      String :origin_port
-      String :dest_port
-      Float :weight_tons
+      attribute :container_id, String
+      attribute :request_id, String
+      attribute :origin_port, String
+      attribute :dest_port, String
+      attribute :weight_tons, Float
       emits "ContainerLoaded"
       then_set :container_id, to: :container_id
       then_set :request_id, to: :request_id
@@ -61,7 +61,7 @@ Hecks.bluebook "ReliefLogistics", version: "2026.04.13.1" do
       then_set :weight_tons, to: :weight_tons
       then_set :status, to: "loaded"
     end
-    ShipContainer do
+    command "ShipContainer" do
       role "ShippingAgent"
       description "Ship the container to destination port"
       reference_to(ShippingContainer)
@@ -69,7 +69,7 @@ Hecks.bluebook "ReliefLogistics", version: "2026.04.13.1" do
       emits "ContainerShipped"
       then_set :status, to: "in_transit"
     end
-    ReceiveContainer do
+    command "ReceiveContainer" do
       role "PortAgent"
       description "Receive container at destination port"
       reference_to(ShippingContainer)
@@ -80,24 +80,24 @@ Hecks.bluebook "ReliefLogistics", version: "2026.04.13.1" do
   end
 
   aggregate "CustomsClearance", "Customs processing for relief supply containers" do
-    String :clearance_id
-    String :container_id
-    String :country
-    String :documentation_status
-    String :status
-    FileClearance do
+    attribute :clearance_id, String
+    attribute :container_id, String
+    attribute :country, String
+    attribute :documentation_status, String
+    attribute :status, String
+    command "FileClearance" do
       role "CustomsBroker"
       description "File customs clearance for a relief container"
-      String :clearance_id
-      String :container_id
-      String :country
+      attribute :clearance_id, String
+      attribute :container_id, String
+      attribute :country, String
       emits "ClearanceFiled"
       then_set :clearance_id, to: :clearance_id
       then_set :container_id, to: :container_id
       then_set :country, to: :country
       then_set :status, to: "filed"
     end
-    GrantClearance do
+    command "GrantClearance" do
       role "CustomsOfficer"
       description "Grant customs clearance for humanitarian supplies"
       reference_to(CustomsClearance)
@@ -108,34 +108,34 @@ Hecks.bluebook "ReliefLogistics", version: "2026.04.13.1" do
   end
 
   aggregate "FieldDistribution", "Distribution of supplies from port to disaster site" do
-    String :distribution_id
-    String :container_id
-    String :site_name
-    Integer :beneficiaries
-    String :status
+    attribute :distribution_id, String
+    attribute :container_id, String
+    attribute :site_name, String
+    attribute :beneficiaries, Integer
+    attribute :status, String
     list_of(DistributionPoint) :points
     value_object "DistributionPoint" do
-      String :location_name
-      Integer :people_served
-      String :date
+      attribute :location_name, String
+      attribute :people_served, Integer
+      attribute :date, String
     end
-    PlanDistribution do
+    command "PlanDistribution" do
       role "FieldCoordinator"
       description "Plan field distribution from port to disaster sites"
-      String :distribution_id
-      String :container_id
-      String :site_name
+      attribute :distribution_id, String
+      attribute :container_id, String
+      attribute :site_name, String
       emits "DistributionPlanned"
       then_set :distribution_id, to: :distribution_id
       then_set :container_id, to: :container_id
       then_set :site_name, to: :site_name
       then_set :status, to: "planned"
     end
-    ExecuteDistribution do
+    command "ExecuteDistribution" do
       role "FieldTeam"
       description "Execute the supply distribution to beneficiaries"
       reference_to(FieldDistribution)
-      Integer :beneficiaries
+      attribute :beneficiaries, Integer
       given { status == "planned" }
       emits "DistributionExecuted"
       then_set :beneficiaries, to: :beneficiaries

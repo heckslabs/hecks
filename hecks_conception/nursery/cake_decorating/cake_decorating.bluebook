@@ -1,31 +1,31 @@
 Hecks.bluebook "CakeDecorating" do
   aggregate "CakeOrder", "A custom cake order with design, flavor, and delivery specs" do
-    String :client_name
-    String :occasion
-    String :status, default: "inquiry"
-    Integer :tier_count
-    Integer :servings
-    String :delivery_date
+    attribute :client_name, String
+    attribute :occasion, String
+    attribute :status, String, default: "inquiry"
+    attribute :tier_count, Integer
+    attribute :servings, Integer
+    attribute :delivery_date, String
 
     value_object "CakeDesign" do
-      String :theme
-      String :color_palette
-      String :topper_description
-      String :decoration_style
+      attribute :theme, String
+      attribute :color_palette, String
+      attribute :topper_description, String
+      attribute :decoration_style, String
     end
 
-    PlaceOrder do
+    command "PlaceOrder" do
       description "Book a custom cake order for an occasion"
-      String :client_name
-      String :occasion
-      Integer :tier_count
-      Integer :servings
-      String :delivery_date
+      attribute :client_name, String
+      attribute :occasion, String
+      attribute :tier_count, Integer
+      attribute :servings, Integer
+      attribute :delivery_date, String
       then_set :status, to: "inquiry"
       emits "OrderPlaced"
     end
 
-    ConfirmOrder do
+    command "ConfirmOrder" do
       description "Lock in the order after tasting and design approval"
       reference_to(CakeOrder)
       given { status == "inquiry" }
@@ -33,14 +33,14 @@ Hecks.bluebook "CakeDecorating" do
       then_set :status, to: "confirmed"
     end
 
-    StartBaking do
+    command "StartBaking" do
       description "Begin baking the cake layers and components"
       reference_to(CakeOrder)
       emits "BakingStarted"
       then_set :status, to: "baking"
     end
 
-    CompleteOrder do
+    command "CompleteOrder" do
       description "Mark the cake as finished and ready for pickup or delivery"
       reference_to(CakeOrder)
       emits "OrderCompleted"
@@ -49,29 +49,29 @@ Hecks.bluebook "CakeDecorating" do
   end
 
   aggregate "FlavorProfile", "A cake flavor combination with layers and fillings" do
-    String :cake_flavor
-    String :filling
-    String :frosting
-    String :status, default: "proposed"
+    attribute :cake_flavor, String
+    attribute :filling, String
+    attribute :frosting, String
+    attribute :status, String, default: "proposed"
     reference_to(CakeOrder)
 
     value_object "LayerSpec" do
-      String :flavor
-      Float :height_inches
-      String :moistening_syrup
+      attribute :flavor, String
+      attribute :height_inches, Float
+      attribute :moistening_syrup, String
     end
 
-    ProposeFlav do
+    command "ProposeFlav" do
       description "Suggest a flavor combination for client tasting"
       reference_to(CakeOrder)
-      String :cake_flavor
-      String :filling
-      String :frosting
+      attribute :cake_flavor, String
+      attribute :filling, String
+      attribute :frosting, String
       then_set :status, to: "proposed"
       emits "FlavorProposed"
     end
 
-    ApproveFlavor do
+    command "ApproveFlavor" do
       description "Client selects the final flavor profile"
       reference_to(FlavorProfile)
       given { status == "proposed" }
@@ -81,26 +81,26 @@ Hecks.bluebook "CakeDecorating" do
   end
 
   aggregate "Tasting", "A tasting session where clients sample cake flavors" do
-    String :date
-    String :client_name
-    Integer :sample_count
-    String :status, default: "scheduled"
+    attribute :date, String
+    attribute :client_name, String
+    attribute :sample_count, Integer
+    attribute :status, String, default: "scheduled"
     reference_to(CakeOrder)
 
-    ScheduleTasting do
+    command "ScheduleTasting" do
       description "Book a tasting appointment with the client"
       reference_to(CakeOrder)
-      String :date
-      String :client_name
-      Integer :sample_count
+      attribute :date, String
+      attribute :client_name, String
+      attribute :sample_count, Integer
       then_set :status, to: "scheduled"
       emits "TastingScheduled"
     end
 
-    ConductTasting do
+    command "ConductTasting" do
       description "Run the tasting session and record preferences"
       reference_to(Tasting)
-      String :preferred_flavor
+      attribute :preferred_flavor, String
       given { status == "scheduled" }
       emits "TastingConducted"
       then_set :status, to: "completed"
@@ -108,29 +108,29 @@ Hecks.bluebook "CakeDecorating" do
   end
 
   aggregate "IngredientStock", "Pantry inventory of baking ingredients" do
-    String :ingredient_name
-    String :category
-    Float :quantity_on_hand
-    String :unit
-    Float :reorder_threshold
+    attribute :ingredient_name, String
+    attribute :category, String
+    attribute :quantity_on_hand, Float
+    attribute :unit, String
+    attribute :reorder_threshold, Float
 
-    StockIngredient do
+    command "StockIngredient" do
       description "Add or restock an ingredient in the pantry"
-      String :ingredient_name
-      String :category
-      Float :quantity
-      String :unit
+      attribute :ingredient_name, String
+      attribute :category, String
+      attribute :quantity, Float
+      attribute :unit, String
       emits "IngredientStocked"
     end
 
-    ConsumeIngredient do
+    command "ConsumeIngredient" do
       description "Deduct ingredient used for a bake"
       reference_to(IngredientStock)
-      Float :quantity_used
+      attribute :quantity_used, Float
       emits "IngredientConsumed"
     end
 
-    FlagLowStock do
+    command "FlagLowStock" do
       description "Alert when ingredient drops below reorder threshold"
       reference_to(IngredientStock)
       emits "LowStockFlagged"
@@ -138,25 +138,25 @@ Hecks.bluebook "CakeDecorating" do
   end
 
   aggregate "CakeDelivery", "Delivery logistics for a finished cake" do
-    String :address
-    String :delivery_date
-    String :time_window
-    String :status, default: "scheduled"
-    String :handler_name
+    attribute :address, String
+    attribute :delivery_date, String
+    attribute :time_window, String
+    attribute :status, String, default: "scheduled"
+    attribute :handler_name, String
     reference_to(CakeOrder)
 
-    ScheduleCakeDelivery do
+    command "ScheduleCakeDelivery" do
       description "Book delivery for a completed cake order"
       reference_to(CakeOrder)
-      String :address
-      String :delivery_date
-      String :time_window
-      String :handler_name
+      attribute :address, String
+      attribute :delivery_date, String
+      attribute :time_window, String
+      attribute :handler_name, String
       then_set :status, to: "scheduled"
       emits "CakeDeliveryScheduled"
     end
 
-    CompleteCakeDelivery do
+    command "CompleteCakeDelivery" do
       description "Confirm the cake was delivered safely"
       reference_to(CakeDelivery)
       given { status == "scheduled" }

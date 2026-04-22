@@ -3,29 +3,29 @@ Hecks.bluebook "Manufacturing", version: "2026.04.11.1" do
   category "business"
 
   aggregate "ManufacturingOrder", "An order placed with a contract manufacturer to produce a batch" do
-    String :order_number
-    String :manufacturer
-    String :formula_name
-    Integer :quantity
-    String :unit
-    String :requested_delivery
-    String :actual_delivery
-    String :lot_number
-    String :batch_record_number
+    attribute :order_number, String
+    attribute :manufacturer, String
+    attribute :formula_name, String
+    attribute :quantity, Integer
+    attribute :unit, String
+    attribute :requested_delivery, String
+    attribute :actual_delivery, String
+    attribute :lot_number, String
+    attribute :batch_record_number, String
     list_of(String) :bill_of_materials
-    String :certificate_of_analysis
-    Float :cost
-    String :status
+    attribute :certificate_of_analysis, String
+    attribute :cost, Float
+    attribute :status, String
 
-    PlaceManufacturingOrder do
+    command "PlaceManufacturingOrder" do
       role "Owner"
       description "Order a production run from the contract manufacturer"
-      String :order_number
-      String :manufacturer
-      String :formula_name
-      Integer :quantity
-      String :unit
-      String :requested_delivery
+      attribute :order_number, String
+      attribute :manufacturer, String
+      attribute :formula_name, String
+      attribute :quantity, Integer
+      attribute :unit, String
+      attribute :requested_delivery, String
       emits "ManufacturingOrderPlaced"
       then_set :order_number, to: :order_number
       then_set :manufacturer, to: :manufacturer
@@ -36,7 +36,7 @@ Hecks.bluebook "Manufacturing", version: "2026.04.11.1" do
       then_set :status, to: "placed"
     end
 
-    ConfirmProduction do
+    command "ConfirmProduction" do
       role "Manufacturer"
       description "Manufacturer confirms the order is in production"
       reference_to(ManufacturingOrder)
@@ -44,7 +44,7 @@ Hecks.bluebook "Manufacturing", version: "2026.04.11.1" do
       then_set :status, to: "in_production"
     end
 
-    ShipOrder do
+    command "ShipOrder" do
       role "Manufacturer"
       description "Manufacturer ships the finished goods"
       reference_to(ManufacturingOrder)
@@ -52,13 +52,13 @@ Hecks.bluebook "Manufacturing", version: "2026.04.11.1" do
       then_set :status, to: "shipped"
     end
 
-    ReceiveOrder do
+    command "ReceiveOrder" do
       role "Owner"
       description "Goods received at warehouse — inspect and accept with lot number and COA"
       reference_to(ManufacturingOrder)
-      String :actual_delivery
-      String :lot_number
-      String :certificate_of_analysis
+      attribute :actual_delivery, String
+      attribute :lot_number, String
+      attribute :certificate_of_analysis, String
       emits "OrderReceived"
       then_set :actual_delivery, to: :actual_delivery
       then_set :lot_number, to: :lot_number
@@ -66,11 +66,11 @@ Hecks.bluebook "Manufacturing", version: "2026.04.11.1" do
       then_set :status, to: "received"
     end
 
-    RejectOrder do
+    command "RejectOrder" do
       role "Owner"
       description "Goods failed inspection — quality issue with manufacturer"
       reference_to(ManufacturingOrder)
-      String :reason
+      attribute :reason, String
       emits "OrderRejected"
       then_set :status, to: "rejected"
     end

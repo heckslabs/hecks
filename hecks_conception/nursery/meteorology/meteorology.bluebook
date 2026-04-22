@@ -3,29 +3,29 @@ Hecks.bluebook "Meteorology" do
 
   aggregate "WeatherStation" do
     description "A ground-based facility recording atmospheric conditions"
-    String :station_id
-    String :name
-    Float :latitude
-    Float :longitude
-    Float :elevation_m
+    attribute :station_id, String
+    attribute :name, String
+    attribute :latitude, Float
+    attribute :longitude, Float
+    attribute :elevation_m, Float
     # Gate flag — flips true after ClearPendingAlerts confirms there are
     # no active alerts attached to the station. DeactivateStation is
     # gated on it so we never silence a station mid-warning.
     attribute :alerts_cleared, Boolean, default: false
 
     value_object "Instrumentation" do
-      String :barometer_type
-      String :anemometer_type
-      String :rain_gauge_type
+      attribute :barometer_type, String
+      attribute :anemometer_type, String
+      attribute :rain_gauge_type, String
     end
 
     command "InstallStation" do
       description "Commission a new weather station"
       emits "StationInstalled"
-      String :station_id
-      String :name
-      Float :latitude
-      Float :longitude
+      attribute :station_id, String
+      attribute :name, String
+      attribute :latitude, Float
+      attribute :longitude, Float
     end
 
     command "CalibrateInstruments" do
@@ -51,12 +51,12 @@ Hecks.bluebook "Meteorology" do
 
   aggregate "SurfaceObservation" do
     description "A point-in-time weather reading from a station"
-    String :timestamp
-    Float :temperature_c
-    Float :pressure_hpa
-    Float :humidity_percent
-    Float :wind_speed_kts
-    Float :wind_direction_deg
+    attribute :timestamp, String
+    attribute :temperature_c, Float
+    attribute :pressure_hpa, Float
+    attribute :humidity_percent, Float
+    attribute :wind_speed_kts, Float
+    attribute :wind_direction_deg, Float
     # Gate flag — flips true once CompleteObservation backfills missing
     # required fields. ValidateObservation is gated on it.
     attribute :fields_complete, Boolean, default: false
@@ -66,9 +66,9 @@ Hecks.bluebook "Meteorology" do
       description "Log a METAR-style surface weather observation"
       emits "ObservationRecorded"
       reference_to WeatherStation
-      String :timestamp
-      Float :temperature_c
-      Float :pressure_hpa
+      attribute :timestamp, String
+      attribute :temperature_c, Float
+      attribute :pressure_hpa, Float
       then_set :fields_complete, to: true
     end
 
@@ -89,11 +89,11 @@ Hecks.bluebook "Meteorology" do
 
   aggregate "Forecast" do
     description "A predicted weather scenario for a time range and area"
-    String :issued_at
-    String :valid_from
-    String :valid_to
-    String :region
-    String :synopsis
+    attribute :issued_at, String
+    attribute :valid_from, String
+    attribute :valid_to, String
+    attribute :region, String
+    attribute :synopsis, String
     # Gate flag — flips true after MarkForecastExpired confirms the
     # forecast's valid_to has elapsed. VerifyForecast is gated on it.
     attribute :valid_period_elapsed, Boolean, default: false
@@ -102,10 +102,10 @@ Hecks.bluebook "Meteorology" do
     command "IssueForecast" do
       description "Publish a new weather forecast"
       emits "ForecastIssued"
-      String :region
-      String :synopsis
-      String :valid_from
-      String :valid_to
+      attribute :region, String
+      attribute :synopsis, String
+      attribute :valid_from, String
+      attribute :valid_to, String
       then_set :valid_period_elapsed, to: true
     end
 
@@ -113,7 +113,7 @@ Hecks.bluebook "Meteorology" do
       description "Correct or update an existing forecast"
       emits "ForecastAmended"
       reference_to Forecast
-      String :amendment
+      attribute :amendment, String
     end
 
     command "MarkForecastExpired" do
@@ -133,34 +133,34 @@ Hecks.bluebook "Meteorology" do
 
   aggregate "PressureSystem" do
     description "A synoptic-scale high or low pressure feature"
-    String :system_type
-    Float :central_pressure_hpa
-    Float :latitude
-    Float :longitude
-    String :movement_direction
+    attribute :system_type, String
+    attribute :central_pressure_hpa, Float
+    attribute :latitude, Float
+    attribute :longitude, Float
+    attribute :movement_direction, String
 
     command "TrackSystem" do
       description "Begin tracking a new pressure system"
       emits "SystemTracked"
-      String :system_type
-      Float :central_pressure_hpa
+      attribute :system_type, String
+      attribute :central_pressure_hpa, Float
     end
 
     command "Reposition" do
       description "Record the latest position of the system"
       emits "Repositioned"
       reference_to PressureSystem
-      Float :latitude
-      Float :longitude
+      attribute :latitude, Float
+      attribute :longitude, Float
     end
   end
 
   aggregate "WeatherAlert" do
     description "A hazardous weather warning issued for a region"
-    String :alert_type
-    String :severity
-    String :region
-    String :message
+    attribute :alert_type, String
+    attribute :severity, String
+    attribute :region, String
+    attribute :message, String
     # Gate flag — flips true the moment IssueAlert broadcasts the warning;
     # CancelAlert is gated on it so a never-issued alert cannot be cancelled.
     attribute :alert_active, Boolean, default: false
@@ -169,9 +169,9 @@ Hecks.bluebook "Meteorology" do
     command "IssueAlert" do
       description "Broadcast a severe weather warning"
       emits "AlertIssued"
-      String :alert_type
-      String :severity
-      String :region
+      attribute :alert_type, String
+      attribute :severity, String
+      attribute :region, String
       then_set :alert_active, to: true
     end
 

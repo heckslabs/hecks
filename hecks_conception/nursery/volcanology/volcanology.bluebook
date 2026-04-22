@@ -3,22 +3,22 @@ Hecks.bluebook "Volcanology" do
 
   aggregate "Volcano" do
     description "A geological vent where magma reaches the surface"
-    String :name
-    String :volcano_type
-    Float :summit_elevation_m
-    Float :latitude
-    Float :longitude
-    String :alert_level
-    Float :seismic_activity, default: 0.0
-    Float :background_seismic, default: 1.0
-    Integer :alert_rank, default: 0
+    attribute :name, String
+    attribute :volcano_type, String
+    attribute :summit_elevation_m, Float
+    attribute :latitude, Float
+    attribute :longitude, Float
+    attribute :alert_level, String
+    attribute :seismic_activity, Float, default: 0.0
+    attribute :background_seismic, Float, default: 1.0
+    attribute :alert_rank, Integer, default: 0
 
     command "RegisterVolcano" do
       description "Add a volcano to the monitoring network"
       emits "VolcanoRegistered"
-      String :name
-      String :volcano_type
-      Float :summit_elevation_m
+      attribute :name, String
+      attribute :volcano_type, String
+      attribute :summit_elevation_m, Float
       then_set :seismic_activity, 5.0
     end
 
@@ -26,7 +26,7 @@ Hecks.bluebook "Volcanology" do
       description "Escalate the volcanic alert status"
       emits "AlertLevelRaised"
       reference_to Volcano
-      String :new_level
+      attribute :new_level, String
       given { seismic_activity > background_seismic }
       then_set :alert_rank, 3
     end
@@ -35,39 +35,39 @@ Hecks.bluebook "Volcanology" do
       description "Reduce the volcanic alert after activity subsides"
       emits "AlertLevelLowered"
       reference_to Volcano
-      String :new_level
+      attribute :new_level, String
     end
   end
 
   aggregate "Eruption" do
     description "A discrete volcanic eruption event with measured parameters"
-    String :eruption_id
-    String :start_date
-    String :end_date
-    Integer :vei
-    String :eruption_type
-    Integer :hours_without_tremor, default: 0
+    attribute :eruption_id, String
+    attribute :start_date, String
+    attribute :end_date, String
+    attribute :vei, Integer
+    attribute :eruption_type, String
+    attribute :hours_without_tremor, Integer, default: 0
     reference_to Volcano
 
     value_object "EruptionMetrics" do
-      Float :plume_height_km
-      Float :lava_volume_m3
-      Float :tephra_volume_m3
+      attribute :plume_height_km, Float
+      attribute :lava_volume_m3, Float
+      attribute :tephra_volume_m3, Float
     end
 
     command "DeclareEruption" do
       description "Officially record the onset of an eruption"
       emits "EruptionDeclared"
       reference_to Volcano
-      String :eruption_id
-      String :eruption_type
+      attribute :eruption_id, String
+      attribute :eruption_type, String
     end
 
     command "Refine" do
       description "Revise eruption parameters as new data arrives"
       emits "MetricsRefined"
       reference_to Eruption
-      Float :plume_height_km
+      attribute :plume_height_km, Float
       then_set :hours_without_tremor, 48
     end
 
@@ -81,21 +81,21 @@ Hecks.bluebook "Volcanology" do
 
   aggregate "SeismicReading" do
     description "A seismograph recording of volcanic tremor or earthquake"
-    String :station_id
-    String :timestamp
-    Float :magnitude
-    Float :depth_km
-    String :event_type
-    Integer :stations_with_detection, default: 0
+    attribute :station_id, String
+    attribute :timestamp, String
+    attribute :magnitude, Float
+    attribute :depth_km, Float
+    attribute :event_type, String
+    attribute :stations_with_detection, Integer, default: 0
     reference_to Volcano
 
     command "RecordSeismicEvent" do
       description "Log a seismic event detected near the volcano"
       emits "SeismicEventRecorded"
       reference_to Volcano
-      String :station_id
-      Float :magnitude
-      Float :depth_km
+      attribute :station_id, String
+      attribute :magnitude, Float
+      attribute :depth_km, Float
       then_set :stations_with_detection, 3
     end
 
@@ -110,25 +110,25 @@ Hecks.bluebook "Volcanology" do
       description "Categorize the seismic event type"
       emits "EventClassified"
       reference_to SeismicReading
-      String :event_type
+      attribute :event_type, String
     end
   end
 
   aggregate "GasEmission" do
     description "A measurement of volcanic gases escaping from vents or soil"
-    String :gas_type
-    Float :flux_tons_per_day
-    String :measurement_date
-    String :method
-    Boolean :baseline_recorded, default: false
+    attribute :gas_type, String
+    attribute :flux_tons_per_day, Float
+    attribute :measurement_date, String
+    attribute :method, String
+    attribute :baseline_recorded, Boolean, default: false
     reference_to Volcano
 
     command "MeasureEmission" do
       description "Collect a gas flux measurement from the crater"
       emits "EmissionMeasured"
       reference_to Volcano
-      String :gas_type
-      Float :flux_tons_per_day
+      attribute :gas_type, String
+      attribute :flux_tons_per_day, Float
       then_set :baseline_recorded, true
     end
 
@@ -142,19 +142,19 @@ Hecks.bluebook "Volcanology" do
 
   aggregate "HazardZone" do
     description "A mapped area at risk from volcanic phenomena"
-    String :zone_name
-    String :hazard_type
-    String :risk_level
-    String :boundary_wkt
-    Integer :alert_rank, default: 0
+    attribute :zone_name, String
+    attribute :hazard_type, String
+    attribute :risk_level, String
+    attribute :boundary_wkt, String
+    attribute :alert_rank, Integer, default: 0
     reference_to Volcano
 
     command "DelineateZone" do
       description "Draw a hazard zone boundary on the map"
       emits "ZoneDelineated"
       reference_to Volcano
-      String :zone_name
-      String :hazard_type
+      attribute :zone_name, String
+      attribute :hazard_type, String
       then_set :alert_rank, 3
     end
 

@@ -3,27 +3,27 @@ Hecks.bluebook "FarmManagement" do
   category "agriculture"
 
   aggregate "Field", "A cultivable parcel of land with acreage, soil type, and crop assignment" do
-    String :name
-    Float :acreage
-    String :soil_type
-    String :gps_coordinates
-    String :current_crop
-    String :status
+    attribute :name, String
+    attribute :acreage, Float
+    attribute :soil_type, String
+    attribute :gps_coordinates, String
+    attribute :current_crop, String
+    attribute :status, String
 
     value_object "SoilComposition" do
-      Float :ph_level
-      Float :nitrogen_ppm
-      Float :phosphorus_ppm
-      Float :potassium_ppm
+      attribute :ph_level, Float
+      attribute :nitrogen_ppm, Float
+      attribute :phosphorus_ppm, Float
+      attribute :potassium_ppm, Float
     end
 
-    RegisterField do
+    command "RegisterField" do
       role "Farmer"
       description "Add a new field to the farm with its acreage and location"
-      String :name
-      Float :acreage
-      String :soil_type
-      String :gps_coordinates
+      attribute :name, String
+      attribute :acreage, Float
+      attribute :soil_type, String
+      attribute :gps_coordinates, String
       emits "FieldRegistered"
       then_set :name, to: :name
       then_set :acreage, to: :acreage
@@ -32,18 +32,18 @@ Hecks.bluebook "FarmManagement" do
       then_set :status, to: "idle"
     end
 
-    PlantField do
+    command "PlantField" do
       role "Farmer"
       description "Assign a crop to the field and begin the growing season"
       reference_to(Field)
-      String :current_crop
+      attribute :current_crop, String
       given { status == "idle" }
       emits "FieldPlanted"
       then_set :current_crop, to: :current_crop
       then_set :status, to: "planted"
     end
 
-    FallowField do
+    command "FallowField" do
       role "Farmer"
       description "Leave the field unplanted to restore soil nutrients"
       reference_to(Field)
@@ -54,27 +54,27 @@ Hecks.bluebook "FarmManagement" do
   end
 
   aggregate "CropCycle", "A planting-to-harvest cycle for a specific crop variety on a field" do
-    String :crop_variety
-    String :planting_date
-    String :expected_harvest_date
-    Integer :days_to_maturity
-    String :growth_stage
-    String :status
+    attribute :crop_variety, String
+    attribute :planting_date, String
+    attribute :expected_harvest_date, String
+    attribute :days_to_maturity, Integer
+    attribute :growth_stage, String
+    attribute :status, String
     reference_to(Field)
 
     value_object "GrowthMetrics" do
-      Float :height_cm
-      String :leaf_color
-      Float :moisture_content
+      attribute :height_cm, Float
+      attribute :leaf_color, String
+      attribute :moisture_content, Float
     end
 
-    StartCropCycle do
+    command "StartCropCycle" do
       role "Farmer"
       description "Begin tracking a crop from seed to harvest"
       reference_to(Field)
-      String :crop_variety
-      String :planting_date
-      Integer :days_to_maturity
+      attribute :crop_variety, String
+      attribute :planting_date, String
+      attribute :days_to_maturity, Integer
       emits "CropCycleStarted"
       then_set :crop_variety, to: :crop_variety
       then_set :planting_date, to: :planting_date
@@ -83,21 +83,21 @@ Hecks.bluebook "FarmManagement" do
       then_set :status, to: "growing"
     end
 
-    AdvanceGrowthStage do
+    command "AdvanceGrowthStage" do
       role "Agronomist"
       description "Record progression to the next growth stage"
       reference_to(CropCycle)
-      String :growth_stage
+      attribute :growth_stage, String
       given { status == "growing" }
       emits "GrowthStageAdvanced"
       then_set :growth_stage, to: :growth_stage
     end
 
-    RecordCropLoss do
+    command "RecordCropLoss" do
       role "Farmer"
       description "Document crop damage from weather, pests, or disease"
       reference_to(CropCycle)
-      String :loss_reason
+      attribute :loss_reason, String
       given { status == "growing" }
       emits "CropLossRecorded"
       then_set :status, to: "damaged"
@@ -105,20 +105,20 @@ Hecks.bluebook "FarmManagement" do
   end
 
   aggregate "IrrigationSchedule", "A watering plan for a field with timing, method, and volume" do
-    String :method
-    String :frequency
-    Float :volume_gallons
-    String :start_date
-    String :status
+    attribute :method, String
+    attribute :frequency, String
+    attribute :volume_gallons, Float
+    attribute :start_date, String
+    attribute :status, String
     reference_to(Field)
 
-    SetIrrigation do
+    command "SetIrrigation" do
       role "Farmer"
       description "Configure the irrigation method and schedule for a field"
       reference_to(Field)
-      String :method
-      String :frequency
-      Float :volume_gallons
+      attribute :method, String
+      attribute :frequency, String
+      attribute :volume_gallons, Float
       emits "IrrigationSet"
       then_set :method, to: :method
       then_set :frequency, to: :frequency
@@ -126,17 +126,17 @@ Hecks.bluebook "FarmManagement" do
       then_set :status, to: "active"
     end
 
-    AdjustVolume do
+    command "AdjustVolume" do
       role "Farmer"
       description "Change the water volume based on weather or growth stage"
       reference_to(IrrigationSchedule)
-      Float :new_volume
+      attribute :new_volume, Float
       given { status == "active" }
       emits "VolumeAdjusted"
       then_set :volume_gallons, to: :new_volume
     end
 
-    SuspendIrrigation do
+    command "SuspendIrrigation" do
       role "Farmer"
       description "Pause watering due to rain forecast or field fallow"
       reference_to(IrrigationSchedule)
@@ -147,23 +147,23 @@ Hecks.bluebook "FarmManagement" do
   end
 
   aggregate "Harvest", "The collection of mature crop yield from a field" do
-    String :harvest_date
-    Float :yield_bushels
-    Float :moisture_percent
-    String :quality_grade
-    String :storage_location
+    attribute :harvest_date, String
+    attribute :yield_bushels, Float
+    attribute :moisture_percent, Float
+    attribute :quality_grade, String
+    attribute :storage_location, String
     reference_to(CropCycle)
     reference_to(Field)
 
-    RecordHarvest do
+    command "RecordHarvest" do
       role "Farmer"
       description "Log the harvested yield with quality and moisture readings"
       reference_to(CropCycle)
       reference_to(Field)
-      String :harvest_date
-      Float :yield_bushels
-      Float :moisture_percent
-      String :quality_grade
+      attribute :harvest_date, String
+      attribute :yield_bushels, Float
+      attribute :moisture_percent, Float
+      attribute :quality_grade, String
       emits "HarvestRecorded"
       then_set :harvest_date, to: :harvest_date
       then_set :yield_bushels, to: :yield_bushels
@@ -171,44 +171,44 @@ Hecks.bluebook "FarmManagement" do
       then_set :quality_grade, to: :quality_grade
     end
 
-    StoreHarvest do
+    command "StoreHarvest" do
       role "Farmer"
       description "Move harvested crop to a grain bin or storage facility"
       reference_to(Harvest)
-      String :storage_location
+      attribute :storage_location, String
       emits "HarvestStored"
       then_set :storage_location, to: :storage_location
     end
   end
 
   aggregate "SoilTest", "A laboratory analysis of soil nutrients, pH, and organic matter" do
-    String :test_date
-    Float :ph_level
-    Float :nitrogen_ppm
-    Float :phosphorus_ppm
-    Float :potassium_ppm
-    Float :organic_matter_percent
-    String :recommendations
+    attribute :test_date, String
+    attribute :ph_level, Float
+    attribute :nitrogen_ppm, Float
+    attribute :phosphorus_ppm, Float
+    attribute :potassium_ppm, Float
+    attribute :organic_matter_percent, Float
+    attribute :recommendations, String
     reference_to(Field)
 
-    CollectSample do
+    command "CollectSample" do
       role "Agronomist"
       description "Take soil samples from the field for laboratory analysis"
       reference_to(Field)
-      String :test_date
+      attribute :test_date, String
       emits "SampleCollected"
       then_set :test_date, to: :test_date
     end
 
-    RecordResults do
+    command "RecordResults" do
       role "Laboratory"
       description "Enter the lab results for nutrient levels and pH"
       reference_to(SoilTest)
-      Float :ph_level
-      Float :nitrogen_ppm
-      Float :phosphorus_ppm
-      Float :potassium_ppm
-      Float :organic_matter_percent
+      attribute :ph_level, Float
+      attribute :nitrogen_ppm, Float
+      attribute :phosphorus_ppm, Float
+      attribute :potassium_ppm, Float
+      attribute :organic_matter_percent, Float
       emits "ResultsRecorded"
       then_set :ph_level, to: :ph_level
       then_set :nitrogen_ppm, to: :nitrogen_ppm
@@ -217,11 +217,11 @@ Hecks.bluebook "FarmManagement" do
       then_set :organic_matter_percent, to: :organic_matter_percent
     end
 
-    IssueRecommendations do
+    command "IssueRecommendations" do
       role "Agronomist"
       description "Provide fertilizer and amendment recommendations based on results"
       reference_to(SoilTest)
-      String :recommendations
+      attribute :recommendations, String
       emits "RecommendationsIssued"
       then_set :recommendations, to: :recommendations
     end

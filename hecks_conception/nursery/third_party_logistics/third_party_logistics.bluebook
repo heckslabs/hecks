@@ -1,31 +1,31 @@
 Hecks.bluebook "ThirdPartyLogistics" do
   aggregate "LogisticsClient" do
-    String :client_id
-    String :company_name
-    String :industry
-    String :contract_type
-    String :account_manager
-    String :status
+    attribute :client_id, String
+    attribute :company_name, String
+    attribute :industry, String
+    attribute :contract_type, String
+    attribute :account_manager, String
+    attribute :status, String
 
     value_object "ServiceLevel" do
-      Float :order_accuracy_target
-      Float :on_time_delivery_target
-      Integer :max_lead_time_hours
-      Float :damage_rate_threshold
+      attribute :order_accuracy_target, Float
+      attribute :on_time_delivery_target, Float
+      attribute :max_lead_time_hours, Integer
+      attribute :damage_rate_threshold, Float
     end
 
-    OnboardClient do
+    command "OnboardClient" do
       description "Set up new logistics client with service level agreement"
-      String :company_name
-      String :contract_type
-      String :account_manager
+      attribute :company_name, String
+      attribute :contract_type, String
+      attribute :account_manager, String
       reference_to "LogisticsClient"
       emits "ClientOnboarded"
     end
 
-    SuspendClient do
+    command "SuspendClient" do
       description "Temporarily suspend client account due to payment or compliance issue"
-      String :suspension_reason
+      attribute :suspension_reason, String
       reference_to "LogisticsClient"
       emits "ClientSuspended"
     end
@@ -39,49 +39,49 @@ Hecks.bluebook "ThirdPartyLogistics" do
     policy "Suspended clients cannot submit new orders"
 
     given "A consumer electronics client is onboarded" do
-      String :company_name, "BrightScreen Electronics"
-      String :contract_type, "Full Service 3PL"
-      String :industry, "Consumer Electronics"
+      attribute :company_name, String, "BrightScreen Electronics"
+      attribute :contract_type, String, "Full Service 3PL"
+      attribute :industry, String, "Consumer Electronics"
     end
   end
 
   aggregate "Warehouse" do
-    String :warehouse_id
-    String :warehouse_name
-    String :city
-    Float :total_sqft
-    Float :available_sqft
-    String :status
+    attribute :warehouse_id, String
+    attribute :warehouse_name, String
+    attribute :city, String
+    attribute :total_sqft, Float
+    attribute :available_sqft, Float
+    attribute :status, String
     list_of "StorageZone"
 
     value_object "StorageZone" do
-      String :zone_name
-      String :storage_type
-      Float :capacity_sqft
-      Float :utilization_percent
+      attribute :zone_name, String
+      attribute :storage_type, String
+      attribute :capacity_sqft, Float
+      attribute :utilization_percent, Float
     end
 
-    AllocateSpace do
+    command "AllocateSpace" do
       description "Reserve warehouse storage space for client inventory"
-      String :client_id
-      Float :sqft_requested
-      String :zone_name
+      attribute :client_id, String
+      attribute :sqft_requested, Float
+      attribute :zone_name, String
       reference_to "LogisticsClient"
       emits "SpaceAllocated"
     end
 
-    ReceiveInventory do
+    command "ReceiveInventory" do
       description "Accept inbound inventory from client supplier into warehouse"
-      Integer :pallet_count
-      String :purchase_order
+      attribute :pallet_count, Integer
+      attribute :purchase_order, String
       reference_to "Warehouse"
       emits "InventoryReceived"
     end
 
-    ReleaseSpace do
+    command "ReleaseSpace" do
       description "Free allocated warehouse space after client inventory removal"
-      String :client_id
-      Float :sqft_released
+      attribute :client_id, String
+      attribute :sqft_released, Float
       reference_to "Warehouse"
       emits "SpaceReleased"
     end
@@ -96,34 +96,34 @@ Hecks.bluebook "ThirdPartyLogistics" do
   end
 
   aggregate "FulfillmentOrder" do
-    String :order_id
-    String :client_id
-    String :order_type
-    Integer :line_count
-    String :ship_to_address
-    String :priority
-    String :status
+    attribute :order_id, String
+    attribute :client_id, String
+    attribute :order_type, String
+    attribute :line_count, Integer
+    attribute :ship_to_address, String
+    attribute :priority, String
+    attribute :status, String
 
-    ReceiveOrder do
+    command "ReceiveOrder" do
       description "Intake fulfillment order from client system via EDI or API"
-      String :client_id
-      String :order_type
-      String :ship_to_address
+      attribute :client_id, String
+      attribute :order_type, String
+      attribute :ship_to_address, String
       reference_to "FulfillmentOrder"
       emits "OrderReceived"
     end
 
-    PickAndPack do
+    command "PickAndPack" do
       description "Pick ordered items from warehouse and pack for shipment"
-      String :picker_id
-      Integer :items_picked
+      attribute :picker_id, String
+      attribute :items_picked, Integer
       reference_to "FulfillmentOrder"
       emits "OrderPacked"
     end
 
-    ShipOrder do
+    command "ShipOrder" do
       description "Hand off packed order to carrier for last mile delivery"
-      String :tracking_number
+      attribute :tracking_number, String
       reference_to "FulfillmentOrder"
       emits "OrderShipped"
     end
@@ -138,33 +138,33 @@ Hecks.bluebook "ThirdPartyLogistics" do
   end
 
   aggregate "CarrierAssignment" do
-    String :assignment_id
-    String :carrier_name
-    String :service_level
-    String :tracking_number
-    Float :freight_cost
-    String :status
+    attribute :assignment_id, String
+    attribute :carrier_name, String
+    attribute :service_level, String
+    attribute :tracking_number, String
+    attribute :freight_cost, Float
+    attribute :status, String
 
-    AssignCarrier do
+    command "AssignCarrier" do
       description "Select and assign shipping carrier based on rate and service level"
-      String :carrier_name
-      String :service_level
+      attribute :carrier_name, String
+      attribute :service_level, String
       reference_to "FulfillmentOrder"
       emits "CarrierAssigned"
     end
 
-    TrackShipment do
+    command "TrackShipment" do
       description "Update shipment tracking status from carrier milestone events"
-      String :milestone
-      String :location
-      String :timestamp
+      attribute :milestone, String
+      attribute :location, String
+      attribute :timestamp, String
       reference_to "CarrierAssignment"
       emits "ShipmentTracked"
     end
 
-    ConfirmDelivery do
+    command "ConfirmDelivery" do
       description "Record final delivery confirmation from carrier"
-      String :delivery_proof
+      attribute :delivery_proof, String
       reference_to "CarrierAssignment"
       emits "DeliveryConfirmed"
     end
@@ -179,28 +179,28 @@ Hecks.bluebook "ThirdPartyLogistics" do
   end
 
   aggregate "ClientInvoice" do
-    String :invoice_id
-    String :client_id
-    String :billing_period
-    Float :storage_charges
-    Float :fulfillment_charges
-    Float :freight_charges
-    Float :total_amount
-    String :status
+    attribute :invoice_id, String
+    attribute :client_id, String
+    attribute :billing_period, String
+    attribute :storage_charges, Float
+    attribute :fulfillment_charges, Float
+    attribute :freight_charges, Float
+    attribute :total_amount, Float
+    attribute :status, String
     list_of "FulfillmentOrder"
 
-    GenerateInvoice do
+    command "GenerateInvoice" do
       description "Calculate and generate monthly client invoice from activity data"
-      String :client_id
-      String :billing_period
+      attribute :client_id, String
+      attribute :billing_period, String
       reference_to "ClientInvoice"
       emits "InvoiceGenerated"
     end
 
-    ApplyCredit do
+    command "ApplyCredit" do
       description "Apply credit memo to invoice for service failures or disputes"
-      Float :credit_amount
-      String :credit_reason
+      attribute :credit_amount, Float
+      attribute :credit_reason, String
       reference_to "ClientInvoice"
       emits "CreditApplied"
     end

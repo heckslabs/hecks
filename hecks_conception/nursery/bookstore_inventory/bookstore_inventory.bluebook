@@ -3,13 +3,13 @@ Hecks.bluebook "BookstoreInventory", version: "2026.04.13.1" do
   category "retail"
 
   aggregate "Book", "A title in the catalog — the fundamental unit of bookstore inventory" do
-    String :isbn
-    String :title
-    String :author_name
-    String :genre
-    Float :price
-    Integer :quantity_on_hand
-    String :status
+    attribute :isbn, String
+    attribute :title, String
+    attribute :author_name, String
+    attribute :genre, String
+    attribute :price, Float
+    attribute :quantity_on_hand, Integer
+    attribute :status, String
     list_of(Edition) :editions
 
     specification "LowStock" do
@@ -17,21 +17,21 @@ Hecks.bluebook "BookstoreInventory", version: "2026.04.13.1" do
     end
 
     value_object "Edition" do
-      String :format
-      String :publisher
-      String :publish_date
-      Integer :page_count
+      attribute :format, String
+      attribute :publisher, String
+      attribute :publish_date, String
+      attribute :page_count, Integer
     end
 
-    CatalogBook do
+    command "CatalogBook" do
       role "Buyer"
       description "Add a new title to the store catalog with initial stock"
-      String :isbn
-      String :title
-      String :author_name
-      String :genre
-      Float :price
-      Integer :quantity_on_hand
+      attribute :isbn, String
+      attribute :title, String
+      attribute :author_name, String
+      attribute :genre, String
+      attribute :price, Float
+      attribute :quantity_on_hand, Integer
       emits "BookCataloged"
       then_set :isbn, to: :isbn
       then_set :title, to: :title
@@ -42,15 +42,15 @@ Hecks.bluebook "BookstoreInventory", version: "2026.04.13.1" do
       then_set :status, to: "in_stock"
     end
 
-    ReplenishStock do
+    command "ReplenishStock" do
       role "Buyer"
       description "Increase on-hand quantity when a shipment arrives"
       reference_to(Book)
-      Integer :additional_copies
+      attribute :additional_copies, Integer
       emits "StockReplenished"
     end
 
-    MarkOutOfPrint do
+    command "MarkOutOfPrint" do
       role "Buyer"
       description "Flag a title as no longer available from the publisher"
       reference_to(Book)
@@ -60,40 +60,40 @@ Hecks.bluebook "BookstoreInventory", version: "2026.04.13.1" do
   end
 
   aggregate "Author", "A writer whose works the store carries" do
-    String :name
-    String :biography
+    attribute :name, String
+    attribute :biography, String
     list_of(PublishedWork) :published_works
 
     value_object "PublishedWork" do
-      String :title
-      String :isbn
-      String :year
+      attribute :title, String
+      attribute :isbn, String
+      attribute :year, String
     end
 
-    RegisterAuthor do
+    command "RegisterAuthor" do
       role "Buyer"
       description "Add an author to the store's author directory"
-      String :name
-      String :biography
+      attribute :name, String
+      attribute :biography, String
       emits "AuthorRegistered"
       then_set :name, to: :name
       then_set :biography, to: :biography
     end
 
-    ScheduleSigning do
+    command "ScheduleSigning" do
       role "EventCoordinator"
       description "Arrange an in-store author signing event"
       reference_to(Author)
-      String :event_date
+      attribute :event_date, String
       emits "SigningScheduled"
     end
   end
 
   aggregate "Shelf", "A physical display location in the store" do
-    String :section
-    String :label
-    Integer :capacity
-    Integer :current_count
+    attribute :section, String
+    attribute :label, String
+    attribute :capacity, Integer
+    attribute :current_count, Integer
     list_of(ShelfSlot) :slots
 
     specification "Full" do
@@ -101,17 +101,17 @@ Hecks.bluebook "BookstoreInventory", version: "2026.04.13.1" do
     end
 
     value_object "ShelfSlot" do
-      String :isbn
-      Integer :copies
-      String :face_out
+      attribute :isbn, String
+      attribute :copies, Integer
+      attribute :face_out, String
     end
 
-    AssignShelf do
+    command "AssignShelf" do
       role "Clerk"
       description "Designate a shelf for a particular genre or section"
-      String :section
-      String :label
-      Integer :capacity
+      attribute :section, String
+      attribute :label, String
+      attribute :capacity, Integer
       emits "ShelfAssigned"
       then_set :section, to: :section
       then_set :label, to: :label
@@ -119,17 +119,17 @@ Hecks.bluebook "BookstoreInventory", version: "2026.04.13.1" do
       then_set :current_count, to: 0
     end
 
-    ShelveBook do
+    command "ShelveBook" do
       role "Clerk"
       description "Place copies of a title onto a shelf"
       reference_to(Shelf)
-      String :isbn
-      Integer :copies
+      attribute :isbn, String
+      attribute :copies, Integer
       given { current_count < capacity }
       emits "BookShelved"
     end
 
-    ClearShelf do
+    command "ClearShelf" do
       role "Clerk"
       description "Remove all books from a shelf for reorganization"
       reference_to(Shelf)
@@ -139,31 +139,31 @@ Hecks.bluebook "BookstoreInventory", version: "2026.04.13.1" do
   end
 
   aggregate "Order", "A customer purchase — one or more titles being bought" do
-    String :order_number
-    String :customer_name
+    attribute :order_number, String
+    attribute :customer_name, String
     list_of(LineItem) :line_items
-    Float :total
-    String :status
+    attribute :total, Float
+    attribute :status, String
 
     value_object "LineItem" do
-      String :isbn
-      String :title
-      Integer :quantity
-      Float :unit_price
+      attribute :isbn, String
+      attribute :title, String
+      attribute :quantity, Integer
+      attribute :unit_price, Float
     end
 
-    PlaceOrder do
+    command "PlaceOrder" do
       role "Customer"
       description "Submit a purchase for one or more books"
-      String :order_number
-      String :customer_name
+      attribute :order_number, String
+      attribute :customer_name, String
       emits "OrderPlaced"
       then_set :order_number, to: :order_number
       then_set :customer_name, to: :customer_name
       then_set :status, to: "placed"
     end
 
-    FulfillOrder do
+    command "FulfillOrder" do
       role "Clerk"
       description "Pick and pack the order for handoff to the customer"
       reference_to(Order)
@@ -172,7 +172,7 @@ Hecks.bluebook "BookstoreInventory", version: "2026.04.13.1" do
       then_set :status, to: "fulfilled"
     end
 
-    CancelOrder do
+    command "CancelOrder" do
       role "Customer"
       description "Withdraw the order before fulfillment"
       reference_to(Order)
@@ -183,20 +183,20 @@ Hecks.bluebook "BookstoreInventory", version: "2026.04.13.1" do
   end
 
   aggregate "Return", "A book coming back — refund or exchange" do
-    String :return_id
-    String :order_number
-    String :isbn
-    String :reason
-    String :condition
-    String :resolution
+    attribute :return_id, String
+    attribute :order_number, String
+    attribute :isbn, String
+    attribute :reason, String
+    attribute :condition, String
+    attribute :resolution, String
 
-    InitiateReturn do
+    command "InitiateReturn" do
       role "Customer"
       description "Begin the return process for a purchased book"
-      String :return_id
-      String :order_number
-      String :isbn
-      String :reason
+      attribute :return_id, String
+      attribute :order_number, String
+      attribute :isbn, String
+      attribute :reason, String
       emits "ReturnInitiated"
       then_set :return_id, to: :return_id
       then_set :order_number, to: :order_number
@@ -204,20 +204,20 @@ Hecks.bluebook "BookstoreInventory", version: "2026.04.13.1" do
       then_set :reason, to: :reason
     end
 
-    InspectReturn do
+    command "InspectReturn" do
       role "Clerk"
       description "Evaluate the condition of the returned book"
       reference_to(Return)
-      String :condition
+      attribute :condition, String
       emits "ReturnInspected"
       then_set :condition, to: :condition
     end
 
-    ResolveReturn do
+    command "ResolveReturn" do
       role "Manager"
       description "Decide whether to refund, exchange, or reject the return"
       reference_to(Return)
-      String :resolution
+      attribute :resolution, String
       emits "ReturnResolved"
       then_set :resolution, to: :resolution
     end

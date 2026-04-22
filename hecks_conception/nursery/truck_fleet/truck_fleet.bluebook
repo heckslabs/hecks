@@ -1,39 +1,39 @@
 Hecks.bluebook "TruckFleet" do
   aggregate "Truck" do
-    String :truck_id
-    String :vin
-    String :truck_type
-    Float :payload_capacity_tons
-    Float :odometer_miles
-    String :status
+    attribute :truck_id, String
+    attribute :vin, String
+    attribute :truck_type, String
+    attribute :payload_capacity_tons, Float
+    attribute :odometer_miles, Float
+    attribute :status, String
 
     value_object "TruckSpecs" do
-      String :engine_type
-      Integer :axle_count
-      Float :gvwr_lbs
-      String :fuel_type
+      attribute :engine_type, String
+      attribute :axle_count, Integer
+      attribute :gvwr_lbs, Float
+      attribute :fuel_type, String
     end
 
-    RegisterTruck do
+    command "RegisterTruck" do
       description "Add new truck to active fleet with registration and specs"
-      String :vin
-      String :truck_type
-      Float :payload_capacity_tons
+      attribute :vin, String
+      attribute :truck_type, String
+      attribute :payload_capacity_tons, Float
       reference_to "Truck"
       emits "TruckRegistered"
     end
 
-    InspectTruck do
+    command "InspectTruck" do
       description "Perform DOT pre-service safety inspection on truck"
-      String :inspector
-      String :result
+      attribute :inspector, String
+      attribute :result, String
       reference_to "Truck"
       emits "TruckInspected"
     end
 
-    RetireTruck do
+    command "RetireTruck" do
       description "Remove truck from active fleet for disposal or sale"
-      String :reason
+      attribute :reason, String
       reference_to "Truck"
       emits "TruckRetired"
     end
@@ -49,26 +49,26 @@ Hecks.bluebook "TruckFleet" do
   end
 
   aggregate "Driver" do
-    String :driver_id
-    String :full_name
-    String :cdl_number
-    String :cdl_class
-    String :endorsements
-    String :status
+    attribute :driver_id, String
+    attribute :full_name, String
+    attribute :cdl_number, String
+    attribute :cdl_class, String
+    attribute :endorsements, String
+    attribute :status, String
 
-    HireDriver do
+    command "HireDriver" do
       description "Onboard new driver with CDL verification and training"
-      String :full_name
-      String :cdl_number
-      String :cdl_class
+      attribute :full_name, String
+      attribute :cdl_number, String
+      attribute :cdl_class, String
       reference_to "Driver"
       emits "DriverHired"
     end
 
-    RecordHoursOfService do
+    command "RecordHoursOfService" do
       description "Log driver duty hours for HOS compliance tracking"
-      Float :driving_hours
-      Float :on_duty_hours
+      attribute :driving_hours, Float
+      attribute :on_duty_hours, Float
       reference_to "Driver"
       emits "HoursRecorded"
     end
@@ -81,41 +81,41 @@ Hecks.bluebook "TruckFleet" do
     policy "Drivers must not exceed 11 hours driving per shift"
 
     given "A new CDL-A driver is hired" do
-      String :full_name, "Marcus Rivera"
-      String :cdl_class, "Class A"
-      String :endorsements, "Tanker, Hazmat"
+      attribute :full_name, String, "Marcus Rivera"
+      attribute :cdl_class, String, "Class A"
+      attribute :endorsements, String, "Tanker, Hazmat"
     end
   end
 
   aggregate "Route" do
-    String :route_id
-    String :origin_city
-    String :destination_city
-    Float :distance_miles
-    Float :estimated_hours
-    String :status
+    attribute :route_id, String
+    attribute :origin_city, String
+    attribute :destination_city, String
+    attribute :distance_miles, Float
+    attribute :estimated_hours, Float
+    attribute :status, String
 
-    PlanRoute do
+    command "PlanRoute" do
       description "Define delivery route with waypoints and estimated travel time"
-      String :origin_city
-      String :destination_city
-      Float :distance_miles
+      attribute :origin_city, String
+      attribute :destination_city, String
+      attribute :distance_miles, Float
       reference_to "Route"
       emits "RoutePlanned"
     end
 
-    AssignLoad do
+    command "AssignLoad" do
       description "Assign driver and truck to an active route with cargo"
-      String :driver_id
-      String :truck_id
+      attribute :driver_id, String
+      attribute :truck_id, String
       reference_to "Route"
       emits "LoadAssigned"
     end
 
-    CompleteDelivery do
+    command "CompleteDelivery" do
       description "Record successful delivery at destination with proof"
-      String :receiver_name
-      String :delivery_proof
+      attribute :receiver_name, String
+      attribute :delivery_proof, String
       reference_to "Route"
       emits "DeliveryCompleted"
     end
@@ -130,41 +130,41 @@ Hecks.bluebook "TruckFleet" do
   end
 
   aggregate "MaintenanceTicket" do
-    String :ticket_id
-    String :truck_id
-    String :issue_type
-    String :priority
-    String :mechanic
-    String :status
+    attribute :ticket_id, String
+    attribute :truck_id, String
+    attribute :issue_type, String
+    attribute :priority, String
+    attribute :mechanic, String
+    attribute :status, String
     list_of "PartUsed"
 
     value_object "PartUsed" do
-      String :part_number
-      String :part_name
-      Integer :quantity
-      Float :cost
+      attribute :part_number, String
+      attribute :part_name, String
+      attribute :quantity, Integer
+      attribute :cost, Float
     end
 
-    OpenTicket do
+    command "OpenTicket" do
       description "Create maintenance work order for truck repair or service"
-      String :issue_type
-      String :priority
+      attribute :issue_type, String
+      attribute :priority, String
       reference_to "Truck"
       emits "TicketOpened"
     end
 
-    DiagnoseIssue do
+    command "DiagnoseIssue" do
       description "Mechanic diagnoses root cause and identifies parts needed"
-      String :diagnosis
-      String :parts_required
+      attribute :diagnosis, String
+      attribute :parts_required, String
       reference_to "MaintenanceTicket"
       emits "IssueDiagnosed"
     end
 
-    CloseTicket do
+    command "CloseTicket" do
       description "Complete repair and return truck to service-ready status"
-      String :mechanic
-      Float :labor_hours
+      attribute :mechanic, String
+      attribute :labor_hours, Float
       reference_to "MaintenanceTicket"
       emits "TicketClosed"
     end
@@ -179,26 +179,26 @@ Hecks.bluebook "TruckFleet" do
   end
 
   aggregate "FuelTransaction" do
-    String :transaction_id
-    String :truck_id
-    String :station_name
-    Float :gallons
-    Float :price_per_gallon
-    Float :odometer_at_fill
-    String :fuel_type
+    attribute :transaction_id, String
+    attribute :truck_id, String
+    attribute :station_name, String
+    attribute :gallons, Float
+    attribute :price_per_gallon, Float
+    attribute :odometer_at_fill, Float
+    attribute :fuel_type, String
 
-    RecordFueling do
+    command "RecordFueling" do
       description "Log fuel purchase with volume, cost, and odometer reading"
-      String :station_name
-      Float :gallons
-      Float :price_per_gallon
+      attribute :station_name, String
+      attribute :gallons, Float
+      attribute :price_per_gallon, Float
       reference_to "Truck"
       emits "FuelingRecorded"
     end
 
-    FlagAnomaly do
+    command "FlagAnomaly" do
       description "Flag suspicious fuel transaction for investigation"
-      String :anomaly_type
+      attribute :anomaly_type, String
       reference_to "FuelTransaction"
       emits "AnomalyFlagged"
     end

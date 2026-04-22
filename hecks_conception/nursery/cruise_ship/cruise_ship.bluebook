@@ -2,31 +2,31 @@ Hecks.bluebook "CruiseShip" do
   vision "Manage cabins, passengers, ports of call, shore excursions, and dining for a cruise line"
 
   aggregate "Cabin", "A stateroom aboard the ship with deck, category, and occupancy" do
-    String :cabin_number
-    String :deck
-    String :category
-    Integer :max_occupancy
-    Integer :current_occupancy
-    String :status
+    attribute :cabin_number, String
+    attribute :deck, String
+    attribute :category, String
+    attribute :max_occupancy, Integer
+    attribute :current_occupancy, Integer
+    attribute :status, String
 
     value_object "CabinAmenities" do
-      String :has_balcony
-      String :bed_configuration
-      Integer :square_feet
+      attribute :has_balcony, String
+      attribute :bed_configuration, String
+      attribute :square_feet, Integer
     end
 
-    PrepareCabin do
+    command "PrepareCabin" do
       description "Prepare a cabin for the upcoming voyage"
-      String :cabin_number
-      String :deck
-      String :category
-      Integer :max_occupancy
+      attribute :cabin_number, String
+      attribute :deck, String
+      attribute :category, String
+      attribute :max_occupancy, Integer
       emits "CabinPrepared"
       then_set :status, to: "available"
       then_set :current_occupancy, to: 0
     end
 
-    AssignPassenger do
+    command "AssignPassenger" do
       description "Check a passenger into a specific cabin"
       reference_to(Cabin)
       reference_to(Passenger)
@@ -34,7 +34,7 @@ Hecks.bluebook "CruiseShip" do
       emits "PassengerAssigned"
     end
 
-    InspectCabin do
+    command "InspectCabin" do
       description "Verify cabin readiness before passenger boarding"
       reference_to(Cabin)
       given { status == "available" }
@@ -42,7 +42,7 @@ Hecks.bluebook "CruiseShip" do
       then_set :status, to: "inspected"
     end
 
-    CleanCabin do
+    command "CleanCabin" do
       description "Mark cabin for turnover cleaning between voyages"
       reference_to(Cabin)
       emits "CabinCleaned"
@@ -51,31 +51,31 @@ Hecks.bluebook "CruiseShip" do
   end
 
   aggregate "Passenger", "A guest sailing on the cruise with embarkation and muster records" do
-    String :booking_id
-    String :name
-    String :nationality
-    String :muster_status
-    String :embarkation_port
-    String :status
+    attribute :booking_id, String
+    attribute :name, String
+    attribute :nationality, String
+    attribute :muster_status, String
+    attribute :embarkation_port, String
+    attribute :status, String
 
     value_object "EmergencyContact" do
-      String :contact_name
-      String :phone
-      String :relationship
+      attribute :contact_name, String
+      attribute :phone, String
+      attribute :relationship, String
     end
 
-    CheckInPassenger do
+    command "CheckInPassenger" do
       description "Process passenger documents at the terminal"
-      String :booking_id
-      String :name
-      String :nationality
-      String :embarkation_port
+      attribute :booking_id, String
+      attribute :name, String
+      attribute :nationality, String
+      attribute :embarkation_port, String
       emits "PassengerCheckedIn"
       then_set :status, to: "checked_in"
       then_set :muster_status, to: "pending"
     end
 
-    EmbarkPassenger do
+    command "EmbarkPassenger" do
       description "Board a passenger onto the ship"
       reference_to(Passenger)
       given { status == "checked_in" }
@@ -83,7 +83,7 @@ Hecks.bluebook "CruiseShip" do
       then_set :status, to: "embarked"
     end
 
-    CompleteMusterDrill do
+    command "CompleteMusterDrill" do
       description "Record that a passenger attended the safety drill"
       reference_to(Passenger)
       given { muster_status == "pending" }
@@ -91,7 +91,7 @@ Hecks.bluebook "CruiseShip" do
       then_set :muster_status, to: "completed"
     end
 
-    ClearForShoreLeave do
+    command "ClearForShoreLeave" do
       description "Authorize passenger to go ashore at a port of call"
       reference_to(Passenger)
       given { status == "embarked" }
@@ -99,7 +99,7 @@ Hecks.bluebook "CruiseShip" do
       then_set :status, to: "ashore"
     end
 
-    ReturnOnboard do
+    command "ReturnOnboard" do
       description "Record passenger returning to ship from shore leave"
       reference_to(Passenger)
       given { status == "ashore" }
@@ -107,7 +107,7 @@ Hecks.bluebook "CruiseShip" do
       then_set :status, to: "embarked"
     end
 
-    DisembarkPassenger do
+    command "DisembarkPassenger" do
       description "Remove a passenger from the ship at final port"
       reference_to(Passenger)
       given { status == "embarked" }
@@ -117,28 +117,28 @@ Hecks.bluebook "CruiseShip" do
   end
 
   aggregate "PortOfCall", "A scheduled stop at a harbor during the voyage" do
-    String :port_name
-    String :country
-    String :arrival_time
-    String :departure_time
-    String :status
+    attribute :port_name, String
+    attribute :country, String
+    attribute :arrival_time, String
+    attribute :departure_time, String
+    attribute :status, String
 
     value_object "DockingBerth" do
-      String :berth_id
-      Float :max_draft_meters
+      attribute :berth_id, String
+      attribute :max_draft_meters, Float
     end
 
-    SchedulePort do
+    command "SchedulePort" do
       description "Add a port stop to the voyage itinerary"
-      String :port_name
-      String :country
-      String :arrival_time
-      String :departure_time
+      attribute :port_name, String
+      attribute :country, String
+      attribute :arrival_time, String
+      attribute :departure_time, String
       emits "PortScheduled"
       then_set :status, to: "scheduled"
     end
 
-    ArriveAtPort do
+    command "ArriveAtPort" do
       description "Record the ship docking at the port"
       reference_to(PortOfCall)
       given { status == "scheduled" }
@@ -146,7 +146,7 @@ Hecks.bluebook "CruiseShip" do
       then_set :status, to: "in_port"
     end
 
-    DepartPort do
+    command "DepartPort" do
       description "Record the ship leaving a port of call"
       reference_to(PortOfCall)
       given { status == "in_port" }
@@ -156,32 +156,32 @@ Hecks.bluebook "CruiseShip" do
   end
 
   aggregate "Excursion", "A shore activity bookable by passengers at a port" do
-    String :excursion_name
-    String :description
-    Integer :capacity
-    Integer :booked_count
-    Integer :price_cents
-    String :status
+    attribute :excursion_name, String
+    attribute :description, String
+    attribute :capacity, Integer
+    attribute :booked_count, Integer
+    attribute :price_cents, Integer
+    attribute :status, String
     reference_to(PortOfCall)
 
     value_object "DifficultyRating" do
-      String :level
-      String :fitness_requirement
+      attribute :level, String
+      attribute :fitness_requirement, String
     end
 
-    OfferExcursion do
+    command "OfferExcursion" do
       description "Offer a new shore excursion at a port of call"
-      String :excursion_name
-      String :description
-      Integer :capacity
-      Integer :price_cents
+      attribute :excursion_name, String
+      attribute :description, String
+      attribute :capacity, Integer
+      attribute :price_cents, Integer
       reference_to(PortOfCall)
       emits "ExcursionCreated"
       then_set :status, to: "open"
       then_set :booked_count, to: 0
     end
 
-    BookExcursion do
+    command "BookExcursion" do
       description "Reserve a passenger spot on an excursion"
       reference_to(Excursion)
       reference_to(Passenger)

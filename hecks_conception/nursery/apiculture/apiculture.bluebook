@@ -3,19 +3,19 @@ Hecks.bluebook "Apiculture" do
 
   aggregate "Hive" do
     description "A managed colony of honeybees housed in an apiary"
-    String :hive_id
-    String :hive_type
-    String :location
-    Integer :frame_count
-    Integer :brood_frame_count, default: 0
-    String :status
+    attribute :hive_id, String
+    attribute :hive_type, String
+    attribute :location, String
+    attribute :frame_count, Integer
+    attribute :brood_frame_count, Integer, default: 0
+    attribute :status, String
 
     command "EstablishHive" do
       description "Set up a new beehive in the apiary"
       emits "HiveEstablished"
-      String :hive_id
-      String :hive_type
-      String :location
+      attribute :hive_id, String
+      attribute :hive_type, String
+      attribute :location, String
     end
 
     command "SplitHive" do
@@ -33,96 +33,96 @@ Hecks.bluebook "Apiculture" do
 
   aggregate "Inspection" do
     description "A periodic examination of hive health and productivity"
-    String :inspection_date
-    String :inspector
-    Integer :brood_frames
-    Integer :honey_frames
-    String :temperament
-    String :queen_seen
+    attribute :inspection_date, String
+    attribute :inspector, String
+    attribute :brood_frames, Integer
+    attribute :honey_frames, Integer
+    attribute :temperament, String
+    attribute :queen_seen, String
     reference_to Hive
 
     value_object "BroodPattern" do
-      String :pattern_quality
-      Integer :capped_cells_percent
-      String :disease_signs
+      attribute :pattern_quality, String
+      attribute :capped_cells_percent, Integer
+      attribute :disease_signs, String
     end
 
     command "PerformInspection" do
       description "Conduct a full hive inspection"
       emits "InspectionCompleted"
       reference_to Hive
-      String :inspection_date
-      String :inspector
+      attribute :inspection_date, String
+      attribute :inspector, String
     end
 
     command "FlagConcern" do
       description "Note a health issue discovered during inspection"
       emits "ConcernFlagged"
       reference_to Inspection
-      String :concern_type
-      String :details
+      attribute :concern_type, String
+      attribute :details, String
     end
 
     command "RecordTemperament" do
       description "Score the colony's defensiveness during handling"
       emits "TemperamentRecorded"
       reference_to Inspection
-      String :temperament
+      attribute :temperament, String
     end
   end
 
   aggregate "Harvest" do
     description "A honey extraction event from one or more hives"
-    String :harvest_date
-    Float :weight_kg
-    String :honey_type
-    Float :moisture_percent
+    attribute :harvest_date, String
+    attribute :weight_kg, Float
+    attribute :honey_type, String
+    attribute :moisture_percent, Float
     reference_to Hive
 
     command "ExtractHoney" do
       description "Spin frames and collect honey"
       emits "HoneyExtracted"
       reference_to Hive
-      String :harvest_date
-      Float :weight_kg
+      attribute :harvest_date, String
+      attribute :weight_kg, Float
     end
 
     command "JarHoney" do
       description "Package extracted honey into retail containers"
       emits "HoneyJarred"
       reference_to Harvest
-      Integer :jar_count
+      attribute :jar_count, Integer
     end
   end
 
   aggregate "Queen" do
     description "The reproductive female leading a colony"
-    String :queen_id
-    String :lineage
-    String :marked_color
-    Integer :year_introduced
-    Integer :age_years, default: 0
+    attribute :queen_id, String
+    attribute :lineage, String
+    attribute :marked_color, String
+    attribute :year_introduced, Integer
+    attribute :age_years, Integer, default: 0
     reference_to Hive
 
     value_object "QueenPerformance" do
-      String :laying_pattern
-      Float :brood_density
-      String :temperament_rating
+      attribute :laying_pattern, String
+      attribute :brood_density, Float
+      attribute :temperament_rating, String
     end
 
     command "IntroduceQueen" do
       description "Install a new queen into a hive"
       emits "QueenIntroduced"
       reference_to Hive
-      String :queen_id
-      String :lineage
+      attribute :queen_id, String
+      attribute :lineage, String
     end
 
     command "MarkQueen" do
       description "Paint the queen with the year color code"
       emits "QueenMarked"
       reference_to Queen
-      String :marked_color
+      attribute :marked_color, String
     end
 
     command "SupersedeQueen" do
@@ -134,19 +134,19 @@ Hecks.bluebook "Apiculture" do
 
   aggregate "DiseaseTreatment" do
     description "A medication or intervention applied to a sick colony"
-    String :treatment_type
-    String :active_ingredient
-    String :application_date
-    Integer :duration_days
-    TrueClass :duration_elapsed, default: false
+    attribute :treatment_type, String
+    attribute :active_ingredient, String
+    attribute :application_date, String
+    attribute :duration_days, Integer
+    attribute :duration_elapsed, TrueClass, default: false
     reference_to Hive
 
     command "ApplyTreatment" do
       description "Administer disease treatment to the hive"
       emits "TreatmentApplied"
       reference_to Hive
-      String :treatment_type
-      String :active_ingredient
+      attribute :treatment_type, String
+      attribute :active_ingredient, String
     end
 
     command "EvaluateEfficacy" do

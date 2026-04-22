@@ -3,30 +3,30 @@ Hecks.bluebook "Cryptography" do
 
   aggregate "KeyPair" do
     description "An asymmetric key pair used for encryption or signing"
-    String :key_id
-    String :algorithm
-    Integer :key_length_bits
-    String :created_date
-    String :expiry_date
-    String :owner
-    Boolean :revoked, default: false
-    Boolean :expired, default: false
+    attribute :key_id, String
+    attribute :algorithm, String
+    attribute :key_length_bits, Integer
+    attribute :created_date, String
+    attribute :expiry_date, String
+    attribute :owner, String
+    attribute :revoked, Boolean, default: false
+    attribute :expired, Boolean, default: false
     reference_to Cipher
 
     command "GenerateKeyPair" do
       description "Create a new public-private key pair"
       emits "KeyPairGenerated"
       reference_to Cipher
-      String :algorithm
-      Integer :key_length_bits
-      String :owner
+      attribute :algorithm, String
+      attribute :key_length_bits, Integer
+      attribute :owner, String
     end
 
     command "RevokeKey" do
       description "Invalidate a key pair before expiry"
       emits "KeyRevoked"
       reference_to KeyPair
-      String :revocation_reason
+      attribute :revocation_reason, String
       given { revoked == false }
     end
 
@@ -45,24 +45,24 @@ Hecks.bluebook "Cryptography" do
 
   aggregate "Cipher" do
     description "A cryptographic algorithm implementation for data transformation"
-    String :cipher_name
-    String :cipher_type
-    Integer :block_size_bits
-    String :mode_of_operation
-    Boolean :replacement_available, default: false
+    attribute :cipher_name, String
+    attribute :cipher_type, String
+    attribute :block_size_bits, Integer
+    attribute :mode_of_operation, String
+    attribute :replacement_available, Boolean, default: false
 
     value_object "CipherSpec" do
-      String :padding_scheme
-      String :initialization_vector_mode
-      Integer :rounds
+      attribute :padding_scheme, String
+      attribute :initialization_vector_mode, String
+      attribute :rounds, Integer
     end
 
     command "RegisterCipher" do
       description "Add a cipher algorithm to the approved registry"
       emits "CipherRegistered"
-      String :cipher_name
-      String :cipher_type
-      Integer :block_size_bits
+      attribute :cipher_name, String
+      attribute :cipher_type, String
+      attribute :block_size_bits, Integer
     end
 
     command "BenchmarkCipher" do
@@ -88,10 +88,10 @@ Hecks.bluebook "Cryptography" do
 
   aggregate "EncryptedMessage" do
     description "A plaintext message transformed into ciphertext"
-    String :message_id
-    String :ciphertext
-    String :encrypted_at
-    Boolean :decryption_key_matched, default: false
+    attribute :message_id, String
+    attribute :ciphertext, String
+    attribute :encrypted_at, String
+    attribute :decryption_key_matched, Boolean, default: false
     reference_to KeyPair
     reference_to Cipher
 
@@ -100,7 +100,7 @@ Hecks.bluebook "Cryptography" do
       emits "MessageEncrypted"
       reference_to KeyPair
       reference_to Cipher
-      String :plaintext
+      attribute :plaintext, String
     end
 
     command "MatchDecryptionKey" do
@@ -120,19 +120,19 @@ Hecks.bluebook "Cryptography" do
 
   aggregate "DigitalSignature" do
     description "A cryptographic proof of message authenticity and integrity"
-    String :signature_id
-    String :signature_value
-    String :signed_at
-    String :hash_algorithm
-    Boolean :signing_key_valid, default: false
+    attribute :signature_id, String
+    attribute :signature_value, String
+    attribute :signed_at, String
+    attribute :hash_algorithm, String
+    attribute :signing_key_valid, Boolean, default: false
     reference_to KeyPair
 
     command "SignMessage" do
       description "Produce a digital signature over message content"
       emits "MessageSigned"
       reference_to KeyPair
-      String :message_hash
-      String :hash_algorithm
+      attribute :message_hash, String
+      attribute :hash_algorithm, String
     end
 
     command "ValidateSigningKey" do
@@ -152,19 +152,19 @@ Hecks.bluebook "Cryptography" do
 
   aggregate "Certificate" do
     description "An X.509 certificate binding a public key to an identity"
-    String :serial_number
-    String :subject
-    String :issuer
-    String :valid_from
-    String :valid_to
-    Boolean :revoked, default: false
+    attribute :serial_number, String
+    attribute :subject, String
+    attribute :issuer, String
+    attribute :valid_from, String
+    attribute :valid_to, String
+    attribute :revoked, Boolean, default: false
     reference_to KeyPair
     reference_to Cipher
 
     value_object "CertificateExtension" do
-      String :oid
-      String :value
-      String :critical
+      attribute :oid, String
+      attribute :value, String
+      attribute :critical, String
     end
 
     command "IssueCertificate" do
@@ -172,9 +172,9 @@ Hecks.bluebook "Cryptography" do
       emits "CertificateIssued"
       reference_to KeyPair
       reference_to Cipher
-      String :subject
-      String :valid_from
-      String :valid_to
+      attribute :subject, String
+      attribute :valid_from, String
+      attribute :valid_to, String
     end
 
     command "RenewCertificate" do
@@ -189,7 +189,7 @@ Hecks.bluebook "Cryptography" do
       emits "CertificateRevoked"
       reference_to Certificate
       reference_to KeyPair
-      String :reason
+      attribute :reason, String
     end
   end
 

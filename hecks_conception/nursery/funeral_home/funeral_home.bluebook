@@ -3,30 +3,30 @@ Hecks.bluebook "FuneralHome" do
   category "services"
 
   aggregate "Decedent", "The deceased individual with vital statistics and next of kin" do
-    String :first_name
-    String :last_name
-    String :date_of_birth
-    String :date_of_death
-    String :place_of_death
-    String :cause_of_death
-    String :next_of_kin
-    String :status
+    attribute :first_name, String
+    attribute :last_name, String
+    attribute :date_of_birth, String
+    attribute :date_of_death, String
+    attribute :place_of_death, String
+    attribute :cause_of_death, String
+    attribute :next_of_kin, String
+    attribute :status, String
 
     value_object "VitalRecord" do
-      String :social_security
-      String :birth_certificate_number
-      String :veterans_status
+      attribute :social_security, String
+      attribute :birth_certificate_number, String
+      attribute :veterans_status, String
     end
 
-    RegisterDecedent do
+    command "RegisterDecedent" do
       role "FuneralDirector"
       description "Record the deceased's information upon intake"
-      String :first_name
-      String :last_name
-      String :date_of_birth
-      String :date_of_death
-      String :place_of_death
-      String :next_of_kin
+      attribute :first_name, String
+      attribute :last_name, String
+      attribute :date_of_birth, String
+      attribute :date_of_death, String
+      attribute :place_of_death, String
+      attribute :next_of_kin, String
       emits "DecedentRegistered"
       then_set :first_name, to: :first_name
       then_set :last_name, to: :last_name
@@ -36,15 +36,15 @@ Hecks.bluebook "FuneralHome" do
       then_set :status, to: "received"
     end
 
-    PrepareRemains do
+    command "PrepareRemains" do
       role "Embalmer"
       description "Embalm or prepare the remains for viewing or cremation"
-      String :preparation_type
+      attribute :preparation_type, String
       emits "RemainsPrepared"
       then_set :status, to: "prepared"
     end
 
-    ReleaseRemains do
+    command "ReleaseRemains" do
       role "FuneralDirector"
       description "Release the remains to the family or crematory"
       reference_to(Decedent)
@@ -54,31 +54,31 @@ Hecks.bluebook "FuneralHome" do
   end
 
   aggregate "ServiceArrangement", "The planned funeral or memorial service with date, venue, and type" do
-    String :service_type
-    String :service_date
-    String :service_time
-    String :venue
-    String :officiant
-    Integer :expected_attendees
-    String :status
+    attribute :service_type, String
+    attribute :service_date, String
+    attribute :service_time, String
+    attribute :venue, String
+    attribute :officiant, String
+    attribute :expected_attendees, Integer
+    attribute :status, String
     reference_to(Decedent)
 
     value_object "MusicSelection" do
-      String :song_title
-      String :performer
-      String :timing
+      attribute :song_title, String
+      attribute :performer, String
+      attribute :timing, String
     end
 
-    ArrangeService do
+    command "ArrangeService" do
       role "FuneralDirector"
       description "Plan the funeral or memorial service details with the family"
       reference_to(Decedent)
-      String :service_type
-      String :service_date
-      String :service_time
-      String :venue
-      String :officiant
-      Integer :expected_attendees
+      attribute :service_type, String
+      attribute :service_date, String
+      attribute :service_time, String
+      attribute :venue, String
+      attribute :officiant, String
+      attribute :expected_attendees, Integer
       emits "ServiceArranged"
       then_set :service_type, to: :service_type
       then_set :service_date, to: :service_date
@@ -88,7 +88,7 @@ Hecks.bluebook "FuneralHome" do
       then_set :status, to: "planned"
     end
 
-    ConductService do
+    command "ConductService" do
       role "FuneralDirector"
       description "Execute the funeral service as planned"
       reference_to(ServiceArrangement)
@@ -97,11 +97,11 @@ Hecks.bluebook "FuneralHome" do
       then_set :status, to: "completed"
     end
 
-    PostponeService do
+    command "PostponeService" do
       role "FuneralDirector"
       description "Delay the service to a new date due to family request or logistics"
       reference_to(ServiceArrangement)
-      String :new_date
+      attribute :new_date, String
       given { status == "planned" }
       emits "ServicePostponed"
       then_set :service_date, to: :new_date
@@ -109,31 +109,31 @@ Hecks.bluebook "FuneralHome" do
   end
 
   aggregate "Obituary", "A published notice commemorating the deceased's life" do
-    String :headline
-    String :body_text
-    String :publication_name
-    String :publish_date
-    String :status
+    attribute :headline, String
+    attribute :body_text, String
+    attribute :publication_name, String
+    attribute :publish_date, String
+    attribute :status, String
     reference_to(Decedent)
 
-    DraftObituary do
+    command "DraftObituary" do
       role "FuneralDirector"
       description "Write the obituary text with the family's input"
       reference_to(Decedent)
-      String :headline
-      String :body_text
+      attribute :headline, String
+      attribute :body_text, String
       emits "ObituaryDrafted"
       then_set :headline, to: :headline
       then_set :body_text, to: :body_text
       then_set :status, to: "draft"
     end
 
-    PublishObituary do
+    command "PublishObituary" do
       role "FuneralDirector"
       description "Submit the obituary to newspapers and online platforms"
       reference_to(Obituary)
-      String :publication_name
-      String :publish_date
+      attribute :publication_name, String
+      attribute :publish_date, String
       given { status == "draft" }
       emits "ObituaryPublished"
       then_set :publication_name, to: :publication_name
@@ -143,21 +143,21 @@ Hecks.bluebook "FuneralHome" do
   end
 
   aggregate "TransportRequest", "A request to move remains between locations" do
-    String :pickup_location
-    String :delivery_location
-    String :transport_date
-    String :vehicle_type
-    String :status
+    attribute :pickup_location, String
+    attribute :delivery_location, String
+    attribute :transport_date, String
+    attribute :vehicle_type, String
+    attribute :status, String
     reference_to(Decedent)
 
-    ScheduleTransport do
+    command "ScheduleTransport" do
       role "FuneralDirector"
       description "Arrange vehicle transport for the remains"
       reference_to(Decedent)
-      String :pickup_location
-      String :delivery_location
-      String :transport_date
-      String :vehicle_type
+      attribute :pickup_location, String
+      attribute :delivery_location, String
+      attribute :transport_date, String
+      attribute :vehicle_type, String
       emits "TransportScheduled"
       then_set :pickup_location, to: :pickup_location
       then_set :delivery_location, to: :delivery_location
@@ -166,7 +166,7 @@ Hecks.bluebook "FuneralHome" do
       then_set :status, to: "scheduled"
     end
 
-    CompleteTransport do
+    command "CompleteTransport" do
       role "Driver"
       description "Confirm the remains have been delivered to the destination"
       reference_to(TransportRequest)
@@ -177,26 +177,26 @@ Hecks.bluebook "FuneralHome" do
   end
 
   aggregate "FuneralInvoice", "A billing statement for all services rendered to the family" do
-    Float :services_total
-    Float :merchandise_total
-    Float :cash_advances
-    Float :grand_total
-    String :status
+    attribute :services_total, Float
+    attribute :merchandise_total, Float
+    attribute :cash_advances, Float
+    attribute :grand_total, Float
+    attribute :status, String
     reference_to(Decedent)
 
     value_object "LineItem" do
-      String :description
-      Float :amount
-      String :category
+      attribute :description, String
+      attribute :amount, Float
+      attribute :category, String
     end
 
-    GenerateInvoice do
+    command "GenerateInvoice" do
       role "OfficeManager"
       description "Create an itemized invoice for all funeral services and merchandise"
       reference_to(Decedent)
-      Float :services_total
-      Float :merchandise_total
-      Float :cash_advances
+      attribute :services_total, Float
+      attribute :merchandise_total, Float
+      attribute :cash_advances, Float
       emits "InvoiceGenerated"
       then_set :services_total, to: :services_total
       then_set :merchandise_total, to: :merchandise_total
@@ -204,11 +204,11 @@ Hecks.bluebook "FuneralHome" do
       then_set :status, to: "pending"
     end
 
-    CollectPayment do
+    command "CollectPayment" do
       role "OfficeManager"
       description "Record payment received from the family or insurance"
       reference_to(FuneralInvoice)
-      Float :amount_paid
+      attribute :amount_paid, Float
       given { status == "pending" }
       emits "PaymentCollected"
       then_set :status, to: "paid"

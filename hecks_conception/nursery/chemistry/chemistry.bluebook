@@ -3,20 +3,20 @@ Hecks.bluebook "Chemistry", version: "2026.04.16.1" do
   category "science"
 
   aggregate "Element", "An atom — the irreducible unit of matter" do
-    String :symbol
-    String :name
-    Integer :atomic_number
-    Float :atomic_mass
-    String :group
-    String :period
-    String :state
+    attribute :symbol, String
+    attribute :name, String
+    attribute :atomic_number, Integer
+    attribute :atomic_mass, Float
+    attribute :group, String
+    attribute :period, String
+    attribute :state, String
 
-    Register do
+    command "Register" do
       role "Chemist"
       description "Add an element to the periodic table"
-      String :symbol
-      String :name
-      Integer :atomic_number
+      attribute :symbol, String
+      attribute :name, String
+      attribute :atomic_number, Integer
       emits "ElementRegistered"
       then_set :symbol, to: :symbol
       then_set :name, to: :name
@@ -25,17 +25,17 @@ Hecks.bluebook "Chemistry", version: "2026.04.16.1" do
   end
 
   aggregate "Compound", "A molecule — atoms bonded into a stable aggregate" do
-    String :formula
-    String :name
-    String :state
+    attribute :formula, String
+    attribute :name, String
+    attribute :state, String
     list_of(String) :elements
     list_of(String) :bonds
 
-    Synthesize do
+    command "Synthesize" do
       role "Chemist"
       description "Combine elements into a compound through bonding"
-      String :formula
-      String :name
+      attribute :formula, String
+      attribute :name, String
       list_of(String) :elements
       emits "CompoundSynthesized"
       then_set :formula, to: :formula
@@ -43,7 +43,7 @@ Hecks.bluebook "Chemistry", version: "2026.04.16.1" do
       then_set :elements, to: :elements
     end
 
-    Decompose do
+    command "Decompose" do
       role "Chemist"
       description "Break a compound into its constituent elements"
       reference_to(Compound)
@@ -52,18 +52,18 @@ Hecks.bluebook "Chemistry", version: "2026.04.16.1" do
   end
 
   aggregate "Reaction", "A command that transforms matter — reactants become products" do
-    String :equation
-    String :reaction_type
+    attribute :equation, String
+    attribute :reaction_type, String
     list_of(String) :reactants
     list_of(String) :products
-    String :catalyst
-    Float :energy_delta
-    String :status
+    attribute :catalyst, String
+    attribute :energy_delta, Float
+    attribute :status, String
 
-    React do
+    command "React" do
       role "Chemist"
       description "Execute a chemical reaction — transform reactants into products"
-      String :equation
+      attribute :equation, String
       list_of(String) :reactants
       list_of(String) :products
       emits "ReactionOccurred"
@@ -73,16 +73,16 @@ Hecks.bluebook "Chemistry", version: "2026.04.16.1" do
       then_set :status, to: "complete"
     end
 
-    Catalyze do
+    command "Catalyze" do
       role "Chemist"
       description "Add a catalyst — lower the activation energy without being consumed"
       reference_to(Reaction)
-      String :catalyst
+      attribute :catalyst, String
       emits "ReactionCatalyzed"
       then_set :catalyst, to: :catalyst
     end
 
-    Reverse do
+    command "Reverse" do
       role "Chemist"
       description "Run the reaction backwards — products become reactants"
       reference_to(Reaction)
@@ -96,18 +96,18 @@ Hecks.bluebook "Chemistry", version: "2026.04.16.1" do
   end
 
   aggregate "Bond", "A reference between atoms — the force that holds molecules together" do
-    String :bond_type
-    String :atom_a
-    String :atom_b
-    Float :strength
-    String :status
+    attribute :bond_type, String
+    attribute :atom_a, String
+    attribute :atom_b, String
+    attribute :strength, Float
+    attribute :status, String
 
-    Form do
+    command "Form" do
       role "Chemist"
       description "Create a bond between two atoms"
-      String :atom_a
-      String :atom_b
-      String :bond_type
+      attribute :atom_a, String
+      attribute :atom_b, String
+      attribute :bond_type, String
       emits "BondFormed"
       then_set :atom_a, to: :atom_a
       then_set :atom_b, to: :atom_b
@@ -115,7 +115,7 @@ Hecks.bluebook "Chemistry", version: "2026.04.16.1" do
       then_set :status, to: "stable"
     end
 
-    Break do
+    command "Break" do
       role "Chemist"
       description "Break a bond — release energy, free the atoms"
       reference_to(Bond)
@@ -130,22 +130,22 @@ Hecks.bluebook "Chemistry", version: "2026.04.16.1" do
   end
 
   aggregate "Solution", "A mixture — compounds dissolved in a solvent" do
-    String :solvent
+    attribute :solvent, String
     list_of(String) :solutes
-    Float :concentration
-    Float :ph
+    attribute :concentration, Float
+    attribute :ph, Float
 
-    Dissolve do
+    command "Dissolve" do
       role "Chemist"
       description "Dissolve a compound into a solvent"
-      String :solvent
+      attribute :solvent, String
       list_of(String) :solutes
       emits "SolutionCreated"
       then_set :solvent, to: :solvent
       then_set :solutes, to: :solutes
     end
 
-    Precipitate do
+    command "Precipitate" do
       role "Chemist"
       description "A solute falls out of solution — becomes solid"
       reference_to(Solution)

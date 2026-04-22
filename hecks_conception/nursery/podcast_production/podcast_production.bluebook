@@ -1,28 +1,28 @@
 Hecks.bluebook "PodcastProduction" do
   aggregate "Show", "A podcast show with branding, format, and publishing schedule" do
-    String :title
-    String :category
-    String :format
-    String :status, default: "planning"
-    Integer :episode_count
+    attribute :title, String
+    attribute :category, String
+    attribute :format, String
+    attribute :status, String, default: "planning"
+    attribute :episode_count, Integer
 
     value_object "ShowBranding" do
-      String :cover_art_url
-      String :intro_music
-      String :outro_music
-      String :tagline
+      attribute :cover_art_url, String
+      attribute :intro_music, String
+      attribute :outro_music, String
+      attribute :tagline, String
     end
 
-    LaunchShow do
+    command "LaunchShow" do
       description "Create a new podcast show with branding and format"
-      String :title
-      String :category
-      String :format
+      attribute :title, String
+      attribute :category, String
+      attribute :format, String
       emits "ShowLaunched"
       then_set :status, to: "planning"
     end
 
-    PublishShow do
+    command "PublishShow" do
       description "Make the show live on podcast directories"
       reference_to(Show)
       given { status == "planning" }
@@ -30,7 +30,7 @@ Hecks.bluebook "PodcastProduction" do
       then_set :status, to: "published"
     end
 
-    HiatusShow do
+    command "HiatusShow" do
       description "Put the show on seasonal hiatus"
       reference_to(Show)
       given { status == "published" }
@@ -40,46 +40,46 @@ Hecks.bluebook "PodcastProduction" do
   end
 
   aggregate "Episode", "A single podcast episode from recording through release" do
-    String :title
-    Integer :episode_number
-    Integer :duration_seconds
-    String :status, default: "outlined"
+    attribute :title, String
+    attribute :episode_number, Integer
+    attribute :duration_seconds, Integer
+    attribute :status, String, default: "outlined"
     reference_to(Show)
 
     value_object "ShowNotes" do
-      String :summary
-      String :timestamps
-      String :links
-      String :transcript_url
+      attribute :summary, String
+      attribute :timestamps, String
+      attribute :links, String
+      attribute :transcript_url, String
     end
 
-    OutlineEpisode do
+    command "OutlineEpisode" do
       description "Draft the episode outline and talking points"
       reference_to(Show)
-      String :title
-      Integer :episode_number
+      attribute :title, String
+      attribute :episode_number, Integer
       emits "EpisodeOutlined"
       then_set :status, to: "outlined"
     end
 
-    RecordEpisode do
+    command "RecordEpisode" do
       description "Capture the audio recording for an episode"
       reference_to(Episode)
-      Integer :duration_seconds
+      attribute :duration_seconds, Integer
       given { status == "outlined" }
       emits "EpisodeRecorded"
       then_set :status, to: "recorded"
       then_set :duration_seconds, to: :duration_seconds
     end
 
-    MarkEdited do
+    command "MarkEdited" do
       description "Mark episode as edited after post-production is complete"
       reference_to(Episode)
       emits "EpisodeEdited"
       then_set :status, to: "edited"
     end
 
-    ReleaseEpisode do
+    command "ReleaseEpisode" do
       description "Publish the finished episode to the RSS feed"
       reference_to(Episode)
       emits "EpisodeReleased"
@@ -88,23 +88,23 @@ Hecks.bluebook "PodcastProduction" do
   end
 
   aggregate "Guest", "A guest booked for an interview episode" do
-    String :name
-    String :expertise
-    String :bio
-    String :status, default: "invited"
+    attribute :name, String
+    attribute :expertise, String
+    attribute :bio, String
+    attribute :status, String, default: "invited"
     reference_to(Episode)
 
-    InviteGuest do
+    command "InviteGuest" do
       description "Send a guest invitation for an episode"
       reference_to(Episode)
-      String :name
-      String :expertise
-      String :bio
+      attribute :name, String
+      attribute :expertise, String
+      attribute :bio, String
       emits "GuestInvited"
       then_set :status, to: "invited"
     end
 
-    ConfirmGuest do
+    command "ConfirmGuest" do
       description "Confirm the guest has accepted the invitation"
       reference_to(Guest)
       given { status == "invited" }
@@ -114,23 +114,23 @@ Hecks.bluebook "PodcastProduction" do
   end
 
   aggregate "EditingSession", "Post-production audio editing and mixing" do
-    String :editor_name
-    String :status, default: "pending"
-    Integer :cuts_made
+    attribute :editor_name, String
+    attribute :status, String, default: "pending"
+    attribute :cuts_made, Integer
     reference_to(Episode)
 
-    StartEditing do
+    command "StartEditing" do
       description "Begin post-production editing on a recorded episode"
       reference_to(Episode)
-      String :editor_name
+      attribute :editor_name, String
       emits "EditingStarted"
       then_set :status, to: "pending"
     end
 
-    FinalizeEdit do
+    command "FinalizeEdit" do
       description "Complete editing and export the master audio file"
       reference_to(EditingSession)
-      Integer :cuts_made
+      attribute :cuts_made, Integer
       given { status == "pending" }
       emits "EditFinalized"
       then_set :status, to: "finalized"
@@ -139,23 +139,23 @@ Hecks.bluebook "PodcastProduction" do
   end
 
   aggregate "DownloadMetric", "Analytics tracking downloads and listener engagement" do
-    Integer :download_count
-    Integer :unique_listeners
-    Float :completion_rate
-    String :period
+    attribute :download_count, Integer
+    attribute :unique_listeners, Integer
+    attribute :completion_rate, Float
+    attribute :period, String
     reference_to(Episode)
 
-    RecordDownloads do
+    command "RecordDownloads" do
       description "Log download metrics for an episode period"
       reference_to(Episode)
-      Integer :download_count
-      Integer :unique_listeners
-      Float :completion_rate
-      String :period
+      attribute :download_count, Integer
+      attribute :unique_listeners, Integer
+      attribute :completion_rate, Float
+      attribute :period, String
       emits "DownloadsRecorded"
     end
 
-    GenerateReport do
+    command "GenerateReport" do
       description "Compile analytics into a summary report"
       reference_to(DownloadMetric)
       emits "ReportGenerated"

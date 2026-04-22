@@ -1,31 +1,31 @@
 Hecks.bluebook "MiningOperation" do
   aggregate "MineShaft" do
-    String :shaft_id
-    String :shaft_name
-    Float :depth_meters
-    String :ore_body
-    String :ventilation_status
-    String :status
+    attribute :shaft_id, String
+    attribute :shaft_name, String
+    attribute :depth_meters, Float
+    attribute :ore_body, String
+    attribute :ventilation_status, String
+    attribute :status, String
 
     value_object "GeologyProfile" do
-      String :rock_type
-      Float :ore_grade_percent
-      Float :water_inflow_lpm
-      String :structural_stability
+      attribute :rock_type, String
+      attribute :ore_grade_percent, Float
+      attribute :water_inflow_lpm, Float
+      attribute :structural_stability, String
     end
 
-    AdvanceShaft do
+    command "AdvanceShaft" do
       description "Drill and blast to extend shaft deeper into ore body"
-      Float :advance_meters
-      String :drill_pattern
+      attribute :advance_meters, Float
+      attribute :drill_pattern, String
       reference_to "MineShaft"
       emits "ShaftAdvanced"
     end
 
-    SupportShaft do
+    command "SupportShaft" do
       description "Install ground support bolts and mesh in newly excavated area"
-      String :support_type
-      Float :coverage_sqm
+      attribute :support_type, String
+      attribute :coverage_sqm, Float
       reference_to "MineShaft"
       emits "ShaftSupported"
     end
@@ -39,47 +39,47 @@ Hecks.bluebook "MiningOperation" do
     policy "Ventilation must be verified before personnel entry"
 
     given "Main shaft reaches 400 meter level" do
-      String :shaft_name, "Main Decline"
-      Float :depth_meters, 400.0
-      String :ore_body, "Copper Porphyry"
+      attribute :shaft_name, String, "Main Decline"
+      attribute :depth_meters, Float, 400.0
+      attribute :ore_body, String, "Copper Porphyry"
     end
   end
 
   aggregate "OreBatch" do
-    String :batch_id
-    String :source_stope
-    Float :tonnage
-    Float :head_grade_percent
-    String :ore_type
-    String :status
+    attribute :batch_id, String
+    attribute :source_stope, String
+    attribute :tonnage, Float
+    attribute :head_grade_percent, Float
+    attribute :ore_type, String
+    attribute :status, String
 
-    MuckOre do
+    command "MuckOre" do
       description "Load blasted ore from stope into haul trucks"
-      String :source_stope
-      Float :tonnage
+      attribute :source_stope, String
+      attribute :tonnage, Float
       reference_to "MineShaft"
       emits "OreMucked"
     end
 
-    CrushOre do
+    command "CrushOre" do
       description "Reduce ore size through primary and secondary crushers"
-      String :crusher_id
-      Float :target_size_mm
+      attribute :crusher_id, String
+      attribute :target_size_mm, Float
       reference_to "OreBatch"
       emits "OreCrushed"
     end
 
-    MillOre do
+    command "MillOre" do
       description "Grind crushed ore in ball mill for mineral liberation"
-      String :mill_id
-      Float :target_size_microns
+      attribute :mill_id, String
+      attribute :target_size_microns, Float
       reference_to "OreBatch"
       emits "OreMilled"
     end
 
-    FloatConcentrate do
+    command "FloatConcentrate" do
       description "Separate valuable minerals from gangue via froth flotation"
-      Float :recovery_percent
+      attribute :recovery_percent, Float
       reference_to "OreBatch"
       emits "ConcentrateFloated"
     end
@@ -95,26 +95,26 @@ Hecks.bluebook "MiningOperation" do
   end
 
   aggregate "MiningEquipment" do
-    String :equipment_id
-    String :equipment_type
-    String :manufacturer
-    Float :operating_hours
-    String :location
-    String :status
+    attribute :equipment_id, String
+    attribute :equipment_type, String
+    attribute :manufacturer, String
+    attribute :operating_hours, Float
+    attribute :location, String
+    attribute :status, String
     list_of "ServiceRecord"
 
-    DeployEquipment do
+    command "DeployEquipment" do
       description "Assign heavy equipment to underground working area"
-      String :location
-      String :operator_id
+      attribute :location, String
+      attribute :operator_id, String
       reference_to "MiningEquipment"
       emits "EquipmentDeployed"
     end
 
-    PerformService do
+    command "PerformService" do
       description "Execute scheduled maintenance on mining equipment underground"
-      String :service_type
-      String :mechanic
+      attribute :service_type, String
+      attribute :mechanic, String
       reference_to "MiningEquipment"
       emits "ServicePerformed"
     end
@@ -128,33 +128,33 @@ Hecks.bluebook "MiningOperation" do
   end
 
   aggregate "SafetyIncident" do
-    String :incident_id
-    String :incident_type
-    String :location
-    String :severity
-    String :reported_by
-    String :status
+    attribute :incident_id, String
+    attribute :incident_type, String
+    attribute :location, String
+    attribute :severity, String
+    attribute :reported_by, String
+    attribute :status, String
 
     value_object "IncidentDetail" do
-      String :description
-      String :root_cause
-      String :corrective_action
-      Integer :lost_time_days
+      attribute :description, String
+      attribute :root_cause, String
+      attribute :corrective_action, String
+      attribute :lost_time_days, Integer
     end
 
-    ReportIncident do
+    command "ReportIncident" do
       description "Log safety incident with location and severity classification"
-      String :incident_type
-      String :severity
-      String :reported_by
+      attribute :incident_type, String
+      attribute :severity, String
+      attribute :reported_by, String
       reference_to "SafetyIncident"
       emits "IncidentReported"
     end
 
-    InvestigateIncident do
+    command "InvestigateIncident" do
       description "Conduct root cause analysis and define corrective actions"
-      String :investigator
-      String :root_cause
+      attribute :investigator, String
+      attribute :root_cause, String
       reference_to "SafetyIncident"
       emits "IncidentInvestigated"
     end
@@ -168,25 +168,25 @@ Hecks.bluebook "MiningOperation" do
   end
 
   aggregate "Assay" do
-    String :assay_id
-    String :sample_source
-    String :mineral
-    Float :grade_percent
-    String :lab_id
-    String :status
+    attribute :assay_id, String
+    attribute :sample_source, String
+    attribute :mineral, String
+    attribute :grade_percent, Float
+    attribute :lab_id, String
+    attribute :status, String
 
-    SubmitSample do
+    command "SubmitSample" do
       description "Send ore sample to assay laboratory for grade determination"
-      String :sample_source
-      String :mineral
+      attribute :sample_source, String
+      attribute :mineral, String
       reference_to "OreBatch"
       emits "SampleSubmitted"
     end
 
-    RecordResult do
+    command "RecordResult" do
       description "Record laboratory assay results for mine planning"
-      Float :grade_percent
-      String :analysis_method
+      attribute :grade_percent, Float
+      attribute :analysis_method, String
       reference_to "Assay"
       emits "ResultRecorded"
     end

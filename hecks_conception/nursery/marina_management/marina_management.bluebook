@@ -3,29 +3,29 @@ Hecks.bluebook "MarinaManagement" do
   category "maritime"
 
   aggregate "Slip", "A docking space at the marina with size, utilities, and occupancy status" do
-    String :slip_number
-    Float :length_feet
-    Float :beam_feet
-    String :dock_section
-    String :power_hookup
-    Float :monthly_rate
-    String :status
+    attribute :slip_number, String
+    attribute :length_feet, Float
+    attribute :beam_feet, Float
+    attribute :dock_section, String
+    attribute :power_hookup, String
+    attribute :monthly_rate, Float
+    attribute :status, String
 
     value_object "SlipAmenities" do
-      String :water_hookup
-      String :wifi_available
-      String :pump_out_station
+      attribute :water_hookup, String
+      attribute :wifi_available, String
+      attribute :pump_out_station, String
     end
 
-    OpenSlip do
+    command "OpenSlip" do
       role "HarborMaster"
       description "Add a new slip to the marina inventory with dimensions and utilities"
-      String :slip_number
-      Float :length_feet
-      Float :beam_feet
-      String :dock_section
-      String :power_hookup
-      Float :monthly_rate
+      attribute :slip_number, String
+      attribute :length_feet, Float
+      attribute :beam_feet, Float
+      attribute :dock_section, String
+      attribute :power_hookup, String
+      attribute :monthly_rate, Float
       emits "SlipOpened"
       then_set :slip_number, to: :slip_number
       then_set :length_feet, to: :length_feet
@@ -36,7 +36,7 @@ Hecks.bluebook "MarinaManagement" do
       then_set :status, to: "available"
     end
 
-    ReserveSlip do
+    command "ReserveSlip" do
       role "HarborMaster"
       description "Reserve a slip for an incoming vessel"
       reference_to(Slip)
@@ -45,7 +45,7 @@ Hecks.bluebook "MarinaManagement" do
       then_set :status, to: "reserved"
     end
 
-    OccupySlip do
+    command "OccupySlip" do
       role "HarborMaster"
       description "Mark a reserved slip as occupied once the vessel docks"
       reference_to(Slip)
@@ -54,7 +54,7 @@ Hecks.bluebook "MarinaManagement" do
       then_set :status, to: "occupied"
     end
 
-    VacateSlip do
+    command "VacateSlip" do
       role "HarborMaster"
       description "Mark a slip as empty after a vessel departs"
       reference_to(Slip)
@@ -64,33 +64,33 @@ Hecks.bluebook "MarinaManagement" do
   end
 
   aggregate "Vessel", "A boat or yacht registered at the marina with owner and specifications" do
-    String :vessel_name
-    String :registration_number
-    String :vessel_type
-    Float :length_overall
-    Float :draft_feet
-    String :owner_name
-    String :owner_phone
-    String :status
+    attribute :vessel_name, String
+    attribute :registration_number, String
+    attribute :vessel_type, String
+    attribute :length_overall, Float
+    attribute :draft_feet, Float
+    attribute :owner_name, String
+    attribute :owner_phone, String
+    attribute :status, String
     reference_to(Slip)
 
     value_object "EngineDetails" do
-      String :engine_type
-      Integer :horsepower
-      String :fuel_type
-      Integer :engine_count
+      attribute :engine_type, String
+      attribute :horsepower, Integer
+      attribute :fuel_type, String
+      attribute :engine_count, Integer
     end
 
-    RegisterVessel do
+    command "RegisterVessel" do
       role "HarborMaster"
       description "Register a vessel at the marina with its specifications"
-      String :vessel_name
-      String :registration_number
-      String :vessel_type
-      Float :length_overall
-      Float :draft_feet
-      String :owner_name
-      String :owner_phone
+      attribute :vessel_name, String
+      attribute :registration_number, String
+      attribute :vessel_type, String
+      attribute :length_overall, Float
+      attribute :draft_feet, Float
+      attribute :owner_name, String
+      attribute :owner_phone, String
       emits "VesselRegistered"
       then_set :vessel_name, to: :vessel_name
       then_set :registration_number, to: :registration_number
@@ -100,7 +100,7 @@ Hecks.bluebook "MarinaManagement" do
       then_set :status, to: "active"
     end
 
-    AssignToSlip do
+    command "AssignToSlip" do
       role "HarborMaster"
       description "Dock a vessel in its assigned slip"
       reference_to(Vessel)
@@ -109,7 +109,7 @@ Hecks.bluebook "MarinaManagement" do
       then_set :status, to: "docked"
     end
 
-    RecordDeparture do
+    command "RecordDeparture" do
       role "HarborMaster"
       description "Log a vessel leaving the marina for a voyage"
       reference_to(Vessel)
@@ -120,21 +120,21 @@ Hecks.bluebook "MarinaManagement" do
   end
 
   aggregate "MaintenanceJob", "A scheduled or emergency maintenance task for a vessel" do
-    String :job_type
-    String :description
-    String :scheduled_date
-    Float :estimated_cost
-    String :status
+    attribute :job_type, String
+    attribute :description, String
+    attribute :scheduled_date, String
+    attribute :estimated_cost, Float
+    attribute :status, String
     reference_to(Vessel)
 
-    ScheduleMaintenance do
+    command "ScheduleMaintenance" do
       role "ServiceManager"
       description "Plan a maintenance job for a vessel with type and estimated cost"
       reference_to(Vessel)
-      String :job_type
-      String :description
-      String :scheduled_date
-      Float :estimated_cost
+      attribute :job_type, String
+      attribute :description, String
+      attribute :scheduled_date, String
+      attribute :estimated_cost, Float
       emits "MaintenanceScheduled"
       then_set :job_type, to: :job_type
       then_set :description, to: :description
@@ -143,7 +143,7 @@ Hecks.bluebook "MarinaManagement" do
       then_set :status, to: "scheduled"
     end
 
-    CompleteMaintenance do
+    command "CompleteMaintenance" do
       role "Technician"
       description "Mark the maintenance job as finished"
       reference_to(MaintenanceJob)
@@ -152,7 +152,7 @@ Hecks.bluebook "MarinaManagement" do
       then_set :status, to: "completed"
     end
 
-    CancelMaintenance do
+    command "CancelMaintenance" do
       role "ServiceManager"
       description "Cancel a scheduled job that is no longer needed"
       reference_to(MaintenanceJob)
@@ -163,57 +163,57 @@ Hecks.bluebook "MarinaManagement" do
   end
 
   aggregate "FuelDispensing", "A fuel transaction recording gallons pumped and cost" do
-    String :fuel_type
-    Float :gallons
-    Float :price_per_gallon
-    Float :total_cost
-    String :dispensed_date
+    attribute :fuel_type, String
+    attribute :gallons, Float
+    attribute :price_per_gallon, Float
+    attribute :total_cost, Float
+    attribute :dispensed_date, String
     reference_to(Vessel)
 
-    DispenseFuel do
+    command "DispenseFuel" do
       role "FuelDockAttendant"
       description "Pump fuel into a vessel and record the transaction"
       reference_to(Vessel)
-      String :fuel_type
-      Float :gallons
-      Float :price_per_gallon
+      attribute :fuel_type, String
+      attribute :gallons, Float
+      attribute :price_per_gallon, Float
       emits "FuelDispensed"
       then_set :fuel_type, to: :fuel_type
       then_set :gallons, to: :gallons
       then_set :price_per_gallon, to: :price_per_gallon
     end
 
-    VoidTransaction do
+    command "VoidTransaction" do
       role "FuelDockAttendant"
       description "Cancel a fuel transaction due to pump error"
       reference_to(FuelDispensing)
-      String :reason
+      attribute :reason, String
       emits "TransactionVoided"
     end
   end
 
   aggregate "WeatherAlert", "A marine weather advisory affecting marina operations" do
-    String :alert_type
-    String :severity
-    String :description
-    String :effective_from
-    String :effective_until
-    String :status
+    attribute :alert_type, String
+    attribute :severity, String
+    attribute :description, String
+    attribute :effective_from, String
+    attribute :effective_until, String
+    attribute :status, String
 
     value_object "WindConditions" do
-      Float :speed_knots
-      String :direction
-      Float :gust_knots
+      attribute :speed_knots, Float
+      attribute :direction, String
+      attribute :gust_knots, Float
     end
 
-    IssueAlert do
+    command "IssueAlert" do
       role "HarborMaster"
       description "Post a weather alert affecting marina operations and vessel safety"
-      String :alert_type
-      String :severity
-      String :description
-      String :effective_from
-      String :effective_until
+      attribute :alert_type, String
+      attribute :severity, String
+      attribute :description, String
+      attribute :effective_from, String
+      attribute :effective_until, String
       emits "AlertIssued"
       then_set :alert_type, to: :alert_type
       then_set :severity, to: :severity
@@ -223,17 +223,17 @@ Hecks.bluebook "MarinaManagement" do
       then_set :status, to: "active"
     end
 
-    EscalateAlert do
+    command "EscalateAlert" do
       role "HarborMaster"
       description "Upgrade alert severity as conditions worsen"
       reference_to(WeatherAlert)
-      String :new_severity
+      attribute :new_severity, String
       given { status == "active" }
       emits "AlertEscalated"
       then_set :severity, to: :new_severity
     end
 
-    LiftAlert do
+    command "LiftAlert" do
       role "HarborMaster"
       description "Cancel the weather alert when conditions improve"
       reference_to(WeatherAlert)

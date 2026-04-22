@@ -3,28 +3,28 @@ Hecks.bluebook "PhoneRepair", version: "2026.04.13.1" do
   category "retail"
 
   aggregate "Device", "A mobile device brought in for service" do
-    String :device_id
-    String :make
-    String :model
-    String :serial_number
-    String :owner_name
-    String :condition
+    attribute :device_id, String
+    attribute :make, String
+    attribute :model, String
+    attribute :serial_number, String
+    attribute :owner_name, String
+    attribute :condition, String
     list_of(KnownIssue) :known_issues
 
     value_object "KnownIssue" do
-      String :description
-      String :severity
-      String :component_affected
+      attribute :description, String
+      attribute :severity, String
+      attribute :component_affected, String
     end
 
-    RegisterDevice do
+    command "RegisterDevice" do
       role "Technician"
       description "Log a customer's device into the system at intake"
-      String :device_id
-      String :make
-      String :model
-      String :serial_number
-      String :owner_name
+      attribute :device_id, String
+      attribute :make, String
+      attribute :model, String
+      attribute :serial_number, String
+      attribute :owner_name, String
       emits "DeviceRegistered"
       then_set :device_id, to: :device_id
       then_set :make, to: :make
@@ -34,7 +34,7 @@ Hecks.bluebook "PhoneRepair", version: "2026.04.13.1" do
       then_set :condition, to: "intake"
     end
 
-    DiagnoseDevice do
+    command "DiagnoseDevice" do
       role "Technician"
       description "Run diagnostics and identify all issues with the device"
       reference_to(Device)
@@ -44,21 +44,21 @@ Hecks.bluebook "PhoneRepair", version: "2026.04.13.1" do
   end
 
   aggregate "RepairTicket", "A work order for fixing a specific device" do
-    String :ticket_id
-    String :device_id
-    String :issue_description
-    Float :estimated_cost
-    String :priority
-    String :status
+    attribute :ticket_id, String
+    attribute :device_id, String
+    attribute :issue_description, String
+    attribute :estimated_cost, Float
+    attribute :priority, String
+    attribute :status, String
 
-    OpenTicket do
+    command "OpenTicket" do
       role "Technician"
       description "Create a repair work order after diagnosis"
-      String :ticket_id
-      String :device_id
-      String :issue_description
-      Float :estimated_cost
-      String :priority
+      attribute :ticket_id, String
+      attribute :device_id, String
+      attribute :issue_description, String
+      attribute :estimated_cost, Float
+      attribute :priority, String
       emits "TicketOpened"
       then_set :ticket_id, to: :ticket_id
       then_set :device_id, to: :device_id
@@ -68,7 +68,7 @@ Hecks.bluebook "PhoneRepair", version: "2026.04.13.1" do
       then_set :status, to: "open"
     end
 
-    BeginRepair do
+    command "BeginRepair" do
       role "Technician"
       description "Start working on the repair"
       reference_to(RepairTicket)
@@ -77,7 +77,7 @@ Hecks.bluebook "PhoneRepair", version: "2026.04.13.1" do
       then_set :status, to: "in_progress"
     end
 
-    CloseTicket do
+    command "CloseTicket" do
       role "Technician"
       description "Mark the repair as complete and ready for pickup"
       reference_to(RepairTicket)
@@ -88,20 +88,20 @@ Hecks.bluebook "PhoneRepair", version: "2026.04.13.1" do
   end
 
   aggregate "Part", "A replacement component used in repairs" do
-    String :part_number
-    String :name
-    String :compatible_models
-    Float :cost
-    Integer :quantity_in_stock
+    attribute :part_number, String
+    attribute :name, String
+    attribute :compatible_models, String
+    attribute :cost, Float
+    attribute :quantity_in_stock, Integer
 
-    OrderPart do
+    command "OrderPart" do
       role "Manager"
       description "Purchase replacement parts from a supplier"
-      String :part_number
-      String :name
-      String :compatible_models
-      Float :cost
-      Integer :quantity_in_stock
+      attribute :part_number, String
+      attribute :name, String
+      attribute :compatible_models, String
+      attribute :cost, Float
+      attribute :quantity_in_stock, Integer
       emits "PartOrdered"
       then_set :part_number, to: :part_number
       then_set :name, to: :name
@@ -110,30 +110,30 @@ Hecks.bluebook "PhoneRepair", version: "2026.04.13.1" do
       then_set :quantity_in_stock, to: :quantity_in_stock
     end
 
-    UsePart do
+    command "UsePart" do
       role "Technician"
       description "Consume a part during a repair"
       reference_to(Part)
-      Integer :quantity_used
+      attribute :quantity_used, Integer
       given { quantity_used > 0 }
       emits "PartUsed"
     end
   end
 
   aggregate "RepairWarranty", "A guarantee on completed repair work" do
-    String :warranty_id
-    String :ticket_id
-    Integer :duration_days
-    String :expiration_date
-    String :status
+    attribute :warranty_id, String
+    attribute :ticket_id, String
+    attribute :duration_days, Integer
+    attribute :expiration_date, String
+    attribute :status, String
 
-    IssueWarranty do
+    command "IssueWarranty" do
       role "Manager"
       description "Provide a warranty on completed repair work"
-      String :warranty_id
-      String :ticket_id
-      Integer :duration_days
-      String :expiration_date
+      attribute :warranty_id, String
+      attribute :ticket_id, String
+      attribute :duration_days, Integer
+      attribute :expiration_date, String
       emits "WarrantyIssued"
       then_set :warranty_id, to: :warranty_id
       then_set :ticket_id, to: :ticket_id
@@ -142,7 +142,7 @@ Hecks.bluebook "PhoneRepair", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    ClaimWarranty do
+    command "ClaimWarranty" do
       role "Customer"
       description "Request warranty service for a recurring issue"
       reference_to(RepairWarranty)

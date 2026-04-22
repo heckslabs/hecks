@@ -3,31 +3,31 @@ Hecks.bluebook "FreightLogistics" do
   category "logistics"
 
   aggregate "Shipment", "A freight shipment with origin, destination, weight, and tracking status" do
-    String :tracking_number
-    String :origin
-    String :destination
-    Float :weight_kg
-    Integer :pallet_count
-    String :commodity_type
-    String :status
+    attribute :tracking_number, String
+    attribute :origin, String
+    attribute :destination, String
+    attribute :weight_kg, Float
+    attribute :pallet_count, Integer
+    attribute :commodity_type, String
+    attribute :status, String
     reference_to(Carrier)
 
     value_object "Dimensions" do
-      Float :length_cm
-      Float :width_cm
-      Float :height_cm
-      Float :volume_cbm
+      attribute :length_cm, Float
+      attribute :width_cm, Float
+      attribute :height_cm, Float
+      attribute :volume_cbm, Float
     end
 
-    BookShipment do
+    command "BookShipment" do
       role "ShippingCoordinator"
       description "Create a new freight shipment with origin, destination, and cargo details"
-      String :tracking_number
-      String :origin
-      String :destination
-      Float :weight_kg
-      Integer :pallet_count
-      String :commodity_type
+      attribute :tracking_number, String
+      attribute :origin, String
+      attribute :destination, String
+      attribute :weight_kg, Float
+      attribute :pallet_count, Integer
+      attribute :commodity_type, String
       emits "ShipmentBooked"
       then_set :tracking_number, to: :tracking_number
       then_set :origin, to: :origin
@@ -38,7 +38,7 @@ Hecks.bluebook "FreightLogistics" do
       then_set :status, to: "booked"
     end
 
-    DispatchShipment do
+    command "DispatchShipment" do
       role "Dispatcher"
       description "Release the shipment for pickup by the assigned carrier"
       reference_to(Shipment)
@@ -47,7 +47,7 @@ Hecks.bluebook "FreightLogistics" do
       then_set :status, to: "in_transit"
     end
 
-    DeliverShipment do
+    command "DeliverShipment" do
       role "Driver"
       description "Confirm delivery at the destination with proof of delivery"
       reference_to(Shipment)
@@ -58,27 +58,27 @@ Hecks.bluebook "FreightLogistics" do
   end
 
   aggregate "Carrier", "A freight carrier company with fleet size, rates, and certifications" do
-    String :company_name
-    String :mc_number
-    String :dot_number
-    Integer :fleet_size
-    Float :rate_per_mile
-    String :status
+    attribute :company_name, String
+    attribute :mc_number, String
+    attribute :dot_number, String
+    attribute :fleet_size, Integer
+    attribute :rate_per_mile, Float
+    attribute :status, String
 
     value_object "CarrierCertification" do
-      String :certification_type
-      String :expiration_date
-      String :issuing_authority
+      attribute :certification_type, String
+      attribute :expiration_date, String
+      attribute :issuing_authority, String
     end
 
-    OnboardCarrier do
+    command "OnboardCarrier" do
       role "CarrierManager"
       description "Register a new carrier with DOT and MC credentials"
-      String :company_name
-      String :mc_number
-      String :dot_number
-      Integer :fleet_size
-      Float :rate_per_mile
+      attribute :company_name, String
+      attribute :mc_number, String
+      attribute :dot_number, String
+      attribute :fleet_size, Integer
+      attribute :rate_per_mile, Float
       emits "CarrierOnboarded"
       then_set :company_name, to: :company_name
       then_set :mc_number, to: :mc_number
@@ -88,7 +88,7 @@ Hecks.bluebook "FreightLogistics" do
       then_set :status, to: "active"
     end
 
-    SuspendCarrier do
+    command "SuspendCarrier" do
       role "CarrierManager"
       description "Temporarily deactivate a carrier due to safety violations"
       reference_to(Carrier)
@@ -97,7 +97,7 @@ Hecks.bluebook "FreightLogistics" do
       then_set :status, to: "suspended"
     end
 
-    ReinstatCarrier do
+    command "ReinstatCarrier" do
       role "CarrierManager"
       description "Reactivate a suspended carrier after corrective action"
       reference_to(Carrier)
@@ -108,28 +108,28 @@ Hecks.bluebook "FreightLogistics" do
   end
 
   aggregate "Route", "A planned transportation route with waypoints, distance, and transit time" do
-    String :origin
-    String :destination
-    Float :distance_miles
-    Integer :estimated_hours
+    attribute :origin, String
+    attribute :destination, String
+    attribute :distance_miles, Float
+    attribute :estimated_hours, Integer
     list_of(Waypoint) :waypoints
-    String :status
+    attribute :status, String
     reference_to(Shipment)
 
     value_object "Waypoint" do
-      String :location
-      String :stop_type
-      Integer :dwell_minutes
+      attribute :location, String
+      attribute :stop_type, String
+      attribute :dwell_minutes, Integer
     end
 
-    PlanRoute do
+    command "PlanRoute" do
       role "Dispatcher"
       description "Create an optimized route from origin to destination with waypoints"
       reference_to(Shipment)
-      String :origin
-      String :destination
-      Float :distance_miles
-      Integer :estimated_hours
+      attribute :origin, String
+      attribute :destination, String
+      attribute :distance_miles, Float
+      attribute :estimated_hours, Integer
       emits "RoutePlanned"
       then_set :origin, to: :origin
       then_set :destination, to: :destination
@@ -138,12 +138,12 @@ Hecks.bluebook "FreightLogistics" do
       then_set :status, to: "planned"
     end
 
-    RerouteShipment do
+    command "RerouteShipment" do
       role "Dispatcher"
       description "Change the route due to weather, road closure, or delay"
       reference_to(Route)
-      String :new_destination
-      Float :new_distance_miles
+      attribute :new_destination, String
+      attribute :new_distance_miles, Float
       emits "ShipmentRerouted"
       then_set :destination, to: :new_destination
       then_set :distance_miles, to: :new_distance_miles
@@ -151,22 +151,22 @@ Hecks.bluebook "FreightLogistics" do
   end
 
   aggregate "CustomsClearance", "An import/export customs declaration with duties and inspection status" do
-    String :declaration_number
-    String :country_of_origin
-    String :tariff_code
-    Float :declared_value
-    Float :duty_amount
-    String :status
+    attribute :declaration_number, String
+    attribute :country_of_origin, String
+    attribute :tariff_code, String
+    attribute :declared_value, Float
+    attribute :duty_amount, Float
+    attribute :status, String
     reference_to(Shipment)
 
-    FileClearance do
+    command "FileClearance" do
       role "CustomsBroker"
       description "Submit customs declaration for an international shipment"
       reference_to(Shipment)
-      String :declaration_number
-      String :country_of_origin
-      String :tariff_code
-      Float :declared_value
+      attribute :declaration_number, String
+      attribute :country_of_origin, String
+      attribute :tariff_code, String
+      attribute :declared_value, Float
       emits "ClearanceFiled"
       then_set :declaration_number, to: :declaration_number
       then_set :country_of_origin, to: :country_of_origin
@@ -175,18 +175,18 @@ Hecks.bluebook "FreightLogistics" do
       then_set :status, to: "filed"
     end
 
-    ApproveClearance do
+    command "ApproveClearance" do
       role "CustomsOfficer"
       description "Release the shipment after inspection and duty calculation"
       reference_to(CustomsClearance)
-      Float :duty_amount
+      attribute :duty_amount, Float
       given { status == "filed" }
       emits "ClearanceApproved"
       then_set :duty_amount, to: :duty_amount
       then_set :status, to: "cleared"
     end
 
-    HoldForInspection do
+    command "HoldForInspection" do
       role "CustomsOfficer"
       description "Flag the shipment for physical inspection before clearing"
       reference_to(CustomsClearance)
@@ -197,30 +197,30 @@ Hecks.bluebook "FreightLogistics" do
   end
 
   aggregate "TrackingEvent", "A timestamped location update for a shipment in transit" do
-    String :location
-    String :event_type
-    String :timestamp
-    String :notes
+    attribute :location, String
+    attribute :event_type, String
+    attribute :timestamp, String
+    attribute :notes, String
     reference_to(Shipment)
 
-    RecordTrackingEvent do
+    command "RecordTrackingEvent" do
       role "System"
       description "Log a GPS or scan event as the shipment moves through the supply chain"
       reference_to(Shipment)
-      String :location
-      String :event_type
-      String :timestamp
+      attribute :location, String
+      attribute :event_type, String
+      attribute :timestamp, String
       emits "TrackingEventRecorded"
       then_set :location, to: :location
       then_set :event_type, to: :event_type
       then_set :timestamp, to: :timestamp
     end
 
-    FlagDelay do
+    command "FlagDelay" do
       role "Dispatcher"
       description "Mark a shipment as delayed with reason and updated ETA"
       reference_to(TrackingEvent)
-      String :notes
+      attribute :notes, String
       emits "DelayFlagged"
       then_set :notes, to: :notes
     end

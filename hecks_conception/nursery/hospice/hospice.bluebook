@@ -2,21 +2,21 @@ Hecks.bluebook "Hospice" do
   vision "End-of-life comfort care — patients, comfort plans, family support, medication management, and visits"
 
   aggregate "Patient", "A person receiving hospice end-of-life care" do
-    String :name
-    String :date_of_birth
-    String :terminal_diagnosis
-    String :prognosis
-    String :advance_directive
-    String :status
+    attribute :name, String
+    attribute :date_of_birth, String
+    attribute :terminal_diagnosis, String
+    attribute :prognosis, String
+    attribute :advance_directive, String
+    attribute :status, String
 
-    AdmitToHospice do
+    command "AdmitToHospice" do
       role "Physician"
       description "Certify and admit a patient to hospice care"
-      String :name
-      String :date_of_birth
-      String :terminal_diagnosis
-      String :prognosis
-      String :advance_directive
+      attribute :name, String
+      attribute :date_of_birth, String
+      attribute :terminal_diagnosis, String
+      attribute :prognosis, String
+      attribute :advance_directive, String
       emits "PatientAdmittedToHospice"
       then_set :name, to: :name
       then_set :date_of_birth, to: :date_of_birth
@@ -26,7 +26,7 @@ Hecks.bluebook "Hospice" do
       then_set :status, to: "active"
     end
 
-    RecertifyHospice do
+    command "RecertifyHospice" do
       role "Physician"
       description "Renew the hospice certification for continued care"
       reference_to(Patient)
@@ -34,7 +34,7 @@ Hecks.bluebook "Hospice" do
       emits "HospiceRecertified"
     end
 
-    RecordPassing do
+    command "RecordPassing" do
       role "Nurse"
       description "Document the patient's death with dignity and compassion"
       reference_to(Patient)
@@ -44,27 +44,27 @@ Hecks.bluebook "Hospice" do
   end
 
   aggregate "ComfortPlan", "An individualized plan focused on symptom relief and quality of life" do
-    String :patient_name
+    attribute :patient_name, String
     list_of(SymptomIntervention) :interventions
-    String :pain_management_approach
-    String :spiritual_preferences
-    String :status
+    attribute :pain_management_approach, String
+    attribute :spiritual_preferences, String
+    attribute :status, String
     reference_to Patient
 
     value_object "SymptomIntervention" do
-      String :symptom
-      String :intervention
-      String :frequency
-      Integer :effectiveness_score
+      attribute :symptom, String
+      attribute :intervention, String
+      attribute :frequency, String
+      attribute :effectiveness_score, Integer
     end
 
-    DraftComfortPlan do
+    command "DraftComfortPlan" do
       role "Nurse"
       description "Design a comfort-focused care plan for the patient"
       reference_to(Patient)
-      String :patient_name
-      String :pain_management_approach
-      String :spiritual_preferences
+      attribute :patient_name, String
+      attribute :pain_management_approach, String
+      attribute :spiritual_preferences, String
       emits "ComfortPlanDrafted"
       then_set :patient_name, to: :patient_name
       then_set :pain_management_approach, to: :pain_management_approach
@@ -72,48 +72,48 @@ Hecks.bluebook "Hospice" do
       then_set :status, to: "active"
     end
 
-    AddIntervention do
+    command "AddIntervention" do
       role "Nurse"
       description "Add a symptom management intervention to the comfort plan"
       reference_to(ComfortPlan)
-      String :symptom
-      String :intervention
-      String :frequency
+      attribute :symptom, String
+      attribute :intervention, String
+      attribute :frequency, String
       emits "InterventionAdded"
     end
 
-    AdjustPainManagement do
+    command "AdjustPainManagement" do
       role "Physician"
       description "Modify the pain management approach based on patient comfort"
       reference_to(ComfortPlan)
-      String :pain_management_approach
+      attribute :pain_management_approach, String
       emits "PainManagementAdjusted"
       then_set :pain_management_approach, to: :pain_management_approach
     end
   end
 
   aggregate "FamilySupport", "Bereavement and emotional support services for patient families" do
-    String :family_contact_name
-    String :patient_name
-    String :relationship
+    attribute :family_contact_name, String
+    attribute :patient_name, String
+    attribute :relationship, String
     list_of(SupportSession) :sessions
-    String :bereavement_status
+    attribute :bereavement_status, String
     reference_to Patient
 
     value_object "SupportSession" do
-      String :session_date
-      String :session_type
-      String :counselor_name
-      String :notes
+      attribute :session_date, String
+      attribute :session_type, String
+      attribute :counselor_name, String
+      attribute :notes, String
     end
 
-    RegisterFamilyContact do
+    command "RegisterFamilyContact" do
       role "SocialWorker"
       description "Enroll a family member in the support program"
       reference_to(Patient)
-      String :family_contact_name
-      String :patient_name
-      String :relationship
+      attribute :family_contact_name, String
+      attribute :patient_name, String
+      attribute :relationship, String
       emits "FamilyContactRegistered"
       then_set :family_contact_name, to: :family_contact_name
       then_set :patient_name, to: :patient_name
@@ -121,17 +121,17 @@ Hecks.bluebook "Hospice" do
       then_set :bereavement_status, to: "pre-loss"
     end
 
-    ScheduleSupportSession do
+    command "ScheduleSupportSession" do
       role "SocialWorker"
       description "Book a counseling session for the family member"
       reference_to(FamilySupport)
-      String :session_date
-      String :session_type
-      String :counselor_name
+      attribute :session_date, String
+      attribute :session_type, String
+      attribute :counselor_name, String
       emits "SupportSessionScheduled"
     end
 
-    BeginBereavementCare do
+    command "BeginBereavementCare" do
       role "SocialWorker"
       description "Transition family support to bereavement counseling after patient passing"
       reference_to(FamilySupport)
@@ -141,23 +141,23 @@ Hecks.bluebook "Hospice" do
   end
 
   aggregate "HospiceMedication", "Pain and symptom medications for hospice patients" do
-    String :patient_name
-    String :drug_name
-    String :dosage
-    String :route
-    String :purpose
-    String :status
+    attribute :patient_name, String
+    attribute :drug_name, String
+    attribute :dosage, String
+    attribute :route, String
+    attribute :purpose, String
+    attribute :status, String
     reference_to Patient
 
-    PrescribeHospiceMedication do
+    command "PrescribeHospiceMedication" do
       role "Physician"
       description "Order a comfort medication for a hospice patient"
       reference_to(Patient)
-      String :patient_name
-      String :drug_name
-      String :dosage
-      String :route
-      String :purpose
+      attribute :patient_name, String
+      attribute :drug_name, String
+      attribute :dosage, String
+      attribute :route, String
+      attribute :purpose, String
       emits "HospiceMedicationPrescribed"
       then_set :patient_name, to: :patient_name
       then_set :drug_name, to: :drug_name
@@ -167,34 +167,34 @@ Hecks.bluebook "Hospice" do
       then_set :status, to: "active"
     end
 
-    TitrateDosage do
+    command "TitrateDosage" do
       role "Nurse"
       description "Adjust medication dosage for optimal comfort"
       reference_to(HospiceMedication)
-      String :dosage
+      attribute :dosage, String
       emits "DosageTitrated"
       then_set :dosage, to: :dosage
     end
   end
 
   aggregate "HospiceVisit", "A caregiver visit to the hospice patient" do
-    String :patient_name
-    String :visitor_name
-    String :visitor_role
-    String :visit_date
-    Integer :pain_score
-    String :notes
-    String :status
+    attribute :patient_name, String
+    attribute :visitor_name, String
+    attribute :visitor_role, String
+    attribute :visit_date, String
+    attribute :pain_score, Integer
+    attribute :notes, String
+    attribute :status, String
     reference_to Patient
 
-    ScheduleHospiceVisit do
+    command "ScheduleHospiceVisit" do
       role "Coordinator"
       description "Plan a visit from a hospice team member"
       reference_to(Patient)
-      String :patient_name
-      String :visitor_name
-      String :visitor_role
-      String :visit_date
+      attribute :patient_name, String
+      attribute :visitor_name, String
+      attribute :visitor_role, String
+      attribute :visit_date, String
       emits "HospiceVisitScheduled"
       then_set :patient_name, to: :patient_name
       then_set :visitor_name, to: :visitor_name
@@ -203,12 +203,12 @@ Hecks.bluebook "Hospice" do
       then_set :status, to: "scheduled"
     end
 
-    CompleteHospiceVisit do
+    command "CompleteHospiceVisit" do
       role "Nurse"
       description "Document the visit with pain assessment and notes"
       reference_to(HospiceVisit)
-      Integer :pain_score
-      String :notes
+      attribute :pain_score, Integer
+      attribute :notes, String
       given("visit must be scheduled") { status == "scheduled" }
       emits "HospiceVisitCompleted"
       then_set :pain_score, to: :pain_score

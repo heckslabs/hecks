@@ -2,23 +2,23 @@ Hecks.bluebook "AnimalShelter" do
   vision "Animal rescue and rehoming — intake, adoptions, foster placements, and veterinary medical records"
 
   aggregate "Animal", "A sheltered animal awaiting adoption or foster placement" do
-    String :name
-    String :species
-    String :breed
-    String :age_estimate
-    String :sex
-    String :temperament
-    String :status
+    attribute :name, String
+    attribute :species, String
+    attribute :breed, String
+    attribute :age_estimate, String
+    attribute :sex, String
+    attribute :temperament, String
+    attribute :status, String
 
-    IntakeAnimal do
+    command "IntakeAnimal" do
       role "ShelterStaff"
       description "Receive an animal into the shelter with intake assessment"
-      String :name
-      String :species
-      String :breed
-      String :age_estimate
-      String :sex
-      String :temperament
+      attribute :name, String
+      attribute :species, String
+      attribute :breed, String
+      attribute :age_estimate, String
+      attribute :sex, String
+      attribute :temperament, String
       emits "AnimalIntaked"
       then_set :name, to: :name
       then_set :species, to: :species
@@ -29,7 +29,7 @@ Hecks.bluebook "AnimalShelter" do
       then_set :status, to: "intake"
     end
 
-    MakeAvailable do
+    command "MakeAvailable" do
       role "ShelterStaff"
       description "Clear the animal for adoption after medical and behavior evaluation"
       reference_to(Animal)
@@ -37,7 +37,7 @@ Hecks.bluebook "AnimalShelter" do
       then_set :status, to: "available"
     end
 
-    MarkAdopted do
+    command "MarkAdopted" do
       role "ShelterStaff"
       description "Update the animal's status after successful adoption"
       reference_to(Animal)
@@ -48,28 +48,28 @@ Hecks.bluebook "AnimalShelter" do
   end
 
   aggregate "Adoption", "The process of matching an animal with an adopting family" do
-    String :animal_name
-    String :adopter_name
-    String :adoption_date
-    String :adoption_fee
-    String :status
+    attribute :animal_name, String
+    attribute :adopter_name, String
+    attribute :adoption_date, String
+    attribute :adoption_fee, String
+    attribute :status, String
     reference_to Animal
 
     value_object "HomeCheck" do
-      String :inspector_name
-      String :check_date
-      String :result
-      String :notes
+      attribute :inspector_name, String
+      attribute :check_date, String
+      attribute :result, String
+      attribute :notes, String
     end
 
-    SubmitAdoptionApplication do
+    command "SubmitAdoptionApplication" do
       role "Adopter"
       description "Apply to adopt an animal from the shelter"
       reference_to(Animal)
-      String :animal_name
-      String :adopter_name
-      String :adoption_date
-      String :adoption_fee
+      attribute :animal_name, String
+      attribute :adopter_name, String
+      attribute :adoption_date, String
+      attribute :adoption_fee, String
       emits "AdoptionApplicationSubmitted"
       then_set :animal_name, to: :animal_name
       then_set :adopter_name, to: :adopter_name
@@ -78,7 +78,7 @@ Hecks.bluebook "AnimalShelter" do
       then_set :status, to: "pending"
     end
 
-    ApproveAdoption do
+    command "ApproveAdoption" do
       role "ShelterManager"
       description "Approve the adoption application after screening"
       reference_to(Adoption)
@@ -87,7 +87,7 @@ Hecks.bluebook "AnimalShelter" do
       then_set :status, to: "approved"
     end
 
-    FinalizeAdoption do
+    command "FinalizeAdoption" do
       role "ShelterStaff"
       description "Complete the adoption with paperwork and handoff"
       reference_to(Adoption)
@@ -98,23 +98,23 @@ Hecks.bluebook "AnimalShelter" do
   end
 
   aggregate "FosterPlacement", "A temporary home for an animal needing extra care" do
-    String :animal_name
-    String :foster_parent_name
-    String :start_date
-    String :expected_return_date
-    String :reason
-    String :status
+    attribute :animal_name, String
+    attribute :foster_parent_name, String
+    attribute :start_date, String
+    attribute :expected_return_date, String
+    attribute :reason, String
+    attribute :status, String
     reference_to Animal
 
-    PlaceInFoster do
+    command "PlaceInFoster" do
       role "FosterCoordinator"
       description "Assign an animal to a foster home"
       reference_to(Animal)
-      String :animal_name
-      String :foster_parent_name
-      String :start_date
-      String :expected_return_date
-      String :reason
+      attribute :animal_name, String
+      attribute :foster_parent_name, String
+      attribute :start_date, String
+      attribute :expected_return_date, String
+      attribute :reason, String
       emits "AnimalPlacedInFoster"
       then_set :animal_name, to: :animal_name
       then_set :foster_parent_name, to: :foster_parent_name
@@ -124,7 +124,7 @@ Hecks.bluebook "AnimalShelter" do
       then_set :status, to: "active"
     end
 
-    ReturnFromFoster do
+    command "ReturnFromFoster" do
       role "FosterCoordinator"
       description "Process the animal's return from foster care to the shelter"
       reference_to(FosterPlacement)
@@ -133,39 +133,39 @@ Hecks.bluebook "AnimalShelter" do
       then_set :status, to: "returned"
     end
 
-    ExtendFoster do
+    command "ExtendFoster" do
       role "FosterCoordinator"
       description "Extend the foster placement duration"
       reference_to(FosterPlacement)
-      String :expected_return_date
+      attribute :expected_return_date, String
       emits "FosterExtended"
       then_set :expected_return_date, to: :expected_return_date
     end
   end
 
   aggregate "ShelterMedicalRecord", "Veterinary care provided to a sheltered animal" do
-    String :animal_name
-    String :record_date
-    String :veterinarian
+    attribute :animal_name, String
+    attribute :record_date, String
+    attribute :veterinarian, String
     list_of(Treatment) :treatments
-    String :spay_neuter_status
-    String :vaccination_status
+    attribute :spay_neuter_status, String
+    attribute :vaccination_status, String
     reference_to Animal
 
     value_object "Treatment" do
-      String :treatment_type
-      String :description
-      String :medication
-      String :date_administered
+      attribute :treatment_type, String
+      attribute :description, String
+      attribute :medication, String
+      attribute :date_administered, String
     end
 
-    OpenMedicalRecord do
+    command "OpenMedicalRecord" do
       role "Veterinarian"
       description "Start a medical record for a newly sheltered animal"
       reference_to(Animal)
-      String :animal_name
-      String :record_date
-      String :veterinarian
+      attribute :animal_name, String
+      attribute :record_date, String
+      attribute :veterinarian, String
       emits "MedicalRecordCreated"
       then_set :animal_name, to: :animal_name
       then_set :record_date, to: :record_date
@@ -174,7 +174,7 @@ Hecks.bluebook "AnimalShelter" do
       then_set :vaccination_status, to: "incomplete"
     end
 
-    AdministerVaccination do
+    command "AdministerVaccination" do
       role "Veterinarian"
       description "Give required vaccinations and update status"
       reference_to(ShelterMedicalRecord)
@@ -182,7 +182,7 @@ Hecks.bluebook "AnimalShelter" do
       then_set :vaccination_status, to: "complete"
     end
 
-    PerformSpayNeuter do
+    command "PerformSpayNeuter" do
       role "Veterinarian"
       description "Perform spay or neuter surgery and update status"
       reference_to(ShelterMedicalRecord)

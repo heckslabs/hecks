@@ -2,23 +2,23 @@ Hecks.bluebook "Inbox", version: "2026.04.11.1" do
   vision "Chris writes while Miette works — nothing lost, nothing interrupted"
 
   aggregate "Message", "A queued note from Chris that Miette has not yet processed" do
-    String :body
-    String :priority
-    String :posted_at
-    String :status
+    attribute :body, String
+    attribute :priority, String
+    attribute :posted_at, String
+    attribute :status, String
 
-    PostMessage do
+    command "PostMessage" do
       role "Chris"
       description "Drop a message into Miette's inbox"
-      String :body
-      String :priority
+      attribute :body, String
+      attribute :priority, String
       emits "MessagePosted"
       then_set :body, to: :body
       then_set :priority, to: :priority
       then_set :status, to: "queued"
     end
 
-    AcknowledgeMessage do
+    command "AcknowledgeMessage" do
       role "Miette"
       description "Mark a message as seen and understood"
       reference_to(Message)
@@ -27,7 +27,7 @@ Hecks.bluebook "Inbox", version: "2026.04.11.1" do
       then_set :status, to: "acknowledged"
     end
 
-    ActOnMessage do
+    command "ActOnMessage" do
       role "Miette"
       description "Mark a message as done — the work it requested is complete"
       reference_to(Message)
@@ -36,7 +36,7 @@ Hecks.bluebook "Inbox", version: "2026.04.11.1" do
       then_set :status, to: "done"
     end
 
-    DeferMessage do
+    command "DeferMessage" do
       role "Miette"
       description "Push a message to the next session — not forgotten, just not now"
       reference_to(Message)
@@ -54,32 +54,32 @@ Hecks.bluebook "Inbox", version: "2026.04.11.1" do
   end
 
   aggregate "Inbox", "The queue itself — how many waiting, what's next" do
-    Integer :queued_count
-    String :oldest_priority
+    attribute :queued_count, Integer
+    attribute :oldest_priority, String
 
-    OpenInbox do
+    command "OpenInbox" do
       role "System"
       description "Bring the inbox into existence so messages have a home"
-      Integer :queued_count
-      String :oldest_priority
+      attribute :queued_count, Integer
+      attribute :oldest_priority, String
       emits "InboxOpened"
       then_set :queued_count, to: :queued_count
       then_set :oldest_priority, to: :oldest_priority
     end
 
-    DrainInbox do
+    command "DrainInbox" do
       role "Miette"
       description "Process all queued messages in priority order"
       reference_to(Inbox)
       emits "InboxDrained"
     end
 
-    Tally do
+    command "Tally" do
       role "System"
       description "Recalculate queued count and oldest priority"
       reference_to(Inbox)
-      Integer :queued_count
-      String :oldest_priority
+      attribute :queued_count, Integer
+      attribute :oldest_priority, String
       emits "Tallied"
       then_set :queued_count, to: :queued_count
       then_set :oldest_priority, to: :oldest_priority

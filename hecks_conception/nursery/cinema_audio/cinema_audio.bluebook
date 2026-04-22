@@ -3,28 +3,28 @@ Hecks.bluebook "CinemaAudio", version: "2026.04.13.1" do
   category "crossover"
 
   aggregate "Auditorium", "A cinema room — dimensions, materials, acoustic properties" do
-    String :name
-    Float :length_m
-    Float :width_m
-    Float :height_m
-    String :wall_material
-    Float :reverberation_time_sec
-    String :status
+    attribute :name, String
+    attribute :length_m, Float
+    attribute :width_m, Float
+    attribute :height_m, Float
+    attribute :wall_material, String
+    attribute :reverberation_time_sec, Float
+    attribute :status, String
 
     value_object "RoomMode" do
-      Float :frequency_hz
-      String :axis
-      Integer :mode_number
+      attribute :frequency_hz, Float
+      attribute :axis, String
+      attribute :mode_number, Integer
     end
 
-    MeasureRoom do
+    command "MeasureRoom" do
       role "Acoustician"
       description "Record auditorium dimensions and surface materials"
-      String :name
-      Float :length_m
-      Float :width_m
-      Float :height_m
-      String :wall_material
+      attribute :name, String
+      attribute :length_m, Float
+      attribute :width_m, Float
+      attribute :height_m, Float
+      attribute :wall_material, String
       emits "RoomMeasured"
       then_set :name, to: :name
       then_set :length_m, to: :length_m
@@ -34,17 +34,17 @@ Hecks.bluebook "CinemaAudio", version: "2026.04.13.1" do
       then_set :status, to: "measured"
     end
 
-    CalculateReverberation do
+    command "CalculateReverberation" do
       role "System"
       description "Compute RT60 reverberation time from room dimensions and materials"
       reference_to(Auditorium)
-      Float :reverberation_time_sec
+      attribute :reverberation_time_sec, Float
       given { status == "measured" }
       emits "ReverberationCalculated"
       then_set :reverberation_time_sec, to: :reverberation_time_sec
     end
 
-    TreatRoom do
+    command "TreatRoom" do
       role "Acoustician"
       description "Apply acoustic treatment panels to optimize reverberation"
       reference_to(Auditorium)
@@ -60,31 +60,31 @@ Hecks.bluebook "CinemaAudio", version: "2026.04.13.1" do
   end
 
   aggregate "Speaker", "A cinema speaker unit — type, position, power, and frequency response" do
-    String :name
-    String :speaker_type
-    Float :x_position
-    Float :y_position
-    Float :z_position
-    Float :power_watts
-    Float :min_frequency_hz
-    Float :max_frequency_hz
-    String :status
+    attribute :name, String
+    attribute :speaker_type, String
+    attribute :x_position, Float
+    attribute :y_position, Float
+    attribute :z_position, Float
+    attribute :power_watts, Float
+    attribute :min_frequency_hz, Float
+    attribute :max_frequency_hz, Float
+    attribute :status, String
 
     value_object "FrequencyResponse" do
-      Float :frequency_hz
-      Float :spl_db
-      Float :phase_degrees
+      attribute :frequency_hz, Float
+      attribute :spl_db, Float
+      attribute :phase_degrees, Float
     end
 
-    PlaceSpeaker do
+    command "PlaceSpeaker" do
       role "Installer"
       description "Position a speaker in the auditorium at specific coordinates"
-      String :name
-      String :speaker_type
-      Float :x_position
-      Float :y_position
-      Float :z_position
-      Float :power_watts
+      attribute :name, String
+      attribute :speaker_type, String
+      attribute :x_position, Float
+      attribute :y_position, Float
+      attribute :z_position, Float
+      attribute :power_watts, Float
       emits "SpeakerPlaced"
       then_set :name, to: :name
       then_set :speaker_type, to: :speaker_type
@@ -95,17 +95,17 @@ Hecks.bluebook "CinemaAudio", version: "2026.04.13.1" do
       then_set :status, to: "placed"
     end
 
-    AimSpeaker do
+    command "AimSpeaker" do
       role "Installer"
       description "Adjust speaker angle for optimal coverage of seating area"
       reference_to(Speaker)
-      Float :tilt_degrees
-      Float :rotation_degrees
+      attribute :tilt_degrees, Float
+      attribute :rotation_degrees, Float
       given { status == "placed" }
       emits "SpeakerAimed"
     end
 
-    ActivateSpeaker do
+    command "ActivateSpeaker" do
       role "Technician"
       description "Power on speaker and verify signal path"
       reference_to(Speaker)
@@ -121,31 +121,31 @@ Hecks.bluebook "CinemaAudio", version: "2026.04.13.1" do
   end
 
   aggregate "Calibration", "A speaker calibration session — test tones, measurements, corrections" do
-    String :auditorium_name
-    String :calibration_type
-    Float :target_spl_db
-    Float :measured_spl_db
-    Float :correction_db
-    String :status
+    attribute :auditorium_name, String
+    attribute :calibration_type, String
+    attribute :target_spl_db, Float
+    attribute :measured_spl_db, Float
+    attribute :correction_db, Float
+    attribute :status, String
 
     value_object "TestTone" do
-      Float :frequency_hz
-      Float :duration_sec
-      Float :level_db
+      attribute :frequency_hz, Float
+      attribute :duration_sec, Float
+      attribute :level_db, Float
     end
 
     list_of "CorrectionFilter" do
-      Float :frequency_hz
-      Float :gain_db
-      Float :q_factor
+      attribute :frequency_hz, Float
+      attribute :gain_db, Float
+      attribute :q_factor, Float
     end
 
-    RunCalibration do
+    command "RunCalibration" do
       role "Technician"
       description "Execute calibration with test tones across frequency range"
-      String :auditorium_name
-      String :calibration_type
-      Float :target_spl_db
+      attribute :auditorium_name, String
+      attribute :calibration_type, String
+      attribute :target_spl_db, Float
       emits "CalibrationStarted"
       then_set :auditorium_name, to: :auditorium_name
       then_set :calibration_type, to: :calibration_type
@@ -153,28 +153,28 @@ Hecks.bluebook "CinemaAudio", version: "2026.04.13.1" do
       then_set :status, to: "running"
     end
 
-    RecordMeasurement do
+    command "RecordMeasurement" do
       role "System"
       description "Capture SPL measurement at reference position"
       reference_to(Calibration)
-      Float :measured_spl_db
+      attribute :measured_spl_db, Float
       given { status == "running" }
       emits "MeasurementRecorded"
       then_set :measured_spl_db, to: :measured_spl_db
     end
 
-    ApplyCorrection do
+    command "ApplyCorrection" do
       role "System"
       description "Apply EQ correction filters to flatten frequency response"
       reference_to(Calibration)
-      Float :correction_db
+      attribute :correction_db, Float
       given { status == "running" }
       emits "CorrectionApplied"
       then_set :correction_db, to: :correction_db
       then_set :status, to: "calibrated"
     end
 
-    VerifyCalibration do
+    command "VerifyCalibration" do
       role "Technician"
       description "Run verification sweep to confirm calibration meets target"
       reference_to(Calibration)
@@ -191,26 +191,26 @@ Hecks.bluebook "CinemaAudio", version: "2026.04.13.1" do
   end
 
   aggregate "Soundtrack", "A movie soundtrack — channels, format, dynamic range, sync" do
-    String :title
-    String :format
-    Integer :channel_count
-    Float :dynamic_range_db
-    Float :peak_level_db
-    String :status
+    attribute :title, String
+    attribute :format, String
+    attribute :channel_count, Integer
+    attribute :dynamic_range_db, Float
+    attribute :peak_level_db, Float
+    attribute :status, String
 
     value_object "ChannelMap" do
-      String :channel_name
-      Integer :channel_number
-      String :speaker_assignment
+      attribute :channel_name, String
+      attribute :channel_number, Integer
+      attribute :speaker_assignment, String
     end
 
-    LoadSoundtrack do
+    command "LoadSoundtrack" do
       role "Projectionist"
       description "Load a soundtrack for playback in the auditorium"
-      String :title
-      String :format
-      Integer :channel_count
-      Float :dynamic_range_db
+      attribute :title, String
+      attribute :format, String
+      attribute :channel_count, Integer
+      attribute :dynamic_range_db, Float
       emits "SoundtrackLoaded"
       then_set :title, to: :title
       then_set :format, to: :format
@@ -219,7 +219,7 @@ Hecks.bluebook "CinemaAudio", version: "2026.04.13.1" do
       then_set :status, to: "loaded"
     end
 
-    MapChannels do
+    command "MapChannels" do
       role "System"
       description "Assign soundtrack channels to physical speakers"
       reference_to(Soundtrack)
@@ -228,7 +228,7 @@ Hecks.bluebook "CinemaAudio", version: "2026.04.13.1" do
       then_set :status, to: "mapped"
     end
 
-    PlaySoundtrack do
+    command "PlaySoundtrack" do
       role "Projectionist"
       description "Begin playback synchronized with film projection"
       reference_to(Soundtrack)

@@ -1,49 +1,49 @@
 Hecks.bluebook "HazmatTransport" do
   aggregate "HazmatShipment" do
-    String :shipment_id
-    String :shipper_name
-    String :consignee_name
-    String :un_number
-    String :proper_shipping_name
-    String :hazard_class
-    Float :weight_kg
-    String :status
+    attribute :shipment_id, String
+    attribute :shipper_name, String
+    attribute :consignee_name, String
+    attribute :un_number, String
+    attribute :proper_shipping_name, String
+    attribute :hazard_class, String
+    attribute :weight_kg, Float
+    attribute :status, String
 
     value_object "EmergencyContact" do
-      String :contact_name
-      String :phone_number
-      String :erg_guide_number
+      attribute :contact_name, String
+      attribute :phone_number, String
+      attribute :erg_guide_number, String
     end
 
-    BookHazmatShipment do
+    command "BookHazmatShipment" do
       description "Accept hazardous materials shipment with UN classification details"
-      String :shipper_name
-      String :un_number
-      String :hazard_class
+      attribute :shipper_name, String
+      attribute :un_number, String
+      attribute :hazard_class, String
       reference_to "HazmatShipment"
       emits "HazmatShipmentBooked"
     end
 
-    PackageMaterial do
+    command "PackageMaterial" do
       description "Pack hazmat material into DOT-approved containers per packing group"
-      String :container_type
-      String :packing_group
+      attribute :container_type, String
+      attribute :packing_group, String
       reference_to "HazmatShipment"
       emits "MaterialPackaged"
     end
 
-    LoadShipment do
+    command "LoadShipment" do
       description "Load packaged hazmat onto transport vehicle per segregation rules"
-      String :vehicle_id
-      String :load_position
+      attribute :vehicle_id, String
+      attribute :load_position, String
       reference_to "HazmatShipment"
       emits "ShipmentLoaded"
     end
 
-    ConfirmDelivery do
+    command "ConfirmDelivery" do
       description "Record safe delivery of hazardous materials to consignee"
-      String :receiver_name
-      String :delivery_condition
+      attribute :receiver_name, String
+      attribute :delivery_condition, String
       reference_to "HazmatShipment"
       emits "DeliveryConfirmed"
     end
@@ -59,33 +59,33 @@ Hecks.bluebook "HazmatTransport" do
     policy "Shipping papers must accompany shipment at all times"
 
     given "A Class 3 flammable liquid shipment is booked" do
-      String :un_number, "UN1203"
-      String :proper_shipping_name, "Gasoline"
-      String :hazard_class, "3"
+      attribute :un_number, String, "UN1203"
+      attribute :proper_shipping_name, String, "Gasoline"
+      attribute :hazard_class, String, "3"
     end
   end
 
   aggregate "HazmatMaterial" do
-    String :material_id
-    String :un_number
-    String :proper_shipping_name
-    String :hazard_class
-    String :packing_group
-    String :status
+    attribute :material_id, String
+    attribute :un_number, String
+    attribute :proper_shipping_name, String
+    attribute :hazard_class, String
+    attribute :packing_group, String
+    attribute :status, String
 
-    RegisterMaterial do
+    command "RegisterMaterial" do
       description "Register hazardous material profile with regulatory classification"
-      String :un_number
-      String :proper_shipping_name
-      String :packing_group
+      attribute :un_number, String
+      attribute :proper_shipping_name, String
+      attribute :packing_group, String
       reference_to "HazmatMaterial"
       emits "MaterialRegistered"
     end
 
-    UpdateClassification do
+    command "UpdateClassification" do
       description "Update material hazard classification per regulatory change"
-      String :new_hazard_class
-      String :effective_date
+      attribute :new_hazard_class, String
+      attribute :effective_date, String
       reference_to "HazmatMaterial"
       emits "ClassificationUpdated"
     end
@@ -99,25 +99,25 @@ Hecks.bluebook "HazmatTransport" do
   end
 
   aggregate "DriverCertification" do
-    String :certification_id
-    String :driver_name
-    String :certification_type
-    String :expiry_date
-    String :issuing_authority
-    String :status
+    attribute :certification_id, String
+    attribute :driver_name, String
+    attribute :certification_type, String
+    attribute :expiry_date, String
+    attribute :issuing_authority, String
+    attribute :status, String
 
-    IssueCertification do
+    command "IssueCertification" do
       description "Issue hazmat training certification to qualified driver"
-      String :driver_name
-      String :certification_type
-      String :issuing_authority
+      attribute :driver_name, String
+      attribute :certification_type, String
+      attribute :issuing_authority, String
       reference_to "DriverCertification"
       emits "CertificationIssued"
     end
 
-    RenewCertification do
+    command "RenewCertification" do
       description "Renew expiring driver hazmat certification after retraining"
-      String :new_expiry_date
+      attribute :new_expiry_date, String
       reference_to "DriverCertification"
       emits "CertificationRenewed"
     end
@@ -131,31 +131,31 @@ Hecks.bluebook "HazmatTransport" do
   end
 
   aggregate "TransportRoute" do
-    String :route_id
-    String :origin
-    String :destination
-    Float :distance_miles
-    String :route_restrictions
-    String :status
+    attribute :route_id, String
+    attribute :origin, String
+    attribute :destination, String
+    attribute :distance_miles, Float
+    attribute :route_restrictions, String
+    attribute :status, String
     list_of "HazmatShipment"
 
     value_object "RouteRestriction" do
-      String :restriction_type
-      String :location
-      String :description_text
+      attribute :restriction_type, String
+      attribute :location, String
+      attribute :description_text, String
     end
 
-    PlanHazmatRoute do
+    command "PlanHazmatRoute" do
       description "Plan transport route avoiding tunnels, bridges, and restricted zones"
-      String :origin
-      String :destination
+      attribute :origin, String
+      attribute :destination, String
       reference_to "TransportRoute"
       emits "RoutePlanned"
     end
 
-    ApproveRoute do
+    command "ApproveRoute" do
       description "Approve planned route after safety and compliance review"
-      String :approver
+      attribute :approver, String
       reference_to "TransportRoute"
       emits "RouteApproved"
     end
@@ -169,33 +169,33 @@ Hecks.bluebook "HazmatTransport" do
   end
 
   aggregate "HazmatIncident" do
-    String :incident_id
-    String :shipment_id
-    String :incident_type
-    String :location
-    String :severity
-    String :status
+    attribute :incident_id, String
+    attribute :shipment_id, String
+    attribute :incident_type, String
+    attribute :location, String
+    attribute :severity, String
+    attribute :status, String
 
-    ReportSpill do
+    command "ReportSpill" do
       description "Report hazardous material spill or release during transport"
-      String :incident_type
-      String :location
-      Float :estimated_quantity_kg
+      attribute :incident_type, String
+      attribute :location, String
+      attribute :estimated_quantity_kg, Float
       reference_to "HazmatShipment"
       emits "SpillReported"
     end
 
-    ContainSpill do
+    command "ContainSpill" do
       description "Deploy containment measures to prevent spread of hazardous material"
-      String :containment_method
+      attribute :containment_method, String
       reference_to "HazmatIncident"
       emits "SpillContained"
     end
 
-    CloseIncident do
+    command "CloseIncident" do
       description "Close incident after cleanup completion and agency notification"
-      String :cleanup_contractor
-      String :agency_notified
+      attribute :cleanup_contractor, String
+      attribute :agency_notified, String
       reference_to "HazmatIncident"
       emits "IncidentClosed"
     end

@@ -3,20 +3,20 @@ Hecks.bluebook "BloodSupplyChain", version: "2026.04.13.1" do
   category "healthcare_technology"
 
   aggregate "Donation", "A blood donation collected from a donor" do
-    String :donation_id
-    String :donor_name
-    String :blood_type
-    Float :volume_ml
-    String :collection_date
-    String :status
-    CollectDonation do
+    attribute :donation_id, String
+    attribute :donor_name, String
+    attribute :blood_type, String
+    attribute :volume_ml, Float
+    attribute :collection_date, String
+    attribute :status, String
+    command "CollectDonation" do
       role "Phlebotomist"
       description "Collect a blood donation from a donor"
-      String :donation_id
-      String :donor_name
-      String :blood_type
-      Float :volume_ml
-      String :collection_date
+      attribute :donation_id, String
+      attribute :donor_name, String
+      attribute :blood_type, String
+      attribute :volume_ml, Float
+      attribute :collection_date, String
       emits "DonationCollected"
       then_set :donation_id, to: :donation_id
       then_set :donor_name, to: :donor_name
@@ -25,7 +25,7 @@ Hecks.bluebook "BloodSupplyChain", version: "2026.04.13.1" do
       then_set :collection_date, to: :collection_date
       then_set :status, to: "collected"
     end
-    TestDonation do
+    command "TestDonation" do
       role "LabTech"
       description "Screen donation for pathogens and compatibility"
       reference_to(Donation)
@@ -36,37 +36,37 @@ Hecks.bluebook "BloodSupplyChain", version: "2026.04.13.1" do
   end
 
   aggregate "ColdStorage", "A temperature-controlled storage unit for blood products" do
-    String :unit_id
-    String :location_name
-    Float :target_temp_c
-    Float :current_temp_c
-    String :status
+    attribute :unit_id, String
+    attribute :location_name, String
+    attribute :target_temp_c, Float
+    attribute :current_temp_c, Float
+    attribute :status, String
     value_object "TempReading" do
-      Float :temperature_c
-      String :timestamp
-      String :within_range
+      attribute :temperature_c, Float
+      attribute :timestamp, String
+      attribute :within_range, String
     end
-    SetupStorage do
+    command "SetupStorage" do
       role "Technician"
       description "Configure a cold storage unit with target temperature"
-      String :unit_id
-      String :location_name
-      Float :target_temp_c
+      attribute :unit_id, String
+      attribute :location_name, String
+      attribute :target_temp_c, Float
       emits "StorageSetup"
       then_set :unit_id, to: :unit_id
       then_set :location_name, to: :location_name
       then_set :target_temp_c, to: :target_temp_c
       then_set :status, to: "active"
     end
-    LogTemperature do
+    command "LogTemperature" do
       role "System"
       description "Record a temperature reading from the storage sensor"
       reference_to(ColdStorage)
-      Float :current_temp_c
+      attribute :current_temp_c, Float
       emits "TemperatureLogged"
       then_set :current_temp_c, to: :current_temp_c
     end
-    FlagBreach do
+    command "FlagBreach" do
       role "System"
       description "Flag a temperature breach when reading is out of range"
       reference_to(ColdStorage)
@@ -76,27 +76,27 @@ Hecks.bluebook "BloodSupplyChain", version: "2026.04.13.1" do
   end
 
   aggregate "Transport", "A blood product shipment between facilities" do
-    String :shipment_id
-    String :origin
-    String :target
-    String :blood_type
-    Float :quantity_units
-    String :status
+    attribute :shipment_id, String
+    attribute :origin, String
+    attribute :target, String
+    attribute :blood_type, String
+    attribute :quantity_units, Float
+    attribute :status, String
     list_of(TransportLeg) :legs
     value_object "TransportLeg" do
-      String :carrier
-      String :departure_time
-      String :arrival_time
-      Float :temp_c
+      attribute :carrier, String
+      attribute :departure_time, String
+      attribute :arrival_time, String
+      attribute :temp_c, Float
     end
-    DispatchShipment do
+    command "DispatchShipment" do
       role "Coordinator"
       description "Dispatch a blood shipment from origin to destination"
-      String :shipment_id
-      String :origin
-      String :target
-      String :blood_type
-      Float :quantity_units
+      attribute :shipment_id, String
+      attribute :origin, String
+      attribute :target, String
+      attribute :blood_type, String
+      attribute :quantity_units, Float
       emits "ShipmentDispatched"
       then_set :shipment_id, to: :shipment_id
       then_set :origin, to: :origin
@@ -105,7 +105,7 @@ Hecks.bluebook "BloodSupplyChain", version: "2026.04.13.1" do
       then_set :quantity_units, to: :quantity_units
       then_set :status, to: "in_transit"
     end
-    ConfirmDelivery do
+    command "ConfirmDelivery" do
       role "Receiver"
       description "Confirm receipt of blood shipment at destination"
       reference_to(Transport)
@@ -116,24 +116,24 @@ Hecks.bluebook "BloodSupplyChain", version: "2026.04.13.1" do
   end
 
   aggregate "Inventory", "Current blood product inventory at a facility" do
-    String :facility_name
-    String :blood_type
-    Integer :units_available
-    String :oldest_expiry
-    AdjustInventory do
+    attribute :facility_name, String
+    attribute :blood_type, String
+    attribute :units_available, Integer
+    attribute :oldest_expiry, String
+    command "AdjustInventory" do
       role "System"
       description "Adjust blood inventory counts after donation or shipment"
-      String :facility_name
-      String :blood_type
-      Integer :units_available
-      String :oldest_expiry
+      attribute :facility_name, String
+      attribute :blood_type, String
+      attribute :units_available, Integer
+      attribute :oldest_expiry, String
       emits "InventoryAdjusted"
       then_set :facility_name, to: :facility_name
       then_set :blood_type, to: :blood_type
       then_set :units_available, to: :units_available
       then_set :oldest_expiry, to: :oldest_expiry
     end
-    FlagShortage do
+    command "FlagShortage" do
       role "System"
       description "Flag critical shortage when inventory drops below threshold"
       reference_to(Inventory)

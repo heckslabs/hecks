@@ -3,31 +3,31 @@ Hecks.bluebook "CampingOutfitter", version: "2026.04.13.1" do
   category "retail"
 
   aggregate "CampingGear", "An outdoor product for sale — tents, packs, stoves, clothing" do
-    String :sku
-    String :name
-    String :category
-    String :brand
-    Float :weight_kg
-    Float :price
-    Integer :quantity
+    attribute :sku, String
+    attribute :name, String
+    attribute :category, String
+    attribute :brand, String
+    attribute :weight_kg, Float
+    attribute :price, Float
+    attribute :quantity, Integer
     list_of(GearSpec) :specs
 
     value_object "GearSpec" do
-      String :attribute
-      String :value
-      String :unit
+      attribute :attribute, String
+      attribute :value, String
+      attribute :unit, String
     end
 
-    StockGear do
+    command "StockGear" do
       role "Buyer"
       description "Add camping gear to the shop inventory"
-      String :sku
-      String :name
-      String :category
-      String :brand
-      Float :weight_kg
-      Float :price
-      Integer :quantity
+      attribute :sku, String
+      attribute :name, String
+      attribute :category, String
+      attribute :brand, String
+      attribute :weight_kg, Float
+      attribute :price, Float
+      attribute :quantity, Integer
       emits "GearStocked"
       then_set :sku, to: :sku
       then_set :name, to: :name
@@ -38,7 +38,7 @@ Hecks.bluebook "CampingOutfitter", version: "2026.04.13.1" do
       then_set :quantity, to: :quantity
     end
 
-    SellGear do
+    command "SellGear" do
       role "SalesAssociate"
       description "Complete a gear purchase at the register"
       reference_to(CampingGear)
@@ -48,23 +48,23 @@ Hecks.bluebook "CampingOutfitter", version: "2026.04.13.1" do
   end
 
   aggregate "GearRental", "Equipment rented for a trip and returned afterward" do
-    String :rental_id
-    String :sku
-    String :renter_name
-    String :start_date
-    String :return_date
-    Float :rental_fee
-    String :status
+    attribute :rental_id, String
+    attribute :sku, String
+    attribute :renter_name, String
+    attribute :start_date, String
+    attribute :return_date, String
+    attribute :rental_fee, Float
+    attribute :status, String
 
-    RentGear do
+    command "RentGear" do
       role "Staff"
       description "Check out gear to a customer for their trip"
-      String :rental_id
-      String :sku
-      String :renter_name
-      String :start_date
-      String :return_date
-      Float :rental_fee
+      attribute :rental_id, String
+      attribute :sku, String
+      attribute :renter_name, String
+      attribute :start_date, String
+      attribute :return_date, String
+      attribute :rental_fee, Float
       emits "GearRented"
       then_set :rental_id, to: :rental_id
       then_set :sku, to: :sku
@@ -75,7 +75,7 @@ Hecks.bluebook "CampingOutfitter", version: "2026.04.13.1" do
       then_set :status, to: "rented"
     end
 
-    ReturnGear do
+    command "ReturnGear" do
       role "Staff"
       description "Accept gear back and inspect for damage"
       reference_to(GearRental)
@@ -84,32 +84,32 @@ Hecks.bluebook "CampingOutfitter", version: "2026.04.13.1" do
       then_set :status, to: "returned"
     end
 
-    ChargeLateFee do
+    command "ChargeLateFee" do
       role "Manager"
       description "Apply a surcharge for overdue rental returns"
       reference_to(GearRental)
-      Float :fee_amount
+      attribute :fee_amount, Float
       emits "LateFeeCharged"
     end
   end
 
   aggregate "TrailMap", "A printed or digital guide to local trails" do
-    String :map_id
-    String :trail_name
-    String :region
-    String :difficulty
-    Float :distance_km
-    Integer :copies_on_hand
+    attribute :map_id, String
+    attribute :trail_name, String
+    attribute :region, String
+    attribute :difficulty, String
+    attribute :distance_km, Float
+    attribute :copies_on_hand, Integer
 
-    StockMap do
+    command "StockMap" do
       role "Manager"
       description "Add trail maps to the display rack"
-      String :map_id
-      String :trail_name
-      String :region
-      String :difficulty
-      Float :distance_km
-      Integer :copies_on_hand
+      attribute :map_id, String
+      attribute :trail_name, String
+      attribute :region, String
+      attribute :difficulty, String
+      attribute :distance_km, Float
+      attribute :copies_on_hand, Integer
       emits "MapStocked"
       then_set :map_id, to: :map_id
       then_set :trail_name, to: :trail_name
@@ -119,7 +119,7 @@ Hecks.bluebook "CampingOutfitter", version: "2026.04.13.1" do
       then_set :copies_on_hand, to: :copies_on_hand
     end
 
-    DistributeMap do
+    command "DistributeMap" do
       role "Staff"
       description "Hand out a trail map to a customer"
       reference_to(TrailMap)
@@ -129,23 +129,23 @@ Hecks.bluebook "CampingOutfitter", version: "2026.04.13.1" do
   end
 
   aggregate "GuidedTrip", "A guided outdoor excursion led by a professional" do
-    String :trip_id
-    String :guide_name
-    String :destination
-    String :date
-    Integer :max_participants
-    Float :price_per_person
-    String :status
+    attribute :trip_id, String
+    attribute :guide_name, String
+    attribute :destination, String
+    attribute :date, String
+    attribute :max_participants, Integer
+    attribute :price_per_person, Float
+    attribute :status, String
 
-    ScheduleTrip do
+    command "ScheduleTrip" do
       role "Manager"
       description "Plan a guided trip with an itinerary and guide"
-      String :trip_id
-      String :guide_name
-      String :destination
-      String :date
-      Integer :max_participants
-      Float :price_per_person
+      attribute :trip_id, String
+      attribute :guide_name, String
+      attribute :destination, String
+      attribute :date, String
+      attribute :max_participants, Integer
+      attribute :price_per_person, Float
       emits "TripScheduled"
       then_set :trip_id, to: :trip_id
       then_set :guide_name, to: :guide_name
@@ -156,7 +156,7 @@ Hecks.bluebook "CampingOutfitter", version: "2026.04.13.1" do
       then_set :status, to: "scheduled"
     end
 
-    ConductTrip do
+    command "ConductTrip" do
       role "Guide"
       description "Lead the group on the excursion"
       reference_to(GuidedTrip)
@@ -165,7 +165,7 @@ Hecks.bluebook "CampingOutfitter", version: "2026.04.13.1" do
       then_set :status, to: "completed"
     end
 
-    CancelTrip do
+    command "CancelTrip" do
       role "Manager"
       description "Call off the trip due to weather or low enrollment"
       reference_to(GuidedTrip)
@@ -176,23 +176,23 @@ Hecks.bluebook "CampingOutfitter", version: "2026.04.13.1" do
   end
 
   aggregate "CampsiteReservation", "A booking for a campsite coordinated through the outfitter" do
-    String :reservation_id
-    String :campsite_name
-    String :guest_name
-    String :check_in
-    String :check_out
-    Float :total_fee
-    String :status
+    attribute :reservation_id, String
+    attribute :campsite_name, String
+    attribute :guest_name, String
+    attribute :check_in, String
+    attribute :check_out, String
+    attribute :total_fee, Float
+    attribute :status, String
 
-    BookCampsite do
+    command "BookCampsite" do
       role "Customer"
       description "Reserve a campsite for specific dates"
-      String :reservation_id
-      String :campsite_name
-      String :guest_name
-      String :check_in
-      String :check_out
-      Float :total_fee
+      attribute :reservation_id, String
+      attribute :campsite_name, String
+      attribute :guest_name, String
+      attribute :check_in, String
+      attribute :check_out, String
+      attribute :total_fee, Float
       emits "CampsiteBooked"
       then_set :reservation_id, to: :reservation_id
       then_set :campsite_name, to: :campsite_name
@@ -203,7 +203,7 @@ Hecks.bluebook "CampingOutfitter", version: "2026.04.13.1" do
       then_set :status, to: "confirmed"
     end
 
-    CancelReservation do
+    command "CancelReservation" do
       role "Customer"
       description "Cancel the campsite booking"
       reference_to(CampsiteReservation)

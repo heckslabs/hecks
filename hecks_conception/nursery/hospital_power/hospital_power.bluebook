@@ -3,20 +3,20 @@ Hecks.bluebook "HospitalPower", version: "2026.04.13.1" do
   category "healthcare_technology"
 
   aggregate "PatientArea", "A hospital area serving patients with critical power needs" do
-    String :area_id
-    String :area_name
-    String :floor
-    String :criticality
-    Float :power_load_kw
-    String :status
-    DefineArea do
+    attribute :area_id, String
+    attribute :area_name, String
+    attribute :floor, String
+    attribute :criticality, String
+    attribute :power_load_kw, Float
+    attribute :status, String
+    command "DefineArea" do
       role "FacilitiesManager"
       description "Define a patient care area with power requirements"
-      String :area_id
-      String :area_name
-      String :floor
-      String :criticality
-      Float :power_load_kw
+      attribute :area_id, String
+      attribute :area_name, String
+      attribute :floor, String
+      attribute :criticality, String
+      attribute :power_load_kw, Float
       emits "AreaDefined"
       then_set :area_id, to: :area_id
       then_set :area_name, to: :area_name
@@ -25,33 +25,33 @@ Hecks.bluebook "HospitalPower", version: "2026.04.13.1" do
       then_set :power_load_kw, to: :power_load_kw
       then_set :status, to: "active"
     end
-    MeasureLoad do
+    command "MeasureLoad" do
       role "Engineer"
       description "Update the current power load for the area"
       reference_to(PatientArea)
-      Float :power_load_kw
+      attribute :power_load_kw, Float
       emits "LoadMeasured"
       then_set :power_load_kw, to: :power_load_kw
     end
   end
 
   aggregate "BackupGenerator", "A backup power generator for critical hospital areas" do
-    String :generator_id
-    String :fuel_type
-    Float :capacity_kw
-    Float :fuel_level_pct
-    String :status
+    attribute :generator_id, String
+    attribute :fuel_type, String
+    attribute :capacity_kw, Float
+    attribute :fuel_level_pct, Float
+    attribute :status, String
     value_object "MaintenanceLog" do
-      String :date
-      String :technician
-      String :work_done
+      attribute :date, String
+      attribute :technician, String
+      attribute :work_done, String
     end
-    InstallGenerator do
+    command "InstallGenerator" do
       role "Engineer"
       description "Install a backup generator for hospital power"
-      String :generator_id
-      String :fuel_type
-      Float :capacity_kw
+      attribute :generator_id, String
+      attribute :fuel_type, String
+      attribute :capacity_kw, Float
       emits "GeneratorInstalled"
       then_set :generator_id, to: :generator_id
       then_set :fuel_type, to: :fuel_type
@@ -59,7 +59,7 @@ Hecks.bluebook "HospitalPower", version: "2026.04.13.1" do
       then_set :fuel_level_pct, to: 100.0
       then_set :status, to: "standby"
     end
-    StartGenerator do
+    command "StartGenerator" do
       role "Engineer"
       description "Start the backup generator during power outage"
       reference_to(BackupGenerator)
@@ -67,7 +67,7 @@ Hecks.bluebook "HospitalPower", version: "2026.04.13.1" do
       emits "GeneratorStarted"
       then_set :status, to: "running"
     end
-    StopGenerator do
+    command "StopGenerator" do
       role "Engineer"
       description "Stop the generator when main power is restored"
       reference_to(BackupGenerator)
@@ -78,17 +78,17 @@ Hecks.bluebook "HospitalPower", version: "2026.04.13.1" do
   end
 
   aggregate "TransferSwitch", "An automatic transfer switch between main and backup power" do
-    String :switch_id
-    String :area_id
-    String :generator_id
-    String :current_source
-    String :status
-    ConfigureSwitch do
+    attribute :switch_id, String
+    attribute :area_id, String
+    attribute :generator_id, String
+    attribute :current_source, String
+    attribute :status, String
+    command "ConfigureSwitch" do
       role "Engineer"
       description "Configure a transfer switch linking area to generator"
-      String :switch_id
-      String :area_id
-      String :generator_id
+      attribute :switch_id, String
+      attribute :area_id, String
+      attribute :generator_id, String
       emits "SwitchConfigured"
       then_set :switch_id, to: :switch_id
       then_set :area_id, to: :area_id
@@ -96,7 +96,7 @@ Hecks.bluebook "HospitalPower", version: "2026.04.13.1" do
       then_set :current_source, to: "main"
       then_set :status, to: "active"
     end
-    SwitchToBackup do
+    command "SwitchToBackup" do
       role "System"
       description "Transfer to backup power when main fails"
       reference_to(TransferSwitch)
@@ -104,7 +104,7 @@ Hecks.bluebook "HospitalPower", version: "2026.04.13.1" do
       emits "SwitchedToBackup"
       then_set :current_source, to: "backup"
     end
-    SwitchToMain do
+    command "SwitchToMain" do
       role "System"
       description "Transfer back to main power when restored"
       reference_to(TransferSwitch)
@@ -115,24 +115,24 @@ Hecks.bluebook "HospitalPower", version: "2026.04.13.1" do
   end
 
   aggregate "LoadShedPlan", "A plan for shedding non-critical loads during power shortage" do
-    String :plan_id
+    attribute :plan_id, String
     list_of(ShedStep) :steps
-    String :status
+    attribute :status, String
     value_object "ShedStep" do
-      Integer :priority
-      String :area_id
-      Float :shed_kw
-      String :reason
+      attribute :priority, Integer
+      attribute :area_id, String
+      attribute :shed_kw, Float
+      attribute :reason, String
     end
-    DefineShedPlan do
+    command "DefineShedPlan" do
       role "FacilitiesManager"
       description "Define a load shedding plan with priority sequence"
-      String :plan_id
+      attribute :plan_id, String
       emits "ShedPlanDefined"
       then_set :plan_id, to: :plan_id
       then_set :status, to: "ready"
     end
-    ActivateShedding do
+    command "ActivateShedding" do
       role "System"
       description "Activate load shedding when power capacity is exceeded"
       reference_to(LoadShedPlan)

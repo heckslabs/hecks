@@ -3,19 +3,19 @@ Hecks.bluebook "Oceanography" do
 
   aggregate "SamplingStation" do
     description "A fixed location where oceanographic measurements are taken"
-    String :station_id
-    Float :latitude
-    Float :longitude
-    Float :water_depth_m
-    String :station_type
-    Boolean :active, default: false
+    attribute :station_id, String
+    attribute :latitude, Float
+    attribute :longitude, Float
+    attribute :water_depth_m, Float
+    attribute :station_type, String
+    attribute :active, Boolean, default: false
 
     command "EstablishStation" do
       description "Set up a new oceanographic sampling station"
       emits "StationEstablished"
-      String :station_id
-      Float :latitude
-      Float :longitude
+      attribute :station_id, String
+      attribute :latitude, Float
+      attribute :longitude, Float
       then_set :active, true
     end
 
@@ -31,30 +31,30 @@ Hecks.bluebook "Oceanography" do
       description "Move a station to new coordinates"
       emits "StationRelocated"
       reference_to SamplingStation
-      Float :new_latitude
-      Float :new_longitude
+      attribute :new_latitude, Float
+      attribute :new_longitude, Float
     end
   end
 
   aggregate "CtdCast" do
     description "A conductivity-temperature-depth profile through the water column"
-    String :cast_id
-    String :timestamp
-    Float :max_depth_m
+    attribute :cast_id, String
+    attribute :timestamp, String
+    attribute :max_depth_m, Float
     reference_to SamplingStation
 
     value_object "WaterProfile" do
-      Float :depth_m
-      Float :temperature_c
-      Float :salinity_psu
-      Float :dissolved_oxygen_ml
+      attribute :depth_m, Float
+      attribute :temperature_c, Float
+      attribute :salinity_psu, Float
+      attribute :dissolved_oxygen_ml, Float
     end
 
     command "DeployCast" do
       description "Lower the CTD rosette to collect a water profile"
       emits "CastDeployed"
       reference_to SamplingStation
-      String :timestamp
+      attribute :timestamp, String
     end
 
     command "ProcessCastData" do
@@ -67,24 +67,24 @@ Hecks.bluebook "Oceanography" do
       description "Mark a cast as having suspicious data quality"
       emits "CastFlagged"
       reference_to CtdCast
-      String :reason
+      attribute :reason, String
     end
   end
 
   aggregate "CurrentMeter" do
     description "An instrument measuring ocean current speed and direction"
-    String :instrument_id
-    Float :deployment_depth_m
-    String :mooring_type
-    Boolean :deployed, default: false
+    attribute :instrument_id, String
+    attribute :deployment_depth_m, Float
+    attribute :mooring_type, String
+    attribute :deployed, Boolean, default: false
     reference_to SamplingStation
 
     command "DeployMeter" do
       description "Install a current meter at a station"
       emits "MeterDeployed"
       reference_to SamplingStation
-      String :instrument_id
-      Float :deployment_depth_m
+      attribute :instrument_id, String
+      attribute :deployment_depth_m, Float
       then_set :deployed, true
     end
 
@@ -99,17 +99,17 @@ Hecks.bluebook "Oceanography" do
 
   aggregate "SpeciesCount" do
     description "A tally of marine organisms observed at a station"
-    String :species_name
-    Integer :count
-    String :survey_method
+    attribute :species_name, String
+    attribute :count, Integer
+    attribute :survey_method, String
     reference_to SamplingStation
 
     command "RecordCount" do
       description "Log species abundance from a survey"
       emits "CountRecorded"
       reference_to SamplingStation
-      String :species_name
-      Integer :count
+      attribute :species_name, String
+      attribute :count, Integer
     end
 
     command "VerifyTaxonomy" do

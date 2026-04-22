@@ -1,47 +1,47 @@
 Hecks.bluebook "ShipYard" do
   aggregate "Vessel" do
-    String :vessel_id
-    String :vessel_name
-    String :vessel_type
-    Float :length_meters
-    Float :deadweight_tons
-    String :flag_state
-    String :status
+    attribute :vessel_id, String
+    attribute :vessel_name, String
+    attribute :vessel_type, String
+    attribute :length_meters, Float
+    attribute :deadweight_tons, Float
+    attribute :flag_state, String
+    attribute :status, String
 
     value_object "VesselClass" do
-      String :classification
-      String :hull_type
-      Float :beam_meters
-      Float :draft_meters
+      attribute :classification, String
+      attribute :hull_type, String
+      attribute :beam_meters, Float
+      attribute :draft_meters, Float
     end
 
-    DockVessel do
+    command "DockVessel" do
       description "Bring vessel into dry dock for inspection or repair work"
-      String :dock_id
-      String :purpose
+      attribute :dock_id, String
+      attribute :purpose, String
       reference_to "Vessel"
       emits "VesselDocked"
     end
 
-    SurveyHull do
+    command "SurveyHull" do
       description "Perform ultrasonic thickness and visual hull survey"
-      String :surveyor
-      Integer :findings_count
+      attribute :surveyor, String
+      attribute :findings_count, Integer
       reference_to "Vessel"
       emits "HullSurveyed"
     end
 
-    UndockVessel do
+    command "UndockVessel" do
       description "Refloat vessel and release from dry dock after work completion"
-      String :sea_trial_required
+      attribute :sea_trial_required, String
       reference_to "Vessel"
       emits "VesselUndocked"
     end
 
-    SeaTrial do
+    command "SeaTrial" do
       description "Conduct sea trial to verify all repairs and systems operational"
-      Float :trial_duration_hours
-      String :trial_result
+      attribute :trial_duration_hours, Float
+      attribute :trial_result, String
       reference_to "Vessel"
       emits "SeaTrialCompleted"
     end
@@ -57,28 +57,28 @@ Hecks.bluebook "ShipYard" do
     policy "Ballast tanks must be checked before refloating"
 
     given "A bulk carrier arrives for annual survey" do
-      String :vessel_name, "MV Pacific Dawn"
-      String :vessel_type, "Bulk Carrier"
-      Float :deadweight_tons, 75000.0
+      attribute :vessel_name, String, "MV Pacific Dawn"
+      attribute :vessel_type, String, "Bulk Carrier"
+      attribute :deadweight_tons, Float, 75000.0
     end
   end
 
   aggregate "DryDock" do
-    String :dock_id
-    String :dock_name
-    Float :length_meters
-    Float :width_meters
-    Float :depth_meters
-    String :status
+    attribute :dock_id, String
+    attribute :dock_name, String
+    attribute :length_meters, Float
+    attribute :width_meters, Float
+    attribute :depth_meters, Float
+    attribute :status, String
 
-    FloodDock do
+    command "FloodDock" do
       description "Flood dry dock to allow vessel entry or departure"
-      Float :target_depth_meters
+      attribute :target_depth_meters, Float
       reference_to "DryDock"
       emits "DockFlooded"
     end
 
-    DrainDock do
+    command "DrainDock" do
       description "Pump water from dry dock to expose vessel hull for work"
       reference_to "DryDock"
       emits "DockDrained"
@@ -93,43 +93,43 @@ Hecks.bluebook "ShipYard" do
   end
 
   aggregate "RepairJob" do
-    String :job_id
-    String :vessel_id
-    String :job_type
-    String :description_text
-    Float :estimated_hours
-    String :status
+    attribute :job_id, String
+    attribute :vessel_id, String
+    attribute :job_type, String
+    attribute :description_text, String
+    attribute :estimated_hours, Float
+    attribute :status, String
     list_of "WorkTask"
 
-    CreateRepairJob do
+    command "CreateRepairJob" do
       description "Define scope of repair work for a docked vessel"
-      String :job_type
-      String :description_text
-      Float :estimated_hours
+      attribute :job_type, String
+      attribute :description_text, String
+      attribute :estimated_hours, Float
       reference_to "Vessel"
       emits "RepairJobCreated"
     end
 
-    ExecuteRepair do
+    command "ExecuteRepair" do
       description "Carry out the defined repair work on the vessel"
-      String :foreman
-      Float :actual_hours
+      attribute :foreman, String
+      attribute :actual_hours, Float
       reference_to "RepairJob"
       emits "RepairExecuted"
     end
 
-    InspectRepair do
+    command "InspectRepair" do
       description "Class surveyor inspects completed repair for compliance"
-      String :inspector
-      String :inspection_result
+      attribute :inspector, String
+      attribute :inspection_result, String
       reference_to "RepairJob"
       emits "RepairInspected"
     end
 
-    CompleteRepairJob do
+    command "CompleteRepairJob" do
       description "Sign off repair job after quality inspection and testing"
-      String :inspector
-      String :completion_notes
+      attribute :inspector, String
+      attribute :completion_notes, String
       reference_to "RepairJob"
       emits "RepairJobCompleted"
     end
@@ -145,23 +145,23 @@ Hecks.bluebook "ShipYard" do
   end
 
   aggregate "YardCrew" do
-    String :crew_id
-    String :trade
-    Integer :headcount
-    String :shift
-    String :supervisor
+    attribute :crew_id, String
+    attribute :trade, String
+    attribute :headcount, Integer
+    attribute :shift, String
+    attribute :supervisor, String
 
-    AssignCrew do
+    command "AssignCrew" do
       description "Assign skilled trade crew to a repair job for a shift"
-      String :trade
-      String :shift
+      attribute :trade, String
+      attribute :shift, String
       reference_to "RepairJob"
       emits "CrewAssigned"
     end
 
-    RecordHours do
+    command "RecordHours" do
       description "Log actual hours worked by crew on a specific job"
-      Float :hours_worked
+      attribute :hours_worked, Float
       reference_to "RepairJob"
       emits "HoursRecorded"
     end
@@ -170,33 +170,33 @@ Hecks.bluebook "ShipYard" do
   end
 
   aggregate "YardContract" do
-    String :contract_id
-    String :vessel_owner
-    String :scope_summary
-    Float :contract_value
-    String :start_date
-    String :end_date
-    String :status
+    attribute :contract_id, String
+    attribute :vessel_owner, String
+    attribute :scope_summary, String
+    attribute :contract_value, Float
+    attribute :start_date, String
+    attribute :end_date, String
+    attribute :status, String
     list_of "RepairJob"
 
     value_object "ContractTerms" do
-      Float :daily_dock_rate
-      Float :penalty_per_day_late
-      String :payment_terms
+      attribute :daily_dock_rate, Float
+      attribute :penalty_per_day_late, Float
+      attribute :payment_terms, String
     end
 
-    NegotiateContract do
+    command "NegotiateContract" do
       description "Finalize repair contract terms with vessel owner"
-      String :vessel_owner
-      Float :contract_value
-      String :scope_summary
+      attribute :vessel_owner, String
+      attribute :contract_value, Float
+      attribute :scope_summary, String
       reference_to "YardContract"
       emits "ContractNegotiated"
     end
 
-    CloseContract do
+    command "CloseContract" do
       description "Close contract after all work complete and final invoicing"
-      Float :final_value
+      attribute :final_value, Float
       reference_to "YardContract"
       emits "ContractClosed"
     end

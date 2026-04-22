@@ -3,24 +3,24 @@ Hecks.bluebook "Conception", version: "2026.04.14.1" do
   category "meta"
 
   aggregate "Blueprint", "A domain being conceived — tracks what has been defined and what is still missing" do
-    String :domain_name
-    String :vision
-    String :category
-    Integer :aggregate_count
-    Integer :command_count
-    Integer :fixture_count
-    Integer :port_count
-    Integer :actor_count
-    Integer :policy_count
-    String :completeness
+    attribute :domain_name, String
+    attribute :vision, String
+    attribute :category, String
+    attribute :aggregate_count, Integer
+    attribute :command_count, Integer
+    attribute :fixture_count, Integer
+    attribute :port_count, Integer
+    attribute :actor_count, Integer
+    attribute :policy_count, Integer
+    attribute :completeness, String
     list_of(String) :gaps
 
-    StartConception do
+    command "StartConception" do
       role "Conceiver"
       description "Begin conceiving a domain — name it, give it a vision, set its category"
-      String :domain_name
-      String :vision
-      String :category
+      attribute :domain_name, String
+      attribute :vision, String
+      attribute :category, String
       emits "ConceptionStarted"
       then_set :domain_name, to: :domain_name
       then_set :vision, to: :vision
@@ -34,55 +34,55 @@ Hecks.bluebook "Conception", version: "2026.04.14.1" do
       then_set :completeness, to: "embryo"
     end
 
-    AddAggregates do
+    command "AddAggregates" do
       role "Conceiver"
       description "Define the aggregates — the nouns of the domain"
       reference_to(Blueprint)
-      Integer :count
+      attribute :count, Integer
       emits "AggregatesAdded"
       then_set :aggregate_count, to: :count
     end
 
-    AddCommands do
+    command "AddCommands" do
       role "Conceiver"
       description "Define the commands — the verbs. Every command needs then_set or given to be executable"
       reference_to(Blueprint)
-      Integer :count
+      attribute :count, Integer
       emits "CommandsAdded"
       then_set :command_count, to: :count
     end
 
-    AddFixtures do
+    command "AddFixtures" do
       role "Conceiver"
       description "Write fixture data for every aggregate — realistic values that exercise the domain"
       reference_to(Blueprint)
-      Integer :count
+      attribute :count, Integer
       emits "FixturesAdded"
       given("must have aggregates first") { aggregate_count > 0 }
       then_set :fixture_count, to: :count
     end
 
-    AddAccessGates do
+    command "AddAccessGates" do
       role "Conceiver"
       description "Define ports and actors — who can do what through which gate"
       reference_to(Blueprint)
-      Integer :port_count
-      Integer :actor_count
+      attribute :port_count, Integer
+      attribute :actor_count, Integer
       emits "AccessGatesAdded"
       then_set :port_count, to: :port_count
       then_set :actor_count, to: :actor_count
     end
 
-    AddPolicies do
+    command "AddPolicies" do
       role "Conceiver"
       description "Wire cross-aggregate event chains — the reactive nervous system of the domain"
       reference_to(Blueprint)
-      Integer :count
+      attribute :count, Integer
       emits "PoliciesAdded"
       then_set :policy_count, to: :count
     end
 
-    AssessCompleteness do
+    command "AssessCompleteness" do
       role "Conceiver"
       description "Check what the domain has and what it is missing — update gaps list"
       reference_to(Blueprint)
@@ -91,7 +91,7 @@ Hecks.bluebook "Conception", version: "2026.04.14.1" do
       then_set :gaps, to: :gaps
     end
 
-    Seal do
+    command "Seal" do
       role "Conceiver"
       description "The domain is complete — shape, commands, fixtures, access. Seal it as a living artifact"
       reference_to(Blueprint)
@@ -111,18 +111,18 @@ Hecks.bluebook "Conception", version: "2026.04.14.1" do
   end
 
   aggregate "ConceptionRule", "A rule that must hold for any conceived domain to be complete" do
-    String :rule_name
-    String :description
-    String :check_type
-    String :severity
+    attribute :rule_name, String
+    attribute :description, String
+    attribute :check_type, String
+    attribute :severity, String
 
-    DefineRule do
+    command "DefineRule" do
       role "Architect"
       description "Establish a rule that all conceived domains must satisfy"
-      String :rule_name
-      String :description
-      String :check_type
-      String :severity
+      attribute :rule_name, String
+      attribute :description, String
+      attribute :check_type, String
+      attribute :severity, String
       emits "RuleDefined"
       then_set :rule_name, to: :rule_name
       then_set :description, to: :description
@@ -132,21 +132,21 @@ Hecks.bluebook "Conception", version: "2026.04.14.1" do
   end
 
   aggregate "ConceptionLog", "A record of a completed conception — who conceived it, when, what gaps remain" do
-    String :domain_name
-    String :conceived_by
-    String :conceived_at
-    Integer :fixture_count
-    Integer :gap_count
-    String :verdict
+    attribute :domain_name, String
+    attribute :conceived_by, String
+    attribute :conceived_at, String
+    attribute :fixture_count, Integer
+    attribute :gap_count, Integer
+    attribute :verdict, String
 
-    RecordConception do
+    command "RecordConception" do
       role "System"
       description "Log that a domain was conceived and record its birth state"
-      String :domain_name
-      String :conceived_by
-      String :conceived_at
-      Integer :fixture_count
-      Integer :gap_count
+      attribute :domain_name, String
+      attribute :conceived_by, String
+      attribute :conceived_at, String
+      attribute :fixture_count, Integer
+      attribute :gap_count, Integer
       emits "ConceptionRecorded"
       then_set :domain_name, to: :domain_name
       then_set :conceived_by, to: :conceived_by
@@ -155,7 +155,7 @@ Hecks.bluebook "Conception", version: "2026.04.14.1" do
       then_set :gap_count, to: :gap_count
     end
 
-    MarkViable do
+    command "MarkViable" do
       role "System"
       description "Domain passed all conception rules — it can enter the nursery"
       reference_to(ConceptionLog)
@@ -163,7 +163,7 @@ Hecks.bluebook "Conception", version: "2026.04.14.1" do
       then_set :verdict, to: "viable"
     end
 
-    MarkIncomplete do
+    command "MarkIncomplete" do
       role "System"
       description "Domain failed one or more conception rules — it needs more work before entering the nursery"
       reference_to(ConceptionLog)

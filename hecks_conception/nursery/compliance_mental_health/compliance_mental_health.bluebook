@@ -2,30 +2,30 @@ Hecks.bluebook "ComplianceMentalHealth" do
   vision "Governed mental health clinic — treatment, prescriptions, billing, and mandatory reporting under strict audit trails"
   category "healthcare"
   aggregate "Patient", "A registered patient with demographics, insurance, and risk flags" do
-    String :mrn
-    String :full_name
-    String :risk_level
-    String :status
-    RegisterPatient do
+    attribute :mrn, String
+    attribute :full_name, String
+    attribute :risk_level, String
+    attribute :status, String
+    command "RegisterPatient" do
       role "IntakeCoordinator"
       description "Enroll a new patient with demographics and insurance"
-      String :mrn
-      String :full_name
+      attribute :mrn, String
+      attribute :full_name, String
       emits "PatientRegistered"
       then_set :mrn, to: :mrn
       then_set :full_name, to: :full_name
       then_set :status, to: "active"
     end
-    ElevateRiskLevel do
+    command "ElevateRiskLevel" do
       role "Clinician"
       description "Flag a patient as high-risk after clinical assessment"
       reference_to(Patient)
-      String :risk_level
+      attribute :risk_level, String
       given { status == "active" }
       emits "RiskLevelElevated"
       then_set :risk_level, to: :risk_level
     end
-    DischargePatient do
+    command "DischargePatient" do
       role "Clinician"
       description "Discharge a patient from active care"
       reference_to(Patient)
@@ -35,22 +35,22 @@ Hecks.bluebook "ComplianceMentalHealth" do
     end
   end
   aggregate "TreatmentPlan", "A care plan requiring supervisory approval before sessions" do
-    String :diagnosis_code
-    String :primary_goal
-    String :status
+    attribute :diagnosis_code, String
+    attribute :primary_goal, String
+    attribute :status, String
     reference_to(Patient)
-    DraftTreatmentPlan do
+    command "DraftTreatmentPlan" do
       role "Clinician"
       description "Draft a treatment plan tied to a diagnosis and modality"
       reference_to(Patient)
-      String :diagnosis_code
-      String :primary_goal
+      attribute :diagnosis_code, String
+      attribute :primary_goal, String
       emits "TreatmentPlanCreated"
       then_set :diagnosis_code, to: :diagnosis_code
       then_set :primary_goal, to: :primary_goal
       then_set :status, to: "draft"
     end
-    ApproveTreatmentPlan do
+    command "ApproveTreatmentPlan" do
       role "ClinicalSupervisor"
       description "Approve a draft plan after supervisory review"
       reference_to(TreatmentPlan)
@@ -58,67 +58,67 @@ Hecks.bluebook "ComplianceMentalHealth" do
       emits "TreatmentPlanApproved"
       then_set :status, to: "active"
     end
-    ReviewTreatmentPlan do
+    command "ReviewTreatmentPlan" do
       role "Clinician"
       description "Periodic review and goal update"
       reference_to(TreatmentPlan)
-      String :updated_goal
+      attribute :updated_goal, String
       emits "TreatmentPlanReviewed"
       then_set :primary_goal, to: :updated_goal
     end
   end
   aggregate "SessionNote", "A clinical session record requiring co-signature for compliance" do
-    String :content_summary
-    String :clinician_name
-    String :status
+    attribute :content_summary, String
+    attribute :clinician_name, String
+    attribute :status, String
     reference_to(Patient)
     reference_to(TreatmentPlan)
-    RecordSessionNote do
+    command "RecordSessionNote" do
       role "Clinician"
       description "Document a therapy session within 24 hours"
       reference_to(Patient)
-      String :content_summary
-      String :clinician_name
+      attribute :content_summary, String
+      attribute :clinician_name, String
       emits "SessionNoteRecorded"
       then_set :content_summary, to: :content_summary
       then_set :clinician_name, to: :clinician_name
       then_set :status, to: "pending_cosign"
     end
-    CosignSessionNote do
+    command "CosignSessionNote" do
       role "ClinicalSupervisor"
       description "Co-sign a note to satisfy supervisory compliance"
       reference_to(SessionNote)
-      String :cosigner_name
+      attribute :cosigner_name, String
       given { status == "pending_cosign" }
       emits "SessionNoteCosigned"
       then_set :status, to: "finalized"
     end
-    AmendSessionNote do
+    command "AmendSessionNote" do
       role "Clinician"
       description "Append a correction — original preserved for audit"
       reference_to(SessionNote)
-      String :amendment_text
+      attribute :amendment_text, String
       given { status == "finalized" }
       emits "SessionNoteAmended"
     end
   end
   aggregate "Prescription", "A medication order with refill guards and discontinuation" do
-    String :medication_name
-    String :status
-    Integer :refills_remaining
+    attribute :medication_name, String
+    attribute :status, String
+    attribute :refills_remaining, Integer
     reference_to(Patient)
-    WritePrescription do
+    command "WritePrescription" do
       role "Prescriber"
       description "Order a medication with dosage and refill count"
       reference_to(Patient)
-      String :medication_name
-      Integer :refills_remaining
+      attribute :medication_name, String
+      attribute :refills_remaining, Integer
       emits "PrescriptionWritten"
       then_set :medication_name, to: :medication_name
       then_set :refills_remaining, to: :refills_remaining
       then_set :status, to: "active"
     end
-    RefillPrescription do
+    command "RefillPrescription" do
       role "Prescriber"
       description "Process a refill if refills remain"
       reference_to(Prescription)
@@ -126,7 +126,7 @@ Hecks.bluebook "ComplianceMentalHealth" do
       given { refills_remaining > 0 }
       emits "PrescriptionRefilled"
     end
-    DiscontinuePrescription do
+    command "DiscontinuePrescription" do
       role "Prescriber"
       description "Discontinue a medication"
       reference_to(Prescription)
@@ -136,21 +136,21 @@ Hecks.bluebook "ComplianceMentalHealth" do
     end
   end
   aggregate "InsuranceClaim", "A billing claim with adjudication and appeal lifecycle" do
-    Float :billed_amount
-    String :status
+    attribute :billed_amount, Float
+    attribute :status, String
     reference_to(Patient)
     reference_to(SessionNote)
-    SubmitClaim do
+    command "SubmitClaim" do
       role "BillingSpecialist"
       description "File a claim for a cosigned session"
       reference_to(Patient)
       reference_to(SessionNote)
-      Float :billed_amount
+      attribute :billed_amount, Float
       emits "ClaimSubmitted"
       then_set :billed_amount, to: :billed_amount
       then_set :status, to: "submitted"
     end
-    AdjudicateClaim do
+    command "AdjudicateClaim" do
       role "BillingSpecialist"
       description "Record the carrier's adjudication decision"
       reference_to(InsuranceClaim)
@@ -158,7 +158,7 @@ Hecks.bluebook "ComplianceMentalHealth" do
       emits "ClaimAdjudicated"
       then_set :status, to: "denied"
     end
-    AppealDenial do
+    command "AppealDenial" do
       role "BillingSpecialist"
       description "Appeal a denied claim"
       reference_to(InsuranceClaim)

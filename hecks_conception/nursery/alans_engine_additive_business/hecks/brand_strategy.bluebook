@@ -3,28 +3,28 @@ Hecks.bluebook "BrandStrategy", version: "2026.04.11.1" do
   category "business"
 
   aggregate "BrandPosition", "How a brand occupies space in the customer's mind — the word it owns" do
-    String :brand
-    String :owned_word
-    String :target_customer
-    String :differentiator
-    String :competitor
-    String :competitor_position
+    attribute :brand, String
+    attribute :owned_word, String
+    attribute :target_customer, String
+    attribute :differentiator, String
+    attribute :competitor, String
+    attribute :competitor_position, String
     list_of(Message) :messaging
 
     value_object "Message" do
-      String :channel
-      String :headline
-      String :proof_point
-      String :call_to_action
+      attribute :channel, String
+      attribute :headline, String
+      attribute :proof_point, String
+      attribute :call_to_action, String
     end
 
-    DefineBrandPosition do
+    command "DefineBrandPosition" do
       role "Owner"
       description "Declare what word this brand owns in the customer's mind"
-      String :brand
-      String :owned_word
-      String :target_customer
-      String :differentiator
+      attribute :brand, String
+      attribute :owned_word, String
+      attribute :target_customer, String
+      attribute :differentiator, String
       emits "BrandPositionDefined"
       then_set :brand, to: :brand
       then_set :owned_word, to: :owned_word
@@ -32,50 +32,50 @@ Hecks.bluebook "BrandStrategy", version: "2026.04.11.1" do
       then_set :differentiator, to: :differentiator
     end
 
-    AnalyzeCompetitor do
+    command "AnalyzeCompetitor" do
       role "Owner"
       description "Understand what position a competitor owns — find the gap"
       reference_to(BrandPosition)
-      String :competitor
-      String :competitor_position
+      attribute :competitor, String
+      attribute :competitor_position, String
       emits "CompetitorAnalyzed"
       then_set :competitor, to: :competitor
       then_set :competitor_position, to: :competitor_position
     end
 
-    CraftMessage do
+    command "CraftMessage" do
       role "Owner"
       description "Create channel-specific messaging from the brand position"
       reference_to(BrandPosition)
-      String :channel
-      String :headline
-      String :proof_point
-      String :call_to_action
+      attribute :channel, String
+      attribute :headline, String
+      attribute :proof_point, String
+      attribute :call_to_action, String
       emits "MessageCrafted"
     end
   end
 
   aggregate "Campaign", "A marketing push for a brand — targeted, measurable, time-bound" do
-    String :name
-    String :brand
-    String :channel
-    Float :budget
-    String :start_date
-    String :end_date
-    String :target_audience
-    String :kpi
-    String :actual_result
-    String :status
+    attribute :name, String
+    attribute :brand, String
+    attribute :channel, String
+    attribute :budget, Float
+    attribute :start_date, String
+    attribute :end_date, String
+    attribute :target_audience, String
+    attribute :kpi, String
+    attribute :actual_result, String
+    attribute :status, String
 
-    LaunchCampaign do
+    command "LaunchCampaign" do
       role "Owner"
       description "Start a marketing campaign on a specific channel"
-      String :name
-      String :brand
-      String :channel
-      Float :budget
-      String :target_audience
-      String :kpi
+      attribute :name, String
+      attribute :brand, String
+      attribute :channel, String
+      attribute :budget, Float
+      attribute :target_audience, String
+      attribute :kpi, String
       emits "CampaignLaunched"
       then_set :name, to: :name
       then_set :brand, to: :brand
@@ -86,16 +86,16 @@ Hecks.bluebook "BrandStrategy", version: "2026.04.11.1" do
       then_set :status, to: "active"
     end
 
-    MeasureCampaign do
+    command "MeasureCampaign" do
       role "Owner"
       description "Record the actual result against the KPI"
       reference_to(Campaign)
-      String :actual_result
+      attribute :actual_result, String
       emits "CampaignMeasured"
       then_set :actual_result, to: :actual_result
     end
 
-    EndCampaign do
+    command "EndCampaign" do
       role "Owner"
       description "Close the campaign and capture learnings"
       reference_to(Campaign)
@@ -110,21 +110,21 @@ Hecks.bluebook "BrandStrategy", version: "2026.04.11.1" do
   end
 
   aggregate "CustomerReview", "Reviews and ratings across channels — social proof against Lucas" do
-    String :product_sku
-    String :channel
-    Integer :rating
-    String :review_text
-    String :verified_purchase
-    String :responded
+    attribute :product_sku, String
+    attribute :channel, String
+    attribute :rating, Integer
+    attribute :review_text, String
+    attribute :verified_purchase, String
+    attribute :responded, String
 
-    CaptureReview do
+    command "CaptureReview" do
       role "System"
       description "Import a customer review from a sales channel"
-      String :product_sku
-      String :channel
-      Integer :rating
-      String :review_text
-      String :verified_purchase
+      attribute :product_sku, String
+      attribute :channel, String
+      attribute :rating, Integer
+      attribute :review_text, String
+      attribute :verified_purchase, String
       emits "ReviewCaptured"
       then_set :product_sku, to: :product_sku
       then_set :channel, to: :channel
@@ -134,7 +134,7 @@ Hecks.bluebook "BrandStrategy", version: "2026.04.11.1" do
       then_set :responded, to: "false"
     end
 
-    RespondToReview do
+    command "RespondToReview" do
       role "Owner"
       description "Reply to a customer review — build trust, address concerns"
       reference_to(CustomerReview)

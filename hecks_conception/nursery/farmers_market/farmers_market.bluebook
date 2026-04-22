@@ -3,29 +3,29 @@ Hecks.bluebook "FarmersMarket", version: "2026.04.13.1" do
   category "retail"
 
   aggregate "Vendor", "A farmer or producer who sells at the market" do
-    String :vendor_id
-    String :farm_name
-    String :contact_name
-    String :contact_phone
-    String :product_type
-    String :status
+    attribute :vendor_id, String
+    attribute :farm_name, String
+    attribute :contact_name, String
+    attribute :contact_phone, String
+    attribute :product_type, String
+    attribute :status, String
     list_of(ProductOffering) :offerings
 
     value_object "ProductOffering" do
-      String :product_name
-      String :unit
-      Float :price_per_unit
-      String :organic
+      attribute :product_name, String
+      attribute :unit, String
+      attribute :price_per_unit, Float
+      attribute :organic, String
     end
 
-    RegisterVendor do
+    command "RegisterVendor" do
       role "MarketManager"
       description "Onboard a new vendor with their farm and product details"
-      String :vendor_id
-      String :farm_name
-      String :contact_name
-      String :contact_phone
-      String :product_type
+      attribute :vendor_id, String
+      attribute :farm_name, String
+      attribute :contact_name, String
+      attribute :contact_phone, String
+      attribute :product_type, String
       emits "VendorRegistered"
       then_set :vendor_id, to: :vendor_id
       then_set :farm_name, to: :farm_name
@@ -35,7 +35,7 @@ Hecks.bluebook "FarmersMarket", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    SuspendVendor do
+    command "SuspendVendor" do
       role "MarketManager"
       description "Temporarily remove a vendor for violations or non-payment"
       reference_to(Vendor)
@@ -44,7 +44,7 @@ Hecks.bluebook "FarmersMarket", version: "2026.04.13.1" do
       then_set :status, to: "suspended"
     end
 
-    ReinstatVendor do
+    command "ReinstatVendor" do
       role "MarketManager"
       description "Restore a suspended vendor to active status"
       reference_to(Vendor)
@@ -55,21 +55,21 @@ Hecks.bluebook "FarmersMarket", version: "2026.04.13.1" do
   end
 
   aggregate "Stall", "A physical selling space at the market" do
-    String :stall_id
-    String :location
-    String :size
-    Float :weekly_fee
-    String :assigned_vendor_id
-    String :status
+    attribute :stall_id, String
+    attribute :location, String
+    attribute :size, String
+    attribute :weekly_fee, Float
+    attribute :assigned_vendor_id, String
+    attribute :status, String
 
-    AssignStall do
+    command "AssignStall" do
       role "MarketManager"
       description "Allocate a stall to a registered vendor"
-      String :stall_id
-      String :location
-      String :size
-      Float :weekly_fee
-      String :assigned_vendor_id
+      attribute :stall_id, String
+      attribute :location, String
+      attribute :size, String
+      attribute :weekly_fee, Float
+      attribute :assigned_vendor_id, String
       emits "StallAssigned"
       then_set :stall_id, to: :stall_id
       then_set :location, to: :location
@@ -79,7 +79,7 @@ Hecks.bluebook "FarmersMarket", version: "2026.04.13.1" do
       then_set :status, to: "occupied"
     end
 
-    VacateStall do
+    command "VacateStall" do
       role "MarketManager"
       description "Free up a stall when a vendor leaves or the season ends"
       reference_to(Stall)
@@ -90,21 +90,21 @@ Hecks.bluebook "FarmersMarket", version: "2026.04.13.1" do
   end
 
   aggregate "MarketPermit", "A license required to operate at the market" do
-    String :permit_id
-    String :vendor_id
-    String :permit_type
-    String :issue_date
-    String :expiration_date
-    String :status
+    attribute :permit_id, String
+    attribute :vendor_id, String
+    attribute :permit_type, String
+    attribute :issue_date, String
+    attribute :expiration_date, String
+    attribute :status, String
 
-    IssuePermit do
+    command "IssuePermit" do
       role "MarketManager"
       description "Grant a vendor the required permit to sell"
-      String :permit_id
-      String :vendor_id
-      String :permit_type
-      String :issue_date
-      String :expiration_date
+      attribute :permit_id, String
+      attribute :vendor_id, String
+      attribute :permit_type, String
+      attribute :issue_date, String
+      attribute :expiration_date, String
       emits "PermitIssued"
       then_set :permit_id, to: :permit_id
       then_set :vendor_id, to: :vendor_id
@@ -114,7 +114,7 @@ Hecks.bluebook "FarmersMarket", version: "2026.04.13.1" do
       then_set :status, to: "valid"
     end
 
-    RevokePermit do
+    command "RevokePermit" do
       role "Inspector"
       description "Cancel a permit due to health or safety violation"
       reference_to(MarketPermit)
@@ -125,26 +125,26 @@ Hecks.bluebook "FarmersMarket", version: "2026.04.13.1" do
   end
 
   aggregate "Inspection", "A health and safety check of a vendor's stall" do
-    String :inspection_id
-    String :vendor_id
-    String :inspector_name
-    String :inspection_date
-    String :result
+    attribute :inspection_id, String
+    attribute :vendor_id, String
+    attribute :inspector_name, String
+    attribute :inspection_date, String
+    attribute :result, String
     list_of(Finding) :findings
 
     value_object "Finding" do
-      String :category
-      String :description
-      String :severity
+      attribute :category, String
+      attribute :description, String
+      attribute :severity, String
     end
 
-    ConductInspection do
+    command "ConductInspection" do
       role "Inspector"
       description "Perform a health and safety audit of a vendor stall"
-      String :inspection_id
-      String :vendor_id
-      String :inspector_name
-      String :inspection_date
+      attribute :inspection_id, String
+      attribute :vendor_id, String
+      attribute :inspector_name, String
+      attribute :inspection_date, String
       emits "InspectionConducted"
       then_set :inspection_id, to: :inspection_id
       then_set :vendor_id, to: :vendor_id
@@ -153,30 +153,30 @@ Hecks.bluebook "FarmersMarket", version: "2026.04.13.1" do
       then_set :result, to: "pending"
     end
 
-    RecordResult do
+    command "RecordResult" do
       role "Inspector"
       description "Finalize the inspection outcome — pass, warning, or fail"
       reference_to(Inspection)
-      String :result
+      attribute :result, String
       emits "ResultRecorded"
       then_set :result, to: :result
     end
   end
 
   aggregate "MarketSeason", "A calendar period during which the market operates" do
-    String :season_id
-    String :name
-    String :start_date
-    String :end_date
-    String :status
+    attribute :season_id, String
+    attribute :name, String
+    attribute :start_date, String
+    attribute :end_date, String
+    attribute :status, String
 
-    OpenSeason do
+    command "OpenSeason" do
       role "MarketManager"
       description "Launch a new market season with opening and closing dates"
-      String :season_id
-      String :name
-      String :start_date
-      String :end_date
+      attribute :season_id, String
+      attribute :name, String
+      attribute :start_date, String
+      attribute :end_date, String
       emits "SeasonOpened"
       then_set :season_id, to: :season_id
       then_set :name, to: :name
@@ -185,7 +185,7 @@ Hecks.bluebook "FarmersMarket", version: "2026.04.13.1" do
       then_set :status, to: "open"
     end
 
-    CloseSeason do
+    command "CloseSeason" do
       role "MarketManager"
       description "End the season and vacate all stalls"
       reference_to(MarketSeason)

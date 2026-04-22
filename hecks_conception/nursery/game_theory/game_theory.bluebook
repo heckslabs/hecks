@@ -3,19 +3,19 @@ Hecks.bluebook "GameTheory" do
 
   aggregate "StrategicGame" do
     description "A formal game model with players, strategies, and payoffs"
-    String :game_id
-    String :name
-    String :game_type
-    Integer :player_count
-    String :information_structure
+    attribute :game_id, String
+    attribute :name, String
+    attribute :game_type, String
+    attribute :player_count, Integer
+    attribute :information_structure, String
 
     command "DefineGame" do
       description "Specify a new strategic game model"
       emits "GameDefined"
-      String :game_id
-      String :name
-      String :game_type
-      Integer :player_count
+      attribute :game_id, String
+      attribute :name, String
+      attribute :game_type, String
+      attribute :player_count, Integer
     end
 
     command "ValidateGame" do
@@ -29,7 +29,7 @@ Hecks.bluebook "GameTheory" do
       description "Update the recorded player count for the game"
       emits "PlayerCountSet"
       reference_to StrategicGame
-      Integer :player_count
+      attribute :player_count, Integer
     end
 
     command "ArchiveGame" do
@@ -41,24 +41,24 @@ Hecks.bluebook "GameTheory" do
 
   aggregate "Strategy" do
     description "A complete plan of action for a player across all decision points"
-    String :strategy_id
-    String :player_id
-    String :strategy_type
-    String :action_sequence
-    Boolean :opponent_strategies_specified, default: false
+    attribute :strategy_id, String
+    attribute :player_id, String
+    attribute :strategy_type, String
+    attribute :action_sequence, String
+    attribute :opponent_strategies_specified, Boolean, default: false
     reference_to StrategicGame
 
     value_object "MixedStrategy" do
-      String :action
-      Float :probability
+      attribute :action, String
+      attribute :probability, Float
     end
 
     command "RegisterStrategy" do
       description "Add a player strategy to the game"
       emits "StrategyRegistered"
       reference_to StrategicGame
-      String :player_id
-      String :strategy_type
+      attribute :player_id, String
+      attribute :strategy_type, String
     end
 
     command "SpecifyOpponentStrategies" do
@@ -84,27 +84,27 @@ Hecks.bluebook "GameTheory" do
 
   aggregate "PayoffMatrix" do
     description "A table mapping strategy combinations to player outcomes"
-    String :matrix_id
-    Integer :rows
-    Integer :columns
-    String :payoff_data
+    attribute :matrix_id, String
+    attribute :rows, Integer
+    attribute :columns, Integer
+    attribute :payoff_data, String
     reference_to StrategicGame
 
     command "ConstructMatrix" do
       description "Build the payoff matrix from strategy profiles"
       emits "MatrixConstructed"
       reference_to StrategicGame
-      Integer :rows
-      Integer :columns
+      attribute :rows, Integer
+      attribute :columns, Integer
     end
 
     command "ModifyPayoff" do
       description "Update a specific cell in the payoff matrix"
       emits "PayoffModified"
       reference_to PayoffMatrix
-      Integer :row
-      Integer :column
-      String :new_payoff
+      attribute :row, Integer
+      attribute :column, Integer
+      attribute :new_payoff, String
     end
 
     command "VerifySymmetry" do
@@ -117,10 +117,10 @@ Hecks.bluebook "GameTheory" do
 
   aggregate "Equilibrium" do
     description "A solution concept where no player benefits from unilateral deviation"
-    String :equilibrium_type
-    String :strategy_profile
-    Float :expected_payoff
-    Integer :nash_equilibrium_count, default: 0
+    attribute :equilibrium_type, String
+    attribute :strategy_profile, String
+    attribute :expected_payoff, Float
+    attribute :nash_equilibrium_count, Integer, default: 0
     reference_to StrategicGame
 
     command "SolveNash" do
@@ -134,34 +134,34 @@ Hecks.bluebook "GameTheory" do
       description "Increment the count of Nash equilibria found for this game"
       emits "NashEquilibriumRecorded"
       reference_to Equilibrium
-      Integer :nash_equilibrium_count
+      attribute :nash_equilibrium_count, Integer
     end
 
     command "RefineEquilibrium" do
       description "Apply a refinement criterion to narrow equilibrium set"
       emits "EquilibriumRefined"
       reference_to Equilibrium
-      String :refinement_type
+      attribute :refinement_type, String
       given { nash_equilibrium_count >= 1 }
     end
   end
 
   aggregate "Simulation" do
     description "A computational experiment running repeated game plays"
-    String :simulation_id
-    Integer :iteration_count
-    String :learning_rule
-    Float :convergence_threshold
-    Boolean :configured, default: false
+    attribute :simulation_id, String
+    attribute :iteration_count, Integer
+    attribute :learning_rule, String
+    attribute :convergence_threshold, Float
+    attribute :configured, Boolean, default: false
     reference_to StrategicGame
 
     command "ConfigureSimulation" do
       description "Set up parameters for an evolutionary game simulation"
       emits "SimulationConfigured"
       reference_to StrategicGame
-      String :simulation_id
-      Integer :iteration_count
-      String :learning_rule
+      attribute :simulation_id, String
+      attribute :iteration_count, Integer
+      attribute :learning_rule, String
       then_set :configured, to: true
     end
 

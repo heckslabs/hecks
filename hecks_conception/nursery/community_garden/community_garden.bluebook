@@ -2,20 +2,20 @@ Hecks.bluebook "CommunityGarden" do
   vision "Shared urban agriculture — garden plots, gardeners, tool lending, harvest tracking, and community events"
 
   aggregate "Plot", "A designated growing space within the community garden" do
-    String :plot_number
-    String :size
-    String :soil_type
-    String :sun_exposure
-    String :assigned_gardener
-    String :status
+    attribute :plot_number, String
+    attribute :size, String
+    attribute :soil_type, String
+    attribute :sun_exposure, String
+    attribute :assigned_gardener, String
+    attribute :status, String
 
-    EstablishPlot do
+    command "EstablishPlot" do
       role "GardenManager"
       description "Establish a new garden plot for assignment"
-      String :plot_number
-      String :size
-      String :soil_type
-      String :sun_exposure
+      attribute :plot_number, String
+      attribute :size, String
+      attribute :soil_type, String
+      attribute :sun_exposure, String
       emits "PlotCreated"
       then_set :plot_number, to: :plot_number
       then_set :size, to: :size
@@ -24,18 +24,18 @@ Hecks.bluebook "CommunityGarden" do
       then_set :status, to: "available"
     end
 
-    AssignPlot do
+    command "AssignPlot" do
       role "GardenManager"
       description "Assign a gardener to a specific plot for the season"
       reference_to(Plot)
-      String :assigned_gardener
+      attribute :assigned_gardener, String
       given("must be available") { status == "available" }
       emits "PlotAssigned"
       then_set :assigned_gardener, to: :assigned_gardener
       then_set :status, to: "assigned"
     end
 
-    ReleasePlot do
+    command "ReleasePlot" do
       role "GardenManager"
       description "Return a plot to the available pool at season end"
       reference_to(Plot)
@@ -46,21 +46,21 @@ Hecks.bluebook "CommunityGarden" do
   end
 
   aggregate "Gardener", "A community member participating in the garden" do
-    String :name
-    String :email
-    String :phone
-    String :experience_level
-    String :membership_date
-    String :status
+    attribute :name, String
+    attribute :email, String
+    attribute :phone, String
+    attribute :experience_level, String
+    attribute :membership_date, String
+    attribute :status, String
 
-    RegisterGardener do
+    command "RegisterGardener" do
       role "GardenManager"
       description "Sign up a new community gardener"
-      String :name
-      String :email
-      String :phone
-      String :experience_level
-      String :membership_date
+      attribute :name, String
+      attribute :email, String
+      attribute :phone, String
+      attribute :experience_level, String
+      attribute :membership_date, String
       emits "GardenerRegistered"
       then_set :name, to: :name
       then_set :email, to: :email
@@ -70,16 +70,16 @@ Hecks.bluebook "CommunityGarden" do
       then_set :status, to: "active"
     end
 
-    RenewMembership do
+    command "RenewMembership" do
       role "GardenManager"
       description "Extend the gardener's membership for another season"
       reference_to(Gardener)
-      String :membership_date
+      attribute :membership_date, String
       emits "MembershipRenewed"
       then_set :membership_date, to: :membership_date
     end
 
-    SuspendGardener do
+    command "SuspendGardener" do
       role "GardenManager"
       description "Temporarily suspend a gardener for rule violations"
       reference_to(Gardener)
@@ -90,27 +90,27 @@ Hecks.bluebook "CommunityGarden" do
   end
 
   aggregate "ToolInventory", "Shared tools and equipment available for garden use" do
-    String :tool_name
-    String :condition
-    Integer :quantity
-    String :storage_location
-    String :status
+    attribute :tool_name, String
+    attribute :condition, String
+    attribute :quantity, Integer
+    attribute :storage_location, String
+    attribute :status, String
     list_of(LendingRecord) :lending_history
 
     value_object "LendingRecord" do
-      String :borrower_name
-      String :checkout_date
-      String :return_date
-      String :condition_on_return
+      attribute :borrower_name, String
+      attribute :checkout_date, String
+      attribute :return_date, String
+      attribute :condition_on_return, String
     end
 
-    AddTool do
+    command "AddTool" do
       role "GardenManager"
       description "Add a tool or piece of equipment to the shared inventory"
-      String :tool_name
-      String :condition
-      Integer :quantity
-      String :storage_location
+      attribute :tool_name, String
+      attribute :condition, String
+      attribute :quantity, Integer
+      attribute :storage_location, String
       emits "ToolAdded"
       then_set :tool_name, to: :tool_name
       then_set :condition, to: :condition
@@ -119,20 +119,20 @@ Hecks.bluebook "CommunityGarden" do
       then_set :status, to: "available"
     end
 
-    CheckoutTool do
+    command "CheckoutTool" do
       role "Gardener"
       description "Borrow a tool from the shared inventory"
       reference_to(ToolInventory)
-      String :borrower_name
+      attribute :borrower_name, String
       given("must be available") { status == "available" }
       emits "ToolCheckedOut"
     end
 
-    ReturnTool do
+    command "ReturnTool" do
       role "Gardener"
       description "Return a borrowed tool to the inventory"
       reference_to(ToolInventory)
-      String :condition_on_return
+      attribute :condition_on_return, String
       emits "ToolReturned"
       then_set :condition, to: :condition_on_return
       then_set :status, to: "available"
@@ -140,32 +140,32 @@ Hecks.bluebook "CommunityGarden" do
   end
 
   aggregate "Harvest", "A record of produce harvested from a garden plot" do
-    String :gardener_name
-    String :plot_number
-    String :crop_name
-    Float :weight_pounds
-    String :harvest_date
-    String :destination
+    attribute :gardener_name, String
+    attribute :plot_number, String
+    attribute :crop_name, String
+    attribute :weight_pounds, Float
+    attribute :harvest_date, String
+    attribute :destination, String
     reference_to Plot
     reference_to Gardener
 
     value_object "CropDetail" do
-      String :variety
-      String :planting_date
-      String :days_to_harvest
+      attribute :variety, String
+      attribute :planting_date, String
+      attribute :days_to_harvest, String
     end
 
-    LogHarvest do
+    command "LogHarvest" do
       role "Gardener"
       description "Record produce harvested from the garden plot"
       reference_to(Plot)
       reference_to(Gardener)
-      String :gardener_name
-      String :plot_number
-      String :crop_name
-      Float :weight_pounds
-      String :harvest_date
-      String :destination
+      attribute :gardener_name, String
+      attribute :plot_number, String
+      attribute :crop_name, String
+      attribute :weight_pounds, Float
+      attribute :harvest_date, String
+      attribute :destination, String
       emits "HarvestLogged"
       then_set :gardener_name, to: :gardener_name
       then_set :plot_number, to: :plot_number
@@ -175,7 +175,7 @@ Hecks.bluebook "CommunityGarden" do
       then_set :destination, to: :destination
     end
 
-    DonateHarvest do
+    command "DonateHarvest" do
       role "Gardener"
       description "Designate harvested produce for community donation"
       reference_to(Harvest)
@@ -185,28 +185,28 @@ Hecks.bluebook "CommunityGarden" do
   end
 
   aggregate "GardenEvent", "A community event held at the garden" do
-    String :event_name
-    String :event_date
-    String :event_type
-    String :organizer
-    Integer :expected_attendees
-    String :status
+    attribute :event_name, String
+    attribute :event_date, String
+    attribute :event_type, String
+    attribute :organizer, String
+    attribute :expected_attendees, Integer
+    attribute :status, String
     list_of(EventTask) :tasks
 
     value_object "EventTask" do
-      String :task_name
-      String :assigned_to
-      String :completed
+      attribute :task_name, String
+      attribute :assigned_to, String
+      attribute :completed, String
     end
 
-    PlanEvent do
+    command "PlanEvent" do
       role "GardenManager"
       description "Organize a community garden event"
-      String :event_name
-      String :event_date
-      String :event_type
-      String :organizer
-      Integer :expected_attendees
+      attribute :event_name, String
+      attribute :event_date, String
+      attribute :event_type, String
+      attribute :organizer, String
+      attribute :expected_attendees, Integer
       emits "EventPlanned"
       then_set :event_name, to: :event_name
       then_set :event_date, to: :event_date
@@ -216,7 +216,7 @@ Hecks.bluebook "CommunityGarden" do
       then_set :status, to: "planned"
     end
 
-    HoldEvent do
+    command "HoldEvent" do
       role "GardenManager"
       description "Execute the event and record participation"
       reference_to(GardenEvent)
@@ -225,7 +225,7 @@ Hecks.bluebook "CommunityGarden" do
       then_set :status, to: "completed"
     end
 
-    CancelEvent do
+    command "CancelEvent" do
       role "GardenManager"
       description "Cancel a planned garden event"
       reference_to(GardenEvent)

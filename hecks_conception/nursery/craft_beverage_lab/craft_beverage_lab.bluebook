@@ -5,20 +5,20 @@ Hecks.bluebook "CraftBeverageLab", version: "2026.04.13.1" do
   # === Experiment ===
 
   aggregate "Experiment", "A flavor science experiment — the container for fermentation or roasting trials" do
-    String :title
-    String :experiment_type
-    String :hypothesis
-    String :status
-    String :conclusion
+    attribute :title, String
+    attribute :experiment_type, String
+    attribute :hypothesis, String
+    attribute :status, String
+    attribute :conclusion, String
     reference_to(YeastCulture, as: :yeast)
     reference_to(RoastProfile, as: :roast)
 
-    DesignExperiment do
+    command "DesignExperiment" do
       role "Scientist"
       description "Design a new flavor experiment with hypothesis and methodology"
-      String :title
-      String :experiment_type
-      String :hypothesis
+      attribute :title, String
+      attribute :experiment_type, String
+      attribute :hypothesis, String
       emits "ExperimentDesigned"
       then_set :title, to: :title
       then_set :experiment_type, to: :experiment_type
@@ -26,7 +26,7 @@ Hecks.bluebook "CraftBeverageLab", version: "2026.04.13.1" do
       then_set :status, to: "designed"
     end
 
-    StartExperiment do
+    command "StartExperiment" do
       role "Scientist"
       description "Begin the experiment — fermentation or roasting trial starts"
       reference_to(Experiment)
@@ -35,11 +35,11 @@ Hecks.bluebook "CraftBeverageLab", version: "2026.04.13.1" do
       then_set :status, to: "running"
     end
 
-    ConcludeExperiment do
+    command "ConcludeExperiment" do
       role "Scientist"
       description "Record conclusion and results of the experiment"
       reference_to(Experiment)
-      String :conclusion
+      attribute :conclusion, String
       given { status == "running" }
       emits "ExperimentConcluded"
       then_set :conclusion, to: :conclusion
@@ -56,27 +56,27 @@ Hecks.bluebook "CraftBeverageLab", version: "2026.04.13.1" do
   # === YeastCulture ===
 
   aggregate "YeastCulture", "A living yeast culture — strain, viability, and fermentation potential" do
-    String :strain_name
-    String :species
-    Float :viability_percent
-    Float :optimal_temperature
-    String :status
+    attribute :strain_name, String
+    attribute :species, String
+    attribute :viability_percent, Float
+    attribute :optimal_temperature, Float
+    attribute :status, String
     list_of(FermentationLog) :logs
 
     value_object "FermentationLog" do
-      String :timestamp
-      Float :gravity
-      Float :temperature
-      Float :ph
-      String :notes
+      attribute :timestamp, String
+      attribute :gravity, Float
+      attribute :temperature, Float
+      attribute :ph, Float
+      attribute :notes, String
     end
 
-    CultivateYeast do
+    command "CultivateYeast" do
       role "Brewer"
       description "Start a new yeast culture from a strain"
-      String :strain_name
-      String :species
-      Float :optimal_temperature
+      attribute :strain_name, String
+      attribute :species, String
+      attribute :optimal_temperature, Float
       emits "YeastCultivated"
       then_set :strain_name, to: :strain_name
       then_set :species, to: :species
@@ -85,7 +85,7 @@ Hecks.bluebook "CraftBeverageLab", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    PitchYeast do
+    command "PitchYeast" do
       role "Brewer"
       description "Add yeast to wort — fermentation begins"
       reference_to(YeastCulture)
@@ -94,17 +94,17 @@ Hecks.bluebook "CraftBeverageLab", version: "2026.04.13.1" do
       then_set :status, to: "fermenting"
     end
 
-    RecordFermentation do
+    command "RecordFermentation" do
       role "Brewer"
       description "Log gravity, temperature, and pH during fermentation"
       reference_to(YeastCulture)
-      Float :gravity
-      Float :temperature
-      Float :ph
+      attribute :gravity, Float
+      attribute :temperature, Float
+      attribute :ph, Float
       emits "FermentationRecorded"
     end
 
-    CompleteFermentation do
+    command "CompleteFermentation" do
       role "Brewer"
       description "Fermentation is done — yeast has consumed available sugars"
       reference_to(YeastCulture)
@@ -123,28 +123,28 @@ Hecks.bluebook "CraftBeverageLab", version: "2026.04.13.1" do
   # === RoastProfile ===
 
   aggregate "RoastProfile", "A coffee or grain roast profile — time, temperature, and development curves" do
-    String :bean_origin
-    String :roast_level
-    Float :charge_temperature
-    Float :drop_temperature
-    Integer :total_time_seconds
-    String :status
+    attribute :bean_origin, String
+    attribute :roast_level, String
+    attribute :charge_temperature, Float
+    attribute :drop_temperature, Float
+    attribute :total_time_seconds, Integer
+    attribute :status, String
     list_of(RoastPhase) :phases
 
     value_object "RoastPhase" do
-      String :phase_name
-      Integer :duration_seconds
-      Float :start_temperature
-      Float :end_temperature
-      String :notes
+      attribute :phase_name, String
+      attribute :duration_seconds, Integer
+      attribute :start_temperature, Float
+      attribute :end_temperature, Float
+      attribute :notes, String
     end
 
-    DraftProfile do
+    command "DraftProfile" do
       role "Roaster"
       description "Define a new roast profile with charge and target parameters"
-      String :bean_origin
-      String :roast_level
-      Float :charge_temperature
+      attribute :bean_origin, String
+      attribute :roast_level, String
+      attribute :charge_temperature, Float
       emits "RoastProfileCreated"
       then_set :bean_origin, to: :bean_origin
       then_set :roast_level, to: :roast_level
@@ -152,7 +152,7 @@ Hecks.bluebook "CraftBeverageLab", version: "2026.04.13.1" do
       then_set :status, to: "created"
     end
 
-    ExecuteRoast do
+    command "ExecuteRoast" do
       role "Roaster"
       description "Run a roast following the defined profile"
       reference_to(RoastProfile)
@@ -161,12 +161,12 @@ Hecks.bluebook "CraftBeverageLab", version: "2026.04.13.1" do
       then_set :status, to: "roasting"
     end
 
-    CompleteRoast do
+    command "CompleteRoast" do
       role "Roaster"
       description "Drop the beans — roast is complete at target temperature"
       reference_to(RoastProfile)
-      Float :drop_temperature
-      Integer :total_time_seconds
+      attribute :drop_temperature, Float
+      attribute :total_time_seconds, Integer
       given { status == "roasting" }
       emits "RoastProfiled"
       then_set :drop_temperature, to: :drop_temperature
@@ -184,22 +184,22 @@ Hecks.bluebook "CraftBeverageLab", version: "2026.04.13.1" do
   # === FlavorCompound ===
 
   aggregate "FlavorCompound", "A chemical flavor compound — identified through analysis of fermented or roasted products" do
-    String :compound_name
-    String :chemical_family
-    Float :concentration_ppm
-    String :source
-    String :aroma_descriptor
+    attribute :compound_name, String
+    attribute :chemical_family, String
+    attribute :concentration_ppm, Float
+    attribute :source, String
+    attribute :aroma_descriptor, String
     reference_to(Experiment, as: :experiment)
 
-    AnalyzeFlavorCompounds do
+    command "AnalyzeFlavorCompounds" do
       role "System"
       description "Run chemical analysis to identify flavor compounds in a sample"
       reference_to(Experiment, as: :experiment)
-      String :compound_name
-      String :chemical_family
-      Float :concentration_ppm
-      String :source
-      String :aroma_descriptor
+      attribute :compound_name, String
+      attribute :chemical_family, String
+      attribute :concentration_ppm, Float
+      attribute :source, String
+      attribute :aroma_descriptor, String
       emits "FlavorCompoundsAnalyzed"
       then_set :experiment, to: :experiment
       then_set :compound_name, to: :compound_name
@@ -209,7 +209,7 @@ Hecks.bluebook "CraftBeverageLab", version: "2026.04.13.1" do
       then_set :aroma_descriptor, to: :aroma_descriptor
     end
 
-    CompareCompounds do
+    command "CompareCompounds" do
       role "Scientist"
       description "Compare flavor compounds across fermentation and roasting experiments"
       reference_to(FlavorCompound)
@@ -220,26 +220,26 @@ Hecks.bluebook "CraftBeverageLab", version: "2026.04.13.1" do
   # === SensoryPanel ===
 
   aggregate "SensoryPanel", "A blind tasting panel — trained evaluators scoring aroma, flavor, body, finish" do
-    String :panel_name
-    Integer :panelist_count
+    attribute :panel_name, String
+    attribute :panelist_count, Integer
     reference_to(Experiment, as: :experiment)
-    String :status
+    attribute :status, String
     list_of(SensoryScore) :scores
 
     value_object "SensoryScore" do
-      String :panelist_id
-      Float :aroma_score
-      Float :flavor_score
-      Float :body_score
-      Float :finish_score
-      String :notes
+      attribute :panelist_id, String
+      attribute :aroma_score, Float
+      attribute :flavor_score, Float
+      attribute :body_score, Float
+      attribute :finish_score, Float
+      attribute :notes, String
     end
 
-    ConveneSensoryPanel do
+    command "ConveneSensoryPanel" do
       role "Scientist"
       description "Assemble a sensory panel for blind evaluation"
-      String :panel_name
-      Integer :panelist_count
+      attribute :panel_name, String
+      attribute :panelist_count, Integer
       reference_to(Experiment, as: :experiment)
       emits "SensoryPanelConvened"
       then_set :panel_name, to: :panel_name
@@ -248,7 +248,7 @@ Hecks.bluebook "CraftBeverageLab", version: "2026.04.13.1" do
       then_set :status, to: "convened"
     end
 
-    CompareSensoryPanel do
+    command "CompareSensoryPanel" do
       role "System"
       description "Aggregate and compare sensory scores across panelists"
       reference_to(SensoryPanel)
@@ -257,7 +257,7 @@ Hecks.bluebook "CraftBeverageLab", version: "2026.04.13.1" do
       then_set :status, to: "compared"
     end
 
-    PublishResults do
+    command "PublishResults" do
       role "Scientist"
       description "Publish final sensory evaluation results"
       reference_to(SensoryPanel)
@@ -276,31 +276,31 @@ Hecks.bluebook "CraftBeverageLab", version: "2026.04.13.1" do
   # === LabEquipment ===
 
   aggregate "LabEquipment", "Shared laboratory equipment — fermenters, roasters, analyzers, all scheduled" do
-    String :name
-    String :equipment_type
-    String :status
-    String :last_calibration
+    attribute :name, String
+    attribute :equipment_type, String
+    attribute :status, String
+    attribute :last_calibration, String
     list_of(MaintenanceRecord) :maintenance_history
 
     value_object "MaintenanceRecord" do
-      String :date
-      String :technician
-      String :description
-      String :result
+      attribute :date, String
+      attribute :technician, String
+      attribute :description, String
+      attribute :result, String
     end
 
-    RegisterEquipment do
+    command "RegisterEquipment" do
       role "LabManager"
       description "Register a piece of shared lab equipment"
-      String :name
-      String :equipment_type
+      attribute :name, String
+      attribute :equipment_type, String
       emits "EquipmentRegistered"
       then_set :name, to: :name
       then_set :equipment_type, to: :equipment_type
       then_set :status, to: "available"
     end
 
-    ReserveEquipment do
+    command "ReserveEquipment" do
       role "Scientist"
       description "Reserve equipment for an experiment"
       reference_to(LabEquipment)
@@ -309,7 +309,7 @@ Hecks.bluebook "CraftBeverageLab", version: "2026.04.13.1" do
       then_set :status, to: "reserved"
     end
 
-    ReleaseEquipment do
+    command "ReleaseEquipment" do
       role "Scientist"
       description "Return equipment to available pool after use"
       reference_to(LabEquipment)
@@ -317,11 +317,11 @@ Hecks.bluebook "CraftBeverageLab", version: "2026.04.13.1" do
       then_set :status, to: "available"
     end
 
-    CalibrateEquipment do
+    command "CalibrateEquipment" do
       role "LabManager"
       description "Calibrate equipment for accurate measurements"
       reference_to(LabEquipment)
-      String :last_calibration
+      attribute :last_calibration, String
       emits "EquipmentCalibrated"
       then_set :last_calibration, to: :last_calibration
     end

@@ -1,29 +1,29 @@
 Hecks.bluebook "FloralDesign" do
   aggregate "Arrangement", "A floral arrangement composed for an event or retail" do
-    String :name
-    String :style
-    String :vessel_type
-    String :status, default: "designed"
-    Integer :stem_count
+    attribute :name, String
+    attribute :style, String
+    attribute :vessel_type, String
+    attribute :status, String, default: "designed"
+    attribute :stem_count, Integer
 
     value_object "ColorScheme" do
-      String :primary_bloom
-      String :secondary_bloom
-      String :filler
-      String :greenery
+      attribute :primary_bloom, String
+      attribute :secondary_bloom, String
+      attribute :filler, String
+      attribute :greenery, String
     end
 
-    DesignArrangement do
+    command "DesignArrangement" do
       description "Create a new floral arrangement design"
-      String :name
-      String :style
-      String :vessel_type
-      Integer :stem_count
+      attribute :name, String
+      attribute :style, String
+      attribute :vessel_type, String
+      attribute :stem_count, Integer
       emits "ArrangementDesigned"
       then_set :status, to: "designed"
     end
 
-    AssembleArrangement do
+    command "AssembleArrangement" do
       description "Build the arrangement from prepped flowers"
       reference_to(Arrangement)
       given { status == "designed" }
@@ -31,7 +31,7 @@ Hecks.bluebook "FloralDesign" do
       then_set :status, to: "assembled"
     end
 
-    ConditionArrangement do
+    command "ConditionArrangement" do
       description "Hydrate and condition the arrangement for longevity"
       reference_to(Arrangement)
       given { status == "assembled" }
@@ -41,30 +41,30 @@ Hecks.bluebook "FloralDesign" do
   end
 
   aggregate "FlowerStock", "Inventory of fresh flowers and foliage from wholesalers" do
-    String :variety
-    String :color
-    Integer :stem_quantity
-    String :freshness, default: "fresh"
-    Integer :vase_life_days
+    attribute :variety, String
+    attribute :color, String
+    attribute :stem_quantity, Integer
+    attribute :freshness, String, default: "fresh"
+    attribute :vase_life_days, Integer
 
     value_object "WholesaleSource" do
-      String :farm_name
-      String :region
-      String :season
-      Float :price_per_stem
+      attribute :farm_name, String
+      attribute :region, String
+      attribute :season, String
+      attribute :price_per_stem, Float
     end
 
-    ReceiveShipment do
+    command "ReceiveShipment" do
       description "Check in a flower shipment from the wholesaler"
-      String :variety
-      String :color
-      Integer :stem_quantity
-      Integer :vase_life_days
+      attribute :variety, String
+      attribute :color, String
+      attribute :stem_quantity, Integer
+      attribute :vase_life_days, Integer
       emits "ShipmentReceived"
       then_set :freshness, to: "fresh"
     end
 
-    MarkWilted do
+    command "MarkWilted" do
       description "Flag stock past its vase life for disposal"
       reference_to(FlowerStock)
       given { freshness == "fresh" }
@@ -74,24 +74,24 @@ Hecks.bluebook "FloralDesign" do
   end
 
   aggregate "FloralEvent", "An event booking requiring floral installations" do
-    String :event_name
-    String :venue
-    String :date
-    String :status, default: "consulted"
-    Integer :arrangement_count
+    attribute :event_name, String
+    attribute :venue, String
+    attribute :date, String
+    attribute :status, String, default: "consulted"
+    attribute :arrangement_count, Integer
     reference_to(Arrangement)
 
-    BookEvent do
+    command "BookEvent" do
       description "Book a floral event with venue and arrangement count"
-      String :event_name
-      String :venue
-      String :date
-      Integer :arrangement_count
+      attribute :event_name, String
+      attribute :venue, String
+      attribute :date, String
+      attribute :arrangement_count, Integer
       emits "EventBooked"
       then_set :status, to: "consulted"
     end
 
-    FinalizeProposal do
+    command "FinalizeProposal" do
       description "Lock in the floral proposal and pricing"
       reference_to(FloralEvent)
       given { status == "consulted" }
@@ -101,25 +101,25 @@ Hecks.bluebook "FloralDesign" do
   end
 
   aggregate "Delivery", "A scheduled delivery of arrangements to a venue or client" do
-    String :address
-    String :delivery_date
-    String :time_window
-    String :status, default: "scheduled"
-    String :driver_name
+    attribute :address, String
+    attribute :delivery_date, String
+    attribute :time_window, String
+    attribute :status, String, default: "scheduled"
+    attribute :driver_name, String
     reference_to(Arrangement)
 
-    ScheduleDelivery do
+    command "ScheduleDelivery" do
       description "Book a delivery run for assembled arrangements"
       reference_to(Arrangement)
-      String :address
-      String :delivery_date
-      String :time_window
-      String :driver_name
+      attribute :address, String
+      attribute :delivery_date, String
+      attribute :time_window, String
+      attribute :driver_name, String
       emits "DeliveryScheduled"
       then_set :status, to: "scheduled"
     end
 
-    ConfirmDelivery do
+    command "ConfirmDelivery" do
       description "Mark the delivery as completed at the destination"
       reference_to(Delivery)
       given { status == "scheduled" }
@@ -129,30 +129,30 @@ Hecks.bluebook "FloralDesign" do
   end
 
   aggregate "FloralInstallation", "A large-scale floral installation at a venue" do
-    String :location
-    String :design_theme
-    Integer :crew_size
-    String :status, default: "planned"
+    attribute :location, String
+    attribute :design_theme, String
+    attribute :crew_size, Integer
+    attribute :status, String, default: "planned"
     reference_to(FloralEvent)
 
-    PlanInstallation do
+    command "PlanInstallation" do
       description "Design and plan a large-scale floral installation"
       reference_to(FloralEvent)
-      String :location
-      String :design_theme
-      Integer :crew_size
+      attribute :location, String
+      attribute :design_theme, String
+      attribute :crew_size, Integer
       emits "InstallationPlanned"
       then_set :status, to: "planned"
     end
 
-    ExecuteInstallation do
+    command "ExecuteInstallation" do
       description "Build the installation on-site at the venue"
       reference_to(FloralInstallation)
       emits "InstallationExecuted"
       then_set :status, to: "installed"
     end
 
-    StrikeInstallation do
+    command "StrikeInstallation" do
       description "Tear down the installation after the event"
       reference_to(FloralInstallation)
       given { status == "installed" }

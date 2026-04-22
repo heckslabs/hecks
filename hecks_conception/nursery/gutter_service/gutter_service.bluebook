@@ -4,67 +4,67 @@ Hecks.bluebook "GutterService" do
 
   aggregate "GutterProperty" do
     description "A customer property with roofline measurements and existing gutter condition"
-    String :owner_name
-    String :address
-    Float :roofline_feet
-    String :existing_gutter_condition
-    String :fascia_condition
+    attribute :owner_name, String
+    attribute :address, String
+    attribute :roofline_feet, Float
+    attribute :existing_gutter_condition, String
+    attribute :fascia_condition, String
 
     value_object "RooflineProfile" do
-      Float :eave_length
-      Integer :corner_count
-      Integer :downspout_count
+      attribute :eave_length, Float
+      attribute :corner_count, Integer
+      attribute :downspout_count, Integer
     end
 
-    SurveyProperty do
+    command "SurveyProperty" do
       role "Estimator"
       goal "Measure the roofline and assess existing gutter condition"
       description "Walk the property and measure all eaves, corners, and downspout locations"
-      String :owner_name
-      String :address
-      Float :roofline_feet
-      String :existing_gutter_condition
+      attribute :owner_name, String
+      attribute :address, String
+      attribute :roofline_feet, Float
+      attribute :existing_gutter_condition, String
       emits "PropertySurveyed"
     end
 
-    AssessDrainage do
+    command "AssessDrainage" do
       role "Estimator"
       goal "Evaluate the drainage pattern and downspout placement"
       description "Determine proper downspout locations for water flow away from foundation"
       reference_to(GutterProperty)
-      String :drainage_notes
+      attribute :drainage_notes, String
       emits "DrainageAssessed"
     end
   end
 
   aggregate "GutterMeasurement" do
     description "Detailed measurements for gutter fabrication — run lengths, miters, end caps, and drop"
-    Float :run_length_feet
-    Float :drop_per_foot
-    Integer :miter_count
-    Integer :end_cap_count
-    String :gutter_profile
+    attribute :run_length_feet, Float
+    attribute :drop_per_foot, Float
+    attribute :miter_count, Integer
+    attribute :end_cap_count, Integer
+    attribute :gutter_profile, String
     reference_to(GutterProperty)
 
     value_object "GutterSize" do
-      String :profile
-      Float :width_inches
-      Float :depth_inches
+      attribute :profile, String
+      attribute :width_inches, Float
+      attribute :depth_inches, Float
     end
 
-    TakeMeasurements do
+    command "TakeMeasurements" do
       role "Installer"
       goal "Record precise measurements for seamless gutter fabrication"
       description "Measure each run, calculate drop, and count fittings"
-      Float :run_length_feet
-      Float :drop_per_foot
-      Integer :miter_count
-      String :gutter_profile
+      attribute :run_length_feet, Float
+      attribute :drop_per_foot, Float
+      attribute :miter_count, Integer
+      attribute :gutter_profile, String
       reference_to(GutterProperty)
       emits "MeasurementsTaken"
     end
 
-    CalculateMaterials do
+    command "CalculateMaterials" do
       role "Estimator"
       goal "Compute the coil footage and fittings needed"
       description "Calculate material quantities from the measurements"
@@ -75,27 +75,27 @@ Hecks.bluebook "GutterService" do
 
   aggregate "GutterMaterial" do
     description "Gutter materials — aluminum, copper, steel, or vinyl with gauge and color"
-    String :material_type
-    String :gauge
-    String :color
-    Float :coil_footage
-    String :status
+    attribute :material_type, String
+    attribute :gauge, String
+    attribute :color, String
+    attribute :coil_footage, Float
+    attribute :status, String
     reference_to(GutterMeasurement)
 
-    OrderMaterial do
+    command "OrderMaterial" do
       role "Office Manager"
       goal "Order gutter coil stock and fittings"
       description "Purchase the material in the specified gauge and color"
-      String :material_type
-      String :gauge
-      String :color
-      Float :coil_footage
+      attribute :material_type, String
+      attribute :gauge, String
+      attribute :color, String
+      attribute :coil_footage, Float
       reference_to(GutterMeasurement)
       emits "MaterialOrdered"
       then_set :status, to: "delivered"
     end
 
-    FabricateGutter do
+    command "FabricateGutter" do
       role "Installer"
       goal "Run the gutter machine to form seamless gutters on-site"
       description "Feed coil stock through the portable machine to create custom lengths"
@@ -107,65 +107,65 @@ Hecks.bluebook "GutterService" do
 
   aggregate "GutterInstallation" do
     description "The installation of gutters, downspouts, and guards on the property"
-    String :installer_name
-    String :install_date
-    String :status
-    Integer :hangers_used
+    attribute :installer_name, String
+    attribute :install_date, String
+    attribute :status, String
+    attribute :hangers_used, Integer
     reference_to(GutterProperty)
 
-    ScheduleInstall do
+    command "ScheduleInstall" do
       role "Dispatcher"
       goal "Book the installation date and assign a crew"
       description "Schedule the gutter installation after fabrication is ready"
-      String :installer_name
-      String :install_date
+      attribute :installer_name, String
+      attribute :install_date, String
       reference_to(GutterProperty)
       emits "InstallScheduled"
     end
 
-    HangGutters do
+    command "HangGutters" do
       role "Installer"
       goal "Mount the gutters to the fascia with proper slope"
       description "Hang gutters with hidden hangers at the calculated drop"
       reference_to(GutterInstallation)
-      Integer :hangers_used
+      attribute :hangers_used, Integer
       emits "GuttersHung"
     end
 
-    ConnectDownspouts do
+    command "ConnectDownspouts" do
       role "Installer"
       goal "Attach downspouts and route water away from the foundation"
       description "Connect downspouts with elbows and extensions"
       reference_to(GutterInstallation)
-      Integer :downspout_count
+      attribute :downspout_count, Integer
       emits "DownspoutsConnected"
     end
   end
 
   aggregate "GutterCleaning" do
     description "A seasonal gutter cleaning service to remove debris and check flow"
-    String :service_date
-    String :debris_type
-    String :condition_notes
-    String :status
+    attribute :service_date, String
+    attribute :debris_type, String
+    attribute :condition_notes, String
+    attribute :status, String
     reference_to(GutterProperty)
 
-    ScheduleCleaning do
+    command "ScheduleCleaning" do
       role "Dispatcher"
       goal "Book a gutter cleaning appointment"
       description "Schedule the seasonal cleaning visit"
-      String :service_date
+      attribute :service_date, String
       reference_to(GutterProperty)
       emits "CleaningScheduled"
     end
 
-    PerformCleaning do
+    command "PerformCleaning" do
       role "Service Tech"
       goal "Remove debris and flush the gutter system"
       description "Scoop debris, flush with water, and verify downspout flow"
       reference_to(GutterCleaning)
-      String :debris_type
-      String :condition_notes
+      attribute :debris_type, String
+      attribute :condition_notes, String
       emits "CleaningPerformed"
     end
   end

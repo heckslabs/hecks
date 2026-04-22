@@ -3,11 +3,11 @@ Hecks.bluebook "Dendrology" do
 
   aggregate "TreeSpecimen" do
     description "An individual tree identified and tracked in the field"
-    String :specimen_id
-    String :species
-    String :common_name
-    Float :dbh_cm
-    Float :height_m
+    attribute :specimen_id, String
+    attribute :species, String
+    attribute :common_name, String
+    attribute :dbh_cm, Float
+    attribute :height_m, Float
     # habitat_assessed flips true when wildlife habitat assessment is
     # complete; FellTree gates on it. AssessWildlifeHabitat is the
     # producer the planner picks for the precondition.
@@ -15,17 +15,17 @@ Hecks.bluebook "Dendrology" do
     reference_to ForestInventory
 
     value_object "CrownMetrics" do
-      Float :crown_spread_m
-      Float :crown_height_m
-      String :crown_class
+      attribute :crown_spread_m, Float
+      attribute :crown_height_m, Float
+      attribute :crown_class, String
     end
 
     command "TagTree" do
       description "Attach an identification tag to a new specimen"
       emits "TreeTagged"
-      String :specimen_id
-      String :species
-      Float :dbh_cm
+      attribute :specimen_id, String
+      attribute :species, String
+      attribute :dbh_cm, Float
     end
 
     command "AssessWildlifeHabitat" do
@@ -39,25 +39,25 @@ Hecks.bluebook "Dendrology" do
       description "Record updated diameter and height measurements"
       emits "GrowthMeasured"
       reference_to TreeSpecimen
-      Float :new_dbh_cm
-      Float :new_height_m
+      attribute :new_dbh_cm, Float
+      attribute :new_height_m, Float
     end
 
     command "FellTree" do
       description "Mark a tree for removal and record reason"
       emits "TreeFelled"
       reference_to TreeSpecimen
-      String :reason
+      attribute :reason, String
       given { habitat_assessed == true }
     end
   end
 
   aggregate "GrowthRingAnalysis" do
     description "A dendrochronological study of annual growth rings in a core sample"
-    String :core_id
-    Integer :ring_count
-    Integer :estimated_age
-    Float :mean_ring_width_mm
+    attribute :core_id, String
+    attribute :ring_count, Integer
+    attribute :estimated_age, Integer
+    attribute :mean_ring_width_mm, Float
     # Prep state flag — sanding/polishing must complete before counting.
     attribute :core_prepared, Boolean, default: false
     reference_to TreeSpecimen
@@ -66,7 +66,7 @@ Hecks.bluebook "Dendrology" do
       description "Bore an increment core from the tree"
       emits "CoreExtracted"
       reference_to TreeSpecimen
-      String :core_id
+      attribute :core_id, String
       then_set :core_prepared, to: true
     end
 
@@ -93,11 +93,11 @@ Hecks.bluebook "Dendrology" do
 
   aggregate "HealthAssessment" do
     description "An evaluation of a tree's structural and physiological condition"
-    String :assessment_date
-    String :assessor
-    String :vigor_rating
-    String :structural_defects
-    String :pest_signs
+    attribute :assessment_date, String
+    attribute :assessor, String
+    attribute :vigor_rating, String
+    attribute :structural_defects, String
+    attribute :pest_signs, String
     # Defect counter — RecordDefect appends to this list; PrescribeTreatment
     # gates on it being non-empty (i.e. at least one defect identified).
     attribute :defects, String, list: true
@@ -107,15 +107,15 @@ Hecks.bluebook "Dendrology" do
       description "Perform a visual tree assessment"
       emits "HealthAssessed"
       reference_to TreeSpecimen
-      String :assessment_date
-      String :assessor
+      attribute :assessment_date, String
+      attribute :assessor, String
     end
 
     command "RecordDefect" do
       description "Note a structural or biological defect found during assessment"
       emits "DefectRecorded"
       reference_to HealthAssessment
-      String :defect
+      attribute :defect, String
       then_set :defects, append: :defect
     end
 
@@ -123,24 +123,24 @@ Hecks.bluebook "Dendrology" do
       description "Recommend remedial action for a detected issue"
       emits "TreatmentPrescribed"
       reference_to HealthAssessment
-      String :treatment_type
+      attribute :treatment_type, String
     end
 
     command "ScheduleFollowup" do
       description "Set a date for re-evaluation"
       emits "FollowupScheduled"
       reference_to HealthAssessment
-      String :followup_date
+      attribute :followup_date, String
     end
   end
 
   aggregate "ForestInventory" do
     description "A systematic census of trees within a defined plot"
-    String :plot_id
-    Float :area_hectares
-    Integer :tree_count
-    String :inventory_date
-    String :forest_type
+    attribute :plot_id, String
+    attribute :area_hectares, Float
+    attribute :tree_count, Integer
+    attribute :inventory_date, String
+    attribute :forest_type, String
     # all_trees_measured flips true when MeasureAllTrees runs.
     # CloseInventory gates on it.
     attribute :all_trees_measured, Boolean, default: false
@@ -148,9 +148,9 @@ Hecks.bluebook "Dendrology" do
     command "InitiateInventory" do
       description "Begin a new forest plot inventory"
       emits "InventoryInitiated"
-      String :plot_id
-      Float :area_hectares
-      String :forest_type
+      attribute :plot_id, String
+      attribute :area_hectares, Float
+      attribute :forest_type, String
     end
 
     command "TallySpecies" do

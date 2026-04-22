@@ -3,32 +3,32 @@ Hecks.bluebook "WeddingPlanning" do
   category "events"
 
   aggregate "Wedding", "The central event with date, venue, theme, and overall status" do
-    String :couple_names
-    String :wedding_date
-    String :venue_name
-    String :theme
-    Integer :expected_guests
-    Float :total_budget
-    String :status
+    attribute :couple_names, String
+    attribute :wedding_date, String
+    attribute :venue_name, String
+    attribute :theme, String
+    attribute :expected_guests, Integer
+    attribute :total_budget, Float
+    attribute :status, String
 
     value_object "CeremonyDetails" do
-      String :ceremony_type
-      String :officiant
-      String :start_time
-      String :music_selection
+      attribute :ceremony_type, String
+      attribute :officiant, String
+      attribute :start_time, String
+      attribute :music_selection, String
     end
 
     fixture "Summer Garden Wedding", couple_names: "Sarah & Michael", wedding_date: "2026-06-20", venue_name: "Riverside Gardens", theme: "Rustic Romance", expected_guests: 150, total_budget: 35000.0, status: "planning"
     fixture "Miette Formal", couple_names: "Emma & David", wedding_date: "2026-12-10", venue_name: "Grand Ballroom Hotel", theme: "Elegant Black & Gold", expected_guests: 200, total_budget: 55000.0, status: "finalized"
 
-    PlanWedding do
+    command "PlanWedding" do
       role "WeddingPlanner"
       description "Create a new wedding event with couple names, date, and budget"
-      String :couple_names
-      String :wedding_date
-      String :venue_name
-      Float :total_budget
-      Integer :expected_guests
+      attribute :couple_names, String
+      attribute :wedding_date, String
+      attribute :venue_name, String
+      attribute :total_budget, Float
+      attribute :expected_guests, Integer
       emits "WeddingPlanned"
       then_set :couple_names, to: :couple_names
       then_set :wedding_date, to: :wedding_date
@@ -37,7 +37,7 @@ Hecks.bluebook "WeddingPlanning" do
       then_set :status, to: "planning"
     end
 
-    FinalizeDetails do
+    command "FinalizeDetails" do
       role "WeddingPlanner"
       description "Lock in all vendor contracts and finalize the timeline"
       reference_to(Wedding)
@@ -46,7 +46,7 @@ Hecks.bluebook "WeddingPlanning" do
       then_set :status, to: "finalized"
     end
 
-    CancelWedding do
+    command "CancelWedding" do
       role "Couple"
       description "Cancel the wedding and notify all vendors"
       reference_to(Wedding)
@@ -57,32 +57,32 @@ Hecks.bluebook "WeddingPlanning" do
   end
 
   aggregate "VendorContract", "An agreement with a vendor for catering, photography, florals, etc." do
-    String :vendor_name
-    String :service_type
-    Float :contract_amount
-    Float :deposit_paid
-    String :delivery_date
-    String :status
+    attribute :vendor_name, String
+    attribute :service_type, String
+    attribute :contract_amount, Float
+    attribute :deposit_paid, Float
+    attribute :delivery_date, String
+    attribute :status, String
     reference_to(Wedding)
 
     value_object "PaymentSchedule" do
-      Float :deposit_amount
-      String :deposit_due_date
-      Float :final_payment
-      String :final_due_date
+      attribute :deposit_amount, Float
+      attribute :deposit_due_date, String
+      attribute :final_payment, Float
+      attribute :final_due_date, String
     end
 
     fixture "Premier Catering", vendor_name: "Premier Catering Co", service_type: "Catering", contract_amount: 8500.0, deposit_paid: 4250.0, delivery_date: "2026-06-20", status: "booked"
     fixture "Golden Hour Photography", vendor_name: "Golden Hour Photography", service_type: "Photography", contract_amount: 3200.0, deposit_paid: 1600.0, delivery_date: "2026-06-20", status: "booked"
 
-    BookVendor do
+    command "BookVendor" do
       role "WeddingPlanner"
       description "Sign a contract with a vendor for a specific service"
       reference_to(Wedding)
-      String :vendor_name
-      String :service_type
-      Float :contract_amount
-      Float :deposit_paid
+      attribute :vendor_name, String
+      attribute :service_type, String
+      attribute :contract_amount, Float
+      attribute :deposit_paid, Float
       emits "VendorBooked"
       then_set :vendor_name, to: :vendor_name
       then_set :service_type, to: :service_type
@@ -91,16 +91,16 @@ Hecks.bluebook "WeddingPlanning" do
       then_set :status, to: "booked"
     end
 
-    PayVendor do
+    command "PayVendor" do
       role "WeddingPlanner"
       description "Record a payment made to the vendor"
       reference_to(VendorContract)
-      Float :amount
+      attribute :amount, Float
       given { status == "booked" }
       emits "VendorPaid"
     end
 
-    CancelVendor do
+    command "CancelVendor" do
       role "WeddingPlanner"
       description "Terminate a vendor contract and process refund if applicable"
       reference_to(VendorContract)
@@ -111,71 +111,71 @@ Hecks.bluebook "WeddingPlanning" do
   end
 
   aggregate "BudgetLineItem", "A budget allocation for a specific wedding expense category" do
-    String :category
-    Float :allocated_amount
-    Float :spent_amount
-    String :notes
+    attribute :category, String
+    attribute :allocated_amount, Float
+    attribute :spent_amount, Float
+    attribute :notes, String
     reference_to(Wedding)
 
     fixture "Catering & Bar", category: "Catering", allocated_amount: 10000.0, spent_amount: 8500.0, notes: "Includes cocktail hour and dinner"
     fixture "Photography & Video", category: "Photography", allocated_amount: 4500.0, spent_amount: 3200.0, notes: "8-hour coverage with drone footage"
 
-    AllocateBudget do
+    command "AllocateBudget" do
       role "WeddingPlanner"
       description "Set a budget amount for a specific expense category"
       reference_to(Wedding)
-      String :category
-      Float :allocated_amount
+      attribute :category, String
+      attribute :allocated_amount, Float
       emits "BudgetAllocated"
       then_set :category, to: :category
       then_set :allocated_amount, to: :allocated_amount
       then_set :spent_amount, to: 0.0
     end
 
-    RecordExpense do
+    command "RecordExpense" do
       role "WeddingPlanner"
       description "Log an actual expenditure against a budget category"
       reference_to(BudgetLineItem)
-      Float :amount
-      String :notes
+      attribute :amount, Float
+      attribute :notes, String
       emits "ExpenseRecorded"
     end
 
-    AdjustBudget do
+    command "AdjustBudget" do
       role "WeddingPlanner"
       description "Increase or decrease the allocated amount for a category"
       reference_to(BudgetLineItem)
-      Float :new_amount
+      attribute :new_amount, Float
       emits "BudgetAdjusted"
       then_set :allocated_amount, to: :new_amount
     end
   end
 
   aggregate "GuestListEntry", "An invited guest with RSVP status, meal preference, and seating" do
-    String :guest_name
-    String :email
-    Integer :party_size
-    String :rsvp_status
-    String :meal_preference
-    String :table_assignment
+    attribute :guest_name, String
+    attribute :email, String
+    attribute :party_size, Integer
+    attribute :rsvp_status, String
+    attribute :meal_preference, String
+    attribute :table_assignment, String
     reference_to(Wedding)
 
     value_object "DietaryRestriction" do
-      String :restriction_type
-      String :severity
-      String :notes
+      attribute :restriction_type, String
+      attribute :severity, String
+      attribute :notes, String
     end
 
     fixture "James Wilson", guest_name: "James Wilson", email: "james@example.com", party_size: 2, rsvp_status: "accepted", meal_preference: "beef", table_assignment: "Table 5"
     fixture "Lisa Martinez", guest_name: "Lisa Martinez", email: "lisa@example.com", party_size: 1, rsvp_status: "pending", meal_preference: "", table_assignment: ""
 
-    InviteGuest do
+    command "InviteGuest" do
       role "Couple"
       description "Add a guest to the wedding invitation list"
       reference_to(Wedding)
-      String :guest_name
-      String :email
-      Integer :party_size
+      attribute :guest_name, String
+      attribute :email, String
+      attribute :party_size, Integer
       emits "GuestInvited"
       then_set :guest_name, to: :guest_name
       then_set :email, to: :email
@@ -183,22 +183,22 @@ Hecks.bluebook "WeddingPlanning" do
       then_set :rsvp_status, to: "pending"
     end
 
-    RecordRSVP do
+    command "RecordRSVP" do
       role "Guest"
       description "Record the guest's response to the invitation"
       reference_to(GuestListEntry)
-      String :rsvp_status
-      String :meal_preference
+      attribute :rsvp_status, String
+      attribute :meal_preference, String
       emits "RSVPRecorded"
       then_set :rsvp_status, to: :rsvp_status
       then_set :meal_preference, to: :meal_preference
     end
 
-    AssignTable do
+    command "AssignTable" do
       role "WeddingPlanner"
       description "Assign the guest to a specific reception table"
       reference_to(GuestListEntry)
-      String :table_assignment
+      attribute :table_assignment, String
       emits "TableAssigned"
       then_set :table_assignment, to: :table_assignment
     end

@@ -2,23 +2,23 @@ Hecks.bluebook "YouthMentoring" do
   vision "Guided youth development — mentors, mentees, match-making, structured meetings, and goal achievement"
 
   aggregate "Mentor", "An adult volunteer guiding a young person's development" do
-    String :name
-    String :occupation
-    String :skills
-    String :background_check_status
-    String :availability
-    String :status
+    attribute :name, String
+    attribute :occupation, String
+    attribute :skills, String
+    attribute :background_check_status, String
+    attribute :availability, String
+    attribute :status, String
 
     fixture "Dr. Patricia Wong", name: "Dr. Patricia Wong", occupation: "Software Engineer", skills: "coding, problem-solving, leadership", background_check_status: "cleared", availability: "weekends"
     fixture "Marcus Green", name: "Marcus Green", occupation: "High School Teacher", skills: "math, writing, mentoring", background_check_status: "cleared", availability: "weekday evenings"
 
-    RegisterMentor do
+    command "RegisterMentor" do
       role "ProgramCoordinator"
       description "Enroll a new mentor after background screening"
-      String :name
-      String :occupation
-      String :skills
-      String :availability
+      attribute :name, String
+      attribute :occupation, String
+      attribute :skills, String
+      attribute :availability, String
       emits "MentorRegistered"
       then_set :name, to: :name
       then_set :occupation, to: :occupation
@@ -28,7 +28,7 @@ Hecks.bluebook "YouthMentoring" do
       then_set :status, to: "pending"
     end
 
-    ClearBackgroundCheck do
+    command "ClearBackgroundCheck" do
       role "ProgramCoordinator"
       description "Approve the mentor after passing background verification"
       reference_to(Mentor)
@@ -38,7 +38,7 @@ Hecks.bluebook "YouthMentoring" do
       then_set :status, to: "active"
     end
 
-    DeactivateMentor do
+    command "DeactivateMentor" do
       role "ProgramCoordinator"
       description "Remove a mentor from the active roster"
       reference_to(Mentor)
@@ -48,24 +48,24 @@ Hecks.bluebook "YouthMentoring" do
   end
 
   aggregate "Mentee", "A young person participating in the mentoring program" do
-    String :name
-    String :age
-    String :school
-    String :interests
-    String :guardian_name
-    String :status
+    attribute :name, String
+    attribute :age, String
+    attribute :school, String
+    attribute :interests, String
+    attribute :guardian_name, String
+    attribute :status, String
 
     fixture "Alex Chen", name: "Alex Chen", age: "14", school: "Lincoln High School", interests: "coding, robotics, math", guardian_name: "Susan Chen", status: "active"
     fixture "Jordan Martinez", name: "Jordan Martinez", age: "16", school: "Central Academy", interests: "writing, science, debate", guardian_name: "Carlos Martinez", status: "active"
 
-    EnrollMentee do
+    command "EnrollMentee" do
       role "ProgramCoordinator"
       description "Register a young person in the mentoring program with guardian consent"
-      String :name
-      String :age
-      String :school
-      String :interests
-      String :guardian_name
+      attribute :name, String
+      attribute :age, String
+      attribute :school, String
+      attribute :interests, String
+      attribute :guardian_name, String
       emits "MenteeEnrolled"
       then_set :name, to: :name
       then_set :age, to: :age
@@ -75,7 +75,7 @@ Hecks.bluebook "YouthMentoring" do
       then_set :status, to: "active"
     end
 
-    GraduateMentee do
+    command "GraduateMentee" do
       role "ProgramCoordinator"
       description "Complete the mentee's participation in the program"
       reference_to(Mentee)
@@ -86,32 +86,32 @@ Hecks.bluebook "YouthMentoring" do
   end
 
   aggregate "MentorMatch", "A pairing between a mentor and mentee based on compatibility" do
-    String :mentor_name
-    String :mentee_name
-    String :match_date
-    String :match_rationale
-    String :status
+    attribute :mentor_name, String
+    attribute :mentee_name, String
+    attribute :match_date, String
+    attribute :match_rationale, String
+    attribute :status, String
     reference_to Mentor
     reference_to Mentee
 
     value_object "CompatibilityScore" do
-      String :dimension
-      Integer :score
-      String :notes
+      attribute :dimension, String
+      attribute :score, Integer
+      attribute :notes, String
     end
 
     fixture "Wong & Alex", mentor_name: "Dr. Patricia Wong", mentee_name: "Alex Chen", match_date: "2026-03-01", match_rationale: "Shared interest in coding and technology", status: "active"
     fixture "Marcus & Jordan", mentor_name: "Marcus Green", mentee_name: "Jordan Martinez", match_date: "2026-02-15", match_rationale: "Both interested in writing and communication", status: "active"
 
-    MakeMatch do
+    command "MakeMatch" do
       role "ProgramCoordinator"
       description "Pair a mentor with a mentee based on shared interests and goals"
       reference_to(Mentor)
       reference_to(Mentee)
-      String :mentor_name
-      String :mentee_name
-      String :match_date
-      String :match_rationale
+      attribute :mentor_name, String
+      attribute :mentee_name, String
+      attribute :match_date, String
+      attribute :match_rationale, String
       emits "MatchMade"
       then_set :mentor_name, to: :mentor_name
       then_set :mentee_name, to: :mentee_name
@@ -120,7 +120,7 @@ Hecks.bluebook "YouthMentoring" do
       then_set :status, to: "active"
     end
 
-    CloseMatch do
+    command "CloseMatch" do
       role "ProgramCoordinator"
       description "End the mentoring relationship"
       reference_to(MentorMatch)
@@ -131,27 +131,27 @@ Hecks.bluebook "YouthMentoring" do
   end
 
   aggregate "MentoringMeeting", "A scheduled interaction between mentor and mentee" do
-    String :mentor_name
-    String :mentee_name
-    String :meeting_date
-    String :location
-    String :activity
-    String :notes
-    String :status
+    attribute :mentor_name, String
+    attribute :mentee_name, String
+    attribute :meeting_date, String
+    attribute :location, String
+    attribute :activity, String
+    attribute :notes, String
+    attribute :status, String
     reference_to MentorMatch
 
     fixture "Coffee Shop Session", mentor_name: "Dr. Patricia Wong", mentee_name: "Alex Chen", meeting_date: "2026-04-15 16:00", location: "Downtown Coffee", activity: "Discuss Python project", status: "scheduled"
     fixture "Library Session", mentor_name: "Marcus Green", mentee_name: "Jordan Martinez", meeting_date: "2026-04-16 17:30", location: "Public Library", activity: "Essay workshop", status: "completed"
 
-    ScheduleMeeting do
+    command "ScheduleMeeting" do
       role "Mentor"
       description "Plan a mentoring meeting with the mentee"
       reference_to(MentorMatch)
-      String :mentor_name
-      String :mentee_name
-      String :meeting_date
-      String :location
-      String :activity
+      attribute :mentor_name, String
+      attribute :mentee_name, String
+      attribute :meeting_date, String
+      attribute :location, String
+      attribute :activity, String
       emits "MeetingScheduled"
       then_set :mentor_name, to: :mentor_name
       then_set :mentee_name, to: :mentee_name
@@ -161,11 +161,11 @@ Hecks.bluebook "YouthMentoring" do
       then_set :status, to: "scheduled"
     end
 
-    LogMeeting do
+    command "LogMeeting" do
       role "Mentor"
       description "Record meeting completion with activity notes"
       reference_to(MentoringMeeting)
-      String :notes
+      attribute :notes, String
       given("must be scheduled") { status == "scheduled" }
       emits "MeetingLogged"
       then_set :notes, to: :notes
@@ -174,31 +174,31 @@ Hecks.bluebook "YouthMentoring" do
   end
 
   aggregate "DevelopmentGoal", "A growth objective for the mentee" do
-    String :mentee_name
-    String :goal_area
-    String :description
-    String :target_date
-    String :status
+    attribute :mentee_name, String
+    attribute :goal_area, String
+    attribute :description, String
+    attribute :target_date, String
+    attribute :status, String
     list_of(Milestone) :milestones
     reference_to Mentee
 
     value_object "Milestone" do
-      String :description
-      String :achieved_date
-      String :evidence
+      attribute :description, String
+      attribute :achieved_date, String
+      attribute :evidence, String
     end
 
     fixture "Build a Web App", mentee_name: "Alex Chen", goal_area: "Technical Skills", description: "Complete a full-stack web application project", target_date: "2026-07-31", status: "active"
     fixture "Win Debate Competition", mentee_name: "Jordan Martinez", goal_area: "Public Speaking", description: "Place in regional debate tournament", target_date: "2026-05-30", status: "active"
 
-    SetDevelopmentGoal do
+    command "SetDevelopmentGoal" do
       role "Mentor"
       description "Establish a development goal for the mentee"
       reference_to(Mentee)
-      String :mentee_name
-      String :goal_area
-      String :description
-      String :target_date
+      attribute :mentee_name, String
+      attribute :goal_area, String
+      attribute :description, String
+      attribute :target_date, String
       emits "GoalSet"
       then_set :mentee_name, to: :mentee_name
       then_set :goal_area, to: :goal_area
@@ -207,16 +207,16 @@ Hecks.bluebook "YouthMentoring" do
       then_set :status, to: "active"
     end
 
-    RecordMilestone do
+    command "RecordMilestone" do
       role "Mentor"
       description "Document a milestone achieved toward the goal"
       reference_to(DevelopmentGoal)
-      String :description
-      String :achieved_date
+      attribute :description, String
+      attribute :achieved_date, String
       emits "MilestoneRecorded"
     end
 
-    CompleteGoal do
+    command "CompleteGoal" do
       role "Mentor"
       description "Mark the development goal as achieved"
       reference_to(DevelopmentGoal)

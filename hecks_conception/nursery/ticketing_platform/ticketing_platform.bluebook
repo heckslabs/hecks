@@ -3,42 +3,42 @@ Hecks.bluebook "TicketingPlatform", version: "2026.04.13.1" do
   category "technology"
 
   aggregate "Event", "A scheduled happening that people can attend" do
-    String :event_name
-    String :event_type
-    String :date
-    String :organizer
-    Integer :capacity
-    String :status
+    attribute :event_name, String
+    attribute :event_type, String
+    attribute :date, String
+    attribute :organizer, String
+    attribute :capacity, Integer
+    attribute :status, String
     reference_to Venue
     list_of(TicketTier) :ticket_tiers
 
     value_object "TicketTier" do
-      String :tier_name
-      Float :price
-      Integer :quantity_available
+      attribute :tier_name, String
+      attribute :price, Float
+      attribute :quantity_available, Integer
     end
 
-    AnnounceEvent do
+    command "AnnounceEvent" do
       role "Organizer"
       description "Announce a new event with date, venue, and ticket tiers"
-      String :event_name
-      String :event_type
-      String :date
-      String :organizer
-      Integer :capacity
+      attribute :event_name, String
+      attribute :event_type, String
+      attribute :date, String
+      attribute :organizer, String
+      attribute :capacity, Integer
       reference_to(Venue)
       emits "EventAnnounced"
       then_set :status, to: "draft"
     end
 
-    PublishEvent do
+    command "PublishEvent" do
       description "Make an event visible and open for ticket sales"
       reference_to(Event)
       given("event is draft") { status == "draft" }
       emits "EventPublished"
     end
 
-    CancelEvent do
+    command "CancelEvent" do
       description "Cancel an event and trigger refund processing"
       reference_to(Event)
       emits "EventCanceled"
@@ -49,38 +49,38 @@ Hecks.bluebook "TicketingPlatform", version: "2026.04.13.1" do
   end
 
   aggregate "Venue", "A physical location where events are held" do
-    String :venue_name
-    String :address
-    Integer :total_capacity
-    String :venue_type
-    String :status
+    attribute :venue_name, String
+    attribute :address, String
+    attribute :total_capacity, Integer
+    attribute :venue_type, String
+    attribute :status, String
     list_of(Section) :sections
 
     value_object "Section" do
-      String :section_name
-      Integer :seats
-      String :accessibility
+      attribute :section_name, String
+      attribute :seats, Integer
+      attribute :accessibility, String
     end
 
-    RegisterVenue do
+    command "RegisterVenue" do
       role "VenueManager"
       description "Add a new venue to the platform"
-      String :venue_name
-      String :address
-      Integer :total_capacity
-      String :venue_type
+      attribute :venue_name, String
+      attribute :address, String
+      attribute :total_capacity, Integer
+      attribute :venue_type, String
       emits "VenueRegistered"
       then_set :status, to: "active"
     end
 
-    AdjustCapacity do
+    command "AdjustCapacity" do
       description "Adjust the total or section capacity of a venue"
       reference_to(Venue)
-      Integer :total_capacity
+      attribute :total_capacity, Integer
       emits "CapacityAdjusted"
     end
 
-    CloseVenue do
+    command "CloseVenue" do
       description "Mark a venue as permanently unavailable"
       reference_to(Venue)
       given("venue is active") { status == "active" }
@@ -92,42 +92,42 @@ Hecks.bluebook "TicketingPlatform", version: "2026.04.13.1" do
   end
 
   aggregate "Ticket", "A single admission pass for an event" do
-    String :ticket_id
-    String :tier_name
-    String :holder_name
-    String :holder_email
-    Float :price_paid
-    String :status
+    attribute :ticket_id, String
+    attribute :tier_name, String
+    attribute :holder_name, String
+    attribute :holder_email, String
+    attribute :price_paid, Float
+    attribute :status, String
     reference_to Event
 
     value_object "SeatAssignment" do
-      String :section
-      String :row
-      String :seat_number
+      attribute :section, String
+      attribute :row, String
+      attribute :seat_number, String
     end
 
-    PurchaseTicket do
+    command "PurchaseTicket" do
       role "Attendee"
       description "Buy a ticket for an event"
-      String :ticket_id
-      String :tier_name
-      String :holder_name
-      String :holder_email
-      Float :price_paid
+      attribute :ticket_id, String
+      attribute :tier_name, String
+      attribute :holder_name, String
+      attribute :holder_email, String
+      attribute :price_paid, Float
       reference_to(Event)
       emits "TicketPurchased"
       then_set :status, to: "valid"
     end
 
-    TransferTicket do
+    command "TransferTicket" do
       description "Change the holder of a ticket to another person"
       reference_to(Ticket)
-      String :new_holder_name
-      String :new_holder_email
+      attribute :new_holder_name, String
+      attribute :new_holder_email, String
       emits "TicketTransferred"
     end
 
-    CheckInTicket do
+    command "CheckInTicket" do
       description "Scan and validate a ticket at the venue entrance"
       reference_to(Ticket)
       given("ticket is valid") { status == "valid" }
@@ -139,38 +139,38 @@ Hecks.bluebook "TicketingPlatform", version: "2026.04.13.1" do
   end
 
   aggregate "SalesReport", "A summary of ticket sales for an event period" do
-    String :report_id
-    String :period
-    Integer :tickets_sold
-    Float :gross_revenue
-    Float :platform_fees
-    String :status
+    attribute :report_id, String
+    attribute :period, String
+    attribute :tickets_sold, Integer
+    attribute :gross_revenue, Float
+    attribute :platform_fees, Float
+    attribute :status, String
     reference_to Event
 
     value_object "TierSummary" do
-      String :tier_name
-      Integer :sold
-      Float :revenue
+      attribute :tier_name, String
+      attribute :sold, Integer
+      attribute :revenue, Float
     end
 
-    GenerateSalesReport do
+    command "GenerateSalesReport" do
       role "FinanceTeam"
       description "Compile ticket sales data into a report"
-      String :report_id
-      String :period
+      attribute :report_id, String
+      attribute :period, String
       reference_to(Event)
       emits "SalesReportGenerated"
       then_set :status, to: "generated"
     end
 
-    PublishReport do
+    command "PublishReport" do
       description "Share the sales report with the event organizer"
       reference_to(SalesReport)
       given("report is generated") { status == "generated" }
       emits "ReportPublished"
     end
 
-    ArchiveReport do
+    command "ArchiveReport" do
       description "Move an old sales report to long-term storage"
       reference_to(SalesReport)
       emits "ReportArchived"
@@ -181,42 +181,42 @@ Hecks.bluebook "TicketingPlatform", version: "2026.04.13.1" do
   end
 
   aggregate "Refund", "A ticket return and money-back transaction" do
-    String :refund_id
-    Float :refund_amount
-    String :reason
-    String :refund_method
-    String :status
+    attribute :refund_id, String
+    attribute :refund_amount, Float
+    attribute :reason, String
+    attribute :refund_method, String
+    attribute :status, String
     reference_to Ticket
 
     value_object "RefundDetail" do
-      String :original_payment_ref
-      Float :processing_fee
-      String :processed_at
+      attribute :original_payment_ref, String
+      attribute :processing_fee, Float
+      attribute :processed_at, String
     end
 
-    RequestRefund do
+    command "RequestRefund" do
       role "Attendee"
       description "Ask for money back on a purchased ticket"
-      String :refund_id
-      Float :refund_amount
-      String :reason
-      String :refund_method
+      attribute :refund_id, String
+      attribute :refund_amount, Float
+      attribute :reason, String
+      attribute :refund_method, String
       reference_to(Ticket)
       emits "RefundRequested"
       then_set :status, to: "pending"
     end
 
-    ApproveRefund do
+    command "ApproveRefund" do
       description "Process and approve a refund request"
       reference_to(Refund)
       given("refund is pending") { status == "pending" }
       emits "RefundApproved"
     end
 
-    DenyRefund do
+    command "DenyRefund" do
       description "Reject a refund request outside the policy window"
       reference_to(Refund)
-      String :denial_reason
+      attribute :denial_reason, String
       emits "RefundDenied"
     end
 

@@ -3,42 +3,42 @@ Hecks.bluebook "NetworkOperations", version: "2026.04.13.1" do
   category "technology"
 
   aggregate "NetworkDevice", "A router, switch, or firewall in the network topology" do
-    String :device_id
-    String :hostname
-    String :device_type
-    String :ip_address
-    String :location
-    String :firmware_version
-    String :status
+    attribute :device_id, String
+    attribute :hostname, String
+    attribute :device_type, String
+    attribute :ip_address, String
+    attribute :location, String
+    attribute :firmware_version, String
+    attribute :status, String
     list_of(Interface) :interfaces
 
     value_object "Interface" do
-      String :port_name
-      String :speed
-      String :connected_to
-      String :status
+      attribute :port_name, String
+      attribute :speed, String
+      attribute :connected_to, String
+      attribute :status, String
     end
 
-    RegisterDevice do
+    command "RegisterDevice" do
       role "NetworkEngineer"
       description "Add a new network device to the inventory"
-      String :device_id
-      String :hostname
-      String :device_type
-      String :ip_address
-      String :location
-      String :firmware_version
+      attribute :device_id, String
+      attribute :hostname, String
+      attribute :device_type, String
+      attribute :ip_address, String
+      attribute :location, String
+      attribute :firmware_version, String
       emits "DeviceRegistered"
     end
 
-    SuspendDevice do
+    command "SuspendDevice" do
       description "Take a device offline for maintenance"
       reference_to(NetworkDevice)
       emits "DeviceSuspended"
       then_set :status, to: "suspended"
     end
 
-    RestoreDevice do
+    command "RestoreDevice" do
       description "Bring a maintained device back online"
       reference_to(NetworkDevice)
       given("device is suspended") { status == "suspended" }
@@ -47,37 +47,37 @@ Hecks.bluebook "NetworkOperations", version: "2026.04.13.1" do
   end
 
   aggregate "Link", "A connection between two network devices" do
-    String :link_id
-    String :link_type
-    Integer :bandwidth_mbps
-    Float :latency_ms
-    String :status
+    attribute :link_id, String
+    attribute :link_type, String
+    attribute :bandwidth_mbps, Integer
+    attribute :latency_ms, Float
+    attribute :status, String
     reference_to NetworkDevice
 
     value_object "LinkMetric" do
-      Float :throughput_mbps
-      Float :packet_loss_pct
-      String :sampled_at
+      attribute :throughput_mbps, Float
+      attribute :packet_loss_pct, Float
+      attribute :sampled_at, String
     end
 
-    EstablishLink do
+    command "EstablishLink" do
       role "NetworkEngineer"
       description "Create a network link between two devices"
-      String :link_id
-      String :link_type
-      Integer :bandwidth_mbps
+      attribute :link_id, String
+      attribute :link_type, String
+      attribute :bandwidth_mbps, Integer
       reference_to(NetworkDevice)
       emits "LinkEstablished"
     end
 
-    MeasureLatency do
+    command "MeasureLatency" do
       description "Record the current latency measurement on a link"
       reference_to(Link)
-      Float :latency_ms
+      attribute :latency_ms, Float
       emits "LatencyMeasured"
     end
 
-    SeverLink do
+    command "SeverLink" do
       description "Disconnect a link due to failure or decommission"
       reference_to(Link)
       emits "LinkSevered"
@@ -85,40 +85,40 @@ Hecks.bluebook "NetworkOperations", version: "2026.04.13.1" do
   end
 
   aggregate "TrafficFlow", "An observed data flow pattern across the network" do
-    String :flow_id
-    String :source_ip
-    String :destination_ip
-    String :protocol
-    Integer :bytes_transferred
-    String :classification
-    String :status
+    attribute :flow_id, String
+    attribute :source_ip, String
+    attribute :destination_ip, String
+    attribute :protocol, String
+    attribute :bytes_transferred, Integer
+    attribute :classification, String
+    attribute :status, String
 
     value_object "FlowSample" do
-      Integer :packets
-      Integer :bytes
-      String :sampled_at
+      attribute :packets, Integer
+      attribute :bytes, Integer
+      attribute :sampled_at, String
     end
 
-    CaptureFlow do
+    command "CaptureFlow" do
       role "NetworkAnalyst"
       description "Record a traffic flow for analysis"
-      String :flow_id
-      String :source_ip
-      String :destination_ip
-      String :protocol
-      Integer :bytes_transferred
+      attribute :flow_id, String
+      attribute :source_ip, String
+      attribute :destination_ip, String
+      attribute :protocol, String
+      attribute :bytes_transferred, Integer
       emits "FlowCaptured"
       then_set :status, to: "active"
     end
 
-    ClassifyFlow do
+    command "ClassifyFlow" do
       description "Tag a traffic flow with its application category"
       reference_to(TrafficFlow)
-      String :classification
+      attribute :classification, String
       emits "FlowClassified"
     end
 
-    FlagAnomalousFlow do
+    command "FlagAnomalousFlow" do
       description "Mark a flow as suspicious for security review"
       reference_to(TrafficFlow)
       given("flow is active") { status == "active" }
@@ -127,82 +127,82 @@ Hecks.bluebook "NetworkOperations", version: "2026.04.13.1" do
   end
 
   aggregate "Outage", "A network disruption affecting services" do
-    String :outage_id
-    String :affected_segment
-    String :severity
-    String :root_cause
-    String :assigned_to
-    String :status
+    attribute :outage_id, String
+    attribute :affected_segment, String
+    attribute :severity, String
+    attribute :root_cause, String
+    attribute :assigned_to, String
+    attribute :status, String
     reference_to NetworkDevice
     list_of(OutageUpdate) :updates
 
     value_object "OutageUpdate" do
-      String :note
-      String :author
-      String :posted_at
+      attribute :note, String
+      attribute :author, String
+      attribute :posted_at, String
     end
 
-    DeclareOutage do
+    command "DeclareOutage" do
       role "NOCOperator"
       description "Report a network outage affecting a segment"
-      String :outage_id
-      String :affected_segment
-      String :severity
+      attribute :outage_id, String
+      attribute :affected_segment, String
+      attribute :severity, String
       reference_to(NetworkDevice)
       emits "OutageDeclared"
       then_set :status, to: "ongoing"
     end
 
-    PostOutageUpdate do
+    command "PostOutageUpdate" do
       description "Add a status update to an ongoing outage"
       reference_to(Outage)
-      String :note
-      String :author
+      attribute :note, String
+      attribute :author, String
       emits "OutageUpdatePosted"
     end
 
-    ResolveOutage do
+    command "ResolveOutage" do
       description "Close an outage after service is restored"
       reference_to(Outage)
-      String :root_cause
+      attribute :root_cause, String
       given("outage is ongoing") { status == "ongoing" }
       emits "OutageResolved"
     end
   end
 
   aggregate "FirmwareRelease", "A firmware version available for network devices" do
-    String :release_id
-    String :version
-    String :device_type
-    String :changelog
-    String :status
+    attribute :release_id, String
+    attribute :version, String
+    attribute :device_type, String
+    attribute :changelog, String
+    attribute :status, String
     list_of(UpgradeRecord) :upgrades
 
     value_object "UpgradeRecord" do
-      String :device_id
-      String :upgraded_at
-      String :outcome
+      attribute :device_id, String
+      attribute :upgraded_at, String
+      attribute :outcome, String
     end
 
-    PublishFirmware do
+    command "PublishFirmware" do
       role "NetworkEngineer"
       description "Make a new firmware version available for deployment"
-      String :release_id
-      String :version
-      String :device_type
-      String :changelog
+      attribute :release_id, String
+      attribute :version, String
+      attribute :device_type, String
+      attribute :changelog, String
       emits "FirmwarePublished"
       then_set :status, to: "published"
     end
 
-    UpgradeDevice do
+    command "UpgradeDevice" do
       description "Apply firmware to a specific network device"
       reference_to(FirmwareRelease)
-      String :device_id
+      attribute :device_id, String
       emits "DeviceUpgraded"
     end
 
-    RecallFirmware do
+    command "RecallFirmware" do
       description "Withdraw a firmware release due to critical bugs"
       reference_to(FirmwareRelease)
       given("firmware is published") { status == "published" }

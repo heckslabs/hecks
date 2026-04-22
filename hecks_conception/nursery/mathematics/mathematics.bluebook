@@ -5,62 +5,62 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
   # === Number Theory ===
 
   aggregate "Number", "A mathematical number — the atomic unit of quantity and computation" do
-    String :value
-    String :number_type
-    Float :real_part
-    Float :imaginary_part
-    String :prime
-    String :parity
-    String :representation
+    attribute :value, String
+    attribute :number_type, String
+    attribute :real_part, Float
+    attribute :imaginary_part, Float
+    attribute :prime, String
+    attribute :parity, String
+    attribute :representation, String
 
     value_object "ComplexForm" do
-      Float :real
-      Float :imaginary
-      Float :modulus
-      Float :argument
+      attribute :real, Float
+      attribute :imaginary, Float
+      attribute :modulus, Float
+      attribute :argument, Float
     end
 
     value_object "RationalForm" do
-      Integer :numerator
-      Integer :denominator
-      String :reduced
+      attribute :numerator, Integer
+      attribute :denominator, Integer
+      attribute :reduced, String
     end
 
-    DefineNumber do
+    command "DefineNumber" do
       role "Mathematician"
       description "Bring a number into existence — natural, integer, rational, real, or complex"
-      String :value
-      String :number_type
+      attribute :value, String
+      attribute :number_type, String
       emits "NumberDefined"
       then_set :value, to: :value
       then_set :number_type, to: :number_type
     end
 
-    AddNumbers do
+    command "AddNumbers" do
       role "Mathematician"
       description "Sum two numbers — the most fundamental operation"
       reference_to(Number)
-      String :addend
+      attribute :addend, String
       emits "NumbersAdded"
     end
 
-    MultiplyNumbers do
+    command "MultiplyNumbers" do
       role "Mathematician"
       description "Multiply two numbers — repeated addition made abstract"
       reference_to(Number)
-      String :multiplier
+      attribute :multiplier, String
       emits "NumbersMultiplied"
     end
 
-    ComputeGCD do
+    command "ComputeGCD" do
       role "Mathematician"
       description "Find the greatest common divisor — Euclid's algorithm"
       reference_to(Number)
-      String :other
+      attribute :other, String
       emits "GCDComputed"
     end
 
-    FindPrime do
+    command "FindPrime" do
       role "System"
       description "Test primality and find the next prime"
       reference_to(Number)
@@ -68,11 +68,11 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
       then_set :prime, to: "true"
     end
 
-    ClassifyNumber do
+    command "ClassifyNumber" do
       role "System"
       description "Determine parity, primality, and algebraic properties"
       reference_to(Number)
-      String :parity
+      attribute :parity, String
       emits "NumberClassified"
       then_set :parity, to: :parity
     end
@@ -81,73 +81,73 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
   # === Set Theory ===
 
   aggregate "MathSet", "A collection of distinct objects — the foundation of all mathematics" do
-    String :name
-    String :elements
-    Integer :cardinality
-    String :set_type
-    String :finite
-    String :notation
+    attribute :name, String
+    attribute :elements, String
+    attribute :cardinality, Integer
+    attribute :set_type, String
+    attribute :finite, String
+    attribute :notation, String
 
     value_object "ElementDescriptor" do
-      String :value
-      String :element_type
+      attribute :value, String
+      attribute :element_type, String
     end
 
     value_object "SetRelation" do
-      String :relation_type
-      String :target_set
-      String :holds
+      attribute :relation_type, String
+      attribute :target_set, String
+      attribute :holds, String
     end
 
-    DefineSet do
+    command "DefineSet" do
       role "Mathematician"
       description "Declare a set by enumeration or predicate — the act of collection"
-      String :name
-      String :elements
-      String :set_type
+      attribute :name, String
+      attribute :elements, String
+      attribute :set_type, String
       emits "SetDefined"
       then_set :name, to: :name
       then_set :elements, to: :elements
       then_set :set_type, to: :set_type
     end
 
-    UniteSet do
+    command "UniteSet" do
       role "Mathematician"
       description "Form the union of two sets — all elements from both"
       reference_to(MathSet)
-      String :other_set
+      attribute :other_set, String
       emits "SetsUnited"
     end
 
-    IntersectSet do
+    command "IntersectSet" do
       role "Mathematician"
       description "Form the intersection — elements common to both sets"
       reference_to(MathSet)
-      String :other_set
+      attribute :other_set, String
       emits "SetsIntersected"
     end
 
-    ComputeComplement do
+    command "ComputeComplement" do
       role "Mathematician"
       description "Find elements in the universal set not in this set"
       reference_to(MathSet)
-      String :universal_set
+      attribute :universal_set, String
       emits "ComplementComputed"
     end
 
-    CheckMembership do
+    command "CheckMembership" do
       role "System"
       description "Test whether an element belongs to this set"
       reference_to(MathSet)
-      String :element
+      attribute :element, String
       emits "MembershipChecked"
     end
 
-    MapElements do
+    command "MapElements" do
       role "Mathematician"
       description "Apply a function to every element — produce a new set"
       reference_to(MathSet)
-      String :function_name
+      attribute :function_name, String
       emits "ElementsMapped"
     end
   end
@@ -155,29 +155,29 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
   # === Function Theory ===
 
   aggregate "MathFunction", "A mapping from domain to codomain — the verb of mathematics" do
-    String :name
-    String :domain_set
-    String :codomain_set
-    String :rule
-    String :function_type
-    String :injective
-    String :surjective
-    String :continuous
-    String :invertible
+    attribute :name, String
+    attribute :domain_set, String
+    attribute :codomain_set, String
+    attribute :rule, String
+    attribute :function_type, String
+    attribute :injective, String
+    attribute :surjective, String
+    attribute :continuous, String
+    attribute :invertible, String
 
     value_object "FunctionProperty" do
-      String :property_name
-      String :holds
-      String :proof_sketch
+      attribute :property_name, String
+      attribute :holds, String
+      attribute :proof_sketch, String
     end
 
-    DefineFunction do
+    command "DefineFunction" do
       role "Mathematician"
       description "Declare a function with domain, codomain, and mapping rule"
-      String :name
-      String :domain_set
-      String :codomain_set
-      String :rule
+      attribute :name, String
+      attribute :domain_set, String
+      attribute :codomain_set, String
+      attribute :rule, String
       emits "FunctionDefined"
       then_set :name, to: :name
       then_set :domain_set, to: :domain_set
@@ -185,15 +185,15 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
       then_set :rule, to: :rule
     end
 
-    ComposeFunction do
+    command "ComposeFunction" do
       role "Mathematician"
       description "Compose two functions — f after g, the chain of mappings"
       reference_to(MathFunction)
-      String :inner_function
+      attribute :inner_function, String
       emits "FunctionsComposed"
     end
 
-    FindInverse do
+    command "FindInverse" do
       role "Mathematician"
       description "Find the inverse function if bijective"
       reference_to(MathFunction)
@@ -201,24 +201,24 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
       emits "InverseFound"
     end
 
-    EvaluateAt do
+    command "EvaluateAt" do
       role "Mathematician"
       description "Compute the function's value at a specific point"
       reference_to(MathFunction)
-      String :input
+      attribute :input, String
       emits "FunctionEvaluated"
     end
 
-    DetermineContinuity do
+    command "DetermineContinuity" do
       role "System"
       description "Test whether the function is continuous at a point or on an interval"
       reference_to(MathFunction)
-      String :point
+      attribute :point, String
       emits "ContinuityDetermined"
       then_set :continuous, to: "true"
     end
 
-    ClassifyFunction do
+    command "ClassifyFunction" do
       role "System"
       description "Determine injectivity, surjectivity, bijectivity"
       reference_to(MathFunction)
@@ -230,31 +230,31 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
   # === Algebra ===
 
   aggregate "Expression", "A symbolic mathematical expression — the sentence of algebra" do
-    String :notation
-    String :expression_type
-    String :variables
-    String :simplified
-    Integer :degree
-    String :terms
+    attribute :notation, String
+    attribute :expression_type, String
+    attribute :variables, String
+    attribute :simplified, String
+    attribute :degree, Integer
+    attribute :terms, String
 
     value_object "Term" do
-      Float :coefficient
-      String :variable
-      Integer :exponent
+      attribute :coefficient, Float
+      attribute :variable, String
+      attribute :exponent, Integer
     end
 
-    DefineExpression do
+    command "DefineExpression" do
       role "Mathematician"
       description "Write a symbolic expression — polynomial, rational, radical"
-      String :notation
-      String :expression_type
+      attribute :notation, String
+      attribute :expression_type, String
       emits "ExpressionDefined"
       then_set :notation, to: :notation
       then_set :expression_type, to: :expression_type
       then_set :simplified, to: "false"
     end
 
-    SimplifyExpression do
+    command "SimplifyExpression" do
       role "Mathematician"
       description "Reduce an expression to simplest form — combine like terms, cancel"
       reference_to(Expression)
@@ -263,21 +263,21 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
       then_set :simplified, to: "true"
     end
 
-    FactorPolynomial do
+    command "FactorPolynomial" do
       role "Mathematician"
       description "Decompose a polynomial into irreducible factors"
       reference_to(Expression)
       emits "PolynomialFactored"
     end
 
-    FindRoots do
+    command "FindRoots" do
       role "Mathematician"
       description "Find values where the expression equals zero"
       reference_to(Expression)
       emits "RootsFound"
     end
 
-    ExpandExpression do
+    command "ExpandExpression" do
       role "Mathematician"
       description "Distribute and expand a factored expression"
       reference_to(Expression)
@@ -286,19 +286,19 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
   end
 
   aggregate "Equation", "A statement of equality — two expressions in balance" do
-    String :left_side
-    String :right_side
-    String :equation_type
-    String :variables
-    String :solution
-    String :status
+    attribute :left_side, String
+    attribute :right_side, String
+    attribute :equation_type, String
+    attribute :variables, String
+    attribute :solution, String
+    attribute :status, String
 
-    DefineEquation do
+    command "DefineEquation" do
       role "Mathematician"
       description "State an equation — set two expressions equal"
-      String :left_side
-      String :right_side
-      String :equation_type
+      attribute :left_side, String
+      attribute :right_side, String
+      attribute :equation_type, String
       emits "EquationDefined"
       then_set :left_side, to: :left_side
       then_set :right_side, to: :right_side
@@ -306,7 +306,7 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
       then_set :status, to: "unsolved"
     end
 
-    SolveEquation do
+    command "SolveEquation" do
       role "Mathematician"
       description "Find the values that satisfy the equality"
       reference_to(Equation)
@@ -315,7 +315,7 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
       then_set :status, to: "solved"
     end
 
-    VerifyEquation do
+    command "VerifyEquation" do
       role "System"
       description "Substitute solution back and confirm equality holds"
       reference_to(Equation)
@@ -332,27 +332,27 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
   end
 
   aggregate "AlgebraicStructure", "A group, ring, or field — sets with operations obeying axioms" do
-    String :name
-    String :structure_type
-    String :underlying_set
-    String :operations
-    String :identity_element
-    String :commutative
-    String :axioms_satisfied
+    attribute :name, String
+    attribute :structure_type, String
+    attribute :underlying_set, String
+    attribute :operations, String
+    attribute :identity_element, String
+    attribute :commutative, String
+    attribute :axioms_satisfied, String
 
     value_object "StructureAxiom" do
-      String :axiom_name
-      String :satisfied
-      String :description
+      attribute :axiom_name, String
+      attribute :satisfied, String
+      attribute :description, String
     end
 
-    DefineGroup do
+    command "DefineGroup" do
       role "Mathematician"
       description "Declare a group — a set with one operation satisfying closure, associativity, identity, inverse"
-      String :name
-      String :underlying_set
-      String :operations
-      String :identity_element
+      attribute :name, String
+      attribute :underlying_set, String
+      attribute :operations, String
+      attribute :identity_element, String
       emits "GroupDefined"
       then_set :name, to: :name
       then_set :structure_type, to: "group"
@@ -361,7 +361,7 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
       then_set :identity_element, to: :identity_element
     end
 
-    VerifyAxioms do
+    command "VerifyAxioms" do
       role "System"
       description "Check that the structure satisfies its defining axioms"
       reference_to(AlgebraicStructure)
@@ -369,7 +369,7 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
       then_set :axioms_satisfied, to: "true"
     end
 
-    DetermineCommutativity do
+    command "DetermineCommutativity" do
       role "System"
       description "Test whether the operation is commutative — abelian or not"
       reference_to(AlgebraicStructure)
@@ -380,114 +380,114 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
   # === Geometry ===
 
   aggregate "Shape", "A geometric figure — points, lines, and curves bounding space" do
-    String :name
-    String :shape_type
-    Integer :dimension
-    String :vertices
-    String :edges
-    Float :area
-    Float :perimeter
-    Float :volume
-    String :congruent_to
+    attribute :name, String
+    attribute :shape_type, String
+    attribute :dimension, Integer
+    attribute :vertices, String
+    attribute :edges, String
+    attribute :area, Float
+    attribute :perimeter, Float
+    attribute :volume, Float
+    attribute :congruent_to, String
 
     value_object "Vertex" do
-      String :label
-      Float :x
-      Float :y
-      Float :z
+      attribute :label, String
+      attribute :x, Float
+      attribute :y, Float
+      attribute :z, Float
     end
 
     value_object "Edge" do
-      String :from_vertex
-      String :to_vertex
-      Float :length
+      attribute :from_vertex, String
+      attribute :to_vertex, String
+      attribute :length, Float
     end
 
-    ConstructShape do
+    command "ConstructShape" do
       role "Mathematician"
       description "Build a geometric shape from vertices, edges, and faces"
-      String :name
-      String :shape_type
-      Integer :dimension
+      attribute :name, String
+      attribute :shape_type, String
+      attribute :dimension, Integer
       emits "ShapeConstructed"
       then_set :name, to: :name
       then_set :shape_type, to: :shape_type
       then_set :dimension, to: :dimension
     end
 
-    MeasureAngle do
+    command "MeasureAngle" do
       role "Mathematician"
       description "Compute the angle between two edges at a vertex"
       reference_to(Shape)
-      String :vertex
-      String :edge_a
-      String :edge_b
+      attribute :vertex, String
+      attribute :edge_a, String
+      attribute :edge_b, String
       emits "AngleMeasured"
     end
 
-    CalculateArea do
+    command "CalculateArea" do
       role "System"
       description "Compute the area enclosed by the shape's boundary"
       reference_to(Shape)
       emits "AreaCalculated"
     end
 
-    CalculatePerimeter do
+    command "CalculatePerimeter" do
       role "System"
       description "Sum the lengths of all edges"
       reference_to(Shape)
       emits "PerimeterCalculated"
     end
 
-    TransformShape do
+    command "TransformShape" do
       role "Mathematician"
       description "Apply a geometric transformation — translate, rotate, reflect, scale"
       reference_to(Shape)
-      String :transformation_type
-      String :parameters
+      attribute :transformation_type, String
+      attribute :parameters, String
       emits "ShapeTransformed"
     end
 
-    ProveCongruence do
+    command "ProveCongruence" do
       role "Mathematician"
       description "Demonstrate two shapes are congruent — SSS, SAS, ASA, AAS"
       reference_to(Shape)
-      String :other_shape
-      String :method
+      attribute :other_shape, String
+      attribute :method, String
       emits "CongruenceProved"
       then_set :congruent_to, to: :other_shape
     end
   end
 
   aggregate "Transformation", "A map on geometric space — preserving or distorting structure" do
-    String :name
-    String :transformation_type
-    String :matrix_representation
-    String :preserves_distance
-    String :preserves_orientation
-    String :fixed_points
+    attribute :name, String
+    attribute :transformation_type, String
+    attribute :matrix_representation, String
+    attribute :preserves_distance, String
+    attribute :preserves_orientation, String
+    attribute :fixed_points, String
 
-    DefineTransformation do
+    command "DefineTransformation" do
       role "Mathematician"
       description "Declare a transformation — rotation, reflection, translation, dilation"
-      String :name
-      String :transformation_type
-      String :matrix_representation
+      attribute :name, String
+      attribute :transformation_type, String
+      attribute :matrix_representation, String
       emits "TransformationDefined"
       then_set :name, to: :name
       then_set :transformation_type, to: :transformation_type
       then_set :matrix_representation, to: :matrix_representation
     end
 
-    ComposeTransformation do
+    command "ComposeTransformation" do
       role "Mathematician"
       description "Compose two transformations into one"
       reference_to(Transformation)
-      String :other_transformation
+      attribute :other_transformation, String
       emits "TransformationsComposed"
     end
 
-    FindFixedPoints do
+    command "FindFixedPoints" do
       role "System"
       description "Determine points that remain unchanged under the transformation"
       reference_to(Transformation)
@@ -498,25 +498,25 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
   # === Calculus ===
 
   aggregate "Limit", "The value a function approaches — the foundation of calculus" do
-    String :function_name
-    String :point
-    String :direction
-    String :value
-    String :exists
+    attribute :function_name, String
+    attribute :point, String
+    attribute :direction, String
+    attribute :value, String
+    attribute :exists, String
 
-    ComputeLimit do
+    command "ComputeLimit" do
       role "Mathematician"
       description "Evaluate the limit of a function as input approaches a point"
-      String :function_name
-      String :point
-      String :direction
+      attribute :function_name, String
+      attribute :point, String
+      attribute :direction, String
       emits "LimitComputed"
       then_set :function_name, to: :function_name
       then_set :point, to: :point
       then_set :direction, to: :direction
     end
 
-    CheckLimitExistence do
+    command "CheckLimitExistence" do
       role "System"
       description "Verify left and right limits agree — does the limit exist"
       reference_to(Limit)
@@ -526,25 +526,25 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
   end
 
   aggregate "Derivative", "The rate of change — how a function responds to infinitesimal nudges" do
-    String :function_name
-    String :variable
-    Integer :order
-    String :result
-    String :method
+    attribute :function_name, String
+    attribute :variable, String
+    attribute :order, Integer
+    attribute :result, String
+    attribute :method, String
 
-    Differentiate do
+    command "Differentiate" do
       role "Mathematician"
       description "Compute the derivative — the instantaneous rate of change"
-      String :function_name
-      String :variable
-      Integer :order
+      attribute :function_name, String
+      attribute :variable, String
+      attribute :order, Integer
       emits "Differentiated"
       then_set :function_name, to: :function_name
       then_set :variable, to: :variable
       then_set :order, to: :order
     end
 
-    ApplyChainRule do
+    command "ApplyChainRule" do
       role "Mathematician"
       description "Differentiate a composition of functions"
       reference_to(Derivative)
@@ -552,50 +552,50 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
       then_set :method, to: "chain_rule"
     end
 
-    FindExtremum do
+    command "FindExtremum" do
       role "Mathematician"
       description "Locate maxima and minima — where the derivative vanishes"
       reference_to(Derivative)
       emits "ExtremumFound"
     end
 
-    ComputePartialDerivative do
+    command "ComputePartialDerivative" do
       role "Mathematician"
       description "Differentiate with respect to one variable, holding others fixed"
       reference_to(Derivative)
-      String :hold_constant
+      attribute :hold_constant, String
       emits "PartialDerivativeComputed"
     end
   end
 
   aggregate "Integral", "Accumulated quantity — the antiderivative or area under a curve" do
-    String :function_name
-    String :variable
-    String :lower_bound
-    String :upper_bound
-    String :integral_type
-    String :result
-    String :method
+    attribute :function_name, String
+    attribute :variable, String
+    attribute :lower_bound, String
+    attribute :upper_bound, String
+    attribute :integral_type, String
+    attribute :result, String
+    attribute :method, String
 
-    Integrate do
+    command "Integrate" do
       role "Mathematician"
       description "Compute the integral — definite or indefinite"
-      String :function_name
-      String :variable
-      String :integral_type
+      attribute :function_name, String
+      attribute :variable, String
+      attribute :integral_type, String
       emits "Integrated"
       then_set :function_name, to: :function_name
       then_set :variable, to: :variable
       then_set :integral_type, to: :integral_type
     end
 
-    IntegrateDefinite do
+    command "IntegrateDefinite" do
       role "Mathematician"
       description "Set up a definite integral with explicit bounds"
-      String :function_name
-      String :variable
-      String :lower_bound
-      String :upper_bound
+      attribute :function_name, String
+      attribute :variable, String
+      attribute :lower_bound, String
+      attribute :upper_bound, String
       emits "DefiniteIntegralPrepared"
       then_set :function_name, to: :function_name
       then_set :variable, to: :variable
@@ -604,16 +604,16 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
       then_set :integral_type, to: "definite"
     end
 
-    ApplySubstitution do
+    command "ApplySubstitution" do
       role "Mathematician"
       description "Change variables to simplify the integral — u-substitution"
       reference_to(Integral)
-      String :substitution
+      attribute :substitution, String
       emits "SubstitutionApplied"
       then_set :method, to: "substitution"
     end
 
-    EvaluateDefiniteIntegral do
+    command "EvaluateDefiniteIntegral" do
       role "System"
       description "Apply the fundamental theorem — evaluate at bounds"
       reference_to(Integral)
@@ -623,35 +623,35 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
   end
 
   aggregate "Series", "An infinite sum — convergence, divergence, and approximation" do
-    String :name
-    String :general_term
-    String :series_type
-    String :converges
-    String :sum
-    String :radius_of_convergence
+    attribute :name, String
+    attribute :general_term, String
+    attribute :series_type, String
+    attribute :converges, String
+    attribute :sum, String
+    attribute :radius_of_convergence, String
 
-    ExpandSeries do
+    command "ExpandSeries" do
       role "Mathematician"
       description "Express a function as a power series — Taylor, Maclaurin, Fourier"
-      String :name
-      String :general_term
-      String :series_type
+      attribute :name, String
+      attribute :general_term, String
+      attribute :series_type, String
       emits "SeriesExpanded"
       then_set :name, to: :name
       then_set :general_term, to: :general_term
       then_set :series_type, to: :series_type
     end
 
-    TestConvergence do
+    command "TestConvergence" do
       role "Mathematician"
       description "Apply ratio, root, or comparison test — does the series converge"
       reference_to(Series)
-      String :test_method
+      attribute :test_method, String
       emits "ConvergenceTested"
       then_set :converges, to: "true"
     end
 
-    ComputeSum do
+    command "ComputeSum" do
       role "System"
       description "Calculate the sum of a convergent series"
       reference_to(Series)
@@ -663,28 +663,28 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
   # === Linear Algebra ===
 
   aggregate "Matrix", "A rectangular array of numbers — the workhorse of linear algebra" do
-    String :name
-    Integer :rows
-    Integer :columns
-    String :entries
-    Float :determinant
-    Integer :rank
-    String :matrix_type
-    String :invertible
+    attribute :name, String
+    attribute :rows, Integer
+    attribute :columns, Integer
+    attribute :entries, String
+    attribute :determinant, Float
+    attribute :rank, Integer
+    attribute :matrix_type, String
+    attribute :invertible, String
 
     value_object "MatrixEntry" do
-      Integer :row
-      Integer :column
-      Float :value
+      attribute :row, Integer
+      attribute :column, Integer
+      attribute :value, Float
     end
 
-    DefineMatrix do
+    command "DefineMatrix" do
       role "Mathematician"
       description "Declare a matrix with its dimensions and entries"
-      String :name
-      Integer :rows
-      Integer :columns
-      String :entries
+      attribute :name, String
+      attribute :rows, Integer
+      attribute :columns, Integer
+      attribute :entries, String
       emits "MatrixDefined"
       then_set :name, to: :name
       then_set :rows, to: :rows
@@ -692,15 +692,15 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
       then_set :entries, to: :entries
     end
 
-    MultiplyMatrices do
+    command "MultiplyMatrices" do
       role "Mathematician"
       description "Multiply two matrices — rows by columns"
       reference_to(Matrix)
-      String :other_matrix
+      attribute :other_matrix, String
       emits "MatricesMultiplied"
     end
 
-    FindDeterminant do
+    command "FindDeterminant" do
       role "System"
       description "Compute the determinant — expansion by cofactors or row reduction"
       reference_to(Matrix)
@@ -708,29 +708,29 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
       then_set :invertible, to: "true"
     end
 
-    SolveSystem do
+    command "SolveSystem" do
       role "Mathematician"
       description "Solve a system of linear equations — Gaussian elimination"
       reference_to(Matrix)
-      String :constants
+      attribute :constants, String
       emits "SystemSolved"
     end
 
-    ComputeEigenvalues do
+    command "ComputeEigenvalues" do
       role "System"
       description "Find eigenvalues — the roots of the characteristic polynomial"
       reference_to(Matrix)
       emits "EigenvaluesComputed"
     end
 
-    TransposeMatrix do
+    command "TransposeMatrix" do
       role "Mathematician"
       description "Swap rows and columns — reflect across the diagonal"
       reference_to(Matrix)
       emits "MatrixTransposed"
     end
 
-    InvertMatrix do
+    command "InvertMatrix" do
       role "Mathematician"
       description "Find the inverse matrix if nonsingular"
       reference_to(Matrix)
@@ -738,7 +738,7 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
       emits "MatrixInverted"
     end
 
-    ReduceMatrix do
+    command "ReduceMatrix" do
       role "System"
       description "Row reduce to echelon form — reveal rank and nullity"
       reference_to(Matrix)
@@ -747,49 +747,49 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
   end
 
   aggregate "Vector", "A quantity with magnitude and direction — an element of vector space" do
-    String :name
-    String :components
-    Integer :dimension
-    Float :magnitude
-    String :normalized
+    attribute :name, String
+    attribute :components, String
+    attribute :dimension, Integer
+    attribute :magnitude, Float
+    attribute :normalized, String
 
-    DefineVector do
+    command "DefineVector" do
       role "Mathematician"
       description "Declare a vector with its components"
-      String :name
-      String :components
-      Integer :dimension
+      attribute :name, String
+      attribute :components, String
+      attribute :dimension, Integer
       emits "VectorDefined"
       then_set :name, to: :name
       then_set :components, to: :components
       then_set :dimension, to: :dimension
     end
 
-    AddVectors do
+    command "AddVectors" do
       role "Mathematician"
       description "Add two vectors component-wise"
       reference_to(Vector)
-      String :other_vector
+      attribute :other_vector, String
       emits "VectorsAdded"
     end
 
-    ComputeDotProduct do
+    command "ComputeDotProduct" do
       role "Mathematician"
       description "Compute the inner product — projection of one vector onto another"
       reference_to(Vector)
-      String :other_vector
+      attribute :other_vector, String
       emits "DotProductComputed"
     end
 
-    ComputeCrossProduct do
+    command "ComputeCrossProduct" do
       role "Mathematician"
       description "Compute the cross product — perpendicular vector in three dimensions"
       reference_to(Vector)
-      String :other_vector
+      attribute :other_vector, String
       emits "CrossProductComputed"
     end
 
-    NormalizeVector do
+    command "NormalizeVector" do
       role "System"
       description "Scale to unit length — preserve direction, set magnitude to one"
       reference_to(Vector)
@@ -801,97 +801,97 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
   # === Probability ===
 
   aggregate "ProbabilityEvent", "An outcome or set of outcomes — what might happen" do
-    String :name
-    String :sample_space
-    String :outcomes
-    Float :probability
-    String :event_type
-    Float :complement_probability
+    attribute :name, String
+    attribute :sample_space, String
+    attribute :outcomes, String
+    attribute :probability, Float
+    attribute :event_type, String
+    attribute :complement_probability, Float
 
     value_object "Outcome" do
-      String :description
-      Float :weight
+      attribute :description, String
+      attribute :weight, Float
     end
 
-    DefineEvent do
+    command "DefineEvent" do
       role "Mathematician"
       description "Declare a probabilistic event within a sample space"
-      String :name
-      String :sample_space
-      String :outcomes
+      attribute :name, String
+      attribute :sample_space, String
+      attribute :outcomes, String
       emits "EventDefined"
       then_set :name, to: :name
       then_set :sample_space, to: :sample_space
       then_set :outcomes, to: :outcomes
     end
 
-    CalculateProbability do
+    command "CalculateProbability" do
       role "Mathematician"
       description "Compute the probability of the event occurring"
       reference_to(ProbabilityEvent)
       emits "ProbabilityCalculated"
     end
 
-    ApplyBayesTheorem do
+    command "ApplyBayesTheorem" do
       role "Mathematician"
       description "Update probability given new evidence — posterior from prior and likelihood"
       reference_to(ProbabilityEvent)
-      Float :prior
-      Float :likelihood
-      Float :evidence
+      attribute :prior, Float
+      attribute :likelihood, Float
+      attribute :evidence, Float
       emits "BayesTheoremApplied"
     end
 
-    ComputeConditionalProbability do
+    command "ComputeConditionalProbability" do
       role "Mathematician"
       description "Find P(A|B) — probability of A given B occurred"
       reference_to(ProbabilityEvent)
-      String :given_event
+      attribute :given_event, String
       emits "ConditionalProbabilityComputed"
     end
   end
 
   aggregate "Distribution", "A probability distribution — how likelihood spreads across outcomes" do
-    String :name
-    String :distribution_type
-    String :parameters
-    Float :expected_value
-    Float :variance
-    Float :standard_deviation
+    attribute :name, String
+    attribute :distribution_type, String
+    attribute :parameters, String
+    attribute :expected_value, Float
+    attribute :variance, Float
+    attribute :standard_deviation, Float
 
     value_object "DistributionParameter" do
-      String :parameter_name
-      Float :value
+      attribute :parameter_name, String
+      attribute :value, Float
     end
 
-    DefineDistribution do
+    command "DefineDistribution" do
       role "Mathematician"
       description "Declare a probability distribution — normal, binomial, Poisson, uniform"
-      String :name
-      String :distribution_type
-      String :parameters
+      attribute :name, String
+      attribute :distribution_type, String
+      attribute :parameters, String
       emits "DistributionDefined"
       then_set :name, to: :name
       then_set :distribution_type, to: :distribution_type
       then_set :parameters, to: :parameters
     end
 
-    ComputeExpectedValue do
+    command "ComputeExpectedValue" do
       role "System"
       description "Calculate the mean — the long-run average"
       reference_to(Distribution)
       emits "ExpectedValueComputed"
     end
 
-    SampleDistribution do
+    command "SampleDistribution" do
       role "System"
       description "Draw a random value from the distribution"
       reference_to(Distribution)
-      Integer :count
+      attribute :count, Integer
       emits "DistributionSampled"
     end
 
-    ComputeVariance do
+    command "ComputeVariance" do
       role "System"
       description "Measure the spread — expected squared deviation from the mean"
       reference_to(Distribution)
@@ -902,79 +902,79 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
   # === Logic ===
 
   aggregate "Proposition", "A statement that is either true or false — the atom of logic" do
-    String :statement
-    String :truth_value
-    String :proposition_type
-    String :negation
-    String :quantifier
+    attribute :statement, String
+    attribute :truth_value, String
+    attribute :proposition_type, String
+    attribute :negation, String
+    attribute :quantifier, String
 
-    DefineProposition do
+    command "DefineProposition" do
       role "Mathematician"
       description "State a proposition — an assertion with a definite truth value"
-      String :statement
-      String :proposition_type
+      attribute :statement, String
+      attribute :proposition_type, String
       emits "PropositionDefined"
       then_set :statement, to: :statement
       then_set :proposition_type, to: :proposition_type
     end
 
-    NegateProposition do
+    command "NegateProposition" do
       role "Mathematician"
       description "Form the negation — flip the truth value"
       reference_to(Proposition)
       emits "PropositionNegated"
     end
 
-    CheckValidity do
+    command "CheckValidity" do
       role "System"
       description "Determine whether the proposition is a tautology, contradiction, or contingent"
       reference_to(Proposition)
       emits "ValidityChecked"
     end
 
-    ApplyInference do
+    command "ApplyInference" do
       role "Mathematician"
       description "Apply a rule of inference — modus ponens, modus tollens, disjunctive syllogism"
       reference_to(Proposition)
-      String :rule
-      String :premises
+      attribute :rule, String
+      attribute :premises, String
       emits "InferenceApplied"
     end
   end
 
   aggregate "Proof", "A chain of logical deductions — from axioms to conclusion" do
-    String :theorem
-    String :proof_method
-    String :steps
-    String :status
-    String :assumptions
+    attribute :theorem, String
+    attribute :proof_method, String
+    attribute :steps, String
+    attribute :status, String
+    attribute :assumptions, String
 
     value_object "ProofStep" do
-      Integer :step_number
-      String :statement
-      String :justification
+      attribute :step_number, Integer
+      attribute :statement, String
+      attribute :justification, String
     end
 
-    ConstructProof do
+    command "ConstructProof" do
       role "Mathematician"
       description "Begin a proof — state the theorem and choose a method"
-      String :theorem
-      String :proof_method
+      attribute :theorem, String
+      attribute :proof_method, String
       emits "ProofConstructed"
       then_set :theorem, to: :theorem
       then_set :proof_method, to: :proof_method
     end
 
-    AddProofStep do
+    command "AddProofStep" do
       role "Mathematician"
       description "Add a step to the proof — statement with justification"
       reference_to(Proof)
-      String :statement
-      String :justification
+      attribute :statement, String
+      attribute :justification, String
       emits "ProofStepAdded"
     end
 
-    CompleteProof do
+    command "CompleteProof" do
       role "Mathematician"
       description "Mark the proof as complete — QED"
       reference_to(Proof)
@@ -982,7 +982,7 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
       then_set :status, to: "complete"
     end
 
-    VerifyProof do
+    command "VerifyProof" do
       role "System"
       description "Check each step for logical validity"
       reference_to(Proof)
@@ -1000,64 +1000,64 @@ Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
   # === Topology ===
 
   aggregate "TopologicalSpace", "A set with a notion of nearness — continuity without distance" do
-    String :name
-    String :point_set
-    String :topology
-    String :space_type
-    String :compact
-    String :connected
-    String :hausdorff
-    Integer :euler_characteristic
+    attribute :name, String
+    attribute :point_set, String
+    attribute :topology, String
+    attribute :space_type, String
+    attribute :compact, String
+    attribute :connected, String
+    attribute :hausdorff, String
+    attribute :euler_characteristic, Integer
 
     value_object "OpenSet" do
-      String :description
-      String :elements
+      attribute :description, String
+      attribute :elements, String
     end
 
-    DefineSpace do
+    command "DefineSpace" do
       role "Mathematician"
       description "Declare a topological space — a set equipped with open sets"
-      String :name
-      String :point_set
-      String :topology
+      attribute :name, String
+      attribute :point_set, String
+      attribute :topology, String
       emits "SpaceDefined"
       then_set :name, to: :name
       then_set :point_set, to: :point_set
       then_set :topology, to: :topology
     end
 
-    CheckTopologicalContinuity do
+    command "CheckTopologicalContinuity" do
       role "System"
       description "Verify that a map between spaces is continuous — preimage of open is open"
       reference_to(TopologicalSpace)
-      String :map_name
+      attribute :map_name, String
       emits "TopologicalContinuityChecked"
     end
 
-    ClassifySurface do
+    command "ClassifySurface" do
       role "Mathematician"
       description "Classify a surface by genus — sphere, torus, Klein bottle"
       reference_to(TopologicalSpace)
-      Integer :genus
+      attribute :genus, Integer
       emits "SurfaceClassified"
     end
 
-    FindHomeomorphism do
+    command "FindHomeomorphism" do
       role "Mathematician"
       description "Find a continuous bijection with continuous inverse between spaces"
       reference_to(TopologicalSpace)
-      String :target_space
+      attribute :target_space, String
       emits "HomeomorphismFound"
     end
 
-    ComputeEulerCharacteristic do
+    command "ComputeEulerCharacteristic" do
       role "System"
       description "V - E + F — the topological invariant that sees through deformation"
       reference_to(TopologicalSpace)
       emits "EulerCharacteristicComputed"
     end
 
-    DetermineCompactness do
+    command "DetermineCompactness" do
       role "System"
       description "Test whether every open cover has a finite subcover"
       reference_to(TopologicalSpace)

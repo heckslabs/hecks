@@ -3,41 +3,41 @@ Hecks.bluebook "MobileAppStore", version: "2026.04.13.1" do
   category "technology"
 
   aggregate "App", "A published application available for download" do
-    String :bundle_id
-    String :title
-    String :developer_name
-    String :category
-    Float :price
-    String :current_version
-    String :status
+    attribute :bundle_id, String
+    attribute :title, String
+    attribute :developer_name, String
+    attribute :category, String
+    attribute :price, Float
+    attribute :current_version, String
+    attribute :status, String
     list_of(Screenshot) :screenshots
 
     value_object "Screenshot" do
-      String :url
-      String :caption
-      Integer :display_order
+      attribute :url, String
+      attribute :caption, String
+      attribute :display_order, Integer
     end
 
-    SubmitApp do
+    command "SubmitApp" do
       role "Developer"
       description "Submit a new app for review and publication"
-      String :bundle_id
-      String :title
-      String :developer_name
-      String :category
-      Float :price
+      attribute :bundle_id, String
+      attribute :title, String
+      attribute :developer_name, String
+      attribute :category, String
+      attribute :price, Float
       emits "AppSubmitted"
       then_set :status, to: "pending_review"
     end
 
-    ApproveApp do
+    command "ApproveApp" do
       description "Clear an app through review and publish it to the store"
       reference_to(App)
       given("app is pending review") { status == "pending_review" }
       emits "AppApproved"
     end
 
-    SuspendApp do
+    command "SuspendApp" do
       description "Remove an app from the store for policy violations"
       reference_to(App)
       emits "AppSuspended"
@@ -45,40 +45,40 @@ Hecks.bluebook "MobileAppStore", version: "2026.04.13.1" do
   end
 
   aggregate "Review", "A user rating and comment on an app" do
-    String :review_id
-    String :author_name
-    Integer :rating
-    String :comment
-    String :status
+    attribute :review_id, String
+    attribute :author_name, String
+    attribute :rating, Integer
+    attribute :comment, String
+    attribute :status, String
     reference_to App
 
     value_object "ReviewFlag" do
-      String :reason
-      String :flagged_by
-      String :flagged_at
+      attribute :reason, String
+      attribute :flagged_by, String
+      attribute :flagged_at, String
     end
 
-    PostReview do
+    command "PostReview" do
       role "User"
       description "Write a review and rate an app"
-      String :review_id
-      String :author_name
-      Integer :rating
-      String :comment
+      attribute :review_id, String
+      attribute :author_name, String
+      attribute :rating, Integer
+      attribute :comment, String
       reference_to(App)
       given("rating between 1 and 5") { rating >= 1 && rating <= 5 }
       emits "ReviewPosted"
     end
 
-    FlagReview do
+    command "FlagReview" do
       description "Report a review as inappropriate or spam"
       reference_to(Review)
-      String :reason
+      attribute :reason, String
       emits "ReviewFlagged"
       then_set :status, to: "flagged"
     end
 
-    RemoveReview do
+    command "RemoveReview" do
       description "Delete a flagged review after moderation"
       reference_to(Review)
       given("review is flagged") { status == "flagged" }
@@ -87,38 +87,38 @@ Hecks.bluebook "MobileAppStore", version: "2026.04.13.1" do
   end
 
   aggregate "Download", "A record of an app being installed by a user" do
-    String :download_id
-    String :user_id
-    String :device_type
-    String :os_version
-    String :status
+    attribute :download_id, String
+    attribute :user_id, String
+    attribute :device_type, String
+    attribute :os_version, String
+    attribute :status, String
     reference_to App
 
     value_object "DeviceInfo" do
-      String :model
-      String :os_version
-      String :screen_size
+      attribute :model, String
+      attribute :os_version, String
+      attribute :screen_size, String
     end
 
-    RecordDownload do
+    command "RecordDownload" do
       role "StoreSystem"
       description "Log an app download event"
-      String :download_id
-      String :user_id
-      String :device_type
-      String :os_version
+      attribute :download_id, String
+      attribute :user_id, String
+      attribute :device_type, String
+      attribute :os_version, String
       reference_to(App)
       emits "DownloadRecorded"
       then_set :status, to: "active"
     end
 
-    RecordUninstall do
+    command "RecordUninstall" do
       description "Log when a user removes an app"
       reference_to(Download)
       emits "UninstallRecorded"
     end
 
-    RefundPurchase do
+    command "RefundPurchase" do
       description "Process a refund for a paid app within the return window"
       reference_to(Download)
       given("download is within refund window") { status == "active" }
@@ -127,82 +127,82 @@ Hecks.bluebook "MobileAppStore", version: "2026.04.13.1" do
   end
 
   aggregate "AppUpdate", "A new version of an existing app pushed by a developer" do
-    String :update_id
-    String :version_number
-    String :release_notes
-    Integer :size_mb
-    String :status
+    attribute :update_id, String
+    attribute :version_number, String
+    attribute :release_notes, String
+    attribute :size_mb, Integer
+    attribute :status, String
     reference_to App
 
     value_object "ChangeEntry" do
-      String :change_type
-      String :description
+      attribute :change_type, String
+      attribute :description, String
     end
 
-    SubmitUpdate do
+    command "SubmitUpdate" do
       role "Developer"
       description "Push a new app version for review"
-      String :update_id
-      String :version_number
-      String :release_notes
-      Integer :size_mb
+      attribute :update_id, String
+      attribute :version_number, String
+      attribute :release_notes, String
+      attribute :size_mb, Integer
       reference_to(App)
       emits "UpdateSubmitted"
       then_set :status, to: "pending"
     end
 
-    ApproveUpdate do
+    command "ApproveUpdate" do
       description "Approve an update and make it available to users"
       reference_to(AppUpdate)
       given("update is pending") { status == "pending" }
       emits "UpdateApproved"
     end
 
-    RejectUpdate do
+    command "RejectUpdate" do
       description "Reject an update that fails policy review"
       reference_to(AppUpdate)
-      String :rejection_reason
+      attribute :rejection_reason, String
       emits "UpdateRejected"
     end
   end
 
   aggregate "RevenueSplit", "A revenue distribution record between store and developer" do
-    String :split_id
-    Float :gross_amount
-    Float :store_share
-    Float :developer_share
-    String :period
-    String :status
+    attribute :split_id, String
+    attribute :gross_amount, Float
+    attribute :store_share, Float
+    attribute :developer_share, Float
+    attribute :period, String
+    attribute :status, String
     reference_to App
 
     value_object "SplitBreakdown" do
-      Float :downloads_revenue
-      Float :in_app_revenue
-      Float :ad_revenue
+      attribute :downloads_revenue, Float
+      attribute :in_app_revenue, Float
+      attribute :ad_revenue, Float
     end
 
-    CalculateSplit do
+    command "CalculateSplit" do
       role "FinanceSystem"
       description "Compute the revenue split for a billing period"
-      String :split_id
-      Float :gross_amount
-      String :period
+      attribute :split_id, String
+      attribute :gross_amount, Float
+      attribute :period, String
       reference_to(App)
       emits "SplitCalculated"
       then_set :status, to: "calculated"
     end
 
-    DisburseDeveloperShare do
+    command "DisburseDeveloperShare" do
       description "Pay the developer their share of revenue"
       reference_to(RevenueSplit)
       given("split is calculated") { status == "calculated" }
       emits "DeveloperShareDisbursed"
     end
 
-    DisputeSplit do
+    command "DisputeSplit" do
       description "Challenge a revenue split calculation"
       reference_to(RevenueSplit)
-      String :dispute_reason
+      attribute :dispute_reason, String
       emits "SplitDisputed"
     end
   end

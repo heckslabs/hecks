@@ -2,26 +2,26 @@ Hecks.bluebook "PhysicalTherapy" do
   vision "Rehabilitation through guided exercise — patients, prescriptions, sessions, and measurable progress"
 
   aggregate "Patient", "A person receiving physical therapy services" do
-    String :name
-    String :date_of_birth
-    String :diagnosis
-    String :insurance_id
-    String :status
+    attribute :name, String
+    attribute :date_of_birth, String
+    attribute :diagnosis, String
+    attribute :insurance_id, String
+    attribute :status, String
     list_of(Limitation) :limitations
 
     value_object "Limitation" do
-      String :body_region
-      String :description
-      Integer :severity_score
+      attribute :body_region, String
+      attribute :description, String
+      attribute :severity_score, Integer
     end
 
-    RegisterPatient do
+    command "RegisterPatient" do
       role "FrontDesk"
       description "Intake a new patient into the physical therapy practice"
-      String :name
-      String :date_of_birth
-      String :diagnosis
-      String :insurance_id
+      attribute :name, String
+      attribute :date_of_birth, String
+      attribute :diagnosis, String
+      attribute :insurance_id, String
       emits "PatientRegistered"
       then_set :name, to: :name
       then_set :date_of_birth, to: :date_of_birth
@@ -30,18 +30,18 @@ Hecks.bluebook "PhysicalTherapy" do
       then_set :status, to: "intake"
     end
 
-    AssessLimitation do
+    command "AssessLimitation" do
       role "Therapist"
       description "Document a functional limitation for the patient"
       reference_to(Patient)
-      String :body_region
-      String :description
-      Integer :severity_score
+      attribute :body_region, String
+      attribute :description, String
+      attribute :severity_score, Integer
       emits "LimitationAssessed"
       then_set :status, to: "assessed"
     end
 
-    ActivatePatient do
+    command "ActivatePatient" do
       role "Therapist"
       description "Move patient to active treatment after assessment and plan creation"
       reference_to(Patient)
@@ -49,7 +49,7 @@ Hecks.bluebook "PhysicalTherapy" do
       then_set :status, to: "active"
     end
 
-    DischargePatient do
+    command "DischargePatient" do
       role "Therapist"
       description "Complete the patient's course of therapy"
       reference_to(Patient)
@@ -59,27 +59,27 @@ Hecks.bluebook "PhysicalTherapy" do
   end
 
   aggregate "Exercise", "A therapeutic exercise prescribed for rehabilitation" do
-    String :name
-    String :target_muscle_group
-    String :difficulty
-    String :instructions
-    Integer :repetitions
-    Integer :sets
+    attribute :name, String
+    attribute :target_muscle_group, String
+    attribute :difficulty, String
+    attribute :instructions, String
+    attribute :repetitions, Integer
+    attribute :sets, Integer
 
     value_object "Contraindication" do
-      String :condition
-      String :reason
+      attribute :condition, String
+      attribute :reason, String
     end
 
-    DefineExercise do
+    command "DefineExercise" do
       role "Therapist"
       description "Create a new exercise in the therapy library"
-      String :name
-      String :target_muscle_group
-      String :difficulty
-      String :instructions
-      Integer :repetitions
-      Integer :sets
+      attribute :name, String
+      attribute :target_muscle_group, String
+      attribute :difficulty, String
+      attribute :instructions, String
+      attribute :repetitions, Integer
+      attribute :sets, Integer
       emits "ExerciseDefined"
       then_set :name, to: :name
       then_set :target_muscle_group, to: :target_muscle_group
@@ -89,39 +89,39 @@ Hecks.bluebook "PhysicalTherapy" do
       then_set :sets, to: :sets
     end
 
-    AdjustDifficulty do
+    command "AdjustDifficulty" do
       role "Therapist"
       description "Modify the difficulty level based on patient progress"
       reference_to(Exercise)
-      String :difficulty
+      attribute :difficulty, String
       emits "DifficultyAdjusted"
       then_set :difficulty, to: :difficulty
     end
   end
 
   aggregate "Session", "A scheduled therapy session between patient and therapist" do
-    String :patient_name
-    String :therapist_name
-    String :scheduled_date
-    String :status
+    attribute :patient_name, String
+    attribute :therapist_name, String
+    attribute :scheduled_date, String
+    attribute :status, String
     list_of(SessionExercise) :exercises_performed
-    String :notes
+    attribute :notes, String
     reference_to Patient
 
     value_object "SessionExercise" do
-      String :exercise_name
-      Integer :actual_reps
-      Integer :actual_sets
-      Integer :pain_level
+      attribute :exercise_name, String
+      attribute :actual_reps, Integer
+      attribute :actual_sets, Integer
+      attribute :pain_level, Integer
     end
 
-    ScheduleSession do
+    command "ScheduleSession" do
       role "FrontDesk"
       description "Book a therapy session for a patient"
       reference_to(Patient)
-      String :patient_name
-      String :therapist_name
-      String :scheduled_date
+      attribute :patient_name, String
+      attribute :therapist_name, String
+      attribute :scheduled_date, String
       emits "SessionScheduled"
       then_set :patient_name, to: :patient_name
       then_set :therapist_name, to: :therapist_name
@@ -129,18 +129,18 @@ Hecks.bluebook "PhysicalTherapy" do
       then_set :status, to: "scheduled"
     end
 
-    CompleteSession do
+    command "CompleteSession" do
       role "Therapist"
       description "Record session completion with exercises performed"
       reference_to(Session)
-      String :notes
+      attribute :notes, String
       given("session must be scheduled") { status == "scheduled" }
       emits "SessionCompleted"
       then_set :notes, to: :notes
       then_set :status, to: "completed"
     end
 
-    CancelSession do
+    command "CancelSession" do
       role "FrontDesk"
       description "Cancel a previously scheduled session"
       reference_to(Session)
@@ -151,26 +151,26 @@ Hecks.bluebook "PhysicalTherapy" do
   end
 
   aggregate "Prescription", "A physician's order for physical therapy treatment" do
-    String :physician_name
-    String :patient_name
-    String :diagnosis
-    Integer :authorized_visits
-    Integer :visits_used
-    String :status
+    attribute :physician_name, String
+    attribute :patient_name, String
+    attribute :diagnosis, String
+    attribute :authorized_visits, Integer
+    attribute :visits_used, Integer
+    attribute :status, String
     reference_to Patient
 
     specification "VisitsExhausted" do
       satisfied_by { visits_used >= authorized_visits }
     end
 
-    PrescribeTherapy do
+    command "PrescribeTherapy" do
       role "Physician"
       description "Write a physical therapy prescription for a patient"
       reference_to(Patient)
-      String :physician_name
-      String :patient_name
-      String :diagnosis
-      Integer :authorized_visits
+      attribute :physician_name, String
+      attribute :patient_name, String
+      attribute :diagnosis, String
+      attribute :authorized_visits, Integer
       emits "PrescriptionCreated"
       then_set :physician_name, to: :physician_name
       then_set :patient_name, to: :patient_name
@@ -180,7 +180,7 @@ Hecks.bluebook "PhysicalTherapy" do
       then_set :status, to: "active"
     end
 
-    RecordVisit do
+    command "RecordVisit" do
       role "Therapist"
       description "Decrement remaining authorized visits after a session"
       reference_to(Prescription)
@@ -188,7 +188,7 @@ Hecks.bluebook "PhysicalTherapy" do
       emits "VisitRecorded"
     end
 
-    ExpirePrescription do
+    command "ExpirePrescription" do
       role "System"
       description "Mark the prescription as expired when visits are exhausted"
       reference_to(Prescription)
@@ -198,24 +198,24 @@ Hecks.bluebook "PhysicalTherapy" do
   end
 
   aggregate "ProgressReport", "A measurable record of patient improvement over time" do
-    String :patient_name
-    String :assessment_date
-    Integer :pain_score
-    Integer :range_of_motion
-    Integer :strength_score
-    String :therapist_notes
+    attribute :patient_name, String
+    attribute :assessment_date, String
+    attribute :pain_score, Integer
+    attribute :range_of_motion, Integer
+    attribute :strength_score, Integer
+    attribute :therapist_notes, String
     reference_to Patient
 
-    RecordProgress do
+    command "RecordProgress" do
       role "Therapist"
       description "Document patient progress metrics at a point in time"
       reference_to(Patient)
-      String :patient_name
-      String :assessment_date
-      Integer :pain_score
-      Integer :range_of_motion
-      Integer :strength_score
-      String :therapist_notes
+      attribute :patient_name, String
+      attribute :assessment_date, String
+      attribute :pain_score, Integer
+      attribute :range_of_motion, Integer
+      attribute :strength_score, Integer
+      attribute :therapist_notes, String
       emits "ProgressRecorded"
       then_set :patient_name, to: :patient_name
       then_set :assessment_date, to: :assessment_date
@@ -225,7 +225,7 @@ Hecks.bluebook "PhysicalTherapy" do
       then_set :therapist_notes, to: :therapist_notes
     end
 
-    FlagRegression do
+    command "FlagRegression" do
       role "System"
       description "Alert when patient metrics show decline instead of improvement"
       reference_to(ProgressReport)

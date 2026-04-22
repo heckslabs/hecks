@@ -3,30 +3,30 @@ Hecks.bluebook "Planetarium", version: "2026.04.13.1" do
   category "crossover"
 
   aggregate "CelestialBody", "A celestial object — type, coordinates, magnitude, current visibility" do
-    String :name
-    String :body_type
-    Float :right_ascension_hr
-    Float :declination_deg
-    Float :apparent_magnitude
-    String :constellation
-    String :status
+    attribute :name, String
+    attribute :body_type, String
+    attribute :right_ascension_hr, Float
+    attribute :declination_deg, Float
+    attribute :apparent_magnitude, Float
+    attribute :constellation, String
+    attribute :status, String
 
     value_object "OrbitalElements" do
-      Float :semi_major_axis_au
-      Float :eccentricity
-      Float :inclination_deg
-      Float :period_years
+      attribute :semi_major_axis_au, Float
+      attribute :eccentricity, Float
+      attribute :inclination_deg, Float
+      attribute :period_years, Float
     end
 
-    CatalogBody do
+    command "CatalogBody" do
       role "Astronomer"
       description "Catalog a celestial body with coordinates and properties"
-      String :name
-      String :body_type
-      Float :right_ascension_hr
-      Float :declination_deg
-      Float :apparent_magnitude
-      String :constellation
+      attribute :name, String
+      attribute :body_type, String
+      attribute :right_ascension_hr, Float
+      attribute :declination_deg, Float
+      attribute :apparent_magnitude, Float
+      attribute :constellation, String
       emits "BodyCataloged"
       then_set :name, to: :name
       then_set :body_type, to: :body_type
@@ -37,12 +37,12 @@ Hecks.bluebook "Planetarium", version: "2026.04.13.1" do
       then_set :status, to: "cataloged"
     end
 
-    UpdatePosition do
+    command "UpdatePosition" do
       role "System"
       description "Update ephemeris position for current date"
       reference_to(CelestialBody)
-      Float :right_ascension_hr
-      Float :declination_deg
+      attribute :right_ascension_hr, Float
+      attribute :declination_deg, Float
       given { status == "cataloged" }
       emits "PositionUpdated"
       then_set :right_ascension_hr, to: :right_ascension_hr
@@ -55,27 +55,27 @@ Hecks.bluebook "Planetarium", version: "2026.04.13.1" do
   end
 
   aggregate "Projector", "A planetarium projector — type, resolution, dome coverage" do
-    String :projector_id
-    String :projector_type
-    Integer :resolution_pixels
-    Float :dome_coverage_pct
-    Float :brightness_lumens
-    String :status
+    attribute :projector_id, String
+    attribute :projector_type, String
+    attribute :resolution_pixels, Integer
+    attribute :dome_coverage_pct, Float
+    attribute :brightness_lumens, Float
+    attribute :status, String
 
     value_object "ProjectorCalibration" do
-      Float :color_temperature_k
-      Float :gamma
-      Float :edge_blend_pct
+      attribute :color_temperature_k, Float
+      attribute :gamma, Float
+      attribute :edge_blend_pct, Float
     end
 
-    InstallProjector do
+    command "InstallProjector" do
       role "Technician"
       description "Install and configure a projector in the planetarium dome"
-      String :projector_id
-      String :projector_type
-      Integer :resolution_pixels
-      Float :dome_coverage_pct
-      Float :brightness_lumens
+      attribute :projector_id, String
+      attribute :projector_type, String
+      attribute :resolution_pixels, Integer
+      attribute :dome_coverage_pct, Float
+      attribute :brightness_lumens, Float
       emits "ProjectorInstalled"
       then_set :projector_id, to: :projector_id
       then_set :projector_type, to: :projector_type
@@ -85,7 +85,7 @@ Hecks.bluebook "Planetarium", version: "2026.04.13.1" do
       then_set :status, to: "installed"
     end
 
-    CalibrateProjector do
+    command "CalibrateProjector" do
       role "Technician"
       description "Calibrate projector for accurate star field rendering"
       reference_to(Projector)
@@ -94,7 +94,7 @@ Hecks.bluebook "Planetarium", version: "2026.04.13.1" do
       then_set :status, to: "calibrated"
     end
 
-    ActivateProjector do
+    command "ActivateProjector" do
       role "Operator"
       description "Power on projector for show"
       reference_to(Projector)
@@ -111,34 +111,34 @@ Hecks.bluebook "Planetarium", version: "2026.04.13.1" do
   end
 
   aggregate "Show", "A planetarium show — theme, script, celestial targets, duration" do
-    String :title
-    String :theme
-    Integer :duration_minutes
-    String :target_audience
-    String :narration_type
-    String :status
+    attribute :title, String
+    attribute :theme, String
+    attribute :duration_minutes, Integer
+    attribute :target_audience, String
+    attribute :narration_type, String
+    attribute :status, String
 
     list_of "ShowSegment" do
-      String :segment_name
-      Integer :duration_sec
-      String :celestial_focus
-      String :narration_text
+      attribute :segment_name, String
+      attribute :duration_sec, Integer
+      attribute :celestial_focus, String
+      attribute :narration_text, String
     end
 
     value_object "VisualEffect" do
-      String :effect_name
-      String :trigger_time
-      Float :intensity
+      attribute :effect_name, String
+      attribute :trigger_time, String
+      attribute :intensity, Float
     end
 
-    ProjectShow do
+    command "ProjectShow" do
       role "Director"
       description "Create a planetarium show with theme and segments"
-      String :title
-      String :theme
-      Integer :duration_minutes
-      String :target_audience
-      String :narration_type
+      attribute :title, String
+      attribute :theme, String
+      attribute :duration_minutes, Integer
+      attribute :target_audience, String
+      attribute :narration_type, String
       emits "ShowCreated"
       then_set :title, to: :title
       then_set :theme, to: :theme
@@ -148,7 +148,7 @@ Hecks.bluebook "Planetarium", version: "2026.04.13.1" do
       then_set :status, to: "created"
     end
 
-    RehearsalShow do
+    command "RehearsalShow" do
       role "Director"
       description "Run a rehearsal of the show with projectors"
       reference_to(Show)
@@ -157,7 +157,7 @@ Hecks.bluebook "Planetarium", version: "2026.04.13.1" do
       then_set :status, to: "rehearsed"
     end
 
-    PublishShow do
+    command "PublishShow" do
       role "Director"
       description "Publish show for public scheduling"
       reference_to(Show)
@@ -174,26 +174,26 @@ Hecks.bluebook "Planetarium", version: "2026.04.13.1" do
   end
 
   aggregate "ShowSchedule", "Scheduled show times — date, time, capacity, ticket availability" do
-    String :show_title
-    String :show_date
-    String :show_time
-    Integer :capacity
-    Integer :tickets_sold
-    String :status
+    attribute :show_title, String
+    attribute :show_date, String
+    attribute :show_time, String
+    attribute :capacity, Integer
+    attribute :tickets_sold, Integer
+    attribute :status, String
 
     value_object "TicketTier" do
-      String :tier_name
-      Float :price
-      Integer :available
+      attribute :tier_name, String
+      attribute :price, Float
+      attribute :available, Integer
     end
 
-    ScheduleShow do
+    command "ScheduleShow" do
       role "Manager"
       description "Schedule a show for a specific date and time"
-      String :show_title
-      String :show_date
-      String :show_time
-      Integer :capacity
+      attribute :show_title, String
+      attribute :show_date, String
+      attribute :show_time, String
+      attribute :capacity, Integer
       emits "ShowScheduled"
       then_set :show_title, to: :show_title
       then_set :show_date, to: :show_date
@@ -203,7 +203,7 @@ Hecks.bluebook "Planetarium", version: "2026.04.13.1" do
       then_set :status, to: "scheduled"
     end
 
-    SellTicket do
+    command "SellTicket" do
       role "System"
       description "Record a ticket sale for the scheduled show"
       reference_to(ShowSchedule)
@@ -211,7 +211,7 @@ Hecks.bluebook "Planetarium", version: "2026.04.13.1" do
       emits "TicketSold"
     end
 
-    CancelShow do
+    command "CancelShow" do
       role "Manager"
       description "Cancel a scheduled show"
       reference_to(ShowSchedule)

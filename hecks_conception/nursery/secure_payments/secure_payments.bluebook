@@ -3,26 +3,26 @@ Hecks.bluebook "SecurePayments", version: "2026.04.13.1" do
   category "crossover"
 
   aggregate "KeyPair", "A cryptographic key pair — public key, algorithm, expiry, usage scope" do
-    String :key_id
-    String :algorithm
-    Integer :key_length_bits
-    String :public_key_hash
-    String :expiry_date
-    String :status
+    attribute :key_id, String
+    attribute :algorithm, String
+    attribute :key_length_bits, Integer
+    attribute :public_key_hash, String
+    attribute :expiry_date, String
+    attribute :status, String
 
     value_object "KeyMetadata" do
-      String :created_at
-      String :issuer
-      String :usage_scope
+      attribute :created_at, String
+      attribute :issuer, String
+      attribute :usage_scope, String
     end
 
-    GenerateKeyPair do
+    command "GenerateKeyPair" do
       role "SecurityOfficer"
       description "Generate a new cryptographic key pair for transaction signing"
-      String :key_id
-      String :algorithm
-      Integer :key_length_bits
-      String :expiry_date
+      attribute :key_id, String
+      attribute :algorithm, String
+      attribute :key_length_bits, Integer
+      attribute :expiry_date, String
       emits "KeyPairGenerated"
       then_set :key_id, to: :key_id
       then_set :algorithm, to: :algorithm
@@ -31,7 +31,7 @@ Hecks.bluebook "SecurePayments", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    RotateKey do
+    command "RotateKey" do
       role "SecurityOfficer"
       description "Rotate key pair — deactivate old, generate replacement"
       reference_to(KeyPair)
@@ -40,7 +40,7 @@ Hecks.bluebook "SecurePayments", version: "2026.04.13.1" do
       then_set :status, to: "rotated"
     end
 
-    RevokeKey do
+    command "RevokeKey" do
       role "SecurityOfficer"
       description "Revoke key pair due to compromise or policy"
       reference_to(KeyPair)
@@ -57,28 +57,28 @@ Hecks.bluebook "SecurePayments", version: "2026.04.13.1" do
   end
 
   aggregate "Transaction", "A payment transaction — amount, parties, signing, and settlement" do
-    String :transaction_id
-    Float :amount
-    String :currency
-    String :payer
-    String :payee
-    String :signature_hash
-    String :status
+    attribute :transaction_id, String
+    attribute :amount, Float
+    attribute :currency, String
+    attribute :payer, String
+    attribute :payee, String
+    attribute :signature_hash, String
+    attribute :status, String
 
     value_object "TransactionDetail" do
-      String :description
-      String :reference_number
-      String :timestamp
+      attribute :description, String
+      attribute :reference_number, String
+      attribute :timestamp, String
     end
 
-    InitiateTransaction do
+    command "InitiateTransaction" do
       role "Payer"
       description "Initiate a payment transaction with amount and parties"
-      String :transaction_id
-      Float :amount
-      String :currency
-      String :payer
-      String :payee
+      attribute :transaction_id, String
+      attribute :amount, Float
+      attribute :currency, String
+      attribute :payer, String
+      attribute :payee, String
       emits "TransactionInitiated"
       then_set :transaction_id, to: :transaction_id
       then_set :amount, to: :amount
@@ -88,18 +88,18 @@ Hecks.bluebook "SecurePayments", version: "2026.04.13.1" do
       then_set :status, to: "initiated"
     end
 
-    SignTransaction do
+    command "SignTransaction" do
       role "System"
       description "Digitally sign transaction with payer's private key"
       reference_to(Transaction)
-      String :signature_hash
+      attribute :signature_hash, String
       given { status == "initiated" }
       emits "TransactionSigned"
       then_set :signature_hash, to: :signature_hash
       then_set :status, to: "signed"
     end
 
-    VerifySignature do
+    command "VerifySignature" do
       role "System"
       description "Verify transaction signature using public key"
       reference_to(Transaction)
@@ -108,7 +108,7 @@ Hecks.bluebook "SecurePayments", version: "2026.04.13.1" do
       then_set :status, to: "verified"
     end
 
-    SettleTransaction do
+    command "SettleTransaction" do
       role "System"
       description "Settle the verified transaction — funds transferred"
       reference_to(Transaction)
@@ -126,32 +126,32 @@ Hecks.bluebook "SecurePayments", version: "2026.04.13.1" do
   end
 
   aggregate "FraudAlert", "A fraud detection alert — risk score, patterns, and resolution" do
-    String :transaction_id
-    Float :risk_score
-    String :alert_type
-    String :pattern_matched
-    String :resolution
-    String :status
+    attribute :transaction_id, String
+    attribute :risk_score, Float
+    attribute :alert_type, String
+    attribute :pattern_matched, String
+    attribute :resolution, String
+    attribute :status, String
 
     value_object "RiskFactor" do
-      String :factor_name
-      Float :weight
-      Float :score
+      attribute :factor_name, String
+      attribute :weight, Float
+      attribute :score, Float
     end
 
     list_of "SuspiciousPattern" do
-      String :pattern_name
-      Float :confidence
-      String :description
+      attribute :pattern_name, String
+      attribute :confidence, Float
+      attribute :description, String
     end
 
-    RaiseFraudAlert do
+    command "RaiseFraudAlert" do
       role "System"
       description "Raise a fraud alert when risk score exceeds threshold"
-      String :transaction_id
-      Float :risk_score
-      String :alert_type
-      String :pattern_matched
+      attribute :transaction_id, String
+      attribute :risk_score, Float
+      attribute :alert_type, String
+      attribute :pattern_matched, String
       emits "FraudAlertRaised"
       then_set :transaction_id, to: :transaction_id
       then_set :risk_score, to: :risk_score
@@ -160,7 +160,7 @@ Hecks.bluebook "SecurePayments", version: "2026.04.13.1" do
       then_set :status, to: "open"
     end
 
-    InvestigateAlert do
+    command "InvestigateAlert" do
       role "Analyst"
       description "Investigate fraud alert with additional data"
       reference_to(FraudAlert)
@@ -169,11 +169,11 @@ Hecks.bluebook "SecurePayments", version: "2026.04.13.1" do
       then_set :status, to: "investigated"
     end
 
-    ResolveAlert do
+    command "ResolveAlert" do
       role "Analyst"
       description "Resolve fraud alert — confirm or dismiss"
       reference_to(FraudAlert)
-      String :resolution
+      attribute :resolution, String
       given { status == "investigated" }
       emits "AlertResolved"
       then_set :resolution, to: :resolution
@@ -188,26 +188,26 @@ Hecks.bluebook "SecurePayments", version: "2026.04.13.1" do
   end
 
   aggregate "AuditLog", "Cryptographic audit trail — signed log entries for non-repudiation" do
-    String :entry_id
-    String :action
-    String :actor
-    String :timestamp
-    String :hash_chain
-    String :status
+    attribute :entry_id, String
+    attribute :action, String
+    attribute :actor, String
+    attribute :timestamp, String
+    attribute :hash_chain, String
+    attribute :status, String
 
     value_object "LogEntry" do
-      String :previous_hash
-      String :current_hash
-      String :payload
+      attribute :previous_hash, String
+      attribute :current_hash, String
+      attribute :payload, String
     end
 
-    RecordAuditEntry do
+    command "RecordAuditEntry" do
       role "System"
       description "Append a signed entry to the audit chain"
-      String :entry_id
-      String :action
-      String :actor
-      String :timestamp
+      attribute :entry_id, String
+      attribute :action, String
+      attribute :actor, String
+      attribute :timestamp, String
       emits "AuditEntryRecorded"
       then_set :entry_id, to: :entry_id
       then_set :action, to: :action
@@ -216,7 +216,7 @@ Hecks.bluebook "SecurePayments", version: "2026.04.13.1" do
       then_set :status, to: "recorded"
     end
 
-    VerifyChain do
+    command "VerifyChain" do
       role "Auditor"
       description "Verify integrity of the hash chain"
       reference_to(AuditLog)

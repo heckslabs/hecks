@@ -1,24 +1,24 @@
 Hecks.bluebook "Hydroelectric" do
   aggregate "Reservoir" do
-    String :reservoir_id
-    String :reservoir_name
-    Float :full_supply_level_m
-    Float :current_level_m
-    Float :storage_volume_mcm
-    String :status
+    attribute :reservoir_id, String
+    attribute :reservoir_name, String
+    attribute :full_supply_level_m, Float
+    attribute :current_level_m, Float
+    attribute :storage_volume_mcm, Float
+    attribute :status, String
 
-    RecordLevel do
+    command "RecordLevel" do
       description "Measure and record reservoir water level and inflow data"
-      Float :current_level_m
-      Float :inflow_cms
+      attribute :current_level_m, Float
+      attribute :inflow_cms, Float
       reference_to "Reservoir"
       emits "LevelRecorded"
     end
 
-    ForecastInflow do
+    command "ForecastInflow" do
       description "Project reservoir inflow based on weather and snowpack data"
-      Float :forecast_inflow_cms
-      Integer :forecast_days
+      attribute :forecast_inflow_cms, Float
+      attribute :forecast_days, Integer
       reference_to "Reservoir"
       emits "InflowForecasted"
     end
@@ -32,44 +32,44 @@ Hecks.bluebook "Hydroelectric" do
   end
 
   aggregate "HydroTurbine" do
-    String :turbine_id
-    String :turbine_type
-    Float :rated_capacity_mw
-    Float :runner_diameter_m
-    Float :current_output_mw
-    String :status
+    attribute :turbine_id, String
+    attribute :turbine_type, String
+    attribute :rated_capacity_mw, Float
+    attribute :runner_diameter_m, Float
+    attribute :current_output_mw, Float
+    attribute :status, String
 
     value_object "TurbineEfficiency" do
-      Float :head_meters
-      Float :flow_cms
-      Float :efficiency_percent
-      Float :output_mw
+      attribute :head_meters, Float
+      attribute :flow_cms, Float
+      attribute :efficiency_percent, Float
+      attribute :output_mw, Float
     end
 
-    StartTurbine do
+    command "StartTurbine" do
       description "Open wicket gates and bring turbine generator up to synchronous speed"
-      Float :target_output_mw
+      attribute :target_output_mw, Float
       reference_to "HydroTurbine"
       emits "TurbineStarted"
     end
 
-    SynchronizeGenerator do
+    command "SynchronizeGenerator" do
       description "Connect generator to grid at synchronous frequency and voltage"
-      Float :output_mw
+      attribute :output_mw, Float
       reference_to "HydroTurbine"
       emits "GeneratorSynchronized"
     end
 
-    AdjustOutput do
+    command "AdjustOutput" do
       description "Modulate wicket gate opening to change power output"
-      Float :new_output_mw
+      attribute :new_output_mw, Float
       reference_to "HydroTurbine"
       emits "OutputAdjusted"
     end
 
-    StopTurbine do
+    command "StopTurbine" do
       description "Close wicket gates and shut down turbine generator unit"
-      String :stop_reason
+      attribute :stop_reason, String
       reference_to "HydroTurbine"
       emits "TurbineStopped"
     end
@@ -85,35 +85,35 @@ Hecks.bluebook "Hydroelectric" do
     policy "Cavitation detection triggers immediate load reduction"
 
     given "Unit 3 Francis turbine runs at 85 MW" do
-      String :turbine_type, "Francis"
-      Float :rated_capacity_mw, 100.0
-      Float :current_output_mw, 85.0
+      attribute :turbine_type, String, "Francis"
+      attribute :rated_capacity_mw, Float, 100.0
+      attribute :current_output_mw, Float, 85.0
     end
   end
 
   aggregate "SpillwayGate" do
-    String :gate_id
-    String :gate_type
-    Float :width_m
-    Float :current_opening_m
-    Float :max_opening_m
-    String :status
+    attribute :gate_id, String
+    attribute :gate_type, String
+    attribute :width_m, Float
+    attribute :current_opening_m, Float
+    attribute :max_opening_m, Float
+    attribute :status, String
 
     value_object "GatePosition" do
-      Float :opening_m
-      Float :discharge_cms
-      String :control_mode
+      attribute :opening_m, Float
+      attribute :discharge_cms, Float
+      attribute :control_mode, String
     end
 
-    OpenGate do
+    command "OpenGate" do
       description "Raise spillway gate to release excess water downstream"
-      Float :target_opening_m
-      String :authorization
+      attribute :target_opening_m, Float
+      attribute :authorization, String
       reference_to "SpillwayGate"
       emits "GateOpened"
     end
 
-    CloseGate do
+    command "CloseGate" do
       description "Lower spillway gate to reduce or stop controlled discharge"
       reference_to "SpillwayGate"
       emits "GateClosed"
@@ -128,32 +128,32 @@ Hecks.bluebook "Hydroelectric" do
   end
 
   aggregate "GenerationSchedule" do
-    String :schedule_id
-    String :schedule_date
-    Float :peak_dispatch_mw
-    Float :off_peak_dispatch_mw
-    String :status
+    attribute :schedule_id, String
+    attribute :schedule_date, String
+    attribute :peak_dispatch_mw, Float
+    attribute :off_peak_dispatch_mw, Float
+    attribute :status, String
     list_of "HydroTurbine"
 
-    CommitSchedule do
+    command "CommitSchedule" do
       description "Submit hourly generation schedule to grid operator"
-      String :schedule_date
-      Float :peak_dispatch_mw
+      attribute :schedule_date, String
+      attribute :peak_dispatch_mw, Float
       reference_to "GenerationSchedule"
       emits "ScheduleCommitted"
     end
 
-    ReviseSchedule do
+    command "ReviseSchedule" do
       description "Update generation schedule due to water or grid conditions"
-      Float :revised_peak_mw
-      String :revision_reason
+      attribute :revised_peak_mw, Float
+      attribute :revision_reason, String
       reference_to "GenerationSchedule"
       emits "ScheduleRevised"
     end
 
-    SettleGeneration do
+    command "SettleGeneration" do
       description "Reconcile actual generation against committed schedule for billing"
-      Float :actual_mwh
+      attribute :actual_mwh, Float
       reference_to "GenerationSchedule"
       emits "GenerationSettled"
     end
@@ -168,25 +168,25 @@ Hecks.bluebook "Hydroelectric" do
   end
 
   aggregate "EnvironmentalRelease" do
-    String :release_id
-    String :release_point
-    Float :minimum_flow_cms
-    Float :actual_flow_cms
-    String :monitoring_period
-    String :status
+    attribute :release_id, String
+    attribute :release_point, String
+    attribute :minimum_flow_cms, Float
+    attribute :actual_flow_cms, Float
+    attribute :monitoring_period, String
+    attribute :status, String
 
-    RecordRelease do
+    command "RecordRelease" do
       description "Log environmental minimum flow release downstream of dam"
-      Float :actual_flow_cms
-      String :monitoring_period
+      attribute :actual_flow_cms, Float
+      attribute :monitoring_period, String
       reference_to "EnvironmentalRelease"
       emits "ReleaseRecorded"
     end
 
-    AdjustRelease do
+    command "AdjustRelease" do
       description "Modify environmental release rate per regulatory or seasonal order"
-      Float :new_minimum_cms
-      String :regulatory_order
+      attribute :new_minimum_cms, Float
+      attribute :regulatory_order, String
       reference_to "EnvironmentalRelease"
       emits "ReleaseAdjusted"
     end

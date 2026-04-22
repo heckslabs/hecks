@@ -2,29 +2,29 @@ Hecks.bluebook "TrainScheduling" do
   vision "Schedule trains, assign platforms, manage crews, track delays, and coordinate routes"
 
   aggregate "Train", "A rail vehicle set identified by consist and service type" do
-    String :train_number
-    String :service_type
-    Integer :car_count
-    Integer :seat_capacity
-    String :status
+    attribute :train_number, String
+    attribute :service_type, String
+    attribute :car_count, Integer
+    attribute :seat_capacity, Integer
+    attribute :status, String
 
     value_object "Consist" do
-      Integer :locomotives
-      Integer :coaches
-      String :formation_code
+      attribute :locomotives, Integer
+      attribute :coaches, Integer
+      attribute :formation_code, String
     end
 
-    ActivateTrain do
+    command "ActivateTrain" do
       description "Place a train consist into active service"
-      String :train_number
-      String :service_type
-      Integer :car_count
-      Integer :seat_capacity
+      attribute :train_number, String
+      attribute :service_type, String
+      attribute :car_count, Integer
+      attribute :seat_capacity, Integer
       emits "TrainActivated"
       then_set :status, to: "active"
     end
 
-    PrepareForService do
+    command "PrepareForService" do
       description "Complete safety checks and provisioning before dispatch"
       reference_to(Train)
       given { status == "active" }
@@ -32,14 +32,14 @@ Hecks.bluebook "TrainScheduling" do
       then_set :status, to: "prepared"
     end
 
-    DispatchTrain do
+    command "DispatchTrain" do
       description "Send a train out from the depot on its route"
       reference_to(Train)
       emits "TrainDispatched"
       then_set :status, to: "running"
     end
 
-    ArriveAtStation do
+    command "ArriveAtStation" do
       description "Record train arrival and door opening at a station"
       reference_to(Train)
       given { status == "running" }
@@ -47,7 +47,7 @@ Hecks.bluebook "TrainScheduling" do
       then_set :status, to: "at_station"
     end
 
-    DepartStation do
+    command "DepartStation" do
       description "Close doors and depart from the current station"
       reference_to(Train)
       given { status == "at_station" }
@@ -55,7 +55,7 @@ Hecks.bluebook "TrainScheduling" do
       then_set :status, to: "running"
     end
 
-    TerminateService do
+    command "TerminateService" do
       description "End the service run at the final destination"
       reference_to(Train)
       given { status == "at_station" }
@@ -63,10 +63,10 @@ Hecks.bluebook "TrainScheduling" do
       then_set :status, to: "terminated"
     end
 
-    WithdrawTrain do
+    command "WithdrawTrain" do
       description "Remove a train from service for maintenance"
       reference_to(Train)
-      String :reason
+      attribute :reason, String
       emits "TrainWithdrawn"
       then_set :status, to: "withdrawn"
     end
@@ -76,30 +76,30 @@ Hecks.bluebook "TrainScheduling" do
   end
 
   aggregate "Route", "A fixed path between origin and destination with intermediate stops" do
-    String :route_code
-    String :origin_station
-    String :destination_station
-    Integer :stop_count
-    Float :distance_km
+    attribute :route_code, String
+    attribute :origin_station, String
+    attribute :destination_station, String
+    attribute :stop_count, Integer
+    attribute :distance_km, Float
     reference_to(Train)
 
     value_object "Timetable" do
-      String :departure_time
-      String :arrival_time
-      Integer :dwell_minutes
+      attribute :departure_time, String
+      attribute :arrival_time, String
+      attribute :dwell_minutes, Integer
     end
 
-    DefineRoute do
+    command "DefineRoute" do
       description "Establish a new route on the rail network"
-      String :route_code
-      String :origin_station
-      String :destination_station
-      Integer :stop_count
-      Float :distance_km
+      attribute :route_code, String
+      attribute :origin_station, String
+      attribute :destination_station, String
+      attribute :stop_count, Integer
+      attribute :distance_km, Float
       emits "RouteDefined"
     end
 
-    AssignTrainToRoute do
+    command "AssignTrainToRoute" do
       description "Pair a train consist with a route for a service run"
       reference_to(Route)
       reference_to(Train)
@@ -111,27 +111,27 @@ Hecks.bluebook "TrainScheduling" do
   end
 
   aggregate "Platform", "A physical platform at a station where trains board passengers" do
-    String :station_name
-    Integer :platform_number
-    Float :length_meters
-    String :status
+    attribute :station_name, String
+    attribute :platform_number, Integer
+    attribute :length_meters, Float
+    attribute :status, String
     reference_to(Train)
 
     value_object "PlatformFacilities" do
-      String :has_shelter
-      String :has_display_board
+      attribute :has_shelter, String
+      attribute :has_display_board, String
     end
 
-    OpenPlatform do
+    command "OpenPlatform" do
       description "Make a platform available for train arrivals"
-      String :station_name
-      Integer :platform_number
-      Float :length_meters
+      attribute :station_name, String
+      attribute :platform_number, Integer
+      attribute :length_meters, Float
       emits "PlatformOpened"
       then_set :status, to: "available"
     end
 
-    AllocatePlatform do
+    command "AllocatePlatform" do
       description "Reserve a platform for an arriving train"
       reference_to(Platform)
       reference_to(Train)
@@ -140,7 +140,7 @@ Hecks.bluebook "TrainScheduling" do
       then_set :status, to: "occupied"
     end
 
-    ReleasePlatform do
+    command "ReleasePlatform" do
       description "Free a platform after train departure"
       reference_to(Platform)
       emits "PlatformReleased"
@@ -152,27 +152,27 @@ Hecks.bluebook "TrainScheduling" do
   end
 
   aggregate "Delay", "A disruption to scheduled service with cause and impact" do
-    String :delay_id
-    String :cause
-    Integer :delay_minutes
-    String :status
+    attribute :delay_id, String
+    attribute :cause, String
+    attribute :delay_minutes, Integer
+    attribute :status, String
     reference_to(Train)
 
     value_object "ImpactAssessment" do
-      Integer :affected_passengers
-      Integer :cascading_services
+      attribute :affected_passengers, Integer
+      attribute :cascading_services, Integer
     end
 
-    ReportDelay do
+    command "ReportDelay" do
       description "Log a delay event with its root cause"
       reference_to(Train)
-      String :cause
-      Integer :delay_minutes
+      attribute :cause, String
+      attribute :delay_minutes, Integer
       emits "DelayReported"
       then_set :status, to: "active"
     end
 
-    ResolveDelay do
+    command "ResolveDelay" do
       description "Clear a delay and return service to normal"
       reference_to(Delay)
       given { status == "active" }

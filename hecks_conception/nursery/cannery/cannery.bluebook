@@ -1,24 +1,24 @@
 Hecks.bluebook "Cannery" do
   aggregate "ProductionBatch" do
-    String :batch_id
-    String :product_name
-    String :recipe_code
-    Float :batch_size_kg
-    String :status
+    attribute :batch_id, String
+    attribute :product_name, String
+    attribute :recipe_code, String
+    attribute :batch_size_kg, Float
+    attribute :status, String
     list_of "CanRun"
 
-    StartBatch do
+    command "StartBatch" do
       description "Initiate a production batch with recipe and raw ingredients"
-      String :recipe_code
-      Float :batch_size_kg
+      attribute :recipe_code, String
+      attribute :batch_size_kg, Float
       reference_to "ProductionBatch"
       emits "BatchStarted"
     end
 
-    CookBatch do
+    command "CookBatch" do
       description "Heat batch contents to required temperature for sterilization"
-      Float :cook_temperature_c
-      Float :cook_duration_minutes
+      attribute :cook_temperature_c, Float
+      attribute :cook_duration_minutes, Float
       reference_to "ProductionBatch"
       emits "BatchCooked"
     end
@@ -32,46 +32,46 @@ Hecks.bluebook "Cannery" do
     policy "All ingredients must be within use-by date"
 
     given "A tomato soup batch is started" do
-      String :batch_id, "BTH-2024-0501"
-      String :product_name, "Tomato Soup"
-      Float :batch_size_kg, 2000.0
+      attribute :batch_id, String, "BTH-2024-0501"
+      attribute :product_name, String, "Tomato Soup"
+      attribute :batch_size_kg, Float, 2000.0
     end
   end
 
   aggregate "CanRun" do
-    String :run_id
-    String :can_size
-    Integer :target_count
-    Integer :filled_count
-    Integer :rejected_count
-    String :status
+    attribute :run_id, String
+    attribute :can_size, String
+    attribute :target_count, Integer
+    attribute :filled_count, Integer
+    attribute :rejected_count, Integer
+    attribute :status, String
 
     value_object "CanSpecification" do
-      String :size_code
-      Float :volume_ml
-      Float :fill_weight_g
-      Float :headspace_mm
+      attribute :size_code, String
+      attribute :volume_ml, Float
+      attribute :fill_weight_g, Float
+      attribute :headspace_mm, Float
     end
 
-    FillCans do
+    command "FillCans" do
       description "Fill cans from batch contents on the filling line"
-      String :can_size
-      Integer :target_count
+      attribute :can_size, String
+      attribute :target_count, Integer
       reference_to "ProductionBatch"
       emits "CansFilled"
     end
 
-    SeamCans do
+    command "SeamCans" do
       description "Double-seam lids onto filled cans for hermetic seal"
-      String :seamer_id
+      attribute :seamer_id, String
       reference_to "CanRun"
       emits "CansSeamed"
     end
 
-    RetortCans do
+    command "RetortCans" do
       description "Sterilize sealed cans in retort at required time and temperature"
-      Float :retort_temp_c
-      Float :retort_duration_min
+      attribute :retort_temp_c, Float
+      attribute :retort_duration_min, Float
       reference_to "CanRun"
       emits "CansRetorted"
     end
@@ -86,24 +86,24 @@ Hecks.bluebook "Cannery" do
   end
 
   aggregate "LabelDesign" do
-    String :design_id
-    String :product_name
-    String :label_version
-    String :regulatory_text
-    String :status
+    attribute :design_id, String
+    attribute :product_name, String
+    attribute :label_version, String
+    attribute :regulatory_text, String
+    attribute :status, String
 
-    ApproveLabelDesign do
+    command "ApproveLabelDesign" do
       description "Approve label artwork and regulatory text for production"
-      String :approver_name
-      String :approval_notes
+      attribute :approver_name, String
+      attribute :approval_notes, String
       reference_to "LabelDesign"
       emits "LabelDesignApproved"
     end
 
-    ApplyLabels do
+    command "ApplyLabels" do
       description "Apply labels to sealed cans on the labeling line"
-      String :line_id
-      Integer :can_count
+      attribute :line_id, String
+      attribute :can_count, Integer
       reference_to "CanRun"
       emits "LabelsApplied"
     end
@@ -117,38 +117,38 @@ Hecks.bluebook "Cannery" do
   end
 
   aggregate "QualityHold" do
-    String :hold_id
-    String :batch_id
-    String :reason
-    String :inspector
-    String :status
+    attribute :hold_id, String
+    attribute :batch_id, String
+    attribute :reason, String
+    attribute :inspector, String
+    attribute :status, String
 
     value_object "IncubationResult" do
-      Float :temperature_c
-      Integer :duration_days
-      String :swelling_detected
-      String :result
+      attribute :temperature_c, Float
+      attribute :duration_days, Integer
+      attribute :swelling_detected, String
+      attribute :result, String
     end
 
-    PlaceHold do
+    command "PlaceHold" do
       description "Place production lot on quality hold pending investigation"
-      String :reason
-      String :inspector
+      attribute :reason, String
+      attribute :inspector, String
       reference_to "ProductionBatch"
       emits "HoldPlaced"
     end
 
-    IncubateTest do
+    command "IncubateTest" do
       description "Run incubation test on held samples to detect spoilage"
-      Float :incubation_temp_c
-      Integer :duration_days
+      attribute :incubation_temp_c, Float
+      attribute :duration_days, Integer
       reference_to "QualityHold"
       emits "IncubationComplete"
     end
 
-    ReleaseHold do
+    command "ReleaseHold" do
       description "Release held product after quality investigation passes"
-      String :resolution_notes
+      attribute :resolution_notes, String
       reference_to "QualityHold"
       emits "HoldReleased"
     end
@@ -163,25 +163,25 @@ Hecks.bluebook "Cannery" do
   end
 
   aggregate "ShippingLot" do
-    String :lot_id
-    String :destination
-    Integer :pallet_count
-    String :carrier
-    String :status
+    attribute :lot_id, String
+    attribute :destination, String
+    attribute :pallet_count, Integer
+    attribute :carrier, String
+    attribute :status, String
     list_of "CanRun"
 
-    AssembleLot do
+    command "AssembleLot" do
       description "Assemble pallets of canned goods into a shipping lot"
-      String :destination
-      Integer :pallet_count
+      attribute :destination, String
+      attribute :pallet_count, Integer
       reference_to "ShippingLot"
       emits "LotAssembled"
     end
 
-    DispatchLot do
+    command "DispatchLot" do
       description "Load shipping lot onto carrier vehicle for delivery"
-      String :carrier
-      String :trailer_number
+      attribute :carrier, String
+      attribute :trailer_number, String
       reference_to "ShippingLot"
       emits "LotDispatched"
     end

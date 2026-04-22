@@ -4,44 +4,44 @@ Hecks.bluebook "PlumbingService" do
 
   aggregate "ServiceCall" do
     description "A dispatched plumbing job at a customer location with diagnosis and resolution"
-    String :customer_name
-    String :address
-    String :problem_description
-    String :diagnosis
-    String :status
+    attribute :customer_name, String
+    attribute :address, String
+    attribute :problem_description, String
+    attribute :diagnosis, String
+    attribute :status, String
     reference_to(Technician)
 
     value_object "Urgency" do
-      String :level
-      Integer :response_hours
+      attribute :level, String
+      attribute :response_hours, Integer
       invariant "response within SLA" do
         response_hours > 0
       end
     end
 
-    DispatchCall do
+    command "DispatchCall" do
       role "Dispatcher"
       goal "Send a technician to a customer site for a plumbing issue"
       description "Creates a new service call and assigns a technician"
-      String :customer_name
-      String :address
-      String :problem_description
+      attribute :customer_name, String
+      attribute :address, String
+      attribute :problem_description, String
       reference_to(Technician)
       emits "CallDispatched"
       then_set :status, to: "dispatched"
     end
 
-    DiagnoseIssue do
+    command "DiagnoseIssue" do
       role "Technician"
       goal "Record the root cause found on-site"
       description "Technician documents the plumbing issue after inspection"
       reference_to(ServiceCall)
-      String :diagnosis
+      attribute :diagnosis, String
       given("call must be dispatched") { status == "dispatched" }
       emits "IssueDiagnosed"
     end
 
-    CompleteCall do
+    command "CompleteCall" do
       role "Technician"
       goal "Mark the service call as resolved"
       description "Close out the job after repair is verified"
@@ -52,87 +52,87 @@ Hecks.bluebook "PlumbingService" do
 
   aggregate "Technician" do
     description "A licensed plumber available for dispatch with certifications and schedule"
-    String :name
-    String :license_number
-    String :specialties
-    String :availability
+    attribute :name, String
+    attribute :license_number, String
+    attribute :specialties, String
+    attribute :availability, String
 
-    HireTechnician do
+    command "HireTechnician" do
       role "Manager"
       goal "Onboard a new licensed plumber"
       description "Register a technician with their license and specialties"
-      String :name
-      String :license_number
-      String :specialties
+      attribute :name, String
+      attribute :license_number, String
+      attribute :specialties, String
       emits "TechnicianHired"
     end
 
-    AssignTerritory do
+    command "AssignTerritory" do
       role "Dispatcher"
       goal "Set the geographic area a technician covers"
       description "Assign zip codes or neighborhoods to a technician"
       reference_to(Technician)
-      String :territory
+      attribute :territory, String
       emits "TerritoryAssigned"
     end
   end
 
   aggregate "Fixture" do
     description "A plumbing fixture such as a faucet, toilet, water heater, or disposal"
-    String :type
-    String :brand
-    String :model
-    String :location
+    attribute :type, String
+    attribute :brand, String
+    attribute :model, String
+    attribute :location, String
     reference_to(ServiceCall)
 
     value_object "FixtureSpec" do
-      String :connection_size
-      String :material
-      Float :flow_rate_gpm
+      attribute :connection_size, String
+      attribute :material, String
+      attribute :flow_rate_gpm, Float
     end
 
-    InstallFixture do
+    command "InstallFixture" do
       role "Technician"
       goal "Mount and connect a new plumbing fixture"
       description "Install a fixture at the customer location and record specs"
-      String :type
-      String :brand
-      String :model
-      String :location
+      attribute :type, String
+      attribute :brand, String
+      attribute :model, String
+      attribute :location, String
       reference_to(ServiceCall)
       emits "FixtureInstalled"
     end
 
-    ReplaceFixture do
+    command "ReplaceFixture" do
       role "Technician"
       goal "Swap out a failed fixture with a replacement"
       description "Remove old fixture and install replacement"
       reference_to(Fixture)
-      String :new_model
+      attribute :new_model, String
       emits "FixtureReplaced"
     end
   end
 
   aggregate "Estimate" do
     description "A cost estimate given to a customer before work begins"
-    Float :labor_cost
-    Float :parts_cost
-    Float :total
-    String :status
+    attribute :labor_cost, Float
+    attribute :parts_cost, Float
+    attribute :total, Float
+    attribute :status, String
     reference_to(ServiceCall)
 
-    PrepareEstimate do
+    command "PrepareEstimate" do
       role "Technician"
       goal "Calculate labor and parts cost for the diagnosed issue"
       description "Generate an estimate after diagnosis"
       reference_to(ServiceCall)
-      Float :labor_cost
-      Float :parts_cost
+      attribute :labor_cost, Float
+      attribute :parts_cost, Float
       emits "EstimatePrepared"
       then_set :status, to: "pending"
     end
 
-    ApproveEstimate do
+    command "ApproveEstimate" do
       role "Customer"
       goal "Accept the quoted price to authorize work"
       description "Customer signs off on the estimate"
@@ -144,28 +144,28 @@ Hecks.bluebook "PlumbingService" do
 
   aggregate "Warranty" do
     description "A warranty on installed fixtures or completed repairs"
-    String :coverage_type
-    Integer :duration_months
-    String :terms
+    attribute :coverage_type, String
+    attribute :duration_months, Integer
+    attribute :terms, String
     reference_to(Fixture)
 
-    IssueWarranty do
+    command "IssueWarranty" do
       role "Manager"
       goal "Create a warranty for a completed installation"
       description "Attach warranty terms to an installed fixture"
       reference_to(Fixture)
-      String :coverage_type
-      Integer :duration_months
-      String :terms
+      attribute :coverage_type, String
+      attribute :duration_months, Integer
+      attribute :terms, String
       emits "WarrantyIssued"
     end
 
-    FileWarrantyClaim do
+    command "FileWarrantyClaim" do
       role "Customer"
       goal "Report a defect covered under warranty"
       description "Customer initiates a warranty claim for a failed fixture"
       reference_to(Warranty)
-      String :defect_description
+      attribute :defect_description, String
       emits "WarrantyClaimFiled"
     end
   end

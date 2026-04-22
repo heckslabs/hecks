@@ -3,39 +3,39 @@ Hecks.bluebook "DigitalSignage", version: "2026.04.13.1" do
   category "technology"
 
   aggregate "Display", "A screen device showing content at a physical location" do
-    String :display_id
-    String :model
-    String :resolution
-    String :orientation
-    String :status
+    attribute :display_id, String
+    attribute :model, String
+    attribute :resolution, String
+    attribute :orientation, String
+    attribute :status, String
     reference_to Location
     list_of(DiagnosticLog) :diagnostics
 
     value_object "DiagnosticLog" do
-      String :metric
-      String :value
-      String :recorded_at
+      attribute :metric, String
+      attribute :value, String
+      attribute :recorded_at, String
     end
 
-    InstallDisplay do
+    command "InstallDisplay" do
       role "FieldTechnician"
       description "Install and register a new display at a location"
-      String :display_id
-      String :model
-      String :resolution
-      String :orientation
+      attribute :display_id, String
+      attribute :model, String
+      attribute :resolution, String
+      attribute :orientation, String
       reference_to(Location)
       emits "DisplayInstalled"
     end
 
-    RebootDisplay do
+    command "RebootDisplay" do
       description "Remotely restart a display to apply updates"
       reference_to(Display)
       then_set :status, to: "offline"
       emits "DisplayRebooted"
     end
 
-    RemoveDisplay do
+    command "RemoveDisplay" do
       description "Remove a display from active service"
       reference_to(Display)
       given("display is offline") { status == "offline" }
@@ -44,38 +44,38 @@ Hecks.bluebook "DigitalSignage", version: "2026.04.13.1" do
   end
 
   aggregate "Playlist", "An ordered sequence of content items for playback" do
-    String :playlist_name
-    String :description
-    Integer :total_duration_seconds
-    String :loop_mode
-    String :status
+    attribute :playlist_name, String
+    attribute :description, String
+    attribute :total_duration_seconds, Integer
+    attribute :loop_mode, String
+    attribute :status, String
     list_of(PlaylistEntry) :entries
 
     value_object "PlaylistEntry" do
-      String :content_id
-      Integer :duration_seconds
-      Integer :position
+      attribute :content_id, String
+      attribute :duration_seconds, Integer
+      attribute :position, Integer
     end
 
-    ComposePlaylist do
+    command "ComposePlaylist" do
       role "ContentManager"
       description "Build a new playlist with a loop mode and entries"
-      String :playlist_name
-      String :description
-      String :loop_mode
+      attribute :playlist_name, String
+      attribute :description, String
+      attribute :loop_mode, String
       then_set :status, to: "active"
       emits "PlaylistCreated"
     end
 
-    AddEntry do
+    command "AddEntry" do
       description "Append a content item to a playlist"
       reference_to(Playlist)
-      String :content_id
-      Integer :duration_seconds
+      attribute :content_id, String
+      attribute :duration_seconds, Integer
       emits "EntryAdded"
     end
 
-    ArchivePlaylist do
+    command "ArchivePlaylist" do
       description "Remove a playlist from active rotation"
       reference_to(Playlist)
       given("playlist is active") { status == "active" }
@@ -84,38 +84,38 @@ Hecks.bluebook "DigitalSignage", version: "2026.04.13.1" do
   end
 
   aggregate "ContentAsset", "A media file available for use in playlists" do
-    String :asset_id
-    String :title
-    String :media_type
-    Integer :file_size_kb
-    String :thumbnail_url
-    String :status
+    attribute :asset_id, String
+    attribute :title, String
+    attribute :media_type, String
+    attribute :file_size_kb, Integer
+    attribute :thumbnail_url, String
+    attribute :status, String
 
     value_object "AssetMetadata" do
-      String :dimensions
-      Integer :duration_seconds
-      String :encoding
+      attribute :dimensions, String
+      attribute :duration_seconds, Integer
+      attribute :encoding, String
     end
 
-    UploadAsset do
+    command "UploadAsset" do
       role "ContentManager"
       description "Add a new media file to the content library"
-      String :asset_id
-      String :title
-      String :media_type
-      Integer :file_size_kb
+      attribute :asset_id, String
+      attribute :title, String
+      attribute :media_type, String
+      attribute :file_size_kb, Integer
       then_set :status, to: "pending_review"
       emits "AssetUploaded"
     end
 
-    ApproveAsset do
+    command "ApproveAsset" do
       description "Clear an asset for use in playlists"
       reference_to(ContentAsset)
       given("asset is pending review") { status == "pending_review" }
       emits "AssetApproved"
     end
 
-    RetireAsset do
+    command "RetireAsset" do
       description "Remove an asset from the content library"
       reference_to(ContentAsset)
       emits "AssetRetired"
@@ -123,41 +123,41 @@ Hecks.bluebook "DigitalSignage", version: "2026.04.13.1" do
   end
 
   aggregate "Schedule", "A time-based plan assigning playlists to displays" do
-    String :schedule_id
-    String :start_time
-    String :end_time
-    String :recurrence
-    String :status
+    attribute :schedule_id, String
+    attribute :start_time, String
+    attribute :end_time, String
+    attribute :recurrence, String
+    attribute :status, String
     reference_to Display
     reference_to Playlist
 
     value_object "TimeSlot" do
-      String :day_of_week
-      String :start_time
-      String :end_time
+      attribute :day_of_week, String
+      attribute :start_time, String
+      attribute :end_time, String
     end
 
-    ProgramSchedule do
+    command "ProgramSchedule" do
       role "ContentManager"
       description "Assign a playlist to a display for a time window"
-      String :schedule_id
-      String :start_time
-      String :end_time
-      String :recurrence
+      attribute :schedule_id, String
+      attribute :start_time, String
+      attribute :end_time, String
+      attribute :recurrence, String
       reference_to(Display)
       reference_to(Playlist)
       then_set :status, to: "active"
       emits "ScheduleCreated"
     end
 
-    PauseSchedule do
+    command "PauseSchedule" do
       description "Temporarily suspend a schedule without deleting it"
       reference_to(Schedule)
       given("schedule is active") { status == "active" }
       emits "SchedulePaused"
     end
 
-    DiscardSchedule do
+    command "DiscardSchedule" do
       description "Permanently remove a schedule"
       reference_to(Schedule)
       emits "ScheduleDiscarded"
@@ -165,38 +165,38 @@ Hecks.bluebook "DigitalSignage", version: "2026.04.13.1" do
   end
 
   aggregate "Location", "A physical site where displays are installed" do
-    String :location_name
-    String :address
-    String :location_type
-    Integer :display_count
-    String :contact_name
-    String :status
+    attribute :location_name, String
+    attribute :address, String
+    attribute :location_type, String
+    attribute :display_count, Integer
+    attribute :contact_name, String
+    attribute :status, String
 
     value_object "OperatingHours" do
-      String :day
-      String :open_time
-      String :close_time
+      attribute :day, String
+      attribute :open_time, String
+      attribute :close_time, String
     end
 
-    RegisterLocation do
+    command "RegisterLocation" do
       role "AccountManager"
       description "Add a new physical location to the network"
-      String :location_name
-      String :address
-      String :location_type
-      String :contact_name
+      attribute :location_name, String
+      attribute :address, String
+      attribute :location_type, String
+      attribute :contact_name, String
       then_set :status, to: "active"
       emits "LocationRegistered"
     end
 
-    ReassignContact do
+    command "ReassignContact" do
       description "Change the on-site contact for a location"
       reference_to(Location)
-      String :contact_name
+      attribute :contact_name, String
       emits "ContactReassigned"
     end
 
-    DeactivateLocation do
+    command "DeactivateLocation" do
       description "Take a location offline and stop content delivery"
       reference_to(Location)
       given("location is active") { status == "active" }

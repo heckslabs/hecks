@@ -2,21 +2,21 @@ Hecks.bluebook "ElderCare" do
   vision "In-home elder support services — clients, caregivers, scheduling, medication management, and wellness assessments"
 
   aggregate "Client", "An elderly person receiving home-based care services" do
-    String :name
-    String :date_of_birth
-    String :address
-    String :primary_need
-    String :emergency_contact
-    String :status
+    attribute :name, String
+    attribute :date_of_birth, String
+    attribute :address, String
+    attribute :primary_need, String
+    attribute :emergency_contact, String
+    attribute :status, String
 
-    EnrollClient do
+    command "EnrollClient" do
       role "CaseManager"
       description "Register an elderly client for home care services"
-      String :name
-      String :date_of_birth
-      String :address
-      String :primary_need
-      String :emergency_contact
+      attribute :name, String
+      attribute :date_of_birth, String
+      attribute :address, String
+      attribute :primary_need, String
+      attribute :emergency_contact, String
       emits "ClientEnrolled"
       then_set :name, to: :name
       then_set :date_of_birth, to: :date_of_birth
@@ -26,7 +26,7 @@ Hecks.bluebook "ElderCare" do
       then_set :status, to: "active"
     end
 
-    SuspendServices do
+    command "SuspendServices" do
       role "CaseManager"
       description "Temporarily pause services for hospitalization or travel"
       reference_to(Client)
@@ -35,7 +35,7 @@ Hecks.bluebook "ElderCare" do
       then_set :status, to: "suspended"
     end
 
-    ResumeServices do
+    command "ResumeServices" do
       role "CaseManager"
       description "Restart services after suspension period ends"
       reference_to(Client)
@@ -43,7 +43,7 @@ Hecks.bluebook "ElderCare" do
       then_set :status, to: "active"
     end
 
-    DischargeClient do
+    command "DischargeClient" do
       role "CaseManager"
       description "End care services when client no longer needs support"
       reference_to(Client)
@@ -54,21 +54,21 @@ Hecks.bluebook "ElderCare" do
   end
 
   aggregate "Caregiver", "A trained professional providing in-home elder care" do
-    String :name
-    String :certification
-    String :phone
-    Integer :years_experience
-    String :specialty
-    String :status
+    attribute :name, String
+    attribute :certification, String
+    attribute :phone, String
+    attribute :years_experience, Integer
+    attribute :specialty, String
+    attribute :status, String
 
-    HireCaregiver do
+    command "HireCaregiver" do
       role "HRManager"
       description "Onboard a new caregiver to the elder care team"
-      String :name
-      String :certification
-      String :phone
-      Integer :years_experience
-      String :specialty
+      attribute :name, String
+      attribute :certification, String
+      attribute :phone, String
+      attribute :years_experience, Integer
+      attribute :specialty, String
       emits "CaregiverHired"
       then_set :name, to: :name
       then_set :certification, to: :certification
@@ -78,7 +78,7 @@ Hecks.bluebook "ElderCare" do
       then_set :status, to: "active"
     end
 
-    AssignToClient do
+    command "AssignToClient" do
       role "CaseManager"
       description "Pair a caregiver with a client based on needs and availability"
       reference_to(Caregiver)
@@ -88,29 +88,29 @@ Hecks.bluebook "ElderCare" do
   end
 
   aggregate "CareSchedule", "A weekly schedule of caregiver visits to a client" do
-    String :client_name
-    String :caregiver_name
-    String :week_starting
+    attribute :client_name, String
+    attribute :caregiver_name, String
+    attribute :week_starting, String
     list_of(ScheduledVisit) :visits
-    String :status
+    attribute :status, String
     reference_to Client
     reference_to Caregiver
 
     value_object "ScheduledVisit" do
-      String :day_of_week
-      String :start_time
-      String :end_time
-      String :visit_type
+      attribute :day_of_week, String
+      attribute :start_time, String
+      attribute :end_time, String
+      attribute :visit_type, String
     end
 
-    BuildSchedule do
+    command "BuildSchedule" do
       role "Scheduler"
       description "Build a weekly care schedule for a client"
       reference_to(Client)
       reference_to(Caregiver)
-      String :client_name
-      String :caregiver_name
-      String :week_starting
+      attribute :client_name, String
+      attribute :caregiver_name, String
+      attribute :week_starting, String
       emits "ScheduleCreated"
       then_set :client_name, to: :client_name
       then_set :caregiver_name, to: :caregiver_name
@@ -118,18 +118,18 @@ Hecks.bluebook "ElderCare" do
       then_set :status, to: "active"
     end
 
-    AddVisitToSchedule do
+    command "AddVisitToSchedule" do
       role "Scheduler"
       description "Add a specific visit to the weekly schedule"
       reference_to(CareSchedule)
-      String :day_of_week
-      String :start_time
-      String :end_time
-      String :visit_type
+      attribute :day_of_week, String
+      attribute :start_time, String
+      attribute :end_time, String
+      attribute :visit_type, String
       emits "VisitAddedToSchedule"
     end
 
-    CancelSchedule do
+    command "CancelSchedule" do
       role "Scheduler"
       description "Cancel an entire week's care schedule"
       reference_to(CareSchedule)
@@ -140,30 +140,30 @@ Hecks.bluebook "ElderCare" do
   end
 
   aggregate "ElderMedication", "A medication managed by the care team for the client" do
-    String :client_name
-    String :medication_name
-    String :dosage
-    String :frequency
-    String :prescriber
-    String :status
+    attribute :client_name, String
+    attribute :medication_name, String
+    attribute :dosage, String
+    attribute :frequency, String
+    attribute :prescriber, String
+    attribute :status, String
     list_of(AdministrationLog) :log
     reference_to Client
 
     value_object "AdministrationLog" do
-      String :administered_date
-      String :administered_by
-      String :notes
+      attribute :administered_date, String
+      attribute :administered_by, String
+      attribute :notes, String
     end
 
-    AddMedication do
+    command "AddMedication" do
       role "CaseManager"
       description "Add a medication to the client's care profile"
       reference_to(Client)
-      String :client_name
-      String :medication_name
-      String :dosage
-      String :frequency
-      String :prescriber
+      attribute :client_name, String
+      attribute :medication_name, String
+      attribute :dosage, String
+      attribute :frequency, String
+      attribute :prescriber, String
       emits "MedicationAdded"
       then_set :client_name, to: :client_name
       then_set :medication_name, to: :medication_name
@@ -173,7 +173,7 @@ Hecks.bluebook "ElderCare" do
       then_set :status, to: "active"
     end
 
-    AdministerMedication do
+    command "AdministerMedication" do
       role "Caregiver"
       description "Record the administration of a medication during a visit"
       reference_to(ElderMedication)
@@ -181,7 +181,7 @@ Hecks.bluebook "ElderCare" do
       emits "MedicationAdministered"
     end
 
-    DiscontinueMedication do
+    command "DiscontinueMedication" do
       role "CaseManager"
       description "Stop a medication per physician order"
       reference_to(ElderMedication)
@@ -191,25 +191,25 @@ Hecks.bluebook "ElderCare" do
   end
 
   aggregate "WellnessAssessment", "A periodic evaluation of the client's physical and cognitive health" do
-    String :client_name
-    String :assessment_date
-    Integer :mobility_score
-    Integer :cognitive_score
-    Integer :nutrition_score
-    String :risk_flags
-    String :assessor_name
+    attribute :client_name, String
+    attribute :assessment_date, String
+    attribute :mobility_score, Integer
+    attribute :cognitive_score, Integer
+    attribute :nutrition_score, Integer
+    attribute :risk_flags, String
+    attribute :assessor_name, String
     reference_to Client
 
-    ConductAssessment do
+    command "ConductAssessment" do
       role "CaseManager"
       description "Perform a comprehensive wellness assessment of the client"
       reference_to(Client)
-      String :client_name
-      String :assessment_date
-      Integer :mobility_score
-      Integer :cognitive_score
-      Integer :nutrition_score
-      String :assessor_name
+      attribute :client_name, String
+      attribute :assessment_date, String
+      attribute :mobility_score, Integer
+      attribute :cognitive_score, Integer
+      attribute :nutrition_score, Integer
+      attribute :assessor_name, String
       emits "AssessmentConducted"
       then_set :client_name, to: :client_name
       then_set :assessment_date, to: :assessment_date
@@ -220,11 +220,11 @@ Hecks.bluebook "ElderCare" do
       then_set :risk_flags, to: "none"
     end
 
-    FlagRisks do
+    command "FlagRisks" do
       role "System"
       description "Identify risk factors from assessment scores"
       reference_to(WellnessAssessment)
-      String :risk_flags
+      attribute :risk_flags, String
       emits "RisksFlagged"
       then_set :risk_flags, to: :risk_flags
     end

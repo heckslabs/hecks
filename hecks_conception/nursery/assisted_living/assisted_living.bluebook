@@ -2,21 +2,21 @@ Hecks.bluebook "AssistedLiving" do
   vision "Residential elder care — residents, rooms, care plans, daily activities, and medication schedules"
 
   aggregate "Resident", "A person living in the assisted living facility" do
-    String :name
-    String :date_of_birth
-    String :emergency_contact
-    String :medical_conditions
-    String :mobility_level
-    String :status
+    attribute :name, String
+    attribute :date_of_birth, String
+    attribute :emergency_contact, String
+    attribute :medical_conditions, String
+    attribute :mobility_level, String
+    attribute :status, String
 
-    AdmitResident do
+    command "AdmitResident" do
       role "Administrator"
       description "Process admission of a new resident into the facility"
-      String :name
-      String :date_of_birth
-      String :emergency_contact
-      String :medical_conditions
-      String :mobility_level
+      attribute :name, String
+      attribute :date_of_birth, String
+      attribute :emergency_contact, String
+      attribute :medical_conditions, String
+      attribute :mobility_level, String
       emits "ResidentAdmitted"
       then_set :name, to: :name
       then_set :date_of_birth, to: :date_of_birth
@@ -26,7 +26,7 @@ Hecks.bluebook "AssistedLiving" do
       then_set :status, to: "admitted"
     end
 
-    ActivateResident do
+    command "ActivateResident" do
       role "Administrator"
       description "Move resident to active status after room assignment and care plan setup"
       reference_to(Resident)
@@ -35,7 +35,7 @@ Hecks.bluebook "AssistedLiving" do
       then_set :status, to: "active"
     end
 
-    TransferResident do
+    command "TransferResident" do
       role "Administrator"
       description "Move a resident to a higher level of care"
       reference_to(Resident)
@@ -43,7 +43,7 @@ Hecks.bluebook "AssistedLiving" do
       then_set :status, to: "transferred"
     end
 
-    DischargeResident do
+    command "DischargeResident" do
       role "Administrator"
       description "Process a resident leaving the facility"
       reference_to(Resident)
@@ -54,26 +54,26 @@ Hecks.bluebook "AssistedLiving" do
   end
 
   aggregate "Room", "A living space assigned to a resident" do
-    String :room_number
-    String :floor
-    String :room_type
-    String :occupant_name
-    String :status
+    attribute :room_number, String
+    attribute :floor, String
+    attribute :room_type, String
+    attribute :occupant_name, String
+    attribute :status, String
     reference_to Resident
 
     value_object "Amenity" do
-      String :name
-      String :description
+      attribute :name, String
+      attribute :description, String
     end
 
-    AssignRoom do
+    command "AssignRoom" do
       role "Administrator"
       description "Place a resident in an available room"
       reference_to(Resident)
-      String :room_number
-      String :floor
-      String :room_type
-      String :occupant_name
+      attribute :room_number, String
+      attribute :floor, String
+      attribute :room_type, String
+      attribute :occupant_name, String
       emits "RoomAssigned"
       then_set :room_number, to: :room_number
       then_set :floor, to: :floor
@@ -82,7 +82,7 @@ Hecks.bluebook "AssistedLiving" do
       then_set :status, to: "occupied"
     end
 
-    VacateRoom do
+    command "VacateRoom" do
       role "Administrator"
       description "Mark a room as available after resident departure"
       reference_to(Room)
@@ -93,27 +93,27 @@ Hecks.bluebook "AssistedLiving" do
   end
 
   aggregate "CarePlan", "An individualized plan of daily care for a resident" do
-    String :resident_name
-    String :created_date
+    attribute :resident_name, String
+    attribute :created_date, String
     list_of(CareTask) :tasks
-    String :dietary_needs
-    String :status
+    attribute :dietary_needs, String
+    attribute :status, String
     reference_to Resident
 
     value_object "CareTask" do
-      String :description
-      String :frequency
-      String :assigned_to
-      String :time_of_day
+      attribute :description, String
+      attribute :frequency, String
+      attribute :assigned_to, String
+      attribute :time_of_day, String
     end
 
-    DraftCarePlan do
+    command "DraftCarePlan" do
       role "Nurse"
       description "Establish a personalized care plan for a resident"
       reference_to(Resident)
-      String :resident_name
-      String :created_date
-      String :dietary_needs
+      attribute :resident_name, String
+      attribute :created_date, String
+      attribute :dietary_needs, String
       emits "CarePlanCreated"
       then_set :resident_name, to: :resident_name
       then_set :created_date, to: :created_date
@@ -121,18 +121,18 @@ Hecks.bluebook "AssistedLiving" do
       then_set :status, to: "active"
     end
 
-    AddCareTask do
+    command "AddCareTask" do
       role "Nurse"
       description "Add a specific care task to the resident's plan"
       reference_to(CarePlan)
-      String :description
-      String :frequency
-      String :assigned_to
-      String :time_of_day
+      attribute :description, String
+      attribute :frequency, String
+      attribute :assigned_to, String
+      attribute :time_of_day, String
       emits "CareTaskAdded"
     end
 
-    ReviewCarePlan do
+    command "ReviewCarePlan" do
       role "Nurse"
       description "Conduct a periodic review and update of the care plan"
       reference_to(CarePlan)
@@ -141,26 +141,26 @@ Hecks.bluebook "AssistedLiving" do
   end
 
   aggregate "Activity", "A group or individual activity offered to residents" do
-    String :name
-    String :activity_type
-    String :scheduled_time
-    String :location
-    Integer :capacity
+    attribute :name, String
+    attribute :activity_type, String
+    attribute :scheduled_time, String
+    attribute :location, String
+    attribute :capacity, Integer
     list_of(Participant) :participants
 
     value_object "Participant" do
-      String :resident_name
-      String :attendance_status
+      attribute :resident_name, String
+      attribute :attendance_status, String
     end
 
-    ScheduleActivity do
+    command "ScheduleActivity" do
       role "ActivityDirector"
       description "Plan a recreational or therapeutic activity for residents"
-      String :name
-      String :activity_type
-      String :scheduled_time
-      String :location
-      Integer :capacity
+      attribute :name, String
+      attribute :activity_type, String
+      attribute :scheduled_time, String
+      attribute :location, String
+      attribute :capacity, Integer
       emits "ActivityScheduled"
       then_set :name, to: :name
       then_set :activity_type, to: :activity_type
@@ -169,49 +169,49 @@ Hecks.bluebook "AssistedLiving" do
       then_set :capacity, to: :capacity
     end
 
-    EnrollInActivity do
+    command "EnrollInActivity" do
       role "Caregiver"
       description "Sign a resident up for a scheduled activity"
       reference_to(Activity)
-      String :resident_name
+      attribute :resident_name, String
       emits "ResidentEnrolled"
     end
   end
 
   aggregate "MedicationSchedule", "A timed medication regimen for a resident" do
-    String :resident_name
+    attribute :resident_name, String
     list_of(ScheduledDose) :doses
-    String :status
+    attribute :status, String
     reference_to Resident
 
     value_object "ScheduledDose" do
-      String :drug_name
-      String :dosage
-      String :time_of_day
-      String :administered
+      attribute :drug_name, String
+      attribute :dosage, String
+      attribute :time_of_day, String
+      attribute :administered, String
     end
 
-    PrescribeMedication do
+    command "PrescribeMedication" do
       role "Nurse"
       description "Set up a daily medication schedule for a resident"
       reference_to(Resident)
-      String :resident_name
+      attribute :resident_name, String
       emits "MedicationScheduleCreated"
       then_set :resident_name, to: :resident_name
       then_set :status, to: "active"
     end
 
-    AddScheduledDose do
+    command "AddScheduledDose" do
       role "Nurse"
       description "Add a medication dose to the resident's schedule"
       reference_to(MedicationSchedule)
-      String :drug_name
-      String :dosage
-      String :time_of_day
+      attribute :drug_name, String
+      attribute :dosage, String
+      attribute :time_of_day, String
       emits "DoseScheduled"
     end
 
-    ConfirmAdministration do
+    command "ConfirmAdministration" do
       role "Nurse"
       description "Record that a scheduled dose was given to the resident"
       reference_to(MedicationSchedule)

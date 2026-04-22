@@ -4,39 +4,39 @@ Hecks.bluebook "ElectricalContractor" do
 
   aggregate "Job" do
     description "An electrical contracting job at a property with scope, timeline, and permit requirements"
-    String :property_address
-    String :scope_of_work
-    String :status
-    Float :bid_amount
+    attribute :property_address, String
+    attribute :scope_of_work, String
+    attribute :status, String
+    attribute :bid_amount, Float
     reference_to(Permit)
 
     value_object "JobSchedule" do
-      String :start_date
-      String :end_date
-      Integer :crew_size
+      attribute :start_date, String
+      attribute :end_date, String
+      attribute :crew_size, Integer
     end
 
-    BookJob do
+    command "BookJob" do
       role "Estimator"
       goal "Accept a new electrical job with scope and pricing"
       description "Create a job record after the customer accepts the bid"
-      String :property_address
-      String :scope_of_work
-      Float :bid_amount
+      attribute :property_address, String
+      attribute :scope_of_work, String
+      attribute :bid_amount, Float
       then_set :status, to: "inspected"
       emits "JobBooked"
     end
 
-    AssignElectrician do
+    command "AssignElectrician" do
       role "Foreman"
       goal "Assign a licensed electrician to the job"
       description "Schedule an electrician for the job dates"
       reference_to(Job)
-      String :electrician_name
+      attribute :electrician_name, String
       emits "ElectricianAssigned"
     end
 
-    CloseOutJob do
+    command "CloseOutJob" do
       role "Foreman"
       goal "Mark the job complete after final inspection passes"
       description "Close the job and trigger invoicing"
@@ -48,94 +48,94 @@ Hecks.bluebook "ElectricalContractor" do
 
   aggregate "Panel" do
     description "An electrical panel or breaker box with rated amperage and circuit slots"
-    String :label
-    Integer :rated_amps
-    Integer :total_slots
-    Integer :used_slots
-    String :location
+    attribute :label, String
+    attribute :rated_amps, Integer
+    attribute :total_slots, Integer
+    attribute :used_slots, Integer
+    attribute :location, String
     reference_to(Job)
 
     value_object "BusRating" do
-      Integer :amps
-      Integer :voltage
-      String :phase
+      attribute :amps, Integer
+      attribute :voltage, Integer
+      attribute :phase, String
     end
 
-    InstallPanel do
+    command "InstallPanel" do
       role "Electrician"
       goal "Mount and wire a new electrical panel"
       description "Install a breaker panel at the specified location"
-      String :label
-      Integer :rated_amps
-      Integer :total_slots
-      String :location
+      attribute :label, String
+      attribute :rated_amps, Integer
+      attribute :total_slots, Integer
+      attribute :location, String
       reference_to(Job)
       emits "PanelInstalled"
     end
 
-    UpgradePanel do
+    command "UpgradePanel" do
       role "Electrician"
       goal "Replace an undersized panel with a higher-rated one"
       description "Swap old panel for new with higher amperage rating"
       reference_to(Panel)
-      Integer :new_rated_amps
+      attribute :new_rated_amps, Integer
       emits "PanelUpgraded"
     end
   end
 
   aggregate "Circuit" do
     description "A branch circuit from panel to outlets, switches, or dedicated loads"
-    String :label
-    Integer :amperage
-    String :wire_gauge
-    String :circuit_type
+    attribute :label, String
+    attribute :amperage, Integer
+    attribute :wire_gauge, String
+    attribute :circuit_type, String
     reference_to(Panel)
 
-    PullCircuit do
+    command "PullCircuit" do
       role "Electrician"
       goal "Run a new circuit from panel to load location"
       description "Pull wire and connect a new branch circuit"
-      String :label
-      Integer :amperage
-      String :wire_gauge
-      String :circuit_type
+      attribute :label, String
+      attribute :amperage, Integer
+      attribute :wire_gauge, String
+      attribute :circuit_type, String
       reference_to(Panel)
       emits "CircuitPulled"
     end
 
-    LabelCircuit do
+    command "LabelCircuit" do
       role "Electrician"
       goal "Mark the circuit with its load description on the panel schedule"
       description "Update panel directory with circuit identification"
       reference_to(Circuit)
-      String :description
+      attribute :description, String
       emits "CircuitLabeled"
     end
   end
 
   aggregate "Permit" do
     description "A building permit required for electrical work over a certain scope"
-    String :permit_number
-    String :jurisdiction
-    String :status
-    String :work_description
+    attribute :permit_number, String
+    attribute :jurisdiction, String
+    attribute :status, String
+    attribute :work_description, String
 
-    PullPermit do
+    command "PullPermit" do
       role "Office Manager"
       goal "Apply for an electrical work permit from the local authority"
       description "Submit permit application to the building department"
-      String :jurisdiction
-      String :work_description
+      attribute :jurisdiction, String
+      attribute :work_description, String
       then_set :status, to: "pending"
       emits "PermitPulled"
     end
 
-    ReceiveApproval do
+    command "ReceiveApproval" do
       role "Inspector"
       goal "Record that the permit has been approved"
       description "Building department approves the electrical permit"
       reference_to(Permit)
-      String :permit_number
+      attribute :permit_number, String
       given("must be pending") { status == "pending" }
       emits "PermitApproved"
     end
@@ -143,28 +143,28 @@ Hecks.bluebook "ElectricalContractor" do
 
   aggregate "Inspection" do
     description "A code inspection by the local authority having jurisdiction"
-    String :inspector_name
-    String :result
-    String :notes
-    String :inspection_type
+    attribute :inspector_name, String
+    attribute :result, String
+    attribute :notes, String
+    attribute :inspection_type, String
     reference_to(Job)
 
-    ScheduleInspection do
+    command "ScheduleInspection" do
       role "Office Manager"
       goal "Book an inspection with the building department"
       description "Request a rough or final inspection date"
-      String :inspection_type
+      attribute :inspection_type, String
       reference_to(Job)
       emits "InspectionScheduled"
     end
 
-    RecordResult do
+    command "RecordResult" do
       role "Inspector"
       goal "Document whether the inspection passed or failed"
       description "Record the inspection outcome and any corrections needed"
       reference_to(Inspection)
-      String :result
-      String :notes
+      attribute :result, String
+      attribute :notes, String
       emits "InspectionResultRecorded"
     end
   end

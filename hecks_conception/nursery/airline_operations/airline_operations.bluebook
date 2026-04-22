@@ -2,32 +2,32 @@ Hecks.bluebook "AirlineOperations" do
   vision "Manage flights, gates, crews, aircraft, and delay propagation for an airline"
 
   aggregate "Flight", "A scheduled journey between two airports with crew and aircraft assignment" do
-    String :flight_number
-    String :origin
-    String :destination
-    String :status
-    String :scheduled_departure
-    String :actual_departure
+    attribute :flight_number, String
+    attribute :origin, String
+    attribute :destination, String
+    attribute :status, String
+    attribute :scheduled_departure, String
+    attribute :actual_departure, String
     reference_to(Aircraft)
     reference_to(Crew)
 
     value_object "Leg" do
-      String :departure_airport
-      String :arrival_airport
-      Integer :distance_nm
+      attribute :departure_airport, String
+      attribute :arrival_airport, String
+      attribute :distance_nm, Integer
     end
 
-    ScheduleFlight do
+    command "ScheduleFlight" do
       description "Create a new flight on the timetable"
-      String :flight_number
-      String :origin
-      String :destination
-      String :scheduled_departure
+      attribute :flight_number, String
+      attribute :origin, String
+      attribute :destination, String
+      attribute :scheduled_departure, String
       emits "FlightScheduled"
       then_set :status, to: "scheduled"
     end
 
-    AssignAircraft do
+    command "AssignAircraft" do
       description "Attach an aircraft to a scheduled flight"
       reference_to(Flight)
       reference_to(Aircraft)
@@ -35,7 +35,7 @@ Hecks.bluebook "AirlineOperations" do
       emits "AircraftAssigned"
     end
 
-    AssignCrew do
+    command "AssignCrew" do
       description "Attach a crew roster to a flight with assigned aircraft"
       reference_to(Flight)
       reference_to(Crew)
@@ -43,7 +43,7 @@ Hecks.bluebook "AirlineOperations" do
       emits "CrewAssigned"
     end
 
-    OpenBoarding do
+    command "OpenBoarding" do
       description "Open the gate for passenger boarding"
       reference_to(Flight)
       given { status == "scheduled" }
@@ -51,7 +51,7 @@ Hecks.bluebook "AirlineOperations" do
       then_set :status, to: "boarding"
     end
 
-    CloseBoarding do
+    command "CloseBoarding" do
       description "Close the gate and finalize the passenger manifest"
       reference_to(Flight)
       given { status == "boarding" }
@@ -59,7 +59,7 @@ Hecks.bluebook "AirlineOperations" do
       then_set :status, to: "boarded"
     end
 
-    ClearForDeparture do
+    command "ClearForDeparture" do
       description "Receive ATC clearance and push back from the gate"
       reference_to(Flight)
       given { status == "boarded" }
@@ -67,7 +67,7 @@ Hecks.bluebook "AirlineOperations" do
       then_set :status, to: "departed"
     end
 
-    MarkAirborne do
+    command "MarkAirborne" do
       description "Record wheels-up and transition to in-flight status"
       reference_to(Flight)
       given { status == "departed" }
@@ -75,7 +75,7 @@ Hecks.bluebook "AirlineOperations" do
       then_set :status, to: "in_flight"
     end
 
-    RecordLanding do
+    command "RecordLanding" do
       description "Record touchdown at destination airport"
       reference_to(Flight)
       given { status == "in_flight" }
@@ -83,7 +83,7 @@ Hecks.bluebook "AirlineOperations" do
       then_set :status, to: "landed"
     end
 
-    ArriveAtGate do
+    command "ArriveAtGate" do
       description "Park at the assigned gate and open doors"
       reference_to(Flight)
       given { status == "landed" }
@@ -91,11 +91,11 @@ Hecks.bluebook "AirlineOperations" do
       then_set :status, to: "at_gate"
     end
 
-    DelayFlight do
+    command "DelayFlight" do
       description "Push departure time due to weather, mechanical, or ATC issues"
       reference_to(Flight)
-      String :reason
-      String :new_departure
+      attribute :reason, String
+      attribute :new_departure, String
       given { status != "departed" }
       emits "FlightDelayed"
       then_set :status, to: "delayed"
@@ -103,17 +103,17 @@ Hecks.bluebook "AirlineOperations" do
   end
 
   aggregate "Gate", "A physical boarding gate at an airport terminal" do
-    String :gate_number
-    String :terminal
-    String :status
+    attribute :gate_number, String
+    attribute :terminal, String
+    attribute :status, String
     reference_to(Flight)
 
     value_object "GateEquipment" do
-      String :jet_bridge_type
-      Integer :power_outlets
+      attribute :jet_bridge_type, String
+      attribute :power_outlets, Integer
     end
 
-    AssignGate do
+    command "AssignGate" do
       description "Allocate a gate for boarding a flight"
       reference_to(Gate)
       reference_to(Flight)
@@ -121,7 +121,7 @@ Hecks.bluebook "AirlineOperations" do
       then_set :status, to: "occupied"
     end
 
-    ReleaseGate do
+    command "ReleaseGate" do
       description "Free a gate after flight departure"
       reference_to(Gate)
       emits "GateReleased"
@@ -130,39 +130,39 @@ Hecks.bluebook "AirlineOperations" do
   end
 
   aggregate "Crew", "A team of pilots and cabin crew assigned to operate flights" do
-    String :crew_id
-    String :captain_name
-    Integer :member_count
-    Float :duty_hours
-    String :status
+    attribute :crew_id, String
+    attribute :captain_name, String
+    attribute :member_count, Integer
+    attribute :duty_hours, Float
+    attribute :status, String
 
     specification "FatigueRisk" do
       satisfied_by { duty_hours >= 10.0 }
     end
 
     value_object "CrewMember" do
-      String :name
-      String :role
-      String :license_number
+      attribute :name, String
+      attribute :role, String
+      attribute :license_number, String
     end
 
-    AssembleCrew do
+    command "AssembleCrew" do
       description "Form a crew roster for a duty period"
-      String :captain_name
-      Integer :member_count
+      attribute :captain_name, String
+      attribute :member_count, Integer
       emits "CrewAssembled"
       then_set :status, to: "available"
       then_set :duty_hours, to: 0.0
     end
 
-    LogDutyHours do
+    command "LogDutyHours" do
       description "Record hours flown against crew fatigue limits"
       reference_to(Crew)
-      Float :hours
+      attribute :hours, Float
       emits "DutyHoursLogged"
     end
 
-    ReleaseCrew do
+    command "ReleaseCrew" do
       description "Stand down a crew after completing their duty period"
       reference_to(Crew)
       given { status == "available" }
@@ -172,28 +172,28 @@ Hecks.bluebook "AirlineOperations" do
   end
 
   aggregate "Aircraft", "A physical airplane with maintenance and seating configuration" do
-    String :tail_number
-    String :model
-    Integer :seat_count
-    String :maintenance_status
-    Float :fuel_level
+    attribute :tail_number, String
+    attribute :model, String
+    attribute :seat_count, Integer
+    attribute :maintenance_status, String
+    attribute :fuel_level, Float
 
     value_object "MaintenanceRecord" do
-      String :check_type
-      String :date_completed
-      String :technician
+      attribute :check_type, String
+      attribute :date_completed, String
+      attribute :technician, String
     end
 
-    RegisterAircraft do
+    command "RegisterAircraft" do
       description "Add a new aircraft to the fleet"
-      String :tail_number
-      String :model
-      Integer :seat_count
+      attribute :tail_number, String
+      attribute :model, String
+      attribute :seat_count, Integer
       emits "AircraftRegistered"
       then_set :maintenance_status, to: "serviceable"
     end
 
-    PrepareAircraft do
+    command "PrepareAircraft" do
       description "Complete pre-flight checks, catering, and cabin prep"
       reference_to(Aircraft)
       given { maintenance_status == "serviceable" }
@@ -201,18 +201,18 @@ Hecks.bluebook "AirlineOperations" do
       then_set :maintenance_status, to: "flight_ready"
     end
 
-    GroundAircraft do
+    command "GroundAircraft" do
       description "Remove aircraft from service for maintenance"
       reference_to(Aircraft)
-      String :reason
+      attribute :reason, String
       emits "AircraftGrounded"
       then_set :maintenance_status, to: "grounded"
     end
 
-    RefuelAircraft do
+    command "RefuelAircraft" do
       description "Top off fuel tanks to required level"
       reference_to(Aircraft)
-      Float :gallons
+      attribute :gallons, Float
       emits "AircraftRefueled"
     end
   end

@@ -2,101 +2,101 @@ Hecks.bluebook "BakeryProduction", version: "2026.04.13.1" do
   vision "A bakery production system — recipes, daily batches, ingredient inventory, and order fulfillment"
 
   aggregate "Recipe", "A bakery recipe with ingredients, yield, and timing" do
-    String :name
-    String :category
-    Integer :yield_count
-    Integer :prep_minutes
-    Integer :bake_minutes
-    Float :bake_temp_f
+    attribute :name, String
+    attribute :category, String
+    attribute :yield_count, Integer
+    attribute :prep_minutes, Integer
+    attribute :bake_minutes, Integer
+    attribute :bake_temp_f, Float
     list_of(Ingredient) :ingredients
 
     value_object "Ingredient" do
-      String :name
-      Float :quantity
-      String :unit
+      attribute :name, String
+      attribute :quantity, Float
+      attribute :unit, String
     end
 
-    ComposeRecipe do
+    command "ComposeRecipe" do
       description "Define a new bakery recipe with ingredients and timing"
-      String :name
-      String :category
-      Integer :yield_count
-      Integer :prep_minutes
-      Integer :bake_minutes
-      Float :bake_temp_f
+      attribute :name, String
+      attribute :category, String
+      attribute :yield_count, Integer
+      attribute :prep_minutes, Integer
+      attribute :bake_minutes, Integer
+      attribute :bake_temp_f, Float
       emits "RecipeCreated"
     end
 
-    ScaleRecipe do
+    command "ScaleRecipe" do
       description "Multiply ingredient quantities for a larger batch"
       reference_to(Recipe)
-      Float :multiplier
+      attribute :multiplier, Float
       given { multiplier > 0.0 }
       emits "RecipeScaled"
     end
   end
 
   aggregate "Batch", "One production run of a recipe on a specific date" do
-    String :recipe_name
-    String :production_date
-    Integer :quantity
-    String :baker
-    String :status
-    String :started_at
-    String :completed_at
-    TrueClass :in_progress, default: false
+    attribute :recipe_name, String
+    attribute :production_date, String
+    attribute :quantity, Integer
+    attribute :baker, String
+    attribute :status, String
+    attribute :started_at, String
+    attribute :completed_at, String
+    attribute :in_progress, TrueClass, default: false
 
-    StartBatch do
+    command "StartBatch" do
       description "Begin a production run — pull ingredients and start prep"
-      String :recipe_name
-      String :production_date
-      Integer :quantity
-      String :baker
+      attribute :recipe_name, String
+      attribute :production_date, String
+      attribute :quantity, Integer
+      attribute :baker, String
       emits "BatchStarted"
     end
 
-    CompleteBatch do
+    command "CompleteBatch" do
       description "Mark a batch as finished and ready for sale or packaging"
       reference_to(Batch)
       emits "BatchCompleted"
     end
 
-    RejectBatch do
+    command "RejectBatch" do
       description "Mark a batch as failed quality check — do not sell"
       reference_to(Batch)
-      String :reason
+      attribute :reason, String
       emits "BatchRejected"
     end
   end
 
   aggregate "IngredientStock", "Raw ingredient inventory with par levels and suppliers" do
-    String :ingredient_name
-    Float :quantity_on_hand
-    String :unit
-    Float :par_level
-    String :supplier
-    Float :cost_per_unit
+    attribute :ingredient_name, String
+    attribute :quantity_on_hand, Float
+    attribute :unit, String
+    attribute :par_level, Float
+    attribute :supplier, String
+    attribute :cost_per_unit, Float
 
     specification "BelowPar" do
       satisfied_by { quantity_on_hand < par_level }
     end
 
-    ReceiveDelivery do
+    command "ReceiveDelivery" do
       description "Add incoming ingredient stock from a supplier delivery"
-      String :ingredient_name
-      Float :quantity
-      String :supplier
+      attribute :ingredient_name, String
+      attribute :quantity, Float
+      attribute :supplier, String
       emits "DeliveryReceived"
     end
 
-    DeductForBatch do
+    command "DeductForBatch" do
       description "Subtract ingredients used in a production batch"
       reference_to(IngredientStock)
-      Float :quantity
+      attribute :quantity, Float
       emits "StockDeducted"
     end
 
-    FlagLowStock do
+    command "FlagLowStock" do
       description "Alert when ingredient falls below par level"
       reference_to(IngredientStock)
       emits "LowStockFlagged"
@@ -104,26 +104,26 @@ Hecks.bluebook "BakeryProduction", version: "2026.04.13.1" do
   end
 
   aggregate "Order", "A customer order for bakery products with fulfillment tracking" do
-    String :customer_name
-    String :order_date
-    String :pickup_date
+    attribute :customer_name, String
+    attribute :order_date, String
+    attribute :pickup_date, String
     list_of(OrderLine) :items
-    String :status
+    attribute :status, String
 
     value_object "OrderLine" do
-      String :product_name
-      Integer :quantity
-      Float :unit_price
+      attribute :product_name, String
+      attribute :quantity, Integer
+      attribute :unit_price, Float
     end
 
-    PlaceOrder do
+    command "PlaceOrder" do
       description "Accept a customer order for specific products and quantities"
-      String :customer_name
-      String :pickup_date
+      attribute :customer_name, String
+      attribute :pickup_date, String
       emits "OrderPlaced"
     end
 
-    FulfillOrder do
+    command "FulfillOrder" do
       description "Mark an order as ready for pickup after production"
       reference_to(Order)
       emits "OrderFulfilled"

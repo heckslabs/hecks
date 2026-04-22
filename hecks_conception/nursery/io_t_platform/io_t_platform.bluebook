@@ -3,38 +3,38 @@ Hecks.bluebook "IoTPlatform", version: "2026.04.13.1" do
   category "technology"
 
   aggregate "Device", "A connected hardware unit in the IoT fleet" do
-    String :device_id
-    String :device_type
-    String :firmware_version
-    String :location
-    String :last_heartbeat
-    String :status
+    attribute :device_id, String
+    attribute :device_type, String
+    attribute :firmware_version, String
+    attribute :location, String
+    attribute :last_heartbeat, String
+    attribute :status, String
     list_of(Tag) :tags
 
     value_object "Tag" do
-      String :key
-      String :value
-      String :applied_at
+      attribute :key, String
+      attribute :value, String
+      attribute :applied_at, String
     end
 
-    RegisterDevice do
+    command "RegisterDevice" do
       role "FleetManager"
       description "Add a new IoT device to the platform registry"
-      String :device_id
-      String :device_type
-      String :firmware_version
-      String :location
+      attribute :device_id, String
+      attribute :device_type, String
+      attribute :firmware_version, String
+      attribute :location, String
       emits "DeviceRegistered"
     end
 
-    SuspendDevice do
+    command "SuspendDevice" do
       description "Take a device offline for maintenance"
       reference_to(Device)
       emits "DeviceSuspended"
       then_set :status, to: "suspended"
     end
 
-    DeregisterDevice do
+    command "DeregisterDevice" do
       description "Permanently remove a device from the fleet"
       reference_to(Device)
       given("device is suspended") { status == "suspended" }
@@ -43,42 +43,42 @@ Hecks.bluebook "IoTPlatform", version: "2026.04.13.1" do
   end
 
   aggregate "Sensor", "A measurement component attached to a device" do
-    String :sensor_id
-    String :sensor_type
-    String :unit
-    Float :min_range
-    Float :max_range
-    String :status
+    attribute :sensor_id, String
+    attribute :sensor_type, String
+    attribute :unit, String
+    attribute :min_range, Float
+    attribute :max_range, Float
+    attribute :status, String
     reference_to Device
 
     value_object "Calibration" do
-      Float :offset
-      Float :scale_factor
-      String :calibrated_at
+      attribute :offset, Float
+      attribute :scale_factor, Float
+      attribute :calibrated_at, String
     end
 
-    AttachSensor do
+    command "AttachSensor" do
       role "FleetManager"
       description "Register a sensor on a device"
-      String :sensor_id
-      String :sensor_type
-      String :unit
-      Float :min_range
-      Float :max_range
+      attribute :sensor_id, String
+      attribute :sensor_type, String
+      attribute :unit, String
+      attribute :min_range, Float
+      attribute :max_range, Float
       reference_to(Device)
       emits "SensorAttached"
       then_set :status, to: "active"
     end
 
-    CalibrateSensor do
+    command "CalibrateSensor" do
       description "Apply calibration offsets to a sensor"
       reference_to(Sensor)
-      Float :offset
-      Float :scale_factor
+      attribute :offset, Float
+      attribute :scale_factor, Float
       emits "SensorCalibrated"
     end
 
-    DetachSensor do
+    command "DetachSensor" do
       description "Remove a sensor from a device"
       reference_to(Sensor)
       given("sensor is active") { status == "active" }
@@ -87,37 +87,37 @@ Hecks.bluebook "IoTPlatform", version: "2026.04.13.1" do
   end
 
   aggregate "Reading", "A telemetry data point from a sensor" do
-    String :reading_id
-    Float :value
-    String :timestamp
-    String :quality
-    String :status
+    attribute :reading_id, String
+    attribute :value, Float
+    attribute :timestamp, String
+    attribute :quality, String
+    attribute :status, String
     reference_to Sensor
 
     value_object "ReadingContext" do
-      String :device_id
-      String :location
-      String :batch_id
+      attribute :device_id, String
+      attribute :location, String
+      attribute :batch_id, String
     end
 
-    IngestReading do
+    command "IngestReading" do
       role "TelemetryGateway"
       description "Receive a sensor reading from the ingestion pipeline"
-      String :reading_id
-      Float :value
-      String :timestamp
+      attribute :reading_id, String
+      attribute :value, Float
+      attribute :timestamp, String
       reference_to(Sensor)
       emits "ReadingIngested"
     end
 
-    ValidateReading do
+    command "ValidateReading" do
       description "Check a reading against expected sensor ranges"
       reference_to(Reading)
       emits "ReadingValidated"
       then_set :status, to: "validated"
     end
 
-    FlagAnomaly do
+    command "FlagAnomaly" do
       description "Mark a reading as anomalous for investigation"
       reference_to(Reading)
       given("reading is validated") { status == "validated" }
@@ -126,38 +126,38 @@ Hecks.bluebook "IoTPlatform", version: "2026.04.13.1" do
   end
 
   aggregate "Alert", "A notification triggered when telemetry exceeds thresholds" do
-    String :alert_id
-    String :severity
-    String :condition
-    String :message
-    String :status
+    attribute :alert_id, String
+    attribute :severity, String
+    attribute :condition, String
+    attribute :message, String
+    attribute :status, String
     reference_to Device
 
     value_object "AlertThreshold" do
-      String :metric
-      Float :threshold_value
-      String :comparison
+      attribute :metric, String
+      attribute :threshold_value, Float
+      attribute :comparison, String
     end
 
-    RaiseAlert do
+    command "RaiseAlert" do
       role "AlertEngine"
       description "Fire an alert when sensor data breaches a threshold"
-      String :alert_id
-      String :severity
-      String :condition
-      String :message
+      attribute :alert_id, String
+      attribute :severity, String
+      attribute :condition, String
+      attribute :message, String
       reference_to(Device)
       emits "AlertRaised"
     end
 
-    AcknowledgeAlert do
+    command "AcknowledgeAlert" do
       description "Mark an alert as seen by an operator"
       reference_to(Alert)
       emits "AlertAcknowledged"
       then_set :status, to: "acknowledged"
     end
 
-    ResolveAlert do
+    command "ResolveAlert" do
       description "Close an alert after the condition is corrected"
       reference_to(Alert)
       given("alert is acknowledged") { status == "acknowledged" }
@@ -166,40 +166,40 @@ Hecks.bluebook "IoTPlatform", version: "2026.04.13.1" do
   end
 
   aggregate "FirmwareUpdate", "A software package pushed to devices over the air" do
-    String :update_id
-    String :version
-    String :target_device_type
-    Integer :package_size_kb
-    String :release_notes
-    String :status
+    attribute :update_id, String
+    attribute :version, String
+    attribute :target_device_type, String
+    attribute :package_size_kb, Integer
+    attribute :release_notes, String
+    attribute :status, String
     list_of(RolloutRecord) :rollouts
 
     value_object "RolloutRecord" do
-      String :device_id
-      String :outcome
-      String :applied_at
+      attribute :device_id, String
+      attribute :outcome, String
+      attribute :applied_at, String
     end
 
-    PublishUpdate do
+    command "PublishUpdate" do
       role "FirmwareEngineer"
       description "Release a new firmware version for OTA deployment"
-      String :update_id
-      String :version
-      String :target_device_type
-      Integer :package_size_kb
-      String :release_notes
+      attribute :update_id, String
+      attribute :version, String
+      attribute :target_device_type, String
+      attribute :package_size_kb, Integer
+      attribute :release_notes, String
       emits "UpdatePublished"
     end
 
-    ApplyUpdate do
+    command "ApplyUpdate" do
       description "Push firmware to a specific device"
       reference_to(FirmwareUpdate)
-      String :device_id
+      attribute :device_id, String
       emits "UpdateApplied"
       then_set :status, to: "applied"
     end
 
-    RollbackUpdate do
+    command "RollbackUpdate" do
       description "Revert a device to the previous firmware version"
       reference_to(FirmwareUpdate)
       given("update is applied") { status == "applied" }

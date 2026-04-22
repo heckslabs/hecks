@@ -5,26 +5,26 @@ Hecks.bluebook "ReentryEcosystem", version: "2026.04.13.1" do
   # === ReentryCase ===
 
   aggregate "ReentryCase", "A person reentering society — single case file linking all support services" do
-    String :case_id
-    String :participant_name
-    String :reentry_date
-    String :background_type
-    String :risk_level
-    String :status
+    attribute :case_id, String
+    attribute :participant_name, String
+    attribute :reentry_date, String
+    attribute :background_type, String
+    attribute :risk_level, String
+    attribute :status, String
     list_of(ServiceNeed) :identified_needs
     value_object "ServiceNeed" do
-      String :category
-      String :urgency
-      String :notes
+      attribute :category, String
+      attribute :urgency, String
+      attribute :notes, String
     end
-    OpenCase do
+    command "OpenCase" do
       role "CaseManager"
       description "Open a reentry case for a person returning to society"
-      String :case_id
-      String :participant_name
-      String :reentry_date
-      String :background_type
-      String :risk_level
+      attribute :case_id, String
+      attribute :participant_name, String
+      attribute :reentry_date, String
+      attribute :background_type, String
+      attribute :risk_level, String
       emits "CaseOpened"
       then_set :case_id, to: :case_id
       then_set :participant_name, to: :participant_name
@@ -33,16 +33,16 @@ Hecks.bluebook "ReentryEcosystem", version: "2026.04.13.1" do
       then_set :risk_level, to: :risk_level
       then_set :status, to: "active"
     end
-    EscalateCase do
+    command "EscalateCase" do
       role "CaseManager"
       description "Escalate when participant misses milestones or faces crisis"
       reference_to(ReentryCase)
-      String :risk_level
+      attribute :risk_level, String
       given { status == "active" }
       emits "CaseEscalated"
       then_set :risk_level, to: :risk_level
     end
-    CloseCase do
+    command "CloseCase" do
       role "CaseManager"
       description "Close case when participant achieves stable independence"
       reference_to(ReentryCase)
@@ -55,25 +55,25 @@ Hecks.bluebook "ReentryEcosystem", version: "2026.04.13.1" do
   # === EducationTrack ===
 
   aggregate "EducationTrack", "An education pathway — GED, vocational, or college track with progress" do
-    String :track_id
+    attribute :track_id, String
     reference_to(ReentryCase, as: :case)
-    String :track_type
-    String :institution
-    String :status
+    attribute :track_type, String
+    attribute :institution, String
+    attribute :status, String
     list_of(CourseModule) :modules
     value_object "CourseModule" do
-      String :module_name
-      String :completion_status
-      String :grade
-      Integer :hours_completed
+      attribute :module_name, String
+      attribute :completion_status, String
+      attribute :grade, String
+      attribute :hours_completed, Integer
     end
-    EnrollInTrack do
+    command "EnrollInTrack" do
       role "EducationCoordinator"
       description "Enroll participant in an education track"
-      String :track_id
+      attribute :track_id, String
       reference_to(ReentryCase, as: :case)
-      String :track_type
-      String :institution
+      attribute :track_type, String
+      attribute :institution, String
       emits "TrackEnrolled"
       then_set :track_id, to: :track_id
       then_set :case, to: :case
@@ -81,14 +81,14 @@ Hecks.bluebook "ReentryEcosystem", version: "2026.04.13.1" do
       then_set :institution, to: :institution
       then_set :status, to: "enrolled"
     end
-    CompleteModule do
+    command "CompleteModule" do
       role "Instructor"
       description "Mark a course module as completed with grade"
       reference_to(EducationTrack)
       given { status == "enrolled" }
       emits "ModuleCompleted"
     end
-    GraduateTrack do
+    command "GraduateTrack" do
       role "EducationCoordinator"
       description "Graduate participant from education track"
       reference_to(EducationTrack)
@@ -101,27 +101,27 @@ Hecks.bluebook "ReentryEcosystem", version: "2026.04.13.1" do
   # === HousingMatch ===
 
   aggregate "HousingMatch", "A housing placement — transitional to permanent, with stability scoring" do
-    String :match_id
+    attribute :match_id, String
     reference_to(ReentryCase, as: :case)
-    String :housing_type
-    String :address
-    String :landlord_name
-    String :status
+    attribute :housing_type, String
+    attribute :address, String
+    attribute :landlord_name, String
+    attribute :status, String
     list_of(StabilityCheck) :stability_checks
     value_object "StabilityCheck" do
-      String :check_date
-      String :status
-      String :notes
-      String :checked_by
+      attribute :check_date, String
+      attribute :status, String
+      attribute :notes, String
+      attribute :checked_by, String
     end
-    PlaceInHousing do
+    command "PlaceInHousing" do
       role "HousingNavigator"
       description "Place participant in transitional or permanent housing"
-      String :match_id
+      attribute :match_id, String
       reference_to(ReentryCase, as: :case)
-      String :housing_type
-      String :address
-      String :landlord_name
+      attribute :housing_type, String
+      attribute :address, String
+      attribute :landlord_name, String
       emits "HousingPlaced"
       then_set :match_id, to: :match_id
       then_set :case, to: :case
@@ -130,19 +130,19 @@ Hecks.bluebook "ReentryEcosystem", version: "2026.04.13.1" do
       then_set :landlord_name, to: :landlord_name
       then_set :status, to: "placed"
     end
-    RecordStabilityCheck do
+    command "RecordStabilityCheck" do
       role "HousingNavigator"
       description "Record a housing stability check visit"
       reference_to(HousingMatch)
       given { status == "placed" }
       emits "StabilityChecked"
     end
-    UpgradeHousing do
+    command "UpgradeHousing" do
       role "HousingNavigator"
       description "Upgrade from transitional to permanent housing"
       reference_to(HousingMatch)
-      String :housing_type
-      String :address
+      attribute :housing_type, String
+      attribute :address, String
       given { status == "placed" }
       emits "HousingUpgraded"
       then_set :housing_type, to: :housing_type
@@ -153,26 +153,26 @@ Hecks.bluebook "ReentryEcosystem", version: "2026.04.13.1" do
   # === EmploymentBridge ===
 
   aggregate "EmploymentBridge", "Employment placement and support — from interview prep to sustained employment" do
-    String :bridge_id
+    attribute :bridge_id, String
     reference_to(ReentryCase, as: :case)
-    String :employer_name
-    String :job_title
-    String :start_date
-    String :status
+    attribute :employer_name, String
+    attribute :job_title, String
+    attribute :start_date, String
+    attribute :status, String
     list_of(RetentionCheckIn) :check_ins
     value_object "RetentionCheckIn" do
-      String :check_date
-      String :employment_status
-      String :supervisor_feedback
+      attribute :check_date, String
+      attribute :employment_status, String
+      attribute :supervisor_feedback, String
     end
-    PlaceInJob do
+    command "PlaceInJob" do
       role "EmploymentCoach"
       description "Place participant in a job with a partner employer"
-      String :bridge_id
+      attribute :bridge_id, String
       reference_to(ReentryCase, as: :case)
-      String :employer_name
-      String :job_title
-      String :start_date
+      attribute :employer_name, String
+      attribute :job_title, String
+      attribute :start_date, String
       emits "JobPlaced"
       then_set :bridge_id, to: :bridge_id
       then_set :case, to: :case
@@ -181,7 +181,7 @@ Hecks.bluebook "ReentryEcosystem", version: "2026.04.13.1" do
       then_set :start_date, to: :start_date
       then_set :status, to: "employed"
     end
-    RecordRetention do
+    command "RecordRetention" do
       role "EmploymentCoach"
       description "Record employment retention check-in"
       reference_to(EmploymentBridge)
@@ -193,25 +193,25 @@ Hecks.bluebook "ReentryEcosystem", version: "2026.04.13.1" do
   # === LegalSupport ===
 
   aggregate "LegalSupport", "Legal aid — record expungement, license restoration, compliance tracking" do
-    String :support_id
+    attribute :support_id, String
     reference_to(ReentryCase, as: :case)
-    String :legal_need
-    String :attorney_name
-    String :status
+    attribute :legal_need, String
+    attribute :attorney_name, String
+    attribute :status, String
     list_of(CourtDate) :court_dates
     value_object "CourtDate" do
-      String :date
-      String :court_name
-      String :purpose
-      String :outcome
+      attribute :date, String
+      attribute :court_name, String
+      attribute :purpose, String
+      attribute :outcome, String
     end
-    AssignAttorney do
+    command "AssignAttorney" do
       role "LegalCoordinator"
       description "Assign legal aid attorney to a reentry case"
-      String :support_id
+      attribute :support_id, String
       reference_to(ReentryCase, as: :case)
-      String :legal_need
-      String :attorney_name
+      attribute :legal_need, String
+      attribute :attorney_name, String
       emits "AttorneyAssigned"
       then_set :support_id, to: :support_id
       then_set :case, to: :case
@@ -219,14 +219,14 @@ Hecks.bluebook "ReentryEcosystem", version: "2026.04.13.1" do
       then_set :attorney_name, to: :attorney_name
       then_set :status, to: "active"
     end
-    FileExpungement do
+    command "FileExpungement" do
       role "Attorney"
       description "File for record expungement on behalf of participant"
       reference_to(LegalSupport)
       given { status == "active" }
       emits "ExpungementFiled"
     end
-    ResolveLegalMatter do
+    command "ResolveLegalMatter" do
       role "Attorney"
       description "Close legal matter with outcome"
       reference_to(LegalSupport)
@@ -240,15 +240,15 @@ Hecks.bluebook "ReentryEcosystem", version: "2026.04.13.1" do
 
   aggregate "MilestoneTracker", "Cross-service milestone tracking — housing, education, employment, legal milestones in one view" do
     reference_to(ReentryCase, as: :case)
-    String :overall_progress
+    attribute :overall_progress, String
     list_of(Milestone) :milestones
     value_object "Milestone" do
-      String :category
-      String :description
-      String :achieved_date
-      String :verified_by
+      attribute :category, String
+      attribute :description, String
+      attribute :achieved_date, String
+      attribute :verified_by, String
     end
-    InitializeTracker do
+    command "InitializeTracker" do
       role "System"
       description "Create milestone tracker when case opens"
       reference_to(ReentryCase, as: :case)
@@ -256,11 +256,11 @@ Hecks.bluebook "ReentryEcosystem", version: "2026.04.13.1" do
       then_set :case, to: :case
       then_set :overall_progress, to: "beginning"
     end
-    RecordMilestone do
+    command "RecordMilestone" do
       role "CaseManager"
       description "Record achievement of a cross-service milestone"
       reference_to(MilestoneTracker)
-      String :overall_progress
+      attribute :overall_progress, String
       emits "MilestoneRecorded"
       then_set :overall_progress, to: :overall_progress
     end

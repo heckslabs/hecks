@@ -1,32 +1,32 @@
 Hecks.bluebook "OilRefinery" do
   aggregate "CrudeReceipt" do
-    String :receipt_id
-    String :crude_type
-    Float :volume_barrels
-    Float :api_gravity
-    Float :sulfur_percent
-    String :status
+    attribute :receipt_id, String
+    attribute :crude_type, String
+    attribute :volume_barrels, Float
+    attribute :api_gravity, Float
+    attribute :sulfur_percent, Float
+    attribute :status, String
 
     value_object "CrudeAssay" do
-      Float :api_gravity
-      Float :sulfur_percent
-      Float :pour_point_f
-      String :classification
+      attribute :api_gravity, Float
+      attribute :sulfur_percent, Float
+      attribute :pour_point_f, Float
+      attribute :classification, String
     end
 
-    ReceiveCrude do
+    command "ReceiveCrude" do
       description "Receive crude oil shipment into storage tank via pipeline or tanker"
-      String :crude_type
-      Float :volume_barrels
-      String :source_terminal
+      attribute :crude_type, String
+      attribute :volume_barrels, Float
+      attribute :source_terminal, String
       reference_to "CrudeReceipt"
       emits "CrudeReceived"
     end
 
-    AssayCrude do
+    command "AssayCrude" do
       description "Run laboratory assay to characterize crude oil properties"
-      Float :api_gravity
-      Float :sulfur_percent
+      attribute :api_gravity, Float
+      attribute :sulfur_percent, Float
       reference_to "CrudeReceipt"
       emits "CrudeAssayed"
     end
@@ -41,33 +41,33 @@ Hecks.bluebook "OilRefinery" do
   end
 
   aggregate "DistillationRun" do
-    String :run_id
-    String :unit_id
-    Float :charge_volume_barrels
-    String :crude_type
-    String :status
+    attribute :run_id, String
+    attribute :unit_id, String
+    attribute :charge_volume_barrels, Float
+    attribute :crude_type, String
+    attribute :status, String
     list_of "ProductFraction"
 
-    ChargeUnit do
+    command "ChargeUnit" do
       description "Feed crude oil into atmospheric distillation column"
-      String :unit_id
-      Float :charge_rate_bph
+      attribute :unit_id, String
+      attribute :charge_rate_bph, Float
       reference_to "CrudeReceipt"
       emits "UnitCharged"
     end
 
-    AdjustCutPoints do
+    command "AdjustCutPoints" do
       description "Modify distillation cut point temperatures for product yields"
-      Float :naphtha_cut_f
-      Float :kerosene_cut_f
-      Float :diesel_cut_f
+      attribute :naphtha_cut_f, Float
+      attribute :kerosene_cut_f, Float
+      attribute :diesel_cut_f, Float
       reference_to "DistillationRun"
       emits "CutPointsAdjusted"
     end
 
-    CompleteDistillation do
+    command "CompleteDistillation" do
       description "End distillation run and drain residuum to vacuum unit"
-      Float :residuum_volume_barrels
+      attribute :residuum_volume_barrels, Float
       reference_to "DistillationRun"
       emits "DistillationCompleted"
     end
@@ -81,39 +81,39 @@ Hecks.bluebook "OilRefinery" do
     policy "Column pressure must remain within safe operating limits"
 
     given "A light sweet crude run is charged" do
-      String :crude_type, "West Texas Intermediate"
-      Float :charge_volume_barrels, 50000.0
+      attribute :crude_type, String, "West Texas Intermediate"
+      attribute :charge_volume_barrels, Float, 50000.0
     end
   end
 
   aggregate "ProductFraction" do
-    String :fraction_id
-    String :product_type
-    Float :volume_barrels
-    Float :octane_rating
-    String :tank_id
-    String :status
+    attribute :fraction_id, String
+    attribute :product_type, String
+    attribute :volume_barrels, Float
+    attribute :octane_rating, Float
+    attribute :tank_id, String
+    attribute :status, String
 
-    TransferToTank do
+    command "TransferToTank" do
       description "Route product fraction from distillation to storage tank"
-      String :tank_id
-      Float :volume_barrels
+      attribute :tank_id, String
+      attribute :volume_barrels, Float
       reference_to "DistillationRun"
       emits "FractionTransferred"
     end
 
-    BlendProduct do
+    command "BlendProduct" do
       description "Blend fractions and additives to meet finished product spec"
-      String :additive_package
-      Float :blend_volume
+      attribute :additive_package, String
+      attribute :blend_volume, Float
       reference_to "ProductFraction"
       emits "ProductBlended"
     end
 
-    CertifyProduct do
+    command "CertifyProduct" do
       description "Run lab tests and certify product meets commercial specification"
-      String :specification
-      String :lab_report_id
+      attribute :specification, String
+      attribute :lab_report_id, String
       reference_to "ProductFraction"
       emits "ProductCertified"
     end
@@ -128,29 +128,29 @@ Hecks.bluebook "OilRefinery" do
   end
 
   aggregate "CatalystBed" do
-    String :bed_id
-    String :catalyst_type
-    String :reactor_unit
-    Float :activity_percent
-    String :status
+    attribute :bed_id, String
+    attribute :catalyst_type, String
+    attribute :reactor_unit, String
+    attribute :activity_percent, Float
+    attribute :status, String
 
     value_object "CatalystPerformance" do
-      Float :activity_percent
-      Float :selectivity_percent
-      Float :coke_buildup_percent
+      attribute :activity_percent, Float
+      attribute :selectivity_percent, Float
+      attribute :coke_buildup_percent, Float
     end
 
-    RegenerateCatalyst do
+    command "RegenerateCatalyst" do
       description "Burn off coke deposits to restore catalyst activity"
-      Float :regeneration_temp_f
+      attribute :regeneration_temp_f, Float
       reference_to "CatalystBed"
       emits "CatalystRegenerated"
     end
 
-    ReplaceCatalyst do
+    command "ReplaceCatalyst" do
       description "Remove spent catalyst and load fresh bed material"
-      String :new_catalyst_type
-      Float :fresh_activity
+      attribute :new_catalyst_type, String
+      attribute :fresh_activity, Float
       reference_to "CatalystBed"
       emits "CatalystReplaced"
     end
@@ -164,26 +164,26 @@ Hecks.bluebook "OilRefinery" do
   end
 
   aggregate "ComplianceReport" do
-    String :report_id
-    String :report_type
-    String :regulatory_body
-    String :reporting_period
-    String :status
+    attribute :report_id, String
+    attribute :report_type, String
+    attribute :regulatory_body, String
+    attribute :reporting_period, String
+    attribute :status, String
 
-    FileEmissionsReport do
+    command "FileEmissionsReport" do
       description "Submit emissions data to environmental regulatory agency"
-      String :regulatory_body
-      Float :sox_tons
-      Float :nox_tons
+      attribute :regulatory_body, String
+      attribute :sox_tons, Float
+      attribute :nox_tons, Float
       reference_to "ComplianceReport"
       emits "EmissionsReportFiled"
     end
 
-    RecordExceedance do
+    command "RecordExceedance" do
       description "Document permit limit exceedance with corrective action plan"
-      String :parameter
-      Float :measured_value
-      Float :permit_limit
+      attribute :parameter, String
+      attribute :measured_value, Float
+      attribute :permit_limit, Float
       reference_to "ComplianceReport"
       emits "ExceedanceRecorded"
     end

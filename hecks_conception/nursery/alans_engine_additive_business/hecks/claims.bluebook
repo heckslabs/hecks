@@ -3,24 +3,24 @@ Hecks.bluebook "Claims", version: "2026.04.11.1" do
   category "business"
 
   aggregate "WarrantyClaim", "A product performance complaint — investigation through resolution with lot traceability" do
-    String :claim_number
-    String :sku
-    String :lot_number
-    String :customer
-    String :complaint_description
-    String :investigation_notes
-    String :root_cause
-    String :resolution
-    String :status
+    attribute :claim_number, String
+    attribute :sku, String
+    attribute :lot_number, String
+    attribute :customer, String
+    attribute :complaint_description, String
+    attribute :investigation_notes, String
+    attribute :root_cause, String
+    attribute :resolution, String
+    attribute :status, String
 
-    FileWarrantyClaim do
+    command "FileWarrantyClaim" do
       role "CustomerService"
       description "Open a warranty claim — product performance complaint with lot traceability"
-      String :claim_number
-      String :sku
-      String :lot_number
-      String :customer
-      String :complaint_description
+      attribute :claim_number, String
+      attribute :sku, String
+      attribute :lot_number, String
+      attribute :customer, String
+      attribute :complaint_description, String
       emits "WarrantyClaimFiled"
       then_set :claim_number, to: :claim_number
       then_set :sku, to: :sku
@@ -30,12 +30,12 @@ Hecks.bluebook "Claims", version: "2026.04.11.1" do
       then_set :status, to: "open"
     end
 
-    InvestigateClaim do
+    command "InvestigateClaim" do
       role "QualityManager"
       description "Conduct root cause analysis using 8D methodology — link to lot and batch records"
       reference_to(WarrantyClaim)
-      String :investigation_notes
-      String :root_cause
+      attribute :investigation_notes, String
+      attribute :root_cause, String
       given { status == "open" }
       emits "ClaimInvestigated"
       then_set :investigation_notes, to: :investigation_notes
@@ -43,11 +43,11 @@ Hecks.bluebook "Claims", version: "2026.04.11.1" do
       then_set :status, to: "investigated"
     end
 
-    ResolveClaim do
+    command "ResolveClaim" do
       role "QualityManager"
       description "Close the claim with resolution — replacement, refund, or no-fault finding"
       reference_to(WarrantyClaim)
-      String :resolution
+      attribute :resolution, String
       given { status == "investigated" }
       emits "ClaimResolved"
       then_set :resolution, to: :resolution
@@ -62,22 +62,22 @@ Hecks.bluebook "Claims", version: "2026.04.11.1" do
   end
 
   aggregate "ReturnAuthorization", "RMA process — return reason codes, disposition (restock, scrap, or rework)" do
-    String :rma_number
-    String :sku
-    String :lot_number
-    String :customer
-    String :return_reason_code
-    String :disposition
-    String :status
+    attribute :rma_number, String
+    attribute :sku, String
+    attribute :lot_number, String
+    attribute :customer, String
+    attribute :return_reason_code, String
+    attribute :disposition, String
+    attribute :status, String
 
-    IssueReturnAuthorization do
+    command "IssueReturnAuthorization" do
       role "CustomerService"
       description "Issue an RMA — authorize product return with reason code"
-      String :rma_number
-      String :sku
-      String :lot_number
-      String :customer
-      String :return_reason_code
+      attribute :rma_number, String
+      attribute :sku, String
+      attribute :lot_number, String
+      attribute :customer, String
+      attribute :return_reason_code, String
       emits "ReturnAuthorizationIssued"
       then_set :rma_number, to: :rma_number
       then_set :sku, to: :sku
@@ -87,17 +87,17 @@ Hecks.bluebook "Claims", version: "2026.04.11.1" do
       then_set :status, to: "issued"
     end
 
-    ReceiveReturn do
+    command "ReceiveReturn" do
       role "WarehouseManager"
       description "Receive returned goods — inspect and determine disposition"
       reference_to(ReturnAuthorization)
-      String :disposition
+      attribute :disposition, String
       emits "ReturnReceived"
       then_set :disposition, to: :disposition
       then_set :status, to: "received"
     end
 
-    CloseReturnAuthorization do
+    command "CloseReturnAuthorization" do
       role "CustomerService"
       description "Close the RMA — disposition complete (restocked, scrapped, or reworked)"
       reference_to(ReturnAuthorization)
@@ -114,24 +114,24 @@ Hecks.bluebook "Claims", version: "2026.04.11.1" do
   end
 
   aggregate "CustomerComplaint", "Complaint tracking — root cause analysis and CAPA linkage" do
-    String :complaint_number
-    String :customer
-    String :sku
-    String :lot_number
-    String :description
-    String :root_cause
-    String :capa_reference
-    String :eight_d_report
-    String :status
+    attribute :complaint_number, String
+    attribute :customer, String
+    attribute :sku, String
+    attribute :lot_number, String
+    attribute :description, String
+    attribute :root_cause, String
+    attribute :capa_reference, String
+    attribute :eight_d_report, String
+    attribute :status, String
 
-    LogComplaint do
+    command "LogComplaint" do
       role "CustomerService"
       description "Record a customer complaint — link to SKU and lot for traceability"
-      String :complaint_number
-      String :customer
-      String :sku
-      String :lot_number
-      String :description
+      attribute :complaint_number, String
+      attribute :customer, String
+      attribute :sku, String
+      attribute :lot_number, String
+      attribute :description, String
       emits "ComplaintLogged"
       then_set :complaint_number, to: :complaint_number
       then_set :customer, to: :customer
@@ -141,13 +141,13 @@ Hecks.bluebook "Claims", version: "2026.04.11.1" do
       then_set :status, to: "open"
     end
 
-    InvestigateComplaint do
+    command "InvestigateComplaint" do
       role "QualityManager"
       description "Perform root cause analysis — 8D methodology, link CAPA"
       reference_to(CustomerComplaint)
-      String :root_cause
-      String :capa_reference
-      String :eight_d_report
+      attribute :root_cause, String
+      attribute :capa_reference, String
+      attribute :eight_d_report, String
       given { status == "open" }
       emits "ComplaintInvestigated"
       then_set :root_cause, to: :root_cause
@@ -156,7 +156,7 @@ Hecks.bluebook "Claims", version: "2026.04.11.1" do
       then_set :status, to: "investigated"
     end
 
-    CloseComplaint do
+    command "CloseComplaint" do
       role "QualityManager"
       description "Close the complaint — CAPA actions verified effective"
       reference_to(CustomerComplaint)

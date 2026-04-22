@@ -3,23 +3,23 @@ Hecks.bluebook "RecoveryCommunity", version: "2026.04.13.1" do
   category "healthcare_community"
 
   aggregate "RecoveryJourney", "A member recovery journey tracking milestones and sobriety" do
-    String :member_id
-    String :name
-    String :program_type
-    Integer :days_sober
-    String :status
+    attribute :member_id, String
+    attribute :name, String
+    attribute :program_type, String
+    attribute :days_sober, Integer
+    attribute :status, String
     list_of(Milestone) :milestones
     value_object "Milestone" do
-      String :name
-      Integer :day_reached
-      String :badge
+      attribute :name, String
+      attribute :day_reached, Integer
+      attribute :badge, String
     end
-    StartJourney do
+    command "StartJourney" do
       role "Member"
       description "Begin a recovery journey with a chosen program"
-      String :member_id
-      String :name
-      String :program_type
+      attribute :member_id, String
+      attribute :name, String
+      attribute :program_type, String
       emits "JourneyStarted"
       then_set :member_id, to: :member_id
       then_set :name, to: :name
@@ -27,14 +27,14 @@ Hecks.bluebook "RecoveryCommunity", version: "2026.04.13.1" do
       then_set :days_sober, to: 0
       then_set :status, to: "active"
     end
-    LogDay do
+    command "LogDay" do
       role "Member"
       description "Log a sober day and check for milestone achievement"
       reference_to(RecoveryJourney)
       given { status == "active" }
       emits "DayLogged"
     end
-    AwardMilestone do
+    command "AwardMilestone" do
       role "System"
       description "Award a milestone badge for reaching a sobriety checkpoint"
       reference_to(RecoveryJourney)
@@ -43,20 +43,20 @@ Hecks.bluebook "RecoveryCommunity", version: "2026.04.13.1" do
   end
 
   aggregate "PeerGroup", "A peer support group for recovery members" do
-    String :group_id
-    String :group_name
-    String :facilitator
-    Integer :max_members
-    String :meeting_schedule
-    String :status
-    FormGroup do
+    attribute :group_id, String
+    attribute :group_name, String
+    attribute :facilitator, String
+    attribute :max_members, Integer
+    attribute :meeting_schedule, String
+    attribute :status, String
+    command "FormGroup" do
       role "Facilitator"
       description "Create a peer support group with schedule and capacity"
-      String :group_id
-      String :group_name
-      String :facilitator
-      Integer :max_members
-      String :meeting_schedule
+      attribute :group_id, String
+      attribute :group_name, String
+      attribute :facilitator, String
+      attribute :max_members, Integer
+      attribute :meeting_schedule, String
       emits "GroupFormed"
       then_set :group_id, to: :group_id
       then_set :group_name, to: :group_name
@@ -65,7 +65,7 @@ Hecks.bluebook "RecoveryCommunity", version: "2026.04.13.1" do
       then_set :meeting_schedule, to: :meeting_schedule
       then_set :status, to: "active"
     end
-    JoinGroup do
+    command "JoinGroup" do
       role "Member"
       description "Join a peer support group"
       reference_to(PeerGroup)
@@ -75,18 +75,18 @@ Hecks.bluebook "RecoveryCommunity", version: "2026.04.13.1" do
   end
 
   aggregate "CommunityPost", "A post in the recovery community forum" do
-    String :post_id
-    String :author_id
-    String :content
-    String :topic
-    String :status
-    SubmitPost do
+    attribute :post_id, String
+    attribute :author_id, String
+    attribute :content, String
+    attribute :topic, String
+    attribute :status, String
+    command "SubmitPost" do
       role "Member"
       description "Create a post in the recovery community forum"
-      String :post_id
-      String :author_id
-      String :content
-      String :topic
+      attribute :post_id, String
+      attribute :author_id, String
+      attribute :content, String
+      attribute :topic, String
       emits "PostSubmitted"
       then_set :post_id, to: :post_id
       then_set :author_id, to: :author_id
@@ -94,7 +94,7 @@ Hecks.bluebook "RecoveryCommunity", version: "2026.04.13.1" do
       then_set :topic, to: :topic
       then_set :status, to: "pending_review"
     end
-    ApprovePost do
+    command "ApprovePost" do
       role "Moderator"
       description "Approve a post after content safety review"
       reference_to(CommunityPost)
@@ -102,7 +102,7 @@ Hecks.bluebook "RecoveryCommunity", version: "2026.04.13.1" do
       emits "PostApproved"
       then_set :status, to: "published"
     end
-    RemovePost do
+    command "RemovePost" do
       role "Moderator"
       description "Remove a post that violates community safety guidelines"
       reference_to(CommunityPost)
@@ -112,18 +112,18 @@ Hecks.bluebook "RecoveryCommunity", version: "2026.04.13.1" do
   end
 
   aggregate "SafetyFlag", "A content safety flag raised on potentially harmful content" do
-    String :flag_id
-    String :post_id
-    String :reason
-    String :severity
-    String :status
-    RaiseFlag do
+    attribute :flag_id, String
+    attribute :post_id, String
+    attribute :reason, String
+    attribute :severity, String
+    attribute :status, String
+    command "RaiseFlag" do
       role "System"
       description "Raise a safety flag on content that may be triggering"
-      String :flag_id
-      String :post_id
-      String :reason
-      String :severity
+      attribute :flag_id, String
+      attribute :post_id, String
+      attribute :reason, String
+      attribute :severity, String
       emits "FlagRaised"
       then_set :flag_id, to: :flag_id
       then_set :post_id, to: :post_id
@@ -131,7 +131,7 @@ Hecks.bluebook "RecoveryCommunity", version: "2026.04.13.1" do
       then_set :severity, to: :severity
       then_set :status, to: "open"
     end
-    ReviewFlag do
+    command "ReviewFlag" do
       role "Moderator"
       description "Review a safety flag and take moderation action"
       reference_to(SafetyFlag)

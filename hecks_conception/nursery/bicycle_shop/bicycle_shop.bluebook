@@ -3,30 +3,30 @@ Hecks.bluebook "BicycleShop", version: "2026.04.13.1" do
   category "retail"
 
   aggregate "Bicycle", "A bike available for sale or rent" do
-    String :bike_id
-    String :brand
-    String :model
-    String :type
-    String :frame_size
-    Float :price
-    String :status
+    attribute :bike_id, String
+    attribute :brand, String
+    attribute :model, String
+    attribute :type, String
+    attribute :frame_size, String
+    attribute :price, Float
+    attribute :status, String
     list_of(ComponentSpec) :components
 
     value_object "ComponentSpec" do
-      String :component_name
-      String :brand
-      String :specification
+      attribute :component_name, String
+      attribute :brand, String
+      attribute :specification, String
     end
 
-    StockBicycle do
+    command "StockBicycle" do
       role "Manager"
       description "Add a new bicycle to shop inventory"
-      String :bike_id
-      String :brand
-      String :model
-      String :type
-      String :frame_size
-      Float :price
+      attribute :bike_id, String
+      attribute :brand, String
+      attribute :model, String
+      attribute :type, String
+      attribute :frame_size, String
+      attribute :price, Float
       emits "BicycleStocked"
       then_set :bike_id, to: :bike_id
       then_set :brand, to: :brand
@@ -37,7 +37,7 @@ Hecks.bluebook "BicycleShop", version: "2026.04.13.1" do
       then_set :status, to: "available"
     end
 
-    SellBicycle do
+    command "SellBicycle" do
       role "SalesAssociate"
       description "Complete the sale of a bicycle to a customer"
       reference_to(Bicycle)
@@ -48,28 +48,28 @@ Hecks.bluebook "BicycleShop", version: "2026.04.13.1" do
   end
 
   aggregate "RepairOrder", "A service ticket for bicycle maintenance or repair" do
-    String :order_id
-    String :customer_name
-    String :bike_description
-    String :issue
-    Float :estimate
-    String :status
+    attribute :order_id, String
+    attribute :customer_name, String
+    attribute :bike_description, String
+    attribute :issue, String
+    attribute :estimate, Float
+    attribute :status, String
     list_of(RepairStep) :steps
 
     value_object "RepairStep" do
-      String :description
-      String :part_needed
-      Float :labor_minutes
+      attribute :description, String
+      attribute :part_needed, String
+      attribute :labor_minutes, Float
     end
 
-    OpenRepairOrder do
+    command "OpenRepairOrder" do
       role "Mechanic"
       description "Open a service ticket for a bike needing work"
-      String :order_id
-      String :customer_name
-      String :bike_description
-      String :issue
-      Float :estimate
+      attribute :order_id, String
+      attribute :customer_name, String
+      attribute :bike_description, String
+      attribute :issue, String
+      attribute :estimate, Float
       emits "RepairOrderCreated"
       then_set :order_id, to: :order_id
       then_set :customer_name, to: :customer_name
@@ -79,7 +79,7 @@ Hecks.bluebook "BicycleShop", version: "2026.04.13.1" do
       then_set :status, to: "pending"
     end
 
-    CompleteRepair do
+    command "CompleteRepair" do
       role "Mechanic"
       description "Finish all repair work and mark the bike ready"
       reference_to(RepairOrder)
@@ -90,20 +90,20 @@ Hecks.bluebook "BicycleShop", version: "2026.04.13.1" do
   end
 
   aggregate "BikePart", "A component or accessory for sale or use in repairs" do
-    String :part_number
-    String :name
-    String :category
-    Float :price
-    Integer :quantity
+    attribute :part_number, String
+    attribute :name, String
+    attribute :category, String
+    attribute :price, Float
+    attribute :quantity, Integer
 
-    StockPart do
+    command "StockPart" do
       role "Manager"
       description "Add parts to inventory from a supplier shipment"
-      String :part_number
-      String :name
-      String :category
-      Float :price
-      Integer :quantity
+      attribute :part_number, String
+      attribute :name, String
+      attribute :category, String
+      attribute :price, Float
+      attribute :quantity, Integer
       emits "PartStocked"
       then_set :part_number, to: :part_number
       then_set :name, to: :name
@@ -112,40 +112,40 @@ Hecks.bluebook "BicycleShop", version: "2026.04.13.1" do
       then_set :quantity, to: :quantity
     end
 
-    ConsumePart do
+    command "ConsumePart" do
       role "Mechanic"
       description "Use a part during a repair, reducing inventory"
       reference_to(BikePart)
-      Integer :quantity_used
+      attribute :quantity_used, Integer
       emits "PartConsumed"
     end
   end
 
   aggregate "BikeFitting", "A professional fitting session to match rider to bike" do
-    String :fitting_id
-    String :customer_name
-    String :ride_style
-    String :recommended_size
-    String :notes
+    attribute :fitting_id, String
+    attribute :customer_name, String
+    attribute :ride_style, String
+    attribute :recommended_size, String
+    attribute :notes, String
 
-    PerformFitting do
+    command "PerformFitting" do
       role "FitSpecialist"
       description "Measure the rider and recommend frame size and adjustments"
-      String :fitting_id
-      String :customer_name
-      String :ride_style
+      attribute :fitting_id, String
+      attribute :customer_name, String
+      attribute :ride_style, String
       emits "FittingPerformed"
       then_set :fitting_id, to: :fitting_id
       then_set :customer_name, to: :customer_name
       then_set :ride_style, to: :ride_style
     end
 
-    RecordRecommendation do
+    command "RecordRecommendation" do
       role "FitSpecialist"
       description "Document the recommended bike size and setup"
       reference_to(BikeFitting)
-      String :recommended_size
-      String :notes
+      attribute :recommended_size, String
+      attribute :notes, String
       emits "RecommendationRecorded"
       then_set :recommended_size, to: :recommended_size
       then_set :notes, to: :notes
@@ -153,23 +153,23 @@ Hecks.bluebook "BicycleShop", version: "2026.04.13.1" do
   end
 
   aggregate "Rental", "A bike rented out for a period of time" do
-    String :rental_id
-    String :bike_id
-    String :renter_name
-    String :start_date
-    String :end_date
-    Float :daily_rate
-    String :status
+    attribute :rental_id, String
+    attribute :bike_id, String
+    attribute :renter_name, String
+    attribute :start_date, String
+    attribute :end_date, String
+    attribute :daily_rate, Float
+    attribute :status, String
 
-    RentBike do
+    command "RentBike" do
       role "SalesAssociate"
       description "Check out a bike to a customer for a rental period"
-      String :rental_id
-      String :bike_id
-      String :renter_name
-      String :start_date
-      String :end_date
-      Float :daily_rate
+      attribute :rental_id, String
+      attribute :bike_id, String
+      attribute :renter_name, String
+      attribute :start_date, String
+      attribute :end_date, String
+      attribute :daily_rate, Float
       emits "BikeRented"
       then_set :rental_id, to: :rental_id
       then_set :bike_id, to: :bike_id
@@ -180,7 +180,7 @@ Hecks.bluebook "BicycleShop", version: "2026.04.13.1" do
       then_set :status, to: "rented"
     end
 
-    ReturnRental do
+    command "ReturnRental" do
       role "SalesAssociate"
       description "Check in a returned rental bike and inspect condition"
       reference_to(Rental)

@@ -5,27 +5,27 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
   # === DisasterEvent ===
 
   aggregate "DisasterEvent", "A natural disaster — the trigger that cascades through all infrastructure systems" do
-    String :event_type
-    String :location
-    String :severity
-    String :status
-    String :declared_at
+    attribute :event_type, String
+    attribute :location, String
+    attribute :severity, String
+    attribute :status, String
+    attribute :declared_at, String
     list_of(ImpactAssessment) :impacts
 
     value_object "ImpactAssessment" do
-      String :infrastructure_type
-      String :impact_level
-      Integer :affected_population
-      String :assessed_at
+      attribute :infrastructure_type, String
+      attribute :impact_level, String
+      attribute :affected_population, Integer
+      attribute :assessed_at, String
     end
 
-    DeclareDisaster do
+    command "DeclareDisaster" do
       role "EmergencyManager"
       description "Officially declare a natural disaster event — triggers all cascade protocols"
-      String :event_type
-      String :location
-      String :severity
-      String :declared_at
+      attribute :event_type, String
+      attribute :location, String
+      attribute :severity, String
+      attribute :declared_at, String
       emits "DisasterDeclared"
       then_set :event_type, to: :event_type
       then_set :location, to: :location
@@ -34,26 +34,26 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    AssessImpact do
+    command "AssessImpact" do
       role "EmergencyManager"
       description "Assess the impact on specific infrastructure systems"
       reference_to(DisasterEvent)
-      String :infrastructure_type
-      String :impact_level
+      attribute :infrastructure_type, String
+      attribute :impact_level, String
       emits "ImpactAssessed"
     end
 
-    EscalateSeverity do
+    command "EscalateSeverity" do
       role "EmergencyManager"
       description "Upgrade disaster severity as situation worsens"
       reference_to(DisasterEvent)
-      String :severity
+      attribute :severity, String
       given { status == "active" }
       emits "SeverityEscalated"
       then_set :severity, to: :severity
     end
 
-    ResolveDisaster do
+    command "ResolveDisaster" do
       role "EmergencyManager"
       description "Disaster event resolved — begin recovery phase"
       reference_to(DisasterEvent)
@@ -71,26 +71,26 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
   # === GridSegment ===
 
   aggregate "GridSegment", "A section of the power grid — load, generation, and switching capability" do
-    String :segment_id
-    String :region
-    Float :capacity_mw
-    Float :current_load_mw
-    String :status
+    attribute :segment_id, String
+    attribute :region, String
+    attribute :capacity_mw, Float
+    attribute :current_load_mw, Float
+    attribute :status, String
     list_of(Generator) :generators
 
     value_object "Generator" do
-      String :generator_id
-      String :fuel_type
-      Float :capacity_mw
-      String :status
+      attribute :generator_id, String
+      attribute :fuel_type, String
+      attribute :capacity_mw, Float
+      attribute :status, String
     end
 
-    RegisterSegment do
+    command "RegisterSegment" do
       role "GridOperator"
       description "Register a power grid segment with its generators and capacity"
-      String :segment_id
-      String :region
-      Float :capacity_mw
+      attribute :segment_id, String
+      attribute :region, String
+      attribute :capacity_mw, Float
       emits "SegmentRegistered"
       then_set :segment_id, to: :segment_id
       then_set :region, to: :region
@@ -99,7 +99,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
       then_set :status, to: "online"
     end
 
-    RerouteGrid do
+    command "RerouteGrid" do
       role "System"
       description "Reroute power away from damaged segment to backup paths"
       reference_to(GridSegment)
@@ -108,7 +108,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
       then_set :status, to: "rerouted"
     end
 
-    FailSegment do
+    command "FailSegment" do
       role "System"
       description "Grid segment has failed — total power loss in this area"
       reference_to(GridSegment)
@@ -116,7 +116,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
       then_set :status, to: "failed"
     end
 
-    RestoreSegment do
+    command "RestoreSegment" do
       role "GridOperator"
       description "Restore power to a failed or rerouted segment"
       reference_to(GridSegment)
@@ -135,25 +135,25 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
   # === AirspaceZone ===
 
   aggregate "AirspaceZone", "A controlled airspace zone — volcanic ash, debris, or weather can force closure" do
-    String :zone_id
-    String :region
-    String :status
-    String :closure_reason
-    Integer :affected_flights
+    attribute :zone_id, String
+    attribute :region, String
+    attribute :status, String
+    attribute :closure_reason, String
+    attribute :affected_flights, Integer
     list_of(AshReading) :ash_readings
 
     value_object "AshReading" do
-      Float :concentration_mg_m3
-      Float :altitude_ft
-      String :timestamp
-      String :source_volcano
+      attribute :concentration_mg_m3, Float
+      attribute :altitude_ft, Float
+      attribute :timestamp, String
+      attribute :source_volcano, String
     end
 
-    DefineAirspace do
+    command "DefineAirspace" do
       role "AirTrafficControl"
       description "Define a controlled airspace zone"
-      String :zone_id
-      String :region
+      attribute :zone_id, String
+      attribute :region, String
       emits "AirspaceDefined"
       then_set :zone_id, to: :zone_id
       then_set :region, to: :region
@@ -161,20 +161,20 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
       then_set :status, to: "open"
     end
 
-    DetectAsh do
+    command "DetectAsh" do
       role "System"
       description "Volcanic ash detected in airspace — aviation hazard"
       reference_to(AirspaceZone)
-      Float :concentration_mg_m3
+      attribute :concentration_mg_m3, Float
       emits "AshDetected"
     end
 
-    CloseAirspace do
+    command "CloseAirspace" do
       role "System"
       description "Close airspace zone — ash, debris, or disaster makes it unsafe"
       reference_to(AirspaceZone)
-      String :closure_reason
-      Integer :affected_flights
+      attribute :closure_reason, String
+      attribute :affected_flights, Integer
       given { status == "open" }
       emits "AirspaceClosed"
       then_set :closure_reason, to: :closure_reason
@@ -182,7 +182,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
       then_set :status, to: "closed"
     end
 
-    ReopenAirspace do
+    command "ReopenAirspace" do
       role "AirTrafficControl"
       description "Reopen airspace after hazard has cleared"
       reference_to(AirspaceZone)
@@ -201,27 +201,27 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
   # === EmergencyProtocol ===
 
   aggregate "EmergencyProtocol", "A pre-defined emergency response protocol — activated by disaster cascade" do
-    String :protocol_name
-    String :protocol_type
-    String :trigger_condition
-    String :status
+    attribute :protocol_name, String
+    attribute :protocol_type, String
+    attribute :trigger_condition, String
+    attribute :status, String
     reference_to(DisasterEvent, as: :disaster)
     list_of(ProtocolStep) :steps
 
     value_object "ProtocolStep" do
-      Integer :step_number
-      String :action
-      String :responsible_party
-      String :status
-      String :completed_at
+      attribute :step_number, Integer
+      attribute :action, String
+      attribute :responsible_party, String
+      attribute :status, String
+      attribute :completed_at, String
     end
 
-    ActivateEmergencyProtocol do
+    command "ActivateEmergencyProtocol" do
       role "System"
       description "Activate an emergency protocol in response to infrastructure failure"
-      String :protocol_name
-      String :protocol_type
-      String :trigger_condition
+      attribute :protocol_name, String
+      attribute :protocol_type, String
+      attribute :trigger_condition, String
       reference_to(DisasterEvent, as: :disaster)
       emits "ProtocolActivated"
       then_set :protocol_name, to: :protocol_name
@@ -231,7 +231,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    ExecuteStep do
+    command "ExecuteStep" do
       role "EmergencyManager"
       description "Execute the next step in the emergency protocol"
       reference_to(EmergencyProtocol)
@@ -239,7 +239,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
       emits "ProtocolStepExecuted"
     end
 
-    CompleteProtocol do
+    command "CompleteProtocol" do
       role "EmergencyManager"
       description "All protocol steps completed — emergency response fulfilled"
       reference_to(EmergencyProtocol)
@@ -258,23 +258,23 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
 
   aggregate "CascadeChain", "A chain of infrastructure failures — one failure triggers the next in sequence" do
     reference_to(DisasterEvent, as: :disaster)
-    String :chain_name
-    Integer :cascade_depth
-    String :status
+    attribute :chain_name, String
+    attribute :cascade_depth, Integer
+    attribute :status, String
     list_of(CascadeLink) :links
 
     value_object "CascadeLink" do
-      String :source_system
-      String :target_system
-      String :failure_type
-      String :triggered_at
+      attribute :source_system, String
+      attribute :target_system, String
+      attribute :failure_type, String
+      attribute :triggered_at, String
     end
 
-    StartCascade do
+    command "StartCascade" do
       role "System"
       description "Initialize a cascade chain when disaster impacts first infrastructure"
       reference_to(DisasterEvent, as: :disaster)
-      String :chain_name
+      attribute :chain_name, String
       emits "CascadeStarted"
       then_set :disaster, to: :disaster
       then_set :chain_name, to: :chain_name
@@ -282,17 +282,17 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
       then_set :status, to: "cascading"
     end
 
-    PropagateFailure do
+    command "PropagateFailure" do
       role "System"
       description "A failure in one system triggers failure in a dependent system"
       reference_to(CascadeChain)
-      String :source_system
-      String :target_system
+      attribute :source_system, String
+      attribute :target_system, String
       given { status == "cascading" }
       emits "FailurePropagated"
     end
 
-    ContainCascade do
+    command "ContainCascade" do
       role "EmergencyManager"
       description "Break the cascade chain — isolate remaining systems"
       reference_to(CascadeChain)
@@ -311,25 +311,25 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
 
   aggregate "RecoveryPlan", "A structured recovery plan — prioritized restoration of infrastructure after disaster" do
     reference_to(DisasterEvent, as: :disaster)
-    String :plan_name
-    String :status
-    Integer :priority_level
+    attribute :plan_name, String
+    attribute :status, String
+    attribute :priority_level, Integer
     list_of(RecoveryTask) :tasks
 
     value_object "RecoveryTask" do
-      String :task_name
-      String :infrastructure_type
-      String :assigned_team
-      String :status
-      Integer :estimated_hours
+      attribute :task_name, String
+      attribute :infrastructure_type, String
+      attribute :assigned_team, String
+      attribute :status, String
+      attribute :estimated_hours, Integer
     end
 
-    DraftRecoveryPlan do
+    command "DraftRecoveryPlan" do
       role "EmergencyManager"
       description "Create a prioritized recovery plan after disaster is resolved"
       reference_to(DisasterEvent, as: :disaster)
-      String :plan_name
-      Integer :priority_level
+      attribute :plan_name, String
+      attribute :priority_level, Integer
       emits "RecoveryPlanDrafted"
       then_set :disaster, to: :disaster
       then_set :plan_name, to: :plan_name
@@ -337,7 +337,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
       then_set :status, to: "created"
     end
 
-    ExecuteRecovery do
+    command "ExecuteRecovery" do
       role "EmergencyManager"
       description "Begin executing the recovery plan"
       reference_to(RecoveryPlan)
@@ -346,7 +346,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
       then_set :status, to: "executing"
     end
 
-    CompleteRecovery do
+    command "CompleteRecovery" do
       role "EmergencyManager"
       description "All recovery tasks complete — infrastructure fully restored"
       reference_to(RecoveryPlan)

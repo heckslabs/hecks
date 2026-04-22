@@ -2,49 +2,49 @@ Hecks.bluebook "PublicLibrary" do
   vision "Manage books, patrons, loans, holds, and fines for a public library system"
 
   aggregate "Book", "A cataloged item in the library collection" do
-    String :isbn
-    String :title
-    String :author
-    String :genre
-    Integer :copies_available
-    String :status
+    attribute :isbn, String
+    attribute :title, String
+    attribute :author, String
+    attribute :genre, String
+    attribute :copies_available, Integer
+    attribute :status, String
 
     value_object "CatalogEntry" do
-      String :dewey_decimal
-      String :subject_heading
-      String :publication_year
+      attribute :dewey_decimal, String
+      attribute :subject_heading, String
+      attribute :publication_year, String
     end
 
-    AcquireBook do
+    command "AcquireBook" do
       description "Add a new title to the library collection"
-      String :isbn
-      String :title
-      String :author
-      String :genre
-      Integer :copies_available
+      attribute :isbn, String
+      attribute :title, String
+      attribute :author, String
+      attribute :genre, String
+      attribute :copies_available, Integer
       emits "BookAcquired"
       then_set :status, to: "acquired"
     end
 
-    CatalogBook do
+    command "CatalogBook" do
       description "Assign classification and shelving location"
       reference_to(Book)
-      String :dewey_decimal
+      attribute :dewey_decimal, String
       emits "BookCataloged"
       then_set :status, to: "cataloged"
     end
 
-    ShelveBook do
+    command "ShelveBook" do
       description "Place a cataloged book on its assigned shelf"
       reference_to(Book)
       emits "BookShelved"
       then_set :status, to: "available"
     end
 
-    WithdrawBook do
+    command "WithdrawBook" do
       description "Remove a damaged or outdated book from circulation"
       reference_to(Book)
-      String :reason
+      attribute :reason, String
       given { status == "available" }
       emits "BookWithdrawn"
       then_set :status, to: "withdrawn"
@@ -52,37 +52,37 @@ Hecks.bluebook "PublicLibrary" do
   end
 
   aggregate "Patron", "A registered library member with borrowing privileges" do
-    String :library_card
-    String :name
-    String :email
-    String :membership_type
-    String :status
-    Integer :items_checked_out
+    attribute :library_card, String
+    attribute :name, String
+    attribute :email, String
+    attribute :membership_type, String
+    attribute :status, String
+    attribute :items_checked_out, Integer
 
     value_object "ContactAddress" do
-      String :street
-      String :city
-      String :zip_code
+      attribute :street, String
+      attribute :city, String
+      attribute :zip_code, String
     end
 
-    RegisterPatron do
+    command "RegisterPatron" do
       description "Issue a library card to a new patron"
-      String :name
-      String :email
-      String :membership_type
+      attribute :name, String
+      attribute :email, String
+      attribute :membership_type, String
       emits "PatronRegistered"
       then_set :status, to: "active"
       then_set :items_checked_out, to: 0
     end
 
-    SuspendPatron do
+    command "SuspendPatron" do
       description "Suspend borrowing privileges for overdue fines"
       reference_to(Patron)
       emits "PatronSuspended"
       then_set :status, to: "suspended"
     end
 
-    ReinstatePatron do
+    command "ReinstatePatron" do
       description "Restore privileges after fines are paid"
       reference_to(Patron)
       emits "PatronReinstated"
@@ -91,29 +91,29 @@ Hecks.bluebook "PublicLibrary" do
   end
 
   aggregate "Loan", "A checkout record tracking a book borrowed by a patron" do
-    String :loan_id
-    String :checkout_date
-    String :due_date
-    String :return_date
-    String :status
+    attribute :loan_id, String
+    attribute :checkout_date, String
+    attribute :due_date, String
+    attribute :return_date, String
+    attribute :status, String
     reference_to(Book)
     reference_to(Patron)
 
     value_object "RenewalHistory" do
-      Integer :renewal_count
-      String :last_renewed
+      attribute :renewal_count, Integer
+      attribute :last_renewed, String
     end
 
-    CheckOutBook do
+    command "CheckOutBook" do
       description "Lend a book to a patron"
       reference_to(Book)
       reference_to(Patron)
-      String :due_date
+      attribute :due_date, String
       emits "BookCheckedOut"
       then_set :status, to: "active"
     end
 
-    ReturnBook do
+    command "ReturnBook" do
       description "Process a returned book"
       reference_to(Loan)
       given { status == "active" }
@@ -121,15 +121,15 @@ Hecks.bluebook "PublicLibrary" do
       then_set :status, to: "returned"
     end
 
-    RenewLoan do
+    command "RenewLoan" do
       description "Extend the due date for a current loan"
       reference_to(Loan)
-      String :new_due_date
+      attribute :new_due_date, String
       given { status == "active" }
       emits "LoanRenewed"
     end
 
-    MarkOverdue do
+    command "MarkOverdue" do
       description "Flag a loan as overdue past its due date"
       reference_to(Loan)
       given { status == "active" }
@@ -139,19 +139,19 @@ Hecks.bluebook "PublicLibrary" do
   end
 
   aggregate "Hold", "A reservation request for a book that is currently checked out" do
-    String :hold_id
-    String :placed_date
-    Integer :queue_position
-    String :status
+    attribute :hold_id, String
+    attribute :placed_date, String
+    attribute :queue_position, Integer
+    attribute :status, String
     reference_to(Book)
     reference_to(Patron)
 
     value_object "Notification" do
-      String :notify_method
-      String :notified_at
+      attribute :notify_method, String
+      attribute :notified_at, String
     end
 
-    PlaceHold do
+    command "PlaceHold" do
       description "Reserve a book for a patron when it becomes available"
       reference_to(Book)
       reference_to(Patron)
@@ -159,14 +159,14 @@ Hecks.bluebook "PublicLibrary" do
       then_set :status, to: "pending"
     end
 
-    FulfillHold do
+    command "FulfillHold" do
       description "Notify patron that their held book is ready for pickup"
       reference_to(Hold)
       emits "HoldFulfilled"
       then_set :status, to: "ready"
     end
 
-    CheckOutHeld do
+    command "CheckOutHeld" do
       description "Complete the checkout for a held book picked up by the patron"
       reference_to(Hold)
       given { status == "ready" }
@@ -174,7 +174,7 @@ Hecks.bluebook "PublicLibrary" do
       then_set :status, to: "completed"
     end
 
-    CancelHold do
+    command "CancelHold" do
       description "Remove a hold request"
       reference_to(Hold)
       given { status == "pending" }
@@ -184,33 +184,33 @@ Hecks.bluebook "PublicLibrary" do
   end
 
   aggregate "Fine", "A monetary penalty for overdue or lost materials" do
-    String :fine_id
-    Integer :amount_cents
-    String :reason
-    String :status
+    attribute :fine_id, String
+    attribute :amount_cents, Integer
+    attribute :reason, String
+    attribute :status, String
     reference_to(Patron)
     reference_to(Loan)
 
     value_object "Payment" do
-      Integer :paid_cents
-      String :payment_method
-      String :paid_at
+      attribute :paid_cents, Integer
+      attribute :payment_method, String
+      attribute :paid_at, String
     end
 
-    AssessFine do
+    command "AssessFine" do
       description "Charge a fine to a patron for overdue material"
-      Integer :amount_cents
-      String :reason
+      attribute :amount_cents, Integer
+      attribute :reason, String
       reference_to(Patron)
       reference_to(Loan)
       emits "FineAssessed"
       then_set :status, to: "outstanding"
     end
 
-    PayFine do
+    command "PayFine" do
       description "Record payment of an outstanding fine"
       reference_to(Fine)
-      Integer :paid_cents
+      attribute :paid_cents, Integer
       given { status == "outstanding" }
       emits "FinePaid"
       then_set :status, to: "paid"

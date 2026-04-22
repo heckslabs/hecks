@@ -2,30 +2,30 @@ Hecks.bluebook "EmergencyRoom" do
   vision "Manage patients, beds, triage, procedures, and discharges for a hospital emergency department"
 
   aggregate "Patient", "A person presenting at the ER for emergency medical care" do
-    String :patient_id
-    String :name
-    String :date_of_birth
-    String :chief_complaint
-    String :status
-    String :arrival_time
+    attribute :patient_id, String
+    attribute :name, String
+    attribute :date_of_birth, String
+    attribute :chief_complaint, String
+    attribute :status, String
+    attribute :arrival_time, String
     reference_to(Bed)
 
     value_object "Insurance" do
-      String :provider
-      String :policy_number
-      String :group_number
+      attribute :provider, String
+      attribute :policy_number, String
+      attribute :group_number, String
     end
 
-    RegisterPatient do
+    command "RegisterPatient" do
       description "Check in a patient at the ER front desk"
-      String :name
-      String :date_of_birth
-      String :chief_complaint
+      attribute :name, String
+      attribute :date_of_birth, String
+      attribute :chief_complaint, String
       emits "PatientRegistered"
       then_set :status, to: "triaged"
     end
 
-    AdmitPatient do
+    command "AdmitPatient" do
       description "Move a triaged patient to a bed for treatment"
       reference_to(Patient)
       reference_to(Bed)
@@ -34,7 +34,7 @@ Hecks.bluebook "EmergencyRoom" do
       then_set :status, to: "admitted"
     end
 
-    BeginTreatment do
+    command "BeginTreatment" do
       description "Start active medical treatment on an admitted patient"
       reference_to(Patient)
       given { status == "admitted" }
@@ -42,7 +42,7 @@ Hecks.bluebook "EmergencyRoom" do
       then_set :status, to: "treating"
     end
 
-    StabilizePatient do
+    command "StabilizePatient" do
       description "Record that the patient's condition has been stabilized"
       reference_to(Patient)
       given { status == "treating" }
@@ -50,19 +50,19 @@ Hecks.bluebook "EmergencyRoom" do
       then_set :status, to: "stabilized"
     end
 
-    DischargePatient do
+    command "DischargePatient" do
       description "Release a patient from the ER after treatment"
       reference_to(Patient)
-      String :discharge_instructions
+      attribute :discharge_instructions, String
       given { status == "stabilized" }
       emits "PatientDischarged"
       then_set :status, to: "discharged"
     end
 
-    TransferToInpatient do
+    command "TransferToInpatient" do
       description "Transfer a stabilized patient to an inpatient ward"
       reference_to(Patient)
-      String :ward
+      attribute :ward, String
       given { status == "stabilized" }
       emits "PatientTransferred"
       then_set :status, to: "transferred"
@@ -70,27 +70,27 @@ Hecks.bluebook "EmergencyRoom" do
   end
 
   aggregate "Bed", "A physical treatment space in the emergency department" do
-    String :bed_id
-    String :zone
-    String :status
-    String :equipment_level
+    attribute :bed_id, String
+    attribute :zone, String
+    attribute :status, String
+    attribute :equipment_level, String
 
     value_object "BedEquipment" do
-      String :has_monitor
-      String :has_oxygen
-      String :has_suction
+      attribute :has_monitor, String
+      attribute :has_oxygen, String
+      attribute :has_suction, String
     end
 
-    PrepareBed do
+    command "PrepareBed" do
       description "Ready a bed for the next patient"
-      String :bed_id
-      String :zone
-      String :equipment_level
+      attribute :bed_id, String
+      attribute :zone, String
+      attribute :equipment_level, String
       emits "BedPrepared"
       then_set :status, to: "available"
     end
 
-    OccupyBed do
+    command "OccupyBed" do
       description "Mark a bed as in use by a patient"
       reference_to(Bed)
       given { status == "available" }
@@ -98,7 +98,7 @@ Hecks.bluebook "EmergencyRoom" do
       then_set :status, to: "occupied"
     end
 
-    CleanBed do
+    command "CleanBed" do
       description "Sanitize a bed after patient discharge"
       reference_to(Bed)
       given { status == "occupied" }
@@ -108,10 +108,10 @@ Hecks.bluebook "EmergencyRoom" do
   end
 
   aggregate "TriageAssessment", "An initial evaluation assigning acuity level to a patient" do
-    String :assessment_id
-    Integer :acuity_level
-    String :vital_signs_summary
-    String :status
+    attribute :assessment_id, String
+    attribute :acuity_level, Integer
+    attribute :vital_signs_summary, String
+    attribute :status, String
     reference_to(Patient)
 
     specification "Critical" do
@@ -119,57 +119,57 @@ Hecks.bluebook "EmergencyRoom" do
     end
 
     value_object "VitalSigns" do
-      Integer :heart_rate
-      Integer :blood_pressure_systolic
-      Integer :blood_pressure_diastolic
-      Float :temperature_f
-      Integer :respiratory_rate
+      attribute :heart_rate, Integer
+      attribute :blood_pressure_systolic, Integer
+      attribute :blood_pressure_diastolic, Integer
+      attribute :temperature_f, Float
+      attribute :respiratory_rate, Integer
     end
 
-    PerformTriage do
+    command "PerformTriage" do
       description "Assess a waiting patient and assign acuity level"
       reference_to(Patient)
-      Integer :acuity_level
-      String :vital_signs_summary
+      attribute :acuity_level, Integer
+      attribute :vital_signs_summary, String
       emits "TriageCompleted"
       then_set :status, to: "completed"
     end
 
-    EscalateTriage do
+    command "EscalateTriage" do
       description "Upgrade acuity level if patient condition worsens"
       reference_to(TriageAssessment)
-      Integer :new_acuity_level
+      attribute :new_acuity_level, Integer
       given { status == "completed" }
       emits "TriageEscalated"
     end
   end
 
   aggregate "Procedure", "A medical intervention performed on an ER patient" do
-    String :procedure_id
-    String :procedure_name
-    String :physician
-    String :status
-    String :notes
+    attribute :procedure_id, String
+    attribute :procedure_name, String
+    attribute :physician, String
+    attribute :status, String
+    attribute :notes, String
     reference_to(Patient)
 
     value_object "Supplies" do
-      String :item_name
-      Integer :quantity
+      attribute :item_name, String
+      attribute :quantity, Integer
     end
 
-    OrderProcedure do
+    command "OrderProcedure" do
       description "Prescribe a procedure for a patient"
-      String :procedure_name
-      String :physician
+      attribute :procedure_name, String
+      attribute :physician, String
       reference_to(Patient)
       emits "ProcedureOrdered"
       then_set :status, to: "ordered"
     end
 
-    PerformProcedure do
+    command "PerformProcedure" do
       description "Execute the ordered procedure"
       reference_to(Procedure)
-      String :notes
+      attribute :notes, String
       given { status == "ordered" }
       emits "ProcedurePerformed"
       then_set :status, to: "completed"

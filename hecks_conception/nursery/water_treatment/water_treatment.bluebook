@@ -2,47 +2,47 @@ Hecks.bluebook "WaterTreatment" do
   vision "Monitor treatment plants, processes, water samples, chemical dosing, and regulatory compliance"
 
   aggregate "Plant", "A water treatment facility processing raw water to potable standards" do
-    String :plant_id
-    String :name
-    Float :capacity_mgd
-    String :status
-    Float :current_flow_mgd
+    attribute :plant_id, String
+    attribute :name, String
+    attribute :capacity_mgd, Float
+    attribute :status, String
+    attribute :current_flow_mgd, Float
 
     value_object "GeoLocation" do
-      Float :latitude
-      Float :longitude
+      attribute :latitude, Float
+      attribute :longitude, Float
     end
 
     fixture "North Facility", plant_id: "PLANT-001", name: "North Water Treatment Plant", capacity_mgd: 50.0, status: "operational", current_flow_mgd: 38.5
     fixture "South Facility", plant_id: "PLANT-002", name: "South Water Treatment Plant", capacity_mgd: 35.0, status: "operational", current_flow_mgd: 28.2
 
-    ActivatePlant do
+    command "ActivatePlant" do
       description "Bring a new treatment plant online"
-      String :plant_id
-      String :name
-      Float :capacity_mgd
+      attribute :plant_id, String
+      attribute :name, String
+      attribute :capacity_mgd, Float
       emits "PlantActivated"
       then_set :status, to: "operational"
       then_set :current_flow_mgd, to: 0.0
     end
 
-    AdjustFlow do
+    command "AdjustFlow" do
       description "Change the inflow rate based on demand"
       reference_to(Plant)
-      Float :target_flow_mgd
+      attribute :target_flow_mgd, Float
       given { status == "operational" }
       emits "FlowAdjusted"
     end
 
-    ShutdownPlant do
+    command "ShutdownPlant" do
       description "Take the plant offline for emergency or maintenance"
       reference_to(Plant)
-      String :reason
+      attribute :reason, String
       emits "PlantShutdown"
       then_set :status, to: "offline"
     end
 
-    RestartPlant do
+    command "RestartPlant" do
       description "Bring an offline plant back into operation"
       reference_to(Plant)
       given { status == "offline" }
@@ -52,31 +52,31 @@ Hecks.bluebook "WaterTreatment" do
   end
 
   aggregate "TreatmentProcess", "A stage in the treatment train — coagulation, filtration, disinfection" do
-    String :process_id
-    String :stage_name
-    String :technology
-    String :status
-    Float :efficiency_percent
+    attribute :process_id, String
+    attribute :stage_name, String
+    attribute :technology, String
+    attribute :status, String
+    attribute :efficiency_percent, Float
     reference_to(Plant)
 
     value_object "ProcessParameters" do
-      Float :retention_time_hours
-      Float :flow_rate_gpm
+      attribute :retention_time_hours, Float
+      attribute :flow_rate_gpm, Float
     end
 
     fixture "Primary Coagulation", process_id: "PROC-001", stage_name: "Coagulation", technology: "PAC (Powdered Activated Carbon)", status: "active", efficiency_percent: 85.2
     fixture "Sand Filtration", process_id: "PROC-002", stage_name: "Filtration", technology: "Multi-Media Sand Filter", status: "active", efficiency_percent: 92.1
 
-    ConfigureProcess do
+    command "ConfigureProcess" do
       description "Set up a treatment stage with its technology and parameters"
-      String :stage_name
-      String :technology
+      attribute :stage_name, String
+      attribute :technology, String
       reference_to(Plant)
       emits "ProcessConfigured"
       then_set :status, to: "configured"
     end
 
-    ActivateProcess do
+    command "ActivateProcess" do
       description "Bring a configured treatment stage online"
       reference_to(TreatmentProcess)
       given { status == "configured" }
@@ -84,21 +84,21 @@ Hecks.bluebook "WaterTreatment" do
       then_set :status, to: "active"
     end
 
-    MonitorProcess do
+    command "MonitorProcess" do
       description "Record real-time performance metrics for a process"
       reference_to(TreatmentProcess)
-      Float :efficiency_percent
+      attribute :efficiency_percent, Float
       emits "ProcessMonitored"
     end
 
-    BypassProcess do
+    command "BypassProcess" do
       description "Temporarily route water around a failed treatment stage"
-      String :reason
+      attribute :reason, String
       emits "ProcessBypassed"
       then_set :status, to: "bypassed"
     end
 
-    RestoreProcess do
+    command "RestoreProcess" do
       description "Return a bypassed treatment stage to active service"
       reference_to(TreatmentProcess)
       given { status == "bypassed" }
@@ -108,37 +108,37 @@ Hecks.bluebook "WaterTreatment" do
   end
 
   aggregate "WaterSample", "A lab sample taken from the treatment train or distribution system" do
-    String :sample_id
-    String :sample_point
-    String :collected_at
-    String :status
+    attribute :sample_id, String
+    attribute :sample_point, String
+    attribute :collected_at, String
+    attribute :status, String
     reference_to(Plant)
 
     value_object "LabResults" do
-      Float :turbidity_ntu
-      Float :chlorine_residual_ppm
-      Float :ph
-      Float :coliform_count
+      attribute :turbidity_ntu, Float
+      attribute :chlorine_residual_ppm, Float
+      attribute :ph, Float
+      attribute :coliform_count, Float
     end
 
     fixture "Raw Water Inlet", sample_id: "SAMPLE-001", sample_point: "Raw Water Intake", collected_at: "2026-04-14 08:00", status: "analyzed"
     fixture "Post-Filtration Point", sample_id: "SAMPLE-002", sample_point: "Post-Sand Filter", collected_at: "2026-04-14 10:30", status: "approved"
 
-    CollectSample do
+    command "CollectSample" do
       description "Take a water sample at a designated point"
-      String :sample_point
+      attribute :sample_point, String
       reference_to(Plant)
       emits "SampleCollected"
       then_set :status, to: "collected"
     end
 
-    AnalyzeSample do
+    command "AnalyzeSample" do
       description "Run lab tests on a collected sample"
       emits "SampleAnalyzed"
       then_set :status, to: "analyzed"
     end
 
-    ApproveSample do
+    command "ApproveSample" do
       description "Certify sample results meet regulatory standards"
       reference_to(WaterSample)
       given { status == "analyzed" }
@@ -146,7 +146,7 @@ Hecks.bluebook "WaterTreatment" do
       then_set :status, to: "approved"
     end
 
-    RejectSample do
+    command "RejectSample" do
       description "Flag sample results as out of compliance"
       reference_to(WaterSample)
       given { status == "analyzed" }
@@ -156,39 +156,39 @@ Hecks.bluebook "WaterTreatment" do
   end
 
   aggregate "ChemicalFeed", "A dosing system adding treatment chemicals to the water" do
-    String :chemical_name
-    Float :dose_rate_ppm
-    Float :inventory_gallons
-    String :status
+    attribute :chemical_name, String
+    attribute :dose_rate_ppm, Float
+    attribute :inventory_gallons, Float
+    attribute :status, String
     reference_to(TreatmentProcess)
 
     value_object "ChemicalSpec" do
-      String :cas_number
-      Float :concentration_percent
+      attribute :cas_number, String
+      attribute :concentration_percent, Float
     end
 
     fixture "Alum Dosing", chemical_name: "Aluminum Sulfate", dose_rate_ppm: 15.0, inventory_gallons: 5000.0, status: "dosing"
     fixture "Chlorine Feed", chemical_name: "Sodium Hypochlorite", dose_rate_ppm: 2.5, inventory_gallons: 2000.0, status: "dosing"
 
-    StartDosing do
+    command "StartDosing" do
       description "Begin feeding a chemical into the treatment process"
-      String :chemical_name
-      Float :dose_rate_ppm
-      Float :inventory_gallons
+      attribute :chemical_name, String
+      attribute :dose_rate_ppm, Float
+      attribute :inventory_gallons, Float
       reference_to(TreatmentProcess)
       emits "DosingStarted"
       then_set :status, to: "dosing"
     end
 
-    AdjustDose do
+    command "AdjustDose" do
       description "Change the chemical feed rate based on sample results"
       reference_to(ChemicalFeed)
-      Float :new_dose_rate_ppm
+      attribute :new_dose_rate_ppm, Float
       given { status == "dosing" }
       emits "DoseAdjusted"
     end
 
-    StopDosing do
+    command "StopDosing" do
       description "Halt chemical feed due to depletion or process bypass"
       reference_to(ChemicalFeed)
       given { status == "dosing" }
@@ -198,32 +198,32 @@ Hecks.bluebook "WaterTreatment" do
   end
 
   aggregate "ComplianceReport", "A regulatory filing documenting water quality against standards" do
-    String :report_id
-    String :reporting_period
-    String :regulatory_body
-    String :status
+    attribute :report_id, String
+    attribute :reporting_period, String
+    attribute :regulatory_body, String
+    attribute :status, String
     reference_to(Plant)
 
     value_object "Violation" do
-      String :parameter
-      Float :measured_value
-      Float :limit_value
+      attribute :parameter, String
+      attribute :measured_value, Float
+      attribute :limit_value, Float
     end
 
-    FileReport do
+    command "FileReport" do
       description "Submit a compliance report to the regulatory agency"
-      String :reporting_period
-      String :regulatory_body
+      attribute :reporting_period, String
+      attribute :regulatory_body, String
       reference_to(Plant)
       emits "ReportFiled"
       then_set :status, to: "submitted"
     end
 
-    FlagViolation do
+    command "FlagViolation" do
       description "Record a parameter exceedance in the report"
       reference_to(ComplianceReport)
-      String :parameter
-      Float :measured_value
+      attribute :parameter, String
+      attribute :measured_value, Float
       emits "ViolationFlagged"
     end
 

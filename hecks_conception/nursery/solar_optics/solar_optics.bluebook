@@ -3,28 +3,28 @@ Hecks.bluebook "SolarOptics", version: "2026.04.13.1" do
   category "crossover"
 
   aggregate "SolarPosition", "Sun position calculation — altitude, azimuth, hour angle by location and time" do
-    String :location_name
-    Float :latitude
-    Float :longitude
-    Float :solar_altitude_deg
-    Float :solar_azimuth_deg
-    String :date_time
-    String :status
+    attribute :location_name, String
+    attribute :latitude, Float
+    attribute :longitude, Float
+    attribute :solar_altitude_deg, Float
+    attribute :solar_azimuth_deg, Float
+    attribute :date_time, String
+    attribute :status, String
 
     value_object "SunPath" do
-      Float :sunrise_hour
-      Float :sunset_hour
-      Float :peak_altitude_deg
-      Float :day_length_hours
+      attribute :sunrise_hour, Float
+      attribute :sunset_hour, Float
+      attribute :peak_altitude_deg, Float
+      attribute :day_length_hours, Float
     end
 
-    CalculateSolarPosition do
+    command "CalculateSolarPosition" do
       role "System"
       description "Calculate sun position from location, date, and time"
-      String :location_name
-      Float :latitude
-      Float :longitude
-      String :date_time
+      attribute :location_name, String
+      attribute :latitude, Float
+      attribute :longitude, Float
+      attribute :date_time, String
       emits "SolarPositionCalculated"
       then_set :location_name, to: :location_name
       then_set :latitude, to: :latitude
@@ -33,12 +33,12 @@ Hecks.bluebook "SolarOptics", version: "2026.04.13.1" do
       then_set :status, to: "calculated"
     end
 
-    ComputeSunPath do
+    command "ComputeSunPath" do
       role "System"
       description "Compute full sun path for a given day — sunrise to sunset"
       reference_to(SolarPosition)
-      Float :solar_altitude_deg
-      Float :solar_azimuth_deg
+      attribute :solar_altitude_deg, Float
+      attribute :solar_azimuth_deg, Float
       given { status == "calculated" }
       emits "SunPathComputed"
       then_set :solar_altitude_deg, to: :solar_altitude_deg
@@ -51,30 +51,30 @@ Hecks.bluebook "SolarOptics", version: "2026.04.13.1" do
   end
 
   aggregate "SolarPanel", "A solar panel installation — tilt, azimuth, area, efficiency, output" do
-    String :panel_id
-    Float :tilt_degrees
-    Float :azimuth_degrees
-    Float :area_m2
-    Float :efficiency_pct
-    Float :peak_power_watts
-    String :status
+    attribute :panel_id, String
+    attribute :tilt_degrees, Float
+    attribute :azimuth_degrees, Float
+    attribute :area_m2, Float
+    attribute :efficiency_pct, Float
+    attribute :peak_power_watts, Float
+    attribute :status, String
 
     value_object "PanelSpecs" do
-      String :manufacturer
-      String :model
-      Float :voltage_voc
-      Float :current_isc
+      attribute :manufacturer, String
+      attribute :model, String
+      attribute :voltage_voc, Float
+      attribute :current_isc, Float
     end
 
-    InstallPanel do
+    command "InstallPanel" do
       role "Installer"
       description "Install a solar panel with tilt and azimuth orientation"
-      String :panel_id
-      Float :tilt_degrees
-      Float :azimuth_degrees
-      Float :area_m2
-      Float :efficiency_pct
-      Float :peak_power_watts
+      attribute :panel_id, String
+      attribute :tilt_degrees, Float
+      attribute :azimuth_degrees, Float
+      attribute :area_m2, Float
+      attribute :efficiency_pct, Float
+      attribute :peak_power_watts, Float
       emits "PanelInstalled"
       then_set :panel_id, to: :panel_id
       then_set :tilt_degrees, to: :tilt_degrees
@@ -85,17 +85,17 @@ Hecks.bluebook "SolarOptics", version: "2026.04.13.1" do
       then_set :status, to: "installed"
     end
 
-    OptimizeTilt do
+    command "OptimizeTilt" do
       role "System"
       description "Calculate optimal tilt angle for maximum annual irradiance"
       reference_to(SolarPanel)
-      Float :tilt_degrees
+      attribute :tilt_degrees, Float
       given { status == "installed" }
       emits "TiltOptimized"
       then_set :tilt_degrees, to: :tilt_degrees
     end
 
-    AdjustPanel do
+    command "AdjustPanel" do
       role "Installer"
       description "Physically adjust panel tilt to optimized angle"
       reference_to(SolarPanel)
@@ -111,34 +111,34 @@ Hecks.bluebook "SolarOptics", version: "2026.04.13.1" do
   end
 
   aggregate "ShadingAnalysis", "Shade impact analysis — obstructions, shade hours, energy loss" do
-    String :site_name
-    String :obstruction_type
-    Float :obstruction_height_m
-    Float :obstruction_distance_m
-    Float :shade_hours_per_day
-    Float :energy_loss_pct
-    String :status
+    attribute :site_name, String
+    attribute :obstruction_type, String
+    attribute :obstruction_height_m, Float
+    attribute :obstruction_distance_m, Float
+    attribute :shade_hours_per_day, Float
+    attribute :energy_loss_pct, Float
+    attribute :status, String
 
     value_object "ShadowProfile" do
-      Float :morning_shade_hours
-      Float :midday_shade_hours
-      Float :afternoon_shade_hours
+      attribute :morning_shade_hours, Float
+      attribute :midday_shade_hours, Float
+      attribute :afternoon_shade_hours, Float
     end
 
     list_of "Obstruction" do
-      String :type
-      Float :height_m
-      Float :distance_m
-      Float :azimuth_deg
+      attribute :type, String
+      attribute :height_m, Float
+      attribute :distance_m, Float
+      attribute :azimuth_deg, Float
     end
 
-    AnalyzeShading do
+    command "AnalyzeShading" do
       role "Engineer"
       description "Analyze shading from nearby obstructions using sun path data"
-      String :site_name
-      String :obstruction_type
-      Float :obstruction_height_m
-      Float :obstruction_distance_m
+      attribute :site_name, String
+      attribute :obstruction_type, String
+      attribute :obstruction_height_m, Float
+      attribute :obstruction_distance_m, Float
       emits "ShadingAnalyzed"
       then_set :site_name, to: :site_name
       then_set :obstruction_type, to: :obstruction_type
@@ -147,21 +147,21 @@ Hecks.bluebook "SolarOptics", version: "2026.04.13.1" do
       then_set :status, to: "analyzed"
     end
 
-    CalculateShadeHours do
+    command "CalculateShadeHours" do
       role "System"
       description "Calculate hours of shade per day from obstruction geometry and sun path"
       reference_to(ShadingAnalysis)
-      Float :shade_hours_per_day
+      attribute :shade_hours_per_day, Float
       given { status == "analyzed" }
       emits "ShadeHoursCalculated"
       then_set :shade_hours_per_day, to: :shade_hours_per_day
     end
 
-    EstimateEnergyLoss do
+    command "EstimateEnergyLoss" do
       role "System"
       description "Estimate energy production loss due to shading"
       reference_to(ShadingAnalysis)
-      Float :energy_loss_pct
+      attribute :energy_loss_pct, Float
       given { status == "analyzed" }
       emits "EnergyLossEstimated"
       then_set :energy_loss_pct, to: :energy_loss_pct
@@ -175,28 +175,28 @@ Hecks.bluebook "SolarOptics", version: "2026.04.13.1" do
   end
 
   aggregate "OutputForecast", "Solar energy output forecast — irradiance, temperature derating, yield" do
-    String :site_name
-    Float :global_irradiance_kwh_m2
-    Float :temperature_derating_pct
-    Float :shade_derating_pct
-    Float :estimated_yield_kwh
-    String :forecast_period
-    String :status
+    attribute :site_name, String
+    attribute :global_irradiance_kwh_m2, Float
+    attribute :temperature_derating_pct, Float
+    attribute :shade_derating_pct, Float
+    attribute :estimated_yield_kwh, Float
+    attribute :forecast_period, String
+    attribute :status, String
 
     value_object "IrradianceComponent" do
-      Float :direct_normal_kwh_m2
-      Float :diffuse_horizontal_kwh_m2
-      Float :ground_reflected_kwh_m2
+      attribute :direct_normal_kwh_m2, Float
+      attribute :diffuse_horizontal_kwh_m2, Float
+      attribute :ground_reflected_kwh_m2, Float
     end
 
-    ForecastOutput do
+    command "ForecastOutput" do
       role "System"
       description "Forecast solar energy output accounting for irradiance, temp, and shade"
-      String :site_name
-      Float :global_irradiance_kwh_m2
-      Float :temperature_derating_pct
-      Float :shade_derating_pct
-      String :forecast_period
+      attribute :site_name, String
+      attribute :global_irradiance_kwh_m2, Float
+      attribute :temperature_derating_pct, Float
+      attribute :shade_derating_pct, Float
+      attribute :forecast_period, String
       emits "OutputForecasted"
       then_set :site_name, to: :site_name
       then_set :global_irradiance_kwh_m2, to: :global_irradiance_kwh_m2
@@ -206,11 +206,11 @@ Hecks.bluebook "SolarOptics", version: "2026.04.13.1" do
       then_set :status, to: "forecasted"
     end
 
-    CalculateYield do
+    command "CalculateYield" do
       role "System"
       description "Calculate net energy yield after all derating factors"
       reference_to(OutputForecast)
-      Float :estimated_yield_kwh
+      attribute :estimated_yield_kwh, Float
       given { status == "forecasted" }
       emits "YieldCalculated"
       then_set :estimated_yield_kwh, to: :estimated_yield_kwh

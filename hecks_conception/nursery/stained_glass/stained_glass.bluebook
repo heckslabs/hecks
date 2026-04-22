@@ -1,30 +1,30 @@
 Hecks.bluebook "StainedGlass" do
   aggregate "Panel", "A stained glass panel from cartoon to installation" do
-    String :title
-    Float :width_inches
-    Float :height_inches
-    String :status, default: "cartooned"
-    Integer :piece_count
+    attribute :title, String
+    attribute :width_inches, Float
+    attribute :height_inches, Float
+    attribute :status, String, default: "cartooned"
+    attribute :piece_count, Integer
     reference_to(GlassDesign)
 
     value_object "PanelDimension" do
-      Float :width
-      Float :height
-      Float :border_width
-      String :shape
+      attribute :width, Float
+      attribute :height, Float
+      attribute :border_width, Float
+      attribute :shape, String
     end
 
-    CartoonPanel do
+    command "CartoonPanel" do
       description "Draw the full-size cartoon pattern for a panel"
-      String :title
-      Float :width_inches
-      Float :height_inches
-      Integer :piece_count
+      attribute :title, String
+      attribute :width_inches, Float
+      attribute :height_inches, Float
+      attribute :piece_count, Integer
       emits "PanelCartooned"
       then_set :status, to: "cartooned"
     end
 
-    CutPanel do
+    command "CutPanel" do
       description "Cut all glass pieces following the cartoon pattern"
       reference_to(Panel)
       given { status == "cartooned" }
@@ -32,7 +32,7 @@ Hecks.bluebook "StainedGlass" do
       then_set :status, to: "cut"
     end
 
-    LeadPanel do
+    command "LeadPanel" do
       description "Assemble cut glass into lead came channels"
       reference_to(Panel)
       given { status == "cut" }
@@ -42,28 +42,28 @@ Hecks.bluebook "StainedGlass" do
   end
 
   aggregate "GlassDesign", "The artistic design and color map for a glass work" do
-    String :title
-    String :style
-    String :client_name
-    String :status, default: "sketched"
+    attribute :title, String
+    attribute :style, String
+    attribute :client_name, String
+    attribute :status, String, default: "sketched"
 
     value_object "ColorMap" do
-      String :section_name
-      String :glass_color
-      String :texture
-      Float :opacity
+      attribute :section_name, String
+      attribute :glass_color, String
+      attribute :texture, String
+      attribute :opacity, Float
     end
 
-    SketchDesign do
+    command "SketchDesign" do
       description "Create the initial design sketch with color mapping"
-      String :title
-      String :style
-      String :client_name
+      attribute :title, String
+      attribute :style, String
+      attribute :client_name, String
       emits "DesignSketched"
       then_set :status, to: "sketched"
     end
 
-    ApproveDesign do
+    command "ApproveDesign" do
       description "Client approves the design for production"
       reference_to(GlassDesign)
       given { status == "sketched" }
@@ -73,59 +73,59 @@ Hecks.bluebook "StainedGlass" do
   end
 
   aggregate "GlassInventory", "Sheet glass inventory with color, texture, and quantity" do
-    String :color
-    String :texture
-    String :manufacturer
-    Float :square_feet
-    String :category
+    attribute :color, String
+    attribute :texture, String
+    attribute :manufacturer, String
+    attribute :square_feet, Float
+    attribute :category, String
 
-    ReceiveGlass do
+    command "ReceiveGlass" do
       description "Check in a sheet glass shipment from the supplier"
-      String :color
-      String :texture
-      String :manufacturer
-      Float :square_feet
-      String :category
+      attribute :color, String
+      attribute :texture, String
+      attribute :manufacturer, String
+      attribute :square_feet, Float
+      attribute :category, String
       emits "GlassReceived"
     end
 
-    ConsumeGlass do
+    command "ConsumeGlass" do
       description "Deduct glass used for panel cutting"
       reference_to(GlassInventory)
-      Float :square_feet_used
+      attribute :square_feet_used, Float
       emits "GlassConsumed"
     end
   end
 
   aggregate "Leadwork", "Lead came and solder work connecting glass pieces" do
-    String :came_profile
-    Float :came_width_mm
-    String :solder_type
-    String :status, default: "prepared"
+    attribute :came_profile, String
+    attribute :came_width_mm, Float
+    attribute :solder_type, String
+    attribute :status, String, default: "prepared"
     reference_to(Panel)
 
-    PrepareCame do
+    command "PrepareCame" do
       description "Stretch and prepare lead came for assembly"
       reference_to(Panel)
-      String :came_profile
-      Float :came_width_mm
+      attribute :came_profile, String
+      attribute :came_width_mm, Float
       emits "CamePrepared"
       then_set :status, to: "prepared"
     end
 
-    SolderJoints do
+    command "SolderJoints" do
       description "Solder all came intersections on the panel"
       reference_to(Leadwork)
-      String :solder_type
+      attribute :solder_type, String
       given { status == "prepared" }
       emits "JointsSoldered"
       then_set :status, to: "soldered"
     end
 
-    ApplyPatina do
+    command "ApplyPatina" do
       description "Apply patina finish to the soldered joints"
       reference_to(Leadwork)
-      String :patina_type
+      attribute :patina_type, String
       given { status == "soldered" }
       emits "PatinaApplied"
       then_set :status, to: "finished"
@@ -133,23 +133,23 @@ Hecks.bluebook "StainedGlass" do
   end
 
   aggregate "GlassInstallation", "On-site installation of finished stained glass panels" do
-    String :location
-    String :date
-    String :installer_name
-    String :status, default: "scheduled"
+    attribute :location, String
+    attribute :date, String
+    attribute :installer_name, String
+    attribute :status, String, default: "scheduled"
     reference_to(Panel)
 
-    ScheduleInstallation do
+    command "ScheduleInstallation" do
       description "Book an installation date for a finished panel"
       reference_to(Panel)
-      String :location
-      String :date
-      String :installer_name
+      attribute :location, String
+      attribute :date, String
+      attribute :installer_name, String
       emits "InstallationScheduled"
       then_set :status, to: "scheduled"
     end
 
-    CompleteInstallation do
+    command "CompleteInstallation" do
       description "Finish the on-site installation and seal the panel"
       reference_to(GlassInstallation)
       given { status == "scheduled" }

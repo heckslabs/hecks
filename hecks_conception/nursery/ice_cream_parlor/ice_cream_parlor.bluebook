@@ -3,27 +3,27 @@ Hecks.bluebook "IceCreamParlor", version: "2026.04.13.1" do
   category "hospitality"
 
   aggregate "Flavor", "A distinct ice cream flavor available for scooping" do
-    String :flavor_id
-    String :name
-    String :base
-    String :description
-    String :dairy_free
-    String :available
+    attribute :flavor_id, String
+    attribute :name, String
+    attribute :base, String
+    attribute :description, String
+    attribute :dairy_free, String
+    attribute :available, String
     list_of(FlavorNote) :tasting_notes
 
     value_object "FlavorNote" do
-      String :note
-      String :intensity
+      attribute :note, String
+      attribute :intensity, String
     end
 
-    ConcoctFlavor do
+    command "ConcoctFlavor" do
       role "Chef"
       description "Design a new ice cream flavor with its recipe profile"
-      String :flavor_id
-      String :name
-      String :base
-      String :description
-      String :dairy_free
+      attribute :flavor_id, String
+      attribute :name, String
+      attribute :base, String
+      attribute :description, String
+      attribute :dairy_free, String
       emits "FlavorConcocted"
       then_set :flavor_id, to: :flavor_id
       then_set :name, to: :name
@@ -33,7 +33,7 @@ Hecks.bluebook "IceCreamParlor", version: "2026.04.13.1" do
       then_set :available, to: "true"
     end
 
-    RetireFlavor do
+    command "RetireFlavor" do
       role "Manager"
       description "Remove a flavor from the active rotation"
       reference_to(Flavor)
@@ -43,21 +43,21 @@ Hecks.bluebook "IceCreamParlor", version: "2026.04.13.1" do
   end
 
   aggregate "Batch", "A production run of a specific flavor" do
-    String :batch_id
-    String :flavor_id
-    Float :volume_liters
-    String :churned_date
-    String :expiration_date
-    String :status
+    attribute :batch_id, String
+    attribute :flavor_id, String
+    attribute :volume_liters, Float
+    attribute :churned_date, String
+    attribute :expiration_date, String
+    attribute :status, String
 
-    ChurnBatch do
+    command "ChurnBatch" do
       role "Chef"
       description "Produce a new batch of ice cream in the kitchen"
-      String :batch_id
-      String :flavor_id
-      Float :volume_liters
-      String :churned_date
-      String :expiration_date
+      attribute :batch_id, String
+      attribute :flavor_id, String
+      attribute :volume_liters, Float
+      attribute :churned_date, String
+      attribute :expiration_date, String
       emits "BatchChurned"
       then_set :batch_id, to: :batch_id
       then_set :flavor_id, to: :flavor_id
@@ -67,7 +67,7 @@ Hecks.bluebook "IceCreamParlor", version: "2026.04.13.1" do
       then_set :status, to: "fresh"
     end
 
-    DepleteBatch do
+    command "DepleteBatch" do
       role "Server"
       description "Mark a batch as fully scooped out"
       reference_to(Batch)
@@ -76,7 +76,7 @@ Hecks.bluebook "IceCreamParlor", version: "2026.04.13.1" do
       then_set :status, to: "depleted"
     end
 
-    DiscardBatch do
+    command "DiscardBatch" do
       role "Manager"
       description "Dispose of an expired or off-quality batch"
       reference_to(Batch)
@@ -86,20 +86,20 @@ Hecks.bluebook "IceCreamParlor", version: "2026.04.13.1" do
   end
 
   aggregate "Topping", "A garnish or mix-in added to servings" do
-    String :topping_id
-    String :name
-    String :category
-    Float :price_per_serving
-    Integer :quantity_on_hand
+    attribute :topping_id, String
+    attribute :name, String
+    attribute :category, String
+    attribute :price_per_serving, Float
+    attribute :quantity_on_hand, Integer
 
-    StockTopping do
+    command "StockTopping" do
       role "Manager"
       description "Add a topping to the available selection"
-      String :topping_id
-      String :name
-      String :category
-      Float :price_per_serving
-      Integer :quantity_on_hand
+      attribute :topping_id, String
+      attribute :name, String
+      attribute :category, String
+      attribute :price_per_serving, Float
+      attribute :quantity_on_hand, Integer
       emits "ToppingStocked"
       then_set :topping_id, to: :topping_id
       then_set :name, to: :name
@@ -108,35 +108,35 @@ Hecks.bluebook "IceCreamParlor", version: "2026.04.13.1" do
       then_set :quantity_on_hand, to: :quantity_on_hand
     end
 
-    ReorderTopping do
+    command "ReorderTopping" do
       role "Manager"
       description "Replenish a topping that is running low"
       reference_to(Topping)
-      Integer :reorder_amount
+      attribute :reorder_amount, Integer
       given { reorder_amount > 0 }
       emits "ToppingReordered"
     end
   end
 
   aggregate "Serving", "A customer order — scoops, cone, and toppings" do
-    String :serving_id
-    String :cone_type
-    Integer :scoops
+    attribute :serving_id, String
+    attribute :cone_type, String
+    attribute :scoops, Integer
     list_of(ScoopSelection) :selections
-    Float :total_price
-    String :status
+    attribute :total_price, Float
+    attribute :status, String
 
     value_object "ScoopSelection" do
-      String :flavor_name
-      String :topping_name
+      attribute :flavor_name, String
+      attribute :topping_name, String
     end
 
-    PrepareServing do
+    command "PrepareServing" do
       role "Server"
       description "Assemble a customer's ice cream order"
-      String :serving_id
-      String :cone_type
-      Integer :scoops
+      attribute :serving_id, String
+      attribute :cone_type, String
+      attribute :scoops, Integer
       emits "ServingPrepared"
       then_set :serving_id, to: :serving_id
       then_set :cone_type, to: :cone_type
@@ -144,7 +144,7 @@ Hecks.bluebook "IceCreamParlor", version: "2026.04.13.1" do
       then_set :status, to: "prepared"
     end
 
-    HandOffServing do
+    command "HandOffServing" do
       role "Server"
       description "Give the finished serving to the customer"
       reference_to(Serving)
@@ -155,20 +155,20 @@ Hecks.bluebook "IceCreamParlor", version: "2026.04.13.1" do
   end
 
   aggregate "DailySpecial", "A featured flavor or deal for the day" do
-    String :special_id
-    String :flavor_id
-    String :promotion_text
-    Float :discount_percent
-    String :date
+    attribute :special_id, String
+    attribute :flavor_id, String
+    attribute :promotion_text, String
+    attribute :discount_percent, Float
+    attribute :date, String
 
-    AnnounceDailySpecial do
+    command "AnnounceDailySpecial" do
       role "Manager"
       description "Set the day's featured flavor and discount"
-      String :special_id
-      String :flavor_id
-      String :promotion_text
-      Float :discount_percent
-      String :date
+      attribute :special_id, String
+      attribute :flavor_id, String
+      attribute :promotion_text, String
+      attribute :discount_percent, Float
+      attribute :date, String
       emits "DailySpecialAnnounced"
       then_set :special_id, to: :special_id
       then_set :flavor_id, to: :flavor_id

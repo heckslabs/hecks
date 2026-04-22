@@ -3,24 +3,24 @@ Hecks.bluebook "RecoveryJobs", version: "2026.04.13.1" do
   category "healthcare_community"
 
   aggregate "RecoveryClient", "A client in substance recovery seeking employment" do
-    String :client_id
-    String :name
-    String :recovery_stage
-    String :skills_summary
-    String :status
+    attribute :client_id, String
+    attribute :name, String
+    attribute :recovery_stage, String
+    attribute :skills_summary, String
+    attribute :status, String
     list_of(WorkPreference) :preferences
     value_object "WorkPreference" do
-      String :industry
-      String :schedule_type
-      String :max_commute_miles
+      attribute :industry, String
+      attribute :schedule_type, String
+      attribute :max_commute_miles, String
     end
-    RegisterClient do
+    command "RegisterClient" do
       role "CaseManager"
       description "Register a recovery client for the job matching program"
-      String :client_id
-      String :name
-      String :recovery_stage
-      String :skills_summary
+      attribute :client_id, String
+      attribute :name, String
+      attribute :recovery_stage, String
+      attribute :skills_summary, String
       emits "ClientRegistered"
       then_set :client_id, to: :client_id
       then_set :name, to: :name
@@ -28,30 +28,30 @@ Hecks.bluebook "RecoveryJobs", version: "2026.04.13.1" do
       then_set :skills_summary, to: :skills_summary
       then_set :status, to: "active"
     end
-    AdvanceStage do
+    command "AdvanceStage" do
       role "CaseManager"
       description "Update the recovery stage as client progresses"
       reference_to(RecoveryClient)
-      String :recovery_stage
+      attribute :recovery_stage, String
       emits "StageAdvanced"
       then_set :recovery_stage, to: :recovery_stage
     end
   end
 
   aggregate "EmployerPartner", "An employer partnering to hire recovery clients" do
-    String :employer_id
-    String :company_name
-    String :industry
-    Integer :open_positions
-    String :recovery_friendly
-    String :status
-    OnboardEmployer do
+    attribute :employer_id, String
+    attribute :company_name, String
+    attribute :industry, String
+    attribute :open_positions, Integer
+    attribute :recovery_friendly, String
+    attribute :status, String
+    command "OnboardEmployer" do
       role "ProgramDirector"
       description "Onboard a recovery-friendly employer partner"
-      String :employer_id
-      String :company_name
-      String :industry
-      Integer :open_positions
+      attribute :employer_id, String
+      attribute :company_name, String
+      attribute :industry, String
+      attribute :open_positions, Integer
       emits "EmployerOnboarded"
       then_set :employer_id, to: :employer_id
       then_set :company_name, to: :company_name
@@ -60,31 +60,31 @@ Hecks.bluebook "RecoveryJobs", version: "2026.04.13.1" do
       then_set :recovery_friendly, to: "yes"
       then_set :status, to: "active"
     end
-    AdjustPositions do
+    command "AdjustPositions" do
       role "Employer"
       description "Update the number of open positions"
       reference_to(EmployerPartner)
-      Integer :open_positions
+      attribute :open_positions, Integer
       emits "PositionsAdjusted"
       then_set :open_positions, to: :open_positions
     end
   end
 
   aggregate "JobMatch", "A match between a recovery client and an employer" do
-    String :match_id
-    String :client_id
-    String :employer_id
-    String :job_title
-    Float :compatibility_score
-    String :status
-    MatchClient do
+    attribute :match_id, String
+    attribute :client_id, String
+    attribute :employer_id, String
+    attribute :job_title, String
+    attribute :compatibility_score, Float
+    attribute :status, String
+    command "MatchClient" do
       role "System"
       description "Match a recovery client to a suitable employer"
-      String :match_id
-      String :client_id
-      String :employer_id
-      String :job_title
-      Float :compatibility_score
+      attribute :match_id, String
+      attribute :client_id, String
+      attribute :employer_id, String
+      attribute :job_title, String
+      attribute :compatibility_score, Float
       emits "ClientMatched"
       then_set :match_id, to: :match_id
       then_set :client_id, to: :client_id
@@ -93,7 +93,7 @@ Hecks.bluebook "RecoveryJobs", version: "2026.04.13.1" do
       then_set :compatibility_score, to: :compatibility_score
       then_set :status, to: "proposed"
     end
-    AcceptMatch do
+    command "AcceptMatch" do
       role "Client"
       description "Accept the proposed job match"
       reference_to(JobMatch)
@@ -104,29 +104,29 @@ Hecks.bluebook "RecoveryJobs", version: "2026.04.13.1" do
   end
 
   aggregate "EmploymentOutcome", "A tracked employment outcome for a placed client" do
-    String :outcome_id
-    String :match_id
-    Integer :days_employed
-    String :retention_status
-    String :supervisor_feedback
-    RecordOutcome do
+    attribute :outcome_id, String
+    attribute :match_id, String
+    attribute :days_employed, Integer
+    attribute :retention_status, String
+    attribute :supervisor_feedback, String
+    command "RecordOutcome" do
       role "CaseManager"
       description "Record employment outcome at 30/60/90 day checkpoints"
-      String :outcome_id
-      String :match_id
-      Integer :days_employed
-      String :retention_status
+      attribute :outcome_id, String
+      attribute :match_id, String
+      attribute :days_employed, Integer
+      attribute :retention_status, String
       emits "OutcomeRecorded"
       then_set :outcome_id, to: :outcome_id
       then_set :match_id, to: :match_id
       then_set :days_employed, to: :days_employed
       then_set :retention_status, to: :retention_status
     end
-    CollectFeedback do
+    command "CollectFeedback" do
       role "CaseManager"
       description "Collect supervisor feedback on client performance"
       reference_to(EmploymentOutcome)
-      String :supervisor_feedback
+      attribute :supervisor_feedback, String
       emits "FeedbackCollected"
       then_set :supervisor_feedback, to: :supervisor_feedback
     end

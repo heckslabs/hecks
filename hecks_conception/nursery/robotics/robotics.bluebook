@@ -3,19 +3,19 @@ Hecks.bluebook "Robotics" do
 
   aggregate "Robot" do
     description "An autonomous or teleoperated machine performing physical tasks"
-    String :robot_id
-    String :name
-    String :platform_type
-    String :firmware_version
-    Float :battery_capacity_wh
-    Boolean :in_standby, default: false
+    attribute :robot_id, String
+    attribute :name, String
+    attribute :platform_type, String
+    attribute :firmware_version, String
+    attribute :battery_capacity_wh, Float
+    attribute :in_standby, Boolean, default: false
 
     command "ActivateRobot" do
       description "Bring a new robot online and register it in the fleet"
       emits "RobotActivated"
-      String :robot_id
-      String :name
-      String :platform_type
+      attribute :robot_id, String
+      attribute :name, String
+      attribute :platform_type, String
       then_set :in_standby, true
     end
 
@@ -23,7 +23,7 @@ Hecks.bluebook "Robotics" do
       description "Flash new firmware to the robot controller"
       emits "FirmwareFlashed"
       reference_to Robot
-      String :new_version
+      attribute :new_version, String
       given { in_standby == true }
     end
 
@@ -40,26 +40,26 @@ Hecks.bluebook "Robotics" do
 
   aggregate "Sensor" do
     description "A device measuring physical quantities for robot perception"
-    String :sensor_id
-    String :sensor_type
-    String :model
-    Float :sampling_rate_hz
-    Float :range_max
-    Boolean :mounted_and_powered, default: false
+    attribute :sensor_id, String
+    attribute :sensor_type, String
+    attribute :model, String
+    attribute :sampling_rate_hz, Float
+    attribute :range_max, Float
+    attribute :mounted_and_powered, Boolean, default: false
     reference_to Robot
 
     value_object "CalibrationData" do
-      Float :offset
-      Float :gain
-      String :calibrated_date
+      attribute :offset, Float
+      attribute :gain, Float
+      attribute :calibrated_date, String
     end
 
     command "MountSensor" do
       description "Attach a sensor to a robot and configure it"
       emits "SensorMounted"
       reference_to Robot
-      String :sensor_id
-      String :sensor_type
+      attribute :sensor_id, String
+      attribute :sensor_type, String
       then_set :mounted_and_powered, true
     end
 
@@ -83,28 +83,28 @@ Hecks.bluebook "Robotics" do
 
   aggregate "Actuator" do
     description "A motor or mechanism that produces physical movement"
-    String :actuator_id
-    String :actuator_type
-    Float :max_torque_nm
-    Float :max_speed_rpm
-    Boolean :fault_detected, default: false
+    attribute :actuator_id, String
+    attribute :actuator_type, String
+    attribute :max_torque_nm, Float
+    attribute :max_speed_rpm, Float
+    attribute :fault_detected, Boolean, default: false
     reference_to Robot
 
     command "InstallActuator" do
       description "Fit an actuator into the robot joint"
       emits "ActuatorInstalled"
       reference_to Robot
-      String :actuator_id
-      String :actuator_type
+      attribute :actuator_id, String
+      attribute :actuator_type, String
     end
 
     command "TuneController" do
       description "Adjust PID gains for the actuator control loop"
       emits "ControllerTuned"
       reference_to Actuator
-      Float :kp
-      Float :ki
-      Float :kd
+      attribute :kp, Float
+      attribute :ki, Float
+      attribute :kd, Float
       then_set :fault_detected, true
     end
 
@@ -122,27 +122,27 @@ Hecks.bluebook "Robotics" do
 
   aggregate "Mission" do
     description "A defined task or objective assigned to a robot"
-    String :mission_id
-    String :objective
-    String :start_time
-    String :end_time
-    String :status
-    Boolean :preflight_passed, default: false
+    attribute :mission_id, String
+    attribute :objective, String
+    attribute :start_time, String
+    attribute :end_time, String
+    attribute :status, String
+    attribute :preflight_passed, Boolean, default: false
     reference_to Robot
 
     value_object "Waypoint" do
-      Float :x_m
-      Float :y_m
-      Float :z_m
-      Float :heading_deg
+      attribute :x_m, Float
+      attribute :y_m, Float
+      attribute :z_m, Float
+      attribute :heading_deg, Float
     end
 
     command "PlanMission" do
       description "Create a mission with objectives and waypoints"
       emits "MissionPlanned"
       reference_to Robot
-      String :mission_id
-      String :objective
+      attribute :mission_id, String
+      attribute :objective, String
       then_set :preflight_passed, true
     end
 
@@ -157,7 +157,7 @@ Hecks.bluebook "Robotics" do
       description "Cancel an in-progress mission and return to base"
       emits "MissionAborted"
       reference_to Mission
-      String :abort_reason
+      attribute :abort_reason, String
     end
 
     fixture "Mission", mission_id: "MIS-001", objective: "perimeter_surveillance", start_time: "2024-04-15T08:00:00", end_time: "2024-04-15T09:30:00", status: "planned"
@@ -167,19 +167,19 @@ Hecks.bluebook "Robotics" do
 
   aggregate "TelemetryStream" do
     description "A real-time data feed of robot state and sensor readings"
-    String :stream_id
-    String :data_type
-    Float :frequency_hz
-    String :encoding
-    Float :seconds_recorded, default: 0.0
+    attribute :stream_id, String
+    attribute :data_type, String
+    attribute :frequency_hz, Float
+    attribute :encoding, String
+    attribute :seconds_recorded, Float, default: 0.0
     reference_to Robot
 
     command "StartStream" do
       description "Begin transmitting telemetry data from the robot"
       emits "StreamStarted"
       reference_to Robot
-      String :stream_id
-      String :data_type
+      attribute :stream_id, String
+      attribute :data_type, String
       then_set :seconds_recorded, 90.0
     end
 
@@ -203,17 +203,17 @@ Hecks.bluebook "Robotics" do
 
   aggregate "MissionReport" do
     description "A post-mission summary of robot performance and findings"
-    String :report_id
-    String :summary
-    String :status
-    String :completion_date
+    attribute :report_id, String
+    attribute :summary, String
+    attribute :status, String
+    attribute :completion_date, String
     reference_to Mission
 
     command "GenerateReport" do
       description "Compile telemetry and mission data into a report"
       emits "ReportGenerated"
       reference_to Mission
-      String :summary
+      attribute :summary, String
     end
 
     fixture "MissionReport", report_id: "REP-001", summary: "Successfully completed perimeter scan, 3 anomalies detected", status: "completed", completion_date: "2024-04-15"

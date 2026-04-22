@@ -4,31 +4,31 @@ Hecks.bluebook "CarpentryShop" do
 
   aggregate "Project" do
     description "A custom carpentry project — cabinets, furniture, trim, or framing with specifications and timeline"
-    String :client_name
-    String :project_type
-    String :description
-    Float :quoted_price
-    String :status
+    attribute :client_name, String
+    attribute :project_type, String
+    attribute :description, String
+    attribute :quoted_price, Float
+    attribute :status, String
 
     value_object "ProjectSpec" do
-      String :wood_species
-      String :finish_type
-      String :joinery_method
+      attribute :wood_species, String
+      attribute :finish_type, String
+      attribute :joinery_method, String
     end
 
-    AcceptProject do
+    command "AcceptProject" do
       role "Shop Owner"
       goal "Accept a new carpentry project from a client"
       description "Create the project with specifications and pricing"
-      String :client_name
-      String :project_type
-      String :description
-      Float :quoted_price
+      attribute :client_name, String
+      attribute :project_type, String
+      attribute :description, String
+      attribute :quoted_price, Float
       then_set :status, to: "materials_ready"
       emits "ProjectCommissioned"
     end
 
-    BeginFabrication do
+    command "BeginFabrication" do
       role "Lead Carpenter"
       goal "Start cutting and assembling the project"
       description "Move the project from planning to active fabrication"
@@ -37,7 +37,7 @@ Hecks.bluebook "CarpentryShop" do
       emits "FabricationBegun"
     end
 
-    DeliverProject do
+    command "DeliverProject" do
       role "Shop Owner"
       goal "Deliver and install the finished piece at the client site"
       description "Transport and install the completed carpentry work"
@@ -48,41 +48,41 @@ Hecks.bluebook "CarpentryShop" do
 
   aggregate "LumberOrder" do
     description "An order for lumber — species, grade, board feet, and supplier"
-    String :species
-    String :grade
-    Float :board_feet
-    String :supplier
-    String :status
+    attribute :species, String
+    attribute :grade, String
+    attribute :board_feet, Float
+    attribute :supplier, String
+    attribute :status, String
     reference_to(Project)
 
-    OrderLumber do
+    command "OrderLumber" do
       role "Shop Owner"
       goal "Purchase lumber for an upcoming project"
       description "Order the specified species and quantity from the supplier"
-      String :species
-      String :grade
-      Float :board_feet
-      String :supplier
+      attribute :species, String
+      attribute :grade, String
+      attribute :board_feet, Float
+      attribute :supplier, String
       reference_to(Project)
       emits "LumberOrdered"
     end
 
-    ReceiveLumber do
+    command "ReceiveLumber" do
       role "Shop Worker"
       goal "Check in delivered lumber and inspect quality"
       description "Verify board feet, grade, and moisture content"
       reference_to(LumberOrder)
-      Float :moisture_pct
+      attribute :moisture_pct, Float
       then_set :status, to: "received"
       emits "LumberReceived"
     end
 
-    RejectLumber do
+    command "RejectLumber" do
       role "Lead Carpenter"
       goal "Return defective or wrong-grade lumber to supplier"
       description "Send back lumber that does not meet specifications"
       reference_to(LumberOrder)
-      String :rejection_reason
+      attribute :rejection_reason, String
       given("must be received first") { status == "received" }
       emits "LumberRejected"
     end
@@ -90,92 +90,92 @@ Hecks.bluebook "CarpentryShop" do
 
   aggregate "JointAssembly" do
     description "A joinery connection — mortise and tenon, dovetail, biscuit, dowel, or pocket screw"
-    String :joint_type
-    String :location_in_piece
-    String :wood_species
-    String :adhesive
+    attribute :joint_type, String
+    attribute :location_in_piece, String
+    attribute :wood_species, String
+    attribute :adhesive, String
     reference_to(Project)
 
     value_object "JointStrength" do
-      Float :shear_psi
-      Float :tensile_psi
+      attribute :shear_psi, Float
+      attribute :tensile_psi, Float
     end
 
-    CutJoint do
+    command "CutJoint" do
       role "Carpenter"
       goal "Machine or hand-cut the joint to specification"
       description "Create the joint using the appropriate technique and tooling"
-      String :joint_type
-      String :location_in_piece
-      String :wood_species
+      attribute :joint_type, String
+      attribute :location_in_piece, String
+      attribute :wood_species, String
       reference_to(Project)
       emits "JointCut"
     end
 
-    GlueUp do
+    command "GlueUp" do
       role "Carpenter"
       goal "Apply adhesive and clamp the joint assembly"
       description "Glue, align, and clamp the pieces for curing"
       reference_to(JointAssembly)
-      String :adhesive
-      Integer :clamp_hours
+      attribute :adhesive, String
+      attribute :clamp_hours, Integer
       emits "GlueUpCompleted"
     end
   end
 
   aggregate "Finish" do
     description "A surface finish — stain, lacquer, polyurethane, oil, or paint with coats and dry times"
-    String :finish_type
-    String :color
-    Integer :coats_applied
-    Integer :dry_hours_per_coat
+    attribute :finish_type, String
+    attribute :color, String
+    attribute :coats_applied, Integer
+    attribute :dry_hours_per_coat, Integer
     reference_to(Project)
 
-    ApplyFinish do
+    command "ApplyFinish" do
       role "Finisher"
       goal "Apply the specified finish to the assembled piece"
       description "Sand, apply coat, and allow drying between coats"
-      String :finish_type
-      String :color
-      Integer :coats_applied
-      Integer :dry_hours_per_coat
+      attribute :finish_type, String
+      attribute :color, String
+      attribute :coats_applied, Integer
+      attribute :dry_hours_per_coat, Integer
       reference_to(Project)
       emits "FinishApplied"
     end
 
-    SandBetweenCoats do
+    command "SandBetweenCoats" do
       role "Finisher"
       goal "Smooth the surface between finish coats"
       description "Sand with fine grit between coats for adhesion"
       reference_to(Finish)
-      Integer :grit
+      attribute :grit, Integer
       emits "SandingCompleted"
     end
   end
 
   aggregate "ClientApproval" do
     description "A client sign-off on a project milestone — design, sample, or final piece"
-    String :milestone
-    String :client_feedback
-    String :approval_status
+    attribute :milestone, String
+    attribute :client_feedback, String
+    attribute :approval_status, String
     reference_to(Project)
 
-    RequestApproval do
+    command "RequestApproval" do
       role "Shop Owner"
       goal "Send a milestone for client review and sign-off"
       description "Present the work-in-progress for client approval"
-      String :milestone
+      attribute :milestone, String
       reference_to(Project)
       emits "ApprovalRequested"
     end
 
-    RecordApproval do
+    command "RecordApproval" do
       role "Client"
       goal "Approve or request changes to the milestone"
       description "Client reviews and provides feedback"
       reference_to(ClientApproval)
-      String :client_feedback
-      String :approval_status
+      attribute :client_feedback, String
+      attribute :approval_status, String
       emits "ApprovalRecorded"
     end
   end

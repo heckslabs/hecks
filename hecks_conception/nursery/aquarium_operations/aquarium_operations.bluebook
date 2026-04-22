@@ -2,33 +2,33 @@ Hecks.bluebook "AquariumOperations" do
   vision "Manage tanks, aquatic species, water quality, feedings, and exhibits for a public aquarium"
 
   aggregate "Tank", "A water vessel housing aquatic organisms" do
-    String :tank_id
-    String :name
-    String :water_type
-    Float :volume_gallons
-    Integer :max_species
-    Integer :current_species_count
-    String :status
+    attribute :tank_id, String
+    attribute :name, String
+    attribute :water_type, String
+    attribute :volume_gallons, Float
+    attribute :max_species, Integer
+    attribute :current_species_count, Integer
+    attribute :status, String
 
     value_object "Filtration" do
-      String :filter_type
-      Float :flow_rate_gph
-      String :media
+      attribute :filter_type, String
+      attribute :flow_rate_gph, Float
+      attribute :media, String
     end
 
-    SetupTank do
+    command "SetupTank" do
       description "Set up a new tank with its water system"
-      String :tank_id
-      String :name
-      String :water_type
-      Float :volume_gallons
-      Integer :max_species
+      attribute :tank_id, String
+      attribute :name, String
+      attribute :water_type, String
+      attribute :volume_gallons, Float
+      attribute :max_species, Integer
       emits "TankSetup"
       then_set :status, to: "cycling"
       then_set :current_species_count, to: 0
     end
 
-    TestWaterCycle do
+    command "TestWaterCycle" do
       description "Verify nitrogen cycle is established in a cycling tank"
       reference_to(Tank)
       given { status == "cycling" }
@@ -36,7 +36,7 @@ Hecks.bluebook "AquariumOperations" do
       then_set :status, to: "tested"
     end
 
-    ActivateTank do
+    command "ActivateTank" do
       description "Mark a tested tank as ready for inhabitants"
       reference_to(Tank)
       given { status == "tested" }
@@ -44,14 +44,14 @@ Hecks.bluebook "AquariumOperations" do
       then_set :status, to: "active"
     end
 
-    QuarantineTank do
+    command "QuarantineTank" do
       description "Isolate a tank due to disease or water quality emergency"
       reference_to(Tank)
       emits "TankQuarantined"
       then_set :status, to: "quarantined"
     end
 
-    ClearTankQuarantine do
+    command "ClearTankQuarantine" do
       description "Return a quarantined tank to active status after treatment"
       reference_to(Tank)
       given { status == "quarantined" }
@@ -59,64 +59,64 @@ Hecks.bluebook "AquariumOperations" do
       then_set :status, to: "active"
     end
 
-    DrainTank do
+    command "DrainTank" do
       description "Empty a tank for maintenance or decommission"
       reference_to(Tank)
-      String :reason
+      attribute :reason, String
       emits "TankDrained"
       then_set :status, to: "drained"
     end
   end
 
   aggregate "Species", "A type of aquatic organism kept in the aquarium collection" do
-    String :species_id
-    String :common_name
-    String :scientific_name
-    String :water_type_requirement
-    Float :min_temperature_f
-    Float :max_temperature_f
-    Integer :population_count
+    attribute :species_id, String
+    attribute :common_name, String
+    attribute :scientific_name, String
+    attribute :water_type_requirement, String
+    attribute :min_temperature_f, Float
+    attribute :max_temperature_f, Float
+    attribute :population_count, Integer
     reference_to(Tank)
 
     value_object "HabitatRequirements" do
-      Float :min_ph
-      Float :max_ph
-      Float :salinity_ppt
+      attribute :min_ph, Float
+      attribute :max_ph, Float
+      attribute :salinity_ppt, Float
     end
 
-    IntroduceSpecies do
+    command "IntroduceSpecies" do
       description "Add a new species to the aquarium collection"
-      String :common_name
-      String :scientific_name
-      String :water_type_requirement
-      Float :min_temperature_f
-      Float :max_temperature_f
-      Integer :population_count
+      attribute :common_name, String
+      attribute :scientific_name, String
+      attribute :water_type_requirement, String
+      attribute :min_temperature_f, Float
+      attribute :max_temperature_f, Float
+      attribute :population_count, Integer
       reference_to(Tank)
       emits "SpeciesIntroduced"
     end
 
-    AcclimateSpecies do
+    command "AcclimateSpecies" do
       description "Begin temperature and water chemistry acclimation"
       reference_to(Species)
       emits "SpeciesAcclimating"
     end
 
-    ReleaseIntoTank do
+    command "ReleaseIntoTank" do
       description "Place acclimated species into their display tank"
       reference_to(Species)
       reference_to(Tank)
       emits "SpeciesReleased"
     end
 
-    AdjustPopulation do
+    command "AdjustPopulation" do
       description "Update population count after births, deaths, or transfers"
       reference_to(Species)
-      Integer :new_count
+      attribute :new_count, Integer
       emits "PopulationAdjusted"
     end
 
-    RelocateSpecies do
+    command "RelocateSpecies" do
       description "Move a species to a different tank"
       reference_to(Species)
       reference_to(Tank)
@@ -125,33 +125,33 @@ Hecks.bluebook "AquariumOperations" do
   end
 
   aggregate "WaterQualityReading", "A measured snapshot of water chemistry in a tank" do
-    String :reading_id
-    Float :temperature_f
-    Float :ph
-    Float :ammonia_ppm
-    Float :nitrate_ppm
-    Float :salinity_ppt
-    String :status
+    attribute :reading_id, String
+    attribute :temperature_f, Float
+    attribute :ph, Float
+    attribute :ammonia_ppm, Float
+    attribute :nitrate_ppm, Float
+    attribute :salinity_ppt, Float
+    attribute :status, String
     reference_to(Tank)
 
     value_object "Threshold" do
-      Float :critical_ammonia
-      Float :critical_nitrate
+      attribute :critical_ammonia, Float
+      attribute :critical_nitrate, Float
     end
 
-    RecordReading do
+    command "RecordReading" do
       description "Log water quality parameters for a tank"
       reference_to(Tank)
-      Float :temperature_f
-      Float :ph
-      Float :ammonia_ppm
-      Float :nitrate_ppm
-      Float :salinity_ppt
+      attribute :temperature_f, Float
+      attribute :ph, Float
+      attribute :ammonia_ppm, Float
+      attribute :nitrate_ppm, Float
+      attribute :salinity_ppt, Float
       emits "ReadingRecorded"
       then_set :status, to: "recorded"
     end
 
-    ApproveReading do
+    command "ApproveReading" do
       description "Confirm water quality is within acceptable ranges"
       reference_to(WaterQualityReading)
       given { status == "recorded" }
@@ -159,10 +159,10 @@ Hecks.bluebook "AquariumOperations" do
       then_set :status, to: "approved"
     end
 
-    FlagAnomaly do
+    command "FlagAnomaly" do
       description "Alert staff to dangerous water quality levels"
       reference_to(WaterQualityReading)
-      String :parameter
+      attribute :parameter, String
       given { status == "recorded" }
       emits "AnomalyFlagged"
       then_set :status, to: "flagged"
@@ -170,68 +170,68 @@ Hecks.bluebook "AquariumOperations" do
   end
 
   aggregate "FeedingLog", "A record of feeding events for a tank or species" do
-    String :log_id
-    String :food_type
-    Float :quantity_grams
-    String :fed_by
-    String :feeding_time
+    attribute :log_id, String
+    attribute :food_type, String
+    attribute :quantity_grams, Float
+    attribute :fed_by, String
+    attribute :feeding_time, String
     reference_to(Species)
 
     value_object "NutritionalProfile" do
-      Float :protein_percent
-      Float :fat_percent
+      attribute :protein_percent, Float
+      attribute :fat_percent, Float
     end
 
-    LogFeeding do
+    command "LogFeeding" do
       description "Record a feeding event for a species"
       reference_to(Species)
-      String :food_type
-      Float :quantity_grams
-      String :fed_by
+      attribute :food_type, String
+      attribute :quantity_grams, Float
+      attribute :fed_by, String
       emits "FeedingLogged"
     end
 
-    SkipFeeding do
+    command "SkipFeeding" do
       description "Record that a scheduled feeding was intentionally skipped"
       reference_to(Species)
-      String :reason
+      attribute :reason, String
       emits "FeedingSkipped"
     end
   end
 
   aggregate "Exhibit", "A public display area themed around a specific ecosystem" do
-    String :exhibit_id
-    String :name
-    String :theme
-    String :status
-    Integer :tank_count
+    attribute :exhibit_id, String
+    attribute :name, String
+    attribute :theme, String
+    attribute :status, String
+    attribute :tank_count, Integer
     reference_to(Tank)
 
     value_object "ExhibitSignage" do
-      String :description_text
-      String :conservation_status
+      attribute :description_text, String
+      attribute :conservation_status, String
     end
 
-    OpenExhibit do
+    command "OpenExhibit" do
       description "Make an exhibit available for public viewing"
-      String :name
-      String :theme
-      Integer :tank_count
+      attribute :name, String
+      attribute :theme, String
+      attribute :tank_count, Integer
       reference_to(Tank)
       emits "ExhibitOpened"
       then_set :status, to: "open"
     end
 
-    CloseExhibit do
+    command "CloseExhibit" do
       description "Close an exhibit for renovation or seasonal shutdown"
       reference_to(Exhibit)
-      String :reason
+      attribute :reason, String
       given { status == "open" }
       emits "ExhibitClosed"
       then_set :status, to: "closed"
     end
 
-    ReopenExhibit do
+    command "ReopenExhibit" do
       description "Reopen a closed exhibit after renovation"
       reference_to(Exhibit)
       given { status == "closed" }

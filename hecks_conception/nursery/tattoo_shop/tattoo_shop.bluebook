@@ -1,56 +1,56 @@
 Hecks.bluebook "TattooShop" do
   aggregate "Artist", "A tattoo artist with a specialty style and portfolio" do
-    String :name
-    String :specialty_style
-    String :station_number
-    Integer :years_experience
+    attribute :name, String
+    attribute :specialty_style, String
+    attribute :station_number, String
+    attribute :years_experience, Integer
 
-    HireArtist do
+    command "HireArtist" do
       description "Bring a new tattoo artist onto the shop roster"
-      String :name
-      String :specialty_style
-      String :station_number
-      Integer :years_experience
+      attribute :name, String
+      attribute :specialty_style, String
+      attribute :station_number, String
+      attribute :years_experience, Integer
       emits "ArtistHired"
     end
 
-    AssignStation do
+    command "AssignStation" do
       description "Move an artist to a different workstation"
       reference_to(Artist)
-      String :station_number
+      attribute :station_number, String
       emits "StationAssigned"
       then_set :station_number, to: :station_number
     end
   end
 
   aggregate "Appointment", "A booked tattoo session with time, duration, and deposit" do
-    String :date
-    String :time_slot
-    Integer :duration_hours
-    Float :deposit_amount
-    String :status, default: "booked"
+    attribute :date, String
+    attribute :time_slot, String
+    attribute :duration_hours, Integer
+    attribute :deposit_amount, Float
+    attribute :status, String, default: "booked"
     reference_to(Artist)
     reference_to(Design)
 
     value_object "TimeSlot" do
-      String :start_time
-      String :end_time
-      Integer :duration_minutes
+      attribute :start_time, String
+      attribute :end_time, String
+      attribute :duration_minutes, Integer
     end
 
-    BookAppointment do
+    command "BookAppointment" do
       description "Reserve a tattoo appointment with an artist"
       reference_to(Artist)
       reference_to(Design)
-      String :date
-      String :time_slot
-      Integer :duration_hours
-      Float :deposit_amount
+      attribute :date, String
+      attribute :time_slot, String
+      attribute :duration_hours, Integer
+      attribute :deposit_amount, Float
       emits "AppointmentBooked"
       then_set :status, to: "booked"
     end
 
-    StartSession do
+    command "StartSession" do
       description "Begin the tattoo session when the client arrives"
       reference_to(Appointment)
       given { status == "booked" }
@@ -58,7 +58,7 @@ Hecks.bluebook "TattooShop" do
       then_set :status, to: "in_progress"
     end
 
-    CompleteSession do
+    command "CompleteSession" do
       description "Finish the tattoo session and record aftercare instructions"
       reference_to(Appointment)
       given { status == "in_progress" }
@@ -68,29 +68,29 @@ Hecks.bluebook "TattooShop" do
   end
 
   aggregate "Design", "A tattoo design with style, placement, and sizing details" do
-    String :title
-    String :style
-    String :placement
-    Float :size_inches
-    String :status, default: "draft"
+    attribute :title, String
+    attribute :style, String
+    attribute :placement, String
+    attribute :size_inches, Float
+    attribute :status, String, default: "draft"
 
     value_object "ColorPalette" do
-      String :primary_ink
-      String :secondary_ink
-      String :shading_technique
+      attribute :primary_ink, String
+      attribute :secondary_ink, String
+      attribute :shading_technique, String
     end
 
-    SketchDesign do
+    command "SketchDesign" do
       description "Create an initial tattoo design sketch for client review"
-      String :title
-      String :style
-      String :placement
-      Float :size_inches
+      attribute :title, String
+      attribute :style, String
+      attribute :placement, String
+      attribute :size_inches, Float
       emits "DesignSketched"
       then_set :status, to: "draft"
     end
 
-    ApproveDesign do
+    command "ApproveDesign" do
       description "Client approves the design for tattooing"
       reference_to(Design)
       given { status == "draft" }
@@ -98,58 +98,58 @@ Hecks.bluebook "TattooShop" do
       then_set :status, to: "approved"
     end
 
-    ReviseDesign do
+    command "ReviseDesign" do
       description "Modify the design based on client feedback"
       reference_to(Design)
-      String :revision_notes
+      attribute :revision_notes, String
       emits "DesignRevised"
     end
   end
 
   aggregate "ConsentForm", "Legal consent and medical disclosure before tattooing" do
-    String :client_name
-    String :date_signed
-    String :allergies
-    String :status, default: "unsigned"
+    attribute :client_name, String
+    attribute :date_signed, String
+    attribute :allergies, String
+    attribute :status, String, default: "unsigned"
     reference_to(Appointment)
 
-    SignConsent do
+    command "SignConsent" do
       description "Record client signature on consent and medical form"
       reference_to(Appointment)
-      String :client_name
-      String :allergies
+      attribute :client_name, String
+      attribute :allergies, String
       emits "ConsentSigned"
       then_set :status, to: "signed"
     end
 
-    FlagAllergy do
+    command "FlagAllergy" do
       description "Flag a known allergy that may affect ink selection"
       reference_to(ConsentForm)
-      String :allergen
+      attribute :allergen, String
       given { status == "signed" }
       emits "AllergyFlagged"
     end
   end
 
   aggregate "AftercareKit", "Post-tattoo care instructions and product bundle" do
-    String :instructions
-    String :ointment_type
-    Integer :follow_up_days
+    attribute :instructions, String
+    attribute :ointment_type, String
+    attribute :follow_up_days, Integer
     reference_to(Appointment)
 
-    DispenseKit do
+    command "DispenseKit" do
       description "Provide aftercare kit and instructions after session"
       reference_to(Appointment)
-      String :instructions
-      String :ointment_type
-      Integer :follow_up_days
+      attribute :instructions, String
+      attribute :ointment_type, String
+      attribute :follow_up_days, Integer
       emits "KitDispensed"
     end
 
-    ScheduleFollowUp do
+    command "ScheduleFollowUp" do
       description "Book a follow-up appointment to check healing"
       reference_to(AftercareKit)
-      String :follow_up_date
+      attribute :follow_up_date, String
       emits "FollowUpScheduled"
     end
   end

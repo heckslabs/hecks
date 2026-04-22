@@ -1,39 +1,39 @@
 Hecks.bluebook "RailYard" do
   aggregate "RailCar" do
-    String :car_id
-    String :car_type
-    String :reporting_mark
-    Float :capacity_tons
-    String :lading
-    String :status
+    attribute :car_id, String
+    attribute :car_type, String
+    attribute :reporting_mark, String
+    attribute :capacity_tons, Float
+    attribute :lading, String
+    attribute :status, String
 
     value_object "CarCondition" do
-      String :brake_status
-      String :coupler_status
-      String :wheel_condition
-      String :overall_grade
+      attribute :brake_status, String
+      attribute :coupler_status, String
+      attribute :wheel_condition, String
+      attribute :overall_grade, String
     end
 
-    ReceiveCar do
+    command "ReceiveCar" do
       description "Receive inbound rail car into yard receiving track"
-      String :train_symbol
-      String :origin_yard
+      attribute :train_symbol, String
+      attribute :origin_yard, String
       reference_to "RailCar"
       emits "CarReceived"
     end
 
-    InspectCar do
+    command "InspectCar" do
       description "Perform mechanical safety inspection on received rail car"
-      String :inspection_type
-      String :inspector
+      attribute :inspection_type, String
+      attribute :inspector, String
       reference_to "RailCar"
       emits "CarInspected"
     end
 
-    ClassifyCar do
+    command "ClassifyCar" do
       description "Sort car to correct classification track based on destination"
-      String :destination_track
-      String :outbound_train
+      attribute :destination_track, String
+      attribute :outbound_train, String
       reference_to "RailCar"
       emits "CarClassified"
     end
@@ -48,41 +48,41 @@ Hecks.bluebook "RailYard" do
     policy "Hazmat cars require special placement rules in consist"
 
     given "A tank car arrives with crude oil" do
-      String :car_type, "Tank Car"
-      String :reporting_mark, "TILX 198234"
-      String :lading, "Crude Petroleum"
+      attribute :car_type, String, "Tank Car"
+      attribute :reporting_mark, String, "TILX 198234"
+      attribute :lading, String, "Crude Petroleum"
     end
   end
 
   aggregate "TrainConsist" do
-    String :consist_id
-    String :train_symbol
-    String :origin
-    String :destination
-    Integer :car_count
-    String :status
+    attribute :consist_id, String
+    attribute :train_symbol, String
+    attribute :origin, String
+    attribute :destination, String
+    attribute :car_count, Integer
+    attribute :status, String
     list_of "RailCar"
 
-    BuildConsist do
+    command "BuildConsist" do
       description "Assemble classified cars into departure train consist"
-      String :train_symbol
-      String :destination
+      attribute :train_symbol, String
+      attribute :destination, String
       reference_to "TrainConsist"
       emits "ConsistBuilt"
     end
 
-    TestBrakes do
+    command "TestBrakes" do
       description "Perform Class I air brake test on assembled consist"
-      String :inspector
-      String :test_result
+      attribute :inspector, String
+      attribute :test_result, String
       reference_to "TrainConsist"
       emits "BrakesTested"
     end
 
-    DepartTrain do
+    command "DepartTrain" do
       description "Release assembled train for mainline departure"
-      String :crew_id
-      String :locomotive_ids
+      attribute :crew_id, String
+      attribute :locomotive_ids, String
       reference_to "TrainConsist"
       emits "TrainDeparted"
     end
@@ -97,23 +97,23 @@ Hecks.bluebook "RailYard" do
   end
 
   aggregate "SwitchMove" do
-    String :move_id
-    String :switch_engine_id
-    String :origin_track
-    String :destination_track
-    Integer :car_count
-    String :status
+    attribute :move_id, String
+    attribute :switch_engine_id, String
+    attribute :origin_track, String
+    attribute :destination_track, String
+    attribute :car_count, Integer
+    attribute :status, String
 
-    ExecuteSwitch do
+    command "ExecuteSwitch" do
       description "Move cars between yard tracks using switch engine"
-      String :switch_engine_id
-      String :origin_track
-      String :destination_track
+      attribute :switch_engine_id, String
+      attribute :origin_track, String
+      attribute :destination_track, String
       reference_to "RailCar"
       emits "SwitchExecuted"
     end
 
-    CoupleAir do
+    command "CoupleAir" do
       description "Connect air hoses and charge brake line after coupling cars"
       reference_to "SwitchMove"
       emits "AirCoupled"
@@ -128,30 +128,30 @@ Hecks.bluebook "RailYard" do
   end
 
   aggregate "YardSchedule" do
-    String :schedule_id
-    String :shift_date
-    String :shift
-    Integer :inbound_trains
-    Integer :outbound_trains
-    String :status
+    attribute :schedule_id, String
+    attribute :shift_date, String
+    attribute :shift, String
+    attribute :inbound_trains, Integer
+    attribute :outbound_trains, Integer
+    attribute :status, String
 
     value_object "TrainSlot" do
-      String :train_symbol
-      String :arrival_time
-      String :track_assignment
+      attribute :train_symbol, String
+      attribute :arrival_time, String
+      attribute :track_assignment, String
     end
 
-    PlanShift do
+    command "PlanShift" do
       description "Create yard work plan for inbound and outbound trains"
-      String :shift_date
-      String :shift
+      attribute :shift_date, String
+      attribute :shift, String
       reference_to "YardSchedule"
       emits "ShiftPlanned"
     end
 
-    AdjustSchedule do
+    command "AdjustSchedule" do
       description "Update schedule for late arrivals or equipment changes"
-      String :reason
+      attribute :reason, String
       reference_to "YardSchedule"
       emits "ScheduleAdjusted"
     end
@@ -165,25 +165,25 @@ Hecks.bluebook "RailYard" do
   end
 
   aggregate "CarInspection" do
-    String :inspection_id
-    String :car_id
-    String :inspection_type
-    String :inspector
-    String :result
-    String :status
+    attribute :inspection_id, String
+    attribute :car_id, String
+    attribute :inspection_type, String
+    attribute :inspector, String
+    attribute :result, String
+    attribute :status, String
 
-    TagDefect do
+    command "TagDefect" do
       description "Apply bad order tag to car with identified safety defect"
-      String :defect_code
-      String :defect_description
+      attribute :defect_code, String
+      attribute :defect_description, String
       reference_to "RailCar"
       emits "DefectTagged"
     end
 
-    RepairDefect do
+    command "RepairDefect" do
       description "Complete repair on defective car and return to service"
-      String :mechanic
-      String :repair_description
+      attribute :mechanic, String
+      attribute :repair_description, String
       reference_to "CarInspection"
       emits "DefectRepaired"
     end

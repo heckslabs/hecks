@@ -2,29 +2,29 @@ Hecks.bluebook "Pathology" do
   vision "Laboratory diagnostics — specimens, tests, results, quality control, and pathology reports"
 
   aggregate "Specimen", "A biological sample submitted for laboratory analysis" do
-    String :accession_number
-    String :patient_name
-    String :specimen_type
-    String :collection_date
-    String :collected_by
-    String :status
+    attribute :accession_number, String
+    attribute :patient_name, String
+    attribute :specimen_type, String
+    attribute :collection_date, String
+    attribute :collected_by, String
+    attribute :status, String
     list_of(ProcessingStep) :processing_history
 
     value_object "ProcessingStep" do
-      String :step_name
-      String :performed_by
-      String :timestamp
-      String :notes
+      attribute :step_name, String
+      attribute :performed_by, String
+      attribute :timestamp, String
+      attribute :notes, String
     end
 
-    ReceiveSpecimen do
+    command "ReceiveSpecimen" do
       role "LabTechnician"
       description "Receive and log a specimen into the laboratory system"
-      String :accession_number
-      String :patient_name
-      String :specimen_type
-      String :collection_date
-      String :collected_by
+      attribute :accession_number, String
+      attribute :patient_name, String
+      attribute :specimen_type, String
+      attribute :collection_date, String
+      attribute :collected_by, String
       emits "SpecimenAccessioned"
       then_set :accession_number, to: :accession_number
       then_set :patient_name, to: :patient_name
@@ -34,7 +34,7 @@ Hecks.bluebook "Pathology" do
       then_set :status, to: "received"
     end
 
-    ProcessSpecimen do
+    command "ProcessSpecimen" do
       role "LabTechnician"
       description "Prepare the specimen for testing — sectioning, staining, or extraction"
       reference_to(Specimen)
@@ -43,7 +43,7 @@ Hecks.bluebook "Pathology" do
       then_set :status, to: "processed"
     end
 
-    RejectSpecimen do
+    command "RejectSpecimen" do
       role "LabTechnician"
       description "Reject a specimen that does not meet quality standards"
       reference_to(Specimen)
@@ -53,23 +53,23 @@ Hecks.bluebook "Pathology" do
   end
 
   aggregate "LabTest", "A specific diagnostic test performed on a specimen" do
-    String :test_name
-    String :test_code
-    String :methodology
-    String :specimen_accession
-    String :ordered_by
-    String :status
+    attribute :test_name, String
+    attribute :test_code, String
+    attribute :methodology, String
+    attribute :specimen_accession, String
+    attribute :ordered_by, String
+    attribute :status, String
     reference_to Specimen
 
-    OrderTest do
+    command "OrderTest" do
       role "Physician"
       description "Request a specific laboratory test on a specimen"
       reference_to(Specimen)
-      String :test_name
-      String :test_code
-      String :methodology
-      String :specimen_accession
-      String :ordered_by
+      attribute :test_name, String
+      attribute :test_code, String
+      attribute :methodology, String
+      attribute :specimen_accession, String
+      attribute :ordered_by, String
       emits "TestOrdered"
       then_set :test_name, to: :test_name
       then_set :test_code, to: :test_code
@@ -79,7 +79,7 @@ Hecks.bluebook "Pathology" do
       then_set :status, to: "ordered"
     end
 
-    RunTest do
+    command "RunTest" do
       role "LabTechnician"
       description "Execute the laboratory test according to protocol"
       reference_to(LabTest)
@@ -88,7 +88,7 @@ Hecks.bluebook "Pathology" do
       then_set :status, to: "completed"
     end
 
-    RepeatTest do
+    command "RepeatTest" do
       role "Pathologist"
       description "Order a repeat of a test due to inconclusive results"
       reference_to(LabTest)
@@ -98,33 +98,33 @@ Hecks.bluebook "Pathology" do
   end
 
   aggregate "TestResult", "The outcome of a laboratory test with reference ranges" do
-    String :test_name
-    String :result_value
-    String :unit
-    String :reference_range
-    String :interpretation
-    String :resulted_by
-    String :result_date
-    String :status
+    attribute :test_name, String
+    attribute :result_value, String
+    attribute :unit, String
+    attribute :reference_range, String
+    attribute :interpretation, String
+    attribute :resulted_by, String
+    attribute :result_date, String
+    attribute :status, String
     reference_to LabTest
 
     value_object "AbnormalFlag" do
-      String :flag_type
-      String :description
-      String :clinical_significance
+      attribute :flag_type, String
+      attribute :description, String
+      attribute :clinical_significance, String
     end
 
-    RecordResult do
+    command "RecordResult" do
       role "LabTechnician"
       description "Enter the test result with values and interpretation"
       reference_to(LabTest)
-      String :test_name
-      String :result_value
-      String :unit
-      String :reference_range
-      String :interpretation
-      String :resulted_by
-      String :result_date
+      attribute :test_name, String
+      attribute :result_value, String
+      attribute :unit, String
+      attribute :reference_range, String
+      attribute :interpretation, String
+      attribute :resulted_by, String
+      attribute :result_date, String
       emits "ResultRecorded"
       then_set :test_name, to: :test_name
       then_set :result_value, to: :result_value
@@ -136,7 +136,7 @@ Hecks.bluebook "Pathology" do
       then_set :status, to: "preliminary"
     end
 
-    VerifyResult do
+    command "VerifyResult" do
       role "Pathologist"
       description "Review and verify the test result for clinical accuracy"
       reference_to(TestResult)
@@ -145,12 +145,12 @@ Hecks.bluebook "Pathology" do
       then_set :status, to: "verified"
     end
 
-    AmendResult do
+    command "AmendResult" do
       role "Pathologist"
       description "Correct a previously verified result"
       reference_to(TestResult)
-      String :result_value
-      String :interpretation
+      attribute :result_value, String
+      attribute :interpretation, String
       emits "ResultAmended"
       then_set :result_value, to: :result_value
       then_set :interpretation, to: :interpretation
@@ -158,21 +158,21 @@ Hecks.bluebook "Pathology" do
   end
 
   aggregate "QualityControl", "A quality assurance check ensuring instrument and process accuracy" do
-    String :instrument_name
-    String :control_material
-    String :expected_value
-    String :observed_value
-    String :run_date
-    String :status
+    attribute :instrument_name, String
+    attribute :control_material, String
+    attribute :expected_value, String
+    attribute :observed_value, String
+    attribute :run_date, String
+    attribute :status, String
 
-    RunQualityControl do
+    command "RunQualityControl" do
       role "LabTechnician"
       description "Execute a quality control check on the instrument"
-      String :instrument_name
-      String :control_material
-      String :expected_value
-      String :observed_value
-      String :run_date
+      attribute :instrument_name, String
+      attribute :control_material, String
+      attribute :expected_value, String
+      attribute :observed_value, String
+      attribute :run_date, String
       emits "QualityControlRun"
       then_set :instrument_name, to: :instrument_name
       then_set :control_material, to: :control_material
@@ -182,7 +182,7 @@ Hecks.bluebook "Pathology" do
       then_set :status, to: "pending_review"
     end
 
-    ApproveQualityControl do
+    command "ApproveQualityControl" do
       role "Supervisor"
       description "Accept the quality control results as within acceptable range"
       reference_to(QualityControl)
@@ -191,7 +191,7 @@ Hecks.bluebook "Pathology" do
       then_set :status, to: "approved"
     end
 
-    FailQualityControl do
+    command "FailQualityControl" do
       role "Supervisor"
       description "Flag a quality control failure requiring corrective action"
       reference_to(QualityControl)
@@ -201,27 +201,27 @@ Hecks.bluebook "Pathology" do
   end
 
   aggregate "PathologyReport", "A comprehensive report summarizing specimen findings" do
-    String :patient_name
-    String :specimen_accession
-    String :gross_description
-    String :microscopic_findings
-    String :diagnosis
-    String :pathologist_name
-    String :report_date
-    String :status
+    attribute :patient_name, String
+    attribute :specimen_accession, String
+    attribute :gross_description, String
+    attribute :microscopic_findings, String
+    attribute :diagnosis, String
+    attribute :pathologist_name, String
+    attribute :report_date, String
+    attribute :status, String
     reference_to Specimen
 
-    DraftPathologyReport do
+    command "DraftPathologyReport" do
       role "Pathologist"
       description "Write the initial pathology report with findings and diagnosis"
       reference_to(Specimen)
-      String :patient_name
-      String :specimen_accession
-      String :gross_description
-      String :microscopic_findings
-      String :diagnosis
-      String :pathologist_name
-      String :report_date
+      attribute :patient_name, String
+      attribute :specimen_accession, String
+      attribute :gross_description, String
+      attribute :microscopic_findings, String
+      attribute :diagnosis, String
+      attribute :pathologist_name, String
+      attribute :report_date, String
       emits "PathologyReportDrafted"
       then_set :patient_name, to: :patient_name
       then_set :specimen_accession, to: :specimen_accession
@@ -233,7 +233,7 @@ Hecks.bluebook "Pathology" do
       then_set :status, to: "draft"
     end
 
-    SignOutReport do
+    command "SignOutReport" do
       role "Pathologist"
       description "Finalize and sign the pathology report for distribution"
       reference_to(PathologyReport)

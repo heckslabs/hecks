@@ -5,27 +5,27 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
   # === Patient ===
 
   aggregate "Patient", "A patient requiring aeromedical transport — clinical state tracked from pickup to handoff" do
-    String :name
-    String :blood_type
-    String :injury_classification
-    String :triage_level
-    String :status
+    attribute :name, String
+    attribute :blood_type, String
+    attribute :injury_classification, String
+    attribute :triage_level, String
+    attribute :status, String
     list_of(Allergy) :allergies
     reference_to(Flight, as: :assigned_flight)
 
     value_object "Allergy" do
-      String :substance
-      String :severity
-      String :reaction_type
+      attribute :substance, String
+      attribute :severity, String
+      attribute :reaction_type, String
     end
 
-    RegisterPatient do
+    command "RegisterPatient" do
       role "Paramedic"
       description "Register a patient for aeromedical evacuation with injury details"
-      String :name
-      String :blood_type
-      String :injury_classification
-      String :triage_level
+      attribute :name, String
+      attribute :blood_type, String
+      attribute :injury_classification, String
+      attribute :triage_level, String
       emits "PatientRegistered"
       then_set :name, to: :name
       then_set :blood_type, to: :blood_type
@@ -34,7 +34,7 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
       then_set :status, to: "registered"
     end
 
-    AssignToFlight do
+    command "AssignToFlight" do
       role "Dispatcher"
       description "Assign patient to a specific medevac flight"
       reference_to(Patient)
@@ -45,16 +45,16 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
       then_set :status, to: "in_transit"
     end
 
-    EscalateCondition do
+    command "EscalateCondition" do
       role "FlightMedic"
       description "Upgrade triage level when patient condition worsens in-flight"
       reference_to(Patient)
-      String :triage_level
+      attribute :triage_level, String
       emits "ConditionEscalated"
       then_set :triage_level, to: :triage_level
     end
 
-    TransferToGround do
+    command "TransferToGround" do
       role "Paramedic"
       description "Transfer patient care to ground hospital team"
       reference_to(Patient)
@@ -73,27 +73,27 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
   # === Flight ===
 
   aggregate "Flight", "A medevac flight — route, crew, altitude, and diversion capability" do
-    String :callsign
-    String :origin
-    String :destination
-    Integer :altitude
-    String :status
-    String :crew_manifest
+    attribute :callsign, String
+    attribute :origin, String
+    attribute :destination, String
+    attribute :altitude, Integer
+    attribute :status, String
+    attribute :crew_manifest, String
     list_of(Waypoint) :route
 
     value_object "Waypoint" do
-      Float :latitude
-      Float :longitude
-      Integer :altitude
-      String :waypoint_type
+      attribute :latitude, Float
+      attribute :longitude, Float
+      attribute :altitude, Integer
+      attribute :waypoint_type, String
     end
 
-    DispatchFlight do
+    command "DispatchFlight" do
       role "Dispatcher"
       description "Launch a medevac flight to a pickup location"
-      String :callsign
-      String :origin
-      String :destination
+      attribute :callsign, String
+      attribute :origin, String
+      attribute :destination, String
       emits "FlightDispatched"
       then_set :callsign, to: :callsign
       then_set :origin, to: :origin
@@ -101,17 +101,17 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
       then_set :status, to: "airborne"
     end
 
-    DivertFlight do
+    command "DivertFlight" do
       role "System"
       description "Reroute flight to nearest trauma center when vitals alarm"
       reference_to(Flight)
-      String :destination
+      attribute :destination, String
       given { status == "airborne" }
       emits "FlightDiverted"
       then_set :destination, to: :destination
     end
 
-    LandFlight do
+    command "LandFlight" do
       role "Pilot"
       description "Touch down at destination — triggers ground handoff"
       reference_to(Flight)
@@ -130,22 +130,22 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
 
   aggregate "VitalStream", "Real-time telemetry from airborne patient monitors — streams vitals to ground" do
     reference_to(Patient, as: :patient)
-    Integer :heart_rate
-    Integer :blood_pressure_systolic
-    Integer :blood_pressure_diastolic
-    Integer :spo2
-    Float :temperature
-    String :alarm_status
+    attribute :heart_rate, Integer
+    attribute :blood_pressure_systolic, Integer
+    attribute :blood_pressure_diastolic, Integer
+    attribute :spo2, Integer
+    attribute :temperature, Float
+    attribute :alarm_status, String
     list_of(VitalReading) :readings
 
     value_object "VitalReading" do
-      String :metric
-      Float :value
-      String :timestamp
-      String :within_range
+      attribute :metric, String
+      attribute :value, Float
+      attribute :timestamp, String
+      attribute :within_range, String
     end
 
-    StartMonitoring do
+    command "StartMonitoring" do
       role "FlightMedic"
       description "Begin streaming vitals from airborne patient monitors"
       reference_to(Patient, as: :patient)
@@ -154,22 +154,22 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
       then_set :alarm_status, to: "normal"
     end
 
-    RecordVitals do
+    command "RecordVitals" do
       role "System"
       description "Capture a snapshot of all vital signs at this moment"
       reference_to(VitalStream)
-      Integer :heart_rate
-      Integer :spo2
+      attribute :heart_rate, Integer
+      attribute :spo2, Integer
       emits "VitalsRecorded"
       then_set :heart_rate, to: :heart_rate
       then_set :spo2, to: :spo2
     end
 
-    TriggerAlarm do
+    command "TriggerAlarm" do
       role "System"
       description "Vitals outside safe range — escalate to flight medic and ground"
       reference_to(VitalStream)
-      String :alarm_status
+      attribute :alarm_status, String
       emits "VitalsAlarming"
       then_set :alarm_status, to: :alarm_status
     end
@@ -178,13 +178,13 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
   # === GroundReceiver ===
 
   aggregate "GroundReceiver", "The ground hospital receiving station — prepares resources before patient arrives" do
-    String :hospital_name
-    String :trauma_level
-    Integer :available_beds
-    String :status
+    attribute :hospital_name, String
+    attribute :trauma_level, String
+    attribute :available_beds, Integer
+    attribute :status, String
     reference_to(Patient, as: :expected_patient)
 
-    AssignTraumaBed do
+    command "AssignTraumaBed" do
       role "System"
       description "Reserve a trauma bed for incoming medevac patient"
       reference_to(GroundReceiver)
@@ -195,12 +195,12 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
       then_set :status, to: "prepared"
     end
 
-    RegisterHospital do
+    command "RegisterHospital" do
       role "Administrator"
       description "Register a ground hospital as a medevac receiving station"
-      String :hospital_name
-      String :trauma_level
-      Integer :available_beds
+      attribute :hospital_name, String
+      attribute :trauma_level, String
+      attribute :available_beds, Integer
       emits "HospitalRegistered"
       then_set :hospital_name, to: :hospital_name
       then_set :trauma_level, to: :trauma_level
@@ -208,7 +208,7 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
       then_set :status, to: "ready"
     end
 
-    ActivateTraumaTeam do
+    command "ActivateTraumaTeam" do
       role "System"
       description "Alert surgical and trauma teams that patient is inbound"
       reference_to(GroundReceiver)
@@ -223,17 +223,17 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
     reference_to(Patient, as: :patient)
     reference_to(Flight, as: :flight)
     reference_to(GroundReceiver, as: :receiver)
-    String :status
-    String :handoff_notes
+    attribute :status, String
+    attribute :handoff_notes, String
     list_of(TransferItem) :transfer_checklist
 
     value_object "TransferItem" do
-      String :item
-      String :verified
-      String :verified_by
+      attribute :item, String
+      attribute :verified, String
+      attribute :verified_by, String
     end
 
-    InitiateHandoff do
+    command "InitiateHandoff" do
       role "FlightMedic"
       description "Begin formal transfer of patient care at landing"
       reference_to(Patient, as: :patient)
@@ -246,18 +246,18 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
       then_set :status, to: "in_progress"
     end
 
-    VerifyTransfer do
+    command "VerifyTransfer" do
       role "GroundMedic"
       description "Ground team confirms receipt of patient and vitals history"
       reference_to(Handoff)
-      String :handoff_notes
+      attribute :handoff_notes, String
       given { status == "in_progress" }
       emits "TransferVerified"
       then_set :handoff_notes, to: :handoff_notes
       then_set :status, to: "verified"
     end
 
-    CompleteHandoff do
+    command "CompleteHandoff" do
       role "GroundMedic"
       description "Formal handoff complete — patient now under ground hospital care"
       reference_to(Handoff)

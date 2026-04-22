@@ -3,20 +3,20 @@ Hecks.bluebook "Archaeology" do
 
   aggregate "ExcavationSite" do
     description "A location where archaeological fieldwork is conducted"
-    String :site_code
-    String :name
-    Float :latitude
-    Float :longitude
-    String :period_estimate
-    TrueClass :trenches_backfilled, default: false
+    attribute :site_code, String
+    attribute :name, String
+    attribute :latitude, Float
+    attribute :longitude, Float
+    attribute :period_estimate, String
+    attribute :trenches_backfilled, TrueClass, default: false
 
     command "OpenSite" do
       description "Begin excavation at a new archaeological site"
       emits "SiteOpened"
-      String :site_code
-      String :name
-      Float :latitude
-      Float :longitude
+      attribute :site_code, String
+      attribute :name, String
+      attribute :latitude, Float
+      attribute :longitude, Float
       then_set :trenches_backfilled, to: true
     end
 
@@ -31,38 +31,38 @@ Hecks.bluebook "Archaeology" do
       description "Appoint a lead archaeologist for the site"
       emits "DirectorAssigned"
       reference_to ExcavationSite
-      String :director_name
+      attribute :director_name, String
     end
   end
 
   aggregate "StratigraphicUnit" do
     description "A distinct layer of soil or deposit within an excavation trench"
-    String :context_number
-    String :soil_description
-    Float :depth_top_m
-    Float :depth_bottom_m
+    attribute :context_number, String
+    attribute :soil_description, String
+    attribute :depth_top_m, Float
+    attribute :depth_bottom_m, Float
     reference_to ExcavationSite
 
     value_object "SoilMatrix" do
-      String :color_munsell
-      String :texture
-      String :compaction
-      String :inclusions
+      attribute :color_munsell, String
+      attribute :texture, String
+      attribute :compaction, String
+      attribute :inclusions, String
     end
 
     command "RecordContext" do
       description "Document a new stratigraphic context"
       emits "ContextRecorded"
       reference_to ExcavationSite
-      String :context_number
-      String :soil_description
+      attribute :context_number, String
+      attribute :soil_description, String
     end
 
     command "LinkStratigraphy" do
       description "Establish above-below relationships between contexts"
       emits "StratigraphyLinked"
       reference_to StratigraphicUnit
-      String :related_context
+      attribute :related_context, String
     end
 
     command "SampleContext" do
@@ -74,22 +74,22 @@ Hecks.bluebook "Archaeology" do
 
   aggregate "Artifact" do
     description "A human-made object recovered from excavation"
-    String :find_number
-    String :material
-    String :object_type
-    Float :weight_g
-    TrueClass :is_organic, default: false
-    TrueClass :photographed, default: false
-    TrueClass :cataloged, default: false
+    attribute :find_number, String
+    attribute :material, String
+    attribute :object_type, String
+    attribute :weight_g, Float
+    attribute :is_organic, TrueClass, default: false
+    attribute :photographed, TrueClass, default: false
+    attribute :cataloged, TrueClass, default: false
     reference_to StratigraphicUnit
 
     command "RegisterFind" do
       description "Log a newly discovered artifact"
       emits "FindRegistered"
       reference_to StratigraphicUnit
-      String :find_number
-      String :material
-      String :object_type
+      attribute :find_number, String
+      attribute :material, String
+      attribute :object_type, String
       then_set :is_organic, to: true
       then_set :cataloged, to: true
       then_set :photographed, to: true
@@ -112,19 +112,19 @@ Hecks.bluebook "Archaeology" do
 
   aggregate "DatingResult" do
     description "A chronometric date obtained from laboratory analysis"
-    String :method
-    Integer :date_bp
-    Integer :error_margin
-    TrueClass :is_radiocarbon, default: false
+    attribute :method, String
+    attribute :date_bp, Integer
+    attribute :error_margin, Integer
+    attribute :is_radiocarbon, TrueClass, default: false
     reference_to Artifact
 
     command "SubmitResult" do
       description "Record a dating laboratory result"
       emits "ResultSubmitted"
       reference_to Artifact
-      String :method
-      Integer :date_bp
-      Integer :error_margin
+      attribute :method, String
+      attribute :date_bp, Integer
+      attribute :error_margin, Integer
       then_set :is_radiocarbon, to: true
     end
 
@@ -138,25 +138,25 @@ Hecks.bluebook "Archaeology" do
 
   aggregate "ConservationRecord" do
     description "A treatment applied to stabilize or restore an artifact"
-    String :record_id
-    String :treatment_type
-    String :conservator
-    String :date_performed
+    attribute :record_id, String
+    attribute :treatment_type, String
+    attribute :conservator, String
+    attribute :date_performed, String
     reference_to Artifact
 
     command "ConserveArtifact" do
       description "Apply conservation treatment to stabilize the artifact"
       emits "ArtifactConserved"
       reference_to Artifact
-      String :treatment_type
-      String :conservator
+      attribute :treatment_type, String
+      attribute :conservator, String
     end
 
     command "PublishSiteReport" do
       description "Compile and release the final excavation report"
       emits "SiteReportPublished"
       reference_to ExcavationSite
-      String :report_title
+      attribute :report_title, String
     end
   end
 

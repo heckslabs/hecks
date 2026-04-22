@@ -3,43 +3,43 @@ Hecks.bluebook "DeclarativeTraining", version: "2026.04.13.1" do
   category "meta"
 
   aggregate "Corpus", "The collection of all bootable bluebooks — each one a validated training example" do
-    String :source_path
-    Integer :domain_count
-    Integer :aggregate_count
-    Integer :command_count
-    Integer :policy_count
+    attribute :source_path, String
+    attribute :domain_count, Integer
+    attribute :aggregate_count, Integer
+    attribute :command_count, Integer
+    attribute :policy_count, Integer
 
-    HarvestCorpus do
+    command "HarvestCorpus" do
       description "Walk the bluebook directory, parse each file, keep only those that boot clean"
-      String :root_path
+      attribute :root_path, String
       emits "CorpusHarvested"
     end
   end
 
   aggregate "TrainingPair", "One input/output example — a vision produces a domain structure" do
-    String :domain_name
-    String :vision
-    String :category
-    String :structure
-    Integer :complexity
+    attribute :domain_name, String
+    attribute :vision, String
+    attribute :category, String
+    attribute :structure, String
+    attribute :complexity, Integer
 
-    ExtractPair do
+    command "ExtractPair" do
       description "From a parsed domain, extract the vision as input and the structure as output"
       reference_to(Corpus)
-      String :domain_name
+      attribute :domain_name, String
       emits "PairExtracted"
     end
   end
 
   aggregate "TrainingSet", "JSONL output ready for fine-tuning — validated pairs with prompt/completion format" do
-    String :output_path
-    Integer :pair_count
-    String :format
+    attribute :output_path, String
+    attribute :pair_count, Integer
+    attribute :format, String
 
-    EmitTrainingSet do
+    command "EmitTrainingSet" do
       description "Write all extracted pairs as JSONL in prompt/completion format"
       reference_to(TrainingSet)
-      String :output_path
+      attribute :output_path, String
       emits "TrainingSetEmitted"
     end
   end

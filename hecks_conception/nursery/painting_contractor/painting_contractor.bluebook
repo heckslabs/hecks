@@ -4,34 +4,34 @@ Hecks.bluebook "PaintingContractor" do
 
   aggregate "PaintEstimate" do
     description "A painting estimate with surface area, prep requirements, coats, and pricing"
-    String :customer_name
-    String :address
-    Float :total_sqft
-    String :surface_type
-    Integer :coats
-    Float :total_price
-    String :status
+    attribute :customer_name, String
+    attribute :address, String
+    attribute :total_sqft, Float
+    attribute :surface_type, String
+    attribute :coats, Integer
+    attribute :total_price, Float
+    attribute :status, String
 
     value_object "SurfaceCondition" do
-      String :existing_coating
-      String :condition_rating
-      String :prep_required
+      attribute :existing_coating, String
+      attribute :condition_rating, String
+      attribute :prep_required, String
     end
 
-    EstimateJob do
+    command "EstimateJob" do
       role "Estimator"
       goal "Walk the property and calculate surface area and prep needs"
       description "Measure all surfaces, assess condition, and price the job"
-      String :customer_name
-      String :address
-      Float :total_sqft
-      String :surface_type
-      Integer :coats
+      attribute :customer_name, String
+      attribute :address, String
+      attribute :total_sqft, Float
+      attribute :surface_type, String
+      attribute :coats, Integer
       emits "JobEstimated"
       then_set :status, to: "presented"
     end
 
-    AcceptEstimate do
+    command "AcceptEstimate" do
       role "Customer"
       goal "Approve the painting estimate and authorize work"
       description "Customer signs the estimate to begin scheduling"
@@ -40,116 +40,116 @@ Hecks.bluebook "PaintingContractor" do
       emits "EstimateAccepted"
     end
 
-    AdjustScope do
+    command "AdjustScope" do
       role "Estimator"
       goal "Modify the estimate scope after additional discovery"
       description "Update square footage or prep requirements found during work"
       reference_to(PaintEstimate)
-      Float :revised_sqft
-      Float :revised_price
+      attribute :revised_sqft, Float
+      attribute :revised_price, Float
       emits "ScopeAdjusted"
     end
   end
 
   aggregate "SurfacePrep" do
     description "The preparation work before painting — washing, scraping, sanding, priming, and caulking"
-    String :prep_type
-    String :surface
-    String :status
+    attribute :prep_type, String
+    attribute :surface, String
+    attribute :status, String
     reference_to(PaintEstimate)
 
-    PrepSurface do
+    command "PrepSurface" do
       role "Crew Lead"
       goal "Prepare the surface for paint adhesion"
       description "Wash, scrape, sand, and prime as needed for the surface condition"
-      String :prep_type
-      String :surface
+      attribute :prep_type, String
+      attribute :surface, String
       reference_to(PaintEstimate)
       emits "SurfacePrepped"
     end
 
-    ApplyPrimer do
+    command "ApplyPrimer" do
       role "Painter"
       goal "Apply primer to bare or problem surfaces"
       description "Prime stains, bare wood, or previously glossy surfaces"
       reference_to(SurfacePrep)
-      String :primer_type
+      attribute :primer_type, String
       emits "PrimerApplied"
     end
   end
 
   aggregate "ColorSelection" do
     description "A paint color chosen for specific surfaces with brand, sheen, and formula"
-    String :color_name
-    String :brand
-    String :sheen
-    String :formula_code
-    String :surface_application
+    attribute :color_name, String
+    attribute :brand, String
+    attribute :sheen, String
+    attribute :formula_code, String
+    attribute :surface_application, String
     reference_to(PaintEstimate)
 
     value_object "ColorSpec" do
-      String :hex_code
-      String :lrv
+      attribute :hex_code, String
+      attribute :lrv, String
     end
 
-    SelectColor do
+    command "SelectColor" do
       role "Customer"
       goal "Choose the paint color for each surface area"
       description "Pick colors from samples or custom match"
-      String :color_name
-      String :brand
-      String :sheen
-      String :surface_application
+      attribute :color_name, String
+      attribute :brand, String
+      attribute :sheen, String
+      attribute :surface_application, String
       reference_to(PaintEstimate)
       emits "ColorSelected"
     end
 
-    OrderPaint do
+    command "OrderPaint" do
       role "Crew Lead"
       goal "Order the correct quantity of paint in the selected color"
       description "Calculate gallons needed and order from the paint store"
       reference_to(ColorSelection)
-      Float :gallons_needed
+      attribute :gallons_needed, Float
       emits "PaintOrdered"
     end
   end
 
   aggregate "CoatApplication" do
     description "A single coat of paint applied to a surface with application method and drying conditions"
-    Integer :coat_number
-    String :application_method
-    Float :mil_thickness
-    String :status
+    attribute :coat_number, Integer
+    attribute :application_method, String
+    attribute :mil_thickness, Float
+    attribute :status, String
     reference_to(ColorSelection)
 
-    ApplyCoat do
+    command "ApplyCoat" do
       role "Painter"
       goal "Apply a coat of paint to the prepared surface"
       description "Roll, brush, or spray the coat at the specified thickness"
-      Integer :coat_number
-      String :application_method
+      attribute :coat_number, Integer
+      attribute :application_method, String
       reference_to(ColorSelection)
       emits "CoatApplied"
     end
 
-    InspectCoat do
+    command "InspectCoat" do
       role "Crew Lead"
       goal "Check the coat for coverage, drips, and uniformity"
       description "Inspect the applied coat before proceeding to the next"
       reference_to(CoatApplication)
-      String :inspection_notes
+      attribute :inspection_notes, String
       emits "CoatInspected"
     end
   end
 
   aggregate "FinalWalkthrough" do
     description "A walkthrough with the customer to approve the finished paint job"
-    String :customer_feedback
-    String :punch_list_items
-    String :approval_status
+    attribute :customer_feedback, String
+    attribute :punch_list_items, String
+    attribute :approval_status, String
     reference_to(PaintEstimate)
 
-    ConductWalkthrough do
+    command "ConductWalkthrough" do
       role "Crew Lead"
       goal "Walk the property with the customer to review the paint job"
       description "Point out completed work and note any touch-ups needed"
@@ -157,12 +157,12 @@ Hecks.bluebook "PaintingContractor" do
       emits "WalkthroughConducted"
     end
 
-    RecordPunchList do
+    command "RecordPunchList" do
       role "Crew Lead"
       goal "Document any touch-ups or corrections needed"
       description "List items the customer wants addressed before final payment"
       reference_to(FinalWalkthrough)
-      String :punch_list_items
+      attribute :punch_list_items, String
       emits "PunchListRecorded"
     end
   end

@@ -2,19 +2,19 @@ Hecks.bluebook "Chiropractic" do
   vision "Spinal and musculoskeletal care — patients, adjustments, imaging, treatment plans, and billing"
 
   aggregate "Patient", "A person receiving chiropractic care for musculoskeletal issues" do
-    String :name
-    String :date_of_birth
-    String :chief_complaint
-    String :insurance_id
-    String :status
+    attribute :name, String
+    attribute :date_of_birth, String
+    attribute :chief_complaint, String
+    attribute :insurance_id, String
+    attribute :status, String
 
-    RegisterPatient do
+    command "RegisterPatient" do
       role "FrontDesk"
       description "Intake a new chiropractic patient"
-      String :name
-      String :date_of_birth
-      String :chief_complaint
-      String :insurance_id
+      attribute :name, String
+      attribute :date_of_birth, String
+      attribute :chief_complaint, String
+      attribute :insurance_id, String
       emits "PatientRegistered"
       then_set :name, to: :name
       then_set :date_of_birth, to: :date_of_birth
@@ -23,7 +23,7 @@ Hecks.bluebook "Chiropractic" do
       then_set :status, to: "intake"
     end
 
-    ActivatePatient do
+    command "ActivatePatient" do
       role "Chiropractor"
       description "Move patient to active treatment after imaging and plan creation"
       reference_to(Patient)
@@ -31,7 +31,7 @@ Hecks.bluebook "Chiropractic" do
       then_set :status, to: "active"
     end
 
-    DeactivatePatient do
+    command "DeactivatePatient" do
       role "Chiropractor"
       description "Mark a patient as inactive after completing treatment"
       reference_to(Patient)
@@ -41,29 +41,29 @@ Hecks.bluebook "Chiropractic" do
   end
 
   aggregate "Adjustment", "A chiropractic spinal or joint manipulation session" do
-    String :patient_name
-    String :adjustment_date
-    String :technique
+    attribute :patient_name, String
+    attribute :adjustment_date, String
+    attribute :technique, String
     list_of(SegmentAdjusted) :segments
-    Integer :pain_before
-    Integer :pain_after
-    String :notes
+    attribute :pain_before, Integer
+    attribute :pain_after, Integer
+    attribute :notes, String
     reference_to Patient
 
     value_object "SegmentAdjusted" do
-      String :vertebra
-      String :direction
-      String :subluxation_type
+      attribute :vertebra, String
+      attribute :direction, String
+      attribute :subluxation_type, String
     end
 
-    PerformAdjustment do
+    command "PerformAdjustment" do
       role "Chiropractor"
       description "Execute a spinal adjustment using the chosen technique"
       reference_to(Patient)
-      String :patient_name
-      String :adjustment_date
-      String :technique
-      Integer :pain_before
+      attribute :patient_name, String
+      attribute :adjustment_date, String
+      attribute :technique, String
+      attribute :pain_before, Integer
       emits "AdjustmentPerformed"
       then_set :patient_name, to: :patient_name
       then_set :adjustment_date, to: :adjustment_date
@@ -71,12 +71,12 @@ Hecks.bluebook "Chiropractic" do
       then_set :pain_before, to: :pain_before
     end
 
-    RecordPostAdjustment do
+    command "RecordPostAdjustment" do
       role "Chiropractor"
       description "Document patient response and pain level after the adjustment"
       reference_to(Adjustment)
-      Integer :pain_after
-      String :notes
+      attribute :pain_after, Integer
+      attribute :notes, String
       emits "PostAdjustmentRecorded"
       then_set :pain_after, to: :pain_after
       then_set :notes, to: :notes
@@ -84,22 +84,22 @@ Hecks.bluebook "Chiropractic" do
   end
 
   aggregate "ImagingStudy", "An X-ray or MRI ordered to evaluate spinal alignment" do
-    String :patient_name
-    String :imaging_type
-    String :body_region
-    String :order_date
-    String :findings
-    String :status
+    attribute :patient_name, String
+    attribute :imaging_type, String
+    attribute :body_region, String
+    attribute :order_date, String
+    attribute :findings, String
+    attribute :status, String
     reference_to Patient
 
-    OrderImaging do
+    command "OrderImaging" do
       role "Chiropractor"
       description "Request diagnostic imaging for a patient"
       reference_to(Patient)
-      String :patient_name
-      String :imaging_type
-      String :body_region
-      String :order_date
+      attribute :patient_name, String
+      attribute :imaging_type, String
+      attribute :body_region, String
+      attribute :order_date, String
       emits "ImagingOrdered"
       then_set :patient_name, to: :patient_name
       then_set :imaging_type, to: :imaging_type
@@ -108,11 +108,11 @@ Hecks.bluebook "Chiropractic" do
       then_set :status, to: "ordered"
     end
 
-    InterpretImaging do
+    command "InterpretImaging" do
       role "Chiropractor"
       description "Review imaging results and document findings"
       reference_to(ImagingStudy)
-      String :findings
+      attribute :findings, String
       given("imaging must be ordered") { status == "ordered" }
       emits "ImagingInterpreted"
       then_set :findings, to: :findings
@@ -121,22 +121,22 @@ Hecks.bluebook "Chiropractic" do
   end
 
   aggregate "TreatmentPlan", "A structured course of chiropractic treatment" do
-    String :patient_name
-    String :diagnosis
-    Integer :planned_visits
-    Integer :completed_visits
-    String :frequency
-    String :status
+    attribute :patient_name, String
+    attribute :diagnosis, String
+    attribute :planned_visits, Integer
+    attribute :completed_visits, Integer
+    attribute :frequency, String
+    attribute :status, String
     reference_to Patient
 
-    PrescribeCourse do
+    command "PrescribeCourse" do
       role "Chiropractor"
       description "Design a treatment plan with visit frequency and goals"
       reference_to(Patient)
-      String :patient_name
-      String :diagnosis
-      Integer :planned_visits
-      String :frequency
+      attribute :patient_name, String
+      attribute :diagnosis, String
+      attribute :planned_visits, Integer
+      attribute :frequency, String
       emits "TreatmentPlanCreated"
       then_set :patient_name, to: :patient_name
       then_set :diagnosis, to: :diagnosis
@@ -146,7 +146,7 @@ Hecks.bluebook "Chiropractic" do
       then_set :status, to: "active"
     end
 
-    RecordCompletedVisit do
+    command "RecordCompletedVisit" do
       role "Chiropractor"
       description "Increment completed visits after an adjustment session"
       reference_to(TreatmentPlan)
@@ -154,7 +154,7 @@ Hecks.bluebook "Chiropractic" do
       emits "VisitCompleted"
     end
 
-    CloseTreatmentPlan do
+    command "CloseTreatmentPlan" do
       role "Chiropractor"
       description "Complete the treatment plan when goals are achieved"
       reference_to(TreatmentPlan)
@@ -164,27 +164,27 @@ Hecks.bluebook "Chiropractic" do
   end
 
   aggregate "Invoice", "A billing record for chiropractic services rendered" do
-    String :patient_name
-    String :service_date
+    attribute :patient_name, String
+    attribute :service_date, String
     list_of(LineItem) :line_items
-    Float :total_amount
-    String :insurance_claim_status
-    String :payment_status
+    attribute :total_amount, Float
+    attribute :insurance_claim_status, String
+    attribute :payment_status, String
     reference_to Patient
 
     value_object "LineItem" do
-      String :cpt_code
-      String :description
-      Float :amount
+      attribute :cpt_code, String
+      attribute :description, String
+      attribute :amount, Float
     end
 
-    IssueInvoice do
+    command "IssueInvoice" do
       role "BillingClerk"
       description "Generate an invoice for services rendered"
       reference_to(Patient)
-      String :patient_name
-      String :service_date
-      Float :total_amount
+      attribute :patient_name, String
+      attribute :service_date, String
+      attribute :total_amount, Float
       emits "InvoiceCreated"
       then_set :patient_name, to: :patient_name
       then_set :service_date, to: :service_date
@@ -193,7 +193,7 @@ Hecks.bluebook "Chiropractic" do
       then_set :insurance_claim_status, to: "pending"
     end
 
-    SubmitInsuranceClaim do
+    command "SubmitInsuranceClaim" do
       role "BillingClerk"
       description "File the invoice with the patient's insurance carrier"
       reference_to(Invoice)
@@ -201,7 +201,7 @@ Hecks.bluebook "Chiropractic" do
       then_set :insurance_claim_status, to: "submitted"
     end
 
-    RecordPayment do
+    command "RecordPayment" do
       role "BillingClerk"
       description "Mark the invoice as paid after receiving payment"
       reference_to(Invoice)

@@ -3,27 +3,27 @@ Hecks.bluebook "BedAndBreakfast", version: "2026.04.13.1" do
   category "hospitality"
 
   aggregate "GuestRoom", "A bookable room with its amenities and rate" do
-    String :room_id
-    String :name
-    String :room_type
-    Integer :max_guests
-    Float :nightly_rate
-    String :status
+    attribute :room_id, String
+    attribute :name, String
+    attribute :room_type, String
+    attribute :max_guests, Integer
+    attribute :nightly_rate, Float
+    attribute :status, String
     list_of(Amenity) :amenities
 
     value_object "Amenity" do
-      String :name
-      String :description
+      attribute :name, String
+      attribute :description, String
     end
 
-    PrepareRoom do
+    command "PrepareRoom" do
       role "Housekeeper"
       description "Clean and set up a room for the next guest"
-      String :room_id
-      String :name
-      String :room_type
-      Integer :max_guests
-      Float :nightly_rate
+      attribute :room_id, String
+      attribute :name, String
+      attribute :room_type, String
+      attribute :max_guests, Integer
+      attribute :nightly_rate, Float
       emits "RoomPrepared"
       then_set :room_id, to: :room_id
       then_set :name, to: :name
@@ -33,7 +33,7 @@ Hecks.bluebook "BedAndBreakfast", version: "2026.04.13.1" do
       then_set :status, to: "available"
     end
 
-    OccupyRoom do
+    command "OccupyRoom" do
       role "Host"
       description "Check a guest into the room"
       reference_to(GuestRoom)
@@ -42,7 +42,7 @@ Hecks.bluebook "BedAndBreakfast", version: "2026.04.13.1" do
       then_set :status, to: "occupied"
     end
 
-    VacateRoom do
+    command "VacateRoom" do
       role "Host"
       description "Check out the guest and mark the room for turnover"
       reference_to(GuestRoom)
@@ -53,27 +53,27 @@ Hecks.bluebook "BedAndBreakfast", version: "2026.04.13.1" do
   end
 
   aggregate "GuestBooking", "A reservation made by a guest for one or more nights" do
-    String :booking_id
-    String :guest_name
-    String :guest_email
-    String :room_id
-    String :check_in_date
-    String :check_out_date
-    Integer :guests
-    Float :total_charge
-    String :status
+    attribute :booking_id, String
+    attribute :guest_name, String
+    attribute :guest_email, String
+    attribute :room_id, String
+    attribute :check_in_date, String
+    attribute :check_out_date, String
+    attribute :guests, Integer
+    attribute :total_charge, Float
+    attribute :status, String
 
-    MakeBooking do
+    command "MakeBooking" do
       role "Guest"
       description "Reserve a room for specific dates"
-      String :booking_id
-      String :guest_name
-      String :guest_email
-      String :room_id
-      String :check_in_date
-      String :check_out_date
-      Integer :guests
-      Float :total_charge
+      attribute :booking_id, String
+      attribute :guest_name, String
+      attribute :guest_email, String
+      attribute :room_id, String
+      attribute :check_in_date, String
+      attribute :check_out_date, String
+      attribute :guests, Integer
+      attribute :total_charge, Float
       emits "BookingMade"
       then_set :booking_id, to: :booking_id
       then_set :guest_name, to: :guest_name
@@ -86,7 +86,7 @@ Hecks.bluebook "BedAndBreakfast", version: "2026.04.13.1" do
       then_set :status, to: "confirmed"
     end
 
-    CancelBooking do
+    command "CancelBooking" do
       role "Guest"
       description "Cancel the reservation before the check-in date"
       reference_to(GuestBooking)
@@ -97,29 +97,29 @@ Hecks.bluebook "BedAndBreakfast", version: "2026.04.13.1" do
   end
 
   aggregate "BreakfastMenu", "The morning meal offering for guests" do
-    String :menu_id
-    String :date
+    attribute :menu_id, String
+    attribute :date, String
     list_of(Course) :courses
-    String :status
+    attribute :status, String
 
     value_object "Course" do
-      String :course_name
-      String :description
-      String :dietary_note
+      attribute :course_name, String
+      attribute :description, String
+      attribute :dietary_note, String
     end
 
-    PlanBreakfast do
+    command "PlanBreakfast" do
       role "Chef"
       description "Design the breakfast menu for a specific date"
-      String :menu_id
-      String :date
+      attribute :menu_id, String
+      attribute :date, String
       emits "BreakfastPlanned"
       then_set :menu_id, to: :menu_id
       then_set :date, to: :date
       then_set :status, to: "planned"
     end
 
-    ServeBreakfast do
+    command "ServeBreakfast" do
       role "Host"
       description "Serve the morning meal to all checked-in guests"
       reference_to(BreakfastMenu)
@@ -130,22 +130,22 @@ Hecks.bluebook "BedAndBreakfast", version: "2026.04.13.1" do
   end
 
   aggregate "GuestReview", "Feedback left by a guest after their stay" do
-    String :review_id
-    String :guest_name
-    String :booking_id
-    Integer :rating
-    String :comment
-    String :review_date
+    attribute :review_id, String
+    attribute :guest_name, String
+    attribute :booking_id, String
+    attribute :rating, Integer
+    attribute :comment, String
+    attribute :review_date, String
 
-    SubmitReview do
+    command "SubmitReview" do
       role "Guest"
       description "Leave a rating and written feedback after checkout"
-      String :review_id
-      String :guest_name
-      String :booking_id
-      Integer :rating
-      String :comment
-      String :review_date
+      attribute :review_id, String
+      attribute :guest_name, String
+      attribute :booking_id, String
+      attribute :rating, Integer
+      attribute :comment, String
+      attribute :review_date, String
       given { rating > 0 }
       emits "ReviewSubmitted"
       then_set :review_id, to: :review_id
@@ -156,7 +156,7 @@ Hecks.bluebook "BedAndBreakfast", version: "2026.04.13.1" do
       then_set :review_date, to: :review_date
     end
 
-    RespondToReview do
+    command "RespondToReview" do
       role "Host"
       description "Post a public response to the guest's feedback"
       reference_to(GuestReview)

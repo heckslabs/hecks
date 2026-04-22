@@ -3,19 +3,19 @@ Hecks.bluebook "Forensics" do
 
   aggregate "CriminalCase" do
     description "An investigation requiring forensic evidence processing"
-    String :case_number
-    String :case_type
-    String :lead_investigator
-    String :opened_date
-    String :jurisdiction
-    Boolean :all_evidence_analyzed, default: false
+    attribute :case_number, String
+    attribute :case_type, String
+    attribute :lead_investigator, String
+    attribute :opened_date, String
+    attribute :jurisdiction, String
+    attribute :all_evidence_analyzed, Boolean, default: false
 
     command "OpenCase" do
       description "Initiate a new forensic investigation"
       emits "CaseOpened"
-      String :case_number
-      String :case_type
-      String :lead_investigator
+      attribute :case_number, String
+      attribute :case_type, String
+      attribute :lead_investigator, String
     end
 
     command "MarkAllEvidenceAnalyzed" do
@@ -36,33 +36,33 @@ Hecks.bluebook "Forensics" do
       description "Transfer case leadership to another investigator"
       emits "InvestigatorReassigned"
       reference_to CriminalCase
-      String :new_investigator
+      attribute :new_investigator, String
     end
   end
 
   aggregate "EvidenceItem" do
     description "A physical or digital item collected from a crime scene"
-    String :item_number
-    String :description
-    String :evidence_type
-    String :collection_location
-    String :collected_by
-    Boolean :custody_chain_intact, default: true
+    attribute :item_number, String
+    attribute :description, String
+    attribute :evidence_type, String
+    attribute :collection_location, String
+    attribute :collected_by, String
+    attribute :custody_chain_intact, Boolean, default: true
     reference_to CriminalCase
 
     value_object "StorageCondition" do
-      String :container_type
-      Float :temperature_c
-      String :humidity_level
+      attribute :container_type, String
+      attribute :temperature_c, Float
+      attribute :humidity_level, String
     end
 
     command "CollectEvidence" do
       description "Log a new piece of evidence from the scene"
       emits "EvidenceCollected"
       reference_to CriminalCase
-      String :item_number
-      String :description
-      String :evidence_type
+      attribute :item_number, String
+      attribute :description, String
+      attribute :evidence_type, String
     end
 
     command "BreakCustodyChain" do
@@ -75,7 +75,7 @@ Hecks.bluebook "Forensics" do
       description "Hand evidence to another custodian"
       emits "CustodyTransferred"
       reference_to EvidenceItem
-      String :receiving_custodian
+      attribute :receiving_custodian, String
       given { custody_chain_intact == true }
     end
 
@@ -88,27 +88,27 @@ Hecks.bluebook "Forensics" do
 
   aggregate "LabAnalysis" do
     description "A scientific examination of evidence in a forensic laboratory"
-    String :analysis_type
-    String :analyst_name
-    String :method
-    String :findings
-    Boolean :findings_documented, default: false
-    Boolean :peer_reviewed, default: false
+    attribute :analysis_type, String
+    attribute :analyst_name, String
+    attribute :method, String
+    attribute :findings, String
+    attribute :findings_documented, Boolean, default: false
+    attribute :peer_reviewed, Boolean, default: false
     reference_to EvidenceItem
 
     command "SubmitForAnalysis" do
       description "Send evidence to the lab for testing"
       emits "AnalysisSubmitted"
       reference_to EvidenceItem
-      String :analysis_type
-      String :method
+      attribute :analysis_type, String
+      attribute :method, String
     end
 
     command "RecordFindings" do
       description "Document the laboratory results"
       emits "FindingsRecorded"
       reference_to LabAnalysis
-      String :findings
+      attribute :findings, String
       then_set :findings, to: :findings
       then_set :findings_documented, to: true
     end
@@ -130,10 +130,10 @@ Hecks.bluebook "Forensics" do
 
   aggregate "ExpertReport" do
     description "A formal written opinion prepared for court testimony"
-    String :report_number
-    String :expert_name
-    String :conclusion
-    Boolean :peer_reviewed, default: false
+    attribute :report_number, String
+    attribute :expert_name, String
+    attribute :conclusion, String
+    attribute :peer_reviewed, Boolean, default: false
     reference_to LabAnalysis
     reference_to CriminalCase
 
@@ -141,7 +141,7 @@ Hecks.bluebook "Forensics" do
       description "Write the initial expert opinion report"
       emits "ReportDrafted"
       reference_to LabAnalysis
-      String :expert_name
+      attribute :expert_name, String
     end
 
     command "MarkReportPeerReviewed" do
@@ -161,18 +161,18 @@ Hecks.bluebook "Forensics" do
 
   aggregate "CourtTestimony" do
     description "An expert witness appearance presenting forensic findings in court"
-    String :testimony_id
-    String :court_name
-    String :hearing_date
-    String :expert_name
+    attribute :testimony_id, String
+    attribute :court_name, String
+    attribute :hearing_date, String
+    attribute :expert_name, String
     reference_to ExpertReport
 
     command "ScheduleTestimony" do
       description "Set a date for expert witness court appearance"
       emits "TestimonyScheduled"
       reference_to ExpertReport
-      String :court_name
-      String :hearing_date
+      attribute :court_name, String
+      attribute :hearing_date, String
     end
   end
 

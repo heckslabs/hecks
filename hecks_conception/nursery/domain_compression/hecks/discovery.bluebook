@@ -3,18 +3,18 @@ Hecks.bluebook "Discovery", version: "2026.04.14.1" do
   category "intelligence"
 
   aggregate "DomainCluster", "A group of structurally similar domains discovered through compression" do
-    String :cluster_name
-    String :pattern_signature
-    Float :cohesion_score
-    Integer :member_count
+    attribute :cluster_name, String
+    attribute :pattern_signature, String
+    attribute :cohesion_score, Float
+    attribute :member_count, Integer
     list_of(String) :member_domains
 
-    DiscoverClusters do
+    command "DiscoverClusters" do
       role "Analyst"
       description "Analyze embeddings across all compiled blueprints and group structurally similar domains"
-      String :cluster_name
-      String :pattern_signature
-      Float :cohesion_score
+      attribute :cluster_name, String
+      attribute :pattern_signature, String
+      attribute :cohesion_score, Float
       emits "ClustersDiscovered"
       then_set :cluster_name, to: :cluster_name
       then_set :pattern_signature, to: :pattern_signature
@@ -22,41 +22,41 @@ Hecks.bluebook "Discovery", version: "2026.04.14.1" do
       then_set :member_count, to: 0
     end
 
-    AddMember do
+    command "AddMember" do
       role "Analyst"
       description "Add a domain to this cluster after structural similarity confirmed"
       reference_to(DomainCluster)
-      String :domain_name
+      attribute :domain_name, String
       emits "MemberAdded"
       then_set :member_domains, append: :domain_name
       then_set :member_count, increment: 1
     end
 
-    RecalculateCohesion do
+    command "RecalculateCohesion" do
       role "Analyst"
       description "Recompute cohesion score after membership changes"
       reference_to(DomainCluster)
-      Float :cohesion_score
+      attribute :cohesion_score, Float
       emits "CohesionRecalculated"
       then_set :cohesion_score, to: :cohesion_score
     end
   end
 
   aggregate "PrimitivePattern", "A fundamental domain shape — the atomic building block that domains compose from" do
-    String :pattern_name
-    String :description
-    String :structural_signature
-    Integer :aggregate_template_count
-    Integer :command_template_count
-    Integer :occurrence_count
+    attribute :pattern_name, String
+    attribute :description, String
+    attribute :structural_signature, String
+    attribute :aggregate_template_count, Integer
+    attribute :command_template_count, Integer
+    attribute :occurrence_count, Integer
     list_of(String) :example_domains
 
-    ExtractPrimitive do
+    command "ExtractPrimitive" do
       role "Analyst"
       description "Extract a recurring structural pattern from clustered domains — a primitive shape"
-      String :pattern_name
-      String :description
-      String :structural_signature
+      attribute :pattern_name, String
+      attribute :description, String
+      attribute :structural_signature, String
       emits "PrimitiveExtracted"
       then_set :pattern_name, to: :pattern_name
       then_set :description, to: :description
@@ -66,23 +66,23 @@ Hecks.bluebook "Discovery", version: "2026.04.14.1" do
       then_set :command_template_count, to: 0
     end
 
-    RecordOccurrence do
+    command "RecordOccurrence" do
       role "Analyst"
       description "Record that this primitive pattern was found in another domain"
       reference_to(PrimitivePattern)
-      String :domain_name
+      attribute :domain_name, String
       emits "OccurrenceRecorded"
       then_set :example_domains, append: :domain_name
       then_set :occurrence_count, increment: 1
     end
 
-    RefineSignature do
+    command "RefineSignature" do
       role "Analyst"
       description "Update the structural signature as more examples sharpen the pattern"
       reference_to(PrimitivePattern)
-      String :structural_signature
-      Integer :aggregate_template_count
-      Integer :command_template_count
+      attribute :structural_signature, String
+      attribute :aggregate_template_count, Integer
+      attribute :command_template_count, Integer
       emits "SignatureRefined"
       then_set :structural_signature, to: :structural_signature
       then_set :aggregate_template_count, to: :aggregate_template_count

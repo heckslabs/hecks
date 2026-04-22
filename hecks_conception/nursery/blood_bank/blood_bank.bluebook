@@ -2,34 +2,34 @@ Hecks.bluebook "BloodBank" do
   vision "Track donors, donations, blood type inventory, testing, and distribution for a blood bank"
 
   aggregate "Donor", "A registered blood donor with eligibility and donation history" do
-    String :donor_id
-    String :name
-    String :blood_type
-    String :rh_factor
-    String :eligibility_status
-    String :last_donation_date
+    attribute :donor_id, String
+    attribute :name, String
+    attribute :blood_type, String
+    attribute :rh_factor, String
+    attribute :eligibility_status, String
+    attribute :last_donation_date, String
 
     specification "Deferred" do
       satisfied_by { eligibility_status == "deferred" }
     end
 
     value_object "MedicalScreening" do
-      Float :hemoglobin
-      Float :blood_pressure_systolic
-      Float :blood_pressure_diastolic
-      String :passed
+      attribute :hemoglobin, Float
+      attribute :blood_pressure_systolic, Float
+      attribute :blood_pressure_diastolic, Float
+      attribute :passed, String
     end
 
-    RegisterDonor do
+    command "RegisterDonor" do
       description "Enroll a new donor with blood type and contact info"
-      String :name
-      String :blood_type
-      String :rh_factor
+      attribute :name, String
+      attribute :blood_type, String
+      attribute :rh_factor, String
       emits "DonorRegistered"
       then_set :eligibility_status, to: "eligible"
     end
 
-    ScreenDonor do
+    command "ScreenDonor" do
       description "Perform medical screening before donation"
       reference_to(Donor)
       given { eligibility_status == "eligible" }
@@ -37,16 +37,16 @@ Hecks.bluebook "BloodBank" do
       then_set :eligibility_status, to: "screened"
     end
 
-    DeferDonor do
+    command "DeferDonor" do
       description "Temporarily defer a donor who fails screening"
       reference_to(Donor)
-      String :reason
-      String :deferral_until
+      attribute :reason, String
+      attribute :deferral_until, String
       emits "DonorDeferred"
       then_set :eligibility_status, to: "deferred"
     end
 
-    ReinstateDonor do
+    command "ReinstateDonor" do
       description "Return a previously deferred donor to eligible status"
       reference_to(Donor)
       given { eligibility_status == "deferred" }
@@ -56,27 +56,27 @@ Hecks.bluebook "BloodBank" do
   end
 
   aggregate "Donation", "A single blood collection event from a donor" do
-    String :donation_id
-    String :collection_date
-    Float :volume_ml
-    String :status
+    attribute :donation_id, String
+    attribute :collection_date, String
+    attribute :volume_ml, Float
+    attribute :status, String
     reference_to(Donor)
 
     value_object "CollectionDetails" do
-      String :phlebotomist
-      String :arm_used
-      Integer :duration_minutes
+      attribute :phlebotomist, String
+      attribute :arm_used, String
+      attribute :duration_minutes, Integer
     end
 
-    CollectDonation do
+    command "CollectDonation" do
       description "Draw blood from a screened donor"
       reference_to(Donor)
-      Float :volume_ml
+      attribute :volume_ml, Float
       emits "DonationCollected"
       then_set :status, to: "collected"
     end
 
-    ProcessDonation do
+    command "ProcessDonation" do
       description "Separate whole blood into components — red cells, plasma, platelets"
       reference_to(Donation)
       given { status == "collected" }
@@ -86,11 +86,11 @@ Hecks.bluebook "BloodBank" do
   end
 
   aggregate "BloodUnit", "A tested and labeled unit of blood product ready for distribution" do
-    String :unit_id
-    String :blood_type
-    String :component
-    String :status
-    String :expiry_date
+    attribute :unit_id, String
+    attribute :blood_type, String
+    attribute :component, String
+    attribute :status, String
+    attribute :expiry_date, String
     reference_to(Donation)
 
     specification "ExpiringSoon" do
@@ -98,76 +98,76 @@ Hecks.bluebook "BloodBank" do
     end
 
     value_object "StorageCondition" do
-      Float :temperature_c
-      String :storage_type
+      attribute :temperature_c, Float
+      attribute :storage_type, String
     end
 
-    LabelUnit do
+    command "LabelUnit" do
       description "Tag a processed blood unit with type and expiry"
-      String :blood_type
-      String :component
-      String :expiry_date
+      attribute :blood_type, String
+      attribute :component, String
+      attribute :expiry_date, String
       reference_to(Donation)
       emits "UnitLabeled"
       then_set :status, to: "quarantined"
     end
 
-    ReleaseUnit do
+    command "ReleaseUnit" do
       description "Clear a unit for distribution after testing passes"
       reference_to(BloodUnit)
       emits "UnitReleased"
       then_set :status, to: "available"
     end
 
-    CrossmatchUnit do
+    command "CrossmatchUnit" do
       description "Verify compatibility between a blood unit and a patient"
       reference_to(BloodUnit)
-      String :patient_id
+      attribute :patient_id, String
       emits "UnitCrossmatched"
       then_set :status, to: "crossmatched"
     end
 
-    IssueUnit do
+    command "IssueUnit" do
       description "Dispense a crossmatched unit to the requesting hospital"
       reference_to(BloodUnit)
-      String :hospital_name
+      attribute :hospital_name, String
       emits "UnitIssued"
       then_set :status, to: "issued"
     end
 
-    DiscardUnit do
+    command "DiscardUnit" do
       description "Remove an expired or contaminated unit from inventory"
       reference_to(BloodUnit)
-      String :reason
+      attribute :reason, String
       emits "UnitDiscarded"
       then_set :status, to: "discarded"
     end
   end
 
   aggregate "TestResult", "A lab test performed on a donation for infectious disease markers" do
-    String :test_id
-    String :test_type
-    String :result
-    String :status
+    attribute :test_id, String
+    attribute :test_type, String
+    attribute :result, String
+    attribute :status, String
     reference_to(Donation)
 
     value_object "LabMethod" do
-      String :technique
-      String :sensitivity
+      attribute :technique, String
+      attribute :sensitivity, String
     end
 
-    PerformTest do
+    command "PerformTest" do
       description "Run an infectious disease screen on a donation sample"
-      String :test_type
+      attribute :test_type, String
       reference_to(Donation)
       emits "TestPerformed"
       then_set :status, to: "pending"
     end
 
-    RecordResult do
+    command "RecordResult" do
       description "Enter the lab result for a completed test"
       reference_to(TestResult)
-      String :result
+      attribute :result, String
       given { status == "pending" }
       emits "ResultRecorded"
       then_set :status, to: "completed"

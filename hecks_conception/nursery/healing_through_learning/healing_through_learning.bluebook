@@ -5,24 +5,24 @@ Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
   # === Learner ===
 
   aggregate "Learner", "A person in recovery enrolled in nutrition-as-therapy — health and education unified" do
-    String :learner_id
-    String :name
-    String :recovery_stage
-    String :enrollment_date
-    String :status
+    attribute :learner_id, String
+    attribute :name, String
+    attribute :recovery_stage, String
+    attribute :enrollment_date, String
+    attribute :status, String
     list_of(RecoveryGoal) :goals
     value_object "RecoveryGoal" do
-      String :goal_type
-      String :target
-      String :progress
+      attribute :goal_type, String
+      attribute :target, String
+      attribute :progress, String
     end
-    EnrollLearner do
+    command "EnrollLearner" do
       role "CaseManager"
       description "Enroll a person in recovery into the nutrition-as-therapy program"
-      String :learner_id
-      String :name
-      String :recovery_stage
-      String :enrollment_date
+      attribute :learner_id, String
+      attribute :name, String
+      attribute :recovery_stage, String
+      attribute :enrollment_date, String
       emits "LearnerEnrolled"
       then_set :learner_id, to: :learner_id
       then_set :name, to: :name
@@ -30,16 +30,16 @@ Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
       then_set :enrollment_date, to: :enrollment_date
       then_set :status, to: "enrolled"
     end
-    AdvanceStage do
+    command "AdvanceStage" do
       role "CaseManager"
       description "Advance learner to next recovery stage based on health and education progress"
       reference_to(Learner)
-      String :recovery_stage
+      attribute :recovery_stage, String
       given { status == "enrolled" }
       emits "StageAdvanced"
       then_set :recovery_stage, to: :recovery_stage
     end
-    GraduateLearner do
+    command "GraduateLearner" do
       role "ProgramDirector"
       description "Graduate learner from the program with credential"
       reference_to(Learner)
@@ -52,30 +52,30 @@ Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
   # === NutritionCurriculum ===
 
   aggregate "NutritionCurriculum", "A structured nutrition education pathway — modules build from basics to professional skill" do
-    String :curriculum_id
-    String :title
-    String :difficulty_level
-    String :status
+    attribute :curriculum_id, String
+    attribute :title, String
+    attribute :difficulty_level, String
+    attribute :status, String
     list_of(LessonPlan) :lessons
     value_object "LessonPlan" do
-      String :lesson_name
-      String :nutrition_topic
-      String :cooking_skill
-      Integer :duration_minutes
+      attribute :lesson_name, String
+      attribute :nutrition_topic, String
+      attribute :cooking_skill, String
+      attribute :duration_minutes, Integer
     end
-    DesignCurriculum do
+    command "DesignCurriculum" do
       role "Nutritionist"
       description "Design a nutrition curriculum for recovery learners"
-      String :curriculum_id
-      String :title
-      String :difficulty_level
+      attribute :curriculum_id, String
+      attribute :title, String
+      attribute :difficulty_level, String
       emits "CurriculumDesigned"
       then_set :curriculum_id, to: :curriculum_id
       then_set :title, to: :title
       then_set :difficulty_level, to: :difficulty_level
       then_set :status, to: "draft"
     end
-    PublishCurriculum do
+    command "PublishCurriculum" do
       role "ProgramDirector"
       description "Publish curriculum for active enrollment"
       reference_to(NutritionCurriculum)
@@ -88,26 +88,26 @@ Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
   # === CookingLab ===
 
   aggregate "CookingLab", "A hands-on cooking session — learners practice recipes that address their nutrition targets" do
-    String :session_id
+    attribute :session_id, String
     reference_to(Learner, as: :learner)
     reference_to(NutritionCurriculum, as: :curriculum)
-    String :recipe_name
-    String :nutrition_focus
-    String :status
+    attribute :recipe_name, String
+    attribute :nutrition_focus, String
+    attribute :status, String
     list_of(SkillAssessment) :assessments
     value_object "SkillAssessment" do
-      String :skill_name
-      String :rating
-      String :instructor_notes
+      attribute :skill_name, String
+      attribute :rating, String
+      attribute :instructor_notes, String
     end
-    ScheduleLab do
+    command "ScheduleLab" do
       role "Instructor"
       description "Schedule a cooking lab session for a learner"
-      String :session_id
+      attribute :session_id, String
       reference_to(Learner, as: :learner)
       reference_to(NutritionCurriculum, as: :curriculum)
-      String :recipe_name
-      String :nutrition_focus
+      attribute :recipe_name, String
+      attribute :nutrition_focus, String
       emits "LabScheduled"
       then_set :session_id, to: :session_id
       then_set :learner, to: :learner
@@ -115,7 +115,7 @@ Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
       then_set :nutrition_focus, to: :nutrition_focus
       then_set :status, to: "scheduled"
     end
-    CompleteLab do
+    command "CompleteLab" do
       role "Instructor"
       description "Complete cooking lab with skill assessment"
       reference_to(CookingLab)
@@ -128,25 +128,25 @@ Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
   # === HealthMetric ===
 
   aggregate "HealthMetric", "Clinical health measurements — the 'grades' in this program are blood work and vitals" do
-    String :metric_id
+    attribute :metric_id, String
     reference_to(Learner, as: :learner)
-    String :metric_type
-    Float :baseline_value
-    Float :current_value
-    String :trend
+    attribute :metric_type, String
+    attribute :baseline_value, Float
+    attribute :current_value, Float
+    attribute :trend, String
     list_of(Reading) :readings
     value_object "Reading" do
-      String :date
-      Float :value
-      String :context
+      attribute :date, String
+      attribute :value, Float
+      attribute :context, String
     end
-    RecordBaseline do
+    command "RecordBaseline" do
       role "Clinician"
       description "Record baseline health metric at enrollment"
-      String :metric_id
+      attribute :metric_id, String
       reference_to(Learner, as: :learner)
-      String :metric_type
-      Float :baseline_value
+      attribute :metric_type, String
+      attribute :baseline_value, Float
       emits "BaselineRecorded"
       then_set :metric_id, to: :metric_id
       then_set :learner, to: :learner
@@ -155,17 +155,17 @@ Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
       then_set :current_value, to: :baseline_value
       then_set :trend, to: "stable"
     end
-    RecordReading do
+    command "RecordReading" do
       role "Clinician"
       description "Record new health reading — improvement is the grade"
       reference_to(HealthMetric)
-      Float :current_value
-      String :trend
+      attribute :current_value, Float
+      attribute :trend, String
       emits "ReadingRecorded"
       then_set :current_value, to: :current_value
       then_set :trend, to: "improving"
     end
-    FlagImprovement do
+    command "FlagImprovement" do
       role "System"
       description "Flag when health metric shows sustained improvement"
       reference_to(HealthMetric)
@@ -177,24 +177,24 @@ Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
   # === Credential ===
 
   aggregate "Credential", "A professional credential earned through the program — food handler, nutrition coach" do
-    String :credential_id
+    attribute :credential_id, String
     reference_to(Learner, as: :learner)
-    String :credential_type
-    String :issuing_body
-    String :status
+    attribute :credential_type, String
+    attribute :issuing_body, String
+    attribute :status, String
     list_of(Requirement) :requirements
     value_object "Requirement" do
-      String :requirement_name
-      String :completion_status
-      String :evidence
+      attribute :requirement_name, String
+      attribute :completion_status, String
+      attribute :evidence, String
     end
-    InitiateCredential do
+    command "InitiateCredential" do
       role "ProgramDirector"
       description "Begin credential pathway for a learner"
-      String :credential_id
+      attribute :credential_id, String
       reference_to(Learner, as: :learner)
-      String :credential_type
-      String :issuing_body
+      attribute :credential_type, String
+      attribute :issuing_body, String
       emits "CredentialInitiated"
       then_set :credential_id, to: :credential_id
       then_set :learner, to: :learner
@@ -202,7 +202,7 @@ Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
       then_set :issuing_body, to: :issuing_body
       then_set :status, to: "in_progress"
     end
-    AwardCredential do
+    command "AwardCredential" do
       role "ProgramDirector"
       description "Award credential when all requirements met"
       reference_to(Credential)
@@ -215,25 +215,25 @@ Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
   # === RecoveryMilestone ===
 
   aggregate "RecoveryMilestone", "Cross-domain milestone — connects cooking skill, health improvement, and credential progress" do
-    String :milestone_id
+    attribute :milestone_id, String
     reference_to(Learner, as: :learner)
-    String :milestone_type
-    String :description
-    String :achieved_date
+    attribute :milestone_type, String
+    attribute :description, String
+    attribute :achieved_date, String
     list_of(Evidence) :evidence_items
     value_object "Evidence" do
-      String :source_domain
-      String :detail
-      String :verified_by
+      attribute :source_domain, String
+      attribute :detail, String
+      attribute :verified_by, String
     end
-    RecordMilestone do
+    command "RecordMilestone" do
       role "CaseManager"
       description "Record a cross-domain recovery milestone"
-      String :milestone_id
+      attribute :milestone_id, String
       reference_to(Learner, as: :learner)
-      String :milestone_type
-      String :description
-      String :achieved_date
+      attribute :milestone_type, String
+      attribute :description, String
+      attribute :achieved_date, String
       emits "MilestoneRecorded"
       then_set :milestone_id, to: :milestone_id
       then_set :learner, to: :learner

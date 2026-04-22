@@ -1,28 +1,28 @@
 Hecks.bluebook "Glassblowing" do
   aggregate "GlassPiece", "A blown glass artwork from gather to finished piece" do
-    String :name
-    String :form
-    String :technique
-    String :status, default: "gathered"
-    Float :weight_oz
+    attribute :name, String
+    attribute :form, String
+    attribute :technique, String
+    attribute :status, String, default: "gathered"
+    attribute :weight_oz, Float
 
     value_object "GlassDimensions" do
-      Float :height_inches
-      Float :diameter_inches
-      Float :wall_thickness_mm
-      String :shape_profile
+      attribute :height_inches, Float
+      attribute :diameter_inches, Float
+      attribute :wall_thickness_mm, Float
+      attribute :shape_profile, String
     end
 
-    GatherGlass do
+    command "GatherGlass" do
       description "Gather molten glass from the furnace onto the blowpipe"
-      String :name
-      String :form
-      String :technique
+      attribute :name, String
+      attribute :form, String
+      attribute :technique, String
       emits "GlassGathered"
       then_set :status, to: "gathered"
     end
 
-    BlowPiece do
+    command "BlowPiece" do
       description "Shape the gather by blowing and using tools at the bench"
       reference_to(GlassPiece)
       given { status == "gathered" }
@@ -30,7 +30,7 @@ Hecks.bluebook "Glassblowing" do
       then_set :status, to: "blown"
     end
 
-    TransferToAnnealer do
+    command "TransferToAnnealer" do
       description "Move the finished piece to the annealing oven"
       reference_to(GlassPiece)
       given { status == "blown" }
@@ -40,23 +40,23 @@ Hecks.bluebook "Glassblowing" do
   end
 
   aggregate "Furnace", "A glass furnace maintaining molten glass at working temperature" do
-    String :name
-    String :fuel_type
-    Integer :capacity_lbs
-    Integer :temperature_f
-    String :status, default: "cold"
+    attribute :name, String
+    attribute :fuel_type, String
+    attribute :capacity_lbs, Integer
+    attribute :temperature_f, Integer
+    attribute :status, String, default: "cold"
 
-    LightFurnace do
+    command "LightFurnace" do
       description "Start the furnace and ramp to working temperature"
-      String :name
-      String :fuel_type
-      Integer :capacity_lbs
-      Integer :target_temperature
+      attribute :name, String
+      attribute :fuel_type, String
+      attribute :capacity_lbs, Integer
+      attribute :target_temperature, Integer
       emits "FurnaceLit"
       then_set :status, to: "heating"
     end
 
-    ReachWorkingTemp do
+    command "ReachWorkingTemp" do
       description "Furnace has reached working temperature"
       reference_to(Furnace)
       given { status == "heating" }
@@ -64,7 +64,7 @@ Hecks.bluebook "Glassblowing" do
       then_set :status, to: "ready"
     end
 
-    ShutDownFurnace do
+    command "ShutDownFurnace" do
       description "Begin controlled cool-down of the furnace"
       reference_to(Furnace)
       emits "FurnaceShutDown"
@@ -73,55 +73,55 @@ Hecks.bluebook "Glassblowing" do
   end
 
   aggregate "ColorBar", "A colored glass rod or frit used for decoration" do
-    String :color_name
-    String :color_type
-    String :manufacturer
-    Float :quantity_lbs
-    Integer :working_temp_f
+    attribute :color_name, String
+    attribute :color_type, String
+    attribute :manufacturer, String
+    attribute :quantity_lbs, Float
+    attribute :working_temp_f, Integer
 
     value_object "ColorChemistry" do
-      String :base_glass
-      String :colorant
-      Float :percentage
-      String :opacity
+      attribute :base_glass, String
+      attribute :colorant, String
+      attribute :percentage, Float
+      attribute :opacity, String
     end
 
-    StockColor do
+    command "StockColor" do
       description "Add colored glass to the studio inventory"
-      String :color_name
-      String :color_type
-      String :manufacturer
-      Float :quantity_lbs
-      Integer :working_temp_f
+      attribute :color_name, String
+      attribute :color_type, String
+      attribute :manufacturer, String
+      attribute :quantity_lbs, Float
+      attribute :working_temp_f, Integer
       emits "ColorStocked"
     end
 
-    ConsumeColor do
+    command "ConsumeColor" do
       description "Deduct colored glass used during a blowing session"
       reference_to(ColorBar)
-      Float :amount_used
+      attribute :amount_used, Float
       emits "ColorConsumed"
     end
   end
 
   aggregate "AnnealingCycle", "A controlled cooling cycle in the annealing oven" do
-    Integer :hold_temp_f
-    Integer :ramp_rate_per_hour
-    Integer :total_hours
-    String :status, default: "loading"
+    attribute :hold_temp_f, Integer
+    attribute :ramp_rate_per_hour, Integer
+    attribute :total_hours, Integer
+    attribute :status, String, default: "loading"
     reference_to(GlassPiece)
 
-    LoadAnnealer do
+    command "LoadAnnealer" do
       description "Place pieces in the annealing oven and set the program"
       reference_to(GlassPiece)
-      Integer :hold_temp_f
-      Integer :ramp_rate_per_hour
-      Integer :total_hours
+      attribute :hold_temp_f, Integer
+      attribute :ramp_rate_per_hour, Integer
+      attribute :total_hours, Integer
       emits "AnnealerLoaded"
       then_set :status, to: "loading"
     end
 
-    StartCycle do
+    command "StartCycle" do
       description "Begin the annealing temperature program"
       reference_to(AnnealingCycle)
       given { status == "loading" }
@@ -129,7 +129,7 @@ Hecks.bluebook "Glassblowing" do
       then_set :status, to: "annealing"
     end
 
-    CompleteCycle do
+    command "CompleteCycle" do
       description "Cycle complete — pieces can be safely removed"
       reference_to(AnnealingCycle)
       given { status == "annealing" }
@@ -139,23 +139,23 @@ Hecks.bluebook "Glassblowing" do
   end
 
   aggregate "GlassExhibition", "A curated exhibition of blown glass artworks" do
-    String :title
-    String :venue
-    String :opening_date
-    Integer :piece_count
-    String :status, default: "planning"
+    attribute :title, String
+    attribute :venue, String
+    attribute :opening_date, String
+    attribute :piece_count, Integer
+    attribute :status, String, default: "planning"
 
-    CurateExhibition do
+    command "CurateExhibition" do
       description "Select pieces and plan the exhibition"
-      String :title
-      String :venue
-      String :opening_date
-      Integer :piece_count
+      attribute :title, String
+      attribute :venue, String
+      attribute :opening_date, String
+      attribute :piece_count, Integer
       emits "ExhibitionCurated"
       then_set :status, to: "planning"
     end
 
-    OpenExhibition do
+    command "OpenExhibition" do
       description "Open the exhibition to the public"
       reference_to(GlassExhibition)
       given { status == "planning" }
@@ -163,7 +163,7 @@ Hecks.bluebook "Glassblowing" do
       then_set :status, to: "open"
     end
 
-    CloseExhibition do
+    command "CloseExhibition" do
       description "Close the exhibition and return pieces"
       reference_to(GlassExhibition)
       given { status == "open" }

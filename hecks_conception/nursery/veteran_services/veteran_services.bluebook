@@ -2,21 +2,21 @@ Hecks.bluebook "VeteranServices" do
   vision "Veteran support and benefits — veterans, benefit claims, counseling, service programs, and advocacy"
 
   aggregate "Veteran", "A military veteran eligible for services and benefits" do
-    String :name
-    String :service_branch
-    String :discharge_status
-    String :service_dates
-    String :disability_rating
-    String :status
+    attribute :name, String
+    attribute :service_branch, String
+    attribute :discharge_status, String
+    attribute :service_dates, String
+    attribute :disability_rating, String
+    attribute :status, String
 
-    RegisterVeteran do
+    command "RegisterVeteran" do
       role "IntakeSpecialist"
       description "Enroll a veteran in the service center database"
-      String :name
-      String :service_branch
-      String :discharge_status
-      String :service_dates
-      String :disability_rating
+      attribute :name, String
+      attribute :service_branch, String
+      attribute :discharge_status, String
+      attribute :service_dates, String
+      attribute :disability_rating, String
       emits "VeteranRegistered"
       then_set :name, to: :name
       then_set :service_branch, to: :service_branch
@@ -26,39 +26,39 @@ Hecks.bluebook "VeteranServices" do
       then_set :status, to: "active"
     end
 
-    RecordDisabilityRating do
+    command "RecordDisabilityRating" do
       role "BenefitsSpecialist"
       description "Record a new disability rating from the VA"
       reference_to(Veteran)
-      String :disability_rating
+      attribute :disability_rating, String
       emits "DisabilityRatingRecorded"
       then_set :disability_rating, to: :disability_rating
     end
   end
 
   aggregate "BenefitClaim", "A claim filed for veteran benefits such as healthcare, disability, or education" do
-    String :veteran_name
-    String :benefit_type
-    String :filing_date
-    String :description
-    String :status
+    attribute :veteran_name, String
+    attribute :benefit_type, String
+    attribute :filing_date, String
+    attribute :description, String
+    attribute :status, String
     list_of(ClaimDocument) :documents
     reference_to Veteran
 
     value_object "ClaimDocument" do
-      String :document_name
-      String :document_type
-      String :upload_date
+      attribute :document_name, String
+      attribute :document_type, String
+      attribute :upload_date, String
     end
 
-    FileClaim do
+    command "FileClaim" do
       role "BenefitsSpecialist"
       description "Submit a benefit claim on behalf of the veteran"
       reference_to(Veteran)
-      String :veteran_name
-      String :benefit_type
-      String :filing_date
-      String :description
+      attribute :veteran_name, String
+      attribute :benefit_type, String
+      attribute :filing_date, String
+      attribute :description, String
       emits "ClaimFiled"
       then_set :veteran_name, to: :veteran_name
       then_set :benefit_type, to: :benefit_type
@@ -67,16 +67,16 @@ Hecks.bluebook "VeteranServices" do
       then_set :status, to: "filed"
     end
 
-    SubmitEvidence do
+    command "SubmitEvidence" do
       role "BenefitsSpecialist"
       description "Attach supporting documentation to the claim"
       reference_to(BenefitClaim)
-      String :document_name
-      String :document_type
+      attribute :document_name, String
+      attribute :document_type, String
       emits "EvidenceSubmitted"
     end
 
-    ApproveClaim do
+    command "ApproveClaim" do
       role "Adjudicator"
       description "Approve the benefit claim after review"
       reference_to(BenefitClaim)
@@ -85,7 +85,7 @@ Hecks.bluebook "VeteranServices" do
       then_set :status, to: "approved"
     end
 
-    DenyClaim do
+    command "DenyClaim" do
       role "Adjudicator"
       description "Deny the benefit claim with reasons"
       reference_to(BenefitClaim)
@@ -94,7 +94,7 @@ Hecks.bluebook "VeteranServices" do
       then_set :status, to: "denied"
     end
 
-    AppealClaim do
+    command "AppealClaim" do
       role "BenefitsSpecialist"
       description "File an appeal against a denied benefit claim"
       reference_to(BenefitClaim)
@@ -104,18 +104,18 @@ Hecks.bluebook "VeteranServices" do
   end
 
   aggregate "VeteranCounselor", "A professional providing mental health or career counseling to veterans" do
-    String :name
-    String :specialty
-    String :license_number
-    Integer :caseload
-    String :status
+    attribute :name, String
+    attribute :specialty, String
+    attribute :license_number, String
+    attribute :caseload, Integer
+    attribute :status, String
 
-    HireCounselor do
+    command "HireCounselor" do
       role "Director"
       description "Add a counselor to the veteran services team"
-      String :name
-      String :specialty
-      String :license_number
+      attribute :name, String
+      attribute :specialty, String
+      attribute :license_number, String
       emits "CounselorHired"
       then_set :name, to: :name
       then_set :specialty, to: :specialty
@@ -124,7 +124,7 @@ Hecks.bluebook "VeteranServices" do
       then_set :status, to: "active"
     end
 
-    AssignVeteran do
+    command "AssignVeteran" do
       role "Director"
       description "Add a veteran to the counselor's caseload"
       reference_to(VeteranCounselor)
@@ -133,28 +133,28 @@ Hecks.bluebook "VeteranServices" do
   end
 
   aggregate "ServiceProgram", "A structured program offering veteran-specific services" do
-    String :program_name
-    String :program_type
-    String :eligibility_criteria
-    Integer :capacity
-    Integer :enrolled_count
-    String :status
+    attribute :program_name, String
+    attribute :program_type, String
+    attribute :eligibility_criteria, String
+    attribute :capacity, Integer
+    attribute :enrolled_count, Integer
+    attribute :status, String
     list_of(ProgramSession) :sessions
 
     value_object "ProgramSession" do
-      String :session_date
-      String :topic
-      String :facilitator
-      Integer :attendees
+      attribute :session_date, String
+      attribute :topic, String
+      attribute :facilitator, String
+      attribute :attendees, Integer
     end
 
-    LaunchProgram do
+    command "LaunchProgram" do
       role "ProgramManager"
       description "Start a new service program for veterans"
-      String :program_name
-      String :program_type
-      String :eligibility_criteria
-      Integer :capacity
+      attribute :program_name, String
+      attribute :program_type, String
+      attribute :eligibility_criteria, String
+      attribute :capacity, Integer
       emits "ProgramLaunched"
       then_set :program_name, to: :program_name
       then_set :program_type, to: :program_type
@@ -164,7 +164,7 @@ Hecks.bluebook "VeteranServices" do
       then_set :status, to: "active"
     end
 
-    EnrollVeteran do
+    command "EnrollVeteran" do
       role "ProgramManager"
       description "Add a veteran to the service program"
       reference_to(ServiceProgram)
@@ -172,33 +172,33 @@ Hecks.bluebook "VeteranServices" do
       emits "VeteranEnrolled"
     end
 
-    ConductSession do
+    command "ConductSession" do
       role "Facilitator"
       description "Run a program session and record attendance"
       reference_to(ServiceProgram)
-      String :topic
-      String :facilitator
-      Integer :attendees
+      attribute :topic, String
+      attribute :facilitator, String
+      attribute :attendees, Integer
       emits "SessionConducted"
     end
   end
 
   aggregate "CrisisIntervention", "An emergency response for a veteran in crisis" do
-    String :veteran_name
-    String :crisis_type
-    String :reported_date
-    String :responder_name
-    String :resolution
-    String :status
+    attribute :veteran_name, String
+    attribute :crisis_type, String
+    attribute :reported_date, String
+    attribute :responder_name, String
+    attribute :resolution, String
+    attribute :status, String
     reference_to Veteran
 
-    ReportCrisis do
+    command "ReportCrisis" do
       role "Anyone"
       description "Report a veteran experiencing a crisis situation"
       reference_to(Veteran)
-      String :veteran_name
-      String :crisis_type
-      String :reported_date
+      attribute :veteran_name, String
+      attribute :crisis_type, String
+      attribute :reported_date, String
       emits "CrisisReported"
       then_set :veteran_name, to: :veteran_name
       then_set :crisis_type, to: :crisis_type
@@ -206,22 +206,22 @@ Hecks.bluebook "VeteranServices" do
       then_set :status, to: "reported"
     end
 
-    RespondToCrisis do
+    command "RespondToCrisis" do
       role "CrisisResponder"
       description "Dispatch a responder to assist the veteran"
       reference_to(CrisisIntervention)
-      String :responder_name
+      attribute :responder_name, String
       given("must be reported") { status == "reported" }
       emits "CrisisResponded"
       then_set :responder_name, to: :responder_name
       then_set :status, to: "responding"
     end
 
-    ResolveCrisis do
+    command "ResolveCrisis" do
       role "CrisisResponder"
       description "Document crisis resolution and follow-up plan"
       reference_to(CrisisIntervention)
-      String :resolution
+      attribute :resolution, String
       emits "CrisisResolved"
       then_set :resolution, to: :resolution
       then_set :status, to: "resolved"

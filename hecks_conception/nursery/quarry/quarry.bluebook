@@ -1,32 +1,32 @@
 Hecks.bluebook "Quarry" do
   aggregate "StoneBlock" do
-    String :block_id
-    String :stone_type
-    Float :length_m
-    Float :width_m
-    Float :height_m
-    String :grade
-    String :status
+    attribute :block_id, String
+    attribute :stone_type, String
+    attribute :length_m, Float
+    attribute :width_m, Float
+    attribute :height_m, Float
+    attribute :grade, String
+    attribute :status, String
 
     value_object "BlockDimensions" do
-      Float :length_m
-      Float :width_m
-      Float :height_m
-      Float :volume_cubic_m
+      attribute :length_m, Float
+      attribute :width_m, Float
+      attribute :height_m, Float
+      attribute :volume_cubic_m, Float
     end
 
-    ExtractBlock do
+    command "ExtractBlock" do
       description "Extract raw stone block from quarry face using wire saw"
-      String :stone_type
-      String :bench_location
+      attribute :stone_type, String
+      attribute :bench_location, String
       reference_to "StoneBlock"
       emits "BlockExtracted"
     end
 
-    GradeBlock do
+    command "GradeBlock" do
       description "Assess stone block quality and assign commercial grade"
-      String :grade
-      String :defect_notes
+      attribute :grade, String
+      attribute :defect_notes, String
       reference_to "StoneBlock"
       emits "BlockGraded"
     end
@@ -40,41 +40,41 @@ Hecks.bluebook "Quarry" do
     policy "Cracked blocks must be downgraded or rejected"
 
     given "A marble block is extracted from bench 3" do
-      String :stone_type, "Carrara Marble"
-      String :grade, "Premium"
-      Float :length_m, 3.0
+      attribute :stone_type, String, "Carrara Marble"
+      attribute :grade, String, "Premium"
+      attribute :length_m, Float, 3.0
     end
   end
 
   aggregate "CuttingJob" do
-    String :job_id
-    String :cut_type
-    Float :thickness_mm
-    Integer :slab_count
-    String :status
+    attribute :job_id, String
+    attribute :cut_type, String
+    attribute :thickness_mm, Float
+    attribute :slab_count, Integer
+    attribute :status, String
     list_of "StoneBlock"
 
-    SawSlabs do
+    command "SawSlabs" do
       description "Cut stone block into slabs on the gang saw or bridge saw"
-      String :cut_type
-      Float :thickness_mm
+      attribute :cut_type, String
+      attribute :thickness_mm, Float
       reference_to "StoneBlock"
       emits "SlabsSawn"
     end
 
-    PolishSlabs do
+    command "PolishSlabs" do
       description "Polish slab surfaces to specified finish level"
-      String :finish_type
-      Integer :grit_level
+      attribute :finish_type, String
+      attribute :grit_level, Integer
       reference_to "CuttingJob"
       emits "SlabsPolished"
     end
 
-    InspectSlabs do
+    command "InspectSlabs" do
       description "Quality inspect finished slabs for cracks, stains, and dimensions"
-      String :inspector
-      Integer :passed_count
-      Integer :rejected_count
+      attribute :inspector, String
+      attribute :passed_count, Integer
+      attribute :rejected_count, Integer
       reference_to "CuttingJob"
       emits "SlabsInspected"
     end
@@ -89,30 +89,30 @@ Hecks.bluebook "Quarry" do
   end
 
   aggregate "QuarryEquipment" do
-    String :equipment_id
-    String :equipment_type
-    Float :operating_hours
-    String :status
+    attribute :equipment_id, String
+    attribute :equipment_type, String
+    attribute :operating_hours, Float
+    attribute :status, String
 
     value_object "MaintenanceRecord" do
-      String :service_type
-      String :technician
-      String :service_date
-      Float :hours_at_service
+      attribute :service_type, String
+      attribute :technician, String
+      attribute :service_date, String
+      attribute :hours_at_service, Float
     end
 
-    ServiceEquipment do
+    command "ServiceEquipment" do
       description "Perform preventive maintenance on quarry machinery"
-      String :service_type
-      String :technician
+      attribute :service_type, String
+      attribute :technician, String
       reference_to "QuarryEquipment"
       emits "EquipmentServiced"
     end
 
-    ReportFault do
+    command "ReportFault" do
       description "Report equipment malfunction requiring unplanned repair"
-      String :fault_description
-      String :severity
+      attribute :fault_description, String
+      attribute :severity, String
       reference_to "QuarryEquipment"
       emits "FaultReported"
     end
@@ -126,25 +126,25 @@ Hecks.bluebook "Quarry" do
   end
 
   aggregate "StoneInventory" do
-    String :inventory_id
-    String :stone_type
-    String :grade
-    Integer :block_count
-    Float :total_volume_cubic_m
-    String :yard_location
+    attribute :inventory_id, String
+    attribute :stone_type, String
+    attribute :grade, String
+    attribute :block_count, Integer
+    attribute :total_volume_cubic_m, Float
+    attribute :yard_location, String
 
-    ReceiveIntoYard do
+    command "ReceiveIntoYard" do
       description "Move graded blocks into inventory yard with location tag"
-      String :yard_location
-      Integer :block_count
+      attribute :yard_location, String
+      attribute :block_count, Integer
       reference_to "StoneBlock"
       emits "StockReceived"
     end
 
-    ReserveStock do
+    command "ReserveStock" do
       description "Reserve inventory blocks against a customer order"
-      String :order_id
-      Integer :reserved_count
+      attribute :order_id, String
+      attribute :reserved_count, Integer
       reference_to "StoneInventory"
       emits "StockReserved"
     end
@@ -153,26 +153,26 @@ Hecks.bluebook "Quarry" do
   end
 
   aggregate "QuarryOrder" do
-    String :order_id
-    String :customer_name
-    String :stone_type
-    String :cut_specification
-    Integer :quantity
-    String :status
+    attribute :order_id, String
+    attribute :customer_name, String
+    attribute :stone_type, String
+    attribute :cut_specification, String
+    attribute :quantity, Integer
+    attribute :status, String
 
-    PlaceQuarryOrder do
+    command "PlaceQuarryOrder" do
       description "Receive customer order for stone products with specifications"
-      String :customer_name
-      String :stone_type
-      Integer :quantity
+      attribute :customer_name, String
+      attribute :stone_type, String
+      attribute :quantity, Integer
       reference_to "QuarryOrder"
       emits "OrderPlaced"
     end
 
-    DispatchOrder do
+    command "DispatchOrder" do
       description "Load finished stone products for delivery to customer"
-      String :carrier
-      String :truck_id
+      attribute :carrier, String
+      attribute :truck_id, String
       reference_to "QuarryOrder"
       emits "OrderDispatched"
     end

@@ -2,12 +2,12 @@ Hecks.bluebook "HospitalAdmissions", version: "2026.04.13.1" do
   vision "Hospital patient admissions — triage, bed assignment, diagnosis tracking, and discharge planning"
 
   aggregate "Patient", "A person seeking medical care with their intake information" do
-    String :name
-    String :date_of_birth
-    String :insurance_id
-    String :emergency_contact
-    String :chief_complaint
-    String :triage_level
+    attribute :name, String
+    attribute :date_of_birth, String
+    attribute :insurance_id, String
+    attribute :emergency_contact, String
+    attribute :chief_complaint, String
+    attribute :triage_level, String
     # Gate flag — flips true when intake forms are verified complete and
     # the patient is ready to be triaged. TriagePatient is gated on it.
     attribute :intake_validated, Boolean, default: false
@@ -16,57 +16,57 @@ Hecks.bluebook "HospitalAdmissions", version: "2026.04.13.1" do
       satisfied_by { triage_level == "1" }
     end
 
-    RegisterPatient do
+    command "RegisterPatient" do
       description "Create a patient record at intake"
-      String :name
-      String :date_of_birth
-      String :insurance_id
-      String :emergency_contact
-      String :chief_complaint
+      attribute :name, String
+      attribute :date_of_birth, String
+      attribute :insurance_id, String
+      attribute :emergency_contact, String
+      attribute :chief_complaint, String
       emits "PatientRegistered"
     end
 
-    ValidateIntake do
+    command "ValidateIntake" do
       description "Verify intake forms and insurance details are complete"
       reference_to(Patient)
       emits "IntakeValidated"
       then_set :intake_validated, to: true
     end
 
-    TriagePatient do
+    command "TriagePatient" do
       description "Assess urgency and assign a triage level"
       reference_to(Patient)
-      String :triage_level
+      attribute :triage_level, String
       emits "PatientTriaged"
     end
   end
 
   aggregate "Bed", "A hospital bed with location, type, and occupancy status" do
-    String :ward
-    String :room_number
-    String :bed_type
-    String :status
-    String :assigned_patient
+    attribute :ward, String
+    attribute :room_number, String
+    attribute :bed_type, String
+    attribute :status, String
+    attribute :assigned_patient, String
     # Gate flag — flips true after PrepareBed sanitizes and confirms the
     # bed is empty and ready for assignment. AssignBed is gated on it.
     attribute :bed_ready, Boolean, default: false
 
-    PrepareBed do
+    command "PrepareBed" do
       description "Sanitize and confirm the bed is empty and ready for use"
       reference_to(Bed)
       emits "BedPrepared"
       then_set :bed_ready, to: true
     end
 
-    AssignBed do
+    command "AssignBed" do
       description "Place a triaged patient in an available bed"
       reference_to(Bed)
-      String :patient_name
+      attribute :patient_name, String
       given { bed_ready == true }
       emits "BedAssigned"
     end
 
-    ReleaseBed do
+    command "ReleaseBed" do
       description "Free a bed after patient discharge or transfer"
       reference_to(Bed)
       emits "BedReleased"
@@ -74,70 +74,70 @@ Hecks.bluebook "HospitalAdmissions", version: "2026.04.13.1" do
   end
 
   aggregate "Diagnosis", "A clinical diagnosis attached to a patient encounter" do
-    String :patient_name
-    String :icd_code
-    String :description
-    String :diagnosing_physician
-    String :diagnosed_at
+    attribute :patient_name, String
+    attribute :icd_code, String
+    attribute :description, String
+    attribute :diagnosing_physician, String
+    attribute :diagnosed_at, String
     list_of(LabResult) :supporting_labs
 
     value_object "LabResult" do
-      String :test_name
-      String :result_value
-      String :reference_range
-      String :collected_at
+      attribute :test_name, String
+      attribute :result_value, String
+      attribute :reference_range, String
+      attribute :collected_at, String
     end
 
-    RecordDiagnosis do
+    command "RecordDiagnosis" do
       description "Document a diagnosis with ICD code and supporting evidence"
-      String :patient_name
-      String :icd_code
-      String :description
-      String :diagnosing_physician
+      attribute :patient_name, String
+      attribute :icd_code, String
+      attribute :description, String
+      attribute :diagnosing_physician, String
       emits "DiagnosisRecorded"
     end
 
-    AttachLabResult do
+    command "AttachLabResult" do
       description "Link a lab result to a diagnosis as supporting evidence"
       reference_to(Diagnosis)
-      String :test_name
-      String :result_value
-      String :reference_range
+      attribute :test_name, String
+      attribute :result_value, String
+      attribute :reference_range, String
       emits "LabResultAttached"
     end
   end
 
   aggregate "DischargeePlan", "Steps required before a patient can leave safely" do
-    String :patient_name
-    String :discharge_date
+    attribute :patient_name, String
+    attribute :discharge_date, String
     list_of(String) :medications
     list_of(String) :follow_up_appointments
-    String :status
+    attribute :status, String
     # Gate flag — flips true once every follow-up has been booked.
     # ApproveDischargePlan is gated on it so a plan cannot be signed
     # off until follow-ups are in place.
     attribute :follow_ups_scheduled, Boolean, default: false
 
-    DraftDischargePlan do
+    command "DraftDischargePlan" do
       description "Begin planning a patient's safe exit from the hospital"
-      String :patient_name
-      String :discharge_date
+      attribute :patient_name, String
+      attribute :discharge_date, String
       emits "DischargePlanDrafted"
     end
 
-    ScheduleFollowUps do
+    command "ScheduleFollowUps" do
       description "Book all follow-up appointments required for discharge"
       emits "FollowUpsScheduled"
       then_set :follow_ups_scheduled, to: true
     end
 
-    ApproveDischargePlan do
+    command "ApproveDischargePlan" do
       description "Physician signs off that the patient is safe to leave"
       reference_to(DischargeePlan)
       emits "DischargePlanApproved"
     end
 
-    DischargePatient do
+    command "DischargePatient" do
       description "Complete the discharge and release the bed"
       reference_to(DischargeePlan)
       emits "PatientDischarged"

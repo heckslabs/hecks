@@ -2,26 +2,26 @@ Hecks.bluebook "MentalHealthClinic" do
   vision "Outpatient mental health care — clients, therapists, assessments, treatment plans, and session tracking"
 
   aggregate "Client", "A person seeking mental health services" do
-    String :name
-    String :date_of_birth
-    String :referral_source
-    String :emergency_contact
-    String :status
+    attribute :name, String
+    attribute :date_of_birth, String
+    attribute :referral_source, String
+    attribute :emergency_contact, String
+    attribute :status, String
     list_of(PresentingConcern) :concerns
 
     value_object "PresentingConcern" do
-      String :description
-      String :onset_date
-      Integer :severity
+      attribute :description, String
+      attribute :onset_date, String
+      attribute :severity, Integer
     end
 
-    IntakeClient do
+    command "IntakeClient" do
       role "Receptionist"
       description "Register a new client during their first visit"
-      String :name
-      String :date_of_birth
-      String :referral_source
-      String :emergency_contact
+      attribute :name, String
+      attribute :date_of_birth, String
+      attribute :referral_source, String
+      attribute :emergency_contact, String
       emits "ClientIntaked"
       then_set :name, to: :name
       then_set :date_of_birth, to: :date_of_birth
@@ -30,17 +30,17 @@ Hecks.bluebook "MentalHealthClinic" do
       then_set :status, to: "active"
     end
 
-    DocumentConcern do
+    command "DocumentConcern" do
       role "Therapist"
       description "Record a presenting concern during initial assessment"
       reference_to(Client)
-      String :description
-      String :onset_date
-      Integer :severity
+      attribute :description, String
+      attribute :onset_date, String
+      attribute :severity, Integer
       emits "ConcernDocumented"
     end
 
-    DischargeClient do
+    command "DischargeClient" do
       role "Therapist"
       description "End the therapeutic relationship when goals are met"
       reference_to(Client)
@@ -51,25 +51,25 @@ Hecks.bluebook "MentalHealthClinic" do
   end
 
   aggregate "Therapist", "A licensed mental health professional providing treatment" do
-    String :name
-    String :license_type
-    String :license_number
-    String :specialty
-    Integer :caseload_limit
-    Integer :active_clients
+    attribute :name, String
+    attribute :license_type, String
+    attribute :license_number, String
+    attribute :specialty, String
+    attribute :caseload_limit, Integer
+    attribute :active_clients, Integer
 
     specification "CaseloadFull" do
       satisfied_by { active_clients >= caseload_limit }
     end
 
-    RegisterTherapist do
+    command "RegisterTherapist" do
       role "Administrator"
       description "Add a new therapist to the clinic roster"
-      String :name
-      String :license_type
-      String :license_number
-      String :specialty
-      Integer :caseload_limit
+      attribute :name, String
+      attribute :license_type, String
+      attribute :license_number, String
+      attribute :specialty, String
+      attribute :caseload_limit, Integer
       emits "TherapistRegistered"
       then_set :name, to: :name
       then_set :license_type, to: :license_type
@@ -79,7 +79,7 @@ Hecks.bluebook "MentalHealthClinic" do
       then_set :active_clients, to: 0
     end
 
-    AssignClient do
+    command "AssignClient" do
       role "Administrator"
       description "Add a client to this therapist's caseload"
       reference_to(Therapist)
@@ -89,23 +89,23 @@ Hecks.bluebook "MentalHealthClinic" do
   end
 
   aggregate "Assessment", "A clinical evaluation measuring mental health symptoms" do
-    String :client_name
-    String :instrument_name
-    String :administered_date
-    Integer :total_score
-    String :risk_level
-    String :notes
+    attribute :client_name, String
+    attribute :instrument_name, String
+    attribute :administered_date, String
+    attribute :total_score, Integer
+    attribute :risk_level, String
+    attribute :notes, String
     reference_to Client
 
-    AdministerAssessment do
+    command "AdministerAssessment" do
       role "Therapist"
       description "Conduct a standardized clinical assessment"
       reference_to(Client)
-      String :client_name
-      String :instrument_name
-      String :administered_date
-      Integer :total_score
-      String :notes
+      attribute :client_name, String
+      attribute :instrument_name, String
+      attribute :administered_date, String
+      attribute :total_score, Integer
+      attribute :notes, String
       emits "AssessmentAdministered"
       then_set :client_name, to: :client_name
       then_set :instrument_name, to: :instrument_name
@@ -114,38 +114,38 @@ Hecks.bluebook "MentalHealthClinic" do
       then_set :notes, to: :notes
     end
 
-    ClassifyRisk do
+    command "ClassifyRisk" do
       role "Therapist"
       description "Determine risk level based on assessment scores"
       reference_to(Assessment)
-      String :risk_level
+      attribute :risk_level, String
       emits "RiskClassified"
       then_set :risk_level, to: :risk_level
     end
   end
 
   aggregate "TreatmentPlan", "A structured plan of therapeutic goals and interventions" do
-    String :client_name
-    String :diagnosis
-    String :start_date
+    attribute :client_name, String
+    attribute :diagnosis, String
+    attribute :start_date, String
     list_of(Goal) :goals
-    String :status
+    attribute :status, String
     reference_to Client
 
     value_object "Goal" do
-      String :description
-      String :target_date
-      String :status
-      String :intervention
+      attribute :description, String
+      attribute :target_date, String
+      attribute :status, String
+      attribute :intervention, String
     end
 
-    EstablishTreatmentPlan do
+    command "EstablishTreatmentPlan" do
       role "Therapist"
       description "Establish a treatment plan with diagnosis and goals"
       reference_to(Client)
-      String :client_name
-      String :diagnosis
-      String :start_date
+      attribute :client_name, String
+      attribute :diagnosis, String
+      attribute :start_date, String
       emits "TreatmentPlanEstablished"
       then_set :client_name, to: :client_name
       then_set :diagnosis, to: :diagnosis
@@ -153,17 +153,17 @@ Hecks.bluebook "MentalHealthClinic" do
       then_set :status, to: "active"
     end
 
-    ReviseGoal do
+    command "ReviseGoal" do
       role "Therapist"
       description "Modify or add a goal within the treatment plan"
       reference_to(TreatmentPlan)
-      String :description
-      String :target_date
-      String :intervention
+      attribute :description, String
+      attribute :target_date, String
+      attribute :intervention, String
       emits "GoalRevised"
     end
 
-    CloseTreatmentPlan do
+    command "CloseTreatmentPlan" do
       role "Therapist"
       description "Mark the treatment plan complete when goals are achieved"
       reference_to(TreatmentPlan)
@@ -174,24 +174,24 @@ Hecks.bluebook "MentalHealthClinic" do
   end
 
   aggregate "TherapySession", "A scheduled encounter between therapist and client" do
-    String :client_name
-    String :therapist_name
-    String :session_date
-    String :session_type
-    String :notes
-    String :status
+    attribute :client_name, String
+    attribute :therapist_name, String
+    attribute :session_date, String
+    attribute :session_type, String
+    attribute :notes, String
+    attribute :status, String
     reference_to Client
     reference_to Therapist
 
-    ScheduleTherapySession do
+    command "ScheduleTherapySession" do
       role "Receptionist"
       description "Book a therapy session for a client"
       reference_to(Client)
       reference_to(Therapist)
-      String :client_name
-      String :therapist_name
-      String :session_date
-      String :session_type
+      attribute :client_name, String
+      attribute :therapist_name, String
+      attribute :session_date, String
+      attribute :session_type, String
       emits "TherapySessionScheduled"
       then_set :client_name, to: :client_name
       then_set :therapist_name, to: :therapist_name
@@ -200,11 +200,11 @@ Hecks.bluebook "MentalHealthClinic" do
       then_set :status, to: "scheduled"
     end
 
-    CompleteTherapySession do
+    command "CompleteTherapySession" do
       role "Therapist"
       description "Document session completion with clinical notes"
       reference_to(TherapySession)
-      String :notes
+      attribute :notes, String
       given("session must be scheduled") { status == "scheduled" }
       emits "TherapySessionCompleted"
       then_set :notes, to: :notes

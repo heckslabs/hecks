@@ -3,31 +3,31 @@ Hecks.bluebook "PoolChemistry", version: "2026.04.13.1" do
   category "crossover"
 
   aggregate "WaterTest", "A pool water test — pH, chlorine, alkalinity, temperature" do
-    String :test_id
-    String :pool_name
-    Float :ph
-    Float :free_chlorine_ppm
-    Float :total_alkalinity_ppm
-    Float :temperature_c
-    String :timestamp
-    String :status
+    attribute :test_id, String
+    attribute :pool_name, String
+    attribute :ph, Float
+    attribute :free_chlorine_ppm, Float
+    attribute :total_alkalinity_ppm, Float
+    attribute :temperature_c, Float
+    attribute :timestamp, String
+    attribute :status, String
 
     value_object "ChemicalBalance" do
-      Float :langelier_index
-      String :corrosion_tendency
-      String :scale_tendency
+      attribute :langelier_index, Float
+      attribute :corrosion_tendency, String
+      attribute :scale_tendency, String
     end
 
-    RecordWaterTest do
+    command "RecordWaterTest" do
       role "Technician"
       description "Record pool water chemistry test results"
-      String :test_id
-      String :pool_name
-      Float :ph
-      Float :free_chlorine_ppm
-      Float :total_alkalinity_ppm
-      Float :temperature_c
-      String :timestamp
+      attribute :test_id, String
+      attribute :pool_name, String
+      attribute :ph, Float
+      attribute :free_chlorine_ppm, Float
+      attribute :total_alkalinity_ppm, Float
+      attribute :temperature_c, Float
+      attribute :timestamp, String
       emits "WaterTestRecorded"
       then_set :test_id, to: :test_id
       then_set :pool_name, to: :pool_name
@@ -39,7 +39,7 @@ Hecks.bluebook "PoolChemistry", version: "2026.04.13.1" do
       then_set :status, to: "recorded"
     end
 
-    AnalyzeChemistry do
+    command "AnalyzeChemistry" do
       role "System"
       description "Analyze water chemistry and calculate Langelier saturation index"
       reference_to(WaterTest)
@@ -50,29 +50,29 @@ Hecks.bluebook "PoolChemistry", version: "2026.04.13.1" do
   end
 
   aggregate "ChemicalReaction", "A chemical reaction in pool water — reagents, products, equilibrium" do
-    String :reaction_name
-    String :reagent_a
-    String :reagent_b
-    String :product
-    Float :equilibrium_constant
-    Float :rate_constant
-    String :status
+    attribute :reaction_name, String
+    attribute :reagent_a, String
+    attribute :reagent_b, String
+    attribute :product, String
+    attribute :equilibrium_constant, Float
+    attribute :rate_constant, Float
+    attribute :status, String
 
     value_object "ReactionKinetics" do
-      Float :activation_energy_kj
-      Float :temperature_dependence
-      String :order
+      attribute :activation_energy_kj, Float
+      attribute :temperature_dependence, Float
+      attribute :order, String
     end
 
-    DefineReaction do
+    command "DefineReaction" do
       role "Chemist"
       description "Define a chemical reaction relevant to pool chemistry"
-      String :reaction_name
-      String :reagent_a
-      String :reagent_b
-      String :product
-      Float :equilibrium_constant
-      Float :rate_constant
+      attribute :reaction_name, String
+      attribute :reagent_a, String
+      attribute :reagent_b, String
+      attribute :product, String
+      attribute :equilibrium_constant, Float
+      attribute :rate_constant, Float
       emits "ReactionDefined"
       then_set :reaction_name, to: :reaction_name
       then_set :reagent_a, to: :reagent_a
@@ -83,7 +83,7 @@ Hecks.bluebook "PoolChemistry", version: "2026.04.13.1" do
       then_set :status, to: "defined"
     end
 
-    CalculateEquilibrium do
+    command "CalculateEquilibrium" do
       role "System"
       description "Calculate equilibrium concentrations at given temperature"
       reference_to(ChemicalReaction)
@@ -97,36 +97,36 @@ Hecks.bluebook "PoolChemistry", version: "2026.04.13.1" do
   end
 
   aggregate "DosingPlan", "A chemical dosing plan — target levels, chemicals, amounts, timing" do
-    String :pool_name
-    String :chemical_name
-    Float :current_level
-    Float :target_level
-    Float :dose_amount_ml
-    String :dosing_method
-    String :status
+    attribute :pool_name, String
+    attribute :chemical_name, String
+    attribute :current_level, Float
+    attribute :target_level, Float
+    attribute :dose_amount_ml, Float
+    attribute :dosing_method, String
+    attribute :status, String
 
     value_object "DosingCurve" do
-      Float :volume_liters
-      Float :dose_per_ppm_ml
-      Float :contact_time_min
+      attribute :volume_liters, Float
+      attribute :dose_per_ppm_ml, Float
+      attribute :contact_time_min, Float
     end
 
     list_of "DosingStep" do
-      Integer :step_number
-      String :chemical
-      Float :amount_ml
-      String :timing
+      attribute :step_number, Integer
+      attribute :chemical, String
+      attribute :amount_ml, Float
+      attribute :timing, String
     end
 
-    PrescribeDose do
+    command "PrescribeDose" do
       role "Technician"
       description "Create a dosing plan to bring pool chemistry to target levels"
-      String :pool_name
-      String :chemical_name
-      Float :current_level
-      Float :target_level
-      Float :dose_amount_ml
-      String :dosing_method
+      attribute :pool_name, String
+      attribute :chemical_name, String
+      attribute :current_level, Float
+      attribute :target_level, Float
+      attribute :dose_amount_ml, Float
+      attribute :dosing_method, String
       emits "DosingPlanCreated"
       then_set :pool_name, to: :pool_name
       then_set :chemical_name, to: :chemical_name
@@ -137,7 +137,7 @@ Hecks.bluebook "PoolChemistry", version: "2026.04.13.1" do
       then_set :status, to: "created"
     end
 
-    ExecuteDosing do
+    command "ExecuteDosing" do
       role "Technician"
       description "Apply the chemical dose to the pool"
       reference_to(DosingPlan)
@@ -146,7 +146,7 @@ Hecks.bluebook "PoolChemistry", version: "2026.04.13.1" do
       then_set :status, to: "executed"
     end
 
-    VerifyDosing do
+    command "VerifyDosing" do
       role "Technician"
       description "Test water after dosing to verify target levels reached"
       reference_to(DosingPlan)
@@ -157,26 +157,26 @@ Hecks.bluebook "PoolChemistry", version: "2026.04.13.1" do
   end
 
   aggregate "AlgaeIncident", "An algae bloom incident — type, severity, treatment, prevention" do
-    String :pool_name
-    String :algae_type
-    String :severity
-    String :cause
-    String :treatment_applied
-    String :status
+    attribute :pool_name, String
+    attribute :algae_type, String
+    attribute :severity, String
+    attribute :cause, String
+    attribute :treatment_applied, String
+    attribute :status, String
 
     value_object "AlgaeProfile" do
-      String :species
-      Float :growth_rate_per_day
-      String :preferred_conditions
+      attribute :species, String
+      attribute :growth_rate_per_day, Float
+      attribute :preferred_conditions, String
     end
 
-    ReportAlgae do
+    command "ReportAlgae" do
       role "Technician"
       description "Report algae growth in the pool"
-      String :pool_name
-      String :algae_type
-      String :severity
-      String :cause
+      attribute :pool_name, String
+      attribute :algae_type, String
+      attribute :severity, String
+      attribute :cause, String
       emits "AlgaeReported"
       then_set :pool_name, to: :pool_name
       then_set :algae_type, to: :algae_type
@@ -185,18 +185,18 @@ Hecks.bluebook "PoolChemistry", version: "2026.04.13.1" do
       then_set :status, to: "reported"
     end
 
-    TreatAlgae do
+    command "TreatAlgae" do
       role "Technician"
       description "Apply algaecide treatment based on algae type"
       reference_to(AlgaeIncident)
-      String :treatment_applied
+      attribute :treatment_applied, String
       given { status == "reported" }
       emits "AlgaeTreated"
       then_set :treatment_applied, to: :treatment_applied
       then_set :status, to: "treated"
     end
 
-    ClearAlgae do
+    command "ClearAlgae" do
       role "Technician"
       description "Confirm algae has been eliminated"
       reference_to(AlgaeIncident)

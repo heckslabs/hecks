@@ -3,23 +3,23 @@ Hecks.bluebook "Acoustics" do
 
   aggregate "Room" do
     description "An enclosed space whose acoustic properties are being analyzed"
-    String :room_id
-    String :name
-    String :room_type
-    Float :length_m
-    Float :width_m
-    Float :height_m
-    Float :volume_m3
-    Integer :surface_material_count, default: 0
+    attribute :room_id, String
+    attribute :name, String
+    attribute :room_type, String
+    attribute :length_m, Float
+    attribute :width_m, Float
+    attribute :height_m, Float
+    attribute :volume_m3, Float
+    attribute :surface_material_count, Integer, default: 0
 
     command "DefineRoom" do
       description "Register a new room for acoustic analysis"
       emits "RoomDefined"
-      String :room_id
-      String :name
-      Float :length_m
-      Float :width_m
-      Float :height_m
+      attribute :room_id, String
+      attribute :name, String
+      attribute :length_m, Float
+      attribute :width_m, Float
+      attribute :height_m, Float
     end
 
     command "CalculateReverberation" do
@@ -37,26 +37,26 @@ Hecks.bluebook "Acoustics" do
 
   aggregate "AcousticMeasurement" do
     description "A recorded impulse response or SPL reading taken in a room"
-    String :measurement_id
-    String :measurement_type
-    String :timestamp
-    Float :spl_db
-    Float :rt60_seconds
-    TrueClass :raw_audio_captured, default: false
+    attribute :measurement_id, String
+    attribute :measurement_type, String
+    attribute :timestamp, String
+    attribute :spl_db, Float
+    attribute :rt60_seconds, Float
+    attribute :raw_audio_captured, TrueClass, default: false
     reference_to Room
 
     value_object "FrequencyResponse" do
-      Float :frequency_hz
-      Float :amplitude_db
-      Float :phase_degrees
+      attribute :frequency_hz, Float
+      attribute :amplitude_db, Float
+      attribute :phase_degrees, Float
     end
 
     command "TakeMeasurement" do
       description "Capture an acoustic measurement using microphone and source"
       emits "MeasurementTaken"
       reference_to Room
-      String :measurement_type
-      Float :spl_db
+      attribute :measurement_type, String
+      attribute :spl_db, Float
       then_set :raw_audio_captured, to: true
     end
 
@@ -76,27 +76,27 @@ Hecks.bluebook "Acoustics" do
 
   aggregate "AcousticMaterial" do
     description "A building material with known sound absorption properties"
-    String :name
-    String :material_type
-    Float :nrc_rating
-    Float :thickness_mm
-    Integer :active_treatment_count, default: 0
+    attribute :name, String
+    attribute :material_type, String
+    attribute :nrc_rating, Float
+    attribute :thickness_mm, Float
+    attribute :active_treatment_count, Integer, default: 0
 
     value_object "AbsorptionCoefficients" do
-      Float :at_125hz
-      Float :at_250hz
-      Float :at_500hz
-      Float :at_1000hz
-      Float :at_2000hz
-      Float :at_4000hz
+      attribute :at_125hz, Float
+      attribute :at_250hz, Float
+      attribute :at_500hz, Float
+      attribute :at_1000hz, Float
+      attribute :at_2000hz, Float
+      attribute :at_4000hz, Float
     end
 
     command "CatalogMaterial" do
       description "Add a new acoustic material to the database"
       emits "MaterialCataloged"
-      String :name
-      String :material_type
-      Float :nrc_rating
+      attribute :name, String
+      attribute :material_type, String
+      attribute :nrc_rating, Float
     end
 
     command "TestAbsorption" do
@@ -115,18 +115,18 @@ Hecks.bluebook "Acoustics" do
 
   aggregate "TreatmentPlan" do
     description "A designed arrangement of acoustic materials to improve a room"
-    String :plan_name
-    String :objective
-    Float :target_rt60
-    Integer :post_treatment_measurement_count, default: 0
+    attribute :plan_name, String
+    attribute :objective, String
+    attribute :target_rt60, Float
+    attribute :post_treatment_measurement_count, Integer, default: 0
     reference_to Room
 
     command "DesignTreatment" do
       description "Create an acoustic treatment plan for a room"
       emits "TreatmentDesigned"
       reference_to Room
-      String :plan_name
-      String :objective
+      attribute :plan_name, String
+      attribute :objective, String
     end
 
     command "ApplyMaterial" do
@@ -134,7 +134,7 @@ Hecks.bluebook "Acoustics" do
       emits "MaterialApplied"
       reference_to TreatmentPlan
       reference_to AcousticMaterial
-      Float :coverage_m2
+      attribute :coverage_m2, Float
     end
 
     command "EvaluateTreatment" do

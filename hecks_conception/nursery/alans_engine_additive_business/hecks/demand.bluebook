@@ -3,23 +3,23 @@ Hecks.bluebook "Demand", version: "2026.04.11.1" do
   category "business"
 
   aggregate "DemandSignal", "POS data from retailers — sell-through rate, seasonal patterns, weeks of supply" do
-    String :sku
-    String :channel
-    String :period
-    Integer :units_sold
-    Float :sell_through_rate
-    Float :weeks_of_supply
-    Float :seasonal_index
+    attribute :sku, String
+    attribute :channel, String
+    attribute :period, String
+    attribute :units_sold, Integer
+    attribute :sell_through_rate, Float
+    attribute :weeks_of_supply, Float
+    attribute :seasonal_index, Float
 
-    CaptureDemandSignal do
+    command "CaptureDemandSignal" do
       role "System"
       description "Ingest POS sell-through data from a retail channel for a period"
-      String :sku
-      String :channel
-      String :period
-      Integer :units_sold
-      Float :sell_through_rate
-      Float :weeks_of_supply
+      attribute :sku, String
+      attribute :channel, String
+      attribute :period, String
+      attribute :units_sold, Integer
+      attribute :sell_through_rate, Float
+      attribute :weeks_of_supply, Float
       emits "DemandSignalCaptured"
       then_set :sku, to: :sku
       then_set :channel, to: :channel
@@ -29,38 +29,38 @@ Hecks.bluebook "Demand", version: "2026.04.11.1" do
       then_set :weeks_of_supply, to: :weeks_of_supply
     end
 
-    AdjustSeasonalIndex do
+    command "AdjustSeasonalIndex" do
       role "DemandPlanner"
       description "Set the seasonal index for this SKU/channel — accounts for miette/summer demand shifts"
       reference_to(DemandSignal)
-      Float :seasonal_index
+      attribute :seasonal_index, Float
       emits "SeasonalIndexAdjusted"
       then_set :seasonal_index, to: :seasonal_index
     end
   end
 
   aggregate "Forecast", "Demand forecast by SKU and channel — statistical model with confidence interval" do
-    String :sku
-    String :channel
-    String :forecast_period
-    Integer :forecasted_units
-    Integer :confidence_interval_low
-    Integer :confidence_interval_high
-    String :model_type
-    Integer :safety_stock_units
-    String :status
+    attribute :sku, String
+    attribute :channel, String
+    attribute :forecast_period, String
+    attribute :forecasted_units, Integer
+    attribute :confidence_interval_low, Integer
+    attribute :confidence_interval_high, Integer
+    attribute :model_type, String
+    attribute :safety_stock_units, Integer
+    attribute :status, String
 
-    GenerateForecast do
+    command "GenerateForecast" do
       role "DemandPlanner"
       description "Produce a demand forecast for a SKU/channel using POS history and seasonal index"
-      String :sku
-      String :channel
-      String :forecast_period
-      Integer :forecasted_units
-      Integer :confidence_interval_low
-      Integer :confidence_interval_high
-      String :model_type
-      Integer :safety_stock_units
+      attribute :sku, String
+      attribute :channel, String
+      attribute :forecast_period, String
+      attribute :forecasted_units, Integer
+      attribute :confidence_interval_low, Integer
+      attribute :confidence_interval_high, Integer
+      attribute :model_type, String
+      attribute :safety_stock_units, Integer
       emits "ForecastGenerated"
       then_set :sku, to: :sku
       then_set :channel, to: :channel
@@ -73,12 +73,12 @@ Hecks.bluebook "Demand", version: "2026.04.11.1" do
       then_set :status, to: "active"
     end
 
-    OverrideForecast do
+    command "OverrideForecast" do
       role "DemandPlanner"
       description "Manually override the statistical forecast — market intelligence or promo lift"
       reference_to(Forecast)
-      Integer :forecasted_units
-      Integer :safety_stock_units
+      attribute :forecasted_units, Integer
+      attribute :safety_stock_units, Integer
       emits "ForecastOverridden"
       then_set :forecasted_units, to: :forecasted_units
       then_set :safety_stock_units, to: :safety_stock_units
@@ -90,23 +90,23 @@ Hecks.bluebook "Demand", version: "2026.04.11.1" do
   end
 
   aggregate "ReorderRecommendation", "Auto-generated PO suggestion based on lead time, forecast, EOQ, and safety stock" do
-    String :sku
-    Integer :recommended_quantity
-    Integer :economic_order_quantity
-    Integer :lead_time_days
-    Integer :safety_stock_units
-    String :reorder_date
-    String :status
+    attribute :sku, String
+    attribute :recommended_quantity, Integer
+    attribute :economic_order_quantity, Integer
+    attribute :lead_time_days, Integer
+    attribute :safety_stock_units, Integer
+    attribute :reorder_date, String
+    attribute :status, String
 
-    GenerateReorderRecommendation do
+    command "GenerateReorderRecommendation" do
       role "System"
       description "Calculate reorder quantity using EOQ, lead time, and safety stock from forecast"
-      String :sku
-      Integer :recommended_quantity
-      Integer :economic_order_quantity
-      Integer :lead_time_days
-      Integer :safety_stock_units
-      String :reorder_date
+      attribute :sku, String
+      attribute :recommended_quantity, Integer
+      attribute :economic_order_quantity, Integer
+      attribute :lead_time_days, Integer
+      attribute :safety_stock_units, Integer
+      attribute :reorder_date, String
       emits "ReorderRecommendationGenerated"
       then_set :sku, to: :sku
       then_set :recommended_quantity, to: :recommended_quantity
@@ -117,7 +117,7 @@ Hecks.bluebook "Demand", version: "2026.04.11.1" do
       then_set :status, to: "pending"
     end
 
-    ApproveReorderRecommendation do
+    command "ApproveReorderRecommendation" do
       role "DemandPlanner"
       description "Approve the reorder recommendation — converts to a purchase order"
       reference_to(ReorderRecommendation)
@@ -126,7 +126,7 @@ Hecks.bluebook "Demand", version: "2026.04.11.1" do
       then_set :status, to: "approved"
     end
 
-    RejectReorderRecommendation do
+    command "RejectReorderRecommendation" do
       role "DemandPlanner"
       description "Reject the recommendation — demand signal was anomalous"
       reference_to(ReorderRecommendation)

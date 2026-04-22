@@ -3,38 +3,38 @@ Hecks.bluebook "QATestLab", version: "2026.04.13.1" do
   category "technology"
 
   aggregate "TestProject", "A software product under quality assurance" do
-    String :project_name
-    String :repository_url
-    String :team_lead
-    String :priority
-    String :status
+    attribute :project_name, String
+    attribute :repository_url, String
+    attribute :team_lead, String
+    attribute :priority, String
+    attribute :status, String
     list_of(Milestone) :milestones
 
     value_object "Milestone" do
-      String :name
-      String :target_date
-      String :status
+      attribute :name, String
+      attribute :target_date, String
+      attribute :status, String
     end
 
-    RegisterTestProject do
+    command "RegisterTestProject" do
       role "QAManager"
       description "Register a new software project for testing"
-      String :project_name
-      String :repository_url
-      String :team_lead
-      String :priority
+      attribute :project_name, String
+      attribute :repository_url, String
+      attribute :team_lead, String
+      attribute :priority, String
       emits "TestProjectRegistered"
       then_set :status, to: "active"
     end
 
-    AssignTeamLead do
+    command "AssignTeamLead" do
       description "Change the team lead responsible for a project"
       reference_to(TestProject)
-      String :team_lead
+      attribute :team_lead, String
       emits "TeamLeadAssigned"
     end
 
-    CloseProject do
+    command "CloseProject" do
       description "Archive a completed project"
       reference_to(TestProject)
       given("project milestones complete") { status == "active" }
@@ -43,38 +43,38 @@ Hecks.bluebook "QATestLab", version: "2026.04.13.1" do
   end
 
   aggregate "TestSuite", "A collection of test cases targeting a feature area" do
-    String :suite_name
-    String :test_type
-    Integer :case_count
-    String :last_run_result
-    String :status
+    attribute :suite_name, String
+    attribute :test_type, String
+    attribute :case_count, Integer
+    attribute :last_run_result, String
+    attribute :status, String
     reference_to TestProject
     list_of(TestCase) :cases
 
     value_object "TestCase" do
-      String :case_name
-      String :expected_result
-      String :priority
+      attribute :case_name, String
+      attribute :expected_result, String
+      attribute :priority, String
     end
 
-    DefineTestSuite do
+    command "DefineTestSuite" do
       role "QAEngineer"
       description "Create a test suite grouping related test cases"
-      String :suite_name
-      String :test_type
+      attribute :suite_name, String
+      attribute :test_type, String
       reference_to(TestProject)
       emits "TestSuiteDefined"
       then_set :status, to: "active"
     end
 
-    ExecuteTestSuite do
+    command "ExecuteTestSuite" do
       description "Run all test cases in a suite against a build"
       reference_to(TestSuite)
-      String :build_id
+      attribute :build_id, String
       emits "TestSuiteExecuted"
     end
 
-    RetireTestSuite do
+    command "RetireTestSuite" do
       description "Deactivate an obsolete test suite"
       reference_to(TestSuite)
       given("suite is inactive") { status == "active" }
@@ -83,41 +83,41 @@ Hecks.bluebook "QATestLab", version: "2026.04.13.1" do
   end
 
   aggregate "Bug", "A defect found during testing" do
-    String :bug_id
-    String :title
-    String :description
-    String :severity
-    String :assigned_to
-    String :status
+    attribute :bug_id, String
+    attribute :title, String
+    attribute :description, String
+    attribute :severity, String
+    attribute :assigned_to, String
+    attribute :status, String
     reference_to TestSuite
     list_of(Reproduction) :reproductions
 
     value_object "Reproduction" do
-      String :step
-      String :expected
-      String :actual
+      attribute :step, String
+      attribute :expected, String
+      attribute :actual, String
     end
 
-    FileBug do
+    command "FileBug" do
       role "QAEngineer"
       description "Report a defect discovered during test execution"
-      String :bug_id
-      String :title
-      String :description
-      String :severity
+      attribute :bug_id, String
+      attribute :title, String
+      attribute :description, String
+      attribute :severity, String
       reference_to(TestSuite)
       emits "BugFiled"
     end
 
-    AssignBug do
+    command "AssignBug" do
       description "Route a bug to a developer for fixing"
       reference_to(Bug)
-      String :assigned_to
+      attribute :assigned_to, String
       emits "BugAssigned"
       then_set :status, to: "in_progress"
     end
 
-    CloseBug do
+    command "CloseBug" do
       description "Verify a fix and close the bug"
       reference_to(Bug)
       given("bug is in progress") { status == "in_progress" }
@@ -126,38 +126,38 @@ Hecks.bluebook "QATestLab", version: "2026.04.13.1" do
   end
 
   aggregate "TestEnvironment", "An isolated runtime for executing tests" do
-    String :env_name
-    String :platform
-    String :browser_version
-    String :os_version
-    String :status
+    attribute :env_name, String
+    attribute :platform, String
+    attribute :browser_version, String
+    attribute :os_version, String
+    attribute :status, String
     list_of(ConfigParam) :config
 
     value_object "ConfigParam" do
-      String :key
-      String :value
-      String :scope
+      attribute :key, String
+      attribute :value, String
+      attribute :scope, String
     end
 
-    SetupEnvironment do
+    command "SetupEnvironment" do
       role "DevOpsEngineer"
       description "Spin up a test environment with specified configuration"
-      String :env_name
-      String :platform
-      String :browser_version
-      String :os_version
+      attribute :env_name, String
+      attribute :platform, String
+      attribute :browser_version, String
+      attribute :os_version, String
       emits "EnvironmentSetUp"
       then_set :status, to: "idle"
     end
 
-    TeardownEnvironment do
+    command "TeardownEnvironment" do
       description "Destroy a test environment after use"
       reference_to(TestEnvironment)
       given("environment is idle") { status == "idle" }
       emits "EnvironmentTornDown"
     end
 
-    LockEnvironment do
+    command "LockEnvironment" do
       description "Reserve an environment for exclusive use during a test run"
       reference_to(TestEnvironment)
       emits "EnvironmentLocked"
@@ -165,11 +165,11 @@ Hecks.bluebook "QATestLab", version: "2026.04.13.1" do
   end
 
   aggregate "Release", "A software version candidate gated by QA sign-off" do
-    String :release_version
-    String :branch_name
-    String :build_id
-    Integer :bugs_open
-    String :status
+    attribute :release_version, String
+    attribute :branch_name, String
+    attribute :build_id, String
+    attribute :bugs_open, Integer
+    attribute :status, String
     reference_to TestProject
 
     specification "ReleaseClear" do
@@ -177,32 +177,32 @@ Hecks.bluebook "QATestLab", version: "2026.04.13.1" do
     end
 
     value_object "SignOff" do
-      String :approver
-      String :approved_at
-      String :scope
+      attribute :approver, String
+      attribute :approved_at, String
+      attribute :scope, String
     end
 
-    CandidateRelease do
+    command "CandidateRelease" do
       role "ReleaseManager"
       description "Propose a build as a release candidate"
-      String :release_version
-      String :branch_name
-      String :build_id
+      attribute :release_version, String
+      attribute :branch_name, String
+      attribute :build_id, String
       reference_to(TestProject)
       emits "ReleaseCandidated"
     end
 
-    ApproveRelease do
+    command "ApproveRelease" do
       description "Sign off on a release after all tests pass"
       reference_to(Release)
       given("no open bugs") { bugs_open == 0 }
       emits "ReleaseApproved"
     end
 
-    BlockRelease do
+    command "BlockRelease" do
       description "Hold a release due to critical bugs"
       reference_to(Release)
-      String :block_reason
+      attribute :block_reason, String
       emits "ReleaseBlocked"
     end
   end

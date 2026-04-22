@@ -3,30 +3,30 @@ Hecks.bluebook "Optician", version: "2026.04.13.1" do
   category "retail"
 
   aggregate "Frame", "An eyeglass frame available for purchase" do
-    String :frame_id
-    String :brand
-    String :model
-    String :material
-    String :color
-    Float :price
-    Integer :quantity
+    attribute :frame_id, String
+    attribute :brand, String
+    attribute :model, String
+    attribute :material, String
+    attribute :color, String
+    attribute :price, Float
+    attribute :quantity, Integer
     list_of(FrameMeasurement) :measurements
 
     value_object "FrameMeasurement" do
-      String :dimension
-      Float :value_mm
+      attribute :dimension, String
+      attribute :value_mm, Float
     end
 
-    StockFrame do
+    command "StockFrame" do
       role "Buyer"
       description "Add a new frame style to the display inventory"
-      String :frame_id
-      String :brand
-      String :model
-      String :material
-      String :color
-      Float :price
-      Integer :quantity
+      attribute :frame_id, String
+      attribute :brand, String
+      attribute :model, String
+      attribute :material, String
+      attribute :color, String
+      attribute :price, Float
+      attribute :quantity, Integer
       emits "FrameStocked"
       then_set :frame_id, to: :frame_id
       then_set :brand, to: :brand
@@ -37,7 +37,7 @@ Hecks.bluebook "Optician", version: "2026.04.13.1" do
       then_set :quantity, to: :quantity
     end
 
-    DiscontinueFrame do
+    command "DiscontinueFrame" do
       role "Buyer"
       description "Remove a frame from the active catalog"
       reference_to(Frame)
@@ -46,26 +46,26 @@ Hecks.bluebook "Optician", version: "2026.04.13.1" do
   end
 
   aggregate "Lens", "A corrective or protective lens ground to prescription" do
-    String :lens_id
-    String :lens_type
-    String :material
-    String :coating
-    Float :sphere
-    Float :cylinder
-    Integer :axis
-    Float :price
+    attribute :lens_id, String
+    attribute :lens_type, String
+    attribute :material, String
+    attribute :coating, String
+    attribute :sphere, Float
+    attribute :cylinder, Float
+    attribute :axis, Integer
+    attribute :price, Float
 
-    GrindLens do
+    command "GrindLens" do
       role "LabTechnician"
       description "Cut and polish a lens to the prescribed specifications"
-      String :lens_id
-      String :lens_type
-      String :material
-      String :coating
-      Float :sphere
-      Float :cylinder
-      Integer :axis
-      Float :price
+      attribute :lens_id, String
+      attribute :lens_type, String
+      attribute :material, String
+      attribute :coating, String
+      attribute :sphere, Float
+      attribute :cylinder, Float
+      attribute :axis, Integer
+      attribute :price, Float
       emits "LensGround"
       then_set :lens_id, to: :lens_id
       then_set :lens_type, to: :lens_type
@@ -77,36 +77,36 @@ Hecks.bluebook "Optician", version: "2026.04.13.1" do
       then_set :price, to: :price
     end
 
-    ApplyCoating do
+    command "ApplyCoating" do
       role "LabTechnician"
       description "Add anti-reflective, blue-light, or scratch-resistant coating"
       reference_to(Lens)
-      String :coating
+      attribute :coating, String
       emits "CoatingApplied"
       then_set :coating, to: :coating
     end
   end
 
   aggregate "Prescription", "An eye doctor's corrective vision order" do
-    String :prescription_id
-    String :patient_name
-    String :doctor_name
-    String :issue_date
-    String :expiration_date
-    Float :right_sphere
-    Float :left_sphere
-    String :status
+    attribute :prescription_id, String
+    attribute :patient_name, String
+    attribute :doctor_name, String
+    attribute :issue_date, String
+    attribute :expiration_date, String
+    attribute :right_sphere, Float
+    attribute :left_sphere, Float
+    attribute :status, String
 
-    RecordPrescription do
+    command "RecordPrescription" do
       role "Optician"
       description "Enter a prescription from the patient's eye exam"
-      String :prescription_id
-      String :patient_name
-      String :doctor_name
-      String :issue_date
-      String :expiration_date
-      Float :right_sphere
-      Float :left_sphere
+      attribute :prescription_id, String
+      attribute :patient_name, String
+      attribute :doctor_name, String
+      attribute :issue_date, String
+      attribute :expiration_date, String
+      attribute :right_sphere, Float
+      attribute :left_sphere, Float
       emits "PrescriptionRecorded"
       then_set :prescription_id, to: :prescription_id
       then_set :patient_name, to: :patient_name
@@ -118,7 +118,7 @@ Hecks.bluebook "Optician", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    ExpirePrescription do
+    command "ExpirePrescription" do
       role "System"
       description "Mark a prescription as expired past its valid date"
       reference_to(Prescription)
@@ -129,48 +129,48 @@ Hecks.bluebook "Optician", version: "2026.04.13.1" do
   end
 
   aggregate "Fitting", "The process of adjusting frames to a patient's face" do
-    String :fitting_id
-    String :patient_name
-    String :frame_id
-    String :adjustments_made
-    String :satisfaction
+    attribute :fitting_id, String
+    attribute :patient_name, String
+    attribute :frame_id, String
+    attribute :adjustments_made, String
+    attribute :satisfaction, String
 
-    PerformFitting do
+    command "PerformFitting" do
       role "Optician"
       description "Adjust frame temples, nose pads, and alignment for comfort"
-      String :fitting_id
-      String :patient_name
-      String :frame_id
+      attribute :fitting_id, String
+      attribute :patient_name, String
+      attribute :frame_id, String
       emits "FittingPerformed"
       then_set :fitting_id, to: :fitting_id
       then_set :patient_name, to: :patient_name
       then_set :frame_id, to: :frame_id
     end
 
-    RecordSatisfaction do
+    command "RecordSatisfaction" do
       role "Optician"
       description "Note whether the patient is happy with the fit"
       reference_to(Fitting)
-      String :satisfaction
+      attribute :satisfaction, String
       emits "SatisfactionRecorded"
       then_set :satisfaction, to: :satisfaction
     end
   end
 
   aggregate "InsuranceClaim", "A vision insurance claim for reimbursement" do
-    String :claim_id
-    String :patient_name
-    String :insurance_provider
-    Float :amount_claimed
-    String :status
+    attribute :claim_id, String
+    attribute :patient_name, String
+    attribute :insurance_provider, String
+    attribute :amount_claimed, Float
+    attribute :status, String
 
-    SubmitClaim do
+    command "SubmitClaim" do
       role "Staff"
       description "File a claim with the patient's vision insurance"
-      String :claim_id
-      String :patient_name
-      String :insurance_provider
-      Float :amount_claimed
+      attribute :claim_id, String
+      attribute :patient_name, String
+      attribute :insurance_provider, String
+      attribute :amount_claimed, Float
       emits "ClaimSubmitted"
       then_set :claim_id, to: :claim_id
       then_set :patient_name, to: :patient_name
@@ -179,12 +179,12 @@ Hecks.bluebook "Optician", version: "2026.04.13.1" do
       then_set :status, to: "submitted"
     end
 
-    ResolveClaim do
+    command "ResolveClaim" do
       role "Staff"
       description "Record the insurance company's approval or denial"
       reference_to(InsuranceClaim)
       given { status == "submitted" }
-      String :resolution
+      attribute :resolution, String
       emits "ClaimResolved"
       then_set :status, to: :resolution
     end

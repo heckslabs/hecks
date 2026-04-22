@@ -3,26 +3,26 @@ Hecks.bluebook "ChiroQuality", version: "2026.04.13.1" do
   category "healthcare_technology"
 
   aggregate "ChiroVisit", "A chiropractic office visit with adjustments" do
-    String :visit_id
-    String :patient_name
-    String :chiropractor
-    String :chief_complaint
-    String :visit_date
-    String :status
+    attribute :visit_id, String
+    attribute :patient_name, String
+    attribute :chiropractor, String
+    attribute :chief_complaint, String
+    attribute :visit_date, String
+    attribute :status, String
     list_of(Adjustment) :adjustments
     value_object "Adjustment" do
-      String :technique
-      String :region
-      String :direction
+      attribute :technique, String
+      attribute :region, String
+      attribute :direction, String
     end
-    RecordVisit do
+    command "RecordVisit" do
       role "Chiropractor"
       description "Record a chiropractic visit with complaints and adjustments"
-      String :visit_id
-      String :patient_name
-      String :chiropractor
-      String :chief_complaint
-      String :visit_date
+      attribute :visit_id, String
+      attribute :patient_name, String
+      attribute :chiropractor, String
+      attribute :chief_complaint, String
+      attribute :visit_date, String
       emits "VisitRecorded"
       then_set :visit_id, to: :visit_id
       then_set :patient_name, to: :patient_name
@@ -31,7 +31,7 @@ Hecks.bluebook "ChiroQuality", version: "2026.04.13.1" do
       then_set :visit_date, to: :visit_date
       then_set :status, to: "recorded"
     end
-    CloseVisit do
+    command "CloseVisit" do
       role "Chiropractor"
       description "Close the visit and finalize treatment notes"
       reference_to(ChiroVisit)
@@ -42,19 +42,19 @@ Hecks.bluebook "ChiroQuality", version: "2026.04.13.1" do
   end
 
   aggregate "OutcomeMeasure", "A standardized outcome measurement for tracking treatment effectiveness" do
-    String :measure_id
-    String :patient_name
-    String :instrument
-    Float :score
-    String :assessment_date
-    MeasureOutcome do
+    attribute :measure_id, String
+    attribute :patient_name, String
+    attribute :instrument, String
+    attribute :score, Float
+    attribute :assessment_date, String
+    command "MeasureOutcome" do
       role "Chiropractor"
       description "Administer an outcome measurement instrument to a patient"
-      String :measure_id
-      String :patient_name
-      String :instrument
-      Float :score
-      String :assessment_date
+      attribute :measure_id, String
+      attribute :patient_name, String
+      attribute :instrument, String
+      attribute :score, Float
+      attribute :assessment_date, String
       emits "OutcomeMeasured"
       then_set :measure_id, to: :measure_id
       then_set :patient_name, to: :patient_name
@@ -62,7 +62,7 @@ Hecks.bluebook "ChiroQuality", version: "2026.04.13.1" do
       then_set :score, to: :score
       then_set :assessment_date, to: :assessment_date
     end
-    CompareBaseline do
+    command "CompareBaseline" do
       role "System"
       description "Compare current score against baseline to measure progress"
       reference_to(OutcomeMeasure)
@@ -71,21 +71,21 @@ Hecks.bluebook "ChiroQuality", version: "2026.04.13.1" do
   end
 
   aggregate "EvidenceRecord", "A clinical evidence record linking treatments to outcomes" do
-    String :record_id
-    String :treatment_type
-    String :condition
-    Integer :sample_size
-    Float :effect_size
-    String :evidence_level
-    RecordEvidence do
+    attribute :record_id, String
+    attribute :treatment_type, String
+    attribute :condition, String
+    attribute :sample_size, Integer
+    attribute :effect_size, Float
+    attribute :evidence_level, String
+    command "RecordEvidence" do
       role "Researcher"
       description "Record clinical evidence for a treatment and condition pair"
-      String :record_id
-      String :treatment_type
-      String :condition
-      Integer :sample_size
-      Float :effect_size
-      String :evidence_level
+      attribute :record_id, String
+      attribute :treatment_type, String
+      attribute :condition, String
+      attribute :sample_size, Integer
+      attribute :effect_size, Float
+      attribute :evidence_level, String
       emits "EvidenceRecorded"
       then_set :record_id, to: :record_id
       then_set :treatment_type, to: :treatment_type
@@ -94,12 +94,12 @@ Hecks.bluebook "ChiroQuality", version: "2026.04.13.1" do
       then_set :effect_size, to: :effect_size
       then_set :evidence_level, to: :evidence_level
     end
-    AmendEvidence do
+    command "AmendEvidence" do
       role "Researcher"
       description "Amend evidence with new study data"
       reference_to(EvidenceRecord)
-      Float :effect_size
-      Integer :sample_size
+      attribute :effect_size, Float
+      attribute :sample_size, Integer
       emits "EvidenceAmended"
       then_set :effect_size, to: :effect_size
       then_set :sample_size, to: :sample_size
@@ -107,18 +107,18 @@ Hecks.bluebook "ChiroQuality", version: "2026.04.13.1" do
   end
 
   aggregate "QualityReport", "A quality assurance report aggregating outcomes and evidence" do
-    String :report_id
-    String :period
-    Float :avg_outcome_score
-    Integer :total_visits
-    String :status
-    GenerateQualityReport do
+    attribute :report_id, String
+    attribute :period, String
+    attribute :avg_outcome_score, Float
+    attribute :total_visits, Integer
+    attribute :status, String
+    command "GenerateQualityReport" do
       role "System"
       description "Generate a quality report aggregating outcomes for a period"
-      String :report_id
-      String :period
-      Float :avg_outcome_score
-      Integer :total_visits
+      attribute :report_id, String
+      attribute :period, String
+      attribute :avg_outcome_score, Float
+      attribute :total_visits, Integer
       emits "QualityReportGenerated"
       then_set :report_id, to: :report_id
       then_set :period, to: :period
@@ -126,7 +126,7 @@ Hecks.bluebook "ChiroQuality", version: "2026.04.13.1" do
       then_set :total_visits, to: :total_visits
       then_set :status, to: "generated"
     end
-    ApproveReport do
+    command "ApproveReport" do
       role "Director"
       description "Approve the quality report for publication"
       reference_to(QualityReport)

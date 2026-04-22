@@ -2,19 +2,19 @@ Hecks.bluebook "Podiatry" do
   vision "Foot and ankle medicine — patients, conditions, custom orthotics, procedures, and follow-up care"
 
   aggregate "Patient", "A person receiving podiatric foot and ankle care" do
-    String :name
-    String :date_of_birth
-    String :diabetic_status
-    String :insurance_id
-    String :status
+    attribute :name, String
+    attribute :date_of_birth, String
+    attribute :diabetic_status, String
+    attribute :insurance_id, String
+    attribute :status, String
 
-    RegisterPatient do
+    command "RegisterPatient" do
       role "Receptionist"
       description "Intake a new podiatry patient"
-      String :name
-      String :date_of_birth
-      String :diabetic_status
-      String :insurance_id
+      attribute :name, String
+      attribute :date_of_birth, String
+      attribute :diabetic_status, String
+      attribute :insurance_id, String
       emits "PatientRegistered"
       then_set :name, to: :name
       then_set :date_of_birth, to: :date_of_birth
@@ -23,7 +23,7 @@ Hecks.bluebook "Podiatry" do
       then_set :status, to: "active"
     end
 
-    FlagHighRisk do
+    command "FlagHighRisk" do
       role "Podiatrist"
       description "Mark a patient as high-risk due to diabetes or vascular disease"
       reference_to(Patient)
@@ -33,29 +33,29 @@ Hecks.bluebook "Podiatry" do
   end
 
   aggregate "FootCondition", "A diagnosed condition of the foot or ankle" do
-    String :patient_name
-    String :condition_name
-    String :affected_foot
-    String :severity
-    String :onset_date
-    String :status
+    attribute :patient_name, String
+    attribute :condition_name, String
+    attribute :affected_foot, String
+    attribute :severity, String
+    attribute :onset_date, String
+    attribute :status, String
     reference_to Patient
 
     value_object "ClinicalFinding" do
-      String :finding
-      String :location
-      String :notes
+      attribute :finding, String
+      attribute :location, String
+      attribute :notes, String
     end
 
-    DiagnoseCondition do
+    command "DiagnoseCondition" do
       role "Podiatrist"
       description "Record a foot or ankle condition diagnosis"
       reference_to(Patient)
-      String :patient_name
-      String :condition_name
-      String :affected_foot
-      String :severity
-      String :onset_date
+      attribute :patient_name, String
+      attribute :condition_name, String
+      attribute :affected_foot, String
+      attribute :severity, String
+      attribute :onset_date, String
       emits "ConditionDiagnosed"
       then_set :patient_name, to: :patient_name
       then_set :condition_name, to: :condition_name
@@ -65,7 +65,7 @@ Hecks.bluebook "Podiatry" do
       then_set :status, to: "active"
     end
 
-    ResolveCondition do
+    command "ResolveCondition" do
       role "Podiatrist"
       description "Mark a condition as resolved after successful treatment"
       reference_to(FootCondition)
@@ -76,31 +76,31 @@ Hecks.bluebook "Podiatry" do
   end
 
   aggregate "Orthotic", "A custom-fabricated foot orthotic device" do
-    String :patient_name
-    String :orthotic_type
-    String :material
-    String :corrections
-    String :order_date
-    String :status
+    attribute :patient_name, String
+    attribute :orthotic_type, String
+    attribute :material, String
+    attribute :corrections, String
+    attribute :order_date, String
+    attribute :status, String
     reference_to Patient
     reference_to FootCondition
 
     value_object "CastMeasurement" do
-      Float :arch_height
-      Float :heel_width
-      Float :forefoot_width
+      attribute :arch_height, Float
+      attribute :heel_width, Float
+      attribute :forefoot_width, Float
     end
 
-    OrderOrthotic do
+    command "OrderOrthotic" do
       role "Podiatrist"
       description "Prescribe a custom orthotic based on biomechanical assessment"
       reference_to(Patient)
       reference_to(FootCondition)
-      String :patient_name
-      String :orthotic_type
-      String :material
-      String :corrections
-      String :order_date
+      attribute :patient_name, String
+      attribute :orthotic_type, String
+      attribute :material, String
+      attribute :corrections, String
+      attribute :order_date, String
       emits "OrthoticOrdered"
       then_set :patient_name, to: :patient_name
       then_set :orthotic_type, to: :orthotic_type
@@ -110,7 +110,7 @@ Hecks.bluebook "Podiatry" do
       then_set :status, to: "ordered"
     end
 
-    FitOrthotic do
+    command "FitOrthotic" do
       role "Podiatrist"
       description "Fit and adjust the orthotic to the patient's foot"
       reference_to(Orthotic)
@@ -119,35 +119,35 @@ Hecks.bluebook "Podiatry" do
       then_set :status, to: "fitted"
     end
 
-    AdjustOrthotic do
+    command "AdjustOrthotic" do
       role "Podiatrist"
       description "Modify the orthotic after a wear-in period"
       reference_to(Orthotic)
-      String :corrections
+      attribute :corrections, String
       emits "OrthoticAdjusted"
       then_set :corrections, to: :corrections
     end
   end
 
   aggregate "FootProcedure", "A surgical or non-surgical podiatric procedure" do
-    String :patient_name
-    String :procedure_name
-    String :procedure_date
-    String :anesthesia_type
-    String :notes
-    String :status
+    attribute :patient_name, String
+    attribute :procedure_name, String
+    attribute :procedure_date, String
+    attribute :anesthesia_type, String
+    attribute :notes, String
+    attribute :status, String
     reference_to Patient
     reference_to FootCondition
 
-    ScheduleProcedure do
+    command "ScheduleProcedure" do
       role "Podiatrist"
       description "Plan a podiatric procedure for the patient"
       reference_to(Patient)
       reference_to(FootCondition)
-      String :patient_name
-      String :procedure_name
-      String :procedure_date
-      String :anesthesia_type
+      attribute :patient_name, String
+      attribute :procedure_name, String
+      attribute :procedure_date, String
+      attribute :anesthesia_type, String
       emits "ProcedureScheduled"
       then_set :patient_name, to: :patient_name
       then_set :procedure_name, to: :procedure_name
@@ -156,11 +156,11 @@ Hecks.bluebook "Podiatry" do
       then_set :status, to: "scheduled"
     end
 
-    CompleteProcedure do
+    command "CompleteProcedure" do
       role "Podiatrist"
       description "Document procedure completion and operative notes"
       reference_to(FootProcedure)
-      String :notes
+      attribute :notes, String
       given("must be scheduled") { status == "scheduled" }
       emits "ProcedureCompleted"
       then_set :notes, to: :notes
@@ -169,21 +169,21 @@ Hecks.bluebook "Podiatry" do
   end
 
   aggregate "PodiatryFollowUp", "A follow-up visit after treatment or procedure" do
-    String :patient_name
-    String :reason
-    String :scheduled_date
-    String :wound_status
-    String :notes
-    String :status
+    attribute :patient_name, String
+    attribute :reason, String
+    attribute :scheduled_date, String
+    attribute :wound_status, String
+    attribute :notes, String
+    attribute :status, String
     reference_to Patient
 
-    ScheduleFollowUp do
+    command "ScheduleFollowUp" do
       role "Receptionist"
       description "Book a follow-up appointment for post-treatment monitoring"
       reference_to(Patient)
-      String :patient_name
-      String :reason
-      String :scheduled_date
+      attribute :patient_name, String
+      attribute :reason, String
+      attribute :scheduled_date, String
       emits "FollowUpScheduled"
       then_set :patient_name, to: :patient_name
       then_set :reason, to: :reason
@@ -191,12 +191,12 @@ Hecks.bluebook "Podiatry" do
       then_set :status, to: "scheduled"
     end
 
-    CompleteFollowUp do
+    command "CompleteFollowUp" do
       role "Podiatrist"
       description "Document healing progress and follow-up findings"
       reference_to(PodiatryFollowUp)
-      String :wound_status
-      String :notes
+      attribute :wound_status, String
+      attribute :notes, String
       given("must be scheduled") { status == "scheduled" }
       emits "FollowUpCompleted"
       then_set :wound_status, to: :wound_status

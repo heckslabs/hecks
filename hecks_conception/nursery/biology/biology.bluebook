@@ -5,39 +5,39 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
   # === Cell Biology ===
 
   aggregate "Cell", "The fundamental unit of life — membrane-bound, self-replicating, metabolizing" do
-    String :cell_type
-    String :name
-    String :organism_type
-    String :phase
-    Float :energy_level
+    attribute :cell_type, String
+    attribute :name, String
+    attribute :organism_type, String
+    attribute :phase, String
+    attribute :energy_level, Float
     list_of(Organelle) :organelles
-    Float :membrane_integrity
-    String :differentiation_state
+    attribute :membrane_integrity, Float
+    attribute :differentiation_state, String
 
     value_object "Organelle" do
-      String :name
-      String :function
-      Integer :count
-      String :membrane_bound
+      attribute :name, String
+      attribute :function, String
+      attribute :count, Integer
+      attribute :membrane_bound, String
     end
 
     value_object "Cytoplasm" do
-      Float :volume
-      Float :ph
-      Float :ion_concentration
+      attribute :volume, Float
+      attribute :ph, Float
+      attribute :ion_concentration, Float
     end
 
     value_object "Nucleus" do
-      Integer :chromosome_count
-      String :ploidy
-      String :envelope_intact
+      attribute :chromosome_count, Integer
+      attribute :ploidy, String
+      attribute :envelope_intact, String
     end
 
-    CultureCell do
+    command "CultureCell" do
       role "Biologist"
       description "Instantiate a new cell with its type and organism origin"
-      String :name
-      String :organism_type
+      attribute :name, String
+      attribute :organism_type, String
       emits "CellCreated"
       then_set :cell_type, to: "stem"
       then_set :name, to: :name
@@ -47,39 +47,39 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       then_set :energy_level, to: 100.0
     end
 
-    Divide do
+    command "Divide" do
       role "Biologist"
       description "Trigger cell division — mitosis for somatic, meiosis for gametes"
       reference_to(Cell)
-      String :division_type
+      attribute :division_type, String
       given { phase == "interphase" }
       given { membrane_integrity > 0.5 }
       emits "CellDivided"
       then_set :phase, to: "dividing"
     end
 
-    Differentiate do
+    command "Differentiate" do
       role "Biologist"
       description "Commit a stem cell to a specialized fate — neuron, muscle, epithelial"
       reference_to(Cell)
-      String :target_type
-      String :signals
+      attribute :target_type, String
+      attribute :signals, String
       given { cell_type == "stem" }
       emits "CellDifferentiated"
       then_set :differentiation_state, to: :target_type
       then_set :cell_type, to: :target_type
     end
 
-    Metabolize do
+    command "Metabolize" do
       role "System"
       description "Convert nutrients to energy — aerobic or anaerobic respiration"
       reference_to(Cell)
-      String :pathway
-      String :substrate
+      attribute :pathway, String
+      attribute :substrate, String
       emits "CellMetabolized"
     end
 
-    TriggerApoptosis do
+    command "TriggerApoptosis" do
       role "System"
       description "Programmed cell death — clean, orderly self-destruction"
       reference_to(Cell)
@@ -88,18 +88,18 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       then_set :membrane_integrity, to: 0.0
     end
 
-    EnterPhase do
+    command "EnterPhase" do
       role "System"
       description "Advance the cell cycle — G1, S, G2, M"
       reference_to(Cell)
       emits "PhaseEntered"
     end
 
-    RepairMembrane do
+    command "RepairMembrane" do
       role "System"
       description "Restore membrane integrity after damage"
       reference_to(Cell)
-      Float :integrity
+      attribute :integrity, Float
       emits "MembraneRepaired"
       then_set :membrane_integrity, to: :integrity
     end
@@ -118,43 +118,43 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
   # === DNA & Genetics Molecular ===
 
   aggregate "DNA", "The molecule of heredity — nucleotide sequence encoding life's instructions" do
-    String :sequence
-    String :strand_type
-    Integer :length
-    String :organism
+    attribute :sequence, String
+    attribute :strand_type, String
+    attribute :length, Integer
+    attribute :organism, String
     list_of(Gene) :genes
     list_of(Codon) :codons
-    Float :gc_content
-    Float :integrity
+    attribute :gc_content, Float
+    attribute :integrity, Float
 
     value_object "Gene" do
-      String :name
-      String :locus
-      Integer :start_position
-      Integer :end_position
-      String :strand
-      String :function
+      attribute :name, String
+      attribute :locus, String
+      attribute :start_position, Integer
+      attribute :end_position, Integer
+      attribute :strand, String
+      attribute :function, String
     end
 
     value_object "Codon" do
-      String :triplet
-      String :amino_acid
-      Integer :position
+      attribute :triplet, String
+      attribute :amino_acid, String
+      attribute :position, Integer
     end
 
     value_object "Nucleotide" do
-      String :base
-      String :sugar
-      String :phosphate
-      Integer :position
+      attribute :base, String
+      attribute :sugar, String
+      attribute :phosphate, String
+      attribute :position, Integer
     end
 
-    SequenceDNA do
+    command "SequenceDNA" do
       role "Geneticist"
       description "Read and record a DNA sequence with its gene annotations"
-      String :sequence
-      String :organism
-      String :strand_type
+      attribute :sequence, String
+      attribute :organism, String
+      attribute :strand_type, String
       emits "DNASequenced"
       then_set :sequence, to: :sequence
       then_set :organism, to: :organism
@@ -162,60 +162,60 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       then_set :integrity, to: 1.0
     end
 
-    Replicate do
+    command "Replicate" do
       role "System"
       description "Copy the DNA double helix — semiconservative replication"
       reference_to(DNA)
-      String :origin_of_replication
+      attribute :origin_of_replication, String
       given { integrity > 0.8 }
       emits "DNAReplicated"
     end
 
-    Transcribe do
+    command "Transcribe" do
       role "System"
       description "Synthesize mRNA from a gene — RNA polymerase reads template strand"
       reference_to(DNA)
-      String :gene_name
-      String :promoter
+      attribute :gene_name, String
+      attribute :promoter, String
       emits "GeneTranscribed"
     end
 
-    Mutate do
+    command "Mutate" do
       role "System"
       description "Introduce a change — point mutation, insertion, deletion, frameshift"
       reference_to(DNA)
-      String :mutation_type
-      Integer :position
-      String :original_base
-      String :new_base
+      attribute :mutation_type, String
+      attribute :position, Integer
+      attribute :original_base, String
+      attribute :new_base, String
       emits "DNAMutated"
     end
 
-    RepairDNA do
+    command "RepairDNA" do
       role "System"
       description "Fix DNA damage — mismatch repair, excision repair, recombination"
       reference_to(DNA)
-      String :repair_mechanism
-      Integer :damage_site
+      attribute :repair_mechanism, String
+      attribute :damage_site, Integer
       emits "DNARepaired"
       then_set :integrity, to: 1.0
     end
 
-    Methylate do
+    command "Methylate" do
       role "System"
       description "Add methyl groups to DNA — epigenetic silencing of gene expression"
       reference_to(DNA)
-      String :gene_name
-      String :methylation_pattern
+      attribute :gene_name, String
+      attribute :methylation_pattern, String
       emits "DNAMethylated"
     end
 
-    Splice do
+    command "Splice" do
       role "System"
       description "Remove introns and join exons from pre-mRNA — post-transcriptional processing"
       reference_to(DNA)
-      String :gene_name
-      String :exons_retained
+      attribute :gene_name, String
+      attribute :exons_retained, String
       emits "RNASpliced"
     end
   end
@@ -223,37 +223,37 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
   # === Protein ===
 
   aggregate "Protein", "A folded chain of amino acids — the workhorse molecule of the cell" do
-    String :name
-    String :sequence
-    Integer :length
-    String :primary_structure
-    String :secondary_structure
-    String :tertiary_structure
-    String :quaternary_structure
-    String :function
-    String :folding_state
-    String :active
+    attribute :name, String
+    attribute :sequence, String
+    attribute :length, Integer
+    attribute :primary_structure, String
+    attribute :secondary_structure, String
+    attribute :tertiary_structure, String
+    attribute :quaternary_structure, String
+    attribute :function, String
+    attribute :folding_state, String
+    attribute :active, String
     list_of(AminoAcid) :amino_acids
 
     value_object "AminoAcid" do
-      String :name
-      String :abbreviation
-      Integer :position
-      String :hydrophobic
-      String :charge
+      attribute :name, String
+      attribute :abbreviation, String
+      attribute :position, Integer
+      attribute :hydrophobic, String
+      attribute :charge, String
     end
 
     value_object "ActiveSite" do
-      String :residues
-      String :substrate
-      String :specificity
+      attribute :residues, String
+      attribute :substrate, String
+      attribute :specificity, String
     end
 
-    Synthesize do
+    command "Synthesize" do
       role "System"
       description "Build a protein on the ribosome — translate mRNA to amino acid chain"
-      String :name
-      String :sequence
+      attribute :name, String
+      attribute :sequence, String
       emits "ProteinSynthesized"
       then_set :name, to: :name
       then_set :sequence, to: :sequence
@@ -262,12 +262,12 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       then_set :active, to: "false"
     end
 
-    Fold do
+    command "Fold" do
       role "System"
       description "Achieve native conformation — chaperone-assisted or spontaneous folding"
       reference_to(Protein)
-      String :secondary_structure
-      String :tertiary_structure
+      attribute :secondary_structure, String
+      attribute :tertiary_structure, String
       given { folding_state == "unfolded" }
       emits "ProteinFolded"
       then_set :secondary_structure, to: :secondary_structure
@@ -276,43 +276,43 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       then_set :active, to: "true"
     end
 
-    Denature do
+    command "Denature" do
       role "System"
       description "Unfold due to heat, pH, or chemical stress — lose 3D structure"
       reference_to(Protein)
-      String :cause
+      attribute :cause, String
       given { folding_state == "folded" }
       emits "ProteinDenatured"
       then_set :folding_state, to: "denatured"
       then_set :active, to: "false"
     end
 
-    Catalyze do
+    command "Catalyze" do
       role "System"
       description "Enzyme action — lower activation energy and convert substrate to product"
       reference_to(Protein)
-      String :substrate
-      String :product
+      attribute :substrate, String
+      attribute :product, String
       given { active == "true" }
       given { function == "enzyme" }
       emits "EnzymeCatalyzed"
     end
 
-    Phosphorylate do
+    command "Phosphorylate" do
       role "System"
       description "Add phosphate group — kinase-mediated activation or deactivation"
       reference_to(Protein)
-      String :site
-      String :kinase
+      attribute :site, String
+      attribute :kinase, String
       emits "ProteinPhosphorylated"
     end
 
-    Bind do
+    command "Bind" do
       role "System"
       description "Attach to a ligand, receptor, or another protein — molecular recognition"
       reference_to(Protein)
-      String :target
-      Float :binding_affinity
+      attribute :target, String
+      attribute :binding_affinity, Float
       emits "ProteinBound"
     end
 
@@ -328,46 +328,46 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
   # === Organism ===
 
   aggregate "Organism", "A living being — classified by taxonomy, shaped by traits, driven by evolution" do
-    String :species_name
-    String :common_name
-    String :domain
-    String :kingdom
-    String :phylum
-    String :class_name
-    String :order
-    String :family
-    String :genus
+    attribute :species_name, String
+    attribute :common_name, String
+    attribute :domain, String
+    attribute :kingdom, String
+    attribute :phylum, String
+    attribute :class_name, String
+    attribute :order, String
+    attribute :family, String
+    attribute :genus, String
     list_of(Trait) :traits
-    Float :fitness
-    Integer :generation
-    String :alive
+    attribute :fitness, Float
+    attribute :generation, Integer
+    attribute :alive, String
 
     value_object "Trait" do
-      String :name
-      String :value
-      String :heritable
-      String :dominant
+      attribute :name, String
+      attribute :value, String
+      attribute :heritable, String
+      attribute :dominant, String
     end
 
     value_object "Taxonomy" do
-      String :domain
-      String :kingdom
-      String :phylum
-      String :class_name
-      String :order
-      String :family
-      String :genus
-      String :species
+      attribute :domain, String
+      attribute :kingdom, String
+      attribute :phylum, String
+      attribute :class_name, String
+      attribute :order, String
+      attribute :family, String
+      attribute :genus, String
+      attribute :species, String
     end
 
-    Classify do
+    command "Classify" do
       role "Biologist"
       description "Place an organism in the Linnaean hierarchy — domain through species"
-      String :species_name
-      String :common_name
-      String :domain
-      String :kingdom
-      String :phylum
+      attribute :species_name, String
+      attribute :common_name, String
+      attribute :domain, String
+      attribute :kingdom, String
+      attribute :phylum, String
       emits "OrganismClassified"
       then_set :species_name, to: :species_name
       then_set :common_name, to: :common_name
@@ -378,40 +378,40 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       then_set :generation, to: 1
     end
 
-    Evolve do
+    command "Evolve" do
       role "System"
       description "Accumulate heritable changes across generations — driven by selection pressure"
       reference_to(Organism)
-      String :trait_name
-      String :new_value
-      String :mechanism
+      attribute :trait_name, String
+      attribute :new_value, String
+      attribute :mechanism, String
       emits "OrganismEvolved"
     end
 
-    Adapt do
+    command "Adapt" do
       role "System"
       description "Express a beneficial trait in response to environmental pressure"
       reference_to(Organism)
-      String :pressure
-      String :adaptation
+      attribute :pressure, String
+      attribute :adaptation, String
       emits "OrganismAdapted"
     end
 
-    Reproduce do
+    command "Reproduce" do
       role "System"
       description "Produce offspring — sexual or asexual reproduction"
       reference_to(Organism)
-      String :reproduction_type
-      String :mate_id
+      attribute :reproduction_type, String
+      attribute :mate_id, String
       given { alive == "true" }
       emits "OrganismReproduced"
     end
 
-    Kill do
+    command "Kill" do
       role "System"
       description "The organism dies — natural causes, predation, or disease"
       reference_to(Organism)
-      String :cause
+      attribute :cause, String
       emits "OrganismDied"
       then_set :alive, to: "false"
     end
@@ -420,43 +420,43 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
   # === Ecosystem ===
 
   aggregate "Ecosystem", "A community of organisms and their environment — energy flows, matter cycles" do
-    String :name
-    String :biome
-    Float :area
+    attribute :name, String
+    attribute :biome, String
+    attribute :area, Float
     list_of(Population) :populations
     list_of(TrophicLevel) :trophic_levels
-    Float :energy_input
-    Float :biodiversity_index
-    String :status
+    attribute :energy_input, Float
+    attribute :biodiversity_index, Float
+    attribute :status, String
 
     value_object "Population" do
-      String :species_name
-      Integer :count
-      Float :growth_rate
-      Integer :carrying_capacity
-      String :trophic_level
+      attribute :species_name, String
+      attribute :count, Integer
+      attribute :growth_rate, Float
+      attribute :carrying_capacity, Integer
+      attribute :trophic_level, String
     end
 
     value_object "TrophicLevel" do
-      Integer :level
-      String :name
-      Float :energy_available
-      Integer :species_count
+      attribute :level, Integer
+      attribute :name, String
+      attribute :energy_available, Float
+      attribute :species_count, Integer
     end
 
     value_object "FoodWebLink" do
-      String :predator
-      String :prey
-      Float :energy_transfer
+      attribute :predator, String
+      attribute :prey, String
+      attribute :energy_transfer, Float
     end
 
-    EstablishEcosystem do
+    command "EstablishEcosystem" do
       role "Ecologist"
       description "Define a new ecosystem — biome, area, initial energy input"
-      String :name
-      String :biome
-      Float :area
-      Float :energy_input
+      attribute :name, String
+      attribute :biome, String
+      attribute :area, Float
+      attribute :energy_input, Float
       emits "EcosystemEstablished"
       then_set :name, to: :name
       then_set :biome, to: :biome
@@ -465,48 +465,48 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       then_set :status, to: "nascent"
     end
 
-    AddSpecies do
+    command "AddSpecies" do
       role "Ecologist"
       description "Introduce a species population to the ecosystem"
       reference_to(Ecosystem)
-      String :species_name
-      Integer :initial_count
-      String :trophic_level
+      attribute :species_name, String
+      attribute :initial_count, Integer
+      attribute :trophic_level, String
       emits "SpeciesAdded"
     end
 
-    TrackPopulation do
+    command "TrackPopulation" do
       role "Ecologist"
       description "Record population size change — growth, decline, or stable"
       reference_to(Ecosystem)
-      String :species_name
-      Integer :new_count
-      Float :growth_rate
+      attribute :species_name, String
+      attribute :new_count, Integer
+      attribute :growth_rate, Float
       emits "PopulationTracked"
     end
 
-    ModelFoodWeb do
+    command "ModelFoodWeb" do
       role "Ecologist"
       description "Map predator-prey relationships and energy transfer between trophic levels"
       reference_to(Ecosystem)
       emits "FoodWebModeled"
     end
 
-    MeasureBiodiversity do
+    command "MeasureBiodiversity" do
       role "Ecologist"
       description "Calculate species richness and evenness — Shannon or Simpson index"
       reference_to(Ecosystem)
-      Float :biodiversity_index
+      attribute :biodiversity_index, Float
       emits "BiodiversityMeasured"
       then_set :biodiversity_index, to: :biodiversity_index
     end
 
-    RemoveSpecies do
+    command "RemoveSpecies" do
       role "System"
       description "A species goes locally extinct — cascading effects on the food web"
       reference_to(Ecosystem)
-      String :species_name
-      String :cause
+      attribute :species_name, String
+      attribute :cause, String
       emits "SpeciesRemoved"
     end
 
@@ -521,35 +521,35 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
   # === Genetics (Inheritance) ===
 
   aggregate "Genetics", "Heredity and variation — how traits pass from parent to offspring" do
-    String :organism_name
-    String :genotype
-    String :phenotype
-    Integer :chromosome_count
+    attribute :organism_name, String
+    attribute :genotype, String
+    attribute :phenotype, String
+    attribute :chromosome_count, Integer
     list_of(Allele) :alleles
-    String :ploidy
-    String :genome_mapped
+    attribute :ploidy, String
+    attribute :genome_mapped, String
 
     value_object "Allele" do
-      String :gene_name
-      String :variant
-      String :dominant
-      String :locus
-      String :expression
+      attribute :gene_name, String
+      attribute :variant, String
+      attribute :dominant, String
+      attribute :locus, String
+      attribute :expression, String
     end
 
     value_object "PunnettResult" do
-      String :cross_type
-      String :parent_a_genotype
-      String :parent_b_genotype
-      String :offspring_ratios
+      attribute :cross_type, String
+      attribute :parent_a_genotype, String
+      attribute :parent_b_genotype, String
+      attribute :offspring_ratios, String
     end
 
-    DefineGenotype do
+    command "DefineGenotype" do
       role "Geneticist"
       description "Record the genetic makeup of an organism — alleles at each locus"
-      String :organism_name
-      String :genotype
-      String :ploidy
+      attribute :organism_name, String
+      attribute :genotype, String
+      attribute :ploidy, String
       emits "GenotypeDefined"
       then_set :organism_name, to: :organism_name
       then_set :genotype, to: :genotype
@@ -557,51 +557,51 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       then_set :genome_mapped, to: "false"
     end
 
-    CrossBreed do
+    command "CrossBreed" do
       role "Geneticist"
       description "Mendelian cross — combine alleles from two parents to predict offspring"
       reference_to(Genetics)
-      String :mate_genotype
-      String :cross_type
+      attribute :mate_genotype, String
+      attribute :cross_type, String
       emits "CrossPerformed"
     end
 
-    ExpressGene do
+    command "ExpressGene" do
       role "System"
       description "Translate genotype to phenotype — dominance, codominance, epistasis"
       reference_to(Genetics)
-      String :gene_name
-      String :phenotype
+      attribute :gene_name, String
+      attribute :phenotype, String
       emits "GeneExpressed"
       then_set :phenotype, to: :phenotype
     end
 
-    MapGenome do
+    command "MapGenome" do
       role "Geneticist"
       description "Determine locations of all genes on chromosomes — linkage analysis"
       reference_to(Genetics)
-      Integer :chromosome_count
+      attribute :chromosome_count, Integer
       emits "GenomeMapped"
       then_set :chromosome_count, to: :chromosome_count
       then_set :genome_mapped, to: "true"
     end
 
-    IdentifyTrait do
+    command "IdentifyTrait" do
       role "Geneticist"
       description "Link a phenotypic trait to its underlying allele combination"
       reference_to(Genetics)
-      String :trait_name
-      String :allele_combination
+      attribute :trait_name, String
+      attribute :allele_combination, String
       emits "TraitIdentified"
     end
 
-    DetectMutation do
+    command "DetectMutation" do
       role "Geneticist"
       description "Find a genetic variant that differs from the reference — SNP, indel, CNV"
       reference_to(Genetics)
-      String :gene_name
-      String :mutation_type
-      String :effect
+      attribute :gene_name, String
+      attribute :mutation_type, String
+      attribute :effect, String
       emits "MutationDetected"
     end
   end
@@ -609,33 +609,33 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
   # === Evolution ===
 
   aggregate "Evolution", "Change in heritable traits over generations — the engine of biodiversity" do
-    String :lineage_name
-    Integer :generation_count
-    String :selection_pressure
-    String :fitness_landscape
-    Integer :speciation_events
+    attribute :lineage_name, String
+    attribute :generation_count, Integer
+    attribute :selection_pressure, String
+    attribute :fitness_landscape, String
+    attribute :speciation_events, Integer
     list_of(Adaptation) :adaptation_history
-    Float :divergence_time
+    attribute :divergence_time, Float
 
     value_object "Adaptation" do
-      String :trait
-      String :pressure
-      Integer :generation_acquired
-      Float :fitness_delta
+      attribute :trait, String
+      attribute :pressure, String
+      attribute :generation_acquired, Integer
+      attribute :fitness_delta, Float
     end
 
     value_object "SelectionEvent" do
-      String :type
-      String :trait_favored
-      Float :survivors_fraction
-      Integer :generation
+      attribute :type, String
+      attribute :trait_favored, String
+      attribute :survivors_fraction, Float
+      attribute :generation, Integer
     end
 
-    TrackLineage do
+    command "TrackLineage" do
       role "Biologist"
       description "Begin tracking an evolutionary lineage through time"
-      String :lineage_name
-      String :selection_pressure
+      attribute :lineage_name, String
+      attribute :selection_pressure, String
       emits "LineageTracked"
       then_set :lineage_name, to: :lineage_name
       then_set :selection_pressure, to: :selection_pressure
@@ -643,53 +643,53 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       then_set :speciation_events, to: 0
     end
 
-    SelectFittest do
+    command "SelectFittest" do
       role "System"
       description "Natural selection — differential survival based on fitness"
       reference_to(Evolution)
-      String :trait_favored
-      Float :survivors_fraction
+      attribute :trait_favored, String
+      attribute :survivors_fraction, Float
       emits "FittestSelected"
     end
 
-    Speciate do
+    command "Speciate" do
       role "System"
       description "One lineage splits into two — allopatric, sympatric, or parapatric"
       reference_to(Evolution)
-      String :mechanism
-      String :new_species_name
-      String :barrier
+      attribute :mechanism, String
+      attribute :new_species_name, String
+      attribute :barrier, String
       emits "SpeciationOccurred"
     end
 
-    TrackAdaptation do
+    command "TrackAdaptation" do
       role "Biologist"
       description "Record an adaptation event — trait, selection pressure, fitness change"
       reference_to(Evolution)
-      String :trait
-      String :pressure
-      Float :fitness_delta
+      attribute :trait, String
+      attribute :pressure, String
+      attribute :fitness_delta, Float
       emits "AdaptationTracked"
     end
 
-    DateDivergence do
+    command "DateDivergence" do
       role "Biologist"
       description "Estimate when two lineages split — molecular clock, fossil calibration"
       reference_to(Evolution)
-      String :sister_lineage
-      Float :divergence_time
-      String :method
+      attribute :sister_lineage, String
+      attribute :divergence_time, Float
+      attribute :method, String
       emits "DivergenceDated"
       then_set :divergence_time, to: :divergence_time
     end
 
-    MeasureDrift do
+    command "MeasureDrift" do
       role "System"
       description "Random changes in allele frequency — genetic drift in small populations"
       reference_to(Evolution)
-      Integer :population_size
-      String :allele
-      Float :frequency_change
+      attribute :population_size, Integer
+      attribute :allele, String
+      attribute :frequency_change, Float
       emits "DriftMeasured"
     end
   end
@@ -697,39 +697,39 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
   # === Neuroscience ===
 
   aggregate "Neuron", "The signaling cell of the nervous system — electrical impulse meets chemical message" do
-    String :neuron_type
-    String :name
-    Float :resting_potential
-    Float :threshold
-    Float :current_potential
-    String :state
-    String :neurotransmitter
+    attribute :neuron_type, String
+    attribute :name, String
+    attribute :resting_potential, Float
+    attribute :threshold, Float
+    attribute :current_potential, Float
+    attribute :state, String
+    attribute :neurotransmitter, String
     list_of(Synapse) :synapses
-    Integer :dendrite_count
+    attribute :dendrite_count, Integer
 
     value_object "Synapse" do
-      String :pre_neuron
-      String :post_neuron
-      String :neurotransmitter
-      Float :strength
-      String :type
+      attribute :pre_neuron, String
+      attribute :post_neuron, String
+      attribute :neurotransmitter, String
+      attribute :strength, Float
+      attribute :type, String
     end
 
     value_object "Neurotransmitter" do
-      String :name
-      String :type
-      String :receptor
-      String :effect
+      attribute :name, String
+      attribute :type, String
+      attribute :receptor, String
+      attribute :effect, String
     end
 
-    DefineNeuron do
+    command "DefineNeuron" do
       role "Neuroscientist"
       description "Define a neuron with its type, threshold, and resting potential"
-      String :neuron_type
-      String :name
-      Float :resting_potential
-      Float :threshold
-      String :neurotransmitter
+      attribute :neuron_type, String
+      attribute :name, String
+      attribute :resting_potential, Float
+      attribute :threshold, Float
+      attribute :neurotransmitter, String
       emits "NeuronCreated"
       then_set :neuron_type, to: :neuron_type
       then_set :name, to: :name
@@ -740,25 +740,25 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       then_set :current_potential, to: :resting_potential
     end
 
-    FireNeuron do
+    command "FireNeuron" do
       role "System"
       description "Generate an action potential — all-or-nothing depolarization"
       reference_to(Neuron)
-      Float :stimulus_strength
+      attribute :stimulus_strength, Float
       given { state == "resting" }
       emits "NeuronFired"
       then_set :state, to: "firing"
     end
 
-    Depolarize do
+    command "Depolarize" do
       role "System"
       description "Na+ channels open — membrane potential rises toward threshold"
       reference_to(Neuron)
-      Float :potential_change
+      attribute :potential_change, Float
       emits "NeuronDepolarized"
     end
 
-    Repolarize do
+    command "Repolarize" do
       role "System"
       description "K+ channels open — membrane potential returns to resting"
       reference_to(Neuron)
@@ -766,40 +766,40 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       then_set :state, to: "refractory"
     end
 
-    ReleaseSynapse do
+    command "ReleaseSynapse" do
       role "System"
       description "Vesicles fuse with presynaptic membrane — neurotransmitter floods the cleft"
       reference_to(Neuron)
-      String :target_neuron
-      Float :amount
+      attribute :target_neuron, String
+      attribute :amount, Float
       given { state == "firing" }
       emits "SynapseReleased"
     end
 
-    PropagateSignal do
+    command "PropagateSignal" do
       role "System"
       description "Action potential travels along axon — saltatory or continuous conduction"
       reference_to(Neuron)
-      String :conduction_type
-      Float :velocity
+      attribute :conduction_type, String
+      attribute :velocity, Float
       given { state == "firing" }
       emits "SignalPropagated"
     end
 
-    FormMemory do
+    command "FormMemory" do
       role "System"
       description "Strengthen synaptic connection — long-term potentiation"
       reference_to(Neuron)
-      String :synapse_target
-      Float :strength_increase
+      attribute :synapse_target, String
+      attribute :strength_increase, Float
       emits "MemoryFormed"
     end
 
-    Inhibit do
+    command "Inhibit" do
       role "System"
       description "Hyperpolarize — inhibitory postsynaptic potential prevents firing"
       reference_to(Neuron)
-      String :inhibitor
+      attribute :inhibitor, String
       emits "NeuronInhibited"
       then_set :state, to: "inhibited"
     end
@@ -817,42 +817,42 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
   # === Immunology ===
 
   aggregate "ImmuneResponse", "The body's defense — recognition, attack, memory" do
-    String :pathogen_name
-    String :pathogen_type
-    String :response_type
-    String :antibody_generated
-    String :severity
-    String :status
+    attribute :pathogen_name, String
+    attribute :pathogen_type, String
+    attribute :response_type, String
+    attribute :antibody_generated, String
+    attribute :severity, String
+    attribute :status, String
     list_of(ImmuneCell) :immune_cells
-    String :memory_formed
+    attribute :memory_formed, String
 
     value_object "ImmuneCell" do
-      String :cell_type
-      Integer :count
-      String :active
-      String :target
+      attribute :cell_type, String
+      attribute :count, Integer
+      attribute :active, String
+      attribute :target, String
     end
 
     value_object "Antibody" do
-      String :name
-      String :isotype
-      String :target_antigen
-      Float :affinity
+      attribute :name, String
+      attribute :isotype, String
+      attribute :target_antigen, String
+      attribute :affinity, Float
     end
 
     value_object "Antigen" do
-      String :name
-      String :source
-      String :epitope
-      String :recognized
+      attribute :name, String
+      attribute :source, String
+      attribute :epitope, String
+      attribute :recognized, String
     end
 
-    DetectPathogen do
+    command "DetectPathogen" do
       role "System"
       description "Innate immune system recognizes foreign material — pattern recognition receptors"
-      String :pathogen_name
-      String :pathogen_type
-      String :severity
+      attribute :pathogen_name, String
+      attribute :pathogen_type, String
+      attribute :severity, String
       emits "PathogenDetected"
       then_set :pathogen_name, to: :pathogen_name
       then_set :pathogen_type, to: :pathogen_type
@@ -861,7 +861,7 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       then_set :memory_formed, to: "false"
     end
 
-    MountResponse do
+    command "MountResponse" do
       role "System"
       description "Activate immune cascade — innate first, adaptive if needed"
       reference_to(ImmuneResponse)
@@ -871,18 +871,18 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       then_set :status, to: "active"
     end
 
-    GenerateAntibody do
+    command "GenerateAntibody" do
       role "System"
       description "B cells produce antibodies specific to the detected antigen"
       reference_to(ImmuneResponse)
-      String :antibody_name
-      String :isotype
+      attribute :antibody_name, String
+      attribute :isotype, String
       given { response_type == "adaptive" }
       emits "AntibodyGenerated"
       then_set :antibody_generated, to: :antibody_name
     end
 
-    RememberPathogen do
+    command "RememberPathogen" do
       role "System"
       description "Form immunological memory — memory B and T cells for faster future response"
       reference_to(ImmuneResponse)
@@ -891,16 +891,16 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       then_set :memory_formed, to: "true"
     end
 
-    Engulf do
+    command "Engulf" do
       role "System"
       description "Phagocytosis — macrophage or neutrophil engulfs and destroys pathogen"
       reference_to(ImmuneResponse)
-      String :cell_type
-      String :target
+      attribute :cell_type, String
+      attribute :target, String
       emits "PathogenEngulfed"
     end
 
-    ResolveInfection do
+    command "ResolveInfection" do
       role "System"
       description "Pathogen cleared — inflammation subsides, tissue repair begins"
       reference_to(ImmuneResponse)
@@ -921,43 +921,43 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
   # === Metabolism ===
 
   aggregate "Metabolism", "The sum of chemical reactions sustaining life — energy capture, conversion, use" do
-    String :organism_name
-    String :pathway_name
-    String :pathway_type
-    Float :atp_produced
-    Float :atp_consumed
-    Float :net_atp
+    attribute :organism_name, String
+    attribute :pathway_name, String
+    attribute :pathway_type, String
+    attribute :atp_produced, Float
+    attribute :atp_consumed, Float
+    attribute :net_atp, Float
     list_of(Enzyme) :enzymes
     list_of(Substrate) :substrates
-    String :regulated
-    String :status
+    attribute :regulated, String
+    attribute :status, String
 
     value_object "Enzyme" do
-      String :name
-      String :reaction
-      Float :km
-      Float :vmax
-      String :inhibitor
+      attribute :name, String
+      attribute :reaction, String
+      attribute :km, Float
+      attribute :vmax, Float
+      attribute :inhibitor, String
     end
 
     value_object "Substrate" do
-      String :name
-      Float :concentration
-      String :role
+      attribute :name, String
+      attribute :concentration, Float
+      attribute :role, String
     end
 
     value_object "ATPBalance" do
-      Float :produced
-      Float :consumed
-      Float :net
+      attribute :produced, Float
+      attribute :consumed, Float
+      attribute :net, Float
     end
 
-    InitiatePathway do
+    command "InitiatePathway" do
       role "Biologist"
       description "Start a metabolic pathway — glycolysis, Krebs cycle, electron transport"
-      String :organism_name
-      String :pathway_name
-      String :pathway_type
+      attribute :organism_name, String
+      attribute :pathway_name, String
+      attribute :pathway_type, String
       emits "PathwayInitiated"
       then_set :organism_name, to: :organism_name
       then_set :pathway_name, to: :pathway_name
@@ -967,56 +967,56 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
       then_set :status, to: "active"
     end
 
-    CatalyzeReaction do
+    command "CatalyzeReaction" do
       role "System"
       description "Enzyme converts substrate to product — one step in the pathway"
       reference_to(Metabolism)
-      String :enzyme_name
-      String :substrate
-      String :product
+      attribute :enzyme_name, String
+      attribute :substrate, String
+      attribute :product, String
       given { status == "active" }
       emits "ReactionCatalyzed"
     end
 
-    ProduceATP do
+    command "ProduceATP" do
       role "System"
       description "Generate ATP — oxidative phosphorylation or substrate-level phosphorylation"
       reference_to(Metabolism)
-      Float :amount
-      String :mechanism
+      attribute :amount, Float
+      attribute :mechanism, String
       emits "ATPProduced"
     end
 
-    RegulatePathway do
+    command "RegulatePathway" do
       role "System"
       description "Allosteric regulation, feedback inhibition, or hormonal control"
       reference_to(Metabolism)
-      String :regulator
-      String :effect
-      String :target_enzyme
+      attribute :regulator, String
+      attribute :effect, String
+      attribute :target_enzyme, String
       emits "PathwayRegulated"
       then_set :regulated, to: "true"
     end
 
-    FermentGlucose do
+    command "FermentGlucose" do
       role "System"
       description "Anaerobic respiration — glucose to ethanol or lactate without oxygen"
       reference_to(Metabolism)
-      String :fermentation_type
-      Float :atp_yield
+      attribute :fermentation_type, String
+      attribute :atp_yield, Float
       emits "GlucoseFermented"
     end
 
-    Oxidize do
+    command "Oxidize" do
       role "System"
       description "Remove electrons from a substrate — NAD+ to NADH, FAD to FADH2"
       reference_to(Metabolism)
-      String :substrate
-      String :electron_carrier
+      attribute :substrate, String
+      attribute :electron_carrier, String
       emits "SubstrateOxidized"
     end
 
-    CompletePathway do
+    command "CompletePathway" do
       role "System"
       description "All steps of the metabolic pathway have been executed"
       reference_to(Metabolism)

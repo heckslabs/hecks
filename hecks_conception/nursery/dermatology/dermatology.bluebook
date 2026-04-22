@@ -2,19 +2,19 @@ Hecks.bluebook "Dermatology" do
   vision "Skin health and disease — patients, conditions, treatments, biopsies, and prescription management"
 
   aggregate "Patient", "A person receiving dermatologic care" do
-    String :name
-    String :date_of_birth
-    String :skin_type
-    String :insurance_id
-    String :status
+    attribute :name, String
+    attribute :date_of_birth, String
+    attribute :skin_type, String
+    attribute :insurance_id, String
+    attribute :status, String
 
-    RegisterPatient do
+    command "RegisterPatient" do
       role "Receptionist"
       description "Add a new patient to the dermatology practice"
-      String :name
-      String :date_of_birth
-      String :skin_type
-      String :insurance_id
+      attribute :name, String
+      attribute :date_of_birth, String
+      attribute :skin_type, String
+      attribute :insurance_id, String
       emits "PatientRegistered"
       then_set :name, to: :name
       then_set :date_of_birth, to: :date_of_birth
@@ -23,7 +23,7 @@ Hecks.bluebook "Dermatology" do
       then_set :status, to: "active"
     end
 
-    ScheduleScreening do
+    command "ScheduleScreening" do
       role "Receptionist"
       description "Book an annual skin cancer screening for the patient"
       reference_to(Patient)
@@ -32,30 +32,30 @@ Hecks.bluebook "Dermatology" do
   end
 
   aggregate "SkinCondition", "A diagnosed dermatologic condition" do
-    String :patient_name
-    String :condition_name
-    String :body_location
-    String :morphology
-    String :severity
-    String :status
+    attribute :patient_name, String
+    attribute :condition_name, String
+    attribute :body_location, String
+    attribute :morphology, String
+    attribute :severity, String
+    attribute :status, String
     list_of(ProgressPhoto) :photos
     reference_to Patient
 
     value_object "ProgressPhoto" do
-      String :photo_date
-      String :description
-      String :file_reference
+      attribute :photo_date, String
+      attribute :description, String
+      attribute :file_reference, String
     end
 
-    DiagnoseCondition do
+    command "DiagnoseCondition" do
       role "Dermatologist"
       description "Document a skin condition diagnosis with clinical findings"
       reference_to(Patient)
-      String :patient_name
-      String :condition_name
-      String :body_location
-      String :morphology
-      String :severity
+      attribute :patient_name, String
+      attribute :condition_name, String
+      attribute :body_location, String
+      attribute :morphology, String
+      attribute :severity, String
       emits "ConditionDiagnosed"
       then_set :patient_name, to: :patient_name
       then_set :condition_name, to: :condition_name
@@ -65,16 +65,16 @@ Hecks.bluebook "Dermatology" do
       then_set :status, to: "active"
     end
 
-    TrackCondition do
+    command "TrackCondition" do
       role "Dermatologist"
       description "Update condition status with progress photographs"
       reference_to(SkinCondition)
-      String :severity
+      attribute :severity, String
       emits "ConditionTracked"
       then_set :severity, to: :severity
     end
 
-    ResolveCondition do
+    command "ResolveCondition" do
       role "Dermatologist"
       description "Mark the condition as cleared or resolved"
       reference_to(SkinCondition)
@@ -85,24 +85,24 @@ Hecks.bluebook "Dermatology" do
   end
 
   aggregate "DermatologyTreatment", "A therapeutic intervention for a skin condition" do
-    String :patient_name
-    String :treatment_type
-    String :description
-    Integer :sessions_planned
-    Integer :sessions_completed
-    String :status
+    attribute :patient_name, String
+    attribute :treatment_type, String
+    attribute :description, String
+    attribute :sessions_planned, Integer
+    attribute :sessions_completed, Integer
+    attribute :status, String
     reference_to Patient
     reference_to SkinCondition
 
-    PrescribeTreatment do
+    command "PrescribeTreatment" do
       role "Dermatologist"
       description "Order a treatment plan for the diagnosed skin condition"
       reference_to(Patient)
       reference_to(SkinCondition)
-      String :patient_name
-      String :treatment_type
-      String :description
-      Integer :sessions_planned
+      attribute :patient_name, String
+      attribute :treatment_type, String
+      attribute :description, String
+      attribute :sessions_planned, Integer
       emits "TreatmentPrescribed"
       then_set :patient_name, to: :patient_name
       then_set :treatment_type, to: :treatment_type
@@ -112,7 +112,7 @@ Hecks.bluebook "Dermatology" do
       then_set :status, to: "active"
     end
 
-    PerformTreatmentSession do
+    command "PerformTreatmentSession" do
       role "Dermatologist"
       description "Conduct a treatment session and record outcome"
       reference_to(DermatologyTreatment)
@@ -120,7 +120,7 @@ Hecks.bluebook "Dermatology" do
       emits "TreatmentSessionPerformed"
     end
 
-    CompleteTreatment do
+    command "CompleteTreatment" do
       role "Dermatologist"
       description "Mark the treatment course as finished"
       reference_to(DermatologyTreatment)
@@ -130,30 +130,30 @@ Hecks.bluebook "Dermatology" do
   end
 
   aggregate "Biopsy", "A tissue sample taken for pathological examination" do
-    String :patient_name
-    String :biopsy_type
-    String :body_site
-    String :biopsy_date
-    String :pathology_result
-    String :status
+    attribute :patient_name, String
+    attribute :biopsy_type, String
+    attribute :body_site, String
+    attribute :biopsy_date, String
+    attribute :pathology_result, String
+    attribute :status, String
     reference_to Patient
     reference_to SkinCondition
 
     value_object "SpecimenDetail" do
-      String :size
-      String :depth
-      String :fixative
+      attribute :size, String
+      attribute :depth, String
+      attribute :fixative, String
     end
 
-    PerformBiopsy do
+    command "PerformBiopsy" do
       role "Dermatologist"
       description "Collect a tissue sample for laboratory analysis"
       reference_to(Patient)
       reference_to(SkinCondition)
-      String :patient_name
-      String :biopsy_type
-      String :body_site
-      String :biopsy_date
+      attribute :patient_name, String
+      attribute :biopsy_type, String
+      attribute :body_site, String
+      attribute :biopsy_date, String
       emits "BiopsyPerformed"
       then_set :patient_name, to: :patient_name
       then_set :biopsy_type, to: :biopsy_type
@@ -162,11 +162,11 @@ Hecks.bluebook "Dermatology" do
       then_set :status, to: "pending"
     end
 
-    ReceivePathologyResult do
+    command "ReceivePathologyResult" do
       role "Dermatologist"
       description "Record the pathology report findings for the biopsy"
       reference_to(Biopsy)
-      String :pathology_result
+      attribute :pathology_result, String
       given("must be pending") { status == "pending" }
       emits "PathologyResultReceived"
       then_set :pathology_result, to: :pathology_result
@@ -175,25 +175,25 @@ Hecks.bluebook "Dermatology" do
   end
 
   aggregate "SkinPrescription", "A topical or systemic medication for a skin condition" do
-    String :patient_name
-    String :medication_name
-    String :formulation
-    String :dosage
-    String :frequency
-    String :duration
-    String :status
+    attribute :patient_name, String
+    attribute :medication_name, String
+    attribute :formulation, String
+    attribute :dosage, String
+    attribute :frequency, String
+    attribute :duration, String
+    attribute :status, String
     reference_to Patient
 
-    WritePrescription do
+    command "WritePrescription" do
       role "Dermatologist"
       description "Prescribe a dermatologic medication for the patient"
       reference_to(Patient)
-      String :patient_name
-      String :medication_name
-      String :formulation
-      String :dosage
-      String :frequency
-      String :duration
+      attribute :patient_name, String
+      attribute :medication_name, String
+      attribute :formulation, String
+      attribute :dosage, String
+      attribute :frequency, String
+      attribute :duration, String
       emits "PrescriptionWritten"
       then_set :patient_name, to: :patient_name
       then_set :medication_name, to: :medication_name
@@ -204,7 +204,7 @@ Hecks.bluebook "Dermatology" do
       then_set :status, to: "active"
     end
 
-    RefillPrescription do
+    command "RefillPrescription" do
       role "Dermatologist"
       description "Authorize a medication refill for ongoing treatment"
       reference_to(SkinPrescription)

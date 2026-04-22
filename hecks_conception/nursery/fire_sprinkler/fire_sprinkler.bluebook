@@ -4,33 +4,33 @@ Hecks.bluebook "FireSprinkler" do
 
   aggregate "SprinklerSystem" do
     description "A fire sprinkler system covering a building with pipe type, water supply, and system classification"
-    String :building_name
-    String :address
-    String :system_type
-    String :pipe_material
-    Float :design_density_gpm
-    String :status
+    attribute :building_name, String
+    attribute :address, String
+    attribute :system_type, String
+    attribute :pipe_material, String
+    attribute :design_density_gpm, Float
+    attribute :status, String
 
     value_object "HydraulicCalc" do
-      Float :flow_gpm
-      Float :pressure_psi
-      Float :residual_pressure
+      attribute :flow_gpm, Float
+      attribute :pressure_psi, Float
+      attribute :residual_pressure, Float
     end
 
-    DesignSystem do
+    command "DesignSystem" do
       role "Fire Protection Engineer"
       goal "Design the sprinkler system per NFPA 13 requirements"
       description "Calculate hydraulic demand, pipe sizes, and head placement"
-      String :building_name
-      String :address
-      String :system_type
-      String :pipe_material
-      Float :design_density_gpm
+      attribute :building_name, String
+      attribute :address, String
+      attribute :system_type, String
+      attribute :pipe_material, String
+      attribute :design_density_gpm, Float
       emits "SystemDesigned"
       then_set :status, to: "tested"
     end
 
-    ActivateSystem do
+    command "ActivateSystem" do
       role "Foreman"
       goal "Activate the sprinkler system after installation and testing"
       description "Open the main valve and verify all zones are operational"
@@ -39,119 +39,119 @@ Hecks.bluebook "FireSprinkler" do
       emits "SystemActivated"
     end
 
-    ShutDownSystem do
+    command "ShutDownSystem" do
       role "Building Manager"
       goal "Temporarily shut down the system for maintenance"
       description "Close the main valve and notify the fire department and alarm company"
       reference_to(SprinklerSystem)
-      String :reason
+      attribute :reason, String
       emits "SystemTakenOutOfService"
     end
   end
 
   aggregate "Zone" do
     description "A fire sprinkler zone covering a floor or area with its own control valve and flow switch"
-    String :zone_name
-    String :floor
-    Integer :head_count
-    String :occupancy_type
+    attribute :zone_name, String
+    attribute :floor, String
+    attribute :head_count, Integer
+    attribute :occupancy_type, String
     reference_to(SprinklerSystem)
 
     value_object "ZoneCoverage" do
-      Float :area_sqft
-      String :hazard_class
+      attribute :area_sqft, Float
+      attribute :hazard_class, String
     end
 
-    DefineZone do
+    command "DefineZone" do
       role "Fire Protection Engineer"
       goal "Establish a sprinkler zone with coverage area and head count"
       description "Delineate the zone boundaries and calculate required heads"
-      String :zone_name
-      String :floor
-      Integer :head_count
-      String :occupancy_type
+      attribute :zone_name, String
+      attribute :floor, String
+      attribute :head_count, Integer
+      attribute :occupancy_type, String
       reference_to(SprinklerSystem)
       emits "ZoneDefined"
     end
 
-    AdjustHeadCount do
+    command "AdjustHeadCount" do
       role "Fire Protection Engineer"
       goal "Modify the number of heads in a zone after plan review"
       description "Add or remove heads based on occupancy changes or AHJ comments"
       reference_to(Zone)
-      Integer :new_head_count
+      attribute :new_head_count, Integer
       emits "HeadCountAdjusted"
     end
   end
 
   aggregate "SprinklerHead" do
     description "An individual sprinkler head with temperature rating, K-factor, and orientation"
-    String :head_type
-    Float :k_factor
-    Integer :temp_rating_f
-    String :orientation
-    String :coverage_area
+    attribute :head_type, String
+    attribute :k_factor, Float
+    attribute :temp_rating_f, Integer
+    attribute :orientation, String
+    attribute :coverage_area, String
     reference_to(Zone)
 
     value_object "HeadSpec" do
-      String :response_type
-      String :finish
-      Float :deflector_to_ceiling
+      attribute :response_type, String
+      attribute :finish, String
+      attribute :deflector_to_ceiling, Float
     end
 
-    InstallHead do
+    command "InstallHead" do
       role "Fitter"
       goal "Install a sprinkler head at the specified location"
       description "Thread and tighten the head with proper orientation and clearance"
-      String :head_type
-      Float :k_factor
-      Integer :temp_rating_f
-      String :orientation
+      attribute :head_type, String
+      attribute :k_factor, Float
+      attribute :temp_rating_f, Integer
+      attribute :orientation, String
       reference_to(Zone)
       emits "HeadInstalled"
     end
 
-    ReplaceHead do
+    command "ReplaceHead" do
       role "Service Tech"
       goal "Swap a damaged, painted, or recalled sprinkler head"
       description "Remove the old head and install a matching replacement"
       reference_to(SprinklerHead)
-      String :replacement_reason
+      attribute :replacement_reason, String
       emits "HeadReplaced"
     end
   end
 
   aggregate "SprinklerInspection" do
     description "A periodic inspection per NFPA 25 — visual, functional, or full flow test"
-    String :inspection_type
-    String :inspector_name
-    String :result
-    String :deficiencies
-    String :inspection_date
+    attribute :inspection_type, String
+    attribute :inspector_name, String
+    attribute :result, String
+    attribute :deficiencies, String
+    attribute :inspection_date, String
     reference_to(SprinklerSystem)
 
-    PerformInspection do
+    command "PerformInspection" do
       role "Inspector"
       goal "Conduct the scheduled inspection per NFPA 25"
       description "Inspect valves, heads, piping, and alarms according to the inspection type"
-      String :inspection_type
-      String :inspector_name
-      String :inspection_date
+      attribute :inspection_type, String
+      attribute :inspector_name, String
+      attribute :inspection_date, String
       reference_to(SprinklerSystem)
       emits "InspectionPerformed"
       then_set :result, to: "pass"
     end
 
-    RecordDeficiency do
+    command "RecordDeficiency" do
       role "Inspector"
       goal "Document a code violation or deficiency found during inspection"
       description "Log the deficiency with location and required corrective action"
       reference_to(SprinklerInspection)
-      String :deficiencies
+      attribute :deficiencies, String
       emits "DeficiencyRecorded"
     end
 
-    IssueComplianceCert do
+    command "IssueComplianceCert" do
       role "Inspector"
       goal "Issue a compliance certificate after a passing inspection"
       description "Generate the certificate for the building owner and fire marshal"
@@ -163,24 +163,24 @@ Hecks.bluebook "FireSprinkler" do
 
   aggregate "ComplianceRecord" do
     description "A compliance tracking record linking inspections to AHJ requirements and deadlines"
-    String :ahj_name
-    String :requirement
-    String :due_date
-    String :status
+    attribute :ahj_name, String
+    attribute :requirement, String
+    attribute :due_date, String
+    attribute :status, String
     reference_to(SprinklerSystem)
 
-    TrackRequirement do
+    command "TrackRequirement" do
       role "Compliance Officer"
       goal "Record a compliance obligation from the authority having jurisdiction"
       description "Log the requirement and deadline for inspection or testing"
-      String :ahj_name
-      String :requirement
-      String :due_date
+      attribute :ahj_name, String
+      attribute :requirement, String
+      attribute :due_date, String
       reference_to(SprinklerSystem)
       emits "RequirementTracked"
     end
 
-    MarkCompliant do
+    command "MarkCompliant" do
       role "Compliance Officer"
       goal "Record that a compliance requirement has been satisfied"
       description "Update the status after the inspection certificate is received"

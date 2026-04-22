@@ -5,31 +5,31 @@ Hecks.bluebook "ZeroWasteFarm", version: "2026.04.13.1" do
   # === Field ===
 
   aggregate "Field", "A cultivated field — weather-monitored, irrigation-scheduled, harvest-tracked" do
-    String :name
-    String :crop_type
-    Float :acreage
-    String :soil_type
-    String :status
+    attribute :name, String
+    attribute :crop_type, String
+    attribute :acreage, Float
+    attribute :soil_type, String
+    attribute :status, String
     list_of(WeatherReading) :weather_history
 
     value_object "WeatherReading" do
-      Float :temperature
-      Float :rainfall_mm
-      Float :humidity
-      String :timestamp
-      String :forecast
+      attribute :temperature, Float
+      attribute :rainfall_mm, Float
+      attribute :humidity, Float
+      attribute :timestamp, String
+      attribute :forecast, String
     end
 
     fixture "North Field - Tomatoes", name: "North 40", crop_type: "Heirloom Tomatoes", acreage: 40.0, soil_type: "loamy", status: "planted"
     fixture "South Field - Squash", name: "South 35", crop_type: "Butternut Squash", acreage: 35.0, soil_type: "clay-loam", status: "planted"
 
-    RegisterField do
+    command "RegisterField" do
       role "Farmer"
       description "Register a field with its crop type and soil characteristics"
-      String :name
-      String :crop_type
-      Float :acreage
-      String :soil_type
+      attribute :name, String
+      attribute :crop_type, String
+      attribute :acreage, Float
+      attribute :soil_type, String
       emits "FieldRegistered"
       then_set :name, to: :name
       then_set :crop_type, to: :crop_type
@@ -38,16 +38,16 @@ Hecks.bluebook "ZeroWasteFarm", version: "2026.04.13.1" do
       then_set :status, to: "planted"
     end
 
-    RecordWeather do
+    command "RecordWeather" do
       role "System"
       description "Log weather conditions affecting field growth and harvest timing"
       reference_to(Field)
-      Float :temperature
-      Float :rainfall_mm
+      attribute :temperature, Float
+      attribute :rainfall_mm, Float
       emits "WeatherRecorded"
     end
 
-    DeclareHarvestReady do
+    command "DeclareHarvestReady" do
       role "Farmer"
       description "Field crop has reached maturity and is ready for harvest"
       reference_to(Field)
@@ -56,7 +56,7 @@ Hecks.bluebook "ZeroWasteFarm", version: "2026.04.13.1" do
       then_set :status, to: "harvest_ready"
     end
 
-    CompleteHarvest do
+    command "CompleteHarvest" do
       role "Farmer"
       description "Field has been fully harvested"
       reference_to(Field)
@@ -76,22 +76,22 @@ Hecks.bluebook "ZeroWasteFarm", version: "2026.04.13.1" do
 
   aggregate "Harvest", "The yield from a field — weighed, graded, and routed to market or food bank" do
     reference_to(Field, as: :field)
-    String :crop_type
-    Float :weight_kg
-    String :grade
-    String :destination
-    String :status
+    attribute :crop_type, String
+    attribute :weight_kg, Float
+    attribute :grade, String
+    attribute :destination, String
+    attribute :status, String
 
     fixture "Tomato Harvest A", crop_type: "Heirloom Tomatoes", weight_kg: 2500.0, grade: "Premium", destination: "market", status: "routed"
     fixture "Squash Harvest B", crop_type: "Butternut Squash", weight_kg: 3200.0, grade: "Grade B", destination: "food_bank", status: "routed"
 
-    RecordHarvest do
+    command "RecordHarvest" do
       role "Farmer"
       description "Weigh and grade the harvest from a field"
       reference_to(Field, as: :field)
-      String :crop_type
-      Float :weight_kg
-      String :grade
+      attribute :crop_type, String
+      attribute :weight_kg, Float
+      attribute :grade, String
       emits "HarvestRecorded"
       then_set :field, to: :field
       then_set :crop_type, to: :crop_type
@@ -100,7 +100,7 @@ Hecks.bluebook "ZeroWasteFarm", version: "2026.04.13.1" do
       then_set :status, to: "recorded"
     end
 
-    RouteToMarket do
+    command "RouteToMarket" do
       role "System"
       description "Send harvest to commercial market when price is favorable"
       reference_to(Harvest)
@@ -110,7 +110,7 @@ Hecks.bluebook "ZeroWasteFarm", version: "2026.04.13.1" do
       then_set :status, to: "routed"
     end
 
-    RouteToFoodBank do
+    command "RouteToFoodBank" do
       role "System"
       description "Redirect harvest to food bank when market price is below threshold"
       reference_to(Harvest)
@@ -130,21 +130,21 @@ Hecks.bluebook "ZeroWasteFarm", version: "2026.04.13.1" do
   # === MarketPrice ===
 
   aggregate "MarketPrice", "Real-time commodity pricing — the decision point between market and donation" do
-    String :crop_type
-    Float :current_price
-    Float :threshold_price
-    String :trend
-    String :status
+    attribute :crop_type, String
+    attribute :current_price, Float
+    attribute :threshold_price, Float
+    attribute :trend, String
+    attribute :status, String
 
     fixture "Tomato Market", crop_type: "Heirloom Tomatoes", current_price: 1.85, threshold_price: 2.25, trend: "declining", status: "below_threshold"
     fixture "Squash Market", crop_type: "Butternut Squash", current_price: 0.42, threshold_price: 0.65, trend: "stable", status: "active"
 
-    SetPrice do
+    command "SetPrice" do
       role "System"
       description "Update current market price for a crop commodity"
-      String :crop_type
-      Float :current_price
-      Float :threshold_price
+      attribute :crop_type, String
+      attribute :current_price, Float
+      attribute :threshold_price, Float
       emits "PriceUpdated"
       then_set :crop_type, to: :crop_type
       then_set :current_price, to: :current_price
@@ -152,7 +152,7 @@ Hecks.bluebook "ZeroWasteFarm", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    DetectPriceDrop do
+    command "DetectPriceDrop" do
       role "System"
       description "Price has fallen below farmer's break-even threshold"
       reference_to(MarketPrice)
@@ -161,7 +161,7 @@ Hecks.bluebook "ZeroWasteFarm", version: "2026.04.13.1" do
       then_set :status, to: "below_threshold"
     end
 
-    RecoverPrice do
+    command "RecoverPrice" do
       role "System"
       description "Price has recovered above threshold — resume market sales"
       reference_to(MarketPrice)
@@ -174,30 +174,30 @@ Hecks.bluebook "ZeroWasteFarm", version: "2026.04.13.1" do
   # === FoodBankAllocation ===
 
   aggregate "FoodBankAllocation", "A food bank receiving allocation — matched to harvest surplus and community need" do
-    String :food_bank_name
-    String :region
+    attribute :food_bank_name, String
+    attribute :region, String
     reference_to(Harvest, as: :harvest)
-    Float :allocated_kg
-    String :status
+    attribute :allocated_kg, Float
+    attribute :status, String
     list_of(NeedCategory) :needs
 
     value_object "NeedCategory" do
-      String :category
-      Float :requested_kg
-      Integer :families_served
-      String :priority
+      attribute :category, String
+      attribute :requested_kg, Float
+      attribute :families_served, Integer
+      attribute :priority, String
     end
 
     fixture "Downtown Food Pantry", food_bank_name: "Downtown Food Pantry", region: "Urban Core District", allocated_kg: 3200.0, status: "allocated"
     fixture "Valley Community Bank", food_bank_name: "Valley Community Bank", region: "Agricultural Region", allocated_kg: 2800.0, status: "distributed"
 
-    AllocateToFoodBank do
+    command "AllocateToFoodBank" do
       role "System"
       description "Assign harvest surplus to a food bank based on regional need"
-      String :food_bank_name
-      String :region
+      attribute :food_bank_name, String
+      attribute :region, String
       reference_to(Harvest, as: :harvest)
-      Float :allocated_kg
+      attribute :allocated_kg, Float
       emits "FoodBankAllocated"
       then_set :food_bank_name, to: :food_bank_name
       then_set :region, to: :region
@@ -206,7 +206,7 @@ Hecks.bluebook "ZeroWasteFarm", version: "2026.04.13.1" do
       then_set :status, to: "allocated"
     end
 
-    ConfirmReceipt do
+    command "ConfirmReceipt" do
       role "FoodBankManager"
       description "Food bank confirms receipt of donated produce"
       reference_to(FoodBankAllocation)
@@ -215,7 +215,7 @@ Hecks.bluebook "ZeroWasteFarm", version: "2026.04.13.1" do
       then_set :status, to: "received"
     end
 
-    DistributeToFamilies do
+    command "DistributeToFamilies" do
       role "FoodBankManager"
       description "Distribute received food to families in need"
       reference_to(FoodBankAllocation)
@@ -236,33 +236,33 @@ Hecks.bluebook "ZeroWasteFarm", version: "2026.04.13.1" do
   aggregate "ColdRoute", "A refrigerated transport route — keeps produce fresh from field to food bank" do
     reference_to(Harvest, as: :harvest)
     reference_to(FoodBankAllocation, as: :allocation)
-    String :driver_id
-    Float :temperature
-    String :status
+    attribute :driver_id, String
+    attribute :temperature, Float
+    attribute :status, String
     list_of(RouteStop) :stops
 
     value_object "RouteStop" do
-      String :location
-      String :stop_type
-      String :arrival_time
-      Float :temperature_at_stop
+      attribute :location, String
+      attribute :stop_type, String
+      attribute :arrival_time, String
+      attribute :temperature_at_stop, Float
     end
 
     fixture "Route DV-001", driver_id: "DV-001", temperature: 4.5, status: "scheduled"
     fixture "Route DV-002", driver_id: "DV-002", temperature: 3.8, status: "in_transit"
 
-    ScheduleColdPickup do
+    command "ScheduleColdPickup" do
       role "System"
       description "Schedule a refrigerated pickup from the farm for food bank delivery"
       reference_to(Harvest, as: :harvest)
-      String :driver_id
+      attribute :driver_id, String
       emits "ColdPickupScheduled"
       then_set :harvest, to: :harvest
       then_set :driver_id, to: :driver_id
       then_set :status, to: "scheduled"
     end
 
-    BeginTransport do
+    command "BeginTransport" do
       role "Driver"
       description "Start cold-chain transport from field to food bank"
       reference_to(ColdRoute)
@@ -271,16 +271,16 @@ Hecks.bluebook "ZeroWasteFarm", version: "2026.04.13.1" do
       then_set :status, to: "in_transit"
     end
 
-    RecordTemperature do
+    command "RecordTemperature" do
       role "System"
       description "Log temperature during cold transport"
       reference_to(ColdRoute)
-      Float :temperature
+      attribute :temperature, Float
       emits "RouteTemperatureRecorded"
       then_set :temperature, to: :temperature
     end
 
-    CompleteDelivery do
+    command "CompleteDelivery" do
       role "Driver"
       description "Deliver produce to food bank — cold chain maintained"
       reference_to(ColdRoute)

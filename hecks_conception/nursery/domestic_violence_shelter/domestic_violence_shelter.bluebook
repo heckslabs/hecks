@@ -2,19 +2,19 @@ Hecks.bluebook "DomesticViolenceShelter" do
   vision "Survivor safety and empowerment — residents, safety plans, support services, advocates, and safe exit planning"
 
   aggregate "Resident", "A survivor of domestic violence sheltered in the facility" do
-    String :alias_name
-    String :intake_date
-    Integer :dependents_count
-    String :risk_level
-    String :status
+    attribute :alias_name, String
+    attribute :intake_date, String
+    attribute :dependents_count, Integer
+    attribute :risk_level, String
+    attribute :status, String
 
-    AdmitResident do
+    command "AdmitResident" do
       role "IntakeAdvocate"
       description "Securely admit a survivor into the shelter with confidential intake"
-      String :alias_name
-      String :intake_date
-      Integer :dependents_count
-      String :risk_level
+      attribute :alias_name, String
+      attribute :intake_date, String
+      attribute :dependents_count, Integer
+      attribute :risk_level, String
       emits "ResidentAdmitted"
       then_set :alias_name, to: :alias_name
       then_set :intake_date, to: :intake_date
@@ -23,16 +23,16 @@ Hecks.bluebook "DomesticViolenceShelter" do
       then_set :status, to: "sheltered"
     end
 
-    ReassessRisk do
+    command "ReassessRisk" do
       role "Advocate"
       description "Update the resident's risk assessment based on new information"
       reference_to(Resident)
-      String :risk_level
+      attribute :risk_level, String
       emits "RiskReassessed"
       then_set :risk_level, to: :risk_level
     end
 
-    TransitionToHousing do
+    command "TransitionToHousing" do
       role "CaseManager"
       description "Move the resident to permanent safe housing"
       reference_to(Resident)
@@ -43,29 +43,29 @@ Hecks.bluebook "DomesticViolenceShelter" do
   end
 
   aggregate "SafetyPlan", "A personalized safety strategy for the resident" do
-    String :resident_alias
-    String :created_date
+    attribute :resident_alias, String
+    attribute :created_date, String
     list_of(SafetyStep) :steps
-    String :emergency_contacts
-    String :escape_route
-    String :status
+    attribute :emergency_contacts, String
+    attribute :escape_route, String
+    attribute :status, String
     reference_to Resident
 
     value_object "SafetyStep" do
-      String :scenario
-      String :action
-      String :resources_needed
-      Integer :priority
+      attribute :scenario, String
+      attribute :action, String
+      attribute :resources_needed, String
+      attribute :priority, Integer
     end
 
-    DraftSafetyPlan do
+    command "DraftSafetyPlan" do
       role "Advocate"
       description "Develop a personalized safety plan with the resident"
       reference_to(Resident)
-      String :resident_alias
-      String :created_date
-      String :emergency_contacts
-      String :escape_route
+      attribute :resident_alias, String
+      attribute :created_date, String
+      attribute :emergency_contacts, String
+      attribute :escape_route, String
       emits "SafetyPlanDrafted"
       then_set :resident_alias, to: :resident_alias
       then_set :created_date, to: :created_date
@@ -74,18 +74,18 @@ Hecks.bluebook "DomesticViolenceShelter" do
       then_set :status, to: "active"
     end
 
-    AddSafetyStep do
+    command "AddSafetyStep" do
       role "Advocate"
       description "Add a specific safety action to the plan"
       reference_to(SafetyPlan)
-      String :scenario
-      String :action
-      String :resources_needed
-      Integer :priority
+      attribute :scenario, String
+      attribute :action, String
+      attribute :resources_needed, String
+      attribute :priority, Integer
       emits "SafetyStepAdded"
     end
 
-    ReviewSafetyPlan do
+    command "ReviewSafetyPlan" do
       role "Advocate"
       description "Conduct a scheduled review of the safety plan"
       reference_to(SafetyPlan)
@@ -94,19 +94,19 @@ Hecks.bluebook "DomesticViolenceShelter" do
   end
 
   aggregate "SupportService", "A service provided to residents such as legal aid, counseling, or childcare" do
-    String :service_name
-    String :service_type
-    String :provider_name
-    String :availability
-    String :status
+    attribute :service_name, String
+    attribute :service_type, String
+    attribute :provider_name, String
+    attribute :availability, String
+    attribute :status, String
 
-    RegisterService do
+    command "RegisterService" do
       role "ShelterDirector"
       description "Add a support service to the shelter's offerings"
-      String :service_name
-      String :service_type
-      String :provider_name
-      String :availability
+      attribute :service_name, String
+      attribute :service_type, String
+      attribute :provider_name, String
+      attribute :availability, String
       emits "ServiceRegistered"
       then_set :service_name, to: :service_name
       then_set :service_type, to: :service_type
@@ -115,14 +115,14 @@ Hecks.bluebook "DomesticViolenceShelter" do
       then_set :status, to: "active"
     end
 
-    ReferToService do
+    command "ReferToService" do
       role "Advocate"
       description "Connect a resident with a specific support service"
       reference_to(SupportService)
       emits "ResidentReferred"
     end
 
-    SuspendService do
+    command "SuspendService" do
       role "ShelterDirector"
       description "Temporarily suspend a service due to provider unavailability"
       reference_to(SupportService)
@@ -132,18 +132,18 @@ Hecks.bluebook "DomesticViolenceShelter" do
   end
 
   aggregate "Advocate", "A trained professional providing direct support to residents" do
-    String :name
-    String :role_type
-    String :certification
-    Integer :active_cases
-    String :status
+    attribute :name, String
+    attribute :role_type, String
+    attribute :certification, String
+    attribute :active_cases, Integer
+    attribute :status, String
 
-    OnboardAdvocate do
+    command "OnboardAdvocate" do
       role "ShelterDirector"
       description "Add a new advocate to the shelter team"
-      String :name
-      String :role_type
-      String :certification
+      attribute :name, String
+      attribute :role_type, String
+      attribute :certification, String
       emits "AdvocateOnboarded"
       then_set :name, to: :name
       then_set :role_type, to: :role_type
@@ -152,7 +152,7 @@ Hecks.bluebook "DomesticViolenceShelter" do
       then_set :status, to: "active"
     end
 
-    AssignResident do
+    command "AssignResident" do
       role "CaseManager"
       description "Assign a resident to this advocate's caseload"
       reference_to(Advocate)
@@ -161,30 +161,30 @@ Hecks.bluebook "DomesticViolenceShelter" do
   end
 
   aggregate "ExitPlan", "A structured plan for safely leaving the shelter" do
-    String :resident_alias
-    String :target_exit_date
-    String :housing_arrangement
-    String :employment_status
-    String :support_network
-    String :status
+    attribute :resident_alias, String
+    attribute :target_exit_date, String
+    attribute :housing_arrangement, String
+    attribute :employment_status, String
+    attribute :support_network, String
+    attribute :status, String
     list_of(ExitTask) :tasks
     reference_to Resident
 
     value_object "ExitTask" do
-      String :task_description
-      String :responsible_party
-      String :due_date
-      String :completed
+      attribute :task_description, String
+      attribute :responsible_party, String
+      attribute :due_date, String
+      attribute :completed, String
     end
 
-    DraftExitPlan do
+    command "DraftExitPlan" do
       role "CaseManager"
       description "Develop a safe exit and rehousing plan for the resident"
       reference_to(Resident)
-      String :resident_alias
-      String :target_exit_date
-      String :housing_arrangement
-      String :employment_status
+      attribute :resident_alias, String
+      attribute :target_exit_date, String
+      attribute :housing_arrangement, String
+      attribute :employment_status, String
       emits "ExitPlanDrafted"
       then_set :resident_alias, to: :resident_alias
       then_set :target_exit_date, to: :target_exit_date
@@ -193,15 +193,15 @@ Hecks.bluebook "DomesticViolenceShelter" do
       then_set :status, to: "in_progress"
     end
 
-    CompleteExitTask do
+    command "CompleteExitTask" do
       role "CaseManager"
       description "Mark an exit plan task as completed"
       reference_to(ExitPlan)
-      String :task_description
+      attribute :task_description, String
       emits "ExitTaskCompleted"
     end
 
-    FinalizeExit do
+    command "FinalizeExit" do
       role "CaseManager"
       description "Complete the exit plan and discharge the resident safely"
       reference_to(ExitPlan)

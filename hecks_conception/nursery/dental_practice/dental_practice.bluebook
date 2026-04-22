@@ -3,30 +3,30 @@ Hecks.bluebook "DentalPractice" do
   category "healthcare"
 
   aggregate "Patient", "A dental patient with medical history, allergies, and insurance info" do
-    String :first_name
-    String :last_name
-    String :date_of_birth
-    String :phone
-    String :insurance_provider
-    String :policy_number
-    String :status
+    attribute :first_name, String
+    attribute :last_name, String
+    attribute :date_of_birth, String
+    attribute :phone, String
+    attribute :insurance_provider, String
+    attribute :policy_number, String
+    attribute :status, String
 
     value_object "MedicalHistory" do
-      String :allergies
-      String :medications
-      String :conditions
-      String :last_updated
+      attribute :allergies, String
+      attribute :medications, String
+      attribute :conditions, String
+      attribute :last_updated, String
     end
 
-    RegisterPatient do
+    command "RegisterPatient" do
       role "Receptionist"
       description "Add a new patient to the practice with their insurance details"
-      String :first_name
-      String :last_name
-      String :date_of_birth
-      String :phone
-      String :insurance_provider
-      String :policy_number
+      attribute :first_name, String
+      attribute :last_name, String
+      attribute :date_of_birth, String
+      attribute :phone, String
+      attribute :insurance_provider, String
+      attribute :policy_number, String
       emits "PatientRegistered"
       then_set :first_name, to: :first_name
       then_set :last_name, to: :last_name
@@ -34,18 +34,18 @@ Hecks.bluebook "DentalPractice" do
       then_set :status, to: "active"
     end
 
-    RecordInsurance do
+    command "RecordInsurance" do
       role "Receptionist"
       description "Change the patient's insurance provider or policy number"
       reference_to(Patient)
-      String :insurance_provider
-      String :policy_number
+      attribute :insurance_provider, String
+      attribute :policy_number, String
       emits "InsuranceRecorded"
       then_set :insurance_provider, to: :insurance_provider
       then_set :policy_number, to: :policy_number
     end
 
-    DeactivatePatient do
+    command "DeactivatePatient" do
       role "OfficeManager"
       description "Mark a patient as inactive when they transfer to another practice"
       reference_to(Patient)
@@ -56,30 +56,30 @@ Hecks.bluebook "DentalPractice" do
   end
 
   aggregate "DentalProcedure", "A clinical procedure performed on a patient with CDT codes" do
-    String :cdt_code
-    String :procedure_name
-    String :tooth_number
-    String :surface
-    String :notes
-    String :performed_date
-    String :status
+    attribute :cdt_code, String
+    attribute :procedure_name, String
+    attribute :tooth_number, String
+    attribute :surface, String
+    attribute :notes, String
+    attribute :performed_date, String
+    attribute :status, String
     reference_to(Patient)
 
     value_object "ToothChart" do
-      String :tooth_number
-      String :condition
-      String :existing_restorations
+      attribute :tooth_number, String
+      attribute :condition, String
+      attribute :existing_restorations, String
     end
 
-    PerformProcedure do
+    command "PerformProcedure" do
       role "Dentist"
       description "Record a completed dental procedure with CDT code and tooth info"
       reference_to(Patient)
-      String :cdt_code
-      String :procedure_name
-      String :tooth_number
-      String :surface
-      String :notes
+      attribute :cdt_code, String
+      attribute :procedure_name, String
+      attribute :tooth_number, String
+      attribute :surface, String
+      attribute :notes, String
       emits "ProcedurePerformed"
       then_set :cdt_code, to: :cdt_code
       then_set :procedure_name, to: :procedure_name
@@ -88,13 +88,13 @@ Hecks.bluebook "DentalPractice" do
       then_set :status, to: "completed"
     end
 
-    PlanTreatment do
+    command "PlanTreatment" do
       role "Dentist"
       description "Add a procedure to the patient's treatment plan for a future visit"
       reference_to(Patient)
-      String :cdt_code
-      String :procedure_name
-      String :tooth_number
+      attribute :cdt_code, String
+      attribute :procedure_name, String
+      attribute :tooth_number, String
       emits "TreatmentPlanned"
       then_set :cdt_code, to: :cdt_code
       then_set :procedure_name, to: :procedure_name
@@ -103,59 +103,59 @@ Hecks.bluebook "DentalPractice" do
   end
 
   aggregate "Radiograph", "A dental X-ray image with type, findings, and associated tooth" do
-    String :image_type
-    String :tooth_region
-    String :findings
-    String :taken_date
+    attribute :image_type, String
+    attribute :tooth_region, String
+    attribute :findings, String
+    attribute :taken_date, String
     reference_to(Patient)
 
-    TakeRadiograph do
+    command "TakeRadiograph" do
       role "DentalHygienist"
       description "Capture a dental X-ray of a specific region"
       reference_to(Patient)
-      String :image_type
-      String :tooth_region
+      attribute :image_type, String
+      attribute :tooth_region, String
       emits "RadiographTaken"
       then_set :image_type, to: :image_type
       then_set :tooth_region, to: :tooth_region
     end
 
-    InterpretRadiograph do
+    command "InterpretRadiograph" do
       role "Dentist"
       description "Record clinical findings from reviewing the X-ray"
       reference_to(Radiograph)
-      String :findings
+      attribute :findings, String
       emits "RadiographInterpreted"
       then_set :findings, to: :findings
     end
   end
 
   aggregate "InsuranceClaim", "A claim submitted to insurance for reimbursement of procedures" do
-    Float :billed_amount
-    Float :allowed_amount
-    Float :patient_responsibility
-    String :status
-    String :submitted_date
+    attribute :billed_amount, Float
+    attribute :allowed_amount, Float
+    attribute :patient_responsibility, Float
+    attribute :status, String
+    attribute :submitted_date, String
     reference_to(DentalProcedure)
     reference_to(Patient)
 
-    SubmitClaim do
+    command "SubmitClaim" do
       role "BillingCoordinator"
       description "File an insurance claim for a completed procedure"
       reference_to(DentalProcedure)
       reference_to(Patient)
-      Float :billed_amount
+      attribute :billed_amount, Float
       emits "ClaimSubmitted"
       then_set :billed_amount, to: :billed_amount
       then_set :status, to: "submitted"
     end
 
-    ProcessPayment do
+    command "ProcessPayment" do
       role "BillingCoordinator"
       description "Record the insurance company's payment and patient balance"
       reference_to(InsuranceClaim)
-      Float :allowed_amount
-      Float :patient_responsibility
+      attribute :allowed_amount, Float
+      attribute :patient_responsibility, Float
       given { status == "submitted" }
       emits "PaymentProcessed"
       then_set :allowed_amount, to: :allowed_amount
@@ -163,7 +163,7 @@ Hecks.bluebook "DentalPractice" do
       then_set :status, to: "paid"
     end
 
-    DenyClaim do
+    command "DenyClaim" do
       role "System"
       description "Record a claim denial from the insurance company"
       reference_to(InsuranceClaim)
@@ -174,19 +174,19 @@ Hecks.bluebook "DentalPractice" do
   end
 
   aggregate "DentalAppointment", "A scheduled visit for examination, cleaning, or procedure" do
-    String :appointment_date
-    String :time_slot
-    String :visit_type
-    String :status
+    attribute :appointment_date, String
+    attribute :time_slot, String
+    attribute :visit_type, String
+    attribute :status, String
     reference_to(Patient)
 
-    ScheduleVisit do
+    command "ScheduleVisit" do
       role "Receptionist"
       description "Book a dental appointment for a patient"
       reference_to(Patient)
-      String :appointment_date
-      String :time_slot
-      String :visit_type
+      attribute :appointment_date, String
+      attribute :time_slot, String
+      attribute :visit_type, String
       emits "VisitScheduled"
       then_set :appointment_date, to: :appointment_date
       then_set :time_slot, to: :time_slot
@@ -194,7 +194,7 @@ Hecks.bluebook "DentalPractice" do
       then_set :status, to: "scheduled"
     end
 
-    ConfirmVisit do
+    command "ConfirmVisit" do
       role "Receptionist"
       description "Confirm the patient has acknowledged their upcoming appointment"
       reference_to(DentalAppointment)
@@ -203,7 +203,7 @@ Hecks.bluebook "DentalPractice" do
       then_set :status, to: "confirmed"
     end
 
-    CancelVisit do
+    command "CancelVisit" do
       role "Receptionist"
       description "Cancel a scheduled dental appointment"
       reference_to(DentalAppointment)

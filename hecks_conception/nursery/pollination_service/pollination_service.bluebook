@@ -3,26 +3,26 @@ Hecks.bluebook "PollinationService", version: "2026.04.13.1" do
   category "crossover"
 
   aggregate "Hive", "A bee colony hive — population, health, queen status, honey stores" do
-    String :hive_id
-    Integer :population_estimate
-    String :queen_status
-    Float :honey_stores_kg
-    String :health_rating
-    String :status
+    attribute :hive_id, String
+    attribute :population_estimate, Integer
+    attribute :queen_status, String
+    attribute :honey_stores_kg, Float
+    attribute :health_rating, String
+    attribute :status, String
 
     value_object "ColonyHealth" do
-      Float :varroa_count
-      String :brood_pattern
-      Float :frame_coverage_pct
+      attribute :varroa_count, Float
+      attribute :brood_pattern, String
+      attribute :frame_coverage_pct, Float
     end
 
-    RegisterHive do
+    command "RegisterHive" do
       role "Beekeeper"
       description "Register a new hive with initial population and queen status"
-      String :hive_id
-      Integer :population_estimate
-      String :queen_status
-      Float :honey_stores_kg
+      attribute :hive_id, String
+      attribute :population_estimate, Integer
+      attribute :queen_status, String
+      attribute :honey_stores_kg, Float
       emits "HiveRegistered"
       then_set :hive_id, to: :hive_id
       then_set :population_estimate, to: :population_estimate
@@ -32,17 +32,17 @@ Hecks.bluebook "PollinationService", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    InspectHive do
+    command "InspectHive" do
       role "Beekeeper"
       description "Perform hive inspection and update health rating"
       reference_to(Hive)
-      String :health_rating
+      attribute :health_rating, String
       given { status == "active" }
       emits "HiveInspected"
       then_set :health_rating, to: :health_rating
     end
 
-    DeployForPollination do
+    command "DeployForPollination" do
       role "Beekeeper"
       description "Move hive to a field for pollination service"
       reference_to(Hive)
@@ -50,7 +50,7 @@ Hecks.bluebook "PollinationService", version: "2026.04.13.1" do
       then_set :status, to: "deployed"
     end
 
-    ReturnFromField do
+    command "ReturnFromField" do
       role "Beekeeper"
       description "Return hive to apiary after pollination period"
       reference_to(Hive)
@@ -66,30 +66,30 @@ Hecks.bluebook "PollinationService", version: "2026.04.13.1" do
   end
 
   aggregate "CropField", "A farm field — crop type, bloom period, area, pollination needs" do
-    String :name
-    String :crop_type
-    Float :area_hectares
-    String :bloom_start
-    String :bloom_end
-    Integer :hives_needed
-    String :status
+    attribute :name, String
+    attribute :crop_type, String
+    attribute :area_hectares, Float
+    attribute :bloom_start, String
+    attribute :bloom_end, String
+    attribute :hives_needed, Integer
+    attribute :status, String
 
     value_object "BloomWindow" do
-      String :start_date
-      String :peak_date
-      String :end_date
-      Float :nectar_flow_rating
+      attribute :start_date, String
+      attribute :peak_date, String
+      attribute :end_date, String
+      attribute :nectar_flow_rating, Float
     end
 
-    RegisterField do
+    command "RegisterField" do
       role "Farmer"
       description "Register a crop field with bloom period and pollination requirements"
-      String :name
-      String :crop_type
-      Float :area_hectares
-      String :bloom_start
-      String :bloom_end
-      Integer :hives_needed
+      attribute :name, String
+      attribute :crop_type, String
+      attribute :area_hectares, Float
+      attribute :bloom_start, String
+      attribute :bloom_end, String
+      attribute :hives_needed, Integer
       emits "FieldRegistered"
       then_set :name, to: :name
       then_set :crop_type, to: :crop_type
@@ -100,7 +100,7 @@ Hecks.bluebook "PollinationService", version: "2026.04.13.1" do
       then_set :status, to: "registered"
     end
 
-    RequestPollination do
+    command "RequestPollination" do
       role "Farmer"
       description "Submit pollination service request for a field"
       reference_to(CropField)
@@ -109,7 +109,7 @@ Hecks.bluebook "PollinationService", version: "2026.04.13.1" do
       then_set :status, to: "requested"
     end
 
-    ConfirmPollination do
+    command "ConfirmPollination" do
       role "Beekeeper"
       description "Confirm hives have been deployed to the field"
       reference_to(CropField)
@@ -125,29 +125,29 @@ Hecks.bluebook "PollinationService", version: "2026.04.13.1" do
   end
 
   aggregate "PollinationSchedule", "A schedule matching hives to fields during bloom windows" do
-    String :schedule_name
-    String :field_name
-    String :hive_id
-    String :start_date
-    String :end_date
-    Integer :hive_count
-    String :status
+    attribute :schedule_name, String
+    attribute :field_name, String
+    attribute :hive_id, String
+    attribute :start_date, String
+    attribute :end_date, String
+    attribute :hive_count, Integer
+    attribute :status, String
 
     list_of "DeploymentEntry" do
-      String :hive_id
-      String :deploy_date
-      String :retrieve_date
+      attribute :hive_id, String
+      attribute :deploy_date, String
+      attribute :retrieve_date, String
     end
 
-    PollinatePlan do
+    command "PollinatePlan" do
       role "Coordinator"
       description "Create a pollination schedule matching hives to field bloom windows"
-      String :schedule_name
-      String :field_name
-      String :hive_id
-      String :start_date
-      String :end_date
-      Integer :hive_count
+      attribute :schedule_name, String
+      attribute :field_name, String
+      attribute :hive_id, String
+      attribute :start_date, String
+      attribute :end_date, String
+      attribute :hive_count, Integer
       emits "ScheduleCreated"
       then_set :schedule_name, to: :schedule_name
       then_set :field_name, to: :field_name
@@ -158,7 +158,7 @@ Hecks.bluebook "PollinationService", version: "2026.04.13.1" do
       then_set :status, to: "planned"
     end
 
-    ActivateSchedule do
+    command "ActivateSchedule" do
       role "Coordinator"
       description "Activate schedule and begin hive deployments"
       reference_to(PollinationSchedule)
@@ -167,7 +167,7 @@ Hecks.bluebook "PollinationService", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    CompleteSchedule do
+    command "CompleteSchedule" do
       role "Coordinator"
       description "Mark schedule complete after all hives returned"
       reference_to(PollinationSchedule)
@@ -184,26 +184,26 @@ Hecks.bluebook "PollinationService", version: "2026.04.13.1" do
   end
 
   aggregate "YieldReport", "Post-pollination crop yield measurement and analysis" do
-    String :field_name
-    String :crop_type
-    Float :yield_tons
-    Float :yield_per_hectare
-    Float :pollination_effectiveness
-    String :status
+    attribute :field_name, String
+    attribute :crop_type, String
+    attribute :yield_tons, Float
+    attribute :yield_per_hectare, Float
+    attribute :pollination_effectiveness, Float
+    attribute :status, String
 
     value_object "YieldComparison" do
-      Float :with_pollination
-      Float :without_pollination
-      Float :improvement_pct
+      attribute :with_pollination, Float
+      attribute :without_pollination, Float
+      attribute :improvement_pct, Float
     end
 
-    RecordYield do
+    command "RecordYield" do
       role "Farmer"
       description "Record crop yield after harvest"
-      String :field_name
-      String :crop_type
-      Float :yield_tons
-      Float :yield_per_hectare
+      attribute :field_name, String
+      attribute :crop_type, String
+      attribute :yield_tons, Float
+      attribute :yield_per_hectare, Float
       emits "YieldRecorded"
       then_set :field_name, to: :field_name
       then_set :crop_type, to: :crop_type
@@ -212,11 +212,11 @@ Hecks.bluebook "PollinationService", version: "2026.04.13.1" do
       then_set :status, to: "recorded"
     end
 
-    AnalyzeEffectiveness do
+    command "AnalyzeEffectiveness" do
       role "System"
       description "Compare yield with pollination service against baseline"
       reference_to(YieldReport)
-      Float :pollination_effectiveness
+      attribute :pollination_effectiveness, Float
       given { status == "recorded" }
       emits "EffectivenessAnalyzed"
       then_set :pollination_effectiveness, to: :pollination_effectiveness

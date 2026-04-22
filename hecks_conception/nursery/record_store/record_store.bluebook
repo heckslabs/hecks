@@ -3,34 +3,34 @@ Hecks.bluebook "RecordStore", version: "2026.04.13.1" do
   category "retail"
 
   aggregate "VinylRecord", "A physical record — LP, EP, or single — for sale" do
-    String :catalog_number
-    String :title
-    String :artist_name
-    String :genre
-    String :format
-    String :condition
-    Float :price
-    Integer :quantity
+    attribute :catalog_number, String
+    attribute :title, String
+    attribute :artist_name, String
+    attribute :genre, String
+    attribute :format, String
+    attribute :condition, String
+    attribute :price, Float
+    attribute :quantity, Integer
     list_of(TrackListing) :tracks
 
     value_object "TrackListing" do
-      Integer :track_number
-      String :title
-      String :duration
-      String :side
+      attribute :track_number, Integer
+      attribute :title, String
+      attribute :duration, String
+      attribute :side, String
     end
 
-    StockRecord do
+    command "StockRecord" do
       role "Buyer"
       description "Add a vinyl record to the store's inventory"
-      String :catalog_number
-      String :title
-      String :artist_name
-      String :genre
-      String :format
-      String :condition
-      Float :price
-      Integer :quantity
+      attribute :catalog_number, String
+      attribute :title, String
+      attribute :artist_name, String
+      attribute :genre, String
+      attribute :format, String
+      attribute :condition, String
+      attribute :price, Float
+      attribute :quantity, Integer
       emits "RecordStocked"
       then_set :catalog_number, to: :catalog_number
       then_set :title, to: :title
@@ -42,16 +42,16 @@ Hecks.bluebook "RecordStore", version: "2026.04.13.1" do
       then_set :quantity, to: :quantity
     end
 
-    GradeRecord do
+    command "GradeRecord" do
       role "Staff"
       description "Assess the physical condition of a used record"
       reference_to(VinylRecord)
-      String :condition
+      attribute :condition, String
       emits "RecordGraded"
       then_set :condition, to: :condition
     end
 
-    SellRecord do
+    command "SellRecord" do
       role "Cashier"
       description "Complete a record sale at the register"
       reference_to(VinylRecord)
@@ -61,25 +61,25 @@ Hecks.bluebook "RecordStore", version: "2026.04.13.1" do
   end
 
   aggregate "Artist", "A musician or band whose records the store carries" do
-    String :artist_id
-    String :name
-    String :genre
-    String :biography
+    attribute :artist_id, String
+    attribute :name, String
+    attribute :genre, String
+    attribute :biography, String
     list_of(Discography) :discography
 
     value_object "Discography" do
-      String :album_title
-      String :year
-      String :label
+      attribute :album_title, String
+      attribute :year, String
+      attribute :label, String
     end
 
-    RegisterArtist do
+    command "RegisterArtist" do
       role "Buyer"
       description "Add an artist to the store's reference catalog"
-      String :artist_id
-      String :name
-      String :genre
-      String :biography
+      attribute :artist_id, String
+      attribute :name, String
+      attribute :genre, String
+      attribute :biography, String
       emits "ArtistRegistered"
       then_set :artist_id, to: :artist_id
       then_set :name, to: :name
@@ -87,7 +87,7 @@ Hecks.bluebook "RecordStore", version: "2026.04.13.1" do
       then_set :biography, to: :biography
     end
 
-    FeatureArtist do
+    command "FeatureArtist" do
       role "Manager"
       description "Spotlight an artist with a dedicated display and staff picks"
       reference_to(Artist)
@@ -96,19 +96,19 @@ Hecks.bluebook "RecordStore", version: "2026.04.13.1" do
   end
 
   aggregate "Crate", "A physical browsing bin organized by genre, era, or theme" do
-    String :crate_id
-    String :label
-    String :location
-    Integer :capacity
-    Integer :current_count
+    attribute :crate_id, String
+    attribute :label, String
+    attribute :location, String
+    attribute :capacity, Integer
+    attribute :current_count, Integer
 
-    SetupCrate do
+    command "SetupCrate" do
       role "Staff"
       description "Create a new crate with a label and location on the floor"
-      String :crate_id
-      String :label
-      String :location
-      Integer :capacity
+      attribute :crate_id, String
+      attribute :label, String
+      attribute :location, String
+      attribute :capacity, Integer
       emits "CrateSetUp"
       then_set :crate_id, to: :crate_id
       then_set :label, to: :label
@@ -117,45 +117,45 @@ Hecks.bluebook "RecordStore", version: "2026.04.13.1" do
       then_set :current_count, to: 0
     end
 
-    FileRecord do
+    command "FileRecord" do
       role "Staff"
       description "Place a record into a crate in alphabetical order"
       reference_to(Crate)
-      String :catalog_number
+      attribute :catalog_number, String
       given { current_count < capacity }
       emits "RecordFiled"
     end
   end
 
   aggregate "ListeningStation", "A headphone station where customers preview records" do
-    String :station_id
-    String :turntable_model
-    String :current_record
-    String :status
+    attribute :station_id, String
+    attribute :turntable_model, String
+    attribute :current_record, String
+    attribute :status, String
 
-    ActivateStation do
+    command "ActivateStation" do
       role "Staff"
       description "Power on a listening station and make it available"
-      String :station_id
-      String :turntable_model
+      attribute :station_id, String
+      attribute :turntable_model, String
       emits "StationActivated"
       then_set :station_id, to: :station_id
       then_set :turntable_model, to: :turntable_model
       then_set :status, to: "available"
     end
 
-    LoadRecord do
+    command "LoadRecord" do
       role "Staff"
       description "Put a record on the turntable for customer preview"
       reference_to(ListeningStation)
-      String :current_record
+      attribute :current_record, String
       given { status == "available" }
       emits "RecordLoaded"
       then_set :current_record, to: :current_record
       then_set :status, to: "in_use"
     end
 
-    FreeStation do
+    command "FreeStation" do
       role "Staff"
       description "Remove the record and make the station available again"
       reference_to(ListeningStation)
@@ -165,21 +165,21 @@ Hecks.bluebook "RecordStore", version: "2026.04.13.1" do
   end
 
   aggregate "SpecialOrder", "A customer request for a record not currently in stock" do
-    String :order_id
-    String :customer_name
-    String :artist_name
-    String :album_title
-    String :format_requested
-    String :status
+    attribute :order_id, String
+    attribute :customer_name, String
+    attribute :artist_name, String
+    attribute :album_title, String
+    attribute :format_requested, String
+    attribute :status, String
 
-    PlaceSpecialOrder do
+    command "PlaceSpecialOrder" do
       role "Customer"
       description "Request the store to source a specific record"
-      String :order_id
-      String :customer_name
-      String :artist_name
-      String :album_title
-      String :format_requested
+      attribute :order_id, String
+      attribute :customer_name, String
+      attribute :artist_name, String
+      attribute :album_title, String
+      attribute :format_requested, String
       emits "SpecialOrderPlaced"
       then_set :order_id, to: :order_id
       then_set :customer_name, to: :customer_name
@@ -189,7 +189,7 @@ Hecks.bluebook "RecordStore", version: "2026.04.13.1" do
       then_set :status, to: "pending"
     end
 
-    FulfillSpecialOrder do
+    command "FulfillSpecialOrder" do
       role "Buyer"
       description "Source the record and notify the customer it has arrived"
       reference_to(SpecialOrder)

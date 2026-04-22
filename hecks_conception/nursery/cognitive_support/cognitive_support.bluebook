@@ -3,26 +3,26 @@ Hecks.bluebook "CognitiveSupport", version: "2026.04.13.1" do
   category "crossover"
 
   aggregate "Agent", "A call center agent — skills, cognitive state, shift info" do
-    String :name
-    String :skill_level
-    Float :cognitive_load_pct
-    Float :fatigue_score
-    String :shift_start
-    Integer :calls_handled
-    String :status
+    attribute :name, String
+    attribute :skill_level, String
+    attribute :cognitive_load_pct, Float
+    attribute :fatigue_score, Float
+    attribute :shift_start, String
+    attribute :calls_handled, Integer
+    attribute :status, String
 
     value_object "CognitiveProfile" do
-      Float :attention_span_min
-      Float :working_memory_capacity
-      Float :stress_threshold
+      attribute :attention_span_min, Float
+      attribute :working_memory_capacity, Float
+      attribute :stress_threshold, Float
     end
 
-    RegisterAgent do
+    command "RegisterAgent" do
       role "Manager"
       description "Register a call center agent with cognitive baseline"
-      String :name
-      String :skill_level
-      String :shift_start
+      attribute :name, String
+      attribute :skill_level, String
+      attribute :shift_start, String
       emits "AgentRegistered"
       then_set :name, to: :name
       then_set :skill_level, to: :skill_level
@@ -33,7 +33,7 @@ Hecks.bluebook "CognitiveSupport", version: "2026.04.13.1" do
       then_set :status, to: "available"
     end
 
-    AssignCall do
+    command "AssignCall" do
       role "System"
       description "Route a call to this agent, increasing cognitive load"
       reference_to(Agent)
@@ -42,12 +42,12 @@ Hecks.bluebook "CognitiveSupport", version: "2026.04.13.1" do
       then_set :status, to: "on_call"
     end
 
-    CompleteCall do
+    command "CompleteCall" do
       role "Agent"
       description "Agent completes a call — update fatigue and load"
       reference_to(Agent)
-      Float :fatigue_score
-      Float :cognitive_load_pct
+      attribute :fatigue_score, Float
+      attribute :cognitive_load_pct, Float
       given { status == "on_call" }
       emits "CallCompleted"
       then_set :fatigue_score, to: :fatigue_score
@@ -55,7 +55,7 @@ Hecks.bluebook "CognitiveSupport", version: "2026.04.13.1" do
       then_set :status, to: "available"
     end
 
-    SendOnBreak do
+    command "SendOnBreak" do
       role "System"
       description "Send agent on mandatory break to recover cognitive capacity"
       reference_to(Agent)
@@ -64,7 +64,7 @@ Hecks.bluebook "CognitiveSupport", version: "2026.04.13.1" do
       then_set :status, to: "on_break"
     end
 
-    ReturnFromBreak do
+    command "ReturnFromBreak" do
       role "Agent"
       description "Agent returns from break with reduced fatigue"
       reference_to(Agent)
@@ -85,29 +85,29 @@ Hecks.bluebook "CognitiveSupport", version: "2026.04.13.1" do
   end
 
   aggregate "WorkloadMetric", "Real-time workload measurement — queue depth, avg handle time, wait time" do
-    String :metric_name
-    Integer :queue_depth
-    Float :avg_handle_time_sec
-    Float :avg_wait_time_sec
-    Float :service_level_pct
-    String :timestamp
-    String :status
+    attribute :metric_name, String
+    attribute :queue_depth, Integer
+    attribute :avg_handle_time_sec, Float
+    attribute :avg_wait_time_sec, Float
+    attribute :service_level_pct, Float
+    attribute :timestamp, String
+    attribute :status, String
 
     value_object "QueueSnapshot" do
-      Integer :waiting
-      Integer :in_progress
-      Integer :completed_last_hour
+      attribute :waiting, Integer
+      attribute :in_progress, Integer
+      attribute :completed_last_hour, Integer
     end
 
-    RecordWorkload do
+    command "RecordWorkload" do
       role "System"
       description "Capture current workload metrics for the call center"
-      String :metric_name
-      Integer :queue_depth
-      Float :avg_handle_time_sec
-      Float :avg_wait_time_sec
-      Float :service_level_pct
-      String :timestamp
+      attribute :metric_name, String
+      attribute :queue_depth, Integer
+      attribute :avg_handle_time_sec, Float
+      attribute :avg_wait_time_sec, Float
+      attribute :service_level_pct, Float
+      attribute :timestamp, String
       emits "WorkloadRecorded"
       then_set :metric_name, to: :metric_name
       then_set :queue_depth, to: :queue_depth
@@ -118,7 +118,7 @@ Hecks.bluebook "CognitiveSupport", version: "2026.04.13.1" do
       then_set :status, to: "recorded"
     end
 
-    DetectOverload do
+    command "DetectOverload" do
       role "System"
       description "Flag when workload metrics indicate system overload"
       reference_to(WorkloadMetric)
@@ -134,34 +134,34 @@ Hecks.bluebook "CognitiveSupport", version: "2026.04.13.1" do
   end
 
   aggregate "FatigueAssessment", "Neuroscience-based fatigue assessment — reaction time, error rate, alertness" do
-    String :agent_name
-    Float :reaction_time_ms
-    Float :error_rate_pct
-    Float :alertness_score
-    String :assessment_time
-    String :recommendation
-    String :status
+    attribute :agent_name, String
+    attribute :reaction_time_ms, Float
+    attribute :error_rate_pct, Float
+    attribute :alertness_score, Float
+    attribute :assessment_time, String
+    attribute :recommendation, String
+    attribute :status, String
 
     value_object "BrainRegionLoad" do
-      String :region_name
-      Float :activation_level
-      String :function
+      attribute :region_name, String
+      attribute :activation_level, Float
+      attribute :function, String
     end
 
     list_of "FatigueIndicator" do
-      String :indicator_name
-      Float :value
-      Float :threshold
+      attribute :indicator_name, String
+      attribute :value, Float
+      attribute :threshold, Float
     end
 
-    AssessFatigue do
+    command "AssessFatigue" do
       role "System"
       description "Run cognitive fatigue assessment based on performance metrics"
-      String :agent_name
-      Float :reaction_time_ms
-      Float :error_rate_pct
-      Float :alertness_score
-      String :assessment_time
+      attribute :agent_name, String
+      attribute :reaction_time_ms, Float
+      attribute :error_rate_pct, Float
+      attribute :alertness_score, Float
+      attribute :assessment_time, String
       emits "FatigueAssessed"
       then_set :agent_name, to: :agent_name
       then_set :reaction_time_ms, to: :reaction_time_ms
@@ -171,11 +171,11 @@ Hecks.bluebook "CognitiveSupport", version: "2026.04.13.1" do
       then_set :status, to: "assessed"
     end
 
-    RecommendBreak do
+    command "RecommendBreak" do
       role "System"
       description "Generate break recommendation based on fatigue level"
       reference_to(FatigueAssessment)
-      String :recommendation
+      attribute :recommendation, String
       given { status == "assessed" }
       emits "BreakRecommended"
       then_set :recommendation, to: :recommendation
@@ -189,25 +189,25 @@ Hecks.bluebook "CognitiveSupport", version: "2026.04.13.1" do
   end
 
   aggregate "BreakSchedule", "Optimized break schedule balancing cognitive recovery with staffing needs" do
-    String :agent_name
-    String :break_type
-    Integer :duration_minutes
-    String :scheduled_time
-    String :status
+    attribute :agent_name, String
+    attribute :break_type, String
+    attribute :duration_minutes, Integer
+    attribute :scheduled_time, String
+    attribute :status, String
 
     value_object "RecoveryProfile" do
-      Float :pre_break_fatigue
-      Float :post_break_fatigue
-      Float :recovery_rate
+      attribute :pre_break_fatigue, Float
+      attribute :post_break_fatigue, Float
+      attribute :recovery_rate, Float
     end
 
-    ScheduleBreak do
+    command "ScheduleBreak" do
       role "System"
       description "Schedule a cognitive recovery break for an agent"
-      String :agent_name
-      String :break_type
-      Integer :duration_minutes
-      String :scheduled_time
+      attribute :agent_name, String
+      attribute :break_type, String
+      attribute :duration_minutes, Integer
+      attribute :scheduled_time, String
       emits "BreakScheduled"
       then_set :agent_name, to: :agent_name
       then_set :break_type, to: :break_type
@@ -216,7 +216,7 @@ Hecks.bluebook "CognitiveSupport", version: "2026.04.13.1" do
       then_set :status, to: "scheduled"
     end
 
-    StartBreak do
+    command "StartBreak" do
       role "Agent"
       description "Agent begins scheduled break"
       reference_to(BreakSchedule)
@@ -225,7 +225,7 @@ Hecks.bluebook "CognitiveSupport", version: "2026.04.13.1" do
       then_set :status, to: "in_progress"
     end
 
-    EndBreak do
+    command "EndBreak" do
       role "Agent"
       description "Agent returns from break"
       reference_to(BreakSchedule)

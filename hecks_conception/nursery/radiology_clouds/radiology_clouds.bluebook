@@ -3,20 +3,20 @@ Hecks.bluebook "RadiologyClouds", version: "2026.04.13.1" do
   category "healthcare_technology"
 
   aggregate "Scan", "A medical imaging scan — X-ray, CT, MRI, or ultrasound" do
-    String :scan_id
-    String :patient_name
-    String :modality
-    String :body_part
-    String :acquired_date
-    String :status
-    AcquireScan do
+    attribute :scan_id, String
+    attribute :patient_name, String
+    attribute :modality, String
+    attribute :body_part, String
+    attribute :acquired_date, String
+    attribute :status, String
+    command "AcquireScan" do
       role "Radiologist"
       description "Acquire a new medical imaging scan from the modality"
-      String :scan_id
-      String :patient_name
-      String :modality
-      String :body_part
-      String :acquired_date
+      attribute :scan_id, String
+      attribute :patient_name, String
+      attribute :modality, String
+      attribute :body_part, String
+      attribute :acquired_date, String
       emits "ScanAcquired"
       then_set :scan_id, to: :scan_id
       then_set :patient_name, to: :patient_name
@@ -25,7 +25,7 @@ Hecks.bluebook "RadiologyClouds", version: "2026.04.13.1" do
       then_set :acquired_date, to: :acquired_date
       then_set :status, to: "acquired"
     end
-    ReadScan do
+    command "ReadScan" do
       role "Radiologist"
       description "Read and interpret the scan findings"
       reference_to(Scan)
@@ -36,17 +36,17 @@ Hecks.bluebook "RadiologyClouds", version: "2026.04.13.1" do
   end
 
   aggregate "CloudStore", "Cloud storage bucket for DICOM images and reports" do
-    String :bucket_id
-    String :region
-    Float :used_gb
-    Float :quota_gb
-    String :status
-    ProvisionBucket do
+    attribute :bucket_id, String
+    attribute :region, String
+    attribute :used_gb, Float
+    attribute :quota_gb, Float
+    attribute :status, String
+    command "ProvisionBucket" do
       role "CloudAdmin"
       description "Create a cloud storage bucket for radiology images"
-      String :bucket_id
-      String :region
-      Float :quota_gb
+      attribute :bucket_id, String
+      attribute :region, String
+      attribute :quota_gb, Float
       emits "BucketProvisioned"
       then_set :bucket_id, to: :bucket_id
       then_set :region, to: :region
@@ -54,40 +54,40 @@ Hecks.bluebook "RadiologyClouds", version: "2026.04.13.1" do
       then_set :used_gb, to: 0.0
       then_set :status, to: "active"
     end
-    UploadImage do
+    command "UploadImage" do
       role "System"
       description "Upload a DICOM image to cloud storage"
       reference_to(CloudStore)
-      Float :size_gb
+      attribute :size_gb, Float
       emits "ImageUploaded"
     end
   end
 
   aggregate "AIAnalysis", "An AI-powered analysis of a radiology scan" do
-    String :analysis_id
-    String :scan_id
-    String :model_name
-    Float :confidence
-    String :finding
-    String :status
-    RunAnalysis do
+    attribute :analysis_id, String
+    attribute :scan_id, String
+    attribute :model_name, String
+    attribute :confidence, Float
+    attribute :finding, String
+    attribute :status, String
+    command "RunAnalysis" do
       role "System"
       description "Run AI model on a scan to detect anomalies"
-      String :analysis_id
-      String :scan_id
-      String :model_name
+      attribute :analysis_id, String
+      attribute :scan_id, String
+      attribute :model_name, String
       emits "AnalysisStarted"
       then_set :analysis_id, to: :analysis_id
       then_set :scan_id, to: :scan_id
       then_set :model_name, to: :model_name
       then_set :status, to: "running"
     end
-    CompleteAnalysis do
+    command "CompleteAnalysis" do
       role "System"
       description "Record AI findings and confidence score"
       reference_to(AIAnalysis)
-      Float :confidence
-      String :finding
+      attribute :confidence, Float
+      attribute :finding, String
       given { status == "running" }
       emits "AnalysisCompleted"
       then_set :confidence, to: :confidence
@@ -97,18 +97,18 @@ Hecks.bluebook "RadiologyClouds", version: "2026.04.13.1" do
   end
 
   aggregate "ShareLink", "A secure sharing link for radiology images and reports" do
-    String :link_id
-    String :scan_id
-    String :recipient_email
-    String :expires_at
-    String :status
-    IssueShareLink do
+    attribute :link_id, String
+    attribute :scan_id, String
+    attribute :recipient_email, String
+    attribute :expires_at, String
+    attribute :status, String
+    command "IssueShareLink" do
       role "Radiologist"
       description "Generate a secure sharing link for a scan"
-      String :link_id
-      String :scan_id
-      String :recipient_email
-      String :expires_at
+      attribute :link_id, String
+      attribute :scan_id, String
+      attribute :recipient_email, String
+      attribute :expires_at, String
       emits "ShareLinkIssued"
       then_set :link_id, to: :link_id
       then_set :scan_id, to: :scan_id
@@ -116,7 +116,7 @@ Hecks.bluebook "RadiologyClouds", version: "2026.04.13.1" do
       then_set :expires_at, to: :expires_at
       then_set :status, to: "active"
     end
-    RevokeLink do
+    command "RevokeLink" do
       role "Radiologist"
       description "Revoke a sharing link before expiry"
       reference_to(ShareLink)

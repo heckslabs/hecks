@@ -3,24 +3,24 @@ Hecks.bluebook "VisionAPI", version: "2026.04.13.1" do
   category "healthcare_technology"
 
   aggregate "EyeExam", "An optometry eye examination for a patient" do
-    String :exam_id
-    String :patient_name
-    String :optometrist
-    String :exam_date
-    String :status
+    attribute :exam_id, String
+    attribute :patient_name, String
+    attribute :optometrist, String
+    attribute :exam_date, String
+    attribute :status, String
     value_object "Refraction" do
-      Float :sphere
-      Float :cylinder
-      Float :axis
-      String :eye
+      attribute :sphere, Float
+      attribute :cylinder, Float
+      attribute :axis, Float
+      attribute :eye, String
     end
-    ConductExam do
+    command "ConductExam" do
       role "Optometrist"
       description "Conduct an eye examination and record findings"
-      String :exam_id
-      String :patient_name
-      String :optometrist
-      String :exam_date
+      attribute :exam_id, String
+      attribute :patient_name, String
+      attribute :optometrist, String
+      attribute :exam_date, String
       emits "ExamConducted"
       then_set :exam_id, to: :exam_id
       then_set :patient_name, to: :patient_name
@@ -28,7 +28,7 @@ Hecks.bluebook "VisionAPI", version: "2026.04.13.1" do
       then_set :exam_date, to: :exam_date
       then_set :status, to: "completed"
     end
-    WriteRx do
+    command "WriteRx" do
       role "Optometrist"
       description "Write the vision prescription from exam results"
       reference_to(EyeExam)
@@ -39,20 +39,20 @@ Hecks.bluebook "VisionAPI", version: "2026.04.13.1" do
   end
 
   aggregate "LensOrder", "An order for prescription lenses via API" do
-    String :order_id
-    String :exam_id
-    String :lens_type
-    String :vendor
-    Float :price
-    String :status
-    PlaceLensOrder do
+    attribute :order_id, String
+    attribute :exam_id, String
+    attribute :lens_type, String
+    attribute :vendor, String
+    attribute :price, Float
+    attribute :status, String
+    command "PlaceLensOrder" do
       role "Optician"
       description "Place a lens order through the vendor API"
-      String :order_id
-      String :exam_id
-      String :lens_type
-      String :vendor
-      Float :price
+      attribute :order_id, String
+      attribute :exam_id, String
+      attribute :lens_type, String
+      attribute :vendor, String
+      attribute :price, Float
       emits "LensOrderPlaced"
       then_set :order_id, to: :order_id
       then_set :exam_id, to: :exam_id
@@ -61,7 +61,7 @@ Hecks.bluebook "VisionAPI", version: "2026.04.13.1" do
       then_set :price, to: :price
       then_set :status, to: "ordered"
     end
-    FulfillOrder do
+    command "FulfillOrder" do
       role "Vendor"
       description "Mark lens order as fulfilled and ready for pickup"
       reference_to(LensOrder)
@@ -72,18 +72,18 @@ Hecks.bluebook "VisionAPI", version: "2026.04.13.1" do
   end
 
   aggregate "InsuranceClaim", "An insurance claim for vision services" do
-    String :claim_id
-    String :patient_name
-    String :provider_name
-    Float :amount
-    String :status
-    SubmitClaim do
+    attribute :claim_id, String
+    attribute :patient_name, String
+    attribute :provider_name, String
+    attribute :amount, Float
+    attribute :status, String
+    command "SubmitClaim" do
       role "BillingClerk"
       description "Submit an insurance claim for vision services via integration"
-      String :claim_id
-      String :patient_name
-      String :provider_name
-      Float :amount
+      attribute :claim_id, String
+      attribute :patient_name, String
+      attribute :provider_name, String
+      attribute :amount, Float
       emits "ClaimSubmitted"
       then_set :claim_id, to: :claim_id
       then_set :patient_name, to: :patient_name
@@ -91,7 +91,7 @@ Hecks.bluebook "VisionAPI", version: "2026.04.13.1" do
       then_set :amount, to: :amount
       then_set :status, to: "submitted"
     end
-    AdjudicateClaim do
+    command "AdjudicateClaim" do
       role "Insurer"
       description "Process and adjudicate the insurance claim"
       reference_to(InsuranceClaim)
@@ -102,24 +102,24 @@ Hecks.bluebook "VisionAPI", version: "2026.04.13.1" do
   end
 
   aggregate "APIClient", "A registered API client consuming vision services" do
-    String :client_id
-    String :client_name
-    String :api_key
-    Integer :rate_limit
-    String :status
+    attribute :client_id, String
+    attribute :client_name, String
+    attribute :api_key, String
+    attribute :rate_limit, Integer
+    attribute :status, String
     list_of(Endpoint) :endpoints
     value_object "Endpoint" do
-      String :path
-      String :method
-      String :version
+      attribute :path, String
+      attribute :method, String
+      attribute :version, String
     end
-    RegisterAPIClient do
+    command "RegisterAPIClient" do
       role "Admin"
       description "Register an API client with key and rate limits"
-      String :client_id
-      String :client_name
-      String :api_key
-      Integer :rate_limit
+      attribute :client_id, String
+      attribute :client_name, String
+      attribute :api_key, String
+      attribute :rate_limit, Integer
       emits "APIClientRegistered"
       then_set :client_id, to: :client_id
       then_set :client_name, to: :client_name
@@ -127,7 +127,7 @@ Hecks.bluebook "VisionAPI", version: "2026.04.13.1" do
       then_set :rate_limit, to: :rate_limit
       then_set :status, to: "active"
     end
-    RevokeAccess do
+    command "RevokeAccess" do
       role "Admin"
       description "Revoke API access for a client"
       reference_to(APIClient)

@@ -1,29 +1,29 @@
 Hecks.bluebook "BookPublishing" do
   aggregate "Manuscript", "An author's manuscript moving through editorial pipeline" do
-    String :title
-    String :genre
-    String :author_name
-    Integer :word_count
-    String :status, default: "submitted"
+    attribute :title, String
+    attribute :genre, String
+    attribute :author_name, String
+    attribute :word_count, Integer
+    attribute :status, String, default: "submitted"
 
     value_object "Synopsis" do
-      String :hook
-      String :summary
-      String :target_audience
-      Integer :comparable_titles_count
+      attribute :hook, String
+      attribute :summary, String
+      attribute :target_audience, String
+      attribute :comparable_titles_count, Integer
     end
 
-    SubmitManuscript do
+    command "SubmitManuscript" do
       description "Submit a new manuscript for editorial consideration"
-      String :title
-      String :genre
-      String :author_name
-      Integer :word_count
+      attribute :title, String
+      attribute :genre, String
+      attribute :author_name, String
+      attribute :word_count, Integer
       then_set :status, to: "submitted"
       emits "ManuscriptSubmitted"
     end
 
-    AcceptManuscript do
+    command "AcceptManuscript" do
       description "Accept the manuscript for publication"
       reference_to(Manuscript)
       given { status == "submitted" }
@@ -31,10 +31,10 @@ Hecks.bluebook "BookPublishing" do
       then_set :status, to: "accepted"
     end
 
-    RejectManuscript do
+    command "RejectManuscript" do
       description "Decline the manuscript with editorial feedback"
       reference_to(Manuscript)
-      String :rejection_reason
+      attribute :rejection_reason, String
       given { status == "submitted" }
       emits "ManuscriptRejected"
       then_set :status, to: "rejected"
@@ -42,63 +42,63 @@ Hecks.bluebook "BookPublishing" do
   end
 
   aggregate "EditorialPass", "A round of editing — developmental, copy, or proofread" do
-    String :pass_type
-    String :editor_name
-    String :status, default: "assigned"
-    Integer :change_count
+    attribute :pass_type, String
+    attribute :editor_name, String
+    attribute :status, String, default: "assigned"
+    attribute :change_count, Integer
     reference_to(Manuscript)
 
-    AssignEditor do
+    command "AssignEditor" do
       description "Assign an editor for a specific editorial pass"
       reference_to(Manuscript)
-      String :pass_type
-      String :editor_name
+      attribute :pass_type, String
+      attribute :editor_name, String
       then_set :status, to: "assigned"
       emits "EditorAssigned"
     end
 
-    CompletePass do
+    command "CompletePass" do
       description "Finish an editorial pass and return to author"
       reference_to(EditorialPass)
-      Integer :change_count
+      attribute :change_count, Integer
       given { status == "assigned" }
       emits "PassCompleted"
       then_set :status, to: "completed"
       then_set :change_count, to: :change_count
     end
 
-    RequestRevision do
+    command "RequestRevision" do
       description "Send the manuscript back to the author for revisions"
       reference_to(EditorialPass)
-      String :revision_notes
+      attribute :revision_notes, String
       emits "RevisionRequested"
     end
   end
 
   aggregate "CoverDesign", "Book cover artwork and typography" do
-    String :designer_name
-    String :art_style
-    String :status, default: "briefed"
-    Integer :revision_number
+    attribute :designer_name, String
+    attribute :art_style, String
+    attribute :status, String, default: "briefed"
+    attribute :revision_number, Integer
     reference_to(Manuscript)
 
     value_object "CoverSpec" do
-      String :trim_size
-      Integer :spine_width_mm
-      String :finish_type
-      String :color_profile
+      attribute :trim_size, String
+      attribute :spine_width_mm, Integer
+      attribute :finish_type, String
+      attribute :color_profile, String
     end
 
-    BriefDesigner do
+    command "BriefDesigner" do
       description "Provide the cover designer with manuscript details and vision"
       reference_to(Manuscript)
-      String :designer_name
-      String :art_style
+      attribute :designer_name, String
+      attribute :art_style, String
       then_set :status, to: "briefed"
       emits "DesignerBriefed"
     end
 
-    ApproveCover do
+    command "ApproveCover" do
       description "Sign off on the final cover design"
       reference_to(CoverDesign)
       given { status == "briefed" }
@@ -108,26 +108,26 @@ Hecks.bluebook "BookPublishing" do
   end
 
   aggregate "PrintRun", "A production print run with quantity and binding specs" do
-    Integer :quantity
-    String :binding_type
-    String :paper_stock
-    String :status, default: "ordered"
+    attribute :quantity, Integer
+    attribute :binding_type, String
+    attribute :paper_stock, String
+    attribute :status, String, default: "ordered"
     reference_to(Manuscript)
 
-    OrderPrintRun do
+    command "OrderPrintRun" do
       description "Place a print order with the printer"
       reference_to(Manuscript)
-      Integer :quantity
-      String :binding_type
-      String :paper_stock
+      attribute :quantity, Integer
+      attribute :binding_type, String
+      attribute :paper_stock, String
       then_set :status, to: "ordered"
       emits "PrintRunOrdered"
     end
 
-    ReceiveShipment do
+    command "ReceiveShipment" do
       description "Receive printed books from the printer"
       reference_to(PrintRun)
-      Integer :received_quantity
+      attribute :received_quantity, Integer
       given { status == "ordered" }
       emits "ShipmentReceived"
       then_set :status, to: "received"
@@ -135,25 +135,25 @@ Hecks.bluebook "BookPublishing" do
   end
 
   aggregate "RoyaltyAccount", "Author royalty tracking per title" do
-    Float :advance_paid
-    Float :earned_royalties
-    Float :royalty_rate
-    String :status, default: "unearned"
+    attribute :advance_paid, Float
+    attribute :earned_royalties, Float
+    attribute :royalty_rate, Float
+    attribute :status, String, default: "unearned"
     reference_to(Manuscript)
 
-    SetUpRoyalty do
+    command "SetUpRoyalty" do
       description "Establish royalty terms for an accepted manuscript"
       reference_to(Manuscript)
-      Float :advance_paid
-      Float :royalty_rate
+      attribute :advance_paid, Float
+      attribute :royalty_rate, Float
       emits "RoyaltySetUp"
     end
 
-    RecordSales do
+    command "RecordSales" do
       description "Apply sales revenue against the royalty advance"
       reference_to(RoyaltyAccount)
-      Integer :units_sold
-      Float :revenue
+      attribute :units_sold, Integer
+      attribute :revenue, Float
       emits "SalesRecorded"
     end
   end

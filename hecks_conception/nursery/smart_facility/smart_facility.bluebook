@@ -3,24 +3,24 @@ Hecks.bluebook "SmartFacility", version: "2026.04.13.1" do
   category "healthcare_technology"
 
   aggregate "Resident", "An elder care resident in the smart facility" do
-    String :resident_id
-    String :name
-    String :room_number
-    String :care_level
-    String :status
+    attribute :resident_id, String
+    attribute :name, String
+    attribute :room_number, String
+    attribute :care_level, String
+    attribute :status, String
     list_of(DailyNeed) :daily_needs
     value_object "DailyNeed" do
-      String :need_type
-      String :time_of_day
-      String :notes
+      attribute :need_type, String
+      attribute :time_of_day, String
+      attribute :notes, String
     end
-    AdmitResident do
+    command "AdmitResident" do
       role "Admin"
       description "Admit a new resident to the elder care facility"
-      String :resident_id
-      String :name
-      String :room_number
-      String :care_level
+      attribute :resident_id, String
+      attribute :name, String
+      attribute :room_number, String
+      attribute :care_level, String
       emits "ResidentAdmitted"
       then_set :resident_id, to: :resident_id
       then_set :name, to: :name
@@ -28,12 +28,12 @@ Hecks.bluebook "SmartFacility", version: "2026.04.13.1" do
       then_set :care_level, to: :care_level
       then_set :status, to: "active"
     end
-    TransferResident do
+    command "TransferResident" do
       role "Admin"
       description "Transfer resident to a different room or care level"
       reference_to(Resident)
-      String :room_number
-      String :care_level
+      attribute :room_number, String
+      attribute :care_level, String
       emits "ResidentTransferred"
       then_set :room_number, to: :room_number
       then_set :care_level, to: :care_level
@@ -41,54 +41,54 @@ Hecks.bluebook "SmartFacility", version: "2026.04.13.1" do
   end
 
   aggregate "Display", "A digital signage display in the facility" do
-    String :display_id
-    String :location_name
-    String :content_type
-    String :current_content
-    String :status
-    InstallDisplay do
+    attribute :display_id, String
+    attribute :location_name, String
+    attribute :content_type, String
+    attribute :current_content, String
+    attribute :status, String
+    command "InstallDisplay" do
       role "Technician"
       description "Install a digital display at a facility location"
-      String :display_id
-      String :location_name
-      String :content_type
+      attribute :display_id, String
+      attribute :location_name, String
+      attribute :content_type, String
       emits "DisplayInstalled"
       then_set :display_id, to: :display_id
       then_set :location_name, to: :location_name
       then_set :content_type, to: :content_type
       then_set :status, to: "active"
     end
-    RefreshContent do
+    command "RefreshContent" do
       role "ActivityDirector"
       description "Push new content to a facility display"
       reference_to(Display)
-      String :current_content
+      attribute :current_content, String
       emits "ContentRefreshed"
       then_set :current_content, to: :current_content
     end
   end
 
   aggregate "ReminderSchedule", "A personalized reminder schedule for a resident" do
-    String :schedule_id
-    String :resident_id
+    attribute :schedule_id, String
+    attribute :resident_id, String
     list_of(ReminderItem) :items
-    String :status
+    attribute :status, String
     value_object "ReminderItem" do
-      String :reminder_type
-      String :time
-      String :message
+      attribute :reminder_type, String
+      attribute :time, String
+      attribute :message, String
     end
-    ProvisionSchedule do
+    command "ProvisionSchedule" do
       role "Nurse"
       description "Create a personalized reminder schedule for a resident"
-      String :schedule_id
-      String :resident_id
+      attribute :schedule_id, String
+      attribute :resident_id, String
       emits "ScheduleProvisioned"
       then_set :schedule_id, to: :schedule_id
       then_set :resident_id, to: :resident_id
       then_set :status, to: "active"
     end
-    TriggerReminder do
+    command "TriggerReminder" do
       role "System"
       description "Fire a reminder and display it on the resident room screen"
       reference_to(ReminderSchedule)
@@ -98,32 +98,32 @@ Hecks.bluebook "SmartFacility", version: "2026.04.13.1" do
   end
 
   aggregate "ActivityBoard", "A communal activity board showing daily events" do
-    String :board_id
-    String :date
+    attribute :board_id, String
+    attribute :date, String
     list_of(Activity) :activities
-    String :status
+    attribute :status, String
     value_object "Activity" do
-      String :name
-      String :time
-      String :location_name
-      String :leader
+      attribute :name, String
+      attribute :time, String
+      attribute :location_name, String
+      attribute :leader, String
     end
-    PublishBoard do
+    command "PublishBoard" do
       role "ActivityDirector"
       description "Publish the daily activity board for residents"
-      String :board_id
-      String :date
+      attribute :board_id, String
+      attribute :date, String
       emits "BoardPublished"
       then_set :board_id, to: :board_id
       then_set :date, to: :date
       then_set :status, to: "published"
     end
-    AddActivity do
+    command "AddActivity" do
       role "ActivityDirector"
       description "Add a new activity to the daily board"
       reference_to(ActivityBoard)
-      String :name
-      String :time
+      attribute :name, String
+      attribute :time, String
       emits "ActivityAdded"
     end
   end

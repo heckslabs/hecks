@@ -3,28 +3,28 @@ Hecks.bluebook "GeriatricPharmacy", version: "2026.04.13.1" do
   category "crossover"
 
   aggregate "Medication", "A pharmaceutical compound — class, mechanism, metabolism, half-life" do
-    String :name
-    String :drug_class
-    String :mechanism_of_action
-    Float :half_life_hours
-    String :metabolism_pathway
-    String :status
+    attribute :name, String
+    attribute :drug_class, String
+    attribute :mechanism_of_action, String
+    attribute :half_life_hours, Float
+    attribute :metabolism_pathway, String
+    attribute :status, String
 
     value_object "Pharmacokinetics" do
-      Float :bioavailability_pct
-      Float :protein_binding_pct
-      Float :volume_of_distribution_l
-      String :elimination_route
+      attribute :bioavailability_pct, Float
+      attribute :protein_binding_pct, Float
+      attribute :volume_of_distribution_l, Float
+      attribute :elimination_route, String
     end
 
-    RegisterMedication do
+    command "RegisterMedication" do
       role "Pharmacist"
       description "Register a medication in the formulary with pharmacological data"
-      String :name
-      String :drug_class
-      String :mechanism_of_action
-      Float :half_life_hours
-      String :metabolism_pathway
+      attribute :name, String
+      attribute :drug_class, String
+      attribute :mechanism_of_action, String
+      attribute :half_life_hours, Float
+      attribute :metabolism_pathway, String
       emits "MedicationRegistered"
       then_set :name, to: :name
       then_set :drug_class, to: :drug_class
@@ -34,7 +34,7 @@ Hecks.bluebook "GeriatricPharmacy", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    WithdrawMedication do
+    command "WithdrawMedication" do
       role "Pharmacist"
       description "Withdraw medication from formulary"
       reference_to(Medication)
@@ -50,34 +50,34 @@ Hecks.bluebook "GeriatricPharmacy", version: "2026.04.13.1" do
   end
 
   aggregate "Resident", "An elder care resident — age, conditions, kidney function, current medications" do
-    String :name
-    Integer :age
-    Float :weight_kg
-    Float :creatinine_clearance_ml_min
-    String :hepatic_function
-    String :status
+    attribute :name, String
+    attribute :age, Integer
+    attribute :weight_kg, Float
+    attribute :creatinine_clearance_ml_min, Float
+    attribute :hepatic_function, String
+    attribute :status, String
 
     value_object "RenalProfile" do
-      Float :serum_creatinine
-      Float :gfr_ml_min
-      String :stage
+      attribute :serum_creatinine, Float
+      attribute :gfr_ml_min, Float
+      attribute :stage, String
     end
 
     list_of "ActiveMedication" do
-      String :medication_name
-      Float :dose_mg
-      String :frequency
-      String :route
+      attribute :medication_name, String
+      attribute :dose_mg, Float
+      attribute :frequency, String
+      attribute :route, String
     end
 
-    AdmitResident do
+    command "AdmitResident" do
       role "Nurse"
       description "Admit a new resident with baseline health data"
-      String :name
-      Integer :age
-      Float :weight_kg
-      Float :creatinine_clearance_ml_min
-      String :hepatic_function
+      attribute :name, String
+      attribute :age, Integer
+      attribute :weight_kg, Float
+      attribute :creatinine_clearance_ml_min, Float
+      attribute :hepatic_function, String
       emits "ResidentAdmitted"
       then_set :name, to: :name
       then_set :age, to: :age
@@ -87,11 +87,11 @@ Hecks.bluebook "GeriatricPharmacy", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    ReconcileRenalFunction do
+    command "ReconcileRenalFunction" do
       role "Physician"
       description "Reconcile kidney function lab results"
       reference_to(Resident)
-      Float :creatinine_clearance_ml_min
+      attribute :creatinine_clearance_ml_min, Float
       given { status == "active" }
       emits "RenalFunctionReconciled"
       then_set :creatinine_clearance_ml_min, to: :creatinine_clearance_ml_min
@@ -103,29 +103,29 @@ Hecks.bluebook "GeriatricPharmacy", version: "2026.04.13.1" do
   end
 
   aggregate "InteractionCheck", "Drug interaction screening — severity, mechanism, recommendation" do
-    String :medication_a
-    String :medication_b
-    String :interaction_type
-    String :severity
-    String :mechanism
-    String :recommendation
-    String :status
+    attribute :medication_a, String
+    attribute :medication_b, String
+    attribute :interaction_type, String
+    attribute :severity, String
+    attribute :mechanism, String
+    attribute :recommendation, String
+    attribute :status, String
 
     value_object "InteractionEvidence" do
-      String :study_type
-      String :population
-      Float :risk_ratio
-      String :source
+      attribute :study_type, String
+      attribute :population, String
+      attribute :risk_ratio, Float
+      attribute :source, String
     end
 
-    ScreenInteraction do
+    command "ScreenInteraction" do
       role "System"
       description "Screen for drug-drug interactions between two medications"
-      String :medication_a
-      String :medication_b
-      String :interaction_type
-      String :severity
-      String :mechanism
+      attribute :medication_a, String
+      attribute :medication_b, String
+      attribute :interaction_type, String
+      attribute :severity, String
+      attribute :mechanism, String
       emits "InteractionScreened"
       then_set :medication_a, to: :medication_a
       then_set :medication_b, to: :medication_b
@@ -135,11 +135,11 @@ Hecks.bluebook "GeriatricPharmacy", version: "2026.04.13.1" do
       then_set :status, to: "screened"
     end
 
-    RecommendAction do
+    command "RecommendAction" do
       role "Pharmacist"
       description "Provide recommendation for managing the interaction"
       reference_to(InteractionCheck)
-      String :recommendation
+      attribute :recommendation, String
       given { status == "screened" }
       emits "ActionRecommended"
       then_set :recommendation, to: :recommendation
@@ -153,29 +153,29 @@ Hecks.bluebook "GeriatricPharmacy", version: "2026.04.13.1" do
   end
 
   aggregate "DosingRegimen", "A dosing plan adjusted for geriatric physiology — renal, hepatic, weight" do
-    String :resident_name
-    String :medication_name
-    Float :standard_dose_mg
-    Float :adjusted_dose_mg
-    String :frequency
-    String :adjustment_reason
-    String :status
+    attribute :resident_name, String
+    attribute :medication_name, String
+    attribute :standard_dose_mg, Float
+    attribute :adjusted_dose_mg, Float
+    attribute :frequency, String
+    attribute :adjustment_reason, String
+    attribute :status, String
 
     value_object "DoseAdjustment" do
-      String :factor
-      Float :adjustment_pct
-      String :guideline
+      attribute :factor, String
+      attribute :adjustment_pct, Float
+      attribute :guideline, String
     end
 
-    CalculateDose do
+    command "CalculateDose" do
       role "System"
       description "Calculate age and renal-adjusted dose for geriatric patient"
-      String :resident_name
-      String :medication_name
-      Float :standard_dose_mg
-      Float :adjusted_dose_mg
-      String :frequency
-      String :adjustment_reason
+      attribute :resident_name, String
+      attribute :medication_name, String
+      attribute :standard_dose_mg, Float
+      attribute :adjusted_dose_mg, Float
+      attribute :frequency, String
+      attribute :adjustment_reason, String
       emits "DoseCalculated"
       then_set :resident_name, to: :resident_name
       then_set :medication_name, to: :medication_name
@@ -186,7 +186,7 @@ Hecks.bluebook "GeriatricPharmacy", version: "2026.04.13.1" do
       then_set :status, to: "calculated"
     end
 
-    ApproveDose do
+    command "ApproveDose" do
       role "Physician"
       description "Physician approves the adjusted dosing regimen"
       reference_to(DosingRegimen)
@@ -202,30 +202,30 @@ Hecks.bluebook "GeriatricPharmacy", version: "2026.04.13.1" do
   end
 
   aggregate "MonitoringPlan", "Therapeutic drug monitoring — levels, timing, toxicity thresholds" do
-    String :resident_name
-    String :medication_name
-    Float :target_trough_ng_ml
-    Float :target_peak_ng_ml
-    Float :toxicity_threshold_ng_ml
-    String :monitoring_frequency
-    String :status
+    attribute :resident_name, String
+    attribute :medication_name, String
+    attribute :target_trough_ng_ml, Float
+    attribute :target_peak_ng_ml, Float
+    attribute :toxicity_threshold_ng_ml, Float
+    attribute :monitoring_frequency, String
+    attribute :status, String
 
     value_object "LabResult" do
-      String :test_name
-      Float :value
-      String :unit
-      String :timestamp
+      attribute :test_name, String
+      attribute :value, Float
+      attribute :unit, String
+      attribute :timestamp, String
     end
 
-    EstablishMonitoringPlan do
+    command "EstablishMonitoringPlan" do
       role "Pharmacist"
       description "Establish therapeutic monitoring plan for a medication"
-      String :resident_name
-      String :medication_name
-      Float :target_trough_ng_ml
-      Float :target_peak_ng_ml
-      Float :toxicity_threshold_ng_ml
-      String :monitoring_frequency
+      attribute :resident_name, String
+      attribute :medication_name, String
+      attribute :target_trough_ng_ml, Float
+      attribute :target_peak_ng_ml, Float
+      attribute :toxicity_threshold_ng_ml, Float
+      attribute :monitoring_frequency, String
       emits "MonitoringPlanEstablished"
       then_set :resident_name, to: :resident_name
       then_set :medication_name, to: :medication_name
@@ -236,7 +236,7 @@ Hecks.bluebook "GeriatricPharmacy", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    RecordLevel do
+    command "RecordLevel" do
       role "LabTechnician"
       description "Record drug level from blood draw"
       reference_to(MonitoringPlan)
@@ -244,7 +244,7 @@ Hecks.bluebook "GeriatricPharmacy", version: "2026.04.13.1" do
       emits "LevelRecorded"
     end
 
-    FlagToxicity do
+    command "FlagToxicity" do
       role "System"
       description "Alert when drug level approaches toxicity threshold"
       reference_to(MonitoringPlan)

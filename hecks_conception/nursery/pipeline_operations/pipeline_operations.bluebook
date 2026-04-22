@@ -1,39 +1,39 @@
 Hecks.bluebook "PipelineOperations" do
   aggregate "PipelineSegment" do
-    String :segment_id
-    String :segment_name
-    Float :length_miles
-    Float :diameter_inches
-    String :material
-    Integer :year_installed
-    String :status
+    attribute :segment_id, String
+    attribute :segment_name, String
+    attribute :length_miles, Float
+    attribute :diameter_inches, Float
+    attribute :material, String
+    attribute :year_installed, Integer
+    attribute :status, String
 
     value_object "SegmentSpec" do
-      Float :wall_thickness_inches
-      Float :max_operating_pressure_psi
-      String :coating_type
-      String :cathodic_protection
+      attribute :wall_thickness_inches, Float
+      attribute :max_operating_pressure_psi, Float
+      attribute :coating_type, String
+      attribute :cathodic_protection, String
     end
 
-    ActivateSegment do
+    command "ActivateSegment" do
       description "Bring new pipeline segment into active service after testing"
-      String :segment_name
-      Float :length_miles
+      attribute :segment_name, String
+      attribute :length_miles, Float
       reference_to "PipelineSegment"
       emits "SegmentActivated"
     end
 
-    PressureTestSegment do
+    command "PressureTestSegment" do
       description "Perform hydrostatic pressure test to verify segment integrity"
-      Float :test_pressure_psi
-      Float :hold_duration_hours
+      attribute :test_pressure_psi, Float
+      attribute :hold_duration_hours, Float
       reference_to "PipelineSegment"
       emits "PressureTestPassed"
     end
 
-    DeactivateSegment do
+    command "DeactivateSegment" do
       description "Take pipeline segment out of service for maintenance or retirement"
-      String :reason
+      attribute :reason, String
       reference_to "PipelineSegment"
       emits "SegmentDeactivated"
     end
@@ -49,32 +49,32 @@ Hecks.bluebook "PipelineOperations" do
   end
 
   aggregate "PumpStation" do
-    String :station_id
-    String :station_name
-    Integer :pump_count
-    Float :max_throughput_bph
-    String :status
+    attribute :station_id, String
+    attribute :station_name, String
+    attribute :pump_count, Integer
+    attribute :max_throughput_bph, Float
+    attribute :status, String
 
-    StartPumps do
+    command "StartPumps" do
       description "Activate pumps at station to maintain pipeline flow rate"
-      Integer :pumps_to_start
-      Float :target_flow_bph
+      attribute :pumps_to_start, Integer
+      attribute :target_flow_bph, Float
       reference_to "PumpStation"
       emits "PumpsStarted"
     end
 
-    MonitorPressure do
+    command "MonitorPressure" do
       description "Record suction and discharge pressure at pump station"
-      Float :suction_psi
-      Float :discharge_psi
+      attribute :suction_psi, Float
+      attribute :discharge_psi, Float
       reference_to "PumpStation"
       emits "PressureMonitored"
     end
 
-    ShutdownStation do
+    command "ShutdownStation" do
       description "Emergency or planned shutdown of pump station operations"
-      String :shutdown_reason
-      String :initiated_by
+      attribute :shutdown_reason, String
+      attribute :initiated_by, String
       reference_to "PumpStation"
       emits "StationShutdown"
     end
@@ -88,40 +88,40 @@ Hecks.bluebook "PipelineOperations" do
     policy "Minimum one backup pump must remain available"
 
     given "Station Alpha runs at 80 percent capacity" do
-      String :station_name, "Alpha Pump Station"
-      Integer :pump_count, 4
-      Float :max_throughput_bph, 50000.0
+      attribute :station_name, String, "Alpha Pump Station"
+      attribute :pump_count, Integer, 4
+      attribute :max_throughput_bph, Float, 50000.0
     end
   end
 
   aggregate "InlineInspection" do
-    String :inspection_id
-    String :segment_id
-    String :pig_type
-    String :run_date
-    Integer :anomaly_count
-    String :status
+    attribute :inspection_id, String
+    attribute :segment_id, String
+    attribute :pig_type, String
+    attribute :run_date, String
+    attribute :anomaly_count, Integer
+    attribute :status, String
     list_of "PipelineSegment"
 
-    LaunchPig do
+    command "LaunchPig" do
       description "Launch inline inspection pig through pipeline segment"
-      String :pig_type
-      String :segment_id
+      attribute :pig_type, String
+      attribute :segment_id, String
       reference_to "PipelineSegment"
       emits "PigLaunched"
     end
 
-    ReceivePig do
+    command "ReceivePig" do
       description "Receive inspection pig at downstream trap after run completion"
-      String :receiver_location
+      attribute :receiver_location, String
       reference_to "InlineInspection"
       emits "PigReceived"
     end
 
-    AnalyzeResults do
+    command "AnalyzeResults" do
       description "Process pig run data and identify wall loss or dent anomalies"
-      Integer :anomaly_count
-      String :worst_feature
+      attribute :anomaly_count, Integer
+      attribute :worst_feature, String
       reference_to "InlineInspection"
       emits "ResultsAnalyzed"
     end
@@ -136,32 +136,32 @@ Hecks.bluebook "PipelineOperations" do
   end
 
   aggregate "FlowMeasurement" do
-    String :measurement_id
-    String :meter_station
-    Float :volume_barrels
-    Float :temperature_f
-    Float :pressure_psi
-    String :measurement_date
+    attribute :measurement_id, String
+    attribute :meter_station, String
+    attribute :volume_barrels, Float
+    attribute :temperature_f, Float
+    attribute :pressure_psi, Float
+    attribute :measurement_date, String
 
     value_object "MeterReading" do
-      Float :volume_barrels
-      Float :flow_rate_bph
-      Float :density
-      Float :bsw_percent
+      attribute :volume_barrels, Float
+      attribute :flow_rate_bph, Float
+      attribute :density, Float
+      attribute :bsw_percent, Float
     end
 
-    RecordMeasurement do
+    command "RecordMeasurement" do
       description "Capture custody transfer measurement at meter station"
-      String :meter_station
-      Float :volume_barrels
+      attribute :meter_station, String
+      attribute :volume_barrels, Float
       reference_to "FlowMeasurement"
       emits "MeasurementRecorded"
     end
 
-    CalibrateMeters do
+    command "CalibrateMeters" do
       description "Perform scheduled calibration of flow measurement equipment"
-      String :technician
-      Float :correction_factor
+      attribute :technician, String
+      attribute :correction_factor, Float
       reference_to "FlowMeasurement"
       emits "MetersCalibrated"
     end
@@ -170,34 +170,34 @@ Hecks.bluebook "PipelineOperations" do
   end
 
   aggregate "LeakDetection" do
-    String :alert_id
-    String :segment_id
-    String :detection_method
-    Float :estimated_volume_barrels
-    String :severity
-    String :status
+    attribute :alert_id, String
+    attribute :segment_id, String
+    attribute :detection_method, String
+    attribute :estimated_volume_barrels, Float
+    attribute :severity, String
+    attribute :status, String
 
-    RaiseLeakAlert do
+    command "RaiseLeakAlert" do
       description "Trigger leak alert based on computational pipeline monitoring"
-      String :detection_method
-      String :segment_id
-      Float :estimated_volume_barrels
+      attribute :detection_method, String
+      attribute :segment_id, String
+      attribute :estimated_volume_barrels, Float
       reference_to "PipelineSegment"
       emits "LeakAlertRaised"
     end
 
-    ConfirmLeak do
+    command "ConfirmLeak" do
       description "Dispatch field crew and confirm or dismiss leak alert"
-      String :field_finding
-      String :confirmed_by
+      attribute :field_finding, String
+      attribute :confirmed_by, String
       reference_to "LeakDetection"
       emits "LeakConfirmed"
     end
 
-    IsolateSegment do
+    command "IsolateSegment" do
       description "Close valves to isolate leaking segment from pipeline"
-      String :upstream_valve
-      String :downstream_valve
+      attribute :upstream_valve, String
+      attribute :downstream_valve, String
       reference_to "LeakDetection"
       emits "SegmentIsolated"
     end

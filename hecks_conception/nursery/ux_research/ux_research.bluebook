@@ -3,40 +3,40 @@ Hecks.bluebook "UXResearch", version: "2026.04.13.1" do
   category "technology"
 
   aggregate "Study", "A research initiative exploring a specific user experience question" do
-    String :study_name
-    String :research_question
-    String :methodology
-    String :lead_researcher
-    Integer :target_participants
-    String :status
+    attribute :study_name, String
+    attribute :research_question, String
+    attribute :methodology, String
+    attribute :lead_researcher, String
+    attribute :target_participants, Integer
+    attribute :status, String
     list_of(Objective) :objectives
 
     value_object "Objective" do
-      String :description
-      String :success_metric
-      String :priority
+      attribute :description, String
+      attribute :success_metric, String
+      attribute :priority, String
     end
 
-    PlanStudy do
+    command "PlanStudy" do
       role "ResearchLead"
       description "Define a new research study with methodology and objectives"
-      String :study_name
-      String :research_question
-      String :methodology
-      String :lead_researcher
-      Integer :target_participants
+      attribute :study_name, String
+      attribute :research_question, String
+      attribute :methodology, String
+      attribute :lead_researcher, String
+      attribute :target_participants, Integer
       emits "StudyPlanned"
       then_set :status, to: "planned"
     end
 
-    LaunchStudy do
+    command "LaunchStudy" do
       description "Begin active recruitment and session scheduling"
       reference_to(Study)
       given("study is planned") { status == "planned" }
       emits "StudyLaunched"
     end
 
-    ConcludeStudy do
+    command "ConcludeStudy" do
       description "End data collection and move to analysis phase"
       reference_to(Study)
       emits "StudyConcluded"
@@ -47,40 +47,40 @@ Hecks.bluebook "UXResearch", version: "2026.04.13.1" do
   end
 
   aggregate "Participant", "A person recruited to take part in research sessions" do
-    String :participant_id
-    String :name
-    String :email
-    String :demographic_segment
-    String :screening_status
-    String :status
+    attribute :participant_id, String
+    attribute :name, String
+    attribute :email, String
+    attribute :demographic_segment, String
+    attribute :screening_status, String
+    attribute :status, String
     reference_to Study
 
     value_object "ScreeningAnswer" do
-      String :question
-      String :answer
-      String :qualified
+      attribute :question, String
+      attribute :answer, String
+      attribute :qualified, String
     end
 
-    RecruitParticipant do
+    command "RecruitParticipant" do
       role "Recruiter"
       description "Add a potential participant to the study pool"
-      String :participant_id
-      String :name
-      String :email
-      String :demographic_segment
+      attribute :participant_id, String
+      attribute :name, String
+      attribute :email, String
+      attribute :demographic_segment, String
       reference_to(Study)
       emits "ParticipantRecruited"
       then_set :screening_status, to: "screened"
     end
 
-    QualifyParticipant do
+    command "QualifyParticipant" do
       description "Mark a participant as meeting screening criteria"
       reference_to(Participant)
       given("participant is screened") { screening_status == "screened" }
       emits "ParticipantQualified"
     end
 
-    ExcludeParticipant do
+    command "ExcludeParticipant" do
       description "Remove a participant who does not meet criteria"
       reference_to(Participant)
       emits "ParticipantExcluded"
@@ -91,45 +91,45 @@ Hecks.bluebook "UXResearch", version: "2026.04.13.1" do
   end
 
   aggregate "Session", "A scheduled research interaction with a participant" do
-    String :session_id
-    String :session_type
-    String :scheduled_at
-    Integer :duration_minutes
-    String :facilitator
-    String :status
+    attribute :session_id, String
+    attribute :session_type, String
+    attribute :scheduled_at, String
+    attribute :duration_minutes, Integer
+    attribute :facilitator, String
+    attribute :status, String
     reference_to Participant
     list_of(Note) :notes
 
     value_object "Note" do
-      String :timestamp
-      String :observation
-      String :tag
+      attribute :timestamp, String
+      attribute :observation, String
+      attribute :tag, String
     end
 
-    ScheduleSession do
+    command "ScheduleSession" do
       role "ResearchCoordinator"
       description "Book a research session with a qualified participant"
-      String :session_id
-      String :session_type
-      String :scheduled_at
-      Integer :duration_minutes
-      String :facilitator
+      attribute :session_id, String
+      attribute :session_type, String
+      attribute :scheduled_at, String
+      attribute :duration_minutes, Integer
+      attribute :facilitator, String
       reference_to(Participant)
       emits "SessionScheduled"
       then_set :status, to: "in_progress"
     end
 
-    CompleteSession do
+    command "CompleteSession" do
       description "Mark a session as done and ready for note review"
       reference_to(Session)
       given("session is in progress") { status == "in_progress" }
       emits "SessionCompleted"
     end
 
-    CancelSession do
+    command "CancelSession" do
       description "Cancel a session due to no-show or scheduling conflict"
       reference_to(Session)
-      String :cancellation_reason
+      attribute :cancellation_reason, String
       emits "SessionCanceled"
     end
 
@@ -138,41 +138,41 @@ Hecks.bluebook "UXResearch", version: "2026.04.13.1" do
   end
 
   aggregate "Finding", "An insight synthesized from research session data" do
-    String :finding_id
-    String :title
-    String :description
-    String :severity
-    String :evidence_type
-    String :status
+    attribute :finding_id, String
+    attribute :title, String
+    attribute :description, String
+    attribute :severity, String
+    attribute :evidence_type, String
+    attribute :status, String
     reference_to Study
     list_of(SupportingQuote) :quotes
 
     value_object "SupportingQuote" do
-      String :participant_id
-      String :quote_text
-      String :session_id
+      attribute :participant_id, String
+      attribute :quote_text, String
+      attribute :session_id, String
     end
 
-    DocumentFinding do
+    command "DocumentFinding" do
       role "Researcher"
       description "Record an insight emerging from session analysis"
-      String :finding_id
-      String :title
-      String :description
-      String :severity
-      String :evidence_type
+      attribute :finding_id, String
+      attribute :title, String
+      attribute :description, String
+      attribute :severity, String
+      attribute :evidence_type, String
       reference_to(Study)
       emits "FindingDocumented"
     end
 
-    ValidateFinding do
+    command "ValidateFinding" do
       description "Cross-reference a finding with additional data sources"
       reference_to(Finding)
       emits "FindingValidated"
       then_set :status, to: "validated"
     end
 
-    ArchiveFinding do
+    command "ArchiveFinding" do
       description "Move a finding to the historical repository"
       reference_to(Finding)
       given("finding is validated") { status == "validated" }
@@ -184,40 +184,40 @@ Hecks.bluebook "UXResearch", version: "2026.04.13.1" do
   end
 
   aggregate "Recommendation", "A design suggestion based on validated findings" do
-    String :recommendation_id
-    String :title
-    String :rationale
-    String :effort_estimate
-    String :priority
-    String :status
+    attribute :recommendation_id, String
+    attribute :title, String
+    attribute :rationale, String
+    attribute :effort_estimate, String
+    attribute :priority, String
+    attribute :status, String
     reference_to Finding
 
     value_object "DesignChange" do
-      String :component
-      String :current_state
-      String :proposed_state
+      attribute :component, String
+      attribute :current_state, String
+      attribute :proposed_state, String
     end
 
-    ProposeRecommendation do
+    command "ProposeRecommendation" do
       role "Researcher"
       description "Suggest a design improvement based on research findings"
-      String :recommendation_id
-      String :title
-      String :rationale
-      String :effort_estimate
-      String :priority
+      attribute :recommendation_id, String
+      attribute :title, String
+      attribute :rationale, String
+      attribute :effort_estimate, String
+      attribute :priority, String
       reference_to(Finding)
       emits "RecommendationProposed"
       then_set :status, to: "proposed"
     end
 
-    AcceptRecommendation do
+    command "AcceptRecommendation" do
       description "Approve a recommendation for implementation"
       reference_to(Recommendation)
       emits "RecommendationAccepted"
     end
 
-    DeferRecommendation do
+    command "DeferRecommendation" do
       description "Postpone a recommendation to a future sprint"
       reference_to(Recommendation)
       given("recommendation is proposed") { status == "proposed" }

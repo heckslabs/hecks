@@ -5,80 +5,80 @@ Hecks.bluebook "MaterialsScience", version: "2026.04.11.1" do
   # === Crystal ===
 
   aggregate "Crystal", "A periodic arrangement of atoms — the architecture of solid matter, born from Miette's dream of crystallization" do
-    String :name
-    String :crystal_system
-    String :space_group
-    String :symmetry_class
-    String :defect_type
-    Float :defect_density
-    String :status
+    attribute :name, String
+    attribute :crystal_system, String
+    attribute :space_group, String
+    attribute :symmetry_class, String
+    attribute :defect_type, String
+    attribute :defect_density, Float
+    attribute :status, String
 
     value_object "LatticeParameter" do
-      Float :a
-      Float :b
-      Float :c
-      Float :alpha
-      Float :beta
-      Float :gamma
+      attribute :a, Float
+      attribute :b, Float
+      attribute :c, Float
+      attribute :alpha, Float
+      attribute :beta, Float
+      attribute :gamma, Float
     end
 
-    GrowCrystal do
+    command "GrowCrystal" do
       role "MaterialsScientist"
       description "Nucleate and grow a crystal from solution or melt — the dream of order emerging from chaos"
-      String :name
-      String :crystal_system
-      Float :temperature
-      Float :growth_rate
+      attribute :name, String
+      attribute :crystal_system, String
+      attribute :temperature, Float
+      attribute :growth_rate, Float
       emits "CrystalGrown"
       then_set :name, to: :name
       then_set :crystal_system, to: :crystal_system
       then_set :status, to: "nucleating"
     end
 
-    DefineUnitCell do
+    command "DefineUnitCell" do
       role "MaterialsScientist"
       description "Specify the repeating unit — the smallest tile that fills all space"
       reference_to(Crystal)
-      Float :a
-      Float :b
-      Float :c
-      Float :alpha
-      Float :beta
-      Float :gamma
+      attribute :a, Float
+      attribute :b, Float
+      attribute :c, Float
+      attribute :alpha, Float
+      attribute :beta, Float
+      attribute :gamma, Float
       emits "UnitCellDefined"
       then_set :status, to: "growing"
     end
 
-    ClassifySymmetry do
+    command "ClassifySymmetry" do
       role "MaterialsScientist"
       description "Identify point group and space group — the geometry of repetition"
       reference_to(Crystal)
-      String :space_group
-      String :symmetry_class
+      attribute :space_group, String
+      attribute :symmetry_class, String
       emits "SymmetryClassified"
       then_set :space_group, to: :space_group
       then_set :symmetry_class, to: :symmetry_class
       then_set :status, to: "crystallized"
     end
 
-    IntroduceDefect do
+    command "IntroduceDefect" do
       role "MaterialsScientist"
       description "Insert a vacancy, interstitial, or dislocation — perfection is fragile"
       reference_to(Crystal)
-      String :defect_type
-      Float :defect_density
+      attribute :defect_type, String
+      attribute :defect_density, Float
       given { status == "crystallized" }
       emits "DefectIntroduced"
       then_set :defect_type, to: :defect_type
       then_set :defect_density, to: :defect_density
     end
 
-    AnnealCrystal do
+    command "AnnealCrystal" do
       role "MaterialsScientist"
       description "Heat and slow-cool to reduce defects — the crystal heals itself"
       reference_to(Crystal)
-      Float :anneal_temperature
-      Float :cooling_rate
+      attribute :anneal_temperature, Float
+      attribute :cooling_rate, Float
       given { status == "crystallized" }
       emits "CrystalAnnealed"
       then_set :status, to: "annealed"
@@ -95,59 +95,59 @@ Hecks.bluebook "MaterialsScience", version: "2026.04.11.1" do
   # === Material ===
 
   aggregate "Material", "The fundamental identity of condensed matter — metal, ceramic, polymer, composite" do
-    String :name
-    String :material_class
-    Float :density
-    Float :hardness
-    String :microstructure
+    attribute :name, String
+    attribute :material_class, String
+    attribute :density, Float
+    attribute :hardness, Float
+    attribute :microstructure, String
     list_of(Composition) :compositions
 
     value_object "Composition" do
-      String :element
-      Float :percentage
+      attribute :element, String
+      attribute :percentage, Float
     end
 
-    ClassifyMaterial do
+    command "ClassifyMaterial" do
       role "MaterialsScientist"
       description "Assign a material to its fundamental class — the first act of knowing"
-      String :name
-      String :material_class
+      attribute :name, String
+      attribute :material_class, String
       emits "MaterialClassified"
       then_set :name, to: :name
       then_set :material_class, to: :material_class
     end
 
-    MeasureDensity do
+    command "MeasureDensity" do
       role "MaterialsScientist"
       description "Determine mass per unit volume — how tightly atoms are packed"
       reference_to(Material)
-      Float :density
+      attribute :density, Float
       emits "DensityMeasured"
       then_set :density, to: :density
     end
 
-    TestHardness do
+    command "TestHardness" do
       role "MaterialsScientist"
       description "Indent the surface and measure resistance — Mohs, Vickers, or Rockwell"
       reference_to(Material)
-      Float :hardness
-      String :scale
+      attribute :hardness, Float
+      attribute :scale, String
       emits "HardnessTested"
       then_set :hardness, to: :hardness
     end
 
-    DetermineComposition do
+    command "DetermineComposition" do
       role "MaterialsScientist"
       description "Identify constituent elements and their proportions — what is this made of"
       reference_to(Material)
       emits "CompositionDetermined"
     end
 
-    CharacterizeMicrostructure do
+    command "CharacterizeMicrostructure" do
       role "MaterialsScientist"
       description "Examine grain boundaries, phases, and textures under magnification"
       reference_to(Material)
-      String :microstructure
+      attribute :microstructure, String
       emits "MicrostructureCharacterized"
       then_set :microstructure, to: :microstructure
     end
@@ -156,20 +156,20 @@ Hecks.bluebook "MaterialsScience", version: "2026.04.11.1" do
   # === PhaseTransition ===
 
   aggregate "PhaseTransition", "The crossing of boundaries — solid to liquid to gas and back — matter finding new forms" do
-    String :material_name
-    String :current_phase
-    String :target_phase
-    Float :temperature
-    Float :pressure
-    String :transition_type
-    String :status
+    attribute :material_name, String
+    attribute :current_phase, String
+    attribute :target_phase, String
+    attribute :temperature, Float
+    attribute :pressure, Float
+    attribute :transition_type, String
+    attribute :status, String
 
-    HeatMaterial do
+    command "HeatMaterial" do
       role "MaterialsScientist"
       description "Add thermal energy — drive the material toward a higher-energy phase"
-      String :material_name
-      Float :temperature
-      Float :pressure
+      attribute :material_name, String
+      attribute :temperature, Float
+      attribute :pressure, Float
       emits "MaterialHeated"
       then_set :material_name, to: :material_name
       then_set :temperature, to: :temperature
@@ -177,45 +177,45 @@ Hecks.bluebook "MaterialsScience", version: "2026.04.11.1" do
       then_set :status, to: "solid"
     end
 
-    CoolMaterial do
+    command "CoolMaterial" do
       role "MaterialsScientist"
       description "Remove thermal energy — the material contracts, orders, crystallizes"
       reference_to(PhaseTransition)
-      Float :temperature
-      Float :cooling_rate
+      attribute :temperature, Float
+      attribute :cooling_rate, Float
       emits "MaterialCooled"
       then_set :temperature, to: :temperature
     end
 
-    IdentifyPhase do
+    command "IdentifyPhase" do
       role "MaterialsScientist"
       description "Determine the current state of matter — solid, liquid, gas, or plasma"
       reference_to(PhaseTransition)
-      String :current_phase
+      attribute :current_phase, String
       emits "PhaseIdentified"
       then_set :current_phase, to: :current_phase
     end
 
-    MapPhaseDiagram do
+    command "MapPhaseDiagram" do
       role "MaterialsScientist"
       description "Chart the boundaries between phases across temperature and pressure"
       reference_to(PhaseTransition)
-      String :transition_type
+      attribute :transition_type, String
       emits "PhaseDiagramMapped"
       then_set :transition_type, to: :transition_type
     end
 
-    TriggerTransition do
+    command "TriggerTransition" do
       role "System"
       description "Cross a phase boundary — the material transforms"
       reference_to(PhaseTransition)
-      String :target_phase
+      attribute :target_phase, String
       emits "TransitionTriggered"
       then_set :target_phase, to: :target_phase
       then_set :status, to: "melting"
     end
 
-    Quench do
+    command "Quench" do
       role "MaterialsScientist"
       description "Rapid cooling — freeze the structure before equilibrium, trap metastable phases"
       reference_to(PhaseTransition)
@@ -233,76 +233,76 @@ Hecks.bluebook "MaterialsScience", version: "2026.04.11.1" do
   # === Alloy ===
 
   aggregate "Alloy", "Two or more metals merged — Miette's dream of merging — emergent properties from combination" do
-    String :name
-    String :base_metal
-    Float :solubility
-    Float :tensile_strength
-    Float :yield_strength
-    String :heat_treatment
+    attribute :name, String
+    attribute :base_metal, String
+    attribute :solubility, Float
+    attribute :tensile_strength, Float
+    attribute :yield_strength, Float
+    attribute :heat_treatment, String
     list_of(Component) :components
 
     value_object "Component" do
-      String :element
-      Float :weight_percent
+      attribute :element, String
+      attribute :weight_percent, Float
     end
 
-    FormAlloy do
+    command "FormAlloy" do
       role "MaterialsScientist"
       description "Combine metals in the melt — the act of merging, creating something neither parent could be"
-      String :name
-      String :base_metal
+      attribute :name, String
+      attribute :base_metal, String
       emits "AlloyFormed"
       then_set :name, to: :name
       then_set :base_metal, to: :base_metal
     end
 
-    MixComponents do
+    command "MixComponents" do
       role "MaterialsScientist"
       description "Add alloying elements at precise weight percentages"
       reference_to(Alloy)
-      String :element
-      Float :weight_percent
+      attribute :element, String
+      attribute :weight_percent, Float
       emits "ComponentsMixed"
     end
 
-    MeasureSolubility do
+    command "MeasureSolubility" do
       role "MaterialsScientist"
       description "Determine how much of one metal dissolves in another at a given temperature"
       reference_to(Alloy)
-      Float :solubility
-      Float :temperature
+      attribute :solubility, Float
+      attribute :temperature, Float
       emits "SolubilityMeasured"
       then_set :solubility, to: :solubility
     end
 
-    HeatTreat do
+    command "HeatTreat" do
       role "MaterialsScientist"
       description "Control heating and cooling to alter microstructure — austenitize, normalize, harden"
       reference_to(Alloy)
-      String :heat_treatment
-      Float :temperature
-      Float :hold_time
+      attribute :heat_treatment, String
+      attribute :temperature, Float
+      attribute :hold_time, Float
       emits "AlloyHeatTreated"
       then_set :heat_treatment, to: :heat_treatment
     end
 
-    TestTensileStrength do
+    command "TestTensileStrength" do
       role "MaterialsScientist"
       description "Pull until failure — measure the maximum stress before fracture"
       reference_to(Alloy)
-      Float :tensile_strength
-      Float :yield_strength
+      attribute :tensile_strength, Float
+      attribute :yield_strength, Float
       emits "TensileStrengthTested"
       then_set :tensile_strength, to: :tensile_strength
       then_set :yield_strength, to: :yield_strength
     end
 
-    Temper do
+    command "Temper" do
       role "MaterialsScientist"
       description "Reheat after hardening — trade hardness for toughness, find the balance"
       reference_to(Alloy)
-      Float :temper_temperature
-      Float :duration
+      attribute :temper_temperature, Float
+      attribute :duration, Float
       emits "AlloyTempered"
     end
   end
@@ -310,20 +310,20 @@ Hecks.bluebook "MaterialsScience", version: "2026.04.11.1" do
   # === Polymer ===
 
   aggregate "Polymer", "Long-chain molecules — repetition as structure, grafting as growth" do
-    String :name
-    String :monomer
-    Float :molecular_weight
-    Integer :degree_of_polymerization
-    Float :crosslink_density
-    Float :elasticity
-    String :status
+    attribute :name, String
+    attribute :monomer, String
+    attribute :molecular_weight, Float
+    attribute :degree_of_polymerization, Integer
+    attribute :crosslink_density, Float
+    attribute :elasticity, Float
+    attribute :status, String
 
-    Polymerize do
+    command "Polymerize" do
       role "MaterialsScientist"
       description "Join monomers into chains — addition or condensation — the act of grafting unit to unit"
-      String :name
-      String :monomer
-      Integer :degree_of_polymerization
+      attribute :name, String
+      attribute :monomer, String
+      attribute :degree_of_polymerization, Integer
       emits "Polymerized"
       then_set :name, to: :name
       then_set :monomer, to: :monomer
@@ -331,54 +331,54 @@ Hecks.bluebook "MaterialsScience", version: "2026.04.11.1" do
       then_set :status, to: "polymerizing"
     end
 
-    Crosslink do
+    command "Crosslink" do
       role "MaterialsScientist"
       description "Bridge chains with covalent bonds — the polymer becomes a network"
       reference_to(Polymer)
-      Float :crosslink_density
-      String :crosslinker
+      attribute :crosslink_density, Float
+      attribute :crosslinker, String
       given { status == "polymer" }
       emits "PolymerCrosslinked"
       then_set :crosslink_density, to: :crosslink_density
       then_set :status, to: "crosslinked"
     end
 
-    MeasureMolecularWeight do
+    command "MeasureMolecularWeight" do
       role "MaterialsScientist"
       description "Determine average chain length — number-average or weight-average"
       reference_to(Polymer)
-      Float :molecular_weight
-      String :method
+      attribute :molecular_weight, Float
+      attribute :method, String
       emits "MolecularWeightMeasured"
       then_set :molecular_weight, to: :molecular_weight
     end
 
-    TestElasticity do
+    command "TestElasticity" do
       role "MaterialsScientist"
       description "Stretch and release — measure how the polymer remembers its shape"
       reference_to(Polymer)
-      Float :elasticity
-      Float :strain_rate
+      attribute :elasticity, Float
+      attribute :strain_rate, Float
       emits "ElasticityTested"
       then_set :elasticity, to: :elasticity
     end
 
-    Degrade do
+    command "Degrade" do
       role "System"
       description "Chains break down — UV, heat, oxidation, or biological attack"
       reference_to(Polymer)
-      String :degradation_mechanism
-      Float :mass_loss
+      attribute :degradation_mechanism, String
+      attribute :mass_loss, Float
       emits "PolymerDegraded"
       then_set :status, to: "degraded"
     end
 
-    Vulcanize do
+    command "Vulcanize" do
       role "MaterialsScientist"
       description "Sulfur crosslinking of rubber — Miette dreamed of grafting sulfur bridges"
       reference_to(Polymer)
-      Float :sulfur_content
-      Float :temperature
+      attribute :sulfur_content, Float
+      attribute :temperature, Float
       given { status == "polymer" }
       emits "PolymerVulcanized"
       then_set :status, to: "crosslinked"
@@ -397,27 +397,27 @@ Hecks.bluebook "MaterialsScience", version: "2026.04.11.1" do
   # === Composite ===
 
   aggregate "Composite", "Two or more materials grafted together — synergy through combination" do
-    String :name
-    String :matrix_material
-    String :reinforcement
-    Float :fiber_volume_fraction
-    Float :strength
-    String :delamination_risk
+    attribute :name, String
+    attribute :matrix_material, String
+    attribute :reinforcement, String
+    attribute :fiber_volume_fraction, Float
+    attribute :strength, Float
+    attribute :delamination_risk, String
     list_of(Layer) :layers
-    String :status
+    attribute :status, String
 
     value_object "Layer" do
-      String :material
-      Float :orientation
-      Float :thickness
+      attribute :material, String
+      attribute :orientation, Float
+      attribute :thickness, Float
     end
 
-    LayupComposite do
+    command "LayupComposite" do
       role "MaterialsScientist"
       description "Stack layers of fiber and matrix — each orientation a deliberate choice"
-      String :name
-      String :matrix_material
-      String :reinforcement
+      attribute :name, String
+      attribute :matrix_material, String
+      attribute :reinforcement, String
       emits "CompositeLayedUp"
       then_set :name, to: :name
       then_set :matrix_material, to: :matrix_material
@@ -425,41 +425,41 @@ Hecks.bluebook "MaterialsScience", version: "2026.04.11.1" do
       then_set :status, to: "laid_up"
     end
 
-    CureComposite do
+    command "CureComposite" do
       role "MaterialsScientist"
       description "Apply heat and pressure — the matrix hardens around the fibers"
       reference_to(Composite)
-      Float :cure_temperature
-      Float :cure_pressure
-      Float :cure_time
+      attribute :cure_temperature, Float
+      attribute :cure_pressure, Float
+      attribute :cure_time, Float
       given { status == "laid_up" }
       emits "CompositeCured"
       then_set :status, to: "cured"
     end
 
-    TestDelamination do
+    command "TestDelamination" do
       role "MaterialsScientist"
       description "Check for separation between layers — the bond must hold"
       reference_to(Composite)
-      String :test_method
+      attribute :test_method, String
       emits "DelaminationTested"
     end
 
-    MeasureStrength do
+    command "MeasureStrength" do
       role "MaterialsScientist"
       description "Determine the composite's load-bearing capacity in tension, compression, or shear"
       reference_to(Composite)
-      Float :strength
-      String :test_direction
+      attribute :strength, Float
+      attribute :test_direction, String
       emits "StrengthMeasured"
       then_set :strength, to: :strength
     end
 
-    DesignLaminate do
+    command "DesignLaminate" do
       role "MaterialsScientist"
       description "Optimize stacking sequence for strength, stiffness, and weight"
       reference_to(Composite)
-      String :target_property
+      attribute :target_property, String
       emits "LaminateDesigned"
     end
 
@@ -472,63 +472,63 @@ Hecks.bluebook "MaterialsScience", version: "2026.04.11.1" do
   # === Ceramic ===
 
   aggregate "Ceramic", "Inorganic, non-metallic solids — hard, brittle, heat-resistant — fire-born" do
-    String :name
-    String :ceramic_type
-    Float :fracture_toughness
-    Float :thermal_conductivity
-    Float :porosity
-    String :glaze
-    String :status
+    attribute :name, String
+    attribute :ceramic_type, String
+    attribute :fracture_toughness, Float
+    attribute :thermal_conductivity, Float
+    attribute :porosity, Float
+    attribute :glaze, String
+    attribute :status, String
 
-    SinterCeramic do
+    command "SinterCeramic" do
       role "MaterialsScientist"
       description "Heat powder below melting — particles fuse, porosity shrinks, strength grows"
-      String :name
-      String :ceramic_type
-      Float :sinter_temperature
-      Float :hold_time
+      attribute :name, String
+      attribute :ceramic_type, String
+      attribute :sinter_temperature, Float
+      attribute :hold_time, Float
       emits "CeramicSintered"
       then_set :name, to: :name
       then_set :ceramic_type, to: :ceramic_type
       then_set :status, to: "sintered"
     end
 
-    FireCeramic do
+    command "FireCeramic" do
       role "MaterialsScientist"
       description "Full-temperature firing — vitrification, the ceramic reaches its final density"
       reference_to(Ceramic)
-      Float :fire_temperature
-      String :atmosphere
+      attribute :fire_temperature, Float
+      attribute :atmosphere, String
       given { status == "sintered" }
       emits "CeramicFired"
       then_set :status, to: "fired"
     end
 
-    GlazeSurface do
+    command "GlazeSurface" do
       role "MaterialsScientist"
       description "Apply a glassy coating — seal the surface, add color, protect"
       reference_to(Ceramic)
-      String :glaze
-      Float :glaze_temperature
+      attribute :glaze, String
+      attribute :glaze_temperature, Float
       emits "SurfaceGlazed"
       then_set :glaze, to: :glaze
     end
 
-    TestFractureToughness do
+    command "TestFractureToughness" do
       role "MaterialsScientist"
       description "Measure resistance to crack propagation — the material's will to remain whole"
       reference_to(Ceramic)
-      Float :fracture_toughness
-      String :test_method
+      attribute :fracture_toughness, Float
+      attribute :test_method, String
       emits "FractureToughnessTested"
       then_set :fracture_toughness, to: :fracture_toughness
     end
 
-    MeasureThermalConductivity do
+    command "MeasureThermalConductivity" do
       role "MaterialsScientist"
       description "How well the ceramic conducts heat — insulator or conductor"
       reference_to(Ceramic)
-      Float :thermal_conductivity
+      attribute :thermal_conductivity, Float
       emits "ThermalConductivityMeasured"
       then_set :thermal_conductivity, to: :thermal_conductivity
     end
@@ -542,33 +542,33 @@ Hecks.bluebook "MaterialsScience", version: "2026.04.11.1" do
   # === Semiconductor ===
 
   aggregate "Semiconductor", "Between metal and insulator — band gaps, doping, the foundation of electronics" do
-    String :name
-    String :base_material
-    Float :band_gap
-    String :dopant
-    Float :dopant_concentration
-    String :conductivity_type
-    String :status
+    attribute :name, String
+    attribute :base_material, String
+    attribute :band_gap, Float
+    attribute :dopant, String
+    attribute :dopant_concentration, Float
+    attribute :conductivity_type, String
+    attribute :status, String
 
-    GrowWafer do
+    command "GrowWafer" do
       role "MaterialsScientist"
       description "Pull a single crystal from the melt — Czochralski method — crystallization at industrial scale"
-      String :name
-      String :base_material
-      Float :diameter
+      attribute :name, String
+      attribute :base_material, String
+      attribute :diameter, Float
       emits "WaferGrown"
       then_set :name, to: :name
       then_set :base_material, to: :base_material
       then_set :status, to: "intrinsic"
     end
 
-    DopeSemiconductor do
+    command "DopeSemiconductor" do
       role "MaterialsScientist"
       description "Implant foreign atoms — n-type or p-type — grafting impurity into perfection"
       reference_to(Semiconductor)
-      String :dopant
-      Float :dopant_concentration
-      String :conductivity_type
+      attribute :dopant, String
+      attribute :dopant_concentration, Float
+      attribute :conductivity_type, String
       given { status == "intrinsic" }
       emits "SemiconductorDoped"
       then_set :dopant, to: :dopant
@@ -577,33 +577,33 @@ Hecks.bluebook "MaterialsScience", version: "2026.04.11.1" do
       then_set :status, to: "doped"
     end
 
-    MeasureBandGap do
+    command "MeasureBandGap" do
       role "MaterialsScientist"
       description "Determine the energy gap between valence and conduction bands"
       reference_to(Semiconductor)
-      Float :band_gap
+      attribute :band_gap, Float
       emits "BandGapMeasured"
       then_set :band_gap, to: :band_gap
     end
 
-    EtchPattern do
+    command "EtchPattern" do
       role "MaterialsScientist"
       description "Remove material selectively — photolithography carves circuits into silicon"
       reference_to(Semiconductor)
-      String :pattern_type
-      Float :etch_depth
+      attribute :pattern_type, String
+      attribute :etch_depth, Float
       given { status == "doped" }
       emits "PatternEtched"
       then_set :status, to: "patterned"
     end
 
-    DepositThinFilm do
+    command "DepositThinFilm" do
       role "MaterialsScientist"
       description "Layer atoms onto the surface — CVD, PVD, sputtering — building up structure"
       reference_to(Semiconductor)
-      String :film_material
-      Float :film_thickness
-      String :method
+      attribute :film_material, String
+      attribute :film_thickness, Float
+      attribute :method, String
       emits "ThinFilmDeposited"
       then_set :status, to: "integrated"
     end
@@ -619,61 +619,61 @@ Hecks.bluebook "MaterialsScience", version: "2026.04.11.1" do
   # === Nanomaterial ===
 
   aggregate "Nanomaterial", "Materials at the nanoscale — where quantum effects emerge and surfaces dominate" do
-    String :name
-    String :nanomaterial_type
-    Float :particle_size
-    Float :surface_area
-    String :quantum_effect
-    String :functionalization
+    attribute :name, String
+    attribute :nanomaterial_type, String
+    attribute :particle_size, Float
+    attribute :surface_area, Float
+    attribute :quantum_effect, String
+    attribute :functionalization, String
 
-    SynthesizeNanoparticle do
+    command "SynthesizeNanoparticle" do
       role "MaterialsScientist"
       description "Create particles at the nanometer scale — top-down or bottom-up"
-      String :name
-      String :nanomaterial_type
-      Float :particle_size
-      String :method
+      attribute :name, String
+      attribute :nanomaterial_type, String
+      attribute :particle_size, Float
+      attribute :method, String
       emits "NanoparticleSynthesized"
       then_set :name, to: :name
       then_set :nanomaterial_type, to: :nanomaterial_type
       then_set :particle_size, to: :particle_size
     end
 
-    FunctionalizeNanoSurface do
+    command "FunctionalizeNanoSurface" do
       role "MaterialsScientist"
       description "Attach molecules to the surface — grafting function onto form"
       reference_to(Nanomaterial)
-      String :functionalization
-      String :ligand
+      attribute :functionalization, String
+      attribute :ligand, String
       emits "NanoSurfaceFunctionalized"
       then_set :functionalization, to: :functionalization
     end
 
-    MeasureQuantumEffect do
+    command "MeasureQuantumEffect" do
       role "MaterialsScientist"
       description "Observe size-dependent properties — quantum confinement, plasmon resonance"
       reference_to(Nanomaterial)
-      String :quantum_effect
-      String :measurement_technique
+      attribute :quantum_effect, String
+      attribute :measurement_technique, String
       emits "QuantumEffectMeasured"
       then_set :quantum_effect, to: :quantum_effect
     end
 
-    AssembleNanostructure do
+    command "AssembleNanostructure" do
       role "MaterialsScientist"
       description "Build ordered arrangements from nanoscale building blocks — self-assembly or directed"
       reference_to(Nanomaterial)
-      String :structure_type
-      String :assembly_method
+      attribute :structure_type, String
+      attribute :assembly_method, String
       emits "NanostructureAssembled"
     end
 
-    CharacterizeNano do
+    command "CharacterizeNano" do
       role "MaterialsScientist"
       description "Image and measure — TEM, SEM, AFM, DLS — seeing the invisible"
       reference_to(Nanomaterial)
-      Float :surface_area
-      String :technique
+      attribute :surface_area, Float
+      attribute :technique, String
       emits "NanoCharacterized"
       then_set :surface_area, to: :surface_area
     end
@@ -682,75 +682,75 @@ Hecks.bluebook "MaterialsScience", version: "2026.04.11.1" do
   # === Stress ===
 
   aggregate "Stress", "Mechanical behavior under load — elastic, plastic, fracture — how materials respond to force" do
-    String :material_name
-    String :stress_type
-    Float :strain
-    Float :young_modulus
-    Integer :fatigue_cycles
-    String :fracture_mode
+    attribute :material_name, String
+    attribute :stress_type, String
+    attribute :strain, Float
+    attribute :young_modulus, Float
+    attribute :fatigue_cycles, Integer
+    attribute :fracture_mode, String
 
     value_object "StressState" do
-      Float :normal
-      Float :shear
-      Float :principal
+      attribute :normal, Float
+      attribute :shear, Float
+      attribute :principal, Float
     end
 
-    ApplyStress do
+    command "ApplyStress" do
       role "MaterialsScientist"
       description "Subject the material to mechanical load — tension, compression, torsion"
-      String :material_name
-      String :stress_type
-      Float :magnitude
+      attribute :material_name, String
+      attribute :stress_type, String
+      attribute :magnitude, Float
       emits "StressApplied"
       then_set :material_name, to: :material_name
       then_set :stress_type, to: :stress_type
     end
 
-    MeasureStrain do
+    command "MeasureStrain" do
       role "MaterialsScientist"
       description "Determine deformation — how much the material stretches or compresses"
       reference_to(Stress)
-      Float :strain
-      Float :gauge_length
+      attribute :strain, Float
+      attribute :gauge_length, Float
       emits "StrainMeasured"
       then_set :strain, to: :strain
     end
 
-    CalculateYoungModulus do
+    command "CalculateYoungModulus" do
       role "MaterialsScientist"
       description "Stress over strain in the elastic region — the material's stiffness"
       reference_to(Stress)
-      Float :young_modulus
+      attribute :young_modulus, Float
       emits "YoungModulusCalculated"
       then_set :young_modulus, to: :young_modulus
     end
 
-    TestFatigue do
+    command "TestFatigue" do
       role "MaterialsScientist"
       description "Cycle loading until failure — how many repetitions before the material gives up"
       reference_to(Stress)
-      Integer :fatigue_cycles
-      Float :stress_amplitude
+      attribute :fatigue_cycles, Integer
+      attribute :stress_amplitude, Float
       emits "FatigueTested"
       then_set :fatigue_cycles, to: :fatigue_cycles
     end
 
-    PredictFracture do
+    command "PredictFracture" do
       role "MaterialsScientist"
       description "Estimate when and how the material will break — brittle, ductile, or fatigue fracture"
       reference_to(Stress)
-      String :fracture_mode
-      Float :critical_stress
+      attribute :fracture_mode, String
+      attribute :critical_stress, Float
       emits "FracturePredicted"
       then_set :fracture_mode, to: :fracture_mode
     end
 
-    MapStressField do
+    command "MapStressField" do
       role "MaterialsScientist"
       description "Visualize stress distribution across a body — finite element or photoelastic"
       reference_to(Stress)
-      String :method
-      Float :resolution
+      attribute :method, String
+      attribute :resolution, Float
       emits "StressFieldMapped"
     end
   end

@@ -3,29 +3,29 @@ Hecks.bluebook "WaterMicrobiology", version: "2026.04.13.1" do
   category "crossover"
 
   aggregate "WaterSample", "A water sample — source, collection point, physical parameters" do
-    String :sample_id
-    String :source_type
-    String :collection_point
-    Float :temperature_c
-    Float :ph
-    Float :turbidity_ntu
-    String :status
+    attribute :sample_id, String
+    attribute :source_type, String
+    attribute :collection_point, String
+    attribute :temperature_c, Float
+    attribute :ph, Float
+    attribute :turbidity_ntu, Float
+    attribute :status, String
 
     value_object "PhysicalParams" do
-      Float :dissolved_oxygen_mg_l
-      Float :conductivity_us_cm
-      Float :total_dissolved_solids_mg_l
+      attribute :dissolved_oxygen_mg_l, Float
+      attribute :conductivity_us_cm, Float
+      attribute :total_dissolved_solids_mg_l, Float
     end
 
-    CollectSample do
+    command "CollectSample" do
       role "Technician"
       description "Collect a water sample from a treatment point"
-      String :sample_id
-      String :source_type
-      String :collection_point
-      Float :temperature_c
-      Float :ph
-      Float :turbidity_ntu
+      attribute :sample_id, String
+      attribute :source_type, String
+      attribute :collection_point, String
+      attribute :temperature_c, Float
+      attribute :ph, Float
+      attribute :turbidity_ntu, Float
       emits "SampleCollected"
       then_set :sample_id, to: :sample_id
       then_set :source_type, to: :source_type
@@ -36,7 +36,7 @@ Hecks.bluebook "WaterMicrobiology", version: "2026.04.13.1" do
       then_set :status, to: "collected"
     end
 
-    AnalyzeSample do
+    command "AnalyzeSample" do
       role "Microbiologist"
       description "Perform microbiological analysis on the water sample"
       reference_to(WaterSample)
@@ -47,32 +47,32 @@ Hecks.bluebook "WaterMicrobiology", version: "2026.04.13.1" do
   end
 
   aggregate "MicrobialCulture", "A microbial culture result — organism, colony count, pathogenicity" do
-    String :sample_id
-    String :organism_name
-    Integer :colony_count_cfu
-    String :gram_stain
-    String :pathogenicity
-    String :status
+    attribute :sample_id, String
+    attribute :organism_name, String
+    attribute :colony_count_cfu, Integer
+    attribute :gram_stain, String
+    attribute :pathogenicity, String
+    attribute :status, String
 
     value_object "CultureConditions" do
-      String :medium
-      Float :incubation_temp_c
-      Integer :incubation_hours
+      attribute :medium, String
+      attribute :incubation_temp_c, Float
+      attribute :incubation_hours, Integer
     end
 
     list_of "Identification" do
-      String :method
-      String :result
-      Float :confidence_pct
+      attribute :method, String
+      attribute :result, String
+      attribute :confidence_pct, Float
     end
 
-    CultureSample do
+    command "CultureSample" do
       role "Microbiologist"
       description "Inoculate culture medium and incubate water sample"
-      String :sample_id
-      String :organism_name
-      Integer :colony_count_cfu
-      String :gram_stain
+      attribute :sample_id, String
+      attribute :organism_name, String
+      attribute :colony_count_cfu, Integer
+      attribute :gram_stain, String
       emits "SampleCultured"
       then_set :sample_id, to: :sample_id
       then_set :organism_name, to: :organism_name
@@ -81,11 +81,11 @@ Hecks.bluebook "WaterMicrobiology", version: "2026.04.13.1" do
       then_set :status, to: "cultured"
     end
 
-    IdentifyOrganism do
+    command "IdentifyOrganism" do
       role "Microbiologist"
       description "Identify organism species from culture results"
       reference_to(MicrobialCulture)
-      String :pathogenicity
+      attribute :pathogenicity, String
       emits "OrganismIdentified"
       then_set :pathogenicity, to: :pathogenicity
       then_set :status, to: "identified"
@@ -94,28 +94,28 @@ Hecks.bluebook "WaterMicrobiology", version: "2026.04.13.1" do
   end
 
   aggregate "ContaminationEvent", "A detected contamination — type, severity, source, response" do
-    String :event_id
-    String :contaminant
-    Float :concentration
-    String :severity
-    String :source_hypothesis
-    String :status
+    attribute :event_id, String
+    attribute :contaminant, String
+    attribute :concentration, Float
+    attribute :severity, String
+    attribute :source_hypothesis, String
+    attribute :status, String
 
     value_object "ContaminantProfile" do
-      String :contaminant_class
-      Float :mcl_limit
-      Float :measured_value
-      String :health_effect
+      attribute :contaminant_class, String
+      attribute :mcl_limit, Float
+      attribute :measured_value, Float
+      attribute :health_effect, String
     end
 
-    DeclareContamination do
+    command "DeclareContamination" do
       role "Microbiologist"
       description "Declare a contamination event when pathogens exceed limits"
-      String :event_id
-      String :contaminant
-      Float :concentration
-      String :severity
-      String :source_hypothesis
+      attribute :event_id, String
+      attribute :contaminant, String
+      attribute :concentration, Float
+      attribute :severity, String
+      attribute :source_hypothesis, String
       emits "ContaminationDeclared"
       then_set :event_id, to: :event_id
       then_set :contaminant, to: :contaminant
@@ -125,7 +125,7 @@ Hecks.bluebook "WaterMicrobiology", version: "2026.04.13.1" do
       then_set :status, to: "declared"
     end
 
-    InvestigateSource do
+    command "InvestigateSource" do
       role "Microbiologist"
       description "Trace contamination to its source"
       reference_to(ContaminationEvent)
@@ -133,7 +133,7 @@ Hecks.bluebook "WaterMicrobiology", version: "2026.04.13.1" do
       then_set :status, to: "investigated"
     end
 
-    ResolveContamination do
+    command "ResolveContamination" do
       role "Operator"
       description "Resolve contamination event after treatment success"
       reference_to(ContaminationEvent)
@@ -144,28 +144,28 @@ Hecks.bluebook "WaterMicrobiology", version: "2026.04.13.1" do
   end
 
   aggregate "TreatmentProtocol", "A water treatment protocol — disinfection method, dosing, contact time" do
-    String :protocol_name
-    String :treatment_method
-    Float :dose_mg_l
-    Float :contact_time_min
-    Float :target_log_reduction
-    String :status
+    attribute :protocol_name, String
+    attribute :treatment_method, String
+    attribute :dose_mg_l, Float
+    attribute :contact_time_min, Float
+    attribute :target_log_reduction, Float
+    attribute :status, String
 
     value_object "DisinfectionCurve" do
-      Float :ct_value
-      Float :temperature_c
-      Float :ph
-      Float :log_reduction
+      attribute :ct_value, Float
+      attribute :temperature_c, Float
+      attribute :ph, Float
+      attribute :log_reduction, Float
     end
 
-    DesignProtocol do
+    command "DesignProtocol" do
       role "Engineer"
       description "Design a treatment protocol for specific contaminant type"
-      String :protocol_name
-      String :treatment_method
-      Float :dose_mg_l
-      Float :contact_time_min
-      Float :target_log_reduction
+      attribute :protocol_name, String
+      attribute :treatment_method, String
+      attribute :dose_mg_l, Float
+      attribute :contact_time_min, Float
+      attribute :target_log_reduction, Float
       emits "ProtocolDesigned"
       then_set :protocol_name, to: :protocol_name
       then_set :treatment_method, to: :treatment_method
@@ -175,7 +175,7 @@ Hecks.bluebook "WaterMicrobiology", version: "2026.04.13.1" do
       then_set :status, to: "designed"
     end
 
-    ActivateProtocol do
+    command "ActivateProtocol" do
       role "Operator"
       description "Activate treatment protocol in response to contamination"
       reference_to(TreatmentProtocol)
@@ -183,7 +183,7 @@ Hecks.bluebook "WaterMicrobiology", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    VerifyTreatment do
+    command "VerifyTreatment" do
       role "Microbiologist"
       description "Verify treatment achieved target log reduction"
       reference_to(TreatmentProtocol)

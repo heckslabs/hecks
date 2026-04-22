@@ -3,25 +3,25 @@ Hecks.bluebook "Catalog", version: "2026.04.11.1" do
   category "business"
 
   aggregate "Product", "A branded product — a formula packaged for a specific brand and market" do
-    String :sku
-    String :name
-    String :brand
-    String :formula_name
-    String :size
-    String :upc
-    Float :msrp
-    Float :wholesale_price
-    String :status
+    attribute :sku, String
+    attribute :name, String
+    attribute :brand, String
+    attribute :formula_name, String
+    attribute :size, String
+    attribute :upc, String
+    attribute :msrp, Float
+    attribute :wholesale_price, Float
+    attribute :status, String
 
-    LaunchProduct do
+    command "LaunchProduct" do
       role "ProductManager"
       description "Define a product SKU — a formula packaged under a brand at a specific size"
-      String :sku
-      String :name
-      String :brand
-      String :formula_name
-      String :size
-      String :upc
+      attribute :sku, String
+      attribute :name, String
+      attribute :brand, String
+      attribute :formula_name, String
+      attribute :size, String
+      attribute :upc, String
       emits "ProductCreated"
       then_set :sku, to: :sku
       then_set :name, to: :name
@@ -32,18 +32,18 @@ Hecks.bluebook "Catalog", version: "2026.04.11.1" do
       then_set :status, to: "active"
     end
 
-    SetPricing do
+    command "SetPricing" do
       role "ProductManager"
       description "Set MSRP and wholesale pricing for this SKU"
       reference_to(Product)
-      Float :msrp
-      Float :wholesale_price
+      attribute :msrp, Float
+      attribute :wholesale_price, Float
       emits "PricingSet"
       then_set :msrp, to: :msrp
       then_set :wholesale_price, to: :wholesale_price
     end
 
-    DiscontinueProduct do
+    command "DiscontinueProduct" do
       role "ProductManager"
       description "Remove this SKU from the active catalog"
       reference_to(Product)
@@ -58,27 +58,27 @@ Hecks.bluebook "Catalog", version: "2026.04.11.1" do
   end
 
   aggregate "Brand", "A product brand — DuraLube, MotorKote, or Slick 50" do
-    String :name
-    String :description
-    Integer :product_count
+    attribute :name, String
+    attribute :description, String
+    attribute :product_count, Integer
     list_of(String) :channels
 
-    RegisterBrand do
+    command "RegisterBrand" do
       role "Owner"
       description "Register a brand in the portfolio"
-      String :name
-      String :description
+      attribute :name, String
+      attribute :description, String
       emits "BrandRegistered"
       then_set :name, to: :name
       then_set :description, to: :description
       then_set :product_count, to: 0
     end
 
-    AssignChannel do
+    command "AssignChannel" do
       role "Owner"
       description "Add a distribution channel to this brand — Amazon, Walmart, retail"
       reference_to(Brand)
-      String :channel
+      attribute :channel, String
       emits "ChannelAssigned"
       then_set :channels, append: :channel
     end

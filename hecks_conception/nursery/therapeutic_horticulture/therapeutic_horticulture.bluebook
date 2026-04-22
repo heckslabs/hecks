@@ -3,18 +3,18 @@ Hecks.bluebook "TherapeuticHorticulture", version: "2026.04.13.1" do
   category "healthcare_community"
 
   aggregate "TherapyClient", "A mental health client in the horticulture program" do
-    String :client_id
-    String :name
-    String :diagnosis
-    String :therapist_name
-    String :status
-    EnrollClient do
+    attribute :client_id, String
+    attribute :name, String
+    attribute :diagnosis, String
+    attribute :therapist_name, String
+    attribute :status, String
+    command "EnrollClient" do
       role "Therapist"
       description "Enroll a mental health client in the horticulture program"
-      String :client_id
-      String :name
-      String :diagnosis
-      String :therapist_name
+      attribute :client_id, String
+      attribute :name, String
+      attribute :diagnosis, String
+      attribute :therapist_name, String
       emits "ClientEnrolled"
       then_set :client_id, to: :client_id
       then_set :name, to: :name
@@ -22,7 +22,7 @@ Hecks.bluebook "TherapeuticHorticulture", version: "2026.04.13.1" do
       then_set :therapist_name, to: :therapist_name
       then_set :status, to: "enrolled"
     end
-    GraduateClient do
+    command "GraduateClient" do
       role "Therapist"
       description "Graduate a client who has completed the program"
       reference_to(TherapyClient)
@@ -33,23 +33,23 @@ Hecks.bluebook "TherapeuticHorticulture", version: "2026.04.13.1" do
   end
 
   aggregate "GardenPlot", "A garden plot assigned to a therapy client" do
-    String :plot_id
-    String :client_id
-    String :plant_type
-    String :season
-    String :status
+    attribute :plot_id, String
+    attribute :client_id, String
+    attribute :plant_type, String
+    attribute :season, String
+    attribute :status, String
     value_object "PlotCondition" do
-      String :soil_type
-      Float :sun_hours
-      String :irrigation
+      attribute :soil_type, String
+      attribute :sun_hours, Float
+      attribute :irrigation, String
     end
-    AssignPlot do
+    command "AssignPlot" do
       role "GardenCoordinator"
       description "Assign a garden plot to a therapy client"
-      String :plot_id
-      String :client_id
-      String :plant_type
-      String :season
+      attribute :plot_id, String
+      attribute :client_id, String
+      attribute :plant_type, String
+      attribute :season, String
       emits "PlotAssigned"
       then_set :plot_id, to: :plot_id
       then_set :client_id, to: :client_id
@@ -57,14 +57,14 @@ Hecks.bluebook "TherapeuticHorticulture", version: "2026.04.13.1" do
       then_set :season, to: :season
       then_set :status, to: "active"
     end
-    TendPlot do
+    command "TendPlot" do
       role "Client"
       description "Record a gardening session on the assigned plot"
       reference_to(GardenPlot)
       given { status == "active" }
       emits "PlotTended"
     end
-    HarvestPlot do
+    command "HarvestPlot" do
       role "Client"
       description "Harvest produce from the plot"
       reference_to(GardenPlot)
@@ -74,31 +74,31 @@ Hecks.bluebook "TherapeuticHorticulture", version: "2026.04.13.1" do
   end
 
   aggregate "MoodEntry", "A mood tracking entry before and after gardening" do
-    String :entry_id
-    String :client_id
-    String :date
-    Integer :mood_before
-    Integer :mood_after
-    String :notes
-    RecordMood do
+    attribute :entry_id, String
+    attribute :client_id, String
+    attribute :date, String
+    attribute :mood_before, Integer
+    attribute :mood_after, Integer
+    attribute :notes, String
+    command "RecordMood" do
       role "Client"
       description "Record mood before and after a gardening session"
-      String :entry_id
-      String :client_id
-      String :date
-      Integer :mood_before
+      attribute :entry_id, String
+      attribute :client_id, String
+      attribute :date, String
+      attribute :mood_before, Integer
       emits "MoodRecorded"
       then_set :entry_id, to: :entry_id
       then_set :client_id, to: :client_id
       then_set :date, to: :date
       then_set :mood_before, to: :mood_before
     end
-    RecordPostMood do
+    command "RecordPostMood" do
       role "Client"
       description "Record mood after the gardening session"
       reference_to(MoodEntry)
-      Integer :mood_after
-      String :notes
+      attribute :mood_after, Integer
+      attribute :notes, String
       emits "PostMoodRecorded"
       then_set :mood_after, to: :mood_after
       then_set :notes, to: :notes
@@ -106,19 +106,19 @@ Hecks.bluebook "TherapeuticHorticulture", version: "2026.04.13.1" do
   end
 
   aggregate "TherapyReport", "A summary report of gardening therapy outcomes" do
-    String :report_id
-    String :client_id
-    Float :avg_mood_change
-    Integer :sessions_attended
-    String :therapist_summary
-    String :status
-    GenerateTherapyReport do
+    attribute :report_id, String
+    attribute :client_id, String
+    attribute :avg_mood_change, Float
+    attribute :sessions_attended, Integer
+    attribute :therapist_summary, String
+    attribute :status, String
+    command "GenerateTherapyReport" do
       role "Therapist"
       description "Generate a therapy outcomes report for a client"
-      String :report_id
-      String :client_id
-      Float :avg_mood_change
-      Integer :sessions_attended
+      attribute :report_id, String
+      attribute :client_id, String
+      attribute :avg_mood_change, Float
+      attribute :sessions_attended, Integer
       emits "TherapyReportGenerated"
       then_set :report_id, to: :report_id
       then_set :client_id, to: :client_id
@@ -126,11 +126,11 @@ Hecks.bluebook "TherapeuticHorticulture", version: "2026.04.13.1" do
       then_set :sessions_attended, to: :sessions_attended
       then_set :status, to: "draft"
     end
-    FinalizeReport do
+    command "FinalizeReport" do
       role "Therapist"
       description "Finalize the therapy report with summary"
       reference_to(TherapyReport)
-      String :therapist_summary
+      attribute :therapist_summary, String
       given { status == "draft" }
       emits "ReportFinalized"
       then_set :therapist_summary, to: :therapist_summary

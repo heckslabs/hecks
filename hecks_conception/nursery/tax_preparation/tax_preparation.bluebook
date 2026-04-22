@@ -3,30 +3,30 @@ Hecks.bluebook "TaxPreparation" do
   category "finance"
 
   aggregate "TaxClient", "A taxpayer with filing status, income sources, and contact info" do
-    String :first_name
-    String :last_name
-    String :ssn_last_four
-    String :filing_status
-    String :phone
-    String :email
-    String :status
+    attribute :first_name, String
+    attribute :last_name, String
+    attribute :ssn_last_four, String
+    attribute :filing_status, String
+    attribute :phone, String
+    attribute :email, String
+    attribute :status, String
 
     value_object "IncomeSource" do
-      String :source_type
-      Float :amount
-      String :employer_name
-      String :ein
+      attribute :source_type, String
+      attribute :amount, Float
+      attribute :employer_name, String
+      attribute :ein, String
     end
 
-    OnboardClient do
+    command "OnboardClient" do
       role "TaxPreparer"
       description "Register a new tax client with their personal and filing info"
-      String :first_name
-      String :last_name
-      String :ssn_last_four
-      String :filing_status
-      String :phone
-      String :email
+      attribute :first_name, String
+      attribute :last_name, String
+      attribute :ssn_last_four, String
+      attribute :filing_status, String
+      attribute :phone, String
+      attribute :email, String
       emits "ClientOnboarded"
       then_set :first_name, to: :first_name
       then_set :last_name, to: :last_name
@@ -36,16 +36,16 @@ Hecks.bluebook "TaxPreparation" do
       then_set :status, to: "active"
     end
 
-    AmendFilingStatus do
+    command "AmendFilingStatus" do
       role "TaxPreparer"
       description "Change the client's filing status for the current tax year"
       reference_to(TaxClient)
-      String :filing_status
+      attribute :filing_status, String
       emits "FilingStatusAmended"
       then_set :filing_status, to: :filing_status
     end
 
-    ArchiveClient do
+    command "ArchiveClient" do
       role "OfficeManager"
       description "Move an inactive client to the archive after the retention period"
       reference_to(TaxClient)
@@ -56,44 +56,44 @@ Hecks.bluebook "TaxPreparation" do
   end
 
   aggregate "TaxReturn", "A federal or state tax return being prepared for a client" do
-    String :tax_year
-    String :return_type
-    Float :gross_income
-    Float :adjusted_gross_income
-    Float :taxable_income
-    Float :tax_owed
-    Float :refund_amount
-    String :status
+    attribute :tax_year, String
+    attribute :return_type, String
+    attribute :gross_income, Float
+    attribute :adjusted_gross_income, Float
+    attribute :taxable_income, Float
+    attribute :tax_owed, Float
+    attribute :refund_amount, Float
+    attribute :status, String
     reference_to(TaxClient)
 
     value_object "TaxSummary" do
-      Float :federal_tax
-      Float :state_tax
-      Float :self_employment_tax
-      Float :credits_applied
+      attribute :federal_tax, Float
+      attribute :state_tax, Float
+      attribute :self_employment_tax, Float
+      attribute :credits_applied, Float
     end
 
-    StartReturn do
+    command "StartReturn" do
       role "TaxPreparer"
       description "Begin preparing a tax return for the specified year and type"
       reference_to(TaxClient)
-      String :tax_year
-      String :return_type
+      attribute :tax_year, String
+      attribute :return_type, String
       emits "ReturnStarted"
       then_set :tax_year, to: :tax_year
       then_set :return_type, to: :return_type
       then_set :status, to: "in_progress"
     end
 
-    CalculateTax do
+    command "CalculateTax" do
       role "TaxPreparer"
       description "Compute tax liability from income, deductions, and credits"
       reference_to(TaxReturn)
-      Float :gross_income
-      Float :adjusted_gross_income
-      Float :taxable_income
-      Float :tax_owed
-      Float :refund_amount
+      attribute :gross_income, Float
+      attribute :adjusted_gross_income, Float
+      attribute :taxable_income, Float
+      attribute :tax_owed, Float
+      attribute :refund_amount, Float
       given { status == "in_progress" }
       emits "TaxCalculated"
       then_set :gross_income, to: :gross_income
@@ -103,7 +103,7 @@ Hecks.bluebook "TaxPreparation" do
       then_set :refund_amount, to: :refund_amount
     end
 
-    FinalizeReturn do
+    command "FinalizeReturn" do
       role "TaxPreparer"
       description "Mark the return as ready for client review and signature"
       reference_to(TaxReturn)
@@ -114,20 +114,20 @@ Hecks.bluebook "TaxPreparation" do
   end
 
   aggregate "TaxDocument", "A supporting document collected from the client for their return" do
-    String :document_type
-    String :issuer
-    String :tax_year
-    String :received_date
-    String :status
+    attribute :document_type, String
+    attribute :issuer, String
+    attribute :tax_year, String
+    attribute :received_date, String
+    attribute :status, String
     reference_to(TaxClient)
 
-    CollectDocument do
+    command "CollectDocument" do
       role "TaxPreparer"
       description "Record receipt of a W-2, 1099, or other tax document"
       reference_to(TaxClient)
-      String :document_type
-      String :issuer
-      String :tax_year
+      attribute :document_type, String
+      attribute :issuer, String
+      attribute :tax_year, String
       emits "DocumentCollected"
       then_set :document_type, to: :document_type
       then_set :issuer, to: :issuer
@@ -135,7 +135,7 @@ Hecks.bluebook "TaxPreparation" do
       then_set :status, to: "received"
     end
 
-    VerifyDocument do
+    command "VerifyDocument" do
       role "TaxPreparer"
       description "Confirm the document data matches IRS records"
       reference_to(TaxDocument)
@@ -144,31 +144,31 @@ Hecks.bluebook "TaxPreparation" do
       then_set :status, to: "verified"
     end
 
-    RequestMissingDocument do
+    command "RequestMissingDocument" do
       role "TaxPreparer"
       description "Notify the client that a required document is missing"
       reference_to(TaxClient)
-      String :document_type
-      String :issuer
+      attribute :document_type, String
+      attribute :issuer, String
       emits "MissingDocumentRequested"
       then_set :status, to: "requested"
     end
   end
 
   aggregate "Deduction", "A tax deduction or credit claimed on the return" do
-    String :deduction_type
-    String :category
-    Float :amount
-    String :documentation_status
+    attribute :deduction_type, String
+    attribute :category, String
+    attribute :amount, Float
+    attribute :documentation_status, String
     reference_to(TaxReturn)
 
-    ClaimDeduction do
+    command "ClaimDeduction" do
       role "TaxPreparer"
       description "Add a deduction or credit to the return with supporting amount"
       reference_to(TaxReturn)
-      String :deduction_type
-      String :category
-      Float :amount
+      attribute :deduction_type, String
+      attribute :category, String
+      attribute :amount, Float
       emits "DeductionClaimed"
       then_set :deduction_type, to: :deduction_type
       then_set :category, to: :category
@@ -176,7 +176,7 @@ Hecks.bluebook "TaxPreparation" do
       then_set :documentation_status, to: "pending"
     end
 
-    SubstantiateDeduction do
+    command "SubstantiateDeduction" do
       role "TaxPreparer"
       description "Attach supporting documentation to justify the deduction"
       reference_to(Deduction)
@@ -185,7 +185,7 @@ Hecks.bluebook "TaxPreparation" do
       then_set :documentation_status, to: "substantiated"
     end
 
-    DisallowDeduction do
+    command "DisallowDeduction" do
       role "TaxPreparer"
       description "Remove a deduction that does not meet IRS eligibility rules"
       reference_to(Deduction)
@@ -195,28 +195,28 @@ Hecks.bluebook "TaxPreparation" do
   end
 
   aggregate "ElectronicFiling", "The electronic submission of a completed tax return to the IRS" do
-    String :confirmation_number
-    String :filed_date
-    String :accepted_date
-    String :status
+    attribute :confirmation_number, String
+    attribute :filed_date, String
+    attribute :accepted_date, String
+    attribute :status, String
     reference_to(TaxReturn)
 
-    FileElectronically do
+    command "FileElectronically" do
       role "TaxPreparer"
       description "Transmit the finalized return to the IRS via e-file"
       reference_to(TaxReturn)
-      String :filed_date
+      attribute :filed_date, String
       emits "ReturnEFiled"
       then_set :filed_date, to: :filed_date
       then_set :status, to: "transmitted"
     end
 
-    ReceiveAcceptance do
+    command "ReceiveAcceptance" do
       role "System"
       description "Record the IRS acceptance confirmation and tracking number"
       reference_to(ElectronicFiling)
-      String :confirmation_number
-      String :accepted_date
+      attribute :confirmation_number, String
+      attribute :accepted_date, String
       given { status == "transmitted" }
       emits "FilingAccepted"
       then_set :confirmation_number, to: :confirmation_number
@@ -224,11 +224,11 @@ Hecks.bluebook "TaxPreparation" do
       then_set :status, to: "accepted"
     end
 
-    HandleRejection do
+    command "HandleRejection" do
       role "TaxPreparer"
       description "Address IRS rejection by correcting errors and resubmitting"
       reference_to(ElectronicFiling)
-      String :rejection_reason
+      attribute :rejection_reason, String
       given { status == "transmitted" }
       emits "FilingRejected"
       then_set :status, to: "rejected"

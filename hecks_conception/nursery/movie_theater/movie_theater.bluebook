@@ -2,60 +2,60 @@ Hecks.bluebook "MovieTheater" do
   vision "Manage screens, showings, seat reservations, concessions, and projectors for a cinema"
 
   aggregate "Screen", "A physical auditorium with seating and projection equipment" do
-    String :screen_number
-    Integer :seat_count
-    String :sound_format
-    String :status
+    attribute :screen_number, String
+    attribute :seat_count, Integer
+    attribute :sound_format, String
+    attribute :status, String
     reference_to(Projector)
 
     value_object "SeatingLayout" do
-      Integer :rows
-      Integer :seats_per_row
-      String :has_wheelchair_spots
+      attribute :rows, Integer
+      attribute :seats_per_row, Integer
+      attribute :has_wheelchair_spots, String
     end
 
-    SetupScreen do
+    command "SetupScreen" do
       description "Bring a new screen online in the cinema complex"
-      String :screen_number
-      Integer :seat_count
-      String :sound_format
+      attribute :screen_number, String
+      attribute :seat_count, Integer
+      attribute :sound_format, String
       emits "ScreenSetup"
       then_set :status, to: "active"
     end
 
-    CloseScreen do
+    command "CloseScreen" do
       description "Take a screen out of service for renovation"
       reference_to(Screen)
-      String :reason
+      attribute :reason, String
       emits "ScreenClosed"
       then_set :status, to: "closed"
     end
   end
 
   aggregate "Showing", "A scheduled screening of a film on a particular screen" do
-    String :film_title
-    String :showtime
-    String :rating
-    Integer :available_seats
-    String :status
+    attribute :film_title, String
+    attribute :showtime, String
+    attribute :rating, String
+    attribute :available_seats, Integer
+    attribute :status, String
     reference_to(Screen)
 
     value_object "TicketPrice" do
-      Integer :cents
-      String :tier
+      attribute :cents, Integer
+      attribute :tier, String
     end
 
-    ScheduleShowing do
+    command "ScheduleShowing" do
       description "Add a film showing to the daily schedule"
-      String :film_title
-      String :showtime
-      String :rating
+      attribute :film_title, String
+      attribute :showtime, String
+      attribute :rating, String
       reference_to(Screen)
       emits "ShowingScheduled"
       then_set :status, to: "scheduled"
     end
 
-    OpenSales do
+    command "OpenSales" do
       description "Make tickets available for purchase"
       reference_to(Showing)
       given { status == "scheduled" }
@@ -63,15 +63,15 @@ Hecks.bluebook "MovieTheater" do
       then_set :status, to: "on_sale"
     end
 
-    SellTicket do
+    command "SellTicket" do
       description "Reserve a seat for a patron at a showing"
       reference_to(Showing)
-      String :patron_name
-      String :seat_number
+      attribute :patron_name, String
+      attribute :seat_number, String
       emits "TicketSold"
     end
 
-    OpenDoors do
+    command "OpenDoors" do
       description "Allow patrons to enter the auditorium before showtime"
       reference_to(Showing)
       given { status == "on_sale" }
@@ -79,7 +79,7 @@ Hecks.bluebook "MovieTheater" do
       then_set :status, to: "seating"
     end
 
-    StartProjection do
+    command "StartProjection" do
       description "Begin the film projection on screen"
       reference_to(Showing)
       given { status == "seating" }
@@ -87,7 +87,7 @@ Hecks.bluebook "MovieTheater" do
       then_set :status, to: "in_progress"
     end
 
-    EndShowing do
+    command "EndShowing" do
       description "Mark the showing as finished after credits roll"
       reference_to(Showing)
       given { status == "in_progress" }
@@ -95,7 +95,7 @@ Hecks.bluebook "MovieTheater" do
       then_set :status, to: "ended"
     end
 
-    ClearAuditorium do
+    command "ClearAuditorium" do
       description "Confirm auditorium is empty and ready for cleaning"
       reference_to(Showing)
       given { status == "ended" }
@@ -103,10 +103,10 @@ Hecks.bluebook "MovieTheater" do
       then_set :status, to: "cleared"
     end
 
-    CancelShowing do
+    command "CancelShowing" do
       description "Remove a showing from the schedule due to low demand"
       reference_to(Showing)
-      String :reason
+      attribute :reason, String
       given { status == "scheduled" }
       emits "ShowingCancelled"
       then_set :status, to: "cancelled"
@@ -114,62 +114,62 @@ Hecks.bluebook "MovieTheater" do
   end
 
   aggregate "Concession", "A food or beverage item sold at the snack bar" do
-    String :item_name
-    Integer :price_cents
-    Integer :stock_count
-    String :category
+    attribute :item_name, String
+    attribute :price_cents, Integer
+    attribute :stock_count, Integer
+    attribute :category, String
 
     value_object "NutritionFacts" do
-      Integer :calories
-      Float :sugar_grams
+      attribute :calories, Integer
+      attribute :sugar_grams, Float
     end
 
-    StockConcession do
+    command "StockConcession" do
       description "Add inventory for a concession item"
-      String :item_name
-      Integer :price_cents
-      Integer :stock_count
-      String :category
+      attribute :item_name, String
+      attribute :price_cents, Integer
+      attribute :stock_count, Integer
+      attribute :category, String
       emits "ConcessionStocked"
     end
 
-    SellConcession do
+    command "SellConcession" do
       description "Record a concession sale at the counter"
       reference_to(Concession)
-      Integer :quantity
+      attribute :quantity, Integer
       given { stock_count > 0 }
       emits "ConcessionSold"
     end
   end
 
   aggregate "Projector", "A digital or film projector installed in a screen" do
-    String :projector_id
-    String :technology
-    Integer :lamp_hours
-    String :status
+    attribute :projector_id, String
+    attribute :technology, String
+    attribute :lamp_hours, Integer
+    attribute :status, String
 
     value_object "LampSpec" do
-      Integer :max_hours
-      String :bulb_type
+      attribute :max_hours, Integer
+      attribute :bulb_type, String
     end
 
-    InstallProjector do
+    command "InstallProjector" do
       description "Mount a new projector in a screen room"
-      String :projector_id
-      String :technology
+      attribute :projector_id, String
+      attribute :technology, String
       emits "ProjectorInstalled"
       then_set :status, to: "operational"
       then_set :lamp_hours, to: 0
     end
 
-    CalibrateProjector do
+    command "CalibrateProjector" do
       description "Run color and focus calibration before the day's first show"
       reference_to(Projector)
       given { status == "operational" }
       emits "ProjectorCalibrated"
     end
 
-    ReportLampFailure do
+    command "ReportLampFailure" do
       description "Flag a projector lamp as burnt out or dim"
       reference_to(Projector)
       emits "LampFailed"

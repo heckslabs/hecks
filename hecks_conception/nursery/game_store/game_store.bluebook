@@ -3,30 +3,30 @@ Hecks.bluebook "GameStore", version: "2026.04.13.1" do
   category "retail"
 
   aggregate "Game", "A board game, card game, or video game for sale" do
-    String :sku
-    String :title
-    String :platform
-    String :genre
-    Float :price
-    Integer :quantity
-    String :age_rating
+    attribute :sku, String
+    attribute :title, String
+    attribute :platform, String
+    attribute :genre, String
+    attribute :price, Float
+    attribute :quantity, Integer
+    attribute :age_rating, String
     list_of(GameFeature) :features
 
     value_object "GameFeature" do
-      String :feature_name
-      String :description
+      attribute :feature_name, String
+      attribute :description, String
     end
 
-    StockGame do
+    command "StockGame" do
       role "Buyer"
       description "Add a new game title to the store inventory"
-      String :sku
-      String :title
-      String :platform
-      String :genre
-      Float :price
-      Integer :quantity
-      String :age_rating
+      attribute :sku, String
+      attribute :title, String
+      attribute :platform, String
+      attribute :genre, String
+      attribute :price, Float
+      attribute :quantity, Integer
+      attribute :age_rating, String
       emits "GameStocked"
       then_set :sku, to: :sku
       then_set :title, to: :title
@@ -37,7 +37,7 @@ Hecks.bluebook "GameStore", version: "2026.04.13.1" do
       then_set :age_rating, to: :age_rating
     end
 
-    SellGame do
+    command "SellGame" do
       role "Cashier"
       description "Complete a game sale at the register"
       reference_to(Game)
@@ -45,11 +45,11 @@ Hecks.bluebook "GameStore", version: "2026.04.13.1" do
       emits "GameSold"
     end
 
-    ClearanceGame do
+    command "ClearanceGame" do
       role "Manager"
       description "Mark a game for clearance pricing"
       reference_to(Game)
-      Float :clearance_price
+      attribute :clearance_price, Float
       given { clearance_price < price }
       emits "GameClearanced"
       then_set :price, to: :clearance_price
@@ -57,30 +57,30 @@ Hecks.bluebook "GameStore", version: "2026.04.13.1" do
   end
 
   aggregate "Tournament", "A competitive gaming event held in the store" do
-    String :tournament_id
-    String :game_title
-    String :format
-    Integer :max_players
-    Float :entry_fee
-    String :date
-    String :status
+    attribute :tournament_id, String
+    attribute :game_title, String
+    attribute :format, String
+    attribute :max_players, Integer
+    attribute :entry_fee, Float
+    attribute :date, String
+    attribute :status, String
     list_of(Participant) :participants
 
     value_object "Participant" do
-      String :player_name
-      String :registered_date
-      Integer :seed
+      attribute :player_name, String
+      attribute :registered_date, String
+      attribute :seed, Integer
     end
 
-    ScheduleTournament do
+    command "ScheduleTournament" do
       role "EventCoordinator"
       description "Set up a new tournament with rules and date"
-      String :tournament_id
-      String :game_title
-      String :format
-      Integer :max_players
-      Float :entry_fee
-      String :date
+      attribute :tournament_id, String
+      attribute :game_title, String
+      attribute :format, String
+      attribute :max_players, Integer
+      attribute :entry_fee, Float
+      attribute :date, String
       emits "TournamentScheduled"
       then_set :tournament_id, to: :tournament_id
       then_set :game_title, to: :game_title
@@ -91,7 +91,7 @@ Hecks.bluebook "GameStore", version: "2026.04.13.1" do
       then_set :status, to: "open"
     end
 
-    LaunchTournament do
+    command "LaunchTournament" do
       role "EventCoordinator"
       description "Begin the tournament and lock registrations"
       reference_to(Tournament)
@@ -99,7 +99,7 @@ Hecks.bluebook "GameStore", version: "2026.04.13.1" do
       then_set :status, to: "in_progress"
     end
 
-    ConcludeTournament do
+    command "ConcludeTournament" do
       role "EventCoordinator"
       description "Declare results and award prizes"
       reference_to(Tournament)
@@ -109,21 +109,21 @@ Hecks.bluebook "GameStore", version: "2026.04.13.1" do
   end
 
   aggregate "TradeIn", "A used game brought in by a customer for store credit" do
-    String :trade_id
-    String :customer_name
-    String :game_title
-    String :condition
-    Float :credit_offered
-    String :status
+    attribute :trade_id, String
+    attribute :customer_name, String
+    attribute :game_title, String
+    attribute :condition, String
+    attribute :credit_offered, Float
+    attribute :status, String
 
-    AcceptTradeIn do
+    command "AcceptTradeIn" do
       role "Staff"
       description "Evaluate and accept a used game for store credit"
-      String :trade_id
-      String :customer_name
-      String :game_title
-      String :condition
-      Float :credit_offered
+      attribute :trade_id, String
+      attribute :customer_name, String
+      attribute :game_title, String
+      attribute :condition, String
+      attribute :credit_offered, Float
       emits "TradeInAccepted"
       then_set :trade_id, to: :trade_id
       then_set :customer_name, to: :customer_name
@@ -133,7 +133,7 @@ Hecks.bluebook "GameStore", version: "2026.04.13.1" do
       then_set :status, to: "accepted"
     end
 
-    RejectTradeIn do
+    command "RejectTradeIn" do
       role "Staff"
       description "Decline a trade-in due to poor condition or low demand"
       reference_to(TradeIn)
@@ -144,21 +144,21 @@ Hecks.bluebook "GameStore", version: "2026.04.13.1" do
   end
 
   aggregate "Preorder", "A customer reservation for an upcoming game release" do
-    String :preorder_id
-    String :customer_name
-    String :game_title
-    String :release_date
-    Float :deposit
-    String :status
+    attribute :preorder_id, String
+    attribute :customer_name, String
+    attribute :game_title, String
+    attribute :release_date, String
+    attribute :deposit, Float
+    attribute :status, String
 
-    PlacePreorder do
+    command "PlacePreorder" do
       role "Customer"
       description "Reserve a copy of an upcoming game with a deposit"
-      String :preorder_id
-      String :customer_name
-      String :game_title
-      String :release_date
-      Float :deposit
+      attribute :preorder_id, String
+      attribute :customer_name, String
+      attribute :game_title, String
+      attribute :release_date, String
+      attribute :deposit, Float
       emits "PreorderPlaced"
       then_set :preorder_id, to: :preorder_id
       then_set :customer_name, to: :customer_name
@@ -168,7 +168,7 @@ Hecks.bluebook "GameStore", version: "2026.04.13.1" do
       then_set :status, to: "reserved"
     end
 
-    FulfillPreorder do
+    command "FulfillPreorder" do
       role "Staff"
       description "Hand the game to the customer on release day"
       reference_to(Preorder)
@@ -177,7 +177,7 @@ Hecks.bluebook "GameStore", version: "2026.04.13.1" do
       then_set :status, to: "fulfilled"
     end
 
-    CancelPreorder do
+    command "CancelPreorder" do
       role "Customer"
       description "Cancel the reservation and refund the deposit"
       reference_to(Preorder)

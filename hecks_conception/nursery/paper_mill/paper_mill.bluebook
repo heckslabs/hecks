@@ -1,44 +1,44 @@
 Hecks.bluebook "PaperMill" do
   aggregate "PulpBatch" do
-    String :batch_id
-    String :wood_type
-    Float :consistency_percent
-    String :bleaching_status
-    String :status
+    attribute :batch_id, String
+    attribute :wood_type, String
+    attribute :consistency_percent, Float
+    attribute :bleaching_status, String
+    attribute :status, String
 
     value_object "FiberAnalysis" do
-      Float :fiber_length_mm
-      Float :brightness_iso
-      Float :freeness_csf
+      attribute :fiber_length_mm, Float
+      attribute :brightness_iso, Float
+      attribute :freeness_csf, Float
     end
 
-    CookPulp do
+    command "CookPulp" do
       description "Cook wood chips into pulp using kraft or sulfite process"
-      String :process_type
-      Float :cook_temperature
-      Float :cook_duration_hours
+      attribute :process_type, String
+      attribute :cook_temperature, Float
+      attribute :cook_duration_hours, Float
       reference_to "PulpBatch"
       emits "PulpCooked"
     end
 
-    WashPulp do
+    command "WashPulp" do
       description "Wash cooked pulp to remove residual lignin and chemicals"
-      Float :wash_water_volume
+      attribute :wash_water_volume, Float
       reference_to "PulpBatch"
       emits "PulpWashed"
     end
 
-    BleachPulp do
+    command "BleachPulp" do
       description "Bleach pulp to target brightness level"
-      Float :target_brightness
-      String :bleaching_agent
+      attribute :target_brightness, Float
+      attribute :bleaching_agent, String
       reference_to "PulpBatch"
       emits "PulpBleached"
     end
 
-    RefinePulp do
+    command "RefinePulp" do
       description "Refine bleached pulp to target freeness for paper machine"
-      Float :target_freeness_csf
+      attribute :target_freeness_csf, Float
       reference_to "PulpBatch"
       emits "PulpRefined"
     end
@@ -55,40 +55,40 @@ Hecks.bluebook "PaperMill" do
   end
 
   aggregate "PaperRoll" do
-    String :roll_id
-    String :grade
-    Float :basis_weight_gsm
-    Float :width_mm
-    Float :diameter_mm
-    String :status
+    attribute :roll_id, String
+    attribute :grade, String
+    attribute :basis_weight_gsm, Float
+    attribute :width_mm, Float
+    attribute :diameter_mm, Float
+    attribute :status, String
     list_of "QualityTest"
 
-    FormSheet do
+    command "FormSheet" do
       description "Form wet paper sheet on the wire section of paper machine"
-      String :machine_id
-      Float :target_basis_weight
+      attribute :machine_id, String
+      attribute :target_basis_weight, Float
       reference_to "PulpBatch"
       emits "SheetFormed"
     end
 
-    PressSheet do
+    command "PressSheet" do
       description "Press wet sheet between felts to remove water mechanically"
-      Float :moisture_after_press
+      attribute :moisture_after_press, Float
       reference_to "PaperRoll"
       emits "SheetPressed"
     end
 
-    DrySheet do
+    command "DrySheet" do
       description "Pass sheet over heated drying cylinders to final moisture"
-      Float :final_moisture_percent
+      attribute :final_moisture_percent, Float
       reference_to "PaperRoll"
       emits "SheetDried"
     end
 
-    WindRoll do
+    command "WindRoll" do
       description "Wind finished paper onto a reel at the dry end"
-      Float :tension_newtons
-      Float :moisture_percent
+      attribute :tension_newtons, Float
+      attribute :moisture_percent, Float
       reference_to "PaperRoll"
       emits "RollWound"
     end
@@ -104,18 +104,18 @@ Hecks.bluebook "PaperMill" do
   end
 
   aggregate "PaperGrade" do
-    String :grade_code
-    String :grade_name
-    Float :min_brightness
-    Float :max_brightness
-    Float :target_basis_weight
-    String :application
+    attribute :grade_code, String
+    attribute :grade_name, String
+    attribute :min_brightness, Float
+    attribute :max_brightness, Float
+    attribute :target_basis_weight, Float
+    attribute :application, String
 
-    DefineGrade do
+    command "DefineGrade" do
       description "Define a new paper grade specification with target properties"
-      String :grade_name
-      Float :target_basis_weight
-      Float :min_brightness
+      attribute :grade_name, String
+      attribute :target_basis_weight, Float
+      attribute :min_brightness, Float
       reference_to "PaperGrade"
       emits "GradeDefined"
     end
@@ -123,37 +123,37 @@ Hecks.bluebook "PaperMill" do
     policy "Grade specifications must have non-overlapping brightness ranges"
 
     given "A standard copy paper grade is defined" do
-      String :grade_code, "CP-80"
-      String :grade_name, "Copy Paper 80gsm"
-      Float :target_basis_weight, 80.0
+      attribute :grade_code, String, "CP-80"
+      attribute :grade_name, String, "Copy Paper 80gsm"
+      attribute :target_basis_weight, Float, 80.0
     end
   end
 
   aggregate "PaperMachine" do
-    String :machine_id
-    String :machine_name
-    Float :max_speed_mpm
-    String :current_grade
-    String :status
+    attribute :machine_id, String
+    attribute :machine_name, String
+    attribute :max_speed_mpm, Float
+    attribute :current_grade, String
+    attribute :status, String
 
     value_object "MachineReading" do
-      Float :speed_mpm
-      Float :steam_pressure_bar
-      Float :felt_tension
+      attribute :speed_mpm, Float
+      attribute :steam_pressure_bar, Float
+      attribute :felt_tension, Float
     end
 
-    StartMachine do
+    command "StartMachine" do
       description "Start paper machine and ramp up to operating speed"
-      String :target_grade
-      Float :target_speed
+      attribute :target_grade, String
+      attribute :target_speed, Float
       reference_to "PaperMachine"
       emits "MachineStarted"
     end
 
-    ChangeGrade do
+    command "ChangeGrade" do
       description "Switch machine to produce a different paper grade"
-      String :new_grade
-      Float :transition_speed
+      attribute :new_grade, String
+      attribute :transition_speed, Float
       reference_to "PaperGrade"
       emits "GradeChanged"
     end
@@ -167,25 +167,25 @@ Hecks.bluebook "PaperMill" do
   end
 
   aggregate "ShippingOrder" do
-    String :order_id
-    String :customer_name
-    String :grade
-    Integer :roll_count
-    String :delivery_date
-    String :status
+    attribute :order_id, String
+    attribute :customer_name, String
+    attribute :grade, String
+    attribute :roll_count, Integer
+    attribute :delivery_date, String
+    attribute :status, String
     list_of "PaperRoll"
 
-    BookShipment do
+    command "BookShipment" do
       description "Book rolls for shipment to customer warehouse"
-      String :customer_name
-      String :carrier
+      attribute :customer_name, String
+      attribute :carrier, String
       reference_to "ShippingOrder"
       emits "ShipmentBooked"
     end
 
-    DispatchShipment do
+    command "DispatchShipment" do
       description "Release loaded truck or rail car for delivery"
-      String :bill_of_lading
+      attribute :bill_of_lading, String
       reference_to "ShippingOrder"
       emits "ShipmentDispatched"
     end

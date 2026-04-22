@@ -3,20 +3,20 @@ Hecks.bluebook "MobileDialysis", version: "2026.04.13.1" do
   category "healthcare_technology"
 
   aggregate "DialysisPatient", "A patient requiring regular dialysis treatments" do
-    String :patient_id
-    String :name
-    String :blood_type
-    String :access_type
-    Integer :treatments_per_week
-    String :status
-    EnrollPatient do
+    attribute :patient_id, String
+    attribute :name, String
+    attribute :blood_type, String
+    attribute :access_type, String
+    attribute :treatments_per_week, Integer
+    attribute :status, String
+    command "EnrollPatient" do
       role "Nephrologist"
       description "Enroll a patient in the mobile dialysis program"
-      String :patient_id
-      String :name
-      String :blood_type
-      String :access_type
-      Integer :treatments_per_week
+      attribute :patient_id, String
+      attribute :name, String
+      attribute :blood_type, String
+      attribute :access_type, String
+      attribute :treatments_per_week, Integer
       emits "PatientEnrolled"
       then_set :patient_id, to: :patient_id
       then_set :name, to: :name
@@ -25,7 +25,7 @@ Hecks.bluebook "MobileDialysis", version: "2026.04.13.1" do
       then_set :treatments_per_week, to: :treatments_per_week
       then_set :status, to: "enrolled"
     end
-    PauseEnrollment do
+    command "PauseEnrollment" do
       role "Nephrologist"
       description "Pause a patient enrollment temporarily"
       reference_to(DialysisPatient)
@@ -36,18 +36,18 @@ Hecks.bluebook "MobileDialysis", version: "2026.04.13.1" do
   end
 
   aggregate "MobileUnit", "A truck-based mobile dialysis treatment unit" do
-    String :unit_id
-    String :license_plate
-    Integer :treatment_stations
-    String :nurse_name
-    String :status
-    RegisterUnit do
+    attribute :unit_id, String
+    attribute :license_plate, String
+    attribute :treatment_stations, Integer
+    attribute :nurse_name, String
+    attribute :status, String
+    command "RegisterUnit" do
       role "FleetManager"
       description "Register a mobile dialysis truck unit"
-      String :unit_id
-      String :license_plate
-      Integer :treatment_stations
-      String :nurse_name
+      attribute :unit_id, String
+      attribute :license_plate, String
+      attribute :treatment_stations, Integer
+      attribute :nurse_name, String
       emits "UnitRegistered"
       then_set :unit_id, to: :unit_id
       then_set :license_plate, to: :license_plate
@@ -55,7 +55,7 @@ Hecks.bluebook "MobileDialysis", version: "2026.04.13.1" do
       then_set :nurse_name, to: :nurse_name
       then_set :status, to: "available"
     end
-    DispatchUnit do
+    command "DispatchUnit" do
       role "Dispatcher"
       description "Dispatch a mobile unit to a scheduled location"
       reference_to(MobileUnit)
@@ -63,7 +63,7 @@ Hecks.bluebook "MobileDialysis", version: "2026.04.13.1" do
       emits "UnitDispatched"
       then_set :status, to: "dispatched"
     end
-    ReturnUnit do
+    command "ReturnUnit" do
       role "Driver"
       description "Return the mobile unit to base after route"
       reference_to(MobileUnit)
@@ -74,24 +74,24 @@ Hecks.bluebook "MobileDialysis", version: "2026.04.13.1" do
   end
 
   aggregate "TreatmentRoute", "A daily route for the mobile dialysis unit" do
-    String :route_id
-    String :unit_id
-    String :date
+    attribute :route_id, String
+    attribute :unit_id, String
+    attribute :date, String
     list_of(RouteStop) :stops
-    Float :total_miles
-    String :status
+    attribute :total_miles, Float
+    attribute :status, String
     value_object "RouteStop" do
-      String :patient_id
-      String :address
-      String :scheduled_time
+      attribute :patient_id, String
+      attribute :address, String
+      attribute :scheduled_time, String
     end
-    PlanRoute do
+    command "PlanRoute" do
       role "Dispatcher"
       description "Plan a daily treatment route with patient stops"
-      String :route_id
-      String :unit_id
-      String :date
-      Float :total_miles
+      attribute :route_id, String
+      attribute :unit_id, String
+      attribute :date, String
+      attribute :total_miles, Float
       emits "RoutePlanned"
       then_set :route_id, to: :route_id
       then_set :unit_id, to: :unit_id
@@ -99,7 +99,7 @@ Hecks.bluebook "MobileDialysis", version: "2026.04.13.1" do
       then_set :total_miles, to: :total_miles
       then_set :status, to: "planned"
     end
-    StartRoute do
+    command "StartRoute" do
       role "Driver"
       description "Begin the daily treatment route"
       reference_to(TreatmentRoute)
@@ -107,7 +107,7 @@ Hecks.bluebook "MobileDialysis", version: "2026.04.13.1" do
       emits "RouteStarted"
       then_set :status, to: "in_progress"
     end
-    FinishRoute do
+    command "FinishRoute" do
       role "Driver"
       description "Complete the daily treatment route"
       reference_to(TreatmentRoute)
@@ -118,30 +118,30 @@ Hecks.bluebook "MobileDialysis", version: "2026.04.13.1" do
   end
 
   aggregate "TreatmentSession", "A dialysis treatment session performed on the mobile unit" do
-    String :session_id
-    String :patient_id
-    String :unit_id
-    Float :duration_hours
-    Float :fluid_removed_liters
-    String :status
-    StartTreatment do
+    attribute :session_id, String
+    attribute :patient_id, String
+    attribute :unit_id, String
+    attribute :duration_hours, Float
+    attribute :fluid_removed_liters, Float
+    attribute :status, String
+    command "StartTreatment" do
       role "Nurse"
       description "Start a dialysis treatment session on the mobile unit"
-      String :session_id
-      String :patient_id
-      String :unit_id
+      attribute :session_id, String
+      attribute :patient_id, String
+      attribute :unit_id, String
       emits "TreatmentStarted"
       then_set :session_id, to: :session_id
       then_set :patient_id, to: :patient_id
       then_set :unit_id, to: :unit_id
       then_set :status, to: "in_progress"
     end
-    EndTreatment do
+    command "EndTreatment" do
       role "Nurse"
       description "End the dialysis treatment and record outcome"
       reference_to(TreatmentSession)
-      Float :duration_hours
-      Float :fluid_removed_liters
+      attribute :duration_hours, Float
+      attribute :fluid_removed_liters, Float
       given { status == "in_progress" }
       emits "TreatmentEnded"
       then_set :duration_hours, to: :duration_hours
