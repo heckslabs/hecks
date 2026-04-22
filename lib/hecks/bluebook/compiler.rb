@@ -61,8 +61,8 @@ module Hecks
     # @param domain [Hecks::BluebookModel::Domain] the domain to load
     # @param force [Boolean] reload even if already cached (default false)
     # @param skip_validation [Boolean] skip validation before loading (default false)
-    # @param source_dir [String, nil] directory to auto-discover hecksagon.hec and
-    #   world.hec files from. When provided, loads these companion files the same
+    # @param source_dir [String, nil] directory to auto-discover *.hecksagon and
+    #   *.world files from. When provided, loads these companion files the same
     #   way Hecks.boot does for directory-based projects.
     # @return [Module] the loaded domain module constant (e.g., PizzasDomain)
     # @raise [Hecks::ValidationError] if validation fails and skip_validation is false
@@ -98,6 +98,7 @@ module Hecks
 
     # Load hecksagon and world files from a directory, mirroring the
     # auto-discovery that Hecks.boot performs for file-based projects.
+    # Files are now domain-named: <name>.hecksagon / <name>.world.
     def load_companion_files(dir)
       require "hecksagon" unless defined?(Hecksagon)
 
@@ -105,17 +106,16 @@ module Hecks
       parent = File.dirname(dir)
       if File.basename(parent) == "apps"
         default_dir = File.dirname(parent)
-        load_hec(File.join(default_dir, "hecksagon.hec"))
-        load_hec(File.join(default_dir, "world.hec"))
+        load_companions_in(default_dir)
       end
 
       # Load from this dir (default or app override — merges via builder)
-      load_hec(File.join(dir, "hecksagon.hec"))
-      load_hec(File.join(dir, "world.hec"))
+      load_companions_in(dir)
     end
 
-    def load_hec(path)
-      Kernel.load(path) if File.exist?(path)
+    def load_companions_in(dir)
+      Dir[File.join(dir, "*.hecksagon")].sort.each { |f| Kernel.load(f) }
+      Dir[File.join(dir, "*.world")].sort.each { |f| Kernel.load(f) }
     end
   end
 end

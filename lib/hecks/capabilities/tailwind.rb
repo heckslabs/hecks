@@ -1,7 +1,7 @@
 # Hecks::Capabilities::Tailwind
 #
 # CSS compilation capability using tailwindcss-ruby.
-# Spawns a watcher process configured from world.hec.
+# Spawns a watcher process configured from the project's *.world file.
 # No-op if tailwindcss binary is not available.
 #
 #   Hecks.hecksagon "MyApp" do

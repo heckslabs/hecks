@@ -1,6 +1,6 @@
 # Hecks::Capabilities::LiveReload::Watcher
 #
-# Polls configured directories for .bluebook and .hec file changes,
+# Polls configured directories for .bluebook / .hecksagon / .world file changes,
 # re-evaluates modified files, and publishes a BluebookReloaded event
 # on the runtime's event bus. Uses Ruby's built-in File.stat for mtime
 # checking — no external gem dependencies.
@@ -19,10 +19,10 @@ module Hecks
     module LiveReload
       # Hecks::Capabilities::LiveReload::Watcher
       #
-      # Polls for .bluebook/.hec file changes and reloads the domain IR.
+      # Polls for .bluebook / .hecksagon / .world file changes and reloads the domain IR.
       #
       class Watcher
-        WATCH_EXTENSIONS = %w[.bluebook .hec].freeze
+        WATCH_EXTENSIONS = %w[.bluebook .hecksagon .world].freeze
 
         attr_reader :watch_dirs, :debounce
 
@@ -132,7 +132,7 @@ module Hecks
 
       # Hecks::Capabilities::LiveReload::BluebookReloaded
       #
-      # Domain event published when .bluebook/.hec files are reloaded.
+      # Domain event published when .bluebook / .hecksagon / .world files are reloaded.
       #
       class BluebookReloaded
         attr_reader :changed_paths, :reloaded_at

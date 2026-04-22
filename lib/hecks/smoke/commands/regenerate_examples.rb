@@ -4,7 +4,9 @@ Hecks::CLI.register_command(:regenerate_examples, "Regenerate all example output
 
   Dir.chdir(pizzas) do
     say "Loading pizzas domain...", :green
-    Kernel.load("bluebook.hec")
+    bluebook = Dir["hecks/*.bluebook"].first || Dir["*.bluebook"].first
+    raise "No .bluebook found in #{Dir.pwd}" unless bluebook
+    Kernel.load(bluebook)
     domain = Hecks.last_domain
 
     say "Building domain gem...", :green

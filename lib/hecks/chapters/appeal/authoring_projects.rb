@@ -127,7 +127,7 @@ module Hecks
             reference_to Project
 
             command "OpenDocument" do
-              description "Load a .hec file into the editor"
+              description "Load a .bluebook / .hecksagon / .world file into the editor"
               reference_to Project
               attribute :filename, String
               emits "DocumentOpened"

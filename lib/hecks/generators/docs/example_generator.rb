@@ -5,7 +5,7 @@
 # ExampleBluebookWriter for the DSL files.
 #
 #   gen = Hecks::Generators::ExampleGenerator.new(domain, aggregates: ["Pizza", "Order"])
-#   gen.generate  # => { "pizzas.rb" => "...", "bluebook.hec" => "...", "hecksagon.hec" => "..." }
+#   gen.generate  # => { "pizzas.rb" => "...", "pizzas.bluebook" => "...", "pizzas.hecksagon" => "..." }
 #
 Hecks::Chapters.load_aggregates(
   Hecks::Bluebook::GeneratorsParagraph,
@@ -34,10 +34,11 @@ module Hecks
         aggs = included_aggregates
         app = ExampleAppWriter.new(@domain, aggs, name: @name)
         dsl = ExampleBluebookWriter.new(@domain, aggs, name: @name)
+        stem = bluebook_snake_name(@name)
         {
-          "#{bluebook_snake_name(@name)}.rb" => app.generate,
-          "bluebook.hec" => dsl.generate_bluebook,
-          "hecksagon.hec" => dsl.generate_hecksagon
+          "#{stem}.rb" => app.generate,
+          "#{stem}.bluebook" => dsl.generate_bluebook,
+          "#{stem}.hecksagon" => dsl.generate_hecksagon
         }
       end
 
