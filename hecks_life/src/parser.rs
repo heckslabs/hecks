@@ -18,6 +18,11 @@ pub fn parse(source: &str) -> Domain {
         fixtures: vec![],
     };
 
+    // Tolerate a leading `#!...\n` shebang so .bluebook files can be marked
+    // executable and run directly from the kernel. The line is advisory —
+    // the parser just skips it. Everything else stays identical.
+    let source = strip_shebang(source);
+
     let lines: Vec<&str> = source.lines().collect();
     let mut i = 0;
 
@@ -81,9 +86,25 @@ pub fn parse(source: &str) -> Domain {
     domain
 }
 
+/// Strip a leading `#!...\n` shebang line if present.
+///
+/// Bluebooks carrying `#!/usr/bin/env hecks-life run` at the top should
+/// parse identically to the same file without that line. Everything
+/// after the first newline passes through untouched.
+pub fn strip_shebang(source: &str) -> &str {
+    if source.starts_with("#!") {
+        if let Some(nl) = source.find('\n') {
+            return &source[nl + 1..];
+        }
+        return "";
+    }
+    source
+}
+
 // True if the line is incomplete and the next physical line is a
 // continuation: either trailing comma, or unbalanced brackets/parens/braces
 // (outside string literals).
+#[allow(dead_code)]
 fn needs_continuation(s: &str) -> bool {
     let trimmed = s.trim_end();
     if trimmed.ends_with(',') { return true; }
