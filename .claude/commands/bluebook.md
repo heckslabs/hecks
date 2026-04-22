@@ -25,7 +25,7 @@ policy "NotifyKitchen" do
 end
 ```
 
-5. After modifying a bluebook.hec, verify it parses:
+5. After modifying a `.bluebook` file, verify it parses:
 
 ```bash
 ruby -Ilib -e "require 'hecks'; Hecks.boot('path/to/project')"
