@@ -125,12 +125,14 @@ Hecks.bluebook "SolarOptics", version: "2026.04.13.1" do
       attribute :afternoon_shade_hours, Float
     end
 
-    list_of "Obstruction" do
+    value_object "Obstruction" do
       attribute :type, String
       attribute :height_m, Float
       attribute :distance_m, Float
       attribute :azimuth_deg, Float
     end
+
+    list_of(Obstruction)
 
     command "AnalyzeShading" do
       role "Engineer"

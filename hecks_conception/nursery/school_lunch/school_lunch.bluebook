@@ -68,11 +68,13 @@ Hecks.bluebook "SchoolLunch", version: "2026.04.13.1" do
       attribute :allergen_flag, String
     end
 
-    list_of "AllergenWarning" do
+    value_object "AllergenWarning" do
       attribute :allergen_type, String
       attribute :severity, String
       attribute :source_ingredient, String
     end
+
+    list_of(AllergenWarning)
 
     command "PlanMenuItem" do
       role "Chef"
@@ -124,13 +126,15 @@ Hecks.bluebook "SchoolLunch", version: "2026.04.13.1" do
     attribute :total_budget, Float
     attribute :status, String
 
-    list_of "DailyMeal" do
+    value_object "DailyMeal" do
       attribute :day, String
       attribute :entree, String
       attribute :side, String
       attribute :fruit, String
       attribute :milk, String
     end
+
+    list_of(DailyMeal)
 
     command "PlanWeeklyMenu" do
       role "Nutritionist"

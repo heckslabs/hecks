@@ -60,11 +60,13 @@ Hecks.bluebook "WaterMicrobiology", version: "2026.04.13.1" do
       attribute :incubation_hours, Integer
     end
 
-    list_of "Identification" do
+    value_object "Identification" do
       attribute :method, String
       attribute :result, String
       attribute :confidence_pct, Float
     end
+
+    list_of(Identification)
 
     command "CultureSample" do
       role "Microbiologist"

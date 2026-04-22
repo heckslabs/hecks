@@ -133,11 +133,13 @@ Hecks.bluebook "PollinationService", version: "2026.04.13.1" do
     attribute :hive_count, Integer
     attribute :status, String
 
-    list_of "DeploymentEntry" do
+    value_object "DeploymentEntry" do
       attribute :hive_id, String
       attribute :deploy_date, String
       attribute :retrieve_date, String
     end
+
+    list_of(DeploymentEntry)
 
     command "PollinatePlan" do
       role "Coordinator"

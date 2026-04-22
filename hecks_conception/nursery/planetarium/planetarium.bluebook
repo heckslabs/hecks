@@ -118,12 +118,14 @@ Hecks.bluebook "Planetarium", version: "2026.04.13.1" do
     attribute :narration_type, String
     attribute :status, String
 
-    list_of "ShowSegment" do
+    value_object "ShowSegment" do
       attribute :segment_name, String
       attribute :duration_sec, Integer
       attribute :celestial_focus, String
       attribute :narration_text, String
     end
+
+    list_of(ShowSegment)
 
     value_object "VisualEffect" do
       attribute :effect_name, String
