@@ -1,5 +1,5 @@
 Hecks.bluebook "SleepCycle", version: "2026.04.21.1" do
-  vision "The NREM/REM alternation during sleep. A full sleep cycle runs ~90 minutes through NREM light → NREM deep → REM. Counts completed cycles on each re-entry to REM. Independent body cycle that only runs while consciousness.state == \"sleeping\"; gating lives in the daemon, not the aggregate."
+  vision "The NREM/REM alternation during sleep. A full sleep cycle runs ~90 minutes through NREM light → NREM deep → REM. Counts completed cycles on each re-entry to REM. Independent body cycle that only runs while consciousness.state is sleeping; gating lives in the daemon, not the aggregate."
   category "body"
 
   # ============================================================

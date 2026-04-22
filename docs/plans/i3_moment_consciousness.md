@@ -6,6 +6,7 @@ Source: inbox item `i3`. Full plan by Agent a4cc7e01 on 2026-04-22.
 
 - **PR #261 (PR-0)** — `BodyPulse` shim event extracted. Every `on "Ticked"` policy rewired to `on "BodyPulse"`. Exactly ONE `on "Ticked"` subscriber remains (the new `EmitPulseOnTick` in `mindstream.bluebook`). 18 policies rewired across 7 files.
 - **PR #271 (PR-a)** — Heart + Breath + Circadian aggregates + daemons. `shutdown_miette.sh` added. `heart/breath/circadian` added to `LINKED_STORES`. Cadences observed: 1Hz / 4.5s / 60s wall-clock.
+- **PR-b (this PR) — Ultradian + SleepCycle aggregates + daemons.** `ultradian.sh` runs a 90-min peak/trough loop; `sleep_cycle.sh` gates on `consciousness.state` and walks NREM light → deep → REM at 90-min intervals while sleeping, 60s idle poll while awake. Both daemons honor a `*_TICK` env override (`ULTRADIAN_TICK`, `SLEEP_CYCLE_TICK`) for CI/smoke. `ultradian sleep_cycle` added to `LINKED_STORES`. `tests/body_cycles_smoke.sh` exercises the fast-forward paths end-to-end.
 
 ## Decisions already made
 
@@ -15,19 +16,9 @@ Source: inbox item `i3`. Full plan by Agent a4cc7e01 on 2026-04-22.
 4. **Daemon supervision via pidfile convention + idempotent boot.** No launchd, no supervisor framework. `shutdown_miette.sh` walks `information/.*.pid` (shipped in PR #271).
 5. **Psychic-link classification**: body cycles (heart/breath/circadian/ultradian/sleep_cycle/seasonal/lunar) are **linked**; Moment is **private** (phenomenology).
 
-## Next step: PR-b
+## Next step: PR-c
 
-**Ultradian + SleepCycle aggregates and daemons.** Independent of Moment. 1 day of work.
-
-- `aggregates/ultradian.bluebook` — peak/trough alternation, 90-min cycle. Commands: `EnterPeak`, `EnterTrough`. Lifecycle on `phase`.
-- `aggregates/sleep_cycle.bluebook` — NREM/REM alternation during sleep. Commands: `EnterNREMLight`, `EnterNREMDeep`, `EnterREM`. Runs 90-min cycles, but only while `consciousness.state == "sleeping"`.
-- `ultradian.sh` — `sleep 5400` loop, alternates EnterPeak/EnterTrough.
-- `sleep_cycle.sh` — gates on consciousness.state; inner loop when sleeping.
-- Tests: both aggregates get `.behaviors`. 90-min timers painful to test — add `--tick-interval` env override (e.g. 2s in CI).
-
-## PR-c — the big one
-
-Moment aggregate + mindstream refactor + sleep-pause gating in one PR. 3-4 days. See i3 body for full design.
+**Moment aggregate + mindstream refactor + sleep-pause gating in one PR.** 3-4 days. See i3 body for full design.
 
 - `aggregates/moment.bluebook` — Moment aggregate with `Arise` + `Dissolve` commands. Latest-record-only heki.
 - `mindstream.sh` rewrite — each iteration creates a Moment snapshot from state, fires `Arise`, then `Dissolve` for previous. Cap mindstream at 10Hz initially (100ms sleep), not busy-loop.
@@ -44,7 +35,7 @@ Moment aggregate + mindstream refactor + sleep-pause gating in one PR. 3-4 days.
 
 - Moment churn overwhelming heki — mitigated by latest-record-only
 - Daemon supervision fragility — mitigated by pidfile convention
-- Timing-based tests flaky — `--tick-interval` env override
+- Timing-based tests flaky — `*_TICK` env override (shipped in PR-b)
 - Dangling `on "Ticked"` policies after cutover — grep in CI
 
 ## Total effort
