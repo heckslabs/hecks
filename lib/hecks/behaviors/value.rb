@@ -119,6 +119,11 @@ module Hecks
       # with `Str("[1, 2]")`. Structural equality via the new
       # `Value#==` already ran above; when it fails we should NOT let
       # display form cast a tie. Audit cases 27, 28, 30, 31, 39.
+      # Maps mirror lists: Rust's `Display for Value::Map` is
+      # `"{N fields}"` (count-only) — audit cases 33, 34, 35, 36.
+      # Structural map equality on the Ruby side gets insertion-order
+      # independence for free (Hash#==), which is the direction
+      # case 34 flips toward Rust.
       def self.equal?(a, b)
         return true if a.kind == b.kind && a.raw == b.raw
         an = a.numeric
@@ -126,6 +131,7 @@ module Hecks
         return an == bn if an && bn
         return false if a.kind == :null || b.kind == :null
         return false if a.kind == :list || b.kind == :list
+        return false if a.kind == :map  || b.kind == :map
         a.to_display == b.to_display
       end
 
