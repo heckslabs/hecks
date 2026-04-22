@@ -9,6 +9,11 @@
 # assigned; closing or archiving an item leaves the ref pointing at the
 # same record so historical references stay valid.
 #
+# [antibody-exempt: i37 Phase B sweep — replaces inline python3 -c with
+#  native hecks-life heki subcommands per PR #272; retires when shell
+#  wrapper ports to .bluebook shebang form (tracked in
+#  terminal_capability_wiring plan).]
+#
 # Usage:
 #   inbox.sh add high "body text"          → assigns next ref, prints it
 #   inbox.sh list [queued|done|all]        → list with refs (queued by default)
@@ -23,29 +28,13 @@ HEKI="$DIR/information/inbox.heki"
 
 # Look up a record's uuid by its short ref. Prints uuid or empty.
 ref_to_uuid() {
-  "$HECKS" heki read "$HEKI" 2>/dev/null | python3 -c "
-import json, sys
-ref = '$1'
-d = json.load(sys.stdin)
-for k, v in d.items():
-    if v.get('ref') == ref:
-        print(k); break
-"
+  "$HECKS" heki list "$HEKI" --where "ref=$1" --fields id --format tsv 2>/dev/null | head -n1
 }
 
 # Compute the next ref by scanning all existing refs (handles both the
 # in-order and out-of-order cases — gaps from deleted items are skipped).
 next_ref() {
-  "$HECKS" heki read "$HEKI" 2>/dev/null | python3 -c "
-import json, sys
-d = json.load(sys.stdin)
-nums = []
-for v in d.values():
-    r = v.get('ref', '')
-    if r.startswith('i') and r[1:].isdigit():
-        nums.append(int(r[1:]))
-print(f'i{(max(nums) + 1) if nums else 1}')
-"
+  "$HECKS" heki next-ref "$HEKI" --prefix i --field ref 2>/dev/null
 }
 
 cmd="${1:-list}"
@@ -66,46 +55,42 @@ case "$cmd" in
     ;;
   list)
     filter="${1:-queued}"
-    "$HECKS" heki read "$HEKI" 2>/dev/null | python3 -c "
-import json, sys
-filt = '$filter'
-d = json.load(sys.stdin)
-items = []
-for v in d.values():
-    if filt != 'all' and v.get('status') != filt: continue
-    items.append(v)
-order = {'high':0, 'medium':1, 'normal':2, 'low':3}
-items.sort(key=lambda v: (
-    order.get(v.get('priority','normal'), 9),
-    int(v.get('ref','i999')[1:]) if v.get('ref','').startswith('i') else 999,
-))
-for v in items:
-    ref = v.get('ref', '—')
-    pri = v.get('priority', '?')[:6]
-    st  = v.get('status', '?')[:8]
-    body = v.get('body', '').replace(chr(10), ' ')[:90]
-    print(f'  {ref:>5}  [{pri:6}/{st:6}]  {body}')
-"
+    if [ "$filter" = "all" ]; then
+      where_args=""
+    else
+      where_args="--where status=$filter"
+    fi
+    # shellcheck disable=SC2086 # word-splitting is intentional for optional --where
+    "$HECKS" heki list "$HEKI" $where_args \
+        --order priority:enum=high,medium,normal,low \
+        --order ref:numeric_ref \
+        --fields ref,priority,status,body \
+        --format json 2>/dev/null \
+      | jq -r '.[] | [
+          (.ref // "—"),
+          ((.priority // "?") | .[0:6]),
+          ((.status // "?") | .[0:8]),
+          ((.body // "") | gsub("\n";" ") | .[0:90])
+        ] | @tsv' \
+      | awk -F'\t' '{ printf "  %5s  [%-6s/%-6s]  %s\n", $1, $2, $3, $4 }'
     ;;
   show)
     ref="$1"
     [ -z "$ref" ] && { echo "usage: inbox.sh show <ref>" >&2; exit 1; }
     uuid=$(ref_to_uuid "$ref")
     [ -z "$uuid" ] && { echo "no item with ref $ref" >&2; exit 1; }
-    "$HECKS" heki read "$HEKI" 2>/dev/null | python3 -c "
-import json, sys
-d = json.load(sys.stdin)
-v = d.get('$uuid', {})
-print(f'ref:         {v.get(\"ref\")}')
-print(f'uuid:        $uuid')
-print(f'priority:    {v.get(\"priority\")}')
-print(f'status:      {v.get(\"status\")}')
-print(f'posted_at:   {v.get(\"posted_at\")}')
-if v.get('completed_at'): print(f'completed_at: {v.get(\"completed_at\")}')
-if v.get('resolution'):   print(f'resolution:   {v.get(\"resolution\")}')
-print()
-print(v.get('body', ''))
-"
+    rec_json=$("$HECKS" heki get "$HEKI" "$uuid" 2>/dev/null)
+    printf 'ref:         %s\n' "$(printf '%s' "$rec_json" | jq -r '.ref // ""')"
+    printf 'uuid:        %s\n' "$uuid"
+    printf 'priority:    %s\n' "$(printf '%s' "$rec_json" | jq -r '.priority // ""')"
+    printf 'status:      %s\n' "$(printf '%s' "$rec_json" | jq -r '.status // ""')"
+    printf 'posted_at:   %s\n' "$(printf '%s' "$rec_json" | jq -r '.posted_at // ""')"
+    completed=$(printf '%s' "$rec_json" | jq -r '.completed_at // ""')
+    [ -n "$completed" ] && printf 'completed_at: %s\n' "$completed"
+    resolution=$(printf '%s' "$rec_json" | jq -r '.resolution // ""')
+    [ -n "$resolution" ] && printf 'resolution:   %s\n' "$resolution"
+    printf '\n'
+    printf '%s\n' "$(printf '%s' "$rec_json" | jq -r '.body // ""')"
     ;;
   done)
     ref="$1"; resolution="$2"
