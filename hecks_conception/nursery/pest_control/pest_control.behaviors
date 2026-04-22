@@ -16,7 +16,7 @@ Hecks.behaviors "PestControl" do
     setup  "ScheduleFollowUp", visit_date: "sample", purpose: "sample"
     setup  "StockChemical", product_name: "sample", epa_registration: "sample", active_ingredient: "sample", quantity_on_hand: 1.0, unit: "sample", expiration_date: "sample"
     input  customer_name: "sample", phone: "sample", email: "sample", service_address: "sample", property_type: "sample"
-    expect emits: ["AccountOpened", "InspectionConducted", "TreatmentApplied", "ReentryTimeRecorded", "FollowUpScheduled", "ChemicalUsed", "InspectionConducted", "TreatmentApplied", "ReentryTimeRecorded", "FollowUpScheduled", "ChemicalUsed"]
+    expect emits: ["AccountOpened", "InspectionConducted", "TreatmentApplied", "ReentryTimeRecorded", "FollowUpScheduled", "ChemicalUsed"]
   end
 
   test "SuspendAccount runs" do
