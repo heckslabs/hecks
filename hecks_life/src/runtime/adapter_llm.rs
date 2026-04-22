@@ -3,7 +3,7 @@
 //! Like sqlite for persistence, this adapter resolves LLM inference.
 //! Convention: aggregates with :input and :response fields get inference.
 //! In-memory: fixtures provide canned responses.
-//! Configured: world.hec ollama block activates live inference.
+//! Configured: *.world ollama block activates live inference.
 
 use super::{AggregateState, Value, Repository};
 

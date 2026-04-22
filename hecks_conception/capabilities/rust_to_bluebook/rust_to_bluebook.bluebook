@@ -19,14 +19,14 @@ Hecks.bluebook "RustToBluebook", version: "2026.04.16.1" do
   # 3. VERIFY — hecks-life run aggregates/ --dispatch CommandName
   #    The runtime merges all bluebooks in the directory into one
   #    combined domain. Events cascade across domain boundaries.
-  #    world.hec declares persistence (heki dir), no flags needed.
+  #    The *.world file declares persistence (heki dir), no flags needed.
   #
   # 4. DELETE — remove the .rs file, the bluebook is the program
   #
   # Key learnings:
   #   - The hecksagon merges domains. One Beat triggers policies
   #     across body AND mind (Gut, Nerve, SelfImage, Proprioception).
-  #   - world.hec declares persistence: heki do dir "information" end
+  #   - *.world declares persistence: heki do dir "information" end
   #   - Repository uses heki::read/upsert directly, no JSON adapter.
   #   - persistence.rs (204 lines JSON parsing) was also deleted.
   #   - Duplicate aggregate names across domains must be renamed

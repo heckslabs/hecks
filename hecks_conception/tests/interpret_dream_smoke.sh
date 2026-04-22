@@ -36,7 +36,7 @@ trap "rm -rf $TMP" EXIT
 mkdir -p "$TMP/information" "$TMP/aggregates"
 ln -sf "$CONCEPT_DIR/aggregates/"*.bluebook "$TMP/aggregates/"
 
-cat > "$TMP/world.hec" <<'EOF'
+cat > "$TMP/interpret_dream_smoke.world" <<'EOF'
 Hecks.world "InterpretDreamSmoke" do
   heki do
     dir "information"

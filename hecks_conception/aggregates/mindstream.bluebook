@@ -75,7 +75,7 @@ Hecks.bluebook "Mindstream", version: "2026.04.16.1" do
   #   hecks-life aggregates ClaudeAssist.EnableClaude scope=musings
   #   hecks-life aggregates ClaudeAssist.DisableClaude
 
-  aggregate "ClaudeAssist", "Selects which LLM does Miette's musing curation. Default is 'claude' — uses the Anthropic API if ANTHROPIC_API_KEY is set, otherwise falls back to the local `claude` CLI (Claude Code). User can switch to 'local' to use ollama (configured in world.hec) instead, or 'off' to disable minting entirely." do
+  aggregate "ClaudeAssist", "Selects which LLM does Miette's musing curation. Default is 'claude' — uses the Anthropic API if ANTHROPIC_API_KEY is set, otherwise falls back to the local `claude` CLI (Claude Code). User can switch to 'local' to use ollama (configured in the *.world file) instead, or 'off' to disable minting entirely." do
     attribute :provider, String
 
     command "UseClaudeProvider" do
