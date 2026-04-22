@@ -1,0 +1,72 @@
+name: Fuzz (nightly)
+
+# i30 differential runtime fuzzer — Ruby ↔ Rust cascade state parity.
+# 2000 seeds locally ≈ 45s, ≈ 13min on GitHub runners (dispatch per
+# command shells out; most of the wall-clock is process startup).
+#
+# Runs nightly (05:00 UTC) and on manual dispatch. NOT run on PRs —
+# the deterministic parser/behaviors parity suites gate PRs; fuzz is
+# opt-in/nightly so flaky shapes don't block normal work.
+#
+# [antibody-exempt: nightly CI config — no .hecksagon-driven CI
+# adapter exists yet; hardcoded YAML is the pragmatic choice until
+# hecks-life grows a workflow generator.]
+
+on:
+  schedule:
+    - cron: "0 5 * * *"
+  workflow_dispatch:
+    inputs:
+      count:
+        description: "Number of seeds to run"
+        required: false
+        default: "2000"
+      start:
+        description: "First seed"
+        required: false
+        default: "1"
+
+jobs:
+  fuzz:
+    name: Ruby ↔ Rust fuzz (${{ github.event.inputs.count || '2000' }} seeds)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            hecks_life/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('hecks_life/Cargo.lock', 'hecks_life/Cargo.toml') }}
+
+      - name: Build hecks-life (release)
+        working-directory: hecks_life
+        run: cargo build --release --quiet
+
+      - name: Run differential fuzzer
+        run: |
+          COUNT=${{ github.event.inputs.count || '2000' }}
+          START=${{ github.event.inputs.start || '1' }}
+          bundle exec ruby -Ilib spec/parity/fuzz/fuzz_test.rb \
+            --start $START --count $COUNT --budget-seconds 1500
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-failures
+          path: spec/parity/fuzz/failures/
+          retention-days: 14
+          if-no-files-found: ignore

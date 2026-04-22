@@ -10,3 +10,11 @@ RDoc::Task.new do |rdoc|
   rdoc.options << "--copy-files" << "hecks_logo.png"
   rdoc.rdoc_files.include("README.md", "FEATURES.md", "*/lib/**/*.rb", "docs/**/*.md")
 end
+
+namespace :parity do
+  desc "i30 differential fuzzer — Ruby↔Rust runtime cascade parity"
+  task :fuzz do
+    args = ENV["FUZZ_ARGS"] || "--start 1 --count 200"
+    sh "ruby -Ilib spec/parity/fuzz/fuzz_test.rb #{args}"
+  end
+end
