@@ -88,6 +88,23 @@ module Hecks
       def list_size; list? ? @raw.size : 0; end
       def str_size;  @kind == :str ? @raw.length : 0; end
 
+      # Structural equality on the Value ADT. Two Values are `==` when
+      # their kind matches and their raw payload matches; for :list and
+      # :map this recurses (Array#== and Hash#== call Value#== on inner
+      # elements). Without this, `raw == raw` on nested lists/maps fell
+      # through to object identity and leaked into `Value.equal?` — the
+      # latent bug flagged as class 5 in PR #264's audit.
+      def ==(other)
+        return false unless other.is_a?(Value)
+        return false unless @kind == other.kind
+        @raw == other.raw
+      end
+      alias eql? ==
+
+      def hash
+        [@kind, @raw].hash
+      end
+
       # Loose equality: Bool(true)==Str("true"), Int(42)==Str("42"),
       # numeric coercion handles Int<->Str("0")<->Null comparisons.
       # A Null on either side compares via numeric ONLY — it must NOT
