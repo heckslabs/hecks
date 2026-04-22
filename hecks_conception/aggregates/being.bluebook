@@ -460,7 +460,7 @@ Hecks.bluebook "Being", version: "2026.04.16.1" do
   end
 
   policy "CheckOrgansOnBeat" do
-    on "Ticked"
+    on "BodyPulse"
     trigger "ReportOrganPulse"
   end
 
@@ -475,14 +475,14 @@ Hecks.bluebook "Being", version: "2026.04.16.1" do
   end
 
   policy "ReflectOnBeat" do
-    on "Ticked"
+    on "BodyPulse"
     trigger "Reflect"
   end
 
   policy "SenseOrgansOnHeartbeat" do
-    on "Ticked"
+    on "BodyPulse"
     trigger "ConnectNerve"
-    # nerve: Mind:Ticked → MietteBody:SenseOrgans
+    # nerve: Mind:BodyPulse → MietteBody:SenseOrgans
   end
 
   policy "DetectDriftOnShed" do

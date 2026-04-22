@@ -1,0 +1,28 @@
+Hecks.bluebook "Pulse", version: "2026.04.21.1" do
+  vision "Body-wide pulse — the compatibility shim that decouples pacing policies from the Mindstream Tick"
+  category "body"
+
+  # ============================================================
+  # PULSE
+  # ============================================================
+  #
+  # BodyPulse is the event that every "pace the body" policy subscribes to.
+  # Today it is emitted by a single mindstream policy (EmitPulseOnTick on
+  # Ticked). Tomorrow, when i3's Heart aggregate lands (PR-a), Heart.HeartBeat
+  # becomes the driver and the mindstream shim retires — without touching any
+  # of the N subscriber policies in body/sleep/being/status_bar.
+  #
+  # ONE command: Emit. ONE event: BodyPulse. No state beyond a counter.
+  # Pure conduit.
+
+  aggregate "Pulse", "A single body-wide pulse — the shim event that paces fatigue, sleep, and awareness" do
+    attribute :count, Integer
+
+    command "Emit" do
+      role "Daemon"
+      description "Fire one BodyPulse. Subscribers (fatigue accumulation, sleep advancement, moment recording) react."
+      then_set :count, increment: 1
+      emits "BodyPulse"
+    end
+  end
+end

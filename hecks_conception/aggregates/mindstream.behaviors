@@ -10,7 +10,7 @@ Hecks.behaviors "Mindstream" do
 
   test "MindstreamTick cascades through policy chain" do
     tests "MindstreamTick", on: "Tick", kind: :cascade
-    expect emits: ["Ticked", "SignalsConsolidated", "SynapsesPruned", "DisplayUpdated", "MusingsPruned"]
+    expect emits: ["Ticked", "BodyPulse", "SignalsConsolidated", "SynapsesPruned", "DisplayUpdated", "MusingsPruned"]
   end
 
 

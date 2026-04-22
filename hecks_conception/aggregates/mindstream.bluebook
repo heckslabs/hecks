@@ -117,24 +117,37 @@ Hecks.bluebook "Mindstream", version: "2026.04.16.1" do
     end
   end
 
-  # Every tick triggers consolidation and display
-  policy "ConsolidateOnTick" do
+  # Every Ticked fires the BodyPulse shim. See aggregates/pulse.bluebook.
+  # BodyPulse is the pacing event that fatigue, sleep advancement,
+  # awareness recording, consolidation, display, and organ-pulse
+  # policies all subscribe to. This indirection means i3 PR-a can
+  # replace the driver with Heart.HeartBeat by swapping ONE emitter —
+  # no touching the N downstream subscribers. This is the sole
+  # remaining subscriber to Ticked in the whole conception.
+  policy "EmitPulseOnTick" do
     on "Ticked"
+    trigger "Emit"
+    across "Pulse"
+  end
+
+  # Every body pulse triggers consolidation and display
+  policy "ConsolidateOnPulse" do
+    on "BodyPulse"
     trigger "ConsolidateSignals"
   end
 
-  policy "PruneOnTick" do
-    on "Ticked"
+  policy "PruneOnPulse" do
+    on "BodyPulse"
     trigger "PruneSynapses"
   end
 
-  policy "DisplayOnTick" do
-    on "Ticked"
+  policy "DisplayOnPulse" do
+    on "BodyPulse"
     trigger "RefreshDisplay"
   end
 
-  policy "PruneMusingsOnTick" do
-    on "Ticked"
+  policy "PruneMusingsOnPulse" do
+    on "BodyPulse"
     trigger "PruneMusings"
   end
 end

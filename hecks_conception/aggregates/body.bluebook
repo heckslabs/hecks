@@ -690,9 +690,11 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
     trigger "ExpressCapability"
   end
 
-  # Every tick accumulates fatigue — the tick IS the heartbeat
-  policy "FatigueOnTick" do
-    on "Ticked"
+  # Every body pulse accumulates fatigue. BodyPulse is the shim event
+  # (emitted by Mindstream on each Ticked via EmitPulseOnTick today;
+  # later driven by Heart.HeartBeat when i3 PR-a lands).
+  policy "FatigueOnPulse" do
+    on "BodyPulse"
     trigger "AccumulateFatigue"
   end
 
@@ -761,10 +763,10 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
     trigger "SetGroggy"
   end
 
-  # Every tick records the current moment of self-knowledge
+  # Every body pulse records the current moment of self-knowledge
   # (the daemon supplies snapshot args)
-  policy "RecordMomentOnTick" do
-    on "Ticked"
+  policy "RecordMomentOnPulse" do
+    on "BodyPulse"
     trigger "RecordMoment"
   end
 
