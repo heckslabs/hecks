@@ -24,7 +24,11 @@ use crate::ir::Fixture;
 use crate::parser_helpers::{extract_string, ends_with_do_block};
 
 pub fn parse(source: &str) -> FixturesFile {
-    let mut file = FixturesFile { domain_name: String::new(), fixtures: vec![] };
+    let mut file = FixturesFile {
+        domain_name: String::new(),
+        fixtures: vec![],
+        catalogs: std::collections::BTreeMap::new(),
+    };
     let lines: Vec<&str> = source.lines().collect();
     let mut i = 0;
     let mut current_agg: Option<String> = None;

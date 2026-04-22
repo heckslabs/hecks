@@ -60,15 +60,25 @@ module Hecks
       # IR shape returned by the builder. Same shape the Rust
       # `fixtures_ir::FixturesFile` produces, so parity tooling can
       # diff both directly.
+      #
+      # `catalogs` maps an aggregate name to its declared row schema
+      # (a list of `{name:, type:}` hashes). Present only for
+      # aggregates declared with the `schema:` kwarg — the i42
+      # catalog-dialect form for fixture-only reference tables.
+      # Absent-or-empty preserves today's behavior.
       class FixturesFile
-        attr_reader :name, :fixtures
-        def initialize(name:, fixtures: [])
+        attr_reader :name, :fixtures, :catalogs
+        def initialize(name:, fixtures: [], catalogs: {})
           @name = name
           @fixtures = fixtures
+          @catalogs = catalogs
         end
 
         def ==(other)
-          other.is_a?(FixturesFile) && name == other.name && fixtures == other.fixtures
+          other.is_a?(FixturesFile) &&
+            name == other.name &&
+            fixtures == other.fixtures &&
+            catalogs == other.catalogs
         end
       end
     end
