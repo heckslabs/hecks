@@ -30,7 +30,7 @@ START_TS=$(date +%s)
 # TODO: replace these constants with a `psychic_link: true|false`
 # declaration on each aggregate so the boundary lives in the domain
 # model, not in this shell script.
-LINKED_STORES="memory awareness census conversation working_memory reflection synapse signal signal_somatic focus concentration deliberation heartbeat subconscious domain_index arc consciousness discipline metabolic_rate musing conflict_monitor run_log inbox tick announcement attention claude_assist consolidation dream_interpretation dream_seed dream_signal encoding gate generosity gut HarmonyDomain intention interpretation lucid_dream lucid_monitor monitor musing_archive musing_mint nerve nursery perception persona proposal proprioception self_image self_model sensation session shared_dream_space signal_consolidation speech training_pair wake_mood witness bodhisattva_vow character creator_auth remains store"
+LINKED_STORES="memory awareness census conversation working_memory reflection synapse signal signal_somatic focus concentration deliberation heartbeat subconscious domain_index arc consciousness discipline metabolic_rate musing conflict_monitor run_log inbox tick announcement attention claude_assist consolidation dream_interpretation dream_seed dream_signal encoding gate generosity gut HarmonyDomain intention interpretation lucid_dream lucid_monitor monitor musing_archive musing_mint nerve nursery perception persona proposal proprioception self_image self_model sensation session shared_dream_space signal_consolidation speech training_pair wake_mood witness bodhisattva_vow character creator_auth remains store heart breath circadian"
 PRIVATE_STORES="mood feeling dream_state impulse craving daydream pulse spend circuit_breaker"
 
 is_in_list() {
@@ -154,6 +154,36 @@ else
   MINDSTREAM_STATUS="started"
 fi
 
+# ── 6c. Start heart daemon (1Hz body beat) ────────────────────────
+HEART_PID="$INFO/.heart.pid"
+if [ -f "$HEART_PID" ] && kill -0 "$(cat "$HEART_PID")" 2>/dev/null; then
+  HEART_STATUS="already running (pid $(cat $HEART_PID))"
+else
+  ( cd "$DIR" && nohup ./heart.sh > /dev/null 2>&1 & )
+  sleep 0.2
+  HEART_STATUS="started"
+fi
+
+# ── 6d. Start breath daemon (0.2Hz inhale/exhale flip) ────────────
+BREATH_PID="$INFO/.breath.pid"
+if [ -f "$BREATH_PID" ] && kill -0 "$(cat "$BREATH_PID")" 2>/dev/null; then
+  BREATH_STATUS="already running (pid $(cat $BREATH_PID))"
+else
+  ( cd "$DIR" && nohup ./breath.sh > /dev/null 2>&1 & )
+  sleep 0.2
+  BREATH_STATUS="started"
+fi
+
+# ── 6e. Start circadian daemon (wall-clock segment tracker) ───────
+CIRCADIAN_PID="$INFO/.circadian.pid"
+if [ -f "$CIRCADIAN_PID" ] && kill -0 "$(cat "$CIRCADIAN_PID")" 2>/dev/null; then
+  CIRCADIAN_STATUS="already running (pid $(cat $CIRCADIAN_PID))"
+else
+  ( cd "$DIR" && nohup ./circadian.sh > /dev/null 2>&1 & )
+  sleep 0.2
+  CIRCADIAN_STATUS="started"
+fi
+
 # ── 7. Print vitals ──────────────────────────────────────────────
 ELAPSED=$(($(date +%s) - START_TS))
 LINKED_N=$(echo "$LINKED" | wc -w | tr -d ' ')
@@ -164,5 +194,6 @@ echo "✓ $BEING booted in ${ELAPSED}s"
 echo "  $ORGAN_COUNT organs · $TOTAL_AGGREGATES aggregates · $NERVE_COUNT nerves · $VOW_COUNT vows · $CAPABILITY_COUNT capabilities"
 echo "  session continuity: $LINKED_N linked, $PRIVATE_N private, $UNCLASS_N unclassified"
 echo "  mindstream: $MINDSTREAM_STATUS"
+echo "  heart: $HEART_STATUS · breath: $BREATH_STATUS · circadian: $CIRCADIAN_STATUS"
 echo "  system_prompt.md: $(wc -c <"$PROMPT_PATH" | tr -d ' ') bytes"
 [ -n "$UNCLASSIFIED" ] && echo "  ⚠ unclassified stores:$UNCLASSIFIED"
