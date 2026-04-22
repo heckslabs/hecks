@@ -66,6 +66,7 @@ module Hecks
       @adapter_overrides = {}
       @runtime_options = {}
       @async_handler = nil
+      @shell_adapters = {}
 
       instance_eval(&config) if config
 
@@ -87,6 +88,35 @@ module Hecks
 
     def inspect
       "#<Hecks::Runtime \"#{@domain.name}\" (#{@repositories.size} repositories)>"
+    end
+
+    # Register a hecksagon shell adapter so `#shell(name, **attrs)`
+    # can dispatch it. Called from Hecks::Boot#wire_shell_adapters
+    # after hecksagons are loaded.
+    #
+    # @param adapter [Hecksagon::Structure::ShellAdapter]
+    # @return [Hecksagon::Structure::ShellAdapter]
+    def register_shell_adapter(adapter)
+      @shell_adapters[adapter.name] = adapter
+    end
+
+    # Dispatch a named shell adapter with runtime attrs substituted
+    # into its {{placeholder}} tokens.
+    #
+    #   runtime.shell(:git_log, range: "HEAD~5..HEAD")
+    #   # => ShellDispatcher::Result
+    #
+    # @param name [Symbol, String] adapter name
+    # @param attrs [Hash] placeholder values
+    # @return [Hecks::Runtime::ShellDispatcher::Result]
+    # @raise [Hecks::ConfigurationError] if no adapter with that name is registered
+    def shell(name, **attrs)
+      adapter = @shell_adapters[name.to_sym]
+      unless adapter
+        raise Hecks::ConfigurationError,
+              "no shell adapter :#{name} registered on runtime :#{@domain.name}"
+      end
+      ShellDispatcher.call(adapter, attrs)
     end
 
     private
