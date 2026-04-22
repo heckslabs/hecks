@@ -20,6 +20,7 @@ Hecks::Chapters.load_chapter(
 
 require "hecks/runtime/projection_setup"
 require "hecks/runtime/projection"
+require "hecks/runtime/shell_dispatcher"
 
 module Hecks
   # Hecks::Runtime
