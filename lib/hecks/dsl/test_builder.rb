@@ -51,13 +51,26 @@ module Hecks
       # Complements strict-order `expect emits:` — use this for
       # cross-bluebook cascades where relative event ordering is a
       # drain-order detail, not a semantic contract. Append-only so
-      # multiple lines accumulate; order in the list is irrelevant to
-      # the assertion but preserved for readable diagnostics.
+      # multiple lines accumulate; declaration order is preserved for
+      # diagnostic output but is irrelevant to the set-membership check
+      # itself. Mirrors the Rust parser's `test.events_include.push`
+      # order, keeping Ruby/Rust parity byte-for-byte.
+      #
+      # Validation — empty strings are rejected at DSL-build time so
+      # the assertion never looks for a blank event name. A blank
+      # argument (after `to_s`) raises ArgumentError with the full
+      # list for context.
       #
       # No consumer in this commit; the IR field is populated so the
       # runtime assertion logic (commit 7 of the plan) can read it.
       def then_events_include(*event_names)
-        @events_include.concat(event_names.map(&:to_s))
+        normalized = event_names.map(&:to_s)
+        if (blank = normalized.find { |n| n.strip.empty? })
+          raise ArgumentError,
+                "then_events_include: event name cannot be blank " \
+                "(got #{blank.inspect} in #{normalized.inspect})"
+        end
+        @events_include.concat(normalized)
       end
 
       def build
