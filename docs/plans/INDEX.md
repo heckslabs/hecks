@@ -20,6 +20,8 @@ agents — trust the decisions, don't re-derive them.
 | [i30_differential_fuzzer.md](i30_differential_fuzzer.md) | i30 | Not started |
 | [i36_computed_views.md](i36_computed_views.md) | i36 | Not started; architectural (projection DSL + 10 commits) |
 | [i37_python_removal.md](i37_python_removal.md) | i37 | Phase A shipped (PR #272); Phase B+ unblocked |
+| [i42_catalog_dialect.md](i42_catalog_dialect.md) | i42 | Not started; retires 4 shape-only aggregates from PR #267 |
+| [i43_cross_bluebook_behaviors.md](i43_cross_bluebook_behaviors.md) | i43 | Not started; additive `.behaviors` DSL extension (10 commits) |
 | [terminal_capability_wiring.md](terminal_capability_wiring.md) | — | Follow-up to PR #263 |
 
 ## Dependencies between plans
