@@ -14,6 +14,7 @@ mod command_dispatch;
 mod event_bus;
 mod interpreter;
 pub mod adapter_llm;
+pub mod adapter_registry;
 pub mod adapter_terminal;
 mod lifecycle;
 mod middleware;
