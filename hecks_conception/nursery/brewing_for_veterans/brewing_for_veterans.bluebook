@@ -5,27 +5,27 @@ Hecks.bluebook "BrewingForVeterans", version: "2026.04.13.1" do
   # === VeteranApprentice ===
 
   aggregate "VeteranApprentice", "A veteran enrolled in the brewing apprenticeship — service history, housing need, learning path" do
-    String :apprentice_id
-    String :name
-    String :branch_of_service
-    String :discharge_type
-    String :housing_status
-    String :status
+    attribute :apprentice_id, String
+    attribute :name, String
+    attribute :branch_of_service, String
+    attribute :discharge_type, String
+    attribute :housing_status, String
+    attribute :status, String
     list_of(ServiceRecord) :service_history
     value_object "ServiceRecord" do
-      String :unit
-      String :deployment
-      String :dates
-      String :specialty
+      attribute :unit, String
+      attribute :deployment, String
+      attribute :dates, String
+      attribute :specialty, String
     end
-    EnrollApprentice do
+    command "EnrollApprentice" do
       role "ProgramDirector"
       description "Enroll a veteran into the brewing apprenticeship program"
-      String :apprentice_id
-      String :name
-      String :branch_of_service
-      String :discharge_type
-      String :housing_status
+      attribute :apprentice_id, String
+      attribute :name, String
+      attribute :branch_of_service, String
+      attribute :discharge_type, String
+      attribute :housing_status, String
       emits "ApprenticeEnrolled"
       then_set :apprentice_id, to: :apprentice_id
       then_set :name, to: :name
@@ -34,14 +34,14 @@ Hecks.bluebook "BrewingForVeterans", version: "2026.04.13.1" do
       then_set :housing_status, to: :housing_status
       then_set :status, to: "enrolled"
     end
-    AdvanceApprentice do
+    command "AdvanceApprentice" do
       role "BrewMaster"
       description "Advance apprentice to next skill level in the program"
       reference_to(VeteranApprentice)
       given { status == "enrolled" }
       emits "ApprenticeAdvanced"
     end
-    GraduateApprentice do
+    command "GraduateApprentice" do
       role "ProgramDirector"
       description "Graduate veteran from apprenticeship with brewing credentials"
       reference_to(VeteranApprentice)
@@ -54,24 +54,24 @@ Hecks.bluebook "BrewingForVeterans", version: "2026.04.13.1" do
   # === BrewingCohort ===
 
   aggregate "BrewingCohort", "A cohort of veteran apprentices — shared brewing projects, team building, peer support" do
-    String :cohort_id
-    String :cohort_name
-    String :start_date
-    String :brew_master
-    String :status
+    attribute :cohort_id, String
+    attribute :cohort_name, String
+    attribute :start_date, String
+    attribute :brew_master, String
+    attribute :status, String
     list_of(CohortMember) :members
     value_object "CohortMember" do
-      String :apprentice_name
-      String :skill_level
-      String :role_in_cohort
+      attribute :apprentice_name, String
+      attribute :skill_level, String
+      attribute :role_in_cohort, String
     end
-    FormCohort do
+    command "FormCohort" do
       role "ProgramDirector"
       description "Form a new brewing cohort from enrolled veterans"
-      String :cohort_id
-      String :cohort_name
-      String :start_date
-      String :brew_master
+      attribute :cohort_id, String
+      attribute :cohort_name, String
+      attribute :start_date, String
+      attribute :brew_master, String
       emits "CohortFormed"
       then_set :cohort_id, to: :cohort_id
       then_set :cohort_name, to: :cohort_name
@@ -79,14 +79,14 @@ Hecks.bluebook "BrewingForVeterans", version: "2026.04.13.1" do
       then_set :brew_master, to: :brew_master
       then_set :status, to: "active"
     end
-    CompleteBrew do
+    command "CompleteBrew" do
       role "BrewMaster"
       description "Complete a cohort brewing project — beer ready for product line"
       reference_to(BrewingCohort)
       given { status == "active" }
       emits "BrewCompleted"
     end
-    GraduateCohort do
+    command "GraduateCohort" do
       role "ProgramDirector"
       description "Graduate the entire cohort upon program completion"
       reference_to(BrewingCohort)
@@ -99,26 +99,26 @@ Hecks.bluebook "BrewingForVeterans", version: "2026.04.13.1" do
   # === ProductLine ===
 
   aggregate "ProductLine", "Craft beverages produced by veteran cohorts — brand, style, batch, and terroir story" do
-    String :product_id
-    String :product_name
-    String :style
+    attribute :product_id, String
+    attribute :product_name, String
+    attribute :style, String
     reference_to(BrewingCohort, as: :producing_cohort)
-    String :batch_number
-    String :status
+    attribute :batch_number, String
+    attribute :status, String
     list_of(TastingNote) :tasting_notes
     value_object "TastingNote" do
-      String :flavor
-      String :intensity
-      String :source
+      attribute :flavor, String
+      attribute :intensity, String
+      attribute :source, String
     end
-    LaunchProduct do
+    command "LaunchProduct" do
       role "BrandManager"
       description "Launch a new product from a cohort brew into the product line"
-      String :product_id
-      String :product_name
-      String :style
+      attribute :product_id, String
+      attribute :product_name, String
+      attribute :style, String
       reference_to(BrewingCohort, as: :producing_cohort)
-      String :batch_number
+      attribute :batch_number, String
       emits "ProductLaunched"
       then_set :product_id, to: :product_id
       then_set :product_name, to: :product_name
@@ -126,14 +126,14 @@ Hecks.bluebook "BrewingForVeterans", version: "2026.04.13.1" do
       then_set :batch_number, to: :batch_number
       then_set :status, to: "available"
     end
-    SellProduct do
+    command "SellProduct" do
       role "SalesTeam"
       description "Record product sale — revenue flows back to program"
       reference_to(ProductLine)
       given { status == "available" }
       emits "ProductSold"
     end
-    RetireProduct do
+    command "RetireProduct" do
       role "BrandManager"
       description "Retire a product when batch is depleted"
       reference_to(ProductLine)
@@ -146,23 +146,23 @@ Hecks.bluebook "BrewingForVeterans", version: "2026.04.13.1" do
   # === SalesRevenue ===
 
   aggregate "SalesRevenue", "Revenue tracking — product sales fund housing, education, and program operations" do
-    String :period
-    Float :total_revenue
-    Float :housing_allocation
-    Float :education_allocation
-    Float :operations_allocation
-    String :status
+    attribute :period, String
+    attribute :total_revenue, Float
+    attribute :housing_allocation, Float
+    attribute :education_allocation, Float
+    attribute :operations_allocation, Float
+    attribute :status, String
     list_of(RevenueEntry) :entries
     value_object "RevenueEntry" do
-      String :product_name
-      Integer :units_sold
-      Float :revenue
-      String :sale_date
+      attribute :product_name, String
+      attribute :units_sold, Integer
+      attribute :revenue, Float
+      attribute :sale_date, String
     end
-    OpenPeriod do
+    command "OpenPeriod" do
       role "Finance"
       description "Open a new revenue tracking period"
-      String :period
+      attribute :period, String
       emits "PeriodOpened"
       then_set :period, to: :period
       then_set :total_revenue, to: 0.0
@@ -171,22 +171,22 @@ Hecks.bluebook "BrewingForVeterans", version: "2026.04.13.1" do
       then_set :operations_allocation, to: 0.0
       then_set :status, to: "open"
     end
-    RecordSale do
+    command "RecordSale" do
       role "Finance"
       description "Record a product sale and allocate revenue to program buckets"
       reference_to(SalesRevenue)
-      Float :total_revenue
+      attribute :total_revenue, Float
       given { status == "open" }
       emits "SaleRecorded"
       then_set :total_revenue, to: :total_revenue
     end
-    AllocateRevenue do
+    command "AllocateRevenue" do
       role "Finance"
       description "Allocate period revenue across housing, education, and operations"
       reference_to(SalesRevenue)
-      Float :housing_allocation
-      Float :education_allocation
-      Float :operations_allocation
+      attribute :housing_allocation, Float
+      attribute :education_allocation, Float
+      attribute :operations_allocation, Float
       given { status == "open" }
       emits "RevenueAllocated"
       then_set :housing_allocation, to: :housing_allocation
@@ -199,26 +199,26 @@ Hecks.bluebook "BrewingForVeterans", version: "2026.04.13.1" do
   # === HousingUnit ===
 
   aggregate "HousingUnit", "Program housing for veteran apprentices — funded by product revenue" do
-    String :unit_id
-    String :address
-    Integer :capacity
-    String :funding_source
-    String :status
+    attribute :unit_id, String
+    attribute :address, String
+    attribute :capacity, Integer
+    attribute :funding_source, String
+    attribute :status, String
     reference_to(VeteranApprentice, as: :resident)
     list_of(MaintenanceRecord) :maintenance
     value_object "MaintenanceRecord" do
-      String :date
-      String :issue
-      String :resolution
-      Float :cost
+      attribute :date, String
+      attribute :issue, String
+      attribute :resolution, String
+      attribute :cost, Float
     end
-    PrepareUnit do
+    command "PrepareUnit" do
       role "HousingManager"
       description "Prepare a housing unit for the veteran apprentice program"
-      String :unit_id
-      String :address
-      Integer :capacity
-      String :funding_source
+      attribute :unit_id, String
+      attribute :address, String
+      attribute :capacity, Integer
+      attribute :funding_source, String
       emits "UnitPrepared"
       then_set :unit_id, to: :unit_id
       then_set :address, to: :address
@@ -226,7 +226,7 @@ Hecks.bluebook "BrewingForVeterans", version: "2026.04.13.1" do
       then_set :funding_source, to: :funding_source
       then_set :status, to: "available"
     end
-    AssignResident do
+    command "AssignResident" do
       role "HousingManager"
       description "Assign a veteran apprentice to a housing unit"
       reference_to(HousingUnit)
@@ -235,7 +235,7 @@ Hecks.bluebook "BrewingForVeterans", version: "2026.04.13.1" do
       emits "ResidentAssigned"
       then_set :status, to: "occupied"
     end
-    ReleaseUnit do
+    command "ReleaseUnit" do
       role "HousingManager"
       description "Release housing unit when apprentice graduates and transitions"
       reference_to(HousingUnit)
@@ -247,27 +247,27 @@ Hecks.bluebook "BrewingForVeterans", version: "2026.04.13.1" do
   # === GraduationPath ===
 
   aggregate "GraduationPath", "Post-graduation pathway — job placement, independent housing, continued mentoring" do
-    String :path_id
+    attribute :path_id, String
     reference_to(VeteranApprentice, as: :graduate)
-    String :employment_goal
-    String :housing_transition
-    String :mentor_name
-    String :status
+    attribute :employment_goal, String
+    attribute :housing_transition, String
+    attribute :mentor_name, String
+    attribute :status, String
     list_of(PathMilestone) :milestones
     value_object "PathMilestone" do
-      String :milestone_type
-      String :target_date
-      String :achieved_date
-      String :notes
+      attribute :milestone_type, String
+      attribute :target_date, String
+      attribute :achieved_date, String
+      attribute :notes, String
     end
-    ChartPath do
+    command "ChartPath" do
       role "ProgramDirector"
       description "Chart post-graduation pathway for a veteran"
-      String :path_id
+      attribute :path_id, String
       reference_to(VeteranApprentice, as: :graduate)
-      String :employment_goal
-      String :housing_transition
-      String :mentor_name
+      attribute :employment_goal, String
+      attribute :housing_transition, String
+      attribute :mentor_name, String
       emits "PathCharted"
       then_set :path_id, to: :path_id
       then_set :employment_goal, to: :employment_goal
@@ -275,14 +275,14 @@ Hecks.bluebook "BrewingForVeterans", version: "2026.04.13.1" do
       then_set :mentor_name, to: :mentor_name
       then_set :status, to: "active"
     end
-    AchieveMilestone do
+    command "AchieveMilestone" do
       role "CaseManager"
       description "Record achievement of a post-graduation milestone"
       reference_to(GraduationPath)
       given { status == "active" }
       emits "MilestoneAchieved"
     end
-    CompletePath do
+    command "CompletePath" do
       role "ProgramDirector"
       description "Close graduation path when veteran achieves full independence"
       reference_to(GraduationPath)

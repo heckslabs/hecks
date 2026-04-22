@@ -2,21 +2,21 @@ Hecks.bluebook "RefugeeResettlement" do
   vision "Refugee integration and support — cases, families, resettlement services, housing placement, and employment assistance"
 
   aggregate "ResettlementCase", "A case file for a refugee or family being resettled" do
-    String :case_number
-    String :country_of_origin
-    String :arrival_date
-    String :assigned_agency
-    String :status
-    Integer :family_size
+    attribute :case_number, String
+    attribute :country_of_origin, String
+    attribute :arrival_date, String
+    attribute :assigned_agency, String
+    attribute :status, String
+    attribute :family_size, Integer
 
-    OpenCase do
+    command "OpenCase" do
       role "CaseWorker"
       description "Create a resettlement case when a refugee arrives"
-      String :case_number
-      String :country_of_origin
-      String :arrival_date
-      String :assigned_agency
-      Integer :family_size
+      attribute :case_number, String
+      attribute :country_of_origin, String
+      attribute :arrival_date, String
+      attribute :assigned_agency, String
+      attribute :family_size, Integer
       emits "CaseOpened"
       then_set :case_number, to: :case_number
       then_set :country_of_origin, to: :country_of_origin
@@ -26,16 +26,16 @@ Hecks.bluebook "RefugeeResettlement" do
       then_set :status, to: "active"
     end
 
-    AdvanceCase do
+    command "AdvanceCase" do
       role "CaseWorker"
       description "Advance the case through resettlement phases"
       reference_to(ResettlementCase)
-      String :status
+      attribute :status, String
       emits "CaseAdvanced"
       then_set :status, to: :status
     end
 
-    CloseCase do
+    command "CloseCase" do
       role "CaseWorker"
       description "Close the case when the family achieves self-sufficiency"
       reference_to(ResettlementCase)
@@ -46,24 +46,24 @@ Hecks.bluebook "RefugeeResettlement" do
   end
 
   aggregate "FamilyMember", "An individual within a refugee family case" do
-    String :name
-    String :date_of_birth
-    String :relationship
-    String :language_spoken
-    String :medical_needs
-    String :case_number
+    attribute :name, String
+    attribute :date_of_birth, String
+    attribute :relationship, String
+    attribute :language_spoken, String
+    attribute :medical_needs, String
+    attribute :case_number, String
     reference_to ResettlementCase
 
-    RegisterFamilyMember do
+    command "RegisterFamilyMember" do
       role "CaseWorker"
       description "Add a family member to the resettlement case"
       reference_to(ResettlementCase)
-      String :name
-      String :date_of_birth
-      String :relationship
-      String :language_spoken
-      String :medical_needs
-      String :case_number
+      attribute :name, String
+      attribute :date_of_birth, String
+      attribute :relationship, String
+      attribute :language_spoken, String
+      attribute :medical_needs, String
+      attribute :case_number, String
       emits "FamilyMemberRegistered"
       then_set :name, to: :name
       then_set :date_of_birth, to: :date_of_birth
@@ -73,41 +73,41 @@ Hecks.bluebook "RefugeeResettlement" do
       then_set :case_number, to: :case_number
     end
 
-    ReviseMedicalNeeds do
+    command "ReviseMedicalNeeds" do
       role "CaseWorker"
       description "Record new or changed medical needs for the family member"
       reference_to(FamilyMember)
-      String :medical_needs
+      attribute :medical_needs, String
       emits "MedicalNeedsRevised"
       then_set :medical_needs, to: :medical_needs
     end
   end
 
   aggregate "ResettlementService", "A support service provided to help refugees integrate" do
-    String :service_name
-    String :service_category
-    String :provider
-    String :case_number
-    String :scheduled_date
-    String :status
+    attribute :service_name, String
+    attribute :service_category, String
+    attribute :provider, String
+    attribute :case_number, String
+    attribute :scheduled_date, String
+    attribute :status, String
     list_of(ServiceNote) :notes
     reference_to ResettlementCase
 
     value_object "ServiceNote" do
-      String :note_date
-      String :author
-      String :content
+      attribute :note_date, String
+      attribute :author, String
+      attribute :content, String
     end
 
-    ScheduleService do
+    command "ScheduleService" do
       role "CaseWorker"
       description "Arrange a resettlement service for the family"
       reference_to(ResettlementCase)
-      String :service_name
-      String :service_category
-      String :provider
-      String :case_number
-      String :scheduled_date
+      attribute :service_name, String
+      attribute :service_category, String
+      attribute :provider, String
+      attribute :case_number, String
+      attribute :scheduled_date, String
       emits "ServiceScheduled"
       then_set :service_name, to: :service_name
       then_set :service_category, to: :service_category
@@ -117,7 +117,7 @@ Hecks.bluebook "RefugeeResettlement" do
       then_set :status, to: "scheduled"
     end
 
-    DeliverService do
+    command "DeliverService" do
       role "ServiceProvider"
       description "Complete delivery of the scheduled service"
       reference_to(ResettlementService)
@@ -126,41 +126,41 @@ Hecks.bluebook "RefugeeResettlement" do
       then_set :status, to: "delivered"
     end
 
-    DocumentServiceNote do
+    command "DocumentServiceNote" do
       role "CaseWorker"
       description "Add a case note about the service interaction"
       reference_to(ResettlementService)
-      String :content
+      attribute :content, String
       emits "ServiceNoteDocumented"
     end
   end
 
   aggregate "HousingPlacement", "A housing arrangement for the refugee family" do
-    String :case_number
-    String :address
-    String :housing_type
-    String :lease_start_date
-    String :monthly_rent
-    String :subsidy_source
-    String :status
+    attribute :case_number, String
+    attribute :address, String
+    attribute :housing_type, String
+    attribute :lease_start_date, String
+    attribute :monthly_rent, String
+    attribute :subsidy_source, String
+    attribute :status, String
     reference_to ResettlementCase
 
     value_object "FurnishingItem" do
-      String :item_name
-      String :donated_by
-      String :condition
+      attribute :item_name, String
+      attribute :donated_by, String
+      attribute :condition, String
     end
 
-    SecureHousing do
+    command "SecureHousing" do
       role "HousingSpecialist"
       description "Find and secure housing for the refugee family"
       reference_to(ResettlementCase)
-      String :case_number
-      String :address
-      String :housing_type
-      String :lease_start_date
-      String :monthly_rent
-      String :subsidy_source
+      attribute :case_number, String
+      attribute :address, String
+      attribute :housing_type, String
+      attribute :lease_start_date, String
+      attribute :monthly_rent, String
+      attribute :subsidy_source, String
       emits "HousingSecured"
       then_set :case_number, to: :case_number
       then_set :address, to: :address
@@ -171,14 +171,14 @@ Hecks.bluebook "RefugeeResettlement" do
       then_set :status, to: "active"
     end
 
-    ReportHousingIssue do
+    command "ReportHousingIssue" do
       role "CaseWorker"
       description "Document a problem with the housing arrangement"
       reference_to(HousingPlacement)
       emits "HousingIssueReported"
     end
 
-    TerminateLease do
+    command "TerminateLease" do
       role "HousingSpecialist"
       description "End the housing arrangement and assist with relocation"
       reference_to(HousingPlacement)
@@ -188,21 +188,21 @@ Hecks.bluebook "RefugeeResettlement" do
   end
 
   aggregate "EmploymentAssistance", "Job placement and career support for refugees" do
-    String :family_member_name
-    String :desired_field
-    String :language_proficiency
-    String :resume_status
-    String :placement_status
-    String :employer_name
+    attribute :family_member_name, String
+    attribute :desired_field, String
+    attribute :language_proficiency, String
+    attribute :resume_status, String
+    attribute :placement_status, String
+    attribute :employer_name, String
     reference_to FamilyMember
 
-    BeginJobSearch do
+    command "BeginJobSearch" do
       role "EmploymentSpecialist"
       description "Start employment assistance for a family member"
       reference_to(FamilyMember)
-      String :family_member_name
-      String :desired_field
-      String :language_proficiency
+      attribute :family_member_name, String
+      attribute :desired_field, String
+      attribute :language_proficiency, String
       emits "JobSearchStarted"
       then_set :family_member_name, to: :family_member_name
       then_set :desired_field, to: :desired_field
@@ -211,7 +211,7 @@ Hecks.bluebook "RefugeeResettlement" do
       then_set :placement_status, to: "searching"
     end
 
-    PrepareResume do
+    command "PrepareResume" do
       role "EmploymentSpecialist"
       description "Help the refugee create or translate their resume"
       reference_to(EmploymentAssistance)
@@ -219,11 +219,11 @@ Hecks.bluebook "RefugeeResettlement" do
       then_set :resume_status, to: "complete"
     end
 
-    PlaceInJob do
+    command "PlaceInJob" do
       role "EmploymentSpecialist"
       description "Record successful job placement for the refugee"
       reference_to(EmploymentAssistance)
-      String :employer_name
+      attribute :employer_name, String
       given("must be searching") { placement_status == "searching" }
       emits "JobPlaced"
       then_set :employer_name, to: :employer_name

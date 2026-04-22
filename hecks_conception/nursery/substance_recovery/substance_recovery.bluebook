@@ -2,21 +2,21 @@ Hecks.bluebook "SubstanceRecovery" do
   vision "Addiction treatment and recovery — clients, treatment programs, recovery milestones, counselors, and support groups"
 
   aggregate "Client", "A person seeking treatment for substance use disorder" do
-    String :name
-    String :date_of_birth
-    String :primary_substance
-    String :intake_date
-    String :insurance_id
-    String :status
+    attribute :name, String
+    attribute :date_of_birth, String
+    attribute :primary_substance, String
+    attribute :intake_date, String
+    attribute :insurance_id, String
+    attribute :status, String
 
-    IntakeClient do
+    command "IntakeClient" do
       role "IntakeCounselor"
       description "Register a new client entering the recovery program"
-      String :name
-      String :date_of_birth
-      String :primary_substance
-      String :intake_date
-      String :insurance_id
+      attribute :name, String
+      attribute :date_of_birth, String
+      attribute :primary_substance, String
+      attribute :intake_date, String
+      attribute :insurance_id, String
       emits "ClientIntaked"
       then_set :name, to: :name
       then_set :date_of_birth, to: :date_of_birth
@@ -26,7 +26,7 @@ Hecks.bluebook "SubstanceRecovery" do
       then_set :status, to: "active"
     end
 
-    TransitionToAftercare do
+    command "TransitionToAftercare" do
       role "Counselor"
       description "Move the client from active treatment to aftercare support"
       reference_to(Client)
@@ -35,7 +35,7 @@ Hecks.bluebook "SubstanceRecovery" do
       then_set :status, to: "aftercare"
     end
 
-    DischargeClient do
+    command "DischargeClient" do
       role "Counselor"
       description "Complete the client's participation in the program"
       reference_to(Client)
@@ -45,21 +45,21 @@ Hecks.bluebook "SubstanceRecovery" do
   end
 
   aggregate "TreatmentProgram", "A structured addiction treatment program" do
-    String :program_name
-    String :treatment_level
-    Integer :duration_days
-    String :modality
-    Integer :capacity
-    Integer :current_enrollment
+    attribute :program_name, String
+    attribute :treatment_level, String
+    attribute :duration_days, Integer
+    attribute :modality, String
+    attribute :capacity, Integer
+    attribute :current_enrollment, Integer
 
-    EstablishProgram do
+    command "EstablishProgram" do
       role "ClinicalDirector"
       description "Create a new treatment program with capacity and modality"
-      String :program_name
-      String :treatment_level
-      Integer :duration_days
-      String :modality
-      Integer :capacity
+      attribute :program_name, String
+      attribute :treatment_level, String
+      attribute :duration_days, Integer
+      attribute :modality, String
+      attribute :capacity, Integer
       emits "ProgramEstablished"
       then_set :program_name, to: :program_name
       then_set :treatment_level, to: :treatment_level
@@ -69,7 +69,7 @@ Hecks.bluebook "SubstanceRecovery" do
       then_set :current_enrollment, to: 0
     end
 
-    EnrollInProgram do
+    command "EnrollInProgram" do
       role "Counselor"
       description "Place a client into the treatment program"
       reference_to(TreatmentProgram)
@@ -77,35 +77,35 @@ Hecks.bluebook "SubstanceRecovery" do
       emits "ClientEnrolledInProgram"
     end
 
-    AdjustCapacity do
+    command "AdjustCapacity" do
       role "ClinicalDirector"
       description "Adjust the program's enrollment capacity"
       reference_to(TreatmentProgram)
-      Integer :capacity
+      attribute :capacity, Integer
       emits "CapacityAdjusted"
       then_set :capacity, to: :capacity
     end
   end
 
   aggregate "RecoveryMilestone", "A significant achievement in the client's recovery journey" do
-    String :client_name
-    String :milestone_type
-    String :description
-    String :achieved_date
-    Integer :days_sober
-    String :verified_by
+    attribute :client_name, String
+    attribute :milestone_type, String
+    attribute :description, String
+    attribute :achieved_date, String
+    attribute :days_sober, Integer
+    attribute :verified_by, String
     reference_to Client
 
-    RecordMilestone do
+    command "RecordMilestone" do
       role "Counselor"
       description "Document a recovery milestone for the client"
       reference_to(Client)
-      String :client_name
-      String :milestone_type
-      String :description
-      String :achieved_date
-      Integer :days_sober
-      String :verified_by
+      attribute :client_name, String
+      attribute :milestone_type, String
+      attribute :description, String
+      attribute :achieved_date, String
+      attribute :days_sober, Integer
+      attribute :verified_by, String
       emits "MilestoneRecorded"
       then_set :client_name, to: :client_name
       then_set :milestone_type, to: :milestone_type
@@ -115,7 +115,7 @@ Hecks.bluebook "SubstanceRecovery" do
       then_set :verified_by, to: :verified_by
     end
 
-    CelebrateMilestone do
+    command "CelebrateMilestone" do
       role "Counselor"
       description "Acknowledge the milestone in a group or individual setting"
       reference_to(RecoveryMilestone)
@@ -124,20 +124,20 @@ Hecks.bluebook "SubstanceRecovery" do
   end
 
   aggregate "Counselor", "A licensed addiction counselor providing treatment" do
-    String :name
-    String :license_type
-    String :license_number
-    String :specialty
-    Integer :caseload
-    String :status
+    attribute :name, String
+    attribute :license_type, String
+    attribute :license_number, String
+    attribute :specialty, String
+    attribute :caseload, Integer
+    attribute :status, String
 
-    HireCounselor do
+    command "HireCounselor" do
       role "ClinicalDirector"
       description "Add a new counselor to the treatment team"
-      String :name
-      String :license_type
-      String :license_number
-      String :specialty
+      attribute :name, String
+      attribute :license_type, String
+      attribute :license_number, String
+      attribute :specialty, String
       emits "CounselorHired"
       then_set :name, to: :name
       then_set :license_type, to: :license_type
@@ -147,7 +147,7 @@ Hecks.bluebook "SubstanceRecovery" do
       then_set :status, to: "active"
     end
 
-    AssignCase do
+    command "AssignCase" do
       role "ClinicalDirector"
       description "Add a client to the counselor's caseload"
       reference_to(Counselor)
@@ -156,29 +156,29 @@ Hecks.bluebook "SubstanceRecovery" do
   end
 
   aggregate "SupportGroup", "A peer support group meeting for recovery" do
-    String :group_name
-    String :meeting_day
-    String :meeting_time
-    String :facilitator_name
-    Integer :max_members
+    attribute :group_name, String
+    attribute :meeting_day, String
+    attribute :meeting_time, String
+    attribute :facilitator_name, String
+    attribute :max_members, Integer
     list_of(GroupMember) :members
     reference_to Counselor
 
     value_object "GroupMember" do
-      String :client_name
-      String :joined_date
-      String :attendance_status
+      attribute :client_name, String
+      attribute :joined_date, String
+      attribute :attendance_status, String
     end
 
-    ConveneSupportGroup do
+    command "ConveneSupportGroup" do
       role "Counselor"
       description "Start a new peer support group with schedule and facilitator"
       reference_to(Counselor)
-      String :group_name
-      String :meeting_day
-      String :meeting_time
-      String :facilitator_name
-      Integer :max_members
+      attribute :group_name, String
+      attribute :meeting_day, String
+      attribute :meeting_time, String
+      attribute :facilitator_name, String
+      attribute :max_members, Integer
       emits "SupportGroupConvened"
       then_set :group_name, to: :group_name
       then_set :meeting_day, to: :meeting_day
@@ -187,16 +187,16 @@ Hecks.bluebook "SubstanceRecovery" do
       then_set :max_members, to: :max_members
     end
 
-    AddGroupMember do
+    command "AddGroupMember" do
       role "Counselor"
       description "Enroll a client in the support group"
       reference_to(SupportGroup)
-      String :client_name
-      String :joined_date
+      attribute :client_name, String
+      attribute :joined_date, String
       emits "GroupMemberAdded"
     end
 
-    RecordAttendance do
+    command "RecordAttendance" do
       role "Counselor"
       description "Log attendance for a group meeting session"
       reference_to(SupportGroup)

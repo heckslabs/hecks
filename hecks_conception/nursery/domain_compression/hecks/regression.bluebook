@@ -3,17 +3,17 @@ Hecks.bluebook "Regression", version: "2026.04.14.1" do
   category "infrastructure"
 
   aggregate "RegressionSuite", "A collection of executable blueprints under continuous regression" do
-    String :suite_name
-    Integer :blueprint_count
-    Integer :last_pass_count
-    Integer :last_fail_count
-    String :last_run_status
-    String :last_run_at
+    attribute :suite_name, String
+    attribute :blueprint_count, Integer
+    attribute :last_pass_count, Integer
+    attribute :last_fail_count, Integer
+    attribute :last_run_status, String
+    attribute :last_run_at, String
 
-    EnrollSuite do
+    command "EnrollSuite" do
       role "Operator"
       description "Create a regression suite to track a set of compiled domains"
-      String :suite_name
+      attribute :suite_name, String
       emits "SuiteCreated"
       then_set :suite_name, to: :suite_name
       then_set :blueprint_count, to: 0
@@ -22,36 +22,36 @@ Hecks.bluebook "Regression", version: "2026.04.14.1" do
       then_set :last_run_status, to: "never_run"
     end
 
-    EnrollBlueprint do
+    command "EnrollBlueprint" do
       role "Operator"
       description "Add a compiled domain blueprint to this regression suite"
       reference_to(RegressionSuite)
-      String :domain_name
+      attribute :domain_name, String
       emits "BlueprintEnrolled"
       then_set :blueprint_count, increment: 1
     end
 
-    RunRegression do
+    command "RunRegression" do
       role "Operator"
       description "Execute all fixtures across all enrolled blueprints"
       reference_to(RegressionSuite)
       emits "RegressionExecuted"
     end
 
-    RecordResults do
+    command "RecordResults" do
       role "System"
       description "Record pass/fail counts from a completed regression run"
       reference_to(RegressionSuite)
-      Integer :pass_count
-      Integer :fail_count
-      String :run_at
+      attribute :pass_count, Integer
+      attribute :fail_count, Integer
+      attribute :run_at, String
       emits "ResultsRecorded"
       then_set :last_pass_count, to: :pass_count
       then_set :last_fail_count, to: :fail_count
       then_set :last_run_at, to: :run_at
     end
 
-    MarkPassing do
+    command "MarkPassing" do
       role "System"
       description "Mark suite as passing when all fixtures succeed"
       reference_to(RegressionSuite)
@@ -60,7 +60,7 @@ Hecks.bluebook "Regression", version: "2026.04.14.1" do
       then_set :last_run_status, to: "passing"
     end
 
-    MarkFailing do
+    command "MarkFailing" do
       role "System"
       description "Mark suite as failing when any fixture breaks"
       reference_to(RegressionSuite)
@@ -76,21 +76,21 @@ Hecks.bluebook "Regression", version: "2026.04.14.1" do
   end
 
   aggregate "FixtureResult", "The outcome of running a single fixture against a compiled blueprint" do
-    String :domain_name
-    String :command_name
-    String :outcome
-    String :expected_event
-    String :actual_event
-    String :failure_reason
-    String :run_at
+    attribute :domain_name, String
+    attribute :command_name, String
+    attribute :outcome, String
+    attribute :expected_event, String
+    attribute :actual_event, String
+    attribute :failure_reason, String
+    attribute :run_at, String
 
-    RecordPass do
+    command "RecordPass" do
       role "System"
       description "Record a fixture that executed correctly — command produced expected event and state"
-      String :domain_name
-      String :command_name
-      String :expected_event
-      String :run_at
+      attribute :domain_name, String
+      attribute :command_name, String
+      attribute :expected_event, String
+      attribute :run_at, String
       emits "FixturePassed"
       then_set :domain_name, to: :domain_name
       then_set :command_name, to: :command_name
@@ -100,15 +100,15 @@ Hecks.bluebook "Regression", version: "2026.04.14.1" do
       then_set :run_at, to: :run_at
     end
 
-    RecordFail do
+    command "RecordFail" do
       role "System"
       description "Record a fixture that broke — expected event or state did not match"
-      String :domain_name
-      String :command_name
-      String :expected_event
-      String :actual_event
-      String :failure_reason
-      String :run_at
+      attribute :domain_name, String
+      attribute :command_name, String
+      attribute :expected_event, String
+      attribute :actual_event, String
+      attribute :failure_reason, String
+      attribute :run_at, String
       emits "FixtureFailed"
       then_set :domain_name, to: :domain_name
       then_set :command_name, to: :command_name

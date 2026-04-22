@@ -3,28 +3,28 @@ Hecks.bluebook "HotelManagement" do
   category "hospitality"
 
   aggregate "Room", "A hotel room with type, rate, and availability status" do
-    String :room_number
-    String :room_type
-    Integer :floor
-    Float :nightly_rate
-    String :status
-    Integer :max_occupancy
+    attribute :room_number, String
+    attribute :room_type, String
+    attribute :floor, Integer
+    attribute :nightly_rate, Float
+    attribute :status, String
+    attribute :max_occupancy, Integer
 
     value_object "RoomAmenities" do
-      String :bed_type
-      Integer :bed_count
-      String :view
-      String :minibar
+      attribute :bed_type, String
+      attribute :bed_count, Integer
+      attribute :view, String
+      attribute :minibar, String
     end
 
-    AddRoom do
+    command "AddRoom" do
       role "FrontDeskManager"
       description "Add a new room to the hotel inventory with its type and rate"
-      String :room_number
-      String :room_type
-      Integer :floor
-      Float :nightly_rate
-      Integer :max_occupancy
+      attribute :room_number, String
+      attribute :room_type, String
+      attribute :floor, Integer
+      attribute :nightly_rate, Float
+      attribute :max_occupancy, Integer
       emits "RoomAdded"
       then_set :room_number, to: :room_number
       then_set :room_type, to: :room_type
@@ -33,7 +33,7 @@ Hecks.bluebook "HotelManagement" do
       then_set :status, to: "available"
     end
 
-    BlockRoom do
+    command "BlockRoom" do
       role "Maintenance"
       description "Take a room out of service for repairs or renovation"
       reference_to(Room)
@@ -42,7 +42,7 @@ Hecks.bluebook "HotelManagement" do
       then_set :status, to: "blocked"
     end
 
-    ReleaseRoom do
+    command "ReleaseRoom" do
       role "Maintenance"
       description "Return a blocked room to available inventory"
       reference_to(Room)
@@ -52,29 +52,29 @@ Hecks.bluebook "HotelManagement" do
   end
 
   aggregate "GuestStay", "A guest's stay from check-in through check-out with folio charges" do
-    String :guest_name
-    String :email
-    String :check_in_date
-    String :check_out_date
-    Integer :nights
-    String :status
+    attribute :guest_name, String
+    attribute :email, String
+    attribute :check_in_date, String
+    attribute :check_out_date, String
+    attribute :nights, Integer
+    attribute :status, String
     reference_to(Room)
 
     value_object "GuestPreferences" do
-      String :pillow_type
-      String :newspaper
-      Integer :wake_up_time
+      attribute :pillow_type, String
+      attribute :newspaper, String
+      attribute :wake_up_time, Integer
     end
 
-    CheckInGuest do
+    command "CheckInGuest" do
       role "FrontDesk"
       description "Register a guest arrival and assign them to their reserved room"
       reference_to(Room)
-      String :guest_name
-      String :email
-      String :check_in_date
-      String :check_out_date
-      Integer :nights
+      attribute :guest_name, String
+      attribute :email, String
+      attribute :check_in_date, String
+      attribute :check_out_date, String
+      attribute :nights, Integer
       emits "GuestCheckedIn"
       then_set :guest_name, to: :guest_name
       then_set :email, to: :email
@@ -84,16 +84,16 @@ Hecks.bluebook "HotelManagement" do
       then_set :status, to: "checked_in"
     end
 
-    ExtendStay do
+    command "ExtendStay" do
       role "FrontDesk"
       description "Add additional nights to the guest's current stay"
       reference_to(GuestStay)
-      Integer :additional_nights
+      attribute :additional_nights, Integer
       given { status == "checked_in" }
       emits "StayExtended"
     end
 
-    CheckOutGuest do
+    command "CheckOutGuest" do
       role "FrontDesk"
       description "Process guest departure and finalize the folio"
       reference_to(GuestStay)
@@ -104,19 +104,19 @@ Hecks.bluebook "HotelManagement" do
   end
 
   aggregate "HousekeepingTask", "A cleaning or turnover task assigned to a specific room" do
-    String :task_type
-    String :priority
-    String :status
-    String :assigned_to
+    attribute :task_type, String
+    attribute :priority, String
+    attribute :status, String
+    attribute :assigned_to, String
     reference_to(Room)
 
-    AssignHousekeeping do
+    command "AssignHousekeeping" do
       role "HousekeepingSupervisor"
       description "Schedule a cleaning task for a room with priority level"
       reference_to(Room)
-      String :task_type
-      String :priority
-      String :assigned_to
+      attribute :task_type, String
+      attribute :priority, String
+      attribute :assigned_to, String
       emits "HousekeepingAssigned"
       then_set :task_type, to: :task_type
       then_set :priority, to: :priority
@@ -124,7 +124,7 @@ Hecks.bluebook "HotelManagement" do
       then_set :status, to: "assigned"
     end
 
-    CompleteHousekeeping do
+    command "CompleteHousekeeping" do
       role "Housekeeper"
       description "Mark a room cleaning task as finished and ready for inspection"
       reference_to(HousekeepingTask)
@@ -133,7 +133,7 @@ Hecks.bluebook "HotelManagement" do
       then_set :status, to: "completed"
     end
 
-    InspectRoom do
+    command "InspectRoom" do
       role "HousekeepingSupervisor"
       description "Verify the room meets cleanliness standards after cleaning"
       reference_to(HousekeepingTask)
@@ -144,8 +144,8 @@ Hecks.bluebook "HotelManagement" do
   end
 
   aggregate "Folio", "A guest's billing folio accumulating charges during their stay" do
-    Float :running_total
-    String :status
+    attribute :running_total, Float
+    attribute :status, String
     list_of(FolioCharge) :charges
     reference_to(GuestStay)
 
@@ -154,13 +154,13 @@ Hecks.bluebook "HotelManagement" do
     end
 
     value_object "FolioCharge" do
-      String :description
-      Float :amount
-      String :charge_date
-      String :category
+      attribute :description, String
+      attribute :amount, Float
+      attribute :charge_date, String
+      attribute :category, String
     end
 
-    OpenFolio do
+    command "OpenFolio" do
       role "FrontDesk"
       description "Create a billing folio when a guest checks in"
       reference_to(GuestStay)
@@ -169,18 +169,18 @@ Hecks.bluebook "HotelManagement" do
       then_set :status, to: "open"
     end
 
-    PostCharge do
+    command "PostCharge" do
       role "System"
       description "Add a charge to the guest's folio for room service, minibar, etc."
       reference_to(Folio)
-      String :description
-      Float :amount
-      String :category
+      attribute :description, String
+      attribute :amount, Float
+      attribute :category, String
       given { status == "open" }
       emits "ChargePosted"
     end
 
-    SettleFolio do
+    command "SettleFolio" do
       role "FrontDesk"
       description "Process final payment and close the folio at checkout"
       reference_to(Folio)

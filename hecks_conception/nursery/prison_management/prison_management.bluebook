@@ -2,12 +2,12 @@ Hecks.bluebook "PrisonManagement" do
   vision "Manage inmates, cell assignments, rehabilitation programs, incidents, and visitation"
 
   aggregate "Inmate", "A person incarcerated in the facility with classification and records" do
-    String :inmate_id
-    String :name
-    String :classification
-    String :status
-    String :admission_date
-    String :release_date
+    attribute :inmate_id, String
+    attribute :name, String
+    attribute :classification, String
+    attribute :status, String
+    attribute :admission_date, String
+    attribute :release_date, String
     reference_to(Cell)
 
     specification "MaximumSecurity" do
@@ -15,30 +15,30 @@ Hecks.bluebook "PrisonManagement" do
     end
 
     value_object "SentenceInfo" do
-      String :offense
-      Integer :sentence_months
-      String :parole_eligible
+      attribute :offense, String
+      attribute :sentence_months, Integer
+      attribute :parole_eligible, String
     end
 
-    AdmitInmate do
+    command "AdmitInmate" do
       description "Process a new inmate into the facility"
-      String :name
-      String :classification
-      String :admission_date
+      attribute :name, String
+      attribute :classification, String
+      attribute :admission_date, String
       emits "InmateAdmitted"
       then_set :status, to: "intake"
     end
 
-    ClassifyInmate do
+    command "ClassifyInmate" do
       description "Assign security classification based on risk assessment"
       reference_to(Inmate)
-      String :classification
+      attribute :classification, String
       given { status == "intake" }
       emits "InmateClassified"
       then_set :status, to: "classified"
     end
 
-    HouseInmate do
+    command "HouseInmate" do
       description "Place a classified inmate into general population housing"
       reference_to(Inmate)
       reference_to(Cell)
@@ -46,14 +46,14 @@ Hecks.bluebook "PrisonManagement" do
       then_set :status, to: "housed"
     end
 
-    ReclassifyInmate do
+    command "ReclassifyInmate" do
       description "Change an inmate's security classification based on behavior"
       reference_to(Inmate)
-      String :new_classification
+      attribute :new_classification, String
       emits "InmateReclassified"
     end
 
-    PrepareForRelease do
+    command "PrepareForRelease" do
       description "Begin release processing and paperwork"
       reference_to(Inmate)
       given { status == "housed" }
@@ -61,7 +61,7 @@ Hecks.bluebook "PrisonManagement" do
       then_set :status, to: "preparing_release"
     end
 
-    ReleaseInmate do
+    command "ReleaseInmate" do
       description "Process an inmate for release at end of sentence"
       reference_to(Inmate)
       given { status == "preparing_release" }
@@ -71,34 +71,34 @@ Hecks.bluebook "PrisonManagement" do
   end
 
   aggregate "Cell", "A housing unit or cell within the facility" do
-    String :cell_id
-    String :block
-    Integer :max_occupancy
-    Integer :current_occupancy
-    String :status
-    String :security_level
+    attribute :cell_id, String
+    attribute :block, String
+    attribute :max_occupancy, Integer
+    attribute :current_occupancy, Integer
+    attribute :status, String
+    attribute :security_level, String
 
     specification "AtCapacity" do
       satisfied_by { current_occupancy >= max_occupancy }
     end
 
     value_object "CellCondition" do
-      String :last_inspected
-      String :condition_rating
+      attribute :last_inspected, String
+      attribute :condition_rating, String
     end
 
-    OpenCell do
+    command "OpenCell" do
       description "Make a cell available for inmate housing"
-      String :cell_id
-      String :block
-      Integer :max_occupancy
-      String :security_level
+      attribute :cell_id, String
+      attribute :block, String
+      attribute :max_occupancy, Integer
+      attribute :security_level, String
       emits "CellOpened"
       then_set :status, to: "available"
       then_set :current_occupancy, to: 0
     end
 
-    AssignInmateToCell do
+    command "AssignInmateToCell" do
       description "Place an inmate in a specific cell"
       reference_to(Cell)
       reference_to(Inmate)
@@ -106,14 +106,14 @@ Hecks.bluebook "PrisonManagement" do
       emits "InmateAssignedToCell"
     end
 
-    InspectCell do
+    command "InspectCell" do
       description "Perform a routine cell search and condition check"
       reference_to(Cell)
       given { status == "available" }
       emits "CellInspected"
     end
 
-    LockdownCell do
+    command "LockdownCell" do
       description "Lock a cell during a security incident"
       reference_to(Cell)
       given { status == "available" }
@@ -121,7 +121,7 @@ Hecks.bluebook "PrisonManagement" do
       then_set :status, to: "lockdown"
     end
 
-    LiftLockdown do
+    command "LiftLockdown" do
       description "Return a locked-down cell to normal status"
       reference_to(Cell)
       emits "LockdownLifted"
@@ -130,30 +130,30 @@ Hecks.bluebook "PrisonManagement" do
   end
 
   aggregate "Program", "A rehabilitation or educational program offered to inmates" do
-    String :program_id
-    String :program_name
-    String :program_type
-    Integer :capacity
-    Integer :enrolled_count
-    String :status
+    attribute :program_id, String
+    attribute :program_name, String
+    attribute :program_type, String
+    attribute :capacity, Integer
+    attribute :enrolled_count, Integer
+    attribute :status, String
 
     value_object "Schedule" do
-      String :day_of_week
-      String :start_time
-      String :end_time
+      attribute :day_of_week, String
+      attribute :start_time, String
+      attribute :end_time, String
     end
 
-    LaunchProgram do
+    command "LaunchProgram" do
       description "Establish a new rehabilitation program"
-      String :program_name
-      String :program_type
-      Integer :capacity
+      attribute :program_name, String
+      attribute :program_type, String
+      attribute :capacity, Integer
       emits "ProgramLaunched"
       then_set :status, to: "active"
       then_set :enrolled_count, to: 0
     end
 
-    EnrollInmate do
+    command "EnrollInmate" do
       description "Register an inmate for a program"
       reference_to(Program)
       reference_to(Inmate)
@@ -161,7 +161,7 @@ Hecks.bluebook "PrisonManagement" do
       emits "InmateEnrolled"
     end
 
-    GraduateInmate do
+    command "GraduateInmate" do
       description "Mark an inmate as having completed a program"
       reference_to(Program)
       reference_to(Inmate)
@@ -170,29 +170,29 @@ Hecks.bluebook "PrisonManagement" do
   end
 
   aggregate "Incident", "A security event or rule violation within the facility" do
-    String :incident_id
-    String :incident_type
-    String :severity
-    String :description
-    String :status
+    attribute :incident_id, String
+    attribute :incident_type, String
+    attribute :severity, String
+    attribute :description, String
+    attribute :status, String
     reference_to(Inmate)
 
     value_object "InvestigationNote" do
-      String :investigator
-      String :findings
+      attribute :investigator, String
+      attribute :findings, String
     end
 
-    FileIncident do
+    command "FileIncident" do
       description "Report a security incident or rule violation"
-      String :incident_type
-      String :severity
-      String :description
+      attribute :incident_type, String
+      attribute :severity, String
+      attribute :description, String
       reference_to(Inmate)
       emits "IncidentFiled"
       then_set :status, to: "open"
     end
 
-    InvestigateIncident do
+    command "InvestigateIncident" do
       description "Begin formal investigation of the incident"
       reference_to(Incident)
       given { status == "open" }
@@ -200,10 +200,10 @@ Hecks.bluebook "PrisonManagement" do
       then_set :status, to: "investigating"
     end
 
-    ResolveIncident do
+    command "ResolveIncident" do
       description "Close an incident after investigation"
       reference_to(Incident)
-      String :resolution
+      attribute :resolution, String
       given { status == "investigating" }
       emits "IncidentResolved"
       then_set :status, to: "resolved"
@@ -211,29 +211,29 @@ Hecks.bluebook "PrisonManagement" do
   end
 
   aggregate "Visit", "A scheduled visitation between an inmate and an approved visitor" do
-    String :visit_id
-    String :visitor_name
-    String :visit_type
-    String :scheduled_date
-    String :status
+    attribute :visit_id, String
+    attribute :visitor_name, String
+    attribute :visit_type, String
+    attribute :scheduled_date, String
+    attribute :status, String
     reference_to(Inmate)
 
     value_object "VisitorID" do
-      String :id_type
-      String :id_number
+      attribute :id_type, String
+      attribute :id_number, String
     end
 
-    ScheduleVisit do
+    command "ScheduleVisit" do
       description "Book a visitation slot for an approved visitor"
-      String :visitor_name
-      String :visit_type
-      String :scheduled_date
+      attribute :visitor_name, String
+      attribute :visit_type, String
+      attribute :scheduled_date, String
       reference_to(Inmate)
       emits "VisitScheduled"
       then_set :status, to: "scheduled"
     end
 
-    ConductVisit do
+    command "ConductVisit" do
       description "Begin the visitation session"
       reference_to(Visit)
       given { status == "scheduled" }
@@ -241,7 +241,7 @@ Hecks.bluebook "PrisonManagement" do
       then_set :status, to: "completed"
     end
 
-    CancelVisit do
+    command "CancelVisit" do
       description "Cancel a visitation due to lockdown or visitor no-show"
       reference_to(Visit)
       given { status == "scheduled" }

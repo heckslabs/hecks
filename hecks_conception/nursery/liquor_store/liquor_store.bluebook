@@ -3,33 +3,33 @@ Hecks.bluebook "LiquorStore", version: "2026.04.13.1" do
   category "retail"
 
   aggregate "Spirit", "A bottle of liquor, wine, or beer for sale" do
-    String :sku
-    String :name
-    String :category
-    String :producer
-    String :region
-    Float :abv
-    Float :price
-    Integer :quantity
+    attribute :sku, String
+    attribute :name, String
+    attribute :category, String
+    attribute :producer, String
+    attribute :region, String
+    attribute :abv, Float
+    attribute :price, Float
+    attribute :quantity, Integer
     list_of(TastingNote) :tasting_notes
 
     value_object "TastingNote" do
-      String :aroma
-      String :palate
-      String :finish
+      attribute :aroma, String
+      attribute :palate, String
+      attribute :finish, String
     end
 
-    StockSpirit do
+    command "StockSpirit" do
       role "Buyer"
       description "Add a spirit to the store's shelves"
-      String :sku
-      String :name
-      String :category
-      String :producer
-      String :region
-      Float :abv
-      Float :price
-      Integer :quantity
+      attribute :sku, String
+      attribute :name, String
+      attribute :category, String
+      attribute :producer, String
+      attribute :region, String
+      attribute :abv, Float
+      attribute :price, Float
+      attribute :quantity, Integer
       emits "SpiritStocked"
       then_set :sku, to: :sku
       then_set :name, to: :name
@@ -41,11 +41,11 @@ Hecks.bluebook "LiquorStore", version: "2026.04.13.1" do
       then_set :quantity, to: :quantity
     end
 
-    MarkdownSpirit do
+    command "MarkdownSpirit" do
       role "Manager"
       description "Reduce price for clearance or seasonal promotion"
       reference_to(Spirit)
-      Float :sale_price
+      attribute :sale_price, Float
       given { sale_price < price }
       emits "SpiritMarkedDown"
       then_set :price, to: :sale_price
@@ -53,22 +53,22 @@ Hecks.bluebook "LiquorStore", version: "2026.04.13.1" do
   end
 
   aggregate "Vintage", "A specific year's production of a wine or spirit" do
-    String :vintage_id
-    String :producer
-    Integer :year
-    String :varietal
-    String :appellation
-    Float :score
-    String :drinking_window
+    attribute :vintage_id, String
+    attribute :producer, String
+    attribute :year, Integer
+    attribute :varietal, String
+    attribute :appellation, String
+    attribute :score, Float
+    attribute :drinking_window, String
 
-    CatalogVintage do
+    command "CatalogVintage" do
       role "Buyer"
       description "Record a notable vintage for tracking and recommendation"
-      String :vintage_id
-      String :producer
-      Integer :year
-      String :varietal
-      String :appellation
+      attribute :vintage_id, String
+      attribute :producer, String
+      attribute :year, Integer
+      attribute :varietal, String
+      attribute :appellation, String
       emits "VintageCataloged"
       then_set :vintage_id, to: :vintage_id
       then_set :producer, to: :producer
@@ -77,12 +77,12 @@ Hecks.bluebook "LiquorStore", version: "2026.04.13.1" do
       then_set :appellation, to: :appellation
     end
 
-    ScoreVintage do
+    command "ScoreVintage" do
       role "Sommelier"
       description "Assign a quality score and optimal drinking window"
       reference_to(Vintage)
-      Float :score
-      String :drinking_window
+      attribute :score, Float
+      attribute :drinking_window, String
       emits "VintageScored"
       then_set :score, to: :score
       then_set :drinking_window, to: :drinking_window
@@ -90,27 +90,27 @@ Hecks.bluebook "LiquorStore", version: "2026.04.13.1" do
   end
 
   aggregate "Tasting", "An in-store tasting event for customers" do
-    String :tasting_id
-    String :theme
-    String :date
-    Integer :max_attendees
-    Integer :current_attendees
+    attribute :tasting_id, String
+    attribute :theme, String
+    attribute :date, String
+    attribute :max_attendees, Integer
+    attribute :current_attendees, Integer
     list_of(PourSelection) :pours
-    String :status
+    attribute :status, String
 
     value_object "PourSelection" do
-      String :spirit_name
-      Float :pour_oz
-      Integer :order_in_flight
+      attribute :spirit_name, String
+      attribute :pour_oz, Float
+      attribute :order_in_flight, Integer
     end
 
-    ScheduleTasting do
+    command "ScheduleTasting" do
       role "Manager"
       description "Plan a tasting event with a theme and date"
-      String :tasting_id
-      String :theme
-      String :date
-      Integer :max_attendees
+      attribute :tasting_id, String
+      attribute :theme, String
+      attribute :date, String
+      attribute :max_attendees, Integer
       emits "TastingScheduled"
       then_set :tasting_id, to: :tasting_id
       then_set :theme, to: :theme
@@ -120,7 +120,7 @@ Hecks.bluebook "LiquorStore", version: "2026.04.13.1" do
       then_set :status, to: "scheduled"
     end
 
-    RegisterAttendee do
+    command "RegisterAttendee" do
       role "Customer"
       description "Sign up for a tasting event"
       reference_to(Tasting)
@@ -128,7 +128,7 @@ Hecks.bluebook "LiquorStore", version: "2026.04.13.1" do
       emits "AttendeeRegistered"
     end
 
-    CancelTasting do
+    command "CancelTasting" do
       role "Manager"
       description "Call off the tasting event"
       reference_to(Tasting)
@@ -139,17 +139,17 @@ Hecks.bluebook "LiquorStore", version: "2026.04.13.1" do
   end
 
   aggregate "InventoryCount", "A periodic physical count of all stock" do
-    String :count_id
-    String :count_date
-    Integer :total_bottles
-    Integer :discrepancies
-    String :status
+    attribute :count_id, String
+    attribute :count_date, String
+    attribute :total_bottles, Integer
+    attribute :discrepancies, Integer
+    attribute :status, String
 
-    PerformCount do
+    command "PerformCount" do
       role "Staff"
       description "Walk the store and count every bottle on every shelf"
-      String :count_id
-      String :count_date
+      attribute :count_id, String
+      attribute :count_date, String
       emits "CountPerformed"
       then_set :count_id, to: :count_id
       then_set :count_date, to: :count_date
@@ -157,11 +157,11 @@ Hecks.bluebook "LiquorStore", version: "2026.04.13.1" do
       then_set :status, to: "in_progress"
     end
 
-    ReconcileCount do
+    command "ReconcileCount" do
       role "Manager"
       description "Compare physical count to system inventory and note discrepancies"
       reference_to(InventoryCount)
-      Integer :discrepancies
+      attribute :discrepancies, Integer
       emits "CountReconciled"
       then_set :discrepancies, to: :discrepancies
       then_set :status, to: "reconciled"
@@ -169,19 +169,19 @@ Hecks.bluebook "LiquorStore", version: "2026.04.13.1" do
   end
 
   aggregate "RegulatoryCompliance", "Tracking legal requirements for alcohol sales" do
-    String :compliance_id
-    String :license_type
-    String :license_number
-    String :expiration_date
-    String :status
+    attribute :compliance_id, String
+    attribute :license_type, String
+    attribute :license_number, String
+    attribute :expiration_date, String
+    attribute :status, String
 
-    RegisterLicense do
+    command "RegisterLicense" do
       role "Owner"
       description "Record the store's liquor license and its terms"
-      String :compliance_id
-      String :license_type
-      String :license_number
-      String :expiration_date
+      attribute :compliance_id, String
+      attribute :license_type, String
+      attribute :license_number, String
+      attribute :expiration_date, String
       emits "LicenseRegistered"
       then_set :compliance_id, to: :compliance_id
       then_set :license_type, to: :license_type
@@ -190,16 +190,16 @@ Hecks.bluebook "LiquorStore", version: "2026.04.13.1" do
       then_set :status, to: "compliant"
     end
 
-    RenewLicense do
+    command "RenewLicense" do
       role "Owner"
       description "Submit renewal paperwork before the license expires"
       reference_to(RegulatoryCompliance)
-      String :new_expiration_date
+      attribute :new_expiration_date, String
       emits "LicenseRenewed"
       then_set :expiration_date, to: :new_expiration_date
     end
 
-    FlagViolation do
+    command "FlagViolation" do
       role "Inspector"
       description "Record a compliance violation found during inspection"
       reference_to(RegulatoryCompliance)

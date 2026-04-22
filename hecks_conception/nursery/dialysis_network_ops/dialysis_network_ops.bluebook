@@ -3,17 +3,17 @@ Hecks.bluebook "DialysisNetworkOps", version: "2026.04.13.1" do
   category "healthcare_technology"
 
   aggregate "DialysisMachine", "A hemodialysis machine in a treatment center" do
-    String :machine_id
-    String :model
-    String :center_name
-    Float :hours_used
-    String :status
-    RegisterMachine do
+    attribute :machine_id, String
+    attribute :model, String
+    attribute :center_name, String
+    attribute :hours_used, Float
+    attribute :status, String
+    command "RegisterMachine" do
       role "BiomedTech"
       description "Register a new dialysis machine at a treatment center"
-      String :machine_id
-      String :model
-      String :center_name
+      attribute :machine_id, String
+      attribute :model, String
+      attribute :center_name, String
       emits "MachineRegistered"
       then_set :machine_id, to: :machine_id
       then_set :model, to: :model
@@ -21,7 +21,7 @@ Hecks.bluebook "DialysisNetworkOps", version: "2026.04.13.1" do
       then_set :hours_used, to: 0.0
       then_set :status, to: "online"
     end
-    StartTreatment do
+    command "StartTreatment" do
       role "Nurse"
       description "Begin a dialysis treatment session on this machine"
       reference_to(DialysisMachine)
@@ -29,7 +29,7 @@ Hecks.bluebook "DialysisNetworkOps", version: "2026.04.13.1" do
       emits "TreatmentStarted"
       then_set :status, to: "treating"
     end
-    EndTreatment do
+    command "EndTreatment" do
       role "Nurse"
       description "End the dialysis treatment session"
       reference_to(DialysisMachine)
@@ -40,19 +40,19 @@ Hecks.bluebook "DialysisNetworkOps", version: "2026.04.13.1" do
   end
 
   aggregate "NetworkLink", "A network connection between a dialysis center and central monitoring" do
-    String :link_id
-    String :center_name
-    String :link_type
-    Float :bandwidth_mbps
-    Float :latency_ms
-    String :status
-    EstablishLink do
+    attribute :link_id, String
+    attribute :center_name, String
+    attribute :link_type, String
+    attribute :bandwidth_mbps, Float
+    attribute :latency_ms, Float
+    attribute :status, String
+    command "EstablishLink" do
       role "NetOps"
       description "Establish a network link to a dialysis center"
-      String :link_id
-      String :center_name
-      String :link_type
-      Float :bandwidth_mbps
+      attribute :link_id, String
+      attribute :center_name, String
+      attribute :link_type, String
+      attribute :bandwidth_mbps, Float
       emits "LinkEstablished"
       then_set :link_id, to: :link_id
       then_set :center_name, to: :center_name
@@ -60,15 +60,15 @@ Hecks.bluebook "DialysisNetworkOps", version: "2026.04.13.1" do
       then_set :bandwidth_mbps, to: :bandwidth_mbps
       then_set :status, to: "up"
     end
-    TestLink do
+    command "TestLink" do
       role "NetOps"
       description "Test network latency and throughput to the center"
       reference_to(NetworkLink)
-      Float :latency_ms
+      attribute :latency_ms, Float
       emits "LinkTested"
       then_set :latency_ms, to: :latency_ms
     end
-    MarkDown do
+    command "MarkDown" do
       role "System"
       description "Mark network link as down after failure detection"
       reference_to(NetworkLink)
@@ -79,20 +79,20 @@ Hecks.bluebook "DialysisNetworkOps", version: "2026.04.13.1" do
   end
 
   aggregate "RemoteAlert", "An alert generated from remote monitoring of dialysis machines" do
-    String :alert_id
-    String :machine_id
-    String :alert_type
-    String :severity
-    String :message
-    String :status
-    RaiseAlert do
+    attribute :alert_id, String
+    attribute :machine_id, String
+    attribute :alert_type, String
+    attribute :severity, String
+    attribute :message, String
+    attribute :status, String
+    command "RaiseAlert" do
       role "System"
       description "Raise a remote monitoring alert for a dialysis machine"
-      String :alert_id
-      String :machine_id
-      String :alert_type
-      String :severity
-      String :message
+      attribute :alert_id, String
+      attribute :machine_id, String
+      attribute :alert_type, String
+      attribute :severity, String
+      attribute :message, String
       emits "AlertRaised"
       then_set :alert_id, to: :alert_id
       then_set :machine_id, to: :machine_id
@@ -101,7 +101,7 @@ Hecks.bluebook "DialysisNetworkOps", version: "2026.04.13.1" do
       then_set :message, to: :message
       then_set :status, to: "open"
     end
-    AcknowledgeAlert do
+    command "AcknowledgeAlert" do
       role "BiomedTech"
       description "Acknowledge and begin addressing the alert"
       reference_to(RemoteAlert)
@@ -109,7 +109,7 @@ Hecks.bluebook "DialysisNetworkOps", version: "2026.04.13.1" do
       emits "AlertAcknowledged"
       then_set :status, to: "acknowledged"
     end
-    ResolveAlert do
+    command "ResolveAlert" do
       role "BiomedTech"
       description "Mark the alert as resolved after corrective action"
       reference_to(RemoteAlert)
@@ -120,25 +120,25 @@ Hecks.bluebook "DialysisNetworkOps", version: "2026.04.13.1" do
   end
 
   aggregate "TelemetryLog", "A log of machine telemetry data sent over the network" do
-    String :log_id
-    String :machine_id
-    Float :blood_flow_rate
-    Float :dialysate_temp
-    String :timestamp
+    attribute :log_id, String
+    attribute :machine_id, String
+    attribute :blood_flow_rate, Float
+    attribute :dialysate_temp, Float
+    attribute :timestamp, String
     list_of(Reading) :readings
     value_object "Reading" do
-      String :metric
-      Float :value
-      String :unit
+      attribute :metric, String
+      attribute :value, Float
+      attribute :unit, String
     end
-    RecordTelemetry do
+    command "RecordTelemetry" do
       role "System"
       description "Record telemetry data from a dialysis machine"
-      String :log_id
-      String :machine_id
-      Float :blood_flow_rate
-      Float :dialysate_temp
-      String :timestamp
+      attribute :log_id, String
+      attribute :machine_id, String
+      attribute :blood_flow_rate, Float
+      attribute :dialysate_temp, Float
+      attribute :timestamp, String
       emits "TelemetryRecorded"
       then_set :log_id, to: :log_id
       then_set :machine_id, to: :machine_id

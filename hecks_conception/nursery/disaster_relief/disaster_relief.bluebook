@@ -2,21 +2,21 @@ Hecks.bluebook "DisasterRelief" do
   vision "Emergency response coordination — incidents, shelters, volunteer deployment, supply logistics, and evacuations"
 
   aggregate "Incident", "A declared disaster event requiring emergency response" do
-    String :incident_name
-    String :incident_type
-    String :declared_date
-    String :affected_area
-    String :severity_level
-    String :status
+    attribute :incident_name, String
+    attribute :incident_type, String
+    attribute :declared_date, String
+    attribute :affected_area, String
+    attribute :severity_level, String
+    attribute :status, String
 
-    DeclareIncident do
+    command "DeclareIncident" do
       role "EmergencyManager"
       description "Officially declare a disaster incident and activate response"
-      String :incident_name
-      String :incident_type
-      String :declared_date
-      String :affected_area
-      String :severity_level
+      attribute :incident_name, String
+      attribute :incident_type, String
+      attribute :declared_date, String
+      attribute :affected_area, String
+      attribute :severity_level, String
       emits "IncidentDeclared"
       then_set :incident_name, to: :incident_name
       then_set :incident_type, to: :incident_type
@@ -26,16 +26,16 @@ Hecks.bluebook "DisasterRelief" do
       then_set :status, to: "active"
     end
 
-    EscalateIncident do
+    command "EscalateIncident" do
       role "EmergencyManager"
       description "Increase the severity level as the disaster situation worsens"
       reference_to(Incident)
-      String :severity_level
+      attribute :severity_level, String
       emits "IncidentEscalated"
       then_set :severity_level, to: :severity_level
     end
 
-    CloseIncident do
+    command "CloseIncident" do
       role "EmergencyManager"
       description "End the active disaster response and begin recovery phase"
       reference_to(Incident)
@@ -46,11 +46,11 @@ Hecks.bluebook "DisasterRelief" do
   end
 
   aggregate "Shelter", "A temporary shelter facility for displaced persons" do
-    String :shelter_name
-    String :address
-    Integer :capacity
-    Integer :current_occupancy
-    String :status
+    attribute :shelter_name, String
+    attribute :address, String
+    attribute :capacity, Integer
+    attribute :current_occupancy, Integer
+    attribute :status, String
     list_of(ShelterResource) :resources
     reference_to Incident
 
@@ -59,18 +59,18 @@ Hecks.bluebook "DisasterRelief" do
     end
 
     value_object "ShelterResource" do
-      String :resource_type
-      Integer :quantity
-      String :status
+      attribute :resource_type, String
+      attribute :quantity, Integer
+      attribute :status, String
     end
 
-    OpenShelter do
+    command "OpenShelter" do
       role "ShelterManager"
       description "Activate a shelter location and begin accepting evacuees"
       reference_to(Incident)
-      String :shelter_name
-      String :address
-      Integer :capacity
+      attribute :shelter_name, String
+      attribute :address, String
+      attribute :capacity, Integer
       emits "ShelterOpened"
       then_set :shelter_name, to: :shelter_name
       then_set :address, to: :address
@@ -79,7 +79,7 @@ Hecks.bluebook "DisasterRelief" do
       then_set :status, to: "open"
     end
 
-    RegisterEvacuee do
+    command "RegisterEvacuee" do
       role "ShelterStaff"
       description "Check in a displaced person at the shelter"
       reference_to(Shelter)
@@ -87,7 +87,7 @@ Hecks.bluebook "DisasterRelief" do
       emits "EvacueeRegistered"
     end
 
-    CloseShelter do
+    command "CloseShelter" do
       role "ShelterManager"
       description "Decommission the shelter when no longer needed"
       reference_to(Shelter)
@@ -97,18 +97,18 @@ Hecks.bluebook "DisasterRelief" do
   end
 
   aggregate "ReliefVolunteer", "A person volunteering for disaster relief operations" do
-    String :name
-    String :skills
-    String :phone
-    String :deployment_status
-    String :assigned_location
+    attribute :name, String
+    attribute :skills, String
+    attribute :phone, String
+    attribute :deployment_status, String
+    attribute :assigned_location, String
 
-    RegisterVolunteer do
+    command "RegisterVolunteer" do
       role "VolunteerCoordinator"
       description "Enroll a new volunteer for disaster relief duty"
-      String :name
-      String :skills
-      String :phone
+      attribute :name, String
+      attribute :skills, String
+      attribute :phone, String
       emits "VolunteerRegistered"
       then_set :name, to: :name
       then_set :skills, to: :skills
@@ -116,18 +116,18 @@ Hecks.bluebook "DisasterRelief" do
       then_set :deployment_status, to: "available"
     end
 
-    DeployVolunteer do
+    command "DeployVolunteer" do
       role "VolunteerCoordinator"
       description "Assign a volunteer to a specific relief location"
       reference_to(ReliefVolunteer)
-      String :assigned_location
+      attribute :assigned_location, String
       given("must be available") { deployment_status == "available" }
       emits "VolunteerDeployed"
       then_set :assigned_location, to: :assigned_location
       then_set :deployment_status, to: "deployed"
     end
 
-    ReleaseVolunteer do
+    command "ReleaseVolunteer" do
       role "VolunteerCoordinator"
       description "End a volunteer's active deployment"
       reference_to(ReliefVolunteer)
@@ -138,27 +138,27 @@ Hecks.bluebook "DisasterRelief" do
   end
 
   aggregate "ReliefSupply", "Emergency supplies distributed during disaster response" do
-    String :supply_name
-    String :category
-    Integer :quantity
-    String :warehouse_location
-    String :status
+    attribute :supply_name, String
+    attribute :category, String
+    attribute :quantity, Integer
+    attribute :warehouse_location, String
+    attribute :status, String
     list_of(Shipment) :shipments
 
     value_object "Shipment" do
-      String :destination
-      Integer :quantity_shipped
-      String :ship_date
-      String :carrier
+      attribute :destination, String
+      attribute :quantity_shipped, Integer
+      attribute :ship_date, String
+      attribute :carrier, String
     end
 
-    ReceiveSupply do
+    command "ReceiveSupply" do
       role "LogisticsOfficer"
       description "Log incoming relief supplies into the warehouse"
-      String :supply_name
-      String :category
-      Integer :quantity
-      String :warehouse_location
+      attribute :supply_name, String
+      attribute :category, String
+      attribute :quantity, Integer
+      attribute :warehouse_location, String
       emits "SupplyReceived"
       then_set :supply_name, to: :supply_name
       then_set :category, to: :category
@@ -167,17 +167,17 @@ Hecks.bluebook "DisasterRelief" do
       then_set :status, to: "in_stock"
     end
 
-    DispatchSupply do
+    command "DispatchSupply" do
       role "LogisticsOfficer"
       description "Ship supplies to a shelter or distribution point"
       reference_to(ReliefSupply)
-      String :destination
-      Integer :quantity_shipped
+      attribute :destination, String
+      attribute :quantity_shipped, Integer
       given("must be in stock") { status == "in_stock" }
       emits "SupplyDispatched"
     end
 
-    RequestResupply do
+    command "RequestResupply" do
       role "ShelterManager"
       description "Request additional supplies for a shelter running low"
       reference_to(ReliefSupply)
@@ -186,22 +186,22 @@ Hecks.bluebook "DisasterRelief" do
   end
 
   aggregate "Evacuation", "An organized movement of people from a danger zone" do
-    String :evacuation_zone
-    String :order_date
-    String :transport_method
-    Integer :people_evacuated
-    String :destination
-    String :status
+    attribute :evacuation_zone, String
+    attribute :order_date, String
+    attribute :transport_method, String
+    attribute :people_evacuated, Integer
+    attribute :destination, String
+    attribute :status, String
     reference_to Incident
 
-    OrderEvacuation do
+    command "OrderEvacuation" do
       role "EmergencyManager"
       description "Issue an evacuation order for a specific zone"
       reference_to(Incident)
-      String :evacuation_zone
-      String :order_date
-      String :transport_method
-      String :destination
+      attribute :evacuation_zone, String
+      attribute :order_date, String
+      attribute :transport_method, String
+      attribute :destination, String
       emits "EvacuationOrdered"
       then_set :evacuation_zone, to: :evacuation_zone
       then_set :order_date, to: :order_date
@@ -211,11 +211,11 @@ Hecks.bluebook "DisasterRelief" do
       then_set :people_evacuated, to: 0
     end
 
-    ExecuteEvacuation do
+    command "ExecuteEvacuation" do
       role "FieldCommander"
       description "Carry out the evacuation and record people moved"
       reference_to(Evacuation)
-      Integer :people_evacuated
+      attribute :people_evacuated, Integer
       given("must be ordered") { status == "ordered" }
       emits "EvacuationExecuted"
       then_set :people_evacuated, to: :people_evacuated

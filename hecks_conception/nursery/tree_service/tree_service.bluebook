@@ -4,40 +4,40 @@ Hecks.bluebook "TreeService" do
 
   aggregate "TreeAssessment" do
     description "An arborist assessment of a tree's health, structure, and risk level"
-    String :species
-    Float :dbh_inches
-    Float :height_feet
-    String :health_rating
-    String :risk_level
-    String :address
+    attribute :species, String
+    attribute :dbh_inches, Float
+    attribute :height_feet, Float
+    attribute :health_rating, String
+    attribute :risk_level, String
+    attribute :address, String
 
     value_object "StructuralCondition" do
-      String :crown_condition
-      String :trunk_condition
-      String :root_condition
+      attribute :crown_condition, String
+      attribute :trunk_condition, String
+      attribute :root_condition, String
     end
 
-    AssessTree do
+    command "AssessTree" do
       role "Arborist"
       goal "Evaluate a tree's health and structural integrity"
       description "Inspect crown, trunk, and root zone to determine risk and care plan"
-      String :species
-      Float :dbh_inches
-      Float :height_feet
-      String :address
+      attribute :species, String
+      attribute :dbh_inches, Float
+      attribute :height_feet, Float
+      attribute :address, String
       emits "TreeAssessed"
     end
 
-    RecommendAction do
+    command "RecommendAction" do
       role "Arborist"
       goal "Prescribe the appropriate treatment — prune, cable, remove, or monitor"
       description "Based on assessment, recommend the best course of action"
       reference_to(TreeAssessment)
-      String :recommendation
+      attribute :recommendation, String
       emits "ActionRecommended"
     end
 
-    FlagHazard do
+    command "FlagHazard" do
       role "Arborist"
       goal "Mark a tree as an immediate hazard requiring urgent action"
       description "Elevate priority when a tree poses imminent danger"
@@ -52,28 +52,28 @@ Hecks.bluebook "TreeService" do
 
   aggregate "RemovalJob" do
     description "A tree removal job with rigging plan, crew assignment, and disposal method"
-    String :rigging_method
-    String :disposal_method
-    String :status
-    Integer :crew_size
+    attribute :rigging_method, String
+    attribute :disposal_method, String
+    attribute :status, String
+    attribute :crew_size, Integer
     reference_to(TreeAssessment)
 
-    ScheduleRemoval do
+    command "ScheduleRemoval" do
       role "Operations Manager"
       goal "Schedule a crew for the tree removal"
       description "Assign crew, equipment, and date for the removal"
       reference_to(TreeAssessment)
-      String :rigging_method
-      Integer :crew_size
+      attribute :rigging_method, String
+      attribute :crew_size, Integer
       emits "RemovalScheduled"
     end
 
-    ExecuteRemoval do
+    command "ExecuteRemoval" do
       role "Crew Lead"
       goal "Fell or dismantle the tree safely"
       description "Perform the removal using the specified rigging method"
       reference_to(RemovalJob)
-      String :disposal_method
+      attribute :disposal_method, String
       emits "RemovalExecuted"
     end
 
@@ -83,22 +83,22 @@ Hecks.bluebook "TreeService" do
 
   aggregate "PruningJob" do
     description "A pruning job specifying cut types — crown reduction, deadwooding, clearance, or structural"
-    String :prune_type
-    Float :canopy_reduction_pct
-    String :status
+    attribute :prune_type, String
+    attribute :canopy_reduction_pct, Float
+    attribute :status, String
     reference_to(TreeAssessment)
 
-    SchedulePruning do
+    command "SchedulePruning" do
       role "Operations Manager"
       goal "Book a pruning job with the appropriate crew"
       description "Schedule the pruning with cut specifications"
       reference_to(TreeAssessment)
-      String :prune_type
-      Float :canopy_reduction_pct
+      attribute :prune_type, String
+      attribute :canopy_reduction_pct, Float
       emits "PruningScheduled"
     end
 
-    CompletePruning do
+    command "CompletePruning" do
       role "Climber"
       goal "Execute the prescribed pruning cuts per ANSI A300 standards"
       description "Prune the tree and clean up debris"
@@ -112,28 +112,28 @@ Hecks.bluebook "TreeService" do
 
   aggregate "StumpGrinding" do
     description "A stump grinding job after tree removal with depth and backfill specifications"
-    Float :stump_diameter_inches
-    Float :grind_depth_inches
-    String :backfill_type
-    String :status
+    attribute :stump_diameter_inches, Float
+    attribute :grind_depth_inches, Float
+    attribute :backfill_type, String
+    attribute :status, String
     reference_to(RemovalJob)
 
-    ScheduleGrinding do
+    command "ScheduleGrinding" do
       role "Operations Manager"
       goal "Book the stump grinder for the removal site"
       description "Schedule grinding after the tree is removed"
       reference_to(RemovalJob)
-      Float :stump_diameter_inches
-      Float :grind_depth_inches
+      attribute :stump_diameter_inches, Float
+      attribute :grind_depth_inches, Float
       emits "GrindingScheduled"
     end
 
-    CompleteGrinding do
+    command "CompleteGrinding" do
       role "Operator"
       goal "Grind the stump below grade and backfill"
       description "Grind to specified depth and fill with grindings or topsoil"
       reference_to(StumpGrinding)
-      String :backfill_type
+      attribute :backfill_type, String
       emits "GrindingCompleted"
     end
 
@@ -143,29 +143,29 @@ Hecks.bluebook "TreeService" do
 
   aggregate "TreePermit" do
     description "A municipal permit required for removing or significantly pruning protected trees"
-    String :permit_number
-    String :municipality
-    String :tree_species
-    String :status
+    attribute :permit_number, String
+    attribute :municipality, String
+    attribute :tree_species, String
+    attribute :status, String
     reference_to(TreeAssessment)
 
-    ApplyForPermit do
+    command "ApplyForPermit" do
       role "Office Manager"
       goal "Submit a tree removal or pruning permit application"
       description "File the application with the municipality including the arborist report"
-      String :municipality
-      String :tree_species
+      attribute :municipality, String
+      attribute :tree_species, String
       reference_to(TreeAssessment)
       emits "PermitApplied"
       then_set :status, to: "pending"
     end
 
-    ReceivePermit do
+    command "ReceivePermit" do
       role "Office Manager"
       goal "Record the approved permit number"
       description "Log the permit approval from the municipality"
       reference_to(TreePermit)
-      String :permit_number
+      attribute :permit_number, String
       given("must be pending") { status == "pending" }
       emits "PermitReceived"
     end

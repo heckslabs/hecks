@@ -5,28 +5,28 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
   # === CasualtyReport ===
 
   aggregate "CasualtyReport", "A battlefield casualty report — location, injuries, urgency, blood type for autonomous response" do
-    String :report_id
-    String :casualty_name
-    String :location_grid
-    String :injury_type
-    String :urgency
-    String :blood_type
-    String :status
+    attribute :report_id, String
+    attribute :casualty_name, String
+    attribute :location_grid, String
+    attribute :injury_type, String
+    attribute :urgency, String
+    attribute :blood_type, String
+    attribute :status, String
     list_of(InjuryDetail) :injuries
     value_object "InjuryDetail" do
-      String :body_region
-      String :severity
-      String :treatment_needed
+      attribute :body_region, String
+      attribute :severity, String
+      attribute :treatment_needed, String
     end
-    FileCasualtyReport do
+    command "FileCasualtyReport" do
       role "Medic"
       description "File a casualty report from the field with injury and blood type details"
-      String :report_id
-      String :casualty_name
-      String :location_grid
-      String :injury_type
-      String :urgency
-      String :blood_type
+      attribute :report_id, String
+      attribute :casualty_name, String
+      attribute :location_grid, String
+      attribute :injury_type, String
+      attribute :urgency, String
+      attribute :blood_type, String
       emits "CasualtyReported"
       then_set :report_id, to: :report_id
       then_set :casualty_name, to: :casualty_name
@@ -36,16 +36,16 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
       then_set :blood_type, to: :blood_type
       then_set :status, to: "reported"
     end
-    EscalateCasualty do
+    command "EscalateCasualty" do
       role "Medic"
       description "Escalate casualty urgency when condition deteriorates"
       reference_to(CasualtyReport)
-      String :urgency
+      attribute :urgency, String
       given { status == "reported" }
       emits "CasualtyEscalated"
       then_set :urgency, to: :urgency
     end
-    MarkEvacuated do
+    command "MarkEvacuated" do
       role "System"
       description "Mark casualty as evacuated when medevac drone completes pickup"
       reference_to(CasualtyReport)
@@ -58,24 +58,24 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
   # === MedDrone ===
 
   aggregate "MedDrone", "An autonomous medical drone — searches for wounded, delivers supplies, evacuates casualties" do
-    String :drone_id
-    String :mission_type
-    String :current_location
-    String :status
+    attribute :drone_id, String
+    attribute :mission_type, String
+    attribute :current_location, String
+    attribute :status, String
     reference_to(CasualtyReport, as: :assigned_casualty)
-    Integer :battery_pct
+    attribute :battery_pct, Integer
     list_of(SensorReading) :sensor_log
     value_object "SensorReading" do
-      String :sensor_type
-      String :reading
-      String :timestamp
+      attribute :sensor_type, String
+      attribute :reading, String
+      attribute :timestamp, String
     end
-    LaunchDrone do
+    command "LaunchDrone" do
       role "System"
       description "Launch medical drone on search or evacuation mission"
-      String :drone_id
-      String :mission_type
-      String :current_location
+      attribute :drone_id, String
+      attribute :mission_type, String
+      attribute :current_location, String
       emits "DroneLaunched"
       then_set :drone_id, to: :drone_id
       then_set :mission_type, to: :mission_type
@@ -83,7 +83,7 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
       then_set :battery_pct, to: 100
       then_set :status, to: "airborne"
     end
-    AssignToCasualty do
+    command "AssignToCasualty" do
       role "System"
       description "Assign drone to a specific casualty for evacuation or blood delivery"
       reference_to(MedDrone)
@@ -93,7 +93,7 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
       then_set :assigned_casualty, to: :assigned_casualty
       then_set :status, to: "en_route"
     end
-    CompleteMission do
+    command "CompleteMission" do
       role "System"
       description "Drone completes mission — casualty picked up or supplies delivered"
       reference_to(MedDrone)
@@ -106,26 +106,26 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
   # === BloodDrop ===
 
   aggregate "BloodDrop", "A blood product drop package — matched to casualty blood type, cold chain maintained" do
-    String :drop_id
+    attribute :drop_id, String
     reference_to(CasualtyReport, as: :target_casualty)
     reference_to(MedDrone, as: :carrier_drone)
-    String :blood_type
-    Integer :units
-    String :cold_chain_status
-    String :status
+    attribute :blood_type, String
+    attribute :units, Integer
+    attribute :cold_chain_status, String
+    attribute :status, String
     list_of(ChainLog) :chain_logs
     value_object "ChainLog" do
-      String :timestamp
-      Float :temperature_c
-      String :location
+      attribute :timestamp, String
+      attribute :temperature_c, Float
+      attribute :location, String
     end
-    PrepareBloodDrop do
+    command "PrepareBloodDrop" do
       role "BloodBankTech"
       description "Prepare blood products matched to casualty for drone delivery"
-      String :drop_id
+      attribute :drop_id, String
       attribute :target_casualty, String
-      String :blood_type
-      Integer :units
+      attribute :blood_type, String
+      attribute :units, Integer
       emits "BloodDropPrepared"
       then_set :drop_id, to: :drop_id
       then_set :target_casualty, to: :target_casualty
@@ -134,7 +134,7 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
       then_set :cold_chain_status, to: "sealed"
       then_set :status, to: "prepared"
     end
-    LoadOnDrone do
+    command "LoadOnDrone" do
       role "System"
       description "Load blood package onto assigned medical drone"
       reference_to(BloodDrop)
@@ -144,7 +144,7 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
       then_set :carrier_drone, to: :carrier_drone
       then_set :status, to: "in_transit"
     end
-    ConfirmDelivery do
+    command "ConfirmDelivery" do
       role "Medic"
       description "Confirm blood products delivered and administered to casualty"
       reference_to(BloodDrop)
@@ -157,28 +157,28 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
   # === EvacRoute ===
 
   aggregate "EvacRoute", "A computed evacuation route — avoids active combat, optimizes for casualty urgency" do
-    String :route_id
+    attribute :route_id, String
     reference_to(CasualtyReport, as: :casualty)
     reference_to(FieldHospital, as: :destination)
-    String :threat_level
-    Integer :distance_km
-    Integer :eta_minutes
-    String :status
+    attribute :threat_level, String
+    attribute :distance_km, Integer
+    attribute :eta_minutes, Integer
+    attribute :status, String
     list_of(Waypoint) :waypoints
     value_object "Waypoint" do
-      String :grid_ref
-      String :terrain_type
-      String :threat_status
+      attribute :grid_ref, String
+      attribute :terrain_type, String
+      attribute :threat_status, String
     end
-    ComputeRoute do
+    command "ComputeRoute" do
       role "System"
       description "Compute optimal evacuation route avoiding active threats"
-      String :route_id
+      attribute :route_id, String
       attribute :casualty, String
       attribute :destination, String
-      String :threat_level
-      Integer :distance_km
-      Integer :eta_minutes
+      attribute :threat_level, String
+      attribute :distance_km, Integer
+      attribute :eta_minutes, Integer
       emits "RouteComputed"
       then_set :route_id, to: :route_id
       then_set :casualty, to: :casualty
@@ -188,11 +188,11 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
       then_set :eta_minutes, to: :eta_minutes
       then_set :status, to: "active"
     end
-    RerouteOnThreat do
+    command "RerouteOnThreat" do
       role "System"
       description "Reroute evacuation when new threat detected along path"
       reference_to(EvacRoute)
-      String :threat_level
+      attribute :threat_level, String
       given { status == "active" }
       emits "RouteRerouted"
       then_set :threat_level, to: :threat_level
@@ -202,24 +202,24 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
   # === FieldHospital ===
 
   aggregate "FieldHospital", "A forward field hospital — surgical capacity, blood supply, incoming casualty queue" do
-    String :hospital_id
-    String :location_grid
-    Integer :surgical_bays
-    Integer :available_bays
-    String :status
+    attribute :hospital_id, String
+    attribute :location_grid, String
+    attribute :surgical_bays, Integer
+    attribute :available_bays, Integer
+    attribute :status, String
     list_of(IncomingCasualty) :incoming_queue
     value_object "IncomingCasualty" do
-      String :casualty_name
-      String :urgency
-      String :eta_minutes
-      String :blood_type
+      attribute :casualty_name, String
+      attribute :urgency, String
+      attribute :eta_minutes, String
+      attribute :blood_type, String
     end
-    EstablishHospital do
+    command "EstablishHospital" do
       role "Commander"
       description "Establish a forward field hospital at a grid location"
-      String :hospital_id
-      String :location_grid
-      Integer :surgical_bays
+      attribute :hospital_id, String
+      attribute :location_grid, String
+      attribute :surgical_bays, Integer
       emits "HospitalEstablished"
       then_set :hospital_id, to: :hospital_id
       then_set :location_grid, to: :location_grid
@@ -227,14 +227,14 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
       then_set :available_bays, to: :surgical_bays
       then_set :status, to: "operational"
     end
-    PrepareBay do
+    command "PrepareBay" do
       role "Surgeon"
       description "Prepare surgical bay for incoming casualty"
       reference_to(FieldHospital)
       given { status == "operational" }
       emits "BayPrepared"
     end
-    AdmitCasualty do
+    command "AdmitCasualty" do
       role "Surgeon"
       description "Admit casualty to surgical bay for treatment"
       reference_to(FieldHospital)
@@ -246,24 +246,24 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
   # === StatusBoard ===
 
   aggregate "StatusBoard", "Real-time operational picture — all casualties, drones, blood drops, hospitals in one view" do
-    String :board_id
-    String :operation_name
-    Integer :total_casualties
-    Integer :evacuated_count
-    Integer :drones_active
-    String :status
+    attribute :board_id, String
+    attribute :operation_name, String
+    attribute :total_casualties, Integer
+    attribute :evacuated_count, Integer
+    attribute :drones_active, Integer
+    attribute :status, String
     list_of(StatusEntry) :entries
     value_object "StatusEntry" do
-      String :entity_type
-      String :entity_id
-      String :current_status
-      String :last_update
+      attribute :entity_type, String
+      attribute :entity_id, String
+      attribute :current_status, String
+      attribute :last_update, String
     end
-    InitializeBoard do
+    command "InitializeBoard" do
       role "System"
       description "Initialize operational status board for battlefield medical ops"
-      String :board_id
-      String :operation_name
+      attribute :board_id, String
+      attribute :operation_name, String
       emits "BoardInitialized"
       then_set :board_id, to: :board_id
       then_set :operation_name, to: :operation_name
@@ -272,7 +272,7 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
       then_set :drones_active, to: 0
       then_set :status, to: "active"
     end
-    AmendEntry do
+    command "AmendEntry" do
       role "System"
       description "Update a status entry on the operational board"
       reference_to(StatusBoard)

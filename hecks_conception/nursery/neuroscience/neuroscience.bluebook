@@ -3,11 +3,11 @@ Hecks.bluebook "Neuroscience" do
 
   aggregate "Subject" do
     description "A research participant in a neuroscience experiment"
-    String :subject_id
-    Integer :age
-    String :handedness
-    String :consent_date
-    String :exclusion_criteria
+    attribute :subject_id, String
+    attribute :age, Integer
+    attribute :handedness, String
+    attribute :consent_date, String
+    attribute :exclusion_criteria, String
     # Gate flag — flips true once SignConsent records IRB consent.
     # ScreenSubject is gated on it so we never screen without consent.
     attribute :consent_signed, Boolean, default: false
@@ -18,16 +18,16 @@ Hecks.bluebook "Neuroscience" do
     command "EnrollSubject" do
       description "Register a new participant in the study"
       emits "SubjectEnrolled"
-      String :subject_id
-      Integer :age
-      String :handedness
+      attribute :subject_id, String
+      attribute :age, Integer
+      attribute :handedness, String
     end
 
     command "WithdrawSubject" do
       description "Remove a participant from the study"
       emits "SubjectWithdrawn"
       reference_to Subject
-      String :reason
+      attribute :reason, String
     end
 
     command "SignConsent" do
@@ -48,10 +48,10 @@ Hecks.bluebook "Neuroscience" do
 
   aggregate "ImagingSession" do
     description "A brain scanning session using fMRI, EEG, or MEG"
-    String :session_id
-    String :modality
-    String :timestamp
-    Integer :duration_minutes
+    attribute :session_id, String
+    attribute :modality, String
+    attribute :timestamp, String
+    attribute :duration_minutes, Integer
     # Gate flag — flips true after ConfirmScreeningPassed mirrors the
     # subject's screening status onto this session. StartSession is
     # gated on it so a session cannot begin until screening is verified.
@@ -59,10 +59,10 @@ Hecks.bluebook "Neuroscience" do
     reference_to Subject
 
     value_object "ScanParameters" do
-      Float :repetition_time_ms
-      Float :echo_time_ms
-      Float :voxel_size_mm
-      Integer :slice_count
+      attribute :repetition_time_ms, Float
+      attribute :echo_time_ms, Float
+      attribute :voxel_size_mm, Float
+      attribute :slice_count, Integer
     end
 
     command "ConfirmScreeningPassed" do
@@ -76,7 +76,7 @@ Hecks.bluebook "Neuroscience" do
       description "Begin a brain imaging acquisition"
       emits "SessionStarted"
       reference_to Subject
-      String :modality
+      attribute :modality, String
     end
 
     command "CompleteSession" do
@@ -89,16 +89,16 @@ Hecks.bluebook "Neuroscience" do
       description "Mark a session as unusable due to artifacts"
       emits "SessionRejected"
       reference_to ImagingSession
-      String :rejection_reason
+      attribute :rejection_reason, String
     end
   end
 
   aggregate "NeuralSignal" do
     description "A processed electrophysiological or hemodynamic recording"
-    String :signal_type
-    String :brain_region
-    Float :sampling_rate_hz
-    Integer :channel_count
+    attribute :signal_type, String
+    attribute :brain_region, String
+    attribute :sampling_rate_hz, Float
+    attribute :channel_count, Integer
     # Gate flag — flips true once LoadRawData stages the raw recording in
     # memory. FilterNoise is gated on it.
     attribute :raw_data_loaded, Boolean, default: false
@@ -108,8 +108,8 @@ Hecks.bluebook "Neuroscience" do
       description "Process raw scan data into neural signal traces"
       emits "SignalExtracted"
       reference_to ImagingSession
-      String :signal_type
-      String :brain_region
+      attribute :signal_type, String
+      attribute :brain_region, String
       then_set :raw_data_loaded, to: true
     end
 
@@ -136,31 +136,31 @@ Hecks.bluebook "Neuroscience" do
 
   aggregate "StimulusProtocol" do
     description "A defined sequence of experimental stimuli presented to subjects"
-    String :protocol_name
-    String :stimulus_type
-    Integer :trial_count
-    Integer :trial_block_count
-    Float :inter_stimulus_interval_ms
+    attribute :protocol_name, String
+    attribute :stimulus_type, String
+    attribute :trial_count, Integer
+    attribute :trial_block_count, Integer
+    attribute :inter_stimulus_interval_ms, Float
 
     value_object "TrialBlock" do
-      String :condition
-      Integer :repetitions
-      Float :duration_ms
+      attribute :condition, String
+      attribute :repetitions, Integer
+      attribute :duration_ms, Float
     end
 
     command "DesignProtocol" do
       description "Create a new stimulus presentation protocol"
       emits "ProtocolDesigned"
-      String :protocol_name
-      String :stimulus_type
-      Integer :trial_count
+      attribute :protocol_name, String
+      attribute :stimulus_type, String
+      attribute :trial_count, Integer
     end
 
     command "AddTrialBlock" do
       description "Append a trial block and update the block count"
       emits "TrialBlockAdded"
       reference_to StimulusProtocol
-      Integer :new_block_count
+      attribute :new_block_count, Integer
       then_set :trial_block_count, to: :new_block_count
     end
 
@@ -180,18 +180,18 @@ Hecks.bluebook "Neuroscience" do
 
   aggregate "ResearchPaper" do
     description "A manuscript reporting experimental neuroscience findings"
-    String :paper_id
-    String :title
-    String :target_journal
-    String :status
+    attribute :paper_id, String
+    attribute :title, String
+    attribute :target_journal, String
+    attribute :status, String
     reference_to NeuralSignal
 
     command "DraftPaper" do
       description "Write up experimental results for publication"
       emits "PaperDrafted"
       reference_to NeuralSignal
-      String :title
-      String :target_journal
+      attribute :title, String
+      attribute :target_journal, String
     end
   end
 

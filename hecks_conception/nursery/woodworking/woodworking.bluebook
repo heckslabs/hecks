@@ -1,33 +1,33 @@
 Hecks.bluebook "Woodworking" do
   aggregate "WoodProject", "A woodworking project from design through finishing" do
-    String :name
-    String :project_type
-    String :wood_species
-    String :status, default: "designed"
-    Float :estimated_hours
+    attribute :name, String
+    attribute :project_type, String
+    attribute :wood_species, String
+    attribute :status, String, default: "designed"
+    attribute :estimated_hours, Float
 
     value_object "CutList" do
-      String :part_name
-      Float :length_inches
-      Float :width_inches
-      Float :thickness_inches
-      Integer :quantity
+      attribute :part_name, String
+      attribute :length_inches, Float
+      attribute :width_inches, Float
+      attribute :thickness_inches, Float
+      attribute :quantity, Integer
     end
 
     fixture "Cherry Dining Table", name: "Dining Table - Cherry", project_type: "Table", wood_species: "Black Cherry", status: "designed", estimated_hours: 120.0
     fixture "Walnut Bookcase", name: "Wall Bookcase - Walnut", project_type: "Shelving", wood_species: "Black Walnut", status: "designed", estimated_hours: 80.0
 
-    PlanProject do
+    command "PlanProject" do
       description "Design a new woodworking project with cut list and joinery"
-      String :name
-      String :project_type
-      String :wood_species
-      Float :estimated_hours
+      attribute :name, String
+      attribute :project_type, String
+      attribute :wood_species, String
+      attribute :estimated_hours, Float
       emits "ProjectPlanned"
       then_set :status, to: "designed"
     end
 
-    StartMilling do
+    command "StartMilling" do
       description "Begin milling rough lumber to dimension"
       reference_to(WoodProject)
       given { status == "designed" }
@@ -35,77 +35,77 @@ Hecks.bluebook "Woodworking" do
       then_set :status, to: "milling"
     end
 
-    AssembleProject do
+    command "AssembleProject" do
       description "Glue up and clamp the jointed components"
       reference_to(WoodProject)
       emits "ProjectAssembled"
       then_set :status, to: "assembled"
     end
 
-    ApplyFinish do
+    command "ApplyFinish" do
       description "Apply the final finish coat to the assembled piece"
       reference_to(WoodProject)
-      String :finish_type
+      attribute :finish_type, String
       emits "FinishApplied"
       then_set :status, to: "finished"
     end
   end
 
   aggregate "LumberStock", "Inventory of rough and dimensional lumber" do
-    String :species
-    String :grade
-    Float :board_feet
-    Float :thickness_quarters
-    String :drying_method
+    attribute :species, String
+    attribute :grade, String
+    attribute :board_feet, Float
+    attribute :thickness_quarters, Float
+    attribute :drying_method, String
 
     fixture "Rough Black Walnut", species: "Black Walnut", grade: "FAS", board_feet: 500.0, thickness_quarters: 4.0, drying_method: "air-dried"
     fixture "Surfaced Maple", species: "Hard Maple", grade: "Select", board_feet: 250.0, thickness_quarters: 4.0, drying_method: "kiln-dried"
 
     value_object "MoistureReading" do
-      Float :percentage
-      String :date_measured
-      String :location_in_board
+      attribute :percentage, Float
+      attribute :date_measured, String
+      attribute :location_in_board, String
     end
 
-    ReceiveLumber do
+    command "ReceiveLumber" do
       description "Check in a lumber delivery to the shop inventory"
-      String :species
-      String :grade
-      Float :board_feet
-      Float :thickness_quarters
-      String :drying_method
+      attribute :species, String
+      attribute :grade, String
+      attribute :board_feet, Float
+      attribute :thickness_quarters, Float
+      attribute :drying_method, String
       emits "LumberReceived"
     end
 
-    ConsumeLumber do
+    command "ConsumeLumber" do
       description "Deduct lumber used for a project cut list"
       reference_to(LumberStock)
-      Float :board_feet_used
+      attribute :board_feet_used, Float
       emits "LumberConsumed"
     end
   end
 
   aggregate "Joinery", "A wood joint connecting two parts in an assembly" do
-    String :joint_type
-    String :part_a
-    String :part_b
-    String :status, default: "laid_out"
+    attribute :joint_type, String
+    attribute :part_a, String
+    attribute :part_b, String
+    attribute :status, String, default: "laid_out"
     reference_to(WoodProject)
 
     fixture "Mortise & Tenon Leg", joint_type: "Mortise & Tenon", part_a: "Table Leg", part_b: "Apron Rail", status: "laid_out"
     fixture "Dovetail Drawer", joint_type: "Dovetail", part_a: "Drawer Front", part_b: "Drawer Side", status: "laid_out"
 
-    LayOutJoint do
+    command "LayOutJoint" do
       description "Mark and lay out a joint on the workpieces"
       reference_to(WoodProject)
-      String :joint_type
-      String :part_a
-      String :part_b
+      attribute :joint_type, String
+      attribute :part_a, String
+      attribute :part_b, String
       emits "JointLaidOut"
       then_set :status, to: "laid_out"
     end
 
-    CutJoint do
+    command "CutJoint" do
       description "Cut the joint with hand tools or machines"
       reference_to(Joinery)
       given { status == "laid_out" }
@@ -113,7 +113,7 @@ Hecks.bluebook "Woodworking" do
       then_set :status, to: "cut"
     end
 
-    FitJoint do
+    command "FitJoint" do
       description "Test fit and pare the joint for a tight fit"
       reference_to(Joinery)
       emits "JointFitted"
@@ -122,60 +122,60 @@ Hecks.bluebook "Woodworking" do
   end
 
   aggregate "Finish", "A wood finish with application method and cure time" do
-    String :finish_name
-    String :finish_type
-    Integer :coats_required
-    Integer :cure_hours
-    String :sheen
+    attribute :finish_name, String
+    attribute :finish_type, String
+    attribute :coats_required, Integer
+    attribute :cure_hours, Integer
+    attribute :sheen, String
 
     value_object "ApplicationMethod" do
-      String :tool
-      String :technique
-      Float :wet_mil_thickness
+      attribute :tool, String
+      attribute :technique, String
+      attribute :wet_mil_thickness, Float
     end
 
     fixture "Oil Finish", finish_name: "Tung Oil", finish_type: "Oil", coats_required: 3, cure_hours: 48, sheen: "satin"
     fixture "Poly Gloss", finish_name: "Polyurethane Gloss", finish_type: "Polyurethane", coats_required: 2, cure_hours: 24, sheen: "gloss"
 
-    MixFinish do
+    command "MixFinish" do
       description "Prepare the finish mixture with correct ratios"
-      String :finish_name
-      String :finish_type
-      Integer :coats_required
-      Integer :cure_hours
+      attribute :finish_name, String
+      attribute :finish_type, String
+      attribute :coats_required, Integer
+      attribute :cure_hours, Integer
       emits "FinishMixed"
     end
 
-    ApplyCoat do
+    command "ApplyCoat" do
       description "Apply a single coat of finish to the workpiece"
       reference_to(Finish)
-      Integer :coat_number
+      attribute :coat_number, Integer
       emits "CoatApplied"
     end
   end
 
   aggregate "WoodCommission", "A custom woodworking commission from a client" do
-    String :client_name
-    String :description
-    Float :quoted_price
-    String :status, default: "quoted"
-    String :deadline
+    attribute :client_name, String
+    attribute :description, String
+    attribute :quoted_price, Float
+    attribute :status, String, default: "quoted"
+    attribute :deadline, String
     reference_to(WoodProject)
 
     fixture "Mahogany Desk", client_name: "Business Interiors LLC", description: "Executive desk with leather inlay", quoted_price: 2800.0, status: "quoted", deadline: "2026-07-15"
     fixture "Cherry Bedroom Set", client_name: "Designer Homes", description: "Queen bed frame and nightstands", quoted_price: 5500.0, status: "in_progress", deadline: "2026-08-30"
 
-    QuoteCommission do
+    command "QuoteCommission" do
       description "Provide a price estimate for custom woodwork"
-      String :client_name
-      String :description
-      Float :quoted_price
-      String :deadline
+      attribute :client_name, String
+      attribute :description, String
+      attribute :quoted_price, Float
+      attribute :deadline, String
       emits "CommissionQuoted"
       then_set :status, to: "quoted"
     end
 
-    AcceptCommission do
+    command "AcceptCommission" do
       description "Client approves the quote and work begins"
       reference_to(WoodCommission)
       given { status == "quoted" }
@@ -183,7 +183,7 @@ Hecks.bluebook "Woodworking" do
       then_set :status, to: "in_progress"
     end
 
-    DeliverCommission do
+    command "DeliverCommission" do
       description "Hand over the finished piece to the client"
       reference_to(WoodCommission)
       emits "CommissionDelivered"

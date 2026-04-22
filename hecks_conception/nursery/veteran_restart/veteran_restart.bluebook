@@ -5,26 +5,26 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
   # === Veteran ===
 
   aggregate "Veteran", "A veteran entering the restart program — the person at the center of all services" do
-    String :name
-    String :service_branch
-    String :discharge_type
-    String :status
+    attribute :name, String
+    attribute :service_branch, String
+    attribute :discharge_type, String
+    attribute :status, String
     list_of(ServiceRecord) :service_history
 
     value_object "ServiceRecord" do
-      String :unit
-      String :rank
-      String :start_date
-      String :end_date
-      String :deployment
+      attribute :unit, String
+      attribute :rank, String
+      attribute :start_date, String
+      attribute :end_date, String
+      attribute :deployment, String
     end
 
-    EnrollVeteran do
+    command "EnrollVeteran" do
       role "CaseManager"
       description "Enroll a veteran into the restart program"
-      String :name
-      String :service_branch
-      String :discharge_type
+      attribute :name, String
+      attribute :service_branch, String
+      attribute :discharge_type, String
       emits "VeteranEnrolled"
       then_set :name, to: :name
       then_set :service_branch, to: :service_branch
@@ -32,7 +32,7 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
       then_set :status, to: "enrolled"
     end
 
-    AssessNeeds do
+    command "AssessNeeds" do
       role "CaseManager"
       description "Comprehensive needs assessment across housing, legal, financial, medical"
       reference_to(Veteran)
@@ -41,7 +41,7 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
       then_set :status, to: "assessed"
     end
 
-    GraduateProgram do
+    command "GraduateProgram" do
       role "CaseManager"
       description "Veteran has achieved all milestones — program complete"
       reference_to(Veteran)
@@ -63,27 +63,27 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
 
   aggregate "HousingApplication", "A housing search and application — from shelter to stable home" do
     reference_to(Veteran, as: :veteran)
-    String :housing_type
-    String :location_preference
-    Float :budget
-    String :status
+    attribute :housing_type, String
+    attribute :location_preference, String
+    attribute :budget, Float
+    attribute :status, String
     list_of(PropertyOption) :options
 
     value_object "PropertyOption" do
-      String :address
-      Float :monthly_rent
-      String :pet_friendly
-      String :accessibility
-      String :status
+      attribute :address, String
+      attribute :monthly_rent, Float
+      attribute :pet_friendly, String
+      attribute :accessibility, String
+      attribute :status, String
     end
 
-    MatchHousing do
+    command "MatchHousing" do
       role "System"
       description "Find housing options that match veteran's benefits and needs"
       reference_to(Veteran, as: :veteran)
-      String :housing_type
-      String :location_preference
-      Float :budget
+      attribute :housing_type, String
+      attribute :location_preference, String
+      attribute :budget, Float
       emits "HousingMatched"
       then_set :veteran, to: :veteran
       then_set :housing_type, to: :housing_type
@@ -92,7 +92,7 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
       then_set :status, to: "matched"
     end
 
-    SubmitApplication do
+    command "SubmitApplication" do
       role "Veteran"
       description "Apply for a specific housing option"
       reference_to(HousingApplication)
@@ -101,7 +101,7 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
       then_set :status, to: "submitted"
     end
 
-    ApproveApplication do
+    command "ApproveApplication" do
       role "Landlord"
       description "Housing application approved — lease can be signed"
       reference_to(HousingApplication)
@@ -110,7 +110,7 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
       then_set :status, to: "approved"
     end
 
-    SignLease do
+    command "SignLease" do
       role "Veteran"
       description "Sign the lease agreement — veteran has a home"
       reference_to(HousingApplication)
@@ -134,17 +134,17 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
 
   aggregate "BenefitsClaim", "A VA benefits claim — disability, education, healthcare entitlements" do
     reference_to(Veteran, as: :veteran)
-    String :benefit_type
-    String :description
-    String :status
-    Float :monthly_amount
+    attribute :benefit_type, String
+    attribute :description, String
+    attribute :status, String
+    attribute :monthly_amount, Float
 
-    FileClaim do
+    command "FileClaim" do
       role "CaseManager"
       description "File a benefits claim with the VA on behalf of the veteran"
       reference_to(Veteran, as: :veteran)
-      String :benefit_type
-      String :description
+      attribute :benefit_type, String
+      attribute :description, String
       emits "ClaimFiled"
       then_set :veteran, to: :veteran
       then_set :benefit_type, to: :benefit_type
@@ -152,18 +152,18 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
       then_set :status, to: "filed"
     end
 
-    ApproveBenefits do
+    command "ApproveBenefits" do
       role "VAReviewer"
       description "VA approves benefits claim — monthly payments begin"
       reference_to(BenefitsClaim)
-      Float :monthly_amount
+      attribute :monthly_amount, Float
       given { status == "filed" }
       emits "BenefitsApproved"
       then_set :monthly_amount, to: :monthly_amount
       then_set :status, to: "approved"
     end
 
-    DenyClaim do
+    command "DenyClaim" do
       role "VAReviewer"
       description "Benefits claim denied — may appeal"
       reference_to(BenefitsClaim)
@@ -172,7 +172,7 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
       then_set :status, to: "denied"
     end
 
-    AppealClaim do
+    command "AppealClaim" do
       role "CaseManager"
       description "Appeal a denied benefits claim with additional evidence"
       reference_to(BenefitsClaim)
@@ -196,42 +196,42 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
 
   aggregate "FinancialPlan", "A financial restart plan — budgeting, debt management, savings goals" do
     reference_to(Veteran, as: :veteran)
-    Float :monthly_income
-    Float :monthly_expenses
-    Float :savings_target
-    String :status
+    attribute :monthly_income, Float
+    attribute :monthly_expenses, Float
+    attribute :savings_target, Float
+    attribute :status, String
     list_of(BudgetCategory) :budget
 
     value_object "BudgetCategory" do
-      String :category
-      Float :allocated
-      Float :spent
-      String :priority
+      attribute :category, String
+      attribute :allocated, Float
+      attribute :spent, Float
+      attribute :priority, String
     end
 
-    StartFinancialPlan do
+    command "StartFinancialPlan" do
       role "System"
       description "Create a financial plan based on approved benefits and housing costs"
       reference_to(Veteran, as: :veteran)
-      Float :monthly_income
+      attribute :monthly_income, Float
       emits "FinancialPlanStarted"
       then_set :veteran, to: :veteran
       then_set :monthly_income, to: :monthly_income
       then_set :status, to: "active"
     end
 
-    SetBudget do
+    command "SetBudget" do
       role "FinancialCounselor"
       description "Define monthly budget categories and allocations"
       reference_to(FinancialPlan)
-      Float :monthly_expenses
-      Float :savings_target
+      attribute :monthly_expenses, Float
+      attribute :savings_target, Float
       emits "BudgetSet"
       then_set :monthly_expenses, to: :monthly_expenses
       then_set :savings_target, to: :savings_target
     end
 
-    ReviewProgress do
+    command "ReviewProgress" do
       role "FinancialCounselor"
       description "Monthly review of financial plan adherence"
       reference_to(FinancialPlan)
@@ -247,18 +247,18 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
 
   aggregate "LegalCase", "A legal matter — discharge upgrade, expungement, child custody, debt resolution" do
     reference_to(Veteran, as: :veteran)
-    String :case_type
-    String :description
-    String :status
-    String :assigned_attorney
+    attribute :case_type, String
+    attribute :description, String
+    attribute :status, String
+    attribute :assigned_attorney, String
 
-    OpenCase do
+    command "OpenCase" do
       role "LegalAid"
       description "Open a legal case for the veteran"
       reference_to(Veteran, as: :veteran)
-      String :case_type
-      String :description
-      String :assigned_attorney
+      attribute :case_type, String
+      attribute :description, String
+      attribute :assigned_attorney, String
       emits "LegalCaseOpened"
       then_set :veteran, to: :veteran
       then_set :case_type, to: :case_type
@@ -267,7 +267,7 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
       then_set :status, to: "open"
     end
 
-    ResolveCase do
+    command "ResolveCase" do
       role "LegalAid"
       description "Legal case resolved — outcome recorded"
       reference_to(LegalCase)
@@ -276,7 +276,7 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
       then_set :status, to: "resolved"
     end
 
-    EscalateCase do
+    command "EscalateCase" do
       role "LegalAid"
       description "Case requires higher court or additional advocacy"
       reference_to(LegalCase)
@@ -299,18 +299,18 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
 
   aggregate "Milestone", "A restart milestone — trackable achievement on the path to independence" do
     reference_to(Veteran, as: :veteran)
-    String :milestone_type
-    String :description
-    String :target_date
-    String :status
+    attribute :milestone_type, String
+    attribute :description, String
+    attribute :target_date, String
+    attribute :status, String
 
-    SetMilestone do
+    command "SetMilestone" do
       role "CaseManager"
       description "Define a milestone for the veteran's restart journey"
       reference_to(Veteran, as: :veteran)
-      String :milestone_type
-      String :description
-      String :target_date
+      attribute :milestone_type, String
+      attribute :description, String
+      attribute :target_date, String
       emits "MilestoneSet"
       then_set :veteran, to: :veteran
       then_set :milestone_type, to: :milestone_type
@@ -319,7 +319,7 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
       then_set :status, to: "pending"
     end
 
-    AchieveMilestone do
+    command "AchieveMilestone" do
       role "CaseManager"
       description "Mark milestone as achieved — progress toward graduation"
       reference_to(Milestone)

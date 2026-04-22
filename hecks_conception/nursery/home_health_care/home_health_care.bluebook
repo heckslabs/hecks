@@ -2,26 +2,26 @@ Hecks.bluebook "HomeHealthCare" do
   vision "In-home medical care — patients, caregivers, scheduled visits, medication management, and vital sign tracking"
 
   aggregate "Patient", "A homebound individual receiving in-home medical care" do
-    String :name
-    String :address
-    String :primary_diagnosis
-    String :physician_name
-    String :status
+    attribute :name, String
+    attribute :address, String
+    attribute :primary_diagnosis, String
+    attribute :physician_name, String
+    attribute :status, String
     list_of(Allergy) :allergies
 
     value_object "Allergy" do
-      String :substance
-      String :reaction
-      String :severity
+      attribute :substance, String
+      attribute :reaction, String
+      attribute :severity, String
     end
 
-    EnrollPatient do
+    command "EnrollPatient" do
       role "Coordinator"
       description "Add a patient to the home health care program"
-      String :name
-      String :address
-      String :primary_diagnosis
-      String :physician_name
+      attribute :name, String
+      attribute :address, String
+      attribute :primary_diagnosis, String
+      attribute :physician_name, String
       emits "PatientEnrolled"
       then_set :name, to: :name
       then_set :address, to: :address
@@ -30,7 +30,7 @@ Hecks.bluebook "HomeHealthCare" do
       then_set :status, to: "enrolled"
     end
 
-    ActivatePatient do
+    command "ActivatePatient" do
       role "Coordinator"
       description "Move patient to active status after care plan and caregiver assignment"
       reference_to(Patient)
@@ -39,17 +39,17 @@ Hecks.bluebook "HomeHealthCare" do
       then_set :status, to: "active"
     end
 
-    RecordAllergy do
+    command "RecordAllergy" do
       role "Nurse"
       description "Document a known allergy for safety during medication administration"
       reference_to(Patient)
-      String :substance
-      String :reaction
-      String :severity
+      attribute :substance, String
+      attribute :reaction, String
+      attribute :severity, String
       emits "AllergyRecorded"
     end
 
-    UnenrollPatient do
+    command "UnenrollPatient" do
       role "Coordinator"
       description "Remove a patient from home health services"
       reference_to(Patient)
@@ -59,20 +59,20 @@ Hecks.bluebook "HomeHealthCare" do
   end
 
   aggregate "Caregiver", "A licensed health professional delivering care in the home" do
-    String :name
-    String :credential
-    String :phone
-    String :availability
-    Integer :max_visits_per_day
+    attribute :name, String
+    attribute :credential, String
+    attribute :phone, String
+    attribute :availability, String
+    attribute :max_visits_per_day, Integer
 
-    RegisterCaregiver do
+    command "RegisterCaregiver" do
       role "Administrator"
       description "Add a caregiver to the home health workforce"
-      String :name
-      String :credential
-      String :phone
-      String :availability
-      Integer :max_visits_per_day
+      attribute :name, String
+      attribute :credential, String
+      attribute :phone, String
+      attribute :availability, String
+      attribute :max_visits_per_day, Integer
       emits "CaregiverRegistered"
       then_set :name, to: :name
       then_set :credential, to: :credential
@@ -81,35 +81,35 @@ Hecks.bluebook "HomeHealthCare" do
       then_set :max_visits_per_day, to: :max_visits_per_day
     end
 
-    Reschedule do
+    command "Reschedule" do
       role "Caregiver"
       description "Change the caregiver's schedule availability"
       reference_to(Caregiver)
-      String :availability
+      attribute :availability, String
       emits "Rescheduled"
       then_set :availability, to: :availability
     end
   end
 
   aggregate "Visit", "A scheduled home visit by a caregiver to a patient" do
-    String :patient_name
-    String :caregiver_name
-    String :visit_date
-    String :visit_type
-    String :notes
-    String :status
+    attribute :patient_name, String
+    attribute :caregiver_name, String
+    attribute :visit_date, String
+    attribute :visit_type, String
+    attribute :notes, String
+    attribute :status, String
     reference_to Patient
     reference_to Caregiver
 
-    ScheduleVisit do
+    command "ScheduleVisit" do
       role "Coordinator"
       description "Book a home visit for a patient with an available caregiver"
       reference_to(Patient)
       reference_to(Caregiver)
-      String :patient_name
-      String :caregiver_name
-      String :visit_date
-      String :visit_type
+      attribute :patient_name, String
+      attribute :caregiver_name, String
+      attribute :visit_date, String
+      attribute :visit_type, String
       emits "VisitScheduled"
       then_set :patient_name, to: :patient_name
       then_set :caregiver_name, to: :caregiver_name
@@ -118,18 +118,18 @@ Hecks.bluebook "HomeHealthCare" do
       then_set :status, to: "scheduled"
     end
 
-    CompleteVisit do
+    command "CompleteVisit" do
       role "Caregiver"
       description "Document visit completion with clinical notes"
       reference_to(Visit)
-      String :notes
+      attribute :notes, String
       given("visit must be scheduled") { status == "scheduled" }
       emits "VisitCompleted"
       then_set :notes, to: :notes
       then_set :status, to: "completed"
     end
 
-    CancelVisit do
+    command "CancelVisit" do
       role "Coordinator"
       description "Cancel a scheduled home visit"
       reference_to(Visit)
@@ -140,25 +140,25 @@ Hecks.bluebook "HomeHealthCare" do
   end
 
   aggregate "Medication", "A prescribed medication administered during home visits" do
-    String :patient_name
-    String :drug_name
-    String :dosage
-    String :frequency
-    String :route
-    String :prescriber
-    String :status
+    attribute :patient_name, String
+    attribute :drug_name, String
+    attribute :dosage, String
+    attribute :frequency, String
+    attribute :route, String
+    attribute :prescriber, String
+    attribute :status, String
     reference_to Patient
 
-    PrescribeMedication do
+    command "PrescribeMedication" do
       role "Physician"
       description "Order a medication for a home health patient"
       reference_to(Patient)
-      String :patient_name
-      String :drug_name
-      String :dosage
-      String :frequency
-      String :route
-      String :prescriber
+      attribute :patient_name, String
+      attribute :drug_name, String
+      attribute :dosage, String
+      attribute :frequency, String
+      attribute :route, String
+      attribute :prescriber, String
       emits "MedicationPrescribed"
       then_set :patient_name, to: :patient_name
       then_set :drug_name, to: :drug_name
@@ -169,7 +169,7 @@ Hecks.bluebook "HomeHealthCare" do
       then_set :status, to: "active"
     end
 
-    AdministerMedication do
+    command "AdministerMedication" do
       role "Nurse"
       description "Give the medication to the patient and document administration"
       reference_to(Medication)
@@ -177,7 +177,7 @@ Hecks.bluebook "HomeHealthCare" do
       emits "MedicationAdministered"
     end
 
-    DiscontinueMedication do
+    command "DiscontinueMedication" do
       role "Physician"
       description "Stop a medication order"
       reference_to(Medication)
@@ -187,27 +187,27 @@ Hecks.bluebook "HomeHealthCare" do
   end
 
   aggregate "VitalSign", "A physiological measurement taken during a home visit" do
-    String :patient_name
-    String :measurement_date
-    Integer :systolic
-    Integer :diastolic
-    Integer :heart_rate
-    Float :temperature
-    Integer :oxygen_saturation
-    String :alert_status
+    attribute :patient_name, String
+    attribute :measurement_date, String
+    attribute :systolic, Integer
+    attribute :diastolic, Integer
+    attribute :heart_rate, Integer
+    attribute :temperature, Float
+    attribute :oxygen_saturation, Integer
+    attribute :alert_status, String
     reference_to Patient
 
-    RecordVitals do
+    command "RecordVitals" do
       role "Nurse"
       description "Capture vital signs during a home visit"
       reference_to(Patient)
-      String :patient_name
-      String :measurement_date
-      Integer :systolic
-      Integer :diastolic
-      Integer :heart_rate
-      Float :temperature
-      Integer :oxygen_saturation
+      attribute :patient_name, String
+      attribute :measurement_date, String
+      attribute :systolic, Integer
+      attribute :diastolic, Integer
+      attribute :heart_rate, Integer
+      attribute :temperature, Float
+      attribute :oxygen_saturation, Integer
       emits "VitalsRecorded"
       then_set :patient_name, to: :patient_name
       then_set :measurement_date, to: :measurement_date
@@ -219,7 +219,7 @@ Hecks.bluebook "HomeHealthCare" do
       then_set :alert_status, to: "normal"
     end
 
-    FlagAbnormalVitals do
+    command "FlagAbnormalVitals" do
       role "System"
       description "Alert when vital signs fall outside safe ranges"
       reference_to(VitalSign)

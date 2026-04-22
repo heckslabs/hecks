@@ -3,40 +3,40 @@ Hecks.bluebook "APIMarketplace", version: "2026.04.13.1" do
   category "technology"
 
   aggregate "APIProduct", "A published API available for consumption" do
-    String :api_name
-    String :version
-    String :description
-    String :base_url
-    String :auth_method
-    String :status
+    attribute :api_name, String
+    attribute :version, String
+    attribute :description, String
+    attribute :base_url, String
+    attribute :auth_method, String
+    attribute :status, String
     list_of(Endpoint) :endpoints
 
     value_object "Endpoint" do
-      String :method
-      String :path
-      String :description
+      attribute :method, String
+      attribute :path, String
+      attribute :description, String
     end
 
-    PublishAPI do
+    command "PublishAPI" do
       role "APIProvider"
       description "List a new API product on the marketplace"
-      String :api_name
-      String :version
-      String :description
-      String :base_url
-      String :auth_method
+      attribute :api_name, String
+      attribute :version, String
+      attribute :description, String
+      attribute :base_url, String
+      attribute :auth_method, String
       emits "APIPublished"
     end
 
-    DeprecateAPI do
+    command "DeprecateAPI" do
       description "Mark an API version as deprecated with a sunset date"
       reference_to(APIProduct)
-      String :sunset_date
+      attribute :sunset_date, String
       then_set :status, to: "deprecated"
       emits "APIDeprecated"
     end
 
-    RetireAPI do
+    command "RetireAPI" do
       description "Permanently remove an API from the marketplace"
       reference_to(APIProduct)
       given("api is deprecated") { status == "deprecated" }
@@ -45,39 +45,39 @@ Hecks.bluebook "APIMarketplace", version: "2026.04.13.1" do
   end
 
   aggregate "Consumer", "A developer or organization consuming APIs" do
-    String :consumer_name
-    String :email
-    String :organization
-    String :plan
-    String :status
+    attribute :consumer_name, String
+    attribute :email, String
+    attribute :organization, String
+    attribute :plan, String
+    attribute :status, String
     list_of(Subscription) :subscriptions
 
     value_object "Subscription" do
-      String :api_name
-      String :subscribed_at
-      String :tier
+      attribute :api_name, String
+      attribute :subscribed_at, String
+      attribute :tier, String
     end
 
-    RegisterConsumer do
+    command "RegisterConsumer" do
       role "DeveloperPortal"
       description "Create a consumer account on the marketplace"
-      String :consumer_name
-      String :email
-      String :organization
-      String :plan
+      attribute :consumer_name, String
+      attribute :email, String
+      attribute :organization, String
+      attribute :plan, String
       then_set :status, to: "active"
       emits "ConsumerRegistered"
     end
 
-    SubscribeToAPI do
+    command "SubscribeToAPI" do
       description "Add an API product to a consumer's subscriptions"
       reference_to(Consumer)
-      String :api_name
-      String :tier
+      attribute :api_name, String
+      attribute :tier, String
       emits "ConsumerSubscribed"
     end
 
-    SuspendConsumer do
+    command "SuspendConsumer" do
       description "Freeze a consumer account for abuse or non-payment"
       reference_to(Consumer)
       given("consumer is active") { status == "active" }
@@ -86,39 +86,39 @@ Hecks.bluebook "APIMarketplace", version: "2026.04.13.1" do
   end
 
   aggregate "APIKey", "A credential granting access to subscribed APIs" do
-    String :key_id
-    String :key_hash
-    String :label
-    String :scope
-    String :expires_at
-    String :status
+    attribute :key_id, String
+    attribute :key_hash, String
+    attribute :label, String
+    attribute :scope, String
+    attribute :expires_at, String
+    attribute :status, String
     reference_to Consumer
 
     value_object "KeyPermission" do
-      String :api_name
-      String :allowed_methods
-      String :granted_at
+      attribute :api_name, String
+      attribute :allowed_methods, String
+      attribute :granted_at, String
     end
 
-    IssueKey do
+    command "IssueKey" do
       role "DeveloperPortal"
       description "Generate a new API key for a consumer"
-      String :key_id
-      String :label
-      String :scope
-      String :expires_at
+      attribute :key_id, String
+      attribute :label, String
+      attribute :scope, String
+      attribute :expires_at, String
       reference_to(Consumer)
       then_set :status, to: "active"
       emits "KeyIssued"
     end
 
-    RevokeKey do
+    command "RevokeKey" do
       description "Invalidate an API key immediately"
       reference_to(APIKey)
       emits "KeyRevoked"
     end
 
-    RotateKey do
+    command "RotateKey" do
       description "Replace an existing key with a new one"
       reference_to(APIKey)
       given("key is active") { status == "active" }
@@ -127,84 +127,84 @@ Hecks.bluebook "APIMarketplace", version: "2026.04.13.1" do
   end
 
   aggregate "RateLimitPolicy", "A throttling rule controlling API call frequency" do
-    String :policy_name
-    Integer :requests_per_minute
-    Integer :requests_per_day
-    Integer :burst_limit
-    String :status
+    attribute :policy_name, String
+    attribute :requests_per_minute, Integer
+    attribute :requests_per_day, Integer
+    attribute :burst_limit, Integer
+    attribute :status, String
     reference_to APIProduct
 
     value_object "ThrottleEvent" do
-      String :consumer_id
-      Integer :request_count
-      String :throttled_at
+      attribute :consumer_id, String
+      attribute :request_count, Integer
+      attribute :throttled_at, String
     end
 
-    DefineRateLimit do
+    command "DefineRateLimit" do
       role "PlatformAdmin"
       description "Set rate limiting thresholds for an API product"
-      String :policy_name
-      Integer :requests_per_minute
-      Integer :requests_per_day
-      Integer :burst_limit
+      attribute :policy_name, String
+      attribute :requests_per_minute, Integer
+      attribute :requests_per_day, Integer
+      attribute :burst_limit, Integer
       reference_to(APIProduct)
       emits "RateLimitDefined"
     end
 
-    AdjustLimit do
+    command "AdjustLimit" do
       description "Modify rate limit thresholds for an existing policy"
       reference_to(RateLimitPolicy)
-      Integer :requests_per_minute
-      Integer :requests_per_day
+      attribute :requests_per_minute, Integer
+      attribute :requests_per_day, Integer
       emits "LimitAdjusted"
     end
 
-    EnforceThrottle do
+    command "EnforceThrottle" do
       description "Throttle a consumer who exceeded rate limits"
       reference_to(RateLimitPolicy)
-      String :consumer_id
+      attribute :consumer_id, String
       emits "ConsumerThrottled"
     end
   end
 
   aggregate "UsageBill", "A charge generated from API consumption metering" do
-    String :bill_id
-    Float :amount
-    Integer :total_calls
-    String :billing_period
-    String :status
+    attribute :bill_id, String
+    attribute :amount, Float
+    attribute :total_calls, Integer
+    attribute :billing_period, String
+    attribute :status, String
     reference_to Consumer
 
     value_object "BillLine" do
-      String :api_name
-      Integer :call_count
-      Float :unit_price
-      Float :line_total
+      attribute :api_name, String
+      attribute :call_count, Integer
+      attribute :unit_price, Float
+      attribute :line_total, Float
     end
 
-    GenerateBill do
+    command "GenerateBill" do
       role "BillingEngine"
       description "Create an invoice based on metered API usage"
-      String :bill_id
-      Float :amount
-      Integer :total_calls
-      String :billing_period
+      attribute :bill_id, String
+      attribute :amount, Float
+      attribute :total_calls, Integer
+      attribute :billing_period, String
       reference_to(Consumer)
       then_set :status, to: "unpaid"
       emits "BillGenerated"
     end
 
-    CollectPayment do
+    command "CollectPayment" do
       description "Process payment for a usage bill"
       reference_to(UsageBill)
       given("bill is unpaid") { status == "unpaid" }
       emits "PaymentCollected"
     end
 
-    WaiveBill do
+    command "WaiveBill" do
       description "Write off a bill as a goodwill credit"
       reference_to(UsageBill)
-      String :waiver_reason
+      attribute :waiver_reason, String
       emits "BillWaived"
     end
   end

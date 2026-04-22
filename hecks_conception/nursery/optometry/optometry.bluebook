@@ -2,19 +2,19 @@ Hecks.bluebook "Optometry" do
   vision "Eye care practice — patients, comprehensive exams, prescriptions, lens orders, and follow-up appointments"
 
   aggregate "Patient", "A person receiving optometric eye care services" do
-    String :name
-    String :date_of_birth
-    String :insurance_id
-    String :medical_history
-    String :status
+    attribute :name, String
+    attribute :date_of_birth, String
+    attribute :insurance_id, String
+    attribute :medical_history, String
+    attribute :status, String
 
-    RegisterPatient do
+    command "RegisterPatient" do
       role "Receptionist"
       description "Add a new patient to the optometry practice"
-      String :name
-      String :date_of_birth
-      String :insurance_id
-      String :medical_history
+      attribute :name, String
+      attribute :date_of_birth, String
+      attribute :insurance_id, String
+      attribute :medical_history, String
       emits "PatientRegistered"
       then_set :name, to: :name
       then_set :date_of_birth, to: :date_of_birth
@@ -23,44 +23,44 @@ Hecks.bluebook "Optometry" do
       then_set :status, to: "active"
     end
 
-    RecordMedicalHistory do
+    command "RecordMedicalHistory" do
       role "Optometrist"
       description "Record changes to the patient's medical history"
       reference_to(Patient)
-      String :medical_history
+      attribute :medical_history, String
       emits "MedicalHistoryRecorded"
       then_set :medical_history, to: :medical_history
     end
   end
 
   aggregate "EyeExam", "A comprehensive eye examination with visual acuity and ocular health findings" do
-    String :patient_name
-    String :exam_date
-    String :visual_acuity_right
-    String :visual_acuity_left
-    Float :intraocular_pressure_right
-    Float :intraocular_pressure_left
+    attribute :patient_name, String
+    attribute :exam_date, String
+    attribute :visual_acuity_right, String
+    attribute :visual_acuity_left, String
+    attribute :intraocular_pressure_right, Float
+    attribute :intraocular_pressure_left, Float
     list_of(Finding) :findings
-    String :status
+    attribute :status, String
     reference_to Patient
 
     value_object "Finding" do
-      String :eye
-      String :condition
-      String :severity
-      String :notes
+      attribute :eye, String
+      attribute :condition, String
+      attribute :severity, String
+      attribute :notes, String
     end
 
-    ConductExam do
+    command "ConductExam" do
       role "Optometrist"
       description "Perform a comprehensive eye exam with all measurements"
       reference_to(Patient)
-      String :patient_name
-      String :exam_date
-      String :visual_acuity_right
-      String :visual_acuity_left
-      Float :intraocular_pressure_right
-      Float :intraocular_pressure_left
+      attribute :patient_name, String
+      attribute :exam_date, String
+      attribute :visual_acuity_right, String
+      attribute :visual_acuity_left, String
+      attribute :intraocular_pressure_right, Float
+      attribute :intraocular_pressure_left, Float
       emits "ExamConducted"
       then_set :patient_name, to: :patient_name
       then_set :exam_date, to: :exam_date
@@ -71,47 +71,47 @@ Hecks.bluebook "Optometry" do
       then_set :status, to: "completed"
     end
 
-    DocumentFinding do
+    command "DocumentFinding" do
       role "Optometrist"
       description "Record a clinical finding from the eye exam"
       reference_to(EyeExam)
-      String :eye
-      String :condition
-      String :severity
-      String :notes
+      attribute :eye, String
+      attribute :condition, String
+      attribute :severity, String
+      attribute :notes, String
       emits "FindingDocumented"
     end
   end
 
   aggregate "LensPrescription", "An optical prescription for corrective lenses" do
-    String :patient_name
-    Float :sphere_right
-    Float :sphere_left
-    Float :cylinder_right
-    Float :cylinder_left
-    Integer :axis_right
-    Integer :axis_left
-    Float :add_power
-    String :prescription_date
-    String :expiration_date
+    attribute :patient_name, String
+    attribute :sphere_right, Float
+    attribute :sphere_left, Float
+    attribute :cylinder_right, Float
+    attribute :cylinder_left, Float
+    attribute :axis_right, Integer
+    attribute :axis_left, Integer
+    attribute :add_power, Float
+    attribute :prescription_date, String
+    attribute :expiration_date, String
     reference_to Patient
     reference_to EyeExam
 
-    WritePrescription do
+    command "WritePrescription" do
       role "Optometrist"
       description "Issue a corrective lens prescription based on exam results"
       reference_to(Patient)
       reference_to(EyeExam)
-      String :patient_name
-      Float :sphere_right
-      Float :sphere_left
-      Float :cylinder_right
-      Float :cylinder_left
-      Integer :axis_right
-      Integer :axis_left
-      Float :add_power
-      String :prescription_date
-      String :expiration_date
+      attribute :patient_name, String
+      attribute :sphere_right, Float
+      attribute :sphere_left, Float
+      attribute :cylinder_right, Float
+      attribute :cylinder_left, Float
+      attribute :axis_right, Integer
+      attribute :axis_left, Integer
+      attribute :add_power, Float
+      attribute :prescription_date, String
+      attribute :expiration_date, String
       emits "PrescriptionWritten"
       then_set :patient_name, to: :patient_name
       then_set :sphere_right, to: :sphere_right
@@ -120,42 +120,42 @@ Hecks.bluebook "Optometry" do
       then_set :expiration_date, to: :expiration_date
     end
 
-    RenewPrescription do
+    command "RenewPrescription" do
       role "Optometrist"
       description "Extend an existing prescription after follow-up verification"
       reference_to(LensPrescription)
-      String :expiration_date
+      attribute :expiration_date, String
       emits "PrescriptionRenewed"
       then_set :expiration_date, to: :expiration_date
     end
   end
 
   aggregate "LensOrder", "An order for corrective lenses — glasses or contacts" do
-    String :patient_name
-    String :lens_type
-    String :frame_style
-    String :coating
-    String :order_date
-    String :status
+    attribute :patient_name, String
+    attribute :lens_type, String
+    attribute :frame_style, String
+    attribute :coating, String
+    attribute :order_date, String
+    attribute :status, String
     reference_to Patient
     reference_to LensPrescription
 
     value_object "LensSpec" do
-      String :material
-      String :index
-      String :tint
+      attribute :material, String
+      attribute :index, String
+      attribute :tint, String
     end
 
-    PlaceLensOrder do
+    command "PlaceLensOrder" do
       role "Optician"
       description "Submit an order for corrective lenses based on the prescription"
       reference_to(Patient)
       reference_to(LensPrescription)
-      String :patient_name
-      String :lens_type
-      String :frame_style
-      String :coating
-      String :order_date
+      attribute :patient_name, String
+      attribute :lens_type, String
+      attribute :frame_style, String
+      attribute :coating, String
+      attribute :order_date, String
       emits "LensOrderPlaced"
       then_set :patient_name, to: :patient_name
       then_set :lens_type, to: :lens_type
@@ -165,7 +165,7 @@ Hecks.bluebook "Optometry" do
       then_set :status, to: "ordered"
     end
 
-    DispenseLenses do
+    command "DispenseLenses" do
       role "Optician"
       description "Hand the completed lenses to the patient with fitting adjustments"
       reference_to(LensOrder)
@@ -176,20 +176,20 @@ Hecks.bluebook "Optometry" do
   end
 
   aggregate "FollowUp", "A scheduled follow-up appointment after treatment or exam" do
-    String :patient_name
-    String :reason
-    String :scheduled_date
-    String :status
-    String :outcome_notes
+    attribute :patient_name, String
+    attribute :reason, String
+    attribute :scheduled_date, String
+    attribute :status, String
+    attribute :outcome_notes, String
     reference_to Patient
 
-    ScheduleFollowUp do
+    command "ScheduleFollowUp" do
       role "Receptionist"
       description "Book a follow-up appointment for a patient"
       reference_to(Patient)
-      String :patient_name
-      String :reason
-      String :scheduled_date
+      attribute :patient_name, String
+      attribute :reason, String
+      attribute :scheduled_date, String
       emits "FollowUpScheduled"
       then_set :patient_name, to: :patient_name
       then_set :reason, to: :reason
@@ -197,11 +197,11 @@ Hecks.bluebook "Optometry" do
       then_set :status, to: "scheduled"
     end
 
-    CompleteFollowUp do
+    command "CompleteFollowUp" do
       role "Optometrist"
       description "Document the outcome of the follow-up visit"
       reference_to(FollowUp)
-      String :outcome_notes
+      attribute :outcome_notes, String
       given("must be scheduled") { status == "scheduled" }
       emits "FollowUpCompleted"
       then_set :outcome_notes, to: :outcome_notes

@@ -3,28 +3,28 @@ Hecks.bluebook "DaycareCenter" do
   category "childcare"
 
   aggregate "Child", "An enrolled child with age, allergies, and guardian relationship" do
-    String :first_name
-    String :last_name
-    String :date_of_birth
-    String :allergies
-    String :classroom
-    String :status
+    attribute :first_name, String
+    attribute :last_name, String
+    attribute :date_of_birth, String
+    attribute :allergies, String
+    attribute :classroom, String
+    attribute :status, String
     reference_to(Guardian)
 
     value_object "DevelopmentMilestone" do
-      String :milestone_name
-      String :achieved_date
-      String :notes
+      attribute :milestone_name, String
+      attribute :achieved_date, String
+      attribute :notes, String
     end
 
-    EnrollChild do
+    command "EnrollChild" do
       role "Director"
       description "Register a child for enrollment with their medical and allergy info"
-      String :first_name
-      String :last_name
-      String :date_of_birth
-      String :allergies
-      String :classroom
+      attribute :first_name, String
+      attribute :last_name, String
+      attribute :date_of_birth, String
+      attribute :allergies, String
+      attribute :classroom, String
       emits "ChildEnrolled"
       then_set :first_name, to: :first_name
       then_set :last_name, to: :last_name
@@ -34,17 +34,17 @@ Hecks.bluebook "DaycareCenter" do
       then_set :status, to: "active"
     end
 
-    TransferClassroom do
+    command "TransferClassroom" do
       role "Director"
       description "Move a child to a different classroom based on age or development"
       reference_to(Child)
-      String :new_classroom
+      attribute :new_classroom, String
       given { status == "active" }
       emits "ChildTransferred"
       then_set :classroom, to: :new_classroom
     end
 
-    WithdrawChild do
+    command "WithdrawChild" do
       role "Director"
       description "Remove a child from enrollment when they leave the program"
       reference_to(Child)
@@ -55,27 +55,27 @@ Hecks.bluebook "DaycareCenter" do
   end
 
   aggregate "Guardian", "A parent or authorized caretaker with pickup authorization" do
-    String :first_name
-    String :last_name
-    String :phone
-    String :email
-    String :relationship
-    String :pickup_authorized
+    attribute :first_name, String
+    attribute :last_name, String
+    attribute :phone, String
+    attribute :email, String
+    attribute :relationship, String
+    attribute :pickup_authorized, String
 
     value_object "PickupAuthorization" do
-      String :authorized_name
-      String :relationship
-      String :photo_id_on_file
+      attribute :authorized_name, String
+      attribute :relationship, String
+      attribute :photo_id_on_file, String
     end
 
-    RegisterGuardian do
+    command "RegisterGuardian" do
       role "Director"
       description "Add a guardian with contact info and pickup authorization status"
-      String :first_name
-      String :last_name
-      String :phone
-      String :email
-      String :relationship
+      attribute :first_name, String
+      attribute :last_name, String
+      attribute :phone, String
+      attribute :email, String
+      attribute :relationship, String
       emits "GuardianRegistered"
       then_set :first_name, to: :first_name
       then_set :last_name, to: :last_name
@@ -85,7 +85,7 @@ Hecks.bluebook "DaycareCenter" do
       then_set :pickup_authorized, to: "yes"
     end
 
-    RevokePickupAuth do
+    command "RevokePickupAuth" do
       role "Director"
       description "Remove a guardian's authorization to pick up the child"
       reference_to(Guardian)
@@ -96,21 +96,21 @@ Hecks.bluebook "DaycareCenter" do
   end
 
   aggregate "DailyAttendance", "A daily check-in/check-out record for a child" do
-    String :attendance_date
-    String :check_in_time
-    String :check_out_time
-    String :checked_in_by
-    String :checked_out_by
-    String :status
+    attribute :attendance_date, String
+    attribute :check_in_time, String
+    attribute :check_out_time, String
+    attribute :checked_in_by, String
+    attribute :checked_out_by, String
+    attribute :status, String
     reference_to(Child)
 
-    CheckInChild do
+    command "CheckInChild" do
       role "Teacher"
       description "Record the child's arrival time and who dropped them off"
       reference_to(Child)
-      String :attendance_date
-      String :check_in_time
-      String :checked_in_by
+      attribute :attendance_date, String
+      attribute :check_in_time, String
+      attribute :checked_in_by, String
       emits "ChildCheckedIn"
       then_set :attendance_date, to: :attendance_date
       then_set :check_in_time, to: :check_in_time
@@ -118,12 +118,12 @@ Hecks.bluebook "DaycareCenter" do
       then_set :status, to: "present"
     end
 
-    CheckOutChild do
+    command "CheckOutChild" do
       role "Teacher"
       description "Record the child's departure time and who picked them up"
       reference_to(DailyAttendance)
-      String :check_out_time
-      String :checked_out_by
+      attribute :check_out_time, String
+      attribute :checked_out_by, String
       given { status == "present" }
       emits "ChildCheckedOut"
       then_set :check_out_time, to: :check_out_time
@@ -131,12 +131,12 @@ Hecks.bluebook "DaycareCenter" do
       then_set :status, to: "departed"
     end
 
-    MarkAbsent do
+    command "MarkAbsent" do
       role "Teacher"
       description "Record that a child did not attend on this date"
       reference_to(Child)
-      String :attendance_date
-      String :reason
+      attribute :attendance_date, String
+      attribute :reason, String
       emits "ChildAbsent"
       then_set :attendance_date, to: :attendance_date
       then_set :status, to: "absent"
@@ -144,27 +144,27 @@ Hecks.bluebook "DaycareCenter" do
   end
 
   aggregate "MealPlan", "A daily meal schedule with dietary accommodations for a classroom" do
-    String :meal_date
-    String :breakfast
-    String :lunch
-    String :snack
-    String :classroom
-    String :dietary_notes
+    attribute :meal_date, String
+    attribute :breakfast, String
+    attribute :lunch, String
+    attribute :snack, String
+    attribute :classroom, String
+    attribute :dietary_notes, String
 
     value_object "NutritionInfo" do
-      Integer :calories
-      Float :protein_grams
-      String :allergens_present
+      attribute :calories, Integer
+      attribute :protein_grams, Float
+      attribute :allergens_present, String
     end
 
-    PlanMeals do
+    command "PlanMeals" do
       role "NutritionCoordinator"
       description "Set the day's breakfast, lunch, and snack for a classroom"
-      String :meal_date
-      String :classroom
-      String :breakfast
-      String :lunch
-      String :snack
+      attribute :meal_date, String
+      attribute :classroom, String
+      attribute :breakfast, String
+      attribute :lunch, String
+      attribute :snack, String
       emits "MealsPlanned"
       then_set :meal_date, to: :meal_date
       then_set :classroom, to: :classroom
@@ -173,37 +173,37 @@ Hecks.bluebook "DaycareCenter" do
       then_set :snack, to: :snack
     end
 
-    SubstituteMeal do
+    command "SubstituteMeal" do
       role "NutritionCoordinator"
       description "Replace a meal item due to allergy or supply shortage"
       reference_to(MealPlan)
-      String :meal_type
-      String :replacement
-      String :dietary_notes
+      attribute :meal_type, String
+      attribute :replacement, String
+      attribute :dietary_notes, String
       emits "MealSubstituted"
       then_set :dietary_notes, to: :dietary_notes
     end
   end
 
   aggregate "IncidentReport", "A documented safety incident involving a child" do
-    String :incident_date
-    String :incident_time
-    String :description
-    String :severity
-    String :action_taken
-    String :guardian_notified
-    String :status
+    attribute :incident_date, String
+    attribute :incident_time, String
+    attribute :description, String
+    attribute :severity, String
+    attribute :action_taken, String
+    attribute :guardian_notified, String
+    attribute :status, String
     reference_to(Child)
 
-    FileIncident do
+    command "FileIncident" do
       role "Teacher"
       description "Document an injury, behavioral incident, or safety concern"
       reference_to(Child)
-      String :incident_date
-      String :incident_time
-      String :description
-      String :severity
-      String :action_taken
+      attribute :incident_date, String
+      attribute :incident_time, String
+      attribute :description, String
+      attribute :severity, String
+      attribute :action_taken, String
       emits "IncidentFiled"
       then_set :incident_date, to: :incident_date
       then_set :incident_time, to: :incident_time
@@ -214,7 +214,7 @@ Hecks.bluebook "DaycareCenter" do
       then_set :guardian_notified, to: "no"
     end
 
-    NotifyGuardian do
+    command "NotifyGuardian" do
       role "Director"
       description "Contact the guardian about the incident"
       reference_to(IncidentReport)
@@ -223,7 +223,7 @@ Hecks.bluebook "DaycareCenter" do
       then_set :guardian_notified, to: "yes"
     end
 
-    CloseIncident do
+    command "CloseIncident" do
       role "Director"
       description "Close the incident report after review and follow-up"
       reference_to(IncidentReport)

@@ -5,29 +5,29 @@ Hecks.bluebook "TraumaPipeline", version: "2026.04.13.1" do
   # === TraumaCall ===
 
   aggregate "TraumaCall", "A trauma dispatch event — the moment that sets the pipeline in motion" do
-    String :incident_type
-    String :location
-    String :severity
-    String :blood_type_needed
-    String :status
-    Integer :estimated_arrival_minutes
+    attribute :incident_type, String
+    attribute :location, String
+    attribute :severity, String
+    attribute :blood_type_needed, String
+    attribute :status, String
+    attribute :estimated_arrival_minutes, Integer
     reference_to(TraumaBay, as: :assigned_bay)
 
     value_object "IncidentDetail" do
-      String :mechanism_of_injury
-      Integer :patient_count
-      String :hazmat_present
-      String :scene_safety
+      attribute :mechanism_of_injury, String
+      attribute :patient_count, Integer
+      attribute :hazmat_present, String
+      attribute :scene_safety, String
     end
 
-    DispatchTrauma do
+    command "DispatchTrauma" do
       role "Dispatcher"
       description "Initiate a trauma call — ambulance and blood pipeline activate simultaneously"
-      String :incident_type
-      String :location
-      String :severity
-      String :blood_type_needed
-      Integer :estimated_arrival_minutes
+      attribute :incident_type, String
+      attribute :location, String
+      attribute :severity, String
+      attribute :blood_type_needed, String
+      attribute :estimated_arrival_minutes, Integer
       emits "TraumaDispatched"
       then_set :incident_type, to: :incident_type
       then_set :location, to: :location
@@ -37,16 +37,16 @@ Hecks.bluebook "TraumaPipeline", version: "2026.04.13.1" do
       then_set :status, to: "dispatched"
     end
 
-    ReviseETA do
+    command "ReviseETA" do
       role "Paramedic"
       description "Revise estimated arrival as ambulance progresses"
       reference_to(TraumaCall)
-      Integer :estimated_arrival_minutes
+      attribute :estimated_arrival_minutes, Integer
       emits "ETARevised"
       then_set :estimated_arrival_minutes, to: :estimated_arrival_minutes
     end
 
-    ArriveAtBay do
+    command "ArriveAtBay" do
       role "Paramedic"
       description "Ambulance arrives at trauma bay — patient handoff begins"
       reference_to(TraumaCall)
@@ -55,7 +55,7 @@ Hecks.bluebook "TraumaPipeline", version: "2026.04.13.1" do
       then_set :status, to: "arrived"
     end
 
-    CloseCall do
+    command "CloseCall" do
       role "Dispatcher"
       description "Trauma pipeline complete — all resources released"
       reference_to(TraumaCall)
@@ -77,20 +77,20 @@ Hecks.bluebook "TraumaPipeline", version: "2026.04.13.1" do
   # === BloodUnit ===
 
   aggregate "BloodUnit", "A unit of blood product — typed, tested, and tracked through the cold chain" do
-    String :blood_type
-    String :product_type
-    String :donation_id
-    String :status
-    Float :temperature
-    String :expiration_date
+    attribute :blood_type, String
+    attribute :product_type, String
+    attribute :donation_id, String
+    attribute :status, String
+    attribute :temperature, Float
+    attribute :expiration_date, String
 
-    RegisterUnit do
+    command "RegisterUnit" do
       role "BloodBankTech"
       description "Register a new blood unit into inventory"
-      String :blood_type
-      String :product_type
-      String :donation_id
-      String :expiration_date
+      attribute :blood_type, String
+      attribute :product_type, String
+      attribute :donation_id, String
+      attribute :expiration_date, String
       emits "BloodUnitRegistered"
       then_set :blood_type, to: :blood_type
       then_set :product_type, to: :product_type
@@ -99,7 +99,7 @@ Hecks.bluebook "TraumaPipeline", version: "2026.04.13.1" do
       then_set :status, to: "available"
     end
 
-    ReserveUnit do
+    command "ReserveUnit" do
       role "System"
       description "Reserve a blood unit for an incoming trauma patient"
       reference_to(BloodUnit)
@@ -108,7 +108,7 @@ Hecks.bluebook "TraumaPipeline", version: "2026.04.13.1" do
       then_set :status, to: "reserved"
     end
 
-    ReleaseUnit do
+    command "ReleaseUnit" do
       role "BloodBankTech"
       description "Release a reserved unit back to available inventory"
       reference_to(BloodUnit)
@@ -117,7 +117,7 @@ Hecks.bluebook "TraumaPipeline", version: "2026.04.13.1" do
       then_set :status, to: "available"
     end
 
-    TransfuseUnit do
+    command "TransfuseUnit" do
       role "Physician"
       description "Administer blood unit to patient — final step"
       reference_to(BloodUnit)
@@ -141,26 +141,26 @@ Hecks.bluebook "TraumaPipeline", version: "2026.04.13.1" do
 
   aggregate "ColdTransport", "A temperature-controlled courier run — blood from bank to trauma site" do
     reference_to(BloodUnit, as: :blood_unit)
-    String :courier_id
-    Float :temperature
-    String :origin
-    String :destination
-    String :status
+    attribute :courier_id, String
+    attribute :temperature, Float
+    attribute :origin, String
+    attribute :destination, String
+    attribute :status, String
     list_of(TempReading) :temperature_log
 
     value_object "TempReading" do
-      Float :temperature
-      String :timestamp
-      String :within_range
+      attribute :temperature, Float
+      attribute :timestamp, String
+      attribute :within_range, String
     end
 
-    DeployBloodCourier do
+    command "DeployBloodCourier" do
       role "System"
       description "Dispatch a cold-chain courier with matched blood to the trauma site"
       reference_to(BloodUnit, as: :blood_unit)
-      String :courier_id
-      String :origin
-      String :destination
+      attribute :courier_id, String
+      attribute :origin, String
+      attribute :destination, String
       emits "BloodCourierDeployed"
       then_set :blood_unit, to: :blood_unit
       then_set :courier_id, to: :courier_id
@@ -169,16 +169,16 @@ Hecks.bluebook "TraumaPipeline", version: "2026.04.13.1" do
       then_set :status, to: "in_transit"
     end
 
-    RecordTemperature do
+    command "RecordTemperature" do
       role "System"
       description "Log temperature during transport to ensure cold chain integrity"
       reference_to(ColdTransport)
-      Float :temperature
+      attribute :temperature, Float
       emits "TemperatureRecorded"
       then_set :temperature, to: :temperature
     end
 
-    FlagTempBreach do
+    command "FlagTempBreach" do
       role "System"
       description "Temperature out of safe range — blood unit may be compromised"
       reference_to(ColdTransport)
@@ -186,7 +186,7 @@ Hecks.bluebook "TraumaPipeline", version: "2026.04.13.1" do
       then_set :status, to: "breached"
     end
 
-    DeliverBlood do
+    command "DeliverBlood" do
       role "Courier"
       description "Blood arrives at trauma bay — ready for transfusion"
       reference_to(ColdTransport)
@@ -208,23 +208,23 @@ Hecks.bluebook "TraumaPipeline", version: "2026.04.13.1" do
   # === TraumaBay ===
 
   aggregate "TraumaBay", "A prepared trauma receiving area — bed, blood, team, all staged before patient arrival" do
-    String :bay_number
-    String :status
-    String :trauma_level
+    attribute :bay_number, String
+    attribute :status, String
+    attribute :trauma_level, String
     reference_to(TraumaCall, as: :active_call)
 
-    PrepareBay do
+    command "PrepareBay" do
       role "Nurse"
       description "Stage a trauma bay with equipment and blood for incoming patient"
-      String :bay_number
-      String :trauma_level
+      attribute :bay_number, String
+      attribute :trauma_level, String
       emits "BayPrepared"
       then_set :bay_number, to: :bay_number
       then_set :trauma_level, to: :trauma_level
       then_set :status, to: "prepared"
     end
 
-    AssignCall do
+    command "AssignCall" do
       role "System"
       description "Link a trauma call to this bay so blood routes correctly"
       reference_to(TraumaBay)
@@ -235,7 +235,7 @@ Hecks.bluebook "TraumaPipeline", version: "2026.04.13.1" do
       then_set :status, to: "assigned"
     end
 
-    ReleaseBay do
+    command "ReleaseBay" do
       role "Nurse"
       description "Clean and release bay after trauma pipeline completes"
       reference_to(TraumaBay)
@@ -259,18 +259,18 @@ Hecks.bluebook "TraumaPipeline", version: "2026.04.13.1" do
   aggregate "CrossMatch", "A compatibility test between patient blood and donor unit — the safety gate" do
     reference_to(TraumaCall, as: :trauma_call)
     reference_to(BloodUnit, as: :blood_unit)
-    String :patient_blood_type
-    String :donor_blood_type
-    String :result
-    String :status
+    attribute :patient_blood_type, String
+    attribute :donor_blood_type, String
+    attribute :result, String
+    attribute :status, String
 
-    MatchBloodType do
+    command "MatchBloodType" do
       role "System"
       description "Run compatibility check between patient need and available blood units"
       reference_to(TraumaCall, as: :trauma_call)
       reference_to(BloodUnit, as: :blood_unit)
-      String :patient_blood_type
-      String :donor_blood_type
+      attribute :patient_blood_type, String
+      attribute :donor_blood_type, String
       emits "CrossMatchPerformed"
       then_set :trauma_call, to: :trauma_call
       then_set :blood_unit, to: :blood_unit
@@ -279,7 +279,7 @@ Hecks.bluebook "TraumaPipeline", version: "2026.04.13.1" do
       then_set :status, to: "tested"
     end
 
-    ApproveMatch do
+    command "ApproveMatch" do
       role "BloodBankTech"
       description "Confirm cross-match is compatible — clear for transfusion"
       reference_to(CrossMatch)
@@ -289,7 +289,7 @@ Hecks.bluebook "TraumaPipeline", version: "2026.04.13.1" do
       then_set :status, to: "approved"
     end
 
-    RejectMatch do
+    command "RejectMatch" do
       role "BloodBankTech"
       description "Cross-match failed — find alternative blood unit"
       reference_to(CrossMatch)

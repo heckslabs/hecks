@@ -3,20 +3,20 @@ Hecks.bluebook "TherapyMusic", version: "2026.04.13.1" do
   category "healthcare_technology"
 
   aggregate "RehabExercise", "A physical therapy exercise with tempo and intensity targets" do
-    String :exercise_id
-    String :patient_name
-    String :exercise_name
-    Integer :target_bpm
-    Integer :duration_seconds
-    String :status
-    PrescribeExercise do
+    attribute :exercise_id, String
+    attribute :patient_name, String
+    attribute :exercise_name, String
+    attribute :target_bpm, Integer
+    attribute :duration_seconds, Integer
+    attribute :status, String
+    command "PrescribeExercise" do
       role "Therapist"
       description "Prescribe a rehab exercise with target tempo"
-      String :exercise_id
-      String :patient_name
-      String :exercise_name
-      Integer :target_bpm
-      Integer :duration_seconds
+      attribute :exercise_id, String
+      attribute :patient_name, String
+      attribute :exercise_name, String
+      attribute :target_bpm, Integer
+      attribute :duration_seconds, Integer
       emits "ExercisePrescribed"
       then_set :exercise_id, to: :exercise_id
       then_set :patient_name, to: :patient_name
@@ -25,7 +25,7 @@ Hecks.bluebook "TherapyMusic", version: "2026.04.13.1" do
       then_set :duration_seconds, to: :duration_seconds
       then_set :status, to: "prescribed"
     end
-    CompleteExercise do
+    command "CompleteExercise" do
       role "Patient"
       description "Mark the exercise session as completed"
       reference_to(RehabExercise)
@@ -36,25 +36,25 @@ Hecks.bluebook "TherapyMusic", version: "2026.04.13.1" do
   end
 
   aggregate "Playlist", "A curated music playlist matched to exercise tempo" do
-    String :playlist_id
-    String :name
-    Integer :target_bpm
-    String :genre
+    attribute :playlist_id, String
+    attribute :name, String
+    attribute :target_bpm, Integer
+    attribute :genre, String
     list_of(Track) :tracks
-    String :status
+    attribute :status, String
     value_object "Track" do
-      String :title
-      String :artist
-      Integer :bpm
-      Integer :duration_seconds
+      attribute :title, String
+      attribute :artist, String
+      attribute :bpm, Integer
+      attribute :duration_seconds, Integer
     end
-    CuratePlaylist do
+    command "CuratePlaylist" do
       role "MusicTherapist"
       description "Curate a playlist matched to a target exercise tempo"
-      String :playlist_id
-      String :name
-      Integer :target_bpm
-      String :genre
+      attribute :playlist_id, String
+      attribute :name, String
+      attribute :target_bpm, Integer
+      attribute :genre, String
       emits "PlaylistCurated"
       then_set :playlist_id, to: :playlist_id
       then_set :name, to: :name
@@ -62,30 +62,30 @@ Hecks.bluebook "TherapyMusic", version: "2026.04.13.1" do
       then_set :genre, to: :genre
       then_set :status, to: "active"
     end
-    AddTrack do
+    command "AddTrack" do
       role "MusicTherapist"
       description "Add a track to the playlist"
       reference_to(Playlist)
-      String :title
-      String :artist
-      Integer :bpm
+      attribute :title, String
+      attribute :artist, String
+      attribute :bpm, Integer
       emits "TrackAdded"
     end
   end
 
   aggregate "TempoMatch", "A tempo match between an exercise and a playlist" do
-    String :match_id
-    String :exercise_id
-    String :playlist_id
-    Float :bpm_deviation
-    String :status
-    MatchTempo do
+    attribute :match_id, String
+    attribute :exercise_id, String
+    attribute :playlist_id, String
+    attribute :bpm_deviation, Float
+    attribute :status, String
+    command "MatchTempo" do
       role "System"
       description "Match an exercise to the best tempo-aligned playlist"
-      String :match_id
-      String :exercise_id
-      String :playlist_id
-      Float :bpm_deviation
+      attribute :match_id, String
+      attribute :exercise_id, String
+      attribute :playlist_id, String
+      attribute :bpm_deviation, Float
       emits "TempoMatched"
       then_set :match_id, to: :match_id
       then_set :exercise_id, to: :exercise_id
@@ -93,30 +93,30 @@ Hecks.bluebook "TherapyMusic", version: "2026.04.13.1" do
       then_set :bpm_deviation, to: :bpm_deviation
       then_set :status, to: "matched"
     end
-    RateMatch do
+    command "RateMatch" do
       role "Patient"
       description "Rate the music-exercise match quality"
       reference_to(TempoMatch)
-      Float :rating
+      attribute :rating, Float
       emits "MatchRated"
     end
   end
 
   aggregate "SessionLog", "A log of exercise sessions with music playback" do
-    String :log_id
-    String :patient_name
-    String :exercise_id
-    String :playlist_id
-    Float :adherence_pct
-    String :mood_after
-    LogSession do
+    attribute :log_id, String
+    attribute :patient_name, String
+    attribute :exercise_id, String
+    attribute :playlist_id, String
+    attribute :adherence_pct, Float
+    attribute :mood_after, String
+    command "LogSession" do
       role "System"
       description "Log an exercise session with music playback metrics"
-      String :log_id
-      String :patient_name
-      String :exercise_id
-      String :playlist_id
-      Float :adherence_pct
+      attribute :log_id, String
+      attribute :patient_name, String
+      attribute :exercise_id, String
+      attribute :playlist_id, String
+      attribute :adherence_pct, Float
       emits "SessionLogged"
       then_set :log_id, to: :log_id
       then_set :patient_name, to: :patient_name
@@ -124,11 +124,11 @@ Hecks.bluebook "TherapyMusic", version: "2026.04.13.1" do
       then_set :playlist_id, to: :playlist_id
       then_set :adherence_pct, to: :adherence_pct
     end
-    RecordMood do
+    command "RecordMood" do
       role "Patient"
       description "Record mood after exercise with music"
       reference_to(SessionLog)
-      String :mood_after
+      attribute :mood_after, String
       emits "MoodRecorded"
       then_set :mood_after, to: :mood_after
     end

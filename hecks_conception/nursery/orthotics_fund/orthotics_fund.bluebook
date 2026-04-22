@@ -3,18 +3,18 @@ Hecks.bluebook "OrthoticsFund", version: "2026.04.13.1" do
   category "healthcare_community"
 
   aggregate "PodiatryPatient", "A podiatry patient needing custom orthotic devices" do
-    String :patient_id
-    String :name
-    String :diagnosis
-    String :foot_type
-    String :status
-    AssessPatient do
+    attribute :patient_id, String
+    attribute :name, String
+    attribute :diagnosis, String
+    attribute :foot_type, String
+    attribute :status, String
+    command "AssessPatient" do
       role "Podiatrist"
       description "Assess a patient for custom orthotic needs"
-      String :patient_id
-      String :name
-      String :diagnosis
-      String :foot_type
+      attribute :patient_id, String
+      attribute :name, String
+      attribute :diagnosis, String
+      attribute :foot_type, String
       emits "PatientAssessed"
       then_set :patient_id, to: :patient_id
       then_set :name, to: :name
@@ -22,7 +22,7 @@ Hecks.bluebook "OrthoticsFund", version: "2026.04.13.1" do
       then_set :foot_type, to: :foot_type
       then_set :status, to: "assessed"
     end
-    PrescribeDevice do
+    command "PrescribeDevice" do
       role "Podiatrist"
       description "Prescribe a custom orthotic device"
       reference_to(PodiatryPatient)
@@ -33,23 +33,23 @@ Hecks.bluebook "OrthoticsFund", version: "2026.04.13.1" do
   end
 
   aggregate "CustomDevice", "A custom orthotic device designed for a patient" do
-    String :device_id
-    String :patient_id
-    String :device_type
-    Float :cost
-    String :status
+    attribute :device_id, String
+    attribute :patient_id, String
+    attribute :device_type, String
+    attribute :cost, Float
+    attribute :status, String
     value_object "DeviceSpec" do
-      String :material
-      String :arch_support
-      Float :thickness_mm
+      attribute :material, String
+      attribute :arch_support, String
+      attribute :thickness_mm, Float
     end
-    DesignDevice do
+    command "DesignDevice" do
       role "Orthotist"
       description "Design a custom orthotic device from patient measurements"
-      String :device_id
-      String :patient_id
-      String :device_type
-      Float :cost
+      attribute :device_id, String
+      attribute :patient_id, String
+      attribute :device_type, String
+      attribute :cost, Float
       emits "DeviceDesigned"
       then_set :device_id, to: :device_id
       then_set :patient_id, to: :patient_id
@@ -57,7 +57,7 @@ Hecks.bluebook "OrthoticsFund", version: "2026.04.13.1" do
       then_set :cost, to: :cost
       then_set :status, to: "designed"
     end
-    FabricateDevice do
+    command "FabricateDevice" do
       role "Orthotist"
       description "Fabricate the custom device from design specs"
       reference_to(CustomDevice)
@@ -68,23 +68,23 @@ Hecks.bluebook "OrthoticsFund", version: "2026.04.13.1" do
   end
 
   aggregate "FundingCampaign", "A crowdfunding campaign to fund orthotic devices for patients" do
-    String :campaign_id
-    String :patient_id
-    Float :goal_amount
-    Float :raised_amount
-    String :status
+    attribute :campaign_id, String
+    attribute :patient_id, String
+    attribute :goal_amount, Float
+    attribute :raised_amount, Float
+    attribute :status, String
     list_of(Pledge) :pledges
     value_object "Pledge" do
-      String :donor_name
-      Float :amount
-      String :date
+      attribute :donor_name, String
+      attribute :amount, Float
+      attribute :date, String
     end
-    LaunchCampaign do
+    command "LaunchCampaign" do
       role "Coordinator"
       description "Launch a crowdfunding campaign for a patient device"
-      String :campaign_id
-      String :patient_id
-      Float :goal_amount
+      attribute :campaign_id, String
+      attribute :patient_id, String
+      attribute :goal_amount, Float
       emits "CampaignLaunched"
       then_set :campaign_id, to: :campaign_id
       then_set :patient_id, to: :patient_id
@@ -92,15 +92,15 @@ Hecks.bluebook "OrthoticsFund", version: "2026.04.13.1" do
       then_set :raised_amount, to: 0.0
       then_set :status, to: "active"
     end
-    RecordPledge do
+    command "RecordPledge" do
       role "System"
       description "Record a donation pledge to the campaign"
       reference_to(FundingCampaign)
-      Float :amount
+      attribute :amount, Float
       given { status == "active" }
       emits "PledgeRecorded"
     end
-    CloseCampaign do
+    command "CloseCampaign" do
       role "Coordinator"
       description "Close the campaign when goal is met or deadline passes"
       reference_to(FundingCampaign)
@@ -111,18 +111,18 @@ Hecks.bluebook "OrthoticsFund", version: "2026.04.13.1" do
   end
 
   aggregate "Disbursement", "A payment disbursement from campaign funds to device fabrication" do
-    String :disbursement_id
-    String :campaign_id
-    String :device_id
-    Float :amount
-    String :status
-    ReleaseFunds do
+    attribute :disbursement_id, String
+    attribute :campaign_id, String
+    attribute :device_id, String
+    attribute :amount, Float
+    attribute :status, String
+    command "ReleaseFunds" do
       role "Finance"
       description "Release campaign funds for device fabrication"
-      String :disbursement_id
-      String :campaign_id
-      String :device_id
-      Float :amount
+      attribute :disbursement_id, String
+      attribute :campaign_id, String
+      attribute :device_id, String
+      attribute :amount, Float
       emits "FundsReleased"
       then_set :disbursement_id, to: :disbursement_id
       then_set :campaign_id, to: :campaign_id
@@ -130,7 +130,7 @@ Hecks.bluebook "OrthoticsFund", version: "2026.04.13.1" do
       then_set :amount, to: :amount
       then_set :status, to: "released"
     end
-    ConfirmReceipt do
+    command "ConfirmReceipt" do
       role "Orthotist"
       description "Confirm receipt of funds for fabrication"
       reference_to(Disbursement)

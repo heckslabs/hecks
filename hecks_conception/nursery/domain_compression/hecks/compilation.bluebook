@@ -3,36 +3,36 @@ Hecks.bluebook "Compilation", version: "2026.04.14.1" do
   category "infrastructure"
 
   aggregate "ExecutableBlueprint", "A compiled domain — the compressed executable representation of a Bluebook" do
-    String :domain_name
-    String :source_bluebook_path
-    String :compilation_status
-    String :embedding
-    Integer :aggregate_count
-    Integer :command_count
-    Integer :event_count
-    Integer :fixture_count
+    attribute :domain_name, String
+    attribute :source_bluebook_path, String
+    attribute :compilation_status, String
+    attribute :embedding, String
+    attribute :aggregate_count, Integer
+    attribute :command_count, Integer
+    attribute :event_count, Integer
+    attribute :fixture_count, Integer
 
-    CompileBlueprint do
+    command "CompileBlueprint" do
       role "Compiler"
       description "Compile a Bluebook domain into a compressed executable artifact"
-      String :domain_name
-      String :source_bluebook_path
+      attribute :domain_name, String
+      attribute :source_bluebook_path, String
       emits "BlueprintCompiled"
       then_set :domain_name, to: :domain_name
       then_set :source_bluebook_path, to: :source_bluebook_path
       then_set :compilation_status, to: "compiled"
     end
 
-    AttachFixtures do
+    command "AttachFixtures" do
       role "Compiler"
       description "Attach test fixtures to a compiled blueprint for regression"
       reference_to(ExecutableBlueprint)
-      Integer :fixture_count
+      attribute :fixture_count, Integer
       emits "FixturesAttached"
       then_set :fixture_count, to: :fixture_count
     end
 
-    ValidateFixtures do
+    command "ValidateFixtures" do
       role "Compiler"
       description "Run all attached fixtures against the executable and verify outputs"
       reference_to(ExecutableBlueprint)
@@ -41,11 +41,11 @@ Hecks.bluebook "Compilation", version: "2026.04.14.1" do
       given("must have fixtures") { fixture_count > 0 }
     end
 
-    MarkFailed do
+    command "MarkFailed" do
       role "Compiler"
       description "Mark a blueprint as failed when compilation or validation fails"
       reference_to(ExecutableBlueprint)
-      String :failure_reason
+      attribute :failure_reason, String
       emits "BlueprintFailed"
       then_set :compilation_status, to: "failed"
     end
@@ -58,19 +58,19 @@ Hecks.bluebook "Compilation", version: "2026.04.14.1" do
   end
 
   aggregate "CompressionRun", "A single compilation pass across one or more domains" do
-    String :run_id
-    String :status
-    Integer :domain_count
-    Integer :compiled_count
-    Integer :failed_count
-    String :started_at
-    String :completed_at
+    attribute :run_id, String
+    attribute :status, String
+    attribute :domain_count, Integer
+    attribute :compiled_count, Integer
+    attribute :failed_count, Integer
+    attribute :started_at, String
+    attribute :completed_at, String
 
-    StartRun do
+    command "StartRun" do
       role "Compiler"
       description "Begin a new compression run across a set of domains"
-      String :run_id
-      Integer :domain_count
+      attribute :run_id, String
+      attribute :domain_count, Integer
       emits "RunStarted"
       then_set :run_id, to: :run_id
       then_set :domain_count, to: :domain_count
@@ -79,7 +79,7 @@ Hecks.bluebook "Compilation", version: "2026.04.14.1" do
       then_set :status, to: "running"
     end
 
-    RecordCompilation do
+    command "RecordCompilation" do
       role "Compiler"
       description "Record that a domain in this run compiled successfully"
       reference_to(CompressionRun)
@@ -87,7 +87,7 @@ Hecks.bluebook "Compilation", version: "2026.04.14.1" do
       then_set :compiled_count, increment: 1
     end
 
-    RecordFailure do
+    command "RecordFailure" do
       role "Compiler"
       description "Record that a domain in this run failed to compile"
       reference_to(CompressionRun)
@@ -95,7 +95,7 @@ Hecks.bluebook "Compilation", version: "2026.04.14.1" do
       then_set :failed_count, increment: 1
     end
 
-    CompleteRun do
+    command "CompleteRun" do
       role "Compiler"
       description "Mark the compression run as complete"
       reference_to(CompressionRun)

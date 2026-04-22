@@ -3,30 +3,30 @@ Hecks.bluebook "PetStore", version: "2026.04.13.1" do
   category "retail"
 
   aggregate "Animal", "A living creature available for adoption or sale" do
-    String :animal_id
-    String :species
-    String :breed
-    String :name
-    Integer :age_months
-    Float :price
-    String :status
+    attribute :animal_id, String
+    attribute :species, String
+    attribute :breed, String
+    attribute :name, String
+    attribute :age_months, Integer
+    attribute :price, Float
+    attribute :status, String
     list_of(VaccinationRecord) :vaccinations
 
     value_object "VaccinationRecord" do
-      String :vaccine_name
-      String :date_given
-      String :next_due
+      attribute :vaccine_name, String
+      attribute :date_given, String
+      attribute :next_due, String
     end
 
-    IntakeAnimal do
+    command "IntakeAnimal" do
       role "Manager"
       description "Bring a new animal into the store's care"
-      String :animal_id
-      String :species
-      String :breed
-      String :name
-      Integer :age_months
-      Float :price
+      attribute :animal_id, String
+      attribute :species, String
+      attribute :breed, String
+      attribute :name, String
+      attribute :age_months, Integer
+      attribute :price, Float
       emits "AnimalIntaken"
       then_set :animal_id, to: :animal_id
       then_set :species, to: :species
@@ -37,15 +37,15 @@ Hecks.bluebook "PetStore", version: "2026.04.13.1" do
       then_set :status, to: "available"
     end
 
-    VaccinateAnimal do
+    command "VaccinateAnimal" do
       role "Veterinarian"
       description "Administer a vaccination and record it"
       reference_to(Animal)
-      String :vaccine_name
+      attribute :vaccine_name, String
       emits "AnimalVaccinated"
     end
 
-    QuarantineAnimal do
+    command "QuarantineAnimal" do
       role "Veterinarian"
       description "Isolate an animal showing signs of illness"
       reference_to(Animal)
@@ -55,22 +55,22 @@ Hecks.bluebook "PetStore", version: "2026.04.13.1" do
   end
 
   aggregate "Supply", "A pet product — food, toys, accessories" do
-    String :sku
-    String :name
-    String :category
-    Float :price
-    Integer :quantity
-    String :pet_type
+    attribute :sku, String
+    attribute :name, String
+    attribute :category, String
+    attribute :price, Float
+    attribute :quantity, Integer
+    attribute :pet_type, String
 
-    StockSupply do
+    command "StockSupply" do
       role "Stocker"
       description "Add a pet supply product to inventory"
-      String :sku
-      String :name
-      String :category
-      Float :price
-      Integer :quantity
-      String :pet_type
+      attribute :sku, String
+      attribute :name, String
+      attribute :category, String
+      attribute :price, Float
+      attribute :quantity, Integer
+      attribute :pet_type, String
       emits "SupplyStocked"
       then_set :sku, to: :sku
       then_set :name, to: :name
@@ -80,31 +80,31 @@ Hecks.bluebook "PetStore", version: "2026.04.13.1" do
       then_set :pet_type, to: :pet_type
     end
 
-    ReorderSupply do
+    command "ReorderSupply" do
       role "Manager"
       description "Place a restock order when inventory drops low"
       reference_to(Supply)
-      Integer :reorder_quantity
+      attribute :reorder_quantity, Integer
       emits "SupplyReordered"
     end
   end
 
   aggregate "Adoption", "The process of placing an animal with a new family" do
-    String :adoption_id
-    String :animal_id
-    String :adopter_name
-    String :adopter_phone
-    Float :adoption_fee
-    String :status
+    attribute :adoption_id, String
+    attribute :animal_id, String
+    attribute :adopter_name, String
+    attribute :adopter_phone, String
+    attribute :adoption_fee, Float
+    attribute :status, String
 
-    SubmitAdoptionApplication do
+    command "SubmitAdoptionApplication" do
       role "Customer"
       description "Apply to adopt a specific animal"
-      String :adoption_id
-      String :animal_id
-      String :adopter_name
-      String :adopter_phone
-      Float :adoption_fee
+      attribute :adoption_id, String
+      attribute :animal_id, String
+      attribute :adopter_name, String
+      attribute :adopter_phone, String
+      attribute :adoption_fee, Float
       emits "AdoptionApplicationSubmitted"
       then_set :adoption_id, to: :adoption_id
       then_set :animal_id, to: :animal_id
@@ -114,7 +114,7 @@ Hecks.bluebook "PetStore", version: "2026.04.13.1" do
       then_set :status, to: "pending"
     end
 
-    ApproveAdoption do
+    command "ApproveAdoption" do
       role "Manager"
       description "Vet the applicant and approve the adoption"
       reference_to(Adoption)
@@ -123,7 +123,7 @@ Hecks.bluebook "PetStore", version: "2026.04.13.1" do
       then_set :status, to: "approved"
     end
 
-    FinalizeAdoption do
+    command "FinalizeAdoption" do
       role "Manager"
       description "Complete the handoff — animal goes home with adopter"
       reference_to(Adoption)
@@ -133,23 +133,23 @@ Hecks.bluebook "PetStore", version: "2026.04.13.1" do
   end
 
   aggregate "GroomingAppointment", "A scheduled grooming session for a pet" do
-    String :appointment_id
-    String :pet_name
-    String :owner_name
-    String :service_type
-    String :scheduled_time
-    Float :price
-    String :status
+    attribute :appointment_id, String
+    attribute :pet_name, String
+    attribute :owner_name, String
+    attribute :service_type, String
+    attribute :scheduled_time, String
+    attribute :price, Float
+    attribute :status, String
 
-    BookGrooming do
+    command "BookGrooming" do
       role "Customer"
       description "Schedule a grooming session for a pet"
-      String :appointment_id
-      String :pet_name
-      String :owner_name
-      String :service_type
-      String :scheduled_time
-      Float :price
+      attribute :appointment_id, String
+      attribute :pet_name, String
+      attribute :owner_name, String
+      attribute :service_type, String
+      attribute :scheduled_time, String
+      attribute :price, Float
       emits "GroomingBooked"
       then_set :appointment_id, to: :appointment_id
       then_set :pet_name, to: :pet_name
@@ -160,7 +160,7 @@ Hecks.bluebook "PetStore", version: "2026.04.13.1" do
       then_set :status, to: "booked"
     end
 
-    CompleteGrooming do
+    command "CompleteGrooming" do
       role "Groomer"
       description "Finish the grooming session and note any health observations"
       reference_to(GroomingAppointment)

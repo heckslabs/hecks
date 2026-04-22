@@ -4,19 +4,19 @@ Hecks.bluebook "Verbs", version: "2026.04.11.1" do
 
   aggregate "Lexicon", "The known verb corpus — grows automatically as morphology accepts new verbs" do
     list_of(String) :known_verbs
-    Integer :total
+    attribute :total, Integer
 
-    RegisterVerb do
+    command "RegisterVerb" do
       role "Linguist"
       description "Add a verb explicitly to the known corpus"
-      String :verb
+      attribute :verb, String
       emits "VerbRegistered"
       given :verb, not_in: :known_verbs
       then_set :known_verbs, append: :verb
       then_set :total, increment: 1
     end
 
-    ImportFromFile do
+    command "ImportFromFile" do
       role "System"
       description "Bulk import verbs from a verbs.txt file"
       list_of(String) :verbs
@@ -24,11 +24,11 @@ Hecks.bluebook "Verbs", version: "2026.04.11.1" do
       then_set :known_verbs, to: :verbs
     end
 
-    LearnVerb do
+    command "LearnVerb" do
       role "System"
       description "Encounter a new verb in a bluebook and decide if it belongs in the lexicon"
-      String :verb
-      String :source_domain
+      attribute :verb, String
+      attribute :source_domain, String
       emits "VerbLearned"
       given :verb, not_in: :known_verbs
       then_set :known_verbs, append: :verb
@@ -42,69 +42,69 @@ Hecks.bluebook "Verbs", version: "2026.04.11.1" do
     list_of(Rule) :derivation_rules
 
     value_object "Prefix" do
-      String :name
-      String :meaning
+      attribute :name, String
+      attribute :meaning, String
       list_of(String) :examples
     end
 
     value_object "Suffix" do
-      String :name
-      String :derives_from
+      attribute :name, String
+      attribute :derives_from, String
       list_of(String) :examples
     end
 
     value_object "Rule" do
-      String :pattern
-      String :example
-      Boolean :productive
+      attribute :pattern, String
+      attribute :example, String
+      attribute :productive, Boolean
     end
 
-    RegisterPrefix do
+    command "RegisterPrefix" do
       role "Linguist"
       description "Add a productive prefix that derives new verbs"
-      String :name
-      String :meaning
+      attribute :name, String
+      attribute :meaning, String
       list_of(String) :examples
       emits "PrefixRegistered"
       then_set :productive_prefixes, append: Prefix
     end
 
-    RegisterSuffix do
+    command "RegisterSuffix" do
       role "Linguist"
       description "Add a productive suffix that derives verbs from nouns or adjectives"
-      String :name
-      String :derives_from
+      attribute :name, String
+      attribute :derives_from, String
       list_of(String) :examples
       emits "SuffixRegistered"
       then_set :productive_suffixes, append: Suffix
     end
 
-    DeriveVerb do
+    command "DeriveVerb" do
       role "System"
       description "Given a root word and affix, determine if the derived form is a valid verb"
-      String :root
-      String :affix
+      attribute :root, String
+      attribute :affix, String
       emits "VerbDerived"
     end
 
-    ValidateByMorphology do
+    command "ValidateByMorphology" do
       role "System"
       description "Check if a word is a verb by its morphological structure alone"
-      String :word
+      attribute :word, String
       emits "MorphologyAccepted"
       emits "MorphologyRejected"
     end
   end
 
   aggregate "NonVerbSuffix", "Word endings that signal noun or adjective — not a verb" do
-    String :suffix
-    String :part_of_speech
+    attribute :suffix, String
+    attribute :part_of_speech, String
 
-    RegisterNonVerbSuffix do
+    command "RegisterNonVerbSuffix" do
       role "Linguist"
       description "Add a suffix pattern that identifies non-verbs"
-      String :suffix
-      String :part_of_speech
+      attribute :suffix, String
+      attribute :part_of_speech, String
       emits "NonVerbSuffixRegistered"
       then_set :suffix, to: :suffix
       then_set :part_of_speech, to: :part_of_speech
@@ -112,54 +112,54 @@ Hecks.bluebook "Verbs", version: "2026.04.11.1" do
   end
 
   aggregate "DualWord", "Words that are both noun and verb — exempt from suffix rejection" do
-    String :word
+    attribute :word, String
 
-    RegisterDualWord do
+    command "RegisterDualWord" do
       role "Linguist"
       description "Mark a word as valid despite matching a non-verb suffix"
-      String :word
+      attribute :word, String
       emits "DualWordRegistered"
       then_set :word, to: :word
     end
   end
 
   aggregate "Validation", "The decision engine — validates command verbs through a layered pipeline" do
-    String :last_checked
-    String :verdict
+    attribute :last_checked, String
+    attribute :verdict, String
 
-    ValidateCommandVerb do
+    command "ValidateCommandVerb" do
       role "System"
       description "Is this command name's first word a verb? Checks: lexicon, morphology, dual words, non-verb suffixes"
-      String :word
+      attribute :word, String
       emits "VerbValidated"
       emits "VerbRejected"
       emits "VerbAmbiguous"
       then_set :last_checked, to: :word
     end
 
-    AcceptVerb do
+    command "AcceptVerb" do
       role "System"
       description "Morphology says yes — accept and add to lexicon automatically"
-      String :word
-      String :reason
+      attribute :word, String
+      attribute :reason, String
       emits "VerbAccepted"
       then_set :verdict, to: "accepted"
     end
 
-    RejectVerb do
+    command "RejectVerb" do
       role "System"
       description "Not a verb by any rule — reject with reason"
-      String :word
-      String :reason
+      attribute :word, String
+      attribute :reason, String
       emits "VerbRejected"
       then_set :verdict, to: "rejected"
     end
 
-    RequestHumanReview do
+    command "RequestHumanReview" do
       role "System"
       description "Ambiguous case — ask the user to decide"
-      String :word
-      String :reason
+      attribute :word, String
+      attribute :reason, String
       emits "HumanReviewRequested"
       then_set :verdict, to: "pending_review"
     end

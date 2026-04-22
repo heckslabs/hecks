@@ -3,30 +3,30 @@ Hecks.bluebook "GeologicalMining", version: "2026.04.13.1" do
   category "crossover"
 
   aggregate "GeologicalFormation", "A geological formation — rock type, age, structure, mineralization" do
-    String :name
-    String :rock_type
-    String :geological_age
-    Float :depth_m
-    Float :thickness_m
-    String :mineralization
-    String :status
+    attribute :name, String
+    attribute :rock_type, String
+    attribute :geological_age, String
+    attribute :depth_m, Float
+    attribute :thickness_m, Float
+    attribute :mineralization, String
+    attribute :status, String
 
     value_object "StructuralFeature" do
-      String :feature_type
-      Float :strike_degrees
-      Float :dip_degrees
-      Float :extent_m
+      attribute :feature_type, String
+      attribute :strike_degrees, Float
+      attribute :dip_degrees, Float
+      attribute :extent_m, Float
     end
 
-    MapFormation do
+    command "MapFormation" do
       role "Geologist"
       description "Map a geological formation with rock type and structural data"
-      String :name
-      String :rock_type
-      String :geological_age
-      Float :depth_m
-      Float :thickness_m
-      String :mineralization
+      attribute :name, String
+      attribute :rock_type, String
+      attribute :geological_age, String
+      attribute :depth_m, Float
+      attribute :thickness_m, Float
+      attribute :mineralization, String
       emits "FormationMapped"
       then_set :name, to: :name
       then_set :rock_type, to: :rock_type
@@ -37,7 +37,7 @@ Hecks.bluebook "GeologicalMining", version: "2026.04.13.1" do
       then_set :status, to: "mapped"
     end
 
-    ClassifyFormation do
+    command "ClassifyFormation" do
       role "Geologist"
       description "Classify formation for mining potential"
       reference_to(GeologicalFormation)
@@ -53,33 +53,33 @@ Hecks.bluebook "GeologicalMining", version: "2026.04.13.1" do
   end
 
   aggregate "OreBody", "A defined ore body — mineral content, grade, tonnage, geometry" do
-    String :name
-    String :mineral
-    Float :grade_pct
-    Float :estimated_tonnage
-    Float :depth_m
-    String :status
+    attribute :name, String
+    attribute :mineral, String
+    attribute :grade_pct, Float
+    attribute :estimated_tonnage, Float
+    attribute :depth_m, Float
+    attribute :status, String
 
     value_object "OreGeometry" do
-      Float :strike_length_m
-      Float :width_m
-      Float :depth_extent_m
+      attribute :strike_length_m, Float
+      attribute :width_m, Float
+      attribute :depth_extent_m, Float
     end
 
     list_of "MineralAssociation" do
-      String :mineral_name
-      Float :grade_pct
-      String :relationship
+      attribute :mineral_name, String
+      attribute :grade_pct, Float
+      attribute :relationship, String
     end
 
-    DelineateOreBody do
+    command "DelineateOreBody" do
       role "Geologist"
       description "Delineate an ore body from drill core and assay data"
-      String :name
-      String :mineral
-      Float :grade_pct
-      Float :estimated_tonnage
-      Float :depth_m
+      attribute :name, String
+      attribute :mineral, String
+      attribute :grade_pct, Float
+      attribute :estimated_tonnage, Float
+      attribute :depth_m, Float
       emits "OreBodyDelineated"
       then_set :name, to: :name
       then_set :mineral, to: :mineral
@@ -89,12 +89,12 @@ Hecks.bluebook "GeologicalMining", version: "2026.04.13.1" do
       then_set :status, to: "delineated"
     end
 
-    UpgradeResource do
+    command "UpgradeResource" do
       role "Geologist"
       description "Upgrade resource classification with additional drilling"
       reference_to(OreBody)
-      Float :grade_pct
-      Float :estimated_tonnage
+      attribute :grade_pct, Float
+      attribute :estimated_tonnage, Float
       given { status == "delineated" }
       emits "ResourceUpgraded"
       then_set :grade_pct, to: :grade_pct
@@ -109,28 +109,28 @@ Hecks.bluebook "GeologicalMining", version: "2026.04.13.1" do
   end
 
   aggregate "DrillCore", "A drill core sample — depth intervals, lithology, assay results" do
-    String :hole_id
-    Float :from_m
-    Float :to_m
-    String :lithology
-    Float :recovery_pct
-    String :status
+    attribute :hole_id, String
+    attribute :from_m, Float
+    attribute :to_m, Float
+    attribute :lithology, String
+    attribute :recovery_pct, Float
+    attribute :status, String
 
     value_object "CoreInterval" do
-      Float :from_m
-      Float :to_m
-      String :rock_type
-      String :alteration
+      attribute :from_m, Float
+      attribute :to_m, Float
+      attribute :rock_type, String
+      attribute :alteration, String
     end
 
-    LogDrillCore do
+    command "LogDrillCore" do
       role "Geologist"
       description "Log a drill core with depth intervals and lithology"
-      String :hole_id
-      Float :from_m
-      Float :to_m
-      String :lithology
-      Float :recovery_pct
+      attribute :hole_id, String
+      attribute :from_m, Float
+      attribute :to_m, Float
+      attribute :lithology, String
+      attribute :recovery_pct, Float
       emits "DrillCoreLogged"
       then_set :hole_id, to: :hole_id
       then_set :from_m, to: :from_m
@@ -140,7 +140,7 @@ Hecks.bluebook "GeologicalMining", version: "2026.04.13.1" do
       then_set :status, to: "logged"
     end
 
-    SubmitForAssay do
+    command "SubmitForAssay" do
       role "Geologist"
       description "Submit core samples to assay lab for mineral analysis"
       reference_to(DrillCore)
@@ -156,30 +156,30 @@ Hecks.bluebook "GeologicalMining", version: "2026.04.13.1" do
   end
 
   aggregate "AssayResult", "Chemical assay of drill core — element concentrations, grade calculations" do
-    String :sample_id
-    String :hole_id
-    String :element
-    Float :concentration_ppm
-    Float :grade_pct
-    String :lab_name
-    String :status
+    attribute :sample_id, String
+    attribute :hole_id, String
+    attribute :element, String
+    attribute :concentration_ppm, Float
+    attribute :grade_pct, Float
+    attribute :lab_name, String
+    attribute :status, String
 
     value_object "QualityControl" do
-      String :standard_name
-      Float :expected_value
-      Float :measured_value
-      Float :variance_pct
+      attribute :standard_name, String
+      attribute :expected_value, Float
+      attribute :measured_value, Float
+      attribute :variance_pct, Float
     end
 
-    RecordAssayResult do
+    command "RecordAssayResult" do
       role "LabTechnician"
       description "Record assay results for a core sample"
-      String :sample_id
-      String :hole_id
-      String :element
-      Float :concentration_ppm
-      Float :grade_pct
-      String :lab_name
+      attribute :sample_id, String
+      attribute :hole_id, String
+      attribute :element, String
+      attribute :concentration_ppm, Float
+      attribute :grade_pct, Float
+      attribute :lab_name, String
       emits "AssayResultRecorded"
       then_set :sample_id, to: :sample_id
       then_set :hole_id, to: :hole_id
@@ -190,7 +190,7 @@ Hecks.bluebook "GeologicalMining", version: "2026.04.13.1" do
       then_set :status, to: "recorded"
     end
 
-    ValidateQC do
+    command "ValidateQC" do
       role "System"
       description "Validate assay quality control standards and duplicates"
       reference_to(AssayResult)
@@ -206,30 +206,30 @@ Hecks.bluebook "GeologicalMining", version: "2026.04.13.1" do
   end
 
   aggregate "ExtractionPlan", "A mining extraction plan — method, sequence, equipment, economics" do
-    String :name
-    String :ore_body_name
-    String :extraction_method
-    Float :planned_tonnage
-    Float :strip_ratio
-    Float :cost_per_ton
-    String :status
+    attribute :name, String
+    attribute :ore_body_name, String
+    attribute :extraction_method, String
+    attribute :planned_tonnage, Float
+    attribute :strip_ratio, Float
+    attribute :cost_per_ton, Float
+    attribute :status, String
 
     value_object "EconomicModel" do
-      Float :revenue_per_ton
-      Float :cost_per_ton
-      Float :npv
-      Float :irr_pct
+      attribute :revenue_per_ton, Float
+      attribute :cost_per_ton, Float
+      attribute :npv, Float
+      attribute :irr_pct, Float
     end
 
-    DesignExtractionPlan do
+    command "DesignExtractionPlan" do
       role "MiningEngineer"
       description "Design extraction plan with method and economics"
-      String :name
-      String :ore_body_name
-      String :extraction_method
-      Float :planned_tonnage
-      Float :strip_ratio
-      Float :cost_per_ton
+      attribute :name, String
+      attribute :ore_body_name, String
+      attribute :extraction_method, String
+      attribute :planned_tonnage, Float
+      attribute :strip_ratio, Float
+      attribute :cost_per_ton, Float
       emits "ExtractionPlanDesigned"
       then_set :name, to: :name
       then_set :ore_body_name, to: :ore_body_name
@@ -240,7 +240,7 @@ Hecks.bluebook "GeologicalMining", version: "2026.04.13.1" do
       then_set :status, to: "designed"
     end
 
-    ApproveExtraction do
+    command "ApproveExtraction" do
       role "Director"
       description "Approve extraction plan for execution"
       reference_to(ExtractionPlan)
@@ -249,7 +249,7 @@ Hecks.bluebook "GeologicalMining", version: "2026.04.13.1" do
       then_set :status, to: "approved"
     end
 
-    BeginExtraction do
+    command "BeginExtraction" do
       role "MiningEngineer"
       description "Begin ore extraction per approved plan"
       reference_to(ExtractionPlan)

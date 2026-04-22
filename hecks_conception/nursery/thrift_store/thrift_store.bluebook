@@ -3,26 +3,26 @@ Hecks.bluebook "ThriftStore", version: "2026.04.13.1" do
   category "retail"
 
   aggregate "Donation", "Goods donated by the public for resale" do
-    String :donation_id
-    String :donor_name
-    String :received_date
-    Integer :item_count
-    String :status
+    attribute :donation_id, String
+    attribute :donor_name, String
+    attribute :received_date, String
+    attribute :item_count, Integer
+    attribute :status, String
     list_of(DonatedItem) :items
 
     value_object "DonatedItem" do
-      String :description
-      String :category
-      String :condition
+      attribute :description, String
+      attribute :category, String
+      attribute :condition, String
     end
 
-    ReceiveDonation do
+    command "ReceiveDonation" do
       role "Staff"
       description "Accept a donation of goods at the intake counter"
-      String :donation_id
-      String :donor_name
-      String :received_date
-      Integer :item_count
+      attribute :donation_id, String
+      attribute :donor_name, String
+      attribute :received_date, String
+      attribute :item_count, Integer
       emits "DonationReceived"
       then_set :donation_id, to: :donation_id
       then_set :donor_name, to: :donor_name
@@ -31,7 +31,7 @@ Hecks.bluebook "ThriftStore", version: "2026.04.13.1" do
       then_set :status, to: "received"
     end
 
-    SortDonation do
+    command "SortDonation" do
       role "Volunteer"
       description "Sort donated items into saleable, recyclable, and waste categories"
       reference_to(Donation)
@@ -40,7 +40,7 @@ Hecks.bluebook "ThriftStore", version: "2026.04.13.1" do
       then_set :status, to: "sorted"
     end
 
-    IssueTaxReceipt do
+    command "IssueTaxReceipt" do
       role "Manager"
       description "Provide the donor with a tax-deductible receipt"
       reference_to(Donation)
@@ -53,21 +53,21 @@ Hecks.bluebook "ThriftStore", version: "2026.04.13.1" do
   end
 
   aggregate "PricedItem", "A donated item that has been evaluated and priced for sale" do
-    String :item_id
-    String :description
-    String :category
-    String :condition
-    Float :price
-    String :status
+    attribute :item_id, String
+    attribute :description, String
+    attribute :category, String
+    attribute :condition, String
+    attribute :price, Float
+    attribute :status, String
 
-    PriceItem do
+    command "PriceItem" do
       role "Pricer"
       description "Evaluate a sorted item and assign a retail price"
-      String :item_id
-      String :description
-      String :category
-      String :condition
-      Float :price
+      attribute :item_id, String
+      attribute :description, String
+      attribute :category, String
+      attribute :condition, String
+      attribute :price, Float
       emits "ItemPriced"
       then_set :item_id, to: :item_id
       then_set :description, to: :description
@@ -77,17 +77,17 @@ Hecks.bluebook "ThriftStore", version: "2026.04.13.1" do
       then_set :status, to: "priced"
     end
 
-    MarkdownItem do
+    command "MarkdownItem" do
       role "Manager"
       description "Reduce price on items that have been on the floor too long"
       reference_to(PricedItem)
-      Float :new_price
+      attribute :new_price, Float
       given { new_price < price }
       emits "ItemMarkedDown"
       then_set :price, to: :new_price
     end
 
-    SellItem do
+    command "SellItem" do
       role "Cashier"
       description "Ring up the item at the register"
       reference_to(PricedItem)
@@ -102,17 +102,17 @@ Hecks.bluebook "ThriftStore", version: "2026.04.13.1" do
   end
 
   aggregate "StoreDisplay", "A themed arrangement of items on the sales floor" do
-    String :display_id
-    String :theme
-    String :location
-    String :status
+    attribute :display_id, String
+    attribute :theme, String
+    attribute :location, String
+    attribute :status, String
 
-    ArrangeDisplay do
+    command "ArrangeDisplay" do
       role "Volunteer"
       description "Set up a themed display area with curated items"
-      String :display_id
-      String :theme
-      String :location
+      attribute :display_id, String
+      attribute :theme, String
+      attribute :location, String
       emits "DisplayArranged"
       then_set :display_id, to: :display_id
       then_set :theme, to: :theme
@@ -120,7 +120,7 @@ Hecks.bluebook "ThriftStore", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    RotateDisplay do
+    command "RotateDisplay" do
       role "Volunteer"
       description "Swap out items and refresh the display"
       reference_to(StoreDisplay)
@@ -133,25 +133,25 @@ Hecks.bluebook "ThriftStore", version: "2026.04.13.1" do
   end
 
   aggregate "Volunteer", "A community member who donates their time to the store" do
-    String :volunteer_id
-    String :name
-    String :phone
-    String :availability
+    attribute :volunteer_id, String
+    attribute :name, String
+    attribute :phone, String
+    attribute :availability, String
     list_of(ShiftRecord) :shifts
 
     value_object "ShiftRecord" do
-      String :date
-      Float :hours
-      String :role
+      attribute :date, String
+      attribute :hours, Float
+      attribute :role, String
     end
 
-    EnrollVolunteer do
+    command "EnrollVolunteer" do
       role "Manager"
       description "Register a new volunteer with their availability"
-      String :volunteer_id
-      String :name
-      String :phone
-      String :availability
+      attribute :volunteer_id, String
+      attribute :name, String
+      attribute :phone, String
+      attribute :availability, String
       emits "VolunteerEnrolled"
       then_set :volunteer_id, to: :volunteer_id
       then_set :name, to: :name
@@ -159,12 +159,12 @@ Hecks.bluebook "ThriftStore", version: "2026.04.13.1" do
       then_set :availability, to: :availability
     end
 
-    LogShift do
+    command "LogShift" do
       role "Manager"
       description "Record a completed volunteer shift"
       reference_to(Volunteer)
-      String :date
-      Float :hours
+      attribute :date, String
+      attribute :hours, Float
       emits "ShiftLogged"
     end
 
@@ -174,23 +174,23 @@ Hecks.bluebook "ThriftStore", version: "2026.04.13.1" do
   end
 
   aggregate "SaleEvent", "A storewide or category sale event" do
-    String :sale_id
-    String :name
-    String :discount_type
-    Float :discount_amount
-    String :start_date
-    String :end_date
-    String :status
+    attribute :sale_id, String
+    attribute :name, String
+    attribute :discount_type, String
+    attribute :discount_amount, Float
+    attribute :start_date, String
+    attribute :end_date, String
+    attribute :status, String
 
-    LaunchSale do
+    command "LaunchSale" do
       role "Manager"
       description "Start a sale event with discount terms and dates"
-      String :sale_id
-      String :name
-      String :discount_type
-      Float :discount_amount
-      String :start_date
-      String :end_date
+      attribute :sale_id, String
+      attribute :name, String
+      attribute :discount_type, String
+      attribute :discount_amount, Float
+      attribute :start_date, String
+      attribute :end_date, String
       emits "SaleLaunched"
       then_set :sale_id, to: :sale_id
       then_set :name, to: :name
@@ -201,7 +201,7 @@ Hecks.bluebook "ThriftStore", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    EndSale do
+    command "EndSale" do
       role "Manager"
       description "Close out the sale event"
       reference_to(SaleEvent)

@@ -2,32 +2,32 @@ Hecks.bluebook "SchoolDistrict" do
   vision "Manage schools, students, teachers, courses, and grades across a district"
 
   aggregate "School", "A campus within the district with capacity and grade levels" do
-    String :school_code
-    String :name
-    String :level
-    Integer :capacity
-    Integer :enrollment
-    String :status
+    attribute :school_code, String
+    attribute :name, String
+    attribute :level, String
+    attribute :capacity, Integer
+    attribute :enrollment, Integer
+    attribute :status, String
 
     value_object "Address" do
-      String :street
-      String :city
-      String :state
-      String :zip_code
+      attribute :street, String
+      attribute :city, String
+      attribute :state, String
+      attribute :zip_code, String
     end
 
-    OpenSchool do
+    command "OpenSchool" do
       description "Establish a new school in the district"
-      String :school_code
-      String :name
-      String :level
-      Integer :capacity
+      attribute :school_code, String
+      attribute :name, String
+      attribute :level, String
+      attribute :capacity, Integer
       emits "SchoolOpened"
       then_set :status, to: "active"
       then_set :enrollment, to: 0
     end
 
-    AccreditSchool do
+    command "AccreditSchool" do
       description "Mark a school as accredited after review"
       reference_to(School)
       given { status == "active" }
@@ -35,7 +35,7 @@ Hecks.bluebook "SchoolDistrict" do
       then_set :status, to: "accredited"
     end
 
-    CloseSchool do
+    command "CloseSchool" do
       description "Permanently close a school due to consolidation"
       reference_to(School)
       given { status == "accredited" }
@@ -45,27 +45,27 @@ Hecks.bluebook "SchoolDistrict" do
   end
 
   aggregate "Student", "A learner enrolled in a district school" do
-    String :student_id
-    String :name
-    String :grade_level
-    String :status
+    attribute :student_id, String
+    attribute :name, String
+    attribute :grade_level, String
+    attribute :status, String
     reference_to(School)
 
     value_object "Guardian" do
-      String :name
-      String :phone
-      String :relationship
+      attribute :name, String
+      attribute :phone, String
+      attribute :relationship, String
     end
 
-    RegisterStudent do
+    command "RegisterStudent" do
       description "Register a prospective student with the district"
-      String :name
-      String :grade_level
+      attribute :name, String
+      attribute :grade_level, String
       emits "StudentRegistered"
       then_set :status, to: "registered"
     end
 
-    EnrollStudent do
+    command "EnrollStudent" do
       description "Assign a registered student to a school"
       reference_to(Student)
       reference_to(School)
@@ -74,21 +74,21 @@ Hecks.bluebook "SchoolDistrict" do
       then_set :status, to: "enrolled"
     end
 
-    PromoteStudent do
+    command "PromoteStudent" do
       description "Advance a student to the next grade level"
       reference_to(Student)
-      String :new_grade_level
+      attribute :new_grade_level, String
       emits "StudentPromoted"
     end
 
-    TransferStudent do
+    command "TransferStudent" do
       description "Move a student from one school to another"
       reference_to(Student)
       reference_to(School)
       emits "StudentTransferred"
     end
 
-    GraduateStudent do
+    command "GraduateStudent" do
       description "Mark a student as having completed their program"
       reference_to(Student)
       given { status == "enrolled" }
@@ -96,10 +96,10 @@ Hecks.bluebook "SchoolDistrict" do
       then_set :status, to: "graduated"
     end
 
-    WithdrawStudent do
+    command "WithdrawStudent" do
       description "Remove a student from enrollment"
       reference_to(Student)
-      String :reason
+      attribute :reason, String
       given { status == "enrolled" }
       emits "StudentWithdrawn"
       then_set :status, to: "withdrawn"
@@ -107,38 +107,38 @@ Hecks.bluebook "SchoolDistrict" do
   end
 
   aggregate "Teacher", "An educator certified to teach in the district" do
-    String :employee_id
-    String :name
-    String :certification_area
-    String :status
+    attribute :employee_id, String
+    attribute :name, String
+    attribute :certification_area, String
+    attribute :status, String
     reference_to(School)
 
     value_object "Credential" do
-      String :cert_type
-      String :expiry_date
-      String :state_issued
+      attribute :cert_type, String
+      attribute :expiry_date, String
+      attribute :state_issued, String
     end
 
-    HireTeacher do
+    command "HireTeacher" do
       description "Onboard a new teacher and assign to a school"
-      String :name
-      String :certification_area
+      attribute :name, String
+      attribute :certification_area, String
       reference_to(School)
       emits "TeacherHired"
       then_set :status, to: "active"
     end
 
-    AssignTeacher do
+    command "AssignTeacher" do
       description "Assign a teacher to a specific course section"
       reference_to(Teacher)
       reference_to(Course)
       emits "TeacherAssigned"
     end
 
-    PlaceOnLeave do
+    command "PlaceOnLeave" do
       description "Put a teacher on leave of absence"
       reference_to(Teacher)
-      String :reason
+      attribute :reason, String
       given { status == "active" }
       emits "TeacherOnLeave"
       then_set :status, to: "on_leave"
@@ -146,32 +146,32 @@ Hecks.bluebook "SchoolDistrict" do
   end
 
   aggregate "Course", "An academic course offered at a school" do
-    String :course_code
-    String :title
-    String :subject
-    Integer :max_enrollment
-    Integer :current_enrollment
-    String :status
+    attribute :course_code, String
+    attribute :title, String
+    attribute :subject, String
+    attribute :max_enrollment, Integer
+    attribute :current_enrollment, Integer
+    attribute :status, String
     reference_to(School)
 
     value_object "Syllabus" do
-      String :description
-      Integer :credit_hours
+      attribute :description, String
+      attribute :credit_hours, Integer
     end
 
-    OfferCourse do
+    command "OfferCourse" do
       description "Add a new course to the school catalog"
-      String :course_code
-      String :title
-      String :subject
-      Integer :max_enrollment
+      attribute :course_code, String
+      attribute :title, String
+      attribute :subject, String
+      attribute :max_enrollment, Integer
       reference_to(School)
       emits "CourseOffered"
       then_set :status, to: "active"
       then_set :current_enrollment, to: 0
     end
 
-    EnrollInCourse do
+    command "EnrollInCourse" do
       description "Register a student for a course section"
       reference_to(Course)
       reference_to(Student)
@@ -179,7 +179,7 @@ Hecks.bluebook "SchoolDistrict" do
       emits "StudentEnrolledInCourse"
     end
 
-    CompleteCourse do
+    command "CompleteCourse" do
       description "Close a course section at end of semester"
       reference_to(Course)
       given { status == "active" }
@@ -189,40 +189,40 @@ Hecks.bluebook "SchoolDistrict" do
   end
 
   aggregate "GradeRecord", "A grade entry for a student in a course" do
-    String :record_id
-    String :letter_grade
-    Float :numeric_score
-    String :semester
-    String :status
+    attribute :record_id, String
+    attribute :letter_grade, String
+    attribute :numeric_score, Float
+    attribute :semester, String
+    attribute :status, String
     reference_to(Student)
     reference_to(Course)
 
     value_object "GradeWeight" do
-      String :category
-      Float :weight_percent
+      attribute :category, String
+      attribute :weight_percent, Float
     end
 
-    RecordGrade do
+    command "RecordGrade" do
       description "Enter a grade for a student in a course"
       reference_to(Student)
       reference_to(Course)
-      String :letter_grade
-      Float :numeric_score
-      String :semester
+      attribute :letter_grade, String
+      attribute :numeric_score, Float
+      attribute :semester, String
       emits "GradeRecorded"
       then_set :status, to: "posted"
     end
 
-    AppealGrade do
+    command "AppealGrade" do
       description "Submit a grade appeal for review"
       reference_to(GradeRecord)
-      String :reason
+      attribute :reason, String
       given { status == "posted" }
       emits "GradeAppealed"
       then_set :status, to: "under_review"
     end
 
-    FinalizeGrade do
+    command "FinalizeGrade" do
       description "Confirm grade as final after review period"
       reference_to(GradeRecord)
       given { status == "posted" }

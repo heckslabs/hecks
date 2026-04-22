@@ -2,29 +2,29 @@ Hecks.bluebook "FoodBank" do
   vision "Community food assistance — donations, inventory, distribution events, volunteer coordination, and recipient services"
 
   aggregate "Donation", "A food contribution received from a donor" do
-    String :donor_name
-    String :donation_date
-    String :food_category
-    Float :weight_pounds
-    String :expiration_date
-    String :status
+    attribute :donor_name, String
+    attribute :donation_date, String
+    attribute :food_category, String
+    attribute :weight_pounds, Float
+    attribute :expiration_date, String
+    attribute :status, String
     list_of(DonatedItem) :items
 
     value_object "DonatedItem" do
-      String :item_name
-      Integer :quantity
-      String :unit
-      String :perishable
+      attribute :item_name, String
+      attribute :quantity, Integer
+      attribute :unit, String
+      attribute :perishable, String
     end
 
-    AcceptDonation do
+    command "AcceptDonation" do
       role "Volunteer"
       description "Receive and log a food donation from a community donor"
-      String :donor_name
-      String :donation_date
-      String :food_category
-      Float :weight_pounds
-      String :expiration_date
+      attribute :donor_name, String
+      attribute :donation_date, String
+      attribute :food_category, String
+      attribute :weight_pounds, Float
+      attribute :expiration_date, String
       emits "DonationAccepted"
       then_set :donor_name, to: :donor_name
       then_set :donation_date, to: :donation_date
@@ -34,7 +34,7 @@ Hecks.bluebook "FoodBank" do
       then_set :status, to: "received"
     end
 
-    SortDonation do
+    command "SortDonation" do
       role "Volunteer"
       description "Sort and categorize donated food items for shelving"
       reference_to(Donation)
@@ -43,7 +43,7 @@ Hecks.bluebook "FoodBank" do
       then_set :status, to: "sorted"
     end
 
-    DiscardExpired do
+    command "DiscardExpired" do
       role "Coordinator"
       description "Remove expired items from the donation"
       reference_to(Donation)
@@ -53,21 +53,21 @@ Hecks.bluebook "FoodBank" do
   end
 
   aggregate "Inventory", "The current stock of food items available for distribution" do
-    String :item_name
-    String :category
-    Integer :quantity
-    String :storage_location
-    String :expiration_date
-    String :status
+    attribute :item_name, String
+    attribute :category, String
+    attribute :quantity, Integer
+    attribute :storage_location, String
+    attribute :expiration_date, String
+    attribute :status, String
 
-    StockItem do
+    command "StockItem" do
       role "Volunteer"
       description "Add sorted food items to the pantry inventory"
-      String :item_name
-      String :category
-      Integer :quantity
-      String :storage_location
-      String :expiration_date
+      attribute :item_name, String
+      attribute :category, String
+      attribute :quantity, Integer
+      attribute :storage_location, String
+      attribute :expiration_date, String
       emits "ItemStocked"
       then_set :item_name, to: :item_name
       then_set :category, to: :category
@@ -77,25 +77,25 @@ Hecks.bluebook "FoodBank" do
       then_set :status, to: "available"
     end
 
-    AllocateItem do
+    command "AllocateItem" do
       role "Coordinator"
       description "Reserve inventory items for a scheduled distribution event"
       reference_to(Inventory)
-      Integer :quantity
+      attribute :quantity, Integer
       emits "ItemAllocated"
       then_set :status, to: "allocated"
     end
 
-    DepletItem do
+    command "DepletItem" do
       role "Coordinator"
       description "Reduce inventory when items are distributed"
       reference_to(Inventory)
-      Integer :quantity
+      attribute :quantity, Integer
       emits "ItemDepleted"
       then_set :status, to: "depleted"
     end
 
-    FlagLowStock do
+    command "FlagLowStock" do
       role "System"
       description "Alert when inventory for an item falls below minimum threshold"
       reference_to(Inventory)
@@ -105,36 +105,36 @@ Hecks.bluebook "FoodBank" do
   end
 
   aggregate "Distribution", "A food distribution event serving community members" do
-    String :event_date
-    String :location
-    Integer :households_served
-    Float :total_weight_distributed
-    String :status
+    attribute :event_date, String
+    attribute :location, String
+    attribute :households_served, Integer
+    attribute :total_weight_distributed, Float
+    attribute :status, String
     list_of(DistributionLine) :lines
 
     value_object "DistributionLine" do
-      String :item_name
-      Integer :quantity
-      String :unit
+      attribute :item_name, String
+      attribute :quantity, Integer
+      attribute :unit, String
     end
 
-    ScheduleDistribution do
+    command "ScheduleDistribution" do
       role "Coordinator"
       description "Plan a food distribution event for the community"
-      String :event_date
-      String :location
+      attribute :event_date, String
+      attribute :location, String
       emits "DistributionScheduled"
       then_set :event_date, to: :event_date
       then_set :location, to: :location
       then_set :status, to: "scheduled"
     end
 
-    ConductDistribution do
+    command "ConductDistribution" do
       role "Coordinator"
       description "Execute the distribution event and record metrics"
       reference_to(Distribution)
-      Integer :households_served
-      Float :total_weight_distributed
+      attribute :households_served, Integer
+      attribute :total_weight_distributed, Float
       given("must be scheduled") { status == "scheduled" }
       emits "DistributionConducted"
       then_set :households_served, to: :households_served
@@ -142,7 +142,7 @@ Hecks.bluebook "FoodBank" do
       then_set :status, to: "completed"
     end
 
-    ReportDistribution do
+    command "ReportDistribution" do
       role "Coordinator"
       description "Generate a summary report of the distribution for funders"
       reference_to(Distribution)
@@ -152,26 +152,26 @@ Hecks.bluebook "FoodBank" do
   end
 
   aggregate "FoodBankVolunteer", "A community member who donates time to food bank operations" do
-    String :name
-    String :phone
-    String :availability
-    Integer :hours_served
-    String :status
+    attribute :name, String
+    attribute :phone, String
+    attribute :availability, String
+    attribute :hours_served, Integer
+    attribute :status, String
     list_of(Shift) :shifts
 
     value_object "Shift" do
-      String :shift_date
-      String :start_time
-      String :end_time
-      String :role_assigned
+      attribute :shift_date, String
+      attribute :start_time, String
+      attribute :end_time, String
+      attribute :role_assigned, String
     end
 
-    RegisterVolunteer do
+    command "RegisterVolunteer" do
       role "Coordinator"
       description "Sign up a new volunteer for food bank service"
-      String :name
-      String :phone
-      String :availability
+      attribute :name, String
+      attribute :phone, String
+      attribute :availability, String
       emits "VolunteerRegistered"
       then_set :name, to: :name
       then_set :phone, to: :phone
@@ -180,32 +180,32 @@ Hecks.bluebook "FoodBank" do
       then_set :status, to: "active"
     end
 
-    LogVolunteerHours do
+    command "LogVolunteerHours" do
       role "Coordinator"
       description "Record hours worked by a volunteer"
       reference_to(FoodBankVolunteer)
-      Integer :hours_served
+      attribute :hours_served, Integer
       emits "HoursLogged"
       then_set :hours_served, to: :hours_served
     end
   end
 
   aggregate "FoodBankRecipient", "A household receiving food assistance from the food bank" do
-    String :household_name
-    Integer :household_size
-    String :address
-    String :dietary_restrictions
-    String :enrollment_date
-    String :status
+    attribute :household_name, String
+    attribute :household_size, Integer
+    attribute :address, String
+    attribute :dietary_restrictions, String
+    attribute :enrollment_date, String
+    attribute :status, String
 
-    EnrollRecipient do
+    command "EnrollRecipient" do
       role "CaseWorker"
       description "Register a household for food bank services"
-      String :household_name
-      Integer :household_size
-      String :address
-      String :dietary_restrictions
-      String :enrollment_date
+      attribute :household_name, String
+      attribute :household_size, Integer
+      attribute :address, String
+      attribute :dietary_restrictions, String
+      attribute :enrollment_date, String
       emits "RecipientEnrolled"
       then_set :household_name, to: :household_name
       then_set :household_size, to: :household_size
@@ -215,7 +215,7 @@ Hecks.bluebook "FoodBank" do
       then_set :status, to: "active"
     end
 
-    RecordPickup do
+    command "RecordPickup" do
       role "Volunteer"
       description "Document that the household received their food allocation"
       reference_to(FoodBankRecipient)

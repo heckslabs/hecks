@@ -3,18 +3,18 @@ Hecks.bluebook "SmartRehab", version: "2026.04.13.1" do
   category "healthcare_technology"
 
   aggregate "Patient", "A rehabilitation patient with assigned exercise programs" do
-    String :patient_id
-    String :name
-    String :diagnosis
-    String :therapist_name
-    String :status
-    RegisterPatient do
+    attribute :patient_id, String
+    attribute :name, String
+    attribute :diagnosis, String
+    attribute :therapist_name, String
+    attribute :status, String
+    command "RegisterPatient" do
       role "Therapist"
       description "Register a new rehab patient with diagnosis and assigned therapist"
-      String :patient_id
-      String :name
-      String :diagnosis
-      String :therapist_name
+      attribute :patient_id, String
+      attribute :name, String
+      attribute :diagnosis, String
+      attribute :therapist_name, String
       emits "PatientRegistered"
       then_set :patient_id, to: :patient_id
       then_set :name, to: :name
@@ -22,7 +22,7 @@ Hecks.bluebook "SmartRehab", version: "2026.04.13.1" do
       then_set :therapist_name, to: :therapist_name
       then_set :status, to: "active"
     end
-    DischargePatient do
+    command "DischargePatient" do
       role "Therapist"
       description "Discharge a patient who has completed rehabilitation"
       reference_to(Patient)
@@ -33,82 +33,82 @@ Hecks.bluebook "SmartRehab", version: "2026.04.13.1" do
   end
 
   aggregate "ExerciseProgram", "A prescribed set of rehab exercises for a patient" do
-    String :program_id
-    String :patient_id
+    attribute :program_id, String
+    attribute :patient_id, String
     list_of(Exercise) :exercises
-    String :frequency
-    String :status
+    attribute :frequency, String
+    attribute :status, String
     value_object "Exercise" do
-      String :name
-      Integer :sets
-      Integer :reps
-      String :target_muscle
+      attribute :name, String
+      attribute :sets, Integer
+      attribute :reps, Integer
+      attribute :target_muscle, String
     end
-    PrescribeProgram do
+    command "PrescribeProgram" do
       role "Therapist"
       description "Prescribe an exercise program for a patient"
-      String :program_id
-      String :patient_id
-      String :frequency
+      attribute :program_id, String
+      attribute :patient_id, String
+      attribute :frequency, String
       emits "ProgramPrescribed"
       then_set :program_id, to: :program_id
       then_set :patient_id, to: :patient_id
       then_set :frequency, to: :frequency
       then_set :status, to: "active"
     end
-    AdjustProgram do
+    command "AdjustProgram" do
       role "Therapist"
       description "Adjust exercise intensity or frequency based on progress"
       reference_to(ExerciseProgram)
-      String :frequency
+      attribute :frequency, String
       emits "ProgramAdjusted"
       then_set :frequency, to: :frequency
     end
   end
 
   aggregate "WearableSensor", "An IoT wearable device tracking patient movement and vitals" do
-    String :device_id
-    String :patient_id
-    String :sensor_type
-    Float :battery_level
-    String :status
-    PairSensor do
+    attribute :device_id, String
+    attribute :patient_id, String
+    attribute :sensor_type, String
+    attribute :battery_level, Float
+    attribute :status, String
+    command "PairSensor" do
       role "Technician"
       description "Pair a wearable sensor to a patient for tracking"
-      String :device_id
-      String :patient_id
-      String :sensor_type
+      attribute :device_id, String
+      attribute :patient_id, String
+      attribute :sensor_type, String
       emits "SensorPaired"
       then_set :device_id, to: :device_id
       then_set :patient_id, to: :patient_id
       then_set :sensor_type, to: :sensor_type
       then_set :status, to: "paired"
     end
-    ReadSensor do
+    command "ReadSensor" do
       role "System"
       description "Read motion and vital data from the wearable sensor"
       reference_to(WearableSensor)
-      Float :battery_level
+      attribute :battery_level, Float
       emits "SensorRead"
       then_set :battery_level, to: :battery_level
     end
   end
 
   aggregate "ProgressReport", "A tracked progress report combining sensor data and clinical assessment" do
-    String :report_id
-    String :patient_id
-    Float :range_of_motion
-    Float :pain_score
-    String :sensor_summary
-    String :therapist_notes
-    GenerateReport do
+    attribute :report_id, String
+    attribute :patient_id, String
+    attribute :range_of_motion, Float
+    attribute :pain_score, Float
+    attribute :sensor_summary, String
+    attribute :therapist_notes, String
+    command "GenerateReport" do
       role "System"
       description "Generate a progress report from sensor data and exercise compliance"
-      String :report_id
-      String :patient_id
-      Float :range_of_motion
-      Float :pain_score
-      String :sensor_summary
+      attribute :report_id, String
+      attribute :patient_id, String
+      attribute :range_of_motion, Float
+      attribute :pain_score, Float
+      attribute :sensor_summary, String
       emits "ReportGenerated"
       then_set :report_id, to: :report_id
       then_set :patient_id, to: :patient_id
@@ -116,11 +116,11 @@ Hecks.bluebook "SmartRehab", version: "2026.04.13.1" do
       then_set :pain_score, to: :pain_score
       then_set :sensor_summary, to: :sensor_summary
     end
-    AnnotateReport do
+    command "AnnotateReport" do
       role "Therapist"
       description "Add therapist notes to the generated progress report"
       reference_to(ProgressReport)
-      String :therapist_notes
+      attribute :therapist_notes, String
       emits "ReportAnnotated"
       then_set :therapist_notes, to: :therapist_notes
     end

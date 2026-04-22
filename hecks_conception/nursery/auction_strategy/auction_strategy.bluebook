@@ -3,29 +3,29 @@ Hecks.bluebook "AuctionStrategy", version: "2026.04.13.1" do
   category "crossover"
 
   aggregate "Auction", "An auction event — item, format, reserve price, timing" do
-    String :name
-    String :item_description
-    String :auction_type
-    Float :reserve_price
-    Float :current_bid
-    String :start_time
-    String :end_time
-    String :status
+    attribute :name, String
+    attribute :item_description, String
+    attribute :auction_type, String
+    attribute :reserve_price, Float
+    attribute :current_bid, Float
+    attribute :start_time, String
+    attribute :end_time, String
+    attribute :status, String
 
     value_object "BidIncrement" do
-      Float :min_increment
-      Float :current_price_threshold
+      attribute :min_increment, Float
+      attribute :current_price_threshold, Float
     end
 
-    ListAuction do
+    command "ListAuction" do
       role "Seller"
       description "Create a new auction with item details and reserve price"
-      String :name
-      String :item_description
-      String :auction_type
-      Float :reserve_price
-      String :start_time
-      String :end_time
+      attribute :name, String
+      attribute :item_description, String
+      attribute :auction_type, String
+      attribute :reserve_price, Float
+      attribute :start_time, String
+      attribute :end_time, String
       emits "AuctionCreated"
       then_set :name, to: :name
       then_set :item_description, to: :item_description
@@ -37,7 +37,7 @@ Hecks.bluebook "AuctionStrategy", version: "2026.04.13.1" do
       then_set :status, to: "open"
     end
 
-    CloseAuction do
+    command "CloseAuction" do
       role "System"
       description "Close the auction when time expires"
       reference_to(Auction)
@@ -45,7 +45,7 @@ Hecks.bluebook "AuctionStrategy", version: "2026.04.13.1" do
       then_set :status, to: "closed"
     end
 
-    AwardAuction do
+    command "AwardAuction" do
       role "System"
       description "Award auction to highest bidder if reserve met"
       reference_to(Auction)
@@ -61,26 +61,26 @@ Hecks.bluebook "AuctionStrategy", version: "2026.04.13.1" do
   end
 
   aggregate "Bidder", "A strategic bidder — valuation, budget, risk profile, bid history" do
-    String :name
-    Float :max_valuation
-    Float :budget
-    String :risk_profile
-    Integer :bid_count
-    String :status
+    attribute :name, String
+    attribute :max_valuation, Float
+    attribute :budget, Float
+    attribute :risk_profile, String
+    attribute :bid_count, Integer
+    attribute :status, String
 
     value_object "BidderProfile" do
-      Float :win_rate
-      Float :avg_bid_ratio
-      String :preferred_strategy
+      attribute :win_rate, Float
+      attribute :avg_bid_ratio, Float
+      attribute :preferred_strategy, String
     end
 
-    RegisterBidder do
+    command "RegisterBidder" do
       role "Bidder"
       description "Register as a bidder with valuation and budget"
-      String :name
-      Float :max_valuation
-      Float :budget
-      String :risk_profile
+      attribute :name, String
+      attribute :max_valuation, Float
+      attribute :budget, Float
+      attribute :risk_profile, String
       emits "BidderRegistered"
       then_set :name, to: :name
       then_set :max_valuation, to: :max_valuation
@@ -90,11 +90,11 @@ Hecks.bluebook "AuctionStrategy", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    ReassessValuation do
+    command "ReassessValuation" do
       role "Bidder"
       description "Revise maximum valuation based on new information"
       reference_to(Bidder)
-      Float :max_valuation
+      attribute :max_valuation, Float
       given { status == "active" }
       emits "ValuationReassessed"
       then_set :max_valuation, to: :max_valuation
@@ -106,33 +106,33 @@ Hecks.bluebook "AuctionStrategy", version: "2026.04.13.1" do
   end
 
   aggregate "BiddingStrategy", "A game-theoretic strategy — type, parameters, expected payoff" do
-    String :name
-    String :strategy_type
-    Float :aggression_factor
-    Float :shade_pct
-    Float :expected_payoff
-    String :status
+    attribute :name, String
+    attribute :strategy_type, String
+    attribute :aggression_factor, Float
+    attribute :shade_pct, Float
+    attribute :expected_payoff, Float
+    attribute :status, String
 
     value_object "NashEquilibrium" do
-      String :strategy_a
-      String :strategy_b
-      Float :payoff_a
-      Float :payoff_b
+      attribute :strategy_a, String
+      attribute :strategy_b, String
+      attribute :payoff_a, Float
+      attribute :payoff_b, Float
     end
 
     list_of "PayoffEntry" do
-      String :opponent_strategy
-      Float :my_payoff
-      Float :opponent_payoff
+      attribute :opponent_strategy, String
+      attribute :my_payoff, Float
+      attribute :opponent_payoff, Float
     end
 
-    DefineStrategy do
+    command "DefineStrategy" do
       role "Analyst"
       description "Define a bidding strategy with game-theoretic parameters"
-      String :name
-      String :strategy_type
-      Float :aggression_factor
-      Float :shade_pct
+      attribute :name, String
+      attribute :strategy_type, String
+      attribute :aggression_factor, Float
+      attribute :shade_pct, Float
       emits "StrategyDefined"
       then_set :name, to: :name
       then_set :strategy_type, to: :strategy_type
@@ -141,17 +141,17 @@ Hecks.bluebook "AuctionStrategy", version: "2026.04.13.1" do
       then_set :status, to: "defined"
     end
 
-    ComputeEquilibrium do
+    command "ComputeEquilibrium" do
       role "System"
       description "Find Nash equilibrium for the strategy against known opponent types"
       reference_to(BiddingStrategy)
-      Float :expected_payoff
+      attribute :expected_payoff, Float
       given { status == "defined" }
       emits "EquilibriumComputed"
       then_set :expected_payoff, to: :expected_payoff
     end
 
-    ActivateStrategy do
+    command "ActivateStrategy" do
       role "Bidder"
       description "Activate strategy for use in live auctions"
       reference_to(BiddingStrategy)
@@ -167,28 +167,28 @@ Hecks.bluebook "AuctionStrategy", version: "2026.04.13.1" do
   end
 
   aggregate "Bid", "An individual bid — amount, timing, strategy used, outcome" do
-    String :bidder_name
-    String :auction_name
-    Float :amount
-    String :strategy_used
-    String :timestamp
-    String :outcome
-    String :status
+    attribute :bidder_name, String
+    attribute :auction_name, String
+    attribute :amount, Float
+    attribute :strategy_used, String
+    attribute :timestamp, String
+    attribute :outcome, String
+    attribute :status, String
 
     value_object "BidAnalysis" do
-      Float :bid_to_value_ratio
-      Float :surplus_if_won
-      String :was_optimal
+      attribute :bid_to_value_ratio, Float
+      attribute :surplus_if_won, Float
+      attribute :was_optimal, String
     end
 
-    PlaceBid do
+    command "PlaceBid" do
       role "Bidder"
       description "Place a bid on an auction using a chosen strategy"
-      String :bidder_name
-      String :auction_name
-      Float :amount
-      String :strategy_used
-      String :timestamp
+      attribute :bidder_name, String
+      attribute :auction_name, String
+      attribute :amount, Float
+      attribute :strategy_used, String
+      attribute :timestamp, String
       emits "BidPlaced"
       then_set :bidder_name, to: :bidder_name
       then_set :auction_name, to: :auction_name
@@ -198,11 +198,11 @@ Hecks.bluebook "AuctionStrategy", version: "2026.04.13.1" do
       then_set :status, to: "placed"
     end
 
-    EvaluateBid do
+    command "EvaluateBid" do
       role "System"
       description "Analyze bid optimality against equilibrium strategy"
       reference_to(Bid)
-      String :outcome
+      attribute :outcome, String
       given { status == "placed" }
       emits "BidEvaluated"
       then_set :outcome, to: :outcome

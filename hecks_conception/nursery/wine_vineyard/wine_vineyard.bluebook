@@ -3,30 +3,30 @@ Hecks.bluebook "WineVineyard" do
   category "agriculture"
 
   aggregate "Vineyard", "A planted vineyard block with grape variety, rootstock, and vine density" do
-    String :block_name
-    String :grape_variety
-    String :rootstock
-    Float :acreage
-    Integer :vine_count
-    Integer :planted_year
-    String :status
+    attribute :block_name, String
+    attribute :grape_variety, String
+    attribute :rootstock, String
+    attribute :acreage, Float
+    attribute :vine_count, Integer
+    attribute :planted_year, Integer
+    attribute :status, String
 
     value_object "TerrainProfile" do
-      Float :elevation_meters
-      String :aspect
-      String :soil_drainage
-      Float :slope_degrees
+      attribute :elevation_meters, Float
+      attribute :aspect, String
+      attribute :soil_drainage, String
+      attribute :slope_degrees, Float
     end
 
-    EstablishVineyard do
+    command "EstablishVineyard" do
       role "Viticulturist"
       description "Plant a new vineyard block with selected grape variety and rootstock"
-      String :block_name
-      String :grape_variety
-      String :rootstock
-      Float :acreage
-      Integer :vine_count
-      Integer :planted_year
+      attribute :block_name, String
+      attribute :grape_variety, String
+      attribute :rootstock, String
+      attribute :acreage, Float
+      attribute :vine_count, Integer
+      attribute :planted_year, Integer
       emits "VineyardEstablished"
       then_set :block_name, to: :block_name
       then_set :grape_variety, to: :grape_variety
@@ -36,49 +36,49 @@ Hecks.bluebook "WineVineyard" do
       then_set :status, to: "growing"
     end
 
-    PruneVines do
+    command "PruneVines" do
       role "Viticulturist"
       description "Perform seasonal pruning to manage canopy and yield"
       reference_to(Vineyard)
-      String :pruning_style
+      attribute :pruning_style, String
       given { status == "growing" }
       emits "VinesPruned"
     end
 
-    ReportDiseaseOutbreak do
+    command "ReportDiseaseOutbreak" do
       role "Viticulturist"
       description "Document a disease or pest infestation in the vineyard block"
       reference_to(Vineyard)
-      String :disease_name
-      String :severity
+      attribute :disease_name, String
+      attribute :severity, String
       emits "DiseaseReported"
     end
   end
 
   aggregate "Vintage", "A single year's grape harvest and wine production run" do
-    Integer :year
-    String :grape_variety
-    Float :tons_harvested
-    Float :brix_at_harvest
-    Float :ph_at_harvest
-    String :status
+    attribute :year, Integer
+    attribute :grape_variety, String
+    attribute :tons_harvested, Float
+    attribute :brix_at_harvest, Float
+    attribute :ph_at_harvest, Float
+    attribute :status, String
     reference_to(Vineyard)
 
     value_object "HarvestConditions" do
-      Float :temperature_celsius
-      Float :humidity_percent
-      String :weather
+      attribute :temperature_celsius, Float
+      attribute :humidity_percent, Float
+      attribute :weather, String
     end
 
-    HarvestGrapes do
+    command "HarvestGrapes" do
       role "Winemaker"
       description "Pick grapes at optimal ripeness and record sugar and acid levels"
       reference_to(Vineyard)
-      Integer :year
-      String :grape_variety
-      Float :tons_harvested
-      Float :brix_at_harvest
-      Float :ph_at_harvest
+      attribute :year, Integer
+      attribute :grape_variety, String
+      attribute :tons_harvested, Float
+      attribute :brix_at_harvest, Float
+      attribute :ph_at_harvest, Float
       emits "GrapesHarvested"
       then_set :year, to: :year
       then_set :grape_variety, to: :grape_variety
@@ -88,7 +88,7 @@ Hecks.bluebook "WineVineyard" do
       then_set :status, to: "harvested"
     end
 
-    CrushGrapes do
+    command "CrushGrapes" do
       role "Winemaker"
       description "Destem and crush the harvested grapes for juice extraction"
       reference_to(Vintage)
@@ -97,7 +97,7 @@ Hecks.bluebook "WineVineyard" do
       then_set :status, to: "crushed"
     end
 
-    DeclassifyVintage do
+    command "DeclassifyVintage" do
       role "Winemaker"
       description "Downgrade a vintage due to quality issues"
       reference_to(Vintage)
@@ -107,30 +107,30 @@ Hecks.bluebook "WineVineyard" do
   end
 
   aggregate "Fermentation", "The conversion of grape sugars to alcohol in a specific vessel" do
-    String :vessel_type
-    String :vessel_id
-    Float :volume_liters
-    Float :temperature_celsius
-    String :yeast_strain
-    Integer :days_elapsed
-    String :status
+    attribute :vessel_type, String
+    attribute :vessel_id, String
+    attribute :volume_liters, Float
+    attribute :temperature_celsius, Float
+    attribute :yeast_strain, String
+    attribute :days_elapsed, Integer
+    attribute :status, String
     reference_to(Vintage)
 
     value_object "FermentationReadings" do
-      Float :specific_gravity
-      Float :alcohol_percent
-      Float :residual_sugar
+      attribute :specific_gravity, Float
+      attribute :alcohol_percent, Float
+      attribute :residual_sugar, Float
     end
 
-    StartFermentation do
+    command "StartFermentation" do
       role "Winemaker"
       description "Inoculate the must with yeast and begin fermentation in a vessel"
       reference_to(Vintage)
-      String :vessel_type
-      String :vessel_id
-      Float :volume_liters
-      String :yeast_strain
-      Float :temperature_celsius
+      attribute :vessel_type, String
+      attribute :vessel_id, String
+      attribute :volume_liters, Float
+      attribute :yeast_strain, String
+      attribute :temperature_celsius, Float
       emits "FermentationStarted"
       then_set :vessel_type, to: :vessel_type
       then_set :vessel_id, to: :vessel_id
@@ -140,7 +140,7 @@ Hecks.bluebook "WineVineyard" do
       then_set :status, to: "fermenting"
     end
 
-    PunchDownCap do
+    command "PunchDownCap" do
       role "CellarWorker"
       description "Submerge the floating grape skin cap to extract color and tannin"
       reference_to(Fermentation)
@@ -148,7 +148,7 @@ Hecks.bluebook "WineVineyard" do
       emits "CapPunchedDown"
     end
 
-    RackWine do
+    command "RackWine" do
       role "Winemaker"
       description "Transfer wine off the lees into a clean vessel for aging"
       reference_to(Fermentation)
@@ -159,22 +159,22 @@ Hecks.bluebook "WineVineyard" do
   end
 
   aggregate "BottlingRun", "A production run that bottles, labels, and packages finished wine" do
-    Integer :bottle_count
-    String :bottle_date
-    String :label_name
-    Float :alcohol_percent
-    String :closure_type
-    String :status
+    attribute :bottle_count, Integer
+    attribute :bottle_date, String
+    attribute :label_name, String
+    attribute :alcohol_percent, Float
+    attribute :closure_type, String
+    attribute :status, String
     reference_to(Fermentation)
 
-    BottleWine do
+    command "BottleWine" do
       role "BottlingManager"
       description "Fill bottles from the aging vessel and apply closures"
       reference_to(Fermentation)
-      Integer :bottle_count
-      String :bottle_date
-      Float :alcohol_percent
-      String :closure_type
+      attribute :bottle_count, Integer
+      attribute :bottle_date, String
+      attribute :alcohol_percent, Float
+      attribute :closure_type, String
       emits "WineBottled"
       then_set :bottle_count, to: :bottle_count
       then_set :bottle_date, to: :bottle_date
@@ -183,18 +183,18 @@ Hecks.bluebook "WineVineyard" do
       then_set :status, to: "bottled"
     end
 
-    LabelBottles do
+    command "LabelBottles" do
       role "BottlingManager"
       description "Apply front and back labels with vintage and varietal info"
       reference_to(BottlingRun)
-      String :label_name
+      attribute :label_name, String
       given { status == "bottled" }
       emits "BottlesLabeled"
       then_set :label_name, to: :label_name
       then_set :status, to: "labeled"
     end
 
-    ReleaseForSale do
+    command "ReleaseForSale" do
       role "Winemaker"
       description "Approve the bottled wine for distribution and tasting room sales"
       reference_to(BottlingRun)
@@ -205,31 +205,31 @@ Hecks.bluebook "WineVineyard" do
   end
 
   aggregate "TastingNote", "A professional evaluation of a wine's appearance, aroma, and palate" do
-    String :taster_name
-    String :tasting_date
-    Integer :score
-    String :appearance
-    String :nose
-    String :palate
-    String :finish
+    attribute :taster_name, String
+    attribute :tasting_date, String
+    attribute :score, Integer
+    attribute :appearance, String
+    attribute :nose, String
+    attribute :palate, String
+    attribute :finish, String
     reference_to(BottlingRun)
 
     value_object "AromaProfile" do
-      String :primary_aromas
-      String :secondary_aromas
-      String :tertiary_aromas
+      attribute :primary_aromas, String
+      attribute :secondary_aromas, String
+      attribute :tertiary_aromas, String
     end
 
-    RecordTasting do
+    command "RecordTasting" do
       role "Sommelier"
       description "Evaluate and score a wine on appearance, nose, palate, and finish"
       reference_to(BottlingRun)
-      String :taster_name
-      Integer :score
-      String :appearance
-      String :nose
-      String :palate
-      String :finish
+      attribute :taster_name, String
+      attribute :score, Integer
+      attribute :appearance, String
+      attribute :nose, String
+      attribute :palate, String
+      attribute :finish, String
       emits "TastingRecorded"
       then_set :taster_name, to: :taster_name
       then_set :score, to: :score
@@ -239,7 +239,7 @@ Hecks.bluebook "WineVineyard" do
       then_set :finish, to: :finish
     end
 
-    PublishReview do
+    command "PublishReview" do
       role "Sommelier"
       description "Make the tasting note publicly available for consumers"
       reference_to(TastingNote)

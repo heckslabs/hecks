@@ -3,20 +3,20 @@ Hecks.bluebook "ConnectedCare", version: "2026.04.13.1" do
   category "healthcare_technology"
 
   aggregate "HomePatient", "A home care patient monitored by connected sensors" do
-    String :patient_id
-    String :name
-    String :address
-    String :condition
-    String :primary_caregiver
-    String :status
-    EnrollPatient do
+    attribute :patient_id, String
+    attribute :name, String
+    attribute :address, String
+    attribute :condition, String
+    attribute :primary_caregiver, String
+    attribute :status, String
+    command "EnrollPatient" do
       role "Coordinator"
       description "Enroll a patient in the connected care program"
-      String :patient_id
-      String :name
-      String :address
-      String :condition
-      String :primary_caregiver
+      attribute :patient_id, String
+      attribute :name, String
+      attribute :address, String
+      attribute :condition, String
+      attribute :primary_caregiver, String
       emits "PatientEnrolled"
       then_set :patient_id, to: :patient_id
       then_set :name, to: :name
@@ -25,7 +25,7 @@ Hecks.bluebook "ConnectedCare", version: "2026.04.13.1" do
       then_set :primary_caregiver, to: :primary_caregiver
       then_set :status, to: "enrolled"
     end
-    DischargePatient do
+    command "DischargePatient" do
       role "Coordinator"
       description "Discharge a patient from connected monitoring"
       reference_to(HomePatient)
@@ -36,24 +36,24 @@ Hecks.bluebook "ConnectedCare", version: "2026.04.13.1" do
   end
 
   aggregate "HomeSensor", "An IoT sensor deployed in a patient home" do
-    String :sensor_id
-    String :patient_id
-    String :sensor_type
-    String :location_room
-    Float :battery_pct
-    String :status
+    attribute :sensor_id, String
+    attribute :patient_id, String
+    attribute :sensor_type, String
+    attribute :location_room, String
+    attribute :battery_pct, Float
+    attribute :status, String
     value_object "SensorReading" do
-      String :metric
-      Float :value
-      String :timestamp
+      attribute :metric, String
+      attribute :value, Float
+      attribute :timestamp, String
     end
-    DeploySensor do
+    command "DeploySensor" do
       role "Technician"
       description "Deploy a sensor in a patient home"
-      String :sensor_id
-      String :patient_id
-      String :sensor_type
-      String :location_room
+      attribute :sensor_id, String
+      attribute :patient_id, String
+      attribute :sensor_type, String
+      attribute :location_room, String
       emits "SensorDeployed"
       then_set :sensor_id, to: :sensor_id
       then_set :patient_id, to: :patient_id
@@ -61,31 +61,31 @@ Hecks.bluebook "ConnectedCare", version: "2026.04.13.1" do
       then_set :location_room, to: :location_room
       then_set :status, to: "active"
     end
-    ReadSensor do
+    command "ReadSensor" do
       role "System"
       description "Read current data from the home sensor"
       reference_to(HomeSensor)
-      Float :battery_pct
+      attribute :battery_pct, Float
       emits "SensorDataRead"
       then_set :battery_pct, to: :battery_pct
     end
   end
 
   aggregate "CareAlert", "A real-time alert triggered by sensor anomaly" do
-    String :alert_id
-    String :patient_id
-    String :sensor_id
-    String :alert_type
-    String :severity
-    String :status
-    TriggerAlert do
+    attribute :alert_id, String
+    attribute :patient_id, String
+    attribute :sensor_id, String
+    attribute :alert_type, String
+    attribute :severity, String
+    attribute :status, String
+    command "TriggerAlert" do
       role "System"
       description "Trigger an alert when sensor detects anomaly"
-      String :alert_id
-      String :patient_id
-      String :sensor_id
-      String :alert_type
-      String :severity
+      attribute :alert_id, String
+      attribute :patient_id, String
+      attribute :sensor_id, String
+      attribute :alert_type, String
+      attribute :severity, String
       emits "AlertTriggered"
       then_set :alert_id, to: :alert_id
       then_set :patient_id, to: :patient_id
@@ -94,7 +94,7 @@ Hecks.bluebook "ConnectedCare", version: "2026.04.13.1" do
       then_set :severity, to: :severity
       then_set :status, to: "open"
     end
-    ResolveAlert do
+    command "ResolveAlert" do
       role "Caregiver"
       description "Resolve the alert after addressing the situation"
       reference_to(CareAlert)
@@ -105,18 +105,18 @@ Hecks.bluebook "ConnectedCare", version: "2026.04.13.1" do
   end
 
   aggregate "CaregiverDispatch", "A caregiver dispatched in response to an alert" do
-    String :dispatch_id
-    String :alert_id
-    String :caregiver_name
-    String :eta
-    String :status
-    DispatchCaregiver do
+    attribute :dispatch_id, String
+    attribute :alert_id, String
+    attribute :caregiver_name, String
+    attribute :eta, String
+    attribute :status, String
+    command "DispatchCaregiver" do
       role "Coordinator"
       description "Dispatch a caregiver to respond to patient alert"
-      String :dispatch_id
-      String :alert_id
-      String :caregiver_name
-      String :eta
+      attribute :dispatch_id, String
+      attribute :alert_id, String
+      attribute :caregiver_name, String
+      attribute :eta, String
       emits "CaregiverDispatched"
       then_set :dispatch_id, to: :dispatch_id
       then_set :alert_id, to: :alert_id
@@ -124,7 +124,7 @@ Hecks.bluebook "ConnectedCare", version: "2026.04.13.1" do
       then_set :eta, to: :eta
       then_set :status, to: "dispatched"
     end
-    ConfirmArrival do
+    command "ConfirmArrival" do
       role "Caregiver"
       description "Confirm arrival at patient home"
       reference_to(CaregiverDispatch)

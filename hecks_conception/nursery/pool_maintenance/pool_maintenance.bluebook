@@ -4,34 +4,34 @@ Hecks.bluebook "PoolMaintenance" do
 
   aggregate "Pool" do
     description "A swimming pool or spa with volume, surface type, and equipment configuration"
-    String :owner_name
-    String :address
-    String :pool_type
-    Float :gallons
-    String :surface_type
-    String :sanitizer_type
+    attribute :owner_name, String
+    attribute :address, String
+    attribute :pool_type, String
+    attribute :gallons, Float
+    attribute :surface_type, String
+    attribute :sanitizer_type, String
 
     value_object "PoolDimensions" do
-      Float :length_feet
-      Float :width_feet
-      Float :depth_shallow
-      Float :depth_deep
+      attribute :length_feet, Float
+      attribute :width_feet, Float
+      attribute :depth_shallow, Float
+      attribute :depth_deep, Float
     end
 
-    RegisterPool do
+    command "RegisterPool" do
       role "Service Tech"
       goal "Add a new pool to the service route"
       description "Record pool specifications and equipment for ongoing maintenance"
-      String :owner_name
-      String :address
-      String :pool_type
-      Float :gallons
-      String :surface_type
-      String :sanitizer_type
+      attribute :owner_name, String
+      attribute :address, String
+      attribute :pool_type, String
+      attribute :gallons, Float
+      attribute :surface_type, String
+      attribute :sanitizer_type, String
       emits "PoolRegistered"
     end
 
-    MietteizePool do
+    command "MietteizePool" do
       role "Service Tech"
       goal "Prepare the pool for miette shutdown"
       description "Lower water, blow lines, add antifreeze, and cover"
@@ -39,7 +39,7 @@ Hecks.bluebook "PoolMaintenance" do
       emits "PoolMietteized"
     end
 
-    OpenPool do
+    command "OpenPool" do
       role "Service Tech"
       goal "Reopen the pool for the swimming season"
       description "Remove cover, refill, start equipment, and balance chemistry"
@@ -50,92 +50,92 @@ Hecks.bluebook "PoolMaintenance" do
 
   aggregate "ChemicalReading" do
     description "A water chemistry test recording pH, chlorine, alkalinity, calcium, and CYA levels"
-    Float :ph
-    Float :free_chlorine
-    Float :total_alkalinity
-    Float :calcium_hardness
-    Float :cya
-    String :reading_date
+    attribute :ph, Float
+    attribute :free_chlorine, Float
+    attribute :total_alkalinity, Float
+    attribute :calcium_hardness, Float
+    attribute :cya, Float
+    attribute :reading_date, String
     reference_to(Pool)
 
     value_object "IdealRange" do
-      Float :min_value
-      Float :max_value
-      String :unit
+      attribute :min_value, Float
+      attribute :max_value, Float
+      attribute :unit, String
     end
 
-    TakeReading do
+    command "TakeReading" do
       role "Service Tech"
       goal "Test the water chemistry and record all levels"
       description "Use test kit or photometer to measure chemical levels"
       reference_to(Pool)
-      Float :ph
-      Float :free_chlorine
-      Float :total_alkalinity
-      Float :calcium_hardness
-      Float :cya
+      attribute :ph, Float
+      attribute :free_chlorine, Float
+      attribute :total_alkalinity, Float
+      attribute :calcium_hardness, Float
+      attribute :cya, Float
       emits "ReadingTaken"
     end
 
-    DoseChemicals do
+    command "DoseChemicals" do
       role "Service Tech"
       goal "Add chemicals to bring levels into ideal range"
       description "Calculate and add the correct dose of chemicals"
       reference_to(ChemicalReading)
-      String :chemical_name
-      Float :dose_oz
+      attribute :chemical_name, String
+      attribute :dose_oz, Float
       emits "ChemicalsDosed"
     end
   end
 
   aggregate "PoolEquipment" do
     description "Pool equipment — pump, filter, heater, salt cell, automation controller"
-    String :equipment_type
-    String :brand
-    String :model
-    String :status
-    String :install_date
+    attribute :equipment_type, String
+    attribute :brand, String
+    attribute :model, String
+    attribute :status, String
+    attribute :install_date, String
     reference_to(Pool)
 
-    InstallEquipment do
+    command "InstallEquipment" do
       role "Service Tech"
       goal "Install new pool equipment at the pad"
       description "Plumb and wire the equipment and verify operation"
-      String :equipment_type
-      String :brand
-      String :model
+      attribute :equipment_type, String
+      attribute :brand, String
+      attribute :model, String
       reference_to(Pool)
       emits "EquipmentInstalled"
     end
 
-    ServiceEquipment do
+    command "ServiceEquipment" do
       role "Service Tech"
       goal "Perform maintenance on pool equipment"
       description "Clean filter, backwash, inspect seals, or replace parts"
       reference_to(PoolEquipment)
-      String :service_performed
+      attribute :service_performed, String
       emits "EquipmentServiced"
     end
   end
 
   aggregate "ServiceRoute" do
     description "A weekly service route assigning a technician to a sequence of pools"
-    String :tech_name
-    String :route_day
-    Integer :pool_count
-    String :status
+    attribute :tech_name, String
+    attribute :route_day, String
+    attribute :pool_count, Integer
+    attribute :status, String
 
-    BuildRoute do
+    command "BuildRoute" do
       role "Route Manager"
       goal "Create a weekly service route for a technician"
       description "Assign pools in geographic order for efficient driving"
-      String :tech_name
-      String :route_day
-      Integer :pool_count
+      attribute :tech_name, String
+      attribute :route_day, String
+      attribute :pool_count, Integer
       emits "RouteBuilt"
     end
 
-    AddPoolToRoute do
+    command "AddPoolToRoute" do
       role "Route Manager"
       goal "Add a new pool to an existing service route"
       description "Insert the pool at the optimal position in the route"
@@ -147,29 +147,29 @@ Hecks.bluebook "PoolMaintenance" do
 
   aggregate "RepairTicket" do
     description "A repair request for a pool equipment failure or structural issue"
-    String :problem_description
-    String :diagnosis
-    String :status
-    Float :repair_cost
+    attribute :problem_description, String
+    attribute :diagnosis, String
+    attribute :status, String
+    attribute :repair_cost, Float
     reference_to(Pool)
 
-    OpenRepairTicket do
+    command "OpenRepairTicket" do
       role "Service Tech"
       goal "Report a problem found during routine service"
       description "Create a repair ticket when equipment fails or structure is damaged"
-      String :problem_description
+      attribute :problem_description, String
       reference_to(Pool)
       emits "RepairTicketOpened"
       then_set :status, to: "diagnosed"
     end
 
-    CompleteRepair do
+    command "CompleteRepair" do
       role "Service Tech"
       goal "Fix the issue and close the repair ticket"
       description "Replace parts, verify operation, and record cost"
       reference_to(RepairTicket)
-      String :diagnosis
-      Float :repair_cost
+      attribute :diagnosis, String
+      attribute :repair_cost, Float
       given("must be diagnosed") { status == "diagnosed" }
       emits "RepairCompleted"
     end

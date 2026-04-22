@@ -3,21 +3,21 @@ Hecks.bluebook "MealDelivery", version: "2026.04.13.1" do
   category "healthcare_community"
 
   aggregate "FoodItem", "A food item in inventory available for meal assembly" do
-    String :item_id
-    String :name
-    String :category
-    Integer :quantity
-    String :expiry_date
-    String :dietary_tags
-    StockItem do
+    attribute :item_id, String
+    attribute :name, String
+    attribute :category, String
+    attribute :quantity, Integer
+    attribute :expiry_date, String
+    attribute :dietary_tags, String
+    command "StockItem" do
       role "Volunteer"
       description "Stock a food item into inventory"
-      String :item_id
-      String :name
-      String :category
-      Integer :quantity
-      String :expiry_date
-      String :dietary_tags
+      attribute :item_id, String
+      attribute :name, String
+      attribute :category, String
+      attribute :quantity, Integer
+      attribute :expiry_date, String
+      attribute :dietary_tags, String
       emits "ItemStocked"
       then_set :item_id, to: :item_id
       then_set :name, to: :name
@@ -26,40 +26,40 @@ Hecks.bluebook "MealDelivery", version: "2026.04.13.1" do
       then_set :expiry_date, to: :expiry_date
       then_set :dietary_tags, to: :dietary_tags
     end
-    DepletItem do
+    command "DepletItem" do
       role "System"
       description "Reduce inventory when item is used in meal assembly"
       reference_to(FoodItem)
-      Integer :quantity
+      attribute :quantity, Integer
       emits "ItemDepleted"
       then_set :quantity, to: :quantity
     end
   end
 
   aggregate "MealPackage", "An assembled meal package for a recipient" do
-    String :package_id
-    String :recipient_id
+    attribute :package_id, String
+    attribute :recipient_id, String
     list_of(MealComponent) :components
-    String :dietary_type
-    String :status
+    attribute :dietary_type, String
+    attribute :status, String
     value_object "MealComponent" do
-      String :item_name
-      String :category
-      Integer :servings
+      attribute :item_name, String
+      attribute :category, String
+      attribute :servings, Integer
     end
-    AssembleMeal do
+    command "AssembleMeal" do
       role "Volunteer"
       description "Assemble a meal package tailored to dietary needs"
-      String :package_id
-      String :recipient_id
-      String :dietary_type
+      attribute :package_id, String
+      attribute :recipient_id, String
+      attribute :dietary_type, String
       emits "MealAssembled"
       then_set :package_id, to: :package_id
       then_set :recipient_id, to: :recipient_id
       then_set :dietary_type, to: :dietary_type
       then_set :status, to: "assembled"
     end
-    MarkDelivered do
+    command "MarkDelivered" do
       role "Courier"
       description "Mark meal package as delivered to recipient"
       reference_to(MealPackage)
@@ -70,24 +70,24 @@ Hecks.bluebook "MealDelivery", version: "2026.04.13.1" do
   end
 
   aggregate "DeliveryRun", "A courier delivery run with multiple meal stops" do
-    String :run_id
-    String :courier_name
-    String :date
+    attribute :run_id, String
+    attribute :courier_name, String
+    attribute :date, String
     list_of(DeliveryStop) :stops
-    Float :total_miles
-    String :status
+    attribute :total_miles, Float
+    attribute :status, String
     value_object "DeliveryStop" do
-      String :recipient_name
-      String :address
-      String :time_window
+      attribute :recipient_name, String
+      attribute :address, String
+      attribute :time_window, String
     end
-    PlanRun do
+    command "PlanRun" do
       role "Dispatcher"
       description "Plan a delivery run with route-optimized stops"
-      String :run_id
-      String :courier_name
-      String :date
-      Float :total_miles
+      attribute :run_id, String
+      attribute :courier_name, String
+      attribute :date, String
+      attribute :total_miles, Float
       emits "RunPlanned"
       then_set :run_id, to: :run_id
       then_set :courier_name, to: :courier_name
@@ -95,7 +95,7 @@ Hecks.bluebook "MealDelivery", version: "2026.04.13.1" do
       then_set :total_miles, to: :total_miles
       then_set :status, to: "planned"
     end
-    StartRun do
+    command "StartRun" do
       role "Courier"
       description "Start the delivery run"
       reference_to(DeliveryRun)
@@ -103,7 +103,7 @@ Hecks.bluebook "MealDelivery", version: "2026.04.13.1" do
       emits "RunStarted"
       then_set :status, to: "in_progress"
     end
-    FinishRun do
+    command "FinishRun" do
       role "Courier"
       description "Finish the delivery run after all stops"
       reference_to(DeliveryRun)
@@ -114,20 +114,20 @@ Hecks.bluebook "MealDelivery", version: "2026.04.13.1" do
   end
 
   aggregate "Recipient", "A meal delivery recipient with dietary requirements" do
-    String :recipient_id
-    String :name
-    String :address
-    String :dietary_restriction
-    Integer :household_size
-    String :status
-    RegisterRecipient do
+    attribute :recipient_id, String
+    attribute :name, String
+    attribute :address, String
+    attribute :dietary_restriction, String
+    attribute :household_size, Integer
+    attribute :status, String
+    command "RegisterRecipient" do
       role "CaseWorker"
       description "Register a new meal delivery recipient"
-      String :recipient_id
-      String :name
-      String :address
-      String :dietary_restriction
-      Integer :household_size
+      attribute :recipient_id, String
+      attribute :name, String
+      attribute :address, String
+      attribute :dietary_restriction, String
+      attribute :household_size, Integer
       emits "RecipientRegistered"
       then_set :recipient_id, to: :recipient_id
       then_set :name, to: :name
@@ -136,11 +136,11 @@ Hecks.bluebook "MealDelivery", version: "2026.04.13.1" do
       then_set :household_size, to: :household_size
       then_set :status, to: "active"
     end
-    ReviseDiet do
+    command "ReviseDiet" do
       role "CaseWorker"
       description "Update dietary restriction for a recipient"
       reference_to(Recipient)
-      String :dietary_restriction
+      attribute :dietary_restriction, String
       emits "DietRevised"
       then_set :dietary_restriction, to: :dietary_restriction
     end

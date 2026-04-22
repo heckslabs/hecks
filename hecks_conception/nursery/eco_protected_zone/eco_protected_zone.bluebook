@@ -5,25 +5,25 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
   # === ProtectedArea ===
 
   aggregate "ProtectedArea", "A conservation zone — geographic boundary with protection level and active hazards" do
-    String :name
-    String :protection_level
-    Float :area_sq_km
-    String :status
+    attribute :name, String
+    attribute :protection_level, String
+    attribute :area_sq_km, Float
+    attribute :status, String
     list_of(ZoneBoundary) :boundaries
 
     value_object "ZoneBoundary" do
-      Float :latitude
-      Float :longitude
-      String :boundary_type
-      String :marker_id
+      attribute :latitude, Float
+      attribute :longitude, Float
+      attribute :boundary_type, String
+      attribute :marker_id, String
     end
 
-    DesignateArea do
+    command "DesignateArea" do
       role "ConservationOfficer"
       description "Establish a new protected area with boundaries and protection level"
-      String :name
-      String :protection_level
-      Float :area_sq_km
+      attribute :name, String
+      attribute :protection_level, String
+      attribute :area_sq_km, Float
       emits "AreaDesignated"
       then_set :name, to: :name
       then_set :protection_level, to: :protection_level
@@ -31,7 +31,7 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    CloseZone do
+    command "CloseZone" do
       role "System"
       description "Close the protected area — poaching detected or eruption imminent"
       reference_to(ProtectedArea)
@@ -40,7 +40,7 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
       then_set :status, to: "closed"
     end
 
-    ReopenZone do
+    command "ReopenZone" do
       role "ConservationOfficer"
       description "Reopen area after threat has been resolved"
       reference_to(ProtectedArea)
@@ -59,40 +59,40 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
   # === Visitor ===
 
   aggregate "Visitor", "A tourist in the protected zone — tracked for safety and conservation compliance" do
-    String :name
-    String :nationality
+    attribute :name, String
+    attribute :nationality, String
     reference_to(Permit, as: :permit)
-    String :status
+    attribute :status, String
     list_of(LocationPing) :location_history
 
     value_object "LocationPing" do
-      Float :latitude
-      Float :longitude
-      String :timestamp
-      String :zone_name
+      attribute :latitude, Float
+      attribute :longitude, Float
+      attribute :timestamp, String
+      attribute :zone_name, String
     end
 
-    RegisterVisitor do
+    command "RegisterVisitor" do
       role "ParkRanger"
       description "Register a visitor entering the protected zone"
-      String :name
-      String :nationality
+      attribute :name, String
+      attribute :nationality, String
       emits "VisitorRegistered"
       then_set :name, to: :name
       then_set :nationality, to: :nationality
       then_set :status, to: "registered"
     end
 
-    TrackVisitor do
+    command "TrackVisitor" do
       role "System"
       description "Log visitor location within the protected zone"
       reference_to(Visitor)
-      Float :latitude
-      Float :longitude
+      attribute :latitude, Float
+      attribute :longitude, Float
       emits "VisitorTracked"
     end
 
-    EvacuateVisitors do
+    command "EvacuateVisitors" do
       role "System"
       description "Emergency evacuation — move all visitors out of hazard zone"
       reference_to(Visitor)
@@ -101,7 +101,7 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
       then_set :status, to: "evacuated"
     end
 
-    CheckOutVisitor do
+    command "CheckOutVisitor" do
       role "ParkRanger"
       description "Visitor exits the protected zone safely"
       reference_to(Visitor)
@@ -119,29 +119,29 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
   # === WildlifeSpecies ===
 
   aggregate "WildlifeSpecies", "A tracked wildlife species — population, habitat, and threat status" do
-    String :common_name
-    String :scientific_name
-    String :conservation_status
-    Integer :estimated_population
-    String :primary_habitat
+    attribute :common_name, String
+    attribute :scientific_name, String
+    attribute :conservation_status, String
+    attribute :estimated_population, Integer
+    attribute :primary_habitat, String
     list_of(SightingRecord) :sightings
 
     value_object "SightingRecord" do
-      String :date
-      Float :latitude
-      Float :longitude
-      Integer :count
-      String :observer
+      attribute :date, String
+      attribute :latitude, Float
+      attribute :longitude, Float
+      attribute :count, Integer
+      attribute :observer, String
     end
 
-    CatalogSpecies do
+    command "CatalogSpecies" do
       role "Biologist"
       description "Register a wildlife species within the protected area"
-      String :common_name
-      String :scientific_name
-      String :conservation_status
-      Integer :estimated_population
-      String :primary_habitat
+      attribute :common_name, String
+      attribute :scientific_name, String
+      attribute :conservation_status, String
+      attribute :estimated_population, Integer
+      attribute :primary_habitat, String
       emits "SpeciesCataloged"
       then_set :common_name, to: :common_name
       then_set :scientific_name, to: :scientific_name
@@ -150,21 +150,21 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
       then_set :primary_habitat, to: :primary_habitat
     end
 
-    RecordSighting do
+    command "RecordSighting" do
       role "ParkRanger"
       description "Log a wildlife sighting with location and count"
       reference_to(WildlifeSpecies)
-      Float :latitude
-      Float :longitude
-      Integer :count
+      attribute :latitude, Float
+      attribute :longitude, Float
+      attribute :count, Integer
       emits "WildlifeSighted"
     end
 
-    ReviseStatus do
+    command "ReviseStatus" do
       role "Biologist"
       description "Revise species conservation status based on population data"
       reference_to(WildlifeSpecies)
-      String :conservation_status
+      attribute :conservation_status, String
       emits "ConservationStatusUpdated"
       then_set :conservation_status, to: :conservation_status
     end
@@ -173,22 +173,22 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
   # === ForensicCase ===
 
   aggregate "ForensicCase", "A wildlife forensic investigation — DNA evidence, poacher tracking, prosecution" do
-    String :case_number
+    attribute :case_number, String
     reference_to(WildlifeSpecies, as: :species)
     reference_to(ProtectedArea, as: :area)
-    String :evidence_type
-    String :dna_sample_id
-    String :status
-    String :suspect_description
+    attribute :evidence_type, String
+    attribute :dna_sample_id, String
+    attribute :status, String
+    attribute :suspect_description, String
 
-    OpenForensicCase do
+    command "OpenForensicCase" do
       role "ForensicInvestigator"
       description "Open a forensic case when poaching evidence is discovered"
-      String :case_number
+      attribute :case_number, String
       reference_to(WildlifeSpecies, as: :species)
       reference_to(ProtectedArea, as: :area)
-      String :evidence_type
-      String :dna_sample_id
+      attribute :evidence_type, String
+      attribute :dna_sample_id, String
       emits "PoachingDetected"
       then_set :case_number, to: :case_number
       then_set :evidence_type, to: :evidence_type
@@ -196,7 +196,7 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
       then_set :status, to: "open"
     end
 
-    MatchDNA do
+    command "MatchDNA" do
       role "ForensicInvestigator"
       description "Match DNA evidence to species and individual animal"
       reference_to(ForensicCase)
@@ -204,16 +204,16 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
       emits "DNAMatched"
     end
 
-    IdentifySuspect do
+    command "IdentifySuspect" do
       role "ForensicInvestigator"
       description "Identify a poaching suspect from evidence"
       reference_to(ForensicCase)
-      String :suspect_description
+      attribute :suspect_description, String
       emits "SuspectIdentified"
       then_set :suspect_description, to: :suspect_description
     end
 
-    CloseCase do
+    command "CloseCase" do
       role "ForensicInvestigator"
       description "Close the forensic case with prosecution outcome"
       reference_to(ForensicCase)
@@ -231,25 +231,25 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
   # === HazardZone ===
 
   aggregate "HazardZone", "A volcanic or geological hazard zone — monitored for eruption, gas, and seismic activity" do
-    String :zone_name
-    String :hazard_type
-    String :alert_level
+    attribute :zone_name, String
+    attribute :hazard_type, String
+    attribute :alert_level, String
     reference_to(ProtectedArea, as: :area)
-    String :status
+    attribute :status, String
     list_of(SeismicReading) :readings
 
     value_object "SeismicReading" do
-      Float :magnitude
-      Float :depth_km
-      String :timestamp
-      String :tremor_type
+      attribute :magnitude, Float
+      attribute :depth_km, Float
+      attribute :timestamp, String
+      attribute :tremor_type, String
     end
 
-    DefineHazardZone do
+    command "DefineHazardZone" do
       role "Geologist"
       description "Define a hazard zone within or adjacent to a protected area"
-      String :zone_name
-      String :hazard_type
+      attribute :zone_name, String
+      attribute :hazard_type, String
       reference_to(ProtectedArea, as: :area)
       emits "HazardZoneDefined"
       then_set :zone_name, to: :zone_name
@@ -258,17 +258,17 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
       then_set :status, to: "monitored"
     end
 
-    RaiseAlert do
+    command "RaiseAlert" do
       role "System"
       description "Escalate hazard alert level — seismic activity detected"
       reference_to(HazardZone)
-      String :alert_level
+      attribute :alert_level, String
       emits "EruptionAlert"
       then_set :alert_level, to: :alert_level
       then_set :status, to: "alert"
     end
 
-    LowerAlert do
+    command "LowerAlert" do
       role "Geologist"
       description "De-escalate hazard alert after monitoring period"
       reference_to(HazardZone)
@@ -278,12 +278,12 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
       then_set :status, to: "monitored"
     end
 
-    RecordSeismicActivity do
+    command "RecordSeismicActivity" do
       role "System"
       description "Log seismic readings from monitoring stations"
       reference_to(HazardZone)
-      Float :magnitude
-      Float :depth_km
+      attribute :magnitude, Float
+      attribute :depth_km, Float
       emits "SeismicActivityRecorded"
     end
 
@@ -299,26 +299,26 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
   aggregate "Permit", "A visitor permit — controls access, tracks fees, enforces zone restrictions" do
     reference_to(Visitor, as: :visitor)
     reference_to(ProtectedArea, as: :area)
-    String :permit_type
-    String :valid_from
-    String :valid_until
-    String :status
+    attribute :permit_type, String
+    attribute :valid_from, String
+    attribute :valid_until, String
+    attribute :status, String
     list_of(ZoneAccess) :allowed_zones
 
     value_object "ZoneAccess" do
-      String :zone_name
-      String :access_level
-      String :time_restriction
+      attribute :zone_name, String
+      attribute :access_level, String
+      attribute :time_restriction, String
     end
 
-    IssuePermit do
+    command "IssuePermit" do
       role "ParkRanger"
       description "Issue an access permit for a visitor to enter protected zones"
       reference_to(Visitor, as: :visitor)
       reference_to(ProtectedArea, as: :area)
-      String :permit_type
-      String :valid_from
-      String :valid_until
+      attribute :permit_type, String
+      attribute :valid_from, String
+      attribute :valid_until, String
       emits "PermitIssued"
       then_set :visitor, to: :visitor
       then_set :permit_type, to: :permit_type
@@ -327,7 +327,7 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    RevokePermit do
+    command "RevokePermit" do
       role "ConservationOfficer"
       description "Revoke a permit — visitor violated zone rules or emergency closure"
       reference_to(Permit)
@@ -336,7 +336,7 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
       then_set :status, to: "revoked"
     end
 
-    ExpirePermit do
+    command "ExpirePermit" do
       role "System"
       description "Permit has expired — visitor must exit or renew"
       reference_to(Permit)

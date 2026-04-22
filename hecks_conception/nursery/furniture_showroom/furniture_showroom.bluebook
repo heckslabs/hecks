@@ -3,28 +3,28 @@ Hecks.bluebook "FurnitureShowroom", version: "2026.04.13.1" do
   category "retail"
 
   aggregate "FurniturePiece", "A sellable furniture item — the core product" do
-    String :sku
-    String :name
-    String :collection
-    String :material
-    Float :price
-    String :status
+    attribute :sku, String
+    attribute :name, String
+    attribute :collection, String
+    attribute :material, String
+    attribute :price, Float
+    attribute :status, String
     list_of(Dimension) :dimensions
 
     value_object "Dimension" do
-      String :measurement
-      Float :value
-      String :unit
+      attribute :measurement, String
+      attribute :value, Float
+      attribute :unit, String
     end
 
-    AddPiece do
+    command "AddPiece" do
       role "Buyer"
       description "Introduce a new furniture item to the showroom catalog"
-      String :sku
-      String :name
-      String :collection
-      String :material
-      Float :price
+      attribute :sku, String
+      attribute :name, String
+      attribute :collection, String
+      attribute :material, String
+      attribute :price, Float
       emits "PieceAdded"
       then_set :sku, to: :sku
       then_set :name, to: :name
@@ -34,7 +34,7 @@ Hecks.bluebook "FurnitureShowroom", version: "2026.04.13.1" do
       then_set :status, to: "on_display"
     end
 
-    SellPiece do
+    command "SellPiece" do
       role "SalesAssociate"
       description "Complete a sale and mark the piece as sold"
       reference_to(FurniturePiece)
@@ -43,7 +43,7 @@ Hecks.bluebook "FurnitureShowroom", version: "2026.04.13.1" do
       then_set :status, to: "sold"
     end
 
-    DiscontinuePiece do
+    command "DiscontinuePiece" do
       role "Buyer"
       description "Remove a piece from the active catalog"
       reference_to(FurniturePiece)
@@ -53,54 +53,54 @@ Hecks.bluebook "FurnitureShowroom", version: "2026.04.13.1" do
   end
 
   aggregate "ShowroomRoom", "A staged vignette that showcases furniture in context" do
-    String :room_name
-    String :style
+    attribute :room_name, String
+    attribute :style, String
     list_of(StagedItem) :staged_items
-    String :status
+    attribute :status, String
 
     value_object "StagedItem" do
-      String :sku
-      String :placement
-      String :role_in_room
+      attribute :sku, String
+      attribute :placement, String
+      attribute :role_in_room, String
     end
 
-    StageRoom do
+    command "StageRoom" do
       role "Designer"
       description "Create a styled room vignette with selected pieces"
-      String :room_name
-      String :style
+      attribute :room_name, String
+      attribute :style, String
       emits "RoomStaged"
       then_set :room_name, to: :room_name
       then_set :style, to: :style
       then_set :status, to: "active"
     end
 
-    RestageRoom do
+    command "RestageRoom" do
       role "Designer"
       description "Refresh the room with new pieces or a different style"
       reference_to(ShowroomRoom)
-      String :style
+      attribute :style, String
       emits "RoomRestaged"
       then_set :style, to: :style
     end
   end
 
   aggregate "Delivery", "Transporting a sold piece to the customer's home" do
-    String :delivery_id
-    String :sku
-    String :customer_name
-    String :address
-    String :scheduled_date
-    String :status
+    attribute :delivery_id, String
+    attribute :sku, String
+    attribute :customer_name, String
+    attribute :address, String
+    attribute :scheduled_date, String
+    attribute :status, String
 
-    ScheduleDelivery do
+    command "ScheduleDelivery" do
       role "Coordinator"
       description "Book a delivery date and crew for a sold piece"
-      String :delivery_id
-      String :sku
-      String :customer_name
-      String :address
-      String :scheduled_date
+      attribute :delivery_id, String
+      attribute :sku, String
+      attribute :customer_name, String
+      attribute :address, String
+      attribute :scheduled_date, String
       emits "DeliveryScheduled"
       then_set :delivery_id, to: :delivery_id
       then_set :sku, to: :sku
@@ -110,7 +110,7 @@ Hecks.bluebook "FurnitureShowroom", version: "2026.04.13.1" do
       then_set :status, to: "scheduled"
     end
 
-    CompleteDelivery do
+    command "CompleteDelivery" do
       role "Driver"
       description "Confirm the piece was delivered and accepted"
       reference_to(Delivery)
@@ -119,32 +119,32 @@ Hecks.bluebook "FurnitureShowroom", version: "2026.04.13.1" do
       then_set :status, to: "delivered"
     end
 
-    ReportDeliveryDamage do
+    command "ReportDeliveryDamage" do
       role "Customer"
       description "Flag damage discovered during or after delivery"
       reference_to(Delivery)
-      String :damage_description
+      attribute :damage_description, String
       emits "DeliveryDamageReported"
       then_set :status, to: "damaged"
     end
   end
 
   aggregate "Warranty", "A guarantee covering defects or damage after purchase" do
-    String :warranty_id
-    String :sku
-    String :customer_name
-    String :coverage_type
-    String :expiration_date
-    String :status
+    attribute :warranty_id, String
+    attribute :sku, String
+    attribute :customer_name, String
+    attribute :coverage_type, String
+    attribute :expiration_date, String
+    attribute :status, String
 
-    ActivateWarranty do
+    command "ActivateWarranty" do
       role "SalesAssociate"
       description "Register warranty coverage at point of sale"
-      String :warranty_id
-      String :sku
-      String :customer_name
-      String :coverage_type
-      String :expiration_date
+      attribute :warranty_id, String
+      attribute :sku, String
+      attribute :customer_name, String
+      attribute :coverage_type, String
+      attribute :expiration_date, String
       emits "WarrantyActivated"
       then_set :warranty_id, to: :warranty_id
       then_set :sku, to: :sku
@@ -154,21 +154,21 @@ Hecks.bluebook "FurnitureShowroom", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    FileWarrantyClaim do
+    command "FileWarrantyClaim" do
       role "Customer"
       description "Submit a claim against the warranty for a defect"
       reference_to(Warranty)
-      String :issue_description
+      attribute :issue_description, String
       given { status == "active" }
       emits "WarrantyClaimFiled"
       then_set :status, to: "claim_pending"
     end
 
-    ResolveWarrantyClaim do
+    command "ResolveWarrantyClaim" do
       role "Manager"
       description "Approve repair, replacement, or denial of the claim"
       reference_to(Warranty)
-      String :resolution
+      attribute :resolution, String
       emits "WarrantyClaimResolved"
       then_set :status, to: "resolved"
     end

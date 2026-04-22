@@ -3,31 +3,31 @@ Hecks.bluebook "GroceryStore", version: "2026.04.13.1" do
   category "retail"
 
   aggregate "Product", "A grocery item on the shelf — perishable or shelf-stable" do
-    String :sku
-    String :name
-    String :category
-    Float :price
-    Integer :quantity
-    String :expiration_date
-    String :status
+    attribute :sku, String
+    attribute :name, String
+    attribute :category, String
+    attribute :price, Float
+    attribute :quantity, Integer
+    attribute :expiration_date, String
+    attribute :status, String
     list_of(NutritionFact) :nutrition_facts
 
     value_object "NutritionFact" do
-      String :nutrient
-      Float :amount
-      String :unit
-      Float :daily_value_percent
+      attribute :nutrient, String
+      attribute :amount, Float
+      attribute :unit, String
+      attribute :daily_value_percent, Float
     end
 
-    StockProduct do
+    command "StockProduct" do
       role "Stocker"
       description "Add a product to inventory with initial quantity and price"
-      String :sku
-      String :name
-      String :category
-      Float :price
-      Integer :quantity
-      String :expiration_date
+      attribute :sku, String
+      attribute :name, String
+      attribute :category, String
+      attribute :price, Float
+      attribute :quantity, Integer
+      attribute :expiration_date, String
       emits "ProductStocked"
       then_set :sku, to: :sku
       then_set :name, to: :name
@@ -38,17 +38,17 @@ Hecks.bluebook "GroceryStore", version: "2026.04.13.1" do
       then_set :status, to: "available"
     end
 
-    MarkdownProduct do
+    command "MarkdownProduct" do
       role "Manager"
       description "Reduce price on items approaching expiration"
       reference_to(Product)
-      Float :new_price
+      attribute :new_price, Float
       given { new_price < price }
       emits "ProductMarkedDown"
       then_set :price, to: :new_price
     end
 
-    PullFromShelf do
+    command "PullFromShelf" do
       role "Stocker"
       description "Remove expired or damaged product from the sales floor"
       reference_to(Product)
@@ -58,31 +58,31 @@ Hecks.bluebook "GroceryStore", version: "2026.04.13.1" do
   end
 
   aggregate "Aisle", "A physical row in the store organized by category" do
-    String :aisle_number
-    String :category
-    Integer :shelf_count
+    attribute :aisle_number, String
+    attribute :category, String
+    attribute :shelf_count, Integer
     list_of(Planogram) :planograms
 
     value_object "Planogram" do
-      String :sku
-      Integer :shelf_position
-      Integer :facings
-      String :orientation
+      attribute :sku, String
+      attribute :shelf_position, Integer
+      attribute :facings, Integer
+      attribute :orientation, String
     end
 
-    DesignateAisle do
+    command "DesignateAisle" do
       role "Manager"
       description "Assign a category and layout to an aisle"
-      String :aisle_number
-      String :category
-      Integer :shelf_count
+      attribute :aisle_number, String
+      attribute :category, String
+      attribute :shelf_count, Integer
       emits "AisleDesignated"
       then_set :aisle_number, to: :aisle_number
       then_set :category, to: :category
       then_set :shelf_count, to: :shelf_count
     end
 
-    RevisePlanogram do
+    command "RevisePlanogram" do
       role "Manager"
       description "Rearrange product placement within the aisle"
       reference_to(Aisle)
@@ -91,56 +91,56 @@ Hecks.bluebook "GroceryStore", version: "2026.04.13.1" do
   end
 
   aggregate "Supplier", "A vendor who provides products to the store" do
-    String :name
-    String :contact_email
-    String :delivery_schedule
+    attribute :name, String
+    attribute :contact_email, String
+    attribute :delivery_schedule, String
     list_of(SuppliedItem) :supplied_items
 
     value_object "SuppliedItem" do
-      String :sku
-      String :product_name
-      Float :wholesale_price
-      Integer :minimum_order
+      attribute :sku, String
+      attribute :product_name, String
+      attribute :wholesale_price, Float
+      attribute :minimum_order, Integer
     end
 
-    RegisterSupplier do
+    command "RegisterSupplier" do
       role "Buyer"
       description "Onboard a new supplier with delivery terms"
-      String :name
-      String :contact_email
-      String :delivery_schedule
+      attribute :name, String
+      attribute :contact_email, String
+      attribute :delivery_schedule, String
       emits "SupplierRegistered"
       then_set :name, to: :name
       then_set :contact_email, to: :contact_email
       then_set :delivery_schedule, to: :delivery_schedule
     end
 
-    PlaceReorder do
+    command "PlaceReorder" do
       role "Buyer"
       description "Submit a restocking order to the supplier"
       reference_to(Supplier)
-      String :sku
-      Integer :quantity
+      attribute :sku, String
+      attribute :quantity, Integer
       emits "ReorderPlaced"
     end
   end
 
   aggregate "Promotion", "A temporary price reduction or deal to drive sales" do
-    String :promo_code
-    String :description
-    String :start_date
-    String :end_date
-    Float :discount_percent
-    String :status
+    attribute :promo_code, String
+    attribute :description, String
+    attribute :start_date, String
+    attribute :end_date, String
+    attribute :discount_percent, Float
+    attribute :status, String
 
-    LaunchPromotion do
+    command "LaunchPromotion" do
       role "Manager"
       description "Activate a promotional deal for a date range"
-      String :promo_code
-      String :description
-      String :start_date
-      String :end_date
-      Float :discount_percent
+      attribute :promo_code, String
+      attribute :description, String
+      attribute :start_date, String
+      attribute :end_date, String
+      attribute :discount_percent, Float
       emits "PromotionLaunched"
       then_set :promo_code, to: :promo_code
       then_set :description, to: :description
@@ -150,7 +150,7 @@ Hecks.bluebook "GroceryStore", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    EndPromotion do
+    command "EndPromotion" do
       role "Manager"
       description "Deactivate a promotion early or at its scheduled end"
       reference_to(Promotion)
@@ -160,26 +160,26 @@ Hecks.bluebook "GroceryStore", version: "2026.04.13.1" do
   end
 
   aggregate "ShrinkageReport", "Tracking inventory loss from theft, damage, or spoilage" do
-    String :report_id
-    String :sku
-    Integer :units_lost
-    String :cause
-    String :reported_date
-    Float :estimated_loss
+    attribute :report_id, String
+    attribute :sku, String
+    attribute :units_lost, Integer
+    attribute :cause, String
+    attribute :reported_date, String
+    attribute :estimated_loss, Float
 
     specification "HighShrinkage" do
       satisfied_by { estimated_loss > 500 }
     end
 
-    RecordShrinkage do
+    command "RecordShrinkage" do
       role "Manager"
       description "Log an inventory loss event with cause and financial impact"
-      String :report_id
-      String :sku
-      Integer :units_lost
-      String :cause
-      String :reported_date
-      Float :estimated_loss
+      attribute :report_id, String
+      attribute :sku, String
+      attribute :units_lost, Integer
+      attribute :cause, String
+      attribute :reported_date, String
+      attribute :estimated_loss, Float
       emits "ShrinkageRecorded"
       then_set :report_id, to: :report_id
       then_set :sku, to: :sku
@@ -189,7 +189,7 @@ Hecks.bluebook "GroceryStore", version: "2026.04.13.1" do
       then_set :estimated_loss, to: :estimated_loss
     end
 
-    InvestigateShrinkage do
+    command "InvestigateShrinkage" do
       role "LossPrevention"
       description "Look into the cause and recommend countermeasures"
       reference_to(ShrinkageReport)

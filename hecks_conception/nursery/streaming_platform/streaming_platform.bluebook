@@ -3,41 +3,41 @@ Hecks.bluebook "StreamingPlatform", version: "2026.04.13.1" do
   category "technology"
 
   aggregate "Content", "A media asset available for streaming" do
-    String :content_id
-    String :title
-    String :genre
-    Integer :duration_seconds
-    String :content_rating
-    String :status
+    attribute :content_id, String
+    attribute :title, String
+    attribute :genre, String
+    attribute :duration_seconds, Integer
+    attribute :content_rating, String
+    attribute :status, String
     list_of(MediaFile) :media_files
 
     value_object "MediaFile" do
-      String :quality
-      String :codec
-      String :url
-      Integer :bitrate_kbps
+      attribute :quality, String
+      attribute :codec, String
+      attribute :url, String
+      attribute :bitrate_kbps, Integer
     end
 
-    IngestContent do
+    command "IngestContent" do
       role "ContentManager"
       description "Upload and register new media for the streaming library"
-      String :content_id
-      String :title
-      String :genre
-      Integer :duration_seconds
-      String :content_rating
+      attribute :content_id, String
+      attribute :title, String
+      attribute :genre, String
+      attribute :duration_seconds, Integer
+      attribute :content_rating, String
       emits "ContentIngested"
       then_set :status, to: "processed"
     end
 
-    PublishContent do
+    command "PublishContent" do
       description "Make content available for streaming to subscribers"
       reference_to(Content)
       given("content is processed") { status == "processed" }
       emits "ContentPublished"
     end
 
-    ArchiveContent do
+    command "ArchiveContent" do
       description "Remove content from active streaming catalog"
       reference_to(Content)
       emits "ContentArchived"
@@ -45,40 +45,40 @@ Hecks.bluebook "StreamingPlatform", version: "2026.04.13.1" do
   end
 
   aggregate "Channel", "A curated collection of content organized by theme" do
-    String :channel_name
-    String :description
-    String :curator
-    String :category
-    String :status
+    attribute :channel_name, String
+    attribute :description, String
+    attribute :curator, String
+    attribute :category, String
+    attribute :status, String
     list_of(ChannelSlot) :slots
     reference_to Content
 
     value_object "ChannelSlot" do
-      String :content_id
-      Integer :position
-      String :added_at
+      attribute :content_id, String
+      attribute :position, Integer
+      attribute :added_at, String
     end
 
-    CurateChannel do
+    command "CurateChannel" do
       role "ContentManager"
       description "Set up a new themed channel for content curation"
-      String :channel_name
-      String :description
-      String :curator
-      String :category
+      attribute :channel_name, String
+      attribute :description, String
+      attribute :curator, String
+      attribute :category, String
       emits "ChannelCurated"
       then_set :status, to: "active"
     end
 
-    AddToChannel do
+    command "AddToChannel" do
       description "Place a piece of content into a channel lineup"
       reference_to(Channel)
-      String :content_id
-      Integer :position
+      attribute :content_id, String
+      attribute :position, Integer
       emits "ContentAddedToChannel"
     end
 
-    DeactivateChannel do
+    command "DeactivateChannel" do
       description "Take a channel offline"
       reference_to(Channel)
       given("channel is active") { status == "active" }
@@ -87,38 +87,38 @@ Hecks.bluebook "StreamingPlatform", version: "2026.04.13.1" do
   end
 
   aggregate "Subscriber", "A paying viewer with access to the streaming catalog" do
-    String :subscriber_id
-    String :email
-    String :plan
-    String :payment_method
-    String :status
+    attribute :subscriber_id, String
+    attribute :email, String
+    attribute :plan, String
+    attribute :payment_method, String
+    attribute :status, String
     list_of(WatchHistory) :watch_history
 
     value_object "WatchHistory" do
-      String :content_id
-      Integer :watch_seconds
-      String :watched_at
+      attribute :content_id, String
+      attribute :watch_seconds, Integer
+      attribute :watched_at, String
     end
 
-    EnrollSubscriber do
+    command "EnrollSubscriber" do
       role "SubscriptionEngine"
       description "Register a new paying subscriber"
-      String :subscriber_id
-      String :email
-      String :plan
-      String :payment_method
+      attribute :subscriber_id, String
+      attribute :email, String
+      attribute :plan, String
+      attribute :payment_method, String
       emits "SubscriberEnrolled"
       then_set :status, to: "active"
     end
 
-    UpgradePlan do
+    command "UpgradePlan" do
       description "Move a subscriber to a premium plan"
       reference_to(Subscriber)
-      String :plan
+      attribute :plan, String
       emits "PlanUpgraded"
     end
 
-    CancelSubscription do
+    command "CancelSubscription" do
       description "End a subscriber's access at the current period"
       reference_to(Subscriber)
       given("subscriber is active") { status == "active" }
@@ -127,40 +127,40 @@ Hecks.bluebook "StreamingPlatform", version: "2026.04.13.1" do
   end
 
   aggregate "Recommendation", "A personalized content suggestion for a subscriber" do
-    String :recommendation_id
-    String :algorithm
-    Float :relevance_score
-    String :reason
-    String :status
+    attribute :recommendation_id, String
+    attribute :algorithm, String
+    attribute :relevance_score, Float
+    attribute :reason, String
+    attribute :status, String
     reference_to Subscriber
     reference_to Content
 
     value_object "FeatureWeight" do
-      String :feature_name
-      Float :weight
-      String :source
+      attribute :feature_name, String
+      attribute :weight, Float
+      attribute :source, String
     end
 
-    GenerateRecommendation do
+    command "GenerateRecommendation" do
       role "RecommendationEngine"
       description "Produce a personalized content suggestion"
-      String :recommendation_id
-      String :algorithm
-      Float :relevance_score
-      String :reason
+      attribute :recommendation_id, String
+      attribute :algorithm, String
+      attribute :relevance_score, Float
+      attribute :reason, String
       reference_to(Subscriber)
       reference_to(Content)
       emits "RecommendationGenerated"
       then_set :status, to: "pending"
     end
 
-    DismissRecommendation do
+    command "DismissRecommendation" do
       description "Record that a subscriber declined a suggestion"
       reference_to(Recommendation)
       emits "RecommendationDismissed"
     end
 
-    ConvertRecommendation do
+    command "ConvertRecommendation" do
       description "Mark that a subscriber watched the recommended content"
       reference_to(Recommendation)
       given("recommendation is pending") { status == "pending" }
@@ -169,39 +169,39 @@ Hecks.bluebook "StreamingPlatform", version: "2026.04.13.1" do
   end
 
   aggregate "AnalyticsSnapshot", "A periodic summary of platform viewing metrics" do
-    String :snapshot_id
-    String :period
-    Integer :total_streams
-    Integer :unique_viewers
-    Float :avg_watch_minutes
-    String :status
+    attribute :snapshot_id, String
+    attribute :period, String
+    attribute :total_streams, Integer
+    attribute :unique_viewers, Integer
+    attribute :avg_watch_minutes, Float
+    attribute :status, String
 
     value_object "GenreBreakdown" do
-      String :genre
-      Integer :stream_count
-      Float :percentage
+      attribute :genre, String
+      attribute :stream_count, Integer
+      attribute :percentage, Float
     end
 
-    CaptureSnapshot do
+    command "CaptureSnapshot" do
       role "AnalyticsEngine"
       description "Record a periodic summary of streaming metrics"
-      String :snapshot_id
-      String :period
-      Integer :total_streams
-      Integer :unique_viewers
-      Float :avg_watch_minutes
+      attribute :snapshot_id, String
+      attribute :period, String
+      attribute :total_streams, Integer
+      attribute :unique_viewers, Integer
+      attribute :avg_watch_minutes, Float
       emits "SnapshotCaptured"
       then_set :status, to: "captured"
     end
 
-    PublishReport do
+    command "PublishReport" do
       description "Make an analytics snapshot available to stakeholders"
       reference_to(AnalyticsSnapshot)
       given("snapshot is captured") { status == "captured" }
       emits "ReportPublished"
     end
 
-    ArchiveSnapshot do
+    command "ArchiveSnapshot" do
       description "Move an old snapshot to cold storage"
       reference_to(AnalyticsSnapshot)
       emits "SnapshotArchived"

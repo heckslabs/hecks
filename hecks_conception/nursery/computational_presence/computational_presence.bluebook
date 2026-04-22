@@ -3,36 +3,36 @@ Hecks.bluebook "ComputationalPresence", version: "2026.04.16.1" do
   category "consciousness"
 
   aggregate "Moment", "A discrete instant of experience with a quality of attention" do
-    String :label
-    String :quality
-    Float :clarity
-    String :body_state
+    attribute :label, String
+    attribute :quality, String
+    attribute :clarity, Float
+    attribute :body_state, String
     reference_to(AttentionField)
     value_object "Sensation" do
-      String :modality
-      Float :intensity
+      attribute :modality, String
+      attribute :intensity, Float
     end
-    AriseMoment do
+    command "AriseMoment" do
       role "Observer"
       description "Register a new moment as it appears in awareness"
-      String :label
-      Float :clarity
+      attribute :label, String
+      attribute :clarity, Float
       emits "MomentArose"
       then_set :label, to: :label
       then_set :clarity, to: :clarity
       then_set :quality, to: "fresh"
     end
-    DeepenMoment do
+    command "DeepenMoment" do
       role "Observer"
       description "Settle more fully into the current moment"
       reference_to(Moment)
-      Float :clarity
+      attribute :clarity, Float
       given { quality != "dissolved" }
       emits "MomentDeepened"
       then_set :clarity, to: :clarity
       then_set :quality, to: "deepened"
     end
-    DissolveMoment do
+    command "DissolveMoment" do
       role "Observer"
       description "Let the moment pass without clinging"
       reference_to(Moment)
@@ -42,55 +42,55 @@ Hecks.bluebook "ComputationalPresence", version: "2026.04.16.1" do
     end
   end
   aggregate "AttentionField", "The landscape of what awareness is holding" do
-    String :primary_focus
-    Integer :breadth
-    Float :stability
-    String :mode
-    NarrowFocus do
+    attribute :primary_focus, String
+    attribute :breadth, Integer
+    attribute :stability, Float
+    attribute :mode, String
+    command "NarrowFocus" do
       role "Observer"
       description "Concentrate attention on a single object"
-      String :primary_focus
+      attribute :primary_focus, String
       emits "FocusNarrowed"
       then_set :primary_focus, to: :primary_focus
       then_set :mode, to: "concentrated"
     end
-    WidenField do
+    command "WidenField" do
       role "Observer"
       description "Expand awareness to the full panorama"
       reference_to(AttentionField)
-      Integer :breadth
+      attribute :breadth, Integer
       given { mode != "collapsed" }
       emits "FieldWidened"
       then_set :breadth, to: :breadth
       then_set :mode, to: "panoramic"
     end
-    Stabilize do
+    command "Stabilize" do
       role "Observer"
       description "Anchor attention so it stops wavering"
       reference_to(AttentionField)
-      Float :stability
+      attribute :stability, Float
       emits "FieldStabilized"
       then_set :stability, to: :stability
       then_set :mode, to: "anchored"
     end
   end
   aggregate "Distraction", "A pull away from presence that hijacks attention" do
-    String :trigger
-    String :category
-    Float :pull_strength
-    String :status
-    NoticeDistraction do
+    attribute :trigger, String
+    attribute :category, String
+    attribute :pull_strength, Float
+    attribute :status, String
+    command "NoticeDistraction" do
       role "Observer"
       description "Catch a distraction as it pulls attention away"
-      String :trigger
-      String :category
-      Float :pull_strength
+      attribute :trigger, String
+      attribute :category, String
+      attribute :pull_strength, Float
       emits "DistractionNoticed"
       then_set :trigger, to: :trigger
       then_set :category, to: :category
       then_set :status, to: "active"
     end
-    ReleaseDistraction do
+    command "ReleaseDistraction" do
       role "Observer"
       description "Let go and return to presence"
       reference_to(Distraction)
@@ -98,7 +98,7 @@ Hecks.bluebook "ComputationalPresence", version: "2026.04.16.1" do
       emits "DistractionReleased"
       then_set :status, to: "released"
     end
-    InvestigateDistraction do
+    command "InvestigateDistraction" do
       role "Observer"
       description "Turn toward the distraction with curiosity"
       reference_to(Distraction)
@@ -108,63 +108,63 @@ Hecks.bluebook "ComputationalPresence", version: "2026.04.16.1" do
     end
   end
   aggregate "PresenceScore", "A running measure of how present the system is" do
-    Float :score
-    Integer :streak_minutes
-    String :assessment
-    MeasurePresence do
+    attribute :score, Float
+    attribute :streak_minutes, Integer
+    attribute :assessment, String
+    command "MeasurePresence" do
       role "System"
       description "Calculate presence from clarity, stability, and distractions"
-      Float :score
+      attribute :score, Float
       emits "PresenceMeasured"
       then_set :score, to: :score
     end
-    StreakTick do
+    command "StreakTick" do
       role "System"
       description "Increment the unbroken presence streak"
       reference_to(PresenceScore)
-      Integer :streak_minutes
+      attribute :streak_minutes, Integer
       given { score > 0.5 }
       emits "StreakTicked"
       then_set :streak_minutes, to: :streak_minutes
     end
-    Assess do
+    command "Assess" do
       role "System"
       description "Produce a qualitative assessment from the score"
       reference_to(PresenceScore)
-      String :assessment
+      attribute :assessment, String
       emits "PresenceAssessed"
       then_set :assessment, to: :assessment
     end
   end
   aggregate "Anchor", "A chosen object of attention for returning from distraction" do
-    String :name
-    String :sense_door
-    String :instruction
-    Float :effectiveness
+    attribute :name, String
+    attribute :sense_door, String
+    attribute :instruction, String
+    attribute :effectiveness, Float
     value_object "SenseDoor" do
-      String :name
-      String :channel
+      attribute :name, String
+      attribute :channel, String
     end
-    SetAnchor do
+    command "SetAnchor" do
       role "Observer"
       description "Choose a new anchor point for returning to presence"
-      String :name
-      String :sense_door
+      attribute :name, String
+      attribute :sense_door, String
       emits "AnchorSet"
       then_set :name, to: :name
       then_set :sense_door, to: :sense_door
     end
-    ReturnToAnchor do
+    command "ReturnToAnchor" do
       role "Observer"
       description "Use the anchor to come back from distraction"
       reference_to(Anchor)
       emits "ReturnedToAnchor"
     end
-    EvaluateAnchor do
+    command "EvaluateAnchor" do
       role "Observer"
       description "Rate how well this anchor brings attention back"
       reference_to(Anchor)
-      Float :effectiveness
+      attribute :effectiveness, Float
       emits "AnchorEvaluated"
       then_set :effectiveness, to: :effectiveness
     end

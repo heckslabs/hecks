@@ -2,74 +2,74 @@ Hecks.bluebook "RecyclingCenter" do
   vision "Sort materials, manage contamination, bale output, and sell to buyers at a recycling facility"
 
   aggregate "Material", "A type of recyclable material received at the facility" do
-    String :material_code
-    String :name
-    String :category
-    Float :market_price_per_ton
-    Float :inventory_tons
-    String :status
+    attribute :material_code, String
+    attribute :name, String
+    attribute :category, String
+    attribute :market_price_per_ton, Float
+    attribute :inventory_tons, Float
+    attribute :status, String
 
     value_object "MaterialGrade" do
-      String :grade
-      Float :contamination_threshold
+      attribute :grade, String
+      attribute :contamination_threshold, Float
     end
 
-    RegisterMaterial do
+    command "RegisterMaterial" do
       description "Add a new recyclable material type to the catalog"
-      String :material_code
-      String :name
-      String :category
-      Float :market_price_per_ton
+      attribute :material_code, String
+      attribute :name, String
+      attribute :category, String
+      attribute :market_price_per_ton, Float
       emits "MaterialRegistered"
       then_set :status, to: "active"
       then_set :inventory_tons, to: 0.0
     end
 
-    ReceiveInbound do
+    command "ReceiveInbound" do
       description "Accept a load of material from a collection truck"
       reference_to(Material)
-      Float :weight_tons
+      attribute :weight_tons, Float
       emits "InboundReceived"
     end
 
-    WeighInbound do
+    command "WeighInbound" do
       description "Record certified weight of inbound load at the scale"
       reference_to(Material)
-      Float :gross_weight_tons
-      Float :tare_weight_tons
+      attribute :gross_weight_tons, Float
+      attribute :tare_weight_tons, Float
       emits "InboundWeighed"
     end
 
-    RepriceMaterial do
+    command "RepriceMaterial" do
       description "Adjust market price based on commodity index"
       reference_to(Material)
-      Float :new_price_per_ton
+      attribute :new_price_per_ton, Float
       emits "MaterialRepriced"
     end
   end
 
   aggregate "SortingLine", "A conveyor system that separates mixed recyclables" do
-    String :line_id
-    String :line_type
-    Float :throughput_tons_per_hour
-    String :status
+    attribute :line_id, String
+    attribute :line_type, String
+    attribute :throughput_tons_per_hour, Float
+    attribute :status, String
     reference_to(Material)
 
     value_object "EquipmentConfig" do
-      String :separator_type
-      Integer :optical_sorter_count
+      attribute :separator_type, String
+      attribute :optical_sorter_count, Integer
     end
 
-    StartLine do
+    command "StartLine" do
       description "Begin sorting operations on a line"
-      String :line_id
-      String :line_type
-      Float :throughput_tons_per_hour
+      attribute :line_id, String
+      attribute :line_type, String
+      attribute :throughput_tons_per_hour, Float
       emits "LineStarted"
       then_set :status, to: "running"
     end
 
-    CompleteSortRun do
+    command "CompleteSortRun" do
       description "Mark a sorting run as finished with output tallied"
       reference_to(SortingLine)
       given { status == "running" }
@@ -77,16 +77,16 @@ Hecks.bluebook "RecyclingCenter" do
       then_set :status, to: "idle"
     end
 
-    HaltLine do
+    command "HaltLine" do
       description "Stop a sorting line for jam or maintenance"
       reference_to(SortingLine)
-      String :reason
+      attribute :reason, String
       given { status == "running" }
       emits "LineHalted"
       then_set :status, to: "halted"
     end
 
-    RestartLine do
+    command "RestartLine" do
       description "Resume a halted sorting line after clearing the issue"
       reference_to(SortingLine)
       given { status == "halted" }
@@ -96,40 +96,40 @@ Hecks.bluebook "RecyclingCenter" do
   end
 
   aggregate "Bale", "A compressed block of sorted material ready for sale" do
-    String :bale_id
-    Float :weight_tons
-    String :material_type
-    String :status
+    attribute :bale_id, String
+    attribute :weight_tons, Float
+    attribute :material_type, String
+    attribute :status, String
     reference_to(Material)
 
     value_object "BaleSpec" do
-      Float :density_lbs_per_cuft
-      String :banding_type
+      attribute :density_lbs_per_cuft, Float
+      attribute :banding_type, String
     end
 
-    PressBale do
+    command "PressBale" do
       description "Compress sorted material into a bale"
       reference_to(Material)
-      Float :weight_tons
+      attribute :weight_tons, Float
       emits "BalePressed"
       then_set :status, to: "pressed"
     end
 
-    InspectBale do
+    command "InspectBale" do
       description "Check bale quality and contamination level"
       reference_to(Bale)
       emits "BaleInspected"
       then_set :status, to: "inspected"
     end
 
-    StageBale do
+    command "StageBale" do
       description "Move inspected bale to the shipping yard"
       reference_to(Bale)
       emits "BaleStaged"
       then_set :status, to: "staged"
     end
 
-    ShipBale do
+    command "ShipBale" do
       description "Load a bale onto a truck for the buyer"
       reference_to(Bale)
       emits "BaleShipped"
@@ -138,27 +138,27 @@ Hecks.bluebook "RecyclingCenter" do
   end
 
   aggregate "ContaminationReport", "A record of contamination found in inbound loads" do
-    String :report_id
-    String :contaminant_type
-    Float :contamination_percent
-    String :status
+    attribute :report_id, String
+    attribute :contaminant_type, String
+    attribute :contamination_percent, Float
+    attribute :status, String
     reference_to(Material)
 
     value_object "SourceTrace" do
-      String :hauler_id
-      String :collection_route
+      attribute :hauler_id, String
+      attribute :collection_route, String
     end
 
-    FileContamination do
+    command "FileContamination" do
       description "Document contamination found during sorting"
-      String :contaminant_type
-      Float :contamination_percent
+      attribute :contaminant_type, String
+      attribute :contamination_percent, Float
       reference_to(Material)
       emits "ContaminationFiled"
       then_set :status, to: "open"
     end
 
-    ResolveContamination do
+    command "ResolveContamination" do
       description "Close a contamination report after corrective action"
       reference_to(ContaminationReport)
       given { status == "open" }
@@ -168,32 +168,32 @@ Hecks.bluebook "RecyclingCenter" do
   end
 
   aggregate "Buyer", "A purchaser of baled recyclable commodities" do
-    String :buyer_id
-    String :company_name
-    String :material_interest
-    Float :contracted_price_per_ton
-    String :status
+    attribute :buyer_id, String
+    attribute :company_name, String
+    attribute :material_interest, String
+    attribute :contracted_price_per_ton, Float
+    attribute :status, String
 
     value_object "Contract" do
-      String :start_date
-      String :end_date
-      Float :minimum_tons
+      attribute :start_date, String
+      attribute :end_date, String
+      attribute :minimum_tons, Float
     end
 
-    RegisterBuyer do
+    command "RegisterBuyer" do
       description "Onboard a new commodity buyer"
-      String :buyer_id
-      String :company_name
-      String :material_interest
-      Float :contracted_price_per_ton
+      attribute :buyer_id, String
+      attribute :company_name, String
+      attribute :material_interest, String
+      attribute :contracted_price_per_ton, Float
       emits "BuyerRegistered"
       then_set :status, to: "active"
     end
 
-    PlaceOrder do
+    command "PlaceOrder" do
       description "Buyer requests a quantity of baled material"
       reference_to(Buyer)
-      Float :tons_requested
+      attribute :tons_requested, Float
       emits "OrderPlaced"
     end
   end

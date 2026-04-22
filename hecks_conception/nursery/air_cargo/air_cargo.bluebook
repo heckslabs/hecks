@@ -1,33 +1,33 @@
 Hecks.bluebook "AirCargo" do
   aggregate "CargoFlight" do
-    String :flight_id
-    String :flight_number
-    String :aircraft_type
-    String :origin_airport
-    String :destination_airport
-    Float :payload_capacity_kg
-    String :status
+    attribute :flight_id, String
+    attribute :flight_number, String
+    attribute :aircraft_type, String
+    attribute :origin_airport, String
+    attribute :destination_airport, String
+    attribute :payload_capacity_kg, Float
+    attribute :status, String
 
-    ScheduleFlight do
+    command "ScheduleFlight" do
       description "Schedule cargo flight with aircraft assignment and capacity"
-      String :flight_number
-      String :origin_airport
-      String :destination_airport
+      attribute :flight_number, String
+      attribute :origin_airport, String
+      attribute :destination_airport, String
       reference_to "CargoFlight"
       emits "FlightScheduled"
     end
 
-    DepartFlight do
+    command "DepartFlight" do
       description "Record actual departure with final load and fuel figures"
-      Float :actual_payload_kg
-      String :departure_time
+      attribute :actual_payload_kg, Float
+      attribute :departure_time, String
       reference_to "CargoFlight"
       emits "FlightDeparted"
     end
 
-    ArriveFlight do
+    command "ArriveFlight" do
       description "Record flight arrival and begin cargo offload operations"
-      String :arrival_time
+      attribute :arrival_time, String
       reference_to "CargoFlight"
       emits "FlightArrived"
     end
@@ -42,44 +42,44 @@ Hecks.bluebook "AirCargo" do
     policy "Dangerous goods must be loaded per IATA segregation rules"
 
     given "A 747 freighter departs LAX for Shanghai" do
-      String :flight_number, "CX-2847"
-      String :aircraft_type, "747-400F"
-      Float :payload_capacity_kg, 112000.0
+      attribute :flight_number, String, "CX-2847"
+      attribute :aircraft_type, String, "747-400F"
+      attribute :payload_capacity_kg, Float, 112000.0
     end
   end
 
   aggregate "ULDPallet" do
-    String :pallet_id
-    String :uld_type
-    Float :tare_weight_kg
-    Float :gross_weight_kg
-    Float :max_weight_kg
-    String :status
+    attribute :pallet_id, String
+    attribute :uld_type, String
+    attribute :tare_weight_kg, Float
+    attribute :gross_weight_kg, Float
+    attribute :max_weight_kg, Float
+    attribute :status, String
     list_of "CargoShipment"
 
     value_object "ULDPosition" do
-      String :deck
-      String :position_code
-      Float :contour_limit_kg
+      attribute :deck, String
+      attribute :position_code, String
+      attribute :contour_limit_kg, Float
     end
 
-    BuildPallet do
+    command "BuildPallet" do
       description "Stack and net cargo shipments onto ULD pallet for loading"
-      String :uld_type
+      attribute :uld_type, String
       reference_to "ULDPallet"
       emits "PalletBuilt"
     end
 
-    WeighPallet do
+    command "WeighPallet" do
       description "Weigh completed pallet and verify within contour limits"
-      Float :gross_weight_kg
+      attribute :gross_weight_kg, Float
       reference_to "ULDPallet"
       emits "PalletWeighed"
     end
 
-    LoadOntoAircraft do
+    command "LoadOntoAircraft" do
       description "Load weighed pallet into aircraft cargo hold position"
-      String :hold_position
+      attribute :hold_position, String
       reference_to "CargoFlight"
       emits "PalletLoaded"
     end
@@ -94,34 +94,34 @@ Hecks.bluebook "AirCargo" do
   end
 
   aggregate "CargoShipment" do
-    String :awb_number
-    String :shipper_name
-    String :consignee_name
-    Integer :piece_count
-    Float :chargeable_weight_kg
-    String :commodity
-    String :status
+    attribute :awb_number, String
+    attribute :shipper_name, String
+    attribute :consignee_name, String
+    attribute :piece_count, Integer
+    attribute :chargeable_weight_kg, Float
+    attribute :commodity, String
+    attribute :status, String
 
-    BookShipment do
+    command "BookShipment" do
       description "Accept cargo booking with shipper details and commodity info"
-      String :shipper_name
-      String :consignee_name
-      String :commodity
+      attribute :shipper_name, String
+      attribute :consignee_name, String
+      attribute :commodity, String
       reference_to "CargoShipment"
       emits "ShipmentBooked"
     end
 
-    ReceiveCargo do
+    command "ReceiveCargo" do
       description "Accept physical cargo at warehouse and verify against booking"
-      Integer :piece_count
-      Float :actual_weight_kg
+      attribute :piece_count, Integer
+      attribute :actual_weight_kg, Float
       reference_to "CargoShipment"
       emits "CargoReceived"
     end
 
-    DeliverCargo do
+    command "DeliverCargo" do
       description "Release cargo to consignee after customs clearance"
-      String :consignee_signature
+      attribute :consignee_signature, String
       reference_to "CargoShipment"
       emits "CargoDelivered"
     end
@@ -136,31 +136,31 @@ Hecks.bluebook "AirCargo" do
   end
 
   aggregate "CustomsEntry" do
-    String :entry_id
-    String :awb_number
-    String :entry_type
-    String :broker_name
-    String :hs_code
-    String :status
+    attribute :entry_id, String
+    attribute :awb_number, String
+    attribute :entry_type, String
+    attribute :broker_name, String
+    attribute :hs_code, String
+    attribute :status, String
 
     value_object "TariffLine" do
-      String :hs_code
-      Float :declared_value
-      Float :duty_rate
-      Float :duty_amount
+      attribute :hs_code, String
+      attribute :declared_value, Float
+      attribute :duty_rate, Float
+      attribute :duty_amount, Float
     end
 
-    FileEntry do
+    command "FileEntry" do
       description "Submit customs entry for import clearance with broker"
-      String :entry_type
-      String :broker_name
+      attribute :entry_type, String
+      attribute :broker_name, String
       reference_to "CargoShipment"
       emits "EntryFiled"
     end
 
-    ClearEntry do
+    command "ClearEntry" do
       description "Record customs clearance allowing cargo release to consignee"
-      String :clearance_number
+      attribute :clearance_number, String
       reference_to "CustomsEntry"
       emits "EntryCleared"
     end
@@ -174,25 +174,25 @@ Hecks.bluebook "AirCargo" do
   end
 
   aggregate "WarehouseLocation" do
-    String :location_id
-    String :zone
-    String :rack_position
-    Float :capacity_cubic_m
-    String :temperature_zone
-    String :status
+    attribute :location_id, String
+    attribute :zone, String
+    attribute :rack_position, String
+    attribute :capacity_cubic_m, Float
+    attribute :temperature_zone, String
+    attribute :status, String
 
-    StowCargo do
+    command "StowCargo" do
       description "Place received cargo into assigned warehouse storage location"
-      String :awb_number
-      String :zone
+      attribute :awb_number, String
+      attribute :zone, String
       reference_to "CargoShipment"
       emits "CargoStowed"
     end
 
-    RetrieveCargo do
+    command "RetrieveCargo" do
       description "Pull cargo from storage for pallet buildup or customer pickup"
-      String :awb_number
-      String :purpose
+      attribute :awb_number, String
+      attribute :purpose, String
       reference_to "WarehouseLocation"
       emits "CargoRetrieved"
     end

@@ -1,36 +1,36 @@
 Hecks.bluebook "ArchitectureFirm" do
   aggregate "ArchProject", "An architectural project from schematic design to construction admin" do
-    String :name
-    String :building_type
-    String :phase, default: "schematic_design"
-    Float :square_footage
-    Float :budget
+    attribute :name, String
+    attribute :building_type, String
+    attribute :phase, String, default: "schematic_design"
+    attribute :square_footage, Float
+    attribute :budget, Float
 
     value_object "ProjectScope" do
-      String :building_use
-      Integer :floor_count
-      Float :site_area_sqft
-      String :zoning_classification
+      attribute :building_use, String
+      attribute :floor_count, Integer
+      attribute :site_area_sqft, Float
+      attribute :zoning_classification, String
     end
 
-    AcceptProject do
+    command "AcceptProject" do
       description "Accept a new architectural commission from a client"
-      String :name
-      String :building_type
-      Float :square_footage
-      Float :budget
+      attribute :name, String
+      attribute :building_type, String
+      attribute :square_footage, Float
+      attribute :budget, Float
       emits "ProjectCommissioned"
     end
 
-    AdvancePhase do
+    command "AdvancePhase" do
       description "Move the project to the next design phase"
       reference_to(ArchProject)
-      String :next_phase
+      attribute :next_phase, String
       emits "PhaseAdvanced"
       then_set :phase, to: :next_phase
     end
 
-    CloseOutProject do
+    command "CloseOutProject" do
       description "Complete construction administration and close project"
       reference_to(ArchProject)
       emits "ProjectClosedOut"
@@ -43,31 +43,31 @@ Hecks.bluebook "ArchitectureFirm" do
   end
 
   aggregate "Drawing", "An architectural drawing set — plans, sections, elevations, details" do
-    String :title
-    String :drawing_type
-    String :scale
-    Integer :revision_number
-    String :status, default: "draft"
+    attribute :title, String
+    attribute :drawing_type, String
+    attribute :scale, String
+    attribute :revision_number, Integer
+    attribute :status, String, default: "draft"
     reference_to(ArchProject)
 
-    ProduceDrawing do
+    command "ProduceDrawing" do
       description "Create a new drawing for the project set"
       reference_to(ArchProject)
-      String :title
-      String :drawing_type
-      String :scale
+      attribute :title, String
+      attribute :drawing_type, String
+      attribute :scale, String
       then_set :status, to: "draft"
       emits "DrawingProduced"
     end
 
-    ReviseDrawing do
+    command "ReviseDrawing" do
       description "Issue a revision to an existing drawing"
       reference_to(Drawing)
-      String :revision_notes
+      attribute :revision_notes, String
       emits "DrawingRevised"
     end
 
-    IssueForReview do
+    command "IssueForReview" do
       description "Submit drawings for client or code review"
       reference_to(Drawing)
       given { status == "draft" }
@@ -77,22 +77,22 @@ Hecks.bluebook "ArchitectureFirm" do
   end
 
   aggregate "Revision", "A tracked change set to drawings with reviewer comments" do
-    Integer :revision_number
-    String :reviewer_name
-    String :comments
-    String :status, default: "pending"
+    attribute :revision_number, Integer
+    attribute :reviewer_name, String
+    attribute :comments, String
+    attribute :status, String, default: "pending"
     reference_to(Drawing)
 
-    RequestRevision do
+    command "RequestRevision" do
       description "Flag drawings needing changes after review"
       reference_to(Drawing)
-      String :reviewer_name
-      String :comments
+      attribute :reviewer_name, String
+      attribute :comments, String
       then_set :status, to: "pending"
       emits "RevisionRequested"
     end
 
-    ApproveRevision do
+    command "ApproveRevision" do
       description "Sign off on the revised drawings"
       reference_to(Revision)
       given { status == "pending" }
@@ -102,31 +102,31 @@ Hecks.bluebook "ArchitectureFirm" do
   end
 
   aggregate "Permit", "A building permit application with jurisdiction and status" do
-    String :permit_type
-    String :jurisdiction
-    String :status, default: "preparing"
-    String :permit_number
+    attribute :permit_type, String
+    attribute :jurisdiction, String
+    attribute :status, String, default: "preparing"
+    attribute :permit_number, String
     reference_to(ArchProject)
 
     value_object "CodeRequirement" do
-      String :code_section
-      String :requirement
-      String :compliance_method
+      attribute :code_section, String
+      attribute :requirement, String
+      attribute :compliance_method, String
     end
 
-    SubmitPermit do
+    command "SubmitPermit" do
       description "File a permit application with the building department"
       reference_to(ArchProject)
-      String :permit_type
-      String :jurisdiction
+      attribute :permit_type, String
+      attribute :jurisdiction, String
       emits "PermitSubmitted"
       then_set :status, to: "submitted"
     end
 
-    ReceiveApproval do
+    command "ReceiveApproval" do
       description "Record permit approval from the jurisdiction"
       reference_to(Permit)
-      String :permit_number
+      attribute :permit_number, String
       given { status == "submitted" }
       emits "PermitApproved"
       then_set :status, to: "approved"
@@ -135,27 +135,27 @@ Hecks.bluebook "ArchitectureFirm" do
   end
 
   aggregate "SiteVisit", "An on-site inspection during construction" do
-    String :date
-    String :inspector_name
-    String :weather_conditions
-    String :notes
-    String :status, default: "scheduled"
+    attribute :date, String
+    attribute :inspector_name, String
+    attribute :weather_conditions, String
+    attribute :notes, String
+    attribute :status, String, default: "scheduled"
     reference_to(ArchProject)
 
-    ScheduleVisit do
+    command "ScheduleVisit" do
       description "Plan a site visit for construction observation"
       reference_to(ArchProject)
-      String :date
-      String :inspector_name
+      attribute :date, String
+      attribute :inspector_name, String
       then_set :status, to: "scheduled"
       emits "VisitScheduled"
     end
 
-    RecordObservations do
+    command "RecordObservations" do
       description "Document findings during the site visit"
       reference_to(SiteVisit)
-      String :notes
-      String :weather_conditions
+      attribute :notes, String
+      attribute :weather_conditions, String
       given { status == "scheduled" }
       emits "ObservationsRecorded"
       then_set :status, to: "completed"

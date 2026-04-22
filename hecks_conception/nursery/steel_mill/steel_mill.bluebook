@@ -1,32 +1,32 @@
 Hecks.bluebook "SteelMill" do
   aggregate "Heat" do
-    String :heat_number
-    String :grade
-    Float :target_temperature
-    Float :actual_temperature
-    String :status
+    attribute :heat_number, String
+    attribute :grade, String
+    attribute :target_temperature, Float
+    attribute :actual_temperature, Float
+    attribute :status, String
     list_of "SlabOrder"
 
-    ChargeHeat do
+    command "ChargeHeat" do
       description "Load scrap and raw materials into electric arc furnace for melting"
-      String :furnace_id
-      Float :charge_weight_tons
+      attribute :furnace_id, String
+      attribute :charge_weight_tons, Float
       reference_to "Heat"
       emits "HeatCharged"
     end
 
-    TapHeat do
+    command "TapHeat" do
       description "Tap molten steel from furnace into ladle"
-      Float :tap_temperature
-      String :ladle_id
+      attribute :tap_temperature, Float
+      attribute :ladle_id, String
       reference_to "Heat"
       emits "HeatTapped"
     end
 
-    AdjustChemistry do
+    command "AdjustChemistry" do
       description "Add alloys to adjust chemical composition of heat"
-      String :alloy_type
-      Float :quantity_kg
+      attribute :alloy_type, String
+      attribute :quantity_kg, Float
       reference_to "Heat"
       emits "ChemistryAdjusted"
     end
@@ -42,32 +42,32 @@ Hecks.bluebook "SteelMill" do
   end
 
   aggregate "Slab" do
-    String :slab_id
-    String :grade
-    Float :thickness_mm
-    Float :width_mm
-    Float :length_mm
-    String :status
+    attribute :slab_id, String
+    attribute :grade, String
+    attribute :thickness_mm, Float
+    attribute :width_mm, Float
+    attribute :length_mm, Float
+    attribute :status, String
 
     value_object "SlabDimensions" do
-      Float :thickness_mm
-      Float :width_mm
-      Float :length_mm
+      attribute :thickness_mm, Float
+      attribute :width_mm, Float
+      attribute :length_mm, Float
     end
 
-    CastSlab do
+    command "CastSlab" do
       description "Cast molten steel into slab form via continuous caster"
-      String :heat_number
-      Float :thickness_mm
-      Float :width_mm
+      attribute :heat_number, String
+      attribute :thickness_mm, Float
+      attribute :width_mm, Float
       reference_to "Heat"
       emits "SlabCast"
     end
 
-    InspectSlab do
+    command "InspectSlab" do
       description "Perform surface and internal quality inspection on slab"
-      String :inspection_type
-      String :result
+      attribute :inspection_type, String
+      attribute :result, String
       reference_to "Slab"
       emits "SlabInspected"
     end
@@ -83,32 +83,32 @@ Hecks.bluebook "SteelMill" do
   end
 
   aggregate "RollingSchedule" do
-    String :schedule_id
-    String :mill_line
-    String :shift_date
-    String :status
+    attribute :schedule_id, String
+    attribute :mill_line, String
+    attribute :shift_date, String
+    attribute :status, String
     list_of "Slab"
 
-    ScheduleRolling do
+    command "ScheduleRolling" do
       description "Assign slabs to a rolling mill line for a shift"
-      String :mill_line
-      String :shift_date
+      attribute :mill_line, String
+      attribute :shift_date, String
       reference_to "RollingSchedule"
       emits "RollingScheduled"
     end
 
-    CompleteRolling do
+    command "CompleteRolling" do
       description "Mark a rolling pass as complete with measured dimensions"
-      Float :final_thickness_mm
-      Float :final_width_mm
+      attribute :final_thickness_mm, Float
+      attribute :final_width_mm, Float
       reference_to "Slab"
       emits "RollingCompleted"
     end
 
-    RunQualityTest do
+    command "RunQualityTest" do
       description "Perform tensile and hardness tests on rolled product"
-      String :test_type
-      Float :measured_value
+      attribute :test_type, String
+      attribute :measured_value, Float
       reference_to "Slab"
       emits "QualityTestPassed"
     end
@@ -124,23 +124,23 @@ Hecks.bluebook "SteelMill" do
   end
 
   aggregate "QualityCertificate" do
-    String :certificate_id
-    String :heat_number
-    String :grade
-    String :standard
-    String :status
+    attribute :certificate_id, String
+    attribute :heat_number, String
+    attribute :grade, String
+    attribute :standard, String
+    attribute :status, String
 
     value_object "TestResult" do
-      String :test_type
-      Float :value
-      String :unit
-      String :pass_fail
+      attribute :test_type, String
+      attribute :value, Float
+      attribute :unit, String
+      attribute :pass_fail, String
     end
 
-    IssueCertificate do
+    command "IssueCertificate" do
       description "Issue quality certificate for shipped steel products"
-      String :standard
-      String :customer_id
+      attribute :standard, String
+      attribute :customer_id, String
       reference_to "Heat"
       emits "CertificateIssued"
     end
@@ -153,33 +153,33 @@ Hecks.bluebook "SteelMill" do
     policy "Certificate must reference a valid heat number"
 
     given "A heat is tapped and slabs are cast and inspected" do
-      String :heat_number, "HT-2024-001"
-      String :grade, "A36"
-      Float :target_temperature, 1600.0
+      attribute :heat_number, String, "HT-2024-001"
+      attribute :grade, String, "A36"
+      attribute :target_temperature, Float, 1600.0
     end
   end
 
   aggregate "CustomerOrder" do
-    String :order_id
-    String :customer_name
-    String :grade
-    Float :quantity_tons
-    String :delivery_date
-    String :status
+    attribute :order_id, String
+    attribute :customer_name, String
+    attribute :grade, String
+    attribute :quantity_tons, Float
+    attribute :delivery_date, String
+    attribute :status, String
     list_of "Slab"
 
-    PlaceOrder do
+    command "PlaceOrder" do
       description "Receive and record a new customer steel order"
-      String :customer_name
-      String :grade
-      Float :quantity_tons
+      attribute :customer_name, String
+      attribute :grade, String
+      attribute :quantity_tons, Float
       reference_to "CustomerOrder"
       emits "OrderPlaced"
     end
 
-    FulfillOrder do
+    command "FulfillOrder" do
       description "Ship finished product and close out customer order"
-      String :shipping_method
+      attribute :shipping_method, String
       reference_to "CustomerOrder"
       emits "OrderFulfilled"
     end

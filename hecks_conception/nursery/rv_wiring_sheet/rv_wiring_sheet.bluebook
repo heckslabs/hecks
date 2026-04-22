@@ -4,25 +4,25 @@ Hecks.bluebook "RVWiringSheet" do
 
   aggregate "WiringSheet" do
     description "The complete electrical sheet for an RV — the document you tape inside the panel door"
-    String :name
-    Float :total_ac_amps
-    Float :total_dc_amps
-    Float :total_watts
-    Integer :circuit_count
+    attribute :name, String
+    attribute :total_ac_amps, Float
+    attribute :total_dc_amps, Float
+    attribute :total_watts, Float
+    attribute :circuit_count, Integer
     list_of(SheetEntry) :entries
 
     value_object "SheetEntry" do
       description "One row on the wiring sheet — a single circuit's complete specification"
-      String :circuit_name
-      String :load_name
-      Float :watts
-      Float :voltage
-      Float :amps
-      String :power_type
-      String :wire_gauge
-      Float :run_length_feet
-      Float :fuse_amps
-      Float :voltage_drop_pct
+      attribute :circuit_name, String
+      attribute :load_name, String
+      attribute :watts, Float
+      attribute :voltage, Float
+      attribute :amps, Float
+      attribute :power_type, String
+      attribute :wire_gauge, String
+      attribute :run_length_feet, Float
+      attribute :fuse_amps, Float
+      attribute :voltage_drop_pct, Float
 
       invariant "watts must be positive" do
         watts > 0
@@ -41,46 +41,46 @@ Hecks.bluebook "RVWiringSheet" do
       end
     end
 
-    GenerateSheet do
+    command "GenerateSheet" do
       role "Owner"
       description "Compile all circuits into a single electrical reference sheet"
-      String :name
+      attribute :name, String
       emits "SheetGenerated"
     end
 
-    AddEntry do
+    command "AddEntry" do
       role "Electrician"
       description "Add a circuit's details to the wiring sheet"
       reference_to(WiringSheet)
-      String :circuit_name
-      String :load_name
-      Float :watts
-      Float :voltage
-      Float :amps
-      String :power_type
-      String :wire_gauge
-      Float :run_length_feet
-      Float :fuse_amps
-      Float :voltage_drop_pct
+      attribute :circuit_name, String
+      attribute :load_name, String
+      attribute :watts, Float
+      attribute :voltage, Float
+      attribute :amps, Float
+      attribute :power_type, String
+      attribute :wire_gauge, String
+      attribute :run_length_feet, Float
+      attribute :fuse_amps, Float
+      attribute :voltage_drop_pct, Float
       emits "EntryAdded"
       then_set :entries, append: { circuit_name: :circuit_name, load_name: :load_name, watts: :watts, voltage: :voltage, amps: :amps, power_type: :power_type, wire_gauge: :wire_gauge, run_length_feet: :run_length_feet, fuse_amps: :fuse_amps, voltage_drop_pct: :voltage_drop_pct }
     end
 
-    CalculateTotals do
+    command "CalculateTotals" do
       role "Electrician"
       description "Sum all circuit loads and verify against available power sources"
       reference_to(WiringSheet)
       emits "TotalsCalculated"
     end
 
-    CheckOverloads do
+    command "CheckOverloads" do
       role "Electrician"
       description "Verify no circuit exceeds its wire gauge or fuse rating"
       reference_to(WiringSheet)
       emits "OverloadsChecked"
     end
 
-    PrintSheet do
+    command "PrintSheet" do
       role "Owner"
       description "Formatted table — every circuit, wire, fuse, and load"
       reference_to(WiringSheet)

@@ -5,24 +5,24 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
   # === MassIncident ===
 
   aggregate "MassIncident", "A declared mass casualty event — triggers triage, aircraft dispatch, and hospital coordination" do
-    String :incident_id
-    String :location
-    String :severity
-    Integer :estimated_casualties
-    String :status
+    attribute :incident_id, String
+    attribute :location, String
+    attribute :severity, String
+    attribute :estimated_casualties, Integer
+    attribute :status, String
     list_of(HazardTag) :hazards
     value_object "HazardTag" do
-      String :hazard_type
-      String :containment_status
-      String :source
+      attribute :hazard_type, String
+      attribute :containment_status, String
+      attribute :source, String
     end
-    DeclareIncident do
+    command "DeclareIncident" do
       role "IncidentCommander"
       description "Declare a mass casualty event and activate multi-agency response"
-      String :incident_id
-      String :location
-      String :severity
-      Integer :estimated_casualties
+      attribute :incident_id, String
+      attribute :location, String
+      attribute :severity, String
+      attribute :estimated_casualties, Integer
       emits "IncidentDeclared"
       then_set :incident_id, to: :incident_id
       then_set :location, to: :location
@@ -30,16 +30,16 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
       then_set :estimated_casualties, to: :estimated_casualties
       then_set :status, to: "active"
     end
-    EscalateIncident do
+    command "EscalateIncident" do
       role "IncidentCommander"
       description "Upgrade severity when casualty count exceeds initial estimate"
       reference_to(MassIncident)
-      String :severity
+      attribute :severity, String
       given { status == "active" }
       emits "IncidentEscalated"
       then_set :severity, to: :severity
     end
-    CloseIncident do
+    command "CloseIncident" do
       role "IncidentCommander"
       description "Close incident when all casualties are evacuated"
       reference_to(MassIncident)
@@ -52,26 +52,26 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
   # === TriageStation ===
 
   aggregate "TriageStation", "A field triage point — classifies casualties and queues them for air evacuation" do
-    String :station_id
+    attribute :station_id, String
     reference_to(MassIncident, as: :incident)
-    String :location
-    Integer :capacity
-    Integer :current_count
-    String :status
+    attribute :location, String
+    attribute :capacity, Integer
+    attribute :current_count, Integer
+    attribute :status, String
     list_of(TriageEntry) :entries
     value_object "TriageEntry" do
-      String :casualty_name
-      String :triage_color
-      String :injury_summary
-      String :blood_type
+      attribute :casualty_name, String
+      attribute :triage_color, String
+      attribute :injury_summary, String
+      attribute :blood_type, String
     end
-    OpenStation do
+    command "OpenStation" do
       role "Paramedic"
       description "Open a triage station at the incident scene"
-      String :station_id
+      attribute :station_id, String
       reference_to(MassIncident, as: :incident)
-      String :location
-      Integer :capacity
+      attribute :location, String
+      attribute :capacity, Integer
       emits "StationOpened"
       then_set :station_id, to: :station_id
       then_set :location, to: :location
@@ -79,14 +79,14 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
       then_set :current_count, to: 0
       then_set :status, to: "active"
     end
-    TriageCasualty do
+    command "TriageCasualty" do
       role "Paramedic"
       description "Classify a casualty and add to evacuation queue"
       reference_to(TriageStation)
-      String :casualty_name
-      String :triage_color
-      String :injury_summary
-      String :blood_type
+      attribute :casualty_name, String
+      attribute :triage_color, String
+      attribute :injury_summary, String
+      attribute :blood_type, String
       given { status == "active" }
       emits "CasualtyTriaged"
     end
@@ -95,32 +95,32 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
   # === AirEvac ===
 
   aggregate "AirEvac", "A medevac aircraft assigned to the mass casualty event" do
-    String :callsign
+    attribute :callsign, String
     reference_to(MassIncident, as: :incident)
-    String :origin
-    String :destination
-    Integer :patient_capacity
-    String :status
+    attribute :origin, String
+    attribute :destination, String
+    attribute :patient_capacity, Integer
+    attribute :status, String
     list_of(PatientManifest) :manifest
     value_object "PatientManifest" do
-      String :casualty_name
-      String :triage_color
-      String :blood_type
+      attribute :casualty_name, String
+      attribute :triage_color, String
+      attribute :blood_type, String
     end
-    DispatchAircraft do
+    command "DispatchAircraft" do
       role "Dispatcher"
       description "Dispatch medevac to the incident triage station"
-      String :callsign
+      attribute :callsign, String
       reference_to(MassIncident, as: :incident)
-      String :origin
-      Integer :patient_capacity
+      attribute :origin, String
+      attribute :patient_capacity, Integer
       emits "AircraftDispatched"
       then_set :callsign, to: :callsign
       then_set :origin, to: :origin
       then_set :patient_capacity, to: :patient_capacity
       then_set :status, to: "en_route"
     end
-    LoadPatients do
+    command "LoadPatients" do
       role "FlightMedic"
       description "Load triaged casualties onto aircraft"
       reference_to(AirEvac)
@@ -128,11 +128,11 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
       emits "PatientsLoaded"
       then_set :status, to: "loaded"
     end
-    RouteToHospital do
+    command "RouteToHospital" do
       role "System"
       description "Route aircraft to hospital with best capacity match"
       reference_to(AirEvac)
-      String :destination
+      attribute :destination, String
       emits "AircraftRouted"
       then_set :destination, to: :destination
       then_set :status, to: "airborne"
@@ -142,32 +142,32 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
   # === BloodDispatch ===
 
   aggregate "BloodDispatch", "Blood product allocation for in-flight transfusion and receiving hospital prep" do
-    String :dispatch_id
+    attribute :dispatch_id, String
     reference_to(AirEvac, as: :aircraft)
-    String :blood_type
-    Integer :units_allocated
-    String :status
+    attribute :blood_type, String
+    attribute :units_allocated, Integer
+    attribute :status, String
     list_of(BloodUnit) :units
     value_object "BloodUnit" do
-      String :unit_id
-      String :blood_type
-      String :expiry
-      String :cold_chain_status
+      attribute :unit_id, String
+      attribute :blood_type, String
+      attribute :expiry, String
+      attribute :cold_chain_status, String
     end
-    AllocateBlood do
+    command "AllocateBlood" do
       role "BloodBankTech"
       description "Allocate blood products matched to casualty blood types on aircraft"
-      String :dispatch_id
+      attribute :dispatch_id, String
       reference_to(AirEvac, as: :aircraft)
-      String :blood_type
-      Integer :units_allocated
+      attribute :blood_type, String
+      attribute :units_allocated, Integer
       emits "BloodAllocated"
       then_set :dispatch_id, to: :dispatch_id
       then_set :blood_type, to: :blood_type
       then_set :units_allocated, to: :units_allocated
       then_set :status, to: "dispatched"
     end
-    ConfirmTransfusion do
+    command "ConfirmTransfusion" do
       role "FlightMedic"
       description "Confirm blood products administered in flight"
       reference_to(BloodDispatch)
@@ -180,25 +180,25 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
   # === ReceivingHospital ===
 
   aggregate "ReceivingHospital", "A hospital in the network — reports capacity, receives load-balanced casualties" do
-    String :hospital_name
-    String :trauma_level
-    Integer :available_beds
-    Integer :available_surgeons
-    String :status
+    attribute :hospital_name, String
+    attribute :trauma_level, String
+    attribute :available_beds, Integer
+    attribute :available_surgeons, Integer
+    attribute :status, String
     reference_to(MassIncident, as: :active_incident)
     list_of(IncomingCasualty) :incoming
     value_object "IncomingCasualty" do
-      String :casualty_name
-      String :triage_color
-      String :eta_minutes
+      attribute :casualty_name, String
+      attribute :triage_color, String
+      attribute :eta_minutes, String
     end
-    RegisterCapacity do
+    command "RegisterCapacity" do
       role "Administrator"
       description "Report current hospital capacity to the mass casualty network"
-      String :hospital_name
-      String :trauma_level
-      Integer :available_beds
-      Integer :available_surgeons
+      attribute :hospital_name, String
+      attribute :trauma_level, String
+      attribute :available_beds, Integer
+      attribute :available_surgeons, Integer
       emits "CapacityRegistered"
       then_set :hospital_name, to: :hospital_name
       then_set :trauma_level, to: :trauma_level
@@ -206,7 +206,7 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
       then_set :available_surgeons, to: :available_surgeons
       then_set :status, to: "available"
     end
-    AcceptCasualties do
+    command "AcceptCasualties" do
       role "System"
       description "Accept routed casualties and decrement available beds"
       reference_to(ReceivingHospital)
@@ -214,7 +214,7 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
       emits "CasualtiesAccepted"
       then_set :status, to: "receiving"
     end
-    ActivateTraumaTeam do
+    command "ActivateTraumaTeam" do
       role "System"
       description "Alert surgical teams that mass casualty patients are inbound"
       reference_to(ReceivingHospital)
@@ -225,25 +225,25 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
   # === CasualtyTracker ===
 
   aggregate "CasualtyTracker", "End-to-end tracking of a single casualty through the entire pipeline" do
-    String :casualty_name
-    String :blood_type
-    String :triage_color
-    String :current_phase
+    attribute :casualty_name, String
+    attribute :blood_type, String
+    attribute :triage_color, String
+    attribute :current_phase, String
     reference_to(TriageStation, as: :triage_station)
     reference_to(AirEvac, as: :aircraft)
     reference_to(ReceivingHospital, as: :hospital)
     list_of(PhaseLog) :phase_history
     value_object "PhaseLog" do
-      String :phase
-      String :timestamp
-      String :notes
+      attribute :phase, String
+      attribute :timestamp, String
+      attribute :notes, String
     end
-    BeginTracking do
+    command "BeginTracking" do
       role "System"
       description "Start tracking a casualty from triage through hospital admission"
-      String :casualty_name
-      String :blood_type
-      String :triage_color
+      attribute :casualty_name, String
+      attribute :blood_type, String
+      attribute :triage_color, String
       reference_to(TriageStation, as: :triage_station)
       emits "TrackingStarted"
       then_set :casualty_name, to: :casualty_name
@@ -252,11 +252,11 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
       then_set :triage_station, to: :triage_station
       then_set :current_phase, to: "triaged"
     end
-    AdvancePhase do
+    command "AdvancePhase" do
       role "System"
       description "Advance casualty to next phase — airborne, transfused, admitted"
       reference_to(CasualtyTracker)
-      String :current_phase
+      attribute :current_phase, String
       emits "PhaseAdvanced"
       then_set :current_phase, to: :current_phase
     end

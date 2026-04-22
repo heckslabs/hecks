@@ -1,29 +1,29 @@
 Hecks.bluebook "PhotographyStudio" do
   aggregate "Shoot", "A scheduled photography session with a client at a location" do
-    String :title
-    String :location
-    String :shoot_type
-    String :status, default: "scheduled"
-    Integer :frame_count
+    attribute :title, String
+    attribute :location, String
+    attribute :shoot_type, String
+    attribute :status, String, default: "scheduled"
+    attribute :frame_count, Integer
     reference_to(Client)
 
     value_object "ShotList" do
-      String :scene
-      String :lighting_setup
-      Integer :estimated_frames
+      attribute :scene, String
+      attribute :lighting_setup, String
+      attribute :estimated_frames, Integer
     end
 
-    ScheduleShoot do
+    command "ScheduleShoot" do
       description "Book a new photography shoot with a client"
-      String :title
-      String :location
-      String :shoot_type
+      attribute :title, String
+      attribute :location, String
+      attribute :shoot_type, String
       reference_to(Client)
       emits "ShootScheduled"
       then_set :status, to: "scheduled"
     end
 
-    StartShoot do
+    command "StartShoot" do
       description "Begin capturing frames at the shoot location"
       reference_to(Shoot)
       given { status == "scheduled" }
@@ -31,10 +31,10 @@ Hecks.bluebook "PhotographyStudio" do
       then_set :status, to: "in_progress"
     end
 
-    WrapShoot do
+    command "WrapShoot" do
       description "Conclude the shoot and lock the frame count"
       reference_to(Shoot)
-      Integer :final_frame_count
+      attribute :final_frame_count, Integer
       given { status == "in_progress" }
       emits "ShootWrapped"
       then_set :status, to: "wrapped"
@@ -43,62 +43,62 @@ Hecks.bluebook "PhotographyStudio" do
   end
 
   aggregate "Client", "A photography client with contact info and shoot history" do
-    String :name
-    String :email
-    String :phone
-    String :tier
+    attribute :name, String
+    attribute :email, String
+    attribute :phone, String
+    attribute :tier, String
 
-    RegisterClient do
+    command "RegisterClient" do
       description "Onboard a new client to the studio roster"
-      String :name
-      String :email
-      String :phone
+      attribute :name, String
+      attribute :email, String
+      attribute :phone, String
       emits "ClientRegistered"
     end
 
-    UpgradeTier do
+    command "UpgradeTier" do
       description "Promote a client to a higher service tier"
       reference_to(Client)
-      String :new_tier
+      attribute :new_tier, String
       emits "ClientTierUpgraded"
       then_set :tier, to: :new_tier
     end
   end
 
   aggregate "EditSession", "Post-production editing of shoot photos in Lightroom or Capture One" do
-    String :status, default: "pending"
-    Integer :selects_count
-    Integer :finals_count
+    attribute :status, String, default: "pending"
+    attribute :selects_count, Integer
+    attribute :finals_count, Integer
     reference_to(Shoot)
 
     value_object "EditPreset" do
-      String :name
-      String :color_profile
-      Float :exposure_adjustment
-      Float :contrast
+      attribute :name, String
+      attribute :color_profile, String
+      attribute :exposure_adjustment, Float
+      attribute :contrast, Float
     end
 
-    CullSelects do
+    command "CullSelects" do
       description "Review raw frames and mark selects for editing"
       reference_to(Shoot)
-      Integer :selects_count
+      attribute :selects_count, Integer
       emits "SelectsCulled"
       then_set :selects_count, to: :selects_count
       then_set :status, to: "culling"
     end
 
-    RetouchSelects do
+    command "RetouchSelects" do
       description "Apply retouching and color grading to selected frames"
       reference_to(EditSession)
-      String :preset_name
+      attribute :preset_name, String
       emits "SelectsRetouched"
       then_set :status, to: "retouched"
     end
 
-    DeliverFinals do
+    command "DeliverFinals" do
       description "Export final edited images for client delivery"
       reference_to(EditSession)
-      Integer :finals_count
+      attribute :finals_count, Integer
       emits "FinalsDelivered"
       then_set :finals_count, to: :finals_count
       then_set :status, to: "delivered"
@@ -106,23 +106,23 @@ Hecks.bluebook "PhotographyStudio" do
   end
 
   aggregate "Gallery", "An online gallery for client proofing and print ordering" do
-    String :title
-    String :access_code
-    String :status, default: "draft"
-    Integer :image_count
+    attribute :title, String
+    attribute :access_code, String
+    attribute :status, String, default: "draft"
+    attribute :image_count, Integer
     reference_to(Client)
 
-    PublishGallery do
+    command "PublishGallery" do
       description "Make the gallery live for client viewing"
       reference_to(Gallery)
-      String :title
-      String :access_code
-      Integer :image_count
+      attribute :title, String
+      attribute :access_code, String
+      attribute :image_count, Integer
       emits "GalleryPublished"
       then_set :status, to: "published"
     end
 
-    ExpireGallery do
+    command "ExpireGallery" do
       description "Close a gallery after the viewing period ends"
       reference_to(Gallery)
       given { status == "published" }
@@ -132,29 +132,29 @@ Hecks.bluebook "PhotographyStudio" do
   end
 
   aggregate "PrintOrder", "A physical print order from a gallery with sizing and paper stock" do
-    String :paper_stock
-    String :finish
-    Integer :quantity
-    String :status, default: "pending"
+    attribute :paper_stock, String
+    attribute :finish, String
+    attribute :quantity, Integer
+    attribute :status, String, default: "pending"
     reference_to(Gallery)
 
     value_object "PrintSize" do
-      Integer :width_inches
-      Integer :height_inches
-      String :aspect_ratio
+      attribute :width_inches, Integer
+      attribute :height_inches, Integer
+      attribute :aspect_ratio, String
     end
 
-    PlacePrintOrder do
+    command "PlacePrintOrder" do
       description "Order physical prints from a published gallery"
       reference_to(Gallery)
-      String :paper_stock
-      String :finish
-      Integer :quantity
+      attribute :paper_stock, String
+      attribute :finish, String
+      attribute :quantity, Integer
       emits "PrintOrderPlaced"
       then_set :status, to: "pending"
     end
 
-    FulfillPrintOrder do
+    command "FulfillPrintOrder" do
       description "Mark a print order as printed and shipped"
       reference_to(PrintOrder)
       given { status == "pending" }

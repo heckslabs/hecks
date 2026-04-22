@@ -3,27 +3,27 @@ Hecks.bluebook "Astronomy" do
 
   aggregate "CelestialBody" do
     description "A star, planet, nebula, or other object in the sky catalog"
-    String :designation
-    String :body_type
-    Float :right_ascension
-    Float :declination
-    Float :apparent_magnitude
-    TrueClass :coordinates_initialized, default: false
+    attribute :designation, String
+    attribute :body_type, String
+    attribute :right_ascension, Float
+    attribute :declination, Float
+    attribute :apparent_magnitude, Float
+    attribute :coordinates_initialized, TrueClass, default: false
     reference_to Catalog
 
     value_object "Coordinates" do
-      Float :ra_hours
-      Float :dec_degrees
-      String :epoch
+      attribute :ra_hours, Float
+      attribute :dec_degrees, Float
+      attribute :epoch, String
     end
 
     command "RegisterBody" do
       description "Add a new celestial body to the catalog"
       emits "BodyRegistered"
-      String :designation
-      String :body_type
-      Float :right_ascension
-      Float :declination
+      attribute :designation, String
+      attribute :body_type, String
+      attribute :right_ascension, Float
+      attribute :declination, Float
       then_set :coordinates_initialized, to: true
     end
 
@@ -31,8 +31,8 @@ Hecks.bluebook "Astronomy" do
       description "Recalculate position for a given epoch"
       emits "EphemerisUpdated"
       reference_to CelestialBody
-      Float :new_ra
-      Float :new_dec
+      attribute :new_ra, Float
+      attribute :new_dec, Float
       given { coordinates_initialized == true }
     end
 
@@ -40,25 +40,25 @@ Hecks.bluebook "Astronomy" do
       description "Change the classification of a body"
       emits "BodyReclassified"
       reference_to CelestialBody
-      String :new_type
+      attribute :new_type, String
     end
   end
 
   aggregate "Observation" do
     description "A recorded sighting of a celestial body through a telescope"
-    String :observer_name
-    String :timestamp
-    String :seeing_conditions
-    Float :measured_magnitude
-    TrueClass :telescope_calibrated, default: false
+    attribute :observer_name, String
+    attribute :timestamp, String
+    attribute :seeing_conditions, String
+    attribute :measured_magnitude, Float
+    attribute :telescope_calibrated, TrueClass, default: false
     reference_to CelestialBody
     reference_to Telescope
 
     command "LogObservation" do
       description "Record a new observation session"
       emits "ObservationLogged"
-      String :observer_name
-      String :timestamp
+      attribute :observer_name, String
+      attribute :timestamp, String
       reference_to CelestialBody
       reference_to Telescope
       then_set :telescope_calibrated, to: true
@@ -68,37 +68,37 @@ Hecks.bluebook "Astronomy" do
       description "Rate atmospheric seeing conditions"
       emits "SeeingGraded"
       reference_to Observation
-      String :seeing_conditions
+      attribute :seeing_conditions, String
     end
 
     command "CorrectMagnitude" do
       description "Apply extinction correction to measured magnitude"
       emits "MagnitudeCorrected"
       reference_to Observation
-      Float :corrected_value
+      attribute :corrected_value, Float
     end
   end
 
   aggregate "Telescope" do
     description "An optical instrument used for sky observation"
-    String :name
-    Float :aperture_mm
-    Float :focal_length_mm
-    String :mount_type
-    Integer :active_session_count, default: 0
+    attribute :name, String
+    attribute :aperture_mm, Float
+    attribute :focal_length_mm, Float
+    attribute :mount_type, String
+    attribute :active_session_count, Integer, default: 0
 
     value_object "OpticalConfig" do
-      Float :eyepiece_focal_length
-      Float :barlow_factor
-      Float :resulting_magnification
+      attribute :eyepiece_focal_length, Float
+      attribute :barlow_factor, Float
+      attribute :resulting_magnification, Float
     end
 
     command "ActivateTelescope" do
       description "Bring a new telescope into service"
       emits "TelescopeActivated"
-      String :name
-      Float :aperture_mm
-      Float :focal_length_mm
+      attribute :name, String
+      attribute :aperture_mm, Float
+      attribute :focal_length_mm, Float
     end
 
     command "CalibrateOptics" do
@@ -117,15 +117,15 @@ Hecks.bluebook "Astronomy" do
 
   aggregate "Catalog" do
     description "A named collection of celestial bodies like Messier or NGC"
-    String :name
-    String :authority
-    Integer :entry_count
+    attribute :name, String
+    attribute :authority, String
+    attribute :entry_count, Integer
 
     command "Establish" do
       description "Establish a new sky catalog"
       emits "CatalogEstablished"
-      String :name
-      String :authority
+      attribute :name, String
+      attribute :authority, String
       then_set :entry_count, to: 1
     end
 

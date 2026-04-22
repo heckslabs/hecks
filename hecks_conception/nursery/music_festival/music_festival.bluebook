@@ -3,26 +3,26 @@ Hecks.bluebook "MusicFestival" do
   category "entertainment"
 
   aggregate "Stage", "A performance area with capacity, sound system, and schedule slots" do
-    String :stage_name
-    Integer :capacity
-    String :sound_system
-    String :location_on_grounds
-    String :status
+    attribute :stage_name, String
+    attribute :capacity, Integer
+    attribute :sound_system, String
+    attribute :location_on_grounds, String
+    attribute :status, String
 
     value_object "TechnicalRider" do
-      Integer :monitor_count
-      Integer :microphone_count
-      String :backline_provided
-      String :lighting_package
+      attribute :monitor_count, Integer
+      attribute :microphone_count, Integer
+      attribute :backline_provided, String
+      attribute :lighting_package, String
     end
 
-    SetupStage do
+    command "SetupStage" do
       role "ProductionManager"
       description "Configure a performance stage with sound and capacity specs"
-      String :stage_name
-      Integer :capacity
-      String :sound_system
-      String :location_on_grounds
+      attribute :stage_name, String
+      attribute :capacity, Integer
+      attribute :sound_system, String
+      attribute :location_on_grounds, String
       emits "StageSetUp"
       then_set :stage_name, to: :stage_name
       then_set :capacity, to: :capacity
@@ -31,7 +31,7 @@ Hecks.bluebook "MusicFestival" do
       then_set :status, to: "ready"
     end
 
-    CloseStage do
+    command "CloseStage" do
       role "ProductionManager"
       description "Shut down a stage after the final performance"
       reference_to(Stage)
@@ -42,27 +42,27 @@ Hecks.bluebook "MusicFestival" do
   end
 
   aggregate "ArtistBooking", "A confirmed artist engagement with fee, rider, and set time" do
-    String :artist_name
-    String :genre
-    Float :booking_fee
-    Integer :set_duration_minutes
-    String :status
+    attribute :artist_name, String
+    attribute :genre, String
+    attribute :booking_fee, Float
+    attribute :set_duration_minutes, Integer
+    attribute :status, String
     reference_to(Stage)
 
     value_object "HospitalityRider" do
-      String :dressing_room
-      String :catering_requests
-      Integer :guest_passes
+      attribute :dressing_room, String
+      attribute :catering_requests, String
+      attribute :guest_passes, Integer
     end
 
-    BookArtist do
+    command "BookArtist" do
       role "TalentBuyer"
       description "Confirm an artist for the festival with fee and set duration"
       reference_to(Stage)
-      String :artist_name
-      String :genre
-      Float :booking_fee
-      Integer :set_duration_minutes
+      attribute :artist_name, String
+      attribute :genre, String
+      attribute :booking_fee, Float
+      attribute :set_duration_minutes, Integer
       emits "ArtistBooked"
       then_set :artist_name, to: :artist_name
       then_set :genre, to: :genre
@@ -71,7 +71,7 @@ Hecks.bluebook "MusicFestival" do
       then_set :status, to: "confirmed"
     end
 
-    CancelBooking do
+    command "CancelBooking" do
       role "TalentBuyer"
       description "Cancel an artist's appearance and arrange replacement"
       reference_to(ArtistBooking)
@@ -80,7 +80,7 @@ Hecks.bluebook "MusicFestival" do
       then_set :status, to: "cancelled"
     end
 
-    CompletePerformance do
+    command "CompletePerformance" do
       role "StageManager"
       description "Record that the artist finished their set"
       reference_to(ArtistBooking)
@@ -91,21 +91,21 @@ Hecks.bluebook "MusicFestival" do
   end
 
   aggregate "PerformanceSchedule", "A time slot assignment for an artist on a specific stage and day" do
-    String :performance_date
-    String :start_time
-    String :end_time
-    String :status
+    attribute :performance_date, String
+    attribute :start_time, String
+    attribute :end_time, String
+    attribute :status, String
     reference_to(ArtistBooking)
     reference_to(Stage)
 
-    SchedulePerformance do
+    command "SchedulePerformance" do
       role "ProductionManager"
       description "Assign an artist to a specific time slot on a stage"
       reference_to(ArtistBooking)
       reference_to(Stage)
-      String :performance_date
-      String :start_time
-      String :end_time
+      attribute :performance_date, String
+      attribute :start_time, String
+      attribute :end_time, String
       emits "PerformanceScheduled"
       then_set :performance_date, to: :performance_date
       then_set :start_time, to: :start_time
@@ -113,12 +113,12 @@ Hecks.bluebook "MusicFestival" do
       then_set :status, to: "scheduled"
     end
 
-    ReschedulePerformance do
+    command "ReschedulePerformance" do
       role "ProductionManager"
       description "Move a performance to a different time or stage due to conflicts"
       reference_to(PerformanceSchedule)
-      String :new_start_time
-      String :new_end_time
+      attribute :new_start_time, String
+      attribute :new_end_time, String
       given { status == "scheduled" }
       emits "PerformanceRescheduled"
       then_set :start_time, to: :new_start_time
@@ -127,26 +127,26 @@ Hecks.bluebook "MusicFestival" do
   end
 
   aggregate "TicketBatch", "A batch of tickets for a specific day or tier with pricing" do
-    String :tier_name
-    String :valid_date
-    Float :price
-    Integer :total_quantity
-    Integer :sold_count
-    String :status
+    attribute :tier_name, String
+    attribute :valid_date, String
+    attribute :price, Float
+    attribute :total_quantity, Integer
+    attribute :sold_count, Integer
+    attribute :status, String
 
     value_object "TicketPerks" do
-      String :vip_access
-      String :camping_included
-      String :merch_discount
+      attribute :vip_access, String
+      attribute :camping_included, String
+      attribute :merch_discount, String
     end
 
-    IssueTicketBatch do
+    command "IssueTicketBatch" do
       role "BoxOfficeManager"
       description "Define a ticket tier with pricing and quantity for a festival day"
-      String :tier_name
-      String :valid_date
-      Float :price
-      Integer :total_quantity
+      attribute :tier_name, String
+      attribute :valid_date, String
+      attribute :price, Float
+      attribute :total_quantity, Integer
       emits "TicketBatchIssued"
       then_set :tier_name, to: :tier_name
       then_set :valid_date, to: :valid_date
@@ -156,16 +156,16 @@ Hecks.bluebook "MusicFestival" do
       then_set :status, to: "on_sale"
     end
 
-    SellTickets do
+    command "SellTickets" do
       role "BoxOffice"
       description "Record ticket sales and update remaining inventory"
       reference_to(TicketBatch)
-      Integer :quantity
+      attribute :quantity, Integer
       given { status == "on_sale" }
       emits "TicketsSold"
     end
 
-    CloseTicketSales do
+    command "CloseTicketSales" do
       role "BoxOfficeManager"
       description "Stop selling tickets for a batch when sold out or event starts"
       reference_to(TicketBatch)
@@ -176,25 +176,25 @@ Hecks.bluebook "MusicFestival" do
   end
 
   aggregate "FestivalVendor", "A food, drink, or merchandise vendor with booth assignment" do
-    String :vendor_name
-    String :vendor_type
-    String :booth_location
-    Float :booth_fee
-    String :status
+    attribute :vendor_name, String
+    attribute :vendor_type, String
+    attribute :booth_location, String
+    attribute :booth_fee, Float
+    attribute :status, String
 
     value_object "HealthPermit" do
-      String :permit_number
-      String :expiration_date
-      String :issuing_authority
+      attribute :permit_number, String
+      attribute :expiration_date, String
+      attribute :issuing_authority, String
     end
 
-    RegisterVendor do
+    command "RegisterVendor" do
       role "VendorCoordinator"
       description "Sign up a vendor with their booth type and location assignment"
-      String :vendor_name
-      String :vendor_type
-      String :booth_location
-      Float :booth_fee
+      attribute :vendor_name, String
+      attribute :vendor_type, String
+      attribute :booth_location, String
+      attribute :booth_fee, Float
       emits "VendorRegistered"
       then_set :vendor_name, to: :vendor_name
       then_set :vendor_type, to: :vendor_type
@@ -203,7 +203,7 @@ Hecks.bluebook "MusicFestival" do
       then_set :status, to: "registered"
     end
 
-    ApproveVendor do
+    command "ApproveVendor" do
       role "VendorCoordinator"
       description "Clear the vendor after verifying permits and insurance"
       reference_to(FestivalVendor)
@@ -212,11 +212,11 @@ Hecks.bluebook "MusicFestival" do
       then_set :status, to: "approved"
     end
 
-    EjectVendor do
+    command "EjectVendor" do
       role "SecurityDirector"
       description "Remove a vendor from the festival grounds for violations"
       reference_to(FestivalVendor)
-      String :reason
+      attribute :reason, String
       emits "VendorEjected"
       then_set :status, to: "ejected"
     end

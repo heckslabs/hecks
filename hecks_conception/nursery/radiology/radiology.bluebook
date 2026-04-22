@@ -2,19 +2,19 @@ Hecks.bluebook "Radiology" do
   vision "Diagnostic imaging services — patients, scan orders, radiologist reports, equipment management, and referral coordination"
 
   aggregate "Patient", "A person undergoing diagnostic imaging" do
-    String :name
-    String :date_of_birth
-    String :allergies
-    String :pregnancy_status
-    String :status
+    attribute :name, String
+    attribute :date_of_birth, String
+    attribute :allergies, String
+    attribute :pregnancy_status, String
+    attribute :status, String
 
-    RegisterPatient do
+    command "RegisterPatient" do
       role "Technologist"
       description "Check in a patient for their imaging appointment"
-      String :name
-      String :date_of_birth
-      String :allergies
-      String :pregnancy_status
+      attribute :name, String
+      attribute :date_of_birth, String
+      attribute :allergies, String
+      attribute :pregnancy_status, String
       emits "PatientRegistered"
       then_set :name, to: :name
       then_set :date_of_birth, to: :date_of_birth
@@ -23,7 +23,7 @@ Hecks.bluebook "Radiology" do
       then_set :status, to: "checked_in"
     end
 
-    ScreenForContraindications do
+    command "ScreenForContraindications" do
       role "Technologist"
       description "Verify no contraindications exist before imaging"
       reference_to(Patient)
@@ -32,25 +32,25 @@ Hecks.bluebook "Radiology" do
   end
 
   aggregate "ScanOrder", "A physician order for a diagnostic imaging study" do
-    String :patient_name
-    String :ordering_physician
-    String :modality
-    String :body_part
-    String :clinical_indication
-    String :urgency
-    String :status
+    attribute :patient_name, String
+    attribute :ordering_physician, String
+    attribute :modality, String
+    attribute :body_part, String
+    attribute :clinical_indication, String
+    attribute :urgency, String
+    attribute :status, String
     reference_to Patient
 
-    PlaceScanOrder do
+    command "PlaceScanOrder" do
       role "Physician"
       description "Order a diagnostic imaging study for a patient"
       reference_to(Patient)
-      String :patient_name
-      String :ordering_physician
-      String :modality
-      String :body_part
-      String :clinical_indication
-      String :urgency
+      attribute :patient_name, String
+      attribute :ordering_physician, String
+      attribute :modality, String
+      attribute :body_part, String
+      attribute :clinical_indication, String
+      attribute :urgency, String
       emits "ScanOrderPlaced"
       then_set :patient_name, to: :patient_name
       then_set :ordering_physician, to: :ordering_physician
@@ -61,7 +61,7 @@ Hecks.bluebook "Radiology" do
       then_set :status, to: "ordered"
     end
 
-    PerformScan do
+    command "PerformScan" do
       role "Technologist"
       description "Execute the imaging study per protocol"
       reference_to(ScanOrder)
@@ -70,7 +70,7 @@ Hecks.bluebook "Radiology" do
       then_set :status, to: "completed"
     end
 
-    CancelScanOrder do
+    command "CancelScanOrder" do
       role "Physician"
       description "Cancel a scan order before it is performed"
       reference_to(ScanOrder)
@@ -81,34 +81,34 @@ Hecks.bluebook "Radiology" do
   end
 
   aggregate "RadiologyReport", "A diagnostic interpretation of imaging findings by a radiologist" do
-    String :patient_name
-    String :modality
-    String :findings
-    String :impression
-    String :radiologist_name
-    String :report_date
-    String :status
+    attribute :patient_name, String
+    attribute :modality, String
+    attribute :findings, String
+    attribute :impression, String
+    attribute :radiologist_name, String
+    attribute :report_date, String
+    attribute :status, String
     reference_to Patient
     reference_to ScanOrder
 
     value_object "CriticalFinding" do
-      String :finding
-      String :urgency
-      String :communicated_to
-      String :communication_time
+      attribute :finding, String
+      attribute :urgency, String
+      attribute :communicated_to, String
+      attribute :communication_time, String
     end
 
-    DraftReport do
+    command "DraftReport" do
       role "Radiologist"
       description "Write the initial interpretation of the imaging study"
       reference_to(Patient)
       reference_to(ScanOrder)
-      String :patient_name
-      String :modality
-      String :findings
-      String :impression
-      String :radiologist_name
-      String :report_date
+      attribute :patient_name, String
+      attribute :modality, String
+      attribute :findings, String
+      attribute :impression, String
+      attribute :radiologist_name, String
+      attribute :report_date, String
       emits "ReportDrafted"
       then_set :patient_name, to: :patient_name
       then_set :modality, to: :modality
@@ -119,7 +119,7 @@ Hecks.bluebook "Radiology" do
       then_set :status, to: "draft"
     end
 
-    FinalizeReport do
+    command "FinalizeReport" do
       role "Radiologist"
       description "Sign and finalize the radiology report"
       reference_to(RadiologyReport)
@@ -128,38 +128,38 @@ Hecks.bluebook "Radiology" do
       then_set :status, to: "final"
     end
 
-    AddendReport do
+    command "AddendReport" do
       role "Radiologist"
       description "Add a correction or supplemental finding to a finalized report"
       reference_to(RadiologyReport)
-      String :findings
+      attribute :findings, String
       emits "ReportAddended"
       then_set :findings, to: :findings
     end
   end
 
   aggregate "ImagingEquipment", "A diagnostic imaging machine in the radiology department" do
-    String :equipment_name
-    String :modality
-    String :serial_number
-    String :last_calibration_date
-    String :status
+    attribute :equipment_name, String
+    attribute :modality, String
+    attribute :serial_number, String
+    attribute :last_calibration_date, String
+    attribute :status, String
     list_of(MaintenanceRecord) :maintenance_history
 
     value_object "MaintenanceRecord" do
-      String :service_date
-      String :technician
-      String :description
-      String :result
+      attribute :service_date, String
+      attribute :technician, String
+      attribute :description, String
+      attribute :result, String
     end
 
-    RegisterEquipment do
+    command "RegisterEquipment" do
       role "Administrator"
       description "Add a new imaging machine to the department inventory"
-      String :equipment_name
-      String :modality
-      String :serial_number
-      String :last_calibration_date
+      attribute :equipment_name, String
+      attribute :modality, String
+      attribute :serial_number, String
+      attribute :last_calibration_date, String
       emits "EquipmentRegistered"
       then_set :equipment_name, to: :equipment_name
       then_set :modality, to: :modality
@@ -168,16 +168,16 @@ Hecks.bluebook "Radiology" do
       then_set :status, to: "operational"
     end
 
-    CalibrateEquipment do
+    command "CalibrateEquipment" do
       role "Engineer"
       description "Perform scheduled calibration of the imaging equipment"
       reference_to(ImagingEquipment)
-      String :last_calibration_date
+      attribute :last_calibration_date, String
       emits "EquipmentCalibrated"
       then_set :last_calibration_date, to: :last_calibration_date
     end
 
-    TakeOffline do
+    command "TakeOffline" do
       role "Engineer"
       description "Remove equipment from service for maintenance or repair"
       reference_to(ImagingEquipment)
@@ -187,21 +187,21 @@ Hecks.bluebook "Radiology" do
   end
 
   aggregate "Referral", "A referral from an outside physician for imaging services" do
-    String :referring_physician
-    String :patient_name
-    String :clinical_question
-    String :preferred_modality
-    String :status
+    attribute :referring_physician, String
+    attribute :patient_name, String
+    attribute :clinical_question, String
+    attribute :preferred_modality, String
+    attribute :status, String
     reference_to Patient
 
-    ReceiveReferral do
+    command "ReceiveReferral" do
       role "Coordinator"
       description "Accept an imaging referral from an outside physician"
       reference_to(Patient)
-      String :referring_physician
-      String :patient_name
-      String :clinical_question
-      String :preferred_modality
+      attribute :referring_physician, String
+      attribute :patient_name, String
+      attribute :clinical_question, String
+      attribute :preferred_modality, String
       emits "ReferralReceived"
       then_set :referring_physician, to: :referring_physician
       then_set :patient_name, to: :patient_name
@@ -210,7 +210,7 @@ Hecks.bluebook "Radiology" do
       then_set :status, to: "received"
     end
 
-    FulfillReferral do
+    command "FulfillReferral" do
       role "Coordinator"
       description "Mark the referral as fulfilled after imaging and reporting"
       reference_to(Referral)

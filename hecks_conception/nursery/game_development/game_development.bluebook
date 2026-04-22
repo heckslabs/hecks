@@ -1,29 +1,29 @@
 Hecks.bluebook "GameDevelopment" do
   aggregate "GameProject", "A game title in development with milestone tracking" do
-    String :title
-    String :engine
-    String :genre
-    String :status, default: "pre_production"
-    String :target_platform
+    attribute :title, String
+    attribute :engine, String
+    attribute :genre, String
+    attribute :status, String, default: "pre_production"
+    attribute :target_platform, String
 
     value_object "MilestoneGate" do
-      String :name
-      String :criteria
-      String :target_date
-      String :status
+      attribute :name, String
+      attribute :criteria, String
+      attribute :target_date, String
+      attribute :status, String
     end
 
-    KickOffProject do
+    command "KickOffProject" do
       description "Initialize a new game project with engine and platform targets"
-      String :title
-      String :engine
-      String :genre
-      String :target_platform
+      attribute :title, String
+      attribute :engine, String
+      attribute :genre, String
+      attribute :target_platform, String
       emits "ProjectKickedOff"
       then_set :status, to: "pre_production"
     end
 
-    EnterProduction do
+    command "EnterProduction" do
       description "Transition from pre-production to full production"
       reference_to(GameProject)
       given { status == "pre_production" }
@@ -31,7 +31,7 @@ Hecks.bluebook "GameDevelopment" do
       then_set :status, to: "production"
     end
 
-    ShipGold do
+    command "ShipGold" do
       description "Declare the game gold master — ready for manufacturing"
       reference_to(GameProject)
       emits "GoneGold"
@@ -40,23 +40,23 @@ Hecks.bluebook "GameDevelopment" do
   end
 
   aggregate "Sprint", "A time-boxed development iteration with task commitments" do
-    String :name
-    Integer :duration_days
-    String :status, default: "planning"
-    Integer :story_points
+    attribute :name, String
+    attribute :duration_days, Integer
+    attribute :status, String, default: "planning"
+    attribute :story_points, Integer
     reference_to(GameProject)
 
-    PlanSprint do
+    command "PlanSprint" do
       description "Define sprint goals and commit story points"
       reference_to(GameProject)
-      String :name
-      Integer :duration_days
-      Integer :story_points
+      attribute :name, String
+      attribute :duration_days, Integer
+      attribute :story_points, Integer
       emits "SprintPlanned"
       then_set :status, to: "planning"
     end
 
-    StartSprint do
+    command "StartSprint" do
       description "Begin work on the sprint backlog"
       reference_to(Sprint)
       given { status == "planning" }
@@ -64,10 +64,10 @@ Hecks.bluebook "GameDevelopment" do
       then_set :status, to: "active"
     end
 
-    CloseSprint do
+    command "CloseSprint" do
       description "End the sprint and calculate velocity"
       reference_to(Sprint)
-      Integer :completed_points
+      attribute :completed_points, Integer
       given { status == "active" }
       emits "SprintClosed"
       then_set :status, to: "closed"
@@ -75,23 +75,23 @@ Hecks.bluebook "GameDevelopment" do
   end
 
   aggregate "Build", "A compiled game build for testing or release" do
-    String :version
-    String :platform
-    String :build_config
-    String :status, default: "building"
+    attribute :version, String
+    attribute :platform, String
+    attribute :build_config, String
+    attribute :status, String, default: "building"
     reference_to(GameProject)
 
-    TriggerBuild do
+    command "TriggerBuild" do
       description "Kick off a new build from the current codebase"
       reference_to(GameProject)
-      String :version
-      String :platform
-      String :build_config
+      attribute :version, String
+      attribute :platform, String
+      attribute :build_config, String
       emits "BuildTriggered"
       then_set :status, to: "building"
     end
 
-    CertifyBuild do
+    command "CertifyBuild" do
       description "Mark a build as passing QA certification"
       reference_to(Build)
       given { status == "building" }
@@ -101,29 +101,29 @@ Hecks.bluebook "GameDevelopment" do
   end
 
   aggregate "Playtest", "A structured playtesting session with feedback collection" do
-    String :session_name
-    Integer :tester_count
-    String :build_version
-    String :status, default: "scheduled"
+    attribute :session_name, String
+    attribute :tester_count, Integer
+    attribute :build_version, String
+    attribute :status, String, default: "scheduled"
     reference_to(Build)
 
     value_object "FeedbackSummary" do
-      Integer :fun_rating
-      Integer :difficulty_rating
-      String :top_issues
-      Integer :completion_rate
+      attribute :fun_rating, Integer
+      attribute :difficulty_rating, Integer
+      attribute :top_issues, String
+      attribute :completion_rate, Integer
     end
 
-    SchedulePlaytest do
+    command "SchedulePlaytest" do
       description "Set up a playtest session with testers and build"
       reference_to(Build)
-      String :session_name
-      Integer :tester_count
+      attribute :session_name, String
+      attribute :tester_count, Integer
       emits "PlaytestScheduled"
       then_set :status, to: "scheduled"
     end
 
-    ConductPlaytest do
+    command "ConductPlaytest" do
       description "Run the playtest session and collect feedback"
       reference_to(Playtest)
       given { status == "scheduled" }
@@ -131,7 +131,7 @@ Hecks.bluebook "GameDevelopment" do
       then_set :status, to: "completed"
     end
 
-    AnalyzeResults do
+    command "AnalyzeResults" do
       description "Process playtest feedback into actionable insights"
       reference_to(Playtest)
       given { status == "completed" }
@@ -140,26 +140,26 @@ Hecks.bluebook "GameDevelopment" do
   end
 
   aggregate "BugReport", "A defect found during development or playtesting" do
-    String :title
-    String :severity
-    String :repro_steps
-    String :status, default: "open"
+    attribute :title, String
+    attribute :severity, String
+    attribute :repro_steps, String
+    attribute :status, String, default: "open"
     reference_to(Build)
 
-    FileBug do
+    command "FileBug" do
       description "Report a new bug found during testing"
       reference_to(Build)
-      String :title
-      String :severity
-      String :repro_steps
+      attribute :title, String
+      attribute :severity, String
+      attribute :repro_steps, String
       emits "BugFiled"
       then_set :status, to: "open"
     end
 
-    ResolveBug do
+    command "ResolveBug" do
       description "Mark a bug as fixed with the resolution"
       reference_to(BugReport)
-      String :resolution
+      attribute :resolution, String
       given { status == "open" }
       emits "BugResolved"
       then_set :status, to: "resolved"

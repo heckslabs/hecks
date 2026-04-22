@@ -3,40 +3,40 @@ Hecks.bluebook "SEOAgency", version: "2026.04.13.1" do
   category "technology"
 
   aggregate "Client", "A business hiring the agency for search optimization" do
-    String :client_name
-    String :website_url
-    String :industry
-    String :contact_email
-    String :plan_tier
-    String :status
+    attribute :client_name, String
+    attribute :website_url, String
+    attribute :industry, String
+    attribute :contact_email, String
+    attribute :plan_tier, String
+    attribute :status, String
     list_of(Goal) :goals
 
     value_object "Goal" do
-      String :metric
-      String :target_value
-      String :deadline
+      attribute :metric, String
+      attribute :target_value, String
+      attribute :deadline, String
     end
 
-    SignClient do
+    command "SignClient" do
       role "AccountManager"
       description "Onboard a new client with their website and goals"
-      String :client_name
-      String :website_url
-      String :industry
-      String :contact_email
-      String :plan_tier
+      attribute :client_name, String
+      attribute :website_url, String
+      attribute :industry, String
+      attribute :contact_email, String
+      attribute :plan_tier, String
       emits "ClientSigned"
       then_set :status, to: "active"
     end
 
-    PauseEngagement do
+    command "PauseEngagement" do
       description "Temporarily halt SEO work for a client"
       reference_to(Client)
       given("client is active") { status == "active" }
       emits "EngagementPaused"
     end
 
-    TerminateClient do
+    command "TerminateClient" do
       description "End the agency relationship with a client"
       reference_to(Client)
       emits "ClientTerminated"
@@ -44,40 +44,40 @@ Hecks.bluebook "SEOAgency", version: "2026.04.13.1" do
   end
 
   aggregate "Keyword", "A search term being tracked for ranking performance" do
-    String :phrase
-    Integer :search_volume
-    Float :difficulty_score
-    String :intent_type
-    String :status
+    attribute :phrase, String
+    attribute :search_volume, Integer
+    attribute :difficulty_score, Float
+    attribute :intent_type, String
+    attribute :status, String
     reference_to Client
     list_of(RankSnapshot) :rank_history
 
     value_object "RankSnapshot" do
-      Integer :position
-      String :search_engine
-      String :recorded_at
+      attribute :position, Integer
+      attribute :search_engine, String
+      attribute :recorded_at, String
     end
 
-    TargetKeyword do
+    command "TargetKeyword" do
       role "SEOSpecialist"
       description "Add a keyword to a client's tracking list"
-      String :phrase
-      Integer :search_volume
-      Float :difficulty_score
-      String :intent_type
+      attribute :phrase, String
+      attribute :search_volume, Integer
+      attribute :difficulty_score, Float
+      attribute :intent_type, String
       reference_to(Client)
       emits "KeywordTargeted"
     end
 
-    RecordRanking do
+    command "RecordRanking" do
       description "Log the current search position for a keyword"
       reference_to(Keyword)
-      Integer :position
-      String :search_engine
+      attribute :position, Integer
+      attribute :search_engine, String
       emits "RankingRecorded"
     end
 
-    DropKeyword do
+    command "DropKeyword" do
       description "Remove a keyword from active tracking"
       reference_to(Keyword)
       emits "KeywordDropped"
@@ -85,42 +85,42 @@ Hecks.bluebook "SEOAgency", version: "2026.04.13.1" do
   end
 
   aggregate "SiteAudit", "A technical analysis of a client website for SEO health" do
-    String :audit_id
-    String :audit_type
-    Integer :pages_crawled
-    Integer :issues_found
-    String :status
+    attribute :audit_id, String
+    attribute :audit_type, String
+    attribute :pages_crawled, Integer
+    attribute :issues_found, Integer
+    attribute :status, String
     reference_to Client
     list_of(AuditIssue) :issues
 
     value_object "AuditIssue" do
-      String :page_url
-      String :issue_type
-      String :severity
-      String :recommendation
+      attribute :page_url, String
+      attribute :issue_type, String
+      attribute :severity, String
+      attribute :recommendation, String
     end
 
-    RunAudit do
+    command "RunAudit" do
       role "SEOSpecialist"
       description "Crawl a client site and identify technical SEO issues"
-      String :audit_id
-      String :audit_type
-      Integer :pages_crawled
+      attribute :audit_id, String
+      attribute :audit_type, String
+      attribute :pages_crawled, Integer
       reference_to(Client)
       emits "AuditRun"
       then_set :status, to: "in_progress"
     end
 
-    LogIssue do
+    command "LogIssue" do
       description "Record an SEO issue found during a site audit"
       reference_to(SiteAudit)
-      String :page_url
-      String :issue_type
-      String :severity
+      attribute :page_url, String
+      attribute :issue_type, String
+      attribute :severity, String
       emits "IssueLogged"
     end
 
-    FinalizeAudit do
+    command "FinalizeAudit" do
       description "Complete the audit and generate the report"
       reference_to(SiteAudit)
       given("audit is in progress") { status == "in_progress" }
@@ -129,40 +129,40 @@ Hecks.bluebook "SEOAgency", version: "2026.04.13.1" do
   end
 
   aggregate "Backlink", "An inbound link from an external site to a client page" do
-    String :backlink_id
-    String :source_url
-    String :target_url
-    Float :domain_authority
-    String :anchor_text
-    String :status
+    attribute :backlink_id, String
+    attribute :source_url, String
+    attribute :target_url, String
+    attribute :domain_authority, Float
+    attribute :anchor_text, String
+    attribute :status, String
     reference_to Client
 
     value_object "LinkMetric" do
-      Float :trust_flow
-      Float :citation_flow
-      String :checked_at
+      attribute :trust_flow, Float
+      attribute :citation_flow, Float
+      attribute :checked_at, String
     end
 
-    AcquireBacklink do
+    command "AcquireBacklink" do
       role "OutreachSpecialist"
       description "Secure a new backlink from an external domain"
-      String :backlink_id
-      String :source_url
-      String :target_url
-      Float :domain_authority
-      String :anchor_text
+      attribute :backlink_id, String
+      attribute :source_url, String
+      attribute :target_url, String
+      attribute :domain_authority, Float
+      attribute :anchor_text, String
       reference_to(Client)
       emits "BacklinkAcquired"
       then_set :status, to: "active"
     end
 
-    VerifyBacklink do
+    command "VerifyBacklink" do
       description "Confirm a backlink is still live and passing value"
       reference_to(Backlink)
       emits "BacklinkVerified"
     end
 
-    DisavowBacklink do
+    command "DisavowBacklink" do
       description "Flag a toxic backlink for search engine disavowal"
       reference_to(Backlink)
       given("backlink is active") { status == "active" }
@@ -171,38 +171,38 @@ Hecks.bluebook "SEOAgency", version: "2026.04.13.1" do
   end
 
   aggregate "RankingReport", "A periodic summary of keyword ranking performance" do
-    String :report_id
-    String :period
-    Integer :keywords_improved
-    Integer :keywords_declined
-    Float :average_position
-    String :status
+    attribute :report_id, String
+    attribute :period, String
+    attribute :keywords_improved, Integer
+    attribute :keywords_declined, Integer
+    attribute :average_position, Float
+    attribute :status, String
     reference_to Client
 
     value_object "PositionSummary" do
-      String :keyword_phrase
-      Integer :start_position
-      Integer :end_position
+      attribute :keyword_phrase, String
+      attribute :start_position, Integer
+      attribute :end_position, Integer
     end
 
-    GenerateReport do
+    command "GenerateReport" do
       role "AccountManager"
       description "Compile a ranking performance report for a client"
-      String :report_id
-      String :period
+      attribute :report_id, String
+      attribute :period, String
       reference_to(Client)
       emits "ReportGenerated"
       then_set :status, to: "ready"
     end
 
-    DeliverReport do
+    command "DeliverReport" do
       description "Send the ranking report to the client"
       reference_to(RankingReport)
       given("report is ready") { status == "ready" }
       emits "ReportDelivered"
     end
 
-    ArchiveReport do
+    command "ArchiveReport" do
       description "Move an old report to long-term storage"
       reference_to(RankingReport)
       emits "ReportArchived"

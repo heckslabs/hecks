@@ -5,36 +5,36 @@ Hecks.bluebook "UniversalDomainPattern", version: "2026.04.11.1" do
   # === The Universal Structure ===
 
   aggregate "DomainShape", "The universal structure every domain follows — the shape beneath all domains" do
-    String :name
-    String :description
+    attribute :name, String
+    attribute :description, String
     list_of(StructuralElement) :structural_elements
 
     value_object "StructuralElement" do
-      String :name
-      String :purpose
-      String :always_present
+      attribute :name, String
+      attribute :purpose, String
+      attribute :always_present, String
       list_of(String) :examples
     end
 
-    DefineShape do
+    command "DefineShape" do
       role "MetaArchitect"
       description "Name and describe the universal structure that every domain follows"
-      String :name
-      String :description
+      attribute :name, String
+      attribute :description, String
       emits "ShapeDefined"
       then_set :name, to: :name
       then_set :description, to: :description
     end
 
-    ValidateShape do
+    command "ValidateShape" do
       role "MetaArchitect"
       description "Confirm that a domain conforms to the universal shape"
       reference_to(DomainShape)
-      String :domain_name
+      attribute :domain_name, String
       emits "ShapeValidated"
     end
 
-    CompareToCorpus do
+    command "CompareToCorpus" do
       role "System"
       description "Check this shape definition against every domain in the nursery and catalog"
       reference_to(DomainShape)
@@ -45,44 +45,44 @@ Hecks.bluebook "UniversalDomainPattern", version: "2026.04.11.1" do
   # === Recurring Patterns ===
 
   aggregate "Archetype", "A recurring structural pattern across domains — the shapes that keep appearing" do
-    String :name
-    String :description
+    attribute :name, String
+    attribute :description, String
     list_of(Float) :structural_signature
     list_of(String) :example_domains
-    Integer :frequency
+    attribute :frequency, Integer
 
-    IdentifyArchetype do
+    command "IdentifyArchetype" do
       role "MetaArchitect"
       description "Recognize a recurring pattern across multiple domains"
-      String :name
-      String :description
+      attribute :name, String
+      attribute :description, String
       emits "ArchetypeIdentified"
       then_set :name, to: :name
       then_set :description, to: :description
       then_set :frequency, to: 1
     end
 
-    ExtractSignature do
+    command "ExtractSignature" do
       role "System"
       description "Compute the structural vector that fingerprints this archetype"
       reference_to(Archetype)
       emits "SignatureExtracted"
     end
 
-    MatchArchetype do
+    command "MatchArchetype" do
       role "System"
       description "Determine which archetype a given domain most closely resembles"
       reference_to(Archetype)
-      String :domain_name
-      Float :similarity
+      attribute :domain_name, String
+      attribute :similarity, Float
       emits "ArchetypeMatched"
     end
 
-    NameArchetype do
+    command "NameArchetype" do
       role "MetaArchitect"
       description "Give a memorable name to a newly identified archetype"
       reference_to(Archetype)
-      String :name
+      attribute :name, String
       emits "ArchetypeNamed"
       then_set :name, to: :name
     end
@@ -91,19 +91,19 @@ Hecks.bluebook "UniversalDomainPattern", version: "2026.04.11.1" do
   # === Well-Formedness Rules ===
 
   aggregate "PatternRule", "A rule about what makes a domain well-formed — the grammar of domain shape" do
-    String :name
-    String :rule
-    String :applies_to
-    String :severity
+    attribute :name, String
+    attribute :rule, String
+    attribute :applies_to, String
+    attribute :severity, String
     list_of(String) :examples
 
-    DefineRule do
+    command "DefineRule" do
       role "MetaArchitect"
       description "State a rule that all well-formed domains must follow"
-      String :name
-      String :rule
-      String :applies_to
-      String :severity
+      attribute :name, String
+      attribute :rule, String
+      attribute :applies_to, String
+      attribute :severity, String
       emits "RuleDefined"
       then_set :name, to: :name
       then_set :rule, to: :rule
@@ -111,20 +111,20 @@ Hecks.bluebook "UniversalDomainPattern", version: "2026.04.11.1" do
       then_set :severity, to: :severity
     end
 
-    ValidateAgainstRule do
+    command "ValidateAgainstRule" do
       role "System"
       description "Check a domain against this rule and report pass or fail"
       reference_to(PatternRule)
-      String :domain_name
+      attribute :domain_name, String
       emits "RuleValidated"
     end
 
-    WaiveRule do
+    command "WaiveRule" do
       role "MetaArchitect"
       description "Explicitly waive a rule for a domain with documented reason"
       reference_to(PatternRule)
-      String :domain_name
-      String :reason
+      attribute :domain_name, String
+      attribute :reason, String
       emits "RuleWaived"
     end
   end
@@ -132,41 +132,41 @@ Hecks.bluebook "UniversalDomainPattern", version: "2026.04.11.1" do
   # === Domain Fingerprint ===
 
   aggregate "DomainDNA", "The structural vector that fingerprints a domain — its genetic code" do
-    String :domain_name
+    attribute :domain_name, String
     list_of(Float) :vector
-    String :archetype_match
-    String :category
-    String :born_at
+    attribute :archetype_match, String
+    attribute :category, String
+    attribute :born_at, String
 
-    ExtractDNA do
+    command "ExtractDNA" do
       role "System"
       description "Parse a bluebook and compute its structural vector — aggregates, cmds/agg, VOs, policies, refs, lifecycles, lists, givens, fixtures"
-      String :domain_name
-      String :category
-      String :born_at
+      attribute :domain_name, String
+      attribute :category, String
+      attribute :born_at, String
       emits "DNAExtracted"
       then_set :domain_name, to: :domain_name
       then_set :category, to: :category
       then_set :born_at, to: :born_at
     end
 
-    CompareDNA do
+    command "CompareDNA" do
       role "System"
       description "Compute similarity between two domain vectors — cosine distance"
       reference_to(DomainDNA)
-      String :other_domain_name
+      attribute :other_domain_name, String
       emits "DNACompared"
     end
 
-    FindRelatives do
+    command "FindRelatives" do
       role "System"
       description "Search the corpus for domains with similar DNA — nearest neighbors"
       reference_to(DomainDNA)
-      Float :threshold
+      attribute :threshold, Float
       emits "RelativesFound"
     end
 
-    MapEvolution do
+    command "MapEvolution" do
       role "System"
       description "Track how a domain's DNA changes across versions"
       reference_to(DomainDNA)
@@ -177,34 +177,34 @@ Hecks.bluebook "UniversalDomainPattern", version: "2026.04.11.1" do
   # === Structural Equivalence ===
 
   aggregate "Isomorphism", "Proof that two domains have the same shape — chemistry and code, the same thing" do
-    String :domain_a
-    String :domain_b
-    Float :structural_similarity
+    attribute :domain_a, String
+    attribute :domain_b, String
+    attribute :structural_similarity, Float
     list_of(String) :shared_archetypes
-    Float :vocabulary_overlap
+    attribute :vocabulary_overlap, Float
 
-    DetectIsomorphism do
+    command "DetectIsomorphism" do
       role "System"
       description "Compare two domains and determine if they share the same deep structure"
-      String :domain_a
-      String :domain_b
+      attribute :domain_a, String
+      attribute :domain_b, String
       emits "IsomorphismDetected"
       then_set :domain_a, to: :domain_a
       then_set :domain_b, to: :domain_b
     end
 
-    ProveEquivalence do
+    command "ProveEquivalence" do
       role "MetaArchitect"
       description "Formally demonstrate that two domains are structurally equivalent"
       reference_to(Isomorphism)
-      Float :structural_similarity
-      Float :vocabulary_overlap
+      attribute :structural_similarity, Float
+      attribute :vocabulary_overlap, Float
       emits "EquivalenceProven"
       then_set :structural_similarity, to: :structural_similarity
       then_set :vocabulary_overlap, to: :vocabulary_overlap
     end
 
-    MapCorrespondence do
+    command "MapCorrespondence" do
       role "MetaArchitect"
       description "Map each element in domain_a to its counterpart in domain_b"
       reference_to(Isomorphism)
@@ -215,36 +215,36 @@ Hecks.bluebook "UniversalDomainPattern", version: "2026.04.11.1" do
   # === Meta-Pattern Evolution ===
 
   aggregate "MetaEvolution", "How the universal pattern itself evolves as the corpus grows" do
-    String :corpus_snapshot_date
-    String :dominant_archetype
+    attribute :corpus_snapshot_date, String
+    attribute :dominant_archetype, String
     list_of(String) :emerging_patterns
     list_of(String) :deprecated_patterns
 
-    SnapshotMetaState do
+    command "SnapshotMetaState" do
       role "System"
       description "Capture the current state of the meta-pattern — what archetypes dominate, what is emerging"
-      String :corpus_snapshot_date
+      attribute :corpus_snapshot_date, String
       emits "MetaStateSnapshotted"
       then_set :corpus_snapshot_date, to: :corpus_snapshot_date
     end
 
-    DetectEmergingPattern do
+    command "DetectEmergingPattern" do
       role "System"
       description "Identify a new structural pattern appearing across recent domains"
       reference_to(MetaEvolution)
-      String :pattern_name
+      attribute :pattern_name, String
       emits "EmergingPatternDetected"
     end
 
-    DeprecatePattern do
+    command "DeprecatePattern" do
       role "MetaArchitect"
       description "Mark a pattern as no longer appearing in new domains"
       reference_to(MetaEvolution)
-      String :pattern_name
+      attribute :pattern_name, String
       emits "PatternDeprecated"
     end
 
-    PublishEvolution do
+    command "PublishEvolution" do
       role "System"
       description "Announce the latest meta-evolution to all listening systems"
       reference_to(MetaEvolution)

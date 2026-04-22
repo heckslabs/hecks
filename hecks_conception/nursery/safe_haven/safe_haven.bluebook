@@ -3,30 +3,30 @@ Hecks.bluebook "SafeHaven", version: "2026.04.13.1" do
   category "healthcare_community"
 
   aggregate "SafetyPlan", "A personalized safety plan for a DV survivor" do
-    String :plan_id
-    String :client_code
-    String :advocate_name
+    attribute :plan_id, String
+    attribute :client_code, String
+    attribute :advocate_name, String
     list_of(SafetyStep) :steps
-    String :status
+    attribute :status, String
     value_object "SafetyStep" do
-      Integer :sequence
-      String :action_desc
-      String :contact
-      String :trigger_event
+      attribute :sequence, Integer
+      attribute :action_desc, String
+      attribute :contact, String
+      attribute :trigger_event, String
     end
-    IntakeSafetyPlan do
+    command "IntakeSafetyPlan" do
       role "Advocate"
       description "Create a personalized safety plan for a survivor"
-      String :plan_id
-      String :client_code
-      String :advocate_name
+      attribute :plan_id, String
+      attribute :client_code, String
+      attribute :advocate_name, String
       emits "SafetyPlanIntaken"
       then_set :plan_id, to: :plan_id
       then_set :client_code, to: :client_code
       then_set :advocate_name, to: :advocate_name
       then_set :status, to: "active"
     end
-    ActivatePlan do
+    command "ActivatePlan" do
       role "Client"
       description "Activate the safety plan when in danger"
       reference_to(SafetyPlan)
@@ -37,29 +37,29 @@ Hecks.bluebook "SafeHaven", version: "2026.04.13.1" do
   end
 
   aggregate "DigitalSecurity", "Digital security measures protecting a survivor online" do
-    String :profile_id
-    String :client_code
-    String :threat_level
+    attribute :profile_id, String
+    attribute :client_code, String
+    attribute :threat_level, String
     list_of(SecurityMeasure) :measures
-    String :status
+    attribute :status, String
     value_object "SecurityMeasure" do
-      String :measure_type
-      String :platform
-      String :status
+      attribute :measure_type, String
+      attribute :platform, String
+      attribute :status, String
     end
-    AssessThreat do
+    command "AssessThreat" do
       role "SecurityAdvisor"
       description "Assess digital threat level for a survivor"
-      String :profile_id
-      String :client_code
-      String :threat_level
+      attribute :profile_id, String
+      attribute :client_code, String
+      attribute :threat_level, String
       emits "ThreatAssessed"
       then_set :profile_id, to: :profile_id
       then_set :client_code, to: :client_code
       then_set :threat_level, to: :threat_level
       then_set :status, to: "assessed"
     end
-    LockAccounts do
+    command "LockAccounts" do
       role "SecurityAdvisor"
       description "Lock down social media and email accounts"
       reference_to(DigitalSecurity)
@@ -70,25 +70,25 @@ Hecks.bluebook "SafeHaven", version: "2026.04.13.1" do
   end
 
   aggregate "LocationPrivacy", "Location masking and safe address management" do
-    String :privacy_id
-    String :client_code
-    String :safe_address
-    String :vpn_status
-    String :gps_spoofing
-    String :status
-    SetupPrivacy do
+    attribute :privacy_id, String
+    attribute :client_code, String
+    attribute :safe_address, String
+    attribute :vpn_status, String
+    attribute :gps_spoofing, String
+    attribute :status, String
+    command "SetupPrivacy" do
       role "SecurityAdvisor"
       description "Set up location privacy protections for a survivor"
-      String :privacy_id
-      String :client_code
-      String :safe_address
+      attribute :privacy_id, String
+      attribute :client_code, String
+      attribute :safe_address, String
       emits "PrivacySetup"
       then_set :privacy_id, to: :privacy_id
       then_set :client_code, to: :client_code
       then_set :safe_address, to: :safe_address
       then_set :status, to: "active"
     end
-    ActivateVPN do
+    command "ActivateVPN" do
       role "SecurityAdvisor"
       description "Enable VPN to mask network location"
       reference_to(LocationPrivacy)
@@ -98,20 +98,20 @@ Hecks.bluebook "SafeHaven", version: "2026.04.13.1" do
   end
 
   aggregate "IncidentLog", "A confidential log of safety incidents" do
-    String :log_id
-    String :client_code
-    String :incident_type
-    String :description_text
-    String :date
-    String :reported_to
-    LogIncident do
+    attribute :log_id, String
+    attribute :client_code, String
+    attribute :incident_type, String
+    attribute :description_text, String
+    attribute :date, String
+    attribute :reported_to, String
+    command "LogIncident" do
       role "Advocate"
       description "Log a safety incident in the confidential record"
-      String :log_id
-      String :client_code
-      String :incident_type
-      String :description_text
-      String :date
+      attribute :log_id, String
+      attribute :client_code, String
+      attribute :incident_type, String
+      attribute :description_text, String
+      attribute :date, String
       emits "IncidentLogged"
       then_set :log_id, to: :log_id
       then_set :client_code, to: :client_code
@@ -119,11 +119,11 @@ Hecks.bluebook "SafeHaven", version: "2026.04.13.1" do
       then_set :description_text, to: :description_text
       then_set :date, to: :date
     end
-    EscalateIncident do
+    command "EscalateIncident" do
       role "Advocate"
       description "Escalate a serious incident to law enforcement"
       reference_to(IncidentLog)
-      String :reported_to
+      attribute :reported_to, String
       emits "IncidentEscalated"
       then_set :reported_to, to: :reported_to
     end

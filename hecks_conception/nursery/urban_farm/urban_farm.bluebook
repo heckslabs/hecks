@@ -3,23 +3,23 @@ Hecks.bluebook "UrbanFarm", version: "2026.04.13.1" do
   category "healthcare_community"
 
   aggregate "FarmPlot", "A designated plot in the urban farm" do
-    String :plot_id
-    String :assigned_to
-    Float :area_sqft
-    String :soil_type
-    String :status
+    attribute :plot_id, String
+    attribute :assigned_to, String
+    attribute :area_sqft, Float
+    attribute :soil_type, String
+    attribute :status, String
     value_object "SoilTest" do
-      Float :ph
-      Float :nitrogen_ppm
-      Float :phosphorus_ppm
+      attribute :ph, Float
+      attribute :nitrogen_ppm, Float
+      attribute :phosphorus_ppm, Float
     end
-    AssignPlot do
+    command "AssignPlot" do
       role "FarmManager"
       description "Assign a plot to a community member or organization"
-      String :plot_id
-      String :assigned_to
-      Float :area_sqft
-      String :soil_type
+      attribute :plot_id, String
+      attribute :assigned_to, String
+      attribute :area_sqft, Float
+      attribute :soil_type, String
       emits "PlotAssigned"
       then_set :plot_id, to: :plot_id
       then_set :assigned_to, to: :assigned_to
@@ -27,7 +27,7 @@ Hecks.bluebook "UrbanFarm", version: "2026.04.13.1" do
       then_set :soil_type, to: :soil_type
       then_set :status, to: "active"
     end
-    ReclaimPlot do
+    command "ReclaimPlot" do
       role "FarmManager"
       description "Reclaim a plot that is no longer maintained"
       reference_to(FarmPlot)
@@ -41,21 +41,21 @@ Hecks.bluebook "UrbanFarm", version: "2026.04.13.1" do
   end
 
   aggregate "CropCycle", "A planting-to-harvest cycle for a specific crop" do
-    String :cycle_id
-    String :plot_id
-    String :crop_name
-    String :planted_date
-    String :expected_harvest
-    Float :yield_lbs
-    String :status
-    PlantCrop do
+    attribute :cycle_id, String
+    attribute :plot_id, String
+    attribute :crop_name, String
+    attribute :planted_date, String
+    attribute :expected_harvest, String
+    attribute :yield_lbs, Float
+    attribute :status, String
+    command "PlantCrop" do
       role "Farmer"
       description "Plant a crop on a designated plot"
-      String :cycle_id
-      String :plot_id
-      String :crop_name
-      String :planted_date
-      String :expected_harvest
+      attribute :cycle_id, String
+      attribute :plot_id, String
+      attribute :crop_name, String
+      attribute :planted_date, String
+      attribute :expected_harvest, String
       emits "CropPlanted"
       then_set :cycle_id, to: :cycle_id
       then_set :plot_id, to: :plot_id
@@ -64,11 +64,11 @@ Hecks.bluebook "UrbanFarm", version: "2026.04.13.1" do
       then_set :expected_harvest, to: :expected_harvest
       then_set :status, to: "growing"
     end
-    HarvestCrop do
+    command "HarvestCrop" do
       role "Farmer"
       description "Harvest the crop and record yield"
       reference_to(CropCycle)
-      Float :yield_lbs
+      attribute :yield_lbs, Float
       given { status == "growing" }
       emits "CropHarvested"
       then_set :yield_lbs, to: :yield_lbs
@@ -80,20 +80,20 @@ Hecks.bluebook "UrbanFarm", version: "2026.04.13.1" do
   end
 
   aggregate "IrrigationSystem", "An irrigation system serving farm plots" do
-    String :system_id
-    String :zone_name
-    String :irrigation_type
-    Float :flow_rate_gpm
-    String :schedule
-    String :status
-    ConfigureIrrigation do
+    attribute :system_id, String
+    attribute :zone_name, String
+    attribute :irrigation_type, String
+    attribute :flow_rate_gpm, Float
+    attribute :schedule, String
+    attribute :status, String
+    command "ConfigureIrrigation" do
       role "FarmManager"
       description "Configure irrigation for a farm zone"
-      String :system_id
-      String :zone_name
-      String :irrigation_type
-      Float :flow_rate_gpm
-      String :schedule
+      attribute :system_id, String
+      attribute :zone_name, String
+      attribute :irrigation_type, String
+      attribute :flow_rate_gpm, Float
+      attribute :schedule, String
       emits "IrrigationConfigured"
       then_set :system_id, to: :system_id
       then_set :zone_name, to: :zone_name
@@ -102,7 +102,7 @@ Hecks.bluebook "UrbanFarm", version: "2026.04.13.1" do
       then_set :schedule, to: :schedule
       then_set :status, to: "active"
     end
-    RunIrrigation do
+    command "RunIrrigation" do
       role "System"
       description "Run a scheduled irrigation cycle"
       reference_to(IrrigationSystem)
@@ -115,25 +115,25 @@ Hecks.bluebook "UrbanFarm", version: "2026.04.13.1" do
   end
 
   aggregate "HarvestDistribution", "Distribution of harvested produce to community" do
-    String :distribution_id
-    String :cycle_id
-    Float :distributed_lbs
-    String :recipient
-    String :date
+    attribute :distribution_id, String
+    attribute :cycle_id, String
+    attribute :distributed_lbs, Float
+    attribute :recipient, String
+    attribute :date, String
     list_of(ProduceItem) :items
     value_object "ProduceItem" do
-      String :crop_name
-      Float :weight_lbs
-      String :quality
+      attribute :crop_name, String
+      attribute :weight_lbs, Float
+      attribute :quality, String
     end
-    DistributeHarvest do
+    command "DistributeHarvest" do
       role "FarmManager"
       description "Distribute harvested produce to community recipients"
-      String :distribution_id
-      String :cycle_id
-      Float :distributed_lbs
-      String :recipient
-      String :date
+      attribute :distribution_id, String
+      attribute :cycle_id, String
+      attribute :distributed_lbs, Float
+      attribute :recipient, String
+      attribute :date, String
       emits "HarvestDistributed"
       then_set :distribution_id, to: :distribution_id
       then_set :cycle_id, to: :cycle_id
@@ -147,20 +147,20 @@ Hecks.bluebook "UrbanFarm", version: "2026.04.13.1" do
   end
 
   aggregate "EducationWorkshop", "A farming education workshop for community members" do
-    String :workshop_id
-    String :topic
-    String :instructor
-    String :date
-    Integer :max_participants
-    String :status
-    ScheduleWorkshop do
+    attribute :workshop_id, String
+    attribute :topic, String
+    attribute :instructor, String
+    attribute :date, String
+    attribute :max_participants, Integer
+    attribute :status, String
+    command "ScheduleWorkshop" do
       role "Educator"
       description "Schedule a farming education workshop"
-      String :workshop_id
-      String :topic
-      String :instructor
-      String :date
-      Integer :max_participants
+      attribute :workshop_id, String
+      attribute :topic, String
+      attribute :instructor, String
+      attribute :date, String
+      attribute :max_participants, Integer
       emits "WorkshopScheduled"
       then_set :workshop_id, to: :workshop_id
       then_set :topic, to: :topic
@@ -169,7 +169,7 @@ Hecks.bluebook "UrbanFarm", version: "2026.04.13.1" do
       then_set :max_participants, to: :max_participants
       then_set :status, to: "scheduled"
     end
-    ConductWorkshop do
+    command "ConductWorkshop" do
       role "Educator"
       description "Conduct the workshop and record attendance"
       reference_to(EducationWorkshop)

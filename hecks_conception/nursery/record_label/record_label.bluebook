@@ -1,27 +1,27 @@
 Hecks.bluebook "RecordLabel" do
   aggregate "RecordingArtist", "A signed musical artist or band on the label roster" do
-    String :name
-    String :genre
-    String :contract_status
-    Integer :album_count
+    attribute :name, String
+    attribute :genre, String
+    attribute :contract_status, String
+    attribute :album_count, Integer
 
-    SignArtist do
+    command "SignArtist" do
       description "Sign a new artist to the record label"
-      String :name
-      String :genre
+      attribute :name, String
+      attribute :genre, String
       emits "ArtistSigned"
       then_set :contract_status, to: "active"
     end
 
-    RenewContract do
+    command "RenewContract" do
       description "Extend an artist contract for another term"
       reference_to(RecordingArtist)
-      Integer :term_years
+      attribute :term_years, Integer
       given { contract_status == "active" }
       emits "ContractRenewed"
     end
 
-    DropArtist do
+    command "DropArtist" do
       description "Release an artist from their label contract"
       reference_to(RecordingArtist)
       emits "ArtistDropped"
@@ -30,41 +30,41 @@ Hecks.bluebook "RecordLabel" do
   end
 
   aggregate "Album", "A collection of tracks produced and released under the label" do
-    String :title
-    String :status, default: "pre_production"
-    String :release_date
-    Integer :track_count
+    attribute :title, String
+    attribute :status, String, default: "pre_production"
+    attribute :release_date, String
+    attribute :track_count, Integer
     reference_to(RecordingArtist)
 
     value_object "AlbumCredits" do
-      String :producer
-      String :mixing_engineer
-      String :mastering_engineer
-      String :studio_name
+      attribute :producer, String
+      attribute :mixing_engineer, String
+      attribute :mastering_engineer, String
+      attribute :studio_name, String
     end
 
-    GreenLightAlbum do
+    command "GreenLightAlbum" do
       description "Greenlight a new album project for an artist"
       reference_to(RecordingArtist)
-      String :title
-      String :producer
+      attribute :title, String
+      attribute :producer, String
       emits "AlbumCommissioned"
       then_set :status, to: "recording"
     end
 
-    MasterAlbum do
+    command "MasterAlbum" do
       description "Finalize the master recording for manufacturing"
       reference_to(Album)
-      String :mastering_engineer
+      attribute :mastering_engineer, String
       given { status == "recording" }
       emits "AlbumMastered"
       then_set :status, to: "mastered"
     end
 
-    ReleaseAlbum do
+    command "ReleaseAlbum" do
       description "Publish the album to streaming platforms and stores"
       reference_to(Album)
-      String :release_date
+      attribute :release_date, String
       emits "AlbumReleased"
       then_set :status, to: "released"
       then_set :release_date, to: :release_date
@@ -72,22 +72,22 @@ Hecks.bluebook "RecordLabel" do
   end
 
   aggregate "Track", "A single audio track on an album with duration and credits" do
-    String :title
-    Integer :duration_seconds
-    Integer :track_number
-    String :status, default: "demo"
+    attribute :title, String
+    attribute :duration_seconds, Integer
+    attribute :track_number, Integer
+    attribute :status, String, default: "demo"
     reference_to(Album)
 
-    RecordTrack do
+    command "RecordTrack" do
       description "Lay down a recording session for a track"
       reference_to(Album)
-      String :title
-      Integer :track_number
+      attribute :title, String
+      attribute :track_number, Integer
       emits "TrackRecorded"
       then_set :status, to: "recorded"
     end
 
-    MixTrack do
+    command "MixTrack" do
       description "Apply mixing and effects to a recorded track"
       reference_to(Track)
       given { status == "recorded" }
@@ -97,24 +97,24 @@ Hecks.bluebook "RecordLabel" do
   end
 
   aggregate "RoyaltyStatement", "Periodic royalty calculation and payout for an artist" do
-    String :period
-    Float :gross_revenue
-    Float :artist_share
-    Float :label_share
-    String :status, default: "draft"
+    attribute :period, String
+    attribute :gross_revenue, Float
+    attribute :artist_share, Float
+    attribute :label_share, Float
+    attribute :status, String, default: "draft"
     reference_to(RecordingArtist)
 
-    CalculateRoyalties do
+    command "CalculateRoyalties" do
       description "Compute royalty splits for a given accounting period"
       reference_to(RecordingArtist)
-      String :period
-      Float :gross_revenue
-      Float :split_percentage
+      attribute :period, String
+      attribute :gross_revenue, Float
+      attribute :split_percentage, Float
       emits "RoyaltiesCalculated"
       then_set :status, to: "draft"
     end
 
-    ApproveStatement do
+    command "ApproveStatement" do
       description "Approve the royalty statement for payout"
       reference_to(RoyaltyStatement)
       given { status == "draft" }
@@ -122,7 +122,7 @@ Hecks.bluebook "RecordLabel" do
       then_set :status, to: "approved"
     end
 
-    DisbursePayment do
+    command "DisbursePayment" do
       description "Send royalty payment to the artist"
       reference_to(RoyaltyStatement)
       emits "PaymentDisbursed"
@@ -131,23 +131,23 @@ Hecks.bluebook "RecordLabel" do
   end
 
   aggregate "Distribution", "Channel and format configuration for album distribution" do
-    String :channel
-    String :format
-    String :territory
-    String :status, default: "pending"
+    attribute :channel, String
+    attribute :format, String
+    attribute :territory, String
+    attribute :status, String, default: "pending"
     reference_to(Album)
 
-    SubmitForDistribution do
+    command "SubmitForDistribution" do
       description "Send album to a distribution channel for a territory"
       reference_to(Album)
-      String :channel
-      String :format
-      String :territory
+      attribute :channel, String
+      attribute :format, String
+      attribute :territory, String
       emits "DistributionSubmitted"
       then_set :status, to: "pending"
     end
 
-    ConfirmDistribution do
+    command "ConfirmDistribution" do
       description "Mark distribution as live on the channel"
       reference_to(Distribution)
       given { status == "pending" }

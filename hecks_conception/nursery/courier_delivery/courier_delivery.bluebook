@@ -2,39 +2,39 @@ Hecks.bluebook "CourierDelivery" do
   vision "Manage parcels, routes, drivers, proof of delivery, and returns for a courier service"
 
   aggregate "Parcel", "A package moving through the courier network from sender to recipient" do
-    String :tracking_code
-    String :sender_address
-    String :recipient_address
-    String :status
-    Float :weight_kg
+    attribute :tracking_code, String
+    attribute :sender_address, String
+    attribute :recipient_address, String
+    attribute :status, String
+    attribute :weight_kg, Float
     reference_to(Route)
 
     value_object "PackageDimensions" do
-      Float :length_cm
-      Float :width_cm
-      Float :height_cm
+      attribute :length_cm, Float
+      attribute :width_cm, Float
+      attribute :height_cm, Float
     end
 
-    AcceptParcel do
+    command "AcceptParcel" do
       description "Register a new parcel at the intake counter"
-      String :tracking_code
-      String :sender_address
-      String :recipient_address
-      Float :weight_kg
+      attribute :tracking_code, String
+      attribute :sender_address, String
+      attribute :recipient_address, String
+      attribute :weight_kg, Float
       emits "ParcelAccepted"
       then_set :status, to: "accepted"
     end
 
-    SortParcel do
+    command "SortParcel" do
       description "Assign parcel to the correct distribution hub"
       reference_to(Parcel)
-      String :hub_code
+      attribute :hub_code, String
       given { status == "accepted" }
       emits "ParcelSorted"
       then_set :status, to: "sorted"
     end
 
-    LoadParcel do
+    command "LoadParcel" do
       description "Place sorted parcel onto the delivery vehicle"
       reference_to(Parcel)
       given { status == "sorted" }
@@ -42,14 +42,14 @@ Hecks.bluebook "CourierDelivery" do
       then_set :status, to: "loaded"
     end
 
-    DispatchParcel do
+    command "DispatchParcel" do
       description "Send parcel out for last-mile delivery"
       reference_to(Parcel)
       emits "ParcelDispatched"
       then_set :status, to: "in_transit"
     end
 
-    AttemptDelivery do
+    command "AttemptDelivery" do
       description "Record a delivery attempt at the recipient address"
       reference_to(Parcel)
       given { status == "in_transit" }
@@ -57,7 +57,7 @@ Hecks.bluebook "CourierDelivery" do
       then_set :status, to: "attempted"
     end
 
-    MarkDelivered do
+    command "MarkDelivered" do
       description "Confirm parcel has reached the recipient"
       reference_to(Parcel)
       given { status == "in_transit" }
@@ -65,10 +65,10 @@ Hecks.bluebook "CourierDelivery" do
       then_set :status, to: "delivered"
     end
 
-    ReturnToSender do
+    command "ReturnToSender" do
       description "Send undeliverable parcel back to the sender"
       reference_to(Parcel)
-      String :reason
+      attribute :reason, String
       given { status == "attempted" }
       emits "ParcelReturned"
       then_set :status, to: "returned"
@@ -76,27 +76,27 @@ Hecks.bluebook "CourierDelivery" do
   end
 
   aggregate "Route", "A planned delivery route covering a geographic zone" do
-    String :route_code
-    String :zone
-    Integer :stop_count
-    String :status
+    attribute :route_code, String
+    attribute :zone, String
+    attribute :stop_count, Integer
+    attribute :status, String
     reference_to(Driver)
 
     value_object "Stop" do
-      String :address
-      Integer :sequence
-      String :time_window
+      attribute :address, String
+      attribute :sequence, Integer
+      attribute :time_window, String
     end
 
-    PlanRoute do
+    command "PlanRoute" do
       description "Generate an optimized delivery route for a zone"
-      String :zone
-      Integer :stop_count
+      attribute :zone, String
+      attribute :stop_count, Integer
       emits "RoutePlanned"
       then_set :status, to: "planned"
     end
 
-    StartRoute do
+    command "StartRoute" do
       description "Dispatch the driver to begin deliveries"
       reference_to(Route)
       given { status == "planned" }
@@ -104,7 +104,7 @@ Hecks.bluebook "CourierDelivery" do
       then_set :status, to: "active"
     end
 
-    CompleteRoute do
+    command "CompleteRoute" do
       description "Mark all stops on the route as finished"
       reference_to(Route)
       emits "RouteCompleted"
@@ -113,28 +113,28 @@ Hecks.bluebook "CourierDelivery" do
   end
 
   aggregate "Driver", "A courier driver licensed to operate delivery vehicles" do
-    String :employee_id
-    String :name
-    String :license_class
-    String :status
-    Float :hours_today
+    attribute :employee_id, String
+    attribute :name, String
+    attribute :license_class, String
+    attribute :status, String
+    attribute :hours_today, Float
 
     value_object "VehicleAssignment" do
-      String :vehicle_id
-      String :vehicle_type
+      attribute :vehicle_id, String
+      attribute :vehicle_type, String
     end
 
-    RegisterDriver do
+    command "RegisterDriver" do
       description "Onboard a new driver into the courier fleet"
-      String :employee_id
-      String :name
-      String :license_class
+      attribute :employee_id, String
+      attribute :name, String
+      attribute :license_class, String
       emits "DriverRegistered"
       then_set :status, to: "available"
       then_set :hours_today, to: 0.0
     end
 
-    CheckInDriver do
+    command "CheckInDriver" do
       description "Clock a driver in for their shift"
       reference_to(Driver)
       given { status == "available" }
@@ -142,7 +142,7 @@ Hecks.bluebook "CourierDelivery" do
       then_set :status, to: "on_duty"
     end
 
-    CheckOutDriver do
+    command "CheckOutDriver" do
       description "Clock a driver out at end of shift"
       reference_to(Driver)
       emits "DriverCheckedOut"
@@ -151,29 +151,29 @@ Hecks.bluebook "CourierDelivery" do
   end
 
   aggregate "ProofOfDelivery", "Photographic or signature evidence that a parcel was delivered" do
-    String :proof_id
-    String :signature_data
-    String :photo_url
-    String :timestamp
+    attribute :proof_id, String
+    attribute :signature_data, String
+    attribute :photo_url, String
+    attribute :timestamp, String
     reference_to(Parcel)
 
     value_object "GeoStamp" do
-      Float :latitude
-      Float :longitude
+      attribute :latitude, Float
+      attribute :longitude, Float
     end
 
-    CaptureProof do
+    command "CaptureProof" do
       description "Record delivery proof with signature or photo"
       reference_to(Parcel)
-      String :signature_data
-      String :photo_url
+      attribute :signature_data, String
+      attribute :photo_url, String
       emits "ProofCaptured"
     end
 
-    DisputeProof do
+    command "DisputeProof" do
       description "Flag a proof of delivery as contested by recipient"
       reference_to(ProofOfDelivery)
-      String :reason
+      attribute :reason, String
       emits "ProofDisputed"
     end
   end

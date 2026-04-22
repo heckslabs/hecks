@@ -2,29 +2,29 @@ Hecks.bluebook "OrganDonation" do
   vision "Organ transplant coordination — donors, recipients, matching algorithms, transport logistics, and clinical outcomes"
 
   aggregate "Donor", "A person whose organs are available for transplantation" do
-    String :name
-    String :blood_type
-    String :tissue_type
-    String :hospital
-    String :cause_of_death
-    String :consent_status
+    attribute :name, String
+    attribute :blood_type, String
+    attribute :tissue_type, String
+    attribute :hospital, String
+    attribute :cause_of_death, String
+    attribute :consent_status, String
     list_of(AvailableOrgan) :organs
 
     value_object "AvailableOrgan" do
-      String :organ_name
-      String :viability_status
-      String :ischemia_time_limit
+      attribute :organ_name, String
+      attribute :viability_status, String
+      attribute :ischemia_time_limit, String
     end
 
-    RegisterDonor do
+    command "RegisterDonor" do
       role "TransplantCoordinator"
       description "Register a potential organ donor with consent verification"
-      String :name
-      String :blood_type
-      String :tissue_type
-      String :hospital
-      String :cause_of_death
-      String :consent_status
+      attribute :name, String
+      attribute :blood_type, String
+      attribute :tissue_type, String
+      attribute :hospital, String
+      attribute :cause_of_death, String
+      attribute :consent_status, String
       emits "DonorRegistered"
       then_set :name, to: :name
       then_set :blood_type, to: :blood_type
@@ -34,7 +34,7 @@ Hecks.bluebook "OrganDonation" do
       then_set :consent_status, to: :consent_status
     end
 
-    ConfirmConsent do
+    command "ConfirmConsent" do
       role "TransplantCoordinator"
       description "Verify legal consent from the donor or next of kin"
       reference_to(Donor)
@@ -42,7 +42,7 @@ Hecks.bluebook "OrganDonation" do
       then_set :consent_status, to: "confirmed"
     end
 
-    AssessOrganViability do
+    command "AssessOrganViability" do
       role "Surgeon"
       description "Evaluate each organ for transplant suitability"
       reference_to(Donor)
@@ -51,27 +51,27 @@ Hecks.bluebook "OrganDonation" do
   end
 
   aggregate "Recipient", "A patient on the transplant waiting list" do
-    String :name
-    String :blood_type
-    String :tissue_type
-    String :organ_needed
-    String :urgency_level
-    String :listing_date
-    String :status
+    attribute :name, String
+    attribute :blood_type, String
+    attribute :tissue_type, String
+    attribute :organ_needed, String
+    attribute :urgency_level, String
+    attribute :listing_date, String
+    attribute :status, String
 
     specification "UrgentNeed" do
       satisfied_by { urgency_level == "1A" }
     end
 
-    ListRecipient do
+    command "ListRecipient" do
       role "TransplantCoordinator"
       description "Add a patient to the organ transplant waiting list"
-      String :name
-      String :blood_type
-      String :tissue_type
-      String :organ_needed
-      String :urgency_level
-      String :listing_date
+      attribute :name, String
+      attribute :blood_type, String
+      attribute :tissue_type, String
+      attribute :organ_needed, String
+      attribute :urgency_level, String
+      attribute :listing_date, String
       emits "RecipientListed"
       then_set :name, to: :name
       then_set :blood_type, to: :blood_type
@@ -82,16 +82,16 @@ Hecks.bluebook "OrganDonation" do
       then_set :status, to: "waiting"
     end
 
-    EscalateUrgency do
+    command "EscalateUrgency" do
       role "Physician"
       description "Change the urgency level based on clinical deterioration"
       reference_to(Recipient)
-      String :urgency_level
+      attribute :urgency_level, String
       emits "UrgencyEscalated"
       then_set :urgency_level, to: :urgency_level
     end
 
-    RemoveFromList do
+    command "RemoveFromList" do
       role "TransplantCoordinator"
       description "Remove a recipient from the waiting list"
       reference_to(Recipient)
@@ -101,24 +101,24 @@ Hecks.bluebook "OrganDonation" do
   end
 
   aggregate "OrganMatch", "A compatibility match between a donor organ and recipient" do
-    String :donor_name
-    String :recipient_name
-    String :organ_name
-    String :compatibility_score
-    String :crossmatch_result
-    String :status
+    attribute :donor_name, String
+    attribute :recipient_name, String
+    attribute :organ_name, String
+    attribute :compatibility_score, String
+    attribute :crossmatch_result, String
+    attribute :status, String
     reference_to Donor
     reference_to Recipient
 
-    PerformMatch do
+    command "PerformMatch" do
       role "System"
       description "Run the matching algorithm to find compatible donor-recipient pairs"
       reference_to(Donor)
       reference_to(Recipient)
-      String :donor_name
-      String :recipient_name
-      String :organ_name
-      String :compatibility_score
+      attribute :donor_name, String
+      attribute :recipient_name, String
+      attribute :organ_name, String
+      attribute :compatibility_score, String
       emits "MatchPerformed"
       then_set :donor_name, to: :donor_name
       then_set :recipient_name, to: :recipient_name
@@ -127,18 +127,18 @@ Hecks.bluebook "OrganDonation" do
       then_set :status, to: "pending_crossmatch"
     end
 
-    RecordCrossmatch do
+    command "RecordCrossmatch" do
       role "LabTechnician"
       description "Record the immunologic crossmatch result"
       reference_to(OrganMatch)
-      String :crossmatch_result
+      attribute :crossmatch_result, String
       given("must be pending crossmatch") { status == "pending_crossmatch" }
       emits "CrossmatchRecorded"
       then_set :crossmatch_result, to: :crossmatch_result
       then_set :status, to: "crossmatched"
     end
 
-    AcceptMatch do
+    command "AcceptMatch" do
       role "Surgeon"
       description "Approve the organ match and proceed to transplant"
       reference_to(OrganMatch)
@@ -149,25 +149,25 @@ Hecks.bluebook "OrganDonation" do
   end
 
   aggregate "OrganTransport", "The logistics of moving a donor organ to the recipient hospital" do
-    String :organ_name
-    String :origin_hospital
-    String :destination_hospital
-    String :transport_method
-    String :departure_time
-    String :estimated_arrival
-    String :status
+    attribute :organ_name, String
+    attribute :origin_hospital, String
+    attribute :destination_hospital, String
+    attribute :transport_method, String
+    attribute :departure_time, String
+    attribute :estimated_arrival, String
+    attribute :status, String
     reference_to OrganMatch
 
-    DispatchOrgan do
+    command "DispatchOrgan" do
       role "TransplantCoordinator"
       description "Send the harvested organ to the recipient's hospital"
       reference_to(OrganMatch)
-      String :organ_name
-      String :origin_hospital
-      String :destination_hospital
-      String :transport_method
-      String :departure_time
-      String :estimated_arrival
+      attribute :organ_name, String
+      attribute :origin_hospital, String
+      attribute :destination_hospital, String
+      attribute :transport_method, String
+      attribute :departure_time, String
+      attribute :estimated_arrival, String
       emits "OrganDispatched"
       then_set :organ_name, to: :organ_name
       then_set :origin_hospital, to: :origin_hospital
@@ -178,7 +178,7 @@ Hecks.bluebook "OrganDonation" do
       then_set :status, to: "in_transit"
     end
 
-    ConfirmDelivery do
+    command "ConfirmDelivery" do
       role "TransplantCoordinator"
       description "Record successful delivery of the organ"
       reference_to(OrganTransport)
@@ -189,25 +189,25 @@ Hecks.bluebook "OrganDonation" do
   end
 
   aggregate "TransplantOutcome", "The clinical result of a transplant surgery" do
-    String :recipient_name
-    String :organ_name
-    String :surgery_date
-    String :surgeon_name
-    String :graft_function
-    String :complications
-    String :status
+    attribute :recipient_name, String
+    attribute :organ_name, String
+    attribute :surgery_date, String
+    attribute :surgeon_name, String
+    attribute :graft_function, String
+    attribute :complications, String
+    attribute :status, String
     reference_to Recipient
 
-    RecordOutcome do
+    command "RecordOutcome" do
       role "Surgeon"
       description "Document the transplant surgery outcome and graft function"
       reference_to(Recipient)
-      String :recipient_name
-      String :organ_name
-      String :surgery_date
-      String :surgeon_name
-      String :graft_function
-      String :complications
+      attribute :recipient_name, String
+      attribute :organ_name, String
+      attribute :surgery_date, String
+      attribute :surgeon_name, String
+      attribute :graft_function, String
+      attribute :complications, String
       emits "OutcomeRecorded"
       then_set :recipient_name, to: :recipient_name
       then_set :organ_name, to: :organ_name
@@ -218,11 +218,11 @@ Hecks.bluebook "OrganDonation" do
       then_set :status, to: "initial"
     end
 
-    MonitorGraft do
+    command "MonitorGraft" do
       role "Physician"
       description "Monitor ongoing graft function during follow-up"
       reference_to(TransplantOutcome)
-      String :graft_function
+      attribute :graft_function, String
       emits "GraftMonitored"
       then_set :graft_function, to: :graft_function
     end

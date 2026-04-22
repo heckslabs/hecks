@@ -5,26 +5,26 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
   # === JurisdictionalContract ===
 
   aggregate "JurisdictionalContract", "External regulatory rules — state and federal compliance requirements" do
-    String :jurisdiction
-    String :regulation_code
+    attribute :jurisdiction, String
+    attribute :regulation_code, String
     list_of(Rule) :rules
-    String :effective_date
-    String :status
+    attribute :effective_date, String
+    attribute :status, String
 
     value_object "Rule" do
-      String :code
-      String :description
-      String :requirement
-      String :penalty
-      String :category
+      attribute :code, String
+      attribute :description, String
+      attribute :requirement, String
+      attribute :penalty, String
+      attribute :category, String
     end
 
-    DefineContract do
+    command "DefineContract" do
       role "ComplianceOfficer"
       description "Create a new jurisdictional contract for a regulatory body"
-      String :jurisdiction
-      String :regulation_code
-      String :effective_date
+      attribute :jurisdiction, String
+      attribute :regulation_code, String
+      attribute :effective_date, String
       emits "ContractDefined"
       then_set :jurisdiction, to: :jurisdiction
       then_set :regulation_code, to: :regulation_code
@@ -32,7 +32,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :status, to: "draft"
     end
 
-    AddRule do
+    command "AddRule" do
       role "ComplianceOfficer"
       description "Add a regulatory rule to the contract"
       reference_to(JurisdictionalContract)
@@ -40,16 +40,16 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       emits "RuleAdded"
     end
 
-    AmendRule do
+    command "AmendRule" do
       role "ComplianceOfficer"
       description "Amend an existing rule within the contract"
       reference_to(JurisdictionalContract)
-      String :rule_code
+      attribute :rule_code, String
       Rule :rule
       emits "RuleAmended"
     end
 
-    ActivateContract do
+    command "ActivateContract" do
       role "ComplianceOfficer"
       description "Make the contract enforceable — all rules become active"
       reference_to(JurisdictionalContract)
@@ -58,7 +58,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :status, to: "active"
     end
 
-    SuspendContract do
+    command "SuspendContract" do
       role "ComplianceOfficer"
       description "Temporarily suspend enforcement of this contract"
       reference_to(JurisdictionalContract)
@@ -67,7 +67,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :status, to: "suspended"
     end
 
-    SupersedeContract do
+    command "SupersedeContract" do
       role "ComplianceOfficer"
       description "Replace this contract with an updated version"
       reference_to(JurisdictionalContract)
@@ -75,12 +75,12 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :status, to: "superseded"
     end
 
-    CheckCompliance do
+    command "CheckCompliance" do
       role "System"
       description "Evaluate an action against all rules in this contract"
       reference_to(JurisdictionalContract)
-      String :action_type
-      String :action_id
+      attribute :action_type, String
+      attribute :action_id, String
       emits "ComplianceChecked"
     end
 
@@ -97,25 +97,25 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
   # === OperationalContract ===
 
   aggregate "OperationalContract", "Internal company standards — SOPs, ISO requirements, quality policies" do
-    String :name
-    String :department
+    attribute :name, String
+    attribute :department, String
     list_of(Standard) :rules
-    Integer :version
-    String :status
+    attribute :version, Integer
+    attribute :status, String
 
     value_object "Standard" do
-      String :name
-      String :description
-      String :requirement
-      String :owner
-      String :severity
+      attribute :name, String
+      attribute :description, String
+      attribute :requirement, String
+      attribute :owner, String
+      attribute :severity, String
     end
 
-    DefineOperationalContract do
+    command "DefineOperationalContract" do
       role "QualityManager"
       description "Define a new operational contract for a department"
-      String :name
-      String :department
+      attribute :name, String
+      attribute :department, String
       emits "OperationalContractDefined"
       then_set :name, to: :name
       then_set :department, to: :department
@@ -123,7 +123,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :status, to: "draft"
     end
 
-    AddStandard do
+    command "AddStandard" do
       role "QualityManager"
       description "Add an internal standard to the contract"
       reference_to(OperationalContract)
@@ -131,16 +131,16 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       emits "StandardAdded"
     end
 
-    ReviseStandard do
+    command "ReviseStandard" do
       role "QualityManager"
       description "Revise an existing standard within the contract"
       reference_to(OperationalContract)
-      String :standard_name
+      attribute :standard_name, String
       Standard :standard
       emits "StandardRevised"
     end
 
-    ApproveContract do
+    command "ApproveContract" do
       role "QualityDirector"
       description "Approve the contract for enforcement"
       reference_to(OperationalContract)
@@ -149,7 +149,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :status, to: "active"
     end
 
-    SubmitContract do
+    command "SubmitContract" do
       role "QualityManager"
       description "Submit the contract for approval"
       reference_to(OperationalContract)
@@ -158,7 +158,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :status, to: "pending_approval"
     end
 
-    RetireContract do
+    command "RetireContract" do
       role "QualityDirector"
       description "Retire a contract — no longer enforced"
       reference_to(OperationalContract)
@@ -178,26 +178,26 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
   # === Batch ===
 
   aggregate "Batch", "A production batch under governance — tracked from creation through release or quarantine" do
-    String :batch_number
-    String :product
-    Integer :quantity
-    String :produced_at
-    String :status
+    attribute :batch_number, String
+    attribute :product, String
+    attribute :quantity, Integer
+    attribute :produced_at, String
+    attribute :status, String
     list_of(Violation) :violations
 
     value_object "Violation" do
-      String :rule_code
-      String :description
-      String :severity
-      String :detected_at
+      attribute :rule_code, String
+      attribute :description, String
+      attribute :severity, String
+      attribute :detected_at, String
     end
 
-    RegisterBatch do
+    command "RegisterBatch" do
       role "ProductionOperator"
       description "Register a new production batch"
-      String :batch_number
-      String :product
-      Integer :quantity
+      attribute :batch_number, String
+      attribute :product, String
+      attribute :quantity, Integer
       emits "BatchRegistered"
       then_set :batch_number, to: :batch_number
       then_set :product, to: :product
@@ -205,18 +205,18 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :status, to: "created"
     end
 
-    RecordProduction do
+    command "RecordProduction" do
       role "ProductionOperator"
       description "Mark the batch as actively being produced"
       reference_to(Batch)
-      String :produced_at
+      attribute :produced_at, String
       given { status == "created" }
       emits "ProductionRecorded"
       then_set :produced_at, to: :produced_at
       then_set :status, to: "in_production"
     end
 
-    SubmitForRelease do
+    command "SubmitForRelease" do
       role "ProductionSupervisor"
       description "Submit the batch for quality release — requires no open violations"
       reference_to(Batch)
@@ -225,7 +225,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :status, to: "pending_release"
     end
 
-    ApproveBatch do
+    command "ApproveBatch" do
       role "QualityManager"
       description "Approve the batch for release after governance checks pass"
       reference_to(Batch)
@@ -234,26 +234,26 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :status, to: "approved"
     end
 
-    RejectBatch do
+    command "RejectBatch" do
       role "QualityManager"
       description "Reject the batch due to compliance failures"
       reference_to(Batch)
-      String :reason
+      attribute :reason, String
       given { status == "pending_release" }
       emits "BatchRejected"
       then_set :status, to: "rejected"
     end
 
-    QuarantineBatch do
+    command "QuarantineBatch" do
       role "QualityManager"
       description "Place the batch in quarantine pending investigation"
       reference_to(Batch)
-      String :reason
+      attribute :reason, String
       emits "BatchQuarantined"
       then_set :status, to: "quarantined"
     end
 
-    ReleaseBatch do
+    command "ReleaseBatch" do
       role "QualityDirector"
       description "Release the approved batch for distribution"
       reference_to(Batch)
@@ -262,7 +262,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :status, to: "released"
     end
 
-    RecordViolation do
+    command "RecordViolation" do
       role "System"
       description "Record a compliance violation against the batch"
       reference_to(Batch)
@@ -288,29 +288,29 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
   # === ChangeRequest ===
 
   aggregate "ChangeRequest", "Change control — every modification to process or equipment is tracked and approved" do
-    String :title
-    String :description
-    String :requester
-    String :impact_area
-    String :risk_level
-    String :status
+    attribute :title, String
+    attribute :description, String
+    attribute :requester, String
+    attribute :impact_area, String
+    attribute :risk_level, String
+    attribute :status, String
     list_of(Approval) :approvals
 
     value_object "Approval" do
-      String :approver
-      String :role
-      String :decision
-      String :decided_at
-      String :comments
+      attribute :approver, String
+      attribute :role, String
+      attribute :decision, String
+      attribute :decided_at, String
+      attribute :comments, String
     end
 
-    SubmitChangeRequest do
+    command "SubmitChangeRequest" do
       role "Employee"
       description "Submit a request to change a process, procedure, or equipment"
-      String :title
-      String :description
-      String :requester
-      String :impact_area
+      attribute :title, String
+      attribute :description, String
+      attribute :requester, String
+      attribute :impact_area, String
       emits "ChangeRequestSubmitted"
       then_set :title, to: :title
       then_set :description, to: :description
@@ -319,18 +319,18 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :status, to: "submitted"
     end
 
-    AssessImpact do
+    command "AssessImpact" do
       role "QualityManager"
       description "Evaluate the risk and impact of the proposed change"
       reference_to(ChangeRequest)
-      String :risk_level
+      attribute :risk_level, String
       given { status == "submitted" }
       emits "ImpactAssessed"
       then_set :risk_level, to: :risk_level
       then_set :status, to: "assessing"
     end
 
-    RouteForApproval do
+    command "RouteForApproval" do
       role "System"
       description "Route the change request to the required approvers based on risk"
       reference_to(ChangeRequest)
@@ -339,7 +339,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :status, to: "pending_approval"
     end
 
-    ApproveChange do
+    command "ApproveChange" do
       role "Approver"
       description "Approve the change request"
       reference_to(ChangeRequest)
@@ -349,7 +349,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :status, to: "approved"
     end
 
-    RejectChange do
+    command "RejectChange" do
       role "Approver"
       description "Reject the change request"
       reference_to(ChangeRequest)
@@ -359,7 +359,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :status, to: "rejected"
     end
 
-    ImplementChange do
+    command "ImplementChange" do
       role "Employee"
       description "Execute the approved change"
       reference_to(ChangeRequest)
@@ -368,7 +368,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :status, to: "implementing"
     end
 
-    VerifyChange do
+    command "VerifyChange" do
       role "QualityManager"
       description "Verify the change was implemented correctly"
       reference_to(ChangeRequest)
@@ -391,33 +391,33 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
   # === CAPA ===
 
   aggregate "CAPA", "Corrective and Preventive Action — systematic issue resolution with root cause analysis" do
-    String :title
-    String :issue_description
-    String :root_cause
-    String :corrective_action
-    String :preventive_action
-    String :status
+    attribute :title, String
+    attribute :issue_description, String
+    attribute :root_cause, String
+    attribute :corrective_action, String
+    attribute :preventive_action, String
+    attribute :status, String
     list_of(Evidence) :evidence
 
     value_object "Evidence" do
-      String :description
-      String :document_path
-      String :collected_at
-      String :collector
+      attribute :description, String
+      attribute :document_path, String
+      attribute :collected_at, String
+      attribute :collector, String
     end
 
-    OpenCAPA do
+    command "OpenCAPA" do
       role "QualityManager"
       description "Open a CAPA for a detected issue or rejected batch"
-      String :title
-      String :issue_description
+      attribute :title, String
+      attribute :issue_description, String
       emits "CAPAOpened"
       then_set :title, to: :title
       then_set :issue_description, to: :issue_description
       then_set :status, to: "opened"
     end
 
-    InvestigateIssue do
+    command "InvestigateIssue" do
       role "QualityInvestigator"
       description "Begin investigation into the reported issue"
       reference_to(CAPA)
@@ -426,39 +426,39 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :status, to: "investigating"
     end
 
-    IdentifyRootCause do
+    command "IdentifyRootCause" do
       role "QualityInvestigator"
       description "Document the root cause of the issue"
       reference_to(CAPA)
-      String :root_cause
+      attribute :root_cause, String
       given { status == "investigating" }
       emits "RootCauseIdentified"
       then_set :root_cause, to: :root_cause
       then_set :status, to: "root_cause_identified"
     end
 
-    DefineCorrectiveAction do
+    command "DefineCorrectiveAction" do
       role "QualityManager"
       description "Define the corrective action to fix the immediate issue"
       reference_to(CAPA)
-      String :corrective_action
+      attribute :corrective_action, String
       given { status == "root_cause_identified" }
       emits "CorrectiveActionDefined"
       then_set :corrective_action, to: :corrective_action
     end
 
-    DefinePreventiveAction do
+    command "DefinePreventiveAction" do
       role "QualityManager"
       description "Define the preventive action to stop recurrence"
       reference_to(CAPA)
-      String :preventive_action
+      attribute :preventive_action, String
       given { status == "root_cause_identified" }
       emits "PreventiveActionDefined"
       then_set :preventive_action, to: :preventive_action
       then_set :status, to: "action_defined"
     end
 
-    ImplementAction do
+    command "ImplementAction" do
       role "QualityManager"
       description "Execute the corrective and preventive actions"
       reference_to(CAPA)
@@ -467,7 +467,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :status, to: "implementing"
     end
 
-    VerifyEffectiveness do
+    command "VerifyEffectiveness" do
       role "QualityDirector"
       description "Verify the actions were effective in resolving the issue"
       reference_to(CAPA)
@@ -476,7 +476,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :status, to: "verifying"
     end
 
-    CollectEvidence do
+    command "CollectEvidence" do
       role "QualityInvestigator"
       description "Attach supporting evidence to the CAPA"
       reference_to(CAPA)
@@ -484,7 +484,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       emits "EvidenceCollected"
     end
 
-    CloseCAPA do
+    command "CloseCAPA" do
       role "QualityDirector"
       description "Close the CAPA — all actions verified effective"
       reference_to(CAPA)
@@ -507,28 +507,28 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
   # === Recall ===
 
   aggregate "Recall", "Recall management — coordinated response when product must be pulled from market" do
-    String :recall_number
-    String :product
-    String :reason
+    attribute :recall_number, String
+    attribute :product, String
+    attribute :reason, String
     list_of(String) :affected_batches
-    String :scope
-    String :status
+    attribute :scope, String
+    attribute :status, String
     list_of(Notification) :notifications
 
     value_object "Notification" do
-      String :recipient
-      String :channel
-      String :sent_at
-      String :acknowledged
+      attribute :recipient, String
+      attribute :channel, String
+      attribute :sent_at, String
+      attribute :acknowledged, String
     end
 
-    InitiateRecall do
+    command "InitiateRecall" do
       role "QualityDirector"
       description "Initiate a product recall"
-      String :recall_number
-      String :product
-      String :reason
-      String :scope
+      attribute :recall_number, String
+      attribute :product, String
+      attribute :reason, String
+      attribute :scope, String
       emits "RecallInitiated"
       then_set :recall_number, to: :recall_number
       then_set :product, to: :product
@@ -537,7 +537,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :status, to: "initiated"
     end
 
-    IdentifyAffectedBatches do
+    command "IdentifyAffectedBatches" do
       role "QualityManager"
       description "Determine which batches are affected by the recall"
       reference_to(Recall)
@@ -548,7 +548,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :status, to: "identifying"
     end
 
-    NotifyStakeholders do
+    command "NotifyStakeholders" do
       role "ComplianceOfficer"
       description "Send recall notifications to all required parties"
       reference_to(Recall)
@@ -558,7 +558,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :status, to: "notifying"
     end
 
-    ExecuteRecall do
+    command "ExecuteRecall" do
       role "QualityDirector"
       description "Execute the recall — pull affected product"
       reference_to(Recall)
@@ -567,7 +567,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :status, to: "executing"
     end
 
-    DocumentRecall do
+    command "DocumentRecall" do
       role "ComplianceOfficer"
       description "Document all recall actions for regulatory reporting"
       reference_to(Recall)
@@ -576,7 +576,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :status, to: "documented"
     end
 
-    CloseRecall do
+    command "CloseRecall" do
       role "QualityDirector"
       description "Close the recall after all actions are complete"
       reference_to(Recall)
@@ -598,28 +598,28 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
   # === Audit ===
 
   aggregate "Audit", "Audit readiness and execution — scheduled inspections with findings and resolution" do
-    String :audit_type
-    String :auditor
-    String :scope
-    String :scheduled_at
-    String :status
+    attribute :audit_type, String
+    attribute :auditor, String
+    attribute :scope, String
+    attribute :scheduled_at, String
+    attribute :status, String
     list_of(Finding) :findings
 
     value_object "Finding" do
-      String :area
-      String :observation
-      String :severity
-      String :recommendation
-      String :resolved
+      attribute :area, String
+      attribute :observation, String
+      attribute :severity, String
+      attribute :recommendation, String
+      attribute :resolved, String
     end
 
-    ScheduleAudit do
+    command "ScheduleAudit" do
       role "ComplianceOfficer"
       description "Schedule a new audit"
-      String :audit_type
-      String :auditor
-      String :scope
-      String :scheduled_at
+      attribute :audit_type, String
+      attribute :auditor, String
+      attribute :scope, String
+      attribute :scheduled_at, String
       emits "AuditScheduled"
       then_set :audit_type, to: :audit_type
       then_set :auditor, to: :auditor
@@ -628,7 +628,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :status, to: "scheduled"
     end
 
-    PrepareAuditPackage do
+    command "PrepareAuditPackage" do
       role "QualityManager"
       description "Assemble documentation and evidence for the audit"
       reference_to(Audit)
@@ -637,7 +637,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :status, to: "preparing"
     end
 
-    ConductAudit do
+    command "ConductAudit" do
       role "Auditor"
       description "Begin the audit inspection"
       reference_to(Audit)
@@ -646,7 +646,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :status, to: "in_progress"
     end
 
-    RecordFinding do
+    command "RecordFinding" do
       role "Auditor"
       description "Record an observation or non-conformance"
       reference_to(Audit)
@@ -656,17 +656,17 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :status, to: "findings_recorded"
     end
 
-    ResolveFinding do
+    command "ResolveFinding" do
       role "QualityManager"
       description "Address and resolve an audit finding"
       reference_to(Audit)
-      String :finding_area
-      String :resolution
+      attribute :finding_area, String
+      attribute :resolution, String
       emits "FindingResolved"
       then_set :status, to: "resolved"
     end
 
-    CloseAudit do
+    command "CloseAudit" do
       role "ComplianceOfficer"
       description "Close the audit — all findings addressed"
       reference_to(Audit)
@@ -675,7 +675,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :status, to: "closed"
     end
 
-    GenerateReport do
+    command "GenerateReport" do
       role "ComplianceOfficer"
       description "Generate the final audit report for regulatory submission"
       reference_to(Audit)
@@ -695,47 +695,47 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
   # === GovernanceGate ===
 
   aggregate "GovernanceGate", "The decision engine — every governed action flows through this gate for compliance checks" do
-    String :action_type
-    String :action_id
+    attribute :action_type, String
+    attribute :action_id, String
     list_of(ContractCheck) :contracts_checked
-    String :verdict
-    String :decided_at
-    String :status
+    attribute :verdict, String
+    attribute :decided_at, String
+    attribute :status, String
 
     value_object "ContractCheck" do
-      String :contract_name
-      String :contract_type
-      String :rule_code
-      String :passed
-      String :reason
+      attribute :contract_name, String
+      attribute :contract_type, String
+      attribute :rule_code, String
+      attribute :passed, String
+      attribute :reason, String
     end
 
-    EvaluateAction do
+    command "EvaluateAction" do
       role "System"
       description "Begin evaluating an action against all applicable contracts"
-      String :action_type
-      String :action_id
+      attribute :action_type, String
+      attribute :action_id, String
       emits "ActionEvaluated"
       then_set :action_type, to: :action_type
       then_set :action_id, to: :action_id
       then_set :status, to: "evaluating"
     end
 
-    CheckJurisdictional do
+    command "CheckJurisdictional" do
       role "System"
       description "Check the action against all active jurisdictional contracts"
       reference_to(GovernanceGate)
       emits "JurisdictionalChecked"
     end
 
-    CheckOperational do
+    command "CheckOperational" do
       role "System"
       description "Check the action against all active operational contracts"
       reference_to(GovernanceGate)
       emits "OperationalChecked"
     end
 
-    RouteApproval do
+    command "RouteApproval" do
       role "System"
       description "Route the action for human approval if required by contracts"
       reference_to(GovernanceGate)
@@ -743,7 +743,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :status, to: "routing"
     end
 
-    AllowAction do
+    command "AllowAction" do
       role "System"
       description "Allow the action — all checks passed"
       reference_to(GovernanceGate)
@@ -752,21 +752,21 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :status, to: "decided"
     end
 
-    BlockAction do
+    command "BlockAction" do
       role "System"
       description "Block the action — one or more checks failed"
       reference_to(GovernanceGate)
-      String :reason
+      attribute :reason, String
       emits "ActionBlocked"
       then_set :verdict, to: "blocked"
       then_set :status, to: "decided"
     end
 
-    LogDecision do
+    command "LogDecision" do
       role "System"
       description "Record the governance decision for audit trail"
       reference_to(GovernanceGate)
-      String :decided_at
+      attribute :decided_at, String
       emits "DecisionLogged"
       then_set :decided_at, to: :decided_at
       then_set :status, to: "logged"
@@ -786,25 +786,25 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
   # === ApprovalWorkflow ===
 
   aggregate "ApprovalWorkflow", "Routing and tracking approvals — quorum-based decision making" do
-    String :action_type
-    String :action_id
+    attribute :action_type, String
+    attribute :action_id, String
     list_of(String) :required_approvers
     list_of(ApprovalRecord) :approvals
-    String :status
+    attribute :status, String
 
     value_object "ApprovalRecord" do
-      String :approver
-      String :role
-      String :decision
-      String :timestamp
-      String :comments
+      attribute :approver, String
+      attribute :role, String
+      attribute :decision, String
+      attribute :timestamp, String
+      attribute :comments, String
     end
 
-    InitiateApproval do
+    command "InitiateApproval" do
       role "System"
       description "Start an approval workflow for a governed action"
-      String :action_type
-      String :action_id
+      attribute :action_type, String
+      attribute :action_id, String
       list_of(String) :required_approvers
       emits "ApprovalInitiated"
       then_set :action_type, to: :action_type
@@ -813,7 +813,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :status, to: "initiated"
     end
 
-    RequestApproval do
+    command "RequestApproval" do
       role "System"
       description "Send approval requests to required approvers"
       reference_to(ApprovalWorkflow)
@@ -822,7 +822,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :status, to: "pending"
     end
 
-    RecordApproval do
+    command "RecordApproval" do
       role "Approver"
       description "Record an approver's approval decision"
       reference_to(ApprovalWorkflow)
@@ -831,7 +831,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       emits "ApprovalRecorded"
     end
 
-    RecordRejection do
+    command "RecordRejection" do
       role "Approver"
       description "Record an approver's rejection decision"
       reference_to(ApprovalWorkflow)
@@ -840,14 +840,14 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       emits "RejectionRecorded"
     end
 
-    CheckQuorum do
+    command "CheckQuorum" do
       role "System"
       description "Check if enough approvals have been received"
       reference_to(ApprovalWorkflow)
       emits "QuorumChecked"
     end
 
-    CompleteApproval do
+    command "CompleteApproval" do
       role "System"
       description "Complete the workflow — quorum reached, action approved"
       reference_to(ApprovalWorkflow)
@@ -856,7 +856,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :status, to: "approved"
     end
 
-    RejectWorkflow do
+    command "RejectWorkflow" do
       role "System"
       description "Reject the workflow — rejection received"
       reference_to(ApprovalWorkflow)
@@ -876,39 +876,39 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
   # === AuditLog ===
 
   aggregate "AuditLog", "Immutable record of everything — every action, decision, and violation" do
-    Integer :total_entries
+    attribute :total_entries, Integer
 
-    LogEvent do
+    command "LogEvent" do
       role "System"
       description "Record an event in the immutable audit log"
-      String :event_type
-      String :event_data
-      String :occurred_at
-      String :actor
+      attribute :event_type, String
+      attribute :event_data, String
+      attribute :occurred_at, String
+      attribute :actor, String
       emits "EventLogged"
       then_set :total_entries, increment: 1
     end
 
-    QueryLog do
+    command "QueryLog" do
       role "ComplianceOfficer"
       description "Search the audit log by criteria"
-      String :criteria
+      attribute :criteria, String
       emits "LogQueried"
     end
 
-    ExportLog do
+    command "ExportLog" do
       role "ComplianceOfficer"
       description "Export audit log entries for external reporting"
-      String :format
-      String :date_range
+      attribute :format, String
+      attribute :date_range, String
       emits "LogExported"
     end
 
-    GenerateComplianceReport do
+    command "GenerateComplianceReport" do
       role "ComplianceOfficer"
       description "Generate a compliance report from audit log data"
-      String :report_type
-      String :period
+      attribute :report_type, String
+      attribute :period, String
       emits "ComplianceReportGenerated"
     end
   end
@@ -916,21 +916,21 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
   # === Token ===
 
   aggregate "Token", "Usage-based billing — every governed action consumes a token" do
-    String :account
-    Integer :balance
-    Integer :consumed
+    attribute :account, String
+    attribute :balance, Integer
+    attribute :consumed, Integer
 
-    AllocateTokens do
+    command "AllocateTokens" do
       role "AccountManager"
       description "Add tokens to an account balance"
-      String :account
-      Integer :amount
+      attribute :account, String
+      attribute :amount, Integer
       emits "TokensAllocated"
       then_set :account, to: :account
       then_set :balance, increment: :amount
     end
 
-    ConsumeToken do
+    command "ConsumeToken" do
       role "System"
       description "Deduct one token for a governed action"
       reference_to(Token)
@@ -940,7 +940,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :consumed, increment: 1
     end
 
-    RefundToken do
+    command "RefundToken" do
       role "AccountManager"
       description "Refund a token for a blocked or reversed action"
       reference_to(Token)
@@ -949,7 +949,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       then_set :consumed, increment: -1
     end
 
-    CheckBalance do
+    command "CheckBalance" do
       role "System"
       description "Check the current token balance for an account"
       reference_to(Token)

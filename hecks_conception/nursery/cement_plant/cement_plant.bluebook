@@ -1,25 +1,25 @@
 Hecks.bluebook "CementPlant" do
   aggregate "RawMealBatch" do
-    String :batch_id
-    String :limestone_source
-    Float :limestone_percent
-    Float :clay_percent
-    Float :iron_ore_percent
-    String :status
+    attribute :batch_id, String
+    attribute :limestone_source, String
+    attribute :limestone_percent, Float
+    attribute :clay_percent, Float
+    attribute :iron_ore_percent, Float
+    attribute :status, String
 
-    BlendRawMeal do
+    command "BlendRawMeal" do
       description "Proportionally blend limestone, clay, and correctives"
-      Float :limestone_percent
-      Float :clay_percent
-      Float :iron_ore_percent
+      attribute :limestone_percent, Float
+      attribute :clay_percent, Float
+      attribute :iron_ore_percent, Float
       reference_to "RawMealBatch"
       emits "RawMealBlended"
     end
 
-    GrindRawMeal do
+    command "GrindRawMeal" do
       description "Grind blended raw meal to target fineness in ball mill"
-      Float :target_fineness_microns
-      String :mill_id
+      attribute :target_fineness_microns, Float
+      attribute :mill_id, String
       reference_to "RawMealBatch"
       emits "RawMealGround"
     end
@@ -33,45 +33,45 @@ Hecks.bluebook "CementPlant" do
   end
 
   aggregate "KilnRun" do
-    String :run_id
-    String :kiln_id
-    Float :feed_rate_tph
-    Float :flame_temperature_c
-    String :clinker_type
-    String :status
+    attribute :run_id, String
+    attribute :kiln_id, String
+    attribute :feed_rate_tph, Float
+    attribute :flame_temperature_c, Float
+    attribute :clinker_type, String
+    attribute :status, String
 
     value_object "KilnZoneTemps" do
-      Float :preheat_c
-      Float :calcining_c
-      Float :burning_c
-      Float :cooling_c
+      attribute :preheat_c, Float
+      attribute :calcining_c, Float
+      attribute :burning_c, Float
+      attribute :cooling_c, Float
     end
 
-    StartKiln do
+    command "StartKiln" do
       description "Ignite kiln burner and ramp up to operating temperature"
-      String :kiln_id
-      Float :target_flame_temp_c
+      attribute :kiln_id, String
+      attribute :target_flame_temp_c, Float
       reference_to "KilnRun"
       emits "KilnStarted"
     end
 
-    FeedRawMeal do
+    command "FeedRawMeal" do
       description "Begin feeding ground raw meal into preheater tower"
-      Float :feed_rate_tph
+      attribute :feed_rate_tph, Float
       reference_to "RawMealBatch"
       emits "RawMealFed"
     end
 
-    AdjustFeedRate do
+    command "AdjustFeedRate" do
       description "Modify raw meal feed rate to optimize clinker quality"
-      Float :new_feed_rate_tph
+      attribute :new_feed_rate_tph, Float
       reference_to "KilnRun"
       emits "FeedRateAdjusted"
     end
 
-    DischargeClinker do
+    command "DischargeClinker" do
       description "Collect hot clinker from kiln outlet into cooler"
-      Float :clinker_temperature_c
+      attribute :clinker_temperature_c, Float
       reference_to "KilnRun"
       emits "ClinkerDischarged"
     end
@@ -87,38 +87,38 @@ Hecks.bluebook "CementPlant" do
     policy "Feed rate changes must not exceed 5 tph per adjustment"
 
     given "Kiln 2 is running at steady state" do
-      String :kiln_id, "KLN-02"
-      Float :feed_rate_tph, 120.0
-      Float :flame_temperature_c, 1450.0
+      attribute :kiln_id, String, "KLN-02"
+      attribute :feed_rate_tph, Float, 120.0
+      attribute :flame_temperature_c, Float, 1450.0
     end
   end
 
   aggregate "ClinkerSample" do
-    String :sample_id
-    String :kiln_id
-    String :sample_time
-    Float :free_lime_percent
-    Float :c3s_percent
-    String :status
+    attribute :sample_id, String
+    attribute :kiln_id, String
+    attribute :sample_time, String
+    attribute :free_lime_percent, Float
+    attribute :c3s_percent, Float
+    attribute :status, String
 
     value_object "MineralComposition" do
-      Float :c3s_percent
-      Float :c2s_percent
-      Float :c3a_percent
-      Float :c4af_percent
+      attribute :c3s_percent, Float
+      attribute :c2s_percent, Float
+      attribute :c3a_percent, Float
+      attribute :c4af_percent, Float
     end
 
-    TakeSample do
+    command "TakeSample" do
       description "Collect clinker sample from kiln discharge for testing"
-      String :kiln_id
+      attribute :kiln_id, String
       reference_to "KilnRun"
       emits "SampleTaken"
     end
 
-    AnalyzeSample do
+    command "AnalyzeSample" do
       description "Run XRF analysis on clinker sample for mineral composition"
-      Float :free_lime_percent
-      Float :c3s_percent
+      attribute :free_lime_percent, Float
+      attribute :c3s_percent, Float
       reference_to "ClinkerSample"
       emits "SampleAnalyzed"
     end
@@ -132,33 +132,33 @@ Hecks.bluebook "CementPlant" do
   end
 
   aggregate "CementSilo" do
-    String :silo_id
-    String :cement_type
-    Float :capacity_tons
-    Float :current_level_tons
-    String :status
+    attribute :silo_id, String
+    attribute :cement_type, String
+    attribute :capacity_tons, Float
+    attribute :current_level_tons, Float
+    attribute :status, String
     list_of "RawMealBatch"
 
-    GrindClinker do
+    command "GrindClinker" do
       description "Grind clinker with gypsum in finish mill to produce cement"
-      String :mill_id
-      Float :gypsum_percent
+      attribute :mill_id, String
+      attribute :gypsum_percent, Float
       reference_to "CementSilo"
       emits "ClinkerGround"
     end
 
-    FillSilo do
+    command "FillSilo" do
       description "Transfer finished cement from mill to storage silo"
-      Float :quantity_tons
-      String :cement_type
+      attribute :quantity_tons, Float
+      attribute :cement_type, String
       reference_to "CementSilo"
       emits "SiloFilled"
     end
 
-    DrawFromSilo do
+    command "DrawFromSilo" do
       description "Withdraw cement from silo for dispatch loading"
-      Float :quantity_tons
-      String :dispatch_id
+      attribute :quantity_tons, Float
+      attribute :dispatch_id, String
       reference_to "CementSilo"
       emits "SiloDrawn"
     end
@@ -173,26 +173,26 @@ Hecks.bluebook "CementPlant" do
   end
 
   aggregate "DispatchOrder" do
-    String :order_id
-    String :customer_name
-    String :cement_type
-    Float :quantity_tons
-    String :delivery_mode
-    String :status
+    attribute :order_id, String
+    attribute :customer_name, String
+    attribute :cement_type, String
+    attribute :quantity_tons, Float
+    attribute :delivery_mode, String
+    attribute :status, String
 
-    ScheduleDispatch do
+    command "ScheduleDispatch" do
       description "Schedule cement delivery by truck or rail to customer"
-      String :customer_name
-      String :delivery_mode
-      Float :quantity_tons
+      attribute :customer_name, String
+      attribute :delivery_mode, String
+      attribute :quantity_tons, Float
       reference_to "DispatchOrder"
       emits "DispatchScheduled"
     end
 
-    LoadVehicle do
+    command "LoadVehicle" do
       description "Load cement into bulk truck or rail hopper from silo"
-      String :vehicle_id
-      Float :loaded_tons
+      attribute :vehicle_id, String
+      attribute :loaded_tons, Float
       reference_to "CementSilo"
       emits "VehicleLoaded"
     end

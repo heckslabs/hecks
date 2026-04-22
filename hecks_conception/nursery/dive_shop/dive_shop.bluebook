@@ -3,31 +3,31 @@ Hecks.bluebook "DiveShop", version: "2026.04.13.1" do
   category "retail"
 
   aggregate "DiveEquipment", "A piece of scuba gear for sale or rental" do
-    String :equipment_id
-    String :name
-    String :equipment_type
-    String :brand
-    Float :price
-    Integer :quantity
-    String :status
+    attribute :equipment_id, String
+    attribute :name, String
+    attribute :equipment_type, String
+    attribute :brand, String
+    attribute :price, Float
+    attribute :quantity, Integer
+    attribute :status, String
     list_of(ServiceRecord) :service_history
 
     value_object "ServiceRecord" do
-      String :service_date
-      String :service_type
-      String :technician
-      String :notes
+      attribute :service_date, String
+      attribute :service_type, String
+      attribute :technician, String
+      attribute :notes, String
     end
 
-    StockEquipment do
+    command "StockEquipment" do
       role "Manager"
       description "Add dive equipment to the shop's inventory"
-      String :equipment_id
-      String :name
-      String :equipment_type
-      String :brand
-      Float :price
-      Integer :quantity
+      attribute :equipment_id, String
+      attribute :name, String
+      attribute :equipment_type, String
+      attribute :brand, String
+      attribute :price, Float
+      attribute :quantity, Integer
       emits "EquipmentStocked"
       then_set :equipment_id, to: :equipment_id
       then_set :name, to: :name
@@ -38,7 +38,7 @@ Hecks.bluebook "DiveShop", version: "2026.04.13.1" do
       then_set :status, to: "available"
     end
 
-    SellEquipment do
+    command "SellEquipment" do
       role "SalesAssociate"
       description "Complete an equipment sale"
       reference_to(DiveEquipment)
@@ -46,7 +46,7 @@ Hecks.bluebook "DiveShop", version: "2026.04.13.1" do
       emits "EquipmentSold"
     end
 
-    RetireEquipment do
+    command "RetireEquipment" do
       role "Manager"
       description "Remove worn-out equipment from service"
       reference_to(DiveEquipment)
@@ -56,23 +56,23 @@ Hecks.bluebook "DiveShop", version: "2026.04.13.1" do
   end
 
   aggregate "DiverCertification", "A training course leading to a dive certification" do
-    String :cert_id
-    String :student_name
-    String :course_level
-    String :instructor_name
-    Integer :pool_sessions
-    Integer :open_water_dives
-    String :status
+    attribute :cert_id, String
+    attribute :student_name, String
+    attribute :course_level, String
+    attribute :instructor_name, String
+    attribute :pool_sessions, Integer
+    attribute :open_water_dives, Integer
+    attribute :status, String
 
-    EnrollStudent do
+    command "EnrollStudent" do
       role "Instructor"
       description "Register a student for a certification course"
-      String :cert_id
-      String :student_name
-      String :course_level
-      String :instructor_name
-      Integer :pool_sessions
-      Integer :open_water_dives
+      attribute :cert_id, String
+      attribute :student_name, String
+      attribute :course_level, String
+      attribute :instructor_name, String
+      attribute :pool_sessions, Integer
+      attribute :open_water_dives, Integer
       emits "StudentEnrolled"
       then_set :cert_id, to: :cert_id
       then_set :student_name, to: :student_name
@@ -83,7 +83,7 @@ Hecks.bluebook "DiveShop", version: "2026.04.13.1" do
       then_set :status, to: "enrolled"
     end
 
-    CompleteCourse do
+    command "CompleteCourse" do
       role "Instructor"
       description "Certify the student after passing all requirements"
       reference_to(DiverCertification)
@@ -92,7 +92,7 @@ Hecks.bluebook "DiveShop", version: "2026.04.13.1" do
       then_set :status, to: "certified"
     end
 
-    FailStudent do
+    command "FailStudent" do
       role "Instructor"
       description "Record that the student did not meet certification standards"
       reference_to(DiverCertification)
@@ -103,23 +103,23 @@ Hecks.bluebook "DiveShop", version: "2026.04.13.1" do
   end
 
   aggregate "DiveTrip", "An organized group dive excursion" do
-    String :trip_id
-    String :destination
-    String :date
-    String :divemaster_name
-    Integer :max_divers
-    Float :price_per_diver
-    String :status
+    attribute :trip_id, String
+    attribute :destination, String
+    attribute :date, String
+    attribute :divemaster_name, String
+    attribute :max_divers, Integer
+    attribute :price_per_diver, Float
+    attribute :status, String
 
-    OrganizeTrip do
+    command "OrganizeTrip" do
       role "Manager"
       description "Plan a dive trip with location, date, and divemaster"
-      String :trip_id
-      String :destination
-      String :date
-      String :divemaster_name
-      Integer :max_divers
-      Float :price_per_diver
+      attribute :trip_id, String
+      attribute :destination, String
+      attribute :date, String
+      attribute :divemaster_name, String
+      attribute :max_divers, Integer
+      attribute :price_per_diver, Float
       emits "TripOrganized"
       then_set :trip_id, to: :trip_id
       then_set :destination, to: :destination
@@ -130,7 +130,7 @@ Hecks.bluebook "DiveShop", version: "2026.04.13.1" do
       then_set :status, to: "open"
     end
 
-    LaunchTrip do
+    command "LaunchTrip" do
       role "Divemaster"
       description "Depart on the dive trip"
       reference_to(DiveTrip)
@@ -139,7 +139,7 @@ Hecks.bluebook "DiveShop", version: "2026.04.13.1" do
       then_set :status, to: "in_progress"
     end
 
-    CompleteTrip do
+    command "CompleteTrip" do
       role "Divemaster"
       description "Return from the dive and log the trip as complete"
       reference_to(DiveTrip)
@@ -150,21 +150,21 @@ Hecks.bluebook "DiveShop", version: "2026.04.13.1" do
   end
 
   aggregate "Tank", "A scuba air tank that requires periodic inspection and filling" do
-    String :tank_id
-    String :material
-    Float :volume_liters
-    String :last_hydro_date
-    String :next_hydro_date
-    String :status
+    attribute :tank_id, String
+    attribute :material, String
+    attribute :volume_liters, Float
+    attribute :last_hydro_date, String
+    attribute :next_hydro_date, String
+    attribute :status, String
 
-    RegisterTank do
+    command "RegisterTank" do
       role "Technician"
       description "Add a tank to the shop's rental fleet"
-      String :tank_id
-      String :material
-      Float :volume_liters
-      String :last_hydro_date
-      String :next_hydro_date
+      attribute :tank_id, String
+      attribute :material, String
+      attribute :volume_liters, Float
+      attribute :last_hydro_date, String
+      attribute :next_hydro_date, String
       emits "TankRegistered"
       then_set :tank_id, to: :tank_id
       then_set :material, to: :material
@@ -174,7 +174,7 @@ Hecks.bluebook "DiveShop", version: "2026.04.13.1" do
       then_set :status, to: "ready"
     end
 
-    FillTank do
+    command "FillTank" do
       role "Technician"
       description "Fill the tank with compressed air or nitrox"
       reference_to(Tank)
@@ -182,32 +182,32 @@ Hecks.bluebook "DiveShop", version: "2026.04.13.1" do
       emits "TankFilled"
     end
 
-    HydroTestTank do
+    command "HydroTestTank" do
       role "Technician"
       description "Perform the required hydrostatic pressure test"
       reference_to(Tank)
-      String :new_hydro_date
+      attribute :new_hydro_date, String
       emits "TankHydroTested"
       then_set :last_hydro_date, to: :new_hydro_date
     end
   end
 
   aggregate "EquipmentMaintenance", "Scheduled or reactive servicing of dive gear" do
-    String :maintenance_id
-    String :equipment_id
-    String :issue_description
-    String :technician_name
-    Float :cost
-    String :status
+    attribute :maintenance_id, String
+    attribute :equipment_id, String
+    attribute :issue_description, String
+    attribute :technician_name, String
+    attribute :cost, Float
+    attribute :status, String
 
-    OpenMaintenanceTicket do
+    command "OpenMaintenanceTicket" do
       role "Staff"
       description "Log a piece of equipment that needs servicing"
-      String :maintenance_id
-      String :equipment_id
-      String :issue_description
-      String :technician_name
-      Float :cost
+      attribute :maintenance_id, String
+      attribute :equipment_id, String
+      attribute :issue_description, String
+      attribute :technician_name, String
+      attribute :cost, Float
       emits "MaintenanceTicketOpened"
       then_set :maintenance_id, to: :maintenance_id
       then_set :equipment_id, to: :equipment_id
@@ -217,7 +217,7 @@ Hecks.bluebook "DiveShop", version: "2026.04.13.1" do
       then_set :status, to: "open"
     end
 
-    CompleteMaintenance do
+    command "CompleteMaintenance" do
       role "Technician"
       description "Finish the repair or service and return the gear to service"
       reference_to(EquipmentMaintenance)

@@ -3,12 +3,12 @@ Hecks.bluebook "PaymentGateway", version: "2026.04.13.1" do
   category "technology"
 
   aggregate "Transaction", "A payment attempt from a cardholder to a merchant" do
-    String :transaction_id
-    Float :amount
-    String :currency
-    String :card_last_four
-    String :auth_code
-    String :status
+    attribute :transaction_id, String
+    attribute :amount, Float
+    attribute :currency, String
+    attribute :card_last_four, String
+    attribute :auth_code, String
+    attribute :status, String
     reference_to Merchant
     list_of(StatusChange) :status_history
 
@@ -17,32 +17,32 @@ Hecks.bluebook "PaymentGateway", version: "2026.04.13.1" do
     end
 
     value_object "StatusChange" do
-      String :from_status
-      String :to_status
-      String :reason
-      String :changed_at
+      attribute :from_status, String
+      attribute :to_status, String
+      attribute :reason, String
+      attribute :changed_at, String
     end
 
-    AuthorizeTransaction do
+    command "AuthorizeTransaction" do
       role "PaymentProcessor"
       description "Submit a payment for authorization with the card network"
-      String :transaction_id
-      Float :amount
-      String :currency
-      String :card_last_four
+      attribute :transaction_id, String
+      attribute :amount, Float
+      attribute :currency, String
+      attribute :card_last_four, String
       reference_to(Merchant)
       emits "TransactionAuthorized"
       then_set :status, to: "authorized"
     end
 
-    CaptureTransaction do
+    command "CaptureTransaction" do
       description "Finalize an authorized payment for settlement"
       reference_to(Transaction)
       given("transaction is authorized") { status == "authorized" }
       emits "TransactionCaptured"
     end
 
-    VoidTransaction do
+    command "VoidTransaction" do
       description "Cancel an authorized but uncaptured transaction"
       reference_to(Transaction)
       given("transaction is authorized") { status == "authorized" }
@@ -51,39 +51,39 @@ Hecks.bluebook "PaymentGateway", version: "2026.04.13.1" do
   end
 
   aggregate "Merchant", "A business that accepts payments through the gateway" do
-    String :merchant_id
-    String :business_name
-    String :mcc_code
-    String :contact_email
-    Float :processing_rate
-    String :status
+    attribute :merchant_id, String
+    attribute :business_name, String
+    attribute :mcc_code, String
+    attribute :contact_email, String
+    attribute :processing_rate, Float
+    attribute :status, String
     list_of(BankAccount) :bank_accounts
 
     value_object "BankAccount" do
-      String :account_number
-      String :routing_number
-      String :account_type
+      attribute :account_number, String
+      attribute :routing_number, String
+      attribute :account_type, String
     end
 
-    OnboardMerchant do
+    command "OnboardMerchant" do
       role "RelationshipManager"
       description "Register a new merchant and configure their processing terms"
-      String :merchant_id
-      String :business_name
-      String :mcc_code
-      String :contact_email
-      Float :processing_rate
+      attribute :merchant_id, String
+      attribute :business_name, String
+      attribute :mcc_code, String
+      attribute :contact_email, String
+      attribute :processing_rate, Float
       emits "MerchantOnboarded"
     end
 
-    SuspendMerchant do
+    command "SuspendMerchant" do
       description "Freeze a merchant account due to risk concerns"
       reference_to(Merchant)
       emits "MerchantSuspended"
       then_set :status, to: "suspended"
     end
 
-    ReinstateMerchant do
+    command "ReinstateMerchant" do
       description "Reactivate a suspended merchant after review"
       reference_to(Merchant)
       given("merchant is suspended") { status == "suspended" }
@@ -92,126 +92,126 @@ Hecks.bluebook "PaymentGateway", version: "2026.04.13.1" do
   end
 
   aggregate "Settlement", "A batch payout of captured transactions to a merchant" do
-    String :settlement_id
-    Float :gross_amount
-    Float :fees
-    Float :net_amount
-    String :period
-    String :status
+    attribute :settlement_id, String
+    attribute :gross_amount, Float
+    attribute :fees, Float
+    attribute :net_amount, Float
+    attribute :period, String
+    attribute :status, String
     reference_to Merchant
     list_of(SettlementLine) :lines
 
     value_object "SettlementLine" do
-      String :transaction_id
-      Float :amount
-      Float :fee
+      attribute :transaction_id, String
+      attribute :amount, Float
+      attribute :fee, Float
     end
 
-    BatchSettlement do
+    command "BatchSettlement" do
       role "SettlementEngine"
       description "Batch captured transactions into a settlement for payout"
-      String :settlement_id
-      Float :gross_amount
-      Float :fees
-      String :period
+      attribute :settlement_id, String
+      attribute :gross_amount, Float
+      attribute :fees, Float
+      attribute :period, String
       reference_to(Merchant)
       emits "SettlementBatched"
       then_set :status, to: "pending"
     end
 
-    DisburseSettlement do
+    command "DisburseSettlement" do
       description "Transfer the net settlement amount to the merchant bank"
       reference_to(Settlement)
       given("settlement is pending") { status == "pending" }
       emits "SettlementDisbursed"
     end
 
-    HoldSettlement do
+    command "HoldSettlement" do
       description "Delay a settlement due to risk review"
       reference_to(Settlement)
-      String :hold_reason
+      attribute :hold_reason, String
       emits "SettlementHeld"
     end
   end
 
   aggregate "Chargeback", "A disputed transaction initiated by a cardholder" do
-    String :chargeback_id
-    String :reason_code
-    Float :amount
-    String :evidence_due_date
-    String :status
+    attribute :chargeback_id, String
+    attribute :reason_code, String
+    attribute :amount, Float
+    attribute :evidence_due_date, String
+    attribute :status, String
     reference_to Transaction
 
     value_object "EvidencePacket" do
-      String :document_type
-      String :document_url
-      String :submitted_at
+      attribute :document_type, String
+      attribute :document_url, String
+      attribute :submitted_at, String
     end
 
-    FileChargeback do
+    command "FileChargeback" do
       role "DisputeTeam"
       description "Open a chargeback case against a captured transaction"
-      String :chargeback_id
-      String :reason_code
-      Float :amount
-      String :evidence_due_date
+      attribute :chargeback_id, String
+      attribute :reason_code, String
+      attribute :amount, Float
+      attribute :evidence_due_date, String
       reference_to(Transaction)
       emits "ChargebackFiled"
       then_set :status, to: "open"
     end
 
-    SubmitEvidence do
+    command "SubmitEvidence" do
       description "Provide supporting documents to contest a chargeback"
       reference_to(Chargeback)
-      String :document_type
-      String :document_url
+      attribute :document_type, String
+      attribute :document_url, String
       emits "EvidenceSubmitted"
     end
 
-    ResolveChargeback do
+    command "ResolveChargeback" do
       description "Close a chargeback in favor of merchant or cardholder"
       reference_to(Chargeback)
-      String :outcome
+      attribute :outcome, String
       given("chargeback is open") { status == "open" }
       emits "ChargebackResolved"
     end
   end
 
   aggregate "ComplianceCheck", "A regulatory verification on merchant or transaction activity" do
-    String :check_id
-    String :check_type
-    String :scope
-    String :result
-    String :status
+    attribute :check_id, String
+    attribute :check_type, String
+    attribute :scope, String
+    attribute :result, String
+    attribute :status, String
     reference_to Merchant
 
     value_object "CheckDetail" do
-      String :rule_name
-      String :outcome
-      String :note
+      attribute :rule_name, String
+      attribute :outcome, String
+      attribute :note, String
     end
 
-    RunComplianceCheck do
+    command "RunComplianceCheck" do
       role "ComplianceOfficer"
       description "Execute a regulatory check against a merchant"
-      String :check_id
-      String :check_type
-      String :scope
+      attribute :check_id, String
+      attribute :check_type, String
+      attribute :scope, String
       reference_to(Merchant)
       emits "ComplianceCheckRun"
       then_set :status, to: "pending"
     end
 
-    PassCheck do
+    command "PassCheck" do
       description "Mark a compliance check as passed"
       reference_to(ComplianceCheck)
       emits "CheckPassed"
     end
 
-    FailCheck do
+    command "FailCheck" do
       description "Flag a compliance check failure requiring remediation"
       reference_to(ComplianceCheck)
-      String :failure_reason
+      attribute :failure_reason, String
       given("check is pending") { status == "pending" }
       emits "CheckFailed"
     end

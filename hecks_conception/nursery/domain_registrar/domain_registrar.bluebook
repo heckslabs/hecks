@@ -3,38 +3,38 @@ Hecks.bluebook "DomainRegistrar", version: "2026.04.13.1" do
   category "technology"
 
   aggregate "DomainName", "A registered internet domain under management" do
-    String :domain
-    String :tld
-    String :registrant_email
-    String :registered_at
-    String :expires_at
-    String :status
+    attribute :domain, String
+    attribute :tld, String
+    attribute :registrant_email, String
+    attribute :registered_at, String
+    attribute :expires_at, String
+    attribute :status, String
     list_of(NameServer) :name_servers
 
     value_object "NameServer" do
-      String :hostname
-      String :ip_address
-      Integer :priority
+      attribute :hostname, String
+      attribute :ip_address, String
+      attribute :priority, Integer
     end
 
-    RegisterDomain do
+    command "RegisterDomain" do
       role "Customer"
       description "Claim and register a new domain name"
-      String :domain
-      String :tld
-      String :registrant_email
-      Integer :registration_years
+      attribute :domain, String
+      attribute :tld, String
+      attribute :registrant_email, String
+      attribute :registration_years, Integer
       then_set :status, to: "active"
       emits "DomainRegistered"
     end
 
-    LockDomain do
+    command "LockDomain" do
       description "Enable transfer lock to prevent unauthorized transfers"
       reference_to(DomainName)
       emits "DomainLocked"
     end
 
-    SuspendDomain do
+    command "SuspendDomain" do
       description "Place a domain on hold for policy violations"
       reference_to(DomainName)
       given("domain is active") { status == "active" }
@@ -43,37 +43,37 @@ Hecks.bluebook "DomainRegistrar", version: "2026.04.13.1" do
   end
 
   aggregate "Renewal", "A renewal transaction extending a domain's registration" do
-    String :renewal_id
-    Integer :years
-    Float :price
-    String :renewed_at
-    String :status
+    attribute :renewal_id, String
+    attribute :years, Integer
+    attribute :price, Float
+    attribute :renewed_at, String
+    attribute :status, String
     reference_to DomainName
 
     value_object "RenewalReceipt" do
-      String :transaction_id
-      Float :amount_paid
-      String :payment_method
+      attribute :transaction_id, String
+      attribute :amount_paid, Float
+      attribute :payment_method, String
     end
 
-    RenewDomain do
+    command "RenewDomain" do
       role "Customer"
       description "Extend a domain registration for additional years"
-      String :renewal_id
-      Integer :years
-      Float :price
+      attribute :renewal_id, String
+      attribute :years, Integer
+      attribute :price, Float
       reference_to(DomainName)
       then_set :status, to: "pending"
       emits "DomainRenewed"
     end
 
-    AutoRenew do
+    command "AutoRenew" do
       description "Automatically renew a domain before expiration"
       reference_to(Renewal)
       emits "DomainAutoRenewed"
     end
 
-    CancelRenewal do
+    command "CancelRenewal" do
       description "Void a pending renewal before processing"
       reference_to(Renewal)
       given("renewal is pending") { status == "pending" }
@@ -82,82 +82,82 @@ Hecks.bluebook "DomainRegistrar", version: "2026.04.13.1" do
   end
 
   aggregate "Transfer", "A domain transfer between registrars" do
-    String :transfer_id
-    String :auth_code
-    String :gaining_registrar
-    String :losing_registrar
-    String :status
+    attribute :transfer_id, String
+    attribute :auth_code, String
+    attribute :gaining_registrar, String
+    attribute :losing_registrar, String
+    attribute :status, String
     reference_to DomainName
 
     value_object "TransferTimeline" do
-      String :event
-      String :occurred_at
-      String :actor
+      attribute :event, String
+      attribute :occurred_at, String
+      attribute :actor, String
     end
 
-    InitiateTransfer do
+    command "InitiateTransfer" do
       role "Customer"
       description "Begin transferring a domain to another registrar"
-      String :transfer_id
-      String :auth_code
-      String :gaining_registrar
+      attribute :transfer_id, String
+      attribute :auth_code, String
+      attribute :gaining_registrar, String
       reference_to(DomainName)
       then_set :status, to: "pending_approval"
       emits "TransferInitiated"
     end
 
-    ApproveTransfer do
+    command "ApproveTransfer" do
       description "Authorize the transfer from the losing registrar side"
       reference_to(Transfer)
       given("transfer is pending approval") { status == "pending_approval" }
       emits "TransferApproved"
     end
 
-    RejectTransfer do
+    command "RejectTransfer" do
       description "Deny a transfer request"
       reference_to(Transfer)
-      String :rejection_reason
+      attribute :rejection_reason, String
       emits "TransferRejected"
     end
   end
 
   aggregate "DNSRecord", "A DNS entry pointing a domain to an IP or service" do
-    String :record_id
-    String :record_type
-    String :hostname
-    String :value
-    Integer :ttl
-    String :status
+    attribute :record_id, String
+    attribute :record_type, String
+    attribute :hostname, String
+    attribute :value, String
+    attribute :ttl, Integer
+    attribute :status, String
     reference_to DomainName
 
     value_object "RecordHistory" do
-      String :previous_value
-      String :changed_at
-      String :changed_by
+      attribute :previous_value, String
+      attribute :changed_at, String
+      attribute :changed_by, String
     end
 
-    PublishDNSRecord do
+    command "PublishDNSRecord" do
       role "Customer"
       description "Add a DNS record to a managed domain"
-      String :record_id
-      String :record_type
-      String :hostname
-      String :value
-      Integer :ttl
+      attribute :record_id, String
+      attribute :record_type, String
+      attribute :hostname, String
+      attribute :value, String
+      attribute :ttl, Integer
       reference_to(DomainName)
       then_set :status, to: "active"
       emits "DNSRecordPublished"
     end
 
-    ReviseDNSRecord do
+    command "ReviseDNSRecord" do
       description "Modify the value or TTL of a DNS record"
       reference_to(DNSRecord)
-      String :value
-      Integer :ttl
+      attribute :value, String
+      attribute :ttl, Integer
       emits "DNSRecordRevised"
     end
 
-    RetireDNSRecord do
+    command "RetireDNSRecord" do
       description "Remove a DNS record from the zone"
       reference_to(DNSRecord)
       given("record is active") { status == "active" }
@@ -166,41 +166,41 @@ Hecks.bluebook "DomainRegistrar", version: "2026.04.13.1" do
   end
 
   aggregate "WHOISPrivacy", "A privacy shield hiding registrant contact details" do
-    String :privacy_id
-    String :proxy_email
-    String :proxy_name
-    String :enabled_at
-    String :status
+    attribute :privacy_id, String
+    attribute :proxy_email, String
+    attribute :proxy_name, String
+    attribute :enabled_at, String
+    attribute :status, String
     reference_to DomainName
 
     value_object "PrivacySetting" do
-      String :field_name
-      String :masked
-      String :proxy_value
+      attribute :field_name, String
+      attribute :masked, String
+      attribute :proxy_value, String
     end
 
-    ActivatePrivacy do
+    command "ActivatePrivacy" do
       role "Customer"
       description "Activate WHOIS privacy protection for a domain"
-      String :privacy_id
-      String :proxy_email
-      String :proxy_name
+      attribute :privacy_id, String
+      attribute :proxy_email, String
+      attribute :proxy_name, String
       reference_to(DomainName)
       then_set :status, to: "active"
       emits "PrivacyActivated"
     end
 
-    DeactivatePrivacy do
+    command "DeactivatePrivacy" do
       description "Remove WHOIS privacy and reveal registrant data"
       reference_to(WHOISPrivacy)
       given("privacy is active") { status == "active" }
       emits "PrivacyDeactivated"
     end
 
-    RefreshProxy do
+    command "RefreshProxy" do
       description "Rotate the proxy contact details"
       reference_to(WHOISPrivacy)
-      String :proxy_email
+      attribute :proxy_email, String
       emits "ProxyRefreshed"
     end
   end

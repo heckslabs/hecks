@@ -1,43 +1,43 @@
 Hecks.bluebook "JewelryWorkshop" do
   aggregate "JewelryPiece", "A handcrafted jewelry item from design to finishing" do
-    String :name
-    String :piece_type
-    String :metal
-    String :status, default: "designed"
-    Float :weight_grams
+    attribute :name, String
+    attribute :piece_type, String
+    attribute :metal, String
+    attribute :status, String, default: "designed"
+    attribute :weight_grams, Float
 
     value_object "MetalAlloy" do
-      String :base_metal
-      Float :karat
-      Float :purity_percentage
-      String :color
+      attribute :base_metal, String
+      attribute :karat, Float
+      attribute :purity_percentage, Float
+      attribute :color, String
     end
 
-    DesignPiece do
+    command "DesignPiece" do
       description "Create a new jewelry design with metal and stone selections"
-      String :name
-      String :piece_type
-      String :metal
+      attribute :name, String
+      attribute :piece_type, String
+      attribute :metal, String
       emits "PieceDesigned"
       then_set :status, to: "designed"
     end
 
-    CastPiece do
+    command "CastPiece" do
       description "Cast the piece using lost wax or direct casting"
       reference_to(JewelryPiece)
-      String :casting_method
+      attribute :casting_method, String
       emits "PieceCast"
       then_set :status, to: "cast"
     end
 
-    SetStones do
+    command "SetStones" do
       description "Mount the gemstones into the cast piece"
       reference_to(JewelryPiece)
       emits "StonesSetOnPiece"
       then_set :status, to: "set"
     end
 
-    PolishPiece do
+    command "PolishPiece" do
       description "Polish and finish the piece to final luster"
       reference_to(JewelryPiece)
       emits "PiecePolished"
@@ -46,56 +46,56 @@ Hecks.bluebook "JewelryWorkshop" do
   end
 
   aggregate "Gemstone", "A precious or semi-precious stone with grading details" do
-    String :stone_type
-    Float :carat_weight
-    String :cut
-    String :clarity
-    String :color_grade
-    String :status, default: "loose"
+    attribute :stone_type, String
+    attribute :carat_weight, Float
+    attribute :cut, String
+    attribute :clarity, String
+    attribute :color_grade, String
+    attribute :status, String, default: "loose"
 
     value_object "CertificateOfAuthenticity" do
-      String :lab_name
-      String :certificate_number
-      String :date_graded
-      String :grade_summary
+      attribute :lab_name, String
+      attribute :certificate_number, String
+      attribute :date_graded, String
+      attribute :grade_summary, String
     end
 
-    AcquireStone do
+    command "AcquireStone" do
       description "Purchase a gemstone from a dealer with grading report"
-      String :stone_type
-      Float :carat_weight
-      String :cut
-      String :clarity
-      String :color_grade
+      attribute :stone_type, String
+      attribute :carat_weight, Float
+      attribute :cut, String
+      attribute :clarity, String
+      attribute :color_grade, String
       emits "StoneAcquired"
     end
 
-    GradeStone do
+    command "GradeStone" do
       description "Submit stone for independent gemological grading"
       reference_to(Gemstone)
-      String :lab_name
+      attribute :lab_name, String
       emits "StoneGraded"
     end
   end
 
   aggregate "Setting", "The mounting or setting that holds a gemstone in a piece" do
-    String :setting_type
-    String :prong_count
-    String :metal
-    String :status, default: "prepared"
+    attribute :setting_type, String
+    attribute :prong_count, String
+    attribute :metal, String
+    attribute :status, String, default: "prepared"
     reference_to(JewelryPiece)
     reference_to(Gemstone)
 
-    PrepareSetting do
+    command "PrepareSetting" do
       description "Fabricate the stone setting for a piece"
       reference_to(JewelryPiece)
-      String :setting_type
-      String :metal
+      attribute :setting_type, String
+      attribute :metal, String
       emits "SettingPrepared"
       then_set :status, to: "prepared"
     end
 
-    SetStone do
+    command "SetStone" do
       description "Secure the gemstone into its setting"
       reference_to(Setting)
       reference_to(Gemstone)
@@ -105,56 +105,56 @@ Hecks.bluebook "JewelryWorkshop" do
   end
 
   aggregate "Appraisal", "A professional valuation of a jewelry piece" do
-    Float :appraised_value
-    String :appraiser_name
-    String :date
-    String :purpose
+    attribute :appraised_value, Float
+    attribute :appraiser_name, String
+    attribute :date, String
+    attribute :purpose, String
     reference_to(JewelryPiece)
 
-    AppraisePiece do
+    command "AppraisePiece" do
       description "Conduct a formal appraisal for insurance or sale"
       reference_to(JewelryPiece)
-      String :appraiser_name
-      String :purpose
-      Float :appraised_value
+      attribute :appraiser_name, String
+      attribute :purpose, String
+      attribute :appraised_value, Float
       emits "PieceAppraised"
     end
 
-    ReviseAppraisal do
+    command "ReviseAppraisal" do
       description "Revise the appraised value based on market changes"
       reference_to(Appraisal)
-      Float :new_value
+      attribute :new_value, Float
       emits "AppraisalRevised"
       then_set :appraised_value, to: :new_value
     end
   end
 
   aggregate "Commission", "A custom jewelry order from a client" do
-    String :client_name
-    String :description
-    Float :quoted_price
-    String :status, default: "quoted"
-    String :deadline
+    attribute :client_name, String
+    attribute :description, String
+    attribute :quoted_price, Float
+    attribute :status, String, default: "quoted"
+    attribute :deadline, String
     reference_to(JewelryPiece)
 
-    QuoteCommission do
+    command "QuoteCommission" do
       description "Provide a price quote for a custom jewelry order"
-      String :client_name
-      String :description
-      Float :quoted_price
-      String :deadline
+      attribute :client_name, String
+      attribute :description, String
+      attribute :quoted_price, Float
+      attribute :deadline, String
       emits "CommissionQuoted"
       then_set :status, to: "quoted"
     end
 
-    AcceptCommission do
+    command "AcceptCommission" do
       description "Client accepts the quote and work begins"
       reference_to(Commission)
       emits "CommissionAccepted"
       then_set :status, to: "in_progress"
     end
 
-    DeliverCommission do
+    command "DeliverCommission" do
       description "Hand over the finished custom piece to the client"
       reference_to(Commission)
       emits "CommissionDelivered"

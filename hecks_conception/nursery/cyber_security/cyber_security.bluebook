@@ -3,12 +3,12 @@ Hecks.bluebook "CyberSecurity", version: "2026.04.13.1" do
   category "technology"
 
   aggregate "Threat", "A known or emerging cyber threat tracked by the security team" do
-    String :threat_id
-    String :name
-    String :category
-    String :severity
-    String :source_feed
-    String :status
+    attribute :threat_id, String
+    attribute :name, String
+    attribute :category, String
+    attribute :severity, String
+    attribute :source_feed, String
+    attribute :status, String
     list_of(Indicator) :indicators
 
     specification "CriticalSeverity" do
@@ -16,31 +16,31 @@ Hecks.bluebook "CyberSecurity", version: "2026.04.13.1" do
     end
 
     value_object "Indicator" do
-      String :ioc_type
-      String :ioc_value
-      String :first_seen
+      attribute :ioc_type, String
+      attribute :ioc_value, String
+      attribute :first_seen, String
     end
 
-    IdentifyThreat do
+    command "IdentifyThreat" do
       role "ThreatAnalyst"
       description "Register a new threat from intelligence feeds"
-      String :threat_id
-      String :name
-      String :category
-      String :severity
-      String :source_feed
+      attribute :threat_id, String
+      attribute :name, String
+      attribute :category, String
+      attribute :severity, String
+      attribute :source_feed, String
       then_set :status, to: "active"
       emits "ThreatIdentified"
     end
 
-    EscalateThreat do
+    command "EscalateThreat" do
       description "Raise threat severity when new indicators emerge"
       reference_to(Threat)
-      String :severity
+      attribute :severity, String
       emits "ThreatEscalated"
     end
 
-    NeutralizeThreat do
+    command "NeutralizeThreat" do
       description "Mark a threat as contained and no longer active"
       reference_to(Threat)
       given("threat is active") { status == "active" }
@@ -49,83 +49,83 @@ Hecks.bluebook "CyberSecurity", version: "2026.04.13.1" do
   end
 
   aggregate "SecurityIncident", "A confirmed breach or attack requiring response" do
-    String :incident_id
-    String :title
-    String :severity
-    String :attack_vector
-    String :assigned_team
-    String :status
+    attribute :incident_id, String
+    attribute :title, String
+    attribute :severity, String
+    attribute :attack_vector, String
+    attribute :assigned_team, String
+    attribute :status, String
     reference_to Threat
     list_of(ResponseAction) :actions
 
     value_object "ResponseAction" do
-      String :action_type
-      String :description
-      String :performed_by
-      String :completed_at
+      attribute :action_type, String
+      attribute :description, String
+      attribute :performed_by, String
+      attribute :completed_at, String
     end
 
-    DeclareIncident do
+    command "DeclareIncident" do
       role "IncidentCommander"
       description "Open a security incident when a breach is confirmed"
-      String :incident_id
-      String :title
-      String :severity
-      String :attack_vector
+      attribute :incident_id, String
+      attribute :title, String
+      attribute :severity, String
+      attribute :attack_vector, String
       reference_to(Threat)
       emits "IncidentDeclared"
     end
 
-    AssignResponseTeam do
+    command "AssignResponseTeam" do
       description "Route the incident to a specialized response team"
       reference_to(SecurityIncident)
-      String :assigned_team
+      attribute :assigned_team, String
       then_set :status, to: "in_progress"
       emits "ResponseTeamAssigned"
     end
 
-    CloseIncident do
+    command "CloseIncident" do
       description "Resolve and close an incident after containment"
       reference_to(SecurityIncident)
-      String :root_cause
+      attribute :root_cause, String
       given("incident is in progress") { status == "in_progress" }
       emits "IncidentClosed"
     end
   end
 
   aggregate "Patch", "A software update that fixes a vulnerability" do
-    String :patch_id
-    String :cve_id
-    String :target_system
-    String :urgency
-    String :status
+    attribute :patch_id, String
+    attribute :cve_id, String
+    attribute :target_system, String
+    attribute :urgency, String
+    attribute :status, String
     list_of(DeploymentRecord) :deployments
 
     value_object "DeploymentRecord" do
-      String :host
-      String :deployed_at
-      String :outcome
+      attribute :host, String
+      attribute :deployed_at, String
+      attribute :outcome, String
     end
 
-    ReleasePatch do
+    command "ReleasePatch" do
       role "SecurityEngineer"
       description "Publish a patch to address a known vulnerability"
-      String :patch_id
-      String :cve_id
-      String :target_system
-      String :urgency
+      attribute :patch_id, String
+      attribute :cve_id, String
+      attribute :target_system, String
+      attribute :urgency, String
       emits "PatchReleased"
     end
 
-    DeployPatch do
+    command "DeployPatch" do
       description "Push a patch to a specific host or host group"
       reference_to(Patch)
-      String :host
+      attribute :host, String
       then_set :status, to: "deployed"
       emits "PatchDeployed"
     end
 
-    RollbackPatch do
+    command "RollbackPatch" do
       description "Revert a patch that caused regression"
       reference_to(Patch)
       given("patch is deployed") { status == "deployed" }
@@ -134,41 +134,41 @@ Hecks.bluebook "CyberSecurity", version: "2026.04.13.1" do
   end
 
   aggregate "SecurityAudit", "A periodic review of security posture and compliance" do
-    String :audit_id
-    String :scope
-    String :framework
-    String :auditor
-    String :status
+    attribute :audit_id, String
+    attribute :scope, String
+    attribute :framework, String
+    attribute :auditor, String
+    attribute :status, String
     list_of(Finding) :findings
 
     value_object "Finding" do
-      String :control_id
-      String :description
-      String :severity
-      String :remediation
+      attribute :control_id, String
+      attribute :description, String
+      attribute :severity, String
+      attribute :remediation, String
     end
 
-    InitiateAudit do
+    command "InitiateAudit" do
       role "ComplianceOfficer"
       description "Start a security audit against a compliance framework"
-      String :audit_id
-      String :scope
-      String :framework
-      String :auditor
+      attribute :audit_id, String
+      attribute :scope, String
+      attribute :framework, String
+      attribute :auditor, String
       then_set :status, to: "in_progress"
       emits "AuditInitiated"
     end
 
-    RecordFinding do
+    command "RecordFinding" do
       description "Document a gap or violation found during audit"
       reference_to(SecurityAudit)
-      String :control_id
-      String :description
-      String :severity
+      attribute :control_id, String
+      attribute :description, String
+      attribute :severity, String
       emits "FindingRecorded"
     end
 
-    CompleteAudit do
+    command "CompleteAudit" do
       description "Finalize the audit and publish the report"
       reference_to(SecurityAudit)
       given("all findings documented") { status == "in_progress" }
@@ -177,39 +177,39 @@ Hecks.bluebook "CyberSecurity", version: "2026.04.13.1" do
   end
 
   aggregate "AccessPolicy", "A rule governing who can access which resources" do
-    String :policy_name
-    String :resource_scope
-    String :permission_level
-    String :status
+    attribute :policy_name, String
+    attribute :resource_scope, String
+    attribute :permission_level, String
+    attribute :status, String
     list_of(RoleBinding) :role_bindings
 
     value_object "RoleBinding" do
-      String :principal
-      String :role
-      String :granted_at
+      attribute :principal, String
+      attribute :role, String
+      attribute :granted_at, String
     end
 
-    EstablishAccessPolicy do
+    command "EstablishAccessPolicy" do
       role "SecurityAdmin"
       description "Define a new access control policy for a resource scope"
-      String :policy_name
-      String :resource_scope
-      String :permission_level
+      attribute :policy_name, String
+      attribute :resource_scope, String
+      attribute :permission_level, String
       emits "AccessPolicyCreated"
     end
 
-    GrantAccess do
+    command "GrantAccess" do
       description "Bind a principal to a role under this policy"
       reference_to(AccessPolicy)
-      String :principal
-      String :role
+      attribute :principal, String
+      attribute :role, String
       emits "AccessGranted"
     end
 
-    RevokeAccess do
+    command "RevokeAccess" do
       description "Remove a principal's access under this policy"
       reference_to(AccessPolicy)
-      String :principal
+      attribute :principal, String
       emits "AccessRevoked"
     end
   end

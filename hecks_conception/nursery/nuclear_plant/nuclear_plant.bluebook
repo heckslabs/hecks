@@ -1,52 +1,52 @@
 Hecks.bluebook "NuclearPlant" do
   aggregate "Reactor" do
-    String :reactor_id
-    String :reactor_type
-    Float :thermal_capacity_mwt
-    Float :electrical_capacity_mwe
-    Float :current_power_percent
-    String :status
+    attribute :reactor_id, String
+    attribute :reactor_type, String
+    attribute :thermal_capacity_mwt, Float
+    attribute :electrical_capacity_mwe, Float
+    attribute :current_power_percent, Float
+    attribute :status, String
 
     value_object "CoreState" do
-      Float :power_percent
-      Float :coolant_temp_c
-      Float :neutron_flux
-      Float :boron_concentration_ppm
+      attribute :power_percent, Float
+      attribute :coolant_temp_c, Float
+      attribute :neutron_flux, Float
+      attribute :boron_concentration_ppm, Float
     end
 
-    LoadFuel do
+    command "LoadFuel" do
       description "Complete fuel loading during refueling outage before startup"
-      Integer :assemblies_loaded
-      String :core_map_version
+      attribute :assemblies_loaded, Integer
+      attribute :core_map_version, String
       reference_to "Reactor"
       emits "FuelLoaded"
     end
 
-    StartReactor do
+    command "StartReactor" do
       description "Begin controlled reactor startup by withdrawing control rods"
-      Float :target_power_percent
-      String :shift_supervisor
+      attribute :target_power_percent, Float
+      attribute :shift_supervisor, String
       reference_to "Reactor"
       emits "ReactorStarted"
     end
 
-    SynchronizeToGrid do
+    command "SynchronizeToGrid" do
       description "Connect generator to electrical grid at synchronous speed"
-      Float :output_mwe
+      attribute :output_mwe, Float
       reference_to "Reactor"
       emits "GeneratorSynchronized"
     end
 
-    RaisePower do
+    command "RaisePower" do
       description "Increase reactor power level toward full rated capacity"
-      Float :target_power_percent
+      attribute :target_power_percent, Float
       reference_to "Reactor"
       emits "PowerRaised"
     end
 
-    TripReactor do
+    command "TripReactor" do
       description "Initiate emergency reactor shutdown by inserting all control rods"
-      String :trip_reason
+      attribute :trip_reason, String
       reference_to "Reactor"
       emits "ReactorTripped"
     end
@@ -63,39 +63,39 @@ Hecks.bluebook "NuclearPlant" do
     policy "Any trip must be followed by root cause investigation"
 
     given "Unit 1 operates at full power" do
-      String :reactor_type, "PWR"
-      Float :electrical_capacity_mwe, 1100.0
-      Float :current_power_percent, 100.0
+      attribute :reactor_type, String, "PWR"
+      attribute :electrical_capacity_mwe, Float, 1100.0
+      attribute :current_power_percent, Float, 100.0
     end
   end
 
   aggregate "FuelAssembly" do
-    String :assembly_id
-    String :fuel_type
-    Float :enrichment_percent
-    Integer :burn_cycle
-    String :core_position
-    String :status
+    attribute :assembly_id, String
+    attribute :fuel_type, String
+    attribute :enrichment_percent, Float
+    attribute :burn_cycle, Integer
+    attribute :core_position, String
+    attribute :status, String
     list_of "FuelRod"
 
-    LoadAssembly do
+    command "LoadAssembly" do
       description "Place fuel assembly into reactor core during refueling outage"
-      String :core_position
-      Integer :burn_cycle
+      attribute :core_position, String
+      attribute :burn_cycle, Integer
       reference_to "Reactor"
       emits "AssemblyLoaded"
     end
 
-    TransferToPool do
+    command "TransferToPool" do
       description "Move spent fuel assembly from core to cooling pool"
-      String :pool_location
+      attribute :pool_location, String
       reference_to "FuelAssembly"
       emits "AssemblyTransferred"
     end
 
-    TransferToDryStorage do
+    command "TransferToDryStorage" do
       description "Move cooled spent fuel from pool to dry cask storage"
-      String :cask_id
+      attribute :cask_id, String
       reference_to "FuelAssembly"
       emits "AssemblyInDryStorage"
     end
@@ -110,32 +110,32 @@ Hecks.bluebook "NuclearPlant" do
   end
 
   aggregate "CoolingSystem" do
-    String :system_id
-    String :loop_designation
-    Float :coolant_temp_inlet_c
-    Float :coolant_temp_outlet_c
-    Float :flow_rate_kgps
-    String :status
+    attribute :system_id, String
+    attribute :loop_designation, String
+    attribute :coolant_temp_inlet_c, Float
+    attribute :coolant_temp_outlet_c, Float
+    attribute :flow_rate_kgps, Float
+    attribute :status, String
 
     value_object "CoolantChemistry" do
-      Float :boron_ppm
-      Float :ph_level
-      Float :dissolved_oxygen_ppb
-      Float :conductivity
+      attribute :boron_ppm, Float
+      attribute :ph_level, Float
+      attribute :dissolved_oxygen_ppb, Float
+      attribute :conductivity, Float
     end
 
-    StartCoolantPump do
+    command "StartCoolantPump" do
       description "Start reactor coolant pump for primary or secondary loop"
-      String :loop_designation
-      String :pump_id
+      attribute :loop_designation, String
+      attribute :pump_id, String
       reference_to "CoolingSystem"
       emits "CoolantPumpStarted"
     end
 
-    AdjustBoronConcentration do
+    command "AdjustBoronConcentration" do
       description "Dilute or borate primary coolant to control reactivity"
-      Float :target_boron_ppm
-      String :direction
+      attribute :target_boron_ppm, Float
+      attribute :direction, String
       reference_to "CoolingSystem"
       emits "BoronAdjusted"
     end
@@ -149,34 +149,34 @@ Hecks.bluebook "NuclearPlant" do
   end
 
   aggregate "RadiationSurvey" do
-    String :survey_id
-    String :area
-    String :surveyor
-    Float :dose_rate_msv_hr
-    String :survey_date
-    String :status
+    attribute :survey_id, String
+    attribute :area, String
+    attribute :surveyor, String
+    attribute :dose_rate_msv_hr, Float
+    attribute :survey_date, String
+    attribute :status, String
 
-    ConductSurvey do
+    command "ConductSurvey" do
       description "Perform radiation dose rate survey in plant area"
-      String :area
-      String :surveyor
-      Float :dose_rate_msv_hr
+      attribute :area, String
+      attribute :surveyor, String
+      attribute :dose_rate_msv_hr, Float
       reference_to "RadiationSurvey"
       emits "SurveyConducted"
     end
 
-    PostRadiationArea do
+    command "PostRadiationArea" do
       description "Post warning signs and access controls for elevated radiation area"
-      String :posting_level
-      Float :access_limit_msv
+      attribute :posting_level, String
+      attribute :access_limit_msv, Float
       reference_to "RadiationSurvey"
       emits "AreaPosted"
     end
 
-    PassInspection do
+    command "PassInspection" do
       description "Record NRC or internal inspection passed for the surveyed area"
-      String :inspector_name
-      String :inspection_id
+      attribute :inspector_name, String
+      attribute :inspection_id, String
       reference_to "RadiationSurvey"
       emits "InspectionPassed"
     end
@@ -191,34 +191,34 @@ Hecks.bluebook "NuclearPlant" do
   end
 
   aggregate "WastePackage" do
-    String :package_id
-    String :waste_class
-    String :container_type
-    Float :activity_becquerels
-    Float :weight_kg
-    String :storage_location
-    String :status
+    attribute :package_id, String
+    attribute :waste_class, String
+    attribute :container_type, String
+    attribute :activity_becquerels, Float
+    attribute :weight_kg, Float
+    attribute :storage_location, String
+    attribute :status, String
 
-    PackageWaste do
+    command "PackageWaste" do
       description "Containerize radioactive waste per disposal facility requirements"
-      String :waste_class
-      String :container_type
-      Float :activity_becquerels
+      attribute :waste_class, String
+      attribute :container_type, String
+      attribute :activity_becquerels, Float
       reference_to "WastePackage"
       emits "WastePackaged"
     end
 
-    CertifyPackage do
+    command "CertifyPackage" do
       description "Certify waste package meets DOT and NRC transport requirements"
-      String :certifier
+      attribute :certifier, String
       reference_to "WastePackage"
       emits "PackageCertified"
     end
 
-    ShipWaste do
+    command "ShipWaste" do
       description "Transfer waste package to licensed disposal facility"
-      String :transporter
-      String :disposal_facility
+      attribute :transporter, String
+      attribute :disposal_facility, String
       reference_to "WastePackage"
       emits "WasteShipped"
     end

@@ -4,44 +4,44 @@ Hecks.bluebook "ElevatorMaintenance" do
 
   aggregate "ElevatorUnit" do
     description "An elevator unit — traction, hydraulic, or MRL — with floors served, capacity, and age"
-    String :building_name
-    String :unit_number
-    String :elevator_type
-    Integer :floors_served
-    Integer :capacity_lbs
-    Integer :install_year
-    String :status
+    attribute :building_name, String
+    attribute :unit_number, String
+    attribute :elevator_type, String
+    attribute :floors_served, Integer
+    attribute :capacity_lbs, Integer
+    attribute :install_year, Integer
+    attribute :status, String
 
     value_object "DriveSpec" do
-      String :drive_type
-      String :controller_model
-      Float :motor_hp
+      attribute :drive_type, String
+      attribute :controller_model, String
+      attribute :motor_hp, Float
     end
 
-    RegisterUnit do
+    command "RegisterUnit" do
       role "Account Manager"
       goal "Add an elevator unit to the maintenance portfolio"
       description "Record the unit's type, capacity, and building location"
-      String :building_name
-      String :unit_number
-      String :elevator_type
-      Integer :floors_served
-      Integer :capacity_lbs
-      Integer :install_year
+      attribute :building_name, String
+      attribute :unit_number, String
+      attribute :elevator_type, String
+      attribute :floors_served, Integer
+      attribute :capacity_lbs, Integer
+      attribute :install_year, Integer
       emits "UnitRegistered"
     end
 
-    ShutDownUnit do
+    command "ShutDownUnit" do
       role "Mechanic"
       goal "Shut down an elevator for repair or safety concern"
       description "Lock out the unit and post out-of-service notice"
       reference_to(ElevatorUnit)
-      String :reason
+      attribute :reason, String
       then_set :status, to: "out_of_service"
       emits "UnitTakenOutOfService"
     end
 
-    ReturnToService do
+    command "ReturnToService" do
       role "Mechanic"
       goal "Restore an elevator to operational status after repair"
       description "Verify all safety devices and return to automatic operation"
@@ -52,55 +52,55 @@ Hecks.bluebook "ElevatorMaintenance" do
 
   aggregate "MaintenanceVisit" do
     description "A scheduled preventive maintenance visit covering lubrication, adjustments, and safety checks"
-    String :mechanic_name
-    String :visit_date
-    String :tasks_performed
-    String :findings
+    attribute :mechanic_name, String
+    attribute :visit_date, String
+    attribute :tasks_performed, String
+    attribute :findings, String
     reference_to(ElevatorUnit)
 
-    PerformMaintenance do
+    command "PerformMaintenance" do
       role "Mechanic"
       goal "Execute the scheduled maintenance checklist"
       description "Lubricate, adjust, clean, and test per the maintenance plan"
-      String :mechanic_name
-      String :visit_date
+      attribute :mechanic_name, String
+      attribute :visit_date, String
       reference_to(ElevatorUnit)
       emits "MaintenancePerformed"
     end
 
-    ReportFinding do
+    command "ReportFinding" do
       role "Mechanic"
       goal "Document a condition found during maintenance that needs attention"
       description "Log worn parts, unusual noises, or safety concerns"
       reference_to(MaintenanceVisit)
-      String :findings
+      attribute :findings, String
       emits "FindingReported"
     end
   end
 
   aggregate "PartReplacement" do
     description "A replacement of an elevator component — door operator, sheave, brake, controller, or rope"
-    String :part_name
-    String :part_number
-    String :vendor
-    Float :cost
-    String :status
+    attribute :part_name, String
+    attribute :part_number, String
+    attribute :vendor, String
+    attribute :cost, Float
+    attribute :status, String
     reference_to(ElevatorUnit)
 
-    OrderPart do
+    command "OrderPart" do
       role "Parts Coordinator"
       goal "Order the replacement part from the supplier"
       description "Source the correct part and arrange delivery"
-      String :part_name
-      String :part_number
-      String :vendor
-      Float :cost
+      attribute :part_name, String
+      attribute :part_number, String
+      attribute :vendor, String
+      attribute :cost, Float
       reference_to(ElevatorUnit)
       then_set :status, to: "received"
       emits "PartOrdered"
     end
 
-    InstallPart do
+    command "InstallPart" do
       role "Mechanic"
       goal "Replace the worn or failed component"
       description "Remove the old part and install the replacement"
@@ -109,7 +109,7 @@ Hecks.bluebook "ElevatorMaintenance" do
       emits "PartInstalled"
     end
 
-    TestAfterInstall do
+    command "TestAfterInstall" do
       role "Mechanic"
       goal "Verify proper operation after the part replacement"
       description "Run the elevator through all floors and test safety devices"
@@ -120,76 +120,76 @@ Hecks.bluebook "ElevatorMaintenance" do
 
   aggregate "ElevatorInspection" do
     description "An annual or periodic inspection by a state-certified elevator inspector"
-    String :inspector_name
-    String :inspection_type
-    String :result
-    String :violations
-    String :inspection_date
+    attribute :inspector_name, String
+    attribute :inspection_type, String
+    attribute :result, String
+    attribute :violations, String
+    attribute :inspection_date, String
     reference_to(ElevatorUnit)
 
-    ScheduleInspection do
+    command "ScheduleInspection" do
       role "Account Manager"
       goal "Book the annual inspection with the state inspector"
       description "Coordinate with the building and inspector for the date"
-      String :inspection_type
-      String :inspection_date
+      attribute :inspection_type, String
+      attribute :inspection_date, String
       reference_to(ElevatorUnit)
       emits "InspectionScheduled"
     end
 
-    RecordInspectionResult do
+    command "RecordInspectionResult" do
       role "Inspector"
       goal "Document the inspection outcome and any violations"
       description "Record pass/fail and list violations requiring correction"
       reference_to(ElevatorInspection)
-      String :result
-      String :violations
+      attribute :result, String
+      attribute :violations, String
       emits "InspectionResultRecorded"
     end
   end
 
   aggregate "EmergencyCall" do
     description "An emergency entrapment or breakdown call requiring immediate mechanic dispatch"
-    String :building_name
-    String :unit_number
-    String :call_type
-    String :status
-    String :response_time
+    attribute :building_name, String
+    attribute :unit_number, String
+    attribute :call_type, String
+    attribute :status, String
+    attribute :response_time, String
     reference_to(ElevatorUnit)
 
     value_object "EntrapmentDetail" do
-      Integer :passengers_trapped
-      String :floor_location
-      String :door_status
+      attribute :passengers_trapped, Integer
+      attribute :floor_location, String
+      attribute :door_status, String
     end
 
-    DispatchMechanic do
+    command "DispatchMechanic" do
       role "Dispatcher"
       goal "Send a mechanic immediately for an elevator emergency"
       description "Dispatch the nearest available mechanic for entrapment or breakdown"
-      String :building_name
-      String :unit_number
-      String :call_type
+      attribute :building_name, String
+      attribute :unit_number, String
+      attribute :call_type, String
       reference_to(ElevatorUnit)
       emits "MechanicDispatched"
     end
 
-    ResolveEmergency do
+    command "ResolveEmergency" do
       role "Mechanic"
       goal "Free trapped passengers and restore the elevator"
       description "Release passengers safely and diagnose the cause"
       reference_to(EmergencyCall)
-      String :resolution
+      attribute :resolution, String
       then_set :status, to: "resolved"
       emits "EmergencyResolved"
     end
 
-    FileIncidentReport do
+    command "FileIncidentReport" do
       role "Mechanic"
       goal "Document the emergency for regulatory and insurance records"
       description "Complete the incident report with cause and resolution details"
       reference_to(EmergencyCall)
-      String :incident_details
+      attribute :incident_details, String
       given("emergency must be resolved") { status == "resolved" }
       emits "IncidentReportFiled"
     end

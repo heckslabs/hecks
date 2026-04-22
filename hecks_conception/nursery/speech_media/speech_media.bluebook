@@ -3,20 +3,20 @@ Hecks.bluebook "SpeechMedia", version: "2026.04.13.1" do
   category "healthcare_technology"
 
   aggregate "TherapyExercise", "A speech therapy exercise prescribed to a client" do
-    String :exercise_id
-    String :client_name
-    String :exercise_type
-    String :target_sound
-    Integer :repetitions
-    String :status
-    PrescribeExercise do
+    attribute :exercise_id, String
+    attribute :client_name, String
+    attribute :exercise_type, String
+    attribute :target_sound, String
+    attribute :repetitions, Integer
+    attribute :status, String
+    command "PrescribeExercise" do
       role "SpeechPathologist"
       description "Prescribe a speech therapy exercise targeting specific sounds"
-      String :exercise_id
-      String :client_name
-      String :exercise_type
-      String :target_sound
-      Integer :repetitions
+      attribute :exercise_id, String
+      attribute :client_name, String
+      attribute :exercise_type, String
+      attribute :target_sound, String
+      attribute :repetitions, Integer
       emits "ExercisePrescribed"
       then_set :exercise_id, to: :exercise_id
       then_set :client_name, to: :client_name
@@ -25,7 +25,7 @@ Hecks.bluebook "SpeechMedia", version: "2026.04.13.1" do
       then_set :repetitions, to: :repetitions
       then_set :status, to: "prescribed"
     end
-    CompleteExercise do
+    command "CompleteExercise" do
       role "Client"
       description "Mark the exercise as completed after practice"
       reference_to(TherapyExercise)
@@ -36,20 +36,20 @@ Hecks.bluebook "SpeechMedia", version: "2026.04.13.1" do
   end
 
   aggregate "RecordedSession", "An audio recording of a speech therapy session" do
-    String :recording_id
-    String :client_name
-    String :session_date
-    Float :duration_minutes
-    String :file_path
-    String :status
-    RecordSession do
+    attribute :recording_id, String
+    attribute :client_name, String
+    attribute :session_date, String
+    attribute :duration_minutes, Float
+    attribute :file_path, String
+    attribute :status, String
+    command "RecordSession" do
       role "SpeechPathologist"
       description "Record a speech therapy session for review"
-      String :recording_id
-      String :client_name
-      String :session_date
-      Float :duration_minutes
-      String :file_path
+      attribute :recording_id, String
+      attribute :client_name, String
+      attribute :session_date, String
+      attribute :duration_minutes, Float
+      attribute :file_path, String
       emits "SessionRecorded"
       then_set :recording_id, to: :recording_id
       then_set :client_name, to: :client_name
@@ -58,7 +58,7 @@ Hecks.bluebook "SpeechMedia", version: "2026.04.13.1" do
       then_set :file_path, to: :file_path
       then_set :status, to: "recorded"
     end
-    AnalyzeRecording do
+    command "AnalyzeRecording" do
       role "System"
       description "Run speech analysis on the recorded session audio"
       reference_to(RecordedSession)
@@ -69,19 +69,19 @@ Hecks.bluebook "SpeechMedia", version: "2026.04.13.1" do
   end
 
   aggregate "ProgressAudio", "A curated audio clip demonstrating client speech progress" do
-    String :clip_id
-    String :client_name
-    String :milestone
-    String :before_path
-    String :after_path
-    CaptureProgressClip do
+    attribute :clip_id, String
+    attribute :client_name, String
+    attribute :milestone, String
+    attribute :before_path, String
+    attribute :after_path, String
+    command "CaptureProgressClip" do
       role "SpeechPathologist"
       description "Create a before-and-after audio clip showing speech progress"
-      String :clip_id
-      String :client_name
-      String :milestone
-      String :before_path
-      String :after_path
+      attribute :clip_id, String
+      attribute :client_name, String
+      attribute :milestone, String
+      attribute :before_path, String
+      attribute :after_path, String
       emits "ProgressClipCaptured"
       then_set :clip_id, to: :clip_id
       then_set :client_name, to: :client_name
@@ -89,7 +89,7 @@ Hecks.bluebook "SpeechMedia", version: "2026.04.13.1" do
       then_set :before_path, to: :before_path
       then_set :after_path, to: :after_path
     end
-    ShareClip do
+    command "ShareClip" do
       role "SpeechPathologist"
       description "Share the progress clip with client family"
       reference_to(ProgressAudio)
@@ -98,24 +98,24 @@ Hecks.bluebook "SpeechMedia", version: "2026.04.13.1" do
   end
 
   aggregate "PodcastEpisode", "An educational podcast episode on speech therapy topics" do
-    String :episode_id
-    String :title
-    String :topic
-    Float :duration_minutes
-    String :status
+    attribute :episode_id, String
+    attribute :title, String
+    attribute :topic, String
+    attribute :duration_minutes, Float
+    attribute :status, String
     list_of(Segment) :segments
     value_object "Segment" do
-      String :segment_type
-      Float :start_time
-      Float :end_time
+      attribute :segment_type, String
+      attribute :start_time, Float
+      attribute :end_time, Float
     end
-    ProduceEpisode do
+    command "ProduceEpisode" do
       role "Producer"
       description "Produce a podcast episode on speech therapy techniques"
-      String :episode_id
-      String :title
-      String :topic
-      Float :duration_minutes
+      attribute :episode_id, String
+      attribute :title, String
+      attribute :topic, String
+      attribute :duration_minutes, Float
       emits "EpisodeProduced"
       then_set :episode_id, to: :episode_id
       then_set :title, to: :title
@@ -123,7 +123,7 @@ Hecks.bluebook "SpeechMedia", version: "2026.04.13.1" do
       then_set :duration_minutes, to: :duration_minutes
       then_set :status, to: "produced"
     end
-    PublishEpisode do
+    command "PublishEpisode" do
       role "Producer"
       description "Publish the podcast episode to streaming platforms"
       reference_to(PodcastEpisode)

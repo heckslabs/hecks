@@ -3,20 +3,20 @@ Hecks.bluebook "SpecimenTransport", version: "2026.04.13.1" do
   category "healthcare_technology"
 
   aggregate "LabSpecimen", "A pathology specimen requiring transport to a reference lab" do
-    String :specimen_id
-    String :patient_id
-    String :specimen_type
-    Float :required_temp_c
-    String :priority
-    String :status
-    PrepareSpecimen do
+    attribute :specimen_id, String
+    attribute :patient_id, String
+    attribute :specimen_type, String
+    attribute :required_temp_c, Float
+    attribute :priority, String
+    attribute :status, String
+    command "PrepareSpecimen" do
       role "LabTech"
       description "Prepare a specimen for shipment to reference lab"
-      String :specimen_id
-      String :patient_id
-      String :specimen_type
-      Float :required_temp_c
-      String :priority
+      attribute :specimen_id, String
+      attribute :patient_id, String
+      attribute :specimen_type, String
+      attribute :required_temp_c, Float
+      attribute :priority, String
       emits "SpecimenPrepared"
       then_set :specimen_id, to: :specimen_id
       then_set :patient_id, to: :patient_id
@@ -25,7 +25,7 @@ Hecks.bluebook "SpecimenTransport", version: "2026.04.13.1" do
       then_set :priority, to: :priority
       then_set :status, to: "prepared"
     end
-    ReleaseSpecimen do
+    command "ReleaseSpecimen" do
       role "LabTech"
       description "Release specimen to the shipping carrier"
       reference_to(LabSpecimen)
@@ -36,26 +36,26 @@ Hecks.bluebook "SpecimenTransport", version: "2026.04.13.1" do
   end
 
   aggregate "ColdShipment", "A temperature-controlled air cargo shipment" do
-    String :shipment_id
-    String :carrier
-    String :origin_lab
-    String :dest_lab
-    Float :target_temp_c
-    String :status
+    attribute :shipment_id, String
+    attribute :carrier, String
+    attribute :origin_lab, String
+    attribute :dest_lab, String
+    attribute :target_temp_c, Float
+    attribute :status, String
     list_of(TempLog) :temp_logs
     value_object "TempLog" do
-      String :timestamp
-      Float :temp_c
-      String :within_range
+      attribute :timestamp, String
+      attribute :temp_c, Float
+      attribute :within_range, String
     end
-    DispatchShipment do
+    command "DispatchShipment" do
       role "ShippingCoordinator"
       description "Create a cold chain shipment for specimens"
-      String :shipment_id
-      String :carrier
-      String :origin_lab
-      String :dest_lab
-      Float :target_temp_c
+      attribute :shipment_id, String
+      attribute :carrier, String
+      attribute :origin_lab, String
+      attribute :dest_lab, String
+      attribute :target_temp_c, Float
       emits "ShipmentDispatched"
       then_set :shipment_id, to: :shipment_id
       then_set :carrier, to: :carrier
@@ -64,7 +64,7 @@ Hecks.bluebook "SpecimenTransport", version: "2026.04.13.1" do
       then_set :target_temp_c, to: :target_temp_c
       then_set :status, to: "created"
     end
-    PickUpShipment do
+    command "PickUpShipment" do
       role "Carrier"
       description "Pick up shipment from origin lab"
       reference_to(ColdShipment)
@@ -72,7 +72,7 @@ Hecks.bluebook "SpecimenTransport", version: "2026.04.13.1" do
       emits "ShipmentPickedUp"
       then_set :status, to: "in_transit"
     end
-    DeliverShipment do
+    command "DeliverShipment" do
       role "Carrier"
       description "Deliver shipment to destination lab"
       reference_to(ColdShipment)
@@ -83,34 +83,34 @@ Hecks.bluebook "SpecimenTransport", version: "2026.04.13.1" do
   end
 
   aggregate "CustodyRecord", "A chain of custody record for specimen handling" do
-    String :record_id
-    String :specimen_id
+    attribute :record_id, String
+    attribute :specimen_id, String
     list_of(HandlerEntry) :handlers
-    String :status
+    attribute :status, String
     value_object "HandlerEntry" do
-      String :handler_name
-      String :role_type
-      String :timestamp
-      String :action_taken
+      attribute :handler_name, String
+      attribute :role_type, String
+      attribute :timestamp, String
+      attribute :action_taken, String
     end
-    StartCustody do
+    command "StartCustody" do
       role "LabTech"
       description "Start chain of custody when specimen leaves the lab"
-      String :record_id
-      String :specimen_id
+      attribute :record_id, String
+      attribute :specimen_id, String
       emits "CustodyStarted"
       then_set :record_id, to: :record_id
       then_set :specimen_id, to: :specimen_id
       then_set :status, to: "active"
     end
-    TransferCustody do
+    command "TransferCustody" do
       role "Handler"
       description "Record custody transfer between handlers"
       reference_to(CustodyRecord)
       given { status == "active" }
       emits "CustodyTransferred"
     end
-    CloseCustody do
+    command "CloseCustody" do
       role "LabTech"
       description "Close custody chain when specimen arrives at destination"
       reference_to(CustodyRecord)
@@ -121,30 +121,30 @@ Hecks.bluebook "SpecimenTransport", version: "2026.04.13.1" do
   end
 
   aggregate "QualityAudit", "An audit of specimen transport quality and compliance" do
-    String :audit_id
-    String :shipment_id
-    String :auditor
-    Float :compliance_score
-    String :findings
-    String :status
-    RunAudit do
+    attribute :audit_id, String
+    attribute :shipment_id, String
+    attribute :auditor, String
+    attribute :compliance_score, Float
+    attribute :findings, String
+    attribute :status, String
+    command "RunAudit" do
       role "QualityManager"
       description "Run a quality audit on a specimen shipment"
-      String :audit_id
-      String :shipment_id
-      String :auditor
+      attribute :audit_id, String
+      attribute :shipment_id, String
+      attribute :auditor, String
       emits "AuditRun"
       then_set :audit_id, to: :audit_id
       then_set :shipment_id, to: :shipment_id
       then_set :auditor, to: :auditor
       then_set :status, to: "in_progress"
     end
-    FinalizeAudit do
+    command "FinalizeAudit" do
       role "QualityManager"
       description "Finalize the audit with compliance score and findings"
       reference_to(QualityAudit)
-      Float :compliance_score
-      String :findings
+      attribute :compliance_score, Float
+      attribute :findings, String
       given { status == "in_progress" }
       emits "AuditFinalized"
       then_set :compliance_score, to: :compliance_score

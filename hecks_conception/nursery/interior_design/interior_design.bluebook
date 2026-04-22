@@ -1,22 +1,22 @@
 Hecks.bluebook "InteriorDesign" do
   aggregate "DesignProject", "An interior design engagement for a residential or commercial space" do
-    String :name
-    String :space_type
-    String :style_direction
-    String :status, default: "consultation"
-    Float :budget
+    attribute :name, String
+    attribute :space_type, String
+    attribute :style_direction, String
+    attribute :status, String, default: "consultation"
+    attribute :budget, Float
 
-    ScopeProject do
+    command "ScopeProject" do
       description "Define the project scope after initial client consultation"
-      String :name
-      String :space_type
-      String :style_direction
-      Float :budget
+      attribute :name, String
+      attribute :space_type, String
+      attribute :style_direction, String
+      attribute :budget, Float
       emits "ProjectScoped"
       then_set :status, to: "consultation"
     end
 
-    PresentConcept do
+    command "PresentConcept" do
       description "Present the design concept boards to the client"
       reference_to(DesignProject)
       given { status == "consultation" }
@@ -24,7 +24,7 @@ Hecks.bluebook "InteriorDesign" do
       then_set :status, to: "concept_review"
     end
 
-    ApproveConcept do
+    command "ApproveConcept" do
       description "Client signs off on the design concept"
       reference_to(DesignProject)
       given { status == "concept_review" }
@@ -34,36 +34,36 @@ Hecks.bluebook "InteriorDesign" do
   end
 
   aggregate "RoomDesign", "Design specifications for a single room or zone" do
-    String :room_name
-    String :function
-    Float :square_footage
-    String :color_palette
-    String :status, default: "planning"
+    attribute :room_name, String
+    attribute :function, String
+    attribute :square_footage, Float
+    attribute :color_palette, String
+    attribute :status, String, default: "planning"
     reference_to(DesignProject)
 
     value_object "MoodBoard" do
-      String :theme
-      String :primary_color
-      String :accent_color
-      String :texture_notes
-      String :inspiration_source
+      attribute :theme, String
+      attribute :primary_color, String
+      attribute :accent_color, String
+      attribute :texture_notes, String
+      attribute :inspiration_source, String
     end
 
-    PlanRoom do
+    command "PlanRoom" do
       description "Create the room design plan with layout and palette"
       reference_to(DesignProject)
-      String :room_name
-      String :function
-      Float :square_footage
-      String :color_palette
+      attribute :room_name, String
+      attribute :function, String
+      attribute :square_footage, Float
+      attribute :color_palette, String
       emits "RoomPlanned"
       then_set :status, to: "planning"
     end
 
-    SpecifyFixtures do
+    command "SpecifyFixtures" do
       description "Select lighting, hardware, and plumbing fixtures"
       reference_to(RoomDesign)
-      String :fixture_list
+      attribute :fixture_list, String
       given { status == "planning" }
       emits "FixturesSpecified"
       then_set :status, to: "specified"
@@ -71,79 +71,79 @@ Hecks.bluebook "InteriorDesign" do
   end
 
   aggregate "MaterialSelection", "A specified material with source, cost, and lead time" do
-    String :material_name
-    String :category
-    String :supplier
-    Float :unit_cost
-    Integer :lead_time_days
+    attribute :material_name, String
+    attribute :category, String
+    attribute :supplier, String
+    attribute :unit_cost, Float
+    attribute :lead_time_days, Integer
     reference_to(RoomDesign)
 
-    SpecifyMaterial do
+    command "SpecifyMaterial" do
       description "Select a material for a room element"
       reference_to(RoomDesign)
-      String :material_name
-      String :category
-      String :supplier
-      Float :unit_cost
-      Integer :lead_time_days
+      attribute :material_name, String
+      attribute :category, String
+      attribute :supplier, String
+      attribute :unit_cost, Float
+      attribute :lead_time_days, Integer
       emits "MaterialSpecified"
     end
 
-    OrderMaterial do
+    command "OrderMaterial" do
       description "Place a purchase order for the specified material"
       reference_to(MaterialSelection)
-      Integer :quantity
+      attribute :quantity, Integer
       emits "MaterialOrdered"
     end
   end
 
   aggregate "Vendor", "A trade vendor or supplier for furnishings and materials" do
-    String :company_name
-    String :specialty
-    String :contact_name
-    String :phone
-    Integer :lead_time_days
+    attribute :company_name, String
+    attribute :specialty, String
+    attribute :contact_name, String
+    attribute :phone, String
+    attribute :lead_time_days, Integer
 
     value_object "TradeDiscount" do
-      Float :discount_percentage
-      String :discount_type
-      Float :minimum_order
+      attribute :discount_percentage, Float
+      attribute :discount_type, String
+      attribute :minimum_order, Float
     end
 
-    RegisterVendor do
+    command "RegisterVendor" do
       description "Add a new vendor to the trade directory"
-      String :company_name
-      String :specialty
-      String :contact_name
-      String :phone
+      attribute :company_name, String
+      attribute :specialty, String
+      attribute :contact_name, String
+      attribute :phone, String
       emits "VendorRegistered"
     end
 
-    NegotiateTerms do
+    command "NegotiateTerms" do
       description "Update trade discount terms with a vendor"
       reference_to(Vendor)
-      Float :discount_percentage
+      attribute :discount_percentage, Float
       emits "TermsNegotiated"
     end
   end
 
   aggregate "Installation", "On-site installation of furnishings and finishes" do
-    String :date
-    String :crew_lead
-    String :status, default: "scheduled"
-    String :punch_list
+    attribute :date, String
+    attribute :crew_lead, String
+    attribute :status, String, default: "scheduled"
+    attribute :punch_list, String
     reference_to(DesignProject)
 
-    ScheduleInstallation do
+    command "ScheduleInstallation" do
       description "Book the installation crew for a project"
       reference_to(DesignProject)
-      String :date
-      String :crew_lead
+      attribute :date, String
+      attribute :crew_lead, String
       emits "InstallationScheduled"
       then_set :status, to: "scheduled"
     end
 
-    CompleteInstallation do
+    command "CompleteInstallation" do
       description "Finish the installation and walk through with client"
       reference_to(Installation)
       given { status == "scheduled" }
@@ -151,10 +151,10 @@ Hecks.bluebook "InteriorDesign" do
       then_set :status, to: "completed"
     end
 
-    ResolvePunchList do
+    command "ResolvePunchList" do
       description "Fix remaining punch list items after walkthrough"
       reference_to(Installation)
-      String :punch_list
+      attribute :punch_list, String
       given { status == "completed" || status == "scheduled" }
       emits "PunchListResolved"
       then_set :status, to: "resolved"

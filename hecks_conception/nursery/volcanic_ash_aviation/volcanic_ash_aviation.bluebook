@@ -3,29 +3,29 @@ Hecks.bluebook "VolcanicAshAviation", version: "2026.04.13.1" do
   category "crossover"
 
   aggregate "Eruption", "A volcanic eruption event — volcano, intensity, ash column height, duration" do
-    String :volcano_name
-    Float :latitude
-    Float :longitude
-    Float :ash_column_height_km
-    String :eruption_type
-    String :vei_level
-    String :status
+    attribute :volcano_name, String
+    attribute :latitude, Float
+    attribute :longitude, Float
+    attribute :ash_column_height_km, Float
+    attribute :eruption_type, String
+    attribute :vei_level, String
+    attribute :status, String
 
     value_object "EruptionMetrics" do
-      Float :lava_volume_m3
-      Float :so2_emission_kt
-      Float :seismicity_level
+      attribute :lava_volume_m3, Float
+      attribute :so2_emission_kt, Float
+      attribute :seismicity_level, Float
     end
 
-    ReportEruption do
+    command "ReportEruption" do
       role "Volcanologist"
       description "Report a volcanic eruption with location and intensity"
-      String :volcano_name
-      Float :latitude
-      Float :longitude
-      Float :ash_column_height_km
-      String :eruption_type
-      String :vei_level
+      attribute :volcano_name, String
+      attribute :latitude, Float
+      attribute :longitude, Float
+      attribute :ash_column_height_km, Float
+      attribute :eruption_type, String
+      attribute :vei_level, String
       emits "EruptionReported"
       then_set :volcano_name, to: :volcano_name
       then_set :latitude, to: :latitude
@@ -36,17 +36,17 @@ Hecks.bluebook "VolcanicAshAviation", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    RefreshAshColumn do
+    command "RefreshAshColumn" do
       role "Volcanologist"
       description "Refresh ash column height as eruption evolves"
       reference_to(Eruption)
-      Float :ash_column_height_km
+      attribute :ash_column_height_km, Float
       given { status == "active" }
       emits "AshColumnRefreshed"
       then_set :ash_column_height_km, to: :ash_column_height_km
     end
 
-    DeclareEruptionOver do
+    command "DeclareEruptionOver" do
       role "Volcanologist"
       description "Declare eruption has ceased"
       reference_to(Eruption)
@@ -58,36 +58,36 @@ Hecks.bluebook "VolcanicAshAviation", version: "2026.04.13.1" do
   end
 
   aggregate "AshCloud", "A tracked volcanic ash cloud — extent, concentration, altitude, trajectory" do
-    String :cloud_id
-    String :volcano_source
-    Float :concentration_mg_m3
-    Float :altitude_min_ft
-    Float :altitude_max_ft
-    Float :area_sq_km
-    String :status
+    attribute :cloud_id, String
+    attribute :volcano_source, String
+    attribute :concentration_mg_m3, Float
+    attribute :altitude_min_ft, Float
+    attribute :altitude_max_ft, Float
+    attribute :area_sq_km, Float
+    attribute :status, String
 
     value_object "CloudTrajectory" do
-      Float :heading_degrees
-      Float :speed_kmh
-      Float :forecast_hours
-      Float :spread_rate_km2_hr
+      attribute :heading_degrees, Float
+      attribute :speed_kmh, Float
+      attribute :forecast_hours, Float
+      attribute :spread_rate_km2_hr, Float
     end
 
     list_of "AffectedAirspace" do
-      String :fir_name
-      Float :overlap_pct
-      String :severity
+      attribute :fir_name, String
+      attribute :overlap_pct, Float
+      attribute :severity, String
     end
 
-    TrackAshCloud do
+    command "TrackAshCloud" do
       role "System"
       description "Track ash cloud position and concentration from satellite data"
-      String :cloud_id
-      String :volcano_source
-      Float :concentration_mg_m3
-      Float :altitude_min_ft
-      Float :altitude_max_ft
-      Float :area_sq_km
+      attribute :cloud_id, String
+      attribute :volcano_source, String
+      attribute :concentration_mg_m3, Float
+      attribute :altitude_min_ft, Float
+      attribute :altitude_max_ft, Float
+      attribute :area_sq_km, Float
       emits "AshCloudTracked"
       then_set :cloud_id, to: :cloud_id
       then_set :volcano_source, to: :volcano_source
@@ -98,7 +98,7 @@ Hecks.bluebook "VolcanicAshAviation", version: "2026.04.13.1" do
       then_set :status, to: "tracked"
     end
 
-    ForecastDispersion do
+    command "ForecastDispersion" do
       role "System"
       description "Forecast ash cloud movement and dispersion over time"
       reference_to(AshCloud)
@@ -106,7 +106,7 @@ Hecks.bluebook "VolcanicAshAviation", version: "2026.04.13.1" do
       then_set :status, to: "forecasted"
     end
 
-    DeclareCloudDissipated do
+    command "DeclareCloudDissipated" do
       role "System"
       description "Declare ash cloud has dissipated below hazardous levels"
       reference_to(AshCloud)
@@ -123,29 +123,29 @@ Hecks.bluebook "VolcanicAshAviation", version: "2026.04.13.1" do
   end
 
   aggregate "AirspaceRestriction", "A NOTAM airspace restriction due to volcanic ash" do
-    String :notam_id
-    String :fir_name
-    Float :altitude_floor_ft
-    Float :altitude_ceiling_ft
-    String :effective_from
-    String :effective_until
-    String :status
+    attribute :notam_id, String
+    attribute :fir_name, String
+    attribute :altitude_floor_ft, Float
+    attribute :altitude_ceiling_ft, Float
+    attribute :effective_from, String
+    attribute :effective_until, String
+    attribute :status, String
 
     value_object "RestrictionZone" do
-      Float :center_lat
-      Float :center_lon
-      Float :radius_nm
+      attribute :center_lat, Float
+      attribute :center_lon, Float
+      attribute :radius_nm, Float
     end
 
-    IssueRestriction do
+    command "IssueRestriction" do
       role "ATC"
       description "Issue airspace restriction NOTAM for volcanic ash"
-      String :notam_id
-      String :fir_name
-      Float :altitude_floor_ft
-      Float :altitude_ceiling_ft
-      String :effective_from
-      String :effective_until
+      attribute :notam_id, String
+      attribute :fir_name, String
+      attribute :altitude_floor_ft, Float
+      attribute :altitude_ceiling_ft, Float
+      attribute :effective_from, String
+      attribute :effective_until, String
       emits "RestrictionIssued"
       then_set :notam_id, to: :notam_id
       then_set :fir_name, to: :fir_name
@@ -156,17 +156,17 @@ Hecks.bluebook "VolcanicAshAviation", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    ExtendRestriction do
+    command "ExtendRestriction" do
       role "ATC"
       description "Extend restriction duration as ash persists"
       reference_to(AirspaceRestriction)
-      String :effective_until
+      attribute :effective_until, String
       given { status == "active" }
       emits "RestrictionExtended"
       then_set :effective_until, to: :effective_until
     end
 
-    LiftRestriction do
+    command "LiftRestriction" do
       role "ATC"
       description "Lift airspace restriction when ash clears"
       reference_to(AirspaceRestriction)
@@ -182,27 +182,27 @@ Hecks.bluebook "VolcanicAshAviation", version: "2026.04.13.1" do
   end
 
   aggregate "CargoFlight", "A cargo flight affected by volcanic ash — rerouting, delays, fuel impact" do
-    String :flight_number
-    String :origin
-    String :destination
-    String :original_route
-    String :rerouted_via
-    Float :additional_fuel_kg
-    String :status
+    attribute :flight_number, String
+    attribute :origin, String
+    attribute :destination, String
+    attribute :original_route, String
+    attribute :rerouted_via, String
+    attribute :additional_fuel_kg, Float
+    attribute :status, String
 
     value_object "RouteDeviation" do
-      Float :extra_distance_nm
-      Float :extra_time_hours
-      Float :extra_fuel_kg
+      attribute :extra_distance_nm, Float
+      attribute :extra_time_hours, Float
+      attribute :extra_fuel_kg, Float
     end
 
-    FileCargoFlight do
+    command "FileCargoFlight" do
       role "Dispatcher"
       description "File a cargo flight plan"
-      String :flight_number
-      String :origin
-      String :destination
-      String :original_route
+      attribute :flight_number, String
+      attribute :origin, String
+      attribute :destination, String
+      attribute :original_route, String
       emits "CargoFlightFiled"
       then_set :flight_number, to: :flight_number
       then_set :origin, to: :origin
@@ -212,18 +212,18 @@ Hecks.bluebook "VolcanicAshAviation", version: "2026.04.13.1" do
       then_set :status, to: "filed"
     end
 
-    RerouteAroundAsh do
+    command "RerouteAroundAsh" do
       role "Dispatcher"
       description "Reroute cargo flight to avoid volcanic ash cloud"
-      String :rerouted_via
-      Float :additional_fuel_kg
+      attribute :rerouted_via, String
+      attribute :additional_fuel_kg, Float
       emits "FlightRerouted"
       then_set :rerouted_via, to: :rerouted_via
       then_set :additional_fuel_kg, to: :additional_fuel_kg
       then_set :status, to: "rerouted"
     end
 
-    CancelFlight do
+    command "CancelFlight" do
       role "Dispatcher"
       description "Cancel flight when no safe route exists"
       reference_to(CargoFlight)
@@ -232,7 +232,7 @@ Hecks.bluebook "VolcanicAshAviation", version: "2026.04.13.1" do
       then_set :status, to: "cancelled"
     end
 
-    ClearFlight do
+    command "ClearFlight" do
       role "Dispatcher"
       description "Clear flight for departure when ash restriction lifts"
       emits "FlightCleared"

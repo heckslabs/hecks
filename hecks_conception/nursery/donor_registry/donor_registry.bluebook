@@ -3,29 +3,29 @@ Hecks.bluebook "DonorRegistry", version: "2026.04.13.1" do
   category "healthcare_technology"
 
   aggregate "DonorProfile", "A registered organ donor with consent and medical details" do
-    String :donor_id
-    String :name
-    String :blood_type
+    attribute :donor_id, String
+    attribute :name, String
+    attribute :blood_type, String
     list_of(OrganConsent) :organs
-    String :status
+    attribute :status, String
     value_object "OrganConsent" do
-      String :organ_name
-      String :consent_date
-      String :hla_type
+      attribute :organ_name, String
+      attribute :consent_date, String
+      attribute :hla_type, String
     end
-    RegisterDonor do
+    command "RegisterDonor" do
       role "Coordinator"
       description "Register a new organ donor with consent details"
-      String :donor_id
-      String :name
-      String :blood_type
+      attribute :donor_id, String
+      attribute :name, String
+      attribute :blood_type, String
       emits "DonorRegistered"
       then_set :donor_id, to: :donor_id
       then_set :name, to: :name
       then_set :blood_type, to: :blood_type
       then_set :status, to: "active"
     end
-    DeactivateDonor do
+    command "DeactivateDonor" do
       role "Coordinator"
       description "Deactivate a donor profile when no longer eligible"
       reference_to(DonorProfile)
@@ -36,20 +36,20 @@ Hecks.bluebook "DonorRegistry", version: "2026.04.13.1" do
   end
 
   aggregate "RecipientMatch", "A match between a donor organ and a waiting recipient" do
-    String :match_id
-    String :donor_id
-    String :recipient_name
-    String :organ_name
-    Float :compatibility_score
-    String :status
-    FindMatch do
+    attribute :match_id, String
+    attribute :donor_id, String
+    attribute :recipient_name, String
+    attribute :organ_name, String
+    attribute :compatibility_score, Float
+    attribute :status, String
+    command "FindMatch" do
       role "System"
       description "Find the best recipient match for an available organ"
-      String :match_id
-      String :donor_id
-      String :recipient_name
-      String :organ_name
-      Float :compatibility_score
+      attribute :match_id, String
+      attribute :donor_id, String
+      attribute :recipient_name, String
+      attribute :organ_name, String
+      attribute :compatibility_score, Float
       emits "MatchFound"
       then_set :match_id, to: :match_id
       then_set :donor_id, to: :donor_id
@@ -58,7 +58,7 @@ Hecks.bluebook "DonorRegistry", version: "2026.04.13.1" do
       then_set :compatibility_score, to: :compatibility_score
       then_set :status, to: "pending"
     end
-    ConfirmMatch do
+    command "ConfirmMatch" do
       role "Surgeon"
       description "Confirm the organ match and approve for transplant"
       reference_to(RecipientMatch)
@@ -69,20 +69,20 @@ Hecks.bluebook "DonorRegistry", version: "2026.04.13.1" do
   end
 
   aggregate "OrganTransport", "A time-critical organ transport between facilities" do
-    String :transport_id
-    String :match_id
-    String :origin_hospital
-    String :dest_hospital
-    Float :max_hours
-    String :status
-    ArrangeTransport do
+    attribute :transport_id, String
+    attribute :match_id, String
+    attribute :origin_hospital, String
+    attribute :dest_hospital, String
+    attribute :max_hours, Float
+    attribute :status, String
+    command "ArrangeTransport" do
       role "Coordinator"
       description "Arrange time-critical organ transport between hospitals"
-      String :transport_id
-      String :match_id
-      String :origin_hospital
-      String :dest_hospital
-      Float :max_hours
+      attribute :transport_id, String
+      attribute :match_id, String
+      attribute :origin_hospital, String
+      attribute :dest_hospital, String
+      attribute :max_hours, Float
       emits "TransportArranged"
       then_set :transport_id, to: :transport_id
       then_set :match_id, to: :match_id
@@ -91,7 +91,7 @@ Hecks.bluebook "DonorRegistry", version: "2026.04.13.1" do
       then_set :max_hours, to: :max_hours
       then_set :status, to: "arranged"
     end
-    ConfirmArrival do
+    command "ConfirmArrival" do
       role "Coordinator"
       description "Confirm organ arrived at destination hospital"
       reference_to(OrganTransport)
@@ -102,19 +102,19 @@ Hecks.bluebook "DonorRegistry", version: "2026.04.13.1" do
   end
 
   aggregate "Settlement", "Financial settlement between hospitals for organ procurement" do
-    String :settlement_id
-    String :match_id
-    Float :procurement_cost
-    Float :transport_cost
-    Float :total
-    String :status
-    OpenSettlement do
+    attribute :settlement_id, String
+    attribute :match_id, String
+    attribute :procurement_cost, Float
+    attribute :transport_cost, Float
+    attribute :total, Float
+    attribute :status, String
+    command "OpenSettlement" do
       role "BillingClerk"
       description "Create a financial settlement for organ procurement"
-      String :settlement_id
-      String :match_id
-      Float :procurement_cost
-      Float :transport_cost
+      attribute :settlement_id, String
+      attribute :match_id, String
+      attribute :procurement_cost, Float
+      attribute :transport_cost, Float
       emits "SettlementOpened"
       then_set :settlement_id, to: :settlement_id
       then_set :match_id, to: :match_id
@@ -122,7 +122,7 @@ Hecks.bluebook "DonorRegistry", version: "2026.04.13.1" do
       then_set :transport_cost, to: :transport_cost
       then_set :status, to: "pending"
     end
-    ProcessPayment do
+    command "ProcessPayment" do
       role "BillingClerk"
       description "Process payment for the settlement"
       reference_to(Settlement)

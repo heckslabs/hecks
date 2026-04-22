@@ -2,18 +2,18 @@ Hecks.bluebook "TagManagement", version: "2026.04.11.1" do
   vision "Control what runs on your pages — tags fire on triggers, triggers evaluate variables, containers version and publish atomically"
 
   aggregate "Container", "A named scope that holds tags, triggers, and variables — one per site or app" do
-    String :name
-    String :domain
-    String :container_id
-    String :notes
-    String :status
+    attribute :name, String
+    attribute :domain, String
+    attribute :container_id, String
+    attribute :notes, String
+    attribute :status, String
 
-    ProvisionContainer do
+    command "ProvisionContainer" do
       role "Admin"
       description "Provision a new container for a website or app"
-      String :name
-      String :domain
-      String :container_id
+      attribute :name, String
+      attribute :domain, String
+      attribute :container_id, String
       emits "ContainerProvisioned"
       then_set :name, to: :name
       then_set :domain, to: :domain
@@ -21,16 +21,16 @@ Hecks.bluebook "TagManagement", version: "2026.04.11.1" do
       then_set :status, to: "active"
     end
 
-    RenameContainer do
+    command "RenameContainer" do
       role "Admin"
       description "Change the container's display name"
       reference_to(Container)
-      String :name
+      attribute :name, String
       emits "ContainerRenamed"
       then_set :name, to: :name
     end
 
-    ArchiveContainer do
+    command "ArchiveContainer" do
       role "Admin"
       description "Archive a container — stops serving all tags"
       reference_to(Container)
@@ -46,29 +46,29 @@ Hecks.bluebook "TagManagement", version: "2026.04.11.1" do
   end
 
   aggregate "Tag", "A snippet that fires when its trigger conditions are met — analytics, pixels, scripts" do
-    String :name
-    String :tag_type
-    String :container_id
-    String :trigger_name
-    Integer :firing_order
-    String :template
-    String :custom_html
+    attribute :name, String
+    attribute :tag_type, String
+    attribute :container_id, String
+    attribute :trigger_name, String
+    attribute :firing_order, Integer
+    attribute :template, String
+    attribute :custom_html, String
     list_of(ConfigEntry) :config
-    String :consent_required
-    String :status
+    attribute :consent_required, String
+    attribute :status, String
 
     value_object "ConfigEntry" do
-      String :key
-      String :value
+      attribute :key, String
+      attribute :value, String
     end
 
-    DefineTag do
+    command "DefineTag" do
       role "Marketer"
       description "Define a new tag in a container — analytics, conversion pixel, or custom HTML"
-      String :name
-      String :tag_type
-      String :container_id
-      String :template
+      attribute :name, String
+      attribute :tag_type, String
+      attribute :container_id, String
+      attribute :template, String
       emits "TagDefined"
       then_set :name, to: :name
       then_set :tag_type, to: :tag_type
@@ -77,52 +77,52 @@ Hecks.bluebook "TagManagement", version: "2026.04.11.1" do
       then_set :status, to: "draft"
     end
 
-    ConfigureTag do
+    command "ConfigureTag" do
       role "Marketer"
       description "Set configuration values — tracking IDs, pixel IDs, custom parameters"
       reference_to(Tag)
-      String :key
-      String :value
+      attribute :key, String
+      attribute :value, String
       emits "TagConfigured"
     end
 
-    SetCustomHtml do
+    command "SetCustomHtml" do
       role "Developer"
       description "Set raw HTML/JS for a custom HTML tag"
       reference_to(Tag)
-      String :custom_html
+      attribute :custom_html, String
       emits "CustomHtmlSet"
       then_set :custom_html, to: :custom_html
     end
 
-    AssignTrigger do
+    command "AssignTrigger" do
       role "Marketer"
       description "Bind this tag to a trigger — the tag fires when the trigger evaluates true"
       reference_to(Tag)
-      String :trigger_name
+      attribute :trigger_name, String
       emits "TriggerAssigned"
       then_set :trigger_name, to: :trigger_name
     end
 
-    SetFiringOrder do
+    command "SetFiringOrder" do
       role "Marketer"
       description "Set the priority — lower numbers fire first"
       reference_to(Tag)
-      Integer :firing_order
+      attribute :firing_order, Integer
       emits "FiringOrderSet"
       then_set :firing_order, to: :firing_order
     end
 
-    RequireConsent do
+    command "RequireConsent" do
       role "Marketer"
       description "Mark this tag as requiring user consent before firing"
       reference_to(Tag)
-      String :consent_required
+      attribute :consent_required, String
       emits "ConsentRequired"
       then_set :consent_required, to: :consent_required
     end
 
-    PauseTag do
+    command "PauseTag" do
       role "Marketer"
       description "Pause a tag — it stays in the container but does not fire"
       reference_to(Tag)
@@ -131,7 +131,7 @@ Hecks.bluebook "TagManagement", version: "2026.04.11.1" do
       then_set :status, to: "paused"
     end
 
-    ResumeTag do
+    command "ResumeTag" do
       role "Marketer"
       description "Resume a paused tag"
       reference_to(Tag)
@@ -148,25 +148,25 @@ Hecks.bluebook "TagManagement", version: "2026.04.11.1" do
   end
 
   aggregate "Trigger", "A condition that causes tags to fire — page views, clicks, timers, custom events" do
-    String :name
-    String :trigger_type
-    String :container_id
+    attribute :name, String
+    attribute :trigger_type, String
+    attribute :container_id, String
     list_of(Condition) :conditions
-    String :description
+    attribute :description, String
 
     value_object "Condition" do
-      String :variable_name
-      String :operator
-      String :value
+      attribute :variable_name, String
+      attribute :operator, String
+      attribute :value, String
     end
 
-    DefineTrigger do
+    command "DefineTrigger" do
       role "Marketer"
       description "Define a new trigger — when should tags fire?"
-      String :name
-      String :trigger_type
-      String :container_id
-      String :description
+      attribute :name, String
+      attribute :trigger_type, String
+      attribute :container_id, String
+      attribute :description, String
       emits "TriggerDefined"
       then_set :name, to: :name
       then_set :trigger_type, to: :trigger_type
@@ -174,41 +174,41 @@ Hecks.bluebook "TagManagement", version: "2026.04.11.1" do
       then_set :description, to: :description
     end
 
-    AddCondition do
+    command "AddCondition" do
       role "Marketer"
       description "Add a filter condition — trigger only fires when all conditions match"
       reference_to(Trigger)
-      String :variable_name
-      String :operator
-      String :value
+      attribute :variable_name, String
+      attribute :operator, String
+      attribute :value, String
       emits "ConditionAdded"
     end
 
-    RemoveCondition do
+    command "RemoveCondition" do
       role "Marketer"
       description "Remove a filter condition from this trigger"
       reference_to(Trigger)
-      String :variable_name
+      attribute :variable_name, String
       emits "ConditionRemoved"
     end
   end
 
   aggregate "Variable", "A named value resolved at runtime — URL, cookie, dataLayer, DOM element, constant" do
-    String :name
-    String :variable_type
-    String :container_id
-    String :selector
-    String :default_value
-    String :format
+    attribute :name, String
+    attribute :variable_type, String
+    attribute :container_id, String
+    attribute :selector, String
+    attribute :default_value, String
+    attribute :format, String
 
-    DefineVariable do
+    command "DefineVariable" do
       role "Marketer"
       description "Define a new variable that triggers and tags can reference"
-      String :name
-      String :variable_type
-      String :container_id
-      String :selector
-      String :default_value
+      attribute :name, String
+      attribute :variable_type, String
+      attribute :container_id, String
+      attribute :selector, String
+      attribute :default_value, String
       emits "VariableDefined"
       then_set :name, to: :name
       then_set :variable_type, to: :variable_type
@@ -217,45 +217,45 @@ Hecks.bluebook "TagManagement", version: "2026.04.11.1" do
       then_set :default_value, to: :default_value
     end
 
-    RetargetVariable do
+    command "RetargetVariable" do
       role "Marketer"
       description "Change what this variable reads from — CSS selector, dataLayer key, cookie name"
       reference_to(Variable)
-      String :selector
+      attribute :selector, String
       emits "VariableRetargeted"
       then_set :selector, to: :selector
     end
 
-    SetFormat do
+    command "SetFormat" do
       role "Developer"
       description "Apply a format transform — lowercase, trim, regex extract"
       reference_to(Variable)
-      String :format
+      attribute :format, String
       emits "FormatSet"
       then_set :format, to: :format
     end
   end
 
   aggregate "Version", "An immutable snapshot of the container's workspace — tags, triggers, variables frozen" do
-    String :container_id
-    Integer :version_number
-    Integer :tag_count
-    Integer :trigger_count
-    Integer :variable_count
-    String :description
-    String :created_by
-    String :status
+    attribute :container_id, String
+    attribute :version_number, Integer
+    attribute :tag_count, Integer
+    attribute :trigger_count, Integer
+    attribute :variable_count, Integer
+    attribute :description, String
+    attribute :created_by, String
+    attribute :status, String
 
-    SnapshotVersion do
+    command "SnapshotVersion" do
       role "Marketer"
       description "Snapshot the current workspace into a numbered version"
-      String :container_id
-      Integer :version_number
-      Integer :tag_count
-      Integer :trigger_count
-      Integer :variable_count
-      String :description
-      String :created_by
+      attribute :container_id, String
+      attribute :version_number, Integer
+      attribute :tag_count, Integer
+      attribute :trigger_count, Integer
+      attribute :variable_count, Integer
+      attribute :description, String
+      attribute :created_by, String
       emits "VersionSnapshotted"
       then_set :container_id, to: :container_id
       then_set :version_number, to: :version_number
@@ -267,7 +267,7 @@ Hecks.bluebook "TagManagement", version: "2026.04.11.1" do
       then_set :status, to: "draft"
     end
 
-    SubmitVersion do
+    command "SubmitVersion" do
       role "Marketer"
       description "Submit this version for review before publishing"
       reference_to(Version)
@@ -276,7 +276,7 @@ Hecks.bluebook "TagManagement", version: "2026.04.11.1" do
       then_set :status, to: "submitted"
     end
 
-    ApproveVersion do
+    command "ApproveVersion" do
       role "Admin"
       description "Approve a submitted version — ready to go live"
       reference_to(Version)
@@ -285,7 +285,7 @@ Hecks.bluebook "TagManagement", version: "2026.04.11.1" do
       then_set :status, to: "approved"
     end
 
-    PublishVersion do
+    command "PublishVersion" do
       role "Admin"
       description "Push this version live — all visitors see the new tags immediately"
       reference_to(Version)
@@ -294,7 +294,7 @@ Hecks.bluebook "TagManagement", version: "2026.04.11.1" do
       then_set :status, to: "published"
     end
 
-    RestoreVersion do
+    command "RestoreVersion" do
       role "Admin"
       description "Restore a previous version — the current live version is replaced"
       reference_to(Version)
@@ -311,23 +311,23 @@ Hecks.bluebook "TagManagement", version: "2026.04.11.1" do
   end
 
   aggregate "AuditEntry", "Who changed what and when — every workspace change is logged" do
-    String :container_id
-    String :actor
-    String :action
-    String :target_type
-    String :target_name
-    String :detail
-    String :recorded_at
+    attribute :container_id, String
+    attribute :actor, String
+    attribute :action, String
+    attribute :target_type, String
+    attribute :target_name, String
+    attribute :detail, String
+    attribute :recorded_at, String
 
-    RecordChange do
+    command "RecordChange" do
       role "System"
       description "Log a workspace change to the audit trail"
-      String :container_id
-      String :actor
-      String :action
-      String :target_type
-      String :target_name
-      String :detail
+      attribute :container_id, String
+      attribute :actor, String
+      attribute :action, String
+      attribute :target_type, String
+      attribute :target_name, String
+      attribute :detail, String
       emits "ChangeRecorded"
       then_set :container_id, to: :container_id
       then_set :actor, to: :actor

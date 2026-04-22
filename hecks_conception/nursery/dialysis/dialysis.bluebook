@@ -2,21 +2,21 @@ Hecks.bluebook "Dialysis" do
   vision "Renal replacement therapy — patients, treatment sessions, dialysis machines, supply tracking, and lab monitoring"
 
   aggregate "Patient", "A person with kidney failure receiving dialysis treatments" do
-    String :name
-    String :date_of_birth
-    String :blood_type
-    String :access_type
-    String :nephrologist
-    String :status
+    attribute :name, String
+    attribute :date_of_birth, String
+    attribute :blood_type, String
+    attribute :access_type, String
+    attribute :nephrologist, String
+    attribute :status, String
 
-    EnrollPatient do
+    command "EnrollPatient" do
       role "Coordinator"
       description "Register a patient in the dialysis program"
-      String :name
-      String :date_of_birth
-      String :blood_type
-      String :access_type
-      String :nephrologist
+      attribute :name, String
+      attribute :date_of_birth, String
+      attribute :blood_type, String
+      attribute :access_type, String
+      attribute :nephrologist, String
       emits "PatientEnrolled"
       then_set :name, to: :name
       then_set :date_of_birth, to: :date_of_birth
@@ -26,7 +26,7 @@ Hecks.bluebook "Dialysis" do
       then_set :status, to: "enrolled"
     end
 
-    ActivatePatient do
+    command "ActivatePatient" do
       role "Nephrologist"
       description "Clear patient for regular dialysis sessions after labs"
       reference_to(Patient)
@@ -35,16 +35,16 @@ Hecks.bluebook "Dialysis" do
       then_set :status, to: "active"
     end
 
-    ReviseAccess do
+    command "ReviseAccess" do
       role "Nephrologist"
       description "Change the vascular access method for the patient"
       reference_to(Patient)
-      String :access_type
+      attribute :access_type, String
       emits "AccessRevised"
       then_set :access_type, to: :access_type
     end
 
-    TransferPatient do
+    command "TransferPatient" do
       role "Coordinator"
       description "Transfer the patient to another dialysis facility"
       reference_to(Patient)
@@ -54,32 +54,32 @@ Hecks.bluebook "Dialysis" do
   end
 
   aggregate "DialysisSession", "A single dialysis treatment session" do
-    String :patient_name
-    String :session_date
-    Float :pre_weight
-    Float :post_weight
-    Float :fluid_removed
-    Integer :duration_minutes
-    String :nurse_name
-    String :status
+    attribute :patient_name, String
+    attribute :session_date, String
+    attribute :pre_weight, Float
+    attribute :post_weight, Float
+    attribute :fluid_removed, Float
+    attribute :duration_minutes, Integer
+    attribute :nurse_name, String
+    attribute :status, String
     list_of(VitalReading) :intra_vitals
     reference_to Patient
 
     value_object "VitalReading" do
-      String :timestamp
-      Integer :blood_pressure_systolic
-      Integer :blood_pressure_diastolic
-      Integer :heart_rate
+      attribute :timestamp, String
+      attribute :blood_pressure_systolic, Integer
+      attribute :blood_pressure_diastolic, Integer
+      attribute :heart_rate, Integer
     end
 
-    StartSession do
+    command "StartSession" do
       role "Nurse"
       description "Begin a dialysis treatment session for the patient"
       reference_to(Patient)
-      String :patient_name
-      String :session_date
-      Float :pre_weight
-      String :nurse_name
+      attribute :patient_name, String
+      attribute :session_date, String
+      attribute :pre_weight, Float
+      attribute :nurse_name, String
       emits "SessionStarted"
       then_set :patient_name, to: :patient_name
       then_set :session_date, to: :session_date
@@ -88,7 +88,7 @@ Hecks.bluebook "Dialysis" do
       then_set :status, to: "in_progress"
     end
 
-    RecordIntraVitals do
+    command "RecordIntraVitals" do
       role "Nurse"
       description "Log vital signs during the dialysis session"
       reference_to(DialysisSession)
@@ -96,13 +96,13 @@ Hecks.bluebook "Dialysis" do
       emits "IntraVitalsRecorded"
     end
 
-    EndSession do
+    command "EndSession" do
       role "Nurse"
       description "Complete the dialysis session and record post-treatment metrics"
       reference_to(DialysisSession)
-      Float :post_weight
-      Float :fluid_removed
-      Integer :duration_minutes
+      attribute :post_weight, Float
+      attribute :fluid_removed, Float
+      attribute :duration_minutes, Integer
       given("session must be in progress") { status == "in_progress" }
       emits "SessionEnded"
       then_set :post_weight, to: :post_weight
@@ -113,19 +113,19 @@ Hecks.bluebook "Dialysis" do
   end
 
   aggregate "DialysisMachine", "A hemodialysis machine used for treatments" do
-    String :machine_id
-    String :model
-    String :location
-    String :last_disinfection_date
-    String :status
+    attribute :machine_id, String
+    attribute :model, String
+    attribute :location, String
+    attribute :last_disinfection_date, String
+    attribute :status, String
 
-    RegisterMachine do
+    command "RegisterMachine" do
       role "BiomedTechnician"
       description "Add a new dialysis machine to the clinic inventory"
-      String :machine_id
-      String :model
-      String :location
-      String :last_disinfection_date
+      attribute :machine_id, String
+      attribute :model, String
+      attribute :location, String
+      attribute :last_disinfection_date, String
       emits "MachineRegistered"
       then_set :machine_id, to: :machine_id
       then_set :model, to: :model
@@ -134,17 +134,17 @@ Hecks.bluebook "Dialysis" do
       then_set :status, to: "available"
     end
 
-    DisinfectMachine do
+    command "DisinfectMachine" do
       role "Technician"
       description "Perform post-treatment disinfection of the machine"
       reference_to(DialysisMachine)
-      String :last_disinfection_date
+      attribute :last_disinfection_date, String
       emits "MachineDisinfected"
       then_set :last_disinfection_date, to: :last_disinfection_date
       then_set :status, to: "available"
     end
 
-    FlagMalfunction do
+    command "FlagMalfunction" do
       role "Nurse"
       description "Report a machine malfunction during treatment"
       reference_to(DialysisMachine)
@@ -154,12 +154,12 @@ Hecks.bluebook "Dialysis" do
   end
 
   aggregate "DialysisSupply", "Consumable supplies needed for dialysis treatments" do
-    String :supply_name
-    String :category
-    Integer :quantity_on_hand
-    Integer :reorder_level
-    String :supplier
-    String :status
+    attribute :supply_name, String
+    attribute :category, String
+    attribute :quantity_on_hand, Integer
+    attribute :reorder_level, Integer
+    attribute :supplier, String
+    attribute :status, String
     list_of(UsageRecord) :usage_history
 
     specification "BelowReorderLevel" do
@@ -167,19 +167,19 @@ Hecks.bluebook "Dialysis" do
     end
 
     value_object "UsageRecord" do
-      String :used_date
-      Integer :quantity_used
-      String :session_reference
+      attribute :used_date, String
+      attribute :quantity_used, Integer
+      attribute :session_reference, String
     end
 
-    StockSupply do
+    command "StockSupply" do
       role "SupplyClerk"
       description "Add inventory for a dialysis supply item"
-      String :supply_name
-      String :category
-      Integer :quantity_on_hand
-      Integer :reorder_level
-      String :supplier
+      attribute :supply_name, String
+      attribute :category, String
+      attribute :quantity_on_hand, Integer
+      attribute :reorder_level, Integer
+      attribute :supplier, String
       emits "SupplyStocked"
       then_set :supply_name, to: :supply_name
       then_set :category, to: :category
@@ -189,16 +189,16 @@ Hecks.bluebook "Dialysis" do
       then_set :status, to: "in_stock"
     end
 
-    ConsumeSupply do
+    command "ConsumeSupply" do
       role "Nurse"
       description "Record supply usage during a dialysis session"
       reference_to(DialysisSupply)
-      Integer :quantity_used
+      attribute :quantity_used, Integer
       given("must be in stock") { status == "in_stock" }
       emits "SupplyConsumed"
     end
 
-    ReorderSupply do
+    command "ReorderSupply" do
       role "System"
       description "Trigger a reorder when inventory falls below threshold"
       reference_to(DialysisSupply)
@@ -208,23 +208,23 @@ Hecks.bluebook "Dialysis" do
   end
 
   aggregate "LabResult", "A laboratory test result for monitoring dialysis adequacy" do
-    String :patient_name
-    String :test_name
-    String :result_value
-    String :reference_range
-    String :result_date
-    String :status
+    attribute :patient_name, String
+    attribute :test_name, String
+    attribute :result_value, String
+    attribute :reference_range, String
+    attribute :result_date, String
+    attribute :status, String
     reference_to Patient
 
-    RecordLabResult do
+    command "RecordLabResult" do
       role "LabTechnician"
       description "Enter lab results for a dialysis patient"
       reference_to(Patient)
-      String :patient_name
-      String :test_name
-      String :result_value
-      String :reference_range
-      String :result_date
+      attribute :patient_name, String
+      attribute :test_name, String
+      attribute :result_value, String
+      attribute :reference_range, String
+      attribute :result_date, String
       emits "LabResultRecorded"
       then_set :patient_name, to: :patient_name
       then_set :test_name, to: :test_name
@@ -234,7 +234,7 @@ Hecks.bluebook "Dialysis" do
       then_set :status, to: "pending_review"
     end
 
-    ReviewLabResult do
+    command "ReviewLabResult" do
       role "Nephrologist"
       description "Review and acknowledge the lab result"
       reference_to(LabResult)

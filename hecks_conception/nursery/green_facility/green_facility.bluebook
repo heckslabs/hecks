@@ -3,18 +3,18 @@ Hecks.bluebook "GreenFacility", version: "2026.04.13.1" do
   category "healthcare_technology"
 
   aggregate "FacilityResident", "A resident in the assisted living green facility" do
-    String :resident_id
-    String :name
-    String :unit_number
-    String :care_plan
-    String :status
-    AdmitResident do
+    attribute :resident_id, String
+    attribute :name, String
+    attribute :unit_number, String
+    attribute :care_plan, String
+    attribute :status, String
+    command "AdmitResident" do
       role "Admin"
       description "Admit a new resident to the green facility"
-      String :resident_id
-      String :name
-      String :unit_number
-      String :care_plan
+      attribute :resident_id, String
+      attribute :name, String
+      attribute :unit_number, String
+      attribute :care_plan, String
       emits "ResidentAdmitted"
       then_set :resident_id, to: :resident_id
       then_set :name, to: :name
@@ -22,7 +22,7 @@ Hecks.bluebook "GreenFacility", version: "2026.04.13.1" do
       then_set :care_plan, to: :care_plan
       then_set :status, to: "active"
     end
-    DischargeResident do
+    command "DischargeResident" do
       role "Admin"
       description "Discharge a resident from the facility"
       reference_to(FacilityResident)
@@ -33,32 +33,32 @@ Hecks.bluebook "GreenFacility", version: "2026.04.13.1" do
   end
 
   aggregate "WindTurbine", "A wind turbine generating electricity for the facility" do
-    String :turbine_id
-    String :model
-    Float :rated_kw
-    Float :current_output_kw
-    String :status
-    InstallTurbine do
+    attribute :turbine_id, String
+    attribute :model, String
+    attribute :rated_kw, Float
+    attribute :current_output_kw, Float
+    attribute :status, String
+    command "InstallTurbine" do
       role "Engineer"
       description "Install a wind turbine at the facility"
-      String :turbine_id
-      String :model
-      Float :rated_kw
+      attribute :turbine_id, String
+      attribute :model, String
+      attribute :rated_kw, Float
       emits "TurbineInstalled"
       then_set :turbine_id, to: :turbine_id
       then_set :model, to: :model
       then_set :rated_kw, to: :rated_kw
       then_set :status, to: "online"
     end
-    ReadOutput do
+    command "ReadOutput" do
       role "System"
       description "Read the current power output from the turbine"
       reference_to(WindTurbine)
-      Float :current_output_kw
+      attribute :current_output_kw, Float
       emits "OutputRead"
       then_set :current_output_kw, to: :current_output_kw
     end
-    TakeOffline do
+    command "TakeOffline" do
       role "Engineer"
       description "Take turbine offline for maintenance"
       reference_to(WindTurbine)
@@ -69,52 +69,52 @@ Hecks.bluebook "GreenFacility", version: "2026.04.13.1" do
   end
 
   aggregate "EnergyLedger", "A ledger tracking energy production vs consumption" do
-    String :ledger_id
-    String :month
-    Float :produced_kwh
-    Float :consumed_kwh
-    Float :grid_offset_kwh
+    attribute :ledger_id, String
+    attribute :month, String
+    attribute :produced_kwh, Float
+    attribute :consumed_kwh, Float
+    attribute :grid_offset_kwh, Float
     value_object "DailyReading" do
-      String :date
-      Float :produced
-      Float :consumed
+      attribute :date, String
+      attribute :produced, Float
+      attribute :consumed, Float
     end
-    RecordMonth do
+    command "RecordMonth" do
       role "System"
       description "Record monthly energy production and consumption totals"
-      String :ledger_id
-      String :month
-      Float :produced_kwh
-      Float :consumed_kwh
+      attribute :ledger_id, String
+      attribute :month, String
+      attribute :produced_kwh, Float
+      attribute :consumed_kwh, Float
       emits "MonthRecorded"
       then_set :ledger_id, to: :ledger_id
       then_set :month, to: :month
       then_set :produced_kwh, to: :produced_kwh
       then_set :consumed_kwh, to: :consumed_kwh
     end
-    CalculateOffset do
+    command "CalculateOffset" do
       role "System"
       description "Calculate how much grid energy was offset by wind"
       reference_to(EnergyLedger)
-      Float :grid_offset_kwh
+      attribute :grid_offset_kwh, Float
       emits "OffsetCalculated"
       then_set :grid_offset_kwh, to: :grid_offset_kwh
     end
   end
 
   aggregate "CostSavingsReport", "A report on cost savings from renewable energy" do
-    String :report_id
-    String :period
-    Float :energy_savings_usd
-    Float :carbon_offset_tons
-    String :status
-    GenerateSavingsReport do
+    attribute :report_id, String
+    attribute :period, String
+    attribute :energy_savings_usd, Float
+    attribute :carbon_offset_tons, Float
+    attribute :status, String
+    command "GenerateSavingsReport" do
       role "FacilityManager"
       description "Generate a cost savings report for a period"
-      String :report_id
-      String :period
-      Float :energy_savings_usd
-      Float :carbon_offset_tons
+      attribute :report_id, String
+      attribute :period, String
+      attribute :energy_savings_usd, Float
+      attribute :carbon_offset_tons, Float
       emits "SavingsReportGenerated"
       then_set :report_id, to: :report_id
       then_set :period, to: :period
@@ -122,7 +122,7 @@ Hecks.bluebook "GreenFacility", version: "2026.04.13.1" do
       then_set :carbon_offset_tons, to: :carbon_offset_tons
       then_set :status, to: "generated"
     end
-    ShareReport do
+    command "ShareReport" do
       role "FacilityManager"
       description "Share the savings report with residents and board"
       reference_to(CostSavingsReport)

@@ -4,30 +4,30 @@ Hecks.bluebook "LocksmithService" do
 
   aggregate "ServiceCall" do
     description "A locksmith dispatch to a customer location for lockout, rekey, or installation"
-    String :customer_name
-    String :address
-    String :service_type
-    String :status
-    String :urgency
+    attribute :customer_name, String
+    attribute :address, String
+    attribute :service_type, String
+    attribute :status, String
+    attribute :urgency, String
 
     value_object "CallWindow" do
-      String :requested_time
-      Integer :eta_minutes
+      attribute :requested_time, String
+      attribute :eta_minutes, Integer
     end
 
-    DispatchLocksmith do
+    command "DispatchLocksmith" do
       role "Dispatcher"
       goal "Send a locksmith to the customer location"
       description "Create a service call and assign the nearest available locksmith"
-      String :customer_name
-      String :address
-      String :service_type
-      String :urgency
+      attribute :customer_name, String
+      attribute :address, String
+      attribute :service_type, String
+      attribute :urgency, String
       emits "LocksmithDispatched"
       then_set :status, to: "dispatched"
     end
 
-    ArriveOnSite do
+    command "ArriveOnSite" do
       role "Locksmith"
       goal "Check in at the customer location"
       description "Record arrival time for billing and SLA tracking"
@@ -36,43 +36,43 @@ Hecks.bluebook "LocksmithService" do
       emits "ArrivedOnSite"
     end
 
-    CompleteService do
+    command "CompleteService" do
       role "Locksmith"
       goal "Finish the job and collect payment"
       description "Mark the service call complete and record charges"
       reference_to(ServiceCall)
-      Float :total_charge
+      attribute :total_charge, Float
       emits "ServiceCompleted"
     end
   end
 
   aggregate "Lock" do
     description "A physical lock — deadbolt, knob, padlock, or electronic — with brand and security grade"
-    String :lock_type
-    String :brand
-    String :grade
-    String :location
-    String :status
+    attribute :lock_type, String
+    attribute :brand, String
+    attribute :grade, String
+    attribute :location, String
+    attribute :status, String
     reference_to(ServiceCall)
 
     value_object "SecurityRating" do
-      String :ansi_grade
-      String :ul_rating
+      attribute :ansi_grade, String
+      attribute :ul_rating, String
     end
 
-    InstallLock do
+    command "InstallLock" do
       role "Locksmith"
       goal "Mount and configure a new lock at the customer location"
       description "Install the lock hardware and verify operation"
-      String :lock_type
-      String :brand
-      String :grade
-      String :location
+      attribute :lock_type, String
+      attribute :brand, String
+      attribute :grade, String
+      attribute :location, String
       reference_to(ServiceCall)
       emits "LockInstalled"
     end
 
-    RekeyLock do
+    command "RekeyLock" do
       role "Locksmith"
       goal "Change the pin configuration so old keys no longer work"
       description "Rekey the lock cylinder to a new key pattern"
@@ -80,55 +80,55 @@ Hecks.bluebook "LocksmithService" do
       emits "LockRekeyed"
     end
 
-    ReplaceLock do
+    command "ReplaceLock" do
       role "Locksmith"
       goal "Remove a damaged lock and install a replacement"
       description "Swap out the entire lock assembly"
       reference_to(Lock)
-      String :new_brand
-      String :new_grade
+      attribute :new_brand, String
+      attribute :new_grade, String
       emits "LockReplaced"
     end
   end
 
   aggregate "KeyOrder" do
     description "A key cutting order — duplicates, restricted blanks, or transponder keys"
-    String :key_type
-    Integer :quantity
-    String :blank_code
-    String :status
+    attribute :key_type, String
+    attribute :quantity, Integer
+    attribute :blank_code, String
+    attribute :status, String
     reference_to(Lock)
 
-    CutKeys do
+    command "CutKeys" do
       role "Locksmith"
       goal "Cut duplicate keys from a code or original"
       description "Use the key machine to cut keys to the specified pattern"
-      String :key_type
-      Integer :quantity
-      String :blank_code
+      attribute :key_type, String
+      attribute :quantity, Integer
+      attribute :blank_code, String
       reference_to(Lock)
       emits "KeysCut"
       then_set :key_type, to: :key_type
     end
 
-    CutTransponderBlank do
+    command "CutTransponderBlank" do
       role "Locksmith"
       goal "Cut a transponder key blank ready for programming"
       description "Prepare a transponder-grade blank for downstream programming"
-      Integer :quantity
-      String :blank_code
+      attribute :quantity, Integer
+      attribute :blank_code, String
       reference_to(Lock)
       emits "TransponderBlankCut"
       then_set :key_type, to: "transponder"
     end
 
-    ProgramTransponder do
+    command "ProgramTransponder" do
       role "Locksmith"
       goal "Program an automotive transponder key to the vehicle"
       description "Clone or program the transponder chip for ignition"
       reference_to(KeyOrder)
-      String :vehicle_make
-      String :vehicle_year
+      attribute :vehicle_make, String
+      attribute :vehicle_year, String
       given("must be transponder type") { key_type == "transponder" }
       emits "TransponderProgrammed"
     end
@@ -136,24 +136,24 @@ Hecks.bluebook "LocksmithService" do
 
   aggregate "AccessCode" do
     description "An electronic access code for keypad locks or smart locks"
-    String :code_name
-    String :code_value
-    String :access_level
-    String :valid_until
+    attribute :code_name, String
+    attribute :code_value, String
+    attribute :access_level, String
+    attribute :valid_until, String
     reference_to(Lock)
 
-    ProgramCode do
+    command "ProgramCode" do
       role "Locksmith"
       goal "Set up a new access code on an electronic lock"
       description "Program the keypad or smart lock with a new code"
-      String :code_name
-      String :code_value
-      String :access_level
+      attribute :code_name, String
+      attribute :code_value, String
+      attribute :access_level, String
       reference_to(Lock)
       emits "CodeProgrammed"
     end
 
-    RevokeCode do
+    command "RevokeCode" do
       role "Property Manager"
       goal "Deactivate an access code that is no longer authorized"
       description "Remove the code from the lock's memory"

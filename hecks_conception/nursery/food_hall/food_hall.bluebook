@@ -3,26 +3,26 @@ Hecks.bluebook "FoodHall", version: "2026.04.13.1" do
   category "hospitality"
 
   aggregate "FoodVendor", "A restaurant or food business operating in the hall" do
-    String :vendor_id
-    String :business_name
-    String :cuisine_type
-    String :contact_name
-    String :status
+    attribute :vendor_id, String
+    attribute :business_name, String
+    attribute :cuisine_type, String
+    attribute :contact_name, String
+    attribute :status, String
     list_of(HealthCertification) :certifications
 
     value_object "HealthCertification" do
-      String :cert_type
-      String :issue_date
-      String :expiration_date
+      attribute :cert_type, String
+      attribute :issue_date, String
+      attribute :expiration_date, String
     end
 
-    OnboardVendor do
+    command "OnboardVendor" do
       role "HallManager"
       description "Bring a new food vendor into the hall"
-      String :vendor_id
-      String :business_name
-      String :cuisine_type
-      String :contact_name
+      attribute :vendor_id, String
+      attribute :business_name, String
+      attribute :cuisine_type, String
+      attribute :contact_name, String
       emits "VendorOnboarded"
       then_set :vendor_id, to: :vendor_id
       then_set :business_name, to: :business_name
@@ -31,7 +31,7 @@ Hecks.bluebook "FoodHall", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    OffboardVendor do
+    command "OffboardVendor" do
       role "HallManager"
       description "Remove a vendor from the food hall"
       reference_to(FoodVendor)
@@ -42,19 +42,19 @@ Hecks.bluebook "FoodHall", version: "2026.04.13.1" do
   end
 
   aggregate "FoodStall", "A physical kitchen and counter space leased to a vendor" do
-    String :stall_id
-    String :location
-    Float :monthly_rent
-    String :vendor_id
-    String :status
+    attribute :stall_id, String
+    attribute :location, String
+    attribute :monthly_rent, Float
+    attribute :vendor_id, String
+    attribute :status, String
 
-    LeaseStall do
+    command "LeaseStall" do
       role "HallManager"
       description "Assign a stall to a vendor with lease terms"
-      String :stall_id
-      String :location
-      Float :monthly_rent
-      String :vendor_id
+      attribute :stall_id, String
+      attribute :location, String
+      attribute :monthly_rent, Float
+      attribute :vendor_id, String
       emits "StallLeased"
       then_set :stall_id, to: :stall_id
       then_set :location, to: :location
@@ -63,7 +63,7 @@ Hecks.bluebook "FoodHall", version: "2026.04.13.1" do
       then_set :status, to: "leased"
     end
 
-    TerminateLease do
+    command "TerminateLease" do
       role "HallManager"
       description "End the lease and reclaim the stall"
       reference_to(FoodStall)
@@ -74,30 +74,30 @@ Hecks.bluebook "FoodHall", version: "2026.04.13.1" do
   end
 
   aggregate "HallMenu", "A consolidated menu displayed across the food hall" do
-    String :menu_id
-    String :vendor_id
+    attribute :menu_id, String
+    attribute :vendor_id, String
     list_of(DishListing) :dishes
-    String :status
+    attribute :status, String
 
     value_object "DishListing" do
-      String :dish_name
-      String :description
-      Float :price
-      String :dietary_tag
+      attribute :dish_name, String
+      attribute :description, String
+      attribute :price, Float
+      attribute :dietary_tag, String
     end
 
-    PublishMenu do
+    command "PublishMenu" do
       role "Vendor"
       description "Submit the vendor's menu for display on the hall board"
-      String :menu_id
-      String :vendor_id
+      attribute :menu_id, String
+      attribute :vendor_id, String
       emits "MenuPublished"
       then_set :menu_id, to: :menu_id
       then_set :vendor_id, to: :vendor_id
       then_set :status, to: "published"
     end
 
-    ReviseMenu do
+    command "ReviseMenu" do
       role "Vendor"
       description "Revise prices or swap dishes on the existing menu"
       reference_to(HallMenu)
@@ -106,18 +106,18 @@ Hecks.bluebook "FoodHall", version: "2026.04.13.1" do
   end
 
   aggregate "SeatingArea", "A shared dining space with tables and chairs" do
-    String :area_id
-    String :name
-    Integer :total_seats
-    Integer :available_seats
-    String :status
+    attribute :area_id, String
+    attribute :name, String
+    attribute :total_seats, Integer
+    attribute :available_seats, Integer
+    attribute :status, String
 
-    OpenSeating do
+    command "OpenSeating" do
       role "HallManager"
       description "Designate a seating area and set its capacity"
-      String :area_id
-      String :name
-      Integer :total_seats
+      attribute :area_id, String
+      attribute :name, String
+      attribute :total_seats, Integer
       emits "SeatingOpened"
       then_set :area_id, to: :area_id
       then_set :name, to: :name
@@ -126,16 +126,16 @@ Hecks.bluebook "FoodHall", version: "2026.04.13.1" do
       then_set :status, to: "open"
     end
 
-    ReserveSeats do
+    command "ReserveSeats" do
       role "Guest"
       description "Claim seats for a party in the shared area"
       reference_to(SeatingArea)
-      Integer :seats_needed
+      attribute :seats_needed, Integer
       given { seats_needed > 0 }
       emits "SeatsReserved"
     end
 
-    CloseSeating do
+    command "CloseSeating" do
       role "HallManager"
       description "Close a seating area for cleaning or an event"
       reference_to(SeatingArea)
@@ -145,23 +145,23 @@ Hecks.bluebook "FoodHall", version: "2026.04.13.1" do
   end
 
   aggregate "CulinaryEvent", "A food-related event hosted at the hall" do
-    String :event_id
-    String :name
-    String :event_type
-    String :date
-    Integer :capacity
-    Float :ticket_price
-    String :status
+    attribute :event_id, String
+    attribute :name, String
+    attribute :event_type, String
+    attribute :date, String
+    attribute :capacity, Integer
+    attribute :ticket_price, Float
+    attribute :status, String
 
-    ScheduleEvent do
+    command "ScheduleEvent" do
       role "HallManager"
       description "Plan a cooking demo, tasting, or food festival"
-      String :event_id
-      String :name
-      String :event_type
-      String :date
-      Integer :capacity
-      Float :ticket_price
+      attribute :event_id, String
+      attribute :name, String
+      attribute :event_type, String
+      attribute :date, String
+      attribute :capacity, Integer
+      attribute :ticket_price, Float
       emits "EventScheduled"
       then_set :event_id, to: :event_id
       then_set :name, to: :name
@@ -172,7 +172,7 @@ Hecks.bluebook "FoodHall", version: "2026.04.13.1" do
       then_set :status, to: "scheduled"
     end
 
-    HostEvent do
+    command "HostEvent" do
       role "HallManager"
       description "Run the event on the scheduled date"
       reference_to(CulinaryEvent)
@@ -181,7 +181,7 @@ Hecks.bluebook "FoodHall", version: "2026.04.13.1" do
       then_set :status, to: "completed"
     end
 
-    CancelEvent do
+    command "CancelEvent" do
       role "HallManager"
       description "Call off the event and notify ticket holders"
       reference_to(CulinaryEvent)

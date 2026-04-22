@@ -3,32 +3,32 @@ Hecks.bluebook "AutoRepairShop" do
   category "automotive"
 
   aggregate "Vehicle", "A customer's vehicle with VIN, mileage, and service history" do
-    String :vin
-    String :make
-    String :model
-    Integer :year
-    Integer :mileage
-    String :license_plate
-    String :owner_name
-    String :owner_phone
+    attribute :vin, String
+    attribute :make, String
+    attribute :model, String
+    attribute :year, Integer
+    attribute :mileage, Integer
+    attribute :license_plate, String
+    attribute :owner_name, String
+    attribute :owner_phone, String
 
     value_object "EngineSpec" do
-      String :engine_type
-      Float :displacement
-      Integer :cylinders
-      String :fuel_type
+      attribute :engine_type, String
+      attribute :displacement, Float
+      attribute :cylinders, Integer
+      attribute :fuel_type, String
     end
 
-    IntakeVehicle do
+    command "IntakeVehicle" do
       role "ServiceAdvisor"
       description "Register a vehicle when it arrives at the shop for service"
-      String :vin
-      String :make
-      String :model
-      Integer :year
-      Integer :mileage
-      String :owner_name
-      String :owner_phone
+      attribute :vin, String
+      attribute :make, String
+      attribute :model, String
+      attribute :year, Integer
+      attribute :mileage, Integer
+      attribute :owner_name, String
+      attribute :owner_phone, String
       emits "VehicleIntaked"
       then_set :vin, to: :vin
       then_set :make, to: :make
@@ -38,63 +38,63 @@ Hecks.bluebook "AutoRepairShop" do
       then_set :owner_name, to: :owner_name
     end
 
-    LogMileage do
+    command "LogMileage" do
       role "Technician"
       description "Record the current odometer reading during service"
       reference_to(Vehicle)
-      Integer :mileage
+      attribute :mileage, Integer
       emits "MileageLogged"
       then_set :mileage, to: :mileage
     end
   end
 
   aggregate "WorkOrder", "A repair job tracking diagnosis, labor, parts, and completion status" do
-    String :complaint
-    String :diagnosis
-    String :status
-    Float :labor_hours
-    Float :total_cost
+    attribute :complaint, String
+    attribute :diagnosis, String
+    attribute :status, String
+    attribute :labor_hours, Float
+    attribute :total_cost, Float
     reference_to(Vehicle)
 
     value_object "LaborEntry" do
-      String :task_description
-      Float :hours
-      Float :rate
+      attribute :task_description, String
+      attribute :hours, Float
+      attribute :rate, Float
     end
 
-    OpenWorkOrder do
+    command "OpenWorkOrder" do
       role "ServiceAdvisor"
       description "Create a new work order from the customer's complaint"
       reference_to(Vehicle)
-      String :complaint
+      attribute :complaint, String
       emits "WorkOrderOpened"
       then_set :complaint, to: :complaint
       then_set :status, to: "open"
     end
 
-    DiagnoseIssue do
+    command "DiagnoseIssue" do
       role "Technician"
       description "Record the root cause after inspecting the vehicle"
       reference_to(WorkOrder)
-      String :diagnosis
+      attribute :diagnosis, String
       given { status == "open" }
       emits "IssueDiagnosed"
       then_set :diagnosis, to: :diagnosis
       then_set :status, to: "in_progress"
     end
 
-    CompleteRepair do
+    command "CompleteRepair" do
       role "Technician"
       description "Mark the work order as finished after all repairs are done"
       reference_to(WorkOrder)
-      Float :labor_hours
+      attribute :labor_hours, Float
       given { status == "in_progress" }
       emits "RepairCompleted"
       then_set :labor_hours, to: :labor_hours
       then_set :status, to: "completed"
     end
 
-    CloseWorkOrder do
+    command "CloseWorkOrder" do
       role "ServiceAdvisor"
       description "Close the work order after customer pickup and payment"
       reference_to(WorkOrder)
@@ -104,28 +104,28 @@ Hecks.bluebook "AutoRepairShop" do
   end
 
   aggregate "Part", "An auto part in inventory with stock levels and pricing" do
-    String :part_number
-    String :name
-    String :manufacturer
-    Integer :quantity_on_hand
-    Float :unit_cost
-    Integer :reorder_point
+    attribute :part_number, String
+    attribute :name, String
+    attribute :manufacturer, String
+    attribute :quantity_on_hand, Integer
+    attribute :unit_cost, Float
+    attribute :reorder_point, Integer
 
     value_object "PartSpecification" do
-      String :oem_number
-      String :compatibility
-      String :category
+      attribute :oem_number, String
+      attribute :compatibility, String
+      attribute :category, String
     end
 
-    StockPart do
+    command "StockPart" do
       role "PartsManager"
       description "Add a new part to the inventory with pricing and stock levels"
-      String :part_number
-      String :name
-      String :manufacturer
-      Integer :quantity_on_hand
-      Float :unit_cost
-      Integer :reorder_point
+      attribute :part_number, String
+      attribute :name, String
+      attribute :manufacturer, String
+      attribute :quantity_on_hand, Integer
+      attribute :unit_cost, Float
+      attribute :reorder_point, Integer
       emits "PartStocked"
       then_set :part_number, to: :part_number
       then_set :name, to: :name
@@ -134,39 +134,39 @@ Hecks.bluebook "AutoRepairShop" do
       then_set :reorder_point, to: :reorder_point
     end
 
-    IssuePart do
+    command "IssuePart" do
       role "Technician"
       description "Pull a part from inventory for use on a work order"
       reference_to(Part)
-      Integer :quantity
+      attribute :quantity, Integer
       given { quantity_on_hand > 0 }
       emits "PartIssued"
     end
 
-    ReorderPart do
+    command "ReorderPart" do
       role "PartsManager"
       description "Place a purchase order when stock falls below reorder point"
       reference_to(Part)
-      Integer :order_quantity
+      attribute :order_quantity, Integer
       emits "PartReordered"
     end
   end
 
   aggregate "Estimate", "A cost estimate presented to the customer before authorizing repairs" do
-    Float :parts_total
-    Float :labor_total
-    Float :tax
-    Float :grand_total
-    String :status
+    attribute :parts_total, Float
+    attribute :labor_total, Float
+    attribute :tax, Float
+    attribute :grand_total, Float
+    attribute :status, String
     reference_to(WorkOrder)
 
-    PrepareEstimate do
+    command "PrepareEstimate" do
       role "ServiceAdvisor"
       description "Calculate and prepare a cost estimate for the customer"
       reference_to(WorkOrder)
-      Float :parts_total
-      Float :labor_total
-      Float :tax
+      attribute :parts_total, Float
+      attribute :labor_total, Float
+      attribute :tax, Float
       emits "EstimatePrepared"
       then_set :parts_total, to: :parts_total
       then_set :labor_total, to: :labor_total
@@ -174,7 +174,7 @@ Hecks.bluebook "AutoRepairShop" do
       then_set :status, to: "pending"
     end
 
-    ApproveEstimate do
+    command "ApproveEstimate" do
       role "Customer"
       description "Customer authorizes the repair work at the quoted price"
       reference_to(Estimate)
@@ -183,7 +183,7 @@ Hecks.bluebook "AutoRepairShop" do
       then_set :status, to: "approved"
     end
 
-    DeclineEstimate do
+    command "DeclineEstimate" do
       role "Customer"
       description "Customer declines the repair and picks up the vehicle"
       reference_to(Estimate)

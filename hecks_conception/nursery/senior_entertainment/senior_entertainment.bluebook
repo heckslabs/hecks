@@ -3,20 +3,20 @@ Hecks.bluebook "SeniorEntertainment", version: "2026.04.13.1" do
   category "healthcare_community"
 
   aggregate "SeniorResident", "An elder care resident participating in entertainment programs" do
-    String :resident_id
-    String :name
-    String :room_number
-    String :mobility_level
-    String :vision_level
-    String :hearing_level
-    String :status
-    RegisterResident do
+    attribute :resident_id, String
+    attribute :name, String
+    attribute :room_number, String
+    attribute :mobility_level, String
+    attribute :vision_level, String
+    attribute :hearing_level, String
+    attribute :status, String
+    command "RegisterResident" do
       role "ActivityDirector"
       description "Register a resident for the entertainment program"
-      String :resident_id
-      String :name
-      String :room_number
-      String :mobility_level
+      attribute :resident_id, String
+      attribute :name, String
+      attribute :room_number, String
+      attribute :mobility_level, String
       emits "ResidentRegistered"
       then_set :resident_id, to: :resident_id
       then_set :name, to: :name
@@ -24,12 +24,12 @@ Hecks.bluebook "SeniorEntertainment", version: "2026.04.13.1" do
       then_set :mobility_level, to: :mobility_level
       then_set :status, to: "active"
     end
-    ReviseNeeds do
+    command "ReviseNeeds" do
       role "ActivityDirector"
       description "Update accessibility needs for a resident"
       reference_to(SeniorResident)
-      String :vision_level
-      String :hearing_level
+      attribute :vision_level, String
+      attribute :hearing_level, String
       emits "NeedsRevised"
       then_set :vision_level, to: :vision_level
       then_set :hearing_level, to: :hearing_level
@@ -37,27 +37,27 @@ Hecks.bluebook "SeniorEntertainment", version: "2026.04.13.1" do
   end
 
   aggregate "MovieScreening", "A movie screening event for residents" do
-    String :screening_id
-    String :movie_title
-    String :genre
-    String :date
-    String :venue
-    Integer :seats_available
-    String :status
+    attribute :screening_id, String
+    attribute :movie_title, String
+    attribute :genre, String
+    attribute :date, String
+    attribute :venue, String
+    attribute :seats_available, Integer
+    attribute :status, String
     list_of(AccessFeature) :access_features
     value_object "AccessFeature" do
-      String :feature_type
-      String :description_text
+      attribute :feature_type, String
+      attribute :description_text, String
     end
-    ScheduleScreening do
+    command "ScheduleScreening" do
       role "ActivityDirector"
       description "Schedule a movie screening with accessibility features"
-      String :screening_id
-      String :movie_title
-      String :genre
-      String :date
-      String :venue
-      Integer :seats_available
+      attribute :screening_id, String
+      attribute :movie_title, String
+      attribute :genre, String
+      attribute :date, String
+      attribute :venue, String
+      attribute :seats_available, Integer
       emits "ScreeningScheduled"
       then_set :screening_id, to: :screening_id
       then_set :movie_title, to: :movie_title
@@ -67,7 +67,7 @@ Hecks.bluebook "SeniorEntertainment", version: "2026.04.13.1" do
       then_set :seats_available, to: :seats_available
       then_set :status, to: "scheduled"
     end
-    CancelScreening do
+    command "CancelScreening" do
       role "ActivityDirector"
       description "Cancel a screening"
       reference_to(MovieScreening)
@@ -78,18 +78,18 @@ Hecks.bluebook "SeniorEntertainment", version: "2026.04.13.1" do
   end
 
   aggregate "RSVP", "A resident RSVP for an entertainment event" do
-    String :rsvp_id
-    String :resident_id
-    String :screening_id
-    String :accessibility_needs
-    String :status
-    SubmitRSVP do
+    attribute :rsvp_id, String
+    attribute :resident_id, String
+    attribute :screening_id, String
+    attribute :accessibility_needs, String
+    attribute :status, String
+    command "SubmitRSVP" do
       role "Resident"
       description "RSVP for a scheduled screening"
-      String :rsvp_id
-      String :resident_id
-      String :screening_id
-      String :accessibility_needs
+      attribute :rsvp_id, String
+      attribute :resident_id, String
+      attribute :screening_id, String
+      attribute :accessibility_needs, String
       emits "RSVPSubmitted"
       then_set :rsvp_id, to: :rsvp_id
       then_set :resident_id, to: :resident_id
@@ -97,7 +97,7 @@ Hecks.bluebook "SeniorEntertainment", version: "2026.04.13.1" do
       then_set :accessibility_needs, to: :accessibility_needs
       then_set :status, to: "confirmed"
     end
-    CancelRSVP do
+    command "CancelRSVP" do
       role "Resident"
       description "Cancel an RSVP"
       reference_to(RSVP)
@@ -108,19 +108,19 @@ Hecks.bluebook "SeniorEntertainment", version: "2026.04.13.1" do
   end
 
   aggregate "SocialEvent", "A social gathering around a screening or entertainment" do
-    String :event_id
-    String :screening_id
-    String :theme
-    String :refreshments
-    Integer :attendees
-    String :status
-    PlanSocialEvent do
+    attribute :event_id, String
+    attribute :screening_id, String
+    attribute :theme, String
+    attribute :refreshments, String
+    attribute :attendees, Integer
+    attribute :status, String
+    command "PlanSocialEvent" do
       role "ActivityDirector"
       description "Plan a social event around a movie screening"
-      String :event_id
-      String :screening_id
-      String :theme
-      String :refreshments
+      attribute :event_id, String
+      attribute :screening_id, String
+      attribute :theme, String
+      attribute :refreshments, String
       emits "SocialEventPlanned"
       then_set :event_id, to: :event_id
       then_set :screening_id, to: :screening_id
@@ -128,11 +128,11 @@ Hecks.bluebook "SeniorEntertainment", version: "2026.04.13.1" do
       then_set :refreshments, to: :refreshments
       then_set :status, to: "planned"
     end
-    RecordAttendance do
+    command "RecordAttendance" do
       role "ActivityDirector"
       description "Record attendance at the social event"
       reference_to(SocialEvent)
-      Integer :attendees
+      attribute :attendees, Integer
       given { status == "planned" }
       emits "AttendanceRecorded"
       then_set :attendees, to: :attendees

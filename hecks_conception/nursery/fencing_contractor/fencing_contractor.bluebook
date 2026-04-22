@@ -4,46 +4,46 @@ Hecks.bluebook "FencingContractor" do
 
   aggregate "FenceEstimate" do
     description "A fence estimate with linear footage, style, height, and gate count"
-    String :customer_name
-    String :address
-    Float :linear_feet
-    String :fence_style
-    Float :height_feet
-    Integer :gate_count
-    Float :total_price
-    String :status
+    attribute :customer_name, String
+    attribute :address, String
+    attribute :linear_feet, Float
+    attribute :fence_style, String
+    attribute :height_feet, Float
+    attribute :gate_count, Integer
+    attribute :total_price, Float
+    attribute :status, String
 
     value_object "FenceSpec" do
-      String :material
-      String :style
-      Float :height_feet
-      Integer :post_spacing_feet
+      attribute :material, String
+      attribute :style, String
+      attribute :height_feet, Float
+      attribute :post_spacing_feet, Integer
     end
 
-    MeasureProperty do
+    command "MeasureProperty" do
       role "Estimator"
       goal "Walk the property line and measure the fence run"
       description "Measure linear footage, mark gate locations, and note grade changes"
-      String :customer_name
-      String :address
-      Float :linear_feet
-      String :fence_style
-      Float :height_feet
-      Integer :gate_count
+      attribute :customer_name, String
+      attribute :address, String
+      attribute :linear_feet, Float
+      attribute :fence_style, String
+      attribute :height_feet, Float
+      attribute :gate_count, Integer
       emits "PropertyMeasured"
     end
 
-    QuoteFence do
+    command "QuoteFence" do
       role "Estimator"
       goal "Calculate the total price for materials and labor"
       description "Price out posts, panels, gates, concrete, and labor"
       reference_to(FenceEstimate)
-      Float :total_price
+      attribute :total_price, Float
       then_set :status, to: "quoted"
       emits "FenceQuoted"
     end
 
-    AcceptQuote do
+    command "AcceptQuote" do
       role "Customer"
       goal "Approve the fence estimate to schedule installation"
       description "Customer signs the contract authorizing the work"
@@ -55,25 +55,25 @@ Hecks.bluebook "FencingContractor" do
 
   aggregate "MaterialOrder" do
     description "An order for fence materials — posts, panels, rails, gates, concrete, and hardware"
-    String :supplier
-    String :material_list
-    Integer :post_count
-    Integer :panel_count
-    String :status
+    attribute :supplier, String
+    attribute :material_list, String
+    attribute :post_count, Integer
+    attribute :panel_count, Integer
+    attribute :status, String
     reference_to(FenceEstimate)
 
-    OrderMaterials do
+    command "OrderMaterials" do
       role "Office Manager"
       goal "Place the material order with the supplier"
       description "Order posts, panels, rails, gates, and concrete"
-      String :supplier
-      Integer :post_count
-      Integer :panel_count
+      attribute :supplier, String
+      attribute :post_count, Integer
+      attribute :panel_count, Integer
       reference_to(FenceEstimate)
       emits "MaterialsOrdered"
     end
 
-    ReceiveDelivery do
+    command "ReceiveDelivery" do
       role "Crew Lead"
       goal "Check delivered materials against the order"
       description "Verify quantities and inspect for damage"
@@ -84,29 +84,29 @@ Hecks.bluebook "FencingContractor" do
 
   aggregate "PostSetting" do
     description "The post-setting phase — hole digging, post placement, concrete, and plumb verification"
-    Integer :posts_set
-    Float :hole_depth_inches
-    String :concrete_type
-    String :status
+    attribute :posts_set, Integer
+    attribute :hole_depth_inches, Float
+    attribute :concrete_type, String
+    attribute :status, String
     reference_to(FenceEstimate)
 
-    DigHoles do
+    command "DigHoles" do
       role "Crew Lead"
       goal "Dig post holes to the required depth and spacing"
       description "Auger holes at the marked locations per the fence layout"
       reference_to(FenceEstimate)
-      Float :hole_depth_inches
-      Integer :hole_count
+      attribute :hole_depth_inches, Float
+      attribute :hole_count, Integer
       then_set :status, to: "holes_dug"
       emits "HolesDug"
     end
 
-    SetPosts do
+    command "SetPosts" do
       role "Crew Lead"
       goal "Place posts in holes, plumb, and concrete"
       description "Set each post plumb and pour concrete for a solid base"
       reference_to(PostSetting)
-      String :concrete_type
+      attribute :concrete_type, String
       given("holes must be dug") { status == "holes_dug" }
       emits "PostsSet"
     end
@@ -114,52 +114,52 @@ Hecks.bluebook "FencingContractor" do
 
   aggregate "PanelInstallation" do
     description "The panel and rail installation phase after posts have cured"
-    Integer :panels_installed
-    String :status
+    attribute :panels_installed, Integer
+    attribute :status, String
     reference_to(PostSetting)
 
-    HangPanels do
+    command "HangPanels" do
       role "Installer"
       goal "Attach fence panels or rails between the set posts"
       description "Mount panels, level, and secure with appropriate fasteners"
       reference_to(PostSetting)
-      Integer :panels_installed
+      attribute :panels_installed, Integer
       emits "PanelsHung"
     end
 
-    InstallGates do
+    command "InstallGates" do
       role "Installer"
       goal "Hang gates with proper hardware and swing clearance"
       description "Mount gate hinges, latch, and verify operation"
       reference_to(PanelInstallation)
-      Integer :gate_count
+      attribute :gate_count, Integer
       emits "GatesInstalled"
     end
   end
 
   aggregate "PropertyLine" do
     description "A property line survey reference ensuring the fence is within property boundaries"
-    String :survey_source
-    Float :setback_inches
-    String :neighbor_notification
+    attribute :survey_source, String
+    attribute :setback_inches, Float
+    attribute :neighbor_notification, String
     reference_to(FenceEstimate)
 
-    VerifyPropertyLine do
+    command "VerifyPropertyLine" do
       role "Estimator"
       goal "Confirm the fence will be installed within property boundaries"
       description "Review the property survey and mark the setback line"
-      String :survey_source
-      Float :setback_inches
+      attribute :survey_source, String
+      attribute :setback_inches, Float
       reference_to(FenceEstimate)
       emits "PropertyLineVerified"
     end
 
-    NotifyNeighbor do
+    command "NotifyNeighbor" do
       role "Office Manager"
       goal "Send required notification to the adjacent property owner"
       description "Notify the neighbor per local good-neighbor fence laws"
       reference_to(PropertyLine)
-      String :neighbor_notification
+      attribute :neighbor_notification, String
       emits "NeighborNotified"
     end
   end

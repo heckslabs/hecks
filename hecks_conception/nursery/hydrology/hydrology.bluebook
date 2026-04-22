@@ -3,11 +3,11 @@ Hecks.bluebook "Hydrology" do
 
   aggregate "Watershed" do
     description "A drainage basin where all runoff converges to a single outlet"
-    String :watershed_id
-    String :name
-    Float :area_km2
-    String :outlet_location
-    String :land_use_dominant
+    attribute :watershed_id, String
+    attribute :name, String
+    attribute :area_km2, Float
+    attribute :outlet_location, String
+    attribute :land_use_dominant, String
     # Gate flag — flips true after AcquireDEMData confirms new elevation
     # data has been loaded. UpdateBoundary is gated on it.
     attribute :dem_data_available, Boolean, default: false
@@ -15,16 +15,16 @@ Hecks.bluebook "Hydrology" do
     command "DelineateWatershed" do
       description "Define a watershed boundary from elevation data"
       emits "WatershedDelineated"
-      String :watershed_id
-      String :name
-      Float :area_km2
+      attribute :watershed_id, String
+      attribute :name, String
+      attribute :area_km2, Float
     end
 
     command "ClassifyLandUse" do
       description "Assign dominant land use category"
       emits "LandUseClassified"
       reference_to Watershed
-      String :land_use_dominant
+      attribute :land_use_dominant, String
     end
 
     command "AcquireDEMData" do
@@ -44,33 +44,33 @@ Hecks.bluebook "Hydrology" do
 
   aggregate "StreamGauge" do
     description "An instrument station measuring water level and discharge"
-    String :gauge_id
-    String :stream_name
-    Float :latitude
-    Float :longitude
-    String :datum_elevation
-    Integer :discharge_measurement_count
+    attribute :gauge_id, String
+    attribute :stream_name, String
+    attribute :latitude, Float
+    attribute :longitude, Float
+    attribute :datum_elevation, String
+    attribute :discharge_measurement_count, Integer
     reference_to Watershed
 
     value_object "RatingCurve" do
-      Float :stage_m
-      Float :discharge_cms
-      String :validity_period
+      attribute :stage_m, Float
+      attribute :discharge_cms, Float
+      attribute :validity_period, String
     end
 
     command "InstallGauge" do
       description "Set up a new stream gauging station"
       emits "GaugeInstalled"
       reference_to Watershed
-      String :gauge_id
-      String :stream_name
+      attribute :gauge_id, String
+      attribute :stream_name, String
     end
 
     command "RecordDischargeMeasurement" do
       description "Update the count of valid discharge measurements at this gauge"
       emits "DischargeMeasurementCounted"
       reference_to StreamGauge
-      Integer :new_count
+      attribute :new_count, Integer
       then_set :discharge_measurement_count, to: :new_count
     end
 
@@ -89,10 +89,10 @@ Hecks.bluebook "Hydrology" do
 
   aggregate "FlowMeasurement" do
     description "A single streamflow discharge measurement at a gauge"
-    String :measurement_date
-    Float :stage_m
-    Float :discharge_cms
-    String :method
+    attribute :measurement_date, String
+    attribute :stage_m, Float
+    attribute :discharge_cms, Float
+    attribute :method, String
     # Gate flag — flips true when RefreshRatingCurve confirms the gauge's
     # rating curve is current. ValidateMeasurement is gated on it.
     attribute :rating_curve_current, Boolean, default: false
@@ -102,9 +102,9 @@ Hecks.bluebook "Hydrology" do
       description "Log a manual or automated flow measurement"
       emits "DischargeRecorded"
       reference_to StreamGauge
-      String :measurement_date
-      Float :stage_m
-      Float :discharge_cms
+      attribute :measurement_date, String
+      attribute :stage_m, Float
+      attribute :discharge_cms, Float
     end
 
     command "RefreshRatingCurve" do
@@ -123,10 +123,10 @@ Hecks.bluebook "Hydrology" do
 
   aggregate "FloodModel" do
     description "A computational simulation of flood inundation for a watershed"
-    String :model_id
-    String :scenario_name
-    Integer :return_period_years
-    Float :peak_discharge_cms
+    attribute :model_id, String
+    attribute :scenario_name, String
+    attribute :return_period_years, Integer
+    attribute :peak_discharge_cms, Float
     # Gate flag — flips true when CalibrateModel confirms the simulation
     # has been calibrated against historic flood records.
     attribute :model_calibrated, Boolean, default: false
@@ -136,8 +136,8 @@ Hecks.bluebook "Hydrology" do
       description "Construct a new flood simulation model"
       emits "ModelBuilt"
       reference_to Watershed
-      String :model_id
-      String :scenario_name
+      attribute :model_id, String
+      attribute :scenario_name, String
     end
 
     command "CalibrateModel" do
@@ -151,7 +151,7 @@ Hecks.bluebook "Hydrology" do
       description "Execute the flood model and generate inundation maps"
       emits "SimulationRun"
       reference_to FloodModel
-      Integer :return_period_years
+      attribute :return_period_years, Integer
     end
 
     command "PublishFloodMap" do
@@ -163,10 +163,10 @@ Hecks.bluebook "Hydrology" do
 
   aggregate "MonitoringWell" do
     description "A borehole for measuring groundwater levels and quality"
-    String :well_id
-    Float :depth_m
-    Float :screen_top_m
-    Float :screen_bottom_m
+    attribute :well_id, String
+    attribute :depth_m, Float
+    attribute :screen_top_m, Float
+    attribute :screen_bottom_m, Float
     # Gate flag — flips true once PurgeWell evacuates stagnant water so a
     # representative sample can be taken. SampleGroundwater is gated on it.
     attribute :well_purged, Boolean, default: false
@@ -176,15 +176,15 @@ Hecks.bluebook "Hydrology" do
       description "Install a new groundwater monitoring well"
       emits "WellDrilled"
       reference_to Watershed
-      String :well_id
-      Float :depth_m
+      attribute :well_id, String
+      attribute :depth_m, Float
     end
 
     command "MeasureWaterLevel" do
       description "Record the depth to water in the well"
       emits "WaterLevelMeasured"
       reference_to MonitoringWell
-      Float :depth_to_water_m
+      attribute :depth_to_water_m, Float
     end
 
     command "PurgeWell" do

@@ -3,18 +3,18 @@ Hecks.bluebook "HealthLine", version: "2026.04.13.1" do
   category "healthcare_technology"
 
   aggregate "IncomingCall", "A call received on the health triage line" do
-    String :call_id
-    String :caller_name
-    String :phone_number
-    String :chief_complaint
-    String :status
-    ReceiveCall do
+    attribute :call_id, String
+    attribute :caller_name, String
+    attribute :phone_number, String
+    attribute :chief_complaint, String
+    attribute :status, String
+    command "ReceiveCall" do
       role "System"
       description "Receive an incoming call on the health triage line"
-      String :call_id
-      String :caller_name
-      String :phone_number
-      String :chief_complaint
+      attribute :call_id, String
+      attribute :caller_name, String
+      attribute :phone_number, String
+      attribute :chief_complaint, String
       emits "CallReceived"
       then_set :call_id, to: :call_id
       then_set :caller_name, to: :caller_name
@@ -22,7 +22,7 @@ Hecks.bluebook "HealthLine", version: "2026.04.13.1" do
       then_set :chief_complaint, to: :chief_complaint
       then_set :status, to: "queued"
     end
-    AssignToNurse do
+    command "AssignToNurse" do
       role "System"
       description "Assign the call to an available triage nurse"
       reference_to(IncomingCall)
@@ -30,7 +30,7 @@ Hecks.bluebook "HealthLine", version: "2026.04.13.1" do
       emits "CallAssigned"
       then_set :status, to: "assigned"
     end
-    EndCall do
+    command "EndCall" do
       role "TriageNurse"
       description "End the call after triage assessment"
       reference_to(IncomingCall)
@@ -41,28 +41,28 @@ Hecks.bluebook "HealthLine", version: "2026.04.13.1" do
   end
 
   aggregate "TriageProtocol", "A clinical triage protocol for symptom assessment" do
-    String :protocol_id
-    String :symptom_category
+    attribute :protocol_id, String
+    attribute :symptom_category, String
     list_of(ProtocolStep) :steps
-    String :severity_outcome
-    String :status
+    attribute :severity_outcome, String
+    attribute :status, String
     value_object "ProtocolStep" do
-      Integer :step_number
-      String :question
-      String :expected_answer
-      String :next_step
+      attribute :step_number, Integer
+      attribute :question, String
+      attribute :expected_answer, String
+      attribute :next_step, String
     end
-    DefineProtocol do
+    command "DefineProtocol" do
       role "ClinicalDirector"
       description "Define a triage protocol for a symptom category"
-      String :protocol_id
-      String :symptom_category
+      attribute :protocol_id, String
+      attribute :symptom_category, String
       emits "ProtocolDefined"
       then_set :protocol_id, to: :protocol_id
       then_set :symptom_category, to: :symptom_category
       then_set :status, to: "active"
     end
-    RetireProtocol do
+    command "RetireProtocol" do
       role "ClinicalDirector"
       description "Retire an outdated triage protocol"
       reference_to(TriageProtocol)
@@ -73,30 +73,30 @@ Hecks.bluebook "HealthLine", version: "2026.04.13.1" do
   end
 
   aggregate "TriageAssessment", "A triage assessment performed during a call" do
-    String :assessment_id
-    String :call_id
-    String :protocol_id
-    String :severity
-    String :recommendation
-    String :status
-    PerformAssessment do
+    attribute :assessment_id, String
+    attribute :call_id, String
+    attribute :protocol_id, String
+    attribute :severity, String
+    attribute :recommendation, String
+    attribute :status, String
+    command "PerformAssessment" do
       role "TriageNurse"
       description "Perform a triage assessment following the protocol"
-      String :assessment_id
-      String :call_id
-      String :protocol_id
+      attribute :assessment_id, String
+      attribute :call_id, String
+      attribute :protocol_id, String
       emits "AssessmentPerformed"
       then_set :assessment_id, to: :assessment_id
       then_set :call_id, to: :call_id
       then_set :protocol_id, to: :protocol_id
       then_set :status, to: "in_progress"
     end
-    FinalizeAssessment do
+    command "FinalizeAssessment" do
       role "TriageNurse"
       description "Finalize triage with severity and recommendation"
       reference_to(TriageAssessment)
-      String :severity
-      String :recommendation
+      attribute :severity, String
+      attribute :recommendation, String
       given { status == "in_progress" }
       emits "AssessmentFinalized"
       then_set :severity, to: :severity
@@ -106,18 +106,18 @@ Hecks.bluebook "HealthLine", version: "2026.04.13.1" do
   end
 
   aggregate "Escalation", "An escalation of a critical call to emergency services" do
-    String :escalation_id
-    String :call_id
-    String :target_service
-    String :reason
-    String :status
-    EscalateCall do
+    attribute :escalation_id, String
+    attribute :call_id, String
+    attribute :target_service, String
+    attribute :reason, String
+    attribute :status, String
+    command "EscalateCall" do
       role "TriageNurse"
       description "Escalate a critical call to emergency services or physician"
-      String :escalation_id
-      String :call_id
-      String :target_service
-      String :reason
+      attribute :escalation_id, String
+      attribute :call_id, String
+      attribute :target_service, String
+      attribute :reason, String
       emits "CallEscalated"
       then_set :escalation_id, to: :escalation_id
       then_set :call_id, to: :call_id
@@ -125,7 +125,7 @@ Hecks.bluebook "HealthLine", version: "2026.04.13.1" do
       then_set :reason, to: :reason
       then_set :status, to: "escalated"
     end
-    ResolveEscalation do
+    command "ResolveEscalation" do
       role "Physician"
       description "Resolve the escalation after clinical intervention"
       reference_to(Escalation)

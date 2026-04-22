@@ -3,38 +3,38 @@ Hecks.bluebook "SaaSPlatform", version: "2026.04.13.1" do
   category "technology"
 
   aggregate "Tenant", "An organization using the SaaS platform" do
-    String :tenant_name
-    String :slug
-    String :admin_email
-    String :plan
-    String :status
+    attribute :tenant_name, String
+    attribute :slug, String
+    attribute :admin_email, String
+    attribute :plan, String
+    attribute :status, String
     list_of(TeamMember) :team_members
 
     value_object "TeamMember" do
-      String :email
-      String :role
-      String :invited_at
+      attribute :email, String
+      attribute :role, String
+      attribute :invited_at, String
     end
 
-    OnboardTenant do
+    command "OnboardTenant" do
       role "SalesRep"
       description "Create a new tenant workspace on the platform"
-      String :tenant_name
-      String :slug
-      String :admin_email
-      String :plan
+      attribute :tenant_name, String
+      attribute :slug, String
+      attribute :admin_email, String
+      attribute :plan, String
       emits "TenantOnboarded"
       then_set :status, to: "active"
     end
 
-    SuspendTenant do
+    command "SuspendTenant" do
       description "Freeze a tenant account due to policy violation or non-payment"
       reference_to(Tenant)
       given("tenant is active") { status == "active" }
       emits "TenantSuspended"
     end
 
-    ReactivateTenant do
+    command "ReactivateTenant" do
       description "Restore a suspended tenant to active status"
       reference_to(Tenant)
       emits "TenantReactivated"
@@ -42,40 +42,40 @@ Hecks.bluebook "SaaSPlatform", version: "2026.04.13.1" do
   end
 
   aggregate "Subscription", "A billing agreement linking a tenant to a pricing plan" do
-    String :subscription_id
-    String :plan_name
-    Float :monthly_rate
-    String :billing_cycle
-    String :status
+    attribute :subscription_id, String
+    attribute :plan_name, String
+    attribute :monthly_rate, Float
+    attribute :billing_cycle, String
+    attribute :status, String
     reference_to Tenant
 
     value_object "PlanDetail" do
-      Integer :seat_limit
-      Integer :storage_gb
-      String :support_tier
+      attribute :seat_limit, Integer
+      attribute :storage_gb, Integer
+      attribute :support_tier, String
     end
 
-    StartSubscription do
+    command "StartSubscription" do
       role "BillingAdmin"
       description "Activate a subscription for a tenant on a chosen plan"
-      String :subscription_id
-      String :plan_name
-      Float :monthly_rate
-      String :billing_cycle
+      attribute :subscription_id, String
+      attribute :plan_name, String
+      attribute :monthly_rate, Float
+      attribute :billing_cycle, String
       reference_to(Tenant)
       emits "SubscriptionStarted"
       then_set :status, to: "active"
     end
 
-    UpgradePlan do
+    command "UpgradePlan" do
       description "Move a tenant to a higher-tier plan"
       reference_to(Subscription)
-      String :plan_name
-      Float :monthly_rate
+      attribute :plan_name, String
+      attribute :monthly_rate, Float
       emits "PlanUpgraded"
     end
 
-    CancelSubscription do
+    command "CancelSubscription" do
       description "End a subscription at the current billing period"
       reference_to(Subscription)
       given("subscription is active") { status == "active" }
@@ -84,38 +84,38 @@ Hecks.bluebook "SaaSPlatform", version: "2026.04.13.1" do
   end
 
   aggregate "FeatureFlag", "A toggle controlling feature availability per tenant" do
-    String :flag_name
-    String :description
-    String :rollout_strategy
-    Integer :rollout_percentage
-    String :status
+    attribute :flag_name, String
+    attribute :description, String
+    attribute :rollout_strategy, String
+    attribute :rollout_percentage, Integer
+    attribute :status, String
     list_of(TenantOverride) :overrides
 
     value_object "TenantOverride" do
-      String :tenant_slug
-      String :enabled
-      String :set_at
+      attribute :tenant_slug, String
+      attribute :enabled, String
+      attribute :set_at, String
     end
 
-    ProvisionFeatureFlag do
+    command "ProvisionFeatureFlag" do
       role "ProductManager"
       description "Define a new feature toggle for gradual rollout"
-      String :flag_name
-      String :description
-      String :rollout_strategy
-      Integer :rollout_percentage
+      attribute :flag_name, String
+      attribute :description, String
+      attribute :rollout_strategy, String
+      attribute :rollout_percentage, Integer
       emits "FeatureFlagProvisioned"
     end
 
-    ToggleForTenant do
+    command "ToggleForTenant" do
       description "Enable or disable a feature flag for a specific tenant"
       reference_to(FeatureFlag)
-      String :tenant_slug
-      String :enabled
+      attribute :tenant_slug, String
+      attribute :enabled, String
       emits "FlagToggledForTenant"
     end
 
-    RetireFlag do
+    command "RetireFlag" do
       description "Remove a feature flag after full rollout"
       reference_to(FeatureFlag)
       emits "FlagRetired"
@@ -123,11 +123,11 @@ Hecks.bluebook "SaaSPlatform", version: "2026.04.13.1" do
   end
 
   aggregate "UsageMeter", "A counter tracking resource consumption per tenant" do
-    String :meter_name
-    String :unit
-    Integer :current_count
-    Integer :quota
-    String :period
+    attribute :meter_name, String
+    attribute :unit, String
+    attribute :current_count, Integer
+    attribute :quota, Integer
+    attribute :period, String
     reference_to Tenant
 
     specification "NearQuota" do
@@ -135,30 +135,30 @@ Hecks.bluebook "SaaSPlatform", version: "2026.04.13.1" do
     end
 
     value_object "UsageSample" do
-      Integer :delta
-      String :recorded_at
+      attribute :delta, Integer
+      attribute :recorded_at, String
     end
 
-    InitializeMeter do
+    command "InitializeMeter" do
       role "BillingAdmin"
       description "Set up a usage meter for a tenant resource"
-      String :meter_name
-      String :unit
-      Integer :quota
-      String :period
+      attribute :meter_name, String
+      attribute :unit, String
+      attribute :quota, Integer
+      attribute :period, String
       reference_to(Tenant)
       emits "MeterInitialized"
     end
 
-    RecordUsage do
+    command "RecordUsage" do
       description "Increment the usage counter for a metered resource"
       reference_to(UsageMeter)
-      Integer :delta
+      attribute :delta, Integer
       given("within quota") { current_count + delta <= quota }
       emits "UsageRecorded"
     end
 
-    ResetMeter do
+    command "ResetMeter" do
       description "Zero out the counter at the start of a new billing period"
       reference_to(UsageMeter)
       emits "MeterReset"
@@ -166,38 +166,38 @@ Hecks.bluebook "SaaSPlatform", version: "2026.04.13.1" do
   end
 
   aggregate "BillingEvent", "A charge or credit applied to a tenant account" do
-    String :event_id
-    String :event_type
-    Float :amount
-    String :description
-    String :status
+    attribute :event_id, String
+    attribute :event_type, String
+    attribute :amount, Float
+    attribute :description, String
+    attribute :status, String
     reference_to Tenant
 
     value_object "LineItem" do
-      String :label
-      Float :amount
-      String :unit
+      attribute :label, String
+      attribute :amount, Float
+      attribute :unit, String
     end
 
-    PostCharge do
+    command "PostCharge" do
       role "BillingSystem"
       description "Record a charge against a tenant for resource usage"
-      String :event_id
-      Float :amount
-      String :description
+      attribute :event_id, String
+      attribute :amount, Float
+      attribute :description, String
       reference_to(Tenant)
       emits "ChargePosted"
     end
 
-    IssueCredit do
+    command "IssueCredit" do
       description "Apply a credit to a tenant account"
       reference_to(BillingEvent)
-      Float :amount
-      String :reason
+      attribute :amount, Float
+      attribute :reason, String
       emits "CreditIssued"
     end
 
-    SettleBalance do
+    command "SettleBalance" do
       description "Process payment and settle outstanding charges"
       reference_to(BillingEvent)
       emits "BalanceSettled"

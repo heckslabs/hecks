@@ -5,38 +5,38 @@ Hecks.bluebook "Tribology", version: "2026.04.11.1" do
   # === Surface Science ===
 
   aggregate "Surface", "A contacting surface — roughness, hardness, material, topography" do
-    String :name
-    String :material
-    Float :hardness
-    Float :elastic_modulus
-    Float :surface_energy
-    String :coating
+    attribute :name, String
+    attribute :material, String
+    attribute :hardness, Float
+    attribute :elastic_modulus, Float
+    attribute :surface_energy, Float
+    attribute :coating, String
 
     value_object "RoughnessProfile" do
-      Float :ra
-      Float :rz
-      Float :rq
-      Float :rsk
-      Float :rku
-      String :measurement_method
+      attribute :ra, Float
+      attribute :rz, Float
+      attribute :rq, Float
+      attribute :rsk, Float
+      attribute :rku, Float
+      attribute :measurement_method, String
     end
 
     value_object "TopographyMap" do
-      Float :scan_area_mm2
-      Float :resolution_um
-      Integer :peak_count
-      Float :valley_depth_um
-      Float :bearing_ratio
+      attribute :scan_area_mm2, Float
+      attribute :resolution_um, Float
+      attribute :peak_count, Integer
+      attribute :valley_depth_um, Float
+      attribute :bearing_ratio, Float
     end
 
-    CharacterizeSurface do
+    command "CharacterizeSurface" do
       role "Tribologist"
       description "Register a surface with its material properties and initial condition"
-      String :name
-      String :material
-      Float :hardness
-      Float :elastic_modulus
-      Float :surface_energy
+      attribute :name, String
+      attribute :material, String
+      attribute :hardness, Float
+      attribute :elastic_modulus, Float
+      attribute :surface_energy, Float
       emits "SurfaceCharacterized"
       then_set :name, to: :name
       then_set :material, to: :material
@@ -45,31 +45,31 @@ Hecks.bluebook "Tribology", version: "2026.04.11.1" do
       then_set :surface_energy, to: :surface_energy
     end
 
-    MeasureRoughness do
+    command "MeasureRoughness" do
       role "Tribologist"
       description "Profilometry — measure Ra, Rz, Rq and skewness of the surface texture"
       reference_to(Surface)
-      Float :ra
-      Float :rz
-      Float :rq
+      attribute :ra, Float
+      attribute :rz, Float
+      attribute :rq, Float
       emits "RoughnessMeasured"
     end
 
-    MapTopography do
+    command "MapTopography" do
       role "Tribologist"
       description "3D surface scan — map peaks, valleys, and bearing area for contact prediction"
       reference_to(Surface)
-      Float :scan_area_mm2
-      Float :resolution_um
+      attribute :scan_area_mm2, Float
+      attribute :resolution_um, Float
       emits "TopographyMapped"
     end
 
-    AnalyzeMicrostructure do
+    command "AnalyzeMicrostructure" do
       role "Tribologist"
       description "Examine grain boundaries, phase composition, and subsurface features"
       reference_to(Surface)
-      String :method
-      Float :grain_size_um
+      attribute :method, String
+      attribute :grain_size_um, Float
       emits "MicrostructureAnalyzed"
     end
   end
@@ -77,36 +77,36 @@ Hecks.bluebook "Tribology", version: "2026.04.11.1" do
   # === Friction ===
 
   aggregate "Friction", "Resistance to relative motion between surfaces — the central phenomenon" do
-    String :name
-    String :surface_a
-    String :surface_b
-    Float :normal_load
-    Float :sliding_speed
-    String :regime
-    String :status
+    attribute :name, String
+    attribute :surface_a, String
+    attribute :surface_b, String
+    attribute :normal_load, Float
+    attribute :sliding_speed, Float
+    attribute :regime, String
+    attribute :status, String
 
     value_object "FrictionCoefficient" do
-      Float :static_cof
-      Float :kinetic_cof
-      Float :rolling_cof
-      Float :temperature_c
-      String :measurement_method
+      attribute :static_cof, Float
+      attribute :kinetic_cof, Float
+      attribute :rolling_cof, Float
+      attribute :temperature_c, Float
+      attribute :measurement_method, String
     end
 
     value_object "StribeckPoint" do
-      Float :hersey_number
-      Float :cof
-      String :regime
+      attribute :hersey_number, Float
+      attribute :cof, Float
+      attribute :regime, String
     end
 
-    MeasureFriction do
+    command "MeasureFriction" do
       role "Tribologist"
       description "Pin-on-disk or reciprocating test — measure friction force between two surfaces"
-      String :name
-      String :surface_a
-      String :surface_b
-      Float :normal_load
-      Float :sliding_speed
+      attribute :name, String
+      attribute :surface_a, String
+      attribute :surface_b, String
+      attribute :normal_load, Float
+      attribute :sliding_speed, Float
       emits "FrictionMeasured"
       then_set :name, to: :name
       then_set :surface_a, to: :surface_a
@@ -116,40 +116,40 @@ Hecks.bluebook "Tribology", version: "2026.04.11.1" do
       then_set :status, to: "measured"
     end
 
-    CalculateCoefficient do
+    command "CalculateCoefficient" do
       role "Tribologist"
       description "mu = F_friction / F_normal — derive static and kinetic coefficients"
       reference_to(Friction)
-      Float :friction_force
-      Float :normal_force
+      attribute :friction_force, Float
+      attribute :normal_force, Float
       emits "CoefficientCalculated"
     end
 
-    ClassifyFrictionRegime do
+    command "ClassifyFrictionRegime" do
       role "Tribologist"
       description "Determine whether contact is boundary, mixed, or hydrodynamic from Stribeck analysis"
       reference_to(Friction)
-      String :regime
+      attribute :regime, String
       emits "FrictionRegimeClassified"
       then_set :regime, to: :regime
     end
 
-    MapStribeckCurve do
+    command "MapStribeckCurve" do
       role "Tribologist"
       description "Plot friction coefficient vs Hersey number — the master curve of tribology"
       reference_to(Friction)
-      Float :speed_range_min
-      Float :speed_range_max
-      Float :viscosity
+      attribute :speed_range_min, Float
+      attribute :speed_range_max, Float
+      attribute :viscosity, Float
       emits "StribeckCurveMapped"
     end
 
-    ReduceFriction do
+    command "ReduceFriction" do
       role "Tribologist"
       description "Apply surface treatment, coating, or lubricant to lower friction coefficient"
       reference_to(Friction)
-      String :method
-      Float :target_cof
+      attribute :method, String
+      attribute :target_cof, Float
       emits "FrictionReduced"
     end
   end
@@ -157,66 +157,66 @@ Hecks.bluebook "Tribology", version: "2026.04.11.1" do
   # === Wear ===
 
   aggregate "Wear", "Material loss from surface interaction — the enemy of engine life" do
-    String :name
-    String :mechanism
-    String :severity
-    String :test_method
-    String :status
+    attribute :name, String
+    attribute :mechanism, String
+    attribute :severity, String
+    attribute :test_method, String
+    attribute :status, String
 
     value_object "WearRate" do
-      Float :volume_loss_mm3
-      Float :depth_um
-      Float :mass_loss_mg
-      Float :specific_wear_rate
-      Float :duration_hours
+      attribute :volume_loss_mm3, Float
+      attribute :depth_um, Float
+      attribute :mass_loss_mg, Float
+      attribute :specific_wear_rate, Float
+      attribute :duration_hours, Float
     end
 
     value_object "WearDebris" do
-      Float :particle_size_um
-      String :morphology
-      String :composition
-      String :color
-      String :magnetic
+      attribute :particle_size_um, Float
+      attribute :morphology, String
+      attribute :composition, String
+      attribute :color, String
+      attribute :magnetic, String
     end
 
-    MeasureWear do
+    command "MeasureWear" do
       role "Tribologist"
       description "Quantify material removal — scar diameter, mass loss, or volume loss"
-      String :name
-      String :test_method
+      attribute :name, String
+      attribute :test_method, String
       emits "WearMeasured"
       then_set :name, to: :name
       then_set :test_method, to: :test_method
       then_set :status, to: "measured"
     end
 
-    ClassifyWearMechanism do
+    command "ClassifyWearMechanism" do
       role "Tribologist"
       description "Identify wear type — adhesive, abrasive, corrosive, fatigue, or erosive"
       reference_to(Wear)
-      String :mechanism
+      attribute :mechanism, String
       emits "WearMechanismClassified"
       then_set :mechanism, to: :mechanism
     end
 
-    PredictWearRate do
+    command "PredictWearRate" do
       role "Tribologist"
       description "Archard equation — V = K * W * L / H — predict volume loss from load, distance, hardness"
       reference_to(Wear)
-      Float :load
-      Float :sliding_distance
-      Float :hardness
-      Float :wear_coefficient
+      attribute :load, Float
+      attribute :sliding_distance, Float
+      attribute :hardness, Float
+      attribute :wear_coefficient, Float
       emits "WearRatePredicted"
     end
 
-    AnalyzeWearDebris do
+    command "AnalyzeWearDebris" do
       role "Tribologist"
       description "Ferrography or filtration — characterize debris particles to diagnose wear mechanism"
       reference_to(Wear)
-      Float :particle_size_um
-      String :morphology
-      String :composition
+      attribute :particle_size_um, Float
+      attribute :morphology, String
+      attribute :composition, String
       emits "WearDebrisAnalyzed"
     end
 
@@ -229,36 +229,36 @@ Hecks.bluebook "Tribology", version: "2026.04.11.1" do
   # === Lubricant ===
 
   aggregate "Lubricant", "The substance between surfaces — base oil plus additives — what Alan makes" do
-    String :name
-    String :base_oil_type
-    String :sae_grade
-    Float :pour_point_c
-    Float :flash_point_c
-    String :status
+    attribute :name, String
+    attribute :base_oil_type, String
+    attribute :sae_grade, String
+    attribute :pour_point_c, Float
+    attribute :flash_point_c, Float
+    attribute :status, String
 
     value_object "ViscosityProfile" do
-      Float :kinematic_40c
-      Float :kinematic_100c
-      Integer :viscosity_index
-      String :sae_grade
-      Float :dynamic_viscosity
+      attribute :kinematic_40c, Float
+      attribute :kinematic_100c, Float
+      attribute :viscosity_index, Integer
+      attribute :sae_grade, String
+      attribute :dynamic_viscosity, Float
     end
 
     value_object "AdditivePackage" do
-      Float :anti_wear_ppm
-      Float :friction_modifier_ppm
-      Float :extreme_pressure_ppm
-      Float :detergent_ppm
-      Float :dispersant_ppm
-      Float :antioxidant_ppm
+      attribute :anti_wear_ppm, Float
+      attribute :friction_modifier_ppm, Float
+      attribute :extreme_pressure_ppm, Float
+      attribute :detergent_ppm, Float
+      attribute :dispersant_ppm, Float
+      attribute :antioxidant_ppm, Float
     end
 
-    FormulateLubricant do
+    command "FormulateLubricant" do
       role "Tribologist"
       description "Blend base oil with additive package — create a finished lubricant formulation"
-      String :name
-      String :base_oil_type
-      String :sae_grade
+      attribute :name, String
+      attribute :base_oil_type, String
+      attribute :sae_grade, String
       emits "LubricantFormulated"
       then_set :name, to: :name
       then_set :base_oil_type, to: :base_oil_type
@@ -266,49 +266,49 @@ Hecks.bluebook "Tribology", version: "2026.04.11.1" do
       then_set :status, to: "formulated"
     end
 
-    MeasureViscosity do
+    command "MeasureViscosity" do
       role "Tribologist"
       description "Capillary or rotational viscometry — kinematic viscosity at 40C and 100C"
       reference_to(Lubricant)
-      Float :kinematic_40c
-      Float :kinematic_100c
+      attribute :kinematic_40c, Float
+      attribute :kinematic_100c, Float
       emits "ViscosityMeasured"
     end
 
-    CalculateViscosityIndex do
+    command "CalculateViscosityIndex" do
       role "Tribologist"
       description "ASTM D2270 — how much viscosity changes with temperature — higher is better"
       reference_to(Lubricant)
-      Float :kinematic_40c
-      Float :kinematic_100c
+      attribute :kinematic_40c, Float
+      attribute :kinematic_100c, Float
       emits "ViscosityIndexCalculated"
     end
 
-    TestPourPoint do
+    command "TestPourPoint" do
       role "Tribologist"
       description "ASTM D97 — lowest temperature at which the oil still flows"
       reference_to(Lubricant)
-      Float :pour_point_c
+      attribute :pour_point_c, Float
       emits "PourPointTested"
       then_set :pour_point_c, to: :pour_point_c
     end
 
-    TestFlashPoint do
+    command "TestFlashPoint" do
       role "Tribologist"
       description "ASTM D92 Cleveland open cup — temperature at which vapors ignite"
       reference_to(Lubricant)
-      Float :flash_point_c
+      attribute :flash_point_c, Float
       emits "FlashPointTested"
       then_set :flash_point_c, to: :flash_point_c
     end
 
-    AnalyzeFilmThickness do
+    command "AnalyzeFilmThickness" do
       role "Tribologist"
       description "Optical interferometry — measure lubricant film between loaded surfaces"
       reference_to(Lubricant)
-      Float :film_thickness_nm
-      Float :temperature_c
-      Float :load_n
+      attribute :film_thickness_nm, Float
+      attribute :temperature_c, Float
+      attribute :load_n, Float
       emits "FilmThicknessAnalyzed"
     end
 
@@ -322,25 +322,25 @@ Hecks.bluebook "Tribology", version: "2026.04.11.1" do
   # === Lubrication Regime ===
 
   aggregate "LubricationRegime", "The mode of lubrication — boundary, mixed, hydrodynamic, elastohydrodynamic" do
-    String :name
-    String :regime_type
-    Float :lambda_ratio
-    Float :film_parameter
-    String :status
+    attribute :name, String
+    attribute :regime_type, String
+    attribute :lambda_ratio, Float
+    attribute :film_parameter, Float
+    attribute :status, String
 
     value_object "RegimeCondition" do
-      Float :speed
-      Float :load
-      Float :viscosity
-      Float :surface_roughness
-      Float :temperature_c
+      attribute :speed, Float
+      attribute :load, Float
+      attribute :viscosity, Float
+      attribute :surface_roughness, Float
+      attribute :temperature_c, Float
     end
 
-    IdentifyRegime do
+    command "IdentifyRegime" do
       role "Tribologist"
       description "Determine lubrication regime from lambda ratio — film thickness vs composite roughness"
-      String :name
-      Float :lambda_ratio
+      attribute :name, String
+      attribute :lambda_ratio, Float
       emits "RegimeIdentified"
       then_set :name, to: :name
       then_set :lambda_ratio, to: :lambda_ratio
@@ -348,32 +348,32 @@ Hecks.bluebook "Tribology", version: "2026.04.11.1" do
       then_set :status, to: "identified"
     end
 
-    CalculateFilmParameter do
+    command "CalculateFilmParameter" do
       role "Tribologist"
       description "Lambda = h_min / sigma_composite — the ratio that determines everything"
       reference_to(LubricationRegime)
-      Float :min_film_thickness
-      Float :composite_roughness
+      attribute :min_film_thickness, Float
+      attribute :composite_roughness, Float
       emits "FilmParameterCalculated"
     end
 
-    TransitionRegime do
+    command "TransitionRegime" do
       role "Tribologist"
       description "Shift between regimes as conditions change — speed up, load changes, temperature rises"
       reference_to(LubricationRegime)
-      String :from_regime
-      String :to_regime
-      String :cause
+      attribute :from_regime, String
+      attribute :to_regime, String
+      attribute :cause, String
       emits "RegimeTransitioned"
       then_set :regime_type, to: :to_regime
     end
 
-    OptimizeRegime do
+    command "OptimizeRegime" do
       role "Tribologist"
       description "Adjust speed, load, or lubricant to move into the lowest-friction regime"
       reference_to(LubricationRegime)
-      String :target_regime
-      String :method
+      attribute :target_regime, String
+      attribute :method, String
       emits "RegimeOptimized"
     end
 
@@ -387,65 +387,65 @@ Hecks.bluebook "Tribology", version: "2026.04.11.1" do
   # === Additive Action ===
 
   aggregate "AdditiveAction", "How each additive works at the molecular level — the bridge between chemistry and tribology" do
-    String :name
-    String :additive_type
-    Float :effectiveness
-    String :synergy_status
+    attribute :name, String
+    attribute :additive_type, String
+    attribute :effectiveness, Float
+    attribute :synergy_status, String
 
     value_object "ActionMechanism" do
-      String :mechanism_type
-      String :description
-      Float :effective_temp_min_c
-      Float :effective_temp_max_c
-      Float :concentration_min_ppm
-      Float :concentration_max_ppm
-      String :surface_affinity
+      attribute :mechanism_type, String
+      attribute :description, String
+      attribute :effective_temp_min_c, Float
+      attribute :effective_temp_max_c, Float
+      attribute :concentration_min_ppm, Float
+      attribute :concentration_max_ppm, Float
+      attribute :surface_affinity, String
     end
 
     value_object "SynergyResult" do
-      String :additive_a
-      String :additive_b
-      String :interaction
-      Float :combined_effect
-      Float :individual_sum
+      attribute :additive_a, String
+      attribute :additive_b, String
+      attribute :interaction, String
+      attribute :combined_effect, Float
+      attribute :individual_sum, Float
     end
 
-    DescribeAction do
+    command "DescribeAction" do
       role "Tribologist"
       description "Document how an additive protects surfaces — film formation, chemical reaction, or physical barrier"
-      String :name
-      String :additive_type
+      attribute :name, String
+      attribute :additive_type, String
       emits "ActionDescribed"
       then_set :name, to: :name
       then_set :additive_type, to: :additive_type
     end
 
-    MeasureEffectiveness do
+    command "MeasureEffectiveness" do
       role "Tribologist"
       description "Quantify additive performance — reduction in wear scar, friction coefficient, or oxidation"
       reference_to(AdditiveAction)
-      String :test_method
-      Float :effectiveness
+      attribute :test_method, String
+      attribute :effectiveness, Float
       emits "EffectivenessMeasured"
       then_set :effectiveness, to: :effectiveness
     end
 
-    TestSynergy do
+    command "TestSynergy" do
       role "Tribologist"
       description "Combine two additives and test if the result exceeds the sum of individual effects"
       reference_to(AdditiveAction)
-      String :other_additive
-      Float :combined_effect
-      Float :individual_sum
+      attribute :other_additive, String
+      attribute :combined_effect, Float
+      attribute :individual_sum, Float
       emits "SynergyTested"
     end
 
-    DetectAntagonism do
+    command "DetectAntagonism" do
       role "Tribologist"
       description "Identify when additives interfere — combined performance worse than individual"
       reference_to(AdditiveAction)
-      String :other_additive
-      Float :performance_loss
+      attribute :other_additive, String
+      attribute :performance_loss, Float
       emits "AntagonismDetected"
     end
   end
@@ -453,64 +453,64 @@ Hecks.bluebook "Tribology", version: "2026.04.11.1" do
   # === Contact Mechanics ===
 
   aggregate "ContactMechanics", "Hertzian contact theory — pressure, deformation, and stress at the interface" do
-    String :name
-    String :contact_type
-    Float :max_pressure
-    Float :contact_area
-    Float :deformation_um
+    attribute :name, String
+    attribute :contact_type, String
+    attribute :max_pressure, Float
+    attribute :contact_area, Float
+    attribute :deformation_um, Float
 
     value_object "HertzianContact" do
-      Float :contact_radius_mm
-      Float :max_hertzian_pressure
-      Float :approach_distance_um
-      Float :reduced_modulus
-      Float :reduced_radius
+      attribute :contact_radius_mm, Float
+      attribute :max_hertzian_pressure, Float
+      attribute :approach_distance_um, Float
+      attribute :reduced_modulus, Float
+      attribute :reduced_radius, Float
     end
 
     value_object "StressField" do
-      Float :von_mises_max
-      Float :depth_of_max_shear
-      String :subsurface_stress_profile
+      attribute :von_mises_max, Float
+      attribute :depth_of_max_shear, Float
+      attribute :subsurface_stress_profile, String
     end
 
-    CalculateContactPressure do
+    command "CalculateContactPressure" do
       role "Tribologist"
       description "Hertz theory — compute max contact pressure from geometry, load, and elastic properties"
-      String :name
-      String :contact_type
-      Float :load
-      Float :radius_a
-      Float :radius_b
-      Float :modulus_a
-      Float :modulus_b
+      attribute :name, String
+      attribute :contact_type, String
+      attribute :load, Float
+      attribute :radius_a, Float
+      attribute :radius_b, Float
+      attribute :modulus_a, Float
+      attribute :modulus_b, Float
       emits "ContactPressureCalculated"
       then_set :name, to: :name
       then_set :contact_type, to: :contact_type
     end
 
-    ModelHertzianContact do
+    command "ModelHertzianContact" do
       role "Tribologist"
       description "Full Hertzian model — contact radius, approach, and pressure distribution"
       reference_to(ContactMechanics)
-      Float :load
+      attribute :load, Float
       emits "HertzianContactModeled"
     end
 
-    PredictDeformation do
+    command "PredictDeformation" do
       role "Tribologist"
       description "Elastic or plastic — will the surface deform permanently under this load"
       reference_to(ContactMechanics)
-      Float :yield_strength
-      Float :applied_load
+      attribute :yield_strength, Float
+      attribute :applied_load, Float
       emits "DeformationPredicted"
     end
 
-    AnalyzeStressField do
+    command "AnalyzeStressField" do
       role "Tribologist"
       description "Map subsurface von Mises stress — find the depth of maximum shear"
       reference_to(ContactMechanics)
-      Float :max_pressure
-      Float :poisson_ratio
+      attribute :max_pressure, Float
+      attribute :poisson_ratio, Float
       emits "StressFieldAnalyzed"
     end
   end
@@ -518,33 +518,33 @@ Hecks.bluebook "Tribology", version: "2026.04.11.1" do
   # === Tribological Testing ===
 
   aggregate "TribologicalTest", "Standard testing methods — the language of lubricant qualification" do
-    String :name
-    String :test_standard
-    String :apparatus
-    String :status
+    attribute :name, String
+    attribute :test_standard, String
+    attribute :apparatus, String
+    attribute :status, String
 
     value_object "TestResult" do
-      String :parameter
-      Float :value
-      String :unit
-      String :pass_fail
-      Float :specification_limit
+      attribute :parameter, String
+      attribute :value, Float
+      attribute :unit, String
+      attribute :pass_fail, String
+      attribute :specification_limit, Float
     end
 
     value_object "TestCondition" do
-      Float :temperature_c
-      Float :load_n
-      Float :speed_rpm
-      Float :duration_min
-      Float :lubricant_volume_ml
+      attribute :temperature_c, Float
+      attribute :load_n, Float
+      attribute :speed_rpm, Float
+      attribute :duration_min, Float
+      attribute :lubricant_volume_ml, Float
     end
 
-    RunTest do
+    command "RunTest" do
       role "Tribologist"
       description "Execute a standard tribological test — four-ball, HFRR, block-on-ring, or pin-on-disk"
-      String :name
-      String :test_standard
-      String :apparatus
+      attribute :name, String
+      attribute :test_standard, String
+      attribute :apparatus, String
       emits "TestRun"
       then_set :name, to: :name
       then_set :test_standard, to: :test_standard
@@ -552,31 +552,31 @@ Hecks.bluebook "Tribology", version: "2026.04.11.1" do
       then_set :status, to: "running"
     end
 
-    RecordResult do
+    command "RecordResult" do
       role "Tribologist"
       description "Capture the measured parameter — wear scar diameter, friction coefficient, film thickness"
       reference_to(TribologicalTest)
-      String :parameter
-      Float :value
-      String :unit
+      attribute :parameter, String
+      attribute :value, Float
+      attribute :unit, String
       emits "ResultRecorded"
       then_set :status, to: "completed"
     end
 
-    CompareToBaseline do
+    command "CompareToBaseline" do
       role "Tribologist"
       description "Compare test result against a reference oil or specification limit"
       reference_to(TribologicalTest)
-      Float :baseline_value
-      Float :specification_limit
+      attribute :baseline_value, Float
+      attribute :specification_limit, Float
       emits "BaselineCompared"
     end
 
-    GenerateReport do
+    command "GenerateReport" do
       role "Tribologist"
       description "Produce a formal test report with conditions, results, and pass/fail determination"
       reference_to(TribologicalTest)
-      String :report_format
+      attribute :report_format, String
       emits "ReportGenerated"
       then_set :status, to: "reported"
     end
@@ -591,65 +591,65 @@ Hecks.bluebook "Tribology", version: "2026.04.11.1" do
   # === Film Thickness ===
 
   aggregate "FilmThickness", "The lubricant film between surfaces — too thin means wear, too thick means drag" do
-    String :name
-    Float :minimum_film_nm
-    Float :central_film_nm
-    String :method
-    String :status
+    attribute :name, String
+    attribute :minimum_film_nm, Float
+    attribute :central_film_nm, Float
+    attribute :method, String
+    attribute :status, String
 
     value_object "FilmMeasurement" do
-      Float :thickness_nm
-      String :method
-      Float :temperature_c
-      Float :load_n
-      Float :speed_m_s
+      attribute :thickness_nm, Float
+      attribute :method, String
+      attribute :temperature_c, Float
+      attribute :load_n, Float
+      attribute :speed_m_s, Float
     end
 
     value_object "FilmMap" do
-      Float :inlet_thickness_nm
-      Float :central_thickness_nm
-      Float :outlet_thickness_nm
-      Float :side_lobe_thickness_nm
+      attribute :inlet_thickness_nm, Float
+      attribute :central_thickness_nm, Float
+      attribute :outlet_thickness_nm, Float
+      attribute :side_lobe_thickness_nm, Float
     end
 
-    MeasureFilmThickness do
+    command "MeasureFilmThickness" do
       role "Tribologist"
       description "Optical interferometry or capacitance — directly measure the film separating surfaces"
-      String :name
-      String :method
-      Float :thickness_nm
+      attribute :name, String
+      attribute :method, String
+      attribute :thickness_nm, Float
       emits "FilmThicknessMeasured"
       then_set :name, to: :name
       then_set :method, to: :method
       then_set :status, to: "measured"
     end
 
-    CalculateMinimumFilm do
+    command "CalculateMinimumFilm" do
       role "Tribologist"
       description "Hamrock-Dowson equation — predict minimum film from speed, load, viscosity, and geometry"
       reference_to(FilmThickness)
-      Float :speed
-      Float :load
-      Float :viscosity
-      Float :reduced_radius
+      attribute :speed, Float
+      attribute :load, Float
+      attribute :viscosity, Float
+      attribute :reduced_radius, Float
       emits "MinimumFilmCalculated"
     end
 
-    PredictFilmFailure do
+    command "PredictFilmFailure" do
       role "Tribologist"
       description "Determine when the film will break down — starvation, overload, or thermal thinning"
       reference_to(FilmThickness)
-      String :failure_mode
-      Float :critical_load
+      attribute :failure_mode, String
+      attribute :critical_load, Float
       emits "FilmFailurePredicted"
     end
 
-    OptimizeFilm do
+    command "OptimizeFilm" do
       role "Tribologist"
       description "Adjust viscosity, speed, or additives to achieve target film thickness"
       reference_to(FilmThickness)
-      Float :target_thickness_nm
-      String :method
+      attribute :target_thickness_nm, Float
+      attribute :method, String
       emits "FilmOptimized"
     end
 
@@ -664,64 +664,64 @@ Hecks.bluebook "Tribology", version: "2026.04.11.1" do
   # === Thermal Behavior ===
 
   aggregate "ThermalBehavior", "How friction generates heat and how lubricants manage it" do
-    String :name
-    Float :flash_temperature_c
-    Float :bulk_temperature_c
-    Float :heat_dissipation_rate
-    String :thermal_status
+    attribute :name, String
+    attribute :flash_temperature_c, Float
+    attribute :bulk_temperature_c, Float
+    attribute :heat_dissipation_rate, Float
+    attribute :thermal_status, String
 
     value_object "TemperatureDistribution" do
-      Float :surface_temp_c
-      Float :subsurface_temp_c
-      Float :oil_film_temp_c
-      Float :gradient_c_per_mm
+      attribute :surface_temp_c, Float
+      attribute :subsurface_temp_c, Float
+      attribute :oil_film_temp_c, Float
+      attribute :gradient_c_per_mm, Float
     end
 
     value_object "ThermalLimit" do
-      Float :oxidation_onset_c
-      Float :additive_decomposition_c
-      Float :base_oil_breakdown_c
-      Float :flash_point_c
+      attribute :oxidation_onset_c, Float
+      attribute :additive_decomposition_c, Float
+      attribute :base_oil_breakdown_c, Float
+      attribute :flash_point_c, Float
     end
 
-    CalculateFlashTemperature do
+    command "CalculateFlashTemperature" do
       role "Tribologist"
       description "Blok's flash temperature — transient peak temperature at asperity contacts"
-      String :name
-      Float :friction_coefficient
-      Float :load
-      Float :sliding_speed
-      Float :thermal_conductivity
+      attribute :name, String
+      attribute :friction_coefficient, Float
+      attribute :load, Float
+      attribute :sliding_speed, Float
+      attribute :thermal_conductivity, Float
       emits "FlashTemperatureCalculated"
       then_set :name, to: :name
       then_set :thermal_status, to: "calculated"
     end
 
-    MeasureHeatDissipation do
+    command "MeasureHeatDissipation" do
       role "Tribologist"
       description "Calorimetry — how fast the lubricant carries heat away from the contact zone"
       reference_to(ThermalBehavior)
-      Float :heat_dissipation_rate
-      Float :coolant_flow
+      attribute :heat_dissipation_rate, Float
+      attribute :coolant_flow, Float
       emits "HeatDissipationMeasured"
       then_set :heat_dissipation_rate, to: :heat_dissipation_rate
     end
 
-    PredictThermalBreakdown do
+    command "PredictThermalBreakdown" do
       role "Tribologist"
       description "Determine when lubricant will degrade — oxidation, coking, or additive depletion"
       reference_to(ThermalBehavior)
-      Float :operating_temp_c
-      Float :oxidation_onset_c
+      attribute :operating_temp_c, Float
+      attribute :oxidation_onset_c, Float
       emits "ThermalBreakdownPredicted"
     end
 
-    ModelTemperatureDistribution do
+    command "ModelTemperatureDistribution" do
       role "Tribologist"
       description "Finite element or analytical — map temperature through surface, subsurface, and oil film"
       reference_to(ThermalBehavior)
-      String :boundary_conditions
-      Float :heat_source_watts
+      attribute :boundary_conditions, String
+      attribute :heat_source_watts, Float
       emits "TemperatureDistributionModeled"
     end
   end
@@ -729,27 +729,27 @@ Hecks.bluebook "Tribology", version: "2026.04.11.1" do
   # === Surface Treatment ===
 
   aggregate "SurfaceTreatment", "Coatings and modifications that alter tribological behavior" do
-    String :name
-    String :treatment_type
-    Float :thickness_um
-    Float :hardness_increase
-    Float :friction_reduction
-    String :status
+    attribute :name, String
+    attribute :treatment_type, String
+    attribute :thickness_um, Float
+    attribute :hardness_increase, Float
+    attribute :friction_reduction, Float
+    attribute :status, String
 
     value_object "CoatingProperties" do
-      String :composition
-      Float :adhesion_strength
-      Float :wear_resistance
-      Float :thermal_stability_c
-      String :deposition_method
+      attribute :composition, String
+      attribute :adhesion_strength, Float
+      attribute :wear_resistance, Float
+      attribute :thermal_stability_c, Float
+      attribute :deposition_method, String
     end
 
-    ApplyTreatment do
+    command "ApplyTreatment" do
       role "Tribologist"
       description "Apply a surface treatment — DLC coating, nitriding, shot peening, or phosphating"
-      String :name
-      String :treatment_type
-      Float :thickness_um
+      attribute :name, String
+      attribute :treatment_type, String
+      attribute :thickness_um, Float
       emits "TreatmentApplied"
       then_set :name, to: :name
       then_set :treatment_type, to: :treatment_type
@@ -757,33 +757,33 @@ Hecks.bluebook "Tribology", version: "2026.04.11.1" do
       then_set :status, to: "applied"
     end
 
-    MeasureTreatmentEffect do
+    command "MeasureTreatmentEffect" do
       role "Tribologist"
       description "Before/after testing — quantify the change in friction and wear from treatment"
       reference_to(SurfaceTreatment)
-      Float :friction_reduction
-      Float :hardness_increase
+      attribute :friction_reduction, Float
+      attribute :hardness_increase, Float
       emits "TreatmentEffectMeasured"
       then_set :friction_reduction, to: :friction_reduction
       then_set :hardness_increase, to: :hardness_increase
     end
 
-    TestCoatingAdhesion do
+    command "TestCoatingAdhesion" do
       role "Tribologist"
       description "Scratch test or pull-off test — will the coating survive under tribological stress"
       reference_to(SurfaceTreatment)
-      Float :critical_load_n
-      String :failure_mode
+      attribute :critical_load_n, Float
+      attribute :failure_mode, String
       emits "CoatingAdhesionTested"
     end
 
-    PredictCoatingLife do
+    command "PredictCoatingLife" do
       role "Tribologist"
       description "Estimate service life of coating under given operating conditions"
       reference_to(SurfaceTreatment)
-      Float :operating_load
-      Float :operating_speed
-      Float :estimated_hours
+      attribute :operating_load, Float
+      attribute :operating_speed, Float
+      attribute :estimated_hours, Float
       emits "CoatingLifePredicted"
     end
 

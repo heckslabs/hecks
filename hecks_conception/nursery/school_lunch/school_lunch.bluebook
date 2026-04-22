@@ -3,29 +3,29 @@ Hecks.bluebook "SchoolLunch", version: "2026.04.13.1" do
   category "crossover"
 
   aggregate "NutrientProfile", "Nutritional requirements — calories, macros, vitamins, minerals by age group" do
-    String :age_group
-    Float :calories_min
-    Float :calories_max
-    Float :protein_g
-    Float :fat_max_g
-    Float :sodium_max_mg
-    String :status
+    attribute :age_group, String
+    attribute :calories_min, Float
+    attribute :calories_max, Float
+    attribute :protein_g, Float
+    attribute :fat_max_g, Float
+    attribute :sodium_max_mg, Float
+    attribute :status, String
 
     value_object "MicronutrientReq" do
-      String :nutrient_name
-      Float :daily_value_mg
-      Float :min_pct
+      attribute :nutrient_name, String
+      attribute :daily_value_mg, Float
+      attribute :min_pct, Float
     end
 
-    DefineNutrientProfile do
+    command "DefineNutrientProfile" do
       role "Nutritionist"
       description "Define nutritional requirements for an age group per USDA guidelines"
-      String :age_group
-      Float :calories_min
-      Float :calories_max
-      Float :protein_g
-      Float :fat_max_g
-      Float :sodium_max_mg
+      attribute :age_group, String
+      attribute :calories_min, Float
+      attribute :calories_max, Float
+      attribute :protein_g, Float
+      attribute :fat_max_g, Float
+      attribute :sodium_max_mg, Float
       emits "NutrientProfileDefined"
       then_set :age_group, to: :age_group
       then_set :calories_min, to: :calories_min
@@ -36,12 +36,12 @@ Hecks.bluebook "SchoolLunch", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    ReviseRequirements do
+    command "ReviseRequirements" do
       role "Nutritionist"
       description "Update nutrient requirements when guidelines change"
       reference_to(NutrientProfile)
-      Float :calories_min
-      Float :calories_max
+      attribute :calories_min, Float
+      attribute :calories_max, Float
       given { status == "active" }
       emits "RequirementsRevised"
       then_set :calories_min, to: :calories_min
@@ -54,35 +54,35 @@ Hecks.bluebook "SchoolLunch", version: "2026.04.13.1" do
   end
 
   aggregate "MenuItem", "A lunch menu item — ingredients, nutrients, allergens, cost" do
-    String :name
-    String :category
-    Float :calories
-    Float :protein_g
-    Float :cost_per_serving
-    String :allergens
-    String :status
+    attribute :name, String
+    attribute :category, String
+    attribute :calories, Float
+    attribute :protein_g, Float
+    attribute :cost_per_serving, Float
+    attribute :allergens, String
+    attribute :status, String
 
     value_object "Ingredient" do
-      String :name
-      Float :amount_g
-      String :allergen_flag
+      attribute :name, String
+      attribute :amount_g, Float
+      attribute :allergen_flag, String
     end
 
     list_of "AllergenWarning" do
-      String :allergen_type
-      String :severity
-      String :source_ingredient
+      attribute :allergen_type, String
+      attribute :severity, String
+      attribute :source_ingredient, String
     end
 
-    PlanMenuItem do
+    command "PlanMenuItem" do
       role "Chef"
       description "Create a lunch menu item with nutritional data and allergens"
-      String :name
-      String :category
-      Float :calories
-      Float :protein_g
-      Float :cost_per_serving
-      String :allergens
+      attribute :name, String
+      attribute :category, String
+      attribute :calories, Float
+      attribute :protein_g, Float
+      attribute :cost_per_serving, Float
+      attribute :allergens, String
       emits "MenuItemPlanned"
       then_set :name, to: :name
       then_set :category, to: :category
@@ -93,7 +93,7 @@ Hecks.bluebook "SchoolLunch", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    FlagAllergen do
+    command "FlagAllergen" do
       role "System"
       description "Flag menu item containing a common allergen"
       reference_to(MenuItem)
@@ -101,7 +101,7 @@ Hecks.bluebook "SchoolLunch", version: "2026.04.13.1" do
       emits "AllergenFlagged"
     end
 
-    RetireMenuItem do
+    command "RetireMenuItem" do
       role "Chef"
       description "Remove menu item from rotation"
       reference_to(MenuItem)
@@ -117,28 +117,28 @@ Hecks.bluebook "SchoolLunch", version: "2026.04.13.1" do
   end
 
   aggregate "WeeklyMenu", "A weekly lunch menu — balanced meals meeting nutritional targets" do
-    String :week_of
-    String :school_name
-    Integer :meal_count
-    Float :avg_calories
-    Float :total_budget
-    String :status
+    attribute :week_of, String
+    attribute :school_name, String
+    attribute :meal_count, Integer
+    attribute :avg_calories, Float
+    attribute :total_budget, Float
+    attribute :status, String
 
     list_of "DailyMeal" do
-      String :day
-      String :entree
-      String :side
-      String :fruit
-      String :milk
+      attribute :day, String
+      attribute :entree, String
+      attribute :side, String
+      attribute :fruit, String
+      attribute :milk, String
     end
 
-    PlanWeeklyMenu do
+    command "PlanWeeklyMenu" do
       role "Nutritionist"
       description "Plan a week of lunches meeting nutrient and budget targets"
-      String :week_of
-      String :school_name
-      Integer :meal_count
-      Float :total_budget
+      attribute :week_of, String
+      attribute :school_name, String
+      attribute :meal_count, Integer
+      attribute :total_budget, Float
       emits "WeeklyMenuPlanned"
       then_set :week_of, to: :week_of
       then_set :school_name, to: :school_name
@@ -147,18 +147,18 @@ Hecks.bluebook "SchoolLunch", version: "2026.04.13.1" do
       then_set :status, to: "planned"
     end
 
-    ValidateNutrition do
+    command "ValidateNutrition" do
       role "System"
       description "Validate menu meets USDA nutritional requirements"
       reference_to(WeeklyMenu)
-      Float :avg_calories
+      attribute :avg_calories, Float
       given { status == "planned" }
       emits "NutritionValidated"
       then_set :avg_calories, to: :avg_calories
       then_set :status, to: "validated"
     end
 
-    ApproveMenu do
+    command "ApproveMenu" do
       role "Director"
       description "Approve the weekly menu for service"
       reference_to(WeeklyMenu)
@@ -175,35 +175,35 @@ Hecks.bluebook "SchoolLunch", version: "2026.04.13.1" do
   end
 
   aggregate "ComplianceAudit", "USDA compliance audit — meal pattern, nutrient analysis, documentation" do
-    String :school_name
-    String :audit_period
-    Float :compliance_score
-    String :findings
-    String :status
+    attribute :school_name, String
+    attribute :audit_period, String
+    attribute :compliance_score, Float
+    attribute :findings, String
+    attribute :status, String
 
     value_object "AuditFinding" do
-      String :category
-      String :finding
-      String :corrective_action
+      attribute :category, String
+      attribute :finding, String
+      attribute :corrective_action, String
     end
 
-    ConductAudit do
+    command "ConductAudit" do
       role "Auditor"
       description "Conduct USDA compliance audit of school lunch program"
-      String :school_name
-      String :audit_period
+      attribute :school_name, String
+      attribute :audit_period, String
       emits "AuditConducted"
       then_set :school_name, to: :school_name
       then_set :audit_period, to: :audit_period
       then_set :status, to: "conducted"
     end
 
-    ScoreCompliance do
+    command "ScoreCompliance" do
       role "System"
       description "Calculate compliance score from audit findings"
       reference_to(ComplianceAudit)
-      Float :compliance_score
-      String :findings
+      attribute :compliance_score, Float
+      attribute :findings, String
       given { status == "conducted" }
       emits "ComplianceScored"
       then_set :compliance_score, to: :compliance_score
@@ -211,7 +211,7 @@ Hecks.bluebook "SchoolLunch", version: "2026.04.13.1" do
       then_set :status, to: "scored"
     end
 
-    IssueCorrectiveAction do
+    command "IssueCorrectiveAction" do
       role "Auditor"
       description "Issue corrective action plan for non-compliant items"
       reference_to(ComplianceAudit)

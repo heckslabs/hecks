@@ -3,26 +3,26 @@ Hecks.bluebook "Pharmacology" do
 
   aggregate "Compound" do
     description "A chemical substance being evaluated as a potential drug"
-    String :compound_id
-    String :name
-    String :molecular_formula
-    Float :molecular_weight
-    String :mechanism_of_action
-    Boolean :structure_data_loaded, default: false
+    attribute :compound_id, String
+    attribute :name, String
+    attribute :molecular_formula, String
+    attribute :molecular_weight, Float
+    attribute :mechanism_of_action, String
+    attribute :structure_data_loaded, Boolean, default: false
 
     value_object "PharmacokineticsProfile" do
-      Float :half_life_hours
-      Float :bioavailability_percent
-      Float :clearance_ml_min
-      String :route_of_administration
+      attribute :half_life_hours, Float
+      attribute :bioavailability_percent, Float
+      attribute :clearance_ml_min, Float
+      attribute :route_of_administration, String
     end
 
     command "RegisterCompound" do
       description "Enter a new compound into the drug pipeline"
       emits "CompoundRegistered"
-      String :compound_id
-      String :name
-      String :molecular_formula
+      attribute :compound_id, String
+      attribute :name, String
+      attribute :molecular_formula, String
       then_set :structure_data_loaded, true
     end
 
@@ -42,27 +42,27 @@ Hecks.bluebook "Pharmacology" do
 
   aggregate "ClinicalTrial" do
     description "A controlled study testing a compound in human subjects"
-    String :trial_id
-    String :phase
-    Integer :enrollment_target
-    Integer :enrolled_count
-    String :start_date
+    attribute :trial_id, String
+    attribute :phase, String
+    attribute :enrollment_target, Integer
+    attribute :enrolled_count, Integer
+    attribute :start_date, String
     reference_to Compound
 
     command "InitiateTrial" do
       description "Open enrollment for a new clinical trial"
       emits "TrialInitiated"
       reference_to Compound
-      String :trial_id
-      String :phase
-      Integer :enrollment_target
+      attribute :trial_id, String
+      attribute :phase, String
+      attribute :enrollment_target, Integer
     end
 
     command "EnrollSubject" do
       description "Add a participant to the trial"
       emits "SubjectEnrolled"
       reference_to ClinicalTrial
-      String :subject_id
+      attribute :subject_id, String
       given { enrolled_count < enrollment_target }
     end
 
@@ -75,19 +75,19 @@ Hecks.bluebook "Pharmacology" do
 
   aggregate "AdverseEvent" do
     description "An unwanted medical occurrence during a trial"
-    String :event_id
-    String :description
-    String :severity
-    String :causality_assessment
-    Boolean :medically_reviewed, default: false
+    attribute :event_id, String
+    attribute :description, String
+    attribute :severity, String
+    attribute :causality_assessment, String
+    attribute :medically_reviewed, Boolean, default: false
     reference_to ClinicalTrial
 
     command "ReportEvent" do
       description "File an adverse event report"
       emits "EventReported"
       reference_to ClinicalTrial
-      String :description
-      String :severity
+      attribute :description, String
+      attribute :severity, String
       then_set :medically_reviewed, true
     end
 
@@ -95,26 +95,26 @@ Hecks.bluebook "Pharmacology" do
       description "Determine if the event is drug-related"
       emits "CausalityAssessed"
       reference_to AdverseEvent
-      String :assessment
+      attribute :assessment, String
       given { medically_reviewed == true }
     end
   end
 
   aggregate "RegulatorySubmission" do
     description "A formal application to a regulatory body for drug approval"
-    String :submission_id
-    String :agency
-    String :submission_type
-    String :status
-    Boolean :trial_results_included, default: false
+    attribute :submission_id, String
+    attribute :agency, String
+    attribute :submission_type, String
+    attribute :status, String
+    attribute :trial_results_included, Boolean, default: false
     reference_to Compound
 
     command "FileSubmission" do
       description "Submit a regulatory dossier to the agency"
       emits "SubmissionFiled"
       reference_to Compound
-      String :agency
-      String :submission_type
+      attribute :agency, String
+      attribute :submission_type, String
       then_set :trial_results_included, true
     end
 

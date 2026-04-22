@@ -5,28 +5,28 @@ Hecks.bluebook "DomainNarration", version: "2026.04.13.1" do
   # === Workflow ===
 
   aggregate "Workflow", "An inferred step-by-step usage guide built from commands and policies" do
-    String :domain_name
+    attribute :domain_name, String
     list_of(WorkflowStep) :steps
 
     value_object "WorkflowStep" do
-      Integer :position
-      String :command_name
-      String :aggregate_name
-      String :goal
-      String :role
-      String :emitted_event
-      String :triggered_command
+      attribute :position, Integer
+      attribute :command_name, String
+      attribute :aggregate_name, String
+      attribute :goal, String
+      attribute :role, String
+      attribute :emitted_event, String
+      attribute :triggered_command, String
       list_of(ExamplePair) :example_pairs
     end
 
     value_object "ExamplePair" do
-      String :key
-      String :value
+      attribute :key, String
+      attribute :value, String
     end
 
-    InferWorkflow do
+    command "InferWorkflow" do
       description "Read a domain's commands and policies, produce ordered workflow steps"
-      String :domain_name
+      attribute :domain_name, String
       emits "WorkflowInferred"
     end
   end
@@ -34,19 +34,19 @@ Hecks.bluebook "DomainNarration", version: "2026.04.13.1" do
   # === Narration ===
 
   aggregate "Narration", "An English-language rendering of domain events, commands, and policies" do
-    String :source_name
-    String :english_text
-    String :narration_type
+    attribute :source_name, String
+    attribute :english_text, String
+    attribute :narration_type, String
 
-    TranslateEvent do
+    command "TranslateEvent" do
       description "Convert a PascalCase event name into English prose"
-      String :event_name
+      attribute :event_name, String
       emits "EventTranslated"
     end
 
-    TranslateCommand do
+    command "TranslateCommand" do
       description "Convert a PascalCase command name into English prose"
-      String :command_name
+      attribute :command_name, String
       emits "CommandTranslated"
     end
   end
@@ -54,19 +54,19 @@ Hecks.bluebook "DomainNarration", version: "2026.04.13.1" do
   # === PolicyChain ===
 
   aggregate "PolicyChain", "A traced cascade of policy reactions — command emits event, policy listens, triggers next command" do
-    String :origin_command
+    attribute :origin_command, String
     list_of(ChainLink) :links
-    Integer :depth
+    attribute :depth, Integer
 
     value_object "ChainLink" do
-      String :event_name
-      String :triggered_command
+      attribute :event_name, String
+      attribute :triggered_command, String
     end
 
-    TraceChain do
+    command "TraceChain" do
       description "Follow a command's emitted event through policies to find downstream cascades"
-      String :command_name
-      String :domain_name
+      attribute :command_name, String
+      attribute :domain_name, String
       emits "ChainTraced"
     end
   end
@@ -74,12 +74,12 @@ Hecks.bluebook "DomainNarration", version: "2026.04.13.1" do
   # === Rule ===
 
   aggregate "Rule", "A precondition or invariant extracted from a command's givens" do
-    String :command_name
-    String :rule_text
+    attribute :command_name, String
+    attribute :rule_text, String
 
-    CollectRules do
+    command "CollectRules" do
       description "Gather all preconditions from a domain's command givens"
-      String :domain_name
+      attribute :domain_name, String
       emits "RulesCollected"
     end
   end

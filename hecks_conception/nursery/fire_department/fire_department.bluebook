@@ -2,29 +2,29 @@ Hecks.bluebook "FireDepartment" do
   vision "Manage fire stations, apparatus, emergency calls, crews, and hydrants for a fire department"
 
   aggregate "Station", "A fire station housing apparatus and crews" do
-    String :station_number
-    String :address
-    String :district
-    Integer :bay_count
-    String :status
+    attribute :station_number, String
+    attribute :address, String
+    attribute :district, String
+    attribute :bay_count, Integer
+    attribute :status, String
 
     value_object "StationCapability" do
-      String :has_hazmat
-      String :has_ladder
-      String :has_ems
+      attribute :has_hazmat, String
+      attribute :has_ladder, String
+      attribute :has_ems, String
     end
 
-    OpenStation do
+    command "OpenStation" do
       description "Activate a new fire station in the district"
-      String :station_number
-      String :address
-      String :district
-      Integer :bay_count
+      attribute :station_number, String
+      attribute :address, String
+      attribute :district, String
+      attribute :bay_count, Integer
       emits "StationOpened"
       then_set :status, to: "active"
     end
 
-    ShutdownStation do
+    command "ShutdownStation" do
       description "Take a station out of service permanently"
       reference_to(Station)
       given { status == "active" }
@@ -34,30 +34,30 @@ Hecks.bluebook "FireDepartment" do
   end
 
   aggregate "Apparatus", "A fire truck, engine, or rescue vehicle assigned to a station" do
-    String :unit_id
-    String :apparatus_type
-    Float :water_capacity_gallons
-    Float :fuel_level
-    String :status
+    attribute :unit_id, String
+    attribute :apparatus_type, String
+    attribute :water_capacity_gallons, Float
+    attribute :fuel_level, Float
+    attribute :status, String
     reference_to(Station)
 
     value_object "PumpSpec" do
-      Integer :gpm_rating
-      String :pump_type
+      attribute :gpm_rating, Integer
+      attribute :pump_type, String
     end
 
-    RegisterApparatus do
+    command "RegisterApparatus" do
       description "Put a new fire apparatus into service at a station"
-      String :unit_id
-      String :apparatus_type
-      Float :water_capacity_gallons
+      attribute :unit_id, String
+      attribute :apparatus_type, String
+      attribute :water_capacity_gallons, Float
       reference_to(Station)
       emits "ApparatusRegistered"
       then_set :status, to: "in_service"
       then_set :fuel_level, to: 100.0
     end
 
-    DispatchApparatus do
+    command "DispatchApparatus" do
       description "Send an apparatus to respond to an emergency call"
       reference_to(Apparatus)
       given { status == "in_service" }
@@ -65,7 +65,7 @@ Hecks.bluebook "FireDepartment" do
       then_set :status, to: "dispatched"
     end
 
-    ArriveOnScene do
+    command "ArriveOnScene" do
       description "Record apparatus arrival at the emergency location"
       reference_to(Apparatus)
       given { status == "dispatched" }
@@ -73,7 +73,7 @@ Hecks.bluebook "FireDepartment" do
       then_set :status, to: "on_scene"
     end
 
-    EngageOperations do
+    command "EngageOperations" do
       description "Begin active firefighting or rescue operations"
       reference_to(Apparatus)
       given { status == "on_scene" }
@@ -81,7 +81,7 @@ Hecks.bluebook "FireDepartment" do
       then_set :status, to: "operating"
     end
 
-    BeginOverhaul do
+    command "BeginOverhaul" do
       description "Start post-fire overhaul to check for hidden fire"
       reference_to(Apparatus)
       given { status == "operating" }
@@ -89,7 +89,7 @@ Hecks.bluebook "FireDepartment" do
       then_set :status, to: "overhauling"
     end
 
-    ClearScene do
+    command "ClearScene" do
       description "Mark all operations complete and prepare to return"
       reference_to(Apparatus)
       given { status == "overhauling" }
@@ -97,7 +97,7 @@ Hecks.bluebook "FireDepartment" do
       then_set :status, to: "returning"
     end
 
-    ReturnToStation do
+    command "ReturnToStation" do
       description "Mark apparatus as back in quarters after a call"
       reference_to(Apparatus)
       given { status == "returning" }
@@ -107,11 +107,11 @@ Hecks.bluebook "FireDepartment" do
   end
 
   aggregate "EmergencyCall", "A 911 call dispatched to the fire department" do
-    String :call_id
-    String :call_type
-    String :address
-    String :priority
-    String :status
+    attribute :call_id, String
+    attribute :call_type, String
+    attribute :address, String
+    attribute :priority, String
+    attribute :status, String
     reference_to(Apparatus)
 
     specification "MultiAlarm" do
@@ -119,20 +119,20 @@ Hecks.bluebook "FireDepartment" do
     end
 
     value_object "CallerInfo" do
-      String :caller_name
-      String :phone_number
+      attribute :caller_name, String
+      attribute :phone_number, String
     end
 
-    ReceiveCall do
+    command "ReceiveCall" do
       description "Log an incoming emergency call from dispatch"
-      String :call_type
-      String :address
-      String :priority
+      attribute :call_type, String
+      attribute :address, String
+      attribute :priority, String
       emits "CallReceived"
       then_set :status, to: "received"
     end
 
-    AssignCall do
+    command "AssignCall" do
       description "Dispatch apparatus and crew to respond"
       reference_to(EmergencyCall)
       reference_to(Apparatus)
@@ -141,16 +141,16 @@ Hecks.bluebook "FireDepartment" do
       then_set :status, to: "dispatched"
     end
 
-    FileReport do
+    command "FileReport" do
       description "Submit the official incident report after operations"
       reference_to(EmergencyCall)
-      String :report_summary
+      attribute :report_summary, String
       given { status == "dispatched" }
       emits "ReportFiled"
       then_set :status, to: "reported"
     end
 
-    CloseCall do
+    command "CloseCall" do
       description "Mark an emergency call as resolved"
       reference_to(EmergencyCall)
       given { status == "reported" }
@@ -160,36 +160,36 @@ Hecks.bluebook "FireDepartment" do
   end
 
   aggregate "Hydrant", "A fire hydrant in the district water system" do
-    String :hydrant_id
-    String :location
-    Float :flow_rate_gpm
-    String :status
-    String :last_inspected
+    attribute :hydrant_id, String
+    attribute :location, String
+    attribute :flow_rate_gpm, Float
+    attribute :status, String
+    attribute :last_inspected, String
 
     value_object "HydrantSpec" do
-      Integer :outlet_count
-      String :color_code
+      attribute :outlet_count, Integer
+      attribute :color_code, String
     end
 
-    RegisterHydrant do
+    command "RegisterHydrant" do
       description "Add a hydrant to the district map"
-      String :hydrant_id
-      String :location
-      Float :flow_rate_gpm
+      attribute :hydrant_id, String
+      attribute :location, String
+      attribute :flow_rate_gpm, Float
       emits "HydrantRegistered"
       then_set :status, to: "serviceable"
     end
 
-    InspectHydrant do
+    command "InspectHydrant" do
       description "Perform a flow test and visual inspection"
       reference_to(Hydrant)
       emits "HydrantInspected"
     end
 
-    TagOutOfService do
+    command "TagOutOfService" do
       description "Mark a hydrant as broken or obstructed"
       reference_to(Hydrant)
-      String :reason
+      attribute :reason, String
       given { status == "serviceable" }
       emits "HydrantOutOfService"
       then_set :status, to: "out_of_service"

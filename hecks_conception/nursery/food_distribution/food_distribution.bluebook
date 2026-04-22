@@ -3,20 +3,20 @@ Hecks.bluebook "FoodDistribution", version: "2026.04.13.1" do
   category "healthcare_community"
 
   aggregate "FoodDonation", "A donated food item received at the food bank" do
-    String :donation_id
-    String :donor_name
-    String :food_type
-    Float :weight_lbs
-    String :expiry_date
-    String :status
-    ReceiveDonation do
+    attribute :donation_id, String
+    attribute :donor_name, String
+    attribute :food_type, String
+    attribute :weight_lbs, Float
+    attribute :expiry_date, String
+    attribute :status, String
+    command "ReceiveDonation" do
       role "Volunteer"
       description "Receive a food donation at the warehouse"
-      String :donation_id
-      String :donor_name
-      String :food_type
-      Float :weight_lbs
-      String :expiry_date
+      attribute :donation_id, String
+      attribute :donor_name, String
+      attribute :food_type, String
+      attribute :weight_lbs, Float
+      attribute :expiry_date, String
       emits "DonationReceived"
       then_set :donation_id, to: :donation_id
       then_set :donor_name, to: :donor_name
@@ -25,7 +25,7 @@ Hecks.bluebook "FoodDistribution", version: "2026.04.13.1" do
       then_set :expiry_date, to: :expiry_date
       then_set :status, to: "received"
     end
-    SortDonation do
+    command "SortDonation" do
       role "Volunteer"
       description "Sort donation into appropriate warehouse zone"
       reference_to(FoodDonation)
@@ -36,24 +36,24 @@ Hecks.bluebook "FoodDistribution", version: "2026.04.13.1" do
   end
 
   aggregate "WarehouseZone", "A temperature or category zone in the food warehouse" do
-    String :zone_id
-    String :zone_type
-    Float :temperature_f
-    Integer :capacity_pallets
-    Integer :used_pallets
-    String :status
+    attribute :zone_id, String
+    attribute :zone_type, String
+    attribute :temperature_f, Float
+    attribute :capacity_pallets, Integer
+    attribute :used_pallets, Integer
+    attribute :status, String
     value_object "StorageSlot" do
-      String :slot_id
-      String :food_type
-      String :expiry_date
+      attribute :slot_id, String
+      attribute :food_type, String
+      attribute :expiry_date, String
     end
-    SetupZone do
+    command "SetupZone" do
       role "Manager"
       description "Configure a warehouse zone with temperature and capacity"
-      String :zone_id
-      String :zone_type
-      Float :temperature_f
-      Integer :capacity_pallets
+      attribute :zone_id, String
+      attribute :zone_type, String
+      attribute :temperature_f, Float
+      attribute :capacity_pallets, Integer
       emits "ZoneSetup"
       then_set :zone_id, to: :zone_id
       then_set :zone_type, to: :zone_type
@@ -62,39 +62,39 @@ Hecks.bluebook "FoodDistribution", version: "2026.04.13.1" do
       then_set :used_pallets, to: 0
       then_set :status, to: "active"
     end
-    StockZone do
+    command "StockZone" do
       role "Volunteer"
       description "Place sorted donations into the warehouse zone"
       reference_to(WarehouseZone)
-      Integer :pallets_added
+      attribute :pallets_added, Integer
       emits "ZoneStocked"
     end
   end
 
   aggregate "DeliveryRoute", "An optimized delivery route to recipient agencies" do
-    String :route_id
-    String :driver_name
+    attribute :route_id, String
+    attribute :driver_name, String
     list_of(Stop) :stops
-    Float :total_miles
-    String :status
+    attribute :total_miles, Float
+    attribute :status, String
     value_object "Stop" do
-      String :agency_name
-      String :address
-      Integer :pallets
+      attribute :agency_name, String
+      attribute :address, String
+      attribute :pallets, Integer
     end
-    PlanRoute do
+    command "PlanRoute" do
       role "Dispatcher"
       description "Plan a delivery route with stops at recipient agencies"
-      String :route_id
-      String :driver_name
-      Float :total_miles
+      attribute :route_id, String
+      attribute :driver_name, String
+      attribute :total_miles, Float
       emits "RoutePlanned"
       then_set :route_id, to: :route_id
       then_set :driver_name, to: :driver_name
       then_set :total_miles, to: :total_miles
       then_set :status, to: "planned"
     end
-    StartDelivery do
+    command "StartDelivery" do
       role "Driver"
       description "Begin the delivery route"
       reference_to(DeliveryRoute)
@@ -102,7 +102,7 @@ Hecks.bluebook "FoodDistribution", version: "2026.04.13.1" do
       emits "DeliveryStarted"
       then_set :status, to: "in_transit"
     end
-    CompleteDelivery do
+    command "CompleteDelivery" do
       role "Driver"
       description "Mark the delivery route as completed"
       reference_to(DeliveryRoute)
@@ -113,18 +113,18 @@ Hecks.bluebook "FoodDistribution", version: "2026.04.13.1" do
   end
 
   aggregate "RecipientAgency", "A community agency that receives food distributions" do
-    String :agency_id
-    String :name
-    String :address
-    Integer :families_served
-    String :status
-    RegisterAgency do
+    attribute :agency_id, String
+    attribute :name, String
+    attribute :address, String
+    attribute :families_served, Integer
+    attribute :status, String
+    command "RegisterAgency" do
       role "Manager"
       description "Register a recipient agency in the distribution network"
-      String :agency_id
-      String :name
-      String :address
-      Integer :families_served
+      attribute :agency_id, String
+      attribute :name, String
+      attribute :address, String
+      attribute :families_served, Integer
       emits "AgencyRegistered"
       then_set :agency_id, to: :agency_id
       then_set :name, to: :name
@@ -132,11 +132,11 @@ Hecks.bluebook "FoodDistribution", version: "2026.04.13.1" do
       then_set :families_served, to: :families_served
       then_set :status, to: "active"
     end
-    RecordServed do
+    command "RecordServed" do
       role "Manager"
       description "Update the number of families served by this agency"
       reference_to(RecipientAgency)
-      Integer :families_served
+      attribute :families_served, Integer
       emits "ServedRecorded"
       then_set :families_served, to: :families_served
     end

@@ -3,27 +3,27 @@ Hecks.bluebook "CoffeeShop", version: "2026.04.13.1" do
   category "hospitality"
 
   aggregate "MenuItem", "A beverage or food item available to order" do
-    String :item_id
-    String :name
-    String :category
-    Float :price
-    String :available
+    attribute :item_id, String
+    attribute :name, String
+    attribute :category, String
+    attribute :price, Float
+    attribute :available, String
     list_of(Ingredient) :ingredients
 
     value_object "Ingredient" do
-      String :name
-      Float :quantity
-      String :unit
-      String :allergen
+      attribute :name, String
+      attribute :quantity, Float
+      attribute :unit, String
+      attribute :allergen, String
     end
 
-    AddMenuItem do
+    command "AddMenuItem" do
       role "Manager"
       description "Put a new drink or food item on the menu"
-      String :item_id
-      String :name
-      String :category
-      Float :price
+      attribute :item_id, String
+      attribute :name, String
+      attribute :category, String
+      attribute :price, Float
       emits "MenuItemAdded"
       then_set :item_id, to: :item_id
       then_set :name, to: :name
@@ -32,7 +32,7 @@ Hecks.bluebook "CoffeeShop", version: "2026.04.13.1" do
       then_set :available, to: "true"
     end
 
-    RemoveMenuItem do
+    command "RemoveMenuItem" do
       role "Manager"
       description "Take an item off the active menu"
       reference_to(MenuItem)
@@ -42,71 +42,71 @@ Hecks.bluebook "CoffeeShop", version: "2026.04.13.1" do
   end
 
   aggregate "Barista", "A team member who prepares drinks and serves customers" do
-    String :employee_id
-    String :name
-    String :skill_level
+    attribute :employee_id, String
+    attribute :name, String
+    attribute :skill_level, String
     list_of(Certification) :certifications
 
     value_object "Certification" do
-      String :skill_name
-      String :earned_date
-      String :level
+      attribute :skill_name, String
+      attribute :earned_date, String
+      attribute :level, String
     end
 
-    HireBarista do
+    command "HireBarista" do
       role "Manager"
       description "Bring a new barista onto the team"
-      String :employee_id
-      String :name
-      String :skill_level
+      attribute :employee_id, String
+      attribute :name, String
+      attribute :skill_level, String
       emits "BaristaHired"
       then_set :employee_id, to: :employee_id
       then_set :name, to: :name
       then_set :skill_level, to: :skill_level
     end
 
-    CertifyBarista do
+    command "CertifyBarista" do
       role "Manager"
       description "Record a barista passing a skill certification"
       reference_to(Barista)
-      String :skill_name
+      attribute :skill_name, String
       emits "BaristaCertified"
     end
   end
 
   aggregate "DrinkOrder", "A customer's request for one or more beverages" do
-    String :order_id
-    String :customer_name
+    attribute :order_id, String
+    attribute :customer_name, String
     list_of(OrderedDrink) :drinks
-    Float :total
-    String :status
+    attribute :total, Float
+    attribute :status, String
 
     value_object "OrderedDrink" do
-      String :item_name
-      String :size
-      String :modifications
-      Float :price
+      attribute :item_name, String
+      attribute :size, String
+      attribute :modifications, String
+      attribute :price, Float
     end
 
-    PlaceOrder do
+    command "PlaceOrder" do
       role "Customer"
       description "Submit a drink order at the counter or mobile app"
-      String :order_id
-      String :customer_name
+      attribute :order_id, String
+      attribute :customer_name, String
       emits "OrderPlaced"
       then_set :order_id, to: :order_id
       then_set :customer_name, to: :customer_name
       then_set :status, to: "placed"
     end
 
-    PrepareDrink do
+    command "PrepareDrink" do
       role "Barista"
       description "Craft the ordered beverage to specification"
       emits "DrinkPrepared"
       then_set :status, to: "ready"
     end
 
-    ServeDrink do
+    command "ServeDrink" do
       role "Barista"
       description "Hand off the completed order to the customer"
       reference_to(DrinkOrder)
@@ -117,22 +117,22 @@ Hecks.bluebook "CoffeeShop", version: "2026.04.13.1" do
   end
 
   aggregate "BeanSupply", "A coffee bean origin and roast profile sourced for the shop" do
-    String :batch_id
-    String :origin
-    String :roast_level
-    String :roaster
-    Float :weight_kg
-    String :roast_date
+    attribute :batch_id, String
+    attribute :origin, String
+    attribute :roast_level, String
+    attribute :roaster, String
+    attribute :weight_kg, Float
+    attribute :roast_date, String
 
-    ReceiveBeans do
+    command "ReceiveBeans" do
       role "Manager"
       description "Accept a delivery of roasted coffee beans"
-      String :batch_id
-      String :origin
-      String :roast_level
-      String :roaster
-      Float :weight_kg
-      String :roast_date
+      attribute :batch_id, String
+      attribute :origin, String
+      attribute :roast_level, String
+      attribute :roaster, String
+      attribute :weight_kg, Float
+      attribute :roast_date, String
       emits "BeansReceived"
       then_set :batch_id, to: :batch_id
       then_set :origin, to: :origin
@@ -142,33 +142,33 @@ Hecks.bluebook "CoffeeShop", version: "2026.04.13.1" do
       then_set :roast_date, to: :roast_date
     end
 
-    DepleteBeans do
+    command "DepleteBeans" do
       role "Barista"
       description "Record beans used up during daily operations"
       reference_to(BeanSupply)
-      Float :amount_used
+      attribute :amount_used, Float
       emits "BeansDepleted"
     end
   end
 
   aggregate "Equipment", "A machine or tool used in beverage preparation" do
-    String :equipment_id
-    String :name
-    String :make
-    String :model
-    String :status
+    attribute :equipment_id, String
+    attribute :name, String
+    attribute :make, String
+    attribute :model, String
+    attribute :status, String
 
     specification "OutOfService" do
       satisfied_by { status == "out_of_service" }
     end
 
-    InstallEquipment do
+    command "InstallEquipment" do
       role "Manager"
       description "Set up a new piece of equipment in the shop"
-      String :equipment_id
-      String :name
-      String :make
-      String :model
+      attribute :equipment_id, String
+      attribute :name, String
+      attribute :make, String
+      attribute :model, String
       emits "EquipmentInstalled"
       then_set :equipment_id, to: :equipment_id
       then_set :name, to: :name
@@ -177,14 +177,14 @@ Hecks.bluebook "CoffeeShop", version: "2026.04.13.1" do
       then_set :status, to: "operational"
     end
 
-    ServiceEquipment do
+    command "ServiceEquipment" do
       role "Technician"
       description "Perform scheduled maintenance on the equipment"
       reference_to(Equipment)
       emits "EquipmentServiced"
     end
 
-    ReportMalfunction do
+    command "ReportMalfunction" do
       role "Barista"
       description "Flag a piece of equipment as broken or degraded"
       reference_to(Equipment)

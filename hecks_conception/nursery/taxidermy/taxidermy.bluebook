@@ -1,29 +1,29 @@
 Hecks.bluebook "Taxidermy" do
   aggregate "Specimen", "An animal specimen received for taxidermy mounting" do
-    String :species
-    String :common_name
-    String :status, default: "received"
-    Float :weight_lbs
-    String :source_type
+    attribute :species, String
+    attribute :common_name, String
+    attribute :status, String, default: "received"
+    attribute :weight_lbs, Float
+    attribute :source_type, String
 
     value_object "SpecimenMeasurements" do
-      Float :body_length_inches
-      Float :girth_inches
-      Float :horn_length_inches
-      Float :wingspan_inches
+      attribute :body_length_inches, Float
+      attribute :girth_inches, Float
+      attribute :horn_length_inches, Float
+      attribute :wingspan_inches, Float
     end
 
-    ReceiveSpecimen do
+    command "ReceiveSpecimen" do
       description "Log a new specimen intake with measurements"
-      String :species
-      String :common_name
-      Float :weight_lbs
-      String :source_type
+      attribute :species, String
+      attribute :common_name, String
+      attribute :weight_lbs, Float
+      attribute :source_type, String
       emits "SpecimenReceived"
       then_set :status, to: "received"
     end
 
-    SkinSpecimen do
+    command "SkinSpecimen" do
       description "Remove and prepare the hide or skin for tanning"
       reference_to(Specimen)
       given { status == "received" }
@@ -31,10 +31,10 @@ Hecks.bluebook "Taxidermy" do
       then_set :status, to: "skinned"
     end
 
-    TanHide do
+    command "TanHide" do
       description "Tan the hide using the selected tanning method"
       reference_to(Specimen)
-      String :tanning_method
+      attribute :tanning_method, String
       given { status == "skinned" }
       emits "HideTanned"
       then_set :status, to: "tanned"
@@ -42,33 +42,33 @@ Hecks.bluebook "Taxidermy" do
   end
 
   aggregate "Pose", "The pose and form selection for a mounted specimen" do
-    String :pose_name
-    String :position
-    String :expression
-    String :status, default: "selected"
+    attribute :pose_name, String
+    attribute :position, String
+    attribute :expression, String
+    attribute :status, String, default: "selected"
     reference_to(Specimen)
 
     value_object "FormSpec" do
-      String :form_manufacturer
-      String :size_code
-      String :material
-      String :alterations_needed
+      attribute :form_manufacturer, String
+      attribute :size_code, String
+      attribute :material, String
+      attribute :alterations_needed, String
     end
 
-    SelectPose do
+    command "SelectPose" do
       description "Choose the pose and expression for the mount"
       reference_to(Specimen)
-      String :pose_name
-      String :position
-      String :expression
+      attribute :pose_name, String
+      attribute :position, String
+      attribute :expression, String
       emits "PoseSelected"
       then_set :status, to: "selected"
     end
 
-    SculptAlteration do
+    command "SculptAlteration" do
       description "Modify the form to match the specimen anatomy"
       reference_to(Pose)
-      String :alteration_details
+      attribute :alteration_details, String
       given { status == "selected" }
       emits "AlterationSculpted"
       then_set :status, to: "altered"
@@ -76,48 +76,48 @@ Hecks.bluebook "Taxidermy" do
   end
 
   aggregate "TaxidermyMaterial", "Supplies and materials for taxidermy work" do
-    String :material_name
-    String :category
-    Integer :quantity
-    String :supplier
-    Float :unit_cost
+    attribute :material_name, String
+    attribute :category, String
+    attribute :quantity, Integer
+    attribute :supplier, String
+    attribute :unit_cost, Float
 
-    StockMaterial do
+    command "StockMaterial" do
       description "Add materials to the taxidermy supply inventory"
-      String :material_name
-      String :category
-      Integer :quantity
-      String :supplier
-      Float :unit_cost
+      attribute :material_name, String
+      attribute :category, String
+      attribute :quantity, Integer
+      attribute :supplier, String
+      attribute :unit_cost, Float
       emits "MaterialStocked"
     end
 
-    ConsumeMaterial do
+    command "ConsumeMaterial" do
       description "Deduct materials used during a mount"
       reference_to(TaxidermyMaterial)
-      Integer :quantity_used
+      attribute :quantity_used, Integer
       emits "MaterialConsumed"
     end
   end
 
   aggregate "Preservation", "The preservation and mounting process for a specimen" do
-    String :method
-    String :status, default: "in_progress"
-    String :adhesive_type
-    Integer :drying_days
+    attribute :method, String
+    attribute :status, String, default: "in_progress"
+    attribute :adhesive_type, String
+    attribute :drying_days, Integer
     reference_to(Specimen)
     reference_to(Pose)
 
-    MountSpecimen do
+    command "MountSpecimen" do
       description "Stretch the tanned hide over the form and mount"
       reference_to(Specimen)
       reference_to(Pose)
-      String :adhesive_type
+      attribute :adhesive_type, String
       emits "SpecimenMounted"
       then_set :status, to: "in_progress"
     end
 
-    FinishMount do
+    command "FinishMount" do
       description "Paint details, set eyes, and apply final touches"
       reference_to(Preservation)
       given { status == "in_progress" }
@@ -125,35 +125,35 @@ Hecks.bluebook "Taxidermy" do
       then_set :status, to: "finished"
     end
 
-    CureMount do
+    command "CureMount" do
       description "Allow the mount to cure and dry completely"
       reference_to(Preservation)
-      Integer :drying_days
+      attribute :drying_days, Integer
       emits "MountCured"
       then_set :drying_days, to: :drying_days
     end
   end
 
   aggregate "Display", "A finished mount displayed in a collection or exhibit" do
-    String :location
-    String :display_type
-    String :plaque_text
-    String :status, default: "staged"
+    attribute :location, String
+    attribute :display_type, String
+    attribute :plaque_text, String
+    attribute :status, String, default: "staged"
     reference_to(Preservation)
 
-    StageDisplay do
+    command "StageDisplay" do
       description "Set up the finished mount in a display location"
       reference_to(Preservation)
-      String :location
-      String :display_type
-      String :plaque_text
+      attribute :location, String
+      attribute :display_type, String
+      attribute :plaque_text, String
       emits "DisplayStaged"
     end
 
-    RotateDisplay do
+    command "RotateDisplay" do
       description "Move a display to a different location or exhibit"
       reference_to(Display)
-      String :new_location
+      attribute :new_location, String
       emits "DisplayRotated"
       then_set :location, to: :new_location
     end

@@ -3,29 +3,29 @@ Hecks.bluebook "ThermalComfort", version: "2026.04.13.1" do
   category "crossover"
 
   aggregate "ThermalZone", "A building thermal zone — volume, insulation, heat load, setpoint" do
-    String :zone_name
-    Float :volume_m3
-    Float :insulation_r_value
-    Float :heat_load_watts
-    Float :setpoint_temp_c
-    Float :current_temp_c
-    String :status
+    attribute :zone_name, String
+    attribute :volume_m3, Float
+    attribute :insulation_r_value, Float
+    attribute :heat_load_watts, Float
+    attribute :setpoint_temp_c, Float
+    attribute :current_temp_c, Float
+    attribute :status, String
 
     value_object "HeatTransferPath" do
-      String :path_type
-      Float :area_m2
-      Float :u_value_w_m2k
-      Float :heat_flow_watts
+      attribute :path_type, String
+      attribute :area_m2, Float
+      attribute :u_value_w_m2k, Float
+      attribute :heat_flow_watts, Float
     end
 
-    DefineZone do
+    command "DefineZone" do
       role "Engineer"
       description "Define a thermal zone with volume, insulation, and design heat load"
-      String :zone_name
-      Float :volume_m3
-      Float :insulation_r_value
-      Float :heat_load_watts
-      Float :setpoint_temp_c
+      attribute :zone_name, String
+      attribute :volume_m3, Float
+      attribute :insulation_r_value, Float
+      attribute :heat_load_watts, Float
+      attribute :setpoint_temp_c, Float
       emits "ZoneDefined"
       then_set :zone_name, to: :zone_name
       then_set :volume_m3, to: :volume_m3
@@ -35,21 +35,21 @@ Hecks.bluebook "ThermalComfort", version: "2026.04.13.1" do
       then_set :status, to: "defined"
     end
 
-    MeasureTemperature do
+    command "MeasureTemperature" do
       role "Sensor"
       description "Record current zone temperature from sensors"
       reference_to(ThermalZone)
-      Float :current_temp_c
+      attribute :current_temp_c, Float
       given { status == "defined" }
       emits "TemperatureMeasured"
       then_set :current_temp_c, to: :current_temp_c
     end
 
-    CalculateHeatLoss do
+    command "CalculateHeatLoss" do
       role "System"
       description "Calculate steady-state heat loss through building envelope"
       reference_to(ThermalZone)
-      Float :heat_load_watts
+      attribute :heat_load_watts, Float
       given { status == "defined" }
       emits "HeatLossCalculated"
       then_set :heat_load_watts, to: :heat_load_watts
@@ -61,28 +61,28 @@ Hecks.bluebook "ThermalComfort", version: "2026.04.13.1" do
   end
 
   aggregate "HVACEquipment", "HVAC equipment — type, capacity, efficiency rating, runtime" do
-    String :equipment_id
-    String :equipment_type
-    Float :capacity_kw
-    Float :efficiency_rating
-    Float :runtime_hours
-    String :serving_zone
-    String :status
+    attribute :equipment_id, String
+    attribute :equipment_type, String
+    attribute :capacity_kw, Float
+    attribute :efficiency_rating, Float
+    attribute :runtime_hours, Float
+    attribute :serving_zone, String
+    attribute :status, String
 
     value_object "PerformanceCurve" do
-      Float :outdoor_temp_c
-      Float :capacity_pct
-      Float :efficiency_pct
+      attribute :outdoor_temp_c, Float
+      attribute :capacity_pct, Float
+      attribute :efficiency_pct, Float
     end
 
-    InstallEquipment do
+    command "InstallEquipment" do
       role "Technician"
       description "Install HVAC equipment serving a thermal zone"
-      String :equipment_id
-      String :equipment_type
-      Float :capacity_kw
-      Float :efficiency_rating
-      String :serving_zone
+      attribute :equipment_id, String
+      attribute :equipment_type, String
+      attribute :capacity_kw, Float
+      attribute :efficiency_rating, Float
+      attribute :serving_zone, String
       emits "EquipmentInstalled"
       then_set :equipment_id, to: :equipment_id
       then_set :equipment_type, to: :equipment_type
@@ -93,7 +93,7 @@ Hecks.bluebook "ThermalComfort", version: "2026.04.13.1" do
       then_set :status, to: "installed"
     end
 
-    ActivateEquipment do
+    command "ActivateEquipment" do
       role "System"
       description "Start equipment to condition the zone"
       reference_to(HVACEquipment)
@@ -102,7 +102,7 @@ Hecks.bluebook "ThermalComfort", version: "2026.04.13.1" do
       then_set :status, to: "running"
     end
 
-    ServiceEquipment do
+    command "ServiceEquipment" do
       role "Technician"
       description "Perform maintenance service on equipment"
       reference_to(HVACEquipment)
@@ -119,29 +119,29 @@ Hecks.bluebook "ThermalComfort", version: "2026.04.13.1" do
   end
 
   aggregate "ComfortAssessment", "Occupant thermal comfort — PMV, PPD, metabolic rate, clothing" do
-    String :zone_name
-    Float :air_temp_c
-    Float :mean_radiant_temp_c
-    Float :relative_humidity_pct
-    Float :air_velocity_ms
-    Float :pmv_index
-    Float :ppd_pct
-    String :status
+    attribute :zone_name, String
+    attribute :air_temp_c, Float
+    attribute :mean_radiant_temp_c, Float
+    attribute :relative_humidity_pct, Float
+    attribute :air_velocity_ms, Float
+    attribute :pmv_index, Float
+    attribute :ppd_pct, Float
+    attribute :status, String
 
     value_object "OccupantFactors" do
-      Float :metabolic_rate_met
-      Float :clothing_insulation_clo
-      String :activity_level
+      attribute :metabolic_rate_met, Float
+      attribute :clothing_insulation_clo, Float
+      attribute :activity_level, String
     end
 
-    AssessComfort do
+    command "AssessComfort" do
       role "System"
       description "Calculate PMV/PPD comfort indices from environmental and occupant factors"
-      String :zone_name
-      Float :air_temp_c
-      Float :mean_radiant_temp_c
-      Float :relative_humidity_pct
-      Float :air_velocity_ms
+      attribute :zone_name, String
+      attribute :air_temp_c, Float
+      attribute :mean_radiant_temp_c, Float
+      attribute :relative_humidity_pct, Float
+      attribute :air_velocity_ms, Float
       emits "ComfortAssessed"
       then_set :zone_name, to: :zone_name
       then_set :air_temp_c, to: :air_temp_c
@@ -151,12 +151,12 @@ Hecks.bluebook "ThermalComfort", version: "2026.04.13.1" do
       then_set :status, to: "assessed"
     end
 
-    CalculatePMV do
+    command "CalculatePMV" do
       role "System"
       description "Calculate Predicted Mean Vote index from Fanger's model"
       reference_to(ComfortAssessment)
-      Float :pmv_index
-      Float :ppd_pct
+      attribute :pmv_index, Float
+      attribute :ppd_pct, Float
       given { status == "assessed" }
       emits "PMVCalculated"
       then_set :pmv_index, to: :pmv_index
@@ -164,7 +164,7 @@ Hecks.bluebook "ThermalComfort", version: "2026.04.13.1" do
       then_set :status, to: "calculated"
     end
 
-    FlagDiscomfort do
+    command "FlagDiscomfort" do
       role "System"
       description "Flag when PPD exceeds acceptable threshold"
       reference_to(ComfortAssessment)
@@ -181,33 +181,33 @@ Hecks.bluebook "ThermalComfort", version: "2026.04.13.1" do
   end
 
   aggregate "EnergyAudit", "Energy efficiency audit — consumption, waste identification, recommendations" do
-    String :building_name
-    Float :total_consumption_kwh
-    Float :hvac_consumption_kwh
-    Float :efficiency_pct
-    String :audit_date
-    String :status
+    attribute :building_name, String
+    attribute :total_consumption_kwh, Float
+    attribute :hvac_consumption_kwh, Float
+    attribute :efficiency_pct, Float
+    attribute :audit_date, String
+    attribute :status, String
 
     value_object "WasteSource" do
-      String :source
-      Float :waste_kwh
-      String :recommendation
+      attribute :source, String
+      attribute :waste_kwh, Float
+      attribute :recommendation, String
     end
 
     list_of "Recommendation" do
-      String :action
-      Float :savings_kwh
-      Float :cost
-      Float :payback_years
+      attribute :action, String
+      attribute :savings_kwh, Float
+      attribute :cost, Float
+      attribute :payback_years, Float
     end
 
-    ConductEnergyAudit do
+    command "ConductEnergyAudit" do
       role "Auditor"
       description "Conduct energy audit measuring consumption and waste"
-      String :building_name
-      Float :total_consumption_kwh
-      Float :hvac_consumption_kwh
-      String :audit_date
+      attribute :building_name, String
+      attribute :total_consumption_kwh, Float
+      attribute :hvac_consumption_kwh, Float
+      attribute :audit_date, String
       emits "EnergyAuditConducted"
       then_set :building_name, to: :building_name
       then_set :total_consumption_kwh, to: :total_consumption_kwh
@@ -216,18 +216,18 @@ Hecks.bluebook "ThermalComfort", version: "2026.04.13.1" do
       then_set :status, to: "conducted"
     end
 
-    CalculateEfficiency do
+    command "CalculateEfficiency" do
       role "System"
       description "Calculate HVAC efficiency as ratio of useful output to consumption"
       reference_to(EnergyAudit)
-      Float :efficiency_pct
+      attribute :efficiency_pct, Float
       given { status == "conducted" }
       emits "EfficiencyCalculated"
       then_set :efficiency_pct, to: :efficiency_pct
       then_set :status, to: "calculated"
     end
 
-    GenerateRecommendations do
+    command "GenerateRecommendations" do
       role "Auditor"
       description "Generate energy saving recommendations with payback analysis"
       reference_to(EnergyAudit)

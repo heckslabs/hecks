@@ -3,24 +3,24 @@ Hecks.bluebook "VetTraining", version: "2026.04.13.1" do
   category "healthcare_community"
 
   aggregate "VeteranProfile", "A veteran enrolled in the training and employment program" do
-    String :veteran_id
-    String :name
-    String :branch
-    String :discharge_status
-    String :status
+    attribute :veteran_id, String
+    attribute :name, String
+    attribute :branch, String
+    attribute :discharge_status, String
+    attribute :status, String
     list_of(Benefit) :benefits
     value_object "Benefit" do
-      String :benefit_type
-      String :eligibility
-      Float :amount
+      attribute :benefit_type, String
+      attribute :eligibility, String
+      attribute :amount, Float
     end
-    EnrollVeteran do
+    command "EnrollVeteran" do
       role "CaseWorker"
       description "Enroll a veteran in the training program"
-      String :veteran_id
-      String :name
-      String :branch
-      String :discharge_status
+      attribute :veteran_id, String
+      attribute :name, String
+      attribute :branch, String
+      attribute :discharge_status, String
       emits "VeteranEnrolled"
       then_set :veteran_id, to: :veteran_id
       then_set :name, to: :name
@@ -28,7 +28,7 @@ Hecks.bluebook "VetTraining", version: "2026.04.13.1" do
       then_set :discharge_status, to: :discharge_status
       then_set :status, to: "enrolled"
     end
-    GraduateVeteran do
+    command "GraduateVeteran" do
       role "CaseWorker"
       description "Graduate veteran from the training program"
       reference_to(VeteranProfile)
@@ -42,20 +42,20 @@ Hecks.bluebook "VetTraining", version: "2026.04.13.1" do
   end
 
   aggregate "Course", "An e-learning course available to veterans" do
-    String :course_id
-    String :title
-    String :skill_area
-    Integer :duration_hours
-    String :difficulty
-    String :status
-    OfferCourse do
+    attribute :course_id, String
+    attribute :title, String
+    attribute :skill_area, String
+    attribute :duration_hours, Integer
+    attribute :difficulty, String
+    attribute :status, String
+    command "OfferCourse" do
       role "Instructor"
       description "Offer an e-learning course for veteran skills training"
-      String :course_id
-      String :title
-      String :skill_area
-      Integer :duration_hours
-      String :difficulty
+      attribute :course_id, String
+      attribute :title, String
+      attribute :skill_area, String
+      attribute :duration_hours, Integer
+      attribute :difficulty, String
       emits "CourseOffered"
       then_set :course_id, to: :course_id
       then_set :title, to: :title
@@ -64,7 +64,7 @@ Hecks.bluebook "VetTraining", version: "2026.04.13.1" do
       then_set :difficulty, to: :difficulty
       then_set :status, to: "active"
     end
-    RetireCourse do
+    command "RetireCourse" do
       role "Instructor"
       description "Retire a course that is no longer relevant"
       reference_to(Course)
@@ -78,17 +78,17 @@ Hecks.bluebook "VetTraining", version: "2026.04.13.1" do
   end
 
   aggregate "Enrollment", "A veteran enrollment in a specific course" do
-    String :enrollment_id
-    String :veteran_id
-    String :course_id
-    Float :progress_pct
-    String :status
-    EnrollInCourse do
+    attribute :enrollment_id, String
+    attribute :veteran_id, String
+    attribute :course_id, String
+    attribute :progress_pct, Float
+    attribute :status, String
+    command "EnrollInCourse" do
       role "Veteran"
       description "Enroll a veteran in a specific course"
-      String :enrollment_id
-      String :veteran_id
-      String :course_id
+      attribute :enrollment_id, String
+      attribute :veteran_id, String
+      attribute :course_id, String
       emits "CourseEnrolled"
       then_set :enrollment_id, to: :enrollment_id
       then_set :veteran_id, to: :veteran_id
@@ -96,15 +96,15 @@ Hecks.bluebook "VetTraining", version: "2026.04.13.1" do
       then_set :progress_pct, to: 0.0
       then_set :status, to: "in_progress"
     end
-    RecordProgress do
+    command "RecordProgress" do
       role "System"
       description "Record course completion percentage"
       reference_to(Enrollment)
-      Float :progress_pct
+      attribute :progress_pct, Float
       emits "ProgressRecorded"
       then_set :progress_pct, to: :progress_pct
     end
-    CompleteCourse do
+    command "CompleteCourse" do
       role "System"
       description "Mark course as completed when progress reaches 100%"
       reference_to(Enrollment)
@@ -118,18 +118,18 @@ Hecks.bluebook "VetTraining", version: "2026.04.13.1" do
   end
 
   aggregate "JobPlacement", "A job placement opportunity matched to a graduated veteran" do
-    String :placement_id
-    String :veteran_id
-    String :employer_name
-    String :job_title
-    String :status
-    PlaceVeteran do
+    attribute :placement_id, String
+    attribute :veteran_id, String
+    attribute :employer_name, String
+    attribute :job_title, String
+    attribute :status, String
+    command "PlaceVeteran" do
       role "CaseWorker"
       description "Place a graduated veteran in an employment opportunity"
-      String :placement_id
-      String :veteran_id
-      String :employer_name
-      String :job_title
+      attribute :placement_id, String
+      attribute :veteran_id, String
+      attribute :employer_name, String
+      attribute :job_title, String
       emits "VeteranPlaced"
       then_set :placement_id, to: :placement_id
       then_set :veteran_id, to: :veteran_id
@@ -137,7 +137,7 @@ Hecks.bluebook "VetTraining", version: "2026.04.13.1" do
       then_set :job_title, to: :job_title
       then_set :status, to: "placed"
     end
-    ConfirmHire do
+    command "ConfirmHire" do
       role "Employer"
       description "Confirm the veteran has been hired"
       reference_to(JobPlacement)

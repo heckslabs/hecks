@@ -3,13 +3,13 @@ Hecks.bluebook "CrowdfundingPlatform", version: "2026.04.13.1" do
   category "technology"
 
   aggregate "Campaign", "A fundraising project seeking backer support" do
-    String :campaign_title
-    String :creator_name
-    String :description
-    Float :funding_goal
-    Float :amount_raised
-    String :deadline
-    String :status
+    attribute :campaign_title, String
+    attribute :creator_name, String
+    attribute :description, String
+    attribute :funding_goal, Float
+    attribute :amount_raised, Float
+    attribute :deadline, String
+    attribute :status, String
     list_of(RewardTier) :reward_tiers
 
     specification "FullyFunded" do
@@ -17,30 +17,30 @@ Hecks.bluebook "CrowdfundingPlatform", version: "2026.04.13.1" do
     end
 
     value_object "RewardTier" do
-      String :tier_name
-      Float :minimum_pledge
-      String :description
-      Integer :backer_limit
+      attribute :tier_name, String
+      attribute :minimum_pledge, Float
+      attribute :description, String
+      attribute :backer_limit, Integer
     end
 
-    LaunchCampaign do
+    command "LaunchCampaign" do
       role "Creator"
       description "Start a new crowdfunding campaign with goals and rewards"
-      String :campaign_title
-      String :creator_name
-      String :description
-      Float :funding_goal
-      String :deadline
+      attribute :campaign_title, String
+      attribute :creator_name, String
+      attribute :description, String
+      attribute :funding_goal, Float
+      attribute :deadline, String
       emits "CampaignLaunched"
     end
 
-    FundCampaign do
+    command "FundCampaign" do
       description "Mark a campaign as successfully funded"
       reference_to(Campaign)
       emits "CampaignFunded"
     end
 
-    CancelCampaign do
+    command "CancelCampaign" do
       description "Abandon a campaign and trigger refunds"
       reference_to(Campaign)
       emits "CampaignCanceled"
@@ -48,39 +48,39 @@ Hecks.bluebook "CrowdfundingPlatform", version: "2026.04.13.1" do
   end
 
   aggregate "Backer", "A person who pledges money to a campaign" do
-    String :backer_id
-    String :name
-    String :email
-    String :payment_method
-    Float :total_pledged
-    String :status
+    attribute :backer_id, String
+    attribute :name, String
+    attribute :email, String
+    attribute :payment_method, String
+    attribute :total_pledged, Float
+    attribute :status, String
     list_of(PledgeRecord) :pledge_history
 
     value_object "PledgeRecord" do
-      String :campaign_title
-      Float :amount
-      String :pledged_at
+      attribute :campaign_title, String
+      attribute :amount, Float
+      attribute :pledged_at, String
     end
 
-    RegisterBacker do
+    command "RegisterBacker" do
       role "Backer"
       description "Create a backer account on the platform"
-      String :backer_id
-      String :name
-      String :email
-      String :payment_method
+      attribute :backer_id, String
+      attribute :name, String
+      attribute :email, String
+      attribute :payment_method, String
       then_set :status, to: "active"
       emits "BackerRegistered"
     end
 
-    ChangePaymentMethod do
+    command "ChangePaymentMethod" do
       description "Change the backer's default payment method"
       reference_to(Backer)
-      String :payment_method
+      attribute :payment_method, String
       emits "PaymentMethodChanged"
     end
 
-    DeactivateBacker do
+    command "DeactivateBacker" do
       description "Disable a backer account"
       reference_to(Backer)
       given("backer is active") { status == "active" }
@@ -89,40 +89,40 @@ Hecks.bluebook "CrowdfundingPlatform", version: "2026.04.13.1" do
   end
 
   aggregate "Pledge", "A monetary commitment from a backer to a campaign" do
-    String :pledge_id
-    Float :amount
-    String :reward_tier
-    String :status
+    attribute :pledge_id, String
+    attribute :amount, Float
+    attribute :reward_tier, String
+    attribute :status, String
     reference_to Campaign
     reference_to Backer
 
     value_object "PledgeAdjustment" do
-      Float :previous_amount
-      Float :new_amount
-      String :adjusted_at
+      attribute :previous_amount, Float
+      attribute :new_amount, Float
+      attribute :adjusted_at, String
     end
 
-    MakePledge do
+    command "MakePledge" do
       role "Backer"
       description "Commit funds to a campaign at a chosen reward tier"
-      String :pledge_id
-      Float :amount
-      String :reward_tier
+      attribute :pledge_id, String
+      attribute :amount, Float
+      attribute :reward_tier, String
       reference_to(Campaign)
       reference_to(Backer)
       then_set :status, to: "active"
       emits "PledgeMade"
     end
 
-    IncreasePledge do
+    command "IncreasePledge" do
       description "Add more funds to an existing pledge"
       reference_to(Pledge)
-      Float :additional_amount
+      attribute :additional_amount, Float
       given("pledge is active") { status == "active" }
       emits "PledgeIncreased"
     end
 
-    WithdrawPledge do
+    command "WithdrawPledge" do
       description "Retract a pledge before the campaign deadline"
       reference_to(Pledge)
       emits "PledgeWithdrawn"
@@ -130,41 +130,41 @@ Hecks.bluebook "CrowdfundingPlatform", version: "2026.04.13.1" do
   end
 
   aggregate "Reward", "A tangible or digital perk fulfilled to backers" do
-    String :reward_id
-    String :tier_name
-    String :description
-    String :fulfillment_status
-    String :shipping_address
-    String :status
+    attribute :reward_id, String
+    attribute :tier_name, String
+    attribute :description, String
+    attribute :fulfillment_status, String
+    attribute :shipping_address, String
+    attribute :status, String
     reference_to Pledge
 
     value_object "ShippingInfo" do
-      String :carrier
-      String :tracking_number
-      String :shipped_at
+      attribute :carrier, String
+      attribute :tracking_number, String
+      attribute :shipped_at, String
     end
 
-    FulfillReward do
+    command "FulfillReward" do
       role "Creator"
       description "Ship or deliver a reward to a backer"
-      String :reward_id
-      String :tier_name
-      String :description
-      String :shipping_address
+      attribute :reward_id, String
+      attribute :tier_name, String
+      attribute :description, String
+      attribute :shipping_address, String
       reference_to(Pledge)
       emits "RewardFulfilled"
     end
 
-    MarkShipped do
+    command "MarkShipped" do
       description "Record tracking details when a reward ships"
       reference_to(Reward)
-      String :carrier
-      String :tracking_number
+      attribute :carrier, String
+      attribute :tracking_number, String
       then_set :fulfillment_status, to: "shipped"
       emits "RewardShipped"
     end
 
-    ReportDamaged do
+    command "ReportDamaged" do
       description "Flag a reward as damaged during delivery"
       reference_to(Reward)
       given("reward is shipped") { fulfillment_status == "shipped" }
@@ -173,43 +173,43 @@ Hecks.bluebook "CrowdfundingPlatform", version: "2026.04.13.1" do
   end
 
   aggregate "Milestone", "A progress marker in a campaign's development" do
-    String :milestone_id
-    String :title
-    String :description
-    String :target_date
-    String :status
+    attribute :milestone_id, String
+    attribute :title, String
+    attribute :description, String
+    attribute :target_date, String
+    attribute :status, String
     reference_to Campaign
 
     value_object "MilestoneUpdate" do
-      String :note
-      String :author
-      String :posted_at
+      attribute :note, String
+      attribute :author, String
+      attribute :posted_at, String
     end
 
-    SetMilestone do
+    command "SetMilestone" do
       role "Creator"
       description "Define a project milestone with a target date"
-      String :milestone_id
-      String :title
-      String :description
-      String :target_date
+      attribute :milestone_id, String
+      attribute :title, String
+      attribute :description, String
+      attribute :target_date, String
       reference_to(Campaign)
       then_set :status, to: "pending"
       emits "MilestoneSet"
     end
 
-    CompleteMilestone do
+    command "CompleteMilestone" do
       description "Mark a milestone as achieved"
       reference_to(Milestone)
       given("milestone is pending") { status == "pending" }
       emits "MilestoneCompleted"
     end
 
-    DelayMilestone do
+    command "DelayMilestone" do
       description "Push back a milestone target date"
       reference_to(Milestone)
-      String :new_target_date
-      String :delay_reason
+      attribute :new_target_date, String
+      attribute :delay_reason, String
       emits "MilestoneDelayed"
     end
   end

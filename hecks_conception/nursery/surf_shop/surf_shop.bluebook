@@ -3,32 +3,32 @@ Hecks.bluebook "SurfShop", version: "2026.04.13.1" do
   category "retail"
 
   aggregate "Surfboard", "A board for sale or rent — shortboard, longboard, or foam" do
-    String :board_id
-    String :shaper
-    String :model
-    String :board_type
-    Float :length_ft
-    Float :volume_liters
-    Float :price
-    String :status
+    attribute :board_id, String
+    attribute :shaper, String
+    attribute :model, String
+    attribute :board_type, String
+    attribute :length_ft, Float
+    attribute :volume_liters, Float
+    attribute :price, Float
+    attribute :status, String
     list_of(FinSetup) :fin_setups
 
     value_object "FinSetup" do
-      String :fin_system
-      Integer :fin_count
-      String :description
+      attribute :fin_system, String
+      attribute :fin_count, Integer
+      attribute :description, String
     end
 
-    StockBoard do
+    command "StockBoard" do
       role "Manager"
       description "Add a new surfboard to the shop inventory"
-      String :board_id
-      String :shaper
-      String :model
-      String :board_type
-      Float :length_ft
-      Float :volume_liters
-      Float :price
+      attribute :board_id, String
+      attribute :shaper, String
+      attribute :model, String
+      attribute :board_type, String
+      attribute :length_ft, Float
+      attribute :volume_liters, Float
+      attribute :price, Float
       emits "BoardStocked"
       then_set :board_id, to: :board_id
       then_set :shaper, to: :shaper
@@ -40,7 +40,7 @@ Hecks.bluebook "SurfShop", version: "2026.04.13.1" do
       then_set :status, to: "available"
     end
 
-    SellBoard do
+    command "SellBoard" do
       role "SalesAssociate"
       description "Complete the sale of a surfboard"
       reference_to(Surfboard)
@@ -51,22 +51,22 @@ Hecks.bluebook "SurfShop", version: "2026.04.13.1" do
   end
 
   aggregate "Wetsuit", "A neoprene suit for cold-water surfing" do
-    String :wetsuit_id
-    String :brand
-    String :thickness_mm
-    String :size
-    Float :price
-    Integer :quantity
+    attribute :wetsuit_id, String
+    attribute :brand, String
+    attribute :thickness_mm, String
+    attribute :size, String
+    attribute :price, Float
+    attribute :quantity, Integer
 
-    StockWetsuit do
+    command "StockWetsuit" do
       role "Manager"
       description "Add wetsuits to inventory from a supplier shipment"
-      String :wetsuit_id
-      String :brand
-      String :thickness_mm
-      String :size
-      Float :price
-      Integer :quantity
+      attribute :wetsuit_id, String
+      attribute :brand, String
+      attribute :thickness_mm, String
+      attribute :size, String
+      attribute :price, Float
+      attribute :quantity, Integer
       emits "WetsuitStocked"
       then_set :wetsuit_id, to: :wetsuit_id
       then_set :brand, to: :brand
@@ -76,7 +76,7 @@ Hecks.bluebook "SurfShop", version: "2026.04.13.1" do
       then_set :quantity, to: :quantity
     end
 
-    SellWetsuit do
+    command "SellWetsuit" do
       role "SalesAssociate"
       description "Ring up a wetsuit purchase"
       reference_to(Wetsuit)
@@ -86,25 +86,25 @@ Hecks.bluebook "SurfShop", version: "2026.04.13.1" do
   end
 
   aggregate "GearRental", "A board or wetsuit rented out for a session or day" do
-    String :rental_id
-    String :item_type
-    String :item_id
-    String :renter_name
-    String :start_time
-    String :end_time
-    Float :rate
-    String :status
+    attribute :rental_id, String
+    attribute :item_type, String
+    attribute :item_id, String
+    attribute :renter_name, String
+    attribute :start_time, String
+    attribute :end_time, String
+    attribute :rate, Float
+    attribute :status, String
 
-    RentGear do
+    command "RentGear" do
       role "Staff"
       description "Check out a board or wetsuit to a customer"
-      String :rental_id
-      String :item_type
-      String :item_id
-      String :renter_name
-      String :start_time
-      String :end_time
-      Float :rate
+      attribute :rental_id, String
+      attribute :item_type, String
+      attribute :item_id, String
+      attribute :renter_name, String
+      attribute :start_time, String
+      attribute :end_time, String
+      attribute :rate, Float
       emits "GearRented"
       then_set :rental_id, to: :rental_id
       then_set :item_type, to: :item_type
@@ -116,7 +116,7 @@ Hecks.bluebook "SurfShop", version: "2026.04.13.1" do
       then_set :status, to: "rented"
     end
 
-    ReturnGear do
+    command "ReturnGear" do
       role "Staff"
       description "Check in a returned rental and inspect for damage"
       reference_to(GearRental)
@@ -127,21 +127,21 @@ Hecks.bluebook "SurfShop", version: "2026.04.13.1" do
   end
 
   aggregate "SurfLesson", "A coached session teaching surfing fundamentals" do
-    String :lesson_id
-    String :instructor_name
-    String :skill_level
-    Integer :max_students
-    String :scheduled_date
-    String :status
+    attribute :lesson_id, String
+    attribute :instructor_name, String
+    attribute :skill_level, String
+    attribute :max_students, Integer
+    attribute :scheduled_date, String
+    attribute :status, String
 
-    ScheduleLesson do
+    command "ScheduleLesson" do
       role "Manager"
       description "Set up a surf lesson with an instructor and time slot"
-      String :lesson_id
-      String :instructor_name
-      String :skill_level
-      Integer :max_students
-      String :scheduled_date
+      attribute :lesson_id, String
+      attribute :instructor_name, String
+      attribute :skill_level, String
+      attribute :max_students, Integer
+      attribute :scheduled_date, String
       emits "LessonScheduled"
       then_set :lesson_id, to: :lesson_id
       then_set :instructor_name, to: :instructor_name
@@ -151,7 +151,7 @@ Hecks.bluebook "SurfShop", version: "2026.04.13.1" do
       then_set :status, to: "scheduled"
     end
 
-    ConductLesson do
+    command "ConductLesson" do
       role "Instructor"
       description "Deliver the surf lesson in the water"
       reference_to(SurfLesson)
@@ -162,19 +162,19 @@ Hecks.bluebook "SurfShop", version: "2026.04.13.1" do
   end
 
   aggregate "DingRepair", "Fixing damage to a surfboard — cracks, dings, delamination" do
-    String :repair_id
-    String :board_id
-    String :damage_type
-    Float :estimated_cost
-    String :status
+    attribute :repair_id, String
+    attribute :board_id, String
+    attribute :damage_type, String
+    attribute :estimated_cost, Float
+    attribute :status, String
 
-    AcceptRepair do
+    command "AcceptRepair" do
       role "Technician"
       description "Take in a damaged board for evaluation and repair"
-      String :repair_id
-      String :board_id
-      String :damage_type
-      Float :estimated_cost
+      attribute :repair_id, String
+      attribute :board_id, String
+      attribute :damage_type, String
+      attribute :estimated_cost, Float
       emits "RepairAccepted"
       then_set :repair_id, to: :repair_id
       then_set :board_id, to: :board_id
@@ -183,7 +183,7 @@ Hecks.bluebook "SurfShop", version: "2026.04.13.1" do
       then_set :status, to: "in_progress"
     end
 
-    CompleteRepair do
+    command "CompleteRepair" do
       role "Technician"
       description "Finish the ding repair and sand/polish the board"
       reference_to(DingRepair)

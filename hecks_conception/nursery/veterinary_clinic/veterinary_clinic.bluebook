@@ -3,30 +3,30 @@ Hecks.bluebook "VeterinaryClinic" do
   category "healthcare"
 
   aggregate "Pet", "An animal patient with medical history and owner relationship" do
-    String :name
-    String :species
-    String :breed
-    Float :weight
-    String :date_of_birth
-    String :microchip_id
-    String :status
+    attribute :name, String
+    attribute :species, String
+    attribute :breed, String
+    attribute :weight, Float
+    attribute :date_of_birth, String
+    attribute :microchip_id, String
+    attribute :status, String
     reference_to(Owner)
 
     value_object "VitalSigns" do
-      Float :temperature
-      Integer :heart_rate
-      Integer :respiratory_rate
-      Float :weight
+      attribute :temperature, Float
+      attribute :heart_rate, Integer
+      attribute :respiratory_rate, Integer
+      attribute :weight, Float
     end
 
-    RegisterPet do
+    command "RegisterPet" do
       role "Receptionist"
       description "Register a new animal patient in the clinic system"
-      String :name
-      String :species
-      String :breed
-      Float :weight
-      String :date_of_birth
+      attribute :name, String
+      attribute :species, String
+      attribute :breed, String
+      attribute :weight, Float
+      attribute :date_of_birth, String
       emits "PetRegistered"
       then_set :name, to: :name
       then_set :species, to: :species
@@ -35,16 +35,16 @@ Hecks.bluebook "VeterinaryClinic" do
       then_set :status, to: "active"
     end
 
-    RecordWeight do
+    command "RecordWeight" do
       role "VetTech"
       description "Update the pet's current weight during a visit"
       reference_to(Pet)
-      Float :weight
+      attribute :weight, Float
       emits "WeightRecorded"
       then_set :weight, to: :weight
     end
 
-    MarkDeceased do
+    command "MarkDeceased" do
       role "Veterinarian"
       description "Record that a patient has passed away"
       reference_to(Pet)
@@ -55,25 +55,25 @@ Hecks.bluebook "VeterinaryClinic" do
   end
 
   aggregate "Owner", "A pet owner with contact information and billing details" do
-    String :first_name
-    String :last_name
-    String :phone
-    String :email
-    String :address
+    attribute :first_name, String
+    attribute :last_name, String
+    attribute :phone, String
+    attribute :email, String
+    attribute :address, String
 
     value_object "EmergencyContact" do
-      String :name
-      String :phone
-      String :relationship
+      attribute :name, String
+      attribute :phone, String
+      attribute :relationship, String
     end
 
-    RegisterOwner do
+    command "RegisterOwner" do
       role "Receptionist"
       description "Add a new pet owner to the clinic records"
-      String :first_name
-      String :last_name
-      String :phone
-      String :email
+      attribute :first_name, String
+      attribute :last_name, String
+      attribute :phone, String
+      attribute :email, String
       emits "OwnerRegistered"
       then_set :first_name, to: :first_name
       then_set :last_name, to: :last_name
@@ -81,12 +81,12 @@ Hecks.bluebook "VeterinaryClinic" do
       then_set :email, to: :email
     end
 
-    RefreshContactInfo do
+    command "RefreshContactInfo" do
       role "Receptionist"
       description "Refresh an owner's phone number or email address"
       reference_to(Owner)
-      String :phone
-      String :email
+      attribute :phone, String
+      attribute :email, String
       emits "ContactInfoRefreshed"
       then_set :phone, to: :phone
       then_set :email, to: :email
@@ -94,21 +94,21 @@ Hecks.bluebook "VeterinaryClinic" do
   end
 
   aggregate "Appointment", "A scheduled visit for examination, treatment, or follow-up" do
-    String :appointment_date
-    String :time_slot
-    String :reason
-    String :status
-    String :notes
+    attribute :appointment_date, String
+    attribute :time_slot, String
+    attribute :reason, String
+    attribute :status, String
+    attribute :notes, String
     reference_to(Pet)
     reference_to(Owner)
 
-    ScheduleAppointment do
+    command "ScheduleAppointment" do
       role "Receptionist"
       description "Book a visit for a pet with a specific reason and time"
       reference_to(Pet)
-      String :appointment_date
-      String :time_slot
-      String :reason
+      attribute :appointment_date, String
+      attribute :time_slot, String
+      attribute :reason, String
       emits "AppointmentScheduled"
       then_set :appointment_date, to: :appointment_date
       then_set :time_slot, to: :time_slot
@@ -116,7 +116,7 @@ Hecks.bluebook "VeterinaryClinic" do
       then_set :status, to: "scheduled"
     end
 
-    CheckInPatient do
+    command "CheckInPatient" do
       role "Receptionist"
       description "Mark a pet as arrived for their scheduled appointment"
       reference_to(Appointment)
@@ -125,11 +125,11 @@ Hecks.bluebook "VeterinaryClinic" do
       then_set :status, to: "checked_in"
     end
 
-    CompleteAppointment do
+    command "CompleteAppointment" do
       role "Veterinarian"
       description "Finalize the visit with clinical notes"
       reference_to(Appointment)
-      String :notes
+      attribute :notes, String
       given { status == "checked_in" }
       emits "AppointmentCompleted"
       then_set :notes, to: :notes
@@ -138,20 +138,20 @@ Hecks.bluebook "VeterinaryClinic" do
   end
 
   aggregate "Vaccination", "An immunization administered to a pet with expiration tracking" do
-    String :vaccine_name
-    String :administered_date
-    String :expiration_date
-    String :lot_number
-    String :status
+    attribute :vaccine_name, String
+    attribute :administered_date, String
+    attribute :expiration_date, String
+    attribute :lot_number, String
+    attribute :status, String
     reference_to(Pet)
 
-    AdministerVaccine do
+    command "AdministerVaccine" do
       role "Veterinarian"
       description "Give a vaccine to a pet and record lot number and expiration"
       reference_to(Pet)
-      String :vaccine_name
-      String :lot_number
-      String :expiration_date
+      attribute :vaccine_name, String
+      attribute :lot_number, String
+      attribute :expiration_date, String
       emits "VaccineAdministered"
       then_set :vaccine_name, to: :vaccine_name
       then_set :lot_number, to: :lot_number
@@ -159,7 +159,7 @@ Hecks.bluebook "VeterinaryClinic" do
       then_set :status, to: "current"
     end
 
-    ExpireVaccination do
+    command "ExpireVaccination" do
       role "System"
       description "Mark a vaccination as expired when past its effective date"
       reference_to(Vaccination)
@@ -170,22 +170,22 @@ Hecks.bluebook "VeterinaryClinic" do
   end
 
   aggregate "Prescription", "A medication order for a pet with dosage and refill tracking" do
-    String :medication_name
-    String :dosage
-    String :frequency
-    Integer :refills_remaining
-    String :prescribed_date
-    String :status
+    attribute :medication_name, String
+    attribute :dosage, String
+    attribute :frequency, String
+    attribute :refills_remaining, Integer
+    attribute :prescribed_date, String
+    attribute :status, String
     reference_to(Pet)
 
-    PrescribeMedication do
+    command "PrescribeMedication" do
       role "Veterinarian"
       description "Write a prescription for a pet with dosage instructions"
       reference_to(Pet)
-      String :medication_name
-      String :dosage
-      String :frequency
-      Integer :refills_remaining
+      attribute :medication_name, String
+      attribute :dosage, String
+      attribute :frequency, String
+      attribute :refills_remaining, Integer
       emits "MedicationPrescribed"
       then_set :medication_name, to: :medication_name
       then_set :dosage, to: :dosage
@@ -194,7 +194,7 @@ Hecks.bluebook "VeterinaryClinic" do
       then_set :status, to: "active"
     end
 
-    RefillPrescription do
+    command "RefillPrescription" do
       role "VetTech"
       description "Dispense a refill and decrement remaining count"
       reference_to(Prescription)
@@ -202,7 +202,7 @@ Hecks.bluebook "VeterinaryClinic" do
       emits "PrescriptionRefilled"
     end
 
-    DiscontinueMedication do
+    command "DiscontinueMedication" do
       role "Veterinarian"
       description "Stop a medication due to side effects or recovery"
       reference_to(Prescription)

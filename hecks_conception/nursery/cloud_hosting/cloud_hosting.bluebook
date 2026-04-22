@@ -3,88 +3,88 @@ Hecks.bluebook "CloudHosting", version: "2026.04.13.1" do
   category "technology"
 
   aggregate "Instance", "A virtual machine running a customer workload" do
-    String :instance_id
-    String :region
-    String :machine_type
-    Integer :vcpus
-    Integer :memory_gb
-    String :image_id
-    String :status
+    attribute :instance_id, String
+    attribute :region, String
+    attribute :machine_type, String
+    attribute :vcpus, Integer
+    attribute :memory_gb, Integer
+    attribute :image_id, String
+    attribute :status, String
     reference_to Tenant
     list_of(AttachedVolume) :volumes
 
     value_object "AttachedVolume" do
-      String :volume_id
-      Integer :size_gb
-      String :mount_path
+      attribute :volume_id, String
+      attribute :size_gb, Integer
+      attribute :mount_path, String
     end
 
-    LaunchInstance do
+    command "LaunchInstance" do
       role "Developer"
       description "Spin up a new virtual machine from an image"
-      String :instance_id
-      String :region
-      String :machine_type
-      Integer :vcpus
-      Integer :memory_gb
-      String :image_id
+      attribute :instance_id, String
+      attribute :region, String
+      attribute :machine_type, String
+      attribute :vcpus, Integer
+      attribute :memory_gb, Integer
+      attribute :image_id, String
       reference_to(Tenant)
       emits "InstanceLaunched"
     end
 
-    TerminateInstance do
+    command "TerminateInstance" do
       description "Shut down and destroy a running instance"
       reference_to(Instance)
       then_set :status, to: "stopped"
       emits "InstanceTerminated"
     end
 
-    ResizeInstance do
+    command "ResizeInstance" do
       description "Change the machine type of a stopped instance"
       reference_to(Instance)
-      String :machine_type
-      Integer :vcpus
-      Integer :memory_gb
+      attribute :machine_type, String
+      attribute :vcpus, Integer
+      attribute :memory_gb, Integer
       given("instance is stopped") { status == "stopped" }
       emits "InstanceResized"
     end
   end
 
   aggregate "Deployment", "A versioned release pushed to one or more instances" do
-    String :deploy_id
-    String :artifact_url
-    String :version_tag
-    String :strategy
-    String :status
+    attribute :deploy_id, String
+    attribute :artifact_url, String
+    attribute :version_tag, String
+    attribute :strategy, String
+    attribute :status, String
     reference_to Instance
     list_of(DeployStep) :steps
 
     value_object "DeployStep" do
-      String :step_name
-      String :outcome
-      String :completed_at
+      attribute :step_name, String
+      attribute :outcome, String
+      attribute :completed_at, String
     end
 
-    ShipRelease do
+    command "ShipRelease" do
       role "Developer"
       description "Push a new artifact version to a target instance"
-      String :deploy_id
-      String :artifact_url
-      String :version_tag
-      String :strategy
+      attribute :deploy_id, String
+      attribute :artifact_url, String
+      attribute :version_tag, String
+      attribute :strategy, String
       reference_to(Instance)
       then_set :status, to: "active"
       emits "DeploymentCreated"
     end
 
-    RollbackDeployment do
+    command "RollbackDeployment" do
       description "Revert an instance to the previous artifact version"
       reference_to(Deployment)
       given("deployment is active") { status == "active" }
       emits "DeploymentRolledBack"
     end
 
-    FinalizeDeployment do
+    command "FinalizeDeployment" do
       description "Mark a deployment as successfully completed"
       reference_to(Deployment)
       emits "DeploymentFinalized"
@@ -92,42 +92,42 @@ Hecks.bluebook "CloudHosting", version: "2026.04.13.1" do
   end
 
   aggregate "ScalingRule", "An auto-scaling policy that adjusts instance count based on metrics" do
-    String :rule_name
-    String :metric_name
-    Float :threshold
-    Integer :min_instances
-    Integer :max_instances
-    Integer :cooldown_seconds
-    String :status
+    attribute :rule_name, String
+    attribute :metric_name, String
+    attribute :threshold, Float
+    attribute :min_instances, Integer
+    attribute :max_instances, Integer
+    attribute :cooldown_seconds, Integer
+    attribute :status, String
     reference_to Tenant
 
     value_object "ScalingEvent" do
-      Integer :from_count
-      Integer :to_count
-      String :triggered_at
+      attribute :from_count, Integer
+      attribute :to_count, Integer
+      attribute :triggered_at, String
     end
 
-    DefineScalingRule do
+    command "DefineScalingRule" do
       role "PlatformAdmin"
       description "Create an auto-scaling policy for a tenant's workload"
-      String :rule_name
-      String :metric_name
-      Float :threshold
-      Integer :min_instances
-      Integer :max_instances
-      Integer :cooldown_seconds
+      attribute :rule_name, String
+      attribute :metric_name, String
+      attribute :threshold, Float
+      attribute :min_instances, Integer
+      attribute :max_instances, Integer
+      attribute :cooldown_seconds, Integer
       reference_to(Tenant)
       emits "ScalingRuleDefined"
     end
 
-    TriggerScaleOut do
+    command "TriggerScaleOut" do
       description "Add instances when the metric exceeds the threshold"
       reference_to(ScalingRule)
-      Integer :additional_count
+      attribute :additional_count, Integer
       emits "ScaledOut"
     end
 
-    SuspendScalingRule do
+    command "SuspendScalingRule" do
       description "Suspend an auto-scaling rule without deleting it"
       reference_to(ScalingRule)
       emits "ScalingRuleDisabled"
@@ -135,38 +135,38 @@ Hecks.bluebook "CloudHosting", version: "2026.04.13.1" do
   end
 
   aggregate "Tenant", "A customer account consuming cloud resources" do
-    String :tenant_name
-    String :billing_email
-    String :plan_tier
-    Float :balance
-    String :status
+    attribute :tenant_name, String
+    attribute :billing_email, String
+    attribute :plan_tier, String
+    attribute :balance, Float
+    attribute :status, String
     list_of(Invoice) :invoices
 
     value_object "Invoice" do
-      String :invoice_number
-      Float :amount
-      String :period
-      String :issued_at
+      attribute :invoice_number, String
+      attribute :amount, Float
+      attribute :period, String
+      attribute :issued_at, String
     end
 
-    RegisterTenant do
+    command "RegisterTenant" do
       role "AccountManager"
       description "Onboard a new customer to the hosting platform"
-      String :tenant_name
-      String :billing_email
-      String :plan_tier
+      attribute :tenant_name, String
+      attribute :billing_email, String
+      attribute :plan_tier, String
       emits "TenantRegistered"
     end
 
-    IssueBill do
+    command "IssueBill" do
       description "Generate a monthly invoice based on resource usage"
       reference_to(Tenant)
-      Float :amount
-      String :period
+      attribute :amount, Float
+      attribute :period, String
       emits "BillIssued"
     end
 
-    SuspendTenant do
+    command "SuspendTenant" do
       description "Freeze a tenant account due to non-payment"
       reference_to(Tenant)
       emits "TenantSuspended"
@@ -174,38 +174,38 @@ Hecks.bluebook "CloudHosting", version: "2026.04.13.1" do
   end
 
   aggregate "Alert", "A notification triggered by infrastructure anomalies" do
-    String :alert_id
-    String :severity
-    String :message
-    String :source_metric
-    String :status
+    attribute :alert_id, String
+    attribute :severity, String
+    attribute :message, String
+    attribute :source_metric, String
+    attribute :status, String
     reference_to Instance
 
     value_object "AlertContext" do
-      String :metric_value
-      String :threshold_value
-      String :region
+      attribute :metric_value, String
+      attribute :threshold_value, String
+      attribute :region, String
     end
 
-    RaiseAlert do
+    command "RaiseAlert" do
       role "MonitoringSystem"
       description "Fire an alert when a metric breaches its threshold"
-      String :alert_id
-      String :severity
-      String :message
-      String :source_metric
+      attribute :alert_id, String
+      attribute :severity, String
+      attribute :message, String
+      attribute :source_metric, String
       reference_to(Instance)
       emits "AlertRaised"
     end
 
-    AcknowledgeAlert do
+    command "AcknowledgeAlert" do
       description "Mark an alert as seen by an on-call engineer"
       reference_to(Alert)
       then_set :status, to: "acknowledged"
       emits "AlertAcknowledged"
     end
 
-    ResolveAlert do
+    command "ResolveAlert" do
       description "Close an alert after the underlying issue is fixed"
       reference_to(Alert)
       given("alert is acknowledged") { status == "acknowledged" }

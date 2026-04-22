@@ -3,21 +3,21 @@ Hecks.bluebook "SkiResort", version: "2026.04.13.1" do
   category "hospitality"
 
   aggregate "Lift", "A chairlift or gondola transporting skiers up the mountain" do
-    String :lift_id
-    String :name
-    String :lift_type
-    Integer :capacity_per_chair
-    Integer :vertical_rise_ft
-    String :status
+    attribute :lift_id, String
+    attribute :name, String
+    attribute :lift_type, String
+    attribute :capacity_per_chair, Integer
+    attribute :vertical_rise_ft, Integer
+    attribute :status, String
 
-    ActivateLift do
+    command "ActivateLift" do
       role "Operations"
       description "Open a lift for the season after safety inspection"
-      String :lift_id
-      String :name
-      String :lift_type
-      Integer :capacity_per_chair
-      Integer :vertical_rise_ft
+      attribute :lift_id, String
+      attribute :name, String
+      attribute :lift_type, String
+      attribute :capacity_per_chair, Integer
+      attribute :vertical_rise_ft, Integer
       emits "LiftActivated"
       then_set :lift_id, to: :lift_id
       then_set :name, to: :name
@@ -27,7 +27,7 @@ Hecks.bluebook "SkiResort", version: "2026.04.13.1" do
       then_set :status, to: "running"
     end
 
-    HaltLift do
+    command "HaltLift" do
       role "Operations"
       description "Stop a lift due to wind, mechanical issue, or closing time"
       reference_to(Lift)
@@ -36,7 +36,7 @@ Hecks.bluebook "SkiResort", version: "2026.04.13.1" do
       then_set :status, to: "halted"
     end
 
-    ResumeLift do
+    command "ResumeLift" do
       role "Operations"
       description "Restart a halted lift after conditions improve"
       reference_to(Lift)
@@ -47,27 +47,27 @@ Hecks.bluebook "SkiResort", version: "2026.04.13.1" do
   end
 
   aggregate "SkiRun", "A marked trail down the mountain" do
-    String :run_id
-    String :name
-    String :difficulty
-    Float :length_km
-    String :groomed
-    String :status
+    attribute :run_id, String
+    attribute :name, String
+    attribute :difficulty, String
+    attribute :length_km, Float
+    attribute :groomed, String
+    attribute :status, String
     list_of(HazardMarker) :hazards
 
     value_object "HazardMarker" do
-      String :hazard_type
-      String :location
-      String :severity
+      attribute :hazard_type, String
+      attribute :location, String
+      attribute :severity, String
     end
 
-    OpenRun do
+    command "OpenRun" do
       role "SkiPatrol"
       description "Declare a run safe and open for skiing"
-      String :run_id
-      String :name
-      String :difficulty
-      Float :length_km
+      attribute :run_id, String
+      attribute :name, String
+      attribute :difficulty, String
+      attribute :length_km, Float
       emits "RunOpened"
       then_set :run_id, to: :run_id
       then_set :name, to: :name
@@ -77,7 +77,7 @@ Hecks.bluebook "SkiResort", version: "2026.04.13.1" do
       then_set :status, to: "open"
     end
 
-    GroomRun do
+    command "GroomRun" do
       role "GroomingCrew"
       description "Groom the run with a snow cat for optimal conditions"
       reference_to(SkiRun)
@@ -86,7 +86,7 @@ Hecks.bluebook "SkiResort", version: "2026.04.13.1" do
       then_set :groomed, to: "true"
     end
 
-    CloseRun do
+    command "CloseRun" do
       role "SkiPatrol"
       description "Close a run due to avalanche risk, ice, or thin coverage"
       reference_to(SkiRun)
@@ -96,23 +96,23 @@ Hecks.bluebook "SkiResort", version: "2026.04.13.1" do
   end
 
   aggregate "LiftPass", "A ticket granting access to the lifts for a period" do
-    String :pass_id
-    String :holder_name
-    String :pass_type
-    String :valid_from
-    String :valid_to
-    Float :price
-    String :status
+    attribute :pass_id, String
+    attribute :holder_name, String
+    attribute :pass_type, String
+    attribute :valid_from, String
+    attribute :valid_to, String
+    attribute :price, Float
+    attribute :status, String
 
-    SellPass do
+    command "SellPass" do
       role "TicketAgent"
       description "Issue a lift pass to a skier"
-      String :pass_id
-      String :holder_name
-      String :pass_type
-      String :valid_from
-      String :valid_to
-      Float :price
+      attribute :pass_id, String
+      attribute :holder_name, String
+      attribute :pass_type, String
+      attribute :valid_from, String
+      attribute :valid_to, String
+      attribute :price, Float
       emits "PassSold"
       then_set :pass_id, to: :pass_id
       then_set :holder_name, to: :holder_name
@@ -123,7 +123,7 @@ Hecks.bluebook "SkiResort", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    SuspendPass do
+    command "SuspendPass" do
       role "Management"
       description "Temporarily revoke a pass for rule violations"
       reference_to(LiftPass)
@@ -134,25 +134,25 @@ Hecks.bluebook "SkiResort", version: "2026.04.13.1" do
   end
 
   aggregate "SkiRental", "Equipment rented to a guest for their visit" do
-    String :rental_id
-    String :guest_name
-    String :equipment_package
-    String :boot_size
-    String :start_date
-    String :end_date
-    Float :daily_rate
-    String :status
+    attribute :rental_id, String
+    attribute :guest_name, String
+    attribute :equipment_package, String
+    attribute :boot_size, String
+    attribute :start_date, String
+    attribute :end_date, String
+    attribute :daily_rate, Float
+    attribute :status, String
 
-    RentEquipment do
+    command "RentEquipment" do
       role "RentalTech"
       description "Fit and check out ski equipment to a guest"
-      String :rental_id
-      String :guest_name
-      String :equipment_package
-      String :boot_size
-      String :start_date
-      String :end_date
-      Float :daily_rate
+      attribute :rental_id, String
+      attribute :guest_name, String
+      attribute :equipment_package, String
+      attribute :boot_size, String
+      attribute :start_date, String
+      attribute :end_date, String
+      attribute :daily_rate, Float
       emits "EquipmentRented"
       then_set :rental_id, to: :rental_id
       then_set :guest_name, to: :guest_name
@@ -164,7 +164,7 @@ Hecks.bluebook "SkiResort", version: "2026.04.13.1" do
       then_set :status, to: "rented"
     end
 
-    ReturnEquipment do
+    command "ReturnEquipment" do
       role "RentalTech"
       description "Accept returned gear and inspect for damage"
       reference_to(SkiRental)
@@ -175,28 +175,28 @@ Hecks.bluebook "SkiResort", version: "2026.04.13.1" do
   end
 
   aggregate "SnowCondition", "A daily report on snow depth, quality, and weather" do
-    String :report_id
-    String :date
-    Integer :base_depth_cm
-    Integer :new_snow_cm
-    String :snow_quality
-    String :wind_speed
-    String :temperature
+    attribute :report_id, String
+    attribute :date, String
+    attribute :base_depth_cm, Integer
+    attribute :new_snow_cm, Integer
+    attribute :snow_quality, String
+    attribute :wind_speed, String
+    attribute :temperature, String
 
     specification "PowderDay" do
       satisfied_by { new_snow_cm > 15 }
     end
 
-    PublishConditions do
+    command "PublishConditions" do
       role "SkiPatrol"
       description "Issue the daily snow and conditions report"
-      String :report_id
-      String :date
-      Integer :base_depth_cm
-      Integer :new_snow_cm
-      String :snow_quality
-      String :wind_speed
-      String :temperature
+      attribute :report_id, String
+      attribute :date, String
+      attribute :base_depth_cm, Integer
+      attribute :new_snow_cm, Integer
+      attribute :snow_quality, String
+      attribute :wind_speed, String
+      attribute :temperature, String
       emits "ConditionsPublished"
       then_set :report_id, to: :report_id
       then_set :date, to: :date

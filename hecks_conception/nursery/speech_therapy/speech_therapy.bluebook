@@ -2,19 +2,19 @@ Hecks.bluebook "SpeechTherapy" do
   vision "Communication and swallowing rehabilitation — clients, goals, therapy sessions, exercises, and assessments"
 
   aggregate "Client", "A person receiving speech-language pathology services" do
-    String :name
-    String :date_of_birth
-    String :referral_source
-    String :primary_disorder
-    String :status
+    attribute :name, String
+    attribute :date_of_birth, String
+    attribute :referral_source, String
+    attribute :primary_disorder, String
+    attribute :status, String
 
-    EnrollClient do
+    command "EnrollClient" do
       role "Coordinator"
       description "Register a new client for speech therapy services"
-      String :name
-      String :date_of_birth
-      String :referral_source
-      String :primary_disorder
+      attribute :name, String
+      attribute :date_of_birth, String
+      attribute :referral_source, String
+      attribute :primary_disorder, String
       emits "ClientEnrolled"
       then_set :name, to: :name
       then_set :date_of_birth, to: :date_of_birth
@@ -23,7 +23,7 @@ Hecks.bluebook "SpeechTherapy" do
       then_set :status, to: "active"
     end
 
-    DischargeClient do
+    command "DischargeClient" do
       role "Pathologist"
       description "Complete the client's course of speech therapy"
       reference_to(Client)
@@ -34,24 +34,24 @@ Hecks.bluebook "SpeechTherapy" do
   end
 
   aggregate "TherapyGoal", "A measurable communication or swallowing objective" do
-    String :client_name
-    String :goal_area
-    String :description
-    String :target_criterion
-    Integer :baseline_score
-    Integer :current_score
-    String :status
+    attribute :client_name, String
+    attribute :goal_area, String
+    attribute :description, String
+    attribute :target_criterion, String
+    attribute :baseline_score, Integer
+    attribute :current_score, Integer
+    attribute :status, String
     reference_to Client
 
-    SetGoal do
+    command "SetGoal" do
       role "Pathologist"
       description "Establish a measurable therapy goal for the client"
       reference_to(Client)
-      String :client_name
-      String :goal_area
-      String :description
-      String :target_criterion
-      Integer :baseline_score
+      attribute :client_name, String
+      attribute :goal_area, String
+      attribute :description, String
+      attribute :target_criterion, String
+      attribute :baseline_score, Integer
       emits "GoalSet"
       then_set :client_name, to: :client_name
       then_set :goal_area, to: :goal_area
@@ -62,16 +62,16 @@ Hecks.bluebook "SpeechTherapy" do
       then_set :status, to: "in_progress"
     end
 
-    LogProgress do
+    command "LogProgress" do
       role "Pathologist"
       description "Record new score toward the goal"
       reference_to(TherapyGoal)
-      Integer :current_score
+      attribute :current_score, Integer
       emits "ProgressLogged"
       then_set :current_score, to: :current_score
     end
 
-    AchieveGoal do
+    command "AchieveGoal" do
       role "Pathologist"
       description "Mark the goal as achieved when target criterion is met"
       reference_to(TherapyGoal)
@@ -82,30 +82,30 @@ Hecks.bluebook "SpeechTherapy" do
   end
 
   aggregate "TherapySession", "A scheduled session between pathologist and client" do
-    String :client_name
-    String :pathologist_name
-    String :session_date
-    String :session_type
+    attribute :client_name, String
+    attribute :pathologist_name, String
+    attribute :session_date, String
+    attribute :session_type, String
     list_of(ActivityRecord) :activities
-    String :notes
-    String :status
+    attribute :notes, String
+    attribute :status, String
     reference_to Client
 
     value_object "ActivityRecord" do
-      String :exercise_name
-      Integer :trials
-      Integer :correct_responses
-      String :cueing_level
+      attribute :exercise_name, String
+      attribute :trials, Integer
+      attribute :correct_responses, Integer
+      attribute :cueing_level, String
     end
 
-    ScheduleSession do
+    command "ScheduleSession" do
       role "Coordinator"
       description "Book a speech therapy session for a client"
       reference_to(Client)
-      String :client_name
-      String :pathologist_name
-      String :session_date
-      String :session_type
+      attribute :client_name, String
+      attribute :pathologist_name, String
+      attribute :session_date, String
+      attribute :session_type, String
       emits "SessionScheduled"
       then_set :client_name, to: :client_name
       then_set :pathologist_name, to: :pathologist_name
@@ -114,11 +114,11 @@ Hecks.bluebook "SpeechTherapy" do
       then_set :status, to: "scheduled"
     end
 
-    CompleteSession do
+    command "CompleteSession" do
       role "Pathologist"
       description "Document session activities and clinical notes"
       reference_to(TherapySession)
-      String :notes
+      attribute :notes, String
       given("session must be scheduled") { status == "scheduled" }
       emits "SessionCompleted"
       then_set :notes, to: :notes
@@ -127,25 +127,25 @@ Hecks.bluebook "SpeechTherapy" do
   end
 
   aggregate "Exercise", "A therapeutic exercise targeting a specific communication skill" do
-    String :name
-    String :target_skill
-    String :difficulty
-    String :instructions
-    String :modality
+    attribute :name, String
+    attribute :target_skill, String
+    attribute :difficulty, String
+    attribute :instructions, String
+    attribute :modality, String
 
     value_object "MaterialNeeded" do
-      String :item_name
-      String :description
+      attribute :item_name, String
+      attribute :description, String
     end
 
-    DesignExercise do
+    command "DesignExercise" do
       role "Pathologist"
       description "Design a new speech therapy exercise for the exercise library"
-      String :name
-      String :target_skill
-      String :difficulty
-      String :instructions
-      String :modality
+      attribute :name, String
+      attribute :target_skill, String
+      attribute :difficulty, String
+      attribute :instructions, String
+      attribute :modality, String
       emits "ExerciseDesigned"
       then_set :name, to: :name
       then_set :target_skill, to: :target_skill
@@ -154,12 +154,12 @@ Hecks.bluebook "SpeechTherapy" do
       then_set :modality, to: :modality
     end
 
-    ModifyExercise do
+    command "ModifyExercise" do
       role "Pathologist"
       description "Adjust exercise parameters for a specific client need"
       reference_to(Exercise)
-      String :difficulty
-      String :instructions
+      attribute :difficulty, String
+      attribute :instructions, String
       emits "ExerciseModified"
       then_set :difficulty, to: :difficulty
       then_set :instructions, to: :instructions
@@ -167,40 +167,40 @@ Hecks.bluebook "SpeechTherapy" do
   end
 
   aggregate "SpeechAssessment", "A standardized evaluation of communication abilities" do
-    String :client_name
-    String :assessment_tool
-    String :assessment_date
+    attribute :client_name, String
+    attribute :assessment_tool, String
+    attribute :assessment_date, String
     list_of(SubtestResult) :subtest_results
-    Integer :composite_score
-    String :severity_rating
+    attribute :composite_score, Integer
+    attribute :severity_rating, String
     reference_to Client
 
     value_object "SubtestResult" do
-      String :subtest_name
-      Integer :raw_score
-      Integer :standard_score
-      Integer :percentile
+      attribute :subtest_name, String
+      attribute :raw_score, Integer
+      attribute :standard_score, Integer
+      attribute :percentile, Integer
     end
 
-    AdministerAssessment do
+    command "AdministerAssessment" do
       role "Pathologist"
       description "Conduct a standardized speech-language assessment"
       reference_to(Client)
-      String :client_name
-      String :assessment_tool
-      String :assessment_date
+      attribute :client_name, String
+      attribute :assessment_tool, String
+      attribute :assessment_date, String
       emits "AssessmentAdministered"
       then_set :client_name, to: :client_name
       then_set :assessment_tool, to: :assessment_tool
       then_set :assessment_date, to: :assessment_date
     end
 
-    ScoreAssessment do
+    command "ScoreAssessment" do
       role "Pathologist"
       description "Calculate composite scores and severity rating"
       reference_to(SpeechAssessment)
-      Integer :composite_score
-      String :severity_rating
+      attribute :composite_score, Integer
+      attribute :severity_rating, String
       emits "AssessmentScored"
       then_set :composite_score, to: :composite_score
       then_set :severity_rating, to: :severity_rating

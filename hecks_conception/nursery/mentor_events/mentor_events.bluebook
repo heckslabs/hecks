@@ -3,20 +3,20 @@ Hecks.bluebook "MentorEvents", version: "2026.04.13.1" do
   category "healthcare_community"
 
   aggregate "MentorMatch", "A mentoring relationship between a mentor and mentee" do
-    String :match_id
-    String :mentor_name
-    String :mentee_name
-    String :focus_area
-    String :start_date
-    String :status
-    MakeMatch do
+    attribute :match_id, String
+    attribute :mentor_name, String
+    attribute :mentee_name, String
+    attribute :focus_area, String
+    attribute :start_date, String
+    attribute :status, String
+    command "MakeMatch" do
       role "Coordinator"
       description "Create a mentor-mentee match based on interests"
-      String :match_id
-      String :mentor_name
-      String :mentee_name
-      String :focus_area
-      String :start_date
+      attribute :match_id, String
+      attribute :mentor_name, String
+      attribute :mentee_name, String
+      attribute :focus_area, String
+      attribute :start_date, String
       emits "MatchMade"
       then_set :match_id, to: :match_id
       then_set :mentor_name, to: :mentor_name
@@ -25,7 +25,7 @@ Hecks.bluebook "MentorEvents", version: "2026.04.13.1" do
       then_set :start_date, to: :start_date
       then_set :status, to: "active"
     end
-    CloseMatch do
+    command "CloseMatch" do
       role "Coordinator"
       description "Close a mentoring match at end of program"
       reference_to(MentorMatch)
@@ -36,26 +36,26 @@ Hecks.bluebook "MentorEvents", version: "2026.04.13.1" do
   end
 
   aggregate "GroupEvent", "A group mentoring event with multiple pairs" do
-    String :event_id
-    String :event_name
-    String :venue
-    String :date
-    Integer :capacity
-    String :status
+    attribute :event_id, String
+    attribute :event_name, String
+    attribute :venue, String
+    attribute :date, String
+    attribute :capacity, Integer
+    attribute :status, String
     list_of(EventActivity) :activities
     value_object "EventActivity" do
-      String :activity_name
-      Float :duration_minutes
-      String :facilitator
+      attribute :activity_name, String
+      attribute :duration_minutes, Float
+      attribute :facilitator, String
     end
-    PlanEvent do
+    command "PlanEvent" do
       role "Coordinator"
       description "Plan a group mentoring event with venue and activities"
-      String :event_id
-      String :event_name
-      String :venue
-      String :date
-      Integer :capacity
+      attribute :event_id, String
+      attribute :event_name, String
+      attribute :venue, String
+      attribute :date, String
+      attribute :capacity, Integer
       emits "EventPlanned"
       then_set :event_id, to: :event_id
       then_set :event_name, to: :event_name
@@ -64,7 +64,7 @@ Hecks.bluebook "MentorEvents", version: "2026.04.13.1" do
       then_set :capacity, to: :capacity
       then_set :status, to: "planned"
     end
-    CancelEvent do
+    command "CancelEvent" do
       role "Coordinator"
       description "Cancel a planned event"
       reference_to(GroupEvent)
@@ -75,19 +75,19 @@ Hecks.bluebook "MentorEvents", version: "2026.04.13.1" do
   end
 
   aggregate "AttendanceRecord", "An attendance record for a mentoring event" do
-    String :attendance_id
-    String :event_id
-    String :participant_name
-    String :role_type
-    String :check_in_time
-    RecordAttendance do
+    attribute :attendance_id, String
+    attribute :event_id, String
+    attribute :participant_name, String
+    attribute :role_type, String
+    attribute :check_in_time, String
+    command "RecordAttendance" do
       role "Coordinator"
       description "Record attendance of a participant at a mentoring event"
-      String :attendance_id
-      String :event_id
-      String :participant_name
-      String :role_type
-      String :check_in_time
+      attribute :attendance_id, String
+      attribute :event_id, String
+      attribute :participant_name, String
+      attribute :role_type, String
+      attribute :check_in_time, String
       emits "AttendanceRecorded"
       then_set :attendance_id, to: :attendance_id
       then_set :event_id, to: :event_id
@@ -98,20 +98,20 @@ Hecks.bluebook "MentorEvents", version: "2026.04.13.1" do
   end
 
   aggregate "ImpactReport", "A measured impact report on mentoring outcomes" do
-    String :report_id
-    String :match_id
-    Float :academic_improvement
-    Float :confidence_score
-    String :period
-    String :status
-    MeasureImpact do
+    attribute :report_id, String
+    attribute :match_id, String
+    attribute :academic_improvement, Float
+    attribute :confidence_score, Float
+    attribute :period, String
+    attribute :status, String
+    command "MeasureImpact" do
       role "Evaluator"
       description "Measure the impact of a mentoring relationship"
-      String :report_id
-      String :match_id
-      Float :academic_improvement
-      Float :confidence_score
-      String :period
+      attribute :report_id, String
+      attribute :match_id, String
+      attribute :academic_improvement, Float
+      attribute :confidence_score, Float
+      attribute :period, String
       emits "ImpactMeasured"
       then_set :report_id, to: :report_id
       then_set :match_id, to: :match_id
@@ -120,7 +120,7 @@ Hecks.bluebook "MentorEvents", version: "2026.04.13.1" do
       then_set :period, to: :period
       then_set :status, to: "measured"
     end
-    PublishImpact do
+    command "PublishImpact" do
       role "Director"
       description "Publish the impact report for stakeholders"
       reference_to(ImpactReport)

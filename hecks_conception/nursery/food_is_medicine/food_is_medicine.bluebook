@@ -5,24 +5,24 @@ Hecks.bluebook "FoodIsMedicine", version: "2026.04.13.1" do
   # === FoodPrescription ===
 
   aggregate "FoodPrescription", "A clinician-issued food prescription — nutrient targets, dietary restrictions, duration" do
-    String :prescription_id
-    String :patient_name
-    String :diagnosis
-    String :prescribing_clinician
-    String :status
+    attribute :prescription_id, String
+    attribute :patient_name, String
+    attribute :diagnosis, String
+    attribute :prescribing_clinician, String
+    attribute :status, String
     list_of(NutrientRequirement) :requirements
     value_object "NutrientRequirement" do
-      String :nutrient
-      Integer :daily_target_mg
-      String :source_preference
+      attribute :nutrient, String
+      attribute :daily_target_mg, Integer
+      attribute :source_preference, String
     end
-    IssuePrescription do
+    command "IssuePrescription" do
       role "Clinician"
       description "Prescribe a food-as-medicine regimen for a patient"
-      String :prescription_id
-      String :patient_name
-      String :diagnosis
-      String :prescribing_clinician
+      attribute :prescription_id, String
+      attribute :patient_name, String
+      attribute :diagnosis, String
+      attribute :prescribing_clinician, String
       emits "PrescriptionIssued"
       then_set :prescription_id, to: :prescription_id
       then_set :patient_name, to: :patient_name
@@ -30,16 +30,16 @@ Hecks.bluebook "FoodIsMedicine", version: "2026.04.13.1" do
       then_set :prescribing_clinician, to: :prescribing_clinician
       then_set :status, to: "active"
     end
-    AdjustPrescription do
+    command "AdjustPrescription" do
       role "Clinician"
       description "Modify nutrient targets based on patient progress"
       reference_to(FoodPrescription)
-      String :diagnosis
+      attribute :diagnosis, String
       given { status == "active" }
       emits "PrescriptionAdjusted"
       then_set :diagnosis, to: :diagnosis
     end
-    CompletePrescription do
+    command "CompletePrescription" do
       role "Clinician"
       description "Close prescription when patient meets health targets"
       reference_to(FoodPrescription)
@@ -52,26 +52,26 @@ Hecks.bluebook "FoodIsMedicine", version: "2026.04.13.1" do
   # === FarmAllocation ===
 
   aggregate "FarmAllocation", "A farm's committed allocation of produce to the food-is-medicine program" do
-    String :farm_name
-    String :region
-    String :season
-    Integer :acres_committed
-    String :status
+    attribute :farm_name, String
+    attribute :region, String
+    attribute :season, String
+    attribute :acres_committed, Integer
+    attribute :status, String
     reference_to(NutrientTarget, as: :target)
     list_of(CropCommitment) :crops
     value_object "CropCommitment" do
-      String :crop_name
-      Integer :estimated_yield_lbs
-      String :nutrient_density_rating
-      String :harvest_window
+      attribute :crop_name, String
+      attribute :estimated_yield_lbs, Integer
+      attribute :nutrient_density_rating, String
+      attribute :harvest_window, String
     end
-    CommitFarm do
+    command "CommitFarm" do
       role "Farmer"
       description "Commit farm acreage to growing prescribed-food crops"
-      String :farm_name
-      String :region
-      String :season
-      Integer :acres_committed
+      attribute :farm_name, String
+      attribute :region, String
+      attribute :season, String
+      attribute :acres_committed, Integer
       emits "FarmCommitted"
       then_set :farm_name, to: :farm_name
       then_set :region, to: :region
@@ -79,7 +79,7 @@ Hecks.bluebook "FoodIsMedicine", version: "2026.04.13.1" do
       then_set :acres_committed, to: :acres_committed
       then_set :status, to: "committed"
     end
-    ReportHarvest do
+    command "ReportHarvest" do
       role "Farmer"
       description "Report actual harvest yields for allocation matching"
       reference_to(FarmAllocation)
@@ -87,7 +87,7 @@ Hecks.bluebook "FoodIsMedicine", version: "2026.04.13.1" do
       emits "HarvestReported"
       then_set :status, to: "harvested"
     end
-    LinkToTarget do
+    command "LinkToTarget" do
       role "System"
       description "Link farm output to a nutrient target for prescription fulfillment"
       reference_to(FarmAllocation)
@@ -99,27 +99,27 @@ Hecks.bluebook "FoodIsMedicine", version: "2026.04.13.1" do
   # === NutrientTarget ===
 
   aggregate "NutrientTarget", "Aggregated nutrient demand across all active prescriptions in a region" do
-    String :region
-    String :period
-    String :status
+    attribute :region, String
+    attribute :period, String
+    attribute :status, String
     list_of(DemandLine) :demand_lines
     value_object "DemandLine" do
-      String :nutrient
-      Integer :total_demand_mg
-      Integer :fulfilled_mg
-      String :gap_status
+      attribute :nutrient, String
+      attribute :total_demand_mg, Integer
+      attribute :fulfilled_mg, Integer
+      attribute :gap_status, String
     end
-    ComputeDemand do
+    command "ComputeDemand" do
       role "System"
       description "Aggregate nutrient demand from all active prescriptions in region"
-      String :region
-      String :period
+      attribute :region, String
+      attribute :period, String
       emits "DemandComputed"
       then_set :region, to: :region
       then_set :period, to: :period
       then_set :status, to: "computed"
     end
-    MatchSupply do
+    command "MatchSupply" do
       role "System"
       description "Match farm harvest supply against nutrient demand gaps"
       reference_to(NutrientTarget)
@@ -132,32 +132,32 @@ Hecks.bluebook "FoodIsMedicine", version: "2026.04.13.1" do
   # === DistributionRoute ===
 
   aggregate "DistributionRoute", "A delivery route from farm to food bank to patient — cold chain tracked" do
-    String :route_id
+    attribute :route_id, String
     reference_to(FarmAllocation, as: :source_farm)
-    String :food_bank_name
-    String :delivery_date
-    String :status
+    attribute :food_bank_name, String
+    attribute :delivery_date, String
+    attribute :status, String
     list_of(DeliveryStop) :stops
     value_object "DeliveryStop" do
-      String :patient_name
-      String :address
-      String :items_description
-      String :delivery_window
+      attribute :patient_name, String
+      attribute :address, String
+      attribute :items_description, String
+      attribute :delivery_window, String
     end
-    PlanRoute do
+    command "PlanRoute" do
       role "Coordinator"
       description "Plan a distribution route from farm through food bank to patients"
-      String :route_id
+      attribute :route_id, String
       reference_to(FarmAllocation, as: :source_farm)
-      String :food_bank_name
-      String :delivery_date
+      attribute :food_bank_name, String
+      attribute :delivery_date, String
       emits "RoutePlanned"
       then_set :route_id, to: :route_id
       then_set :food_bank_name, to: :food_bank_name
       then_set :delivery_date, to: :delivery_date
       then_set :status, to: "planned"
     end
-    DispatchDelivery do
+    command "DispatchDelivery" do
       role "Driver"
       description "Begin delivery run along the planned route"
       reference_to(DistributionRoute)
@@ -165,7 +165,7 @@ Hecks.bluebook "FoodIsMedicine", version: "2026.04.13.1" do
       emits "DeliveryDispatched"
       then_set :status, to: "in_transit"
     end
-    ConfirmDelivery do
+    command "ConfirmDelivery" do
       role "Driver"
       description "Confirm all stops completed and food delivered to patients"
       reference_to(DistributionRoute)
@@ -178,41 +178,41 @@ Hecks.bluebook "FoodIsMedicine", version: "2026.04.13.1" do
   # === PatientOutcome ===
 
   aggregate "PatientOutcome", "Health outcome tracking — connects food delivery to clinical improvement" do
-    String :patient_name
+    attribute :patient_name, String
     reference_to(FoodPrescription, as: :prescription)
-    String :baseline_status
-    String :current_status
-    String :trend
+    attribute :baseline_status, String
+    attribute :current_status, String
+    attribute :trend, String
     list_of(HealthCheckpoint) :checkpoints
     value_object "HealthCheckpoint" do
-      String :date
-      String :metric_name
-      Float :value
-      String :clinician_notes
+      attribute :date, String
+      attribute :metric_name, String
+      attribute :value, Float
+      attribute :clinician_notes, String
     end
-    RecordBaseline do
+    command "RecordBaseline" do
       role "Clinician"
       description "Record patient health baseline at prescription start"
-      String :patient_name
+      attribute :patient_name, String
       reference_to(FoodPrescription, as: :prescription)
-      String :baseline_status
+      attribute :baseline_status, String
       emits "BaselineRecorded"
       then_set :patient_name, to: :patient_name
       then_set :baseline_status, to: :baseline_status
       then_set :current_status, to: :baseline_status
       then_set :trend, to: "stable"
     end
-    RecordCheckpoint do
+    command "RecordCheckpoint" do
       role "Clinician"
       description "Record a health checkpoint to measure food-as-medicine impact"
       reference_to(PatientOutcome)
-      String :current_status
-      String :trend
+      attribute :current_status, String
+      attribute :trend, String
       emits "CheckpointRecorded"
       then_set :current_status, to: :current_status
       then_set :trend, to: "improving"
     end
-    FlagImprovement do
+    command "FlagImprovement" do
       role "System"
       description "Flag patient for prescription completion when health targets met"
       reference_to(PatientOutcome)

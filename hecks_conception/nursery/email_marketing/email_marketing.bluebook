@@ -3,39 +3,39 @@ Hecks.bluebook "EmailMarketing", version: "2026.04.13.1" do
   category "technology"
 
   aggregate "SubscriberList", "A collection of email contacts segmented by audience" do
-    String :list_name
-    String :description
-    Integer :subscriber_count
-    String :opt_in_method
-    String :status
+    attribute :list_name, String
+    attribute :description, String
+    attribute :subscriber_count, Integer
+    attribute :opt_in_method, String
+    attribute :status, String
     list_of(Subscriber) :subscribers
 
     value_object "Subscriber" do
-      String :email
-      String :first_name
-      String :subscribed_at
-      String :status
+      attribute :email, String
+      attribute :first_name, String
+      attribute :subscribed_at, String
+      attribute :status, String
     end
 
-    ComposeList do
+    command "ComposeList" do
       role "Marketer"
       description "Set up a new subscriber list for a target audience"
-      String :list_name
-      String :description
-      String :opt_in_method
+      attribute :list_name, String
+      attribute :description, String
+      attribute :opt_in_method, String
       then_set :status, to: "active"
       emits "ListComposed"
     end
 
-    AddSubscriber do
+    command "AddSubscriber" do
       description "Add a contact to a subscriber list"
       reference_to(SubscriberList)
-      String :email
-      String :first_name
+      attribute :email, String
+      attribute :first_name, String
       emits "SubscriberAdded"
     end
 
-    ArchiveList do
+    command "ArchiveList" do
       description "Deactivate a list that is no longer in use"
       reference_to(SubscriberList)
       given("list exists") { status == "active" }
@@ -44,41 +44,41 @@ Hecks.bluebook "EmailMarketing", version: "2026.04.13.1" do
   end
 
   aggregate "EmailCampaign", "A marketing email designed for mass delivery" do
-    String :campaign_name
-    String :subject_line
-    String :from_address
-    String :template_id
-    String :status
+    attribute :campaign_name, String
+    attribute :subject_line, String
+    attribute :from_address, String
+    attribute :template_id, String
+    attribute :status, String
     reference_to SubscriberList
     list_of(ABVariant) :variants
 
     value_object "ABVariant" do
-      String :variant_label
-      String :subject_line
-      Integer :send_percentage
+      attribute :variant_label, String
+      attribute :subject_line, String
+      attribute :send_percentage, Integer
     end
 
-    DesignCampaign do
+    command "DesignCampaign" do
       role "Marketer"
       description "Create a new email campaign with subject and template"
-      String :campaign_name
-      String :subject_line
-      String :from_address
-      String :template_id
+      attribute :campaign_name, String
+      attribute :subject_line, String
+      attribute :from_address, String
+      attribute :template_id, String
       reference_to(SubscriberList)
       then_set :status, to: "draft"
       emits "CampaignDesigned"
     end
 
-    ScheduleCampaign do
+    command "ScheduleCampaign" do
       description "Queue a campaign for delivery at a specified time"
       reference_to(EmailCampaign)
-      String :send_at
+      attribute :send_at, String
       given("campaign is draft") { status == "draft" }
       emits "CampaignScheduled"
     end
 
-    CancelCampaign do
+    command "CancelCampaign" do
       description "Abort a scheduled campaign before it sends"
       reference_to(EmailCampaign)
       emits "CampaignCanceled"
@@ -86,74 +86,74 @@ Hecks.bluebook "EmailMarketing", version: "2026.04.13.1" do
   end
 
   aggregate "Send", "A single email delivery attempt to a subscriber" do
-    String :send_id
-    String :recipient_email
-    String :status
-    String :sent_at
-    String :delivery_status
+    attribute :send_id, String
+    attribute :recipient_email, String
+    attribute :status, String
+    attribute :sent_at, String
+    attribute :delivery_status, String
     reference_to EmailCampaign
 
     value_object "DeliveryDetail" do
-      String :smtp_response
-      String :relay_host
-      String :delivered_at
+      attribute :smtp_response, String
+      attribute :relay_host, String
+      attribute :delivered_at, String
     end
 
-    DispatchSend do
+    command "DispatchSend" do
       role "EmailEngine"
       description "Deliver an email to a specific recipient"
-      String :send_id
-      String :recipient_email
+      attribute :send_id, String
+      attribute :recipient_email, String
       reference_to(EmailCampaign)
       emits "SendDispatched"
     end
 
-    ConfirmDelivery do
+    command "ConfirmDelivery" do
       description "Mark an email as successfully delivered"
       reference_to(Send)
       emits "DeliveryConfirmed"
     end
 
-    MarkFailed do
+    command "MarkFailed" do
       description "Record a permanent delivery failure"
       reference_to(Send)
-      String :failure_reason
+      attribute :failure_reason, String
       emits "SendFailed"
     end
   end
 
   aggregate "OpenEvent", "A tracked email open by a recipient" do
-    String :event_id
-    String :recipient_email
-    String :user_agent
-    String :opened_at
-    String :geo_region
+    attribute :event_id, String
+    attribute :recipient_email, String
+    attribute :user_agent, String
+    attribute :opened_at, String
+    attribute :geo_region, String
     reference_to Send
 
     value_object "OpenContext" do
-      String :device_type
-      String :email_client
-      String :ip_address
+      attribute :device_type, String
+      attribute :email_client, String
+      attribute :ip_address, String
     end
 
-    RecordOpen do
+    command "RecordOpen" do
       role "TrackingPixel"
       description "Log when a recipient opens an email"
-      String :event_id
-      String :recipient_email
-      String :user_agent
-      String :geo_region
+      attribute :event_id, String
+      attribute :recipient_email, String
+      attribute :user_agent, String
+      attribute :geo_region, String
       reference_to(Send)
       emits "OpenRecorded"
     end
 
-    FlagBotOpen do
+    command "FlagBotOpen" do
       description "Mark an open event as likely automated by email security"
       reference_to(OpenEvent)
       emits "BotOpenFlagged"
     end
 
-    AggregateOpens do
+    command "AggregateOpens" do
       description "Roll up open events into campaign-level metrics"
       reference_to(OpenEvent)
       emits "OpensAggregated"
@@ -161,40 +161,40 @@ Hecks.bluebook "EmailMarketing", version: "2026.04.13.1" do
   end
 
   aggregate "Bounce", "A failed email delivery returned by the recipient server" do
-    String :bounce_id
-    String :recipient_email
-    String :bounce_type
-    String :smtp_code
-    String :diagnostic
-    String :status
+    attribute :bounce_id, String
+    attribute :recipient_email, String
+    attribute :bounce_type, String
+    attribute :smtp_code, String
+    attribute :diagnostic, String
+    attribute :status, String
     reference_to Send
 
     value_object "BounceDetail" do
-      String :remote_server
-      String :error_message
-      String :bounced_at
+      attribute :remote_server, String
+      attribute :error_message, String
+      attribute :bounced_at, String
     end
 
-    RecordBounce do
+    command "RecordBounce" do
       role "EmailEngine"
       description "Log a bounce returned by the recipient mail server"
-      String :bounce_id
-      String :recipient_email
-      String :bounce_type
-      String :smtp_code
+      attribute :bounce_id, String
+      attribute :recipient_email, String
+      attribute :bounce_type, String
+      attribute :smtp_code, String
       reference_to(Send)
       emits "BounceRecorded"
     end
 
-    ClassifyBounce do
+    command "ClassifyBounce" do
       description "Categorize a bounce as hard or soft"
       reference_to(Bounce)
-      String :bounce_type
+      attribute :bounce_type, String
       then_set :bounce_type, to: "hard"
       emits "BounceClassified"
     end
 
-    SuppressAddress do
+    command "SuppressAddress" do
       description "Add a hard-bounced address to the suppression list"
       reference_to(Bounce)
       emits "AddressSuppressed"

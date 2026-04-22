@@ -5,24 +5,24 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
   # === CrisisEvent ===
 
   aggregate "CrisisEvent", "An infrastructure crisis — triggers aviation, power, and medical coordination" do
-    String :event_id
-    String :crisis_type
-    String :affected_region
-    String :severity
-    String :status
+    attribute :event_id, String
+    attribute :crisis_type, String
+    attribute :affected_region, String
+    attribute :severity, String
+    attribute :status, String
     list_of(AffectedSystem) :affected_systems
     value_object "AffectedSystem" do
-      String :system_type
-      String :impact_level
-      String :estimated_recovery
+      attribute :system_type, String
+      attribute :impact_level, String
+      attribute :estimated_recovery, String
     end
-    DeclareCrisis do
+    command "DeclareCrisis" do
       role "CrisisDirector"
       description "Declare an infrastructure crisis affecting aviation and power systems"
-      String :event_id
-      String :crisis_type
-      String :affected_region
-      String :severity
+      attribute :event_id, String
+      attribute :crisis_type, String
+      attribute :affected_region, String
+      attribute :severity, String
       emits "CrisisDeclared"
       then_set :event_id, to: :event_id
       then_set :crisis_type, to: :crisis_type
@@ -30,16 +30,16 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
       then_set :severity, to: :severity
       then_set :status, to: "active"
     end
-    EscalateCrisis do
+    command "EscalateCrisis" do
       role "CrisisDirector"
       description "Escalate crisis severity as cascading failures develop"
       reference_to(CrisisEvent)
-      String :severity
+      attribute :severity, String
       given { status == "active" }
       emits "CrisisEscalated"
       then_set :severity, to: :severity
     end
-    ResolveCrisis do
+    command "ResolveCrisis" do
       role "CrisisDirector"
       description "Resolve crisis when all systems restored"
       reference_to(CrisisEvent)
@@ -52,28 +52,28 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
   # === FlightAsset ===
 
   aggregate "FlightAsset", "An aircraft available for crisis response — medevac, supply, or evacuation mission" do
-    String :callsign
-    String :aircraft_type
-    String :base_location
-    Integer :patient_capacity
-    Integer :range_nm
-    String :status
+    attribute :callsign, String
+    attribute :aircraft_type, String
+    attribute :base_location, String
+    attribute :patient_capacity, Integer
+    attribute :range_nm, Integer
+    attribute :status, String
     reference_to(CrisisEvent, as: :assigned_crisis)
     list_of(MissionLog) :missions
     value_object "MissionLog" do
-      String :mission_type
-      String :origin
-      String :destination
-      String :outcome
+      attribute :mission_type, String
+      attribute :origin, String
+      attribute :destination, String
+      attribute :outcome, String
     end
-    ActivateAsset do
+    command "ActivateAsset" do
       role "Dispatcher"
       description "Activate a flight asset for crisis response duty"
-      String :callsign
-      String :aircraft_type
-      String :base_location
-      Integer :patient_capacity
-      Integer :range_nm
+      attribute :callsign, String
+      attribute :aircraft_type, String
+      attribute :base_location, String
+      attribute :patient_capacity, Integer
+      attribute :range_nm, Integer
       reference_to(CrisisEvent, as: :assigned_crisis)
       emits "AssetActivated"
       then_set :callsign, to: :callsign
@@ -83,7 +83,7 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
       then_set :range_nm, to: :range_nm
       then_set :status, to: "ready"
     end
-    DispatchMission do
+    command "DispatchMission" do
       role "Dispatcher"
       description "Dispatch aircraft on a specific crisis mission"
       reference_to(FlightAsset)
@@ -91,7 +91,7 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
       emits "MissionDispatched"
       then_set :status, to: "airborne"
     end
-    CompleteMission do
+    command "CompleteMission" do
       role "Pilot"
       description "Complete mission and return to ready status"
       reference_to(FlightAsset)
@@ -104,28 +104,28 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
   # === HospitalStatus ===
 
   aggregate "HospitalStatus", "Hospital operational status during crisis — power, capacity, accessibility" do
-    String :hospital_name
-    String :region
-    Integer :total_beds
-    Integer :available_beds
-    String :power_status
-    String :accessibility
-    String :status
+    attribute :hospital_name, String
+    attribute :region, String
+    attribute :total_beds, Integer
+    attribute :available_beds, Integer
+    attribute :power_status, String
+    attribute :accessibility, String
+    attribute :status, String
     list_of(DepartmentStatus) :departments
     value_object "DepartmentStatus" do
-      String :department_name
-      String :operational_status
-      Integer :staff_count
+      attribute :department_name, String
+      attribute :operational_status, String
+      attribute :staff_count, Integer
     end
-    ReportStatus do
+    command "ReportStatus" do
       role "Administrator"
       description "Report hospital operational status during crisis"
-      String :hospital_name
-      String :region
-      Integer :total_beds
-      Integer :available_beds
-      String :power_status
-      String :accessibility
+      attribute :hospital_name, String
+      attribute :region, String
+      attribute :total_beds, Integer
+      attribute :available_beds, Integer
+      attribute :power_status, String
+      attribute :accessibility, String
       emits "HospitalStatusReported"
       then_set :hospital_name, to: :hospital_name
       then_set :region, to: :region
@@ -135,15 +135,15 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
       then_set :accessibility, to: :accessibility
       then_set :status, to: "reported"
     end
-    ReportPowerStatus do
+    command "ReportPowerStatus" do
       role "System"
       description "Report hospital power status from grid telemetry"
       reference_to(HospitalStatus)
-      String :power_status
+      attribute :power_status, String
       emits "PowerStatusReported"
       then_set :power_status, to: :power_status
     end
-    MarkInaccessible do
+    command "MarkInaccessible" do
       role "System"
       description "Mark hospital as ground-inaccessible — air transport only"
       reference_to(HospitalStatus)
@@ -155,25 +155,25 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
   # === PowerStatus ===
 
   aggregate "PowerStatus", "Regional power grid status — which sectors have power, which hospitals need generators" do
-    String :sector_id
-    String :region
-    Integer :substations_online
-    Integer :substations_total
-    String :grid_status
+    attribute :sector_id, String
+    attribute :region, String
+    attribute :substations_online, Integer
+    attribute :substations_total, Integer
+    attribute :grid_status, String
     list_of(GeneratorDeployment) :generators
     value_object "GeneratorDeployment" do
-      String :generator_id
-      String :deployed_to
-      Integer :capacity_kw
-      String :fuel_status
+      attribute :generator_id, String
+      attribute :deployed_to, String
+      attribute :capacity_kw, Integer
+      attribute :fuel_status, String
     end
-    ReportGridStatus do
+    command "ReportGridStatus" do
       role "GridOperator"
       description "Report power grid sector status during crisis"
-      String :sector_id
-      String :region
-      Integer :substations_online
-      Integer :substations_total
+      attribute :sector_id, String
+      attribute :region, String
+      attribute :substations_online, Integer
+      attribute :substations_total, Integer
       emits "GridStatusReported"
       then_set :sector_id, to: :sector_id
       then_set :region, to: :region
@@ -181,13 +181,13 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
       then_set :substations_total, to: :substations_total
       then_set :grid_status, to: "degraded"
     end
-    DeployGenerator do
+    command "DeployGenerator" do
       role "GridOperator"
       description "Deploy backup generator to critical facility"
       reference_to(PowerStatus)
       emits "GeneratorDeployed"
     end
-    RestoreSector do
+    command "RestoreSector" do
       role "Engineer"
       description "Restore power to grid sector"
       reference_to(PowerStatus)
@@ -200,32 +200,32 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
   # === AirspaceDecision ===
 
   aggregate "AirspaceDecision", "Airspace routing decision — balances hospital power, bed capacity, and flight range" do
-    String :decision_id
+    attribute :decision_id, String
     reference_to(CrisisEvent, as: :crisis)
     reference_to(FlightAsset, as: :aircraft)
     reference_to(HospitalStatus, as: :target_hospital)
-    String :rationale
-    String :status
+    attribute :rationale, String
+    attribute :status, String
     list_of(ScoringFactor) :factors
     value_object "ScoringFactor" do
-      String :factor_name
-      Float :weight
-      Float :score
+      attribute :factor_name, String
+      attribute :weight, Float
+      attribute :score, Float
     end
-    ComputeDecision do
+    command "ComputeDecision" do
       role "System"
       description "Compute optimal hospital-aircraft pairing based on power, beds, and range"
-      String :decision_id
+      attribute :decision_id, String
       reference_to(CrisisEvent, as: :crisis)
       reference_to(FlightAsset, as: :aircraft)
       reference_to(HospitalStatus, as: :target_hospital)
-      String :rationale
+      attribute :rationale, String
       emits "DecisionComputed"
       then_set :decision_id, to: :decision_id
       then_set :rationale, to: :rationale
       then_set :status, to: "computed"
     end
-    ApproveDecision do
+    command "ApproveDecision" do
       role "CrisisDirector"
       description "Approve the computed routing decision for execution"
       reference_to(AirspaceDecision)
@@ -238,34 +238,34 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
   # === PatientPriority ===
 
   aggregate "PatientPriority", "Patient transport priority queue — who flies first based on acuity and hospital match" do
-    String :queue_id
+    attribute :queue_id, String
     reference_to(CrisisEvent, as: :crisis)
-    String :status
+    attribute :status, String
     list_of(PriorityEntry) :entries
     value_object "PriorityEntry" do
-      String :patient_name
-      String :acuity_level
-      String :required_specialty
-      String :assigned_hospital
-      String :transport_status
+      attribute :patient_name, String
+      attribute :acuity_level, String
+      attribute :required_specialty, String
+      attribute :assigned_hospital, String
+      attribute :transport_status, String
     end
-    OpenQueue do
+    command "OpenQueue" do
       role "System"
       description "Open patient priority queue for crisis transport coordination"
-      String :queue_id
+      attribute :queue_id, String
       reference_to(CrisisEvent, as: :crisis)
       emits "QueueOpened"
       then_set :queue_id, to: :queue_id
       then_set :status, to: "active"
     end
-    AddPatient do
+    command "AddPatient" do
       role "Clinician"
       description "Add patient to transport priority queue with acuity and specialty needs"
       reference_to(PatientPriority)
       given { status == "active" }
       emits "PatientQueued"
     end
-    DispatchTransport do
+    command "DispatchTransport" do
       role "System"
       description "Dispatch air transport for highest-priority patient"
       reference_to(PatientPriority)

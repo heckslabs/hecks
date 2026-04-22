@@ -4,42 +4,42 @@ Hecks.bluebook "RoofingCompany" do
 
   aggregate "RoofEstimate" do
     description "A measured estimate for a roofing job including square footage, pitch, and material costs"
-    String :customer_name
-    String :address
-    Float :square_footage
-    Float :pitch
-    Float :total_cost
-    String :status
+    attribute :customer_name, String
+    attribute :address, String
+    attribute :square_footage, Float
+    attribute :pitch, Float
+    attribute :total_cost, Float
+    attribute :status, String
 
     value_object "RoofMeasurement" do
-      Float :length_feet
-      Float :width_feet
-      Float :pitch_ratio
+      attribute :length_feet, Float
+      attribute :width_feet, Float
+      attribute :pitch_ratio, Float
     end
 
-    MeasureRoof do
+    command "MeasureRoof" do
       role "Estimator"
       goal "Take roof measurements for an accurate estimate"
       description "Climb and measure the roof area, pitch, and penetrations"
-      String :customer_name
-      String :address
-      Float :square_footage
-      Float :pitch
+      attribute :customer_name, String
+      attribute :address, String
+      attribute :square_footage, Float
+      attribute :pitch, Float
       emits "RoofMeasured"
     end
 
-    QuoteJob do
+    command "QuoteJob" do
       role "Estimator"
       goal "Generate a price quote from measurements and material choices"
       description "Calculate total cost based on materials, labor, and waste factor"
       reference_to(RoofEstimate)
-      Float :material_cost_per_square
-      Float :labor_cost_per_square
+      attribute :material_cost_per_square, Float
+      attribute :labor_cost_per_square, Float
       emits "JobQuoted"
       then_set :status, to: "quoted"
     end
 
-    AcceptQuote do
+    command "AcceptQuote" do
       role "Customer"
       goal "Approve the estimate to begin scheduling"
       description "Customer signs the estimate to authorize work"
@@ -55,24 +55,24 @@ Hecks.bluebook "RoofingCompany" do
 
   aggregate "MaterialOrder" do
     description "An order for roofing materials — shingles, underlayment, flashing, fasteners"
-    String :supplier
-    String :material_type
-    Integer :quantity_bundles
-    String :delivery_status
+    attribute :supplier, String
+    attribute :material_type, String
+    attribute :quantity_bundles, Integer
+    attribute :delivery_status, String
     reference_to(RoofEstimate)
 
-    OrderMaterials do
+    command "OrderMaterials" do
       role "Purchaser"
       goal "Place an order with the supplier for job materials"
       description "Order shingles, felt, flashing, and accessories for the job"
-      String :supplier
-      String :material_type
-      Integer :quantity_bundles
+      attribute :supplier, String
+      attribute :material_type, String
+      attribute :quantity_bundles, Integer
       reference_to(RoofEstimate)
       emits "MaterialsOrdered"
     end
 
-    ReceiveDelivery do
+    command "ReceiveDelivery" do
       role "Foreman"
       goal "Confirm materials arrived on-site and check quantities"
       description "Verify delivery against the order and note any shortages"
@@ -87,25 +87,25 @@ Hecks.bluebook "RoofingCompany" do
 
   aggregate "Crew" do
     description "A roofing crew with a foreman and laborers assigned to jobs"
-    String :foreman_name
-    Integer :crew_size
-    String :availability
+    attribute :foreman_name, String
+    attribute :crew_size, Integer
+    attribute :availability, String
 
     value_object "CrewSkill" do
-      String :roofing_type
-      Integer :years_experience
+      attribute :roofing_type, String
+      attribute :years_experience, Integer
     end
 
-    FormCrew do
+    command "FormCrew" do
       role "Operations Manager"
       goal "Assemble a crew with the right skills for the job type"
       description "Assign a foreman and laborers to a crew roster"
-      String :foreman_name
-      Integer :crew_size
+      attribute :foreman_name, String
+      attribute :crew_size, Integer
       emits "CrewFormed"
     end
 
-    AssignToJob do
+    command "AssignToJob" do
       role "Operations Manager"
       goal "Schedule a crew to a specific roofing job"
       description "Assign the crew and set the start date"
@@ -121,21 +121,21 @@ Hecks.bluebook "RoofingCompany" do
 
   aggregate "WeatherHold" do
     description "A work stoppage due to weather conditions unsafe for roofing"
-    String :reason
-    String :hold_date
-    String :resume_date
+    attribute :reason, String
+    attribute :hold_date, String
+    attribute :resume_date, String
     reference_to(RoofEstimate)
 
-    PlaceHold do
+    command "PlaceHold" do
       role "Foreman"
       goal "Stop work due to rain, wind, or temperature"
       description "Halt roofing operations until conditions improve"
-      String :reason
+      attribute :reason, String
       reference_to(RoofEstimate)
       emits "HoldPlaced"
     end
 
-    LiftHold do
+    command "LiftHold" do
       role "Foreman"
       goal "Resume work after weather clears"
       description "Mark the hold as lifted and reschedule the crew"
@@ -151,28 +151,28 @@ Hecks.bluebook "RoofingCompany" do
 
   aggregate "RoofWarranty" do
     description "A manufacturer or workmanship warranty on the installed roof"
-    String :warranty_type
-    Integer :duration_years
-    String :coverage_details
+    attribute :warranty_type, String
+    attribute :duration_years, Integer
+    attribute :coverage_details, String
     reference_to(RoofEstimate)
 
-    RegisterWarranty do
+    command "RegisterWarranty" do
       role "Office Manager"
       goal "File the warranty with the manufacturer after installation"
       description "Register the installed materials for warranty coverage"
-      String :warranty_type
-      Integer :duration_years
-      String :coverage_details
+      attribute :warranty_type, String
+      attribute :duration_years, Integer
+      attribute :coverage_details, String
       reference_to(RoofEstimate)
       emits "WarrantyRegistered"
     end
 
-    FileLeakClaim do
+    command "FileLeakClaim" do
       role "Customer"
       goal "Report a roof leak under warranty"
       description "Customer reports a leak for warranty repair evaluation"
       reference_to(RoofWarranty)
-      String :leak_location
+      attribute :leak_location, String
       emits "LeakClaimFiled"
     end
 

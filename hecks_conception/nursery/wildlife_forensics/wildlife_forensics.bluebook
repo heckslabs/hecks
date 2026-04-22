@@ -3,31 +3,31 @@ Hecks.bluebook "WildlifeForensics", version: "2026.04.13.1" do
   category "crossover"
 
   aggregate "Evidence", "Physical evidence from a wildlife crime scene — type, chain of custody" do
-    String :evidence_id
-    String :evidence_type
-    String :location_found
-    String :collected_by
-    String :timestamp
-    String :status
+    attribute :evidence_id, String
+    attribute :evidence_type, String
+    attribute :location_found, String
+    attribute :collected_by, String
+    attribute :timestamp, String
+    attribute :status, String
 
     value_object "ChainOfCustody" do
-      String :custodian
-      String :received_from
-      String :timestamp
-      String :location
+      attribute :custodian, String
+      attribute :received_from, String
+      attribute :timestamp, String
+      attribute :location, String
     end
 
     fixture "Tiger Fur Sample", evidence_id: "EV-2026-0001", evidence_type: "Hair/Fur", location_found: "Sambhar reserve, India", collected_by: "Officer Rajesh Patel", timestamp: "2026-03-15 14:30", status: "collected"
     fixture "Poaching Tool", evidence_id: "EV-2026-0002", evidence_type: "Snare/Trap", location_found: "Northern forest boundary", collected_by: "Officer Maria Garcia", timestamp: "2026-04-02 09:15", status: "in_lab"
 
-    CollectEvidence do
+    command "CollectEvidence" do
       role "FieldOfficer"
       description "Collect physical evidence from a wildlife crime scene"
-      String :evidence_id
-      String :evidence_type
-      String :location_found
-      String :collected_by
-      String :timestamp
+      attribute :evidence_id, String
+      attribute :evidence_type, String
+      attribute :location_found, String
+      attribute :collected_by, String
+      attribute :timestamp, String
       emits "EvidenceCollected"
       then_set :evidence_id, to: :evidence_id
       then_set :evidence_type, to: :evidence_type
@@ -37,7 +37,7 @@ Hecks.bluebook "WildlifeForensics", version: "2026.04.13.1" do
       then_set :status, to: "collected"
     end
 
-    TransferEvidence do
+    command "TransferEvidence" do
       role "FieldOfficer"
       description "Transfer evidence to forensic lab maintaining chain of custody"
       reference_to(Evidence)
@@ -46,7 +46,7 @@ Hecks.bluebook "WildlifeForensics", version: "2026.04.13.1" do
       then_set :status, to: "in_lab"
     end
 
-    AnalyzeEvidence do
+    command "AnalyzeEvidence" do
       role "ForensicScientist"
       description "Perform forensic analysis on the evidence"
       reference_to(Evidence)
@@ -63,36 +63,36 @@ Hecks.bluebook "WildlifeForensics", version: "2026.04.13.1" do
   end
 
   aggregate "SpeciesIdentification", "Species ID from forensic samples — morphology, DNA, geographic range" do
-    String :sample_id
-    String :identified_species
-    String :common_name
-    String :conservation_status
-    Float :confidence_pct
-    String :status
+    attribute :sample_id, String
+    attribute :identified_species, String
+    attribute :common_name, String
+    attribute :conservation_status, String
+    attribute :confidence_pct, Float
+    attribute :status, String
 
     value_object "MorphologicalFeature" do
-      String :feature_name
-      String :description
-      Float :diagnostic_value
+      attribute :feature_name, String
+      attribute :description, String
+      attribute :diagnostic_value, Float
     end
 
     list_of "ReferenceMatch" do
-      String :database
-      String :accession_number
-      Float :similarity_pct
+      attribute :database, String
+      attribute :accession_number, String
+      attribute :similarity_pct, Float
     end
 
     fixture "Bengal Tiger ID", sample_id: "SAMP-2026-0001", identified_species: "Panthera tigris tigris", common_name: "Bengal Tiger", conservation_status: "Endangered", confidence_pct: 99.8, status: "identified"
     fixture "African Elephant ID", sample_id: "SAMP-2026-0002", identified_species: "Loxodonta africana", common_name: "African Elephant", conservation_status: "Vulnerable", confidence_pct: 98.5, status: "confirmed"
 
-    IdentifySpecies do
+    command "IdentifySpecies" do
       role "ForensicScientist"
       description "Identify species from physical and morphological evidence"
-      String :sample_id
-      String :identified_species
-      String :common_name
-      String :conservation_status
-      Float :confidence_pct
+      attribute :sample_id, String
+      attribute :identified_species, String
+      attribute :common_name, String
+      attribute :conservation_status, String
+      attribute :confidence_pct, Float
       emits "SpeciesIdentified"
       then_set :sample_id, to: :sample_id
       then_set :identified_species, to: :identified_species
@@ -102,7 +102,7 @@ Hecks.bluebook "WildlifeForensics", version: "2026.04.13.1" do
       then_set :status, to: "identified"
     end
 
-    ConfirmWithDNA do
+    command "ConfirmWithDNA" do
       role "GeneticAnalyst"
       description "Confirm species identification with DNA barcoding"
       reference_to(SpeciesIdentification)
@@ -118,30 +118,30 @@ Hecks.bluebook "WildlifeForensics", version: "2026.04.13.1" do
   end
 
   aggregate "PoachingCase", "A poaching investigation case — suspects, location, method, species" do
-    String :case_number
-    String :location
-    String :species_involved
-    String :method_used
-    String :lead_investigator
-    String :status
+    attribute :case_number, String
+    attribute :location, String
+    attribute :species_involved, String
+    attribute :method_used, String
+    attribute :lead_investigator, String
+    attribute :status, String
 
     value_object "SuspectInfo" do
-      String :name
-      String :description
-      String :last_known_location
+      attribute :name, String
+      attribute :description, String
+      attribute :last_known_location, String
     end
 
     fixture "Tiger Poaching 2026", case_number: "CASE-2026-0547", location: "Sambhar Tiger Reserve, India", species_involved: "Bengal Tiger", method_used: "Snare trap", lead_investigator: "Inspector Rajesh Patel", status: "open"
     fixture "Rhino Horn Trafficking", case_number: "CASE-2026-0548", location: "Kruger National Park, South Africa", species_involved: "White Rhinoceros", method_used: "Poaching syndicate", lead_investigator: "Detective Maria van Der Merwe", status: "referred"
 
-    OpenCase do
+    command "OpenCase" do
       role "Investigator"
       description "Open a poaching investigation case"
-      String :case_number
-      String :location
-      String :species_involved
-      String :method_used
-      String :lead_investigator
+      attribute :case_number, String
+      attribute :location, String
+      attribute :species_involved, String
+      attribute :method_used, String
+      attribute :lead_investigator, String
       emits "CaseOpened"
       then_set :case_number, to: :case_number
       then_set :location, to: :location
@@ -151,7 +151,7 @@ Hecks.bluebook "WildlifeForensics", version: "2026.04.13.1" do
       then_set :status, to: "open"
     end
 
-    LinkEvidence do
+    command "LinkEvidence" do
       role "Investigator"
       description "Link forensic evidence to the case"
       reference_to(PoachingCase)
@@ -159,7 +159,7 @@ Hecks.bluebook "WildlifeForensics", version: "2026.04.13.1" do
       emits "EvidenceLinked"
     end
 
-    ReferForProsecution do
+    command "ReferForProsecution" do
       role "Investigator"
       description "Refer case to prosecution with evidence package"
       reference_to(PoachingCase)
@@ -168,7 +168,7 @@ Hecks.bluebook "WildlifeForensics", version: "2026.04.13.1" do
       then_set :status, to: "referred"
     end
 
-    CloseCase do
+    command "CloseCase" do
       role "Investigator"
       description "Close the case with final disposition"
       reference_to(PoachingCase)
@@ -185,28 +185,28 @@ Hecks.bluebook "WildlifeForensics", version: "2026.04.13.1" do
   end
 
   aggregate "DNAAnalysis", "Forensic DNA analysis — extraction, sequencing, matching, reporting" do
-    String :analysis_id
-    String :evidence_id
-    String :extraction_method
-    String :sequence_region
-    Float :match_confidence_pct
-    String :status
+    attribute :analysis_id, String
+    attribute :evidence_id, String
+    attribute :extraction_method, String
+    attribute :sequence_region, String
+    attribute :match_confidence_pct, Float
+    attribute :status, String
 
     value_object "SequenceResult" do
-      String :region
-      Integer :base_pairs
-      Float :quality_score
+      attribute :region, String
+      attribute :base_pairs, Integer
+      attribute :quality_score, Float
     end
 
     fixture "Tiger DNA Extraction", analysis_id: "DNA-2026-0001", evidence_id: "EV-2026-0001", extraction_method: "Tissue digestion & precipitation", sequence_region: "COI (Cytochrome Oxidase I)", match_confidence_pct: 0.0, status: "extracted"
     fixture "Elephant DNA Sequencing", analysis_id: "DNA-2026-0002", evidence_id: "EV-2026-0003", extraction_method: "Bone marrow extraction", sequence_region: "12S rRNA", match_confidence_pct: 0.0, status: "sequenced"
 
-    ExtractDNA do
+    command "ExtractDNA" do
       role "GeneticAnalyst"
       description "Extract DNA from forensic evidence sample"
-      String :analysis_id
-      String :evidence_id
-      String :extraction_method
+      attribute :analysis_id, String
+      attribute :evidence_id, String
+      attribute :extraction_method, String
       emits "DNAExtracted"
       then_set :analysis_id, to: :analysis_id
       then_set :evidence_id, to: :evidence_id
@@ -214,22 +214,22 @@ Hecks.bluebook "WildlifeForensics", version: "2026.04.13.1" do
       then_set :status, to: "extracted"
     end
 
-    SequenceDNA do
+    command "SequenceDNA" do
       role "GeneticAnalyst"
       description "Sequence extracted DNA for species and individual identification"
       reference_to(DNAAnalysis)
-      String :sequence_region
+      attribute :sequence_region, String
       given { status == "extracted" }
       emits "DNASequenced"
       then_set :sequence_region, to: :sequence_region
       then_set :status, to: "sequenced"
     end
 
-    MatchDatabase do
+    command "MatchDatabase" do
       role "System"
       description "Match DNA sequence against wildlife forensic databases"
       reference_to(DNAAnalysis)
-      Float :match_confidence_pct
+      attribute :match_confidence_pct, Float
       given { status == "sequenced" }
       emits "DatabaseMatched"
       then_set :match_confidence_pct, to: :match_confidence_pct

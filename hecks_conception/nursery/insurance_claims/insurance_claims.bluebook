@@ -3,31 +3,31 @@ Hecks.bluebook "InsuranceClaims" do
   category "finance"
 
   aggregate "PolicyHolder", "An insured party with coverage details and premium history" do
-    String :name
-    String :policy_number
-    String :coverage_type
-    Float :premium
-    Float :deductible
-    String :effective_date
-    String :expiration_date
-    String :status
+    attribute :name, String
+    attribute :policy_number, String
+    attribute :coverage_type, String
+    attribute :premium, Float
+    attribute :deductible, Float
+    attribute :effective_date, String
+    attribute :expiration_date, String
+    attribute :status, String
 
     value_object "CoverageLimit" do
-      String :category
-      Float :max_amount
-      Float :remaining
+      attribute :category, String
+      attribute :max_amount, Float
+      attribute :remaining, Float
     end
 
-    IssuePolicy do
+    command "IssuePolicy" do
       role "Underwriter"
       description "Create a new insurance policy for a customer"
-      String :name
-      String :policy_number
-      String :coverage_type
-      Float :premium
-      Float :deductible
-      String :effective_date
-      String :expiration_date
+      attribute :name, String
+      attribute :policy_number, String
+      attribute :coverage_type, String
+      attribute :premium, Float
+      attribute :deductible, Float
+      attribute :effective_date, String
+      attribute :expiration_date, String
       emits "PolicyIssued"
       then_set :name, to: :name
       then_set :policy_number, to: :policy_number
@@ -37,19 +37,19 @@ Hecks.bluebook "InsuranceClaims" do
       then_set :status, to: "active"
     end
 
-    RenewPolicy do
+    command "RenewPolicy" do
       role "Underwriter"
       description "Extend the policy for another term with updated premium"
       reference_to(PolicyHolder)
-      Float :new_premium
-      String :new_expiration_date
+      attribute :new_premium, Float
+      attribute :new_expiration_date, String
       given { status == "active" }
       emits "PolicyRenewed"
       then_set :premium, to: :new_premium
       then_set :expiration_date, to: :new_expiration_date
     end
 
-    LapsePolicy do
+    command "LapsePolicy" do
       role "System"
       description "Mark policy as lapsed due to non-payment or expiration"
       reference_to(PolicyHolder)
@@ -60,11 +60,11 @@ Hecks.bluebook "InsuranceClaims" do
   end
 
   aggregate "Claim", "A filed insurance claim with incident details and processing status" do
-    String :claim_number
-    String :incident_date
-    String :incident_description
-    Float :claimed_amount
-    String :status
+    attribute :claim_number, String
+    attribute :incident_date, String
+    attribute :incident_description, String
+    attribute :claimed_amount, Float
+    attribute :status, String
     reference_to(PolicyHolder)
 
     specification "HighValue" do
@@ -72,20 +72,20 @@ Hecks.bluebook "InsuranceClaims" do
     end
 
     value_object "IncidentReport" do
-      String :location
-      String :witnesses
-      String :police_report_number
-      String :photos_attached
+      attribute :location, String
+      attribute :witnesses, String
+      attribute :police_report_number, String
+      attribute :photos_attached, String
     end
 
-    FileClaim do
+    command "FileClaim" do
       role "Claimant"
       description "Submit a new insurance claim for an incident"
       reference_to(PolicyHolder)
-      String :claim_number
-      String :incident_date
-      String :incident_description
-      Float :claimed_amount
+      attribute :claim_number, String
+      attribute :incident_date, String
+      attribute :incident_description, String
+      attribute :claimed_amount, Float
       emits "ClaimFiled"
       then_set :claim_number, to: :claim_number
       then_set :incident_date, to: :incident_date
@@ -94,7 +94,7 @@ Hecks.bluebook "InsuranceClaims" do
       then_set :status, to: "filed"
     end
 
-    ReviewClaim do
+    command "ReviewClaim" do
       role "ClaimsManager"
       description "Begin review of the filed claim"
       reference_to(Claim)
@@ -103,7 +103,7 @@ Hecks.bluebook "InsuranceClaims" do
       then_set :status, to: "under_review"
     end
 
-    ApproveClaim do
+    command "ApproveClaim" do
       role "ClaimsManager"
       description "Approve the claim for settlement processing"
       reference_to(Claim)
@@ -111,11 +111,11 @@ Hecks.bluebook "InsuranceClaims" do
       then_set :status, to: "approved"
     end
 
-    DenyClaim do
+    command "DenyClaim" do
       role "ClaimsManager"
       description "Reject the claim with documented reasons"
       reference_to(Claim)
-      String :denial_reason
+      attribute :denial_reason, String
       given { status == "under_review" }
       emits "ClaimDenied"
       then_set :status, to: "denied"
@@ -123,29 +123,29 @@ Hecks.bluebook "InsuranceClaims" do
   end
 
   aggregate "AdjusterAssignment", "An adjuster assigned to investigate and evaluate a claim" do
-    String :adjuster_name
-    String :assignment_date
-    String :findings
-    Float :assessed_amount
-    String :status
+    attribute :adjuster_name, String
+    attribute :assignment_date, String
+    attribute :findings, String
+    attribute :assessed_amount, Float
+    attribute :status, String
     reference_to(Claim)
 
-    AssignAdjuster do
+    command "AssignAdjuster" do
       role "ClaimsManager"
       description "Dispatch an adjuster to investigate the claim"
       reference_to(Claim)
-      String :adjuster_name
+      attribute :adjuster_name, String
       emits "AdjusterAssigned"
       then_set :adjuster_name, to: :adjuster_name
       then_set :status, to: "assigned"
     end
 
-    SubmitAssessment do
+    command "SubmitAssessment" do
       role "Adjuster"
       description "File the adjuster's investigation findings and assessed value"
       reference_to(AdjusterAssignment)
-      String :findings
-      Float :assessed_amount
+      attribute :findings, String
+      attribute :assessed_amount, Float
       given { status == "assigned" }
       emits "AssessmentSubmitted"
       then_set :findings, to: :findings
@@ -155,24 +155,24 @@ Hecks.bluebook "InsuranceClaims" do
   end
 
   aggregate "Settlement", "A financial settlement offered to resolve an approved claim" do
-    Float :settlement_amount
-    String :payment_method
-    String :status
+    attribute :settlement_amount, Float
+    attribute :payment_method, String
+    attribute :status, String
     reference_to(Claim)
 
-    OfferSettlement do
+    command "OfferSettlement" do
       role "ClaimsManager"
       description "Present a settlement amount to the claimant"
       reference_to(Claim)
-      Float :settlement_amount
-      String :payment_method
+      attribute :settlement_amount, Float
+      attribute :payment_method, String
       emits "SettlementOffered"
       then_set :settlement_amount, to: :settlement_amount
       then_set :payment_method, to: :payment_method
       then_set :status, to: "offered"
     end
 
-    AcceptSettlement do
+    command "AcceptSettlement" do
       role "Claimant"
       description "Claimant accepts the settlement terms"
       reference_to(Settlement)
@@ -181,7 +181,7 @@ Hecks.bluebook "InsuranceClaims" do
       then_set :status, to: "accepted"
     end
 
-    RejectSettlement do
+    command "RejectSettlement" do
       role "Claimant"
       description "Claimant rejects the settlement and may file an appeal"
       reference_to(Settlement)
@@ -192,29 +192,29 @@ Hecks.bluebook "InsuranceClaims" do
   end
 
   aggregate "Appeal", "A formal dispute of a denied claim or rejected settlement" do
-    String :reason
-    String :supporting_documents
-    String :status
-    String :resolution
+    attribute :reason, String
+    attribute :supporting_documents, String
+    attribute :status, String
+    attribute :resolution, String
     reference_to(Claim)
 
-    FileAppeal do
+    command "FileAppeal" do
       role "Claimant"
       description "Submit a formal appeal with supporting evidence"
       reference_to(Claim)
-      String :reason
-      String :supporting_documents
+      attribute :reason, String
+      attribute :supporting_documents, String
       emits "AppealFiled"
       then_set :reason, to: :reason
       then_set :supporting_documents, to: :supporting_documents
       then_set :status, to: "filed"
     end
 
-    ReviewAppeal do
+    command "ReviewAppeal" do
       role "AppealBoard"
       description "Evaluate the appeal and issue a decision"
       reference_to(Appeal)
-      String :resolution
+      attribute :resolution, String
       given { status == "filed" }
       emits "AppealReviewed"
       then_set :resolution, to: :resolution

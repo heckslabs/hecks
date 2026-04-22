@@ -3,19 +3,19 @@ Hecks.bluebook "Genetics" do
 
   aggregate "Specimen" do
     description "A biological sample collected for genetic analysis"
-    String :specimen_id
-    String :organism
-    String :tissue_type
-    String :collection_date
-    String :collector
-    Boolean :preserved, default: false
+    attribute :specimen_id, String
+    attribute :organism, String
+    attribute :tissue_type, String
+    attribute :collection_date, String
+    attribute :collector, String
+    attribute :preserved, Boolean, default: false
 
     command "CollectSpecimen" do
       description "Register a new biological specimen"
       emits "SpecimenCollected"
-      String :specimen_id
-      String :organism
-      String :tissue_type
+      attribute :specimen_id, String
+      attribute :organism, String
+      attribute :tissue_type, String
       # Gate flip — flips preserved=true so the downstream ExtractDna
       # cascade can fire without an intermediate PreserveSpecimen step.
       then_set :preserved, to: true
@@ -44,26 +44,26 @@ Hecks.bluebook "Genetics" do
 
   aggregate "DnaSequence" do
     description "A nucleotide sequence read from a specimen"
-    String :accession
-    String :sequence_data
-    Integer :length_bp
-    String :sequencing_method
-    Boolean :quality_passed, default: false
+    attribute :accession, String
+    attribute :sequence_data, String
+    attribute :length_bp, Integer
+    attribute :sequencing_method, String
+    attribute :quality_passed, Boolean, default: false
     reference_to Specimen
 
     value_object "QualityMetrics" do
-      Float :phred_score
-      Float :gc_content
-      Integer :ambiguous_bases
+      attribute :phred_score, Float
+      attribute :gc_content, Float
+      attribute :ambiguous_bases, Integer
     end
 
     command "SubmitSequence" do
       description "Upload a new DNA sequence to the database"
       emits "SequenceSubmitted"
       reference_to Specimen
-      String :accession
-      String :sequencing_method
-      Integer :length_bp
+      attribute :accession, String
+      attribute :sequencing_method, String
+      attribute :length_bp, Integer
       # Gate flip — flips quality_passed=true so AlignSequence can
       # fire downstream without an intermediate PassQualityFilter step.
       then_set :quality_passed, to: true
@@ -92,20 +92,20 @@ Hecks.bluebook "Genetics" do
 
   aggregate "Mutation" do
     description "A variant detected by comparing sequences to a reference"
-    String :variant_id
-    String :mutation_type
-    Integer :position
-    String :reference_allele
-    String :alternate_allele
-    Integer :confirmation_method_count, default: 0
+    attribute :variant_id, String
+    attribute :mutation_type, String
+    attribute :position, Integer
+    attribute :reference_allele, String
+    attribute :alternate_allele, String
+    attribute :confirmation_method_count, Integer, default: 0
     reference_to DnaSequence
 
     command "CallVariant" do
       description "Identify a mutation from aligned sequence data"
       emits "VariantCalled"
       reference_to DnaSequence
-      String :mutation_type
-      Integer :position
+      attribute :mutation_type, String
+      attribute :position, Integer
       # Gate flip — pre-confirms the variant so ClassifyPathogenicity's
       # confirmation_method_count >= 2 gate passes downstream without
       # needing intermediate ConfirmByMethod calls in the cascade.
@@ -116,36 +116,36 @@ Hecks.bluebook "Genetics" do
       description "Record an additional confirmation method for the variant"
       emits "MethodConfirmed"
       reference_to Mutation
-      Integer :confirmation_method_count
+      attribute :confirmation_method_count, Integer
     end
 
     command "ClassifyPathogenicity" do
       description "Assess whether the variant is pathogenic"
       emits "PathogenicityClassified"
       reference_to Mutation
-      String :classification
+      attribute :classification, String
       given { confirmation_method_count >= 2 }
     end
   end
 
   aggregate "Pedigree" do
     description "A family tree tracking inheritance patterns across generations"
-    String :family_id
-    String :proband_id
-    Integer :generation_count
+    attribute :family_id, String
+    attribute :proband_id, String
+    attribute :generation_count, Integer
     reference_to Specimen
 
     value_object "FamilyMember" do
-      String :individual_id
-      String :relationship
-      String :affected_status
+      attribute :individual_id, String
+      attribute :relationship, String
+      attribute :affected_status, String
     end
 
     command "BuildPedigree" do
       description "Construct a new family pedigree chart"
       emits "PedigreeBuilt"
-      String :family_id
-      String :proband_id
+      attribute :family_id, String
+      attribute :proband_id, String
       # Gate flip — seeds generation_count to 2 so TraceInheritance can
       # run on a freshly-built pedigree (its given requires >= 2).
       then_set :generation_count, to: 2
@@ -155,15 +155,15 @@ Hecks.bluebook "Genetics" do
       description "Add a family member to the pedigree"
       emits "RelativeAdded"
       reference_to Pedigree
-      String :individual_id
-      String :relationship
+      attribute :individual_id, String
+      attribute :relationship, String
     end
 
     command "SetGenerationCount" do
       description "Update the recorded generation span of the pedigree"
       emits "GenerationCountSet"
       reference_to Pedigree
-      Integer :generation_count
+      attribute :generation_count, Integer
     end
 
     command "TraceInheritance" do
@@ -176,18 +176,18 @@ Hecks.bluebook "Genetics" do
 
   aggregate "Publication" do
     description "A research report documenting genetic findings"
-    String :publication_id
-    String :title
-    String :journal
-    String :submitted_date
+    attribute :publication_id, String
+    attribute :title, String
+    attribute :journal, String
+    attribute :submitted_date, String
     reference_to Mutation
 
     command "PublishFindings" do
       description "Submit genetic research findings for publication"
       emits "FindingsPublished"
       reference_to Mutation
-      String :title
-      String :journal
+      attribute :title, String
+      attribute :journal, String
     end
   end
 

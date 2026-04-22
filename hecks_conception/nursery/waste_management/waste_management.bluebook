@@ -1,40 +1,40 @@
 Hecks.bluebook "WasteManagement" do
   aggregate "CollectionRoute" do
-    String :route_id
-    String :route_name
-    String :zone
-    Integer :stop_count
-    String :collection_day
-    String :status
+    attribute :route_id, String
+    attribute :route_name, String
+    attribute :zone, String
+    attribute :stop_count, Integer
+    attribute :collection_day, String
+    attribute :status, String
 
     value_object "RouteMetrics" do
-      Float :distance_miles
-      Float :estimated_hours
-      Integer :bins_serviced
-      Float :tonnage_collected
+      attribute :distance_miles, Float
+      attribute :estimated_hours, Float
+      attribute :bins_serviced, Integer
+      attribute :tonnage_collected, Float
     end
 
-    PlanRoute do
+    command "PlanRoute" do
       description "Design collection route with stops optimized for zone coverage"
-      String :zone
-      Integer :stop_count
-      String :collection_day
+      attribute :zone, String
+      attribute :stop_count, Integer
+      attribute :collection_day, String
       reference_to "CollectionRoute"
       emits "RoutePlanned"
     end
 
-    DispatchRoute do
+    command "DispatchRoute" do
       description "Assign truck and driver to execute planned collection route"
-      String :truck_id
-      String :driver_id
+      attribute :truck_id, String
+      attribute :driver_id, String
       reference_to "CollectionRoute"
       emits "RouteDispatched"
     end
 
-    CompleteRoute do
+    command "CompleteRoute" do
       description "Record route completion with actual tonnage and missed stops"
-      Float :tonnage_collected
-      Integer :missed_stops
+      attribute :tonnage_collected, Float
+      attribute :missed_stops, Integer
       reference_to "CollectionRoute"
       emits "RouteCompleted"
     end
@@ -50,32 +50,32 @@ Hecks.bluebook "WasteManagement" do
   end
 
   aggregate "WasteBin" do
-    String :bin_id
-    String :bin_type
-    String :address
-    Float :capacity_gallons
-    Float :fill_level_percent
-    String :status
+    attribute :bin_id, String
+    attribute :bin_type, String
+    attribute :address, String
+    attribute :capacity_gallons, Float
+    attribute :fill_level_percent, Float
+    attribute :status, String
 
-    DeployBin do
+    command "DeployBin" do
       description "Deliver and assign waste bin to residential or commercial address"
-      String :bin_type
-      String :address
-      Float :capacity_gallons
+      attribute :bin_type, String
+      attribute :address, String
+      attribute :capacity_gallons, Float
       reference_to "WasteBin"
       emits "BinDeployed"
     end
 
-    CollectBin do
+    command "CollectBin" do
       description "Empty bin contents into collection truck during route"
-      Float :fill_level_percent
+      attribute :fill_level_percent, Float
       reference_to "WasteBin"
       emits "BinCollected"
     end
 
-    ReportDamage do
+    command "ReportDamage" do
       description "Log damaged or missing bin for replacement"
-      String :damage_type
+      attribute :damage_type, String
       reference_to "WasteBin"
       emits "DamageReported"
     end
@@ -89,32 +89,32 @@ Hecks.bluebook "WasteManagement" do
     policy "Damaged bins must be replaced within 5 business days"
 
     given "A 96-gallon recycling bin is deployed" do
-      String :bin_type, "Recycling"
-      Float :capacity_gallons, 96.0
-      String :address, "1234 Elm Street"
+      attribute :bin_type, String, "Recycling"
+      attribute :capacity_gallons, Float, 96.0
+      attribute :address, String, "1234 Elm Street"
     end
   end
 
   aggregate "CollectionTruck" do
-    String :truck_id
-    String :truck_type
-    Float :payload_capacity_tons
-    Float :current_load_tons
-    String :assigned_route
-    String :status
+    attribute :truck_id, String
+    attribute :truck_type, String
+    attribute :payload_capacity_tons, Float
+    attribute :current_load_tons, Float
+    attribute :assigned_route, String
+    attribute :status, String
 
-    DispatchTruck do
+    command "DispatchTruck" do
       description "Assign collection truck to route with driver for shift"
-      String :driver_id
-      String :route_id
+      attribute :driver_id, String
+      attribute :route_id, String
       reference_to "CollectionRoute"
       emits "TruckDispatched"
     end
 
-    WeighLoad do
+    command "WeighLoad" do
       description "Record truck weight at scale before tipping at disposal site"
-      Float :gross_weight_tons
-      Float :tare_weight_tons
+      attribute :gross_weight_tons, Float
+      attribute :tare_weight_tons, Float
       reference_to "CollectionTruck"
       emits "LoadWeighed"
     end
@@ -128,32 +128,32 @@ Hecks.bluebook "WasteManagement" do
   end
 
   aggregate "Landfill" do
-    String :landfill_id
-    String :landfill_name
-    Float :permitted_capacity_tons
-    Float :remaining_capacity_tons
-    String :status
+    attribute :landfill_id, String
+    attribute :landfill_name, String
+    attribute :permitted_capacity_tons, Float
+    attribute :remaining_capacity_tons, Float
+    attribute :status, String
     list_of "LandfillCell"
 
-    TipWaste do
+    command "TipWaste" do
       description "Deposit collected waste at designated landfill working face"
-      Float :tonnage
-      String :waste_stream
+      attribute :tonnage, Float
+      attribute :waste_stream, String
       reference_to "Landfill"
       emits "WasteTipped"
     end
 
-    CompactCell do
+    command "CompactCell" do
       description "Compact and cover deposited waste in active landfill cell"
-      String :cell_id
-      Float :compacted_density
+      attribute :cell_id, String
+      attribute :compacted_density, Float
       reference_to "Landfill"
       emits "CellCompacted"
     end
 
-    ApplyDailyCover do
+    command "ApplyDailyCover" do
       description "Apply soil or tarp cover to active face at end of operating day"
-      String :cover_type
+      attribute :cover_type, String
       reference_to "Landfill"
       emits "DailyCoverApplied"
     end
@@ -168,33 +168,33 @@ Hecks.bluebook "WasteManagement" do
   end
 
   aggregate "RecyclingFacility" do
-    String :facility_id
-    String :facility_name
-    String :material_types_accepted
-    Float :processing_capacity_tpd
-    Float :diversion_rate_percent
-    String :status
+    attribute :facility_id, String
+    attribute :facility_name, String
+    attribute :material_types_accepted, String
+    attribute :processing_capacity_tpd, Float
+    attribute :diversion_rate_percent, Float
+    attribute :status, String
 
     value_object "RecoveryRate" do
-      String :material_type
-      Float :inbound_tons
-      Float :recovered_tons
-      Float :contamination_percent
+      attribute :material_type, String
+      attribute :inbound_tons, Float
+      attribute :recovered_tons, Float
+      attribute :contamination_percent, Float
     end
 
-    ProcessRecyclables do
+    command "ProcessRecyclables" do
       description "Sort and bale incoming recyclable materials by commodity"
-      Float :inbound_tons
-      String :material_mix
+      attribute :inbound_tons, Float
+      attribute :material_mix, String
       reference_to "RecyclingFacility"
       emits "RecyclablesProcessed"
     end
 
-    SellCommodity do
+    command "SellCommodity" do
       description "Sell baled recyclable commodity to end market buyer"
-      String :material_type
-      Float :tons_sold
-      Float :price_per_ton
+      attribute :material_type, String
+      attribute :tons_sold, Float
+      attribute :price_per_ton, Float
       reference_to "RecyclingFacility"
       emits "CommoditySold"
     end

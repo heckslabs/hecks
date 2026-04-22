@@ -3,38 +3,38 @@ Hecks.bluebook "DevOpsPipeline", version: "2026.04.13.1" do
   category "technology"
 
   aggregate "Repository", "A source code repository tracked by the pipeline" do
-    String :repo_name
-    String :clone_url
-    String :default_branch
-    String :language
-    String :status
+    attribute :repo_name, String
+    attribute :clone_url, String
+    attribute :default_branch, String
+    attribute :language, String
+    attribute :status, String
     list_of(Webhook) :webhooks
 
     value_object "Webhook" do
-      String :event_type
-      String :callback_url
-      String :secret
+      attribute :event_type, String
+      attribute :callback_url, String
+      attribute :secret, String
     end
 
-    RegisterRepository do
+    command "RegisterRepository" do
       role "PlatformEngineer"
       description "Connect a source code repository to the pipeline"
-      String :repo_name
-      String :clone_url
-      String :default_branch
-      String :language
+      attribute :repo_name, String
+      attribute :clone_url, String
+      attribute :default_branch, String
+      attribute :language, String
       then_set :status, to: "idle"
       emits "RepositoryRegistered"
     end
 
-    RetargetBranch do
+    command "RetargetBranch" do
       description "Change the default branch tracked for builds"
       reference_to(Repository)
-      String :default_branch
+      attribute :default_branch, String
       emits "BranchRetargeted"
     end
 
-    DisconnectRepository do
+    command "DisconnectRepository" do
       description "Remove a repository from the pipeline"
       reference_to(Repository)
       given("no active builds") { status == "idle" }
@@ -43,80 +43,80 @@ Hecks.bluebook "DevOpsPipeline", version: "2026.04.13.1" do
   end
 
   aggregate "Build", "A compilation and test run producing a deployable artifact" do
-    String :build_number
-    String :commit_sha
-    String :artifact_url
-    Integer :duration_seconds
-    String :status
+    attribute :build_number, String
+    attribute :commit_sha, String
+    attribute :artifact_url, String
+    attribute :duration_seconds, Integer
+    attribute :status, String
     reference_to Repository
     list_of(BuildStep) :steps
 
     value_object "BuildStep" do
-      String :step_name
-      String :outcome
-      Integer :duration_seconds
+      attribute :step_name, String
+      attribute :outcome, String
+      attribute :duration_seconds, Integer
     end
 
-    TriggerBuild do
+    command "TriggerBuild" do
       role "CI System"
       description "Start a new build from a commit"
-      String :build_number
-      String :commit_sha
+      attribute :build_number, String
+      attribute :commit_sha, String
       reference_to(Repository)
       emits "BuildTriggered"
     end
 
-    CompleteBuild do
+    command "CompleteBuild" do
       description "Mark a build as finished with an artifact URL"
       reference_to(Build)
-      String :artifact_url
-      Integer :duration_seconds
+      attribute :artifact_url, String
+      attribute :duration_seconds, Integer
       emits "BuildCompleted"
     end
 
-    FailBuild do
+    command "FailBuild" do
       description "Record a build failure with error details"
       reference_to(Build)
-      String :error_message
+      attribute :error_message, String
       emits "BuildFailed"
     end
   end
 
   aggregate "Deployment", "A release of a build artifact to a target environment" do
-    String :deploy_id
-    String :environment
-    String :strategy
-    String :deployed_by
-    String :status
+    attribute :deploy_id, String
+    attribute :environment, String
+    attribute :strategy, String
+    attribute :deployed_by, String
+    attribute :status, String
     reference_to Build
     list_of(HealthCheck) :health_checks
 
     value_object "HealthCheck" do
-      String :endpoint
-      Integer :response_code
-      String :checked_at
+      attribute :endpoint, String
+      attribute :response_code, Integer
+      attribute :checked_at, String
     end
 
-    DeployArtifact do
+    command "DeployArtifact" do
       role "ReleaseEngineer"
       description "Push a build artifact to a target environment"
-      String :deploy_id
-      String :environment
-      String :strategy
-      String :deployed_by
+      attribute :deploy_id, String
+      attribute :environment, String
+      attribute :strategy, String
+      attribute :deployed_by, String
       reference_to(Build)
       then_set :status, to: "healthy"
       emits "ArtifactDeployed"
     end
 
-    PromoteDeployment do
+    command "PromoteDeployment" do
       description "Advance a deployment from staging to production"
       reference_to(Deployment)
       given("deployment is healthy") { status == "healthy" }
       emits "DeploymentPromoted"
     end
 
-    AbortDeployment do
+    command "AbortDeployment" do
       description "Stop an in-progress deployment due to issues"
       reference_to(Deployment)
       emits "DeploymentAborted"
@@ -124,39 +124,39 @@ Hecks.bluebook "DevOpsPipeline", version: "2026.04.13.1" do
   end
 
   aggregate "Rollback", "A reversion to a previous deployment after a failure" do
-    String :rollback_id
-    String :reason
-    String :target_version
-    String :initiated_by
-    String :status
+    attribute :rollback_id, String
+    attribute :reason, String
+    attribute :target_version, String
+    attribute :initiated_by, String
+    attribute :status, String
     reference_to Deployment
 
     value_object "RollbackStep" do
-      String :action
-      String :outcome
-      String :completed_at
+      attribute :action, String
+      attribute :outcome, String
+      attribute :completed_at, String
     end
 
-    InitiateRollback do
+    command "InitiateRollback" do
       role "OnCallEngineer"
       description "Begin reverting to a prior known-good deployment"
-      String :rollback_id
-      String :reason
-      String :target_version
-      String :initiated_by
+      attribute :rollback_id, String
+      attribute :reason, String
+      attribute :target_version, String
+      attribute :initiated_by, String
       reference_to(Deployment)
       then_set :status, to: "in_progress"
       emits "RollbackInitiated"
     end
 
-    CompleteRollback do
+    command "CompleteRollback" do
       description "Confirm the rollback restored service successfully"
       reference_to(Rollback)
       given("rollback is in progress") { status == "in_progress" }
       emits "RollbackCompleted"
     end
 
-    AbandonRollback do
+    command "AbandonRollback" do
       description "Cancel a rollback that is no longer needed"
       reference_to(Rollback)
       emits "RollbackAbandoned"
@@ -164,39 +164,39 @@ Hecks.bluebook "DevOpsPipeline", version: "2026.04.13.1" do
   end
 
   aggregate "PipelineMetric", "A performance measurement for pipeline health" do
-    String :metric_name
-    Float :value
-    String :unit
-    String :period
-    String :status
+    attribute :metric_name, String
+    attribute :value, Float
+    attribute :unit, String
+    attribute :period, String
+    attribute :status, String
     reference_to Repository
 
     value_object "Threshold" do
-      Float :warning_level
-      Float :critical_level
-      String :direction
+      attribute :warning_level, Float
+      attribute :critical_level, Float
+      attribute :direction, String
     end
 
-    RecordMetric do
+    command "RecordMetric" do
       role "MetricsCollector"
       description "Log a pipeline performance metric for a period"
-      String :metric_name
-      Float :value
-      String :unit
-      String :period
+      attribute :metric_name, String
+      attribute :value, Float
+      attribute :unit, String
+      attribute :period, String
       reference_to(Repository)
       emits "MetricRecorded"
     end
 
-    SetThreshold do
+    command "SetThreshold" do
       description "Define warning and critical levels for a metric"
       reference_to(PipelineMetric)
-      Float :warning_level
-      Float :critical_level
+      attribute :warning_level, Float
+      attribute :critical_level, Float
       emits "ThresholdSet"
     end
 
-    AlertOnBreach do
+    command "AlertOnBreach" do
       description "Fire an alert when a metric exceeds its threshold"
       reference_to(PipelineMetric)
       given("metric exceeds threshold") { value > 0 }

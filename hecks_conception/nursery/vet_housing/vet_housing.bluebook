@@ -3,25 +3,25 @@ Hecks.bluebook "VetHousing", version: "2026.04.13.1" do
   category "healthcare_community"
 
   aggregate "VeteranApplicant", "A veteran applying for subsidized housing" do
-    String :veteran_id
-    String :name
-    String :branch
-    String :disability_rating
-    String :income_level
-    String :status
+    attribute :veteran_id, String
+    attribute :name, String
+    attribute :branch, String
+    attribute :disability_rating, String
+    attribute :income_level, String
+    attribute :status, String
     value_object "ServiceRecord" do
-      String :branch
-      String :years_served
-      String :discharge_type
+      attribute :branch, String
+      attribute :years_served, String
+      attribute :discharge_type, String
     end
-    ApplyForHousing do
+    command "ApplyForHousing" do
       role "Veteran"
       description "Submit a housing application as a veteran"
-      String :veteran_id
-      String :name
-      String :branch
-      String :disability_rating
-      String :income_level
+      attribute :veteran_id, String
+      attribute :name, String
+      attribute :branch, String
+      attribute :disability_rating, String
+      attribute :income_level, String
       emits "ApplicationSubmitted"
       then_set :veteran_id, to: :veteran_id
       then_set :name, to: :name
@@ -30,7 +30,7 @@ Hecks.bluebook "VetHousing", version: "2026.04.13.1" do
       then_set :income_level, to: :income_level
       then_set :status, to: "applied"
     end
-    ApproveApplication do
+    command "ApproveApplication" do
       role "HousingOfficer"
       description "Approve the veteran housing application"
       reference_to(VeteranApplicant)
@@ -44,18 +44,18 @@ Hecks.bluebook "VetHousing", version: "2026.04.13.1" do
   end
 
   aggregate "HousingUnit", "A managed housing unit available for veterans" do
-    String :unit_id
-    String :address
-    Integer :bedrooms
-    Float :monthly_rent
-    String :status
-    ListUnit do
+    attribute :unit_id, String
+    attribute :address, String
+    attribute :bedrooms, Integer
+    attribute :monthly_rent, Float
+    attribute :status, String
+    command "ListUnit" do
       role "PropertyManager"
       description "List a housing unit as available for veterans"
-      String :unit_id
-      String :address
-      Integer :bedrooms
-      Float :monthly_rent
+      attribute :unit_id, String
+      attribute :address, String
+      attribute :bedrooms, Integer
+      attribute :monthly_rent, Float
       emits "UnitListed"
       then_set :unit_id, to: :unit_id
       then_set :address, to: :address
@@ -63,7 +63,7 @@ Hecks.bluebook "VetHousing", version: "2026.04.13.1" do
       then_set :monthly_rent, to: :monthly_rent
       then_set :status, to: "available"
     end
-    AssignUnit do
+    command "AssignUnit" do
       role "HousingOfficer"
       description "Assign a housing unit to an approved veteran"
       reference_to(HousingUnit)
@@ -71,7 +71,7 @@ Hecks.bluebook "VetHousing", version: "2026.04.13.1" do
       emits "UnitAssigned"
       then_set :status, to: "occupied"
     end
-    VacateUnit do
+    command "VacateUnit" do
       role "PropertyManager"
       description "Mark unit as vacated when veteran moves out"
       reference_to(HousingUnit)
@@ -85,20 +85,20 @@ Hecks.bluebook "VetHousing", version: "2026.04.13.1" do
   end
 
   aggregate "RentalSubsidy", "A rental subsidy covering part of a veteran's housing cost" do
-    String :subsidy_id
-    String :veteran_id
-    String :unit_id
-    Float :monthly_amount
-    String :funding_source
-    String :status
-    GrantSubsidy do
+    attribute :subsidy_id, String
+    attribute :veteran_id, String
+    attribute :unit_id, String
+    attribute :monthly_amount, Float
+    attribute :funding_source, String
+    attribute :status, String
+    command "GrantSubsidy" do
       role "HousingOfficer"
       description "Grant a rental subsidy to a veteran"
-      String :subsidy_id
-      String :veteran_id
-      String :unit_id
-      Float :monthly_amount
-      String :funding_source
+      attribute :subsidy_id, String
+      attribute :veteran_id, String
+      attribute :unit_id, String
+      attribute :monthly_amount, Float
+      attribute :funding_source, String
       emits "SubsidyGranted"
       then_set :subsidy_id, to: :subsidy_id
       then_set :veteran_id, to: :veteran_id
@@ -107,7 +107,7 @@ Hecks.bluebook "VetHousing", version: "2026.04.13.1" do
       then_set :funding_source, to: :funding_source
       then_set :status, to: "active"
     end
-    EndSubsidy do
+    command "EndSubsidy" do
       role "HousingOfficer"
       description "End the rental subsidy"
       reference_to(RentalSubsidy)
@@ -121,20 +121,20 @@ Hecks.bluebook "VetHousing", version: "2026.04.13.1" do
   end
 
   aggregate "MaintenanceTicket", "A maintenance request for a veteran housing unit" do
-    String :ticket_id
-    String :unit_id
-    String :issue_type
-    String :description_text
-    String :priority
-    String :status
-    SubmitTicket do
+    attribute :ticket_id, String
+    attribute :unit_id, String
+    attribute :issue_type, String
+    attribute :description_text, String
+    attribute :priority, String
+    attribute :status, String
+    command "SubmitTicket" do
       role "Veteran"
       description "Submit a maintenance request for the housing unit"
-      String :ticket_id
-      String :unit_id
-      String :issue_type
-      String :description_text
-      String :priority
+      attribute :ticket_id, String
+      attribute :unit_id, String
+      attribute :issue_type, String
+      attribute :description_text, String
+      attribute :priority, String
       emits "TicketSubmitted"
       then_set :ticket_id, to: :ticket_id
       then_set :unit_id, to: :unit_id
@@ -143,7 +143,7 @@ Hecks.bluebook "VetHousing", version: "2026.04.13.1" do
       then_set :priority, to: :priority
       then_set :status, to: "open"
     end
-    ResolveTicket do
+    command "ResolveTicket" do
       role "MaintenanceCrew"
       description "Resolve the maintenance issue"
       reference_to(MaintenanceTicket)

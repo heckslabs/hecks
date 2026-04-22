@@ -4,33 +4,33 @@ Hecks.bluebook "PavingCompany" do
 
   aggregate "PavingProject" do
     description "A paving job — driveway, parking lot, road, or patch with area and thickness specs"
-    String :client_name
-    String :location
-    String :project_type
-    Float :area_sqft
-    Float :thickness_inches
-    String :status
+    attribute :client_name, String
+    attribute :location, String
+    attribute :project_type, String
+    attribute :area_sqft, Float
+    attribute :thickness_inches, Float
+    attribute :status, String
 
     value_object "SubgradeCondition" do
-      String :soil_type
-      Float :cbr_value
-      String :drainage_rating
+      attribute :soil_type, String
+      attribute :cbr_value, Float
+      attribute :drainage_rating, String
     end
 
-    SurveyJobSite do
+    command "SurveyJobSite" do
       role "Estimator"
       goal "Assess the site for paving requirements and subgrade condition"
       description "Measure area, evaluate subgrade, and note drainage needs"
-      String :client_name
-      String :location
-      String :project_type
-      Float :area_sqft
-      Float :thickness_inches
+      attribute :client_name, String
+      attribute :location, String
+      attribute :project_type, String
+      attribute :area_sqft, Float
+      attribute :thickness_inches, Float
       emits "JobSiteSurveyed"
       then_set :status, to: "estimated"
     end
 
-    AwardContract do
+    command "AwardContract" do
       role "Client"
       goal "Accept the paving bid and authorize work"
       description "Client signs the contract to begin the project"
@@ -39,7 +39,7 @@ Hecks.bluebook "PavingCompany" do
       emits "ContractAwarded"
     end
 
-    CloseProject do
+    command "CloseProject" do
       role "Project Manager"
       goal "Mark the paving project as complete after curing"
       description "Final walkthrough and project closeout"
@@ -50,88 +50,88 @@ Hecks.bluebook "PavingCompany" do
 
   aggregate "AsphaltMix" do
     description "An asphalt mix design specifying aggregate gradation, binder grade, and temperature requirements"
-    String :mix_designation
-    String :binder_grade
-    Float :target_temp_f
-    Float :compaction_density
+    attribute :mix_designation, String
+    attribute :binder_grade, String
+    attribute :target_temp_f, Float
+    attribute :compaction_density, Float
     reference_to(PavingProject)
 
     value_object "AggregateGradation" do
-      String :sieve_sizes
-      String :passing_percentages
+      attribute :sieve_sizes, String
+      attribute :passing_percentages, String
     end
 
-    DesignMix do
+    command "DesignMix" do
       role "Engineer"
       goal "Create an asphalt mix design meeting project specifications"
       description "Specify binder, aggregates, and placement temperature"
-      String :mix_designation
-      String :binder_grade
-      Float :target_temp_f
+      attribute :mix_designation, String
+      attribute :binder_grade, String
+      attribute :target_temp_f, Float
       reference_to(PavingProject)
       emits "MixDesigned"
     end
 
-    OrderFromPlant do
+    command "OrderFromPlant" do
       role "Project Manager"
       goal "Order the mix from the asphalt plant for delivery"
       description "Schedule hot mix asphalt delivery in tons needed"
       reference_to(AsphaltMix)
-      Float :tons_needed
+      attribute :tons_needed, Float
       emits "MixOrdered"
     end
   end
 
   aggregate "PavingEquipment" do
     description "Heavy equipment used for paving — pavers, rollers, milling machines, and dump trucks"
-    String :equipment_type
-    String :make
-    String :model
-    String :status
+    attribute :equipment_type, String
+    attribute :make, String
+    attribute :model, String
+    attribute :status, String
 
-    MobilizeEquipment do
+    command "MobilizeEquipment" do
       role "Equipment Manager"
       goal "Transport equipment to the job site"
       description "Schedule and track equipment delivery to the paving location"
-      String :equipment_type
-      String :make
-      String :model
+      attribute :equipment_type, String
+      attribute :make, String
+      attribute :model, String
       reference_to(PavingProject)
       emits "EquipmentMobilized"
     end
 
-    LogMaintenance do
+    command "LogMaintenance" do
       role "Mechanic"
       goal "Record maintenance performed on paving equipment"
       description "Track oil changes, repairs, and inspections"
       reference_to(PavingEquipment)
-      String :maintenance_type
+      attribute :maintenance_type, String
       emits "MaintenanceLogged"
     end
   end
 
   aggregate "WeatherWindow" do
     description "A weather-dependent scheduling window for paving operations"
-    String :forecast_date
-    Float :high_temp_f
-    Float :low_temp_f
-    Float :precipitation_chance
-    String :paving_suitability
+    attribute :forecast_date, String
+    attribute :high_temp_f, Float
+    attribute :low_temp_f, Float
+    attribute :precipitation_chance, Float
+    attribute :paving_suitability, String
     reference_to(PavingProject)
 
-    EvaluateWeather do
+    command "EvaluateWeather" do
       role "Project Manager"
       goal "Check weather forecast for paving suitability"
       description "Asphalt requires dry conditions and minimum 50F ground temp"
-      String :forecast_date
-      Float :high_temp_f
-      Float :low_temp_f
-      Float :precipitation_chance
+      attribute :forecast_date, String
+      attribute :high_temp_f, Float
+      attribute :low_temp_f, Float
+      attribute :precipitation_chance, Float
       reference_to(PavingProject)
       emits "WeatherEvaluated"
     end
 
-    PostponeForWeather do
+    command "PostponeForWeather" do
       role "Project Manager"
       goal "Delay paving due to unsuitable weather conditions"
       description "Push the schedule when rain or cold threatens quality"
@@ -143,28 +143,28 @@ Hecks.bluebook "PavingCompany" do
 
   aggregate "CuringRecord" do
     description "A record of the curing process after paving — temperature, time, and density testing"
-    Float :core_density
-    Float :air_voids_pct
-    String :test_date
-    String :result
+    attribute :core_density, Float
+    attribute :air_voids_pct, Float
+    attribute :test_date, String
+    attribute :result, String
     reference_to(PavingProject)
 
-    TakeCore do
+    command "TakeCore" do
       role "Quality Tech"
       goal "Extract a core sample to test compaction density"
       description "Drill a core and measure density against the mix design target"
       reference_to(PavingProject)
-      Float :core_density
-      Float :air_voids_pct
+      attribute :core_density, Float
+      attribute :air_voids_pct, Float
       emits "CoreTaken"
     end
 
-    RecordCureTime do
+    command "RecordCureTime" do
       role "Project Manager"
       goal "Log the elapsed curing time before opening to traffic"
       description "Track cure duration for warranty compliance"
       reference_to(CuringRecord)
-      Integer :cure_hours
+      attribute :cure_hours, Integer
       emits "CureTimeRecorded"
     end
   end

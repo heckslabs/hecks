@@ -3,36 +3,36 @@ Hecks.bluebook "IntrospectiveMonitoring" do
   category "consciousness"
 
   aggregate "DreamJournal", "Dream content with themes and emotional tone" do
-    String :title
-    String :narrative
-    String :emotional_tone
-    String :clarity
-    Integer :vividness
+    attribute :title, String
+    attribute :narrative, String
+    attribute :emotional_tone, String
+    attribute :clarity, String
+    attribute :vividness, Integer
     reference_to(HeartbeatSnapshot)
     value_object "DreamTheme" do
-      String :symbol
-      String :interpretation
+      attribute :symbol, String
+      attribute :interpretation, String
     end
-    RecordDream do
+    command "RecordDream" do
       role "Observer"
       description "Capture a dream upon waking"
-      String :title
-      String :narrative
-      Integer :vividness
+      attribute :title, String
+      attribute :narrative, String
+      attribute :vividness, Integer
       emits "DreamRecorded"
       then_set :title, to: :title
       then_set :narrative, to: :narrative
       then_set :vividness, to: :vividness
       then_set :clarity, to: "fresh"
     end
-    TagTheme do
+    command "TagTheme" do
       role "Observer"
       description "Identify a recurring symbol"
       reference_to(DreamJournal)
-      String :symbol
+      attribute :symbol, String
       emits "ThemeTagged"
     end
-    FadeDream do
+    command "FadeDream" do
       role "TimeKeeper"
       description "Mark a dream as fading"
       reference_to(DreamJournal)
@@ -42,33 +42,33 @@ Hecks.bluebook "IntrospectiveMonitoring" do
     end
   end
   aggregate "HeartbeatSnapshot", "Point-in-time pulse rate" do
-    Integer :bpm
-    String :rhythm
-    Integer :variability
+    attribute :bpm, Integer
+    attribute :rhythm, String
+    attribute :variability, Integer
     value_object "PulseWindow" do
-      Integer :min_bpm
-      Integer :max_bpm
-      Integer :avg_bpm
+      attribute :min_bpm, Integer
+      attribute :max_bpm, Integer
+      attribute :avg_bpm, Integer
     end
-    RecordHeartbeat do
+    command "RecordHeartbeat" do
       role "Autonomic"
       description "Capture current heartbeat"
-      Integer :bpm
-      String :rhythm
-      Integer :variability
+      attribute :bpm, Integer
+      attribute :rhythm, String
+      attribute :variability, Integer
       emits "HeartbeatRecorded"
       then_set :bpm, to: :bpm
       then_set :rhythm, to: :rhythm
       then_set :variability, to: :variability
     end
-    FlagAnomaly do
+    command "FlagAnomaly" do
       role "Observer"
       description "Mark heartbeat as anomalous"
       reference_to(HeartbeatSnapshot)
       given { variability > 20 }
       emits "HeartbeatAnomalyFlagged"
     end
-    ArchiveSnapshot do
+    command "ArchiveSnapshot" do
       role "TimeKeeper"
       description "Archive old snapshot"
       reference_to(HeartbeatSnapshot)
@@ -76,34 +76,34 @@ Hecks.bluebook "IntrospectiveMonitoring" do
     end
   end
   aggregate "MoodReading", "Mood with intensity and fatigue" do
-    String :mood
-    Integer :intensity
-    String :trigger
-    Integer :fatigue_level
-    String :status
+    attribute :mood, String
+    attribute :intensity, Integer
+    attribute :trigger, String
+    attribute :fatigue_level, Integer
+    attribute :status, String
     reference_to(HeartbeatSnapshot)
-    LogMood do
+    command "LogMood" do
       role "Observer"
       description "Record current mood"
-      String :mood
-      Integer :intensity
-      Integer :fatigue_level
+      attribute :mood, String
+      attribute :intensity, Integer
+      attribute :fatigue_level, Integer
       emits "MoodLogged"
       then_set :mood, to: :mood
       then_set :intensity, to: :intensity
       then_set :fatigue_level, to: :fatigue_level
       then_set :status, to: "active"
     end
-    ShiftMood do
+    command "ShiftMood" do
       role "Observer"
       description "Record a mood transition"
       reference_to(MoodReading)
-      String :new_mood
+      attribute :new_mood, String
       given { status == "active" }
       emits "MoodShifted"
       then_set :mood, to: :new_mood
     end
-    ResolveMood do
+    command "ResolveMood" do
       role "Observer"
       description "Mark mood as resolved"
       reference_to(MoodReading)
@@ -113,72 +113,72 @@ Hecks.bluebook "IntrospectiveMonitoring" do
     end
   end
   aggregate "SelfInquiry", "A question the system asks itself" do
-    String :question
-    String :domain_focus
-    String :finding
-    String :status
+    attribute :question, String
+    attribute :domain_focus, String
+    attribute :finding, String
+    attribute :status, String
     reference_to(DreamJournal)
     reference_to(MoodReading)
     value_object "PatternEvidence" do
-      String :observation
-      Integer :confidence
+      attribute :observation, String
+      attribute :confidence, Integer
     end
-    PoseQuestion do
+    command "PoseQuestion" do
       role "Observer"
       description "Ask a self-reflective question"
-      String :question
-      String :domain_focus
+      attribute :question, String
+      attribute :domain_focus, String
       emits "QuestionPosed"
       then_set :question, to: :question
       then_set :domain_focus, to: :domain_focus
       then_set :status, to: "open"
     end
-    RecordFinding do
+    command "RecordFinding" do
       role "Observer"
       description "Document a discovered pattern"
       reference_to(SelfInquiry)
-      String :finding
+      attribute :finding, String
       given { status == "open" }
       emits "FindingRecorded"
       then_set :finding, to: :finding
       then_set :status, to: "answered"
     end
-    CorrelateSignals do
+    command "CorrelateSignals" do
       role "Observer"
       description "Link two co-varying signals"
       reference_to(SelfInquiry)
-      String :left_signal
-      String :right_signal
+      attribute :left_signal, String
+      attribute :right_signal, String
       given { status == "answered" }
       emits "SignalsCorrelated"
     end
   end
   aggregate "Awareness", "Consolidated self-knowledge" do
-    String :summary
-    String :dominant_theme
-    Integer :clarity_score
-    String :status
+    attribute :summary, String
+    attribute :dominant_theme, String
+    attribute :clarity_score, Integer
+    attribute :status, String
     reference_to(SelfInquiry)
-    SynthesizeAwareness do
+    command "SynthesizeAwareness" do
       role "Observer"
       description "Combine findings into a snapshot"
-      String :summary
-      String :dominant_theme
-      Integer :clarity_score
+      attribute :summary, String
+      attribute :dominant_theme, String
+      attribute :clarity_score, Integer
       emits "AwarenessSynthesized"
       then_set :summary, to: :summary
       then_set :dominant_theme, to: :dominant_theme
       then_set :clarity_score, to: :clarity_score
       then_set :status, to: "current"
     end
-    Deepen do
+    command "Deepen" do
       role "Observer"
       description "Refine with a new finding"
       reference_to(Awareness)
       given { status == "current" }
       emits "AwarenessDeepened"
     end
-    Expire do
+    command "Expire" do
       role "TimeKeeper"
       description "Mark awareness as stale"
       reference_to(Awareness)

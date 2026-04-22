@@ -3,38 +3,38 @@ Hecks.bluebook "FormulationLab", version: "2026.04.11.1" do
   category "business"
 
   aggregate "ExperimentalFormula", "A potential new product formulation under R&D evaluation" do
-    String :codename
-    String :hypothesis
-    String :base_oil_type
-    String :additive_package
-    Float :treat_rate_pct
-    String :target_viscosity_grade
-    String :target_pour_point
-    String :target_flash_point
-    Float :projected_cost_per_unit
+    attribute :codename, String
+    attribute :hypothesis, String
+    attribute :base_oil_type, String
+    attribute :additive_package, String
+    attribute :treat_rate_pct, Float
+    attribute :target_viscosity_grade, String
+    attribute :target_pour_point, String
+    attribute :target_flash_point, String
+    attribute :projected_cost_per_unit, Float
     list_of(AdditiveComponent) :components
-    String :status
+    attribute :status, String
 
     value_object "AdditiveComponent" do
-      String :chemical_name
-      String :cas_number
-      String :function
-      Float :percentage
-      String :supplier
-      Float :cost_per_lb
+      attribute :chemical_name, String
+      attribute :cas_number, String
+      attribute :function, String
+      attribute :percentage, Float
+      attribute :supplier, String
+      attribute :cost_per_lb, Float
     end
 
-    ProposeFormula do
+    command "ProposeFormula" do
       role "Formulator"
       description "Propose a new experimental formulation with a hypothesis and performance targets"
-      String :codename
-      String :hypothesis
-      String :base_oil_type
-      String :additive_package
-      Float :treat_rate_pct
-      String :target_viscosity_grade
-      String :target_pour_point
-      String :target_flash_point
+      attribute :codename, String
+      attribute :hypothesis, String
+      attribute :base_oil_type, String
+      attribute :additive_package, String
+      attribute :treat_rate_pct, Float
+      attribute :target_viscosity_grade, String
+      attribute :target_pour_point, String
+      attribute :target_flash_point, String
       emits "FormulaProposed"
       then_set :codename, to: :codename
       then_set :hypothesis, to: :hypothesis
@@ -47,29 +47,29 @@ Hecks.bluebook "FormulationLab", version: "2026.04.11.1" do
       then_set :status, to: "proposed"
     end
 
-    AddComponent do
+    command "AddComponent" do
       role "Formulator"
       description "Add an additive component to the experimental formula — friction modifier, detergent, dispersant, anti-wear, VI improver, corrosion inhibitor, antioxidant, seal conditioner, or PTFE"
       reference_to(ExperimentalFormula)
-      String :chemical_name
-      String :cas_number
-      String :function
-      Float :percentage
-      String :supplier
-      Float :cost_per_lb
+      attribute :chemical_name, String
+      attribute :cas_number, String
+      attribute :function, String
+      attribute :percentage, Float
+      attribute :supplier, String
+      attribute :cost_per_lb, Float
       emits "ComponentAdded"
     end
 
-    EstimateCost do
+    command "EstimateCost" do
       role "Formulator"
       description "Calculate projected cost per unit from component costs and treat rate"
       reference_to(ExperimentalFormula)
-      Float :projected_cost_per_unit
+      attribute :projected_cost_per_unit, Float
       emits "CostEstimated"
       then_set :projected_cost_per_unit, to: :projected_cost_per_unit
     end
 
-    SendToLabTest do
+    command "SendToLabTest" do
       role "Formulator"
       description "Submit the experimental formula for ASTM bench testing"
       reference_to(ExperimentalFormula)
@@ -78,7 +78,7 @@ Hecks.bluebook "FormulationLab", version: "2026.04.11.1" do
       then_set :status, to: "in_lab"
     end
 
-    ReviewLabResults do
+    command "ReviewLabResults" do
       role "Formulator"
       description "Review all lab test results and decide next steps for this formula"
       reference_to(ExperimentalFormula)
@@ -87,7 +87,7 @@ Hecks.bluebook "FormulationLab", version: "2026.04.11.1" do
       then_set :status, to: "tested"
     end
 
-    PromoteToProduction do
+    command "PromoteToProduction" do
       role "Owner"
       description "Promote a tested formula to production — hand off to Formulation domain"
       reference_to(ExperimentalFormula)
@@ -96,7 +96,7 @@ Hecks.bluebook "FormulationLab", version: "2026.04.11.1" do
       then_set :status, to: "promoted"
     end
 
-    ShelveFormula do
+    command "ShelveFormula" do
       role "Owner"
       description "Shelve a formula that did not meet performance or market criteria"
       reference_to(ExperimentalFormula)
@@ -116,34 +116,34 @@ Hecks.bluebook "FormulationLab", version: "2026.04.11.1" do
   end
 
   aggregate "LabTest", "Bench testing and ASTM validation of experimental formulations" do
-    String :formula_codename
-    String :test_method
-    String :specification
-    String :actual_result
-    String :pass_fail
-    String :tested_by
-    String :tested_at
+    attribute :formula_codename, String
+    attribute :test_method, String
+    attribute :specification, String
+    attribute :actual_result, String
+    attribute :pass_fail, String
+    attribute :tested_by, String
+    attribute :tested_at, String
 
-    OrderLabTest do
+    command "OrderLabTest" do
       role "Formulator"
       description "Order a specific ASTM bench test for an experimental formula"
-      String :formula_codename
-      String :test_method
-      String :specification
+      attribute :formula_codename, String
+      attribute :test_method, String
+      attribute :specification, String
       emits "LabTestOrdered"
       then_set :formula_codename, to: :formula_codename
       then_set :test_method, to: :test_method
       then_set :specification, to: :specification
     end
 
-    RecordLabResult do
+    command "RecordLabResult" do
       role "LabTechnician"
       description "Record the actual result from the bench test"
       reference_to(LabTest)
-      String :actual_result
-      String :pass_fail
-      String :tested_by
-      String :tested_at
+      attribute :actual_result, String
+      attribute :pass_fail, String
+      attribute :tested_by, String
+      attribute :tested_at, String
       emits "LabResultRecorded"
       then_set :actual_result, to: :actual_result
       then_set :pass_fail, to: :pass_fail
@@ -151,14 +151,14 @@ Hecks.bluebook "FormulationLab", version: "2026.04.11.1" do
       then_set :tested_at, to: :tested_at
     end
 
-    CompareToSpec do
+    command "CompareToSpec" do
       role "Formulator"
       description "Compare actual test result against the target specification"
       reference_to(LabTest)
       emits "SpecCompared"
     end
 
-    RequestRetest do
+    command "RequestRetest" do
       role "Formulator"
       description "Request a retest when results are inconclusive or suspect"
       reference_to(LabTest)
@@ -169,25 +169,25 @@ Hecks.bluebook "FormulationLab", version: "2026.04.11.1" do
   end
 
   aggregate "MarketThesis", "Why this product would win in the market — the business case for innovation" do
-    String :formula_codename
-    String :problem_statement
-    String :target_segment
-    String :competitive_gap
-    String :value_proposition
-    Float :price_point_estimate
-    Integer :annual_volume_estimate
-    Float :revenue_projection
-    String :confidence_level
-    String :status
+    attribute :formula_codename, String
+    attribute :problem_statement, String
+    attribute :target_segment, String
+    attribute :competitive_gap, String
+    attribute :value_proposition, String
+    attribute :price_point_estimate, Float
+    attribute :annual_volume_estimate, Integer
+    attribute :revenue_projection, Float
+    attribute :confidence_level, String
+    attribute :status, String
 
-    WriteThesis do
+    command "WriteThesis" do
       role "Owner"
       description "Draft the market thesis — problem, segment, gap, and value proposition"
-      String :formula_codename
-      String :problem_statement
-      String :target_segment
-      String :competitive_gap
-      String :value_proposition
+      attribute :formula_codename, String
+      attribute :problem_statement, String
+      attribute :target_segment, String
+      attribute :competitive_gap, String
+      attribute :value_proposition, String
       emits "ThesisDrafted"
       then_set :formula_codename, to: :formula_codename
       then_set :problem_statement, to: :problem_statement
@@ -197,45 +197,45 @@ Hecks.bluebook "FormulationLab", version: "2026.04.11.1" do
       then_set :status, to: "draft"
     end
 
-    IdentifyGap do
+    command "IdentifyGap" do
       role "Owner"
       description "Identify the competitive gap this formula fills in the market"
       reference_to(MarketThesis)
-      String :competitive_gap
+      attribute :competitive_gap, String
       emits "GapIdentified"
       then_set :competitive_gap, to: :competitive_gap
     end
 
-    EstimateMarket do
+    command "EstimateMarket" do
       role "Owner"
       description "Estimate price point, annual volume, and revenue projection"
       reference_to(MarketThesis)
-      Float :price_point_estimate
-      Integer :annual_volume_estimate
-      Float :revenue_projection
+      attribute :price_point_estimate, Float
+      attribute :annual_volume_estimate, Integer
+      attribute :revenue_projection, Float
       emits "MarketEstimated"
       then_set :price_point_estimate, to: :price_point_estimate
       then_set :annual_volume_estimate, to: :annual_volume_estimate
       then_set :revenue_projection, to: :revenue_projection
     end
 
-    ScoreConfidence do
+    command "ScoreConfidence" do
       role "Owner"
       description "Score confidence level based on test results, market data, and competitive analysis"
       reference_to(MarketThesis)
-      String :confidence_level
+      attribute :confidence_level, String
       emits "ConfidenceScored"
       then_set :confidence_level, to: :confidence_level
     end
 
-    RefineThesis do
+    command "RefineThesis" do
       role "Owner"
       description "Refine the thesis with updated data — iterate toward validation"
       reference_to(MarketThesis)
       emits "ThesisRefined"
     end
 
-    ValidateThesis do
+    command "ValidateThesis" do
       role "Owner"
       description "Mark the thesis as validated — strong evidence supports this product"
       reference_to(MarketThesis)
@@ -253,24 +253,24 @@ Hecks.bluebook "FormulationLab", version: "2026.04.11.1" do
   end
 
   aggregate "MarketingPreview", "What the ads and positioning would look like before manufacturing" do
-    String :formula_codename
-    String :brand_assignment
-    String :proposed_product_name
-    String :headline
-    String :key_message
+    attribute :formula_codename, String
+    attribute :brand_assignment, String
+    attribute :proposed_product_name, String
+    attribute :headline, String
+    attribute :key_message, String
     list_of(String) :proof_points
-    String :channel_strategy
-    String :packaging_concept
-    String :shelf_position
-    String :status
+    attribute :channel_strategy, String
+    attribute :packaging_concept, String
+    attribute :shelf_position, String
+    attribute :status, String
 
-    GeneratePreview do
+    command "GeneratePreview" do
       role "Owner"
       description "Generate an initial marketing preview for a validated formula"
-      String :formula_codename
-      String :proposed_product_name
-      String :headline
-      String :key_message
+      attribute :formula_codename, String
+      attribute :proposed_product_name, String
+      attribute :headline, String
+      attribute :key_message, String
       emits "PreviewGenerated"
       then_set :formula_codename, to: :formula_codename
       then_set :proposed_product_name, to: :proposed_product_name
@@ -279,38 +279,38 @@ Hecks.bluebook "FormulationLab", version: "2026.04.11.1" do
       then_set :status, to: "concept"
     end
 
-    AssignBrand do
+    command "AssignBrand" do
       role "Owner"
       description "Assign this formula to a brand — DuraLube, MotorKote, or Slick 50"
       reference_to(MarketingPreview)
-      String :brand_assignment
+      attribute :brand_assignment, String
       emits "BrandAssigned"
       then_set :brand_assignment, to: :brand_assignment
     end
 
-    CraftPositioning do
+    command "CraftPositioning" do
       role "Owner"
       description "Craft the positioning statement — proof points, channel strategy, and shelf position"
       reference_to(MarketingPreview)
       list_of(String) :proof_points
-      String :channel_strategy
-      String :shelf_position
+      attribute :channel_strategy, String
+      attribute :shelf_position, String
       emits "PositioningCrafted"
       then_set :proof_points, to: :proof_points
       then_set :channel_strategy, to: :channel_strategy
       then_set :shelf_position, to: :shelf_position
     end
 
-    DesignPackagingConcept do
+    command "DesignPackagingConcept" do
       role "Owner"
       description "Design the packaging concept — how this product looks on the shelf"
       reference_to(MarketingPreview)
-      String :packaging_concept
+      attribute :packaging_concept, String
       emits "PackagingConceptDesigned"
       then_set :packaging_concept, to: :packaging_concept
     end
 
-    PresentToStakeholder do
+    command "PresentToStakeholder" do
       role "Owner"
       description "Present the full marketing preview to stakeholders for go/no-go"
       reference_to(MarketingPreview)
@@ -319,7 +319,7 @@ Hecks.bluebook "FormulationLab", version: "2026.04.11.1" do
       then_set :status, to: "presented"
     end
 
-    ApproveForDevelopment do
+    command "ApproveForDevelopment" do
       role "Owner"
       description "Approve the marketing preview — green light for product development"
       reference_to(MarketingPreview)
@@ -328,7 +328,7 @@ Hecks.bluebook "FormulationLab", version: "2026.04.11.1" do
       then_set :status, to: "approved"
     end
 
-    RejectPreview do
+    command "RejectPreview" do
       role "Owner"
       description "Reject the marketing preview — back to the drawing board"
       reference_to(MarketingPreview)
@@ -346,28 +346,28 @@ Hecks.bluebook "FormulationLab", version: "2026.04.11.1" do
   end
 
   aggregate "IndustryImpact", "Analysis of how a new product changes the competitive landscape" do
-    String :formula_codename
-    String :innovation_type
-    String :disruption_level
+    attribute :formula_codename, String
+    attribute :innovation_type, String
+    attribute :disruption_level, String
     list_of(String) :affected_competitors
     list_of(String) :affected_segments
-    String :patent_potential
-    String :first_mover_advantage
-    String :synopsis
+    attribute :patent_potential, String
+    attribute :first_mover_advantage, String
+    attribute :synopsis, String
     list_of(CompetitiveShift) :shifts
 
     value_object "CompetitiveShift" do
-      String :competitor
-      String :current_position
-      String :projected_impact
-      String :timeframe
+      attribute :competitor, String
+      attribute :current_position, String
+      attribute :projected_impact, String
+      attribute :timeframe, String
     end
 
-    AnalyzeImpact do
+    command "AnalyzeImpact" do
       role "Owner"
       description "Analyze how this formula changes the competitive landscape"
-      String :formula_codename
-      String :innovation_type
+      attribute :formula_codename, String
+      attribute :innovation_type, String
       list_of(String) :affected_competitors
       list_of(String) :affected_segments
       emits "ImpactAnalyzed"
@@ -377,36 +377,36 @@ Hecks.bluebook "FormulationLab", version: "2026.04.11.1" do
       then_set :affected_segments, to: :affected_segments
     end
 
-    AssessDisruption do
+    command "AssessDisruption" do
       role "Owner"
       description "Assess the disruption level — incremental, adjacent, or breakthrough"
       reference_to(IndustryImpact)
-      String :disruption_level
+      attribute :disruption_level, String
       emits "DisruptionAssessed"
       then_set :disruption_level, to: :disruption_level
     end
 
-    EvaluatePatentPotential do
+    command "EvaluatePatentPotential" do
       role "Owner"
       description "Evaluate whether this formulation has patentable novelty"
       reference_to(IndustryImpact)
-      String :patent_potential
-      String :first_mover_advantage
+      attribute :patent_potential, String
+      attribute :first_mover_advantage, String
       emits "PatentPotentialEvaluated"
       then_set :patent_potential, to: :patent_potential
       then_set :first_mover_advantage, to: :first_mover_advantage
     end
 
-    WriteSynopsis do
+    command "WriteSynopsis" do
       role "Owner"
       description "Write the one-paragraph pitch: This product is a game changer because..."
       reference_to(IndustryImpact)
-      String :synopsis
+      attribute :synopsis, String
       emits "SynopsisWritten"
       then_set :synopsis, to: :synopsis
     end
 
-    PresentImpact do
+    command "PresentImpact" do
       role "Owner"
       description "Present the full industry impact analysis to leadership"
       reference_to(IndustryImpact)
@@ -415,19 +415,19 @@ Hecks.bluebook "FormulationLab", version: "2026.04.11.1" do
   end
 
   aggregate "ProductPipeline", "Dashboard view of the innovation pipeline — from idea to launch" do
-    Integer :total_proposed
-    Integer :total_in_lab
-    Integer :total_promoted
-    Integer :total_shelved
-    Float :pipeline_value
+    attribute :total_proposed, Integer
+    attribute :total_in_lab, Integer
+    attribute :total_promoted, Integer
+    attribute :total_shelved, Integer
+    attribute :pipeline_value, Float
 
-    RebalancePipeline do
+    command "RebalancePipeline" do
       role "System"
       description "Recalculate pipeline counts from current formula statuses"
-      Integer :total_proposed
-      Integer :total_in_lab
-      Integer :total_promoted
-      Integer :total_shelved
+      attribute :total_proposed, Integer
+      attribute :total_in_lab, Integer
+      attribute :total_promoted, Integer
+      attribute :total_shelved, Integer
       emits "PipelineRebalanced"
       then_set :total_proposed, to: :total_proposed
       then_set :total_in_lab, to: :total_in_lab
@@ -435,23 +435,23 @@ Hecks.bluebook "FormulationLab", version: "2026.04.11.1" do
       then_set :total_shelved, to: :total_shelved
     end
 
-    PrioritizeFormula do
+    command "PrioritizeFormula" do
       role "Owner"
       description "Prioritize a formula in the pipeline — move it up the roadmap"
       reference_to(ProductPipeline)
       emits "FormulaPrioritized"
     end
 
-    CalculatePipelineValue do
+    command "CalculatePipelineValue" do
       role "System"
       description "Calculate total pipeline value from all active formula revenue projections"
       reference_to(ProductPipeline)
-      Float :pipeline_value
+      attribute :pipeline_value, Float
       emits "PipelineValueCalculated"
       then_set :pipeline_value, to: :pipeline_value
     end
 
-    GenerateRoadmap do
+    command "GenerateRoadmap" do
       role "Owner"
       description "Generate the innovation roadmap — what ships when"
       reference_to(ProductPipeline)
@@ -460,23 +460,23 @@ Hecks.bluebook "FormulationLab", version: "2026.04.11.1" do
   end
 
   aggregate "CompetitiveIntelligence", "What competitors are doing — Lucas, Royal Purple, Liqui Moly, and others" do
-    String :competitor
-    String :product_name
-    String :claimed_technology
-    String :price_point
-    String :distribution_channels
-    String :strengths
-    String :weaknesses
-    String :observed_at
+    attribute :competitor, String
+    attribute :product_name, String
+    attribute :claimed_technology, String
+    attribute :price_point, String
+    attribute :distribution_channels, String
+    attribute :strengths, String
+    attribute :weaknesses, String
+    attribute :observed_at, String
 
-    TrackCompetitor do
+    command "TrackCompetitor" do
       role "Owner"
       description "Start tracking a competitor product in the market"
-      String :competitor
-      String :product_name
-      String :claimed_technology
-      String :price_point
-      String :distribution_channels
+      attribute :competitor, String
+      attribute :product_name, String
+      attribute :claimed_technology, String
+      attribute :price_point, String
+      attribute :distribution_channels, String
       emits "CompetitorTracked"
       then_set :competitor, to: :competitor
       then_set :product_name, to: :product_name
@@ -485,25 +485,25 @@ Hecks.bluebook "FormulationLab", version: "2026.04.11.1" do
       then_set :distribution_channels, to: :distribution_channels
     end
 
-    AnalyzeProduct do
+    command "AnalyzeProduct" do
       role "Owner"
       description "Analyze a competitor product — strengths, weaknesses, positioning"
       reference_to(CompetitiveIntelligence)
-      String :strengths
-      String :weaknesses
+      attribute :strengths, String
+      attribute :weaknesses, String
       emits "ProductAnalyzed"
       then_set :strengths, to: :strengths
       then_set :weaknesses, to: :weaknesses
     end
 
-    IdentifyVulnerability do
+    command "IdentifyVulnerability" do
       role "Owner"
       description "Identify a specific vulnerability in a competitor's product or positioning"
       reference_to(CompetitiveIntelligence)
       emits "VulnerabilityIdentified"
     end
 
-    MapCompetitiveLandscape do
+    command "MapCompetitiveLandscape" do
       role "Owner"
       description "Map the full competitive landscape across all tracked competitors"
       reference_to(CompetitiveIntelligence)

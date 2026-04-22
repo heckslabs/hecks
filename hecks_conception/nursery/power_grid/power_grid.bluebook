@@ -2,38 +2,38 @@ Hecks.bluebook "PowerGrid" do
   vision "Manage substations, transmission lines, load balancing, outages, and maintenance for an electrical grid"
 
   aggregate "Substation", "A facility that transforms voltage levels for transmission or distribution" do
-    String :substation_id
-    String :name
-    String :voltage_class
-    Float :capacity_mva
-    String :status
+    attribute :substation_id, String
+    attribute :name, String
+    attribute :voltage_class, String
+    attribute :capacity_mva, Float
+    attribute :status, String
 
     value_object "TransformerBank" do
-      Integer :transformer_count
-      Float :rating_mva
-      String :cooling_type
+      attribute :transformer_count, Integer
+      attribute :rating_mva, Float
+      attribute :cooling_type, String
     end
 
-    EnergizeSubstation do
+    command "EnergizeSubstation" do
       description "Energize a new substation on the grid"
-      String :substation_id
-      String :name
-      String :voltage_class
-      Float :capacity_mva
+      attribute :substation_id, String
+      attribute :name, String
+      attribute :voltage_class, String
+      attribute :capacity_mva, Float
       emits "SubstationEnergized"
       then_set :status, to: "energized"
     end
 
-    DeenergizeSubstation do
+    command "DeenergizeSubstation" do
       description "Take a substation offline for switching or maintenance"
       reference_to(Substation)
-      String :reason
+      attribute :reason, String
       given { status == "energized" }
       emits "SubstationDeenergized"
       then_set :status, to: "deenergized"
     end
 
-    ReenergizeSubstation do
+    command "ReenergizeSubstation" do
       description "Bring a deenergized substation back online"
       reference_to(Substation)
       emits "SubstationReenergized"
@@ -42,40 +42,40 @@ Hecks.bluebook "PowerGrid" do
   end
 
   aggregate "TransmissionLine", "A high-voltage conductor connecting substations" do
-    String :line_id
-    String :conductor_type
-    Float :length_miles
-    Float :rating_mw
-    String :status
+    attribute :line_id, String
+    attribute :conductor_type, String
+    attribute :length_miles, Float
+    attribute :rating_mw, Float
+    attribute :status, String
     reference_to(Substation)
 
     value_object "ConductorSpec" do
-      String :material
-      Float :diameter_inches
-      Integer :strands
+      attribute :material, String
+      attribute :diameter_inches, Float
+      attribute :strands, Integer
     end
 
-    EnergizeLine do
+    command "EnergizeLine" do
       description "Put a transmission line into service"
-      String :line_id
-      String :conductor_type
-      Float :length_miles
-      Float :rating_mw
+      attribute :line_id, String
+      attribute :conductor_type, String
+      attribute :length_miles, Float
+      attribute :rating_mw, Float
       reference_to(Substation)
       emits "LineEnergized"
       then_set :status, to: "energized"
     end
 
-    TripLine do
+    command "TripLine" do
       description "Automatically disconnect a line due to fault"
       reference_to(TransmissionLine)
-      String :fault_type
+      attribute :fault_type, String
       given { status == "energized" }
       emits "LineTripped"
       then_set :status, to: "tripped"
     end
 
-    InspectLine do
+    command "InspectLine" do
       description "Perform visual or drone inspection of a tripped line"
       reference_to(TransmissionLine)
       given { status == "tripped" }
@@ -83,7 +83,7 @@ Hecks.bluebook "PowerGrid" do
       then_set :status, to: "inspected"
     end
 
-    RestoreLine do
+    command "RestoreLine" do
       description "Re-close a line after fault clearance and inspection"
       reference_to(TransmissionLine)
       emits "LineRestored"
@@ -92,39 +92,39 @@ Hecks.bluebook "PowerGrid" do
   end
 
   aggregate "LoadZone", "A geographic area with aggregated electrical demand" do
-    String :zone_id
-    String :region
-    Float :peak_demand_mw
-    Float :current_load_mw
-    String :status
+    attribute :zone_id, String
+    attribute :region, String
+    attribute :peak_demand_mw, Float
+    attribute :current_load_mw, Float
+    attribute :status, String
 
     specification "Overloaded" do
       satisfied_by { current_load_mw > peak_demand_mw }
     end
 
     value_object "DemandForecast" do
-      Float :predicted_mw
-      String :forecast_hour
+      attribute :predicted_mw, Float
+      attribute :forecast_hour, String
     end
 
-    DefineZone do
+    command "DefineZone" do
       description "Create a load zone for demand monitoring"
-      String :zone_id
-      String :region
-      Float :peak_demand_mw
+      attribute :zone_id, String
+      attribute :region, String
+      attribute :peak_demand_mw, Float
       emits "ZoneDefined"
       then_set :status, to: "monitored"
       then_set :current_load_mw, to: 0.0
     end
 
-    UpdateLoad do
+    command "UpdateLoad" do
       description "Record the current electrical load in a zone"
       reference_to(LoadZone)
-      Float :current_load_mw
+      attribute :current_load_mw, Float
       emits "LoadUpdated"
     end
 
-    InitiateLoadShed do
+    command "InitiateLoadShed" do
       description "Begin controlled load shedding to prevent overload"
       reference_to(LoadZone)
       given { status == "monitored" }
@@ -132,7 +132,7 @@ Hecks.bluebook "PowerGrid" do
       then_set :status, to: "shedding"
     end
 
-    RestoreLoad do
+    command "RestoreLoad" do
       description "End load shedding and return zone to normal"
       reference_to(LoadZone)
       given { status == "shedding" }
@@ -142,28 +142,28 @@ Hecks.bluebook "PowerGrid" do
   end
 
   aggregate "Outage", "An unplanned loss of power in a zone or on a line" do
-    String :outage_id
-    String :cause
-    Integer :affected_customers
-    String :status
-    String :reported_at
+    attribute :outage_id, String
+    attribute :cause, String
+    attribute :affected_customers, Integer
+    attribute :status, String
+    attribute :reported_at, String
     reference_to(TransmissionLine)
 
     value_object "RestorationEstimate" do
-      String :estimated_restoration
-      String :crew_assigned
+      attribute :estimated_restoration, String
+      attribute :crew_assigned, String
     end
 
-    ReportOutage do
+    command "ReportOutage" do
       description "Log a power outage event"
-      String :cause
-      Integer :affected_customers
+      attribute :cause, String
+      attribute :affected_customers, Integer
       reference_to(TransmissionLine)
       emits "OutageReported"
       then_set :status, to: "active"
     end
 
-    DispatchCrew do
+    command "DispatchCrew" do
       description "Send a repair crew to investigate and fix the outage"
       reference_to(Outage)
       given { status == "active" }
@@ -171,7 +171,7 @@ Hecks.bluebook "PowerGrid" do
       then_set :status, to: "crew_en_route"
     end
 
-    RestorePower do
+    command "RestorePower" do
       description "Confirm power has been restored to all affected customers"
       reference_to(Outage)
       emits "PowerRestored"
@@ -180,27 +180,27 @@ Hecks.bluebook "PowerGrid" do
   end
 
   aggregate "MaintenanceOrder", "A scheduled work order for grid equipment" do
-    String :order_id
-    String :work_type
-    String :priority
-    String :status
+    attribute :order_id, String
+    attribute :work_type, String
+    attribute :priority, String
+    attribute :status, String
     reference_to(Substation)
 
     value_object "CrewAssignment" do
-      String :crew_id
-      Integer :crew_size
+      attribute :crew_id, String
+      attribute :crew_size, Integer
     end
 
-    IssueOrder do
+    command "IssueOrder" do
       description "Schedule a maintenance task for grid equipment"
-      String :work_type
-      String :priority
+      attribute :work_type, String
+      attribute :priority, String
       reference_to(Substation)
       emits "OrderIssued"
       then_set :status, to: "scheduled"
     end
 
-    BeginWork do
+    command "BeginWork" do
       description "Start executing the maintenance work order"
       reference_to(MaintenanceOrder)
       given { status == "scheduled" }
@@ -208,7 +208,7 @@ Hecks.bluebook "PowerGrid" do
       then_set :status, to: "in_progress"
     end
 
-    CompleteOrder do
+    command "CompleteOrder" do
       description "Sign off on completed maintenance work"
       reference_to(MaintenanceOrder)
       given { status == "in_progress" }

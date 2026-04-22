@@ -4,34 +4,34 @@ Hecks.bluebook "WeldingShop" do
 
   aggregate "FabricationJob" do
     description "A welding fabrication job with drawings, material specs, and weld procedures"
-    String :client_name
-    String :job_description
-    String :weld_process
-    String :base_metal
-    String :status
+    attribute :client_name, String
+    attribute :job_description, String
+    attribute :weld_process, String
+    attribute :base_metal, String
+    attribute :status, String
 
     value_object "WeldSpec" do
-      String :process_code
-      String :filler_metal
-      Float :amperage_range_low
-      Float :amperage_range_high
+      attribute :process_code, String
+      attribute :filler_metal, String
+      attribute :amperage_range_low, Float
+      attribute :amperage_range_high, Float
     end
 
     fixture "Structural Frame Assembly", client_name: "BuildCorp Industries", job_description: "Welded frame for industrial machinery", weld_process: "GMAW (Flux Core)", base_metal: "ASTM A36 Steel", status: "accepted"
     fixture "Pressure Vessel", client_name: "Fluid Systems Inc", job_description: "ASME Section VIII pressure vessel", weld_process: "GTAW (TIG)", base_metal: "Stainless 316L", status: "accepted"
 
-    AcceptJob do
+    command "AcceptJob" do
       role "Shop Manager"
       goal "Take on a new fabrication job from a client"
       description "Review drawings and create the job with weld procedure specifications"
-      String :client_name
-      String :job_description
-      String :weld_process
-      String :base_metal
+      attribute :client_name, String
+      attribute :job_description, String
+      attribute :weld_process, String
+      attribute :base_metal, String
       emits "JobAccepted"
     end
 
-    AssignWelder do
+    command "AssignWelder" do
       role "Shop Manager"
       goal "Assign a certified welder to the job"
       description "Match welder certifications to the job's weld process requirements"
@@ -41,7 +41,7 @@ Hecks.bluebook "WeldingShop" do
       then_set :status, to: "inspected"
     end
 
-    ShipJob do
+    command "ShipJob" do
       role "Shop Manager"
       goal "Ship the completed fabrication to the client"
       description "Package and ship after all inspections pass"
@@ -53,138 +53,138 @@ Hecks.bluebook "WeldingShop" do
 
   aggregate "MaterialStock" do
     description "Raw materials in stock — steel plate, pipe, tube, angle, and filler metals"
-    String :material_type
-    String :grade
-    Float :thickness
-    Float :quantity_lbs
-    String :heat_number
+    attribute :material_type, String
+    attribute :grade, String
+    attribute :thickness, Float
+    attribute :quantity_lbs, Float
+    attribute :heat_number, String
 
     value_object "MillCert" do
-      String :heat_number
-      String :mill_name
-      Float :tensile_strength
+      attribute :heat_number, String
+      attribute :mill_name, String
+      attribute :tensile_strength, Float
     end
 
     fixture "A36 Plate Stock", material_type: "Plate", grade: "ASTM A36", thickness: 0.5, quantity_lbs: 15000.0, heat_number: "HN-2026-0542"
     fixture "316L Stainless Pipe", material_type: "Pipe", grade: "Stainless 316L", thickness: 0.083, quantity_lbs: 8500.0, heat_number: "HN-2026-0891"
 
-    ReceiveMaterial do
+    command "ReceiveMaterial" do
       role "Warehouse"
       goal "Check in new material with mill certification"
       description "Log the material with heat number for traceability"
-      String :material_type
-      String :grade
-      Float :thickness
-      Float :quantity_lbs
-      String :heat_number
+      attribute :material_type, String
+      attribute :grade, String
+      attribute :thickness, Float
+      attribute :quantity_lbs, Float
+      attribute :heat_number, String
       emits "MaterialReceived"
     end
 
-    IssueMaterial do
+    command "IssueMaterial" do
       role "Shop Manager"
       goal "Issue material from stock to a specific job"
       description "Deduct quantity and track heat number to the job"
       reference_to(MaterialStock)
       reference_to(FabricationJob)
-      Float :quantity_lbs
+      attribute :quantity_lbs, Float
       emits "MaterialIssued"
     end
   end
 
   aggregate "WelderCert" do
     description "A welder's certification for specific processes, positions, and material groups"
-    String :welder_name
-    String :cert_number
-    String :process
-    String :position
-    String :expiration_date
+    attribute :welder_name, String
+    attribute :cert_number, String
+    attribute :process, String
+    attribute :position, String
+    attribute :expiration_date, String
 
     fixture "Mike Johnson GMAW", welder_name: "Mike Johnson", cert_number: "CERT-2024-0127", process: "GMAW (MIG)", position: "All", expiration_date: "2027-06-15"
     fixture "Sarah Lee TIG", welder_name: "Sarah Lee", cert_number: "CERT-2023-0089", process: "GTAW (TIG)", position: "All", expiration_date: "2026-11-20"
 
-    CertifyWelder do
+    command "CertifyWelder" do
       role "Quality Manager"
       goal "Record a welder's certification after passing qualification test"
       description "Log the welder's qualified processes and positions per AWS D1.1"
-      String :welder_name
-      String :cert_number
-      String :process
-      String :position
-      String :expiration_date
+      attribute :welder_name, String
+      attribute :cert_number, String
+      attribute :process, String
+      attribute :position, String
+      attribute :expiration_date, String
       emits "WelderCertified"
     end
 
-    RenewCertification do
+    command "RenewCertification" do
       role "Quality Manager"
       goal "Extend a welder's certification before expiration"
       description "Update expiration date after continuity or requalification"
       reference_to(WelderCert)
-      String :new_expiration_date
+      attribute :new_expiration_date, String
       emits "CertificationRenewed"
     end
   end
 
   aggregate "WeldInspection" do
     description "A quality inspection of a weld — visual, radiographic, ultrasonic, or dye penetrant"
-    String :inspection_type
-    String :result
-    String :inspector_name
-    String :notes
+    attribute :inspection_type, String
+    attribute :result, String
+    attribute :inspector_name, String
+    attribute :notes, String
     reference_to(FabricationJob)
 
     fixture "Visual Inspection Pass", inspection_type: "Visual Inspection", result: "Pass", inspector_name: "Tom Brooks", notes: "Appearance and dimensions compliant"
     fixture "Radiographic Exam", inspection_type: "Radiographic (X-Ray)", result: "Pass", inspector_name: "James Chen", notes: "No significant porosity detected"
 
-    PerformInspection do
+    command "PerformInspection" do
       role "Quality Inspector"
       goal "Inspect welds using the specified NDT method"
       description "Examine welds and record pass/fail with documentation"
-      String :inspection_type
-      String :inspector_name
+      attribute :inspection_type, String
+      attribute :inspector_name, String
       emits "InspectionPerformed"
     end
 
-    RecordDefect do
+    command "RecordDefect" do
       role "Quality Inspector"
       goal "Document a weld defect found during inspection"
       description "Log defect type, location, and required repair"
       reference_to(WeldInspection)
-      String :defect_type
-      String :defect_location
+      attribute :defect_type, String
+      attribute :defect_location, String
       emits "DefectRecorded"
     end
   end
 
   aggregate "HeatTreatment" do
     description "A post-weld heat treatment cycle for stress relief or hardening"
-    String :treatment_type
-    Float :target_temp_f
-    Float :hold_hours
-    Float :ramp_rate
+    attribute :treatment_type, String
+    attribute :target_temp_f, Float
+    attribute :hold_hours, Float
+    attribute :ramp_rate, Float
     reference_to(FabricationJob)
 
     fixture "Stress Relief Cycle", treatment_type: "Stress Relief", target_temp_f: 1100.0, hold_hours: 1.5, ramp_rate: 200.0
     fixture "Hardening Cycle", treatment_type: "Hardening & Temper", target_temp_f: 1450.0, hold_hours: 0.75, ramp_rate: 300.0
 
-    PerformHeatTreat do
+    command "PerformHeatTreat" do
       role "Heat Treat Operator"
       goal "Execute the prescribed heat treatment cycle"
       description "Ramp, hold, and cool per the WPS requirements"
-      String :treatment_type
-      Float :target_temp_f
-      Float :hold_hours
-      Float :ramp_rate
+      attribute :treatment_type, String
+      attribute :target_temp_f, Float
+      attribute :hold_hours, Float
+      attribute :ramp_rate, Float
       reference_to(FabricationJob)
       emits "HeatTreatPerformed"
     end
 
-    RecordThermocouple do
+    command "RecordThermocouple" do
       role "Heat Treat Operator"
       goal "Log thermocouple readings during the heat treatment"
       description "Record temperature at intervals for the quality record"
       reference_to(HeatTreatment)
-      Float :reading_temp_f
-      String :reading_time
+      attribute :reading_temp_f, Float
+      attribute :reading_time, String
       emits "ThermocoupleRecorded"
     end
   end

@@ -3,31 +3,31 @@ Hecks.bluebook "AdvertisingGeneration", version: "2026.04.11.1" do
   category "business"
 
   aggregate "AdTemplate", "A reusable ad format derived from brand position data" do
-    String :brand
-    String :owned_word
-    String :channel
-    String :format
-    String :headline
-    String :subheadline
-    String :body_copy
-    String :proof_point
-    String :call_to_action
-    String :image_direction
-    String :status
+    attribute :brand, String
+    attribute :owned_word, String
+    attribute :channel, String
+    attribute :format, String
+    attribute :headline, String
+    attribute :subheadline, String
+    attribute :body_copy, String
+    attribute :proof_point, String
+    attribute :call_to_action, String
+    attribute :image_direction, String
+    attribute :status, String
 
-    GenerateTemplate do
+    command "GenerateTemplate" do
       role "AdManager"
       description "Generate an ad template from brand position data — owned word becomes the headline seed"
-      String :brand
-      String :owned_word
-      String :channel
-      String :format
-      String :headline
-      String :subheadline
-      String :body_copy
-      String :proof_point
-      String :call_to_action
-      String :image_direction
+      attribute :brand, String
+      attribute :owned_word, String
+      attribute :channel, String
+      attribute :format, String
+      attribute :headline, String
+      attribute :subheadline, String
+      attribute :body_copy, String
+      attribute :proof_point, String
+      attribute :call_to_action, String
+      attribute :image_direction, String
       emits "TemplateGenerated"
       then_set :brand, to: :brand
       then_set :owned_word, to: :owned_word
@@ -42,13 +42,13 @@ Hecks.bluebook "AdvertisingGeneration", version: "2026.04.11.1" do
       then_set :status, to: "draft"
     end
 
-    CustomizeTemplate do
+    command "CustomizeTemplate" do
       role "AdManager"
       description "Adjust headline, copy, or image direction for a specific placement"
       reference_to(AdTemplate)
-      String :headline
-      String :body_copy
-      String :image_direction
+      attribute :headline, String
+      attribute :body_copy, String
+      attribute :image_direction, String
       emits "TemplateCustomized"
       then_set :headline, to: :headline
       then_set :body_copy, to: :body_copy
@@ -56,7 +56,7 @@ Hecks.bluebook "AdvertisingGeneration", version: "2026.04.11.1" do
       then_set :status, to: "customized"
     end
 
-    ApproveTemplate do
+    command "ApproveTemplate" do
       role "Owner"
       description "Sign off on a template — it can now be used in campaigns"
       reference_to(AdTemplate)
@@ -73,31 +73,31 @@ Hecks.bluebook "AdvertisingGeneration", version: "2026.04.11.1" do
   end
 
   aggregate "Campaign", "A set of ads targeting a specific channel and audience" do
-    String :name
-    String :brand
-    String :channel
-    String :audience
-    Float :budget
-    String :duration
+    attribute :name, String
+    attribute :brand, String
+    attribute :channel, String
+    attribute :audience, String
+    attribute :budget, Float
+    attribute :duration, String
     list_of(AdAssignment) :templates
-    String :status
+    attribute :status, String
 
     value_object "AdAssignment" do
-      String :template_name
-      String :placement
-      String :frequency
-      Float :spend_allocation
+      attribute :template_name, String
+      attribute :placement, String
+      attribute :frequency, String
+      attribute :spend_allocation, Float
     end
 
-    PlanCampaign do
+    command "PlanCampaign" do
       role "AdManager"
       description "Create a campaign targeting a channel and audience with a budget"
-      String :name
-      String :brand
-      String :channel
-      String :audience
-      Float :budget
-      String :duration
+      attribute :name, String
+      attribute :brand, String
+      attribute :channel, String
+      attribute :audience, String
+      attribute :budget, Float
+      attribute :duration, String
       emits "CampaignPlanned"
       then_set :name, to: :name
       then_set :brand, to: :brand
@@ -108,18 +108,18 @@ Hecks.bluebook "AdvertisingGeneration", version: "2026.04.11.1" do
       then_set :status, to: "planning"
     end
 
-    AssignTemplate do
+    command "AssignTemplate" do
       role "AdManager"
       description "Add an approved template to this campaign with placement and spend"
       reference_to(Campaign)
-      String :template_name
-      String :placement
-      String :frequency
-      Float :spend_allocation
+      attribute :template_name, String
+      attribute :placement, String
+      attribute :frequency, String
+      attribute :spend_allocation, Float
       emits "TemplateAssigned"
     end
 
-    LaunchCampaign do
+    command "LaunchCampaign" do
       role "Owner"
       description "Activate the campaign — ads go live"
       reference_to(Campaign)
@@ -127,7 +127,7 @@ Hecks.bluebook "AdvertisingGeneration", version: "2026.04.11.1" do
       then_set :status, to: "active"
     end
 
-    PauseCampaign do
+    command "PauseCampaign" do
       role "AdManager"
       description "Temporarily halt the campaign — ads stop serving"
       reference_to(Campaign)
@@ -135,14 +135,14 @@ Hecks.bluebook "AdvertisingGeneration", version: "2026.04.11.1" do
       then_set :status, to: "paused"
     end
 
-    MeasureCampaign do
+    command "MeasureCampaign" do
       role "AdManager"
       description "Record performance metrics against the campaign KPIs"
       reference_to(Campaign)
       emits "CampaignMeasured"
     end
 
-    EndCampaign do
+    command "EndCampaign" do
       role "AdManager"
       description "Close the campaign and capture results"
       reference_to(Campaign)
@@ -161,22 +161,22 @@ Hecks.bluebook "AdvertisingGeneration", version: "2026.04.11.1" do
   end
 
   aggregate "AudienceSegment", "Target customers derived from brand position data" do
-    String :name
-    String :brand
-    String :demographics
-    String :interests
-    String :pain_points
-    String :buying_triggers
+    attribute :name, String
+    attribute :brand, String
+    attribute :demographics, String
+    attribute :interests, String
+    attribute :pain_points, String
+    attribute :buying_triggers, String
 
-    DefineSegment do
+    command "DefineSegment" do
       role "AdManager"
       description "Define an audience segment from brand position target customer data"
-      String :name
-      String :brand
-      String :demographics
-      String :interests
-      String :pain_points
-      String :buying_triggers
+      attribute :name, String
+      attribute :brand, String
+      attribute :demographics, String
+      attribute :interests, String
+      attribute :pain_points, String
+      attribute :buying_triggers, String
       emits "SegmentDefined"
       then_set :name, to: :name
       then_set :brand, to: :brand
@@ -186,18 +186,18 @@ Hecks.bluebook "AdvertisingGeneration", version: "2026.04.11.1" do
       then_set :buying_triggers, to: :buying_triggers
     end
 
-    RefineSegment do
+    command "RefineSegment" do
       role "AdManager"
       description "Narrow or adjust the segment based on campaign performance"
       reference_to(AudienceSegment)
-      String :demographics
-      String :interests
+      attribute :demographics, String
+      attribute :interests, String
       emits "SegmentRefined"
       then_set :demographics, to: :demographics
       then_set :interests, to: :interests
     end
 
-    EstimateReach do
+    command "EstimateReach" do
       role "AdManager"
       description "Estimate how many people this segment covers on a given channel"
       reference_to(AudienceSegment)
@@ -206,21 +206,21 @@ Hecks.bluebook "AdvertisingGeneration", version: "2026.04.11.1" do
   end
 
   aggregate "CreativeDirection", "Visual and tonal guidelines per brand" do
-    String :brand
-    String :tone_of_voice
-    String :visual_style
-    String :color_emphasis
-    String :photography_style
+    attribute :brand, String
+    attribute :tone_of_voice, String
+    attribute :visual_style, String
+    attribute :color_emphasis, String
+    attribute :photography_style, String
     list_of(String) :forbidden_terms
 
-    SetDirection do
+    command "SetDirection" do
       role "Owner"
       description "Establish the creative direction for a brand — tone, visuals, photography"
-      String :brand
-      String :tone_of_voice
-      String :visual_style
-      String :color_emphasis
-      String :photography_style
+      attribute :brand, String
+      attribute :tone_of_voice, String
+      attribute :visual_style, String
+      attribute :color_emphasis, String
+      attribute :photography_style, String
       emits "DirectionSet"
       then_set :brand, to: :brand
       then_set :tone_of_voice, to: :tone_of_voice
@@ -229,32 +229,32 @@ Hecks.bluebook "AdvertisingGeneration", version: "2026.04.11.1" do
       then_set :photography_style, to: :photography_style
     end
 
-    AddForbiddenTerm do
+    command "AddForbiddenTerm" do
       role "Owner"
       description "Add a word or phrase that must never appear in this brand's ads"
       reference_to(CreativeDirection)
-      String :term
+      attribute :term, String
       emits "ForbiddenTermAdded"
       then_set :forbidden_terms, append: :term
     end
   end
 
   aggregate "AdCopy", "Generated copy variations for A/B testing" do
-    String :template_name
-    String :variation
-    String :headline
-    String :body
-    String :cta
-    Float :performance_score
+    attribute :template_name, String
+    attribute :variation, String
+    attribute :headline, String
+    attribute :body, String
+    attribute :cta, String
+    attribute :performance_score, Float
 
-    GenerateCopy do
+    command "GenerateCopy" do
       role "AdManager"
       description "Generate a copy variation from an approved template — 3 to 5 per template"
-      String :template_name
-      String :variation
-      String :headline
-      String :body
-      String :cta
+      attribute :template_name, String
+      attribute :variation, String
+      attribute :headline, String
+      attribute :body, String
+      attribute :cta, String
       emits "CopyGenerated"
       then_set :template_name, to: :template_name
       then_set :variation, to: :variation
@@ -264,16 +264,16 @@ Hecks.bluebook "AdvertisingGeneration", version: "2026.04.11.1" do
       then_set :performance_score, to: 0.0
     end
 
-    ScoreCopy do
+    command "ScoreCopy" do
       role "AdManager"
       description "Record the performance score for this variation — CTR, conversion, engagement"
       reference_to(AdCopy)
-      Float :performance_score
+      attribute :performance_score, Float
       emits "CopyScored"
       then_set :performance_score, to: :performance_score
     end
 
-    SelectWinner do
+    command "SelectWinner" do
       role "AdManager"
       description "Mark this variation as the winner — highest performing copy becomes the default"
       reference_to(AdCopy)
@@ -282,22 +282,22 @@ Hecks.bluebook "AdvertisingGeneration", version: "2026.04.11.1" do
   end
 
   aggregate "ChannelSpec", "Ad specs per platform — character limits, image sizes, video lengths" do
-    String :channel
-    String :format
-    Integer :headline_max_chars
-    Integer :body_max_chars
-    String :image_size
-    String :video_length
+    attribute :channel, String
+    attribute :format, String
+    attribute :headline_max_chars, Integer
+    attribute :body_max_chars, Integer
+    attribute :image_size, String
+    attribute :video_length, String
 
-    DefineSpec do
+    command "DefineSpec" do
       role "AdManager"
       description "Define the ad spec constraints for a channel and format"
-      String :channel
-      String :format
-      Integer :headline_max_chars
-      Integer :body_max_chars
-      String :image_size
-      String :video_length
+      attribute :channel, String
+      attribute :format, String
+      attribute :headline_max_chars, Integer
+      attribute :body_max_chars, Integer
+      attribute :image_size, String
+      attribute :video_length, String
       emits "SpecDefined"
       then_set :channel, to: :channel
       then_set :format, to: :format
@@ -309,20 +309,20 @@ Hecks.bluebook "AdvertisingGeneration", version: "2026.04.11.1" do
   end
 
   aggregate "CompetitorBenchmark", "Track what Lucas and others are doing in the ad space" do
-    String :competitor
-    String :channel
-    String :observed_message
-    String :observed_positioning
-    String :observed_at
+    attribute :competitor, String
+    attribute :channel, String
+    attribute :observed_message, String
+    attribute :observed_positioning, String
+    attribute :observed_at, String
 
-    RecordObservation do
+    command "RecordObservation" do
       role "AdManager"
       description "Capture a competitor ad sighting — what they said, where, when"
-      String :competitor
-      String :channel
-      String :observed_message
-      String :observed_positioning
-      String :observed_at
+      attribute :competitor, String
+      attribute :channel, String
+      attribute :observed_message, String
+      attribute :observed_positioning, String
+      attribute :observed_at, String
       emits "ObservationRecorded"
       then_set :competitor, to: :competitor
       then_set :channel, to: :channel
@@ -331,14 +331,14 @@ Hecks.bluebook "AdvertisingGeneration", version: "2026.04.11.1" do
       then_set :observed_at, to: :observed_at
     end
 
-    AnalyzePattern do
+    command "AnalyzePattern" do
       role "AdManager"
       description "Identify recurring themes in competitor advertising"
       reference_to(CompetitorBenchmark)
       emits "PatternAnalyzed"
     end
 
-    IdentifyGap do
+    command "IdentifyGap" do
       role "AdManager"
       description "Find positioning gaps competitors are not addressing"
       reference_to(CompetitorBenchmark)

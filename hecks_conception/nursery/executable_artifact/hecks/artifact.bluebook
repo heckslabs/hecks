@@ -3,23 +3,23 @@ Hecks.bluebook "Artifact", version: "2026.04.14.1" do
   category "infrastructure"
 
   aggregate "Artifact", "A complete self-contained domain artifact — no version, no external deps" do
-    String :domain_name
-    String :shape_hash
-    Integer :aggregate_count
-    Integer :command_count
-    Integer :fixture_count
-    Integer :port_count
-    String :status
+    attribute :domain_name, String
+    attribute :shape_hash, String
+    attribute :aggregate_count, Integer
+    attribute :command_count, Integer
+    attribute :fixture_count, Integer
+    attribute :port_count, Integer
+    attribute :status, String
 
-    Seal do
+    command "Seal" do
       role "Compiler"
       description "Seal a domain into a self-contained artifact — shape, commands, fixtures, access rules"
-      String :domain_name
-      String :shape_hash
-      Integer :aggregate_count
-      Integer :command_count
-      Integer :fixture_count
-      Integer :port_count
+      attribute :domain_name, String
+      attribute :shape_hash, String
+      attribute :aggregate_count, Integer
+      attribute :command_count, Integer
+      attribute :fixture_count, Integer
+      attribute :port_count, Integer
       emits "ArtifactSealed"
       then_set :domain_name, to: :domain_name
       then_set :shape_hash, to: :shape_hash
@@ -30,7 +30,7 @@ Hecks.bluebook "Artifact", version: "2026.04.14.1" do
       then_set :status, to: "sealed"
     end
 
-    TestSelf do
+    command "TestSelf" do
       role "Runtime"
       description "Run all embedded fixtures — the artifact tests itself"
       reference_to(Artifact)
@@ -39,25 +39,25 @@ Hecks.bluebook "Artifact", version: "2026.04.14.1" do
       given("must have fixtures") { fixture_count > 0 }
     end
 
-    FailSelfTest do
+    command "FailSelfTest" do
       role "Runtime"
       description "Record that the artifact's self-test found a failure"
       reference_to(Artifact)
-      String :failed_command
-      String :failure_reason
+      attribute :failed_command, String
+      attribute :failure_reason, String
       emits "SelfTestFailed"
       then_set :status, to: "broken"
     end
 
-    Evolve do
+    command "Evolve" do
       role "Compiler"
       description "Apply a new definition to this artifact — old fixtures become the regression suite"
       reference_to(Artifact)
-      String :shape_hash
-      Integer :aggregate_count
-      Integer :command_count
-      Integer :fixture_count
-      Integer :port_count
+      attribute :shape_hash, String
+      attribute :aggregate_count, Integer
+      attribute :command_count, Integer
+      attribute :fixture_count, Integer
+      attribute :port_count, Integer
       emits "ArtifactEvolved"
       then_set :shape_hash, to: :shape_hash
       then_set :aggregate_count, to: :aggregate_count
@@ -75,19 +75,19 @@ Hecks.bluebook "Artifact", version: "2026.04.14.1" do
   end
 
   aggregate "FixtureSet", "The embedded test data — replaces version history" do
-    String :domain_name
-    String :shape_hash_at_creation
-    Integer :fixture_count
-    Integer :pass_count
-    Integer :fail_count
-    String :verdict
+    attribute :domain_name, String
+    attribute :shape_hash_at_creation, String
+    attribute :fixture_count, Integer
+    attribute :pass_count, Integer
+    attribute :fail_count, Integer
+    attribute :verdict, String
 
-    Embed do
+    command "Embed" do
       role "Compiler"
       description "Embed a set of fixtures into the artifact at seal time"
-      String :domain_name
-      String :shape_hash_at_creation
-      Integer :fixture_count
+      attribute :domain_name, String
+      attribute :shape_hash_at_creation, String
+      attribute :fixture_count, Integer
       emits "FixtureSetEmbedded"
       then_set :domain_name, to: :domain_name
       then_set :shape_hash_at_creation, to: :shape_hash_at_creation
@@ -97,18 +97,18 @@ Hecks.bluebook "Artifact", version: "2026.04.14.1" do
       then_set :verdict, to: "untested"
     end
 
-    RecordVerdict do
+    command "RecordVerdict" do
       role "Runtime"
       description "Record pass/fail after running this fixture set against the current shape"
       reference_to(FixtureSet)
-      Integer :pass_count
-      Integer :fail_count
+      attribute :pass_count, Integer
+      attribute :fail_count, Integer
       emits "VerdictRecorded"
       then_set :pass_count, to: :pass_count
       then_set :fail_count, to: :fail_count
     end
 
-    MarkClean do
+    command "MarkClean" do
       role "Runtime"
       description "All fixtures passed — shape is backward compatible"
       reference_to(FixtureSet)
@@ -116,7 +116,7 @@ Hecks.bluebook "Artifact", version: "2026.04.14.1" do
       then_set :verdict, to: "clean"
     end
 
-    MarkDrift do
+    command "MarkDrift" do
       role "Runtime"
       description "Some fixtures failed — shape has drifted from when these fixtures were created"
       reference_to(FixtureSet)
@@ -132,28 +132,28 @@ Hecks.bluebook "Artifact", version: "2026.04.14.1" do
   end
 
   aggregate "AccessGate", "Baked-in access rules — the artifact knows who can do what" do
-    String :domain_name
-    String :actor_name
-    String :port_name
+    attribute :domain_name, String
+    attribute :actor_name, String
+    attribute :port_name, String
     list_of(String) :allowed_commands
 
-    DefineGate do
+    command "DefineGate" do
       role "Compiler"
       description "Bake an access rule into the artifact — actor, port, allowed commands"
-      String :domain_name
-      String :actor_name
-      String :port_name
+      attribute :domain_name, String
+      attribute :actor_name, String
+      attribute :port_name, String
       emits "GateDefined"
       then_set :domain_name, to: :domain_name
       then_set :actor_name, to: :actor_name
       then_set :port_name, to: :port_name
     end
 
-    GrantCommand do
+    command "GrantCommand" do
       role "Compiler"
       description "Allow a specific command through this gate"
       reference_to(AccessGate)
-      String :command_name
+      attribute :command_name, String
       emits "CommandGranted"
       then_set :allowed_commands, append: :command_name
     end

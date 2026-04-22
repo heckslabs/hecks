@@ -3,32 +3,32 @@ Hecks.bluebook "Nutrition" do
 
   aggregate "FoodItem" do
     description "A specific food with its nutritional composition per serving"
-    String :name
-    String :food_group
-    Float :serving_size_g
-    Float :calories_kcal
+    attribute :name, String
+    attribute :food_group, String
+    attribute :serving_size_g, Float
+    attribute :calories_kcal, Float
 
     value_object "MacroProfile" do
-      Float :protein_g
-      Float :carbohydrate_g
-      Float :fat_g
-      Float :fiber_g
+      attribute :protein_g, Float
+      attribute :carbohydrate_g, Float
+      attribute :fat_g, Float
+      attribute :fiber_g, Float
     end
 
     command "CatalogFood" do
       description "Add a new food item to the nutrition database"
       emits "FoodCataloged"
-      String :name
-      String :food_group
-      Float :serving_size_g
-      Float :calories_kcal
+      attribute :name, String
+      attribute :food_group, String
+      attribute :serving_size_g, Float
+      attribute :calories_kcal, Float
     end
 
     command "UpdateComposition" do
       description "Revise the nutrient data for a food item"
       emits "CompositionUpdated"
       reference_to FoodItem
-      Float :calories_kcal
+      attribute :calories_kcal, Float
     end
 
     command "RetireFood" do
@@ -40,18 +40,18 @@ Hecks.bluebook "Nutrition" do
 
   aggregate "MealPlan" do
     description "A structured daily or weekly eating plan"
-    String :plan_name
-    String :start_date
-    Integer :duration_days
-    Float :target_calories
-    Integer :meals_per_day
+    attribute :plan_name, String
+    attribute :start_date, String
+    attribute :duration_days, Integer
+    attribute :target_calories, Float
+    attribute :meals_per_day, Integer
 
     command "Compose" do
       description "Draft a new meal plan"
       emits "PlanComposed"
-      String :plan_name
-      Integer :duration_days
-      Float :target_calories
+      attribute :plan_name, String
+      attribute :duration_days, Integer
+      attribute :target_calories, Float
     end
 
     command "AddMeal" do
@@ -59,9 +59,9 @@ Hecks.bluebook "Nutrition" do
       emits "MealAdded"
       reference_to MealPlan
       reference_to FoodItem
-      String :meal_type
-      Float :servings
-      Integer :new_meals_per_day
+      attribute :meal_type, String
+      attribute :servings, Float
+      attribute :new_meals_per_day, Integer
       then_set :meals_per_day, to: :new_meals_per_day
     end
 
@@ -74,10 +74,10 @@ Hecks.bluebook "Nutrition" do
 
   aggregate "DietaryGoal" do
     description "A target nutrient intake or restriction for a person"
-    String :goal_type
-    String :nutrient
-    Float :target_value
-    String :unit
+    attribute :goal_type, String
+    attribute :nutrient, String
+    attribute :target_value, Float
+    attribute :unit, String
     # Gate flag — flips true once RecordIntake stores at least one
     # observed intake value for this goal. EvaluateProgress is gated on it.
     attribute :intake_data_tracked, Boolean, default: false
@@ -86,16 +86,16 @@ Hecks.bluebook "Nutrition" do
     command "SetGoal" do
       description "Define a new dietary target"
       emits "GoalSet"
-      String :goal_type
-      String :nutrient
-      Float :target_value
+      attribute :goal_type, String
+      attribute :nutrient, String
+      attribute :target_value, Float
     end
 
     command "RecordIntake" do
       description "Log an observed intake measurement against this goal"
       emits "IntakeRecorded"
       reference_to DietaryGoal
-      Float :observed_value
+      attribute :observed_value, Float
       then_set :intake_data_tracked, to: true
     end
 
@@ -109,31 +109,31 @@ Hecks.bluebook "Nutrition" do
       description "Modify the target value based on progress"
       emits "TargetAdjusted"
       reference_to DietaryGoal
-      Float :new_target
+      attribute :new_target, Float
     end
   end
 
   aggregate "Deficiency" do
     description "A detected nutritional shortfall requiring intervention"
-    String :nutrient
-    String :severity
-    Float :current_intake
-    Float :recommended_intake
+    attribute :nutrient, String
+    attribute :severity, String
+    attribute :current_intake, Float
+    attribute :recommended_intake, Float
     reference_to DietaryGoal
 
     command "DetectDeficiency" do
       description "Flag a nutrient intake below recommended levels"
       emits "DeficiencyDetected"
       reference_to DietaryGoal
-      String :nutrient
-      String :severity
+      attribute :nutrient, String
+      attribute :severity, String
     end
 
     command "UpdateCurrentIntake" do
       description "Record the latest observed intake for this nutrient"
       emits "CurrentIntakeUpdated"
       reference_to Deficiency
-      Float :new_intake
+      attribute :new_intake, Float
       then_set :current_intake, to: :new_intake
     end
 

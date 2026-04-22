@@ -3,23 +3,23 @@ Hecks.bluebook "GolfCourse", version: "2026.04.13.1" do
   category "hospitality"
 
   aggregate "TeeTime", "A scheduled slot for a group to play a round" do
-    String :booking_id
-    String :player_name
-    String :date
-    String :time
-    Integer :group_size
-    Float :green_fee
-    String :status
+    attribute :booking_id, String
+    attribute :player_name, String
+    attribute :date, String
+    attribute :time, String
+    attribute :group_size, Integer
+    attribute :green_fee, Float
+    attribute :status, String
 
-    BookTeeTime do
+    command "BookTeeTime" do
       role "Golfer"
       description "Reserve a tee time for a specific date and time"
-      String :booking_id
-      String :player_name
-      String :date
-      String :time
-      Integer :group_size
-      Float :green_fee
+      attribute :booking_id, String
+      attribute :player_name, String
+      attribute :date, String
+      attribute :time, String
+      attribute :group_size, Integer
+      attribute :green_fee, Float
       emits "TeeTimeBooked"
       then_set :booking_id, to: :booking_id
       then_set :player_name, to: :player_name
@@ -30,7 +30,7 @@ Hecks.bluebook "GolfCourse", version: "2026.04.13.1" do
       then_set :status, to: "booked"
     end
 
-    CheckInGroup do
+    command "CheckInGroup" do
       role "ProShop"
       description "Register the group's arrival and assign a starting hole"
       reference_to(TeeTime)
@@ -39,7 +39,7 @@ Hecks.bluebook "GolfCourse", version: "2026.04.13.1" do
       then_set :status, to: "checked_in"
     end
 
-    CancelTeeTime do
+    command "CancelTeeTime" do
       role "Golfer"
       description "Cancel the reservation and free the slot"
       reference_to(TeeTime)
@@ -50,26 +50,26 @@ Hecks.bluebook "GolfCourse", version: "2026.04.13.1" do
   end
 
   aggregate "GolfCart", "A motorized cart available for rent during a round" do
-    String :cart_id
-    String :cart_type
-    Integer :seating_capacity
-    Float :rental_fee
-    String :status
+    attribute :cart_id, String
+    attribute :cart_type, String
+    attribute :seating_capacity, Integer
+    attribute :rental_fee, Float
+    attribute :status, String
     list_of(MaintenanceLog) :maintenance_log
 
     value_object "MaintenanceLog" do
-      String :date
-      String :work_done
-      String :technician
+      attribute :date, String
+      attribute :work_done, String
+      attribute :technician, String
     end
 
-    RegisterCart do
+    command "RegisterCart" do
       role "Manager"
       description "Add a cart to the fleet"
-      String :cart_id
-      String :cart_type
-      Integer :seating_capacity
-      Float :rental_fee
+      attribute :cart_id, String
+      attribute :cart_type, String
+      attribute :seating_capacity, Integer
+      attribute :rental_fee, Float
       emits "CartRegistered"
       then_set :cart_id, to: :cart_id
       then_set :cart_type, to: :cart_type
@@ -78,7 +78,7 @@ Hecks.bluebook "GolfCourse", version: "2026.04.13.1" do
       then_set :status, to: "available"
     end
 
-    RentCart do
+    command "RentCart" do
       role "ProShop"
       description "Check out a cart to a group for their round"
       reference_to(GolfCart)
@@ -87,7 +87,7 @@ Hecks.bluebook "GolfCourse", version: "2026.04.13.1" do
       then_set :status, to: "rented"
     end
 
-    ReturnCart do
+    command "ReturnCart" do
       role "ProShop"
       description "Accept the cart back and check for damage"
       reference_to(GolfCart)
@@ -96,7 +96,7 @@ Hecks.bluebook "GolfCourse", version: "2026.04.13.1" do
       then_set :status, to: "available"
     end
 
-    ServiceCart do
+    command "ServiceCart" do
       role "Technician"
       description "Perform scheduled maintenance on the cart"
       reference_to(GolfCart)
@@ -105,21 +105,21 @@ Hecks.bluebook "GolfCourse", version: "2026.04.13.1" do
   end
 
   aggregate "CourseHole", "A single hole on the course with its layout and par" do
-    String :hole_id
-    Integer :hole_number
-    Integer :par
-    Integer :yardage
-    String :hazard_notes
-    String :condition
+    attribute :hole_id, String
+    attribute :hole_number, Integer
+    attribute :par, Integer
+    attribute :yardage, Integer
+    attribute :hazard_notes, String
+    attribute :condition, String
 
-    DefineHole do
+    command "DefineHole" do
       role "Superintendent"
       description "Set up a hole with its par, distance, and hazards"
-      String :hole_id
-      Integer :hole_number
-      Integer :par
-      Integer :yardage
-      String :hazard_notes
+      attribute :hole_id, String
+      attribute :hole_number, Integer
+      attribute :par, Integer
+      attribute :yardage, Integer
+      attribute :hazard_notes, String
       emits "HoleDefined"
       then_set :hole_id, to: :hole_id
       then_set :hole_number, to: :hole_number
@@ -129,32 +129,32 @@ Hecks.bluebook "GolfCourse", version: "2026.04.13.1" do
       then_set :condition, to: "good"
     end
 
-    ReportCondition do
+    command "ReportCondition" do
       role "Superintendent"
       description "Update the condition of the hole — green speed, fairway health"
       reference_to(CourseHole)
-      String :condition
+      attribute :condition, String
       emits "ConditionReported"
       then_set :condition, to: :condition
     end
   end
 
   aggregate "GreenskeepingTask", "Maintenance work to keep the course in top shape" do
-    String :task_id
-    String :task_type
-    String :area
-    String :assigned_to
-    String :scheduled_date
-    String :status
+    attribute :task_id, String
+    attribute :task_type, String
+    attribute :area, String
+    attribute :assigned_to, String
+    attribute :scheduled_date, String
+    attribute :status, String
 
-    ScheduleTask do
+    command "ScheduleTask" do
       role "Superintendent"
       description "Plan a greenskeeping job — mowing, aeration, irrigation"
-      String :task_id
-      String :task_type
-      String :area
-      String :assigned_to
-      String :scheduled_date
+      attribute :task_id, String
+      attribute :task_type, String
+      attribute :area, String
+      attribute :assigned_to, String
+      attribute :scheduled_date, String
       emits "TaskScheduled"
       then_set :task_id, to: :task_id
       then_set :task_type, to: :task_type
@@ -164,7 +164,7 @@ Hecks.bluebook "GolfCourse", version: "2026.04.13.1" do
       then_set :status, to: "scheduled"
     end
 
-    CompleteTask do
+    command "CompleteTask" do
       role "GroundsCrew"
       description "Finish the maintenance task and log completion"
       reference_to(GreenskeepingTask)
@@ -175,30 +175,30 @@ Hecks.bluebook "GolfCourse", version: "2026.04.13.1" do
   end
 
   aggregate "GolfTournament", "A competitive event hosted at the course" do
-    String :tournament_id
-    String :name
-    String :format
-    String :date
-    Integer :max_players
-    Float :entry_fee
-    String :status
+    attribute :tournament_id, String
+    attribute :name, String
+    attribute :format, String
+    attribute :date, String
+    attribute :max_players, Integer
+    attribute :entry_fee, Float
+    attribute :status, String
     list_of(TournamentPlayer) :players
 
     value_object "TournamentPlayer" do
-      String :player_name
-      Integer :handicap
-      String :registration_date
+      attribute :player_name, String
+      attribute :handicap, Integer
+      attribute :registration_date, String
     end
 
-    ScheduleTournament do
+    command "ScheduleTournament" do
       role "EventCoordinator"
       description "Schedule a new golf tournament with format and rules"
-      String :tournament_id
-      String :name
-      String :format
-      String :date
-      Integer :max_players
-      Float :entry_fee
+      attribute :tournament_id, String
+      attribute :name, String
+      attribute :format, String
+      attribute :date, String
+      attribute :max_players, Integer
+      attribute :entry_fee, Float
       emits "TournamentScheduled"
       then_set :tournament_id, to: :tournament_id
       then_set :name, to: :name
@@ -209,7 +209,7 @@ Hecks.bluebook "GolfCourse", version: "2026.04.13.1" do
       then_set :status, to: "open"
     end
 
-    StartTournament do
+    command "StartTournament" do
       role "EventCoordinator"
       description "Begin the tournament and close registration"
       reference_to(GolfTournament)
@@ -218,7 +218,7 @@ Hecks.bluebook "GolfCourse", version: "2026.04.13.1" do
       then_set :status, to: "in_progress"
     end
 
-    AwardPrizes do
+    command "AwardPrizes" do
       role "EventCoordinator"
       description "Declare winners and distribute prizes"
       reference_to(GolfTournament)

@@ -3,42 +3,42 @@ Hecks.bluebook "AdTechPlatform", version: "2026.04.13.1" do
   category "technology"
 
   aggregate "Campaign", "An advertising campaign with targeting rules and budget" do
-    String :campaign_id
-    String :advertiser_name
-    String :objective
-    String :target_audience
-    Float :daily_budget
-    Float :total_budget
-    String :status
+    attribute :campaign_id, String
+    attribute :advertiser_name, String
+    attribute :objective, String
+    attribute :target_audience, String
+    attribute :daily_budget, Float
+    attribute :total_budget, Float
+    attribute :status, String
     list_of(TargetingRule) :targeting_rules
 
     value_object "TargetingRule" do
-      String :dimension
-      String :operator
-      String :value
+      attribute :dimension, String
+      attribute :operator, String
+      attribute :value, String
     end
 
-    LaunchCampaign do
+    command "LaunchCampaign" do
       role "MediaBuyer"
       description "Create and activate a new ad campaign"
-      String :campaign_id
-      String :advertiser_name
-      String :objective
-      String :target_audience
-      Float :daily_budget
-      Float :total_budget
+      attribute :campaign_id, String
+      attribute :advertiser_name, String
+      attribute :objective, String
+      attribute :target_audience, String
+      attribute :daily_budget, Float
+      attribute :total_budget, Float
       then_set :status, to: "running"
       emits "CampaignLaunched"
     end
 
-    PauseCampaign do
+    command "PauseCampaign" do
       description "Temporarily halt ad delivery for a campaign"
       reference_to(Campaign)
       given("campaign is running") { status == "running" }
       emits "CampaignPaused"
     end
 
-    EndCampaign do
+    command "EndCampaign" do
       description "Permanently stop a campaign and finalize metrics"
       reference_to(Campaign)
       emits "CampaignEnded"
@@ -46,39 +46,39 @@ Hecks.bluebook "AdTechPlatform", version: "2026.04.13.1" do
   end
 
   aggregate "Impression", "A single ad view served to a user" do
-    String :impression_id
-    String :placement_id
-    String :creative_id
-    String :user_segment
-    Float :bid_price
-    String :status
+    attribute :impression_id, String
+    attribute :placement_id, String
+    attribute :creative_id, String
+    attribute :user_segment, String
+    attribute :bid_price, Float
+    attribute :status, String
     reference_to Campaign
 
     value_object "ViewContext" do
-      String :device_type
-      String :geo_region
-      String :page_url
+      attribute :device_type, String
+      attribute :geo_region, String
+      attribute :page_url, String
     end
 
-    ServeImpression do
+    command "ServeImpression" do
       role "AdServer"
       description "Deliver an ad creative to a user and record the impression"
-      String :impression_id
-      String :placement_id
-      String :creative_id
-      String :user_segment
-      Float :bid_price
+      attribute :impression_id, String
+      attribute :placement_id, String
+      attribute :creative_id, String
+      attribute :user_segment, String
+      attribute :bid_price, Float
       reference_to(Campaign)
       emits "ImpressionServed"
     end
 
-    MarkViewable do
+    command "MarkViewable" do
       description "Confirm the impression met viewability standards"
       reference_to(Impression)
       emits "ImpressionMarkedViewable"
     end
 
-    FlagFraudulent do
+    command "FlagFraudulent" do
       description "Flag an impression as bot traffic or fraud"
       reference_to(Impression)
       emits "ImpressionFlaggedFraudulent"
@@ -86,78 +86,78 @@ Hecks.bluebook "AdTechPlatform", version: "2026.04.13.1" do
   end
 
   aggregate "Click", "A user interaction with a served ad" do
-    String :click_id
-    String :landing_url
-    String :referrer
-    Float :cost
-    String :status
+    attribute :click_id, String
+    attribute :landing_url, String
+    attribute :referrer, String
+    attribute :cost, Float
+    attribute :status, String
     reference_to Impression
 
     value_object "ClickDetail" do
-      String :browser
-      String :os
-      String :timestamp
+      attribute :browser, String
+      attribute :os, String
+      attribute :timestamp, String
     end
 
-    RecordClick do
+    command "RecordClick" do
       role "AdServer"
       description "Log a click event when a user taps an ad"
-      String :click_id
-      String :landing_url
-      String :referrer
-      Float :cost
+      attribute :click_id, String
+      attribute :landing_url, String
+      attribute :referrer, String
+      attribute :cost, Float
       reference_to(Impression)
       emits "ClickRecorded"
     end
 
-    ValidateClick do
+    command "ValidateClick" do
       description "Verify a click is genuine and not bot-generated"
       reference_to(Click)
       emits "ClickValidated"
     end
 
-    DisputeClick do
+    command "DisputeClick" do
       description "Challenge a click charge as invalid"
       reference_to(Click)
-      String :dispute_reason
+      attribute :dispute_reason, String
       emits "ClickDisputed"
     end
   end
 
   aggregate "Conversion", "A desired action completed after an ad interaction" do
-    String :conversion_id
-    String :conversion_type
-    Float :value
-    String :attribution_model
-    String :status
+    attribute :conversion_id, String
+    attribute :conversion_type, String
+    attribute :value, Float
+    attribute :attribution_model, String
+    attribute :status, String
     reference_to Click
 
     value_object "AttributionPath" do
-      String :touchpoint
-      String :channel
-      Float :weight
+      attribute :touchpoint, String
+      attribute :channel, String
+      attribute :weight, Float
     end
 
-    TrackConversion do
+    command "TrackConversion" do
       role "AnalyticsSystem"
       description "Record a conversion event attributed to an ad click"
-      String :conversion_id
-      String :conversion_type
-      Float :value
-      String :attribution_model
+      attribute :conversion_id, String
+      attribute :conversion_type, String
+      attribute :value, Float
+      attribute :attribution_model, String
       reference_to(Click)
       then_set :status, to: "confirmed"
       emits "ConversionTracked"
     end
 
-    AdjustAttribution do
+    command "AdjustAttribution" do
       description "Recalculate attribution for a conversion across touchpoints"
       reference_to(Conversion)
-      String :attribution_model
+      attribute :attribution_model, String
       emits "AttributionAdjusted"
     end
 
-    VoidConversion do
+    command "VoidConversion" do
       description "Invalidate a conversion due to fraud or return"
       reference_to(Conversion)
       given("conversion is confirmed") { status == "confirmed" }
@@ -166,12 +166,12 @@ Hecks.bluebook "AdTechPlatform", version: "2026.04.13.1" do
   end
 
   aggregate "Budget", "A financial allocation controlling campaign spend" do
-    String :budget_id
-    Float :allocated_amount
-    Float :spent_amount
-    Float :remaining_amount
-    String :period
-    String :status
+    attribute :budget_id, String
+    attribute :allocated_amount, Float
+    attribute :spent_amount, Float
+    attribute :remaining_amount, Float
+    attribute :period, String
+    attribute :status, String
     reference_to Campaign
 
     specification "NearlyExhausted" do
@@ -179,30 +179,30 @@ Hecks.bluebook "AdTechPlatform", version: "2026.04.13.1" do
     end
 
     value_object "SpendEntry" do
-      Float :amount
-      String :source
-      String :recorded_at
+      attribute :amount, Float
+      attribute :source, String
+      attribute :recorded_at, String
     end
 
-    AllocateBudget do
+    command "AllocateBudget" do
       role "MediaBuyer"
       description "Set a spending budget for a campaign"
-      String :budget_id
-      Float :allocated_amount
-      String :period
+      attribute :budget_id, String
+      attribute :allocated_amount, Float
+      attribute :period, String
       reference_to(Campaign)
       emits "BudgetAllocated"
     end
 
-    DeductSpend do
+    command "DeductSpend" do
       description "Reduce the remaining budget as spend accrues"
       reference_to(Budget)
-      Float :amount
+      attribute :amount, Float
       given("sufficient funds") { remaining_amount >= amount }
       emits "SpendDeducted"
     end
 
-    ExhaustBudget do
+    command "ExhaustBudget" do
       description "Mark a budget as fully spent and pause delivery"
       reference_to(Budget)
       emits "BudgetExhausted"

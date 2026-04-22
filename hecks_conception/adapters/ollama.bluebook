@@ -20,14 +20,14 @@ Hecks.bluebook "OllamaAdapter", version: "2026.04.16.1" do
   # The adapter resolves HOW to speak.
 
   aggregate "Connection", "The ollama server connection" do
-    String :url
-    String :model
-    String :status
+    attribute :url, String
+    attribute :model, String
+    attribute :status, String
 
-    Connect do
+    command "Connect" do
       description "Establish connection to ollama"
-      String :url
-      String :model
+      attribute :url, String
+      attribute :model, String
       emits "Connected"
       then_set :url, to: :url
       then_set :model, to: :model
@@ -40,13 +40,13 @@ Hecks.bluebook "OllamaAdapter", version: "2026.04.16.1" do
   end
 
   aggregate "Inference", "One LLM call — prompt in, response out" do
-    String :prompt
-    String :response
-    String :model
+    attribute :prompt, String
+    attribute :response, String
+    attribute :model, String
 
-    Infer do
+    command "Infer" do
       description "Send a prompt to ollama, get a response"
-      String :prompt
+      attribute :prompt, String
       emits "Inferred"
       then_set :prompt, to: :prompt
     end

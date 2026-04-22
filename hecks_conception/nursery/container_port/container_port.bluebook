@@ -1,32 +1,32 @@
 Hecks.bluebook "ContainerPort" do
   aggregate "VesselCall" do
-    String :call_id
-    String :vessel_name
-    String :voyage_number
-    String :shipping_line
-    Integer :discharge_count
-    Integer :load_count
-    String :status
+    attribute :call_id, String
+    attribute :vessel_name, String
+    attribute :voyage_number, String
+    attribute :shipping_line, String
+    attribute :discharge_count, Integer
+    attribute :load_count, Integer
+    attribute :status, String
     list_of "Container"
 
-    RegisterCall do
+    command "RegisterCall" do
       description "Register expected vessel call with cargo manifest details"
-      String :vessel_name
-      String :voyage_number
-      Integer :discharge_count
+      attribute :vessel_name, String
+      attribute :voyage_number, String
+      attribute :discharge_count, Integer
       reference_to "VesselCall"
       emits "CallRegistered"
     end
 
-    ArriveVessel do
+    command "ArriveVessel" do
       description "Record vessel arrival at port anchorage or pilot station"
-      String :arrival_time
-      String :pilot_name
+      attribute :arrival_time, String
+      attribute :pilot_name, String
       reference_to "VesselCall"
       emits "VesselArrived"
     end
 
-    CompleteCall do
+    command "CompleteCall" do
       description "Finalize vessel operations and issue departure clearance"
       reference_to "VesselCall"
       emits "CallCompleted"
@@ -42,21 +42,21 @@ Hecks.bluebook "ContainerPort" do
   end
 
   aggregate "Berth" do
-    String :berth_id
-    String :berth_name
-    Float :length_meters
-    Float :depth_meters
-    String :status
+    attribute :berth_id, String
+    attribute :berth_name, String
+    attribute :length_meters, Float
+    attribute :depth_meters, Float
+    attribute :status, String
 
-    AssignBerth do
+    command "AssignBerth" do
       description "Assign incoming vessel to available berth based on size and draft"
-      String :vessel_id
-      String :estimated_arrival
+      attribute :vessel_id, String
+      attribute :estimated_arrival, String
       reference_to "Berth"
       emits "BerthAssigned"
     end
 
-    ReleaseBerth do
+    command "ReleaseBerth" do
       description "Free berth after vessel departure and post-departure inspection"
       reference_to "Berth"
       emits "BerthReleased"
@@ -72,38 +72,38 @@ Hecks.bluebook "ContainerPort" do
   end
 
   aggregate "GantryCrane" do
-    String :crane_id
-    String :crane_type
-    Float :outreach_meters
-    Integer :moves_per_hour
-    String :status
+    attribute :crane_id, String
+    attribute :crane_type, String
+    attribute :outreach_meters, Float
+    attribute :moves_per_hour, Integer
+    attribute :status, String
 
     value_object "CranePerformance" do
-      Integer :gross_moves
-      Integer :net_moves
-      Float :idle_time_minutes
-      Float :utilization_percent
+      attribute :gross_moves, Integer
+      attribute :net_moves, Integer
+      attribute :idle_time_minutes, Float
+      attribute :utilization_percent, Float
     end
 
-    DeployCrane do
+    command "DeployCrane" do
       description "Position gantry crane at berth for vessel loading or discharge"
-      String :berth_id
-      String :operation_type
+      attribute :berth_id, String
+      attribute :operation_type, String
       reference_to "Berth"
       emits "CraneDeployed"
     end
 
-    CompleteCraneWork do
+    command "CompleteCraneWork" do
       description "All crane moves for vessel completed and crane returned to park"
-      Integer :total_moves
+      attribute :total_moves, Integer
       reference_to "GantryCrane"
       emits "CraneWorkCompleted"
     end
 
-    RecordDowntime do
+    command "RecordDowntime" do
       description "Log crane downtime event with cause and duration"
-      String :cause
-      Float :duration_minutes
+      attribute :cause, String
+      attribute :duration_minutes, Float
       reference_to "GantryCrane"
       emits "DowntimeRecorded"
     end
@@ -118,33 +118,33 @@ Hecks.bluebook "ContainerPort" do
   end
 
   aggregate "Container" do
-    String :container_id
-    String :iso_size_type
-    String :shipping_line
-    Float :gross_weight_kg
-    String :seal_number
-    String :status
+    attribute :container_id, String
+    attribute :iso_size_type, String
+    attribute :shipping_line, String
+    attribute :gross_weight_kg, Float
+    attribute :seal_number, String
+    attribute :status, String
 
-    DischargeContainer do
+    command "DischargeContainer" do
       description "Lift container from vessel hold or deck to quay"
-      String :vessel_id
-      String :bay_position
+      attribute :vessel_id, String
+      attribute :bay_position, String
       reference_to "Berth"
       emits "ContainerDischarged"
     end
 
-    StackContainer do
+    command "StackContainer" do
       description "Transport and stack container in yard block position"
-      String :block_id
-      String :row_bay_tier
+      attribute :block_id, String
+      attribute :row_bay_tier, String
       reference_to "Container"
       emits "ContainerStacked"
     end
 
-    GateOutContainer do
+    command "GateOutContainer" do
       description "Release container through gate to trucker after clearance"
-      String :trucker_id
-      String :gate_pass
+      attribute :trucker_id, String
+      attribute :gate_pass, String
       reference_to "Container"
       emits "ContainerGatedOut"
     end
@@ -158,37 +158,37 @@ Hecks.bluebook "ContainerPort" do
     policy "Reefer containers must be plugged in within 30 minutes of discharge"
 
     given "A 40ft reefer container is discharged" do
-      String :iso_size_type, "45R1"
-      String :shipping_line, "Maersk"
-      Float :gross_weight_kg, 28000.0
+      attribute :iso_size_type, String, "45R1"
+      attribute :shipping_line, String, "Maersk"
+      attribute :gross_weight_kg, Float, 28000.0
     end
   end
 
   aggregate "CustomsClearance" do
-    String :clearance_id
-    String :container_id
-    String :declaration_type
-    String :broker_name
-    String :status
+    attribute :clearance_id, String
+    attribute :container_id, String
+    attribute :declaration_type, String
+    attribute :broker_name, String
+    attribute :status, String
 
     value_object "DutyAssessment" do
-      String :tariff_code
-      Float :dutiable_value
-      Float :duty_amount
-      String :currency
+      attribute :tariff_code, String
+      attribute :dutiable_value, Float
+      attribute :duty_amount, Float
+      attribute :currency, String
     end
 
-    SubmitDeclaration do
+    command "SubmitDeclaration" do
       description "Submit customs import or export declaration for container"
-      String :declaration_type
-      String :broker_name
+      attribute :declaration_type, String
+      attribute :broker_name, String
       reference_to "Container"
       emits "DeclarationSubmitted"
     end
 
-    GrantRelease do
+    command "GrantRelease" do
       description "Issue customs release allowing container to leave port"
-      String :release_number
+      attribute :release_number, String
       reference_to "CustomsClearance"
       emits "ReleaseGranted"
     end

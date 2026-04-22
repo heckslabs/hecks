@@ -3,29 +3,29 @@ Hecks.bluebook "ScientificPestMgmt", version: "2026.04.13.1" do
   category "crossover"
 
   aggregate "PestSpecies", "An identified pest species — taxonomy, life cycle, behavior, vulnerabilities" do
-    String :scientific_name
-    String :common_name
-    String :order
-    String :family
-    Integer :life_cycle_days
-    String :habitat_preference
-    String :status
+    attribute :scientific_name, String
+    attribute :common_name, String
+    attribute :order, String
+    attribute :family, String
+    attribute :life_cycle_days, Integer
+    attribute :habitat_preference, String
+    attribute :status, String
 
     value_object "LifeCycleStage" do
-      String :stage_name
-      Integer :duration_days
-      String :vulnerability
+      attribute :stage_name, String
+      attribute :duration_days, Integer
+      attribute :vulnerability, String
     end
 
-    IdentifySpecies do
+    command "IdentifySpecies" do
       role "Entomologist"
       description "Identify a pest species from specimens or evidence"
-      String :scientific_name
-      String :common_name
-      String :order
-      String :family
-      Integer :life_cycle_days
-      String :habitat_preference
+      attribute :scientific_name, String
+      attribute :common_name, String
+      attribute :order, String
+      attribute :family, String
+      attribute :life_cycle_days, Integer
+      attribute :habitat_preference, String
       emits "PestSpeciesIdentified"
       then_set :scientific_name, to: :scientific_name
       then_set :common_name, to: :common_name
@@ -36,7 +36,7 @@ Hecks.bluebook "ScientificPestMgmt", version: "2026.04.13.1" do
       then_set :status, to: "identified"
     end
 
-    DocumentLifeCycle do
+    command "DocumentLifeCycle" do
       role "Entomologist"
       description "Document the complete life cycle and vulnerable stages"
       reference_to(PestSpecies)
@@ -51,33 +51,33 @@ Hecks.bluebook "ScientificPestMgmt", version: "2026.04.13.1" do
   end
 
   aggregate "Infestation", "An active pest infestation — location, severity, population estimate" do
-    String :site_address
-    String :pest_species
-    String :severity
-    Integer :estimated_population
-    String :affected_area
-    String :status
+    attribute :site_address, String
+    attribute :pest_species, String
+    attribute :severity, String
+    attribute :estimated_population, Integer
+    attribute :affected_area, String
+    attribute :status, String
 
     value_object "InfestationMetrics" do
-      Float :damage_rating
-      Float :spread_rate_per_week
-      Integer :traps_set
+      attribute :damage_rating, Float
+      attribute :spread_rate_per_week, Float
+      attribute :traps_set, Integer
     end
 
     list_of "InfestationSign" do
-      String :sign_type
-      String :location
-      String :description
+      attribute :sign_type, String
+      attribute :location, String
+      attribute :description, String
     end
 
-    ReportInfestation do
+    command "ReportInfestation" do
       role "Inspector"
       description "Report a pest infestation at a site"
-      String :site_address
-      String :pest_species
-      String :severity
-      Integer :estimated_population
-      String :affected_area
+      attribute :site_address, String
+      attribute :pest_species, String
+      attribute :severity, String
+      attribute :estimated_population, Integer
+      attribute :affected_area, String
       emits "InfestationReported"
       then_set :site_address, to: :site_address
       then_set :pest_species, to: :pest_species
@@ -87,7 +87,7 @@ Hecks.bluebook "ScientificPestMgmt", version: "2026.04.13.1" do
       then_set :status, to: "reported"
     end
 
-    AssessInfestation do
+    command "AssessInfestation" do
       role "Entomologist"
       description "Assess infestation scope and determine treatment approach"
       reference_to(Infestation)
@@ -95,7 +95,7 @@ Hecks.bluebook "ScientificPestMgmt", version: "2026.04.13.1" do
       then_set :status, to: "assessed"
     end
 
-    ResolveInfestation do
+    command "ResolveInfestation" do
       role "Technician"
       description "Confirm infestation resolved after treatment"
       reference_to(Infestation)
@@ -112,28 +112,28 @@ Hecks.bluebook "ScientificPestMgmt", version: "2026.04.13.1" do
   end
 
   aggregate "Treatment", "A pest treatment — method, chemicals, application, effectiveness" do
-    String :treatment_name
-    String :method
-    String :active_ingredient
-    Float :concentration_pct
-    String :target_life_stage
-    Float :effectiveness_pct
-    String :status
+    attribute :treatment_name, String
+    attribute :method, String
+    attribute :active_ingredient, String
+    attribute :concentration_pct, Float
+    attribute :target_life_stage, String
+    attribute :effectiveness_pct, Float
+    attribute :status, String
 
     value_object "ApplicationParams" do
-      Float :rate_per_sq_m
-      String :method
-      Float :reentry_hours
+      attribute :rate_per_sq_m, Float
+      attribute :method, String
+      attribute :reentry_hours, Float
     end
 
-    PrescribeTreatment do
+    command "PrescribeTreatment" do
       role "Entomologist"
       description "Prescribe a treatment targeting the pest's vulnerable life stage"
-      String :treatment_name
-      String :method
-      String :active_ingredient
-      Float :concentration_pct
-      String :target_life_stage
+      attribute :treatment_name, String
+      attribute :method, String
+      attribute :active_ingredient, String
+      attribute :concentration_pct, Float
+      attribute :target_life_stage, String
       emits "TreatmentPrescribed"
       then_set :treatment_name, to: :treatment_name
       then_set :method, to: :method
@@ -143,7 +143,7 @@ Hecks.bluebook "ScientificPestMgmt", version: "2026.04.13.1" do
       then_set :status, to: "prescribed"
     end
 
-    ApplyTreatment do
+    command "ApplyTreatment" do
       role "Technician"
       description "Apply the prescribed treatment at the site"
       reference_to(Treatment)
@@ -151,11 +151,11 @@ Hecks.bluebook "ScientificPestMgmt", version: "2026.04.13.1" do
       then_set :status, to: "applied"
     end
 
-    EvaluateEffectiveness do
+    command "EvaluateEffectiveness" do
       role "Inspector"
       description "Evaluate treatment effectiveness after application period"
       reference_to(Treatment)
-      Float :effectiveness_pct
+      attribute :effectiveness_pct, Float
       emits "EffectivenessEvaluated"
       then_set :effectiveness_pct, to: :effectiveness_pct
       then_set :status, to: "evaluated"
@@ -169,27 +169,27 @@ Hecks.bluebook "ScientificPestMgmt", version: "2026.04.13.1" do
   end
 
   aggregate "ResistanceProfile", "Pest resistance to treatments — mechanism, level, cross-resistance" do
-    String :pest_species
-    String :active_ingredient
-    String :resistance_mechanism
-    Float :resistance_level_pct
-    String :first_detected
-    String :status
+    attribute :pest_species, String
+    attribute :active_ingredient, String
+    attribute :resistance_mechanism, String
+    attribute :resistance_level_pct, Float
+    attribute :first_detected, String
+    attribute :status, String
 
     value_object "CrossResistance" do
-      String :related_ingredient
-      Float :cross_resistance_pct
-      String :mechanism
+      attribute :related_ingredient, String
+      attribute :cross_resistance_pct, Float
+      attribute :mechanism, String
     end
 
-    RecordResistance do
+    command "RecordResistance" do
       role "Entomologist"
       description "Record pest resistance to a treatment active ingredient"
-      String :pest_species
-      String :active_ingredient
-      String :resistance_mechanism
-      Float :resistance_level_pct
-      String :first_detected
+      attribute :pest_species, String
+      attribute :active_ingredient, String
+      attribute :resistance_mechanism, String
+      attribute :resistance_level_pct, Float
+      attribute :first_detected, String
       emits "ResistanceRecorded"
       then_set :pest_species, to: :pest_species
       then_set :active_ingredient, to: :active_ingredient
@@ -199,7 +199,7 @@ Hecks.bluebook "ScientificPestMgmt", version: "2026.04.13.1" do
       then_set :status, to: "recorded"
     end
 
-    RecommendRotation do
+    command "RecommendRotation" do
       role "Entomologist"
       description "Recommend treatment rotation to prevent resistance buildup"
       reference_to(ResistanceProfile)
@@ -214,32 +214,32 @@ Hecks.bluebook "ScientificPestMgmt", version: "2026.04.13.1" do
   end
 
   aggregate "IPMPlan", "An integrated pest management plan — prevention, monitoring, intervention tiers" do
-    String :site_address
-    String :target_pest
-    String :prevention_measures
-    String :monitoring_method
-    String :intervention_tier
-    String :status
+    attribute :site_address, String
+    attribute :target_pest, String
+    attribute :prevention_measures, String
+    attribute :monitoring_method, String
+    attribute :intervention_tier, String
+    attribute :status, String
 
     value_object "MonitoringThreshold" do
-      String :metric
-      Float :action_threshold
-      Float :current_level
+      attribute :metric, String
+      attribute :action_threshold, Float
+      attribute :current_level, Float
     end
 
     list_of "PreventionAction" do
-      String :action
-      String :frequency
-      String :responsible_party
+      attribute :action, String
+      attribute :frequency, String
+      attribute :responsible_party, String
     end
 
-    ScoutIPMPlan do
+    command "ScoutIPMPlan" do
       role "Entomologist"
       description "Create an integrated pest management plan with prevention and monitoring"
-      String :site_address
-      String :target_pest
-      String :prevention_measures
-      String :monitoring_method
+      attribute :site_address, String
+      attribute :target_pest, String
+      attribute :prevention_measures, String
+      attribute :monitoring_method, String
       emits "IPMPlanScouted"
       then_set :site_address, to: :site_address
       then_set :target_pest, to: :target_pest
@@ -249,17 +249,17 @@ Hecks.bluebook "ScientificPestMgmt", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    EscalateTier do
+    command "EscalateTier" do
       role "Entomologist"
       description "Escalate to next intervention tier when thresholds exceeded"
       reference_to(IPMPlan)
-      String :intervention_tier
+      attribute :intervention_tier, String
       given { status == "active" }
       emits "TierEscalated"
       then_set :intervention_tier, to: :intervention_tier
     end
 
-    ReviewIPMPlan do
+    command "ReviewIPMPlan" do
       role "Manager"
       description "Periodic review of IPM plan effectiveness"
       reference_to(IPMPlan)

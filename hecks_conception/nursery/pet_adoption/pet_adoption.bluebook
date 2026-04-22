@@ -3,27 +3,27 @@ Hecks.bluebook "PetAdoption", version: "2026.04.13.1" do
   category "healthcare_community"
 
   aggregate "Animal", "A shelter animal available for adoption" do
-    String :animal_id
-    String :name
-    String :species
-    String :breed
-    Integer :age_months
-    String :temperament
-    String :status
+    attribute :animal_id, String
+    attribute :name, String
+    attribute :species, String
+    attribute :breed, String
+    attribute :age_months, Integer
+    attribute :temperament, String
+    attribute :status, String
     value_object "MedicalRecord" do
-      String :vaccination_status
-      String :spay_neuter
-      String :conditions
+      attribute :vaccination_status, String
+      attribute :spay_neuter, String
+      attribute :conditions, String
     end
-    IntakeAnimal do
+    command "IntakeAnimal" do
       role "ShelterStaff"
       description "Register a new animal into the shelter system"
-      String :animal_id
-      String :name
-      String :species
-      String :breed
-      Integer :age_months
-      String :temperament
+      attribute :animal_id, String
+      attribute :name, String
+      attribute :species, String
+      attribute :breed, String
+      attribute :age_months, Integer
+      attribute :temperament, String
       emits "AnimalIntaked"
       then_set :animal_id, to: :animal_id
       then_set :name, to: :name
@@ -33,7 +33,7 @@ Hecks.bluebook "PetAdoption", version: "2026.04.13.1" do
       then_set :temperament, to: :temperament
       then_set :status, to: "available"
     end
-    AdoptAnimal do
+    command "AdoptAnimal" do
       role "ShelterStaff"
       description "Mark animal as adopted to a matched family"
       reference_to(Animal)
@@ -44,19 +44,19 @@ Hecks.bluebook "PetAdoption", version: "2026.04.13.1" do
   end
 
   aggregate "AdoptionCampaign", "A targeted ad campaign to promote shelter animals" do
-    String :campaign_id
-    String :target_audience
-    String :platform
-    Float :budget
-    Integer :impressions
-    String :status
-    LaunchCampaign do
+    attribute :campaign_id, String
+    attribute :target_audience, String
+    attribute :platform, String
+    attribute :budget, Float
+    attribute :impressions, Integer
+    attribute :status, String
+    command "LaunchCampaign" do
       role "Marketer"
       description "Launch an adoption ad campaign on social media"
-      String :campaign_id
-      String :target_audience
-      String :platform
-      Float :budget
+      attribute :campaign_id, String
+      attribute :target_audience, String
+      attribute :platform, String
+      attribute :budget, Float
       emits "CampaignLaunched"
       then_set :campaign_id, to: :campaign_id
       then_set :target_audience, to: :target_audience
@@ -64,35 +64,35 @@ Hecks.bluebook "PetAdoption", version: "2026.04.13.1" do
       then_set :budget, to: :budget
       then_set :status, to: "active"
     end
-    TrackImpressions do
+    command "TrackImpressions" do
       role "System"
       description "Track ad impressions and engagement metrics"
       reference_to(AdoptionCampaign)
-      Integer :impressions
+      attribute :impressions, Integer
       emits "ImpressionsTracked"
       then_set :impressions, to: :impressions
     end
   end
 
   aggregate "AdopterProfile", "A prospective adopter profile with preferences" do
-    String :adopter_id
-    String :name
-    String :preferred_species
-    String :preferred_size
-    String :housing_type
-    String :status
+    attribute :adopter_id, String
+    attribute :name, String
+    attribute :preferred_species, String
+    attribute :preferred_size, String
+    attribute :housing_type, String
+    attribute :status, String
     list_of(Preference) :preferences
     value_object "Preference" do
-      String :attribute
-      String :value
+      attribute :attribute, String
+      attribute :value, String
     end
-    EnrollAdopter do
+    command "EnrollAdopter" do
       role "Adopter"
       description "Create an adopter profile with housing and pet preferences"
-      String :adopter_id
-      String :name
-      String :preferred_species
-      String :housing_type
+      attribute :adopter_id, String
+      attribute :name, String
+      attribute :preferred_species, String
+      attribute :housing_type, String
       emits "AdopterProfileCreated"
       then_set :adopter_id, to: :adopter_id
       then_set :name, to: :name
@@ -100,7 +100,7 @@ Hecks.bluebook "PetAdoption", version: "2026.04.13.1" do
       then_set :housing_type, to: :housing_type
       then_set :status, to: "active"
     end
-    MatchAdopter do
+    command "MatchAdopter" do
       role "System"
       description "Match an adopter to compatible shelter animals"
       reference_to(AdopterProfile)
@@ -109,19 +109,19 @@ Hecks.bluebook "PetAdoption", version: "2026.04.13.1" do
   end
 
   aggregate "FollowUp", "A post-adoption follow-up check on animal and adopter" do
-    String :followup_id
-    String :animal_id
-    String :adopter_id
-    String :scheduled_date
-    String :outcome
-    String :status
-    ScheduleFollowUp do
+    attribute :followup_id, String
+    attribute :animal_id, String
+    attribute :adopter_id, String
+    attribute :scheduled_date, String
+    attribute :outcome, String
+    attribute :status, String
+    command "ScheduleFollowUp" do
       role "ShelterStaff"
       description "Schedule a post-adoption follow-up check"
-      String :followup_id
-      String :animal_id
-      String :adopter_id
-      String :scheduled_date
+      attribute :followup_id, String
+      attribute :animal_id, String
+      attribute :adopter_id, String
+      attribute :scheduled_date, String
       emits "FollowUpScheduled"
       then_set :followup_id, to: :followup_id
       then_set :animal_id, to: :animal_id
@@ -129,11 +129,11 @@ Hecks.bluebook "PetAdoption", version: "2026.04.13.1" do
       then_set :scheduled_date, to: :scheduled_date
       then_set :status, to: "scheduled"
     end
-    RecordOutcome do
+    command "RecordOutcome" do
       role "ShelterStaff"
       description "Record the outcome of the follow-up visit"
       reference_to(FollowUp)
-      String :outcome
+      attribute :outcome, String
       given { status == "scheduled" }
       emits "OutcomeRecorded"
       then_set :outcome, to: :outcome

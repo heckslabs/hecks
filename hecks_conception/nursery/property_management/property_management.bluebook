@@ -3,30 +3,30 @@ Hecks.bluebook "PropertyManagement" do
   category "real_estate"
 
   aggregate "RentalUnit", "A rentable property unit with address, type, and availability" do
-    String :unit_number
-    String :address
-    String :unit_type
-    Integer :bedrooms
-    Integer :bathrooms
-    Float :square_footage
-    Float :monthly_rent
-    String :status
+    attribute :unit_number, String
+    attribute :address, String
+    attribute :unit_type, String
+    attribute :bedrooms, Integer
+    attribute :bathrooms, Integer
+    attribute :square_footage, Float
+    attribute :monthly_rent, Float
+    attribute :status, String
 
     value_object "UnitFeatures" do
-      String :flooring
-      String :appliances
-      String :parking
-      String :laundry
+      attribute :flooring, String
+      attribute :appliances, String
+      attribute :parking, String
+      attribute :laundry, String
     end
 
-    ListUnit do
+    command "ListUnit" do
       role "PropertyManager"
       description "Add a rental unit to the available inventory"
-      String :unit_number
-      String :address
-      String :unit_type
-      Integer :bedrooms
-      Float :monthly_rent
+      attribute :unit_number, String
+      attribute :address, String
+      attribute :unit_type, String
+      attribute :bedrooms, Integer
+      attribute :monthly_rent, Float
       emits "UnitListed"
       then_set :unit_number, to: :unit_number
       then_set :address, to: :address
@@ -36,7 +36,7 @@ Hecks.bluebook "PropertyManagement" do
       then_set :status, to: "available"
     end
 
-    MarkVacant do
+    command "MarkVacant" do
       role "PropertyManager"
       description "Update unit status when a tenant moves out"
       reference_to(RentalUnit)
@@ -44,7 +44,7 @@ Hecks.bluebook "PropertyManagement" do
       then_set :status, to: "vacant"
     end
 
-    TakeOffMarket do
+    command "TakeOffMarket" do
       role "PropertyManager"
       description "Remove a unit from listings for renovation or sale"
       reference_to(RentalUnit)
@@ -57,28 +57,28 @@ Hecks.bluebook "PropertyManagement" do
   end
 
   aggregate "Tenant", "A renter with contact info, background check status, and payment history" do
-    String :first_name
-    String :last_name
-    String :phone
-    String :email
-    String :employer
-    Float :monthly_income
-    String :background_check_status
+    attribute :first_name, String
+    attribute :last_name, String
+    attribute :phone, String
+    attribute :email, String
+    attribute :employer, String
+    attribute :monthly_income, Float
+    attribute :background_check_status, String
 
     value_object "CreditReport" do
-      Integer :score
-      String :report_date
-      String :risk_level
+      attribute :score, Integer
+      attribute :report_date, String
+      attribute :risk_level, String
     end
 
-    ScreenTenant do
+    command "ScreenTenant" do
       role "PropertyManager"
       description "Register an applicant and initiate background screening"
-      String :first_name
-      String :last_name
-      String :phone
-      String :email
-      Float :monthly_income
+      attribute :first_name, String
+      attribute :last_name, String
+      attribute :phone, String
+      attribute :email, String
+      attribute :monthly_income, Float
       emits "TenantScreened"
       then_set :first_name, to: :first_name
       then_set :last_name, to: :last_name
@@ -88,7 +88,7 @@ Hecks.bluebook "PropertyManagement" do
       then_set :background_check_status, to: "pending"
     end
 
-    ApproveTenant do
+    command "ApproveTenant" do
       role "PropertyManager"
       description "Approve the tenant's application after successful screening"
       reference_to(Tenant)
@@ -97,7 +97,7 @@ Hecks.bluebook "PropertyManagement" do
       then_set :background_check_status, to: "approved"
     end
 
-    RejectTenant do
+    command "RejectTenant" do
       role "PropertyManager"
       description "Deny the application due to failed screening criteria"
       reference_to(Tenant)
@@ -108,23 +108,23 @@ Hecks.bluebook "PropertyManagement" do
   end
 
   aggregate "Lease", "A binding rental agreement between landlord and tenant for a unit" do
-    String :start_date
-    String :end_date
-    Float :monthly_rent
-    Float :security_deposit
-    String :status
+    attribute :start_date, String
+    attribute :end_date, String
+    attribute :monthly_rent, Float
+    attribute :security_deposit, Float
+    attribute :status, String
     reference_to(RentalUnit)
     reference_to(Tenant)
 
-    SignLease do
+    command "SignLease" do
       role "PropertyManager"
       description "Execute a lease agreement between tenant and property"
       reference_to(RentalUnit)
       reference_to(Tenant)
-      String :start_date
-      String :end_date
-      Float :monthly_rent
-      Float :security_deposit
+      attribute :start_date, String
+      attribute :end_date, String
+      attribute :monthly_rent, Float
+      attribute :security_deposit, Float
       emits "LeaseSigned"
       then_set :start_date, to: :start_date
       then_set :end_date, to: :end_date
@@ -133,19 +133,19 @@ Hecks.bluebook "PropertyManagement" do
       then_set :status, to: "active"
     end
 
-    RenewLease do
+    command "RenewLease" do
       role "PropertyManager"
       description "Extend the lease for an additional term with updated rent"
       reference_to(Lease)
-      String :new_end_date
-      Float :new_monthly_rent
+      attribute :new_end_date, String
+      attribute :new_monthly_rent, Float
       given { status == "active" }
       emits "LeaseRenewed"
       then_set :end_date, to: :new_end_date
       then_set :monthly_rent, to: :new_monthly_rent
     end
 
-    TerminateLease do
+    command "TerminateLease" do
       role "PropertyManager"
       description "End the lease early due to breach or mutual agreement"
       reference_to(Lease)
@@ -156,23 +156,23 @@ Hecks.bluebook "PropertyManagement" do
   end
 
   aggregate "MaintenanceRequest", "A tenant-submitted repair or maintenance work order" do
-    String :description
-    String :category
-    String :priority
-    String :assigned_to
-    String :status
-    String :resolution_notes
+    attribute :description, String
+    attribute :category, String
+    attribute :priority, String
+    attribute :assigned_to, String
+    attribute :status, String
+    attribute :resolution_notes, String
     reference_to(RentalUnit)
     reference_to(Tenant)
 
-    SubmitRequest do
+    command "SubmitRequest" do
       role "Tenant"
       description "File a maintenance request describing the issue"
       reference_to(RentalUnit)
       reference_to(Tenant)
-      String :description
-      String :category
-      String :priority
+      attribute :description, String
+      attribute :category, String
+      attribute :priority, String
       emits "RequestSubmitted"
       then_set :description, to: :description
       then_set :category, to: :category
@@ -180,22 +180,22 @@ Hecks.bluebook "PropertyManagement" do
       then_set :status, to: "open"
     end
 
-    AssignTechnician do
+    command "AssignTechnician" do
       role "PropertyManager"
       description "Dispatch a maintenance worker to handle the request"
       reference_to(MaintenanceRequest)
-      String :assigned_to
+      attribute :assigned_to, String
       given { status == "open" }
       emits "TechnicianAssigned"
       then_set :assigned_to, to: :assigned_to
       then_set :status, to: "assigned"
     end
 
-    ResolveRequest do
+    command "ResolveRequest" do
       role "MaintenanceWorker"
       description "Mark the maintenance request as completed with resolution notes"
       reference_to(MaintenanceRequest)
-      String :resolution_notes
+      attribute :resolution_notes, String
       given { status == "assigned" }
       emits "RequestResolved"
       then_set :resolution_notes, to: :resolution_notes
@@ -204,29 +204,29 @@ Hecks.bluebook "PropertyManagement" do
   end
 
   aggregate "PropertyInspection", "A scheduled walkthrough to assess unit condition" do
-    String :inspection_date
-    String :inspection_type
-    String :findings
-    String :status
+    attribute :inspection_date, String
+    attribute :inspection_type, String
+    attribute :findings, String
+    attribute :status, String
     reference_to(RentalUnit)
 
-    ScheduleInspection do
+    command "ScheduleInspection" do
       role "PropertyManager"
       description "Plan a routine or move-out inspection for a unit"
       reference_to(RentalUnit)
-      String :inspection_date
-      String :inspection_type
+      attribute :inspection_date, String
+      attribute :inspection_type, String
       emits "InspectionScheduled"
       then_set :inspection_date, to: :inspection_date
       then_set :inspection_type, to: :inspection_type
       then_set :status, to: "scheduled"
     end
 
-    RecordFindings do
+    command "RecordFindings" do
       role "PropertyManager"
       description "Document the condition and any issues found during inspection"
       reference_to(PropertyInspection)
-      String :findings
+      attribute :findings, String
       given { status == "scheduled" }
       emits "FindingsRecorded"
       then_set :findings, to: :findings

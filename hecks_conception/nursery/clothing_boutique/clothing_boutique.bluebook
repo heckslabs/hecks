@@ -3,30 +3,30 @@ Hecks.bluebook "ClothingBoutique", version: "2026.04.13.1" do
   category "retail"
 
   aggregate "Garment", "A clothing item — the core sellable product" do
-    String :style_number
-    String :name
-    String :designer
-    String :fabric
-    Float :retail_price
-    String :season
-    String :status
+    attribute :style_number, String
+    attribute :name, String
+    attribute :designer, String
+    attribute :fabric, String
+    attribute :retail_price, Float
+    attribute :season, String
+    attribute :status, String
     list_of(SizeRun) :size_runs
 
     value_object "SizeRun" do
-      String :size
-      String :color
-      Integer :quantity
+      attribute :size, String
+      attribute :color, String
+      attribute :quantity, Integer
     end
 
-    ReceiveGarment do
+    command "ReceiveGarment" do
       role "Buyer"
       description "Accept a new garment into inventory from a designer shipment"
-      String :style_number
-      String :name
-      String :designer
-      String :fabric
-      Float :retail_price
-      String :season
+      attribute :style_number, String
+      attribute :name, String
+      attribute :designer, String
+      attribute :fabric, String
+      attribute :retail_price, Float
+      attribute :season, String
       emits "GarmentReceived"
       then_set :style_number, to: :style_number
       then_set :name, to: :name
@@ -37,16 +37,16 @@ Hecks.bluebook "ClothingBoutique", version: "2026.04.13.1" do
       then_set :status, to: "in_stock"
     end
 
-    MarkdownGarment do
+    command "MarkdownGarment" do
       role "Manager"
       description "Reduce price for end-of-season clearance"
       reference_to(Garment)
-      Float :sale_price
+      attribute :sale_price, Float
       emits "GarmentMarkedDown"
       then_set :retail_price, to: :sale_price
     end
 
-    RetireGarment do
+    command "RetireGarment" do
       role "Manager"
       description "Remove a style from active inventory permanently"
       reference_to(Garment)
@@ -56,24 +56,24 @@ Hecks.bluebook "ClothingBoutique", version: "2026.04.13.1" do
   end
 
   aggregate "Display", "A curated visual arrangement in the store" do
-    String :display_name
-    String :theme
-    String :location
+    attribute :display_name, String
+    attribute :theme, String
+    attribute :location, String
     list_of(DisplayItem) :items
-    String :status
+    attribute :status, String
 
     value_object "DisplayItem" do
-      String :style_number
-      String :size
-      String :position
+      attribute :style_number, String
+      attribute :size, String
+      attribute :position, String
     end
 
-    StyleDisplay do
+    command "StyleDisplay" do
       role "Stylist"
       description "Design a new visual merchandising display with a theme"
-      String :display_name
-      String :theme
-      String :location
+      attribute :display_name, String
+      attribute :theme, String
+      attribute :location, String
       emits "DisplayCreated"
       then_set :display_name, to: :display_name
       then_set :theme, to: :theme
@@ -81,14 +81,14 @@ Hecks.bluebook "ClothingBoutique", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    RefreshDisplay do
+    command "RefreshDisplay" do
       role "Stylist"
       description "Swap out garments for a new look while keeping the theme"
       reference_to(Display)
       emits "DisplayRefreshed"
     end
 
-    DismantleDisplay do
+    command "DismantleDisplay" do
       role "Stylist"
       description "Take down a display at end of season"
       reference_to(Display)
@@ -98,23 +98,23 @@ Hecks.bluebook "ClothingBoutique", version: "2026.04.13.1" do
   end
 
   aggregate "Alteration", "A tailoring modification requested by a customer" do
-    String :ticket_number
-    String :style_number
-    String :customer_name
-    String :alteration_type
-    String :due_date
-    Float :charge
-    String :status
+    attribute :ticket_number, String
+    attribute :style_number, String
+    attribute :customer_name, String
+    attribute :alteration_type, String
+    attribute :due_date, String
+    attribute :charge, Float
+    attribute :status, String
 
-    RequestAlteration do
+    command "RequestAlteration" do
       role "Customer"
       description "Ask for a hem, taper, or other modification to a purchased garment"
-      String :ticket_number
-      String :style_number
-      String :customer_name
-      String :alteration_type
-      String :due_date
-      Float :charge
+      attribute :ticket_number, String
+      attribute :style_number, String
+      attribute :customer_name, String
+      attribute :alteration_type, String
+      attribute :due_date, String
+      attribute :charge, Float
       emits "AlterationRequested"
       then_set :ticket_number, to: :ticket_number
       then_set :style_number, to: :style_number
@@ -125,7 +125,7 @@ Hecks.bluebook "ClothingBoutique", version: "2026.04.13.1" do
       then_set :status, to: "pending"
     end
 
-    CompleteAlteration do
+    command "CompleteAlteration" do
       role "Tailor"
       description "Finish the alteration work and mark it ready for pickup"
       reference_to(Alteration)
@@ -136,24 +136,24 @@ Hecks.bluebook "ClothingBoutique", version: "2026.04.13.1" do
   end
 
   aggregate "SeasonalCollection", "A curated set of garments for a selling season" do
-    String :season_name
-    String :year
-    String :theme
+    attribute :season_name, String
+    attribute :year, String
+    attribute :theme, String
     list_of(CollectionPiece) :pieces
-    String :status
+    attribute :status, String
 
     value_object "CollectionPiece" do
-      String :style_number
-      String :category
-      Integer :buy_quantity
+      attribute :style_number, String
+      attribute :category, String
+      attribute :buy_quantity, Integer
     end
 
-    PlanCollection do
+    command "PlanCollection" do
       role "Buyer"
       description "Assemble the buying plan for an upcoming season"
-      String :season_name
-      String :year
-      String :theme
+      attribute :season_name, String
+      attribute :year, String
+      attribute :theme, String
       emits "CollectionPlanned"
       then_set :season_name, to: :season_name
       then_set :year, to: :year
@@ -161,7 +161,7 @@ Hecks.bluebook "ClothingBoutique", version: "2026.04.13.1" do
       then_set :status, to: "planned"
     end
 
-    LaunchCollection do
+    command "LaunchCollection" do
       role "Manager"
       description "Debut the seasonal collection on the sales floor"
       reference_to(SeasonalCollection)
@@ -170,7 +170,7 @@ Hecks.bluebook "ClothingBoutique", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    CloseOutCollection do
+    command "CloseOutCollection" do
       role "Manager"
       description "End the season and move remaining stock to clearance"
       reference_to(SeasonalCollection)

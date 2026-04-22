@@ -4,70 +4,70 @@ Hecks.bluebook "SolarInstaller" do
 
   aggregate "SiteSurvey" do
     description "A site assessment measuring roof orientation, shading, structural capacity, and electrical service"
-    String :customer_name
-    String :address
-    Float :roof_sqft
-    String :roof_orientation
-    Float :annual_kwh_usage
-    String :shading_analysis
+    attribute :customer_name, String
+    attribute :address, String
+    attribute :roof_sqft, Float
+    attribute :roof_orientation, String
+    attribute :annual_kwh_usage, Float
+    attribute :shading_analysis, String
 
     value_object "RoofCondition" do
-      String :material
-      Integer :age_years
-      String :structural_rating
+      attribute :material, String
+      attribute :age_years, Integer
+      attribute :structural_rating, String
     end
 
-    SurveySite do
+    command "SurveySite" do
       role "Solar Consultant"
       goal "Assess the property for solar viability"
       description "Measure roof area, orientation, shading, and review electric bills"
-      String :customer_name
-      String :address
-      Float :roof_sqft
-      String :roof_orientation
-      Float :annual_kwh_usage
+      attribute :customer_name, String
+      attribute :address, String
+      attribute :roof_sqft, Float
+      attribute :roof_orientation, String
+      attribute :annual_kwh_usage, Float
       emits "SiteSurveyed"
     end
 
-    AnalyzeShading do
+    command "AnalyzeShading" do
       role "Solar Consultant"
       goal "Run shade analysis to determine solar access hours"
       description "Use solar pathfinder or satellite imagery to map shade patterns"
       reference_to(SiteSurvey)
-      String :shading_analysis
+      attribute :shading_analysis, String
       emits "ShadingAnalyzed"
     end
   end
 
   aggregate "PanelLayout" do
     description "A solar panel array layout specifying module count, orientation, tilt, and string configuration"
-    Integer :panel_count
-    String :module_model
-    Float :system_kw
-    Float :tilt_degrees
-    String :string_config
+    attribute :panel_count, Integer
+    attribute :module_model, String
+    attribute :system_kw, Float
+    attribute :tilt_degrees, Float
+    attribute :string_config, String
     reference_to(SiteSurvey)
 
     value_object "ModuleSpec" do
-      Float :wattage
-      Float :voc
-      Float :isc
-      Float :efficiency_pct
+      attribute :wattage, Float
+      attribute :voc, Float
+      attribute :isc, Float
+      attribute :efficiency_pct, Float
     end
 
-    DesignLayout do
+    command "DesignLayout" do
       role "Solar Designer"
       goal "Create the panel array layout optimized for production"
       description "Place panels on the roof maximizing solar harvest within structural limits"
-      Integer :panel_count
-      String :module_model
-      Float :system_kw
-      Float :tilt_degrees
+      attribute :panel_count, Integer
+      attribute :module_model, String
+      attribute :system_kw, Float
+      attribute :tilt_degrees, Float
       reference_to(SiteSurvey)
       emits "LayoutDesigned"
     end
 
-    CalculateProduction do
+    command "CalculateProduction" do
       role "Solar Designer"
       goal "Estimate annual kWh production from the layout"
       description "Model expected output using irradiance data and panel specs"
@@ -75,41 +75,41 @@ Hecks.bluebook "SolarInstaller" do
       emits "ProductionCalculated"
     end
 
-    ReviseLayout do
+    command "ReviseLayout" do
       role "Solar Designer"
       goal "Modify the panel layout based on permit feedback or customer request"
       description "Adjust panel placement, count, or string configuration"
       reference_to(PanelLayout)
-      String :revision_reason
+      attribute :revision_reason, String
       emits "LayoutRevised"
     end
   end
 
   aggregate "SolarPermit" do
     description "A building and electrical permit for the solar installation"
-    String :permit_number
-    String :jurisdiction
-    String :status
-    String :plan_set_version
+    attribute :permit_number, String
+    attribute :jurisdiction, String
+    attribute :status, String
+    attribute :plan_set_version, String
     reference_to(PanelLayout)
 
-    SubmitPermit do
+    command "SubmitPermit" do
       role "Permit Coordinator"
       goal "File the permit application with plan sets"
       description "Submit structural, electrical, and site plans to the building department"
-      String :jurisdiction
-      String :plan_set_version
+      attribute :jurisdiction, String
+      attribute :plan_set_version, String
       reference_to(PanelLayout)
       emits "PermitSubmitted"
       then_set :status, to: "submitted"
     end
 
-    ReceiveApproval do
+    command "ReceiveApproval" do
       role "Permit Coordinator"
       goal "Record the approved permit from the jurisdiction"
       description "Log the permit number and any conditions of approval"
       reference_to(SolarPermit)
-      String :permit_number
+      attribute :permit_number, String
       given("must be under review") { status == "submitted" }
       emits "PermitApproved"
     end
@@ -117,32 +117,32 @@ Hecks.bluebook "SolarInstaller" do
 
   aggregate "SolarInstallation" do
     description "The physical installation of the solar array including racking, panels, wiring, and inverter"
-    String :crew_lead
-    String :install_date
-    String :inverter_model
-    String :status
+    attribute :crew_lead, String
+    attribute :install_date, String
+    attribute :inverter_model, String
+    attribute :status, String
     reference_to(PanelLayout)
 
-    ScheduleInstallation do
+    command "ScheduleInstallation" do
       role "Project Manager"
       goal "Book the installation crew and date"
       description "Schedule the installation after permit approval"
-      String :crew_lead
-      String :install_date
+      attribute :crew_lead, String
+      attribute :install_date, String
       reference_to(PanelLayout)
       emits "InstallationScheduled"
     end
 
-    CompleteInstallation do
+    command "CompleteInstallation" do
       role "Crew Lead"
       goal "Finish mounting panels, wiring strings, and connecting the inverter"
       description "Complete the physical installation and energize the system"
       reference_to(SolarInstallation)
-      String :inverter_model
+      attribute :inverter_model, String
       emits "InstallationCompleted"
     end
 
-    VerifySystem do
+    command "VerifySystem" do
       role "Crew Lead"
       goal "Verify system operation and configure monitoring"
       description "Test all strings, verify inverter output, set up monitoring portal"
@@ -153,28 +153,28 @@ Hecks.bluebook "SolarInstaller" do
 
   aggregate "FinalInspection" do
     description "The final building and utility inspection before the system is approved to operate"
-    String :inspector_name
-    String :result
-    String :notes
-    String :inspection_type
+    attribute :inspector_name, String
+    attribute :result, String
+    attribute :notes, String
+    attribute :inspection_type, String
     reference_to(SolarInstallation)
 
-    ScheduleInspection do
+    command "ScheduleInspection" do
       role "Permit Coordinator"
       goal "Book the final inspection with the building department"
       description "Request the electrical and structural final inspection"
-      String :inspection_type
+      attribute :inspection_type, String
       reference_to(SolarInstallation)
       emits "InspectionScheduled"
     end
 
-    RecordResult do
+    command "RecordResult" do
       role "Inspector"
       goal "Document the inspection result — pass or corrections needed"
       description "Record the outcome and any items requiring rework"
       reference_to(FinalInspection)
-      String :result
-      String :notes
+      attribute :result, String
+      attribute :notes, String
       emits "ResultRecorded"
     end
   end

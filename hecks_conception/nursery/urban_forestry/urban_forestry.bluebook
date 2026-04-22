@@ -3,36 +3,36 @@ Hecks.bluebook "UrbanForestry", version: "2026.04.13.1" do
   category "crossover"
 
   aggregate "Tree", "An urban tree — species, health metrics, location, and canopy data" do
-    String :species
-    String :common_name
-    Float :dbh_cm
-    Float :height_m
-    Float :canopy_spread_m
-    String :health_rating
-    String :status
+    attribute :species, String
+    attribute :common_name, String
+    attribute :dbh_cm, Float
+    attribute :height_m, Float
+    attribute :canopy_spread_m, Float
+    attribute :health_rating, String
+    attribute :status, String
 
     value_object "Location" do
-      Float :latitude
-      Float :longitude
-      String :site_type
-      String :address
+      attribute :latitude, Float
+      attribute :longitude, Float
+      attribute :site_type, String
+      attribute :address, String
     end
 
     value_object "HealthAssessment" do
-      String :crown_condition
-      String :trunk_condition
-      String :root_condition
-      Float :vigor_score
+      attribute :crown_condition, String
+      attribute :trunk_condition, String
+      attribute :root_condition, String
+      attribute :vigor_score, Float
     end
 
-    InventoryTree do
+    command "InventoryTree" do
       role "Arborist"
       description "Record a tree in the urban inventory with species and measurements"
-      String :species
-      String :common_name
-      Float :dbh_cm
-      Float :height_m
-      Float :canopy_spread_m
+      attribute :species, String
+      attribute :common_name, String
+      attribute :dbh_cm, Float
+      attribute :height_m, Float
+      attribute :canopy_spread_m, Float
       emits "TreeInventoried"
       then_set :species, to: :species
       then_set :common_name, to: :common_name
@@ -43,17 +43,17 @@ Hecks.bluebook "UrbanForestry", version: "2026.04.13.1" do
       then_set :health_rating, to: "good"
     end
 
-    AssessHealth do
+    command "AssessHealth" do
       role "Arborist"
       description "Evaluate tree health from crown, trunk, and root inspection"
       reference_to(Tree)
-      String :health_rating
+      attribute :health_rating, String
       given { status == "healthy" }
       emits "HealthAssessed"
       then_set :health_rating, to: :health_rating
     end
 
-    FlagForRemoval do
+    command "FlagForRemoval" do
       role "Arborist"
       description "Mark a tree for removal due to disease, death, or hazard"
       reference_to(Tree)
@@ -61,7 +61,7 @@ Hecks.bluebook "UrbanForestry", version: "2026.04.13.1" do
       then_set :status, to: "removal_pending"
     end
 
-    RemoveTree do
+    command "RemoveTree" do
       role "CrewLead"
       description "Execute tree removal after permit approval"
       reference_to(Tree)
@@ -81,30 +81,30 @@ Hecks.bluebook "UrbanForestry", version: "2026.04.13.1" do
   end
 
   aggregate "PlantingPlan", "A planting plan — species selection, spacing, site prep, timeline" do
-    String :name
-    String :site_address
-    Integer :tree_count
-    String :primary_species
-    Float :spacing_m
-    String :season
-    String :status
+    attribute :name, String
+    attribute :site_address, String
+    attribute :tree_count, Integer
+    attribute :primary_species, String
+    attribute :spacing_m, Float
+    attribute :season, String
+    attribute :status, String
 
     list_of "PlantingSlot" do
-      Float :latitude
-      Float :longitude
-      String :species
-      Float :pit_diameter_m
+      attribute :latitude, Float
+      attribute :longitude, Float
+      attribute :species, String
+      attribute :pit_diameter_m, Float
     end
 
-    DraftPlantingPlan do
+    command "DraftPlantingPlan" do
       role "Planner"
       description "Design a planting plan with species and spacing for a site"
-      String :name
-      String :site_address
-      Integer :tree_count
-      String :primary_species
-      Float :spacing_m
-      String :season
+      attribute :name, String
+      attribute :site_address, String
+      attribute :tree_count, Integer
+      attribute :primary_species, String
+      attribute :spacing_m, Float
+      attribute :season, String
       emits "PlantingPlanDrafted"
       then_set :name, to: :name
       then_set :site_address, to: :site_address
@@ -115,7 +115,7 @@ Hecks.bluebook "UrbanForestry", version: "2026.04.13.1" do
       then_set :status, to: "drafted"
     end
 
-    ApprovePlan do
+    command "ApprovePlan" do
       role "Manager"
       description "Approve planting plan for execution"
       reference_to(PlantingPlan)
@@ -124,7 +124,7 @@ Hecks.bluebook "UrbanForestry", version: "2026.04.13.1" do
       then_set :status, to: "approved"
     end
 
-    ExecutePlanting do
+    command "ExecutePlanting" do
       role "CrewLead"
       description "Plant trees according to the approved plan"
       reference_to(PlantingPlan)
@@ -144,28 +144,28 @@ Hecks.bluebook "UrbanForestry", version: "2026.04.13.1" do
   end
 
   aggregate "MaintenanceSchedule", "Scheduled tree maintenance — pruning, watering, pest treatment" do
-    String :tree_species
-    String :maintenance_type
-    String :frequency
-    String :next_due_date
-    String :assigned_crew
-    String :status
+    attribute :tree_species, String
+    attribute :maintenance_type, String
+    attribute :frequency, String
+    attribute :next_due_date, String
+    attribute :assigned_crew, String
+    attribute :status, String
 
     value_object "MaintenanceRecord" do
-      String :date_performed
-      String :work_done
-      String :crew_name
-      Float :hours_spent
+      attribute :date_performed, String
+      attribute :work_done, String
+      attribute :crew_name, String
+      attribute :hours_spent, Float
     end
 
-    ScheduleMaintenance do
+    command "ScheduleMaintenance" do
       role "Manager"
       description "Create a maintenance schedule for a tree or group"
-      String :tree_species
-      String :maintenance_type
-      String :frequency
-      String :next_due_date
-      String :assigned_crew
+      attribute :tree_species, String
+      attribute :maintenance_type, String
+      attribute :frequency, String
+      attribute :next_due_date, String
+      attribute :assigned_crew, String
       emits "MaintenanceScheduled"
       then_set :tree_species, to: :tree_species
       then_set :maintenance_type, to: :maintenance_type
@@ -175,7 +175,7 @@ Hecks.bluebook "UrbanForestry", version: "2026.04.13.1" do
       then_set :status, to: "scheduled"
     end
 
-    CompleteMaintenance do
+    command "CompleteMaintenance" do
       role "CrewLead"
       description "Record completion of scheduled maintenance work"
       reference_to(MaintenanceSchedule)
@@ -184,11 +184,11 @@ Hecks.bluebook "UrbanForestry", version: "2026.04.13.1" do
       then_set :status, to: "completed"
     end
 
-    RescheduleMaintenance do
+    command "RescheduleMaintenance" do
       role "Manager"
       description "Reschedule maintenance to a new date"
       reference_to(MaintenanceSchedule)
-      String :next_due_date
+      attribute :next_due_date, String
       given { status == "scheduled" }
       emits "MaintenanceRescheduled"
       then_set :next_due_date, to: :next_due_date
@@ -204,27 +204,27 @@ Hecks.bluebook "UrbanForestry", version: "2026.04.13.1" do
   end
 
   aggregate "TreePermit", "A permit for tree work — removal, pruning of protected species, planting in ROW" do
-    String :permit_type
-    String :tree_species
-    String :site_address
-    String :applicant
-    String :justification
-    String :status
+    attribute :permit_type, String
+    attribute :tree_species, String
+    attribute :site_address, String
+    attribute :applicant, String
+    attribute :justification, String
+    attribute :status, String
 
     value_object "PermitCondition" do
-      String :condition_text
-      String :mitigation_required
-      Integer :replacement_ratio
+      attribute :condition_text, String
+      attribute :mitigation_required, String
+      attribute :replacement_ratio, Integer
     end
 
-    ApplyForPermit do
+    command "ApplyForPermit" do
       role "Applicant"
       description "Submit a tree work permit application"
-      String :permit_type
-      String :tree_species
-      String :site_address
-      String :applicant
-      String :justification
+      attribute :permit_type, String
+      attribute :tree_species, String
+      attribute :site_address, String
+      attribute :applicant, String
+      attribute :justification, String
       emits "PermitApplicationSubmitted"
       then_set :permit_type, to: :permit_type
       then_set :tree_species, to: :tree_species
@@ -234,7 +234,7 @@ Hecks.bluebook "UrbanForestry", version: "2026.04.13.1" do
       then_set :status, to: "submitted"
     end
 
-    ReviewPermit do
+    command "ReviewPermit" do
       role "Inspector"
       description "Review permit application and assess tree condition"
       reference_to(TreePermit)
@@ -242,7 +242,7 @@ Hecks.bluebook "UrbanForestry", version: "2026.04.13.1" do
       then_set :status, to: "reviewed"
     end
 
-    ApprovePermit do
+    command "ApprovePermit" do
       role "Manager"
       description "Approve the tree work permit with conditions"
       reference_to(TreePermit)
@@ -250,7 +250,7 @@ Hecks.bluebook "UrbanForestry", version: "2026.04.13.1" do
       then_set :status, to: "approved"
     end
 
-    DenyPermit do
+    command "DenyPermit" do
       role "Manager"
       description "Deny the tree work permit"
       reference_to(TreePermit)

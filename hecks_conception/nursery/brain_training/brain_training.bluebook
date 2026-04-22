@@ -3,19 +3,19 @@ Hecks.bluebook "BrainTraining", version: "2026.04.13.1" do
   category "healthcare_technology"
 
   aggregate "CognitiveExperiment", "A neuroscience experiment measuring cognitive function" do
-    String :experiment_id
-    String :researcher
-    String :cognitive_domain
-    String :protocol
-    Integer :participant_count
-    String :status
-    DesignExperiment do
+    attribute :experiment_id, String
+    attribute :researcher, String
+    attribute :cognitive_domain, String
+    attribute :protocol, String
+    attribute :participant_count, Integer
+    attribute :status, String
+    command "DesignExperiment" do
       role "Researcher"
       description "Design a cognitive experiment with protocol and metrics"
-      String :experiment_id
-      String :researcher
-      String :cognitive_domain
-      String :protocol
+      attribute :experiment_id, String
+      attribute :researcher, String
+      attribute :cognitive_domain, String
+      attribute :protocol, String
       emits "ExperimentDesigned"
       then_set :experiment_id, to: :experiment_id
       then_set :researcher, to: :researcher
@@ -23,7 +23,7 @@ Hecks.bluebook "BrainTraining", version: "2026.04.13.1" do
       then_set :protocol, to: :protocol
       then_set :status, to: "designed"
     end
-    LaunchExperiment do
+    command "LaunchExperiment" do
       role "Researcher"
       description "Launch the experiment and begin collecting data"
       reference_to(CognitiveExperiment)
@@ -34,26 +34,26 @@ Hecks.bluebook "BrainTraining", version: "2026.04.13.1" do
   end
 
   aggregate "BrainGame", "A gamified cognitive exercise for training" do
-    String :game_id
-    String :name
-    String :cognitive_target
-    String :difficulty
-    Integer :levels
-    String :status
+    attribute :game_id, String
+    attribute :name, String
+    attribute :cognitive_target, String
+    attribute :difficulty, String
+    attribute :levels, Integer
+    attribute :status, String
     list_of(GameLevel) :game_levels
     value_object "GameLevel" do
-      Integer :level_number
-      Float :time_limit_seconds
-      Integer :stimuli_count
+      attribute :level_number, Integer
+      attribute :time_limit_seconds, Float
+      attribute :stimuli_count, Integer
     end
-    DesignGame do
+    command "DesignGame" do
       role "GameDesigner"
       description "Design a gamified brain training exercise"
-      String :game_id
-      String :name
-      String :cognitive_target
-      String :difficulty
-      Integer :levels
+      attribute :game_id, String
+      attribute :name, String
+      attribute :cognitive_target, String
+      attribute :difficulty, String
+      attribute :levels, Integer
       emits "GameDesigned"
       then_set :game_id, to: :game_id
       then_set :name, to: :name
@@ -62,7 +62,7 @@ Hecks.bluebook "BrainTraining", version: "2026.04.13.1" do
       then_set :levels, to: :levels
       then_set :status, to: "active"
     end
-    PlayGame do
+    command "PlayGame" do
       role "Participant"
       description "Play a brain training game session"
       reference_to(BrainGame)
@@ -72,20 +72,20 @@ Hecks.bluebook "BrainTraining", version: "2026.04.13.1" do
   end
 
   aggregate "CognitiveScore", "A participant cognitive performance score" do
-    String :score_id
-    String :participant_id
-    String :game_id
-    Float :accuracy
-    Float :reaction_time_ms
-    Float :composite_score
-    RecordScore do
+    attribute :score_id, String
+    attribute :participant_id, String
+    attribute :game_id, String
+    attribute :accuracy, Float
+    attribute :reaction_time_ms, Float
+    attribute :composite_score, Float
+    command "RecordScore" do
       role "System"
       description "Record cognitive performance scores from a game session"
-      String :score_id
-      String :participant_id
-      String :game_id
-      Float :accuracy
-      Float :reaction_time_ms
+      attribute :score_id, String
+      attribute :participant_id, String
+      attribute :game_id, String
+      attribute :accuracy, Float
+      attribute :reaction_time_ms, Float
       emits "ScoreRecorded"
       then_set :score_id, to: :score_id
       then_set :participant_id, to: :participant_id
@@ -93,37 +93,37 @@ Hecks.bluebook "BrainTraining", version: "2026.04.13.1" do
       then_set :accuracy, to: :accuracy
       then_set :reaction_time_ms, to: :reaction_time_ms
     end
-    CalculateComposite do
+    command "CalculateComposite" do
       role "System"
       description "Calculate composite cognitive score from accuracy and reaction time"
       reference_to(CognitiveScore)
-      Float :composite_score
+      attribute :composite_score, Float
       emits "CompositeCalculated"
       then_set :composite_score, to: :composite_score
     end
   end
 
   aggregate "TrainingPlan", "A personalized brain training plan based on cognitive profile" do
-    String :plan_id
-    String :participant_id
+    attribute :plan_id, String
+    attribute :participant_id, String
     list_of(PlanItem) :items
-    String :status
+    attribute :status, String
     value_object "PlanItem" do
-      String :game_id
-      Integer :sessions_per_week
-      String :target_improvement
+      attribute :game_id, String
+      attribute :sessions_per_week, Integer
+      attribute :target_improvement, String
     end
-    PrescribeTrainingPlan do
+    command "PrescribeTrainingPlan" do
       role "System"
       description "Prescribe a personalized training plan from cognitive scores"
-      String :plan_id
-      String :participant_id
+      attribute :plan_id, String
+      attribute :participant_id, String
       emits "TrainingPlanPrescribed"
       then_set :plan_id, to: :plan_id
       then_set :participant_id, to: :participant_id
       then_set :status, to: "active"
     end
-    AdjustPlan do
+    command "AdjustPlan" do
       role "System"
       description "Adjust the training plan based on score improvement trends"
       reference_to(TrainingPlan)

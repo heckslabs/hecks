@@ -3,20 +3,20 @@ Hecks.bluebook "TeletherapyPlatform", version: "2026.04.13.1" do
   category "healthcare_technology"
 
   aggregate "TherapySession", "A scheduled mental health session between therapist and client" do
-    String :session_id
-    String :client_name
-    String :therapist_name
-    String :session_type
-    String :scheduled_time
-    String :status
-    ScheduleSession do
+    attribute :session_id, String
+    attribute :client_name, String
+    attribute :therapist_name, String
+    attribute :session_type, String
+    attribute :scheduled_time, String
+    attribute :status, String
+    command "ScheduleSession" do
       role "Scheduler"
       description "Schedule a teletherapy session for a client"
-      String :session_id
-      String :client_name
-      String :therapist_name
-      String :session_type
-      String :scheduled_time
+      attribute :session_id, String
+      attribute :client_name, String
+      attribute :therapist_name, String
+      attribute :session_type, String
+      attribute :scheduled_time, String
       emits "SessionScheduled"
       then_set :session_id, to: :session_id
       then_set :client_name, to: :client_name
@@ -25,7 +25,7 @@ Hecks.bluebook "TeletherapyPlatform", version: "2026.04.13.1" do
       then_set :scheduled_time, to: :scheduled_time
       then_set :status, to: "scheduled"
     end
-    StartSession do
+    command "StartSession" do
       role "Therapist"
       description "Begin the teletherapy video session"
       reference_to(TherapySession)
@@ -33,7 +33,7 @@ Hecks.bluebook "TeletherapyPlatform", version: "2026.04.13.1" do
       emits "SessionStarted"
       then_set :status, to: "in_progress"
     end
-    EndSession do
+    command "EndSession" do
       role "Therapist"
       description "End the teletherapy session and record duration"
       reference_to(TherapySession)
@@ -44,17 +44,17 @@ Hecks.bluebook "TeletherapyPlatform", version: "2026.04.13.1" do
   end
 
   aggregate "VideoRoom", "A virtual video room for conducting therapy sessions" do
-    String :room_id
-    String :session_id
-    String :stream_url
-    String :recording_status
-    String :status
-    ProvisionRoom do
+    attribute :room_id, String
+    attribute :session_id, String
+    attribute :stream_url, String
+    attribute :recording_status, String
+    attribute :status, String
+    command "ProvisionRoom" do
       role "System"
       description "Provision a video room and generate stream URL for a session"
-      String :room_id
-      String :session_id
-      String :stream_url
+      attribute :room_id, String
+      attribute :session_id, String
+      attribute :stream_url, String
       emits "RoomProvisioned"
       then_set :room_id, to: :room_id
       then_set :session_id, to: :session_id
@@ -62,7 +62,7 @@ Hecks.bluebook "TeletherapyPlatform", version: "2026.04.13.1" do
       then_set :status, to: "ready"
       then_set :recording_status, to: "off"
     end
-    StartRecording do
+    command "StartRecording" do
       role "System"
       description "Begin recording the session with client consent"
       reference_to(VideoRoom)
@@ -70,7 +70,7 @@ Hecks.bluebook "TeletherapyPlatform", version: "2026.04.13.1" do
       emits "RecordingStarted"
       then_set :recording_status, to: "recording"
     end
-    CloseRoom do
+    command "CloseRoom" do
       role "System"
       description "Tear down the video room after session ends"
       reference_to(VideoRoom)
@@ -80,29 +80,29 @@ Hecks.bluebook "TeletherapyPlatform", version: "2026.04.13.1" do
   end
 
   aggregate "ClientAccount", "A client account with insurance and payment details" do
-    String :client_id
-    String :name
-    String :insurance_provider
-    String :copay_amount
-    String :status
+    attribute :client_id, String
+    attribute :name, String
+    attribute :insurance_provider, String
+    attribute :copay_amount, String
+    attribute :status, String
     value_object "InsuranceDetail" do
-      String :provider
-      String :policy_number
-      String :group_number
+      attribute :provider, String
+      attribute :policy_number, String
+      attribute :group_number, String
     end
-    RegisterClient do
+    command "RegisterClient" do
       role "Intake"
       description "Register a new therapy client with insurance details"
-      String :client_id
-      String :name
-      String :insurance_provider
+      attribute :client_id, String
+      attribute :name, String
+      attribute :insurance_provider, String
       emits "ClientRegistered"
       then_set :client_id, to: :client_id
       then_set :name, to: :name
       then_set :insurance_provider, to: :insurance_provider
       then_set :status, to: "active"
     end
-    DeactivateClient do
+    command "DeactivateClient" do
       role "Admin"
       description "Deactivate a client account"
       reference_to(ClientAccount)
@@ -113,18 +113,18 @@ Hecks.bluebook "TeletherapyPlatform", version: "2026.04.13.1" do
   end
 
   aggregate "BillingRecord", "An invoice for a completed therapy session" do
-    String :invoice_id
-    String :session_id
-    String :client_id
-    Float :amount
-    String :status
-    IssueInvoice do
+    attribute :invoice_id, String
+    attribute :session_id, String
+    attribute :client_id, String
+    attribute :amount, Float
+    attribute :status, String
+    command "IssueInvoice" do
       role "System"
       description "Issue an invoice for a completed therapy session"
-      String :invoice_id
-      String :session_id
-      String :client_id
-      Float :amount
+      attribute :invoice_id, String
+      attribute :session_id, String
+      attribute :client_id, String
+      attribute :amount, Float
       emits "InvoiceIssued"
       then_set :invoice_id, to: :invoice_id
       then_set :session_id, to: :session_id
@@ -132,7 +132,7 @@ Hecks.bluebook "TeletherapyPlatform", version: "2026.04.13.1" do
       then_set :amount, to: :amount
       then_set :status, to: "pending"
     end
-    MarkPaid do
+    command "MarkPaid" do
       role "BillingClerk"
       description "Mark an invoice as paid after payment received"
       reference_to(BillingRecord)

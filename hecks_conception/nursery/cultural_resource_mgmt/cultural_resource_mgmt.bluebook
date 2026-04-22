@@ -3,27 +3,27 @@ Hecks.bluebook "CulturalResourceMgmt", version: "2026.04.13.1" do
   category "crossover"
 
   aggregate "ArchaeologicalSite", "A discovered site — location, era, significance, artifact count" do
-    String :site_id
-    String :location
-    String :era_period
-    String :significance_level
-    Integer :artifact_count
-    String :status
+    attribute :site_id, String
+    attribute :location, String
+    attribute :era_period, String
+    attribute :significance_level, String
+    attribute :artifact_count, Integer
+    attribute :status, String
 
     value_object "Stratigraphy" do
-      Integer :layer_number
-      String :soil_type
-      Float :depth_m
-      String :period
+      attribute :layer_number, Integer
+      attribute :soil_type, String
+      attribute :depth_m, Float
+      attribute :period, String
     end
 
-    DiscoverSite do
+    command "DiscoverSite" do
       role "Archaeologist"
       description "Record discovery of an archaeological site during construction survey"
-      String :site_id
-      String :location
-      String :era_period
-      String :significance_level
+      attribute :site_id, String
+      attribute :location, String
+      attribute :era_period, String
+      attribute :significance_level, String
       emits "SiteDiscovered"
       then_set :site_id, to: :site_id
       then_set :location, to: :location
@@ -33,7 +33,7 @@ Hecks.bluebook "CulturalResourceMgmt", version: "2026.04.13.1" do
       then_set :status, to: "discovered"
     end
 
-    AssessSite do
+    command "AssessSite" do
       role "Archaeologist"
       description "Evaluate site significance and determine if excavation is needed"
       reference_to(ArchaeologicalSite)
@@ -42,7 +42,7 @@ Hecks.bluebook "CulturalResourceMgmt", version: "2026.04.13.1" do
       then_set :status, to: "assessed"
     end
 
-    ExcavateSite do
+    command "ExcavateSite" do
       role "Archaeologist"
       description "Begin controlled excavation of the site"
       reference_to(ArchaeologicalSite)
@@ -51,7 +51,7 @@ Hecks.bluebook "CulturalResourceMgmt", version: "2026.04.13.1" do
       then_set :status, to: "excavating"
     end
 
-    ClearSite do
+    command "ClearSite" do
       role "Archaeologist"
       description "Clear site for construction after excavation complete"
       reference_to(ArchaeologicalSite)
@@ -69,29 +69,29 @@ Hecks.bluebook "CulturalResourceMgmt", version: "2026.04.13.1" do
   end
 
   aggregate "Artifact", "A recovered artifact — type, provenance, condition, catalog number" do
-    String :catalog_number
-    String :artifact_type
-    String :site_id
-    Float :depth_found_m
-    String :condition
-    String :preservation_method
-    String :status
+    attribute :catalog_number, String
+    attribute :artifact_type, String
+    attribute :site_id, String
+    attribute :depth_found_m, Float
+    attribute :condition, String
+    attribute :preservation_method, String
+    attribute :status, String
 
     value_object "Provenance" do
-      String :grid_square
-      Float :depth_m
-      String :context
-      String :associated_features
+      attribute :grid_square, String
+      attribute :depth_m, Float
+      attribute :context, String
+      attribute :associated_features, String
     end
 
-    CatalogArtifact do
+    command "CatalogArtifact" do
       role "Archaeologist"
       description "Catalog a recovered artifact with provenance data"
-      String :catalog_number
-      String :artifact_type
-      String :site_id
-      Float :depth_found_m
-      String :condition
+      attribute :catalog_number, String
+      attribute :artifact_type, String
+      attribute :site_id, String
+      attribute :depth_found_m, Float
+      attribute :condition, String
       emits "ArtifactCataloged"
       then_set :catalog_number, to: :catalog_number
       then_set :artifact_type, to: :artifact_type
@@ -101,11 +101,11 @@ Hecks.bluebook "CulturalResourceMgmt", version: "2026.04.13.1" do
       then_set :status, to: "cataloged"
     end
 
-    PreserveArtifact do
+    command "PreserveArtifact" do
       role "Conservator"
       description "Apply preservation treatment to stabilize the artifact"
       reference_to(Artifact)
-      String :preservation_method
+      attribute :preservation_method, String
       given { status == "cataloged" }
       emits "ArtifactPreserved"
       then_set :preservation_method, to: :preservation_method
@@ -119,27 +119,27 @@ Hecks.bluebook "CulturalResourceMgmt", version: "2026.04.13.1" do
   end
 
   aggregate "ConstructionPhase", "A construction phase — timeline, area, coordination with archaeology" do
-    String :phase_name
-    String :project_name
-    String :area
-    String :start_date
-    String :end_date
-    String :status
+    attribute :phase_name, String
+    attribute :project_name, String
+    attribute :area, String
+    attribute :start_date, String
+    attribute :end_date, String
+    attribute :status, String
 
     list_of "WorkZone" do
-      String :zone_id
-      String :activity
-      String :archaeological_clearance
+      attribute :zone_id, String
+      attribute :activity, String
+      attribute :archaeological_clearance, String
     end
 
-    PlanPhase do
+    command "PlanPhase" do
       role "ProjectManager"
       description "Plan a construction phase with timeline and work areas"
-      String :phase_name
-      String :project_name
-      String :area
-      String :start_date
-      String :end_date
+      attribute :phase_name, String
+      attribute :project_name, String
+      attribute :area, String
+      attribute :start_date, String
+      attribute :end_date, String
       emits "PhasePlanned"
       then_set :phase_name, to: :phase_name
       then_set :project_name, to: :project_name
@@ -149,7 +149,7 @@ Hecks.bluebook "CulturalResourceMgmt", version: "2026.04.13.1" do
       then_set :status, to: "planned"
     end
 
-    HaltForArchaeology do
+    command "HaltForArchaeology" do
       role "Archaeologist"
       description "Halt construction phase due to archaeological discovery"
       reference_to(ConstructionPhase)
@@ -158,7 +158,7 @@ Hecks.bluebook "CulturalResourceMgmt", version: "2026.04.13.1" do
       then_set :status, to: "halted"
     end
 
-    ResumePhase do
+    command "ResumePhase" do
       role "ProjectManager"
       description "Resume construction after archaeological clearance"
       reference_to(ConstructionPhase)
@@ -167,7 +167,7 @@ Hecks.bluebook "CulturalResourceMgmt", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    CompletePhase do
+    command "CompletePhase" do
       role "ProjectManager"
       description "Mark construction phase as complete"
       reference_to(ConstructionPhase)
@@ -185,26 +185,26 @@ Hecks.bluebook "CulturalResourceMgmt", version: "2026.04.13.1" do
   end
 
   aggregate "PreservationPermit", "A permit for cultural resource preservation — conditions, monitoring" do
-    String :permit_number
-    String :site_id
-    String :applicant
-    String :permit_type
-    String :conditions
-    String :status
+    attribute :permit_number, String
+    attribute :site_id, String
+    attribute :applicant, String
+    attribute :permit_type, String
+    attribute :conditions, String
+    attribute :status, String
 
     value_object "MonitoringRequirement" do
-      String :frequency
-      String :method
-      Integer :duration_months
+      attribute :frequency, String
+      attribute :method, String
+      attribute :duration_months, Integer
     end
 
-    ApplyForPreservationPermit do
+    command "ApplyForPreservationPermit" do
       role "ProjectManager"
       description "Apply for permit to proceed with construction near cultural resources"
-      String :permit_number
-      String :site_id
-      String :applicant
-      String :permit_type
+      attribute :permit_number, String
+      attribute :site_id, String
+      attribute :applicant, String
+      attribute :permit_type, String
       emits "PreservationPermitApplied"
       then_set :permit_number, to: :permit_number
       then_set :site_id, to: :site_id
@@ -213,18 +213,18 @@ Hecks.bluebook "CulturalResourceMgmt", version: "2026.04.13.1" do
       then_set :status, to: "applied"
     end
 
-    ReviewPreservationPermit do
+    command "ReviewPreservationPermit" do
       role "Inspector"
       description "Review permit against cultural resource regulations"
       reference_to(PreservationPermit)
-      String :conditions
+      attribute :conditions, String
       given { status == "applied" }
       emits "PreservationPermitReviewed"
       then_set :conditions, to: :conditions
       then_set :status, to: "reviewed"
     end
 
-    GrantPermit do
+    command "GrantPermit" do
       role "Authority"
       description "Grant preservation permit with conditions"
       reference_to(PreservationPermit)

@@ -1,35 +1,35 @@
 Hecks.bluebook "ColdChainLogistics" do
   aggregate "ColdShipment" do
-    String :shipment_id
-    String :customer_name
-    String :product_type
-    Float :weight_kg
-    Float :required_temp_c
-    Float :temp_tolerance_c
-    String :status
+    attribute :shipment_id, String
+    attribute :customer_name, String
+    attribute :product_type, String
+    attribute :weight_kg, Float
+    attribute :required_temp_c, Float
+    attribute :temp_tolerance_c, Float
+    attribute :status, String
     list_of "TemperatureLog"
 
-    BookColdShipment do
+    command "BookColdShipment" do
       description "Accept booking for temperature-controlled freight with specs"
-      String :customer_name
-      String :product_type
-      Float :required_temp_c
+      attribute :customer_name, String
+      attribute :product_type, String
+      attribute :required_temp_c, Float
       reference_to "ColdShipment"
       emits "ColdShipmentBooked"
     end
 
-    PickUpShipment do
+    command "PickUpShipment" do
       description "Collect shipment from shipper facility into reefer unit"
-      String :pickup_location
-      Float :pickup_temp_c
+      attribute :pickup_location, String
+      attribute :pickup_temp_c, Float
       reference_to "ColdShipment"
       emits "ShipmentPickedUp"
     end
 
-    DeliverShipment do
+    command "DeliverShipment" do
       description "Complete delivery and capture proof of temperature-compliant receipt"
-      String :receiver_name
-      Float :delivery_temp_c
+      attribute :receiver_name, String
+      attribute :delivery_temp_c, Float
       reference_to "ColdShipment"
       emits "ShipmentDelivered"
     end
@@ -44,38 +44,38 @@ Hecks.bluebook "ColdChainLogistics" do
     policy "Perishable goods must be delivered within maximum transit time"
 
     given "A pharmaceutical cold shipment is booked" do
-      String :product_type, "Vaccines"
-      Float :required_temp_c, 4.0
-      Float :temp_tolerance_c, 2.0
+      attribute :product_type, String, "Vaccines"
+      attribute :required_temp_c, Float, 4.0
+      attribute :temp_tolerance_c, Float, 2.0
     end
   end
 
   aggregate "TemperatureLog" do
-    String :log_id
-    String :sensor_id
-    String :timestamp
-    Float :recorded_temp_c
-    String :location
-    String :status
+    attribute :log_id, String
+    attribute :sensor_id, String
+    attribute :timestamp, String
+    attribute :recorded_temp_c, Float
+    attribute :location, String
+    attribute :status, String
 
     value_object "SensorReading" do
-      Float :temperature_c
-      Float :humidity_percent
-      String :sensor_battery_status
+      attribute :temperature_c, Float
+      attribute :humidity_percent, Float
+      attribute :sensor_battery_status, String
     end
 
-    RecordTemperature do
+    command "RecordTemperature" do
       description "Capture temperature reading from IoT sensor in transit unit"
-      String :sensor_id
-      Float :recorded_temp_c
+      attribute :sensor_id, String
+      attribute :recorded_temp_c, Float
       reference_to "ColdShipment"
       emits "TemperatureRecorded"
     end
 
-    DetectExcursion do
+    command "DetectExcursion" do
       description "Flag temperature reading outside acceptable range as excursion"
-      Float :excursion_temp_c
-      Float :duration_minutes
+      attribute :excursion_temp_c, Float
+      attribute :duration_minutes, Float
       reference_to "TemperatureLog"
       emits "ExcursionDetected"
     end
@@ -89,30 +89,30 @@ Hecks.bluebook "ColdChainLogistics" do
   end
 
   aggregate "ReeferVehicle" do
-    String :vehicle_id
-    String :vehicle_type
-    Float :cargo_volume_m3
-    Float :min_temp_capability_c
-    Float :max_temp_capability_c
-    String :status
+    attribute :vehicle_id, String
+    attribute :vehicle_type, String
+    attribute :cargo_volume_m3, Float
+    attribute :min_temp_capability_c, Float
+    attribute :max_temp_capability_c, Float
+    attribute :status, String
 
-    PreCoolUnit do
+    command "PreCoolUnit" do
       description "Pre-cool reefer unit to target temperature before loading"
-      Float :target_temp_c
-      Float :pre_cool_duration_min
+      attribute :target_temp_c, Float
+      attribute :pre_cool_duration_min, Float
       reference_to "ReeferVehicle"
       emits "UnitPreCooled"
     end
 
-    AssignVehicle do
+    command "AssignVehicle" do
       description "Assign reefer truck or container to cold shipment"
-      String :shipment_id
-      Float :set_temp_c
+      attribute :shipment_id, String
+      attribute :set_temp_c, Float
       reference_to "ColdShipment"
       emits "VehicleAssigned"
     end
 
-    ReleaseVehicle do
+    command "ReleaseVehicle" do
       description "Return vehicle to available pool after delivery completion"
       reference_to "ReeferVehicle"
       emits "VehicleReleased"
@@ -128,30 +128,30 @@ Hecks.bluebook "ColdChainLogistics" do
   end
 
   aggregate "ComplianceCertificate" do
-    String :certificate_id
-    String :shipment_id
-    String :standard
-    String :issued_by
-    String :status
+    attribute :certificate_id, String
+    attribute :shipment_id, String
+    attribute :standard, String
+    attribute :issued_by, String
+    attribute :status, String
 
     value_object "ChainOfCustody" do
-      String :handoff_point
-      String :handler_name
-      Float :temperature_at_handoff_c
-      String :timestamp
+      attribute :handoff_point, String
+      attribute :handler_name, String
+      attribute :temperature_at_handoff_c, Float
+      attribute :timestamp, String
     end
 
-    IssueCertificate do
+    command "IssueCertificate" do
       description "Generate cold chain compliance certificate from logged data"
-      String :standard
-      String :issued_by
+      attribute :standard, String
+      attribute :issued_by, String
       reference_to "ColdShipment"
       emits "CertificateIssued"
     end
 
-    RevokeCertificate do
+    command "RevokeCertificate" do
       description "Revoke certificate due to discovered temperature excursion"
-      String :revocation_reason
+      attribute :revocation_reason, String
       reference_to "ComplianceCertificate"
       emits "CertificateRevoked"
     end
@@ -165,24 +165,24 @@ Hecks.bluebook "ColdChainLogistics" do
   end
 
   aggregate "ExcursionAlert" do
-    String :alert_id
-    String :shipment_id
-    String :severity
-    String :alert_source
-    String :status
+    attribute :alert_id, String
+    attribute :shipment_id, String
+    attribute :severity, String
+    attribute :alert_source, String
+    attribute :status, String
 
-    RaiseAlert do
+    command "RaiseAlert" do
       description "Trigger alert to operations team for temperature deviation"
-      String :severity
-      String :alert_source
+      attribute :severity, String
+      attribute :alert_source, String
       reference_to "ColdShipment"
       emits "AlertRaised"
     end
 
-    ResolveAlert do
+    command "ResolveAlert" do
       description "Close alert after corrective action restores temperature compliance"
-      String :resolution_action
-      String :resolved_by
+      attribute :resolution_action, String
+      attribute :resolved_by, String
       reference_to "ExcursionAlert"
       emits "AlertResolved"
     end

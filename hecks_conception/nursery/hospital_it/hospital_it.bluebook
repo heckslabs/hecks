@@ -3,25 +3,25 @@ Hecks.bluebook "HospitalIT", version: "2026.04.13.1" do
   category "healthcare_technology"
 
   aggregate "PatientRecord", "An electronic health record stored and served by hospital infrastructure" do
-    String :medical_record_number
-    String :patient_name
-    String :department
-    String :record_status
+    attribute :medical_record_number, String
+    attribute :patient_name, String
+    attribute :department, String
+    attribute :record_status, String
     list_of(ClinicalEntry) :entries
 
     value_object "ClinicalEntry" do
-      String :entry_type
-      String :content
-      String :author
-      String :timestamp
+      attribute :entry_type, String
+      attribute :content, String
+      attribute :author, String
+      attribute :timestamp, String
     end
 
-    OpenRecord do
+    command "OpenRecord" do
       role "Registrar"
       description "Register a new patient record in the electronic health system"
-      String :medical_record_number
-      String :patient_name
-      String :department
+      attribute :medical_record_number, String
+      attribute :patient_name, String
+      attribute :department, String
       emits "RecordOpened"
       then_set :medical_record_number, to: :medical_record_number
       then_set :patient_name, to: :patient_name
@@ -29,47 +29,47 @@ Hecks.bluebook "HospitalIT", version: "2026.04.13.1" do
       then_set :record_status, to: "active"
     end
 
-    AddEntry do
+    command "AddEntry" do
       role "Clinician"
       description "Append a clinical entry to the patient record"
       reference_to(PatientRecord)
-      String :entry_type
-      String :content
-      String :author
+      attribute :entry_type, String
+      attribute :content, String
+      attribute :author, String
       emits "EntryAdded"
     end
   end
 
   aggregate "Server", "A physical or virtual server hosting hospital apps" do
-    String :hostname
-    String :role
-    Float :cpu_pct
-    Float :memory_pct
-    String :status
+    attribute :hostname, String
+    attribute :role, String
+    attribute :cpu_pct, Float
+    attribute :memory_pct, Float
+    attribute :status, String
 
-    DeployServer do
+    command "DeployServer" do
       role "SysAdmin"
       description "Deploy a new server into the hospital data center"
-      String :hostname
-      String :role
+      attribute :hostname, String
+      attribute :role, String
       emits "ServerDeployed"
       then_set :hostname, to: :hostname
       then_set :role, to: :role
       then_set :status, to: "running"
     end
 
-    CheckHealth do
+    command "CheckHealth" do
       role "System"
       description "Check CPU, memory, and disk against thresholds"
       reference_to(Server)
-      Float :cpu_pct
-      Float :memory_pct
+      attribute :cpu_pct, Float
+      attribute :memory_pct, Float
       emits "HealthChecked"
       then_set :cpu_pct, to: :cpu_pct
       then_set :memory_pct, to: :memory_pct
     end
 
-    TakeOffline do
+    command "TakeOffline" do
       role "SysAdmin"
       description "Gracefully remove server from load balancer for maintenance"
       reference_to(Server)
@@ -80,19 +80,19 @@ Hecks.bluebook "HospitalIT", version: "2026.04.13.1" do
   end
 
   aggregate "Backup", "A disaster recovery backup of hospital data" do
-    String :backup_id
-    String :source_server
-    String :backup_type
-    String :storage_path
-    String :status
-    Float :size_gb
+    attribute :backup_id, String
+    attribute :source_server, String
+    attribute :backup_type, String
+    attribute :storage_path, String
+    attribute :status, String
+    attribute :size_gb, Float
 
-    StartBackup do
+    command "StartBackup" do
       role "SysAdmin"
       description "Start a full or incremental backup of a hospital server"
-      String :backup_id
-      String :source_server
-      String :backup_type
+      attribute :backup_id, String
+      attribute :source_server, String
+      attribute :backup_type, String
       emits "BackupStarted"
       then_set :backup_id, to: :backup_id
       then_set :source_server, to: :source_server
@@ -100,12 +100,12 @@ Hecks.bluebook "HospitalIT", version: "2026.04.13.1" do
       then_set :status, to: "in_progress"
     end
 
-    FinishBackup do
+    command "FinishBackup" do
       role "System"
       description "Mark backup as completed with size and storage path"
       reference_to(Backup)
-      String :storage_path
-      Float :size_gb
+      attribute :storage_path, String
+      attribute :size_gb, Float
       given { status == "in_progress" }
       emits "BackupFinished"
       then_set :storage_path, to: :storage_path
@@ -113,7 +113,7 @@ Hecks.bluebook "HospitalIT", version: "2026.04.13.1" do
       then_set :status, to: "completed"
     end
 
-    RestoreBackup do
+    command "RestoreBackup" do
       role "SysAdmin"
       description "Restore hospital data from backup after failure"
       reference_to(Backup)
@@ -124,27 +124,27 @@ Hecks.bluebook "HospitalIT", version: "2026.04.13.1" do
   end
 
   aggregate "RecoveryPlan", "A documented plan for recovering hospital IT after catastrophic failure" do
-    String :plan_name
-    String :tier
-    Float :rto_hours
-    Float :rpo_hours
+    attribute :plan_name, String
+    attribute :tier, String
+    attribute :rto_hours, Float
+    attribute :rpo_hours, Float
     list_of(RecoveryStep) :steps
-    String :status
+    attribute :status, String
 
     value_object "RecoveryStep" do
-      Integer :sequence
-      String :action_name
-      String :team
-      Float :estimated_minutes
+      attribute :sequence, Integer
+      attribute :action_name, String
+      attribute :team, String
+      attribute :estimated_minutes, Float
     end
 
-    DefinePlan do
+    command "DefinePlan" do
       role "ITDirector"
       description "Create a disaster recovery plan with RTO and RPO targets"
-      String :plan_name
-      String :tier
-      Float :rto_hours
-      Float :rpo_hours
+      attribute :plan_name, String
+      attribute :tier, String
+      attribute :rto_hours, Float
+      attribute :rpo_hours, Float
       emits "PlanDefined"
       then_set :plan_name, to: :plan_name
       then_set :tier, to: :tier
@@ -153,7 +153,7 @@ Hecks.bluebook "HospitalIT", version: "2026.04.13.1" do
       then_set :status, to: "draft"
     end
 
-    ActivatePlan do
+    command "ActivatePlan" do
       role "ITDirector"
       description "Activate the disaster recovery plan during an incident"
       reference_to(RecoveryPlan)

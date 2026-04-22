@@ -1,24 +1,24 @@
 Hecks.bluebook "Upholstery" do
   aggregate "UpholsteryProject", "A furniture reupholstery job from teardown to delivery" do
-    String :piece_description
-    String :furniture_type
-    String :status, default: "assessed"
-    String :client_name
-    Float :quoted_price
+    attribute :piece_description, String
+    attribute :furniture_type, String
+    attribute :status, String, default: "assessed"
+    attribute :client_name, String
+    attribute :quoted_price, Float
 
-    AssessProject do
+    command "AssessProject" do
       description "Inspect the furniture piece and assess scope of work"
-      String :piece_description
-      String :furniture_type
-      String :client_name
+      attribute :piece_description, String
+      attribute :furniture_type, String
+      attribute :client_name, String
       emits "ProjectAssessed"
       then_set :status, to: "assessed"
     end
 
-    ApproveEstimate do
+    command "ApproveEstimate" do
       description "Client approves the estimate and work begins"
       reference_to(UpholsteryProject)
-      Float :quoted_price
+      attribute :quoted_price, Float
       given { status == "assessed" }
       emits "EstimateApproved"
       then_set :status, to: "approved"
@@ -28,7 +28,7 @@ Hecks.bluebook "Upholstery" do
     fixture "UpholsteryProject", piece_description: "Victorian Sofa", furniture_type: "sofa", status: "approved", client_name: "Margaret Powell", quoted_price: 2500.00
     fixture "UpholsteryProject", piece_description: "Wingback Armchair", furniture_type: "chair", status: "in_progress", client_name: "Robert Chen", quoted_price: 1200.00
 
-    BeginWork do
+    command "BeginWork" do
       description "Start the teardown and reupholstery process"
       reference_to(UpholsteryProject)
       given { status == "approved" }
@@ -36,7 +36,7 @@ Hecks.bluebook "Upholstery" do
       then_set :status, to: "in_progress"
     end
 
-    CompleteProject do
+    command "CompleteProject" do
       description "Finish the upholstery and prepare for pickup"
       reference_to(UpholsteryProject)
       given { status == "in_progress" }
@@ -46,34 +46,34 @@ Hecks.bluebook "Upholstery" do
   end
 
   aggregate "FabricSelection", "Fabric chosen for a project with yardage and specs" do
-    String :fabric_name
-    String :material
-    String :color
-    Float :yards_needed
-    Float :price_per_yard
-    String :status, default: "selected"
+    attribute :fabric_name, String
+    attribute :material, String
+    attribute :color, String
+    attribute :yards_needed, Float
+    attribute :price_per_yard, Float
+    attribute :status, String, default: "selected"
     reference_to(UpholsteryProject)
 
     value_object "FabricSpec" do
-      Float :width_inches
-      Integer :thread_count
-      String :weave_type
-      String :durability_rating
+      attribute :width_inches, Float
+      attribute :thread_count, Integer
+      attribute :weave_type, String
+      attribute :durability_rating, String
     end
 
-    SelectFabric do
+    command "SelectFabric" do
       description "Choose upholstery fabric from swatches"
       reference_to(UpholsteryProject)
-      String :fabric_name
-      String :material
-      String :color
-      Float :yards_needed
-      Float :price_per_yard
+      attribute :fabric_name, String
+      attribute :material, String
+      attribute :color, String
+      attribute :yards_needed, Float
+      attribute :price_per_yard, Float
       emits "FabricSelected"
       then_set :status, to: "selected"
     end
 
-    OrderFabric do
+    command "OrderFabric" do
       description "Place the fabric order with the mill or distributor"
       reference_to(FabricSelection)
       given { status == "selected" }
@@ -81,7 +81,7 @@ Hecks.bluebook "Upholstery" do
       then_set :status, to: "ordered"
     end
 
-    ReceiveFabric do
+    command "ReceiveFabric" do
       description "Check in the fabric delivery and inspect for defects"
       reference_to(FabricSelection)
       given { status == "ordered" }
@@ -94,35 +94,35 @@ Hecks.bluebook "Upholstery" do
   end
 
   aggregate "FrameWork", "The furniture frame — repair, refinish, or rebuild" do
-    String :frame_material
-    String :condition
-    String :status, default: "inspected"
-    String :repair_notes
+    attribute :frame_material, String
+    attribute :condition, String
+    attribute :status, String, default: "inspected"
+    attribute :repair_notes, String
     reference_to(UpholsteryProject)
 
-    InspectFrame do
+    command "InspectFrame" do
       description "Strip old upholstery and inspect the frame"
       reference_to(UpholsteryProject)
-      String :frame_material
-      String :condition
+      attribute :frame_material, String
+      attribute :condition, String
       emits "FrameInspected"
       then_set :status, to: "inspected"
     end
 
-    RepairFrame do
+    command "RepairFrame" do
       description "Fix structural issues in the furniture frame"
       reference_to(FrameWork)
-      String :repair_notes
+      attribute :repair_notes, String
       given { status == "inspected" }
       emits "FrameRepaired"
       then_set :status, to: "repaired"
       then_set :repair_notes, to: :repair_notes
     end
 
-    RefinishFrame do
+    command "RefinishFrame" do
       description "Sand and refinish exposed wood on the frame"
       reference_to(FrameWork)
-      String :finish_type
+      attribute :finish_type, String
       emits "FrameRefinished"
     end
 
@@ -131,29 +131,29 @@ Hecks.bluebook "Upholstery" do
   end
 
   aggregate "Estimate", "A detailed cost estimate for an upholstery job" do
-    Float :labor_cost
-    Float :material_cost
-    Float :total
-    String :status, default: "draft"
+    attribute :labor_cost, Float
+    attribute :material_cost, Float
+    attribute :total, Float
+    attribute :status, String, default: "draft"
     reference_to(UpholsteryProject)
 
     value_object "LineItem" do
-      String :description
-      Float :quantity
-      Float :unit_price
-      String :category
+      attribute :description, String
+      attribute :quantity, Float
+      attribute :unit_price, Float
+      attribute :category, String
     end
 
-    DraftEstimate do
+    command "DraftEstimate" do
       description "Create a detailed estimate breaking down labor and materials"
       reference_to(UpholsteryProject)
-      Float :labor_cost
-      Float :material_cost
+      attribute :labor_cost, Float
+      attribute :material_cost, Float
       emits "EstimateDrafted"
       then_set :status, to: "draft"
     end
 
-    SendEstimate do
+    command "SendEstimate" do
       description "Send the estimate to the client for review"
       reference_to(Estimate)
       given { status == "draft" }
@@ -166,23 +166,23 @@ Hecks.bluebook "Upholstery" do
   end
 
   aggregate "UpholsteryDelivery", "Delivery or pickup of finished upholstered furniture" do
-    String :delivery_type
-    String :address
-    String :date
-    String :status, default: "scheduled"
+    attribute :delivery_type, String
+    attribute :address, String
+    attribute :date, String
+    attribute :status, String, default: "scheduled"
     reference_to(UpholsteryProject)
 
-    ScheduleDelivery do
+    command "ScheduleDelivery" do
       description "Book delivery or pickup for the finished piece"
       reference_to(UpholsteryProject)
-      String :delivery_type
-      String :address
-      String :date
+      attribute :delivery_type, String
+      attribute :address, String
+      attribute :date, String
       emits "DeliveryScheduled"
       then_set :status, to: "scheduled"
     end
 
-    CompleteDelivery do
+    command "CompleteDelivery" do
       description "Confirm the furniture was delivered to the client"
       reference_to(UpholsteryDelivery)
       given { status == "scheduled" }

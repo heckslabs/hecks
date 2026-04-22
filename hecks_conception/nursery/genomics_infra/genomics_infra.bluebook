@@ -3,18 +3,18 @@ Hecks.bluebook "GenomicsInfra", version: "2026.04.13.1" do
   category "healthcare_technology"
 
   aggregate "GenomeSample", "A biological sample submitted for genomic sequencing" do
-    String :sample_id
-    String :patient_id
-    String :sample_type
-    String :collection_date
-    String :status
-    SubmitSample do
+    attribute :sample_id, String
+    attribute :patient_id, String
+    attribute :sample_type, String
+    attribute :collection_date, String
+    attribute :status, String
+    command "SubmitSample" do
       role "Geneticist"
       description "Submit a biological sample for genomic sequencing"
-      String :sample_id
-      String :patient_id
-      String :sample_type
-      String :collection_date
+      attribute :sample_id, String
+      attribute :patient_id, String
+      attribute :sample_type, String
+      attribute :collection_date, String
       emits "SampleSubmitted"
       then_set :sample_id, to: :sample_id
       then_set :patient_id, to: :patient_id
@@ -22,7 +22,7 @@ Hecks.bluebook "GenomicsInfra", version: "2026.04.13.1" do
       then_set :collection_date, to: :collection_date
       then_set :status, to: "submitted"
     end
-    SequenceSample do
+    command "SequenceSample" do
       role "LabTech"
       description "Run the sample through the DNA sequencer"
       reference_to(GenomeSample)
@@ -33,20 +33,20 @@ Hecks.bluebook "GenomicsInfra", version: "2026.04.13.1" do
   end
 
   aggregate "ComputeCluster", "A cluster of compute nodes for genomic analysis" do
-    String :cluster_id
-    String :region
-    Integer :node_count
-    Float :cpu_cores_total
-    Float :memory_tb
-    String :status
-    DeployCluster do
+    attribute :cluster_id, String
+    attribute :region, String
+    attribute :node_count, Integer
+    attribute :cpu_cores_total, Float
+    attribute :memory_tb, Float
+    attribute :status, String
+    command "DeployCluster" do
       role "InfraAdmin"
       description "Deploy a compute cluster for genomic workloads"
-      String :cluster_id
-      String :region
-      Integer :node_count
-      Float :cpu_cores_total
-      Float :memory_tb
+      attribute :cluster_id, String
+      attribute :region, String
+      attribute :node_count, Integer
+      attribute :cpu_cores_total, Float
+      attribute :memory_tb, Float
       emits "ClusterDeployed"
       then_set :cluster_id, to: :cluster_id
       then_set :region, to: :region
@@ -55,33 +55,33 @@ Hecks.bluebook "GenomicsInfra", version: "2026.04.13.1" do
       then_set :memory_tb, to: :memory_tb
       then_set :status, to: "running"
     end
-    ScaleCluster do
+    command "ScaleCluster" do
       role "InfraAdmin"
       description "Scale cluster nodes up or down based on workload"
       reference_to(ComputeCluster)
-      Integer :node_count
+      attribute :node_count, Integer
       emits "ClusterScaled"
       then_set :node_count, to: :node_count
     end
   end
 
   aggregate "SequenceStore", "Cloud storage for genomic sequence data" do
-    String :store_id
-    String :cluster_id
-    Float :used_tb
-    Float :quota_tb
-    String :status
+    attribute :store_id, String
+    attribute :cluster_id, String
+    attribute :used_tb, Float
+    attribute :quota_tb, Float
+    attribute :status, String
     value_object "StorageTier" do
-      String :tier_name
-      Float :cost_per_tb
-      String :access_speed
+      attribute :tier_name, String
+      attribute :cost_per_tb, Float
+      attribute :access_speed, String
     end
-    ProvisionStore do
+    command "ProvisionStore" do
       role "InfraAdmin"
       description "Provision a genomic data storage bucket"
-      String :store_id
-      String :cluster_id
-      Float :quota_tb
+      attribute :store_id, String
+      attribute :cluster_id, String
+      attribute :quota_tb, Float
       emits "StoreProvisioned"
       then_set :store_id, to: :store_id
       then_set :cluster_id, to: :cluster_id
@@ -89,7 +89,7 @@ Hecks.bluebook "GenomicsInfra", version: "2026.04.13.1" do
       then_set :used_tb, to: 0.0
       then_set :status, to: "active"
     end
-    ArchiveData do
+    command "ArchiveData" do
       role "System"
       description "Archive old sequence data to cold storage tier"
       reference_to(SequenceStore)
@@ -98,30 +98,30 @@ Hecks.bluebook "GenomicsInfra", version: "2026.04.13.1" do
   end
 
   aggregate "AnalysisPipeline", "An automated genomic analysis pipeline" do
-    String :pipeline_id
-    String :sample_id
-    String :pipeline_type
+    attribute :pipeline_id, String
+    attribute :sample_id, String
+    attribute :pipeline_type, String
     list_of(PipelineStep) :steps
-    String :status
+    attribute :status, String
     value_object "PipelineStep" do
-      Integer :step_number
-      String :tool_name
-      String :status
-      Float :runtime_hours
+      attribute :step_number, Integer
+      attribute :tool_name, String
+      attribute :status, String
+      attribute :runtime_hours, Float
     end
-    LaunchPipeline do
+    command "LaunchPipeline" do
       role "Bioinformatician"
       description "Launch a genomic analysis pipeline for a sequenced sample"
-      String :pipeline_id
-      String :sample_id
-      String :pipeline_type
+      attribute :pipeline_id, String
+      attribute :sample_id, String
+      attribute :pipeline_type, String
       emits "PipelineLaunched"
       then_set :pipeline_id, to: :pipeline_id
       then_set :sample_id, to: :sample_id
       then_set :pipeline_type, to: :pipeline_type
       then_set :status, to: "running"
     end
-    CompletePipeline do
+    command "CompletePipeline" do
       role "System"
       description "Mark the analysis pipeline as completed"
       reference_to(AnalysisPipeline)

@@ -1,31 +1,31 @@
 Hecks.bluebook "FashionDesign" do
   aggregate "Collection", "A seasonal fashion collection with a theme and lookbook" do
-    String :name
-    String :season
-    String :theme
-    String :status, default: "concept"
-    Integer :piece_count
+    attribute :name, String
+    attribute :season, String
+    attribute :theme, String
+    attribute :status, String, default: "concept"
+    attribute :piece_count, Integer
 
-    LaunchCollection do
+    command "LaunchCollection" do
       description "Announce a new seasonal collection concept"
-      String :name
-      String :season
-      String :theme
+      attribute :name, String
+      attribute :season, String
+      attribute :theme, String
       emits "CollectionLaunched"
       then_set :status, to: "concept"
     end
 
-    FinalizeCollection do
+    command "FinalizeCollection" do
       description "Lock the collection lineup for production"
       reference_to(Collection)
-      Integer :piece_count
+      attribute :piece_count, Integer
       given { status == "concept" }
       emits "CollectionFinalized"
       then_set :status, to: "finalized"
       then_set :piece_count, to: :piece_count
     end
 
-    ShowCollection do
+    command "ShowCollection" do
       description "Present the collection on the runway"
       reference_to(Collection)
       emits "CollectionShown"
@@ -34,31 +34,31 @@ Hecks.bluebook "FashionDesign" do
   end
 
   aggregate "Garment", "A single piece in a collection with fabric, cut, and sizing" do
-    String :name
-    String :garment_type
-    String :fabric
-    String :status, default: "drafted"
+    attribute :name, String
+    attribute :garment_type, String
+    attribute :fabric, String
+    attribute :status, String, default: "drafted"
     reference_to(Collection)
 
     value_object "SizeSpec" do
-      String :size_label
-      Float :bust_cm
-      Float :waist_cm
-      Float :hip_cm
-      Float :length_cm
+      attribute :size_label, String
+      attribute :bust_cm, Float
+      attribute :waist_cm, Float
+      attribute :hip_cm, Float
+      attribute :length_cm, Float
     end
 
-    DraftGarment do
+    command "DraftGarment" do
       description "Create a new garment design for a collection"
       reference_to(Collection)
-      String :name
-      String :garment_type
-      String :fabric
+      attribute :name, String
+      attribute :garment_type, String
+      attribute :fabric, String
       emits "GarmentDrafted"
       then_set :status, to: "drafted"
     end
 
-    SewMuslin do
+    command "SewMuslin" do
       description "Produce a muslin prototype for fitting"
       reference_to(Garment)
       given { status == "drafted" }
@@ -66,7 +66,7 @@ Hecks.bluebook "FashionDesign" do
       then_set :status, to: "muslin"
     end
 
-    ProduceGarment do
+    command "ProduceGarment" do
       description "Cut and sew the final garment in production fabric"
       reference_to(Garment)
       emits "GarmentProduced"
@@ -75,28 +75,28 @@ Hecks.bluebook "FashionDesign" do
   end
 
   aggregate "Pattern", "A technical pattern with grading rules for multiple sizes" do
-    String :name
-    String :garment_type
-    Integer :piece_count
-    String :status, default: "draft"
+    attribute :name, String
+    attribute :garment_type, String
+    attribute :piece_count, Integer
+    attribute :status, String, default: "draft"
     reference_to(Garment)
 
     value_object "GradingRule" do
-      String :size_range
-      Float :increment_cm
-      String :measurement_point
+      attribute :size_range, String
+      attribute :increment_cm, Float
+      attribute :measurement_point, String
     end
 
-    DraftPattern do
+    command "DraftPattern" do
       description "Create the base-size pattern from the design"
       reference_to(Garment)
-      String :name
-      Integer :piece_count
+      attribute :name, String
+      attribute :piece_count, Integer
       emits "PatternDrafted"
       then_set :status, to: "draft"
     end
 
-    GradePattern do
+    command "GradePattern" do
       description "Apply grading rules to produce all size patterns"
       reference_to(Pattern)
       given { status == "draft" }
@@ -106,25 +106,25 @@ Hecks.bluebook "FashionDesign" do
   end
 
   aggregate "Fitting", "A fitting session where garments are tried and adjusted" do
-    String :model_name
-    String :date
-    String :status, default: "scheduled"
-    String :notes
+    attribute :model_name, String
+    attribute :date, String
+    attribute :status, String, default: "scheduled"
+    attribute :notes, String
     reference_to(Garment)
 
-    ScheduleFitting do
+    command "ScheduleFitting" do
       description "Book a fitting session with a model"
       reference_to(Garment)
-      String :model_name
-      String :date
+      attribute :model_name, String
+      attribute :date, String
       emits "FittingScheduled"
       then_set :status, to: "scheduled"
     end
 
-    RecordAdjustments do
+    command "RecordAdjustments" do
       description "Note alterations needed after a fitting"
       reference_to(Fitting)
-      String :notes
+      attribute :notes, String
       given { status == "scheduled" }
       emits "AdjustmentsRecorded"
       then_set :status, to: "adjusted"
@@ -133,22 +133,22 @@ Hecks.bluebook "FashionDesign" do
   end
 
   aggregate "RunwayShow", "A fashion show event with lineup, venue, and production" do
-    String :venue
-    String :date
-    Integer :look_count
-    String :status, default: "planning"
+    attribute :venue, String
+    attribute :date, String
+    attribute :look_count, Integer
+    attribute :status, String, default: "planning"
     reference_to(Collection)
 
-    PlanShow do
+    command "PlanShow" do
       description "Set up a runway show for a collection"
       reference_to(Collection)
-      String :venue
-      String :date
+      attribute :venue, String
+      attribute :date, String
       emits "ShowPlanned"
       then_set :status, to: "planning"
     end
 
-    RehearsShow do
+    command "RehearsShow" do
       description "Run a rehearsal with models and choreography"
       reference_to(RunwayShow)
       given { status == "planning" }

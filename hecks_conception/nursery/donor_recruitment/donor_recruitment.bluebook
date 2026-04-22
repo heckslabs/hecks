@@ -3,18 +3,18 @@ Hecks.bluebook "DonorRecruitment", version: "2026.04.13.1" do
   category "healthcare_technology"
 
   aggregate "BloodInventory", "Current blood inventory levels at a collection center" do
-    String :center_id
-    String :blood_type
-    Integer :units_available
-    Integer :min_threshold
-    String :status
-    RecordStock do
+    attribute :center_id, String
+    attribute :blood_type, String
+    attribute :units_available, Integer
+    attribute :min_threshold, Integer
+    attribute :status, String
+    command "RecordStock" do
       role "LabTech"
       description "Update blood inventory after collection or shipment"
-      String :center_id
-      String :blood_type
-      Integer :units_available
-      Integer :min_threshold
+      attribute :center_id, String
+      attribute :blood_type, String
+      attribute :units_available, Integer
+      attribute :min_threshold, Integer
       emits "StockRecorded"
       then_set :center_id, to: :center_id
       then_set :blood_type, to: :blood_type
@@ -22,7 +22,7 @@ Hecks.bluebook "DonorRecruitment", version: "2026.04.13.1" do
       then_set :min_threshold, to: :min_threshold
       then_set :status, to: "tracked"
     end
-    FlagShortage do
+    command "FlagShortage" do
       role "System"
       description "Flag a blood type as critically low"
       reference_to(BloodInventory)
@@ -32,26 +32,26 @@ Hecks.bluebook "DonorRecruitment", version: "2026.04.13.1" do
   end
 
   aggregate "RecruitmentCampaign", "An SEO and digital campaign to recruit blood donors" do
-    String :campaign_id
-    String :target_blood_type
-    String :platform
-    Float :budget
-    Integer :target_donors
-    String :status
+    attribute :campaign_id, String
+    attribute :target_blood_type, String
+    attribute :platform, String
+    attribute :budget, Float
+    attribute :target_donors, Integer
+    attribute :status, String
     list_of(Keyword) :keywords
     value_object "Keyword" do
-      String :term
-      Integer :search_volume
-      Float :bid_amount
+      attribute :term, String
+      attribute :search_volume, Integer
+      attribute :bid_amount, Float
     end
-    LaunchCampaign do
+    command "LaunchCampaign" do
       role "Marketer"
       description "Launch a donor recruitment campaign targeting a blood type"
-      String :campaign_id
-      String :target_blood_type
-      String :platform
-      Float :budget
-      Integer :target_donors
+      attribute :campaign_id, String
+      attribute :target_blood_type, String
+      attribute :platform, String
+      attribute :budget, Float
+      attribute :target_donors, Integer
       emits "CampaignLaunched"
       then_set :campaign_id, to: :campaign_id
       then_set :target_blood_type, to: :target_blood_type
@@ -60,7 +60,7 @@ Hecks.bluebook "DonorRecruitment", version: "2026.04.13.1" do
       then_set :target_donors, to: :target_donors
       then_set :status, to: "active"
     end
-    PauseCampaign do
+    command "PauseCampaign" do
       role "Marketer"
       description "Pause a campaign when stock levels normalize"
       reference_to(RecruitmentCampaign)
@@ -71,18 +71,18 @@ Hecks.bluebook "DonorRecruitment", version: "2026.04.13.1" do
   end
 
   aggregate "DonorLead", "A prospective donor targeted by recruitment" do
-    String :lead_id
-    String :name
-    String :blood_type
-    String :source_campaign
-    String :status
-    CaptureLead do
+    attribute :lead_id, String
+    attribute :name, String
+    attribute :blood_type, String
+    attribute :source_campaign, String
+    attribute :status, String
+    command "CaptureLead" do
       role "System"
       description "Capture a prospective donor lead from campaign"
-      String :lead_id
-      String :name
-      String :blood_type
-      String :source_campaign
+      attribute :lead_id, String
+      attribute :name, String
+      attribute :blood_type, String
+      attribute :source_campaign, String
       emits "LeadCaptured"
       then_set :lead_id, to: :lead_id
       then_set :name, to: :name
@@ -90,7 +90,7 @@ Hecks.bluebook "DonorRecruitment", version: "2026.04.13.1" do
       then_set :source_campaign, to: :source_campaign
       then_set :status, to: "captured"
     end
-    ConvertLead do
+    command "ConvertLead" do
       role "Coordinator"
       description "Convert a lead into a scheduled donation appointment"
       reference_to(DonorLead)
@@ -101,18 +101,18 @@ Hecks.bluebook "DonorRecruitment", version: "2026.04.13.1" do
   end
 
   aggregate "DonorConversion", "A tracked conversion from campaign impression to donation" do
-    String :conversion_id
-    String :lead_id
-    String :campaign_id
-    String :donation_date
-    String :status
-    RecordConversion do
+    attribute :conversion_id, String
+    attribute :lead_id, String
+    attribute :campaign_id, String
+    attribute :donation_date, String
+    attribute :status, String
+    command "RecordConversion" do
       role "System"
       description "Record a successful campaign-to-donation conversion"
-      String :conversion_id
-      String :lead_id
-      String :campaign_id
-      String :donation_date
+      attribute :conversion_id, String
+      attribute :lead_id, String
+      attribute :campaign_id, String
+      attribute :donation_date, String
       emits "ConversionRecorded"
       then_set :conversion_id, to: :conversion_id
       then_set :lead_id, to: :lead_id

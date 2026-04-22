@@ -2,34 +2,34 @@ Hecks.bluebook "ZooManagement" do
   vision "Manage animals, habitats, feedings, veterinary care, and breeding programs for a zoo"
 
   aggregate "Animal", "A living specimen in the zoo collection" do
-    String :animal_id
-    String :common_name
-    String :species
-    String :sex
-    String :status
-    String :date_of_birth
+    attribute :animal_id, String
+    attribute :common_name, String
+    attribute :species, String
+    attribute :sex, String
+    attribute :status, String
+    attribute :date_of_birth, String
     reference_to(Habitat)
 
     value_object "TaxonomicClassification" do
-      String :kingdom
-      String :family
-      String :genus
+      attribute :kingdom, String
+      attribute :family, String
+      attribute :genus, String
     end
 
     fixture "Simba the Lion", animal_id: "ZOO-FELID-0042", common_name: "Lion", species: "Panthera leo", sex: "M", status: "on_exhibit", date_of_birth: "2018-03-15"
     fixture "Nala the Zebra", animal_id: "ZOO-EQUID-0067", common_name: "Plains Zebra", species: "Equus quagga", sex: "F", status: "on_exhibit", date_of_birth: "2019-07-22"
 
-    RegisterAnimal do
+    command "RegisterAnimal" do
       description "Register a new animal into the zoo collection"
-      String :common_name
-      String :species
-      String :sex
-      String :date_of_birth
+      attribute :common_name, String
+      attribute :species, String
+      attribute :sex, String
+      attribute :date_of_birth, String
       emits "AnimalRegistered"
       then_set :status, to: "quarantine"
     end
 
-    ClearQuarantine do
+    command "ClearQuarantine" do
       description "Release animal from quarantine after health clearance"
       reference_to(Animal)
       given { status == "quarantine" }
@@ -37,7 +37,7 @@ Hecks.bluebook "ZooManagement" do
       then_set :status, to: "cleared"
     end
 
-    PlaceOnExhibit do
+    command "PlaceOnExhibit" do
       description "Move a cleared animal to its exhibit habitat"
       reference_to(Animal)
       reference_to(Habitat)
@@ -46,19 +46,19 @@ Hecks.bluebook "ZooManagement" do
       then_set :status, to: "on_exhibit"
     end
 
-    MoveOffExhibit do
+    command "MoveOffExhibit" do
       description "Temporarily remove an animal from public exhibit"
       reference_to(Animal)
-      String :reason
+      attribute :reason, String
       given { status == "on_exhibit" }
       emits "AnimalMovedOffExhibit"
       then_set :status, to: "off_exhibit"
     end
 
-    TransferAnimal do
+    command "TransferAnimal" do
       description "Move an animal to another zoo via species survival plan"
       reference_to(Animal)
-      String :destination_zoo
+      attribute :destination_zoo, String
       given { status == "on_exhibit" }
       emits "AnimalTransferred"
       then_set :status, to: "transferred"
@@ -66,35 +66,35 @@ Hecks.bluebook "ZooManagement" do
   end
 
   aggregate "Habitat", "An enclosure or exhibit housing one or more species" do
-    String :habitat_id
-    String :name
-    String :biome_type
-    Float :area_sqft
-    Integer :max_capacity
-    Integer :current_occupancy
-    String :status
+    attribute :habitat_id, String
+    attribute :name, String
+    attribute :biome_type, String
+    attribute :area_sqft, Float
+    attribute :max_capacity, Integer
+    attribute :current_occupancy, Integer
+    attribute :status, String
 
     value_object "EnvironmentalControls" do
-      Float :temperature_f
-      Float :humidity_percent
-      String :lighting_cycle
+      attribute :temperature_f, Float
+      attribute :humidity_percent, Float
+      attribute :lighting_cycle, String
     end
 
     fixture "African Savanna", habitat_id: "HAB-AFRI-01", name: "African Savanna Exhibit", biome_type: "Savanna", area_sqft: 15000.0, max_capacity: 20, current_occupancy: 8, status: "active"
     fixture "Tropical Rainforest", habitat_id: "HAB-TROP-02", name: "Amazon Rainforest Canopy", biome_type: "Tropical Rainforest", area_sqft: 8500.0, max_capacity: 35, current_occupancy: 28, status: "active"
 
-    BuildHabitat do
+    command "BuildHabitat" do
       description "Construct a new animal habitat"
-      String :name
-      String :biome_type
-      Float :area_sqft
-      Integer :max_capacity
+      attribute :name, String
+      attribute :biome_type, String
+      attribute :area_sqft, Float
+      attribute :max_capacity, Integer
       emits "HabitatBuilt"
       then_set :status, to: "built"
       then_set :current_occupancy, to: 0
     end
 
-    InspectHabitat do
+    command "InspectHabitat" do
       description "Perform safety and readiness inspection"
       reference_to(Habitat)
       given { status == "built" }
@@ -102,16 +102,16 @@ Hecks.bluebook "ZooManagement" do
       then_set :status, to: "active"
     end
 
-    CloseHabitat do
+    command "CloseHabitat" do
       description "Shut down a habitat for renovation"
       reference_to(Habitat)
-      String :reason
+      attribute :reason, String
       given { status == "active" }
       emits "HabitatClosed"
       then_set :status, to: "closed"
     end
 
-    ReopenHabitat do
+    command "ReopenHabitat" do
       description "Return a closed habitat to active use"
       reference_to(Habitat)
       given { status == "closed" }
@@ -119,7 +119,7 @@ Hecks.bluebook "ZooManagement" do
       then_set :status, to: "active"
     end
 
-    AssignAnimalToHabitat do
+    command "AssignAnimalToHabitat" do
       description "Place an animal in a habitat"
       reference_to(Habitat)
       reference_to(Animal)
@@ -129,78 +129,78 @@ Hecks.bluebook "ZooManagement" do
   end
 
   aggregate "FeedingSchedule", "A routine feeding plan for animals in a habitat" do
-    String :schedule_id
-    String :diet_type
-    String :feeding_time
-    Float :portion_kg
-    String :status
+    attribute :schedule_id, String
+    attribute :diet_type, String
+    attribute :feeding_time, String
+    attribute :portion_kg, Float
+    attribute :status, String
     reference_to(Animal)
 
     value_object "DietItem" do
-      String :food_name
-      Float :quantity_kg
-      String :frequency
+      attribute :food_name, String
+      attribute :quantity_kg, Float
+      attribute :frequency, String
     end
 
     fixture "Lion Carnivore Diet", schedule_id: "FEED-FELID-001", diet_type: "Carnivore - Raw Meat", feeding_time: "09:00", portion_kg: 8.5, status: "active"
     fixture "Zebra Herbivore Diet", schedule_id: "FEED-EQUID-001", diet_type: "Herbivore - Hay & Graze", feeding_time: "08:30", portion_kg: 12.0, status: "active"
 
-    PlanFeeding do
+    command "PlanFeeding" do
       description "Plan a feeding schedule for an animal"
-      String :diet_type
-      String :feeding_time
-      Float :portion_kg
+      attribute :diet_type, String
+      attribute :feeding_time, String
+      attribute :portion_kg, Float
       reference_to(Animal)
       emits "FeedingPlanned"
       then_set :status, to: "active"
     end
 
-    RecordFeeding do
+    command "RecordFeeding" do
       description "Log that a feeding was completed"
       reference_to(FeedingSchedule)
-      String :fed_by
+      attribute :fed_by, String
       emits "FeedingRecorded"
     end
 
-    AdjustDiet do
+    command "AdjustDiet" do
       description "Modify an animal's diet based on vet recommendation"
       reference_to(FeedingSchedule)
-      String :new_diet_type
-      Float :new_portion_kg
+      attribute :new_diet_type, String
+      attribute :new_portion_kg, Float
       given { status == "active" }
       emits "DietAdjusted"
     end
   end
 
   aggregate "VeterinaryExam", "A health examination or treatment by the zoo vet" do
-    String :exam_id
-    String :exam_type
-    String :veterinarian
-    String :findings
-    String :status
+    attribute :exam_id, String
+    attribute :exam_type, String
+    attribute :veterinarian, String
+    attribute :findings, String
+    attribute :status, String
     reference_to(Animal)
 
     value_object "LabWork" do
-      String :test_name
-      String :result
+      attribute :test_name, String
+      attribute :result, String
     end
 
     fixture "Simba Checkup", exam_id: "VET-2026-0015", exam_type: "Annual Physical", veterinarian: "Dr. Sarah Mitchell", findings: "Excellent health, no issues noted", status: "completed"
     fixture "Nala Vaccination", exam_id: "VET-2026-0016", exam_type: "Vaccination Update", veterinarian: "Dr. James Wilson", findings: "Vaccines current, minor dietary adjustment recommended", status: "completed"
 
-    ScheduleExam do
+    command "ScheduleExam" do
       description "Book a veterinary exam for an animal"
-      String :exam_type
-      String :veterinarian
+      attribute :exam_type, String
+      attribute :veterinarian, String
       reference_to(Animal)
       emits "ExamScheduled"
       then_set :status, to: "scheduled"
     end
 
-    PerformExam do
+    command "PerformExam" do
       description "Complete the exam and record findings"
       reference_to(VeterinaryExam)
-      String :findings
+      attribute :findings, String
       given { status == "scheduled" }
       emits "ExamPerformed"
       then_set :status, to: "completed"
@@ -208,33 +208,33 @@ Hecks.bluebook "ZooManagement" do
   end
 
   aggregate "BreedingProgram", "A species survival plan pairing animals for reproduction" do
-    String :program_id
-    String :species
-    String :status
-    Integer :target_offspring
+    attribute :program_id, String
+    attribute :species, String
+    attribute :status, String
+    attribute :target_offspring, Integer
     reference_to(Animal)
 
     value_object "GeneticProfile" do
-      Float :inbreeding_coefficient
-      String :studbook_number
+      attribute :inbreeding_coefficient, Float
+      attribute :studbook_number, String
     end
 
     fixture "Lion Breeding SSP", program_id: "SSP-FELID-001", species: "Panthera leo", status: "active", target_offspring: 3
     fixture "Zebra Breeding SSP", program_id: "SSP-EQUID-001", species: "Equus quagga", status: "active", target_offspring: 2
 
-    InitiateBreeding do
+    command "InitiateBreeding" do
       description "Start a breeding program for a species"
-      String :species
-      Integer :target_offspring
+      attribute :species, String
+      attribute :target_offspring, Integer
       reference_to(Animal)
       emits "BreedingInitiated"
       then_set :status, to: "active"
     end
 
-    RecordBirth do
+    command "RecordBirth" do
       description "Log a successful birth in the breeding program"
       reference_to(BreedingProgram)
-      String :offspring_name
+      attribute :offspring_name, String
       given { status == "active" }
       emits "BirthRecorded"
     end

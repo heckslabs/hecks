@@ -3,30 +3,30 @@ Hecks.bluebook "PrintShop" do
   category "manufacturing"
 
   aggregate "PrintJob", "A customer print order with specs, quantity, and production status" do
-    String :job_name
-    String :customer_name
-    Integer :quantity
-    String :print_method
-    String :color_profile
-    String :due_date
-    String :status
+    attribute :job_name, String
+    attribute :customer_name, String
+    attribute :quantity, Integer
+    attribute :print_method, String
+    attribute :color_profile, String
+    attribute :due_date, String
+    attribute :status, String
 
     value_object "PrintSpecification" do
-      Float :width_inches
-      Float :height_inches
-      Integer :pages
-      String :binding_type
+      attribute :width_inches, Float
+      attribute :height_inches, Float
+      attribute :pages, Integer
+      attribute :binding_type, String
     end
 
-    SubmitPrintJob do
+    command "SubmitPrintJob" do
       role "SalesRep"
       description "Create a new print job with customer specs and quantity"
-      String :job_name
-      String :customer_name
-      Integer :quantity
-      String :print_method
-      String :color_profile
-      String :due_date
+      attribute :job_name, String
+      attribute :customer_name, String
+      attribute :quantity, Integer
+      attribute :print_method, String
+      attribute :color_profile, String
+      attribute :due_date, String
       emits "PrintJobSubmitted"
       then_set :job_name, to: :job_name
       then_set :customer_name, to: :customer_name
@@ -37,7 +37,7 @@ Hecks.bluebook "PrintShop" do
       then_set :status, to: "submitted"
     end
 
-    MarkProofApproved do
+    command "MarkProofApproved" do
       role "PrePressOperator"
       description "Record that the customer has approved the proof for this print job"
       reference_to(PrintJob)
@@ -45,7 +45,7 @@ Hecks.bluebook "PrintShop" do
       then_set :status, to: "proof_approved"
     end
 
-    ApprovePrintJob do
+    command "ApprovePrintJob" do
       role "ProductionManager"
       description "Review specs and approve the job for production"
       reference_to(PrintJob)
@@ -53,7 +53,7 @@ Hecks.bluebook "PrintShop" do
       then_set :status, to: "approved"
     end
 
-    StartProduction do
+    command "StartProduction" do
       role "PressOperator"
       description "Move the approved job onto the press for production"
       reference_to(PrintJob)
@@ -61,7 +61,7 @@ Hecks.bluebook "PrintShop" do
       then_set :status, to: "in_production"
     end
 
-    CompletePrintJob do
+    command "CompletePrintJob" do
       role "PressOperator"
       description "Mark the print run as finished and ready for finishing"
       reference_to(PrintJob)
@@ -72,29 +72,29 @@ Hecks.bluebook "PrintShop" do
   end
 
   aggregate "Substrate", "Paper, vinyl, or other material stock with inventory tracking" do
-    String :material_name
-    String :material_type
-    Float :weight_gsm
-    Float :width_inches
-    Integer :sheets_on_hand
-    Integer :reorder_level
-    String :status
+    attribute :material_name, String
+    attribute :material_type, String
+    attribute :weight_gsm, Float
+    attribute :width_inches, Float
+    attribute :sheets_on_hand, Integer
+    attribute :reorder_level, Integer
+    attribute :status, String
 
     value_object "MaterialProperties" do
-      String :finish
-      String :opacity
-      String :recyclable
+      attribute :finish, String
+      attribute :opacity, String
+      attribute :recyclable, String
     end
 
-    StockSubstrate do
+    command "StockSubstrate" do
       role "WarehouseManager"
       description "Add a new substrate to inventory with specs and stock levels"
-      String :material_name
-      String :material_type
-      Float :weight_gsm
-      Float :width_inches
-      Integer :sheets_on_hand
-      Integer :reorder_level
+      attribute :material_name, String
+      attribute :material_type, String
+      attribute :weight_gsm, Float
+      attribute :width_inches, Float
+      attribute :sheets_on_hand, Integer
+      attribute :reorder_level, Integer
       emits "SubstrateStocked"
       then_set :material_name, to: :material_name
       then_set :material_type, to: :material_type
@@ -105,40 +105,40 @@ Hecks.bluebook "PrintShop" do
       then_set :status, to: "in_stock"
     end
 
-    ConsumeSubstrate do
+    command "ConsumeSubstrate" do
       role "PressOperator"
       description "Pull substrate from inventory for a print run"
       reference_to(Substrate)
-      Integer :sheets_used
+      attribute :sheets_used, Integer
       given { sheets_on_hand > 0 }
       emits "SubstrateConsumed"
     end
 
-    ReorderSubstrate do
+    command "ReorderSubstrate" do
       role "WarehouseManager"
       description "Place a purchase order when stock falls below reorder level"
       reference_to(Substrate)
-      Integer :order_quantity
+      attribute :order_quantity, Integer
       emits "SubstrateReordered"
     end
   end
 
   aggregate "PressSchedule", "A time block reserved on a specific press for a print job" do
-    String :press_name
-    String :scheduled_date
-    String :start_time
-    String :end_time
-    String :status
+    attribute :press_name, String
+    attribute :scheduled_date, String
+    attribute :start_time, String
+    attribute :end_time, String
+    attribute :status, String
     reference_to(PrintJob)
 
-    SchedulePress do
+    command "SchedulePress" do
       role "ProductionManager"
       description "Reserve a press for a specific job at a given date and time"
       reference_to(PrintJob)
-      String :press_name
-      String :scheduled_date
-      String :start_time
-      String :end_time
+      attribute :press_name, String
+      attribute :scheduled_date, String
+      attribute :start_time, String
+      attribute :end_time, String
       emits "PressScheduled"
       then_set :press_name, to: :press_name
       then_set :scheduled_date, to: :scheduled_date
@@ -147,7 +147,7 @@ Hecks.bluebook "PrintShop" do
       then_set :status, to: "scheduled"
     end
 
-    StartPressRun do
+    command "StartPressRun" do
       role "PressOperator"
       description "Begin the print run on the scheduled press"
       reference_to(PressSchedule)
@@ -156,37 +156,37 @@ Hecks.bluebook "PrintShop" do
       then_set :status, to: "running"
     end
 
-    HaltPress do
+    command "HaltPress" do
       role "PressOperator"
       description "Stop the press due to a quality issue or mechanical failure"
       reference_to(PressSchedule)
       given { status == "running" }
-      String :halt_reason
+      attribute :halt_reason, String
       emits "PressHalted"
       then_set :status, to: "halted"
     end
   end
 
   aggregate "ProofCycle", "A proof review loop where the customer approves or requests changes" do
-    Integer :revision_number
-    String :proof_file
-    String :customer_feedback
-    String :status
+    attribute :revision_number, Integer
+    attribute :proof_file, String
+    attribute :customer_feedback, String
+    attribute :status, String
     reference_to(PrintJob)
 
-    SendProof do
+    command "SendProof" do
       role "PrePressOperator"
       description "Generate and send a digital proof to the customer for approval"
       reference_to(PrintJob)
-      String :proof_file
-      Integer :revision_number
+      attribute :proof_file, String
+      attribute :revision_number, Integer
       emits "ProofSent"
       then_set :proof_file, to: :proof_file
       then_set :revision_number, to: :revision_number
       then_set :status, to: "awaiting_approval"
     end
 
-    ApproveProof do
+    command "ApproveProof" do
       role "Customer"
       description "Customer signs off on the proof as ready for production"
       reference_to(ProofCycle)
@@ -195,11 +195,11 @@ Hecks.bluebook "PrintShop" do
       then_set :status, to: "approved"
     end
 
-    RequestRevision do
+    command "RequestRevision" do
       role "Customer"
       description "Customer requests changes to the proof with feedback"
       reference_to(ProofCycle)
-      String :customer_feedback
+      attribute :customer_feedback, String
       given { status == "awaiting_approval" }
       emits "RevisionRequested"
       then_set :customer_feedback, to: :customer_feedback
@@ -208,22 +208,22 @@ Hecks.bluebook "PrintShop" do
   end
 
   aggregate "DeliveryOrder", "A shipment of completed print products to the customer" do
-    String :delivery_address
-    String :delivery_date
-    Integer :box_count
-    String :carrier
-    String :tracking_number
-    String :status
+    attribute :delivery_address, String
+    attribute :delivery_date, String
+    attribute :box_count, Integer
+    attribute :carrier, String
+    attribute :tracking_number, String
+    attribute :status, String
     reference_to(PrintJob)
 
-    ScheduleDelivery do
+    command "ScheduleDelivery" do
       role "ShippingClerk"
       description "Arrange delivery of the finished print job to the customer"
       reference_to(PrintJob)
-      String :delivery_address
-      String :delivery_date
-      Integer :box_count
-      String :carrier
+      attribute :delivery_address, String
+      attribute :delivery_date, String
+      attribute :box_count, Integer
+      attribute :carrier, String
       emits "DeliveryScheduled"
       then_set :delivery_address, to: :delivery_address
       then_set :delivery_date, to: :delivery_date
@@ -232,18 +232,18 @@ Hecks.bluebook "PrintShop" do
       then_set :status, to: "scheduled"
     end
 
-    ShipOrder do
+    command "ShipOrder" do
       role "ShippingClerk"
       description "Hand off the packages to the carrier and record tracking"
       reference_to(DeliveryOrder)
-      String :tracking_number
+      attribute :tracking_number, String
       given { status == "scheduled" }
       emits "OrderShipped"
       then_set :tracking_number, to: :tracking_number
       then_set :status, to: "shipped"
     end
 
-    ConfirmDelivery do
+    command "ConfirmDelivery" do
       role "System"
       description "Record successful delivery to the customer"
       reference_to(DeliveryOrder)

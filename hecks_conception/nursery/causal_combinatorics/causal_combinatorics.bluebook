@@ -3,71 +3,71 @@ Hecks.bluebook "CausalCombinatorics", version: "2026.04.13.1" do
   category "science"
 
   aggregate "PolicyGraph", "A directed graph of event-to-command edges across one or more domains" do
-    String :name
-    Integer :node_count
-    Integer :edge_count
-    Integer :domain_count
+    attribute :name, String
+    attribute :node_count, Integer
+    attribute :edge_count, Integer
+    attribute :domain_count, Integer
     list_of(Edge) :edges
 
     value_object "Edge" do
-      String :source_event
-      String :target_command
-      String :source_domain
-      String :target_domain
-      Boolean :cross_domain
+      attribute :source_event, String
+      attribute :target_command, String
+      attribute :source_domain, String
+      attribute :target_domain, String
+      attribute :cross_domain, Boolean
     end
 
-    BuildGraph do
+    command "BuildGraph" do
       description "Construct the policy graph from a set of domains — nodes are events and commands, edges are policies"
-      String :name
+      attribute :name, String
       list_of(String) :domain_names
       emits "GraphBuilt"
     end
 
-    MergeGraphs do
+    command "MergeGraphs" do
       description "Combine two policy graphs and discover novel cross-domain edges"
       reference_to(PolicyGraph)
-      String :other_graph_name
+      attribute :other_graph_name, String
       emits "GraphsMerged"
     end
   end
 
   aggregate "CascadeAnalysis", "Trace what happens when a single event fires into a merged graph" do
-    String :trigger_event
-    Integer :cascade_depth
-    Integer :total_activations
+    attribute :trigger_event, String
+    attribute :cascade_depth, Integer
+    attribute :total_activations, Integer
     list_of(Activation) :chain
-    Boolean :has_cycle
-    Boolean :has_fan_out
-    Boolean :trigger_event_in_graph, default: false
+    attribute :has_cycle, Boolean
+    attribute :has_fan_out, Boolean
+    attribute :trigger_event_in_graph, Boolean, default: false
 
     value_object "Activation" do
-      Integer :step
-      String :event
-      String :command
-      String :domain
+      attribute :step, Integer
+      attribute :event, String
+      attribute :command, String
+      attribute :domain, String
     end
 
-    ConfirmEventInGraph do
+    command "ConfirmEventInGraph" do
       description "Verify a trigger event is present in the policy graph before tracing"
       reference_to(CascadeAnalysis)
       emits "EventConfirmedInGraph"
     end
 
-    TraceCascade do
+    command "TraceCascade" do
       description "Fire an event and follow every policy edge to see how far the cascade reaches"
       reference_to(PolicyGraph)
-      String :trigger_event
+      attribute :trigger_event, String
       emits "CascadeTraced"
     end
 
-    DetectCycle do
+    command "DetectCycle" do
       description "Find circular policy chains — event A triggers B triggers C triggers A"
       reference_to(CascadeAnalysis)
       emits "CycleDetected"
     end
 
-    MeasureFanOut do
+    command "MeasureFanOut" do
       description "Count how many parallel branches a single event spawns"
       reference_to(CascadeAnalysis)
       emits "FanOutMeasured"
@@ -75,29 +75,29 @@ Hecks.bluebook "CausalCombinatorics", version: "2026.04.13.1" do
   end
 
   aggregate "EmergenceMetric", "Quantify the novelty produced by combining domains" do
-    Integer :domains_combined
-    Integer :policies_before
-    Integer :policies_after
-    Integer :novel_cascades
-    Float :emergence_ratio
-    Float :cross_wire_density
-    Integer :ranked_domain_count, default: 0
+    attribute :domains_combined, Integer
+    attribute :policies_before, Integer
+    attribute :policies_after, Integer
+    attribute :novel_cascades, Integer
+    attribute :emergence_ratio, Float
+    attribute :cross_wire_density, Float
+    attribute :ranked_domain_count, Integer, default: 0
 
-    MeasureEmergence do
+    command "MeasureEmergence" do
       description "Compare policies in isolated domains vs merged — the difference is emergence"
       reference_to(PolicyGraph)
-      Integer :domains_combined
+      attribute :domains_combined, Integer
       emits "EmergenceMeasured"
     end
 
-    SetRankedDomainCount do
+    command "SetRankedDomainCount" do
       description "Record how many domains are eligible for ranking"
       reference_to(EmergenceMetric)
-      Integer :ranked_domain_count
+      attribute :ranked_domain_count, Integer
       emits "RankedDomainCountSet"
     end
 
-    RankCombinations do
+    command "RankCombinations" do
       description "Score all possible domain pairs by their emergence ratio — which crosses produce the most novelty"
       reference_to(EmergenceMetric)
       emits "CombinationsRanked"
@@ -105,20 +105,20 @@ Hecks.bluebook "CausalCombinatorics", version: "2026.04.13.1" do
   end
 
   aggregate "GenerativeCapacity", "The theoretical upper bound on novel behaviors from a corpus" do
-    Integer :corpus_size
-    Integer :total_policies
-    Integer :total_events
-    Integer :possible_cross_wires
-    Integer :realized_cross_wires
-    Float :saturation
+    attribute :corpus_size, Integer
+    attribute :total_policies, Integer
+    attribute :total_events, Integer
+    attribute :possible_cross_wires, Integer
+    attribute :realized_cross_wires, Integer
+    attribute :saturation, Float
 
-    EstimateCapacity do
+    command "EstimateCapacity" do
       description "For N domains with E events and C commands, how many novel cross-wires are theoretically possible"
-      Integer :corpus_size
+      attribute :corpus_size, Integer
       emits "CapacityEstimated"
     end
 
-    MeasureSaturation do
+    command "MeasureSaturation" do
       description "What fraction of possible cross-wires have been realized — how much novelty remains untapped"
       reference_to(GenerativeCapacity)
       emits "SaturationMeasured"
@@ -126,39 +126,39 @@ Hecks.bluebook "CausalCombinatorics", version: "2026.04.13.1" do
   end
 
   aggregate "CombinatorialLaw", "A discovered pattern in how emergence scales" do
-    String :name
-    String :statement
-    Float :confidence
-    Integer :observations
+    attribute :name, String
+    attribute :statement, String
+    attribute :confidence, Float
+    attribute :observations, Integer
     list_of(Evidence) :supporting_data
 
     value_object "Evidence" do
-      String :domain_pair
-      Float :emergence_ratio
-      Integer :novel_cascades
+      attribute :domain_pair, String
+      attribute :emergence_ratio, Float
+      attribute :novel_cascades, Integer
     end
 
-    ProposeLaw do
+    command "ProposeLaw" do
       description "Hypothesize a relationship between corpus size, policy density, and emergence"
-      String :name
-      String :statement
+      attribute :name, String
+      attribute :statement, String
       emits "LawProposed"
     end
 
-    RecordObservation do
+    command "RecordObservation" do
       description "Increment the observation count for a candidate law"
       reference_to(CombinatorialLaw)
-      Integer :observations
+      attribute :observations, Integer
       emits "ObservationRecorded"
     end
 
-    TestLaw do
+    command "TestLaw" do
       description "Validate a proposed law against observed emergence data"
       reference_to(CombinatorialLaw)
       emits "LawTested"
     end
 
-    RefuteLaw do
+    command "RefuteLaw" do
       description "A proposed law fails against evidence — record the counterexample"
       reference_to(CombinatorialLaw)
       emits "LawRefuted"

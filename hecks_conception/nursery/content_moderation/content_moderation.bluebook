@@ -3,40 +3,40 @@ Hecks.bluebook "ContentModeration", version: "2026.04.13.1" do
   category "technology"
 
   aggregate "Post", "A piece of user-generated content subject to moderation" do
-    String :post_id
-    String :author_id
-    String :content_type
-    String :body
-    String :language
-    String :status
+    attribute :post_id, String
+    attribute :author_id, String
+    attribute :content_type, String
+    attribute :body, String
+    attribute :language, String
+    attribute :status, String
     list_of(ContentTag) :tags
 
     value_object "ContentTag" do
-      String :label
-      Float :confidence
-      String :source
+      attribute :label, String
+      attribute :confidence, Float
+      attribute :source, String
     end
 
-    IngestPost do
+    command "IngestPost" do
       role "ContentPipeline"
       description "Receive new user content for moderation screening"
-      String :post_id
-      String :author_id
-      String :content_type
-      String :body
-      String :language
+      attribute :post_id, String
+      attribute :author_id, String
+      attribute :content_type, String
+      attribute :body, String
+      attribute :language, String
       then_set :status, to: "pending"
       emits "PostIngested"
     end
 
-    AutoFlagPost do
+    command "AutoFlagPost" do
       description "Automatically flag content that triggers policy filters"
       reference_to(Post)
-      String :flag_reason
+      attribute :flag_reason, String
       emits "PostAutoFlagged"
     end
 
-    PublishPost do
+    command "PublishPost" do
       description "Approve content for public visibility"
       reference_to(Post)
       given("post is pending") { status == "pending" }
@@ -45,39 +45,39 @@ Hecks.bluebook "ContentModeration", version: "2026.04.13.1" do
   end
 
   aggregate "Report", "A user-submitted complaint about objectionable content" do
-    String :report_id
-    String :reporter_id
-    String :reason_category
-    String :description
-    String :status
+    attribute :report_id, String
+    attribute :reporter_id, String
+    attribute :reason_category, String
+    attribute :description, String
+    attribute :status, String
     reference_to Post
 
     value_object "ReportEvidence" do
-      String :screenshot_url
-      String :timestamp
-      String :additional_context
+      attribute :screenshot_url, String
+      attribute :timestamp, String
+      attribute :additional_context, String
     end
 
-    SubmitReport do
+    command "SubmitReport" do
       role "User"
       description "File a complaint about a piece of content"
-      String :report_id
-      String :reporter_id
-      String :reason_category
-      String :description
+      attribute :report_id, String
+      attribute :reporter_id, String
+      attribute :reason_category, String
+      attribute :description, String
       reference_to(Post)
       then_set :status, to: "open"
       emits "ReportSubmitted"
     end
 
-    PrioritizeReport do
+    command "PrioritizeReport" do
       description "Elevate a report for urgent review"
       reference_to(Report)
-      String :priority
+      attribute :priority, String
       emits "ReportPrioritized"
     end
 
-    DismissReport do
+    command "DismissReport" do
       description "Close a report as unfounded"
       reference_to(Report)
       given("report is open") { status == "open" }
@@ -86,125 +86,125 @@ Hecks.bluebook "ContentModeration", version: "2026.04.13.1" do
   end
 
   aggregate "ModerationReview", "A human evaluation of flagged or reported content" do
-    String :review_id
-    String :reviewer_id
-    String :queue_name
-    String :verdict
-    String :status
+    attribute :review_id, String
+    attribute :reviewer_id, String
+    attribute :queue_name, String
+    attribute :verdict, String
+    attribute :status, String
     reference_to Post
     list_of(ReviewNote) :notes
 
     value_object "ReviewNote" do
-      String :note
-      String :policy_reference
-      String :recorded_at
+      attribute :note, String
+      attribute :policy_reference, String
+      attribute :recorded_at, String
     end
 
-    AssignReview do
+    command "AssignReview" do
       role "ModerationLead"
       description "Route flagged content to a moderator for evaluation"
-      String :review_id
-      String :reviewer_id
-      String :queue_name
+      attribute :review_id, String
+      attribute :reviewer_id, String
+      attribute :queue_name, String
       reference_to(Post)
       then_set :status, to: "in_progress"
       emits "ReviewAssigned"
     end
 
-    RenderVerdict do
+    command "RenderVerdict" do
       description "Record the moderator's decision on flagged content"
       reference_to(ModerationReview)
-      String :verdict
+      attribute :verdict, String
       given("review is in progress") { status == "in_progress" }
       emits "VerdictRendered"
     end
 
-    EscalateReview do
+    command "EscalateReview" do
       description "Send a difficult case to senior moderators"
       reference_to(ModerationReview)
-      String :escalation_reason
+      attribute :escalation_reason, String
       emits "ReviewEscalated"
     end
   end
 
   aggregate "EnforcementAction", "A penalty applied to content or a user account" do
-    String :action_id
-    String :action_type
-    String :target_id
-    String :reason
-    Integer :duration_days
-    String :status
+    attribute :action_id, String
+    attribute :action_type, String
+    attribute :target_id, String
+    attribute :reason, String
+    attribute :duration_days, Integer
+    attribute :status, String
     reference_to ModerationReview
 
     value_object "ActionDetail" do
-      String :scope
-      String :applied_at
-      String :expires_at
+      attribute :scope, String
+      attribute :applied_at, String
+      attribute :expires_at, String
     end
 
-    EnforceAction do
+    command "EnforceAction" do
       role "TrustAndSafety"
       description "Apply an enforcement action based on a review verdict"
-      String :action_id
-      String :action_type
-      String :target_id
-      String :reason
-      Integer :duration_days
+      attribute :action_id, String
+      attribute :action_type, String
+      attribute :target_id, String
+      attribute :reason, String
+      attribute :duration_days, Integer
       reference_to(ModerationReview)
       then_set :status, to: "active"
       emits "ActionEnforced"
     end
 
-    LiftAction do
+    command "LiftAction" do
       description "Remove an enforcement action early"
       reference_to(EnforcementAction)
       given("action is active") { status == "active" }
       emits "ActionLifted"
     end
 
-    ExtendAction do
+    command "ExtendAction" do
       description "Increase the duration of an active enforcement"
       reference_to(EnforcementAction)
-      Integer :additional_days
+      attribute :additional_days, Integer
       emits "ActionExtended"
     end
   end
 
   aggregate "Appeal", "A user's challenge to an enforcement action" do
-    String :appeal_id
-    String :appellant_id
-    String :grounds
-    String :status
+    attribute :appeal_id, String
+    attribute :appellant_id, String
+    attribute :grounds, String
+    attribute :status, String
     reference_to EnforcementAction
 
     value_object "AppealEvidence" do
-      String :document_url
-      String :description
-      String :submitted_at
+      attribute :document_url, String
+      attribute :description, String
+      attribute :submitted_at, String
     end
 
-    FileAppeal do
+    command "FileAppeal" do
       role "User"
       description "Submit an appeal against an enforcement decision"
-      String :appeal_id
-      String :appellant_id
-      String :grounds
+      attribute :appeal_id, String
+      attribute :appellant_id, String
+      attribute :grounds, String
       reference_to(EnforcementAction)
       then_set :status, to: "under_review"
       emits "AppealFiled"
     end
 
-    GrantAppeal do
+    command "GrantAppeal" do
       description "Uphold the appeal and reverse the enforcement"
       reference_to(Appeal)
       given("appeal is under review") { status == "under_review" }
       emits "AppealGranted"
     end
 
-    DenyAppeal do
+    command "DenyAppeal" do
       description "Reject the appeal and maintain enforcement"
       reference_to(Appeal)
-      String :denial_reason
+      attribute :denial_reason, String
       emits "AppealDenied"
     end
   end

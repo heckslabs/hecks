@@ -5,25 +5,25 @@ Hecks.bluebook "RegenerativeCommons", version: "2026.04.13.1" do
   # === CommonLand ===
 
   aggregate "CommonLand", "A parcel of community-held land — zoned for farming, conservation, and public access" do
-    String :parcel_id
-    String :name
-    Integer :total_acres
-    String :governance_model
-    String :status
+    attribute :parcel_id, String
+    attribute :name, String
+    attribute :total_acres, Integer
+    attribute :governance_model, String
+    attribute :status, String
     list_of(ZoneAllocation) :zones
     value_object "ZoneAllocation" do
-      String :zone_type
-      Integer :acres
-      String :steward_name
-      String :use_restriction
+      attribute :zone_type, String
+      attribute :acres, Integer
+      attribute :steward_name, String
+      attribute :use_restriction, String
     end
-    EstablishCommons do
+    command "EstablishCommons" do
       role "CommunityBoard"
       description "Establish a new regenerative commons with zoning plan"
-      String :parcel_id
-      String :name
-      Integer :total_acres
-      String :governance_model
+      attribute :parcel_id, String
+      attribute :name, String
+      attribute :total_acres, Integer
+      attribute :governance_model, String
       emits "CommonsEstablished"
       then_set :parcel_id, to: :parcel_id
       then_set :name, to: :name
@@ -31,7 +31,7 @@ Hecks.bluebook "RegenerativeCommons", version: "2026.04.13.1" do
       then_set :governance_model, to: :governance_model
       then_set :status, to: "active"
     end
-    RezoneParcel do
+    command "RezoneParcel" do
       role "CommunityBoard"
       description "Rezone land allocation between farming, conservation, and access"
       reference_to(CommonLand)
@@ -43,25 +43,25 @@ Hecks.bluebook "RegenerativeCommons", version: "2026.04.13.1" do
   # === FarmPlot ===
 
   aggregate "FarmPlot", "A farming plot within the commons — crop rotation, yield tracking, soil health" do
-    String :plot_id
+    attribute :plot_id, String
     reference_to(CommonLand, as: :commons)
-    String :steward_name
-    String :current_crop
-    String :soil_health_score
-    String :status
+    attribute :steward_name, String
+    attribute :current_crop, String
+    attribute :soil_health_score, String
+    attribute :status, String
     list_of(RotationEntry) :rotation_plan
     value_object "RotationEntry" do
-      String :season
-      String :crop
-      String :purpose
+      attribute :season, String
+      attribute :crop, String
+      attribute :purpose, String
     end
-    AssignPlot do
+    command "AssignPlot" do
       role "CommunityBoard"
       description "Assign a farming plot to a community steward"
-      String :plot_id
+      attribute :plot_id, String
       reference_to(CommonLand, as: :commons)
-      String :steward_name
-      String :current_crop
+      attribute :steward_name, String
+      attribute :current_crop, String
       emits "PlotAssigned"
       then_set :plot_id, to: :plot_id
       then_set :commons, to: :commons
@@ -69,18 +69,18 @@ Hecks.bluebook "RegenerativeCommons", version: "2026.04.13.1" do
       then_set :current_crop, to: :current_crop
       then_set :status, to: "active"
     end
-    ReportHarvest do
+    command "ReportHarvest" do
       role "Steward"
       description "Report harvest yield from the plot for allocation"
       reference_to(FarmPlot)
       given { status == "active" }
       emits "HarvestReported"
     end
-    RecordSoilHealth do
+    command "RecordSoilHealth" do
       role "Ecologist"
       description "Record soil health assessment for the plot"
       reference_to(FarmPlot)
-      String :soil_health_score
+      attribute :soil_health_score, String
       given { status == "active" }
       emits "SoilHealthRecorded"
       then_set :soil_health_score, to: :soil_health_score
@@ -90,25 +90,25 @@ Hecks.bluebook "RegenerativeCommons", version: "2026.04.13.1" do
   # === ConservationZone ===
 
   aggregate "ConservationZone", "A protected conservation area within the commons — species, corridors, restoration" do
-    String :zone_id
+    attribute :zone_id, String
     reference_to(CommonLand, as: :commons)
-    String :ecosystem_type
-    Integer :acres
-    String :restoration_status
-    String :status
+    attribute :ecosystem_type, String
+    attribute :acres, Integer
+    attribute :restoration_status, String
+    attribute :status, String
     list_of(ProtectedSpecies) :species
     value_object "ProtectedSpecies" do
-      String :species_name
-      String :conservation_status
-      Integer :estimated_population
+      attribute :species_name, String
+      attribute :conservation_status, String
+      attribute :estimated_population, Integer
     end
-    DesignateZone do
+    command "DesignateZone" do
       role "Ecologist"
       description "Designate a conservation zone within the commons"
-      String :zone_id
+      attribute :zone_id, String
       reference_to(CommonLand, as: :commons)
-      String :ecosystem_type
-      Integer :acres
+      attribute :ecosystem_type, String
+      attribute :acres, Integer
       emits "ZoneDesignated"
       then_set :zone_id, to: :zone_id
       then_set :commons, to: :commons
@@ -117,7 +117,7 @@ Hecks.bluebook "RegenerativeCommons", version: "2026.04.13.1" do
       then_set :restoration_status, to: "planned"
       then_set :status, to: "active"
     end
-    BeginRestoration do
+    command "BeginRestoration" do
       role "Ecologist"
       description "Begin ecological restoration of degraded area"
       reference_to(ConservationZone)
@@ -125,7 +125,7 @@ Hecks.bluebook "RegenerativeCommons", version: "2026.04.13.1" do
       emits "RestorationStarted"
       then_set :restoration_status, to: "in_progress"
     end
-    CompleteRestoration do
+    command "CompleteRestoration" do
       role "Ecologist"
       description "Mark restoration as complete after biodiversity targets met"
       reference_to(ConservationZone)
@@ -138,25 +138,25 @@ Hecks.bluebook "RegenerativeCommons", version: "2026.04.13.1" do
   # === HarvestAllocation ===
 
   aggregate "HarvestAllocation", "Allocation of harvest yield — community shares, food bank distribution, seed saving" do
-    String :allocation_id
+    attribute :allocation_id, String
     reference_to(FarmPlot, as: :source_plot)
-    String :season
-    Integer :total_yield_lbs
-    String :status
+    attribute :season, String
+    attribute :total_yield_lbs, Integer
+    attribute :status, String
     list_of(AllocationShare) :shares
     value_object "AllocationShare" do
-      String :recipient_type
-      String :recipient_name
-      Integer :pounds_allocated
-      String :purpose
+      attribute :recipient_type, String
+      attribute :recipient_name, String
+      attribute :pounds_allocated, Integer
+      attribute :purpose, String
     end
-    AllocateHarvest do
+    command "AllocateHarvest" do
       role "CommunityBoard"
       description "Allocate harvest yield across community, food bank, and seed saving"
-      String :allocation_id
+      attribute :allocation_id, String
       reference_to(FarmPlot, as: :source_plot)
-      String :season
-      Integer :total_yield_lbs
+      attribute :season, String
+      attribute :total_yield_lbs, Integer
       emits "HarvestAllocated"
       then_set :allocation_id, to: :allocation_id
       then_set :source_plot, to: :source_plot
@@ -164,7 +164,7 @@ Hecks.bluebook "RegenerativeCommons", version: "2026.04.13.1" do
       then_set :total_yield_lbs, to: :total_yield_lbs
       then_set :status, to: "allocated"
     end
-    DistributeToFoodBank do
+    command "DistributeToFoodBank" do
       role "Coordinator"
       description "Send allocated portion to partnered food bank"
       reference_to(HarvestAllocation)
@@ -177,25 +177,25 @@ Hecks.bluebook "RegenerativeCommons", version: "2026.04.13.1" do
   # === BiodiversitySurvey ===
 
   aggregate "BiodiversitySurvey", "Periodic biodiversity assessment — species count, corridor health, farm-conservation interface" do
-    String :survey_id
+    attribute :survey_id, String
     reference_to(ConservationZone, as: :zone)
     reference_to(FarmPlot, as: :adjacent_plot)
-    String :survey_date
-    String :overall_health
+    attribute :survey_date, String
+    attribute :overall_health, String
     list_of(SpeciesCount) :counts
     value_object "SpeciesCount" do
-      String :species_name
-      Integer :count
-      String :trend
-      String :habitat_quality
+      attribute :species_name, String
+      attribute :count, Integer
+      attribute :trend, String
+      attribute :habitat_quality, String
     end
-    ConductSurvey do
+    command "ConductSurvey" do
       role "Ecologist"
       description "Conduct biodiversity survey across conservation and farm interface"
-      String :survey_id
+      attribute :survey_id, String
       reference_to(ConservationZone, as: :zone)
       reference_to(FarmPlot, as: :adjacent_plot)
-      String :survey_date
+      attribute :survey_date, String
       emits "SurveyConducted"
       then_set :survey_id, to: :survey_id
       then_set :zone, to: :zone
@@ -203,11 +203,11 @@ Hecks.bluebook "RegenerativeCommons", version: "2026.04.13.1" do
       then_set :survey_date, to: :survey_date
       then_set :overall_health, to: "pending"
     end
-    AssessHealth do
+    command "AssessHealth" do
       role "Ecologist"
       description "Assess overall biodiversity health from survey data"
       reference_to(BiodiversitySurvey)
-      String :overall_health
+      attribute :overall_health, String
       emits "HealthAssessed"
       then_set :overall_health, to: :overall_health
     end
@@ -216,25 +216,25 @@ Hecks.bluebook "RegenerativeCommons", version: "2026.04.13.1" do
   # === CommunityMember ===
 
   aggregate "CommunityMember", "A member of the commons — stewardship role, shares, participation record" do
-    String :member_id
-    String :name
+    attribute :member_id, String
+    attribute :name, String
     reference_to(CommonLand, as: :commons)
-    String :role_type
-    String :status
+    attribute :role_type, String
+    attribute :status, String
     list_of(Contribution) :contributions
     value_object "Contribution" do
-      String :date
-      String :activity_type
-      Integer :hours
-      String :notes
+      attribute :date, String
+      attribute :activity_type, String
+      attribute :hours, Integer
+      attribute :notes, String
     end
-    RegisterMember do
+    command "RegisterMember" do
       role "CommunityBoard"
       description "Register a new member of the regenerative commons"
-      String :member_id
-      String :name
+      attribute :member_id, String
+      attribute :name, String
       reference_to(CommonLand, as: :commons)
-      String :role_type
+      attribute :role_type, String
       emits "MemberRegistered"
       then_set :member_id, to: :member_id
       then_set :name, to: :name
@@ -242,7 +242,7 @@ Hecks.bluebook "RegenerativeCommons", version: "2026.04.13.1" do
       then_set :role_type, to: :role_type
       then_set :status, to: "active"
     end
-    LogContribution do
+    command "LogContribution" do
       role "Steward"
       description "Log a stewardship contribution — farming, conservation, or community work"
       reference_to(CommunityMember)

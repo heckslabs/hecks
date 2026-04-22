@@ -3,29 +3,29 @@ Hecks.bluebook "HealingGarden", version: "2026.04.13.1" do
   category "healthcare_community"
 
   aggregate "ComfortPlan", "A comfort care plan for a hospice patient" do
-    String :plan_id
-    String :patient_name
-    String :primary_nurse
+    attribute :plan_id, String
+    attribute :patient_name, String
+    attribute :primary_nurse, String
     list_of(Intervention) :interventions
-    String :status
+    attribute :status, String
     value_object "Intervention" do
-      String :type
-      String :frequency
-      String :notes
+      attribute :type, String
+      attribute :frequency, String
+      attribute :notes, String
     end
-    DraftComfortPlan do
+    command "DraftComfortPlan" do
       role "Nurse"
       description "Draft a comfort care plan for a hospice patient"
-      String :plan_id
-      String :patient_name
-      String :primary_nurse
+      attribute :plan_id, String
+      attribute :patient_name, String
+      attribute :primary_nurse, String
       emits "ComfortPlanDrafted"
       then_set :plan_id, to: :plan_id
       then_set :patient_name, to: :patient_name
       then_set :primary_nurse, to: :primary_nurse
       then_set :status, to: "active"
     end
-    TendPlan do
+    command "TendPlan" do
       role "Nurse"
       description "Tend the comfort plan based on patient needs"
       reference_to(ComfortPlan)
@@ -34,20 +34,20 @@ Hecks.bluebook "HealingGarden", version: "2026.04.13.1" do
   end
 
   aggregate "GardenPlot", "A therapeutic garden plot maintained for patient healing" do
-    String :plot_id
-    String :garden_name
-    String :plant_type
-    String :therapeutic_purpose
-    String :season
-    String :status
-    PlantPlot do
+    attribute :plot_id, String
+    attribute :garden_name, String
+    attribute :plant_type, String
+    attribute :therapeutic_purpose, String
+    attribute :season, String
+    attribute :status, String
+    command "PlantPlot" do
       role "Gardener"
       description "Plant a therapeutic garden plot for patient engagement"
-      String :plot_id
-      String :garden_name
-      String :plant_type
-      String :therapeutic_purpose
-      String :season
+      attribute :plot_id, String
+      attribute :garden_name, String
+      attribute :plant_type, String
+      attribute :therapeutic_purpose, String
+      attribute :season, String
       emits "PlotPlanted"
       then_set :plot_id, to: :plot_id
       then_set :garden_name, to: :garden_name
@@ -56,7 +56,7 @@ Hecks.bluebook "HealingGarden", version: "2026.04.13.1" do
       then_set :season, to: :season
       then_set :status, to: "growing"
     end
-    HarvestPlot do
+    command "HarvestPlot" do
       role "Gardener"
       description "Harvest from the garden plot for patient meals or activities"
       reference_to(GardenPlot)
@@ -67,22 +67,22 @@ Hecks.bluebook "HealingGarden", version: "2026.04.13.1" do
   end
 
   aggregate "GardenVisit", "A patient visit to the therapeutic garden" do
-    String :visit_id
-    String :patient_name
-    String :plot_id
-    String :activity
-    Float :duration_minutes
-    String :mood_before
-    String :mood_after
-    LogGardenVisit do
+    attribute :visit_id, String
+    attribute :patient_name, String
+    attribute :plot_id, String
+    attribute :activity, String
+    attribute :duration_minutes, Float
+    attribute :mood_before, String
+    attribute :mood_after, String
+    command "LogGardenVisit" do
       role "Volunteer"
       description "Log a patient visit to the therapeutic garden"
-      String :visit_id
-      String :patient_name
-      String :plot_id
-      String :activity
-      Float :duration_minutes
-      String :mood_before
+      attribute :visit_id, String
+      attribute :patient_name, String
+      attribute :plot_id, String
+      attribute :activity, String
+      attribute :duration_minutes, Float
+      attribute :mood_before, String
       emits "GardenVisitLogged"
       then_set :visit_id, to: :visit_id
       then_set :patient_name, to: :patient_name
@@ -91,31 +91,31 @@ Hecks.bluebook "HealingGarden", version: "2026.04.13.1" do
       then_set :duration_minutes, to: :duration_minutes
       then_set :mood_before, to: :mood_before
     end
-    RecordMoodAfter do
+    command "RecordMoodAfter" do
       role "Volunteer"
       description "Record the patient mood after the garden visit"
       reference_to(GardenVisit)
-      String :mood_after
+      attribute :mood_after, String
       emits "MoodRecorded"
       then_set :mood_after, to: :mood_after
     end
   end
 
   aggregate "VolunteerShift", "A volunteer shift for garden maintenance and patient accompaniment" do
-    String :shift_id
-    String :volunteer_name
-    String :garden_name
-    String :date
-    Float :hours
-    String :status
-    ScheduleShift do
+    attribute :shift_id, String
+    attribute :volunteer_name, String
+    attribute :garden_name, String
+    attribute :date, String
+    attribute :hours, Float
+    attribute :status, String
+    command "ScheduleShift" do
       role "Coordinator"
       description "Schedule a volunteer shift at the healing garden"
-      String :shift_id
-      String :volunteer_name
-      String :garden_name
-      String :date
-      Float :hours
+      attribute :shift_id, String
+      attribute :volunteer_name, String
+      attribute :garden_name, String
+      attribute :date, String
+      attribute :hours, Float
       emits "ShiftScheduled"
       then_set :shift_id, to: :shift_id
       then_set :volunteer_name, to: :volunteer_name
@@ -124,7 +124,7 @@ Hecks.bluebook "HealingGarden", version: "2026.04.13.1" do
       then_set :hours, to: :hours
       then_set :status, to: "scheduled"
     end
-    CompleteShift do
+    command "CompleteShift" do
       role "Volunteer"
       description "Mark volunteer shift as completed"
       reference_to(VolunteerShift)

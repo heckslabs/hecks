@@ -21,16 +21,16 @@ Hecks.bluebook "HekiAdapter", version: "2026.04.16.1" do
   # This adapter tells the kernel how to use them for aggregate persistence.
 
   aggregate "Binding", "Maps an aggregate to a heki store" do
-    String :aggregate_name
-    String :store_path
-    String :id_strategy
-    String :save_strategy
+    attribute :aggregate_name, String
+    attribute :store_path, String
+    attribute :id_strategy, String
+    attribute :save_strategy, String
 
-    BindAggregate do
+    command "BindAggregate" do
       role "System"
       description "Wire an aggregate to its heki store"
-      String :aggregate_name
-      String :store_path
+      attribute :aggregate_name, String
+      attribute :store_path, String
       emits "AggregateBound"
       then_set :aggregate_name, to: :aggregate_name
       then_set :store_path, to: :store_path
@@ -40,15 +40,15 @@ Hecks.bluebook "HekiAdapter", version: "2026.04.16.1" do
   end
 
   aggregate "Reference", "How references between aggregates resolve" do
-    String :from_aggregate
-    String :to_aggregate
-    String :resolution
+    attribute :from_aggregate, String
+    attribute :to_aggregate, String
+    attribute :resolution, String
 
-    ResolveReference do
+    command "ResolveReference" do
       role "System"
       description "Resolve reference_to by finding the singleton in the target store"
-      String :from_aggregate
-      String :to_aggregate
+      attribute :from_aggregate, String
+      attribute :to_aggregate, String
       emits "ReferenceResolved"
       then_set :from_aggregate, to: :from_aggregate
       then_set :to_aggregate, to: :to_aggregate

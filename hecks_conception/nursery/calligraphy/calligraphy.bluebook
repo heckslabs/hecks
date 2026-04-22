@@ -1,23 +1,23 @@
 Hecks.bluebook "Calligraphy" do
   aggregate "CalligraphyCommission", "A custom calligraphy order for events, gifts, or documents" do
-    String :client_name
-    String :text_content
-    String :purpose
-    String :status, default: "quoted"
-    String :deadline
-    Float :price
+    attribute :client_name, String
+    attribute :text_content, String
+    attribute :purpose, String
+    attribute :status, String, default: "quoted"
+    attribute :deadline, String
+    attribute :price, Float
 
-    QuoteCommission do
+    command "QuoteCommission" do
       description "Provide a price quote for calligraphy work"
-      String :client_name
-      String :text_content
-      String :purpose
-      String :deadline
+      attribute :client_name, String
+      attribute :text_content, String
+      attribute :purpose, String
+      attribute :deadline, String
       then_set :status, to: "quoted"
       emits "CommissionQuoted"
     end
 
-    AcceptCommission do
+    command "AcceptCommission" do
       description "Client accepts the quote and work is confirmed"
       reference_to(CalligraphyCommission)
       given { status == "quoted" }
@@ -25,14 +25,14 @@ Hecks.bluebook "Calligraphy" do
       then_set :status, to: "accepted"
     end
 
-    LetterCommission do
+    command "LetterCommission" do
       description "Execute the calligraphy lettering on prepared paper"
       reference_to(CalligraphyCommission)
       emits "CommissionLettered"
       then_set :status, to: "lettered"
     end
 
-    DeliverCommission do
+    command "DeliverCommission" do
       description "Ship or hand off the finished calligraphy piece"
       reference_to(CalligraphyCommission)
       emits "CommissionDelivered"
@@ -41,92 +41,92 @@ Hecks.bluebook "Calligraphy" do
   end
 
   aggregate "Script", "A calligraphic script style with stroke characteristics" do
-    String :name
-    String :historical_period
-    String :tool_type
-    Float :x_height_mm
-    Float :nib_angle_degrees
+    attribute :name, String
+    attribute :historical_period, String
+    attribute :tool_type, String
+    attribute :x_height_mm, Float
+    attribute :nib_angle_degrees, Float
 
     value_object "LetterformSpec" do
-      Float :ascender_ratio
-      Float :descender_ratio
-      Float :letter_spacing
-      String :baseline_style
+      attribute :ascender_ratio, Float
+      attribute :descender_ratio, Float
+      attribute :letter_spacing, Float
+      attribute :baseline_style, String
     end
 
-    DefineScript do
+    command "DefineScript" do
       description "Document a calligraphic script with its proportions"
-      String :name
-      String :historical_period
-      String :tool_type
-      Float :x_height_mm
-      Float :nib_angle_degrees
+      attribute :name, String
+      attribute :historical_period, String
+      attribute :tool_type, String
+      attribute :x_height_mm, Float
+      attribute :nib_angle_degrees, Float
       emits "ScriptDefined"
     end
 
-    PracticeScript do
+    command "PracticeScript" do
       description "Log a practice session with a script for skill building"
       reference_to(Script)
-      Integer :duration_minutes
-      String :focus_area
+      attribute :duration_minutes, Integer
+      attribute :focus_area, String
       emits "ScriptPracticed"
     end
   end
 
   aggregate "InkFormulation", "A custom ink recipe with pigments and binder" do
-    String :name
-    String :color
-    String :base_type
-    Float :viscosity
-    String :status, default: "formulated"
+    attribute :name, String
+    attribute :color, String
+    attribute :base_type, String
+    attribute :viscosity, Float
+    attribute :status, String, default: "formulated"
 
     value_object "PigmentMix" do
-      String :pigment_name
-      Float :percentage
-      String :source
+      attribute :pigment_name, String
+      attribute :percentage, Float
+      attribute :source, String
     end
 
-    FormulateInk do
+    command "FormulateInk" do
       description "Mix a custom ink formulation from pigments and binder"
-      String :name
-      String :color
-      String :base_type
-      Float :viscosity
+      attribute :name, String
+      attribute :color, String
+      attribute :base_type, String
+      attribute :viscosity, Float
       emits "InkFormulated"
     end
 
-    TestInk do
+    command "TestInk" do
       description "Test the ink on different papers for flow and opacity"
       reference_to(InkFormulation)
-      String :paper_type
+      attribute :paper_type, String
       emits "InkTested"
     end
   end
 
   aggregate "PaperSelection", "A paper stock selected for calligraphy work" do
-    String :name
-    String :finish
-    Integer :gsm
-    String :fiber_content
-    String :status, default: "stocked"
+    attribute :name, String
+    attribute :finish, String
+    attribute :gsm, Integer
+    attribute :fiber_content, String
+    attribute :status, String, default: "stocked"
     reference_to(CalligraphyCommission)
 
-    SelectPaper do
+    command "SelectPaper" do
       description "Choose a paper stock for a commission"
       reference_to(CalligraphyCommission)
-      String :name
-      String :finish
-      Integer :gsm
-      String :fiber_content
+      attribute :name, String
+      attribute :finish, String
+      attribute :gsm, Integer
+      attribute :fiber_content, String
       then_set :status, to: "stocked"
       emits "PaperSelected"
     end
 
-    CutPaper do
+    command "CutPaper" do
       description "Cut paper to the required dimensions for lettering"
       reference_to(PaperSelection)
-      Float :width_inches
-      Float :height_inches
+      attribute :width_inches, Float
+      attribute :height_inches, Float
       given { status == "stocked" }
       emits "PaperCut"
       then_set :status, to: "cut"
@@ -134,21 +134,21 @@ Hecks.bluebook "Calligraphy" do
   end
 
   aggregate "Portfolio", "A curated collection of calligraphy work samples" do
-    String :title
-    String :theme
-    Integer :piece_count
-    String :status, default: "curating"
+    attribute :title, String
+    attribute :theme, String
+    attribute :piece_count, Integer
+    attribute :status, String, default: "curating"
 
-    CuratePortfolio do
+    command "CuratePortfolio" do
       description "Select pieces for a themed portfolio"
-      String :title
-      String :theme
-      Integer :piece_count
+      attribute :title, String
+      attribute :theme, String
+      attribute :piece_count, Integer
       then_set :status, to: "curating"
       emits "PortfolioCurated"
     end
 
-    PublishPortfolio do
+    command "PublishPortfolio" do
       description "Make the portfolio available for client viewing"
       reference_to(Portfolio)
       given { status == "curating" }

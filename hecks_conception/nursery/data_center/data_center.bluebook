@@ -3,12 +3,12 @@ Hecks.bluebook "DataCenter", version: "2026.04.13.1" do
   category "technology"
 
   aggregate "Rack", "A physical cabinet housing servers and network gear" do
-    String :rack_id
-    String :location_aisle
-    Integer :unit_capacity
-    Integer :units_used
-    String :power_zone
-    String :status
+    attribute :rack_id, String
+    attribute :location_aisle, String
+    attribute :unit_capacity, Integer
+    attribute :units_used, Integer
+    attribute :power_zone, String
+    attribute :status, String
     list_of(MountedDevice) :mounted_devices
 
     specification "Full" do
@@ -16,33 +16,33 @@ Hecks.bluebook "DataCenter", version: "2026.04.13.1" do
     end
 
     value_object "MountedDevice" do
-      String :device_id
-      Integer :start_unit
-      Integer :unit_span
-      String :device_type
+      attribute :device_id, String
+      attribute :start_unit, Integer
+      attribute :unit_span, Integer
+      attribute :device_type, String
     end
 
-    InstallRack do
+    command "InstallRack" do
       role "FacilityEngineer"
       description "Bring a new rack online in a specified aisle and power zone"
-      String :rack_id
-      String :location_aisle
-      Integer :unit_capacity
-      String :power_zone
+      attribute :rack_id, String
+      attribute :location_aisle, String
+      attribute :unit_capacity, Integer
+      attribute :power_zone, String
       emits "RackInstalled"
     end
 
-    MountDevice do
+    command "MountDevice" do
       description "Install a device into available rack units"
       reference_to(Rack)
-      String :device_id
-      Integer :start_unit
-      Integer :unit_span
+      attribute :device_id, String
+      attribute :start_unit, Integer
+      attribute :unit_span, Integer
       given("rack has available units") { units_used + unit_span <= unit_capacity }
       emits "DeviceMounted"
     end
 
-    RemoveRack do
+    command "RemoveRack" do
       description "Take a rack offline for maintenance or removal"
       reference_to(Rack)
       given("rack is empty") { units_used == 0 }
@@ -51,41 +51,41 @@ Hecks.bluebook "DataCenter", version: "2026.04.13.1" do
   end
 
   aggregate "Server", "A compute node running workloads inside a rack" do
-    String :hostname
-    String :ip_address
-    Integer :cpu_cores
-    Integer :ram_gb
-    String :os_version
-    String :status
+    attribute :hostname, String
+    attribute :ip_address, String
+    attribute :cpu_cores, Integer
+    attribute :ram_gb, Integer
+    attribute :os_version, String
+    attribute :status, String
     reference_to Rack
 
     value_object "HealthMetric" do
-      Float :cpu_usage_pct
-      Float :memory_usage_pct
-      Float :disk_usage_pct
-      String :sampled_at
+      attribute :cpu_usage_pct, Float
+      attribute :memory_usage_pct, Float
+      attribute :disk_usage_pct, Float
+      attribute :sampled_at, String
     end
 
-    SetupServer do
+    command "SetupServer" do
       role "SysAdmin"
       description "Set up a new server with OS and assign it to a rack"
-      String :hostname
-      String :ip_address
-      Integer :cpu_cores
-      Integer :ram_gb
-      String :os_version
+      attribute :hostname, String
+      attribute :ip_address, String
+      attribute :cpu_cores, Integer
+      attribute :ram_gb, Integer
+      attribute :os_version, String
       reference_to(Rack)
       then_set :status, to: "powered_off"
       emits "ServerSetUp"
     end
 
-    RebootServer do
+    command "RebootServer" do
       description "Restart a server to apply patches or recover from errors"
       reference_to(Server)
       emits "ServerRebooted"
     end
 
-    RetireServer do
+    command "RetireServer" do
       description "Permanently remove a server from service"
       reference_to(Server)
       given("server is powered off") { status == "powered_off" }
@@ -94,37 +94,37 @@ Hecks.bluebook "DataCenter", version: "2026.04.13.1" do
   end
 
   aggregate "CoolingUnit", "An HVAC or liquid cooling system maintaining safe temperatures" do
-    String :unit_id
-    String :zone
-    Float :target_temp_c
-    Float :current_temp_c
-    String :coolant_type
-    String :status
+    attribute :unit_id, String
+    attribute :zone, String
+    attribute :target_temp_c, Float
+    attribute :current_temp_c, Float
+    attribute :coolant_type, String
+    attribute :status, String
 
     value_object "TemperatureReading" do
-      Float :temp_c
-      Float :humidity_pct
-      String :recorded_at
+      attribute :temp_c, Float
+      attribute :humidity_pct, Float
+      attribute :recorded_at, String
     end
 
-    InstallCoolingUnit do
+    command "InstallCoolingUnit" do
       role "FacilityEngineer"
       description "Add a cooling unit to a thermal zone"
-      String :unit_id
-      String :zone
-      Float :target_temp_c
-      String :coolant_type
+      attribute :unit_id, String
+      attribute :zone, String
+      attribute :target_temp_c, Float
+      attribute :coolant_type, String
       emits "CoolingUnitInstalled"
     end
 
-    AdjustTargetTemperature do
+    command "AdjustTargetTemperature" do
       description "Change the target temperature setpoint for a cooling unit"
       reference_to(CoolingUnit)
-      Float :target_temp_c
+      attribute :target_temp_c, Float
       emits "TargetTemperatureAdjusted"
     end
 
-    ShutdownCoolingUnit do
+    command "ShutdownCoolingUnit" do
       description "Take a cooling unit offline for service"
       reference_to(CoolingUnit)
       emits "CoolingUnitShutdown"
@@ -132,36 +132,36 @@ Hecks.bluebook "DataCenter", version: "2026.04.13.1" do
   end
 
   aggregate "PowerCircuit", "An electrical feed delivering power to racks" do
-    String :circuit_id
-    Float :capacity_kw
-    Float :current_load_kw
-    String :redundancy_level
-    String :status
+    attribute :circuit_id, String
+    attribute :capacity_kw, Float
+    attribute :current_load_kw, Float
+    attribute :redundancy_level, String
+    attribute :status, String
     list_of(LoadReading) :load_history
 
     value_object "LoadReading" do
-      Float :load_kw
-      String :recorded_at
+      attribute :load_kw, Float
+      attribute :recorded_at, String
     end
 
-    ActivateCircuit do
+    command "ActivateCircuit" do
       role "FacilityEngineer"
       description "Energize a power circuit and connect it to rack rows"
-      String :circuit_id
-      Float :capacity_kw
-      String :redundancy_level
+      attribute :circuit_id, String
+      attribute :capacity_kw, Float
+      attribute :redundancy_level, String
       emits "CircuitActivated"
     end
 
-    RecordLoad do
+    command "RecordLoad" do
       description "Log the current power draw on a circuit"
       reference_to(PowerCircuit)
-      Float :load_kw
+      attribute :load_kw, Float
       given("load within capacity") { load_kw <= capacity_kw }
       emits "LoadRecorded"
     end
 
-    TripCircuit do
+    command "TripCircuit" do
       description "Emergency shutdown of an overloaded circuit"
       reference_to(PowerCircuit)
       emits "CircuitTripped"
@@ -169,46 +169,46 @@ Hecks.bluebook "DataCenter", version: "2026.04.13.1" do
   end
 
   aggregate "Incident", "An unplanned event requiring investigation and resolution" do
-    String :incident_number
-    String :severity
-    String :summary
-    String :affected_zone
-    String :assigned_to
-    String :status
+    attribute :incident_number, String
+    attribute :severity, String
+    attribute :summary, String
+    attribute :affected_zone, String
+    attribute :assigned_to, String
+    attribute :status, String
     reference_to Server
     list_of(TimelineEntry) :timeline
 
     value_object "TimelineEntry" do
-      String :note
-      String :author
-      String :recorded_at
+      attribute :note, String
+      attribute :author, String
+      attribute :recorded_at, String
     end
 
-    ReportIncident do
+    command "ReportIncident" do
       role "OnCallEngineer"
       description "Open a new incident when an anomaly is detected"
-      String :incident_number
-      String :severity
-      String :summary
-      String :affected_zone
+      attribute :incident_number, String
+      attribute :severity, String
+      attribute :summary, String
+      attribute :affected_zone, String
       reference_to(Server)
       then_set :status, to: "open"
       emits "IncidentReported"
     end
 
-    EscalateIncident do
+    command "EscalateIncident" do
       description "Raise the severity or reassign an incident"
       reference_to(Incident)
-      String :severity
-      String :assigned_to
+      attribute :severity, String
+      attribute :assigned_to, String
       given("incident is open") { status == "open" }
       emits "IncidentEscalated"
     end
 
-    ResolveIncident do
+    command "ResolveIncident" do
       description "Close an incident with a root cause note"
       reference_to(Incident)
-      String :resolution_note
+      attribute :resolution_note, String
       emits "IncidentResolved"
     end
   end

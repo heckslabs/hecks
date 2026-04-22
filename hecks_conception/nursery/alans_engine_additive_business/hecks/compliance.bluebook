@@ -3,24 +3,24 @@ Hecks.bluebook "Compliance", version: "2026.04.11.1" do
   category "business"
 
   aggregate "SafetyDataSheet", "A GHS-compliant 16-section SDS for a formula — revision tracked per regulatory requirement" do
-    String :formula_name
-    String :sds_number
-    Integer :revision
-    String :ghs_classification
-    String :hmis_rating
-    String :nfpa_rating
+    attribute :formula_name, String
+    attribute :sds_number, String
+    attribute :revision, Integer
+    attribute :ghs_classification, String
+    attribute :hmis_rating, String
+    attribute :nfpa_rating, String
     list_of(String) :cas_numbers
-    String :revision_date
-    String :status
+    attribute :revision_date, String
+    attribute :status, String
 
-    AuthorSafetyDataSheet do
+    command "AuthorSafetyDataSheet" do
       role "RegulatorySpecialist"
       description "Author a new GHS-compliant 16-section SDS for a formula"
-      String :formula_name
-      String :sds_number
-      String :ghs_classification
-      String :hmis_rating
-      String :nfpa_rating
+      attribute :formula_name, String
+      attribute :sds_number, String
+      attribute :ghs_classification, String
+      attribute :hmis_rating, String
+      attribute :nfpa_rating, String
       list_of(String) :cas_numbers
       emits "SafetyDataSheetCreated"
       then_set :formula_name, to: :formula_name
@@ -33,12 +33,12 @@ Hecks.bluebook "Compliance", version: "2026.04.11.1" do
       then_set :status, to: "active"
     end
 
-    ReviseSafetyDataSheet do
+    command "ReviseSafetyDataSheet" do
       role "RegulatorySpecialist"
       description "Issue a new revision of the SDS — ingredient or classification change"
       reference_to(SafetyDataSheet)
-      String :ghs_classification
-      String :revision_date
+      attribute :ghs_classification, String
+      attribute :revision_date, String
       emits "SafetyDataSheetRevised"
       then_set :ghs_classification, to: :ghs_classification
       then_set :revision_date, to: :revision_date
@@ -52,27 +52,27 @@ Hecks.bluebook "Compliance", version: "2026.04.11.1" do
   end
 
   aggregate "ChemicalRegistration", "EPA, state VOC, California Prop 65, TSCA, and REACH registration for a formula" do
-    String :formula_name
-    String :registration_type
-    String :jurisdiction
-    String :registration_number
-    Float :voc_content_grams_per_liter
-    String :prop_65_listed
-    String :tsca_compliant
-    String :reach_registered
-    String :expiration_date
-    String :status
+    attribute :formula_name, String
+    attribute :registration_type, String
+    attribute :jurisdiction, String
+    attribute :registration_number, String
+    attribute :voc_content_grams_per_liter, Float
+    attribute :prop_65_listed, String
+    attribute :tsca_compliant, String
+    attribute :reach_registered, String
+    attribute :expiration_date, String
+    attribute :status, String
 
-    RegisterChemical do
+    command "RegisterChemical" do
       role "RegulatorySpecialist"
       description "File EPA, VOC, Prop 65, TSCA, or REACH registration for a formula"
-      String :formula_name
-      String :registration_type
-      String :jurisdiction
-      String :registration_number
-      Float :voc_content_grams_per_liter
-      String :prop_65_listed
-      String :tsca_compliant
+      attribute :formula_name, String
+      attribute :registration_type, String
+      attribute :jurisdiction, String
+      attribute :registration_number, String
+      attribute :voc_content_grams_per_liter, Float
+      attribute :prop_65_listed, String
+      attribute :tsca_compliant, String
       emits "ChemicalRegistered"
       then_set :formula_name, to: :formula_name
       then_set :registration_type, to: :registration_type
@@ -84,16 +84,16 @@ Hecks.bluebook "Compliance", version: "2026.04.11.1" do
       then_set :status, to: "active"
     end
 
-    RenewRegistration do
+    command "RenewRegistration" do
       role "RegulatorySpecialist"
       description "Renew an expiring chemical registration before lapse"
       reference_to(ChemicalRegistration)
-      String :expiration_date
+      attribute :expiration_date, String
       emits "RegistrationRenewed"
       then_set :expiration_date, to: :expiration_date
     end
 
-    RevokeRegistration do
+    command "RevokeRegistration" do
       role "RegulatorySpecialist"
       description "Registration revoked or withdrawn — formula cannot ship to this jurisdiction"
       reference_to(ChemicalRegistration)
@@ -108,19 +108,19 @@ Hecks.bluebook "Compliance", version: "2026.04.11.1" do
   end
 
   aggregate "RegulatoryAudit", "Inspection readiness — documentation trail for EPA, state, and customer audits" do
-    String :audit_type
-    String :auditor
-    String :scheduled_date
+    attribute :audit_type, String
+    attribute :auditor, String
+    attribute :scheduled_date, String
     list_of(String) :findings
-    String :documentation_complete
-    String :status
+    attribute :documentation_complete, String
+    attribute :status, String
 
-    ScheduleAudit do
+    command "ScheduleAudit" do
       role "RegulatorySpecialist"
       description "Schedule an upcoming regulatory inspection or customer audit"
-      String :audit_type
-      String :auditor
-      String :scheduled_date
+      attribute :audit_type, String
+      attribute :auditor, String
+      attribute :scheduled_date, String
       emits "AuditScheduled"
       then_set :audit_type, to: :audit_type
       then_set :auditor, to: :auditor
@@ -129,7 +129,7 @@ Hecks.bluebook "Compliance", version: "2026.04.11.1" do
       then_set :status, to: "scheduled"
     end
 
-    PrepareDocumentation do
+    command "PrepareDocumentation" do
       role "RegulatorySpecialist"
       description "Confirm all SDS, registrations, and batch records are audit-ready"
       reference_to(RegulatoryAudit)
@@ -137,7 +137,7 @@ Hecks.bluebook "Compliance", version: "2026.04.11.1" do
       then_set :documentation_complete, to: "true"
     end
 
-    RecordFindings do
+    command "RecordFindings" do
       role "RegulatorySpecialist"
       description "Capture audit findings — observations, non-conformances, corrective actions"
       reference_to(RegulatoryAudit)
@@ -147,7 +147,7 @@ Hecks.bluebook "Compliance", version: "2026.04.11.1" do
       then_set :status, to: "completed"
     end
 
-    CloseAudit do
+    command "CloseAudit" do
       role "RegulatorySpecialist"
       description "Close the audit — all findings addressed"
       reference_to(RegulatoryAudit)

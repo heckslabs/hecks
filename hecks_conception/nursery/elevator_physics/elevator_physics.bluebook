@@ -3,25 +3,25 @@ Hecks.bluebook "ElevatorPhysics", version: "2026.04.13.1" do
   category "crossover"
 
   aggregate "ElevatorCar", "An elevator car — weight, capacity, current floor, motion state" do
-    String :car_id
-    Float :car_weight_kg
-    Float :max_load_kg
-    Float :current_load_kg
-    Integer :current_floor
-    String :status
+    attribute :car_id, String
+    attribute :car_weight_kg, Float
+    attribute :max_load_kg, Float
+    attribute :current_load_kg, Float
+    attribute :current_floor, Integer
+    attribute :status, String
 
     value_object "MotionProfile" do
-      Float :acceleration_ms2
-      Float :max_velocity_ms
-      Float :jerk_ms3
+      attribute :acceleration_ms2, Float
+      attribute :max_velocity_ms, Float
+      attribute :jerk_ms3, Float
     end
 
-    InstallCar do
+    command "InstallCar" do
       role "Engineer"
       description "Install an elevator car with weight and capacity specifications"
-      String :car_id
-      Float :car_weight_kg
-      Float :max_load_kg
+      attribute :car_id, String
+      attribute :car_weight_kg, Float
+      attribute :max_load_kg, Float
       emits "CarInstalled"
       then_set :car_id, to: :car_id
       then_set :car_weight_kg, to: :car_weight_kg
@@ -31,28 +31,28 @@ Hecks.bluebook "ElevatorPhysics", version: "2026.04.13.1" do
       then_set :status, to: "idle"
     end
 
-    LoadPassengers do
+    command "LoadPassengers" do
       role "System"
       description "Record passenger load entering the elevator"
       reference_to(ElevatorCar)
-      Float :current_load_kg
+      attribute :current_load_kg, Float
       given { status == "idle" }
       emits "PassengersLoaded"
       then_set :current_load_kg, to: :current_load_kg
     end
 
-    MoveToFloor do
+    command "MoveToFloor" do
       role "System"
       description "Move elevator car to target floor"
       reference_to(ElevatorCar)
-      Integer :current_floor
+      attribute :current_floor, Integer
       given { status == "idle" }
       emits "CarMoved"
       then_set :current_floor, to: :current_floor
       then_set :status, to: "moving"
     end
 
-    ArriveAtFloor do
+    command "ArriveAtFloor" do
       role "System"
       description "Elevator arrives at target floor and opens doors"
       reference_to(ElevatorCar)
@@ -61,7 +61,7 @@ Hecks.bluebook "ElevatorPhysics", version: "2026.04.13.1" do
       then_set :status, to: "idle"
     end
 
-    EmergencyStop do
+    command "EmergencyStop" do
       role "System"
       description "Engage emergency brakes and stop the car"
       reference_to(ElevatorCar)
@@ -79,28 +79,28 @@ Hecks.bluebook "ElevatorPhysics", version: "2026.04.13.1" do
   end
 
   aggregate "CableSystem", "Elevator cable system — material, diameter, safety factor, wear" do
-    String :cable_id
-    String :material
-    Float :diameter_mm
-    Float :breaking_strength_kn
-    Float :safety_factor
-    Float :wear_pct
-    String :status
+    attribute :cable_id, String
+    attribute :material, String
+    attribute :diameter_mm, Float
+    attribute :breaking_strength_kn, Float
+    attribute :safety_factor, Float
+    attribute :wear_pct, Float
+    attribute :status, String
 
     value_object "TensionReading" do
-      Float :tension_kn
-      Float :timestamp_hours
-      String :measurement_point
+      attribute :tension_kn, Float
+      attribute :timestamp_hours, Float
+      attribute :measurement_point, String
     end
 
-    InstallCable do
+    command "InstallCable" do
       role "Engineer"
       description "Install elevator cable with material specs and safety factor"
-      String :cable_id
-      String :material
-      Float :diameter_mm
-      Float :breaking_strength_kn
-      Float :safety_factor
+      attribute :cable_id, String
+      attribute :material, String
+      attribute :diameter_mm, Float
+      attribute :breaking_strength_kn, Float
+      attribute :safety_factor, Float
       emits "CableInstalled"
       then_set :cable_id, to: :cable_id
       then_set :material, to: :material
@@ -111,17 +111,17 @@ Hecks.bluebook "ElevatorPhysics", version: "2026.04.13.1" do
       then_set :status, to: "active"
     end
 
-    InspectCable do
+    command "InspectCable" do
       role "Inspector"
       description "Inspect cable for wear, fraying, and tension"
       reference_to(CableSystem)
-      Float :wear_pct
+      attribute :wear_pct, Float
       given { status == "active" }
       emits "CableInspected"
       then_set :wear_pct, to: :wear_pct
     end
 
-    ReplaceCable do
+    command "ReplaceCable" do
       role "Engineer"
       description "Replace cable that has exceeded wear limits"
       reference_to(CableSystem)
@@ -138,25 +138,25 @@ Hecks.bluebook "ElevatorPhysics", version: "2026.04.13.1" do
   end
 
   aggregate "Counterweight", "Counterweight system — mass, balance ratio, adjustment" do
-    String :counterweight_id
-    Float :mass_kg
-    Float :balance_ratio
-    Float :car_weight_kg
-    String :status
+    attribute :counterweight_id, String
+    attribute :mass_kg, Float
+    attribute :balance_ratio, Float
+    attribute :car_weight_kg, Float
+    attribute :status, String
 
     value_object "ForceBalance" do
-      Float :car_side_force_n
-      Float :counterweight_force_n
-      Float :net_force_n
-      Float :motor_load_pct
+      attribute :car_side_force_n, Float
+      attribute :counterweight_force_n, Float
+      attribute :net_force_n, Float
+      attribute :motor_load_pct, Float
     end
 
-    ConfigureCounterweight do
+    command "ConfigureCounterweight" do
       role "Engineer"
       description "Configure counterweight mass for optimal car balance"
-      String :counterweight_id
-      Float :mass_kg
-      Float :car_weight_kg
+      attribute :counterweight_id, String
+      attribute :mass_kg, Float
+      attribute :car_weight_kg, Float
       emits "CounterweightConfigured"
       then_set :counterweight_id, to: :counterweight_id
       then_set :mass_kg, to: :mass_kg
@@ -164,21 +164,21 @@ Hecks.bluebook "ElevatorPhysics", version: "2026.04.13.1" do
       then_set :status, to: "configured"
     end
 
-    CalculateBalanceRatio do
+    command "CalculateBalanceRatio" do
       role "System"
       description "Calculate the balance ratio — counterweight vs car plus typical load"
       reference_to(Counterweight)
-      Float :balance_ratio
+      attribute :balance_ratio, Float
       given { status == "configured" }
       emits "BalanceRatioCalculated"
       then_set :balance_ratio, to: :balance_ratio
     end
 
-    AdjustMass do
+    command "AdjustMass" do
       role "Engineer"
       description "Add or remove counterweight blocks to optimize balance"
       reference_to(Counterweight)
-      Float :mass_kg
+      attribute :mass_kg, Float
       given { status == "configured" }
       emits "MassAdjusted"
       then_set :mass_kg, to: :mass_kg
@@ -190,43 +190,43 @@ Hecks.bluebook "ElevatorPhysics", version: "2026.04.13.1" do
   end
 
   aggregate "LoadCalculation", "Physics-based load calculation — forces, tensions, motor requirements" do
-    String :calculation_id
-    Float :total_load_kg
-    Float :gravity_force_n
-    Float :cable_tension_n
-    Float :motor_torque_nm
-    Float :power_required_kw
-    String :status
+    attribute :calculation_id, String
+    attribute :total_load_kg, Float
+    attribute :gravity_force_n, Float
+    attribute :cable_tension_n, Float
+    attribute :motor_torque_nm, Float
+    attribute :power_required_kw, Float
+    attribute :status, String
 
     value_object "ForceVector" do
-      Float :magnitude_n
-      String :direction
-      String :component
+      attribute :magnitude_n, Float
+      attribute :direction, String
+      attribute :component, String
     end
 
-    CalculateForces do
+    command "CalculateForces" do
       role "System"
       description "Calculate gravitational and tension forces for current load"
-      String :calculation_id
-      Float :total_load_kg
+      attribute :calculation_id, String
+      attribute :total_load_kg, Float
       emits "ForcesCalculated"
       then_set :calculation_id, to: :calculation_id
       then_set :total_load_kg, to: :total_load_kg
       then_set :status, to: "calculated"
     end
 
-    DetermineMotorRequirements do
+    command "DetermineMotorRequirements" do
       role "System"
       description "Compute motor torque and power needed for the load"
-      Float :motor_torque_nm
-      Float :power_required_kw
+      attribute :motor_torque_nm, Float
+      attribute :power_required_kw, Float
       emits "MotorRequirementsDetermined"
       then_set :motor_torque_nm, to: :motor_torque_nm
       then_set :power_required_kw, to: :power_required_kw
       then_set :status, to: "motor_sized"
     end
 
-    ValidateSafety do
+    command "ValidateSafety" do
       role "System"
       description "Verify all forces within safety margins"
       reference_to(LoadCalculation)
@@ -243,33 +243,33 @@ Hecks.bluebook "ElevatorPhysics", version: "2026.04.13.1" do
   end
 
   aggregate "SafetyInspection", "Periodic safety inspection — brakes, cables, door sensors, compliance" do
-    String :inspection_id
-    String :elevator_id
-    String :inspector_name
-    String :inspection_date
-    String :findings
-    String :status
+    attribute :inspection_id, String
+    attribute :elevator_id, String
+    attribute :inspector_name, String
+    attribute :inspection_date, String
+    attribute :findings, String
+    attribute :status, String
 
     value_object "InspectionItem" do
-      String :component
-      String :condition
-      String :pass_fail
+      attribute :component, String
+      attribute :condition, String
+      attribute :pass_fail, String
     end
 
     list_of "DeficiencyReport" do
-      String :component
-      String :deficiency
-      String :severity
-      String :corrective_action
+      attribute :component, String
+      attribute :deficiency, String
+      attribute :severity, String
+      attribute :corrective_action, String
     end
 
-    ConductInspection do
+    command "ConductInspection" do
       role "Inspector"
       description "Conduct comprehensive safety inspection"
-      String :inspection_id
-      String :elevator_id
-      String :inspector_name
-      String :inspection_date
+      attribute :inspection_id, String
+      attribute :elevator_id, String
+      attribute :inspector_name, String
+      attribute :inspection_date, String
       emits "InspectionConducted"
       then_set :inspection_id, to: :inspection_id
       then_set :elevator_id, to: :elevator_id
@@ -278,18 +278,18 @@ Hecks.bluebook "ElevatorPhysics", version: "2026.04.13.1" do
       then_set :status, to: "conducted"
     end
 
-    RecordFindings do
+    command "RecordFindings" do
       role "Inspector"
       description "Record inspection findings and deficiencies"
       reference_to(SafetyInspection)
-      String :findings
+      attribute :findings, String
       given { status == "conducted" }
       emits "FindingsRecorded"
       then_set :findings, to: :findings
       then_set :status, to: "reported"
     end
 
-    CertifyElevator do
+    command "CertifyElevator" do
       role "Inspector"
       description "Certify elevator passes safety inspection"
       reference_to(SafetyInspection)

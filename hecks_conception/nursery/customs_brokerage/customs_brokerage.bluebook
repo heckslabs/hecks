@@ -1,34 +1,34 @@
 Hecks.bluebook "CustomsBrokerage" do
   aggregate "CustomsEntry" do
-    String :entry_id
-    String :entry_type
-    String :importer_name
-    String :country_of_origin
-    Float :declared_value
-    String :currency
-    String :status
+    attribute :entry_id, String
+    attribute :entry_type, String
+    attribute :importer_name, String
+    attribute :country_of_origin, String
+    attribute :declared_value, Float
+    attribute :currency, String
+    attribute :status, String
     list_of "TariffLine"
 
-    FileEntry do
+    command "FileEntry" do
       description "Prepare and file customs entry with declaration details"
-      String :entry_type
-      String :importer_name
-      String :country_of_origin
+      attribute :entry_type, String
+      attribute :importer_name, String
+      attribute :country_of_origin, String
       reference_to "CustomsEntry"
       emits "EntryFiled"
     end
 
-    AmendEntry do
+    command "AmendEntry" do
       description "Submit post-entry amendment to correct classification or value"
-      String :amendment_reason
-      String :amended_field
+      attribute :amendment_reason, String
+      attribute :amended_field, String
       reference_to "CustomsEntry"
       emits "EntryAmended"
     end
 
-    LiquidateEntry do
+    command "LiquidateEntry" do
       description "Finalize duty calculation and close entry after CBP review"
-      Float :final_duty_amount
+      attribute :final_duty_amount, Float
       reference_to "CustomsEntry"
       emits "EntryLiquidated"
     end
@@ -43,49 +43,49 @@ Hecks.bluebook "CustomsBrokerage" do
     policy "Amended entries require supporting documentation"
 
     given "An entry is filed for electronics from China" do
-      String :entry_type, "Consumption Entry"
-      String :importer_name, "TechParts Inc"
-      String :country_of_origin, "China"
+      attribute :entry_type, String, "Consumption Entry"
+      attribute :importer_name, String, "TechParts Inc"
+      attribute :country_of_origin, String, "China"
     end
   end
 
   aggregate "TariffLine" do
-    String :line_id
-    String :hs_code
-    String :description_text
-    Float :quantity
-    String :unit_of_measure
-    Float :dutiable_value
-    Float :duty_rate_percent
-    String :status
+    attribute :line_id, String
+    attribute :hs_code, String
+    attribute :description_text, String
+    attribute :quantity, Float
+    attribute :unit_of_measure, String
+    attribute :dutiable_value, Float
+    attribute :duty_rate_percent, Float
+    attribute :status, String
 
     value_object "DutyCalculation" do
-      Float :dutiable_value
-      Float :duty_rate_percent
-      Float :duty_amount
-      Float :mpf_amount
-      Float :hmf_amount
+      attribute :dutiable_value, Float
+      attribute :duty_rate_percent, Float
+      attribute :duty_amount, Float
+      attribute :mpf_amount, Float
+      attribute :hmf_amount, Float
     end
 
-    ClassifyGood do
+    command "ClassifyGood" do
       description "Determine harmonized tariff classification for imported good"
-      String :hs_code
-      String :description_text
+      attribute :hs_code, String
+      attribute :description_text, String
       reference_to "TariffLine"
       emits "GoodClassified"
     end
 
-    CalculateDuty do
+    command "CalculateDuty" do
       description "Compute duty amount based on classification and declared value"
-      Float :dutiable_value
+      attribute :dutiable_value, Float
       reference_to "TariffLine"
       emits "DutyCalculated"
     end
 
-    ApplyPreferentialRate do
+    command "ApplyPreferentialRate" do
       description "Apply reduced duty rate under free trade agreement"
-      String :trade_agreement
-      Float :preferential_rate
+      attribute :trade_agreement, String
+      attribute :preferential_rate, Float
       reference_to "TariffLine"
       emits "PreferentialRateApplied"
     end
@@ -100,25 +100,25 @@ Hecks.bluebook "CustomsBrokerage" do
   end
 
   aggregate "BrokerDocument" do
-    String :document_id
-    String :document_type
-    String :entry_id
-    String :source
-    String :received_date
-    String :status
+    attribute :document_id, String
+    attribute :document_type, String
+    attribute :entry_id, String
+    attribute :source, String
+    attribute :received_date, String
+    attribute :status, String
 
-    ReceiveDocument do
+    command "ReceiveDocument" do
       description "Receive and log trade document from importer or carrier"
-      String :document_type
-      String :source
+      attribute :document_type, String
+      attribute :source, String
       reference_to "CustomsEntry"
       emits "DocumentReceived"
     end
 
-    ValidateDocument do
+    command "ValidateDocument" do
       description "Verify document completeness and accuracy against entry data"
-      String :validator
-      String :validation_result
+      attribute :validator, String
+      attribute :validation_result, String
       reference_to "BrokerDocument"
       emits "DocumentValidated"
     end
@@ -132,31 +132,31 @@ Hecks.bluebook "CustomsBrokerage" do
   end
 
   aggregate "CBPInspection" do
-    String :inspection_id
-    String :entry_id
-    String :inspection_type
-    String :exam_site
-    String :status
+    attribute :inspection_id, String
+    attribute :entry_id, String
+    attribute :inspection_type, String
+    attribute :exam_site, String
+    attribute :status, String
 
     value_object "ExamResult" do
-      String :finding
-      String :action_taken
-      Float :additional_duty
-      Integer :days_delayed
+      attribute :finding, String
+      attribute :action_taken, String
+      attribute :additional_duty, Float
+      attribute :days_delayed, Integer
     end
 
-    NotifyExam do
+    command "NotifyExam" do
       description "Record CBP hold notification for physical or document examination"
-      String :inspection_type
-      String :exam_site
+      attribute :inspection_type, String
+      attribute :exam_site, String
       reference_to "CustomsEntry"
       emits "ExamNotified"
     end
 
-    ReportExamResult do
+    command "ReportExamResult" do
       description "Submit exam findings and request cargo release"
-      String :finding
-      String :action_taken
+      attribute :finding, String
+      attribute :action_taken, String
       reference_to "CBPInspection"
       emits "ExamResultReported"
     end
@@ -170,24 +170,24 @@ Hecks.bluebook "CustomsBrokerage" do
   end
 
   aggregate "EntryRelease" do
-    String :release_id
-    String :entry_id
-    String :release_type
-    String :release_date
-    Float :total_duty_paid
-    String :status
+    attribute :release_id, String
+    attribute :entry_id, String
+    attribute :release_type, String
+    attribute :release_date, String
+    attribute :total_duty_paid, Float
+    attribute :status, String
 
-    ProcessRelease do
+    command "ProcessRelease" do
       description "Process customs release after duty payment and compliance check"
-      String :release_type
-      Float :total_duty_paid
+      attribute :release_type, String
+      attribute :total_duty_paid, Float
       reference_to "CustomsEntry"
       emits "ReleaseProcessed"
     end
 
-    NotifyImporter do
+    command "NotifyImporter" do
       description "Notify importer that cargo is cleared and available for pickup"
-      String :notification_method
+      attribute :notification_method, String
       reference_to "EntryRelease"
       emits "ImporterNotified"
     end

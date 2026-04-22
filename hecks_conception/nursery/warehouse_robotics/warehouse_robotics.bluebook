@@ -3,27 +3,27 @@ Hecks.bluebook "WarehouseRobotics", version: "2026.04.13.1" do
   category "crossover"
 
   aggregate "Robot", "An autonomous warehouse robot — type, battery, location, task capacity" do
-    String :robot_id
-    String :robot_type
-    Float :battery_pct
-    Float :max_payload_kg
-    String :current_zone
-    String :status
+    attribute :robot_id, String
+    attribute :robot_type, String
+    attribute :battery_pct, Float
+    attribute :max_payload_kg, Float
+    attribute :current_zone, String
+    attribute :status, String
 
     value_object "RobotPosition" do
-      Float :x_m
-      Float :y_m
-      Float :heading_degrees
-      Float :speed_mps
+      attribute :x_m, Float
+      attribute :y_m, Float
+      attribute :heading_degrees, Float
+      attribute :speed_mps, Float
     end
 
-    ActivateRobot do
+    command "ActivateRobot" do
       role "Engineer"
       description "Activate a new robot for warehouse operations"
-      String :robot_id
-      String :robot_type
-      Float :max_payload_kg
-      String :current_zone
+      attribute :robot_id, String
+      attribute :robot_type, String
+      attribute :max_payload_kg, Float
+      attribute :current_zone, String
       emits "RobotActivated"
       then_set :robot_id, to: :robot_id
       then_set :robot_type, to: :robot_type
@@ -33,7 +33,7 @@ Hecks.bluebook "WarehouseRobotics", version: "2026.04.13.1" do
       then_set :status, to: "idle"
     end
 
-    AssignTask do
+    command "AssignTask" do
       role "System"
       description "Assign a pick task to the robot"
       reference_to(Robot)
@@ -42,18 +42,18 @@ Hecks.bluebook "WarehouseRobotics", version: "2026.04.13.1" do
       then_set :status, to: "working"
     end
 
-    CompleteTask do
+    command "CompleteTask" do
       role "Robot"
       description "Robot completes its assigned task"
       reference_to(Robot)
-      Float :battery_pct
+      attribute :battery_pct, Float
       given { status == "working" }
       emits "TaskCompleted"
       then_set :battery_pct, to: :battery_pct
       then_set :status, to: "idle"
     end
 
-    SendToCharger do
+    command "SendToCharger" do
       role "System"
       description "Route robot to charging station when battery low"
       reference_to(Robot)
@@ -62,7 +62,7 @@ Hecks.bluebook "WarehouseRobotics", version: "2026.04.13.1" do
       then_set :status, to: "charging"
     end
 
-    FinishCharging do
+    command "FinishCharging" do
       role "System"
       description "Robot finishes charging and returns to service"
       reference_to(Robot)
@@ -82,27 +82,27 @@ Hecks.bluebook "WarehouseRobotics", version: "2026.04.13.1" do
   end
 
   aggregate "PickList", "A batch of items to pick — locations, quantities, priority" do
-    String :list_id
-    String :order_id
-    Integer :item_count
-    String :priority
-    String :assigned_robot
-    String :status
+    attribute :list_id, String
+    attribute :order_id, String
+    attribute :item_count, Integer
+    attribute :priority, String
+    attribute :assigned_robot, String
+    attribute :status, String
 
     list_of "PickItem" do
-      String :sku
-      String :location
-      Integer :quantity
-      String :picked_status
+      attribute :sku, String
+      attribute :location, String
+      attribute :quantity, Integer
+      attribute :picked_status, String
     end
 
-    GeneratePickList do
+    command "GeneratePickList" do
       role "System"
       description "Generate a pick list from incoming orders"
-      String :list_id
-      String :order_id
-      Integer :item_count
-      String :priority
+      attribute :list_id, String
+      attribute :order_id, String
+      attribute :item_count, Integer
+      attribute :priority, String
       emits "PickListGenerated"
       then_set :list_id, to: :list_id
       then_set :order_id, to: :order_id
@@ -111,18 +111,18 @@ Hecks.bluebook "WarehouseRobotics", version: "2026.04.13.1" do
       then_set :status, to: "generated"
     end
 
-    AssignToRobot do
+    command "AssignToRobot" do
       role "System"
       description "Assign pick list to an available robot"
       reference_to(PickList)
-      String :assigned_robot
+      attribute :assigned_robot, String
       given { status == "generated" }
       emits "PickListAssigned"
       then_set :assigned_robot, to: :assigned_robot
       then_set :status, to: "assigned"
     end
 
-    CompletePickList do
+    command "CompletePickList" do
       role "Robot"
       description "All items in pick list have been picked"
       reference_to(PickList)
@@ -139,29 +139,29 @@ Hecks.bluebook "WarehouseRobotics", version: "2026.04.13.1" do
   end
 
   aggregate "NavigationPath", "A computed path through the warehouse — waypoints, obstacles, timing" do
-    String :path_id
-    String :robot_id
-    String :from_zone
-    String :to_zone
-    Float :distance_m
-    Float :estimated_seconds
-    String :status
+    attribute :path_id, String
+    attribute :robot_id, String
+    attribute :from_zone, String
+    attribute :to_zone, String
+    attribute :distance_m, Float
+    attribute :estimated_seconds, Float
+    attribute :status, String
 
     value_object "PathWaypoint" do
-      Float :x_m
-      Float :y_m
-      String :action
+      attribute :x_m, Float
+      attribute :y_m, Float
+      attribute :action, String
     end
 
-    ComputePath do
+    command "ComputePath" do
       role "System"
       description "Compute optimal path avoiding obstacles and other robots"
-      String :path_id
-      String :robot_id
-      String :from_zone
-      String :to_zone
-      Float :distance_m
-      Float :estimated_seconds
+      attribute :path_id, String
+      attribute :robot_id, String
+      attribute :from_zone, String
+      attribute :to_zone, String
+      attribute :distance_m, Float
+      attribute :estimated_seconds, Float
       emits "PathComputed"
       then_set :path_id, to: :path_id
       then_set :robot_id, to: :robot_id
@@ -172,7 +172,7 @@ Hecks.bluebook "WarehouseRobotics", version: "2026.04.13.1" do
       then_set :status, to: "computed"
     end
 
-    ExecutePath do
+    command "ExecutePath" do
       role "Robot"
       description "Robot follows the computed path"
       reference_to(NavigationPath)
@@ -188,27 +188,27 @@ Hecks.bluebook "WarehouseRobotics", version: "2026.04.13.1" do
   end
 
   aggregate "ThroughputMetric", "Warehouse throughput measurement — picks per hour, robot utilization" do
-    String :metric_id
-    String :period
-    Integer :total_picks
-    Float :picks_per_hour
-    Float :robot_utilization_pct
-    String :status
+    attribute :metric_id, String
+    attribute :period, String
+    attribute :total_picks, Integer
+    attribute :picks_per_hour, Float
+    attribute :robot_utilization_pct, Float
+    attribute :status, String
 
     value_object "BottleneckAnalysis" do
-      String :zone
-      Float :wait_time_sec
-      String :cause
+      attribute :zone, String
+      attribute :wait_time_sec, Float
+      attribute :cause, String
     end
 
-    RecordThroughput do
+    command "RecordThroughput" do
       role "System"
       description "Record throughput metrics for a time period"
-      String :metric_id
-      String :period
-      Integer :total_picks
-      Float :picks_per_hour
-      Float :robot_utilization_pct
+      attribute :metric_id, String
+      attribute :period, String
+      attribute :total_picks, Integer
+      attribute :picks_per_hour, Float
+      attribute :robot_utilization_pct, Float
       emits "ThroughputRecorded"
       then_set :metric_id, to: :metric_id
       then_set :period, to: :period
@@ -218,7 +218,7 @@ Hecks.bluebook "WarehouseRobotics", version: "2026.04.13.1" do
       then_set :status, to: "recorded"
     end
 
-    AnalyzeBottlenecks do
+    command "AnalyzeBottlenecks" do
       role "System"
       description "Identify throughput bottlenecks and optimization opportunities"
       reference_to(ThroughputMetric)
