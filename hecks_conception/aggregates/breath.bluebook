@@ -1,0 +1,42 @@
+Hecks.bluebook "Breath", version: "2026.04.21.1" do
+  vision "The 0.2Hz phase flip — an independent body cycle that alternates inhale/exhale every ~4.5 seconds."
+  category "body"
+
+  # ============================================================
+  # BREATH — 0.2Hz body cycle
+  # ============================================================
+  #
+  # The breath alternates between inhaling and exhaling. Each
+  # alternation is one breath; breath_count increments on exhale so a
+  # full inhale→exhale is one counted breath. The daemon drives the
+  # cadence; the aggregate only remembers the phase and the count.
+  #
+  # Body cycles are emitters, not reactors — no policies here.
+
+  aggregate "Breath", "Phase flip: inhaling ↔ exhaling, with a completed-breath counter" do
+    attribute :phase, String, default: "inhaling"
+    attribute :breath_count, Integer, default: 0
+
+    command "Inhale" do
+      role "Daemon"
+      description "Breathe in — phase becomes inhaling. Emits BreathInhaled."
+      emits "BreathInhaled"
+      then_set :phase, to: "inhaling"
+    end
+
+    command "Exhale" do
+      role "Daemon"
+      description "Breathe out — phase becomes exhaling, breath_count increments to mark one completed cycle. Emits BreathExhaled."
+      emits "BreathExhaled"
+      then_set :phase, to: "exhaling"
+      then_set :breath_count, increment: 1
+    end
+
+    lifecycle :phase, default: "inhaling" do
+      transition "Inhale" => "inhaling", from: "exhaling"
+      transition "Inhale" => "inhaling", from: "inhaling"
+      transition "Exhale" => "exhaling", from: "inhaling"
+      transition "Exhale" => "exhaling", from: "exhaling"
+    end
+  end
+end

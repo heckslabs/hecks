@@ -1,0 +1,28 @@
+Hecks.bluebook "Heart", version: "2026.04.21.1" do
+  vision "The 1Hz beat — an independent body cycle that ticks regardless of the mindstream. i3 PR-a lays the aggregate + daemon; PR-e later swaps BodyPulse's emitter from Tick to Heart."
+  category "body"
+
+  # ============================================================
+  # HEART — 1Hz body cycle
+  # ============================================================
+  #
+  # The heart beats once per second. This aggregate only counts beats
+  # and records when it started; there's no fatigue math or sleep
+  # gating here (that lives on Heartbeat in MietteBody). Today BodyPulse
+  # is still emitted by Tick; when PR-e lands, Heart.Beat will become
+  # the authoritative emitter and Tick stops pulsing the body.
+  #
+  # Body cycles are emitters, not reactors — no policies here.
+
+  aggregate "Heart", "1Hz beat counter — the body's metronome" do
+    attribute :beat_count, Integer, default: 0
+    attribute :started_at, String
+
+    command "Beat" do
+      role "Daemon"
+      description "One beat. Increments beat_count. Today emits HeartBeat only; PR-e will switch BodyPulse's emitter from Tick to Heart."
+      emits "HeartBeat"
+      then_set :beat_count, increment: 1
+    end
+  end
+end

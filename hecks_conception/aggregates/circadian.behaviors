@@ -1,0 +1,28 @@
+Hecks.behaviors "Circadian" do
+  vision "Behavioral tests for the Circadian domain — each Mark* command sets its segment."
+
+  test "MarkDawn sets segment to dawn" do
+    tests "MarkDawn", on: "Circadian"
+    expect segment: "dawn", emits: ["DawnMarked"]
+  end
+
+  test "MarkMorning sets segment to morning" do
+    tests "MarkMorning", on: "Circadian"
+    expect segment: "morning", emits: ["MorningMarked"]
+  end
+
+  test "MarkAfternoon sets segment to afternoon" do
+    tests "MarkAfternoon", on: "Circadian"
+    expect segment: "afternoon", emits: ["AfternoonMarked"]
+  end
+
+  test "MarkDusk sets segment to dusk" do
+    tests "MarkDusk", on: "Circadian"
+    expect segment: "dusk", emits: ["DuskMarked"]
+  end
+
+  test "MarkNight sets segment to night" do
+    tests "MarkNight", on: "Circadian"
+    expect segment: "night", emits: ["NightMarked"]
+  end
+end
