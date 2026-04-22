@@ -56,3 +56,9 @@ hecks_conception/.DS_Store
 hecks_conception/information/.mindstream.pid
 hecks_conception/information/.*.pid
 
+# Runtime sidecars created by status_coherence.sh — tick-cadence baseline
+# (cached per-render to detect non-monotonic cycle jumps) and append-only
+# violation log. Both are regenerated at runtime; never committed.
+hecks_conception/information/.coherence.log
+hecks_conception/information/.tick_baseline
+
