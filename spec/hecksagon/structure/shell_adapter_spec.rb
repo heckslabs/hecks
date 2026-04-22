@@ -12,7 +12,7 @@ RSpec.describe Hecksagon::Structure::ShellAdapter do
       args: ["log", "--format=%H", "{{range}}"],
       output_format: :lines,
       timeout: 10,
-      working_dir: ".",
+      working_dir: "/tmp",
       env: { "GIT_PAGER" => "" }
     }
   end
@@ -25,7 +25,7 @@ RSpec.describe Hecksagon::Structure::ShellAdapter do
       expect(adapter.args).to eq(["log", "--format=%H", "{{range}}"])
       expect(adapter.output_format).to eq(:lines)
       expect(adapter.timeout).to eq(10)
-      expect(adapter.working_dir).to eq(".")
+      expect(adapter.working_dir).to eq("/tmp")
       expect(adapter.env).to eq("GIT_PAGER" => "")
     end
 
@@ -72,6 +72,26 @@ RSpec.describe Hecksagon::Structure::ShellAdapter do
       expect(adapter.args).to be_frozen
       expect(adapter.env).to be_frozen
     end
+
+    it "rejects a relative working_dir at build time" do
+      # Security: `Dir.pwd` is a cwd-dependent implicit default. Forcing
+      # absolute paths at IR-build time kills the class of bugs where a
+      # dispatcher ran in the wrong directory because cwd had drifted.
+      expect { described_class.new(name: :x, command: "echo", working_dir: ".") }
+        .to raise_error(ArgumentError, /working_dir must be an absolute path/)
+      expect { described_class.new(name: :x, command: "echo", working_dir: "relative/sub") }
+        .to raise_error(ArgumentError, /working_dir must be an absolute path/)
+    end
+
+    it "accepts an absolute working_dir" do
+      adapter = described_class.new(name: :x, command: "echo", working_dir: "/tmp")
+      expect(adapter.working_dir).to eq("/tmp")
+    end
+
+    it "still accepts nil working_dir (dispatcher falls back to Dir.pwd)" do
+      adapter = described_class.new(name: :x, command: "echo")
+      expect(adapter.working_dir).to be_nil
+    end
   end
 
   describe "#placeholders" do
@@ -99,7 +119,7 @@ RSpec.describe Hecksagon::Structure::ShellAdapter do
         args: ["log", "--format=%H", "{{range}}"],
         output_format: :lines,
         timeout: 10,
-        working_dir: ".",
+        working_dir: "/tmp",
         env: { "GIT_PAGER" => "" }
       )
     end

@@ -38,7 +38,10 @@ module Hecks
       h = super
       h[:adapter] = adapter.to_s if adapter
       h[:exit_status] = exit_status if exit_status
-      h[:stderr] = stderr if stderr
+      if stderr
+        full = stderr.to_s
+        h[:stderr] = full.length > 256 ? "#{full[0, 256]}…(truncated)" : full
+      end
       h
     end
   end

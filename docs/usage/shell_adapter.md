@@ -52,8 +52,12 @@ Rules:
 - `timeout:` optional seconds (Integer or Float). If exceeded, the
   dispatcher kills the child process group and raises
   `Hecks::ShellAdapterTimeoutError`.
-- `working_dir:` optional. Resolved against the hecksagon source path
-  by the caller — pass an absolute path if that matters.
+- `working_dir:` optional. **Must be an absolute path** when set —
+  `Structure::ShellAdapter.new` raises `ArgumentError` at build time on
+  relative values. The hecksagon loader resolves relative DSL input
+  against the hecksagon source path before building the IR value. When
+  `nil`, the dispatcher falls back to `Dir.pwd` at dispatch time (fine
+  for inert tools like `echo`).
 - `env:` optional Hash. The dispatcher starts from an empty env
   (`unsetenv_others: true`) and only passes what you declared here.
 

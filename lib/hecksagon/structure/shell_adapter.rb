@@ -18,7 +18,7 @@ module Hecksagon
     #     args: ["log", "--format=%H", "{{range}}"],
     #     output_format: :lines,
     #     timeout: 10,
-    #     working_dir: ".",
+    #     working_dir: "/repo",
     #     env: { "GIT_PAGER" => "" }
     #   )
     #   adapter.placeholders  # => [:range]
@@ -42,7 +42,9 @@ module Hecksagon
       # @return [Integer, nil] seconds before dispatcher raises ShellAdapterTimeoutError
       attr_reader :timeout
 
-      # @return [String, nil] working directory (resolved against hecksagon source)
+      # @return [String, nil] absolute working directory path (validated at
+      #   construction; callers resolve relative DSL values against the
+      #   hecksagon source before building the IR value)
       attr_reader :working_dir
 
       # @return [Hash{String=>String}] env overrides passed to Open3 (baseline is empty)
@@ -63,6 +65,9 @@ module Hecksagon
         raise ArgumentError, "shell adapter :args must be an Array of Strings" unless args.is_a?(Array) && args.all? { |a| a.is_a?(String) }
         unless VALID_OUTPUT_FORMATS.include?(output_format.to_sym)
           raise ArgumentError, "shell adapter :output_format must be one of #{VALID_OUTPUT_FORMATS.inspect} (got #{output_format.inspect})"
+        end
+        if !working_dir.nil? && !File.absolute_path?(working_dir.to_s)
+          raise ArgumentError, "shell adapter :working_dir must be an absolute path (got #{working_dir.inspect}); resolve it against the hecksagon source at build time"
         end
 
         @name = name.to_sym

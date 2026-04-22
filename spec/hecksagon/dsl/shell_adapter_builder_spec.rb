@@ -12,7 +12,7 @@ RSpec.describe Hecksagon::DSL::ShellAdapterBuilder do
       builder.args ["log", "--format=%H", "{{range}}"]
       builder.output_format :lines
       builder.timeout 10
-      builder.working_dir "."
+      builder.working_dir "/tmp"
       builder.env "GIT_PAGER" => ""
 
       adapter = builder.build
@@ -22,7 +22,7 @@ RSpec.describe Hecksagon::DSL::ShellAdapterBuilder do
       expect(adapter.args).to eq(["log", "--format=%H", "{{range}}"])
       expect(adapter.output_format).to eq(:lines)
       expect(adapter.timeout).to eq(10)
-      expect(adapter.working_dir).to eq(".")
+      expect(adapter.working_dir).to eq("/tmp")
       expect(adapter.env).to eq("GIT_PAGER" => "")
     end
 
