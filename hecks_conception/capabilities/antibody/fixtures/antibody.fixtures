@@ -1,0 +1,66 @@
+Hecks.fixtures "Antibody" do
+  # ---- CODE_EXTS ------------------------------------------------
+  #
+  # The canonical list of extensions antibody inspects. Anything
+  # outside this set is ignored outright: documentation, images,
+  # .heki stores, the four DSL extensions, etc. Adding or removing
+  # a row here is the only way to change what antibody flags.
+
+  aggregate "FlaggedExtension" do
+    fixture "Ruby",       ext: "rb"
+    fixture "Rust",       ext: "rs"
+    fixture "Python",     ext: "py"
+    fixture "Shell",      ext: "sh"
+    fixture "Javascript", ext: "js"
+    fixture "Typescript", ext: "ts"
+    fixture "Go",         ext: "go"
+    fixture "Html",       ext: "html"
+    fixture "Css",        ext: "css"
+    fixture "Yaml",       ext: "yml"
+    fixture "YamlLong",   ext: "yaml"
+  end
+
+  # ---- Shebang recovery ------------------------------------------
+  #
+  # For extensionless files (`bin/foo`, scripts with a hashbang but
+  # no suffix), antibody reads the first line and maps `#!…/ruby` to
+  # the synthetic extension "rb", `#!…/python` to "py", and so on.
+  # Only the shebangs listed here recover; anything else (awk, perl,
+  # raku) is ignored and the file is treated as non-code.
+
+  aggregate "ShebangMapping" do
+    fixture "Ruby",   match: "ruby",   ext: "rb"
+    fixture "Python", match: "python", ext: "py"
+    fixture "Bash",   match: "bash",   ext: "sh"
+    fixture "Sh",     match: "sh",     ext: "sh"
+    fixture "Node",   match: "node",   ext: "js"
+  end
+
+  # ---- Exemption regex -------------------------------------------
+  #
+  # The single canonical pattern. `anchor: "line_start"` is the
+  # slip-through fix — it means `^` must match the start of a line,
+  # so inline prose like "fixed the [antibody-exempt: foo] note"
+  # does NOT exempt. Leading whitespace before the marker is allowed
+  # (\s* in the pattern). Case-insensitive (flags: "i").
+
+  aggregate "ExemptionPattern" do
+    fixture "Canonical", pattern: "^\s*\[antibody-exempt:\s*([^\]]+)\]", flags: "i", anchor: "line_start"
+  end
+
+  # ---- Test cases ------------------------------------------------
+  #
+  # Each fixture is a self-contained scenario: the files a commit
+  # touches, the commit message, and the expected verdict. These are
+  # the seeds that anchor `antibody.behaviors` — the runtime replays
+  # each one and asserts the verdict matches.
+
+  aggregate "TestCase" do
+    fixture "OnlyBluebook", touched: ["information/arc.heki", "hecks_conception/capabilities/antibody/antibody.bluebook"], message: "antibody: draft bluebook", expected: "pass"
+    fixture "UntriagedRuby", touched: ["lib/hecks/shell_adapter.rb"], message: "wire the shell adapter", expected: "rejected"
+    fixture "LineAnchoredExemption", touched: ["lib/hecks/shell_adapter.rb"], message: "wire the shell adapter\n\n[antibody-exempt: bootstrap rust shim not ready]", expected: "exempted"
+    fixture "ProseAnchorFails", touched: ["lib/hecks/shell_adapter.rb"], message: "wire the shell adapter — see [antibody-exempt: bootstrap] discussion", expected: "rejected"
+    fixture "ShebangRubyNoExt", touched: ["bin/antibody-check"], message: "tweak the antibody CLI", expected: "rejected"
+    fixture "UnknownExtIgnored", touched: ["README.md", "docs/usage/antibody.md"], message: "document the antibody", expected: "pass"
+  end
+end
