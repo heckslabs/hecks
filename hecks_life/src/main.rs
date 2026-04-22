@@ -15,7 +15,7 @@
 //!   hecks-life conceive  "Name" "vision" --corpus dir1 dir2
 //!   hecks-life develop   target.bluebook --add "feature"
 
-use hecks_life::{parser, validator, server, conceiver, heki, dump,
+use hecks_life::{parser, validator, server, conceiver, heki, heki_query, dump,
                  behaviors_parser, behaviors_dump};
 use hecks_life::runtime::Runtime;
 
@@ -661,81 +661,454 @@ fn source_for_suite(suite_path: &str) -> String {
     parent.join(format!("{}.bluebook", source_stem)).to_string_lossy().into_owned()
 }
 
-/// heki subcommands: read, append, upsert, delete, latest
+/// heki subcommands — read/write + query shapes the shell scripts need.
+///
+/// Write/read (original):
 ///   hecks-life heki read   <file.heki>
 ///   hecks-life heki append <file.heki> key=val key2=val2
 ///   hecks-life heki upsert <file.heki> key=val key2=val2
 ///   hecks-life heki delete <file.heki> <id>
 ///   hecks-life heki latest <file.heki>
+///
+/// Query shapes (i37 Phase A — replace python3 -c invocations):
+///   hecks-life heki get           <file.heki> <id> [<field>]
+///   hecks-life heki list          <file.heki> [--where k=v]... [--order f[:asc|desc|enum=a,b,c]]
+///                                             [--fields a,b,c] [--format json|tsv|kv]
+///   hecks-life heki count         <file.heki> [--where k=v]...
+///   hecks-life heki next-ref      <file.heki> [--prefix i] [--field ref]
+///   hecks-life heki latest-field  <file.heki> <field>
+///   hecks-life heki values        <file.heki> <field>
+///   hecks-life heki mark          <file.heki> --where k=v [--where k=v]... --set k=v [--set k=v]...
+///   hecks-life heki seconds-since <file.heki> <field>
+///
+/// Exit codes:
+///   0 success
+///   1 file not found / IO error
+///   2 invalid filter / order syntax
+///   3 field not found (get / latest-field / seconds-since)
+///
+/// [antibody-exempt: register new heki subcommand dispatchers; same
+///  shape as existing run_heki arms]
 fn run_heki(args: &[String]) {
     if args.len() < 4 {
-        eprintln!("Usage: hecks-life heki <read|append|upsert|delete|latest> <file.heki> [args...]");
+        eprintln!("Usage: hecks-life heki <cmd> <file.heki> [args...]");
+        eprintln!("Commands: read latest append upsert delete");
+        eprintln!("          get list count next-ref latest-field values mark seconds-since");
         std::process::exit(1);
     }
 
     let sub = args[2].as_str();
     let file = args[3].as_str();
+    let rest = &args[4..];
 
     match sub {
-        "read" => {
-            match heki::read(file) {
-                Ok(store) => {
-                    let json = serde_json::to_string_pretty(&store).unwrap_or_default();
-                    println!("{}", json);
-                }
-                Err(e) => { eprintln!("{}", e); std::process::exit(1); }
-            }
-        }
-        "latest" => {
-            match heki::read(file) {
-                Ok(store) => {
-                    if let Some(rec) = heki::latest(&store) {
-                        let json = serde_json::to_string_pretty(rec).unwrap_or_default();
-                        println!("{}", json);
-                    } else {
-                        println!("{{}}");
-                    }
-                }
-                Err(e) => { eprintln!("{}", e); std::process::exit(1); }
-            }
-        }
-        "append" => {
-            let attrs = heki::parse_attrs(&args[4..]);
-            match heki::append(file, &attrs) {
-                Ok(rec) => {
-                    let json = serde_json::to_string_pretty(&rec).unwrap_or_default();
-                    println!("{}", json);
-                }
-                Err(e) => { eprintln!("{}", e); std::process::exit(1); }
-            }
-        }
-        "upsert" => {
-            let attrs = heki::parse_attrs(&args[4..]);
-            match heki::upsert(file, &attrs) {
-                Ok(rec) => {
-                    let json = serde_json::to_string_pretty(&rec).unwrap_or_default();
-                    println!("{}", json);
-                }
-                Err(e) => { eprintln!("{}", e); std::process::exit(1); }
-            }
-        }
-        "delete" => {
-            if args.len() < 5 {
-                eprintln!("Usage: hecks-life heki delete <file.heki> <id>");
-                std::process::exit(1);
-            }
-            let id = args[4].as_str();
-            match heki::delete(file, id) {
-                Ok(true) => println!("deleted {}", id),
-                Ok(false) => { eprintln!("not found: {}", id); std::process::exit(1); }
-                Err(e) => { eprintln!("{}", e); std::process::exit(1); }
-            }
-        }
+        "read"          => heki_cmd_read(file),
+        "latest"        => heki_cmd_latest(file),
+        "append"        => heki_cmd_append(file, rest),
+        "upsert"        => heki_cmd_upsert(file, rest),
+        "delete"        => heki_cmd_delete(file, rest),
+        "get"           => heki_cmd_get(file, rest),
+        "list"          => heki_cmd_list(file, rest),
+        "count"         => heki_cmd_count(file, rest),
+        "next-ref"      => heki_cmd_next_ref(file, rest),
+        "latest-field"  => heki_cmd_latest_field(file, rest),
+        "values"        => heki_cmd_values(file, rest),
+        "mark"          => heki_cmd_mark(file, rest),
+        "seconds-since" => heki_cmd_seconds_since(file, rest),
         _ => {
             eprintln!("Unknown heki command: {}", sub);
-            eprintln!("Available: read, append, upsert, delete, latest");
+            eprintln!("Available: read latest append upsert delete get list count \
+                       next-ref latest-field values mark seconds-since");
             std::process::exit(1);
         }
+    }
+}
+
+// -------- Existing read/write commands (extracted for readability) ---------
+
+fn heki_cmd_read(file: &str) {
+    match heki::read(file) {
+        Ok(store) => println!("{}", serde_json::to_string_pretty(&store).unwrap_or_default()),
+        Err(e)    => { eprintln!("{}", e); std::process::exit(1); }
+    }
+}
+
+fn heki_cmd_latest(file: &str) {
+    match heki::read(file) {
+        Ok(store) => {
+            match heki::latest(&store) {
+                Some(rec) => println!("{}", serde_json::to_string_pretty(rec).unwrap_or_default()),
+                None      => println!("{{}}"),
+            }
+        }
+        Err(e) => { eprintln!("{}", e); std::process::exit(1); }
+    }
+}
+
+fn heki_cmd_append(file: &str, rest: &[String]) {
+    let attrs = heki::parse_attrs(rest);
+    match heki::append(file, &attrs) {
+        Ok(rec) => println!("{}", serde_json::to_string_pretty(&rec).unwrap_or_default()),
+        Err(e)  => { eprintln!("{}", e); std::process::exit(1); }
+    }
+}
+
+fn heki_cmd_upsert(file: &str, rest: &[String]) {
+    let attrs = heki::parse_attrs(rest);
+    match heki::upsert(file, &attrs) {
+        Ok(rec) => println!("{}", serde_json::to_string_pretty(&rec).unwrap_or_default()),
+        Err(e)  => { eprintln!("{}", e); std::process::exit(1); }
+    }
+}
+
+fn heki_cmd_delete(file: &str, rest: &[String]) {
+    let id = match rest.first() {
+        Some(s) => s.as_str(),
+        None => {
+            eprintln!("Usage: hecks-life heki delete <file.heki> <id>");
+            std::process::exit(1);
+        }
+    };
+    match heki::delete(file, id) {
+        Ok(true)  => println!("deleted {}", id),
+        Ok(false) => { eprintln!("not found: {}", id); std::process::exit(1); }
+        Err(e)    => { eprintln!("{}", e); std::process::exit(1); }
+    }
+}
+
+// -------- New query commands ------------------------------------------------
+
+fn heki_cmd_get(file: &str, rest: &[String]) {
+    let id = match rest.first() {
+        Some(s) => s.as_str(),
+        None => {
+            eprintln!("Usage: hecks-life heki get <file.heki> <id> [<field>]");
+            std::process::exit(1);
+        }
+    };
+    let field = rest.get(1).map(|s| s.as_str());
+
+    let store = read_store_or_exit(file);
+    let rec = match store.get(id) {
+        Some(r) => r,
+        None    => { eprintln!("no record with id {}", id); std::process::exit(1); }
+    };
+    match field {
+        None => println!("{}", serde_json::to_string_pretty(rec).unwrap_or_default()),
+        Some(f) => {
+            if !rec.contains_key(f) {
+                eprintln!("field not found: {}", f);
+                std::process::exit(3);
+            }
+            println!("{}", heki_query::field_to_string(rec.get(f)));
+        }
+    }
+}
+
+fn heki_cmd_list(file: &str, rest: &[String]) {
+    let opts = parse_query_opts(rest);
+    let store = read_store_or_exit(file);
+
+    let mut recs = heki_query::filter_records(&store, &opts.filters);
+    let default_order = vec![heki_query::OrderSpec {
+        field: "created_at".into(),
+        dir: heki_query::OrderDir::Asc,
+        enum_order: None,
+        numeric_ref: false,
+    }];
+    let order_specs: &[heki_query::OrderSpec] = if opts.orders.is_empty() {
+        &default_order
+    } else {
+        &opts.orders
+    };
+    recs = heki_query::order_records_multi(recs, order_specs);
+
+    let fields = opts.fields.clone();
+    match opts.format.as_str() {
+        "tsv" => print_tsv(&recs, &fields),
+        "kv"  => print_kv(&recs, &fields),
+        _     => print_json(&recs, &fields),
+    }
+}
+
+fn heki_cmd_count(file: &str, rest: &[String]) {
+    let opts = parse_query_opts(rest);
+    let store = read_store_or_exit(file);
+    let recs = heki_query::filter_records(&store, &opts.filters);
+    println!("{}", recs.len());
+}
+
+fn heki_cmd_next_ref(file: &str, rest: &[String]) {
+    let mut prefix = "i".to_string();
+    let mut field = "ref".to_string();
+    let mut i = 0;
+    while i < rest.len() {
+        match rest[i].as_str() {
+            "--prefix" => { prefix = rest.get(i+1).cloned().unwrap_or_default(); i += 2; }
+            "--field"  => { field  = rest.get(i+1).cloned().unwrap_or_default(); i += 2; }
+            _ => i += 1,
+        }
+    }
+
+    let store = read_store_or_exit(file);
+    let mut max_n: Option<i64> = None;
+    for rec in store.values() {
+        let v = heki_query::field_to_string(rec.get(&field));
+        if let Some(tail) = v.strip_prefix(&prefix) {
+            if let Ok(n) = tail.parse::<i64>() {
+                max_n = Some(max_n.map_or(n, |cur| cur.max(n)));
+            }
+        }
+    }
+    let next = max_n.map_or(1, |n| n + 1);
+    println!("{}{}", prefix, next);
+}
+
+fn heki_cmd_latest_field(file: &str, rest: &[String]) {
+    let field = match rest.first() {
+        Some(s) => s.as_str(),
+        None => {
+            eprintln!("Usage: hecks-life heki latest-field <file.heki> <field>");
+            std::process::exit(1);
+        }
+    };
+    let store = read_store_or_exit(file);
+    match heki::latest(&store) {
+        Some(rec) => {
+            if !rec.contains_key(field) {
+                eprintln!("field not found: {}", field);
+                std::process::exit(3);
+            }
+            println!("{}", heki_query::field_to_string(rec.get(field)));
+        }
+        None => { /* empty store — print nothing, exit 0 */ }
+    }
+}
+
+fn heki_cmd_values(file: &str, rest: &[String]) {
+    let field = match rest.first() {
+        Some(s) => s.as_str(),
+        None => {
+            eprintln!("Usage: hecks-life heki values <file.heki> <field>");
+            std::process::exit(1);
+        }
+    };
+    let store = read_store_or_exit(file);
+    // Stable order — sort by created_at so output is deterministic.
+    let spec = heki_query::OrderSpec {
+        field: "created_at".into(),
+        dir: heki_query::OrderDir::Asc,
+        enum_order: None,
+        numeric_ref: false,
+    };
+    let recs = heki_query::order_records(store.values().collect(), &spec);
+    for rec in recs {
+        if let Some(v) = rec.get(field) {
+            println!("{}", heki_query::field_to_string(Some(v)));
+        }
+    }
+}
+
+fn heki_cmd_mark(file: &str, rest: &[String]) {
+    let mut filters: Vec<heki_query::Filter> = Vec::new();
+    let mut sets: Vec<(String, String)> = Vec::new();
+    let mut i = 0;
+    while i < rest.len() {
+        match rest[i].as_str() {
+            "--where" => {
+                let spec = rest.get(i+1).cloned().unwrap_or_default();
+                match heki_query::Filter::parse(&spec) {
+                    Ok(f) => filters.push(f),
+                    Err(e) => { eprintln!("{}", e); std::process::exit(2); }
+                }
+                i += 2;
+            }
+            "--set" => {
+                let spec = rest.get(i+1).cloned().unwrap_or_default();
+                match spec.find('=') {
+                    Some(eq) => sets.push((spec[..eq].to_string(), spec[eq+1..].to_string())),
+                    None => { eprintln!("invalid --set spec: {}", spec); std::process::exit(2); }
+                }
+                i += 2;
+            }
+            _ => i += 1,
+        }
+    }
+
+    if filters.is_empty() {
+        eprintln!("heki mark requires at least one --where");
+        std::process::exit(2);
+    }
+    if sets.is_empty() {
+        eprintln!("heki mark requires at least one --set");
+        std::process::exit(2);
+    }
+
+    let mut store = read_store_or_exit(file);
+    let ids: Vec<String> = store.iter()
+        .filter(|(_, rec)| filters.iter().all(|f| f.matches(rec)))
+        .map(|(id, _)| id.clone())
+        .collect();
+    let matched = ids.len();
+    let now = heki::now_iso();
+    for id in &ids {
+        if let Some(rec) = store.get_mut(id) {
+            for (k, v) in &sets {
+                rec.insert(k.clone(), typed_value(v));
+            }
+            rec.insert("updated_at".into(), serde_json::Value::String(now.clone()));
+        }
+    }
+    if matched > 0 {
+        if let Err(e) = heki::write(file, &store) {
+            eprintln!("{}", e);
+            std::process::exit(1);
+        }
+    }
+    println!("{}", matched);
+}
+
+fn heki_cmd_seconds_since(file: &str, rest: &[String]) {
+    let field = match rest.first() {
+        Some(s) => s.as_str(),
+        None => {
+            eprintln!("Usage: hecks-life heki seconds-since <file.heki> <field>");
+            std::process::exit(1);
+        }
+    };
+    let store = read_store_or_exit(file);
+    let rec = match heki::latest(&store) {
+        Some(r) => r,
+        None    => { println!("0"); return; }
+    };
+    let ts = heki_query::field_to_string(rec.get(field));
+    if ts.is_empty() {
+        eprintln!("field not found or empty: {}", field);
+        std::process::exit(3);
+    }
+    let secs = heki::seconds_since_iso(&ts);
+    // Integer seconds — what the shell scripts want for -ge/-le compares.
+    println!("{}", secs as i64);
+}
+
+// -------- Query option parsing (shared by list / count) --------------------
+
+struct QueryOpts {
+    filters: Vec<heki_query::Filter>,
+    orders: Vec<heki_query::OrderSpec>,
+    fields: Vec<String>,
+    format: String,
+}
+
+fn parse_query_opts(rest: &[String]) -> QueryOpts {
+    let mut filters: Vec<heki_query::Filter> = Vec::new();
+    let mut orders: Vec<heki_query::OrderSpec> = Vec::new();
+    let mut fields: Vec<String> = Vec::new();
+    let mut format = "json".to_string();
+    let mut i = 0;
+    while i < rest.len() {
+        match rest[i].as_str() {
+            "--where" => {
+                let spec = rest.get(i+1).cloned().unwrap_or_default();
+                match heki_query::Filter::parse(&spec) {
+                    Ok(f) => filters.push(f),
+                    Err(e) => { eprintln!("{}", e); std::process::exit(2); }
+                }
+                i += 2;
+            }
+            "--order" => {
+                let spec = rest.get(i+1).cloned().unwrap_or_default();
+                match heki_query::OrderSpec::parse(&spec) {
+                    Ok(o) => orders.push(o),
+                    Err(e) => { eprintln!("{}", e); std::process::exit(2); }
+                }
+                i += 2;
+            }
+            "--fields" => {
+                let spec = rest.get(i+1).cloned().unwrap_or_default();
+                fields = spec.split(',').map(|s| s.to_string()).collect();
+                i += 2;
+            }
+            "--format" => {
+                format = rest.get(i+1).cloned().unwrap_or_else(|| "json".into());
+                i += 2;
+            }
+            _ => i += 1,
+        }
+    }
+    QueryOpts { filters, orders, fields, format }
+}
+
+fn read_store_or_exit(file: &str) -> heki::Store {
+    match heki::read(file) {
+        Ok(s) => s,
+        Err(e) => { eprintln!("{}", e); std::process::exit(1); }
+    }
+}
+
+/// `heki mark --set k=v` parses the value the same way `parse_attrs`
+/// does — int / float / bool / string — so the shell doesn't have to
+/// worry about quoting.
+fn typed_value(v: &str) -> serde_json::Value {
+    if let Ok(n) = v.parse::<i64>() {
+        return serde_json::Value::Number(n.into());
+    }
+    if let Ok(f) = v.parse::<f64>() {
+        return serde_json::json!(f);
+    }
+    if v == "true"  { return serde_json::Value::Bool(true);  }
+    if v == "false" { return serde_json::Value::Bool(false); }
+    serde_json::Value::String(v.to_string())
+}
+
+// -------- Output formats ---------------------------------------------------
+
+fn project(rec: &heki::Record, fields: &[String]) -> serde_json::Value {
+    if fields.is_empty() {
+        return serde_json::to_value(rec).unwrap_or(serde_json::json!({}));
+    }
+    let mut map = serde_json::Map::new();
+    for f in fields {
+        if let Some(v) = rec.get(f) {
+            map.insert(f.clone(), v.clone());
+        } else {
+            map.insert(f.clone(), serde_json::Value::Null);
+        }
+    }
+    serde_json::Value::Object(map)
+}
+
+fn print_json(recs: &[&heki::Record], fields: &[String]) {
+    let arr: Vec<serde_json::Value> = recs.iter().map(|r| project(r, fields)).collect();
+    println!("{}", serde_json::to_string_pretty(&arr).unwrap_or_else(|_| "[]".into()));
+}
+
+fn print_tsv(recs: &[&heki::Record], fields: &[String]) {
+    if fields.is_empty() {
+        eprintln!("--format tsv requires --fields");
+        std::process::exit(2);
+    }
+    for rec in recs {
+        let row: Vec<String> = fields.iter()
+            .map(|f| heki_query::field_to_string(rec.get(f)))
+            .collect();
+        println!("{}", row.join("\t"));
+    }
+}
+
+fn print_kv(recs: &[&heki::Record], fields: &[String]) {
+    for rec in recs {
+        let keys: Vec<String> = if fields.is_empty() {
+            let mut ks: Vec<String> = rec.keys().cloned().collect();
+            ks.sort();
+            ks
+        } else {
+            fields.to_vec()
+        };
+        for k in keys {
+            println!("{}={}", k, heki_query::field_to_string(rec.get(&k)));
+        }
+        println!(); // blank line between records
     }
 }
 

@@ -14,6 +14,7 @@ pub mod validator;
 pub mod validator_warnings;
 pub mod conceiver;
 pub mod heki;
+pub mod heki_query;
 pub mod dump;
 pub mod conceiver_common;
 pub mod behaviors_ir;
