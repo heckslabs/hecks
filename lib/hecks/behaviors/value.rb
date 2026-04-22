@@ -90,11 +90,18 @@ module Hecks
 
       # Loose equality: Bool(true)==Str("true"), Int(42)==Str("42"),
       # numeric coercion handles Int<->Str("0")<->Null comparisons.
+      # A Null on either side compares via numeric ONLY — it must NOT
+      # fall through to the display-form tiebreaker, where Null's ""
+      # would match Str("") and make `before_snapshot != ""` silently
+      # pass on uninitialized state. Mirrors hecks_life's
+      # `values_equal`, where `Display(Null) = "null"` keeps the same
+      # fallback false and the cascade (policy→command→given) advances.
       def self.equal?(a, b)
         return true if a.kind == b.kind && a.raw == b.raw
         an = a.numeric
         bn = b.numeric
         return an == bn if an && bn
+        return false if a.kind == :null || b.kind == :null
         a.to_display == b.to_display
       end
 
