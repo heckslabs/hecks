@@ -12,7 +12,7 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
     attribute :urgency, String
     attribute :blood_type, String
     attribute :status, String
-    list_of(InjuryDetail) :injuries
+    attribute :injuries, list_of(InjuryDetail)
     value_object "InjuryDetail" do
       attribute :body_region, String
       attribute :severity, String
@@ -64,7 +64,7 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
     attribute :status, String
     reference_to(CasualtyReport, as: :assigned_casualty)
     attribute :battery_pct, Integer
-    list_of(SensorReading) :sensor_log
+    attribute :sensor_log, list_of(SensorReading)
     value_object "SensorReading" do
       attribute :sensor_type, String
       attribute :reading, String
@@ -113,7 +113,7 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
     attribute :units, Integer
     attribute :cold_chain_status, String
     attribute :status, String
-    list_of(ChainLog) :chain_logs
+    attribute :chain_logs, list_of(ChainLog)
     value_object "ChainLog" do
       attribute :timestamp, String
       attribute :temperature_c, Float
@@ -164,7 +164,7 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
     attribute :distance_km, Integer
     attribute :eta_minutes, Integer
     attribute :status, String
-    list_of(Waypoint) :waypoints
+    attribute :waypoints, list_of(Waypoint)
     value_object "Waypoint" do
       attribute :grid_ref, String
       attribute :terrain_type, String
@@ -207,7 +207,7 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
     attribute :surgical_bays, Integer
     attribute :available_bays, Integer
     attribute :status, String
-    list_of(IncomingCasualty) :incoming_queue
+    attribute :incoming_queue, list_of(IncomingCasualty)
     value_object "IncomingCasualty" do
       attribute :casualty_name, String
       attribute :urgency, String
@@ -252,7 +252,7 @@ Hecks.bluebook "BattlefieldMedicine", version: "2026.04.13.1" do
     attribute :evacuated_count, Integer
     attribute :drones_active, Integer
     attribute :status, String
-    list_of(StatusEntry) :entries
+    attribute :entries, list_of(StatusEntry)
     value_object "StatusEntry" do
       attribute :entity_type, String
       attribute :entity_id, String

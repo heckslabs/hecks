@@ -61,7 +61,7 @@ Hecks.bluebook "CraftBeverageLab", version: "2026.04.13.1" do
     attribute :viability_percent, Float
     attribute :optimal_temperature, Float
     attribute :status, String
-    list_of(FermentationLog) :logs
+    attribute :logs, list_of(FermentationLog)
 
     value_object "FermentationLog" do
       attribute :timestamp, String
@@ -129,7 +129,7 @@ Hecks.bluebook "CraftBeverageLab", version: "2026.04.13.1" do
     attribute :drop_temperature, Float
     attribute :total_time_seconds, Integer
     attribute :status, String
-    list_of(RoastPhase) :phases
+    attribute :phases, list_of(RoastPhase)
 
     value_object "RoastPhase" do
       attribute :phase_name, String
@@ -224,7 +224,7 @@ Hecks.bluebook "CraftBeverageLab", version: "2026.04.13.1" do
     attribute :panelist_count, Integer
     reference_to(Experiment, as: :experiment)
     attribute :status, String
-    list_of(SensoryScore) :scores
+    attribute :scores, list_of(SensoryScore)
 
     value_object "SensoryScore" do
       attribute :panelist_id, String
@@ -280,7 +280,7 @@ Hecks.bluebook "CraftBeverageLab", version: "2026.04.13.1" do
     attribute :equipment_type, String
     attribute :status, String
     attribute :last_calibration, String
-    list_of(MaintenanceRecord) :maintenance_history
+    attribute :maintenance_history, list_of(MaintenanceRecord)
 
     value_object "MaintenanceRecord" do
       attribute :date, String

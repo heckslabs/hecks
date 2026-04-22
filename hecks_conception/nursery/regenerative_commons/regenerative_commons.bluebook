@@ -10,7 +10,7 @@ Hecks.bluebook "RegenerativeCommons", version: "2026.04.13.1" do
     attribute :total_acres, Integer
     attribute :governance_model, String
     attribute :status, String
-    list_of(ZoneAllocation) :zones
+    attribute :zones, list_of(ZoneAllocation)
     value_object "ZoneAllocation" do
       attribute :zone_type, String
       attribute :acres, Integer
@@ -49,7 +49,7 @@ Hecks.bluebook "RegenerativeCommons", version: "2026.04.13.1" do
     attribute :current_crop, String
     attribute :soil_health_score, String
     attribute :status, String
-    list_of(RotationEntry) :rotation_plan
+    attribute :rotation_plan, list_of(RotationEntry)
     value_object "RotationEntry" do
       attribute :season, String
       attribute :crop, String
@@ -96,7 +96,7 @@ Hecks.bluebook "RegenerativeCommons", version: "2026.04.13.1" do
     attribute :acres, Integer
     attribute :restoration_status, String
     attribute :status, String
-    list_of(ProtectedSpecies) :species
+    attribute :species, list_of(ProtectedSpecies)
     value_object "ProtectedSpecies" do
       attribute :species_name, String
       attribute :conservation_status, String
@@ -143,7 +143,7 @@ Hecks.bluebook "RegenerativeCommons", version: "2026.04.13.1" do
     attribute :season, String
     attribute :total_yield_lbs, Integer
     attribute :status, String
-    list_of(AllocationShare) :shares
+    attribute :shares, list_of(AllocationShare)
     value_object "AllocationShare" do
       attribute :recipient_type, String
       attribute :recipient_name, String
@@ -182,7 +182,7 @@ Hecks.bluebook "RegenerativeCommons", version: "2026.04.13.1" do
     reference_to(FarmPlot, as: :adjacent_plot)
     attribute :survey_date, String
     attribute :overall_health, String
-    list_of(SpeciesCount) :counts
+    attribute :counts, list_of(SpeciesCount)
     value_object "SpeciesCount" do
       attribute :species_name, String
       attribute :count, Integer
@@ -221,7 +221,7 @@ Hecks.bluebook "RegenerativeCommons", version: "2026.04.13.1" do
     reference_to(CommonLand, as: :commons)
     attribute :role_type, String
     attribute :status, String
-    list_of(Contribution) :contributions
+    attribute :contributions, list_of(Contribution)
     value_object "Contribution" do
       attribute :date, String
       attribute :activity_type, String

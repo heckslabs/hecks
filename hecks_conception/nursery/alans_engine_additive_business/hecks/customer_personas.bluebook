@@ -14,9 +14,9 @@ Hecks.bluebook "CustomerPersonas", version: "2026.04.11.1" do
     attribute :brand_affinity, String
     attribute :price_sensitivity, String
     attribute :trust_source, String
-    list_of(Motivation) :motivations
-    list_of(Objection) :objections
-    list_of(String) :buying_triggers
+    attribute :motivations, list_of(Motivation)
+    attribute :objections, list_of(Objection)
+    attribute :buying_triggers, list_of(String)
 
     value_object "Motivation" do
       attribute :need, String
@@ -99,7 +99,7 @@ Hecks.bluebook "CustomerPersonas", version: "2026.04.11.1" do
   aggregate "BuyerJourney", "The path from awareness to purchase and advocacy" do
     attribute :persona_name, String
     attribute :stage, String
-    list_of(Touchpoint) :touchpoints
+    attribute :touchpoints, list_of(Touchpoint)
     attribute :conversion_rate, Float
 
     value_object "Touchpoint" do
@@ -208,7 +208,7 @@ Hecks.bluebook "CustomerPersonas", version: "2026.04.11.1" do
     attribute :channel, String
     attribute :fit_score, Float
     attribute :reasoning, String
-    list_of(String) :recommended_products
+    attribute :recommended_products, list_of(String)
 
     command "ScoreChannelFit" do
       role "Analyst"
@@ -228,7 +228,7 @@ Hecks.bluebook "CustomerPersonas", version: "2026.04.11.1" do
       role "Owner"
       description "Recommend which products to push through this channel for this persona"
       reference_to(ChannelFit)
-      list_of(String) :products
+      attribute :products, list_of(String)
       emits "ProductsRecommended"
     end
 

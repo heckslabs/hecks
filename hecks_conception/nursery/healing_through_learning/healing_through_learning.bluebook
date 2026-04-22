@@ -10,7 +10,7 @@ Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
     attribute :recovery_stage, String
     attribute :enrollment_date, String
     attribute :status, String
-    list_of(RecoveryGoal) :goals
+    attribute :goals, list_of(RecoveryGoal)
     value_object "RecoveryGoal" do
       attribute :goal_type, String
       attribute :target, String
@@ -56,7 +56,7 @@ Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
     attribute :title, String
     attribute :difficulty_level, String
     attribute :status, String
-    list_of(LessonPlan) :lessons
+    attribute :lessons, list_of(LessonPlan)
     value_object "LessonPlan" do
       attribute :lesson_name, String
       attribute :nutrition_topic, String
@@ -94,7 +94,7 @@ Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
     attribute :recipe_name, String
     attribute :nutrition_focus, String
     attribute :status, String
-    list_of(SkillAssessment) :assessments
+    attribute :assessments, list_of(SkillAssessment)
     value_object "SkillAssessment" do
       attribute :skill_name, String
       attribute :rating, String
@@ -134,7 +134,7 @@ Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
     attribute :baseline_value, Float
     attribute :current_value, Float
     attribute :trend, String
-    list_of(Reading) :readings
+    attribute :readings, list_of(Reading)
     value_object "Reading" do
       attribute :date, String
       attribute :value, Float
@@ -182,7 +182,7 @@ Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
     attribute :credential_type, String
     attribute :issuing_body, String
     attribute :status, String
-    list_of(Requirement) :requirements
+    attribute :requirements, list_of(Requirement)
     value_object "Requirement" do
       attribute :requirement_name, String
       attribute :completion_status, String
@@ -220,7 +220,7 @@ Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
     attribute :milestone_type, String
     attribute :description, String
     attribute :achieved_date, String
-    list_of(Evidence) :evidence_items
+    attribute :evidence_items, list_of(Evidence)
     value_object "Evidence" do
       attribute :source_domain, String
       attribute :detail, String

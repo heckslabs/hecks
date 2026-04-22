@@ -8,7 +8,7 @@ Hecks.bluebook "CoffeeShop", version: "2026.04.13.1" do
     attribute :category, String
     attribute :price, Float
     attribute :available, String
-    list_of(Ingredient) :ingredients
+    attribute :ingredients, list_of(Ingredient)
 
     value_object "Ingredient" do
       attribute :name, String
@@ -45,7 +45,7 @@ Hecks.bluebook "CoffeeShop", version: "2026.04.13.1" do
     attribute :employee_id, String
     attribute :name, String
     attribute :skill_level, String
-    list_of(Certification) :certifications
+    attribute :certifications, list_of(Certification)
 
     value_object "Certification" do
       attribute :skill_name, String
@@ -77,7 +77,7 @@ Hecks.bluebook "CoffeeShop", version: "2026.04.13.1" do
   aggregate "DrinkOrder", "A customer's request for one or more beverages" do
     attribute :order_id, String
     attribute :customer_name, String
-    list_of(OrderedDrink) :drinks
+    attribute :drinks, list_of(OrderedDrink)
     attribute :total, Float
     attribute :status, String
 

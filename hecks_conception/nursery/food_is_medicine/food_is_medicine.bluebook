@@ -10,7 +10,7 @@ Hecks.bluebook "FoodIsMedicine", version: "2026.04.13.1" do
     attribute :diagnosis, String
     attribute :prescribing_clinician, String
     attribute :status, String
-    list_of(NutrientRequirement) :requirements
+    attribute :requirements, list_of(NutrientRequirement)
     value_object "NutrientRequirement" do
       attribute :nutrient, String
       attribute :daily_target_mg, Integer
@@ -58,7 +58,7 @@ Hecks.bluebook "FoodIsMedicine", version: "2026.04.13.1" do
     attribute :acres_committed, Integer
     attribute :status, String
     reference_to(NutrientTarget, as: :target)
-    list_of(CropCommitment) :crops
+    attribute :crops, list_of(CropCommitment)
     value_object "CropCommitment" do
       attribute :crop_name, String
       attribute :estimated_yield_lbs, Integer
@@ -102,7 +102,7 @@ Hecks.bluebook "FoodIsMedicine", version: "2026.04.13.1" do
     attribute :region, String
     attribute :period, String
     attribute :status, String
-    list_of(DemandLine) :demand_lines
+    attribute :demand_lines, list_of(DemandLine)
     value_object "DemandLine" do
       attribute :nutrient, String
       attribute :total_demand_mg, Integer
@@ -137,7 +137,7 @@ Hecks.bluebook "FoodIsMedicine", version: "2026.04.13.1" do
     attribute :food_bank_name, String
     attribute :delivery_date, String
     attribute :status, String
-    list_of(DeliveryStop) :stops
+    attribute :stops, list_of(DeliveryStop)
     value_object "DeliveryStop" do
       attribute :patient_name, String
       attribute :address, String
@@ -183,7 +183,7 @@ Hecks.bluebook "FoodIsMedicine", version: "2026.04.13.1" do
     attribute :baseline_status, String
     attribute :current_status, String
     attribute :trend, String
-    list_of(HealthCheckpoint) :checkpoints
+    attribute :checkpoints, list_of(HealthCheckpoint)
     value_object "HealthCheckpoint" do
       attribute :date, String
       attribute :metric_name, String

@@ -7,7 +7,7 @@ Hecks.bluebook "CausalCombinatorics", version: "2026.04.13.1" do
     attribute :node_count, Integer
     attribute :edge_count, Integer
     attribute :domain_count, Integer
-    list_of(Edge) :edges
+    attribute :edges, list_of(Edge)
 
     value_object "Edge" do
       attribute :source_event, String
@@ -20,7 +20,7 @@ Hecks.bluebook "CausalCombinatorics", version: "2026.04.13.1" do
     command "BuildGraph" do
       description "Construct the policy graph from a set of domains — nodes are events and commands, edges are policies"
       attribute :name, String
-      list_of(String) :domain_names
+      attribute :domain_names, list_of(String)
       emits "GraphBuilt"
     end
 
@@ -36,7 +36,7 @@ Hecks.bluebook "CausalCombinatorics", version: "2026.04.13.1" do
     attribute :trigger_event, String
     attribute :cascade_depth, Integer
     attribute :total_activations, Integer
-    list_of(Activation) :chain
+    attribute :chain, list_of(Activation)
     attribute :has_cycle, Boolean
     attribute :has_fan_out, Boolean
     attribute :trigger_event_in_graph, Boolean, default: false
@@ -130,7 +130,7 @@ Hecks.bluebook "CausalCombinatorics", version: "2026.04.13.1" do
     attribute :statement, String
     attribute :confidence, Float
     attribute :observations, Integer
-    list_of(Evidence) :supporting_data
+    attribute :supporting_data, list_of(Evidence)
 
     value_object "Evidence" do
       attribute :domain_pair, String

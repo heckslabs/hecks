@@ -67,10 +67,10 @@ Hecks.bluebook "Storefront", version: "2026.04.11.1" do
     attribute :brand, String
     attribute :description, String
     attribute :price, Float
-    list_of(String) :images
-    list_of(String) :benefits
-    list_of(Specification) :specifications
-    list_of(String) :test_results
+    attribute :images, list_of(String)
+    attribute :benefits, list_of(String)
+    attribute :specifications, list_of(Specification)
+    attribute :test_results, list_of(String)
     attribute :in_stock, String
     attribute :featured, String
     attribute :status, String
@@ -105,9 +105,9 @@ Hecks.bluebook "Storefront", version: "2026.04.11.1" do
       role "ProductManager"
       description "Pull tribology and formulation data into the listing — ASTM specs, test results, benefits"
       reference_to(ProductListing)
-      list_of(Specification) :specifications
-      list_of(String) :test_results
-      list_of(String) :benefits
+      attribute :specifications, list_of(Specification)
+      attribute :test_results, list_of(String)
+      attribute :benefits, list_of(String)
       emits "ListingEnriched"
       then_set :specifications, to: :specifications
       then_set :test_results, to: :test_results
@@ -158,7 +158,7 @@ Hecks.bluebook "Storefront", version: "2026.04.11.1" do
 
   aggregate "ShoppingCart", "A customer's cart with persona-aware pricing" do
     attribute :session_id, String
-    list_of(CartItem) :items
+    attribute :items, list_of(CartItem)
     attribute :subtotal, Float
     attribute :persona_segment, String
 
@@ -220,7 +220,7 @@ Hecks.bluebook "Storefront", version: "2026.04.11.1" do
     attribute :customer_name, String
     attribute :customer_email, String
     attribute :shipping_address, String
-    list_of(OrderLineItem) :items
+    attribute :items, list_of(OrderLineItem)
     attribute :subtotal, Float
     attribute :tax, Float
     attribute :shipping, Float
@@ -311,7 +311,7 @@ Hecks.bluebook "Storefront", version: "2026.04.11.1" do
   aggregate "CustomerAccount", "Returning customers with order history and persona-driven recommendations" do
     attribute :email, String
     attribute :name, String
-    list_of(String) :orders
+    attribute :orders, list_of(String)
     attribute :favorite_brand, String
     attribute :vehicle_type, String
     attribute :persona_segment, String
@@ -367,7 +367,7 @@ Hecks.bluebook "Storefront", version: "2026.04.11.1" do
 
   aggregate "ProductRecommendation", "Persona-driven product suggestions based on vehicle and purchase history" do
     attribute :customer_email, String
-    list_of(String) :recommended_skus
+    attribute :recommended_skus, list_of(String)
     attribute :reasoning, String
     attribute :persona_match, String
 
@@ -451,7 +451,7 @@ Hecks.bluebook "Storefront", version: "2026.04.11.1" do
 
   aggregate "ReviewIntegration", "Pull reviews from Amazon and Walmart to display on the storefront" do
     attribute :product_sku, String
-    list_of(StorefrontReview) :reviews
+    attribute :reviews, list_of(StorefrontReview)
     attribute :average_rating, Float
     attribute :review_count, Integer
 

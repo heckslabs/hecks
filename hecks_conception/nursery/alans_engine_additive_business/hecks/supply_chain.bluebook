@@ -243,8 +243,8 @@ Hecks.bluebook "SupplyChain", version: "2026.04.11.1" do
   aggregate "BillOfMaterials", "What goes into each finished product — traces every component to its supplier" do
     attribute :product_sku, String
     attribute :formula_name, String
-    list_of(MaterialLine) :materials
-    list_of(PackagingLine) :packaging
+    attribute :materials, list_of(MaterialLine)
+    attribute :packaging, list_of(PackagingLine)
     attribute :total_cost_per_unit, Float
 
     value_object "MaterialLine" do
@@ -313,7 +313,7 @@ Hecks.bluebook "SupplyChain", version: "2026.04.11.1" do
   aggregate "PurchaseOrder", "An order for materials or packaging placed with a supplier" do
     attribute :po_number, String
     attribute :supplier, String
-    list_of(POLine) :items
+    attribute :items, list_of(POLine)
     attribute :total, Float
     attribute :delivery_date, String
     attribute :status, String
@@ -436,8 +436,8 @@ Hecks.bluebook "SupplyChain", version: "2026.04.11.1" do
     attribute :material_name, String
     attribute :supplier, String
     attribute :received_date, String
-    list_of(String) :used_in_batches
-    list_of(String) :used_in_products
+    attribute :used_in_batches, list_of(String)
+    attribute :used_in_products, list_of(String)
 
     command "TrackInboundLot" do
       role "QualityManager"

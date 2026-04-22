@@ -12,7 +12,7 @@ Hecks.bluebook "FormulationLab", version: "2026.04.11.1" do
     attribute :target_pour_point, String
     attribute :target_flash_point, String
     attribute :projected_cost_per_unit, Float
-    list_of(AdditiveComponent) :components
+    attribute :components, list_of(AdditiveComponent)
     attribute :status, String
 
     value_object "AdditiveComponent" do
@@ -258,7 +258,7 @@ Hecks.bluebook "FormulationLab", version: "2026.04.11.1" do
     attribute :proposed_product_name, String
     attribute :headline, String
     attribute :key_message, String
-    list_of(String) :proof_points
+    attribute :proof_points, list_of(String)
     attribute :channel_strategy, String
     attribute :packaging_concept, String
     attribute :shelf_position, String
@@ -292,7 +292,7 @@ Hecks.bluebook "FormulationLab", version: "2026.04.11.1" do
       role "Owner"
       description "Craft the positioning statement — proof points, channel strategy, and shelf position"
       reference_to(MarketingPreview)
-      list_of(String) :proof_points
+      attribute :proof_points, list_of(String)
       attribute :channel_strategy, String
       attribute :shelf_position, String
       emits "PositioningCrafted"
@@ -349,12 +349,12 @@ Hecks.bluebook "FormulationLab", version: "2026.04.11.1" do
     attribute :formula_codename, String
     attribute :innovation_type, String
     attribute :disruption_level, String
-    list_of(String) :affected_competitors
-    list_of(String) :affected_segments
+    attribute :affected_competitors, list_of(String)
+    attribute :affected_segments, list_of(String)
     attribute :patent_potential, String
     attribute :first_mover_advantage, String
     attribute :synopsis, String
-    list_of(CompetitiveShift) :shifts
+    attribute :shifts, list_of(CompetitiveShift)
 
     value_object "CompetitiveShift" do
       attribute :competitor, String
@@ -368,8 +368,8 @@ Hecks.bluebook "FormulationLab", version: "2026.04.11.1" do
       description "Analyze how this formula changes the competitive landscape"
       attribute :formula_codename, String
       attribute :innovation_type, String
-      list_of(String) :affected_competitors
-      list_of(String) :affected_segments
+      attribute :affected_competitors, list_of(String)
+      attribute :affected_segments, list_of(String)
       emits "ImpactAnalyzed"
       then_set :formula_codename, to: :formula_codename
       then_set :innovation_type, to: :innovation_type

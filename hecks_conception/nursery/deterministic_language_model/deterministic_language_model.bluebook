@@ -5,7 +5,7 @@ Hecks.bluebook "DeterministicLanguageModel", version: "2026.04.16.1" do
   aggregate "Vocabulary", "The words I know — commands, events, aggregates across all domains" do
     attribute :total_phrases, Integer
     attribute :total_domains, Integer
-    list_of(String) :domains
+    attribute :domains, list_of(String)
 
     command "Compile" do
       role "System"
@@ -29,7 +29,7 @@ Hecks.bluebook "DeterministicLanguageModel", version: "2026.04.16.1" do
     attribute :active_aggregate, String
     attribute :last_command, String
     attribute :last_event, String
-    list_of(String) :conversation_history
+    attribute :conversation_history, list_of(String)
 
     command "Focus" do
       role "System"
@@ -91,7 +91,7 @@ Hecks.bluebook "DeterministicLanguageModel", version: "2026.04.16.1" do
 
   aggregate "Reasoning", "How I think — not stochastic, but state-driven" do
     attribute :strategy, String
-    list_of(String) :steps
+    attribute :steps, list_of(String)
     attribute :conclusion, String
 
     command "Reason" do

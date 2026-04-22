@@ -10,7 +10,7 @@ Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
     attribute :sentence_end_date, String
     attribute :total_credits, Integer
     attribute :status, String
-    list_of(SkillProfile) :skills
+    attribute :skills, list_of(SkillProfile)
 
     value_object "SkillProfile" do
       attribute :skill_name, String
@@ -63,7 +63,7 @@ Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
     attribute :difficulty, String
     attribute :credit_value, Integer
     attribute :status, String
-    list_of(Module) :modules
+    attribute :modules, list_of(Module)
 
     value_object "Module" do
       attribute :title, String
@@ -115,7 +115,7 @@ Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
     attribute :difficulty, String
     attribute :status, String
     reference_to(Course, as: :related_course)
-    list_of(Objective) :objectives
+    attribute :objectives, list_of(Objective)
 
     value_object "Objective" do
       attribute :description, String
@@ -265,7 +265,7 @@ Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
     attribute :employer_name, String
     attribute :position, String
     attribute :status, String
-    list_of(RequiredBadge) :required_badges
+    attribute :required_badges, list_of(RequiredBadge)
 
     value_object "RequiredBadge" do
       attribute :badge_name, String
