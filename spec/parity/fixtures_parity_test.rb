@@ -74,9 +74,13 @@ def rust_ir(path)
   { "domain" => parsed["domain"].to_s, "fixtures" => fixtures }
 end
 
-target = ARGV.empty? ? "hecks_conception/**/*.fixtures" : ARGV[0]
-files = Dir.glob(target)
-abort "no .fixtures files matched: #{target}" if files.empty?
+if ARGV.empty?
+  files = Dir.glob("hecks_conception/**/*.fixtures") +
+          Dir.glob("spec/parity/fixtures/**/*.fixtures")
+else
+  files = Dir.glob(ARGV[0])
+end
+abort "no .fixtures files matched" if files.empty?
 
 # Known-drift list: paths where ruby/rust parse differently for known
 # edge cases (typically embedded escape sequences in attribute values).

@@ -3,10 +3,8 @@
 # with # are comments. Add new drift only after confirming it's a real
 # semantic edge (escape sequences, unicode in source tokens, etc.) —
 # do NOT use this as a way to silence regressions.
-hecks_conception/nursery/architecture_firm/fixtures/architecture_firm.fixtures
 hecks_conception/nursery/compost_loop/fixtures/compost_loop.fixtures
 hecks_conception/nursery/content_moderation/fixtures/content_moderation.fixtures
-hecks_conception/nursery/heki/fixtures/heki.fixtures
 hecks_conception/nursery/pottery_studio/fixtures/pottery_studio.fixtures
 hecks_conception/nursery/smart_grocery/fixtures/smart_grocery.fixtures
 hecks_conception/nursery/smart_rehab/fixtures/smart_rehab.fixtures
@@ -15,4 +13,3 @@ hecks_conception/nursery/specimen_transport/fixtures/specimen_transport.fixtures
 hecks_conception/nursery/speech_media/fixtures/speech_media.fixtures
 hecks_conception/nursery/speech_therapy/fixtures/speech_therapy.fixtures
 hecks_conception/nursery/verbs/fixtures/verbs.fixtures
-hecks_conception/capabilities/antibody/fixtures/antibody.fixtures
