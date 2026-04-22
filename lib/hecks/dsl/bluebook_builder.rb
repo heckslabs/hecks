@@ -308,6 +308,17 @@ module Hecks
         @entry_points << name.to_s
       end
 
+      # Declare the default command for `hecks-life run <file>` when the
+      # bluebook is marked executable (shebang). Stored on the domain so
+      # the Rust runtime can look it up; invisible to the canonical IR
+      # dump (parity contract is unchanged).
+      #
+      #   entrypoint "StartSession"
+      #
+      def entrypoint(command_name)
+        @entrypoint = command_name.to_s
+      end
+
       # Define a cross-aggregate reactive policy.
       #
       # Domain-level policies react to events from one aggregate and trigger
