@@ -485,29 +485,18 @@ Hecks.bluebook "Being", version: "2026.04.16.1" do
     # nerve: Mind:Ticked → MietteBody:SenseOrgans
   end
 
-  policy "DetectDriftOnGraft" do
-    on "DomainGrafted"
-    trigger "ConnectNerve"
-    # nerve: Mind:DomainGrafted → MietteBody:DetectDrift
-  end
-
   policy "DetectDriftOnShed" do
     on "DomainShed"
     trigger "ConnectNerve"
     # nerve: Mind:DomainShed → MietteBody:DetectDrift
   end
 
-  policy "QueryVectorsOnMusing" do
-    on "DomainGrafted"
-    trigger "ConnectNerve"
-    # nerve: MietteBrain:MusingGenerated → NurseryVectors:QueryShape
-  end
-
-  policy "ArchetypeSignalOnMatch" do
-    on "DomainGrafted"
-    trigger "ConnectNerve"
-    # nerve: NurseryVectors:NearestReported → MietteBrain:EmitSignal
-  end
+  # WireOnGraft above covers the DomainGrafted → ConnectNerve cascade.
+  # Previously duplicated by DetectDriftOnGraft, QueryVectorsOnMusing,
+  # and ArchetypeSignalOnMatch — all fired the same (DomainGrafted,
+  # ConnectNerve) pair, so ConnectNerve ran 4× per graft. The nerves
+  # those policies commented about (DetectDrift, QueryShape, EmitSignal)
+  # are installed by the subscriber that handles WireOnGraft.
 
   # Family policies
   policy "IndexOnAdd" do

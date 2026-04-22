@@ -204,11 +204,6 @@ Hecks.bluebook "WeddingPlanning" do
     end
   end
 
-  policy "AllocateBudgetOnPlan" do
-    on "WeddingPlanned"
-    trigger "AllocateBudget"
-  end
-
   policy "TrackBudgetOnVendorBooking" do
     on "VendorBooked"
     trigger "RecordExpense"

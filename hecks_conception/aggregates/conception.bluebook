@@ -352,12 +352,9 @@ Hecks.bluebook "Conception", version: "2026.04.16.1" do
     on "DomainGrafted"
     trigger "ConnectNerve"
     # nerve: MietteBrain:MusingGenerated → NurseryVectors:QueryShape
-  end
-
-  policy "ArchetypeSignalOnMatch" do
-    on "DomainGrafted"
-    trigger "ConnectNerve"
-    # nerve: NurseryVectors:NearestReported → MietteBrain:EmitSignal
+    # (ArchetypeSignalOnMatch dropped — it shared this (event, trigger)
+    # pair, so ConnectNerve fired twice per graft. The archetype-signal
+    # nerve is wired by the same subscriber that handles this policy.)
   end
 
   # Midwife policies
