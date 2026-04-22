@@ -1,12 +1,7 @@
 Hecks.fixtures "Sleep" do
-  aggregate "Fatigue" do
-    fixture "Fatigue1", state: "alert", pulses_since_sleep: 0, level: 0.0, creativity: 0.8, precision: 0.9
-    fixture "Fatigue2", state: "focused", pulses_since_sleep: 50, level: 0.2, creativity: 0.7, precision: 0.8
-    fixture "Fatigue3", state: "normal", pulses_since_sleep: 100, level: 0.4, creativity: 0.6, precision: 0.7
-    fixture "Fatigue4", state: "tired", pulses_since_sleep: 150, level: 0.6, creativity: 0.5, precision: 0.5
-    fixture "Fatigue5", state: "exhausted", pulses_since_sleep: 200, level: 0.8, creativity: 0.3, precision: 0.3
-    fixture "Fatigue6", state: "delirious", pulses_since_sleep: 300, level: 1.0, creativity: 0.9, precision: 0.1
-  end
+  # Fatigue fixtures removed 2026-04-21 — the Fatigue aggregate was migrated
+  # out of sleep.bluebook into MietteBody::Heartbeat on 2026-04-20. See the
+  # header comment in aggregates/sleep.bluebook for the migration notes.
   aggregate "WakeMood" do
     fixture "WakeMood1", mood: "groggy", reason: "woken from deep — consolidation interrupted"
     fixture "WakeMood2", mood: "vivid", reason: "woken from REM — dream still fresh"
