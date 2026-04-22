@@ -24,6 +24,7 @@ module Hecksagon
     autoload :AnnotationSelector,  "hecksagon/dsl/annotation_selector"
     autoload :ContextMapBuilder,    "hecksagon/dsl/context_map_builder"
     autoload :PortContractBuilder,  "hecksagon/dsl/port_contract_builder"
+    autoload :ShellAdapterBuilder,  "hecksagon/dsl/shell_adapter_builder"
   end
 
   module Structure
