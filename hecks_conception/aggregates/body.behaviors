@@ -50,6 +50,26 @@ Hecks.behaviors "MietteBody" do
     expect emits: ["FatigueAccumulated"]
   end
 
+  test "AccumulateFatigue refused while sleeping (gate closed)" do
+    # i40: the sleep_gate gate makes AccumulateFatigue refuse while
+    # Consciousness is sleeping. SleepEntered → CloseFatigueGate flips
+    # the gate; this is the behavioral proof fatigue stops at sleep.
+    tests "AccumulateFatigue", on: "Heartbeat"
+    setup  "CloseFatigueGate"
+    expect refused: "not sleeping"
+  end
+
+  test "CloseFatigueGate flips the gate to closed" do
+    tests "CloseFatigueGate", on: "Heartbeat"
+    expect sleep_gate: "closed"
+  end
+
+  test "OpenFatigueGate flips the gate back to open" do
+    tests "OpenFatigueGate", on: "Heartbeat"
+    setup  "CloseFatigueGate"
+    expect sleep_gate: "open"
+  end
+
   test "CheckSleepNeeded refused when sleep_mode is manual (default)" do
     # Two guards: auto-sleep must be enabled AND pulses must exceed
     # threshold. Default sleep_mode is "manual" — fix for inbox i36
