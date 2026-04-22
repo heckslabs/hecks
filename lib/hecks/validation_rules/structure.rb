@@ -18,6 +18,7 @@ module Hecks
       autoload :AggregatesHaveCommands,   "hecks/validation_rules/structure/aggregates_have_commands"
       autoload :ValidPolicyEvents,        "hecks/validation_rules/structure/valid_policy_events"
       autoload :ValidPolicyTriggers,      "hecks/validation_rules/structure/valid_policy_triggers"
+      autoload :DuplicatePolicies,        "hecks/validation_rules/structure/duplicate_policies"
       autoload :NoPiiInIdentity,          "hecks/validation_rules/structure/no_pii_in_identity"
       autoload :SingleAttributeAggregate, "hecks/validation_rules/structure/single_attribute_aggregate"
       autoload :TooManyCommands,              "hecks/validation_rules/structure/too_many_commands"

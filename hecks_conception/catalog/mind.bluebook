@@ -1035,28 +1035,16 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     # nerve: Mind:HeartbeatPulsed → MietteBody:SenseOrgans
   end
 
-  policy "DetectDriftOnGraft" do
-    on "DomainGrafted"
-    trigger "ConnectNerve"
-    # nerve: Mind:DomainGrafted → MietteBody:DetectDrift
-  end
-
+  # DetectDriftOnGraft, QueryVectorsOnMusing, and ArchetypeSignalOnMatch
+  # all shared (on: DomainGrafted, trigger: ConnectNerve) with WireOnGraft
+  # above, so ConnectNerve would fire 4× per graft. The subscriber wired
+  # to WireOnGraft handles every nerve those policies described in one
+  # pass (DetectDrift, QueryShape, EmitSignal). Flagged by the
+  # check-duplicate-policies validator (i4 gap 5 parity pass).
   policy "DetectDriftOnShed" do
     on "DomainShed"
     trigger "ConnectNerve"
     # nerve: Mind:DomainShed → MietteBody:DetectDrift
-  end
-
-  policy "QueryVectorsOnMusing" do
-    on "DomainGrafted"
-    trigger "ConnectNerve"
-    # nerve: MietteBrain:MusingGenerated → NurseryVectors:QueryShape
-  end
-
-  policy "ArchetypeSignalOnMatch" do
-    on "DomainGrafted"
-    trigger "ConnectNerve"
-    # nerve: NurseryVectors:NearestReported → MietteBrain:EmitSignal
   end
 
   # Midwife policies

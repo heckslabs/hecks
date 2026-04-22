@@ -458,6 +458,12 @@
 - **Clock anti-pattern check** — flags `then_set :ts, to: :now` and `seconds_since(:field)` patterns where the domain reaches into the system clock. Hint: inject time as a command attribute (DDD Clock port) so the caller (test, hecksagon adapter, app) supplies the timestamp.
 - `--strict` promotes warnings to errors; pre-commit hook blocks on errors
 
+### Duplicate Policy Validator (`hecks-life check-duplicate-policies`)
+- Refuses bluebooks that declare two or more reactive policies wired to the same `(on_event, trigger_command)` pair. The runtime fires every matching policy in declaration order, so the trigger runs once per duplicate — a silent cascade bug
+- Flat IR walk: groups every reactive policy (aggregate-scoped and domain-level) by `(event, trigger[, target_domain])`, reports one error per group of size ≥ 2, naming every colliding policy and the exact duplicate count
+- Target-domain keyed: cross-domain wiring (`@target`) does not collide with same-domain policies
+- Parity: Ruby rule `Hecks::ValidationRules::Structure::DuplicatePolicies` runs inside `Hecks.validate`; Rust subcommand `hecks-life check-duplicate-policies <bluebook>` exits non-zero on any duplicate pair
+
 ### IO Validator (`hecks-life check-io`)
 - Asserts the bluebook is pure-memory by default — no IO leaks above the hecksagon adapter layer
 - **Static IR scan**: flags IO-suggestive command names (`Deploy`, `Send`, `Push`, `Publish`, `Fetch`, `Sync`), past-tense external event names (`Deployed`, `Sent`), and pure-side-effect commands (emits but no state change, not Create or lifecycle)
