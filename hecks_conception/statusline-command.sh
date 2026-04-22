@@ -20,7 +20,13 @@ sleep_summary=$($hecks heki read $info/consciousness.heki 2>/dev/null | grep sle
 # (see status_coherence.sh + inbox i35). On violation we degrade the mood
 # glyph to ⚠ and append the reason to information/.coherence.log so the
 # status bar never silently renders a contradictory state.
-coherence_dir="$(dirname "$0")"
+# Resolve symlinks — Claude Code runs this script via ~/.claude/statusline-command.sh
+# (a symlink into hecks_conception/), so $0 points at the symlink's dir, not the
+# real one. Walk the symlink chain to find the actual script dir where
+# status_coherence.sh lives next to us.
+script="$0"
+while [ -L "$script" ]; do script="$(readlink "$script")"; done
+coherence_dir="$(cd "$(dirname "$script")" && pwd)"
 coherence_violations=""
 if ! coherence_violations=$("$coherence_dir/status_coherence.sh" "$info" 2>&1 >/dev/null); then
   ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
