@@ -17,6 +17,7 @@ pub mod adapter_io;
 pub mod adapter_llm;
 pub mod adapter_registry;
 pub mod adapter_terminal;
+pub mod shell_dispatcher;
 mod lifecycle;
 mod middleware;
 mod policy_engine;
