@@ -12,10 +12,17 @@
 # map: `refused`, `emits`, `<key>_size`, `count` (queries), and
 # plain attribute equality.
 #
-#   result = Runner.run(source_text, suite)
+# Optional `fixtures_file` — when present, the runner seeds every
+# fresh runtime with the fixture records before setups/dispatch run,
+# so cross-aggregate cascades can read state from sibling aggregates
+# without an explicit `setup` chain (i4 gap 8).
+#
+#   result = Runner.run(source_loader, suite)
+#   result = Runner.run(source_loader, suite, fixtures_file: ff)
 #   result.passed; result.failed; result.errored
 require_relative "behavior_runtime"
 require_relative "expectations"
+require_relative "fixtures_loader"
 
 module Hecks
   module Behaviors
@@ -31,10 +38,10 @@ module Hecks
         def all_passed?; failed.zero? && errored.zero?; end
       end
 
-      def self.run(source_loader, suite)
+      def self.run(source_loader, suite, fixtures_file: nil)
         runs = suite.tests.map do |t|
           begin
-            run_one(source_loader, t)
+            run_one(source_loader, t, fixtures_file: fixtures_file)
           rescue => e
             TestRun.new(t.description, :error, "runner crash: #{e.message}")
           end
@@ -42,10 +49,14 @@ module Hecks
         SuiteResult.new(runs)
       end
 
-      def self.run_one(source_loader, test)
+      def self.run_one(source_loader, test, fixtures_file: nil)
         domain = source_loader.call
         rt = BehaviorRuntime.boot(domain)
         in_scope = {}
+        # Fixture seed BEFORE singleton pre-seed so pre_seed_singletons
+        # only fills gaps the fixtures didn't cover (an aggregate with
+        # no fixture row still needs its id "1" landing pad).
+        in_scope.merge!(FixturesLoader.apply(rt, fixtures_file))
         pre_seed_singletons(rt, in_scope)
 
         test.setups.each do |setup|
@@ -107,6 +118,9 @@ module Hecks
       def self.pre_seed_singletons(rt, in_scope)
         rt.domain.aggregates.each do |agg|
           next unless agg_has_no_bootstrap?(agg)
+          # Fixtures seeded this aggregate already — don't overwrite its
+          # loaded state with a virgin AggregateState at id "1".
+          next if in_scope.key?(agg.name)
           state = AggregateState.new("1")
           rt.repositories[agg.name]["1"] = state
           in_scope[agg.name] = "1"
