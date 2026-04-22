@@ -1,0 +1,47 @@
+Hecks.behaviors "Spend" do
+  vision "Behavioral tests for the Spend domain — RecordCall appends, budget caps set/override/clear"
+
+  # ── Call aggregate ──────────────────────────────────────────
+
+  test "RecordCall sets provider + tokens_in + tokens_out + cost_usd + command_ref + recorded_at" do
+    tests "RecordCall", on: "Call"
+    input  provider: "claude", tokens_in: 100, tokens_out: 50, cost_usd: 0.01, command_ref: "Tongue.Speak:42", recorded_at: "2026-04-21T12:00:00Z"
+    expect provider: "claude", tokens_in: 100, tokens_out: 50, cost_usd: 0.01, command_ref: "Tongue.Speak:42", recorded_at: "2026-04-21T12:00:00Z"
+  end
+
+  test "RecordCall emits CallRecorded" do
+    tests "RecordCall", on: "Call", kind: :cascade
+    input  provider: "claude", tokens_in: 100, tokens_out: 50, cost_usd: 0.01, command_ref: "Tongue.Speak:42", recorded_at: "2026-04-21T12:00:00Z"
+    expect emits: ["CallRecorded"]
+  end
+
+
+  # ── Budget aggregate ──────────────────────────────────────────
+
+  test "SetBudget sets period + cap_usd and clears override_active" do
+    tests "SetBudget", on: "Budget"
+    input  period: "day", cap_usd: 5.00
+    expect period: "day", cap_usd: 5.00, override_active: "no"
+  end
+
+  test "SetBudget emits BudgetSet" do
+    tests "SetBudget", on: "Budget", kind: :cascade
+    input  period: "day", cap_usd: 5.00
+    expect emits: ["BudgetSet"]
+  end
+
+  test "OverrideBudget sets until + marks override_active" do
+    tests "OverrideBudget", on: "Budget"
+    setup  "SetBudget", period: "day", cap_usd: 5.00
+    input  period: "day", until_ts: "2026-04-21T22:00:00Z"
+    expect override_active: "yes", override_until: "2026-04-21T22:00:00Z"
+  end
+
+  test "ClearOverride re-engages the cap" do
+    tests "ClearOverride", on: "Budget"
+    setup  "SetBudget", period: "day", cap_usd: 5.00
+    setup  "OverrideBudget", period: "day", until_ts: "2026-04-21T22:00:00Z"
+    input  period: "day"
+    expect override_active: "no", override_until: ""
+  end
+end

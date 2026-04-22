@@ -1,0 +1,78 @@
+Hecks.behaviors "CircuitBreaker" do
+  vision "Behavioral tests for CircuitBreaker — failure accumulation, threshold-triggered opening, probe cycle, manual trip/reset"
+
+  # ── Breaker aggregate ──────────────────────────────────────────
+
+  test "RecordFailure increments failure_count" do
+    tests "RecordFailure", on: "Breaker"
+    input  kind: "claude_api"
+    expect kind: "claude_api", failure_count: 1
+  end
+
+  test "RecordFailure emits FailureRecorded" do
+    tests "RecordFailure", on: "Breaker", kind: :cascade
+    input  kind: "claude_api"
+    # The TripWhenThresholdCrossed policy fires TripOnThreshold on
+    # every FailureRecorded, but its given("threshold crossed")
+    # short-circuits when failure_count (1) < threshold (5), so
+    # nothing downstream emits on a single failure.
+    expect emits: ["FailureRecorded"]
+  end
+
+  test "TripOnThreshold opens the breaker when failure_count >= threshold" do
+    tests "TripOnThreshold", on: "Breaker"
+    setup  "RecordFailure", kind: "claude_api"
+    setup  "RecordFailure", kind: "claude_api"
+    setup  "RecordFailure", kind: "claude_api"
+    setup  "RecordFailure", kind: "claude_api"
+    setup  "RecordFailure", kind: "claude_api"
+    input  kind: "claude_api", opened_at: "2026-04-21T12:00:00Z"
+    expect state: "open", opened_at: "2026-04-21T12:00:00Z"
+  end
+
+  test "TripOnThreshold refused when below threshold" do
+    tests "TripOnThreshold", on: "Breaker"
+    setup  "RecordFailure", kind: "claude_api"
+    input  kind: "claude_api", opened_at: "2026-04-21T12:00:00Z"
+    expect refused: "threshold crossed"
+  end
+
+  test "RecordSuccess resets failure_count and closes the breaker" do
+    tests "RecordSuccess", on: "Breaker"
+    setup  "RecordFailure", kind: "claude_api"
+    setup  "RecordFailure", kind: "claude_api"
+    input  kind: "claude_api"
+    expect failure_count: 0, state: "closed"
+  end
+
+  test "Probe moves open to half_open" do
+    tests "Probe", on: "Breaker"
+    setup  "RecordFailure", kind: "claude_api"
+    setup  "RecordFailure", kind: "claude_api"
+    setup  "RecordFailure", kind: "claude_api"
+    setup  "RecordFailure", kind: "claude_api"
+    setup  "RecordFailure", kind: "claude_api"
+    setup  "TripOnThreshold", kind: "claude_api", opened_at: "2026-04-21T12:00:00Z"
+    input  kind: "claude_api"
+    expect state: "half_open"
+  end
+
+  test "Probe refused when breaker is closed" do
+    tests "Probe", on: "Breaker"
+    input  kind: "claude_api"
+    expect refused: "must be open"
+  end
+
+  test "Trip manually opens the breaker" do
+    tests "Trip", on: "Breaker"
+    input  kind: "claude_api", reason: "upstream incident", opened_at: "2026-04-21T12:00:00Z"
+    expect state: "open", last_reason: "upstream incident", opened_at: "2026-04-21T12:00:00Z"
+  end
+
+  test "Reset closes the breaker and clears failure_count" do
+    tests "Reset", on: "Breaker"
+    setup  "Trip", kind: "claude_api", reason: "manual", opened_at: "2026-04-21T12:00:00Z"
+    input  kind: "claude_api"
+    expect state: "closed", failure_count: 0, opened_at: ""
+  end
+end
