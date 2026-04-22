@@ -1,0 +1,32 @@
+# spec/parity/fixtures/catalog_smoke.fixtures
+#
+# i42 smoke fixture — exercises the catalog-dialect (schema: kwarg on
+# aggregate) alongside a plain aggregate, so Ruby and Rust parsers
+# can be diffed end-to-end on the same file.
+#
+# Plain rows: pre-i42 shape.
+# Catalog rows: the new schema-carrying form.
+#
+# [antibody-exempt: parity-suite test input — not domain code; its
+#  sole role is to pin Ruby/Rust parser equivalence under the new
+#  catalog-dialect DSL surface.]
+Hecks.fixtures "CatalogSmoke" do
+  # Plain aggregate — no schema, behaves exactly as before.
+  aggregate "Pizza" do
+    fixture "Margherita", name: "Margherita", description: "Classic"
+    fixture "Pepperoni",  name: "Pepperoni",  description: "Spicy"
+  end
+
+  # Catalog — single-attr schema, two rows.
+  aggregate "FlaggedExtension", schema: { ext: String } do
+    fixture "Ruby", ext: "rb"
+    fixture "Rust", ext: "rs"
+  end
+
+  # Catalog — multi-attr schema, three rows.
+  aggregate "ShebangMapping", schema: { match: String, ext: String } do
+    fixture "Ruby",   match: "ruby",   ext: "rb"
+    fixture "Python", match: "python", ext: "py"
+    fixture "Bash",   match: "bash",   ext: "sh"
+  end
+end
