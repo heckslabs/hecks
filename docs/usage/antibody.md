@@ -99,7 +99,10 @@ The antibody is transitional. The real win is:
 2. `#!/usr/bin/env hecks-life run` shebang so bluebooks are directly
    executable scripts.
 3. `.hecksagon` adapters declare shell-out / git / fs / network /
-   DB surfaces in the same native DSL.
+   DB surfaces in the same native DSL. `adapter :shell` landed in
+   the Ruby DSL (see [shell_adapter.md](shell_adapter.md)); every
+   ad-hoc `Open3.capture3` in `lib/` is now a migration candidate.
+   Rust parity for hecksagons is a separately-tracked follow-up.
 4. `bin/*.bluebook` files replace every existing `bin/*` wrapper.
 5. `lib/` shrinks toward zero as capabilities move into `.bluebook`
    and `.hecksagon`.

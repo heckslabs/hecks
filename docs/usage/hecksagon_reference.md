@@ -61,7 +61,9 @@ For the full rationale on why gates live in the Hecksagon rather than the Bluebo
 
 ## Adapter
 
-Declares the persistence adapter for the domain — in-memory, SQLite, PostgreSQL, MySQL, or a custom adapter.
+`adapter :kind, ...` declares an infrastructure adapter. The hecksagon grammar treats persistence and shell-out uniformly — the kind symbol selects the branch.
+
+### Persistence (unnamed, at most one)
 
 ```ruby
 # In-memory (default, no declaration needed)
@@ -77,7 +79,31 @@ adapter :postgres, host: "localhost", database: "pizzas", user: "app"
 adapter :mysql2, host: "localhost", database: "pizzas"
 ```
 
-Without an adapter declaration, Hecks defaults to `:memory`.
+Without a persistence adapter declaration, Hecks defaults to `:memory`.
+
+> `persistence :sqlite, ...` still works as a deprecated alias for
+> `adapter :sqlite, ...`; it emits a warning once per builder.
+
+### Shell (named, many allowed)
+
+```ruby
+adapter :shell, name: :git_log do
+  command "git"
+  args ["log", "--format=%H", "{{range}}"]
+  output_format :lines
+  timeout 10
+end
+
+adapter :shell, name: :git_show_files,
+                command: "git",
+                args: ["show", "--name-only", "{{sha}}"],
+                output_format: :lines
+```
+
+At runtime: `runtime.shell(:git_log, range: "HEAD~5..HEAD")`.
+
+See [shell_adapter.md](shell_adapter.md) for the full reference —
+security model, output formats, error surface, worked example.
 
 ---
 

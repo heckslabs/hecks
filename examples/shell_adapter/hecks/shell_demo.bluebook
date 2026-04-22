@@ -1,0 +1,11 @@
+# Shell Adapter Demo — Bluebook
+#
+# A minimal domain so Hecks.boot has something to load. The domain
+# itself is not the point — the hecksagon sitting next to it is.
+#
+Hecks.bluebook "ShellDemo" do
+  aggregate "Message" do
+    attribute :id, String
+    attribute :text, String
+  end
+end

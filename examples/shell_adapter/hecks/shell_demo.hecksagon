@@ -1,0 +1,17 @@
+# Shell Adapter Demo — Hecksagon
+#
+# Declares a single `adapter :shell` so the example launcher can call
+# runtime.shell(:echo_args, msg: "...") and get the input back.
+#
+Hecks.hecksagon "ShellDemo" do
+  adapter :memory
+
+  adapter :shell, name: :echo_args, command: "echo", args: ["{{msg}}"]
+
+  adapter :shell, name: :list_files do
+    command "ls"
+    args ["{{dir}}"]
+    output_format :lines
+    timeout 5
+  end
+end
