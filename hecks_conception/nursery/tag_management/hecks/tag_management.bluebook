@@ -53,7 +53,7 @@ Hecks.bluebook "TagManagement", version: "2026.04.11.1" do
     attribute :firing_order, Integer
     attribute :template, String
     attribute :custom_html, String
-    list_of(ConfigEntry) :config
+    attribute :config, list_of(ConfigEntry)
     attribute :consent_required, String
     attribute :status, String
 
@@ -151,7 +151,7 @@ Hecks.bluebook "TagManagement", version: "2026.04.11.1" do
     attribute :name, String
     attribute :trigger_type, String
     attribute :container_id, String
-    list_of(Condition) :conditions
+    attribute :conditions, list_of(Condition)
     attribute :description, String
 
     value_object "Condition" do

@@ -10,7 +10,7 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
     attribute :affected_region, String
     attribute :severity, String
     attribute :status, String
-    list_of(AffectedSystem) :affected_systems
+    attribute :affected_systems, list_of(AffectedSystem)
     value_object "AffectedSystem" do
       attribute :system_type, String
       attribute :impact_level, String
@@ -59,7 +59,7 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
     attribute :range_nm, Integer
     attribute :status, String
     reference_to(CrisisEvent, as: :assigned_crisis)
-    list_of(MissionLog) :missions
+    attribute :missions, list_of(MissionLog)
     value_object "MissionLog" do
       attribute :mission_type, String
       attribute :origin, String
@@ -111,7 +111,7 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
     attribute :power_status, String
     attribute :accessibility, String
     attribute :status, String
-    list_of(DepartmentStatus) :departments
+    attribute :departments, list_of(DepartmentStatus)
     value_object "DepartmentStatus" do
       attribute :department_name, String
       attribute :operational_status, String
@@ -160,7 +160,7 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
     attribute :substations_online, Integer
     attribute :substations_total, Integer
     attribute :grid_status, String
-    list_of(GeneratorDeployment) :generators
+    attribute :generators, list_of(GeneratorDeployment)
     value_object "GeneratorDeployment" do
       attribute :generator_id, String
       attribute :deployed_to, String
@@ -206,7 +206,7 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
     reference_to(HospitalStatus, as: :target_hospital)
     attribute :rationale, String
     attribute :status, String
-    list_of(ScoringFactor) :factors
+    attribute :factors, list_of(ScoringFactor)
     value_object "ScoringFactor" do
       attribute :factor_name, String
       attribute :weight, Float
@@ -241,7 +241,7 @@ Hecks.bluebook "CrisisAviation", version: "2026.04.13.1" do
     attribute :queue_id, String
     reference_to(CrisisEvent, as: :crisis)
     attribute :status, String
-    list_of(PriorityEntry) :entries
+    attribute :entries, list_of(PriorityEntry)
     value_object "PriorityEntry" do
       attribute :patient_name, String
       attribute :acuity_level, String

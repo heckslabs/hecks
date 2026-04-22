@@ -9,7 +9,7 @@ Hecks.bluebook "Florist", version: "2026.04.13.1" do
     attribute :price, Float
     attribute :occasion, String
     attribute :status, String
-    list_of(StemSelection) :stems
+    attribute :stems, list_of(StemSelection)
 
     value_object "StemSelection" do
       attribute :flower_name, String
@@ -90,7 +90,7 @@ Hecks.bluebook "Florist", version: "2026.04.13.1" do
     attribute :event_date, String
     attribute :budget, Float
     attribute :status, String
-    list_of(EventPiece) :pieces
+    attribute :pieces, list_of(EventPiece)
 
     value_object "EventPiece" do
       attribute :arrangement_type, String

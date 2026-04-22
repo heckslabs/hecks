@@ -11,7 +11,7 @@ Hecks.bluebook "ReentryEcosystem", version: "2026.04.13.1" do
     attribute :background_type, String
     attribute :risk_level, String
     attribute :status, String
-    list_of(ServiceNeed) :identified_needs
+    attribute :identified_needs, list_of(ServiceNeed)
     value_object "ServiceNeed" do
       attribute :category, String
       attribute :urgency, String
@@ -60,7 +60,7 @@ Hecks.bluebook "ReentryEcosystem", version: "2026.04.13.1" do
     attribute :track_type, String
     attribute :institution, String
     attribute :status, String
-    list_of(CourseModule) :modules
+    attribute :modules, list_of(CourseModule)
     value_object "CourseModule" do
       attribute :module_name, String
       attribute :completion_status, String
@@ -107,7 +107,7 @@ Hecks.bluebook "ReentryEcosystem", version: "2026.04.13.1" do
     attribute :address, String
     attribute :landlord_name, String
     attribute :status, String
-    list_of(StabilityCheck) :stability_checks
+    attribute :stability_checks, list_of(StabilityCheck)
     value_object "StabilityCheck" do
       attribute :check_date, String
       attribute :status, String
@@ -159,7 +159,7 @@ Hecks.bluebook "ReentryEcosystem", version: "2026.04.13.1" do
     attribute :job_title, String
     attribute :start_date, String
     attribute :status, String
-    list_of(RetentionCheckIn) :check_ins
+    attribute :check_ins, list_of(RetentionCheckIn)
     value_object "RetentionCheckIn" do
       attribute :check_date, String
       attribute :employment_status, String
@@ -198,7 +198,7 @@ Hecks.bluebook "ReentryEcosystem", version: "2026.04.13.1" do
     attribute :legal_need, String
     attribute :attorney_name, String
     attribute :status, String
-    list_of(CourtDate) :court_dates
+    attribute :court_dates, list_of(CourtDate)
     value_object "CourtDate" do
       attribute :date, String
       attribute :court_name, String
@@ -241,7 +241,7 @@ Hecks.bluebook "ReentryEcosystem", version: "2026.04.13.1" do
   aggregate "MilestoneTracker", "Cross-service milestone tracking — housing, education, employment, legal milestones in one view" do
     reference_to(ReentryCase, as: :case)
     attribute :overall_progress, String
-    list_of(Milestone) :milestones
+    attribute :milestones, list_of(Milestone)
     value_object "Milestone" do
       attribute :category, String
       attribute :description, String

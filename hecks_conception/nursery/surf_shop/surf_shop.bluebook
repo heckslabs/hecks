@@ -11,7 +11,7 @@ Hecks.bluebook "SurfShop", version: "2026.04.13.1" do
     attribute :volume_liters, Float
     attribute :price, Float
     attribute :status, String
-    list_of(FinSetup) :fin_setups
+    attribute :fin_setups, list_of(FinSetup)
 
     value_object "FinSetup" do
       attribute :fin_system, String

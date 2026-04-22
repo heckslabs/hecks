@@ -53,7 +53,7 @@ Hecks.bluebook "SkiResort", version: "2026.04.13.1" do
     attribute :length_km, Float
     attribute :groomed, String
     attribute :status, String
-    list_of(HazardMarker) :hazards
+    attribute :hazards, list_of(HazardMarker)
 
     value_object "HazardMarker" do
       attribute :hazard_type, String

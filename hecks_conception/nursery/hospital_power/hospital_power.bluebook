@@ -116,7 +116,7 @@ Hecks.bluebook "HospitalPower", version: "2026.04.13.1" do
 
   aggregate "LoadShedPlan", "A plan for shedding non-critical loads during power shortage" do
     attribute :plan_id, String
-    list_of(ShedStep) :steps
+    attribute :steps, list_of(ShedStep)
     attribute :status, String
     value_object "ShedStep" do
       attribute :priority, Integer

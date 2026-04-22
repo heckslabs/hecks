@@ -82,7 +82,7 @@ Hecks.bluebook "BloodSupplyChain", version: "2026.04.13.1" do
     attribute :blood_type, String
     attribute :quantity_units, Float
     attribute :status, String
-    list_of(TransportLeg) :legs
+    attribute :legs, list_of(TransportLeg)
     value_object "TransportLeg" do
       attribute :carrier, String
       attribute :departure_time, String
