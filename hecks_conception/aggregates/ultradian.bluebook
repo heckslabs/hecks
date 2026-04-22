@@ -1,0 +1,44 @@
+Hecks.bluebook "Ultradian", version: "2026.04.21.1" do
+  vision "The 90-minute Basic Rest-Activity Cycle (BRAC) — an independent body cycle that alternates between peak and trough phases throughout waking life. Counts complete cycles on each re-entry to peak."
+  category "body"
+
+  # ============================================================
+  # ULTRADIAN — 90-minute peak/trough body cycle
+  # ============================================================
+  #
+  # Kleitman's BRAC: roughly every 90 minutes the body alternates
+  # between a peak phase (focused, alert) and a trough phase (dip,
+  # recovery). The daemon drives the cadence; the aggregate only
+  # remembers the phase and how many full cycles have completed.
+  #
+  # cycle_count increments on EnterPeak so a full trough→peak
+  # transition is one counted cycle. The very first EnterPeak at
+  # boot also counts as cycle 1.
+  #
+  # Body cycles are emitters, not reactors — no policies here.
+
+  aggregate "Ultradian", "Peak ↔ trough alternation, with a completed-cycle counter" do
+    attribute :phase, String, default: "peak"
+    attribute :cycle_count, Integer, default: 0
+
+    command "EnterPeak" do
+      role "Daemon"
+      description "Enter the peak phase — focused, alert. Increments cycle_count to mark one completed cycle. Emits PeakEntered."
+      emits "PeakEntered"
+      then_set :phase, to: "peak"
+      then_set :cycle_count, increment: 1
+    end
+
+    command "EnterTrough" do
+      role "Daemon"
+      description "Enter the trough phase — dip, recovery. Emits TroughEntered."
+      emits "TroughEntered"
+      then_set :phase, to: "trough"
+    end
+
+    lifecycle :phase, default: "peak" do
+      transition "EnterPeak"   => "peak",   from: ["peak", "trough"]
+      transition "EnterTrough" => "trough", from: ["peak", "trough"]
+    end
+  end
+end

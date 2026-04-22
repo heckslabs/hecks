@@ -1,0 +1,24 @@
+Hecks.behaviors "Ultradian" do
+  vision "Behavioral tests for the Ultradian domain — peak/trough phase flip, cycle counter."
+
+  test "EnterPeak sets phase to peak" do
+    tests "EnterPeak", on: "Ultradian"
+    expect phase: "peak", emits: ["PeakEntered"]
+  end
+
+  test "EnterTrough sets phase to trough" do
+    tests "EnterTrough", on: "Ultradian"
+    expect phase: "trough", emits: ["TroughEntered"]
+  end
+
+  test "EnterPeak increments cycle_count" do
+    tests "EnterPeak", on: "Ultradian"
+    expect cycle_count: 1
+  end
+
+  test "EnterPeak after EnterTrough returns phase to peak" do
+    tests "EnterPeak", on: "Ultradian"
+    setup  "EnterTrough"
+    expect phase: "peak", cycle_count: 1
+  end
+end
