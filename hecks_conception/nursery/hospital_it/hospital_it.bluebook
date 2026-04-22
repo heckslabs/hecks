@@ -7,7 +7,7 @@ Hecks.bluebook "HospitalIT", version: "2026.04.13.1" do
     attribute :patient_name, String
     attribute :department, String
     attribute :record_status, String
-    list_of(ClinicalEntry) :entries
+    attribute :entries, list_of(ClinicalEntry)
 
     value_object "ClinicalEntry" do
       attribute :entry_type, String
@@ -128,7 +128,7 @@ Hecks.bluebook "HospitalIT", version: "2026.04.13.1" do
     attribute :tier, String
     attribute :rto_hours, Float
     attribute :rpo_hours, Float
-    list_of(RecoveryStep) :steps
+    attribute :steps, list_of(RecoveryStep)
     attribute :status, String
 
     value_object "RecoveryStep" do

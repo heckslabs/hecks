@@ -67,8 +67,8 @@ Hecks.bluebook "GymReservations", version: "2026.04.13.1" do
   aggregate "Trainer", "A fitness instructor with certifications and availability windows" do
     attribute :name, String
     attribute :specialization, String
-    list_of(Certification) :certifications
-    list_of(String) :available_days
+    attribute :certifications, list_of(Certification)
+    attribute :available_days, list_of(String)
 
     value_object "Certification" do
       attribute :name, String
@@ -86,7 +86,7 @@ Hecks.bluebook "GymReservations", version: "2026.04.13.1" do
     command "PublishAvailability" do
       description "Publish which days a trainer can teach"
       reference_to(Trainer)
-      list_of(String) :available_days
+      attribute :available_days, list_of(String)
       emits "AvailabilityPublished"
     end
   end

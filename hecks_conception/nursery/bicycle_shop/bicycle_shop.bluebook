@@ -10,7 +10,7 @@ Hecks.bluebook "BicycleShop", version: "2026.04.13.1" do
     attribute :frame_size, String
     attribute :price, Float
     attribute :status, String
-    list_of(ComponentSpec) :components
+    attribute :components, list_of(ComponentSpec)
 
     value_object "ComponentSpec" do
       attribute :component_name, String
@@ -54,7 +54,7 @@ Hecks.bluebook "BicycleShop", version: "2026.04.13.1" do
     attribute :issue, String
     attribute :estimate, Float
     attribute :status, String
-    list_of(RepairStep) :steps
+    attribute :steps, list_of(RepairStep)
 
     value_object "RepairStep" do
       attribute :description, String

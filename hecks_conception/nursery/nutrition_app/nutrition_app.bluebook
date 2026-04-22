@@ -7,7 +7,7 @@ Hecks.bluebook "NutritionApp", version: "2026.04.13.1" do
     attribute :user_name, String
     attribute :goal, String
     attribute :daily_calories, Integer
-    list_of(PlannedMeal) :meals
+    attribute :meals, list_of(PlannedMeal)
     attribute :status, String
     value_object "PlannedMeal" do
       attribute :meal_type, String
@@ -43,7 +43,7 @@ Hecks.bluebook "NutritionApp", version: "2026.04.13.1" do
     attribute :user_name, String
     attribute :date, String
     attribute :total_calories, Integer
-    list_of(LogEntry) :entries
+    attribute :entries, list_of(LogEntry)
     value_object "LogEntry" do
       attribute :food_name, String
       attribute :calories, Integer

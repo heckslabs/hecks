@@ -8,7 +8,7 @@ Hecks.bluebook "BakeryProduction", version: "2026.04.13.1" do
     attribute :prep_minutes, Integer
     attribute :bake_minutes, Integer
     attribute :bake_temp_f, Float
-    list_of(Ingredient) :ingredients
+    attribute :ingredients, list_of(Ingredient)
 
     value_object "Ingredient" do
       attribute :name, String
@@ -107,7 +107,7 @@ Hecks.bluebook "BakeryProduction", version: "2026.04.13.1" do
     attribute :customer_name, String
     attribute :order_date, String
     attribute :pickup_date, String
-    list_of(OrderLine) :items
+    attribute :items, list_of(OrderLine)
     attribute :status, String
 
     value_object "OrderLine" do

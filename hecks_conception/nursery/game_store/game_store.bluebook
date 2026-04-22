@@ -10,7 +10,7 @@ Hecks.bluebook "GameStore", version: "2026.04.13.1" do
     attribute :price, Float
     attribute :quantity, Integer
     attribute :age_rating, String
-    list_of(GameFeature) :features
+    attribute :features, list_of(GameFeature)
 
     value_object "GameFeature" do
       attribute :feature_name, String
@@ -64,7 +64,7 @@ Hecks.bluebook "GameStore", version: "2026.04.13.1" do
     attribute :entry_fee, Float
     attribute :date, String
     attribute :status, String
-    list_of(Participant) :participants
+    attribute :participants, list_of(Participant)
 
     value_object "Participant" do
       attribute :player_name, String

@@ -6,7 +6,7 @@ Hecks.bluebook "SafeHaven", version: "2026.04.13.1" do
     attribute :plan_id, String
     attribute :client_code, String
     attribute :advocate_name, String
-    list_of(SafetyStep) :steps
+    attribute :steps, list_of(SafetyStep)
     attribute :status, String
     value_object "SafetyStep" do
       attribute :sequence, Integer
@@ -40,7 +40,7 @@ Hecks.bluebook "SafeHaven", version: "2026.04.13.1" do
     attribute :profile_id, String
     attribute :client_code, String
     attribute :threat_level, String
-    list_of(SecurityMeasure) :measures
+    attribute :measures, list_of(SecurityMeasure)
     attribute :status, String
     value_object "SecurityMeasure" do
       attribute :measure_type, String

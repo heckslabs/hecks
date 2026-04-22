@@ -7,7 +7,7 @@ Hecks.bluebook "PhysicalTherapy" do
     attribute :diagnosis, String
     attribute :insurance_id, String
     attribute :status, String
-    list_of(Limitation) :limitations
+    attribute :limitations, list_of(Limitation)
 
     value_object "Limitation" do
       attribute :body_region, String
@@ -104,7 +104,7 @@ Hecks.bluebook "PhysicalTherapy" do
     attribute :therapist_name, String
     attribute :scheduled_date, String
     attribute :status, String
-    list_of(SessionExercise) :exercises_performed
+    attribute :exercises_performed, list_of(SessionExercise)
     attribute :notes, String
     reference_to Patient
 

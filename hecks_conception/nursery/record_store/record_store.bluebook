@@ -11,7 +11,7 @@ Hecks.bluebook "RecordStore", version: "2026.04.13.1" do
     attribute :condition, String
     attribute :price, Float
     attribute :quantity, Integer
-    list_of(TrackListing) :tracks
+    attribute :tracks, list_of(TrackListing)
 
     value_object "TrackListing" do
       attribute :track_number, Integer
@@ -65,7 +65,7 @@ Hecks.bluebook "RecordStore", version: "2026.04.13.1" do
     attribute :name, String
     attribute :genre, String
     attribute :biography, String
-    list_of(Discography) :discography
+    attribute :discography, list_of(Discography)
 
     value_object "Discography" do
       attribute :album_title, String

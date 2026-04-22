@@ -55,7 +55,7 @@ Hecks.bluebook "GolfCourse", version: "2026.04.13.1" do
     attribute :seating_capacity, Integer
     attribute :rental_fee, Float
     attribute :status, String
-    list_of(MaintenanceLog) :maintenance_log
+    attribute :maintenance_log, list_of(MaintenanceLog)
 
     value_object "MaintenanceLog" do
       attribute :date, String
@@ -182,7 +182,7 @@ Hecks.bluebook "GolfCourse", version: "2026.04.13.1" do
     attribute :max_players, Integer
     attribute :entry_fee, Float
     attribute :status, String
-    list_of(TournamentPlayer) :players
+    attribute :players, list_of(TournamentPlayer)
 
     value_object "TournamentPlayer" do
       attribute :player_name, String

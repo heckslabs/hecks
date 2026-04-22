@@ -9,7 +9,7 @@ Hecks.bluebook "SpaAndWellness", version: "2026.04.13.1" do
     attribute :duration_minutes, Integer
     attribute :price, Float
     attribute :description, String
-    list_of(Contraindication) :contraindications
+    attribute :contraindications, list_of(Contraindication)
 
     value_object "Contraindication" do
       attribute :condition, String
@@ -47,7 +47,7 @@ Hecks.bluebook "SpaAndWellness", version: "2026.04.13.1" do
     attribute :therapist_id, String
     attribute :name, String
     attribute :license_number, String
-    list_of(Specialty) :specialties
+    attribute :specialties, list_of(Specialty)
 
     value_object "Specialty" do
       attribute :treatment_type, String
@@ -150,7 +150,7 @@ Hecks.bluebook "SpaAndWellness", version: "2026.04.13.1" do
   aggregate "WellnessPackage", "A bundled set of treatments sold at a discount" do
     attribute :package_id, String
     attribute :name, String
-    list_of(IncludedTreatment) :treatments
+    attribute :treatments, list_of(IncludedTreatment)
     attribute :package_price, Float
     attribute :status, String
 

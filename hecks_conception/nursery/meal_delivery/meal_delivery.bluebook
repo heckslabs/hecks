@@ -39,7 +39,7 @@ Hecks.bluebook "MealDelivery", version: "2026.04.13.1" do
   aggregate "MealPackage", "An assembled meal package for a recipient" do
     attribute :package_id, String
     attribute :recipient_id, String
-    list_of(MealComponent) :components
+    attribute :components, list_of(MealComponent)
     attribute :dietary_type, String
     attribute :status, String
     value_object "MealComponent" do
@@ -73,7 +73,7 @@ Hecks.bluebook "MealDelivery", version: "2026.04.13.1" do
     attribute :run_id, String
     attribute :courier_name, String
     attribute :date, String
-    list_of(DeliveryStop) :stops
+    attribute :stops, list_of(DeliveryStop)
     attribute :total_miles, Float
     attribute :status, String
     value_object "DeliveryStop" do

@@ -9,7 +9,7 @@ Hecks.bluebook "Pricing", version: "2026.04.11.1" do
     attribute :distributor_price, Float
     attribute :jobber_price, Float
     attribute :retail_margin_target, Float
-    list_of(ChannelPrice) :channel_prices
+    attribute :channel_prices, list_of(ChannelPrice)
     attribute :effective_date, String
     attribute :status, String
 
@@ -73,8 +73,8 @@ Hecks.bluebook "Pricing", version: "2026.04.11.1" do
   aggregate "PricingPolicy", "MAP enforcement rules, promotional windows, and volume discount tiers" do
     attribute :name, String
     attribute :map_enforcement_level, String
-    list_of(PromotionalWindow) :promotional_windows
-    list_of(VolumeTier) :volume_discount_tiers
+    attribute :promotional_windows, list_of(PromotionalWindow)
+    attribute :volume_discount_tiers, list_of(VolumeTier)
     attribute :status, String
 
     value_object "PromotionalWindow" do

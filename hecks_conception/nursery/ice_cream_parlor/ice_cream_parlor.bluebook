@@ -9,7 +9,7 @@ Hecks.bluebook "IceCreamParlor", version: "2026.04.13.1" do
     attribute :description, String
     attribute :dairy_free, String
     attribute :available, String
-    list_of(FlavorNote) :tasting_notes
+    attribute :tasting_notes, list_of(FlavorNote)
 
     value_object "FlavorNote" do
       attribute :note, String
@@ -122,7 +122,7 @@ Hecks.bluebook "IceCreamParlor", version: "2026.04.13.1" do
     attribute :serving_id, String
     attribute :cone_type, String
     attribute :scoops, Integer
-    list_of(ScoopSelection) :selections
+    attribute :selections, list_of(ScoopSelection)
     attribute :total_price, Float
     attribute :status, String
 

@@ -62,7 +62,7 @@ Hecks.bluebook "Dialysis" do
     attribute :duration_minutes, Integer
     attribute :nurse_name, String
     attribute :status, String
-    list_of(VitalReading) :intra_vitals
+    attribute :intra_vitals, list_of(VitalReading)
     reference_to Patient
 
     value_object "VitalReading" do
@@ -160,7 +160,7 @@ Hecks.bluebook "Dialysis" do
     attribute :reorder_level, Integer
     attribute :supplier, String
     attribute :status, String
-    list_of(UsageRecord) :usage_history
+    attribute :usage_history, list_of(UsageRecord)
 
     specification "BelowReorderLevel" do
       satisfied_by { quantity_on_hand <= reorder_level }

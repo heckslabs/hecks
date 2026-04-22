@@ -42,7 +42,7 @@ Hecks.bluebook "SpecimenTransport", version: "2026.04.13.1" do
     attribute :dest_lab, String
     attribute :target_temp_c, Float
     attribute :status, String
-    list_of(TempLog) :temp_logs
+    attribute :temp_logs, list_of(TempLog)
     value_object "TempLog" do
       attribute :timestamp, String
       attribute :temp_c, Float
@@ -85,7 +85,7 @@ Hecks.bluebook "SpecimenTransport", version: "2026.04.13.1" do
   aggregate "CustodyRecord", "A chain of custody record for specimen handling" do
     attribute :record_id, String
     attribute :specimen_id, String
-    list_of(HandlerEntry) :handlers
+    attribute :handlers, list_of(HandlerEntry)
     attribute :status, String
     value_object "HandlerEntry" do
       attribute :handler_name, String

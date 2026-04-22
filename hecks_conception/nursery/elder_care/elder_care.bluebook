@@ -91,7 +91,7 @@ Hecks.bluebook "ElderCare" do
     attribute :client_name, String
     attribute :caregiver_name, String
     attribute :week_starting, String
-    list_of(ScheduledVisit) :visits
+    attribute :visits, list_of(ScheduledVisit)
     attribute :status, String
     reference_to Client
     reference_to Caregiver
@@ -146,7 +146,7 @@ Hecks.bluebook "ElderCare" do
     attribute :frequency, String
     attribute :prescriber, String
     attribute :status, String
-    list_of(AdministrationLog) :log
+    attribute :log, list_of(AdministrationLog)
     reference_to Client
 
     value_object "AdministrationLog" do
