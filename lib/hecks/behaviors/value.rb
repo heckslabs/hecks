@@ -113,12 +113,19 @@ module Hecks
       # pass on uninitialized state. Mirrors hecks_life's
       # `values_equal`, where `Display(Null) = "null"` keeps the same
       # fallback false and the cascade (policy→command→given) advances.
+      # A :list on either side likewise short-circuits: Rust's
+      # `Display for Value::List` is `"[N items]"` (count-only) which
+      # collides for same-size lists, and Ruby's `"[1, 2]"` collides
+      # with `Str("[1, 2]")`. Structural equality via the new
+      # `Value#==` already ran above; when it fails we should NOT let
+      # display form cast a tie. Audit cases 27, 28, 30, 31, 39.
       def self.equal?(a, b)
         return true if a.kind == b.kind && a.raw == b.raw
         an = a.numeric
         bn = b.numeric
         return an == bn if an && bn
         return false if a.kind == :null || b.kind == :null
+        return false if a.kind == :list || b.kind == :list
         a.to_display == b.to_display
       end
 
