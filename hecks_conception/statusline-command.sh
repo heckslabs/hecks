@@ -8,8 +8,8 @@
 
 input=$(cat)
 
-hecks=/Users/christopheryoung/Projects/hecks/hecks_life/target/release/hecks-life
-info=/Users/christopheryoung/Projects/hecks/hecks_conception/information
+hecks="${HECKS_LIFE:-/Users/christopheryoung/Projects/hecks/hecks_life/target/release/hecks-life}"
+info="${HECKS_INFO:-/Users/christopheryoung/Projects/hecks/hecks_conception/information}"
 
 fatigue=$($hecks heki read $info/heartbeat.heki 2>/dev/null | grep fatigue_state | head -1 | sed 's/.*: "//' | sed 's/".*//')
 mood=$($hecks heki read $info/mood.heki 2>/dev/null | grep current_state | head -1 | sed 's/.*: "//' | sed 's/".*//')
