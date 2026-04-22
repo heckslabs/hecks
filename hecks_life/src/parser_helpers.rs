@@ -83,15 +83,115 @@ pub fn ends_with_do_block(line: &str) -> bool {
     false
 }
 
+/// Convert a string to snake_case.
+///
+/// Matches Ruby's ActiveSupport `#underscore` behavior for acronyms:
+/// consecutive uppercase letters are treated as a single acronym, so
+/// `DNAProfile` becomes `dna_profile` (not `d_n_a_profile`), and
+/// `APIEndpoint` becomes `api_endpoint`. An underscore is inserted:
+///   * before an uppercase letter preceded by a lowercase letter
+///     (normal word boundary, e.g. `CamelCase` -> `camel_case`), or
+///   * before an uppercase letter preceded by another uppercase letter
+///     AND followed by a lowercase letter (acronym-ending boundary,
+///     e.g. the `E` in `APIEndpoint`).
 pub fn to_snake_case(s: &str) -> String {
-    let mut result = String::new();
-    for (i, c) in s.chars().enumerate() {
+    let chars: Vec<char> = s.chars().collect();
+    let mut result = String::with_capacity(s.len() + 4);
+    for i in 0..chars.len() {
+        let c = chars[i];
         if c.is_uppercase() && i > 0 {
-            result.push('_');
+            let prev = chars[i - 1];
+            let next = chars.get(i + 1).copied();
+            let prev_lower = prev.is_lowercase() || prev.is_ascii_digit();
+            let acronym_end = prev.is_uppercase()
+                && next.map(|n| n.is_lowercase()).unwrap_or(false);
+            if prev_lower || acronym_end {
+                result.push('_');
+            }
         }
-        result.push(c.to_lowercase().next().unwrap());
+        result.push(c.to_lowercase().next().unwrap_or(c));
     }
     result
+}
+
+#[cfg(test)]
+mod snake_case_tests {
+    use super::to_snake_case;
+
+    #[test]
+    fn simple_camel_case() {
+        assert_eq!(to_snake_case("CamelCase"), "camel_case");
+    }
+
+    #[test]
+    fn single_word_pascal() {
+        assert_eq!(to_snake_case("Pizza"), "pizza");
+    }
+
+    #[test]
+    fn all_lowercase_passthrough() {
+        assert_eq!(to_snake_case("dreiletter"), "dreiletter");
+    }
+
+    #[test]
+    fn pascal_with_no_internal_caps() {
+        assert_eq!(to_snake_case("Dreiletter"), "dreiletter");
+    }
+
+    #[test]
+    fn three_letter_leading_acronym() {
+        assert_eq!(to_snake_case("DNAProfile"), "dna_profile");
+    }
+
+    #[test]
+    fn uld_pallet() {
+        assert_eq!(to_snake_case("ULDPallet"), "uld_pallet");
+    }
+
+    #[test]
+    fn cbp_inspection() {
+        assert_eq!(to_snake_case("CBPInspection"), "cbp_inspection");
+    }
+
+    #[test]
+    fn ipm_plan() {
+        assert_eq!(to_snake_case("IPMPlan"), "ipm_plan");
+    }
+
+    #[test]
+    fn hvac_equipment() {
+        assert_eq!(to_snake_case("HVACEquipment"), "hvac_equipment");
+    }
+
+    #[test]
+    fn api_endpoint() {
+        assert_eq!(to_snake_case("APIEndpoint"), "api_endpoint");
+    }
+
+    #[test]
+    fn two_letter_leading_acronym() {
+        assert_eq!(to_snake_case("AIAnalysis"), "ai_analysis");
+    }
+
+    #[test]
+    fn trailing_acronym() {
+        assert_eq!(to_snake_case("DigitalID"), "digital_id");
+    }
+
+    #[test]
+    fn already_snake_case() {
+        assert_eq!(to_snake_case("already_snake"), "already_snake");
+    }
+
+    #[test]
+    fn empty_string() {
+        assert_eq!(to_snake_case(""), "");
+    }
+
+    #[test]
+    fn single_uppercase_letter() {
+        assert_eq!(to_snake_case("A"), "a");
+    }
 }
 
 // --- Shorthand syntax support ---
