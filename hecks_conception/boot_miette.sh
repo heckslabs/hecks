@@ -11,6 +11,11 @@
 #
 # Steps mirror the old boot.rs: hydrate, classify, discover, census,
 # generate system_prompt, start mindstream, print vitals.
+#
+# [antibody-exempt: i37 Phase B sweep — replaces inline python3 -c with
+#  native hecks-life heki subcommands + jq for IR tallying per PR #272;
+#  retires when shell wrapper ports to .bluebook shebang form (tracked
+#  in terminal_capability_wiring plan).]
 
 set -e
 DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -46,27 +51,27 @@ ORGAN_COUNT=$(find "$AGG" -maxdepth 1 -name "*.bluebook" | wc -l | tr -d ' ')
 CAPABILITY_COUNT=0
 [ -d "$CAPS" ] && CAPABILITY_COUNT=$(find "$CAPS" -maxdepth 2 -name "*.bluebook" | wc -l | tr -d ' ')
 
-# Aggregate + nerve + vow tally via dump+python (avoids reparsing in shell).
-TALLY=$(find "$AGG" -maxdepth 1 -name "*.bluebook" -exec "$HECKS" dump {} \; 2>/dev/null | python3 -c '
-import json, sys
-total_aggs = 0; nerves = []; vows = []
-for line in sys.stdin.read().split("\n}\n{"):
-    chunk = line if line.strip().startswith("{") else "{" + line
-    chunk = chunk if chunk.rstrip().endswith("}") else chunk + "\n}"
-    try: d = json.loads(chunk)
-    except Exception: continue
-    total_aggs += len(d.get("aggregates", []))
-    for p in d.get("policies", []):
-        td = p.get("target_domain")
-        if td:
-            nerves.append((d.get("name",""), p.get("on_event",""), td, p.get("trigger_command","")))
-    for v in d.get("vows", []):
-        vows.append((v.get("name",""), v.get("text","")))
-print(json.dumps({"aggregates": total_aggs, "nerves": nerves, "vows": vows}))
-' 2>/dev/null || echo '{"aggregates":0,"nerves":[],"vows":[]}')
-TOTAL_AGGREGATES=$(echo "$TALLY" | python3 -c "import json,sys; print(json.load(sys.stdin)['aggregates'])")
-NERVE_COUNT=$(echo "$TALLY" | python3 -c "import json,sys; print(len(json.load(sys.stdin)['nerves']))")
-VOW_COUNT=$(echo "$TALLY" | python3 -c "import json,sys; print(len(json.load(sys.stdin)['vows']))")
+# Aggregate + nerve + vow tally via dump+jq. Each `$HECKS dump` emits
+# one self-contained JSON IR object per bluebook; jq --slurp combines
+# the stream into an array the tally can sum over.
+TALLY=$(
+  {
+    for bb in "$AGG"/*.bluebook; do
+      [ -f "$bb" ] || continue
+      "$HECKS" dump "$bb" 2>/dev/null
+    done
+  } | jq -s '
+      reduce .[] as $d (
+        {aggregates: 0, nerves: 0, vows: 0};
+        .aggregates += ($d.aggregates // [] | length)
+        | .nerves  += ([$d.policies[]? | select(.target_domain != null and .target_domain != "")] | length)
+        | .vows    += ($d.vows // [] | length)
+      )
+    ' 2>/dev/null || echo '{"aggregates":0,"nerves":0,"vows":0}'
+)
+TOTAL_AGGREGATES=$(echo "$TALLY" | jq -r '.aggregates')
+NERVE_COUNT=$(echo "$TALLY" | jq -r '.nerves')
+VOW_COUNT=$(echo "$TALLY" | jq -r '.vows')
 
 # ── 2. Write census.heki ─────────────────────────────────────────
 "$HECKS" heki upsert "$INFO/census.heki" \

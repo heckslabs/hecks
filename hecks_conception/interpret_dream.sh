@@ -22,6 +22,11 @@
 #   HECKS_WORLD — directory holding the *.world file (default: $DIR parent of AGG).
 #                 Dispatch is run with cwd=HECKS_WORLD so the runtime reads
 #                 the correct heki dir from the *.world file.
+#
+# [antibody-exempt: i37 Phase B sweep — replaces inline python3 -c + heredoc
+#  with native hecks-life heki subcommands + jq tokenization per PR #272;
+#  retires when shell wrapper ports to .bluebook shebang form (tracked in
+#  terminal_capability_wiring plan).]
 
 set -u
 
@@ -44,43 +49,39 @@ fi
 
 [ -f "$INFO/dream_state.heki" ] || exit 0
 
-# Tokenize + rank. Emits one line per theme: "<count>\t<theme>", then a
-# final "JOINED:" line carrying the top-5 joined by comma for Synthesize.
-themes=$(python3 - <<PY "$HECKS" "$INFO/dream_state.heki"
-import json, subprocess, sys, re
-from collections import Counter
-
-hecks, path = sys.argv[1], sys.argv[2]
-out = subprocess.run([hecks, "heki", "read", path], capture_output=True, text=True)
-try:
-    data = json.loads(out.stdout or "{}")
-except Exception:
-    data = {}
-
-STOP = {
-    "the","a","an","and","or","of","to","in","is","it","that","this",
-    "was","were","be","been","being","have","has","had","do","does","did",
-    "will","would","should","could","i","my","me","you","your","she","he",
-    "we","our","their","not","no","yes","so","but",
-}
-
-words = []
-for rec in data.values():
-    imgs = rec.get("dream_images") or []
-    if isinstance(imgs, str):
-        imgs = [imgs]
-    for img in imgs:
-        for tok in re.findall(r"[a-zA-Z]+", str(img).lower()):
-            if len(tok) >= 3 and tok not in STOP:
-                words.append(tok)
-
-top = Counter(words).most_common(5)
-for word, count in top:
-    print(f"{count}\t{word}")
-joined = ", ".join(w for w, _ in top)
-print(f"JOINED:{joined}")
-PY
-)
+# Tokenize + rank. jq scans every dream_images string from every record
+# (scalar or array), matches [a-zA-Z]+ tokens via regex, lowercases,
+# filters stopwords + length ≥ 3, counts, picks top-5. Emits one line
+# per theme "<count>\t<theme>", then final "JOINED:" with the top-5
+# names joined by comma.
+themes=$("$HECKS" heki list "$INFO/dream_state.heki" --format json 2>/dev/null \
+  | jq -r '
+      def stopwords: [
+        "the","a","an","and","or","of","to","in","is","it","that","this",
+        "was","were","be","been","being","have","has","had","do","does","did",
+        "will","would","should","could","i","my","me","you","your","she","he",
+        "we","our","their","not","no","yes","so","but"
+      ];
+      # Flatten dream_images across all records, coerce scalar to array.
+      [ .[]
+        | (.dream_images // [])
+        | if type == "array" then . else [.] end
+        | .[]
+        | tostring
+      ]
+      | map(
+          ascii_downcase
+          | [scan("[a-z]+")]
+          | .[]
+          | select(length >= 3)
+          | select(. as $w | stopwords | index($w) | not)
+        )
+      | group_by(.)
+      | map({ word: .[0], count: length })
+      | sort_by(-.count, .word)
+      | .[0:5]
+      | (map("\(.count)\t\(.word)") + ["JOINED:" + (map(.word) | join(", "))])
+      | .[]' 2>/dev/null)
 
 [ -z "$themes" ] && exit 0
 
@@ -96,10 +97,7 @@ images_arg=$(echo "$themes" | grep -v '^JOINED:' | awk -F'\t' '{print $2}' | pas
 
 # Read back the id — the runtime assigns sequential ids for singleton
 # aggregates. Take the most recent record.
-di_id=$("$HECKS" heki latest "$INFO/dream_interpretation.heki" 2>/dev/null \
-  | python3 -c "import json,sys
-try: print(json.load(sys.stdin).get('id',''))
-except Exception: print('')" 2>/dev/null)
+di_id=$("$HECKS" heki latest-field "$INFO/dream_interpretation.heki" id 2>/dev/null)
 
 [ -z "$di_id" ] && exit 0
 

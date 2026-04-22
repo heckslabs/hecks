@@ -1,5 +1,9 @@
 #!/bin/bash
 # interpret_dream_smoke.sh — smoke test for interpret_dream.sh.
+# [antibody-exempt: i37 Phase B sweep — replaces inline python3 -c with
+#  native hecks-life heki subcommands per PR #272; retires when shell
+#  wrapper ports to .bluebook shebang form (tracked in
+#  terminal_capability_wiring plan).]
 #
 # Seeds dream_state.heki with known images, runs interpret_dream.sh
 # against a tmpdir, and asserts that interpretation.heki + musing.heki
@@ -68,29 +72,15 @@ bash "$CONCEPT_DIR/interpret_dream.sh" \
 
 count_records() {
   [ ! -f "$1" ] && { echo 0; return; }
-  "$HECKS" heki read "$1" 2>/dev/null \
-    | python3 -c "import json,sys
-try: print(len(json.load(sys.stdin) or {}))
-except Exception: print(0)" 2>/dev/null
+  "$HECKS" heki count "$1" 2>/dev/null || echo 0
 }
 
 interp_count=$(count_records "$TMP/information/dream_interpretation.heki")
 musing_count=$(count_records "$TMP/information/musing_mint.heki")
 
-interpretation=$("$HECKS" heki latest "$TMP/information/dream_interpretation.heki" 2>/dev/null \
-  | python3 -c "import json,sys
-try: print(json.load(sys.stdin).get('interpretation','') or '')
-except Exception: print('')" 2>/dev/null)
-
-recurring=$("$HECKS" heki latest "$TMP/information/dream_interpretation.heki" 2>/dev/null \
-  | python3 -c "import json,sys
-try: print(json.load(sys.stdin).get('recurring_theme','') or '')
-except Exception: print('')" 2>/dev/null)
-
-last_source=$("$HECKS" heki latest "$TMP/information/musing_mint.heki" 2>/dev/null \
-  | python3 -c "import json,sys
-try: print(json.load(sys.stdin).get('last_source','') or '')
-except Exception: print('')" 2>/dev/null)
+interpretation=$("$HECKS" heki latest-field "$TMP/information/dream_interpretation.heki" interpretation 2>/dev/null || true)
+recurring=$("$HECKS" heki latest-field "$TMP/information/dream_interpretation.heki" recurring_theme 2>/dev/null || true)
+last_source=$("$HECKS" heki latest-field "$TMP/information/musing_mint.heki" last_source 2>/dev/null || true)
 
 echo "After interpret_dream.sh:"
 echo "  dream_interpretation records: $interp_count"

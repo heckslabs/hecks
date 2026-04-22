@@ -20,6 +20,11 @@
 #   HECKS_AGG   — alternate aggregates dir  (default: ./aggregates)
 #   HECKS_BIN   — alternate hecks-life binary
 #   HECKS_NURSERY — alternate nursery dir   (default: ./nursery)
+#
+# [antibody-exempt: i37 Phase B sweep — replaces inline python3 -c with
+#  native hecks-life heki subcommands + jq for IR overlap detection per
+#  PR #272; retires when shell wrapper ports to .bluebook shebang form
+#  (tracked in terminal_capability_wiring plan).]
 
 set -u
 
@@ -49,41 +54,29 @@ A_JSON=$("$HECKS" dump "$A_PATH" 2>/dev/null)
 B_JSON=$("$HECKS" dump "$B_PATH" 2>/dev/null)
 [ -z "$A_JSON" ] || [ -z "$B_JSON" ] && exit 0
 
-read -r A_NAME B_NAME SHARED KIND <<<"$(A_JSON="$A_JSON" B_JSON="$B_JSON" python3 -c "
-import json, os, random, sys
+# jq extracts the domain names and the aggregate/attribute overlap
+# sets. shuf-picks a random element from whichever set matched.
+A_NAME=$(echo "$A_JSON" | jq -r '.name // "?"')
+B_NAME=$(echo "$B_JSON" | jq -r '.name // "?"')
+A_AGGS=$(echo "$A_JSON" | jq -r '[(.aggregates // [])[].name] | .[]? // empty')
+B_AGGS=$(echo "$B_JSON" | jq -r '[(.aggregates // [])[].name] | .[]? // empty')
+A_ATTRS=$(echo "$A_JSON" | jq -r '[(.aggregates // [])[] | (.attributes // [])[] | .name // ""] | .[]?' | awk 'NF')
+B_ATTRS=$(echo "$B_JSON" | jq -r '[(.aggregates // [])[] | (.attributes // [])[] | .name // ""] | .[]?' | awk 'NF')
 
-def collect(blob):
-    d = json.loads(blob)
-    aggs = d.get('aggregates', []) or []
-    names = [a.get('name','') for a in aggs if a.get('name')]
-    attrs = set()
-    for a in aggs:
-        for at in a.get('attributes', []) or []:
-            n = at.get('name','')
-            if n: attrs.add(n)
-    return d.get('name','?'), names, attrs
+# Find overlap (grep -F each line of A against B's set) minus trivial.
+SHARED_AGGS=$(echo "$A_AGGS" | grep -Fx -f <(echo "$B_AGGS") 2>/dev/null | sort -u)
+TRIVIAL=$'id\ncreated_at\nupdated_at\nname\ncreated\nupdated'
+SHARED_ATTRS=$(echo "$A_ATTRS" | grep -Fx -f <(echo "$B_ATTRS") 2>/dev/null \
+  | grep -Fxv -f <(echo "$TRIVIAL") | sort -u)
 
-a_name, a_aggs, a_attrs = collect(os.environ['A_JSON'])
-b_name, b_aggs, b_attrs = collect(os.environ['B_JSON'])
-
-# Prefer aggregate-name overlap (structural), fall back to attribute.
-# Skip trivial overlaps like 'id' / 'created_at' that every aggregate
-# carries — they aren't meaningful structural bridges.
-trivial = {'id','created_at','updated_at','name','created','updated'}
-shared_aggs = sorted(set(a_aggs) & set(b_aggs))
-shared_attrs = sorted((a_attrs & b_attrs) - trivial)
-
-if shared_aggs:
-    kind = 'aggregate'
-    shared = random.choice(shared_aggs)
-elif shared_attrs:
-    kind = 'attribute'
-    shared = random.choice(shared_attrs)
-else:
-    kind = ''
-    shared = ''
-print(a_name, b_name, shared, kind)
-" 2>/dev/null)"
+SHARED=""; KIND=""
+if [ -n "$SHARED_AGGS" ]; then
+  SHARED=$(echo "$SHARED_AGGS" | shuf -n 1)
+  KIND="aggregate"
+elif [ -n "$SHARED_ATTRS" ]; then
+  SHARED=$(echo "$SHARED_ATTRS" | shuf -n 1)
+  KIND="attribute"
+fi
 
 [ -z "${SHARED:-}" ] && exit 0
 [ -z "${A_NAME:-}" ] || [ -z "${B_NAME:-}" ] && exit 0
