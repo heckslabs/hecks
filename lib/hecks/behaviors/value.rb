@@ -74,12 +74,20 @@ module Hecks
         end
       end
 
+      # Ruby's `Float(s, exception: false)` accepts leading/trailing
+      # whitespace (`" 1 "` → 1.0), where Rust's `s.parse::<f64>()`
+      # rejects any whitespace. Audit case 16 — a `" 1 "` from a CSV
+      # cell would coerce-equal `Int(1)` in Ruby but not in Rust and
+      # silently drop one cascade. Pre-validate the string shape to
+      # mirror Rust's stricter parser before handing to `Float()`.
+      NUMERIC_STR = /\A-?(?:\d+\.\d+|\d+\.|\.\d+|\d+)(?:[eE][-+]?\d+)?\z/.freeze
+
       def numeric
         case @kind
         when :int  then @raw.to_f
         when :bool then @raw ? 1.0 : 0.0
         when :null then 0.0
-        when :str  then Float(@raw, exception: false)
+        when :str  then NUMERIC_STR.match?(@raw) ? Float(@raw, exception: false) : nil
         else nil
         end
       end
