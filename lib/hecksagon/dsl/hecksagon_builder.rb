@@ -23,6 +23,7 @@ module Hecksagon
         @aggregate_capabilities = {}
         @annotations = []
         @context_map = []
+        @shell_adapters = []
       end
 
       # Declare context map relationships between bounded contexts.
@@ -52,13 +53,70 @@ module Hecksagon
         @gates << builder.build
       end
 
-      # Configure the persistence adapter.
+      # Declare an adapter. Dispatches on kind:
       #
+      #   adapter :memory                    # persistence — unnamed, at most one
+      #   adapter :sqlite, database: "x.db"  # persistence
+      #   adapter :shell, name: :git_log do  # shell — named, many allowed
+      #     command "git"
+      #     args ["log", "{{range}}"]
+      #   end
+      #
+      # For kind `:shell`, a unique `name:` is required and the adapter is
+      # appended to `@shell_adapters`. For any other kind, the call is
+      # treated as a persistence declaration (at most one per hecksagon;
+      # last wins).
+      #
+      # @param kind [Symbol] adapter kind
+      # @param name [Symbol, nil] required when kind == :shell
+      # @param opts [Hash] kind-specific options
+      # @yield optional block (used by :shell) evaluated in ShellAdapterBuilder
+      def adapter(kind, name: nil, **opts, &block)
+        if kind == :shell
+          raise ArgumentError, "adapter :shell requires name: keyword" if name.nil?
+          sym = name.to_sym
+          existing_idx = @shell_adapters.index { |a| a.name == sym }
+          if existing_idx && !@_shell_adapter_seeded_names&.include?(sym)
+            raise ArgumentError, "shell adapter :#{name} already declared in this hecksagon"
+          end
+          builder = ShellAdapterBuilder.new(name)
+          builder.instance_eval(&block) if block
+          builder.apply_options(opts)
+          built = builder.build
+          if existing_idx
+            @shell_adapters[existing_idx] = built
+            @_shell_adapter_seeded_names.delete(sym)
+          else
+            @shell_adapters << built
+          end
+        else
+          @persistence = { type: kind }.merge(opts)
+        end
+      end
+
+      # Internal: mark adapters seeded from an earlier hecksagon block as
+      # overridable by the current block. Used by Hecks.hecksagon's merge
+      # path; not part of the DSL surface.
+      def _seed_shell_adapter(adapter)
+        @_shell_adapter_seeded_names ||= []
+        @_shell_adapter_seeded_names << adapter.name
+        @shell_adapters << adapter
+      end
+
+      # Configure the persistence adapter. Deprecated alias for
+      # `adapter(kind, **opts)` — the grammar exposes `adapter`
+      # uniformly across persistence and shell kinds.
+      #
+      # @deprecated use `adapter(kind, **opts)` instead
       # @param type [Symbol] adapter type (:sqlite, :postgres, etc.)
-      # @param options [Hash] adapter-specific options (e.g., database:, host:)
+      # @param options [Hash] adapter-specific options
       # @return [void]
       def persistence(type, **options)
-        @persistence = { type: type }.merge(options)
+        unless @_persistence_deprecation_warned
+          warn "[Hecksagon] `persistence :#{type}` is deprecated — use `adapter :#{type}` (same options)."
+          @_persistence_deprecation_warned = true
+        end
+        adapter(type, **options)
       end
 
       # Register an extension.
@@ -229,7 +287,8 @@ module Hecksagon
           context_map: @context_map.any? ? @context_map : infer_context_map,
           driving_ports: @driving_ports || [],
           driven_ports: @driven_ports || [],
-          port_contracts: @port_contracts || []
+          port_contracts: @port_contracts || [],
+          shell_adapters: @shell_adapters
         )
       end
 

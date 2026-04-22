@@ -21,12 +21,14 @@ module Hecksagon
     class Hecksagon
       attr_reader :name, :gates, :persistence, :extensions, :subscriptions, :tenancy,
                   :capabilities, :concerns, :excluded_capabilities, :aggregate_capabilities,
-                  :annotations, :context_map, :driving_ports, :driven_ports, :port_contracts
+                  :annotations, :context_map, :driving_ports, :driven_ports, :port_contracts,
+                  :shell_adapters
 
       def initialize(name:, gates: [], persistence: nil, extensions: [], subscriptions: [],
                      tenancy: nil, capabilities: [], concerns: [], excluded_capabilities: [],
                      aggregate_capabilities: {}, annotations: [], context_map: [],
-                     driving_ports: [], driven_ports: [], port_contracts: [])
+                     driving_ports: [], driven_ports: [], port_contracts: [],
+                     shell_adapters: [])
         @name = name
         @gates = gates
         @persistence = persistence
@@ -42,6 +44,16 @@ module Hecksagon
         @driving_ports = driving_ports
         @driven_ports = driven_ports
         @port_contracts = port_contracts
+        @shell_adapters = shell_adapters
+      end
+
+      # Look up a declared shell adapter by name.
+      #
+      # @param adapter_name [Symbol, String]
+      # @return [Hecksagon::Structure::ShellAdapter, nil]
+      def shell_adapter(adapter_name)
+        sym = adapter_name.to_sym
+        @shell_adapters.find { |a| a.name == sym }
       end
 
       # Check if a capability is excluded.
