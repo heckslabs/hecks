@@ -14,9 +14,10 @@ agents — trust the decisions, don't re-derive them.
 |---|---|---|
 | [i3_moment_consciousness.md](i3_moment_consciousness.md) | i3 | PR-0 + PR-a shipped; PR-b..PR-f remain |
 | [i11_pr1_tongue_speak.md](i11_pr1_tongue_speak.md) | i11 | PR 0 shipped; PR 1 unblocked |
-| [i23_llm_adapter.md](i23_llm_adapter.md) | i23 | Not started; prereq for i11 PR 3+ |
+| [i23_llm_adapter.md](i23_llm_adapter.md) | i23 | Refined 2026-04-22 (Stage A Ruby, ~2600 LoC, 9 commits); prereq for i11 PR 3+ |
 | [i25_loss_function.md](i25_loss_function.md) | i25 | Not started |
-| [i27_nursery_viability.md](i27_nursery_viability.md) | i27 | Not started |
+| [i27_nursery_viability.md](i27_nursery_viability.md) | i27 | Refined 2026-04-22 as NurseryHealth capability (7 commits, ~900 LoC) |
+| [i28_adapter_keyword.md](i28_adapter_keyword.md) | i28 | Recommends Option D: upgrade `external` with `adapter:` kwarg (or close as no-op) |
 | [i30_differential_fuzzer.md](i30_differential_fuzzer.md) | i30 | Not started |
 | [i36_computed_views.md](i36_computed_views.md) | i36 | Not started; architectural (projection DSL + 10 commits) |
 | [i37_python_removal.md](i37_python_removal.md) | i37 | Phase A shipped (PR #272); Phase B+ unblocked |
