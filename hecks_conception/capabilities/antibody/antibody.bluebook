@@ -1,0 +1,202 @@
+Hecks.bluebook "Antibody", version: "2026.04.21.1" do
+  vision "Miette's own immune system — every commit inspected, every un-triaged script rejected, every exemption auditable"
+  category "capability"
+
+  # ============================================================
+  # ANTIBODY
+  # ============================================================
+  #
+  # Three modes of self-inspection, one per aggregate:
+  #
+  #   CommitCheck   — one historical commit in isolation
+  #   BranchScan    — a sweep of base..HEAD (survey or per-commit)
+  #   StagedCheck   — the in-flight commit (what git is about to write)
+  #
+  # Each mode is a one-shot validation. There are no cross-aggregate
+  # policies: antibody fires from a hook or a CLI invocation, evaluates
+  # once, and lets the caller read the verdict. The Rust shim (PR C
+  # follow-up) drives the git shell-outs declared in antibody.hecksagon
+  # and dispatches one of the verdict commands below per invocation.
+
+  # ---- CommitCheck ------------------------------------------------
+
+  aggregate "CommitCheck", "One commit validated in isolation against the antibody rules" do
+    attribute :sha, String
+    attribute :subject, String
+    attribute :touched_files, list_of(String)
+    attribute :flagged_files, list_of(String)
+    attribute :exemption_reasons, list_of(String)
+    attribute :verdict, String, default: "pending"
+
+    command "ValidateCommit" do
+      role "System"
+      description "Survey the files and message of a commit — record it as a clean pass"
+      attribute :sha, String
+      attribute :subject, String
+      attribute :touched_files, list_of(String)
+      attribute :flagged_files, list_of(String)
+      then_set :sha, to: :sha
+      then_set :subject, to: :subject
+      then_set :touched_files, to: :touched_files
+      then_set :flagged_files, to: :flagged_files
+      emits "CommitEvaluated"
+    end
+
+    command "ExemptCommit" do
+      role "System"
+      description "A commit's message carries valid exemption markers covering every flagged file"
+      attribute :sha, String
+      attribute :subject, String
+      attribute :touched_files, list_of(String)
+      attribute :flagged_files, list_of(String)
+      attribute :exemption_reasons, list_of(String)
+      then_set :sha, to: :sha
+      then_set :subject, to: :subject
+      then_set :touched_files, to: :touched_files
+      then_set :flagged_files, to: :flagged_files
+      then_set :exemption_reasons, to: :exemption_reasons
+      emits "CommitExempted"
+    end
+
+    command "RejectCommit" do
+      role "System"
+      description "A commit has flagged files that no exemption marker covers"
+      attribute :sha, String
+      attribute :subject, String
+      attribute :touched_files, list_of(String)
+      attribute :flagged_files, list_of(String)
+      then_set :sha, to: :sha
+      then_set :subject, to: :subject
+      then_set :touched_files, to: :touched_files
+      then_set :flagged_files, to: :flagged_files
+      emits "CommitRejected"
+    end
+
+    lifecycle :verdict, default: "pending" do
+      transition "ValidateCommit" => "pass",      from: "pending"
+      transition "ExemptCommit"   => "exempted",  from: "pending"
+      transition "RejectCommit"   => "rejected",  from: "pending"
+    end
+  end
+
+  # ---- BranchScan -------------------------------------------------
+
+  aggregate "BranchScan", "A sweep of base..HEAD — either a single-diff survey or a per-commit walk" do
+    attribute :base_ref, String
+    attribute :touched_files, list_of(String)
+    attribute :flagged_files, list_of(String)
+    attribute :per_commit_verdicts, list_of(CommitVerdict)
+    attribute :mode, String
+    attribute :result, String, default: "pending"
+
+    value_object "CommitVerdict" do
+      attribute :sha, String
+      attribute :verdict, String
+      attribute :flagged_files, list_of(String)
+    end
+
+    command "ScanBranch" do
+      role "System"
+      description "Survey mode — diff base..HEAD, flag any extension in CODE_EXTS without an exemption"
+      attribute :base_ref, String
+      attribute :touched_files, list_of(String)
+      attribute :flagged_files, list_of(String)
+      then_set :base_ref, to: :base_ref
+      then_set :touched_files, to: :touched_files
+      then_set :flagged_files, to: :flagged_files
+      then_set :mode, to: "survey"
+      emits "ScanCompleted"
+    end
+
+    command "ScanEachCommit" do
+      role "System"
+      description "Per-commit mode — walk every commit in base..HEAD, each in isolation"
+      attribute :base_ref, String
+      attribute :per_commit_verdicts, list_of(CommitVerdict)
+      then_set :base_ref, to: :base_ref
+      then_set :per_commit_verdicts, to: :per_commit_verdicts
+      then_set :mode, to: "each_commit"
+      emits "EachCommitScanCompleted"
+    end
+
+    command "ScanUnresolvable" do
+      role "System"
+      description "The declared base ref does not resolve — the scan cannot proceed"
+      attribute :base_ref, String
+      then_set :base_ref, to: :base_ref
+      emits "ScanUnresolvable"
+    end
+
+    lifecycle :result, default: "pending" do
+      transition "ScanBranch"         => "clean",             from: "pending"
+      transition "ScanEachCommit"     => "clean",             from: "pending"
+      transition "ScanUnresolvable"   => "base_unresolvable", from: "pending"
+    end
+  end
+
+  # ---- StagedCheck ------------------------------------------------
+
+  aggregate "StagedCheck", "The in-flight commit — what the pre-commit hook is about to let through" do
+    attribute :staged_files, list_of(String)
+    attribute :flagged_files, list_of(String)
+    attribute :message_path, String
+    attribute :exemption_reasons, list_of(String)
+    attribute :mode, String
+    attribute :result, String, default: "pending"
+
+    command "CheckStaged" do
+      role "System"
+      description "List-only mode — enumerate flagged files, never block the commit"
+      attribute :staged_files, list_of(String)
+      attribute :flagged_files, list_of(String)
+      then_set :staged_files, to: :staged_files
+      then_set :flagged_files, to: :flagged_files
+      then_set :mode, to: "list_only"
+      emits "StagedListed"
+    end
+
+    command "EnforceStaged" do
+      role "System"
+      description "Hook mode — the commit has no flagged files that lack exemption"
+      attribute :staged_files, list_of(String)
+      attribute :flagged_files, list_of(String)
+      attribute :message_path, String
+      then_set :staged_files, to: :staged_files
+      then_set :flagged_files, to: :flagged_files
+      then_set :message_path, to: :message_path
+      then_set :mode, to: "enforce"
+      emits "StagedClean"
+    end
+
+    command "ExemptStaged" do
+      role "System"
+      description "The staged message carries exemption markers that cover every flagged file"
+      attribute :staged_files, list_of(String)
+      attribute :flagged_files, list_of(String)
+      attribute :message_path, String
+      attribute :exemption_reasons, list_of(String)
+      then_set :staged_files, to: :staged_files
+      then_set :flagged_files, to: :flagged_files
+      then_set :message_path, to: :message_path
+      then_set :exemption_reasons, to: :exemption_reasons
+      emits "StagedExempted"
+    end
+
+    command "RejectStaged" do
+      role "System"
+      description "The staged commit has flagged files that no exemption covers — block the commit"
+      attribute :staged_files, list_of(String)
+      attribute :flagged_files, list_of(String)
+      then_set :staged_files, to: :staged_files
+      then_set :flagged_files, to: :flagged_files
+      emits "StagedRejected"
+    end
+
+    lifecycle :result, default: "pending" do
+      transition "CheckStaged"   => "flagged_list", from: "pending"
+      transition "EnforceStaged" => "clean",        from: "pending"
+      transition "ExemptStaged"  => "exempted",     from: "pending"
+      transition "RejectStaged"  => "rejected",     from: "pending"
+    end
+  end
+end

@@ -1,0 +1,77 @@
+Hecks.hecksagon "Antibody" do
+  # Antibody has no persistence — every verdict is a fresh, one-shot
+  # evaluation. The memory adapter holds the CommitCheck / BranchScan /
+  # StagedCheck aggregates for the lifetime of a single CLI invocation
+  # or git-hook dispatch and then goes away.
+  adapter :memory
+
+  # ---- Git shell adapters ----------------------------------------
+  #
+  # The antibody reads the repository via `git`. Each adapter below is
+  # a named shell-out with an exit-code gate: ok_exit declares the
+  # expected success code, everything else is treated as failure and
+  # translated into a ScanUnresolvable / reject verdict upstream.
+  #
+  # NOTE: `adapter :shell, name:, command:, ok_exit:` ships in PR B
+  # (parallel, not yet merged on main). Until PR B lands, `hecks-life
+  # parse` will ignore these lines (hecksagon files are not strictly
+  # parsed today) and `hecks-life validate` reports 0 aggregates — that
+  # is expected for a pure-infrastructure file. When PR B merges, these
+  # adapters become first-class and the Rust shim (follow-up PR) binds
+  # them to the CommitCheck / BranchScan / StagedCheck commands.
+
+  adapter :shell,
+          name:    :git_resolve_ref,
+          command: "git rev-parse --verify {{ref}}",
+          ok_exit: 0
+
+  adapter :shell,
+          name:    :git_list_commits,
+          command: "git log --format=%H --reverse {{base_ref}}..HEAD",
+          ok_exit: 0
+
+  adapter :shell,
+          name:    :git_show_touched,
+          command: "git show --name-only --diff-filter=AM --format= {{sha}}",
+          ok_exit: 0
+
+  adapter :shell,
+          name:    :git_commit_message,
+          command: "git log -1 --format=%B {{sha}}",
+          ok_exit: 0
+
+  adapter :shell,
+          name:    :git_commit_subject,
+          command: "git log -1 --format=%s {{sha}}",
+          ok_exit: 0
+
+  adapter :shell,
+          name:    :git_branch_diff,
+          command: "git diff --name-only --diff-filter=AM {{base_ref}}...HEAD",
+          ok_exit: 0
+
+  adapter :shell,
+          name:    :git_staged_files,
+          command: "git diff --cached --name-only --diff-filter=AM",
+          ok_exit: 0
+
+  # ---- Gates ------------------------------------------------------
+  #
+  # :ci     — the branch-wide checks driven by `hecks antibody check`
+  #           and the CI workflow. These never write to the repo; they
+  #           only evaluate and emit a verdict.
+  # :hook   — the pre-commit path. Narrower: it only touches the
+  #           staged-check aggregate and its own message file.
+
+  gate "CommitCheck", :ci do
+    allow :ValidateCommit, :ExemptCommit, :RejectCommit
+  end
+
+  gate "BranchScan", :ci do
+    allow :ScanBranch, :ScanEachCommit, :ScanUnresolvable
+  end
+
+  gate "StagedCheck", :hook do
+    allow :CheckStaged, :EnforceStaged, :ExemptStaged, :RejectStaged
+  end
+end

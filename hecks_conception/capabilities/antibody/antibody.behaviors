@@ -1,0 +1,120 @@
+Hecks.behaviors "Antibody" do
+  vision "Behavioral tests for the Antibody capability — every exemption, every shebang, every slip-through covered in memory"
+
+  # ── StagedCheck aggregate ──────────────────────────────────────
+
+  test "CheckStaged list-only never blocks on clean files" do
+    tests "CheckStaged", on: "StagedCheck"
+    input  staged_files: "sample", flagged_files: "sample"
+    expect mode: "list_only", result: "flagged_list"
+  end
+
+  test "CheckStaged list-only never blocks even when files are flagged" do
+    tests "CheckStaged", on: "StagedCheck"
+    input  staged_files: "sample", flagged_files: "sample"
+    expect result: "flagged_list"
+  end
+
+  test "EnforceStaged passes when staged files are all bluebook/heki" do
+    tests "EnforceStaged", on: "StagedCheck"
+    input  staged_files: "sample", flagged_files: "sample", message_path: "sample"
+    expect mode: "enforce", result: "clean"
+  end
+
+  test "ExemptStaged records reasons when the message carries a line-anchored marker" do
+    tests "ExemptStaged", on: "StagedCheck"
+    input  staged_files: "sample", flagged_files: "sample", message_path: "sample", exemption_reasons: "sample"
+    expect result: "exempted"
+  end
+
+  test "ExemptStaged accepts leading whitespace before the marker" do
+    tests "ExemptStaged", on: "StagedCheck"
+    input  staged_files: "sample", flagged_files: "sample", message_path: "sample", exemption_reasons: "sample"
+    expect result: "exempted"
+  end
+
+  test "ExemptStaged is case-insensitive on the marker prefix" do
+    tests "ExemptStaged", on: "StagedCheck"
+    input  staged_files: "sample", flagged_files: "sample", message_path: "sample", exemption_reasons: "sample"
+    expect result: "exempted"
+  end
+
+  test "RejectStaged fires when an untriaged Ruby file is staged without exemption" do
+    tests "RejectStaged", on: "StagedCheck"
+    input  staged_files: "sample", flagged_files: "sample"
+    expect result: "rejected"
+  end
+
+  test "RejectStaged fires when the exemption marker sits in inline prose (prose anchor fails)" do
+    tests "RejectStaged", on: "StagedCheck"
+    input  staged_files: "sample", flagged_files: "sample"
+    expect result: "rejected"
+  end
+
+  test "RejectStaged fires for an extensionless bin/ script with a ruby shebang" do
+    tests "RejectStaged", on: "StagedCheck"
+    input  staged_files: "sample", flagged_files: "sample"
+    expect result: "rejected"
+  end
+
+  test "EnforceStaged is clean for an extensionless bin/ script with an awk shebang" do
+    tests "EnforceStaged", on: "StagedCheck"
+    input  staged_files: "sample", flagged_files: "sample", message_path: "sample"
+    expect result: "clean"
+  end
+
+
+  # ── CommitCheck aggregate ──────────────────────────────────────
+
+  test "ValidateCommit records a clean single-commit pass" do
+    tests "ValidateCommit", on: "CommitCheck"
+    input  sha: "sample", subject: "sample", touched_files: "sample", flagged_files: "sample"
+    expect sha: "sample", verdict: "pass"
+  end
+
+  test "ExemptCommit records the exemption reasons from the message" do
+    tests "ExemptCommit", on: "CommitCheck"
+    input  sha: "sample", subject: "sample", touched_files: "sample", flagged_files: "sample", exemption_reasons: "sample"
+    expect verdict: "exempted"
+  end
+
+  test "RejectCommit records the flagged files that no exemption covered" do
+    tests "RejectCommit", on: "CommitCheck"
+    input  sha: "sample", subject: "sample", touched_files: "sample", flagged_files: "sample"
+    expect verdict: "rejected"
+  end
+
+
+  # ── BranchScan aggregate ──────────────────────────────────────
+
+  test "ScanBranch records a survey of base..HEAD" do
+    tests "ScanBranch", on: "BranchScan"
+    input  base_ref: "sample", touched_files: "sample", flagged_files: "sample"
+    expect base_ref: "sample", mode: "survey", result: "clean"
+  end
+
+  test "ScanEachCommit records a multi-commit PR where every commit exempts its own files" do
+    tests "ScanEachCommit", on: "BranchScan"
+    input  base_ref: "sample", per_commit_verdicts: "sample"
+    expect mode: "each_commit", result: "clean"
+  end
+
+  test "ScanEachCommit also records the case where one commit is unexempt — per-commit list carries it" do
+    tests "ScanEachCommit", on: "BranchScan"
+    input  base_ref: "sample", per_commit_verdicts: "sample"
+    expect mode: "each_commit", result: "clean"
+  end
+
+  test "ScanEachCommit distinguishes an earlier-commit exemption from a later untriaged commit (the slip-through fix)" do
+    tests "ScanEachCommit", on: "BranchScan"
+    input  base_ref: "sample", per_commit_verdicts: "sample"
+    expect mode: "each_commit"
+  end
+
+  test "ScanUnresolvable records an unresolvable base ref" do
+    tests "ScanUnresolvable", on: "BranchScan"
+    input  base_ref: "sample"
+    expect base_ref: "sample", result: "base_unresolvable"
+  end
+
+end
