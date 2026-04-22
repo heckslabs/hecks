@@ -781,6 +781,7 @@ fn run_terminal(project_dir: &str, being: &str) {
         category: None, vision: None,
         aggregates: vec![], policies: vec![],
         fixtures: vec![],
+        entrypoint: None,
     };
     if let Ok(entries) = fs::read_dir(&agg_dir) {
         for entry in entries.flatten() {
@@ -833,6 +834,7 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
         category: None, vision: None,
         aggregates: vec![], policies: vec![],
         fixtures: vec![],
+        entrypoint: None,
     };
     let entries = fs::read_dir(agg_dir).unwrap_or_else(|e| {
         eprintln!("Cannot read directory {}: {}", agg_dir, e);

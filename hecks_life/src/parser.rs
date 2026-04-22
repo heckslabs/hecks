@@ -16,6 +16,7 @@ pub fn parse(source: &str) -> Domain {
         aggregates: vec![],
         policies: vec![],
         fixtures: vec![],
+        entrypoint: None,
     };
 
     // Tolerate a leading `#!...\n` shebang so .bluebook files can be marked
@@ -44,6 +45,15 @@ pub fn parse(source: &str) -> Domain {
         if line.starts_with("vision") {
             if let Some(v) = extract_string(line) {
                 domain.vision = Some(v);
+            }
+        }
+
+        // `entrypoint "CommandName"` inside `Hecks.bluebook "…" do …`
+        // declares the default command for `hecks-life run <file>`. It's
+        // optional — library bluebooks don't need one.
+        if line.starts_with("entrypoint") {
+            if let Some(ep) = extract_string(line) {
+                domain.entrypoint = Some(ep);
             }
         }
 
