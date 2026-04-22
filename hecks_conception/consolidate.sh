@@ -32,6 +32,11 @@
 # commands without a reference (StoreMemory, RecordRemains, Archive)
 # would singleton-upsert if dispatched, so we use `heki append` to
 # preserve multi-record semantics.
+#
+# [antibody-exempt: i37 Phase B sweep — replaces inline python3 -c +
+#  python3 heredocs with native hecks-life heki subcommands + jq per
+#  PR #272; retires when shell wrapper ports to .bluebook shebang form
+#  (tracked in terminal_capability_wiring plan).]
 
 set -u
 
@@ -52,31 +57,22 @@ archived_musings=0
 # schema), then dispatch Signal.ArchiveSignal.
 
 if [ -f "$INFO/signal.heki" ]; then
-  PROMOTE_PLAN=$(HECKS_BIN="$HECKS" INFO="$INFO" python3 -c "
-import json, os, subprocess
-from datetime import datetime, timezone
-def parse(ts):
-    try:
-        if ts.endswith('Z'): ts = ts[:-1] + '+00:00'
-        return datetime.fromisoformat(ts)
-    except Exception: return None
-now = datetime.now(timezone.utc)
-try:
-    out = subprocess.check_output([os.environ['HECKS_BIN'],'heki','read',
-        f\"{os.environ['INFO']}/signal.heki\"], stderr=subprocess.DEVNULL).decode()
-    d = json.loads(out) or {}
-    for k, v in d.items():
-        if v.get('kind') == 'archived': continue
-        ac = int(v.get('access_count', 0) or 0)
-        if ac > 3: continue
-        ts = parse(v.get('created_at',''))
-        if ts is None: continue
-        if (now - ts).total_seconds() <= 60: continue
-        kind = (v.get('kind') or '').replace('|',' ')
-        payload = (v.get('payload') or '').replace('|',' ')
-        created_at = v.get('created_at','')
-        print(f'{k}|{kind}|{payload}|{created_at}')
-except Exception: pass" 2>/dev/null)
+  PROMOTE_PLAN=$("$HECKS" heki list "$INFO/signal.heki" --format json 2>/dev/null \
+    | jq -r --arg now "$now" '
+        def iso_to_epoch:
+          . as $s | ($s | fromdateiso8601);
+        ($now | iso_to_epoch) as $n
+        | .[]
+        | select(.kind != "archived")
+        | select((.access_count // 0) <= 3)
+        | select((.created_at // "") | length > 0)
+        | select(($n - (.created_at | iso_to_epoch)) > 60)
+        | [.id,
+           ((.kind // "") | gsub("\\|"; " ")),
+           ((.payload // "") | gsub("\\|"; " ")),
+           (.created_at // "")]
+        | @tsv' 2>/dev/null \
+    | awk -F'\t' '{ printf "%s|%s|%s|%s\n", $1, $2, $3, $4 }')
 
   while IFS='|' read -r sid kind payload created_at; do
     [ -z "$sid" ] && continue
@@ -94,20 +90,16 @@ fi
 # caught (e.g. if decay was skipped).
 
 if [ -f "$INFO/synapse.heki" ]; then
-  COMPOST_PLAN=$(HECKS_BIN="$HECKS" INFO="$INFO" python3 -c "
-import json, os, subprocess
-try:
-    out = subprocess.check_output([os.environ['HECKS_BIN'],'heki','read',
-        f\"{os.environ['INFO']}/synapse.heki\"], stderr=subprocess.DEVNULL).decode()
-    d = json.loads(out) or {}
-    for k, v in d.items():
-        if v.get('state','alive') != 'alive': continue
-        s = float(v.get('strength', 0.0) or 0.0)
-        if s >= 0.1: continue
-        firings = int(v.get('firings', 0) or 0)
-        from_t = (v.get('from') or '').replace('|',' ')
-        print(f'{k}|{s}|{firings}|{from_t}')
-except Exception: pass" 2>/dev/null)
+  COMPOST_PLAN=$("$HECKS" heki list "$INFO/synapse.heki" \
+      --where state=alive --format json 2>/dev/null \
+    | jq -r '.[]
+             | select((.strength // 0) < 0.1)
+             | [.id,
+                (.strength // 0),
+                (.firings // 0),
+                ((.from // "") | gsub("\\|"; " "))]
+             | @tsv' 2>/dev/null \
+    | awk -F'\t' '{ printf "%s|%s|%s|%s\n", $1, $2, $3, $4 }')
 
   while IFS='|' read -r sid strength firings from_topic; do
     [ -z "$sid" ] && continue
@@ -122,36 +114,37 @@ except Exception: pass" 2>/dev/null)
 fi
 
 # ── 3. MUSING → MUSING_ARCHIVE ───────────────────────────────────────
-# Group live musings (conceived != true) by concept. When more than 3
-# share a concept, archive the oldest one (by created_at if present,
-# else first-seen order). Archive via heki append to entry.heki.
+# Group live musings (conceived != true AND status != archived) by
+# concept (thinking_source, else feeling_source, else source). When a
+# concept has more than 3 live musings, archive the oldest by
+# created_at. Archive via heki append to musing_archive.heki; mark the
+# original with `heki mark --where id=... --set status=archived`.
 
 if [ -f "$INFO/musing.heki" ]; then
-  ARCHIVE_PLAN=$(HECKS_BIN="$HECKS" INFO="$INFO" python3 -c "
-import json, os, subprocess
-from collections import defaultdict
-try:
-    out = subprocess.check_output([os.environ['HECKS_BIN'],'heki','read',
-        f\"{os.environ['INFO']}/musing.heki\"], stderr=subprocess.DEVNULL).decode()
-    d = json.loads(out) or {}
-    buckets = defaultdict(list)
-    for k, v in d.items():
-        if v.get('conceived') is True: continue
-        if v.get('status') == 'archived': continue
-        concept = (v.get('thinking_source') or v.get('feeling_source')
-                   or v.get('source') or '').strip()
-        if not concept: continue
-        created = v.get('created_at','')
-        buckets[concept].append((created, k, v))
-    for concept, rows in buckets.items():
-        if len(rows) <= 3: continue
-        rows.sort(key=lambda r: r[0] or '')
-        oldest_created, oldest_id, oldest = rows[0]
-        idea = (oldest.get('idea') or '').replace('|',' ')
-        src = (oldest.get('source') or 'mindstream').replace('|',' ')
-        c = concept.replace('|',' ')
-        print(f'{oldest_id}|{idea}|{src}|{c}')
-except Exception: pass" 2>/dev/null)
+  ARCHIVE_PLAN=$("$HECKS" heki list "$INFO/musing.heki" --format json 2>/dev/null \
+    | jq -r '
+        # Pull concept from thinking_source → feeling_source → source.
+        def concept_of:
+          ((.thinking_source // .feeling_source // .source // "") | tostring
+            | sub("^\\s+"; "") | sub("\\s+$"; ""));
+        # Filter live (not conceived=true and not status=archived) and
+        # having a concept.
+        [ .[]
+          | select(.conceived != true)
+          | select((.status // "") != "archived")
+          | . + {"_concept": concept_of}
+          | select(._concept != "")
+        ]
+        # Group by concept, pick the oldest when bucket > 3.
+        | group_by(._concept)
+        | map(select(length > 3) | sort_by(.created_at // "") | .[0])
+        | .[]
+        | [.id,
+           ((.idea // "") | gsub("\\|"; " ")),
+           ((.source // "mindstream") | gsub("\\|"; " ")),
+           (._concept | gsub("\\|"; " "))]
+        | @tsv' 2>/dev/null \
+    | awk -F'\t' '{ printf "%s|%s|%s|%s\n", $1, $2, $3, $4 }')
 
   while IFS='|' read -r mid idea source concept; do
     [ -z "$mid" ] && continue
@@ -159,21 +152,8 @@ except Exception: pass" 2>/dev/null)
       idea="$idea" source="$source" concept="$concept" \
       archived_reason="duplicate_concept" archived_at="$now" >/dev/null 2>&1
     # Mark the original musing archived so it's not re-counted next sweep.
-    python3 - "$INFO/musing.heki" "$mid" <<'PY' >/dev/null 2>&1
-import json, sys, subprocess, os
-heki, mid = sys.argv[1], sys.argv[2]
-binp = os.environ.get('HECKS_BIN') or \
-       os.path.expanduser('~/Projects/hecks/hecks_life/target/release/hecks-life')
-out = subprocess.check_output([binp,'heki','read',heki],
-                              stderr=subprocess.DEVNULL).decode()
-d = json.loads(out) or {}
-r = d.get(mid)
-if r is None: sys.exit(0)
-r['status'] = 'archived'
-subprocess.run([binp,'heki','append',heki] +
-               [f"{k}={v}" for k, v in r.items() if isinstance(v, (str,int,float,bool))],
-               check=False)
-PY
+    "$HECKS" heki mark "$INFO/musing.heki" --where "id=$mid" \
+      --set status=archived >/dev/null 2>&1
     archived_musings=$((archived_musings + 1))
   done <<<"$ARCHIVE_PLAN"
 fi

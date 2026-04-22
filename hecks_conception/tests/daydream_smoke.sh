@@ -5,6 +5,11 @@
 # directory, runs daydream.sh once, and asserts daydream.heki grew.
 #
 # Exit 0 on pass, non-zero on fail.
+#
+# [antibody-exempt: i37 Phase B sweep — replaces inline python3 -c with
+#  native hecks-life heki count per PR #272; retires when shell wrapper
+#  ports to .bluebook shebang form (tracked in terminal_capability_wiring
+#  plan).]
 
 set -u
 
@@ -40,10 +45,7 @@ fail() { echo "FAIL — $1"; exit 1; }
 
 # Count records before (the file may not exist → 0).
 before=0
-[ -f "$TMP/information/daydream.heki" ] && before=$("$HECKS" heki read "$TMP/information/daydream.heki" 2>/dev/null \
-  | python3 -c "import json,sys
-try: print(len(json.load(sys.stdin) or {}))
-except Exception: print(0)")
+[ -f "$TMP/information/daydream.heki" ] && before=$("$HECKS" heki count "$TMP/information/daydream.heki" 2>/dev/null || echo 0)
 
 HECKS_INFO="$TMP/information" \
 HECKS_AGG="$TMP/aggregates" \
@@ -53,10 +55,7 @@ HECKS_NURSERY="$CONCEPT_DIR/nursery" \
   || fail "daydream.sh exited non-zero"
 
 after=0
-[ -f "$TMP/information/daydream.heki" ] && after=$("$HECKS" heki read "$TMP/information/daydream.heki" 2>/dev/null \
-  | python3 -c "import json,sys
-try: print(len(json.load(sys.stdin) or {}))
-except Exception: print(0)")
+[ -f "$TMP/information/daydream.heki" ] && after=$("$HECKS" heki count "$TMP/information/daydream.heki" 2>/dev/null || echo 0)
 
 echo "daydream.heki records: $before -> $after"
 
@@ -64,10 +63,7 @@ echo "daydream.heki records: $before -> $after"
 
 # Sanity — synapse.heki should also have grown (new forming bond).
 syn=0
-[ -f "$TMP/information/synapse.heki" ] && syn=$("$HECKS" heki read "$TMP/information/synapse.heki" 2>/dev/null \
-  | python3 -c "import json,sys
-try: print(len(json.load(sys.stdin) or {}))
-except Exception: print(0)")
+[ -f "$TMP/information/synapse.heki" ] && syn=$("$HECKS" heki count "$TMP/information/synapse.heki" 2>/dev/null || echo 0)
 echo "synapse.heki records: $syn"
 [ "$syn" -ge 1 ] || fail "synapse.heki has no forming synapse"
 

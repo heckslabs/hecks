@@ -12,6 +12,11 @@
 # Override with DWELL env var for tests: DWELL=3 ./surface_musing.sh 3
 #
 # Split out of mindstream.sh so tests can simulate cycling deterministically.
+#
+# [antibody-exempt: i37 Phase B sweep — replaces inline python3 -c with
+#  native hecks-life heki subcommands + jq per PR #272; retires when
+#  shell wrapper ports to .bluebook shebang form (tracked in
+#  terminal_capability_wiring plan).]
 
 DIR="$(dirname "$0")"
 HECKS="$DIR/../hecks_life/target/release/hecks-life"
@@ -19,28 +24,25 @@ INFO="$DIR/information"
 DWELL="${DWELL:-30}"
 loop_count="${1:-1}"
 
-thought=$($HECKS heki read "$INFO/musing.heki" 2>/dev/null | python3 -c "
-import json, re, sys
-def is_real_musing(s):
-    # Skip tag-shaped entries (awareness_pulse, rust_heartbeat, …).
-    # Real musings have sentence shape: ≥20 chars, contain whitespace
-    # or punctuation, not a bare snake_case identifier.
-    s = (s or '').strip()
-    if len(s) < 20: return False
-    if not re.search(r'[ —\-:.?!]', s): return False
-    if re.fullmatch(r'[a-z][a-z0-9_]*', s): return False
-    return True
-try:
-    d = json.load(sys.stdin)
-    unconceived = [v.get('idea','').strip() for v in d.values()
-                   if is_real_musing(v.get('idea','')) and not v.get('conceived', False)]
-    if unconceived:
-        # Oldest unconceived first (FIFO) — freshly-minted ideas surface
-        # in the order they were minted.
-        print(unconceived[0][:80])
-except Exception:
-    pass
-" 2>/dev/null)
+# Oldest unconceived "real" musing — FIFO order by created_at (heki
+# list default) across records with conceived != true. jq applies the
+# same sentence-shape filter the old python did:
+#   - ≥20 chars after trim
+#   - contains whitespace or one of — - : . ? !
+#   - not a bare snake_case identifier [a-z][a-z0-9_]*
+# First match wins; idea is truncated to 80 chars.
+thought=$("$HECKS" heki list "$INFO/musing.heki" --where conceived=false \
+    --format json 2>/dev/null \
+  | jq -r '
+      [ .[]
+        | (.idea // "") | tostring
+        | sub("^\\s+"; "") | sub("\\s+$"; "")
+        | select(length >= 20)
+        | select(test("[ —\\-:.?!]"))
+        | select(test("^[a-z][a-z0-9_]*$") | not)
+      ]
+      | .[0] // ""
+      | .[0:80]' 2>/dev/null)
 
 if [ -n "$thought" ]; then
   $HECKS heki upsert "$INFO/consciousness.heki" sleep_summary="$thought" 2>/dev/null

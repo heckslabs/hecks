@@ -1,5 +1,9 @@
 #!/bin/bash
 # pulse_organs_smoke.sh — smoke test for pulse_organs.sh.
+# [antibody-exempt: i37 Phase B sweep — replaces inline python3 -c with
+#  native hecks-life heki count per PR #272; retires when shell wrapper
+#  ports to .bluebook shebang form (tracked in terminal_capability_wiring
+#  plan).]
 #
 # Copies hecks_conception/information/*.heki to a tmpdir, points
 # pulse_organs.sh at it via HECKS_INFO / HECKS_AGG, runs 10 ticks, and
@@ -80,10 +84,7 @@ done
 
 count_records() {
   [ ! -f "$1" ] && { echo 0; return; }
-  "$HECKS" heki read "$1" 2>/dev/null \
-    | python3 -c "import json,sys
-try: print(len(json.load(sys.stdin) or {}))
-except Exception: print(0)" 2>/dev/null
+  "$HECKS" heki count "$1" 2>/dev/null || echo 0
 }
 
 synapse_count=$(count_records "$TMP/information/synapse.heki")

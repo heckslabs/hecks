@@ -1,5 +1,9 @@
 #!/bin/bash
 # consolidate_smoke.sh — smoke test for consolidate.sh.
+# [antibody-exempt: i37 Phase B sweep — replaces inline python3 -c with
+#  native hecks-life heki subcommands + date -d for timestamp shifts per
+#  PR #272; retires when shell wrapper ports to .bluebook shebang form
+#  (tracked in terminal_capability_wiring plan).]
 #
 # Seeds a tmpdir with:
 #   - 5 cold signals (access_count=0, created_at 120s ago) → should promote
@@ -48,7 +52,17 @@ end
 EOF
 
 # ── Seed signals ─────────────────────────────────────────────────────
-OLD=$(python3 -c "from datetime import datetime,timezone,timedelta; print((datetime.now(timezone.utc)-timedelta(seconds=120)).strftime('%Y-%m-%dT%H:%M:%SZ'))")
+# iso_offset secs — print an ISO-8601 UTC timestamp `secs` seconds in
+# the past. Portable across macOS (BSD date) and Linux (GNU date).
+iso_offset() {
+  local secs="$1" now_epoch
+  now_epoch=$(date -u +%s)
+  # awk formats the resulting epoch back into the expected ISO string.
+  date -u -r "$((now_epoch - secs))" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null \
+    || date -u -d "@$((now_epoch - secs))" +%Y-%m-%dT%H:%M:%SZ
+}
+
+OLD=$(iso_offset 120)
 NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
 for i in 1 2 3 4 5; do
@@ -71,7 +85,7 @@ done
 
 # ── Seed musings: 5 share a concept ──────────────────────────────────
 for i in 1 2 3 4 5; do
-  ts=$(python3 -c "from datetime import datetime,timezone,timedelta; print((datetime.now(timezone.utc)-timedelta(minutes=$i)).strftime('%Y-%m-%dT%H:%M:%SZ'))")
+  ts=$(iso_offset $((i * 60)))
   "$HECKS" heki append "$TMP/information/musing.heki" \
     idea="musing number $i" source=mindstream thinking_source=wandering \
     conceived=false status=imagined created_at="$ts" >/dev/null 2>&1
@@ -81,10 +95,7 @@ fail() { echo "FAIL — $1"; exit 1; }
 
 count_records() {
   [ ! -f "$1" ] && { echo 0; return; }
-  "$HECKS" heki read "$1" 2>/dev/null \
-    | python3 -c "import json,sys
-try: print(len(json.load(sys.stdin) or {}))
-except Exception: print(0)" 2>/dev/null
+  "$HECKS" heki count "$1" 2>/dev/null || echo 0
 }
 
 store_before=$(count_records "$TMP/information/store.heki")

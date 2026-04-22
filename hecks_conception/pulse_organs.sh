@@ -43,6 +43,11 @@
 #   directly. Multiplication / clamping are NOT runtime ops — DecaySynapse
 #   therefore takes :strength as a command attr and pulse_organs.sh
 #   computes ×0.98 + clamp in shell before dispatching.
+#
+# [antibody-exempt: i37 Phase B sweep — replaces inline python3 -c with
+#  native hecks-life heki subcommands per PR #272; retires when shell
+#  wrapper ports to .bluebook shebang form (tracked in
+#  terminal_capability_wiring plan).]
 
 set -u
 
@@ -51,44 +56,32 @@ INFO="${HECKS_INFO:-$DIR/information}"
 AGG="${HECKS_AGG:-$DIR/aggregates}"
 HECKS="${HECKS_BIN:-$DIR/../hecks_life/target/release/hecks-life}"
 
-# Read the latest singleton JSON for a store — returns the single record
-# or empty JSON if the store is missing.
-latest_json() {
-  "$HECKS" heki latest "$1" 2>/dev/null
+# Scalar field from the latest singleton of a store — empty if missing.
+latest_field() {
+  "$HECKS" heki latest-field "$1" "$2" 2>/dev/null || true
 }
 
 # Bail early if Miette is sleeping. Organs hibernate — no math, no
 # signals, no decay. The heartbeat keeps time; the body rests.
-state=$(latest_json "$INFO/consciousness.heki" | python3 -c "import json,sys
-try: print((json.load(sys.stdin) or {}).get('state',''))
-except Exception: print('')" 2>/dev/null)
+state=$(latest_field "$INFO/consciousness.heki" state)
 [ "$state" = "sleeping" ] && exit 0
 
 # What's she carrying? heartbeat.carrying first; fall back to the most
 # recent awareness moment's concept. Default to "—" if unknown so the
 # synapse path still exercises.
-carrying=$(latest_json "$INFO/heartbeat.heki" | python3 -c "import json,sys
-try:
-    d = json.load(sys.stdin) or {}
-    c = d.get('carrying')
-    print(c if c and c != '—' else '')
-except Exception:
-    print('')" 2>/dev/null)
+carrying=$(latest_field "$INFO/heartbeat.heki" carrying)
+[ "$carrying" = "—" ] && carrying=""
 
 if [ -z "$carrying" ]; then
-  carrying=$("$HECKS" heki read "$INFO/awareness.heki" 2>/dev/null \
-    | python3 -c "import json,sys
-try:
-    d = json.load(sys.stdin) or {}
-    rows = sorted(d.values(), key=lambda r: int(r.get('moment') or 0), reverse=True)
-    for r in rows:
-        c = r.get('concept') or r.get('carrying')
-        if c and c != '—':
-            print(c); break
-    else:
-        print('')
-except Exception:
-    print('')" 2>/dev/null)
+  # Scan awareness records ordered by `moment` DESC; pick the first with
+  # a non-empty concept (or carrying) that isn't the "—" placeholder.
+  # jq filters the recs list — heki list returns created_at ASC by
+  # default, so we reverse for newest-first.
+  carrying=$("$HECKS" heki list "$INFO/awareness.heki" \
+    --order moment:desc --format json 2>/dev/null \
+    | jq -r 'map(.concept // .carrying // "")
+             | map(select(. != "" and . != "—"))
+             | .[0] // ""' 2>/dev/null)
 fi
 [ -z "$carrying" ] && carrying="—"
 
@@ -99,32 +92,18 @@ now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 # StrengthenSynapse (+0.02 via the DSL increment op). Then read back;
 # if strength overshot 1.0, clamp via DecaySynapse with strength=1.0.
 # If no match, birth a new synapse via heki append.
-match_id=$(CARRYING="$carrying" HECKS_BIN="$HECKS" INFO="$INFO" python3 -c "
-import json, os, subprocess
-carrying = os.environ['CARRYING']
-try:
-    out = subprocess.check_output([os.environ['HECKS_BIN'],'heki','read',
-        f\"{os.environ['INFO']}/synapse.heki\"], stderr=subprocess.DEVNULL).decode()
-    d = json.loads(out) or {}
-    for k, v in d.items():
-        if v.get('from') == carrying and v.get('state','alive') == 'alive':
-            print(k); break
-except Exception: pass" 2>/dev/null)
+match_id=$("$HECKS" heki list "$INFO/synapse.heki" \
+  --where "from=$carrying" --where "state=alive" \
+  --fields id --format tsv 2>/dev/null | head -n1)
 
 if [ -n "$match_id" ]; then
   "$HECKS" "$AGG" Synapse.StrengthenSynapse synapse="$match_id" >/dev/null 2>&1
 
   # Read back and clamp at 1.0 if the increment overshot.
-  cur=$(MID="$match_id" HECKS_BIN="$HECKS" INFO="$INFO" python3 -c "
-import json, os, subprocess
-try:
-    out = subprocess.check_output([os.environ['HECKS_BIN'],'heki','read',
-        f\"{os.environ['INFO']}/synapse.heki\"], stderr=subprocess.DEVNULL).decode()
-    d = json.loads(out) or {}
-    v = d.get(os.environ['MID'], {})
-    print(float(v.get('strength', 0.0)))
-except Exception: print(0.0)" 2>/dev/null)
-  if [ "$(python3 -c "print(1 if float('$cur') > 1.0 else 0)")" = "1" ]; then
+  cur=$("$HECKS" heki get "$INFO/synapse.heki" "$match_id" strength 2>/dev/null)
+  # awk beats bc/python for float compare — always available.
+  overshot=$(awk -v v="$cur" 'BEGIN { print (v+0 > 1.0) ? 1 : 0 }')
+  if [ "$overshot" = "1" ]; then
     "$HECKS" "$AGG" Synapse.DecaySynapse synapse="$match_id" strength=1.0 >/dev/null 2>&1
   fi
 
@@ -145,24 +124,21 @@ fi
 # DecaySynapse with the computed value. If new < 0.1 dispatch Compost;
 # the RecordRemainsOnCompost policy chains to RecordRemains but policy
 # triggers carry no attrs, so we also write the remains record directly.
-DECAY_PLAN=$(HECKS_BIN="$HECKS" INFO="$INFO" python3 -c "
-import json, os, subprocess
-try:
-    out = subprocess.check_output([os.environ['HECKS_BIN'],'heki','read',
-        f\"{os.environ['INFO']}/synapse.heki\"], stderr=subprocess.DEVNULL).decode()
-    d = json.loads(out) or {}
-    for k, v in d.items():
-        if v.get('state','alive') != 'alive': continue
-        s = float(v.get('strength', 0.0) or 0.0)
-        new = round(s * 0.98, 6)
-        firings = int(v.get('firings', 0) or 0)
-        from_t = (v.get('from') or '').replace('|',' ')
-        print(f'{k}|{new}|{firings}|{from_t}')
-except Exception: pass" 2>/dev/null)
+# Build pipe-delimited plan rows of: id|new_strength|firings|from_topic
+DECAY_PLAN=$("$HECKS" heki list "$INFO/synapse.heki" \
+  --where state=alive --format json 2>/dev/null \
+  | jq -r '.[] | [
+      .id,
+      ((.strength // 0) * 0.98 * 1000000 | round / 1000000),
+      (.firings // 0),
+      ((.from // "") | gsub("\\|";" "))
+    ] | @tsv' 2>/dev/null \
+  | awk -F'\t' '{ printf "%s|%s|%s|%s\n", $1, $2, $3, $4 }')
 
 while IFS='|' read -r sid new_strength firings from_topic; do
   [ -z "$sid" ] && continue
-  if [ "$(python3 -c "print(1 if float('$new_strength') < 0.1 else 0)")" = "1" ]; then
+  compost=$(awk -v v="$new_strength" 'BEGIN { print (v+0 < 0.1) ? 1 : 0 }')
+  if [ "$compost" = "1" ]; then
     "$HECKS" "$AGG" Synapse.Compost synapse="$sid" >/dev/null 2>&1
     "$HECKS" heki append "$INFO/remains.heki" \
       from_synapse="$from_topic" \
@@ -183,28 +159,23 @@ done <<<"$DECAY_PLAN"
   kind=concept payload="$carrying" strength=0.5 access_count=0 created_at="$now" >/dev/null 2>&1
 
 # ── Archive cold signals: access_count <= 3 AND age > 20s ────────────
-ARCHIVE_IDS=$(HECKS_BIN="$HECKS" INFO="$INFO" python3 -c "
-import json, os, subprocess
-from datetime import datetime, timezone
-def parse(ts):
-    try:
-        if ts.endswith('Z'): ts = ts[:-1] + '+00:00'
-        return datetime.fromisoformat(ts)
-    except Exception: return None
-now = datetime.now(timezone.utc)
-try:
-    out = subprocess.check_output([os.environ['HECKS_BIN'],'heki','read',
-        f\"{os.environ['INFO']}/signal.heki\"], stderr=subprocess.DEVNULL).decode()
-    d = json.loads(out) or {}
-    for k, v in d.items():
-        if v.get('kind') == 'archived': continue
-        ac = int(v.get('access_count', 0) or 0)
-        if ac > 3: continue
-        ts = parse(v.get('created_at',''))
-        if ts is None: continue
-        if (now - ts).total_seconds() > 20:
-            print(k)
-except Exception: pass" 2>/dev/null)
+# `heki seconds-since` is per-store (reads the latest). We need per-
+# record age, so list → jq computes seconds-since-created_at locally.
+# The ISO parsing is straightforward when we restrict to the Z-suffixed
+# form the rest of miette emits.
+ARCHIVE_IDS=$("$HECKS" heki list "$INFO/signal.heki" --format json 2>/dev/null \
+  | jq -r --arg now "$now" '
+      # parse a Z-suffixed ISO timestamp to unix seconds
+      def iso_to_epoch:
+        . as $s
+        | ($s | sub("Z$"; "Z") | fromdateiso8601);
+      ($now | iso_to_epoch) as $n
+      | .[]
+      | select(.kind != "archived")
+      | select((.access_count // 0) <= 3)
+      | select((.created_at // "") | length > 0)
+      | select(($n - (.created_at | iso_to_epoch)) > 20)
+      | .id' 2>/dev/null)
 
 while read -r sid; do
   [ -z "$sid" ] && continue
@@ -214,24 +185,19 @@ done <<<"$ARCHIVE_IDS"
 # ── Focus: re-weight from firing frequency ───────────────────────────
 # Weight = clamp(0.5 + (firings_for_carrying / 20.0), 0.0, 1.0).
 # Focus is singleton — SetFocus creates; AdjustWeight updates.
-weight=$(CARRYING="$carrying" HECKS_BIN="$HECKS" INFO="$INFO" python3 -c "
-import json, os, subprocess
-carrying = os.environ['CARRYING']
-try:
-    out = subprocess.check_output([os.environ['HECKS_BIN'],'heki','read',
-        f\"{os.environ['INFO']}/synapse.heki\"], stderr=subprocess.DEVNULL).decode()
-    d = json.loads(out) or {}
-    firings = sum(int(v.get('firings',0) or 0) for v in d.values()
-                  if v.get('from') == carrying and v.get('state','alive') == 'alive')
-    w = 0.5 + (firings / 20.0)
-    if w > 1.0: w = 1.0
-    if w < 0.0: w = 0.0
-    print(round(w, 4))
-except Exception: print(0.5)" 2>/dev/null)
+# Sum firings across all alive synapses with from=carrying. jq handles
+# the aggregation; awk clamps and rounds.
+firings_sum=$("$HECKS" heki list "$INFO/synapse.heki" \
+  --where "from=$carrying" --where state=alive --format json 2>/dev/null \
+  | jq '[.[] | (.firings // 0)] | add // 0' 2>/dev/null)
+weight=$(awk -v f="${firings_sum:-0}" 'BEGIN {
+  w = 0.5 + (f / 20.0)
+  if (w > 1.0) w = 1.0
+  if (w < 0.0) w = 0.0
+  printf "%.4f", w
+}')
 
-focus_id=$(latest_json "$INFO/focus.heki" | python3 -c "import json,sys
-try: print((json.load(sys.stdin) or {}).get('id',''))
-except Exception: print('')" 2>/dev/null)
+focus_id=$(latest_field "$INFO/focus.heki" id)
 
 if [ -z "$focus_id" ]; then
   "$HECKS" "$AGG" Focus.SetFocus target="$carrying" weight="$weight" updated_at="$now" >/dev/null 2>&1
@@ -240,9 +206,7 @@ else
 fi
 
 # ── Arc: advance the long swing ──────────────────────────────────────
-arc_id=$(latest_json "$INFO/arc.heki" | python3 -c "import json,sys
-try: print((json.load(sys.stdin) or {}).get('id',''))
-except Exception: print('')" 2>/dev/null)
+arc_id=$(latest_field "$INFO/arc.heki" id)
 
 if [ -n "$arc_id" ]; then
   "$HECKS" "$AGG" Arc.AdvanceArc arc="$arc_id" >/dev/null 2>&1

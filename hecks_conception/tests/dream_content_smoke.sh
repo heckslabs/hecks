@@ -11,6 +11,11 @@
 #
 # Uses a TMPDIR for INFO so the live information/*.heki stores are
 # never touched. AGG + NURSERY point at the worktree's real ones.
+#
+# [antibody-exempt: i37 Phase B sweep — replaces inline python3 -c with
+#  native hecks-life heki subcommands per PR #272; retires when shell
+#  wrapper ports to .bluebook shebang form (tracked in
+#  terminal_capability_wiring plan).]
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$DIR/.." && pwd)"
@@ -79,8 +84,7 @@ done
   sleep_summary="entering REM — dreams beginning" >/dev/null 2>&1
 
 # Count dream_state records before exercising the branch.
-before=$("$HECKS" heki read "$INFO/dream_state.heki" 2>/dev/null \
-  | python3 -c "import json,sys; print(len(json.load(sys.stdin)))")
+before=$("$HECKS" heki count "$INFO/dream_state.heki" 2>/dev/null)
 
 # Run the REM branch 10 times. Use TMP/aggregates so hecks-life's
 # *.world discovery lands on TMP/information; the live stores are
@@ -90,8 +94,7 @@ for i in $(seq 1 10); do
     HECKS="$HECKS" "$ROOT/rem_branch.sh" "$i" >/dev/null 2>&1
 done
 
-after=$("$HECKS" heki read "$INFO/dream_state.heki" 2>/dev/null \
-  | python3 -c "import json,sys; print(len(json.load(sys.stdin)))")
+after=$("$HECKS" heki count "$INFO/dream_state.heki" 2>/dev/null)
 grew=$((after - before))
 
 echo "REM dream production"
@@ -103,21 +106,20 @@ check "rem_dream wrote ≥5 images (the spec floor)" \
 # Verify DreamSeed.PlantSeed fired — dream_seed.heki should now have at
 # least one image planted from the prior records.
 seeds=$("$HECKS" heki latest "$INFO/dream_seed.heki" 2>/dev/null \
-  | python3 -c "import json,sys; d=json.load(sys.stdin); print(len(d.get('images',[]) or []))" 2>/dev/null)
+  | jq '(.images // []) | length' 2>/dev/null)
 check "DreamSeed.PlantSeed planted ≥1 image (count=$seeds)" \
   "$([ "${seeds:-0}" -ge 1 ] && echo yes)" "yes"
 
 # Verify dream images use the carrying+domain+concept template — at least
 # one should contain a known shape. We seeded 'prior image #1'..'#6' as
 # legacy records; new records should look different.
-sample=$("$HECKS" heki read "$INFO/dream_state.heki" 2>/dev/null \
-  | python3 -c "
-import json, sys
-d = json.load(sys.stdin)
-new = [r for r in d.values() if r.get('source') == 'mindstream']
-imgs = [img for r in new for img in (r.get('dream_images') or [])]
-print(imgs[0] if imgs else '')
-" 2>/dev/null)
+sample=$("$HECKS" heki list "$INFO/dream_state.heki" --where source=mindstream \
+    --format json 2>/dev/null \
+  | jq -r '[ .[]
+             | (.dream_images // [])
+             | if type == "array" then . else [.] end
+             | .[] ]
+           | .[0] // ""' 2>/dev/null)
 check "rem_dream produced a non-empty image" "$([ -n "$sample" ] && echo yes)" "yes"
 
 # Lucid path — flip is_lucid=yes, run once, expect ObserveDream + SteerDream.
@@ -126,11 +128,10 @@ check "rem_dream produced a non-empty image" "$([ -n "$sample" ] && echo yes)" "
   sleep_cycle=8 dream_pulses=0 >/dev/null 2>&1
 INFO="$INFO" AGG="$AGG" NURSERY="$TMP/nursery" \
   HECKS="$HECKS" "$ROOT/rem_branch.sh" 999 >/dev/null 2>&1
-obs=$("$HECKS" heki latest "$INFO/lucid_dream.heki" 2>/dev/null \
-  | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('latest_narrative',''))" 2>/dev/null)
+obs=$("$HECKS" heki latest-field "$INFO/lucid_dream.heki" latest_narrative 2>/dev/null)
 check "Lucid REM dispatched LucidDream.ObserveDream" "$([ -n "$obs" ] && echo yes)" "yes"
 steer=$("$HECKS" heki latest "$INFO/lucid_dream.heki" 2>/dev/null \
-  | python3 -c "import json,sys; d=json.load(sys.stdin); print(len(d.get('steered_toward',[]) or []))" 2>/dev/null)
+  | jq '(.steered_toward // []) | length' 2>/dev/null)
 check "Lucid REM dispatched LucidDream.SteerDream (count=$steer)" \
   "$([ "${steer:-0}" -ge 1 ] && echo yes)" "yes"
 

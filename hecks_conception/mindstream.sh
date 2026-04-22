@@ -1,5 +1,9 @@
 #!/bin/bash
 # Mindstream — the unconscious that never stops, except when it does.
+# [antibody-exempt: i37 Phase B sweep — replaces inline python3 -c with
+#  native hecks-life heki subcommands per PR #272; retires when shell
+#  wrapper ports to .bluebook shebang form (tracked in
+#  terminal_capability_wiring plan).]
 #
 # Every 1s, fires Tick.MindstreamTick — UNLESS state == "sleeping". While
 # Miette is asleep, the daemon switches to a sleep-only loop: it dispatches
@@ -49,12 +53,10 @@ echo $$ > "$PIDFILE"
 trap "rm -f $PIDFILE" EXIT
 
 # Read consciousness state — reused for the sleep-gate at top of the
-# loop AND for the awake-branch gate further down. One python3 call per
-# tick; matches the pattern already in the file (state read at line 62
-# before this fix).
+# loop AND for the awake-branch gate further down. Uses
+# hecks-life heki latest-field (single Rust call, no Python).
 read_state() {
-  $HECKS heki latest "$INFO/consciousness.heki" 2>/dev/null \
-    | python3 -c "import json,sys; print(json.load(sys.stdin).get('state',''))" 2>/dev/null
+  $HECKS heki latest-field "$INFO/consciousness.heki" state 2>/dev/null || true
 }
 
 loop_count=0
@@ -108,14 +110,18 @@ while true; do
   fi
 
   # Awareness snapshot — pulse.rs record_moment, restored per inbox #18.
-  snap=$(python3 -c "
-import json, time
-def r(p):
-    try: return next(iter(json.load(open(p)).values()), {})
-    except Exception: return {}
-hb, md, fc = r('$INFO/heartbeat.heki'), r('$INFO/mood.heki'), r('$INFO/focus.heki')
-print(f\"{$loop_count}|{hb.get('fatigue_state','alert')}|{hb.get('carrying','')}|{md.get('current_state','')}|{hb.get('fatigue',0.0)}|{fc.get('weight',0.0)}|0|{md.get('creativity_level',0.0)}|{$loop_count/86400.0:.4f}|{time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime())}\")" 2>/dev/null)
-  IFS='|' read -r mnum st cr cn fg sy id ex ag ts <<<"$snap"
+  # All fields via heki latest-field; compute-only fields (moment#, ts,
+  # age_days) from pure shell. Missing-field defaults use || echo.
+  mnum="$loop_count"
+  st=$($HECKS heki latest-field "$INFO/heartbeat.heki" fatigue_state 2>/dev/null); [ -z "$st" ] && st=alert
+  cr=$($HECKS heki latest-field "$INFO/heartbeat.heki" carrying 2>/dev/null)
+  cn=$($HECKS heki latest-field "$INFO/mood.heki" current_state 2>/dev/null)
+  fg=$($HECKS heki latest-field "$INFO/heartbeat.heki" fatigue 2>/dev/null); [ -z "$fg" ] && fg=0.0
+  sy=$($HECKS heki latest-field "$INFO/focus.heki" weight 2>/dev/null); [ -z "$sy" ] && sy=0.0
+  id=0
+  ex=$($HECKS heki latest-field "$INFO/mood.heki" creativity_level 2>/dev/null); [ -z "$ex" ] && ex=0.0
+  ag=$(awk -v n="$loop_count" 'BEGIN { printf "%.4f", n/86400.0 }')
+  ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
   $HECKS "$AGG" Awareness.RecordMoment moment="$mnum" state="$st" carrying="$cr" concept="$cn" fatigue="$fg" synapse_strength="$sy" idle="$id" excitement="$ex" age_days="$ag" updated_at="$ts" 2>/dev/null
 
   # Dream content during REM — delegate to rem_branch.sh which reads
@@ -159,18 +165,8 @@ print(f\"{$loop_count}|{hb.get('fatigue_state','alert')}|{hb.get('carrying','')}
     # idle ∈ [10, 60]s (heartbeat.updated_at age). Gated to once per
     # 60s via a timestamp file so a 50-tick idle window doesn't spam
     # daydreams. State check above already excluded "sleeping".
-    idle=$(python3 -c "
-import json, sys
-from datetime import datetime, timezone
-try:
-    d = json.load(open('$INFO/heartbeat.heki'))
-    for v in d.values():
-        ts = v.get('updated_at','')
-        if ts:
-            dt = datetime.fromisoformat(ts.replace('Z','+00:00'))
-            print(int((datetime.now(timezone.utc) - dt).total_seconds())); break
-    else: print(999)
-except Exception: print(999)" 2>/dev/null)
+    idle=$($HECKS heki seconds-since "$INFO/heartbeat.heki" updated_at 2>/dev/null)
+    [ -z "$idle" ] && idle=999
     if [ "${idle:-999}" -ge 10 ] && [ "${idle:-999}" -le 60 ]; then
       stamp="$INFO/.daydream.last"
       last=$(cat "$stamp" 2>/dev/null || echo 0)
