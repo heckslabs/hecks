@@ -59,7 +59,7 @@ Hecks.bluebook "HecksAppeal" do
     end
 
     command "DiscoverProjects" do
-      description "Scan a directory for hecks apps -- looks for bluebook.hec files"
+      description "Scan a directory for hecks apps -- looks for .bluebook files"
       attribute :search_path, String
       emits "ProjectsDiscovered"
     end
@@ -137,7 +137,7 @@ Hecks.bluebook "HecksAppeal" do
     reference_to Project
 
     command "OpenDocument" do
-      description "Load a .hec file into the editor"
+      description "Load a .bluebook / .hecksagon / .world file into the editor"
       reference_to Project
       attribute :filename, String
       emits "DocumentOpened"

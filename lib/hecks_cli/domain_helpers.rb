@@ -13,8 +13,8 @@ module Hecks
     private
 
     def find_domain_file
-      %w[*.hec Bluebook *Bluebook].each do |pattern|
-        files = Dir[File.join(Dir.pwd, pattern)].reject { |f| File.basename(f).match?(/hecksagon/i) }
+      %w[*.bluebook Bluebook *Bluebook].each do |pattern|
+        files = Dir[File.join(Dir.pwd, pattern)]
         return files.first if files.any?
       end
       nil
@@ -31,7 +31,7 @@ module Hecks
           installed = find_installed_domains
           case installed.size
           when 0
-            abort "No domain found. Create a .hec file or install a domain gem."
+            abort "No domain found. Create a .bluebook file or install a domain gem."
           when 1
             name, _ = installed.first
             say "Auto-selected domain: #{name}", :green
@@ -76,8 +76,8 @@ module Hecks
     end
 
     def find_domain_in(dir)
-      %w[*.hec Bluebook *Bluebook].each do |pattern|
-        files = Dir[File.join(dir, pattern)].reject { |f| File.basename(f).match?(/hecksagon/i) }
+      %w[*.bluebook Bluebook *Bluebook].each do |pattern|
+        files = Dir[File.join(dir, pattern)]
         return files.first if files.any?
       end
       nil
@@ -85,7 +85,7 @@ module Hecks
 
     def find_installed_domains
       ::Gem::Specification.select { |spec|
-        Dir[File.join(spec.full_gem_path, "*.hec")].any? || Dir[File.join(spec.full_gem_path, "*Bluebook")].any?
+        Dir[File.join(spec.full_gem_path, "*.bluebook")].any? || Dir[File.join(spec.full_gem_path, "*Bluebook")].any?
       }.group_by(&:name).map { |name, specs| [name, specs.map(&:version).sort.reverse] }
     end
 

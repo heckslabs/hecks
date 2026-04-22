@@ -37,7 +37,7 @@ fi
 TMP=$(mktemp -d)
 trap "rm -rf $TMP" EXIT
 
-# Mirror the conception layout inside TMP so hecks-life's world.hec
+# Mirror the conception layout inside TMP so hecks-life's *.world
 # discovery lands on TMP/information, not the real one. Aggregates +
 # nursery are symlinked because they're read-only; information is the
 # only mutable target (that's the whole point of using a tmpdir).
@@ -46,7 +46,7 @@ AGG="$TMP/aggregates"
 mkdir -p "$INFO"
 ln -s "$ROOT/aggregates" "$AGG"
 ln -s "$ROOT/nursery"    "$TMP/nursery"
-cat > "$TMP/world.hec" <<'EOF'
+cat > "$TMP/miette_test.world" <<'EOF'
 Hecks.world "MiettTest" do
   heki do
     dir "information"
@@ -83,7 +83,7 @@ before=$("$HECKS" heki read "$INFO/dream_state.heki" 2>/dev/null \
   | python3 -c "import json,sys; print(len(json.load(sys.stdin)))")
 
 # Run the REM branch 10 times. Use TMP/aggregates so hecks-life's
-# world.hec discovery lands on TMP/information; the live stores are
+# *.world discovery lands on TMP/information; the live stores are
 # never touched.
 for i in $(seq 1 10); do
   INFO="$INFO" AGG="$AGG" NURSERY="$TMP/nursery" \

@@ -1,7 +1,7 @@
 # Hecks::Capabilities::LiveReload
 #
-# Live-reload capability for the Hecks framework. Watches .bluebook and
-# .hec files for changes, hot-reloads the domain IR, and publishes a
+# Live-reload capability for the Hecks framework. Watches .bluebook,
+# .hecksagon, and .world files for changes, hot-reloads the domain IR, and publishes a
 # BluebookReloaded event through the runtime's event bus. When paired
 # with the :websocket capability, connected browser clients receive the
 # reload event automatically and can refresh their state.

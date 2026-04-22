@@ -3,7 +3,7 @@
 # Registry for domain capabilities. Capabilities enrich the domain IR by
 # generating constructs (commands, repository bindings) at runtime.
 # Each capability can declare its config schema via describe_capability,
-# which enables auto-generation of world.hec config blocks.
+# which enables auto-generation of .world config blocks.
 #
 #   Hecks.register_capability(:crud) { |runtime| CrudCapability.apply(runtime) }
 #   Hecks.describe_capability(:websocket, config: { port: { default: 4568, desc: "WebSocket port" } })
@@ -29,7 +29,7 @@ module Hecks
     end
 
     # Declare a capability's config schema. Used to auto-generate
-    # commented world.hec blocks when a capability is added.
+    # commented .world blocks when a capability is added.
     #
     # @param name [Symbol] capability name
     # @param description [String] what this capability does
@@ -50,7 +50,7 @@ module Hecks
       meta ? meta[:config] : {}
     end
 
-    # Generate a commented world.hec config block for a capability.
+    # Generate a commented .world config block for a capability.
     #
     # @param name [Symbol] capability name
     # @return [String] commented config block, or empty string

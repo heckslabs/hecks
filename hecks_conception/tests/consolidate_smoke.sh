@@ -39,7 +39,7 @@ mkdir -p "$TMP/information" "$TMP/aggregates"
 
 ln -sf "$CONCEPT_DIR/aggregates/"*.bluebook "$TMP/aggregates/"
 
-cat > "$TMP/world.hec" <<'EOF'
+cat > "$TMP/consolidate_smoke.world" <<'EOF'
 Hecks.world "ConsolidateSmoke" do
   heki do
     dir "information"

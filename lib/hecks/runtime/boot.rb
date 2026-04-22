@@ -21,7 +21,7 @@ module Hecks
     # @param dir [String] project directory containing hecks/ subdirectory
     # @param domain [BluebookModel::Structure::Bluebook] pre-built domain IR (skips file discovery)
     # @param root [String] root path for capabilities to resolve relative paths
-    # @param source_dir [String] directory for companion files (hecksagon.hec, world.hec)
+    # @param source_dir [String] directory for companion files (*.hecksagon, *.world)
     # @return [Hecks::Runtime, Array<Hecks::Runtime>]
     def boot(dir = Dir.pwd, domain: nil, root: nil, source_dir: nil)
       require "hecks/runtime/load_extensions"
@@ -211,14 +211,14 @@ module Hecks
       Dir[File.join(dir, "*.bluebook")].sort
     end
 
-    # Find hecksagon files: hecksagon.hec
+    # Find hecksagon files: *.hecksagon (domain-named)
     def find_hecksagon_files(dir)
-      Dir[File.join(dir, "hecksagon.hec")].sort
+      Dir[File.join(dir, "*.hecksagon")].sort
     end
 
-    # Find world files: world.hec
+    # Find world files: *.world (domain-named)
     def find_world_files(dir)
-      Dir[File.join(dir, "world.hec")].sort
+      Dir[File.join(dir, "*.world")].sort
     end
 
   end

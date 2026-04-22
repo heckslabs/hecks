@@ -40,8 +40,8 @@ my_project/
     formulation.bluebook
     catalog.bluebook
     manufacturing.bluebook
-  hecksagon.hec
-  world.hec
+  my_project.hecksagon
+  my_project.world
 ```
 
 Cross-domain policies use `across "OtherDomain"` to declare the wiring:

@@ -684,10 +684,22 @@ fn being_from_argv0(argv0: &str) -> String {
     }
 }
 
-/// Read ollama config from world.hec — returns (model, url) if configured.
+/// Locate a domain-named `*.world` file in the given directory.
+/// Returns the first match sorted alphabetically so behavior is deterministic.
+fn find_world_file(dir: &std::path::Path) -> Option<std::path::PathBuf> {
+    let mut matches: Vec<std::path::PathBuf> = fs::read_dir(dir).ok()?
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| p.extension().map(|e| e == "world").unwrap_or(false))
+        .collect();
+    matches.sort();
+    matches.into_iter().next()
+}
+
+/// Read ollama config from the project's *.world file — returns (model, url) if configured.
 fn find_world_ollama_config(agg_path: &str) -> Option<(String, String)> {
     let parent = std::path::Path::new(agg_path).parent()?;
-    let world_path = parent.join("world.hec");
+    let world_path = find_world_file(parent)?;
     let content = fs::read_to_string(&world_path).ok()?;
     let mut in_ollama = false;
     let mut model = None;
@@ -744,11 +756,11 @@ fn run_terminal(project_dir: &str, being: &str) {
     hecks_life::runtime::adapter_terminal::run(&mut rt, being);
 }
 
-/// Find the heki dir from world.hec — look in parent of the given path.
+/// Find the heki dir from the project's *.world file — look in parent of the given path.
 /// Parses: `heki do\n  dir "information"\nend`
 fn find_world_heki_dir(aggregates_path: &str) -> Option<String> {
     let parent = std::path::Path::new(aggregates_path).parent()?;
-    let world_path = parent.join("world.hec");
+    let world_path = find_world_file(parent)?;
     let content = fs::read_to_string(&world_path).ok()?;
     // Simple parse: find `dir "..."` inside `heki do...end`
     let mut in_heki = false;

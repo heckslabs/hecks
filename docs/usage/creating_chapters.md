@@ -168,7 +168,7 @@ existence + description + expected commands.
 5. Add to Gemfile, run `bundle install`
 6. Generate specs with `ChapterSpecGenerator`
 7. Run `bundle exec rspec` — all must pass under 1 second
-8. Optionally write the example bluebook at `examples/<name>/bluebook.hec`
+8. Optionally write the example bluebook at `examples/<name>/<name>.bluebook`
 
 ## Existing Chapters
 

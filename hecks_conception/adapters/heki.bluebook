@@ -7,7 +7,7 @@ Hecks.bluebook "HekiAdapter", version: "2026.04.16.1" do
   # ============================================================
   #
   # Like the sqlite adapter but for heki binary stores.
-  # Declared in world.hec: heki do dir "information" end
+  # Declared in the project's *.world file: heki do dir "information" end
   #
   # Behavior:
   #   - Each aggregate maps to a .heki file (PascalCase → snake_case.heki)

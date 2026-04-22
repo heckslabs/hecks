@@ -40,8 +40,8 @@ mkdir -p "$TMP/information" "$TMP/aggregates"
 # Link aggregates so dispatch finds the organs/awareness/etc bluebooks.
 ln -sf "$CONCEPT_DIR/aggregates/"*.bluebook "$TMP/aggregates/"
 
-# world.hec pins the heki dir — the runtime reads it.
-cat > "$TMP/world.hec" <<'EOF'
+# *.world pins the heki dir — the runtime reads it.
+cat > "$TMP/pulse_organs_smoke.world" <<'EOF'
 Hecks.world "PulseOrgansSmoke" do
   heki do
     dir "information"

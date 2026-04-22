@@ -6,7 +6,7 @@
 #
 # Provider precedence:
 #   claude (default): Anthropic API if ANTHROPIC_API_KEY set; else `claude -p` CLI
-#   local:            ollama via curl (uses world.hec model + url)
+#   local:            ollama via curl (uses *.world model + url)
 #   off:              no-op
 
 DIR="$(dirname "$0")"
@@ -177,8 +177,9 @@ except Exception:
     fi
     ;;
   local)
-    ollama_url=$(grep -A4 "ollama" "$DIR/world.hec" 2>/dev/null | grep "url" | sed 's/.*"\(.*\)".*/\1/' | head -1)
-    ollama_model=$(grep -A4 "ollama" "$DIR/world.hec" 2>/dev/null | grep "model" | sed 's/.*"\(.*\)".*/\1/' | head -1)
+    world_file=$(ls "$DIR"/*.world 2>/dev/null | head -1)
+    ollama_url=$(grep -A4 "ollama" "$world_file" 2>/dev/null | grep "url" | sed 's/.*"\(.*\)".*/\1/' | head -1)
+    ollama_model=$(grep -A4 "ollama" "$world_file" 2>/dev/null | grep "model" | sed 's/.*"\(.*\)".*/\1/' | head -1)
     [ -z "$ollama_url" ] && ollama_url="http://localhost:11434"
     [ -z "$ollama_model" ] && ollama_model="llama3"
     response=$(curl -s -m 30 "${ollama_url}/api/generate" \

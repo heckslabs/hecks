@@ -19,9 +19,9 @@
 #   HECKS_INFO  — alternate information directory (default: ./information)
 #   HECKS_AGG   — alternate aggregates directory (default: ./aggregates)
 #   HECKS_BIN   — alternate hecks-life binary
-#   HECKS_WORLD — directory holding world.hec (default: $DIR parent of AGG).
+#   HECKS_WORLD — directory holding the *.world file (default: $DIR parent of AGG).
 #                 Dispatch is run with cwd=HECKS_WORLD so the runtime reads
-#                 the correct heki dir from world.hec.
+#                 the correct heki dir from the *.world file.
 
 set -u
 

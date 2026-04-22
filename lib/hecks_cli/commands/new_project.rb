@@ -28,11 +28,11 @@ Hecks::CLI.handle(:new_project) do |inv|
   end
 
   hecksagon_template = lambda do
-    <<~HEC
+    <<~HECKSAGON
       Hecks.hecksagon "#{pascal}" do
         capabilities :crud
       end
-    HEC
+    HECKSAGON
   end
 
   gemfile_template = lambda do
@@ -80,13 +80,13 @@ Hecks::CLI.handle(:new_project) do |inv|
   FileUtils.mkdir_p(File.join(dir, "spec"))
 
   write_or_diff(
-    File.join(dir, "bluebook.hec"),
+    File.join(dir, "#{name}.bluebook"),
     domain_template(pascal,
       world_concerns: world_result[:concerns],
       extensions:     world_result[:extensions],
       stub:           world_result[:stub])
   )
-  write_or_diff(File.join(dir, "hecksagon.hec"), hecksagon_template.call)
+  write_or_diff(File.join(dir, "#{name}.hecksagon"), hecksagon_template.call)
   write_or_diff(File.join(dir, "#{name}.rb"), app_template.call)
   write_or_diff(File.join(dir, "Gemfile"), gemfile_template.call)
   write_or_diff(File.join(dir, "spec", "spec_helper.rb"), spec_helper_template.call)
@@ -99,8 +99,8 @@ Hecks::CLI.handle(:new_project) do |inv|
   else
     say "Created #{dir}/", :green
   end
-  say "  bluebook.hec"
-  say "  hecksagon.hec"
+  say "  #{name}.bluebook"
+  say "  #{name}.hecksagon"
   say "  #{name}.rb"
   say "  Gemfile"
   say "  spec/spec_helper.rb"
