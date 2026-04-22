@@ -19,7 +19,7 @@ Hecks.bluebook "Quarry" do
       description "Extract raw stone block from quarry face using wire saw"
       attribute :stone_type, String
       attribute :bench_location, String
-      reference_to "StoneBlock"
+      reference_to(StoneBlock)
       emits "BlockExtracted"
     end
 
@@ -27,7 +27,7 @@ Hecks.bluebook "Quarry" do
       description "Assess stone block quality and assign commercial grade"
       attribute :grade, String
       attribute :defect_notes, String
-      reference_to "StoneBlock"
+      reference_to(StoneBlock)
       emits "BlockGraded"
     end
 
@@ -36,14 +36,7 @@ Hecks.bluebook "Quarry" do
       transition "GradeBlock" => "graded", from: "extracted"
     end
 
-    policy "Blocks must be graded within 24 hours of extraction"
-    policy "Cracked blocks must be downgraded or rejected"
 
-    given "A marble block is extracted from bench 3" do
-      attribute :stone_type, String, "Carrara Marble"
-      attribute :grade, String, "Premium"
-      attribute :length_m, Float, 3.0
-    end
   end
 
   aggregate "CuttingJob" do
@@ -52,13 +45,13 @@ Hecks.bluebook "Quarry" do
     attribute :thickness_mm, Float
     attribute :slab_count, Integer
     attribute :status, String
-    list_of "StoneBlock"
+    list_of(StoneBlock)
 
     command "SawSlabs" do
       description "Cut stone block into slabs on the gang saw or bridge saw"
       attribute :cut_type, String
       attribute :thickness_mm, Float
-      reference_to "StoneBlock"
+      reference_to(StoneBlock)
       emits "SlabsSawn"
     end
 
@@ -66,7 +59,7 @@ Hecks.bluebook "Quarry" do
       description "Polish slab surfaces to specified finish level"
       attribute :finish_type, String
       attribute :grit_level, Integer
-      reference_to "CuttingJob"
+      reference_to(CuttingJob)
       emits "SlabsPolished"
     end
 
@@ -75,7 +68,7 @@ Hecks.bluebook "Quarry" do
       attribute :inspector, String
       attribute :passed_count, Integer
       attribute :rejected_count, Integer
-      reference_to "CuttingJob"
+      reference_to(CuttingJob)
       emits "SlabsInspected"
     end
 
@@ -85,7 +78,6 @@ Hecks.bluebook "Quarry" do
       transition "InspectSlabs" => "inspected", from: "polished"
     end
 
-    policy "Saw blades must be inspected before each cutting job"
   end
 
   aggregate "QuarryEquipment" do
@@ -105,7 +97,7 @@ Hecks.bluebook "Quarry" do
       description "Perform preventive maintenance on quarry machinery"
       attribute :service_type, String
       attribute :technician, String
-      reference_to "QuarryEquipment"
+      reference_to(QuarryEquipment)
       emits "EquipmentServiced"
     end
 
@@ -113,7 +105,7 @@ Hecks.bluebook "Quarry" do
       description "Report equipment malfunction requiring unplanned repair"
       attribute :fault_description, String
       attribute :severity, String
-      reference_to "QuarryEquipment"
+      reference_to(QuarryEquipment)
       emits "FaultReported"
     end
 
@@ -122,7 +114,6 @@ Hecks.bluebook "Quarry" do
       transition "ReportFault" => "faulted", from: "operational"
     end
 
-    policy "Equipment exceeding 500 hours must be serviced"
   end
 
   aggregate "StoneInventory" do
@@ -137,7 +128,7 @@ Hecks.bluebook "Quarry" do
       description "Move graded blocks into inventory yard with location tag"
       attribute :yard_location, String
       attribute :block_count, Integer
-      reference_to "StoneBlock"
+      reference_to(StoneBlock)
       emits "StockReceived"
     end
 
@@ -145,11 +136,10 @@ Hecks.bluebook "Quarry" do
       description "Reserve inventory blocks against a customer order"
       attribute :order_id, String
       attribute :reserved_count, Integer
-      reference_to "StoneInventory"
+      reference_to(StoneInventory)
       emits "StockReserved"
     end
 
-    policy "Reserved stock cannot be sold to another customer"
   end
 
   aggregate "QuarryOrder" do
@@ -165,7 +155,7 @@ Hecks.bluebook "Quarry" do
       attribute :customer_name, String
       attribute :stone_type, String
       attribute :quantity, Integer
-      reference_to "QuarryOrder"
+      reference_to(QuarryOrder)
       emits "OrderPlaced"
     end
 
@@ -173,7 +163,7 @@ Hecks.bluebook "Quarry" do
       description "Load finished stone products for delivery to customer"
       attribute :carrier, String
       attribute :truck_id, String
-      reference_to "QuarryOrder"
+      reference_to(QuarryOrder)
       emits "OrderDispatched"
     end
 
@@ -182,7 +172,6 @@ Hecks.bluebook "Quarry" do
       transition "DispatchOrder" => "dispatched", from: "confirmed"
     end
 
-    policy "Orders require deposit before production begins"
   end
 
   policy "GradeBlockOnBlockExtracted" do

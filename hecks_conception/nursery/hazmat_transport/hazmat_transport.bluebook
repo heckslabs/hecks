@@ -20,7 +20,7 @@ Hecks.bluebook "HazmatTransport" do
       attribute :shipper_name, String
       attribute :un_number, String
       attribute :hazard_class, String
-      reference_to "HazmatShipment"
+      reference_to(HazmatShipment)
       emits "HazmatShipmentBooked"
     end
 
@@ -28,7 +28,7 @@ Hecks.bluebook "HazmatTransport" do
       description "Pack hazmat material into DOT-approved containers per packing group"
       attribute :container_type, String
       attribute :packing_group, String
-      reference_to "HazmatShipment"
+      reference_to(HazmatShipment)
       emits "MaterialPackaged"
     end
 
@@ -36,7 +36,7 @@ Hecks.bluebook "HazmatTransport" do
       description "Load packaged hazmat onto transport vehicle per segregation rules"
       attribute :vehicle_id, String
       attribute :load_position, String
-      reference_to "HazmatShipment"
+      reference_to(HazmatShipment)
       emits "ShipmentLoaded"
     end
 
@@ -44,7 +44,7 @@ Hecks.bluebook "HazmatTransport" do
       description "Record safe delivery of hazardous materials to consignee"
       attribute :receiver_name, String
       attribute :delivery_condition, String
-      reference_to "HazmatShipment"
+      reference_to(HazmatShipment)
       emits "DeliveryConfirmed"
     end
 
@@ -55,14 +55,7 @@ Hecks.bluebook "HazmatTransport" do
       transition "ConfirmDelivery" => "delivered", from: "in_transit"
     end
 
-    policy "Incompatible hazard classes must not be loaded on same vehicle"
-    policy "Shipping papers must accompany shipment at all times"
 
-    given "A Class 3 flammable liquid shipment is booked" do
-      attribute :un_number, String, "UN1203"
-      attribute :proper_shipping_name, String, "Gasoline"
-      attribute :hazard_class, String, "3"
-    end
   end
 
   aggregate "HazmatMaterial" do
@@ -78,7 +71,7 @@ Hecks.bluebook "HazmatTransport" do
       attribute :un_number, String
       attribute :proper_shipping_name, String
       attribute :packing_group, String
-      reference_to "HazmatMaterial"
+      reference_to(HazmatMaterial)
       emits "MaterialRegistered"
     end
 
@@ -86,7 +79,7 @@ Hecks.bluebook "HazmatTransport" do
       description "Update material hazard classification per regulatory change"
       attribute :new_hazard_class, String
       attribute :effective_date, String
-      reference_to "HazmatMaterial"
+      reference_to(HazmatMaterial)
       emits "ClassificationUpdated"
     end
 
@@ -95,7 +88,6 @@ Hecks.bluebook "HazmatTransport" do
       transition "UpdateClassification" => "updated", from: "registered"
     end
 
-    policy "Materials must be classified per current DOT 49 CFR"
   end
 
   aggregate "DriverCertification" do
@@ -111,14 +103,14 @@ Hecks.bluebook "HazmatTransport" do
       attribute :driver_name, String
       attribute :certification_type, String
       attribute :issuing_authority, String
-      reference_to "DriverCertification"
+      reference_to(DriverCertification)
       emits "CertificationIssued"
     end
 
     command "RenewCertification" do
       description "Renew expiring driver hazmat certification after retraining"
       attribute :new_expiry_date, String
-      reference_to "DriverCertification"
+      reference_to(DriverCertification)
       emits "CertificationRenewed"
     end
 
@@ -127,7 +119,6 @@ Hecks.bluebook "HazmatTransport" do
       transition "RenewCertification" => "renewed", from: "active"
     end
 
-    policy "Expired certifications prohibit driver from hauling hazmat"
   end
 
   aggregate "TransportRoute" do
@@ -137,7 +128,7 @@ Hecks.bluebook "HazmatTransport" do
     attribute :distance_miles, Float
     attribute :route_restrictions, String
     attribute :status, String
-    list_of "HazmatShipment"
+    list_of(HazmatShipment)
 
     value_object "RouteRestriction" do
       attribute :restriction_type, String
@@ -149,14 +140,14 @@ Hecks.bluebook "HazmatTransport" do
       description "Plan transport route avoiding tunnels, bridges, and restricted zones"
       attribute :origin, String
       attribute :destination, String
-      reference_to "TransportRoute"
+      reference_to(TransportRoute)
       emits "RoutePlanned"
     end
 
     command "ApproveRoute" do
       description "Approve planned route after safety and compliance review"
       attribute :approver, String
-      reference_to "TransportRoute"
+      reference_to(TransportRoute)
       emits "RouteApproved"
     end
 
@@ -165,7 +156,6 @@ Hecks.bluebook "HazmatTransport" do
       transition "ApproveRoute" => "approved", from: "planned"
     end
 
-    policy "Routes through population centers require special permit"
   end
 
   aggregate "HazmatIncident" do
@@ -181,14 +171,14 @@ Hecks.bluebook "HazmatTransport" do
       attribute :incident_type, String
       attribute :location, String
       attribute :estimated_quantity_kg, Float
-      reference_to "HazmatShipment"
+      reference_to(HazmatShipment)
       emits "SpillReported"
     end
 
     command "ContainSpill" do
       description "Deploy containment measures to prevent spread of hazardous material"
       attribute :containment_method, String
-      reference_to "HazmatIncident"
+      reference_to(HazmatIncident)
       emits "SpillContained"
     end
 
@@ -196,7 +186,7 @@ Hecks.bluebook "HazmatTransport" do
       description "Close incident after cleanup completion and agency notification"
       attribute :cleanup_contractor, String
       attribute :agency_notified, String
-      reference_to "HazmatIncident"
+      reference_to(HazmatIncident)
       emits "IncidentClosed"
     end
 
@@ -206,7 +196,6 @@ Hecks.bluebook "HazmatTransport" do
       transition "CloseIncident" => "closed", from: "contained"
     end
 
-    policy "Reportable quantity spills require NRC notification within 15 minutes"
   end
 
   policy "PlanHazmatRouteOnHazmatShipmentBooked" do

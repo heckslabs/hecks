@@ -18,7 +18,7 @@ Hecks.bluebook "TextileMill" do
       attribute :fiber_type, String
       attribute :target_denier, Float
       attribute :twist_per_meter, Float
-      reference_to "YarnLot"
+      reference_to(YarnLot)
       emits "YarnSpun"
     end
 
@@ -26,7 +26,7 @@ Hecks.bluebook "TextileMill" do
       description "Test yarn tensile strength and elongation before dyeing"
       attribute :tensile_strength_cn, Float
       attribute :elongation_percent, Float
-      reference_to "YarnLot"
+      reference_to(YarnLot)
       emits "YarnTested"
     end
 
@@ -35,7 +35,7 @@ Hecks.bluebook "TextileMill" do
       attribute :dye_recipe, String
       attribute :color_code, String
       attribute :temperature_c, Float
-      reference_to "YarnLot"
+      reference_to(YarnLot)
       emits "YarnDyed"
     end
 
@@ -45,8 +45,6 @@ Hecks.bluebook "TextileMill" do
       transition "DyeYarn" => "dyed", from: "tested"
     end
 
-    policy "Yarn must pass tensile strength test before weaving"
-    policy "Dye lots must be tested for color fastness"
   end
 
   aggregate "FabricRoll" do
@@ -55,14 +53,14 @@ Hecks.bluebook "TextileMill" do
     attribute :width_cm, Float
     attribute :length_meters, Float
     attribute :status, String
-    list_of "YarnLot"
+    list_of(YarnLot)
 
     command "WeaveCloth" do
       description "Weave yarn into fabric on a loom using specified pattern"
       attribute :loom_id, String
       attribute :weave_pattern, String
       attribute :target_width_cm, Float
-      reference_to "YarnLot"
+      reference_to(YarnLot)
       emits "ClothWoven"
     end
 
@@ -70,14 +68,14 @@ Hecks.bluebook "TextileMill" do
       description "Inspect woven fabric for defects per 100 meters"
       attribute :defects_found, Integer
       attribute :inspector, String
-      reference_to "FabricRoll"
+      reference_to(FabricRoll)
       emits "FabricInspected"
     end
 
     command "FinishFabric" do
       description "Apply finishing treatments like calendering or sanforizing"
       attribute :finish_type, String
-      reference_to "FabricRoll"
+      reference_to(FabricRoll)
       emits "FabricFinished"
     end
 
@@ -87,13 +85,7 @@ Hecks.bluebook "TextileMill" do
       transition "FinishFabric" => "finished", from: "inspected"
     end
 
-    policy "Fabric must be inspected per 100 meters for defects"
 
-    given "A cotton twill roll is woven" do
-      attribute :weave_pattern, String, "2/1 Twill"
-      attribute :width_cm, Float, 150.0
-      attribute :length_meters, Float, 500.0
-    end
   end
 
   aggregate "DyeRecipe" do
@@ -116,11 +108,10 @@ Hecks.bluebook "TextileMill" do
       attribute :color_name, String
       attribute :dye_class, String
       attribute :concentration_gpl, Float
-      reference_to "DyeRecipe"
+      reference_to(DyeRecipe)
       emits "RecipeFormulated"
     end
 
-    policy "Delta E must be within tolerance for color approval"
   end
 
   aggregate "Loom" do
@@ -134,7 +125,7 @@ Hecks.bluebook "TextileMill" do
       description "Thread warp yarns through heddles and reed to prepare loom"
       attribute :warp_yarn_lot, String
       attribute :end_count, Integer
-      reference_to "YarnLot"
+      reference_to(YarnLot)
       emits "LoomWarped"
     end
 
@@ -142,7 +133,7 @@ Hecks.bluebook "TextileMill" do
       description "Service loom mechanisms and replace worn components"
       attribute :maintenance_type, String
       attribute :technician, String
-      reference_to "Loom"
+      reference_to(Loom)
       emits "LoomServiced"
     end
 
@@ -151,7 +142,6 @@ Hecks.bluebook "TextileMill" do
       transition "PerformLoomMaintenance" => "serviced", from: "idle"
     end
 
-    policy "Loom must be warped before weaving can begin"
   end
 
   aggregate "TextileOrder" do
@@ -161,21 +151,21 @@ Hecks.bluebook "TextileMill" do
     attribute :quantity_meters, Float
     attribute :delivery_date, String
     attribute :status, String
-    list_of "FabricRoll"
+    list_of(FabricRoll)
 
     command "AcceptOrder" do
       description "Accept buyer order specifying fabric type and quantity"
       attribute :buyer_name, String
       attribute :fabric_type, String
       attribute :quantity_meters, Float
-      reference_to "TextileOrder"
+      reference_to(TextileOrder)
       emits "OrderAccepted"
     end
 
     command "ShipOrder" do
       description "Pack and ship fabric rolls to fulfill buyer order"
       attribute :shipping_method, String
-      reference_to "TextileOrder"
+      reference_to(TextileOrder)
       emits "OrderShipped"
     end
 
@@ -184,7 +174,6 @@ Hecks.bluebook "TextileMill" do
       transition "ShipOrder" => "shipped", from: "accepted"
     end
 
-    policy "Shipped fabric must match order color and weave specifications"
   end
 
   policy "TestYarnOnYarnSpun" do

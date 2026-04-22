@@ -18,7 +18,7 @@ Hecks.bluebook "NuclearPlant" do
       description "Complete fuel loading during refueling outage before startup"
       attribute :assemblies_loaded, Integer
       attribute :core_map_version, String
-      reference_to "Reactor"
+      reference_to(Reactor)
       emits "FuelLoaded"
     end
 
@@ -26,28 +26,28 @@ Hecks.bluebook "NuclearPlant" do
       description "Begin controlled reactor startup by withdrawing control rods"
       attribute :target_power_percent, Float
       attribute :shift_supervisor, String
-      reference_to "Reactor"
+      reference_to(Reactor)
       emits "ReactorStarted"
     end
 
     command "SynchronizeToGrid" do
       description "Connect generator to electrical grid at synchronous speed"
       attribute :output_mwe, Float
-      reference_to "Reactor"
+      reference_to(Reactor)
       emits "GeneratorSynchronized"
     end
 
     command "RaisePower" do
       description "Increase reactor power level toward full rated capacity"
       attribute :target_power_percent, Float
-      reference_to "Reactor"
+      reference_to(Reactor)
       emits "PowerRaised"
     end
 
     command "TripReactor" do
       description "Initiate emergency reactor shutdown by inserting all control rods"
       attribute :trip_reason, String
-      reference_to "Reactor"
+      reference_to(Reactor)
       emits "ReactorTripped"
     end
 
@@ -59,14 +59,7 @@ Hecks.bluebook "NuclearPlant" do
       transition "TripReactor" => "tripped", from: "full_power"
     end
 
-    policy "Reactor startup requires dual authorization from licensed operators"
-    policy "Any trip must be followed by root cause investigation"
 
-    given "Unit 1 operates at full power" do
-      attribute :reactor_type, String, "PWR"
-      attribute :electrical_capacity_mwe, Float, 1100.0
-      attribute :current_power_percent, Float, 100.0
-    end
   end
 
   aggregate "FuelAssembly" do
@@ -76,27 +69,27 @@ Hecks.bluebook "NuclearPlant" do
     attribute :burn_cycle, Integer
     attribute :core_position, String
     attribute :status, String
-    list_of "FuelRod"
+    list_of(FuelRod)
 
     command "LoadAssembly" do
       description "Place fuel assembly into reactor core during refueling outage"
       attribute :core_position, String
       attribute :burn_cycle, Integer
-      reference_to "Reactor"
+      reference_to(Reactor)
       emits "AssemblyLoaded"
     end
 
     command "TransferToPool" do
       description "Move spent fuel assembly from core to cooling pool"
       attribute :pool_location, String
-      reference_to "FuelAssembly"
+      reference_to(FuelAssembly)
       emits "AssemblyTransferred"
     end
 
     command "TransferToDryStorage" do
       description "Move cooled spent fuel from pool to dry cask storage"
       attribute :cask_id, String
-      reference_to "FuelAssembly"
+      reference_to(FuelAssembly)
       emits "AssemblyInDryStorage"
     end
 
@@ -106,7 +99,6 @@ Hecks.bluebook "NuclearPlant" do
       transition "TransferToDryStorage" => "dry_storage", from: "cooling"
     end
 
-    policy "Spent fuel must cool in pool for minimum 5 years before dry storage"
   end
 
   aggregate "CoolingSystem" do
@@ -128,7 +120,7 @@ Hecks.bluebook "NuclearPlant" do
       description "Start reactor coolant pump for primary or secondary loop"
       attribute :loop_designation, String
       attribute :pump_id, String
-      reference_to "CoolingSystem"
+      reference_to(CoolingSystem)
       emits "CoolantPumpStarted"
     end
 
@@ -136,7 +128,7 @@ Hecks.bluebook "NuclearPlant" do
       description "Dilute or borate primary coolant to control reactivity"
       attribute :target_boron_ppm, Float
       attribute :direction, String
-      reference_to "CoolingSystem"
+      reference_to(CoolingSystem)
       emits "BoronAdjusted"
     end
 
@@ -145,7 +137,6 @@ Hecks.bluebook "NuclearPlant" do
       transition "AdjustBoronConcentration" => "adjusted", from: "circulating"
     end
 
-    policy "Primary coolant chemistry must remain within tech spec limits"
   end
 
   aggregate "RadiationSurvey" do
@@ -161,7 +152,7 @@ Hecks.bluebook "NuclearPlant" do
       attribute :area, String
       attribute :surveyor, String
       attribute :dose_rate_msv_hr, Float
-      reference_to "RadiationSurvey"
+      reference_to(RadiationSurvey)
       emits "SurveyConducted"
     end
 
@@ -169,7 +160,7 @@ Hecks.bluebook "NuclearPlant" do
       description "Post warning signs and access controls for elevated radiation area"
       attribute :posting_level, String
       attribute :access_limit_msv, Float
-      reference_to "RadiationSurvey"
+      reference_to(RadiationSurvey)
       emits "AreaPosted"
     end
 
@@ -177,7 +168,7 @@ Hecks.bluebook "NuclearPlant" do
       description "Record NRC or internal inspection passed for the surveyed area"
       attribute :inspector_name, String
       attribute :inspection_id, String
-      reference_to "RadiationSurvey"
+      reference_to(RadiationSurvey)
       emits "InspectionPassed"
     end
 
@@ -187,7 +178,6 @@ Hecks.bluebook "NuclearPlant" do
       transition "PassInspection" => "cleared", from: "posted"
     end
 
-    policy "High radiation areas require health physics escort"
   end
 
   aggregate "WastePackage" do
@@ -204,14 +194,14 @@ Hecks.bluebook "NuclearPlant" do
       attribute :waste_class, String
       attribute :container_type, String
       attribute :activity_becquerels, Float
-      reference_to "WastePackage"
+      reference_to(WastePackage)
       emits "WastePackaged"
     end
 
     command "CertifyPackage" do
       description "Certify waste package meets DOT and NRC transport requirements"
       attribute :certifier, String
-      reference_to "WastePackage"
+      reference_to(WastePackage)
       emits "PackageCertified"
     end
 
@@ -219,7 +209,7 @@ Hecks.bluebook "NuclearPlant" do
       description "Transfer waste package to licensed disposal facility"
       attribute :transporter, String
       attribute :disposal_facility, String
-      reference_to "WastePackage"
+      reference_to(WastePackage)
       emits "WasteShipped"
     end
 
@@ -229,7 +219,6 @@ Hecks.bluebook "NuclearPlant" do
       transition "ShipWaste" => "shipped", from: "certified"
     end
 
-    policy "Waste packages must meet DOT and NRC transport requirements"
   end
 
   policy "StartReactorOnFuelLoaded" do

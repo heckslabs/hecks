@@ -19,7 +19,7 @@ Hecks.bluebook "PipelineOperations" do
       description "Bring new pipeline segment into active service after testing"
       attribute :segment_name, String
       attribute :length_miles, Float
-      reference_to "PipelineSegment"
+      reference_to(PipelineSegment)
       emits "SegmentActivated"
     end
 
@@ -27,14 +27,14 @@ Hecks.bluebook "PipelineOperations" do
       description "Perform hydrostatic pressure test to verify segment integrity"
       attribute :test_pressure_psi, Float
       attribute :hold_duration_hours, Float
-      reference_to "PipelineSegment"
+      reference_to(PipelineSegment)
       emits "PressureTestPassed"
     end
 
     command "DeactivateSegment" do
       description "Take pipeline segment out of service for maintenance or retirement"
       attribute :reason, String
-      reference_to "PipelineSegment"
+      reference_to(PipelineSegment)
       emits "SegmentDeactivated"
     end
 
@@ -44,8 +44,6 @@ Hecks.bluebook "PipelineOperations" do
       transition "DeactivateSegment" => "inactive", from: "active"
     end
 
-    policy "Segments must pass hydrostatic test before commissioning"
-    policy "Deactivated segments must be purged and isolated"
   end
 
   aggregate "PumpStation" do
@@ -59,7 +57,7 @@ Hecks.bluebook "PipelineOperations" do
       description "Activate pumps at station to maintain pipeline flow rate"
       attribute :pumps_to_start, Integer
       attribute :target_flow_bph, Float
-      reference_to "PumpStation"
+      reference_to(PumpStation)
       emits "PumpsStarted"
     end
 
@@ -67,7 +65,7 @@ Hecks.bluebook "PipelineOperations" do
       description "Record suction and discharge pressure at pump station"
       attribute :suction_psi, Float
       attribute :discharge_psi, Float
-      reference_to "PumpStation"
+      reference_to(PumpStation)
       emits "PressureMonitored"
     end
 
@@ -75,7 +73,7 @@ Hecks.bluebook "PipelineOperations" do
       description "Emergency or planned shutdown of pump station operations"
       attribute :shutdown_reason, String
       attribute :initiated_by, String
-      reference_to "PumpStation"
+      reference_to(PumpStation)
       emits "StationShutdown"
     end
 
@@ -85,13 +83,7 @@ Hecks.bluebook "PipelineOperations" do
       transition "ShutdownStation" => "shutdown", from: "running"
     end
 
-    policy "Minimum one backup pump must remain available"
 
-    given "Station Alpha runs at 80 percent capacity" do
-      attribute :station_name, String, "Alpha Pump Station"
-      attribute :pump_count, Integer, 4
-      attribute :max_throughput_bph, Float, 50000.0
-    end
   end
 
   aggregate "InlineInspection" do
@@ -101,20 +93,20 @@ Hecks.bluebook "PipelineOperations" do
     attribute :run_date, String
     attribute :anomaly_count, Integer
     attribute :status, String
-    list_of "PipelineSegment"
+    list_of(PipelineSegment)
 
     command "LaunchPig" do
       description "Launch inline inspection pig through pipeline segment"
       attribute :pig_type, String
       attribute :segment_id, String
-      reference_to "PipelineSegment"
+      reference_to(PipelineSegment)
       emits "PigLaunched"
     end
 
     command "ReceivePig" do
       description "Receive inspection pig at downstream trap after run completion"
       attribute :receiver_location, String
-      reference_to "InlineInspection"
+      reference_to(InlineInspection)
       emits "PigReceived"
     end
 
@@ -122,7 +114,7 @@ Hecks.bluebook "PipelineOperations" do
       description "Process pig run data and identify wall loss or dent anomalies"
       attribute :anomaly_count, Integer
       attribute :worst_feature, String
-      reference_to "InlineInspection"
+      reference_to(InlineInspection)
       emits "ResultsAnalyzed"
     end
 
@@ -132,7 +124,6 @@ Hecks.bluebook "PipelineOperations" do
       transition "AnalyzeResults" => "analyzed", from: "received"
     end
 
-    policy "Segments with critical anomalies require immediate pressure reduction"
   end
 
   aggregate "FlowMeasurement" do
@@ -154,7 +145,7 @@ Hecks.bluebook "PipelineOperations" do
       description "Capture custody transfer measurement at meter station"
       attribute :meter_station, String
       attribute :volume_barrels, Float
-      reference_to "FlowMeasurement"
+      reference_to(FlowMeasurement)
       emits "MeasurementRecorded"
     end
 
@@ -162,11 +153,10 @@ Hecks.bluebook "PipelineOperations" do
       description "Perform scheduled calibration of flow measurement equipment"
       attribute :technician, String
       attribute :correction_factor, Float
-      reference_to "FlowMeasurement"
+      reference_to(FlowMeasurement)
       emits "MetersCalibrated"
     end
 
-    policy "Meters must be calibrated monthly for custody transfer accuracy"
   end
 
   aggregate "LeakDetection" do
@@ -182,7 +172,7 @@ Hecks.bluebook "PipelineOperations" do
       attribute :detection_method, String
       attribute :segment_id, String
       attribute :estimated_volume_barrels, Float
-      reference_to "PipelineSegment"
+      reference_to(PipelineSegment)
       emits "LeakAlertRaised"
     end
 
@@ -190,7 +180,7 @@ Hecks.bluebook "PipelineOperations" do
       description "Dispatch field crew and confirm or dismiss leak alert"
       attribute :field_finding, String
       attribute :confirmed_by, String
-      reference_to "LeakDetection"
+      reference_to(LeakDetection)
       emits "LeakConfirmed"
     end
 
@@ -198,7 +188,7 @@ Hecks.bluebook "PipelineOperations" do
       description "Close valves to isolate leaking segment from pipeline"
       attribute :upstream_valve, String
       attribute :downstream_valve, String
-      reference_to "LeakDetection"
+      reference_to(LeakDetection)
       emits "SegmentIsolated"
     end
 
@@ -208,7 +198,6 @@ Hecks.bluebook "PipelineOperations" do
       transition "IsolateSegment" => "isolated", from: "confirmed"
     end
 
-    policy "Confirmed leaks require immediate segment isolation"
   end
 
   policy "StartPumpsOnSegmentActivated" do

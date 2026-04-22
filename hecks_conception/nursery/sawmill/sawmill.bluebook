@@ -18,14 +18,14 @@ Hecks.bluebook "Sawmill" do
       attribute :species, String
       attribute :diameter_inches, Float
       attribute :length_feet, Float
-      reference_to "Log"
+      reference_to(Log)
       emits "LogReceived"
     end
 
     command "DebarLog" do
       description "Remove bark from log before sawing"
       attribute :debarker_id, String
-      reference_to "Log"
+      reference_to(Log)
       emits "LogDebarked"
     end
 
@@ -34,8 +34,6 @@ Hecks.bluebook "Sawmill" do
       transition "DebarLog" => "debarked", from: "scaled"
     end
 
-    policy "Logs must be scaled before entering the mill"
-    policy "Logs must be debarked before primary breakdown"
   end
 
   aggregate "LumberBundle" do
@@ -45,20 +43,20 @@ Hecks.bluebook "Sawmill" do
     attribute :grade, String
     attribute :piece_count, Integer
     attribute :status, String
-    list_of "LumberPiece"
+    list_of(LumberPiece)
 
     command "SawLumber" do
       description "Cut log into dimensional lumber on the headrig"
       attribute :saw_pattern, String
       attribute :target_dimension, String
-      reference_to "Log"
+      reference_to(Log)
       emits "LumberSawn"
     end
 
     command "EdgeLumber" do
       description "Remove wane edges on edger to produce square-edged boards"
       attribute :edger_id, String
-      reference_to "LumberBundle"
+      reference_to(LumberBundle)
       emits "LumberEdged"
     end
 
@@ -66,7 +64,7 @@ Hecks.bluebook "Sawmill" do
       description "Assign structural or appearance grade to lumber pieces"
       attribute :grading_standard, String
       attribute :assigned_grade, String
-      reference_to "LumberBundle"
+      reference_to(LumberBundle)
       emits "LumberGraded"
     end
 
@@ -76,13 +74,7 @@ Hecks.bluebook "Sawmill" do
       transition "GradeLumber" => "graded", from: "edged"
     end
 
-    policy "All lumber must be graded before kiln drying"
 
-    given "A bundle of 2x4 Douglas Fir is sawn" do
-      attribute :species, String, "Douglas Fir"
-      attribute :dimension, String, "2x4"
-      attribute :piece_count, Integer, 96
-    end
   end
 
   aggregate "KilnCharge" do
@@ -91,7 +83,7 @@ Hecks.bluebook "Sawmill" do
     attribute :species, String
     attribute :target_moisture_percent, Float
     attribute :status, String
-    list_of "LumberBundle"
+    list_of(LumberBundle)
 
     value_object "DryingSchedule" do
       attribute :initial_temp_f, Float
@@ -104,21 +96,21 @@ Hecks.bluebook "Sawmill" do
       description "Load lumber bundles into kiln for drying cycle"
       attribute :kiln_id, String
       attribute :schedule_type, String
-      reference_to "KilnCharge"
+      reference_to(KilnCharge)
       emits "KilnLoaded"
     end
 
     command "MonitorMoisture" do
       description "Check moisture content of sample boards during drying cycle"
       attribute :current_moisture_percent, Float
-      reference_to "KilnCharge"
+      reference_to(KilnCharge)
       emits "MoistureChecked"
     end
 
     command "UnloadKiln" do
       description "Remove dried lumber from kiln after cycle completion"
       attribute :final_moisture_percent, Float
-      reference_to "KilnCharge"
+      reference_to(KilnCharge)
       emits "KilnUnloaded"
     end
 
@@ -128,7 +120,6 @@ Hecks.bluebook "Sawmill" do
       transition "UnloadKiln" => "complete", from: "monitored"
     end
 
-    policy "Kiln temperature must follow schedule for species"
   end
 
   aggregate "CutOrder" do
@@ -145,7 +136,7 @@ Hecks.bluebook "Sawmill" do
       attribute :customer_name, String
       attribute :species, String
       attribute :dimension, String
-      reference_to "CutOrder"
+      reference_to(CutOrder)
       emits "CutOrderPlaced"
     end
 
@@ -153,7 +144,7 @@ Hecks.bluebook "Sawmill" do
       description "Load and ship lumber to fulfill customer order"
       attribute :carrier_name, String
       attribute :truck_number, String
-      reference_to "CutOrder"
+      reference_to(CutOrder)
       emits "CutOrderShipped"
     end
 
@@ -162,7 +153,6 @@ Hecks.bluebook "Sawmill" do
       transition "ShipCutOrder" => "shipped", from: "confirmed"
     end
 
-    policy "Orders can only be fulfilled from kiln-dried stock"
   end
 
   aggregate "MillEquipment" do
@@ -176,7 +166,7 @@ Hecks.bluebook "Sawmill" do
       description "Perform scheduled maintenance on sawmill equipment"
       attribute :service_type, String
       attribute :technician, String
-      reference_to "MillEquipment"
+      reference_to(MillEquipment)
       emits "EquipmentServiced"
     end
 
@@ -184,7 +174,7 @@ Hecks.bluebook "Sawmill" do
       description "Log unplanned equipment failure requiring immediate repair"
       attribute :failure_description, String
       attribute :severity, String
-      reference_to "MillEquipment"
+      reference_to(MillEquipment)
       emits "BreakdownReported"
     end
 
@@ -193,7 +183,6 @@ Hecks.bluebook "Sawmill" do
       transition "ReportBreakdown" => "down", from: "operational"
     end
 
-    policy "Equipment exceeding service interval must be taken offline"
   end
 
   policy "DebarLogOnLogReceived" do
