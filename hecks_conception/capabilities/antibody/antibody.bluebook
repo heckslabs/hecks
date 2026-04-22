@@ -229,7 +229,7 @@ Hecks.bluebook "Antibody", version: "2026.04.21.1" do
 
   # ---- ExemptionPattern ------------------------------------------
 
-  aggregate "ExemptionPattern", "The regex antibody uses to detect an exemption marker in a commit message — anchor: \"line_start\" is the slip-through fix" do
+  aggregate "ExemptionPattern", "The regex antibody uses to detect an exemption marker in a commit message — anchored at line start to prevent false matches in commit body prose" do
     attribute :pattern, String
     attribute :flags, String
     attribute :anchor, String
@@ -238,7 +238,7 @@ Hecks.bluebook "Antibody", version: "2026.04.21.1" do
   # ---- TestCase --------------------------------------------------
 
   aggregate "TestCase", "A self-contained antibody scenario — touched files, commit message, expected verdict; antibody.behaviors replays each one" do
-    attribute :touched, Array
+    attribute :touched_files, list_of(String)
     attribute :message, String
     attribute :expected, String
   end
