@@ -47,16 +47,25 @@ tick_cycle=${tick_cycle:-0}
 hearts=("🖤" "❤️")  # downbeat (rest) → upbeat (pulse) — black/red contrast
 heart="${hearts[$(( tick_cycle % 2 ))]}"
 
-# Mood icon
+# Mood icon. The case list MUST cover every mood string that
+# aggregates/body.bluebook emits — otherwise the mood falls through to 😐
+# and the status bar looks like it lost a signal. Emitted moods (grep
+# `then_set :current_state` in body.bluebook): refreshed, groggy, excited,
+# focused, curious, drifting, plus :state pass-through from WakeMood
+# (vivid, etc.). Retires when inbox i44 lands the bluebook statusline.
 case "$mood" in
   refreshed)  mood_icon="😊" ;;
-  flowing)    mood_icon="🌊" ;;
+  excited)    mood_icon="🤩" ;;
+  focused)    mood_icon="🎯" ;;
+  curious)    mood_icon="🤔" ;;
   drifting)   mood_icon="🌀" ;;
-  deep)       mood_icon="🧘" ;;
-  oceanic)    mood_icon="🌌" ;;
   groggy)     mood_icon="😵‍💫" ;;
   vivid)      mood_icon="✨" ;;
   sleeping)   mood_icon="😴" ;;
+  # Legacy moods retained for future use (no emitter in body.bluebook today).
+  flowing)    mood_icon="🌊" ;;
+  deep)       mood_icon="🧘" ;;
+  oceanic)    mood_icon="🌌" ;;
   *)          mood_icon="😐" ;;
 esac
 
