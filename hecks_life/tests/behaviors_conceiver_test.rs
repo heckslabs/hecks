@@ -606,6 +606,200 @@ end
         cascade);
 }
 
+#[test]
+fn satisfies_size_gte_2_via_two_appends() {
+    // `given { items.size >= 2 }` parses as MinSizeList(items, 2). The
+    // planner finds the Append producer `AddItem` and runs it TWICE in
+    // the setup chain so `items` reaches size 2. (i4 gap 7.)
+    let source = r#"Hecks.bluebook "Cart" do
+  aggregate "Cart" do
+    attribute :items, String, list: true
+    command "OpenCart" do
+      emits "CartOpened"
+    end
+    command "AddItem" do
+      reference_to(Cart)
+      attribute :name, String
+      emits "ItemAdded"
+      then_set :items, append: :name
+    end
+    command "Finalize" do
+      reference_to(Cart)
+      given("cart must have at least 2 items") { items.size >= 2 }
+      emits "Finalized"
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let out = generate_behaviors(&domain, None);
+    let block = test_block(&out, "Finalize").expect("Finalize test block");
+    let add_count = block.matches("setup  \"AddItem\"").count();
+    assert_eq!(add_count, 2,
+        "expected exactly 2 `setup \"AddItem\"` lines for size >= 2, got {}:\n{}",
+        add_count, block);
+}
+
+#[test]
+fn satisfies_size_gte_3_via_three_appends() {
+    // `given { items.size >= 3 }` needs three Append dispatches. (i4 gap 7.)
+    let source = r#"Hecks.bluebook "Cart" do
+  aggregate "Cart" do
+    attribute :items, String, list: true
+    command "OpenCart" do
+      emits "CartOpened"
+    end
+    command "AddItem" do
+      reference_to(Cart)
+      attribute :name, String
+      emits "ItemAdded"
+      then_set :items, append: :name
+    end
+    command "Bulk" do
+      reference_to(Cart)
+      given("cart must have at least 3 items") { items.size >= 3 }
+      emits "BulkApplied"
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let out = generate_behaviors(&domain, None);
+    let block = test_block(&out, "Bulk").expect("Bulk test block");
+    let add_count = block.matches("setup  \"AddItem\"").count();
+    assert_eq!(add_count, 3,
+        "expected exactly 3 `setup \"AddItem\"` lines for size >= 3, got {}:\n{}",
+        add_count, block);
+}
+
+#[test]
+fn size_gt_1_equals_size_gte_2() {
+    // `size > 1` means "at least 2", same minimum as `size >= 2`. The
+    // planner must produce two Append dispatches. (i4 gap 7.)
+    let source = r#"Hecks.bluebook "Cart" do
+  aggregate "Cart" do
+    attribute :items, String, list: true
+    command "OpenCart" do
+      emits "CartOpened"
+    end
+    command "AddItem" do
+      reference_to(Cart)
+      attribute :name, String
+      emits "ItemAdded"
+      then_set :items, append: :name
+    end
+    command "Pair" do
+      reference_to(Cart)
+      given("cart must have more than one item") { items.size > 1 }
+      emits "Paired"
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let out = generate_behaviors(&domain, None);
+    let block = test_block(&out, "Pair").expect("Pair test block");
+    let add_count = block.matches("setup  \"AddItem\"").count();
+    assert_eq!(add_count, 2,
+        "expected exactly 2 `setup \"AddItem\"` lines for size > 1, got {}:\n{}",
+        add_count, block);
+}
+
+#[test]
+fn mixed_min_size_and_non_empty_on_different_fields() {
+    // One given requires `segments.size >= 3` (MinSizeList), another
+    // requires `tags.size > 0` (NonEmptyList) on a different field. The
+    // chain should emit 3 AddSegment setups AND 1 AddTag setup — each
+    // precondition resolved through its own producer. (i4 gap 7.)
+    let source = r#"Hecks.bluebook "Episode" do
+  aggregate "Episode" do
+    attribute :segments, String, list: true
+    attribute :tags, String, list: true
+    command "PlanEpisode" do
+      emits "EpisodePlanned"
+    end
+    command "AddSegment" do
+      reference_to(Episode)
+      attribute :title, String
+      emits "SegmentAdded"
+      then_set :segments, append: :title
+    end
+    command "AddTag" do
+      reference_to(Episode)
+      attribute :tag, String
+      emits "TagAdded"
+      then_set :tags, append: :tag
+    end
+    command "Publish" do
+      reference_to(Episode)
+      given("must have enough segments") { segments.size >= 3 }
+      given("must have any tag") { tags.size > 0 }
+      emits "Published"
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let out = generate_behaviors(&domain, None);
+    let block = test_block(&out, "Publish").expect("Publish test block");
+    let seg = block.matches("setup  \"AddSegment\"").count();
+    let tag = block.matches("setup  \"AddTag\"").count();
+    assert_eq!(seg, 3,
+        "expected 3 AddSegment setups for size >= 3, got {}:\n{}", seg, block);
+    assert_eq!(tag, 1,
+        "expected 1 AddTag setup for size > 0, got {}:\n{}", tag, block);
+}
+
+#[test]
+fn min_size_list_is_idempotent_across_recursion() {
+    // When a command's producer ALSO has the same MinSizeList precondition
+    // (edge case), the recursive chain must not double-seed. Here: both
+    // `Finalize` and `Audit` require `items.size >= 2`, and Audit depends
+    // on Finalize's status being set. The setup chain for Audit: run
+    // AddItem twice for size >= 2, then Finalize. The recursive
+    // plan_setup_chain call from Audit → Finalize must not add another
+    // two AddItem setups.
+    let source = r#"Hecks.bluebook "Cart" do
+  aggregate "Cart" do
+    attribute :items, String, list: true
+    attribute :status, String, default: "open"
+    command "OpenCart" do
+      emits "CartOpened"
+    end
+    command "AddItem" do
+      reference_to(Cart)
+      attribute :name, String
+      emits "ItemAdded"
+      then_set :items, append: :name
+    end
+    command "Finalize" do
+      reference_to(Cart)
+      given("must have enough items") { items.size >= 2 }
+      emits "Finalized"
+      then_set :status, to: "finalized"
+    end
+    command "Audit" do
+      reference_to(Cart)
+      given("must have enough items") { items.size >= 2 }
+      given("must be finalized") { status == "finalized" }
+      emits "Audited"
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let out = generate_behaviors(&domain, None);
+    let block = test_block(&out, "Audit").expect("Audit test block");
+    let add_count = block.matches("setup  \"AddItem\"").count();
+    let finalize_count = block.matches("setup  \"Finalize\"").count();
+    assert_eq!(add_count, 2,
+        "Audit chain must have exactly 2 AddItem setups (no double-seeding \
+         from the recursive Finalize plan), got {}:\n{}", add_count, block);
+    assert_eq!(finalize_count, 1,
+        "Audit chain must include exactly one Finalize setup, got {}:\n{}",
+        finalize_count, block);
+}
+
 // ─── helpers ────────────────────────────────────────────────────────
 
 /// Slice the substring spanning a single `test "<cmd_name> ..."` block,

@@ -9,6 +9,14 @@ Hecks.behaviors "DistilleryMedia" do
     expect ok: "true"
   end
 
+  test "ApproveDistillation runs" do
+    tests "ApproveDistillation", on: "Spirit"
+    setup  "Distill", name: "sample", spirit_type: "sample"
+    setup  "AddIngredient", name: "sample", quantity_kg: 1.0
+    setup  "AddIngredient", name: "sample", quantity_kg: 1.0
+    expect ok: "true"
+  end
+
 
   # ── BarrelAging aggregate ──────────────────────────────────────────
 
@@ -32,6 +40,14 @@ Hecks.behaviors "DistilleryMedia" do
   test "PlanEpisode sets title + topic" do
     tests "PlanEpisode", on: "Episode"
     input  title: "sample", topic: "sample"
+    expect ok: "true"
+  end
+
+  test "PublishEpisode runs" do
+    tests "PublishEpisode", on: "Episode"
+    setup  "PlanEpisode", title: "sample", topic: "sample"
+    setup  "AddSegment", segment_title: "sample", duration_minutes: 1, segment_type: "sample"
+    setup  "AddSegment", segment_title: "sample", duration_minutes: 1, segment_type: "sample"
     expect ok: "true"
   end
 
