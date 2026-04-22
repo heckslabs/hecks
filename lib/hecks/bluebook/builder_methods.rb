@@ -97,7 +97,14 @@ module Hecks
         existing.capabilities.each { |c| builder.instance_eval { capabilities c } }
         existing.annotations.each { |a| builder.instance_variable_get(:@annotations) << a }
         existing.subscriptions.each { |s| builder.instance_eval { subscribe s } }
-        builder.instance_eval { persistence existing.persistence[:type], **existing.persistence.reject { |k,_| k == :type } } if existing.persistence
+        if existing.persistence
+          pt = existing.persistence[:type]
+          po = existing.persistence.reject { |k, _| k == :type }
+          builder.instance_eval { adapter pt, **po }
+        end
+        if existing.respond_to?(:shell_adapters)
+          existing.shell_adapters.each { |sa| builder._seed_shell_adapter(sa) }
+        end
       end
       with_annotation_constants(builder) { builder.instance_eval(&block) }
       result = builder.build

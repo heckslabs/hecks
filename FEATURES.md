@@ -144,6 +144,13 @@
 - `hecks_cqrs` — named persistence connections for read/write separation
 - `hecks_mongodb` — MongoDB document persistence via the mongo Ruby driver
 
+### Hecksagon Adapters
+- `adapter :kind, ...` — unified DSL for declaring infrastructure adapters; persistence kinds (`:memory`, `:sqlite`, `:postgres`, `:mysql2`, `:mongodb`, etc.) stay unnamed and at most one per hecksagon; `adapter :shell, name: :x` is named and may appear multiple times
+- `adapter :shell` — named argv-only subprocess adapter; `command` is a fixed binary, `args` is a list-of-strings with `{{placeholder}}` tokens substituted per-element at dispatch time; supports `output_format` (`:text`, `:lines`, `:json`, `:json_lines`, `:exit_code`), `timeout`, `working_dir`, `env`
+- `runtime.shell(:name, **attrs)` — dispatches a shell adapter; returns a `Result` with `output` (format-parsed), `raw_stdout`, `stderr`, `exit_status`
+- Shell dispatch security: `Open3.capture3`/`popen3` (no shell), `unsetenv_others: true` (empty env baseline, only declared env entries cross), explicit `working_dir`, sealed empty stdin, active-kill on timeout via pgroup SIGKILL
+- `persistence :type, ...` remains as a deprecated alias for `adapter :type, ...` (emits a one-shot warning per builder) — closes the long-standing gap where the public `adapter` DSL was vestigial
+
 ### Server Extensions
 - `hecks_serve` registers `:http` — adds `CatsDomain.serve(port: 9292)`
 - `hecks_ai` registers `:mcp` — adds `CatsDomain.mcp`

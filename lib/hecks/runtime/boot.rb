@@ -56,6 +56,7 @@ module Hecks
       boot_root = root || dir
       runtimes = boot_domains(domains, root: boot_root)
       wire_persistence(runtimes)
+      wire_shell_adapters(runtimes)
       autoload_services(dir) unless domain
       print_boot_summary(runtimes)
       runtimes.size == 1 ? runtimes.first : runtimes
@@ -175,6 +176,17 @@ module Hecks
         mod_name = bluebook_module_name(rt.domain.name)
         mod = Object.const_get(mod_name)
         hook.call(mod, rt.domain, rt)
+      end
+    end
+
+    # Register every `adapter :shell` declared on each runtime's
+    # hecksagon. After this call, `runtime.shell(:name, **attrs)`
+    # dispatches through Hecks::Runtime::ShellDispatcher.
+    def wire_shell_adapters(runtimes)
+      runtimes.each do |rt|
+        hecksagon = rt.instance_variable_get(:@hecksagon)
+        next unless hecksagon.respond_to?(:shell_adapters)
+        hecksagon.shell_adapters.each { |sa| rt.register_shell_adapter(sa) }
       end
     end
 

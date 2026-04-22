@@ -57,6 +57,20 @@ end
 capability. Capabilities self-activate from usage — no separate `concern :pii`
 declaration needed.
 
+## Shell Adapters
+
+```ruby
+Hecks.hecksagon "Antibody" do
+  adapter :shell, name: :git_log, command: "git",
+                  args: ["log", "--format=%H", "{{range}}"],
+                  output_format: :lines
+end
+
+# runtime.shell(:git_log, range: "HEAD~5..HEAD")
+```
+
+See [shell_adapter.md](shell_adapter.md) for the full reference.
+
 ## How It Works
 
 - The domain is the structural index (the skeleton)
