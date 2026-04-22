@@ -74,12 +74,20 @@ module Hecks
         end
       end
 
+      # Ruby's `Float(s, exception: false)` accepts leading/trailing
+      # whitespace (`" 1 "` → 1.0), where Rust's `s.parse::<f64>()`
+      # rejects any whitespace. Audit case 16 — a `" 1 "` from a CSV
+      # cell would coerce-equal `Int(1)` in Ruby but not in Rust and
+      # silently drop one cascade. Pre-validate the string shape to
+      # mirror Rust's stricter parser before handing to `Float()`.
+      NUMERIC_STR = /\A-?(?:\d+\.\d+|\d+\.|\.\d+|\d+)(?:[eE][-+]?\d+)?\z/.freeze
+
       def numeric
         case @kind
         when :int  then @raw.to_f
         when :bool then @raw ? 1.0 : 0.0
         when :null then 0.0
-        when :str  then Float(@raw, exception: false)
+        when :str  then NUMERIC_STR.match?(@raw) ? Float(@raw, exception: false) : nil
         else nil
         end
       end
@@ -87,6 +95,23 @@ module Hecks
       def list?; @kind == :list; end
       def list_size; list? ? @raw.size : 0; end
       def str_size;  @kind == :str ? @raw.length : 0; end
+
+      # Structural equality on the Value ADT. Two Values are `==` when
+      # their kind matches and their raw payload matches; for :list and
+      # :map this recurses (Array#== and Hash#== call Value#== on inner
+      # elements). Without this, `raw == raw` on nested lists/maps fell
+      # through to object identity and leaked into `Value.equal?` — the
+      # latent bug flagged as class 5 in PR #264's audit.
+      def ==(other)
+        return false unless other.is_a?(Value)
+        return false unless @kind == other.kind
+        @raw == other.raw
+      end
+      alias eql? ==
+
+      def hash
+        [@kind, @raw].hash
+      end
 
       # Loose equality: Bool(true)==Str("true"), Int(42)==Str("42"),
       # numeric coercion handles Int<->Str("0")<->Null comparisons.
@@ -96,12 +121,25 @@ module Hecks
       # pass on uninitialized state. Mirrors hecks_life's
       # `values_equal`, where `Display(Null) = "null"` keeps the same
       # fallback false and the cascade (policy→command→given) advances.
+      # A :list on either side likewise short-circuits: Rust's
+      # `Display for Value::List` is `"[N items]"` (count-only) which
+      # collides for same-size lists, and Ruby's `"[1, 2]"` collides
+      # with `Str("[1, 2]")`. Structural equality via the new
+      # `Value#==` already ran above; when it fails we should NOT let
+      # display form cast a tie. Audit cases 27, 28, 30, 31, 39.
+      # Maps mirror lists: Rust's `Display for Value::Map` is
+      # `"{N fields}"` (count-only) — audit cases 33, 34, 35, 36.
+      # Structural map equality on the Ruby side gets insertion-order
+      # independence for free (Hash#==), which is the direction
+      # case 34 flips toward Rust.
       def self.equal?(a, b)
         return true if a.kind == b.kind && a.raw == b.raw
         an = a.numeric
         bn = b.numeric
         return an == bn if an && bn
         return false if a.kind == :null || b.kind == :null
+        return false if a.kind == :list || b.kind == :list
+        return false if a.kind == :map  || b.kind == :map
         a.to_display == b.to_display
       end
 
