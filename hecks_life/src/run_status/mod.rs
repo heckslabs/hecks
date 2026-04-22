@@ -114,7 +114,27 @@ fn stamp_aggregate(rt: &mut Runtime, r: &Report) {
 /// The `:fs` adapter's `root:` option anchors the heki store directory.
 /// When relative, we walk up from the script's directory looking for a
 /// directory that contains `<root>/` — that's the conception root.
+///
+/// Reads `HECKS_INFO` from the environment as an override. Tests (e.g.
+/// `status_golden.sh`) seed a tmpdir and export `HECKS_INFO=<tmpdir>`
+/// so status.sh reads from the seeded dir rather than live state.
 fn resolve_fs_root(adapter: &IoAdapter, script_path: &str) -> String {
+    let override_dir = std::env::var("HECKS_INFO").ok();
+    resolve_fs_root_with(adapter, script_path, override_dir.as_deref())
+}
+
+/// Pure core of [`resolve_fs_root`], factored out so tests can inject the
+/// override without mutating process-global env. When `env_override` is
+/// `Some(non-empty)`, it wins over the hecksagon's `root:` option and the
+/// script-dir walk; when unset or empty, behavior is unchanged.
+pub(crate) fn resolve_fs_root_with(
+    adapter: &IoAdapter,
+    script_path: &str,
+    env_override: Option<&str>,
+) -> String {
+    if let Some(v) = env_override {
+        if !v.is_empty() { return v.to_string(); }
+    }
     let root = adapter.options.iter().find(|(k, _)| k == "root")
         .map(|(_, v)| v.trim_matches('"').to_string())
         .unwrap_or_else(|| "information".to_string());
@@ -160,4 +180,38 @@ fn atty_stdout() -> bool {
     }
     #[cfg(not(unix))]
     { false }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::hecksagon_ir::IoAdapter;
+
+    fn fs_adapter(root: &str) -> IoAdapter {
+        let mut a = IoAdapter::default();
+        a.kind = "fs".into();
+        a.options.push(("root".into(), format!("\"{}\"", root)));
+        a
+    }
+
+    #[test]
+    fn env_override_wins_over_hecksagon_root() {
+        let a = fs_adapter("information");
+        let out = resolve_fs_root_with(&a, "/tmp/x/script.bluebook", Some("/tmp/seeded"));
+        assert_eq!(out, "/tmp/seeded");
+    }
+
+    #[test]
+    fn empty_env_override_is_ignored() {
+        let a = fs_adapter("/abs/root");
+        let out = resolve_fs_root_with(&a, "/tmp/x/script.bluebook", Some(""));
+        assert_eq!(out, "/abs/root");
+    }
+
+    #[test]
+    fn absolute_root_used_when_no_override() {
+        let a = fs_adapter("/abs/root");
+        let out = resolve_fs_root_with(&a, "/tmp/x/script.bluebook", None);
+        assert_eq!(out, "/abs/root");
+    }
 }
