@@ -253,11 +253,6 @@ Hecks.bluebook "PestControl" do
     trigger "ConductInspection"
   end
 
-  policy "InspectOnAccountOpened" do
-    on "AccountOpened"
-    trigger "ConductInspection"
-  end
-
   policy "UseChemicalOnTreatmentApplied" do
     on "TreatmentApplied"
     trigger "UseChemical"
