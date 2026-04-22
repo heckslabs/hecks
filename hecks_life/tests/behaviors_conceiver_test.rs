@@ -481,6 +481,131 @@ end
         "PrimeSource setup must come before OpenSource setup, got:\n{}", block);
 }
 
+#[test]
+fn cascade_test_does_not_pre_advance_triggered_lifecycle() {
+    // i4 gap 6: the generator used to pick `pick_create_command` for
+    // every cross-aggregate the cascade hops through. That function
+    // happily picks a cascade-triggered command that ALSO carries a
+    // lifecycle transition, which pre-advances state past the from_state
+    // the cascade expects. When the cascade's own dispatch of the same
+    // command then tries to transition, it's refused.
+    //
+    // Fixture mirrors CloudflareDeploy: Compile (Compilation) triggers
+    // a chain that eventually transitions Deployment pending → provisioned
+    // → migrated via ProvisionD1 / ApplyMigrations. The generated cascade
+    // test must NOT emit `setup "ProvisionD1"` or `setup "ApplyMigrations"`
+    // — doing so would advance Deployment past "pending" before the
+    // cascade's own ProvisionD1 dispatch, which would then be refused.
+    let source = r#"Hecks.bluebook "Fixture" do
+  aggregate "Compilation" do
+    attribute :source, String
+    command "Compile" do
+      attribute :source, String
+      emits "Compiled"
+      then_set :source, to: :source
+    end
+  end
+  aggregate "Deployment" do
+    attribute :status, String
+    command "ProvisionD1" do
+      emits "Provisioned"
+    end
+    command "ApplyMigrations" do
+      reference_to(Deployment)
+      emits "Migrated"
+    end
+    lifecycle :status, default: "pending" do
+      transition "ProvisionD1" => "provisioned", from: "pending"
+      transition "ApplyMigrations" => "migrated", from: "provisioned"
+    end
+  end
+  policy "ProvisionAfterCompile" do
+    on "Compiled"
+    trigger "ProvisionD1"
+  end
+  policy "MigrateAfterProvision" do
+    on "Provisioned"
+    trigger "ApplyMigrations"
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let out = generate_behaviors(&domain, None);
+    let cascade = out.split("test \"")
+        .find(|b| b.starts_with("Compile cascades"))
+        .expect("expected a Compile cascade test");
+    assert!(!cascade.contains("setup  \"ProvisionD1\""),
+        "cascade test must not pre-run the transitioning trigger \
+         ProvisionD1 (would advance Deployment past pending), got:\n{}",
+        cascade);
+    assert!(!cascade.contains("setup  \"ApplyMigrations\""),
+        "cascade test must not pre-run the transitioning trigger \
+         ApplyMigrations (would advance Deployment past provisioned), got:\n{}",
+        cascade);
+}
+
+#[test]
+fn cascade_test_still_pre_creates_referenced_cross_aggregate() {
+    // i4 gap 6 regression guard: the safe-bootstrap filter must STILL
+    // emit a bootstrap for a cross-aggregate the cascade references but
+    // whose bootstrap command is NOT cascade-triggered. Without this, the
+    // cascade's first reference to that aggregate would fail.
+    //
+    // Fixture mirrors Security: VerifySecret (HashedSecret) cascades via
+    // SecretVerified → GrantAccess (AccessGate). AccessGate's `GrantAccess`
+    // is cascade-triggered and has a lifecycle transition, but its ancestor
+    // `RequestAccess` is NOT cascade-triggered and is the only command
+    // that transitions status to "challenging". The cascade test must
+    // include `setup "RequestAccess"` so the cascade's GrantAccess finds
+    // AccessGate in the right state.
+    let source = r#"Hecks.bluebook "Fixture" do
+  aggregate "HashedSecret" do
+    attribute :name, String
+    command "StoreSecret" do
+      attribute :name, String
+      emits "SecretStored"
+    end
+    command "VerifySecret" do
+      reference_to(HashedSecret)
+      attribute :candidate, String
+      emits "SecretVerified"
+    end
+  end
+  aggregate "AccessGate" do
+    attribute :status, String
+    command "RequestAccess" do
+      emits "AccessRequested"
+      then_set :status, to: "challenging"
+    end
+    command "GrantAccess" do
+      reference_to(AccessGate)
+      given { status == "challenging" }
+      emits "AccessGranted"
+      then_set :status, to: "granted"
+    end
+    lifecycle :status, default: "locked" do
+      transition "RequestAccess" => "challenging", from: "locked"
+      transition "GrantAccess" => "granted", from: "challenging"
+    end
+  end
+  policy "GrantOnVerify" do
+    on "SecretVerified"
+    trigger "GrantAccess"
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let out = generate_behaviors(&domain, None);
+    let cascade = out.split("test \"")
+        .find(|b| b.starts_with("VerifySecret cascades"))
+        .expect("expected a VerifySecret cascade test");
+    assert!(cascade.contains("setup  \"RequestAccess\""),
+        "cascade test must pre-run the non-triggered producer \
+         (RequestAccess sets status=\"challenging\" so the cascade's \
+         GrantAccess finds the right state), got:\n{}",
+        cascade);
+}
+
 // ─── helpers ────────────────────────────────────────────────────────
 
 /// Slice the substring spanning a single `test "<cmd_name> ..."` block,
