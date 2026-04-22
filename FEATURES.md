@@ -206,6 +206,26 @@
 - **Self-description** — `aggregates/bluebook.bluebook` declares the IR shape both parsers must produce (13 aggregates, one per IR concept: Domain, Aggregate, Attribute, ValueObject, Reference, Command, Query, Given, Mutation, Lifecycle, Transition, Policy, Fixture).
 - **Nursery soft coverage** — `spec/parity/parity_test.rb` adds `hecks_conception/nursery/**/*.bluebook` as a `soft: true` section; every nursery fixture runs on every parity run, drift is reported and counted, but soft failures do not contribute to the CI exit code. Hard sections (synthetic + real + capability + catalog + misc) stay at 115/115. Promotion to a hard section happens once the systemic Ruby parser bugs (inbox i1/i2) land.
 
+## Shebang Scripts (hecks-life run)
+
+### Bluebooks as executables
+- `#!/usr/bin/env hecks-life run` at the top of a `.bluebook` file + `chmod +x` makes it directly executable
+- `entrypoint "CommandName"` inside `Hecks.bluebook "…" do … end` declares the default command to dispatch
+- Argv `key=value` pairs bind as attributes on the entrypoint command
+- Exit codes: 0 clean, 1 parse failure, 2 guard failure (no entrypoint), 3 adapter failure, 4 command not found
+
+### Companion hecksagon
+- `<stem>.hecksagon` sibling is auto-loaded for adapter wiring
+- Rust runtime parses `adapter :memory / :heki / :stdout / :stderr / :stdin / :env / :fs / :shell`
+- `gate "Aggregate", :role do allow :Cmd end` — role-based gates
+- `subscribe "OtherDomain"` — cross-domain event wiring
+- Shell adapters execute via std::process::Command with parity to `lib/hecks/runtime/shell_dispatcher.rb` (env_clear, timeout with SIGKILL, `{{placeholder}}` substitution, `:text / :lines / :json / :json_lines / :exit_code` output formats)
+
+### Interactive capability
+- When a hecksagon declares both `:stdin` and `:stdout` and the bluebook exposes `ReadLine` + `RespondWith`, `hecks-life run` drives the full REPL through the declared adapters — no Rust-specific I/O code
+- Terminal REPL lives as `hecks_conception/capabilities/terminal/terminal.bluebook` + `terminal.hecksagon`, not Rust
+- Legacy interactive REPL (old `hecks-life run`) preserved as `hecks-life repl <file>`
+
 ## Runtime API
 - `Hecks.boot(__dir__)` — find domain file, validate, build, load, and wire in one call
 - `Hecks.boot(__dir__, adapter: :sqlite)` — automatic SQL setup

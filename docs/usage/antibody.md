@@ -95,18 +95,24 @@ signal the change should wait for a bluebook instead.
 
 The antibody is transitional. The real win is:
 
-1. `hecks-life run <file.bluebook>` as a stable entry point.
-2. `#!/usr/bin/env hecks-life run` shebang so bluebooks are directly
-   executable scripts.
-3. `.hecksagon` adapters declare shell-out / git / fs / network /
-   DB surfaces in the same native DSL. `adapter :shell` landed in
-   the Ruby DSL (see [shell_adapter.md](shell_adapter.md)); every
+1. ✓ `hecks-life run <file.bluebook>` as a stable entry point.
+   See [shebang_scripts.md](shebang_scripts.md).
+2. ✓ `#!/usr/bin/env hecks-life run` shebang so bluebooks are directly
+   executable scripts. Parser tolerates the `#!` line; the runtime
+   dispatches the declared `entrypoint "…"`.
+3. ✓ `.hecksagon` adapters declare shell-out / git / fs / network / DB
+   surfaces in the same native DSL. `adapter :shell` landed in the Ruby
+   DSL (see [shell_adapter.md](shell_adapter.md)) and in the Rust
+   runtime's hecksagon parser + ShellDispatcher (this port). Every
    ad-hoc `Open3.capture3` in `lib/` is now a migration candidate.
-   Rust parity for hecksagons is a separately-tracked follow-up.
-4. `bin/*.bluebook` files replace every existing `bin/*` wrapper.
-5. `lib/` shrinks toward zero as capabilities move into `.bluebook`
+4. ✓ The terminal capability moved from Rust (`adapter_terminal.rs`) to
+   a `.bluebook` + `.hecksagon` pair (see
+   [capabilities/terminal/](../../hecks_conception/capabilities/terminal/)).
+   `adapter_terminal.rs` is now a 40-line shim over the bluebook runtime.
+5. `bin/*.bluebook` files replace every existing `bin/*` wrapper.
+6. `lib/` shrinks toward zero as capabilities move into `.bluebook`
    and `.hecksagon`.
-6. Eventually `hecks_life/` too — the runtime describes itself in the
+7. Eventually `hecks_life/` too — the runtime describes itself in the
    same five DSLs.
 
 Once that's in place, the antibody stops counting exemptions and starts

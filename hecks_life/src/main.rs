@@ -173,6 +173,39 @@ fn main() {
         return;
     }
 
+    // `hecks-life run <file.bluebook> [key=val ...]`
+    //
+    // Script-mode execution: strip shebang, parse .bluebook + companion
+    // .hecksagon, wire adapters, dispatch `entrypoint` with argv-bound
+    // attrs. Exits 0/1/2/3/4 per hecks_life::run::ExitKind.
+    //
+    // The legacy interactive REPL that used to live under `run` now
+    // lives under `hecks-life repl <file>` (below).
+    if command == "run" {
+        std::process::exit(hecks_life::run::run_script(&args));
+    }
+
+    // `hecks-life repl <file.bluebook>` — interactive REPL. Same shape
+    // as the pre-PR `run` command so any script that relied on that
+    // behavior moves to `repl`.
+    if command == "repl" {
+        let repl_path = args.get(2).unwrap_or_else(|| {
+            eprintln!("Usage: hecks-life repl <file.bluebook>");
+            std::process::exit(1);
+        });
+        let source = fs::read_to_string(repl_path).unwrap_or_else(|e| {
+            eprintln!("Cannot read {}: {}", repl_path, e); std::process::exit(1);
+        });
+        let domain = parser::parse(&source);
+        let seed_path = args.iter().position(|a| a == "--seed")
+            .and_then(|i| args.get(i + 1))
+            .map(|s| s.as_str());
+        let mut rt = Runtime::boot(domain);
+        load_seeds(&mut rt, seed_path);
+        rt.run_interactive();
+        return;
+    }
+
     // Batch mode: read file paths from stdin, process each
     if path == "--batch" {
         run_batch(command);
@@ -299,11 +332,6 @@ fn main() {
         "counts" => {
             let cmds: usize = domain.aggregates.iter().map(|a| a.commands.len()).sum();
             println!("{}|{}|{}|{}|{}", domain.name, domain.aggregates.len(), cmds, domain.policies.len(), domain.fixtures.len());
-        }
-        "run" => {
-            let mut rt = Runtime::boot(domain);
-            load_seeds(&mut rt, seed_path);
-            rt.run_interactive();
         }
         "serve" => {
             let port: u16 = args.iter().find(|a| a.parse::<u16>().is_ok())
@@ -781,6 +809,7 @@ fn run_terminal(project_dir: &str, being: &str) {
         category: None, vision: None,
         aggregates: vec![], policies: vec![],
         fixtures: vec![],
+        entrypoint: None,
     };
     if let Ok(entries) = fs::read_dir(&agg_dir) {
         for entry in entries.flatten() {
@@ -833,6 +862,7 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
         category: None, vision: None,
         aggregates: vec![], policies: vec![],
         fixtures: vec![],
+        entrypoint: None,
     };
     let entries = fs::read_dir(agg_dir).unwrap_or_else(|e| {
         eprintln!("Cannot read directory {}: {}", agg_dir, e);
@@ -963,7 +993,8 @@ fn print_usage() {
     eprintln!("  inspect    Full domain inspection with all details");
     eprintln!("  tree       Tree view of aggregates and commands");
     eprintln!("  list       Summary list of aggregates and commands");
-    eprintln!("  run        Boot runtime with interactive REPL");
+    eprintln!("  run        Execute a bluebook as an executable (shebang-run)");
+    eprintln!("  repl       Boot runtime with interactive REPL (legacy `run`)");
     eprintln!("  serve      Boot runtime as HTTP JSON API (file or directory)");
     eprintln!("  conceive   Generate a new domain from corpus archetypes");
     eprintln!("  develop    Develop features in an existing domain");

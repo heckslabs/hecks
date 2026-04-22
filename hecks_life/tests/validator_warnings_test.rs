@@ -46,6 +46,7 @@ fn empty_domain(name: &str, aggregates: Vec<Aggregate>) -> Domain {
         aggregates,
         policies: vec![],
         fixtures: vec![],
+        entrypoint: None,
     }
 }
 

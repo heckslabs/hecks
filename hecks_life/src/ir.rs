@@ -13,6 +13,10 @@ pub struct Domain {
     pub aggregates: Vec<Aggregate>,
     pub policies: Vec<Policy>,
     pub fixtures: Vec<Fixture>,
+    /// Optional top-level `entrypoint "CommandName"` — the command that
+    /// `hecks-life run <file>` dispatches when invoked as an executable.
+    /// None for library-style bluebooks with no default command.
+    pub entrypoint: Option<String>,
 }
 
 #[derive(Debug)]

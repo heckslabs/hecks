@@ -280,6 +280,7 @@ end"#);
             ],
             policies: vec![],
             fixtures: vec![],
+            entrypoint: None,
         };
         let errors = validate(&domain);
         assert!(errors.iter().any(|e| e.contains("Duplicate aggregate")));
@@ -303,6 +304,7 @@ end"#);
             }],
             policies: vec![],
             fixtures: vec![],
+            entrypoint: None,
         };
         let errors = validate(&domain);
         assert!(errors.iter().any(|e| e.contains("has no commands")));
@@ -337,6 +339,7 @@ end"#);
             }],
             policies: vec![],
             fixtures: vec![],
+            entrypoint: None,
         };
         let errors = validate(&domain);
         assert!(errors.iter().any(|e| e.contains("commands should start with a verb")));
@@ -389,6 +392,7 @@ end"#);
                 target_domain: None,
             }],
             fixtures: vec![],
+            entrypoint: None,
         };
         let errors = validate(&domain);
         assert!(errors.iter().any(|e| e.contains("triggers unknown command")));

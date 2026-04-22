@@ -1,0 +1,34 @@
+#!/usr/bin/env hecks-life run
+Hecks.bluebook "Terminal" do
+  vision "Interactive REPL — stdin/stdout wired to a hecks-life runtime"
+
+  entrypoint "StartSession"
+
+  aggregate "Session" do
+    description "One interactive terminal conversation."
+
+    attribute :being,      String
+    attribute :state,      String,  default: "idle"
+    attribute :turns,      Integer, default: 0
+    attribute :last_input, String,  default: ""
+    attribute :last_reply, String,  default: ""
+
+    command "StartSession" do
+      attribute :being, String
+    end
+
+    command "ReadLine" do
+    end
+
+    command "MatchInput" do
+      attribute :input, String
+    end
+
+    command "RespondWith" do
+      attribute :text, String
+    end
+
+    command "EndSession" do
+    end
+  end
+end

@@ -1,0 +1,20 @@
+Hecks.hecksagon "Terminal" do
+  # Memory-only — the terminal session is ephemeral. Persistence of
+  # conversations lives elsewhere (Conversation aggregate in the
+  # consciousness capability, written by a separate policy).
+  adapter :memory
+
+  # ---- I/O wiring --------------------------------------------------
+  #
+  # :stdout — banner + every reply. The hecks-life runtime invokes
+  #           write_stdout(adapter, text, attrs) when RespondWith
+  #           fires.
+  # :stdin  — blocking readline. ReadLine dispatches a line; the
+  #           runtime blocks until a line arrives. EOF ends the session.
+  # :stderr — reserved for diagnostic lines (optional; present so the
+  #           capability can log without mixing with user-visible text).
+
+  adapter :stdout, prompt: "  ❄ "
+  adapter :stdin,  prompt: "  ❄ "
+  adapter :stderr
+end
