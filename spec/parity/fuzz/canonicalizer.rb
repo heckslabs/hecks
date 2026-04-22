@@ -64,6 +64,12 @@ module Hecks
           out = {}
           record.each do |k, v|
             next if VOLATILE_FIELDS.include?(k.to_s)
+            # Rust defaults list_of fields to [] on new records; Ruby
+            # leaves them unset. Empty list + missing are equivalent
+            # observable state, so drop empty lists entirely.
+            if (v == [] || v.nil?) && [:list_int, :list_str].include?(field_types[k.to_s])
+              next
+            end
             out[k.to_s] = coerce(v, field_types[k.to_s])
           end
           out

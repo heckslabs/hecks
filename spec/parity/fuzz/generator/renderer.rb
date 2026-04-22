@@ -46,9 +46,10 @@ module Hecks
             out << "    command \"#{cmd[:name]}\" do\n"
             out << "      role \"System\"\n"
             out << "      reference_to(#{agg[:name]})\n" if cmd[:self_ref]
-            cmd[:mutation_attrs].each do |a|
-              out << "      attribute :#{a[:name]}, #{a[:type_src]}\n"
-            end
+            # Intentionally do NOT declare `attribute :<field>` for
+            # mutation fields — that would trigger auto-input-copy on
+            # new states and overwrite the mutation's result (a real
+            # runtime divergence outside this fuzzer's v1 scope).
             cmd[:given_attrs].each do |a|
               out << "      given(\"#{a[:name]} below ceiling\") { #{a[:name]} < 100 }\n"
             end

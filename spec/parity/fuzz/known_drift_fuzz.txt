@@ -1,0 +1,24 @@
+# i30 differential fuzzer — known drift ledger
+#
+# Format: seed=N  # reason
+#         seed=N shape=<short>  # reason
+#
+# One listed seed per line; comments after `#`. Blank lines ignored.
+#
+# A listed seed does NOT fail the suite — it prints with ⚠ and the
+# run exits 0 as long as all other drift is explained. Remove the
+# seed from this file once the underlying divergence is fixed.
+#
+# Unlike spec/parity/known_drift.txt (keyed by bluebook path), this
+# file is keyed by seed because the generator is deterministic on
+# the seed and paths are ephemeral temp dirs.
+#
+# Empty at ship — the first batch of real drift goes here after
+# seed 1 is verified and the first 200-seed sweep completes.
+#
+# Seeds surfaced in the shipping 2000-seed sweep:
+seed=228   # cascade count drift — double-policy on same event (Ruby 25, Rust 20). Real runtime divergence in policy_drain's reacted_to accounting when two policies listen to the same emit.
+seed=969   # cascade count drift — same class (Ruby 10, Rust 8)
+seed=1036  # cascade count drift — same class, two fields advanced together (Ruby 16, Rust 13)
+seed=1441  # cascade count drift — same class (Ruby 12, Rust 10)
+seed=1527  # cascade count drift — same class, two aggregates linked (Ruby 6, Rust 5)

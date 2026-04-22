@@ -81,12 +81,15 @@ module Hecks
           agg_name = "Agg#{index}"
           n_attrs = rng.rand(2..5)
           attrs = (1..n_attrs).map { |k| build_attribute(rng, k) }
-          has_lifecycle = rng.rand < 0.5
-          lifecycle = has_lifecycle ? build_lifecycle(rng) : nil
+          # Lifecycles are excluded from v1: Rust enforces `from:`
+          # guards strictly, Ruby doesn't, and the resulting
+          # divergence dominates signal. Re-enable in v2 by driving
+          # the command sequence off lifecycle state (never emit the
+          # same transition command twice in a row).
+          lifecycle = nil
           n_cmds = rng.rand(1..4)
           cmds = (1..n_cmds).map { |k| build_command(rng, agg_name, attrs, k) }
           cmds[0] = promote_to_create(cmds[0])
-          lifecycle[:transitions] = build_transitions(cmds, lifecycle[:states]) if lifecycle
           { name: agg_name, attrs: attrs, commands: cmds, lifecycle: lifecycle }
         end
 
@@ -101,10 +104,16 @@ module Hecks
           { field: "status", default: picks.first, states: picks, transitions: [] }
         end
 
+        # Wire non-Create commands to successive state pairs. Create
+        # commands are deliberately left off the lifecycle so the
+        # program can issue multiple Creates without tripping a
+        # from-state violation (Rust enforces, Ruby doesn't — that's
+        # a real divergence, but not the class this fuzzer targets).
         def build_transitions(cmds, states)
           result = []
-          (0...[cmds.size, states.size - 1].min).each do |i|
-            result << { command: cmds[i][:name], from: states[i], to: states[i + 1] }
+          non_create = cmds.reject { |c| CREATE_PREFIXES.any? { |p| c[:name].start_with?(p) } }
+          (0...[non_create.size, states.size - 1].min).each do |i|
+            result << { command: non_create[i][:name], from: states[i], to: states[i + 1] }
           end
           result
         end
@@ -114,13 +123,20 @@ module Hecks
           cmd_name = "#{verb}#{agg_name}Thing#{index}"
           emits = "#{verb}#{agg_name}#{index}Event"
           self_ref = CREATE_PREFIXES.any? { |p| cmd_name.start_with?(p) } ? false : (rng.rand < 0.5)
+          # Pick mutation attrs from integer fields, *then* pick given
+          # attrs from the leftover integers (disjoint from mutations).
+          # The same attribute appearing in both is a known runtime
+          # divergence (auto-input-copy on create overwrites the
+          # mutation) and is excluded from fuzzer shapes by construction.
+          mutation_attrs = pick_mutation_attrs(rng, attrs)
+          given_attrs = pick_given_attrs(rng, attrs - mutation_attrs)
           {
             name: cmd_name,
             verb: verb,
             emits: emits,
             self_ref: self_ref,
-            given_attrs: pick_given_attrs(rng, attrs),
-            mutation_attrs: pick_mutation_attrs(rng, attrs),
+            given_attrs: given_attrs,
+            mutation_attrs: mutation_attrs,
             owning_aggregate: agg_name,
           }
         end
@@ -194,25 +210,15 @@ module Hecks
           steps
         end
 
-        def step_for(rng, agg, cmd)
-          attrs = {}
-          cmd[:mutation_attrs].each do |a|
-            attrs[a[:name]] = attr_sample_value(rng, a[:type_key])
-          end
-          { aggregate: agg[:name], command: cmd[:name], attrs: attrs }
+        def step_for(rng, _agg, cmd)
+          # Mutation attrs aren't declared as input anymore, so steps
+          # carry no attrs by default. If a future generator shape
+          # needs non-mutation inputs (e.g. self-ref ids), they go
+          # here.
+          _ = rng
+          { aggregate: _agg[:name], command: cmd[:name], attrs: {} }
         end
 
-        def attr_sample_value(rng, type_key)
-          case type_key
-          when :int       then rng.rand(0..20)
-          when :float     then (rng.rand(0..50) / 10.0)
-          when :str       then "s#{rng.rand(100)}"
-          when :bool      then [true, false].sample(random: rng)
-          when :list_str  then ["a", "b"]
-          when :list_int  then [1, 2]
-          else "s"
-          end
-        end
       end
     end
   end
