@@ -302,33 +302,52 @@ fn emit_cascade_test(
             for cc in create_chain { prerequisites.push(emit_setup(agg, cc)); }
         }
     }
-    // Cascade tests need EVERY aggregate the cascade will hop through to
+    // Cascade tests need every aggregate the cascade will hop through to
     // exist before dispatch — direct cross-refs aren't enough. Walk the
     // static cascade and gather every aggregate any triggered command
-    // references; emit a create for each (deduped, in dependency order).
+    // references; pick a safe bootstrap for each (deduped, in dependency
+    // order).
+    //
+    // "Safe" means: the picked command isn't itself a cascade-triggered
+    // command that carries a lifecycle transition. Pre-running such a
+    // command would advance the target aggregate past the `from_state`
+    // its cascade-hop expects, so the cascade's own dispatch is refused.
+    // (i4 gap 6 — CloudflareDeploy's Deployment aggregate had ProvisionD1
+    // picked as bootstrap, pre-advancing state to "provisioned" before
+    // the cascade's ProvisionD1 could transition from "pending".)
+    // [antibody-exempt: fixing the behaviors conceiver per i4 gaps 6+7; retires when conceivers port to a bluebook-dispatched form]
     let cascade_aggs = aggregates_touched_by_cascade(domain, cmd, agg);
+    let triggered_in_cascade = commands_triggered_by_cascade(domain, cmd);
     for target_agg_name in &cascade_aggs {
         // Skip the test's own aggregate — its create is already handled.
         if target_agg_name == &agg.name { continue; }
         if let Some(target_agg) = domain.aggregates.iter().find(|a| &a.name == target_agg_name) {
-            if let Some(create) = pick_create_command(target_agg) {
+            if let Some(create) = pick_safe_bootstrap(target_agg, &triggered_in_cascade) {
                 prerequisites.push(emit_setup(target_agg, create));
             }
+            // else: no safe bootstrap exists — skip. The runtime
+            // auto-creates singletons on first dispatch, so the cascade
+            // handles creation when its own trigger fires.
         }
     }
 
-    // Walk the cascade once more, this time chaining through each
-    // cross-aggregate's lifecycle so triggered commands find their
-    // target in the right state. The Create above proves the record
-    // exists; this loop satisfies any `given { status == "X" }` gate
-    // the cascade will hit when it hops over. Chain order is preserved
-    // (prerequisites first, transition commands last) because we push
-    // sequentially rather than insert(0, ...).
-    let triggered_per_agg = cross_aggregate_triggered(domain, cmd, agg);
-    for (target_agg_name, triggered_cmds) in &triggered_per_agg {
+    // Then, for each cross-aggregate, chain through any preconditions the
+    // cascade-triggered commands need that the cascade WON'T satisfy.
+    // `plan_setup_chain_filtered` skips producers that would pre-advance
+    // a cascade-triggered lifecycle transition — e.g. in restaurant_
+    // reservations, the precondition `status == "waiting"` on NotifyParty
+    // is satisfied by AddToWaitlist, which IS cascade-triggered but has
+    // no lifecycle transition, so it's safe to pre-run. In CloudflareDeploy
+    // the precondition on MarkLive (state=="ui_live") is produced by
+    // DeployPages, which is cascade-triggered AND a lifecycle transition,
+    // so the chain leaves it to the cascade. (i4 gap 6.)
+    // [antibody-exempt: fixing the behaviors conceiver per i4 gaps 6+7; retires when conceivers port to a bluebook-dispatched form]
+    for target_agg_name in &cascade_aggs {
+        if target_agg_name == &agg.name { continue; }
         let Some(target_agg) = domain.aggregates.iter().find(|a| &a.name == target_agg_name) else { continue };
-        for triggered in triggered_cmds {
-            let chain = match plan_setup_chain(domain, target_agg, triggered, 5, &mut Vec::new()) {
+        for triggered_name in &triggered_in_cascade {
+            let Some(triggered) = target_agg.commands.iter().find(|c| &c.name == triggered_name) else { continue };
+            let chain = match plan_setup_chain_filtered(domain, target_agg, triggered, 5, &mut Vec::new(), &triggered_in_cascade) {
                 SetupPlan::Chain(c) => c,
                 SetupPlan::Unsatisfiable => continue,
             };
@@ -463,6 +482,77 @@ fn pick_create_command(agg: &Aggregate) -> Option<&Command> {
     agg.commands.iter().find(is_bootstrap)
 }
 
+/// Pick a bootstrap command for `agg` that's safe as a cascade-test
+/// pre-setup: not a cascade-triggered command that ALSO carries a
+/// lifecycle transition. Pre-running such a command advances the
+/// aggregate past the from_state its cascade-hop expects, refusing the
+/// cascade's own dispatch. Returns None when only unsafe bootstraps
+/// exist; the runtime then auto-creates the singleton on first cascade
+/// dispatch, which correctly starts at default lifecycle state.
+///
+/// Example (CloudflareDeploy): the Deployment aggregate's only non-
+/// self-ref commands are the cascade-triggered `ProvisionD1`, `Apply-
+/// Migrations`, `DeployWorker`, `DeployPages`. All carry lifecycle
+/// transitions, so this returns None — the cascade itself bootstraps
+/// Deployment at "pending" via its own ProvisionD1 dispatch.
+///
+/// Counter-example (Console): the Speaker aggregate's bootstrap
+/// `TalkWith` IS a lifecycle transition ("none" → "active") but is
+/// NOT cascade-triggered by `RecordMessage`. Picking it is fine:
+/// pre-running advances Speaker past default, but `LearnAboutSpeaker`
+/// (the cascade-triggered Speaker command) has no from_state gate, so
+/// it dispatches cleanly. (i4 gap 6.)
+fn pick_safe_bootstrap<'a>(
+    agg: &'a Aggregate,
+    triggered_in_cascade: &BTreeSet<String>,
+) -> Option<&'a Command> {
+    let is_bootstrap = |c: &&Command| self_ref_for(agg, c).is_none();
+    let is_safe = |c: &&Command| -> bool {
+        if !triggered_in_cascade.contains(&c.name) { return true; }
+        if let Some(lc) = &agg.lifecycle {
+            return !lc.transitions.iter().any(|t| t.command == c.name);
+        }
+        true
+    };
+
+    let prefixes = ["Create", "Define", "Place", "Register", "Open",
+                    "Plan", "Spawn", "Boot", "Start", "Initialize",
+                    "Seed", "Provision", "Issue"];
+    for prefix in &prefixes {
+        if let Some(c) = agg.commands.iter()
+            .find(|c| c.name.starts_with(prefix) && is_bootstrap(c) && is_safe(c))
+        {
+            return Some(c);
+        }
+    }
+    agg.commands.iter().find(|c| is_bootstrap(c) && is_safe(c))
+}
+
+/// Collect every command name that will be dispatched by the cascade
+/// rooted at `cmd` (following emit → policy → trigger edges). Used by
+/// `pick_safe_bootstrap` and `plan_setup_chain_filtered` to avoid
+/// choosing pre-setups the cascade would also run. (i4 gap 6.)
+fn commands_triggered_by_cascade(domain: &Domain, cmd: &Command) -> BTreeSet<String> {
+    let mut out = BTreeSet::new();
+    let mut stack: Vec<String> = Vec::new();
+    if let Some(ev) = &cmd.emits {
+        for p in &domain.policies {
+            if &p.on_event == ev { stack.push(p.trigger_command.clone()); }
+        }
+    }
+    while let Some(name) = stack.pop() {
+        if !out.insert(name.clone()) { continue; }
+        if let Some((_, c)) = find_cmd_with_agg(domain, &name) {
+            if let Some(ev) = &c.emits {
+                for p in &domain.policies {
+                    if &p.on_event == ev { stack.push(p.trigger_command.clone()); }
+                }
+            }
+        }
+    }
+    out
+}
+
 /// Plan a chain of commands that puts `agg` into the state `target_cmd`
 /// requires. Preconditions come from two sources:
 ///   • `target_cmd.givens` — equality predicates like `status == "X"`
@@ -536,6 +626,81 @@ fn plan_setup_chain<'a>(
                     unsatisfiable = true;
                     break;
                 }
+            }
+        }
+    }
+
+    visited.pop();
+    if unsatisfiable { SetupPlan::Unsatisfiable } else { SetupPlan::Chain(chain) }
+}
+
+/// Same as `plan_setup_chain` but skips producer candidates that would
+/// conflict with a cascade's own dispatch. A producer is skipped iff it's
+/// in `exclude` (cascade-triggered) AND carries a lifecycle transition
+/// on `agg`. The double condition is important:
+///   * Cascade-triggered only → safe to pre-run when the command has
+///     no lifecycle transition (e.g. AddToWaitlist in restaurant_
+///     reservations: cascade-triggered via TableOccupied, but no
+///     lifecycle transition, so pre-running doesn't advance state).
+///   * Cascade-triggered AND lifecycle-transition → pre-running
+///     advances state past the from_state the cascade expects, so
+///     leave it to the cascade (e.g. DeployPages for MarkLive's
+///     precondition in CloudflareDeploy).
+/// When the only producer is excluded, the precondition is left unmet —
+/// correct for cascade tests because the cascade runs the producer
+/// itself during event propagation. (i4 gap 6.)
+fn plan_setup_chain_filtered<'a>(
+    domain: &'a Domain,
+    agg: &'a Aggregate,
+    target_cmd: &'a Command,
+    depth: usize,
+    visited: &mut Vec<&'a str>,
+    exclude: &BTreeSet<String>,
+) -> SetupPlan<'a> {
+    if depth == 0 { return SetupPlan::Chain(Vec::new()); }
+    if visited.contains(&target_cmd.name.as_str()) { return SetupPlan::Chain(Vec::new()); }
+    visited.push(target_cmd.name.as_str());
+    let mut chain: Vec<&Command> = Vec::new();
+    let mut produced: ProducedState = ProducedState::default();
+    let mut unsatisfiable = false;
+
+    let is_cascade_triggered_transition = |p: &&Command| -> bool {
+        if !exclude.contains(&p.name) { return false; }
+        if let Some(lc) = &agg.lifecycle {
+            return lc.transitions.iter().any(|t| t.command == p.name);
+        }
+        false
+    };
+
+    for pre in collect_preconditions(agg, target_cmd) {
+        if produced.satisfies(&pre) { continue; }
+        if precondition_default_holds(agg, &pre) { continue; }
+        let producer = find_producer(domain, agg, &pre)
+            .filter(|p| !is_cascade_triggered_transition(p));
+        match producer {
+            Some(producer) => {
+                let sub_chain = match plan_setup_chain_filtered(domain, agg, producer, depth - 1, visited, exclude) {
+                    SetupPlan::Chain(sub) => sub,
+                    SetupPlan::Unsatisfiable => {
+                        unsatisfiable = true;
+                        break;
+                    }
+                };
+                for sub in sub_chain {
+                    if !chain.iter().any(|c| c.name == sub.name) {
+                        chain.push(sub);
+                        produced.absorb(agg, sub);
+                    }
+                }
+                if !chain.iter().any(|c| c.name == producer.name) {
+                    chain.push(producer);
+                    produced.absorb(agg, producer);
+                }
+            }
+            None => {
+                // No non-excluded producer — the cascade itself will
+                // satisfy this precondition, or there's genuinely no
+                // producer. Either way, leave it unchained.
             }
         }
     }
@@ -1183,10 +1348,12 @@ fn test_name(cmd: &Command, _agg: &Aggregate) -> String {
 /// will hop through is bootstrapped before dispatch.
 /// Collect every triggered command in the cascade, grouped by the
 /// aggregate that owns it — but only for aggregates other than the
-/// command's own. Used by `emit_cascade_test` to chain through
-/// cross-aggregate lifecycles before dispatch, so a cascade hop into
-/// `DeliverCommission given { status == "in_progress" }` finds the
-/// commission already in `in_progress` instead of `quoted`.
+/// command's own.
+///
+/// Superseded by `commands_triggered_by_cascade` + `plan_setup_chain_filtered`
+/// in the cascade-test builder. Kept for parity with the other conceiver
+/// and possible future use. (i4 gap 6.)
+#[allow(dead_code)]
 fn cross_aggregate_triggered<'a>(
     domain: &'a Domain,
     cmd: &'a Command,
