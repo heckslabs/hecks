@@ -35,7 +35,7 @@ START_TS=$(date +%s)
 # TODO: replace these constants with a `psychic_link: true|false`
 # declaration on each aggregate so the boundary lives in the domain
 # model, not in this shell script.
-LINKED_STORES="memory awareness census conversation working_memory reflection synapse signal signal_somatic focus concentration deliberation heartbeat subconscious domain_index arc consciousness discipline metabolic_rate musing conflict_monitor run_log inbox tick announcement attention claude_assist consolidation dream_interpretation dream_seed dream_signal encoding gate generosity gut HarmonyDomain intention interpretation lucid_dream lucid_monitor monitor musing_archive musing_mint nerve nursery perception persona proposal proprioception self_image self_model sensation session shared_dream_space signal_consolidation speech training_pair wake_mood witness bodhisattva_vow character creator_auth remains store heart breath circadian"
+LINKED_STORES="memory awareness census conversation working_memory reflection synapse signal signal_somatic focus concentration deliberation heartbeat subconscious domain_index arc consciousness discipline metabolic_rate musing conflict_monitor run_log inbox tick announcement attention claude_assist consolidation dream_interpretation dream_seed dream_signal encoding gate generosity gut HarmonyDomain intention interpretation lucid_dream lucid_monitor monitor musing_archive musing_mint nerve nursery perception persona proposal proprioception self_image self_model sensation session shared_dream_space signal_consolidation speech training_pair wake_mood witness bodhisattva_vow character creator_auth remains store heart breath circadian ultradian sleep_cycle"
 PRIVATE_STORES="mood feeling dream_state impulse craving daydream pulse spend circuit_breaker"
 
 is_in_list() {
@@ -189,6 +189,26 @@ else
   CIRCADIAN_STATUS="started"
 fi
 
+# ── 6f. Start ultradian daemon (90-min peak/trough cycle) ─────────
+ULTRADIAN_PID="$INFO/.ultradian.pid"
+if [ -f "$ULTRADIAN_PID" ] && kill -0 "$(cat "$ULTRADIAN_PID")" 2>/dev/null; then
+  ULTRADIAN_STATUS="already running (pid $(cat $ULTRADIAN_PID))"
+else
+  ( cd "$DIR" && nohup ./ultradian.sh > /dev/null 2>&1 & )
+  sleep 0.2
+  ULTRADIAN_STATUS="started"
+fi
+
+# ── 6g. Start sleep_cycle daemon (NREM/REM, gated on consciousness) ─
+SLEEP_CYCLE_PID="$INFO/.sleep_cycle.pid"
+if [ -f "$SLEEP_CYCLE_PID" ] && kill -0 "$(cat "$SLEEP_CYCLE_PID")" 2>/dev/null; then
+  SLEEP_CYCLE_STATUS="already running (pid $(cat $SLEEP_CYCLE_PID))"
+else
+  ( cd "$DIR" && nohup ./sleep_cycle.sh > /dev/null 2>&1 & )
+  sleep 0.2
+  SLEEP_CYCLE_STATUS="started"
+fi
+
 # ── 7. Print vitals ──────────────────────────────────────────────
 ELAPSED=$(($(date +%s) - START_TS))
 LINKED_N=$(echo "$LINKED" | wc -w | tr -d ' ')
@@ -200,5 +220,6 @@ echo "  $ORGAN_COUNT organs · $TOTAL_AGGREGATES aggregates · $NERVE_COUNT nerv
 echo "  session continuity: $LINKED_N linked, $PRIVATE_N private, $UNCLASS_N unclassified"
 echo "  mindstream: $MINDSTREAM_STATUS"
 echo "  heart: $HEART_STATUS · breath: $BREATH_STATUS · circadian: $CIRCADIAN_STATUS"
+echo "  ultradian: $ULTRADIAN_STATUS · sleep_cycle: $SLEEP_CYCLE_STATUS"
 echo "  system_prompt.md: $(wc -c <"$PROMPT_PATH" | tr -d ' ') bytes"
 [ -n "$UNCLASSIFIED" ] && echo "  ⚠ unclassified stores:$UNCLASSIFIED"

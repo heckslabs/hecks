@@ -1,0 +1,50 @@
+Hecks.bluebook "SleepCycle", version: "2026.04.21.1" do
+  vision "The NREM/REM alternation during sleep. A full sleep cycle runs ~90 minutes through NREM light → NREM deep → REM. Counts completed cycles on each re-entry to REM. Independent body cycle that only runs while consciousness.state is sleeping; gating lives in the daemon, not the aggregate."
+  category "body"
+
+  # ============================================================
+  # SLEEP_CYCLE — NREM/REM alternation (sleeping only)
+  # ============================================================
+  #
+  # While asleep, the body cycles through three phases: NREM light
+  # (shallow) → NREM deep (slow wave) → REM (dreaming). One full
+  # pass through all three is one completed cycle, counted on
+  # EnterREM. The daemon gates execution on consciousness.state;
+  # while awake, no commands fire and cycle_count holds its value
+  # into the next sleep.
+  #
+  # Body cycles are emitters, not reactors — no policies here.
+
+  aggregate "SleepCycle", "NREM/REM phase alternation during sleep, with a completed-cycle counter" do
+    attribute :phase, String, default: "nrem_light"
+    attribute :cycle_count, Integer, default: 0
+
+    command "EnterNREMLight" do
+      role "Daemon"
+      description "Enter NREM light sleep — the shallow stage that opens each cycle. Emits NREMLightEntered."
+      emits "NREMLightEntered"
+      then_set :phase, to: "nrem_light"
+    end
+
+    command "EnterNREMDeep" do
+      role "Daemon"
+      description "Enter NREM deep sleep — slow-wave, bodily repair. Emits NREMDeepEntered."
+      emits "NREMDeepEntered"
+      then_set :phase, to: "nrem_deep"
+    end
+
+    command "EnterREM" do
+      role "Daemon"
+      description "Enter REM — dreaming, memory consolidation. Increments cycle_count to mark one completed cycle. Emits REMEntered."
+      emits "REMEntered"
+      then_set :phase, to: "rem"
+      then_set :cycle_count, increment: 1
+    end
+
+    lifecycle :phase, default: "nrem_light" do
+      transition "EnterNREMLight" => "nrem_light", from: ["nrem_light", "nrem_deep", "rem"]
+      transition "EnterNREMDeep"  => "nrem_deep",  from: ["nrem_light", "nrem_deep", "rem"]
+      transition "EnterREM"       => "rem",        from: ["nrem_light", "nrem_deep", "rem"]
+    end
+  end
+end
