@@ -1,0 +1,24 @@
+Hecks.behaviors "Breath" do
+  vision "Behavioral tests for the Breath domain — inhale/exhale phase flip, breath counter."
+
+  test "Inhale sets phase to inhaling" do
+    tests "Inhale", on: "Breath"
+    expect phase: "inhaling", emits: ["BreathInhaled"]
+  end
+
+  test "Exhale sets phase to exhaling" do
+    tests "Exhale", on: "Breath"
+    expect phase: "exhaling", emits: ["BreathExhaled"]
+  end
+
+  test "Exhale increments breath_count" do
+    tests "Exhale", on: "Breath"
+    expect breath_count: 1
+  end
+
+  test "Inhale after Exhale returns phase to inhaling" do
+    tests "Inhale", on: "Breath"
+    setup  "Exhale"
+    expect phase: "inhaling"
+  end
+end
