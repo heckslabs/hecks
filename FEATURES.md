@@ -39,6 +39,7 @@
 - Workshop chapter mode — define and play multiple chapters interactively with `workshop.chapter("Name") { ... }`
 - `Hecks.configure { chapter "x" }` — chapter alias for domain in configuration DSL
 - Domain version pinning and local path loading in configuration
+- **Domain-named source files** — every Hecks source file is named after its declared domain: `<domain>.bluebook` (DSL), `<domain>.hecksagon` (runtime/adapter IR), `<domain>.world` (world concerns + ethics). Discovery is glob-based — `find_hecksagon_files` / `find_world_files` in `lib/hecks/runtime/boot.rb` and `find_world_file` in `hecks_life/src/main.rs` scan for `*.hecksagon` / `*.world` rather than hardcoded filenames. Generators emit `<name>.bluebook` / `<name>.hecksagon`, and `WATCH_EXTENSIONS` in `lib/hecks/capabilities/live_reload/watcher.rb` tracks `.bluebook .hecksagon .world` for hot reload.
 
 ### Attributes & Types
 - Define typed attributes with String, Integer, Float, Boolean, JSON, Date, DateTime, etc.
@@ -196,6 +197,7 @@
 - **Pre-commit gate** — `bin/git-hooks/pre-commit` blocks unexpected drift in ~1 second. Install with `bin/install-hooks`.
 - **CI gate** — `.github/workflows/parity.yml` runs the suite on every PR.
 - **Self-description** — `aggregates/bluebook.bluebook` declares the IR shape both parsers must produce (13 aggregates, one per IR concept: Domain, Aggregate, Attribute, ValueObject, Reference, Command, Query, Given, Mutation, Lifecycle, Transition, Policy, Fixture).
+- **Nursery soft coverage** — `spec/parity/parity_test.rb` adds `hecks_conception/nursery/**/*.bluebook` as a `soft: true` section; every nursery fixture runs on every parity run, drift is reported and counted, but soft failures do not contribute to the CI exit code. Hard sections (synthetic + real + capability + catalog + misc) stay at 115/115. Promotion to a hard section happens once the systemic Ruby parser bugs (inbox i1/i2) land.
 
 ## Runtime API
 - `Hecks.boot(__dir__)` — find domain file, validate, build, load, and wire in one call
@@ -451,6 +453,17 @@
 - **Clock anti-pattern check** — `lifecycle_validator` flags `:now` and `seconds_since(:field)` in mutations and givens. Time is infrastructure; the caller (test, hecksagon adapter, app) provides timestamps as command attributes.
 - **Compound boolean givens** — interpreter supports `||` and `&&` (top-level split, `&&` binds tighter), plus `==`, `!=`, `>=`, `<=`, `>`, `<`, `field.any?`, `field.empty?`
 - **List literal mutations** — `then_set :items, to: []` resolves to `Value::List(vec![])` (not `Str("[]")`); `then_set :items, to: [a, b]` resolves each element through the same value resolver
+
+## Self-Governance
+
+### Antibody — Five-DSL Vocabulary Enforcement
+- **Five canonical source DSLs** — Hecks source is `.bluebook`, `.hecksagon`, `.fixtures`, `.behaviors`, `.world`. Bluebook is Turing-complete and dispatched directly by `hecks-life` (no compile step, no generated artifacts); every non-DSL file is a gap to be closed, rewritten as one of the five, or justified with a concrete per-commit exemption.
+- **`bin/antibody-check`** — scans a commit's staged (or HEAD) diff for files outside the five-DSL extension set and reports them with reasons; exit code non-zero when unexempt flagged files are present
+- **Per-commit exemptions, not permanent carve-outs** — `[antibody-exempt: <reason>]` marker must appear on its own line in the commit message (regex anchored to line start so prose examples don't match) and justifies one specific change; no allowlist file, no pre-approved categories, thin reasons (`runtime`, `temporary`, `bootstrap`) are the smell the antibody is designed to prevent
+- **Scan semantics are per-commit** — `commit-msg` reads only the in-flight commit message and its staged files; earlier commits' exemption markers cannot leak into later commits on the same branch
+- **Pre-commit hook Gate 5** (`bin/git-hooks/pre-commit`) — informational, prints the flagged file list before the author writes a commit message, never blocks
+- **Commit-msg hook Gate B** (`bin/git-hooks/commit-msg`) — blocking; reads the in-flight commit message from git's `$1`, rejects with a COMMIT BLOCKED banner when non-DSL files are staged without a matching exemption
+- **CI workflow** (`.github/workflows/antibody.yml`) — blocking second layer; runs `bin/antibody-check --each-commit` which walks every commit in `base..HEAD` and validates each one in isolation; emits GitHub `::warning::` annotations on flagged files so they appear inline on the PR diff
 
 ## Domain Interface Versioning
 - `hecks version_tag <version>` — snapshot current domain DSL to `db/hecks_versions/<version>.rb` with metadata header
@@ -920,6 +933,15 @@
 - Exercises full CRUD lifecycle: index, new, create, show, edit, update, destroy
 - Validates 422 on invalid params via ActiveModel validations
 - Run explicitly: `bundle exec rspec hecksties/spec/rails_smoke_spec.rb --tag slow`
+
+### FEATURES.md Audit (`tools/features_audit.py`)
+- Cross-references every bullet in `FEATURES.md` against the codebase so the claim-list cannot drift silently
+- Parses one claim per bullet, extracts backticked code, PascalCase tokens, `Namespaced::Names`, dotted calls (`Hecks.configure`), and `:symbols`, then greps across `lib/`, `hecks_life/src/`, `hecks_conception/aggregates/`, `hecks_conception/capabilities/`, `spec/`, `examples/`, `bin/`, `.claude/` (docs are excluded to avoid circular evidence)
+- Three buckets per claim: **verified** (at least one identifier resolves), **missing** (identifiers present but none found — real drift), **unverifiable** (pure prose)
+- Fallbacks: `Foo.bar` tokens check for `def self.bar` in files containing `Foo`; lowercase-head tokens check for `def <method>`; placeholder patterns (`<Some>Domain`, `model.foo?`, `.md` links) are stripped
+- CLI flags: `--missing` lists every drift with its searched identifiers, `--section "Name"` scopes to one heading, `--json` for machine-readable output
+- Works in tandem with the reader's-guide banner at the top of `FEATURES.md` — audit answers "does this identifier still exist?", `hecks verify` answers "is it still tested?"
+- Baseline: 0 missing across 702 claims; the antibody is simple — if `missing` > 0, something was claimed without evidence
 
 ## Event Sourcing (Phase 3)
 
