@@ -31,3 +31,4 @@ pub mod hecksagon_helpers;
 pub mod hecksagon_ir;
 pub mod hecksagon_parser;
 pub mod run;
+pub mod run_stdin_loop;

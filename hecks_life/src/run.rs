@@ -122,15 +122,17 @@ pub fn run_script(args: &[String]) -> i32 {
     let data_dir = infer_data_dir(path);
     let mut rt = Runtime::boot_with_data_dir(domain, data_dir);
 
+    // Stdin-loop capability detection: when the hecksagon declares both
+    // :stdin and :stdout AND the bluebook's Session aggregate exposes
+    // ReadLine + RespondWith + EndSession, run the interactive loop.
+    // Otherwise this is a one-shot script — dispatch the entrypoint and
+    // exit.
+    if is_stdin_loop_capability(&registry, &rt) {
+        return crate::run_stdin_loop::run(&mut rt, &registry, &entrypoint, attrs);
+    }
+
     match rt.dispatch(&entrypoint, attrs) {
-        Ok(_) => {
-            // Non-persistence IO adapters don't need cleanup on the
-            // happy path — stdout/stderr have already flushed. For the
-            // stdin-loop case, the capability's own policy engine fires
-            // EndSession via the entrypoint command.
-            let _ = registry;
-            ExitKind::Ok.code()
-        }
+        Ok(_) => ExitKind::Ok.code(),
         Err(crate::runtime::RuntimeError::UnknownCommand(_)) => {
             eprintln!("hecks-life run: entrypoint {} not found in {}", entrypoint, path);
             ExitKind::CommandNotFound.code()
@@ -140,6 +142,24 @@ pub fn run_script(args: &[String]) -> i32 {
             ExitKind::AdapterFailure.code()
         }
     }
+}
+
+/// True when the adapter registry + bluebook shape demand an interactive
+/// REPL: stdin and stdout declared, ReadLine + RespondWith commands
+/// present on some aggregate. Detection keeps the runner behaviorally
+/// identical to the old adapter_terminal.rs.
+pub fn is_stdin_loop_capability(registry: &AdapterRegistry, rt: &Runtime) -> bool {
+    let has_stdio = registry.io("stdin").is_some() && registry.io("stdout").is_some();
+    if !has_stdio { return false; }
+    let mut has_read = false;
+    let mut has_respond = false;
+    for agg in &rt.domain.aggregates {
+        for cmd in &agg.commands {
+            if cmd.name == "ReadLine" { has_read = true; }
+            if cmd.name == "RespondWith" { has_respond = true; }
+        }
+    }
+    has_read && has_respond
 }
 
 /// Pick a data dir for heki persistence — prefer a sibling
