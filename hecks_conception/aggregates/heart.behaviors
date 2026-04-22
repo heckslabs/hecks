@@ -1,0 +1,19 @@
+Hecks.behaviors "Heart" do
+  vision "Behavioral tests for the Heart domain — 1Hz beat counter."
+
+  test "Beat runs" do
+    tests "Beat", on: "Heart"
+    expect emits: ["HeartBeat"]
+  end
+
+  test "Beat increments beat_count" do
+    tests "Beat", on: "Heart"
+    expect beat_count: 1
+  end
+
+  test "Beat twice increments beat_count to 2" do
+    tests "Beat", on: "Heart"
+    setup  "Beat"
+    expect beat_count: 2
+  end
+end
