@@ -6,7 +6,7 @@ Hecks.bluebook "HealingGarden", version: "2026.04.13.1" do
     attribute :plan_id, String
     attribute :patient_name, String
     attribute :primary_nurse, String
-    list_of(Intervention) :interventions
+    attribute :interventions, list_of(Intervention)
     attribute :status, String
     value_object "Intervention" do
       attribute :type, String

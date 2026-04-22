@@ -135,7 +135,7 @@ Hecks.bluebook "Artifact", version: "2026.04.14.1" do
     attribute :domain_name, String
     attribute :actor_name, String
     attribute :port_name, String
-    list_of(String) :allowed_commands
+    attribute :allowed_commands, list_of(String)
 
     command "DefineGate" do
       role "Compiler"

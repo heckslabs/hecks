@@ -84,7 +84,7 @@ Hecks.bluebook "HomeHealthApp", version: "2026.04.13.1" do
     attribute :license_type, String
     attribute :rating, Float
     attribute :status, String
-    list_of(Skill) :skills
+    attribute :skills, list_of(Skill)
     value_object "Skill" do
       attribute :name, String
       attribute :level, String

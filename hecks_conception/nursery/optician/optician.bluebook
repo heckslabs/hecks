@@ -10,7 +10,7 @@ Hecks.bluebook "Optician", version: "2026.04.13.1" do
     attribute :color, String
     attribute :price, Float
     attribute :quantity, Integer
-    list_of(FrameMeasurement) :measurements
+    attribute :measurements, list_of(FrameMeasurement)
 
     value_object "FrameMeasurement" do
       attribute :dimension, String

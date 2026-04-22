@@ -41,7 +41,7 @@ Hecks.bluebook "DigitalForensics", version: "2026.04.13.1" do
   aggregate "ChainOfCustody", "A tamper-evident chain of custody log for evidence" do
     attribute :chain_id, String
     attribute :evidence_id, String
-    list_of(CustodyEntry) :entries
+    attribute :entries, list_of(CustodyEntry)
     attribute :status, String
     value_object "CustodyEntry" do
       attribute :handler_name, String

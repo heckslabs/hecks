@@ -10,7 +10,7 @@ Hecks.bluebook "CampingOutfitter", version: "2026.04.13.1" do
     attribute :weight_kg, Float
     attribute :price, Float
     attribute :quantity, Integer
-    list_of(GearSpec) :specs
+    attribute :specs, list_of(GearSpec)
 
     value_object "GearSpec" do
       attribute :attribute, String

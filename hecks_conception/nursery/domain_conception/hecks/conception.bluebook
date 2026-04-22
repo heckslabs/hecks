@@ -13,7 +13,7 @@ Hecks.bluebook "Conception", version: "2026.04.14.1" do
     attribute :actor_count, Integer
     attribute :policy_count, Integer
     attribute :completeness, String
-    list_of(String) :gaps
+    attribute :gaps, list_of(String)
 
     command "StartConception" do
       role "Conceiver"
@@ -86,7 +86,7 @@ Hecks.bluebook "Conception", version: "2026.04.14.1" do
       role "Conceiver"
       description "Check what the domain has and what it is missing — update gaps list"
       reference_to(Blueprint)
-      list_of(String) :gaps
+      attribute :gaps, list_of(String)
       emits "CompletenessAssessed"
       then_set :gaps, to: :gaps
     end

@@ -77,7 +77,7 @@ Hecks.bluebook "MobileDialysis", version: "2026.04.13.1" do
     attribute :route_id, String
     attribute :unit_id, String
     attribute :date, String
-    list_of(RouteStop) :stops
+    attribute :stops, list_of(RouteStop)
     attribute :total_miles, Float
     attribute :status, String
     value_object "RouteStop" do

@@ -112,7 +112,7 @@ Hecks.bluebook "FreightLogistics" do
     attribute :destination, String
     attribute :distance_miles, Float
     attribute :estimated_hours, Integer
-    list_of(Waypoint) :waypoints
+    attribute :waypoints, list_of(Waypoint)
     attribute :status, String
     reference_to(Shipment)
 

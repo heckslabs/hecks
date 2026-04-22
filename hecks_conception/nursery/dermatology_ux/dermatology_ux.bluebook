@@ -39,7 +39,7 @@ Hecks.bluebook "DermatologyUX", version: "2026.04.13.1" do
     attribute :survey_id, String
     attribute :patient_name, String
     attribute :condition_id, String
-    list_of(SurveyQuestion) :questions
+    attribute :questions, list_of(SurveyQuestion)
     attribute :status, String
     value_object "SurveyQuestion" do
       attribute :question_text, String

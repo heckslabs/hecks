@@ -45,7 +45,7 @@ Hecks.bluebook "DomesticViolenceShelter" do
   aggregate "SafetyPlan", "A personalized safety strategy for the resident" do
     attribute :resident_alias, String
     attribute :created_date, String
-    list_of(SafetyStep) :steps
+    attribute :steps, list_of(SafetyStep)
     attribute :emergency_contacts, String
     attribute :escape_route, String
     attribute :status, String
@@ -167,7 +167,7 @@ Hecks.bluebook "DomesticViolenceShelter" do
     attribute :employment_status, String
     attribute :support_network, String
     attribute :status, String
-    list_of(ExitTask) :tasks
+    attribute :tasks, list_of(ExitTask)
     reference_to Resident
 
     value_object "ExitTask" do

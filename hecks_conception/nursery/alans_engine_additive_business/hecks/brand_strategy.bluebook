@@ -9,7 +9,7 @@ Hecks.bluebook "BrandStrategy", version: "2026.04.11.1" do
     attribute :differentiator, String
     attribute :competitor, String
     attribute :competitor_position, String
-    list_of(Message) :messaging
+    attribute :messaging, list_of(Message)
 
     value_object "Message" do
       attribute :channel, String

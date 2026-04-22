@@ -101,7 +101,7 @@ Hecks.bluebook "GenomicsInfra", version: "2026.04.13.1" do
     attribute :pipeline_id, String
     attribute :sample_id, String
     attribute :pipeline_type, String
-    list_of(PipelineStep) :steps
+    attribute :steps, list_of(PipelineStep)
     attribute :status, String
     value_object "PipelineStep" do
       attribute :step_number, Integer

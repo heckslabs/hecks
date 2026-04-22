@@ -41,7 +41,7 @@ Hecks.bluebook "LabAutomation", version: "2026.04.13.1" do
     attribute :pipeline_id, String
     attribute :specimen_id, String
     attribute :test_type, String
-    list_of(Stage) :stages
+    attribute :stages, list_of(Stage)
     attribute :status, String
     value_object "Stage" do
       attribute :name, String

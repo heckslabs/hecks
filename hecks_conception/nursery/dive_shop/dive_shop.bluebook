@@ -10,7 +10,7 @@ Hecks.bluebook "DiveShop", version: "2026.04.13.1" do
     attribute :price, Float
     attribute :quantity, Integer
     attribute :status, String
-    list_of(ServiceRecord) :service_history
+    attribute :service_history, list_of(ServiceRecord)
 
     value_object "ServiceRecord" do
       attribute :service_date, String

@@ -11,7 +11,7 @@ Hecks.bluebook "AntiquesDealer", version: "2026.04.13.1" do
     attribute :condition, String
     attribute :asking_price, Float
     attribute :status, String
-    list_of(ProvenanceEntry) :provenance
+    attribute :provenance, list_of(ProvenanceEntry)
 
     value_object "ProvenanceEntry" do
       attribute :owner_name, String

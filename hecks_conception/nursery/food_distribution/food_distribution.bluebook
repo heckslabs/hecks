@@ -74,7 +74,7 @@ Hecks.bluebook "FoodDistribution", version: "2026.04.13.1" do
   aggregate "DeliveryRoute", "An optimized delivery route to recipient agencies" do
     attribute :route_id, String
     attribute :driver_name, String
-    list_of(Stop) :stops
+    attribute :stops, list_of(Stop)
     attribute :total_miles, Float
     attribute :status, String
     value_object "Stop" do
