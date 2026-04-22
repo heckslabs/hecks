@@ -25,6 +25,7 @@ pub fn parse(source: &str) -> TestSuite {
         name: String::new(),
         vision: None,
         tests: vec![],
+        loads: vec![],
     };
     let lines: Vec<&str> = source.lines().collect();
     let mut i = 0;
@@ -59,6 +60,7 @@ fn parse_test(lines: &[&str]) -> (Test, usize) {
         setups: vec![],
         input: BTreeMap::new(),
         expect: BTreeMap::new(),
+        events_include: vec![],
     };
 
     let mut i = 1;

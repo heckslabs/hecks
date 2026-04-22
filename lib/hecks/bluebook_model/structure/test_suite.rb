@@ -29,22 +29,36 @@ module Hecks
         # @return [Array<Test>] the individual tests in this suite
         attr_reader :tests
 
-        def initialize(name:, vision: nil, tests: [])
+        # @return [Array<String>] sibling bluebooks to load into the test domain
+        #
+        # Populated by `loads "pulse", "body"` in the `.behaviors` DSL. Each
+        # entry is a bluebook name resolved to a file by the runner; the
+        # resolved bluebook's aggregates/policies/value_objects merge into
+        # the single Domain the tests execute against. Empty by default —
+        # every pre-i43 `.behaviors` file parses with an empty list and
+        # behaves identically to before.
+        #
+        # IR slot only in this commit: no consumer reads this field yet.
+        attr_reader :loads
+
+        def initialize(name:, vision: nil, tests: [], loads: [])
           @name = name
           @vision = vision
           @tests = tests
+          @loads = loads
         end
 
         def ==(other)
           other.is_a?(TestSuite) &&
             name == other.name &&
             vision == other.vision &&
-            tests == other.tests
+            tests == other.tests &&
+            loads == other.loads
         end
         alias eql? ==
 
         def hash
-          [name, vision, tests].hash
+          [name, vision, tests, loads].hash
         end
       end
     end

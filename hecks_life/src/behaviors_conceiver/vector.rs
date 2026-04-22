@@ -104,6 +104,7 @@ mod tests {
             }).collect(),
             input: BTreeMap::new(),
             expect,
+            events_include: vec![],
         }
     }
 
@@ -119,6 +120,7 @@ mod tests {
                 mk_test("command", "Order", 1, Some("status")),
                 mk_test("command", "Order", 0, Some("refused")),
             ],
+            loads: vec![],
         };
         let v = extract_vector(&suite);
         assert_eq!(v[0], 5.0);                       // test_count
