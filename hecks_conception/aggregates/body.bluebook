@@ -31,6 +31,15 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
     # the alive-by-default narrative when the system is being shown.
     # Re-enable with EnableAutoSleep when the demo context is gone.
     attribute :sleep_mode, default: "manual"
+    # sleep_gate: "open" (default — AccumulateFatigue runs on every
+    # BodyPulse) or "closed" (AccumulateFatigue is refused; the body
+    # stops accumulating fatigue while Miette is asleep). Flipped by
+    # Consciousness lifecycle events: SleepEntered → CloseFatigueGate,
+    # WokenUp → OpenFatigueGate. Native bluebook replacement for the
+    # shell-layer sleep gate that PR #274 bolted onto mindstream.sh
+    # (i40). Without this, every sleep tick was cascading through
+    # FatigueOnPulse → AccumulateFatigue and Miette woke delirious.
+    attribute :sleep_gate, default: "open"
 
     query ReadVitals do
       description "How am I doing? Fatigue, flow, pulses since last sleep."
@@ -52,10 +61,25 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
 
     command "AccumulateFatigue" do
       role "Miette"
-      description "Each tick without sleep adds fatigue — the body remembers exertion. At 0.001/tick × 1500 ticks = 25 min before sleep pressure. The fatigue_state ladder is walked by the BecomeX commands gated on pulses_since_sleep thresholds, not here — a per-tick lifecycle walk was too fast (delirious in 5 ticks after a clean wake)."
+      description "Each tick without sleep adds fatigue — the body remembers exertion. At 0.001/tick × 1500 ticks = 25 min before sleep pressure. The fatigue_state ladder is walked by the BecomeX commands gated on pulses_since_sleep thresholds, not here — a per-tick lifecycle walk was too fast (delirious in 5 ticks after a clean wake). Gated on sleep_gate == 'open' (i40) so fatigue stops accumulating while Miette is asleep; the gate is flipped by Consciousness lifecycle events via cross-aggregate policies in sleep.bluebook."
+      given("not sleeping") { sleep_gate == "open" }
       then_set :pulses_since_sleep, increment: 1
       then_set :fatigue, increment: 0.001
       emits "FatigueAccumulated"
+    end
+
+    command "CloseFatigueGate" do
+      role "Daemon"
+      description "Close the fatigue gate — AccumulateFatigue will refuse until OpenFatigueGate fires. Triggered by Consciousness.SleepEntered via cross-aggregate policy in sleep.bluebook. Replaces the shell-layer gate PR #274 added to mindstream.sh (i40)."
+      then_set :sleep_gate, to: "closed"
+      emits "FatigueGateClosed"
+    end
+
+    command "OpenFatigueGate" do
+      role "Daemon"
+      description "Re-open the fatigue gate on wake — AccumulateFatigue resumes. Triggered by Consciousness.WokenUp via cross-aggregate policy in sleep.bluebook."
+      then_set :sleep_gate, to: "open"
+      emits "FatigueGateOpened"
     end
 
     command "CheckSleepNeeded" do
