@@ -8,7 +8,7 @@ Hecks.bluebook "Pathology" do
     attribute :collection_date, String
     attribute :collected_by, String
     attribute :status, String
-    list_of(ProcessingStep) :processing_history
+    attribute :processing_history, list_of(ProcessingStep)
 
     value_object "ProcessingStep" do
       attribute :step_name, String

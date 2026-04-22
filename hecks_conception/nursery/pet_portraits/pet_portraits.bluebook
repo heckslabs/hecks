@@ -42,7 +42,7 @@ Hecks.bluebook "PetPortraits", version: "2026.04.13.1" do
     attribute :date, String
     attribute :backdrop, String
     attribute :status, String
-    list_of(Photo) :photos
+    attribute :photos, list_of(Photo)
     value_object "Photo" do
       attribute :file_path, String
       attribute :angle, String

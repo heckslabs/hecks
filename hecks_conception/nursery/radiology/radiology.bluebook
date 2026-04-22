@@ -144,7 +144,7 @@ Hecks.bluebook "Radiology" do
     attribute :serial_number, String
     attribute :last_calibration_date, String
     attribute :status, String
-    list_of(MaintenanceRecord) :maintenance_history
+    attribute :maintenance_history, list_of(MaintenanceRecord)
 
     value_object "MaintenanceRecord" do
       attribute :service_date, String

@@ -8,7 +8,7 @@ Hecks.bluebook "OrganDonation" do
     attribute :hospital, String
     attribute :cause_of_death, String
     attribute :consent_status, String
-    list_of(AvailableOrgan) :organs
+    attribute :organs, list_of(AvailableOrgan)
 
     value_object "AvailableOrgan" do
       attribute :organ_name, String

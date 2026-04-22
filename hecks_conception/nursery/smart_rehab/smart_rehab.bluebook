@@ -35,7 +35,7 @@ Hecks.bluebook "SmartRehab", version: "2026.04.13.1" do
   aggregate "ExerciseProgram", "A prescribed set of rehab exercises for a patient" do
     attribute :program_id, String
     attribute :patient_id, String
-    list_of(Exercise) :exercises
+    attribute :exercises, list_of(Exercise)
     attribute :frequency, String
     attribute :status, String
     value_object "Exercise" do

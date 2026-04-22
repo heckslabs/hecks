@@ -76,7 +76,7 @@ Hecks.bluebook "PharmacyOutreach", version: "2026.04.13.1" do
     attribute :target_segment, String
     attribute :audience_size, Integer
     attribute :status, String
-    list_of(CampaignMessage) :messages
+    attribute :messages, list_of(CampaignMessage)
 
     value_object "CampaignMessage" do
       attribute :subject, String

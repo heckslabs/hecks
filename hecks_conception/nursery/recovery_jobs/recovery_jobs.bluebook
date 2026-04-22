@@ -8,7 +8,7 @@ Hecks.bluebook "RecoveryJobs", version: "2026.04.13.1" do
     attribute :recovery_stage, String
     attribute :skills_summary, String
     attribute :status, String
-    list_of(WorkPreference) :preferences
+    attribute :preferences, list_of(WorkPreference)
     value_object "WorkPreference" do
       attribute :industry, String
       attribute :schedule_type, String

@@ -161,7 +161,7 @@ Hecks.bluebook "SubstanceRecovery" do
     attribute :meeting_time, String
     attribute :facilitator_name, String
     attribute :max_members, Integer
-    list_of(GroupMember) :members
+    attribute :members, list_of(GroupMember)
     reference_to Counselor
 
     value_object "GroupMember" do

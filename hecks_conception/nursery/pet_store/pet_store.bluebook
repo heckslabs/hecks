@@ -10,7 +10,7 @@ Hecks.bluebook "PetStore", version: "2026.04.13.1" do
     attribute :age_months, Integer
     attribute :price, Float
     attribute :status, String
-    list_of(VaccinationRecord) :vaccinations
+    attribute :vaccinations, list_of(VaccinationRecord)
 
     value_object "VaccinationRecord" do
       attribute :vaccine_name, String
