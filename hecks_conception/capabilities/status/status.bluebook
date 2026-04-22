@@ -1,0 +1,57 @@
+#!/usr/bin/env hecks-life run
+Hecks.bluebook "Status" do
+  vision "Miette's multi-system status report — reads .heki stores + daemon pids, prints a labeled summary"
+
+  entrypoint "GenerateReport"
+
+  aggregate "StatusReport" do
+    description "A single printed snapshot of Miette's subsystems."
+
+    # Identity
+    attribute :identity_name,       String, default: "—"
+
+    # Consciousness
+    attribute :consciousness_state, String, default: "—"
+    attribute :sleep_stage,         String, default: "—"
+    attribute :sleep_progress,      String, default: "—/—"
+    attribute :sleep_summary,       String, default: "—"
+
+    # Vitals (Heartbeat + Tick)
+    attribute :fatigue,             String, default: "—"
+    attribute :fatigue_state,       String, default: "—"
+    attribute :pulse_rate,          String, default: "—"
+    attribute :flow_rate,           String, default: "—"
+    attribute :pulses_since_sleep,  String, default: "—"
+    attribute :cycle,               String, default: "0"
+
+    # Mood
+    attribute :mood_state,          String, default: "—"
+    attribute :creativity_level,    String, default: "—"
+    attribute :precision_level,     String, default: "—"
+
+    # Memory counts
+    attribute :musings_count,       Integer, default: 0
+    attribute :conversations_count, Integer, default: 0
+    attribute :signals_count,       Integer, default: 0
+    attribute :synapses_count,      Integer, default: 0
+    attribute :memories_count,      Integer, default: 0
+
+    # Recent activity
+    attribute :last_dream_at,       String,  default: "—"
+    attribute :last_dream_text,     String,  default: "—"
+    attribute :last_turn_at,        String,  default: "—"
+    attribute :last_turn_text,      String,  default: "—"
+
+    # Bluebooks on disk
+    attribute :aggregates_count,    Integer, default: 0
+    attribute :capabilities_count,  Integer, default: 0
+
+    # Daemons
+    attribute :mindstream_alive,    String, default: "down"
+
+    command "GenerateReport" do
+      description "Assemble and print a status snapshot. The Status runner in hecks-life reads every declared .heki store, counts bluebooks, checks the mindstream pidfile via the :shell adapter, then writes the formatted report through the :stdout adapter."
+      emits "StatusReported"
+    end
+  end
+end

@@ -1,0 +1,32 @@
+Hecks.hecksagon "Status" do
+  # Ephemeral report — no persistence. Values are read from the heki
+  # stores owned by other capabilities; this one only prints a snapshot.
+  adapter :memory
+
+  # ---- I/O wiring --------------------------------------------------
+  #
+  # :fs     — reads the .heki stores in hecks_conception/information/.
+  #           The runtime's Status runner consults this adapter's `root:`
+  #           option to locate the stores, then opens each record file
+  #           via the heki module.
+  #
+  # :stdout — writes the formatted, multi-section report to standard
+  #           output. The adapter's template defaults to `{{text}}`; the
+  #           runner builds each section (header + rows) and streams it
+  #           through the adapter line by line.
+  #
+  # :shell  — `is_pid_alive` checks the mindstream pidfile by calling
+  #           `kill -0 <pid>`. Output format `exit_code` — any non-zero
+  #           exit simply means "down" rather than a shell error.
+
+  adapter :fs, root: "information"
+
+  adapter :stdout
+
+  adapter :shell,
+    name: :is_pid_alive,
+    command: "kill",
+    args: ["-0", "{{pid}}"],
+    output_format: :exit_code,
+    ok_exit: 0
+end
