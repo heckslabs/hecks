@@ -1,0 +1,10 @@
+Hecks.fixtures "CircuitBreaker" do
+  # One breaker per external LLM provider Miette leans on. Both
+  # start closed — no known failures. Defaults for threshold /
+  # window / cooldown come from the aggregate's attribute defaults
+  # (5 failures / 60s window / 300s cooldown).
+  aggregate "Breaker" do
+    fixture "ClaudeApi", kind: "claude_api", state: "closed", failure_count: 0
+    fixture "OllamaApi", kind: "ollama_api", state: "closed", failure_count: 0
+  end
+end

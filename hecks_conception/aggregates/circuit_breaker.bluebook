@@ -1,0 +1,126 @@
+Hecks.bluebook "CircuitBreaker", version: "2026.04.21.1" do
+  vision "Trip-safe guard for flaky external calls — open on repeated failure, probe after cooldown, close on success"
+  category "body"
+
+  # ============================================================
+  # BREAKER — one circuit per external dependency
+  # ============================================================
+  # Miette has one per external service she leans on (claude_api,
+  # ollama_api, …). The state machine is the classic three-state
+  # breaker:
+  #
+  #   closed     — normal flow; failures accumulate
+  #   open       — too many failures within the window; all calls
+  #                short-circuit until cooldown elapses
+  #   half_open  — cooldown elapsed; allow one probe. Success →
+  #                closed. Failure → open.
+  #
+  # Threshold + window are advisory caps the dispatcher reads; the
+  # state + failure_count fields capture the bookkeeping. Actual
+  # "is it time to transition?" timing lives in the daemon that
+  # dispatches Probe based on opened_at + cooldown_seconds.
+
+  aggregate "Breaker", "A single circuit — state, failure bookkeeping, and the thresholds that govern it" do
+    attribute :kind, String
+    attribute :state, String
+    attribute :failure_count, Integer
+    attribute :opened_at, String
+    attribute :window_seconds, Integer, default: 60
+    attribute :threshold, Integer, default: 5
+    attribute :cooldown_seconds, Integer, default: 300
+    attribute :last_reason, String
+
+    command "RecordFailure" do
+      role "System"
+      description "A call to this breaker's service failed. Increments failure_count; when it crosses threshold, the breaker opens."
+      attribute :kind, String
+      given("not already open") { state != "open" }
+      emits "FailureRecorded"
+      then_set :kind, to: :kind
+      then_set :failure_count, increment: 1
+    end
+
+    command "TripOnThreshold" do
+      role "System"
+      description "Failure just crossed the threshold — open the breaker and stamp opened_at."
+      attribute :kind, String
+      attribute :opened_at, String
+      given("threshold crossed") { failure_count >= threshold }
+      given("not already open") { state != "open" }
+      emits "BreakerOpened"
+      then_set :kind, to: :kind
+      then_set :state, to: "open"
+      then_set :opened_at, to: :opened_at
+    end
+
+    command "RecordSuccess" do
+      role "System"
+      description "A call to this breaker's service succeeded. Clears failure_count; half_open goes to closed."
+      attribute :kind, String
+      given("not already open") { state != "open" }
+      emits "SuccessRecorded"
+      then_set :kind, to: :kind
+      then_set :failure_count, to: 0
+      then_set :state, to: "closed"
+    end
+
+    command "Probe" do
+      role "System"
+      description "Cooldown elapsed — allow a single probe call by moving open → half_open."
+      attribute :kind, String
+      given("must be open") { state == "open" }
+      emits "Probed"
+      then_set :kind, to: :kind
+      then_set :state, to: "half_open"
+    end
+
+    command "Trip" do
+      role "Creator"
+      description "Manually open the breaker — e.g., operator sees upstream incident."
+      attribute :kind, String
+      attribute :reason, String
+      attribute :opened_at, String
+      emits "Tripped"
+      then_set :kind, to: :kind
+      then_set :state, to: "open"
+      then_set :opened_at, to: :opened_at
+      then_set :last_reason, to: :reason
+    end
+
+    command "Reset" do
+      role "Creator"
+      description "Manually close the breaker and clear failure_count."
+      attribute :kind, String
+      emits "Reset"
+      then_set :kind, to: :kind
+      then_set :state, to: "closed"
+      then_set :failure_count, to: 0
+      then_set :opened_at, to: ""
+    end
+
+    lifecycle :state, default: "closed" do
+      transition "TripOnThreshold" => "open",      from: "closed"
+      transition "TripOnThreshold" => "open",      from: "half_open"
+      transition "RecordSuccess"   => "closed",    from: "closed"
+      transition "RecordSuccess"   => "closed",    from: "half_open"
+      transition "Probe"           => "half_open", from: "open"
+      transition "Trip"            => "open",      from: "closed"
+      transition "Trip"            => "open",      from: "half_open"
+      transition "Trip"            => "open",      from: "open"
+      transition "Reset"           => "closed",    from: "open"
+      transition "Reset"           => "closed",    from: "half_open"
+      transition "Reset"           => "closed",    from: "closed"
+    end
+  end
+
+  # Threshold-crossing chain: RecordFailure fires first (bumps
+  # failure_count), then this policy fans out to TripOnThreshold.
+  # TripOnThreshold's `given("threshold crossed")` decides whether
+  # the fan-out actually opens the breaker, so we don't need
+  # separate "did we cross?" logic — the bluebook state machine
+  # handles it.
+  policy "TripWhenThresholdCrossed" do
+    on "FailureRecorded"
+    trigger "TripOnThreshold"
+  end
+end

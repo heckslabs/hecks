@@ -1,0 +1,10 @@
+Hecks.fixtures "Spend" do
+  # Default budget caps. Chris can raise/lower these at any time
+  # via SetBudget. The hourly cap is the tightest — prevents runaway
+  # loops from burning through the whole day's budget in one spiral.
+  aggregate "Budget" do
+    fixture "HourlyCap",  period: "hour",  cap_usd: 1.00
+    fixture "DailyCap",   period: "day",   cap_usd: 5.00
+    fixture "MonthlyCap", period: "month", cap_usd: 50.00
+  end
+end

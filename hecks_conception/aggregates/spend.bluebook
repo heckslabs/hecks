@@ -1,0 +1,91 @@
+Hecks.bluebook "Spend", version: "2026.04.21.1" do
+  vision "LLM spend tracking — every Claude/Ollama call recorded, every budget enforced"
+  category "body"
+
+  # ============================================================
+  # CALL — one recorded invocation of an LLM
+  # ============================================================
+  # Multi-record: every RecordCall is a new row. Enables hourly /
+  # daily / monthly rollups without replaying the whole history.
+  # command_ref links the spend record back to whatever Miette was
+  # doing when she shelled out (e.g., "Tongue.Speak:speech_42").
+
+  aggregate "Call", "One invocation of an LLM — provider, token counts, cost, and what command triggered it" do
+    attribute :provider, String
+    attribute :tokens_in, Integer
+    attribute :tokens_out, Integer
+    attribute :cost_usd, Float
+    attribute :command_ref, String
+    attribute :recorded_at, String
+
+    command "RecordCall" do
+      role "System"
+      description "Record a single LLM invocation — provider, token counts, cost, and the command that triggered it"
+      attribute :provider, String
+      attribute :tokens_in, Integer
+      attribute :tokens_out, Integer
+      attribute :cost_usd, Float
+      attribute :command_ref, String
+      attribute :recorded_at, String
+      emits "CallRecorded"
+      then_set :provider, to: :provider
+      then_set :tokens_in, to: :tokens_in
+      then_set :tokens_out, to: :tokens_out
+      then_set :cost_usd, to: :cost_usd
+      then_set :command_ref, to: :command_ref
+      then_set :recorded_at, to: :recorded_at
+    end
+  end
+
+  # ============================================================
+  # BUDGET — cap on spend within a period
+  # ============================================================
+  # One record per period (hour / day / month). The cap is advisory
+  # at this layer — it's a declared limit; enforcement lives in the
+  # dispatcher that reads budget+rollup and short-circuits calls.
+  # OverrideBudget lifts the cap until a timestamp (e.g., "I need to
+  # write this whole essay right now, let it rip until 10pm").
+
+  aggregate "Budget", "Spend cap for a period — hour/day/month — with manual override window" do
+    attribute :period, String
+    attribute :cap_usd, Float
+    attribute :override_active, String
+    attribute :override_until, String
+
+    command "SetBudget" do
+      role "Creator"
+      description "Set the spend cap for a period — hour, day, or month"
+      attribute :period, String
+      attribute :cap_usd, Float
+      emits "BudgetSet"
+      then_set :period, to: :period
+      then_set :cap_usd, to: :cap_usd
+      then_set :override_active, to: "no"
+    end
+
+    command "OverrideBudget" do
+      role "Creator"
+      description "Disable the cap for a period until a specific timestamp"
+      attribute :period, String
+      attribute :until_ts, String
+      emits "BudgetOverridden"
+      then_set :period, to: :period
+      then_set :override_active, to: "yes"
+      then_set :override_until, to: :until_ts
+    end
+
+    command "ClearOverride" do
+      role "Creator"
+      description "Re-engage the cap before the override window expires"
+      attribute :period, String
+      emits "OverrideCleared"
+      then_set :period, to: :period
+      then_set :override_active, to: "no"
+      then_set :override_until, to: ""
+    end
+  end
+
+  # No policies. Spend is pure accounting — no cross-aggregate cascade
+  # yet. The dispatcher that reads Call + Budget to gate new invocations
+  # is wired in PR 1, not here.
+end
