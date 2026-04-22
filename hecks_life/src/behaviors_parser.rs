@@ -37,6 +37,12 @@ pub fn parse(source: &str) -> TestSuite {
             if let Some(name) = extract_string(line) { suite.name = name; }
         } else if line.starts_with("vision") {
             if let Some(v) = extract_string(line) { suite.vision = Some(v); }
+        } else if line.starts_with("loads ") || line.starts_with("loads\t") || line == "loads" {
+            // `loads "a", "b", "c"` — zero or more quoted names. Empty
+            // `loads` with no arguments records nothing (same as absent).
+            for name in extract_all_strings(line) {
+                suite.loads.push(name);
+            }
         } else if line.starts_with("test ") || line.starts_with("test\t") {
             let (test, consumed) = parse_test(&lines[i..]);
             suite.tests.push(test);
@@ -47,6 +53,39 @@ pub fn parse(source: &str) -> TestSuite {
     }
 
     suite
+}
+
+/// Return every double-quoted substring on `line`, in source order. Used
+/// to pluck the variadic `"a", "b", "c"` argument list of `loads` and
+/// `then_events_include`. Honors backslash-escaped quotes inside strings.
+fn extract_all_strings(line: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let bytes = line.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'"' {
+            let mut j = i + 1;
+            let mut buf = String::new();
+            while j < bytes.len() && bytes[j] != b'"' {
+                if bytes[j] == b'\\' && j + 1 < bytes.len() {
+                    buf.push(bytes[j + 1] as char);
+                    j += 2;
+                } else {
+                    buf.push(bytes[j] as char);
+                    j += 1;
+                }
+            }
+            if j < bytes.len() {
+                out.push(buf);
+                i = j + 1;
+                continue;
+            } else {
+                break;
+            }
+        }
+        i += 1;
+    }
+    out
 }
 
 fn parse_test(lines: &[&str]) -> (Test, usize) {
@@ -108,6 +147,15 @@ fn interpret_test_line(line: &str, test: &mut Test) {
         test.input = parse_kwargs_only(line, "input");
     } else if line.starts_with("expect ") || line.starts_with("expect\t") || line == "expect" {
         test.expect = parse_kwargs_only(line, "expect");
+    } else if line.starts_with("then_events_include ")
+        || line.starts_with("then_events_include\t")
+        || line == "then_events_include"
+    {
+        // `then_events_include "A", "B", "C"` — set-membership assertion
+        // over events fired during the act phase. Variadic, zero or more.
+        for name in extract_all_strings(line) {
+            test.events_include.push(name);
+        }
     }
 }
 
@@ -192,4 +240,133 @@ pub fn is_behaviors_source(source: &str) -> bool {
         return t.starts_with("Hecks.behaviors");
     }
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn suite_src(body: &str) -> String {
+        format!(
+            "Hecks.behaviors \"Pizzas\" do\n  vision \"v\"\n{}end\n",
+            body
+        )
+    }
+
+    #[test]
+    fn loads_single_name_records_one_entry() {
+        let src = suite_src("  loads \"pulse\"\n");
+        let suite = parse(&src);
+        assert_eq!(suite.loads, vec!["pulse".to_string()]);
+    }
+
+    #[test]
+    fn loads_multiple_names_records_them_in_order() {
+        let src = suite_src("  loads \"body\", \"being\", \"sleep\"\n");
+        let suite = parse(&src);
+        assert_eq!(
+            suite.loads,
+            vec!["body".to_string(), "being".to_string(), "sleep".to_string()]
+        );
+    }
+
+    #[test]
+    fn no_loads_line_leaves_loads_empty() {
+        let src = suite_src(
+            "  test \"Create sets name\" do\n    \
+              tests \"CreatePizza\", on: \"Pizza\"\n    \
+              input  name: \"M\"\n    \
+              expect name: \"M\"\n  end\n",
+        );
+        let suite = parse(&src);
+        assert!(suite.loads.is_empty(), "loads should default to empty");
+    }
+
+    #[test]
+    fn then_events_include_single_name_records_one_entry() {
+        let src = suite_src(
+            "  test \"Cascade fires\" do\n    \
+              tests \"Tick\", on: \"Mindstream\"\n    \
+              input  at: \"T0\"\n    \
+              then_events_include \"BodyPulse\"\n  end\n",
+        );
+        let suite = parse(&src);
+        assert_eq!(suite.tests.len(), 1);
+        assert_eq!(suite.tests[0].events_include, vec!["BodyPulse".to_string()]);
+    }
+
+    #[test]
+    fn then_events_include_multiple_names_in_order() {
+        let src = suite_src(
+            "  test \"Cascade fires\" do\n    \
+              tests \"Tick\", on: \"Mindstream\"\n    \
+              input  at: \"T0\"\n    \
+              then_events_include \"BodyPulse\", \"FatigueAccumulated\", \"SynapsesPruned\"\n  end\n",
+        );
+        let suite = parse(&src);
+        assert_eq!(
+            suite.tests[0].events_include,
+            vec![
+                "BodyPulse".to_string(),
+                "FatigueAccumulated".to_string(),
+                "SynapsesPruned".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn no_then_events_include_leaves_events_include_empty() {
+        let src = suite_src(
+            "  test \"Plain\" do\n    \
+              tests \"CreatePizza\", on: \"Pizza\"\n    \
+              input  name: \"M\"\n    \
+              expect name: \"M\"\n  end\n",
+        );
+        let suite = parse(&src);
+        assert!(suite.tests[0].events_include.is_empty());
+    }
+
+    #[test]
+    fn suite_with_loads_plus_mixed_tests() {
+        // Suite-level loads, one test with then_events_include, another without.
+        let src = "Hecks.behaviors \"Mindstream\" do\n  \
+          vision \"v\"\n  \
+          loads \"pulse\", \"body\"\n  \
+          test \"Fans out\" do\n    \
+            tests \"Tick\", on: \"Mindstream\"\n    \
+            input  at: \"T0\"\n    \
+            then_events_include \"BodyPulse\", \"FatigueAccumulated\"\n  \
+          end\n  \
+          test \"Plain\" do\n    \
+            tests \"CreateNote\", on: \"Mindstream\"\n    \
+            input  body: \"hi\"\n    \
+            expect body: \"hi\"\n  \
+          end\n\
+          end\n";
+        let suite = parse(src);
+        assert_eq!(
+            suite.loads,
+            vec!["pulse".to_string(), "body".to_string()]
+        );
+        assert_eq!(suite.tests.len(), 2);
+        assert_eq!(
+            suite.tests[0].events_include,
+            vec!["BodyPulse".to_string(), "FatigueAccumulated".to_string()]
+        );
+        assert!(suite.tests[1].events_include.is_empty());
+    }
+
+    #[test]
+    fn extract_all_strings_handles_multiple_tokens() {
+        assert_eq!(
+            extract_all_strings("loads \"a\", \"b\", \"c\""),
+            vec!["a".to_string(), "b".to_string(), "c".to_string()]
+        );
+    }
+
+    #[test]
+    fn extract_all_strings_empty_when_no_quotes() {
+        let r: Vec<String> = extract_all_strings("loads");
+        assert!(r.is_empty());
+    }
 }

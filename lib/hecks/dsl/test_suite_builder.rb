@@ -25,6 +25,7 @@ module Hecks
         @name   = name
         @vision = nil
         @tests  = []
+        @loads  = []
       end
 
       def vision(text)
@@ -37,9 +38,24 @@ module Hecks
         @tests << builder.build
       end
 
+      # Declare sibling bluebooks to merge into the test domain.
+      #
+      #   loads "pulse", "body"
+      #
+      # Each name is a bluebook — the `.behaviors` runner resolves it
+      # to a file, parses it, and merges its aggregates/policies/
+      # value_objects into the single Domain tests execute against.
+      # Append-only so multiple `loads` lines accumulate.
+      #
+      # No consumer in this commit; the IR field is populated so the
+      # runtime merge-domain logic (commit 6) can read it.
+      def loads(*names)
+        @loads.concat(names.map(&:to_s))
+      end
+
       def build
         BluebookModel::Structure::TestSuite.new(
-          name: @name, vision: @vision, tests: @tests,
+          name: @name, vision: @vision, tests: @tests, loads: @loads,
         )
       end
     end
