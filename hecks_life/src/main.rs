@@ -423,10 +423,23 @@ fn run_behaviors(args: &[String]) {
     }
     let suite = hecks_life::behaviors_parser::parse(&suite_text);
 
-    println!("Running {} test(s) from {}", suite.tests.len(), suite_path);
-    println!("  source: {}\n", source_path);
+    // Auto-load sibling .fixtures if present (i4 gap 8). Cross-aggregate
+    // cascades that read state seeded by another aggregate's fixtures no
+    // longer need explicit setup chains in every test.
+    let fixtures_path = hecks_life::behaviors_fixtures::locate_path(suite_path);
+    let fixtures = fixtures_path.as_deref()
+        .and_then(hecks_life::behaviors_fixtures::parse_file);
 
-    let result = hecks_life::behaviors_runner::run_suite(&source_text, &suite);
+    println!("Running {} test(s) from {}", suite.tests.len(), suite_path);
+    println!("  source: {}", source_path);
+    if let Some(ref fp) = fixtures_path {
+        println!("  fixtures: {}", fp);
+    }
+    println!();
+
+    let result = hecks_life::behaviors_runner::run_suite_with_fixtures(
+        &source_text, &suite, fixtures.as_ref(),
+    );
     for run in &result.runs {
         let icon = match run.status {
             hecks_life::behaviors_runner::TestStatus::Pass  => "✓",

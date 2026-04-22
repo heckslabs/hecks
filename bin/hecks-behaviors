@@ -15,6 +15,7 @@ require "bundler/setup" if File.exist?(ENV["BUNDLE_GEMFILE"])
 
 require "hecks"
 require "hecks/behaviors/runner"
+require "hecks/behaviors/fixtures_loader"
 
 test_file = ARGV[0]
 unless test_file && File.file?(test_file)
@@ -55,9 +56,17 @@ rescue => e
 end
 
 puts "Running #{suite.tests.size} test(s) from #{test_file}"
-puts "  source: #{source_file}\n\n"
+puts "  source: #{source_file}"
 
-result = Hecks::Behaviors::Runner.run(source_loader, suite)
+# Auto-load sibling .fixtures if present (i4 gap 8). Cross-aggregate
+# cascades that read state seeded by another aggregate's fixtures no
+# longer need explicit setup chains in every test.
+fixtures_path = Hecks::Behaviors::FixturesLoader.locate_path(test_file)
+fixtures_file = fixtures_path ? Hecks::Behaviors::FixturesLoader.parse_file(fixtures_path) : nil
+puts "  fixtures: #{fixtures_path}" if fixtures_path
+puts ""
+
+result = Hecks::Behaviors::Runner.run(source_loader, suite, fixtures_file: fixtures_file)
 # Runner may return nil entries for tests that raised an unhandled
 # exception during run_one. Treat those as errored so the summary line
 # still prints and parity comparison has something to diff.

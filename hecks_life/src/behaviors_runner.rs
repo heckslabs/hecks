@@ -14,6 +14,8 @@
 //! → `pizzas.bluebook`).
 
 use crate::behaviors_ir::{Test, TestSuite};
+use crate::behaviors_fixtures;
+use crate::fixtures_ir::FixturesFile;
 use crate::ir::Domain;
 use crate::parser;
 use crate::runtime::{Runtime, RuntimeError, Value};
@@ -54,13 +56,24 @@ impl SuiteResult {
 /// Run every test in `suite` against `source` (re-parsed per test for
 /// state isolation). Returns one TestRun per test, in source order.
 pub fn run_suite(source_text: &str, suite: &TestSuite) -> SuiteResult {
+    run_suite_with_fixtures(source_text, suite, None)
+}
+
+/// Fixture-aware variant. When `fixtures` is `Some`, every fresh
+/// runtime is seeded with those records BEFORE setups run (i4 gap 8).
+/// When `None`, behaves exactly like `run_suite` — pass-through.
+pub fn run_suite_with_fixtures(
+    source_text: &str,
+    suite: &TestSuite,
+    fixtures: Option<&FixturesFile>,
+) -> SuiteResult {
     let runs = suite.tests.iter()
-        .map(|t| run_one(source_text, t))
+        .map(|t| run_one(source_text, t, fixtures))
         .collect();
     SuiteResult { runs }
 }
 
-fn run_one(source_text: &str, test: &Test) -> TestRun {
+fn run_one(source_text: &str, test: &Test, fixtures: Option<&FixturesFile>) -> TestRun {
     // Fresh in-memory runtime per test. Repositories start empty;
     // no data_dir means no heki persistence, no disk IO.
     let domain: Domain = parser::parse(source_text);
@@ -72,6 +85,13 @@ fn run_one(source_text: &str, test: &Test) -> TestRun {
     // populate it; reference injection consumes it. No id ever leaves
     // this scope into the test DSL or the generator.
     let mut in_scope: HashMap<String, String> = HashMap::new();
+
+    // Fixture seed FIRST so pre_seed_singletons can check in_scope and
+    // skip aggregates that already have a fixture-loaded record.
+    if let Some(ff) = fixtures {
+        let seeded = behaviors_fixtures::apply(&mut rt, ff);
+        in_scope.extend(seeded);
+    }
 
     // Pre-seed in_scope for aggregates that have no in-bluebook
     // bootstrap command (every command requires a self-ref to its
@@ -313,6 +333,9 @@ fn pre_seed_singletons(rt: &mut Runtime, in_scope: &mut HashMap<String, String>)
         .map(|agg| agg.name.clone())
         .collect();
     for agg_name in to_seed {
+        // Fixtures seeded this aggregate already — don't overwrite its
+        // loaded state with a virgin AggregateState at id "1".
+        if in_scope.contains_key(&agg_name) { continue; }
         if let Some(repo) = rt.repositories.get_mut(&agg_name) {
             let id = "1".to_string();
             repo.save(crate::runtime::AggregateState::new(&id));
