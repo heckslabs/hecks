@@ -14,7 +14,7 @@ Hecks.behaviors "WeddingPlanning" do
     setup  "AllocateBudget", category: "sample", allocated_amount: 1.0
     setup  "BookVendor", vendor_name: "sample", service_type: "sample", contract_amount: 1.0, deposit_paid: 1.0
     input  couple_names: "sample", wedding_date: "sample", venue_name: "sample", total_budget: 1.0, expected_guests: 1
-    expect emits: ["WeddingPlanned", "BudgetAllocated", "BudgetAllocated", "VendorBooked", "ExpenseRecorded"]
+    expect emits: ["WeddingPlanned", "BudgetAllocated", "VendorBooked", "ExpenseRecorded"]
   end
 
   test "FinalizeDetails runs" do
