@@ -144,6 +144,41 @@ RSpec.describe Hecks::Runtime::ShellDispatcher do
       end
     end
 
+    it "truncates stderr in ShellAdapterError#as_json to 256 chars with a marker" do
+      long = "y" * 400
+      noisy = adapter(
+        command: "sh",
+        args: ["-c", "printf '%s' '#{long}' >&2; exit 2"],
+        output_format: :text
+      )
+      raised = nil
+      begin
+        described_class.call(noisy)
+      rescue Hecks::ShellAdapterError => e
+        raised = e
+      end
+      expect(raised).not_to be_nil
+      json = raised.as_json
+      expect(json[:stderr]).to end_with("…(truncated)")
+      expect(json[:stderr].length).to eq(256 + "…(truncated)".length)
+    end
+
+    it "does not add the truncation marker when stderr fits under 256 chars" do
+      short = adapter(
+        command: "sh",
+        args: ["-c", "printf 'short oops' >&2; exit 1"],
+        output_format: :text
+      )
+      raised = nil
+      begin
+        described_class.call(short)
+      rescue Hecks::ShellAdapterError => e
+        raised = e
+      end
+      expect(raised).not_to be_nil
+      expect(raised.as_json[:stderr]).to eq("short oops")
+    end
+
     it "does NOT shell-expand placeholder payloads" do
       # Payload contains $(...) — a shell would try to execute date;
       # Open3.capture3 without a shell passes it as a literal argv element.
