@@ -132,6 +132,7 @@ module Hecks
             wait_thr.join
             stdout.close rescue nil
             stderr.close rescue nil
+            # streams intentionally not read — killed process output is discarded
             raise Hecks::ShellAdapterTimeoutError.new(
               "shell adapter :#{adapter.name} exceeded #{adapter.timeout}s timeout",
               adapter: adapter.name, timeout: adapter.timeout
