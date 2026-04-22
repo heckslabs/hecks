@@ -1,0 +1,17 @@
+#!/usr/bin/env hecks-life dump
+Hecks.bluebook "ShebangDemo" do
+  vision "Proof that a shebang line is tolerated by the parser"
+  category "example"
+
+  aggregate "Greeting" do
+    attribute :text, String
+
+    command "Greet" do
+      role "User"
+      description "Emit a greeting"
+      attribute :text, String
+      emits "Greeted"
+      then_set :text, to: :text
+    end
+  end
+end
