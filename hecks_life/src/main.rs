@@ -163,6 +163,11 @@ fn main() {
         return;
     }
 
+    if command == "check-duplicate-policies" {
+        run_check_duplicate_policies(&args);
+        return;
+    }
+
     if command == "check-all" {
         run_check_all(&args);
         return;
@@ -506,6 +511,44 @@ fn run_check_lifecycle(args: &[String]) {
         println!("FAIL — {} {}", path,
                  if report.errors() > 0 { "has unreachable transitions" }
                  else { "has stuck-default warnings (--strict)" });
+        std::process::exit(1);
+    }
+}
+
+/// `hecks-life check-duplicate-policies <bluebook>`
+///
+/// Refuses bluebooks that declare two or more policies sharing the
+/// same `(on_event, trigger_command)` pair. Today those silently
+/// coexist — the runtime fires every matching policy, so the trigger
+/// command runs once per duplicate. Flat IR walk; no runtime needed.
+fn run_check_duplicate_policies(args: &[String]) {
+    let path = args.get(2).unwrap_or_else(|| {
+        eprintln!("Usage: hecks-life check-duplicate-policies <bluebook>");
+        std::process::exit(1);
+    });
+
+    let source = std::fs::read_to_string(path).unwrap_or_else(|e| {
+        eprintln!("Cannot read {}: {}", path, e); std::process::exit(1);
+    });
+    let domain = hecks_life::parser::parse(&source);
+
+    println!("Checking {} ({})", domain.name, path);
+
+    let report = hecks_life::duplicate_policy_validator::check(&domain);
+    if report.findings.is_empty() {
+        println!("\nPolicies: clean ({} policies, no duplicates)", domain.policies.len());
+    } else {
+        println!("\nDuplicate policies:");
+        for f in &report.findings {
+            println!("  {} {} — {}", f.icon(), f.location, f.message);
+        }
+    }
+
+    println!("\n{} error(s)", report.errors());
+    if report.passes() {
+        println!("PASS — {} has no duplicate (event, trigger) pairs", path);
+    } else {
+        println!("FAIL — {} has duplicate policies", path);
         std::process::exit(1);
     }
 }
