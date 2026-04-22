@@ -10,6 +10,20 @@ mood=$($hecks heki read $info/mood.heki 2>/dev/null | grep current_state | head 
 consciousness=$($hecks heki read $info/consciousness.heki 2>/dev/null | grep '"state"' | head -1 | sed 's/.*: "//' | sed 's/".*//')
 sleep_summary=$($hecks heki read $info/consciousness.heki 2>/dev/null | grep sleep_summary | head -1 | sed 's/.*: "//' | sed 's/".*//')
 
+# Coherence check — five invariants over the body-state heki snapshot
+# (see status_coherence.sh + inbox i35). On violation we degrade the mood
+# glyph to ⚠ and append the reason to information/.coherence.log so the
+# status bar never silently renders a contradictory state.
+coherence_dir="$(dirname "$0")"
+coherence_violations=""
+if ! coherence_violations=$("$coherence_dir/status_coherence.sh" "$info" 2>&1 >/dev/null); then
+  ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+  while IFS= read -r line; do
+    [ -n "$line" ] && printf '%s %s\n' "$ts" "$line" >> "$info/.coherence.log"
+  done <<< "$coherence_violations"
+  coherence_bad=1
+fi
+
 # Animated moon
 moons=("🌑" "🌒" "🌓" "🌔" "🌕" "🌖" "🌗" "🌘")
 moon="${moons[$(( $(date +%s) % 8 ))]}"
@@ -39,6 +53,11 @@ case "$mood" in
   sleeping)   mood_icon="😴" ;;
   *)          mood_icon="😐" ;;
 esac
+
+# Degrade mood glyph to ⚠ when coherence check failed — the reason is in
+# information/.coherence.log (append-only). Exit code still 0 so statusline
+# keeps rendering; the glyph is the signal.
+[ "${coherence_bad:-0}" = "1" ] && mood_icon="⚠"
 
 # Fatigue icon
 case "$fatigue" in
