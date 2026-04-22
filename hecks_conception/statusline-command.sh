@@ -1,4 +1,10 @@
 #!/bin/bash
+# statusline-command.sh — renders Miette's statusline from heki state.
+#
+# [antibody-exempt: i37 Phase B sweep — replaces inline python3 -c with
+#  native hecks-life heki subcommands per PR #272; retires when shell
+#  wrapper ports to .bluebook shebang form (tracked in
+#  terminal_capability_wiring plan).]
 
 input=$(cat)
 
@@ -74,28 +80,20 @@ esac
 # heartbeat now (one tick per second from mindstream.sh).
 beats_raw=$($hecks heki read $info/tick.heki 2>/dev/null | grep '"cycle"' | head -1 | sed 's/.*: //' | sed 's/[^0-9].*//')
 if [ -n "$beats_raw" ] && [ "$beats_raw" -ge 1000000 ] 2>/dev/null; then
-  beats=$(python3 -c "print(f'{$beats_raw/1000000:.2f}m')")
+  beats=$(awk -v b="$beats_raw" 'BEGIN { printf "%.2fm", b/1000000 }')
 elif [ -n "$beats_raw" ] && [ "$beats_raw" -ge 1000 ] 2>/dev/null; then
-  beats=$(python3 -c "print(f'{$beats_raw/1000:.2f}k')")
+  beats=$(awk -v b="$beats_raw" 'BEGIN { printf "%.2fk", b/1000 }')
 else
   beats="$beats_raw"
 fi
 
 # Musing count — total minted (lifetime count from MusingMint.total_minted).
 # This is the thought bubble: how many curated musings have ever landed.
-ideas=$($hecks heki read $info/musing_mint.heki 2>/dev/null | python3 -c "
-import json, sys
-try:
-    d = json.load(sys.stdin)
-    r = next(iter(d.values()), {})
-    print(int(r.get('total_minted', 0)))
-except Exception:
-    print(0)
-" 2>/dev/null)
+ideas=$($hecks heki latest-field $info/musing_mint.heki total_minted 2>/dev/null)
 [ -z "$ideas" ] && ideas=0
 
-# Invention count
-inventions=$($hecks heki read $info/invention.heki 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(sum(1 for v in d.values() if v.get('status','')=='proposed'))" 2>/dev/null)
+# Invention count — proposed proposals (status=proposed).
+inventions=$($hecks heki count $info/invention.heki --where status=proposed 2>/dev/null)
 
 # Check if mindstream is alive
 mindstream_pid=$(cat $info/.mindstream.pid 2>/dev/null)
@@ -103,19 +101,7 @@ mindstream_alive=""
 [ -n "$mindstream_pid" ] && kill -0 "$mindstream_pid" 2>/dev/null && mindstream_alive="yes"
 
 # How long since last heartbeat update? This is the idle check.
-idle=$($hecks heki read $info/heartbeat.heki 2>/dev/null | python3 -c "
-import sys,json
-from datetime import datetime,timezone
-d=json.load(sys.stdin)
-for v in d.values():
-  ts=v.get('updated_at','')
-  if ts:
-    dt=datetime.fromisoformat(ts.replace('Z','+00:00'))
-    print(int((datetime.now(timezone.utc)-dt).total_seconds()))
-    break
-else:
-  print(999)
-" 2>/dev/null)
+idle=$($hecks heki seconds-since $info/heartbeat.heki updated_at 2>/dev/null)
 [ -z "$idle" ] && idle=999
 
 # Build status
@@ -209,7 +195,7 @@ else
 
   # Inbox count — number of queued items in inbox.heki. Surfaces backlog
   # so Miette (and Chris) can see when there's something to attend to.
-  inbox_count=$($hecks heki read $info/inbox.heki 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print(sum(1 for v in d.values() if v.get('status','queued')=='queued'))" 2>/dev/null)
+  inbox_count=$($hecks heki count $info/inbox.heki --where status=queued 2>/dev/null)
   inbox_count=${inbox_count:-0}
 
   status_str="☀️ Miette ${heart} ${beats} ${mood_icon} ${mood}"
