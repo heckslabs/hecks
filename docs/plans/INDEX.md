@@ -18,6 +18,7 @@ agents — trust the decisions, don't re-derive them.
 | [i25_loss_function.md](i25_loss_function.md) | i25 | Not started |
 | [i27_nursery_viability.md](i27_nursery_viability.md) | i27 | Not started |
 | [i30_differential_fuzzer.md](i30_differential_fuzzer.md) | i30 | Not started |
+| [i36_computed_views.md](i36_computed_views.md) | i36 | Not started; architectural (projection DSL + 10 commits) |
 | [i37_python_removal.md](i37_python_removal.md) | i37 | Phase A shipped (PR #272); Phase B+ unblocked |
 | [terminal_capability_wiring.md](terminal_capability_wiring.md) | — | Follow-up to PR #263 |
 
