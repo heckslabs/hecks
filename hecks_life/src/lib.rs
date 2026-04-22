@@ -27,3 +27,6 @@ pub mod duplicate_policy_validator;
 pub mod cascade;
 pub mod fixtures_ir;
 pub mod fixtures_parser;
+pub mod hecksagon_helpers;
+pub mod hecksagon_ir;
+pub mod hecksagon_parser;
