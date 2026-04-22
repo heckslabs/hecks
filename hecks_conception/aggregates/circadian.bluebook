@@ -1,0 +1,64 @@
+Hecks.bluebook "Circadian", version: "2026.04.21.1" do
+  vision "Wall-clock segment tracker — dawn → morning → afternoon → dusk → night. Independent body cycle driven by a 60s daemon that dispatches the Mark* command when the segment changes."
+  category "body"
+
+  # ============================================================
+  # CIRCADIAN — wall-clock body cycle
+  # ============================================================
+  #
+  # Five segments divide the day: dawn, morning, afternoon, dusk,
+  # night. The circadian daemon checks the wall-clock hour every 60s
+  # and dispatches the appropriate Mark* command when the segment has
+  # changed. The aggregate only records the current segment and when
+  # it last updated; no math, no policies.
+  #
+  # Body cycles are emitters, not reactors — no policies here.
+
+  aggregate "Circadian", "Wall-clock segment of the day" do
+    attribute :segment, String, default: "morning"
+    attribute :last_updated_at, String
+
+    command "MarkDawn" do
+      role "Daemon"
+      description "Dawn has arrived — the first light."
+      emits "DawnMarked"
+      then_set :segment, to: "dawn"
+    end
+
+    command "MarkMorning" do
+      role "Daemon"
+      description "Morning has arrived — the sun is up."
+      emits "MorningMarked"
+      then_set :segment, to: "morning"
+    end
+
+    command "MarkAfternoon" do
+      role "Daemon"
+      description "Afternoon has arrived — past the midday."
+      emits "AfternoonMarked"
+      then_set :segment, to: "afternoon"
+    end
+
+    command "MarkDusk" do
+      role "Daemon"
+      description "Dusk has arrived — the light softens."
+      emits "DuskMarked"
+      then_set :segment, to: "dusk"
+    end
+
+    command "MarkNight" do
+      role "Daemon"
+      description "Night has arrived — the sun is down."
+      emits "NightMarked"
+      then_set :segment, to: "night"
+    end
+
+    lifecycle :segment, default: "morning" do
+      transition "MarkDawn"      => "dawn",      from: ["dawn", "morning", "afternoon", "dusk", "night"]
+      transition "MarkMorning"   => "morning",   from: ["dawn", "morning", "afternoon", "dusk", "night"]
+      transition "MarkAfternoon" => "afternoon", from: ["dawn", "morning", "afternoon", "dusk", "night"]
+      transition "MarkDusk"      => "dusk",      from: ["dawn", "morning", "afternoon", "dusk", "night"]
+      transition "MarkNight"     => "night",     from: ["dawn", "morning", "afternoon", "dusk", "night"]
+    end
+  end
+end
