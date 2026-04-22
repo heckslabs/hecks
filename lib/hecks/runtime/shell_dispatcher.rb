@@ -75,8 +75,10 @@ module Hecks
         exit_status = status.respond_to?(:exitstatus) ? status.exitstatus : status.to_i
 
         if exit_status != 0 && adapter.output_format != :exit_code
+          short = stderr.to_s.strip.lines.first.to_s[0, 80]
+          short += "…" if stderr.to_s.strip.length > short.length
           raise Hecks::ShellAdapterError.new(
-            "shell adapter :#{adapter.name} exited #{exit_status}: #{stderr.to_s.strip}",
+            "shell adapter :#{adapter.name} exited #{exit_status}: #{short}",
             adapter: adapter.name, exit_status: exit_status, stderr: stderr
           )
         end

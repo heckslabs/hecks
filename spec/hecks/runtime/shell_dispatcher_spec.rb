@@ -112,6 +112,38 @@ RSpec.describe Hecks::Runtime::ShellDispatcher do
       end
     end
 
+    it "truncates stderr in the exception message but preserves full stderr on the error attr" do
+      # Security: raw stderr in error messages leaks to logs/terminals; cap it.
+      # Full stderr is still available on the error's #stderr attribute.
+      long = "x" * 500
+      noisy = adapter(
+        command: "sh",
+        args: ["-c", "printf '%s' '#{long}' >&2; exit 9"],
+        output_format: :text
+      )
+      expect { described_class.call(noisy) }.to raise_error(Hecks::ShellAdapterError) do |err|
+        expect(err.message).to include(":echo exited 9:")
+        trailing = err.message.split(":echo exited 9:", 2).last.strip
+        # Message is capped at 80 chars of the first line plus an "…" marker.
+        expect(trailing.length).to be <= 81
+        expect(trailing).to end_with("…")
+        # Full stderr still available on the error.
+        expect(err.stderr.length).to eq(500)
+      end
+    end
+
+    it "only takes the first line of stderr into the exception message" do
+      multi = adapter(
+        command: "sh",
+        args: ["-c", "printf 'first line\\nsecond line\\n' >&2; exit 5"],
+        output_format: :text
+      )
+      expect { described_class.call(multi) }.to raise_error(Hecks::ShellAdapterError) do |err|
+        expect(err.message).to include("first line")
+        expect(err.message).not_to include("second line")
+      end
+    end
+
     it "does NOT shell-expand placeholder payloads" do
       # Payload contains $(...) — a shell would try to execute date;
       # Open3.capture3 without a shell passes it as a literal argv element.
