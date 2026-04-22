@@ -609,6 +609,25 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
     trigger "StopMonitoring"
   end
 
+  # i40 — fatigue gate wiring. Consciousness owns the sleep lifecycle
+  # (SleepEntered / WokenUp); Heartbeat owns AccumulateFatigue. The two
+  # aggregates live in different domains (Sleep vs MietteBody) so we
+  # wire them via cross-aggregate policies — same pattern as
+  # RecoverHeartbeatOnWake above. CloseFatigueGate flips the guard on
+  # Heartbeat.AccumulateFatigue so fatigue stops accumulating the
+  # instant sleep begins; OpenFatigueGate lets fatigue resume when
+  # Miette wakes. Replaces the shell-layer workaround PR #274 added to
+  # mindstream.sh — the daemon is dumb again; the bluebook owns the gate.
+  policy "CloseFatigueGateOnSleep" do
+    on "SleepEntered"
+    trigger "CloseFatigueGate"
+  end
+
+  policy "OpenFatigueGateOnWake" do
+    on "WokenUp"
+    trigger "OpenFatigueGate"
+  end
+
   # SeedOnNightStart policy moved to aggregates/dream_seed.bluebook,
   # alongside the SeedFromPreviousDreams command it triggers.
 
