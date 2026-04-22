@@ -16,23 +16,21 @@ Source: inbox `i11` + plan by Agent a5f61f5d on 2026-04-22.
 3. **`Spend.IsOverBudget(period)` query doesn't exist.** Add.
 4. **`CircuitBreaker.IsOpen(kind)` query doesn't exist.** Add.
 
-## ⚠ Open decision before implementing
+## Decision (resolved 2026-04-22): hybrid accounting
 
-**Chris uses Claude Max + CLI login, not API keys.** Meaning:
+**Chris uses Claude Max + CLI login, not API keys.** No `ANTHROPIC_API_KEY`; `claude` CLI inherits auth from Max; no per-token USD billing.
 
-- **No `ANTHROPIC_API_KEY` env var** — the `claude` CLI inherits auth from his Max subscription.
-- **No per-token USD billing** from his side — Max is flat-rate with usage limits.
-- **Spend aggregate's USD caps don't map cleanly.** Daily/monthly $5/$50 caps are meaningless against a flat-rate subscription.
+**Picked: hybrid (option 3)** — USD as telemetry, enforcement on calls + tokens.
 
-Before implementing, pick one:
+- `Spend.Call.cost_usd` stays (estimated from rate card, populated for every call, visible in reports).
+- `Spend.Budget` **field rename**: `cap_usd` → `cap_calls` + `cap_tokens` per period. Enforcement uses these, not USD.
+- `Spend.IsOverBudget(period)` returns true when EITHER `calls_this_period >= cap_calls` OR `tokens_this_period >= cap_tokens`.
+- Default fixture caps (to replace the USD ones in PR #259): **hourly** 30 calls / 100k tokens, **daily** 300 calls / 1M tokens, **monthly** 5000 calls / 20M tokens.
+- Boot-time auth probe: `claude --version`. If it fails + provider is "claude", auto-flip to "off".
 
-1. **Drop USD entirely**; cap by **call count** (e.g. 100 calls/hour) and **token volume** (e.g. 1M tokens/day — observable via Claude's response envelope). Rename `Spend` → `Usage` or similar.
-2. **Keep USD for accounting/telemetry only** — compute estimated cost from rate card, record it for visibility, but never block on it. Block instead on call/token limits.
-3. **Hybrid**: record USD estimates, enforce on call count + token volume.
+Rationale: USD visibility protects against the day Max goes away or the tooling ships to someone with API billing; call/token enforcement matches Chris's actual reality today.
 
-Recommended: **option 3** — USD visibility is useful if Chris ever switches to API billing or shares the tooling; call/token enforcement matches his actual reality. Requires minor rename of `Spend.Budget` semantics and field additions to `Call`.
-
-Tag it in the first commit of PR 1.
+First commit of PR 1 renames fixture fields + updates `Spend.Budget` accordingly.
 
 ## Key decisions
 
