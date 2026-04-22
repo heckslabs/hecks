@@ -21,6 +21,7 @@ pub mod behaviors_parser;
 pub mod behaviors_dump;
 pub mod behaviors_conceiver;
 pub mod behaviors_runner;
+pub mod behaviors_fixtures;
 pub mod io_validator;
 pub mod lifecycle_validator;
 pub mod duplicate_policy_validator;
