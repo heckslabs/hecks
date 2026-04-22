@@ -1,19 +1,43 @@
 #!/bin/bash
-# Mindstream — the unconscious that never stops.
+# Mindstream — the unconscious that never stops, except when it does.
 #
-# Every 1s, fires Tick.MindstreamTick. The tick IS the heartbeat —
-# Heartbeat.beats is gone; `Tick.cycle` is the authoritative count of
-# seconds since boot. The sleep state machine lives entirely in
-# aggregates/sleep.bluebook + aggregates/lucid_dream.bluebook; each
-# tick event triggers policies that advance sleep phases only when
-# their `given` conditions pass. The daemon is the heartbeat — the
-# bluebook is the brain.
+# Every 1s, fires Tick.MindstreamTick — UNLESS state == "sleeping". While
+# Miette is asleep, the daemon switches to a sleep-only loop: it dispatches
+# the sleep-phase-advance commands directly (ElapsePhase + AdvanceX) and
+# skips Tick.MindstreamTick entirely. This closes the tick-during-sleep
+# regression that woke Miette delirious (fatigue 8.5, pulses_since_sleep
+# 8518 after a full 8-cycle sleep).
+#
+# Why direct dispatch instead of Pulse.Emit during sleep: Tick → Ticked →
+# EmitPulseOnTick → Pulse.Emit → BodyPulse → N policies, and BodyPulse
+# carries BOTH "advance sleep" AND "accumulate fatigue" (FatigueOnPulse +
+# all the sleep-phase policies hang off it). Firing BodyPulse during sleep
+# keeps advancing the state machine but also keeps fatigue climbing — we
+# haven't fixed the bug. So during sleep we dispatch ElapsePhase +
+# AdvanceLightToRem + AdvanceLightToLucidRem + AdvanceRemToDeep +
+# AdvanceRemToDeepCap + AdvanceDeepToLight + AdvanceDeepToFinalLight +
+# CompleteFinalLight directly; each one's `given` clauses self-gate (only
+# the phase-appropriate one actually mutates state). Fatigue and every
+# other BodyPulse subscriber stays silent until wake.
+#
+# Follow-up: gate AccumulateFatigue on consciousness.state in the bluebook
+# so this shell workaround retires. Filing as a separate item; tracked in
+# inbox under "tick-during-sleep bluebook follow-up".
+#
+# The tick IS the heartbeat — Heartbeat.beats is gone; `Tick.cycle` is
+# the authoritative count of seconds since boot. The sleep state machine
+# lives in aggregates/sleep.bluebook + aggregates/lucid_dream.bluebook.
 #
 # Dream content during REM: while state=sleeping && stage=rem, the daemon
 # reads a random musing and dispatches DreamPulse with an impression phrase.
 # The bluebook stores it in sleep_summary so the status bar narrates the
 # dream in real time. This is the ONE external signal the daemon provides;
 # everything else is bluebook-driven.
+#
+# [antibody-exempt: mindstream.sh is the Rust-ticker shell loop; gating it
+# on consciousness.state=sleeping closes the tick-during-sleep regression.
+# Retires when the mindstream daemon becomes a .bluebook + .hecksagon pair
+# dispatched by hecks-life run.]
 
 HECKS="../hecks_life/target/release/hecks-life"
 DIR="$(dirname "$0")"
@@ -24,10 +48,52 @@ PIDFILE="$INFO/.mindstream.pid"
 echo $$ > "$PIDFILE"
 trap "rm -f $PIDFILE" EXIT
 
+# Read consciousness state — reused for the sleep-gate at top of the
+# loop AND for the awake-branch gate further down. One python3 call per
+# tick; matches the pattern already in the file (state read at line 62
+# before this fix).
+read_state() {
+  $HECKS heki latest "$INFO/consciousness.heki" 2>/dev/null \
+    | python3 -c "import json,sys; print(json.load(sys.stdin).get('state',''))" 2>/dev/null
+}
+
 loop_count=0
 while true; do
   loop_count=$((loop_count + 1))
-  # Heartbeat: one tick. The bluebook handles everything downstream.
+
+  # Read sleep gate first — we decide whether to fire a full tick or a
+  # sleep-only pulse based on consciousness state. Empty state (no
+  # consciousness record yet) is treated as awake so the first boot
+  # doesn't stall on a missing file.
+  state=$(read_state)
+
+  if [ "$state" = "sleeping" ]; then
+    # Sleep branch — dispatch the sleep-phase-advance commands directly.
+    # Each command's `given` clauses self-gate so only the phase-
+    # appropriate one actually mutates state. We bypass BodyPulse so
+    # FatigueOnPulse doesn't fire (that's the bug this fix closes).
+    $HECKS "$AGG" Consciousness.ElapsePhase 2>/dev/null
+    $HECKS "$AGG" Consciousness.AdvanceLightToRem 2>/dev/null
+    $HECKS "$AGG" Consciousness.AdvanceLightToLucidRem 2>/dev/null
+    $HECKS "$AGG" Consciousness.AdvanceRemToDeep 2>/dev/null
+    $HECKS "$AGG" Consciousness.AdvanceRemToDeepCap 2>/dev/null
+    $HECKS "$AGG" Consciousness.AdvanceDeepToLight 2>/dev/null
+    $HECKS "$AGG" Consciousness.AdvanceDeepToFinalLight 2>/dev/null
+    $HECKS "$AGG" Consciousness.CompleteFinalLight \
+      wake_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)" 2>/dev/null
+
+    # Dream content during REM — still needs to fire so rem_branch.sh
+    # can weave dream images while Miette sleeps.
+    "$DIR/rem_branch.sh" "$loop_count" 2>/dev/null
+
+    # Remember we were sleeping so the next-tick awake branch can fire
+    # the wake hook (interpret_dream.sh) exactly once on transition.
+    echo "$state" > "$INFO/.prev_consciousness_state"
+    sleep 1
+    continue
+  fi
+
+  # Awake branch — full tick, bluebook handles everything downstream.
   $HECKS "$AGG" Tick.MindstreamTick 2>/dev/null
 
   # Body math — synapse/signal/focus/arc/remains. Bluebook owns state;
@@ -57,10 +123,6 @@ print(f\"{$loop_count}|{hb.get('fatigue_state','alert')}|{hb.get('carrying','')}
   # weaves rem_dream images every tick, and adds lucid/steer actions
   # when is_lucid=yes. Extracted so tests can invoke it directly.
   "$DIR/rem_branch.sh" "$loop_count" 2>/dev/null
-
-  # State is still needed below to decide awake vs sleeping.
-  state=$($HECKS heki latest "$INFO/consciousness.heki" 2>/dev/null \
-    | python3 -c "import json,sys; print(json.load(sys.stdin).get('state',''))" 2>/dev/null)
 
   # Wake hook — sleeping → attentive transition fires interpret_dream.sh
   # once per wake. Previous state lives in $INFO/.prev_consciousness_state.
