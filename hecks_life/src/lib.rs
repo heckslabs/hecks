@@ -30,3 +30,4 @@ pub mod fixtures_parser;
 pub mod hecksagon_helpers;
 pub mod hecksagon_ir;
 pub mod hecksagon_parser;
+pub mod run;
