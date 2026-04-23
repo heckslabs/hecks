@@ -1,0 +1,57 @@
+# Known .hecksagon parity drift — fixtures listed here are expected
+# to differ between the Ruby HecksagonBuilder and the Rust
+# hecksagon_parser.
+#
+# Format: one `path  # reason` per line (path relative to repo root).
+# Empty lines and `#` comments are ignored.
+#
+# When a listed fixture starts passing, the parity suite flags it as
+# ⚑ and asks you to remove the line.
+
+# ── Ruby HecksagonBuilder doesn't split io adapters from persistence ──
+# `adapter :stdout|:stdin|:stderr|:fs|:env` today flows into
+# `@persistence = { type: :stdout, … }` because the builder treats any
+# non-:shell kind as persistence. The Rust parser splits io adapters
+# out. Fix belongs on the Ruby side; until then:
+hecks_conception/capabilities/terminal/terminal.hecksagon  # Ruby lacks io_adapter/persistence split
+hecks_conception/capabilities/status/status.hecksagon      # same — :fs + :stdout io adapters
+
+# ── Rust parser treats only :memory and :heki as persistence ──
+# Ruby treats any kind as persistence. The three files below declare
+# `:sqlite` or `:information` persistence; Rust pushes them into
+# io_adapters, Ruby puts them on `persistence`. Fix belongs on the
+# Rust side — grow the IR — or on the canonical contract.
+hecks_conception/miette.hecksagon                          # persistence :information — Rust maps to io
+lib/hecks/appeal/hecks/hecks_appeal.hecksagon              # persistence :sqlite — Rust maps to io
+lib/hecks/chapters/appeal/hecks_appeal.hecksagon           # persistence :sqlite — Rust maps to io
+
+# ── Ruby shell-adapter validation rejects shapes Rust auto-splits ──
+# The antibody's `command: "git rev-parse --verify {{ref}}"` form is
+# auto-split by the Rust parser into command="git", args=["rev-parse",
+# "--verify", "{{ref}}"]. Ruby's Structure::ShellAdapter raises because
+# the command contains `{{`. Same fix as Rust would be: auto-split in
+# apply_options before validation.
+hecks_conception/capabilities/antibody/antibody.hecksagon  # Ruby rejects {{ in command before autosplit
+
+# ── Rust parser doesn't yet support the block form of `adapter :shell` ──
+# `adapter :shell, name: :x do; command "…"; args [...]; end` — the
+# second adapter in shell_demo uses this shape. Rust parses it but
+# `parse_shell_adapter` requires `command:` in the args, so it's
+# dropped entirely.
+examples/shell_adapter/hecks/shell_demo.hecksagon  # Rust parser skips block-form shell adapter
+
+# ── Rust gate parser doesn't handle multi-line `allow` ──
+# `gate "X", :role do; allow :A, :B, \n :C, :D end` — the continuation
+# line starts with `:C` which the Rust parser strips via strip_prefix
+# of "allow ", so it's dropped. Ruby collects all 6.
+hecks_conception/aggregates/circuit_breaker.hecksagon  # Rust drops allow continuation lines
+
+# ── Ruby builder doesn't model the `domain "name" do … end` shape ──
+# Four nursery files use it today; method_missing raises because
+# `domain` isn't in the DSL surface yet. The Rust parser ignores the
+# unknown statement. Tracked separately; canonical contract should
+# grow the field once the shape is decided.
+hecks_conception/nursery/alans_engine_additive_business/alans_engine_additive_business.hecksagon  # domain "..." not in Ruby DSL
+hecks_conception/nursery/domain_compression/domain_compression.hecksagon                          # domain "..." not in Ruby DSL
+hecks_conception/nursery/domain_conception/domain_conception.hecksagon                            # domain "..." not in Ruby DSL
+hecks_conception/nursery/executable_artifact/executable_artifact.hecksagon                        # domain "..." not in Ruby DSL

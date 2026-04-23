@@ -17,5 +17,5 @@ Hecks.hecksagon "Miette" do
   capabilities :language
   capabilities :actions
 
-  persistence :information, dir: File.join(__dir__, "information")
+  persistence :information, dir: "information"
 end

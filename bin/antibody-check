@@ -118,6 +118,32 @@ def filter_code_files(paths)
   end
 end
 
+# i7: forbid new `Kernel.load` (or bare `load(...)`) calls against any of
+# the five DSL extensions. Those five must be parsed, not executed.
+# Returns the list of "path:lineno: source" triples that violate the
+# rule, scanning ONLY the paths given (so we're looking at what this
+# commit/branch touched, never existing code).
+DSL_LOAD_PATTERN = /(?:Kernel\.)?load\s*[( ]\s*["'][^"']*\.(?:hecksagon|world|bluebook|behaviors|fixtures)["']/.freeze
+
+def kernel_load_violations(paths)
+  violations = []
+  paths.each do |p|
+    next unless File.file?(p) && File.readable?(p)
+    ext = File.extname(p).delete_prefix(".").downcase
+    next unless %w[rb rs py sh].include?(ext)
+    File.foreach(p).with_index(1) do |line, ln|
+      next unless line =~ DSL_LOAD_PATTERN
+      # Whitelist spec/parity/*_test.rb — those intentionally exercise
+      # the old Kernel.load path to prove the NEW loader matches it.
+      next if p.start_with?("spec/parity/")
+      # Whitelist the Loader itself — it owns the one allowed caller.
+      next if p.end_with?("lib/hecksagon/loader.rb")
+      violations << "#{p}:#{ln}: #{line.strip}"
+    end
+  end
+  violations
+end
+
 options = { base: "origin/main", staged: false, message_file: nil,
             list_only: false, each_commit: false }
 OptionParser.new do |o|
@@ -183,6 +209,20 @@ touched =
     touched_files(base_ref, base_ref.nil?)
   end
 code    = filter_code_files(touched)
+
+# i7 rule: any new Kernel.load / load(...) targeting a DSL extension is
+# a hard stop. No exemption — this is the "5/5 parsed, not executed"
+# antibody moment; re-opening the hole is always a regression.
+dsl_load_hits = kernel_load_violations(touched)
+unless dsl_load_hits.empty?
+  puts ""
+  puts "✗ antibody: Kernel.load on DSL file(s) is forbidden"
+  dsl_load_hits.each { |h| puts "    #{h}" }
+  puts ""
+  puts "  Route through Hecksagon::Loader.load / .load_world, or the"
+  puts "  matching parser on the Rust side. DSLs are parsed, not executed."
+  exit 1
+end
 
 if code.empty?
   puts "✓ antibody: no non-bluebook files touched"

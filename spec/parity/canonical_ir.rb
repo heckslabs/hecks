@@ -276,6 +276,69 @@ module Hecks
         t.to_s
       end
 
+      # ── Hecksagon DSL canonical dump ──────────────────────────
+      #
+      # Mirrors hecks_life/src/main.rs :: dump_hecksagon_json. Only the
+      # fields the Rust IR models are included — Ruby-only fields
+      # (capabilities, concerns, annotations, context_map, ...) are
+      # intentionally outside the canonical shape. Files that depend on
+      # them go in spec/parity/hecksagon_known_drift.txt.
+      def dump_hecksagon(hex)
+        {
+          # Normalize nil → "" so anonymous `Hecks.hecksagon do ... end`
+          # files match the Rust parser (which defaults `name: String` to
+          # the empty string when the quoted-name slot is absent).
+          "name"           => hex.name.to_s,
+          "persistence"    => hecksagon_persistence(hex),
+          "subscriptions"  => Array(hex.subscriptions).map(&:to_s),
+          "io_adapters"    => [], # Ruby builder doesn't model io_adapters yet
+          "shell_adapters" => Array(hex.shell_adapters).map { |sa| dump_shell_adapter(sa) },
+          "gates"          => Array(hex.gates).map { |g| dump_gate(g) },
+        }
+      end
+
+      def hecksagon_persistence(hex)
+        return nil unless hex.persistence
+        # Rust stores persistence as a plain string ("memory" | "heki" |
+        # "sqlite" | ...). Ruby stores `{ type: :memory, ... }`. Canonical
+        # shape is the type as a string.
+        hex.persistence[:type]&.to_s
+      end
+
+      def dump_shell_adapter(sa)
+        env_pairs = (sa.env || {}).map { |k, v| [k.to_s, v.to_s] }
+        {
+          "name"          => sa.name.to_s,
+          "command"       => sa.command,
+          "args"          => Array(sa.args).map(&:to_s),
+          "output_format" => (sa.output_format || :text).to_s,
+          "timeout"       => sa.timeout,
+          "working_dir"   => sa.working_dir,
+          "env"           => env_pairs,
+          "ok_exit"       => sa.respond_to?(:ok_exit) ? (sa.ok_exit || 0) : 0,
+        }
+      end
+
+      def dump_gate(g)
+        # Ruby's GateDefinition has `allowed_methods`; Rust's Gate has
+        # `allowed_commands`. Same concept, different names — canonical
+        # shape is "allowed".
+        allowed = g.respond_to?(:allowed_methods) ? g.allowed_methods : g.allowed_commands
+        {
+          "aggregate" => g.aggregate.to_s,
+          "role"      => g.role.to_s,
+          "allowed"   => Array(allowed).map(&:to_s),
+        }
+      end
+
+      # ── World DSL canonical dump ──────────────────────────────
+      #
+      # Delegates to `Hecksagon::Structure::World#to_canonical_h`, which
+      # mirrors `hecks_life/src/main.rs :: dump_world_json`.
+      def dump_world(world)
+        world.to_canonical_h
+      end
+
       # ── Behaviors DSL canonical dump ──────────────────────────
       #
       # Mirrors hecks_life/src/behaviors_dump.rs. The Ruby and Rust

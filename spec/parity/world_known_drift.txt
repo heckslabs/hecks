@@ -1,0 +1,8 @@
+# Known .world parity drift — fixtures listed here are expected to
+# differ between the Ruby WorldBuilder and the Rust world_parser.
+#
+# Format: one `path  # reason` per line (path relative to repo root).
+# Empty lines and `#` comments are ignored.
+#
+# When a listed fixture starts passing, the parity suite flags it as
+# ⚑ and asks you to remove the line.
