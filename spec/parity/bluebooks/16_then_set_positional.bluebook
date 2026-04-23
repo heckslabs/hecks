@@ -1,0 +1,27 @@
+Hecks.bluebook "ThenSetPositional", version: "2026.04.22.1" do
+  vision "Locks Ruby↔Rust parity for positional `then_set :field, value` form (booleans + numbers only — strings require keyword form)"
+
+  aggregate "Device", "Tracks device activation state" do
+    attribute :online, TrueClass, default: false
+    attribute :battery_pct, Float
+
+    command "Activate" do
+      role "Operator"
+      then_set :online, true
+      emits "Activated"
+    end
+
+    command "Deactivate" do
+      role "Operator"
+      then_set :online, false
+      emits "Deactivated"
+    end
+
+    command "Charge" do
+      role "Operator"
+      attribute :battery_pct, Float
+      then_set :battery_pct, 100.0
+      emits "Charged"
+    end
+  end
+end

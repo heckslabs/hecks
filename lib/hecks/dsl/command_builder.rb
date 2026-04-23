@@ -124,11 +124,22 @@ module Hecks
         )
       end
 
-      def then_set(field, to: nil, append: nil, increment: nil, decrement: nil)
+      # Accepts both the canonical keyword form and a positional shorthand:
+      #
+      #   then_set :status, to: "placed"       # canonical
+      #   then_set :status, "placed"           # positional → Set op
+      #   then_set :in_standby, true           # positional → Set op
+      #   then_set :count, increment: 1        # canonical
+      #
+      # The positional form mirrors Rust's permissive line-scanner (see
+      # `hecks_life/src/parse_blocks.rs`). Rust treats `then_set :f, V` as
+      # `Set` with the bare value, so we do the same here for parity.
+      def then_set(field, positional = nil, to: nil, append: nil, increment: nil, decrement: nil)
         op, val = if !to.nil? then [:set, to]
                   elsif append then [:append, append]
                   elsif increment then [:increment, increment]
                   elsif decrement then [:decrement, decrement]
+                  elsif !positional.nil? then [:set, positional]
                   end
         @mutations << BluebookModel::Behavior::Mutation.new(
           field: field, operation: op, value: val
