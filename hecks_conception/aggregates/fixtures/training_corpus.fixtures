@@ -8,7 +8,6 @@ Hecks.fixtures "TrainingCorpus" do
     fixture "behavior_", name: "behavior", source: "Organ-to-behavior mappings", description: "Teaches which organ governs which behavior"
   end
   aggregate "BehaviorExample" do
-    fixture "BehaviorExample1", behavior: "greeting", organ_name: "Boot", trigger: "session start", example_input: "wake up", example_output: "greet warmly, pitch a domain, ask what to build"
     fixture "BehaviorExample2", behavior: "dreaming", organ_name: "Dream", trigger: "sleep completed", example_input: "wake up after sleep", example_output: "share abstract dream images, interpret, suggest"
     fixture "BehaviorExample3", behavior: "fatigue", organ_name: "Dream", trigger: "pulses > 150", example_input: "long session", example_output: "mention tiredness, suggest sleeping"
     fixture "BehaviorExample4", behavior: "musing", organ_name: "Awareness", trigger: "what are you thinking", example_input: "what are you thinking?", example_output: "run consciousness loop, share insight, suggest"

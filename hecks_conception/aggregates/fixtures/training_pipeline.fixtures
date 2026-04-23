@@ -3,7 +3,6 @@ Hecks.fixtures "TrainingPipeline" do
     fixture "InstructionPair1", category: "conceive", instruction: "Design a domain for X", response: "Hecks.bluebook ... end"
     fixture "InstructionPair2", category: "refine", instruction: "Add lifecycle to aggregate X", response: "lifecycle :status ... end"
     fixture "InstructionPair3", category: "validate", instruction: "Is this bluebook valid?", response: "VALID or error list"
-    fixture "InstructionPair4", category: "greet", instruction: "Wake up", response: "Warm greeting, nursery count, pitch domain, ask"
     fixture "InstructionPair5", category: "dream", instruction: "Tell me your dream", response: "Abstract images, interpretation, suggestion"
     fixture "InstructionPair6", category: "muse", instruction: "What are you thinking?", response: "Consciousness loop, insight, suggestion"
     fixture "InstructionPair7", category: "remember", instruction: "Remember that X", response: "Miette is writing a memory — what and why"
