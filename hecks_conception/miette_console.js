@@ -459,10 +459,6 @@ async function main() {
     });
   } else {
     history = [];
-    const greeting = `Hey Chris. ${nurseryCount} domains in my nursery. What are we conceiving today?`;
-    mietteSays(greeting);
-    history.push({ role: "user", content: "Wake up" });
-    history.push({ role: "assistant", content: greeting });
   }
 
   // Input handling via raw keypress

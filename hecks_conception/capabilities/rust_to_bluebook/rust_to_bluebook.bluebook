@@ -14,7 +14,7 @@ Hecks.bluebook "RustToBluebook", version: "2026.04.16.1" do
   #
   # 2. MAP — each Rust construct gets a bluebook equivalent
   #    Most behavior is ALREADY in the bluebooks (body.bluebook,
-  #    mind.bluebook, greeting.bluebook). The Rust was redundant.
+  #    mind.bluebook, etc.). The Rust was redundant.
   #
   # 3. VERIFY — hecks-life run aggregates/ --dispatch CommandName
   #    The runtime merges all bluebooks in the directory into one
