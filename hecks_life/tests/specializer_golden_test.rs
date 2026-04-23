@@ -36,30 +36,10 @@ fn specializer_hecksagon_wiring_is_present() {
 
     assert_eq!(hex.name, "Specializer");
     assert_eq!(hex.persistence.as_deref(), Some("memory"));
-    for expected in [
-        "specialize_validator",
-        "specialize_validator_warnings",
-        "specialize_dump",
-        "specialize_duplicate_policy",
-        "specialize_lifecycle",
-        "specialize_hecksagon_parser",
-        "specialize_fixtures_parser",
-        "specialize_behaviors_parser",
-        "specialize_meta_subclass",
-        "specialize_meta_subclass_lifecycle",
-        "specialize_meta_diagnostic_validator",
-        "specialize_meta_validator_warnings",
-        "specialize_meta_ruby_script",
-        "specialize_meta_meta_diagnostic_validator",
-        "specialize_meta_meta_validator_warnings",
-        "specialize_meta_ruby_module",
-    ] {
-        assert!(
-            hex.shell_adapters.iter().any(|a| a.name == expected),
-            "{} shell adapter not declared",
-            expected,
-        );
-    }
+    // Phase E removed all shell adapters — `hecks-life specialize`
+    // (a Rust subcommand) is now the sole codegen path. The hecksagon
+    // file keeps the `:memory` + `:fs` adapters + the SpecializeRun
+    // gate as declarative metadata.
     assert!(
         hex.gates.iter().any(|g| g.aggregate == "SpecializeRun"),
         "SpecializeRun gate not declared",
@@ -269,99 +249,8 @@ fn rust_specializer_produces_byte_identical_fixtures_parser_rs() {
     );
 }
 
-// Phase E PR 1 — `rust_specializer_produces_byte_identical_bin_specialize`
-// removed because bin/specialize is deleted in this PR.
-
-// [antibody-exempt: hecks_life/tests/specializer_golden_test.rs — golden-test scaffolding]
-#[test]
-fn rust_specializer_produces_byte_identical_diagnostic_validator_rb() {
-    // Phase D D3 — first Ruby-emitting Rust-native specializer. Ports
-    // `meta_diagnostic_validator` (the PC-2 base class, 202 LoC Ruby)
-    // to emit `lib/hecks_specializer/diagnostic_validator.rb` from
-    // RubyClass + RubyMethod (+ optional RubyConstant) rows.
-    let root = repo_root();
-    let bin = root.join("hecks_life/target/release/hecks-life");
-    assert!(
-        bin.exists(),
-        "hecks-life binary missing — build release first",
-    );
-    let output = Command::new(&bin)
-        .args(["specialize", "meta_diagnostic_validator"])
-        .current_dir(&root)
-        .output()
-        .expect("hecks-life specialize meta_diagnostic_validator failed");
-    assert!(
-        output.status.success(),
-        "stderr: {}",
-        String::from_utf8_lossy(&output.stderr),
-    );
-    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
-    let tracked = fs::read_to_string(root.join("lib/hecks_specializer/diagnostic_validator.rb"))
-        .expect("diagnostic_validator.rb missing");
-    assert_eq!(
-        generated, tracked,
-        "Rust specializer output drifted from tracked file",
-    );
-}
-
-// [antibody-exempt: hecks_life/tests/specializer_golden_test.rs — golden-test scaffolding]
-#[test]
-fn rust_specializer_produces_byte_identical_meta_subclass_rb() {
-    // Phase D D3 — first Ruby-emitting Rust-native specializer port.
-    let root = repo_root();
-    let bin = root.join("hecks_life/target/release/hecks-life");
-    assert!(
-        bin.exists(),
-        "hecks-life binary missing — build release first",
-    );
-    let output = Command::new(&bin)
-        .args(["specialize", "meta_subclass"])
-        .current_dir(&root)
-        .output()
-        .expect("hecks-life specialize meta_subclass failed");
-    assert!(
-        output.status.success(),
-        "stderr: {}",
-        String::from_utf8_lossy(&output.stderr),
-    );
-    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
-    let tracked = fs::read_to_string(root.join("lib/hecks_specializer/duplicate_policy.rb"))
-        .expect("duplicate_policy.rb missing");
-    assert_eq!(
-        generated, tracked,
-        "Rust specializer output drifted from tracked file",
-    );
-}
-
-// [antibody-exempt: hecks_life/tests/specializer_golden_test.rs — golden-test scaffolding]
-#[test]
-fn rust_specializer_produces_byte_identical_meta_subclass_lifecycle_rb() {
-    // Phase D D3 companion — meta_subclass_lifecycle dispatches to the Lifecycle row.
-    let root = repo_root();
-    let bin = root.join("hecks_life/target/release/hecks-life");
-    assert!(
-        bin.exists(),
-        "hecks-life binary missing — build release first",
-    );
-    let output = Command::new(&bin)
-        .args(["specialize", "meta_subclass_lifecycle"])
-        .current_dir(&root)
-        .output()
-        .expect("hecks-life specialize meta_subclass_lifecycle failed");
-    assert!(
-        output.status.success(),
-        "stderr: {}",
-        String::from_utf8_lossy(&output.stderr),
-    );
-    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
-    let tracked = fs::read_to_string(root.join("lib/hecks_specializer/lifecycle.rb"))
-        .expect("lifecycle.rb missing");
-    assert_eq!(
-        generated, tracked,
-        "Rust specializer output drifted from tracked file",
-    );
-}
-
-// Phase E PR 1 — tests comparing `hecks-life specialize` against
-// `lib/hecks_specializer.rb` removed because the target file is deleted
-// in this PR. The shape that emitted it still exists as historical data.
+// Phase E pruned all Ruby-target golden tests. The meta-specializers
+// that emitted Ruby files (meta_subclass, meta_diagnostic_validator,
+// meta_ruby_script, meta_ruby_module) are deleted alongside their
+// target files. Bluebook + fixtures + snippets survive as historical
+// data per the Phase E plan.
