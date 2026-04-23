@@ -1,68 +1,73 @@
-# bin/specialize — Futamura projections for retired hecks_life modules
+# hecks-life specialize — Futamura projections for hecks_life modules
 
-`hecks_life/src/validator.rs` is a **generated file**. Do not edit it by hand. All changes flow through the shape fixtures.
+The `hecks-life specialize` subcommand regenerates Rust source files from
+their shape bluebooks + fixtures + snippet fragments. It is the sole code
+generation path for `hecks_life/src/*.rs` after the i51 autophagy arc
+(Phase E, 2026-04-24) deleted the Ruby `bin/specialize` driver and the
+`lib/hecks_specializer/` modules.
 
-## Quick reference
+## Usage
 
-```bash
-# Regenerate validator.rs (byte-identical to what's in the repo)
-bin/specialize validator --output hecks_life/src/validator.rs
+```sh
+# Emit to stdout (for inspection or piping to diff):
+hecks-life specialize validator
 
-# Preview what would change
-bin/specialize validator --diff
+# Emit to the tracked .rs file:
+hecks-life specialize validator --output hecks_life/src/validator.rs
 
-# Print the Rust to stdout (no side effects)
-bin/specialize validator
+# List the known targets:
+hecks-life specialize --list
 ```
 
-## Where things live
+## Known targets
 
-| Layer | File |
-|---|---|
-| **L0** — shape | `hecks_conception/capabilities/validator_shape/validator_shape.bluebook` |
-| **L0** — data | `hecks_conception/capabilities/validator_shape/fixtures/validator_shape.fixtures` |
-| Wiring | `hecks_conception/capabilities/specializer/specializer.hecksagon` (declares `:specialize_validator` shell adapter + `SpecializeRun` gate) |
-| Adapter impl | `bin/specialize` driver + `lib/hecks_specializer/validator.rb` (Ruby, Phase A/B stopgap) |
-| **L7** — output | `hecks_life/src/validator.rs` (generated, byte-identical to specializer output) |
-| Tests — rules | `hecks_life/tests/validator_rules_test.rs` (6 integration tests against `hecks_life::validator::validate`) |
-| Tests — golden | `hecks_life/tests/specializer_golden_test.rs` (2 tests: hecksagon wiring + byte-identity) |
+| Target               | Output                                    |
+|----------------------|-------------------------------------------|
+| `validator`          | `hecks_life/src/validator.rs`             |
+| `validator_warnings` | `hecks_life/src/validator_warnings.rs`    |
+| `dump`               | `hecks_life/src/dump.rs`                  |
+| `hecksagon_parser`   | `hecks_life/src/hecksagon_parser.rs`      |
+| `behaviors_parser`   | `hecks_life/src/behaviors_parser.rs`      |
+| `fixtures_parser`    | `hecks_life/src/fixtures_parser.rs`       |
 
-## Adding or changing a validator rule
+## How it works
 
-You **never** edit `hecks_life/src/validator.rs` directly. Instead:
+Each target's shape lives under `hecks_conception/capabilities/<target>_shape/`:
 
-1. Add / edit the row in `validator_shape.fixtures` under the `ValidationRule` aggregate.
-2. Pick a `check_kind` that matches the rule's shape (`unique`, `non_empty`, `first_word_verb`, `reference_valid`, `trigger_valid`, `unique_across`). If none fit, extend `lib/hecks_specializer/validator.rb` to handle a new primitive.
-3. If the rule needs a new error shape, adjust `error_template`.
-4. Regenerate:
-   ```bash
-   bin/specialize validator --output hecks_life/src/validator.rs
+- `<target>_shape.bluebook` — aggregate + attribute declarations (the schema)
+- `fixtures/<target>_shape.fixtures` — the actual rows the specializer reads
+- `snippets/*.rs.frag` — verbatim Rust fragments for parts of the emission
+  that don't templatize cleanly (helper bodies, per-character automata,
+  hand-formatted tables)
+
+The Rust-native specializer at `hecks_life/src/specializer/<target>.rs`
+owns the emission logic: it reads the fixtures, walks the aggregates,
+and interpolates the snippets into the final `.rs` source. Output is
+byte-identical to the tracked file, enforced by the golden test in
+`hecks_life/tests/specializer_golden_test.rs`.
+
+## Adding a new rule
+
+1. Add a fixture row under the shape's `.fixtures` file.
+2. Pick a `check_kind` (or body_strategy, or handler_kind — see the shape)
+   that matches the rule's structure. If none fit, extend the specializer's
+   emitter in `hecks_life/src/specializer/<target>.rs` to handle a new
+   primitive, then add a matching bluebook attribute if needed.
+3. Regenerate the Rust source:
+   ```sh
+   hecks-life specialize <target> --output hecks_life/src/<target>.rs
    ```
-5. Run the golden test to confirm determinism:
-   ```bash
-   cd hecks_life && cargo test --release --test specializer_golden_test
-   ```
-6. If you added a new rule, add a test to `hecks_life/tests/validator_rules_test.rs` and confirm:
-   ```bash
-   cargo test --release --test validator_rules_test
-   ```
-7. Commit shape changes + regenerated `validator.rs` together. The golden test fires on any drift.
+4. `cargo test --release --test specializer_golden_test` — the new rule's
+   row drives a regeneration of the `.rs` that must still be byte-identical
+   to the tracked output.
 
-## How the enforcement works
+## Historical
 
-Two gates prevent hand-editing drift:
+Phase A (2026-04-10) landed the first Futamura projection — `validator.rs`
+regenerated byte-identical from its shape. Phases B–D retired every Ruby
+specializer by porting it to Rust. Phase E deleted the Ruby orbit. The
+shapes remain as the sole source of truth.
 
-- **`specializer_produces_byte_identical_validator_rs`** in `hecks_life/tests/specializer_golden_test.rs` — runs the specializer, diffs against the tracked `validator.rs`. Fails on any mismatch.
-- **CI runs this test every PR** — manual edits to `validator.rs` without corresponding shape changes fail CI.
-
-If you need to stop generating (temporary): revert the fixture row, regenerate, and the golden test stays green.
-
-## Why this matters
-
-This is the first proof of **1st-Futamura projection** in the repo — a specialized interpreter producing Rust byte-equivalent to what a human wrote. See [docs/plans/i51_futamura_projections.md](../plans/i51_futamura_projections.md) for the full arc. Phase B applies the same pattern to `validator_warnings.rs`, the parsers, and `dump.rs`. Phase C lifts the specializer itself.
-
-## Known constraints
-
-- **Single-line fixtures** — the Rust fixtures parser only reads one line per `fixture` directive. Multi-line form silently drops attrs. Filed as inbox **i57**. Until it lands, rules + entry-point fixtures stay on single lines.
-- **Ruby specializer** — Phase A adapter is Ruby for fast iteration. Phase B replaces with a `hecks-life` subcommand; the `.hecksagon` wiring stays the same (just the `command:` field flips).
-- **Tests as integration tests** — validator's test block moved out of `validator.rs` in commit 4 to break the circular dep (specializer was reading tests from the file it generates). When Phase B models `TestCase` aggregates in the shape, tests come back under shape-driven emission.
+See `docs/papers/hecks-v0/hecks-paper.md` §8 and §9 for the formal
+treatment, and `hecks_conception/capabilities/autophagy_tracker_shape/`
+for a live dashboard of retirement status.

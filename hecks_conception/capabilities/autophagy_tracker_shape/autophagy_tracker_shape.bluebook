@@ -1,4 +1,4 @@
-Hecks.bluebook "AutophagyTrackerShape", version: "2026.04.23.1" do
+Hecks.bluebook "AutophagyTrackerShape", version: "2026.04.24.1" do
   vision "Autophagy retirement state as queryable data — every candidate file, its phase, its bluebook, its ship-status, one row each"
   category "autophagy"
 
@@ -16,13 +16,13 @@ Hecks.bluebook "AutophagyTrackerShape", version: "2026.04.23.1" do
   # rerunning shell scripts. Measurements go in the fixtures file;
   # queries come from the runtime.
   #
-  # One row per candidate file. Phases match the i51 plan:
+  # Phases (i51 plan, as shipped):
   #   phase a — first Futamura proof (validator.rs)
   #   phase b — more Rust targets + diagnostic-validator retirements
-  #   phase c — meta-specializer (ruby subclass shells, then full
-  #             ruby classes); PC-1, PC-2, PC-3 driver, PC-4 fixed
-  #             point
-  #   phase d — parsers + specializer itself (not yet started)
+  #   phase c — Ruby meta-specializer: PC-1 thin subclasses, PC-2 full
+  #             classes, PC-3 driver, PC-4 fixed point, PC-5 loader
+  #   phase d — Ruby→Rust port of every specializer
+  #   phase e — deletion of the Ruby orbit; one runtime remains
 
   # ---- RetirementTarget --------------------------------------------
   #
@@ -40,12 +40,14 @@ Hecks.bluebook "AutophagyTrackerShape", version: "2026.04.23.1" do
     # kind: rust | ruby | script
     attribute :kind,                      String
     attribute :loc,                       Integer
-    # ship_status: byte_identical | in_flight | not_started
+    # ship_status: byte_identical | in_flight | not_started | deleted
+    # "deleted" means the file was a regenerable target that has been
+    # removed from the tree; its shape survives as historical data.
     attribute :ship_status,               String
     # source_shape_capability: the hecks_conception/capabilities/<dir>
     # that owns this file's shape. Empty string when no shape exists.
     attribute :source_shape_capability,   String
-    # phase: a | b | c | d
+    # phase: a | b | c | d | e
     attribute :phase,                     String
   end
 

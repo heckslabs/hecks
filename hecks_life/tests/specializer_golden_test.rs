@@ -53,10 +53,11 @@ fn specializer_hecksagon_wiring_is_present() {
 #[test]
 fn rust_specializer_produces_byte_identical_validator_warnings_rs() {
     // Phase D pilot — hecks-life specialize (Rust-native) produces
-    // output byte-identical to the Ruby bin/specialize output for the
-    // same target. First proof that the specializer itself can migrate
-    // from Ruby to Rust while keeping byte-identity. Every subsequent
-    // Phase D port adds another test with the same shape.
+    // output byte-identical to the tracked .rs file. First proof that
+    // the specializer itself could migrate from Ruby to Rust while
+    // keeping byte-identity; Phase E subsequently deleted the Ruby
+    // side. Every subsequent Phase D port added another test with the
+    // same shape.
     let root = repo_root();
     let bin = root.join("hecks_life/target/release/hecks-life");
     assert!(
