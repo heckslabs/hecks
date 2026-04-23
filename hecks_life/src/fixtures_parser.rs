@@ -39,6 +39,82 @@ use crate::fixtures_ir::{CatalogAttr, FixturesFile};
 use crate::ir::Fixture;
 use crate::parser_helpers::{extract_string, ends_with_do_block};
 
+/// Extract the body of the first double-quoted string in `s`, honoring
+/// `\"` as an embedded-quote escape. Returns the raw (still-escaped)
+/// contents between the opening and closing quote, or None if there
+/// isn't a complete pair. Used instead of parser_helpers::extract_string
+/// for fixture attribute values so that strings like `"1/8\"=1'"` don't
+/// terminate prematurely at the embedded `\"`.
+fn extract_string_escape_aware(s: &str) -> Option<String> {
+    let bytes = s.as_bytes();
+    let start = s.find('"')? + 1;
+    let mut i = start;
+    while i < bytes.len() {
+        let c = bytes[i];
+        if c == b'\\' && i + 1 < bytes.len() {
+            i += 2;
+            continue;
+        }
+        if c == b'"' {
+            return Some(s[start..i].to_string());
+        }
+        i += 1;
+    }
+    None
+}
+
+/// Expand Ruby-style double-quoted string escapes byte-for-byte.
+///
+/// Ruby is the source of truth for `.fixtures` files because they're
+/// loaded via `Kernel.load` — the string body IS Ruby source, and
+/// Ruby's parser applies these substitutions before the DSL builder
+/// sees the value. We reproduce the common subset here so the Rust
+/// parser yields identical attribute values.
+///
+/// Covered:
+///   \\ \" \'    — literal backslash / quote / apostrophe
+///   \n \t \r    — newline / tab / CR
+///   \a \b \f \v — bell / backspace / form feed / vertical tab
+///   \e \0 \s    — escape (0x1B) / null / space (Ruby-specific)
+///   any other `\X` — backslash dropped, X kept (Ruby's rule for
+///                     unrecognized escapes in double-quoted strings)
+///
+/// Deferred (see followup i38-exotic): `\xNN`, `\uNNNN`, `\<digits>`
+/// octal, `\C-x` / `\M-x` control-meta, and `\<newline>` line
+/// continuation. None of these appear in current fixtures; add them
+/// when a real fixture needs one.
+fn expand_ruby_escapes(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut chars = s.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\\' {
+            match chars.next() {
+                Some('\\') => out.push('\\'),
+                Some('"')  => out.push('"'),
+                Some('\'') => out.push('\''),
+                Some('n')  => out.push('\n'),
+                Some('t')  => out.push('\t'),
+                Some('r')  => out.push('\r'),
+                Some('a')  => out.push('\x07'),
+                Some('b')  => out.push('\x08'),
+                Some('f')  => out.push('\x0C'),
+                Some('v')  => out.push('\x0B'),
+                Some('e')  => out.push('\x1B'),
+                Some('0')  => out.push('\0'),
+                Some('s')  => out.push(' '),
+                // Unrecognized: drop the backslash, keep the next char
+                // (preserves UTF-8 codepoints intact).
+                Some(other) => out.push(other),
+                // Trailing backslash — keep literal.
+                None => out.push('\\'),
+            }
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
 pub fn parse(source: &str) -> FixturesFile {
     let mut file = FixturesFile {
         domain_name: String::new(),
@@ -95,7 +171,9 @@ fn parse_fixture_line(line: &str, aggregate_name: &str) -> Fixture {
                 let key = part[..colon].trim().to_string();
                 let raw = part[colon + 1..].trim();
                 let val = if raw.starts_with('"') {
-                    extract_string(raw).unwrap_or_else(|| raw.to_string())
+                    extract_string_escape_aware(raw)
+                        .map(|s| expand_ruby_escapes(&s))
+                        .unwrap_or_else(|| raw.to_string())
                 } else {
                     raw.to_string()
                 };

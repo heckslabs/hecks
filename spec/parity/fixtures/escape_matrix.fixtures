@@ -1,0 +1,38 @@
+# Escape matrix — one fixture per Ruby double-quoted escape the Rust
+# fixture parser must reproduce. Both runtimes MUST canonicalize to
+# byte-identical attribute values for every entry. This is the parity
+# guard for i38/i39 (Ruby-compatible escape expander in Rust).
+#
+# Ruby loads this via Kernel.load, so the string bodies ARE Ruby source:
+# `\s` becomes a space, `\[` becomes `[`, `\n` becomes a real newline,
+# etc. The Rust parser applies expand_ruby_escapes in fixtures_parser.rs
+# to match byte-for-byte.
+
+Hecks.fixtures "EscapeMatrix" do
+  aggregate "Escape" do
+    fixture "Backslash",      input: "a\\b"
+    fixture "DoubleQuote",    input: "a\"b"
+    fixture "SingleQuote",    input: "a\'b"
+    fixture "Newline",        input: "a\nb"
+    fixture "Tab",            input: "a\tb"
+    fixture "CarriageReturn", input: "a\rb"
+    fixture "Bell",           input: "a\ab"
+    fixture "Backspace",      input: "a\bb"
+    fixture "FormFeed",       input: "a\fb"
+    fixture "VerticalTab",    input: "a\vb"
+    fixture "EscapeChar",     input: "a\eb"
+    fixture "NullByte",       input: "a\0b"
+    fixture "RubySpace",      input: "a\sb"
+    fixture "LeftBracket",    input: "a\[b"
+    fixture "RightBracket",   input: "a\]b"
+    fixture "LeftParen",      input: "a\(b"
+    fixture "RightParen",     input: "a\)b"
+    fixture "LeftBrace",      input: "a\{b"
+    fixture "RightBrace",     input: "a\}b"
+    fixture "Hash",           input: "a\#b"
+    fixture "Slash",          input: "a\/b"
+    fixture "UnrecognizedQ",  input: "a\qb"
+    fixture "RegexPattern",   input: "^\\s*\\[antibody-exempt:\\s*([^\\]]+)\\]"
+    fixture "MultilineMsg",   input: "line one\n\nline two"
+  end
+end
