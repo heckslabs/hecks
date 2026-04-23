@@ -24,6 +24,7 @@ pub mod behaviors_parser_dispatch;
 pub mod dump;
 pub mod fixtures_parser;
 pub mod hecksagon_parser;
+pub mod meta_ruby_script;
 pub mod util;
 pub mod validator;
 pub mod validator_checks;
@@ -39,11 +40,12 @@ pub fn emit(target: &str, repo_root: &Path) -> Result<String, Box<dyn Error>> {
         "behaviors_parser" => behaviors_parser::emit(repo_root),
         "fixtures_parser" => fixtures_parser::emit(repo_root),
         "hecksagon_parser" => hecksagon_parser::emit(repo_root),
+        "meta_ruby_script" => meta_ruby_script::emit(repo_root),
         "validator" => validator::emit(repo_root),
         "validator_warnings" => validator_warnings::emit(repo_root),
         "dump" => dump::emit(repo_root),
         other => Err(format!(
-            "unknown specializer target: {}. Known: behaviors_parser, dump, fixtures_parser, hecksagon_parser, validator, validator_warnings",
+            "unknown specializer target: {}. Known: behaviors_parser, dump, fixtures_parser, hecksagon_parser, meta_ruby_script, validator, validator_warnings",
             other
         )
         .into()),
