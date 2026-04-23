@@ -105,4 +105,24 @@ Hecks.bluebook "Specializer", version: "2026.04.23.1" do
     attribute :ship_status,        String
     attribute :description,        String
   end
+
+  # ---- SpecializeRun ------------------------------------------------
+  #
+  # Dispatchable command surface for the specializer. Specialize takes
+  # a target name + output path and runs the specializer wired to that
+  # target (see specializer.hecksagon for the shell-adapter wiring).
+  # Byte-identity is enforced by a sibling test, not by this command.
+
+  aggregate "SpecializeRun", "Runs the specializer for a named target — thin dispatch wrapper" do
+    attribute :target, String
+    attribute :output, String
+    attribute :status, String, default: "queued"
+
+    command "Specialize" do
+      role "Autophagy"
+      description "Runs the specializer for <target>, writes Rust to <output>"
+      attribute :target, String
+      attribute :output, String
+    end
+  end
 end

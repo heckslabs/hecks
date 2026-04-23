@@ -13,8 +13,9 @@
 # `@persistence = { type: :stdout, … }` because the builder treats any
 # non-:shell kind as persistence. The Rust parser splits io adapters
 # out. Fix belongs on the Ruby side; until then:
-hecks_conception/capabilities/terminal/terminal.hecksagon  # Ruby lacks io_adapter/persistence split
-hecks_conception/capabilities/status/status.hecksagon      # same — :fs + :stdout io adapters
+hecks_conception/capabilities/terminal/terminal.hecksagon     # Ruby lacks io_adapter/persistence split
+hecks_conception/capabilities/status/status.hecksagon         # same — :fs + :stdout io adapters
+hecks_conception/capabilities/specializer/specializer.hecksagon  # same — :fs io adapter
 
 # ── Rust parser treats only :memory and :heki as persistence ──
 # Ruby treats any kind as persistence. The three files below declare

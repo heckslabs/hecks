@@ -1,0 +1,51 @@
+Hecks.hecksagon "Specializer" do
+  # ============================================================
+  # SPECIALIZER — wiring for i51 Phase A (first Futamura projection)
+  # ============================================================
+  #
+  # The specializer's *shape* lives in specializer.bluebook (IRLayer,
+  # Projection, SpecializerTarget — the L0..L8 factoring). This file
+  # wires it to its runtime adapters so the capability is dispatchable
+  # as commands, not opaque scripts.
+  #
+  # Three adapters:
+  #   :memory   — no persistence (each projection is a fresh one-shot)
+  #   :fs       — reads shape bluebooks + fixtures under hecks_conception/
+  #               and writes emitted .rs under hecks_life/src/
+  #   :shell    — the :specialize_validator adapter shells out to
+  #               bin/specialize-validator (Ruby, Phase A stopgap).
+  #               When Phase B lands, the command string flips to a
+  #               hecks-life subcommand and no other file changes.
+
+  adapter :memory
+
+  # Read the shape (L0 bluebook + L0 fixtures) and write the
+  # generated Rust (L7) into hecks_life/src/. `root:` anchors the
+  # path so {{source}} / {{output}} resolve cleanly.
+  adapter :fs, root: "."
+
+  # ---- Shell adapters — the actual codegen integration -----------
+  #
+  # One adapter per specializer target. For Phase A only validator is
+  # wired; Phase B adds rows to specializer.fixtures for each new
+  # target (validator_warnings, parsers, dump, ...) and a matching
+  # adapter line here. Until a target has a working adapter, its
+  # specializer.fixtures ship_status stays "not_started".
+
+  adapter :shell,
+    name:    :specialize_validator,
+    command: "bin/specialize-validator",
+    args:    ["--output", "{{output}}"],
+    ok_exit: 0
+
+  # ---- Gate ----------------------------------------------------
+  #
+  # :autophagy — the gate for all i51 work. Specialize commands run
+  # behind this gate; nothing else dispatches through here. When
+  # Phase C lands (2nd Futamura, specializer lifted into its own
+  # bluebook), the Compose command joins this gate.
+
+  gate "SpecializeRun", :autophagy do
+    allow :Specialize
+  end
+end

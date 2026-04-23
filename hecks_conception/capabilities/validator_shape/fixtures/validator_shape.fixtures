@@ -1,68 +1,19 @@
 Hecks.fixtures "ValidatorShape" do
   # ── Entry point ──────────────────────────────────────────────
+  # Note: single-line fixtures — the Rust fixtures_parser only reads one
+  # line per `fixture` directive today (i57 tracks multi-line support).
   aggregate "ValidatorEntryPoint" do
-    fixture "Validate",
-      fn_name: "validate",
-      returns: "Vec<String>",
-      rule_order: "unique_aggregate_names,aggregates_have_commands,command_naming,valid_references,valid_policy_triggers,no_duplicate_commands",
-      collects_into: "errors"
+    fixture "Validate", fn_name: "validate", returns: "Vec<String>", rule_order: "unique_aggregate_names,aggregates_have_commands,command_naming,valid_references,valid_policy_triggers,no_duplicate_commands", collects_into: "errors"
   end
 
   # ── The 6 rules — one fixture each, mirrors validator.rs 1:1 ────
   aggregate "ValidationRule" do
-    fixture "UniqueAggregateNames",
-      name: "unique_aggregate_names",
-      rust_fn_name: "unique_aggregate_names",
-      description: "No two aggregates may share the same name",
-      inspects: "domain.aggregates",
-      check_kind: "unique",
-      error_template: "Duplicate aggregate name: {name}",
-      applied_to: "aggregate"
-
-    fixture "AggregatesHaveCommands",
-      name: "aggregates_have_commands",
-      rust_fn_name: "aggregates_have_commands",
-      description: "Every aggregate must have at least one command",
-      inspects: "domain.aggregates",
-      check_kind: "non_empty",
-      error_template: "{name} has no commands",
-      applied_to: "aggregate"
-
-    fixture "CommandNaming",
-      name: "command_naming",
-      rust_fn_name: "command_naming",
-      description: "Command names must start with a verb",
-      inspects: "domain.aggregates[].commands",
-      check_kind: "first_word_verb",
-      error_template: "Command {name} in {parent} starts with '{word}' which looks like a {pos} — commands should start with a verb",
-      applied_to: "command"
-
-    fixture "ValidReferences",
-      name: "valid_references",
-      rust_fn_name: "valid_references",
-      description: "reference_to(X) must target a declared aggregate in the same domain",
-      inspects: "domain.aggregates[].references+domain.aggregates[].commands[].references",
-      check_kind: "reference_valid",
-      error_template: "{parent} references unknown aggregate: {target}",
-      applied_to: "aggregate_or_command"
-
-    fixture "ValidPolicyTriggers",
-      name: "valid_policy_triggers",
-      rust_fn_name: "valid_policy_triggers",
-      description: "Policy triggers must name a command declared in the same domain",
-      inspects: "domain.policies",
-      check_kind: "trigger_valid",
-      error_template: "Policy {name} triggers unknown command: {trigger}",
-      applied_to: "policy"
-
-    fixture "NoDuplicateCommands",
-      name: "no_duplicate_commands",
-      rust_fn_name: "no_duplicate_commands",
-      description: "No two commands across all aggregates may share the same name",
-      inspects: "domain.aggregates[].commands",
-      check_kind: "unique_across",
-      error_template: "Duplicate command name: {name} (in {parent})",
-      applied_to: "command"
+    fixture "UniqueAggregateNames", name: "unique_aggregate_names", rust_fn_name: "unique_aggregate_names", description: "No two aggregates may share the same name", inspects: "domain.aggregates", check_kind: "unique", error_template: "Duplicate aggregate name: {name}", applied_to: "aggregate"
+    fixture "AggregatesHaveCommands", name: "aggregates_have_commands", rust_fn_name: "aggregates_have_commands", description: "Every aggregate must have at least one command", inspects: "domain.aggregates", check_kind: "non_empty", error_template: "{name} has no commands", applied_to: "aggregate"
+    fixture "CommandNaming", name: "command_naming", rust_fn_name: "command_naming", description: "Command names must start with a verb", inspects: "domain.aggregates[].commands", check_kind: "first_word_verb", error_template: "Command {name} in {parent} starts with '{word}' which looks like a {pos} — commands should start with a verb", applied_to: "command"
+    fixture "ValidReferences", name: "valid_references", rust_fn_name: "valid_references", description: "reference_to(X) must target a declared aggregate in the same domain", inspects: "domain.aggregates[].references+domain.aggregates[].commands[].references", check_kind: "reference_valid", error_template: "{parent} references unknown aggregate: {target}", applied_to: "aggregate_or_command"
+    fixture "ValidPolicyTriggers", name: "valid_policy_triggers", rust_fn_name: "valid_policy_triggers", description: "Policy triggers must name a command declared in the same domain", inspects: "domain.policies", check_kind: "trigger_valid", error_template: "Policy {name} triggers unknown command: {trigger}", applied_to: "policy"
+    fixture "NoDuplicateCommands", name: "no_duplicate_commands", rust_fn_name: "no_duplicate_commands", description: "No two commands across all aggregates may share the same name", inspects: "domain.aggregates[].commands", check_kind: "unique_across", error_template: "Duplicate command name: {name} (in {parent})", applied_to: "command"
   end
 
   # ── Suffix tables (NOUN_SUFFIXES, ADJ_SUFFIXES, verb_suffixes) ───
