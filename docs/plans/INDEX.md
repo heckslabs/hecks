@@ -20,6 +20,7 @@ agents — trust the decisions, don't re-derive them.
 | [i27_nursery_viability.md](i27_nursery_viability.md) | i27 | Refined 2026-04-22 as NurseryHealth capability (7 commits, ~900 LoC) |
 | [i28_adapter_keyword.md](i28_adapter_keyword.md) | i28 | Recommends Option D: upgrade `external` with `adapter:` kwarg (or close as no-op) |
 | [i30_differential_fuzzer.md](i30_differential_fuzzer.md) | i30 | Not started |
+| [i31_expand_parity_coverage.md](i31_expand_parity_coverage.md) | i31 | Not started; nursery sweep (3 commits, ~240 files rewritten) to flip soft→hard |
 | [i36_computed_views.md](i36_computed_views.md) | i36 | Not started; architectural (projection DSL + 10 commits) |
 | [i37_python_removal.md](i37_python_removal.md) | i37 | Phase A shipped (PR #272); Phase B+ unblocked |
 | [i42_catalog_dialect.md](i42_catalog_dialect.md) | i42 | Not started; retires 4 shape-only aggregates from PR #267 |
