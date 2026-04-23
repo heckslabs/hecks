@@ -47,6 +47,10 @@ Hecks.bluebook "DuplicatePolicyValidatorShape", version: "2026.04.23.1" do
     attribute :rule_signature,      String
     # check_body_snippet: the fn body (between { and })
     attribute :check_body_snippet,  String
+    # helpers_after_rule: emission order.
+    # false (default) — helpers before rule (duplicate_policy)
+    # true            — helpers after rule (lifecycle, io)
+    attribute :helpers_after_rule,  TrueClass, default: false
   end
 
   aggregate "DiagnosticHelper", "A private helper fn used by a DiagnosticValidator" do

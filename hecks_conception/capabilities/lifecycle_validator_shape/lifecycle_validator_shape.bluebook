@@ -1,0 +1,54 @@
+Hecks.bluebook "LifecycleValidatorShape", version: "2026.04.23.1" do
+  vision "Shape of hecks_life/src/lifecycle_validator.rs — second DiagnosticValidator retirement (post-i59, flat_with_strict report_kind)."
+  category "autophagy"
+
+  # ============================================================
+  # LIFECYCLE_VALIDATOR — Phase B diagnostic retirement #2
+  # ============================================================
+  #
+  # Uses the same DiagnosticValidator + DiagnosticHelper schema as
+  # duplicate_policy_validator_shape (duplicated here because capability
+  # convention is 1 bluebook = 1 target; the shape is tiny).
+  #
+  # Key differences from duplicate_policy:
+  #   - report_kind = flat_with_strict (adds warnings + strict gate)
+  #   - Seven helpers: check_mutation_references, check_given_coverage,
+  #     collect_producible_states, parse_equality, _force_command_use,
+  #     check_aggregate, format_set
+  #   - _force_command_use is an empty-body stub with #[allow(dead_code)]
+  #     — the base class detects empty bodies and emits inline
+  #     (fn x() {} on one line)
+  #
+  # Shape:
+  #
+  #   DiagnosticValidator (1 row) — the module's outer contract.
+  #     module, doc_snippet, imports, report_kind (flat_with_strict
+  #     here), rule_fn_name, rule_signature, check_body_snippet.
+  #
+  #   DiagnosticHelper (N rows) — private helpers in emission order.
+  #     validator, name, doc_comment (supports /// lines AND // +
+  #     #[attribute] lines as a free-form preamble), signature,
+  #     body_snippet, order.
+
+  aggregate "DiagnosticValidator", "One diagnostic-style validator module" do
+    attribute :module,              String
+    attribute :doc_snippet,         String
+    attribute :imports,             String
+    attribute :report_kind,         String
+    attribute :rule_fn_name,        String
+    attribute :rule_signature,      String
+    attribute :check_body_snippet,  String
+    # helpers_after_rule: emission order.
+    # true for lifecycle — pub fn check comes before the helpers.
+    attribute :helpers_after_rule,  TrueClass, default: false
+  end
+
+  aggregate "DiagnosticHelper", "A private helper fn used by a DiagnosticValidator" do
+    attribute :validator,      String
+    attribute :name,           String
+    attribute :doc_comment,    String
+    attribute :signature,      String
+    attribute :body_snippet,   String
+    attribute :order,          Integer
+  end
+end

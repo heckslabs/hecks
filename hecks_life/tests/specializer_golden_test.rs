@@ -85,6 +85,7 @@ fn specializer_hecksagon_wiring_is_present() {
         "specialize_validator_warnings",
         "specialize_dump",
         "specialize_duplicate_policy",
+        "specialize_lifecycle",
     ] {
         assert!(
             hex.shell_adapters.iter().any(|a| a.name == expected),
@@ -119,4 +120,9 @@ fn specializer_produces_byte_identical_duplicate_policy_validator_rs() {
         "duplicate_policy",
         "hecks_life/src/duplicate_policy_validator.rs",
     );
+}
+
+#[test]
+fn specializer_produces_byte_identical_lifecycle_validator_rs() {
+    assert_byte_identical("lifecycle", "hecks_life/src/lifecycle_validator.rs");
 }
