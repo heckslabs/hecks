@@ -312,6 +312,37 @@ fn rust_specializer_produces_byte_identical_validator_warnings_rs() {
     );
 }
 
+#[test]
+fn rust_specializer_produces_byte_identical_dump_rs() {
+    // Phase D D2 — second Rust-native specializer. Stretches the
+    // D1 pilot to multi-aggregate dispatch, order sorting, and the
+    // padded enum_match emitter. Every subsequent Rust-emitting
+    // specializer (validator, the parsers) reuses this vocabulary.
+    let root = repo_root();
+    let bin = root.join("hecks_life/target/release/hecks-life");
+    assert!(
+        bin.exists(),
+        "hecks-life binary missing — build release first",
+    );
+    let output = Command::new(&bin)
+        .args(["specialize", "dump"])
+        .current_dir(&root)
+        .output()
+        .expect("hecks-life specialize dump failed");
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr),
+    );
+    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
+    let tracked = fs::read_to_string(root.join("hecks_life/src/dump.rs"))
+        .expect("dump.rs missing");
+    assert_eq!(
+        generated, tracked,
+        "Rust specializer output drifted from tracked file",
+    );
+}
+
 // [antibody-exempt: hecks_life/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn meta_specializer_produces_byte_identical_hecks_specializer_rb() {

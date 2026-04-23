@@ -35,6 +35,20 @@ pub fn by_aggregate<'a>(fixtures: &'a [Fixture], name: &str) -> Vec<&'a Fixture>
     fixtures.iter().filter(|f| f.aggregate_name == name).collect()
 }
 
+/// Same as `by_aggregate`, but sorted by the named attribute parsed as
+/// `i64` (missing/non-numeric sorts as 0). Mirrors the Ruby
+/// `sort_by { |r| r["attrs"]["order"].to_i }` idiom repeated in every
+/// multi-aggregate specializer (dump, validator, parser-shape targets).
+pub fn by_aggregate_sorted<'a>(
+    fixtures: &'a [Fixture],
+    name: &str,
+    order_key: &str,
+) -> Vec<&'a Fixture> {
+    let mut rows = by_aggregate(fixtures, name);
+    rows.sort_by_key(|f| attr(f, order_key).parse::<i64>().unwrap_or(0));
+    rows
+}
+
 /// Look up a fixture attribute by key. Panics-free: returns an empty
 /// string for missing keys, matching the Ruby side's `a["key"]` which
 /// yields `nil` then gets interpolated as `""`. Specializers that need

@@ -19,16 +19,19 @@
 use std::error::Error;
 use std::path::Path;
 
+pub mod dump;
 pub mod util;
 pub mod validator_warnings;
 
-/// Dispatch by target name. Phase D pilot: `validator_warnings` only.
-/// Every subsequent port adds one match arm here.
+/// Dispatch by target name. Phase D ports are additive — each new
+/// Rust-native specializer adds one match arm here and one module
+/// under `specializer::`.
 pub fn emit(target: &str, repo_root: &Path) -> Result<String, Box<dyn Error>> {
     match target {
         "validator_warnings" => validator_warnings::emit(repo_root),
+        "dump" => dump::emit(repo_root),
         other => Err(format!(
-            "unknown specializer target: {}. Known: validator_warnings",
+            "unknown specializer target: {}. Known: validator_warnings, dump",
             other
         )
         .into()),
