@@ -26,6 +26,7 @@ pub mod fixtures_parser;
 pub mod hecksagon_parser;
 pub mod meta_diagnostic_validator;
 pub mod meta_ruby_script;
+pub mod meta_subclass;
 pub mod util;
 pub mod validator;
 pub mod validator_checks;
@@ -46,8 +47,10 @@ pub fn emit(target: &str, repo_root: &Path) -> Result<String, Box<dyn Error>> {
         "validator" => validator::emit(repo_root),
         "validator_warnings" => validator_warnings::emit(repo_root),
         "dump" => dump::emit(repo_root),
+        "meta_subclass" => meta_subclass::emit(repo_root),
+        "meta_subclass_lifecycle" => meta_subclass::emit_lifecycle(repo_root),
         other => Err(format!(
-            "unknown specializer target: {}. Known: behaviors_parser, dump, fixtures_parser, hecksagon_parser, meta_diagnostic_validator, meta_ruby_script, validator, validator_warnings",
+            "unknown specializer target: {}. Known: behaviors_parser, dump, fixtures_parser, hecksagon_parser, meta_diagnostic_validator, meta_ruby_script, meta_subclass, meta_subclass_lifecycle, validator, validator_warnings",
             other
         )
         .into()),
