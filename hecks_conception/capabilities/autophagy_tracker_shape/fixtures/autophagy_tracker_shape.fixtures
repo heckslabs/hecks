@@ -1,0 +1,43 @@
+Hecks.fixtures "AutophagyTrackerShape" do
+  # Note: single-line fixtures — the Rust fixtures_parser only reads one
+  # line per `fixture` directive today (i57 tracks multi-line support).
+  #
+  # Measurements taken at HEAD = b0400791 (miette/i51-phase-c-meta-validator-warnings-v2,
+  # the PC-2 extension commit). See autophagy_tracker_shape.bluebook for
+  # field semantics.
+
+  # ── RetirementTarget — one row per candidate file ──────────────────
+  #
+  # Ruby rows: every file under lib/hecks_specializer/*.rb.
+  # Rust rows: every SpecializerTarget row in specializer.fixtures.
+
+  aggregate "RetirementTarget" do
+    # ---- Ruby specializer files (phase c) ----------------------------
+    fixture "RubyDiagnosticValidator",       name: "diagnostic_validator",       source_path: "lib/hecks_specializer/diagnostic_validator.rb",       kind: "ruby", loc: 153, ship_status: "byte_identical", source_shape_capability: "diagnostic_validator_meta_shape", phase: "c"
+    fixture "RubyDump",                      name: "dump",                       source_path: "lib/hecks_specializer/dump.rb",                      kind: "ruby", loc: 203, ship_status: "not_started",    source_shape_capability: "",                                phase: "c"
+    fixture "RubyDuplicatePolicy",           name: "duplicate_policy",           source_path: "lib/hecks_specializer/duplicate_policy.rb",           kind: "ruby", loc: 20,  ship_status: "byte_identical", source_shape_capability: "specializer",                     phase: "c"
+    fixture "RubyLifecycle",                 name: "lifecycle",                  source_path: "lib/hecks_specializer/lifecycle.rb",                  kind: "ruby", loc: 20,  ship_status: "byte_identical", source_shape_capability: "specializer",                     phase: "c"
+    fixture "RubyMetaDiagnosticValidator",   name: "meta_diagnostic_validator",  source_path: "lib/hecks_specializer/meta_diagnostic_validator.rb",  kind: "ruby", loc: 192, ship_status: "not_started",    source_shape_capability: "",                                phase: "c"
+    fixture "RubyMetaSubclass",              name: "meta_subclass",              source_path: "lib/hecks_specializer/meta_subclass.rb",              kind: "ruby", loc: 97,  ship_status: "not_started",    source_shape_capability: "",                                phase: "c"
+    fixture "RubyValidator",                 name: "validator",                  source_path: "lib/hecks_specializer/validator.rb",                  kind: "ruby", loc: 393, ship_status: "not_started",    source_shape_capability: "",                                phase: "c"
+    fixture "RubyValidatorWarnings",         name: "validator_warnings",         source_path: "lib/hecks_specializer/validator_warnings.rb",         kind: "ruby", loc: 113, ship_status: "byte_identical", source_shape_capability: "diagnostic_validator_meta_shape", phase: "c"
+
+    # ---- Rust SpecializerTarget rows ---------------------------------
+    fixture "RustValidator",                 name: "validator",                  source_path: "hecks_life/src/validator.rs",                         kind: "rust", loc: 248, ship_status: "byte_identical", source_shape_capability: "validator_shape",                 phase: "a"
+    fixture "RustValidatorWarnings",         name: "validator_warnings",         source_path: "hecks_life/src/validator_warnings.rs",                kind: "rust", loc: 145, ship_status: "byte_identical", source_shape_capability: "validator_warnings_shape",        phase: "b"
+    fixture "RustFixturesParser",            name: "fixtures_parser",            source_path: "hecks_life/src/fixtures_parser.rs",                   kind: "rust", loc: 440, ship_status: "not_started",    source_shape_capability: "fixtures_parser_shape",           phase: "b"
+    fixture "RustBehaviorsParser",           name: "behaviors_parser",           source_path: "hecks_life/src/behaviors_parser.rs",                  kind: "rust", loc: 372, ship_status: "not_started",    source_shape_capability: "behaviors_parser_shape",          phase: "b"
+    fixture "RustHecksagonParser",           name: "hecksagon_parser",           source_path: "hecks_life/src/hecksagon_parser.rs",                  kind: "rust", loc: 189, ship_status: "not_started",    source_shape_capability: "hecksagon_parser_shape",          phase: "b"
+    fixture "RustDump",                      name: "dump",                       source_path: "hecks_life/src/dump.rs",                              kind: "rust", loc: 185, ship_status: "byte_identical", source_shape_capability: "dump_shape",                      phase: "b"
+    fixture "RustDuplicatePolicy",           name: "duplicate_policy",           source_path: "hecks_life/src/duplicate_policy_validator.rs",        kind: "rust", loc: 86,  ship_status: "byte_identical", source_shape_capability: "duplicate_policy_validator_shape", phase: "b"
+    fixture "RustLifecycle",                 name: "lifecycle",                  source_path: "hecks_life/src/lifecycle_validator.rs",               kind: "rust", loc: 288, ship_status: "byte_identical", source_shape_capability: "lifecycle_validator_shape",       phase: "b"
+    fixture "RustSpecializer",               name: "specializer",                source_path: "hecks_life/src/specializer/",                         kind: "rust", loc: 0,   ship_status: "not_started",    source_shape_capability: "specializer",                     phase: "d"
+  end
+
+  # ── RetirementSummary — one row per phase, rolled-up narrative ─────
+  aggregate "RetirementSummary" do
+    fixture "PhaseA", phase: "a", files_count: 1, loc_total: 248,  byte_identical_count: 1, byte_identical_loc: 248, gap_loc: 0,    description: "First Futamura proof — validator.rs regenerated byte-identical from validator_shape."
+    fixture "PhaseB", phase: "b", files_count: 7, loc_total: 1705, byte_identical_count: 4, byte_identical_loc: 704, gap_loc: 1001, description: "More Rust targets + diagnostic-validator retirements — validator_warnings, dump, duplicate_policy, lifecycle shipped byte-identical. Parsers (fixtures, behaviors, hecksagon) still hand-written."
+    fixture "PhaseC", phase: "c", files_count: 8, loc_total: 1191, byte_identical_count: 4, byte_identical_loc: 306, gap_loc: 885,  description: "Meta-specializer — PC-1 pilot retired duplicate_policy.rb + lifecycle.rb shells; PC-2 retired diagnostic_validator.rb + validator_warnings.rb full classes. PC-3 driver + PC-4 fixed point still open."
+  end
+end
