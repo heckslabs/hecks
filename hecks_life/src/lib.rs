@@ -32,6 +32,8 @@ pub mod fixtures_parser;
 pub mod hecksagon_helpers;
 pub mod hecksagon_ir;
 pub mod hecksagon_parser;
+pub mod world_ir;
+pub mod world_parser;
 pub mod run;
 pub mod run_status;
 pub mod run_stdin_loop;
