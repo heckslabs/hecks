@@ -519,13 +519,7 @@ fn rust_specializer_produces_byte_identical_diagnostic_validator_rb() {
     // Phase D D3 — first Ruby-emitting Rust-native specializer. Ports
     // `meta_diagnostic_validator` (the PC-2 base class, 202 LoC Ruby)
     // to emit `lib/hecks_specializer/diagnostic_validator.rb` from
-    // RubyClass + RubyMethod (+ optional RubyConstant) rows. Exercises
-    // `.rb.frag` raw snippet reads (no leading `//`-comment strip —
-    // Ruby bodies don't carry those headers), `def self.foo` via
-    // RubyMethod.receiver, inline pre-method doc snippets, module
-    // nesting + include mixins, and public/private section split.
-    // Establishes the Ruby-emitting vocabulary for subsequent D3
-    // siblings (meta_subclass, meta_ruby_script, meta_ruby_module).
+    // RubyClass + RubyMethod (+ optional RubyConstant) rows.
     let root = repo_root();
     let bin = root.join("hecks_life/target/release/hecks-life");
     assert!(
@@ -555,10 +549,6 @@ fn rust_specializer_produces_byte_identical_diagnostic_validator_rb() {
 #[test]
 fn rust_specializer_produces_byte_identical_meta_subclass_rb() {
     // Phase D D3 — first Ruby-emitting Rust-native specializer port.
-    // Where D1/D2 ported Ruby-specialisers-that-emit-Rust, this pair
-    // ports a Ruby-specialiser-that-emits-Ruby (the thin-subclass
-    // shells under lib/hecks_specializer/). Mirrors the Ruby
-    // MetaSubclass default: :meta_subclass emits duplicate_policy.rb.
     let root = repo_root();
     let bin = root.join("hecks_life/target/release/hecks-life");
     assert!(
@@ -587,10 +577,7 @@ fn rust_specializer_produces_byte_identical_meta_subclass_rb() {
 // [antibody-exempt: hecks_life/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_meta_subclass_lifecycle_rb() {
-    // Phase D D3 companion — meta_subclass_lifecycle dispatches to
-    // the Lifecycle SpecializerSubclass row. Proves the port scales
-    // past one row, same as MetaSubclassLifecycle does on the Ruby
-    // side.
+    // Phase D D3 companion — meta_subclass_lifecycle dispatches to the Lifecycle row.
     let root = repo_root();
     let bin = root.join("hecks_life/target/release/hecks-life");
     assert!(
@@ -610,6 +597,40 @@ fn rust_specializer_produces_byte_identical_meta_subclass_lifecycle_rb() {
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
     let tracked = fs::read_to_string(root.join("lib/hecks_specializer/lifecycle.rb"))
         .expect("lifecycle.rb missing");
+    assert_eq!(
+        generated, tracked,
+        "Rust specializer output drifted from tracked file",
+    );
+}
+
+// [antibody-exempt: hecks_life/tests/specializer_golden_test.rs — golden-test scaffolding]
+#[test]
+fn rust_specializer_produces_byte_identical_hecks_specializer_rb() {
+    // Phase D D3 — Rust-native specializer for meta_ruby_module. Ports
+    // the PC-5 loader-module shape (RubyModule + ModuleConstant +
+    // ModuleClassMethod + InnerModule) that emits lib/hecks_specializer.rb
+    // itself. Exercises `class << self`, inner module mixin,
+    // module-level `@targets = {}` ivar, and the trailing
+    // `Dir[...].sort.each { require }` autoload block.
+    let root = repo_root();
+    let bin = root.join("hecks_life/target/release/hecks-life");
+    assert!(
+        bin.exists(),
+        "hecks-life binary missing — build release first",
+    );
+    let output = Command::new(&bin)
+        .args(["specialize", "meta_ruby_module"])
+        .current_dir(&root)
+        .output()
+        .expect("hecks-life specialize meta_ruby_module failed");
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr),
+    );
+    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
+    let tracked = fs::read_to_string(root.join("lib/hecks_specializer.rb"))
+        .expect("lib/hecks_specializer.rb missing");
     assert_eq!(
         generated, tracked,
         "Rust specializer output drifted from tracked file",
