@@ -1,0 +1,29 @@
+Hecks.bluebook "LegacyTopLevel", version: "2026.04.22.1" do
+  vision "Locks Ruby↔Rust parity for legacy top-level forms that both runtimes accept-and-ignore: lifecycle/event at bluebook scope, fixture inside aggregate, cross_domain inside policy"
+
+  aggregate "Room" do
+    attribute :name, String
+
+    fixture "SampleRoom", name: "Studio"    # legacy — ignored both sides
+
+    command "DefineRoom" do
+      role "Architect"
+      attribute :name, String
+      emits "RoomDefined"
+    end
+  end
+
+  event "AmbientChanged"                    # top-level — ignored both sides
+
+  lifecycle "RoomSetup" do                  # top-level — ignored both sides
+    state "drafted"
+    state "occupied"
+    transition from: "drafted", to: "occupied", on: "RoomDefined"
+  end
+
+  policy "WireOnDefine" do
+    on "RoomDefined"
+    trigger "DefineRoom"
+    cross_domain true                       # legacy form — ignored
+  end
+end
