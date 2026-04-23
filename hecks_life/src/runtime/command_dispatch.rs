@@ -190,10 +190,5 @@ fn parse_default(default: &str, attr_type: &str) -> Value {
 }
 
 fn to_snake_case(s: &str) -> String {
-    let mut result = String::new();
-    for (i, c) in s.chars().enumerate() {
-        if c.is_uppercase() && i > 0 { result.push('_'); }
-        result.push(c.to_lowercase().next().unwrap());
-    }
-    result
+    crate::parser_helpers::to_snake_case(s)
 }
