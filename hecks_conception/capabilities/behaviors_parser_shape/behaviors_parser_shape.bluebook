@@ -1,0 +1,127 @@
+Hecks.bluebook "BehaviorsParserShape", version: "2026.04.23.1" do
+  vision "Shape of hecks_life/src/behaviors_parser.rs — i51 Phase B target. Fourth parser retirement after validator.rs, dump.rs, and hecksagon_parser.rs. Extends the hecksagon parser-shape template with an else-if loop style and a tests_snippet attribute carrying the inline #[cfg(test)] module."
+  category "autophagy"
+
+  # ============================================================
+  # BEHAVIORS_PARSER SHAPE — i51 Phase B
+  # ============================================================
+  #
+  # behaviors_parser.rs is a line-oriented recognizer for .behaviors
+  # bluebook files (TestSuite IR). 244 LoC + 128 LoC of inline tests.
+  # Similar to hecksagon_parser.rs but with three twists that the
+  # shape captures directly:
+  #
+  #   1. loop_style = "else_if" — the root parse() loop uses an
+  #      if/else-if chain instead of the if + continue pattern.
+  #      Trivial dispatches fall through to the bottom `i += 1`;
+  #      multiline dispatches (test) emit an explicit `continue`.
+  #
+  #   2. Extra handler_kinds:
+  #        capture_quoted_into_option — sets Some(value) (vision)
+  #        push_all_quoted_onto       — variadic via extract_all_strings
+  #                                     (loads)
+  #        multiline_block_direct     — helper returns T, not Option<T>
+  #                                     (parse_test)
+  #
+  #   3. LineParser gains optional tests_snippet + state_init_snippet
+  #      (the `let mut suite = TestSuite {..};` init block above the
+  #      while loop), plus a match_mode per dispatch for the
+  #      "word ,word\t,== word" triad (loads).
+  #
+  # The three aggregates mirror hecksagon's — same names, same roles.
+  # LineParser (1 row) + LineDispatch (4 rows, one per top-level token)
+  # + ParserHelper (7 rows, one per private fn).
+
+  aggregate "LineParser", "One line-oriented parser module" do
+    attribute :module,              String
+    # doc_snippet: path to the //! module-level doc comment snippet
+    attribute :doc_snippet,         String
+    # imports: newline-separated use lines (without "use " prefix
+    # and without trailing semicolon — specializer adds both).
+    attribute :imports,             String
+    # root_fn_name: the public entry — usually "parse"
+    attribute :root_fn_name,        String
+    # root_signature: full signature minus body
+    attribute :root_signature,      String
+    # state_init_snippet: path to snippet covering the lines between
+    # `{` of root_signature and the `while` loop. Covers IR struct
+    # initialization and loop-var declarations (e.g. `let lines: Vec<&str>
+    # = source.lines().collect(); let mut i = 0;`).
+    attribute :state_init_snippet,  String
+    # loop_var_name: the Vec<&str> name used inside the while loop
+    # ("lines" for behaviors, "raw" for hecksagon).
+    attribute :loop_var_name,       String
+    # state_var: name of the IR accumulator variable initialized in
+    # state_init_snippet and returned at fn tail ("suite" for behaviors,
+    # "hex" for hecksagon). Referenced by handler_kind templates.
+    attribute :state_var,           String
+    # loop_style: "if_continue" (hecksagon) | "else_if" (behaviors).
+    attribute :loop_style,          String
+    # detector_fn_name: the is_<kind>_source detector entry
+    attribute :detector_fn_name,    String
+    # detector_keyword: the prefix matched on the first non-blank line
+    attribute :detector_keyword,    String
+    # detector_position: "before_parse" (hecksagon) | "after_helpers"
+    # (behaviors — emitted after all private helpers, before tests).
+    attribute :detector_position,   String
+    # tests_snippet: path to the #[cfg(test)] mod tests block, or
+    # empty string if the file has no inline tests.
+    attribute :tests_snippet,       String, default: ""
+  end
+
+  aggregate "LineDispatch", "One line-leading-token dispatch inside the root parse() loop" do
+    # parser: links to LineParser.module
+    attribute :parser,        String
+    # match_keyword: the token (or prefix) this dispatch matches.
+    attribute :match_keyword, String
+    # match_mode: how match_keyword is wrapped:
+    #   prefix        — line.starts_with("X") (comma in keyword = OR list)
+    #   word          — line.starts_with("X ") || line.starts_with("X\t")
+    #   word_or_equal — word + `|| line == "X"`
+    attribute :match_mode,    String, default: "prefix"
+    # handler_kind: capture_quoted_into | capture_quoted_into_option |
+    #               push_all_quoted_onto | multiline_block_direct |
+    #               (hecksagon parent adds: push_quoted_onto, multiline_block,
+    #                multiline_adapter — not used by behaviors).
+    attribute :handler_kind,  String
+    # target_field: struct field on the IR (e.g. "name", "vision",
+    # "loads", "tests"). Specializer uses it in the generated push/set.
+    attribute :target_field,  String, default: ""
+    # helper_fn: name of the helper this dispatch delegates to
+    # (parse_test, ...). Empty for trivial handlers.
+    attribute :helper_fn,     String, default: ""
+    # quote_fn: the extractor for single quoted tokens. "extract_string"
+    # for behaviors, "between_quotes" for hecksagon. Ignored for
+    # push_all_quoted_onto (uses variadic_fn) and multiline handlers.
+    attribute :quote_fn,      String, default: "extract_string"
+    # capture_var: local variable name used in the capture body
+    # (`if let Some(<capture_var>) = quote_fn(line) { ... = <capture_var>; }`).
+    # Per-row so the emitted var name matches the hand-written source.
+    attribute :capture_var,   String, default: "n"
+    # variadic_fn: extractor for variadic quoted lists (loads,
+    # then_events_include). "extract_all_strings" for behaviors.
+    attribute :variadic_fn,   String, default: ""
+    # body_comment: inline //-comment block emitted inside the dispatch
+    # body, just after the opening `{`. Newline-separated lines without
+    # the `// ` prefix — specializer prepends it. Empty = no comment.
+    attribute :body_comment,  String, default: ""
+    # order: emission order inside the while loop
+    attribute :order,         Integer
+  end
+
+  aggregate "ParserHelper", "A private helper fn used by a LineParser" do
+    # parser: links to LineParser.module
+    attribute :parser,       String
+    attribute :name,         String
+    # doc_comment: line-delimited /// above the signature. Empty string
+    # skips the doc block entirely.
+    attribute :doc_comment,  String
+    # signature: full Rust signature, e.g.
+    # "fn parse_test(lines: &[&str]) -> (Test, usize)"
+    attribute :signature,    String
+    # body_snippet: path to the fn body snippet (between { and })
+    attribute :body_snippet, String
+    # order: emission order within the module
+    attribute :order,        Integer
+  end
+end

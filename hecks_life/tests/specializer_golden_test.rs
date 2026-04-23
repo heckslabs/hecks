@@ -88,6 +88,7 @@ fn specializer_hecksagon_wiring_is_present() {
         "specialize_lifecycle",
         "specialize_hecksagon_parser",
         "specialize_fixtures_parser",
+        "specialize_behaviors_parser",
         "specialize_meta_subclass",
         "specialize_meta_subclass_lifecycle",
         "specialize_meta_diagnostic_validator",
@@ -162,6 +163,20 @@ fn specializer_produces_byte_identical_fixtures_parser_rs() {
     // simpler helpers (parse_fixture_line, split_top_level_commas,
     // escaped_at). Closes the Phase B Rust retirement arc.
     assert_byte_identical("fixtures_parser", "hecks_life/src/fixtures_parser.rs");
+}
+
+#[test]
+fn specializer_produces_byte_identical_behaviors_parser_rs() {
+    // i51 Phase B — fourth parser retirement. Extends the hecksagon
+    // parser-shape 3-aggregate template with an else_if loop_style,
+    // three new handler_kinds (capture_quoted_into_option for Option
+    // fields, push_all_quoted_onto for variadic quoted lists,
+    // multiline_block_direct for helpers returning T rather than
+    // Option<T>), a word/word_or_equal match_mode triad, plus an
+    // inline tests_snippet carrying the in-file #[cfg(test)] module
+    // verbatim. Only fixtures_parser.rs remains as an open Phase B
+    // Rust target after this lands.
+    assert_byte_identical("behaviors_parser", "hecks_life/src/behaviors_parser.rs");
 }
 
 #[test]

@@ -1,0 +1,27 @@
+Hecks.fixtures "BehaviorsParserShape" do
+  # Single-line fixtures per i57 parser limitation.
+
+  # ── LineParser — the module's outer contract ────────────────────
+  aggregate "LineParser" do
+    fixture "BehaviorsParser", module: "behaviors_parser", doc_snippet: "hecks_conception/capabilities/behaviors_parser_shape/snippets/doc.rs.frag", imports: "crate::behaviors_ir::*\ncrate::parser_helpers::*\nstd::collections::BTreeMap", root_fn_name: "parse", root_signature: "pub fn parse(source: &str) -> TestSuite", state_init_snippet: "hecks_conception/capabilities/behaviors_parser_shape/snippets/state_init.rs.frag", loop_var_name: "lines", state_var: "suite", loop_style: "else_if", detector_fn_name: "is_behaviors_source", detector_keyword: "Hecks.behaviors", detector_position: "after_helpers", tests_snippet: "hecks_conception/capabilities/behaviors_parser_shape/snippets/tests.rs.frag"
+  end
+
+  # ── LineDispatch — one row per line-leading token in the parse() loop ──
+  aggregate "LineDispatch" do
+    fixture "SuiteName", parser: "behaviors_parser", match_keyword: "Hecks.behaviors", match_mode: "prefix",        handler_kind: "capture_quoted_into",        target_field: "name",   helper_fn: "",           quote_fn: "extract_string",     variadic_fn: "",                   capture_var: "name", order: 1
+    fixture "Vision",    parser: "behaviors_parser", match_keyword: "vision",          match_mode: "prefix",        handler_kind: "capture_quoted_into_option", target_field: "vision", helper_fn: "",           quote_fn: "extract_string",     variadic_fn: "",                   capture_var: "v",    order: 2
+    fixture "Loads",     parser: "behaviors_parser", match_keyword: "loads",           match_mode: "word_or_equal", handler_kind: "push_all_quoted_onto",       target_field: "loads",  helper_fn: "",           quote_fn: "",                   variadic_fn: "extract_all_strings", capture_var: "",     body_comment: "`loads \"a\", \"b\", \"c\"` — zero or more quoted names. Empty\n`loads` with no arguments records nothing (same as absent).", order: 3
+    fixture "Test",      parser: "behaviors_parser", match_keyword: "test",            match_mode: "word",          handler_kind: "multiline_block_direct",     target_field: "tests",  helper_fn: "parse_test", quote_fn: "",                   variadic_fn: "",                   capture_var: "",     order: 4
+  end
+
+  # ── ParserHelper — private helpers emitted verbatim via body_snippet ──
+  aggregate "ParserHelper" do
+    fixture "ExtractAllStrings",    parser: "behaviors_parser", name: "extract_all_strings",    doc_comment: "/// Return every double-quoted substring on `line`, in source order. Used\n/// to pluck the variadic `\"a\", \"b\", \"c\"` argument list of `loads` and\n/// `then_events_include`. Honors backslash-escaped quotes inside strings.", signature: "fn extract_all_strings(line: &str) -> Vec<String>", body_snippet: "hecks_conception/capabilities/behaviors_parser_shape/snippets/extract_all_strings_body.rs.frag", order: 1
+    fixture "ParseTest",            parser: "behaviors_parser", name: "parse_test",            doc_comment: "", signature: "fn parse_test(lines: &[&str]) -> (Test, usize)", body_snippet: "hecks_conception/capabilities/behaviors_parser_shape/snippets/parse_test_body.rs.frag", order: 2
+    fixture "InterpretTestLine",    parser: "behaviors_parser", name: "interpret_test_line",   doc_comment: "", signature: "fn interpret_test_line(line: &str, test: &mut Test)", body_snippet: "hecks_conception/capabilities/behaviors_parser_shape/snippets/interpret_test_line_body.rs.frag", order: 3
+    fixture "ParseKwargTail",       parser: "behaviors_parser", name: "parse_kwarg_tail",      doc_comment: "/// Parse the kwargs following a positional first arg (everything after the\n/// first comma). For lines like `setup \"CreatePizza\", name: \"x\", amount: 5`.", signature: "fn parse_kwarg_tail(line: &str) -> BTreeMap<String, String>", body_snippet: "hecks_conception/capabilities/behaviors_parser_shape/snippets/parse_kwarg_tail_body.rs.frag", order: 4
+    fixture "ParseKwargsOnly",      parser: "behaviors_parser", name: "parse_kwargs_only",     doc_comment: "/// Parse kwargs after a leading keyword (`input` / `expect`).", signature: "fn parse_kwargs_only(line: &str, keyword: &str) -> BTreeMap<String, String>", body_snippet: "hecks_conception/capabilities/behaviors_parser_shape/snippets/parse_kwargs_only_body.rs.frag", order: 5
+    fixture "SplitKwarg",           parser: "behaviors_parser", name: "split_kwarg",           doc_comment: "/// Split `key: value` into (key, value-as-source-token). Strings are\n/// unwrapped; numbers/symbols/bare tokens kept as their source bytes.", signature: "fn split_kwarg(part: &str) -> Option<(String, String)>", body_snippet: "hecks_conception/capabilities/behaviors_parser_shape/snippets/split_kwarg_body.rs.frag", order: 6
+    fixture "SplitTopLevelCommas",  parser: "behaviors_parser", name: "split_top_level_commas", doc_comment: "/// Split `s` on top-level commas (outside strings, brackets, parens, braces).", signature: "fn split_top_level_commas(s: &str) -> Vec<&str>", body_snippet: "hecks_conception/capabilities/behaviors_parser_shape/snippets/split_top_level_commas_body.rs.frag", order: 7
+  end
+end

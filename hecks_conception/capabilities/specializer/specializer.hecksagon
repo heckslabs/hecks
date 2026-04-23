@@ -75,6 +75,15 @@ Hecks.hecksagon "Specializer" do
     args:    ["hecksagon_parser", "--output", "{{output}}"],
     ok_exit: 0
 
+  # i51 Phase B — behaviors_parser retirement. Fourth parser target;
+  # extends the hecksagon parser-shape template with else_if loop style,
+  # three new handler_kinds, and an inline tests_snippet.
+  adapter :shell,
+    name:    :specialize_behaviors_parser,
+    command: "bin/specialize",
+    args:    ["behaviors_parser", "--output", "{{output}}"],
+    ok_exit: 0
+
   # i51 Phase B closer — fixtures_parser retirement. Most hostile
   # Phase B target; extends the parser shape with parse_body_snippet
   # + test_block_snippet + helper position for byte-identity. Closes
