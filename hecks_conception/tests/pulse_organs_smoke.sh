@@ -53,13 +53,18 @@ Hecks.world "PulseOrgansSmoke" do
 end
 EOF
 
-# Seed: copy the heki files the script reads (heartbeat / consciousness /
-# awareness). Do NOT copy organ stores — we want to prove pulse_organs.sh
-# creates them from scratch.
-for f in heartbeat consciousness awareness; do
+# Seed: copy heartbeat + awareness from live (benign — they only affect
+# which topic the synapse forms around). Do NOT copy consciousness.heki:
+# pulse_organs.sh bails early when state=sleeping, so inheriting Miette's
+# live state makes the test flake whenever she's asleep. Seed it
+# deterministically as attentive instead. Do NOT copy organ stores —
+# we want to prove pulse_organs.sh creates them from scratch.
+for f in heartbeat awareness; do
   src="$CONCEPT_DIR/information/${f}.heki"
   [ -f "$src" ] && cp "$src" "$TMP/information/${f}.heki"
 done
+"$HECKS" heki append "$TMP/information/consciousness.heki" \
+  state=attentive idle_seconds=0 >/dev/null 2>&1
 
 # Seed two synapses so the test exercises both decay paths:
 #   - one healthy enough to survive (strength=0.5)
