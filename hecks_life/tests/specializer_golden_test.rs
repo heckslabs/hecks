@@ -80,7 +80,12 @@ fn specializer_hecksagon_wiring_is_present() {
 
     assert_eq!(hex.name, "Specializer");
     assert_eq!(hex.persistence.as_deref(), Some("memory"));
-    for expected in ["specialize_validator", "specialize_validator_warnings", "specialize_dump"] {
+    for expected in [
+        "specialize_validator",
+        "specialize_validator_warnings",
+        "specialize_dump",
+        "specialize_duplicate_policy",
+    ] {
         assert!(
             hex.shell_adapters.iter().any(|a| a.name == expected),
             "{} shell adapter not declared",
@@ -106,4 +111,12 @@ fn specializer_produces_byte_identical_validator_warnings_rs() {
 #[test]
 fn specializer_produces_byte_identical_dump_rs() {
     assert_byte_identical("dump", "hecks_life/src/dump.rs");
+}
+
+#[test]
+fn specializer_produces_byte_identical_duplicate_policy_validator_rs() {
+    assert_byte_identical(
+        "duplicate_policy",
+        "hecks_life/src/duplicate_policy_validator.rs",
+    );
 }

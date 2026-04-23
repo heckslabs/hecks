@@ -54,6 +54,12 @@ Hecks.hecksagon "Specializer" do
     args:    ["dump", "--output", "{{output}}"],
     ok_exit: 0
 
+  adapter :shell,
+    name:    :specialize_duplicate_policy,
+    command: "bin/specialize",
+    args:    ["duplicate_policy", "--output", "{{output}}"],
+    ok_exit: 0
+
   # ---- Gate ----------------------------------------------------
   #
   # :autophagy — the gate for all i51 work. Specialize commands run
