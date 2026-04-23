@@ -13,6 +13,7 @@ agents — trust the decisions, don't re-derive them.
 | File | Inbox | Status |
 |---|---|---|
 | [i3_moment_consciousness.md](i3_moment_consciousness.md) | i3 | PR-0 + PR-a shipped; PR-b..PR-f remain |
+| [i7_parsed_hecksagon_world_dsl.md](i7_parsed_hecksagon_world_dsl.md) | i7 | Rust hecksagon parser shipped; Ruby allow-list loader + world DSL remain |
 | [i11_pr1_tongue_speak.md](i11_pr1_tongue_speak.md) | i11 | PR 0 shipped; PR 1 unblocked |
 | [i23_llm_adapter.md](i23_llm_adapter.md) | i23 | Not started; prereq for i11 PR 3+ |
 | [i25_loss_function.md](i25_loss_function.md) | i25 | Not started |
