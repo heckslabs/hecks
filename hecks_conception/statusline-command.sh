@@ -9,7 +9,20 @@
 input=$(cat)
 
 hecks="${HECKS_LIFE:-/Users/christopheryoung/Projects/hecks/hecks_life/target/release/hecks-life}"
-info="${HECKS_INFO:-/Users/christopheryoung/Projects/hecks/hecks_conception/information}"
+
+# Resolve Miette's information dir. Precedence:
+#   1. HECKS_INFO env var if set and non-empty
+#   2. ~/Projects/miette-state/information (private-state repo, standard layout)
+#   3. hecks_conception/information as fallback (empty by default post-split)
+# The fallback keeps the script working even when Claude Code's process
+# env was started before HECKS_INFO was exported.
+if [ -n "$HECKS_INFO" ]; then
+  info="$HECKS_INFO"
+elif [ -d "$HOME/Projects/miette-state/information" ]; then
+  info="$HOME/Projects/miette-state/information"
+else
+  info="/Users/christopheryoung/Projects/hecks/hecks_conception/information"
+fi
 
 fatigue=$($hecks heki read $info/heartbeat.heki 2>/dev/null | grep fatigue_state | head -1 | sed 's/.*: "//' | sed 's/".*//')
 mood=$($hecks heki read $info/mood.heki 2>/dev/null | grep current_state | head -1 | sed 's/.*: "//' | sed 's/".*//')
