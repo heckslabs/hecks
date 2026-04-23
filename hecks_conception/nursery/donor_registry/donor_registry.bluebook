@@ -6,7 +6,7 @@ Hecks.bluebook "DonorRegistry", version: "2026.04.13.1" do
     attribute :donor_id, String
     attribute :name, String
     attribute :blood_type, String
-    list_of(OrganConsent) :organs
+    attribute :organs, list_of(OrganConsent)
     attribute :status, String
     value_object "OrganConsent" do
       attribute :organ_name, String

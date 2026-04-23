@@ -79,7 +79,7 @@ Hecks.bluebook "EmergencyResponse", version: "2026.04.13.1" do
     attribute :scene_address, String
     attribute :hospital_name, String
     attribute :eta_minutes, Float
-    list_of(Waypoint) :waypoints
+    attribute :waypoints, list_of(Waypoint)
     value_object "Waypoint" do
       attribute :address, String
       attribute :lat, Float

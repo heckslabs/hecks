@@ -12,7 +12,7 @@ Hecks.bluebook "Manufacturing", version: "2026.04.11.1" do
     attribute :actual_delivery, String
     attribute :lot_number, String
     attribute :batch_record_number, String
-    list_of(String) :bill_of_materials
+    attribute :bill_of_materials, list_of(String)
     attribute :certificate_of_analysis, String
     attribute :cost, Float
     attribute :status, String

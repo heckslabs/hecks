@@ -38,7 +38,7 @@ Hecks.bluebook "Dermatology" do
     attribute :morphology, String
     attribute :severity, String
     attribute :status, String
-    list_of(ProgressPhoto) :photos
+    attribute :photos, list_of(ProgressPhoto)
     reference_to Patient
 
     value_object "ProgressPhoto" do

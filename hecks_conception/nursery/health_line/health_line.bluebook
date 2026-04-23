@@ -43,7 +43,7 @@ Hecks.bluebook "HealthLine", version: "2026.04.13.1" do
   aggregate "TriageProtocol", "A clinical triage protocol for symptom assessment" do
     attribute :protocol_id, String
     attribute :symptom_category, String
-    list_of(ProtocolStep) :steps
+    attribute :steps, list_of(ProtocolStep)
     attribute :severity_outcome, String
     attribute :status, String
     value_object "ProtocolStep" do

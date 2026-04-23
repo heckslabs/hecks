@@ -36,7 +36,7 @@ Hecks.bluebook "DrugProcurement", version: "2026.04.13.1" do
     attribute :round_id, String
     attribute :compound_id, String
     attribute :reserve_price, Float
-    list_of(Bid) :bids
+    attribute :bids, list_of(Bid)
     attribute :status, String
     value_object "Bid" do
       attribute :supplier_id, String
@@ -80,7 +80,7 @@ Hecks.bluebook "DrugProcurement", version: "2026.04.13.1" do
     attribute :gmp_certified, String
     attribute :quality_score, Float
     attribute :status, String
-    list_of(Certification) :certifications
+    attribute :certifications, list_of(Certification)
     value_object "Certification" do
       attribute :cert_type, String
       attribute :issuer, String

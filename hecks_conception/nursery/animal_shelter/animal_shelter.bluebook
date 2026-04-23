@@ -147,7 +147,7 @@ Hecks.bluebook "AnimalShelter" do
     attribute :animal_name, String
     attribute :record_date, String
     attribute :veterinarian, String
-    list_of(Treatment) :treatments
+    attribute :treatments, list_of(Treatment)
     attribute :spay_neuter_status, String
     attribute :vaccination_status, String
     reference_to Animal

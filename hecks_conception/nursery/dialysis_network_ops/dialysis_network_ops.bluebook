@@ -125,7 +125,7 @@ Hecks.bluebook "DialysisNetworkOps", version: "2026.04.13.1" do
     attribute :blood_flow_rate, Float
     attribute :dialysate_temp, Float
     attribute :timestamp, String
-    list_of(Reading) :readings
+    attribute :readings, list_of(Reading)
     value_object "Reading" do
       attribute :metric, String
       attribute :value, Float

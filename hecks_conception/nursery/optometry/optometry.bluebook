@@ -40,7 +40,7 @@ Hecks.bluebook "Optometry" do
     attribute :visual_acuity_left, String
     attribute :intraocular_pressure_right, Float
     attribute :intraocular_pressure_left, Float
-    list_of(Finding) :findings
+    attribute :findings, list_of(Finding)
     attribute :status, String
     reference_to Patient
 

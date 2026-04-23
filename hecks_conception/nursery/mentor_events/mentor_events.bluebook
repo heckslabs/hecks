@@ -42,7 +42,7 @@ Hecks.bluebook "MentorEvents", version: "2026.04.13.1" do
     attribute :date, String
     attribute :capacity, Integer
     attribute :status, String
-    list_of(EventActivity) :activities
+    attribute :activities, list_of(EventActivity)
     value_object "EventActivity" do
       attribute :activity_name, String
       attribute :duration_minutes, Float

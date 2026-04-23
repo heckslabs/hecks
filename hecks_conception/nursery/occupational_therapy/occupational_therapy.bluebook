@@ -46,7 +46,7 @@ Hecks.bluebook "OccupationalTherapy" do
     attribute :category, String
     attribute :complexity, String
     attribute :instructions, String
-    list_of(StepBreakdown) :steps
+    attribute :steps, list_of(StepBreakdown)
 
     value_object "StepBreakdown" do
       attribute :step_number, Integer

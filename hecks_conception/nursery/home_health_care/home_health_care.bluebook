@@ -7,7 +7,7 @@ Hecks.bluebook "HomeHealthCare" do
     attribute :primary_diagnosis, String
     attribute :physician_name, String
     attribute :status, String
-    list_of(Allergy) :allergies
+    attribute :allergies, list_of(Allergy)
 
     value_object "Allergy" do
       attribute :substance, String

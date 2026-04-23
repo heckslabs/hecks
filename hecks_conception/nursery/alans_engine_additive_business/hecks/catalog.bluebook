@@ -61,7 +61,7 @@ Hecks.bluebook "Catalog", version: "2026.04.11.1" do
     attribute :name, String
     attribute :description, String
     attribute :product_count, Integer
-    list_of(String) :channels
+    attribute :channels, list_of(String)
 
     command "RegisterBrand" do
       role "Owner"
