@@ -171,6 +171,11 @@ fn main() {
         return;
     }
 
+    if command == "specialize" {
+        run_specialize(&args);
+        return;
+    }
+
     if command == "cascade" {
         let path = args.get(2).expect("usage: hecks-life cascade <bluebook>");
         let source = std::fs::read_to_string(path).expect("cannot read");
@@ -691,6 +696,74 @@ fn run_check_all(args: &[String]) {
         println!("FAIL — {} has issues", path);
         std::process::exit(1);
     }
+}
+
+/// `hecks-life specialize <target> [--output PATH]`
+///
+/// i51 Phase D pilot — Rust-native specializer driver. Mirrors
+/// `bin/specialize <target>` on the Ruby side; both runtimes must
+/// produce byte-identical output for every ported target until the
+/// migration completes.
+///
+/// Target name (the first positional arg) dispatches to the matching
+/// module under `hecks_life::specializer::`. Writes to `--output
+/// PATH` when provided, otherwise prints to stdout.
+fn run_specialize(args: &[String]) {
+    let target = args.get(2).map(|s| s.as_str()).unwrap_or("");
+    if target.is_empty() {
+        eprintln!("Usage: hecks-life specialize <target> [--output PATH]");
+        std::process::exit(2);
+    }
+
+    let output_path: Option<String> = args
+        .iter()
+        .position(|a| a == "--output" || a == "-o")
+        .and_then(|i| args.get(i + 1).cloned());
+
+    let repo_root = match specialize_repo_root() {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("cannot locate repo root: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    let rust = match hecks_life::specializer::emit(target, &repo_root) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("specialize {} failed: {}", target, e);
+            std::process::exit(1);
+        }
+    };
+
+    match output_path {
+        Some(p) => {
+            if let Err(e) = std::fs::write(&p, &rust) {
+                eprintln!("cannot write {}: {}", p, e);
+                std::process::exit(1);
+            }
+            eprintln!("wrote {} bytes to {}", rust.len(), p);
+        }
+        None => print!("{}", rust),
+    }
+}
+
+/// Locate the repository root for the `specialize` subcommand.
+///
+/// Uses `env::current_dir` — invocation convention is `hecks-life
+/// specialize …` run from the repo root (same as `bin/specialize` on
+/// the Ruby side). A sanity check verifies the expected
+/// `hecks_conception/` sibling exists.
+fn specialize_repo_root() -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
+    let cwd = env::current_dir()?;
+    if !cwd.join("hecks_conception").is_dir() {
+        return Err(format!(
+            "expected to run `specialize` from the repo root (cwd={}, no hecks_conception/ sibling)",
+            cwd.display()
+        )
+        .into());
+    }
+    Ok(cwd)
 }
 
 /// Find the source bluebook for a behaviors file.

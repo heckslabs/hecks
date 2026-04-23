@@ -248,6 +248,38 @@ fn meta_specializer_produces_byte_identical_meta_validator_warnings_rb() {
     );
 }
 
+#[test]
+fn rust_specializer_produces_byte_identical_validator_warnings_rs() {
+    // Phase D pilot — hecks-life specialize (Rust-native) produces
+    // output byte-identical to the Ruby bin/specialize output for the
+    // same target. First proof that the specializer itself can migrate
+    // from Ruby to Rust while keeping byte-identity. Every subsequent
+    // Phase D port adds another test with the same shape.
+    let root = repo_root();
+    let bin = root.join("hecks_life/target/release/hecks-life");
+    assert!(
+        bin.exists(),
+        "hecks-life binary missing — build release first",
+    );
+    let output = Command::new(&bin)
+        .args(["specialize", "validator_warnings"])
+        .current_dir(&root)
+        .output()
+        .expect("hecks-life specialize failed");
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr),
+    );
+    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
+    let tracked = fs::read_to_string(root.join("hecks_life/src/validator_warnings.rs"))
+        .expect("validator_warnings.rs missing");
+    assert_eq!(
+        generated, tracked,
+        "Rust specializer output drifted from tracked file",
+    );
+}
+
 // [antibody-exempt: hecks_life/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn meta_specializer_produces_byte_identical_hecks_specializer_rb() {

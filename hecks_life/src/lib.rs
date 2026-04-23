@@ -38,3 +38,4 @@ pub mod world_parser;
 pub mod run;
 pub mod run_status;
 pub mod run_stdin_loop;
+pub mod specializer;
