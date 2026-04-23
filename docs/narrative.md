@@ -296,6 +296,35 @@ Use AI to write the DSL. Use Hecks to guarantee the architecture holds.
 
 ---
 
+## 10.5 DSL Parity — 5/5 Parsed, Not Executed
+
+Five source languages live in a Hecks project:
+
+- `.bluebook`   — domain modeling (aggregates, commands, queries, policies)
+- `.hecksagon`  — hexagonal architecture wiring (adapters, gates, subscriptions)
+- `.fixtures`   — test data + catalog schemas
+- `.behaviors`  — behavioral tests
+- `.world`      — runtime configuration + strategic descriptors
+
+Every one of them is **parsed**, not evaluated. The Rust runtime parses
+directly from text into IR and never sees Ruby. The Ruby loader path
+gates every file through an allow-list of DSL keywords before
+`Kernel.load` — anything outside the list raises
+`Hecksagon::UnsafeHecksagonError` with the offending line.
+
+This matters because the source of truth must be trustworthy. A DSL
+that silently accepts arbitrary Ruby is not a DSL — it is a Ruby DSL
+*plus* an unrestricted code execution vector. One malicious
+`.hecksagon` file, one `system("rm -rf /")`, and the guarantee is gone.
+
+Parity contracts in `spec/parity/` lock each DSL down: Ruby and Rust
+must produce byte-equivalent canonical JSON for every shipped file,
+or the commit is blocked. Known drift is listed per-file in
+`*_known_drift.txt` with a concrete reason and a named fix owner;
+every allowed drift is a TODO, not a forever-exception.
+
+---
+
 ## 11. Close
 
 Here's what we just did:
