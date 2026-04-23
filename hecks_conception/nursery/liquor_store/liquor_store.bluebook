@@ -11,7 +11,7 @@ Hecks.bluebook "LiquorStore", version: "2026.04.13.1" do
     attribute :abv, Float
     attribute :price, Float
     attribute :quantity, Integer
-    list_of(TastingNote) :tasting_notes
+    attribute :tasting_notes, list_of(TastingNote)
 
     value_object "TastingNote" do
       attribute :aroma, String
@@ -95,7 +95,7 @@ Hecks.bluebook "LiquorStore", version: "2026.04.13.1" do
     attribute :date, String
     attribute :max_attendees, Integer
     attribute :current_attendees, Integer
-    list_of(PourSelection) :pours
+    attribute :pours, list_of(PourSelection)
     attribute :status, String
 
     value_object "PourSelection" do

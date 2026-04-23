@@ -86,7 +86,7 @@ Hecks.bluebook "SpeechTherapy" do
     attribute :pathologist_name, String
     attribute :session_date, String
     attribute :session_type, String
-    list_of(ActivityRecord) :activities
+    attribute :activities, list_of(ActivityRecord)
     attribute :notes, String
     attribute :status, String
     reference_to Client
@@ -170,7 +170,7 @@ Hecks.bluebook "SpeechTherapy" do
     attribute :client_name, String
     attribute :assessment_tool, String
     attribute :assessment_date, String
-    list_of(SubtestResult) :subtest_results
+    attribute :subtest_results, list_of(SubtestResult)
     attribute :composite_score, Integer
     attribute :severity_rating, String
     reference_to Client

@@ -40,7 +40,7 @@ Hecks.bluebook "BrainTraining", version: "2026.04.13.1" do
     attribute :difficulty, String
     attribute :levels, Integer
     attribute :status, String
-    list_of(GameLevel) :game_levels
+    attribute :game_levels, list_of(GameLevel)
     value_object "GameLevel" do
       attribute :level_number, Integer
       attribute :time_limit_seconds, Float
@@ -106,7 +106,7 @@ Hecks.bluebook "BrainTraining", version: "2026.04.13.1" do
   aggregate "TrainingPlan", "A personalized brain training plan based on cognitive profile" do
     attribute :plan_id, String
     attribute :participant_id, String
-    list_of(PlanItem) :items
+    attribute :items, list_of(PlanItem)
     attribute :status, String
     value_object "PlanItem" do
       attribute :game_id, String

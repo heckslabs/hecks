@@ -8,7 +8,7 @@ Hecks.bluebook "FoodHall", version: "2026.04.13.1" do
     attribute :cuisine_type, String
     attribute :contact_name, String
     attribute :status, String
-    list_of(HealthCertification) :certifications
+    attribute :certifications, list_of(HealthCertification)
 
     value_object "HealthCertification" do
       attribute :cert_type, String
@@ -76,7 +76,7 @@ Hecks.bluebook "FoodHall", version: "2026.04.13.1" do
   aggregate "HallMenu", "A consolidated menu displayed across the food hall" do
     attribute :menu_id, String
     attribute :vendor_id, String
-    list_of(DishListing) :dishes
+    attribute :dishes, list_of(DishListing)
     attribute :status, String
 
     value_object "DishListing" do

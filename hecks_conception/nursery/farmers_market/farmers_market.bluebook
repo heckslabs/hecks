@@ -9,7 +9,7 @@ Hecks.bluebook "FarmersMarket", version: "2026.04.13.1" do
     attribute :contact_phone, String
     attribute :product_type, String
     attribute :status, String
-    list_of(ProductOffering) :offerings
+    attribute :offerings, list_of(ProductOffering)
 
     value_object "ProductOffering" do
       attribute :product_name, String
@@ -130,7 +130,7 @@ Hecks.bluebook "FarmersMarket", version: "2026.04.13.1" do
     attribute :inspector_name, String
     attribute :inspection_date, String
     attribute :result, String
-    list_of(Finding) :findings
+    attribute :findings, list_of(Finding)
 
     value_object "Finding" do
       attribute :category, String

@@ -51,7 +51,7 @@ Hecks.bluebook "DisasterRelief" do
     attribute :capacity, Integer
     attribute :current_occupancy, Integer
     attribute :status, String
-    list_of(ShelterResource) :resources
+    attribute :resources, list_of(ShelterResource)
     reference_to Incident
 
     specification "AtCapacity" do
@@ -143,7 +143,7 @@ Hecks.bluebook "DisasterRelief" do
     attribute :quantity, Integer
     attribute :warehouse_location, String
     attribute :status, String
-    list_of(Shipment) :shipments
+    attribute :shipments, list_of(Shipment)
 
     value_object "Shipment" do
       attribute :destination, String

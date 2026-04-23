@@ -44,7 +44,7 @@ Hecks.bluebook "Chiropractic" do
     attribute :patient_name, String
     attribute :adjustment_date, String
     attribute :technique, String
-    list_of(SegmentAdjusted) :segments
+    attribute :segments, list_of(SegmentAdjusted)
     attribute :pain_before, Integer
     attribute :pain_after, Integer
     attribute :notes, String
@@ -166,7 +166,7 @@ Hecks.bluebook "Chiropractic" do
   aggregate "Invoice", "A billing record for chiropractic services rendered" do
     attribute :patient_name, String
     attribute :service_date, String
-    list_of(LineItem) :line_items
+    attribute :line_items, list_of(LineItem)
     attribute :total_amount, Float
     attribute :insurance_claim_status, String
     attribute :payment_status, String

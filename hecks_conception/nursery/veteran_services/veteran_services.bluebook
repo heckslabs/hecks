@@ -42,7 +42,7 @@ Hecks.bluebook "VeteranServices" do
     attribute :filing_date, String
     attribute :description, String
     attribute :status, String
-    list_of(ClaimDocument) :documents
+    attribute :documents, list_of(ClaimDocument)
     reference_to Veteran
 
     value_object "ClaimDocument" do
@@ -139,7 +139,7 @@ Hecks.bluebook "VeteranServices" do
     attribute :capacity, Integer
     attribute :enrolled_count, Integer
     attribute :status, String
-    list_of(ProgramSession) :sessions
+    attribute :sessions, list_of(ProgramSession)
 
     value_object "ProgramSession" do
       attribute :session_date, String

@@ -7,8 +7,8 @@ Hecks.bluebook "Formulation", version: "2026.04.11.1" do
     attribute :version, String
     attribute :brand, String
     attribute :product_type, String
-    list_of(Ingredient) :ingredients
-    list_of(String) :performance_claims
+    attribute :ingredients, list_of(Ingredient)
+    attribute :performance_claims, list_of(String)
     attribute :viscosity_grade, String
     attribute :base_oil_type, String
     attribute :viscosity_index, Float

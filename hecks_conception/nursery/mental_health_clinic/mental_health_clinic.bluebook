@@ -7,7 +7,7 @@ Hecks.bluebook "MentalHealthClinic" do
     attribute :referral_source, String
     attribute :emergency_contact, String
     attribute :status, String
-    list_of(PresentingConcern) :concerns
+    attribute :concerns, list_of(PresentingConcern)
 
     value_object "PresentingConcern" do
       attribute :description, String
@@ -128,7 +128,7 @@ Hecks.bluebook "MentalHealthClinic" do
     attribute :client_name, String
     attribute :diagnosis, String
     attribute :start_date, String
-    list_of(Goal) :goals
+    attribute :goals, list_of(Goal)
     attribute :status, String
     reference_to Client
 

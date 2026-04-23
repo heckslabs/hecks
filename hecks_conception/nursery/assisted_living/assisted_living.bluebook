@@ -95,7 +95,7 @@ Hecks.bluebook "AssistedLiving" do
   aggregate "CarePlan", "An individualized plan of daily care for a resident" do
     attribute :resident_name, String
     attribute :created_date, String
-    list_of(CareTask) :tasks
+    attribute :tasks, list_of(CareTask)
     attribute :dietary_needs, String
     attribute :status, String
     reference_to Resident
@@ -146,7 +146,7 @@ Hecks.bluebook "AssistedLiving" do
     attribute :scheduled_time, String
     attribute :location, String
     attribute :capacity, Integer
-    list_of(Participant) :participants
+    attribute :participants, list_of(Participant)
 
     value_object "Participant" do
       attribute :resident_name, String
@@ -180,7 +180,7 @@ Hecks.bluebook "AssistedLiving" do
 
   aggregate "MedicationSchedule", "A timed medication regimen for a resident" do
     attribute :resident_name, String
-    list_of(ScheduledDose) :doses
+    attribute :doses, list_of(ScheduledDose)
     attribute :status, String
     reference_to Resident
 

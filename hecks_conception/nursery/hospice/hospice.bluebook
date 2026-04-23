@@ -45,7 +45,7 @@ Hecks.bluebook "Hospice" do
 
   aggregate "ComfortPlan", "An individualized plan focused on symptom relief and quality of life" do
     attribute :patient_name, String
-    list_of(SymptomIntervention) :interventions
+    attribute :interventions, list_of(SymptomIntervention)
     attribute :pain_management_approach, String
     attribute :spiritual_preferences, String
     attribute :status, String
@@ -96,7 +96,7 @@ Hecks.bluebook "Hospice" do
     attribute :family_contact_name, String
     attribute :patient_name, String
     attribute :relationship, String
-    list_of(SupportSession) :sessions
+    attribute :sessions, list_of(SupportSession)
     attribute :bereavement_status, String
     reference_to Patient
 

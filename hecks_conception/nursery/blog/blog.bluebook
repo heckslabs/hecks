@@ -8,7 +8,7 @@ Hecks.bluebook "Blog", version: "2026.04.11.1" do
     attribute :body, String
     attribute :excerpt, String
     attribute :author_name, String
-    list_of(String) :tags
+    attribute :tags, list_of(String)
     attribute :published_at, String
     attribute :status, String
 
@@ -18,7 +18,7 @@ Hecks.bluebook "Blog", version: "2026.04.11.1" do
       attribute :title, String
       attribute :body, String
       attribute :author_name, String
-      list_of(String) :tags
+      attribute :tags, list_of(String)
       emits "PostDrafted"
       then_set :title, to: :title
       then_set :body, to: :body
@@ -33,7 +33,7 @@ Hecks.bluebook "Blog", version: "2026.04.11.1" do
       reference_to(Post)
       attribute :title, String
       attribute :body, String
-      list_of(String) :tags
+      attribute :tags, list_of(String)
       given { status == "draft" }
       emits "PostEdited"
       then_set :title, to: :title

@@ -9,7 +9,7 @@ Hecks.bluebook "FurnitureShowroom", version: "2026.04.13.1" do
     attribute :material, String
     attribute :price, Float
     attribute :status, String
-    list_of(Dimension) :dimensions
+    attribute :dimensions, list_of(Dimension)
 
     value_object "Dimension" do
       attribute :measurement, String
@@ -55,7 +55,7 @@ Hecks.bluebook "FurnitureShowroom", version: "2026.04.13.1" do
   aggregate "ShowroomRoom", "A staged vignette that showcases furniture in context" do
     attribute :room_name, String
     attribute :style, String
-    list_of(StagedItem) :staged_items
+    attribute :staged_items, list_of(StagedItem)
     attribute :status, String
 
     value_object "StagedItem" do

@@ -6,7 +6,7 @@ Hecks.bluebook "ReliefLogistics", version: "2026.04.13.1" do
     attribute :request_id, String
     attribute :disaster_type, String
     attribute :location_name, String
-    list_of(SupplyItem) :items
+    attribute :items, list_of(SupplyItem)
     attribute :urgency, String
     attribute :status, String
     value_object "SupplyItem" do
@@ -113,7 +113,7 @@ Hecks.bluebook "ReliefLogistics", version: "2026.04.13.1" do
     attribute :site_name, String
     attribute :beneficiaries, Integer
     attribute :status, String
-    list_of(DistributionPoint) :points
+    attribute :points, list_of(DistributionPoint)
     value_object "DistributionPoint" do
       attribute :location_name, String
       attribute :people_served, Integer

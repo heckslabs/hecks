@@ -7,7 +7,7 @@ Hecks.bluebook "Distribution", version: "2026.04.11.1" do
     attribute :channel_type, String
     attribute :account_id, String
     attribute :edi_capable, String
-    list_of(String) :active_skus
+    attribute :active_skus, list_of(String)
     attribute :status, String
 
     command "RegisterChannel" do
@@ -45,7 +45,7 @@ Hecks.bluebook "Distribution", version: "2026.04.11.1" do
     attribute :order_number, String
     attribute :channel, String
     attribute :customer, String
-    list_of(OrderItem) :items
+    attribute :items, list_of(OrderItem)
     attribute :purchase_order_number, String
     attribute :advance_ship_notice, String
     attribute :total, Float

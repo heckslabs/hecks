@@ -8,7 +8,7 @@ Hecks.bluebook "FoodBank" do
     attribute :weight_pounds, Float
     attribute :expiration_date, String
     attribute :status, String
-    list_of(DonatedItem) :items
+    attribute :items, list_of(DonatedItem)
 
     value_object "DonatedItem" do
       attribute :item_name, String
@@ -110,7 +110,7 @@ Hecks.bluebook "FoodBank" do
     attribute :households_served, Integer
     attribute :total_weight_distributed, Float
     attribute :status, String
-    list_of(DistributionLine) :lines
+    attribute :lines, list_of(DistributionLine)
 
     value_object "DistributionLine" do
       attribute :item_name, String
@@ -157,7 +157,7 @@ Hecks.bluebook "FoodBank" do
     attribute :availability, String
     attribute :hours_served, Integer
     attribute :status, String
-    list_of(Shift) :shifts
+    attribute :shifts, list_of(Shift)
 
     value_object "Shift" do
       attribute :shift_date, String
