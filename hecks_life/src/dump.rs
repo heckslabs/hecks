@@ -2,8 +2,8 @@
 //!
 //! GENERATED FILE — do not edit.
 //! Source:    hecks_conception/capabilities/dump_shape/
-//! Regenerate: bin/specialize dump --output hecks_life/src/dump.rs
-//! Contract:  specializer.hecksagon :specialize_dump shell adapter
+//! Regenerate: hecks-life specialize dump --output hecks_life/src/dump.rs
+//! Contract:  hecks_life/src/specializer/dump.rs (Rust-native)
 //!
 //! This is the parity contract. Hand-written so the JSON shape is chosen
 //! explicitly, not accidentally derived from Rust struct field names or

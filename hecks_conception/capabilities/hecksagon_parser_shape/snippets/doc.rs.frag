@@ -2,8 +2,8 @@
 //!
 //! GENERATED FILE — do not edit.
 //! Source:    hecks_conception/capabilities/hecksagon_parser_shape/
-//! Regenerate: bin/specialize hecksagon_parser --output hecks_life/src/hecksagon_parser.rs
-//! Contract:  specializer.hecksagon :specialize_hecksagon_parser shell adapter
+//! Regenerate: hecks-life specialize hecksagon_parser --output hecks_life/src/hecksagon_parser.rs
+//! Contract:  hecks_life/src/specializer/hecksagon_parser.rs (Rust-native)
 //! Tests:     hecks_life/tests/hecksagon_parser_test.rs
 //!
 //! Line-oriented, pattern-match style just like the bluebook parser. Not
