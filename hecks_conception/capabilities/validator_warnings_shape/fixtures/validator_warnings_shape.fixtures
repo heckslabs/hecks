@@ -1,0 +1,8 @@
+Hecks.fixtures "ValidatorWarningsShape" do
+  # ── 2 warnings — one fixture each, mirrors validator_warnings.rs 1:1 ──
+  # Single-line per i57 parser limitation (same as validator_shape).
+  aggregate "WarningRule" do
+    fixture "AggregateCountWarning", name: "aggregate_count_warning", rust_fn_name: "aggregate_count_warning", description: "Returns Some(msg) if the domain has more than 7 aggregates", inspects: "domain.aggregates", check_kind: "count_threshold", threshold: 7, message_template: "⚠ domain '{}' has {} aggregates; consider splitting", body_strategy: "templated", snippet_path: ""
+    fixture "MixedConcernsWarning", name: "mixed_concerns_warning", rust_fn_name: "mixed_concerns_warning", description: "Returns Some(msg) if the domain has 5+ aggregates split across disconnected reference/policy clusters", inspects: "domain.aggregates+domain.policies", check_kind: "graph_components", threshold: 5, message_template: "⚠ domain '{}' has {} disconnected concern clusters: {}", body_strategy: "embedded", snippet_path: "hecks_conception/capabilities/validator_warnings_shape/snippets/mixed_concerns.rs.frag"
+  end
+end

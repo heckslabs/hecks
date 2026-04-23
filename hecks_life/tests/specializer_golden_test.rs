@@ -43,8 +43,52 @@ fn specializer_hecksagon_wiring_is_present() {
         "specialize_validator shell adapter not declared",
     );
     assert!(
+        hex.shell_adapters
+            .iter()
+            .any(|a| a.name == "specialize_validator_warnings"),
+        "specialize_validator_warnings shell adapter not declared",
+    );
+    assert!(
         hex.gates.iter().any(|g| g.aggregate == "SpecializeRun"),
         "SpecializeRun gate not declared",
+    );
+}
+
+#[test]
+fn specializer_produces_byte_identical_validator_warnings_rs() {
+    // Same byte-identity gate as validator.rs, for validator_warnings.rs.
+    // Phase B commit 2 target — the sibling Futamura proof.
+    let root = repo_root();
+    let bin = root.join("bin/specialize-validator-warnings");
+    assert!(
+        bin.exists(),
+        "bin/specialize-validator-warnings missing — Phase B adapter unimplemented",
+    );
+
+    let output = Command::new(&bin)
+        .current_dir(&root)
+        .output()
+        .expect("failed to invoke bin/specialize-validator-warnings");
+    assert!(
+        output.status.success(),
+        "specializer exited non-zero:\nstderr: {}",
+        String::from_utf8_lossy(&output.stderr),
+    );
+
+    let generated = String::from_utf8(output.stdout).expect("specializer output not UTF-8");
+    let hand_written = fs::read_to_string(root.join("hecks_life/src/validator_warnings.rs"))
+        .expect("hecks_life/src/validator_warnings.rs missing");
+
+    assert_eq!(
+        generated.len(),
+        hand_written.len(),
+        "size mismatch: generated={} hand-written={}",
+        generated.len(),
+        hand_written.len(),
+    );
+    assert_eq!(
+        generated, hand_written,
+        "content mismatch — run `bin/specialize-validator-warnings --diff` to inspect",
     );
 }
 
