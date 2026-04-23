@@ -88,6 +88,7 @@ fn specializer_hecksagon_wiring_is_present() {
         "specialize_lifecycle",
         "specialize_meta_subclass",
         "specialize_meta_subclass_lifecycle",
+        "specialize_meta_diagnostic_validator",
     ] {
         assert!(
             hex.shell_adapters.iter().any(|a| a.name == expected),
@@ -149,5 +150,22 @@ fn meta_specializer_produces_byte_identical_lifecycle_rb() {
     assert_byte_identical(
         "meta_subclass_lifecycle",
         "lib/hecks_specializer/lifecycle.rb",
+    );
+}
+
+#[test]
+fn meta_specializer_produces_byte_identical_diagnostic_validator_rb() {
+    // Phase C PC-2 — the first full Ruby class retirement (not a thin
+    // subclass). Emits lib/hecks_specializer/diagnostic_validator.rb
+    // from RubyClass + RubyMethod fixture rows. Exercises module
+    // nesting, include mixins, public/private sections, 9 methods
+    // with per-method body snippets.
+    //
+    // This is also the *base class that emits all the diagnostic
+    // retirements* — meaning its byte-identity is doubly important:
+    // hand-edit drift here breaks every diagnostic retirement.
+    assert_byte_identical(
+        "meta_diagnostic_validator",
+        "lib/hecks_specializer/diagnostic_validator.rb",
     );
 }

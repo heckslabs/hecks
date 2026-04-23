@@ -82,6 +82,16 @@ Hecks.hecksagon "Specializer" do
     args:    ["meta_subclass_lifecycle", "--output", "{{output}}"],
     ok_exit: 0
 
+  # Phase C PC-2 — first full-Ruby-class meta-specializer. Emits
+  # lib/hecks_specializer/diagnostic_validator.rb (the base class) from
+  # RubyClass + RubyMethod fixture rows. Handles module nesting,
+  # include mixins, public/private sections, multi-method emission.
+  adapter :shell,
+    name:    :specialize_meta_diagnostic_validator,
+    command: "bin/specialize",
+    args:    ["meta_diagnostic_validator", "--output", "{{output}}"],
+    ok_exit: 0
+
   # ---- Gate ----------------------------------------------------
   #
   # :autophagy — the gate for all i51 work. Specialize commands run

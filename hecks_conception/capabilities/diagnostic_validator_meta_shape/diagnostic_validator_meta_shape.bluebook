@@ -1,0 +1,67 @@
+Hecks.bluebook "DiagnosticValidatorMetaShape", version: "2026.04.23.1" do
+  vision "Phase C PC-2 — shape of lib/hecks_specializer/diagnostic_validator.rb as a bluebook. First full Ruby-class retirement (not a thin subclass)."
+  category "autophagy"
+
+  # ============================================================
+  # DIAGNOSTIC_VALIDATOR META SHAPE — Phase C PC-2
+  # ============================================================
+  #
+  # PC-1 and PC-1b bluebook-ified the thin subclass shells (15 LoC
+  # each). PC-2 tackles the base class (148 LoC of actual emission
+  # logic). Different pattern:
+  #
+  #   - 1 Ruby class with 10 methods (1 public + 9 private)
+  #   - Method bodies are mostly heredoc-template Ruby
+  #   - Dispatch methods (emit, emit_report) have case/when logic
+  #
+  # Shape — two aggregates:
+  #
+  #   RubyClass (1 row):
+  #     module_path, name, base_class (empty if none), includes,
+  #     doc_snippet, output_rb
+  #
+  #   RubyMethod (10 rows, one per top-level method):
+  #     class_name, name, visibility (public|private), signature
+  #     (parameter list; empty string if no args), body_snippet,
+  #     order (emission order inside the class body)
+  #
+  # Method bodies stay as .rb.frag snippets — same escape-hatch
+  # pattern as the Rust retirements' .rs.frag files. The meta-
+  # specializer reads them verbatim as the fn body.
+  #
+  # This shape is DESIGNED to generalize — any Ruby class that's
+  # "methods + some state" fits. Phase C PC-3 (driver) and PC-4
+  # (fixed-point, meta_subclass itself) reuse the same aggregates.
+
+  aggregate "RubyClass", "A Ruby class to emit — name, mixins, methods come from RubyMethod rows" do
+    attribute :name,         String
+    # module_path: dotted chain like "Hecks::Specializer" (empty ok)
+    attribute :module_path,  String
+    # base_class: parent class name (empty string = no parent)
+    attribute :base_class,   String
+    # includes: comma-separated mixin class names
+    # (e.g. "Target" for "include Target"). Empty allowed.
+    attribute :includes,     String
+    # doc_snippet: path to the //!-style module doc (here //-style
+    # Ruby file-top doc)
+    attribute :doc_snippet,  String
+    # output_rb: relative path to the generated .rb file
+    attribute :output_rb,    String
+  end
+
+  aggregate "RubyMethod", "One method in a RubyClass" do
+    # class_name: foreign-key-like link to RubyClass.name
+    attribute :class_name,    String
+    attribute :name,          String
+    # visibility: public | private
+    attribute :visibility,    String
+    # signature: the parameter list as written in Ruby, without
+    # the parens. E.g. "validator" or "helper, trailing_blank: false".
+    # Empty string = no-arg method.
+    attribute :signature,     String
+    # body_snippet: relative path to .rb.frag with the method body
+    attribute :body_snippet,  String
+    # order: emission order within the class
+    attribute :order,         Integer
+  end
+end
