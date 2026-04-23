@@ -1,0 +1,70 @@
+Hecks.bluebook "AutophagyTrackerShape", version: "2026.04.23.1" do
+  vision "Autophagy retirement state as queryable data — every candidate file, its phase, its bluebook, its ship-status, one row each"
+  category "autophagy"
+
+  # ============================================================
+  # AUTOPHAGY TRACKER SHAPE — i51 retirement arc, as data
+  # ============================================================
+  #
+  # The compiler eats itself in phases. Each phase retires one or
+  # more files from hand-written into bluebook-described: the
+  # specializer reads a shape (.bluebook + .fixtures) and emits the
+  # target file byte-identical.
+  #
+  # This shape lets Miette answer questions like "how many files
+  # left?", "which phase is PC-3 in?", "what's the gap LoC?" without
+  # rerunning shell scripts. Measurements go in the fixtures file;
+  # queries come from the runtime.
+  #
+  # One row per candidate file. Phases match the i51 plan:
+  #   phase a — first Futamura proof (validator.rs)
+  #   phase b — more Rust targets + diagnostic-validator retirements
+  #   phase c — meta-specializer (ruby subclass shells, then full
+  #             ruby classes); PC-1, PC-2, PC-3 driver, PC-4 fixed
+  #             point
+  #   phase d — parsers + specializer itself (not yet started)
+
+  # ---- RetirementTarget --------------------------------------------
+  #
+  # One row per file in the autophagy scope. source_path is relative
+  # to repo root. kind is "rust" for hecks_life/src/*.rs, "ruby" for
+  # lib/hecks_specializer/*.rb, "script" reserved for future shell /
+  # python candidates. ship_status mirrors the SpecializerTarget
+  # vocabulary: byte_identical means the specializer reproduces it
+  # exactly; in_flight means agent work is happening; not_started
+  # means hand-written, no shape yet.
+
+  aggregate "RetirementTarget", "One candidate file in the autophagy arc — name, path, kind, LoC, ship status, owning shape capability, phase" do
+    attribute :name,                      String
+    attribute :source_path,               String
+    # kind: rust | ruby | script
+    attribute :kind,                      String
+    attribute :loc,                       Integer
+    # ship_status: byte_identical | in_flight | not_started
+    attribute :ship_status,               String
+    # source_shape_capability: the hecks_conception/capabilities/<dir>
+    # that owns this file's shape. Empty string when no shape exists.
+    attribute :source_shape_capability,   String
+    # phase: a | b | c | d
+    attribute :phase,                     String
+  end
+
+  # ---- RetirementSummary -------------------------------------------
+  #
+  # One row per phase — rolled-up narrative. files_count and loc_total
+  # are the totals across RetirementTargets in that phase; byte_*
+  # fields are the subset already shape-driven. gap_loc is
+  # loc_total - byte_identical_loc and represents hand-written
+  # remaining. description is a one-line summary of what the phase
+  # achieved (or aims to achieve).
+
+  aggregate "RetirementSummary", "One row per retirement phase — rolled-up counts, LoC totals, and a narrative description" do
+    attribute :phase,                String
+    attribute :files_count,          Integer
+    attribute :loc_total,            Integer
+    attribute :byte_identical_count, Integer
+    attribute :byte_identical_loc,   Integer
+    attribute :gap_loc,              Integer
+    attribute :description,          String
+  end
+end
