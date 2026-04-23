@@ -101,6 +101,15 @@ Hecks.hecksagon "Specializer" do
     args:    ["meta_validator_warnings", "--output", "{{output}}"],
     ok_exit: 0
 
+  # Phase C PC-3 — meta-specializer for top-level Ruby scripts. Emits
+  # bin/specialize itself from a RubyScript fixture row (shebang + doc
+  # block + requires + body snippets). First retirement of a bin/ driver.
+  adapter :shell,
+    name:    :specialize_meta_ruby_script,
+    command: "bin/specialize",
+    args:    ["meta_ruby_script", "--output", "{{output}}"],
+    ok_exit: 0
+
   # Phase C PC-4 — THE FUTAMURA FIXED POINT. The meta-specializer
   # regenerates its own source (meta_diagnostic_validator.rb + the
   # thin subclass meta_validator_warnings.rb) from the same
