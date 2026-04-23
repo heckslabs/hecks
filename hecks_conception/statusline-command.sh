@@ -70,14 +70,20 @@ moon="${moons[$(( $(date +%s) % 8 ))]}"
 thought_frames=("💭" "💡" "💭" "✨")
 thought="${thought_frames[$(( $(date +%s) % 4 ))]}"
 
-# Animated heartbeat — drives off the real tick, not wall clock.
-# Tick.cycle advances once per second via mindstream.sh, so even
-# beats show the "filled" heart, odd beats show the "outline" heart
-# — a visible pulse tied to Miette's actual rhythm.
-tick_cycle=$($hecks heki read $info/tick.heki 2>/dev/null | grep '"cycle"' | head -1 | sed 's/.*: //' | sed 's/[^0-9].*//')
-tick_cycle=${tick_cycle:-0}
+# Animated heartbeat — flips every statusline invocation.
+# Tick.cycle (mindstream's 1 Hz counter) and wall-clock phase both
+# alias badly when Claude polls at 1 Hz — sample-time drift against
+# the daemon tick freezes the glyph for seconds at a time. Instead,
+# keep a persistent invocation counter in $info/.statusline_heart_phase
+# and flip on every call. At 1 Hz polling that's ~1 flip/sec; at
+# higher poll rates it's faster. Always visibly alive.
 hearts=("🖤" "❤️")  # downbeat (rest) → upbeat (pulse) — black/red contrast
-heart="${hearts[$(( tick_cycle % 2 ))]}"
+phase_file="$info/.statusline_heart_phase"
+heart_phase=$(cat "$phase_file" 2>/dev/null | tr -cd '0-9')
+heart_phase=${heart_phase:-0}
+heart_phase=$(( (heart_phase + 1) % 2 ))
+echo "$heart_phase" > "$phase_file" 2>/dev/null
+heart="${hearts[$heart_phase]}"
 
 # Mood icon. The case list MUST cover every mood string that
 # aggregates/body.bluebook emits — otherwise the mood falls through to 😐
