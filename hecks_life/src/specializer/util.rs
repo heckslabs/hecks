@@ -72,6 +72,18 @@ pub fn attr_opt<'a>(fixture: &'a Fixture, key: &str) -> Option<&'a str> {
         .map(|(_, v)| v.as_str())
 }
 
+/// Read a snippet file verbatim — bare `fs::read_to_string`, no
+/// comment stripping. Use this for `.rb.frag` and any other snippet
+/// where the file is raw source with no leading `//`-comment header.
+/// `read_snippet_body` is WRONG for `.rb.frag` because Ruby sources
+/// have no `//` comments and would lose any line that happens to
+/// start with `//` inside a string literal.
+// [antibody-exempt: hecks_life/src/specializer/util.rs — Phase D D3 — Ruby-native specializer port]
+pub fn read_snippet_raw(path: &Path) -> Result<String, Box<dyn Error>> {
+    fs::read_to_string(path)
+        .map_err(|e| format!("snippet missing {}: {}", path.display(), e).into())
+}
+
 /// Read a `.rs.frag` snippet file, stripping the leading `//`-comment
 /// header and leading blank lines. Everything from the first
 /// non-comment, non-empty line onward is returned verbatim — the Ruby

@@ -479,6 +479,40 @@ fn rust_specializer_produces_byte_identical_fixtures_parser_rs() {
     );
 }
 
+// [antibody-exempt: hecks_life/tests/specializer_golden_test.rs — golden-test scaffolding]
+#[test]
+fn rust_specializer_produces_byte_identical_bin_specialize() {
+    // Phase D D3 — Rust-native port of meta_ruby_script. Emits the
+    // bin/specialize driver itself from a single RubyScript fixture
+    // row (shebang + doc_snippet + requires_block_snippet +
+    // body_snippet). First Ruby-emitting specializer in Rust; exercises
+    // the new util::read_snippet_raw helper (bare fs::read_to_string,
+    // no `//` strip — `.rb.frag` has no comment header).
+    let root = repo_root();
+    let bin = root.join("hecks_life/target/release/hecks-life");
+    assert!(
+        bin.exists(),
+        "hecks-life binary missing — build release first",
+    );
+    let output = Command::new(&bin)
+        .args(["specialize", "meta_ruby_script"])
+        .current_dir(&root)
+        .output()
+        .expect("hecks-life specialize meta_ruby_script failed");
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr),
+    );
+    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
+    let tracked = fs::read_to_string(root.join("bin/specialize"))
+        .expect("bin/specialize missing");
+    assert_eq!(
+        generated, tracked,
+        "Rust specializer output drifted from tracked bin/specialize",
+    );
+}
+
 #[test]
 fn meta_specializer_produces_byte_identical_hecks_specializer_rb() {
     // Phase C PC-5 — retires the loader module lib/hecks_specializer.rb
