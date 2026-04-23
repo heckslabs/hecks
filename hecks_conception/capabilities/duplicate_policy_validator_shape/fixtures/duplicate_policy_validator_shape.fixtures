@@ -1,0 +1,11 @@
+Hecks.fixtures "DuplicatePolicyValidatorShape" do
+  # Single-line fixtures per i57 parser limitation.
+
+  aggregate "DiagnosticValidator" do
+    fixture "DuplicatePolicy", module: "duplicate_policy_validator", doc_snippet: "hecks_conception/capabilities/duplicate_policy_validator_shape/snippets/doc.rs.frag", imports: "crate::ir::{Domain, Policy}\nstd::collections::BTreeMap", report_kind: "flat", rule_fn_name: "check", rule_signature: "pub fn check(domain: &Domain) -> Report", check_body_snippet: "hecks_conception/capabilities/duplicate_policy_validator_shape/snippets/check_body.rs.frag"
+  end
+
+  aggregate "DiagnosticHelper" do
+    fixture "DuplicatePolicyLocate", validator: "duplicate_policy_validator", name: "locate", doc_comment: "/// Human-readable policy locator. The IR doesn't carry source line\n/// numbers, so the location is the policy name (and target domain\n/// if cross-domain). If two nameless policies share a key this will\n/// still be unique enough to act on — the emit/trigger pair already\n/// identifies the clash.", signature: "fn locate(p: &Policy) -> String", body_snippet: "hecks_conception/capabilities/duplicate_policy_validator_shape/snippets/locate_body.rs.frag", order: 1
+  end
+end

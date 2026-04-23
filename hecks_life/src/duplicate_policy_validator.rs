@@ -1,5 +1,11 @@
 //! Duplicate policy validator
 //!
+//! GENERATED FILE — do not edit.
+//! Source:    hecks_conception/capabilities/duplicate_policy_validator_shape/
+//! Regenerate: bin/specialize duplicate_policy --output hecks_life/src/duplicate_policy_validator.rs
+//! Contract:  specializer.hecksagon :specialize_duplicate_policy shell adapter
+//! Tests:     hecks_life/tests/duplicate_policy_validator_test.rs
+//!
 //! Catches bluebooks that declare two or more policies wired to the
 //! same `(on_event, trigger_command)` pair. Today this silently
 //! coexists — the runtime fires every matching policy in declaration

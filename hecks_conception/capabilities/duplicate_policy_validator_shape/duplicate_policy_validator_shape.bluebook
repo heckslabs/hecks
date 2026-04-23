@@ -1,0 +1,67 @@
+Hecks.bluebook "DuplicatePolicyValidatorShape", version: "2026.04.23.1" do
+  vision "Shape of hecks_life/src/duplicate_policy_validator.rs — Phase B diagnostic-validator target (post-i59)."
+  category "autophagy"
+
+  # ============================================================
+  # DUPLICATE_POLICY_VALIDATOR — Phase B commit 5 (post-i59)
+  # ============================================================
+  #
+  # Unlocked by #352 (i59 extracted Severity/Finding to the shared
+  # hecks_life/src/diagnostic module). The file is now ~80 LoC of
+  # actual rule logic + Report scaffold — worth specializing.
+  #
+  # Shape:
+  #
+  #   DiagnosticValidator (1 row) — the module's outer contract.
+  #     module, doc_snippet, imports, report_kind (flat | flat_with_strict
+  #     | partitioned_with_strict), rule_fn_name, check_body_snippet
+  #
+  #   DiagnosticHelper (1 row) — the locate() helper.
+  #     name, signature, body_snippet
+  #
+  # The shape is deliberately DiagnosticValidator-named (not
+  # DuplicatePolicy*-named) so the next two retirements (lifecycle
+  # + io) can extend this same file by adding rows. First-of-three.
+  #
+  # report_kind values map to canned Report-struct templates emitted
+  # by the specializer:
+  #   flat                     — findings: Vec<Finding>; errors/passes
+  #   flat_with_strict         — + warnings(), passes(strict: bool)
+  #   partitioned_with_strict  — static_findings + runtime_findings,
+  #                              strict-aware (io_validator)
+
+  aggregate "DiagnosticValidator", "One diagnostic-style validator module" do
+    attribute :module,              String
+    # doc_snippet: path to the //! module-level doc comment snippet
+    attribute :doc_snippet,         String
+    # imports: comma-separated extra uses beyond the common
+    # `pub use crate::diagnostic::{Finding, Severity};`. E.g.
+    # "crate::ir::{Domain, Policy}, std::collections::BTreeMap"
+    attribute :imports,             String
+    # report_kind: flat | flat_with_strict | partitioned_with_strict
+    attribute :report_kind,         String
+    # rule_fn_name: the public entry — usually "check"
+    attribute :rule_fn_name,        String
+    # rule_signature: the full signature minus body, e.g.
+    # "pub fn check(domain: &Domain) -> Report"
+    attribute :rule_signature,      String
+    # check_body_snippet: the fn body (between { and })
+    attribute :check_body_snippet,  String
+  end
+
+  aggregate "DiagnosticHelper", "A private helper fn used by a DiagnosticValidator" do
+    # validator: links to DiagnosticValidator.module
+    attribute :validator,      String
+    attribute :name,           String
+    # doc_comment: line-delimited /// above the signature, one string,
+    # newline-separated. Empty string skips.
+    attribute :doc_comment,    String
+    # signature: full Rust signature, e.g.
+    # "fn locate(p: &Policy) -> String"
+    attribute :signature,      String
+    # body_snippet: the fn body (between { and })
+    attribute :body_snippet,   String
+    # order: emission order within the module
+    attribute :order,          Integer
+  end
+end
