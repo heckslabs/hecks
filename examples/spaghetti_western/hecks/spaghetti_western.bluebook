@@ -25,10 +25,10 @@ Hecks.bluebook "SpaghettiWestern" do
   end
 
   aggregate "Duel" do
-    reference_to Gunslinger
-    reference_to Gunslinger
+    reference_to Gunslinger, as: :challenger
+    reference_to Gunslinger, as: :opponent
     reference_to Town
-    reference_to Gunslinger
+    reference_to Gunslinger, as: :referee
     attribute :status, String
     attribute :narration, String
     attribute :dramatic_pause_seconds, Float
@@ -67,8 +67,8 @@ Hecks.bluebook "SpaghettiWestern" do
 
   aggregate "Bounty" do
     attribute :bounty_type, String
-    reference_to Gunslinger
-    reference_to Gunslinger
+    reference_to Gunslinger, as: :target
+    reference_to Gunslinger, as: :bounty_hunter
     attribute :amount, Integer
     attribute :status, String, enum: ["active", "claimed", "expired", "cancelled"]
     attribute :description, String
