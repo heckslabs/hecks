@@ -1,21 +1,19 @@
 Hecks.hecksagon "Specializer" do
   # ============================================================
-  # SPECIALIZER — wiring for i51 Phase A (first Futamura projection)
+  # SPECIALIZER — wiring for i51 autophagy arc (complete)
   # ============================================================
   #
   # The specializer's *shape* lives in specializer.bluebook (IRLayer,
-  # Projection, SpecializerTarget — the L0..L8 factoring). This file
-  # wires it to its runtime adapters so the capability is dispatchable
-  # as commands, not opaque scripts.
+  # Projection, SpecializerTarget — the L0..L8 factoring). After Phase E
+  # the specializer runs entirely inside `hecks-life specialize <target>`
+  # (a Rust subcommand); no shell adapters are needed. The Ruby driver
+  # (`bin/specialize`) and Ruby specializer modules (`lib/hecks_specializer/`)
+  # have been deleted.
   #
-  # Three adapters:
+  # Adapters that remain:
   #   :memory   — no persistence (each projection is a fresh one-shot)
   #   :fs       — reads shape bluebooks + fixtures under hecks_conception/
   #               and writes emitted .rs under hecks_life/src/
-  #   :shell    — the :specialize_validator adapter shells out to
-  #               bin/specialize-validator (Ruby, Phase A stopgap).
-  #               When Phase B lands, the command string flips to a
-  #               hecks-life subcommand and no other file changes.
 
   adapter :memory
 
@@ -24,155 +22,11 @@ Hecks.hecksagon "Specializer" do
   # path so {{source}} / {{output}} resolve cleanly.
   adapter :fs, root: "."
 
-  # ---- Shell adapters — the actual codegen integration -----------
-  #
-  # One adapter per specializer target. For Phase A only validator is
-  # wired; Phase B adds rows to specializer.fixtures for each new
-  # target (validator_warnings, parsers, dump, ...) and a matching
-  # adapter line here. Until a target has a working adapter, its
-  # specializer.fixtures ship_status stays "not_started".
-
-  # Single driver with target-name argument. Consolidated from per-
-  # target scripts (bin/specialize-validator, etc.) in Phase B cleanup.
-  # Adding a new target is a new lib/hecks_specializer/<target>.rb
-  # module + one adapter line here.
-  adapter :shell,
-    name:    :specialize_validator,
-    command: "bin/specialize",
-    args:    ["validator", "--output", "{{output}}"],
-    ok_exit: 0
-
-  adapter :shell,
-    name:    :specialize_validator_warnings,
-    command: "bin/specialize",
-    args:    ["validator_warnings", "--output", "{{output}}"],
-    ok_exit: 0
-
-  adapter :shell,
-    name:    :specialize_dump,
-    command: "bin/specialize",
-    args:    ["dump", "--output", "{{output}}"],
-    ok_exit: 0
-
-  adapter :shell,
-    name:    :specialize_duplicate_policy,
-    command: "bin/specialize",
-    args:    ["duplicate_policy", "--output", "{{output}}"],
-    ok_exit: 0
-
-  adapter :shell,
-    name:    :specialize_lifecycle,
-    command: "bin/specialize",
-    args:    ["lifecycle", "--output", "{{output}}"],
-    ok_exit: 0
-
-  # i51 Phase B — hecksagon_parser retirement. Third parser target;
-  # establishes the parser-shape template for behaviors_parser +
-  # fixtures_parser follow-ups.
-  adapter :shell,
-    name:    :specialize_hecksagon_parser,
-    command: "bin/specialize",
-    args:    ["hecksagon_parser", "--output", "{{output}}"],
-    ok_exit: 0
-
-  # i51 Phase B — behaviors_parser retirement. Fourth parser target;
-  # extends the hecksagon parser-shape template with else_if loop style,
-  # three new handler_kinds, and an inline tests_snippet.
-  adapter :shell,
-    name:    :specialize_behaviors_parser,
-    command: "bin/specialize",
-    args:    ["behaviors_parser", "--output", "{{output}}"],
-    ok_exit: 0
-
-  # i51 Phase B closer — fixtures_parser retirement. Most hostile
-  # Phase B target; extends the parser shape with parse_body_snippet
-  # + test_block_snippet + helper position for byte-identity. Closes
-  # the Phase B Rust retirement arc.
-  adapter :shell,
-    name:    :specialize_fixtures_parser,
-    command: "bin/specialize",
-    args:    ["fixtures_parser", "--output", "{{output}}"],
-    ok_exit: 0
-
-  # Phase C PC-1 — meta-specializer. Emits a Ruby subclass shell
-  # under lib/hecks_specializer/ from a SpecializerSubclass fixture
-  # row. Self-referential (output lives in the same dir as the code
-  # doing the emission); first 2nd-Futamura pilot.
-  adapter :shell,
-    name:    :specialize_meta_subclass,
-    command: "bin/specialize",
-    args:    ["meta_subclass", "--output", "{{output}}"],
-    ok_exit: 0
-
-  adapter :shell,
-    name:    :specialize_meta_subclass_lifecycle,
-    command: "bin/specialize",
-    args:    ["meta_subclass_lifecycle", "--output", "{{output}}"],
-    ok_exit: 0
-
-  # Phase C PC-2 — first full-Ruby-class meta-specializer. Emits
-  # lib/hecks_specializer/diagnostic_validator.rb (the base class) from
-  # RubyClass + RubyMethod fixture rows. Handles module nesting,
-  # include mixins, public/private sections, multi-method emission.
-  adapter :shell,
-    name:    :specialize_meta_diagnostic_validator,
-    command: "bin/specialize",
-    args:    ["meta_diagnostic_validator", "--output", "{{output}}"],
-    ok_exit: 0
-
-  # Phase C PC-2 extension — second full Ruby class retirement.
-  # Emits lib/hecks_specializer/validator_warnings.rb using the same
-  # meta-shape. Adds RubyConstant + register_target_name features.
-  adapter :shell,
-    name:    :specialize_meta_validator_warnings,
-    command: "bin/specialize",
-    args:    ["meta_validator_warnings", "--output", "{{output}}"],
-    ok_exit: 0
-
-  # Phase C PC-3 — meta-specializer for top-level Ruby scripts. Emits
-  # bin/specialize itself from a RubyScript fixture row (shebang + doc
-  # block + requires + body snippets). First retirement of a bin/ driver.
-  adapter :shell,
-    name:    :specialize_meta_ruby_script,
-    command: "bin/specialize",
-    args:    ["meta_ruby_script", "--output", "{{output}}"],
-    ok_exit: 0
-
-  # Phase C PC-4 — THE FUTAMURA FIXED POINT. The meta-specializer
-  # regenerates its own source (meta_diagnostic_validator.rb + the
-  # thin subclass meta_validator_warnings.rb) from the same
-  # diagnostic_validator_meta_shape fixtures it already reads.
-  # Byte-identity of these outputs is the 2nd-Futamura proof.
-  adapter :shell,
-    name:    :specialize_meta_meta_diagnostic_validator,
-    command: "bin/specialize",
-    args:    ["meta_meta_diagnostic_validator", "--output", "{{output}}"],
-    ok_exit: 0
-
-  adapter :shell,
-    name:    :specialize_meta_meta_validator_warnings,
-    command: "bin/specialize",
-    args:    ["meta_meta_validator_warnings", "--output", "{{output}}"],
-    ok_exit: 0
-
-  # Phase C PC-5 — retires the loader module lib/hecks_specializer.rb
-  # itself. First RubyModule shape retirement: bare module + outer
-  # requires + module-level constants + class << self block + inner
-  # mixin module + trailing Dir[].each auto-load loop. Closes the loop
-  # PC-3 deferred (class << self + inner module + auto-load didn't fit
-  # RubyScript shape).
-  adapter :shell,
-    name:    :specialize_meta_ruby_module,
-    command: "bin/specialize",
-    args:    ["meta_ruby_module", "--output", "{{output}}"],
-    ok_exit: 0
-
   # ---- Gate ----------------------------------------------------
   #
-  # :autophagy — the gate for all i51 work. Specialize commands run
-  # behind this gate; nothing else dispatches through here. When
-  # Phase C lands (2nd Futamura, specializer lifted into its own
-  # bluebook), the Compose command joins this gate.
+  # :autophagy — the gate for all i51 work. After Phase E the gate is
+  # declarative only; dispatch happens through the `hecks-life specialize`
+  # subcommand directly rather than through a shell adapter.
 
   gate "SpecializeRun", :autophagy do
     allow :Specialize
