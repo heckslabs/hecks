@@ -87,6 +87,7 @@ fn specializer_hecksagon_wiring_is_present() {
         "specialize_duplicate_policy",
         "specialize_lifecycle",
         "specialize_hecksagon_parser",
+        "specialize_fixtures_parser",
         "specialize_meta_subclass",
         "specialize_meta_subclass_lifecycle",
         "specialize_meta_diagnostic_validator",
@@ -145,6 +146,22 @@ fn specializer_produces_byte_identical_hecksagon_parser_rs() {
     // parse_shell_adapter). Establishes the parser-shape template for
     // behaviors_parser + fixtures_parser follow-ups.
     assert_byte_identical("hecksagon_parser", "hecks_life/src/hecksagon_parser.rs");
+}
+
+#[test]
+fn specializer_produces_byte_identical_fixtures_parser_rs() {
+    // i51 Phase B closer — most hostile parser target. Extends the
+    // shape with parse_body_snippet (verbatim parse() body; the
+    // if/else-if chain + state prelude doesn't fit hecksagon's
+    // continue-per-branch template), test_block_snippet (verbatim
+    // 115-line `#[cfg(test)]` block), and ParserHelper.position
+    // (before_root/after_root — two helpers live above parse()).
+    // Eight ParserHelper rows covering the five hostile subsystems
+    // (expand_ruby_escapes, matching_close_brace, extract_schema_kwarg,
+    // extract_string_escape_aware, first_top_level_comma) plus three
+    // simpler helpers (parse_fixture_line, split_top_level_commas,
+    // escaped_at). Closes the Phase B Rust retirement arc.
+    assert_byte_identical("fixtures_parser", "hecks_life/src/fixtures_parser.rs");
 }
 
 #[test]

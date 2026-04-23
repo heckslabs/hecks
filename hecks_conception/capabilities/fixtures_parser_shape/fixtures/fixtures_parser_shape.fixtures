@@ -1,0 +1,33 @@
+Hecks.fixtures "FixturesParserShape" do
+  # Single-line fixtures per i57 parser limitation.
+
+  # ── LineParser — the module's outer contract ────────────────────
+  aggregate "LineParser" do
+    fixture "FixturesParser", module: "fixtures_parser", doc_snippet: "hecks_conception/capabilities/fixtures_parser_shape/snippets/doc.rs.frag", imports: "crate::fixtures_ir::{CatalogAttr, FixturesFile}\ncrate::ir::Fixture\ncrate::parser_helpers::{extract_string, ends_with_do_block}", root_fn_name: "parse", root_signature: "pub fn parse(source: &str) -> FixturesFile", parse_body_snippet: "hecks_conception/capabilities/fixtures_parser_shape/snippets/parse_body.rs.frag", test_block_snippet: "hecks_conception/capabilities/fixtures_parser_shape/snippets/test_block.rs.frag", detector_fn_name: "", detector_keyword: ""
+  end
+
+  # ── LineDispatch — documentation-only. The specializer does NOT
+  # walk these rows for fixtures_parser; parse_body_snippet is
+  # authoritative. Rows exist because the plan asks for one per
+  # top-level dispatch branch.
+  aggregate "LineDispatch" do
+    fixture "HecksFixtures", parser: "fixtures_parser", starts_with: "Hecks.fixtures", match_kind: "starts_with",         handler_kind: "body_snippet", target_field: "domain_name", helper_fn: "",                  order: 1
+    fixture "Aggregate",     parser: "fixtures_parser", starts_with: "aggregate ",     match_kind: "starts_with_do_block", handler_kind: "stateful",     target_field: "",            helper_fn: "extract_schema_kwarg", order: 2
+    fixture "Fixture",       parser: "fixtures_parser", starts_with: "fixture ",       match_kind: "starts_with",         handler_kind: "stateful",     target_field: "fixtures",    helper_fn: "parse_fixture_line",   order: 3
+    fixture "End",           parser: "fixtures_parser", starts_with: "end",            match_kind: "equals",              handler_kind: "stateful",     target_field: "",            helper_fn: "",                  order: 4
+  end
+
+  # ── ParserHelper — private helpers emitted verbatim via body_snippet ──
+  # Two before_root helpers (extract_string_escape_aware + expand_ruby_escapes)
+  # live above parse() in the current source; byte-identity requires that.
+  aggregate "ParserHelper" do
+    fixture "ExtractStringEscapeAware", parser: "fixtures_parser", name: "extract_string_escape_aware", doc_snippet: "hecks_conception/capabilities/fixtures_parser_shape/snippets/extract_string_escape_aware_doc.rs.frag", signature: "fn extract_string_escape_aware(s: &str) -> Option<String>", body_snippet: "hecks_conception/capabilities/fixtures_parser_shape/snippets/extract_string_escape_aware_body.rs.frag", position: "before_root", order: 1
+    fixture "ExpandRubyEscapes",        parser: "fixtures_parser", name: "expand_ruby_escapes",         doc_snippet: "hecks_conception/capabilities/fixtures_parser_shape/snippets/expand_ruby_escapes_doc.rs.frag",         signature: "fn expand_ruby_escapes(s: &str) -> String",           body_snippet: "hecks_conception/capabilities/fixtures_parser_shape/snippets/expand_ruby_escapes_body.rs.frag",        position: "before_root", order: 2
+    fixture "ParseFixtureLine",         parser: "fixtures_parser", name: "parse_fixture_line",          doc_snippet: "hecks_conception/capabilities/fixtures_parser_shape/snippets/parse_fixture_line_doc.rs.frag",          signature: "fn parse_fixture_line(line: &str, aggregate_name: &str) -> Fixture", body_snippet: "hecks_conception/capabilities/fixtures_parser_shape/snippets/parse_fixture_line_body.rs.frag",         position: "after_root",  order: 1
+    fixture "SplitTopLevelCommas",      parser: "fixtures_parser", name: "split_top_level_commas",      doc_snippet: "hecks_conception/capabilities/fixtures_parser_shape/snippets/split_top_level_commas_doc.rs.frag",      signature: "fn split_top_level_commas(s: &str) -> Vec<&str>",    body_snippet: "hecks_conception/capabilities/fixtures_parser_shape/snippets/split_top_level_commas_body.rs.frag",     position: "after_root",  order: 2
+    fixture "EscapedAt",                parser: "fixtures_parser", name: "escaped_at",                  signature: "fn escaped_at(s: &str, i: usize) -> bool",              body_snippet: "hecks_conception/capabilities/fixtures_parser_shape/snippets/escaped_at_body.rs.frag",                 position: "after_root",  order: 3
+    fixture "ExtractSchemaKwarg",       parser: "fixtures_parser", name: "extract_schema_kwarg",        doc_snippet: "hecks_conception/capabilities/fixtures_parser_shape/snippets/extract_schema_kwarg_doc.rs.frag",        signature: "fn extract_schema_kwarg(line: &str) -> Option<Vec<CatalogAttr>>", body_snippet: "hecks_conception/capabilities/fixtures_parser_shape/snippets/extract_schema_kwarg_body.rs.frag",        position: "after_root",  order: 4
+    fixture "FirstTopLevelComma",       parser: "fixtures_parser", name: "first_top_level_comma",       doc_snippet: "hecks_conception/capabilities/fixtures_parser_shape/snippets/first_top_level_comma_doc.rs.frag",       signature: "fn first_top_level_comma(s: &str) -> Option<usize>", body_snippet: "hecks_conception/capabilities/fixtures_parser_shape/snippets/first_top_level_comma_body.rs.frag",      position: "after_root",  order: 5
+    fixture "MatchingCloseBrace",       parser: "fixtures_parser", name: "matching_close_brace",        doc_snippet: "hecks_conception/capabilities/fixtures_parser_shape/snippets/matching_close_brace_doc.rs.frag",        signature: "fn matching_close_brace(s: &str, open: usize) -> Option<usize>", body_snippet: "hecks_conception/capabilities/fixtures_parser_shape/snippets/matching_close_brace_body.rs.frag",         position: "after_root",  order: 6
+  end
+end
