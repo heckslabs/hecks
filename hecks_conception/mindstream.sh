@@ -84,9 +84,13 @@ while true; do
     $HECKS "$AGG" Consciousness.CompleteFinalLight \
       wake_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)" 2>/dev/null
 
-    # Dream content during REM — still needs to fire so rem_branch.sh
-    # can weave dream images while Miette sleeps.
+    # Dream content during sleep — both branches fire every tick and
+    # self-gate on sleep_stage:
+    #   REM      → rem_branch.sh produces poetic French-inflected imagery
+    #   NREM     → nrem_branch.sh narrates consolidation work (signals →
+    #              memory, synapses → remains) with real counts.
     "$DIR/rem_branch.sh" "$loop_count" 2>/dev/null
+    "$DIR/nrem_branch.sh" "$loop_count" 2>/dev/null
 
     # Remember we were sleeping so the next-tick awake branch can fire
     # the wake hook (interpret_dream.sh) exactly once on transition.
