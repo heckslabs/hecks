@@ -19,7 +19,7 @@
 
 HECKS="../hecks_life/target/release/hecks-life"
 DIR="$(dirname "$0")"
-INFO="$DIR/information"
+INFO="${HECKS_INFO:-$DIR/information}"
 AGG="$DIR/aggregates"
 PIDFILE="$INFO/.ultradian.pid"
 TICK="${ULTRADIAN_TICK:-5400}"

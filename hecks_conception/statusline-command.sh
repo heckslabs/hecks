@@ -8,8 +8,40 @@
 
 input=$(cat)
 
-hecks="${HECKS_LIFE:-/Users/christopheryoung/Projects/hecks/hecks_life/target/release/hecks-life}"
-info="${HECKS_INFO:-/Users/christopheryoung/Projects/hecks/hecks_conception/information}"
+# Walk symlink chain to find the real script dir. Claude Code runs
+# this via ~/.claude/statusline-command.sh (a symlink), so $0 points
+# at the symlink's dir, not the script's actual location. Everything
+# below resolves from this — no hardcoded absolute paths.
+script="$0"
+while [ -L "$script" ]; do script="$(readlink "$script")"; done
+coherence_dir="$(cd "$(dirname "$script")" && pwd)"
+hecks_root="$(cd "$coherence_dir/.." && pwd)"
+
+# hecks-life binary — HECKS_LIFE env wins; otherwise use the
+# release binary colocated with the repo.
+hecks="${HECKS_LIFE:-$hecks_root/hecks_life/target/release/hecks-life}"
+
+# Resolve Miette's private lived-state dir. Precedence:
+#   1. HECKS_INFO env var if set and non-empty
+#   2. ../miette-state/information relative to the hecks repo
+#      (private-state repo as a peer directory — standard layout)
+#   3. hecks_conception/information as fallback (empty by default post-split)
+# Tier 2 keeps the statusline working when a GUI app's env was started
+# before HECKS_INFO was exported; it just requires the two repos to
+# sit side-by-side.
+if [ -n "$HECKS_INFO" ]; then
+  info="$HECKS_INFO"
+elif [ -d "$hecks_root/../miette-state/information" ]; then
+  info="$(cd "$hecks_root/../miette-state/information" && pwd)"
+else
+  info="$hecks_root/hecks_conception/information"
+fi
+
+# Public information dir — always in the hecks repo. inbox.heki lives
+# here (framework dev notes) even when Miette's private state is
+# elsewhere; the statusline queries inbox_count from this location
+# regardless of $info.
+public_info="$hecks_root/hecks_conception/information"
 
 fatigue=$($hecks heki read $info/heartbeat.heki 2>/dev/null | grep fatigue_state | head -1 | sed 's/.*: "//' | sed 's/".*//')
 mood=$($hecks heki read $info/mood.heki 2>/dev/null | grep current_state | head -1 | sed 's/.*: "//' | sed 's/".*//')
@@ -20,13 +52,7 @@ sleep_summary=$($hecks heki read $info/consciousness.heki 2>/dev/null | grep sle
 # (see status_coherence.sh + inbox i35). On violation we degrade the mood
 # glyph to ⚠ and append the reason to information/.coherence.log so the
 # status bar never silently renders a contradictory state.
-# Resolve symlinks — Claude Code runs this script via ~/.claude/statusline-command.sh
-# (a symlink into hecks_conception/), so $0 points at the symlink's dir, not the
-# real one. Walk the symlink chain to find the actual script dir where
-# status_coherence.sh lives next to us.
-script="$0"
-while [ -L "$script" ]; do script="$(readlink "$script")"; done
-coherence_dir="$(cd "$(dirname "$script")" && pwd)"
+# coherence_dir already resolved above (through the symlink chain).
 coherence_violations=""
 if ! coherence_violations=$("$coherence_dir/status_coherence.sh" "$info" 2>&1 >/dev/null); then
   ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -210,7 +236,7 @@ else
 
   # Inbox count — number of queued items in inbox.heki. Surfaces backlog
   # so Miette (and Chris) can see when there's something to attend to.
-  inbox_count=$($hecks heki count $info/inbox.heki --where status=queued 2>/dev/null)
+  inbox_count=$($hecks heki count $public_info/inbox.heki --where status=queued 2>/dev/null)
   inbox_count=${inbox_count:-0}
 
   status_str="☀️ Miette ${heart} ${beats} ${mood_icon} ${mood}"

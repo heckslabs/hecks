@@ -16,7 +16,7 @@
 
 DIR="$(dirname "$0")"
 HECKS="$DIR/../hecks_life/target/release/hecks-life"
-INFO="$DIR/information"
+INFO="${HECKS_INFO:-$DIR/information}"
 AGG="$DIR/aggregates"
 
 # Read current provider; default to "claude" if unset

@@ -19,7 +19,7 @@
 
 DIR="$(dirname "$0")"
 HECKS="$DIR/../hecks_life/target/release/hecks-life"
-INFO="$DIR/information"
+INFO="${HECKS_INFO:-$DIR/information}"
 DWELL="${DWELL:-30}"
 loop_count="${1:-1}"
 
