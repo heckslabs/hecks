@@ -345,6 +345,38 @@ fn rust_specializer_produces_byte_identical_dump_rs() {
 
 // [antibody-exempt: hecks_life/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
+fn rust_specializer_produces_byte_identical_behaviors_parser_rs() {
+    // Phase D — Rust-native specializer for behaviors_parser. Ports
+    // the LineParser + LineDispatch + ParserHelper 3-aggregate shape
+    // including the else_if loop style, tests_snippet, and the new
+    // capture_quoted_into_option / push_all_quoted_onto /
+    // multiline_block_direct handler kinds.
+    let root = repo_root();
+    let bin = root.join("hecks_life/target/release/hecks-life");
+    assert!(
+        bin.exists(),
+        "hecks-life binary missing — build release first",
+    );
+    let output = Command::new(&bin)
+        .args(["specialize", "behaviors_parser"])
+        .current_dir(&root)
+        .output()
+        .expect("hecks-life specialize behaviors_parser failed");
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr),
+    );
+    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
+    let tracked = fs::read_to_string(root.join("hecks_life/src/behaviors_parser.rs"))
+        .expect("behaviors_parser.rs missing");
+    assert_eq!(
+        generated, tracked,
+        "Rust specializer output drifted from tracked file",
+    );
+}
+
+#[test]
 fn meta_specializer_produces_byte_identical_hecks_specializer_rb() {
     // Phase C PC-5 — retires the loader module lib/hecks_specializer.rb
     // (108 LoC) via the new RubyModule shape. This is the first shape
