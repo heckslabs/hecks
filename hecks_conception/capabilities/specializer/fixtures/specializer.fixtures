@@ -1,0 +1,194 @@
+Hecks.fixtures "Specializer" do
+  # ── IRLayer — the nine layers L0..L8 from plan §3 ─────────────────
+  aggregate "IRLayer" do
+    fixture "L0_Bluebook",
+      name: "bluebook", number: 0,
+      description: "Source DSL — the five .bluebook / .hecksagon / .fixtures / .behaviors / .world files",
+      reads_from: "source",
+      returns: "raw file text",
+      ship_status: "shipped"
+
+    fixture "L1_CanonicalIR",
+      name: "canonical_ir", number: 1,
+      description: "Normalized JSON IR — parsed + validated + aggregate names resolved",
+      reads_from: "bluebook",
+      returns: "Domain struct (aggregates, commands, policies, references, fixtures)",
+      ship_status: "shipped"
+
+    fixture "L2_FlowIR",
+      name: "flow_ir", number: 2,
+      description: "Command graph per aggregate: commands → events → policies → triggers",
+      reads_from: "canonical_ir",
+      returns: "Per-aggregate command/event/policy adjacency — the reactive shape",
+      ship_status: "partial"
+
+    fixture "L3_DispatchIR",
+      name: "dispatch_ir", number: 3,
+      description: "Command bus lowered: middleware chain, guards, mutations, emissions, persistence",
+      reads_from: "flow_ir",
+      returns: "Per-command dispatch tree — ready for codegen",
+      ship_status: "partial"
+
+    fixture "L4_TickIR",
+      name: "tick_ir", number: 4,
+      description: "Body-cycle shape: which commands fire on mindstream / heart / consciousness ticks",
+      reads_from: "dispatch_ir",
+      returns: "Tick → commands[] manifest",
+      ship_status: "not_started"
+
+    fixture "L5_MemoryIR",
+      name: "memory_ir", number: 5,
+      description: "Heki I/O lowered: paths, append/upsert/read, serialization contracts",
+      reads_from: "dispatch_ir",
+      returns: "Per-aggregate storage contract",
+      ship_status: "partial"
+
+    fixture "L6_RustIR",
+      name: "rust_ir", number: 6,
+      description: "Rust-specific: module structure, ownership, lifetimes, Serde derives, trait dispatch",
+      reads_from: "canonical_ir+flow_ir+dispatch_ir+memory_ir",
+      returns: "Rust module tree — structs, impls, derives, use paths",
+      ship_status: "not_started"
+
+    fixture "L7_RustSource",
+      name: "rust_source", number: 7,
+      description: "Emitted .rs files, rustfmt normalized",
+      reads_from: "rust_ir",
+      returns: "Text of .rs files written to hecks_life/src/",
+      ship_status: "not_started"
+
+    fixture "L8_RustBinary",
+      name: "rust_binary", number: 8,
+      description: "The artifact — cargo-built hecks-life binary. Terminus.",
+      reads_from: "rust_source",
+      returns: "target/release/hecks-life",
+      ship_status: "shipped"
+  end
+
+  # ── Projection — one row per L_n → L_(n+1) lowering ───────────────
+  aggregate "Projection" do
+    fixture "ParseBluebook",
+      name: "parse_bluebook",
+      from_layer: "bluebook", to_layer: "canonical_ir",
+      transform_kind: "parse",
+      description: "Read L0 source text → L1 Domain struct. Ruby + Rust parsers already parity-locked.",
+      impl_module: "hecks_life/src/parser.rs + lib/hecks/dsl/*.rb",
+      ship_status: "shipped"
+
+    fixture "GraphFlow",
+      name: "graph_flow",
+      from_layer: "canonical_ir", to_layer: "flow_ir",
+      transform_kind: "graph",
+      description: "L1 → L2 — build command/event/policy adjacency per aggregate",
+      impl_module: "hecks_life/src/ir.rs (partial: references + policies)",
+      ship_status: "partial"
+
+    fixture "LowerDispatch",
+      name: "lower_dispatch",
+      from_layer: "flow_ir", to_layer: "dispatch_ir",
+      transform_kind: "lower",
+      description: "L2 → L3 — expand flow edges into middleware/guard/mutation/emission steps",
+      impl_module: "hecks_life/src/cascade.rs + run.rs (hand-written, Phase B target)",
+      ship_status: "partial"
+
+    fixture "DeriveTick",
+      name: "derive_tick",
+      from_layer: "dispatch_ir", to_layer: "tick_ir",
+      transform_kind: "lower",
+      description: "L3 → L4 — which commands fire on each body tick",
+      impl_module: "hecks_conception/*.sh (currently shell; Phase B target)",
+      ship_status: "partial"
+
+    fixture "LowerMemory",
+      name: "lower_memory",
+      from_layer: "dispatch_ir", to_layer: "memory_ir",
+      transform_kind: "lower",
+      description: "L3 → L5 — map aggregate state to heki paths and append/upsert contracts",
+      impl_module: "hecks_life/src/heki.rs + heki_query.rs (hand-written)",
+      ship_status: "partial"
+
+    fixture "SpecializeRust",
+      name: "specialize_rust",
+      from_layer: "canonical_ir", to_layer: "rust_ir",
+      transform_kind: "lower",
+      description: "L1 → L6 — the heart of the specializer. Applies per-target templates from the L0 shape bluebook",
+      impl_module: "hecks_life/src/specializer/ (Phase A commit 3+, not yet written)",
+      ship_status: "phase_a"
+
+    fixture "EmitRust",
+      name: "emit_rust",
+      from_layer: "rust_ir", to_layer: "rust_source",
+      transform_kind: "emit",
+      description: "L6 → L7 — render Rust module tree as .rs text, rustfmt-normalized",
+      impl_module: "hecks_life/src/specializer/emit.rs (Phase A commit 4, not yet written)",
+      ship_status: "phase_a"
+
+    fixture "CompileBinary",
+      name: "compile_binary",
+      from_layer: "rust_source", to_layer: "rust_binary",
+      transform_kind: "compile",
+      description: "L7 → L8 — hand off to cargo build. External dependency per C3.",
+      impl_module: "cargo (external)",
+      ship_status: "shipped"
+  end
+
+  # ── SpecializerTarget — what's being specialized, in what phase ───
+  aggregate "SpecializerTarget" do
+    fixture "Validator",
+      name: "validator",
+      source_bluebook: "hecks_conception/capabilities/validator_shape/validator_shape.bluebook",
+      output_rs: "hecks_life/src/validator.rs",
+      phase: "a",
+      ship_status: "in_progress",
+      description: "Phase A proof — 6 rules + word-classifier. 400 LoC target. Byte-identity gate."
+
+    # Phase B queue — plan §7. Filed now so the manifest shows the arc.
+    fixture "ValidatorWarnings",
+      name: "validator_warnings",
+      source_bluebook: "hecks_conception/capabilities/validator_warnings_shape/validator_warnings_shape.bluebook",
+      output_rs: "hecks_life/src/validator_warnings.rs",
+      phase: "b",
+      ship_status: "not_started",
+      description: "Sibling of validator — same shape, different rules. First Phase B module."
+
+    fixture "FixturesParser",
+      name: "fixtures_parser",
+      source_bluebook: "hecks_conception/capabilities/fixtures_parser_shape/fixtures_parser_shape.bluebook",
+      output_rs: "hecks_life/src/fixtures_parser.rs",
+      phase: "b",
+      ship_status: "not_started",
+      description: "Per plan §7 step 2 — parsers next after validators"
+
+    fixture "BehaviorsParser",
+      name: "behaviors_parser",
+      source_bluebook: "hecks_conception/capabilities/behaviors_parser_shape/behaviors_parser_shape.bluebook",
+      output_rs: "hecks_life/src/behaviors_parser.rs",
+      phase: "b",
+      ship_status: "not_started",
+      description: "Per plan §7 step 2"
+
+    fixture "HecksagonParser",
+      name: "hecksagon_parser",
+      source_bluebook: "hecks_conception/capabilities/hecksagon_parser_shape/hecksagon_parser_shape.bluebook",
+      output_rs: "hecks_life/src/hecksagon_parser.rs",
+      phase: "b",
+      ship_status: "not_started",
+      description: "Per plan §7 step 2"
+
+    fixture "Dump",
+      name: "dump",
+      source_bluebook: "hecks_conception/capabilities/dump_shape/dump_shape.bluebook",
+      output_rs: "hecks_life/src/dump.rs",
+      phase: "b",
+      ship_status: "not_started",
+      description: "Canonical-IR serializer — almost declarative, easy Phase B target"
+
+    fixture "Specializer",
+      name: "specializer",
+      source_bluebook: "hecks_conception/capabilities/specializer/specializer.bluebook",
+      output_rs: "hecks_life/src/specializer/",
+      phase: "c",
+      ship_status: "not_started",
+      description: "The self-referential one — Phase C, 2nd Futamura. Specializer lifted from its own bluebook."
+  end
+end

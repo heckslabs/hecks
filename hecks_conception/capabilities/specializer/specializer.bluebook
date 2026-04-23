@@ -1,0 +1,108 @@
+Hecks.bluebook "Specializer", version: "2026.04.23.1" do
+  vision "The Futamura specializer — value-object shape for the L1-L6 interpreter IR layers + the projections that lower between them. First-Futamura target: given any bluebook, produce Rust byte-equivalent to hand-written source."
+  category "autophagy"
+
+  # ============================================================
+  # SPECIALIZER — i51 Phase A commit 2 (value objects for L1-L6)
+  # ============================================================
+  #
+  # This is §9 commit 1 in docs/plans/i51_futamura_projections.md:
+  # "value-objects for L1-L6 IR" — the declarative scaffold the later
+  # projection logic will consume. No logic here yet; just the shape
+  # of each IR layer and the projections that connect them.
+  #
+  # Per §3 of the plan, the hecks_life interpreter already has these
+  # internal stages. Naming them as shape-only aggregates lets us
+  # partial-evaluate one layer at a time rather than all at once.
+  #
+  #   L0 bluebook      — source DSL (the five .bluebook / .hecksagon /
+  #                      .fixtures / .behaviors / .world files)
+  #   L1 canonical_ir  — normalized JSON IR (already shipped as dump.rs
+  #                      + spec/parity/canonical_ir.rb)
+  #   L2 flow_ir       — command graph per aggregate: commands → events
+  #                      → policies → triggers
+  #   L3 dispatch_ir   — command bus lowered: middleware, guards,
+  #                      mutations, emissions, persistence
+  #   L4 tick_ir       — body-cycle shape: which commands fire on
+  #                      mindstream/heart/consciousness ticks
+  #   L5 memory_ir     — heki I/O lowered: paths, append/upsert,
+  #                      serialization contracts
+  #   L6 rust_ir       — Rust-specific: module structure, ownership,
+  #                      lifetimes, Serde derives, trait dispatch
+  #   L7 rust_source   — emitted .rs files, rustfmt'd, cargo-built
+  #   L8 rust_binary   — the artifact. Terminus.
+  #
+  # For validator.rs (Phase A target) the useful projections are
+  # L0 → L1 → L6 → L7. Most modules will skip L2-L5 — they only apply
+  # where runtime dispatch is involved. The layer taxonomy is general
+  # so Phase B can extend it module by module without reshaping the
+  # specializer.
+  #
+  # Shape-only aggregates per the transitional pattern from PR #267
+  # and documented in validator_shape.bluebook. When i42 (catalog-
+  # dialect) lands, these move to sibling .fixtures catalog tables.
+
+  # ---- IRLayer ------------------------------------------------------
+  #
+  # One row per layer L0..L8 in the interpreter factoring. `number` is
+  # the numeric index so projections can reference "the layer below me"
+  # uniformly. `reads_from` / `returns` describe the pure-function
+  # contract — each layer is a function of the one above.
+
+  aggregate "IRLayer", "One layer in the L0..L8 interpreter factoring" do
+    attribute :name,        String
+    # number: L0..L8 — 0..8
+    attribute :number,      Integer
+    attribute :description, String
+    # reads_from: the layer this one is a pure function of (or 'source'
+    # for L0, which reads raw file text)
+    attribute :reads_from,  String
+    # returns: short description of the data shape this layer produces
+    attribute :returns,     String
+    # ship_status: shipped | partial | not_started — tracks which
+    # layers already exist in hecks_life vs which are Phase B+ work
+    attribute :ship_status, String
+  end
+
+  # ---- Projection ---------------------------------------------------
+  #
+  # One row per L_n → L_(n+1) lowering. transform_kind describes the
+  # algorithmic shape the specializer uses (parse / normalize / graph
+  # / lower / emit). from_layer / to_layer name the source + target
+  # layers by their IRLayer.name so the projection chain composes.
+
+  aggregate "Projection", "One L_n → L_(n+1) lowering step — the specializer's unit of work" do
+    attribute :name,           String
+    attribute :from_layer,     String
+    attribute :to_layer,       String
+    # transform_kind: parse | normalize | graph | lower | emit | compile
+    attribute :transform_kind, String
+    attribute :description,    String
+    # impl_module: the Rust module (or Ruby file) that holds the logic
+    # for this projection once it's written. Points at hand-written
+    # source during Phase A; points at generated source at Phase B end.
+    attribute :impl_module,    String
+    # ship_status: shipped | partial | not_started | phase_a | phase_b
+    attribute :ship_status,    String
+  end
+
+  # ---- SpecializerTarget --------------------------------------------
+  #
+  # One row per module the specializer is being applied to. Phase A
+  # has a single row (validator). Phase B will add rows for every
+  # module listed in plan §7. Gives us a queryable manifest of the
+  # autophagy arc's progress.
+
+  aggregate "SpecializerTarget", "One module being specialized — source bluebook, output Rust path, current phase" do
+    attribute :name,               String
+    # source_bluebook: relative path to the L0 shape bluebook
+    attribute :source_bluebook,    String
+    # output_rs: relative path the emitted .rs lands at
+    attribute :output_rs,          String
+    # phase: a | b | c — which Futamura phase this target ships in
+    attribute :phase,              String
+    # ship_status: not_started | in_progress | byte_identical | retired
+    attribute :ship_status,        String
+    attribute :description,        String
+  end
+end
