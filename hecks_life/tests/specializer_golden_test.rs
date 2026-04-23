@@ -86,6 +86,7 @@ fn specializer_hecksagon_wiring_is_present() {
         "specialize_dump",
         "specialize_duplicate_policy",
         "specialize_lifecycle",
+        "specialize_meta_subclass",
     ] {
         assert!(
             hex.shell_adapters.iter().any(|a| a.name == expected),
@@ -125,4 +126,16 @@ fn specializer_produces_byte_identical_duplicate_policy_validator_rs() {
 #[test]
 fn specializer_produces_byte_identical_lifecycle_validator_rs() {
     assert_byte_identical("lifecycle", "hecks_life/src/lifecycle_validator.rs");
+}
+
+#[test]
+fn meta_specializer_produces_byte_identical_duplicate_policy_rb() {
+    // Phase C PC-1 — the self-referential pilot. The meta-specializer
+    // emits a file under lib/hecks_specializer/ — the same directory
+    // that holds the code doing the emission. First 2nd-Futamura proof,
+    // scoped to one subclass shell.
+    assert_byte_identical(
+        "meta_subclass",
+        "lib/hecks_specializer/duplicate_policy.rb",
+    );
 }

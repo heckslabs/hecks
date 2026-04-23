@@ -106,6 +106,43 @@ Hecks.bluebook "Specializer", version: "2026.04.23.1" do
     attribute :description,        String
   end
 
+  # ---- SpecializerSubclass -----------------------------------------
+  #
+  # Phase C PC-1 — bluebook-ifies the per-target Ruby subclass modules
+  # in lib/hecks_specializer/*.rb. Each subclass is a 15-LoC shell:
+  #
+  #   class <ClassName> < <BaseClass>
+  #     SHAPE     = REPO_ROOT.join("<shape_path>")
+  #     TARGET_RS = REPO_ROOT.join("<target_rs_path>")
+  #   end
+  #   register :<target_name>, <ClassName>
+  #
+  # A new row here = a new Ruby module. The meta-specializer
+  # (bin/meta-specialize, PC-1) reads these rows and emits the Ruby.
+  # Byte-identity is gated by the specializer_golden_test (Ruby-side
+  # counterpart coming with PC-1).
+
+  aggregate "SpecializerSubclass", "One Ruby subclass module under lib/hecks_specializer/" do
+    # target_name: the CLI / register key (e.g. "duplicate_policy")
+    attribute :target_name,    String
+    # class_name: the Ruby class name (e.g. "DuplicatePolicy")
+    attribute :class_name,     String
+    # base_class: parent Ruby class. "DiagnosticValidator" for the
+    # post-i59 diagnostic retirements; subclasses directly extending
+    # Target (validator, validator_warnings, dump) leave this empty
+    # — those still carry their own emit() and stay hand-written
+    # under PC-1's scope.
+    attribute :base_class,     String
+    # shape_path: relative path to the target's fixtures file
+    attribute :shape_path,     String
+    # target_rs_path: relative path to the emitted .rs file
+    attribute :target_rs_path, String
+    # module_doc: short doc comment at top of the Ruby file
+    attribute :module_doc,     String
+    # output_rb: relative path to the generated Ruby file
+    attribute :output_rb,      String
+  end
+
   # ---- SpecializeRun ------------------------------------------------
   #
   # Dispatchable command surface for the specializer. Specialize takes
