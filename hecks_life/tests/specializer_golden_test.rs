@@ -86,6 +86,7 @@ fn specializer_hecksagon_wiring_is_present() {
         "specialize_dump",
         "specialize_duplicate_policy",
         "specialize_lifecycle",
+        "specialize_hecksagon_parser",
         "specialize_meta_subclass",
         "specialize_meta_subclass_lifecycle",
         "specialize_meta_diagnostic_validator",
@@ -133,6 +134,17 @@ fn specializer_produces_byte_identical_duplicate_policy_validator_rs() {
 #[test]
 fn specializer_produces_byte_identical_lifecycle_validator_rs() {
     assert_byte_identical("lifecycle", "hecks_life/src/lifecycle_validator.rs");
+}
+
+#[test]
+fn specializer_produces_byte_identical_hecksagon_parser_rs() {
+    // i51 Phase B — third parser retirement after validator.rs and
+    // dump.rs. LineParser + LineDispatch (templated handlers) +
+    // ParserHelper (verbatim bodies for the per-character automaton in
+    // join_adapter_lines and the 8-key kwarg table in
+    // parse_shell_adapter). Establishes the parser-shape template for
+    // behaviors_parser + fixtures_parser follow-ups.
+    assert_byte_identical("hecksagon_parser", "hecks_life/src/hecksagon_parser.rs");
 }
 
 #[test]
