@@ -377,6 +377,41 @@ fn rust_specializer_produces_byte_identical_hecksagon_parser_rs() {
     );
 }
 
+// [antibody-exempt: hecks_life/tests/specializer_golden_test.rs — golden-test scaffolding]
+#[test]
+fn rust_specializer_produces_byte_identical_validator_rs() {
+    // Phase D — Rust-native specializer for validator.rs. Largest
+    // standalone specializer in the codebase (393 LoC Ruby). Seven
+    // check_kind emitters (unique, non_empty, first_word_verb,
+    // reference_valid, trigger_valid, unique_across, distinct_aliases)
+    // plus the command_naming_support block with hand-formatted suffix
+    // tables, verb-exception list, and verb-suffix list. No .rs.frag
+    // snippets — all emission is inline Rust format! strings.
+    let root = repo_root();
+    let bin = root.join("hecks_life/target/release/hecks-life");
+    assert!(
+        bin.exists(),
+        "hecks-life binary missing — build release first",
+    );
+    let output = Command::new(&bin)
+        .args(["specialize", "validator"])
+        .current_dir(&root)
+        .output()
+        .expect("hecks-life specialize validator failed");
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr),
+    );
+    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
+    let tracked = fs::read_to_string(root.join("hecks_life/src/validator.rs"))
+        .expect("validator.rs missing");
+    assert_eq!(
+        generated, tracked,
+        "Rust specializer output drifted from tracked file",
+    );
+}
+
 #[test]
 fn rust_specializer_produces_byte_identical_behaviors_parser_rs() {
     // Phase D — Rust-native specializer for behaviors_parser. Ports
