@@ -12,14 +12,17 @@
 //! struct/enum ceremony — unblocking byte-identity Futamura retirement
 //! at an acceptable declarativity ratio.
 //!
-//! Usage:
+//! Usage (illustrative; not doctest — `crate::` path doesn't resolve
+//! in external doctest harness):
 //!
-//!     use crate::diagnostic::{Finding, Severity};
+//! ```text
+//! use crate::diagnostic::{Finding, Severity};
 //!
-//!     let f = Finding::err("<location>", "<message>");
-//!     let g = Finding::warn("<location>", "<message>");
-//!     println!("{} {}", f.icon(), f.message);   // ✗ <message>
-//!     println!("{} {}", g.icon(), g.message);   // ⚠ <message>
+//! let f = Finding::err("<location>", "<message>");
+//! let g = Finding::warn("<location>", "<message>");
+//! println!("{} {}", f.icon(), f.message);   // ✗ <message>
+//! println!("{} {}", g.icon(), g.message);   // ⚠ <message>
+//! ```
 //!
 //! Severity has both variants even when a particular validator only
 //! emits one of them (duplicate_policy_validator is Error-only today).
