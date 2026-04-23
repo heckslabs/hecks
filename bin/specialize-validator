@@ -61,7 +61,6 @@ module Hecks
           emit_rule(find_rule("valid_references")),
           emit_rule(find_rule("valid_policy_triggers")),
           emit_rule(find_rule("no_duplicate_commands")),
-          emit_tests,
         ].join
       end
 
@@ -89,6 +88,12 @@ module Hecks
       def emit_header
         <<~RS
           //! Domain validator — checks a parsed domain for DDD consistency
+          //!
+          //! GENERATED FILE — do not edit.
+          //! Source:    hecks_conception/capabilities/validator_shape/
+          //! Regenerate: bin/specialize-validator --output hecks_life/src/validator.rs
+          //! Contract:  specializer.hecksagon :specialize_validator shell adapter
+          //! Tests:     hecks_life/tests/validator_rules_test.rs (moved out for i51 Phase A commit 4)
           //!
           //! Ports the Ruby Hecks::Validator rules to Rust. Each rule inspects
           //! the Domain IR and returns error strings. An empty vec means valid.
@@ -406,11 +411,12 @@ module Hecks
         RS
       end
 
-      # ── Tests — baked in for Phase A. Phase B commit carves these
-      #    out into their own fixtures aggregate (TestCase).
-      def emit_tests
-        File.read(TARGET_RS).split(/^#\[cfg\(test\)\]/).last.then { |rest| "\n#[cfg(test)]#{rest}" }
-      end
+      # Tests moved to hecks_life/tests/validator_rules_test.rs in commit 4
+      # (i51 Phase A) to break the circular dependency — previously emit_tests
+      # read the tests section out of the target .rs file the specializer
+      # was generating. When Phase B models test cases as a TestCase
+      # aggregate in the shape fixtures, tests come back under the
+      # shape-driven pipeline.
     end
   end
 end
