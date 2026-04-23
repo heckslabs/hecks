@@ -1,0 +1,24 @@
+Hecks.fixtures "HecksagonParserShape" do
+  # Single-line fixtures per i57 parser limitation.
+
+  # ── LineParser — the module's outer contract ────────────────────
+  aggregate "LineParser" do
+    fixture "HecksagonParser", module: "hecksagon_parser", doc_snippet: "hecks_conception/capabilities/hecksagon_parser_shape/snippets/doc.rs.frag", imports: "crate::hecksagon_helpers::*\ncrate::hecksagon_ir::*", root_fn_name: "parse", root_signature: "pub fn parse(source: &str) -> Hecksagon", detector_fn_name: "is_hecksagon_source", detector_keyword: "Hecks.hecksagon"
+  end
+
+  # ── LineDispatch — one row per line-leading token in the parse() loop ──
+  aggregate "LineDispatch" do
+    fixture "HexName",     parser: "hecksagon_parser", starts_with: "Hecks.hecksagon", handler_kind: "capture_quoted_into", target_field: "name",          helper_fn: "",          order: 1
+    fixture "Subscribe",   parser: "hecksagon_parser", starts_with: "subscribe",       handler_kind: "push_quoted_onto",    target_field: "subscriptions", helper_fn: "",          order: 2
+    fixture "Gate",        parser: "hecksagon_parser", starts_with: "gate ",           handler_kind: "multiline_block",     target_field: "gates",         helper_fn: "parse_gate", order: 3
+    fixture "Adapter",     parser: "hecksagon_parser", starts_with: "adapter ,adapter(", handler_kind: "multiline_adapter", target_field: "",              helper_fn: "absorb_adapter", order: 4
+  end
+
+  # ── ParserHelper — private helpers emitted verbatim via body_snippet ──
+  aggregate "ParserHelper" do
+    fixture "AbsorbAdapter",     parser: "hecksagon_parser", name: "absorb_adapter",     doc_comment: "/// Take one joined `adapter …` invocation and sort it into the right\n/// bucket: persistence, io adapter, or shell adapter.", signature: "fn absorb_adapter(joined: &str, hex: &mut Hecksagon)", body_snippet: "hecks_conception/capabilities/hecksagon_parser_shape/snippets/absorb_adapter_body.rs.frag", order: 1
+    fixture "ParseShellAdapter", parser: "hecksagon_parser", name: "parse_shell_adapter", doc_comment: "/// Map `name:, command:, args:, output_format:, timeout:, working_dir:,\n/// env:, ok_exit:` into a ShellAdapter. Handles the convenience form\n/// `command: \"git rev-parse {{ref}}\"` (no separate args vector) by\n/// splitting on whitespace.", signature: "fn parse_shell_adapter(rest: &str) -> Option<ShellAdapter>", body_snippet: "hecks_conception/capabilities/hecksagon_parser_shape/snippets/parse_shell_adapter_body.rs.frag", order: 2
+    fixture "ParseGate",         parser: "hecksagon_parser", name: "parse_gate",         doc_comment: "/// `gate \"Agg\", :role do allow :A, :B end` — single-line or block form.", signature: "fn parse_gate(lines: &[&str]) -> (Option<Gate>, usize)", body_snippet: "hecks_conception/capabilities/hecksagon_parser_shape/snippets/parse_gate_body.rs.frag", order: 3
+    fixture "JoinAdapterLines",  parser: "hecksagon_parser", name: "join_adapter_lines", doc_comment: "/// Join `adapter …` lines until the parens/brackets balance. Returns\n/// the joined one-line form and the number of source lines consumed.", signature: "fn join_adapter_lines(lines: &[&str]) -> (String, usize)", body_snippet: "hecks_conception/capabilities/hecksagon_parser_shape/snippets/join_adapter_lines_body.rs.frag", order: 4
+  end
+end

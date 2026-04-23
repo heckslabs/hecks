@@ -1,0 +1,92 @@
+Hecks.bluebook "HecksagonParserShape", version: "2026.04.23.1" do
+  vision "Shape of hecks_life/src/hecksagon_parser.rs — i51 Phase B target. Third parser retirement after validator.rs and dump.rs; establishes the parser-shape template for behaviors_parser + fixtures_parser follow-ups."
+  category "autophagy"
+
+  # ============================================================
+  # HECKSAGON_PARSER SHAPE — i51 Phase B
+  # ============================================================
+  #
+  # hecksagon_parser.rs is a line-oriented recognizer for the
+  # canonical shapes emitted by the Ruby DSL builder. Small (~189
+  # LoC) but recursive-feeling — four line-leading tokens each map
+  # to their own absorber. The shape factors that into three
+  # aggregates:
+  #
+  #   LineParser (1 row) — the module's outer contract.
+  #     module, doc_snippet, imports, root_fn_name, root_signature,
+  #     detector_fn_name, detector_keyword.
+  #
+  #   LineDispatch (N rows) — one per line-leading token handled by
+  #     the root parse() loop. starts_with may be a comma-separated
+  #     list ("adapter ,adapter(") when multiple prefixes share a
+  #     handler. handler_kind picks the Rust template:
+  #       capture_quoted_into — `hex.<field> = between_quotes(line)`
+  #       push_quoted_onto    — `hex.<field>.push(between_quotes(line))`
+  #       multiline_block     — delegate to a helper that consumes
+  #                             multiple lines (parse_gate)
+  #       multiline_adapter   — join_adapter_lines + absorb_adapter
+  #
+  #   ParserHelper (N rows) — private helpers emitted verbatim via
+  #     body_snippet. Mirrors the DiagnosticHelper shape.
+  #
+  # Per-character automaton bodies (join_adapter_lines) and kwarg
+  # dispatch tables (parse_shell_adapter) are emitted verbatim via
+  # body_snippets — they don't factor into clean templates.
+
+  aggregate "LineParser", "One line-oriented parser module" do
+    attribute :module,            String
+    # doc_snippet: path to the //! module-level doc comment snippet
+    attribute :doc_snippet,       String
+    # imports: newline-separated use lines (without "use " prefix
+    # and without trailing semicolon — specializer adds both).
+    attribute :imports,           String
+    # root_fn_name: the public entry — usually "parse"
+    attribute :root_fn_name,      String
+    # root_signature: full signature minus body, e.g.
+    # "pub fn parse(source: &str) -> Hecksagon"
+    attribute :root_signature,    String
+    # detector_fn_name: the is_<kind>_source detector entry
+    attribute :detector_fn_name,  String
+    # detector_keyword: the prefix the detector matches on the first
+    # non-blank, non-comment line (e.g. "Hecks.hecksagon")
+    attribute :detector_keyword,  String
+  end
+
+  aggregate "LineDispatch", "One line-leading-token dispatch inside the root parse() loop" do
+    # parser: links to LineParser.module
+    attribute :parser,        String
+    # starts_with: the line prefix(es) this dispatch matches. May be a
+    # single literal ("Hecks.hecksagon") or a comma-separated list
+    # ("adapter ,adapter(") when the same handler fires on multiple
+    # prefixes.
+    attribute :starts_with,   String
+    # handler_kind: capture_quoted_into | push_quoted_onto |
+    #               multiline_block    | multiline_adapter
+    attribute :handler_kind,  String
+    # target_field: struct field on the IR (e.g. "name",
+    # "subscriptions", "gates", ""). Ignored for multiline_adapter
+    # (absorb_adapter picks the bucket itself).
+    attribute :target_field,  String, default: ""
+    # helper_fn: name of the helper this dispatch delegates to
+    # (parse_gate, absorb_adapter, ...). Empty for trivial handlers.
+    attribute :helper_fn,     String, default: ""
+    # order: emission order inside the while loop
+    attribute :order,         Integer
+  end
+
+  aggregate "ParserHelper", "A private helper fn used by a LineParser" do
+    # parser: links to LineParser.module
+    attribute :parser,       String
+    attribute :name,         String
+    # doc_comment: line-delimited /// above the signature. Empty string
+    # skips the doc block entirely.
+    attribute :doc_comment,  String
+    # signature: full Rust signature, e.g.
+    # "fn absorb_adapter(joined: &str, hex: &mut Hecksagon)"
+    attribute :signature,    String
+    # body_snippet: path to the fn body snippet (between { and })
+    attribute :body_snippet, String
+    # order: emission order within the module
+    attribute :order,        Integer
+  end
+end

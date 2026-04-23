@@ -66,6 +66,15 @@ Hecks.hecksagon "Specializer" do
     args:    ["lifecycle", "--output", "{{output}}"],
     ok_exit: 0
 
+  # i51 Phase B — hecksagon_parser retirement. Third parser target;
+  # establishes the parser-shape template for behaviors_parser +
+  # fixtures_parser follow-ups.
+  adapter :shell,
+    name:    :specialize_hecksagon_parser,
+    command: "bin/specialize",
+    args:    ["hecksagon_parser", "--output", "{{output}}"],
+    ok_exit: 0
+
   # Phase C PC-1 — meta-specializer. Emits a Ruby subclass shell
   # under lib/hecks_specializer/ from a SpecializerSubclass fixture
   # row. Self-referential (output lives in the same dir as the code
