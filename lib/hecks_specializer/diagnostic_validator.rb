@@ -3,6 +3,11 @@
 # Hecks::Specializer::DiagnosticValidator — base class for the Phase B
 # diagnostic-style validator retirements (duplicate_policy, lifecycle, io).
 #
+# GENERATED FILE — do not edit.
+# Source:    hecks_conception/capabilities/diagnostic_validator_meta_shape/
+# Regenerate: bin/specialize meta_diagnostic_validator --output lib/hecks_specializer/diagnostic_validator.rb
+# Contract:  specializer.hecksagon :specialize_meta_diagnostic_validator shell adapter
+#
 # Each subclass defines:
 #   SHAPE      — path to its <target>_validator_shape.fixtures
 #   TARGET_RS  — path to the .rs file it emits

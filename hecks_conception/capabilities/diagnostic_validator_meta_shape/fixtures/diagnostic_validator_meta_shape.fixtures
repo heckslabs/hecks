@@ -1,0 +1,19 @@
+Hecks.fixtures "DiagnosticValidatorMetaShape" do
+  # Single-line fixtures per i57 parser limitation.
+
+  aggregate "RubyClass" do
+    fixture "DiagnosticValidator", name: "DiagnosticValidator", module_path: "Hecks::Specializer", base_class: "", includes: "Target", doc_snippet: "hecks_conception/capabilities/diagnostic_validator_meta_shape/snippets/doc.rb.frag", output_rb: "lib/hecks_specializer/diagnostic_validator.rb"
+  end
+
+  aggregate "RubyMethod" do
+    fixture "Emit", class_name: "DiagnosticValidator", name: "emit", visibility: "public", signature: "", body_snippet: "hecks_conception/capabilities/diagnostic_validator_meta_shape/snippets/emit_body.rb.frag", order: 1
+    fixture "EmitHeader", class_name: "DiagnosticValidator", name: "emit_header", visibility: "private", signature: "validator", body_snippet: "hecks_conception/capabilities/diagnostic_validator_meta_shape/snippets/emit_header_body.rb.frag", order: 2
+    fixture "EmitImports", class_name: "DiagnosticValidator", name: "emit_imports", visibility: "private", signature: "validator", body_snippet: "hecks_conception/capabilities/diagnostic_validator_meta_shape/snippets/emit_imports_body.rb.frag", order: 3
+    fixture "EmitReport", class_name: "DiagnosticValidator", name: "emit_report", visibility: "private", signature: "kind", body_snippet: "hecks_conception/capabilities/diagnostic_validator_meta_shape/snippets/emit_report_body.rb.frag", order: 4
+    fixture "EmitReportFlat", class_name: "DiagnosticValidator", name: "emit_report_flat", visibility: "private", signature: "", body_snippet: "hecks_conception/capabilities/diagnostic_validator_meta_shape/snippets/emit_report_flat_body.rb.frag", order: 5
+    fixture "EmitReportFlatWithStrict", class_name: "DiagnosticValidator", name: "emit_report_flat_with_strict", visibility: "private", signature: "", body_snippet: "hecks_conception/capabilities/diagnostic_validator_meta_shape/snippets/emit_report_flat_with_strict_body.rb.frag", order: 6
+    fixture "EmitReportPartitionedWithStrict", class_name: "DiagnosticValidator", name: "emit_report_partitioned_with_strict", visibility: "private", signature: "", body_snippet: "hecks_conception/capabilities/diagnostic_validator_meta_shape/snippets/emit_report_partitioned_with_strict_body.rb.frag", order: 7
+    fixture "EmitHelper", class_name: "DiagnosticValidator", name: "emit_helper", visibility: "private", signature: "helper, trailing_blank: false", body_snippet: "hecks_conception/capabilities/diagnostic_validator_meta_shape/snippets/emit_helper_body.rb.frag", order: 8
+    fixture "EmitRule", class_name: "DiagnosticValidator", name: "emit_rule", visibility: "private", signature: "validator, leading_blank: true, trailing_blank: false", body_snippet: "hecks_conception/capabilities/diagnostic_validator_meta_shape/snippets/emit_rule_body.rb.frag", order: 9
+  end
+end
