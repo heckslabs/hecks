@@ -1,0 +1,68 @@
+Hecks.bluebook "ValidatorWarningsShape", version: "2026.04.23.1" do
+  vision "The shape of hecks_life/src/validator_warnings.rs as a bluebook — second Futamura target (Phase B commit 1). Soft advisory checks that never fail validation but surface bounded-context smell."
+  category "autophagy"
+
+  # ============================================================
+  # VALIDATOR_WARNINGS SHAPE — Phase B commit 1 target
+  # ============================================================
+  #
+  # validator_warnings.rs is 139 LoC of Rust — sibling of validator.rs.
+  # Two advisory rules, each inspecting the Domain IR and returning an
+  # Option<String>. Warnings never fail validation; they surface
+  # bounded-context smells (too many aggregates, mixed concerns).
+  #
+  # Shape differences from validator.rs:
+  #   - Return type is Option<String>, not Vec<String>
+  #   - No unified entry point — each warning is called individually
+  #     (pub fn per warning, no dispatcher)
+  #   - Rules have very different body shapes:
+  #       * aggregate_count_warning: simple threshold check (~11 LoC)
+  #       * mixed_concerns_warning: BFS over adjacency graph (~108 LoC)
+  #   - The second rule is sui generis — its body doesn't template
+  #     from a check_kind primitive. Filed as i58: grow the specializer
+  #     taxonomy OR keep a per-rule Rust snippet file until the logic
+  #     can be expressed as IR.
+  #
+  # Layer mapping (per docs/plans/i51_futamura_projections.md §3):
+  #   L0 = this file + fixtures/validator_warnings_shape.fixtures
+  #   L1 = canonical_ir representation of this file
+  #   L7 = hecks_life/src/validator_warnings.rs (generated target)
+  #
+  # Shape-only aggregates per the transitional pattern documented in
+  # validator_shape.bluebook. Same retirement path: when i42 (catalog-
+  # dialect) lands, these become catalog tables in fixtures.
+
+  # ---- WarningRule -------------------------------------------------
+  #
+  # One row per warning in validator_warnings.rs. Mirrors ValidationRule
+  # from validator_shape but with the warning-specific shape:
+  # returns Option<String>, no unified dispatcher, and check_kind
+  # covers new primitives (count_threshold, complex) not in validator.
+  #
+  # `body_strategy` flags whether the rule's body is templated by the
+  # specializer (check_kind-driven) or embedded as a Rust snippet file
+  # (complex-rule escape hatch). When body_strategy is "embedded", the
+  # specializer reads snippet_path and interpolates as the fn body.
+
+  aggregate "WarningRule", "One warning rule — name, shape, body-strategy pointer" do
+    attribute :name,            String
+    attribute :rust_fn_name,    String
+    attribute :description,     String
+    # inspects: IR path walked — same vocabulary as ValidationRule
+    attribute :inspects,        String
+    # check_kind: count_threshold | graph_components | complex
+    # count_threshold  — len > N → Some(msg), else None
+    # graph_components — build adjacency, BFS, count connected pieces
+    # complex          — body_strategy must be "embedded"
+    attribute :check_kind,      String
+    # threshold: used by count_threshold
+    attribute :threshold,       Integer, default: 0
+    # error_template: format! string with {name}/{count}/etc. placeholders
+    attribute :message_template, String
+    # body_strategy: templated | embedded
+    attribute :body_strategy,   String
+    # snippet_path: relative path to a Rust snippet file when
+    # body_strategy == "embedded". Ignored otherwise.
+    attribute :snippet_path,    String, default: ""
+  end
+end
