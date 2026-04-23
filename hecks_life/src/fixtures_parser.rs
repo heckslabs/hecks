@@ -142,8 +142,32 @@ pub fn parse(source: &str) -> FixturesFile {
             }
             depth += 1;
         } else if line.starts_with("fixture ") {
+            // Multi-line fixture support: if the line ends with a
+            // trailing comma (continuation marker), greedily consume
+            // subsequent non-keyword, non-empty lines into a single
+            // logical fixture line. Blank / comment lines are skipped
+            // across; `fixture`, `aggregate`, `end`, and `Hecks.fixtures`
+            // terminate the span. See inbox i57.
+            let mut combined = line.to_string();
+            while combined.trim_end().ends_with(',') && i + 1 < lines.len() {
+                let next = lines[i + 1].trim();
+                if next.is_empty() || next.starts_with('#') {
+                    i += 1;
+                    continue;
+                }
+                if next.starts_with("fixture ")
+                    || next.starts_with("aggregate ")
+                    || next.starts_with("end")
+                    || next.starts_with("Hecks.fixtures")
+                {
+                    break;
+                }
+                combined.push(' ');
+                combined.push_str(next);
+                i += 1;
+            }
             if let Some(agg) = &current_agg {
-                file.fixtures.push(parse_fixture_line(line, agg));
+                file.fixtures.push(parse_fixture_line(&combined, agg));
             }
         } else if line == "end" {
             if depth > 0 { depth -= 1; }
@@ -436,5 +460,44 @@ mod tests {
         assert!(!ff.catalogs.contains_key("Pizza"));
         // Fixtures from both aggregates still land in the flat list.
         assert_eq!(ff.fixtures.len(), 2);
+    }
+
+    #[test]
+    fn multi_line_fixture_consumes_continuation_lines() {
+        // i57 fix — when a fixture line ends in a trailing comma, the
+        // parser greedily consumes indented continuation lines until a
+        // keyword (fixture / aggregate / end / Hecks.fixtures) or a
+        // non-comma-ended line closes the span. Before this fix the
+        // parser silently produced empty attributes for multi-line
+        // fixtures, forcing authors to collapse everything onto one line.
+        let src = r#"
+            Hecks.fixtures "Multi" do
+              aggregate "Widget" do
+                fixture "SingleLine", name: "single", value: "foo"
+                fixture "MultiLine",
+                        name: "multi",
+                        value: "bar",
+                        extra: "baz"
+                fixture "AfterMulti", name: "after"
+              end
+            end
+        "#;
+        let ff = parse(src);
+        assert_eq!(ff.fixtures.len(), 3);
+        let multi = ff.fixtures.iter()
+            .find(|f| f.name.as_deref() == Some("MultiLine"))
+            .expect("MultiLine fixture");
+        let attrs: std::collections::BTreeMap<_, _> =
+            multi.attributes.iter().cloned().collect();
+        assert_eq!(attrs.get("name").map(String::as_str), Some("multi"));
+        assert_eq!(attrs.get("value").map(String::as_str), Some("bar"));
+        assert_eq!(attrs.get("extra").map(String::as_str), Some("baz"));
+        // Continuation consumption must not leak into the next fixture.
+        let after = ff.fixtures.iter()
+            .find(|f| f.name.as_deref() == Some("AfterMulti"))
+            .expect("AfterMulti fixture");
+        let after_attrs: std::collections::BTreeMap<_, _> =
+            after.attributes.iter().cloned().collect();
+        assert_eq!(after_attrs.get("name").map(String::as_str), Some("after"));
     }
 }
