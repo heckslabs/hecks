@@ -218,13 +218,32 @@ fn parse_kv_line(line: &str) -> Option<(String, String)> {
 }
 
 /// Render a raw value token as canonical text. Strings unwrap their
-/// quotes; everything else is preserved verbatim (after trimming).
+/// outer quotes only when the entire token is a SINGLE quoted string.
+/// Multi-arg values (`"a", "b"`) keep their full raw form so the parity
+/// harness can compare against Ruby's joined representation.
 fn render_value(raw: &str) -> String {
     let t = raw.trim().trim_end_matches(';').trim();
-    if t.starts_with('"') && t.ends_with('"') && t.len() >= 2 {
+    if is_single_quoted_string(t) {
         return strip_quotes(t);
     }
     t.to_string()
+}
+
+/// True iff `t` is a single `"..."` with no unescaped quotes inside.
+fn is_single_quoted_string(t: &str) -> bool {
+    if !(t.starts_with('"') && t.ends_with('"') && t.len() >= 2) { return false; }
+    let bytes = t.as_bytes();
+    let mut prev = b'\0';
+    // Walk the inner bytes [1..len-1]. A `"` that is NOT escaped means
+    // the token is not a single quoted string (two adjacent quoted
+    // values, arguments, etc.).
+    for &b in &bytes[1..bytes.len() - 1] {
+        if b == b'"' && prev != b'\\' {
+            return false;
+        }
+        prev = b;
+    }
+    true
 }
 
 /// Walk an inline `do; k v; k v end` body and invoke `visitor(k, v)` for

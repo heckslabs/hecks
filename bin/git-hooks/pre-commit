@@ -20,6 +20,8 @@ REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 HECKS_LIFE="$REPO/hecks_life/target/release/hecks-life"
 CONCEPTION_DIR="$REPO/hecks_conception"
 PARITY_TEST="$REPO/spec/parity/parity_test.rb"
+HECKSAGON_PARITY_TEST="$REPO/spec/parity/hecksagon_parity_test.rb"
+WORLD_PARITY_TEST="$REPO/spec/parity/world_parity_test.rb"
 
 # ── Gate 1: parity ────────────────────────────────────────────────
 # Ruby DSL parser and Rust hecks-life parser must agree on every
@@ -34,6 +36,30 @@ if [ -z "$PARITY_SKIP" ] && [ -f "$PARITY_TEST" ]; then
         echo "add the fixture path to spec/parity/known_drift.txt."
         echo ""
         echo "Re-run: ruby -Ilib spec/parity/parity_test.rb"
+        exit 1
+    fi
+fi
+
+# ── Gate 1b: hecksagon + world parity ────────────────────────────
+# Same contract as Gate 1, but for the .hecksagon and .world DSLs
+# (see spec/parity/{hecksagon,world}_known_drift.txt for allowed drift).
+if [ -z "$PARITY_SKIP" ] && [ -f "$HECKSAGON_PARITY_TEST" ]; then
+    if ! (cd "$REPO" && ruby -Ilib "$HECKSAGON_PARITY_TEST" >/tmp/hecksagon_parity.out 2>&1); then
+        echo "COMMIT BLOCKED: hecksagon parity suite failed."
+        echo ""
+        tail -40 /tmp/hecksagon_parity.out
+        echo ""
+        echo "Re-run: ruby -Ilib spec/parity/hecksagon_parity_test.rb"
+        exit 1
+    fi
+fi
+if [ -z "$PARITY_SKIP" ] && [ -f "$WORLD_PARITY_TEST" ]; then
+    if ! (cd "$REPO" && ruby -Ilib "$WORLD_PARITY_TEST" >/tmp/world_parity.out 2>&1); then
+        echo "COMMIT BLOCKED: world parity suite failed."
+        echo ""
+        tail -40 /tmp/world_parity.out
+        echo ""
+        echo "Re-run: ruby -Ilib spec/parity/world_parity_test.rb"
         exit 1
     fi
 fi

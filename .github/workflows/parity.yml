@@ -47,6 +47,12 @@ jobs:
       - name: Run fixtures parity suite (Ruby ↔ Rust)
         run: bundle exec ruby -Ilib spec/parity/fixtures_parity_test.rb
 
+      - name: Run hecksagon parity suite (Ruby ↔ Rust)
+        run: bundle exec ruby -Ilib spec/parity/hecksagon_parity_test.rb
+
+      - name: Run world parity suite (Ruby ↔ Rust)
+        run: bundle exec ruby -Ilib spec/parity/world_parity_test.rb
+
       - name: Lifecycle validator across all bluebooks
         run: |
           BAD=""
