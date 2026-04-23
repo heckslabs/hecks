@@ -25,6 +25,10 @@ pub mod dump;
 pub mod fixtures_parser;
 pub mod hecksagon_parser;
 pub mod util;
+pub mod validator;
+pub mod validator_checks;
+pub mod validator_checks_graph;
+pub mod validator_morphology;
 pub mod validator_warnings;
 
 /// Dispatch by target name. Phase D ports are additive — each new
@@ -35,10 +39,11 @@ pub fn emit(target: &str, repo_root: &Path) -> Result<String, Box<dyn Error>> {
         "behaviors_parser" => behaviors_parser::emit(repo_root),
         "fixtures_parser" => fixtures_parser::emit(repo_root),
         "hecksagon_parser" => hecksagon_parser::emit(repo_root),
+        "validator" => validator::emit(repo_root),
         "validator_warnings" => validator_warnings::emit(repo_root),
         "dump" => dump::emit(repo_root),
         other => Err(format!(
-            "unknown specializer target: {}. Known: behaviors_parser, dump, fixtures_parser, hecksagon_parser, validator_warnings",
+            "unknown specializer target: {}. Known: behaviors_parser, dump, fixtures_parser, hecksagon_parser, validator, validator_warnings",
             other
         )
         .into()),
