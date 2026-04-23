@@ -26,6 +26,7 @@ agents — trust the decisions, don't re-derive them.
 | [i37_python_removal.md](i37_python_removal.md) | i37 | Phase A shipped (PR #272); Phase B+ unblocked |
 | [i42_catalog_dialect.md](i42_catalog_dialect.md) | i42 | Not started; retires 4 shape-only aggregates from PR #267 |
 | [i43_cross_bluebook_behaviors.md](i43_cross_bluebook_behaviors.md) | i43 | Not started; additive `.behaviors` DSL extension (10 commits) |
+| [i51_futamura_projections.md](i51_futamura_projections.md) | i51 | Not started; Rust autophagy via Futamura's three projections — Phase A proof on validator.rs first |
 | [terminal_capability_wiring.md](terminal_capability_wiring.md) | — | Follow-up to PR #263 |
 
 ## Dependencies between plans
